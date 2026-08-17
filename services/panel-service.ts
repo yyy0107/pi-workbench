@@ -44,6 +44,14 @@ export class PanelService {
     this.#store.getState().move(panelId, location);
   };
 
+  readonly collapse = (location: PanelLocation): void => {
+    this.#store.getState().collapse(location);
+  };
+
+  readonly expand = (location: PanelLocation): void => {
+    this.#store.getState().expand(location);
+  };
+
   readonly setSize = (location: PanelLocation, size: number): void => {
     const activePanelId = this.getActivePanelId(location);
     const definition = activePanelId ? this.#registry.get(activePanelId) : undefined;
@@ -72,6 +80,10 @@ export class PanelService {
 
   readonly getLocation = (panelId: string): PanelLocation | undefined => {
     return this.#store.getState().locationByPanelId[panelId];
+  };
+
+  readonly isCollapsed = (location: PanelLocation): boolean => {
+    return this.#store.getState().collapsedByLocation[location] === true;
   };
 
   readonly getSnapshot = (): PanelStoreState => this.#store.getState();

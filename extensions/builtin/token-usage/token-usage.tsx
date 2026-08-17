@@ -4,6 +4,8 @@ import { useAuiState } from "@assistant-ui/react";
 import { GaugeIcon } from "lucide-react";
 import { useMemo } from "react";
 
+import { useI18n } from "@/i18n";
+
 function estimateTextTokens(text: string) {
   let estimate = 0;
 
@@ -15,6 +17,7 @@ function estimateTextTokens(text: string) {
 }
 
 export function TokenUsage() {
+  const { t } = useI18n();
   const messages = useAuiState((state) => state.thread.messages);
 
   const tokenEstimate = useMemo(() => {
@@ -36,12 +39,12 @@ export function TokenUsage() {
 
   return (
     <div
-      aria-label={`Approximately ${tokenEstimate.toLocaleString()} tokens in this thread`}
+      aria-label={t("extensions.tokenUsage.accessibleLabel", { count: tokenEstimate })}
       className="inline-flex h-6 items-center gap-1.5 rounded-md px-1.5 font-mono text-[11px] tracking-tight text-muted-foreground tabular-nums"
-      title="Front-end estimate from visible thread content"
+      title={t("extensions.tokenUsage.description")}
     >
       <GaugeIcon aria-hidden="true" className="size-3" />
-      <span>≈ {tokenEstimate.toLocaleString()} tokens</span>
+      <span>{t("extensions.tokenUsage.display", { count: tokenEstimate })}</span>
     </div>
   );
 }

@@ -14,13 +14,22 @@ export class PanelRegistryImpl implements PanelRegistry {
     if (this.#panels.has(panel.id)) {
       throw new Error(`Panel "${panel.id}" is already registered`);
     }
+    if (typeof panel.title === "string" && panel.title.trim().length === 0) {
+      throw new Error(`Panel "${panel.id}" has an empty title`);
+    }
+    if (panel.title === undefined && panel.tabComponent === undefined) {
+      throw new Error(`Panel "${panel.id}" must define a title or tabComponent`);
+    }
     if (panel.minSize !== undefined && panel.maxSize !== undefined) {
       if (panel.minSize > panel.maxSize) {
         throw new Error(`Panel "${panel.id}" has a minSize greater than maxSize`);
       }
     }
 
-    const stored = Object.freeze({ ...panel });
+    const stored = Object.freeze({
+      ...panel,
+      tabClassNames: panel.tabClassNames ? Object.freeze({ ...panel.tabClassNames }) : undefined,
+    });
     this.#panels.set(panel.id, stored);
     this.#updateSnapshot();
 

@@ -5,6 +5,7 @@ import { FolderPlusIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/i18n";
 
 import {
   useWorkspaceDirectoryStore,
@@ -16,6 +17,7 @@ type DirectoryPickerWindow = Window & {
 };
 
 export function DirectoryPickerButton() {
+  const { t } = useI18n();
   const fallbackInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const addDirectory = useWorkspaceDirectoryStore((state) => state.addDirectory);
@@ -52,8 +54,8 @@ export function DirectoryPickerButton() {
         type="button"
         variant="ghost"
         size="icon-sm"
-        aria-label="添加本地工作区"
-        title="添加本地工作区"
+        aria-label={t("extensions.workspaceDirectory.add")}
+        title={t("extensions.workspaceDirectory.add")}
         onClick={() => void pickDirectory()}
         className="text-muted-foreground hover:text-foreground"
       >

@@ -3,6 +3,7 @@
 import { Trash2Icon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { useI18n } from "@/i18n";
 import type { PanelComponentProps } from "@/platform/extensions";
 
 interface TerminalLine {
@@ -11,38 +12,12 @@ interface TerminalLine {
   text: string;
 }
 
-const INITIAL_LINES: readonly TerminalLine[] = [
-  {
-    id: "welcome",
-    kind: "muted",
-    text: "Workbench Terminal · front-end preview",
-  },
-  {
-    id: "hint",
-    kind: "output",
-    text: 'Type "help" to see the available mock commands.',
-  },
-];
-
-const MOCK_RESPONSES: Readonly<Record<string, readonly string[]>> = {
-  help: [
-    "Available: help, pwd, whoami, git status, pnpm dev, clear",
-    "Commands are simulated locally and never reach a shell.",
-  ],
-  pwd: ["~/workbench-ui"],
-  whoami: ["workbench"],
-  "git status": [
-    "On branch codex/workbench-v1",
-    "Mock session — repository state is not inspected here.",
-  ],
-  "pnpm dev": [
-    "Mock only — no process was started.",
-    "Use the real project terminal to run pnpm commands.",
-  ],
-};
-
 export function TerminalPanel({ panelId }: PanelComponentProps) {
-  const [lines, setLines] = useState<readonly TerminalLine[]>(INITIAL_LINES);
+  const { t } = useI18n();
+  const [lines, setLines] = useState<readonly TerminalLine[]>(() => [
+    { id: "welcome", kind: "muted", text: t("extensions.terminal.welcome") },
+    { id: "hint", kind: "output", text: t("extensions.terminal.hint") },
+  ]);
   const [input, setInput] = useState("");
   const nextLineId = useRef(0);
   const scrollArea = useRef<HTMLDivElement>(null);
@@ -66,9 +41,16 @@ export function TerminalPanel({ panelId }: PanelComponentProps) {
     }
 
     const normalizedCommand = command.toLowerCase().replaceAll(/\s+/g, " ");
-    const response = MOCK_RESPONSES[normalizedCommand] ?? [
-      `mock: command not available: ${command}`,
-      'Try "help" for the supported preview commands.',
+    const responses: Readonly<Record<string, readonly string[]>> = {
+      help: [t("extensions.terminal.helpCommands"), t("extensions.terminal.helpSafety")],
+      pwd: ["~/workbench-ui"],
+      whoami: ["workbench"],
+      "git status": [t("extensions.terminal.gitBranch"), t("extensions.terminal.gitStatus")],
+      "pnpm dev": [t("extensions.terminal.devNotStarted"), t("extensions.terminal.devHint")],
+    };
+    const response = responses[normalizedCommand] ?? [
+      t("extensions.terminal.unavailable", { command }),
+      t("extensions.terminal.unavailableHint"),
     ];
     const batchId = nextLineId.current++;
 
@@ -90,11 +72,11 @@ export function TerminalPanel({ panelId }: PanelComponentProps) {
     >
       <div className="flex h-8 shrink-0 items-center gap-2 border-b border-white/8 bg-[#11161d] px-3">
         <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-[#8b949e]">
-          Mock session · commands stay in this browser
+          {t("extensions.terminal.session")}
         </span>
         <button
           type="button"
-          aria-label="Clear terminal"
+          aria-label={t("extensions.terminal.clear")}
           className="flex size-6 items-center justify-center rounded text-[#8b949e] transition-colors hover:bg-white/8 hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/40"
           onClick={clear}
         >
@@ -106,7 +88,7 @@ export function TerminalPanel({ panelId }: PanelComponentProps) {
         ref={scrollArea}
         className="min-h-0 flex-1 overflow-auto px-3 py-2 font-mono text-[11px] leading-5"
       >
-        <div role="log" aria-live="polite" aria-label="Terminal output">
+        <div role="log" aria-live="polite" aria-label={t("extensions.terminal.output")}>
           {lines.map((line) => (
             <div
               key={line.id}
@@ -133,7 +115,7 @@ export function TerminalPanel({ panelId }: PanelComponentProps) {
         >
           <span className="mr-2 text-[#3fb950]">❯</span>
           <label className="sr-only" htmlFor="workbench-terminal-input">
-            Mock terminal command
+            {t("extensions.terminal.input")}
           </label>
           <input
             id="workbench-terminal-input"

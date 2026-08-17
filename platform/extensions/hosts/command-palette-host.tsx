@@ -12,6 +12,7 @@ import {
   CommandList,
   CommandShortcut,
 } from "@/components/ui/command";
+import { useI18n } from "@/i18n";
 import type { CommandDefinition } from "../api/command";
 import { useExtensionEnvironment } from "../extension-context";
 import { formatShortcut, matchesShortcut } from "@/services/command-service";
@@ -45,9 +46,10 @@ export function CommandPaletteHost({
   defaultOpen = false,
   onOpenChange,
   shortcut = DEFAULT_PALETTE_SHORTCUT,
-  placeholder = "Type a command or search…",
-  emptyMessage = "No commands found.",
+  placeholder,
+  emptyMessage,
 }: CommandPaletteHostProps) {
+  const { t, text } = useI18n();
   const { commands: commandService, reportError } = useExtensionEnvironment();
   const commands = useSyncExternalStore(
     commandService.subscribe,
@@ -105,44 +107,60 @@ export function CommandPaletteHost({
   }, [commandService, executeCommand, open, paletteShortcut, setOpen]);
 
   const groupedCommands = useMemo(() => {
-    const groups = new Map<string, CommandDefinition[]>();
+    const groups = new Map<
+      string,
+      Array<{ command: CommandDefinition; title: string; description?: string }>
+    >();
     for (const command of commands) {
-      const category = command.category ?? "Commands";
+      const category = command.category
+        ? text(command.category)
+        : t("platform.extensions.commandPalette.defaultCategory");
+      const localizedCommand = {
+        command,
+        title: text(command.title),
+        description: command.description ? text(command.description) : undefined,
+      };
       const group = groups.get(category);
-      if (group) group.push(command);
-      else groups.set(category, [command]);
+      if (group) group.push(localizedCommand);
+      else groups.set(category, [localizedCommand]);
     }
     return Array.from(groups);
-  }, [commands]);
+  }, [commands, t, text]);
 
   return (
     <CommandDialog
       open={open}
       onOpenChange={setOpen}
       className={className}
-      title="Command Palette"
-      description="Search for a workbench command to run."
+      title={t("platform.extensions.commandPalette.title")}
+      description={t("platform.extensions.commandPalette.description")}
+      closeLabel={t("platform.extensions.commandPalette.close")}
     >
       <Command>
-        <CommandInput placeholder={placeholder} autoFocus />
+        <CommandInput
+          placeholder={placeholder ?? t("platform.extensions.commandPalette.placeholder")}
+          autoFocus
+        />
         <CommandList>
-          <CommandEmpty>{emptyMessage}</CommandEmpty>
+          <CommandEmpty>
+            {emptyMessage ?? t("platform.extensions.commandPalette.empty")}
+          </CommandEmpty>
           {groupedCommands.map(([category, categoryCommands]) => (
             <CommandGroup key={category} heading={category}>
-              {categoryCommands.map((command) => {
+              {categoryCommands.map(({ command, title, description }) => {
                 const Icon = command.icon;
                 return (
                   <CommandItem
                     key={command.id}
-                    value={`${command.title} ${command.description ?? ""} ${category}`}
+                    value={`${title} ${description ?? ""} ${category}`}
                     onSelect={() => executeCommand(command.id)}
                   >
                     {Icon ? <Icon aria-hidden="true" /> : null}
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate">{command.title}</span>
-                      {command.description ? (
+                      <span className="block truncate">{title}</span>
+                      {description ? (
                         <span className="block truncate text-xs text-muted-foreground">
-                          {command.description}
+                          {description}
                         </span>
                       ) : null}
                     </span>

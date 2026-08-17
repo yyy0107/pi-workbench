@@ -61,10 +61,7 @@ export interface ComposerUsage {
   total: number;
 }
 
-const ATTACHMENT_ICONS: Record<
-  NonNullable<ComposerAttachment["kind"]>,
-  LucideIcon
-> = {
+const ATTACHMENT_ICONS: Record<NonNullable<ComposerAttachment["kind"]>, LucideIcon> = {
   image: FileImageIcon,
   text: FileTextIcon,
   archive: FileArchiveIcon,
@@ -98,9 +95,7 @@ export function useMentionMatches(
     const match = /@([\w]*)$/.exec(value);
     if (!match) return [];
     const query = match[1]?.toLowerCase() ?? "";
-    return people.filter((person) =>
-      person.name.toLowerCase().startsWith(query),
-    );
+    return people.filter((person) => person.name.toLowerCase().startsWith(query));
   }, [people, value]);
 }
 
@@ -111,11 +106,7 @@ export function applyMention(value: string, name: string): string {
 
 export function Composer({ className, ...props }: ComponentProps<"div">) {
   return (
-    <div
-      data-slot="composer"
-      className={cn("relative w-full max-w-lg", className)}
-      {...props}
-    />
+    <div data-slot="composer" className={cn("relative w-full max-w-lg", className)} {...props} />
   );
 }
 
@@ -152,13 +143,9 @@ export function ComposerMenu({
       className={cn(
         floating,
         "absolute bottom-full z-10 mb-2 flex w-72 flex-col gap-0.5 rounded-2xl p-1.5",
-        align === "start"
-          ? "start-0 origin-bottom-left"
-          : "end-0 origin-bottom-right",
+        align === "start" ? "start-0 origin-bottom-left" : "end-0 origin-bottom-right",
         "transition-[opacity,scale] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none",
-        open
-          ? "scale-100 opacity-100"
-          : "pointer-events-none scale-[0.97] opacity-0",
+        open ? "scale-100 opacity-100" : "pointer-events-none scale-[0.97] opacity-0",
         className,
       )}
       {...props}
@@ -229,10 +216,7 @@ export function ComposerPersonItem({
   );
 }
 
-export function ComposerAttachments({
-  className,
-  ...props
-}: ComponentProps<"div">) {
+export function ComposerAttachments({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
       data-slot="composer-attachments"
@@ -245,11 +229,13 @@ export function ComposerAttachments({
 export function ComposerAttachmentChip({
   attachment,
   onRemove,
+  removeLabel,
   className,
   ...props
 }: Omit<ComponentProps<"div">, "children"> & {
   attachment: ComposerAttachment;
   onRemove?: (name: string) => void;
+  removeLabel: (name: string) => string;
 }) {
   const Icon = ATTACHMENT_ICONS[attachment.kind ?? "text"];
   return (
@@ -267,9 +253,7 @@ export function ComposerAttachmentChip({
         <Icon className="size-4" />
       </span>
       <span className="flex flex-col">
-        <span className="max-w-36 truncate text-xs font-medium">
-          {attachment.name}
-        </span>
+        <span className="max-w-36 truncate text-xs font-medium">{attachment.name}</span>
         <span
           className={cn(
             "text-[11px]",
@@ -287,7 +271,7 @@ export function ComposerAttachmentChip({
         ) : attachment.state === "done" && onRemove ? (
           <button
             type="button"
-            aria-label={`Remove ${attachment.name}`}
+            aria-label={removeLabel(attachment.name)}
             onClick={() => onRemove(attachment.name)}
             className={cn(ghostButton, "size-5 [&_svg]:size-3")}
           >
@@ -335,11 +319,13 @@ export function ComposerInput({
 export function ComposerVoice({
   recording,
   seconds,
+  transcribingLabel,
   className,
   ...props
 }: Omit<ComponentProps<"div">, "children"> & {
   recording: boolean;
   seconds: number;
+  transcribingLabel: string;
 }) {
   return (
     <div
@@ -372,17 +358,14 @@ export function ComposerVoice({
         </span>
       ) : (
         <ShimmerLabel className="text-foreground/55 relative text-[13px]">
-          Transcribing
+          {transcribingLabel}
         </ShimmerLabel>
       )}
     </div>
   );
 }
 
-export function ComposerToolbar({
-  className,
-  ...props
-}: ComponentProps<"div">) {
+export function ComposerToolbar({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
       data-slot="composer-toolbar"
@@ -392,10 +375,7 @@ export function ComposerToolbar({
   );
 }
 
-export function ComposerActions({
-  className,
-  ...props
-}: ComponentProps<"div">) {
+export function ComposerActions({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
       data-slot="composer-actions"
@@ -407,12 +387,13 @@ export function ComposerActions({
 
 export function ComposerAttachButton({
   className,
+  label,
   ...props
-}: Omit<ComponentProps<"button">, "children">) {
+}: Omit<ComponentProps<"button">, "children"> & { label: string }) {
   return (
     <button
       type="button"
-      aria-label="Add attachment"
+      aria-label={label}
       data-slot="composer-attach"
       disabled={!props.onClick}
       className={cn(
@@ -464,13 +445,9 @@ export function ComposerModelItem({
   return (
     <ComposerMenuItem active={selected} {...props}>
       <span className="flex-1 text-start">{entry.name}</span>
-      <span className={cn(mono, "text-foreground/35 tabular-nums")}>
-        {entry.meta}
-      </span>
+      <span className={cn(mono, "text-foreground/35 tabular-nums")}>{entry.meta}</span>
       <span className="flex w-4 justify-end">
-        {selected && (
-          <CheckIcon className="fade-in zoom-in-90 animate-in size-3.5 duration-200" />
-        )}
+        {selected && <CheckIcon className="fade-in zoom-in-90 animate-in size-3.5 duration-200" />}
       </span>
     </ComposerMenuItem>
   );
@@ -478,25 +455,32 @@ export function ComposerModelItem({
 
 export function ComposerContext({
   usage,
+  labels,
   className,
   ...props
-}: Omit<ComponentProps<"div">, "children"> & { usage: ComposerUsage }) {
+}: Omit<ComponentProps<"div">, "children"> & {
+  usage: ComposerUsage;
+  labels: {
+    title: string;
+    system: string;
+    tools: string;
+    messages: string;
+    total: string;
+    usage: string;
+  };
+}) {
   const used = usage.system + usage.tools + usage.messages;
   const fraction = usage.total === 0 ? 0 : used / usage.total;
   const warn = fraction > 0.85;
   const circumference = 2 * Math.PI * 6;
   const segments = [
-    { label: "System", value: usage.system, className: "bg-foreground/25" },
-    { label: "Tools", value: usage.tools, className: "bg-foreground/45" },
-    { label: "Messages", value: usage.messages, className: "bg-foreground/80" },
+    { label: labels.system, value: usage.system, className: "bg-foreground/25" },
+    { label: labels.tools, value: usage.tools, className: "bg-foreground/45" },
+    { label: labels.messages, value: usage.messages, className: "bg-foreground/80" },
   ];
 
   return (
-    <div
-      data-slot="composer-context"
-      className={cn("group/ctx relative", className)}
-      {...props}
-    >
+    <div data-slot="composer-context" className={cn("group/ctx relative", className)} {...props}>
       <div
         className={cn(
           floating,
@@ -508,7 +492,7 @@ export function ComposerContext({
         )}
       >
         <div className="flex items-baseline justify-between">
-          <p className="text-[13.5px] font-medium">Context</p>
+          <p className="text-[13.5px] font-medium">{labels.title}</p>
           <p
             className={cn(
               mono,
@@ -537,20 +521,15 @@ export function ComposerContext({
               key={segment.label}
               className="text-foreground/55 flex items-center gap-2.5 text-[13px]"
             >
-              <span
-                aria-hidden
-                className={cn("size-1.5 rounded-full", segment.className)}
-              />
+              <span aria-hidden className={cn("size-1.5 rounded-full", segment.className)} />
               <span className="flex-1">{segment.label}</span>
-              <span className={cn(mono, "text-foreground/40 tabular-nums")}>
-                {segment.value}k
-              </span>
+              <span className={cn(mono, "text-foreground/40 tabular-nums")}>{segment.value}k</span>
             </div>
           ))}
         </div>
         <div className="bg-foreground/[0.06] h-px" />
         <div className="text-foreground/55 flex items-center justify-between text-[13px]">
-          <span>Total</span>
+          <span>{labels.total}</span>
           <span className={cn(mono, "text-foreground/40 tabular-nums")}>
             {used}k / {usage.total}k
           </span>
@@ -558,12 +537,8 @@ export function ComposerContext({
       </div>
       <button
         type="button"
-        aria-label="Context usage"
-        className={cn(
-          ghostButton,
-          "size-8",
-          warn && "text-red-500 dark:text-red-400",
-        )}
+        aria-label={labels.usage}
+        className={cn(ghostButton, "size-8", warn && "text-red-500 dark:text-red-400")}
       >
         <svg viewBox="0 0 16 16" className="size-4 -rotate-90" aria-hidden>
           <circle
@@ -594,29 +569,28 @@ export function ComposerContext({
 export function ComposerVoiceButton({
   active,
   className,
+  startLabel,
+  stopLabel,
   ...props
-}: Omit<ComponentProps<"button">, "children"> & { active: boolean }) {
+}: Omit<ComponentProps<"button">, "children"> & {
+  active: boolean;
+  startLabel: string;
+  stopLabel: string;
+}) {
   return (
     <button
       type="button"
-      aria-label={active ? "Stop recording" : "Start voice input"}
+      aria-label={active ? stopLabel : startLabel}
       data-slot="composer-voice-button"
       className={cn(
         active
-          ? cn(
-              inkButton,
-              "flex size-8 items-center justify-center rounded-full",
-            )
+          ? cn(inkButton, "flex size-8 items-center justify-center rounded-full")
           : cn(ghostButton, "size-8"),
         className,
       )}
       {...props}
     >
-      {active ? (
-        <SquareIcon className="size-3 fill-current" />
-      ) : (
-        <MicIcon className="size-4" />
-      )}
+      {active ? <SquareIcon className="size-3 fill-current" /> : <MicIcon className="size-4" />}
     </button>
   );
 }
@@ -625,15 +599,19 @@ export function ComposerSend({
   streaming,
   idle,
   className,
+  sendLabel,
+  stopLabel,
   ...props
 }: Omit<ComponentProps<"button">, "children"> & {
   streaming: boolean;
   idle: boolean;
+  sendLabel: string;
+  stopLabel: string;
 }) {
   return (
     <button
       type="button"
-      aria-label={streaming ? "Stop generating" : "Send message"}
+      aria-label={streaming ? stopLabel : sendLabel}
       data-slot="composer-send"
       className={cn(
         "grid size-8 place-items-center rounded-full",
@@ -644,15 +622,9 @@ export function ComposerSend({
       )}
       {...props}
     >
-      <ArrowUpIcon
-        className={cn(iconSwap, "size-4", streaming ? iconSwapOut : iconSwapIn)}
-      />
+      <ArrowUpIcon className={cn(iconSwap, "size-4", streaming ? iconSwapOut : iconSwapIn)} />
       <SquareIcon
-        className={cn(
-          iconSwap,
-          "size-3 fill-current",
-          streaming ? iconSwapIn : iconSwapOut,
-        )}
+        className={cn(iconSwap, "size-3 fill-current", streaming ? iconSwapIn : iconSwapOut)}
       />
     </button>
   );

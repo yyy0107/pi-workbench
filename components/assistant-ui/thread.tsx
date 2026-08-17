@@ -41,30 +41,25 @@ import {
   ComposerSend,
   ComposerToolbar,
 } from "@/components/elements/composer";
-import {
-  ComposerAttachments,
-  UserMessageAttachments,
-} from "@/components/assistant-ui/attachment";
+import { ComposerAttachments, UserMessageAttachments } from "@/components/assistant-ui/attachment";
 import { ModelSelector, type ModelOption } from "@/components/assistant-ui/model-selector";
+import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 
 const MODELS: readonly ModelOption[] = [
   {
     id: "gpt-5.6-luna",
     name: "GPT-5.6 Luna",
-    description: "Fast and efficient",
     keywords: ["openai"],
   },
   {
     id: "gpt-5.6-terra",
     name: "GPT-5.6 Terra",
-    description: "Balanced performance",
     keywords: ["openai"],
   },
   {
     id: "gpt-5.6-sol",
     name: "GPT-5.6 Sol",
-    description: "Most capable",
     keywords: ["openai"],
     efforts: true,
   },
@@ -73,11 +68,13 @@ export function Thread() {
   return (
     <ThreadPrimitive.Root
       className="flex h-full flex-col bg-background text-base"
-      style={{
-        "--thread-max-width": "48rem",
-        "--accent-color": "#10a37f",
-        "--accent-foreground": "#ffffff",
-      } as React.CSSProperties}
+      style={
+        {
+          "--thread-max-width": "48rem",
+          "--accent-color": "#10a37f",
+          "--accent-foreground": "#ffffff",
+        } as React.CSSProperties
+      }
     >
       <ThreadPrimitive.Viewport
         turnAnchor="top"
@@ -96,7 +93,6 @@ export function Thread() {
         />
 
         <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4">
-          
           <ThreadComposer />
         </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
@@ -104,27 +100,36 @@ export function Thread() {
   );
 }
 function ThreadWelcome() {
+  const { t } = useI18n();
+
   return (
     <div className="mx-auto my-auto flex w-full max-w-[var(--thread-max-width)] flex-grow flex-col">
       <div className="flex w-full flex-grow flex-col items-center justify-center">
         <div className="flex size-full flex-col justify-center px-8">
-          <div className="text-2xl font-semibold">Hello there!</div>
-          <div className="text-2xl text-muted-foreground/65">
-            How can I help you today?
-          </div>
+          <div className="text-2xl font-semibold">{t("assistant.thread.greeting")}</div>
+          <div className="text-2xl text-muted-foreground/65">{t("assistant.thread.help")}</div>
         </div>
       </div>
-      
     </div>
   );
 }
 
 function ThreadComposer() {
+  const { t } = useI18n();
   const aui = useAui();
   const { value, setText, send } = unstable_useComposerInput();
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const composer = aui.thread.composer();
+  const models = MODELS.map((model) => ({
+    ...model,
+    description:
+      model.id === "gpt-5.6-luna"
+        ? t("assistant.model.fast")
+        : model.id === "gpt-5.6-terra"
+          ? t("assistant.model.balanced")
+          : t("assistant.model.capable"),
+  }));
 
   return (
     <Composer className="w-full max-w-[var(--thread-max-width)]">
@@ -132,13 +137,14 @@ function ThreadComposer() {
         <ComposerAttachments />
         <ComposerInput
           value={value}
-          placeholder="Send a message..."
+          placeholder={t("assistant.composer.placeholder")}
           onChange={(event) => setText(event.target.value)}
           onSubmit={() => send()}
         />
         <ComposerToolbar>
           <ComposerActions>
             <ComposerAttachButton
+              label={t("assistant.composer.addAttachment")}
               onClick={() => fileInputRef.current?.click()}
             />
             <input
@@ -159,8 +165,8 @@ function ThreadComposer() {
           </ComposerActions>
           <ComposerActions>
             <ModelSelector
-              models={MODELS}
-              defaultValue={MODELS[0]!.id}
+              models={models}
+              defaultValue={models[0]!.id}
               defaultEffort="medium"
               variant="muted"
               size="sm"
@@ -168,6 +174,8 @@ function ThreadComposer() {
             <ComposerSend
               streaming={isRunning}
               idle={!value}
+              sendLabel={t("assistant.composer.sendMessage")}
+              stopLabel={t("assistant.composer.stopGenerating")}
               onClick={() => {
                 if (isRunning) {
                   composer.cancel();
@@ -206,18 +214,26 @@ function UserMessage() {
 }
 
 function UserActionBar() {
+  const { t } = useI18n();
+
   return (
     <ActionBarPrimitive.Root
       hideWhenRunning
       autohide="not-last"
       className="flex flex-col items-end"
     >
-      <ActionBarPrimitive.Edit render={<TooltipIconButton tooltip="Edit" className="p-4" />}><PencilIcon /></ActionBarPrimitive.Edit>
+      <ActionBarPrimitive.Edit
+        render={<TooltipIconButton tooltip={t("assistant.actions.edit")} className="p-4" />}
+      >
+        <PencilIcon />
+      </ActionBarPrimitive.Edit>
     </ActionBarPrimitive.Root>
   );
 }
 
 function EditComposer() {
+  const { t } = useI18n();
+
   return (
     <MessagePrimitive.Root className="mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col px-2 py-3">
       <ComposerPrimitive.Root className="ml-auto flex w-full max-w-[85%] flex-col gap-2 rounded-3xl bg-muted p-2.5">
@@ -227,8 +243,12 @@ function EditComposer() {
           autoFocus
         />
         <div className="mx-3 mb-3 flex items-center gap-2 self-end">
-          <ComposerPrimitive.Cancel render={<Button variant="ghost" size="sm" />}>Cancel</ComposerPrimitive.Cancel>
-          <ComposerPrimitive.Send render={<Button size="sm" />}>Update</ComposerPrimitive.Send>
+          <ComposerPrimitive.Cancel render={<Button variant="ghost" size="sm" />}>
+            {t("assistant.common.cancel")}
+          </ComposerPrimitive.Cancel>
+          <ComposerPrimitive.Send render={<Button size="sm" />}>
+            {t("assistant.common.update")}
+          </ComposerPrimitive.Send>
         </div>
       </ComposerPrimitive.Root>
     </MessagePrimitive.Root>
@@ -236,6 +256,8 @@ function EditComposer() {
 }
 
 function AssistantMessage() {
+  const { t } = useI18n();
+
   return (
     <MessagePrimitive.Root
       className="relative mx-auto w-full max-w-[var(--thread-max-width)] py-4 fade-in slide-in-from-bottom-1 animate-in duration-150"
@@ -255,7 +277,7 @@ function AssistantMessage() {
         <AuiIf condition={(s) => s.thread.isRunning && s.message.content.length === 0}>
           <div className="flex items-center gap-2 text-muted-foreground">
             <LoaderIcon className="size-4 animate-spin" />
-            <span className="text-sm">Thinking...</span>
+            <span className="text-sm">{t("assistant.thread.thinking")}</span>
           </div>
         </AuiIf>
       </div>
@@ -264,7 +286,6 @@ function AssistantMessage() {
         <BranchPicker />
         <AssistantActionBar />
       </div>
-      
     </MessagePrimitive.Root>
   );
 }
@@ -280,38 +301,69 @@ function MessageError() {
 }
 
 function AssistantActionBar() {
+  const { t } = useI18n();
+
   return (
     <ActionBarPrimitive.Root
       hideWhenRunning
       autohide="not-last"
       className="-ml-1 flex gap-1 text-muted-foreground"
     >
-      <ActionBarPrimitive.Copy render={<TooltipIconButton tooltip="Copy" />}><AuiIf condition={(s) => s.message.isCopied}>
-                      <CheckIcon />
-                    </AuiIf><AuiIf condition={(s) => !s.message.isCopied}>
-                      <CopyIcon />
-                    </AuiIf></ActionBarPrimitive.Copy>
-      <ActionBarPrimitive.ExportMarkdown render={<TooltipIconButton tooltip="Export as Markdown" />}><DownloadIcon /></ActionBarPrimitive.ExportMarkdown>
-      <ActionBarPrimitive.Reload render={<TooltipIconButton tooltip="Refresh" />}><RefreshCwIcon /></ActionBarPrimitive.Reload>
-      
-      <ActionBarPrimitive.FeedbackPositive render={<TooltipIconButton tooltip="Good response" />}><ThumbsUpIcon /></ActionBarPrimitive.FeedbackPositive>
-      <ActionBarPrimitive.FeedbackNegative render={<TooltipIconButton tooltip="Bad response" />}><ThumbsDownIcon /></ActionBarPrimitive.FeedbackNegative>
+      <ActionBarPrimitive.Copy render={<TooltipIconButton tooltip={t("assistant.actions.copy")} />}>
+        <AuiIf condition={(s) => s.message.isCopied}>
+          <CheckIcon />
+        </AuiIf>
+        <AuiIf condition={(s) => !s.message.isCopied}>
+          <CopyIcon />
+        </AuiIf>
+      </ActionBarPrimitive.Copy>
+      <ActionBarPrimitive.ExportMarkdown
+        render={<TooltipIconButton tooltip={t("assistant.actions.exportMarkdown")} />}
+      >
+        <DownloadIcon />
+      </ActionBarPrimitive.ExportMarkdown>
+      <ActionBarPrimitive.Reload
+        render={<TooltipIconButton tooltip={t("assistant.actions.refresh")} />}
+      >
+        <RefreshCwIcon />
+      </ActionBarPrimitive.Reload>
+
+      <ActionBarPrimitive.FeedbackPositive
+        render={<TooltipIconButton tooltip={t("assistant.actions.goodResponse")} />}
+      >
+        <ThumbsUpIcon />
+      </ActionBarPrimitive.FeedbackPositive>
+      <ActionBarPrimitive.FeedbackNegative
+        render={<TooltipIconButton tooltip={t("assistant.actions.badResponse")} />}
+      >
+        <ThumbsDownIcon />
+      </ActionBarPrimitive.FeedbackNegative>
     </ActionBarPrimitive.Root>
   );
 }
 
 function BranchPicker({ className, ...rest }: { className?: string }) {
+  const { t } = useI18n();
+
   return (
     <BranchPickerPrimitive.Root
       hideWhenSingleBranch
       className={cn("mr-2 -ml-2 inline-flex items-center text-xs text-muted-foreground", className)}
       {...rest}
     >
-      <BranchPickerPrimitive.Previous render={<TooltipIconButton tooltip="Previous" />}><ChevronLeftIcon /></BranchPickerPrimitive.Previous>
+      <BranchPickerPrimitive.Previous
+        render={<TooltipIconButton tooltip={t("assistant.branch.previous")} />}
+      >
+        <ChevronLeftIcon />
+      </BranchPickerPrimitive.Previous>
       <span className="font-medium">
         <BranchPickerPrimitive.Number /> / <BranchPickerPrimitive.Count />
       </span>
-      <BranchPickerPrimitive.Next render={<TooltipIconButton tooltip="Next" />}><ChevronRightIcon /></BranchPickerPrimitive.Next>
+      <BranchPickerPrimitive.Next
+        render={<TooltipIconButton tooltip={t("assistant.branch.next")} />}
+      >
+        <ChevronRightIcon />
+      </BranchPickerPrimitive.Next>
     </BranchPickerPrimitive.Root>
   );
 }

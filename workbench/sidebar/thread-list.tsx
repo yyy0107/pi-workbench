@@ -4,12 +4,15 @@ import { ThreadListPrimitive, useAuiState } from "@assistant-ui/react";
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useI18n } from "@/i18n";
 
 import { WorkbenchThreadListItem } from "./thread-list-item";
 
 function ThreadListLoading() {
+  const { t } = useI18n();
+
   return (
-    <div aria-label="正在加载会话" className="space-y-1 p-1">
+    <div aria-label={t("workbench.sidebar.loading")} className="space-y-1 p-1">
       {Array.from({ length: 5 }, (_, index) => (
         <Skeleton key={index} className="h-9 w-full rounded-lg" />
       ))}
@@ -18,6 +21,7 @@ function ThreadListLoading() {
 }
 
 export function WorkbenchThreadList({ onNavigate }: { onNavigate?: () => void } = {}) {
+  const { t } = useI18n();
   const isLoading = useAuiState((state) => state.threads.isLoading);
   const hasThreads = useAuiState((state) => state.threads.threadIds.length > 0);
   const hasMore = useAuiState((state) => state.threads.hasMore);
@@ -28,7 +32,7 @@ export function WorkbenchThreadList({ onNavigate }: { onNavigate?: () => void } 
 
       {!isLoading && !hasThreads ? (
         <p className="text-muted-foreground px-2 py-4 text-xs leading-relaxed">
-          发送第一条消息后，会话会显示在这里。
+          {t("workbench.sidebar.empty")}
         </p>
       ) : null}
 
@@ -42,7 +46,7 @@ export function WorkbenchThreadList({ onNavigate }: { onNavigate?: () => void } 
         <ThreadListPrimitive.LoadMore
           render={<Button type="button" variant="ghost" size="sm" className="mt-2 w-full" />}
         >
-          显示更多
+          {t("workbench.sidebar.loadMore")}
         </ThreadListPrimitive.LoadMore>
       ) : null}
     </ThreadListPrimitive.Root>

@@ -10,6 +10,7 @@ import { BotIcon } from "lucide-react";
 
 import { ComposerAttachments, UserMessageAttachments } from "@/components/assistant-ui/attachment";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/i18n";
 import { SlotHost } from "@/platform/extensions";
 
 import { WorkbenchMessageActions } from "./message-actions";
@@ -91,6 +92,8 @@ export function WorkbenchSystemMessage() {
 }
 
 export function WorkbenchEditComposer() {
+  const { t } = useI18n();
+
   return (
     <MessagePrimitive.Root className="mx-auto w-full max-w-[var(--thread-max-width)] px-2 py-3">
       <ComposerPrimitive.Root className="bg-muted ms-auto flex w-full max-w-[85%] flex-col gap-2 rounded-3xl p-3">
@@ -98,14 +101,14 @@ export function WorkbenchEditComposer() {
         <ComposerPrimitive.Input
           autoFocus
           className="min-h-20 w-full resize-none bg-transparent px-2 py-1 text-sm outline-none"
-          aria-label="Edit message"
+          aria-label={t("workbench.chat.edit.label")}
         />
         <div className="flex items-center justify-end gap-2">
           <ComposerPrimitive.Cancel render={<Button type="button" variant="ghost" size="sm" />}>
-            Cancel
+            {t("workbench.chat.edit.cancel")}
           </ComposerPrimitive.Cancel>
           <ComposerPrimitive.Send render={<Button type="submit" size="sm" />}>
-            Update
+            {t("workbench.chat.edit.update")}
           </ComposerPrimitive.Send>
         </div>
       </ComposerPrimitive.Root>

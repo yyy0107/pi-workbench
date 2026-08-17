@@ -5,27 +5,10 @@ import { ArchiveIcon, Loader2Icon, Trash2Icon } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-
-function formatRelativeTime(date: Date | undefined): string | undefined {
-  if (!date) return undefined;
-
-  const elapsedMinutes = Math.max(0, Math.floor((Date.now() - date.getTime()) / 60_000));
-  if (elapsedMinutes < 1) return "刚刚";
-  if (elapsedMinutes < 60) return `${elapsedMinutes} 分钟`;
-
-  const elapsedHours = Math.floor(elapsedMinutes / 60);
-  if (elapsedHours < 24) return `${elapsedHours} 小时`;
-
-  const elapsedDays = Math.floor(elapsedHours / 24);
-  if (elapsedDays < 7) return `${elapsedDays} 天`;
-
-  return new Intl.DateTimeFormat("zh-CN", {
-    month: "numeric",
-    day: "numeric",
-  }).format(date);
-}
+import { useI18n } from "@/i18n";
 
 export function WorkbenchThreadListItem({ onNavigate }: { onNavigate?: () => void }) {
+  const { date: formatDate, relativeTime, t } = useI18n();
   const router = useRouter();
   const isRunning = useAuiState((state) => state.threadListItem.isRunning);
   const lastMessageAt = useAuiState((state) => state.threadListItem.lastMessageAt);
@@ -44,6 +27,21 @@ export function WorkbenchThreadListItem({ onNavigate }: { onNavigate?: () => voi
       onNavigate?.();
     }
   };
+  const formattedTime = (() => {
+    if (!lastMessageAt) return undefined;
+
+    const elapsedMinutes = Math.max(0, Math.floor((Date.now() - lastMessageAt.getTime()) / 60_000));
+    if (elapsedMinutes < 1) return relativeTime(0, "minute");
+    if (elapsedMinutes < 60) return relativeTime(-elapsedMinutes, "minute");
+
+    const elapsedHours = Math.floor(elapsedMinutes / 60);
+    if (elapsedHours < 24) return relativeTime(-elapsedHours, "hour");
+
+    const elapsedDays = Math.floor(elapsedHours / 24);
+    if (elapsedDays < 7) return relativeTime(-elapsedDays, "day");
+
+    return formatDate(lastMessageAt, { month: "numeric", day: "numeric" });
+  })();
 
   return (
     <ThreadListItemPrimitive.Root className="group hover:bg-sidebar-accent focus-within:bg-sidebar-accent data-active:bg-sidebar-accent relative flex min-h-9 items-center rounded-lg transition-colors">
@@ -55,20 +53,26 @@ export function WorkbenchThreadListItem({ onNavigate }: { onNavigate?: () => voi
           <Loader2Icon className="text-muted-foreground me-2 size-3.5 shrink-0 animate-spin" />
         ) : null}
         <span className="min-w-0 flex-1 truncate">
-          <ThreadListItemPrimitive.Title fallback="新对话" />
+          <ThreadListItemPrimitive.Title fallback={t("workbench.sidebar.newThread")} />
         </span>
         {!isRunning && lastMessageAt ? (
           <span className="text-muted-foreground ms-2 shrink-0 text-[11px] tabular-nums group-hover:opacity-0 group-focus-within:opacity-0 group-data-active:opacity-0">
-            {formatRelativeTime(lastMessageAt)}
+            {formattedTime}
           </span>
         ) : null}
-        {isRunning ? <span className="sr-only">Generating</span> : null}
+        {isRunning ? <span className="sr-only">{t("workbench.sidebar.generating")}</span> : null}
       </ThreadListItemPrimitive.Trigger>
 
       <div className="bg-sidebar-accent absolute end-1 flex items-center opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 group-data-active:opacity-100">
         <ThreadListItemPrimitive.Archive
           onClick={leaveRemovedThreadRoute}
-          render={<TooltipIconButton tooltip="归档会话" side="right" className="size-7" />}
+          render={
+            <TooltipIconButton
+              tooltip={t("workbench.sidebar.archive")}
+              side="right"
+              className="size-7"
+            />
+          }
         >
           <ArchiveIcon className="size-3.5" />
         </ThreadListItemPrimitive.Archive>
@@ -76,7 +80,7 @@ export function WorkbenchThreadListItem({ onNavigate }: { onNavigate?: () => voi
           onClick={leaveRemovedThreadRoute}
           render={
             <TooltipIconButton
-              tooltip="删除会话"
+              tooltip={t("workbench.sidebar.delete")}
               side="right"
               className="text-destructive hover:text-destructive size-7"
             />

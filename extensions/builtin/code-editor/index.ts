@@ -1,0 +1,1 @@
+export { codeEditorExtension } from "./extension";

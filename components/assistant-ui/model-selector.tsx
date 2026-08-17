@@ -15,12 +15,9 @@ import {
 import { cva, type VariantProps } from "class-variance-authority";
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
 import { useAui } from "@assistant-ui/react";
+import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command,
   CommandEmpty,
@@ -38,11 +35,7 @@ export type ModelSelectorEffortOption = {
   name: string;
 };
 
-export const DEFAULT_EFFORT_OPTIONS: readonly ModelSelectorEffortOption[] = [
-  { id: "low", name: "Low" },
-  { id: "medium", name: "Med" },
-  { id: "high", name: "High" },
-];
+const DEFAULT_EFFORT_IDS = ["low", "medium", "high"] as const;
 
 export type ModelOption = {
   id: string;
@@ -64,7 +57,7 @@ function getModelEfforts(
   model: ModelOption | undefined,
 ): readonly ModelSelectorEffortOption[] | undefined {
   if (!model?.efforts) return undefined;
-  return model.efforts === true ? DEFAULT_EFFORT_OPTIONS : model.efforts;
+  return model.efforts === true ? undefined : model.efforts;
 }
 
 function resolveEffort(
@@ -85,10 +78,13 @@ export function resolveModelEffort(
   modelId: string | undefined,
   effort: string | undefined,
 ): string | undefined {
-  return resolveEffort(
-    getModelEfforts(models.find((m) => m.id === modelId)),
-    effort,
-  );
+  const model = models.find((candidate) => candidate.id === modelId);
+  if (model?.efforts === true) {
+    return DEFAULT_EFFORT_IDS.includes(effort as (typeof DEFAULT_EFFORT_IDS)[number])
+      ? effort
+      : undefined;
+  }
+  return resolveEffort(getModelEfforts(model), effort);
 }
 
 function useControllableState<T>({
@@ -133,16 +129,12 @@ type ModelSelectorContextValue = {
   setOpen: (open: boolean) => void;
 };
 
-const ModelSelectorContext = createContext<ModelSelectorContextValue | null>(
-  null,
-);
+const ModelSelectorContext = createContext<ModelSelectorContextValue | null>(null);
 
 function useModelSelectorContext() {
   const ctx = useContext(ModelSelectorContext);
   if (!ctx) {
-    throw new Error(
-      "ModelSelector sub-components must be used within ModelSelector.Root",
-    );
+    throw new Error("ModelSelector sub-components must be used within ModelSelector.Root");
   }
   return ctx;
 }
@@ -189,9 +181,26 @@ function ModelSelectorRoot({
   onOpenChange,
   children,
 }: ModelSelectorRootProps) {
+  const { t } = useI18n();
+  const localizedModels = useMemo(
+    () =>
+      models.map((model) =>
+        model.efforts === true
+          ? {
+              ...model,
+              efforts: [
+                { id: "low", name: t("assistant.model.low") },
+                { id: "medium", name: t("assistant.model.medium") },
+                { id: "high", name: t("assistant.model.high") },
+              ],
+            }
+          : model,
+      ),
+    [models, t],
+  );
   const [value, setValue] = useControllableState({
     prop: valueProp,
-    defaultProp: defaultValue ?? models[0]?.id,
+    defaultProp: defaultValue ?? localizedModels[0]?.id,
     onChange: onValueChange,
   });
   const [effort, setEffort] = useControllableState({
@@ -205,12 +214,12 @@ function ModelSelectorRoot({
     onChange: onOpenChange,
   });
 
-  const selectedModel = models.find((m) => m.id === value);
+  const selectedModel = localizedModels.find((m) => m.id === value);
   const efforts = getModelEfforts(selectedModel);
   const activeEffort = resolveEffort(efforts, effort);
   const contextValue = useMemo(
     () => ({
-      models,
+      models: localizedModels,
       value,
       setValue,
       selectedModel,
@@ -219,16 +228,7 @@ function ModelSelectorRoot({
       setEffort,
       setOpen,
     }),
-    [
-      models,
-      value,
-      setValue,
-      selectedModel,
-      efforts,
-      activeEffort,
-      setEffort,
-      setOpen,
-    ],
+    [localizedModels, value, setValue, selectedModel, efforts, activeEffort, setEffort, setOpen],
   );
 
   return (
@@ -245,8 +245,7 @@ export const modelSelectorTriggerVariants = cva(
   {
     variants: {
       variant: {
-        outline:
-          "border-input hover:bg-accent hover:text-accent-foreground border bg-transparent",
+        outline: "border-input hover:bg-accent hover:text-accent-foreground border bg-transparent",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         muted: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
       },
@@ -263,9 +262,7 @@ export const modelSelectorTriggerVariants = cva(
   },
 );
 
-export type ModelSelectorTriggerProps = ComponentPropsWithoutRef<
-  typeof PopoverTrigger
-> &
+export type ModelSelectorTriggerProps = ComponentPropsWithoutRef<typeof PopoverTrigger> &
   VariantProps<typeof modelSelectorTriggerVariants>;
 
 function ModelSelectorTrigger({
@@ -311,13 +308,7 @@ export type ModelSelectorValueProps = {
   className?: string;
 };
 
-function ModelIcon({
-  children,
-  className,
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
+function ModelIcon({ children, className }: { children: ReactNode; className?: string }) {
   return (
     <span
       className={cn(
@@ -331,27 +322,23 @@ function ModelIcon({
 }
 
 function ModelSelectorValue({
-  placeholder = "Select model",
+  placeholder,
   showEffort = true,
   className,
 }: ModelSelectorValueProps) {
+  const { t } = useI18n();
   const { selectedModel, efforts, effort } = useModelSelectorContext();
 
   if (!selectedModel) {
     return (
-      <span
-        data-slot="model-selector-value"
-        className={cn("text-muted-foreground", className)}
-      >
-        {placeholder}
+      <span data-slot="model-selector-value" className={cn("text-muted-foreground", className)}>
+        {placeholder ?? t("assistant.model.select")}
       </span>
     );
   }
 
   const effortName =
-    showEffort && effort !== undefined
-      ? efforts?.find((e) => e.id === effort)?.name
-      : undefined;
+    showEffort && effort !== undefined ? efforts?.find((e) => e.id === effort)?.name : undefined;
 
   return (
     <span
@@ -361,9 +348,7 @@ function ModelSelectorValue({
       {selectedModel.icon && <ModelIcon>{selectedModel.icon}</ModelIcon>}
       <span className="truncate font-medium">{selectedModel.name}</span>
       {effortName && (
-        <span className="text-muted-foreground min-w-7.5 truncate text-center">
-          {effortName}
-        </span>
+        <span className="text-muted-foreground min-w-7.5 truncate text-center">{effortName}</span>
       )}
     </span>
   );
@@ -421,9 +406,11 @@ function useLazyFlipSide(): {
  * one automatically when unfiltered.
  */
 function ModelSelectorFocusAnchor() {
+  const { t } = useI18n();
+
   return (
     <div className="sr-only">
-      <CommandInput readOnly aria-label="Model" />
+      <CommandInput readOnly aria-label={t("assistant.model.model")} />
     </div>
   );
 }
@@ -439,8 +426,7 @@ function ModelSelectorContent({
 }: ModelSelectorContentProps) {
   const { value } = useModelSelectorContext();
   const { side: renderedSide, popupRef } = useLazyFlipSide();
-  const unfiltered =
-    searchable === false || (!searchable && children === undefined);
+  const unfiltered = searchable === false || (!searchable && children === undefined);
 
   return (
     <PopoverContent
@@ -473,32 +459,23 @@ function ModelSelectorContent({
   );
 }
 
-export type ModelSelectorSearchProps = ComponentPropsWithoutRef<
-  typeof CommandInput
->;
+export type ModelSelectorSearchProps = ComponentPropsWithoutRef<typeof CommandInput>;
 
-function ModelSelectorSearch({
-  placeholder = "Search models...",
-  ...props
-}: ModelSelectorSearchProps) {
+function ModelSelectorSearch({ placeholder, ...props }: ModelSelectorSearchProps) {
+  const { t } = useI18n();
+
   return (
     <CommandInput
       data-slot="model-selector-search"
-      placeholder={placeholder}
+      placeholder={placeholder ?? t("assistant.model.search")}
       {...props}
     />
   );
 }
 
-export type ModelSelectorListProps = ComponentPropsWithoutRef<
-  typeof CommandList
->;
+export type ModelSelectorListProps = ComponentPropsWithoutRef<typeof CommandList>;
 
-function ModelSelectorList({
-  className,
-  children,
-  ...props
-}: ModelSelectorListProps) {
+function ModelSelectorList({ className, children, ...props }: ModelSelectorListProps) {
   const { models } = useModelSelectorContext();
 
   return (
@@ -524,38 +501,31 @@ function ModelSelectorList({
   );
 }
 
-export type ModelSelectorEmptyProps = ComponentPropsWithoutRef<
-  typeof CommandEmpty
->;
+export type ModelSelectorEmptyProps = ComponentPropsWithoutRef<typeof CommandEmpty>;
 
 function ModelSelectorEmpty({ children, ...props }: ModelSelectorEmptyProps) {
+  const { t } = useI18n();
+
   return (
     <CommandEmpty data-slot="model-selector-empty" {...props}>
-      {children ?? "No models found."}
+      {children ?? t("assistant.model.empty")}
     </CommandEmpty>
   );
 }
 
-export type ModelSelectorGroupProps = ComponentPropsWithoutRef<
-  typeof CommandGroup
->;
+export type ModelSelectorGroupProps = ComponentPropsWithoutRef<typeof CommandGroup>;
 
 function ModelSelectorGroup(props: ModelSelectorGroupProps) {
   return <CommandGroup data-slot="model-selector-group" {...props} />;
 }
 
-export type ModelSelectorSeparatorProps = ComponentPropsWithoutRef<
-  typeof CommandSeparator
->;
+export type ModelSelectorSeparatorProps = ComponentPropsWithoutRef<typeof CommandSeparator>;
 
 function ModelSelectorSeparator(props: ModelSelectorSeparatorProps) {
   return <CommandSeparator data-slot="model-selector-separator" {...props} />;
 }
 
-export type ModelSelectorItemProps = Omit<
-  ComponentPropsWithoutRef<typeof CommandItem>,
-  "value"
-> & {
+export type ModelSelectorItemProps = Omit<ComponentPropsWithoutRef<typeof CommandItem>, "value"> & {
   model: ModelOption;
 };
 
@@ -588,15 +558,11 @@ function ModelSelectorItem({
     >
       {children ?? (
         <>
-          {model.icon && (
-            <ModelIcon className="mt-[3px]">{model.icon}</ModelIcon>
-          )}
+          {model.icon && <ModelIcon className="mt-[3px]">{model.icon}</ModelIcon>}
           <span className="flex min-w-0 flex-col">
             <span className="truncate font-medium">{model.name}</span>
             {model.description && (
-              <span className="text-muted-foreground truncate text-xs">
-                {model.description}
-              </span>
+              <span className="text-muted-foreground truncate text-xs">{model.description}</span>
             )}
           </span>
         </>
@@ -615,13 +581,15 @@ export type ModelSelectorEffortProps = ComponentPropsWithoutRef<"div"> & {
 };
 
 function ModelSelectorEffort({
-  label = "Thinking",
+  label,
   className,
   onKeyDown,
   onKeyDownCapture,
   ...props
 }: ModelSelectorEffortProps) {
+  const { t } = useI18n();
   const { efforts, effort, setEffort } = useModelSelectorEfforts();
+  const displayedLabel = label ?? t("assistant.model.thinking");
 
   if (!efforts?.length) return null;
 
@@ -662,20 +630,20 @@ function ModelSelectorEffort({
           e.preventDefault();
           e.stopPropagation();
           const radios = Array.from(
-            e.currentTarget.querySelectorAll<HTMLElement>(
-              '[role="radio"]:not([data-disabled])',
-            ),
+            e.currentTarget.querySelectorAll<HTMLElement>('[role="radio"]:not([data-disabled])'),
           );
           (e.key === "Home" ? radios[0] : radios[radios.length - 1])?.focus();
         }
       }}
       {...props}
     >
-      <span className="text-muted-foreground text-xs">{label}</span>
+      <span className="text-muted-foreground text-xs">{displayedLabel}</span>
       <RadioGroup
         value={effort ?? ""}
         onValueChange={setEffort}
-        aria-label={typeof label === "string" ? label : "Reasoning effort"}
+        aria-label={
+          typeof displayedLabel === "string" ? displayedLabel : t("assistant.model.reasoningEffort")
+        }
         className="flex items-center gap-0.5"
       >
         {efforts.map((option) => (
@@ -740,11 +708,7 @@ const ModelSelectorImpl = ({
   return (
     <ModelSelectorRoot {...rootProps}>
       <ModelSelectorModelContext />
-      <ModelSelectorTrigger
-        variant={variant}
-        size={size}
-        className={className}
-      />
+      <ModelSelectorTrigger variant={variant} size={size} className={className} />
       <ModelSelectorContent
         {...(align !== undefined ? { align } : {})}
         className={contentClassName}
@@ -770,9 +734,7 @@ type ModelSelectorComponent = typeof ModelSelectorImpl & {
   Effort: typeof ModelSelectorEffort;
 };
 
-const ModelSelector = memo(
-  ModelSelectorImpl,
-) as unknown as ModelSelectorComponent;
+const ModelSelector = memo(ModelSelectorImpl) as unknown as ModelSelectorComponent;
 
 ModelSelector.displayName = "ModelSelector";
 ModelSelector.Root = ModelSelectorRoot;

@@ -1,8 +1,10 @@
 import { TerminalIcon } from "lucide-react";
 
+import { defineMessage } from "@/i18n";
 import { defineExtension } from "@/platform/extensions";
 
 import { toggleTerminalCommand } from "./open-terminal-command";
+import { TerminalAddMenuItem } from "./terminal-add-menu-item";
 import { TerminalPanel } from "./terminal-panel";
 import { TerminalTrigger } from "./terminal-trigger";
 
@@ -14,7 +16,7 @@ export const terminalExtension = defineExtension({
   setup(context) {
     const panel = context.panels.register({
       id: "terminal",
-      title: "Terminal",
+      title: defineMessage("extensions.terminal.title"),
       icon: TerminalIcon,
       component: TerminalPanel,
       defaultLocation: "bottom",
@@ -24,12 +26,17 @@ export const terminalExtension = defineExtension({
     });
 
     const command = context.commands.register(toggleTerminalCommand);
+    const addMenuItem = context.slots.register("panel.right.add-menu", {
+      id: "workbench.terminal.right-panel-add-menu",
+      order: 30,
+      component: TerminalAddMenuItem,
+    });
     const mobileTrigger = context.slots.register("header.right", {
       id: "workbench.terminal.mobile-trigger",
       order: 100,
       component: TerminalTrigger,
     });
 
-    return [panel, command, mobileTrigger];
+    return [panel, command, addMenuItem, mobileTrigger];
   },
 });

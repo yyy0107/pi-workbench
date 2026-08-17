@@ -106,13 +106,14 @@ export function NotesPanel({ panelId, close }: PanelComponentProps) {
 
 ```ts
 // notes-command.ts
+import { defineMessage } from "@/i18n";
 import type { CommandDefinition } from "@/platform/extensions";
 
 export const toggleNotesCommand = {
   id: "notes.toggle",
-  title: "Toggle Notes",
-  description: "Open or close thread notes",
-  category: "Panels",
+  title: defineMessage("extensions.notes.toggleTitle"),
+  description: defineMessage("extensions.notes.toggleDescription"),
+  category: defineMessage("extensions.shared.panelsCategory"),
   shortcut: ["Mod", "Shift", "N"],
   run(context) {
     context.panels.toggle("notes");
@@ -124,6 +125,7 @@ export const toggleNotesCommand = {
 // extension.ts
 import { StickyNoteIcon } from "lucide-react";
 
+import { defineMessage } from "@/i18n";
 import { defineExtension } from "@/platform/extensions";
 
 import { toggleNotesCommand } from "./notes-command";
@@ -143,7 +145,7 @@ export const notesExtension = defineExtension({
     });
     const panel = context.panels.register({
       id: "notes",
-      title: "Notes",
+      title: defineMessage("extensions.notes.title"),
       icon: StickyNoteIcon,
       component: NotesPanel,
       defaultLocation: "right",
@@ -161,6 +163,81 @@ export const notesExtension = defineExtension({
 Export `notesExtension` from the feature `index.ts`, then add it to `extensions/enabled-extensions.ts`.
 
 Prefer this command-first trigger when the action has a Command. For a trivial Panel toggle, calling `usePanelService().toggle("notes")` directly is also valid.
+
+An opened Panel whose current location is `"right"` becomes a tab in the Workbench-owned right sidebar. Use the Panel `title` and `icon` for a static label, or register `tabComponent` when the extension needs to own dynamic label content such as a browser page title and favicon. The host supplies the surrounding selection and close controls, so the tab component should render only non-interactive icon/text content. Do not add a duplicate generic expand/collapse control; the host already provides it. Feature-specific commands and triggers may still open or activate their own Panel.
+
+```tsx
+"use client";
+
+import type { PanelTabComponentProps } from "@/platform/extensions";
+
+export function BrowserTab({ isActive }: PanelTabComponentProps) {
+  const { faviconUrl, pageTitle } = useBrowserStore();
+
+  return (
+    <>
+      <img src={faviconUrl} alt="" className="size-4 shrink-0" />
+      <span className="min-w-0 flex-1 truncate text-left">
+        {pageTitle || (isActive ? "浏览器" : "新标签页")}
+      </span>
+    </>
+  );
+}
+```
+
+```ts
+context.panels.register({
+  id: "browser",
+  tabComponent: BrowserTab,
+  tabClassNames: {
+    root: ({ isActive }) =>
+      isActive ? "max-w-64 rounded-lg bg-sky-500/10" : "max-w-48 rounded-lg",
+    trigger: "px-2",
+    closeButton: "hover:bg-sky-500/15",
+  },
+  component: BrowserPanel,
+  defaultLocation: "right",
+});
+```
+
+Keep shared dynamic tab state in the extension's React store/context. Hooks belong in `tabComponent`, never in `setup()`.
+
+`tabClassNames` is merged after the Workbench defaults with `cn()`/`tailwind-merge`; later Tailwind utilities can replace host utilities. Its functions must stay pure and hook-free. For more advanced selectors, the host tab root also exposes `data-panel-id` and `data-state`.
+
+Register one plus-menu item from the same extension when users need to open or reactivate the Panel from the tab row:
+
+```tsx
+"use client";
+
+import { type RightPanelAddMenuSlotContext, usePanelService } from "@/platform/extensions";
+
+export function BrowserAddMenuItem({ closeMenu }: RightPanelAddMenuSlotContext) {
+  const panels = usePanelService();
+
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      onClick={() => {
+        panels.open("browser");
+        closeMenu();
+      }}
+    >
+      Open browser
+    </button>
+  );
+}
+```
+
+```ts
+const addMenuItem = context.slots.register("panel.right.add-menu", {
+  id: "workbench.browser.right-panel-add-menu",
+  order: 30,
+  component: BrowserAddMenuItem,
+});
+```
+
+Use `panel.right.actions` for compact icon-only actions such as refresh, fullscreen, or layout controls. Its component receives `{ activePanelId }`. The host owns the close, plus, and collapse buttons; do not duplicate them inside contributions.
 
 ## Tool Renderer
 

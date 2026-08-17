@@ -12,63 +12,64 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { useI18n, type StaticMessageKey } from "@/i18n";
 import type { PanelComponentProps } from "@/platform/extensions";
 
-interface SkillItem {
+interface SkillDefinition {
   id: string;
-  title: string;
-  category: string;
-  description: string;
+  titleKey: StaticMessageKey;
+  categoryKey: StaticMessageKey;
+  descriptionKey: StaticMessageKey;
   icon: LucideIcon;
   iconClassName: string;
 }
 
-const SKILLS: readonly SkillItem[] = [
+const SKILL_DEFINITIONS: readonly SkillDefinition[] = [
   {
     id: "research",
-    title: "Research",
-    category: "Knowledge",
-    description: "Find, compare, and synthesize trusted sources.",
+    titleKey: "extensions.skills.items.research.title",
+    categoryKey: "extensions.skills.items.research.category",
+    descriptionKey: "extensions.skills.items.research.description",
     icon: SearchIcon,
     iconClassName: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
   },
   {
     id: "code-review",
-    title: "Code review",
-    category: "Development",
-    description: "Inspect changes for bugs and maintainability risks.",
+    titleKey: "extensions.skills.items.codeReview.title",
+    categoryKey: "extensions.skills.items.codeReview.category",
+    descriptionKey: "extensions.skills.items.codeReview.description",
     icon: Code2Icon,
     iconClassName: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
   },
   {
     id: "documents",
-    title: "Documents",
-    category: "Productivity",
-    description: "Draft and refine structured documents.",
+    titleKey: "extensions.skills.items.documents.title",
+    categoryKey: "extensions.skills.items.documents.category",
+    descriptionKey: "extensions.skills.items.documents.description",
     icon: FileTextIcon,
     iconClassName: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
   },
   {
     id: "visual-studio",
-    title: "Visual studio",
-    category: "Creative",
-    description: "Plan and create polished visual assets.",
+    titleKey: "extensions.skills.items.visualStudio.title",
+    categoryKey: "extensions.skills.items.visualStudio.category",
+    descriptionKey: "extensions.skills.items.visualStudio.description",
     icon: ImageIcon,
     iconClassName: "bg-pink-500/10 text-pink-600 dark:text-pink-400",
   },
   {
     id: "data-analysis",
-    title: "Data analysis",
-    category: "Analysis",
-    description: "Explore datasets and surface useful patterns.",
+    titleKey: "extensions.skills.items.dataAnalysis.title",
+    categoryKey: "extensions.skills.items.dataAnalysis.category",
+    descriptionKey: "extensions.skills.items.dataAnalysis.description",
     icon: ChartColumnIcon,
     iconClassName: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
   },
   {
     id: "browser",
-    title: "Browser control",
-    category: "Automation",
-    description: "Navigate and inspect browser-based workflows.",
+    titleKey: "extensions.skills.items.browser.title",
+    categoryKey: "extensions.skills.items.browser.category",
+    descriptionKey: "extensions.skills.items.browser.description",
     icon: GlobeIcon,
     iconClassName: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400",
   },
@@ -77,19 +78,30 @@ const SKILLS: readonly SkillItem[] = [
 const DEFAULT_ENABLED_SKILLS = new Set(["research", "code-review", "documents", "data-analysis"]);
 
 export function SkillsPanel({ panelId }: PanelComponentProps) {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [enabledSkills, setEnabledSkills] = useState(DEFAULT_ENABLED_SKILLS);
+  const skills = useMemo(
+    () =>
+      SKILL_DEFINITIONS.map((skill) => ({
+        ...skill,
+        title: t(skill.titleKey),
+        category: t(skill.categoryKey),
+        description: t(skill.descriptionKey),
+      })),
+    [t],
+  );
 
   const filteredSkills = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    if (!normalizedQuery) return SKILLS;
+    if (!normalizedQuery) return skills;
 
-    return SKILLS.filter((skill) =>
+    return skills.filter((skill) =>
       `${skill.title} ${skill.category} ${skill.description}`
         .toLowerCase()
         .includes(normalizedQuery),
     );
-  }, [query]);
+  }, [query, skills]);
 
   const toggleSkill = (skillId: string) => {
     setEnabledSkills((current) => {
@@ -104,15 +116,15 @@ export function SkillsPanel({ panelId }: PanelComponentProps) {
     <section data-panel-id={panelId} className="flex h-full min-h-0 flex-col bg-background">
       <div className="shrink-0 border-b p-3">
         <p className="mb-2 text-[11px] leading-4 text-muted-foreground">
-          Enable the local capabilities available to this workbench preview.
+          {t("extensions.skills.intro")}
         </p>
         <label className="relative block">
-          <span className="sr-only">Search skills</span>
+          <span className="sr-only">{t("extensions.skills.search")}</span>
           <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <input
             type="search"
             value={query}
-            placeholder="Search skills"
+            placeholder={t("extensions.skills.search")}
             className="h-8 w-full rounded-lg border border-border bg-muted/35 pr-3 pl-8 text-xs outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-ring focus:bg-background focus:ring-2 focus:ring-ring/20"
             onChange={(event) => setQuery(event.currentTarget.value)}
           />
@@ -167,15 +179,20 @@ export function SkillsPanel({ panelId }: PanelComponentProps) {
           {filteredSkills.length === 0 && (
             <div className="flex flex-col items-center px-6 py-12 text-center">
               <SearchIcon className="mb-2 size-5 text-muted-foreground/60" />
-              <p className="text-xs font-medium">No matching skills</p>
-              <p className="mt-1 text-[11px] text-muted-foreground">Try a broader search term.</p>
+              <p className="text-xs font-medium">{t("extensions.skills.noMatches")}</p>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                {t("extensions.skills.broaderSearch")}
+              </p>
             </div>
           )}
         </div>
       </div>
 
       <div className="shrink-0 border-t px-3 py-2 text-[10px] text-muted-foreground">
-        {enabledSkills.size} of {SKILLS.length} enabled locally
+        {t("extensions.skills.enabledCount", {
+          enabled: enabledSkills.size,
+          total: SKILL_DEFINITIONS.length,
+        })}
       </div>
     </section>
   );

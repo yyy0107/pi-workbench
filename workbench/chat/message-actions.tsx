@@ -14,21 +14,28 @@ import {
 } from "lucide-react";
 
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { useI18n } from "@/i18n";
 import { SlotHost } from "@/platform/extensions";
 
 function BranchPicker() {
+  const { t } = useI18n();
+
   return (
     <BranchPickerPrimitive.Root
       hideWhenSingleBranch
       className="text-muted-foreground me-1 inline-flex items-center text-xs"
     >
-      <BranchPickerPrimitive.Previous render={<TooltipIconButton tooltip="Previous response" />}>
+      <BranchPickerPrimitive.Previous
+        render={<TooltipIconButton tooltip={t("workbench.chat.actions.previousResponse")} />}
+      >
         <ChevronLeftIcon className="size-3.5" />
       </BranchPickerPrimitive.Previous>
       <span className="px-1 font-medium tabular-nums">
         <BranchPickerPrimitive.Number /> / <BranchPickerPrimitive.Count />
       </span>
-      <BranchPickerPrimitive.Next render={<TooltipIconButton tooltip="Next response" />}>
+      <BranchPickerPrimitive.Next
+        render={<TooltipIconButton tooltip={t("workbench.chat.actions.nextResponse")} />}
+      >
         <ChevronRightIcon className="size-3.5" />
       </BranchPickerPrimitive.Next>
     </BranchPickerPrimitive.Root>
@@ -36,16 +43,22 @@ function BranchPicker() {
 }
 
 function UserActions() {
+  const { t } = useI18n();
+
   return (
     <ActionBarPrimitive.Root
       hideWhenRunning
       autohide="not-last"
       className="flex items-center gap-0.5"
     >
-      <ActionBarPrimitive.Edit render={<TooltipIconButton tooltip="Edit message" />}>
+      <ActionBarPrimitive.Edit
+        render={<TooltipIconButton tooltip={t("workbench.chat.actions.editMessage")} />}
+      >
         <PencilIcon className="size-3.5" />
       </ActionBarPrimitive.Edit>
-      <ActionBarPrimitive.Copy render={<TooltipIconButton tooltip="Copy message" />}>
+      <ActionBarPrimitive.Copy
+        render={<TooltipIconButton tooltip={t("workbench.chat.actions.copyMessage")} />}
+      >
         <CopyIcon className="size-3.5" />
       </ActionBarPrimitive.Copy>
     </ActionBarPrimitive.Root>
@@ -53,13 +66,17 @@ function UserActions() {
 }
 
 function AssistantActions() {
+  const { t } = useI18n();
+
   return (
     <ActionBarPrimitive.Root
       hideWhenRunning
       autohide="not-last"
       className="flex items-center gap-0.5"
     >
-      <ActionBarPrimitive.Copy render={<TooltipIconButton tooltip="Copy response" />}>
+      <ActionBarPrimitive.Copy
+        render={<TooltipIconButton tooltip={t("workbench.chat.actions.copyResponse")} />}
+      >
         <AuiIf condition={(state) => state.message.isCopied}>
           <CheckIcon className="size-3.5" />
         </AuiIf>
@@ -68,17 +85,23 @@ function AssistantActions() {
         </AuiIf>
       </ActionBarPrimitive.Copy>
       <ActionBarPrimitive.ExportMarkdown
-        render={<TooltipIconButton tooltip="Export as Markdown" />}
+        render={<TooltipIconButton tooltip={t("workbench.chat.actions.exportMarkdown")} />}
       >
         <DownloadIcon className="size-3.5" />
       </ActionBarPrimitive.ExportMarkdown>
-      <ActionBarPrimitive.Reload render={<TooltipIconButton tooltip="Regenerate response" />}>
+      <ActionBarPrimitive.Reload
+        render={<TooltipIconButton tooltip={t("workbench.chat.actions.regenerateResponse")} />}
+      >
         <RefreshCwIcon className="size-3.5" />
       </ActionBarPrimitive.Reload>
-      <ActionBarPrimitive.FeedbackPositive render={<TooltipIconButton tooltip="Good response" />}>
+      <ActionBarPrimitive.FeedbackPositive
+        render={<TooltipIconButton tooltip={t("workbench.chat.actions.goodResponse")} />}
+      >
         <ThumbsUpIcon className="size-3.5" />
       </ActionBarPrimitive.FeedbackPositive>
-      <ActionBarPrimitive.FeedbackNegative render={<TooltipIconButton tooltip="Poor response" />}>
+      <ActionBarPrimitive.FeedbackNegative
+        render={<TooltipIconButton tooltip={t("workbench.chat.actions.poorResponse")} />}
+      >
         <ThumbsDownIcon className="size-3.5" />
       </ActionBarPrimitive.FeedbackNegative>
     </ActionBarPrimitive.Root>

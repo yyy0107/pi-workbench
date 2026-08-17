@@ -77,6 +77,8 @@ sidebar.workspace.actions
 sidebar.top
 sidebar.bottom
 sidebar.footer
+panel.right.add-menu
+panel.right.actions
 thread.header
 thread.before
 thread.after
@@ -105,7 +107,18 @@ interface ComposerSlotContext {
   isEmpty: boolean;
 }
 
+interface RightPanelAddMenuSlotContext {
+  activePanelId: string;
+  closeMenu(): void;
+}
+
+interface RightPanelActionsSlotContext {
+  activePanelId: string;
+}
+
 interface SlotPropsMap {
+  "panel.right.add-menu": RightPanelAddMenuSlotContext;
+  "panel.right.actions": RightPanelActionsSlotContext;
   "thread.header": { threadId?: string };
   "thread.before": { threadId?: string };
   "thread.after": { threadId?: string };
@@ -144,6 +157,8 @@ Sidebar positions are semantic:
 
 The mobile conversation Sheet does not mount `sidebar.*` Slots. Add a suitable mobile `header.*` contribution when the feature needs a touch entry point.
 
+`panel.right.add-menu` renders menu-item contributions inside the plus-button popover. Contributions should render one `role="menuitem"` control, open or activate their own Panel through `usePanelService()`, then call `closeMenu()`. `panel.right.actions` renders compact icon controls at the trailing edge of the right Panel tab row; every control needs an accessible label. Both receive the active Panel id. The Workbench owns the plus button, popover, per-tab close buttons, and sidebar collapse control.
+
 ## Panel contract
 
 ```ts
@@ -154,10 +169,25 @@ interface PanelComponentProps {
   close(): void;
 }
 
+interface PanelTabComponentProps {
+  panelId: string;
+  isActive: boolean;
+}
+
+type PanelTabClassName = string | ((context: PanelTabComponentProps) => string | undefined);
+
+interface PanelTabClassNames {
+  root?: PanelTabClassName;
+  trigger?: PanelTabClassName;
+  closeButton?: PanelTabClassName;
+}
+
 interface PanelDefinition {
   id: string;
-  title: string;
+  title?: LocalizableText;
   icon?: LucideIcon;
+  tabComponent?: ComponentType<PanelTabComponentProps>;
+  tabClassNames?: PanelTabClassNames;
   component: ComponentType<PanelComponentProps>;
   defaultLocation: PanelLocation;
   defaultSize?: number;
@@ -166,18 +196,22 @@ interface PanelDefinition {
 }
 ```
 
-Sizes are pixels. Registration only defines a Panel; it does not open it. Workbench supplies the outer title, icon, close button, resize handle, and error boundary.
+Sizes are pixels. Registration only defines a Panel; it does not open it. A Panel must define either `title` or `tabComponent`. `title` accepts plain text or a typed i18n message descriptor created with `defineMessage`; built-in extensions should use a descriptor so the host resolves the current locale at render time. Static `title` and `icon` are the simple/default label. When `tabComponent` is present, it owns the visible title and icon and may use React hooks to read extension state; `title` and `icon` become its fallback. Workbench still owns the surrounding tab button, selected state, close/collapse controls, resize handle, and error boundary. A tab component must render non-interactive label content, not another button or link.
+
+`tabClassNames` merges extension classes after the host defaults through `cn()`/`tailwind-merge`, so an extension can override the tab `root`, selection `trigger`, and `closeButton` without copying host behavior. Each entry may be a string or a pure function of `{ panelId, isActive }`. Class functions run during render and must not call React hooks; use `tabComponent` when render-time hooks are required. The root exposes `data-panel-id` and `data-state="active|inactive"` for variant selectors.
 
 Only one Panel is active per location. Size is stored per location, not per Panel, and is not persisted across reloads in v1.
+
+An opened Panel whose current location is `"right"` appears as a tab in the full-height right sidebar. Tab order follows open order. Closing a tab closes only that Panel and activates the most recently opened remaining tab. Collapsing the sidebar preserves the open tabs, active Panel, and mounted Panel content; expanding restores the same tab set and local component state. Dragging the right resize handle mirrors the conversation sidebar: live resize while attached, half-width snap to collapse, and animated detach when dragged back. The Workbench header shows the expand control while collapsed, and the right tab row owns the collapse control while open. `PanelTabComponentProps.isActive` lets dynamic labels reflect selection without owning selection behavior.
 
 ## Command contract
 
 ```ts
 interface CommandDefinition {
   id: string;
-  title: string;
-  description?: string;
-  category?: string;
+  title: LocalizableText;
+  description?: LocalizableText;
+  category?: LocalizableText;
   icon?: LucideIcon;
   shortcut?: readonly string[];
   run(context: CommandExecutionContext): void | Promise<void>;
@@ -195,6 +229,8 @@ interface CommandExecutionContext {
   };
 }
 ```
+
+`LocalizableText` is either literal text or a typed descriptor from `defineMessage(...)`. Built-in extensions should register descriptors, not translated strings, so the command host can update immediately when the locale changes.
 
 Registered commands appear in the `Mod+K` palette. Shortcut tokens support `Mod`/`CmdOrCtrl`, Ctrl, Meta/Cmd, Alt/Option, Shift, and exactly one normal key. Modifier matching inside `CommandService` is exact. Shortcut conflicts resolve to the first registered command, so avoid conflicts explicitly.
 
@@ -236,8 +272,8 @@ const navigation = useNavigationService();
 PanelService provides:
 
 ```text
-open, close, toggle, activate, move, setSize
-isOpen, getActivePanelId, getSize, getLocation
+open, close, toggle, activate, move, collapse, expand, setSize
+isOpen, isCollapsed, getActivePanelId, getSize, getLocation
 ```
 
 CommandService `execute(id)` returns a Promise. Catch rejection when invoking it from an event handler.

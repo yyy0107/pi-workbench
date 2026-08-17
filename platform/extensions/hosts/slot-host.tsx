@@ -18,12 +18,14 @@ export interface SlotHostProps<K extends WorkbenchSlot> {
   name: K;
   context?: SlotPropsMap[K];
   className?: string;
+  emptyFallback?: ReactNode;
 }
 
 export function SlotHost<K extends WorkbenchSlot>({
   name,
   context,
   className,
+  emptyFallback = null,
 }: SlotHostProps<K>): ReactNode {
   const { manager, reportError } = useExtensionEnvironment();
   const registry = manager.slots;
@@ -34,19 +36,22 @@ export function SlotHost<K extends WorkbenchSlot>({
     () => EMPTY_CONTRIBUTIONS as readonly SlotContribution<K>[],
   );
 
-  const content = contributions.map((contribution) => {
-    const Component = contribution.component as ComponentType<object>;
-    return (
-      <ExtensionErrorBoundary
-        key={contribution.id}
-        contributionId={contribution.id}
-        source="slot"
-        onError={reportError}
-      >
-        {createElement(Component, context ?? {})}
-      </ExtensionErrorBoundary>
-    );
-  });
+  const content =
+    contributions.length === 0
+      ? emptyFallback
+      : contributions.map((contribution) => {
+          const Component = contribution.component as ComponentType<object>;
+          return (
+            <ExtensionErrorBoundary
+              key={contribution.id}
+              contributionId={contribution.id}
+              source="slot"
+              onError={reportError}
+            >
+              {createElement(Component, context ?? {})}
+            </ExtensionErrorBoundary>
+          );
+        });
 
   if (className) {
     return (

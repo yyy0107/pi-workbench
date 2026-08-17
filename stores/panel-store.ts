@@ -8,6 +8,7 @@ import type { PanelLocation } from "@/platform/extensions/api/panel";
 export interface PanelStoreData {
   openedPanelIds: readonly string[];
   activeByLocation: Partial<Record<PanelLocation, string>>;
+  collapsedByLocation: Partial<Record<PanelLocation, boolean>>;
   locationByPanelId: Record<string, PanelLocation>;
   sizeByLocation: Partial<Record<PanelLocation, number>>;
 }
@@ -18,6 +19,8 @@ export interface PanelStoreActions {
   toggle(panelId: string, location?: PanelLocation): void;
   activate(panelId: string): void;
   move(panelId: string, location: PanelLocation): void;
+  collapse(location: PanelLocation): void;
+  expand(location: PanelLocation): void;
   setSize(location: PanelLocation, size: number): void;
   reset(): void;
 }
@@ -28,6 +31,7 @@ export type PanelStoreApi = StoreApi<PanelStoreState>;
 const DEFAULT_PANEL_DATA: PanelStoreData = Object.freeze({
   openedPanelIds: Object.freeze([]) as readonly string[],
   activeByLocation: Object.freeze({}),
+  collapsedByLocation: Object.freeze({}),
   locationByPanelId: Object.freeze({}),
   sizeByLocation: Object.freeze({}),
 });
@@ -51,6 +55,7 @@ export function createPanelStore(initialData: Partial<PanelStoreData> = {}): Pan
   const initial: PanelStoreData = {
     openedPanelIds: Object.freeze([...(initialData.openedPanelIds ?? [])]),
     activeByLocation: { ...initialData.activeByLocation },
+    collapsedByLocation: { ...initialData.collapsedByLocation },
     locationByPanelId: { ...initialData.locationByPanelId },
     sizeByLocation: { ...initialData.sizeByLocation },
   };
@@ -67,7 +72,8 @@ export function createPanelStore(initialData: Partial<PanelStoreData> = {}): Pan
         if (
           isOpen &&
           previousLocation === location &&
-          state.activeByLocation[location] === panelId
+          state.activeByLocation[location] === panelId &&
+          !state.collapsedByLocation[location]
         ) {
           return state;
         }
@@ -101,6 +107,10 @@ export function createPanelStore(initialData: Partial<PanelStoreData> = {}): Pan
           openedPanelIds,
           locationByPanelId,
           activeByLocation,
+          collapsedByLocation: {
+            ...state.collapsedByLocation,
+            [location]: false,
+          },
         };
       });
     },
@@ -133,13 +143,20 @@ export function createPanelStore(initialData: Partial<PanelStoreData> = {}): Pan
       set((state) => {
         if (!state.openedPanelIds.includes(panelId)) return state;
         const location = state.locationByPanelId[panelId];
-        if (!location || state.activeByLocation[location] === panelId) {
+        if (!location) {
+          return state;
+        }
+        if (state.activeByLocation[location] === panelId && !state.collapsedByLocation[location]) {
           return state;
         }
         return {
           activeByLocation: {
             ...state.activeByLocation,
             [location]: panelId,
+          },
+          collapsedByLocation: {
+            ...state.collapsedByLocation,
+            [location]: false,
           },
         };
       });
@@ -150,13 +167,23 @@ export function createPanelStore(initialData: Partial<PanelStoreData> = {}): Pan
         const previousLocation = state.locationByPanelId[panelId];
         const isOpen = state.openedPanelIds.includes(panelId);
         if (previousLocation === location) {
-          if (!isOpen || state.activeByLocation[location] === panelId) {
+          if (!isOpen) {
+            return state;
+          }
+          if (
+            state.activeByLocation[location] === panelId &&
+            !state.collapsedByLocation[location]
+          ) {
             return state;
           }
           return {
             activeByLocation: {
               ...state.activeByLocation,
               [location]: panelId,
+            },
+            collapsedByLocation: {
+              ...state.collapsedByLocation,
+              [location]: false,
             },
           };
         }
@@ -182,7 +209,40 @@ export function createPanelStore(initialData: Partial<PanelStoreData> = {}): Pan
           else delete activeByLocation[previousLocation];
         }
 
-        return { locationByPanelId, activeByLocation };
+        return {
+          locationByPanelId,
+          activeByLocation,
+          collapsedByLocation: {
+            ...state.collapsedByLocation,
+            [location]: false,
+          },
+        };
+      });
+    },
+
+    collapse(location) {
+      set((state) => {
+        if (!state.activeByLocation[location] || state.collapsedByLocation[location]) {
+          return state;
+        }
+        return {
+          collapsedByLocation: {
+            ...state.collapsedByLocation,
+            [location]: true,
+          },
+        };
+      });
+    },
+
+    expand(location) {
+      set((state) => {
+        if (!state.collapsedByLocation[location]) return state;
+        return {
+          collapsedByLocation: {
+            ...state.collapsedByLocation,
+            [location]: false,
+          },
+        };
       });
     },
 

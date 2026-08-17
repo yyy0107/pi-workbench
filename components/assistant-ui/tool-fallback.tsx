@@ -1,13 +1,7 @@
 "use client";
 
 import { memo, useCallback, useRef, useState } from "react";
-import {
-  AlertCircleIcon,
-  CheckIcon,
-  ChevronDownIcon,
-  LoaderIcon,
-  XCircleIcon,
-} from "lucide-react";
+import { AlertCircleIcon, CheckIcon, ChevronDownIcon, LoaderIcon, XCircleIcon } from "lucide-react";
 import {
   useScrollLock,
   useToolCallElapsed,
@@ -17,13 +11,10 @@ import {
   type ToolCallMessagePartStatus,
   type ToolCallMessagePartComponent,
 } from "@assistant-ui/react";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useI18n, type Translate } from "@/i18n";
 
 const ANIMATION_DURATION = 200;
 
@@ -70,10 +61,7 @@ function ToolFallbackRoot({
       data-slot="tool-fallback-root"
       open={isOpen}
       onOpenChange={handleOpenChange}
-      className={cn(
-        "aui-tool-fallback-root group/tool-fallback-root w-full",
-        className,
-      )}
+      className={cn("aui-tool-fallback-root group/tool-fallback-root w-full", className)}
       style={
         {
           "--animation-duration": `${ANIMATION_DURATION}ms`,
@@ -103,10 +91,7 @@ const formatToolDuration = (ms: number) => {
   return `${Math.floor(seconds / 60)}m ${Math.floor(seconds % 60)}s`;
 };
 
-function ToolFallbackDuration({
-  className,
-  ...props
-}: React.ComponentProps<"span">) {
+function ToolFallbackDuration({ className, ...props }: React.ComponentProps<"span">) {
   const elapsedMs = useToolCallElapsed();
   if (elapsedMs === undefined) return null;
 
@@ -133,13 +118,13 @@ function ToolFallbackTrigger({
   toolName: string;
   status?: ToolCallMessagePartStatus;
 }) {
+  const { t } = useI18n();
   const statusType = status?.type ?? "complete";
   const isRunning = statusType === "running";
-  const isCancelled =
-    status?.type === "incomplete" && status.reason === "cancelled";
+  const isCancelled = status?.type === "incomplete" && status.reason === "cancelled";
 
   const Icon = statusIconMap[statusType];
-  const label = isCancelled ? "Cancelled tool" : "Used tool";
+  const label = isCancelled ? t("assistant.tool.cancelled") : t("assistant.tool.used");
 
   return (
     <CollapsibleTrigger
@@ -257,6 +242,7 @@ function ToolFallbackResult({
 }: React.ComponentProps<"div"> & {
   result?: unknown;
 }) {
+  const { t } = useI18n();
   if (result === undefined) return null;
 
   return (
@@ -266,7 +252,7 @@ function ToolFallbackResult({
       {...props}
     >
       <p className="aui-tool-fallback-result-header text-muted-foreground text-xs font-medium">
-        Result:
+        {t("assistant.tool.result")}
       </p>
       <pre className="aui-tool-fallback-result-content bg-muted/50 text-foreground/90 mt-1 rounded-md p-2.5 text-xs whitespace-pre-wrap">
         {typeof result === "string" ? result : JSON.stringify(result, null, 2)}
@@ -282,19 +268,16 @@ function ToolFallbackError({
 }: React.ComponentProps<"div"> & {
   status?: ToolCallMessagePartStatus;
 }) {
+  const { t } = useI18n();
   if (status?.type !== "incomplete") return null;
 
   const error = status.error;
-  const errorText = error
-    ? typeof error === "string"
-      ? error
-      : JSON.stringify(error)
-    : null;
+  const errorText = error ? (typeof error === "string" ? error : JSON.stringify(error)) : null;
 
   if (!errorText) return null;
 
   const isCancelled = status.reason === "cancelled";
-  const headerText = isCancelled ? "Cancelled reason:" : "Error:";
+  const headerText = isCancelled ? t("assistant.tool.cancelledReason") : t("assistant.tool.error");
 
   return (
     <div
@@ -305,9 +288,7 @@ function ToolFallbackError({
       <p className="aui-tool-fallback-error-header text-muted-foreground font-semibold">
         {headerText}
       </p>
-      <p className="aui-tool-fallback-error-reason text-muted-foreground">
-        {errorText}
-      </p>
+      <p className="aui-tool-fallback-error-reason text-muted-foreground">{errorText}</p>
     </div>
   );
 }
@@ -315,22 +296,23 @@ function ToolFallbackError({
 const APPROVED_RESULT = "Approved by user";
 const DENIED_RESULT = "User denied tool execution";
 
-const APPROVAL_OPTION_DEFAULT_LABELS: Record<string, string> = {
-  "allow-once": "Allow",
-  "allow-always": "Always allow",
-  "reject-once": "Deny",
-  "reject-always": "Always deny",
+const APPROVAL_OPTION_KINDS = new Set([
+  "allow-once",
+  "allow-always",
+  "reject-once",
+  "reject-always",
+]);
+
+const isAllowKind = (kind: string) => kind === "allow-once" || kind === "allow-always";
+
+const approvalOptionLabel = (option: ToolApprovalOption, t: Translate) => {
+  if (option.label) return option.label;
+  if (option.kind === "allow-once") return t("assistant.tool.allow");
+  if (option.kind === "allow-always") return t("assistant.tool.alwaysAllow");
+  if (option.kind === "reject-once") return t("assistant.tool.deny");
+  if (option.kind === "reject-always") return t("assistant.tool.alwaysDeny");
+  return option.id;
 };
-
-const isAllowKind = (kind: string) =>
-  kind === "allow-once" || kind === "allow-always";
-
-const approvalOptionLabel = (option: ToolApprovalOption) =>
-  option.label ??
-  (Object.hasOwn(APPROVAL_OPTION_DEFAULT_LABELS, option.kind)
-    ? APPROVAL_OPTION_DEFAULT_LABELS[option.kind]
-    : undefined) ??
-  option.id;
 
 function ToolFallbackApproval({
   className,
@@ -341,19 +323,15 @@ function ToolFallbackApproval({
   respondToApproval,
   ...props
 }: React.ComponentProps<"div"> &
-  Partial<
-    Pick<ToolCallMessagePartProps, "addResult" | "resume" | "respondToApproval">
-  > & {
+  Partial<Pick<ToolCallMessagePartProps, "addResult" | "resume" | "respondToApproval">> & {
     interrupt?: ToolCallMessagePart["interrupt"];
     approval?: ToolCallMessagePart["approval"];
   }) {
+  const { t } = useI18n();
   const [submitted, setSubmitted] = useState(false);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
-  if (
-    approval != null &&
-    (approval.approved !== undefined || approval.resolution !== undefined)
-  )
+  if (approval != null && (approval.approved !== undefined || approval.resolution !== undefined))
     return null;
 
   // Custom (`_`-prefixed) kinds cannot be resolved to a boolean by the kit;
@@ -361,17 +339,11 @@ function ToolFallbackApproval({
   // a host constraint: the kit never adds an approval path beyond it, but
   // always preserves a refusal path.
   const declaredOptions = respondToApproval ? approval?.options : undefined;
-  const options = declaredOptions?.filter((o) =>
-    Object.hasOwn(APPROVAL_OPTION_DEFAULT_LABELS, o.kind),
-  );
+  const options = declaredOptions?.filter((o) => APPROVAL_OPTION_KINDS.has(o.kind));
 
   const respond = (approved: boolean) => {
     if (submitted) return;
-    if (
-      approval != null &&
-      approval.approved === undefined &&
-      respondToApproval
-    ) {
+    if (approval != null && approval.approved === undefined && respondToApproval) {
       respondToApproval({ approved });
     } else if (interrupt) {
       resume?.({ approved });
@@ -396,27 +368,20 @@ function ToolFallbackApproval({
     }
   };
 
-  const confirming =
-    confirmingId != null
-      ? options?.find((o) => o.id === confirmingId)
-      : undefined;
+  const confirming = confirmingId != null ? options?.find((o) => o.id === confirmingId) : undefined;
 
   if (confirming) {
-    const confirmMeta =
-      typeof confirming.confirm === "object" ? confirming.confirm : undefined;
-    const confirmDescription =
-      confirmMeta?.description ?? confirming.description;
+    const confirmMeta = typeof confirming.confirm === "object" ? confirming.confirm : undefined;
+    const confirmDescription = confirmMeta?.description ?? confirming.description;
     return (
       <div
         data-slot="tool-fallback-approval-confirm"
-        className={cn(
-          "aui-tool-fallback-approval-confirm flex flex-col gap-2 pt-1",
-          className,
-        )}
+        className={cn("aui-tool-fallback-approval-confirm flex flex-col gap-2 pt-1", className)}
         {...props}
       >
         <p className="aui-tool-fallback-approval-confirm-title font-semibold">
-          {confirmMeta?.title ?? `${approvalOptionLabel(confirming)}?`}
+          {confirmMeta?.title ??
+            t("assistant.tool.confirmOption", { label: approvalOptionLabel(confirming, t) })}
         </p>
         {confirmDescription && (
           <p className="aui-tool-fallback-approval-confirm-description text-muted-foreground">
@@ -441,7 +406,7 @@ function ToolFallbackApproval({
             onClick={() => respondWithOption(confirming)}
             disabled={submitted}
           >
-            Confirm
+            {t("assistant.tool.confirm")}
           </Button>
           <Button
             size="sm"
@@ -450,7 +415,7 @@ function ToolFallbackApproval({
             onClick={() => setConfirmingId(null)}
             disabled={submitted}
           >
-            Back
+            {t("assistant.tool.back")}
           </Button>
         </div>
       </div>
@@ -478,7 +443,7 @@ function ToolFallbackApproval({
             onClick={() => handleOption(option)}
             disabled={submitted}
           >
-            {approvalOptionLabel(option)}
+            {approvalOptionLabel(option, t)}
           </Button>
         ))}
         {rejectOptions.length === 0 && (
@@ -489,7 +454,7 @@ function ToolFallbackApproval({
             onClick={() => respond(false)}
             disabled={submitted}
           >
-            Deny
+            {t("assistant.tool.deny")}
           </Button>
         )}
       </div>
@@ -499,19 +464,11 @@ function ToolFallbackApproval({
   return (
     <div
       data-slot="tool-fallback-approval"
-      className={cn(
-        "aui-tool-fallback-approval flex items-center gap-2 pt-1",
-        className,
-      )}
+      className={cn("aui-tool-fallback-approval flex items-center gap-2 pt-1", className)}
       {...props}
     >
-      <Button
-        size="sm"
-        className={pressable}
-        onClick={() => respond(true)}
-        disabled={submitted}
-      >
-        Allow
+      <Button size="sm" className={pressable} onClick={() => respond(true)} disabled={submitted}>
+        {t("assistant.tool.allow")}
       </Button>
       <Button
         size="sm"
@@ -520,7 +477,7 @@ function ToolFallbackApproval({
         onClick={() => respond(false)}
         disabled={submitted}
       >
-        Deny
+        {t("assistant.tool.deny")}
       </Button>
     </div>
   );
@@ -537,13 +494,11 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
   approval,
   respondToApproval,
 }) => {
-  const isCancelled =
-    status?.type === "incomplete" && status.reason === "cancelled";
+  const isCancelled = status?.type === "incomplete" && status.reason === "cancelled";
   const isRequiresAction = status?.type === "requires-action";
 
   const [open, setOpen] = useState(isRequiresAction);
-  const [prevRequiresAction, setPrevRequiresAction] =
-    useState(isRequiresAction);
+  const [prevRequiresAction, setPrevRequiresAction] = useState(isRequiresAction);
   if (isRequiresAction !== prevRequiresAction) {
     setPrevRequiresAction(isRequiresAction);
     if (isRequiresAction) setOpen(true);
@@ -554,10 +509,7 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
       <ToolFallbackTrigger toolName={toolName} status={status} />
       <ToolFallbackContent>
         <ToolFallbackError status={status} />
-        <ToolFallbackArgs
-          argsText={argsText}
-          className={cn(isCancelled && "opacity-60")}
-        />
+        <ToolFallbackArgs argsText={argsText} className={cn(isCancelled && "opacity-60")} />
         {isRequiresAction && (
           <ToolFallbackApproval
             addResult={addResult}
@@ -573,9 +525,7 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
   );
 };
 
-const ToolFallback = memo(
-  ToolFallbackImpl,
-) as unknown as ToolCallMessagePartComponent & {
+const ToolFallback = memo(ToolFallbackImpl) as unknown as ToolCallMessagePartComponent & {
   Root: typeof ToolFallbackRoot;
   Trigger: typeof ToolFallbackTrigger;
   Content: typeof ToolFallbackContent;

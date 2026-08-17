@@ -13,6 +13,8 @@ export const WORKBENCH_SLOTS = [
   "sidebar.top",
   "sidebar.bottom",
   "sidebar.footer",
+  "panel.right.add-menu",
+  "panel.right.actions",
   "thread.header",
   "thread.before",
   "thread.after",
@@ -40,6 +42,15 @@ export interface ComposerSlotContext {
   isEmpty: boolean;
 }
 
+export interface RightPanelAddMenuSlotContext {
+  activePanelId: string;
+  closeMenu(): void;
+}
+
+export interface RightPanelActionsSlotContext {
+  activePanelId: string;
+}
+
 export interface SlotPropsMap {
   "header.left": Record<never, never>; // 顶栏左侧区域
   "header.center": Record<never, never>; // 顶栏居中区域
@@ -51,6 +62,8 @@ export interface SlotPropsMap {
   "sidebar.top": Record<never, never>; // 会话列表上方的上下文区域
   "sidebar.bottom": Record<never, never>; // 会话列表下方的上下文区域
   "sidebar.footer": Record<never, never>; // 侧边栏固定底部工具区
+  "panel.right.add-menu": RightPanelAddMenuSlotContext; // 右侧 Panel 加号弹出菜单
+  "panel.right.actions": RightPanelActionsSlotContext; // 右侧 Panel 标签行尾部图标区
   "thread.header": { threadId?: string }; // 当前会话顶部区域
   "thread.before": { threadId?: string }; // 当前会话消息列表之前
   "thread.after": { threadId?: string }; // 当前会话消息列表之后

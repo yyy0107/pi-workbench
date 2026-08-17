@@ -12,6 +12,7 @@ import {
   DownloadIcon,
 } from "lucide-react";
 import type { FileMessagePartComponent } from "@assistant-ui/react";
+import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 
 const fileVariants = cva(
@@ -61,10 +62,7 @@ function getMimeTypeIcon(mimeType: string): FC<{ className?: string }> {
 
 export type FileDataKind = "data-uri" | "url" | "base64" | "id";
 
-function getFileDataKind(
-  data: string,
-  sourceType?: "url" | "id",
-): FileDataKind {
+function getFileDataKind(data: string, sourceType?: "url" | "id"): FileDataKind {
   if (sourceType === "url" && /^data:/i.test(data)) return "data-uri";
   if (sourceType) return sourceType;
   if (/^data:/i.test(data)) return "data-uri";
@@ -79,26 +77,19 @@ function getBase64Size(base64: string): number {
   return Math.floor((base64Data.length * 3) / 4) - padding;
 }
 
-function formatFileSize(bytes: number): string {
+function formatFileSize(bytes: number, formatNumber: (value: number) => string = String): string {
   if (bytes < 1024) {
-    return `${bytes} B`;
+    return `${formatNumber(bytes)} B`;
   }
   if (bytes < 1024 * 1024) {
-    return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${formatNumber(Math.round((bytes / 1024) * 10) / 10)} KB`;
   }
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${formatNumber(Math.round((bytes / (1024 * 1024)) * 10) / 10)} MB`;
 }
 
-export type FileRootProps = React.ComponentProps<"div"> &
-  VariantProps<typeof fileVariants>;
+export type FileRootProps = React.ComponentProps<"div"> & VariantProps<typeof fileVariants>;
 
-function FileRoot({
-  className,
-  variant,
-  size,
-  children,
-  ...props
-}: FileRootProps) {
+function FileRoot({ className, variant, size, children, ...props }: FileRootProps) {
   return (
     <div
       data-slot="file-root"
@@ -116,12 +107,7 @@ type FileIconDisplayProps = React.ComponentProps<"span"> & {
   mimeType?: string;
 };
 
-function FileIconDisplay({
-  mimeType,
-  className,
-  children,
-  ...props
-}: FileIconDisplayProps) {
+function FileIconDisplay({ mimeType, className, children, ...props }: FileIconDisplayProps) {
   const IconComponent = mimeType ? getMimeTypeIcon(mimeType) : FileIcon;
 
   return (
@@ -135,18 +121,16 @@ function FileIconDisplay({
   );
 }
 
-function FileName({
-  className,
-  children,
-  ...props
-}: React.ComponentProps<"span">) {
+function FileName({ className, children, ...props }: React.ComponentProps<"span">) {
+  const { t } = useI18n();
+
   return (
     <span
       data-slot="file-name"
       className={cn("min-w-0 flex-1 truncate font-medium", className)}
       {...props}
     >
-      {children || "Unnamed file"}
+      {children || t("assistant.file.unnamed")}
     </span>
   );
 }
@@ -156,13 +140,15 @@ type FileSizeProps = React.ComponentProps<"span"> & {
 };
 
 function FileSize({ bytes, className, ...props }: FileSizeProps) {
+  const { number } = useI18n();
+
   return (
     <span
       data-slot="file-size"
       className={cn("text-muted-foreground shrink-0", className)}
       {...props}
     >
-      {formatFileSize(bytes)}
+      {formatFileSize(bytes, (value) => number(value, { maximumFractionDigits: 1 }))}
     </span>
   );
 }
@@ -206,24 +192,16 @@ function FileDownload({
   );
 }
 
-const FileImpl: FileMessagePartComponent = ({
-  filename,
-  data,
-  mimeType,
-  sourceType,
-}) => {
+const FileImpl: FileMessagePartComponent = ({ filename, data, mimeType, sourceType }) => {
   const kind = getFileDataKind(data, sourceType);
-  const showSize =
-    typeof data === "string" && (kind === "base64" || kind === "data-uri");
+  const showSize = typeof data === "string" && (kind === "base64" || kind === "data-uri");
 
   return (
     <FileRoot>
       <FileIconDisplay mimeType={mimeType} />
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <FileName>{filename}</FileName>
-        {showSize && (
-          <FileSize bytes={getBase64Size(data)} className="text-xs" />
-        )}
+        {showSize && <FileSize bytes={getBase64Size(data)} className="text-xs" />}
       </div>
       <FileDownload
         data={data}

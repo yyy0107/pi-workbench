@@ -1,22 +1,12 @@
 "use client";
 
-import {
-  memo,
-  useCallback,
-  useRef,
-  useState,
-  type FC,
-  type PropsWithChildren,
-} from "react";
+import { memo, useCallback, useRef, useState, type FC, type PropsWithChildren } from "react";
 import { ChevronDownIcon, LoaderIcon } from "lucide-react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { useScrollLock } from "@assistant-ui/react";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/i18n";
 
 const ANIMATION_DURATION = 200;
 
@@ -75,11 +65,7 @@ function ToolGroupRoot({
       data-variant={variant ?? "outline"}
       open={isOpen}
       onOpenChange={handleOpenChange}
-      className={cn(
-        toolGroupVariants({ variant }),
-        "group/tool-group-root",
-        className,
-      )}
+      className={cn(toolGroupVariants({ variant }), "group/tool-group-root", className)}
       style={
         {
           "--animation-duration": `${ANIMATION_DURATION}ms`,
@@ -101,7 +87,8 @@ function ToolGroupTrigger({
   count: number;
   active?: boolean;
 }) {
-  const label = `${count} tool ${count === 1 ? "call" : "calls"}`;
+  const { t } = useI18n();
+  const label = t("assistant.tool.calls", { count });
 
   return (
     <CollapsibleTrigger
@@ -196,17 +183,17 @@ function ToolGroupContent({
   );
 }
 
-type ToolGroupComponent = FC<
-  PropsWithChildren<{ startIndex: number; endIndex: number }>
-> & {
+type ToolGroupComponent = FC<PropsWithChildren<{ startIndex: number; endIndex: number }>> & {
   Root: typeof ToolGroupRoot;
   Trigger: typeof ToolGroupTrigger;
   Content: typeof ToolGroupContent;
 };
 
-const ToolGroupImpl: FC<
-  PropsWithChildren<{ startIndex: number; endIndex: number }>
-> = ({ children, startIndex, endIndex }) => {
+const ToolGroupImpl: FC<PropsWithChildren<{ startIndex: number; endIndex: number }>> = ({
+  children,
+  startIndex,
+  endIndex,
+}) => {
   const toolCount = endIndex - startIndex + 1;
 
   return (
@@ -230,10 +217,4 @@ ToolGroup.Root = ToolGroupRoot;
 ToolGroup.Trigger = ToolGroupTrigger;
 ToolGroup.Content = ToolGroupContent;
 
-export {
-  ToolGroup,
-  ToolGroupRoot,
-  ToolGroupTrigger,
-  ToolGroupContent,
-  toolGroupVariants,
-};
+export { ToolGroup, ToolGroupRoot, ToolGroupTrigger, ToolGroupContent, toolGroupVariants };

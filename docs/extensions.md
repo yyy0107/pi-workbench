@@ -178,8 +178,9 @@ export function NotesTrigger({ isRunning }: ComposerSlotContext) {
 - `toggle(panelId)`；
 - `activate(panelId)`；
 - `move(panelId, location)`；
+- `collapse(location)` / `expand(location)`；
 - `setSize(location, size)`；
-- `isOpen(panelId)`。
+- `isOpen(panelId)` / `isCollapsed(location)`。
 
 不要直接修改 `panel-store`，除非你在开发 Workbench 宿主本身。
 
@@ -190,13 +191,14 @@ export function NotesTrigger({ isRunning }: ComposerSlotContext) {
 ```ts
 import { StickyNoteIcon } from "lucide-react";
 
+import { defineMessage } from "@/i18n";
 import type { CommandDefinition } from "@/platform/extensions";
 
 export const toggleNotesCommand = {
   id: "notes.toggle",
-  title: "Toggle Notes",
-  description: "Open or close the notes panel",
-  category: "Panels",
+  title: defineMessage("extensions.notes.toggleTitle"),
+  description: defineMessage("extensions.notes.toggleDescription"),
+  category: defineMessage("extensions.shared.panelsCategory"),
   icon: StickyNoteIcon,
   shortcut: ["Mod", "Shift", "N"],
   run(context) {
@@ -227,6 +229,7 @@ export const toggleNotesCommand = {
 ```ts
 import { StickyNoteIcon } from "lucide-react";
 
+import { defineMessage } from "@/i18n";
 import { defineExtension } from "@/platform/extensions";
 
 import { NotesPanel } from "./notes-panel";
@@ -247,7 +250,7 @@ export const notesExtension = defineExtension({
 
     const panel = context.panels.register({
       id: "notes",
-      title: "Notes",
+      title: defineMessage("extensions.notes.title"),
       icon: StickyNoteIcon,
       component: NotesPanel,
       defaultLocation: "right",
@@ -328,6 +331,11 @@ pnpm dev
 - `sidebar.brand`、`sidebar.header`、`sidebar.navigation`、`sidebar.workspace.actions`、`sidebar.top`、`sidebar.bottom`、`sidebar.footer`；
 - `statusbar.left`、`statusbar.right`。
 
+右侧 Panel 标签行 Slot：
+
+- `panel.right.add-menu`：加号弹出菜单中的选项，参数为 `{ activePanelId, closeMenu() }`；
+- `panel.right.actions`：标签行最右侧的图标操作区，参数为 `{ activePanelId }`。
+
 Thread Slot：
 
 - `thread.header`、`thread.before`、`thread.after`；
@@ -348,6 +356,8 @@ Composer Slot：
 `sidebar.brand` 位于侧栏顶部，用于可替换的产品标识；默认 `workbench-brand` 扩展在这里贡献 “Pi-Workbench”。`sidebar.navigation` 位于核心“新建会话”按钮之后，适合 Agent、工具箱、资产等可选主导航；`sidebar.workspace.actions` 位于“工作区”标题右侧，适合添加、搜索或筛选等紧凑操作；`sidebar.footer` 位于侧栏固定底部，适合设置或状态入口。核心“新建会话”和 Thread List 不由扩展替换。
 
 当前移动端会话抽屉复用核心侧栏内容，但不挂载 `sidebar.*` Slot；Sidebar Slot 贡献目前只显示在桌面侧栏。需要移动端入口时，可像 Terminal 扩展一样额外注册 `header.right` 触发器。
+
+`panel.right.add-menu` 的贡献应渲染单个 `role="menuitem"` 控件，通过 `usePanelService()` 打开自己的 Panel，随后调用 `closeMenu()`。`panel.right.actions` 适合刷新、全屏、布局切换等紧凑图标按钮，每个按钮必须提供 `aria-label`。加号、标签关闭和整栏收起按钮由 Workbench 宿主管理，不应在贡献中重复实现。
 
 ### 排序与唯一性
 
@@ -400,7 +410,7 @@ Panel 定义：
 ```ts
 context.panels.register({
   id: "preview",
-  title: "Preview",
+  title: defineMessage("extensions.preview.title"),
   icon: EyeIcon,
   component: PreviewPanel,
   defaultLocation: "right",
@@ -410,9 +420,86 @@ context.panels.register({
 });
 ```
 
+如果 Panel 需要出现在标签行的加号菜单中，由同一个扩展注册菜单项：
+
+```tsx
+"use client";
+
+import { type RightPanelAddMenuSlotContext, usePanelService } from "@/platform/extensions";
+
+export function BrowserAddMenuItem({ closeMenu }: RightPanelAddMenuSlotContext) {
+  const panels = usePanelService();
+
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      onClick={() => {
+        panels.open("browser");
+        closeMenu();
+      }}
+    >
+      打开浏览器
+    </button>
+  );
+}
+```
+
+```ts
+context.slots.register("panel.right.add-menu", {
+  id: "workbench.browser.right-panel-add-menu",
+  order: 30,
+  component: BrowserAddMenuItem,
+});
+```
+
+需要由扩展动态控制标签标题和图标时，注册一个标签组件。它可以使用 React hooks 读取扩展自己的状态，例如浏览器当前页面标题和 favicon：
+
+```tsx
+"use client";
+
+import type { PanelTabComponentProps } from "@/platform/extensions";
+
+export function BrowserTab({ isActive }: PanelTabComponentProps) {
+  const { faviconUrl, pageTitle } = useBrowserStore();
+
+  return (
+    <>
+      <img src={faviconUrl} alt="" className="size-4 shrink-0" />
+      <span className="min-w-0 flex-1 truncate text-left">
+        {pageTitle || (isActive ? "浏览器" : "新标签页")}
+      </span>
+    </>
+  );
+}
+```
+
+```ts
+context.panels.register({
+  id: "browser",
+  tabComponent: BrowserTab,
+  tabClassNames: {
+    root: ({ isActive }) =>
+      isActive ? "max-w-64 rounded-lg bg-sky-500/10" : "max-w-48 rounded-lg",
+    trigger: "px-2",
+    closeButton: "hover:bg-sky-500/15",
+  },
+  component: BrowserPanel,
+  defaultLocation: "right",
+});
+```
+
 规则：
 
 - Panel id 全局唯一；
+- `title` 与 `tabComponent` 至少提供一个；
+- 有 `tabComponent` 时，它控制可见的标题和图标，静态 `title/icon` 只作为回退；
+- `tabClassNames.root/trigger/closeButton` 会在宿主默认样式之后通过 `cn()` 合并，因此扩展可以覆盖标签外框、选择按钮和关闭按钮样式；
+- `tabClassNames` 的值可以是字符串，也可以是接收 `{ panelId, isActive }` 的纯函数；函数不能调用 React hooks；
+- 标签根节点提供 `data-panel-id` 和 `data-state="active|inactive"`，可用于更复杂的变体选择器；
+- 标签组件可以使用 React hooks，但 `setup()` 不可以；动态状态应放在扩展自己的共享 store/context 中；
+- 标签外围按钮、激活和点击行为属于宿主，标签组件内部不要再渲染按钮或链接；
+- 单个标签的关闭按钮属于宿主；关闭当前标签后会激活最近打开的剩余标签；
 - `minSize` 不能大于 `maxSize`；
 - 同一位置当前只显示一个 active Panel；
 - Panel 内容由 Error Boundary 隔离；
@@ -420,6 +507,8 @@ context.panels.register({
 - 尺寸当前按 location 保存，而不是按 Panel 保存，刷新后也不会持久化；
 - 组件只渲染内容，不要重复实现宿主标题栏；
 - 完整工作区优先使用 Panel，不要把大型 UI 塞入 Slot。
+
+已打开且当前位置为 `right` 的 Panel 会成为全高右侧栏中的标签。静态标签使用 Panel 的 `title/icon`；需要动态标题或图标时使用 `tabComponent`。标签顺序按打开顺序排列。关闭按钮只关闭对应 Panel；收起右侧栏会保留所有已打开标签及当前激活项，重新展开后原样恢复。加号菜单选项来自 `panel.right.add-menu`，右侧图标操作来自 `panel.right.actions`。
 
 React 组件内使用 `usePanelService()`；Command 内使用 `context.panels`。两者用途不同：前者暴露完整 PanelService，后者只暴露命令执行所需的 `open/close/toggle`。
 

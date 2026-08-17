@@ -5,10 +5,12 @@ import { FolderIcon, FolderOpenIcon } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/i18n";
 
 import { useWorkspaceDirectoryStore } from "./workspace-directory-store";
 
 export function WorkspaceDirectoryList() {
+  const { t } = useI18n();
   const pathname = usePathname();
   const directories = useWorkspaceDirectoryStore((state) => state.directories);
   const activeDirectoryId = useWorkspaceDirectoryStore((state) => state.activeDirectoryId);
@@ -45,7 +47,7 @@ export function WorkspaceDirectoryList() {
                 aria-current="page"
                 className="bg-sidebar-accent flex h-10 items-center rounded-lg ps-9 pe-2.5 text-sm font-medium"
               >
-                新会话
+                {t("extensions.workspaceDirectory.newThread")}
               </div>
             ) : null}
           </div>

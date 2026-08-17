@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { I18nProvider } from "@/i18n";
+import { getRequestLocale, getServerI18n } from "@/i18n/server";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,23 +15,31 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: {
-    default: "Pi Workbench",
-    template: "%s · Pi Workbench",
-  },
-  description: "A composable AI workbench built with assistant-ui.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getServerI18n();
 
-export default function RootLayout({
+  return {
+    title: {
+      default: "Pi Workbench",
+      template: "%s · Pi Workbench",
+    },
+    description: t("app.metadata.description"),
+  };
+}
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getRequestLocale();
+
   return (
-    <html lang="en">
+    <html lang={locale}>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <TooltipProvider>{children}</TooltipProvider>
+        <I18nProvider initialLocale={locale}>
+          <TooltipProvider>{children}</TooltipProvider>
+        </I18nProvider>
       </body>
     </html>
   );

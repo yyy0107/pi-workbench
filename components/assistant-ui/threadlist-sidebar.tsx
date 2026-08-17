@@ -11,12 +11,20 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 import { ThreadList } from "@/components/assistant-ui/thread-list";
+import { useI18n } from "@/i18n";
 
 export function ThreadListSidebar({
   ...props
-}: React.ComponentProps<typeof Sidebar>) {
+}: Omit<React.ComponentProps<typeof Sidebar>, "closeLabel" | "mobileDescription" | "mobileTitle">) {
+  const { t } = useI18n();
+
   return (
-    <Sidebar {...props}>
+    <Sidebar
+      closeLabel={t("assistant.common.close")}
+      mobileDescription={t("assistant.threads.sidebarDescription")}
+      mobileTitle={t("assistant.threads.sidebarTitle")}
+      {...props}
+    >
       <SidebarHeader className="aui-sidebar-header mb-2 border-b">
         <div className="aui-sidebar-header-content flex items-center justify-between">
           <SidebarMenu>
@@ -24,11 +32,7 @@ export function ThreadListSidebar({
               <SidebarMenuButton
                 size="lg"
                 render={
-                  <a
-                    href="https://assistant-ui.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  />
+                  <a href="https://assistant-ui.com" target="_blank" rel="noopener noreferrer" />
                 }
               >
                 <div className="aui-sidebar-header-icon-wrapper bg-white text-sidebar-primary-foreground flex aspect-square size-9 items-center justify-center rounded-lg border">
@@ -39,9 +43,7 @@ export function ThreadListSidebar({
                   />
                 </div>
                 <div className="aui-sidebar-header-heading me-6 flex flex-col gap-0.5 leading-none">
-                  <span className="aui-sidebar-header-title font-semibold">
-                    Pi-Workbench
-                  </span>
+                  <span className="aui-sidebar-header-title font-semibold">Pi-Workbench</span>
                 </div>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -51,7 +53,7 @@ export function ThreadListSidebar({
       <SidebarContent className="aui-sidebar-content px-2">
         <ThreadList />
       </SidebarContent>
-      <SidebarRail />
+      <SidebarRail label={t("assistant.threads.toggleSidebar")} />
       <SidebarFooter className="aui-sidebar-footer border-t">
         <SidebarMenu>
           <SidebarMenuItem>
@@ -69,10 +71,8 @@ export function ThreadListSidebar({
                 <GitHubIcon className="aui-sidebar-footer-icon size-4" />
               </div>
               <div className="aui-sidebar-footer-heading flex flex-col gap-0.5 leading-none">
-                <span className="aui-sidebar-footer-title font-semibold">
-                  GitHub
-                </span>
-                <span>View Source</span>
+                <span className="aui-sidebar-footer-title font-semibold">GitHub</span>
+                <span>{t("assistant.sourceLink")}</span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>

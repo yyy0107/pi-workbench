@@ -4,19 +4,16 @@ export const MODEL_OPTIONS = [
   {
     id: "gpt-5.6-luna",
     name: "GPT-5.6 Luna",
-    description: "Fast and efficient",
     keywords: ["openai", "fast"],
   },
   {
     id: "gpt-5.6-terra",
     name: "GPT-5.6 Terra",
-    description: "Balanced performance",
     keywords: ["openai", "balanced"],
   },
   {
     id: "gpt-5.6-sol",
     name: "GPT-5.6 Sol",
-    description: "Most capable",
     keywords: ["openai", "reasoning"],
     efforts: true,
   },

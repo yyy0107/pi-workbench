@@ -1,6 +1,8 @@
 import type { ComponentType } from "react";
 import type { LucideIcon } from "lucide-react";
 
+import type { LocalizableText } from "@/i18n";
+
 import type { Disposable } from "./disposable";
 
 export type PanelLocation = "left" | "right" | "bottom";
@@ -12,10 +14,25 @@ export interface PanelComponentProps {
   close(): void;
 }
 
+export interface PanelTabComponentProps {
+  panelId: string;
+  isActive: boolean;
+}
+
+export type PanelTabClassName = string | ((context: PanelTabComponentProps) => string | undefined);
+
+export interface PanelTabClassNames {
+  root?: PanelTabClassName;
+  trigger?: PanelTabClassName;
+  closeButton?: PanelTabClassName;
+}
+
 export interface PanelDefinition {
   id: string;
-  title: string;
+  title?: LocalizableText;
   icon?: LucideIcon;
+  tabComponent?: ComponentType<PanelTabComponentProps>;
+  tabClassNames?: PanelTabClassNames;
   component: ComponentType<PanelComponentProps>;
   defaultLocation: PanelLocation;
   defaultSize?: number;

@@ -9,6 +9,7 @@ import { Image } from "@/components/assistant-ui/image";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { Reasoning } from "@/components/assistant-ui/reasoning";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
+import { useI18n } from "@/i18n";
 import { RendererHost } from "@/platform/extensions";
 
 function serializeData(value: unknown) {
@@ -31,6 +32,8 @@ const WorkbenchDataFallback: DataMessagePartComponent = ({ name, data }) => (
 );
 
 export function WorkbenchMessageParts() {
+  const { t } = useI18n();
+
   return (
     <MessagePrimitive.Parts>
       {({ part }) => {
@@ -40,7 +43,7 @@ export function WorkbenchMessageParts() {
               return (
                 <span className="my-2 inline-flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2Icon className="size-3.5 animate-spin" />
-                  Thinking…
+                  {t("workbench.chat.generating")}
                 </span>
               );
             }
@@ -52,7 +55,7 @@ export function WorkbenchMessageParts() {
           case "file":
             return <File {...part} />;
           case "source": {
-            const label = part.title || part.url || "Source";
+            const label = part.title || part.url || t("workbench.chat.sourceFallback");
             const isSafeUrl = part.sourceType === "url" && /^https?:\/\//i.test(part.url);
 
             if (!isSafeUrl) {

@@ -1,5 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 
+import type { LocalizableText } from "@/i18n";
+
 import type { Disposable } from "./disposable";
 
 export interface CommandExecutionContext {
@@ -16,9 +18,9 @@ export interface CommandExecutionContext {
 
 export interface CommandDefinition {
   id: string;
-  title: string;
-  description?: string;
-  category?: string;
+  title: LocalizableText;
+  description?: LocalizableText;
+  category?: LocalizableText;
   icon?: LucideIcon;
   shortcut?: readonly string[];
   run(context: CommandExecutionContext): void | Promise<void>;

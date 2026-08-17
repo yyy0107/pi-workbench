@@ -5,6 +5,7 @@ import { ThreadPrimitive, useAui, useAuiState } from "@assistant-ui/react";
 import { ArrowDownIcon } from "lucide-react";
 
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { useI18n } from "@/i18n";
 import { SlotHost } from "@/platform/extensions";
 
 import { WorkbenchComposer } from "./workbench-composer";
@@ -72,6 +73,7 @@ export function ThreadRouteSync({ threadId }: { threadId?: string }) {
 }
 
 export function WorkbenchThread({ threadId }: WorkbenchThreadProps) {
+  const { t } = useI18n();
   const activeThreadId = useAuiState((state) => state.threads.mainThreadId);
   const slotContext = { threadId: threadId ?? activeThreadId };
 
@@ -129,7 +131,7 @@ export function WorkbenchThread({ threadId }: WorkbenchThreadProps) {
         <ThreadPrimitive.ScrollToBottom
           render={
             <TooltipIconButton
-              tooltip="Scroll to latest"
+              tooltip={t("workbench.chat.scrollLatest")}
               variant="outline"
               className="bg-background sticky bottom-44 z-10 mx-auto size-8 shrink-0 rounded-full shadow-sm"
             />
@@ -141,7 +143,7 @@ export function WorkbenchThread({ threadId }: WorkbenchThreadProps) {
         <ThreadPrimitive.ViewportFooter className="bg-background/95 sticky bottom-0 mx-auto mt-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-3 rounded-t-3xl pb-4 pt-2 backdrop-blur supports-[backdrop-filter]:bg-background/80">
           <WorkbenchComposer />
           <p className="text-muted-foreground px-4 text-center text-[11px]">
-            AI responses can be inaccurate. Check important information.
+            {t("workbench.chat.disclaimer")}
           </p>
         </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>

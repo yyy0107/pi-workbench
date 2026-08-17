@@ -5,6 +5,7 @@ import { CirclePlusIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { buttonVariants } from "@/components/ui/button";
+import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 
 export function NewThreadButton({
@@ -14,6 +15,7 @@ export function NewThreadButton({
   className?: string;
   onNavigate?: () => void;
 }) {
+  const { t } = useI18n();
   const router = useRouter();
 
   const openNewThreadRoute = () => {
@@ -33,7 +35,7 @@ export function NewThreadButton({
         )}
       >
         <CirclePlusIcon className="size-4" />
-        新建会话
+        {t("workbench.sidebar.newThread")}
       </button>
     </ThreadListPrimitive.New>
   );

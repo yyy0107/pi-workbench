@@ -4,6 +4,7 @@ import { useState, type CSSProperties, type ReactNode } from "react";
 
 import { SidebarProvider } from "@/components/ui/sidebar";
 
+import { PanelDock } from "@/workbench/panels/panel-dock";
 import { PanelLayout } from "@/workbench/panels/panel-layout";
 
 import { WorkbenchGlobalLayer } from "./workbench-global-layer";
@@ -41,12 +42,15 @@ export function WorkbenchShell({ children }: Readonly<{ children: ReactNode }>) 
         onResizingChange={setIsSidebarResizing}
       />
 
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <WorkbenchHeader />
-        <PanelLayout>
-          <WorkbenchMain>{children}</WorkbenchMain>
-        </PanelLayout>
-        <WorkbenchStatusbar />
+      <div className="flex min-w-0 flex-1 overflow-hidden">
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <WorkbenchHeader />
+          <PanelLayout>
+            <WorkbenchMain>{children}</WorkbenchMain>
+          </PanelLayout>
+          <WorkbenchStatusbar />
+        </div>
+        <PanelDock location="right" />
       </div>
 
       <WorkbenchGlobalLayer />

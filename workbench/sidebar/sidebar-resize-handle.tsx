@@ -3,6 +3,7 @@
 import { useEffect, useRef, type PointerEvent as ReactPointerEvent } from "react";
 
 import { useSidebar } from "@/components/ui/sidebar";
+import { useI18n } from "@/i18n";
 
 const KEYBOARD_STEP = 16;
 const DETACH_ANIMATION_MS = 300;
@@ -40,6 +41,7 @@ export function SidebarResizeHandle({
   onResize,
   onResizingChange,
 }: SidebarResizeHandleProps) {
+  const { t } = useI18n();
   const { setOpen } = useSidebar();
   const sessionRef = useRef<ResizeSession | null>(null);
 
@@ -86,7 +88,7 @@ export function SidebarResizeHandle({
     <div
       role="separator"
       tabIndex={0}
-      aria-label="调整侧边栏宽度"
+      aria-label={t("workbench.sidebar.resize")}
       aria-orientation="vertical"
       aria-valuenow={Math.round(width)}
       aria-valuemin={Math.round(minWidth)}

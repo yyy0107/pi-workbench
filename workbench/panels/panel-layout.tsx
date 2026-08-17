@@ -8,7 +8,6 @@ export function PanelLayout({ children }: Readonly<{ children: ReactNode }>) {
       <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
         <PanelDock location="left" />
         {children}
-        <PanelDock location="right" />
       </div>
       <PanelDock location="bottom" />
     </div>

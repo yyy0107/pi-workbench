@@ -4,6 +4,7 @@ import { PanelLeftCloseIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Sidebar, useSidebar } from "@/components/ui/sidebar";
+import { useI18n } from "@/i18n";
 import { SlotHost } from "@/platform/extensions";
 import { NewThreadButton } from "@/workbench/sidebar/new-thread-button";
 import { SidebarResizeHandle } from "@/workbench/sidebar/sidebar-resize-handle";
@@ -16,6 +17,8 @@ export function WorkbenchSidebarContent({
   mobile?: boolean;
   onNavigate?: () => void;
 }) {
+  const { t } = useI18n();
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       {!mobile ? (
@@ -37,7 +40,7 @@ export function WorkbenchSidebarContent({
         />
       ) : null}
 
-      <nav aria-label="主要导航" className="shrink-0 px-4 pb-5">
+      <nav aria-label={t("workbench.sidebar.mainNavigation")} className="shrink-0 px-4 pb-5">
         <NewThreadButton onNavigate={onNavigate} />
         {!mobile ? (
           <SlotHost name="sidebar.navigation" className="mt-2 flex flex-col gap-1 empty:hidden" />
@@ -45,7 +48,9 @@ export function WorkbenchSidebarContent({
       </nav>
 
       <div className="flex h-9 shrink-0 items-center px-5">
-        <h2 className="text-muted-foreground min-w-0 flex-1 text-base font-medium">工作区</h2>
+        <h2 className="text-muted-foreground min-w-0 flex-1 text-base font-medium">
+          {t("workbench.shell.workspace")}
+        </h2>
         {!mobile ? (
           <SlotHost
             name="sidebar.workspace.actions"
@@ -83,17 +88,18 @@ export function WorkbenchSidebarContent({
 }
 
 function MobileSidebarHeader() {
+  const { t } = useI18n();
   const { setOpenMobile } = useSidebar();
 
   return (
     <div className="flex h-14 shrink-0 items-center justify-between px-4">
-      <span className="text-sm font-semibold">会话</span>
+      <span className="text-sm font-semibold">{t("workbench.sidebar.conversations")}</span>
       <Button
         type="button"
         variant="ghost"
         size="icon-sm"
-        aria-label="关闭会话侧边栏"
-        title="关闭会话侧边栏"
+        aria-label={t("workbench.sidebar.closeMobile")}
+        title={t("workbench.sidebar.closeMobile")}
         onClick={() => setOpenMobile(false)}
       >
         <PanelLeftCloseIcon className="size-[18px]" />
@@ -103,6 +109,7 @@ function MobileSidebarHeader() {
 }
 
 function SidebarCollapseButton() {
+  const { t } = useI18n();
   const { setOpen } = useSidebar();
 
   return (
@@ -110,8 +117,8 @@ function SidebarCollapseButton() {
       type="button"
       variant="ghost"
       size="icon-sm"
-      aria-label="收起侧边栏"
-      title="收起侧边栏"
+      aria-label={t("workbench.sidebar.collapse")}
+      title={t("workbench.sidebar.collapse")}
       onClick={() => setOpen(false)}
       className="text-muted-foreground hover:text-foreground"
     >
@@ -135,10 +142,17 @@ export function WorkbenchSidebar({
   onResize,
   onResizingChange,
 }: WorkbenchSidebarProps) {
+  const { t } = useI18n();
   const { isMobile, setOpenMobile } = useSidebar();
 
   return (
-    <Sidebar aria-label="会话侧边栏" collapsible="offcanvas">
+    <Sidebar
+      aria-label={t("workbench.sidebar.region")}
+      closeLabel={t("workbench.sidebar.closeMobile")}
+      mobileDescription={t("workbench.sidebar.mobileDescription")}
+      mobileTitle={t("workbench.sidebar.mobileTitle")}
+      collapsible="offcanvas"
+    >
       <WorkbenchSidebarContent
         mobile={isMobile}
         onNavigate={isMobile ? () => setOpenMobile(false) : undefined}
