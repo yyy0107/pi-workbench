@@ -47,6 +47,19 @@ export const extensionsEnUS = {
     high: "High",
     thinking: "Thinking",
   },
+  messagePresentation: {
+    generating: "Generating response…",
+    sourceFallback: "Source",
+    reasoning: {
+      active: "Thinking",
+      complete: "Reasoned",
+      completeWithDuration: ({ seconds }: { seconds: number }, { number }: MessageFormatters) =>
+        `Reasoned for ${number(seconds)}s`,
+      elapsed: ({ seconds }: { seconds: number }, { number }: MessageFormatters) =>
+        `${number(seconds)}s`,
+      step: "Reasoning",
+    },
+  },
   skills: {
     title: "Skills",
     add: "Add skills",
@@ -110,6 +123,13 @@ export const extensionsEnUS = {
     devHint: "Use the real project terminal to run pnpm commands.",
     unavailable: ({ command }: { command: string }) => `mock: command not available: ${command}`,
     unavailableHint: 'Try "help" for the supported preview commands.',
+    tool: {
+      running: "Running",
+      complete: "Completed",
+      failed: "Failed",
+      waiting: "Waiting for approval",
+      open: "Open terminal",
+    },
   },
   tokenUsage: {
     accessibleLabel: ({ count }: { count: number }, { number }: MessageFormatters) =>

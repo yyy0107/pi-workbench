@@ -18,6 +18,30 @@ const EMPTY_DATA_RENDERERS = Object.freeze(Object.create(null)) as Readonly<
   Record<string, DataRendererComponent>
 >;
 
+export function MessageRendererHost({ fallback = null }: { fallback?: ReactNode }) {
+  const { manager, reportError } = useExtensionEnvironment();
+  const contribution = useSyncExternalStore(
+    manager.renderers.message.subscribe,
+    () => manager.renderers.message.get(),
+    () => undefined,
+  );
+
+  if (!contribution) return fallback;
+  const MessageRenderer = contribution.component;
+
+  return (
+    <ExtensionErrorBoundary
+      contributionId={contribution.id}
+      source="renderer"
+      onError={reportError}
+      resetKey={MessageRenderer}
+      fallback={fallback}
+    >
+      <MessageRenderer />
+    </ExtensionErrorBoundary>
+  );
+}
+
 export function useToolRendererMap(): Readonly<Record<string, ToolRendererComponent>> {
   const { manager } = useExtensionEnvironment();
   return useSyncExternalStore(

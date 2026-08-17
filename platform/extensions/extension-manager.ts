@@ -4,6 +4,7 @@ import type { ExtensionContext, ExtensionSetupResult, WorkbenchExtension } from 
 import type { PanelRegistry } from "./api/panel";
 import type {
   DataRendererComponent,
+  MessageRendererRegistry,
   NamedRendererRegistry,
   RendererRegistry,
   ToolRendererComponent,
@@ -161,6 +162,11 @@ export class ExtensionManager implements Disposable {
     });
 
     const renderers: RendererRegistry = {
+      message: {
+        register: (contribution) => track(this.renderers.message.register(contribution)),
+        get: () => this.renderers.message.get(),
+        subscribe: this.renderers.message.subscribe,
+      } satisfies MessageRendererRegistry,
       tools: wrapRenderers<ToolRendererComponent>(this.renderers.tools),
       data: wrapRenderers<DataRendererComponent>(this.renderers.data),
     };

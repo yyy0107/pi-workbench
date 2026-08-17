@@ -47,6 +47,19 @@ export const extensionsZhCN = {
     high: "高",
     thinking: "思考",
   },
+  messagePresentation: {
+    generating: "正在生成回答…",
+    sourceFallback: "来源",
+    reasoning: {
+      active: "正在思考",
+      complete: "已完成思考",
+      completeWithDuration: ({ seconds }: { seconds: number }, { number }: MessageFormatters) =>
+        `思考用时 ${number(seconds)} 秒`,
+      elapsed: ({ seconds }: { seconds: number }, { number }: MessageFormatters) =>
+        `${number(seconds)} 秒`,
+      step: "思考过程",
+    },
+  },
   skills: {
     title: "技能",
     add: "添加技能",
@@ -110,6 +123,13 @@ export const extensionsZhCN = {
     devHint: "请使用真实项目终端运行 pnpm 命令。",
     unavailable: ({ command }: { command: string }) => `模拟：命令不可用：${command}`,
     unavailableHint: '输入 "help" 查看支持的预览命令。',
+    tool: {
+      running: "正在运行",
+      complete: "已完成",
+      failed: "运行失败",
+      waiting: "等待授权",
+      open: "打开终端",
+    },
   },
   tokenUsage: {
     accessibleLabel: ({ count }: { count: number }, { number }: MessageFormatters) =>

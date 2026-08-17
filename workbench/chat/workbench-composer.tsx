@@ -57,7 +57,7 @@ export function WorkbenchComposer() {
     state.directories.some((directory) => directory.id === state.draftDirectoryId),
   );
   const canCompose = !isNewThread || hasDraftWorkspace;
-  const showDisabledAppearance = !canCompose && isComposerSelected;
+  const showWorkspacePrompt = !canCompose && isComposerSelected;
   const contextCount = useAuiState(
     (state) => state.thread.messages.length + state.thread.composer.attachments.length,
   );
@@ -70,10 +70,10 @@ export function WorkbenchComposer() {
   useEffect(() => {
     setIsDrawerOpen(isNewThread);
     setIsComposerSelected(false);
-  }, [isNewThread, mainThreadId]);
+  }, [hasDraftWorkspace, isNewThread, mainThreadId]);
 
   useEffect(() => {
-    if (!isNewThread || !isComposerSelected) return;
+    if (!showWorkspacePrompt) return;
 
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target;
@@ -83,7 +83,7 @@ export function WorkbenchComposer() {
 
     document.addEventListener("pointerdown", handlePointerDown);
     return () => document.removeEventListener("pointerdown", handlePointerDown);
-  }, [isComposerSelected, isNewThread]);
+  }, [showWorkspacePrompt]);
 
   return (
     <div className="flex w-full flex-col gap-2">
@@ -92,9 +92,9 @@ export function WorkbenchComposer() {
       <ComposerPrimitive.Root
         ref={composerRef}
         className="group/composer relative flex w-full flex-col"
-        data-selected={isNewThread && isComposerSelected ? "true" : undefined}
+        data-selected={showWorkspacePrompt ? "true" : undefined}
         onPointerDownCapture={() => {
-          if (isNewThread) setIsComposerSelected(true);
+          if (!canCompose) setIsComposerSelected(true);
         }}
         onSubmit={(event) => {
           if (!canCompose) {
@@ -109,8 +109,7 @@ export function WorkbenchComposer() {
         <ComposerPrimitive.AttachmentDropzone
           className={cn(
             "bg-background data-[dragging=true]:bg-accent/50 flex w-full flex-col overflow-hidden rounded-[30px] border shadow-[0_1px_3px_rgba(0,0,0,0.08)] outline-none transition-[border-color,box-shadow,background-color] data-[dragging=true]:border-dashed",
-            isNewThread &&
-              isComposerSelected &&
+            showWorkspacePrompt &&
               "border-dashed border-muted-foreground/40 dark:border-muted-foreground/50",
           )}
         >
@@ -118,7 +117,7 @@ export function WorkbenchComposer() {
             disabled={!canCompose}
             className={cn(
               "flex min-h-36 flex-col px-5 pb-3 pt-4 transition-opacity",
-              showDisabledAppearance ? "opacity-60" : !canCompose && "[&_:disabled]:opacity-100",
+              showWorkspacePrompt ? "opacity-60" : !canCompose && "[&_:disabled]:opacity-100",
             )}
           >
             <ComposerAttachments />
@@ -242,9 +241,7 @@ export function WorkbenchComposer() {
                 disabled={!canCompose}
                 className={cn(
                   "ms-auto flex shrink-0 items-center gap-1.5 transition-opacity",
-                  showDisabledAppearance
-                    ? "opacity-60"
-                    : !canCompose && "[&_:disabled]:opacity-100",
+                  showWorkspacePrompt ? "opacity-60" : !canCompose && "[&_:disabled]:opacity-100",
                 )}
               >
                 <ComposerDrawerStats contextCount={contextCount}>

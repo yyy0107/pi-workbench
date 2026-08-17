@@ -31,14 +31,14 @@ enabledExtensions
 - **Slot**：把小型组件插入宿主已经声明的位置，例如 Composer 按钮或状态栏指标。
 - **Panel**：提供独立工作区，例如 Skills、Terminal、文件预览器。
 - **Command**：提供可复用动作，同时进入命令面板和快捷键系统。
-- **Renderer**：按 tool name 或 data name 渲染 assistant-ui 消息 Part。
+- **Renderer**：接管整条消息的 Parts/分组策略，或按 tool name、data name 渲染单个 assistant-ui Part。
 
 选择建议：
 
 - 一个图标、按钮、状态值：使用 Slot。
 - 需要滚动、表单或较大空间：使用 Panel。
 - 同一动作需要被快捷键、命令面板或按钮复用：使用 Command。
-- 需要展示模型工具调用或结构化数据：使用 Renderer。
+- 需要决定 reasoning/tool 是否分组、消息样式，或展示模型工具调用和结构化数据：使用 Renderer。
 - 需要一个新 URL：直接增加 Next.js 文件路由，不要放进扩展 API。
 
 ## 2. 扩展的最小结构
@@ -561,7 +561,59 @@ Renderer 只负责展示消息 Part，不负责：
 - 执行后端工具；
 - 让 Runtime 自动产生某个 data Part。
 
-这些工作属于 assistant-ui Tool、Runtime 或后端协议。只有当消息中实际出现匹配的 `toolName` 或 `data.name` 时，Renderer 才会生效。
+这些工作属于 assistant-ui Tool、Runtime 或后端协议。Tool/Data Renderer 只有在消息中实际出现匹配的 `toolName` 或 `data.name` 时才会生效。
+
+### Message Renderer：整体呈现与分组
+
+Message Renderer 接管一条消息内部的 `MessagePrimitive.Parts` 或
+`MessagePrimitive.GroupedParts`。它可以决定：
+
+- reasoning、tool、data 是否分组以及如何嵌套；
+- reasoning block、tool group、正文流式状态和 fallback 的视觉样式；
+- 在叶子 `tool-call` / `data` Part 上是否继续交给 `RendererHost` 做精确名称匹配。
+
+```tsx
+"use client";
+
+import { groupPartByType, MessagePrimitive } from "@assistant-ui/react";
+import { RendererHost } from "@/platform/extensions";
+
+export function CompactMessageRenderer() {
+  return (
+    <MessagePrimitive.GroupedParts
+      groupBy={groupPartByType({
+        reasoning: ["group-reasoning"],
+        "tool-call": ["group-tool"],
+      })}
+    >
+      {({ part, children }) => {
+        if (part.type === "group-reasoning") return <details>{children}</details>;
+        if (part.type === "group-tool") return <section>{children}</section>;
+        if (part.type === "text") return <p>{part.text}</p>;
+        if (part.type === "reasoning") return <p>{part.text}</p>;
+        if (part.type === "tool-call" || part.type === "data") {
+          return <RendererHost part={part} />;
+        }
+        return null;
+      }}
+    </MessagePrimitive.GroupedParts>
+  );
+}
+```
+
+在扩展中注册：
+
+```ts
+const messageRenderer = context.renderers.message.register({
+  id: "workbench.compact-message",
+  component: CompactMessageRenderer,
+});
+```
+
+同一时间只能启用一个 Message Renderer；重复注册会在 setup 阶段失败并回滚该扩展。
+卸载它后，Workbench 会恢复最小安全 fallback。Tool/Data Renderer 是可叠加的精确名称贡献，
+通常由提供对应能力的扩展注册，例如 Terminal 扩展同时注册 Panel、Command 和 `bash`
+Tool Renderer。这样卸载能力扩展时，其入口和工具呈现会一起消失。
 
 ### Tool Renderer
 
@@ -650,13 +702,13 @@ const citationRenderer = context.renderers.data.register("citation", CitationRen
 
 ### Renderer 匹配与优先顺序
 
-Tool 和 Data Renderer 各自按名称唯一注册，没有 `order` 或 `priority` 字段。
+Message Renderer 全局唯一；Tool 和 Data Renderer 各自按名称唯一。三者都没有 `order` 或 `priority` 字段。
 
 `RendererHost` 的解析顺序固定为：
 
 1. 扩展 Registry 中精确名称匹配的 Renderer；
 2. Part 自带的 `toolUI` 或 `dataRendererUI`；
-3. Workbench 的 Tool/Data Fallback；
+3. 当前 Message Renderer（或 Workbench 安全 fallback）提供的 Tool/Data Fallback；
 4. `RendererHost` 的 children。
 
 同一个 tool name 或 data name 重复注册会在开发阶段报错。名称来自模型或协议，必须使用精确匹配，不要依赖对象原型键或模糊匹配。
@@ -737,6 +789,7 @@ extension id:          workbench.notes
 slot contribution id: workbench.notes.composer
 panel id:              notes
 command id:            notes.toggle
+message renderer id:   workbench.compact-message
 tool renderer name:    get_weather
 data renderer name:    citation
 ```
@@ -747,6 +800,7 @@ data renderer name:    citation
 - Slot contribution id：同一个 Slot 内；
 - Panel id：整个 PanelRegistry；
 - Command id：整个 CommandRegistry；
+- Message renderer：整个 Message RendererRegistry 同时只能有一个；
 - Tool renderer name：Tool RendererRegistry；
 - Data renderer name：Data RendererRegistry。
 
@@ -772,6 +826,7 @@ Slot、Panel、Command 定义在注册时会被复制并浅冻结。注册后不
 - assistant-ui ModelContext：[`model-selector`](../extensions/builtin/model-selector/extension.ts)
 - Slot + Panel：[`skills`](../extensions/builtin/skills/extension.ts)
 - Panel + Command + 移动端 Slot：[`terminal`](../extensions/builtin/terminal/extension.ts)
+- Message 分组、reasoning 与 Tool/Data fallback：[`message-presentation`](../extensions/builtin/message-presentation/extension.ts)
 - Runtime 状态派生：[`token-usage`](../extensions/builtin/token-usage/extension.ts)
 
 如果新需求无法自然归入 Slot、Panel、Command 或 Renderer，先判断它是不是：

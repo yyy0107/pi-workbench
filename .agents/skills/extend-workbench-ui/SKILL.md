@@ -25,7 +25,7 @@ Implement the feature as an extension when it can be independently enabled or re
 - Use a **Slot** for a small button, badge, control, or status indicator.
 - Use a **Panel** for a scrollable or form-heavy workspace.
 - Use a **Command** for an action shared by the command palette, a shortcut, or UI controls.
-- Use a **Renderer** for an existing assistant-ui tool-call or data message part.
+- Use a **Renderer** for a complete assistant-ui message presentation or an existing tool-call/data message part.
 - Combine contribution types inside one extension when they represent one feature.
 
 Keep the sidebar's New Conversation control and thread list in core. Register replaceable product

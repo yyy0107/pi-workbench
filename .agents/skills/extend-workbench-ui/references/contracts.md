@@ -258,17 +258,22 @@ Also search standalone global `keydown` listeners outside `CommandService`. For 
 type ToolRendererComponent = ToolCallMessagePartComponent;
 type DataRendererComponent = DataMessagePartComponent;
 
+context.renderers.message.register({ id, component: MessageRenderer });
 context.renderers.tools.register(toolName, ToolRenderer);
 context.renderers.data.register(dataName, DataRenderer);
 ```
 
-Names are exact and case-sensitive. Tool and Data registries have separate uniqueness scopes. Renderer APIs have no `order` or `priority` field.
+The Message Renderer is a singleton contribution that owns `MessagePrimitive.Parts` or
+`MessagePrimitive.GroupedParts`, including reasoning/tool/data grouping and presentation. Only one
+can be active; without one, Workbench renders its minimal fallback. Tool and Data renderers compose
+under it through `RendererHost` and retain exact, case-sensitive name matching in separate
+uniqueness scopes. Renderer APIs have no `order` or `priority` field.
 
 Resolution order:
 
 1. exact-name extension Renderer;
 2. Part-provided `toolUI` or `dataRendererUI`;
-3. Workbench fallback;
+3. fallback supplied by the active Message Renderer, or the Workbench safety fallback;
 4. `RendererHost` children.
 
 A Renderer only displays an existing message Part. It does not define a tool, expose it to a model, execute it, or cause a data Part to be emitted.
@@ -303,6 +308,7 @@ Extension id          global within ExtensionManager
 Slot contribution id unique within one Slot
 Panel id              global within PanelRegistry
 Command id            global within CommandRegistry
+Message renderer      one active within Message RendererRegistry
 Tool renderer name    unique within Tool RendererRegistry
 Data renderer name    unique within Data RendererRegistry
 ```

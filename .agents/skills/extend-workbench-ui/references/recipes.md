@@ -6,6 +6,7 @@ Use these patterns as starting points. Adapt ids, labels, styling, and behavior 
 
 - [Slot-only feature](#slot-only-feature)
 - [Slot, Panel, and Command feature](#slot-panel-and-command-feature)
+- [Message Renderer](#message-renderer)
 - [Tool Renderer](#tool-renderer)
 - [Data Renderer](#data-renderer)
 - [Sidebar contribution](#sidebar-contribution)
@@ -238,6 +239,50 @@ const addMenuItem = context.slots.register("panel.right.add-menu", {
 ```
 
 Use `panel.right.actions` for compact icon-only actions such as refresh, fullscreen, or layout controls. Its component receives `{ activePanelId }`. The host owns the close, plus, and collapse buttons; do not duplicate them inside contributions.
+
+## Message Renderer
+
+Register one complete message presentation when an extension needs to choose part grouping,
+reasoning appearance, tool-group chrome, and Tool/Data fallbacks:
+
+```tsx
+"use client";
+
+import { groupPartByType, MessagePrimitive } from "@assistant-ui/react";
+import { RendererHost } from "@/platform/extensions";
+
+export function CompactMessageRenderer() {
+  return (
+    <MessagePrimitive.GroupedParts
+      groupBy={groupPartByType({
+        reasoning: ["group-reasoning"],
+        "tool-call": ["group-tool"],
+      })}
+    >
+      {({ part, children }) => {
+        if (part.type === "group-reasoning") return <details>{children}</details>;
+        if (part.type === "group-tool") return <section>{children}</section>;
+        if (part.type === "text" || part.type === "reasoning") return <p>{part.text}</p>;
+        if (part.type === "tool-call" || part.type === "data") {
+          return <RendererHost part={part} />;
+        }
+        return null;
+      }}
+    </MessagePrimitive.GroupedParts>
+  );
+}
+```
+
+```ts
+const renderer = context.renderers.message.register({
+  id: "workbench.compact-message",
+  component: CompactMessageRenderer,
+});
+```
+
+Only one Message Renderer can be active. Keep exact-name Tool/Data renderers in their capability
+extensions and resolve them with `RendererHost`; for example a terminal extension can register its
+Panel, Command, and `bash` renderer together so all terminal UI disposes as one unit.
 
 ## Tool Renderer
 

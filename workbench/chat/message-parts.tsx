@@ -1,18 +1,15 @@
 "use client";
 
-import type { DataMessagePartComponent } from "@assistant-ui/react";
+import type { DataMessagePartComponent, ToolCallMessagePartComponent } from "@assistant-ui/react";
 import { MessagePrimitive } from "@assistant-ui/react";
 import { ExternalLinkIcon, Loader2Icon } from "lucide-react";
 
 import { File } from "@/components/assistant-ui/file";
 import { Image } from "@/components/assistant-ui/image";
-import { MarkdownText } from "@/components/assistant-ui/markdown-text";
-import { Reasoning } from "@/components/assistant-ui/reasoning";
-import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { useI18n } from "@/i18n";
-import { RendererHost } from "@/platform/extensions";
+import { MessageRendererHost, RendererHost } from "@/platform/extensions";
 
-function serializeData(value: unknown) {
+function serialize(value: unknown) {
   if (typeof value === "string") return value;
 
   try {
@@ -22,16 +19,28 @@ function serializeData(value: unknown) {
   }
 }
 
-const WorkbenchDataFallback: DataMessagePartComponent = ({ name, data }) => (
-  <details className="bg-muted/40 my-2 rounded-lg border px-3 py-2 text-sm">
-    <summary className="cursor-pointer font-medium">{name}</summary>
-    <pre className="text-muted-foreground mt-2 max-h-72 overflow-auto whitespace-pre-wrap break-all text-xs">
-      {serializeData(data)}
+const DefaultToolFallback: ToolCallMessagePartComponent = ({ toolName, args, result, isError }) => (
+  <details className="my-2 rounded border px-3 py-2 text-sm">
+    <summary className="cursor-pointer font-mono text-xs">{toolName}</summary>
+    <pre
+      className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap break-all text-xs"
+      role={isError ? "alert" : undefined}
+    >
+      {serialize(result === undefined ? args : result)}
     </pre>
   </details>
 );
 
-export function WorkbenchMessageParts() {
+const DefaultDataFallback: DataMessagePartComponent = ({ name, data }) => (
+  <details className="my-2 rounded border px-3 py-2 text-sm">
+    <summary className="cursor-pointer font-mono text-xs">{name}</summary>
+    <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap break-all text-xs">
+      {serialize(data)}
+    </pre>
+  </details>
+);
+
+function DefaultWorkbenchMessageParts() {
   const { t } = useI18n();
 
   return (
@@ -47,9 +56,13 @@ export function WorkbenchMessageParts() {
                 </span>
               );
             }
-            return <MarkdownText />;
+            return <p className="whitespace-pre-wrap">{part.text}</p>;
           case "reasoning":
-            return <Reasoning {...part} />;
+            return (
+              <pre className="text-muted-foreground my-2 whitespace-pre-wrap text-xs">
+                {part.text}
+              </pre>
+            );
           case "image":
             return <Image {...part} />;
           case "file":
@@ -58,20 +71,13 @@ export function WorkbenchMessageParts() {
             const label = part.title || part.url || t("workbench.chat.sourceFallback");
             const isSafeUrl = part.sourceType === "url" && /^https?:\/\//i.test(part.url);
 
-            if (!isSafeUrl) {
-              return (
-                <span className="bg-muted text-muted-foreground my-1 inline-flex rounded-md px-2 py-1 text-xs">
-                  {label}
-                </span>
-              );
-            }
-
+            if (!isSafeUrl) return <span className="text-xs">{label}</span>;
             return (
               <a
                 href={part.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bg-muted/60 hover:bg-muted my-1 inline-flex max-w-full items-center gap-1.5 rounded-md px-2 py-1 text-xs underline-offset-2 hover:underline"
+                className="inline-flex max-w-full items-center gap-1 text-xs underline"
               >
                 <span className="truncate">{label}</span>
                 <ExternalLinkIcon className="size-3 shrink-0" />
@@ -83,8 +89,8 @@ export function WorkbenchMessageParts() {
             return (
               <RendererHost
                 part={part}
-                toolFallback={ToolFallback}
-                dataFallback={WorkbenchDataFallback}
+                toolFallback={DefaultToolFallback}
+                dataFallback={DefaultDataFallback}
               />
             );
           case "audio": {
@@ -95,9 +101,9 @@ export function WorkbenchMessageParts() {
           }
           case "generative-ui":
             return (
-              <WorkbenchDataFallback
+              <DefaultDataFallback
                 type="data"
-                name="Generative UI"
+                name="generative-ui"
                 data={part.spec}
                 status={part.status}
               />
@@ -108,4 +114,8 @@ export function WorkbenchMessageParts() {
       }}
     </MessagePrimitive.Parts>
   );
+}
+
+export function WorkbenchMessageParts() {
+  return <MessageRendererHost fallback={<DefaultWorkbenchMessageParts />} />;
 }

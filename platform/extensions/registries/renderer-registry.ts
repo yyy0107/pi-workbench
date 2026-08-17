@@ -1,5 +1,7 @@
 import type {
   DataRendererComponent,
+  MessageRendererContribution,
+  MessageRendererRegistry,
   NamedRendererRegistry,
   RendererRegistry,
   ToolRendererComponent,
@@ -56,7 +58,41 @@ class NamedRendererRegistryImpl<TComponent> implements NamedRendererRegistry<TCo
   }
 }
 
+class MessageRendererRegistryImpl implements MessageRendererRegistry {
+  readonly #listeners = new Set<() => void>();
+  #contribution: MessageRendererContribution | undefined;
+
+  register(contribution: MessageRendererContribution) {
+    assertNonEmptyId(contribution.id, "Message renderer id");
+    if (this.#contribution) {
+      throw new Error(
+        `Message renderer "${this.#contribution.id}" is already registered; dispose it before registering "${contribution.id}"`,
+      );
+    }
+
+    const snapshot = Object.freeze({ ...contribution });
+    this.#contribution = snapshot;
+    emitRegistryChange(this.#listeners);
+
+    return createDisposable(() => {
+      if (this.#contribution !== snapshot) return;
+      this.#contribution = undefined;
+      emitRegistryChange(this.#listeners);
+    });
+  }
+
+  get(): MessageRendererContribution | undefined {
+    return this.#contribution;
+  }
+
+  readonly subscribe = (listener: () => void): (() => void) => {
+    this.#listeners.add(listener);
+    return () => this.#listeners.delete(listener);
+  };
+}
+
 export class RendererRegistryImpl implements RendererRegistry {
+  readonly message: MessageRendererRegistry = new MessageRendererRegistryImpl();
   readonly tools: NamedRendererRegistry<ToolRendererComponent> =
     new NamedRendererRegistryImpl<ToolRendererComponent>("Tool");
   readonly data: NamedRendererRegistry<DataRendererComponent> =
