@@ -54,7 +54,7 @@ export function PanelDock({ location, className }: PanelDockProps) {
       data-collapsed={isCollapsed ? "true" : "false"}
       data-resizing={isResizing ? "true" : "false"}
       className={cn(
-        "transition-[width,height] duration-300 ease-linear motion-reduce:transition-none",
+        "transition-[width,height] duration-150 ease-linear motion-reduce:transition-none",
         isResizing && "transition-none",
         isCollapsed && "border-transparent",
         isHidden && "pointer-events-none",

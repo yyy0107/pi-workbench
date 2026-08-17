@@ -1,0 +1,183 @@
+export interface PiSessionSummary {
+  id: string;
+  cwd: string;
+  workspace: PiWorkspaceSummary;
+  name?: string;
+  created: string;
+  modified: string;
+  messageCount: number;
+  firstMessage: string;
+  transient: boolean;
+  running: boolean;
+}
+
+export interface PiWorkspaceSummary {
+  id: string;
+  name: string;
+  cwd: string;
+}
+
+export interface PiWorkspaceDirectoryEntry {
+  name: string;
+  path: string;
+}
+
+export interface PiWorkspaceBrowseResponse {
+  path: string;
+  parentPath: string | null;
+  directories: PiWorkspaceDirectoryEntry[];
+  drives?: PiWorkspaceDirectoryEntry[];
+}
+
+export interface PiTextContent {
+  type: "text";
+  text: string;
+}
+
+export interface PiThinkingContent {
+  type: "thinking";
+  thinking: string;
+  redacted?: boolean;
+}
+
+export interface PiImageContent {
+  type: "image";
+  data: string;
+  mimeType: string;
+}
+
+export interface PiToolCallContent {
+  type: "toolCall";
+  id: string;
+  name: string;
+  arguments: Record<string, unknown>;
+}
+
+export type PiAssistantContent =
+  | PiTextContent
+  | PiThinkingContent
+  | PiImageContent
+  | PiToolCallContent;
+
+export interface PiUserMessage {
+  role: "user";
+  content: string | Array<PiTextContent | PiImageContent>;
+  timestamp?: number;
+}
+
+export interface PiAssistantMessage {
+  role: "assistant";
+  content: PiAssistantContent[];
+  model?: string;
+  provider?: string;
+  stopReason?: string;
+  errorMessage?: string;
+  timestamp?: number;
+}
+
+export interface PiToolResultMessage {
+  role: "toolResult";
+  toolCallId: string;
+  toolName?: string;
+  content: Array<PiTextContent | PiImageContent>;
+  isError?: boolean;
+  details?: unknown;
+  timestamp?: number;
+}
+
+export interface PiCustomMessage {
+  role: "custom";
+  customType: string;
+  content: string | Array<PiTextContent | PiImageContent>;
+  display: boolean;
+  details?: unknown;
+  timestamp?: number;
+}
+
+export interface PiBashExecutionMessage {
+  role: "bashExecution";
+  command: string;
+  output: string;
+  exitCode?: number;
+  cancelled?: boolean;
+  timestamp?: number;
+}
+
+export type PiAgentMessage =
+  | PiUserMessage
+  | PiAssistantMessage
+  | PiToolResultMessage
+  | PiCustomMessage
+  | PiBashExecutionMessage;
+
+export interface PiSessionHistory {
+  sessionId: string;
+  context: {
+    messages: PiAgentMessage[];
+    entryIds: string[];
+    thinkingLevel: string;
+    model: { provider: string; modelId: string } | null;
+  };
+}
+
+export interface PiSessionListResponse {
+  sessions: PiSessionSummary[];
+  runningSessionIds: string[];
+}
+
+export interface PiModelSummary {
+  provider: string;
+  providerName: string;
+  id: string;
+  name: string;
+  reasoning: boolean;
+  contextWindow: number;
+}
+
+export interface PiModelListResponse {
+  models: PiModelSummary[];
+  defaultModel: { provider: string; modelId: string } | null;
+}
+
+export interface PiApiErrorBody {
+  error: {
+    code: string;
+  };
+}
+
+export interface PiEvent {
+  type: string;
+  sequence?: number;
+  [key: string]: unknown;
+}
+
+export const PI_THINKING_LEVELS = [
+  "off",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+] as const;
+
+export type PiThinkingLevel = (typeof PI_THINKING_LEVELS)[number];
+
+export interface PiModelSelection {
+  provider: string;
+  modelId: string;
+  thinkingLevel?: PiThinkingLevel;
+}
+
+export interface PiPromptCommand {
+  type: "prompt";
+  message: string;
+  images?: PiImageContent[];
+  model?: PiModelSelection;
+}
+
+export interface PiCancelCommand {
+  type: "cancel";
+}
+
+export type PiSessionCommand = PiPromptCommand | PiCancelCommand;

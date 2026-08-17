@@ -75,6 +75,8 @@ const SKILL_DEFINITIONS: readonly SkillDefinition[] = [
   },
 ];
 
+export const SKILL_COUNT = SKILL_DEFINITIONS.length;
+
 const DEFAULT_ENABLED_SKILLS = new Set(["research", "code-review", "documents", "data-analysis"]);
 
 export function SkillsPanel({ panelId }: PanelComponentProps) {

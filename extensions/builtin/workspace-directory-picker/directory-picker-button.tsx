@@ -1,81 +1,68 @@
 "use client";
 
-import { useRef } from "react";
-import { FolderPlusIcon } from "lucide-react";
+import { useAui } from "@assistant-ui/react";
+import { FolderPlusIcon, LoaderCircleIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
-
-import {
-  useWorkspaceDirectoryStore,
-  type WorkspaceDirectoryHandle,
-} from "./workspace-directory-store";
-
-type DirectoryPickerWindow = Window & {
-  showDirectoryPicker?: () => Promise<WorkspaceDirectoryHandle>;
-};
+import { cn } from "@/lib/utils";
+import { pickPiWorkspace } from "@/runtime/pi/client/api";
+import type { PiWorkspaceSummary } from "@/runtime/pi/contracts";
+import { useWorkspaceDirectoryStore } from "@/workbench/workspaces/workspace-directory-store";
 
 export function DirectoryPickerButton() {
   const { t } = useI18n();
-  const fallbackInputRef = useRef<HTMLInputElement>(null);
+  const aui = useAui();
   const router = useRouter();
+  const [picking, setPicking] = useState(false);
+  const [error, setError] = useState(false);
   const addDirectory = useWorkspaceDirectoryStore((state) => state.addDirectory);
 
-  const activateDirectory = (name: string, handle?: WorkspaceDirectoryHandle) => {
-    addDirectory({
-      id: crypto.randomUUID(),
-      name,
-      handle,
-    });
+  const activateDirectory = async (workspace: PiWorkspaceSummary) => {
+    addDirectory(workspace);
+    await aui.threads.switchToNewThread();
     router.push("/");
   };
 
   const pickDirectory = async () => {
-    const showDirectoryPicker = (window as DirectoryPickerWindow).showDirectoryPicker;
-
-    if (!showDirectoryPicker) {
-      fallbackInputRef.current?.click();
-      return;
-    }
-
+    if (picking) return;
+    setPicking(true);
+    setError(false);
     try {
-      const directory = await showDirectoryPicker.call(window);
-      activateDirectory(directory.name, directory);
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") return;
-      console.error("Unable to open the directory picker.", error);
+      const workspace = await pickPiWorkspace();
+      if (workspace) await activateDirectory(workspace);
+    } catch {
+      setError(true);
+    } finally {
+      setPicking(false);
     }
   };
 
   return (
-    <>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-sm"
-        aria-label={t("extensions.workspaceDirectory.add")}
-        title={t("extensions.workspaceDirectory.add")}
-        onClick={() => void pickDirectory()}
-        className="text-muted-foreground hover:text-foreground"
-      >
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon-sm"
+      disabled={picking}
+      aria-label={t(
+        picking ? "extensions.workspaceDirectory.selecting" : "extensions.workspaceDirectory.add",
+      )}
+      title={t(
+        error ? "extensions.workspaceDirectory.selectError" : "extensions.workspaceDirectory.add",
+      )}
+      onClick={() => void pickDirectory()}
+      className={cn(
+        "text-muted-foreground hover:text-foreground",
+        error && "text-destructive hover:text-destructive",
+      )}
+    >
+      {picking ? (
+        <LoaderCircleIcon className="size-[18px] animate-spin" />
+      ) : (
         <FolderPlusIcon className="size-[18px]" />
-      </Button>
-      <input
-        ref={fallbackInputRef}
-        type="file"
-        multiple
-        className="hidden"
-        aria-hidden="true"
-        tabIndex={-1}
-        onChange={(event) => {
-          const relativePath = event.currentTarget.files?.[0]?.webkitRelativePath;
-          const directoryName = relativePath?.split("/")[0];
-          if (directoryName) activateDirectory(directoryName);
-          event.currentTarget.value = "";
-        }}
-        {...{ webkitdirectory: "" }}
-      />
-    </>
+      )}
+    </Button>
   );
 }

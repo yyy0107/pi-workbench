@@ -79,7 +79,7 @@ export function WorkbenchThread({ threadId }: WorkbenchThreadProps) {
 
   return (
     <ThreadPrimitive.Root
-      className="bg-background flex h-full min-h-0 flex-col text-base"
+      className="bg-background flex h-full min-h-0 min-w-0 text-base"
       style={
         {
           "--thread-max-width": "48rem",
@@ -88,65 +88,76 @@ export function WorkbenchThread({ threadId }: WorkbenchThreadProps) {
     >
       <ThreadRouteSync threadId={threadId} />
       <SlotHost
-        name="thread.header"
+        name="thread.left"
         context={slotContext}
-        className="flex shrink-0 items-center gap-2 border-b px-4 empty:hidden"
+        className="flex h-full min-h-0 shrink-0 flex-col empty:hidden"
       />
 
-      <ThreadPrimitive.Viewport
-        turnAnchor="top"
-        className="relative flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto scroll-smooth px-4 pt-4"
-      >
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <SlotHost
-          name="thread.before"
+          name="thread.header"
           context={slotContext}
-          className="mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-2"
+          className="flex shrink-0 items-center gap-2 border-b px-4 empty:hidden"
         />
 
-        <ThreadPrimitive.Empty>
-          <WorkbenchEmpty />
-        </ThreadPrimitive.Empty>
-
-        <ThreadPrimitive.Messages>
-          {({ message }) => {
-            if (message.composer.isEditing) return <WorkbenchEditComposer />;
-
-            switch (message.role) {
-              case "user":
-                return <WorkbenchUserMessage />;
-              case "assistant":
-                return <WorkbenchAssistantMessage />;
-              case "system":
-                return <WorkbenchSystemMessage />;
-            }
-          }}
-        </ThreadPrimitive.Messages>
-
-        <SlotHost
-          name="thread.after"
-          context={slotContext}
-          className="mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-2"
-        />
-
-        <ThreadPrimitive.ScrollToBottom
-          render={
-            <TooltipIconButton
-              tooltip={t("workbench.chat.scrollLatest")}
-              variant="outline"
-              className="bg-background sticky bottom-44 z-10 mx-auto size-8 shrink-0 rounded-full shadow-sm"
-            />
-          }
+        <ThreadPrimitive.Viewport
+          turnAnchor="top"
+          className="relative flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto scroll-smooth px-4 pt-4"
         >
-          <ArrowDownIcon className="size-4" />
-        </ThreadPrimitive.ScrollToBottom>
+          <SlotHost
+            name="thread.before"
+            context={slotContext}
+            className="mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-2"
+          />
 
-        <ThreadPrimitive.ViewportFooter className="bg-background/95 sticky bottom-0 mx-auto mt-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-3 rounded-t-3xl pb-4 pt-2 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-          <WorkbenchComposer />
-          <p className="text-muted-foreground px-4 text-center text-[11px]">
-            {t("workbench.chat.disclaimer")}
-          </p>
-        </ThreadPrimitive.ViewportFooter>
-      </ThreadPrimitive.Viewport>
+          <ThreadPrimitive.Empty>
+            <WorkbenchEmpty />
+          </ThreadPrimitive.Empty>
+
+          <ThreadPrimitive.Messages>
+            {({ message }) => {
+              if (message.composer.isEditing) return <WorkbenchEditComposer />;
+
+              switch (message.role) {
+                case "user":
+                  return <WorkbenchUserMessage />;
+                case "assistant":
+                  return <WorkbenchAssistantMessage />;
+                case "system":
+                  return <WorkbenchSystemMessage />;
+              }
+            }}
+          </ThreadPrimitive.Messages>
+
+          <SlotHost
+            name="thread.after"
+            context={slotContext}
+            className="mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-2"
+          />
+
+          <ThreadPrimitive.ScrollToBottom
+            render={
+              <TooltipIconButton
+                tooltip={t("workbench.chat.scrollLatest")}
+                variant="outline"
+                className="bg-background sticky bottom-44 z-10 mx-auto size-8 shrink-0 rounded-full shadow-sm"
+              />
+            }
+          >
+            <ArrowDownIcon className="size-4" />
+          </ThreadPrimitive.ScrollToBottom>
+
+          <ThreadPrimitive.ViewportFooter className="bg-background/95 sticky bottom-0 mx-auto mt-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-3 rounded-t-3xl pb-4 pt-2 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+            <WorkbenchComposer />
+          </ThreadPrimitive.ViewportFooter>
+        </ThreadPrimitive.Viewport>
+      </div>
+
+      <SlotHost
+        name="thread.right"
+        context={slotContext}
+        className="flex h-full min-h-0 shrink-0 flex-col empty:hidden"
+      />
     </ThreadPrimitive.Root>
   );
 }

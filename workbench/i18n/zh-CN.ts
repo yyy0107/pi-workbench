@@ -1,19 +1,32 @@
+import type { MessageFormatters } from "@/i18n/types";
+
 export const workbenchZhCN = {
   chat: {
     empty: {
       title: "你正在处理什么？",
       description: "提出问题、附加上下文，或在对话需要更多空间时打开工作台面板。",
+      selectWorkspaceTitle: "请先选择工作区",
+      selectWorkspaceDescription:
+        "每个会话都必须属于一个工作区。发送消息前，请从侧栏添加或选择工作区。",
       planProject: "帮我规划一个小项目",
       explainConcept: "用简单方式解释一个复杂概念",
       reviewIdea: "评审一个想法并找出其中的风险",
     },
     composer: {
       placeholder: "描述你想完成的任务，或粘贴需要处理的内容…",
+      selectWorkspacePlaceholder: "请先选择工作区，再开始会话…",
       messageInput: "消息输入框",
       stopVoiceInput: "停止语音输入",
       voiceInput: "语音输入",
       stopGenerating: "停止生成",
       sendMessage: "发送消息",
+      openDrawer: "显示输入选项",
+      closeDrawer: "隐藏输入选项",
+      drawer: "输入选项",
+      contextCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
+        `上下文 ${number(count)}`,
+      extensionsCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
+        `扩展 ${number(count)}`,
     },
     actions: {
       previousResponse: "上一个回答",
@@ -33,16 +46,31 @@ export const workbenchZhCN = {
     },
     sourceFallback: "来源",
     generating: "正在生成回答…",
+    errors: {
+      sessionBusy: "此会话正在生成回答。",
+      emptyPrompt: "发送前请输入消息或附加图片。",
+      sessionNotFound: "此会话已不可用。",
+      invalidWorkingDirectory: "Pi 工作目录不可用。",
+      invalidWorkspace: "请先选择有效的工作区，再开始会话。",
+      modelNotAvailable: "当前配置的 Pi Provider 不支持此模型。",
+      requestFailed: "Pi 未能完成请求，请重试。",
+    },
     scrollLatest: "滚动到最新消息",
-    disclaimer: "AI 回答可能不准确，请核实重要信息。",
   },
   sidebar: {
     newThread: "新建会话",
+    workspaceOptions: "工作区选项",
+    removeWorkspace: "移除工作区",
+    expandWorkspace: "展开工作区",
+    collapseWorkspace: "收起工作区",
     conversations: "会话",
     loading: "正在加载会话",
+    loadingMoreWorkspaces: "正在加载更多工作区",
     empty: "发送第一条消息后，会话会显示在这里。",
+    noWorkspaces: "添加工作区后即可开始会话。",
     loadMore: "显示更多",
     generating: "正在生成",
+    completed: "已在后台完成",
     archive: "归档会话",
     delete: "删除会话",
     resize: "调整会话侧边栏宽度",

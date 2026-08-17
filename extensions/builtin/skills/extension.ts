@@ -13,8 +13,8 @@ export const skillsExtension = defineExtension({
   version: "1.0.0",
 
   setup(context) {
-    const slot = context.slots.register("composer.actions.left", {
-      id: "workbench.skills.composer",
+    const slot = context.slots.register("composer.drawer.right", {
+      id: "workbench.skills.composer-drawer",
       order: 30,
       component: SkillsTrigger,
     });

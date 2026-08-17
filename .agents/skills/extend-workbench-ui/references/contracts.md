@@ -79,15 +79,19 @@ sidebar.bottom
 sidebar.footer
 panel.right.add-menu
 panel.right.actions
+thread.left
 thread.header
 thread.before
 thread.after
+thread.right
 message.before
 message.after
 message.actions
 composer.before
 composer.actions.left
 composer.actions.right
+composer.drawer.left
+composer.drawer.right
 composer.after
 statusbar.left
 statusbar.right
@@ -107,6 +111,10 @@ interface ComposerSlotContext {
   isEmpty: boolean;
 }
 
+interface ComposerDrawerSlotContext extends ComposerSlotContext {
+  closeDrawer(): void;
+}
+
 interface RightPanelAddMenuSlotContext {
   activePanelId: string;
   closeMenu(): void;
@@ -119,19 +127,27 @@ interface RightPanelActionsSlotContext {
 interface SlotPropsMap {
   "panel.right.add-menu": RightPanelAddMenuSlotContext;
   "panel.right.actions": RightPanelActionsSlotContext;
+  "thread.left": { threadId?: string };
   "thread.header": { threadId?: string };
   "thread.before": { threadId?: string };
   "thread.after": { threadId?: string };
+  "thread.right": { threadId?: string };
   "message.before": MessageSlotContext;
   "message.after": MessageSlotContext;
   "message.actions": MessageSlotContext;
   "composer.before": ComposerSlotContext;
   "composer.actions.left": ComposerSlotContext;
   "composer.actions.right": ComposerSlotContext;
+  "composer.drawer.left": ComposerDrawerSlotContext;
+  "composer.drawer.right": ComposerDrawerSlotContext;
   "composer.after": ComposerSlotContext;
   // Header, Sidebar, and Statusbar slots use Record<never, never>.
 }
 ```
+
+`thread.left` and `thread.right` render at full height beside the central Thread column. A
+contribution should define its own width; use a Panel instead when the surface needs host-managed
+resizing, tabs, or open/close state.
 
 Contribution shape:
 

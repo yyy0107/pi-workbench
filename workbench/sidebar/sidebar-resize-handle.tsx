@@ -6,7 +6,7 @@ import { useSidebar } from "@/components/ui/sidebar";
 import { useI18n } from "@/i18n";
 
 const KEYBOARD_STEP = 16;
-const DETACH_ANIMATION_MS = 300;
+const DETACH_ANIMATION_MS = 150;
 
 interface ResizeSession {
   pointerId: number;

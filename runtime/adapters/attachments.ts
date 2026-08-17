@@ -19,7 +19,7 @@ function readFileAsDataUrl(file: File): Promise<string> {
 }
 
 export const workbenchAttachmentAdapter: AttachmentAdapter = {
-  accept: "*",
+  accept: "image/*",
   async add({ file }) {
     return {
       id: createAttachmentId(),
@@ -35,14 +35,7 @@ export const workbenchAttachmentAdapter: AttachmentAdapter = {
     return {
       ...attachment,
       status: { type: "complete" },
-      content: [
-        {
-          type: "file",
-          mimeType: attachment.contentType ?? "application/octet-stream",
-          filename: attachment.name,
-          data: await readFileAsDataUrl(attachment.file),
-        },
-      ],
+      content: [{ type: "image", image: await readFileAsDataUrl(attachment.file) }],
     };
   },
   async remove() {},

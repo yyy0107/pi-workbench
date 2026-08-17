@@ -6,9 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Sidebar, useSidebar } from "@/components/ui/sidebar";
 import { useI18n } from "@/i18n";
 import { SlotHost } from "@/platform/extensions";
-import { NewThreadButton } from "@/workbench/sidebar/new-thread-button";
 import { SidebarResizeHandle } from "@/workbench/sidebar/sidebar-resize-handle";
-import { WorkbenchThreadList } from "@/workbench/sidebar/thread-list";
+import { WorkbenchWorkspaceThreadList } from "@/workbench/sidebar/workspace-thread-list";
 
 export function WorkbenchSidebarContent({
   mobile = false,
@@ -40,34 +39,28 @@ export function WorkbenchSidebarContent({
         />
       ) : null}
 
-      <nav aria-label={t("workbench.sidebar.mainNavigation")} className="shrink-0 px-4 pb-5">
-        <NewThreadButton onNavigate={onNavigate} />
-        {!mobile ? (
-          <SlotHost name="sidebar.navigation" className="mt-2 flex flex-col gap-1 empty:hidden" />
-        ) : null}
-      </nav>
+      {!mobile ? (
+        <SlotHost
+          name="sidebar.navigation"
+          className="mx-4 mb-5 flex shrink-0 flex-col gap-1 empty:hidden"
+        />
+      ) : null}
 
       <div className="flex h-9 shrink-0 items-center px-5">
         <h2 className="text-muted-foreground min-w-0 flex-1 text-base font-medium">
           {t("workbench.shell.workspace")}
         </h2>
-        {!mobile ? (
-          <SlotHost
-            name="sidebar.workspace.actions"
-            className="flex shrink-0 items-center gap-1 empty:hidden"
-          />
-        ) : null}
+        <SlotHost
+          name="sidebar.workspace.actions"
+          className="flex shrink-0 items-center gap-1 empty:hidden"
+        />
       </div>
 
-      {!mobile ? (
-        <SlotHost
-          name="sidebar.top"
-          className="flex shrink-0 flex-col gap-1 px-4 pb-1 empty:hidden"
-        />
-      ) : null}
-
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-1">
-        <WorkbenchThreadList onNavigate={onNavigate} />
+      <div data-workspace-scroll-container className="min-h-0 flex-1 overflow-y-auto px-3 py-1">
+        {!mobile ? (
+          <SlotHost name="sidebar.top" className="mb-1 flex flex-col gap-1 empty:hidden" />
+        ) : null}
+        <WorkbenchWorkspaceThreadList onNavigate={onNavigate} />
       </div>
 
       {!mobile ? (

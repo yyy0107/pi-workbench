@@ -1,23 +1,50 @@
 "use client";
 
-import { ThreadListItemPrimitive, useAuiState } from "@assistant-ui/react";
-import { ArchiveIcon, Loader2Icon, Trash2Icon } from "lucide-react";
+import { ThreadListItemPrimitive, useAui, useAuiState } from "@assistant-ui/react";
+import { ArchiveIcon, Trash2Icon } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { ThinkingOrb } from "thinking-orbs";
 
-import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
+import { usePiThreadActivity } from "@/runtime/pi/client/context";
+import { useWorkspaceDirectoryStore } from "@/workbench/workspaces/workspace-directory-store";
 
-export function WorkbenchThreadListItem({ onNavigate }: { onNavigate?: () => void }) {
+export function WorkbenchThreadListItem({
+  workspaceId,
+  onNavigate,
+}: {
+  workspaceId: string;
+  onNavigate?: () => void;
+}) {
   const { date: formatDate, relativeTime, t } = useI18n();
+  const aui = useAui();
   const router = useRouter();
-  const isRunning = useAuiState((state) => state.threadListItem.isRunning);
+  const runtimeIsRunning = useAuiState((state) => state.threadListItem.isRunning);
   const lastMessageAt = useAuiState((state) => state.threadListItem.lastMessageAt);
   const isActive = useAuiState((state) => state.threads.mainThreadId === state.threadListItem.id);
   const routeThreadId = useAuiState(
     (state) =>
       state.threadListItem.remoteId ?? state.threadListItem.externalId ?? state.threadListItem.id,
   );
+  const hasEmptyNewThread = useAuiState(
+    (state) =>
+      state.threads.mainThreadId === state.threads.newThreadId &&
+      state.thread.messages.length === 0,
+  );
+  const piActivity = usePiThreadActivity(routeThreadId);
+  const activateDirectory = useWorkspaceDirectoryStore((state) => state.activateDirectory);
+  const destroyNewThread = useWorkspaceDirectoryStore((state) => state.destroyNewThread);
+  const isRunning = runtimeIsRunning || piActivity.running;
   const openThreadRoute = () => {
+    destroyNewThread();
+    if (hasEmptyNewThread) {
+      void aui.thread
+        .composer()
+        .reset()
+        .catch((error) => console.error("[workbench] failed to discard empty conversation", error));
+    }
+    activateDirectory(workspaceId);
     router.push(`/c/${encodeURIComponent(routeThreadId)}`);
     onNavigate?.();
   };
@@ -44,49 +71,66 @@ export function WorkbenchThreadListItem({ onNavigate }: { onNavigate?: () => voi
   })();
 
   return (
-    <ThreadListItemPrimitive.Root className="group hover:bg-sidebar-accent focus-within:bg-sidebar-accent data-active:bg-sidebar-accent relative flex min-h-9 items-center rounded-lg transition-colors">
+    <ThreadListItemPrimitive.Root className="group/thread hover:bg-sidebar-accent focus-within:bg-sidebar-accent data-active:bg-sidebar-accent relative -ms-6 flex min-h-9 items-center rounded-lg transition-colors">
+      {isRunning ? (
+        <ThinkingOrb
+          state="working"
+          size={20}
+          aria-hidden="true"
+          className="pointer-events-none absolute start-2 top-1/2 -translate-y-1/2"
+        />
+      ) : null}
       <ThreadListItemPrimitive.Trigger
-        className="focus-visible:ring-sidebar-ring flex h-9 min-w-0 flex-1 items-center rounded-lg px-2.5 text-start text-sm outline-none focus-visible:ring-2"
+        className="focus-visible:ring-sidebar-ring flex h-9 min-w-0 flex-1 items-center rounded-lg pe-2.5 ps-[34px] text-start text-sm outline-none focus-visible:ring-2"
         onClick={openThreadRoute}
       >
-        {isRunning ? (
-          <Loader2Icon className="text-muted-foreground me-2 size-3.5 shrink-0 animate-spin" />
-        ) : null}
-        <span className="min-w-0 flex-1 truncate">
+        <span className="min-w-0 flex-1 truncate group-hover/thread:pe-14 group-has-[:focus-visible]/thread:pe-14">
           <ThreadListItemPrimitive.Title fallback={t("workbench.sidebar.newThread")} />
         </span>
-        {!isRunning && lastMessageAt ? (
-          <span className="text-muted-foreground ms-2 shrink-0 text-[11px] tabular-nums group-hover:opacity-0 group-focus-within:opacity-0 group-data-active:opacity-0">
+        {!isRunning && piActivity.completed ? (
+          <>
+            <span
+              aria-hidden="true"
+              className="bg-primary ms-2 size-2 shrink-0 rounded-full group-hover/thread:hidden group-has-[:focus-visible]/thread:hidden"
+            />
+            <span className="sr-only">{t("workbench.sidebar.completed")}</span>
+          </>
+        ) : !isRunning && lastMessageAt ? (
+          <span className="text-muted-foreground ms-2 shrink-0 text-[11px] tabular-nums group-hover/thread:hidden group-has-[:focus-visible]/thread:hidden">
             {formattedTime}
           </span>
         ) : null}
         {isRunning ? <span className="sr-only">{t("workbench.sidebar.generating")}</span> : null}
       </ThreadListItemPrimitive.Trigger>
 
-      <div className="bg-sidebar-accent absolute end-1 flex items-center opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 group-data-active:opacity-100">
+      <div className="bg-sidebar-accent absolute -end-[7px] flex items-center opacity-0 transition-opacity group-hover/thread:opacity-100 group-has-[:focus-visible]/thread:opacity-100">
         <ThreadListItemPrimitive.Archive
           onClick={leaveRemovedThreadRoute}
           render={
-            <TooltipIconButton
-              tooltip={t("workbench.sidebar.archive")}
-              side="right"
-              className="size-7"
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label={t("workbench.sidebar.archive")}
+              className="aui-button-icon size-7 p-1 active:scale-90"
             />
           }
         >
-          <ArchiveIcon className="size-3.5" />
+          <ArchiveIcon className="size-[18px]" />
         </ThreadListItemPrimitive.Archive>
         <ThreadListItemPrimitive.Delete
           onClick={leaveRemovedThreadRoute}
           render={
-            <TooltipIconButton
-              tooltip={t("workbench.sidebar.delete")}
-              side="right"
-              className="text-destructive hover:text-destructive size-7"
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label={t("workbench.sidebar.delete")}
+              className="aui-button-icon text-destructive hover:text-destructive size-7 p-1 active:scale-90"
             />
           }
         >
-          <Trash2Icon className="size-3.5" />
+          <Trash2Icon className="size-[18px]" />
         </ThreadListItemPrimitive.Delete>
       </div>
     </ThreadListItemPrimitive.Root>

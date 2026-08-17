@@ -338,8 +338,10 @@ pnpm dev
 
 Thread Slot：
 
-- `thread.header`、`thread.before`、`thread.after`；
+- `thread.left`、`thread.header`、`thread.before`、`thread.after`、`thread.right`；
 - 参数为 `{ threadId?: string }`。
+
+`thread.left` 与 `thread.right` 以全高形式挂载在对话中央列两侧，贡献组件需要自行定义宽度。需要宿主管理尺寸、标签页或开关状态的较大工作区应注册为 Panel。
 
 Message Slot：
 
@@ -350,6 +352,8 @@ Composer Slot：
 
 - `composer.before`、`composer.actions.left`、`composer.actions.right`、`composer.after`；
 - 参数为 `{ isRunning, isEmpty }`。
+- `composer.drawer.left`、`composer.drawer.right` 位于加号展开的单行抽屉两侧；
+- 参数为 `{ isRunning, isEmpty, closeDrawer() }`，适合工作区摘要、能力计数和紧凑入口。
 
 完整类型定义见 [`platform/extensions/api/slot.ts`](../platform/extensions/api/slot.ts)。
 

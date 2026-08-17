@@ -7,7 +7,7 @@ import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 
 const KEYBOARD_STEP = 16;
-const DETACH_ANIMATION_MS = 300;
+const DETACH_ANIMATION_MS = 150;
 
 interface ResizeSession {
   pointerId: number;

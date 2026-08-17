@@ -233,6 +233,7 @@ function ModelSelectorRoot({
 
   return (
     <ModelSelectorContext.Provider value={contextValue}>
+      <ModelSelectorModelContext />
       <Popover open={open ?? false} onOpenChange={setOpen}>
         {children}
       </Popover>
@@ -303,6 +304,8 @@ function ModelSelectorTrigger({
 
 export type ModelSelectorValueProps = {
   placeholder?: ReactNode;
+  /** Show the selected model's icon. */
+  showIcon?: boolean;
   /** Show the active effort level next to the model name. */
   showEffort?: boolean;
   className?: string;
@@ -311,8 +314,9 @@ export type ModelSelectorValueProps = {
 function ModelIcon({ children, className }: { children: ReactNode; className?: string }) {
   return (
     <span
+      aria-hidden="true"
       className={cn(
-        "flex size-3.5 shrink-0 items-center justify-center [&_svg]:size-3.5",
+        "flex size-4.5 shrink-0 items-center justify-center [&_svg]:size-4.5",
         className,
       )}
     >
@@ -323,6 +327,7 @@ function ModelIcon({ children, className }: { children: ReactNode; className?: s
 
 function ModelSelectorValue({
   placeholder,
+  showIcon = true,
   showEffort = true,
   className,
 }: ModelSelectorValueProps) {
@@ -345,8 +350,10 @@ function ModelSelectorValue({
       data-slot="model-selector-value"
       className={cn("flex min-w-0 items-center gap-2", className)}
     >
-      {selectedModel.icon && <ModelIcon>{selectedModel.icon}</ModelIcon>}
-      <span className="truncate font-medium">{selectedModel.name}</span>
+      {showIcon && selectedModel.icon && <ModelIcon>{selectedModel.icon}</ModelIcon>}
+      <span className="truncate font-medium" title={selectedModel.name}>
+        {selectedModel.name}
+      </span>
       {effortName && (
         <span className="text-muted-foreground min-w-7.5 truncate text-center">{effortName}</span>
       )}
@@ -551,7 +558,7 @@ function ModelSelectorItem({
         onSelect?.(selectedValue);
       }}
       className={cn(
-        "relative items-start gap-2 rounded-lg py-2 ps-3 pe-9 hover:bg-muted data-selected:bg-transparent [&_svg:not([class*='size-'])]:size-3.5",
+        "relative items-start gap-2 rounded-lg bg-transparent! py-2 ps-3 pe-9 hover:bg-muted! [&_svg:not([class*='size-'])]:size-3.5",
         className,
       )}
       {...props}
@@ -559,10 +566,14 @@ function ModelSelectorItem({
       {children ?? (
         <>
           {model.icon && <ModelIcon className="mt-[3px]">{model.icon}</ModelIcon>}
-          <span className="flex min-w-0 flex-col">
-            <span className="truncate font-medium">{model.name}</span>
+          <span className="flex min-w-0 flex-col gap-0.5">
+            <span className="truncate leading-tight font-medium" title={model.name}>
+              {model.name}
+            </span>
             {model.description && (
-              <span className="text-muted-foreground truncate text-xs">{model.description}</span>
+              <span className="text-muted-foreground truncate text-xs leading-tight">
+                {model.description}
+              </span>
             )}
           </span>
         </>
@@ -707,7 +718,6 @@ const ModelSelectorImpl = ({
 }: ModelSelectorProps) => {
   return (
     <ModelSelectorRoot {...rootProps}>
-      <ModelSelectorModelContext />
       <ModelSelectorTrigger variant={variant} size={size} className={className} />
       <ModelSelectorContent
         {...(align !== undefined ? { align } : {})}

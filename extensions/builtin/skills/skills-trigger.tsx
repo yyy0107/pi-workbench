@@ -1,26 +1,29 @@
 "use client";
 
-import { PlusIcon } from "lucide-react";
+import { SparklesIcon } from "lucide-react";
 
-import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
-import { type ComposerSlotContext, usePanelService } from "@/platform/extensions";
+import { type ComposerDrawerSlotContext, usePanelService } from "@/platform/extensions";
 
-export function SkillsTrigger({ isRunning }: ComposerSlotContext) {
+import { SKILL_COUNT } from "./skills-panel";
+
+export function SkillsTrigger({ isRunning }: ComposerDrawerSlotContext) {
   const { t } = useI18n();
   const panels = usePanelService();
 
   return (
-    <TooltipIconButton
+    <Button
       type="button"
-      tooltip={t("extensions.skills.add")}
       aria-label={t("extensions.skills.toggle")}
       data-streaming={isRunning || undefined}
       variant="ghost"
-      className="text-muted-foreground hover:text-foreground size-9 rounded-full"
-      onClick={() => panels.toggle("skills")}
+      size="sm"
+      className="bg-muted/55 text-muted-foreground hover:bg-muted hover:text-foreground h-8 gap-1.5 rounded-xl px-2.5 text-xs font-normal"
+      onClick={() => panels.open("skills")}
     >
-      <PlusIcon className="size-5" />
-    </TooltipIconButton>
+      <SparklesIcon className="size-3.5" />
+      {t("extensions.skills.summary", { count: SKILL_COUNT })}
+    </Button>
   );
 }

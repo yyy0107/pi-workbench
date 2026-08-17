@@ -42,7 +42,7 @@ function BranchPicker() {
   );
 }
 
-function UserActions() {
+function UserActions({ canCopy, canEdit }: Readonly<{ canCopy: boolean; canEdit: boolean }>) {
   const { t } = useI18n();
 
   return (
@@ -51,21 +51,29 @@ function UserActions() {
       autohide="not-last"
       className="flex items-center gap-0.5"
     >
-      <ActionBarPrimitive.Edit
-        render={<TooltipIconButton tooltip={t("workbench.chat.actions.editMessage")} />}
-      >
-        <PencilIcon className="size-3.5" />
-      </ActionBarPrimitive.Edit>
-      <ActionBarPrimitive.Copy
-        render={<TooltipIconButton tooltip={t("workbench.chat.actions.copyMessage")} />}
-      >
-        <CopyIcon className="size-3.5" />
-      </ActionBarPrimitive.Copy>
+      {canEdit ? (
+        <ActionBarPrimitive.Edit
+          render={<TooltipIconButton tooltip={t("workbench.chat.actions.editMessage")} />}
+        >
+          <PencilIcon className="size-3.5" />
+        </ActionBarPrimitive.Edit>
+      ) : null}
+      {canCopy ? (
+        <ActionBarPrimitive.Copy
+          render={<TooltipIconButton tooltip={t("workbench.chat.actions.copyMessage")} />}
+        >
+          <CopyIcon className="size-3.5" />
+        </ActionBarPrimitive.Copy>
+      ) : null}
     </ActionBarPrimitive.Root>
   );
 }
 
-function AssistantActions() {
+function AssistantActions({
+  canCopy,
+  canReload,
+  canSubmitFeedback,
+}: Readonly<{ canCopy: boolean; canReload: boolean; canSubmitFeedback: boolean }>) {
   const { t } = useI18n();
 
   return (
@@ -74,36 +82,44 @@ function AssistantActions() {
       autohide="not-last"
       className="flex items-center gap-0.5"
     >
-      <ActionBarPrimitive.Copy
-        render={<TooltipIconButton tooltip={t("workbench.chat.actions.copyResponse")} />}
-      >
-        <AuiIf condition={(state) => state.message.isCopied}>
-          <CheckIcon className="size-3.5" />
-        </AuiIf>
-        <AuiIf condition={(state) => !state.message.isCopied}>
-          <CopyIcon className="size-3.5" />
-        </AuiIf>
-      </ActionBarPrimitive.Copy>
+      {canCopy ? (
+        <ActionBarPrimitive.Copy
+          render={<TooltipIconButton tooltip={t("workbench.chat.actions.copyResponse")} />}
+        >
+          <AuiIf condition={(state) => state.message.isCopied}>
+            <CheckIcon className="size-3.5" />
+          </AuiIf>
+          <AuiIf condition={(state) => !state.message.isCopied}>
+            <CopyIcon className="size-3.5" />
+          </AuiIf>
+        </ActionBarPrimitive.Copy>
+      ) : null}
       <ActionBarPrimitive.ExportMarkdown
         render={<TooltipIconButton tooltip={t("workbench.chat.actions.exportMarkdown")} />}
       >
         <DownloadIcon className="size-3.5" />
       </ActionBarPrimitive.ExportMarkdown>
-      <ActionBarPrimitive.Reload
-        render={<TooltipIconButton tooltip={t("workbench.chat.actions.regenerateResponse")} />}
-      >
-        <RefreshCwIcon className="size-3.5" />
-      </ActionBarPrimitive.Reload>
-      <ActionBarPrimitive.FeedbackPositive
-        render={<TooltipIconButton tooltip={t("workbench.chat.actions.goodResponse")} />}
-      >
-        <ThumbsUpIcon className="size-3.5" />
-      </ActionBarPrimitive.FeedbackPositive>
-      <ActionBarPrimitive.FeedbackNegative
-        render={<TooltipIconButton tooltip={t("workbench.chat.actions.poorResponse")} />}
-      >
-        <ThumbsDownIcon className="size-3.5" />
-      </ActionBarPrimitive.FeedbackNegative>
+      {canReload ? (
+        <ActionBarPrimitive.Reload
+          render={<TooltipIconButton tooltip={t("workbench.chat.actions.regenerateResponse")} />}
+        >
+          <RefreshCwIcon className="size-3.5" />
+        </ActionBarPrimitive.Reload>
+      ) : null}
+      {canSubmitFeedback ? (
+        <>
+          <ActionBarPrimitive.FeedbackPositive
+            render={<TooltipIconButton tooltip={t("workbench.chat.actions.goodResponse")} />}
+          >
+            <ThumbsUpIcon className="size-3.5" />
+          </ActionBarPrimitive.FeedbackPositive>
+          <ActionBarPrimitive.FeedbackNegative
+            render={<TooltipIconButton tooltip={t("workbench.chat.actions.poorResponse")} />}
+          >
+            <ThumbsDownIcon className="size-3.5" />
+          </ActionBarPrimitive.FeedbackNegative>
+        </>
+      ) : null}
     </ActionBarPrimitive.Root>
   );
 }
@@ -112,13 +128,22 @@ export function WorkbenchMessageActions() {
   const messageId = useAuiState((state) => state.message.id);
   const role = useAuiState((state) => state.message.role);
   const isLast = useAuiState((state) => state.message.isLast);
+  const capabilities = useAuiState((state) => state.thread.capabilities);
   const context = { messageId, role, isLast };
 
   return (
     <div className="text-muted-foreground flex min-h-7 flex-wrap items-center gap-1">
-      <BranchPicker />
-      {role === "user" ? <UserActions /> : null}
-      {role === "assistant" ? <AssistantActions /> : null}
+      {capabilities.switchToBranch ? <BranchPicker /> : null}
+      {role === "user" ? (
+        <UserActions canCopy={capabilities.unstable_copy} canEdit={capabilities.edit} />
+      ) : null}
+      {role === "assistant" ? (
+        <AssistantActions
+          canCopy={capabilities.unstable_copy}
+          canReload={capabilities.reload}
+          canSubmitFeedback={capabilities.feedback}
+        />
+      ) : null}
       <SlotHost name="message.actions" context={context} className="flex items-center gap-1" />
     </div>
   );

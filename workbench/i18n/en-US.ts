@@ -1,20 +1,33 @@
+import type { MessageFormatters } from "@/i18n/types";
+
 export const workbenchEnUS = {
   chat: {
     empty: {
       title: "What are you working on?",
       description:
         "Ask a question, attach context, or open a workbench panel when the conversation needs more room.",
+      selectWorkspaceTitle: "Select a workspace to begin",
+      selectWorkspaceDescription:
+        "Every conversation belongs to a workspace. Add or choose one from the sidebar before sending a message.",
       planProject: "Help me plan a small project",
       explainConcept: "Explain a difficult concept simply",
       reviewIdea: "Review an idea and find its risks",
     },
     composer: {
       placeholder: "Describe what you want to accomplish, or paste content to work with…",
+      selectWorkspacePlaceholder: "Select a workspace before starting a conversation…",
       messageInput: "Message input",
       stopVoiceInput: "Stop voice input",
       voiceInput: "Voice input",
       stopGenerating: "Stop generating",
       sendMessage: "Send message",
+      openDrawer: "Show composer options",
+      closeDrawer: "Hide composer options",
+      drawer: "Composer options",
+      contextCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
+        `Context ${number(count)}`,
+      extensionsCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
+        `Extensions ${number(count)}`,
     },
     actions: {
       previousResponse: "Previous response",
@@ -34,16 +47,31 @@ export const workbenchEnUS = {
     },
     sourceFallback: "Source",
     generating: "Generating response…",
+    errors: {
+      sessionBusy: "This conversation is already generating a response.",
+      emptyPrompt: "Enter a message or attach an image before sending.",
+      sessionNotFound: "This conversation is no longer available.",
+      invalidWorkingDirectory: "The Pi working directory is not available.",
+      invalidWorkspace: "Select a valid workspace before starting a conversation.",
+      modelNotAvailable: "This model is not available from the configured Pi providers.",
+      requestFailed: "Pi could not complete the request. Please try again.",
+    },
     scrollLatest: "Scroll to latest",
-    disclaimer: "AI responses can be inaccurate. Check important information.",
   },
   sidebar: {
     newThread: "New conversation",
+    workspaceOptions: "Workspace options",
+    removeWorkspace: "Remove workspace",
+    expandWorkspace: "Expand workspace",
+    collapseWorkspace: "Collapse workspace",
     conversations: "Conversations",
     loading: "Loading conversations",
+    loadingMoreWorkspaces: "Loading more workspaces",
     empty: "Conversations will appear here after you send your first message.",
+    noWorkspaces: "Add a workspace to start a conversation.",
     loadMore: "Show more",
     generating: "Generating",
+    completed: "Completed in the background",
     archive: "Archive conversation",
     delete: "Delete conversation",
     resize: "Resize conversation sidebar",
