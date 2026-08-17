@@ -9,7 +9,7 @@ import {
 } from "react";
 import {
   XIcon,
-  PlusIcon,
+  PaperclipIcon,
   FileText,
   Loader2Icon,
   AlertCircleIcon,
@@ -288,7 +288,7 @@ export const ComposerAddAttachment: FC = () => {
         />
       }
     >
-      <PlusIcon className="aui-attachment-add-icon size-4" />
+      <PaperclipIcon className="aui-attachment-add-icon size-[18px]" />
     </ComposerPrimitive.AddAttachment>
   );
 };

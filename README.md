@@ -1,25 +1,24 @@
-This is the [assistant-ui](https://github.com/assistant-ui/assistant-ui) starter project.
+# Pi Workbench
 
-## Getting Started
+基于 Next.js 与 assistant-ui 的单应用 AI Workbench。第一版采用静态内置扩展，不加载远程 JavaScript 插件。
 
-First, add your OpenAI API key to `.env.local` file:
-
-```
-OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-```
-
-Then, run the development server:
+## 本地开发
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+打开 [http://localhost:3000](http://localhost:3000)。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+常用检查：
+
+```bash
+pnpm lint
+pnpm build
+```
+
+## 开发文档
+
+- [Workbench 扩展组件开发指南](docs/extensions.md)
+- [项目级 Agent Skill：Extend Workbench UI](.agents/skills/extend-workbench-ui/SKILL.md)

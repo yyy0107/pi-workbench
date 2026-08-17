@@ -22,7 +22,7 @@ export const TooltipIconButton = forwardRef<
   TooltipIconButtonProps
 >(({ children, tooltip, side = "bottom", className, ...rest }, ref) => {
   return (
-    <TooltipProvider delayDuration={0}>
+    <TooltipProvider delay={0}>
       <Tooltip>
         <TooltipTrigger render={<Button variant="ghost" size="icon" {...rest} className={cn(
                             "aui-button-icon size-6 p-1 active:scale-90",

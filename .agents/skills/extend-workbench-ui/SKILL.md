@@ -1,0 +1,145 @@
+---
+name: extend-workbench-ui
+description: Builds, modifies, and reviews Pi Workbench frontend extensions using this repository's static Slot, Panel, Command, and Renderer platform. Use when adding Workbench UI features, extension components, composer/header/sidebar/statusbar contributions, panels, command-palette actions or shortcuts, assistant-ui tool/data renderers, enabledExtensions entries, or when deciding whether a frontend change belongs in an extension versus app, workbench, runtime, or backend core.
+---
+
+# Extend Workbench UI
+
+Implement frontend features through the repository's typed, statically bundled extension platform while preserving Workbench and assistant-ui boundaries.
+
+## Load the right context
+
+1. Read the repository `AGENTS.md` and preserve unrelated worktree changes.
+2. Read [references/contracts.md](references/contracts.md) before editing extension code.
+3. Read [references/recipes.md](references/recipes.md) when implementing a Slot, Panel, Command, Renderer, or new host Slot.
+4. Read `docs/extensions.md` only when the task asks for public documentation or a detailed tutorial.
+5. Use the project `runtime` skill when changing `useAui`, thread, composer, or Runtime state usage.
+6. Use the project `primitives` skill when changing assistant-ui message, composer, or thread composition.
+7. Use the project `tools` skill when defining or executing an assistant-ui tool. A Renderer registration alone does not define a tool.
+8. If the task touches Next.js app code, read the relevant local guide in `node_modules/next/dist/docs/` before editing.
+
+## Decide the ownership boundary
+
+Implement the feature as an extension when it can be independently enabled or removed without breaking the core chat flow:
+
+- Use a **Slot** for a small button, badge, control, or status indicator.
+- Use a **Panel** for a scrollable or form-heavy workspace.
+- Use a **Command** for an action shared by the command palette, a shortcut, or UI controls.
+- Use a **Renderer** for an existing assistant-ui tool-call or data message part.
+- Combine contribution types inside one extension when they represent one feature.
+
+Keep the sidebar's New Conversation control and thread list in core. Register replaceable product
+identity in `sidebar.brand`, optional primary navigation in `sidebar.navigation`, workspace heading
+controls in `sidebar.workspace.actions`, and persistent bottom utilities in `sidebar.footer`; use
+`sidebar.header`, `sidebar.top`, or `sidebar.bottom` only when their documented positions fit.
+
+Modify core layers instead when the task changes:
+
+- a Next.js route or page assembly: `app/`;
+- shell structure, responsive layout, or a new insertion contract: `workbench/`;
+- assistant runtime, persistence, transport, or adapters: `runtime/`;
+- shared UI primitives: `components/ui/`;
+- tool definition/execution or protocol behavior: assistant-ui Tool/Runtime or backend code.
+
+When no existing Slot fits, add a typed host Slot first, then register the feature against it. Do not invent an unknown Slot name inside a business extension.
+
+## Follow the implementation workflow
+
+### 1. Inspect before editing
+
+- Inspect `platform/extensions/index.ts` and the relevant public API type.
+- Inspect `extensions/enabled-extensions.ts`.
+- Choose the closest builtin example:
+  - `connection-status`: minimal Slot;
+  - `token-usage`: derive assistant-ui Runtime state;
+  - `skills`: Slot trigger plus Panel;
+  - `terminal`: Panel, Command, shortcut, and responsive trigger;
+  - `model-selector`: assistant-ui ModelContext integration.
+- Check whether the requested id, shortcut, tool name, or data name already exists.
+- Search project-wide global `keydown` listeners before assigning a shortcut. Non-Command listeners may accept extra modifiers and still collide with an otherwise exact Command shortcut.
+
+### 2. Create a cohesive feature directory
+
+Prefer this layout and omit files the feature does not need:
+
+```text
+extensions/builtin/<feature>/
+├── extension.ts
+├── <feature>-panel.tsx
+├── <feature>-trigger.tsx
+├── <feature>-command.ts
+├── <feature>-renderer.tsx
+└── index.ts
+```
+
+Add `"use client"` only to components or modules that use React hooks, events, browser APIs, or client-only assistant-ui hooks. Keep registration definitions free of render-time side effects.
+
+### 3. Define and register the extension
+
+Define the extension once at module scope:
+
+```ts
+import { defineExtension } from "@/platform/extensions";
+
+export const exampleExtension = defineExtension({
+  id: "workbench.example",
+  name: "Example",
+  version: "1.0.0",
+
+  setup(context) {
+    const contribution = context.slots.register("header.right", {
+      id: "workbench.example.header",
+      order: 50,
+      component: ExampleControl,
+    });
+
+    return contribution;
+  },
+});
+```
+
+Keep `setup()` synchronous. Do not call React hooks in it. Return every custom event listener, timer, subscription, or other external resource as a `Disposable`. Registry registrations are tracked automatically, but return them explicitly to make lifecycle ownership clear.
+
+### 4. Enable statically
+
+Export the feature from its local `index.ts`, import it in `extensions/enabled-extensions.ts`, and add it to the module-level `enabledExtensions` array.
+
+Keep extension objects and the array reference stable. Do not add directory scanning, remote URL imports, arbitrary JavaScript loading, or runtime route registration.
+
+### 5. Validate proportionally
+
+Run targeted checks first, using pnpm only:
+
+```bash
+pnpm exec oxfmt --check extensions/builtin/<feature> extensions/enabled-extensions.ts
+pnpm exec oxlint extensions/builtin/<feature> extensions/enabled-extensions.ts
+pnpm exec tsc --noEmit
+```
+
+Run `pnpm build` when changing provider composition, public contracts, Workbench hosts, routing, or client/server boundaries.
+
+## Enforce the guardrails
+
+- Import extension contracts and hooks from `@/platform/extensions`; do not import registry or host internals.
+- Register component types, not pre-created React nodes.
+- Never call `register()` during React render.
+- Keep Extension, Panel, Command, Slot contribution, and Renderer identifiers within their documented uniqueness scopes.
+- Audit both registered Commands and standalone global keyboard listeners before choosing a shortcut.
+- Use `order` only for Slot contributions. Panel, Command, and Renderer APIs have no numeric priority.
+- Treat tool arguments as partial while streaming; guard missing fields and all status variants.
+- Do not duplicate `messages`, composer content, or `isRunning` in Zustand; derive them from assistant-ui.
+- Do not repeat the Panel title bar or close chrome inside Panel content.
+- Do not assume registering a Panel opens it; use PanelService or a Command.
+- Do not assume registering a Renderer exposes or executes a model tool.
+- Handle rejected Promises in event handlers; React Error Boundaries do not catch event or arbitrary async errors.
+- Keep API keys, secrets, and privileged execution out of frontend extensions.
+
+## Finish with an extension-focused handoff
+
+Report:
+
+- which contribution types were added;
+- where the extension is enabled;
+- user-visible entry points and shortcuts;
+- validation performed;
+- deliberate frontend-only limitations, especially persistence or missing backend/tool execution.

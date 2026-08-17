@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  ArrowUpIcon,
   BotIcon,
   CheckIcon,
   ChevronLeftIcon,
@@ -11,10 +10,8 @@ import {
   LoaderIcon,
   PencilIcon,
   RefreshCwIcon,
-  SquareIcon,
   ThumbsDownIcon,
   ThumbsUpIcon,
-  UserIcon,
 } from "lucide-react";
 import {
   ActionBarPrimitive,
@@ -24,7 +21,11 @@ import {
   ErrorPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
+  unstable_useComposerInput,
+  useAui,
+  useAuiState,
 } from "@assistant-ui/react";
+import { useRef } from "react";
 import "@assistant-ui/react-markdown/styles/dot.css";
 
 import { Button } from "@/components/ui/button";
@@ -32,11 +33,42 @@ import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import {
-  ComposerAddAttachment,
+  Composer,
+  ComposerActions,
+  ComposerAttachButton,
+  ComposerBar,
+  ComposerInput,
+  ComposerSend,
+  ComposerToolbar,
+} from "@/components/elements/composer";
+import {
   ComposerAttachments,
   UserMessageAttachments,
 } from "@/components/assistant-ui/attachment";
+import { ModelSelector, type ModelOption } from "@/components/assistant-ui/model-selector";
 import { cn } from "@/lib/utils";
+
+const MODELS: readonly ModelOption[] = [
+  {
+    id: "gpt-5.6-luna",
+    name: "GPT-5.6 Luna",
+    description: "Fast and efficient",
+    keywords: ["openai"],
+  },
+  {
+    id: "gpt-5.6-terra",
+    name: "GPT-5.6 Terra",
+    description: "Balanced performance",
+    keywords: ["openai"],
+  },
+  {
+    id: "gpt-5.6-sol",
+    name: "GPT-5.6 Sol",
+    description: "Most capable",
+    keywords: ["openai"],
+    efforts: true,
+  },
+];
 export function Thread() {
   return (
     <ThreadPrimitive.Root
@@ -45,7 +77,7 @@ export function Thread() {
         "--thread-max-width": "48rem",
         "--accent-color": "#10a37f",
         "--accent-foreground": "#ffffff",
-      }}
+      } as React.CSSProperties}
     >
       <ThreadPrimitive.Viewport
         turnAnchor="top"
@@ -65,7 +97,7 @@ export function Thread() {
 
         <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4">
           
-          <Composer />
+          <ThreadComposer />
         </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
     </ThreadPrimitive.Root>
@@ -87,43 +119,67 @@ function ThreadWelcome() {
   );
 }
 
-function Composer() {
+function ThreadComposer() {
+  const aui = useAui();
+  const { value, setText, send } = unstable_useComposerInput();
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const composer = aui.thread.composer();
+
   return (
-    <ComposerPrimitive.Root className="relative flex w-full flex-col">
-      <ComposerPrimitive.AttachmentDropzone className="flex w-full flex-col rounded-3xl border border-input bg-background px-1 pt-2 outline-none transition-shadow has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-2 has-[textarea:focus-visible]:ring-ring/20 data-[dragging=true]:border-ring data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50">
+    <Composer className="w-full max-w-[var(--thread-max-width)]">
+      <ComposerBar>
         <ComposerAttachments />
-        <ComposerPrimitive.Input
+        <ComposerInput
+          value={value}
           placeholder="Send a message..."
-          className="mb-1 max-h-32 min-h-14 w-full resize-none bg-transparent px-4 pt-2 pb-3 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-0"
-          rows={1}
-          autoFocus
-          aria-label="Message input"
+          onChange={(event) => setText(event.target.value)}
+          onSubmit={() => send()}
         />
-        <ComposerAction />
-      </ComposerPrimitive.AttachmentDropzone>
-    </ComposerPrimitive.Root>
-  );
-}
-
-function ComposerAction() {
-  return (
-    <div className="relative mx-2 mb-2 flex items-center justify-between">
-      <ComposerAddAttachment />
-
-      <AuiIf condition={(s) => !s.thread.isRunning}>
-        <ComposerPrimitive.Send render={<TooltipIconButton tooltip="Send message" side="bottom" type="submit" variant="default" size="icon" className="size-8 rounded-full" style={{
-                            backgroundColor: "var(--accent-color)",
-                            color: "var(--accent-foreground)",
-                          }} aria-label="Send message" />}><ArrowUpIcon className="size-4" /></ComposerPrimitive.Send>
-      </AuiIf>
-
-      <AuiIf condition={(s) => s.thread.isRunning}>
-        <ComposerPrimitive.Cancel render={<Button type="button" variant="default" size="icon" className="size-8 rounded-full" style={{
-                            backgroundColor: "var(--accent-color)",
-                            color: "var(--accent-foreground)",
-                          }} aria-label="Stop generating" />}><SquareIcon className="size-3 fill-current" /></ComposerPrimitive.Cancel>
-      </AuiIf>
-    </div>
+        <ComposerToolbar>
+          <ComposerActions>
+            <ComposerAttachButton
+              onClick={() => fileInputRef.current?.click()}
+            />
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              hidden
+              onChange={(event) => {
+                const files = event.target.files;
+                if (files) {
+                  for (const file of Array.from(files)) {
+                    void composer.addAttachment(file);
+                  }
+                }
+                event.target.value = "";
+              }}
+            />
+          </ComposerActions>
+          <ComposerActions>
+            <ModelSelector
+              models={MODELS}
+              defaultValue={MODELS[0]!.id}
+              defaultEffort="medium"
+              variant="muted"
+              size="sm"
+            />
+            <ComposerSend
+              streaming={isRunning}
+              idle={!value}
+              onClick={() => {
+                if (isRunning) {
+                  composer.cancel();
+                } else {
+                  send();
+                }
+              }}
+            />
+          </ComposerActions>
+        </ComposerToolbar>
+      </ComposerBar>
+    </Composer>
   );
 }
 
@@ -164,7 +220,8 @@ function UserActionBar() {
 function EditComposer() {
   return (
     <MessagePrimitive.Root className="mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col px-2 py-3">
-      <ComposerPrimitive.Root className="ml-auto flex w-full max-w-[85%] flex-col rounded-3xl bg-muted">
+      <ComposerPrimitive.Root className="ml-auto flex w-full max-w-[85%] flex-col gap-2 rounded-3xl bg-muted p-2.5">
+        <ComposerAttachments />
         <ComposerPrimitive.Input
           className="min-h-14 w-full resize-none bg-transparent p-4 text-foreground text-sm outline-none"
           autoFocus
