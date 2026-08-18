@@ -6,6 +6,7 @@ import type { AppendMessage, MessageTiming, ThreadMessage } from "@assistant-ui/
 import type { PiAssistantMessage, PiSessionHistory } from "../contracts";
 
 const {
+  applyToolExecutionUpdate,
   coalesceConsecutiveAssistantMessages,
   optimisticUserMessage,
   piAssistantToThreadMessage,
@@ -188,4 +189,87 @@ test("does not let an empty streaming placeholder split a merged tool timeline",
     ["tool-call"],
   );
   assert.equal(merged.status.type, "running");
+});
+
+test("streams partial tool output through artifacts until the result completes", () => {
+  const messages = [
+    piAssistantToThreadMessage(
+      {
+        role: "assistant",
+        content: [
+          { type: "toolCall", id: "bash-call", name: "bash", arguments: { command: "build" } },
+        ],
+      },
+      "assistant",
+    ),
+  ];
+
+  assert.equal(
+    applyToolExecutionUpdate(messages, {
+      state: "running",
+      toolCallId: "bash-call",
+      partialResult: { content: [{ type: "text", text: "first line" }] },
+    }),
+    true,
+  );
+
+  const runningMessage = messages[0];
+  assert.equal(runningMessage?.role, "assistant");
+  if (runningMessage?.role !== "assistant") return;
+  const runningPart = runningMessage.content[0];
+  assert.equal(runningMessage.status.type, "running");
+  assert.equal(runningPart?.type, "tool-call");
+  if (runningPart?.type !== "tool-call") return;
+  assert.equal(runningPart.result, undefined);
+  assert.equal(runningPart.artifact, "first line");
+
+  applyToolExecutionUpdate(messages, {
+    state: "complete",
+    toolCallId: "bash-call",
+    result: {
+      content: [{ type: "text", text: "first line\nsecond line" }],
+      details: { exitCode: 0 },
+    },
+    isError: false,
+  });
+
+  const completedMessage = messages[0];
+  assert.equal(completedMessage?.role, "assistant");
+  if (completedMessage?.role !== "assistant") return;
+  const completedPart = completedMessage.content[0];
+  assert.equal(completedMessage.status.type, "complete");
+  assert.equal(completedPart?.type, "tool-call");
+  if (completedPart?.type !== "tool-call") return;
+  assert.equal(completedPart.artifact, undefined);
+  assert.deepEqual(completedPart.result, {
+    text: "first line\nsecond line",
+    details: { exitCode: 0 },
+  });
+});
+
+test("keeps a message running while another parallel tool has no result", () => {
+  const messages = [
+    piAssistantToThreadMessage(
+      {
+        role: "assistant",
+        content: [
+          { type: "toolCall", id: "first", name: "bash", arguments: {} },
+          { type: "toolCall", id: "second", name: "bash", arguments: {} },
+        ],
+      },
+      "assistant",
+    ),
+  ];
+
+  applyToolExecutionUpdate(messages, {
+    state: "complete",
+    toolCallId: "first",
+    result: { content: [{ type: "text", text: "done" }] },
+    isError: false,
+  });
+
+  const message = messages[0];
+  assert.equal(message?.role, "assistant");
+  if (message?.role !== "assistant") return;
+  assert.equal(message.status.type, "running");
 });

@@ -38,6 +38,16 @@ function messageContentText(content: string | readonly { type: string; text?: st
     .join("\n");
 }
 
+function toolExecutionOutput(result: unknown): unknown {
+  if (!result || typeof result !== "object") return result;
+
+  const candidate = result as { content?: unknown; details?: unknown };
+  if (!Array.isArray(candidate.content)) return result;
+
+  const text = messageContentText(candidate.content as readonly { type: string; text?: string }[]);
+  return candidate.details === undefined ? text : { text, details: candidate.details };
+}
+
 function assistantStatus(message: PiAssistantMessage, streaming: boolean) {
   if (streaming) return { type: "running" } as const;
   switch (message.stopReason) {
@@ -131,30 +141,78 @@ export function piAssistantToThreadMessage(
   };
 }
 
-function applyToolResult(messages: ThreadMessage[], result: PiToolResultMessage): void {
+export type PiToolExecutionUpdate =
+  | {
+      state: "running";
+      toolCallId: string;
+      partialResult?: unknown;
+    }
+  | {
+      state: "complete";
+      toolCallId: string;
+      result: unknown;
+      isError: boolean;
+    };
+
+export function applyToolExecutionUpdate(
+  messages: ThreadMessage[],
+  update: PiToolExecutionUpdate,
+): boolean {
   for (let index = messages.length - 1; index >= 0; index--) {
     const message = messages[index];
     if (!message || message.role !== "assistant") continue;
     if (
       !message.content.some(
-        (part) => part.type === "tool-call" && part.toolCallId === result.toolCallId,
+        (part) => part.type === "tool-call" && part.toolCallId === update.toolCallId,
       )
     ) {
       continue;
     }
 
-    const text = messageContentText(result.content);
-    const output = result.details === undefined ? text : { text, details: result.details };
+    const output = toolExecutionOutput(
+      update.state === "running" ? update.partialResult : update.result,
+    );
+    const content = message.content.map((part) => {
+      if (part.type !== "tool-call" || part.toolCallId !== update.toolCallId) return part;
+
+      if (update.state === "running") {
+        return {
+          ...part,
+          artifact: output,
+        } satisfies ToolCallMessagePart;
+      }
+
+      return {
+        ...part,
+        artifact: undefined,
+        result: output,
+        isError: update.isError,
+      } satisfies ToolCallMessagePart;
+    });
+    const hasRunningTool = content.some(
+      (part) => part.type === "tool-call" && part.result === undefined,
+    );
     messages[index] = {
       ...message,
-      content: message.content.map((part) =>
-        part.type === "tool-call" && part.toolCallId === result.toolCallId
-          ? ({ ...part, result: output, isError: result.isError } satisfies ToolCallMessagePart)
-          : part,
-      ),
+      content,
+      status:
+        update.state === "running" || hasRunningTool
+          ? { type: "running" }
+          : { type: "complete", reason: "unknown" },
     };
-    return;
+    return true;
   }
+
+  return false;
+}
+
+function applyToolResult(messages: ThreadMessage[], result: PiToolResultMessage): void {
+  applyToolExecutionUpdate(messages, {
+    state: "complete",
+    toolCallId: result.toolCallId,
+    result,
+    isError: result.isError === true,
+  });
 }
 
 function piMessageId(history: PiSessionHistory, index: number): string {

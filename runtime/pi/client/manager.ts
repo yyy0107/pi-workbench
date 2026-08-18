@@ -28,6 +28,7 @@ import {
 } from "./api";
 import { PiConnectionController } from "./connections";
 import {
+  applyToolExecutionUpdate,
   appendMessageToPiPrompt,
   coalesceConsecutiveAssistantMessages,
   eventMessage,
@@ -297,6 +298,54 @@ export class PiClientSession {
       return;
     }
 
+    if (event.type === "tool_execution_start") {
+      this.clearPromptPending();
+      const toolCallId = typeof event.toolCallId === "string" ? event.toolCallId : undefined;
+      if (
+        toolCallId &&
+        this.updateToolExecution({
+          state: "running",
+          toolCallId,
+        })
+      ) {
+        this.publishMessages();
+      }
+      return;
+    }
+
+    if (event.type === "tool_execution_update") {
+      this.clearPromptPending();
+      const toolCallId = typeof event.toolCallId === "string" ? event.toolCallId : undefined;
+      if (
+        toolCallId &&
+        this.updateToolExecution({
+          state: "running",
+          toolCallId,
+          partialResult: event.partialResult,
+        })
+      ) {
+        this.publishMessages();
+      }
+      return;
+    }
+
+    if (event.type === "tool_execution_end") {
+      this.clearPromptPending();
+      const toolCallId = typeof event.toolCallId === "string" ? event.toolCallId : undefined;
+      if (
+        toolCallId &&
+        this.updateToolExecution({
+          state: "complete",
+          toolCallId,
+          result: event.result,
+          isError: event.isError === true,
+        })
+      ) {
+        this.publishMessages();
+      }
+      return;
+    }
+
     if (event.type === "message_end") {
       const message = eventMessage(event);
       if (message?.role === "assistant") {
@@ -332,6 +381,18 @@ export class PiClientSession {
         .catch((error) => console.error("[workbench-pi] history refresh failed", error));
     }
   };
+
+  private updateToolExecution(update: Parameters<typeof applyToolExecutionUpdate>[1]): boolean {
+    if (this.streamingMessage) {
+      const messages = [this.streamingMessage];
+      if (applyToolExecutionUpdate(messages, update)) {
+        this.streamingMessage = messages[0];
+        return true;
+      }
+    }
+    if (applyToolExecutionUpdate(this.liveMessages, update)) return true;
+    return applyToolExecutionUpdate(this.baseMessages, update);
+  }
 
   private currentMessageTiming(
     message: PiAssistantMessage,
