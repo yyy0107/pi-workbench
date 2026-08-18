@@ -1,23 +1,33 @@
 "use client";
 
-import type { DataMessagePartComponent } from "@assistant-ui/react";
-import { groupPartByType, MessagePrimitive } from "@assistant-ui/react";
-import { ExternalLinkIcon, Loader2Icon } from "lucide-react";
-import { useEffect, useRef, useState, type PropsWithChildren } from "react";
+import type { DataMessagePartComponent, GroupByContext, PartState } from "@assistant-ui/react";
+import {
+  groupPartByType,
+  MessagePrimitive,
+  useAuiState,
+  useMessageTiming,
+} from "@assistant-ui/react";
+import { ExternalLinkIcon } from "lucide-react";
+import { useCallback, useMemo } from "react";
 
 import { File } from "@/components/assistant-ui/file";
 import { Image } from "@/components/assistant-ui/image";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
-import {
-  ToolGroupContent,
-  ToolGroupRoot,
-  ToolGroupTrigger,
-} from "@/components/assistant-ui/tool-group";
-import { ReasoningPanel } from "@/components/elements/reasoning-panel";
-import { StreamingText } from "@/components/elements/streaming-text";
 import { useI18n } from "@/i18n";
 import { RendererHost } from "@/platform/extensions";
+
+import { formatCompletedDuration, completedWorkBoundary } from "./completed-turn-model";
+import { CompletedTurnPanel } from "./completed-turn-panel";
+import { MessageToolTimeline } from "./message-tool-timeline";
+
+type PresentationGroup = "group-completed-turn" | "group-tool-timeline";
+
+const groupTimelinePart = groupPartByType<PresentationGroup>({
+  reasoning: ["group-tool-timeline"],
+  "tool-call": ["group-tool-timeline"],
+  "standalone-tool-call": [],
+});
 
 function serializeData(value: unknown) {
   if (typeof value === "string") return value;
@@ -38,114 +48,69 @@ const MessageDataFallback: DataMessagePartComponent = ({ name, data }) => (
   </details>
 );
 
-function MessageReasoningGroup({ children, streaming }: PropsWithChildren<{ streaming: boolean }>) {
-  const { t } = useI18n();
-  const [open, setOpen] = useState(streaming);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const startedAt = useRef<number | null>(streaming ? Date.now() : null);
-  const wasStreaming = useRef(streaming);
-
-  useEffect(() => {
-    if (streaming && !wasStreaming.current) {
-      startedAt.current = Date.now();
-      setElapsedSeconds(0);
-      setOpen(true);
-    } else if (!streaming && wasStreaming.current) {
-      if (startedAt.current !== null) {
-        setElapsedSeconds(Math.max(1, Math.round((Date.now() - startedAt.current) / 1_000)));
-      }
-      setOpen(false);
-    }
-    wasStreaming.current = streaming;
-
-    if (!streaming) return;
-    startedAt.current ??= Date.now();
-
-    const updateElapsed = () => {
-      if (startedAt.current === null) return;
-      setElapsedSeconds(Math.floor((Date.now() - startedAt.current) / 1_000));
-    };
-    const timer = window.setInterval(updateElapsed, 1_000);
-    return () => window.clearInterval(timer);
-  }, [streaming]);
-
-  const elapsed = t("extensions.messagePresentation.reasoning.elapsed", {
-    seconds: elapsedSeconds,
-  });
-  const restingLabel =
-    elapsedSeconds > 0
-      ? t("extensions.messagePresentation.reasoning.completeWithDuration", {
-          seconds: elapsedSeconds,
-        })
-      : t("extensions.messagePresentation.reasoning.complete");
-
-  return (
-    <ReasoningPanel
-      steps={[
-        {
-          title: t("extensions.messagePresentation.reasoning.step"),
-          body: children,
-        },
-      ]}
-      visibleSteps={1}
-      streaming={streaming}
-      open={open}
-      onOpenChange={setOpen}
-      activeLabel={t("extensions.messagePresentation.reasoning.active")}
-      restingLabel={restingLabel}
-      elapsed={streaming ? elapsed : undefined}
-      className="mb-4 max-w-none"
-    />
-  );
-}
-
 export function WorkbenchMessagePresentation() {
   const { t } = useI18n();
+  const timing = useMessageTiming();
+  const turnStreaming = useAuiState((state) => state.thread.isRunning && state.message.isLast);
+  const messageParts = useAuiState((state) => state.message.parts);
+  const completedBoundary = useMemo(() => completedWorkBoundary(messageParts), [messageParts]);
+  const partIndices = useMemo(
+    () => new Map(messageParts.map((part, index) => [part, index])),
+    [messageParts],
+  );
+  const completedLabel = t("extensions.messagePresentation.completedTurn", {
+    duration: formatCompletedDuration(timing?.totalStreamTime),
+  });
+  const groupMessagePart = useCallback(
+    (part: PartState, context: GroupByContext): readonly PresentationGroup[] => {
+      const timelinePath = groupTimelinePart(part, context);
+      const index = partIndices.get(part);
+
+      if (index !== undefined && index < completedBoundary) {
+        return ["group-completed-turn", ...timelinePath];
+      }
+
+      return timelinePath;
+    },
+    [completedBoundary, partIndices],
+  );
+  const activeTimelinePartIndex = useAuiState((state) => {
+    if (!state.thread.isRunning || !state.message.isLast) return -1;
+
+    const index = state.message.content.length - 1;
+    const part = state.message.content[index];
+    if (part?.type === "reasoning") return index;
+    if (part?.type === "tool-call" && part.result === undefined) return index;
+    return -1;
+  });
 
   return (
-    <MessagePrimitive.GroupedParts
-      groupBy={groupPartByType({
-        reasoning: ["group-reasoning"],
-        "tool-call": ["group-tool"],
-      })}
-    >
+    <MessagePrimitive.GroupedParts groupBy={groupMessagePart}>
       {({ part, children }) => {
         switch (part.type) {
-          case "group-reasoning": {
-            const streaming = part.status.type === "running";
-            return <MessageReasoningGroup streaming={streaming}>{children}</MessageReasoningGroup>;
-          }
-          case "group-tool": {
-            const streaming = part.status.type === "running";
+          case "group-completed-turn": {
             return (
-              <ToolGroupRoot defaultOpen={streaming} variant="ghost">
-                <ToolGroupTrigger count={part.indices.length} active={streaming} />
-                <ToolGroupContent>{children}</ToolGroupContent>
-              </ToolGroupRoot>
+              <CompletedTurnPanel completed={!turnStreaming} label={completedLabel}>
+                {children}
+              </CompletedTurnPanel>
+            );
+          }
+          case "group-tool-timeline": {
+            return (
+              <MessageToolTimeline
+                indices={part.indices}
+                activePartIndex={activeTimelinePartIndex}
+                turnStreaming={turnStreaming}
+              >
+                {children}
+              </MessageToolTimeline>
             );
           }
           case "text":
-            if (part.status.type === "running" && part.text === "") {
-              return (
-                <span className="my-2 inline-flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2Icon className="size-3.5 animate-spin" />
-                  {t("extensions.messagePresentation.generating")}
-                </span>
-              );
-            }
-            if (part.status.type === "running") {
-              return (
-                <StreamingText
-                  segments={[{ text: part.text }]}
-                  count={part.text.split(" ").length}
-                  streaming
-                  className="min-h-0 max-w-none whitespace-pre-wrap"
-                />
-              );
-            }
+            if (part.status.type === "running" && part.text === "") return null;
             return <MarkdownText />;
           case "reasoning":
-            return <MarkdownText />;
+            return null;
           case "image":
             return <Image {...part} />;
           case "file":

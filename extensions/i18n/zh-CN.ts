@@ -50,6 +50,42 @@ export const extensionsZhCN = {
   messagePresentation: {
     generating: "正在生成回答…",
     sourceFallback: "来源",
+    completedTurn: ({ duration }: { duration: string }) =>
+      duration ? `已完成 ${duration}` : "已完成",
+    toolTimeline: {
+      active: (
+        { steps, files }: { steps: number; files: number },
+        { number }: MessageFormatters,
+      ) =>
+        files > 0
+          ? `正在工作 · ${number(steps)} 个步骤 · ${number(files)} 个文件已更改`
+          : `正在工作 · ${number(steps)} 个步骤`,
+      summary: (
+        { steps, files }: { steps: number; files: number },
+        { number }: MessageFormatters,
+      ) =>
+        files > 0
+          ? `${number(steps)} 个步骤 · ${number(files)} 个文件已更改`
+          : `${number(steps)} 个步骤`,
+      steps: {
+        thinking: "思考",
+        read: "读取",
+        ran: "运行",
+        edited: "编辑",
+        searched: "搜索",
+        used: "调用",
+      },
+      activeSteps: {
+        thinking: "正在思考",
+        read: "正在读取",
+        ran: "正在运行",
+        edited: "正在编辑",
+        searched: "正在搜索",
+        used: "正在调用",
+      },
+      request: "请求",
+      result: "结果",
+    },
     reasoning: {
       active: "正在思考",
       complete: "已完成思考",
@@ -58,6 +94,23 @@ export const extensionsZhCN = {
       elapsed: ({ seconds }: { seconds: number }, { number }: MessageFormatters) =>
         `${number(seconds)} 秒`,
       step: "思考过程",
+    },
+  },
+  messageActions: {
+    previousResponse: "上一个回答",
+    nextResponse: "下一个回答",
+    editMessage: "编辑消息",
+    exportMarkdown: "导出为 Markdown",
+    regenerateResponse: "重新生成回答",
+    goodResponse: "回答很好",
+    poorResponse: "回答欠佳",
+    timing: {
+      total: "总时间",
+      firstToken: "首 token",
+      inputTokens: "输入",
+      outputTokens: "输出",
+      tokensPerSecond: "TPS",
+      cacheHitRate: "缓存命中",
     },
   },
   skills: {

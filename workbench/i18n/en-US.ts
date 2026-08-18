@@ -30,15 +30,8 @@ export const workbenchEnUS = {
         `Extensions ${number(count)}`,
     },
     actions: {
-      previousResponse: "Previous response",
-      nextResponse: "Next response",
-      editMessage: "Edit message",
       copyMessage: "Copy message",
       copyResponse: "Copy response",
-      exportMarkdown: "Export as Markdown",
-      regenerateResponse: "Regenerate response",
-      goodResponse: "Good response",
-      poorResponse: "Poor response",
     },
     edit: {
       label: "Edit message",
@@ -47,6 +40,7 @@ export const workbenchEnUS = {
     },
     sourceFallback: "Source",
     generating: "Generating response…",
+    working: "Pi Working...",
     errors: {
       sessionBusy: "This conversation is already generating a response.",
       emptyPrompt: "Enter a message or attach an image before sending.",

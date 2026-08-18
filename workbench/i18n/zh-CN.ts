@@ -29,15 +29,8 @@ export const workbenchZhCN = {
         `扩展 ${number(count)}`,
     },
     actions: {
-      previousResponse: "上一个回答",
-      nextResponse: "下一个回答",
-      editMessage: "编辑消息",
       copyMessage: "复制消息",
       copyResponse: "复制回答",
-      exportMarkdown: "导出为 Markdown",
-      regenerateResponse: "重新生成回答",
-      goodResponse: "回答很好",
-      poorResponse: "回答欠佳",
     },
     edit: {
       label: "编辑消息",
@@ -46,6 +39,7 @@ export const workbenchZhCN = {
     },
     sourceFallback: "来源",
     generating: "正在生成回答…",
+    working: "Pi Working...",
     errors: {
       sessionBusy: "此会话正在生成回答。",
       emptyPrompt: "发送前请输入消息或附加图片。",

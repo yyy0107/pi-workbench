@@ -50,6 +50,48 @@ export const extensionsEnUS = {
   messagePresentation: {
     generating: "Generating response…",
     sourceFallback: "Source",
+    completedTurn: ({ duration }: { duration: string }) =>
+      duration ? `Completed in ${duration}` : "Completed",
+    toolTimeline: {
+      active: (
+        { steps, files }: { steps: number; files: number },
+        { number }: MessageFormatters,
+      ) => {
+        const stepLabel = steps === 1 ? "step" : "steps";
+        const fileLabel = files === 1 ? "file" : "files";
+        return files > 0
+          ? `Working · ${number(steps)} ${stepLabel} · ${number(files)} ${fileLabel} changed`
+          : `Working · ${number(steps)} ${stepLabel}`;
+      },
+      summary: (
+        { steps, files }: { steps: number; files: number },
+        { number }: MessageFormatters,
+      ) => {
+        const stepLabel = steps === 1 ? "step" : "steps";
+        const fileLabel = files === 1 ? "file" : "files";
+        return files > 0
+          ? `${number(steps)} ${stepLabel} · ${number(files)} ${fileLabel} changed`
+          : `${number(steps)} ${stepLabel}`;
+      },
+      steps: {
+        thinking: "Thinking",
+        read: "Read",
+        ran: "Ran",
+        edited: "Edited",
+        searched: "Searched",
+        used: "Used",
+      },
+      activeSteps: {
+        thinking: "Thinking",
+        read: "Reading",
+        ran: "Running",
+        edited: "Editing",
+        searched: "Searching",
+        used: "Using",
+      },
+      request: "Request",
+      result: "Result",
+    },
     reasoning: {
       active: "Thinking",
       complete: "Reasoned",
@@ -58,6 +100,23 @@ export const extensionsEnUS = {
       elapsed: ({ seconds }: { seconds: number }, { number }: MessageFormatters) =>
         `${number(seconds)}s`,
       step: "Reasoning",
+    },
+  },
+  messageActions: {
+    previousResponse: "Previous response",
+    nextResponse: "Next response",
+    editMessage: "Edit message",
+    exportMarkdown: "Export as Markdown",
+    regenerateResponse: "Regenerate response",
+    goodResponse: "Good response",
+    poorResponse: "Poor response",
+    timing: {
+      total: "total",
+      firstToken: "first token",
+      inputTokens: "input",
+      outputTokens: "output",
+      tokensPerSecond: "TPS",
+      cacheHitRate: "cache hit",
     },
   },
   skills: {

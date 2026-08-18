@@ -1,0 +1,1 @@
+export { messageActionsExtension } from "./extension";

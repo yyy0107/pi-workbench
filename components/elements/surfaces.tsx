@@ -7,6 +7,9 @@ import { cn } from "@/lib/utils";
 export const paper =
   "bg-background shadow-[0_1px_2px_rgba(0,0,0,0.04),0_12px_32px_-16px_rgba(0,0,0,0.12)] dark:bg-popover dark:shadow-none";
 
+export const mutedPaper =
+  "bg-muted shadow-[0_1px_2px_rgba(0,0,0,0.04),0_12px_32px_-16px_rgba(0,0,0,0.12)] dark:shadow-none";
+
 export const floating =
   "bg-background shadow-[0_2px_8px_rgba(0,0,0,0.05),0_20px_48px_-16px_rgba(0,0,0,0.18)] dark:bg-popover dark:shadow-[0_20px_48px_-16px_rgba(0,0,0,0.55)]";
 
@@ -36,8 +39,7 @@ export const labelSwap =
 
 export const labelSwapIn = "opacity-100 blur-none";
 
-export const labelSwapOut =
-  "pointer-events-none select-none opacity-0 blur-[2px]";
+export const labelSwapOut = "pointer-events-none select-none opacity-0 blur-[2px]";
 
 export const collapsePanel =
   "h-(--collapsible-panel-height) overflow-hidden transition-[height] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] data-[ending-style]:h-0 data-[starting-style]:h-0 motion-reduce:transition-none";
@@ -52,10 +54,7 @@ export function ShimmerLabel({
   ...props
 }: ComponentProps<"span"> & { active?: boolean }) {
   return (
-    <span
-      className={cn(active && "shimmer motion-reduce:animate-none", className)}
-      {...props}
-    />
+    <span className={cn(active && "shimmer motion-reduce:animate-none", className)} {...props} />
   );
 }
 
@@ -88,8 +87,7 @@ export function SwapLabel({
   useLayoutEffect(() => {
     const target = layers[active]?.current;
     if (!target) return undefined;
-    const measure = () =>
-      setWidth(Math.ceil(target.getBoundingClientRect().width));
+    const measure = () => setWidth(Math.ceil(target.getBoundingClientRect().width));
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(target);
@@ -109,10 +107,7 @@ export function SwapLabel({
           key={index}
           ref={layers[index]}
           aria-hidden={active !== index}
-          className={cn(
-            labelSwap,
-            active === index ? labelSwapIn : labelSwapOut,
-          )}
+          className={cn(labelSwap, active === index ? labelSwapIn : labelSwapOut)}
         >
           {layer}
         </span>

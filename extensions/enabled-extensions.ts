@@ -3,6 +3,7 @@ import type { WorkbenchExtension } from "@/platform/extensions";
 import { codeEditorExtension } from "./builtin/code-editor";
 import { connectionStatusExtension } from "./builtin/connection-status";
 import { localeSelectorExtension } from "./builtin/locale-selector";
+import { messageActionsExtension } from "./builtin/message-actions";
 import { messagePresentationExtension } from "./builtin/message-presentation";
 import { modelSelectorExtension } from "./builtin/model-selector";
 import { skillsExtension } from "./builtin/skills";
@@ -16,6 +17,7 @@ export const enabledExtensions = [
   workspaceDirectoryPickerExtension,
   localeSelectorExtension,
   messagePresentationExtension,
+  messageActionsExtension,
   modelSelectorExtension,
   connectionStatusExtension,
   tokenUsageExtension,

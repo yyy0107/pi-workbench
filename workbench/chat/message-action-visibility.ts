@@ -1,0 +1,29 @@
+interface MessageActionVisibilityMessage {
+  readonly id: string;
+  readonly role: "user" | "assistant" | "system";
+  readonly content: readonly { readonly type: string; readonly text?: string }[];
+}
+
+function hasActionableAssistantContent(message: MessageActionVisibilityMessage): boolean {
+  return message.content.some((part) => {
+    if (part.type === "text") return Boolean(part.text?.trim());
+    return part.type !== "reasoning" && part.type !== "tool-call";
+  });
+}
+
+export function shouldShowMessageActions(
+  messages: readonly MessageActionVisibilityMessage[],
+  messageIndex: number,
+): boolean {
+  const message = messages[messageIndex];
+  if (!message || message.role === "system") return false;
+  if (message.role === "user") return true;
+
+  for (let index = messageIndex + 1; index < messages.length; index += 1) {
+    const nextMessage = messages[index];
+    if (!nextMessage || nextMessage.role === "user") break;
+    if (nextMessage.role === "assistant") return false;
+  }
+
+  return hasActionableAssistantContent(message);
+}

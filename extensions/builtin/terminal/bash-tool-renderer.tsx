@@ -1,14 +1,22 @@
 "use client";
 
 import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
-import { CircleAlertIcon, Loader2Icon, SquareTerminalIcon } from "lucide-react";
+import { SquareTerminalIcon } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
+import { TerminalBlock } from "@/components/elements/terminal-block";
 import { useI18n } from "@/i18n";
 import { usePanelService } from "@/platform/extensions";
 
 interface BashToolArgs {
   command?: string;
+}
+
+export interface BashTerminalProps {
+  command?: string;
+  result: unknown;
+  running: boolean;
 }
 
 function resultText(result: unknown): string | undefined {
@@ -24,56 +32,48 @@ function resultText(result: unknown): string | undefined {
   }
 }
 
-export const BashToolRenderer: ToolCallMessagePartComponent<BashToolArgs, unknown> = ({
-  args,
-  result,
-  status,
-  isError,
-}) => {
+function resultLines(result: unknown): string[] {
+  const output = resultText(result);
+  if (!output) return [];
+  return output.replace(/\r\n?/g, "\n").split("\n");
+}
+
+export function BashTerminal({ command, result, running }: BashTerminalProps) {
   const { t } = useI18n();
   const panels = usePanelService();
-  const failed = isError || status.type === "incomplete";
-  const output = resultText(result);
-  const statusLabel = failed
-    ? t("extensions.terminal.tool.failed")
-    : status.type === "running"
-      ? t("extensions.terminal.tool.running")
-      : status.type === "requires-action"
-        ? t("extensions.terminal.tool.waiting")
-        : t("extensions.terminal.tool.complete");
+  const lines = resultLines(result);
 
   return (
-    <article className="overflow-hidden rounded-lg border bg-[#0d1117] text-[#d1d7e0]">
-      <header className="flex min-w-0 items-center gap-2 border-b border-white/8 bg-[#11161d] px-3 py-2">
-        {status.type === "running" ? (
-          <Loader2Icon className="size-3.5 shrink-0 animate-spin text-[#58a6ff]" />
-        ) : failed ? (
-          <CircleAlertIcon className="size-3.5 shrink-0 text-[#f85149]" />
-        ) : (
-          <SquareTerminalIcon className="size-3.5 shrink-0 text-[#3fb950]" />
-        )}
-        <code className="min-w-0 flex-1 truncate text-xs text-[#f0f6fc]">
-          {args.command || "bash"}
-        </code>
-        <span className="shrink-0 text-[10px] text-[#8b949e]">{statusLabel}</span>
-        <Button
-          type="button"
-          variant="ghost"
-          size="xs"
-          className="h-6 shrink-0 px-2 text-[10px] text-[#b7c0cc] hover:bg-white/8 hover:text-white"
+    <TerminalBlock
+      command={command || "bash"}
+      lines={lines}
+      visibleCount={lines.length}
+      done={!running}
+      headerAction={
+        <TooltipIconButton
+          data-slot="terminal-block-action"
+          tooltip={t("extensions.terminal.tool.open")}
+          className="text-foreground/40 hover:text-foreground"
           onClick={() => panels.open("terminal")}
         >
-          {t("extensions.terminal.tool.open")}
-        </Button>
-      </header>
-      {output ? (
-        <pre
-          className="max-h-64 overflow-auto whitespace-pre-wrap break-words px-3 py-2 font-mono text-[11px] leading-5 text-[#b7c0cc]"
-          role={failed ? "alert" : undefined}
-        >
-          {output}
-        </pre>
-      ) : null}
-    </article>
+          <SquareTerminalIcon className="size-3.5" />
+        </TooltipIconButton>
+      }
+      variant="paper"
+    />
+  );
+}
+
+export const BashToolRenderer: ToolCallMessagePartComponent<BashToolArgs, unknown> = (props) => {
+  const { args, result, status, isError } = props;
+  const failed = isError || status.type === "incomplete";
+  const requiresAction = status.type === "requires-action";
+
+  if (failed || requiresAction) {
+    return <ToolFallback {...props} />;
+  }
+
+  return (
+    <BashTerminal command={args.command} result={result} running={status.type !== "complete"} />
   );
 };
