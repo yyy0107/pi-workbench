@@ -1,5 +1,6 @@
 import type {
   AppendMessage,
+  MessageTiming,
   ThreadAssistantMessage,
   ThreadMessage,
   ThreadUserMessage,
@@ -61,7 +62,12 @@ export function piAssistantToThreadMessage(
   {
     optimistic = false,
     streaming = false,
-  }: Readonly<{ optimistic?: boolean; streaming?: boolean }> = {},
+    timing,
+  }: Readonly<{
+    optimistic?: boolean;
+    streaming?: boolean;
+    timing?: MessageTiming;
+  }> = {},
 ): ThreadMessage {
   let content: ThreadAssistantMessage["content"] = message.content.map((part) => {
     switch (part.type) {
@@ -105,9 +111,21 @@ export function piAssistantToThreadMessage(
       unstable_data: [],
       steps: [],
       ...(optimistic ? { isOptimistic: true } : {}),
+      ...(timing ? { timing } : {}),
       custom: {
         piModel: message.model,
         piProvider: message.provider,
+        ...(message.usage
+          ? {
+              piUsage: {
+                input: message.usage.input,
+                output: message.usage.output,
+                cacheRead: message.usage.cacheRead,
+                cacheWrite: message.usage.cacheWrite,
+                totalTokens: message.usage.totalTokens,
+              },
+            }
+          : {}),
       },
     },
   };
@@ -147,7 +165,55 @@ function piMessageId(history: PiSessionHistory, index: number): string {
   return previousMatches ? `${entryId}-${previousMatches}` : entryId;
 }
 
-export function piHistoryToThreadMessages(history: PiSessionHistory): ThreadMessage[] {
+function isEmptyStreamingPlaceholder(message: ThreadAssistantMessage): boolean {
+  return (
+    message.status.type === "running" &&
+    message.content.length === 1 &&
+    message.content[0]?.type === "text" &&
+    message.content[0].text === ""
+  );
+}
+
+function mergeAssistantMessages(
+  previous: ThreadAssistantMessage,
+  next: ThreadAssistantMessage,
+): ThreadAssistantMessage {
+  return {
+    ...previous,
+    content: [...previous.content, ...(isEmptyStreamingPlaceholder(next) ? [] : next.content)],
+    status: next.status,
+    metadata: {
+      ...previous.metadata,
+      ...next.metadata,
+      custom: {
+        ...previous.metadata.custom,
+        ...next.metadata.custom,
+      },
+    },
+  };
+}
+
+export function coalesceConsecutiveAssistantMessages(
+  messages: readonly ThreadMessage[],
+): ThreadMessage[] {
+  const coalesced: ThreadMessage[] = [];
+
+  for (const message of messages) {
+    const previous = coalesced.at(-1);
+    if (previous?.role === "assistant" && message.role === "assistant") {
+      coalesced[coalesced.length - 1] = mergeAssistantMessages(previous, message);
+    } else {
+      coalesced.push(message);
+    }
+  }
+
+  return coalesced;
+}
+
+export function piHistoryToThreadMessages(
+  history: PiSessionHistory,
+  timingByTimestamp?: ReadonlyMap<number, MessageTiming>,
+): ThreadMessage[] {
   const messages: ThreadMessage[] = [];
 
   history.context.messages.forEach((message, index) => {
@@ -173,7 +239,14 @@ export function piHistoryToThreadMessages(history: PiSessionHistory): ThreadMess
         break;
       }
       case "assistant":
-        messages.push(piAssistantToThreadMessage(message, id));
+        messages.push(
+          piAssistantToThreadMessage(message, id, {
+            timing:
+              message.timestamp === undefined
+                ? undefined
+                : timingByTimestamp?.get(message.timestamp),
+          }),
+        );
         break;
       case "toolResult":
         applyToolResult(messages, message);
@@ -206,7 +279,7 @@ export function piHistoryToThreadMessages(history: PiSessionHistory): ThreadMess
     }
   });
 
-  return messages;
+  return coalesceConsecutiveAssistantMessages(messages);
 }
 
 function splitDataUrl(value: string, fallbackMimeType: string): PiImageContent {

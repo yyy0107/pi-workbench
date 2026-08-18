@@ -1,4 +1,9 @@
-import type { AppendMessage, RemoteThreadListAdapter, ThreadMessage } from "@assistant-ui/react";
+import type {
+  AppendMessage,
+  MessageTiming,
+  RemoteThreadListAdapter,
+  ThreadMessage,
+} from "@assistant-ui/react";
 import { createAssistantStream } from "assistant-stream";
 
 import { workbenchBrowserStorage, WORKBENCH_STORAGE_PREFIX } from "@/runtime/adapters/history";
@@ -24,6 +29,7 @@ import {
 import { PiConnectionController } from "./connections";
 import {
   appendMessageToPiPrompt,
+  coalesceConsecutiveAssistantMessages,
   eventMessage,
   optimisticUserMessage,
   piAssistantToThreadMessage,
@@ -39,6 +45,24 @@ export interface PiSessionSnapshot {
 }
 
 type Listener = () => void;
+
+interface ActiveMessageTiming {
+  streamStartTime: number;
+  firstTokenTime?: number;
+  totalChunks: number;
+}
+
+function hasOutputToken(message: PiAssistantMessage): boolean {
+  return message.content.some(
+    (part) =>
+      (part.type === "text" && part.text.length > 0) ||
+      (part.type === "thinking" && !part.redacted && part.thinking.length > 0),
+  );
+}
+
+function countToolCalls(message: PiAssistantMessage): number {
+  return message.content.filter((part) => part.type === "toolCall").length;
+}
 
 function createClientMessageId(prefix: string): string {
   return (
@@ -76,6 +100,8 @@ export class PiClientSession {
   private lastSequence = 0;
   private promptRequestPending = false;
   private promptStartTimer?: ReturnType<typeof setTimeout>;
+  private activeMessageTiming?: ActiveMessageTiming;
+  private readonly messageTimingByTimestamp = new Map<number, MessageTiming>();
 
   constructor(
     manager: PiSessionManager,
@@ -122,12 +148,16 @@ export class PiClientSession {
     if (!this.remoteIdValue) return;
     if (this.reloadTask) return this.reloadTask;
     const remoteId = this.remoteIdValue;
+    const liveMessageIdsAtStart = new Set(this.liveMessages.map((message) => message.id));
+    const streamingMessageAtStart = this.streamingMessage;
     this.reloadTask = fetchPiSessionHistory(remoteId)
       .then((history) => {
         if (this.remoteIdValue !== remoteId) return;
-        this.baseMessages = piHistoryToThreadMessages(history);
-        this.liveMessages = [];
-        this.streamingMessage = undefined;
+        this.baseMessages = piHistoryToThreadMessages(history, this.messageTimingByTimestamp);
+        this.liveMessages = this.liveMessages.filter(
+          (message) => !liveMessageIdsAtStart.has(message.id),
+        );
+        if (this.streamingMessage === streamingMessageAtStart) this.streamingMessage = undefined;
         this.publishMessages();
       })
       .finally(() => {
@@ -137,11 +167,6 @@ export class PiClientSession {
   }
 
   async send(message: AppendMessage): Promise<void> {
-    if (this.reloadTask) await this.reloadTask;
-    const summary = await this.manager.ensureRemote(this);
-    const remoteId = summary.id;
-    await this.manager.connections.ensureSessionEvents(remoteId, this.handleEvent);
-
     const optimisticId = createClientMessageId("pi-user");
     this.liveMessages.push(optimisticUserMessage(message, optimisticId));
     this.publishMessages();
@@ -150,18 +175,25 @@ export class PiClientSession {
 
     const prompt = appendMessageToPiPrompt(message);
     const model = modelSelectionFromMessage(message);
+    let remoteId: string | undefined;
     try {
+      if (this.reloadTask) await this.reloadTask;
+      const summary = await this.manager.ensureRemote(this);
+      const submittedRemoteId = summary.id;
+      remoteId = submittedRemoteId;
+      await this.manager.connections.ensureSessionEvents(submittedRemoteId, this.handleEvent);
+
       await promptPiSession(
-        remoteId,
+        submittedRemoteId,
         prompt.text,
         prompt.images.length ? prompt.images : undefined,
         model,
       );
-      this.manager.notePrompt(remoteId, prompt.text);
+      this.manager.notePrompt(submittedRemoteId, prompt.text);
       if (this.promptRequestPending) {
         this.promptStartTimer = setTimeout(() => {
           this.promptRequestPending = false;
-          if (!this.manager.isRunning(remoteId)) this.setRunningFromManager(false);
+          if (!this.manager.isRunning(submittedRemoteId)) this.setRunningFromManager(false);
         }, 15_000);
       }
     } catch (error) {
@@ -169,7 +201,7 @@ export class PiClientSession {
       this.clearPromptPending();
       this.setRunning(false);
       this.publishMessages();
-      this.manager.connections.scheduleSessionClose(remoteId);
+      if (remoteId) this.manager.connections.scheduleSessionClose(remoteId);
       throw error;
     }
   }
@@ -214,14 +246,51 @@ export class PiClientSession {
       return;
     }
 
-    if (event.type === "message_start" || event.type === "message_update") {
+    if (event.type === "message_start") {
       this.clearPromptPending();
       const message = eventMessage(event);
       if (message?.role === "assistant") {
+        this.activeMessageTiming = {
+          streamStartTime: Date.now(),
+          totalChunks: 0,
+        };
         this.streamingMessage = piAssistantToThreadMessage(
           message as PiAssistantMessage,
           `pi-stream-${this.remoteIdValue ?? this.localId}`,
-          { optimistic: true, streaming: true },
+          {
+            optimistic: true,
+            streaming: true,
+            timing: this.currentMessageTiming(message as PiAssistantMessage),
+          },
+        );
+        this.publishMessages();
+      }
+      return;
+    }
+
+    if (event.type === "message_update") {
+      this.clearPromptPending();
+      const message = eventMessage(event);
+      if (message?.role === "assistant") {
+        const assistantMessage = message as PiAssistantMessage;
+        if (this.activeMessageTiming) {
+          this.activeMessageTiming.totalChunks += 1;
+          if (
+            this.activeMessageTiming.firstTokenTime === undefined &&
+            hasOutputToken(assistantMessage)
+          ) {
+            this.activeMessageTiming.firstTokenTime =
+              Date.now() - this.activeMessageTiming.streamStartTime;
+          }
+        }
+        this.streamingMessage = piAssistantToThreadMessage(
+          assistantMessage,
+          `pi-stream-${this.remoteIdValue ?? this.localId}`,
+          {
+            optimistic: true,
+            streaming: true,
+            timing: this.currentMessageTiming(assistantMessage),
+          },
         );
         this.publishMessages();
       }
@@ -231,13 +300,18 @@ export class PiClientSession {
     if (event.type === "message_end") {
       const message = eventMessage(event);
       if (message?.role === "assistant") {
+        const assistantMessage = message as PiAssistantMessage;
+        const timing = this.completeMessageTiming(assistantMessage);
+        if (timing && assistantMessage.timestamp !== undefined) {
+          this.messageTimingByTimestamp.set(assistantMessage.timestamp, timing);
+        }
         this.liveMessages.push(
-          piAssistantToThreadMessage(
-            message as PiAssistantMessage,
-            createClientMessageId("pi-assistant"),
-            { optimistic: true },
-          ),
+          piAssistantToThreadMessage(assistantMessage, createClientMessageId("pi-assistant"), {
+            optimistic: true,
+            timing,
+          }),
         );
+        this.activeMessageTiming = undefined;
         this.streamingMessage = undefined;
         this.publishMessages();
       }
@@ -250,6 +324,7 @@ export class PiClientSession {
       event.type === "command_error"
     ) {
       this.clearPromptPending();
+      this.activeMessageTiming = undefined;
       this.setRunning(false);
       if (this.remoteIdValue) this.manager.connections.scheduleSessionClose(this.remoteIdValue);
       void this.reload()
@@ -257,6 +332,37 @@ export class PiClientSession {
         .catch((error) => console.error("[workbench-pi] history refresh failed", error));
     }
   };
+
+  private currentMessageTiming(
+    message: PiAssistantMessage,
+    totalStreamTime?: number,
+  ): MessageTiming | undefined {
+    const active = this.activeMessageTiming;
+    if (!active) return undefined;
+    const tokenCount = message.usage?.output;
+
+    return {
+      streamStartTime: active.streamStartTime,
+      ...(active.firstTokenTime === undefined ? {} : { firstTokenTime: active.firstTokenTime }),
+      ...(totalStreamTime === undefined ? {} : { totalStreamTime }),
+      ...(tokenCount === undefined ? {} : { tokenCount }),
+      ...(tokenCount === undefined || totalStreamTime === undefined || totalStreamTime <= 0
+        ? {}
+        : { tokensPerSecond: tokenCount / (totalStreamTime / 1000) }),
+      totalChunks: active.totalChunks,
+      toolCallCount: countToolCalls(message),
+    };
+  }
+
+  private completeMessageTiming(message: PiAssistantMessage): MessageTiming | undefined {
+    const active = this.activeMessageTiming;
+    if (!active) return undefined;
+    const totalStreamTime = Math.max(0, Date.now() - active.streamStartTime);
+    if (active.firstTokenTime === undefined && hasOutputToken(message)) {
+      active.firstTokenTime = totalStreamTime;
+    }
+    return this.currentMessageTiming(message, totalStreamTime);
+  }
 
   private setRunning(running: boolean, notifyManager = true): void {
     if (this.snapshotValue.isRunning === running) {
@@ -279,11 +385,11 @@ export class PiClientSession {
 
   private publishMessages(): void {
     this.replaceSnapshot({
-      messages: [
+      messages: coalesceConsecutiveAssistantMessages([
         ...this.baseMessages,
         ...this.liveMessages,
         ...(this.streamingMessage ? [this.streamingMessage] : []),
-      ],
+      ]),
     });
   }
 

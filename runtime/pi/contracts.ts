@@ -59,6 +59,14 @@ export type PiAssistantContent =
   | PiImageContent
   | PiToolCallContent;
 
+export interface PiUsage {
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+  totalTokens: number;
+}
+
 export interface PiUserMessage {
   role: "user";
   content: string | Array<PiTextContent | PiImageContent>;
@@ -70,6 +78,7 @@ export interface PiAssistantMessage {
   content: PiAssistantContent[];
   model?: string;
   provider?: string;
+  usage?: PiUsage;
   stopReason?: string;
   errorMessage?: string;
   timestamp?: number;
