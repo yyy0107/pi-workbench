@@ -58,6 +58,9 @@ export async function createSessionEventResponse(request: Request, sessionId: st
         type: "connected",
         sessionId,
         isRunning: host.isRunning,
+        steering: host.steeringMessages,
+        followUp: host.followUpMessages,
+        queuePaused: host.queuePaused,
         sequence,
       });
       if (streamingMessage) {

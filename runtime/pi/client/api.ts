@@ -3,6 +3,8 @@ import type {
   PiImageContent,
   PiModelListResponse,
   PiModelSelection,
+  PiQueuedPrompt,
+  PiQueueMode,
   PiSessionHistory,
   PiSessionListResponse,
   PiSessionSummary,
@@ -116,6 +118,64 @@ export async function promptPiSession(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type: "prompt", message, images, model }),
+    }),
+  );
+}
+
+export async function queuePiSession(
+  sessionId: string,
+  mode: PiQueueMode,
+  prompt: PiQueuedPrompt,
+): Promise<void> {
+  await responseJson(
+    await fetch(`${API_ROOT}/sessions/${encodeURIComponent(sessionId)}/commands`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: mode, ...prompt }),
+    }),
+  );
+}
+
+export async function replacePiSessionQueue(
+  sessionId: string,
+  steering: readonly PiQueuedPrompt[],
+  followUp: readonly PiQueuedPrompt[],
+): Promise<void> {
+  await responseJson(
+    await fetch(`${API_ROOT}/sessions/${encodeURIComponent(sessionId)}/commands`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "replaceQueue", steering, followUp }),
+    }),
+  );
+}
+
+export async function setPiSessionQueuePaused(
+  sessionId: string,
+  paused: boolean,
+  steering: readonly PiQueuedPrompt[],
+  followUp: readonly PiQueuedPrompt[],
+): Promise<void> {
+  await responseJson(
+    await fetch(`${API_ROOT}/sessions/${encodeURIComponent(sessionId)}/commands`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "setQueuePaused", paused, steering, followUp }),
+    }),
+  );
+}
+
+export async function steerQueuedPiSession(
+  sessionId: string,
+  prompt: PiQueuedPrompt,
+  steering: readonly PiQueuedPrompt[],
+  followUp: readonly PiQueuedPrompt[],
+): Promise<void> {
+  await responseJson(
+    await fetch(`${API_ROOT}/sessions/${encodeURIComponent(sessionId)}/commands`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "steerQueued", prompt, steering, followUp }),
     }),
   );
 }

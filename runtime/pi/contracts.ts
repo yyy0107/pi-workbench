@@ -185,8 +185,45 @@ export interface PiPromptCommand {
   model?: PiModelSelection;
 }
 
+export type PiQueueMode = "steer" | "followUp";
+
+export interface PiQueuedPrompt {
+  message: string;
+  images?: PiImageContent[];
+}
+
+export interface PiQueueCommand extends PiQueuedPrompt {
+  type: PiQueueMode;
+}
+
+export interface PiReplaceQueueCommand {
+  type: "replaceQueue";
+  steering: PiQueuedPrompt[];
+  followUp: PiQueuedPrompt[];
+}
+
+export interface PiSetQueuePausedCommand {
+  type: "setQueuePaused";
+  paused: boolean;
+  steering: PiQueuedPrompt[];
+  followUp: PiQueuedPrompt[];
+}
+
+export interface PiSteerQueuedCommand {
+  type: "steerQueued";
+  prompt: PiQueuedPrompt;
+  steering: PiQueuedPrompt[];
+  followUp: PiQueuedPrompt[];
+}
+
 export interface PiCancelCommand {
   type: "cancel";
 }
 
-export type PiSessionCommand = PiPromptCommand | PiCancelCommand;
+export type PiSessionCommand =
+  | PiPromptCommand
+  | PiQueueCommand
+  | PiReplaceQueueCommand
+  | PiSetQueuePausedCommand
+  | PiSteerQueuedCommand
+  | PiCancelCommand;

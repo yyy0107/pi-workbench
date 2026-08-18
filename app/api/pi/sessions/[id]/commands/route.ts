@@ -2,8 +2,17 @@ import {
   PI_THINKING_LEVELS,
   type PiImageContent,
   type PiModelSelection,
+  type PiQueuedPrompt,
 } from "@/runtime/pi/contracts";
-import { cancelSession, PiServerError, sendPrompt } from "@/runtime/pi/server/registry";
+import {
+  cancelSession,
+  PiServerError,
+  queuePrompt,
+  replacePromptQueue,
+  sendPrompt,
+  setPromptQueuePaused,
+  steerQueuedPrompt,
+} from "@/runtime/pi/server/registry";
 import { piErrorResponse } from "@/runtime/pi/server/responses";
 
 export const runtime = "nodejs";
@@ -33,6 +42,15 @@ function isModelSelection(value: unknown): value is PiModelSelection {
   );
 }
 
+function isQueuedPrompt(value: unknown): value is PiQueuedPrompt {
+  if (!value || typeof value !== "object") return false;
+  const prompt = value as Partial<PiQueuedPrompt>;
+  return (
+    typeof prompt.message === "string" &&
+    (prompt.images === undefined || (Array.isArray(prompt.images) && prompt.images.every(isImage)))
+  );
+}
+
 export async function POST(request: Request, context: RouteContext) {
   try {
     const { id } = await context.params;
@@ -41,11 +59,59 @@ export async function POST(request: Request, context: RouteContext) {
       message?: unknown;
       images?: unknown;
       model?: unknown;
+      steering?: unknown;
+      followUp?: unknown;
+      paused?: unknown;
+      prompt?: unknown;
     };
 
     if (body.type === "cancel") {
       await cancelSession(id);
       return Response.json({ ok: true });
+    }
+    const queueMode = body.type;
+    if (queueMode === "steer" || queueMode === "followUp") {
+      if (!isQueuedPrompt(body)) throw new PiServerError("pi_invalid_command", 400);
+      await queuePrompt(id, queueMode, body);
+      return Response.json({ ok: true }, { status: 202 });
+    }
+    if (body.type === "replaceQueue") {
+      if (
+        !Array.isArray(body.steering) ||
+        !body.steering.every(isQueuedPrompt) ||
+        !Array.isArray(body.followUp) ||
+        !body.followUp.every(isQueuedPrompt)
+      ) {
+        throw new PiServerError("pi_invalid_command", 400);
+      }
+      await replacePromptQueue(id, body.steering, body.followUp);
+      return Response.json({ ok: true }, { status: 202 });
+    }
+    if (body.type === "setQueuePaused") {
+      if (
+        typeof body.paused !== "boolean" ||
+        !Array.isArray(body.steering) ||
+        !body.steering.every(isQueuedPrompt) ||
+        !Array.isArray(body.followUp) ||
+        !body.followUp.every(isQueuedPrompt)
+      ) {
+        throw new PiServerError("pi_invalid_command", 400);
+      }
+      await setPromptQueuePaused(id, body.paused, body.steering, body.followUp);
+      return Response.json({ ok: true }, { status: 202 });
+    }
+    if (body.type === "steerQueued") {
+      if (
+        !isQueuedPrompt(body.prompt) ||
+        !Array.isArray(body.steering) ||
+        !body.steering.every(isQueuedPrompt) ||
+        !Array.isArray(body.followUp) ||
+        !body.followUp.every(isQueuedPrompt)
+      ) {
+        throw new PiServerError("pi_invalid_command", 400);
+      }
+      await steerQueuedPrompt(id, body.prompt, body.steering, body.followUp);
+      return Response.json({ ok: true }, { status: 202 });
     }
     if (
       body.type !== "prompt" ||

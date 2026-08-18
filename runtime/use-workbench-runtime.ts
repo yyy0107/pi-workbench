@@ -53,6 +53,15 @@ function useWorkbenchPiRuntime(manager: PiSessionManager) {
     session.getSnapshot,
   );
   const dictation = useMemo(() => new WebSpeechDictationAdapter(), []);
+  const extras = useMemo(
+    () => ({
+      piQueue: {
+        ...session.runtimeExtras.piQueue,
+        paused: snapshot.queuePaused,
+      },
+    }),
+    [session, snapshot.queuePaused],
+  );
 
   useEffect(() => {
     void session
@@ -64,6 +73,8 @@ function useWorkbenchPiRuntime(manager: PiSessionManager) {
     messages: snapshot.messages,
     isRunning: snapshot.isRunning,
     isLoading: snapshot.isLoading,
+    extras,
+    queue: session.queueAdapter,
     onNew: async (message) => {
       try {
         await session.send(message);

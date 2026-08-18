@@ -1,6 +1,8 @@
 import type {
   AppendMessage,
+  ExternalThreadQueueAdapter,
   MessageTiming,
+  QueueItemState,
   RemoteThreadListAdapter,
   ThreadMessage,
 } from "@assistant-ui/react";
@@ -13,6 +15,8 @@ import {
   type PiAssistantMessage,
   type PiEvent,
   type PiModelSelection,
+  type PiQueuedPrompt,
+  type PiQueueMode,
   type PiSessionSummary,
   type PiWorkspaceSummary,
 } from "../contracts";
@@ -24,7 +28,11 @@ import {
   listPiSessions,
   PiApiError,
   promptPiSession,
+  queuePiSession,
   renamePiSession,
+  replacePiSessionQueue,
+  setPiSessionQueuePaused,
+  steerQueuedPiSession,
 } from "./api";
 import { PiConnectionController } from "./connections";
 import {
@@ -36,6 +44,7 @@ import {
   piAssistantToThreadMessage,
   piHistoryToThreadMessages,
 } from "./messages";
+import { PiMessageQueue } from "./queue";
 
 const ARCHIVED_STORAGE_KEY = `${WORKBENCH_STORAGE_PREFIX}pi-archived-sessions`;
 
@@ -43,6 +52,7 @@ export interface PiSessionSnapshot {
   messages: readonly ThreadMessage[];
   isRunning: boolean;
   isLoading: boolean;
+  queuePaused: boolean;
 }
 
 type Listener = () => void;
@@ -89,6 +99,12 @@ function modelSelectionFromMessage(message: AppendMessage): PiModelSelection | u
 
 export class PiClientSession {
   readonly localId: string;
+  readonly runtimeExtras: {
+    piQueue: {
+      beginEdit(id: string): QueueItemState | undefined;
+      setPaused(paused: boolean): void;
+    };
+  };
   private readonly manager: PiSessionManager;
   private readonly listeners = new Set<Listener>();
   private remoteIdValue?: string;
@@ -103,6 +119,7 @@ export class PiClientSession {
   private promptStartTimer?: ReturnType<typeof setTimeout>;
   private activeMessageTiming?: ActiveMessageTiming;
   private readonly messageTimingByTimestamp = new Map<number, MessageTiming>();
+  private readonly messageQueue: PiMessageQueue;
 
   constructor(
     manager: PiSessionManager,
@@ -113,11 +130,48 @@ export class PiClientSession {
     this.manager = manager;
     this.localId = localId;
     this.remoteIdValue = remoteId;
-    this.snapshotValue = { messages: [], isRunning: running, isLoading: Boolean(remoteId) };
+    this.snapshotValue = {
+      messages: [],
+      isRunning: running,
+      isLoading: Boolean(remoteId),
+      queuePaused: false,
+    };
+    this.messageQueue = new PiMessageQueue({
+      isRunning: () => this.snapshotValue.isRunning,
+      run: (message) => this.send(message),
+      queue: (mode, prompt) => this.queuePrompt(mode, prompt),
+      replace: (steering, followUp) => this.replaceQueue(steering, followUp),
+      steerQueued: (prompt, steering, followUp) => this.steerQueued(prompt, steering, followUp),
+      setPaused: (paused, steering, followUp) => this.setQueuePaused(paused, steering, followUp),
+      onConsumed: (message) => {
+        const optimisticId = createClientMessageId("pi-queued-user");
+        this.liveMessages.push(optimisticUserMessage(message, optimisticId));
+        this.publishMessages();
+        return () => {
+          const nextMessages = this.liveMessages.filter(
+            (candidate) => candidate.id !== optimisticId,
+          );
+          if (nextMessages.length === this.liveMessages.length) return;
+          this.liveMessages = nextMessages;
+          this.publishMessages();
+        };
+      },
+      onChange: () => this.replaceSnapshot({ queuePaused: this.messageQueue.isPaused }),
+    });
+    this.runtimeExtras = {
+      piQueue: {
+        beginEdit: (id) => this.messageQueue.beginEdit(id),
+        setPaused: (paused) => this.messageQueue.setPaused(paused),
+      },
+    };
   }
 
   get remoteId(): string | undefined {
     return this.remoteIdValue;
+  }
+
+  get queueAdapter(): ExternalThreadQueueAdapter {
+    return this.messageQueue.adapter;
   }
 
   getSnapshot = (): PiSessionSnapshot => this.snapshotValue;
@@ -139,9 +193,15 @@ export class PiClientSession {
       return Promise.resolve();
     }
 
-    this.openTask = this.reload().finally(() => {
-      this.replaceSnapshot({ isLoading: false });
-    });
+    const remoteId = this.remoteIdValue;
+    this.openTask = Promise.all([
+      this.reload(),
+      this.manager.connections.ensureSessionEvents(remoteId, this.handleEvent),
+    ])
+      .then(() => undefined)
+      .finally(() => {
+        this.replaceSnapshot({ isLoading: false });
+      });
     return this.openTask;
   }
 
@@ -212,6 +272,38 @@ export class PiClientSession {
     await cancelPiSession(this.remoteIdValue);
   }
 
+  private async queuePrompt(mode: PiQueueMode, prompt: PiQueuedPrompt): Promise<void> {
+    if (!this.remoteIdValue) throw new PiApiError("pi_session_not_found", 404);
+    await this.manager.connections.ensureSessionEvents(this.remoteIdValue, this.handleEvent);
+    await queuePiSession(this.remoteIdValue, mode, prompt);
+  }
+
+  private async replaceQueue(
+    steering: readonly PiQueuedPrompt[],
+    followUp: readonly PiQueuedPrompt[],
+  ): Promise<void> {
+    if (!this.remoteIdValue) throw new PiApiError("pi_session_not_found", 404);
+    await replacePiSessionQueue(this.remoteIdValue, steering, followUp);
+  }
+
+  private async setQueuePaused(
+    paused: boolean,
+    steering: readonly PiQueuedPrompt[],
+    followUp: readonly PiQueuedPrompt[],
+  ): Promise<void> {
+    if (!this.remoteIdValue) throw new PiApiError("pi_session_not_found", 404);
+    await setPiSessionQueuePaused(this.remoteIdValue, paused, steering, followUp);
+  }
+
+  private async steerQueued(
+    prompt: PiQueuedPrompt,
+    steering: readonly PiQueuedPrompt[],
+    followUp: readonly PiQueuedPrompt[],
+  ): Promise<void> {
+    if (!this.remoteIdValue) throw new PiApiError("pi_session_not_found", 404);
+    await steerQueuedPiSession(this.remoteIdValue, prompt, steering, followUp);
+  }
+
   connectIfRunning(): void {
     if (!this.remoteIdValue || !this.snapshotValue.isRunning) return;
     void this.manager.connections.ensureSessionEvents(this.remoteIdValue, this.handleEvent);
@@ -238,7 +330,12 @@ export class PiClientSession {
     if (sequence !== undefined) this.lastSequence = sequence;
 
     if (event.type === "connected") {
+      this.reconcileQueue(event);
       this.setRunningFromManager(event.isRunning === true);
+      return;
+    }
+    if (event.type === "queue_update") {
+      this.reconcileQueue(event);
       return;
     }
     if (event.type === "agent_start") {
@@ -436,6 +533,16 @@ export class PiClientSession {
     if (notifyManager && this.remoteIdValue) {
       this.manager.updateRunningFromSession(this.remoteIdValue, running, this);
     }
+  }
+
+  private reconcileQueue(event: PiEvent): void {
+    const steering = Array.isArray(event.steering)
+      ? event.steering.filter((message): message is string => typeof message === "string")
+      : [];
+    const followUp = Array.isArray(event.followUp)
+      ? event.followUp.filter((message): message is string => typeof message === "string")
+      : [];
+    this.messageQueue.reconcile(steering, followUp, event.queuePaused === true);
   }
 
   private clearPromptPending(): void {

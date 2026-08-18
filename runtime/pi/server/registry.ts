@@ -17,6 +17,8 @@ import type {
   PiImageContent,
   PiModelListResponse,
   PiModelSelection,
+  PiQueuedPrompt,
+  PiQueueMode,
   PiSessionHistory,
   PiSessionSummary,
 } from "../contracts";
@@ -29,6 +31,18 @@ const SESSION_IDLE_TIMEOUT_MS = 10 * 60 * 1000;
 
 type SessionEventListener = (event: PiEvent) => void;
 type RunningListener = (sessionIds: string[]) => void;
+
+interface PromptQueueSnapshot {
+  steering: PiQueuedPrompt[];
+  followUp: PiQueuedPrompt[];
+}
+
+function copyQueuedPrompts(prompts: readonly PiQueuedPrompt[]): PiQueuedPrompt[] {
+  return prompts.map((prompt) => ({
+    message: prompt.message,
+    ...(prompt.images?.length ? { images: prompt.images.map((image) => ({ ...image })) } : {}),
+  }));
+}
 
 function firstUserText(messages: readonly unknown[]): string {
   for (const candidate of messages) {
@@ -66,6 +80,8 @@ class HostedPiSession {
   private promptTask: Promise<void> | undefined;
   private sequence = 0;
   private alive = true;
+  private suppressQueueUpdates = 0;
+  private pausedQueue?: PromptQueueSnapshot;
   private modifiedAt = new Date();
 
   constructor(session: AgentSession, onRunningChanged: () => void, onDestroyed: () => void) {
@@ -75,7 +91,15 @@ class HostedPiSession {
     this.unsubscribeAgent = session.subscribe((event) => {
       this.modifiedAt = new Date();
       this.touch();
-      this.publish(eventForClient(event));
+      if (event.type === "queue_update" && this.suppressQueueUpdates === 0 && this.pausedQueue) {
+        this.publish({
+          ...eventForClient(event),
+          followUp: this.pausedQueue.followUp.map((prompt) => prompt.message),
+          queuePaused: true,
+        });
+      } else if (event.type !== "queue_update" || this.suppressQueueUpdates === 0) {
+        this.publish(eventForClient(event));
+      }
       this.onRunningChanged();
     });
     this.touch();
@@ -101,6 +125,20 @@ class HostedPiSession {
     return this.sequence;
   }
 
+  get steeringMessages(): readonly string[] {
+    return this.session.getSteeringMessages();
+  }
+
+  get followUpMessages(): readonly string[] {
+    return this.pausedQueue
+      ? this.pausedQueue.followUp.map((prompt) => prompt.message)
+      : this.session.getFollowUpMessages();
+  }
+
+  get queuePaused(): boolean {
+    return this.pausedQueue !== undefined;
+  }
+
   subscribe(listener: SessionEventListener): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
@@ -111,10 +149,23 @@ class HostedPiSession {
     for (const listener of this.listeners) listener(nextEvent);
   }
 
+  private publishQueueUpdate(): void {
+    this.publish({
+      type: "queue_update",
+      steering: this.steeringMessages,
+      followUp: this.followUpMessages,
+      queuePaused: this.queuePaused,
+    });
+  }
+
   private touch(): void {
     if (this.idleTimer) clearTimeout(this.idleTimer);
     this.idleTimer = setTimeout(() => {
-      if (this.isRunning) {
+      const hasPausedPrompts = Boolean(
+        this.pausedQueue &&
+        (this.pausedQueue.steering.length > 0 || this.pausedQueue.followUp.length > 0),
+      );
+      if (this.isRunning || hasPausedPrompts) {
         this.touch();
         return;
       }
@@ -183,6 +234,149 @@ class HostedPiSession {
   async cancel(): Promise<void> {
     await this.session.abort();
     this.touch();
+  }
+
+  async queue(mode: PiQueueMode, prompt: PiQueuedPrompt): Promise<void> {
+    if (!this.isRunning) throw new PiServerError("pi_session_not_running", 409);
+    if (this.pausedQueue && mode === "followUp") {
+      this.pausedQueue.followUp.push(...copyQueuedPrompts([prompt]));
+      this.publishQueueUpdate();
+      this.modifiedAt = new Date();
+      this.touch();
+      return;
+    }
+    if (mode === "steer") {
+      await this.session.steer(prompt.message, prompt.images);
+    } else {
+      await this.session.followUp(prompt.message, prompt.images);
+    }
+    this.modifiedAt = new Date();
+    this.touch();
+  }
+
+  private async restoreActiveQueue(queue: PromptQueueSnapshot): Promise<void> {
+    this.session.clearQueue();
+    const firstSteering = queue.steering[0];
+    const firstFollowUp = queue.followUp[0];
+    if (!this.isRunning && (firstSteering || firstFollowUp)) {
+      const first = firstSteering ?? firstFollowUp!;
+      await this.prompt(first.message, first.images);
+      if (firstSteering) queue.steering.shift();
+      else queue.followUp.shift();
+    }
+    for (const prompt of queue.steering) {
+      await this.session.steer(prompt.message, prompt.images);
+    }
+    for (const prompt of queue.followUp) {
+      await this.session.followUp(prompt.message, prompt.images);
+    }
+  }
+
+  async replaceQueue(
+    steering: readonly PiQueuedPrompt[],
+    followUp: readonly PiQueuedPrompt[],
+  ): Promise<void> {
+    const nextQueue = {
+      steering: copyQueuedPrompts(steering),
+      followUp: copyQueuedPrompts(followUp),
+    };
+    if (this.pausedQueue) {
+      this.pausedQueue.followUp = nextQueue.followUp;
+      this.suppressQueueUpdates += 1;
+      try {
+        this.session.clearQueue();
+        for (const prompt of nextQueue.steering) {
+          await this.session.steer(prompt.message, prompt.images);
+        }
+      } finally {
+        this.suppressQueueUpdates -= 1;
+        this.publishQueueUpdate();
+        this.modifiedAt = new Date();
+        this.touch();
+      }
+      return;
+    }
+    this.suppressQueueUpdates += 1;
+    try {
+      await this.restoreActiveQueue(nextQueue);
+    } finally {
+      this.suppressQueueUpdates -= 1;
+      this.publishQueueUpdate();
+      this.modifiedAt = new Date();
+      this.touch();
+    }
+  }
+
+  async steerQueued(
+    prompt: PiQueuedPrompt,
+    steering: readonly PiQueuedPrompt[],
+    followUp: readonly PiQueuedPrompt[],
+  ): Promise<void> {
+    const remaining = {
+      steering: copyQueuedPrompts(steering),
+      followUp: copyQueuedPrompts(followUp),
+    };
+    const paused = this.pausedQueue !== undefined;
+    if (paused) this.pausedQueue = remaining;
+
+    this.suppressQueueUpdates += 1;
+    try {
+      this.session.clearQueue();
+      if (this.isRunning) await this.session.steer(prompt.message, prompt.images);
+      else await this.prompt(prompt.message, prompt.images);
+      for (const queued of remaining.steering) {
+        await this.session.steer(queued.message, queued.images);
+      }
+      if (!paused) {
+        for (const queued of remaining.followUp) {
+          await this.session.followUp(queued.message, queued.images);
+        }
+      }
+    } finally {
+      this.suppressQueueUpdates -= 1;
+      this.publishQueueUpdate();
+      this.modifiedAt = new Date();
+      this.touch();
+    }
+  }
+
+  async setQueuePaused(
+    paused: boolean,
+    steering: readonly PiQueuedPrompt[],
+    followUp: readonly PiQueuedPrompt[],
+  ): Promise<void> {
+    const nextQueue = {
+      steering: copyQueuedPrompts(steering),
+      followUp: copyQueuedPrompts(followUp),
+    };
+
+    if (paused) {
+      this.pausedQueue = nextQueue;
+      this.suppressQueueUpdates += 1;
+      try {
+        this.session.clearQueue();
+        for (const prompt of nextQueue.steering) {
+          await this.session.steer(prompt.message, prompt.images);
+        }
+      } finally {
+        this.suppressQueueUpdates -= 1;
+        this.publishQueueUpdate();
+        this.modifiedAt = new Date();
+        this.touch();
+      }
+      return;
+    }
+
+    this.pausedQueue = undefined;
+    this.suppressQueueUpdates += 1;
+    try {
+      await this.restoreActiveQueue(nextQueue);
+    } finally {
+      this.suppressQueueUpdates -= 1;
+      this.publishQueueUpdate();
+      this.modifiedAt = new Date();
+      this.touch();
+    }
   }
 
   rename(name: string): void {
@@ -458,6 +652,50 @@ export async function cancelSession(id: string): Promise<void> {
   const host = state().sessions.get(id);
   if (!host?.isAlive) return;
   await host.cancel();
+}
+
+export async function queuePrompt(
+  id: string,
+  mode: PiQueueMode,
+  prompt: PiQueuedPrompt,
+): Promise<void> {
+  if (!prompt.message.trim() && !prompt.images?.length) {
+    throw new PiServerError("pi_empty_prompt", 400);
+  }
+  const host = await getOrStartSession(id);
+  await host.queue(mode, prompt);
+}
+
+export async function replacePromptQueue(
+  id: string,
+  steering: readonly PiQueuedPrompt[],
+  followUp: readonly PiQueuedPrompt[],
+): Promise<void> {
+  const host = await getOrStartSession(id);
+  await host.replaceQueue(steering, followUp);
+}
+
+export async function setPromptQueuePaused(
+  id: string,
+  paused: boolean,
+  steering: readonly PiQueuedPrompt[],
+  followUp: readonly PiQueuedPrompt[],
+): Promise<void> {
+  const host = await getOrStartSession(id);
+  await host.setQueuePaused(paused, steering, followUp);
+}
+
+export async function steerQueuedPrompt(
+  id: string,
+  prompt: PiQueuedPrompt,
+  steering: readonly PiQueuedPrompt[],
+  followUp: readonly PiQueuedPrompt[],
+): Promise<void> {
+  if (!prompt.message.trim() && !prompt.images?.length) {
+    throw new PiServerError("pi_empty_prompt", 400);
+  }
+  const host = await getOrStartSession(id);
+  await host.steerQueued(prompt, steering, followUp);
 }
 
 export function getRunningSessionIds(): string[] {
