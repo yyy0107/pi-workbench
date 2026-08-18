@@ -19,11 +19,19 @@ export function formatCompletedDuration(milliseconds: number | undefined): strin
   const totalSeconds = Math.max(0, Math.round((milliseconds ?? 0) / 1_000));
   if (totalSeconds === 0) return "";
 
-  const hours = Math.floor(totalSeconds / 3_600);
-  const minutes = Math.floor((totalSeconds % 3_600) / 60);
-  const seconds = totalSeconds % 60;
+  const units = [
+    { seconds: 86_400, suffix: "d" },
+    { seconds: 3_600, suffix: "h" },
+    { seconds: 60, suffix: "m" },
+    { seconds: 1, suffix: "s" },
+  ] as const;
+  let remaining = totalSeconds;
 
-  if (hours === 0 && minutes === 0) return `${seconds}s`;
-  if (hours === 0) return `${minutes}m${seconds}s`;
-  return `${hours}h${minutes}m${seconds}s`;
+  return units
+    .flatMap((unit) => {
+      const value = Math.floor(remaining / unit.seconds);
+      remaining %= unit.seconds;
+      return value === 0 ? [] : `${value}${unit.suffix}`;
+    })
+    .join("");
 }

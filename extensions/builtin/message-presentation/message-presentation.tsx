@@ -49,8 +49,9 @@ const MessageDataFallback: DataMessagePartComponent = ({ name, data }) => (
 );
 
 export function WorkbenchMessagePresentation() {
-  const { t } = useI18n();
+  const { t, date } = useI18n();
   const timing = useMessageTiming();
+  const messageCreatedAt = useAuiState((state) => state.message.createdAt);
   const turnStreaming = useAuiState((state) => state.thread.isRunning && state.message.isLast);
   const messageParts = useAuiState((state) => state.message.parts);
   const completedBoundary = useMemo(() => completedWorkBoundary(messageParts), [messageParts]);
@@ -58,7 +59,16 @@ export function WorkbenchMessagePresentation() {
     () => new Map(messageParts.map((part, index) => [part, index])),
     [messageParts],
   );
+  const completionTimestamp =
+    timing?.totalStreamTime === undefined
+      ? messageCreatedAt
+      : timing.streamStartTime + timing.totalStreamTime;
   const completedLabel = t("extensions.messagePresentation.completedTurn", {
+    completedAt: date(completionTimestamp, {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    }),
     duration: formatCompletedDuration(timing?.totalStreamTime),
   });
   const groupMessagePart = useCallback(

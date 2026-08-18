@@ -50,8 +50,8 @@ export const extensionsZhCN = {
   messagePresentation: {
     generating: "正在生成回答…",
     sourceFallback: "来源",
-    completedTurn: ({ duration }: { duration: string }) =>
-      duration ? `已完成 ${duration}` : "已完成",
+    completedTurn: ({ completedAt, duration }: { completedAt: string; duration: string }) =>
+      duration ? `已在 ${completedAt} 完成 · 耗时 ${duration}` : `已在 ${completedAt} 完成`,
     toolTimeline: {
       active: (
         { steps, files }: { steps: number; files: number },

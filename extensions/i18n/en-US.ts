@@ -50,8 +50,8 @@ export const extensionsEnUS = {
   messagePresentation: {
     generating: "Generating response…",
     sourceFallback: "Source",
-    completedTurn: ({ duration }: { duration: string }) =>
-      duration ? `Completed in ${duration}` : "Completed",
+    completedTurn: ({ completedAt, duration }: { completedAt: string; duration: string }) =>
+      duration ? `Completed at ${completedAt} · Took ${duration}` : `Completed at ${completedAt}`,
     toolTimeline: {
       active: (
         { steps, files }: { steps: number; files: number },

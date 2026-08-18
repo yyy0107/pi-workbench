@@ -38,8 +38,10 @@ function CopyAction({ role }: Readonly<{ role: "user" | "assistant" }>) {
 }
 
 export function WorkbenchMessageActions({ className }: Readonly<{ className?: string }>) {
+  const { date } = useI18n();
   const messageId = useAuiState((state) => state.message.id);
   const role = useAuiState((state) => state.message.role);
+  const createdAt = useAuiState((state) => state.message.createdAt);
   const isLast = useAuiState((state) => state.message.isLast);
   const isRunning = useAuiState((state) => state.thread.isRunning);
   const capabilities = useAuiState((state) => state.thread.capabilities);
@@ -53,8 +55,18 @@ export function WorkbenchMessageActions({ className }: Readonly<{ className?: st
   return (
     <div
       data-slot="message-actions"
-      className={cn("text-muted-foreground flex min-h-7 flex-wrap items-center gap-1", className)}
+      className={cn(
+        "text-muted-foreground flex min-h-7 flex-wrap items-center gap-1",
+        role === "user" &&
+          "opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100 motion-reduce:transition-none",
+        className,
+      )}
     >
+      {role === "user" ? (
+        <time dateTime={createdAt.toISOString()} className="me-1 text-xs tabular-nums">
+          {date(createdAt, { hour: "2-digit", minute: "2-digit" })}
+        </time>
+      ) : null}
       {capabilities.unstable_copy && (role === "user" || role === "assistant") ? (
         <CopyAction role={role} />
       ) : null}
