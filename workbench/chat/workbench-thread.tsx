@@ -7,6 +7,7 @@ import { ThinkingOrb } from "thinking-orbs";
 
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { MessagePair } from "@/components/elements/message-pair";
+import { TypingIndicator } from "@/components/elements/typing-indicator";
 import { useI18n } from "@/i18n";
 import { SlotHost } from "@/platform/extensions";
 
@@ -70,7 +71,7 @@ function PiWorkingStatus() {
       role="status"
       aria-live={isRunning ? "polite" : "off"}
       aria-hidden={isRunning ? undefined : true}
-      className={`text-muted-foreground mx-auto mb-4 flex h-[26px] w-full max-w-[var(--thread-max-width)] shrink-0 items-center gap-2 px-2 text-sm font-medium [overflow-anchor:auto] ${isRunning ? "visible" : "invisible pointer-events-none"}`}
+      className={`text-foreground/70 mx-auto mb-4 flex h-[26px] w-full max-w-[var(--thread-max-width)] shrink-0 items-center gap-2 px-2 text-sm font-medium [overflow-anchor:auto] ${isRunning ? "visible" : "invisible pointer-events-none"}`}
     >
       <ThinkingOrb
         state="connecting"
@@ -142,7 +143,7 @@ function WorkbenchMessages() {
   return (
     <div
       data-slot="conversation-flow"
-      className={`mx-auto flex w-full max-w-[var(--thread-max-width)] shrink-0 flex-col gap-4 pb-4 ${isRunning ? "[overflow-anchor:none]" : "[overflow-anchor:auto]"}`}
+      className={`mx-auto flex w-full max-w-[var(--thread-max-width)] shrink-0 flex-col gap-4 ${isRunning ? "pb-1 [overflow-anchor:none]" : "pb-4 [overflow-anchor:auto]"}`}
     >
       {items}
     </div>
@@ -203,6 +204,7 @@ export function ThreadRouteSync({ threadId }: { threadId?: string }) {
 export function WorkbenchThread({ threadId }: WorkbenchThreadProps) {
   const { t } = useI18n();
   const activeThreadId = useAuiState((state) => state.threads.mainThreadId);
+  const isRunning = useAuiState((state) => state.thread.isRunning);
   const slotContext = { threadId: threadId ?? activeThreadId };
 
   return (
@@ -260,11 +262,20 @@ export function WorkbenchThread({ threadId }: WorkbenchThreadProps) {
               <TooltipIconButton
                 tooltip={t("workbench.chat.scrollLatest")}
                 variant="outline"
-                className="bg-background sticky bottom-44 z-10 mx-auto -mt-8 size-8 shrink-0 rounded-full shadow-sm [overflow-anchor:none]"
+                className="bg-background sticky bottom-44 z-10 mx-auto -mt-8 size-8 shrink-0 rounded-full shadow-sm disabled:invisible [overflow-anchor:none]"
               />
             }
           >
-            <ArrowDownIcon className="size-4" />
+            {isRunning ? (
+              <TypingIndicator
+                label={t("workbench.chat.scrollLatest")}
+                variant="bare"
+                aria-hidden="true"
+                className="scale-75"
+              />
+            ) : (
+              <ArrowDownIcon className="size-4" />
+            )}
           </ThreadPrimitive.ScrollToBottom>
 
           <ThreadPrimitive.ViewportFooter className="bg-background/95 sticky bottom-0 mx-auto mt-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-3 rounded-t-3xl pb-4 pt-2 backdrop-blur [overflow-anchor:none] supports-[backdrop-filter]:bg-background/80">

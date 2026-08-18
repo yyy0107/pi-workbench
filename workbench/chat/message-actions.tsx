@@ -41,13 +41,14 @@ export function WorkbenchMessageActions({ className }: Readonly<{ className?: st
   const messageId = useAuiState((state) => state.message.id);
   const role = useAuiState((state) => state.message.role);
   const isLast = useAuiState((state) => state.message.isLast);
+  const isRunning = useAuiState((state) => state.thread.isRunning);
   const capabilities = useAuiState((state) => state.thread.capabilities);
   const visible = useAuiState((state) =>
     shouldShowMessageActions(state.thread.messages, state.message.index),
   );
   const context = { messageId, role, isLast };
 
-  if (!visible) return null;
+  if (!visible || (isLast && isRunning)) return null;
 
   return (
     <div
