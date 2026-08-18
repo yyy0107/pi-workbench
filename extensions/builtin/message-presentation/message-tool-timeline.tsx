@@ -111,6 +111,7 @@ function TimelineToolCall({
 }) {
   const { t } = useI18n();
   const [open, setOpen] = useOpenDuringStreaming(sessionStreaming);
+  const displayedResult = part.result ?? part.artifact;
 
   return (
     <ToolCall
@@ -118,7 +119,7 @@ function TimelineToolCall({
       activeLabel={t(`extensions.messagePresentation.toolTimeline.activeSteps.${kind}`)}
       query={query}
       request={serializeToolValue(part.args)}
-      result={serializeToolValue(part.result)}
+      result={serializeToolValue(displayedResult)}
       requestLabel={t("extensions.messagePresentation.toolTimeline.request")}
       resultLabel={t("extensions.messagePresentation.toolTimeline.result")}
       icon={STEP_ICONS[kind]}
@@ -136,7 +137,7 @@ function TimelineToolCall({
               ? part.args.command
               : undefined
           }
-          result={part.result}
+          result={displayedResult}
           running={running}
         />
       ) : null}
@@ -183,7 +184,7 @@ export function MessageToolTimeline({
           part={part}
           kind={model.kind}
           query={model.chip}
-          running={index === activeStepIndex}
+          running={turnStreaming && part.result === undefined}
           sessionStreaming={turnStreaming}
         />
       ),

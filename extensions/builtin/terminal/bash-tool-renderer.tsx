@@ -65,7 +65,7 @@ export function BashTerminal({ command, result, running }: BashTerminalProps) {
 }
 
 export const BashToolRenderer: ToolCallMessagePartComponent<BashToolArgs, unknown> = (props) => {
-  const { args, result, status, isError } = props;
+  const { args, result, artifact, status, isError } = props;
   const failed = isError || status.type === "incomplete";
   const requiresAction = status.type === "requires-action";
 
@@ -74,6 +74,10 @@ export const BashToolRenderer: ToolCallMessagePartComponent<BashToolArgs, unknow
   }
 
   return (
-    <BashTerminal command={args.command} result={result} running={status.type !== "complete"} />
+    <BashTerminal
+      command={args.command}
+      result={result ?? artifact}
+      running={status.type !== "complete"}
+    />
   );
 };

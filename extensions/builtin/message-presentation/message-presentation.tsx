@@ -77,10 +77,11 @@ export function WorkbenchMessagePresentation() {
   const activeTimelinePartIndex = useAuiState((state) => {
     if (!state.thread.isRunning || !state.message.isLast) return -1;
 
-    const index = state.message.content.length - 1;
-    const part = state.message.content[index];
-    if (part?.type === "reasoning") return index;
-    if (part?.type === "tool-call" && part.result === undefined) return index;
+    for (let index = state.message.content.length - 1; index >= 0; index -= 1) {
+      const part = state.message.content[index];
+      if (part?.type === "tool-call" && part.result === undefined) return index;
+      if (index === state.message.content.length - 1 && part?.type === "reasoning") return index;
+    }
     return -1;
   });
 
