@@ -21,6 +21,7 @@ export const workbenchEnUS = {
       voiceInput: "Voice input",
       stopGenerating: "Stop generating",
       sendMessage: "Send message",
+      queueFollowUp: "Add to follow-up queue",
       openDrawer: "Show composer options",
       closeDrawer: "Hide composer options",
       drawer: "Composer options",

@@ -113,6 +113,18 @@ export const extensionsZhCN = {
       cacheHitRate: "缓存命中",
     },
   },
+  messageQueue: {
+    drag: "拖动调整顺序",
+    steer: "调整方向",
+    remove: "删除排队消息",
+    more: "更多操作",
+    edit: "编辑消息",
+    saveEdit: "保存修改",
+    cancelEdit: "取消修改",
+    close: "关闭排队",
+    enable: "启用队列模式",
+    messageFallback: "排队附件",
+  },
   skills: {
     title: "技能",
     add: "添加技能",

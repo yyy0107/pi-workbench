@@ -1,6 +1,6 @@
 "use client";
 
-import { ComposerPrimitive, useAuiState } from "@assistant-ui/react";
+import { ComposerPrimitive, useAui, useAuiState } from "@assistant-ui/react";
 import { ArrowUpIcon, MicIcon, PlusIcon, SquareIcon, XIcon } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 
@@ -42,11 +42,13 @@ function ComposerDrawerStats({
 
 export function WorkbenchComposer() {
   const { t } = useI18n();
+  const aui = useAui();
   const drawerId = useId();
   const composerRef = useRef<HTMLFormElement>(null);
   const isRunning = useAuiState((state) => state.thread.isRunning);
   const isEmpty = useAuiState((state) => state.thread.composer.isEmpty);
   const canSend = useAuiState((state) => state.thread.composer.canSend);
+  const canQueue = useAuiState((state) => state.thread.capabilities.queue);
   const isDictating = useAuiState((state) => state.thread.composer.dictation != null);
   const mainThreadId = useAuiState((state) => state.threads.mainThreadId);
   const newThreadId = useAuiState((state) => state.threads.newThreadId);
@@ -104,6 +106,10 @@ export function WorkbenchComposer() {
           if (!canSend) return;
           setIsDrawerOpen(false);
           setIsComposerSelected(false);
+          if (isRunning && canQueue) {
+            event.preventDefault();
+            aui.thread.composer().send({ steer: false });
+          }
         }}
       >
         <ComposerPrimitive.AttachmentDropzone
@@ -202,18 +208,37 @@ export function WorkbenchComposer() {
                   </ComposerPrimitive.Dictate>
                 )}
                 {isRunning ? (
-                  <ComposerPrimitive.Cancel
-                    render={
+                  <>
+                    <ComposerPrimitive.Cancel
+                      render={
+                        <TooltipIconButton
+                          tooltip={t("workbench.chat.composer.stopGenerating")}
+                          type="button"
+                          variant="default"
+                          className="size-[34px] -translate-y-0.5 rounded-full"
+                        />
+                      }
+                    >
+                      <SquareIcon className="size-3 fill-current" />
+                    </ComposerPrimitive.Cancel>
+                    {canQueue ? (
                       <TooltipIconButton
-                        tooltip={t("workbench.chat.composer.stopGenerating")}
+                        tooltip={t("workbench.chat.composer.queueFollowUp")}
+                        aria-label={t("workbench.chat.composer.queueFollowUp")}
                         type="button"
+                        disabled={!canCompose || !canSend}
                         variant="default"
-                        className="size-[34px] -translate-y-0.5 rounded-full"
-                      />
-                    }
-                  >
-                    <SquareIcon className="size-3 fill-current" />
-                  </ComposerPrimitive.Cancel>
+                        className="size-[34px] -translate-y-0.5 rounded-full disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100"
+                        onClick={() => {
+                          aui.thread.composer().send({ steer: false });
+                          setIsDrawerOpen(false);
+                          setIsComposerSelected(false);
+                        }}
+                      >
+                        <ArrowUpIcon className="size-5" />
+                      </TooltipIconButton>
+                    ) : null}
+                  </>
                 ) : (
                   <ComposerPrimitive.Send
                     render={

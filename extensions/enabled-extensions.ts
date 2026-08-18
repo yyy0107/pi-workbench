@@ -5,6 +5,7 @@ import { connectionStatusExtension } from "./builtin/connection-status";
 import { localeSelectorExtension } from "./builtin/locale-selector";
 import { messageActionsExtension } from "./builtin/message-actions";
 import { messagePresentationExtension } from "./builtin/message-presentation";
+import { messageQueueExtension } from "./builtin/message-queue";
 import { modelSelectorExtension } from "./builtin/model-selector";
 import { skillsExtension } from "./builtin/skills";
 import { terminalExtension } from "./builtin/terminal";
@@ -18,6 +19,7 @@ export const enabledExtensions = [
   localeSelectorExtension,
   messagePresentationExtension,
   messageActionsExtension,
+  messageQueueExtension,
   modelSelectorExtension,
   connectionStatusExtension,
   tokenUsageExtension,

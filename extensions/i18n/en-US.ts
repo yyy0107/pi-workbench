@@ -119,6 +119,18 @@ export const extensionsEnUS = {
       cacheHitRate: "cache hit",
     },
   },
+  messageQueue: {
+    drag: "Drag to reorder",
+    steer: "Steer",
+    remove: "Remove queued message",
+    more: "More actions",
+    edit: "Edit message",
+    saveEdit: "Save changes",
+    cancelEdit: "Cancel editing",
+    close: "Close queue",
+    enable: "Enable queue mode",
+    messageFallback: "Queued attachment",
+  },
   skills: {
     title: "Skills",
     add: "Add skills",

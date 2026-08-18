@@ -20,6 +20,7 @@ export const workbenchZhCN = {
       voiceInput: "语音输入",
       stopGenerating: "停止生成",
       sendMessage: "发送消息",
+      queueFollowUp: "加入后续队列",
       openDrawer: "显示输入选项",
       closeDrawer: "隐藏输入选项",
       drawer: "输入选项",
