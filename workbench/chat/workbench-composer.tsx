@@ -107,8 +107,9 @@ export function WorkbenchComposer() {
         }}
       >
         <ComposerPrimitive.AttachmentDropzone
+          data-slot="workbench-composer-card"
           className={cn(
-            "bg-background data-[dragging=true]:bg-accent/50 flex w-full flex-col overflow-hidden rounded-[30px] border shadow-[0_1px_3px_rgba(0,0,0,0.08)] outline-none transition-[border-color,box-shadow,background-color] data-[dragging=true]:border-dashed",
+            "bg-background data-[dragging=true]:bg-accent/50 flex w-full flex-col overflow-hidden rounded-[22px] border shadow-[0_1px_3px_rgba(0,0,0,0.08)] outline-none transition-[border-color,box-shadow,background-color] data-[dragging=true]:border-dashed",
             showWorkspacePrompt &&
               "border-dashed border-muted-foreground/40 dark:border-muted-foreground/50",
           )}
@@ -116,7 +117,7 @@ export function WorkbenchComposer() {
           <fieldset
             disabled={!canCompose}
             className={cn(
-              "flex min-h-36 flex-col px-5 pb-3 pt-4 transition-opacity",
+              "flex flex-col gap-3 pt-2.5 transition-opacity [&>.aui-composer-attachments]:px-3",
               showWorkspacePrompt ? "opacity-60" : !canCompose && "[&_:disabled]:opacity-100",
             )}
           >
@@ -126,11 +127,14 @@ export function WorkbenchComposer() {
                 rows={1}
                 aria-label={t("workbench.chat.composer.messageInput")}
                 placeholder={t("workbench.chat.composer.placeholder")}
-                className="max-h-40 min-h-16 w-full resize-none overflow-y-auto bg-transparent px-1 py-0 text-base leading-7 outline-none [field-sizing:content] placeholder:text-muted-foreground/85 disabled:cursor-not-allowed disabled:text-muted-foreground disabled:placeholder:text-muted-foreground/65"
+                className={cn(
+                  "max-h-[336px] w-full resize-none overflow-y-auto bg-transparent px-4 pt-1 pb-0 text-base leading-6 outline-none [field-sizing:content] placeholder:text-muted-foreground/85 disabled:cursor-not-allowed disabled:text-muted-foreground disabled:placeholder:text-muted-foreground/65",
+                  isNewThread ? "min-h-[52px]" : "min-h-7",
+                )}
               />
             </ComposerPrimitive.Input>
 
-            <div className="mt-auto flex min-h-9 items-center justify-between gap-3">
+            <div className="flex min-h-[42px] items-center justify-between gap-3 px-2 pt-0.5 pb-1.5">
               <div className="flex min-w-0 items-center gap-2">
                 <TooltipIconButton
                   type="button"
@@ -147,10 +151,14 @@ export function WorkbenchComposer() {
                   aria-expanded={isDrawerOpen}
                   aria-controls={drawerId}
                   variant="ghost"
-                  className="text-muted-foreground hover:text-foreground size-9 rounded-full"
+                  className="text-muted-foreground hover:text-foreground size-7 rounded-full"
                   onClick={() => setIsDrawerOpen((open) => !open)}
                 >
-                  {isDrawerOpen ? <XIcon className="size-5" /> : <PlusIcon className="size-5" />}
+                  {isDrawerOpen ? (
+                    <XIcon className="size-[18px]" />
+                  ) : (
+                    <PlusIcon className="size-[18px]" />
+                  )}
                 </TooltipIconButton>
                 <SlotHost
                   name="composer.actions.left"
@@ -173,7 +181,7 @@ export function WorkbenchComposer() {
                         tooltip={t("workbench.chat.composer.stopVoiceInput")}
                         type="button"
                         variant="ghost"
-                        className="text-muted-foreground hover:text-foreground size-9 rounded-full"
+                        className="text-muted-foreground hover:text-foreground size-7 rounded-full"
                       />
                     }
                   >
@@ -186,7 +194,7 @@ export function WorkbenchComposer() {
                         tooltip={t("workbench.chat.composer.voiceInput")}
                         type="button"
                         variant="ghost"
-                        className="text-muted-foreground hover:text-foreground size-9 rounded-full"
+                        className="text-muted-foreground hover:text-foreground size-7 rounded-full"
                       />
                     }
                   >
@@ -200,7 +208,7 @@ export function WorkbenchComposer() {
                         tooltip={t("workbench.chat.composer.stopGenerating")}
                         type="button"
                         variant="default"
-                        className="size-10 rounded-full"
+                        className="size-[34px] -translate-y-0.5 rounded-full"
                       />
                     }
                   >
@@ -214,7 +222,7 @@ export function WorkbenchComposer() {
                         type="submit"
                         disabled={!canCompose}
                         variant="default"
-                        className="size-10 rounded-full disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100"
+                        className="size-[34px] -translate-y-0.5 rounded-full disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100"
                       />
                     }
                   >

@@ -6,7 +6,6 @@ import {
   MessagePrimitive,
   useAuiState,
 } from "@assistant-ui/react";
-import { BotIcon } from "lucide-react";
 
 import { ComposerAttachments, UserMessageAttachments } from "@/components/assistant-ui/attachment";
 import { Button } from "@/components/ui/button";
@@ -21,7 +20,13 @@ function MessageSlot({ name }: { name: "message.before" | "message.after" }) {
   const role = useAuiState((state) => state.message.role);
   const isLast = useAuiState((state) => state.message.isLast);
 
-  return <SlotHost name={name} context={{ messageId, role, isLast }} className="col-span-full" />;
+  return (
+    <SlotHost
+      name={name}
+      context={{ messageId, role, isLast }}
+      className="col-span-full [overflow-anchor:none]"
+    />
+  );
 }
 
 function WorkbenchMessageError() {
@@ -38,20 +43,19 @@ export function WorkbenchUserMessage() {
   return (
     <MessagePrimitive.Root
       data-role="user"
-      className="mx-auto w-full max-w-[var(--thread-max-width)] px-2 py-4"
+      className="group/message flex w-full min-w-0 flex-col items-end gap-1.5"
     >
       <MessageSlot name="message.before" />
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-y-2">
+      <div className="flex max-w-full min-w-0 flex-col items-end gap-2">
         <UserMessageAttachments />
-        <div className="col-start-2 max-w-[min(85vw,42rem)] min-w-0">
-          <div className="bg-muted rounded-3xl px-4 py-2.5 break-words">
-            <WorkbenchMessageParts />
-          </div>
-          <div className="mt-1 flex justify-end">
-            <WorkbenchMessageActions />
-          </div>
+        <div
+          data-slot="user-message-bubble"
+          className="min-w-0 max-w-full rounded-[22px] bg-[rgb(237,243,254)] px-3.5 py-2 break-words text-start dark:bg-[rgb(44,44,46)]"
+        >
+          <WorkbenchMessageParts />
         </div>
       </div>
+      <WorkbenchMessageActions className="justify-end" />
       <MessageSlot name="message.after" />
     </MessagePrimitive.Root>
   );
@@ -59,22 +63,19 @@ export function WorkbenchUserMessage() {
 
 export function WorkbenchAssistantMessage() {
   return (
-    <MessagePrimitive.Root
-      data-role="assistant"
-      className="mx-auto grid w-full max-w-[var(--thread-max-width)] grid-cols-[2rem_minmax(0,1fr)] gap-x-3 gap-y-2 px-2 py-4"
-    >
+    <MessagePrimitive.Root data-role="assistant" className="w-full min-w-0">
       <MessageSlot name="message.before" />
-      <div className="bg-primary/10 flex size-8 items-center justify-center rounded-full">
-        <BotIcon className="size-4" />
-      </div>
-      <div className="min-w-0 break-words leading-relaxed">
+      <div className="min-w-0 break-words leading-relaxed [overflow-anchor:none]">
         <WorkbenchMessageParts />
         <WorkbenchMessageError />
-        <div className="mt-1">
-          <WorkbenchMessageActions />
-        </div>
+        <WorkbenchMessageActions className="mt-1" />
       </div>
       <MessageSlot name="message.after" />
+      <span
+        data-slot="assistant-scroll-anchor"
+        aria-hidden="true"
+        className="block size-px [overflow-anchor:auto]"
+      />
     </MessagePrimitive.Root>
   );
 }
@@ -95,8 +96,8 @@ export function WorkbenchEditComposer() {
   const { t } = useI18n();
 
   return (
-    <MessagePrimitive.Root className="mx-auto w-full max-w-[var(--thread-max-width)] px-2 py-3">
-      <ComposerPrimitive.Root className="bg-muted ms-auto flex w-full max-w-[85%] flex-col gap-2 rounded-3xl p-3">
+    <MessagePrimitive.Root className="w-full min-w-0">
+      <ComposerPrimitive.Root className="flex w-full flex-col gap-2">
         <ComposerAttachments />
         <ComposerPrimitive.Input
           autoFocus
