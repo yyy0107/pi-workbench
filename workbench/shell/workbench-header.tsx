@@ -32,7 +32,7 @@ export function WorkbenchHeader() {
   const { t } = useI18n();
 
   return (
-    <header className="bg-background grid h-12 shrink-0 grid-cols-[1fr_auto_1fr] items-center border-b px-3">
+    <header className="bg-background grid h-10 shrink-0 grid-cols-[1fr_auto_1fr] items-center border-b px-3">
       <div className="flex min-w-0 items-center gap-2">
         <SidebarOpenButton />
         <span className="truncate text-sm font-semibold">{t("workbench.shell.workbench")}</span>

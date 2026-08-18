@@ -21,7 +21,7 @@ export function WorkbenchSidebarContent({
   return (
     <div className="flex h-full min-h-0 flex-col">
       {!mobile ? (
-        <div className="flex h-12 shrink-0 items-center gap-3 px-5">
+        <div className="flex h-10 shrink-0 items-center gap-3 px-5">
           <SlotHost
             name="sidebar.brand"
             className="flex min-w-0 flex-1 items-center empty:hidden"

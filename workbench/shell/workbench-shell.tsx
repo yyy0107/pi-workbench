@@ -13,7 +13,7 @@ import { WorkbenchMain } from "./workbench-main";
 import { WorkbenchSidebar } from "./workbench-sidebar";
 import { WorkbenchStatusbar } from "./workbench-statusbar";
 
-const DEFAULT_SIDEBAR_WIDTH = 368;
+const DEFAULT_SIDEBAR_WIDTH = 268;
 const MIN_SIDEBAR_WIDTH = 240;
 const MAX_SIDEBAR_WIDTH = 560;
 
