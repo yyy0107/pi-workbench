@@ -9,6 +9,7 @@ Use this reference to verify the current first-version public API before impleme
 - [Slot contract](#slot-contract)
 - [Panel contract](#panel-contract)
 - [Command contract](#command-contract)
+- [Composer Command contract](#composer-command-contract)
 - [Settings contract](#settings-contract)
 - [Renderer contract](#renderer-contract)
 - [RightWorkspace boundary](#rightworkspace-boundary)
@@ -288,6 +289,36 @@ interface CommandExecutionContext {
 Registered commands appear in the `Mod+K` palette. Shortcut tokens support `Mod`/`CmdOrCtrl`, Ctrl, Meta/Cmd, Alt/Option, Shift, and exactly one normal key. Modifier matching inside `CommandService` is exact. Shortcut conflicts resolve to the first registered command, so avoid conflicts explicitly.
 
 Also search standalone global `keydown` listeners outside `CommandService`. For example, the sidebar's `Mod+B` listener accepts `Mod+Shift+B` because it does not reject extra modifiers, so that combination would trigger both features.
+
+## Composer Command contract
+
+`context.composerCommands` registers structured entities compiled at Composer submit time. It is
+separate from the global `context.commands` action palette.
+
+```ts
+interface ComposerCommandOptions {
+  behavior: "modifier" | "context" | "transform" | "immediate";
+  effect?: ComposerCommandEffect;
+  exclusive?: boolean;
+  group?: string;
+  scope?: "message" | "segment";
+  argsSchema?: Readonly<Record<string, ComposerJsonValue>>;
+  argsBinding?: {
+    kind: "message-text";
+    field: string;
+    consumeText: boolean;
+  };
+  apply(draft: ComposerCommandRequestDraft, context: ComposerCommandApplyContext): void;
+}
+```
+
+The first argument-binding version accepts only `message-text`. A bound command must declare an
+`argsSchema`, be `exclusive: true`, and use message scope. Selection opens a structured parameter
+panel above the Composer; the bound field receives a multiline editor and other schema properties
+receive matching controls. Closing the panel retains the token, clicking the token reopens it, and
+deleting the token clears its values. Parameters compile directly into `command.args`, while all
+text typed after the token remains ordinary Agent request text. `consumeText` exists only for legacy
+client fallback. Historical canonical `command-argument` nodes remain supported.
 
 ## Settings contract
 

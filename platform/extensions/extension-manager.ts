@@ -1,4 +1,5 @@
 import type { CommandRegistry } from "./api/command";
+import type { ComposerCommandRegistry } from "./api/composer-command";
 import { disposeAll, type Disposable } from "./api/disposable";
 import type { ExtensionContext, ExtensionSetupResult, WorkbenchExtension } from "./api/extension";
 import type { PanelRegistry } from "./api/panel";
@@ -13,6 +14,7 @@ import type { SettingsRegistry } from "./api/settings";
 import type { SlotContribution, SlotRegistry, WorkbenchSlot } from "./api/slot";
 import type { WorkspaceSurfaceDefinition, WorkspaceSurfaceRegistry } from "./api/workspace-surface";
 import { CommandRegistryImpl } from "./registries/command-registry";
+import { ComposerCommandRegistryImpl } from "./registries/composer-command-registry";
 import { PanelRegistryImpl } from "./registries/panel-registry";
 import { RendererRegistryImpl } from "./registries/renderer-registry";
 import { SettingsRegistryImpl } from "./registries/settings-registry";
@@ -30,6 +32,7 @@ export class ExtensionManager implements Disposable {
   readonly slots: SlotRegistry = new SlotRegistryImpl();
   readonly panels: PanelRegistry = new PanelRegistryImpl();
   readonly commands: CommandRegistry = new CommandRegistryImpl();
+  readonly composerCommands: ComposerCommandRegistry = new ComposerCommandRegistryImpl();
   readonly renderers: RendererRegistry = new RendererRegistryImpl();
   readonly settings: SettingsRegistry = new SettingsRegistryImpl();
   readonly workspace: WorkspaceSurfaceRegistry = new WorkspaceSurfaceRegistryImpl();
@@ -158,6 +161,13 @@ export class ExtensionManager implements Disposable {
       subscribe: this.commands.subscribe,
     };
 
+    const composerCommands: ComposerCommandRegistry = {
+      register: (command) => track(this.composerCommands.register(command)),
+      get: (commandId) => this.composerCommands.get(commandId),
+      getAll: () => this.composerCommands.getAll(),
+      subscribe: this.composerCommands.subscribe,
+    };
+
     const wrapRenderers = <TComponent>(
       registry: NamedRendererRegistry<TComponent>,
     ): NamedRendererRegistry<TComponent> => ({
@@ -193,7 +203,15 @@ export class ExtensionManager implements Disposable {
       subscribe: this.workspace.subscribe,
     };
 
-    return Object.freeze({ slots, panels, commands, renderers, settings, workspace });
+    return Object.freeze({
+      slots,
+      panels,
+      commands,
+      composerCommands,
+      renderers,
+      settings,
+      workspace,
+    });
   }
 
   #trackSetupResult(result: ExtensionSetupResult, disposables: Set<Disposable>): void {

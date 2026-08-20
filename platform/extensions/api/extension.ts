@@ -1,4 +1,5 @@
 import type { CommandRegistry } from "./command";
+import type { ComposerCommandRegistry } from "./composer-command";
 import type { Disposable } from "./disposable";
 import type { PanelRegistry } from "./panel";
 import type { RendererRegistry } from "./renderer";
@@ -20,6 +21,8 @@ export interface ExtensionContext {
   readonly panels: PanelRegistry;
   /** 注册进入命令面板及可选全局快捷键的动作。 */
   readonly commands: CommandRegistry;
+  /** 注册 Composer 内的结构化命令 Token 及其提交期编译行为。 */
+  readonly composerCommands: ComposerCommandRegistry;
   /** 注册整条消息呈现器以及按名称匹配的 Tool/Data Renderer。 */
   readonly renderers: RendererRegistry;
   /** 注册共享设置面板中的分区和功能自有设置项。 */

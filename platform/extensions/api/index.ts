@@ -1,4 +1,5 @@
 export * from "./command";
+export * from "./composer-command";
 export * from "./disposable";
 export * from "./extension";
 export * from "./panel";

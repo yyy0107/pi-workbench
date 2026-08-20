@@ -1,6 +1,6 @@
 # Workbench 扩展组件开发指南
 
-本文说明如何为 Pi Workbench 开发扩展组件，并介绍 Slot、Panel、Command、Renderer、Settings、Workspace Surface 六类扩展能力。
+本文说明如何为 Pi Workbench 开发扩展组件，并介绍 Slot、Panel、Command、Composer Command、Renderer、Settings、Workspace Surface 七类扩展能力。
 
 让 AI 协助实现扩展时，可以显式调用项目技能 `$extend-workbench-ui`。技能位于 [`.agents/skills/extend-workbench-ui/`](../.agents/skills/extend-workbench-ui/SKILL.md)，会按本文的边界、流程和验证要求执行。
 
@@ -14,7 +14,7 @@
 
 扩展平台的公开入口是 [`platform/extensions/index.ts`](../platform/extensions/index.ts)。扩展应优先从 `@/platform/extensions` 导入类型、Hook 和注册 API，不要依赖 `registries/`、`hosts/` 等内部实现。
 
-## 1. 先理解六种扩展能力
+## 1. 先理解七种扩展能力
 
 一个扩展由 `defineExtension()` 定义，并在 `setup(context)` 中注册一个或多个贡献：
 
@@ -22,15 +22,16 @@
 enabledExtensions
   -> ExtensionProvider
     -> extension.setup(context)
-      -> Slot / Panel / Command / Renderer / Settings / Workspace Surface Registry
+      -> Slot / Panel / Command / Composer Command / Renderer / Settings / Workspace Surface Registry
         -> 对应 Host 渲染或执行
 ```
 
-六种贡献各自解决不同问题：
+七种贡献各自解决不同问题：
 
 - **Slot**：把小型组件插入宿主已经声明的位置，例如 Composer 按钮或状态栏指标。
 - **Panel**：提供独立工作区，例如 Terminal 或文件预览器。
 - **Command**：提供可复用动作，同时进入命令面板和快捷键系统。
+- **Composer Command**：把 `/` 面板选项注册为结构化 Token，并在提交时编译为一次 Agent 请求。
 - **Renderer**：接管整条消息的 Parts/分组策略，或按 tool name、data name 渲染单个 assistant-ui Part。
 - **Settings**：向共享悬浮设置面板注册导航分区或功能自有设置项。
 - **Workspace Surface**：向右侧 Inspector 注册可持久化的检查能力；核心只管理标签和布局。
@@ -41,6 +42,7 @@ enabledExtensions
 - 需要左侧或底部独立工作区：使用 Panel。
 - 需要右侧带标签、resourceKey 去重和作用域恢复的检查界面：使用 Workspace Surface。
 - 同一动作需要被快捷键、命令面板或按钮复用：使用 Command。
+- 需要在消息文字中插入可删除、可组合的 `/command` Token：使用 Composer Command。
 - 需要决定 reasoning/tool 是否分组、消息样式，或展示模型工具调用和结构化数据：使用 Renderer。
 - 功能需要出现在共享悬浮设置面板：使用 Settings；分区由壳扩展注册，具体设置项由所属功能注册。
 - 需要一个新 URL：直接增加 Next.js 文件路由，不要放进扩展 API。
@@ -85,7 +87,7 @@ export const exampleExtension = defineExtension({
 
 `setup()` 当前必须是同步函数，不能声明为 `async`，也不能返回 Promise。异步工作应放到组件 `useEffect()`、Command 的 `run()`，或由 setup 启动并通过 Disposable 可靠取消。
 
-通过 `context.slots/panels/commands/renderers/settings/workspace` 创建的 Disposable 会被 Manager 追踪。仍建议显式返回它们；额外创建的事件监听、计时器或订阅则必须包装成 Disposable 并返回。
+通过 `context.slots/panels/commands/composerCommands/renderers/settings/workspace` 创建的 Disposable 会被 Manager 追踪。仍建议显式返回它们；额外创建的事件监听、计时器或订阅则必须包装成 Disposable 并返回。
 
 `defineExtension()` 是保留字面量类型的 identity helper，真正的运行时校验和激活由 ExtensionManager 完成。扩展对象应定义在模块顶层并保持引用稳定；不要在 React render 中临时创建新的扩展对象或 `extensions` 数组，否则相同 id 也会因对象引用变化而先停用再激活。
 
@@ -567,6 +569,106 @@ context.panels.register({
 React 组件内使用 `usePanelService()`；Command 内使用 `context.panels`。两者用途不同：前者暴露完整 PanelService，后者只暴露命令执行所需的 `open/close/toggle/move`。
 
 ## 7. Command 开发参考
+
+### Composer Command：结构化输入命令
+
+`context.composerCommands` 与命令面板使用的 `context.commands` 是两套有意分开的协议。前者注册
+Composer Entity 及提交期编译策略；后者执行全局 UI 动作。不要根据 Pi 命令名称猜测
+`behavior`，只有显式注册了 companion definition 的命令才会进入结构化编译。
+
+```ts
+const review = context.composerCommands.register({
+  id: "review",
+  label: defineMessage("extensions.review.composerLabel"),
+  description: defineMessage("extensions.review.composerDescription"),
+  icon: ScanSearchIcon,
+  composer: {
+    behavior: "modifier",
+    effect: "request-config",
+    exclusive: false,
+    group: "task-kind",
+    scope: "message",
+    argsSchema: {
+      type: "object",
+      properties: {
+        focus: { type: "string" },
+      },
+    },
+    apply(request) {
+      request.metadata.review = true;
+    },
+  },
+});
+```
+
+`behavior` 支持：
+
+- `modifier`：修改本次请求；同一 id 幂等，`group` 相同的命令以后者为准。
+- `context`：向 `request.context` 累加上下文。
+- `transform`：按文档顺序转换 `request.text`。
+- `immediate`：选中时调用 `apply()`，不保留到提交文档。
+
+`effect` 描述进入 Agent Input Compiler 后的语义：`session-action`、`request-config`、
+`instruction`、`context-provider`、`prompt-transform` 或 `agent-turn`。它与编辑器层的
+`behavior` 分开，避免把“如何编辑 draft”和“是否启动 Agent turn”混成一个枚举。`exclusive: true`
+表示该 Token 必须单独提交；lifecycle action 和拥有独立 turn 的命令应使用它。
+
+`scope` 默认为 `message`。`segment` 会保留在节点中供扩展解释，但平台不会自行猜测文本范围。
+`argsSchema` 是 JSON-Schema-compatible 数据，不是跨边界执行的 validator callback。
+
+需要给带参命令指定主要的自由文本字段时，可以声明 `argsBinding`：
+
+```ts
+composer: {
+  behavior: "transform",
+  effect: "session-action",
+  exclusive: true,
+  scope: "message",
+  argsSchema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      customInstructions: { type: "string" },
+    },
+  },
+  argsBinding: {
+    kind: "message-text",
+    field: "customInstructions",
+    consumeText: true,
+  },
+  apply() {},
+}
+```
+
+第一版只支持 `message-text`，并要求 `exclusive: true`、message scope 和 `argsSchema`。选择命令后，
+Composer 会在输入框上方打开由 `argsSchema.properties` 生成的结构化参数面板；`argsBinding.field`
+使用多行自由文本控件。关闭面板只会收起它，点击蓝色命令 Token 可以重新编辑；删除 Token 才会清理
+对应参数。参数不会占用普通输入区，Token 后继续输入的内容始终是普通消息文字。提交时面板值直接写入
+`command.args`，空参数也会以显式 `{}` 编译，避免把普通消息误判为旧版参数。
+
+`argsBinding.consumeText` 只保留给旧客户端的 message-text fallback；新 Composer 不再把原始文本范围
+当作参数。历史 canonical document 中已有的 `command-argument` 节点仍可显示和执行。
+
+Pi 包源码保持只读。`command.list` 负责发现动态 Pi command，并可为 Workbench 已适配的内置命令
+返回声明式 `argsSchema/argsBinding`；同一 `id` 的 companion definition 只补充 Workbench 编译
+语义，不会替代 Pi 原命令 handler。没有 companion definition 的 Pi Token 也保持结构化实体，
+可以和其他 Token、普通文本混排。
+
+提交时 Workbench 先在客户端按文档顺序应用 companion definition，再把 canonical document 交给
+session 服务。服务端 preflight resolve 所有 Pi `invocationName` 后才允许副作用发生。Skill 读取为
+trusted instruction，Prompt Template 确定性转换 user text，二者只参与一次主模型调用；extension
+command 明确作为独占 `agent-turn` 走 Pi 的公开 handler 入口，不再执行后再追加第二个主请求；
+`compact/reload` 是独占 `session-action`。当成功的 session action 后仍有普通消息文字时，Workbench
+按状态机先完成 action，再启动唯一一次主 Agent turn；action 失败时保留错误响应且不执行后续文字。
+单值 group 以后者为准，多值 context 累加。
+
+服务端先形成结构化 `ResolvedAgentRequest`，command trace 只用于历史和诊断，不直接注入模型。
+真正给 Pi 的字符串只在最终 adapter 边界生成，并明确分隔 trusted instruction、untrusted context
+和 user request。没有正文、instruction、context 或图片的纯 action 输入不会启动空的主 Agent turn。
+
+ComposerDocument 是持久化的 canonical UI 表示；`sourceText` 只作为编辑器 serialization 和旧历史
+fallback。历史恢复时它仍是一条标准 user message，因此使用与普通用户消息相同的气泡；真正发给
+Pi 的 adapter prompt 不会再显示成第二条用户消息。
 
 注册后，Command 会自动：
 

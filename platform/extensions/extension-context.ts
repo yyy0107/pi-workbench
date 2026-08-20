@@ -7,12 +7,14 @@ import type { NavigationService } from "@/services/navigation-service";
 import type { PanelService } from "@/services/panel-service";
 
 import type { SettingsRegistry } from "./api/settings";
+import type { ComposerCommandRegistry } from "./api/composer-command";
 import type { WorkspaceSurfaceRegistry } from "./api/workspace-surface";
 
 import type { ExtensionManager } from "./extension-manager";
 
 export type ExtensionErrorSource =
   | "command"
+  | "composer-command"
   | "panel"
   | "renderer"
   | "setting"
@@ -58,6 +60,10 @@ export function usePanelService(): PanelService {
 
 export function useCommandService(): CommandService {
   return useExtensionEnvironment().commands;
+}
+
+export function useComposerCommandRegistry(): ComposerCommandRegistry {
+  return useExtensionEnvironment().manager.composerCommands;
 }
 
 export function useNavigationService(): NavigationService {
