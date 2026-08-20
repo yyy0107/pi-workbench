@@ -5,6 +5,7 @@ import type { SelectorModel } from "./model-selector-state";
 
 const {
   draftSelectorModels,
+  filterSelectorModels,
   modelChangeSelection,
   modelSelection,
   modelSelectorId,
@@ -15,6 +16,31 @@ const {
 const { useModelSelectorStore } = (await import(
   new URL("./model-selector-store.ts", import.meta.url).href
 )) as typeof import("./model-selector-store");
+
+const searchableModels: SelectorModel[] = [
+  {
+    id: modelSelectorId("deepseek-my", "deepseek-v4-flash"),
+    provider: "deepseek-my",
+    providerName: "My DeepSeek",
+    model: "deepseek-v4-flash",
+    name: "DeepSeek V4 Flash",
+  },
+  {
+    id: modelSelectorId("openai", "gpt-5.6-sol"),
+    provider: "openai",
+    providerName: "OpenAI",
+    model: "gpt-5.6-sol",
+    name: "GPT-5.6 Sol",
+  },
+];
+
+test("filters models by name, id, provider, and multiple terms", () => {
+  assert.equal(filterSelectorModels(searchableModels, "").length, 2);
+  assert.deepEqual(filterSelectorModels(searchableModels, "V4 FLASH"), [searchableModels[0]]);
+  assert.deepEqual(filterSelectorModels(searchableModels, "deepseek-my v4"), [searchableModels[0]]);
+  assert.deepEqual(filterSelectorModels(searchableModels, "openai sol"), [searchableModels[1]]);
+  assert.deepEqual(filterSelectorModels(searchableModels, "missing"), []);
+});
 
 test("uses the session catalog and its server-provided reasoning efforts", () => {
   const models = sessionSelectorModels({

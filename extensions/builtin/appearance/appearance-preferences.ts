@@ -22,8 +22,24 @@ export type CornerRadiusStyle = (typeof CORNER_RADIUS_STYLES)[number];
 export const UI_FONT_FAMILIES = ["system", "geist", "serif", "rounded"] as const;
 export type UiFontFamily = (typeof UI_FONT_FAMILIES)[number];
 
-export const CODE_FONT_FAMILIES = ["geistMono", "systemMono", "compactMono"] as const;
+export const CODE_FONT_FAMILIES = [
+  "geistMono",
+  "systemMono",
+  "compactMono",
+  "jetBrainsMono",
+  "firaCode",
+  "cascadiaCode",
+  "sourceCodePro",
+  "ibmPlexMono",
+  "menlo",
+  "consolas",
+  "liberationMono",
+  "ubuntuMono",
+] as const;
 export type CodeFontFamily = (typeof CODE_FONT_FAMILIES)[number];
+
+export const CODE_STYLES = ["github", "vitesse", "catppuccin", "kanagawa"] as const;
+export type CodeStyle = (typeof CODE_STYLES)[number];
 
 export const MIN_THEME_CONTRAST = 75;
 export const MAX_THEME_CONTRAST = 125;
@@ -52,19 +68,18 @@ export interface AppearancePreferences {
   lightAccentColor: string;
   lightBackgroundColor: string;
   lightForegroundColor: string;
-  lightUiFont: UiFontFamily;
-  lightCodeFont: CodeFontFamily;
   lightContrast: ThemeContrast;
   darkAccentColor: string;
   darkBackgroundColor: string;
   darkForegroundColor: string;
-  darkUiFont: UiFontFamily;
-  darkCodeFont: CodeFontFamily;
   darkContrast: ThemeContrast;
+  uiFont: UiFontFamily;
+  codeFont: CodeFontFamily;
   usePointerCursor: boolean;
   reduceMotion: boolean;
   uiFontSize: UiFontSize;
   codeFontSize: CodeFontSize;
+  codeStyle: CodeStyle;
   showDiffMarkers: boolean;
 }
 
@@ -83,19 +98,18 @@ export const DEFAULT_APPEARANCE_PREFERENCES = Object.freeze({
   lightAccentColor: "#18181b",
   lightBackgroundColor: "#ffffff",
   lightForegroundColor: "#18181b",
-  lightUiFont: "geist",
-  lightCodeFont: "geistMono",
   lightContrast: 100,
   darkAccentColor: "#f4f4f5",
   darkBackgroundColor: "#18181b",
   darkForegroundColor: "#fafafa",
-  darkUiFont: "geist",
-  darkCodeFont: "geistMono",
   darkContrast: 100,
+  uiFont: "geist",
+  codeFont: "geistMono",
   usePointerCursor: false,
   reduceMotion: false,
   uiFontSize: 16,
   codeFontSize: 13,
+  codeStyle: "github",
   showDiffMarkers: true,
 } satisfies AppearancePreferences);
 
@@ -184,12 +198,6 @@ export function parseAppearancePreferences(serialized: string | null): Appearanc
     lightForegroundColor: isHexColor(value.lightForegroundColor)
       ? value.lightForegroundColor.toLowerCase()
       : DEFAULT_APPEARANCE_PREFERENCES.lightForegroundColor,
-    lightUiFont: isOneOf(value.lightUiFont, UI_FONT_FAMILIES)
-      ? value.lightUiFont
-      : DEFAULT_APPEARANCE_PREFERENCES.lightUiFont,
-    lightCodeFont: isOneOf(value.lightCodeFont, CODE_FONT_FAMILIES)
-      ? value.lightCodeFont
-      : DEFAULT_APPEARANCE_PREFERENCES.lightCodeFont,
     lightContrast: isIntegerInRange(value.lightContrast, MIN_THEME_CONTRAST, MAX_THEME_CONTRAST)
       ? value.lightContrast
       : DEFAULT_APPEARANCE_PREFERENCES.lightContrast,
@@ -202,15 +210,23 @@ export function parseAppearancePreferences(serialized: string | null): Appearanc
     darkForegroundColor: isHexColor(value.darkForegroundColor)
       ? value.darkForegroundColor.toLowerCase()
       : DEFAULT_APPEARANCE_PREFERENCES.darkForegroundColor,
-    darkUiFont: isOneOf(value.darkUiFont, UI_FONT_FAMILIES)
-      ? value.darkUiFont
-      : DEFAULT_APPEARANCE_PREFERENCES.darkUiFont,
-    darkCodeFont: isOneOf(value.darkCodeFont, CODE_FONT_FAMILIES)
-      ? value.darkCodeFont
-      : DEFAULT_APPEARANCE_PREFERENCES.darkCodeFont,
     darkContrast: isIntegerInRange(value.darkContrast, MIN_THEME_CONTRAST, MAX_THEME_CONTRAST)
       ? value.darkContrast
       : DEFAULT_APPEARANCE_PREFERENCES.darkContrast,
+    uiFont: isOneOf(value.uiFont, UI_FONT_FAMILIES)
+      ? value.uiFont
+      : isOneOf(value.lightUiFont, UI_FONT_FAMILIES)
+        ? value.lightUiFont
+        : isOneOf(value.darkUiFont, UI_FONT_FAMILIES)
+          ? value.darkUiFont
+          : DEFAULT_APPEARANCE_PREFERENCES.uiFont,
+    codeFont: isOneOf(value.codeFont, CODE_FONT_FAMILIES)
+      ? value.codeFont
+      : isOneOf(value.lightCodeFont, CODE_FONT_FAMILIES)
+        ? value.lightCodeFont
+        : isOneOf(value.darkCodeFont, CODE_FONT_FAMILIES)
+          ? value.darkCodeFont
+          : DEFAULT_APPEARANCE_PREFERENCES.codeFont,
     usePointerCursor:
       typeof value.usePointerCursor === "boolean"
         ? value.usePointerCursor
@@ -225,6 +241,9 @@ export function parseAppearancePreferences(serialized: string | null): Appearanc
     codeFontSize: isIntegerInRange(value.codeFontSize, MIN_CODE_FONT_SIZE, MAX_CODE_FONT_SIZE)
       ? value.codeFontSize
       : DEFAULT_APPEARANCE_PREFERENCES.codeFontSize,
+    codeStyle: isOneOf(value.codeStyle, CODE_STYLES)
+      ? value.codeStyle
+      : DEFAULT_APPEARANCE_PREFERENCES.codeStyle,
     showDiffMarkers:
       typeof value.showDiffMarkers === "boolean"
         ? value.showDiffMarkers
@@ -248,19 +267,18 @@ export function isDefaultAppearancePreferences(preferences: AppearancePreference
     preferences.lightAccentColor === DEFAULT_APPEARANCE_PREFERENCES.lightAccentColor &&
     preferences.lightBackgroundColor === DEFAULT_APPEARANCE_PREFERENCES.lightBackgroundColor &&
     preferences.lightForegroundColor === DEFAULT_APPEARANCE_PREFERENCES.lightForegroundColor &&
-    preferences.lightUiFont === DEFAULT_APPEARANCE_PREFERENCES.lightUiFont &&
-    preferences.lightCodeFont === DEFAULT_APPEARANCE_PREFERENCES.lightCodeFont &&
     preferences.lightContrast === DEFAULT_APPEARANCE_PREFERENCES.lightContrast &&
     preferences.darkAccentColor === DEFAULT_APPEARANCE_PREFERENCES.darkAccentColor &&
     preferences.darkBackgroundColor === DEFAULT_APPEARANCE_PREFERENCES.darkBackgroundColor &&
     preferences.darkForegroundColor === DEFAULT_APPEARANCE_PREFERENCES.darkForegroundColor &&
-    preferences.darkUiFont === DEFAULT_APPEARANCE_PREFERENCES.darkUiFont &&
-    preferences.darkCodeFont === DEFAULT_APPEARANCE_PREFERENCES.darkCodeFont &&
     preferences.darkContrast === DEFAULT_APPEARANCE_PREFERENCES.darkContrast &&
+    preferences.uiFont === DEFAULT_APPEARANCE_PREFERENCES.uiFont &&
+    preferences.codeFont === DEFAULT_APPEARANCE_PREFERENCES.codeFont &&
     preferences.usePointerCursor === DEFAULT_APPEARANCE_PREFERENCES.usePointerCursor &&
     preferences.reduceMotion === DEFAULT_APPEARANCE_PREFERENCES.reduceMotion &&
     preferences.uiFontSize === DEFAULT_APPEARANCE_PREFERENCES.uiFontSize &&
     preferences.codeFontSize === DEFAULT_APPEARANCE_PREFERENCES.codeFontSize &&
+    preferences.codeStyle === DEFAULT_APPEARANCE_PREFERENCES.codeStyle &&
     preferences.showDiffMarkers === DEFAULT_APPEARANCE_PREFERENCES.showDiffMarkers
   );
 }

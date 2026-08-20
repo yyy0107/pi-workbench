@@ -24,19 +24,18 @@ test("parses persisted appearance preferences", () => {
       lightAccentColor: "#123456",
       lightBackgroundColor: "#FDFDFD",
       lightForegroundColor: "#101010",
-      lightUiFont: "rounded",
-      lightCodeFont: "systemMono",
       lightContrast: 108,
       darkAccentColor: "#ABCDEF",
       darkBackgroundColor: "#111827",
       darkForegroundColor: "#F9FAFB",
-      darkUiFont: "serif",
-      darkCodeFont: "compactMono",
       darkContrast: 114,
+      uiFont: "rounded",
+      codeFont: "jetBrainsMono",
       usePointerCursor: true,
       reduceMotion: true,
       uiFontSize: 18,
       codeFontSize: 15,
+      codeStyle: "catppuccin",
       showDiffMarkers: false,
     }),
   );
@@ -56,19 +55,18 @@ test("parses persisted appearance preferences", () => {
     lightAccentColor: "#123456",
     lightBackgroundColor: "#fdfdfd",
     lightForegroundColor: "#101010",
-    lightUiFont: "rounded",
-    lightCodeFont: "systemMono",
     lightContrast: 108,
     darkAccentColor: "#abcdef",
     darkBackgroundColor: "#111827",
     darkForegroundColor: "#f9fafb",
-    darkUiFont: "serif",
-    darkCodeFont: "compactMono",
     darkContrast: 114,
+    uiFont: "rounded",
+    codeFont: "jetBrainsMono",
     usePointerCursor: true,
     reduceMotion: true,
     uiFontSize: 18,
     codeFontSize: 15,
+    codeStyle: "catppuccin",
     showDiffMarkers: false,
   });
   assert.equal(isDefaultAppearancePreferences(preferences), false);
@@ -86,14 +84,15 @@ test("falls back field by field when persisted values are invalid", () => {
       borderStyle: "double",
       cornerRadius: "pill",
       lightAccentColor: "blue",
-      lightUiFont: "comicSans",
       lightContrast: 200,
-      darkCodeFont: "proportional",
       darkContrast: 20,
+      uiFont: "comicSans",
+      codeFont: "proportional",
       usePointerCursor: "yes",
       reduceMotion: "always",
       uiFontSize: 99,
       codeFontSize: 1,
+      codeStyle: "rainbow",
       showDiffMarkers: "symbols",
     }),
   );
@@ -101,4 +100,22 @@ test("falls back field by field when persisted values are invalid", () => {
   assert.deepEqual(preferences, DEFAULT_APPEARANCE_PREFERENCES);
   assert.equal(isDefaultAppearancePreferences(preferences), true);
   assert.equal(parseAppearancePreferences("{"), DEFAULT_APPEARANCE_PREFERENCES);
+});
+
+test("migrates fonts from split light and dark preferences", () => {
+  const preferences = parseAppearancePreferences(
+    JSON.stringify({
+      lightUiFont: "rounded",
+      darkUiFont: "serif",
+      lightCodeFont: "jetBrainsMono",
+      darkCodeFont: "firaCode",
+    }),
+  );
+
+  assert.equal(preferences.uiFont, "rounded");
+  assert.equal(preferences.codeFont, "jetBrainsMono");
+  assert.equal("lightUiFont" in preferences, false);
+  assert.equal("darkUiFont" in preferences, false);
+  assert.equal("lightCodeFont" in preferences, false);
+  assert.equal("darkCodeFont" in preferences, false);
 });

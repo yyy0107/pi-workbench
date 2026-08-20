@@ -3,9 +3,7 @@ import { SparklesIcon } from "lucide-react";
 import { defineMessage } from "@/i18n";
 import { defineExtension } from "@/platform/extensions";
 
-import { SkillsAddMenuItem } from "./skills-add-menu-item";
-import { SkillsPanel } from "./skills-panel";
-import { SkillsTrigger } from "./skills-trigger";
+import { SkillsSettingsItem } from "./skills-settings-item";
 
 export const skillsExtension = defineExtension({
   id: "workbench.skills",
@@ -13,28 +11,19 @@ export const skillsExtension = defineExtension({
   version: "1.0.0",
 
   setup(context) {
-    const slot = context.slots.register("composer.drawer.right", {
-      id: "workbench.skills.composer-drawer",
-      order: 30,
-      component: SkillsTrigger,
-    });
-
-    const panel = context.panels.register({
+    const section = context.settings.registerSection({
       id: "skills",
       title: defineMessage("extensions.skills.title"),
+      description: defineMessage("extensions.skills.description"),
       icon: SparklesIcon,
-      component: SkillsPanel,
-      defaultLocation: "right",
-      defaultSize: 360,
-      minSize: 280,
-      maxSize: 640,
+      order: 7,
     });
-    const addMenuItem = context.slots.register("panel.right.add-menu", {
-      id: "workbench.skills.right-panel-add-menu",
-      order: 20,
-      component: SkillsAddMenuItem,
+    const item = context.settings.registerItem({
+      sectionId: "skills",
+      id: "catalog",
+      component: SkillsSettingsItem,
     });
 
-    return [slot, panel, addMenuItem];
+    return [section, item];
   },
 });

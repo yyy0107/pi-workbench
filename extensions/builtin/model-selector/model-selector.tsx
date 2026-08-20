@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useAui, useAuiState } from "@assistant-ui/react";
-import { ChevronDownIcon } from "lucide-react";
+import { ChevronDownIcon, SearchIcon } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,6 +15,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import { useI18n } from "@/i18n";
 import type { ComposerSlotContext } from "@/platform/extensions";
 import {
@@ -22,6 +23,10 @@ import {
   listPiRpcSessionModels,
   selectPiRpcSessionModel,
 } from "@/runtime/pi/client/transport/api";
+import {
+  getPiModelCatalogRevision,
+  subscribePiModelCatalogInvalidation,
+} from "@/runtime/pi/client/models/model-catalog-invalidation";
 import type {
   ModelCatalogValue,
   ModelSelection,
@@ -32,6 +37,7 @@ import { useWorkspaceDirectoryStore } from "@/workbench/workspaces/workspace-dir
 
 import {
   draftSelectorModels,
+  filterSelectorModels,
   modelChangeSelection,
   modelSelection,
   modelSelectorId,
@@ -39,8 +45,6 @@ import {
   type SelectorModel,
 } from "./model-selector-state";
 import { useModelSelectorStore } from "./model-selector-store";
-
-const MODEL_BATCH_SIZE = 12;
 
 type AppModel = SelectorModel;
 
@@ -107,7 +111,7 @@ function ModelMenuItem({ model, disabled }: { model: AppModel; disabled: boolean
     <DropdownMenuRadioItem
       value={model.id}
       disabled={disabled || model.unavailable}
-      className="h-8 gap-2 px-2 pe-8"
+      className="mx-1 h-8 gap-2 px-2 pe-8"
     >
       <span className="min-w-0 flex-1 truncate" title={model.name}>
         {model.name}
@@ -127,12 +131,46 @@ function ModelMenuGroup({
 }) {
   return (
     <div>
-      <DropdownMenuLabel className="bg-popover sticky top-0 z-10 px-2 py-1">
+      <DropdownMenuLabel className="bg-popover sticky top-10 z-10 px-2 py-1">
         {providerName}
       </DropdownMenuLabel>
       {models.map((model) => (
         <ModelMenuItem key={model.id} model={model} disabled={disabled} />
       ))}
+    </div>
+  );
+}
+
+function ModelSearch({
+  value,
+  onChange,
+  label,
+  placeholder,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  label: string;
+  placeholder: string;
+}) {
+  return (
+    <div className="bg-popover sticky top-0 z-20 flex h-10 items-center px-1">
+      <div className="relative w-full">
+        <SearchIcon className="text-muted-foreground pointer-events-none absolute start-2.5 top-1/2 size-3.5 -translate-y-1/2" />
+        <Input
+          type="search"
+          value={value}
+          aria-label={label}
+          placeholder={placeholder}
+          className="bg-background h-8 rounded-md ps-8 shadow-none"
+          onChange={(event) => {
+            const nextValue = event.currentTarget.value;
+            onChange(nextValue);
+          }}
+          onKeyDown={(event) => {
+            if (event.key !== "Escape") event.stopPropagation();
+          }}
+        />
+      </div>
     </div>
   );
 }
@@ -157,7 +195,7 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
   const draftWorkspace = useWorkspaceDirectoryStore((state) =>
     state.directories.find((directory) => directory.id === state.draftDirectoryId),
   );
-  const [visibleModelCount, setVisibleModelCount] = useState(MODEL_BATCH_SIZE);
+  const [modelQuery, setModelQuery] = useState("");
   const [loadedCatalog, setLoadedCatalog] = useState<LoadedCatalog>();
   const [failedScope, setFailedScope] = useState<string>();
   const [optimisticSelection, setOptimisticSelection] = useState<OptimisticSelection>();
@@ -166,7 +204,13 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
     ? `session:${remoteId}`
     : `draft:${localThreadId}:${draftWorkspace?.id ?? "none"}`;
   const currentScopeRef = useRef(scopeKey);
+  const catalogRequestRef = useRef(0);
   currentScopeRef.current = scopeKey;
+  const catalogRevision = useSyncExternalStore(
+    subscribePiModelCatalogInvalidation,
+    getPiModelCatalogRevision,
+    getPiModelCatalogRevision,
+  );
 
   const catalog = loadedCatalog?.scopeKey === scopeKey ? loadedCatalog : undefined;
   const loadFailed = failedScope === scopeKey;
@@ -174,22 +218,21 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
   const savingSelection = optimisticSelection?.scopeKey === scopeKey;
 
   useEffect(() => {
-    setVisibleModelCount(MODEL_BATCH_SIZE);
     setOptimisticSelection(undefined);
     setSelectionFailedScope(undefined);
   }, [scopeKey]);
 
-  useEffect(() => {
-    let active = true;
+  const loadCatalog = useCallback(() => {
+    const request = ++catalogRequestRef.current;
     setFailedScope(undefined);
 
     const complete = (next: LoadedCatalog) => {
-      if (!active) return;
+      if (request !== catalogRequestRef.current || currentScopeRef.current !== scopeKey) return;
       setLoadedCatalog(next);
       setFailedScope(undefined);
     };
     const fail = () => {
-      if (!active) return;
+      if (request !== catalogRequestRef.current || currentScopeRef.current !== scopeKey) return;
       setFailedScope(scopeKey);
     };
 
@@ -201,11 +244,14 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
     } else if (draftWorkspace) {
       void listPiModelCatalog().then((value) => complete({ scopeKey, kind: "draft", value }), fail);
     }
-
-    return () => {
-      active = false;
-    };
   }, [draftWorkspace, remoteId, scopeKey]);
+
+  useEffect(() => {
+    loadCatalog();
+    return () => {
+      catalogRequestRef.current += 1;
+    };
+  }, [catalogRevision, loadCatalog]);
 
   useEffect(() => {
     if (remoteId) clearDraftSelection(localThreadId);
@@ -218,6 +264,10 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
   }, [catalog]);
 
   const models = selectorModels;
+  const filteredModels = useMemo(
+    () => filterSelectorModels(models, modelQuery),
+    [modelQuery, models],
+  );
 
   const selectedDraftModel = useMemo(() => {
     if (remoteId || catalog?.kind !== "draft") return undefined;
@@ -338,17 +388,12 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
     [applySessionSelection, localThreadId, remoteId, selectedModel, setDraftSelection],
   );
 
-  const visibleModels = models.slice(0, visibleModelCount);
-  const hasMoreModels = visibleModels.length < models.length;
-
-  const loadMoreModels = useCallback(() => {
-    setVisibleModelCount((count) => Math.min(count + MODEL_BATCH_SIZE, models.length));
-  }, [models.length]);
-
   const providers = useMemo(
     () =>
-      Array.from(new Map(models.map((model) => [model.provider, model.providerName])).entries()),
-    [models],
+      Array.from(
+        new Map(filteredModels.map((model) => [model.provider, model.providerName])).entries(),
+      ),
+    [filteredModels],
   );
   const currentUnavailable = catalog?.kind === "session" && !catalog.value.routable;
   const loading = !catalog && !loadFailed;
@@ -373,14 +418,19 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
           includePiMetadata={!remoteId}
         />
       )}
-      <DropdownMenu>
+      <DropdownMenu
+        onOpenChange={(open) => {
+          if (open) loadCatalog();
+          else setModelQuery("");
+        }}
+      >
         <DropdownMenuTrigger
           disabled={selectionLocked}
           aria-label={t("assistant.model.select")}
           className="group hover:bg-muted data-popup-open:bg-muted data-popup-open:w-72 relative flex h-[34px] w-48 max-w-[calc(100vw-8rem)] -translate-y-0.5 items-center justify-center rounded-md bg-transparent px-2 py-0 text-base outline-none transition-[width,background-color,color] duration-200 ease-out focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed"
         >
           <span
-            className="block w-full min-w-0 truncate text-center font-mono font-medium"
+            className="group-hover:pe-6 group-hover:text-start group-focus-visible:pe-6 group-focus-visible:text-start group-data-popup-open:px-6 group-data-popup-open:text-center block w-full min-w-0 truncate text-center font-mono font-medium transition-[padding] duration-200 ease-out"
             title={selectedModel?.name}
           >
             {selectedModel?.name ?? t("assistant.model.select")}
@@ -408,32 +458,35 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
               </MenuCurrentValue>
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent
-              className="max-h-80 w-72 overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:bg-transparent"
+              className="max-h-80 w-72 overflow-y-auto p-0 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:bg-transparent"
               sideOffset={4}
-              onScroll={(event) => {
-                if (!hasMoreModels) return;
-                const popup = event.currentTarget;
-                if (popup.scrollHeight - popup.scrollTop - popup.clientHeight <= 64) {
-                  loadMoreModels();
-                }
-              }}
             >
+              {!loadFailed && models.length > 0 && (
+                <ModelSearch
+                  value={modelQuery}
+                  onChange={setModelQuery}
+                  label={t("extensions.modelSelector.searchLabel")}
+                  placeholder={t("extensions.modelSelector.searchPlaceholder")}
+                />
+              )}
               {loadFailed || !models.length ? (
                 <MenuStatus alert={loadFailed}>
                   {loadFailed
                     ? t("extensions.modelSelector.loadFailed")
                     : t("extensions.modelSelector.noModels")}
                 </MenuStatus>
+              ) : !filteredModels.length ? (
+                <MenuStatus>{t("extensions.modelSelector.noSearchResults")}</MenuStatus>
               ) : (
                 <DropdownMenuRadioGroup value={selectedModel?.id} onValueChange={changeModel}>
                   {providers.map(([providerId, providerName], index) => {
-                    const providerModels = visibleModels.filter(
+                    const providerModels = filteredModels.filter(
                       (model) => model.provider === providerId,
                     );
                     if (!providerModels.length) return null;
                     return (
                       <div key={providerId}>
-                        {index > 0 && <DropdownMenuSeparator />}
+                        {index > 0 && <DropdownMenuSeparator className="mx-0 my-0" />}
                         <ModelMenuGroup
                           providerName={providerName}
                           models={providerModels}
@@ -442,11 +495,6 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
                       </div>
                     );
                   })}
-                  {hasMoreModels && (
-                    <div role="status" className="text-muted-foreground px-2 py-1.5 text-xs">
-                      {t("extensions.modelSelector.loadingMore")}
-                    </div>
-                  )}
                 </DropdownMenuRadioGroup>
               )}
             </DropdownMenuSubContent>

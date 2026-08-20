@@ -5,12 +5,12 @@ import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  SettingsDropdownContent,
+  SettingsDropdownItem,
+  SettingsDropdownTrigger,
+} from "@/components/ui/settings-control";
 import { SUPPORTED_LOCALES, useI18n, type Locale } from "@/i18n";
 import { cn } from "@/lib/utils";
 import type { SettingsItemComponentProps } from "@/platform/extensions";
@@ -91,25 +91,18 @@ export function LocaleSettingsItem({ sectionId, itemId }: SettingsItemComponentP
       </div>
 
       <DropdownMenu>
-        <DropdownMenuTrigger
-          aria-label={t("extensions.localeSelector.selectLanguage")}
-          className="bg-muted hover:bg-muted/80 flex h-9 shrink-0 items-center gap-2 rounded-full px-3 text-sm outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 data-popup-open:bg-muted/80"
-        >
+        <SettingsDropdownTrigger aria-label={t("extensions.localeSelector.selectLanguage")}>
           <span>{localeLabel(locale)}</span>
           <ChevronDownIcon className="text-muted-foreground size-3.5" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" side="bottom" className="min-w-40">
+        </SettingsDropdownTrigger>
+        <SettingsDropdownContent align="end" side="bottom">
           {SUPPORTED_LOCALES.map((option) => (
-            <DropdownMenuItem
-              key={option}
-              onClick={() => selectLocale(option)}
-              className="gap-2 py-1.5"
-            >
+            <SettingsDropdownItem key={option} onClick={() => selectLocale(option)}>
               <span className="min-w-0 flex-1">{localeLabel(option)}</span>
               {option === locale ? <CheckIcon className="size-4" /> : null}
-            </DropdownMenuItem>
+            </SettingsDropdownItem>
           ))}
-        </DropdownMenuContent>
+        </SettingsDropdownContent>
       </DropdownMenu>
     </div>
   );

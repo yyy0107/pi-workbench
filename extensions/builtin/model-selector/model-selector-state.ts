@@ -26,6 +26,21 @@ export function modelSelectorId(provider: string, model: string): string {
   return `${encodeURIComponent(provider)}/${encodeURIComponent(model)}`;
 }
 
+export function filterSelectorModels(
+  models: readonly SelectorModel[],
+  query: string,
+): readonly SelectorModel[] {
+  const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if (!terms.length) return models;
+
+  return models.filter((model) => {
+    const searchableText = [model.name, model.model, model.providerName, model.provider]
+      .join("\n")
+      .toLowerCase();
+    return terms.every((term) => searchableText.includes(term));
+  });
+}
+
 export function sessionSelectorModels(catalog: SessionModelsValue): SelectorModel[] {
   const models = catalog.groups.flatMap((group) =>
     group.models.map((model): SelectorModel => {
