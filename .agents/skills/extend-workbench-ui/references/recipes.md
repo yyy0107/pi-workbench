@@ -7,6 +7,8 @@ Use these patterns as starting points. Adapt ids, labels, styling, and behavior 
 - [Slot-only feature](#slot-only-feature)
 - [Slot, Panel, and Command feature](#slot-panel-and-command-feature)
 - [Settings contribution](#settings-contribution)
+- [RightWorkspace integration](#rightworkspace-integration)
+- [Pi-backed extension](#pi-backed-extension)
 - [Message Renderer](#message-renderer)
 - [Tool Renderer](#tool-renderer)
 - [Data Renderer](#data-renderer)
@@ -150,7 +152,7 @@ export const notesExtension = defineExtension({
       title: defineMessage("extensions.notes.title"),
       icon: StickyNoteIcon,
       component: NotesPanel,
-      defaultLocation: "right",
+      defaultLocation: "left",
       defaultSize: 360,
       minSize: 280,
       maxSize: 640,
@@ -166,80 +168,20 @@ Export `notesExtension` from the feature `index.ts`, then add it to `extensions/
 
 Prefer this command-first trigger when the action has a Command. For a trivial Panel toggle, calling `usePanelService().toggle("notes")` directly is also valid.
 
-An opened Panel whose current location is `"right"` becomes a tab in the Workbench-owned right sidebar. Use the Panel `title` and `icon` for a static label, or register `tabComponent` when the extension needs to own dynamic label content such as a browser page title and favicon. The host supplies the surrounding selection and close controls, so the tab component should render only non-interactive icon/text content. Do not add a duplicate generic expand/collapse control; the host already provides it. Feature-specific commands and triggers may still open or activate their own Panel.
+The current shell mounts Panel hosts at `"left"` and `"bottom"`. Although `"right"`,
+`tabComponent`, `tabClassNames`, and `panel.right.*` remain in the compatibility types, the current
+shell does not mount a right Panel host. Do not use them for new features. Put persistent inspector
+content in RightWorkspace, or use a bottom Panel for an independent drawer such as Terminal.
 
-```tsx
-"use client";
-
-import type { PanelTabComponentProps } from "@/platform/extensions";
-
-export function BrowserTab({ isActive }: PanelTabComponentProps) {
-  const { faviconUrl, pageTitle } = useBrowserStore();
-
-  return (
-    <>
-      <img src={faviconUrl} alt="" className="size-4 shrink-0" />
-      <span className="min-w-0 flex-1 truncate text-left">
-        {pageTitle || (isActive ? "浏览器" : "新标签页")}
-      </span>
-    </>
-  );
-}
-```
+If a Panel must always render in one mounted location, move it before opening/toggling so a stale
+stored location cannot hide it. The Terminal command is the in-repository example:
 
 ```ts
-context.panels.register({
-  id: "browser",
-  tabComponent: BrowserTab,
-  tabClassNames: {
-    root: ({ isActive }) =>
-      isActive ? "max-w-64 rounded-lg bg-sky-500/10" : "max-w-48 rounded-lg",
-    trigger: "px-2",
-    closeButton: "hover:bg-sky-500/15",
-  },
-  component: BrowserPanel,
-  defaultLocation: "right",
-});
-```
-
-Keep shared dynamic tab state in the extension's React store/context. Hooks belong in `tabComponent`, never in `setup()`.
-
-`tabClassNames` is merged after the Workbench defaults with `cn()`/`tailwind-merge`; later Tailwind utilities can replace host utilities. Its functions must stay pure and hook-free. For more advanced selectors, the host tab root also exposes `data-panel-id` and `data-state`.
-
-Register one plus-menu item from the same extension when users need to open or reactivate the Panel from the tab row:
-
-```tsx
-"use client";
-
-import { type RightPanelAddMenuSlotContext, usePanelService } from "@/platform/extensions";
-
-export function BrowserAddMenuItem({ closeMenu }: RightPanelAddMenuSlotContext) {
-  const panels = usePanelService();
-
-  return (
-    <button
-      type="button"
-      role="menuitem"
-      onClick={() => {
-        panels.open("browser");
-        closeMenu();
-      }}
-    >
-      Open browser
-    </button>
-  );
+run(context) {
+  context.panels.move("terminal", "bottom");
+  context.panels.toggle("terminal");
 }
 ```
-
-```ts
-const addMenuItem = context.slots.register("panel.right.add-menu", {
-  id: "workbench.browser.right-panel-add-menu",
-  order: 30,
-  component: BrowserAddMenuItem,
-});
-```
-
-Use `panel.right.actions` for compact icon-only actions such as refresh, fullscreen, or layout controls. Its component receives `{ activePanelId }`. The host owns the close, plus, and collapse buttons; do not duplicate them inside contributions.
 
 ## Settings contribution
 
@@ -269,6 +211,65 @@ concrete Settings registry implementation. Items may register before their secti
 
 Use `extensions/builtin/settings` for the shell and
 `extensions/builtin/locale-selector` for an independently owned item.
+
+## RightWorkspace integration
+
+RightWorkspace core owns only the inspector layout and tab lifecycle. Register each concrete
+capability as a Workspace Surface contribution:
+
+```ts
+import { FileTextIcon } from "lucide-react";
+
+import { defineExtension, type WorkspaceSurfaceDefinition } from "@/platform/extensions";
+
+import { NotesMenuItem } from "./notes-menu-item";
+import { NotesRuntimeBridge } from "./notes-runtime-bridge";
+import { NotesSurface, type NotesSurfaceParams } from "./notes-surface";
+
+const notesSurface = {
+  kind: "notes",
+  icon: FileTextIcon,
+  cachePolicy: "keep-alive",
+  getResourceKey: (params, context) => `notes:${context.threadId}:${params.id}`,
+  getDefaultScope: (_params, context) => ({
+    type: context.threadId ? "thread" : "application",
+    key: context.threadId ?? context.applicationId,
+  }),
+  render: NotesSurface,
+  menuItem: NotesMenuItem,
+  runtime: NotesRuntimeBridge,
+} satisfies WorkspaceSurfaceDefinition<NotesSurfaceParams>;
+
+export const notesExtension = defineExtension({
+  id: "workbench.notes",
+  name: "Notes",
+  version: "1.0.0",
+  setup(context) {
+    return context.workspace.register(notesSurface);
+  },
+});
+```
+
+The extension owns its typed params, renderer, menu item, Runtime mapping, domain service, and i18n.
+The core host supplies tabs, resource-key deduplication, cache-policy mounting, scope restoration,
+persistence, status, and feedback chrome. Use `workspace.actions` only for compact actions outside a
+Surface lifecycle, such as toggling the external Terminal Drawer.
+
+## Pi-backed extension
+
+Before adding Pi-backed UI, read `runtime/pi/README.md` completely and inspect the exact source file
+it names. Prefer:
+
+- `usePiSessionManager()`, `usePiThreadActivity()`, or `usePiWorkspaces()` from
+  `runtime/pi/client/runtime/context.tsx` for subscribed manager state;
+- an existing helper from `runtime/pi/client/transport/api.ts` for unary RPC;
+- shared types from `runtime/pi/rpc-contracts.ts` or `runtime/pi/stream-contracts.ts`.
+
+Do not write raw `/api/pi/**` or `/api/<method>` fetches in a component, open a second WebSocket/SSE
+connection, or copy payload shapes into the extension. The shared manager already owns mux/host
+WebSocket generations and revalidation. Legacy routes are compatibility-only unless the runtime
+README explicitly documents a remaining exception. If no helper or method exists, extend contracts,
+server validation/domain handling, client helper, and tests before adding UI.
 
 ## Message Renderer
 
@@ -420,7 +421,8 @@ const navigation = context.slots.register("sidebar.navigation", {
 });
 ```
 
-Sidebar Slots are desktop-only. Add a separate `header.*` contribution when the feature requires a
+`sidebar.workspace.actions` also mounts in the mobile conversation Sheet. The other Sidebar Slots
+are desktop-only, so add a separate `header.*` contribution when one of those features requires a
 mobile entry point. Do not replace the core New Conversation control or thread list from an
 extension.
 
@@ -456,9 +458,13 @@ Do not add a feature-specific Slot such as `notes.button`. Add a semantic host l
 - [ ] Keep the extension object and enabled array stable.
 - [ ] Use unique ids and exact Renderer names.
 - [ ] Keep Settings section ids global and item ids unique within their section.
+- [ ] Register inspector kinds through `context.workspace`; keep feature branches and services out of RightWorkspace core.
+- [ ] Use `workspace.actions` only for compact controls outside a Surface lifecycle.
+- [ ] Read `runtime/pi/README.md` before Pi-backed work and reuse the shared manager/contracts/client helpers.
 - [ ] Audit registered shortcuts and standalone global `keydown` listeners.
 - [ ] Return Disposables for external resources.
 - [ ] Avoid duplicate Panel chrome.
+- [ ] Use only currently mounted Panel locations; do not target the unmounted right Panel host.
 - [ ] Guard partial streaming tool args.
 - [ ] Keep assistant-ui state in assistant-ui.
 - [ ] Run targeted oxfmt and oxlint.

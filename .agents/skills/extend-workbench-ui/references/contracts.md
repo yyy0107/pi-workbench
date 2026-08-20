@@ -11,6 +11,8 @@ Use this reference to verify the current first-version public API before impleme
 - [Command contract](#command-contract)
 - [Settings contract](#settings-contract)
 - [Renderer contract](#renderer-contract)
+- [RightWorkspace boundary](#rightworkspace-boundary)
+- [Pi runtime boundary](#pi-runtime-boundary)
 - [Services available to components](#services-available-to-components)
 - [Uniqueness and ordering](#uniqueness-and-ordering)
 - [Error isolation](#error-isolation)
@@ -25,9 +27,12 @@ import {
   useCommandService,
   useNavigationService,
   usePanelService,
+  useSettingsRegistry,
   type CommandDefinition,
   type ComposerSlotContext,
   type PanelComponentProps,
+  type WorkspaceActionsSlotContext,
+  type WorkspaceSurfaceDefinition,
 } from "@/platform/extensions";
 ```
 
@@ -37,7 +42,9 @@ Source of truth:
 - `platform/extensions/api/`
 - `platform/extensions/extension-context.ts`
 
-Business extensions must not import concrete registries, stores, or hosts.
+Business extensions must not import concrete registries, stores, or hosts. Workspace Surface
+registration is part of `ExtensionContext`; RightWorkspace controller hooks and Pi runtime remain
+separate public boundaries described below.
 
 ## Extension lifecycle
 
@@ -48,6 +55,7 @@ interface ExtensionContext {
   readonly commands: CommandRegistry;
   readonly renderers: RendererRegistry;
   readonly settings: SettingsRegistry;
+  readonly workspace: WorkspaceSurfaceRegistry;
 }
 
 type ExtensionSetupResult = void | Disposable | readonly Disposable[];
@@ -83,6 +91,7 @@ sidebar.bottom
 sidebar.footer
 panel.right.add-menu
 panel.right.actions
+workspace.actions
 thread.left
 thread.header
 thread.before
@@ -128,11 +137,17 @@ interface RightPanelActionsSlotContext {
   activePanelId: string;
 }
 
+interface WorkspaceActionsSlotContext {
+  activeSurfaceId?: string;
+  isOpen: boolean;
+}
+
 interface SlotPropsMap {
   "shell.background": Record<never, never>;
   "shell.overlay": Record<never, never>;
   "panel.right.add-menu": RightPanelAddMenuSlotContext;
   "panel.right.actions": RightPanelActionsSlotContext;
+  "workspace.actions": WorkspaceActionsSlotContext;
   "thread.left": { threadId?: string };
   "thread.header": { threadId?: string };
   "thread.before": { threadId?: string };
@@ -186,9 +201,17 @@ Sidebar positions are semantic:
 - `sidebar.bottom`: contextual content below the core thread list;
 - `sidebar.footer`: persistent bottom utilities.
 
-The mobile conversation Sheet does not mount `sidebar.*` Slots. Add a suitable mobile `header.*` contribution when the feature needs a touch entry point.
+The mobile conversation Sheet mounts `sidebar.workspace.actions`, but not `sidebar.brand`,
+`sidebar.header`, `sidebar.navigation`, `sidebar.top`, `sidebar.bottom`, or `sidebar.footer`. Add a
+suitable mobile `header.*` contribution when a desktop-only Sidebar contribution also needs a touch
+entry point.
 
-`panel.right.add-menu` renders menu-item contributions inside the plus-button popover. Contributions should render one `role="menuitem"` control, open or activate their own Panel through `usePanelService()`, then call `closeMenu()`. `panel.right.actions` renders compact icon controls at the trailing edge of the right Panel tab row; every control needs an accessible label. Both receive the active Panel id. The Workbench owns the plus button, popover, per-tab close buttons, and sidebar collapse control.
+`panel.right.add-menu` and `panel.right.actions` remain declared for the legacy right PanelDock, but
+the current shell does not mount a right Panel host. Do not use them for new entry points. The
+current inspector toolbar mounts `workspace.actions`; contributions receive
+`{ activeSurfaceId?, isOpen }` and should render one compact, accessible control. Use it for external
+resources such as Terminal. Inspector capabilities are registered separately through
+`context.workspace.register(...)`.
 
 ## Panel contract
 
@@ -227,13 +250,11 @@ interface PanelDefinition {
 }
 ```
 
-Sizes are pixels. Registration only defines a Panel; it does not open it. A Panel must define either `title` or `tabComponent`. `title` accepts plain text or a typed i18n message descriptor created with `defineMessage`; built-in extensions should use a descriptor so the host resolves the current locale at render time. Static `title` and `icon` are the simple/default label. When `tabComponent` is present, it owns the visible title and icon and may use React hooks to read extension state; `title` and `icon` become its fallback. Workbench still owns the surrounding tab button, selected state, close/collapse controls, resize handle, and error boundary. A tab component must render non-interactive label content, not another button or link.
+Sizes are pixels. Registration only defines a Panel; it does not open it. A Panel must define either `title` or `tabComponent`. `title` accepts plain text or a typed i18n message descriptor created with `defineMessage`; built-in extensions should use a descriptor so the host resolves the current locale at render time. Static `title` and `icon` are the simple/default label. `tabComponent` and `tabClassNames` remain part of the compatibility contract for a tabbed Panel host.
 
 `tabClassNames` merges extension classes after the host defaults through `cn()`/`tailwind-merge`, so an extension can override the tab `root`, selection `trigger`, and `closeButton` without copying host behavior. Each entry may be a string or a pure function of `{ panelId, isActive }`. Class functions run during render and must not call React hooks; use `tabComponent` when render-time hooks are required. The root exposes `data-panel-id` and `data-state="active|inactive"` for variant selectors.
 
-Only one Panel is active per location. Size is stored per location, not per Panel, and is not persisted across reloads in v1.
-
-An opened Panel whose current location is `"right"` appears as a tab in the full-height right sidebar. Tab order follows open order. Closing a tab closes only that Panel and activates the most recently opened remaining tab. Collapsing the sidebar preserves the open tabs, active Panel, and mounted Panel content; expanding restores the same tab set and local component state. Dragging the right resize handle mirrors the conversation sidebar: live resize while attached, half-width snap to collapse, and animated detach when dragged back. The Workbench header shows the expand control while collapsed, and the right tab row owns the collapse control while open. `PanelTabComponentProps.isActive` lets dynamic labels reflect selection without owning selection behavior.
+Only one Panel is active per location. Size is stored per location, not per Panel, and is not persisted across reloads in v1. Although `PanelLocation` still includes `"right"`, the current shell mounts Panel hosts only for `"left"` and `"bottom"`; a Panel moved to `"right"` has no visible host. New persistent inspector content belongs in RightWorkspace. The terminal is the canonical bottom Panel example and explicitly calls `move(panelId, "bottom")` before toggling so stale stored locations cannot hide it.
 
 ## Command contract
 
@@ -253,6 +274,7 @@ interface CommandExecutionContext {
     open(panelId: string): void;
     close(panelId: string): void;
     toggle(panelId: string): void;
+    move(panelId: string, location: PanelLocation): void;
   };
   navigation: {
     newThread(): void;
@@ -338,6 +360,70 @@ A Renderer only displays an existing message Part. It does not define a tool, ex
 
 Tool args are partial during streaming. Handle `running`, `complete`, `incomplete`, and `requires-action` as applicable. Tool renderer props can expose `addResult()`, `resume()`, and `respondToApproval()`; call them only in the matching Runtime state.
 
+## RightWorkspace boundary
+
+RightWorkspace is the generic inspector tab host mounted to the right of the Workbench. Concrete
+capabilities are Workspace Surface contributions registered through `ExtensionContext.workspace`.
+
+Source of truth:
+
+- `platform/extensions/api/workspace-surface.ts`: public contribution, instance, scope, and registry contracts;
+- `platform/extensions/registries/workspace-surface-registry.ts`: tracked capability registry;
+- `components/right-workspace/index.ts`: public controller and state hooks;
+- `components/right-workspace/core/surface-types.ts`: core layout state and public type re-exports;
+- `components/right-workspace/core/workspace-controller.ts`: `open`, `reveal`, `focus`, `close`,
+  update, layout, and restore operations.
+
+Register a definition synchronously in setup:
+
+```ts
+const surface = context.workspace.register({
+  kind: "example",
+  icon: ExampleIcon,
+  cachePolicy: "keep-alive",
+  getResourceKey: (params, workspaceContext) =>
+    `example:${workspaceContext.projectId}:${params.id}`,
+  getDefaultScope: (_params, workspaceContext) => ({
+    type: "project",
+    key: workspaceContext.projectId ?? workspaceContext.applicationId,
+  }),
+  render: ExampleSurface,
+  menuItem: ExampleMenuItem,
+  runtime: ExampleRuntimeBridge,
+});
+```
+
+`kind` is globally unique. `menuItem` is rendered in the core add-surface menu and `runtime` is
+mounted once inside AssistantRuntimeProvider. Both are optional and owned by the extension.
+Registration is tracked and removed on rollback/deactivation.
+
+RightWorkspace core treats `kind` as an opaque stable id. It does not contain capability maps,
+feature icons, domain services, or Agent tool mappings. Persisted instances survive while a
+definition is unavailable and render again if the extension returns. Use `useRightWorkspace()` and
+`useWorkspaceContext()` inside client contributions to open a registered kind; do not call hooks
+from setup.
+
+## Pi runtime boundary
+
+Read `runtime/pi/README.md` completely before adding Pi-backed UI. It is the maintained architecture
+and capability reference. Verify exact shapes against:
+
+- `runtime/pi/rpc-contracts.ts` for unary RPC envelopes and payload/value types;
+- `runtime/pi/stream-contracts.ts` for mux/host WebSocket frames;
+- `runtime/pi/client/transport/api.ts` for existing browser-side RPC helpers;
+- `runtime/pi/client/runtime/context.tsx` and `manager.ts` for session-manager state and actions.
+
+New UI reads authoritative snapshots through the manager or typed unary helpers and receives deltas
+through the shared paired mux/host WebSocket connection. Do not issue raw `fetch()` calls, create a
+second WebSocket/SSE connection, duplicate payload interfaces, or treat HTTP `200` as business
+success without checking the RPC result envelope.
+
+`/api/pi/**`, legacy contracts, and `legacy-sse.ts` are compatibility paths, not the default for new
+features. Use one only when `runtime/pi/README.md` explicitly identifies a remaining exception (for
+example the current queue-pause compatibility command). If a required method is missing, extend the
+wire contracts, validation/router, domain service, client helper, and tests before wiring the UI.
+Do not infer unimplemented Harness APIs or bypass the trust boundary from a component.
+
 ## Services available to components
 
 Use hooks inside client components:
@@ -346,6 +432,7 @@ Use hooks inside client components:
 const panels = usePanelService();
 const commands = useCommandService();
 const navigation = useNavigationService();
+const settings = useSettingsRegistry();
 ```
 
 PanelService provides:
@@ -356,6 +443,12 @@ isOpen, isCollapsed, getActivePanelId, getSize, getLocation
 ```
 
 CommandService `execute(id)` returns a Promise. Catch rejection when invoking it from an event handler.
+
+`useSettingsRegistry()` is intended for the shared Settings host or subscribed tooling. Business
+extensions normally register sections/items synchronously through `context.settings`.
+
+RightWorkspace hooks come from `@/components/right-workspace`, Workspace Surface registration comes
+from `context.workspace`, and Pi manager hooks come from `@/runtime/pi/client/runtime/context`.
 
 Use `useAui()` and `useAuiState()` for assistant-ui Runtime state. Do not mirror chat state in a separate extension store.
 
@@ -371,14 +464,15 @@ Settings item id      unique within one settings section
 Message renderer      one active within Message RendererRegistry
 Tool renderer name    unique within Tool RendererRegistry
 Data renderer name    unique within Data RendererRegistry
+Workspace surface kind global within WorkspaceSurfaceRegistry
 ```
 
-Only Slots have numeric ordering. The module-level `enabledExtensions` order determines activation order, same-order Slot ties, conflicting shortcut selection, and command display order within a category.
+Slots and Settings sections/items have numeric ordering. The module-level `enabledExtensions` order determines activation order, same-order ties across extension registrations, conflicting shortcut selection, and command display order within a category.
 
-Slot, Panel, Command, Settings section, and Settings item definitions are copied and shallow-frozen at registration. Dispose and register a replacement instead of mutating registered data.
+Slot, Panel, Command, Settings, and Workspace Surface definitions are copied and shallow-frozen at registration. Dispose and register a replacement instead of mutating registered data.
 
 ## Error isolation
 
-Slot, Panel, Settings item, and Renderer contributions receive separate React Error Boundaries. Setup failures are reported and rolled back. Palette/keyboard Command execution reports rejected Promises.
+Slot, Panel, Settings item, Renderer, and Workspace Surface contributions receive separate React Error Boundaries. Setup failures are reported and rolled back. Palette/keyboard Command execution reports rejected Promises.
 
 React Error Boundaries do not catch event-handler errors or arbitrary asynchronous failures. Handle those locally or route them through the extension environment.

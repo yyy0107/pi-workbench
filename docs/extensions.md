@@ -1,6 +1,6 @@
 # Workbench 扩展组件开发指南
 
-本文说明如何为 Pi Workbench 第一版开发扩展组件，并给出 Slot、Panel、Command、Renderer、Settings 五类扩展能力的完整示例。
+本文说明如何为 Pi Workbench 开发扩展组件，并介绍 Slot、Panel、Command、Renderer、Settings、Workspace Surface 六类扩展能力。
 
 让 AI 协助实现扩展时，可以显式调用项目技能 `$extend-workbench-ui`。技能位于 [`.agents/skills/extend-workbench-ui/`](../.agents/skills/extend-workbench-ui/SKILL.md)，会按本文的边界、流程和验证要求执行。
 
@@ -14,7 +14,7 @@
 
 扩展平台的公开入口是 [`platform/extensions/index.ts`](../platform/extensions/index.ts)。扩展应优先从 `@/platform/extensions` 导入类型、Hook 和注册 API，不要依赖 `registries/`、`hosts/` 等内部实现。
 
-## 1. 先理解五种扩展能力
+## 1. 先理解六种扩展能力
 
 一个扩展由 `defineExtension()` 定义，并在 `setup(context)` 中注册一个或多个贡献：
 
@@ -22,22 +22,24 @@
 enabledExtensions
   -> ExtensionProvider
     -> extension.setup(context)
-      -> Slot / Panel / Command / Renderer / Settings Registry
+      -> Slot / Panel / Command / Renderer / Settings / Workspace Surface Registry
         -> 对应 Host 渲染或执行
 ```
 
-五种贡献各自解决不同问题：
+六种贡献各自解决不同问题：
 
 - **Slot**：把小型组件插入宿主已经声明的位置，例如 Composer 按钮或状态栏指标。
-- **Panel**：提供独立工作区，例如 Skills、Terminal、文件预览器。
+- **Panel**：提供独立工作区，例如 Terminal 或文件预览器。
 - **Command**：提供可复用动作，同时进入命令面板和快捷键系统。
 - **Renderer**：接管整条消息的 Parts/分组策略，或按 tool name、data name 渲染单个 assistant-ui Part。
 - **Settings**：向共享悬浮设置面板注册导航分区或功能自有设置项。
+- **Workspace Surface**：向右侧 Inspector 注册可持久化的检查能力；核心只管理标签和布局。
 
 选择建议：
 
 - 一个图标、按钮、状态值：使用 Slot。
-- 需要滚动、表单或较大空间：使用 Panel。
+- 需要左侧或底部独立工作区：使用 Panel。
+- 需要右侧带标签、resourceKey 去重和作用域恢复的检查界面：使用 Workspace Surface。
 - 同一动作需要被快捷键、命令面板或按钮复用：使用 Command。
 - 需要决定 reasoning/tool 是否分组、消息样式，或展示模型工具调用和结构化数据：使用 Renderer。
 - 功能需要出现在共享悬浮设置面板：使用 Settings；分区由壳扩展注册，具体设置项由所属功能注册。
@@ -83,7 +85,7 @@ export const exampleExtension = defineExtension({
 
 `setup()` 当前必须是同步函数，不能声明为 `async`，也不能返回 Promise。异步工作应放到组件 `useEffect()`、Command 的 `run()`，或由 setup 启动并通过 Disposable 可靠取消。
 
-通过 `context.slots/panels/commands/renderers/settings` 创建的 Disposable 会被 Manager 追踪。仍建议显式返回它们；额外创建的事件监听、计时器或订阅则必须包装成 Disposable 并返回。
+通过 `context.slots/panels/commands/renderers/settings/workspace` 创建的 Disposable 会被 Manager 追踪。仍建议显式返回它们；额外创建的事件监听、计时器或订阅则必须包装成 Disposable 并返回。
 
 `defineExtension()` 是保留字面量类型的 identity helper，真正的运行时校验和激活由 ExtensionManager 完成。扩展对象应定义在模块顶层并保持引用稳定；不要在 React render 中临时创建新的扩展对象或 `extensions` 数组，否则相同 id 也会因对象引用变化而先停用再激活。
 
@@ -334,7 +336,12 @@ pnpm dev
 - `sidebar.brand`、`sidebar.header`、`sidebar.navigation`、`sidebar.workspace.actions`、`sidebar.top`、`sidebar.bottom`、`sidebar.footer`；
 - `statusbar.left`、`statusbar.right`。
 
-右侧 Panel 标签行 Slot：
+Inspector Workspace 工具栏 Slot：
+
+- `workspace.actions`：参数为 `{ activeSurfaceId?: string, isOpen: boolean }`；适合终端等不属于 Surface 生命周期的外部资源入口。
+- `workspace.empty.actions`：参数为 `{ isOpen: boolean }`；用于空 Workspace 的可启动能力列表，贡献应渲染完整宽度的可访问操作项。
+
+旧版右侧 Panel 标签行 Slot（兼容保留，当前 Workbench Shell 不再挂载对应 Host）：
 
 - `panel.right.add-menu`：加号弹出菜单中的选项，参数为 `{ activePanelId, closeMenu() }`；
 - `panel.right.actions`：标签行最右侧的图标操作区，参数为 `{ activePanelId }`。
@@ -344,7 +351,7 @@ Thread Slot：
 - `thread.left`、`thread.header`、`thread.before`、`thread.after`、`thread.right`；
 - 参数为 `{ threadId?: string }`。
 
-`thread.left` 与 `thread.right` 以全高形式挂载在对话中央列两侧，贡献组件需要自行定义宽度。需要宿主管理尺寸、标签页或开关状态的较大工作区应注册为 Panel。
+`thread.left` 与 `thread.right` 以全高形式挂载在对话中央列两侧，贡献组件需要自行定义宽度。文件、审查、浏览器和产物等检查型界面通过 Workspace Surface Contribution 注册；终端继续使用底部 Panel。
 
 Message Slot：
 
@@ -368,7 +375,11 @@ Composer Slot：
 
 当前移动端会话抽屉复用核心侧栏内容，但不挂载 `sidebar.*` Slot；Sidebar Slot 贡献目前只显示在桌面侧栏。需要移动端入口时，可像 Terminal 扩展一样额外注册 `header.right` 触发器。
 
-`panel.right.add-menu` 的贡献应渲染单个 `role="menuitem"` 控件，通过 `usePanelService()` 打开自己的 Panel，随后调用 `closeMenu()`。`panel.right.actions` 适合刷新、全屏、布局切换等紧凑图标按钮，每个按钮必须提供 `aria-label`。加号、标签关闭和整栏收起按钮由 Workbench 宿主管理，不应在贡献中重复实现。
+`workspace.actions` 贡献应渲染紧凑按钮并提供 `aria-label`。Terminal 扩展在这里切换外部 `TerminalDrawer`，但始终先把 Terminal Panel 移回 `bottom`，因此关闭 Inspector Workspace 不会影响终端会话。
+
+`workspace.empty.actions` 贡献应渲染适合启动列表的完整操作项。Terminal 同时注册该入口，因此空 Workspace 不需要依赖顶部加号也能打开终端。
+
+`panel.right.add-menu` 与 `panel.right.actions` 只为旧扩展的类型兼容保留；当前 Shell 不挂载旧版右侧 Panel Host。新功能不要继续注册这两个 Slot。
 
 ### 排序与唯一性
 
@@ -414,7 +425,39 @@ export interface SlotPropsMap {
 
 新增 Slot 是宿主 API 变更，应评估命名、布局、响应式和后续兼容性，不应由单个业务扩展随意添加。
 
-## 5. Panel 开发参考
+## 5. Workspace Surface 开发参考
+
+右侧 Inspector 核心不内置业务 kind。扩展通过 `context.workspace.register()` 同步注册完整能力：
+
+```ts
+const contribution = context.workspace.register({
+  kind: "example",
+  icon: ExampleIcon,
+  cachePolicy: "keep-alive",
+  getResourceKey: (params, workspace) => `example:${workspace.projectId}:${params.id}`,
+  getDefaultScope: (_params, workspace) => ({
+    type: workspace.projectId ? "project" : "application",
+    key: workspace.projectId ?? workspace.applicationId,
+  }),
+  render: ExampleSurface,
+  menuItem: ExampleMenuItem,
+  runtime: ExampleRuntimeBridge,
+});
+```
+
+- `kind`：全局唯一的稳定能力 ID，核心将它视为不透明字符串；
+- `icon`：由核心标签 Host 渲染；
+- `getResourceKey`：定义同一资源的去重规则；
+- `getDefaultScope`：决定实例跟随 thread、worktree、project 还是 application；
+- `render`：扩展拥有的 Surface 组件；
+- `menuItem`：可选，挂载到核心加号菜单；
+- `runtime`：可选，在 AssistantRuntimeProvider 内挂载一次，用于监听 Agent 状态并打开或刷新该能力。
+
+扩展同时拥有对应的领域 Service 和 `extensions.*` 文案。不要把功能分支、图标映射、Service 或工具名判断写回 `components/right-workspace/`。扩展停用时定义会被撤销，但核心保留已持久化的标签实例；重新启用同一 kind 后可以恢复渲染。
+
+当前参考实现位于 `extensions/builtin/workspace-review`、`workspace-explorer`、`workspace-file`、`workspace-browser` 和 `workspace-artifact`。
+
+## 6. Panel 开发参考
 
 Panel 定义：
 
@@ -519,11 +562,11 @@ context.panels.register({
 - 组件只渲染内容，不要重复实现宿主标题栏；
 - 完整工作区优先使用 Panel，不要把大型 UI 塞入 Slot。
 
-已打开且当前位置为 `right` 的 Panel 会成为全高右侧栏中的标签。静态标签使用 Panel 的 `title/icon`；需要动态标题或图标时使用 `tabComponent`。标签顺序按打开顺序排列。关闭按钮只关闭对应 Panel；收起右侧栏会保留所有已打开标签及当前激活项，重新展开后原样恢复。加号菜单选项来自 `panel.right.add-menu`，右侧图标操作来自 `panel.right.actions`。
+当前 Shell 只使用 Panel 系统承载左侧辅助 Panel 和底部 `TerminalDrawer`。全高右侧检查区由 `RightWorkspace` 核心管理标签、resourceKey 去重、cachePolicy、作用域恢复和持久化，具体能力由 Workspace Surface 扩展注册；详见 [`docs/right-workspace.md`](./right-workspace.md)。`PanelLocation` 中的 `right` 只作为旧扩展协议兼容保留，不应作为新功能入口。
 
-React 组件内使用 `usePanelService()`；Command 内使用 `context.panels`。两者用途不同：前者暴露完整 PanelService，后者只暴露命令执行所需的 `open/close/toggle`。
+React 组件内使用 `usePanelService()`；Command 内使用 `context.panels`。两者用途不同：前者暴露完整 PanelService，后者只暴露命令执行所需的 `open/close/toggle/move`。
 
-## 6. Command 开发参考
+## 7. Command 开发参考
 
 注册后，Command 会自动：
 
@@ -558,9 +601,9 @@ export function RunNotesCommandButton() {
 }
 ```
 
-优先让 Slot 按钮和快捷键调用同一个 Command，避免分别实现两套业务逻辑。若按钮只做简单的 Panel toggle，也可以像当前 Skills 扩展一样直接使用 `usePanelService()`。
+优先让 Slot 按钮和快捷键调用同一个 Command，避免分别实现两套业务逻辑。若按钮只做简单的 Panel toggle，也可以直接使用 `usePanelService()`。
 
-## 7. Settings 开发参考
+## 8. Settings 开发参考
 
 共享悬浮设置面板由 `workbench.settings` 扩展提供。它通过 `shell.overlay` 全局挂载，不属于左、右或底部 Panel。设置分区与设置项是独立贡献：壳扩展注册分区，功能扩展把自己的设置项注册到目标分区，因此语言、主题或模型功能可以随扩展一起启用和卸载。
 
@@ -588,7 +631,7 @@ const item = context.settings.registerItem({
 
 React 组件可通过 `useSettingsRegistry()` 读取稳定快照并订阅注册变化。普通业务扩展应在 `setup()` 中注册贡献，不要在 React render 期间调用 registry。
 
-## 8. Renderer 开发参考
+## 9. Renderer 开发参考
 
 Renderer 只负责展示消息 Part，不负责：
 
@@ -749,7 +792,7 @@ Message Renderer 全局唯一；Tool 和 Data Renderer 各自按名称唯一。�
 同一个 tool name 或 data name 重复注册会在开发阶段报错。名称来自模型或协议，必须使用精确匹配，不要依赖对象原型键或模糊匹配。
 匹配区分大小写：`get_weather` 与 `Get_Weather` 是两个不同名称。
 
-## 9. 生命周期与错误隔离
+## 10. 生命周期与错误隔离
 
 扩展由 [`ExtensionProvider`](../platform/extensions/extension-provider.tsx) 激活：
 
@@ -786,7 +829,7 @@ export const resizeObserverExtension = defineExtension({
 
 但要注意：`setup()` 在 Provider 的 client effect 中运行。尽管此时可以访问 `window`，更推荐把 React 相关副作用放入扩展组件自己的 `useEffect()`，让生命周期更直观。
 
-## 10. 状态应该放在哪里
+## 11. 状态应该放在哪里
 
 使用 assistant-ui Runtime 保存：
 
@@ -815,7 +858,7 @@ const messages = useAuiState((state) => state.thread.messages);
 const isRunning = useAuiState((state) => state.thread.isRunning);
 ```
 
-## 11. ID 与注册规则
+## 12. ID 与注册规则
 
 推荐命名：
 
@@ -843,7 +886,7 @@ data renderer name:    citation
 
 Slot、Panel、Command 定义在注册时会被复制并浅冻结。注册后不要修改原对象来尝试更新 UI；需要替换贡献时，应 dispose 后重新注册。
 
-## 12. 不要做的事情
+## 13. 不要做的事情
 
 - 不要从远程 URL `import()` 任意 JavaScript 插件。
 - 不要在扩展中注册 Next.js 路由。
@@ -857,11 +900,11 @@ Slot、Panel、Command 定义在注册时会被复制并浅冻结。注册后不
 - 不要复制 assistant-ui 的消息和 Composer 状态。
 - 不要在前端扩展中放 API Key 或其他秘密。
 
-## 13. 可参考的现有扩展
+## 14. 可参考的现有扩展
 
 - 最小 Slot：[`connection-status`](../extensions/builtin/connection-status/extension.ts)
 - assistant-ui ModelContext：[`model-selector`](../extensions/builtin/model-selector/extension.ts)
-- Slot + Panel：[`skills`](../extensions/builtin/skills/extension.ts)
+- Settings + Pi RPC：[`skills`](../extensions/builtin/skills/extension.ts)
 - Panel + Command + 移动端 Slot：[`terminal`](../extensions/builtin/terminal/extension.ts)
 - Sidebar/Header Slot + floating Settings：[`settings`](../extensions/builtin/settings/extension.ts)
 - Message 分组、reasoning 与 Tool/Data fallback：[`message-presentation`](../extensions/builtin/message-presentation/extension.ts)

@@ -1,6 +1,6 @@
 ---
 name: extend-workbench-ui
-description: Builds, modifies, and reviews Pi Workbench frontend extensions using this repository's static Slot, Panel, Command, Renderer, and Settings platform. Use when adding Workbench UI features, extension components, composer/header/sidebar/statusbar contributions, panels, settings sections or items, command-palette actions or shortcuts, assistant-ui tool/data renderers, enabledExtensions entries, or when deciding whether a frontend change belongs in an extension versus app, workbench, runtime, or backend core.
+description: Builds, modifies, and reviews Pi Workbench frontend extensions using this repository's static Slot, Panel, Command, Renderer, Settings, and Workspace Surface platform, including its boundaries with the Inspector RightWorkspace and Pi runtime. Use when adding Workbench UI features, extension components, composer/header/sidebar/statusbar/workspace contributions, inspector surfaces, panels, settings sections or items, command-palette actions or shortcuts, assistant-ui tool/data renderers, enabledExtensions entries, or when deciding whether a frontend change belongs in an extension versus app, workbench, RightWorkspace, runtime, or backend core.
 ---
 
 # Extend Workbench UI
@@ -11,22 +11,24 @@ Implement frontend features through the repository's typed, statically bundled e
 
 1. Read the repository `AGENTS.md` and preserve unrelated worktree changes.
 2. Read [references/contracts.md](references/contracts.md) before editing extension code.
-3. Read [references/recipes.md](references/recipes.md) when implementing a Slot, Panel, Command, Renderer, Settings contribution, or new host Slot.
-4. Read `docs/extensions.md` only when the task asks for public documentation or a detailed tutorial.
-5. Use the project `runtime` skill when changing `useAui`, thread, composer, or Runtime state usage.
-6. Use the project `primitives` skill when changing assistant-ui message, composer, or thread composition.
-7. Use the project `tools` skill when defining or executing an assistant-ui tool. A Renderer registration alone does not define a tool.
-8. If the task touches Next.js app code, read the relevant local guide in `node_modules/next/dist/docs/` before editing.
+3. Read [references/recipes.md](references/recipes.md) when implementing a Slot, Panel, Command, Renderer, Settings contribution, RightWorkspace integration, or new host Slot.
+4. If the feature reads or mutates Pi host/session/workspace/model state, read [`runtime/pi/README.md`](../../../runtime/pi/README.md) completely before choosing an API. Then inspect the named contract and client files; do not infer the protocol from legacy routes or a generic Harness reference.
+5. Read `docs/extensions.md` only when the task asks for public documentation or a detailed tutorial.
+6. Use the project `runtime` skill when changing assistant-ui `useAui`, thread, composer, or Runtime state usage.
+7. Use the project `primitives` skill when changing assistant-ui message, composer, or thread composition.
+8. Use the project `tools` skill when defining or executing an assistant-ui tool. A Renderer registration alone does not define a tool.
+9. If the task touches Next.js app code, read the relevant local guide in `node_modules/next/dist/docs/` before editing.
 
 ## Decide the ownership boundary
 
 Implement the feature as an extension when it can be independently enabled or removed without breaking the core chat flow:
 
 - Use a **Slot** for a small button, badge, control, or status indicator.
-- Use a **Panel** for a scrollable or form-heavy workspace.
+- Use a **Panel** for a host-managed left or bottom surface. The current shell does not mount a right Panel host.
 - Use a **Command** for an action shared by the command palette, a shortcut, or UI controls.
 - Use a **Renderer** for a complete assistant-ui message presentation or an existing tool-call/data message part.
 - Use **Settings** for a navigation section or a feature-owned preference inside the shared floating settings surface.
+- Use a **Workspace Surface** contribution for persistent inspector capabilities such as review, explorer, file, browser, and artifact views. RightWorkspace core owns only tabs, layout, scope restoration, persistence, status, and feedback chrome. `workspace.actions` remains its compact toolbar Slot for actions outside a Surface lifecycle.
 - Combine contribution types inside one extension when they represent one feature.
 
 Keep the sidebar's New Conversation control and thread list in core. Register replaceable product
@@ -38,6 +40,8 @@ Modify core layers instead when the task changes:
 
 - a Next.js route or page assembly: `app/`;
 - shell structure, responsive layout, or a new insertion contract: `workbench/`;
+- Inspector tab lifecycle, generic persistence, status, or feedback host: `components/right-workspace/`;
+- a feature-owned inspector Surface, menu item, Runtime bridge, or domain service: `extensions/builtin/<feature>/`;
 - assistant runtime, persistence, transport, or adapters: `runtime/`;
 - shared UI primitives: `components/ui/`;
 - tool definition/execution or protocol behavior: assistant-ui Tool/Runtime or backend code.
@@ -53,10 +57,12 @@ When no existing Slot fits, add a typed host Slot first, then register the featu
 - Choose the closest builtin example:
   - `connection-status`: minimal Slot;
   - `token-usage`: derive assistant-ui Runtime state;
-  - `skills`: Slot trigger plus Panel;
-  - `terminal`: Panel, Command, shortcut, and responsive trigger;
-  - `settings`: sidebar trigger, Panel, Command, and extensible settings sections/items;
-  - `model-selector`: assistant-ui ModelContext integration.
+  - `workspace-review`, `workspace-explorer`, `workspace-file`, `workspace-browser`, and `workspace-artifact`: Workspace Surface contributions;
+  - `skills`: Pi-backed Settings section using a typed unary RPC helper;
+  - `terminal`: bottom Panel, Command with explicit `move()`, `bash` Renderer, `workspace.actions`, and mobile trigger;
+  - `settings`: sidebar/header triggers, `shell.overlay`, Command, and extensible settings sections/items;
+  - `appearance`: Settings section/item plus `shell.background` contribution;
+  - `model-selector`: assistant-ui ModelContext plus default-model Settings integration.
 - Check whether the requested id, shortcut, tool name, or data name already exists.
 - Search project-wide global `keydown` listeners before assigning a shortcut. Non-Command listeners may accept extra modifiers and still collide with an otherwise exact Command shortcut.
 
@@ -119,6 +125,7 @@ pnpm exec tsc --noEmit
 ```
 
 Run `pnpm build` when changing provider composition, public contracts, Workbench hosts, routing, or client/server boundaries.
+When changing Pi transport or session behavior, also run the Pi tests documented in `runtime/pi/README.md`.
 
 ## Enforce the guardrails
 
@@ -132,7 +139,11 @@ Run `pnpm build` when changing provider composition, public contracts, Workbench
 - Do not duplicate `messages`, composer content, or `isRunning` in Zustand; derive them from assistant-ui.
 - Do not repeat the Panel title bar or close chrome inside Panel content.
 - Do not assume registering a Panel opens it; use PanelService or a Command.
+- Do not target `defaultLocation: "right"` or `panel.right.*` for new features while the current shell uses RightWorkspace instead of a right Panel host.
+- Register inspector kinds only through `context.workspace.register(...)`; keep the kind, icon, resource key, default scope, renderer, optional menu item, Runtime bridge, and domain service in the owning extension.
+- Do not add feature-specific kind branches, icons, services, or Agent tool mappings back to `components/right-workspace/`.
 - Do not assume registering a Renderer exposes or executes a model tool.
+- Do not call raw Pi endpoints, open another event stream, or copy RPC payload types into an extension. Follow `runtime/pi/README.md`, reuse `runtime/pi/client/transport/api.ts` or the manager hooks, and treat `/api/pi/**` as compatibility-only unless the README names an exception.
 - Handle rejected Promises in event handlers; React Error Boundaries do not catch event or arbitrary async errors.
 - Keep API keys, secrets, and privileged execution out of frontend extensions.
 
