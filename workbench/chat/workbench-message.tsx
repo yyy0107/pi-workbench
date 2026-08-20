@@ -11,6 +11,7 @@ import {
 import { ErrorState } from "@/components/elements/error-state";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
+import { cn } from "@/lib/utils";
 import { SlotHost } from "@/platform/extensions";
 import { parsePiConversationEvent } from "@/runtime/pi/client/messages/conversation-events";
 import { parsePiMessageTermination } from "@/runtime/pi/message-termination";
@@ -132,13 +133,22 @@ function WorkbenchMessageError() {
 }
 
 export function WorkbenchUserMessage() {
+  const isOptimistic = useAuiState((state) => state.message.metadata.isOptimistic === true);
+  const [animateOnMount] = useState(isOptimistic);
+
   return (
     <MessagePrimitive.Root
       data-role="user"
       className="group/message flex w-full min-w-0 flex-col items-end gap-1.5"
     >
       <MessageSlot name="message.before" />
-      <div className="flex max-w-full min-w-0 flex-col items-end gap-2">
+      <div
+        className={cn(
+          "flex max-w-full min-w-0 flex-col items-end gap-2",
+          animateOnMount &&
+            "fade-in-0 slide-in-from-bottom-2 animate-in fill-mode-both duration-200 ease-out motion-reduce:animate-none",
+        )}
+      >
         <UserMessageAttachments />
         <div
           data-slot="user-message-bubble"
