@@ -1,5 +1,6 @@
 import type { WorkbenchExtension } from "@/platform/extensions";
 
+import { agentConfigurationExtension } from "./builtin/agent-configuration";
 import { appearanceExtension } from "./builtin/appearance";
 import { connectionStatusExtension } from "./builtin/connection-status";
 import { interactiveRequestsExtension } from "./builtin/interactive-requests";
@@ -8,11 +9,13 @@ import { messageActionsExtension } from "./builtin/message-actions";
 import { messagePresentationExtension } from "./builtin/message-presentation";
 import { messageQueueExtension } from "./builtin/message-queue";
 import { modelSelectorExtension } from "./builtin/model-selector";
+import { piExtensionsExtension } from "./builtin/pi-extensions";
 import { settingModelConfigExtension } from "./builtin/setting-model-config";
 import { settingsExtension } from "./builtin/settings";
 import { skillsExtension } from "./builtin/skills";
 import { terminalExtension } from "./builtin/terminal";
 import { tokenUsageExtension } from "./builtin/token-usage";
+import { userMessageIndexExtension } from "./builtin/user-message-index";
 import { workbenchBrandExtension } from "./builtin/workbench-brand";
 import { workspaceDirectoryPickerExtension } from "./builtin/workspace-directory-picker";
 import { workspaceArtifactExtension } from "./builtin/workspace-artifact";
@@ -25,14 +28,17 @@ export const enabledExtensions = [
   workbenchBrandExtension,
   workspaceDirectoryPickerExtension,
   settingsExtension,
+  agentConfigurationExtension,
   interactiveRequestsExtension,
   appearanceExtension,
   localeSelectorExtension,
   messagePresentationExtension,
   messageActionsExtension,
+  userMessageIndexExtension,
   messageQueueExtension,
   settingModelConfigExtension,
   skillsExtension,
+  piExtensionsExtension,
   modelSelectorExtension,
   connectionStatusExtension,
   tokenUsageExtension,

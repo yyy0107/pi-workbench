@@ -1,7 +1,6 @@
 "use client";
 
 import { useAuiState } from "@assistant-ui/react";
-import { RadioIcon } from "lucide-react";
 
 import { useI18n } from "@/i18n";
 
@@ -31,12 +30,10 @@ export function ConnectionStatus() {
     <div
       aria-label={t("extensions.connectionStatus.accessibleLabel", { status: label })}
       aria-live="polite"
-      className="inline-flex h-6 items-center gap-1.5 rounded-md px-1.5 text-[11px] font-medium text-muted-foreground"
-      title={t("extensions.connectionStatus.description")}
+      className="inline-flex h-6 w-1.5 shrink-0 items-center justify-center"
+      title={label}
     >
-      <RadioIcon aria-hidden="true" className="size-3" />
       <span className={`size-1.5 rounded-full ${status.dot}`} />
-      <span>{label}</span>
     </div>
   );
 }

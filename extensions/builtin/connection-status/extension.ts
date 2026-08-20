@@ -1,6 +1,6 @@
 import { defineExtension } from "@/platform/extensions";
 
-import { ConnectionStatus } from "./connection-status";
+import { PiVersion } from "./pi-version";
 
 export const connectionStatusExtension = defineExtension({
   id: "workbench.connection-status",
@@ -9,9 +9,9 @@ export const connectionStatusExtension = defineExtension({
 
   setup(context) {
     return context.slots.register("statusbar.left", {
-      id: "workbench.connection-status.statusbar",
-      order: 10,
-      component: ConnectionStatus,
+      id: "workbench.connection-status.pi-version",
+      order: 0,
+      component: PiVersion,
     });
   },
 });
