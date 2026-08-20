@@ -7,7 +7,10 @@ export function WorkbenchMain({
   className,
 }: Readonly<{ children: ReactNode; className?: string }>) {
   return (
-    <main className={cn("bg-background min-h-0 min-w-0 flex-1 overflow-hidden", className)}>
+    <main
+      data-workbench-surface="main"
+      className={cn("bg-background min-h-0 min-w-0 flex-1 overflow-hidden", className)}
+    >
       {children}
     </main>
   );

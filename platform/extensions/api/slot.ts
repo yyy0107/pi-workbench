@@ -13,6 +13,8 @@ export const WORKBENCH_SLOTS = [
   "header.left", // 顶部栏左侧：Logo、返回按钮、侧边栏开关等
   "header.center", // 顶部栏中间：当前会话标题、工作区标题等
   "header.right", // 顶部栏右侧：全局操作、设置、用户菜单等
+  "shell.background", // 全局背景层：主题背景、纹理、渐变等非交互视觉内容
+  "shell.overlay", // 全局悬浮层：对话框、浮动面板等跨布局表面
 
   "sidebar.brand", // 侧边栏品牌区域：Logo、产品名称等
   "sidebar.header", // 侧边栏头部：标题、折叠按钮等
@@ -110,6 +112,8 @@ export interface SlotPropsMap {
   "header.left": Record<never, never>; // 顶栏左侧区域
   "header.center": Record<never, never>; // 顶栏居中区域
   "header.right": Record<never, never>; // 顶栏右侧区域
+  "shell.background": Record<never, never>; // Workbench 最底层的全局背景
+  "shell.overlay": Record<never, never>; // 全局悬浮层
   "sidebar.brand": Record<never, never>; // 侧边栏顶部品牌标识
   "sidebar.header": Record<never, never>; // 侧边栏品牌下方的头部控件
   "sidebar.navigation": Record<never, never>; // “新建会话”下方的主导航

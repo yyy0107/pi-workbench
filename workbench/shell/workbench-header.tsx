@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuiState } from "@assistant-ui/react";
 import { PanelLeftOpenIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -30,12 +31,21 @@ function SidebarOpenButton() {
 
 export function WorkbenchHeader() {
   const { t } = useI18n();
+  const currentThreadTitle = useAuiState(
+    (state) =>
+      state.threads.threadItems.find((thread) => thread.id === state.threads.mainThreadId)?.title,
+  );
 
   return (
-    <header className="bg-background grid h-10 shrink-0 grid-cols-[1fr_auto_1fr] items-center border-b px-3">
+    <header
+      data-workbench-surface="header"
+      className="bg-background grid h-10 shrink-0 grid-cols-[1fr_auto_1fr] items-center border-b px-3"
+    >
       <div className="flex min-w-0 items-center gap-2">
         <SidebarOpenButton />
-        <span className="truncate text-sm font-semibold">{t("workbench.shell.workbench")}</span>
+        <span className="truncate text-sm font-semibold">
+          {currentThreadTitle || t("workbench.sidebar.newThread")}
+        </span>
         <SlotHost name="header.left" className="flex items-center gap-2" />
       </div>
 

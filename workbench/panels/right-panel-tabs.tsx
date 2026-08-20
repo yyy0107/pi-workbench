@@ -20,7 +20,7 @@ export function RightPanelTabs() {
   return (
     <header
       data-slot="workbench-right-panel-tabs"
-      className="bg-background flex h-10 shrink-0 items-center border-b pr-2 pl-3"
+      className="flex h-10 shrink-0 items-center border-b bg-transparent pr-2 pl-3"
     >
       <div className="flex h-full min-w-0 flex-1 items-center overflow-hidden">
         <div

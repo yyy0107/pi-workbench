@@ -3,6 +3,7 @@
 import { useState, type CSSProperties, type ReactNode } from "react";
 
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { SlotHost } from "@/platform/extensions";
 
 import { PanelDock } from "@/workbench/panels/panel-dock";
 import { PanelLayout } from "@/workbench/panels/panel-layout";
@@ -30,10 +31,17 @@ export function WorkbenchShell({ children }: Readonly<{ children: ReactNode }>) 
 
   return (
     <SidebarProvider
-      className="bg-background text-foreground h-dvh min-h-0 overflow-hidden"
+      className="bg-background text-foreground relative isolate h-dvh min-h-0 overflow-hidden"
+      data-workbench-shell=""
+      data-workbench-surface="shell"
       data-resizing={isSidebarResizing ? "true" : undefined}
       style={{ "--sidebar-width": `${sidebarWidth}px` } as CSSProperties}
     >
+      <SlotHost
+        name="shell.background"
+        className="pointer-events-none absolute inset-0 -z-10 overflow-hidden"
+      />
+
       <WorkbenchSidebar
         width={sidebarWidth}
         minWidth={MIN_SIDEBAR_WIDTH}

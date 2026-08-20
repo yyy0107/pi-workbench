@@ -1,6 +1,6 @@
 import { defineExtension } from "@/platform/extensions";
 
-import { MobileLocaleSelector, SidebarLocaleSelector } from "./locale-selector";
+import { LocaleSettingsItem, MobileLocaleSelector, SidebarLocaleSelector } from "./locale-selector";
 
 export const localeSelectorExtension = defineExtension({
   id: "workbench.locale-selector",
@@ -18,7 +18,13 @@ export const localeSelectorExtension = defineExtension({
       order: 90,
       component: MobileLocaleSelector,
     });
+    const settingsItem = context.settings.registerItem({
+      sectionId: "general",
+      id: "language",
+      order: 10,
+      component: LocaleSettingsItem,
+    });
 
-    return [sidebar, mobile];
+    return [sidebar, mobile, settingsItem];
   },
 });

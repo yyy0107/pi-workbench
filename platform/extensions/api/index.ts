@@ -3,4 +3,5 @@ export * from "./disposable";
 export * from "./extension";
 export * from "./panel";
 export * from "./renderer";
+export * from "./settings";
 export * from "./slot";

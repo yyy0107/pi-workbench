@@ -115,7 +115,7 @@ export function SkillsPanel({ panelId }: PanelComponentProps) {
   };
 
   return (
-    <section data-panel-id={panelId} className="flex h-full min-h-0 flex-col bg-background">
+    <section data-panel-id={panelId} className="flex h-full min-h-0 flex-col bg-transparent">
       <div className="shrink-0 border-b p-3">
         <p className="mb-2 text-[11px] leading-4 text-muted-foreground">
           {t("extensions.skills.intro")}

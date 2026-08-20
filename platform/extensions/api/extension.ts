@@ -2,6 +2,7 @@ import type { CommandRegistry } from "./command";
 import type { Disposable } from "./disposable";
 import type { PanelRegistry } from "./panel";
 import type { RendererRegistry } from "./renderer";
+import type { SettingsRegistry } from "./settings";
 import type { SlotRegistry } from "./slot";
 
 /**
@@ -20,6 +21,8 @@ export interface ExtensionContext {
   readonly commands: CommandRegistry;
   /** 注册整条消息呈现器以及按名称匹配的 Tool/Data Renderer。 */
   readonly renderers: RendererRegistry;
+  /** 注册共享设置面板中的分区和功能自有设置项。 */
+  readonly settings: SettingsRegistry;
 }
 
 /**

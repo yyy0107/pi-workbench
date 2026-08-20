@@ -1,5 +1,6 @@
 export { codeEditorExtension } from "./builtin/code-editor";
 export { connectionStatusExtension } from "./builtin/connection-status";
+export { interactiveRequestsExtension } from "./builtin/interactive-requests";
 export { localeSelectorExtension } from "./builtin/locale-selector";
 export { messagePresentationExtension } from "./builtin/message-presentation";
 export { modelSelectorExtension } from "./builtin/model-selector";

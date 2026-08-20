@@ -21,7 +21,7 @@ export function WorkbenchSidebarContent({
   return (
     <div className="flex h-full min-h-0 flex-col">
       {!mobile ? (
-        <div className="flex h-10 shrink-0 items-center gap-3 px-5">
+        <div className="flex h-10 shrink-0 items-center gap-3 ps-5 pe-2">
           <SlotHost
             name="sidebar.brand"
             className="flex min-w-0 flex-1 items-center empty:hidden"
@@ -46,7 +46,7 @@ export function WorkbenchSidebarContent({
         />
       ) : null}
 
-      <div className="flex h-9 shrink-0 items-center px-5">
+      <div className="flex h-9 shrink-0 items-center ps-5 pe-2">
         <h2 className="text-muted-foreground min-w-0 flex-1 text-base font-medium">
           {t("workbench.shell.workspace")}
         </h2>
@@ -56,7 +56,10 @@ export function WorkbenchSidebarContent({
         />
       </div>
 
-      <div data-workspace-scroll-container className="min-h-0 flex-1 overflow-y-auto px-3 py-1">
+      <div
+        data-workspace-scroll-container
+        className="min-h-0 flex-1 overflow-y-auto py-1 ps-3 pe-[2px] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-[6px]"
+      >
         {!mobile ? (
           <SlotHost name="sidebar.top" className="mb-1 flex flex-col gap-1 empty:hidden" />
         ) : null}
@@ -73,7 +76,7 @@ export function WorkbenchSidebarContent({
       {!mobile ? (
         <SlotHost
           name="sidebar.footer"
-          className="flex min-h-14 shrink-0 items-center gap-2 px-4 py-3 empty:hidden"
+          className="flex min-h-12 shrink-0 items-center gap-2 px-4 pt-2 pb-1 empty:hidden"
         />
       ) : null}
     </div>
@@ -85,7 +88,7 @@ function MobileSidebarHeader() {
   const { setOpenMobile } = useSidebar();
 
   return (
-    <div className="flex h-14 shrink-0 items-center justify-between px-4">
+    <div className="flex h-14 shrink-0 items-center justify-between ps-4 pe-2">
       <span className="text-sm font-semibold">{t("workbench.sidebar.conversations")}</span>
       <Button
         type="button"
@@ -140,6 +143,7 @@ export function WorkbenchSidebar({
 
   return (
     <Sidebar
+      data-workbench-surface="sidebar"
       aria-label={t("workbench.sidebar.region")}
       closeLabel={t("workbench.sidebar.closeMobile")}
       mobileDescription={t("workbench.sidebar.mobileDescription")}

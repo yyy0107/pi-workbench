@@ -23,6 +23,7 @@ export function PanelContainer({
   return (
     <section
       data-slot="workbench-panel-container"
+      data-workbench-surface="panel"
       data-location={location}
       className={cn(
         "bg-background relative flex min-h-0 min-w-0 shrink-0 flex-col overflow-hidden",

@@ -1,0 +1,1 @@
+export { settingsExtension } from "./extension";

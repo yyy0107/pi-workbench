@@ -195,7 +195,7 @@ export function CodeEditorPanel({ panelId }: PanelComponentProps) {
     <section
       data-panel-id={panelId}
       aria-label={t("extensions.codeEditor.region")}
-      className="bg-background flex h-full min-h-0 flex-col"
+      className="flex h-full min-h-0 flex-col bg-transparent"
     >
       <input
         ref={fileInputRef}

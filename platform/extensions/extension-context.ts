@@ -6,9 +6,11 @@ import type { CommandService } from "@/services/command-service";
 import type { NavigationService } from "@/services/navigation-service";
 import type { PanelService } from "@/services/panel-service";
 
+import type { SettingsRegistry } from "./api/settings";
+
 import type { ExtensionManager } from "./extension-manager";
 
-export type ExtensionErrorSource = "command" | "panel" | "renderer" | "setup" | "slot";
+export type ExtensionErrorSource = "command" | "panel" | "renderer" | "setting" | "setup" | "slot";
 
 export interface ExtensionErrorDetails {
   source: ExtensionErrorSource;
@@ -52,4 +54,8 @@ export function useCommandService(): CommandService {
 
 export function useNavigationService(): NavigationService {
   return useExtensionEnvironment().navigation;
+}
+
+export function useSettingsRegistry(): SettingsRegistry {
+  return useExtensionEnvironment().manager.settings;
 }

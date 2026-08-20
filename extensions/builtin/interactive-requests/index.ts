@@ -1,0 +1,1 @@
+export { interactiveRequestsExtension } from "./extension";

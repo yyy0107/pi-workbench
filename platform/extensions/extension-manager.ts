@@ -9,10 +9,12 @@ import type {
   RendererRegistry,
   ToolRendererComponent,
 } from "./api/renderer";
+import type { SettingsRegistry } from "./api/settings";
 import type { SlotContribution, SlotRegistry, WorkbenchSlot } from "./api/slot";
 import { CommandRegistryImpl } from "./registries/command-registry";
 import { PanelRegistryImpl } from "./registries/panel-registry";
 import { RendererRegistryImpl } from "./registries/renderer-registry";
+import { SettingsRegistryImpl } from "./registries/settings-registry";
 import { SlotRegistryImpl } from "./registries/slot-registry";
 
 interface ActiveExtension {
@@ -27,6 +29,7 @@ export class ExtensionManager implements Disposable {
   readonly panels: PanelRegistry = new PanelRegistryImpl();
   readonly commands: CommandRegistry = new CommandRegistryImpl();
   readonly renderers: RendererRegistry = new RendererRegistryImpl();
+  readonly settings: SettingsRegistry = new SettingsRegistryImpl();
 
   readonly #active = new Map<string, ActiveExtension>();
   readonly #listeners = new Set<() => void>();
@@ -171,7 +174,15 @@ export class ExtensionManager implements Disposable {
       data: wrapRenderers<DataRendererComponent>(this.renderers.data),
     };
 
-    return Object.freeze({ slots, panels, commands, renderers });
+    const settings: SettingsRegistry = {
+      registerSection: (section) => track(this.settings.registerSection(section)),
+      registerItem: (item) => track(this.settings.registerItem(item)),
+      getSections: () => this.settings.getSections(),
+      getItems: () => this.settings.getItems(),
+      subscribe: this.settings.subscribe,
+    };
+
+    return Object.freeze({ slots, panels, commands, renderers, settings });
   }
 
   #trackSetupResult(result: ExtensionSetupResult, disposables: Set<Disposable>): void {

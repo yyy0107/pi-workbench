@@ -37,6 +37,7 @@ export function RightPanelTab({ definition, isActive, onClose, onSelect }: Right
     <div
       role="presentation"
       data-slot="workbench-right-panel-tab"
+      data-workbench-selection-surface=""
       data-panel-id={definition.id}
       data-state={isActive ? "active" : "inactive"}
       className={cn(

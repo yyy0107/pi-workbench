@@ -19,10 +19,10 @@ export function SkillsTrigger({ isRunning }: ComposerDrawerSlotContext) {
       data-streaming={isRunning || undefined}
       variant="ghost"
       size="sm"
-      className="bg-muted/55 text-muted-foreground hover:bg-muted hover:text-foreground h-8 gap-1.5 rounded-xl px-2.5 text-xs font-normal"
+      className="bg-muted/55 text-muted-foreground hover:bg-muted hover:text-foreground h-6 gap-1 rounded-lg px-2 text-[11px] font-normal"
       onClick={() => panels.open("skills")}
     >
-      <SparklesIcon className="size-3.5" />
+      <SparklesIcon className="size-3" />
       {t("extensions.skills.summary", { count: SKILL_COUNT })}
     </Button>
   );

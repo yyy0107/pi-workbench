@@ -1,7 +1,12 @@
 "use client";
 
-import { CommandPaletteHost } from "@/platform/extensions";
+import { CommandPaletteHost, SlotHost } from "@/platform/extensions";
 
 export function WorkbenchGlobalLayer() {
-  return <CommandPaletteHost />;
+  return (
+    <>
+      <SlotHost name="shell.overlay" />
+      <CommandPaletteHost />
+    </>
+  );
 }
