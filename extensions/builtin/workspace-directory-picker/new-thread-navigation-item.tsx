@@ -2,7 +2,6 @@
 
 import { ThreadListPrimitive } from "@assistant-ui/react";
 import { PlusIcon } from "lucide-react";
-import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
@@ -11,7 +10,6 @@ import { useWorkspaceDirectoryStore } from "@/workbench/workspaces/workspace-dir
 
 export function NewThreadNavigationItem() {
   const { t } = useI18n();
-  const router = useRouter();
   const targetWorkspaceId = useWorkspaceDirectoryStore((state) =>
     preferredNewThreadWorkspaceId(
       state.activeDirectoryId,
@@ -27,7 +25,6 @@ export function NewThreadNavigationItem() {
       onClick={() => {
         if (targetWorkspaceId) beginNewThread(targetWorkspaceId);
         else destroyNewThread();
-        router.push("/");
       }}
     >
       <Button

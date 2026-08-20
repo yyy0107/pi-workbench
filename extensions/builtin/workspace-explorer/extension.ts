@@ -12,10 +12,10 @@ export const explorerSurfaceDefinition = {
   cachePolicy: "keep-alive",
   allowDuplicateResources: false,
   getResourceKey: (params, context) =>
-    `explorer:${encodeURIComponent(context.worktreeId ?? "application")}:${encodeURIComponent(params.rootPath)}`,
+    `explorer:${encodeURIComponent(context.threadId ?? "application")}:${encodeURIComponent(params.rootPath)}`,
   getDefaultScope: (_params, context) => ({
-    type: context.worktreeId ? "worktree" : "application",
-    key: context.worktreeId ?? context.applicationId,
+    type: context.threadId ? "thread" : "application",
+    key: context.threadId ?? context.applicationId,
   }),
   render: ExplorerSurface,
   menuItem: ExplorerMenuItem,

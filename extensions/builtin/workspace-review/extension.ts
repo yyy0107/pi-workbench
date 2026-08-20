@@ -12,16 +12,17 @@ export const reviewSurfaceDefinition = {
   icon: FileDiffIcon,
   cachePolicy: "keep-alive",
   allowDuplicateResources: false,
-  getResourceKey: (params) =>
+  getResourceKey: (params, context) =>
     [
       "review",
+      encodeURIComponent(context.threadId ?? "application"),
       encodeURIComponent(params.repositoryId),
       encodeURIComponent(params.reviewScope),
       encodeURIComponent(params.revision ?? "current"),
     ].join(":"),
   getDefaultScope: (_params, context) => ({
-    type: context.worktreeId ? "worktree" : "application",
-    key: context.worktreeId ?? context.applicationId,
+    type: context.threadId ? "thread" : "application",
+    key: context.threadId ?? context.applicationId,
   }),
   render: ReviewSurface,
   menuItem: ReviewMenuItem,

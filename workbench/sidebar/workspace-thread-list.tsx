@@ -30,7 +30,12 @@ export function WorkbenchWorkspaceThreadList({ onNavigate }: { onNavigate?: () =
   const pathname = usePathname();
   const router = useRouter();
   const isLoading = useAuiState((state) => state.threads.isLoading);
-  const hasDraftNewThread = useAuiState((state) => state.threads.newThreadId !== undefined);
+  const hasEmptyDraftNewThread = useAuiState(
+    (state) =>
+      state.threads.newThreadId !== undefined &&
+      state.threads.mainThreadId === state.threads.newThreadId &&
+      state.thread.messages.length === 0,
+  );
   const directories = useWorkspaceDirectoryStore((state) => state.directories);
   const activeDirectoryId = useWorkspaceDirectoryStore((state) => state.activeDirectoryId);
   const draftDirectoryId = useWorkspaceDirectoryStore((state) => state.draftDirectoryId);
@@ -136,7 +141,7 @@ export function WorkbenchWorkspaceThreadList({ onNavigate }: { onNavigate?: () =
             directory={directory}
             active={directory.id === activeDirectoryId}
             hasNewThread={
-              directory.id === draftDirectoryId && hasDraftNewThread && pathname === "/"
+              directory.id === draftDirectoryId && hasEmptyDraftNewThread && pathname === "/"
             }
             onActivate={() => activateDirectory(directory.id)}
             onRemove={() => void removeWorkspace(directory.id, directory.id === activeDirectoryId)}

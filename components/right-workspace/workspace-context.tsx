@@ -42,6 +42,10 @@ export function useWorkspaceContext(): WorkspaceContext {
   return useRightWorkspaceEnvironment().context;
 }
 
+export function useSetWorkspaceContext(): (context: WorkspaceContext) => void {
+  return useRightWorkspaceEnvironment().setContext;
+}
+
 const EMPTY_SURFACE_DEFINITIONS = Object.freeze([]) as readonly AnyWorkspaceSurfaceDefinition[];
 
 export function useWorkspaceSurfaceDefinitions(): readonly AnyWorkspaceSurfaceDefinition[] {

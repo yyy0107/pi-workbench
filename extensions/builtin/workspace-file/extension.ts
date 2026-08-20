@@ -12,10 +12,10 @@ export const fileSurfaceDefinition = {
   cachePolicy: "keep-alive",
   allowDuplicateResources: false,
   getResourceKey: (params, context) =>
-    `file:${encodeURIComponent(context.worktreeId ?? "application")}:${encodeURIComponent(params.absolutePath)}`,
+    `file:${encodeURIComponent(context.threadId ?? "application")}:${encodeURIComponent(params.absolutePath)}`,
   getDefaultScope: (_params, context) => ({
-    type: context.worktreeId ? "worktree" : "application",
-    key: context.worktreeId ?? context.applicationId,
+    type: context.threadId ? "thread" : "application",
+    key: context.threadId ?? context.applicationId,
   }),
   render: FileSurface,
   runtime: FileRuntimeBridge,

@@ -35,7 +35,7 @@ export function FileRuntimeBridge() {
           title: path.split(/[\\/]/).at(-1) ?? path,
           params: { absolutePath: path },
           context,
-          scope: { type: "worktree", key: context.worktreeId },
+          scope: { type: "thread", key: context.threadId },
           status: "ready",
           policy: "background",
         });

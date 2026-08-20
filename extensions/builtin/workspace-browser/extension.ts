@@ -12,10 +12,11 @@ export const browserSurfaceDefinition = {
   icon: Globe2Icon,
   cachePolicy: "persistent",
   allowDuplicateResources: false,
-  getResourceKey: (params) => `browser:${encodeURIComponent(params.browserSessionId)}`,
+  getResourceKey: (params, context) =>
+    `browser:${encodeURIComponent(context.threadId ?? "application")}:${encodeURIComponent(params.browserSessionId)}`,
   getDefaultScope: (_params, context) => ({
-    type: context.projectId ? "project" : "application",
-    key: context.projectId ?? context.applicationId,
+    type: context.threadId ? "thread" : "application",
+    key: context.threadId ?? context.applicationId,
   }),
   render: BrowserSurface,
   menuItem: BrowserMenuItem,

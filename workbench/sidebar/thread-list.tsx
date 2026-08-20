@@ -39,6 +39,10 @@ export function WorkbenchThreadList({
   const mainThreadId = useAuiState((state) => state.threads.mainThreadId);
   const draftWorkspaceId = useWorkspaceDirectoryStore((state) => state.draftDirectoryId);
   const isLoading = useAuiState((state) => state.threads.isLoading);
+  const threadCount = useAuiState(
+    (state) => state.threads.threadIds.length + state.threads.archivedThreadIds.length,
+  );
+  const isInitialLoading = isLoading && threadCount === 0;
   const hasThreads = useAuiState((state) =>
     state.threads.threadIds.some((threadId) => {
       const thread = state.threads.threadItems.find((item) => item.id === threadId);
@@ -57,9 +61,9 @@ export function WorkbenchThreadList({
 
   return (
     <ThreadListPrimitive.Root className="flex min-h-0 flex-col gap-[2px]">
-      {isLoading ? <ThreadListLoading /> : null}
+      {isInitialLoading ? <ThreadListLoading /> : null}
 
-      {!isLoading ? (
+      {!isInitialLoading ? (
         <ThreadListPrimitive.Items>
           {({ threadListItem }) => {
             const threadWorkspaceId = resolveSidebarThreadWorkspaceId({
@@ -75,7 +79,7 @@ export function WorkbenchThreadList({
         </ThreadListPrimitive.Items>
       ) : null}
 
-      {showEmpty && !isLoading && !hasThreads ? (
+      {showEmpty && !isInitialLoading && !hasThreads ? (
         <p className="text-muted-foreground px-2 py-2 text-xs leading-relaxed">
           {t("workbench.sidebar.empty")}
         </p>

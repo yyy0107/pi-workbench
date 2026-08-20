@@ -10,6 +10,7 @@ export { RightWorkspace } from "./right-workspace";
 export { RightWorkspaceProvider } from "./right-workspace-provider";
 export { WorkspaceSurfaceRuntimeHost } from "./workspace-surface-runtime-host";
 export { RightWorkspaceToggleButton } from "./right-workspace-toggle-button";
+export type { RightWorkspaceController } from "./core/workspace-controller";
 export type {
   OpenSurfaceRequest,
   RightWorkspaceState,
@@ -22,6 +23,7 @@ export type {
 export {
   useRightWorkspace,
   useRightWorkspaceState,
+  useSetWorkspaceContext,
   useWorkspaceContext,
   useWorkspaceFeedbackState,
   useWorkspaceFeedbackStore,

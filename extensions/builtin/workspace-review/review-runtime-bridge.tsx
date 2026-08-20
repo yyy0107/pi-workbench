@@ -32,7 +32,10 @@ export function ReviewRuntimeBridge() {
         if (path) gitReviewService.noteChanged(context.worktreeId, path);
         const target = surfaces.find(
           (surface) =>
-            surface.kind === "review" && surface.params.repositoryId === context.worktreeId,
+            surface.kind === "review" &&
+            surface.scope.type === "thread" &&
+            surface.scope.key === context.threadId &&
+            surface.params.repositoryId === context.worktreeId,
         );
         if (target) controller.update(target.id, { status: "resource-changed" });
         return true;

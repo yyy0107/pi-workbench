@@ -8,6 +8,7 @@ import { RightWorkspaceToggleButton } from "@/components/right-workspace";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useI18n } from "@/i18n";
 import { SlotHost } from "@/platform/extensions";
+import { usePiThreadListItemSnapshot } from "@/runtime/pi/client/runtime/context";
 
 function SidebarOpenButton() {
   const { t } = useI18n();
@@ -31,10 +32,13 @@ function SidebarOpenButton() {
 
 export function WorkbenchHeader() {
   const { t } = useI18n();
-  const currentThreadTitle = useAuiState(
-    (state) =>
-      state.threads.threadItems.find((thread) => thread.id === state.threads.mainThreadId)?.title,
+  const currentThread = useAuiState((state) =>
+    state.threads.threadItems.find((thread) => thread.id === state.threads.mainThreadId),
   );
+  const managedThread = usePiThreadListItemSnapshot(
+    currentThread?.remoteId ?? currentThread?.externalId ?? currentThread?.id,
+  );
+  const currentThreadTitle = managedThread?.title ?? currentThread?.title;
 
   return (
     <header

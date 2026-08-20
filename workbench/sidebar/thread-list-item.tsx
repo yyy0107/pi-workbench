@@ -2,13 +2,14 @@
 
 import { ThreadListItemPrimitive, useAui, useAuiState } from "@assistant-ui/react";
 import { ArchiveIcon, PinIcon } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { ThinkingOrb } from "thinking-orbs";
 
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
-import { usePiThreadActivity } from "@/runtime/pi/client/runtime/context";
+import { usePiThreadListItemState } from "@/runtime/pi/client/runtime/context";
+import { conversationThreadIdFromPathname } from "@/workbench/workspaces/new-thread-policy";
 import { useWorkspaceDirectoryStore } from "@/workbench/workspaces/workspace-directory-store";
 
 export function WorkbenchThreadListItem({
@@ -20,9 +21,10 @@ export function WorkbenchThreadListItem({
 }) {
   const { date: formatDate, relativeTime, t } = useI18n();
   const aui = useAui();
-  const router = useRouter();
+  const pathname = usePathname();
   const runtimeIsRunning = useAuiState((state) => state.threadListItem.isRunning);
-  const lastMessageAt = useAuiState((state) => state.threadListItem.lastMessageAt);
+  const runtimeTitle = useAuiState((state) => state.threadListItem.title);
+  const runtimeLastMessageAt = useAuiState((state) => state.threadListItem.lastMessageAt);
   const isActive = useAuiState((state) => state.threads.mainThreadId === state.threadListItem.id);
   const isPinned = useAuiState((state) => state.threadListItem.custom?.piPinned === true);
   const threadCustom = useAuiState((state) => state.threadListItem.custom);
@@ -31,16 +33,18 @@ export function WorkbenchThreadListItem({
     (state) =>
       state.threadListItem.remoteId ?? state.threadListItem.externalId ?? state.threadListItem.id,
   );
+  const piState = usePiThreadListItemState(routeThreadId);
   const hasEmptyNewThread = useAuiState(
     (state) =>
       state.threads.mainThreadId === state.threads.newThreadId &&
       state.thread.messages.length === 0,
   );
-  const piActivity = usePiThreadActivity(routeThreadId);
   const activateDirectory = useWorkspaceDirectoryStore((state) => state.activateDirectory);
   const deactivateDirectory = useWorkspaceDirectoryStore((state) => state.deactivateDirectory);
   const destroyNewThread = useWorkspaceDirectoryStore((state) => state.destroyNewThread);
-  const isRunning = runtimeIsRunning || piActivity.running;
+  const isRunning = runtimeIsRunning || piState.running;
+  const title = piState.thread?.title ?? runtimeTitle;
+  const lastMessageAt = piState.thread?.lastMessageAt ?? runtimeLastMessageAt;
   const openThreadRoute = () => {
     destroyNewThread();
     if (hasEmptyNewThread) {
@@ -51,12 +55,13 @@ export function WorkbenchThreadListItem({
     }
     if (workspaceId) activateDirectory(workspaceId);
     else deactivateDirectory();
-    router.push(`/c/${encodeURIComponent(routeThreadId)}`);
+    const href = `/c/${encodeURIComponent(routeThreadId)}`;
+    if (window.location.pathname !== href) window.history.pushState(null, "", href);
     onNavigate?.();
   };
   const leaveRemovedThreadRoute = () => {
-    if (isActive) {
-      router.replace("/");
+    if (isActive || conversationThreadIdFromPathname(pathname) === routeThreadId) {
+      window.history.replaceState(null, "", "/");
       onNavigate?.();
     }
   };
@@ -105,9 +110,9 @@ export function WorkbenchThreadListItem({
         onClick={openThreadRoute}
       >
         <span className="min-w-0 flex-1 truncate group-hover/thread:pe-14 group-has-[:focus-visible]/thread:pe-14">
-          <ThreadListItemPrimitive.Title fallback={t("workbench.sidebar.newThread")} />
+          {title || t("workbench.sidebar.newThread")}
         </span>
-        {!isRunning && piActivity.completed ? (
+        {!isRunning && piState.completed ? (
           <>
             <span
               aria-hidden="true"

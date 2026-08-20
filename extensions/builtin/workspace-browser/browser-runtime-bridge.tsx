@@ -36,7 +36,9 @@ export function BrowserRuntimeBridge() {
           title: url,
           params: { browserSessionId: sessionId, url },
           context,
-          scope: { type: context.projectId ? "project" : "application", key: projectId },
+          scope: context.threadId
+            ? { type: "thread", key: context.threadId }
+            : { type: "application", key: context.applicationId },
           status: "ready",
           policy: "background",
         });
