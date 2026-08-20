@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { PanelDock } from "./panel-dock";
+import { TerminalDrawer } from "./terminal-drawer";
 
 export function PanelLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
@@ -9,7 +10,7 @@ export function PanelLayout({ children }: Readonly<{ children: ReactNode }>) {
         <PanelDock location="left" />
         {children}
       </div>
-      <PanelDock location="bottom" />
+      <TerminalDrawer />
     </div>
   );
 }

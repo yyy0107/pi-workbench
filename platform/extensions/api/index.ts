@@ -5,3 +5,4 @@ export * from "./panel";
 export * from "./renderer";
 export * from "./settings";
 export * from "./slot";
+export * from "./workspace-surface";

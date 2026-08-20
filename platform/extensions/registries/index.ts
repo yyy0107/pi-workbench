@@ -3,3 +3,4 @@ export * from "./panel-registry";
 export * from "./renderer-registry";
 export * from "./settings-registry";
 export * from "./slot-registry";
+export * from "./workspace-surface-registry";

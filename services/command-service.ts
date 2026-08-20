@@ -7,7 +7,7 @@ import type { PanelService } from "@/services/panel-service";
 import type { NavigationService } from "@/services/navigation-service";
 
 export interface CommandServiceDependencies {
-  panels: Pick<PanelService, "open" | "close" | "toggle">;
+  panels: Pick<PanelService, "open" | "close" | "toggle" | "move">;
   navigation: Pick<NavigationService, "newThread" | "openThread">;
 }
 
@@ -22,6 +22,7 @@ export class CommandService {
         open: dependencies.panels.open,
         close: dependencies.panels.close,
         toggle: dependencies.panels.toggle,
+        move: dependencies.panels.move,
       },
       navigation: {
         newThread: dependencies.navigation.newThread,

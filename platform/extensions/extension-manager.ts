@@ -11,11 +11,13 @@ import type {
 } from "./api/renderer";
 import type { SettingsRegistry } from "./api/settings";
 import type { SlotContribution, SlotRegistry, WorkbenchSlot } from "./api/slot";
+import type { WorkspaceSurfaceDefinition, WorkspaceSurfaceRegistry } from "./api/workspace-surface";
 import { CommandRegistryImpl } from "./registries/command-registry";
 import { PanelRegistryImpl } from "./registries/panel-registry";
 import { RendererRegistryImpl } from "./registries/renderer-registry";
 import { SettingsRegistryImpl } from "./registries/settings-registry";
 import { SlotRegistryImpl } from "./registries/slot-registry";
+import { WorkspaceSurfaceRegistryImpl } from "./registries/workspace-surface-registry";
 
 interface ActiveExtension {
   readonly extension: WorkbenchExtension;
@@ -30,6 +32,7 @@ export class ExtensionManager implements Disposable {
   readonly commands: CommandRegistry = new CommandRegistryImpl();
   readonly renderers: RendererRegistry = new RendererRegistryImpl();
   readonly settings: SettingsRegistry = new SettingsRegistryImpl();
+  readonly workspace: WorkspaceSurfaceRegistry = new WorkspaceSurfaceRegistryImpl();
 
   readonly #active = new Map<string, ActiveExtension>();
   readonly #listeners = new Set<() => void>();
@@ -182,7 +185,15 @@ export class ExtensionManager implements Disposable {
       subscribe: this.settings.subscribe,
     };
 
-    return Object.freeze({ slots, panels, commands, renderers, settings });
+    const workspace: WorkspaceSurfaceRegistry = {
+      register: <P extends Record<string, unknown>>(definition: WorkspaceSurfaceDefinition<P>) =>
+        track(this.workspace.register(definition)),
+      get: (kind) => this.workspace.get(kind),
+      getAll: () => this.workspace.getAll(),
+      subscribe: this.workspace.subscribe,
+    };
+
+    return Object.freeze({ slots, panels, commands, renderers, settings, workspace });
   }
 
   #trackSetupResult(result: ExtensionSetupResult, disposables: Set<Disposable>): void {

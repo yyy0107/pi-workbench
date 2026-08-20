@@ -17,7 +17,10 @@ export function TerminalTrigger() {
       size="icon-sm"
       className="md:hidden"
       aria-label={t("extensions.terminal.toggleTitle")}
-      onClick={() => panels.toggle("terminal")}
+      onClick={() => {
+        panels.move("terminal", "bottom");
+        panels.toggle("terminal");
+      }}
     >
       <TerminalIcon className="size-4" />
     </Button>

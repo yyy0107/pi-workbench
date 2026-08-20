@@ -11,6 +11,7 @@ export const toggleTerminalCommand = {
   icon: TerminalIcon,
   shortcut: ["Ctrl", "`"],
   run(context) {
+    context.panels.move("terminal", "bottom");
     context.panels.toggle("terminal");
   },
 } satisfies CommandDefinition;

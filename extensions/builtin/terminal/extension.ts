@@ -5,9 +5,10 @@ import { defineExtension } from "@/platform/extensions";
 
 import { toggleTerminalCommand } from "./open-terminal-command";
 import { BashToolRenderer } from "./bash-tool-renderer";
-import { TerminalAddMenuItem } from "./terminal-add-menu-item";
 import { TerminalPanel } from "./terminal-panel";
 import { TerminalTrigger } from "./terminal-trigger";
+import { TerminalWorkspaceAction } from "./terminal-workspace-action";
+import { TerminalWorkspaceEmptyAction } from "./terminal-workspace-empty-action";
 
 export const terminalExtension = defineExtension({
   id: "workbench.terminal",
@@ -28,10 +29,15 @@ export const terminalExtension = defineExtension({
 
     const command = context.commands.register(toggleTerminalCommand);
     const bashRenderer = context.renderers.tools.register("bash", BashToolRenderer);
-    const addMenuItem = context.slots.register("panel.right.add-menu", {
-      id: "workbench.terminal.right-panel-add-menu",
+    const workspaceAction = context.slots.register("workspace.actions", {
+      id: "workbench.terminal.workspace-action",
       order: 30,
-      component: TerminalAddMenuItem,
+      component: TerminalWorkspaceAction,
+    });
+    const workspaceEmptyAction = context.slots.register("workspace.empty.actions", {
+      id: "workbench.terminal.workspace-empty-action",
+      order: 30,
+      component: TerminalWorkspaceEmptyAction,
     });
     const mobileTrigger = context.slots.register("header.right", {
       id: "workbench.terminal.mobile-trigger",
@@ -39,6 +45,6 @@ export const terminalExtension = defineExtension({
       component: TerminalTrigger,
     });
 
-    return [panel, command, bashRenderer, addMenuItem, mobileTrigger];
+    return [panel, command, bashRenderer, workspaceAction, workspaceEmptyAction, mobileTrigger];
   },
 });

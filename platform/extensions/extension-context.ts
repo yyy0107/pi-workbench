@@ -7,10 +7,18 @@ import type { NavigationService } from "@/services/navigation-service";
 import type { PanelService } from "@/services/panel-service";
 
 import type { SettingsRegistry } from "./api/settings";
+import type { WorkspaceSurfaceRegistry } from "./api/workspace-surface";
 
 import type { ExtensionManager } from "./extension-manager";
 
-export type ExtensionErrorSource = "command" | "panel" | "renderer" | "setting" | "setup" | "slot";
+export type ExtensionErrorSource =
+  | "command"
+  | "panel"
+  | "renderer"
+  | "setting"
+  | "setup"
+  | "slot"
+  | "workspace";
 
 export interface ExtensionErrorDetails {
   source: ExtensionErrorSource;
@@ -58,4 +66,8 @@ export function useNavigationService(): NavigationService {
 
 export function useSettingsRegistry(): SettingsRegistry {
   return useExtensionEnvironment().manager.settings;
+}
+
+export function useWorkspaceSurfaceRegistry(): WorkspaceSurfaceRegistry {
+  return useExtensionEnvironment().manager.workspace;
 }

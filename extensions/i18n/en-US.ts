@@ -69,31 +69,30 @@ export const extensionsEnUS = {
       light: "Light",
       dark: "Dark",
     },
+    palette: {
+      title: "Theme colors",
+      description: "View and adjust the complete light and dark color palette together.",
+    },
     themeSettings: {
-      lightTitle: "Light theme",
-      lightDescription: "Tune the colors, typefaces, and contrast used in light mode.",
-      darkTitle: "Dark theme",
-      darkDescription: "Tune the colors, typefaces, and contrast used in dark mode.",
       accent: "Accent color",
       background: "Background",
       foreground: "Foreground",
-      uiFont: "UI font",
-      codeFont: "Code font",
       contrast: "Contrast",
       lightAccent: "Light theme accent color",
       lightBackground: "Light theme background color",
       lightForeground: "Light theme foreground color",
-      lightUiFont: "Light theme UI font",
-      lightCodeFont: "Light theme code font",
       lightContrast: "Light theme contrast",
       darkAccent: "Dark theme accent color",
       darkBackground: "Dark theme background color",
       darkForeground: "Dark theme foreground color",
-      darkUiFont: "Dark theme UI font",
-      darkCodeFont: "Dark theme code font",
       darkContrast: "Dark theme contrast",
       contrastValue: ({ contrast }: { contrast: number }, { number }: MessageFormatters) =>
         `${number(contrast)}%`,
+    },
+    typography: {
+      title: "Typography",
+      description: "Choose interface fonts and adjust the base UI text size.",
+      font: "UI font",
     },
     fontFamilies: {
       ui: {
@@ -106,11 +105,31 @@ export const extensionsEnUS = {
         geistMono: "Geist Mono",
         systemMono: "System monospace",
         compactMono: "Compact monospace",
+        jetBrainsMono: "JetBrains Mono",
+        firaCode: "Fira Code",
+        cascadiaCode: "Cascadia Code",
+        sourceCodePro: "Source Code Pro",
+        ibmPlexMono: "IBM Plex Mono",
+        menlo: "Menlo",
+        consolas: "Consolas",
+        liberationMono: "Liberation Mono",
+        ubuntuMono: "Ubuntu Mono",
       },
+    },
+    codeStyles: {
+      github: "GitHub",
+      vitesse: "Vitesse",
+      catppuccin: "Catppuccin",
+      kanagawa: "Kanagawa",
     },
     background: {
       title: "Global background",
       description: "Use a color or a locally stored image across the Workbench.",
+      colorTitle: "Color",
+      colorDescription: "Set a custom canvas color and optionally share it with surfaces.",
+      imageTitle: "Image and blur",
+      imageDescription: "Choose a local image and control how strongly it is blurred.",
+      image: "Local image",
       custom: "Use a custom background",
       color: "Global background color",
       syncSurfaces: "Use the same color for panels and component surfaces",
@@ -130,8 +149,12 @@ export const extensionsEnUS = {
       medium: "Medium",
       strong: "Strong",
     },
+    components: {
+      title: "Component appearance",
+      description: "Control surface, border, and corner treatments in one place.",
+    },
     surfaces: {
-      title: "Component surfaces",
+      title: "Surfaces",
       description:
         "Adjust component transparency and glass blur when a custom color or image is active.",
       opacity: "Surface opacity",
@@ -140,7 +163,7 @@ export const extensionsEnUS = {
       glassBlur: "Glass blur",
     },
     borders: {
-      title: "Component borders",
+      title: "Borders",
       description: "Apply one border treatment to components that already define a border.",
       style: "Border style",
       customColor: "Use a custom border color",
@@ -154,7 +177,7 @@ export const extensionsEnUS = {
       none: "No borders",
     },
     corners: {
-      title: "Corner radius",
+      title: "Corners",
       description: "Adjust the shared radius tokens used by buttons, cards, inputs, and panels.",
       radius: "Corner style",
     },
@@ -163,6 +186,15 @@ export const extensionsEnUS = {
       square: "Square",
       compact: "Compact",
       rounded: "Rounded",
+    },
+    code: {
+      title: "Code display",
+      description: "Configure code fonts, sizing, syntax colors, and change markers.",
+      font: "Code font",
+    },
+    interaction: {
+      title: "Interaction",
+      description: "Control pointer feedback and interface motion.",
     },
     preferences: {
       title: "Preferences",
@@ -175,6 +207,9 @@ export const extensionsEnUS = {
       uiFontSizeDescription: "Adjust the base size used by the Workbench interface.",
       codeFontSize: "Code font size",
       codeFontSizeDescription: "Adjust the base size used by code and diff views.",
+      codeStyle: "Syntax highlighting style",
+      codeStyleDescription: "Choose the color theme used for fenced code blocks.",
+      codePreview: "Code preview",
       diffMarkers: "Diff markers",
       diffMarkersDescription: "Use +/- markers as well as color to identify changes.",
       fontSizeValue: ({ size }: { size: number }, { number }: MessageFormatters) =>
@@ -210,6 +245,9 @@ export const extensionsEnUS = {
     locked: "Model selection is locked while streaming",
     saving: "Saving the model for this session",
     noModels: "No Pi models found.",
+    searchLabel: "Search models",
+    searchPlaceholder: "Search models…",
+    noSearchResults: "No matching models.",
     loadFailed: "Could not load Pi models.",
     selectFailed: "Could not change the model for this session.",
     currentUnavailable: "The current session model is unavailable. Choose another model.",
@@ -222,12 +260,138 @@ export const extensionsEnUS = {
     high: "High",
     thinking: "Thinking",
   },
+  modelConfig: {
+    title: "Model",
+    description: "Add provider API keys to make their models available.",
+    loading: "Loading model configurations…",
+    loadFailed: "Could not load model configurations.",
+    retry: "Retry",
+    empty: "No model providers are configured yet.",
+    configured: "Configured",
+    edit: "Edit",
+    delete: "Delete",
+    removing: "Deleting…",
+    provider: "Provider",
+    selectProvider: "Select a provider",
+    addProvider: "Add provider",
+    addCustomProvider: "Add custom provider",
+    customProviderTitle: "Custom provider",
+    providerId: "Provider ID",
+    providerIdPlaceholder: "acme-gateway",
+    providerIdDescription:
+      "A lowercase identifier that uniquely identifies this provider in requests and derives its credential name.",
+    providerName: "Display name",
+    providerNamePlaceholder: "Display name",
+    apiProtocol: "API protocol",
+    apiKey: "API key",
+    apiKeyPlaceholder: "Enter an API key, or leave blank to use environment authentication",
+    apiKeyEditPlaceholder: "Enter a new API key, or leave blank to keep the current configuration",
+    environmentOnly: "This provider uses environment authentication",
+    customSettings: "Custom settings",
+    loadingDetails: "Loading provider settings…",
+    apiAddress: "API address",
+    apiAddressPlaceholder: "https://gateway.example/v1",
+    modelCatalog: "Model catalog",
+    adapterDefaultModels: "Using the adapter's default models",
+    customModels: "Custom model catalog",
+    fetchAvailableModels: "Get available models",
+    fetchingAvailableModels: "Getting available models…",
+    restoreDefaultModels: "Restore default models",
+    adapterCatalogEmpty:
+      "No models will appear in the model selector; IDs outside the catalog can still be sent directly.",
+    selectModelsTitle: "Choose models to add",
+    selectModelsDescription: "Select the models to add from those available from this provider.",
+    closeModelPicker: "Close model picker",
+    availableModelsEmpty: "This provider did not return any available models.",
+    addSelectedModels: "Add selected",
+    modelId: "Model ID",
+    modelName: "Display name",
+    contextWindow: "Context window",
+    maxOutputTokens: "Maximum output tokens",
+    expandModel: ({ name }: { name: string }) => `Expand ${name || "model"}`,
+    collapseModel: ({ name }: { name: string }) => `Collapse ${name || "model"}`,
+    removeModel: ({ name }: { name: string }) => `Remove ${name || "model"}`,
+    addModel: "Add model",
+    modelIdRequired: ({ index }: { index: number }) => `Model ${index}: Model ID is required.`,
+    cancel: "Cancel",
+    save: "Save",
+    createProvider: "Create provider",
+    saving: "Saving…",
+    errors: {
+      unsupported: "This provider cannot be configured with a single API key.",
+      readonly: "This configuration comes from outside Workbench and cannot be deleted here.",
+      environmentMissing:
+        "No environment authentication was found for this provider. Enter an API key or configure the runtime environment first.",
+      loadDetailsFailed: "Could not load this provider's settings.",
+      fetchModelsFailed: "Could not get the available models from this provider.",
+      providerRequired: "Enter a provider ID.",
+      invalidProviderId:
+        "Provider ID must start with a lowercase letter and may only contain lowercase letters, numbers, dots, underscores, and hyphens.",
+      providerExists: "A provider with this ID already exists.",
+      apiAddressRequired: "Enter the provider API address.",
+      modelRequired: "Add at least one model.",
+      invalidModel: "Enter a model ID and valid positive capacities such as 128K or 1M.",
+      duplicateModel: "Model IDs must be unique within a provider.",
+      saveFailed: "Could not save the model configuration. Try again.",
+    },
+  },
+  skills: {
+    title: "Skills",
+    description: "View the skills loaded for the current Pi session.",
+    loading: "Loading session skills…",
+    noSession: "Select an existing conversation to view the skills available to its Pi session.",
+    sessionUnavailable: "This session is no longer available.",
+    loadFailed: "Could not load skills from Pi.",
+    retry: "Retry",
+    refresh: "Refresh skills",
+    searchLabel: "Search skills",
+    searchPlaceholder: "Search skills…",
+    count: ({ count }: { count: number }, { number }: MessageFormatters) =>
+      `${number(count)} ${count === 1 ? "skill" : "skills"}`,
+    empty: "Pi did not load any skills for this session.",
+    noMatches: "No skills match this search.",
+    modelInvocable: "Available to model",
+    manualOnly: "Manual invocation only",
+    whenToUse: "When to use:",
+  },
   messagePresentation: {
     generating: "Generating response…",
     sourceFallback: "Source",
     elapsed: ({ duration }: { duration: string }) => `·${duration}·`,
-    completedTurn: ({ completedAt, duration }: { completedAt: string; duration: string }) =>
-      duration ? `Completed at ${completedAt} · Took ${duration}` : `Completed at ${completedAt}`,
+    completedTurn: ({
+      completedAt,
+      duration,
+      kind,
+    }: {
+      completedAt: string;
+      duration: string;
+      kind:
+        | "completed"
+        | "cancelled"
+        | "aborted"
+        | "length"
+        | "network-error"
+        | "api-error"
+        | "provider-error";
+    }) => {
+      const durationLabel = duration ? ` · Took ${duration}` : "";
+      switch (kind) {
+        case "cancelled":
+          return `Stopped by user at ${completedAt}${durationLabel}`;
+        case "aborted":
+          return `Aborted at ${completedAt}${durationLabel}`;
+        case "length":
+          return `Stopped at ${completedAt} · Length limit reached${durationLabel}`;
+        case "network-error":
+          return `Failed at ${completedAt} · Network connection error${durationLabel}`;
+        case "api-error":
+          return `Failed at ${completedAt} · API error${durationLabel}`;
+        case "provider-error":
+          return `Failed at ${completedAt} · Provider error${durationLabel}`;
+        default:
+          return `Completed at ${completedAt}${durationLabel}`;
+      }
+    },
     toolTimeline: {
       active: (
         { steps, files }: { steps: number; files: number },
@@ -307,50 +471,49 @@ export const extensionsEnUS = {
     enable: "Enable queue mode",
     messageFallback: "Queued attachment",
   },
-  skills: {
-    title: "Skills",
-    add: "Add skills",
-    toggle: "Toggle skills panel",
-    summary: ({ count }: { count: number }, { number }: MessageFormatters) =>
-      `Skills ${number(count)}`,
-    intro: "Enable the local capabilities available to this workbench preview.",
-    search: "Search skills",
-    noMatches: "No matching skills",
-    broaderSearch: "Try a broader search term.",
-    enabledCount: ({ enabled, total }: { enabled: number; total: number }) =>
-      `${enabled} of ${total} enabled locally`,
-    items: {
-      research: {
-        title: "Research",
-        category: "Knowledge",
-        description: "Find, compare, and synthesize trusted sources.",
-      },
-      codeReview: {
-        title: "Code review",
-        category: "Development",
-        description: "Inspect changes for bugs and maintainability risks.",
-      },
-      documents: {
-        title: "Documents",
-        category: "Productivity",
-        description: "Draft and refine structured documents.",
-      },
-      visualStudio: {
-        title: "Visual studio",
-        category: "Creative",
-        description: "Plan and create polished visual assets.",
-      },
-      dataAnalysis: {
-        title: "Data analysis",
-        category: "Analysis",
-        description: "Explore datasets and surface useful patterns.",
-      },
-      browser: {
-        title: "Browser control",
-        category: "Automation",
-        description: "Navigate and inspect browser-based workflows.",
-      },
-    },
+  workspaceReview: {
+    title: "Review",
+    empty: "No changed files are known yet.",
+    connectHint: "Agent file changes appear here; connect a Git service for complete hunks.",
+    refresh: "Refresh review",
+    stage: "Stage",
+    unstage: "Unstage",
+    revert: "Revert",
+    commentLine: "Comment on this line",
+  },
+  workspaceExplorer: {
+    title: "Explorer",
+    empty: "No file buffers are attached to this worktree.",
+    openFiles: "Open local files",
+    files: "Workspace files",
+  },
+  workspaceFile: {
+    title: "File",
+    unavailable: "This file buffer is not attached.",
+    save: "Save buffer",
+    saved: "Saved",
+    dirty: "Unsaved changes",
+    source: ({ name }: { name: string }) => `${name} source`,
+  },
+  workspaceBrowser: {
+    title: "Browser",
+    newSession: "New browser session",
+    address: "Browser address",
+    navigate: "Navigate",
+    back: "Go back",
+    forward: "Go forward",
+    reload: "Reload",
+    viewportTitle: "Shared browser session",
+    viewportDescription:
+      "This surface is attached to an independent browser session. A browser backend can provide the shared live page, screenshots, and CDP state here.",
+    annotate: "Annotate browser element",
+  },
+  workspaceArtifact: {
+    title: "Artifact",
+    missing: "This artifact is no longer available.",
+    rendered: "Rendered preview",
+    source: "Source",
+    annotate: "Annotate artifact",
   },
   terminal: {
     title: "Terminal",

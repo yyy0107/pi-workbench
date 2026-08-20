@@ -4,6 +4,7 @@ import type { PanelRegistry } from "./panel";
 import type { RendererRegistry } from "./renderer";
 import type { SettingsRegistry } from "./settings";
 import type { SlotRegistry } from "./slot";
+import type { WorkspaceSurfaceRegistry } from "./workspace-surface";
 
 /**
  * 传给扩展 `setup()` 的能力集合。
@@ -23,6 +24,8 @@ export interface ExtensionContext {
   readonly renderers: RendererRegistry;
   /** 注册共享设置面板中的分区和功能自有设置项。 */
   readonly settings: SettingsRegistry;
+  /** 注册由 RightWorkspace 核心宿主管理标签和生命周期的检查能力。 */
+  readonly workspace: WorkspaceSurfaceRegistry;
 }
 
 /**

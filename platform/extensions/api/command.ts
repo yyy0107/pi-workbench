@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 
 import type { LocalizableText } from "@/i18n";
+import type { PanelLocation } from "./panel";
 
 import type { Disposable } from "./disposable";
 
@@ -20,6 +21,8 @@ export interface CommandExecutionContext {
     close(panelId: string): void;
     /** 根据当前打开状态调用 `open` 或 `close`。 */
     toggle(panelId: string): void;
+    /** 在执行其他操作前把 Panel 移到指定宿主位置。 */
+    move(panelId: string, location: PanelLocation): void;
   };
   /** 会话级导航操作。默认实现会触发浏览器页面导航。 */
   navigation: {

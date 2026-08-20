@@ -27,6 +27,9 @@ export const WORKBENCH_SLOTS = [
   "panel.right.add-menu", // 右侧面板添加菜单：新增面板/工具入口
   "panel.right.actions", // 右侧面板操作区：关闭、固定、切换等
 
+  "workspace.actions", // Inspector Workspace 工具栏：终端等外部资源入口
+  "workspace.empty.actions", // Inspector Workspace 空状态：终端等可启动能力入口
+
   "thread.left", // 会话区域左侧：会话级导航、上下文工具等
   "thread.header", // 会话区域头部：会话信息、模型状态、会话操作等
   "thread.before", // 消息列表之前：提示、上下文信息、全局状态等
@@ -101,6 +104,20 @@ export interface RightPanelActionsSlotContext {
   activePanelId: string;
 }
 
+/** Inspector Workspace 工具栏贡献收到的只读布局上下文。 */
+export interface WorkspaceActionsSlotContext {
+  /** 当前激活的 Surface id；空工作区时不存在。 */
+  activeSurfaceId?: string;
+  /** Inspector Workspace 当前是否展开。 */
+  isOpen: boolean;
+}
+
+/** Inspector Workspace 空状态启动列表贡献收到的只读布局上下文。 */
+export interface WorkspaceEmptyActionsSlotContext {
+  /** Inspector Workspace 当前是否展开。 */
+  isOpen: boolean;
+}
+
 /**
  * Slot 名称到组件 props 的唯一类型映射。
  *
@@ -123,6 +140,8 @@ export interface SlotPropsMap {
   "sidebar.footer": Record<never, never>; // 侧边栏固定底部工具区
   "panel.right.add-menu": RightPanelAddMenuSlotContext; // 右侧 Panel 加号弹出菜单
   "panel.right.actions": RightPanelActionsSlotContext; // 右侧 Panel 标签行尾部图标区
+  "workspace.actions": WorkspaceActionsSlotContext; // Inspector Workspace 工具栏
+  "workspace.empty.actions": WorkspaceEmptyActionsSlotContext; // Inspector Workspace 空状态启动入口
   "thread.left": { threadId?: string }; // 当前会话中央列左侧
   "thread.header": { threadId?: string }; // 当前会话顶部区域
   "thread.before": { threadId?: string }; // 当前会话消息列表之前

@@ -1,33 +1,49 @@
 "use client";
 
 import { Trash2Icon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useAuiState } from "@assistant-ui/react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { useI18n } from "@/i18n";
 import type { PanelComponentProps } from "@/platform/extensions";
 
-interface TerminalLine {
-  id: string;
-  kind: "command" | "output" | "muted";
-  text: string;
-}
+import { terminalSessionStore } from "./terminal-session-store";
 
 export function TerminalPanel({ panelId }: PanelComponentProps) {
   const { t } = useI18n();
-  const [lines, setLines] = useState<readonly TerminalLine[]>(() => [
-    { id: "welcome", kind: "muted", text: t("extensions.terminal.welcome") },
-    { id: "hint", kind: "output", text: t("extensions.terminal.hint") },
-  ]);
+  const mainThreadId = useAuiState((state) => state.threads.mainThreadId);
+  const mainThread = useAuiState((state) =>
+    state.threads.threadItems.find((thread) => thread.id === state.threads.mainThreadId),
+  );
+  const workspaceId =
+    typeof mainThread?.custom?.piWorkspaceId === "string"
+      ? mainThread.custom.piWorkspaceId
+      : "application";
+  // The assistant-ui thread id stays stable while a draft thread is promoted to a
+  // remote Pi session. Using remoteId here would silently swap terminal history
+  // as soon as the first prompt creates that session.
+  const sessionId = `${workspaceId}:${mainThreadId}`;
+  const lines = useSyncExternalStore(
+    terminalSessionStore.subscribe,
+    () => terminalSessionStore.getLines(sessionId),
+    () => terminalSessionStore.getLines(sessionId),
+  );
   const [input, setInput] = useState("");
-  const nextLineId = useRef(0);
   const scrollArea = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    terminalSessionStore.ensure(sessionId, [
+      { kind: "muted", text: t("extensions.terminal.welcome") },
+      { kind: "output", text: t("extensions.terminal.hint") },
+    ]);
+  }, [sessionId, t]);
 
   useEffect(() => {
     const element = scrollArea.current;
     if (element) element.scrollTop = element.scrollHeight;
   }, [lines]);
 
-  const clear = () => setLines([]);
+  const clear = () => terminalSessionStore.clear(sessionId);
 
   const submit = () => {
     const command = input.trim();
@@ -52,13 +68,9 @@ export function TerminalPanel({ panelId }: PanelComponentProps) {
       t("extensions.terminal.unavailable", { command }),
       t("extensions.terminal.unavailableHint"),
     ];
-    const batchId = nextLineId.current++;
-
-    setLines((current) => [
-      ...current,
-      { id: `command-${batchId}`, kind: "command", text: command },
-      ...response.map((text, index) => ({
-        id: `output-${batchId}-${index}`,
+    terminalSessionStore.append(sessionId, [
+      { kind: "command", text: command },
+      ...response.map((text) => ({
         kind: "output" as const,
         text,
       })),

@@ -69,31 +69,30 @@ export const extensionsZhCN = {
       light: "白天",
       dark: "黑夜",
     },
+    palette: {
+      title: "主题颜色",
+      description: "在同一处查看和调整完整的浅色与深色配色。",
+    },
     themeSettings: {
-      lightTitle: "浅色主题",
-      lightDescription: "调整浅色模式使用的颜色、字体和对比度。",
-      darkTitle: "深色主题",
-      darkDescription: "调整深色模式使用的颜色、字体和对比度。",
       accent: "强调色",
       background: "背景",
       foreground: "前景",
-      uiFont: "UI 字体",
-      codeFont: "代码字体",
       contrast: "对比度",
       lightAccent: "浅色主题强调色",
       lightBackground: "浅色主题背景色",
       lightForeground: "浅色主题前景色",
-      lightUiFont: "浅色主题 UI 字体",
-      lightCodeFont: "浅色主题代码字体",
       lightContrast: "浅色主题对比度",
       darkAccent: "深色主题强调色",
       darkBackground: "深色主题背景色",
       darkForeground: "深色主题前景色",
-      darkUiFont: "深色主题 UI 字体",
-      darkCodeFont: "深色主题代码字体",
       darkContrast: "深色主题对比度",
       contrastValue: ({ contrast }: { contrast: number }, { number }: MessageFormatters) =>
         `${number(contrast)}%`,
+    },
+    typography: {
+      title: "字体",
+      description: "选择界面字体并调整 UI 文字的基准大小。",
+      font: "UI 字体",
     },
     fontFamilies: {
       ui: {
@@ -106,11 +105,31 @@ export const extensionsZhCN = {
         geistMono: "Geist Mono",
         systemMono: "系统等宽字体",
         compactMono: "紧凑等宽字体",
+        jetBrainsMono: "JetBrains Mono",
+        firaCode: "Fira Code",
+        cascadiaCode: "Cascadia Code",
+        sourceCodePro: "Source Code Pro",
+        ibmPlexMono: "IBM Plex Mono",
+        menlo: "Menlo",
+        consolas: "Consolas",
+        liberationMono: "Liberation Mono",
+        ubuntuMono: "Ubuntu Mono",
       },
+    },
+    codeStyles: {
+      github: "GitHub",
+      vitesse: "Vitesse",
+      catppuccin: "Catppuccin",
+      kanagawa: "Kanagawa",
     },
     background: {
       title: "全局背景",
       description: "使用颜色或保存在本机浏览器中的图片作为工作台背景。",
+      colorTitle: "颜色",
+      colorDescription: "设置自定义画布颜色，并可让组件表面使用相同底色。",
+      imageTitle: "图片与模糊",
+      imageDescription: "选择本地图片并调整图片的模糊程度。",
+      image: "本地图片",
       custom: "使用自定义背景",
       color: "全局背景颜色",
       syncSurfaces: "面板和组件表面使用相同底色",
@@ -130,8 +149,12 @@ export const extensionsZhCN = {
       medium: "中等",
       strong: "强烈",
     },
+    components: {
+      title: "组件外观",
+      description: "集中调整组件表面、边框和圆角样式。",
+    },
     surfaces: {
-      title: "组件表面",
+      title: "表面",
       description: "启用自定义背景色或背景图后，调整组件透明度和玻璃模糊程度。",
       opacity: "表面不透明度",
       opacityValue: ({ opacity }: { opacity: number }, { number }: MessageFormatters) =>
@@ -139,7 +162,7 @@ export const extensionsZhCN = {
       glassBlur: "玻璃模糊",
     },
     borders: {
-      title: "组件边框",
+      title: "边框",
       description: "为已经定义边框的组件统一应用边框样式。",
       style: "边框样式",
       customColor: "使用自定义边框颜色",
@@ -153,7 +176,7 @@ export const extensionsZhCN = {
       none: "无边框",
     },
     corners: {
-      title: "组件圆角",
+      title: "圆角",
       description: "调整按钮、卡片、输入框和面板共用的圆角尺寸。",
       radius: "圆角样式",
     },
@@ -162,6 +185,15 @@ export const extensionsZhCN = {
       square: "直角",
       compact: "紧凑",
       rounded: "圆润",
+    },
+    code: {
+      title: "代码显示",
+      description: "集中设置代码字体、字号、语法颜色和差异标记。",
+      font: "代码字体",
+    },
+    interaction: {
+      title: "交互",
+      description: "控制指针反馈和界面动态效果。",
     },
     preferences: {
       title: "偏好设置",
@@ -174,6 +206,9 @@ export const extensionsZhCN = {
       uiFontSizeDescription: "调整工作台界面使用的基准字号。",
       codeFontSize: "代码字体大小",
       codeFontSizeDescription: "调整代码和差异视图中使用的基础字号。",
+      codeStyle: "语法高亮样式",
+      codeStyleDescription: "选择围栏代码块使用的配色主题。",
+      codePreview: "代码预览",
       diffMarkers: "差异标记",
       diffMarkersDescription: "除颜色外，同时使用 +/- 标记显示更改。",
       fontSizeValue: ({ size }: { size: number }, { number }: MessageFormatters) =>
@@ -209,6 +244,9 @@ export const extensionsZhCN = {
     locked: "生成过程中无法切换模型",
     saving: "正在保存此会话的模型",
     noModels: "没有找到可用的 Pi 模型。",
+    searchLabel: "搜索模型",
+    searchPlaceholder: "搜索模型…",
+    noSearchResults: "没有匹配的模型。",
     loadFailed: "无法加载 Pi 模型。",
     selectFailed: "无法更改此会话的模型。",
     currentUnavailable: "当前会话模型已不可用，请选择其他模型。",
@@ -221,12 +259,135 @@ export const extensionsZhCN = {
     high: "高",
     thinking: "思考",
   },
+  modelConfig: {
+    title: "模型",
+    description: "填入各提供方的 API 密钥即可使用其模型。",
+    loading: "正在加载模型配置…",
+    loadFailed: "无法加载模型配置。",
+    retry: "重试",
+    empty: "尚未配置模型提供方。",
+    configured: "已配置",
+    edit: "编辑",
+    delete: "删除",
+    removing: "正在删除…",
+    provider: "提供方",
+    selectProvider: "选择提供方",
+    addProvider: "添加提供方",
+    addCustomProvider: "添加自定义提供方",
+    customProviderTitle: "自定义提供方",
+    providerId: "Provider ID",
+    providerIdPlaceholder: "acme-gateway",
+    providerIdDescription: "以小写字母开头的标识，在请求中唯一标识该提供方，并用于派生凭据名。",
+    providerName: "显示名称",
+    providerNamePlaceholder: "显示名称",
+    apiProtocol: "API 协议",
+    apiKey: "API 密钥",
+    apiKeyPlaceholder: "输入 API 密钥，或留空使用环境认证",
+    apiKeyEditPlaceholder: "输入新 API 密钥，或留空保留当前配置",
+    environmentOnly: "此提供方使用环境认证",
+    customSettings: "自定义设置",
+    loadingDetails: "正在加载提供方设置…",
+    apiAddress: "API 地址",
+    apiAddressPlaceholder: "https://gateway.example/v1",
+    modelCatalog: "模型目录",
+    adapterDefaultModels: "正在使用适配器默认模型",
+    customModels: "已自定义模型目录",
+    fetchAvailableModels: "获取可用模型",
+    fetchingAvailableModels: "正在获取可用模型…",
+    restoreDefaultModels: "恢复默认模型",
+    adapterCatalogEmpty: "模型选择器中将不显示任何模型；目录外 ID 仍可直接发送。",
+    selectModelsTitle: "选择要添加的模型",
+    selectModelsDescription: "以下是模型提供方的可用模型，勾选要添加的模型。",
+    closeModelPicker: "关闭模型选择器",
+    availableModelsEmpty: "此提供方没有返回可用模型。",
+    addSelectedModels: "添加所选",
+    modelId: "模型 ID",
+    modelName: "显示名称",
+    contextWindow: "上下文窗口",
+    maxOutputTokens: "最大输出 token 数",
+    expandModel: ({ name }: { name: string }) => `展开${name || "模型"}`,
+    collapseModel: ({ name }: { name: string }) => `收起${name || "模型"}`,
+    removeModel: ({ name }: { name: string }) => `删除${name || "模型"}`,
+    addModel: "添加模型",
+    modelIdRequired: ({ index }: { index: number }) => `模型 ${index}: 模型 ID 不能为空。`,
+    cancel: "取消",
+    save: "保存",
+    createProvider: "创建提供方",
+    saving: "正在保存…",
+    errors: {
+      unsupported: "此提供方不能只通过一个 API 密钥进行配置。",
+      readonly: "此配置来自工作台外部，无法在此删除。",
+      environmentMissing: "未检测到此提供方的环境认证，请输入 API 密钥或先配置运行环境。",
+      loadDetailsFailed: "无法加载此提供方的设置。",
+      fetchModelsFailed: "无法获取此提供方的可用模型。",
+      providerRequired: "请输入提供方 ID。",
+      invalidProviderId:
+        "Provider ID 必须以小写字母开头，且只能包含小写字母、数字、点、下划线和连字符。",
+      providerExists: "此提供方 ID 已存在。",
+      apiAddressRequired: "请输入提供方 API 地址。",
+      modelRequired: "请至少添加一个模型。",
+      invalidModel: "请输入模型 ID 和有效的正数容量，例如 128K 或 1M。",
+      duplicateModel: "同一提供方内的模型 ID 不能重复。",
+      saveFailed: "无法保存模型配置，请重试。",
+    },
+  },
+  skills: {
+    title: "技能",
+    description: "查看当前 Pi 会话已加载的技能。",
+    loading: "正在加载会话技能…",
+    noSession: "请选择一个已有对话，以查看对应 Pi 会话可用的技能。",
+    sessionUnavailable: "此会话已不可用。",
+    loadFailed: "无法从 Pi 加载技能。",
+    retry: "重试",
+    refresh: "刷新技能",
+    searchLabel: "搜索技能",
+    searchPlaceholder: "搜索技能…",
+    count: ({ count }: { count: number }, { number }: MessageFormatters) =>
+      `${number(count)} 项技能`,
+    empty: "Pi 没有为此会话加载任何技能。",
+    noMatches: "没有匹配此搜索的技能。",
+    modelInvocable: "模型可调用",
+    manualOnly: "仅可手动调用",
+    whenToUse: "适用场景：",
+  },
   messagePresentation: {
     generating: "正在生成回答…",
     sourceFallback: "来源",
     elapsed: ({ duration }: { duration: string }) => `·${duration}·`,
-    completedTurn: ({ completedAt, duration }: { completedAt: string; duration: string }) =>
-      duration ? `已在 ${completedAt} 完成 · 耗时 ${duration}` : `已在 ${completedAt} 完成`,
+    completedTurn: ({
+      completedAt,
+      duration,
+      kind,
+    }: {
+      completedAt: string;
+      duration: string;
+      kind:
+        | "completed"
+        | "cancelled"
+        | "aborted"
+        | "length"
+        | "network-error"
+        | "api-error"
+        | "provider-error";
+    }) => {
+      const durationLabel = duration ? ` · 耗时 ${duration}` : "";
+      switch (kind) {
+        case "cancelled":
+          return `用户已在 ${completedAt} 停止生成${durationLabel}`;
+        case "aborted":
+          return `已在 ${completedAt} 中止${durationLabel}`;
+        case "length":
+          return `已在 ${completedAt} 停止 · 达到长度限制${durationLabel}`;
+        case "network-error":
+          return `已在 ${completedAt} 失败 · 网络连接错误${durationLabel}`;
+        case "api-error":
+          return `已在 ${completedAt} 失败 · API 错误${durationLabel}`;
+        case "provider-error":
+          return `已在 ${completedAt} 失败 · Provider 错误${durationLabel}`;
+        default:
+          return `已在 ${completedAt} 完成${durationLabel}`;
+      }
+    },
     toolTimeline: {
       active: (
         { steps, files }: { steps: number; files: number },
@@ -300,50 +461,49 @@ export const extensionsZhCN = {
     enable: "启用队列模式",
     messageFallback: "排队附件",
   },
-  skills: {
-    title: "技能",
-    add: "添加技能",
-    toggle: "切换技能面板",
-    summary: ({ count }: { count: number }, { number }: MessageFormatters) =>
-      `技能 ${number(count)}`,
-    intro: "启用此工作台预览中可用的本地能力。",
-    search: "搜索技能",
-    noMatches: "没有匹配的技能",
-    broaderSearch: "请尝试更宽泛的搜索词。",
-    enabledCount: ({ enabled, total }: { enabled: number; total: number }) =>
-      `已在本地启用 ${enabled}/${total} 项`,
-    items: {
-      research: {
-        title: "研究",
-        category: "知识",
-        description: "查找、比较并综合可信来源。",
-      },
-      codeReview: {
-        title: "代码审查",
-        category: "开发",
-        description: "检查变更中的缺陷和可维护性风险。",
-      },
-      documents: {
-        title: "文档",
-        category: "效率",
-        description: "起草并完善结构化文档。",
-      },
-      visualStudio: {
-        title: "视觉工作室",
-        category: "创意",
-        description: "规划并创建精美的视觉素材。",
-      },
-      dataAnalysis: {
-        title: "数据分析",
-        category: "分析",
-        description: "探索数据集并发现有用规律。",
-      },
-      browser: {
-        title: "浏览器控制",
-        category: "自动化",
-        description: "导航并检查基于浏览器的工作流程。",
-      },
-    },
+  workspaceReview: {
+    title: "审查",
+    empty: "暂未发现已变更文件。",
+    connectHint: "Agent 修改的文件会显示在这里；连接 Git 服务后可加载完整变更块。",
+    refresh: "刷新审查",
+    stage: "暂存",
+    unstage: "取消暂存",
+    revert: "还原",
+    commentLine: "批注此行",
+  },
+  workspaceExplorer: {
+    title: "资源管理器",
+    empty: "此工作树尚未连接文件缓冲区。",
+    openFiles: "打开本地文件",
+    files: "工作区文件",
+  },
+  workspaceFile: {
+    title: "文件",
+    unavailable: "此文件缓冲区尚未连接。",
+    save: "保存缓冲区",
+    saved: "已保存",
+    dirty: "未保存的更改",
+    source: ({ name }: { name: string }) => `${name} 源代码`,
+  },
+  workspaceBrowser: {
+    title: "浏览器",
+    newSession: "新建浏览器会话",
+    address: "浏览器地址",
+    navigate: "前往",
+    back: "后退",
+    forward: "前进",
+    reload: "刷新",
+    viewportTitle: "共享浏览器会话",
+    viewportDescription:
+      "此表面连接到独立浏览器会话。接入浏览器后端后，可在这里显示共享实时页面、截图和 CDP 状态。",
+    annotate: "批注浏览器元素",
+  },
+  workspaceArtifact: {
+    title: "产物",
+    missing: "此产物已不可用。",
+    rendered: "渲染预览",
+    source: "源代码",
+    annotate: "批注产物",
   },
   terminal: {
     title: "终端",

@@ -3,9 +3,10 @@
 import { useState, type CSSProperties, type ReactNode } from "react";
 
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { RightWorkspace, useRightWorkspaceState } from "@/components/right-workspace";
+import { cn } from "@/lib/utils";
 import { SlotHost } from "@/platform/extensions";
 
-import { PanelDock } from "@/workbench/panels/panel-dock";
 import { PanelLayout } from "@/workbench/panels/panel-layout";
 
 import { WorkbenchGlobalLayer } from "./workbench-global-layer";
@@ -21,6 +22,9 @@ const MAX_SIDEBAR_WIDTH = 560;
 export function WorkbenchShell({ children }: Readonly<{ children: ReactNode }>) {
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH);
   const [isSidebarResizing, setIsSidebarResizing] = useState(false);
+  const workspaceOpen = useRightWorkspaceState((state) => state.open);
+  const workspaceMaximized = useRightWorkspaceState((state) => state.maximized);
+  const conversationHidden = workspaceOpen && workspaceMaximized;
 
   const resizeSidebar = (width: number) => {
     const viewportMaximum = Math.floor(window.innerWidth / 2);
@@ -51,14 +55,21 @@ export function WorkbenchShell({ children }: Readonly<{ children: ReactNode }>) 
       />
 
       <div className="flex min-w-0 flex-1 overflow-hidden">
-        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <div
+          aria-hidden={conversationHidden ? true : undefined}
+          inert={conversationHidden ? true : undefined}
+          className={cn(
+            "flex min-w-0 flex-1 flex-col overflow-hidden",
+            conversationHidden && "invisible",
+          )}
+        >
           <WorkbenchHeader />
           <PanelLayout>
             <WorkbenchMain>{children}</WorkbenchMain>
           </PanelLayout>
           <WorkbenchStatusbar />
         </div>
-        <PanelDock location="right" />
+        <RightWorkspace />
       </div>
 
       <WorkbenchGlobalLayer />

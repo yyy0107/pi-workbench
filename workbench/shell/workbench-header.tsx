@@ -4,10 +4,10 @@ import { useAuiState } from "@assistant-ui/react";
 import { PanelLeftOpenIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { RightWorkspaceToggleButton } from "@/components/right-workspace";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useI18n } from "@/i18n";
 import { SlotHost } from "@/platform/extensions";
-import { RightPanelToggleButton } from "@/workbench/panels/right-panel-toggle-button";
 
 function SidebarOpenButton() {
   const { t } = useI18n();
@@ -53,7 +53,7 @@ export function WorkbenchHeader() {
 
       <div className="flex min-w-0 items-center justify-end gap-2">
         <SlotHost name="header.right" className="flex min-w-0 items-center justify-end gap-2" />
-        <RightPanelToggleButton />
+        <RightWorkspaceToggleButton />
       </div>
     </header>
   );
