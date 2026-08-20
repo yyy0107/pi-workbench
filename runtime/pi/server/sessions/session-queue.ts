@@ -104,8 +104,13 @@ export class SessionQueueProjection {
     this.followUp = nextFollowUp;
   }
 
-  append(lane: SessionQueueLane, prompt: PiQueuedPrompt): TrackedSessionQueueItem {
-    const item = { id: this.createId(), lane, prompt: copyPrompt(prompt) };
+  append(
+    lane: SessionQueueLane,
+    prompt: PiQueuedPrompt,
+    requestedId?: string,
+  ): TrackedSessionQueueItem {
+    const id = requestedId && !this.find(requestedId) ? requestedId : this.createId();
+    const item = { id, lane, prompt: copyPrompt(prompt) };
     if (lane === "steering") this.steering.push(item);
     else this.followUp.push(item);
     return item;

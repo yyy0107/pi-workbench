@@ -58,6 +58,11 @@ export interface PromptSubmissionProvenance {
   clientTimeZone?: string;
 }
 
+export interface PromptSubmissionResult {
+  queued: boolean;
+  queueItemId?: string;
+}
+
 type SessionEventListener = (event: PiEvent) => void;
 type RunningListener = (sessionIds: string[]) => void;
 
@@ -583,10 +588,15 @@ class HostedPiSession {
     mode: PiQueueMode,
     prompt: PiQueuedPrompt,
     provenance?: PromptSubmissionProvenance,
-  ): Promise<void> {
+  ): Promise<PromptSubmissionResult> {
     return this.runQueueMutation(async () => {
-      if (this.isRunning) await this.queueNow(mode, prompt);
-      else await this.promptNow(prompt.message, prompt.images);
+      let admission: PromptSubmissionResult = { queued: false };
+      if (this.isRunning) {
+        admission = {
+          queued: true,
+          queueItemId: await this.queueNow(mode, prompt, provenance?.rpcId),
+        };
+      } else await this.promptNow(prompt.message, prompt.images);
 
       if (provenance !== undefined) {
         try {
@@ -616,6 +626,7 @@ class HostedPiSession {
           }
         }
       }
+      return admission;
     });
   }
 
@@ -679,21 +690,27 @@ class HostedPiSession {
   }
 
   queue(mode: PiQueueMode, prompt: PiQueuedPrompt): Promise<void> {
-    return this.runQueueMutation(() => this.queueNow(mode, prompt));
+    return this.runQueueMutation(async () => {
+      await this.queueNow(mode, prompt);
+    });
   }
 
-  private async queueNow(mode: PiQueueMode, prompt: PiQueuedPrompt): Promise<void> {
+  private async queueNow(
+    mode: PiQueueMode,
+    prompt: PiQueuedPrompt,
+    requestedId?: string,
+  ): Promise<string> {
     if (!this.isRunning) throw new PiServerError("pi_session_not_running", 409);
     if (prompt.images?.length && !this.session.model?.input.includes("image")) {
       throw imageUnsupported();
     }
     const lane = mode === "steer" ? "steering" : "followUp";
-    this.queueProjection.append(lane, prompt);
+    const queueItem = this.queueProjection.append(lane, prompt, requestedId);
     if (this.pausedQueue && mode === "followUp") {
       this.pausedQueue.followUp.push(...copyQueuedPrompts([prompt]));
       this.publishQueueUpdate();
       this.touch();
-      return;
+      return queueItem.id;
     }
     try {
       if (mode === "steer") {
@@ -706,6 +723,7 @@ class HostedPiSession {
       throw error;
     }
     this.touch();
+    return queueItem.id;
   }
 
   private async restoreActiveQueue(queue: PromptQueueSnapshot): Promise<void> {
@@ -1634,12 +1652,12 @@ export async function submitPrompt(
   mode: PiQueueMode,
   prompt: PiQueuedPrompt,
   provenance?: PromptSubmissionProvenance,
-): Promise<void> {
+): Promise<PromptSubmissionResult> {
   if (!prompt.message.trim() && !prompt.images?.length) {
     throw new PiServerError("pi_empty_prompt", 400);
   }
   const host = await getOrStartSession(id);
-  await host.submit(mode, prompt, provenance);
+  return host.submit(mode, prompt, provenance);
 }
 
 export async function replacePromptQueue(

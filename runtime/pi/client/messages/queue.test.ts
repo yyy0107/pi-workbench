@@ -51,19 +51,25 @@ function queued(id: string, text: string, placement: QueueItem["placement"] = "q
 
 function harness() {
   const calls: unknown[] = [];
+  let nextId = 0;
   const queue = new PiMessageQueue({
     isRunning: () => true,
     run: async (value) => {
       calls.push(["run", value]);
     },
-    enqueue: async (mode, prompt) => {
-      calls.push(["enqueue", mode, prompt]);
+    createId: () => `client-queue-${++nextId}`,
+    enqueue: async (mode, prompt, rpcId) => {
+      calls.push(["enqueue", mode, prompt, rpcId]);
+      return { queued: true, queueItemId: rpcId };
     },
     update: async (id, action) => {
       calls.push(["update", id, action]);
     },
     setPaused: async (paused, steering, followUp) => {
       calls.push(["paused", paused, steering, followUp]);
+    },
+    onSteerRejected: (id) => {
+      calls.push(["steer-rejected", id]);
     },
     onChange: () => {},
   });
@@ -75,18 +81,73 @@ async function flush(): Promise<void> {
   await new Promise<void>((resolve) => setImmediate(resolve));
 }
 
-test("waits for the authoritative snapshot instead of minting a local queue id", async () => {
+test("publishes a follow-up immediately and lets the authoritative snapshot adopt its id", async () => {
   const { queue, calls } = harness();
   queue.adapter.enqueue(message("later"));
-  assert.equal(queue.adapter.items.length, 0);
-  await flush();
-  assert.deepEqual(calls, [["enqueue", "followUp", { message: "later" }]]);
-
-  queue.replaceAuthoritative([queued("host-id", "later")]);
   assert.deepEqual(
     queue.adapter.items.map((item) => [item.id, item.prompt]),
-    [["host-id", "later"]],
+    [["client-queue-1", "later"]],
   );
+  await flush();
+  assert.deepEqual(calls, [["enqueue", "followUp", { message: "later" }, "client-queue-1"]]);
+
+  queue.replaceAuthoritative([queued("client-queue-1", "later")]);
+  assert.deepEqual(
+    queue.adapter.items.map((item) => [item.id, item.prompt]),
+    [["client-queue-1", "later"]],
+  );
+});
+
+test("keeps an optimistic follow-up across stale snapshots and rolls it back on rejection", async (t) => {
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  t.after(() => {
+    console.error = originalConsoleError;
+  });
+  let rejectRequest: ((error: Error) => void) | undefined;
+  const queue = new PiMessageQueue({
+    isRunning: () => true,
+    run: async () => {},
+    createId: () => "client-queue",
+    enqueue: () =>
+      new Promise((_, reject) => {
+        rejectRequest = reject;
+      }),
+    update: async () => {},
+    setPaused: async () => {},
+    onSteerRejected: () => {},
+    onChange: () => {},
+  });
+
+  queue.adapter.enqueue(message("later"));
+  queue.replaceAuthoritative([]);
+  assert.deepEqual(
+    queue.adapter.items.map((item) => [item.id, item.prompt]),
+    [["client-queue", "later"]],
+  );
+
+  await flush();
+  rejectRequest?.(new Error("queue rejected"));
+  await flush();
+  assert.deepEqual(queue.adapter.items, []);
+});
+
+test("removes the optimistic queue row when admission starts it as the next turn", async () => {
+  const queue = new PiMessageQueue({
+    isRunning: () => true,
+    run: async () => {},
+    createId: () => "client-queue",
+    enqueue: async () => ({ queued: false }),
+    update: async () => {},
+    setPaused: async () => {},
+    onSteerRejected: () => {},
+    onChange: () => {},
+  });
+
+  queue.adapter.enqueue(message("run next"));
+  assert.equal(queue.adapter.items.length, 1);
+  await flush();
+  assert.deepEqual(queue.adapter.items, []);
 });
 
 test("edits, removes, and steers using the stable host item id", async () => {
@@ -102,6 +163,16 @@ test("edits, removes, and steers using the stable host item id", async () => {
   queue.adapter.enqueue(message("edited"));
   queue.adapter.remove("queue-2");
   queue.adapter.move("queue-2", { lane: "steer", insertAfter: null });
+  queue.adapter.move("queue-2", { lane: "steer", insertAfter: null });
+
+  assert.deepEqual(
+    queue.adapter.items.map((item) => item.id),
+    ["queue-1"],
+  );
+  assert.deepEqual(
+    queue.adapter.steerItems.map((item) => item.id),
+    ["queue-2"],
+  );
   await flush();
 
   assert.deepEqual(calls, [
@@ -109,6 +180,55 @@ test("edits, removes, and steers using the stable host item id", async () => {
     ["update", "queue-2", { kind: "remove" }],
     ["update", "queue-2", { kind: "steer" }],
   ]);
+});
+
+test("keeps an accepted steer promoted across an older queued snapshot", async () => {
+  const { queue, calls } = harness();
+  queue.replaceAuthoritative([queued("queue-1", "redirect")]);
+
+  queue.adapter.move("queue-1", { lane: "steer", insertAfter: null });
+  queue.replaceAuthoritative([queued("queue-1", "redirect")]);
+
+  assert.deepEqual(queue.adapter.items, []);
+  assert.deepEqual(
+    queue.adapter.steerItems.map((item) => [item.id, item.prompt]),
+    [["queue-1", "redirect"]],
+  );
+  await flush();
+  assert.deepEqual(calls, [["update", "queue-1", { kind: "steer" }]]);
+});
+
+test("restores the queued row when steer is rejected", async (t) => {
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  t.after(() => {
+    console.error = originalConsoleError;
+  });
+  const calls: unknown[] = [];
+  const queue = new PiMessageQueue({
+    isRunning: () => true,
+    run: async () => {},
+    createId: () => "client-queue",
+    enqueue: async (_mode, _prompt, rpcId) => ({ queued: true, queueItemId: rpcId }),
+    update: async () => {
+      throw new Error("steer rejected");
+    },
+    setPaused: async () => {},
+    onSteerRejected: (id) => calls.push(["steer-rejected", id]),
+    onChange: () => {},
+  });
+  queue.replaceAuthoritative([queued("queue-1", "redirect")]);
+
+  queue.adapter.move("queue-1", { lane: "steer", insertAfter: null });
+  assert.equal(queue.adapter.items.length, 0);
+  await flush();
+
+  assert.deepEqual(
+    queue.adapter.items.map((item) => [item.id, item.prompt]),
+    [["queue-1", "redirect"]],
+  );
+  assert.deepEqual(queue.adapter.steerItems, []);
+  assert.deepEqual(calls, [["steer-rejected", "queue-1"]]);
 });
 
 test("maps queued and steering content while leaving context outside the composer queue", () => {

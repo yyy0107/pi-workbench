@@ -388,6 +388,8 @@ export interface SessionPromptPayload {
 
 export interface SessionPromptValue {
   accepted: true;
+  queued: boolean;
+  queueItemId?: string;
   command?: { kind: "success"; text?: string };
 }
 

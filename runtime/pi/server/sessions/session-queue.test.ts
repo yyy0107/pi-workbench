@@ -63,3 +63,11 @@ test("projects complete text and image messages without losing full content on P
     },
   ]);
 });
+
+test("uses the prompt RPC id as the stable queue id when it is available", () => {
+  const queue = new SessionQueueProjection({ createId: ids() });
+  const item = queue.append("followUp", { message: "later" }, "session.prompt:client-1");
+
+  assert.equal(item.id, "session.prompt:client-1");
+  assert.equal(queue.items()[0]?.id, "session.prompt:client-1");
+});

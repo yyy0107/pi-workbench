@@ -25,6 +25,7 @@ import {
 import {
   archivePiWorkspaceSession,
   cancelPiRpcSession,
+  createPiRpcId,
   createPiRpcSession,
   describePiHost,
   deletePiWorkspace,
@@ -43,6 +44,7 @@ import type {
   QuestionAnswerItem,
   RpcReceipt,
   SessionHistoryValue,
+  SessionPromptValue,
   SessionQueueAction,
   WorkspaceView,
 } from "../../rpc-contracts";
@@ -208,10 +210,12 @@ export class PiClientSession {
     this.messageQueue = new PiMessageQueue({
       isRunning: () => this.snapshotValue.isRunning,
       run: (message) => this.send(message),
-      enqueue: (mode, prompt) => this.queuePrompt(mode, prompt),
+      createId: () => createPiRpcId("session.prompt"),
+      enqueue: (mode, prompt, rpcId) => this.queuePrompt(mode, prompt, rpcId),
       update: (itemId, action) => this.updateQueue(itemId, action),
       setPaused: (paused, steering, followUp) => this.setQueuePaused(paused, steering, followUp),
       onChange: () => this.replaceSnapshot({ queuePaused: this.messageQueue.isPaused }),
+      onSteerRejected: () => {},
     });
     this.runtimeExtras = {
       piQueue: {
@@ -425,21 +429,29 @@ export class PiClientSession {
     await cancelPiRpcSession({ sessionId: this.remoteIdValue });
   }
 
-  private async queuePrompt(mode: PiQueueMode, prompt: PiQueuedPrompt): Promise<void> {
+  private async queuePrompt(
+    mode: PiQueueMode,
+    prompt: PiQueuedPrompt,
+    rpcId: string,
+  ): Promise<SessionPromptValue> {
     if (!this.remoteIdValue) throw new PiApiError("pi_session_not_found", 404);
     await this.manager.connections.ensureSessionEvents(this.remoteIdValue, this.handleEvent);
     const clientTimeZone = browserTimeZone();
     const workspaceFeedback = this.manager.getWorkspaceFeedback(this.localId, this.remoteIdValue);
-    await promptPiRpcSession({
-      sessionId: this.remoteIdValue,
-      mode: mode === "steer" ? "steer" : "queue",
-      content: piPromptContent(
-        appendWorkspaceFeedbackContext(prompt.message, workspaceFeedback),
-        prompt.images,
-      ),
-      ...(clientTimeZone === undefined ? {} : { clientTimeZone }),
-    });
+    const admission = await promptPiRpcSession(
+      {
+        sessionId: this.remoteIdValue,
+        mode: mode === "steer" ? "steer" : "queue",
+        content: piPromptContent(
+          appendWorkspaceFeedbackContext(prompt.message, workspaceFeedback),
+          prompt.images,
+        ),
+        ...(clientTimeZone === undefined ? {} : { clientTimeZone }),
+      },
+      rpcId,
+    );
     this.manager.commitWorkspaceFeedback(workspaceFeedback.map((feedback) => feedback.id));
+    return admission;
   }
 
   private async updateQueue(itemId: string, action: SessionQueueAction): Promise<void> {

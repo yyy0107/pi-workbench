@@ -88,7 +88,7 @@ async function responseJson<T>(response: Response): Promise<T> {
   throw new PiApiError(code, response.status);
 }
 
-function createRpcId(method: string): string {
+export function createPiRpcId(method: string): string {
   return (
     globalThis.crypto?.randomUUID?.() ??
     `${method}-${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -99,8 +99,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-export async function callPiRpc<Payload, Value>(method: string, payload: Payload): Promise<Value> {
-  const rpcId = createRpcId(method);
+export interface PiRpcCallOptions {
+  /** Allows a caller to correlate the HTTP response with a matching events.mux frame. */
+  rpcId?: string;
+}
+
+export async function callPiRpc<Payload, Value>(
+  method: string,
+  payload: Payload,
+  options: PiRpcCallOptions = {},
+): Promise<Value> {
+  const rpcId = options.rpcId ?? createPiRpcId(method);
   const response = await fetch(`/api/${method}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -354,8 +363,11 @@ export function forkPiRpcSession(payload: SessionForkPayload): Promise<SessionFo
   return callPiRpc("session.fork", payload);
 }
 
-export function promptPiRpcSession(payload: SessionPromptPayload): Promise<SessionPromptValue> {
-  return callPiRpc("session.prompt", payload);
+export function promptPiRpcSession(
+  payload: SessionPromptPayload,
+  rpcId?: string,
+): Promise<SessionPromptValue> {
+  return callPiRpc("session.prompt", payload, rpcId === undefined ? {} : { rpcId });
 }
 
 export function fetchPiRpcSessionAttachment(

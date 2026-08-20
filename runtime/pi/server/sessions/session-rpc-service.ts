@@ -52,6 +52,7 @@ import {
   getSessionHistory,
   listModels,
   listSessions,
+  type PromptSubmissionResult,
   renameSession,
   selectSessionModel,
   submitPrompt,
@@ -169,7 +170,7 @@ export interface SessionRpcDependencies {
     mode: "steer" | "followUp",
     prompt: PiQueuedPrompt,
     provenance?: SessionPromptProvenance,
-  ): Promise<void>;
+  ): Promise<PromptSubmissionResult>;
   updateQueueItem(
     sessionId: string,
     itemId: string,
@@ -1068,8 +1069,9 @@ export class SessionRpcService {
       message,
       ...(images.length ? { images } : {}),
     };
+    let admission: PromptSubmissionResult;
     try {
-      await this.dependencies.submitPrompt(
+      admission = await this.dependencies.submitPrompt(
         input.sessionId,
         input.mode === "steer" ? "steer" : "followUp",
         prompt,
@@ -1081,7 +1083,7 @@ export class SessionRpcService {
     } catch (error) {
       this.translate(error, { sessionId: input.sessionId });
     }
-    return { accepted: true };
+    return { accepted: true, ...admission };
   }
 
   async attachment(input: SessionAttachmentInput): Promise<SessionAttachmentValue> {
