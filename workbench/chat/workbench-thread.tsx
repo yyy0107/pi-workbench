@@ -22,7 +22,12 @@ import {
 
 import { WorkbenchComposer } from "./workbench-composer";
 import { WorkbenchEmpty } from "./workbench-empty";
-import { isLastConversationPair } from "./workbench-message-rows";
+import {
+  conversationPairKey,
+  isLastConversationPair,
+  messageRowHasVisibleContent,
+  shouldShowWorkingStatus,
+} from "./workbench-message-rows";
 import {
   WorkbenchAssistantMessage,
   WorkbenchEditComposer,
@@ -35,6 +40,8 @@ interface MessageRow {
   id: string;
   role: "user" | "assistant" | "system";
   createdAt: number;
+  status: string;
+  hasVisibleContent: boolean;
 }
 
 interface ThreadScrollPosition {
@@ -182,16 +189,21 @@ function useThreadMessageRows(): readonly MessageRow[] {
         (row, index) =>
           row.id === messages[index]?.id &&
           row.role === messages[index]?.role &&
-          row.createdAt === messages[index]?.createdAt.getTime(),
+          row.createdAt === messages[index]?.createdAt.getTime() &&
+          row.status === (messages[index]?.status?.type ?? "complete") &&
+          row.hasVisibleContent ===
+            (messages[index] ? messageRowHasVisibleContent(messages[index]) : false),
       )
     ) {
       return previous;
     }
 
-    const next = messages.map(({ id, role, createdAt }) => ({
-      id,
-      role,
-      createdAt: createdAt.getTime(),
+    const next = messages.map((message) => ({
+      id: message.id,
+      role: message.role,
+      createdAt: message.createdAt.getTime(),
+      status: message.status?.type ?? "complete",
+      hasVisibleContent: messageRowHasVisibleContent(message),
     }));
     previousRows.current = next;
     return next;
@@ -200,19 +212,11 @@ function useThreadMessageRows(): readonly MessageRow[] {
 
 function PiWorkingStatus() {
   const { t } = useI18n();
-  const isRunning = useAuiState((state) => state.thread.isRunning);
-  const isEmpty = useAuiState((state) => state.thread.isEmpty);
   const runStartedAt = useAuiState((state) => currentRunStartedAt(state.thread.messages));
   const fallbackStartedAt = useRef<number | undefined>(undefined);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   useEffect(() => {
-    if (!isRunning) {
-      fallbackStartedAt.current = undefined;
-      setElapsedSeconds(0);
-      return;
-    }
-
     const startedAt = runStartedAt ?? fallbackStartedAt.current ?? Date.now();
     fallbackStartedAt.current = startedAt;
     const updateElapsed = () => {
@@ -222,9 +226,7 @@ function PiWorkingStatus() {
     updateElapsed();
     const interval = window.setInterval(updateElapsed, 1_000);
     return () => window.clearInterval(interval);
-  }, [isRunning, runStartedAt]);
-
-  if (isEmpty || !isRunning) return null;
+  }, [runStartedAt]);
 
   return (
     <div
@@ -232,7 +234,7 @@ function PiWorkingStatus() {
       role="status"
       aria-live="polite"
       aria-label={t("workbench.chat.working")}
-      className="text-foreground/70 mx-auto mb-4 flex h-[26px] w-full max-w-[var(--thread-max-width)] shrink-0 items-center gap-2 px-2 text-sm font-medium [overflow-anchor:auto]"
+      className="text-foreground/70 flex min-h-[var(--assistant-turn-min-height)] w-full shrink-0 items-center gap-2 text-sm font-medium [overflow-anchor:none]"
     >
       <ThinkingOrb
         state="connecting"
@@ -254,10 +256,9 @@ function PiWorkingStatus() {
   );
 }
 
-function WorkbenchMessages() {
+function WorkbenchMessages({ isRunning }: Readonly<{ isRunning: boolean }>) {
   const { date } = useI18n();
   const messages = useThreadMessageRows();
-  const isRunning = useAuiState((state) => state.thread.isRunning);
   const items: React.ReactNode[] = [];
   let previousDay: string | undefined;
 
@@ -305,25 +306,44 @@ function WorkbenchMessages() {
       localDayKey(nextMessage.createdAt) === day
         ? index + 1
         : undefined;
+    const hasAssistantMessage = message.role === "assistant" || assistantIndex !== undefined;
+    const assistantMessage =
+      hasAssistantMessage && messages[assistantIndex ?? index]?.role === "assistant"
+        ? messages[assistantIndex ?? index]
+        : undefined;
     const pairMessageIndex = assistantIndex ?? index;
-    const isLastPair = isLastConversationPair(messages, pairMessageIndex);
+    const showWorkingStatus = shouldShowWorkingStatus({
+      isLastPair: isLastConversationPair(messages, pairMessageIndex),
+      threadIsRunning: isRunning,
+      assistantStatus: assistantMessage?.status,
+      assistantHasVisibleContent: assistantMessage?.hasVisibleContent ?? false,
+    });
+    const hasAssistantTurn = hasAssistantMessage || showWorkingStatus;
 
     items.push(
       <MessagePair
-        key={assistantIndex === undefined ? message.id : `${message.id}:${nextMessage.id}`}
+        key={conversationPairKey(message)}
         variant="flat"
-        className={`max-w-none gap-4 px-2 [contain-intrinsic-size:auto_12rem] [content-visibility:auto] ${isLastPair ? "[overflow-anchor:auto]" : "[overflow-anchor:none]"}`}
+        className="max-w-none gap-4 px-2 [overflow-anchor:none]"
         userMessage={
           message.role === "user" ? (
             <ThreadPrimitive.MessageByIndex index={index} components={messageComponents} />
           ) : undefined
         }
         assistantMessage={
-          message.role === "assistant" || assistantIndex !== undefined ? (
-            <ThreadPrimitive.MessageByIndex
-              index={assistantIndex ?? index}
-              components={messageComponents}
-            />
+          hasAssistantTurn ? (
+            <div
+              data-slot="assistant-message-slot"
+              className="min-h-[var(--assistant-turn-min-height)] w-full [overflow-anchor:none]"
+            >
+              {hasAssistantMessage ? (
+                <ThreadPrimitive.MessageByIndex
+                  index={assistantIndex ?? index}
+                  components={messageComponents}
+                />
+              ) : null}
+              {showWorkingStatus ? <PiWorkingStatus /> : null}
+            </div>
           ) : undefined
         }
       />,
@@ -337,7 +357,7 @@ function WorkbenchMessages() {
   return (
     <div
       data-slot="conversation-flow"
-      className={`mx-auto flex w-full max-w-[var(--thread-max-width)] shrink-0 flex-col gap-4 ${isRunning ? "pb-1 [overflow-anchor:none]" : "pb-4 [overflow-anchor:auto]"}`}
+      className="mx-auto flex w-full max-w-[var(--thread-max-width)] shrink-0 flex-col gap-4 pb-4 [overflow-anchor:none]"
     >
       {items}
     </div>
@@ -734,6 +754,9 @@ export function WorkbenchThread() {
       style={
         {
           "--thread-max-width": "48rem",
+          // A one-line settled turn is at most 84px with the current completion/reasoning chrome.
+          // Reserving that scaffold from the optimistic frame prevents a vertical snap.
+          "--assistant-turn-min-height": "5.25rem",
         } as React.CSSProperties
       }
     >
@@ -773,15 +796,13 @@ export function WorkbenchThread() {
             </WorkbenchEmpty>
           </ThreadPrimitive.Empty>
 
-          <WorkbenchMessages />
+          <WorkbenchMessages isRunning={isRunning} />
 
           <SlotHost
             name="thread.after"
             context={slotContext}
             className="mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-2 [overflow-anchor:none]"
           />
-
-          <PiWorkingStatus />
 
           <ThreadPrimitive.ScrollToBottom
             render={

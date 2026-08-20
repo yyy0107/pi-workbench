@@ -603,7 +603,7 @@ export function piHistoryToThreadMessages(
   return coalesceConsecutiveAssistantMessages(messages);
 }
 
-function sameUserPrompt(left: ThreadUserMessage, right: ThreadUserMessage): boolean {
+export function sameUserPrompt(left: ThreadUserMessage, right: ThreadUserMessage): boolean {
   const leftPrompt = appendMessageToPiPrompt(left);
   const rightPrompt = appendMessageToPiPrompt(right);
   if (

@@ -49,7 +49,7 @@ export function MessagePair({
         </div>
       )}
       {(assistantMessage !== undefined || shown.length > 0 || streaming || actions) && (
-        <div className="group/message flex min-w-0 flex-col items-start [overflow-anchor:auto]">
+        <div className="group/message flex min-w-0 flex-col items-start [overflow-anchor:none]">
           {assistantMessage ?? (
             <p className="min-h-[4.25rem] text-sm leading-relaxed">
               {shown.map((word, index) => {

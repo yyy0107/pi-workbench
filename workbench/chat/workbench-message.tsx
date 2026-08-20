@@ -164,11 +164,6 @@ export function WorkbenchAssistantMessage() {
         <WorkbenchMessageActions className="mt-1" />
       </div>
       <MessageSlot name="message.after" />
-      <span
-        data-slot="assistant-scroll-anchor"
-        aria-hidden="true"
-        className="block size-px [overflow-anchor:auto]"
-      />
     </MessagePrimitive.Root>
   );
 }
