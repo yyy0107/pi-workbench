@@ -13,7 +13,6 @@ import { TypingIndicator } from "@/components/elements/typing-indicator";
 import { useI18n } from "@/i18n";
 import { formatCompactDuration } from "@/lib/format-duration";
 import { SlotHost } from "@/platform/extensions";
-import { parsePiConversationEvent } from "@/runtime/pi/client/messages/conversation-events";
 import {
   conversationThreadIdFromPathname,
   resolvePromotedThreadRouteId,
@@ -50,6 +49,7 @@ interface ThreadScrollPosition {
 const THREAD_SCROLL_STORAGE_KEY = "workbench.thread-scroll-positions.v1";
 const MAX_SAVED_THREAD_SCROLL_POSITIONS = 50;
 const BOTTOM_DISTANCE_THRESHOLD = 2;
+const DEFAULT_COMPOSER_DOCK_INSET_PX = 138;
 const threadScrollPositions = new Map<string, ThreadScrollPosition>();
 let threadScrollPositionsLoaded = false;
 let threadScrollPersistenceFrame: number | null = null;
@@ -229,7 +229,7 @@ function PiWorkingStatus() {
       role="status"
       aria-live="polite"
       aria-label={t("workbench.chat.working")}
-      className="text-foreground/70 flex min-h-[var(--assistant-turn-min-height)] w-full shrink-0 items-center gap-2 text-sm font-medium [overflow-anchor:none]"
+      className="text-foreground/70 flex h-12 w-full shrink-0 items-center gap-2 text-sm font-medium [overflow-anchor:none]"
     >
       <ThinkingOrb
         state="connecting"
@@ -484,43 +484,17 @@ export function WorkbenchThread() {
   const activeThreadId = useAuiState((state) => state.threads.mainThreadId);
   const isEmpty = useAuiState((state) => state.thread.isEmpty);
   const isRunning = useAuiState((state) => state.thread.isRunning);
-  const queueLength = useAuiState((state) => state.thread.composer.queue.length);
-  const trailingModelChangeRevision = useAuiState((state) => {
-    const message = state.thread.messages.at(-1);
-    if (message?.role !== "system") return undefined;
-    const event = parsePiConversationEvent(message.metadata.custom.piConversationEvent);
-    if (event?.kind !== "model-change") return undefined;
-
-    return [
-      message.id,
-      event.previousProvider ?? "",
-      event.previousModel ?? "",
-      event.provider ?? "",
-      event.model,
-    ].join("\u0000");
-  });
   const viewportRef = useRef<HTMLDivElement>(null);
+  const threadFrameRef = useRef<HTMLDivElement>(null);
+  const composerDockRef = useRef<HTMLDivElement>(null);
+  const measuredComposerDockInset = useRef(DEFAULT_COMPOSER_DOCK_INSET_PX);
+  const [composerDockInset, setComposerDockInset] = useState(DEFAULT_COMPOSER_DOCK_INSET_PX);
   const wasAtBottom = useRef(true);
-  const previousQueueLength = useRef(queueLength);
   const previousIsRunning = useRef(isRunning);
-  const completionFollowActive = useRef(false);
-  const completionFollowCleanup = useRef<(() => void) | null>(null);
-  const modelChangeFollowCleanup = useRef<(() => void) | null>(null);
   const scrollPositionThreadId = useRef(activeThreadId);
   const scrollRestorationActive = useRef(false);
   const scrollRestorationCleanup = useRef<(() => void) | null>(null);
   const slotContext = { threadId: threadId ?? activeThreadId };
-
-  const stopCompletionFollow = useCallback(() => {
-    completionFollowCleanup.current?.();
-    completionFollowCleanup.current = null;
-    completionFollowActive.current = false;
-  }, []);
-
-  const stopModelChangeFollow = useCallback(() => {
-    modelChangeFollowCleanup.current?.();
-    modelChangeFollowCleanup.current = null;
-  }, []);
 
   const stopScrollRestoration = useCallback(() => {
     scrollRestorationCleanup.current?.();
@@ -543,6 +517,39 @@ export function WorkbenchThread() {
     if (!viewport) return;
     viewport.scrollTo({ top: viewport.scrollHeight, behavior: "instant" });
   }, []);
+
+  useLayoutEffect(() => {
+    if (isEmpty) return;
+
+    const threadFrame = threadFrameRef.current;
+    const composerDock = composerDockRef.current;
+    if (!threadFrame || !composerDock) return;
+
+    const syncComposerDockInset = () => {
+      const measuredHeight = composerDock.getBoundingClientRect().height;
+      if (!Number.isFinite(measuredHeight) || measuredHeight <= 0) return;
+
+      const nextInset = Math.ceil(measuredHeight);
+      if (measuredComposerDockInset.current === nextInset) return;
+
+      const shouldRemainAtBottom = wasAtBottom.current;
+      measuredComposerDockInset.current = nextInset;
+
+      // Apply the measured value immediately so the browser cannot paint a frame where a newly
+      // inserted queue row overlaps the conversation. State keeps React's style model in sync.
+      threadFrame.style.setProperty("--composer-dock-inset", `${nextInset}px`);
+      if (shouldRemainAtBottom) {
+        scrollToBottom();
+        wasAtBottom.current = true;
+      }
+      setComposerDockInset(nextInset);
+    };
+
+    syncComposerDockInset();
+    const resizeObserver = new ResizeObserver(syncComposerDockInset);
+    resizeObserver.observe(composerDock);
+    return () => resizeObserver.disconnect();
+  }, [activeThreadId, isEmpty, scrollToBottom]);
 
   useLayoutEffect(() => {
     stopScrollRestoration();
@@ -611,58 +618,15 @@ export function WorkbenchThread() {
     return stop;
   }, [activeThreadId, rememberCurrentScrollPosition, scrollToBottom, stopScrollRestoration]);
 
-  useLayoutEffect(() => {
-    if (trailingModelChangeRevision === undefined) return;
-
-    stopModelChangeFollow();
-    const viewport = viewportRef.current;
-    if (!viewport) return;
-
-    const conversationFlow = viewport.querySelector<HTMLElement>('[data-slot="conversation-flow"]');
-    let frame: number | null = null;
-    let timeout: number | null = null;
-    let stopped = false;
-
-    const keepAtBottom = () => {
-      if (stopped) return;
-      scrollToBottom();
-      if (frame !== null) window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(() => {
-        frame = null;
-        scrollToBottom();
-      });
-    };
-    const observer = new ResizeObserver(keepAtBottom);
-    const stop = () => {
-      if (stopped) return;
-      stopped = true;
-      observer.disconnect();
-      if (frame !== null) window.cancelAnimationFrame(frame);
-      if (timeout !== null) window.clearTimeout(timeout);
-      if (modelChangeFollowCleanup.current === stop) {
-        modelChangeFollowCleanup.current = null;
-      }
-    };
-
-    if (conversationFlow) observer.observe(conversationFlow);
-    modelChangeFollowCleanup.current = stop;
-    timeout = window.setTimeout(stop, 3_000);
-    keepAtBottom();
-
-    return stop;
-  }, [scrollToBottom, stopModelChangeFollow, trailingModelChangeRevision]);
-
   useEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport) return;
 
     const updateBottomState = () => {
-      if (completionFollowActive.current || scrollRestorationActive.current) return;
+      if (scrollRestorationActive.current) return;
       rememberCurrentScrollPosition();
     };
     const cancelScrollFollow = () => {
-      stopCompletionFollow();
-      stopModelChangeFollow();
       stopScrollRestoration();
     };
 
@@ -675,71 +639,21 @@ export function WorkbenchThread() {
       viewport.removeEventListener("scroll", updateBottomState);
       viewport.removeEventListener("pointerdown", cancelScrollFollow);
       viewport.removeEventListener("wheel", cancelScrollFollow);
-      stopCompletionFollow();
-      stopModelChangeFollow();
       stopScrollRestoration();
       rememberCurrentScrollPosition();
     };
-  }, [
-    rememberCurrentScrollPosition,
-    stopCompletionFollow,
-    stopModelChangeFollow,
-    stopScrollRestoration,
-  ]);
+  }, [rememberCurrentScrollPosition, stopScrollRestoration]);
 
   useLayoutEffect(() => {
-    const viewport = viewportRef.current;
-    const queueChanged = previousQueueLength.current !== queueLength;
     const runStarted = !previousIsRunning.current && isRunning;
-    const runCompleted = previousIsRunning.current && !isRunning;
-
-    previousQueueLength.current = queueLength;
     previousIsRunning.current = isRunning;
+    if (!runStarted) return;
 
-    // The viewport schedules a bottom scroll on run start. Preserve that intent while the
-    // smooth scroll is still in flight, then let real user scrolling update it again.
-    if (runStarted) wasAtBottom.current = true;
-
-    if (queueChanged && isRunning && wasAtBottom.current) {
-      scrollToBottom();
-    }
-
-    if (!viewport || !runCompleted || !wasAtBottom.current) return;
-
-    stopCompletionFollow();
-
-    let settleTimer: number | null = null;
-    let frame: number | null = null;
-    let disconnectContentObserver = () => {};
-    const stop = () => {
-      disconnectContentObserver();
-      if (settleTimer !== null) window.clearTimeout(settleTimer);
-      if (frame !== null) window.cancelAnimationFrame(frame);
-      if (completionFollowCleanup.current === stop) {
-        completionFollowCleanup.current = null;
-        completionFollowActive.current = false;
-      }
-    };
-    const keepAtBottom = () => {
-      scrollToBottom();
-      if (frame !== null) window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(() => {
-        frame = null;
-        scrollToBottom();
-      });
-      if (settleTimer !== null) window.clearTimeout(settleTimer);
-      settleTimer = window.setTimeout(stop, 250);
-    };
-
-    completionFollowActive.current = true;
-    completionFollowCleanup.current = stop;
-    // Completion can collapse reasoning/tools, remove Pi Working, and resize the sticky composer.
-    // Observe every direct viewport surface so the final correction includes the true scroll end.
-    disconnectContentObserver = observeViewportContent(viewport, keepAtBottom);
-    keepAtBottom();
-
-    return stop;
-  }, [isRunning, queueLength, scrollToBottom, stopCompletionFollow]);
+    // ThreadPrimitive schedules its run-start scroll for the next frame. Cancel any progressive
+    // history restoration before then so that assistant-ui remains the only writer for this run.
+    stopScrollRestoration();
+    wasAtBottom.current = true;
+  }, [isRunning, stopScrollRestoration]);
 
   return (
     <ThreadPrimitive.Root
@@ -761,22 +675,31 @@ export function WorkbenchThread() {
         className="flex h-full min-h-0 shrink-0 flex-col empty:hidden"
       />
 
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div
+        ref={threadFrameRef}
+        className="relative flex min-h-0 min-w-0 flex-1 flex-col"
+        style={
+          {
+            "--composer-dock-inset": `${composerDockInset}px`,
+          } as React.CSSProperties
+        }
+      >
         <SlotHost
           name="thread.header"
           context={slotContext}
           className="flex shrink-0 items-center gap-2 border-b px-4 empty:hidden"
         />
 
-        {/* New runs and explicit requests scroll to the end. Thread switches use the per-thread
-            restoration above, while auto-scroll follows late content only when already at bottom. */}
+        {/* assistant-ui exclusively owns scrolling while a run is active. Browser scroll anchoring
+            is disabled, and thread restoration is stopped before the run-start frame. */}
         <ThreadPrimitive.Viewport
           ref={viewportRef}
           turnAnchor="bottom"
           autoScroll
           scrollToBottomOnInitialize={false}
+          scrollToBottomOnRunStart
           scrollToBottomOnThreadSwitch={false}
-          className="relative flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto scroll-smooth px-4 pt-4"
+          className={`relative flex min-h-0 flex-1 scroll-smooth flex-col overflow-x-hidden overflow-y-auto px-4 pt-4 motion-reduce:scroll-auto [overflow-anchor:none] ${isEmpty ? "" : "[padding-bottom:var(--composer-dock-inset)]"}`}
         >
           <SlotHost
             name="thread.before"
@@ -797,13 +720,16 @@ export function WorkbenchThread() {
             context={slotContext}
             className="mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-2 [overflow-anchor:none]"
           />
+        </ThreadPrimitive.Viewport>
 
+        {!isEmpty ? (
           <ThreadPrimitive.ScrollToBottom
+            behavior="smooth"
             render={
               <TooltipIconButton
                 tooltip={t("workbench.chat.scrollLatest")}
                 variant="outline"
-                className="bg-background sticky bottom-44 z-10 mx-auto -mt-8 size-8 shrink-0 rounded-full shadow-sm disabled:invisible [overflow-anchor:none]"
+                className="bg-background absolute bottom-[calc(var(--composer-dock-inset)+0.5rem)] left-1/2 z-30 size-8 -translate-x-1/2 rounded-full shadow-sm disabled:invisible"
               />
             }
           >
@@ -818,16 +744,17 @@ export function WorkbenchThread() {
               <ArrowDownIcon className="size-4" />
             )}
           </ThreadPrimitive.ScrollToBottom>
+        ) : null}
 
-          {!isEmpty ? (
-            <ThreadPrimitive.ViewportFooter
-              data-workbench-composer-dock=""
-              className="sticky bottom-0 mx-auto mt-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-3 bg-transparent pt-2 pb-4 [overflow-anchor:none]"
-            >
-              <WorkbenchComposer />
-            </ThreadPrimitive.ViewportFooter>
-          ) : null}
-        </ThreadPrimitive.Viewport>
+        {!isEmpty ? (
+          <div
+            ref={composerDockRef}
+            data-workbench-composer-dock=""
+            className="absolute right-4 bottom-0 left-4 z-20 mx-auto flex max-w-[var(--thread-max-width)] flex-col bg-transparent pt-2 pb-4 [overflow-anchor:none]"
+          >
+            <WorkbenchComposer />
+          </div>
+        ) : null}
       </div>
 
       <SlotHost
