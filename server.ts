@@ -4,8 +4,18 @@ import next from "next";
 import { WebSocketServer } from "ws";
 
 import { createNoServerWebSocketGateway } from "./runtime/pi/server/streams/websocket-gateway";
-import { createWorkbenchHttpServer } from "./runtime/pi/server/transport/custom-server";
+import {
+  createWorkbenchHttpServer,
+  type WorkbenchRequestHandler,
+  type WorkbenchWebSocketGateway,
+} from "./runtime/pi/server/transport/custom-server";
 import { ensureWorkbenchMessageTerminationExtension } from "./runtime/pi/server/user-extensions/message-termination-extension";
+import {
+  createTerminalGateway,
+  type TerminalSessionManagerLike,
+} from "./runtime/terminal/server/terminal-gateway";
+import { TerminalSessionManager } from "./runtime/terminal/server/terminal-session-manager";
+import { getToolTerminalSessionManager } from "./runtime/terminal/server/tool-terminal-session-manager";
 
 function configuredPort(): number {
   const raw = process.env.PORT?.trim() || "3000";
@@ -16,6 +26,58 @@ function configuredPort(): number {
     );
   }
   return port;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+async function warmSessionMetadataViaRoute(requestHandler: WorkbenchRequestHandler): Promise<void> {
+  // The Pi registry is ESM-only while this launcher enters through tsx's CommonJS path.
+  // Warming through Next's bundled route keeps that boundary intact and compiles the RPC before
+  // the public listener starts accepting requests.
+  const warmupServer = createServer(requestHandler);
+  await new Promise<void>((resolve, reject) => {
+    const onError = (error: Error) => reject(error);
+    warmupServer.once("error", onError);
+    warmupServer.listen(0, "127.0.0.1", () => {
+      warmupServer.off("error", onError);
+      resolve();
+    });
+  });
+
+  try {
+    const address = warmupServer.address();
+    if (!address || typeof address === "string") {
+      throw new Error("Session metadata warmup server did not bind a TCP port.");
+    }
+    const rpcId = "startup-session-metadata-warmup";
+    const response = await fetch(`http://127.0.0.1:${address.port}/api/session.list`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "client-request",
+        rpcId,
+        method: "session.list",
+        payload: {},
+      }),
+    });
+    const body: unknown = await response.json();
+    if (
+      !response.ok ||
+      !isRecord(body) ||
+      body.type !== "server-response" ||
+      body.rpcId !== rpcId ||
+      !isRecord(body.result) ||
+      body.result.ok !== true
+    ) {
+      throw new Error(`Session metadata warmup failed with HTTP ${response.status}.`);
+    }
+  } finally {
+    await new Promise<void>((resolve, reject) => {
+      warmupServer.close((error) => (error ? reject(error) : resolve()));
+    });
+  }
 }
 
 async function main(): Promise<void> {
@@ -50,12 +112,46 @@ async function main(): Promise<void> {
   });
   const requestHandler = app.getRequestHandler();
   await app.prepare();
+  await warmSessionMetadataViaRoute(requestHandler);
 
-  const webSocketServer = new WebSocketServer({
+  const piWebSocketServer = new WebSocketServer({
     noServer: true,
     perMessageDeflate: false,
   });
-  const webSocketGateway = createNoServerWebSocketGateway({ webSocketServer });
+  const piWebSocketGateway = createNoServerWebSocketGateway({
+    webSocketServer: piWebSocketServer,
+  });
+  const terminalWebSocketServer = new WebSocketServer({
+    noServer: true,
+    perMessageDeflate: false,
+  });
+  const terminalSessions = new TerminalSessionManager();
+  const toolTerminalSessions = getToolTerminalSessionManager();
+  const gatewayTerminalSessions: TerminalSessionManagerLike = {
+    attach: (options) =>
+      options.toolCallId
+        ? toolTerminalSessions.attach({
+            sessionId: options.sessionId,
+            toolCallId: options.toolCallId,
+            ...(options.cols === undefined ? {} : { cols: options.cols }),
+            ...(options.rows === undefined ? {} : { rows: options.rows }),
+          })
+        : terminalSessions.attach(options),
+  };
+  const terminalGateway = createTerminalGateway({
+    webSocketServer: terminalWebSocketServer,
+    sessions: gatewayTerminalSessions,
+    onUnexpectedError: (error) => console.error("Workbench terminal failed.", error),
+  });
+  const webSocketGatewayForPi = piWebSocketGateway.handleUpgrade.bind(piWebSocketGateway);
+  const webSocketGateway = {
+    handleUpgrade(request, socket, head) {
+      return (
+        terminalGateway.handleUpgrade(request, socket, head) ||
+        webSocketGatewayForPi(request, socket, head)
+      );
+    },
+  } satisfies WorkbenchWebSocketGateway;
   const publicServer = createWorkbenchHttpServer({
     requestHandler,
     webSocketGateway,
@@ -63,6 +159,10 @@ async function main(): Promise<void> {
     onRequestError: (error) => console.error("Workbench request failed.", error),
     onUpgradeRelayMissing: (request) =>
       console.error(`No Next.js upgrade handler accepted ${request.url ?? "the request"}.`),
+  });
+  publicServer.on("close", () => {
+    terminalSessions.dispose();
+    toolTerminalSessions.dispose();
   });
 
   publicServer.listen(port, hostname, () => {

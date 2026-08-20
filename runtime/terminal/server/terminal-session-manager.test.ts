@@ -1,0 +1,147 @@
+import assert from "node:assert/strict";
+import { mkdtemp, mkdir, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import test from "node:test";
+
+import {
+  TerminalSessionError,
+  TerminalSessionManager,
+  type TerminalExitEvent,
+  type TerminalPty,
+} from "./terminal-session-manager";
+
+class FakePty implements TerminalPty {
+  readonly pid = 42;
+  readonly process = "bash";
+  readonly writes: string[] = [];
+  readonly sizes: Array<{ cols: number; rows: number }> = [];
+  killed = false;
+  readonly #dataListeners = new Set<(data: string) => void>();
+  readonly #exitListeners = new Set<(event: TerminalExitEvent) => void>();
+
+  onData(listener: (data: string) => void) {
+    this.#dataListeners.add(listener);
+    return { dispose: () => this.#dataListeners.delete(listener) };
+  }
+
+  onExit(listener: (event: TerminalExitEvent) => void) {
+    this.#exitListeners.add(listener);
+    return { dispose: () => this.#exitListeners.delete(listener) };
+  }
+
+  write(data: string) {
+    this.writes.push(data);
+  }
+
+  resize(cols: number, rows: number) {
+    this.sizes.push({ cols, rows });
+  }
+
+  kill() {
+    this.killed = true;
+  }
+
+  emitData(data: string) {
+    for (const listener of this.#dataListeners) listener(data);
+  }
+
+  emitExit(event: TerminalExitEvent) {
+    for (const listener of this.#exitListeners) listener(event);
+  }
+}
+
+test("keeps a PTY alive across clients and replays bounded output", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "workbench-terminal-"));
+  const terminals: FakePty[] = [];
+  const manager = new TerminalSessionManager({
+    defaultCwd: cwd,
+    idleTimeoutMs: 60_000,
+    maxHistoryBytes: 10,
+    spawnPty: () => {
+      const terminal = new FakePty();
+      terminals.push(terminal);
+      return terminal;
+    },
+  });
+
+  try {
+    const first = await manager.attach({ sessionId: "workspace-1", cols: 80, rows: 24 });
+    const received: string[] = [];
+    const subscription = first.subscribe({
+      onData: (data) => received.push(data),
+      onExit: () => {},
+    });
+    assert.equal(subscription.history, "");
+
+    terminals[0].emitData("hello");
+    terminals[0].emitData(" world");
+    assert.deepEqual(received, ["hello", " world"]);
+    first.write("pwd\r");
+    first.run("pnpm build");
+    first.run("printf done\n");
+    first.resize(120, 40);
+    assert.deepEqual(terminals[0].writes, ["pwd\r", "pnpm build\r", "printf done\r"]);
+    assert.deepEqual(terminals[0].sizes, [{ cols: 120, rows: 40 }]);
+    subscription.detach();
+
+    const second = await manager.attach({ sessionId: "workspace-1" });
+    const replay = second.subscribe({ onData: () => {}, onExit: () => {} });
+    assert.equal(replay.history, " world");
+    assert.equal(terminals.length, 1);
+    replay.detach();
+  } finally {
+    manager.dispose();
+    await rm(cwd, { recursive: true, force: true });
+  }
+});
+
+test("rejects a session id reused for another working directory", async () => {
+  const root = await mkdtemp(join(tmpdir(), "workbench-terminal-"));
+  const other = join(root, "other");
+  await mkdir(other);
+  const manager = new TerminalSessionManager({
+    defaultCwd: root,
+    spawnPty: () => new FakePty(),
+  });
+
+  try {
+    await manager.attach({ sessionId: "workspace-1", cwd: root });
+    await assert.rejects(
+      manager.attach({ sessionId: "workspace-1", cwd: other }),
+      (error: unknown) =>
+        error instanceof TerminalSessionError && error.code === "session-conflict",
+    );
+  } finally {
+    manager.dispose();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("keeps multiple terminal instance PTYs independent in one conversation directory", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "workbench-terminal-"));
+  const terminals: FakePty[] = [];
+  const manager = new TerminalSessionManager({
+    defaultCwd: cwd,
+    spawnPty: () => {
+      const terminal = new FakePty();
+      terminals.push(terminal);
+      return terminal;
+    },
+  });
+
+  try {
+    const first = await manager.attach({ sessionId: "terminal:thread-1:one" });
+    const second = await manager.attach({ sessionId: "terminal:thread-1:two" });
+
+    first.write("first\r");
+    second.write("second\r");
+
+    assert.equal(terminals.length, 2);
+    assert.deepEqual(terminals[0]?.writes, ["first\r"]);
+    assert.deepEqual(terminals[1]?.writes, ["second\r"]);
+  } finally {
+    manager.dispose();
+    await rm(cwd, { recursive: true, force: true });
+  }
+});

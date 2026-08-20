@@ -4,44 +4,34 @@ import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
 import { SquareTerminalIcon } from "lucide-react";
 
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { useRightWorkspace, useWorkspaceContext } from "@/components/right-workspace";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TerminalBlock } from "@/components/elements/terminal-block";
 import { useI18n } from "@/i18n";
-import { usePanelService } from "@/platform/extensions";
+import { usePiActiveSessionId } from "@/runtime/pi/client/runtime/context";
+
+import { normalizeTerminalTabTitle } from "./terminal-tab-title";
+import { terminalResultLines } from "./terminal-tool-transcript";
+import { revealTerminalTranscript } from "./terminal-workspace-service";
 
 interface BashToolArgs {
   command?: string;
 }
 
 export interface BashTerminalProps {
+  toolCallId: string;
   command?: string;
   result: unknown;
   running: boolean;
 }
 
-function resultText(result: unknown): string | undefined {
-  if (typeof result === "string") return result;
-  if (!result || typeof result !== "object") return undefined;
-  const text = (result as { text?: unknown }).text;
-  if (typeof text === "string") return text;
-
-  try {
-    return JSON.stringify(result, null, 2);
-  } catch {
-    return String(result);
-  }
-}
-
-function resultLines(result: unknown): string[] {
-  const output = resultText(result);
-  if (!output) return [];
-  return output.replace(/\r\n?/g, "\n").split("\n");
-}
-
-export function BashTerminal({ command, result, running }: BashTerminalProps) {
+export function BashTerminal({ toolCallId, command, result, running }: BashTerminalProps) {
   const { t } = useI18n();
-  const panels = usePanelService();
-  const lines = resultLines(result);
+  const controller = useRightWorkspace();
+  const context = useWorkspaceContext();
+  const piSessionId = usePiActiveSessionId();
+  const displayedCommand = command || "bash";
+  const lines = terminalResultLines(result);
 
   return (
     <TerminalBlock
@@ -52,9 +42,18 @@ export function BashTerminal({ command, result, running }: BashTerminalProps) {
       headerAction={
         <TooltipIconButton
           data-slot="terminal-block-action"
-          tooltip={t("extensions.terminal.tool.open")}
+          tooltip={t("extensions.terminal.tool.view")}
           className="text-foreground/40 hover:text-foreground"
-          onClick={() => panels.open("terminal")}
+          onClick={() =>
+            revealTerminalTranscript({
+              controller,
+              context,
+              toolCallId,
+              command: displayedCommand,
+              ...(piSessionId ? { piSessionId } : {}),
+              title: normalizeTerminalTabTitle(displayedCommand) ?? t("extensions.terminal.title"),
+            })
+          }
         >
           <SquareTerminalIcon className="size-3.5" />
         </TooltipIconButton>
@@ -75,6 +74,7 @@ export const BashToolRenderer: ToolCallMessagePartComponent<BashToolArgs, unknow
 
   return (
     <BashTerminal
+      toolCallId={props.toolCallId}
       command={args.command}
       result={result ?? artifact}
       running={status.type !== "complete"}
