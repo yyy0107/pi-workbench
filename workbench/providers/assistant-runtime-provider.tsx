@@ -7,6 +7,7 @@ import { useWorkspaceFeedbackStore } from "@/components/right-workspace";
 import { PiSessionManagerProvider } from "@/runtime/pi/client/runtime/context";
 import { PiSessionManager } from "@/runtime/pi/client/runtime/manager";
 import { useWorkbenchRuntime } from "@/runtime/use-workbench-runtime";
+import { resolvePendingThreadPromotionId } from "@/workbench/workspaces/new-thread-policy";
 import { useWorkspaceDirectoryStore } from "@/workbench/workspaces/workspace-directory-store";
 
 function ActivePiThreadTracker({ manager }: { manager: PiSessionManager }) {
@@ -17,23 +18,53 @@ function ActivePiThreadTracker({ manager }: { manager: PiSessionManager }) {
     manager.getSnapshot,
   );
   const mainThreadId = useAuiState((state) => state.threads.mainThreadId);
+  const newThreadId = useAuiState((state) => state.threads.newThreadId);
+  const activeMessageCount = useAuiState((state) => state.thread.messages.length);
   const threadItems = useAuiState((state) => state.threads.threadItems);
   const mainThread = threadItems.find((thread) => thread.id === mainThreadId);
   const reloadedRevision = useRef(managerRevision);
+  const reloadDeferred = useRef(false);
+  const draftThreadId = useRef<string | undefined>(undefined);
+  const pendingPromotionThreadId = useRef<string | undefined>(undefined);
   const syncDirectory = useWorkspaceDirectoryStore((state) => state.syncDirectory);
   const revealDirectory = useWorkspaceDirectoryStore((state) => state.revealDirectory);
+
+  if (mainThreadId && mainThreadId === newThreadId) {
+    draftThreadId.current = mainThreadId;
+  } else if (draftThreadId.current !== mainThreadId) {
+    draftThreadId.current = undefined;
+  }
+  pendingPromotionThreadId.current = resolvePendingThreadPromotionId({
+    pendingThreadId:
+      pendingPromotionThreadId.current ??
+      (draftThreadId.current === mainThreadId ? draftThreadId.current : undefined),
+    mainThreadId,
+    status: mainThread?.status,
+    remoteId: mainThread?.remoteId,
+    hasMessages: activeMessageCount > 0,
+  });
+  if (activeMessageCount > 0) draftThreadId.current = undefined;
+  reloadDeferred.current = pendingPromotionThreadId.current === mainThreadId;
 
   useEffect(() => {
     manager.setActive(mainThreadId, mainThread?.remoteId);
   }, [mainThread?.remoteId, mainThreadId, manager]);
 
   useEffect(() => {
-    if (reloadedRevision.current === managerRevision) return;
+    if (reloadedRevision.current === managerRevision || reloadDeferred.current) return;
     reloadedRevision.current = managerRevision;
     void aui.threads
       .reload()
       .catch((error) => console.error("[workbench-pi] thread list reload failed", error));
-  }, [aui, managerRevision]);
+  }, [
+    activeMessageCount,
+    aui,
+    mainThreadId,
+    mainThread?.remoteId,
+    mainThread?.status,
+    managerRevision,
+    newThreadId,
+  ]);
 
   useEffect(() => {
     for (const thread of threadItems) {

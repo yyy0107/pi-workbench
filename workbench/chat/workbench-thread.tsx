@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ThreadPrimitive, useAui, useAuiState } from "@assistant-ui/react";
 import { ArrowDownIcon } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { ThinkingOrb } from "thinking-orbs";
 
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
@@ -13,6 +14,11 @@ import { useI18n } from "@/i18n";
 import { formatCompactDuration } from "@/lib/format-duration";
 import { SlotHost } from "@/platform/extensions";
 import { parsePiConversationEvent } from "@/runtime/pi/client/messages/conversation-events";
+import {
+  conversationThreadIdFromPathname,
+  resolvePromotedThreadRouteId,
+  shouldProjectNewThreadRoute,
+} from "@/workbench/workspaces/new-thread-policy";
 
 import { WorkbenchComposer } from "./workbench-composer";
 import { WorkbenchEmpty } from "./workbench-empty";
@@ -24,10 +30,6 @@ import {
   WorkbenchUserMessage,
 } from "./workbench-message";
 import { currentRunStartedAt } from "./workbench-thread-timing";
-
-export interface WorkbenchThreadProps {
-  threadId?: string;
-}
 
 interface MessageRow {
   id: string;
@@ -348,23 +350,72 @@ function WorkbenchMessages() {
  */
 export function ThreadRouteSync({ threadId }: { threadId?: string }) {
   const aui = useAui();
+  const observedRouteId = useRef<string | null>(null);
   const syncedRouteId = useRef<string | null>(null);
+  const newThreadNavigationPending = useRef(false);
   const isLoading = useAuiState((state) => state.threads.isLoading);
   const mainThreadId = useAuiState((state) => state.threads.mainThreadId);
+  const newThreadId = useAuiState((state) => state.threads.newThreadId);
+  const activeMessageCount = useAuiState((state) => state.thread.messages.length);
   const threadIds = useAuiState((state) => state.threads.threadIds);
+  const archivedThreadIds = useAuiState((state) => state.threads.archivedThreadIds);
+  const isInitialLoading = isLoading && threadIds.length + archivedThreadIds.length === 0;
   const threadItems = useAuiState((state) => state.threads.threadItems);
+  const mainThread = threadItems.find((item) => item.id === mainThreadId);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const routeId = threadId ?? "";
-    if (isLoading || syncedRouteId.current === routeId) return;
+    if (isInitialLoading) return;
+    const routeChanged = observedRouteId.current !== routeId;
+    observedRouteId.current = routeId;
 
     if (!threadId) {
-      syncedRouteId.current = routeId;
+      newThreadNavigationPending.current = false;
+      if (routeChanged) {
+        syncedRouteId.current = routeId;
 
-      try {
-        aui.threads.switchToNewThread();
-      } catch {
-        // The thread list can change between the state read and route update.
+        try {
+          aui.threads.switchToNewThread();
+        } catch {
+          // The thread list can change between the state read and route update.
+        }
+        return;
+      }
+
+      // assistant-ui promotes the draft before its append pipeline reaches `onNew`. Navigating
+      // during that gap invalidates the thread generation and silently drops the first send.
+      // The optimistic user message is the earliest safe signal that `onNew` has started.
+      const nextRouteId = resolvePromotedThreadRouteId({
+        mainThreadId,
+        newThreadId,
+        status: mainThread?.status,
+        remoteId: mainThread?.remoteId,
+        externalId: mainThread?.externalId,
+        hasMessages: activeMessageCount > 0,
+      });
+      if (nextRouteId) {
+        if (syncedRouteId.current === nextRouteId) return;
+        syncedRouteId.current = nextRouteId;
+        // The root and conversation routes render the same client workbench. A full App Router
+        // navigation waits for an RSC round trip before updating the address bar, which leaves a
+        // submitted conversation looking like a draft for seconds. Next.js integrates the native
+        // History API with its router, so project the already-active thread synchronously.
+        window.history.replaceState(null, "", `/c/${encodeURIComponent(nextRouteId)}`);
+      }
+      return;
+    }
+
+    if (
+      newThreadNavigationPending.current ||
+      shouldProjectNewThreadRoute({
+        routeThreadId: threadId,
+        syncedRouteThreadId: syncedRouteId.current,
+        isNewThread: mainThreadId === newThreadId,
+      })
+    ) {
+      if (!newThreadNavigationPending.current) {
+        newThreadNavigationPending.current = true;
+        window.history.pushState(null, "", "/");
       }
       return;
     }
@@ -379,6 +430,13 @@ export function ThreadRouteSync({ threadId }: { threadId?: string }) {
 
     if (!resolvedId) return;
 
+    const canonicalRouteId = item?.remoteId ?? item?.externalId;
+    if (canonicalRouteId && canonicalRouteId !== threadId) {
+      syncedRouteId.current = canonicalRouteId;
+      window.history.replaceState(null, "", `/c/${encodeURIComponent(canonicalRouteId)}`);
+      return;
+    }
+
     syncedRouteId.current = routeId;
     if (resolvedId === mainThreadId) return;
 
@@ -388,13 +446,27 @@ export function ThreadRouteSync({ threadId }: { threadId?: string }) {
       // A runtime can invalidate a thread between the state read and switch.
       // Keeping the current thread is the safe route-level fallback.
     }
-  }, [aui, isLoading, mainThreadId, threadId, threadIds, threadItems]);
+  }, [
+    activeMessageCount,
+    archivedThreadIds,
+    aui,
+    isLoading,
+    isInitialLoading,
+    mainThread,
+    mainThreadId,
+    newThreadId,
+    threadId,
+    threadIds,
+    threadItems,
+  ]);
 
   return null;
 }
 
-export function WorkbenchThread({ threadId }: WorkbenchThreadProps) {
+export function WorkbenchThread() {
   const { t } = useI18n();
+  const pathname = usePathname();
+  const threadId = conversationThreadIdFromPathname(pathname);
   const activeThreadId = useAuiState((state) => state.threads.mainThreadId);
   const isEmpty = useAuiState((state) => state.thread.isEmpty);
   const isRunning = useAuiState((state) => state.thread.isRunning);
