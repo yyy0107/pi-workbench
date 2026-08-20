@@ -8,9 +8,14 @@ import {
 } from "@assistant-ui/react";
 
 import { ComposerAttachments, UserMessageAttachments } from "@/components/assistant-ui/attachment";
+import {
+  CompactionSeparator,
+  ModelChangeSeparator,
+} from "@/components/elements/conversation-separator";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import { SlotHost } from "@/platform/extensions";
+import { parsePiConversationEvent } from "@/runtime/pi/client/messages/conversation-events";
 
 import { WorkbenchMessageActions } from "./message-actions";
 import { WorkbenchMessageParts } from "./message-parts";
@@ -50,6 +55,7 @@ export function WorkbenchUserMessage() {
         <UserMessageAttachments />
         <div
           data-slot="user-message-bubble"
+          data-workbench-glass-surface=""
           className="min-w-0 max-w-full rounded-[22px] bg-[rgb(237,243,254)] px-3.5 py-2 break-words text-start dark:bg-[rgb(44,44,46)]"
         >
           <WorkbenchMessageParts />
@@ -81,10 +87,72 @@ export function WorkbenchAssistantMessage() {
 }
 
 export function WorkbenchSystemMessage() {
+  const { t } = useI18n();
+  const conversationEventData = useAuiState(
+    (state) => state.message.metadata.custom.piConversationEvent,
+  );
+  const conversationEvent = parsePiConversationEvent(conversationEventData);
+
+  if (conversationEvent) {
+    const modelLabel =
+      conversationEvent.kind === "model-change"
+        ? [conversationEvent.provider, conversationEvent.model].filter(Boolean).join("/")
+        : undefined;
+    const previousModelLabel =
+      conversationEvent.kind === "model-change" && conversationEvent.previousModel
+        ? [conversationEvent.previousProvider, conversationEvent.previousModel]
+            .filter(Boolean)
+            .join("/")
+        : undefined;
+    const compactionDetail =
+      conversationEvent.kind === "compaction" &&
+      conversationEvent.tokensBefore !== undefined &&
+      conversationEvent.estimatedTokensAfter !== undefined
+        ? t("workbench.chat.separators.contextCompactedTokens", {
+            before: conversationEvent.tokensBefore,
+            after: conversationEvent.estimatedTokensAfter,
+          })
+        : conversationEvent.kind === "compaction" && conversationEvent.tokensBefore !== undefined
+          ? t("workbench.chat.separators.contextCompactedBefore", {
+              before: conversationEvent.tokensBefore,
+            })
+          : undefined;
+
+    return (
+      <MessagePrimitive.Root className="w-full py-0.5">
+        <MessageSlot name="message.before" />
+        {conversationEvent.kind === "model-change" ? (
+          <ModelChangeSeparator
+            label={t("workbench.chat.separators.modelChanged")}
+            model={modelLabel ?? conversationEvent.model}
+            previousModel={previousModelLabel}
+            aria-label={t("workbench.chat.separators.modelChangedAnnouncement", {
+              model: modelLabel ?? conversationEvent.model,
+              previousModel: previousModelLabel,
+            })}
+          />
+        ) : (
+          <CompactionSeparator
+            label={t("workbench.chat.separators.contextCompacted")}
+            detail={compactionDetail}
+            aria-label={t("workbench.chat.separators.contextCompactedAnnouncement", {
+              before: conversationEvent.tokensBefore,
+              after: conversationEvent.estimatedTokensAfter,
+            })}
+          />
+        )}
+        <MessageSlot name="message.after" />
+      </MessagePrimitive.Root>
+    );
+  }
+
   return (
     <MessagePrimitive.Root className="mx-auto w-full max-w-[var(--thread-max-width)] px-2 py-2">
       <MessageSlot name="message.before" />
-      <div className="bg-muted/50 text-muted-foreground rounded-lg border px-3 py-2 text-xs">
+      <div
+        data-workbench-glass-surface=""
+        className="bg-muted/50 text-muted-foreground rounded-lg border px-3 py-2 text-xs"
+      >
         <WorkbenchMessageParts />
       </div>
       <MessageSlot name="message.after" />

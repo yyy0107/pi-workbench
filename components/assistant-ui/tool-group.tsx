@@ -5,6 +5,7 @@ import { ChevronDownIcon, LoaderIcon } from "lucide-react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { useScrollLock } from "@assistant-ui/react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { collapsePanel } from "@/components/elements/surfaces";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n";
 
@@ -151,14 +152,8 @@ function ToolGroupContent({
     <CollapsibleContent
       data-slot="tool-group-content"
       className={cn(
-        "aui-tool-group-content relative overflow-hidden text-sm outline-none",
-        "group/collapsible-content ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:animate-none",
-        "data-closed:animate-collapsible-up",
-        "data-open:animate-collapsible-down",
-        "data-closed:fill-mode-forwards",
-        "data-closed:pointer-events-none",
-        "data-open:duration-(--animation-duration)",
-        "data-closed:duration-(--animation-duration)",
+        collapsePanel,
+        "aui-tool-group-content relative text-sm outline-none",
         className,
       )}
       {...props}

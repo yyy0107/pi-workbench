@@ -2,10 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { ReasoningMessagePart, ToolCallMessagePart } from "@assistant-ui/react";
-
-const { latestReasoningPreview, timelineStats, timelineSteps } = (await import(
-  new URL("./tool-timeline-model.ts", import.meta.url).href
-)) as typeof import("./tool-timeline-model");
+import {
+  liveReasoningPreview,
+  reasoningPartTiming,
+  reasoningPreview,
+  timelineEntries,
+  timelineStats,
+  timelineSteps,
+} from "./tool-timeline-model";
 
 function tool(toolName: string, args: Record<string, unknown>): ToolCallMessagePart {
   return {
@@ -41,12 +45,78 @@ test("maps reasoning and common Pi tools to compact timeline steps", () => {
   );
 });
 
-test("uses the latest non-empty reasoning line for the collapsed preview", () => {
+test("uses the beginning of reasoning for the collapsed preview", () => {
   assert.equal(
-    latestReasoningPreview("First thought\n\nNewest   reasoning detail"),
-    "Newest reasoning detail",
+    reasoningPreview("First thought\n\nNewest   reasoning detail"),
+    "First thought Newest reasoning detail",
   );
-  assert.equal(latestReasoningPreview("123456789", 6), "…56789");
+  assert.equal(reasoningPreview("123456789", 6), "12345…");
+});
+
+test("uses the latest reasoning text for the live collapsed preview", () => {
+  assert.equal(
+    liveReasoningPreview("First thought\n\nNewest   reasoning detail"),
+    "First thought Newest reasoning detail",
+  );
+  assert.equal(liveReasoningPreview("123456789", 6), "…56789");
+});
+
+test("restores reasoning timing from stable provider metadata", () => {
+  const reasoning = (pi: Record<string, number>): ReasoningMessagePart => ({
+    type: "reasoning",
+    text: "Plan",
+    providerMetadata: { pi },
+  });
+
+  assert.deepEqual(reasoningPartTiming(reasoning({ startedAt: 10_000 })), {
+    startedAt: 10_000,
+  });
+  assert.deepEqual(reasoningPartTiming(reasoning({ startedAt: 10_000, durationMs: 2_600 })), {
+    startedAt: 10_000,
+    completedAt: 12_600,
+  });
+  assert.deepEqual(reasoningPartTiming(reasoning({ durationMs: 2_600 })), {
+    startedAt: 0,
+    completedAt: 2_600,
+  });
+});
+
+test("groups only adjacent tools carrying the same parallel batch metadata", () => {
+  const parallelTool = (toolName: string, batchId: string): ToolCallMessagePart => ({
+    ...tool(toolName, {}),
+    providerMetadata: {
+      pi: {
+        parallelToolBatchId: batchId,
+        parallelToolBatchSize: 2,
+      },
+    },
+  });
+  const reasoning = {
+    type: "reasoning",
+    text: "Plan",
+  } satisfies ReasoningMessagePart;
+
+  const entries = timelineEntries([
+    reasoning,
+    parallelTool("read", "batch-a"),
+    parallelTool("search", "batch-a"),
+    tool("bash", { command: "pnpm test" }),
+    tool("read", { path: "not-parallel.ts" }),
+    parallelTool("read", "batch-b"),
+    parallelTool("edit", "batch-b"),
+  ]);
+
+  assert.equal(entries.length, 5);
+  assert.deepEqual(
+    entries.map((entry) =>
+      entry.kind === "part"
+        ? entry.part.type === "reasoning"
+          ? "reasoning"
+          : entry.part.toolName
+        : `${entry.batchId}:${entry.parts.map((part) => part.toolName).join(",")}`,
+    ),
+    ["reasoning", "batch-a:read,search", "bash", "read", "batch-b:read,edit"],
+  );
 });
 
 test("aggregates edited and written lines by file", () => {

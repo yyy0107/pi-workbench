@@ -16,6 +16,7 @@ export interface ToolCallProps {
   resultLabel: string;
   icon?: LucideIcon;
   running: boolean;
+  elapsed?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   children?: ReactNode;
@@ -32,6 +33,7 @@ export function ToolCall({
   resultLabel,
   icon: Icon,
   running,
+  elapsed,
   open,
   onOpenChange,
   children,
@@ -45,7 +47,7 @@ export function ToolCall({
       onOpenChange={onOpenChange}
       className={cn("w-full", className)}
     >
-      <CollapsibleTrigger className="group/trigger text-foreground/55 hover:text-foreground/90 flex w-full min-w-0 items-center gap-2 rounded-md py-1 text-[13.5px] transition-colors outline-none">
+      <CollapsibleTrigger className="group/trigger text-foreground/55 hover:text-foreground/90 flex w-full min-w-0 items-center gap-1.5 rounded-md py-1 text-[13.5px] transition-colors outline-none">
         {Icon && (
           <Icon
             data-slot="tool-call-icon"
@@ -53,11 +55,26 @@ export function ToolCall({
             className="text-foreground/45 size-3.5 shrink-0"
           />
         )}
-        <ShimmerLabel active={running} className="relative shrink-0 whitespace-nowrap leading-none">
-          {running ? activeLabel : label}
-        </ShimmerLabel>
-        <span title={query} className={cn(mono, "text-foreground/70 min-w-0 truncate")}>
-          {query}
+        <span className="flex min-w-0 items-center">
+          <ShimmerLabel
+            active={running}
+            className="relative shrink-0 whitespace-nowrap leading-none"
+          >
+            {running ? activeLabel : label}
+          </ShimmerLabel>
+          {elapsed !== undefined && (
+            <span className={cn(mono, "text-foreground/30 shrink-0 tabular-nums")}>{elapsed}</span>
+          )}
+          <span
+            title={query}
+            className={cn(
+              mono,
+              "text-foreground/70 min-w-0 truncate",
+              elapsed === undefined && "ms-1",
+            )}
+          >
+            {query}
+          </span>
         </span>
         {!running && (
           <CheckIcon className="fade-in zoom-in-90 animate-in size-3.5 shrink-0 text-emerald-500 duration-200" />

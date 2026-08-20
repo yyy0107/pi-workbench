@@ -51,7 +51,7 @@ export function ReasoningPanel({
       onOpenChange={onOpenChange}
       className={cn("w-full", className)}
     >
-      <CollapsibleTrigger className="group/trigger text-foreground/55 hover:text-foreground/90 flex w-full items-center gap-1.5 py-1 text-[13.5px] transition-[color,scale] outline-none active:scale-[0.995]">
+      <CollapsibleTrigger className="group/trigger text-foreground/55 hover:text-foreground/90 flex w-full items-center gap-1 py-1 text-[13.5px] transition-[color,scale] outline-none active:scale-[0.995]">
         {streaming && activeIcon !== undefined ? (
           <span
             data-slot="reasoning-panel-icon"
@@ -67,26 +67,29 @@ export function ReasoningPanel({
             className="text-foreground/45 size-3.5 shrink-0"
           />
         ) : null}
-        <SwapLabel active={streaming ? 0 : 1} className="text-start">
-          <>
+        <span className="flex min-w-0 items-center">
+          <SwapLabel active={streaming ? 0 : 1} className="shrink-0 text-start">
             <ShimmerLabel active={streaming} className="relative inline-block leading-none">
               {activeLabel}
             </ShimmerLabel>
-            {elapsed !== undefined && (
-              <span className={cn(mono, "text-foreground/30 tabular-nums")}>{elapsed}</span>
-            )}
-          </>
-          <>{restingLabel}</>
-        </SwapLabel>
-        {!open && collapsedPreview !== undefined && (
-          <span
-            data-slot="reasoning-panel-preview"
-            title={typeof collapsedPreview === "string" ? collapsedPreview : undefined}
-            className="text-foreground/45 min-w-0 flex-1 truncate text-start leading-none"
-          >
-            {collapsedPreview}
-          </span>
-        )}
+            <>{restingLabel}</>
+          </SwapLabel>
+          {elapsed !== undefined && (
+            <span className={cn(mono, "text-foreground/30 shrink-0 tabular-nums")}>{elapsed}</span>
+          )}
+          {!open && collapsedPreview !== undefined && (
+            <span
+              data-slot="reasoning-panel-preview"
+              title={typeof collapsedPreview === "string" ? collapsedPreview : undefined}
+              className={cn(
+                "text-foreground/45 min-w-0 truncate text-start leading-none",
+                elapsed === undefined && "ms-1",
+              )}
+            >
+              {collapsedPreview}
+            </span>
+          )}
+        </span>
         <ChevronRightIcon className="size-3.5 shrink-0 opacity-0 transition-[transform,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover/trigger:opacity-60 group-focus-visible/trigger:opacity-60 group-data-open/trigger:rotate-90 group-data-open/trigger:opacity-60 group-data-panel-open/trigger:rotate-90 group-data-panel-open/trigger:opacity-60 motion-reduce:transition-none" />
       </CollapsibleTrigger>
       <CollapsibleContent className={cn(collapsePanel, "w-full outline-none")}>

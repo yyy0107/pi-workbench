@@ -15,6 +15,19 @@ export interface ToolTimelineStatModel {
 
 type TimelineSourcePart = ReasoningMessagePart | ToolCallMessagePart;
 
+export type ToolTimelineEntry =
+  | {
+      kind: "part";
+      part: TimelineSourcePart;
+      sourceIndex: number;
+    }
+  | {
+      kind: "parallel-tools";
+      batchId: string;
+      parts: readonly ToolCallMessagePart[];
+      sourceIndices: readonly number[];
+    };
+
 function asRecord(value: unknown): Record<string, unknown> | undefined {
   return value !== null && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -31,14 +44,34 @@ function compact(value: string, maxLength = 68): string {
   return `${normalized.slice(0, maxLength - 1).trimEnd()}…`;
 }
 
-export function latestReasoningPreview(value: string, maxLength = 68): string {
-  const withoutTrailingWhitespace = value.trimEnd();
-  const latestLineStart = withoutTrailingWhitespace.lastIndexOf("\n") + 1;
-  const latest = withoutTrailingWhitespace.slice(latestLineStart).replace(/\s+/g, " ").trim();
+export function reasoningPreview(value: string, maxLength = 68): string {
+  return compact(value, maxLength);
+}
 
-  if (!latest) return "";
-  if (latest.length <= maxLength) return latest;
-  return `…${latest.slice(-(maxLength - 1)).trimStart()}`;
+export function liveReasoningPreview(value: string, maxLength = 68): string {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (normalized.length <= maxLength) return normalized;
+  return `…${normalized.slice(-(maxLength - 1)).trimStart()}`;
+}
+
+export function reasoningPartTiming(
+  part: ReasoningMessagePart,
+): ToolCallMessagePart["timing"] | undefined {
+  const pi = asRecord(part.providerMetadata?.pi);
+  const startedAt = pi?.startedAt;
+  const durationMs = pi?.durationMs;
+  const validStartedAt =
+    typeof startedAt === "number" && Number.isFinite(startedAt) ? startedAt : undefined;
+  const validDuration =
+    typeof durationMs === "number" && Number.isFinite(durationMs) && durationMs >= 0
+      ? durationMs
+      : undefined;
+
+  if (validDuration !== undefined) {
+    const normalizedStart = validStartedAt ?? 0;
+    return { startedAt: normalizedStart, completedAt: normalizedStart + validDuration };
+  }
+  return validStartedAt === undefined ? undefined : { startedAt: validStartedAt };
 }
 
 function normalize(value: string): string {
@@ -57,6 +90,44 @@ function lineCount(value: string | undefined): number {
 function firstString(value: unknown): string | undefined {
   if (!Array.isArray(value)) return undefined;
   return value.find((item): item is string => typeof item === "string" && item.trim().length > 0);
+}
+
+function parallelToolBatchId(part: ToolCallMessagePart): string | undefined {
+  const pi = asRecord(part.providerMetadata?.pi);
+  const batchId = asString(pi?.parallelToolBatchId);
+  const batchSize = pi?.parallelToolBatchSize;
+  return batchId && typeof batchSize === "number" && batchSize > 1 ? batchId : undefined;
+}
+
+export function timelineEntries(parts: readonly TimelineSourcePart[]): ToolTimelineEntry[] {
+  const entries: ToolTimelineEntry[] = [];
+
+  parts.forEach((part, sourceIndex) => {
+    const batchId = part.type === "tool-call" ? parallelToolBatchId(part) : undefined;
+    if (!batchId || part.type !== "tool-call") {
+      entries.push({ kind: "part", part, sourceIndex });
+      return;
+    }
+
+    const previous = entries.at(-1);
+    if (previous?.kind === "parallel-tools" && previous.batchId === batchId) {
+      entries[entries.length - 1] = {
+        ...previous,
+        parts: [...previous.parts, part],
+        sourceIndices: [...previous.sourceIndices, sourceIndex],
+      };
+      return;
+    }
+
+    entries.push({
+      kind: "parallel-tools",
+      batchId,
+      parts: [part],
+      sourceIndices: [sourceIndex],
+    });
+  });
+
+  return entries;
 }
 
 function toolChip(part: ToolCallMessagePart): string {
@@ -96,7 +167,7 @@ function toolKind(toolName: string): ToolTimelineStepKind {
 export function timelineSteps(parts: readonly TimelineSourcePart[]): ToolTimelineStepModel[] {
   return parts.flatMap((part) => {
     if (part.type === "reasoning") {
-      const chip = latestReasoningPreview(part.text || part.unstable_summary || "") || "…";
+      const chip = reasoningPreview(part.text || part.unstable_summary || "") || "…";
       return [{ kind: "thinking" as const, chip }];
     }
 

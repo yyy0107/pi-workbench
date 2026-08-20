@@ -39,6 +39,21 @@ function serializeData(value: unknown) {
   }
 }
 
+function readTurnTiming(value: unknown): { startedAt: number; completedAt: number } | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const timing = value as { startedAt?: unknown; completedAt?: unknown };
+  if (
+    typeof timing.startedAt !== "number" ||
+    typeof timing.completedAt !== "number" ||
+    !Number.isFinite(timing.startedAt) ||
+    !Number.isFinite(timing.completedAt) ||
+    timing.completedAt < timing.startedAt
+  ) {
+    return undefined;
+  }
+  return { startedAt: timing.startedAt, completedAt: timing.completedAt };
+}
+
 const MessageDataFallback: DataMessagePartComponent = ({ name, data }) => (
   <details className="bg-muted/40 my-2 rounded-lg border px-3 py-2 text-sm">
     <summary className="cursor-pointer font-medium">{name}</summary>
@@ -52,6 +67,8 @@ export function WorkbenchMessagePresentation() {
   const { t, date } = useI18n();
   const timing = useMessageTiming();
   const messageCreatedAt = useAuiState((state) => state.message.createdAt);
+  const storedTurnTiming = useAuiState((state) => state.message.metadata.custom.piTurnTiming);
+  const turnTiming = readTurnTiming(storedTurnTiming);
   const turnStreaming = useAuiState((state) => state.thread.isRunning && state.message.isLast);
   const messageParts = useAuiState((state) => state.message.parts);
   const completedBoundary = useMemo(() => completedWorkBoundary(messageParts), [messageParts]);
@@ -60,16 +77,21 @@ export function WorkbenchMessagePresentation() {
     [messageParts],
   );
   const completionTimestamp =
-    timing?.totalStreamTime === undefined
+    turnTiming?.completedAt ??
+    (timing?.totalStreamTime === undefined
       ? messageCreatedAt
-      : timing.streamStartTime + timing.totalStreamTime;
+      : timing.streamStartTime + timing.totalStreamTime);
+  const turnDuration =
+    turnTiming === undefined
+      ? timing?.totalStreamTime
+      : turnTiming.completedAt - turnTiming.startedAt;
   const completedLabel = t("extensions.messagePresentation.completedTurn", {
     completedAt: date(completionTimestamp, {
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
     }),
-    duration: formatCompletedDuration(timing?.totalStreamTime),
+    duration: formatCompletedDuration(turnDuration),
   });
   const groupMessagePart = useCallback(
     (part: PartState, context: GroupByContext): readonly PresentationGroup[] => {
@@ -101,7 +123,11 @@ export function WorkbenchMessagePresentation() {
         switch (part.type) {
           case "group-completed-turn": {
             return (
-              <CompletedTurnPanel completed={!turnStreaming} label={completedLabel}>
+              <CompletedTurnPanel
+                key={turnStreaming ? "streaming" : "completed"}
+                completed={!turnStreaming}
+                label={completedLabel}
+              >
                 {children}
               </CompletedTurnPanel>
             );

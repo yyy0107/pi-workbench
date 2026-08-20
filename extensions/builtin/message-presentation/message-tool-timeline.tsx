@@ -14,12 +14,26 @@ import {
 } from "lucide-react";
 import { ThinkingOrb } from "thinking-orbs";
 
+import {
+  ToolGroupContent,
+  ToolGroupRoot,
+  ToolGroupTrigger,
+} from "@/components/assistant-ui/tool-group";
 import { ReasoningPanel, type ReasoningStep } from "@/components/elements/reasoning-panel";
 import { ToolCall } from "@/components/elements/tool-call";
 import { useI18n } from "@/i18n";
+import { formatCompactDuration } from "@/lib/format-duration";
 
 import { BashTerminal } from "../terminal/bash-tool-renderer";
-import { timelineStats, timelineSteps, type ToolTimelineStepKind } from "./tool-timeline-model";
+import { defaultMessageDisclosureOpen } from "./message-presentation-policy";
+import {
+  liveReasoningPreview,
+  reasoningPartTiming,
+  timelineEntries,
+  timelineStats,
+  timelineSteps,
+  type ToolTimelineStepKind,
+} from "./tool-timeline-model";
 
 type TimelineSourcePart = ReasoningMessagePart | ToolCallMessagePart;
 
@@ -49,17 +63,36 @@ function serializeToolValue(value: unknown): string {
   }
 }
 
-function useOpenDuringStreaming(streaming: boolean) {
-  const [open, setOpen] = useState(streaming);
-  const wasStreaming = useRef(streaming);
+function useElapsedSeconds(
+  running: boolean,
+  timing?: ToolCallMessagePart["timing"],
+): number | undefined {
+  const fallbackStartedAt = useRef<number | undefined>(running ? Date.now() : undefined);
+  const [elapsedSeconds, setElapsedSeconds] = useState<number | undefined>(() => {
+    if (timing?.completedAt !== undefined) {
+      return Math.max(0, Math.floor((timing.completedAt - timing.startedAt) / 1_000));
+    }
+    return running ? 0 : undefined;
+  });
 
   useEffect(() => {
-    if (streaming && !wasStreaming.current) setOpen(true);
-    if (!streaming && wasStreaming.current) setOpen(false);
-    wasStreaming.current = streaming;
-  }, [streaming]);
+    const startedAt =
+      timing?.startedAt ?? fallbackStartedAt.current ?? (running ? Date.now() : undefined);
+    if (startedAt === undefined) return;
 
-  return [open, setOpen] as const;
+    fallbackStartedAt.current = startedAt;
+    const updateElapsed = (endedAt = timing?.completedAt ?? Date.now()) => {
+      setElapsedSeconds(Math.max(0, Math.floor((endedAt - startedAt) / 1_000)));
+    };
+
+    updateElapsed();
+    if (!running || timing?.completedAt !== undefined) return;
+
+    const interval = window.setInterval(() => updateElapsed(), 1_000);
+    return () => window.clearInterval(interval);
+  }, [running, timing?.completedAt, timing?.startedAt]);
+
+  return elapsedSeconds;
 }
 
 function TimelineReasoning({
@@ -72,7 +105,13 @@ function TimelineReasoning({
   preview: string;
 }) {
   const { t } = useI18n();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(() =>
+    defaultMessageDisclosureOpen("reasoning", running ? "streaming" : "completed"),
+  );
+  const elapsedSeconds = useElapsedSeconds(running, reasoningPartTiming(part));
+  const collapsedPreview = running
+    ? liveReasoningPreview(part.text || part.unstable_summary || "") || preview
+    : preview;
 
   return (
     <ReasoningPanel
@@ -90,7 +129,14 @@ function TimelineReasoning({
       restingLabel={t("extensions.messagePresentation.reasoning.step")}
       icon={SparklesIcon}
       activeIcon={<ThinkingOrb state="composing" size={20} speed={3.0} />}
-      collapsedPreview={preview}
+      collapsedPreview={collapsedPreview}
+      elapsed={
+        elapsedSeconds === undefined
+          ? undefined
+          : t("extensions.messagePresentation.elapsed", {
+              duration: formatCompactDuration(elapsedSeconds * 1_000, { zeroValue: "0s" }),
+            })
+      }
       className="max-w-none"
     />
   );
@@ -101,17 +147,18 @@ function TimelineToolCall({
   kind,
   query,
   running,
-  sessionStreaming,
 }: {
   part: ToolCallMessagePart;
   kind: ToolTimelineStepKind;
   query: string;
   running: boolean;
-  sessionStreaming: boolean;
 }) {
   const { t } = useI18n();
-  const [open, setOpen] = useOpenDuringStreaming(sessionStreaming);
+  const [open, setOpen] = useState(() =>
+    defaultMessageDisclosureOpen("tool", running ? "streaming" : "completed"),
+  );
   const displayedResult = part.result ?? part.artifact;
+  const elapsedSeconds = useElapsedSeconds(running, part.timing);
 
   return (
     <ToolCall
@@ -126,6 +173,13 @@ function TimelineToolCall({
       running={running}
       open={open}
       onOpenChange={setOpen}
+      elapsed={
+        elapsedSeconds === undefined
+          ? undefined
+          : t("extensions.messagePresentation.elapsed", {
+              duration: formatCompactDuration(elapsedSeconds * 1_000, { zeroValue: "0s" }),
+            })
+      }
     >
       {part.toolName === "bash" && !part.isError ? (
         <BashTerminal
@@ -145,6 +199,56 @@ function TimelineToolCall({
   );
 }
 
+function ParallelToolGroup({
+  parts,
+  kinds,
+  queries,
+  turnStreaming,
+}: {
+  parts: readonly ToolCallMessagePart[];
+  kinds: readonly ToolTimelineStepKind[];
+  queries: readonly string[];
+  turnStreaming: boolean;
+}) {
+  const running = turnStreaming && parts.some((part) => part.result === undefined);
+  const [open, setOpen] = useState(() =>
+    defaultMessageDisclosureOpen("parallel-tools", turnStreaming ? "streaming" : "completed"),
+  );
+
+  return (
+    <ToolGroupRoot
+      variant="ghost"
+      open={open}
+      onOpenChange={setOpen}
+      className="max-w-none [overflow-anchor:none]"
+    >
+      <ToolGroupTrigger
+        count={parts.length}
+        active={running}
+        className="text-foreground/55 hover:text-foreground/90 gap-1.5 py-1 text-[13.5px] transition-colors outline-none"
+      />
+      <ToolGroupContent className="[&>div]:ms-1 [&>div]:border-s [&>div]:border-foreground/10 [&>div]:ps-3">
+        {parts.map((part, index) => {
+          const kind = kinds[index];
+          const query = queries[index];
+          if (!kind || query === undefined) return null;
+          const toolRunning = turnStreaming && part.result === undefined;
+
+          return (
+            <TimelineToolCall
+              key={part.toolCallId}
+              part={part}
+              kind={kind}
+              query={query}
+              running={toolRunning}
+            />
+          );
+        })}
+      </ToolGroupContent>
+    </ToolGroupRoot>
+  );
+}
+
 export function MessageToolTimeline({
   indices,
   activePartIndex,
@@ -156,23 +260,46 @@ export function MessageToolTimeline({
 }>) {
   const { t } = useI18n();
   const content = useAuiState((state) => state.message.content);
-  const [open, setOpen] = useOpenDuringStreaming(turnStreaming);
+  const [open, setOpen] = useState(() =>
+    defaultMessageDisclosureOpen("steps", turnStreaming ? "streaming" : "completed"),
+  );
   const activeStepIndex = indices.indexOf(activePartIndex);
   const parts = useMemo(
     () => indices.map((index) => content[index]).filter(isTimelineSourcePart),
     [content, indices],
   );
   const stepModels = useMemo(() => timelineSteps(parts), [parts]);
+  const entries = useMemo(() => timelineEntries(parts), [parts]);
   const stats = useMemo(() => timelineStats(parts), [parts]);
-  const steps: ReasoningStep[] = parts.map((part, index) => {
-    const model = stepModels[index];
+  const steps: ReasoningStep[] = entries.map((entry) => {
+    if (entry.kind === "parallel-tools") {
+      const models = entry.sourceIndices.map((index) => stepModels[index]);
+      return {
+        marker: false,
+        body: (
+          <ParallelToolGroup
+            parts={entry.parts}
+            kinds={models.flatMap((model) => (model ? [model.kind] : []))}
+            queries={models.flatMap((model) => (model ? [model.chip] : []))}
+            turnStreaming={turnStreaming}
+          />
+        ),
+      };
+    }
+
+    const { part, sourceIndex } = entry;
+    const model = stepModels[sourceIndex];
     if (!model) return { body: null };
 
     if (part.type === "reasoning") {
       return {
         marker: false,
         body: (
-          <TimelineReasoning part={part} running={index === activeStepIndex} preview={model.chip} />
+          <TimelineReasoning
+            part={part}
+            running={sourceIndex === activeStepIndex}
+            preview={model.chip}
+          />
         ),
       };
     }
@@ -185,18 +312,17 @@ export function MessageToolTimeline({
           kind={model.kind}
           query={model.chip}
           running={turnStreaming && part.result === undefined}
-          sessionStreaming={turnStreaming}
         />
       ),
     };
   });
 
-  const summaryArgs = { steps: parts.length, files: stats.length };
+  const summaryArgs = { steps: entries.length, files: stats.length };
 
   return (
     <ReasoningPanel
       steps={steps}
-      visibleSteps={parts.length}
+      visibleSteps={entries.length}
       streaming={activeStepIndex >= 0}
       open={open}
       onOpenChange={setOpen}

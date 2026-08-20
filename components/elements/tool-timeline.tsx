@@ -95,10 +95,16 @@ export function ToolTimeline({
                 >
                   <span>{stat.file}</span>
                   {stat.added !== undefined && (
-                    <span className="text-emerald-600 dark:text-emerald-400">+{stat.added}</span>
+                    <span className="text-emerald-600 dark:text-emerald-400">
+                      <span data-diff-marker="">+</span>
+                      {stat.added}
+                    </span>
                   )}
                   {stat.removed !== undefined && (
-                    <span className="text-red-600 dark:text-red-400">−{stat.removed}</span>
+                    <span className="text-red-600 dark:text-red-400">
+                      <span data-diff-marker="">−</span>
+                      {stat.removed}
+                    </span>
                   )}
                 </span>
               ))}

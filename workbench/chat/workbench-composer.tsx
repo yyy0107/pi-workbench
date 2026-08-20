@@ -1,7 +1,7 @@
 "use client";
 
 import { ComposerPrimitive, useAui, useAuiState } from "@assistant-ui/react";
-import { ArrowUpIcon, MicIcon, PlusIcon, SquareIcon, XIcon } from "lucide-react";
+import { AlertCircleIcon, ArrowUpIcon, MicIcon, PlusIcon, SquareIcon, XIcon } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 
 import { ComposerAddAttachment, ComposerAttachments } from "@/components/assistant-ui/attachment";
@@ -9,12 +9,43 @@ import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { SlotHost, useExtensionManager } from "@/platform/extensions";
+import type { PiComposerSendError } from "@/runtime/pi/client/runtime/send-error";
 import { useWorkspaceDirectoryStore } from "@/workbench/workspaces/workspace-directory-store";
 
-function ComposerDrawerStats({
-  children,
-  contextCount,
-}: Readonly<{ children: React.ReactNode; contextCount: number }>) {
+interface PiComposerActions {
+  error?: PiComposerSendError;
+  clearError(): void;
+}
+
+function piComposerActions(extras: unknown): PiComposerActions | undefined {
+  if (
+    !extras ||
+    typeof extras !== "object" ||
+    !("piComposer" in extras) ||
+    !extras.piComposer ||
+    typeof extras.piComposer !== "object" ||
+    !("clearError" in extras.piComposer) ||
+    typeof extras.piComposer.clearError !== "function"
+  ) {
+    return undefined;
+  }
+  return extras.piComposer as PiComposerActions;
+}
+
+function composerErrorMessage(error: PiComposerSendError, t: ReturnType<typeof useI18n>["t"]) {
+  switch (error) {
+    case "model-image-unsupported":
+      return t("workbench.chat.errors.modelDoesNotSupportImages");
+    case "image-too-large":
+      return t("workbench.chat.errors.imageTooLarge");
+    case "too-many-images":
+      return t("workbench.chat.errors.tooManyImages");
+    case "image-invalid":
+      return t("workbench.chat.errors.invalidImage");
+  }
+}
+
+function ComposerDrawerStats({ contextCount }: Readonly<{ contextCount: number }>) {
   const { t } = useI18n();
   const extensionManager = useExtensionManager();
   const getExtensionCount = useCallback(
@@ -28,12 +59,11 @@ function ComposerDrawerStats({
   );
 
   return (
-    <div className="flex shrink-0 items-center gap-1.5">
-      <span className="bg-muted/55 text-muted-foreground inline-flex h-8 items-center rounded-xl px-2.5 text-xs whitespace-nowrap">
+    <div className="flex shrink-0 items-center gap-1">
+      <span className="bg-muted/55 text-muted-foreground inline-flex h-6 items-center rounded-lg px-2 text-[11px] whitespace-nowrap">
         {t("workbench.chat.composer.contextCount", { count: contextCount })}
       </span>
-      {children}
-      <span className="bg-muted/55 text-muted-foreground inline-flex h-8 items-center rounded-xl px-2.5 text-xs whitespace-nowrap">
+      <span className="bg-muted/55 text-muted-foreground inline-flex h-6 items-center rounded-lg px-2 text-[11px] whitespace-nowrap">
         {t("workbench.chat.composer.extensionsCount", { count: extensionCount })}
       </span>
     </div>
@@ -43,6 +73,8 @@ function ComposerDrawerStats({
 export function WorkbenchComposer() {
   const { t } = useI18n();
   const aui = useAui();
+  const extras = useAuiState((state) => state.thread.extras);
+  const composerActions = piComposerActions(extras);
   const drawerId = useId();
   const composerRef = useRef<HTMLFormElement>(null);
   const isRunning = useAuiState((state) => state.thread.isRunning);
@@ -263,31 +295,52 @@ export function WorkbenchComposer() {
               id={drawerId}
               role="region"
               aria-label={t("workbench.chat.composer.drawer")}
-              className="animate-in fade-in slide-in-from-top-1 flex min-h-14 items-center justify-between gap-3 overflow-x-auto border-t px-5 py-2 duration-150"
+              data-slot="workbench-composer-drawer"
+              className="animate-in fade-in slide-in-from-top-1 flex min-h-7 items-center justify-between gap-2 overflow-x-auto px-4 py-0.5 duration-150"
             >
               <SlotHost
                 name="composer.drawer.left"
                 context={drawerContext}
-                className="flex min-w-0 flex-1 items-center gap-2"
+                className="flex min-w-0 flex-1 items-center gap-1.5 empty:hidden"
               />
-              <fieldset
-                disabled={!canCompose}
-                className={cn(
-                  "ms-auto flex shrink-0 items-center gap-1.5 transition-opacity",
-                  showWorkspacePrompt ? "opacity-60" : !canCompose && "[&_:disabled]:opacity-100",
-                )}
-              >
-                <ComposerDrawerStats contextCount={contextCount}>
+              <div className="ms-auto flex shrink-0 items-center gap-1.5">
+                <ComposerDrawerStats contextCount={contextCount} />
+                <fieldset
+                  disabled={!canCompose}
+                  className={cn(
+                    "flex shrink-0 items-center transition-opacity",
+                    showWorkspacePrompt ? "opacity-60" : !canCompose && "[&_:disabled]:opacity-100",
+                  )}
+                >
                   <SlotHost
                     name="composer.drawer.right"
                     context={drawerContext}
-                    className="flex shrink-0 items-center gap-1.5"
+                    className="flex shrink-0 items-center gap-1.5 empty:hidden"
                   />
-                </ComposerDrawerStats>
-              </fieldset>
+                </fieldset>
+              </div>
             </div>
           ) : null}
         </ComposerPrimitive.AttachmentDropzone>
+
+        {composerActions?.error ? (
+          <div
+            role="alert"
+            aria-live="polite"
+            className="border-destructive/25 bg-destructive/8 text-destructive mt-2 flex items-start gap-2 rounded-xl border px-3 py-2 text-sm"
+          >
+            <AlertCircleIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+            <span className="min-w-0 flex-1">{composerErrorMessage(composerActions.error, t)}</span>
+            <button
+              type="button"
+              aria-label={t("workbench.chat.composer.dismissError")}
+              className="hover:bg-destructive/10 -m-1 rounded-md p-1"
+              onClick={composerActions.clearError}
+            >
+              <XIcon aria-hidden="true" className="size-3.5" />
+            </button>
+          </div>
+        ) : null}
       </ComposerPrimitive.Root>
 
       <SlotHost name="composer.after" context={context} className="flex flex-col gap-2" />

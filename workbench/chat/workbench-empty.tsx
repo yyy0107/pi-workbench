@@ -1,12 +1,12 @@
 "use client";
 
 import { ThreadPrimitive, useAuiState } from "@assistant-ui/react";
-import { FolderIcon, SparklesIcon } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { useI18n } from "@/i18n";
 import { useWorkspaceDirectoryStore } from "@/workbench/workspaces/workspace-directory-store";
 
-export function WorkbenchEmpty() {
+export function WorkbenchEmpty({ children }: Readonly<{ children: ReactNode }>) {
   const { t } = useI18n();
   const isNewThread = useAuiState(
     (state) => state.threads.mainThreadId === state.threads.newThreadId,
@@ -22,36 +22,37 @@ export function WorkbenchEmpty() {
   ];
 
   return (
-    <div className="mx-auto flex w-full max-w-[var(--thread-max-width)] flex-1 flex-col justify-center px-4 py-12">
-      <div className="mb-8">
-        <div className="bg-primary/10 mb-4 flex size-10 items-center justify-center rounded-xl">
-          {needsWorkspace ? <FolderIcon className="size-5" /> : <SparklesIcon className="size-5" />}
-        </div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {t(
-            needsWorkspace
-              ? "workbench.chat.empty.selectWorkspaceTitle"
-              : "workbench.chat.empty.title",
-          )}
+    <div className="relative mx-auto flex w-full max-w-[var(--thread-max-width)] flex-1 flex-col justify-center px-4 py-12">
+      <img
+        src="/pi-logo-on-light.svg"
+        alt=""
+        aria-hidden="true"
+        draggable={false}
+        className="pointer-events-none absolute bottom-[calc(50%_-_3rem)] left-1/2 z-0 size-[min(90vw,36rem)] max-w-none -translate-x-1/2 select-none opacity-[0.025] dark:invert dark:opacity-[0.05]"
+      />
+
+      <div className="relative z-10 mb-6 flex flex-col items-center text-center">
+        <h1 className="from-foreground via-muted-foreground to-foreground bg-linear-to-r bg-clip-text text-[clamp(1.25rem,4vw,2.75rem)] leading-none font-normal tracking-[-0.045em] whitespace-nowrap text-transparent drop-shadow-[0_1px_0_rgb(0_0_0_/_0.08)]">
+          {t("workbench.chat.empty.question")}
         </h1>
-        <p className="text-muted-foreground mt-2 max-w-lg text-sm leading-relaxed">
-          {t(
-            needsWorkspace
-              ? "workbench.chat.empty.selectWorkspaceDescription"
-              : "workbench.chat.empty.description",
-          )}
-        </p>
+        {!needsWorkspace ? (
+          <p className="text-muted-foreground mt-2 max-w-lg text-sm leading-relaxed">
+            {t("workbench.chat.empty.description")}
+          </p>
+        ) : null}
       </div>
 
+      <div className="relative z-10">{children}</div>
+
       {!needsWorkspace ? (
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="relative z-10 mt-5 flex flex-wrap justify-center gap-2">
           {starterPrompts.map((prompt) => (
             <ThreadPrimitive.Suggestion
               key={prompt}
               prompt={prompt}
               method="replace"
               autoSend
-              className="hover:bg-muted focus-visible:ring-ring rounded-xl border p-3 text-start text-sm transition-colors outline-none focus-visible:ring-2"
+              className="hover:bg-muted focus-visible:ring-ring rounded-full border px-4 py-2 text-sm transition-colors outline-none focus-visible:ring-2"
             >
               {prompt}
             </ThreadPrimitive.Suggestion>

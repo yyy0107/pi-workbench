@@ -7,6 +7,8 @@ import { collapsePanel } from "@/components/elements/surfaces";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 
+import { defaultMessageDisclosureOpen } from "./message-presentation-policy";
+
 export function CompletedTurnPanel({
   completed,
   label,
@@ -15,7 +17,9 @@ export function CompletedTurnPanel({
   completed: boolean;
   label: string;
 }>) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(() =>
+    defaultMessageDisclosureOpen("completed-turn", "completed"),
+  );
 
   if (!completed) return children;
 
