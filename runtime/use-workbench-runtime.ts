@@ -115,6 +115,13 @@ function useWorkbenchPiRuntime(manager: PiSessionManager) {
         throw localizedPiError(error, t);
       }
     },
+    onReload: async (parentId, config) => {
+      try {
+        await session.retry(parentId, config.runConfig);
+      } catch (error) {
+        throw localizedPiError(error, t);
+      }
+    },
     onRefetchThread: () => session.reload(),
     adapters: {
       attachments: workbenchAttachmentAdapter,

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
 import { AssistantRuntimeProvider, useAui, useAuiState } from "@assistant-ui/react";
 
+import { useWorkspaceFeedbackStore } from "@/components/right-workspace";
 import { PiSessionManagerProvider } from "@/runtime/pi/client/runtime/context";
 import { PiSessionManager } from "@/runtime/pi/client/runtime/manager";
 import { useWorkbenchRuntime } from "@/runtime/use-workbench-runtime";
@@ -100,9 +101,10 @@ function PiDraftWorkspaceTracker({ manager }: { manager: PiSessionManager }) {
 }
 
 export function WorkbenchAssistantRuntimeProvider({ children }: Readonly<{ children: ReactNode }>) {
+  const workspaceFeedback = useWorkspaceFeedbackStore();
   const managerRef = useRef<PiSessionManager | null>(null);
   const managerLifecycleRef = useRef(0);
-  if (!managerRef.current) managerRef.current = new PiSessionManager();
+  if (!managerRef.current) managerRef.current = new PiSessionManager({ workspaceFeedback });
   const manager = managerRef.current;
   const runtime = useWorkbenchRuntime(manager);
 

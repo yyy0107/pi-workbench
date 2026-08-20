@@ -161,10 +161,60 @@ export interface ConfigurableProviderView {
   settingsPath: string[];
   active: boolean;
   declared?: boolean;
+  configured: boolean;
+  authSource?:
+    | "stored"
+    | "runtime"
+    | "environment"
+    | "fallback"
+    | "models_json_key"
+    | "models_json_command";
+  apiKeyConfigurable: boolean;
+  removable: boolean;
+  configurationDefined: boolean;
 }
 
 export interface ModelProvidersValue {
   providers: ConfigurableProviderView[];
+}
+
+export interface ConfigureModelProviderPayload {
+  provider: string;
+  apiKey?: string;
+  configuration?: ModelProviderConfiguration;
+}
+
+export interface ModelProviderModelConfiguration {
+  id: string;
+  name?: string;
+  contextWindow?: number;
+  maxTokens?: number;
+}
+
+export interface ModelProviderConfiguration {
+  displayName?: string;
+  baseURL: string;
+  api: string;
+  models?: ModelProviderModelConfiguration[];
+}
+
+export interface ModelProviderConfigPayload {
+  provider: string;
+}
+
+export interface ModelProviderConfigValue {
+  provider: string;
+  displayName: string;
+  defaultBaseURL?: string;
+  baseURL?: string;
+  api?: string;
+  configurationDefined: boolean;
+  modelsSource: "adapter" | "custom";
+  models: ModelProviderModelConfiguration[];
+}
+
+export interface RemoveModelProviderPayload {
+  provider: string;
 }
 
 export interface ModelCatalogValue {
@@ -189,6 +239,21 @@ export interface DiscoveredModel {
 
 export interface DiscoverModelsValue {
   models: DiscoveredModel[];
+}
+
+export interface SkillListPayload {
+  sessionId: string;
+}
+
+export interface SkillView {
+  name: string;
+  description: string;
+  whenToUse?: string;
+  modelInvocable: boolean;
+}
+
+export interface SkillListValue {
+  skills: SkillView[];
 }
 
 export interface SessionProjections {

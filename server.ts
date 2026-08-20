@@ -5,6 +5,7 @@ import { WebSocketServer } from "ws";
 
 import { createNoServerWebSocketGateway } from "./runtime/pi/server/streams/websocket-gateway";
 import { createWorkbenchHttpServer } from "./runtime/pi/server/transport/custom-server";
+import { ensureWorkbenchMessageTerminationExtension } from "./runtime/pi/server/user-extensions/message-termination-extension";
 
 function configuredPort(): number {
   const raw = process.env.PORT?.trim() || "3000";
@@ -21,6 +22,21 @@ async function main(): Promise<void> {
   const dev = process.argv.includes("--dev") || process.env.NODE_ENV === "development";
   const hostname = process.env.WORKBENCH_HOST?.trim() || "127.0.0.1";
   const port = configuredPort();
+
+  try {
+    const extension = await ensureWorkbenchMessageTerminationExtension();
+    if (extension.status === "conflict") {
+      console.warn(
+        `Workbench did not overwrite the existing Pi user extension at ${extension.path}.`,
+      );
+    } else if (extension.status === "managed-version-mismatch") {
+      console.warn(
+        `Workbench found a different managed Pi message-termination extension at ${extension.path}; it was left unchanged.`,
+      );
+    }
+  } catch (error) {
+    console.warn("Workbench could not install the Pi user message-termination extension.", error);
+  }
 
   // Next installs its own upgrade listener here. This relay never listens on a
   // network interface; the public server below remains the single dispatcher.

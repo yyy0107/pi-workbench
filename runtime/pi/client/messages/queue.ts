@@ -10,6 +10,7 @@ import type { PiQueuedPrompt, PiQueueMode } from "../../contracts";
 import type { SessionQueueAction } from "../../rpc-contracts";
 import type { QueueItem } from "../../stream-contracts";
 import { appendMessageToPiPrompt } from "./messages";
+import { stripWorkspaceFeedbackContext } from "../../../../components/right-workspace/feedback/feedback-adapter";
 
 interface PiMessageQueueOptions {
   isRunning(): boolean;
@@ -32,7 +33,7 @@ function appendContent(message: AppendMessage): SessionQueueAction & { kind: "ed
 function queueItemParts(item: QueueItem): readonly (FileMessagePart | TextMessagePart)[] {
   return item.message.content.map((part): FileMessagePart | TextMessagePart => {
     if (part.type === "text" && typeof part.text === "string") {
-      return { type: "text", text: part.text };
+      return { type: "text", text: stripWorkspaceFeedbackContext(part.text) };
     }
     if (
       part.type === "image" &&
@@ -51,12 +52,13 @@ function queueItemParts(item: QueueItem): readonly (FileMessagePart | TextMessag
 }
 
 function queueItemText(item: QueueItem): string {
-  return item.message.content
+  const text = item.message.content
     .map((part) => {
       if (part.type === "text" && typeof part.text === "string") return part.text;
       return `[${part.type}]`;
     })
     .join("");
+  return stripWorkspaceFeedbackContext(text);
 }
 
 function queueItemState(item: QueueItem): QueueItemState {

@@ -12,12 +12,16 @@ import type {
 } from "../../contracts";
 import type {
   ClientResponse,
+  ConfigureModelProviderPayload,
   DiscoverModelsPayload,
   DiscoverModelsValue,
   HostDescription,
   HostDirectoryListing,
   ModelCatalogValue,
+  ModelProviderConfigPayload,
+  ModelProviderConfigValue,
   ModelProvidersValue,
+  RemoveModelProviderPayload,
   RpcReceipt,
   SessionAttachmentPayload,
   SessionAttachmentValue,
@@ -43,9 +47,12 @@ import type {
   SessionSelectModelValue,
   SessionUpdateQueuePayload,
   SessionUpdateQueueValue,
+  SkillListPayload,
+  SkillListValue,
   WorkspaceListValue,
   WorkspaceView,
 } from "../../rpc-contracts";
+import { invalidatePiModelCatalog } from "../models/model-catalog-invalidation";
 
 const API_ROOT = "/api/pi";
 
@@ -271,12 +278,44 @@ export function listPiModelProviders(): Promise<ModelProvidersValue> {
   return callPiRpc("llm.providers", {});
 }
 
+export function getPiModelProviderConfig(
+  payload: ModelProviderConfigPayload,
+): Promise<ModelProviderConfigValue> {
+  return callPiRpc("llm.providerConfig", payload);
+}
+
+export async function configurePiModelProvider(
+  payload: ConfigureModelProviderPayload,
+): Promise<ModelProvidersValue> {
+  const value = await callPiRpc<ConfigureModelProviderPayload, ModelProvidersValue>(
+    "llm.configureProvider",
+    payload,
+  );
+  invalidatePiModelCatalog();
+  return value;
+}
+
+export async function removePiModelProvider(
+  payload: RemoveModelProviderPayload,
+): Promise<ModelProvidersValue> {
+  const value = await callPiRpc<RemoveModelProviderPayload, ModelProvidersValue>(
+    "llm.removeProvider",
+    payload,
+  );
+  invalidatePiModelCatalog();
+  return value;
+}
+
 export function listPiModelCatalog(): Promise<ModelCatalogValue> {
   return callPiRpc("llm.models", {});
 }
 
 export function discoverPiModels(payload: DiscoverModelsPayload): Promise<DiscoverModelsValue> {
   return callPiRpc("llm.discoverModels", payload);
+}
+
+export function listPiSkills(payload: SkillListPayload): Promise<SkillListValue> {
+  return callPiRpc("skill.list", payload);
 }
 
 export function listPiRpcSessions(payload: SessionListPayload = {}): Promise<SessionListValue> {

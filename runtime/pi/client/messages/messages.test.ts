@@ -14,6 +14,7 @@ import {
   optimisticUserMessage,
   piAssistantToThreadMessage,
   piHistoryToThreadMessages,
+  reconcileLiveMessagesAfterHistory,
 } from "./messages";
 import { conversationEventThreadMessage } from "./conversation-events";
 
@@ -55,6 +56,93 @@ test("marks optimistic user messages for repository eviction", () => {
   assert.equal(optimistic.metadata.custom.piOptimistic, true);
 });
 
+test("keeps an optimistic user message when a running history refresh has not persisted it", () => {
+  const appendMessage: AppendMessage = {
+    role: "user",
+    content: [{ type: "text", text: "Repeated prompt" }],
+    attachments: [],
+    createdAt: new Date(1_000),
+    metadata: { custom: {} },
+    parentId: null,
+    runConfig: undefined,
+    sourceId: null,
+  };
+  const optimistic = optimisticUserMessage(appendMessage, "user-live");
+  const priorPersisted = {
+    id: "user-old",
+    role: "user",
+    content: [{ type: "text", text: "Repeated prompt" }],
+    attachments: [],
+    createdAt: new Date(0),
+    metadata: { custom: {} },
+  } satisfies ThreadMessage;
+
+  const reconciled = reconcileLiveMessagesAfterHistory([optimistic], [priorPersisted], {
+    liveMessageIdsAtStart: new Set([optimistic.id]),
+    baseMessageIdsAtStart: new Set([priorPersisted.id]),
+    preserveUnpersistedOptimisticUsers: true,
+  });
+
+  assert.deepEqual(
+    reconciled.map((message) => message.id),
+    ["user-live"],
+  );
+});
+
+test("replaces an optimistic user message once the refreshed history contains its prompt", () => {
+  const appendMessage: AppendMessage = {
+    role: "user",
+    content: [{ type: "text", text: "Hello" }],
+    attachments: [],
+    createdAt: new Date(0),
+    metadata: { custom: {} },
+    parentId: null,
+    runConfig: undefined,
+    sourceId: null,
+  };
+  const optimistic = optimisticUserMessage(appendMessage, "user-live");
+  const persisted = {
+    id: "user-persisted",
+    role: "user",
+    content: [{ type: "text", text: "Hello" }],
+    attachments: [],
+    createdAt: new Date(0),
+    metadata: { custom: { piEntryId: "pi-event-1" } },
+  } satisfies ThreadMessage;
+
+  const reconciled = reconcileLiveMessagesAfterHistory([optimistic], [persisted], {
+    liveMessageIdsAtStart: new Set([optimistic.id]),
+    baseMessageIdsAtStart: new Set(),
+    preserveUnpersistedOptimisticUsers: true,
+  });
+
+  assert.deepEqual(reconciled, []);
+});
+
+test("clears captured optimistic user messages during an idle history refresh", () => {
+  const optimistic = optimisticUserMessage(
+    {
+      role: "user",
+      content: [{ type: "text", text: "Hello" }],
+      attachments: [],
+      createdAt: new Date(0),
+      metadata: { custom: {} },
+      parentId: null,
+      runConfig: undefined,
+      sourceId: null,
+    },
+    "user-live",
+  );
+
+  const reconciled = reconcileLiveMessagesAfterHistory([optimistic], [], {
+    liveMessageIdsAtStart: new Set([optimistic.id]),
+    baseMessageIdsAtStart: new Set(),
+    preserveUnpersistedOptimisticUsers: false,
+  });
+
+  assert.deepEqual(reconciled, []);
+});
+
 test("preserves assistant usage and timing metadata", () => {
   const timing: MessageTiming = {
     streamStartTime: 1_000,
@@ -86,6 +174,49 @@ test("preserves assistant usage and timing metadata", () => {
     cacheWrite: 0,
     totalTokens: 2_052,
   });
+});
+
+test("preserves Pi diagnostics and exposes the normalized termination metadata", () => {
+  const converted = piAssistantToThreadMessage(
+    {
+      ...assistantMessage,
+      stopReason: "error",
+      rawStopReason: "failed",
+      errorMessage: "fetch failed",
+      diagnostics: [
+        {
+          type: "provider_transport_failure",
+          timestamp: 1,
+          error: { message: "socket closed", code: "ECONNRESET" },
+        },
+        {
+          type: "workbench.message-termination.v1",
+          timestamp: 2,
+          details: {
+            schemaVersion: 1,
+            kind: "network-error",
+            stopReason: "error",
+            rawStopReason: "failed",
+            errorMessage: "fetch failed",
+          },
+        },
+      ],
+    },
+    "failed",
+  );
+
+  assert.equal(converted.metadata.custom.piRawStopReason, "failed");
+  assert.deepEqual(converted.metadata.custom.piTermination, {
+    schemaVersion: 1,
+    kind: "network-error",
+    stopReason: "error",
+    rawStopReason: "failed",
+    errorMessage: "fetch failed",
+  });
+  assert.equal(
+    (converted.metadata.custom.piDiagnostics as Array<{ type: string }>)[0]?.type,
+    "provider_transport_failure",
+  );
 });
 
 test("preserves a live reasoning start time across renderer remounts", () => {

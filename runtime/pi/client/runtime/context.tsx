@@ -44,3 +44,12 @@ export function usePiWorkspaces(): readonly PiWorkspaceSummary[] {
   );
   return useMemo(() => manager.getWorkspaces(), [manager, revision]);
 }
+
+export function usePiActiveSessionId(): string | undefined {
+  const manager = usePiSessionManager();
+  return useSyncExternalStore(
+    manager.subscribeActiveSession,
+    manager.getActiveSessionId,
+    manager.getActiveSessionId,
+  );
+}

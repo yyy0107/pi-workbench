@@ -16,7 +16,9 @@ import type {
   PiSessionHistory,
   PiToolResultMessage,
 } from "../../contracts";
+import { stripWorkspaceFeedbackContext } from "../../../../components/right-workspace/feedback/feedback-adapter";
 import { PI_CONVERSATION_EVENT_CUSTOM_TYPE } from "../../contracts";
+import { terminationFromAssistantMessage } from "../../message-termination";
 
 import { parsePiConversationEvent } from "./conversation-events";
 
@@ -137,6 +139,7 @@ export function piAssistantToThreadMessage(
     createdAt?: number;
   }> = {},
 ): ThreadMessage {
+  const termination = terminationFromAssistantMessage(message);
   const parallelTools = message.content.filter((part) => part.type === "toolCall");
   const parallelToolCount = parallelTools.length;
   const parallelToolBatchId = parallelTools[0]?.id;
@@ -207,6 +210,9 @@ export function piAssistantToThreadMessage(
         piMessageTimestamp: message.timestamp ?? null,
         piModel: message.model,
         piProvider: message.provider,
+        ...(message.rawStopReason ? { piRawStopReason: message.rawStopReason } : {}),
+        ...(message.diagnostics ? { piDiagnostics: message.diagnostics } : {}),
+        ...(termination ? { piTermination: termination } : {}),
         ...(message.usage
           ? {
               piUsage: {
@@ -516,8 +522,11 @@ export function piHistoryToThreadMessages(
             : message.content.map((part) =>
                 part.type === "image"
                   ? { type: "image" as const, image: imageUrl(part) }
-                  : { type: "text" as const, text: part.text },
+                  : { type: "text" as const, text: stripWorkspaceFeedbackContext(part.text) },
               );
+        if (typeof message.content === "string" && content[0]?.type === "text") {
+          content[0] = { ...content[0], text: stripWorkspaceFeedbackContext(content[0].text) };
+        }
         messages.push({
           id,
           role: "user",
@@ -594,6 +603,55 @@ export function piHistoryToThreadMessages(
   return coalesceConsecutiveAssistantMessages(messages);
 }
 
+function sameUserPrompt(left: ThreadUserMessage, right: ThreadUserMessage): boolean {
+  const leftPrompt = appendMessageToPiPrompt(left);
+  const rightPrompt = appendMessageToPiPrompt(right);
+  if (
+    leftPrompt.text !== rightPrompt.text ||
+    leftPrompt.images.length !== rightPrompt.images.length
+  ) {
+    return false;
+  }
+  return leftPrompt.images.every(
+    (image, index) =>
+      image.mimeType === rightPrompt.images[index]?.mimeType &&
+      image.data === rightPrompt.images[index]?.data,
+  );
+}
+
+export function reconcileLiveMessagesAfterHistory(
+  liveMessages: readonly ThreadMessage[],
+  authoritativeMessages: readonly ThreadMessage[],
+  options: Readonly<{
+    liveMessageIdsAtStart: ReadonlySet<string>;
+    baseMessageIdsAtStart: ReadonlySet<string>;
+    preserveUnpersistedOptimisticUsers: boolean;
+  }>,
+): ThreadMessage[] {
+  const newAuthoritativeUsers = authoritativeMessages.filter(
+    (message): message is ThreadUserMessage =>
+      message.role === "user" && !options.baseMessageIdsAtStart.has(message.id),
+  );
+
+  return liveMessages.filter((message) => {
+    if (!options.liveMessageIdsAtStart.has(message.id)) return true;
+    if (
+      !options.preserveUnpersistedOptimisticUsers ||
+      message.role !== "user" ||
+      message.metadata.custom.piOptimistic !== true
+    ) {
+      return false;
+    }
+
+    const replacementIndex = newAuthoritativeUsers.findIndex((candidate) =>
+      sameUserPrompt(message, candidate),
+    );
+    if (replacementIndex < 0) return true;
+    newAuthoritativeUsers.splice(replacementIndex, 1);
+    return false;
+  });
+}
+
 function splitDataUrl(value: string, fallbackMimeType: string): PiImageContent {
   const match = /^data:([^;,]+);base64,([\s\S]*)$/.exec(value);
   return {
@@ -603,7 +661,7 @@ function splitDataUrl(value: string, fallbackMimeType: string): PiImageContent {
   };
 }
 
-export function appendMessageToPiPrompt(message: AppendMessage): {
+export function appendMessageToPiPrompt(message: Pick<AppendMessage, "content" | "attachments">): {
   text: string;
   images: PiImageContent[];
 } {

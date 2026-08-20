@@ -8,7 +8,13 @@ import {
 } from "../host/host-directories";
 import { ModelService, ModelServiceError } from "../models/model-service";
 import { handleInteractiveResponsePost } from "../sessions/interactive-response-registry";
-import { getAttachedSessionCount, listModels, listSessions } from "../sessions/session-registry";
+import {
+  getAttachedSessionCount,
+  listModels,
+  listSessions,
+  notifyModelProviderConfigurationChanged,
+} from "../sessions/session-registry";
+import { SkillService, SkillServiceError } from "../skills/skill-service";
 import {
   handleRpcPost,
   rpcArray,
@@ -61,7 +67,31 @@ const discoverModelsPayload = rpcObject({
   api: rpcOptional(nonEmptyString),
   apiKey: rpcOptional(nonEmptyString),
 });
+const providerModelConfiguration = rpcObject({
+  id: nonEmptyString,
+  name: rpcOptional(rpcString()),
+  contextWindow: rpcOptional(rpcInteger({ minimum: 1 })),
+  maxTokens: rpcOptional(rpcInteger({ minimum: 1 })),
+});
+const providerConfiguration = rpcObject({
+  displayName: rpcOptional(rpcString()),
+  baseURL: nonEmptyString,
+  api: rpcEnum([
+    "anthropic-messages",
+    "openai-completions",
+    "openai-responses",
+    "google-generative-ai",
+  ]),
+  models: rpcOptional(rpcArray(providerModelConfiguration)),
+});
+const configureModelProviderPayload = rpcObject({
+  provider: nonEmptyString,
+  apiKey: rpcOptional(rpcString({ minLength: 1, trim: true })),
+  configuration: rpcOptional(providerConfiguration),
+});
+const modelProviderPayload = rpcObject({ provider: nonEmptyString });
 const modelService = new ModelService();
+const skillService = new SkillService();
 
 function sessionService(): SessionRpcService {
   return new SessionRpcService({ workspaceStore: getWorkspaceStore() });
@@ -129,7 +159,8 @@ function throwDomainError(error: unknown): never {
     error instanceof WorkspaceStoreError ||
     error instanceof HostDirectoryError ||
     error instanceof ModelServiceError ||
-    error instanceof SessionRpcServiceError
+    error instanceof SessionRpcServiceError ||
+    error instanceof SkillServiceError
   ) {
     throw rpcBusinessError(error.code, error.message, { ...error.details }, { cause: error });
   }
@@ -456,11 +487,79 @@ export async function handlePiRpcPost(request: Request, method: string): Promise
         payload: sessionIdPayload,
         handler: ({ sessionId }) => archiveWorkspaceSession(sessionId),
       });
+    case "skill.list":
+      return handleRpcPost(request, {
+        method,
+        payload: sessionIdPayload,
+        handler: async (payload) => {
+          try {
+            return await skillService.list(payload);
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
+      });
     case "llm.providers":
       return handleRpcPost(request, {
         method,
         payload: emptyPayload,
         handler: () => modelService.providers(),
+      });
+    case "llm.providerConfig":
+      return handleRpcPost(request, {
+        method,
+        payload: modelProviderPayload,
+        handler: (payload) => modelService.providerConfig(payload),
+      });
+    case "llm.configureProvider":
+      return handleRpcPost(request, {
+        method,
+        payload: configureModelProviderPayload,
+        loopbackOnly: true,
+        handler: async (payload, context) => {
+          try {
+            const value = await modelService.configureProvider(payload, { signal: context.signal });
+            notifyModelProviderConfigurationChanged(payload.provider);
+            return value;
+          } catch (error) {
+            if (isAborted(error, context.signal)) {
+              throw rpcBusinessError(
+                "cancelled",
+                "Provider configuration was cancelled.",
+                {},
+                {
+                  cause: error,
+                },
+              );
+            }
+            throwDomainError(error);
+          }
+        },
+      });
+    case "llm.removeProvider":
+      return handleRpcPost(request, {
+        method,
+        payload: modelProviderPayload,
+        loopbackOnly: true,
+        handler: async (payload, context) => {
+          try {
+            const value = await modelService.removeProvider(payload, { signal: context.signal });
+            notifyModelProviderConfigurationChanged(payload.provider);
+            return value;
+          } catch (error) {
+            if (isAborted(error, context.signal)) {
+              throw rpcBusinessError(
+                "cancelled",
+                "Provider removal was cancelled.",
+                {},
+                {
+                  cause: error,
+                },
+              );
+            }
+            throwDomainError(error);
+          }
+        },
       });
     case "llm.models":
       return handleRpcPost(request, {

@@ -14,9 +14,18 @@ const moduleHooks = registerHooks({
     return nextResolve(specifier, context);
   },
 });
-const { callPiRpc, PiApiError, pickPiWorkspace, respondPiRpc } = (await import(
-  new URL("./api.ts", import.meta.url).href
-)) as typeof import("./api");
+const {
+  callPiRpc,
+  configurePiModelProvider,
+  listPiSkills,
+  PiApiError,
+  pickPiWorkspace,
+  removePiModelProvider,
+  respondPiRpc,
+} = (await import(new URL("./api.ts", import.meta.url).href)) as typeof import("./api");
+const { getPiModelCatalogRevision, subscribePiModelCatalogInvalidation } = (await import(
+  new URL("../models/model-catalog-invalidation.ts", import.meta.url).href
+)) as typeof import("../models/model-catalog-invalidation");
 moduleHooks.deregister();
 
 type FetchCall = { input: string | URL | Request; init?: RequestInit };
@@ -86,6 +95,51 @@ test("callPiRpc exposes structured business errors", async (t) => {
     assert.deepEqual(error.details, { workspaceId: "missing" });
     return true;
   });
+});
+
+test("successful provider mutations invalidate the shared model catalog", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  let notifications = 0;
+  const unsubscribe = subscribePiModelCatalogInvalidation(() => {
+    notifications += 1;
+  });
+  t.after(unsubscribe);
+  const initialRevision = getPiModelCatalogRevision();
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as { rpcId: string };
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: { ok: true, value: { providers: [] } },
+    });
+  };
+
+  await configurePiModelProvider({ provider: "acme", apiKey: "private-key" });
+  assert.equal(getPiModelCatalogRevision(), initialRevision + 1);
+  assert.equal(notifications, 1);
+
+  await removePiModelProvider({ provider: "acme" });
+  assert.equal(getPiModelCatalogRevision(), initialRevision + 2);
+  assert.equal(notifications, 2);
+
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as { rpcId: string };
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: {
+        ok: false,
+        error: { code: "save-failed", message: "Save failed", details: {} },
+      },
+    });
+  };
+  await assert.rejects(configurePiModelProvider({ provider: "acme", apiKey: "private-key" }));
+  assert.equal(getPiModelCatalogRevision(), initialRevision + 2);
+  assert.equal(notifications, 2);
 });
 
 test("callPiRpc rejects malformed success and failure envelopes", async (t) => {
@@ -197,4 +251,38 @@ test("pickPiWorkspace composes host.pickDirectory and workspace.create", async (
     cwd: "/work/project",
   });
   assert.deepEqual(methods, ["host.pickDirectory", "workspace.create"]);
+});
+
+test("listPiSkills calls the session-scoped skill.list RPC", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  let request: Record<string, unknown> | undefined;
+  globalThis.fetch = async (_input, init) => {
+    request = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: {
+        ok: true,
+        value: {
+          skills: [
+            {
+              name: "review",
+              description: "Review changes.",
+              modelInvocable: true,
+            },
+          ],
+        },
+      },
+    });
+  };
+
+  assert.deepEqual(await listPiSkills({ sessionId: "session-1" }), {
+    skills: [{ name: "review", description: "Review changes.", modelInvocable: true }],
+  });
+  assert.equal(request?.method, "skill.list");
+  assert.deepEqual(request?.payload, { sessionId: "session-1" });
 });

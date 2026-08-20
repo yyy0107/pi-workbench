@@ -5,7 +5,9 @@ import test from "node:test";
 const moduleHooks = registerHooks({
   resolve(specifier, context, nextResolve) {
     return nextResolve(
-      specifier === "../contracts" || specifier === "../rpc-contracts"
+      specifier.endsWith("/contracts") ||
+        specifier.endsWith("/rpc-contracts") ||
+        specifier === "./model-config-store"
         ? `${specifier}.ts`
         : specifier,
       context,
@@ -20,6 +22,49 @@ moduleHooks.deregister();
 type ModelRuntimeLike = import("./model-service").ModelRuntimeLike;
 type ModelRuntimeModel = import("./model-service").ModelRuntimeModel;
 type ModelRuntimeProvider = import("./model-service").ModelRuntimeProvider;
+type ModelConfigStorage = import("./model-config-store").ModelConfigStorage;
+type StoredModelProviderConfiguration =
+  import("./model-config-store").StoredModelProviderConfiguration;
+
+function memoryModelConfigStore(
+  initial: Record<string, StoredModelProviderConfiguration> = {},
+): ModelConfigStorage {
+  let configurations = structuredClone(initial);
+  return {
+    providers: async () => structuredClone(configurations),
+    setProvider: async (provider, configuration) => {
+      const previous = structuredClone(configurations);
+      configurations[provider] = {
+        ...(configuration.displayName ? { displayName: configuration.displayName } : {}),
+        baseURL: configuration.baseURL,
+        api: configuration.api,
+        ...(configuration.models ? { models: structuredClone(configuration.models) } : {}),
+      };
+      return {
+        rollback: async () => {
+          configurations = previous;
+        },
+      };
+    },
+    removeProvider: async (provider) => {
+      if (!(provider in configurations)) return undefined;
+      const previous = structuredClone(configurations);
+      delete configurations[provider];
+      return {
+        rollback: async () => {
+          configurations = previous;
+        },
+      };
+    },
+  };
+}
+
+function modelService(options: ConstructorParameters<typeof ModelService>[0] = {}) {
+  return new ModelService({
+    ...options,
+    modelConfigStore: options.modelConfigStore ?? memoryModelConfigStore(),
+  });
+}
 
 const providers: ModelRuntimeProvider[] = [
   { id: "openai", name: "OpenAI" },
@@ -60,13 +105,16 @@ function runtime(overrides: Partial<ModelRuntimeLike> = {}): ModelRuntimeLike {
   };
 }
 
-test("maps the configurable directory independently from active routes and credentials", async () => {
+test("maps provider auth status without reading credential values", async () => {
+  let statusReads = 0;
   let credentialReads = 0;
-  const service = new ModelService({
+  const service = modelService({
     runtime: runtime({
-      getProviderAuthStatus: () => {
-        credentialReads += 1;
-        return { configured: false };
+      getProviderAuthStatus: (provider) => {
+        statusReads += 1;
+        return provider === "openai"
+          ? { configured: true, source: "environment" }
+          : { configured: false };
       },
       getAuth: async () => {
         credentialReads += 1;
@@ -96,6 +144,10 @@ test("maps the configurable directory independently from active routes and crede
         settingsNs: "",
         settingsPath: [],
         active: true,
+        configured: false,
+        apiKeyConfigurable: false,
+        removable: false,
+        configurationDefined: false,
       },
       {
         provider: "dormant",
@@ -104,6 +156,10 @@ test("maps the configurable directory independently from active routes and crede
         settingsPath: ["providers", "dormant"],
         active: false,
         declared: true,
+        configured: false,
+        apiKeyConfigurable: false,
+        removable: false,
+        configurationDefined: false,
       },
       {
         provider: "openai",
@@ -111,9 +167,15 @@ test("maps the configurable directory independently from active routes and crede
         settingsNs: "llm.openai",
         settingsPath: ["connection"],
         active: true,
+        configured: true,
+        authSource: "environment",
+        apiKeyConfigurable: false,
+        removable: false,
+        configurationDefined: false,
       },
     ],
   });
+  assert.equal(statusReads, 2);
   assert.equal(credentialReads, 0);
   assert.equal(JSON.stringify(providerViews).includes("must-not-leak"), false);
 
@@ -142,6 +204,394 @@ test("maps the configurable directory independently from active routes and crede
   });
 });
 
+test("persists an internal provider API key without making the provider removable", async () => {
+  const controller = new AbortController();
+  const configurableProviders: ModelRuntimeProvider[] = [
+    {
+      id: "openai",
+      name: "OpenAI",
+      auth: { apiKey: { login() {} } },
+    },
+  ];
+  let status: ReturnType<NonNullable<ModelRuntimeLike["getProviderAuthStatus"]>> = {
+    configured: false,
+  };
+  let receivedKey: string | undefined;
+  let logoutCalls = 0;
+  const service = modelService({
+    runtime: runtime({
+      getProviders: () => configurableProviders,
+      getProviderAuthStatus: () => status,
+      login: async (provider, type, interaction) => {
+        assert.equal(provider, "openai");
+        assert.equal(type, "api_key");
+        assert.equal(interaction.signal, controller.signal);
+        receivedKey = await interaction.prompt({ type: "secret" });
+        status = { configured: true, source: "stored" };
+        return { type: "api_key", key: receivedKey };
+      },
+      logout: async (provider, options) => {
+        assert.equal(provider, "openai");
+        assert.equal(options?.signal, controller.signal);
+        logoutCalls += 1;
+        status = { configured: false };
+      },
+    }),
+  });
+
+  const saved = await service.configureProvider(
+    { provider: "openai", apiKey: "  private-key  " },
+    { signal: controller.signal },
+  );
+  assert.equal(receivedKey, "private-key");
+  assert.deepEqual(saved.providers[0], {
+    provider: "openai",
+    displayName: "OpenAI",
+    settingsNs: "",
+    settingsPath: [],
+    active: true,
+    configured: true,
+    authSource: "stored",
+    apiKeyConfigurable: true,
+    removable: false,
+    configurationDefined: false,
+  });
+  assert.equal(JSON.stringify(saved).includes("private-key"), false);
+
+  await assert.rejects(
+    () => service.removeProvider({ provider: "openai" }, { signal: controller.signal }),
+    (error: unknown) =>
+      error instanceof ModelServiceError && error.code === "model-provider-configuration-readonly",
+  );
+  assert.equal(logoutCalls, 0);
+});
+
+test("persists a custom provider catalog, refreshes its route, and keeps credentials separate", async () => {
+  const store = memoryModelConfigStore();
+  let routes: ModelRuntimeProvider[] = [];
+  let catalog: ModelRuntimeModel[] = [];
+  let status: ReturnType<NonNullable<ModelRuntimeLike["getProviderAuthStatus"]>> = {
+    configured: false,
+  };
+  let receivedKey: string | undefined;
+  const refreshes: Array<Parameters<ModelRuntimeLike["refresh"]>[0]> = [];
+  const customRuntime = runtime({
+    getProviders: () => routes,
+    getModels: (provider) => catalog.filter((model) => !provider || model.provider === provider),
+    getProviderAuthStatus: () => status,
+    refresh: async (options) => {
+      refreshes.push(options);
+      const stored = (await store.providers()).acme;
+      if (stored) {
+        routes = [
+          {
+            id: "acme",
+            name: stored.displayName ?? "acme",
+            baseUrl: stored.baseURL,
+            auth: { apiKey: { login() {} } },
+          },
+        ];
+        catalog = (stored.models ?? []).map((model) => ({
+          provider: "acme",
+          id: model.id,
+          name: model.name ?? model.id,
+          reasoning: false,
+          contextWindow: model.contextWindow ?? 128_000,
+          maxTokens: model.maxTokens ?? 16_384,
+          api: stored.api,
+          baseUrl: stored.baseURL,
+        }));
+      } else {
+        routes = [];
+        catalog = [];
+      }
+      return { aborted: false, errors: new Map() };
+    },
+    login: async (_provider, _type, interaction) => {
+      receivedKey = await interaction.prompt({ type: "secret" });
+      status = { configured: true, source: "stored" };
+      return { type: "api_key", key: receivedKey };
+    },
+    logout: async () => {
+      status = { configured: false };
+    },
+  });
+  const service = modelService({ runtime: customRuntime, modelConfigStore: store });
+
+  const saved = await service.configureProvider({
+    provider: "acme",
+    apiKey: "private-key",
+    configuration: {
+      displayName: "Acme AI",
+      baseURL: "https://api.acme.test/v1/",
+      api: "openai-responses",
+      models: [
+        {
+          id: "acme-large",
+          name: "Acme Large",
+          contextWindow: 1_000_000,
+          maxTokens: 256_000,
+        },
+      ],
+    },
+  });
+
+  assert.equal(receivedKey, "private-key");
+  assert.deepEqual(refreshes[0], {
+    allowNetwork: false,
+    providers: ["acme"],
+  });
+  assert.deepEqual(await store.providers(), {
+    acme: {
+      displayName: "Acme AI",
+      baseURL: "https://api.acme.test/v1",
+      api: "openai-responses",
+      models: [
+        {
+          id: "acme-large",
+          name: "Acme Large",
+          contextWindow: 1_000_000,
+          maxTokens: 256_000,
+        },
+      ],
+    },
+  });
+  assert.equal(JSON.stringify(await store.providers()).includes("private-key"), false);
+  assert.deepEqual(saved.providers[0], {
+    provider: "acme",
+    displayName: "Acme AI",
+    settingsNs: "",
+    settingsPath: [],
+    active: true,
+    configured: true,
+    authSource: "stored",
+    apiKeyConfigurable: true,
+    removable: true,
+    configurationDefined: true,
+  });
+  assert.deepEqual(await service.providerConfig({ provider: "acme" }), {
+    provider: "acme",
+    displayName: "Acme AI",
+    baseURL: "https://api.acme.test/v1",
+    api: "openai-responses",
+    configurationDefined: true,
+    modelsSource: "custom",
+    models: [
+      {
+        id: "acme-large",
+        name: "Acme Large",
+        contextWindow: 1_000_000,
+        maxTokens: 256_000,
+      },
+    ],
+  });
+
+  assert.deepEqual(await service.removeProvider({ provider: "acme" }), { providers: [] });
+  assert.deepEqual(await store.providers(), {});
+  assert.equal(refreshes.length, 2);
+});
+
+test("returns adapter defaults without turning them into a custom override", async () => {
+  const service = modelService({ runtime: runtime() });
+  assert.deepEqual(await service.providerConfig({ provider: "openai" }), {
+    provider: "openai",
+    displayName: "OpenAI",
+    defaultBaseURL: "https://api.openai.com/v1",
+    configurationDefined: false,
+    modelsSource: "adapter",
+    models: [
+      {
+        id: "gpt-reasoning",
+        name: "GPT Reasoning",
+        contextWindow: 200_000,
+        maxTokens: 32_000,
+      },
+    ],
+  });
+});
+
+test("restores an internal provider's adapter model catalog", async () => {
+  const store = memoryModelConfigStore({
+    openai: {
+      baseURL: "https://api.openai.test/v1",
+      api: "openai-responses",
+      models: [{ id: "custom-gpt" }],
+    },
+  });
+  let catalog = [{ ...models[0], id: "custom-gpt", name: "custom-gpt" }];
+  const service = modelService({
+    modelConfigStore: store,
+    runtime: runtime({
+      getModels: (provider) => catalog.filter((model) => !provider || model.provider === provider),
+      refresh: async () => {
+        const stored = (await store.providers()).openai;
+        catalog = stored?.models
+          ? stored.models.map((model) => ({
+              ...models[0],
+              id: model.id,
+              name: model.name ?? model.id,
+            }))
+          : models.filter(({ provider }) => provider === "openai");
+        return { aborted: false, errors: new Map() };
+      },
+    }),
+  });
+
+  await service.configureProvider({
+    provider: "openai",
+    configuration: {
+      baseURL: "https://api.openai.test/v1",
+      api: "openai-responses",
+    },
+  });
+
+  assert.deepEqual(await service.providerConfig({ provider: "openai" }), {
+    provider: "openai",
+    displayName: "OpenAI",
+    defaultBaseURL: "https://api.openai.com/v1",
+    baseURL: "https://api.openai.test/v1",
+    api: "openai-responses",
+    configurationDefined: true,
+    modelsSource: "adapter",
+    models: [
+      {
+        id: "gpt-reasoning",
+        name: "GPT Reasoning",
+        contextWindow: 200_000,
+        maxTokens: 32_000,
+      },
+    ],
+  });
+});
+
+test("allows a custom provider without a model catalog", async () => {
+  const store = memoryModelConfigStore();
+  let routes: ModelRuntimeProvider[] = [];
+  const customRuntime = runtime({
+    getProviders: () => routes,
+    getModels: () => [],
+    refresh: async () => {
+      const stored = (await store.providers()).acme;
+      routes = stored
+        ? [
+            {
+              id: "acme",
+              name: stored.displayName ?? "acme",
+              baseUrl: stored.baseURL,
+              auth: { apiKey: { login() {} } },
+            },
+          ]
+        : [];
+      return { aborted: false, errors: new Map() };
+    },
+  });
+  const service = modelService({ runtime: customRuntime, modelConfigStore: store });
+
+  await service.configureProvider({
+    provider: "acme",
+    configuration: {
+      displayName: "Acme Gateway",
+      baseURL: "https://gateway.example/v1",
+      api: "openai-completions",
+    },
+  });
+
+  assert.deepEqual(await service.providerConfig({ provider: "acme" }), {
+    provider: "acme",
+    displayName: "Acme Gateway",
+    baseURL: "https://gateway.example/v1",
+    api: "openai-completions",
+    configurationDefined: true,
+    modelsSource: "adapter",
+    models: [],
+  });
+});
+
+test("rolls back a custom catalog when credential setup fails", async () => {
+  const store = memoryModelConfigStore();
+  let routeDefined = false;
+  let refreshCalls = 0;
+  const service = modelService({
+    modelConfigStore: store,
+    runtime: runtime({
+      getProviders: () =>
+        routeDefined
+          ? [
+              {
+                id: "acme",
+                name: "Acme",
+                auth: { apiKey: { login() {} } },
+              },
+            ]
+          : [],
+      getModels: () => [],
+      refresh: async () => {
+        refreshCalls += 1;
+        routeDefined = (await store.providers()).acme !== undefined;
+        return { aborted: false, errors: new Map() };
+      },
+      login: async () => {
+        throw new Error("credential store unavailable");
+      },
+    }),
+  });
+
+  await assert.rejects(
+    () =>
+      service.configureProvider({
+        provider: "acme",
+        apiKey: "private-key",
+        configuration: {
+          baseURL: "https://api.acme.test/v1",
+          api: "openai-completions",
+          models: [{ id: "acme-large" }],
+        },
+      }),
+    (error: unknown) =>
+      error instanceof ModelServiceError && error.code === "model-provider-configuration-failed",
+  );
+  assert.deepEqual(await store.providers(), {});
+  assert.equal(routeDefined, false);
+  assert.equal(refreshCalls, 2);
+});
+
+test("rejects multi-step API-key setup and externally managed credential removal", async () => {
+  const configurableProviders: ModelRuntimeProvider[] = [
+    {
+      id: "openai",
+      name: "OpenAI",
+      auth: { apiKey: { login() {} } },
+    },
+  ];
+  const multiStep = modelService({
+    runtime: runtime({
+      getProviders: () => configurableProviders,
+      login: async (_provider, _type, interaction) => {
+        await interaction.prompt({ type: "secret" });
+        await interaction.prompt({ type: "text" });
+      },
+    }),
+  });
+  await assert.rejects(
+    () => multiStep.configureProvider({ provider: "openai", apiKey: "private-key" }),
+    (error: unknown) =>
+      error instanceof ModelServiceError && error.code === "model-provider-api-key-unsupported",
+  );
+
+  const ambient = modelService({
+    runtime: runtime({
+      getProviders: () => configurableProviders,
+      getProviderAuthStatus: () => ({ configured: true, source: "environment" }),
+      logout: async () => assert.fail("ambient auth must not be deleted"),
+    }),
+  });
+  await assert.rejects(
+    () => ambient.removeProvider({ provider: "openai" }),
+    (error: unknown) =>
+      error instanceof ModelServiceError && error.code === "model-provider-configuration-readonly",
+  );
+});
+
 test("maps PI reasoning effort fallbacks", () => {
   assert.deepEqual(
     toModelCatalogModel({ ...models[0], thinkingLevelMap: { medium: null } }).reasoning
@@ -151,7 +601,7 @@ test("maps PI reasoning effort fallbacks", () => {
 });
 
 test("returns per-provider and runtime catalog failures without dropping healthy groups", async () => {
-  const service = new ModelService({
+  const service = modelService({
     serviceFactory: async ({ cwd }) => {
       assert.equal(cwd, "/workspace");
       return {
@@ -192,7 +642,7 @@ test("keeps project extensions untrusted unless the workbench trust flag is exac
   });
 
   let resolveProjectTrust: (() => Promise<boolean>) | undefined;
-  const service = new ModelService({
+  const service = modelService({
     cwd: "/workspace",
     serviceFactory: async (options) => {
       assert.equal(options.cwd, "/workspace");
@@ -228,7 +678,7 @@ test("answers a known provider from the installed catalog without using the endp
     },
   });
   let factoryCalls = 0;
-  const service = new ModelService({
+  const service = modelService({
     serviceFactory: async () => {
       factoryCalls += 1;
       return { modelRuntime: discoveryRuntime };
@@ -261,7 +711,7 @@ test("answers a known provider from the installed catalog without using the endp
 
 test("discovers an unknown OpenAI-compatible endpoint with a one-shot bearer key", async () => {
   const requests: Array<{ input: string | URL | Request; init?: RequestInit }> = [];
-  const service = new ModelService({
+  const service = modelService({
     runtime: runtime({
       getProviders: () => [],
       getModels: () => [],
@@ -315,13 +765,104 @@ test("discovers an unknown OpenAI-compatible endpoint with a one-shot bearer key
   assert.equal(headers.get("authorization"), "Bearer k");
 });
 
+test("discovers and paginates Anthropic models with Anthropic authentication", async () => {
+  const requests: Array<{ url: string; headers: Headers }> = [];
+  const service = modelService({
+    runtime: runtime({ getProviders: () => [], getModels: () => [] }),
+    fetcher: async (input, init) => {
+      const url = String(input);
+      requests.push({ url, headers: new Headers(init?.headers) });
+      if (!url.includes("after_id=")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                id: "claude-opus-4-6",
+                display_name: "Claude Opus 4.6",
+                max_input_tokens: 200_000,
+                max_tokens: 32_000,
+              },
+            ],
+            has_more: true,
+            last_id: "claude-opus-4-6",
+          }),
+        );
+      }
+      return new Response(
+        JSON.stringify({
+          data: [
+            { id: "claude-opus-4-6", display_name: "Duplicate" },
+            { id: "claude-haiku-4-5", display_name: "Claude Haiku 4.5" },
+          ],
+          has_more: false,
+          last_id: "claude-haiku-4-5",
+        }),
+      );
+    },
+  });
+
+  assert.deepEqual(
+    await service.discoverModels({
+      settingsNs: "custom",
+      baseURL: "https://api.anthropic.example.test",
+      api: "anthropic-messages",
+      apiKey: "  anthropic-key  ",
+    }),
+    {
+      models: [
+        {
+          id: "claude-opus-4-6",
+          name: "Claude Opus 4.6",
+          contextWindow: 200_000,
+          maxTokens: 32_000,
+        },
+        { id: "claude-haiku-4-5", name: "Claude Haiku 4.5" },
+      ],
+    },
+  );
+  assert.deepEqual(
+    requests.map(({ url }) => url),
+    [
+      "https://api.anthropic.example.test/v1/models?limit=1000",
+      "https://api.anthropic.example.test/v1/models?limit=1000&after_id=claude-opus-4-6",
+    ],
+  );
+  for (const { headers } of requests) {
+    assert.equal(headers.get("accept"), "application/json");
+    assert.equal(headers.get("anthropic-version"), "2023-06-01");
+    assert.equal(headers.get("x-api-key"), "anthropic-key");
+    assert.equal(headers.get("authorization"), null);
+  }
+});
+
+test("does not duplicate the Anthropic v1 path", async () => {
+  let requestURL = "";
+  const service = modelService({
+    runtime: runtime({ getProviders: () => [], getModels: () => [] }),
+    fetcher: async (input) => {
+      requestURL = String(input);
+      return new Response(JSON.stringify({ data: [], has_more: false }));
+    },
+  });
+
+  assert.deepEqual(
+    await service.discoverModels({
+      settingsNs: "custom",
+      baseURL: "https://gateway.example.test/anthropic/v1/",
+      api: "anthropic-messages",
+    }),
+    { models: [] },
+  );
+  assert.equal(requestURL, "https://gateway.example.test/anthropic/v1/models?limit=1000");
+});
+
 test("uses stored provider auth only as a request-scoped discovery fallback", async () => {
   const controller = new AbortController();
   const authorizations: Array<string | null> = [];
   const fetchSignals: Array<AbortSignal | null | undefined> = [];
   const authSignals: Array<AbortSignal | undefined> = [];
   let authCalls = 0;
-  const service = new ModelService({
+  const service = modelService({
     runtime: runtime({
       getModels: () => [],
       getAuth: async (provider, options) => {
@@ -369,7 +910,7 @@ test("cancels an in-progress model-listing body read", async () => {
   const controller = new AbortController();
   let bodyCancelled = false;
   let fetchSignal: AbortSignal | null | undefined;
-  const service = new ModelService({
+  const service = modelService({
     runtime: runtime({ getProviders: () => [], getModels: () => [] }),
     fetcher: async (_input, init) => {
       fetchSignal = init?.signal;
@@ -400,7 +941,7 @@ test("cancels an in-progress model-listing body read", async () => {
 });
 
 test("preserves transport AbortError for the RPC cancellation boundary", async () => {
-  const service = new ModelService({
+  const service = modelService({
     runtime: runtime({ getProviders: () => [], getModels: () => [] }),
     fetcher: async () => {
       throw new DOMException("transport aborted", "AbortError");
@@ -423,7 +964,7 @@ test("preserves transport AbortError for the RPC cancellation boundary", async (
 
 test("can probe a draft endpoint even when the local model runtime cannot load", async () => {
   let authorization: string | null = "not-called";
-  const service = new ModelService({
+  const service = modelService({
     serviceFactory: async () => {
       throw new Error("models.json failed to load");
     },
@@ -445,7 +986,7 @@ test("can probe a draft endpoint even when the local model runtime cannot load",
 
 test("maps unsupported protocols and endpoint failures to credential-safe domain errors", async () => {
   let fetchCalls = 0;
-  const service = new ModelService({
+  const service = modelService({
     runtime: runtime({ getProviders: () => [], getModels: () => [] }),
     fetcher: async () => {
       fetchCalls += 1;
@@ -457,7 +998,7 @@ test("maps unsupported protocols and endpoint failures to credential-safe domain
     service.discoverModels({
       settingsNs: "custom",
       baseURL: "https://models.example.test/v1",
-      api: "anthropic-messages",
+      api: "google-generative-ai",
       apiKey: "hide",
     }),
     (error: unknown) => {
@@ -498,7 +1039,7 @@ test("rejects malformed, oversized, and unusably authenticated listings", async 
       headers: { "content-length": String(4 * 1024 * 1024 + 1) },
     }),
   ];
-  const service = new ModelService({
+  const service = modelService({
     runtime: runtime({ getProviders: () => [], getModels: () => [] }),
     fetcher: async () => responses.shift() ?? new Response('{"data":[]}'),
   });

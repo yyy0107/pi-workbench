@@ -25,6 +25,7 @@ import type {
   PiToolCallTiming,
 } from "../../contracts";
 import { PI_MODEL_CHANGED_EVENT } from "../../contracts";
+import { PI_CANCEL_INTENT_CUSTOM_TYPE } from "../../message-termination";
 import type { SessionEvent } from "../../rpc-contracts";
 import { createSessionEventPayload } from "../../stream-contracts";
 import { PiServerError } from "../core/errors";
@@ -46,6 +47,11 @@ export { PiServerError } from "../core/errors";
 const SESSION_IDLE_TIMEOUT_MS = 10 * 60 * 1000;
 const TOOL_TIMING_CUSTOM_TYPE = "workbench.tool-timing.v1";
 export const PROMPT_SOURCE_CUSTOM_TYPE = "workbench.prompt-source.v1";
+const modelProviderRevisions = new Map<string, number>();
+
+export function notifyModelProviderConfigurationChanged(provider: string): void {
+  modelProviderRevisions.set(provider, (modelProviderRevisions.get(provider) ?? 0) + 1);
+}
 
 export interface PromptSubmissionProvenance {
   rpcId?: string;
@@ -228,6 +234,7 @@ class HostedPiSession {
   private readonly toolStartedAtById = new Map<string, number>();
   private readonly queueProjection = new SessionQueueProjection();
   private readonly mutations = new SerializedSessionMutations();
+  private readonly modelProviderRevisions = new Map<string, number>();
 
   constructor(session: AgentSession, onRunningChanged: () => void, onDestroyed: () => void) {
     this.session = session;
@@ -439,6 +446,14 @@ class HostedPiSession {
   private runQueueMutation<Value>(mutation: () => Promise<Value>): Promise<Value> {
     return this.mutations.run(mutation);
   }
+
+  private async refreshChangedModelProvider(provider: string): Promise<void> {
+    const revision = modelProviderRevisions.get(provider) ?? 0;
+    if ((this.modelProviderRevisions.get(provider) ?? 0) >= revision) return;
+    await this.session.modelRuntime.refresh({ allowNetwork: false, providers: [provider] });
+    this.modelProviderRevisions.set(provider, revision);
+  }
+
   private touch(): void {
     if (this.idleTimer) clearTimeout(this.idleTimer);
     this.idleTimer = setTimeout(() => {
@@ -461,6 +476,9 @@ class HostedPiSession {
     selection?: PiModelSelection,
   ): Promise<void> {
     if (this.isRunning) throw new PiServerError("pi_session_busy", 409);
+
+    const requestedProvider = selection?.provider ?? this.session.model?.provider;
+    if (requestedProvider) await this.refreshChangedModelProvider(requestedProvider);
 
     if (selection) {
       const model = this.session.modelRuntime
@@ -493,6 +511,16 @@ class HostedPiSession {
       if (selection.thinkingLevel) {
         this.session.setThinkingLevel(selection.thinkingLevel);
       }
+    } else if (this.session.model) {
+      const refreshedModel = this.session.modelRuntime
+        .getAvailableSnapshot()
+        .find(
+          (candidate) =>
+            candidate.provider === this.session.model?.provider &&
+            candidate.id === this.session.model.id,
+        );
+      if (!refreshedModel) throw new PiServerError("pi_model_not_available", 400);
+      if (refreshedModel !== this.session.model) await this.session.setModel(refreshedModel);
     }
 
     if (images?.length && !this.session.model?.input.includes("image")) {
@@ -597,6 +625,7 @@ class HostedPiSession {
     reasoningEffort?: string;
   }): Promise<void> {
     return this.runQueueMutation(async () => {
+      await this.refreshChangedModelProvider(selection.provider);
       const model = this.session.modelRuntime
         .getAvailableSnapshot()
         .find(
@@ -639,6 +668,12 @@ class HostedPiSession {
   }
 
   async cancel(): Promise<void> {
+    if (this.isRunning) {
+      this.session.sessionManager.appendCustomEntry(PI_CANCEL_INTENT_CUSTOM_TYPE, {
+        requestedAt: Date.now(),
+        source: "workbench",
+      });
+    }
     await this.session.abort();
     this.touch();
   }

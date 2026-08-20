@@ -55,6 +55,20 @@ export interface PiUsage {
   totalTokens: number;
 }
 
+export interface PiAssistantMessageDiagnosticError {
+  name?: string;
+  message: string;
+  stack?: string;
+  code?: string | number;
+}
+
+export interface PiAssistantMessageDiagnostic {
+  type: string;
+  timestamp: number;
+  error?: PiAssistantMessageDiagnosticError;
+  details?: Record<string, unknown>;
+}
+
 export interface PiUserMessage {
   role: "user";
   content: string | Array<PiTextContent | PiImageContent>;
@@ -68,7 +82,9 @@ export interface PiAssistantMessage {
   provider?: string;
   usage?: PiUsage;
   stopReason?: string;
+  rawStopReason?: string;
   errorMessage?: string;
+  diagnostics?: PiAssistantMessageDiagnostic[];
   timestamp?: number;
 }
 

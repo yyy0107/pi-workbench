@@ -171,6 +171,49 @@ test("routes session validation failures through the shared error envelope", asy
   assert.equal(promptBody.result.error.code, "bad-request");
 });
 
+test("validates skill.list at the shared RPC boundary", async () => {
+  const response = await handlePiRpcPost(rpcRequest("skill.list", { sessionId: "" }), "skill.list");
+  assert.equal(response.status, 200);
+  const body = (await response.json()) as ServerResponse<unknown>;
+  assert.equal(body.result.ok, false);
+  if (body.result.ok) assert.fail("Expected a skill.list validation error");
+  assert.equal(body.result.error.code, "bad-request");
+  const issues = body.result.error.details.issues as Array<{ path?: unknown }>;
+  assert.deepEqual(issues[0]?.path, ["payload", "sessionId"]);
+});
+
+test("rejects blank provider credentials before invoking model configuration", async () => {
+  const response = await handlePiRpcPost(
+    rpcRequest("llm.configureProvider", { provider: "openai", apiKey: "   " }),
+    "llm.configureProvider",
+  );
+  assert.equal(response.status, 200);
+  const body = (await response.json()) as ServerResponse<unknown>;
+  assert.equal(body.result.ok, false);
+  if (body.result.ok) assert.fail("Expected a provider configuration validation error");
+  assert.equal(body.result.error.code, "bad-request");
+  assert.equal(JSON.stringify(body).includes('apiKey":"   '), false);
+});
+
+test("rejects malformed custom provider catalogs at the RPC boundary", async () => {
+  const response = await handlePiRpcPost(
+    rpcRequest("llm.configureProvider", {
+      provider: "acme",
+      configuration: {
+        baseURL: "https://api.acme.test/v1",
+        api: "unsupported-protocol",
+        models: [{ id: "acme-large", contextWindow: 0 }],
+      },
+    }),
+    "llm.configureProvider",
+  );
+  assert.equal(response.status, 200);
+  const body = (await response.json()) as ServerResponse<unknown>;
+  assert.equal(body.result.ok, false);
+  if (body.result.ok) assert.fail("Expected a provider catalog validation error");
+  assert.equal(body.result.error.code, "bad-request");
+});
+
 test("maps an aborted model discovery to the RPC cancelled envelope", async () => {
   const controller = new AbortController();
   controller.abort();

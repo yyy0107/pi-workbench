@@ -10,6 +10,8 @@ import type {
 import { createAssistantStream } from "assistant-stream";
 
 import { workbenchBrowserStorage, WORKBENCH_STORAGE_PREFIX } from "@/runtime/adapters/history";
+import { appendWorkspaceFeedbackContext } from "@/components/right-workspace/feedback/feedback-adapter";
+import type { WorkspaceFeedbackStore } from "@/components/right-workspace/feedback/feedback-store";
 
 import {
   type PiAssistantMessage,
@@ -63,6 +65,7 @@ import {
   optimisticUserMessage,
   piAssistantToThreadMessage,
   piHistoryToThreadMessages,
+  reconcileLiveMessagesAfterHistory,
 } from "../messages/messages";
 import { draftSessionModelSelection } from "../models/model-selection";
 import { PiMessageQueue } from "../messages/queue";
@@ -255,19 +258,27 @@ export class PiClientSession {
     if (this.reloadTask) return this.reloadTask;
     const remoteId = this.remoteIdValue;
     const liveMessageIdsAtStart = new Set(this.liveMessages.map((message) => message.id));
+    const baseMessageIdsAtStart = new Set(this.baseMessages.map((message) => message.id));
+    // A stream rebaseline can win the race with prompt persistence. Keep the
+    // submitted user turn visible until history contains its authoritative copy.
+    const preserveUnpersistedOptimisticUsers =
+      this.snapshotValue.isRunning || this.promptRequestPending;
     const streamingMessageAtStart = this.streamingMessage;
     let initialPage: SessionHistoryValue | undefined;
     const applyHistory = (value: SessionHistoryValue) => {
       if (this.remoteIdValue !== remoteId) return;
       const history = piHistoryFromSessionEvents(remoteId, value);
-      this.baseMessages = piHistoryToThreadMessages(
+      const baseMessages = piHistoryToThreadMessages(
         history,
         this.messageTimingByTimestamp,
         this.toolTimingById,
       );
-      this.liveMessages = this.liveMessages.filter(
-        (message) => !liveMessageIdsAtStart.has(message.id),
-      );
+      this.baseMessages = baseMessages;
+      this.liveMessages = reconcileLiveMessagesAfterHistory(this.liveMessages, baseMessages, {
+        liveMessageIdsAtStart,
+        baseMessageIdsAtStart,
+        preserveUnpersistedOptimisticUsers,
+      });
       if (this.streamingMessage === streamingMessageAtStart) this.streamingMessage = undefined;
       this.publishMessages();
     };
@@ -303,6 +314,8 @@ export class PiClientSession {
     this.promptRequestPending = true;
 
     const prompt = appendMessageToPiPrompt(message);
+    const workspaceFeedback = this.manager.getWorkspaceFeedback(this.localId, this.remoteIdValue);
+    const promptText = appendWorkspaceFeedbackContext(prompt.text, workspaceFeedback);
     const draftModel = draftSessionModelSelection(this.remoteIdValue, message);
     let remoteId: string | undefined;
     try {
@@ -319,9 +332,10 @@ export class PiClientSession {
       await promptPiRpcSession({
         sessionId: submittedRemoteId,
         mode: "queue",
-        content: piPromptContent(prompt.text, prompt.images),
+        content: piPromptContent(promptText, prompt.images),
         ...(clientTimeZone === undefined ? {} : { clientTimeZone }),
       });
+      this.manager.commitWorkspaceFeedback(workspaceFeedback.map((feedback) => feedback.id));
       this.manager.notePrompt(submittedRemoteId, prompt.text);
       if (this.promptRequestPending) {
         this.promptStartTimer = setTimeout(() => {
@@ -339,6 +353,35 @@ export class PiClientSession {
     }
   }
 
+  async retry(parentId: string | null, runConfig: AppendMessage["runConfig"]): Promise<void> {
+    const messages = this.snapshotValue.messages;
+    const parentIndex =
+      parentId === null ? messages.length - 1 : messages.findIndex(({ id }) => id === parentId);
+    const searchEnd = parentIndex < 0 ? messages.length - 1 : parentIndex;
+    let source: Extract<ThreadMessage, { role: "user" }> | undefined;
+
+    for (let index = searchEnd; index >= 0; index -= 1) {
+      const message = messages[index];
+      if (message?.role === "user") {
+        source = message;
+        break;
+      }
+    }
+
+    if (!source) throw new PiApiError("pi_empty_prompt", 400);
+
+    await this.send({
+      role: "user",
+      content: source.content,
+      attachments: source.attachments ?? [],
+      createdAt: new Date(),
+      metadata: { custom: {} },
+      parentId: null,
+      sourceId: null,
+      runConfig,
+    });
+  }
+
   async cancel(): Promise<void> {
     if (!this.remoteIdValue) return;
     await cancelPiRpcSession({ sessionId: this.remoteIdValue });
@@ -348,12 +391,17 @@ export class PiClientSession {
     if (!this.remoteIdValue) throw new PiApiError("pi_session_not_found", 404);
     await this.manager.connections.ensureSessionEvents(this.remoteIdValue, this.handleEvent);
     const clientTimeZone = browserTimeZone();
+    const workspaceFeedback = this.manager.getWorkspaceFeedback(this.localId, this.remoteIdValue);
     await promptPiRpcSession({
       sessionId: this.remoteIdValue,
       mode: mode === "steer" ? "steer" : "queue",
-      content: piPromptContent(prompt.message, prompt.images),
+      content: piPromptContent(
+        appendWorkspaceFeedbackContext(prompt.message, workspaceFeedback),
+        prompt.images,
+      ),
       ...(clientTimeZone === undefined ? {} : { clientTimeZone }),
     });
+    this.manager.commitWorkspaceFeedback(workspaceFeedback.map((feedback) => feedback.id));
   }
 
   private async updateQueue(itemId: string, action: SessionQueueAction): Promise<void> {
@@ -713,6 +761,7 @@ export class PiClientSession {
 export class PiSessionManager {
   readonly connections: PiConnectionController;
   private readonly listeners = new Set<Listener>();
+  private readonly activeSessionListeners = new Set<Listener>();
   private readonly summaries = new Map<string, PiSessionSummary>();
   private readonly workspaces = new Map<string, WorkspaceView>();
   private readonly sessions = new Map<string, PiClientSession>();
@@ -726,6 +775,7 @@ export class PiSessionManager {
   private readonly pinned = new Set<string>();
   private readonly completed = new Set<string>();
   private running = new Set<string>();
+  private activeLocalId?: string;
   private activeRemoteId?: string;
   private startTask?: Promise<void>;
   private metadataRefreshTask?: Promise<void>;
@@ -736,8 +786,10 @@ export class PiSessionManager {
   private realtimeRefreshRequested = false;
   private realtimeRefreshTask?: Promise<void>;
   private revision = 0;
+  private readonly workspaceFeedback?: WorkspaceFeedbackStore;
 
-  constructor() {
+  constructor(options: Readonly<{ workspaceFeedback?: WorkspaceFeedbackStore }> = {}) {
+    this.workspaceFeedback = options.workspaceFeedback;
     this.connections = new PiConnectionController({
       onMuxFrame: (frame, generation) => this.handleMuxFrame(frame, generation),
       onHostFrame: (payload, generation) => this.handleHostFrame(payload, generation),
@@ -746,6 +798,21 @@ export class PiSessionManager {
   }
 
   getSnapshot = (): number => this.revision;
+
+  getActiveSessionId = (): string | undefined => this.activeRemoteId;
+
+  subscribeActiveSession = (listener: Listener): (() => void) => {
+    this.activeSessionListeners.add(listener);
+    return () => this.activeSessionListeners.delete(listener);
+  };
+
+  getWorkspaceFeedback(localId: string, remoteId?: string) {
+    return this.workspaceFeedback?.forThread([localId, ...(remoteId ? [remoteId] : [])]) ?? [];
+  }
+
+  commitWorkspaceFeedback(ids: readonly string[]): void {
+    if (ids.length) this.workspaceFeedback?.clear(ids);
+  }
 
   getWorkspaces(): readonly PiWorkspaceSummary[] {
     return [...this.workspaces.values()].map((workspace) => ({
@@ -896,6 +963,7 @@ export class PiSessionManager {
 
   dispose(): void {
     this.connections.dispose();
+    this.activeSessionListeners.clear();
   }
 
   private readonly handleGenerationReady = (generation: number): void => {
@@ -1351,7 +1419,13 @@ export class PiSessionManager {
   }
 
   setActive(localId: string | undefined, remoteId: string | undefined): void {
-    this.activeRemoteId = remoteId ?? (localId ? this.aliases.get(localId) : undefined);
+    this.activeLocalId = localId;
+    const nextActiveRemoteId = remoteId ?? (localId ? this.aliases.get(localId) : undefined);
+    const activeSessionChanged = this.activeRemoteId !== nextActiveRemoteId;
+    this.activeRemoteId = nextActiveRemoteId;
+    if (activeSessionChanged) {
+      for (const listener of this.activeSessionListeners) listener();
+    }
     if (this.activeRemoteId && this.completed.delete(this.activeRemoteId)) this.notify();
   }
 
@@ -1397,6 +1471,10 @@ export class PiSessionManager {
   ): void {
     this.aliases.set(localId, summary.id);
     this.sessions.set(summary.id, session);
+    if (this.activeLocalId === localId && this.activeRemoteId !== summary.id) {
+      this.activeRemoteId = summary.id;
+      for (const listener of this.activeSessionListeners) listener();
+    }
     this.setSummary(summary);
     const workspace = workspaceId ? this.workspaces.get(workspaceId) : undefined;
     if (workspaceId && workspace && !workspace.sessionIds.includes(summary.id)) {

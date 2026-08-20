@@ -50,7 +50,9 @@ Unary RPC 是 session、workspace 和 running 状态的权威快照；WebSocket 
 - Workspace：`workspace.list`、`workspace.create`、`workspace.rename`、
   `workspace.delete`、`workspace.insertBefore`、`workspace.insertSessionBefore`、
   `workspace.archiveSession`；
-- LLM：`llm.providers`、`llm.models`、`llm.discoverModels`；
+- Skills：`skill.list`；
+- LLM：`llm.providers`、`llm.providerConfig`、`llm.configureProvider`、
+  `llm.removeProvider`、`llm.models`、`llm.discoverModels`；
 - Session：`session.list`、`session.search`、`session.create`、`session.history`、
   `session.models`、`session.selectModel`、`session.rename`、`session.fork`、
   `session.prompt`、`session.attachment`、`session.updateQueue`、`session.cancel`。
@@ -62,8 +64,8 @@ Unary RPC 是 session、workspace 和 running 状态的权威快照；WebSocket 
 - `GET /api/events.mux`：session 事件、队列、交互请求等增量；
 - `GET /api/events.host`：session、workspace、running 和 host 错误等增量。
 
-参考文档中的 Skills、Agent Presets、Goals、Settings、Credentials、Commands 和 Message
-Feedback 等接口尚未在本目录实现。
+参考文档中的 Agent Presets、Goals、Settings、Credentials、Commands 和 Message Feedback 等接口
+尚未在本目录实现。
 
 ## RPC envelope 和错误
 
@@ -157,18 +159,32 @@ Cookie session 或 Bearer Token；如需跨机器暴露，必须在外层增加�
 Pi `ModelRuntime` 是 provider、model 和凭证状态的权威来源：
 
 - `llm.providers` 返回当前可配置或已注册的 provider；
+- `llm.providerConfig` 返回 provider 的非敏感连接参数和模型目录；
+- `llm.configureProvider` 将自定义连接与模型目录写入 Pi `models.json`，API key 则通过 Pi
+  credential store 单独持久化；`llm.removeProvider` 删除由 Workbench 管理的对应配置；
 - `llm.models` 按 provider 分组返回可用模型和 reasoning efforts，单个 provider 失败不会使
   整个 catalog 失败；
 - `session.models` 在 catalog 之外还返回 session 当前选择和 `routable` 状态；
 - `session.selectModel` 与 prompt/queue mutation 串行执行，避免与正在提交的图片 prompt
   发生竞态。
 
-`llm.discoverModels` 可以读取 OpenAI-compatible `GET <baseURL>/models`。显式传入的 `apiKey`
-优先，否则已确定 provider 时会尝试 Pi 中已保存的凭证；请求级 key 不会持久化、回传或写入
-日志。模型列表响应最多读取 4 MiB，并支持请求取消。
+`llm.discoverModels` 可以读取 OpenAI-compatible `GET <baseURL>/models`，也可以使用
+Anthropic `GET <baseURL>/v1/models`（当 base URL 已以 `/v1` 结尾时不会重复追加）及其游标分页。
+显式传入的 `apiKey` 优先，否则已确定 provider 时会尝试 Pi 中已保存的凭证；请求级 key 不会
+持久化、回传或写入日志。一次发现的全部模型列表响应合计最多读取 4 MiB，并支持请求取消。
 
 Project-local settings、extensions 和 resources 默认不可信。只有
 `PI_WORKBENCH_TRUST_PROJECT=1` 时，session 和模型服务才允许 Pi 加载这些项目资源。
+
+## Skills
+
+`skill.list` 按 `sessionId` 返回该 Pi session 的 `ResourceLoader` 已加载技能。响应只暴露协议定义的
+名称、描述和模型是否可调用，不向浏览器返回技能文件路径。带有
+`disable-model-invocation: true` 的技能会返回 `modelInvocable: false`，但仍可通过显式 skill 命令
+调用。
+
+技能发现沿用 Pi 的全局、package、settings 和项目资源规则。项目级技能仍受
+`PI_WORKBENCH_TRUST_PROJECT=1` 控制；未信任时不会因为打开设置页而绕过资源信任边界。
 
 ## Session 生命周期和持久状态
 
@@ -278,6 +294,8 @@ runtime/pi/
     │   └── native-workspace-picker.ts
     ├── models/
     │   └── model-service.ts
+    ├── skills/
+    │   └── skill-service.ts
     ├── workspaces/
     │   ├── workspace-registry.ts
     │   ├── workspace-store.ts
@@ -356,6 +374,8 @@ downlink 发送消息后的 `1008` close。
   100 MiB。媒体类型必须与文件签名一致。
 - 当前 queue edit 只接受 text content；图片 queue item 可以保留、删除或 steer，但不能通过该
   RPC 改写为新的图片内容。
+- Skills 当前只实现 session-scoped `skill.list`；启停、编辑、安装和 reload 尚未加入 Workbench
+  协议。
 - `session.create.agentPreset` 是兼容字段，当前 Pi session engine 不支持创建时选择 preset，传入
   后返回 `agent-preset-invalid`。
 - 不能把包含历史图片、活动图片 prompt 或待处理图片队列的 session 切换到 text-only model。
