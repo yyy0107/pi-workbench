@@ -1,3 +1,5 @@
+import { VERSION as PI_VERSION } from "@earendil-works/pi-coding-agent";
+
 import {
   canOpenHostPath,
   createHostDirectory,
@@ -6,7 +8,13 @@ import {
   openHostPath,
   pickHostDirectory,
 } from "../host/host-directories";
+import { CommandService, CommandServiceError } from "../commands/command-service";
+import { ExtensionService, ExtensionServiceError } from "../extensions/extension-service";
 import { ModelService, ModelServiceError } from "../models/model-service";
+import {
+  AgentSettingsService,
+  AgentSettingsServiceError,
+} from "../settings/agent-settings-service";
 import { handleInteractiveResponsePost } from "../sessions/interactive-response-registry";
 import {
   getAttachedSessionCount,
@@ -18,6 +26,7 @@ import { SkillService, SkillServiceError } from "../skills/skill-service";
 import {
   handleRpcPost,
   rpcArray,
+  rpcBoolean,
   rpcBusinessError,
   rpcEnum,
   rpcInteger,
@@ -31,6 +40,7 @@ import {
   rpcUnknown,
   type RpcValidator,
 } from "./rpc-transport";
+import type { WorkbenchComposerJsonValue } from "../../../composer-request";
 import { SessionRpcService, SessionRpcServiceError } from "../sessions/session-rpc-service";
 import { getWorkspaceStore } from "../workspaces/workspace-registry";
 import { WorkspaceStoreError } from "../workspaces/workspace-store";
@@ -90,8 +100,34 @@ const configureModelProviderPayload = rpcObject({
   configuration: rpcOptional(providerConfiguration),
 });
 const modelProviderPayload = rpcObject({ provider: nonEmptyString });
+const modelContextWindowPayload = rpcObject({
+  provider: nonEmptyString,
+  model: nonEmptyString,
+});
+const updateModelContextWindowPayload = rpcObject({
+  provider: nonEmptyString,
+  model: nonEmptyString,
+  contextWindow: rpcInteger({ minimum: 1, maximum: 10_000_000 }),
+});
+const agentCompactionPatch = rpcObject({
+  enabled: rpcOptional(rpcBoolean),
+  reserveTokens: rpcOptional(rpcInteger({ minimum: 1, maximum: 10_000_000 })),
+  keepRecentTokens: rpcOptional(rpcInteger({ minimum: 1, maximum: 10_000_000 })),
+});
+const agentSettingsPatch = rpcObject({
+  systemPrompt: rpcOptional(rpcString({ maxLength: 500_000 })),
+  compaction: rpcOptional(agentCompactionPatch),
+});
+const settingsUpdatePayload = rpcObject({
+  ns: nonEmptyString,
+  patch: agentSettingsPatch,
+  expectedRevision: rpcOptional(rpcInteger({ minimum: 0 })),
+});
+const commandService = new CommandService();
 const modelService = new ModelService();
+const extensionService = new ExtensionService();
 const skillService = new SkillService();
+const agentSettingsService = new AgentSettingsService();
 
 function sessionService(): SessionRpcService {
   return new SessionRpcService({ workspaceStore: getWorkspaceStore() });
@@ -129,11 +165,84 @@ const promptImageContent = rpcObject({
   data: rpcString(),
   name: rpcOptional(rpcString()),
 });
+function isComposerJsonValue(value: unknown, depth = 0): value is WorkbenchComposerJsonValue {
+  if (depth > 32) return false;
+  if (
+    value === null ||
+    typeof value === "string" ||
+    typeof value === "boolean" ||
+    (typeof value === "number" && Number.isFinite(value))
+  ) {
+    return true;
+  }
+  if (Array.isArray(value)) return value.every((item) => isComposerJsonValue(item, depth + 1));
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    Object.values(value).every((item) => isComposerJsonValue(item, depth + 1))
+  );
+}
+const composerJsonValue = rpcRefine(rpcUnknown, isComposerJsonValue, {
+  message: "Composer values must be finite JSON values with at most 32 levels.",
+}) as RpcValidator<WorkbenchComposerJsonValue>;
+const composerCommand = rpcObject({
+  id: rpcString({ minLength: 1, maxLength: 4096 }),
+  commandId: rpcString({ minLength: 1, maxLength: 2048 }),
+  label: rpcString({ maxLength: 4096 }),
+  scope: rpcEnum(["message", "segment"]),
+  source: rpcEnum(["workbench", "pi"]),
+  args: rpcOptional(composerJsonValue),
+});
+const composerDocumentNode = rpcUnion([
+  rpcObject({
+    type: rpcLiteral("text"),
+    text: rpcString({ maxLength: 200_000 }),
+  }),
+  rpcObject({
+    type: rpcLiteral("command"),
+    id: rpcString({ minLength: 1, maxLength: 4096 }),
+    commandId: rpcString({ minLength: 1, maxLength: 2048 }),
+    label: rpcString({ maxLength: 4096 }),
+    scope: rpcEnum(["message", "segment"]),
+    source: rpcEnum(["workbench", "pi"]),
+    args: rpcOptional(composerJsonValue),
+  }),
+  rpcObject({
+    type: rpcLiteral("mention"),
+    id: rpcString({ minLength: 1, maxLength: 4096 }),
+    mentionType: rpcString({ minLength: 1, maxLength: 2048 }),
+    value: rpcString({ maxLength: 200_000 }),
+    label: rpcString({ maxLength: 4096 }),
+  }),
+  rpcObject({
+    type: rpcLiteral("attachment"),
+    id: rpcString({ minLength: 1, maxLength: 4096 }),
+    attachmentType: rpcString({ minLength: 1, maxLength: 2048 }),
+    value: rpcString({ maxLength: 200_000 }),
+    label: rpcString({ maxLength: 4096 }),
+  }),
+]);
+const composerContext = rpcObject({
+  type: rpcString({ minLength: 1, maxLength: 2048 }),
+  value: composerJsonValue,
+});
+const composerSubmission = rpcObject({
+  version: rpcLiteral(1),
+  document: rpcOptional(rpcArray(composerDocumentNode, { maxLength: 512 })),
+  sourceText: rpcString({ maxLength: 200_000 }),
+  text: rpcString({ maxLength: 200_000 }),
+  mode: rpcOptional(rpcString({ maxLength: 2048 })),
+  model: rpcOptional(rpcString({ maxLength: 2048 })),
+  context: rpcArray(composerContext, { maxLength: 64 }),
+  metadata: rpcRecord(composerJsonValue),
+  commands: rpcArray(composerCommand, { maxLength: 64 }),
+});
 const sessionPromptPayload = rpcObject({
   sessionId: nonEmptyString,
   mode: rpcEnum(["queue", "steer"]),
   content: rpcArray(rpcUnion([promptTextContent, promptImageContent])),
   clientTimeZone: rpcOptional(rpcString()),
+  composer: rpcOptional(composerSubmission),
 });
 const sessionAttachmentPayload = rpcObject({
   sessionId: nonEmptyString,
@@ -158,9 +267,12 @@ function throwDomainError(error: unknown): never {
   if (
     error instanceof WorkspaceStoreError ||
     error instanceof HostDirectoryError ||
+    error instanceof CommandServiceError ||
     error instanceof ModelServiceError ||
     error instanceof SessionRpcServiceError ||
-    error instanceof SkillServiceError
+    error instanceof ExtensionServiceError ||
+    error instanceof SkillServiceError ||
+    error instanceof AgentSettingsServiceError
   ) {
     throw rpcBusinessError(error.code, error.message, { ...error.details }, { cause: error });
   }
@@ -186,10 +298,19 @@ async function archiveWorkspaceSession(sessionId: string) {
   return getWorkspaceStore().archiveSession({ sessionId });
 }
 
+async function unarchiveWorkspaceSession(sessionId: string) {
+  const { sessions } = await listSessions();
+  if (!sessions.some((session) => session.id === sessionId)) {
+    throw rpcBusinessError("session-not-found", "The session does not exist.", { sessionId });
+  }
+  return getWorkspaceStore().setSessionArchived(sessionId, false);
+}
+
 async function hostDescription() {
   const models = await listModels(process.cwd()).catch(() => undefined);
   return {
     version: WORKBENCH_VERSION,
+    piVersion: PI_VERSION,
     cwd: process.cwd(),
     ...(models?.defaultModel
       ? {
@@ -487,6 +608,12 @@ export async function handlePiRpcPost(request: Request, method: string): Promise
         payload: sessionIdPayload,
         handler: ({ sessionId }) => archiveWorkspaceSession(sessionId),
       });
+    case "workspace.unarchiveSession":
+      return handleRpcPost(request, {
+        method,
+        payload: sessionIdPayload,
+        handler: ({ sessionId }) => unarchiveWorkspaceSession(sessionId),
+      });
     case "skill.list":
       return handleRpcPost(request, {
         method,
@@ -494,6 +621,79 @@ export async function handlePiRpcPost(request: Request, method: string): Promise
         handler: async (payload) => {
           try {
             return await skillService.list(payload);
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
+      });
+    case "command.list":
+      return handleRpcPost(request, {
+        method,
+        payload: sessionIdPayload,
+        handler: async (payload) => {
+          try {
+            return await commandService.list(payload);
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
+      });
+    case "extension.list":
+      return handleRpcPost(request, {
+        method,
+        payload: sessionIdPayload,
+        handler: async (payload) => {
+          try {
+            return await extensionService.list(payload);
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
+      });
+    case "settings.describe":
+      return handleRpcPost(request, {
+        method,
+        payload: emptyPayload,
+        loopbackOnly: true,
+        handler: async () => {
+          try {
+            return await agentSettingsService.describe();
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
+      });
+    case "settings.openDocument":
+      return handleRpcPost(request, {
+        method,
+        payload: emptyPayload,
+        loopbackOnly: true,
+        handler: async (_payload, context) => {
+          try {
+            const settingsFile = await agentSettingsService.prepareDocument();
+            return await openHostPath(settingsFile, { signal: context.signal });
+          } catch (error) {
+            if (isAborted(error, context.signal)) {
+              throw rpcBusinessError("cancelled", "Opening settings was cancelled.", {});
+            }
+            if (error instanceof AgentSettingsServiceError) throwDomainError(error);
+            throw rpcBusinessError(
+              "internal",
+              "The host could not open the settings document.",
+              {},
+              { cause: error },
+            );
+          }
+        },
+      });
+    case "settings.update":
+      return handleRpcPost(request, {
+        method,
+        payload: settingsUpdatePayload,
+        loopbackOnly: true,
+        handler: async (payload) => {
+          try {
+            return await agentSettingsService.update(payload);
           } catch (error) {
             throwDomainError(error);
           }
@@ -510,6 +710,43 @@ export async function handlePiRpcPost(request: Request, method: string): Promise
         method,
         payload: modelProviderPayload,
         handler: (payload) => modelService.providerConfig(payload),
+      });
+    case "llm.modelContextWindow":
+      return handleRpcPost(request, {
+        method,
+        payload: modelContextWindowPayload,
+        handler: async (payload) => {
+          try {
+            return await modelService.modelContextWindow(payload);
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
+      });
+    case "llm.updateModelContextWindow":
+      return handleRpcPost(request, {
+        method,
+        payload: updateModelContextWindowPayload,
+        loopbackOnly: true,
+        handler: async (payload, context) => {
+          try {
+            const value = await modelService.updateModelContextWindow(payload, {
+              signal: context.signal,
+            });
+            notifyModelProviderConfigurationChanged(payload.provider);
+            return value;
+          } catch (error) {
+            if (isAborted(error, context.signal)) {
+              throw rpcBusinessError(
+                "cancelled",
+                "Model context-window update was cancelled.",
+                {},
+                { cause: error },
+              );
+            }
+            throwDomainError(error);
+          }
+        },
       });
     case "llm.configureProvider":
       return handleRpcPost(request, {

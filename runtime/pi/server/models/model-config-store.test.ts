@@ -77,6 +77,41 @@ test("merges provider models without exposing or overwriting credentials", async
   assert.match(await readFile(stateFile, "utf8"), /Pi model configuration/u);
 });
 
+test("writes one model context-window override while preserving provider configuration", async (t) => {
+  const directory = await mkdtemp(path.join(tmpdir(), "workbench-model-config-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const stateFile = path.join(directory, "models.json");
+  const original = JSON.stringify({
+    schemaNote: "keep-me",
+    providers: {
+      openai: {
+        apiKey: "keep-secret",
+        modelOverrides: {
+          "gpt-5": { maxTokens: 32_000 },
+          keep: { contextWindow: 64_000 },
+        },
+      },
+    },
+  });
+  await writeFile(stateFile, original);
+  const store = new ModelConfigStore({ stateFile });
+
+  const mutation = await store.setModelContextWindow("openai", "gpt-5", 256_000);
+  const saved = JSON.parse(await readFile(stateFile, "utf8")) as {
+    schemaNote: string;
+    providers: Record<string, Record<string, unknown>>;
+  };
+  assert.equal(saved.schemaNote, "keep-me");
+  assert.equal(saved.providers.openai.apiKey, "keep-secret");
+  assert.deepEqual(saved.providers.openai.modelOverrides, {
+    "gpt-5": { maxTokens: 32_000, contextWindow: 256_000 },
+    keep: { contextWindow: 64_000 },
+  });
+
+  await mutation.rollback();
+  assert.equal(await readFile(stateFile, "utf8"), original);
+});
+
 test("removes one provider while preserving the rest of models.json", async (t) => {
   const directory = await mkdtemp(path.join(tmpdir(), "workbench-model-config-"));
   t.after(() => rm(directory, { recursive: true, force: true }));

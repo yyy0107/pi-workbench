@@ -1,10 +1,14 @@
 import { existsSync, statSync, unlinkSync } from "node:fs";
 import { randomUUID } from "node:crypto";
+import { readFile, readdir, stat } from "node:fs/promises";
+import path from "node:path";
 import {
   type AgentSession,
   type AgentSessionServices,
   createAgentSessionFromServices,
   createAgentSessionServices,
+  getAgentDir,
+  stripFrontmatter,
   sessionEntryToContextMessages,
   type SessionInfo,
   type SessionEntry,
@@ -24,16 +28,43 @@ import type {
   PiThinkingLevel,
   PiToolCallTiming,
 } from "../../contracts";
-import { PI_MODEL_CHANGED_EVENT } from "../../contracts";
+import {
+  compileWorkbenchComposerPrompt,
+  hasWorkbenchComposerDocument,
+  hasWorkbenchComposerSemantics,
+  LEGACY_WORKBENCH_COMPOSER_USER_CUSTOM_TYPE,
+  WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE,
+  WORKBENCH_COMPOSER_RESOLUTION_CUSTOM_TYPE,
+  WORKBENCH_COMPOSER_USER_CUSTOM_TYPE,
+  type WorkbenchComposerCommandResponse,
+  type WorkbenchComposerCommandResponseDetails,
+  type WorkbenchComposerCommandTrace,
+  type WorkbenchComposerCommandSubmission,
+  type WorkbenchComposerResolutionDetails,
+  type WorkbenchComposerSubmission,
+  type WorkbenchComposerUserProjection,
+  type WorkbenchResolvedAgentRequest,
+} from "../../../composer-request";
+import { PI_MODEL_CHANGED_EVENT, PI_SESSION_FORKED_EVENT } from "../../contracts";
 import { PI_CANCEL_INTENT_CUSTOM_TYPE } from "../../message-termination";
 import type { SessionEvent } from "../../rpc-contracts";
 import { createSessionEventPayload } from "../../stream-contracts";
+import {
+  preflightPlanWorkbenchComposerCommands,
+  type PlannedWorkbenchComposerCommand,
+} from "../commands/composer-command-planner";
+import { expandPromptTemplateContent } from "../commands/prompt-template-expander";
+import {
+  piCompactUsesLegacyArguments,
+  resolvePiCompactCustomInstructions,
+} from "../commands/pi-composer-command-arguments";
 import { PiServerError } from "../core/errors";
 import { getInteractiveResponseRegistry } from "./interactive-response-registry";
 import {
   appendSessionEventJournal,
   createCanonicalSessionEvent,
   initializeSessionEventJournal,
+  readSessionEventJournal,
   SESSION_EVENT_CUSTOM_TYPE,
   SESSION_EVENT_JOURNAL_CUSTOM_TYPE,
 } from "./session-event-journal";
@@ -41,6 +72,7 @@ import { SessionQueueProjection } from "./session-queue";
 import { getStreamHub } from "../streams/stream-hub";
 import { getWorkspaceStore } from "../workspaces/workspace-registry";
 import { validateWorkspace, workspaceFromCwd } from "../workspaces/workspace-paths";
+import { createInteractiveBashTool } from "../../../terminal/server/interactive-bash-tool";
 
 export { PiServerError } from "../core/errors";
 
@@ -56,6 +88,7 @@ export function notifyModelProviderConfigurationChanged(provider: string): void 
 export interface PromptSubmissionProvenance {
   rpcId?: string;
   clientTimeZone?: string;
+  composer?: WorkbenchComposerSubmission;
 }
 
 export interface PromptSubmissionResult {
@@ -87,6 +120,208 @@ interface SessionTimestampSource {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function agentMessageText(value: unknown): string {
+  if (!isRecord(value)) return "";
+  const content = value.content;
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return "";
+  return content
+    .flatMap((part) =>
+      isRecord(part) && part.type === "text" && typeof part.text === "string" ? [part.text] : [],
+    )
+    .join("\n");
+}
+
+function commandArgumentText(
+  command: WorkbenchComposerCommandSubmission,
+  fallback: string,
+): string {
+  if (command.args === undefined) return fallback.trim();
+  if (typeof command.args === "string") return command.args;
+  if (command.args === null) return "";
+  return JSON.stringify(command.args);
+}
+
+/** Resolve the whole catalog before any command with side effects is allowed to execute. */
+export function validateWorkbenchComposerCommands(
+  session: Pick<AgentSession, "extensionRunner" | "promptTemplates" | "resourceLoader">,
+  submission: WorkbenchComposerSubmission,
+): void {
+  preflightPlanWorkbenchComposerCommands(session, submission);
+}
+
+export interface ResolveWorkbenchComposerCommandsOptions {
+  /** Plans captured by the preflight phase before the durable user marker is recorded. */
+  plannedCommands?: readonly PlannedWorkbenchComposerCommand[];
+  /**
+   * Marks the next Pi user message as internal command expansion. The returned disposer removes an
+   * unconsumed marker when Pi handles the command without creating a user message.
+   */
+  projectInternalUserPrompt?(): () => void;
+  /** Reports execution failures after the complete command document has passed validation. */
+  onCommandError?(command: WorkbenchComposerCommandSubmission, error: unknown): void;
+  /** Publishes the running and terminal states of Pi built-in session actions. */
+  onCommandResponse?(response: WorkbenchComposerCommandResponse): void;
+}
+
+function notifyCommandResponse(
+  options: ResolveWorkbenchComposerCommandsOptions,
+  response: WorkbenchComposerCommandResponse,
+): void {
+  try {
+    options.onCommandResponse?.(response);
+  } catch {
+    // UI status reporting is observational and must not change command execution semantics.
+  }
+}
+
+function commandTrace(
+  plan: PlannedWorkbenchComposerCommand,
+  status: WorkbenchComposerCommandTrace["status"],
+): WorkbenchComposerCommandTrace {
+  const command = plan.command;
+  return {
+    source: command.source,
+    commandId: command.commandId,
+    label: command.label,
+    scope: command.scope,
+    effect: plan.effect,
+    status,
+    ...(command.args === undefined ? {} : { args: command.args }),
+  };
+}
+
+export interface ResolvedWorkbenchComposerRequest {
+  request: WorkbenchResolvedAgentRequest;
+  /** Durable, user-visible outcomes produced only by Pi built-in session actions. */
+  commandResponses: WorkbenchComposerCommandResponse[];
+  /** A Pi extension command owns this turn, so no second main turn may be started. */
+  agentTurn: boolean;
+}
+
+export async function resolveWorkbenchComposerCommands(
+  session: Pick<
+    AgentSession,
+    | "compact"
+    | "extensionRunner"
+    | "prompt"
+    | "promptTemplates"
+    | "reload"
+    | "resourceLoader"
+    | "sessionManager"
+  >,
+  submission: WorkbenchComposerSubmission,
+  options: ResolveWorkbenchComposerCommandsOptions = {},
+): Promise<ResolvedWorkbenchComposerRequest> {
+  const plans =
+    options.plannedCommands ?? preflightPlanWorkbenchComposerCommands(session, submission);
+  const request: WorkbenchResolvedAgentRequest = {
+    version: 1,
+    userText: submission.text,
+    config: {
+      ...(submission.mode === undefined ? {} : { mode: submission.mode }),
+      ...(submission.model === undefined ? {} : { model: submission.model }),
+      metadata: { ...submission.metadata },
+    },
+    instructions: [],
+    trustedContext: [],
+    untrustedContext: submission.context.map((context) => ({
+      source: context.type,
+      trust: "untrusted-context",
+      value: context.value,
+    })),
+    commandTrace: [],
+  };
+  let agentTurn = false;
+  const commandResponses: WorkbenchComposerCommandResponse[] = [];
+
+  for (const plan of plans) {
+    const command = plan.command;
+    if (plan.kind === "builtin") {
+      notifyCommandResponse(options, {
+        source: "pi",
+        commandId: command.commandId,
+        label: command.label,
+        status: "running",
+      });
+    }
+    try {
+      switch (plan.kind) {
+        case "workbench":
+          break;
+        case "builtin":
+          if (plan.builtin.name === "compact") {
+            await session.compact(resolvePiCompactCustomInstructions(command, request.userText));
+            if (piCompactUsesLegacyArguments(command)) request.userText = "";
+          } else await session.reload();
+          break;
+        case "skill": {
+          const content = await readFile(plan.skill.filePath, "utf8");
+          const body = stripFrontmatter(content).trim();
+          request.instructions.push({
+            source: command.commandId,
+            trust: "trusted-instruction",
+            content: [
+              `Skill: ${plan.skill.name}`,
+              `References are relative to ${plan.skill.baseDir}.`,
+              "",
+              body,
+            ].join("\n"),
+          });
+          break;
+        }
+        case "prompt":
+          request.userText = expandPromptTemplateContent(
+            plan.template.content,
+            commandArgumentText(command, request.userText),
+          );
+          break;
+        case "extension": {
+          const args = commandArgumentText(command, request.userText);
+          const commandPrompt = `/${command.commandId}${args ? ` ${args}` : ""}`;
+          const releaseProjection = options.projectInternalUserPrompt?.();
+          agentTurn = true;
+          try {
+            await session.prompt(commandPrompt, { source: "rpc" });
+          } finally {
+            releaseProjection?.();
+          }
+          break;
+        }
+      }
+      request.commandTrace.push(commandTrace(plan, "success"));
+      if (plan.kind === "builtin") {
+        const response: WorkbenchComposerCommandResponse = {
+          source: "pi",
+          commandId: command.commandId,
+          label: command.label,
+          status: "success",
+        };
+        commandResponses.push(response);
+        notifyCommandResponse(options, response);
+      }
+    } catch (error) {
+      try {
+        options.onCommandError?.(command, error);
+      } catch {
+        // Error reporting is observational and must not reject an admitted Composer transaction.
+      }
+      request.commandTrace.push(commandTrace(plan, "execution-failed"));
+      if (plan.kind === "builtin") {
+        const response: WorkbenchComposerCommandResponse = {
+          source: "pi",
+          commandId: command.commandId,
+          label: command.label,
+          status: "execution-failed",
+        };
+        commandResponses.push(response);
+        notifyCommandResponse(options, response);
+      }
+    }
+  }
+  return { request, commandResponses, agentTurn };
 }
 
 function parsedDate(value: string | undefined): Date | undefined {
@@ -240,6 +475,10 @@ class HostedPiSession {
   private readonly queueProjection = new SessionQueueProjection();
   private readonly mutations = new SerializedSessionMutations();
   private readonly modelProviderRevisions = new Map<string, number>();
+  private readonly pendingComposerUserProjections: Array<{
+    promptText?: string;
+    projection: WorkbenchComposerUserProjection;
+  }> = [];
 
   constructor(session: AgentSession, onRunningChanged: () => void, onDestroyed: () => void) {
     this.session = session;
@@ -383,7 +622,41 @@ class HostedPiSession {
     }
   }
 
-  private publish(event: PiEvent, time = Date.now()): void {
+  private projectComposerUserEvent(event: PiEvent): PiEvent {
+    if (event.type !== "message_end") return event;
+    const message = isRecord(event.message) ? event.message : undefined;
+    if (message?.role !== "user") return event;
+    const promptText = agentMessageText(message);
+    let index = this.pendingComposerUserProjections.findIndex(
+      (candidate) => candidate.promptText === promptText,
+    );
+    if (index < 0) {
+      index = this.pendingComposerUserProjections.findIndex(
+        (candidate) => candidate.promptText === undefined,
+      );
+    }
+    if (index < 0) return event;
+    const [candidate] = this.pendingComposerUserProjections.splice(index, 1);
+    return candidate ? { ...event, workbenchComposer: candidate.projection } : event;
+  }
+
+  private queueComposerUserProjection(
+    projection: WorkbenchComposerUserProjection,
+    promptText?: string,
+  ): () => void {
+    const candidate = {
+      ...(promptText === undefined ? {} : { promptText }),
+      projection,
+    };
+    this.pendingComposerUserProjections.push(candidate);
+    return () => {
+      const index = this.pendingComposerUserProjections.indexOf(candidate);
+      if (index >= 0) this.pendingComposerUserProjections.splice(index, 1);
+    };
+  }
+
+  private publish(sourceEvent: PiEvent, time = Date.now()): void {
+    const event = this.projectComposerUserEvent(sourceEvent);
     let canonical: SessionEvent;
     try {
       canonical = createCanonicalSessionEvent(event, this.sequence + 1, time);
@@ -416,6 +689,9 @@ class HostedPiSession {
       getStreamHub().publishMux(createSessionEventPayload(this.id, canonical));
     } catch {
       // The persisted event remains recoverable through unary history after reconnect.
+    }
+    if (canonical.type === "message_end" || canonical.type === "session_info_changed") {
+      announceSessionChanged(this);
     }
   }
 
@@ -584,6 +860,139 @@ class HostedPiSession {
     return this.runQueueMutation(() => this.promptNow(message, images, selection));
   }
 
+  private async resolveComposerSubmission(
+    prompt: PiQueuedPrompt,
+    submission: WorkbenchComposerSubmission,
+  ): Promise<PiQueuedPrompt | undefined> {
+    const plannedCommands = preflightPlanWorkbenchComposerCommands(this.session, submission);
+    const submissionId = randomUUID();
+    const canonicalDetails = submission.document
+      ? {
+          version: 2 as const,
+          submissionId,
+          sourceText: submission.sourceText,
+          text: submission.text,
+          document: submission.document,
+          commands: submission.commands,
+          composer: submission,
+          status: "accepted" as const,
+        }
+      : {
+          version: 1 as const,
+          submissionId,
+          sourceText: submission.sourceText,
+        };
+    await this.session.sendCustomMessage(
+      {
+        customType: submission.document
+          ? WORKBENCH_COMPOSER_USER_CUSTOM_TYPE
+          : LEGACY_WORKBENCH_COMPOSER_USER_CUSTOM_TYPE,
+        content: "",
+        display: false,
+        details: canonicalDetails,
+      },
+      { triggerTurn: false },
+    );
+
+    const projection = {
+      version: 1 as const,
+      submissionId,
+      sourceText: submission.sourceText,
+      ...(submission.document === undefined ? {} : { document: submission.document }),
+      hidden: true as const,
+    };
+    const publishCommandResponse = (response: WorkbenchComposerCommandResponse) => {
+      const responseDetails: WorkbenchComposerCommandResponseDetails = {
+        version: 1,
+        submissionId,
+        ...response,
+      };
+      const timestamp = Date.now();
+      this.publish(
+        {
+          type: "message",
+          role: "custom",
+          customType: WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE,
+          content: "",
+          display: true,
+          details: responseDetails,
+          timestamp,
+        },
+        timestamp,
+      );
+    };
+    const sessionActionWithoutUserText =
+      !submission.text.trim() &&
+      plannedCommands.some((command) => command.effect === "session-action");
+    const resolution = await resolveWorkbenchComposerCommands(
+      this.session,
+      {
+        ...submission,
+        text: sessionActionWithoutUserText ? submission.text : prompt.message,
+      },
+      {
+        plannedCommands,
+        projectInternalUserPrompt: () => this.queueComposerUserProjection(projection),
+        onCommandResponse: publishCommandResponse,
+      },
+    );
+    const commandFailed = resolution.request.commandTrace.some(
+      (command) => command.status === "execution-failed",
+    );
+    const commandOwnsAgentTurn = plannedCommands.some((command) => command.effect === "agent-turn");
+    const needsMainTurn =
+      !commandOwnsAgentTurn &&
+      !commandFailed &&
+      (Boolean(prompt.images?.length) ||
+        Boolean(resolution.request.userText.trim()) ||
+        resolution.request.instructions.length > 0 ||
+        resolution.request.trustedContext.length > 0 ||
+        resolution.request.untrustedContext.length > 0);
+    const resolutionDetails: WorkbenchComposerResolutionDetails = {
+      version: 1,
+      submissionId,
+      status: needsMainTurn ? "resolved" : commandFailed ? "command_error" : "completed",
+      commandTrace: resolution.request.commandTrace,
+    };
+    await this.session.sendCustomMessage(
+      {
+        customType: WORKBENCH_COMPOSER_RESOLUTION_CUSTOM_TYPE,
+        content: "",
+        display: false,
+        details: resolutionDetails,
+      },
+      { triggerTurn: false },
+    );
+    for (const response of resolution.commandResponses) {
+      const responseDetails: WorkbenchComposerCommandResponseDetails = {
+        version: 1,
+        submissionId,
+        ...response,
+      };
+      this.session.sessionManager.appendCustomEntry(
+        WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE,
+        responseDetails,
+      );
+    }
+
+    if (!needsMainTurn) {
+      this.publish(
+        commandFailed
+          ? { type: "command_error", code: "pi_composer_command_failed" }
+          : { type: "command_done" },
+      );
+      return undefined;
+    }
+    const resolvedPrompt = hasWorkbenchComposerSemantics(submission)
+      ? compileWorkbenchComposerPrompt(resolution.request)
+      : resolution.request.userText;
+    this.queueComposerUserProjection(projection, resolvedPrompt);
+    return {
+      message: resolvedPrompt,
+      ...(prompt.images?.length ? { images: prompt.images } : {}),
+    };
+  }
+
   submit(
     mode: PiQueueMode,
     prompt: PiQueuedPrompt,
@@ -591,12 +1000,30 @@ class HostedPiSession {
   ): Promise<PromptSubmissionResult> {
     return this.runQueueMutation(async () => {
       let admission: PromptSubmissionResult = { queued: false };
-      if (this.isRunning) {
-        admission = {
-          queued: true,
-          queueItemId: await this.queueNow(mode, prompt, provenance?.rpcId),
-        };
-      } else await this.promptNow(prompt.message, prompt.images);
+      const composer = provenance?.composer;
+      const resolvedPrompt =
+        composer &&
+        (hasWorkbenchComposerDocument(composer) || hasWorkbenchComposerSemantics(composer))
+          ? await this.resolveComposerSubmission(prompt, composer)
+          : prompt;
+      if (resolvedPrompt) {
+        try {
+          if (this.isRunning) {
+            admission = {
+              queued: true,
+              queueItemId: await this.queueNow(mode, resolvedPrompt, provenance?.rpcId),
+            };
+          } else await this.promptNow(resolvedPrompt.message, resolvedPrompt.images);
+        } catch (error) {
+          if (resolvedPrompt !== prompt) {
+            const projection = this.pendingComposerUserProjections.at(-1);
+            if (projection?.promptText === resolvedPrompt.message) {
+              this.pendingComposerUserProjections.pop();
+            }
+          }
+          throw error;
+        }
+      }
 
       if (provenance !== undefined) {
         try {
@@ -624,6 +1051,24 @@ class HostedPiSession {
           } catch {
             // Prompt admission already succeeded; provenance failure must not duplicate the turn.
           }
+        }
+      }
+
+      if (provenance?.rpcId) {
+        try {
+          getStreamHub().publishMux(
+            {
+              type: "session/prompt-accepted",
+              sessionId: this.id,
+              mode: mode === "followUp" ? "queue" : "steer",
+              running: this.isRunning,
+            },
+            { rpcId: provenance.rpcId },
+          );
+        } catch (error) {
+          // The prompt is already admitted. Never turn an acknowledgement transport
+          // failure into an HTTP failure that could make the caller submit it twice.
+          console.error("[workbench-pi] prompt acknowledgement publish failed", error);
         }
       }
       return admission;
@@ -920,24 +1365,13 @@ class HostedPiSession {
   }
 
   summary(): PiSessionSummary {
-    const manager = this.session.sessionManager;
-    const context = manager.buildSessionContext();
-    const header = manager.getHeader();
-    const file = manager.getSessionFile();
-    const timestamp = header?.timestamp ?? new Date().toISOString();
+    return sessionManagerSummary(this.session.sessionManager, this.isRunning);
+  }
 
-    return {
-      id: this.id,
-      cwd: manager.getCwd(),
-      workspace: workspaceFromCwd(manager.getCwd()),
-      name: manager.getSessionName(),
-      created: timestamp,
-      modified: sessionModifiedAt(manager).toISOString(),
-      messageCount: context.messages.length,
-      firstMessage: firstUserText(context.messages),
-      transient: !file || !existsSync(file),
-      running: this.isRunning,
-    };
+  metadataSnapshot(): { summary: PiSessionSummary; info?: SessionInfo } {
+    const manager = this.session.sessionManager;
+    const summary = this.summary();
+    return { summary, info: sessionManagerInfo(manager, summary) };
   }
 
   async shutdown(): Promise<void> {
@@ -961,6 +1395,11 @@ interface RegistryState {
   sessions: Map<string, HostedPiSession>;
   startLocks: Map<string, Promise<HostedPiSession>>;
   persistedSessions: Map<string, SessionInfo>;
+  persistedSessionSummaries: Map<string, PiSessionSummary>;
+  persistedSessionFingerprints: Map<string, string>;
+  persistedSessionCacheKey: string;
+  persistedSessionCacheReady: boolean;
+  persistedSessionCacheTask?: Promise<void>;
   runningListeners: Set<RunningListener>;
   lastRunningKey: string;
   forkTail: Promise<void>;
@@ -976,6 +1415,10 @@ function state(): RegistryState {
       sessions: new Map(),
       startLocks: new Map(),
       persistedSessions: new Map(),
+      persistedSessionSummaries: new Map(),
+      persistedSessionFingerprints: new Map(),
+      persistedSessionCacheKey: "",
+      persistedSessionCacheReady: false,
       runningListeners: new Set(),
       lastRunningKey: "",
       forkTail: Promise.resolve(),
@@ -984,6 +1427,10 @@ function state(): RegistryState {
   const registry = serverGlobal.__workbenchPiRegistry;
   // Preserve compatibility with a registry retained across a development HMR update.
   registry.persistedSessions ??= new Map();
+  registry.persistedSessionSummaries ??= new Map();
+  registry.persistedSessionFingerprints ??= new Map();
+  registry.persistedSessionCacheKey ??= "";
+  registry.persistedSessionCacheReady ??= false;
   registry.forkTail ??= Promise.resolve();
   return registry;
 }
@@ -1027,7 +1474,16 @@ async function createHost(sessionManager: SessionManager): Promise<HostedPiSessi
       resolveProjectTrust: async () => trustProject,
     },
   });
-  const { session } = await createAgentSessionFromServices({ services, sessionManager });
+  const { session } = await createAgentSessionFromServices({
+    services,
+    sessionManager,
+    customTools: [
+      createInteractiveBashTool(cwd, sessionManager.getSessionId(), {
+        commandPrefix: services.settingsManager.getShellCommandPrefix(),
+        shellPath: services.settingsManager.getShellPath(),
+      }),
+    ],
+  });
   const interactiveResponses = getInteractiveResponseRegistry();
   await session.bindExtensions({
     mode: "rpc",
@@ -1037,11 +1493,13 @@ async function createHost(sessionManager: SessionManager): Promise<HostedPiSessi
   let host: HostedPiSession;
   host = new HostedPiSession(session, publishRunningSessions, () => {
     const registry = state();
+    cacheHostedSession(registry, host);
     if (registry.sessions.get(host.id) === host) registry.sessions.delete(host.id);
     interactiveResponses.clearSession(host.id);
     publishRunningSessions();
   });
   state().sessions.set(host.id, host);
+  cacheHostedSession(state(), host);
   try {
     getStreamHub().publishMux({
       type: "session/subscribed",
@@ -1067,14 +1525,10 @@ async function modelServices(cwd: string): Promise<AgentSessionServices> {
 }
 
 async function persistedSession(id: string): Promise<SessionInfo | undefined> {
-  const cached = state().persistedSessions.get(id);
+  const registry = await ensurePersistedSessionCache();
+  const cached = registry.persistedSessions.get(id);
   if (cached && existsSync(cached.path)) return cached;
-
-  const sessions = await SessionManager.listAll();
-  const persistedSessions = state().persistedSessions;
-  persistedSessions.clear();
-  for (const session of sessions) persistedSessions.set(session.id, session);
-  return sessions.find((session) => session.id === id);
+  return undefined;
 }
 
 interface CanonicalJournalEntry {
@@ -1125,6 +1579,19 @@ function jsonEqual(left: unknown, right: unknown): boolean {
   }
 }
 
+function customMessageMatchesEntry(
+  message: Record<string, unknown>,
+  entry: SessionEntry | undefined,
+): boolean {
+  return (
+    entry?.type === "custom_message" &&
+    entry.customType === message.customType &&
+    jsonEqual(entry.content, message.content) &&
+    entry.display === message.display &&
+    jsonEqual(entry.details, message.details)
+  );
+}
+
 /**
  * `AgentSession` emits `message_end` before it persists the message. A fork cut is only safe when
  * the journal event is immediately followed by the exact context entry produced for that event.
@@ -1142,12 +1609,20 @@ function hasPersistedMessageForEvent(
   if (message.role === "user" || message.role === "assistant" || message.role === "toolResult") {
     return next.type === "message" && jsonEqual(next.message, message);
   }
-  if (message.role !== "custom" || next.type !== "custom_message") return false;
+  if (message.role !== "custom") return false;
+  if (customMessageMatchesEntry(message, next)) return true;
+
+  // Workbench custom messages are persisted before AgentSession emits their lifecycle events:
+  // custom_message -> message_start journal -> message_end journal. Accept only that exact,
+  // content-matching sequence so the fork still has a provably durable leaf.
+  const startEntry = branch[journalBranchIndex - 1];
+  const persistedEntry = branch[journalBranchIndex - 2];
+  const startEvent = startEntry ? storedCanonicalEvent(startEntry) : undefined;
+  const startMessage = isRecord(startEvent?.data) ? startEvent.data.message : undefined;
   return (
-    next.customType === message.customType &&
-    jsonEqual(next.content, message.content) &&
-    next.display === message.display &&
-    jsonEqual(next.details, message.details)
+    startEvent?.type === "message_start" &&
+    jsonEqual(startMessage, message) &&
+    customMessageMatchesEntry(message, persistedEntry)
   );
 }
 
@@ -1206,6 +1681,21 @@ export function createDetachedSessionFork(sourcePath: string, atSeq?: number): S
       removeFailedForkFile(sourcePath, detached);
       throw forkUnavailable();
     }
+    const inheritedEvents = readSessionEventJournal(detached);
+    const sourceEventSeq = inheritedEvents.at(-1)?.seq;
+    if (sourceEventSeq === undefined) throw forkUnavailable();
+    appendSessionEventJournal(
+      detached,
+      createCanonicalSessionEvent(
+        {
+          type: PI_SESSION_FORKED_EVENT,
+          sourceSessionId: sourceId,
+          sourceEventSeq,
+        },
+        inheritedEvents.length,
+        Date.now(),
+      ),
+    );
   } catch (error) {
     removeFailedForkFile(sourcePath, detached);
     if (error instanceof PiServerError) throw error;
@@ -1241,7 +1731,22 @@ function announceSessionAdded(host: HostedPiSession): void {
       type: "host/session-added",
       sessionId: host.id,
       blank: summary.messageCount === 0,
+      summary,
       cwd: summary.cwd,
+    });
+  } catch {
+    // session.list remains the authoritative recovery path.
+  }
+}
+
+function announceSessionChanged(host: HostedPiSession): void {
+  const summary = host.summary();
+  cacheHostedSession(state(), host);
+  try {
+    getStreamHub().publishHost({
+      type: "host/session-changed",
+      sessionId: host.id,
+      summary,
     });
   } catch {
     // session.list remains the authoritative recovery path.
@@ -1426,20 +1931,297 @@ function persistedSummary(info: SessionInfo, running: boolean): PiSessionSummary
   };
 }
 
+function sessionManagerSummary(manager: SessionManager, running: boolean): PiSessionSummary {
+  const context = manager.buildSessionContext();
+  const header = manager.getHeader();
+  const file = manager.getSessionFile();
+  const timestamp = header?.timestamp ?? new Date().toISOString();
+  return {
+    id: manager.getSessionId(),
+    cwd: manager.getCwd(),
+    workspace: workspaceFromCwd(manager.getCwd()),
+    name: manager.getSessionName(),
+    created: timestamp,
+    modified: sessionModifiedAt(manager).toISOString(),
+    messageCount: context.messages.length,
+    firstMessage: firstUserText(context.messages),
+    transient: !file || !existsSync(file),
+    running,
+  };
+}
+
+function sessionManagerInfo(
+  manager: SessionManager,
+  summary: PiSessionSummary,
+): SessionInfo | undefined {
+  const sessionFile = manager.getSessionFile();
+  if (!sessionFile || !existsSync(sessionFile)) return undefined;
+  const header = manager.getHeader();
+  return {
+    path: sessionFile,
+    id: summary.id,
+    cwd: summary.cwd,
+    ...(summary.name === undefined ? {} : { name: summary.name }),
+    ...(header?.parentSession === undefined ? {} : { parentSessionPath: header.parentSession }),
+    created: new Date(summary.created),
+    modified: new Date(summary.modified),
+    messageCount: summary.messageCount,
+    firstMessage: summary.firstMessage,
+    allMessagesText: "",
+  };
+}
+
+function persistedMetadataFromManager(
+  manager: SessionManager,
+  running: boolean,
+): { info?: SessionInfo; summary: PiSessionSummary } {
+  const messages = manager
+    .getEntries()
+    .filter((entry) => entry.type === "message")
+    .map((entry) => entry.message);
+  const header = manager.getHeader();
+  const file = manager.getSessionFile();
+  const timestamp = header?.timestamp ?? new Date().toISOString();
+  const summary: PiSessionSummary = {
+    id: manager.getSessionId(),
+    cwd: manager.getCwd(),
+    workspace: workspaceFromCwd(manager.getCwd()),
+    name: manager.getSessionName(),
+    created: timestamp,
+    modified: sessionModifiedAt(manager).toISOString(),
+    messageCount: messages.length,
+    firstMessage: firstUserText(messages) || "(no messages)",
+    transient: !file || !existsSync(file),
+    running,
+  };
+  return { summary, info: sessionManagerInfo(manager, summary) };
+}
+
+function configuredSessionCacheKey(): string {
+  return path.join(getAgentDir(), "sessions");
+}
+
+function ensureSessionCacheScope(registry: RegistryState): string {
+  const cacheKey = configuredSessionCacheKey();
+  if (registry.persistedSessionCacheKey === cacheKey) return cacheKey;
+  registry.persistedSessionCacheKey = cacheKey;
+  registry.persistedSessionCacheReady = false;
+  registry.persistedSessionCacheTask = undefined;
+  registry.persistedSessions.clear();
+  registry.persistedSessionSummaries.clear();
+  registry.persistedSessionFingerprints.clear();
+  return cacheKey;
+}
+
+async function scanSessionFingerprints(sessionRoot: string): Promise<Map<string, string>> {
+  let directories: string[];
+  try {
+    directories = (await readdir(sessionRoot, { withFileTypes: true }))
+      .filter((entry) => entry.isDirectory() || entry.isSymbolicLink())
+      .map((entry) => path.join(sessionRoot, entry.name));
+  } catch {
+    return new Map();
+  }
+
+  const fileGroups = await Promise.all(
+    directories.map(async (directory) => {
+      try {
+        return (await readdir(directory))
+          .filter((name) => name.endsWith(".jsonl"))
+          .map((name) => path.join(directory, name));
+      } catch {
+        return [];
+      }
+    }),
+  );
+  const fingerprints = new Map<string, string>();
+  await Promise.all(
+    fileGroups.flat().map(async (file) => {
+      try {
+        const metadata = await stat(file);
+        fingerprints.set(file, `${metadata.size}:${metadata.mtimeMs}`);
+      } catch {
+        // A concurrently removed session is absent from the authoritative scan.
+      }
+    }),
+  );
+  return fingerprints;
+}
+
+function fingerprintsMatch(left: ReadonlyMap<string, string>, right: ReadonlyMap<string, string>) {
+  if (left.size !== right.size) return false;
+  for (const [file, fingerprint] of left) {
+    if (right.get(file) !== fingerprint) return false;
+  }
+  return true;
+}
+
+function cacheHostedSession(
+  registry: RegistryState,
+  host: HostedPiSession,
+  fingerprints?: Map<string, string>,
+): void {
+  const { info, summary } = host.metadataSnapshot();
+  registry.persistedSessionSummaries.set(summary.id, summary);
+  if (!info) {
+    const previous = registry.persistedSessions.get(summary.id);
+    registry.persistedSessions.delete(summary.id);
+    if (previous) {
+      registry.persistedSessionFingerprints.delete(previous.path);
+      fingerprints?.delete(previous.path);
+    }
+    return;
+  }
+  registry.persistedSessions.set(info.id, info);
+  try {
+    const metadata = statSync(info.path);
+    const fingerprint = `${metadata.size}:${metadata.mtimeMs}`;
+    registry.persistedSessionFingerprints.set(info.path, fingerprint);
+    fingerprints?.set(info.path, fingerprint);
+  } catch {
+    registry.persistedSessionFingerprints.delete(info.path);
+    fingerprints?.delete(info.path);
+  }
+}
+
+function cachePersistedSessionManager(
+  registry: RegistryState,
+  manager: SessionManager,
+): PiSessionSummary {
+  const { info, summary } = persistedMetadataFromManager(manager, false);
+  registry.persistedSessionSummaries.set(summary.id, summary);
+  if (!info) return summary;
+  registry.persistedSessions.set(info.id, info);
+  try {
+    const metadata = statSync(info.path);
+    registry.persistedSessionFingerprints.set(info.path, `${metadata.size}:${metadata.mtimeMs}`);
+  } catch {
+    registry.persistedSessionFingerprints.delete(info.path);
+  }
+  return summary;
+}
+
+function removeCachedSessionFile(registry: RegistryState, file: string): void {
+  for (const [id, info] of registry.persistedSessions) {
+    if (info.path !== file) continue;
+    registry.persistedSessions.delete(id);
+    registry.persistedSessionSummaries.delete(id);
+  }
+}
+
+function refreshChangedSessionFiles(
+  registry: RegistryState,
+  fingerprints: ReadonlyMap<string, string>,
+): void {
+  for (const file of registry.persistedSessionFingerprints.keys()) {
+    if (!fingerprints.has(file)) removeCachedSessionFile(registry, file);
+  }
+
+  const running = new Set(runningSessionIds());
+  for (const [file, fingerprint] of fingerprints) {
+    if (registry.persistedSessionFingerprints.get(file) === fingerprint) continue;
+    removeCachedSessionFile(registry, file);
+    try {
+      const manager = SessionManager.open(file);
+      const { info, summary } = persistedMetadataFromManager(
+        manager,
+        running.has(manager.getSessionId()),
+      );
+      if (!info) continue;
+      registry.persistedSessions.set(info.id, info);
+      registry.persistedSessionSummaries.set(summary.id, summary);
+    } catch {
+      // A malformed or concurrently removed file is excluded until a later fingerprint change.
+    }
+  }
+
+  registry.persistedSessionFingerprints.clear();
+  for (const [file, fingerprint] of fingerprints) {
+    registry.persistedSessionFingerprints.set(file, fingerprint);
+  }
+}
+
+function startPersistedSessionCacheRefresh(
+  registry: RegistryState,
+  cacheKey: string,
+): Promise<void> {
+  if (registry.persistedSessionCacheTask) return registry.persistedSessionCacheTask;
+  const task = (async () => {
+    const fingerprints = await scanSessionFingerprints(cacheKey);
+    if (registry.persistedSessionCacheKey !== cacheKey) return;
+    for (const host of registry.sessions.values()) {
+      if (host.isAlive) cacheHostedSession(registry, host, fingerprints);
+    }
+    if (
+      registry.persistedSessionCacheReady &&
+      fingerprintsMatch(registry.persistedSessionFingerprints, fingerprints)
+    ) {
+      return;
+    }
+    if (registry.persistedSessionCacheReady) {
+      refreshChangedSessionFiles(registry, fingerprints);
+      return;
+    }
+
+    const persisted = await SessionManager.listAll();
+    if (registry.persistedSessionCacheKey !== cacheKey) return;
+    const running = new Set(runningSessionIds());
+    const nextSessions = new Map(persisted.map((session) => [session.id, session]));
+    const nextSummaries = new Map(
+      persisted.map((session) => [session.id, persistedSummary(session, running.has(session.id))]),
+    );
+    registry.persistedSessions.clear();
+    for (const [id, info] of nextSessions) registry.persistedSessions.set(id, info);
+    registry.persistedSessionSummaries.clear();
+    for (const [id, summary] of nextSummaries) {
+      registry.persistedSessionSummaries.set(id, summary);
+    }
+    registry.persistedSessionFingerprints.clear();
+    for (const [file, fingerprint] of fingerprints) {
+      registry.persistedSessionFingerprints.set(file, fingerprint);
+    }
+    for (const host of registry.sessions.values()) {
+      if (host.isAlive) cacheHostedSession(registry, host);
+    }
+    registry.persistedSessionCacheReady = true;
+  })().finally(() => {
+    if (registry.persistedSessionCacheTask === task) {
+      registry.persistedSessionCacheTask = undefined;
+    }
+  });
+  registry.persistedSessionCacheTask = task;
+  return task;
+}
+
+async function ensurePersistedSessionCache(): Promise<RegistryState> {
+  const registry = state();
+  const cacheKey = ensureSessionCacheScope(registry);
+  if (!registry.persistedSessionCacheReady) {
+    await startPersistedSessionCacheRefresh(registry, cacheKey);
+  } else if (!registry.persistedSessionCacheTask) {
+    // Active hosts are overlaid synchronously below. Cold files are revalidated in the
+    // background so filesystem latency can never hold the list RPC on its critical path.
+    void startPersistedSessionCacheRefresh(registry, cacheKey).catch((error: unknown) => {
+      console.error("Pi session metadata refresh failed.", error);
+    });
+  }
+  return registry;
+}
+
 export async function listSessions(): Promise<{
   sessions: PiSessionSummary[];
   runningSessionIds: string[];
 }> {
-  const persisted = await SessionManager.listAll();
-  const persistedSessions = state().persistedSessions;
-  persistedSessions.clear();
-  for (const session of persisted) persistedSessions.set(session.id, session);
+  const registry = await ensurePersistedSessionCache();
   const runningIds = runningSessionIds();
   const running = new Set(runningIds);
   const summaries = new Map(
-    persisted.map((session) => [session.id, persistedSummary(session, running.has(session.id))]),
+    [...registry.persistedSessionSummaries].map(([id, summary]) => [
+      id,
+      summary.running === running.has(id) ? summary : { ...summary, running: running.has(id) },
+    ]),
   );
-  for (const host of state().sessions.values()) {
+  for (const host of registry.sessions.values()) {
     if (host.isAlive) summaries.set(host.id, host.summary());
   }
   return {
@@ -1477,33 +2259,50 @@ export async function listModels(cwd: string): Promise<PiModelListResponse> {
 
 function historyFromManager(manager: SessionManager): PiSessionHistory {
   const context = manager.buildSessionContext();
+  const messages: PiAgentMessage[] = [];
   const entryIds: string[] = [];
   const entryCompletedAts: Array<number | null> = [];
   const toolTimings: PiToolCallTiming[] = [];
   for (const entry of manager.getBranch()) {
-    if (entry.type !== "custom" || entry.customType !== TOOL_TIMING_CUSTOM_TYPE) continue;
-    if (!entry.data || typeof entry.data !== "object") continue;
-    const timing = entry.data as Partial<PiToolCallTiming>;
-    if (
-      typeof timing.toolCallId !== "string" ||
-      typeof timing.startedAt !== "number" ||
-      !Number.isFinite(timing.startedAt) ||
-      typeof timing.completedAt !== "number" ||
-      !Number.isFinite(timing.completedAt) ||
-      timing.completedAt < timing.startedAt
-    ) {
-      continue;
+    if (entry.type !== "custom") continue;
+    if (entry.customType === TOOL_TIMING_CUSTOM_TYPE) {
+      if (!entry.data || typeof entry.data !== "object") continue;
+      const timing = entry.data as Partial<PiToolCallTiming>;
+      if (
+        typeof timing.toolCallId !== "string" ||
+        typeof timing.startedAt !== "number" ||
+        !Number.isFinite(timing.startedAt) ||
+        typeof timing.completedAt !== "number" ||
+        !Number.isFinite(timing.completedAt) ||
+        timing.completedAt < timing.startedAt
+      ) {
+        continue;
+      }
+      toolTimings.push({
+        toolCallId: timing.toolCallId,
+        startedAt: timing.startedAt,
+        completedAt: timing.completedAt,
+      });
     }
-    toolTimings.push({
-      toolCallId: timing.toolCallId,
-      startedAt: timing.startedAt,
-      completedAt: timing.completedAt,
-    });
   }
   for (const entry of manager.buildContextEntries()) {
-    const messageCount = sessionEntryToContextMessages(entry).length;
+    const projectedMessages =
+      entry.type === "custom" &&
+      entry.customType === WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE
+        ? [
+            {
+              role: "custom" as const,
+              customType: WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE,
+              content: "",
+              display: true,
+              details: entry.data,
+              timestamp: Date.parse(entry.timestamp),
+            },
+          ]
+        : (sessionEntryToContextMessages(entry) as PiAgentMessage[]);
     const completedAt = Date.parse(entry.timestamp);
-    for (let index = 0; index < messageCount; index += 1) {
+    for (const message of projectedMessages) {
+      messages.push(message);
       entryIds.push(entry.id);
       entryCompletedAts.push(Number.isFinite(completedAt) ? completedAt : null);
     }
@@ -1513,7 +2312,7 @@ function historyFromManager(manager: SessionManager): PiSessionHistory {
     context: {
       // Response.json performs the required serialization. Avoiding an additional
       // stringify/parse pass here matters for multi-megabyte conversation histories.
-      messages: context.messages as PiAgentMessage[],
+      messages,
       entryIds,
       entryCompletedAts,
       toolTimings,
@@ -1583,10 +2382,16 @@ export async function renameSession(id: string, name: string): Promise<number> {
     Date.now(),
   );
   appendSessionEventJournal(manager, event);
+  const summary = cachePersistedSessionManager(state(), manager);
   try {
     getStreamHub().publishMux(createSessionEventPayload(id, event));
   } catch {
-    // The durable event and its sequence remain recoverable through session.history.
+    // Durable history remains the authoritative recovery path.
+  }
+  try {
+    getStreamHub().publishHost({ type: "host/session-changed", sessionId: id, summary });
+  } catch {
+    // session.list remains the authoritative recovery path.
   }
   return event.seq;
 }
@@ -1601,7 +2406,10 @@ export async function deleteSession(id: string): Promise<void> {
   // the inverse order can leave an unrecoverable ghost session in workspace state.
   await getWorkspaceStore().removeSession(id);
   if (info?.path && existsSync(info.path)) unlinkSync(info.path);
-  state().persistedSessions.delete(id);
+  const registry = state();
+  registry.persistedSessions.delete(id);
+  registry.persistedSessionSummaries.delete(id);
+  if (info?.path) registry.persistedSessionFingerprints.delete(info.path);
   try {
     getStreamHub().publishHost({ type: "host/session-removed", sessionId: id });
   } catch {
@@ -1653,7 +2461,12 @@ export async function submitPrompt(
   prompt: PiQueuedPrompt,
   provenance?: PromptSubmissionProvenance,
 ): Promise<PromptSubmissionResult> {
-  if (!prompt.message.trim() && !prompt.images?.length) {
+  const composer = provenance?.composer;
+  if (
+    !prompt.message.trim() &&
+    !prompt.images?.length &&
+    !(composer && hasWorkbenchComposerSemantics(composer))
+  ) {
     throw new PiServerError("pi_empty_prompt", 400);
   }
   const host = await getOrStartSession(id);

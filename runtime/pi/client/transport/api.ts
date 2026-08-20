@@ -12,15 +12,23 @@ import type {
 } from "../../contracts";
 import type {
   ClientResponse,
+  CommandListPayload,
+  CommandListValue,
   ConfigureModelProviderPayload,
   DiscoverModelsPayload,
   DiscoverModelsValue,
+  ExtensionListPayload,
+  ExtensionListValue,
   HostDescription,
   HostDirectoryListing,
   ModelCatalogValue,
+  ModelContextWindowPayload,
+  ModelContextWindowValue,
   ModelProviderConfigPayload,
   ModelProviderConfigValue,
   ModelProvidersValue,
+  PiAgentSettingsNamespaceView,
+  PiAgentSettingsUpdatePayload,
   RemoveModelProviderPayload,
   RpcReceipt,
   SessionAttachmentPayload,
@@ -49,6 +57,9 @@ import type {
   SessionUpdateQueueValue,
   SkillListPayload,
   SkillListValue,
+  SettingsDescribeValue,
+  SettingsOpenDocumentValue,
+  UpdateModelContextWindowPayload,
   WorkspaceListValue,
   WorkspaceView,
 } from "../../rpc-contracts";
@@ -283,6 +294,12 @@ export function archivePiWorkspaceSession(
   return callPiRpc("workspace.archiveSession", { sessionId });
 }
 
+export function unarchivePiWorkspaceSession(
+  sessionId: string,
+): Promise<{ archivedSessionIds: string[] }> {
+  return callPiRpc("workspace.unarchiveSession", { sessionId });
+}
+
 export function listPiModelProviders(): Promise<ModelProvidersValue> {
   return callPiRpc("llm.providers", {});
 }
@@ -291,6 +308,23 @@ export function getPiModelProviderConfig(
   payload: ModelProviderConfigPayload,
 ): Promise<ModelProviderConfigValue> {
   return callPiRpc("llm.providerConfig", payload);
+}
+
+export function getPiModelContextWindow(
+  payload: ModelContextWindowPayload,
+): Promise<ModelContextWindowValue> {
+  return callPiRpc("llm.modelContextWindow", payload);
+}
+
+export async function updatePiModelContextWindow(
+  payload: UpdateModelContextWindowPayload,
+): Promise<ModelContextWindowValue> {
+  const value = await callPiRpc<UpdateModelContextWindowPayload, ModelContextWindowValue>(
+    "llm.updateModelContextWindow",
+    payload,
+  );
+  invalidatePiModelCatalog();
+  return value;
 }
 
 export async function configurePiModelProvider(
@@ -325,6 +359,28 @@ export function discoverPiModels(payload: DiscoverModelsPayload): Promise<Discov
 
 export function listPiSkills(payload: SkillListPayload): Promise<SkillListValue> {
   return callPiRpc("skill.list", payload);
+}
+
+export function listPiCommands(payload: CommandListPayload): Promise<CommandListValue> {
+  return callPiRpc("command.list", payload);
+}
+
+export function listPiExtensions(payload: ExtensionListPayload): Promise<ExtensionListValue> {
+  return callPiRpc("extension.list", payload);
+}
+
+export function describePiSettings(): Promise<SettingsDescribeValue> {
+  return callPiRpc("settings.describe", {});
+}
+
+export function openPiSettingsDocument(): Promise<SettingsOpenDocumentValue> {
+  return callPiRpc("settings.openDocument", {});
+}
+
+export function updatePiAgentSettings(
+  payload: PiAgentSettingsUpdatePayload,
+): Promise<PiAgentSettingsNamespaceView> {
+  return callPiRpc("settings.update", payload);
 }
 
 export function listPiRpcSessions(payload: SessionListPayload = {}): Promise<SessionListValue> {

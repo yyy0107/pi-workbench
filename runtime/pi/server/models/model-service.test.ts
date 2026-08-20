@@ -32,6 +32,7 @@ function memoryModelConfigStore(
   let configurations = structuredClone(initial);
   return {
     providers: async () => structuredClone(configurations),
+    setModelContextWindow: async () => ({ rollback: async () => undefined }),
     setProvider: async (provider, configuration) => {
       const previous = structuredClone(configurations);
       configurations[provider] = {
@@ -104,6 +105,63 @@ function runtime(overrides: Partial<ModelRuntimeLike> = {}): ModelRuntimeLike {
     ...overrides,
   };
 }
+
+test("reads and updates a model context-window override", async () => {
+  const store = memoryModelConfigStore();
+  let saved: { provider: string; model: string; contextWindow: number } | undefined;
+  let refreshCalls = 0;
+  store.setModelContextWindow = async (provider, model, contextWindow) => {
+    saved = { provider, model, contextWindow };
+    return { rollback: async () => undefined };
+  };
+  const service = modelService({
+    modelConfigStore: store,
+    runtime: runtime({
+      refresh: async () => {
+        refreshCalls += 1;
+        return { aborted: false, errors: new Map() };
+      },
+    }),
+  });
+
+  assert.deepEqual(
+    await service.modelContextWindow({ provider: "openai", model: "gpt-reasoning" }),
+    {
+      provider: "openai",
+      model: "gpt-reasoning",
+      name: "GPT Reasoning",
+      contextWindow: 200_000,
+    },
+  );
+  assert.deepEqual(
+    await service.updateModelContextWindow({
+      provider: "openai",
+      model: "gpt-reasoning",
+      contextWindow: 256_000,
+    }),
+    {
+      provider: "openai",
+      model: "gpt-reasoning",
+      name: "GPT Reasoning",
+      contextWindow: 256_000,
+    },
+  );
+  assert.deepEqual(saved, {
+    provider: "openai",
+    model: "gpt-reasoning",
+    contextWindow: 256_000,
+  });
+  assert.equal(refreshCalls, 1);
+
+  await assert.rejects(
+    service.modelContextWindow({ provider: "openai", model: "missing" }),
+    (error) => {
+      assert.ok(error instanceof ModelServiceError);
+      assert.equal(error.code, "model-not-found");
+      return true;
+    },
+  );
+});
 
 test("maps provider auth status without reading credential values", async () => {
   let statusReads = 0;

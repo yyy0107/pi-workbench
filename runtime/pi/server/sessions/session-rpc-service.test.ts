@@ -124,6 +124,7 @@ function harness(overrides: Partial<SessionRpcDependencies> = {}) {
     },
     submitPrompt: async (sessionId, mode, prompt, provenance) => {
       calls.push({ name: "submit-prompt", value: [sessionId, mode, prompt, provenance] });
+      return { queued: false };
     },
     updateQueueItem: async (sessionId, itemId, mutation) => {
       calls.push({ name: "update-queue", value: [sessionId, itemId, mutation] });
@@ -520,7 +521,7 @@ test("renames, prompts, queues, and cancels supported session operations", async
       },
       { rpcId: "rpc-prompt" },
     ),
-    { accepted: true },
+    { accepted: true, queued: false },
   );
   assert.deepEqual(await idle.service.cancel({ sessionId: "session-1" }), { accepted: true });
   assert.deepEqual(
@@ -552,6 +553,23 @@ test("renames, prompts, queues, and cancels supported session operations", async
     name: "submit-prompt",
     value: ["session-1", "steer", { message: "adjust" }, {}],
   });
+  const queued = harness({
+    submitPrompt: async (_sessionId, _mode, _prompt, provenance) => ({
+      queued: true,
+      queueItemId: provenance?.rpcId,
+    }),
+  });
+  assert.deepEqual(
+    await queued.service.prompt(
+      {
+        sessionId: "session-1",
+        mode: "queue",
+        content: [{ type: "text", text: "later" }],
+      },
+      { rpcId: "rpc-queued" },
+    ),
+    { accepted: true, queued: true, queueItemId: "rpc-queued" },
+  );
   await assert.rejects(
     idle.service.prompt({
       sessionId: "session-1",
@@ -569,6 +587,64 @@ test("renames, prompts, queues, and cancels supported session operations", async
       content: [{ type: "text", text: "hello" }],
     }),
     { code: "invalid-time-zone", details: { value: "Mars/Olympus" } },
+  );
+});
+
+test("admits a token-only Composer transaction and forwards its structured semantics", async () => {
+  const { service, calls } = harness();
+  const composer = {
+    version: 1 as const,
+    document: [
+      {
+        type: "command" as const,
+        id: "command:pi:plan:0",
+        commandId: "plan",
+        label: "Plan",
+        scope: "message" as const,
+        source: "pi" as const,
+      },
+      { type: "text" as const, text: " " },
+    ],
+    sourceText: ":pi-command[plan|Plan] ",
+    text: "",
+    context: [],
+    metadata: {},
+    commands: [
+      {
+        id: "command:pi:plan:0",
+        commandId: "plan",
+        label: "Plan",
+        scope: "message" as const,
+        source: "pi" as const,
+      },
+    ],
+  };
+
+  assert.deepEqual(
+    await service.prompt({
+      sessionId: "session-1",
+      mode: "queue",
+      content: [],
+      composer,
+    }),
+    { accepted: true, queued: false },
+  );
+  assert.deepEqual(calls.at(-1), {
+    name: "submit-prompt",
+    value: ["session-1", "followUp", { message: "" }, { composer }],
+  });
+
+  await assert.rejects(
+    service.prompt({
+      sessionId: "session-1",
+      mode: "queue",
+      content: [],
+      composer: {
+        ...composer,
+        commands: [{ ...composer.commands[0]!, commandId: "different" }],
+      },
+    }),
+    { code: "command-error" },
   );
 });
 

@@ -3,8 +3,9 @@
 import { createContext, useContext, useMemo, useSyncExternalStore, type ReactNode } from "react";
 
 import type { PiWorkspaceSummary } from "../../contracts";
+import type { HostDescription } from "../../rpc-contracts";
 
-import { PiSessionManager } from "./manager";
+import { PiSessionManager, type PiThreadListItemSnapshot } from "./manager";
 
 const PiSessionManagerContext = createContext<PiSessionManager | null>(null);
 
@@ -23,6 +24,15 @@ export function usePiSessionManager(): PiSessionManager {
   return manager;
 }
 
+export function usePiHostDescription(): HostDescription | undefined {
+  const manager = usePiSessionManager();
+  return useSyncExternalStore(
+    manager.subscribe,
+    manager.getHostDescription,
+    manager.getHostDescription,
+  );
+}
+
 export function usePiThreadActivity(threadId: string): {
   running: boolean;
   completed: boolean;
@@ -33,6 +43,39 @@ export function usePiThreadActivity(threadId: string): {
     running: manager.isRunning(threadId),
     completed: manager.isCompleted(threadId),
   };
+}
+
+export function usePiThreadListItemSnapshot(
+  threadId: string | undefined,
+): PiThreadListItemSnapshot | undefined {
+  const manager = usePiSessionManager();
+  const revision = useSyncExternalStore(
+    manager.subscribe,
+    manager.getSnapshot,
+    manager.getSnapshot,
+  );
+  return useMemo(() => manager.getThreadListItemSnapshot(threadId), [manager, revision, threadId]);
+}
+
+export function usePiThreadListItemState(threadId: string): {
+  thread: PiThreadListItemSnapshot | undefined;
+  running: boolean;
+  completed: boolean;
+} {
+  const manager = usePiSessionManager();
+  const revision = useSyncExternalStore(
+    manager.subscribe,
+    manager.getSnapshot,
+    manager.getSnapshot,
+  );
+  return useMemo(
+    () => ({
+      thread: manager.getThreadListItemSnapshot(threadId),
+      running: manager.isRunning(threadId),
+      completed: manager.isCompleted(threadId),
+    }),
+    [manager, revision, threadId],
+  );
 }
 
 export function usePiWorkspaces(): readonly PiWorkspaceSummary[] {

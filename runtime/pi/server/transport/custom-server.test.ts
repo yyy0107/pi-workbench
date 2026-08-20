@@ -35,6 +35,7 @@ function requestWithHeaders(
 test("recognizes only ordinary GET and HEAD requests for the exact stream paths", () => {
   assert.equal(isStreamHttpRequest({ method: "GET", url: "/api/events.mux" }), true);
   assert.equal(isStreamHttpRequest({ method: "HEAD", url: "/api/events.host?generation=2" }), true);
+  assert.equal(isStreamHttpRequest({ method: "GET", url: "/api/terminal?sessionId=one" }), true);
   assert.equal(isStreamHttpRequest({ method: "POST", url: "/api/events.mux" }), false);
   assert.equal(isStreamHttpRequest({ method: "GET", url: "/api/events.mux/extra" }), false);
   assert.equal(isApiHttpRequest({ url: "/api/host.describe" }), true);
@@ -70,6 +71,12 @@ test("returns 426 for ordinary stream requests and delegates other HTTP traffic"
   assert.equal(headResponse.headers.get("connection"), "Upgrade");
   assert.equal(headResponse.headers.get("upgrade"), "websocket");
   assert.equal(await headResponse.text(), "");
+
+  const terminalResponse = await fetch(
+    `http://127.0.0.1:${port}/api/terminal?sessionId=workspace-1`,
+  );
+  assert.equal(terminalResponse.status, 426);
+  assert.equal(await terminalResponse.text(), "Upgrade Required");
 
   const normalResponse = await fetch(`http://127.0.0.1:${port}/health`);
   assert.equal(normalResponse.status, 204);

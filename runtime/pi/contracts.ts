@@ -73,6 +73,7 @@ export interface PiUserMessage {
   role: "user";
   content: string | Array<PiTextContent | PiImageContent>;
   timestamp?: number;
+  workbenchComposer?: WorkbenchComposerUserProjection;
 }
 
 export interface PiAssistantMessage {
@@ -109,6 +110,7 @@ export interface PiCustomMessage {
 
 export const PI_CONVERSATION_EVENT_CUSTOM_TYPE = "workbench.conversation-event.v1";
 export const PI_MODEL_CHANGED_EVENT = "model_changed";
+export const PI_SESSION_FORKED_EVENT = "session_forked";
 
 export interface PiModelChangeConversationEvent {
   kind: "model-change";
@@ -125,7 +127,16 @@ export interface PiCompactionConversationEvent {
   estimatedTokensAfter?: number;
 }
 
-export type PiConversationEvent = PiModelChangeConversationEvent | PiCompactionConversationEvent;
+export interface PiForkConversationEvent {
+  kind: "fork";
+  sourceSessionId?: string;
+  sourceEventSeq?: number;
+}
+
+export type PiConversationEvent =
+  | PiModelChangeConversationEvent
+  | PiCompactionConversationEvent
+  | PiForkConversationEvent;
 
 export interface PiBashExecutionMessage {
   role: "bashExecution";
@@ -154,7 +165,9 @@ export interface PiSessionHistory {
   context: {
     messages: PiAgentMessage[];
     entryIds: string[];
+    entrySeqs?: Array<number | null>;
     entryCompletedAts?: Array<number | null>;
+    entryFirstTokenAts?: Array<number | null>;
     toolTimings?: PiToolCallTiming[];
     thinkingLevel: string;
     model: { provider: string; modelId: string } | null;
@@ -222,6 +235,7 @@ export type PiQueueMode = "steer" | "followUp";
 export interface PiQueuedPrompt {
   message: string;
   images?: PiImageContent[];
+  composer?: WorkbenchComposerSubmission;
 }
 
 export interface PiQueueCommand extends PiQueuedPrompt {
@@ -259,3 +273,7 @@ export type PiSessionCommand =
   | PiSetQueuePausedCommand
   | PiSteerQueuedCommand
   | PiCancelCommand;
+import type {
+  WorkbenchComposerSubmission,
+  WorkbenchComposerUserProjection,
+} from "../composer-request";

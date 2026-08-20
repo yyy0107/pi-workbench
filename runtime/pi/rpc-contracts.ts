@@ -1,3 +1,10 @@
+import type {
+  WorkbenchComposerCommandArgsBinding,
+  WorkbenchComposerCommandArgsSchema,
+  WorkbenchComposerCommandEffect,
+  WorkbenchComposerSubmission,
+} from "../composer-request";
+
 export type RpcIssuePathSegment = string | number;
 
 /**
@@ -113,6 +120,7 @@ export interface HostDirectoryListing {
 
 export interface HostDescription {
   version: string;
+  piVersion: string;
   cwd: string;
   provider?: string;
   model?: string;
@@ -213,6 +221,20 @@ export interface ModelProviderConfigValue {
   models: ModelProviderModelConfiguration[];
 }
 
+export interface ModelContextWindowPayload {
+  provider: string;
+  model: string;
+}
+
+export interface ModelContextWindowValue extends ModelContextWindowPayload {
+  name: string;
+  contextWindow: number;
+}
+
+export interface UpdateModelContextWindowPayload extends ModelContextWindowPayload {
+  contextWindow: number;
+}
+
 export interface RemoveModelProviderPayload {
   provider: string;
 }
@@ -241,6 +263,68 @@ export interface DiscoverModelsValue {
   models: DiscoveredModel[];
 }
 
+export const PI_AGENT_SETTINGS_NAMESPACE = "pi.agent" as const;
+
+export interface PiCompactionSettingsValue {
+  enabled: boolean;
+  reserveTokens: number;
+  keepRecentTokens: number;
+}
+
+export interface PiAgentSettingsValue {
+  /** Empty means Pi builds and uses its bundled default system prompt. */
+  systemPrompt: string;
+  compaction: PiCompactionSettingsValue;
+}
+
+export interface PiAgentSettingsUserValue {
+  systemPrompt?: string;
+  compaction?: Partial<PiCompactionSettingsValue>;
+}
+
+export interface SettingsSecretView {
+  path: string[];
+  set: boolean;
+}
+
+export interface SettingsNamespaceView<Value = unknown, UserValue = unknown, Schema = unknown> {
+  ns: string;
+  schema: Schema;
+  value: Value;
+  base?: Value;
+  user?: UserValue;
+  applies: "live" | "restart";
+  secrets: SettingsSecretView[];
+  revision: number;
+}
+
+export type PiAgentSettingsNamespaceView = SettingsNamespaceView<
+  PiAgentSettingsValue,
+  PiAgentSettingsUserValue,
+  Record<string, unknown>
+> & { ns: typeof PI_AGENT_SETTINGS_NAMESPACE };
+
+export interface SettingsDescribeValue {
+  writable: boolean;
+  hasDocument: boolean;
+  namespaces: PiAgentSettingsNamespaceView[];
+}
+
+export interface SettingsOpenDocumentValue {
+  opened: true;
+}
+
+export interface PiAgentSettingsPatch {
+  systemPrompt?: string;
+  compaction?: Partial<PiCompactionSettingsValue>;
+}
+
+export interface PiAgentSettingsUpdatePayload {
+  ns: typeof PI_AGENT_SETTINGS_NAMESPACE;
+  patch: PiAgentSettingsPatch;
+  expectedRevision?: number;
+}
+
 export interface SkillListPayload {
   sessionId: string;
 }
@@ -254,6 +338,77 @@ export interface SkillView {
 
 export interface SkillListValue {
   skills: SkillView[];
+}
+
+export interface ExtensionListPayload {
+  sessionId: string;
+}
+
+export type ExtensionSourceScope = "user" | "project" | "temporary";
+
+export type ExtensionSourceOrigin = "package" | "top-level";
+
+export interface ExtensionView {
+  name: string;
+  source: string;
+  scope: ExtensionSourceScope;
+  origin: ExtensionSourceOrigin;
+  eventNames: string[];
+  toolNames: string[];
+  commandNames: string[];
+}
+
+export interface ExtensionListValue {
+  extensions: ExtensionView[];
+  loadErrorCount: number;
+}
+
+export interface CommandListPayload {
+  sessionId: string;
+}
+
+interface CommandViewBase {
+  name: string;
+  /** Name accepted by the corresponding Pi command entry point. */
+  invocationName: string;
+  effect: WorkbenchComposerCommandEffect;
+  exclusive: boolean;
+  description?: string;
+  argumentHint?: string;
+  argsSchema?: WorkbenchComposerCommandArgsSchema;
+  argsBinding?: WorkbenchComposerCommandArgsBinding;
+}
+
+export interface BuiltinCommandView extends CommandViewBase {
+  kind: "builtin";
+}
+
+export interface ExtensionCommandView extends CommandViewBase {
+  kind: "extension";
+  /** Name originally registered by the extension; invocationName is collision-safe. */
+  name: string;
+  source: string;
+  scope: ExtensionSourceScope;
+  origin: ExtensionSourceOrigin;
+}
+
+export interface PromptCommandView extends CommandViewBase {
+  kind: "prompt";
+}
+
+export interface SkillCommandView extends CommandViewBase {
+  kind: "skill";
+  modelInvocable: boolean;
+}
+
+export type CommandView =
+  | BuiltinCommandView
+  | ExtensionCommandView
+  | PromptCommandView
+  | SkillCommandView;
+
+export interface CommandListValue {
+  commands: CommandView[];
 }
 
 export interface SessionProjections {
@@ -384,6 +539,7 @@ export interface SessionPromptPayload {
   mode: "queue" | "steer";
   content: SessionPromptContent[];
   clientTimeZone?: string;
+  composer?: WorkbenchComposerSubmission;
 }
 
 export interface SessionPromptValue {

@@ -3,7 +3,7 @@ import type { Duplex } from "node:stream";
 
 import { configuredApiTrustedHosts, inspectApiRequestTrust } from "./local-api-request-trust";
 
-const STREAM_PATHNAMES = new Set(["/api/events.mux", "/api/events.host"]);
+const STREAM_PATHNAMES = new Set(["/api/events.mux", "/api/events.host", "/api/terminal"]);
 const UPGRADE_REQUIRED_BODY = "Upgrade Required";
 
 export type WorkbenchRequestHandler = (

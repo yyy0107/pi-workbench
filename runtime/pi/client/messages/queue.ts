@@ -246,6 +246,7 @@ export class PiMessageQueue {
     const queued: PiQueuedPrompt = {
       message: prompt.text,
       ...(prompt.images.length ? { images: prompt.images } : {}),
+      ...(prompt.composer === undefined ? {} : { composer: prompt.composer }),
     };
     const optimisticId = this.options.createId();
     this.pendingEnqueues.set(optimisticId, optimisticQueueItem(optimisticId, mode, queued));

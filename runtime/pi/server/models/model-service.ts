@@ -12,10 +12,13 @@ import type {
   ModelCatalogFailure,
   ModelCatalogModel,
   ModelCatalogValue,
+  ModelContextWindowPayload,
+  ModelContextWindowValue,
   ModelProviderGroup,
   ModelProviderConfigValue,
   ModelProviderModelConfiguration,
   ModelProvidersValue,
+  UpdateModelContextWindowPayload,
 } from "../../rpc-contracts";
 import {
   ModelConfigStore,
@@ -53,6 +56,10 @@ export interface ModelServiceErrorDetails {
   };
   "model-provider-configuration-readonly": {
     provider: string;
+  };
+  "model-not-found": {
+    provider: string;
+    model: string;
   };
 }
 
@@ -909,6 +916,62 @@ export class ModelService {
     }
 
     return this.providers();
+  }
+
+  async modelContextWindow(input: ModelContextWindowPayload): Promise<ModelContextWindowValue> {
+    const { runtime } = await this.load();
+    const model = runtime
+      .getModels(input.provider)
+      .find((candidate) => candidate.id === input.model);
+    if (!model) {
+      throw new ModelServiceError("model-not-found", "The model does not exist.", input);
+    }
+    return {
+      provider: model.provider,
+      model: model.id,
+      name: model.name || model.id,
+      contextWindow: model.contextWindow,
+    };
+  }
+
+  async updateModelContextWindow(
+    input: UpdateModelContextWindowPayload,
+    options: { signal?: AbortSignal } = {},
+  ): Promise<ModelContextWindowValue> {
+    const { signal } = options;
+    signal?.throwIfAborted();
+    if (!Number.isInteger(input.contextWindow) || input.contextWindow < 1) {
+      throw new ModelServiceError(
+        "model-provider-configuration-failed",
+        "The model context window must be a positive integer.",
+        { provider: input.provider },
+      );
+    }
+    const current = await this.modelContextWindow(input);
+    const { runtime } = await this.load();
+    let mutation: ModelConfigMutation | undefined;
+    try {
+      mutation = await this.modelConfigStore.setModelContextWindow(
+        input.provider,
+        input.model,
+        input.contextWindow,
+      );
+      await this.refreshProvider(runtime, input.provider, signal);
+      return { ...current, contextWindow: input.contextWindow };
+    } catch (error) {
+      if (mutation) {
+        await mutation.rollback().catch(() => undefined);
+        await this.refreshProvider(runtime, input.provider).catch(() => undefined);
+      }
+      if (signal?.aborted || (error instanceof Error && error.name === "AbortError")) throw error;
+      if (error instanceof ModelServiceError) throw error;
+      throw new ModelServiceError(
+        "model-provider-configuration-failed",
+        "The model context window could not be saved.",
+        { provider: input.provider },
+        { cause: error },
+      );
+    }
   }
 
   async removeProvider(

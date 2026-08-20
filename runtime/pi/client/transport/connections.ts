@@ -34,6 +34,7 @@ function logConnectionWarning(message: string, details: Record<string, unknown>)
 const MUX_PAYLOAD_TYPES = new Set([
   "session/event",
   "session/subscribed",
+  "session/prompt-accepted",
   "approval/requested",
   "approval/resolved",
   "question/requested",
@@ -46,6 +47,7 @@ const MUX_PAYLOAD_TYPES = new Set([
 
 const HOST_PAYLOAD_TYPES = new Set([
   "host/session-added",
+  "host/session-changed",
   "host/session-removed",
   "host/session-status",
   "host/agent-error",
@@ -163,6 +165,25 @@ function isWorkspaceView(value: unknown): boolean {
   );
 }
 
+function isPiSessionSummary(value: unknown): boolean {
+  if (!isRecord(value) || !isRecord(value.workspace)) return false;
+  return (
+    isNonEmptyString(value.id) &&
+    typeof value.cwd === "string" &&
+    typeof value.workspace.id === "string" &&
+    typeof value.workspace.name === "string" &&
+    typeof value.workspace.cwd === "string" &&
+    (value.name === undefined || typeof value.name === "string") &&
+    typeof value.created === "string" &&
+    typeof value.modified === "string" &&
+    Number.isInteger(value.messageCount) &&
+    (value.messageCount as number) >= 0 &&
+    typeof value.firstMessage === "string" &&
+    typeof value.transient === "boolean" &&
+    typeof value.running === "boolean"
+  );
+}
+
 function isRpcError(value: unknown): boolean {
   return (
     isRecord(value) &&
@@ -225,6 +246,12 @@ function isMuxPayload(payload: ServerRequestFrame["payload"]): boolean {
       return isSessionEventPayload(payload);
     case "session/subscribed":
       return isNonEmptyString(payload.sessionId) && Number.isInteger(payload.lastSeq);
+    case "session/prompt-accepted":
+      return (
+        isNonEmptyString(payload.sessionId) &&
+        ["queue", "steer"].includes(payload.mode as string) &&
+        typeof payload.running === "boolean"
+      );
     case "approval/requested":
       return (
         isNonEmptyString(payload.sessionId) &&
@@ -285,11 +312,14 @@ function isHostPayload(payload: ServerRequestFrame["payload"]): boolean {
       return (
         isNonEmptyString(payload.sessionId) &&
         typeof payload.blank === "boolean" &&
+        isPiSessionSummary(payload.summary) &&
         isOptionalString(payload.cwd) &&
         isOptionalString(payload.agentPreset) &&
         (payload.parentSessionId === undefined || isNonEmptyString(payload.parentSessionId)) &&
         (payload.origin === undefined || payload.origin === "subagent")
       );
+    case "host/session-changed":
+      return isNonEmptyString(payload.sessionId) && isPiSessionSummary(payload.summary);
     case "host/session-removed":
       return isNonEmptyString(payload.sessionId);
     case "host/session-status":

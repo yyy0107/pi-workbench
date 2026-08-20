@@ -86,13 +86,31 @@ class FakeTimers implements PiConnectionTimers {
   }
 }
 
-function serverFrame(payload: Record<string, unknown>, method = payload.type): string {
+function serverFrame(
+  payload: Record<string, unknown>,
+  method = payload.type,
+  rpcId = "rpc-1",
+): string {
   return JSON.stringify({
     type: "server-request",
-    rpcId: "rpc-1",
+    rpcId,
     method,
     payload,
   });
+}
+
+function sessionSummary(id: string) {
+  return {
+    id,
+    cwd: "/workspace",
+    workspace: { id: "workspace-1", name: "Workspace", cwd: "/workspace" },
+    created: "2026-08-20T00:00:00.000Z",
+    modified: "2026-08-20T00:00:01.000Z",
+    messageCount: 1,
+    firstMessage: "Realtime session",
+    transient: false,
+    running: false,
+  };
 }
 
 function socketPair(sockets: FakeSocket[], generation: number): [FakeSocket, FakeSocket] {
@@ -267,6 +285,18 @@ test("routes canonical mux session frames to only the matching legacy listener",
     }),
   );
   mux.message(
+    serverFrame(
+      {
+        type: "session/prompt-accepted",
+        sessionId: "session-1",
+        mode: "queue",
+        running: true,
+      },
+      "session/prompt-accepted",
+      "prompt-http-rpc",
+    ),
+  );
+  mux.message(
     serverFrame({
       type: "session/jobs",
       sessionId: "session-1",
@@ -284,9 +314,15 @@ test("routes canonical mux session frames to only the matching legacy listener",
   ]);
   assert.deepEqual(
     muxFrames.map((frame) => frame.payload.type),
-    ["session/event", "session/event", "session/subscribed", "session/queue"],
+    [
+      "session/event",
+      "session/event",
+      "session/subscribed",
+      "session/queue",
+      "session/prompt-accepted",
+    ],
   );
-  assert.equal(muxFrames.at(-1)?.rpcId, "rpc-1");
+  assert.equal(muxFrames.at(-1)?.rpcId, "prompt-http-rpc");
   assert.equal(mux.sendCalls.length, 0);
   assert.equal(host.sendCalls.length, 0);
 
@@ -370,6 +406,13 @@ test("aggregates host session status while forwarding every valid host payload",
       },
     }),
   );
+  host.message(
+    serverFrame({
+      type: "host/session-changed",
+      sessionId: "session-live",
+      summary: sessionSummary("session-live"),
+    }),
+  );
   host.message(serverFrame({ type: "host/session-removed", sessionId: "session-a" }));
   host.message(
     serverFrame(
@@ -392,6 +435,7 @@ test("aggregates host session status while forwarding every valid host payload",
     "host/session-status",
     "host/session-status",
     "host/workspace-changed",
+    "host/session-changed",
     "host/session-removed",
   ]);
   assert.equal(mux.sendCalls.length + host.sendCalls.length, 0);

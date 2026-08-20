@@ -1,3 +1,4 @@
+import type { PiSessionSummary } from "./contracts";
 import type { RpcError, SessionEvent, ToolEventView, WorkspaceView } from "./rpc-contracts";
 
 export type { SessionEvent, ToolEventView } from "./rpc-contracts";
@@ -47,6 +48,14 @@ export interface SessionSubscribedPayload {
   type: "session/subscribed";
   sessionId: string;
   lastSeq: number;
+}
+
+/** Transient acknowledgement that the matching session.prompt RPC was admitted. */
+export interface SessionPromptAcceptedPayload {
+  type: "session/prompt-accepted";
+  sessionId: string;
+  mode: "queue" | "steer";
+  running: boolean;
 }
 
 export interface ApprovalRequestedPayload {
@@ -106,6 +115,7 @@ export interface StreamErrorPayload {
 export type MuxStreamPayload =
   | SessionEventPayload
   | SessionSubscribedPayload
+  | SessionPromptAcceptedPayload
   | ApprovalRequestedPayload
   | ApprovalResolvedPayload
   | QuestionRequestedPayload
@@ -119,10 +129,17 @@ export interface HostSessionAddedPayload {
   type: "host/session-added";
   sessionId: string;
   blank: boolean;
+  summary: PiSessionSummary;
   cwd?: string;
   agentPreset?: string;
   parentSessionId?: string;
   origin?: "subagent";
+}
+
+export interface HostSessionChangedPayload {
+  type: "host/session-changed";
+  sessionId: string;
+  summary: PiSessionSummary;
 }
 
 export interface HostSessionRemovedPayload {
@@ -170,6 +187,7 @@ export interface HostRemoteEventPayload {
 
 export type HostStreamPayload =
   | HostSessionAddedPayload
+  | HostSessionChangedPayload
   | HostSessionRemovedPayload
   | HostSessionStatusPayload
   | HostAgentErrorPayload

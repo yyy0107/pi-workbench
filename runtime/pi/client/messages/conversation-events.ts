@@ -3,9 +3,11 @@ import type { ThreadMessage } from "@assistant-ui/react";
 import {
   PI_CONVERSATION_EVENT_CUSTOM_TYPE,
   PI_MODEL_CHANGED_EVENT,
+  PI_SESSION_FORKED_EVENT,
   type PiCompactionConversationEvent,
   type PiConversationEvent,
   type PiCustomMessage,
+  type PiForkConversationEvent,
   type PiModelChangeConversationEvent,
 } from "../../contracts";
 
@@ -21,6 +23,22 @@ function finiteNumber(value: unknown): number | undefined {
 
 function optionalString(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function optionalSequence(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : undefined;
+}
+
+function forkConversationEvent(
+  value: Record<string, unknown> | undefined,
+): PiForkConversationEvent {
+  const sourceSessionId = optionalString(value?.sourceSessionId);
+  const sourceEventSeq = optionalSequence(value?.sourceEventSeq);
+  return {
+    kind: "fork",
+    ...(sourceSessionId ? { sourceSessionId } : {}),
+    ...(sourceEventSeq === undefined ? {} : { sourceEventSeq }),
+  };
 }
 
 export function parsePiConversationEvent(value: unknown): PiConversationEvent | undefined {
@@ -56,6 +74,10 @@ export function parsePiConversationEvent(value: unknown): PiConversationEvent | 
     };
   }
 
+  if (candidate?.kind === "fork") {
+    return forkConversationEvent(candidate);
+  }
+
   return undefined;
 }
 
@@ -87,6 +109,10 @@ export function conversationEventFromSessionEvent(
       optionalString(data?.previousModel),
       optionalString(data?.previousProvider),
     );
+  }
+
+  if (type === PI_SESSION_FORKED_EVENT) {
+    return forkConversationEvent(data);
   }
 
   if (type !== "compaction_end" || data?.aborted === true) return undefined;

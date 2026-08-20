@@ -4,8 +4,9 @@ import { registerHooks } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { VERSION as PI_VERSION } from "@earendil-works/pi-coding-agent";
 
-import type { ServerResponse, WorkspaceView } from "../../rpc-contracts";
+import type { HostDescription, ServerResponse, WorkspaceView } from "../../rpc-contracts";
 
 const moduleHooks = registerHooks({
   resolve(specifier, context, nextResolve) {
@@ -48,6 +49,14 @@ async function rpcValue<Value>(response: Response): Promise<Value> {
   if (!body.result.ok) assert.fail(`Unexpected RPC error: ${body.result.error.code}`);
   return body.result.value;
 }
+
+test("host.describe reports the embedded Pi version", async () => {
+  const description = await rpcValue<HostDescription>(
+    await handlePiRpcPost(rpcRequest("host.describe", {}), "host.describe"),
+  );
+
+  assert.equal(description.piVersion, PI_VERSION);
+});
 
 test("routes workspace CRUD through the shared RPC transport", async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), "workbench-rpc-router-"));
@@ -169,6 +178,49 @@ test("routes session validation failures through the shared error envelope", asy
   assert.equal(promptBody.result.ok, false);
   if (promptBody.result.ok) assert.fail("Expected a session prompt error");
   assert.equal(promptBody.result.error.code, "bad-request");
+
+  const composerResponse = await handlePiRpcPost(
+    rpcRequest("session.prompt", {
+      sessionId: "session-1",
+      mode: "queue",
+      content: [],
+      composer: {
+        version: 1,
+        sourceText: ":pi-command[plan|Plan] ",
+        text: "",
+        context: [],
+        metadata: {},
+        commands: [
+          {
+            id: "command:pi:plan:0",
+            commandId: "plan",
+            label: "Plan",
+            scope: "message",
+            source: "unknown",
+          },
+        ],
+      },
+    }),
+    "session.prompt",
+  );
+  const composerBody = (await composerResponse.json()) as ServerResponse<unknown>;
+  assert.equal(composerBody.result.ok, false);
+  if (composerBody.result.ok) assert.fail("Expected a Composer validation error");
+  assert.equal(composerBody.result.error.code, "bad-request");
+  const issues = composerBody.result.error.details.issues as Array<{ path?: unknown }>;
+  assert.deepEqual(issues[0]?.path, ["payload", "composer", "commands", 0, "source"]);
+});
+
+test("validates workspace.unarchiveSession at the shared RPC boundary", async () => {
+  const response = await handlePiRpcPost(
+    rpcRequest("workspace.unarchiveSession", { sessionId: "" }),
+    "workspace.unarchiveSession",
+  );
+  assert.equal(response.status, 200);
+  const body = (await response.json()) as ServerResponse<unknown>;
+  assert.equal(body.result.ok, false);
+  if (body.result.ok) assert.fail("Expected an unarchive validation error");
+  assert.equal(body.result.error.code, "bad-request");
 });
 
 test("validates skill.list at the shared RPC boundary", async () => {
@@ -180,6 +232,72 @@ test("validates skill.list at the shared RPC boundary", async () => {
   assert.equal(body.result.error.code, "bad-request");
   const issues = body.result.error.details.issues as Array<{ path?: unknown }>;
   assert.deepEqual(issues[0]?.path, ["payload", "sessionId"]);
+});
+
+test("validates command.list at the shared RPC boundary", async () => {
+  const response = await handlePiRpcPost(
+    rpcRequest("command.list", { sessionId: "" }),
+    "command.list",
+  );
+  assert.equal(response.status, 200);
+  const body = (await response.json()) as ServerResponse<unknown>;
+  assert.equal(body.result.ok, false);
+  if (body.result.ok) assert.fail("Expected a command.list validation error");
+  assert.equal(body.result.error.code, "bad-request");
+  const issues = body.result.error.details.issues as Array<{ path?: unknown }>;
+  assert.deepEqual(issues[0]?.path, ["payload", "sessionId"]);
+});
+
+test("validates extension.list at the shared RPC boundary", async () => {
+  const response = await handlePiRpcPost(
+    rpcRequest("extension.list", { sessionId: "" }),
+    "extension.list",
+  );
+  assert.equal(response.status, 200);
+  const body = (await response.json()) as ServerResponse<unknown>;
+  assert.equal(body.result.ok, false);
+  if (body.result.ok) assert.fail("Expected an extension.list validation error");
+  assert.equal(body.result.error.code, "bad-request");
+  const issues = body.result.error.details.issues as Array<{ path?: unknown }>;
+  assert.deepEqual(issues[0]?.path, ["payload", "sessionId"]);
+});
+
+test("validates and restricts the exposed agent settings namespace", async () => {
+  const invalid = await handlePiRpcPost(
+    rpcRequest("settings.update", {
+      ns: "pi.agent",
+      patch: { compaction: { reserveTokens: 0 } },
+    }),
+    "settings.update",
+  );
+  const invalidBody = (await invalid.json()) as ServerResponse<unknown>;
+  assert.equal(invalidBody.result.ok, false);
+  if (invalidBody.result.ok) assert.fail("Expected settings validation to fail");
+  assert.equal(invalidBody.result.error.code, "bad-request");
+
+  const hidden = await handlePiRpcPost(
+    rpcRequest("settings.update", { ns: "private", patch: {} }, "rpc-settings-hidden"),
+    "settings.update",
+  );
+  const hiddenBody = (await hidden.json()) as ServerResponse<unknown>;
+  assert.equal(hiddenBody.result.ok, false);
+  if (hiddenBody.result.ok) assert.fail("Expected an unexposed namespace error");
+  assert.equal(hiddenBody.result.error.code, "settings-not-exposed");
+});
+
+test("validates model context-window updates at the shared RPC boundary", async () => {
+  const response = await handlePiRpcPost(
+    rpcRequest("llm.updateModelContextWindow", {
+      provider: "openai",
+      model: "gpt-5",
+      contextWindow: 0,
+    }),
+    "llm.updateModelContextWindow",
+  );
+  const body = (await response.json()) as ServerResponse<unknown>;
+  assert.equal(body.result.ok, false);
+  if (body.result.ok) assert.fail("Expected a model context-window validation error");
+  assert.equal(body.result.error.code, "bad-request");
 });
 
 test("rejects blank provider credentials before invoking model configuration", async () => {

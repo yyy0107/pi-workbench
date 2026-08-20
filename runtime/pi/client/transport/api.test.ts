@@ -17,11 +17,19 @@ const moduleHooks = registerHooks({
 const {
   callPiRpc,
   configurePiModelProvider,
+  describePiSettings,
+  getPiModelContextWindow,
+  listPiCommands,
+  listPiExtensions,
   listPiSkills,
+  openPiSettingsDocument,
   PiApiError,
   pickPiWorkspace,
   removePiModelProvider,
   respondPiRpc,
+  updatePiAgentSettings,
+  updatePiModelContextWindow,
+  unarchivePiWorkspaceSession,
 } = (await import(new URL("./api.ts", import.meta.url).href)) as typeof import("./api");
 const { getPiModelCatalogRevision, subscribePiModelCatalogInvalidation } = (await import(
   new URL("../models/model-catalog-invalidation.ts", import.meta.url).href
@@ -54,13 +62,15 @@ test("callPiRpc sends and verifies the shared RPC envelope", async (t) => {
     });
   };
 
-  assert.deepEqual(await callPiRpc("workspace.test", { extra: 1 }), { accepted: true });
+  assert.deepEqual(await callPiRpc("workspace.test", { extra: 1 }, { rpcId: "caller-owned-rpc" }), {
+    accepted: true,
+  });
   assert.equal(calls.length, 1);
   assert.equal(calls[0]?.input, "/api/workspace.test");
   assert.equal(calls[0]?.init?.method, "POST");
   assert.deepEqual(requestBody(calls[0]!), {
     type: "client-request",
-    rpcId: requestBody(calls[0]!).rpcId,
+    rpcId: "caller-owned-rpc",
     method: "workspace.test",
     payload: { extra: 1 },
   });
@@ -140,6 +150,122 @@ test("successful provider mutations invalidate the shared model catalog", async 
   await assert.rejects(configurePiModelProvider({ provider: "acme", apiKey: "private-key" }));
   assert.equal(getPiModelCatalogRevision(), initialRevision + 2);
   assert.equal(notifications, 2);
+});
+
+test("Pi agent settings helpers use the shared Settings RPC methods", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  const methods: string[] = [];
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as {
+      rpcId: string;
+      method: string;
+      payload: unknown;
+    };
+    methods.push(request.method);
+    const namespace = {
+      ns: "pi.agent" as const,
+      schema: {},
+      value: {
+        systemPrompt: "",
+        compaction: { enabled: true, reserveTokens: 16_384, keepRecentTokens: 20_000 },
+      },
+      applies: "restart" as const,
+      secrets: [],
+      revision: 12,
+    };
+    const value =
+      request.method === "settings.describe"
+        ? { writable: true, hasDocument: false, namespaces: [namespace] }
+        : request.method === "settings.openDocument"
+          ? { opened: true }
+          : namespace;
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: {
+        ok: true,
+        value,
+      },
+    });
+  };
+
+  assert.equal((await describePiSettings()).namespaces[0]?.revision, 12);
+  assert.deepEqual(await openPiSettingsDocument(), { opened: true });
+  assert.equal(
+    (
+      await updatePiAgentSettings({
+        ns: "pi.agent",
+        patch: { compaction: { enabled: false } },
+        expectedRevision: 12,
+      })
+    ).value.compaction.enabled,
+    true,
+  );
+  assert.deepEqual(methods, ["settings.describe", "settings.openDocument", "settings.update"]);
+});
+
+test("model context-window helpers use typed LLM RPC methods", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  const requests: Array<{ method: string; payload: unknown }> = [];
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as {
+      rpcId: string;
+      method: string;
+      payload: unknown;
+    };
+    requests.push({ method: request.method, payload: request.payload });
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: {
+        ok: true,
+        value: {
+          provider: "openai",
+          model: "gpt-5",
+          name: "GPT-5",
+          contextWindow: request.method === "llm.updateModelContextWindow" ? 256_000 : 200_000,
+        },
+      },
+    });
+  };
+
+  assert.equal(
+    (
+      await getPiModelContextWindow({
+        provider: "openai",
+        model: "gpt-5",
+      })
+    ).contextWindow,
+    200_000,
+  );
+  assert.equal(
+    (
+      await updatePiModelContextWindow({
+        provider: "openai",
+        model: "gpt-5",
+        contextWindow: 256_000,
+      })
+    ).contextWindow,
+    256_000,
+  );
+  assert.deepEqual(requests, [
+    {
+      method: "llm.modelContextWindow",
+      payload: { provider: "openai", model: "gpt-5" },
+    },
+    {
+      method: "llm.updateModelContextWindow",
+      payload: { provider: "openai", model: "gpt-5", contextWindow: 256_000 },
+    },
+  ]);
 });
 
 test("callPiRpc rejects malformed success and failure envelopes", async (t) => {
@@ -253,6 +379,33 @@ test("pickPiWorkspace composes host.pickDirectory and workspace.create", async (
   assert.deepEqual(methods, ["host.pickDirectory", "workspace.create"]);
 });
 
+test("unarchivePiWorkspaceSession uses the durable workspace mutation RPC", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  let method = "";
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as {
+      rpcId: string;
+      method: string;
+      payload: unknown;
+    };
+    method = request.method;
+    assert.deepEqual(request.payload, { sessionId: "session-1" });
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: { ok: true, value: { archivedSessionIds: [] } },
+    });
+  };
+
+  assert.deepEqual(await unarchivePiWorkspaceSession("session-1"), {
+    archivedSessionIds: [],
+  });
+  assert.equal(method, "workspace.unarchiveSession");
+});
+
 test("listPiSkills calls the session-scoped skill.list RPC", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => {
@@ -284,5 +437,107 @@ test("listPiSkills calls the session-scoped skill.list RPC", async (t) => {
     skills: [{ name: "review", description: "Review changes.", modelInvocable: true }],
   });
   assert.equal(request?.method, "skill.list");
+  assert.deepEqual(request?.payload, { sessionId: "session-1" });
+});
+
+test("listPiCommands calls the session-scoped command.list RPC", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  let request: Record<string, unknown> | undefined;
+  globalThis.fetch = async (_input, init) => {
+    request = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: {
+        ok: true,
+        value: {
+          commands: [
+            {
+              kind: "extension",
+              name: "review",
+              invocationName: "review",
+              effect: "agent-turn",
+              exclusive: true,
+              description: "Review the current changes.",
+              source: "auto",
+              scope: "user",
+              origin: "top-level",
+            },
+          ],
+        },
+      },
+    });
+  };
+
+  assert.deepEqual(await listPiCommands({ sessionId: "session-1" }), {
+    commands: [
+      {
+        kind: "extension",
+        name: "review",
+        invocationName: "review",
+        effect: "agent-turn",
+        exclusive: true,
+        description: "Review the current changes.",
+        source: "auto",
+        scope: "user",
+        origin: "top-level",
+      },
+    ],
+  });
+  assert.equal(request?.method, "command.list");
+  assert.deepEqual(request?.payload, { sessionId: "session-1" });
+});
+
+test("listPiExtensions calls the session-scoped extension.list RPC", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  let request: Record<string, unknown> | undefined;
+  globalThis.fetch = async (_input, init) => {
+    request = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: {
+        ok: true,
+        value: {
+          extensions: [
+            {
+              name: "review",
+              source: "auto",
+              scope: "user",
+              origin: "top-level",
+              eventNames: ["tool_call"],
+              toolNames: ["review_changes"],
+              commandNames: ["review"],
+            },
+          ],
+          loadErrorCount: 0,
+        },
+      },
+    });
+  };
+
+  assert.deepEqual(await listPiExtensions({ sessionId: "session-1" }), {
+    extensions: [
+      {
+        name: "review",
+        source: "auto",
+        scope: "user",
+        origin: "top-level",
+        eventNames: ["tool_call"],
+        toolNames: ["review_changes"],
+        commandNames: ["review"],
+      },
+    ],
+    loadErrorCount: 0,
+  });
+  assert.equal(request?.method, "extension.list");
   assert.deepEqual(request?.payload, { sessionId: "session-1" });
 });

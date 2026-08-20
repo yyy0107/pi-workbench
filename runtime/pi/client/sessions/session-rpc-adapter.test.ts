@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { PI_CONVERSATION_EVENT_CUSTOM_TYPE } from "../../contracts";
+import { piHistoryToThreadMessages } from "../messages/messages";
 
 import {
   piHistoryFromSessionEvents,
@@ -83,9 +84,91 @@ test("adapts canonical message groups and durable tool timing", () => {
   });
 
   assert.deepEqual(history.context.entryIds, ["pi-event-0", "pi-event-3"]);
+  assert.deepEqual(history.context.entrySeqs, [0, null]);
   assert.deepEqual(history.context.entryCompletedAts, [10, 40]);
   assert.deepEqual(history.context.toolTimings, [
     { toolCallId: "tool-1", startedAt: 20, completedAt: 35 },
+  ]);
+});
+
+test("restores time to first token from durable stream updates", () => {
+  const history = piHistoryFromSessionEvents("s-1", {
+    events: [
+      {
+        event: {
+          type: "message_start",
+          seq: 0,
+          time: 1_000,
+          data: { message: { role: "assistant", content: [], timestamp: 1_000 } },
+        },
+      },
+      {
+        event: {
+          type: "message_update",
+          seq: 1,
+          time: 1_250,
+          data: { assistantMessageEvent: { type: "text_delta", delta: "H" } },
+        },
+      },
+      {
+        event: {
+          type: "message_end",
+          seq: 2,
+          time: 2_000,
+          data: {
+            message: {
+              role: "assistant",
+              content: [{ type: "text", text: "Hello" }],
+              timestamp: 1_000,
+            },
+          },
+        },
+      },
+    ],
+    hasMore: false,
+  });
+
+  assert.deepEqual(history.context.entryFirstTokenAts, [1_250]);
+  const [message] = piHistoryToThreadMessages(history);
+  assert.equal(message?.metadata.timing?.firstTokenTime, 250);
+  assert.equal(message?.metadata.custom.piEventSeq, 2);
+});
+
+test("carries the Workbench Composer projection beside the unchanged Pi user message", () => {
+  const history = piHistoryFromSessionEvents("s-1", {
+    events: [
+      {
+        event: {
+          type: "message_end",
+          seq: 0,
+          time: 10,
+          data: {
+            message: { role: "user", content: "resolved prompt", timestamp: 5 },
+            workbenchComposer: {
+              version: 1,
+              submissionId: "submission-1",
+              sourceText: ":pi-command[plan|Plan] inspect",
+              hidden: true,
+            },
+          },
+        },
+      },
+    ],
+    hasMore: false,
+  });
+
+  assert.deepEqual(history.context.messages, [
+    {
+      role: "user",
+      content: "resolved prompt",
+      timestamp: 5,
+      workbenchComposer: {
+        version: 1,
+        submissionId: "submission-1",
+        sourceText: ":pi-command[plan|Plan] inspect",
+        hidden: true,
+      },
+    },
   ]);
 });
 
@@ -130,6 +213,14 @@ test("projects persisted model changes and successful compactions into the conve
           },
         },
       },
+      {
+        event: {
+          type: "session_forked",
+          seq: 3,
+          time: 40,
+          data: { sourceSessionId: "source-1", sourceEventSeq: 7 },
+        },
+      },
     ],
     hasMore: false,
   });
@@ -138,12 +229,16 @@ test("projects persisted model changes and successful compactions into the conve
     "pi-event-0",
     "pi-event-1:conversation-event",
     "pi-event-2:conversation-event",
+    "pi-event-3:conversation-event",
   ]);
-  const [message, modelChange, compaction] = history.context.messages;
+  const [message, modelChange, compaction, fork] = history.context.messages;
   assert.equal(message?.role, "assistant");
   assert.equal(modelChange?.role, "custom");
   assert.equal(compaction?.role, "custom");
-  if (modelChange?.role !== "custom" || compaction?.role !== "custom") return;
+  assert.equal(fork?.role, "custom");
+  if (modelChange?.role !== "custom" || compaction?.role !== "custom" || fork?.role !== "custom") {
+    return;
+  }
   assert.equal(modelChange.customType, PI_CONVERSATION_EVENT_CUSTOM_TYPE);
   assert.deepEqual(modelChange.details, {
     kind: "model-change",
@@ -158,6 +253,13 @@ test("projects persisted model changes and successful compactions into the conve
     tokensBefore: 120_000,
     estimatedTokensAfter: 18_000,
   });
+  assert.deepEqual(fork.details, {
+    kind: "fork",
+    sourceSessionId: "source-1",
+    sourceEventSeq: 7,
+  });
+  const threadMessages = piHistoryToThreadMessages(history);
+  assert.deepEqual(threadMessages.at(-1)?.metadata.custom.piConversationEvent, fork.details);
 });
 
 test("derives model boundaries for legacy histories without explicit model events", () => {

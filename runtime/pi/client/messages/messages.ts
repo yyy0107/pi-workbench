@@ -8,6 +8,21 @@ import type {
   ToolCallTiming,
 } from "@assistant-ui/react";
 
+import {
+  LEGACY_WORKBENCH_COMPOSER_USER_CUSTOM_TYPE,
+  parseWorkbenchComposerCommandResponseDetails,
+  parseWorkbenchComposerResolutionDetails,
+  parseWorkbenchComposerUserDetails,
+  workbenchComposerSubmissionFromRunConfig,
+  WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE,
+  WORKBENCH_COMPOSER_RESOLUTION_CUSTOM_TYPE,
+  WORKBENCH_COMPOSER_USER_CUSTOM_TYPE,
+} from "../../../composer-request";
+import type {
+  WorkbenchComposerCommandResponseDetails,
+  WorkbenchComposerSubmission,
+} from "../../../composer-request";
+
 import type {
   PiAgentMessage,
   PiAssistantMessage,
@@ -21,6 +36,7 @@ import { PI_CONVERSATION_EVENT_CUSTOM_TYPE } from "../../contracts";
 import { terminationFromAssistantMessage } from "../../message-termination";
 
 import { parsePiConversationEvent } from "./conversation-events";
+import { aggregatePiTurnStatistics } from "./session-statistics";
 
 function messageDate(timestamp: number | undefined, index: number): Date {
   return new Date(timestamp ?? index);
@@ -28,6 +44,54 @@ function messageDate(timestamp: number | undefined, index: number): Date {
 
 function metadata(custom: Record<string, unknown> = {}) {
   return { custom };
+}
+
+export function workbenchComposerCommandResponseId(
+  response: Pick<WorkbenchComposerCommandResponseDetails, "submissionId" | "commandId">,
+): string {
+  return `workbench-command-response:${response.submissionId}:${response.commandId}`;
+}
+
+export function workbenchComposerCommandResponseThreadMessage(
+  response: WorkbenchComposerCommandResponseDetails,
+  timestamp: number,
+): ThreadMessage {
+  return {
+    id: workbenchComposerCommandResponseId(response),
+    role: "system",
+    content: [{ type: "text", text: "" }],
+    createdAt: new Date(timestamp),
+    metadata: metadata({
+      piCustomType: WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE,
+      workbenchComposerCommandResponse: response,
+    }),
+  };
+}
+
+export function upsertWorkbenchComposerCommandResponse(
+  messages: readonly ThreadMessage[],
+  response: WorkbenchComposerCommandResponseDetails,
+  timestamp: number,
+): ThreadMessage[] {
+  const id = workbenchComposerCommandResponseId(response);
+  const index = messages.findIndex((message) => message.id === id);
+  const next = workbenchComposerCommandResponseThreadMessage(response, timestamp);
+  if (index < 0) return [...messages, next];
+  const current = messages[index];
+  const updated = [...messages];
+  updated[index] = current ? { ...next, createdAt: current.createdAt } : next;
+  return updated;
+}
+
+export function hasRunningWorkbenchCompactCommandResponse(
+  messages: readonly ThreadMessage[],
+): boolean {
+  return messages.some((message) => {
+    const response = parseWorkbenchComposerCommandResponseDetails(
+      message.metadata.custom.workbenchComposerCommandResponse,
+    );
+    return response?.commandId === "compact" && response.status === "running";
+  });
 }
 
 function imageUrl(image: PiImageContent): string {
@@ -76,6 +140,7 @@ function assistantStatus(message: PiAssistantMessage, streaming: boolean) {
 function persistedMessageTiming(
   message: PiAssistantMessage,
   completedAt: number | null | undefined,
+  firstTokenAt?: number | null,
 ): MessageTiming | undefined {
   const streamStartTime = message.timestamp;
   if (
@@ -91,8 +156,17 @@ function persistedMessageTiming(
 
   const totalStreamTime = completedAt - streamStartTime;
   const tokenCount = message.usage?.output;
+  const firstTokenTime =
+    firstTokenAt !== undefined &&
+    firstTokenAt !== null &&
+    Number.isFinite(firstTokenAt) &&
+    firstTokenAt >= streamStartTime &&
+    firstTokenAt <= completedAt
+      ? firstTokenAt - streamStartTime
+      : undefined;
   return {
     streamStartTime,
+    ...(firstTokenTime === undefined ? {} : { firstTokenTime }),
     totalStreamTime,
     ...(tokenCount === undefined ? {} : { tokenCount }),
     ...(tokenCount === undefined || totalStreamTime <= 0
@@ -131,12 +205,14 @@ export function piAssistantToThreadMessage(
     timing,
     toolTimingById,
     createdAt,
+    eventSeq,
   }: Readonly<{
     optimistic?: boolean;
     streaming?: boolean;
     timing?: MessageTiming;
     toolTimingById?: ReadonlyMap<string, ToolCallTiming>;
     createdAt?: number;
+    eventSeq?: number;
   }> = {},
 ): ThreadMessage {
   const termination = terminationFromAssistantMessage(message);
@@ -208,6 +284,7 @@ export function piAssistantToThreadMessage(
       ...(timing ? { timing } : {}),
       custom: {
         piMessageTimestamp: message.timestamp ?? null,
+        ...(eventSeq === undefined ? {} : { piEventSeq: eventSeq }),
         piModel: message.model,
         piProvider: message.provider,
         ...(message.rawStopReason ? { piRawStopReason: message.rawStopReason } : {}),
@@ -455,6 +532,7 @@ export function coalesceConsecutiveAssistantMessages(
       };
     }
     const turnTiming = assistantTurnTiming(assistantGroup, content, turnStartedAt);
+    const turnStatistics = aggregatePiTurnStatistics(assistantGroup);
     appendMessage({
       ...merged,
       id: first.id,
@@ -464,6 +542,7 @@ export function coalesceConsecutiveAssistantMessages(
         custom: {
           ...merged.metadata.custom,
           ...(turnTiming ? { piTurnTiming: turnTiming } : {}),
+          piTurnStatistics: turnStatistics,
         },
       },
     });
@@ -492,6 +571,9 @@ export function piHistoryToThreadMessages(
 ): ThreadMessage[] {
   const messages: ThreadMessage[] = [];
   const entryIdCounts = new Map<string, number>();
+  const composerUserIndexes = new Map<string, number>();
+  const composerCommandResponseIndexes = new Map<string, number>();
+  const runningCompactCommandResponses = new Set<string>();
   const resolvedToolTimingById = new Map<string, ToolCallTiming>();
   for (const timing of history.context.toolTimings ?? []) {
     if (
@@ -527,10 +609,38 @@ export function piHistoryToThreadMessages(
         if (typeof message.content === "string" && content[0]?.type === "text") {
           content[0] = { ...content[0], text: stripWorkspaceFeedbackContext(content[0].text) };
         }
+        const projection = message.workbenchComposer;
+        const projectedIndex = projection
+          ? composerUserIndexes.get(projection.submissionId)
+          : undefined;
+        if (projectedIndex !== undefined) {
+          const projected = messages[projectedIndex];
+          if (projected?.role === "user") {
+            messages[projectedIndex] = {
+              ...projected,
+              content: [...projected.content, ...content.filter((part) => part.type === "image")],
+              metadata: {
+                ...projected.metadata,
+                custom: {
+                  ...projected.metadata.custom,
+                  piResolvedEntryId: history.context.entryIds[index],
+                  piResolvedMessageTimestamp: message.timestamp ?? null,
+                },
+              },
+            };
+            break;
+          }
+        }
+        const visibleContent = projection
+          ? [
+              { type: "text" as const, text: projection.sourceText },
+              ...content.filter((part) => part.type === "image"),
+            ]
+          : content;
         messages.push({
           id,
           role: "user",
-          content,
+          content: visibleContent,
           attachments: [],
           createdAt: messageDate(
             message.timestamp ?? history.context.entryCompletedAts?.[index] ?? undefined,
@@ -539,6 +649,9 @@ export function piHistoryToThreadMessages(
           metadata: metadata({
             piEntryId: history.context.entryIds[index],
             piMessageTimestamp: message.timestamp ?? null,
+            ...(projection?.document === undefined
+              ? {}
+              : { workbenchComposerDocument: projection.document }),
           }),
         });
         break;
@@ -550,9 +663,14 @@ export function piHistoryToThreadMessages(
               message.timestamp === undefined
                 ? undefined
                 : (timingByTimestamp?.get(message.timestamp) ??
-                  persistedMessageTiming(message, history.context.entryCompletedAts?.[index])),
+                  persistedMessageTiming(
+                    message,
+                    history.context.entryCompletedAts?.[index],
+                    history.context.entryFirstTokenAts?.[index],
+                  )),
             toolTimingById: resolvedToolTimingById,
             createdAt: history.context.entryCompletedAts?.[index] ?? undefined,
+            eventSeq: history.context.entrySeqs?.[index] ?? undefined,
           }),
         );
         break;
@@ -560,11 +678,123 @@ export function piHistoryToThreadMessages(
         applyToolResult(messages, message);
         break;
       case "custom":
-        if (message.display) {
+        if (
+          message.customType === WORKBENCH_COMPOSER_USER_CUSTOM_TYPE ||
+          message.customType === LEGACY_WORKBENCH_COMPOSER_USER_CUSTOM_TYPE
+        ) {
+          const details = parseWorkbenchComposerUserDetails(message.details);
+          if (details) {
+            const messageIndex = messages.length;
+            messages.push({
+              id,
+              role: "user",
+              content: [{ type: "text", text: details.sourceText }],
+              attachments: [],
+              createdAt: messageDate(
+                message.timestamp ?? history.context.entryCompletedAts?.[index] ?? undefined,
+                index,
+              ),
+              metadata: metadata({
+                piEntryId: history.context.entryIds[index],
+                piMessageTimestamp: message.timestamp ?? null,
+                workbenchComposerSubmissionId: details.submissionId,
+                ...(details.document === undefined
+                  ? {}
+                  : { workbenchComposerDocument: details.document }),
+                ...(details.commands === undefined
+                  ? {}
+                  : { workbenchComposerCommands: details.commands }),
+                ...(details.composer === undefined
+                  ? {}
+                  : { workbenchComposerSubmission: details.composer }),
+                ...(details.status === undefined
+                  ? {}
+                  : { workbenchComposerStatus: details.status }),
+              }),
+            });
+            composerUserIndexes.set(details.submissionId, messageIndex);
+          }
+        } else if (message.customType === WORKBENCH_COMPOSER_RESOLUTION_CUSTOM_TYPE) {
+          const details = parseWorkbenchComposerResolutionDetails(message.details);
+          const messageIndex = details ? composerUserIndexes.get(details.submissionId) : undefined;
+          if (details && messageIndex !== undefined) {
+            const projected = messages[messageIndex];
+            if (projected?.role === "user") {
+              messages[messageIndex] = {
+                ...projected,
+                metadata: {
+                  ...projected.metadata,
+                  custom: {
+                    ...projected.metadata.custom,
+                    workbenchComposerStatus: details.status,
+                    workbenchComposerCommandTrace: details.commandTrace,
+                  },
+                },
+              };
+            }
+          }
+        } else if (message.customType === WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE) {
+          const details = parseWorkbenchComposerCommandResponseDetails(message.details);
+          if (details) {
+            const responseId = workbenchComposerCommandResponseId(details);
+            const responseIndex = composerCommandResponseIndexes.get(responseId);
+            if (details.commandId === "compact") {
+              if (details.status === "running") runningCompactCommandResponses.add(responseId);
+              else runningCompactCommandResponses.delete(responseId);
+            }
+            if (responseIndex !== undefined) {
+              const current = messages[responseIndex];
+              messages[responseIndex] = {
+                ...workbenchComposerCommandResponseThreadMessage(
+                  details,
+                  message.timestamp ??
+                    history.context.entryCompletedAts?.[index] ??
+                    current?.createdAt.getTime() ??
+                    index,
+                ),
+                ...(current ? { createdAt: current.createdAt } : {}),
+              };
+              break;
+            }
+            const previous = messages.at(-1);
+            const previousConversationEvent =
+              previous?.role === "system"
+                ? parsePiConversationEvent(previous.metadata.custom.piConversationEvent)
+                : undefined;
+            const isMatchingCompactionEvent =
+              details.commandId === "compact" &&
+              details.status === "success" &&
+              previousConversationEvent?.kind === "compaction";
+            if (isMatchingCompactionEvent && previous?.role === "system") {
+              messages[messages.length - 1] = {
+                ...previous,
+                metadata: {
+                  ...previous.metadata,
+                  custom: {
+                    ...previous.metadata.custom,
+                    workbenchComposerCommandResponse: details,
+                  },
+                },
+              };
+              composerCommandResponseIndexes.set(responseId, messages.length - 1);
+            } else {
+              messages.push(
+                workbenchComposerCommandResponseThreadMessage(
+                  details,
+                  message.timestamp ?? history.context.entryCompletedAts?.[index] ?? index,
+                ),
+              );
+              composerCommandResponseIndexes.set(responseId, messages.length - 1);
+            }
+          }
+        } else if (message.display) {
           const conversationEvent =
             message.customType === PI_CONVERSATION_EVENT_CUSTOM_TYPE
               ? parsePiConversationEvent(message.details)
               : undefined;
+          if (conversationEvent?.kind === "compaction" && runningCompactCommandResponses.size > 0) {
+            break;
+          }
           messages.push({
             id,
             role: "system",
@@ -661,14 +891,20 @@ function splitDataUrl(value: string, fallbackMimeType: string): PiImageContent {
   };
 }
 
-export function appendMessageToPiPrompt(message: Pick<AppendMessage, "content" | "attachments">): {
+export function appendMessageToPiPrompt(
+  message: Pick<AppendMessage, "content" | "attachments"> &
+    Partial<Pick<AppendMessage, "runConfig">>,
+): {
   text: string;
   images: PiImageContent[];
+  composer?: WorkbenchComposerSubmission;
 } {
-  const text = message.content
+  const sourceText = message.content
     .filter((part): part is { type: "text"; text: string } => part.type === "text")
     .map((part) => part.text)
     .join("\n");
+  const composer = workbenchComposerSubmissionFromRunConfig(message.runConfig);
+  const text = composer?.text ?? sourceText;
   const images: PiImageContent[] = [];
 
   const collect = (part: (typeof message.content)[number]) => {
@@ -681,7 +917,7 @@ export function appendMessageToPiPrompt(message: Pick<AppendMessage, "content" |
   message.content.forEach(collect);
   message.attachments?.forEach((attachment) => attachment.content.forEach(collect));
 
-  return { text, images };
+  return { text, images, ...(composer === undefined ? {} : { composer }) };
 }
 
 export function optimisticUserMessage(message: AppendMessage, id: string): ThreadMessage {
@@ -693,13 +929,28 @@ export function optimisticUserMessage(message: AppendMessage, id: string): Threa
       part.type === "data" ||
       part.type === "audio",
   );
+  const composer = workbenchComposerSubmissionFromRunConfig(message.runConfig);
+  const visibleContent: ThreadUserMessage["content"] = composer
+    ? [
+        { type: "text", text: composer.sourceText },
+        ...content.filter((part) => part.type === "image"),
+      ]
+    : content;
   return {
     id,
     role: "user",
-    content,
+    content: visibleContent,
     attachments: message.attachments ?? [],
     createdAt: message.createdAt,
-    metadata: { ...metadata({ piOptimistic: true }), isOptimistic: true },
+    metadata: {
+      ...metadata({
+        piOptimistic: true,
+        ...(composer?.document === undefined
+          ? {}
+          : { workbenchComposerDocument: composer.document }),
+      }),
+      isOptimistic: true,
+    },
   };
 }
 

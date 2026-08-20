@@ -43,6 +43,11 @@ import type {
   SessionUpdateQueueValue,
   WorkspaceView,
 } from "../../rpc-contracts";
+import {
+  composerDocumentMatchesCommands,
+  hasWorkbenchComposerSemantics,
+  type WorkbenchComposerSubmission,
+} from "../../../composer-request";
 import { ModelService } from "../models/model-service";
 import {
   cancelSession,
@@ -154,6 +159,7 @@ export interface SessionEngineCreateResult {
 export interface SessionPromptProvenance {
   rpcId?: string;
   clientTimeZone?: string;
+  composer?: WorkbenchComposerSubmission;
 }
 
 export interface SessionRpcDependencies {
@@ -568,7 +574,13 @@ export class SessionRpcService {
         { cause: error },
       );
     }
-    if (code === "pi_empty_prompt" || code === "pi_prompt_rejected") {
+    if (
+      code === "pi_empty_prompt" ||
+      code === "pi_prompt_rejected" ||
+      code === "pi_command_not_found" ||
+      code === "pi_composer_command_conflict" ||
+      code === "pi_composer_command_args_invalid"
+    ) {
       throw new SessionRpcServiceError(
         "command-error",
         "The prompt command was rejected.",
@@ -1062,7 +1074,17 @@ export class SessionRpcService {
         (part): part is Extract<SessionPromptContent, { type: "image" }> => part.type === "image",
       ),
     );
-    if (!message.trim() && images.length === 0) {
+    const composerHasSemantics = Boolean(
+      input.composer && hasWorkbenchComposerSemantics(input.composer),
+    );
+    if (input.composer && !composerDocumentMatchesCommands(input.composer)) {
+      throw new SessionRpcServiceError(
+        "command-error",
+        "The Composer document does not match its command projection.",
+        {},
+      );
+    }
+    if (!message.trim() && images.length === 0 && !composerHasSemantics) {
       throw new SessionRpcServiceError("command-error", "The prompt has no content.", {});
     }
     const prompt: PiQueuedPrompt = {
@@ -1078,6 +1100,7 @@ export class SessionRpcService {
         {
           ...(context.rpcId === undefined ? {} : { rpcId: context.rpcId }),
           ...(clientTimeZone === undefined ? {} : { clientTimeZone }),
+          ...(input.composer === undefined ? {} : { composer: input.composer }),
         },
       );
     } catch (error) {

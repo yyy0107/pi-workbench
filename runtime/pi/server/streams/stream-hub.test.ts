@@ -49,6 +49,49 @@ test("isolates mux and host routes and gives every frame a stable envelope", asy
   assert.equal(hub.watermark("host"), 1);
 });
 
+test("publishes prompt admission with the original RPC id without retaining it", async () => {
+  const hub = createStreamHub({ createRpcId: () => "generated-rpc" });
+  const liveFrames: ServerRequest<MuxStreamPayload>[] = [];
+  const live = hub.subscribe("mux", {
+    onFrame: (frame) => liveFrames.push(frame),
+    onError: (error) => assert.fail(error.message),
+  });
+  await live.ready;
+
+  hub.publishMux(
+    {
+      type: "session/prompt-accepted",
+      sessionId: "session-1",
+      mode: "queue",
+      running: true,
+    },
+    { rpcId: "prompt-http-rpc" },
+  );
+
+  assert.deepEqual(liveFrames, [
+    {
+      type: "server-request",
+      rpcId: "prompt-http-rpc",
+      method: "session/prompt-accepted",
+      payload: {
+        type: "session/prompt-accepted",
+        sessionId: "session-1",
+        mode: "queue",
+        running: true,
+      },
+    },
+  ]);
+  live.close();
+
+  const reconnectFrames: ServerRequest<MuxStreamPayload>[] = [];
+  const reconnect = hub.subscribe("mux", {
+    onFrame: (frame) => reconnectFrames.push(frame),
+    onError: (error) => assert.fail(error.message),
+  });
+  await reconnect.ready;
+  assert.deepEqual(reconnectFrames, []);
+});
+
 test("buffers post-watermark frames until bootstrap and subscribed frames finish", async () => {
   let nextId = 0;
   const hub = createStreamHub({ createRpcId: () => `rpc-${++nextId}` });

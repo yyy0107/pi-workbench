@@ -10,13 +10,24 @@ import {
 } from "../../contracts";
 import {
   applyToolExecutionUpdate,
+  appendMessageToPiPrompt,
   coalesceConsecutiveAssistantMessages,
   optimisticUserMessage,
   piAssistantToThreadMessage,
   piHistoryToThreadMessages,
   reconcileLiveMessagesAfterHistory,
 } from "./messages";
+import {
+  WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE,
+  WORKBENCH_COMPOSER_RESOLUTION_CUSTOM_TYPE,
+  WORKBENCH_COMPOSER_RUN_CONFIG_KEY,
+  WORKBENCH_COMPOSER_USER_CUSTOM_TYPE,
+} from "../../../composer-request";
 import { conversationEventThreadMessage } from "./conversation-events";
+import {
+  aggregatePiSessionStatistics,
+  mergeMonotonicPiSessionStatistics,
+} from "./session-statistics";
 
 const assistantMessage: PiAssistantMessage = {
   role: "assistant",
@@ -38,6 +49,12 @@ test("marks temporary assistant messages as optimistic", () => {
   assert.equal(persisted.metadata.isOptimistic, undefined);
 });
 
+test("preserves the canonical event sequence used for conversation forks", () => {
+  const message = piAssistantToThreadMessage(assistantMessage, "assistant", { eventSeq: 7 });
+
+  assert.equal(message.metadata.custom.piEventSeq, 7);
+});
+
 test("marks optimistic user messages for repository eviction", () => {
   const message: AppendMessage = {
     role: "user",
@@ -54,6 +71,285 @@ test("marks optimistic user messages for repository eviction", () => {
 
   assert.equal(optimistic.metadata.isOptimistic, true);
   assert.equal(optimistic.metadata.custom.piOptimistic, true);
+});
+
+test("renders token-only Composer source text in its optimistic user bubble", () => {
+  const sourceText = ":pi-command[compact|Compact] ";
+  const command = {
+    id: "command:pi:compact:0",
+    commandId: "compact",
+    label: "Compact",
+    scope: "message" as const,
+    source: "pi" as const,
+    args: {},
+  };
+  const message: AppendMessage = {
+    role: "user",
+    content: [],
+    attachments: [],
+    createdAt: new Date(0),
+    metadata: { custom: {} },
+    parentId: null,
+    runConfig: {
+      custom: {
+        [WORKBENCH_COMPOSER_RUN_CONFIG_KEY]: {
+          version: 1,
+          document: [
+            { type: "command", ...command },
+            { type: "text", text: " " },
+          ],
+          sourceText,
+          text: "",
+          context: [],
+          metadata: {},
+          commands: [command],
+        },
+      },
+    },
+    sourceId: null,
+  };
+
+  const optimistic = optimisticUserMessage(message, "user-command");
+
+  assert.deepEqual(optimistic.content, [{ type: "text", text: sourceText }]);
+  assert.deepEqual(optimistic.metadata.custom.workbenchComposerDocument, [
+    { type: "command", ...command },
+    { type: "text", text: " " },
+  ]);
+});
+
+test("uses the compiled Workbench composer text only at the Pi prompt boundary", () => {
+  const prompt = appendMessageToPiPrompt({
+    content: [{ type: "text", text: ":workbench-command[plan|Plan] original" }],
+    attachments: [],
+    runConfig: {
+      custom: {
+        [WORKBENCH_COMPOSER_RUN_CONFIG_KEY]: {
+          version: 1,
+          sourceText: ":workbench-command[plan|Plan] original",
+          text: "compiled prompt",
+          context: [],
+          metadata: {},
+          commands: [],
+        },
+      },
+    },
+  });
+
+  assert.equal(prompt.text, "compiled prompt");
+  assert.equal(prompt.composer?.sourceText, ":workbench-command[plan|Plan] original");
+});
+
+test("keeps panel arguments separate from ordinary text at the Pi prompt boundary", () => {
+  const sourceText = ":pi-command[compact|Compact] Continue reviewing tests";
+  const command = {
+    id: "command:pi:compact:0",
+    commandId: "compact",
+    label: "Compact",
+    scope: "message" as const,
+    source: "pi" as const,
+    args: { customInstructions: "Focus on concurrency changes" },
+  };
+  const prompt = appendMessageToPiPrompt({
+    content: [{ type: "text", text: sourceText }],
+    attachments: [],
+    runConfig: {
+      custom: {
+        [WORKBENCH_COMPOSER_RUN_CONFIG_KEY]: {
+          version: 1,
+          document: [
+            { type: "command", ...command },
+            { type: "text", text: " Continue reviewing tests" },
+          ],
+          sourceText,
+          text: "Continue reviewing tests",
+          context: [],
+          metadata: {},
+          commands: [command],
+        },
+      },
+    },
+  });
+
+  assert.equal(prompt.text, "Continue reviewing tests");
+  assert.deepEqual(prompt.composer?.commands[0]?.args, {
+    customInstructions: "Focus on concurrency changes",
+  });
+  assert.equal(prompt.composer?.document?.[1]?.type, "text");
+});
+
+test("restores the canonical Composer document, resolution trace, and one projected user bubble", () => {
+  const sourceText = ":pi-command[plan|Plan] inspect this";
+  const history: PiSessionHistory = {
+    sessionId: "session",
+    context: {
+      entryIds: ["composer", "resolution", "resolved"],
+      thinkingLevel: "off",
+      model: null,
+      messages: [
+        {
+          role: "custom",
+          customType: WORKBENCH_COMPOSER_USER_CUSTOM_TYPE,
+          content: "",
+          display: false,
+          details: {
+            version: 2,
+            submissionId: "submission-1",
+            sourceText,
+            text: "inspect this",
+            document: [
+              {
+                type: "command",
+                id: "command:pi:plan:0",
+                commandId: "plan",
+                label: "Plan",
+                scope: "message",
+                source: "pi",
+              },
+              { type: "text", text: " inspect this" },
+            ],
+            commands: [
+              {
+                id: "command:pi:plan:0",
+                commandId: "plan",
+                label: "Plan",
+                scope: "message",
+                source: "pi",
+              },
+            ],
+            status: "accepted",
+          },
+          timestamp: 10,
+        },
+        {
+          role: "custom",
+          customType: WORKBENCH_COMPOSER_RESOLUTION_CUSTOM_TYPE,
+          content: "",
+          display: false,
+          details: {
+            version: 1,
+            submissionId: "submission-1",
+            status: "resolved",
+            commandTrace: [
+              {
+                source: "pi",
+                commandId: "plan",
+                label: "Plan",
+                scope: "message",
+                effect: "instruction",
+                status: "success",
+              },
+            ],
+          },
+          timestamp: 11,
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: "<workbench-composer-context>resolved</workbench-composer-context>",
+            },
+            { type: "image", mimeType: "image/png", data: "image-data" },
+          ],
+          timestamp: 12,
+          workbenchComposer: {
+            version: 1,
+            submissionId: "submission-1",
+            sourceText,
+            hidden: true,
+          },
+        },
+      ],
+    },
+  };
+
+  const converted = piHistoryToThreadMessages(history);
+
+  assert.deepEqual(
+    converted.map((message) => message.role),
+    ["user"],
+  );
+  const user = converted[0];
+  assert.equal(user?.role, "user");
+  if (user?.role !== "user") return;
+  assert.deepEqual(user.content, [
+    { type: "text", text: sourceText },
+    { type: "image", image: "data:image/png;base64,image-data" },
+  ]);
+  assert.equal(user.metadata.custom.workbenchComposerSubmissionId, "submission-1");
+  assert.equal(user.metadata.custom.workbenchComposerStatus, "resolved");
+  assert.deepEqual(user.metadata.custom.workbenchComposerCommandTrace, [
+    {
+      source: "pi",
+      commandId: "plan",
+      label: "Plan",
+      scope: "message",
+      effect: "instruction",
+      status: "success",
+    },
+  ]);
+  assert.deepEqual(user.metadata.custom.workbenchComposerDocument, [
+    {
+      type: "command",
+      id: "command:pi:plan:0",
+      commandId: "plan",
+      label: "Plan",
+      scope: "message",
+      source: "pi",
+    },
+    { type: "text", text: " inspect this" },
+  ]);
+  assert.equal(user.metadata.custom.piResolvedEntryId, "resolved");
+});
+
+test("uses the projected token source when a partial history page omits the Composer marker", () => {
+  const sourceText = ":pi-command[compact|Compact] keep decisions continue";
+  const document = [
+    {
+      type: "command" as const,
+      id: "command:pi:compact:0",
+      commandId: "compact",
+      label: "Compact",
+      scope: "message" as const,
+      source: "pi" as const,
+      args: { customInstructions: "keep decisions" },
+    },
+    {
+      type: "command-argument" as const,
+      id: "argument:command:pi:compact:0:customInstructions",
+      commandNodeId: "command:pi:compact:0",
+      field: "customInstructions",
+      text: " keep decisions",
+    },
+    { type: "text" as const, text: " continue" },
+  ];
+  const [message] = piHistoryToThreadMessages({
+    sessionId: "session",
+    context: {
+      entryIds: ["resolved"],
+      thinkingLevel: "off",
+      model: null,
+      messages: [
+        {
+          role: "user",
+          content: "<workbench-composer-context>resolved</workbench-composer-context>",
+          workbenchComposer: {
+            version: 1,
+            submissionId: "submission-2",
+            sourceText,
+            document,
+            hidden: true,
+          },
+        },
+      ],
+    },
+  });
+
+  assert.equal(message?.role, "user");
+  if (message?.role !== "user") return;
+  assert.deepEqual(message.content, [{ type: "text", text: sourceText }]);
+  assert.deepEqual(message.metadata.custom.workbenchComposerDocument, document);
 });
 
 test("keeps an optimistic user message when a running history refresh has not persisted it", () => {
@@ -310,6 +606,7 @@ test("coalesces consecutive assistant records into one message", () => {
     sessionId: "session",
     context: {
       entryIds: ["user", "assistant-1", "result-1", "assistant-2", "result-2"],
+      entrySeqs: [0, 2, null, 4, null],
       thinkingLevel: "medium",
       model: null,
       messages: [
@@ -362,6 +659,7 @@ test("coalesces consecutive assistant records into one message", () => {
     .filter((part) => part.type === "tool-call")
     .map((part) => part.result);
   assert.deepEqual(toolResults, ["read-result", "edit-result"]);
+  assert.equal(assistant.metadata.custom.piEventSeq, 4);
 });
 
 test("measures a completed turn from the user message through tools and final output", () => {
@@ -415,6 +713,218 @@ test("measures a completed turn from the user message through tools and final ou
     completedAt: 13_000,
   });
   assert.deepEqual(merged.metadata.timing, final.metadata.timing);
+});
+
+test("preserves every LLM step for session-level statistics after coalescing", () => {
+  const user: ThreadMessage = {
+    id: "user",
+    role: "user",
+    content: [{ type: "text", text: "Inspect it" }],
+    attachments: [],
+    createdAt: new Date(1_000),
+    metadata: { custom: {} },
+  };
+  const first = piAssistantToThreadMessage(
+    {
+      role: "assistant",
+      content: [{ type: "toolCall", id: "tool", name: "read", arguments: {} }],
+      usage: {
+        input: 100,
+        output: 20,
+        cacheRead: 900,
+        cacheWrite: 10,
+        totalTokens: 1_030,
+      },
+    },
+    "first",
+    {
+      timing: {
+        streamStartTime: 2_000,
+        firstTokenTime: 400,
+        totalStreamTime: 1_000,
+        totalChunks: 2,
+        toolCallCount: 1,
+      },
+      toolTimingById: new Map([["tool", { startedAt: 3_000, completedAt: 10_000 }]]),
+    },
+  );
+  const final = piAssistantToThreadMessage(
+    {
+      role: "assistant",
+      content: [{ type: "text", text: "Done" }],
+      usage: {
+        input: 50,
+        output: 30,
+        cacheRead: 1_050,
+        cacheWrite: 0,
+        totalTokens: 1_130,
+      },
+    },
+    "final",
+    {
+      timing: {
+        streamStartTime: 11_000,
+        firstTokenTime: 600,
+        totalStreamTime: 2_000,
+        totalChunks: 3,
+        toolCallCount: 0,
+      },
+    },
+  );
+
+  const messages = coalesceConsecutiveAssistantMessages([user, first, final]);
+
+  assert.deepEqual(aggregatePiSessionStatistics(messages), {
+    turns: 1,
+    steps: 2,
+    llmDurationMs: 3_000,
+    toolDurationMs: 7_000,
+    firstTokenDurationMs: 1_000,
+    firstTokenSamples: 2,
+    inputTokens: 150,
+    outputTokens: 50,
+    cacheReadTokens: 1_950,
+    cacheWriteTokens: 10,
+  });
+});
+
+test("updates the active LLM step in session statistics before message completion", () => {
+  const user: ThreadMessage = {
+    id: "user",
+    role: "user",
+    content: [{ type: "text", text: "Keep streaming" }],
+    attachments: [],
+    createdAt: new Date(1_000),
+    metadata: { custom: {} },
+  };
+  const completed = piAssistantToThreadMessage(
+    {
+      role: "assistant",
+      content: [{ type: "text", text: "First step" }],
+      usage: {
+        input: 100,
+        output: 20,
+        cacheRead: 500,
+        cacheWrite: 0,
+        totalTokens: 620,
+      },
+    },
+    "completed",
+    {
+      timing: {
+        streamStartTime: 2_000,
+        firstTokenTime: 200,
+        totalStreamTime: 1_000,
+        totalChunks: 2,
+        toolCallCount: 0,
+      },
+    },
+  );
+  const streaming = piAssistantToThreadMessage(
+    {
+      role: "assistant",
+      content: [{ type: "text", text: "Still going" }],
+      usage: {
+        input: 50,
+        output: 10,
+        cacheRead: 650,
+        cacheWrite: 5,
+        totalTokens: 715,
+      },
+    },
+    "streaming",
+    {
+      streaming: true,
+      timing: {
+        streamStartTime: 5_000,
+        firstTokenTime: 300,
+        totalChunks: 3,
+        toolCallCount: 0,
+      },
+    },
+  );
+
+  const messages = coalesceConsecutiveAssistantMessages([user, completed, streaming]);
+
+  assert.deepEqual(aggregatePiSessionStatistics(messages, 6_500), {
+    turns: 1,
+    steps: 2,
+    llmDurationMs: 2_500,
+    toolDurationMs: 0,
+    firstTokenDurationMs: 500,
+    firstTokenSamples: 2,
+    inputTokens: 150,
+    outputTokens: 30,
+    cacheReadTokens: 1_150,
+    cacheWriteTokens: 5,
+  });
+});
+
+test("updates active tool duration before the tool call completes", () => {
+  const user: ThreadMessage = {
+    id: "user",
+    role: "user",
+    content: [{ type: "text", text: "Read it" }],
+    attachments: [],
+    createdAt: new Date(1_000),
+    metadata: { custom: {} },
+  };
+  const assistant = piAssistantToThreadMessage(
+    {
+      role: "assistant",
+      content: [{ type: "toolCall", id: "tool", name: "read", arguments: {} }],
+    },
+    "assistant",
+    {
+      timing: {
+        streamStartTime: 2_000,
+        totalStreamTime: 1_000,
+        totalChunks: 2,
+        toolCallCount: 1,
+      },
+      toolTimingById: new Map([["tool", { startedAt: 3_000 }]]),
+    },
+  );
+
+  const messages = coalesceConsecutiveAssistantMessages([user, assistant]);
+
+  assert.equal(aggregatePiSessionStatistics(messages, 5_400).toolDurationMs, 2_400);
+});
+
+test("keeps session cumulative quantities monotonic across transient projections", () => {
+  const previous = {
+    turns: 3,
+    steps: 5,
+    llmDurationMs: 5_000,
+    toolDurationMs: 4_000,
+    firstTokenDurationMs: 900,
+    firstTokenSamples: 3,
+    inputTokens: 1_000,
+    outputTokens: 300,
+    cacheReadTokens: 2_000,
+    cacheWriteTokens: 100,
+  };
+  const transient = {
+    turns: 2,
+    steps: 4,
+    llmDurationMs: 4_500,
+    toolDurationMs: 3_500,
+    firstTokenDurationMs: 700,
+    firstTokenSamples: 2,
+    inputTokens: 900,
+    outputTokens: 250,
+    cacheReadTokens: 1_800,
+    cacheWriteTokens: 80,
+  };
+
+  assert.deepEqual(mergeMonotonicPiSessionStatistics(previous, transient), previous);
+  assert.equal(
+    mergeMonotonicPiSessionStatistics(previous, {
+      ...transient,
+      outputTokens: 320,
+    }).outputTokens,
+    320,
+  );
 });
 
 test("derives persisted tool timing from assistant and result timestamps", () => {
@@ -631,6 +1141,198 @@ test("preserves conversation event metadata on system messages", () => {
     tokensBefore: 90_000,
     estimatedTokensAfter: 12_000,
   });
+});
+
+test("projects a persisted built-in command outcome as a system response", () => {
+  const history: PiSessionHistory = {
+    sessionId: "session",
+    context: {
+      entryIds: ["response"],
+      entryCompletedAts: [6_000],
+      thinkingLevel: "off",
+      model: null,
+      messages: [
+        {
+          role: "custom",
+          customType: WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE,
+          content: "",
+          display: true,
+          details: {
+            version: 1,
+            submissionId: "submission-1",
+            source: "pi",
+            commandId: "reload",
+            label: "Reload",
+            status: "success",
+          },
+        },
+      ],
+    },
+  };
+
+  const [message] = piHistoryToThreadMessages(history);
+  assert.equal(message?.role, "system");
+  assert.equal(message?.createdAt.getTime(), 6_000);
+  assert.deepEqual(message?.metadata.custom.workbenchComposerCommandResponse, {
+    version: 1,
+    submissionId: "submission-1",
+    source: "pi",
+    commandId: "reload",
+    label: "Reload",
+    status: "success",
+  });
+});
+
+test("merges a successful compact response into its existing compaction event", () => {
+  const history: PiSessionHistory = {
+    sessionId: "session",
+    context: {
+      entryIds: ["compaction", "response"],
+      thinkingLevel: "off",
+      model: null,
+      messages: [
+        {
+          role: "custom",
+          customType: PI_CONVERSATION_EVENT_CUSTOM_TYPE,
+          content: "",
+          display: true,
+          details: { kind: "compaction", reason: "manual", tokensBefore: 42_000 },
+        },
+        {
+          role: "custom",
+          customType: WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE,
+          content: "",
+          display: true,
+          details: {
+            version: 1,
+            submissionId: "submission-compact",
+            source: "pi",
+            commandId: "compact",
+            label: "Compact",
+            status: "success",
+          },
+        },
+      ],
+    },
+  };
+
+  const messages = piHistoryToThreadMessages(history);
+  assert.equal(messages.length, 1);
+  assert.deepEqual(messages[0]?.metadata.custom.workbenchComposerCommandResponse, {
+    version: 1,
+    submissionId: "submission-compact",
+    source: "pi",
+    commandId: "compact",
+    label: "Compact",
+    status: "success",
+  });
+});
+
+test("reduces the compact command lifecycle to one final system message", () => {
+  const history: PiSessionHistory = {
+    sessionId: "session",
+    context: {
+      entryIds: ["running", "compaction", "success"],
+      entryCompletedAts: [1_000, 2_000, 3_000],
+      thinkingLevel: "off",
+      model: null,
+      messages: [
+        {
+          role: "custom",
+          customType: WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE,
+          content: "",
+          display: true,
+          details: {
+            version: 1,
+            submissionId: "submission-state-machine",
+            source: "pi",
+            commandId: "compact",
+            label: "Compact",
+            status: "running",
+          },
+        },
+        {
+          role: "custom",
+          customType: PI_CONVERSATION_EVENT_CUSTOM_TYPE,
+          content: "",
+          display: true,
+          details: { kind: "compaction", reason: "manual", tokensBefore: 42_000 },
+        },
+        {
+          role: "custom",
+          customType: WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE,
+          content: "",
+          display: true,
+          details: {
+            version: 1,
+            submissionId: "submission-state-machine",
+            source: "pi",
+            commandId: "compact",
+            label: "Compact",
+            status: "success",
+          },
+        },
+      ],
+    },
+  };
+
+  const messages = piHistoryToThreadMessages(history);
+  assert.equal(messages.length, 1);
+  assert.equal(messages[0]?.id, "workbench-command-response:submission-state-machine:compact");
+  assert.equal(messages[0]?.createdAt.getTime(), 1_000);
+  assert.equal(
+    (
+      messages[0]?.metadata.custom.workbenchComposerCommandResponse as
+        | { status?: string }
+        | undefined
+    )?.status,
+    "success",
+  );
+  assert.equal(messages[0]?.metadata.custom.piConversationEvent, undefined);
+});
+
+test("reduces a failed command lifecycle to one final error message", () => {
+  const base = {
+    version: 1 as const,
+    submissionId: "submission-error",
+    source: "pi" as const,
+    commandId: "compact",
+    label: "Compact",
+  };
+  const messages = piHistoryToThreadMessages({
+    sessionId: "session",
+    context: {
+      entryIds: ["running", "failed"],
+      thinkingLevel: "off",
+      model: null,
+      messages: [
+        {
+          role: "custom",
+          customType: WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE,
+          content: "",
+          display: true,
+          details: { ...base, status: "running" },
+        },
+        {
+          role: "custom",
+          customType: WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE,
+          content: "",
+          display: true,
+          details: { ...base, status: "execution-failed" },
+        },
+      ],
+    },
+  });
+
+  assert.equal(messages.length, 1);
+  assert.equal(
+    (
+      messages[0]?.metadata.custom.workbenchComposerCommandResponse as
+        | { status?: string }
+        | undefined
+    )?.status,
+    "execution-failed",
+  );
 });
 
 test("keeps visible message boundaries between assistant runs", () => {

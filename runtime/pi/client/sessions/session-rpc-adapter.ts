@@ -7,6 +7,7 @@ import type {
   PiSessionSummary,
   PiWorkspaceSummary,
 } from "../../contracts";
+import { parseWorkbenchComposerUserProjection } from "../../../composer-request";
 import type {
   SessionHistoryValue,
   SessionListItem,
@@ -95,39 +96,61 @@ export function piHistoryFromSessionEvents(
 ): PiSessionHistory {
   const messages: PiAgentMessage[] = [];
   const entryIds: string[] = [];
+  const entrySeqs: Array<number | null> = [];
   const entryCompletedAts: Array<number | null> = [];
+  const entryFirstTokenAts: Array<number | null> = [];
   const toolStarts = new Map<string, number>();
   const toolTimings: NonNullable<PiSessionHistory["context"]["toolTimings"]> = [];
   let currentModel: Pick<PiAssistantMessage, "model" | "provider"> | undefined;
+  let assistantMessageActive = false;
+  let firstAssistantTokenAt: number | undefined;
 
-  const pushMessage = (message: PiAgentMessage, entryId: string, completedAt: number) => {
+  const pushMessage = (
+    message: PiAgentMessage,
+    entryId: string,
+    completedAt: number,
+    firstTokenAt?: number,
+    eventSeq?: number,
+  ) => {
     messages.push(message);
     entryIds.push(entryId);
+    entrySeqs.push(eventSeq ?? null);
     entryCompletedAts.push(completedAt);
+    entryFirstTokenAts.push(firstTokenAt ?? null);
   };
 
   const pushConversationEvent = (
     event: PiConversationEvent,
     entryId: string,
     timestamp: number,
+    eventSeq?: number,
   ) => {
-    pushMessage(piConversationEventMessage(event, timestamp), entryId, timestamp);
+    pushMessage(
+      piConversationEventMessage(event, timestamp),
+      entryId,
+      timestamp,
+      undefined,
+      eventSeq,
+    );
   };
 
   const insertConversationEventBeforeLastMessage = (
     event: PiConversationEvent,
     entryId: string,
     fallbackTimestamp: number,
+    eventSeq?: number,
   ) => {
     const index = messages.length - 1;
     if (messages[index]?.role !== "user") {
-      pushConversationEvent(event, entryId, fallbackTimestamp);
+      pushConversationEvent(event, entryId, fallbackTimestamp, eventSeq);
       return;
     }
     const timestamp = entryCompletedAts[index] ?? fallbackTimestamp;
     messages.splice(index, 0, piConversationEventMessage(event, timestamp));
     entryIds.splice(index, 0, entryId);
+    entrySeqs.splice(index, 0, eventSeq ?? null);
     entryCompletedAts.splice(index, 0, timestamp);
+    entryFirstTokenAts.splice(index, 0, null);
   };
 
   for (const { event } of history.events) {
@@ -141,12 +164,39 @@ export function piHistoryFromSessionEvents(
       }
     }
 
+    if (event.type === "message_start") {
+      const startedMessage = piMessage(data?.message);
+      assistantMessageActive = startedMessage?.role === "assistant";
+      if (assistantMessageActive) firstAssistantTokenAt = undefined;
+    } else if (
+      event.type === "message_update" &&
+      assistantMessageActive &&
+      firstAssistantTokenAt === undefined
+    ) {
+      const updatedMessage = piMessage(data?.message);
+      const update = record(data?.assistantMessageEvent);
+      const updateType = stringValue(update?.type);
+      const hasTextDelta =
+        (updateType === "text_delta" || updateType === "thinking_delta") &&
+        typeof update?.delta === "string" &&
+        update.delta.length > 0;
+      const hasCumulativeOutput =
+        updatedMessage?.role === "assistant" &&
+        updatedMessage.content.some(
+          (part) =>
+            (part.type === "text" && part.text.length > 0) ||
+            (part.type === "thinking" && !part.redacted && part.thinking.length > 0),
+        );
+      if (hasTextDelta || hasCumulativeOutput) firstAssistantTokenAt = event.time;
+    }
+
     const conversationEvent = conversationEventFromSessionEvent(event.type, event.data);
     if (conversationEvent) {
       pushConversationEvent(
         conversationEvent,
         `pi-event-${event.seq}:conversation-event`,
         event.time,
+        event.seq,
       );
       if (conversationEvent.kind === "model-change") {
         currentModel = {
@@ -165,11 +215,20 @@ export function piHistoryFromSessionEvents(
           : undefined;
     if (!message) continue;
 
-    if (message.role === "assistant" && message.model) {
+    const composerProjection =
+      message.role === "user"
+        ? parseWorkbenchComposerUserProjection(data?.workbenchComposer)
+        : undefined;
+    const projectedMessage =
+      message.role === "user" && composerProjection
+        ? { ...message, workbenchComposer: composerProjection }
+        : message;
+
+    if (projectedMessage.role === "assistant" && projectedMessage.model) {
       const derivedModelChange = currentModel
         ? modelChangeConversationEvent(
-            message.model,
-            message.provider,
+            projectedMessage.model,
+            projectedMessage.provider,
             currentModel.model,
             currentModel.provider,
           )
@@ -179,12 +238,23 @@ export function piHistoryFromSessionEvents(
           derivedModelChange,
           `pi-event-${event.seq}:derived-model-change`,
           event.time,
+          event.seq,
         );
       }
-      currentModel = { model: message.model, provider: message.provider };
+      currentModel = { model: projectedMessage.model, provider: projectedMessage.provider };
     }
 
-    pushMessage(message, `pi-event-${event.seq}`, event.time);
+    pushMessage(
+      projectedMessage,
+      `pi-event-${event.seq}`,
+      event.time,
+      projectedMessage.role === "assistant" ? firstAssistantTokenAt : undefined,
+      event.type === "message_end" ? event.seq : undefined,
+    );
+    if (projectedMessage.role === "assistant") {
+      assistantMessageActive = false;
+      firstAssistantTokenAt = undefined;
+    }
   }
 
   return {
@@ -192,7 +262,9 @@ export function piHistoryFromSessionEvents(
     context: {
       messages,
       entryIds,
+      entrySeqs,
       entryCompletedAts,
+      entryFirstTokenAts,
       toolTimings,
       thinkingLevel: "off",
       model: null,

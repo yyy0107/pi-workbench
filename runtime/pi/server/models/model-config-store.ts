@@ -31,6 +31,11 @@ export interface ModelConfigMutation {
 
 export interface ModelConfigStorage {
   providers(): Promise<Record<string, StoredModelProviderConfiguration>>;
+  setModelContextWindow(
+    provider: string,
+    model: string,
+    contextWindow: number,
+  ): Promise<ModelConfigMutation>;
   setProvider(
     provider: string,
     configuration: ModelProviderConfiguration,
@@ -221,6 +226,32 @@ export class ModelConfigStore implements ModelConfigStorage {
         delete nextProvider.models;
       }
       providers[provider] = nextProvider;
+      await this.writeContent(serialized({ ...state, providers }));
+      return { rollback: () => this.withLock(() => this.writeContent(previous)) };
+    });
+  }
+
+  async setModelContextWindow(
+    provider: string,
+    model: string,
+    contextWindow: number,
+  ): Promise<ModelConfigMutation> {
+    return this.withLock(async () => {
+      const previous = await this.readContent();
+      const state = previous === undefined ? {} : parseModelsFile(previous);
+      const providers = { ...state.providers };
+      const currentProvider = isObject(providers[provider]) ? providers[provider] : {};
+      const modelOverrides = isObject(currentProvider.modelOverrides)
+        ? currentProvider.modelOverrides
+        : {};
+      const currentOverride = isObject(modelOverrides[model]) ? modelOverrides[model] : {};
+      providers[provider] = {
+        ...currentProvider,
+        modelOverrides: {
+          ...modelOverrides,
+          [model]: { ...currentOverride, contextWindow },
+        },
+      };
       await this.writeContent(serialized({ ...state, providers }));
       return { rollback: () => this.withLock(() => this.writeContent(previous)) };
     });

@@ -102,6 +102,7 @@ interface StreamState<Stream extends StreamName> {
 const MUX_TYPES = new Set<string>([
   "session/event",
   "session/subscribed",
+  "session/prompt-accepted",
   "approval/requested",
   "approval/resolved",
   "question/requested",
@@ -114,6 +115,7 @@ const MUX_TYPES = new Set<string>([
 
 const HOST_TYPES = new Set<string>([
   "host/session-added",
+  "host/session-changed",
   "host/session-removed",
   "host/session-status",
   "host/agent-error",

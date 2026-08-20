@@ -69,13 +69,14 @@ function useWorkbenchPiRuntime(manager: PiSessionManager) {
       piQueue: {
         ...session.runtimeExtras.piQueue,
         paused: snapshot.queuePaused,
+        steeringIds: snapshot.steeringQueueIds,
       },
       piComposer: {
         error: composerError,
         clearError: clearComposerError,
       },
     }),
-    [clearComposerError, composerError, session, snapshot.queuePaused],
+    [clearComposerError, composerError, session, snapshot.queuePaused, snapshot.steeringQueueIds],
   );
 
   useEffect(() => {
