@@ -44,6 +44,7 @@ function dropPosition(event: DragEvent<HTMLElement>): DropPosition {
 
 interface PiQueueActions {
   paused: boolean;
+  steeringIds: readonly string[];
   beginEdit(id: string): QueueItemState | undefined;
   setPaused(paused: boolean): void;
 }
@@ -57,6 +58,9 @@ function piQueueActions(extras: unknown): PiQueueActions | undefined {
     typeof extras.piQueue !== "object" ||
     !("paused" in extras.piQueue) ||
     typeof extras.piQueue.paused !== "boolean" ||
+    !("steeringIds" in extras.piQueue) ||
+    !Array.isArray(extras.piQueue.steeringIds) ||
+    !extras.piQueue.steeringIds.every((id) => typeof id === "string") ||
     !("beginEdit" in extras.piQueue) ||
     typeof extras.piQueue.beginEdit !== "function" ||
     !("setPaused" in extras.piQueue) ||
@@ -188,13 +192,15 @@ export function ComposerMessageQueue() {
   const queue = useAuiState((state) => state.thread.composer.queue);
   const extras = useAuiState((state) => state.thread.extras);
   const queueActions = piQueueActions(extras);
+  const steeringIds = new Set(queueActions?.steeringIds ?? []);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{
     id: string;
     position: DropPosition;
   } | null>(null);
+  const visibleQueueLength = queue.filter((item) => !steeringIds.has(item.id)).length;
 
-  if (queue.length === 0) return null;
+  if (visibleQueueLength === 0) return null;
 
   const reorder = (targetId: string, position: DropPosition) => {
     if (!draggingId || draggingId === targetId) return;
@@ -242,43 +248,47 @@ export function ComposerMessageQueue() {
     <div className="w-full overflow-hidden rounded-2xl border border-border/60 bg-background">
       <ul>
         <ComposerPrimitive.Queue>
-          {({ queueItem }) => (
-            <ComposerQueueItem
-              key={queueItem.id}
-              queueItem={queueItem}
-              dragging={draggingId === queueItem.id}
-              dropPosition={dropTarget?.id === queueItem.id ? dropTarget.position : undefined}
-              onDragStart={(event, id) => {
-                setDraggingId(id);
-                setDropTarget(null);
-                event.dataTransfer.effectAllowed = "move";
-                event.dataTransfer.setData("text/plain", id);
-              }}
-              onDragOver={(event, id) => {
-                event.preventDefault();
-                event.dataTransfer.dropEffect = "move";
-                if (!draggingId || draggingId === id) {
+          {({ queueItem }) =>
+            steeringIds.has(queueItem.id) ? null : (
+              <ComposerQueueItem
+                key={queueItem.id}
+                queueItem={queueItem}
+                dragging={draggingId === queueItem.id}
+                dropPosition={dropTarget?.id === queueItem.id ? dropTarget.position : undefined}
+                onDragStart={(event, id) => {
+                  setDraggingId(id);
                   setDropTarget(null);
-                  return;
+                  event.dataTransfer.effectAllowed = "move";
+                  event.dataTransfer.setData("text/plain", id);
+                }}
+                onDragOver={(event, id) => {
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "move";
+                  if (!draggingId || draggingId === id) {
+                    setDropTarget(null);
+                    return;
+                  }
+                  const position = dropPosition(event);
+                  setDropTarget((current) =>
+                    current?.id === id && current.position === position
+                      ? current
+                      : { id, position },
+                  );
+                }}
+                onDragEnd={() => {
+                  setDraggingId(null);
+                  setDropTarget(null);
+                }}
+                onDrop={reorder}
+                onSteer={(id) =>
+                  aui.thread.composer().queueItem({ id }).move({ lane: "steer", insertAfter: null })
                 }
-                const position = dropPosition(event);
-                setDropTarget((current) =>
-                  current?.id === id && current.position === position ? current : { id, position },
-                );
-              }}
-              onDragEnd={() => {
-                setDraggingId(null);
-                setDropTarget(null);
-              }}
-              onDrop={reorder}
-              onSteer={(id) =>
-                aui.thread.composer().queueItem({ id }).move({ lane: "steer", insertAfter: null })
-              }
-              onEdit={(item) => void editInComposer(item)}
-              queuePaused={queueActions?.paused ?? false}
-              onToggleQueueMode={() => queueActions?.setPaused(!queueActions.paused)}
-            />
-          )}
+                onEdit={(item) => void editInComposer(item)}
+                queuePaused={queueActions?.paused ?? false}
+                onToggleQueueMode={() => queueActions?.setPaused(!queueActions.paused)}
+              />
+            )
+          }
         </ComposerPrimitive.Queue>
       </ul>
     </div>

@@ -41,6 +41,7 @@ import {
   modelChangeSelection,
   modelSelection,
   modelSelectorId,
+  resolveDraftSelectorModel,
   sessionSelectorModels,
   type SelectorModel,
 } from "./model-selector-state";
@@ -188,10 +189,15 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
     (state) => state.draftSelections[localThreadId]?.modelId,
   );
   const draftReasoningEffort = useModelSelectorStore(
-    (state) => state.draftSelections[localThreadId]?.reasoningEffort ?? "medium",
+    (state) =>
+      state.draftSelections[localThreadId]?.reasoningEffort ??
+      state.rememberedSelection?.reasoningEffort ??
+      "medium",
   );
+  const rememberedModelId = useModelSelectorStore((state) => state.rememberedSelection?.modelId);
   const setDraftSelection = useModelSelectorStore((state) => state.setDraftSelection);
   const clearDraftSelection = useModelSelectorStore((state) => state.clearDraftSelection);
+  const rememberSelection = useModelSelectorStore((state) => state.rememberSelection);
   const draftWorkspace = useWorkspaceDirectoryStore((state) =>
     state.directories.find((directory) => directory.id === state.draftDirectoryId),
   );
@@ -271,10 +277,8 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
 
   const selectedDraftModel = useMemo(() => {
     if (remoteId || catalog?.kind !== "draft") return undefined;
-    const stored = selectorModels.find((model) => model.id === draftModelId);
-    if (stored) return stored;
-    return selectorModels[0];
-  }, [catalog, draftModelId, remoteId, selectorModels]);
+    return resolveDraftSelectorModel(selectorModels, draftModelId, rememberedModelId);
+  }, [catalog, draftModelId, rememberedModelId, remoteId, selectorModels]);
 
   useEffect(() => {
     if (!selectedDraftModel || draftModelId === selectedDraftModel.id) return;
@@ -317,6 +321,10 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
         ...(selection.reasoningEffort ? { reasoningEffort: selection.reasoningEffort } : {}),
       }).then(
         ({ selected }) => {
+          rememberSelection({
+            modelId: modelSelectorId(selected.provider, selected.model),
+            ...(selected.reasoningEffort ? { reasoningEffort: selected.reasoningEffort } : {}),
+          });
           if (currentScopeRef.current !== requestScope) return;
           setLoadedCatalog((current) =>
             current?.scopeKey === requestScope && current.kind === "session"
@@ -345,7 +353,7 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
         },
       );
     },
-    [localThreadId, remoteId, scopeKey, sessionManager],
+    [localThreadId, rememberSelection, remoteId, scopeKey, sessionManager],
   );
 
   const changeModel = useCallback(
@@ -356,10 +364,12 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
       if (remoteId) {
         applySessionSelection(nextSelection);
       } else {
-        setDraftSelection(localThreadId, {
+        const selection = {
           modelId: nextModel.id,
           reasoningEffort: nextSelection.reasoningEffort ?? draftReasoningEffort,
-        });
+        };
+        setDraftSelection(localThreadId, selection);
+        rememberSelection(selection);
       }
     },
     [
@@ -367,6 +377,7 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
       draftReasoningEffort,
       localThreadId,
       remoteId,
+      rememberSelection,
       selectorModels,
       setDraftSelection,
     ],
@@ -379,13 +390,22 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
       if (remoteId) {
         applySessionSelection(nextSelection);
       } else {
-        setDraftSelection(localThreadId, {
+        const selection = {
           modelId: selectedModel.id,
           reasoningEffort: effort,
-        });
+        };
+        setDraftSelection(localThreadId, selection);
+        rememberSelection(selection);
       }
     },
-    [applySessionSelection, localThreadId, remoteId, selectedModel, setDraftSelection],
+    [
+      applySessionSelection,
+      localThreadId,
+      rememberSelection,
+      remoteId,
+      selectedModel,
+      setDraftSelection,
+    ],
   );
 
   const providers = useMemo(
@@ -427,7 +447,7 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
         <DropdownMenuTrigger
           disabled={selectionLocked}
           aria-label={t("assistant.model.select")}
-          className="group hover:bg-muted data-popup-open:bg-muted data-popup-open:w-72 relative flex h-[34px] w-48 max-w-[calc(100vw-8rem)] -translate-y-0.5 items-center justify-center rounded-md bg-transparent px-2 py-0 text-base outline-none transition-[width,background-color,color] duration-200 ease-out focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed"
+          className="group hover:bg-muted data-popup-open:bg-muted data-popup-open:w-72 relative flex h-[34px] w-48 max-w-[calc(100vw-8rem)] items-center justify-center rounded-md bg-transparent px-2 py-0 text-base outline-none transition-[width,background-color,color] duration-200 ease-out focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed"
         >
           <span
             className="group-hover:pe-6 group-hover:text-start group-focus-visible:pe-6 group-focus-visible:text-start group-data-popup-open:px-6 group-data-popup-open:text-center block w-full min-w-0 truncate text-center font-mono font-medium transition-[padding] duration-200 ease-out"

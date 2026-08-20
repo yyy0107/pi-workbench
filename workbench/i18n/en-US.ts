@@ -14,6 +14,33 @@ export const workbenchEnUS = {
       placeholder: "Describe what you want to accomplish, or paste content to work with…",
       selectWorkspacePlaceholder: "Select a workspace before starting a conversation…",
       messageInput: "Message input",
+      commandSuggestions: "Command suggestions",
+      commandParameters: {
+        close: "Close command parameters",
+        edit: ({ command }: { command: string }) => `Edit parameters for ${command}`,
+        enabled: "Enabled",
+        optional: "Optional",
+        required: "Required",
+        valuePlaceholder: ({ parameter }: { parameter: string }) => `Enter ${parameter}`,
+      },
+      commandGroups: {
+        builtin: "Pi built-ins",
+        extension: "Extensions",
+        prompt: "Prompt templates",
+        skill: "Skills",
+        workbench: "Workbench",
+      },
+      builtinCommands: {
+        compact: {
+          label: "Compact",
+          description: "Manually compact the conversation context",
+          argumentHint: "[optional instructions]",
+        },
+        reload: {
+          label: "Reload",
+          description: "Reload extensions, skills, prompts, and context files",
+        },
+      },
       stopVoiceInput: "Stop voice input",
       voiceInput: "Voice input",
       stopGenerating: "Stop generating",
@@ -41,7 +68,19 @@ export const workbenchEnUS = {
     generating: "Generating response…",
     working: "Pi Working...",
     workingElapsed: ({ duration }: { duration: string }) => `Pi Working... · ${duration}`,
+    commandResponses: {
+      compactRunning: "Compacting conversation context…",
+      compactSucceeded: "Conversation context was compacted.",
+      compactFailed: "The conversation context could not be compacted.",
+      reloadRunning: "Reloading extensions, Skills, prompts, and context files…",
+      reloadSucceeded: "Extensions, Skills, prompts, and context files were reloaded.",
+      reloadFailed: "Extensions, Skills, prompts, and context files could not be reloaded.",
+      commandRunning: ({ command }: { command: string }) => `${command} is running…`,
+      commandSucceeded: ({ command }: { command: string }) => `${command} completed.`,
+      commandFailed: ({ command }: { command: string }) => `${command} could not be completed.`,
+    },
     separators: {
+      continuedFromChat: "Continued from chat",
       modelChanged: "Model switched",
       modelChangedAnnouncement: ({
         previousModel,
@@ -84,6 +123,8 @@ export const workbenchEnUS = {
       imageTooLarge: "This image is too large to send. Choose a smaller image.",
       tooManyImages: "There are too many images to send at once. Remove some images and try again.",
       requestFailed: "Pi could not complete the request. Please try again.",
+      commandCompileFailed:
+        "This command combination cannot be sent. Remove conflicting or unavailable command tokens and try again.",
       retry: "Retry",
       retrying: "Retrying",
       generationStopped: "Generation stopped",

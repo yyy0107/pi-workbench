@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ComposerPrimitive, MessagePrimitive, useAui, useAuiState } from "@assistant-ui/react";
 
 import { ComposerAttachments, UserMessageAttachments } from "@/components/assistant-ui/attachment";
 import {
   CompactionSeparator,
+  ForkSeparator,
   ModelChangeSeparator,
 } from "@/components/elements/conversation-separator";
 import { ErrorState } from "@/components/elements/error-state";
@@ -14,8 +15,10 @@ import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { SlotHost } from "@/platform/extensions";
 import { parsePiConversationEvent } from "@/runtime/pi/client/messages/conversation-events";
+import { parseWorkbenchComposerCommandResponseDetails } from "@/runtime/composer-request";
 import { parsePiMessageTermination } from "@/runtime/pi/message-termination";
 
+import { WorkbenchComposerCommandResponse } from "./composer-command-response";
 import { WorkbenchMessageActions } from "./message-actions";
 import { WorkbenchMessageParts } from "./message-parts";
 
@@ -133,8 +136,22 @@ function WorkbenchMessageError() {
 }
 
 export function WorkbenchUserMessage() {
+  const bubbleRef = useRef<HTMLDivElement>(null);
   const isOptimistic = useAuiState((state) => state.message.metadata.isOptimistic === true);
   const [animateOnMount] = useState(isOptimistic);
+  const [isSelected, setIsSelected] = useState(false);
+
+  useEffect(() => {
+    if (!isSelected) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (event.target instanceof Node && bubbleRef.current?.contains(event.target)) return;
+      setIsSelected(false);
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [isSelected]);
 
   return (
     <MessagePrimitive.Root
@@ -151,9 +168,22 @@ export function WorkbenchUserMessage() {
       >
         <UserMessageAttachments />
         <div
+          ref={bubbleRef}
+          tabIndex={0}
           data-slot="user-message-bubble"
+          data-selected={isSelected || undefined}
           data-workbench-glass-surface=""
-          className="min-w-0 max-w-full rounded-[22px] bg-[rgb(237,243,254)] px-3.5 py-2 break-words text-start dark:bg-[rgb(44,44,46)]"
+          className={cn(
+            "min-w-0 max-w-full rounded-[22px] border border-transparent bg-[rgb(237,243,254)] px-3.5 py-2 break-words text-start outline-none transition-[border-color,box-shadow] dark:bg-[rgb(44,44,46)]",
+            "focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500/20",
+            "data-[selected]:border-blue-500 data-[selected]:ring-2 data-[selected]:ring-blue-500/20",
+          )}
+          onClick={() => setIsSelected(true)}
+          onKeyDown={(event) => {
+            if (event.key !== "Escape") return;
+            setIsSelected(false);
+            event.currentTarget.blur();
+          }}
         >
           <WorkbenchMessageParts />
         </div>
@@ -184,6 +214,9 @@ export function WorkbenchSystemMessage() {
     (state) => state.message.metadata.custom.piConversationEvent,
   );
   const conversationEvent = parsePiConversationEvent(conversationEventData);
+  const commandResponse = parseWorkbenchComposerCommandResponseDetails(
+    useAuiState((state) => state.message.metadata.custom.workbenchComposerCommandResponse),
+  );
 
   if (conversationEvent) {
     const modelLabel =
@@ -223,6 +256,11 @@ export function WorkbenchSystemMessage() {
               previousModel: previousModelLabel,
             })}
           />
+        ) : conversationEvent.kind === "fork" ? (
+          <ForkSeparator
+            label={t("workbench.chat.separators.continuedFromChat")}
+            aria-label={t("workbench.chat.separators.continuedFromChat")}
+          />
         ) : (
           <CompactionSeparator
             label={t("workbench.chat.separators.contextCompacted")}
@@ -233,6 +271,16 @@ export function WorkbenchSystemMessage() {
             })}
           />
         )}
+        <MessageSlot name="message.after" />
+      </MessagePrimitive.Root>
+    );
+  }
+
+  if (commandResponse) {
+    return (
+      <MessagePrimitive.Root className="mx-auto w-full max-w-[var(--thread-max-width)] px-2 py-2">
+        <MessageSlot name="message.before" />
+        <WorkbenchComposerCommandResponse response={commandResponse} />
         <MessageSlot name="message.after" />
       </MessagePrimitive.Root>
     );

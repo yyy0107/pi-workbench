@@ -41,6 +41,7 @@ export interface ComposerAttachment {
 export interface ComposerCommand {
   name: string;
   description: string;
+  argumentHint?: string;
   icon: LucideIcon;
 }
 
@@ -184,8 +185,13 @@ export function ComposerCommandItem({
   return (
     <ComposerMenuItem active={active} {...props}>
       <command.icon className="text-foreground/35 size-3.5 shrink-0" />
-      <span className="font-medium">/{command.name}</span>
-      <span className="text-foreground/45 flex-1 truncate text-start text-xs">
+      <span className="flex min-w-0 shrink-0 items-baseline gap-1">
+        <span className="font-medium">/{command.name}</span>
+        {command.argumentHint && (
+          <span className="text-foreground/35 truncate text-xs">{command.argumentHint}</span>
+        )}
+      </span>
+      <span className="text-foreground/45 flex-1 truncate text-end text-xs">
         {command.description}
       </span>
       {active && (
@@ -194,6 +200,41 @@ export function ComposerCommandItem({
         </kbd>
       )}
     </ComposerMenuItem>
+  );
+}
+
+export function ComposerCommandToken({
+  label,
+  icon: Icon,
+  hint,
+  className,
+  ...props
+}: Omit<ComponentProps<"span">, "children"> & {
+  label: string;
+  icon: LucideIcon;
+  hint?: string;
+}) {
+  return (
+    <span
+      data-slot="composer-command-token"
+      className={cn(
+        "relative inline-block min-w-0 whitespace-nowrap align-baseline text-blue-500 dark:text-blue-400",
+        className,
+      )}
+      {...props}
+    >
+      <Icon aria-hidden="true" className="me-1.5 inline-block size-4 align-[-0.125em]" />
+      <span>{label}</span>
+      {hint ? (
+        <span
+          data-slot="composer-command-argument-placeholder"
+          aria-hidden="true"
+          className="text-muted-foreground/70 pointer-events-none absolute start-full top-1/2 ms-2 w-[min(24rem,55vw)] -translate-y-1/2 truncate text-sm font-normal"
+        >
+          {hint}
+        </span>
+      ) : null}
+    </span>
   );
 }
 

@@ -9,11 +9,12 @@ const {
   modelChangeSelection,
   modelSelection,
   modelSelectorId,
+  resolveDraftSelectorModel,
   sessionSelectorModels,
 } = (await import(
   new URL("./model-selector-state.ts", import.meta.url).href
 )) as typeof import("./model-selector-state");
-const { useModelSelectorStore } = (await import(
+const { parseRememberedModelSelection, useModelSelectorStore } = (await import(
   new URL("./model-selector-store.ts", import.meta.url).href
 )) as typeof import("./model-selector-store");
 
@@ -178,8 +179,41 @@ test("model changes use the target model default effort instead of carrying the 
   });
 });
 
+test("new drafts prefer their own choice, then the last switched model", () => {
+  assert.equal(
+    resolveDraftSelectorModel(searchableModels, undefined, searchableModels[1]!.id)?.id,
+    searchableModels[1]!.id,
+  );
+  assert.equal(
+    resolveDraftSelectorModel(searchableModels, searchableModels[0]!.id, searchableModels[1]!.id)
+      ?.id,
+    searchableModels[0]!.id,
+  );
+  assert.equal(
+    resolveDraftSelectorModel(searchableModels, undefined, "missing/model")?.id,
+    searchableModels[0]!.id,
+  );
+});
+
+test("validates the persisted last model selection", () => {
+  assert.deepEqual(
+    parseRememberedModelSelection(
+      JSON.stringify({ modelId: "opencode-go/deepseek-v4-flash", reasoningEffort: "medium" }),
+    ),
+    { modelId: "opencode-go/deepseek-v4-flash", reasoningEffort: "medium" },
+  );
+  assert.equal(parseRememberedModelSelection(JSON.stringify({ modelId: "" })), undefined);
+  assert.equal(
+    parseRememberedModelSelection(
+      JSON.stringify({ modelId: "provider/model", reasoningEffort: 1 }),
+    ),
+    undefined,
+  );
+  assert.equal(parseRememberedModelSelection("{"), undefined);
+});
+
 test("draft model choices are isolated by local thread id", () => {
-  useModelSelectorStore.setState({ draftSelections: {} });
+  useModelSelectorStore.setState({ draftSelections: {}, rememberedSelection: undefined });
   const store = useModelSelectorStore.getState();
   store.setDraftSelection("draft-a", { modelId: "provider/a", reasoningEffort: "low" });
   store.setDraftSelection("draft-b", { modelId: "provider/b", reasoningEffort: "high" });
@@ -192,5 +226,18 @@ test("draft model choices are isolated by local thread id", () => {
   useModelSelectorStore.getState().clearDraftSelection("draft-a");
   assert.deepEqual(useModelSelectorStore.getState().draftSelections, {
     "draft-b": { modelId: "provider/b", reasoningEffort: "high" },
+  });
+});
+
+test("the last switched model is shared with subsequent drafts", () => {
+  useModelSelectorStore.setState({ draftSelections: {}, rememberedSelection: undefined });
+  useModelSelectorStore.getState().rememberSelection({
+    modelId: "opencode-go/deepseek-v4-flash",
+    reasoningEffort: "medium",
+  });
+
+  assert.deepEqual(useModelSelectorStore.getState().rememberedSelection, {
+    modelId: "opencode-go/deepseek-v4-flash",
+    reasoningEffort: "medium",
   });
 });

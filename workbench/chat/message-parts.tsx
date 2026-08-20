@@ -1,13 +1,15 @@
 "use client";
 
 import type { DataMessagePartComponent, ToolCallMessagePartComponent } from "@assistant-ui/react";
-import { MessagePrimitive } from "@assistant-ui/react";
+import { MessagePrimitive, useAuiState } from "@assistant-ui/react";
 import { ExternalLinkIcon, Loader2Icon } from "lucide-react";
 
 import { File } from "@/components/assistant-ui/file";
 import { Image } from "@/components/assistant-ui/image";
 import { useI18n } from "@/i18n";
 import { MessageRendererHost, RendererHost } from "@/platform/extensions";
+
+import { WorkbenchComposerMessageText } from "./composer-message-text";
 
 function serialize(value: unknown) {
   if (typeof value === "string") return value;
@@ -42,12 +44,13 @@ const DefaultDataFallback: DataMessagePartComponent = ({ name, data }) => (
 
 function DefaultWorkbenchMessageParts() {
   const { t } = useI18n();
+  const role = useAuiState((state) => state.message.role);
 
   return (
     <MessagePrimitive.Parts>
       {({ part }) => {
         switch (part.type) {
-          case "text":
+          case "text": {
             if (part.status.type === "running" && part.text === "") {
               return (
                 <span className="my-2 inline-flex items-center gap-2 text-sm text-muted-foreground">
@@ -56,7 +59,11 @@ function DefaultWorkbenchMessageParts() {
                 </span>
               );
             }
+
+            if (role === "user") return <WorkbenchComposerMessageText text={part.text} />;
+
             return <p className="whitespace-pre-wrap">{part.text}</p>;
+          }
           case "reasoning":
             return (
               <pre className="text-muted-foreground my-2 whitespace-pre-wrap text-xs">

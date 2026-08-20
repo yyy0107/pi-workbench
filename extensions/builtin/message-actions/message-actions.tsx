@@ -3,6 +3,7 @@
 import {
   ActionBarPrimitive,
   BranchPickerPrimitive,
+  useAui,
   useAuiState,
   useMessageTiming,
 } from "@assistant-ui/react";
@@ -12,17 +13,23 @@ import {
   DownloadIcon,
   PencilIcon,
   RefreshCwIcon,
+  SplitIcon,
   ThumbsDownIcon,
   ThumbsUpIcon,
 } from "lucide-react";
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { MessageTiming, type TimingStat } from "@/components/elements/message-timing";
 import { useI18n } from "@/i18n";
 import { formatCompactDuration } from "@/lib/format-duration";
-import type { MessageSlotContext } from "@/platform/extensions";
+import { type MessageSlotContext, useExtensionEnvironment } from "@/platform/extensions";
 import { readPiTurnTiming, resolvePiTurnDuration } from "@/runtime/pi/client/messages/turn-timing";
+import {
+  usePiActiveSessionId,
+  usePiSessionManager,
+  usePiThreadListItemSnapshot,
+} from "@/runtime/pi/client/runtime/context";
 
 interface PiUsageStats {
   input: number;
@@ -177,6 +184,42 @@ function AssistantActions({
   canSubmitFeedback,
 }: Readonly<{ canReload: boolean; canSubmitFeedback: boolean }>) {
   const { t } = useI18n();
+  const aui = useAui();
+  const manager = usePiSessionManager();
+  const sessionId = usePiActiveSessionId();
+  const session = usePiThreadListItemSnapshot(sessionId);
+  const { reportError } = useExtensionEnvironment();
+  const rawEventSeq = useAuiState((state) => state.message.metadata.custom.piEventSeq);
+  const eventSeq =
+    typeof rawEventSeq === "number" && Number.isSafeInteger(rawEventSeq) && rawEventSeq >= 0
+      ? rawEventSeq
+      : undefined;
+  const [forkState, setForkState] = useState<"idle" | "pending" | "failed">("idle");
+  const forkConversation = useCallback(async () => {
+    if (!sessionId || eventSeq === undefined || forkState === "pending") return;
+    setForkState("pending");
+    try {
+      const forked = await manager.forkSessionAt({
+        sessionId,
+        atSeq: eventSeq,
+        sourceTitle: session?.title ?? t("workbench.sidebar.newThread"),
+      });
+      await aui.threads.reload();
+      window.history.pushState(null, "", `/c/${encodeURIComponent(forked.sessionId)}`);
+    } catch (error) {
+      setForkState("failed");
+      reportError(error, {
+        source: "slot",
+        contributionId: "message-actions.fork-conversation",
+      });
+    }
+  }, [aui, eventSeq, forkState, manager, reportError, session?.title, sessionId, t]);
+  const forkTooltip =
+    forkState === "pending"
+      ? t("extensions.messageActions.forkConversationPending")
+      : forkState === "failed"
+        ? t("extensions.messageActions.forkConversationFailed")
+        : t("extensions.messageActions.forkConversation");
 
   return (
     <ActionBarPrimitive.Root hideWhenRunning autohide="never" className="flex items-center gap-0.5">
@@ -185,6 +228,16 @@ function AssistantActions({
       >
         <DownloadIcon className="size-3.5" />
       </ActionBarPrimitive.ExportMarkdown>
+      {sessionId && eventSeq !== undefined ? (
+        <TooltipIconButton
+          tooltip={forkTooltip}
+          type="button"
+          disabled={forkState === "pending"}
+          onClick={forkConversation}
+        >
+          <SplitIcon className="size-3.5 rotate-90" />
+        </TooltipIconButton>
+      ) : null}
       {canReload ? (
         <ActionBarPrimitive.Reload
           render={<TooltipIconButton tooltip={t("extensions.messageActions.regenerateResponse")} />}

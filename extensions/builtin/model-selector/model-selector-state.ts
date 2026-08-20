@@ -100,6 +100,18 @@ export function draftSelectorModels(catalog: ModelCatalogValue): SelectorModel[]
   );
 }
 
+export function resolveDraftSelectorModel(
+  models: readonly SelectorModel[],
+  draftModelId: string | undefined,
+  rememberedModelId: string | undefined,
+): SelectorModel | undefined {
+  return (
+    models.find((model) => model.id === draftModelId) ??
+    models.find((model) => model.id === rememberedModelId) ??
+    models[0]
+  );
+}
+
 export function modelSelection(model: SelectorModel, preferredEffort?: string): ModelSelection {
   const efforts = model.efforts;
   const reasoningEffort = efforts?.some((effort) => effort.id === preferredEffort)

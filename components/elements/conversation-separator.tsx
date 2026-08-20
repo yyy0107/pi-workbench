@@ -1,5 +1,5 @@
 import type { ComponentProps, ReactNode } from "react";
-import { ArrowRightIcon, BrainCircuitIcon, Minimize2Icon } from "lucide-react";
+import { ArrowRightIcon, BrainCircuitIcon, GitBranchIcon, Minimize2Icon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -133,6 +133,23 @@ export function CompactionSeparator({ label, detail, ...props }: CompactionSepar
       icon={<Minimize2Icon aria-hidden="true" />}
       label={label}
       detail={detail}
+      {...props}
+    />
+  );
+}
+
+export type ForkSeparatorProps = Omit<
+  ConversationSeparatorProps,
+  "detail" | "icon" | "kind" | "tone"
+>;
+
+export function ForkSeparator({ label, ...props }: ForkSeparatorProps) {
+  return (
+    <ConversationSeparator
+      kind="fork"
+      tone="info"
+      icon={<GitBranchIcon aria-hidden="true" />}
+      label={label}
       {...props}
     />
   );
