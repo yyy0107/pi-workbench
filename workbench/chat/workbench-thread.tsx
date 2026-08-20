@@ -35,6 +35,119 @@ interface MessageRow {
   createdAt: number;
 }
 
+interface ThreadScrollPosition {
+  scrollTop: number;
+  atBottom: boolean;
+}
+
+const THREAD_SCROLL_STORAGE_KEY = "workbench.thread-scroll-positions.v1";
+const MAX_SAVED_THREAD_SCROLL_POSITIONS = 50;
+const BOTTOM_DISTANCE_THRESHOLD = 2;
+const threadScrollPositions = new Map<string, ThreadScrollPosition>();
+let threadScrollPositionsLoaded = false;
+let threadScrollPersistenceFrame: number | null = null;
+
+function loadThreadScrollPositions() {
+  if (threadScrollPositionsLoaded || typeof window === "undefined") return;
+  threadScrollPositionsLoaded = true;
+
+  try {
+    const stored = window.sessionStorage.getItem(THREAD_SCROLL_STORAGE_KEY);
+    if (!stored) return;
+
+    const entries: unknown = JSON.parse(stored);
+    if (!Array.isArray(entries)) return;
+
+    for (const entry of entries) {
+      if (!Array.isArray(entry) || entry.length !== 2) continue;
+      const [threadId, position] = entry;
+      if (
+        typeof threadId !== "string" ||
+        !position ||
+        typeof position !== "object" ||
+        !("scrollTop" in position) ||
+        !("atBottom" in position) ||
+        typeof position.scrollTop !== "number" ||
+        !Number.isFinite(position.scrollTop) ||
+        typeof position.atBottom !== "boolean"
+      ) {
+        continue;
+      }
+
+      threadScrollPositions.set(threadId, {
+        scrollTop: Math.max(0, position.scrollTop),
+        atBottom: position.atBottom,
+      });
+    }
+  } catch {
+    // Scroll restoration is an enhancement; unavailable storage must not block chat rendering.
+  }
+}
+
+function getThreadScrollPosition(threadId: string): ThreadScrollPosition | undefined {
+  loadThreadScrollPositions();
+  return threadScrollPositions.get(threadId);
+}
+
+function saveThreadScrollPosition(threadId: string, position: ThreadScrollPosition) {
+  loadThreadScrollPositions();
+  threadScrollPositions.delete(threadId);
+  threadScrollPositions.set(threadId, position);
+
+  while (threadScrollPositions.size > MAX_SAVED_THREAD_SCROLL_POSITIONS) {
+    const oldestThreadId = threadScrollPositions.keys().next().value;
+    if (oldestThreadId === undefined) break;
+    threadScrollPositions.delete(oldestThreadId);
+  }
+
+  if (threadScrollPersistenceFrame !== null) return;
+  threadScrollPersistenceFrame = window.requestAnimationFrame(() => {
+    threadScrollPersistenceFrame = null;
+    try {
+      window.sessionStorage.setItem(
+        THREAD_SCROLL_STORAGE_KEY,
+        JSON.stringify(Array.from(threadScrollPositions.entries())),
+      );
+    } catch {
+      // The in-memory cache still preserves positions while this page remains mounted.
+    }
+  });
+}
+
+function readViewportPosition(viewport: HTMLElement): ThreadScrollPosition {
+  const distanceFromBottom = viewport.scrollHeight - viewport.clientHeight - viewport.scrollTop;
+  return {
+    scrollTop: Math.max(0, viewport.scrollTop),
+    atBottom:
+      Math.abs(distanceFromBottom) <= BOTTOM_DISTANCE_THRESHOLD ||
+      viewport.scrollHeight <= viewport.clientHeight,
+  };
+}
+
+function observeViewportContent(viewport: HTMLElement, onChange: () => void): () => void {
+  const observedElements = new Set<Element>();
+  const resizeObserver = new ResizeObserver(onChange);
+  const observeElements = () => {
+    for (const element of [viewport, ...viewport.children]) {
+      if (observedElements.has(element)) continue;
+      observedElements.add(element);
+      resizeObserver.observe(element);
+    }
+  };
+  const mutationObserver = new MutationObserver(() => {
+    observeElements();
+    onChange();
+  });
+
+  observeElements();
+  mutationObserver.observe(viewport, { childList: true, subtree: true });
+
+  return () => {
+    resizeObserver.disconnect();
+    mutationObserver.disconnect();
+  };
+}
+
 function localDayKey(timestamp: number): string | undefined {
   // Legacy Pi entries can lack timestamps and use tiny positional fallbacks.
   // Do not turn those placeholders into a misleading January 1970 divider.
@@ -307,6 +420,9 @@ export function WorkbenchThread({ threadId }: WorkbenchThreadProps) {
   const completionFollowActive = useRef(false);
   const completionFollowCleanup = useRef<(() => void) | null>(null);
   const modelChangeFollowCleanup = useRef<(() => void) | null>(null);
+  const scrollPositionThreadId = useRef(activeThreadId);
+  const scrollRestorationActive = useRef(false);
+  const scrollRestorationCleanup = useRef<(() => void) | null>(null);
   const slotContext = { threadId: threadId ?? activeThreadId };
 
   const stopCompletionFollow = useCallback(() => {
@@ -320,11 +436,94 @@ export function WorkbenchThread({ threadId }: WorkbenchThreadProps) {
     modelChangeFollowCleanup.current = null;
   }, []);
 
+  const stopScrollRestoration = useCallback(() => {
+    scrollRestorationCleanup.current?.();
+    scrollRestorationCleanup.current = null;
+    scrollRestorationActive.current = false;
+  }, []);
+
+  const rememberCurrentScrollPosition = useCallback(() => {
+    const viewport = viewportRef.current;
+    const currentThreadId = scrollPositionThreadId.current;
+    if (!viewport || !currentThreadId || scrollRestorationActive.current) return;
+
+    const position = readViewportPosition(viewport);
+    wasAtBottom.current = position.atBottom;
+    saveThreadScrollPosition(currentThreadId, position);
+  }, []);
+
   const scrollToBottom = useCallback(() => {
     const viewport = viewportRef.current;
     if (!viewport) return;
     viewport.scrollTo({ top: viewport.scrollHeight, behavior: "instant" });
   }, []);
+
+  useLayoutEffect(() => {
+    stopScrollRestoration();
+    scrollPositionThreadId.current = activeThreadId;
+
+    const viewport = viewportRef.current;
+    if (!viewport || !activeThreadId) return;
+
+    const savedPosition = getThreadScrollPosition(activeThreadId);
+    const restoreToBottom = savedPosition?.atBottom ?? true;
+    const savedScrollTop = savedPosition?.scrollTop ?? 0;
+    let frame: number | null = null;
+    let timeout: number | null = null;
+    let stopped = false;
+
+    const applyPosition = () => {
+      if (stopped) return;
+
+      if (restoreToBottom) {
+        scrollToBottom();
+        wasAtBottom.current = true;
+        return;
+      }
+
+      const maxScrollTop = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
+      viewport.scrollTo({
+        top: Math.min(savedScrollTop, maxScrollTop),
+        behavior: "instant",
+      });
+      // Keep ThreadPrimitive's isAtBottom store in sync with the restored DOM position so
+      // auto-scroll does not reclaim a deliberately restored point in the history.
+      viewport.dispatchEvent(new Event("scroll"));
+      wasAtBottom.current = false;
+    };
+    const schedulePosition = () => {
+      if (stopped || frame !== null) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = null;
+        applyPosition();
+      });
+    };
+    const disconnectContentObserver = observeViewportContent(viewport, schedulePosition);
+    const stop = () => {
+      if (stopped) return;
+      stopped = true;
+      disconnectContentObserver();
+      if (frame !== null) window.cancelAnimationFrame(frame);
+      if (timeout !== null) window.clearTimeout(timeout);
+      if (scrollRestorationCleanup.current === stop) {
+        scrollRestorationCleanup.current = null;
+        scrollRestorationActive.current = false;
+      }
+    };
+    const finish = () => {
+      applyPosition();
+      stop();
+      rememberCurrentScrollPosition();
+    };
+
+    scrollRestorationActive.current = true;
+    scrollRestorationCleanup.current = stop;
+    timeout = window.setTimeout(finish, 5_000);
+    applyPosition();
+    schedulePosition();
+
+    return stop;
+  }, [activeThreadId, rememberCurrentScrollPosition, scrollToBottom, stopScrollRestoration]);
 
   useLayoutEffect(() => {
     if (trailingModelChangeRevision === undefined) return;
@@ -372,13 +571,13 @@ export function WorkbenchThread({ threadId }: WorkbenchThreadProps) {
     if (!viewport) return;
 
     const updateBottomState = () => {
-      if (completionFollowActive.current) return;
-      const distanceFromBottom = viewport.scrollHeight - viewport.clientHeight - viewport.scrollTop;
-      wasAtBottom.current = Math.abs(distanceFromBottom) <= 1;
+      if (completionFollowActive.current || scrollRestorationActive.current) return;
+      rememberCurrentScrollPosition();
     };
     const cancelScrollFollow = () => {
       stopCompletionFollow();
       stopModelChangeFollow();
+      stopScrollRestoration();
     };
 
     updateBottomState();
@@ -392,8 +591,15 @@ export function WorkbenchThread({ threadId }: WorkbenchThreadProps) {
       viewport.removeEventListener("wheel", cancelScrollFollow);
       stopCompletionFollow();
       stopModelChangeFollow();
+      stopScrollRestoration();
+      rememberCurrentScrollPosition();
     };
-  }, [stopCompletionFollow, stopModelChangeFollow]);
+  }, [
+    rememberCurrentScrollPosition,
+    stopCompletionFollow,
+    stopModelChangeFollow,
+    stopScrollRestoration,
+  ]);
 
   useLayoutEffect(() => {
     const viewport = viewportRef.current;
@@ -416,19 +622,13 @@ export function WorkbenchThread({ threadId }: WorkbenchThreadProps) {
 
     stopCompletionFollow();
 
-    const conversationFlow = viewport.querySelector<HTMLElement>('[data-slot="conversation-flow"]');
-    if (!conversationFlow) {
-      scrollToBottom();
-      return;
-    }
-
-    // Completed tool/reasoning panels collapse with a height transition. Follow the changing
-    // content height until it settles instead of correcting only the first animation frame.
     let settleTimer: number | null = null;
-    const observer = new ResizeObserver(() => keepAtBottom());
+    let frame: number | null = null;
+    let disconnectContentObserver = () => {};
     const stop = () => {
-      observer.disconnect();
+      disconnectContentObserver();
       if (settleTimer !== null) window.clearTimeout(settleTimer);
+      if (frame !== null) window.cancelAnimationFrame(frame);
       if (completionFollowCleanup.current === stop) {
         completionFollowCleanup.current = null;
         completionFollowActive.current = false;
@@ -436,13 +636,20 @@ export function WorkbenchThread({ threadId }: WorkbenchThreadProps) {
     };
     const keepAtBottom = () => {
       scrollToBottom();
+      if (frame !== null) window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        frame = null;
+        scrollToBottom();
+      });
       if (settleTimer !== null) window.clearTimeout(settleTimer);
-      settleTimer = window.setTimeout(stop, 100);
+      settleTimer = window.setTimeout(stop, 250);
     };
 
     completionFollowActive.current = true;
     completionFollowCleanup.current = stop;
-    observer.observe(conversationFlow);
+    // Completion can collapse reasoning/tools, remove Pi Working, and resize the sticky composer.
+    // Observe every direct viewport surface so the final correction includes the true scroll end.
+    disconnectContentObserver = observeViewportContent(viewport, keepAtBottom);
     keepAtBottom();
 
     return stop;
@@ -472,12 +679,14 @@ export function WorkbenchThread({ threadId }: WorkbenchThreadProps) {
           className="flex shrink-0 items-center gap-2 border-b px-4 empty:hidden"
         />
 
-        {/* Run start, thread switches, and the explicit button still scroll to the end. During a
-            run, native scroll anchoring keeps Pi Working fixed across internal reflows. */}
+        {/* New runs and explicit requests scroll to the end. Thread switches use the per-thread
+            restoration above, while auto-scroll follows late content only when already at bottom. */}
         <ThreadPrimitive.Viewport
           ref={viewportRef}
           turnAnchor="bottom"
-          autoScroll={false}
+          autoScroll
+          scrollToBottomOnInitialize={false}
+          scrollToBottomOnThreadSwitch={false}
           className="relative flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto scroll-smooth px-4 pt-4"
         >
           <SlotHost

@@ -33,6 +33,9 @@ export const assistantZhCN = {
     goodResponse: "回答很好",
     badResponse: "回答欠佳",
   },
+  codeBlock: {
+    plainText: "文本",
+  },
   branch: {
     previous: "上一个版本",
     next: "下一个版本",

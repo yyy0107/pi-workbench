@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useCallback, useRef, useState, type FC, type PropsWithChildren } from "react";
-import { ChevronDownIcon, LoaderIcon } from "lucide-react";
+import { ChevronDownIcon, LoaderIcon, type LucideIcon } from "lucide-react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { useScrollLock } from "@assistant-ui/react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -82,11 +82,13 @@ function ToolGroupRoot({
 function ToolGroupTrigger({
   count,
   active = false,
+  icon: Icon,
   className,
   ...props
 }: React.ComponentProps<typeof CollapsibleTrigger> & {
   count: number;
   active?: boolean;
+  icon?: LucideIcon;
 }) {
   const { t } = useI18n();
   const label = t("assistant.tool.calls", { count });
@@ -103,12 +105,18 @@ function ToolGroupTrigger({
       )}
       {...props}
     >
-      {active && (
+      {active ? (
         <LoaderIcon
           data-slot="tool-group-trigger-loader"
-          className="aui-tool-group-trigger-loader size-3 shrink-0 animate-spin [animation-duration:0.6s]"
+          className="aui-tool-group-trigger-loader text-foreground/45 size-3.5 shrink-0 animate-spin [animation-duration:0.6s] motion-reduce:animate-none"
         />
-      )}
+      ) : Icon ? (
+        <Icon
+          data-slot="tool-group-trigger-icon"
+          aria-hidden
+          className="aui-tool-group-trigger-icon text-foreground/45 size-3.5 shrink-0"
+        />
+      ) : null}
       <span
         data-slot="tool-group-trigger-label"
         className={cn(
@@ -118,12 +126,12 @@ function ToolGroupTrigger({
           "group-data-[variant=muted]/tool-group-root:grow",
         )}
       >
-        <span className="text-xs">{label}</span>
+        <span>{label}</span>
         {active && (
           <span
             aria-hidden
             data-slot="tool-group-trigger-shimmer"
-            className="aui-tool-group-trigger-shimmer shimmer pointer-events-none absolute inset-0 text-xs motion-reduce:animate-none"
+            className="aui-tool-group-trigger-shimmer shimmer pointer-events-none absolute inset-0 motion-reduce:animate-none"
           >
             {label}
           </span>

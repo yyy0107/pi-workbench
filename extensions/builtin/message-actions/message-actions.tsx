@@ -20,7 +20,9 @@ import { useMemo } from "react";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { MessageTiming, type TimingStat } from "@/components/elements/message-timing";
 import { useI18n } from "@/i18n";
+import { formatCompactDuration } from "@/lib/format-duration";
 import type { MessageSlotContext } from "@/platform/extensions";
+import { readPiTurnTiming, resolvePiTurnDuration } from "@/runtime/pi/client/messages/turn-timing";
 
 interface PiUsageStats {
   input: number;
@@ -50,8 +52,19 @@ function readPiUsage(value: unknown): PiUsageStats | undefined {
 
 function MessagePerformance() {
   const timing = useMessageTiming();
+  const rawTurnTiming = useAuiState((state) =>
+    state.message.role === "assistant" ? state.message.metadata.custom.piTurnTiming : undefined,
+  );
   const rawUsage = useAuiState((state) =>
     state.message.role === "assistant" ? state.message.metadata.custom.piUsage : undefined,
+  );
+  const hasTurnTiming = useMemo(
+    () => readPiTurnTiming(rawTurnTiming) !== undefined,
+    [rawTurnTiming],
+  );
+  const totalDuration = useMemo(
+    () => resolvePiTurnDuration(rawTurnTiming, timing?.totalStreamTime),
+    [rawTurnTiming, timing?.totalStreamTime],
   );
   const usage = useMemo(() => readPiUsage(rawUsage), [rawUsage]);
   const { number, t } = useI18n();
@@ -63,11 +76,16 @@ function MessagePerformance() {
   const formatTokens = (tokens: number) =>
     number(tokens, { notation: "compact", maximumFractionDigits: 1 });
 
-  if (timing?.totalStreamTime !== undefined) {
-    stats.push({
-      label: t("extensions.messageActions.timing.total"),
-      value: formatDuration(timing.totalStreamTime),
-    });
+  if (totalDuration !== undefined) {
+    const value = hasTurnTiming
+      ? formatCompactDuration(totalDuration)
+      : formatDuration(totalDuration);
+    if (value) {
+      stats.push({
+        label: t("extensions.messageActions.timing.total"),
+        value,
+      });
+    }
   }
   if (timing?.firstTokenTime !== undefined) {
     stats.push({

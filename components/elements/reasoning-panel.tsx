@@ -51,7 +51,7 @@ export function ReasoningPanel({
       onOpenChange={onOpenChange}
       className={cn("w-full", className)}
     >
-      <CollapsibleTrigger className="group/trigger text-foreground/55 hover:text-foreground/90 flex w-full items-center gap-1 py-1 text-[13.5px] transition-[color,scale] outline-none active:scale-[0.995]">
+      <CollapsibleTrigger className="group/trigger text-foreground/55 hover:text-foreground/90 flex w-full items-center gap-1.5 py-1 text-[13.5px] transition-[color,scale] outline-none active:scale-[0.995]">
         {streaming && activeIcon !== undefined ? (
           <span
             data-slot="reasoning-panel-icon"
@@ -93,7 +93,7 @@ export function ReasoningPanel({
         <ChevronRightIcon className="size-3.5 shrink-0 opacity-0 transition-[transform,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover/trigger:opacity-60 group-focus-visible/trigger:opacity-60 group-data-open/trigger:rotate-90 group-data-open/trigger:opacity-60 group-data-panel-open/trigger:rotate-90 group-data-panel-open/trigger:opacity-60 motion-reduce:transition-none" />
       </CollapsibleTrigger>
       <CollapsibleContent className={cn(collapsePanel, "w-full outline-none")}>
-        <ol className="flex w-full flex-col gap-4 pt-3 pb-1">
+        <ol className="flex w-full flex-col gap-0 pb-1">
           {shown.map((step, i) => {
             const active = streaming && i === shown.length - 1;
             return (

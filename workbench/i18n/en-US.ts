@@ -84,6 +84,22 @@ export const workbenchEnUS = {
       imageTooLarge: "This image is too large to send. Choose a smaller image.",
       tooManyImages: "There are too many images to send at once. Remove some images and try again.",
       requestFailed: "Pi could not complete the request. Please try again.",
+      retry: "Retry",
+      retrying: "Retrying",
+      generationStopped: "Generation stopped",
+      generationInterrupted: "Generation interrupted",
+      connectionFailed: "Connection failed",
+      requestFailedTitle: "Request failed",
+      stoppedByUser: "The response was stopped by the user.",
+      interrupted: "The response ended before it could be completed.",
+      outputLimit: ({ tokens }: { tokens?: number }, { number }: MessageFormatters) =>
+        tokens === undefined
+          ? "The model reached its output limit."
+          : `The model reached its output limit after ${number(tokens)} tokens.`,
+      networkFailure: "The connection to the model provider was interrupted.",
+      apiFailure: "The model provider could not complete the request.",
+      providerFailure: "The configured model provider could not complete the request.",
+      unknownFailure: "The response could not be completed.",
     },
     scrollLatest: "Scroll to latest",
   },

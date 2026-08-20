@@ -33,6 +33,9 @@ export const assistantEnUS = {
     goodResponse: "Good response",
     badResponse: "Bad response",
   },
+  codeBlock: {
+    plainText: "Text",
+  },
   branch: {
     previous: "Previous",
     next: "Next",

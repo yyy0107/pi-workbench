@@ -1,21 +1,19 @@
 "use client";
 
-import {
-  ComposerPrimitive,
-  ErrorPrimitive,
-  MessagePrimitive,
-  useAuiState,
-} from "@assistant-ui/react";
+import { useEffect, useState } from "react";
+import { ComposerPrimitive, MessagePrimitive, useAui, useAuiState } from "@assistant-ui/react";
 
 import { ComposerAttachments, UserMessageAttachments } from "@/components/assistant-ui/attachment";
 import {
   CompactionSeparator,
   ModelChangeSeparator,
 } from "@/components/elements/conversation-separator";
+import { ErrorState } from "@/components/elements/error-state";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import { SlotHost } from "@/platform/extensions";
 import { parsePiConversationEvent } from "@/runtime/pi/client/messages/conversation-events";
+import { parsePiMessageTermination } from "@/runtime/pi/message-termination";
 
 import { WorkbenchMessageActions } from "./message-actions";
 import { WorkbenchMessageParts } from "./message-parts";
@@ -34,13 +32,102 @@ function MessageSlot({ name }: { name: "message.before" | "message.after" }) {
   );
 }
 
+function readableErrorDetail(value: unknown): string | undefined {
+  if (typeof value === "string") {
+    const detail = value.trim();
+    return detail && detail !== "pi_response_error" ? detail : undefined;
+  }
+  if (value === undefined || value === null) return undefined;
+
+  try {
+    const detail = JSON.stringify(value, null, 2);
+    return detail && detail !== "{}" ? detail : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function outputTokenCount(value: unknown): number | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const output = (value as { output?: unknown }).output;
+  return typeof output === "number" && Number.isFinite(output) && output >= 0 ? output : undefined;
+}
+
 function WorkbenchMessageError() {
+  const { t } = useI18n();
+  const aui = useAui();
+  const status = useAuiState((state) => state.message.status);
+  const isRunning = useAuiState((state) => state.thread.isRunning);
+  const termination = parsePiMessageTermination(
+    useAuiState((state) => state.message.metadata.custom.piTermination),
+  );
+  const outputTokens = outputTokenCount(
+    useAuiState((state) => state.message.metadata.custom.piUsage),
+  );
+  const [retryPhase, setRetryPhase] = useState<"idle" | "requested" | "running">("idle");
+
+  useEffect(() => {
+    if (retryPhase === "requested" && isRunning) setRetryPhase("running");
+    if (retryPhase === "running" && !isRunning) setRetryPhase("idle");
+  }, [isRunning, retryPhase]);
+
+  if (status?.type !== "incomplete" || termination?.kind === "completed") return null;
+
+  const rawDetail = termination?.errorMessage ?? readableErrorDetail(status.error);
+  const kind = termination?.kind ?? status.reason;
+  let title = t("workbench.chat.errors.requestFailedTitle");
+  let detail = rawDetail ?? t("workbench.chat.errors.unknownFailure");
+
+  switch (kind) {
+    case "cancelled":
+      title = t("workbench.chat.errors.generationStopped");
+      detail = rawDetail ?? t("workbench.chat.errors.stoppedByUser");
+      break;
+    case "aborted":
+      title = t("workbench.chat.errors.generationInterrupted");
+      detail = rawDetail ?? t("workbench.chat.errors.interrupted");
+      break;
+    case "length":
+      title = t("workbench.chat.errors.generationStopped");
+      detail = t(
+        "workbench.chat.errors.outputLimit",
+        outputTokens === undefined ? {} : { tokens: outputTokens },
+      );
+      break;
+    case "network-error":
+      title = t("workbench.chat.errors.connectionFailed");
+      detail = rawDetail ?? t("workbench.chat.errors.networkFailure");
+      break;
+    case "api-error":
+      detail = rawDetail ?? t("workbench.chat.errors.apiFailure");
+      break;
+    case "provider-error":
+      detail = rawDetail ?? t("workbench.chat.errors.providerFailure");
+      break;
+  }
+
+  const retry = () => {
+    setRetryPhase("requested");
+    try {
+      void Promise.resolve(aui.message.reload()).then(
+        () => setRetryPhase((current) => (current === "requested" ? "running" : current)),
+        () => setRetryPhase("idle"),
+      );
+    } catch {
+      setRetryPhase("idle");
+    }
+  };
+
   return (
-    <MessagePrimitive.Error>
-      <ErrorPrimitive.Root className="border-destructive/30 bg-destructive/10 text-destructive mt-3 rounded-lg border p-3 text-sm">
-        <ErrorPrimitive.Message className="line-clamp-3" />
-      </ErrorPrimitive.Root>
-    </MessagePrimitive.Error>
+    <ErrorState
+      className="mt-3 max-w-full"
+      title={title}
+      detail={detail}
+      retrying={retryPhase !== "idle"}
+      retryLabel={t("workbench.chat.errors.retry")}
+      retryingLabel={t("workbench.chat.errors.retrying")}
+      onRetry={retry}
+    />
   );
 }
 

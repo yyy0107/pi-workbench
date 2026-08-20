@@ -16,6 +16,8 @@ import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 
+import { SyntaxHighlighter } from "./shiki-highlighter";
+
 const MarkdownTextImpl = () => {
   return (
     <MarkdownTextPrimitive
@@ -32,15 +34,19 @@ export const MarkdownText = memo(MarkdownTextImpl);
 const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
   const { t } = useI18n();
   const { isCopied, copyToClipboard } = useCopyToClipboard();
+  const displayedLanguage =
+    !language || language.toLowerCase() === "unknown"
+      ? t("assistant.codeBlock.plainText")
+      : language;
   const onCopy = () => {
     if (!code || isCopied) return;
     copyToClipboard(code);
   };
 
   return (
-    <div className="aui-code-header-root border-border/50 bg-muted/50 mt-3 flex items-center justify-between rounded-t-xl border border-b-0 px-3.5 py-1.5 text-xs">
-      <span className="aui-code-header-language text-muted-foreground font-medium lowercase">
-        {language}
+    <div className="aui-code-header-root border-border/50 bg-muted/30 mt-3 flex items-center justify-between rounded-t-xl border border-b-0 px-[10px]! pt-1.5 pb-0 text-xs">
+      <span className="aui-code-header-language text-muted-foreground text-[13px] font-medium lowercase">
+        {displayedLanguage}
       </span>
       <TooltipIconButton tooltip={t("assistant.actions.copy")} onClick={onCopy}>
         {!isCopied && <CopyIcon className="animate-in zoom-in-75 fade-in duration-150" />}
@@ -75,6 +81,7 @@ const useCopyToClipboard = ({
 };
 
 const defaultComponents = memoizeMarkdownComponents({
+  SyntaxHighlighter,
   h1: ({ className, ...props }) => (
     <h1
       className={cn(
@@ -213,7 +220,7 @@ const defaultComponents = memoizeMarkdownComponents({
   pre: ({ className, ...props }) => (
     <pre
       className={cn(
-        "aui-md-pre border-border/50 bg-muted/30 overflow-x-auto rounded-t-none rounded-b-xl border border-t-0 p-3.5 text-[13px] leading-relaxed",
+        "aui-md-pre border-border/50 bg-muted/30 overflow-x-auto rounded-t-none rounded-b-xl border border-t-0 px-[10px]! pt-0.5 pb-3.5 leading-relaxed [font-size:var(--workbench-code-font-size,13px)]",
         className,
       )}
       {...props}

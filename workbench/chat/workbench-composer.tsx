@@ -6,6 +6,7 @@ import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore }
 
 import { ComposerAddAttachment, ComposerAttachments } from "@/components/assistant-ui/attachment";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { ComposerWorkspaceFeedback } from "@/components/right-workspace";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { SlotHost, useExtensionManager } from "@/platform/extensions";
@@ -159,6 +160,7 @@ export function WorkbenchComposer() {
               showWorkspacePrompt ? "opacity-60" : !canCompose && "[&_:disabled]:opacity-100",
             )}
           >
+            <ComposerWorkspaceFeedback />
             <ComposerAttachments />
             <ComposerPrimitive.Input asChild>
               <textarea

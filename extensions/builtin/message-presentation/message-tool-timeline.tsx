@@ -5,6 +5,7 @@ import type { ReasoningMessagePart, ToolCallMessagePart } from "@assistant-ui/re
 import { useAuiState } from "@assistant-ui/react";
 import {
   FileSearchIcon,
+  ListChecksIcon,
   PencilIcon,
   SearchIcon,
   SparklesIcon,
@@ -25,7 +26,7 @@ import { useI18n } from "@/i18n";
 import { formatCompactDuration } from "@/lib/format-duration";
 
 import { BashTerminal } from "../terminal/bash-tool-renderer";
-import { defaultMessageDisclosureOpen } from "./message-presentation-policy";
+import { useMessageDisclosure } from "./message-disclosure-context";
 import {
   liveReasoningPreview,
   reasoningPartTiming,
@@ -99,15 +100,15 @@ function TimelineReasoning({
   part,
   running,
   preview,
+  disclosureId,
 }: {
   part: ReasoningMessagePart;
   running: boolean;
   preview: string;
+  disclosureId: string | number;
 }) {
   const { t } = useI18n();
-  const [open, setOpen] = useState(() =>
-    defaultMessageDisclosureOpen("reasoning", running ? "streaming" : "completed"),
-  );
+  const [open, setOpen] = useMessageDisclosure("reasoning", disclosureId);
   const elapsedSeconds = useElapsedSeconds(running, reasoningPartTiming(part));
   const collapsedPreview = running
     ? liveReasoningPreview(part.text || part.unstable_summary || "") || preview
@@ -154,9 +155,7 @@ function TimelineToolCall({
   running: boolean;
 }) {
   const { t } = useI18n();
-  const [open, setOpen] = useState(() =>
-    defaultMessageDisclosureOpen("tool", running ? "streaming" : "completed"),
-  );
+  const [open, setOpen] = useMessageDisclosure("tool", part.toolCallId);
   const displayedResult = part.result ?? part.artifact;
   const elapsedSeconds = useElapsedSeconds(running, part.timing);
 
@@ -200,20 +199,20 @@ function TimelineToolCall({
 }
 
 function ParallelToolGroup({
+  batchId,
   parts,
   kinds,
   queries,
   turnStreaming,
 }: {
+  batchId: string;
   parts: readonly ToolCallMessagePart[];
   kinds: readonly ToolTimelineStepKind[];
   queries: readonly string[];
   turnStreaming: boolean;
 }) {
   const running = turnStreaming && parts.some((part) => part.result === undefined);
-  const [open, setOpen] = useState(() =>
-    defaultMessageDisclosureOpen("parallel-tools", turnStreaming ? "streaming" : "completed"),
-  );
+  const [open, setOpen] = useMessageDisclosure("parallel-tools", batchId);
 
   return (
     <ToolGroupRoot
@@ -225,6 +224,7 @@ function ParallelToolGroup({
       <ToolGroupTrigger
         count={parts.length}
         active={running}
+        icon={WrenchIcon}
         className="text-foreground/55 hover:text-foreground/90 gap-1.5 py-1 text-[13.5px] transition-colors outline-none"
       />
       <ToolGroupContent className="[&>div]:ms-1 [&>div]:border-s [&>div]:border-foreground/10 [&>div]:ps-3">
@@ -260,9 +260,7 @@ export function MessageToolTimeline({
 }>) {
   const { t } = useI18n();
   const content = useAuiState((state) => state.message.content);
-  const [open, setOpen] = useState(() =>
-    defaultMessageDisclosureOpen("steps", turnStreaming ? "streaming" : "completed"),
-  );
+  const [open, setOpen] = useMessageDisclosure("steps", indices[0] ?? "empty");
   const activeStepIndex = indices.indexOf(activePartIndex);
   const parts = useMemo(
     () => indices.map((index) => content[index]).filter(isTimelineSourcePart),
@@ -278,6 +276,7 @@ export function MessageToolTimeline({
         marker: false,
         body: (
           <ParallelToolGroup
+            batchId={entry.batchId}
             parts={entry.parts}
             kinds={models.flatMap((model) => (model ? [model.kind] : []))}
             queries={models.flatMap((model) => (model ? [model.chip] : []))}
@@ -299,6 +298,7 @@ export function MessageToolTimeline({
             part={part}
             running={sourceIndex === activeStepIndex}
             preview={model.chip}
+            disclosureId={indices[sourceIndex] ?? sourceIndex}
           />
         ),
       };
@@ -328,7 +328,8 @@ export function MessageToolTimeline({
       onOpenChange={setOpen}
       restingLabel={t("extensions.messagePresentation.toolTimeline.summary", summaryArgs)}
       activeLabel={t("extensions.messagePresentation.toolTimeline.active", summaryArgs)}
-      className="mb-1 max-w-none [overflow-anchor:none]"
+      icon={ListChecksIcon}
+      className="my-1 max-w-none [overflow-anchor:none]"
     />
   );
 }

@@ -79,6 +79,22 @@ export const workbenchZhCN = {
       imageTooLarge: "图片过大，无法发送。请选择较小的图片。",
       tooManyImages: "一次发送的图片过多。请移除部分图片后重试。",
       requestFailed: "Pi 未能完成请求，请重试。",
+      retry: "重试",
+      retrying: "正在重试",
+      generationStopped: "生成已停止",
+      generationInterrupted: "生成已中止",
+      connectionFailed: "连接失败",
+      requestFailedTitle: "请求失败",
+      stoppedByUser: "用户已手动停止本次回答。",
+      interrupted: "回答在完成前意外中止。",
+      outputLimit: ({ tokens }: { tokens?: number }, { number }: MessageFormatters) =>
+        tokens === undefined
+          ? "模型已达到输出长度上限。"
+          : `模型在输出 ${number(tokens)} tokens 后达到长度上限。`,
+      networkFailure: "与模型 Provider 的连接已中断。",
+      apiFailure: "模型 Provider 未能完成该请求。",
+      providerFailure: "当前配置的模型 Provider 未能完成该请求。",
+      unknownFailure: "本次回答未能完成。",
     },
     scrollLatest: "滚动到最新消息",
   },

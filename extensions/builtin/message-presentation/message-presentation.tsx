@@ -16,9 +16,12 @@ import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { useI18n } from "@/i18n";
 import { RendererHost } from "@/platform/extensions";
+import { readPiTurnTiming, resolvePiTurnDuration } from "@/runtime/pi/client/messages/turn-timing";
+import { parsePiMessageTermination } from "@/runtime/pi/message-termination";
 
 import { formatCompletedDuration, completedWorkBoundary } from "./completed-turn-model";
 import { CompletedTurnPanel } from "./completed-turn-panel";
+import { MessageDisclosureProvider } from "./message-disclosure-context";
 import { MessageToolTimeline } from "./message-tool-timeline";
 
 type PresentationGroup = "group-completed-turn" | "group-tool-timeline";
@@ -39,21 +42,6 @@ function serializeData(value: unknown) {
   }
 }
 
-function readTurnTiming(value: unknown): { startedAt: number; completedAt: number } | undefined {
-  if (!value || typeof value !== "object") return undefined;
-  const timing = value as { startedAt?: unknown; completedAt?: unknown };
-  if (
-    typeof timing.startedAt !== "number" ||
-    typeof timing.completedAt !== "number" ||
-    !Number.isFinite(timing.startedAt) ||
-    !Number.isFinite(timing.completedAt) ||
-    timing.completedAt < timing.startedAt
-  ) {
-    return undefined;
-  }
-  return { startedAt: timing.startedAt, completedAt: timing.completedAt };
-}
-
 const MessageDataFallback: DataMessagePartComponent = ({ name, data }) => (
   <details className="bg-muted/40 my-2 rounded-lg border px-3 py-2 text-sm">
     <summary className="cursor-pointer font-medium">{name}</summary>
@@ -68,7 +56,9 @@ export function WorkbenchMessagePresentation() {
   const timing = useMessageTiming();
   const messageCreatedAt = useAuiState((state) => state.message.createdAt);
   const storedTurnTiming = useAuiState((state) => state.message.metadata.custom.piTurnTiming);
-  const turnTiming = readTurnTiming(storedTurnTiming);
+  const storedTermination = useAuiState((state) => state.message.metadata.custom.piTermination);
+  const termination = parsePiMessageTermination(storedTermination);
+  const turnTiming = readPiTurnTiming(storedTurnTiming);
   const turnStreaming = useAuiState((state) => state.thread.isRunning && state.message.isLast);
   const messageParts = useAuiState((state) => state.message.parts);
   const completedBoundary = useMemo(() => completedWorkBoundary(messageParts), [messageParts]);
@@ -81,10 +71,7 @@ export function WorkbenchMessagePresentation() {
     (timing?.totalStreamTime === undefined
       ? messageCreatedAt
       : timing.streamStartTime + timing.totalStreamTime);
-  const turnDuration =
-    turnTiming === undefined
-      ? timing?.totalStreamTime
-      : turnTiming.completedAt - turnTiming.startedAt;
+  const turnDuration = resolvePiTurnDuration(storedTurnTiming, timing?.totalStreamTime);
   const completedLabel = t("extensions.messagePresentation.completedTurn", {
     completedAt: date(completionTimestamp, {
       hour: "2-digit",
@@ -92,6 +79,7 @@ export function WorkbenchMessagePresentation() {
       second: "2-digit",
     }),
     duration: formatCompletedDuration(turnDuration),
+    kind: termination?.kind ?? "completed",
   });
   const groupMessagePart = useCallback(
     (part: PartState, context: GroupByContext): readonly PresentationGroup[] => {
@@ -117,94 +105,94 @@ export function WorkbenchMessagePresentation() {
     return -1;
   });
 
-  return (
-    <MessagePrimitive.GroupedParts groupBy={groupMessagePart}>
-      {({ part, children }) => {
-        switch (part.type) {
-          case "group-completed-turn": {
-            return (
-              <CompletedTurnPanel
-                key={turnStreaming ? "streaming" : "completed"}
-                completed={!turnStreaming}
-                label={completedLabel}
-              >
-                {children}
-              </CompletedTurnPanel>
-            );
-          }
-          case "group-tool-timeline": {
-            return (
-              <MessageToolTimeline
-                indices={part.indices}
-                activePartIndex={activeTimelinePartIndex}
-                turnStreaming={turnStreaming}
-              >
-                {children}
-              </MessageToolTimeline>
-            );
-          }
-          case "text":
-            if (part.status.type === "running" && part.text === "") return null;
-            return <MarkdownText />;
-          case "reasoning":
-            return null;
-          case "image":
-            return <Image {...part} />;
-          case "file":
-            return <File {...part} />;
-          case "source": {
-            const label =
-              part.title || part.url || t("extensions.messagePresentation.sourceFallback");
-            const isSafeUrl = part.sourceType === "url" && /^https?:\/\//i.test(part.url);
+  const disclosurePhase = turnStreaming ? "streaming" : "completed";
 
-            if (!isSafeUrl) {
+  return (
+    <MessageDisclosureProvider key={disclosurePhase} phase={disclosurePhase}>
+      <MessagePrimitive.GroupedParts groupBy={groupMessagePart}>
+        {({ part, children }) => {
+          switch (part.type) {
+            case "group-completed-turn": {
               return (
-                <span className="bg-muted text-muted-foreground my-1 inline-flex rounded-md px-2 py-1 text-xs">
-                  {label}
-                </span>
+                <CompletedTurnPanel completed={!turnStreaming} label={completedLabel}>
+                  {children}
+                </CompletedTurnPanel>
               );
             }
+            case "group-tool-timeline": {
+              return (
+                <MessageToolTimeline
+                  indices={part.indices}
+                  activePartIndex={activeTimelinePartIndex}
+                  turnStreaming={turnStreaming}
+                >
+                  {children}
+                </MessageToolTimeline>
+              );
+            }
+            case "text":
+              if (part.status.type === "running" && part.text === "") return null;
+              return <MarkdownText />;
+            case "reasoning":
+              return null;
+            case "image":
+              return <Image {...part} />;
+            case "file":
+              return <File {...part} />;
+            case "source": {
+              const label =
+                part.title || part.url || t("extensions.messagePresentation.sourceFallback");
+              const isSafeUrl = part.sourceType === "url" && /^https?:\/\//i.test(part.url);
 
-            return (
-              <a
-                href={part.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-muted/60 hover:bg-muted my-1 inline-flex max-w-full items-center gap-1.5 rounded-md px-2 py-1 text-xs underline-offset-2 hover:underline"
-              >
-                <span className="truncate">{label}</span>
-                <ExternalLinkIcon className="size-3 shrink-0" />
-              </a>
-            );
+              if (!isSafeUrl) {
+                return (
+                  <span className="bg-muted text-muted-foreground my-1 inline-flex rounded-md px-2 py-1 text-xs">
+                    {label}
+                  </span>
+                );
+              }
+
+              return (
+                <a
+                  href={part.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-muted/60 hover:bg-muted my-1 inline-flex max-w-full items-center gap-1.5 rounded-md px-2 py-1 text-xs underline-offset-2 hover:underline"
+                >
+                  <span className="truncate">{label}</span>
+                  <ExternalLinkIcon className="size-3 shrink-0" />
+                </a>
+              );
+            }
+            case "tool-call":
+            case "data":
+              return (
+                <RendererHost
+                  part={part}
+                  toolFallback={ToolFallback}
+                  dataFallback={MessageDataFallback}
+                />
+              );
+            case "audio": {
+              const source = part.audio.data.startsWith("data:")
+                ? part.audio.data
+                : `data:audio/${part.audio.format};base64,${part.audio.data}`;
+              return <audio controls src={source} className="my-2 max-w-full" />;
+            }
+            case "generative-ui":
+              return (
+                <MessageDataFallback
+                  type="data"
+                  name="generative-ui"
+                  data={part.spec}
+                  status={part.status}
+                />
+              );
+            default:
+              return null;
           }
-          case "tool-call":
-          case "data":
-            return (
-              <RendererHost
-                part={part}
-                toolFallback={ToolFallback}
-                dataFallback={MessageDataFallback}
-              />
-            );
-          case "audio": {
-            const source = part.audio.data.startsWith("data:")
-              ? part.audio.data
-              : `data:audio/${part.audio.format};base64,${part.audio.data}`;
-            return <audio controls src={source} className="my-2 max-w-full" />;
-          }
-          case "generative-ui":
-            return (
-              <MessageDataFallback
-                type="data"
-                name="generative-ui"
-                data={part.spec}
-                status={part.status}
-              />
-            );
-          default:
-            return null;
-        }
-      }}
-    </MessagePrimitive.GroupedParts>
+        }}
+      </MessagePrimitive.GroupedParts>
+    </MessageDisclosureProvider>
   );
 }

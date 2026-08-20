@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, type PropsWithChildren } from "react";
+import type { PropsWithChildren } from "react";
 import { CheckCircle2Icon, ChevronRightIcon } from "lucide-react";
 
 import { collapsePanel } from "@/components/elements/surfaces";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 
-import { defaultMessageDisclosureOpen } from "./message-presentation-policy";
+import { useMessageDisclosure } from "./message-disclosure-context";
 
 export function CompletedTurnPanel({
   completed,
@@ -17,9 +17,7 @@ export function CompletedTurnPanel({
   completed: boolean;
   label: string;
 }>) {
-  const [open, setOpen] = useState(() =>
-    defaultMessageDisclosureOpen("completed-turn", "completed"),
-  );
+  const [open, setOpen] = useMessageDisclosure("completed-turn", "turn");
 
   if (!completed) return children;
 
