@@ -10,13 +10,15 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Skeleton } from "@/components/ui/skeleton";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
-import { usePiWorkspaces } from "@/runtime/pi/client/context";
+import { usePiSessionManager, usePiWorkspaces } from "@/runtime/pi/client/runtime/context";
+import { resolveSidebarThreadWorkspaceId } from "@/workbench/workspaces/new-thread-policy";
 import {
   useWorkspaceDirectoryStore,
   type WorkspaceDirectory,
 } from "@/workbench/workspaces/workspace-directory-store";
 
 import { NewThreadButton } from "./new-thread-button";
+import { DraftThreadListItem } from "./draft-thread-list-item";
 import { WorkbenchThreadList } from "./thread-list";
 
 const WORKSPACE_PAGE_SIZE = 24;
@@ -24,15 +26,28 @@ const WORKSPACE_PAGE_SIZE = 24;
 export function WorkbenchWorkspaceThreadList({ onNavigate }: { onNavigate?: () => void }) {
   const { t } = useI18n();
   const aui = useAui();
+  const manager = usePiSessionManager();
   const pathname = usePathname();
   const router = useRouter();
   const isLoading = useAuiState((state) => state.threads.isLoading);
-  const hasPendingNewThread = useAuiState(
-    (state) => state.threads.newThreadId === state.threads.mainThreadId,
-  );
+  const hasDraftNewThread = useAuiState((state) => state.threads.newThreadId !== undefined);
   const directories = useWorkspaceDirectoryStore((state) => state.directories);
   const activeDirectoryId = useWorkspaceDirectoryStore((state) => state.activeDirectoryId);
   const draftDirectoryId = useWorkspaceDirectoryStore((state) => state.draftDirectoryId);
+  const hasUngroupedThreads = useAuiState((state) =>
+    state.threads.threadIds.some((threadId) => {
+      const thread = state.threads.threadItems.find((item) => item.id === threadId);
+      if (!thread) return false;
+      return (
+        resolveSidebarThreadWorkspaceId({
+          customWorkspaceId: thread.custom?.piWorkspaceId,
+          managedWorkspaceId: manager.getThreadCustom(thread.id)?.piWorkspaceId,
+          isMainThread: thread.id === state.threads.mainThreadId,
+          draftWorkspaceId: draftDirectoryId,
+        }) === undefined
+      );
+    }),
+  );
   const syncDirectories = useWorkspaceDirectoryStore((state) => state.syncDirectories);
   const removeDirectory = useWorkspaceDirectoryStore((state) => state.removeDirectory);
   const activateDirectory = useWorkspaceDirectoryStore((state) => state.activateDirectory);
@@ -41,15 +56,16 @@ export function WorkbenchWorkspaceThreadList({ onNavigate }: { onNavigate?: () =
   const [visibleWorkspaceCount, setVisibleWorkspaceCount] = useState(WORKSPACE_PAGE_SIZE);
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  const removeWorkspace = (directoryId: string, active: boolean) => {
-    removeDirectory(directoryId);
-    if (!active) return;
+  const removeWorkspace = async (directoryId: string, active: boolean) => {
     try {
+      await manager.deleteWorkspace(directoryId);
+      removeDirectory(directoryId);
+      if (!active) return;
       aui.threads.switchToNewThread();
       router.push("/");
       onNavigate?.();
     } catch (error) {
-      console.error("[workbench] failed to leave removed workspace", error);
+      console.error("[workbench] failed to remove workspace", error);
     }
   };
 
@@ -103,7 +119,7 @@ export function WorkbenchWorkspaceThreadList({ onNavigate }: { onNavigate?: () =
     return <WorkbenchThreadListLoading />;
   }
 
-  if (directories.length === 0) {
+  if (directories.length === 0 && !hasUngroupedThreads) {
     return (
       <p className="text-muted-foreground px-2 py-3 text-xs leading-relaxed">
         {t("workbench.sidebar.noWorkspaces")}
@@ -120,10 +136,10 @@ export function WorkbenchWorkspaceThreadList({ onNavigate }: { onNavigate?: () =
             directory={directory}
             active={directory.id === activeDirectoryId}
             hasNewThread={
-              directory.id === draftDirectoryId && hasPendingNewThread && pathname === "/"
+              directory.id === draftDirectoryId && hasDraftNewThread && pathname === "/"
             }
             onActivate={() => activateDirectory(directory.id)}
-            onRemove={() => removeWorkspace(directory.id, directory.id === activeDirectoryId)}
+            onRemove={() => void removeWorkspace(directory.id, directory.id === activeDirectoryId)}
             onNavigate={onNavigate}
           />
         );
@@ -139,6 +155,16 @@ export function WorkbenchWorkspaceThreadList({ onNavigate }: { onNavigate?: () =
             <Skeleton key={index} className="h-9 w-full rounded-lg" />
           ))}
         </div>
+      ) : null}
+      {hasUngroupedThreads ? (
+        <section className="flex flex-col gap-0.5">
+          <h3 className="text-muted-foreground px-2 py-1 text-xs font-medium">
+            {t("workbench.sidebar.ungrouped")}
+          </h3>
+          <div className="flex flex-col gap-[2px] ps-6">
+            <WorkbenchThreadList showEmpty={false} onNavigate={onNavigate} />
+          </div>
+        </section>
       ) : null}
     </div>
   );
@@ -175,7 +201,10 @@ function WorkspaceDirectorySection({
 
   return (
     <section className="flex flex-col gap-0.5">
-      <div className="group/workspace hover:bg-sidebar-accent focus-within:bg-sidebar-accent relative flex h-9 w-full items-center rounded-lg px-1.5 transition-colors">
+      <div
+        data-workbench-selection-surface=""
+        className="group/workspace hover:bg-sidebar-accent focus-within:bg-sidebar-accent relative flex h-9 w-full items-center rounded-lg px-1.5 transition-colors"
+      >
         <button
           type="button"
           aria-labelledby={`${workspaceLabelId} ${workspaceActionId}`}
@@ -217,7 +246,7 @@ function WorkspaceDirectorySection({
 
         <div
           className={cn(
-            "absolute -end-[7px] z-10 flex items-center opacity-100 transition-opacity md:opacity-0 md:group-hover/workspace:opacity-100 md:group-focus-within/workspace:opacity-100",
+            "absolute end-0 z-10 flex items-center opacity-100 transition-opacity md:opacity-0 md:group-hover/workspace:opacity-100 md:group-focus-within/workspace:opacity-100",
             menuOpen && "md:opacity-100",
           )}
         >
@@ -229,7 +258,7 @@ function WorkspaceDirectorySection({
                   variant="ghost"
                   size="icon"
                   aria-label={t("workbench.sidebar.workspaceOptions")}
-                  className="aui-button-icon size-7 p-1 active:scale-90"
+                  className="aui-button-icon text-muted-foreground hover:text-foreground focus-visible:text-foreground aria-expanded:text-foreground size-7 p-1 active:scale-90"
                 >
                   <MoreHorizontalIcon className="size-[18px]" />
                 </Button>
@@ -265,7 +294,7 @@ function WorkspaceDirectorySection({
       {expanded ? (
         <div className="flex flex-col gap-[2px] ps-6">
           {hasNewThread ? (
-            <NewThreadButton workspaceId={directory.id} active onNavigate={onNavigate} />
+            <DraftThreadListItem workspaceId={directory.id} onNavigate={onNavigate} />
           ) : null}
           <WorkbenchThreadList
             workspaceId={directory.id}

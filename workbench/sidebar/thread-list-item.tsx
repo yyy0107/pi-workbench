@@ -1,20 +1,21 @@
 "use client";
 
 import { ThreadListItemPrimitive, useAui, useAuiState } from "@assistant-ui/react";
-import { ArchiveIcon, Trash2Icon } from "lucide-react";
+import { ArchiveIcon, PinIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { ThinkingOrb } from "thinking-orbs";
 
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
-import { usePiThreadActivity } from "@/runtime/pi/client/context";
+import { cn } from "@/lib/utils";
+import { usePiThreadActivity } from "@/runtime/pi/client/runtime/context";
 import { useWorkspaceDirectoryStore } from "@/workbench/workspaces/workspace-directory-store";
 
 export function WorkbenchThreadListItem({
   workspaceId,
   onNavigate,
 }: {
-  workspaceId: string;
+  workspaceId?: string;
   onNavigate?: () => void;
 }) {
   const { date: formatDate, relativeTime, t } = useI18n();
@@ -23,6 +24,9 @@ export function WorkbenchThreadListItem({
   const runtimeIsRunning = useAuiState((state) => state.threadListItem.isRunning);
   const lastMessageAt = useAuiState((state) => state.threadListItem.lastMessageAt);
   const isActive = useAuiState((state) => state.threads.mainThreadId === state.threadListItem.id);
+  const isPinned = useAuiState((state) => state.threadListItem.custom?.piPinned === true);
+  const threadCustom = useAuiState((state) => state.threadListItem.custom);
+  const threadId = useAuiState((state) => state.threadListItem.id);
   const routeThreadId = useAuiState(
     (state) =>
       state.threadListItem.remoteId ?? state.threadListItem.externalId ?? state.threadListItem.id,
@@ -34,6 +38,7 @@ export function WorkbenchThreadListItem({
   );
   const piActivity = usePiThreadActivity(routeThreadId);
   const activateDirectory = useWorkspaceDirectoryStore((state) => state.activateDirectory);
+  const deactivateDirectory = useWorkspaceDirectoryStore((state) => state.deactivateDirectory);
   const destroyNewThread = useWorkspaceDirectoryStore((state) => state.destroyNewThread);
   const isRunning = runtimeIsRunning || piActivity.running;
   const openThreadRoute = () => {
@@ -44,7 +49,8 @@ export function WorkbenchThreadListItem({
         .reset()
         .catch((error) => console.error("[workbench] failed to discard empty conversation", error));
     }
-    activateDirectory(workspaceId);
+    if (workspaceId) activateDirectory(workspaceId);
+    else deactivateDirectory();
     router.push(`/c/${encodeURIComponent(routeThreadId)}`);
     onNavigate?.();
   };
@@ -52,6 +58,16 @@ export function WorkbenchThreadListItem({
     if (isActive) {
       router.replace("/");
       onNavigate?.();
+    }
+  };
+  const togglePinned = async () => {
+    try {
+      await aui.threads.item({ id: threadId }).updateCustom({
+        ...threadCustom,
+        piPinned: !isPinned,
+      });
+    } catch (error) {
+      console.error("[workbench] failed to update pinned conversation", error);
     }
   };
   const formattedTime = (() => {
@@ -71,7 +87,11 @@ export function WorkbenchThreadListItem({
   })();
 
   return (
-    <ThreadListItemPrimitive.Root className="group/thread hover:bg-sidebar-accent focus-within:bg-sidebar-accent data-active:bg-sidebar-accent relative -ms-6 flex min-h-9 items-center rounded-lg transition-colors">
+    <ThreadListItemPrimitive.Root
+      data-workbench-selection-surface=""
+      data-workbench-selection-mode="foreground"
+      className="group/thread text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground focus-within:bg-sidebar-accent focus-within:text-sidebar-foreground data-active:text-sidebar-foreground relative -ms-6 flex min-h-9 items-center rounded-lg transition-colors"
+    >
       {isRunning ? (
         <ThinkingOrb
           state="working"
@@ -103,7 +123,22 @@ export function WorkbenchThreadListItem({
         {isRunning ? <span className="sr-only">{t("workbench.sidebar.generating")}</span> : null}
       </ThreadListItemPrimitive.Trigger>
 
-      <div className="bg-sidebar-accent absolute -end-[7px] flex items-center opacity-0 transition-opacity group-hover/thread:opacity-100 group-has-[:focus-visible]/thread:opacity-100">
+      <div className="pointer-events-none absolute end-0 flex items-center opacity-0 transition-opacity group-hover/thread:pointer-events-auto group-hover/thread:opacity-100 group-has-[:focus-visible]/thread:pointer-events-auto group-has-[:focus-visible]/thread:opacity-100">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          aria-label={t(isPinned ? "workbench.sidebar.unpin" : "workbench.sidebar.pin")}
+          aria-pressed={isPinned}
+          title={t(isPinned ? "workbench.sidebar.unpin" : "workbench.sidebar.pin")}
+          className={cn(
+            "aui-button-icon text-muted-foreground hover:text-foreground size-7 p-1 active:scale-90",
+            isPinned && "text-foreground",
+          )}
+          onClick={() => void togglePinned()}
+        >
+          <PinIcon className="size-[18px]" />
+        </Button>
         <ThreadListItemPrimitive.Archive
           onClick={leaveRemovedThreadRoute}
           render={
@@ -112,26 +147,13 @@ export function WorkbenchThreadListItem({
               variant="ghost"
               size="icon"
               aria-label={t("workbench.sidebar.archive")}
-              className="aui-button-icon size-7 p-1 active:scale-90"
+              title={t("workbench.sidebar.archive")}
+              className="aui-button-icon text-muted-foreground hover:text-foreground size-7 p-1 active:scale-90"
             />
           }
         >
           <ArchiveIcon className="size-[18px]" />
         </ThreadListItemPrimitive.Archive>
-        <ThreadListItemPrimitive.Delete
-          onClick={leaveRemovedThreadRoute}
-          render={
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              aria-label={t("workbench.sidebar.delete")}
-              className="aui-button-icon text-destructive hover:text-destructive size-7 p-1 active:scale-90"
-            />
-          }
-        >
-          <Trash2Icon className="size-[18px]" />
-        </ThreadListItemPrimitive.Delete>
       </div>
     </ThreadListItemPrimitive.Root>
   );

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import {
+  MessageNotSentError,
   useAuiState,
   useExternalStoreRuntime,
   useRemoteThreadListRuntime,
@@ -12,8 +13,9 @@ import { useI18n, type Translate } from "@/i18n";
 
 import { workbenchAttachmentAdapter } from "./adapters/attachments";
 import { workbenchFeedbackAdapter } from "./adapters/feedback";
-import { PiApiError } from "./pi/client/api";
-import { PiSessionManager } from "./pi/client/manager";
+import { PiApiError } from "./pi/client/transport/api";
+import { PiSessionManager } from "./pi/client/runtime/manager";
+import { piComposerSendError, type PiComposerSendError } from "./pi/client/runtime/send-error";
 
 function localizedPiError(error: unknown, t: Translate): Error {
   if (!(error instanceof PiApiError))
@@ -53,14 +55,27 @@ function useWorkbenchPiRuntime(manager: PiSessionManager) {
     session.getSnapshot,
   );
   const dictation = useMemo(() => new WebSpeechDictationAdapter(), []);
+  const [composerErrorState, setComposerErrorState] = useState<{
+    session: typeof session;
+    code: PiComposerSendError;
+  }>();
+  const composerError =
+    composerErrorState?.session === session ? composerErrorState.code : undefined;
+  const clearComposerError = useCallback(() => {
+    setComposerErrorState((current) => (current?.session === session ? undefined : current));
+  }, [session]);
   const extras = useMemo(
     () => ({
       piQueue: {
         ...session.runtimeExtras.piQueue,
         paused: snapshot.queuePaused,
       },
+      piComposer: {
+        error: composerError,
+        clearError: clearComposerError,
+      },
     }),
-    [session, snapshot.queuePaused],
+    [clearComposerError, composerError, session, snapshot.queuePaused],
   );
 
   useEffect(() => {
@@ -74,12 +89,23 @@ function useWorkbenchPiRuntime(manager: PiSessionManager) {
     isRunning: snapshot.isRunning,
     isLoading: snapshot.isLoading,
     extras,
-    queue: session.queueAdapter,
+    // The queue adapter is only a dispatch path while a run is active. Keeping
+    // it installed while idle makes assistant-ui route ordinary sends through
+    // `enqueue`, which cannot report a rejected send back to the composer for
+    // draft restoration.
+    queue: snapshot.isRunning ? session.queueAdapter : undefined,
     onNew: async (message) => {
+      clearComposerError();
       try {
         await session.send(message);
       } catch (error) {
-        throw localizedPiError(error, t);
+        const localized = localizedPiError(error, t);
+        const composerError = piComposerSendError(error);
+        if (composerError) {
+          setComposerErrorState({ session, code: composerError });
+          throw new MessageNotSentError(localized.message);
+        }
+        throw localized;
       }
     },
     onCancel: async () => {

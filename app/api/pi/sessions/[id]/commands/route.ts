@@ -12,8 +12,9 @@ import {
   sendPrompt,
   setPromptQueuePaused,
   steerQueuedPrompt,
-} from "@/runtime/pi/server/registry";
-import { piErrorResponse } from "@/runtime/pi/server/responses";
+} from "@/runtime/pi/server/sessions/session-registry";
+import { rejectUntrustedApiRequest } from "@/runtime/pi/server/transport/api-request-guard";
+import { piErrorResponse } from "@/runtime/pi/server/transport/responses";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -52,6 +53,8 @@ function isQueuedPrompt(value: unknown): value is PiQueuedPrompt {
 }
 
 export async function POST(request: Request, context: RouteContext) {
+  const rejected = rejectUntrustedApiRequest(request);
+  if (rejected) return rejected;
   try {
     const { id } = await context.params;
     const body = (await request.json()) as {

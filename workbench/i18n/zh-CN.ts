@@ -3,11 +3,8 @@ import type { MessageFormatters } from "@/i18n/types";
 export const workbenchZhCN = {
   chat: {
     empty: {
-      title: "你正在处理什么？",
+      question: "要在 Pi Workbench 完成什么？",
       description: "提出问题、附加上下文，或在对话需要更多空间时打开工作台面板。",
-      selectWorkspaceTitle: "请先选择工作区",
-      selectWorkspaceDescription:
-        "每个会话都必须属于一个工作区。发送消息前，请从侧栏添加或选择工作区。",
       planProject: "帮我规划一个小项目",
       explainConcept: "用简单方式解释一个复杂概念",
       reviewIdea: "评审一个想法并找出其中的风险",
@@ -21,6 +18,7 @@ export const workbenchZhCN = {
       stopGenerating: "停止生成",
       sendMessage: "发送消息",
       queueFollowUp: "加入后续队列",
+      dismissError: "关闭提示",
       openDrawer: "显示输入选项",
       closeDrawer: "隐藏输入选项",
       drawer: "输入选项",
@@ -41,6 +39,34 @@ export const workbenchZhCN = {
     sourceFallback: "来源",
     generating: "正在生成回答…",
     working: "Pi Working...",
+    workingElapsed: ({ duration }: { duration: string }) => `Pi Working... · ${duration}`,
+    separators: {
+      modelChanged: "模型已切换",
+      modelChangedAnnouncement: ({
+        previousModel,
+        model,
+      }: {
+        previousModel?: string;
+        model: string;
+      }) => (previousModel ? `模型已从 ${previousModel} 切换为 ${model}` : `模型已切换为 ${model}`),
+      contextCompacted: "会话上下文已压缩",
+      contextCompactedTokens: (
+        { before, after }: { before: number; after: number },
+        { number }: MessageFormatters,
+      ) =>
+        `${number(before, { notation: "compact" })} → ${number(after, { notation: "compact" })} tokens`,
+      contextCompactedBefore: ({ before }: { before: number }, { number }: MessageFormatters) =>
+        `压缩前 ${number(before, { notation: "compact" })} tokens`,
+      contextCompactedAnnouncement: (
+        { before, after }: { before?: number; after?: number },
+        { number }: MessageFormatters,
+      ) =>
+        before !== undefined && after !== undefined
+          ? `会话上下文已从 ${number(before)} tokens 压缩至约 ${number(after)} tokens`
+          : before !== undefined
+            ? `会话上下文已从 ${number(before)} tokens 压缩`
+            : "会话上下文已压缩",
+    },
     errors: {
       sessionBusy: "此会话正在生成回答。",
       emptyPrompt: "发送前请输入消息或附加图片。",
@@ -48,6 +74,10 @@ export const workbenchZhCN = {
       invalidWorkingDirectory: "Pi 工作目录不可用。",
       invalidWorkspace: "请先选择有效的工作区，再开始会话。",
       modelNotAvailable: "当前配置的 Pi Provider 不支持此模型。",
+      modelDoesNotSupportImages: "当前模型不支持图片输入。请移除图片或切换到支持图片的模型。",
+      invalidImage: "无法发送此图片。请使用有效的 PNG、JPEG、GIF 或 WebP 图片。",
+      imageTooLarge: "图片过大，无法发送。请选择较小的图片。",
+      tooManyImages: "一次发送的图片过多。请移除部分图片后重试。",
       requestFailed: "Pi 未能完成请求，请重试。",
     },
     scrollLatest: "滚动到最新消息",
@@ -63,9 +93,12 @@ export const workbenchZhCN = {
     loadingMoreWorkspaces: "正在加载更多工作区",
     empty: "发送第一条消息后，会话会显示在这里。",
     noWorkspaces: "添加工作区后即可开始会话。",
+    ungrouped: "未分组会话",
     loadMore: "显示更多",
     generating: "正在生成",
     completed: "已在后台完成",
+    pin: "置顶会话",
+    unpin: "取消置顶会话",
     archive: "归档会话",
     delete: "删除会话",
     resize: "调整会话侧边栏宽度",

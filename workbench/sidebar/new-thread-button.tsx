@@ -39,7 +39,7 @@ export function NewThreadButton({
         aria-label={t("workbench.sidebar.newThread")}
         className={cn(
           buttonVariants({ variant: "ghost", size: "icon" }),
-          "aui-button-icon size-7 p-1 active:scale-90",
+          "aui-button-icon text-muted-foreground hover:text-foreground focus-visible:text-foreground active:text-foreground size-7 p-1 active:scale-90",
           className,
         )}
       >
@@ -49,12 +49,14 @@ export function NewThreadButton({
       <button
         type="button"
         data-slot="button"
+        data-workbench-selection-surface={variant === "row" ? "" : undefined}
+        data-workbench-selection-mode={variant === "row" ? "foreground" : undefined}
         className={cn(
           buttonVariants({ variant: "ghost" }),
           variant === "menu"
             ? "hover:bg-accent focus-visible:bg-accent h-8 w-full justify-start gap-2 rounded-md border-0 px-2 text-sm font-normal shadow-none"
-            : "hover:bg-sidebar-accent focus-visible:ring-sidebar-ring data-active:bg-sidebar-accent -ms-6 h-9 w-[calc(100%+1.5rem)] justify-start rounded-lg border-0 pe-2.5 ps-[34px] text-sm font-normal shadow-none focus-visible:ring-2",
-          variant === "row" && active && "bg-sidebar-accent",
+            : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:ring-sidebar-ring data-active:text-sidebar-foreground -ms-6 h-9 w-[calc(100%+1.5rem)] justify-start rounded-lg border-0 pe-2.5 ps-[34px] text-sm font-normal shadow-none focus-visible:ring-2",
+          variant === "row" && active && "text-sidebar-foreground",
           className,
         )}
         aria-current={variant === "row" && active ? "page" : undefined}

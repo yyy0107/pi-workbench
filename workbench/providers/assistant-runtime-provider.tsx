@@ -1,18 +1,24 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
-import { AssistantRuntimeProvider, useAuiState } from "@assistant-ui/react";
+import { useEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
+import { AssistantRuntimeProvider, useAui, useAuiState } from "@assistant-ui/react";
 
-import { PiSessionManagerProvider } from "@/runtime/pi/client/context";
-import { PiSessionManager } from "@/runtime/pi/client/manager";
+import { PiSessionManagerProvider } from "@/runtime/pi/client/runtime/context";
+import { PiSessionManager } from "@/runtime/pi/client/runtime/manager";
 import { useWorkbenchRuntime } from "@/runtime/use-workbench-runtime";
 import { useWorkspaceDirectoryStore } from "@/workbench/workspaces/workspace-directory-store";
 
 function ActivePiThreadTracker({ manager }: { manager: PiSessionManager }) {
-  const mainThreadId = useAuiState((state) => state.threads.mainThreadId);
-  const mainThread = useAuiState((state) =>
-    state.threads.threadItems.find((thread) => thread.id === state.threads.mainThreadId),
+  const aui = useAui();
+  const managerRevision = useSyncExternalStore(
+    manager.subscribe,
+    manager.getSnapshot,
+    manager.getSnapshot,
   );
+  const mainThreadId = useAuiState((state) => state.threads.mainThreadId);
+  const threadItems = useAuiState((state) => state.threads.threadItems);
+  const mainThread = threadItems.find((thread) => thread.id === mainThreadId);
+  const reloadedRevision = useRef(managerRevision);
   const syncDirectory = useWorkspaceDirectoryStore((state) => state.syncDirectory);
   const revealDirectory = useWorkspaceDirectoryStore((state) => state.revealDirectory);
 
@@ -21,13 +27,59 @@ function ActivePiThreadTracker({ manager }: { manager: PiSessionManager }) {
   }, [mainThread?.remoteId, mainThreadId, manager]);
 
   useEffect(() => {
-    const id = mainThread?.custom?.piWorkspaceId;
-    const name = mainThread?.custom?.piWorkspaceName;
-    const cwd = mainThread?.custom?.piWorkspaceCwd;
+    if (reloadedRevision.current === managerRevision) return;
+    reloadedRevision.current = managerRevision;
+    void aui.threads
+      .reload()
+      .catch((error) => console.error("[workbench-pi] thread list reload failed", error));
+  }, [aui, managerRevision]);
+
+  useEffect(() => {
+    for (const thread of threadItems) {
+      if (!thread.remoteId) continue;
+      const custom = manager.getThreadCustom(thread.remoteId);
+      if (!custom) continue;
+      const changed = [
+        "piRunning",
+        "piPinned",
+        "piWorkspaceId",
+        "piWorkspaceName",
+        "piWorkspaceCwd",
+      ].some((key) => thread.custom?.[key] !== custom[key]);
+      if (!changed) continue;
+      const {
+        piRunning: _piRunning,
+        piPinned: _piPinned,
+        piWorkspaceId: _piWorkspaceId,
+        piWorkspaceName: _piWorkspaceName,
+        piWorkspaceCwd: _piWorkspaceCwd,
+        ...otherCustom
+      } = thread.custom ?? {};
+      const piCustom = Object.fromEntries(
+        Object.entries(custom).filter(([, value]) => value !== undefined),
+      );
+      aui.threads.item({ id: thread.id }).updateCustom({ ...otherCustom, ...piCustom });
+    }
+  }, [aui, manager, managerRevision, threadItems]);
+
+  useEffect(() => {
+    const custom = mainThread?.remoteId
+      ? manager.getThreadCustom(mainThread.remoteId)
+      : mainThread?.custom;
+    const id = custom?.piWorkspaceId;
+    const name = custom?.piWorkspaceName;
+    const cwd = custom?.piWorkspaceCwd;
     if (typeof id !== "string" || typeof name !== "string" || typeof cwd !== "string") return;
     syncDirectory({ id, name, cwd });
     revealDirectory(id);
-  }, [mainThread?.custom, revealDirectory, syncDirectory]);
+  }, [
+    mainThread?.custom,
+    mainThread?.remoteId,
+    manager,
+    managerRevision,
+    revealDirectory,
+    syncDirectory,
+  ]);
 
   return null;
 }
@@ -49,15 +101,23 @@ function PiDraftWorkspaceTracker({ manager }: { manager: PiSessionManager }) {
 
 export function WorkbenchAssistantRuntimeProvider({ children }: Readonly<{ children: ReactNode }>) {
   const managerRef = useRef<PiSessionManager | null>(null);
+  const managerLifecycleRef = useRef(0);
   if (!managerRef.current) managerRef.current = new PiSessionManager();
   const manager = managerRef.current;
   const runtime = useWorkbenchRuntime(manager);
 
   useEffect(() => {
+    const lifecycle = ++managerLifecycleRef.current;
     void manager
       .start()
       .catch((error) => console.error("[workbench-pi] session manager failed to start", error));
-    return () => manager.dispose();
+    return () => {
+      // React Strict Effects immediately mounts this effect again in development. Defer the
+      // irreversible disposal so the replacement setup can claim the same manager first.
+      queueMicrotask(() => {
+        if (managerLifecycleRef.current === lifecycle) manager.dispose();
+      });
+    };
   }, [manager]);
 
   return (

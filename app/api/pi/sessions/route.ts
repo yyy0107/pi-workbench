@@ -1,10 +1,17 @@
-import { createSession, listSessions, PiServerError } from "@/runtime/pi/server/registry";
-import { piErrorResponse } from "@/runtime/pi/server/responses";
+import {
+  createSession,
+  listSessions,
+  PiServerError,
+} from "@/runtime/pi/server/sessions/session-registry";
+import { rejectUntrustedApiRequest } from "@/runtime/pi/server/transport/api-request-guard";
+import { piErrorResponse } from "@/runtime/pi/server/transport/responses";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const rejected = rejectUntrustedApiRequest(request);
+  if (rejected) return rejected;
   try {
     return Response.json(await listSessions());
   } catch (error) {
@@ -13,6 +20,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const rejected = rejectUntrustedApiRequest(request);
+  if (rejected) return rejected;
   try {
     const body = (await request.json().catch(() => undefined)) as { cwd?: unknown } | undefined;
     if (typeof body?.cwd !== "string") {

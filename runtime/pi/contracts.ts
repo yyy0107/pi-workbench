@@ -17,18 +17,6 @@ export interface PiWorkspaceSummary {
   cwd: string;
 }
 
-export interface PiWorkspaceDirectoryEntry {
-  name: string;
-  path: string;
-}
-
-export interface PiWorkspaceBrowseResponse {
-  path: string;
-  parentPath: string | null;
-  directories: PiWorkspaceDirectoryEntry[];
-  drives?: PiWorkspaceDirectoryEntry[];
-}
-
 export interface PiTextContent {
   type: "text";
   text: string;
@@ -103,6 +91,26 @@ export interface PiCustomMessage {
   timestamp?: number;
 }
 
+export const PI_CONVERSATION_EVENT_CUSTOM_TYPE = "workbench.conversation-event.v1";
+export const PI_MODEL_CHANGED_EVENT = "model_changed";
+
+export interface PiModelChangeConversationEvent {
+  kind: "model-change";
+  provider?: string;
+  model: string;
+  previousProvider?: string;
+  previousModel?: string;
+}
+
+export interface PiCompactionConversationEvent {
+  kind: "compaction";
+  reason: string;
+  tokensBefore?: number;
+  estimatedTokensAfter?: number;
+}
+
+export type PiConversationEvent = PiModelChangeConversationEvent | PiCompactionConversationEvent;
+
 export interface PiBashExecutionMessage {
   role: "bashExecution";
   command: string;
@@ -119,11 +127,19 @@ export type PiAgentMessage =
   | PiCustomMessage
   | PiBashExecutionMessage;
 
+export interface PiToolCallTiming {
+  toolCallId: string;
+  startedAt: number;
+  completedAt: number;
+}
+
 export interface PiSessionHistory {
   sessionId: string;
   context: {
     messages: PiAgentMessage[];
     entryIds: string[];
+    entryCompletedAts?: Array<number | null>;
+    toolTimings?: PiToolCallTiming[];
     thinkingLevel: string;
     model: { provider: string; modelId: string } | null;
   };

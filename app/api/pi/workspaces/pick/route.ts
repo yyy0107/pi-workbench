@@ -1,18 +1,18 @@
-import { PiServerError } from "@/runtime/pi/server/errors";
-import { piErrorResponse } from "@/runtime/pi/server/responses";
-import { pickWorkspaceDirectory } from "@/runtime/pi/server/workspaces";
+import { PiServerError } from "@/runtime/pi/server/core/errors";
+import { isTrustedLocalApiRequest } from "@/runtime/pi/server/transport/local-api-request-trust";
+import { piErrorResponse } from "@/runtime/pi/server/transport/responses";
+import { pickWorkspaceDirectory } from "@/runtime/pi/server/workspaces/workspace-paths";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   try {
-    const origin = request.headers.get("origin");
-    if (origin && origin !== new URL(request.url).origin) {
+    if (!isTrustedLocalApiRequest(request)) {
       throw new PiServerError("pi_workspace_picker_forbidden", 403);
     }
 
-    const workspace = await pickWorkspaceDirectory();
+    const workspace = await pickWorkspaceDirectory(request.signal);
     return workspace ? Response.json({ workspace }) : new Response(null, { status: 204 });
   } catch (error) {
     return piErrorResponse(error);

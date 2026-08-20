@@ -1,45 +1,66 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useAui } from "@assistant-ui/react";
+import { useAui, useAuiState } from "@assistant-ui/react";
+import { ChevronDownIcon } from "lucide-react";
 import {
-  ModelSelector as AssistantModelSelector,
-  type ModelSelectorEffortOption,
-  type ModelOption,
-} from "@/components/assistant-ui/model-selector";
-import {
-  ReasoningEffort as ReasoningEffortControl,
-  type EffortLevel,
-} from "@/components/elements/reasoning-effort";
-import { Skeleton } from "@/components/ui/skeleton";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useI18n } from "@/i18n";
 import type { ComposerSlotContext } from "@/platform/extensions";
-import { listPiModels } from "@/runtime/pi/client/api";
-import type { PiModelListResponse } from "@/runtime/pi/contracts";
+import {
+  listPiModelCatalog,
+  listPiRpcSessionModels,
+  selectPiRpcSessionModel,
+} from "@/runtime/pi/client/transport/api";
+import type {
+  ModelCatalogValue,
+  ModelSelection,
+  SessionModelsValue,
+} from "@/runtime/pi/rpc-contracts";
+import { usePiSessionManager } from "@/runtime/pi/client/runtime/context";
 import { useWorkspaceDirectoryStore } from "@/workbench/workspaces/workspace-directory-store";
 
-import { type ReasoningEffort, useModelSelectorStore } from "./model-selector-store";
-import { ProviderIcon } from "./provider-icon";
+import {
+  draftSelectorModels,
+  modelChangeSelection,
+  modelSelection,
+  modelSelectorId,
+  sessionSelectorModels,
+  type SelectorModel,
+} from "./model-selector-state";
+import { useModelSelectorStore } from "./model-selector-store";
 
-const ALL_PROVIDERS = "all";
 const MODEL_BATCH_SIZE = 12;
-const MODEL_SKELETON_COUNT = 3;
 
-type AppModel = ModelOption & {
-  provider: string;
-  providerName: string;
-  modelId: string;
-  contextWindow: number;
-};
+type AppModel = SelectorModel;
 
-const REASONING_EFFORTS = new Set<ReasoningEffort>(["low", "medium", "high"]);
+type LoadedCatalog =
+  | { scopeKey: string; kind: "session"; value: SessionModelsValue }
+  | { scopeKey: string; kind: "draft"; value: ModelCatalogValue };
 
-function PiModelContextBridge({
+interface OptimisticSelection {
+  scopeKey: string;
+  value: ModelSelection;
+}
+
+function ModelContextBridge({
   model,
   reasoningEffort,
+  includePiMetadata,
 }: {
   model: AppModel;
-  reasoningEffort: ReasoningEffort;
+  reasoningEffort?: string;
+  includePiMetadata: boolean;
 }) {
   const api = useAui();
 
@@ -47,293 +68,415 @@ function PiModelContextBridge({
     () =>
       api.modelContext.register({
         getModelContext: () => ({
-          unstable_composerMetadata: {
-            piModel: {
-              provider: model.provider,
-              modelId: model.modelId,
-              ...(model.efforts ? { thinkingLevel: reasoningEffort } : {}),
-            },
+          config: {
+            modelName: model.id,
+            ...(reasoningEffort ? { reasoningEffort } : {}),
           },
+          ...(includePiMetadata
+            ? {
+                unstable_composerMetadata: {
+                  piModel: {
+                    provider: model.provider,
+                    modelId: model.model,
+                    ...(model.efforts && reasoningEffort ? { thinkingLevel: reasoningEffort } : {}),
+                  },
+                },
+              }
+            : {}),
         }),
       }),
-    [api, model.efforts, model.id, model.provider, reasoningEffort],
+    [api, includePiMetadata, model.efforts, model.id, model.model, model.provider, reasoningEffort],
   );
 
   return null;
 }
 
-function ModelListSkeleton({
-  count,
-  label,
-  onVisible,
-}: {
-  count: number;
-  label: string;
-  onVisible(): void;
-}) {
-  const rootRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const element = rootRef.current;
-    const scrollRoot = element?.closest('[data-slot="model-selector-list"]');
-    if (!element || !scrollRoot) return undefined;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry?.isIntersecting) return;
-        observer.disconnect();
-        onVisible();
-      },
-      { root: scrollRoot, rootMargin: "80px 0px" },
-    );
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [onVisible]);
-
+function MenuStatus({ children, alert }: { children: React.ReactNode; alert?: boolean }) {
   return (
-    <div ref={rootRef} role="status" aria-label={label} className="px-1.5 pb-1">
-      <span className="sr-only">{label}</span>
-      {Array.from({ length: count }, (_, index) => (
-        <div key={index} aria-hidden="true" className="flex h-13 items-center gap-2 px-3">
-          <Skeleton className="size-4.5 shrink-0 rounded-full" />
-          <div className="flex flex-1 flex-col gap-1.5">
-            <Skeleton className="h-3.5 w-2/5" />
-            <Skeleton className="h-2.5 w-1/4" />
-          </div>
-        </div>
+    <div
+      role={alert ? "alert" : "status"}
+      className="text-muted-foreground border-b px-2 py-2 text-xs leading-4"
+    >
+      {children}
+    </div>
+  );
+}
+
+function ModelMenuItem({ model, disabled }: { model: AppModel; disabled: boolean }) {
+  return (
+    <DropdownMenuRadioItem
+      value={model.id}
+      disabled={disabled || model.unavailable}
+      className="h-8 gap-2 px-2 pe-8"
+    >
+      <span className="min-w-0 flex-1 truncate" title={model.name}>
+        {model.name}
+      </span>
+    </DropdownMenuRadioItem>
+  );
+}
+
+function ModelMenuGroup({
+  providerName,
+  models,
+  disabled,
+}: {
+  providerName: string;
+  models: readonly AppModel[];
+  disabled: boolean;
+}) {
+  return (
+    <div>
+      <DropdownMenuLabel className="bg-popover sticky top-0 z-10 px-2 py-1">
+        {providerName}
+      </DropdownMenuLabel>
+      {models.map((model) => (
+        <ModelMenuItem key={model.id} model={model} disabled={disabled} />
       ))}
     </div>
   );
 }
 
+function MenuCurrentValue({ children }: { children: React.ReactNode }) {
+  return <span className="text-muted-foreground ms-auto max-w-32 truncate">{children}</span>;
+}
+
 export function ModelSelector({ isRunning }: ComposerSlotContext) {
-  const { number, t } = useI18n();
-  const modelId = useModelSelectorStore((state) => state.modelId);
-  const reasoningEffort = useModelSelectorStore((state) => state.reasoningEffort);
-  const setModelId = useModelSelectorStore((state) => state.setModelId);
-  const setReasoningEffort = useModelSelectorStore((state) => state.setReasoningEffort);
-  const activeWorkspace = useWorkspaceDirectoryStore((state) =>
-    state.directories.find((directory) => directory.id === state.activeDirectoryId),
+  const { t } = useI18n();
+  const sessionManager = usePiSessionManager();
+  const localThreadId = useAuiState((state) => state.threadListItem.id);
+  const remoteId = useAuiState((state) => state.threadListItem.remoteId);
+  const draftModelId = useModelSelectorStore(
+    (state) => state.draftSelections[localThreadId]?.modelId,
   );
-  const [provider, setProvider] = useState(ALL_PROVIDERS);
-  const [searchQuery, setSearchQuery] = useState("");
+  const draftReasoningEffort = useModelSelectorStore(
+    (state) => state.draftSelections[localThreadId]?.reasoningEffort ?? "medium",
+  );
+  const setDraftSelection = useModelSelectorStore((state) => state.setDraftSelection);
+  const clearDraftSelection = useModelSelectorStore((state) => state.clearDraftSelection);
+  const draftWorkspace = useWorkspaceDirectoryStore((state) =>
+    state.directories.find((directory) => directory.id === state.draftDirectoryId),
+  );
   const [visibleModelCount, setVisibleModelCount] = useState(MODEL_BATCH_SIZE);
-  const [catalog, setCatalog] = useState<PiModelListResponse>();
-  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadedCatalog, setLoadedCatalog] = useState<LoadedCatalog>();
+  const [failedScope, setFailedScope] = useState<string>();
+  const [optimisticSelection, setOptimisticSelection] = useState<OptimisticSelection>();
+  const [selectionFailedScope, setSelectionFailedScope] = useState<string>();
+  const scopeKey = remoteId
+    ? `session:${remoteId}`
+    : `draft:${localThreadId}:${draftWorkspace?.id ?? "none"}`;
+  const currentScopeRef = useRef(scopeKey);
+  currentScopeRef.current = scopeKey;
 
-  useEffect(() => {
-    let active = true;
-    setCatalog(undefined);
-    setLoadFailed(false);
-    setProvider(ALL_PROVIDERS);
-    setSearchQuery("");
-    if (!activeWorkspace)
-      return () => {
-        active = false;
-      };
-    void listPiModels(activeWorkspace.cwd).then(
-      (response) => {
-        if (!active) return;
-        setCatalog(response);
-        setLoadFailed(false);
-      },
-      () => {
-        if (!active) return;
-        setLoadFailed(true);
-      },
-    );
-    return () => {
-      active = false;
-    };
-  }, [activeWorkspace?.cwd]);
-
-  const reasoningLevels = useMemo(
-    () =>
-      [
-        { key: "low", label: t("extensions.modelSelector.low") },
-        { key: "medium", label: t("extensions.modelSelector.medium") },
-        { key: "high", label: t("extensions.modelSelector.high") },
-      ] satisfies readonly EffortLevel[],
-    [t],
-  );
-
-  const models = useMemo(() => {
-    const effortOptions = reasoningLevels.map(({ key, label }) => ({
-      id: key,
-      name: label,
-    })) satisfies readonly ModelSelectorEffortOption[];
-
-    return (catalog?.models ?? []).map((option): AppModel => ({
-      id: `${option.provider}/${option.id}`,
-      modelId: option.id,
-      name: option.name,
-      description: t("extensions.modelSelector.contextWindow", {
-        count: option.contextWindow,
-      }),
-      icon: <ProviderIcon provider={option.provider} modelName={option.name} />,
-      provider: option.provider,
-      providerName: option.providerName,
-      contextWindow: option.contextWindow,
-      keywords: [option.provider, option.providerName],
-      efforts: option.reasoning ? effortOptions : undefined,
-    }));
-  }, [catalog?.models, reasoningLevels, t]);
-
-  useEffect(() => {
-    if (!models.length) return;
-    if (modelId && models.some((model) => model.id === modelId)) return;
-    const preferred = catalog?.defaultModel
-      ? models.find(
-          (model) =>
-            model.provider === catalog.defaultModel?.provider &&
-            model.modelId === catalog.defaultModel.modelId,
-        )
-      : undefined;
-    setModelId((preferred ?? models[0]).id);
-  }, [catalog?.defaultModel, modelId, models, setModelId]);
-
-  const filteredModels = useMemo(() => {
-    if (provider === ALL_PROVIDERS) return models;
-    return models.filter((model) => model.provider === provider);
-  }, [models, provider]);
-  const isSearching = searchQuery.trim().length > 0;
-  const visibleModels = isSearching ? filteredModels : filteredModels.slice(0, visibleModelCount);
-  const remainingModelCount = filteredModels.length - visibleModels.length;
-  const hasMoreModels = !isSearching && remainingModelCount > 0;
+  const catalog = loadedCatalog?.scopeKey === scopeKey ? loadedCatalog : undefined;
+  const loadFailed = failedScope === scopeKey;
+  const selectionFailed = selectionFailedScope === scopeKey;
+  const savingSelection = optimisticSelection?.scopeKey === scopeKey;
 
   useEffect(() => {
     setVisibleModelCount(MODEL_BATCH_SIZE);
-  }, [models, provider, searchQuery]);
+    setOptimisticSelection(undefined);
+    setSelectionFailedScope(undefined);
+  }, [scopeKey]);
+
+  useEffect(() => {
+    let active = true;
+    setFailedScope(undefined);
+
+    const complete = (next: LoadedCatalog) => {
+      if (!active) return;
+      setLoadedCatalog(next);
+      setFailedScope(undefined);
+    };
+    const fail = () => {
+      if (!active) return;
+      setFailedScope(scopeKey);
+    };
+
+    if (remoteId) {
+      void listPiRpcSessionModels({ sessionId: remoteId }).then(
+        (value) => complete({ scopeKey, kind: "session", value }),
+        fail,
+      );
+    } else if (draftWorkspace) {
+      void listPiModelCatalog().then((value) => complete({ scopeKey, kind: "draft", value }), fail);
+    }
+
+    return () => {
+      active = false;
+    };
+  }, [draftWorkspace, remoteId, scopeKey]);
+
+  useEffect(() => {
+    if (remoteId) clearDraftSelection(localThreadId);
+  }, [clearDraftSelection, localThreadId, remoteId]);
+
+  const selectorModels = useMemo(() => {
+    if (!catalog) return [];
+    if (catalog.kind === "session") return sessionSelectorModels(catalog.value);
+    return draftSelectorModels(catalog.value);
+  }, [catalog]);
+
+  const models = selectorModels;
+
+  const selectedDraftModel = useMemo(() => {
+    if (remoteId || catalog?.kind !== "draft") return undefined;
+    const stored = selectorModels.find((model) => model.id === draftModelId);
+    if (stored) return stored;
+    return selectorModels[0];
+  }, [catalog, draftModelId, remoteId, selectorModels]);
+
+  useEffect(() => {
+    if (!selectedDraftModel || draftModelId === selectedDraftModel.id) return;
+    const nextSelection = modelSelection(selectedDraftModel, draftReasoningEffort);
+    setDraftSelection(localThreadId, {
+      modelId: selectedDraftModel.id,
+      ...(nextSelection.reasoningEffort ? { reasoningEffort: nextSelection.reasoningEffort } : {}),
+    });
+  }, [draftModelId, draftReasoningEffort, localThreadId, selectedDraftModel, setDraftSelection]);
+
+  const currentSessionSelection =
+    optimisticSelection?.scopeKey === scopeKey
+      ? optimisticSelection.value
+      : catalog?.kind === "session"
+        ? catalog.value.current
+        : undefined;
+  const selectedModelId = currentSessionSelection
+    ? modelSelectorId(currentSessionSelection.provider, currentSessionSelection.model)
+    : selectedDraftModel?.id;
+  const selectedModel = models.find((model) => model.id === selectedModelId) ?? models[0];
+  const selectedEffort = selectedModel?.efforts
+    ? modelSelection(
+        selectedModel,
+        currentSessionSelection?.reasoningEffort ?? draftReasoningEffort,
+      ).reasoningEffort
+    : undefined;
+  const reasoningLevels = selectedModel?.efforts ?? [];
+  const selectedEffortLabel = reasoningLevels.find((level) => level.id === selectedEffort)?.name;
+
+  const applySessionSelection = useCallback(
+    (selection: ModelSelection) => {
+      if (!remoteId) return;
+      const requestScope = scopeKey;
+      setSelectionFailedScope(undefined);
+      setOptimisticSelection({ scopeKey: requestScope, value: selection });
+      void selectPiRpcSessionModel({
+        sessionId: remoteId,
+        provider: selection.provider,
+        model: selection.model,
+        ...(selection.reasoningEffort ? { reasoningEffort: selection.reasoningEffort } : {}),
+      }).then(
+        ({ selected }) => {
+          if (currentScopeRef.current !== requestScope) return;
+          setLoadedCatalog((current) =>
+            current?.scopeKey === requestScope && current.kind === "session"
+              ? {
+                  ...current,
+                  value: { ...current.value, current: selected, routable: true },
+                }
+              : current,
+          );
+          setOptimisticSelection((current) =>
+            current?.scopeKey === requestScope ? undefined : current,
+          );
+          void sessionManager
+            .getSession(localThreadId, remoteId)
+            .reload()
+            .catch((error) =>
+              console.error("[workbench-pi] model change timeline refresh failed", error),
+            );
+        },
+        () => {
+          if (currentScopeRef.current !== requestScope) return;
+          setOptimisticSelection((current) =>
+            current?.scopeKey === requestScope ? undefined : current,
+          );
+          setSelectionFailedScope(requestScope);
+        },
+      );
+    },
+    [localThreadId, remoteId, scopeKey, sessionManager],
+  );
+
+  const changeModel = useCallback(
+    (modelId: string) => {
+      const nextModel = selectorModels.find((model) => model.id === modelId);
+      if (!nextModel || nextModel.unavailable) return;
+      const nextSelection = modelChangeSelection(nextModel);
+      if (remoteId) {
+        applySessionSelection(nextSelection);
+      } else {
+        setDraftSelection(localThreadId, {
+          modelId: nextModel.id,
+          reasoningEffort: nextSelection.reasoningEffort ?? draftReasoningEffort,
+        });
+      }
+    },
+    [
+      applySessionSelection,
+      draftReasoningEffort,
+      localThreadId,
+      remoteId,
+      selectorModels,
+      setDraftSelection,
+    ],
+  );
+
+  const changeEffort = useCallback(
+    (effort: string) => {
+      if (!selectedModel?.efforts?.some((candidate) => candidate.id === effort)) return;
+      const nextSelection = modelSelection(selectedModel, effort);
+      if (remoteId) {
+        applySessionSelection(nextSelection);
+      } else {
+        setDraftSelection(localThreadId, {
+          modelId: selectedModel.id,
+          reasoningEffort: effort,
+        });
+      }
+    },
+    [applySessionSelection, localThreadId, remoteId, selectedModel, setDraftSelection],
+  );
+
+  const visibleModels = models.slice(0, visibleModelCount);
+  const hasMoreModels = visibleModels.length < models.length;
 
   const loadMoreModels = useCallback(() => {
-    setVisibleModelCount((count) => Math.min(count + MODEL_BATCH_SIZE, filteredModels.length));
-  }, [filteredModels.length]);
+    setVisibleModelCount((count) => Math.min(count + MODEL_BATCH_SIZE, models.length));
+  }, [models.length]);
 
   const providers = useMemo(
     () =>
       Array.from(new Map(models.map((model) => [model.provider, model.providerName])).entries()),
     [models],
   );
-  const selectedModel = models.find((model) => model.id === modelId) ?? models[0];
+  const currentUnavailable = catalog?.kind === "session" && !catalog.value.routable;
+  const loading = !catalog && !loadFailed;
+  const selectionLocked = isRunning || savingSelection || loading;
 
   return (
     <fieldset
-      className="min-w-0 disabled:pointer-events-none disabled:opacity-50"
-      disabled={isRunning || (!catalog && !loadFailed)}
-      title={isRunning ? t("extensions.modelSelector.locked") : undefined}
+      className="min-w-0 shrink-0 disabled:pointer-events-none disabled:opacity-50"
+      disabled={selectionLocked}
+      title={
+        isRunning
+          ? t("extensions.modelSelector.locked")
+          : savingSelection
+            ? t("extensions.modelSelector.saving")
+            : undefined
+      }
     >
-      <AssistantModelSelector.Root
-        models={models}
-        value={selectedModel?.id}
-        effort={reasoningEffort}
-        defaultEffort="medium"
-        onValueChange={(value) => {
-          if (models.some((model) => model.id === value)) setModelId(value);
-        }}
-        onEffortChange={(effort) => {
-          if (REASONING_EFFORTS.has(effort as ReasoningEffort)) {
-            setReasoningEffort(effort as ReasoningEffort);
-          }
-        }}
-      >
-        {selectedModel && (
-          <PiModelContextBridge model={selectedModel} reasoningEffort={reasoningEffort} />
-        )}
-        <AssistantModelSelector.Trigger
-          variant="ghost"
-          size="sm"
-          className="h-auto max-w-48 gap-1 border-0 bg-transparent px-1.5 py-1 text-sm shadow-none hover:bg-muted [&>svg]:opacity-0 [&>svg]:transition-[opacity,transform] hover:[&>svg]:opacity-50 data-popup-open:[&>svg]:rotate-180"
+      {selectedModel && (
+        <ModelContextBridge
+          model={selectedModel}
+          reasoningEffort={selectedEffort}
+          includePiMetadata={!remoteId}
+        />
+      )}
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          disabled={selectionLocked}
+          aria-label={t("assistant.model.select")}
+          className="group hover:bg-muted data-popup-open:bg-muted data-popup-open:w-72 relative flex h-[34px] w-48 max-w-[calc(100vw-8rem)] -translate-y-0.5 items-center justify-center rounded-md bg-transparent px-2 py-0 text-base outline-none transition-[width,background-color,color] duration-200 ease-out focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed"
         >
-          <AssistantModelSelector.Value showIcon={false} showEffort={false} />
-        </AssistantModelSelector.Trigger>
-
-        <AssistantModelSelector.Content
-          className="w-80 max-w-[calc(100vw-1rem)] [&_[data-slot=command]]:p-0 [&_[data-slot=command-input-wrapper]]:border-b [&_[data-slot=command-input-wrapper]]:p-0 [&_[data-slot=input-group]]:h-10! [&_[data-slot=input-group]]:rounded-none! [&_[data-slot=input-group]]:border-0 [&_[data-slot=input-group]]:bg-transparent [&_[data-slot=input-group]]:px-2 [&_[data-slot=model-selector-list]]:max-h-56"
-          align="end"
-        >
-          <AssistantModelSelector.Search value={searchQuery} onValueChange={setSearchQuery} />
-
-          <div
-            className="flex flex-wrap gap-1 border-b px-3 py-2"
-            onKeyDown={(event) => event.stopPropagation()}
+          <span
+            className="block w-full min-w-0 truncate text-center font-mono font-medium"
+            title={selectedModel?.name}
           >
-            {providers.map(([item, label]) => {
-              const active = provider === item;
+            {selectedModel?.name ?? t("assistant.model.select")}
+          </span>
+          <ChevronDownIcon className="absolute end-2 size-3.5 shrink-0 opacity-0 transition-[opacity,transform] group-hover:opacity-50 group-focus-visible:opacity-50 group-data-popup-open:rotate-180 group-data-popup-open:opacity-50" />
+        </DropdownMenuTrigger>
 
-              return (
-                <button
-                  key={item}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => setProvider(active ? ALL_PROVIDERS : item)}
-                  className={[
-                    "rounded-full border px-2 py-0.5 text-xs leading-4 transition-colors",
-                    active
-                      ? "border-foreground/20 bg-muted text-foreground"
-                      : "border-border text-muted-foreground hover:bg-muted/70 hover:text-foreground",
-                  ].join(" ")}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-
-          <AssistantModelSelector.List className="[scrollbar-width:thin] [&::-webkit-scrollbar]:block [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:bg-transparent">
-            <AssistantModelSelector.Empty>
-              {loadFailed
-                ? t("extensions.modelSelector.loadFailed")
-                : t("extensions.modelSelector.noModels")}
-            </AssistantModelSelector.Empty>
-
-            {providers.map(([providerId, providerName]) => {
-              const providerModels = visibleModels.filter((model) => model.provider === providerId);
-              if (!providerModels.length) return null;
-              return (
-                <AssistantModelSelector.Group
-                  key={providerId}
-                  heading={providerName}
-                  className="px-1 py-1 **:[[cmdk-group-heading]]:px-2.5 **:[[cmdk-group-heading]]:py-1 **:[[cmdk-group-heading]]:text-xs"
-                >
-                  {providerModels.map((model) => (
-                    <AssistantModelSelector.Item
-                      key={model.id}
-                      model={model}
-                      className="min-h-13 rounded-lg py-1.5 ps-3 pe-10"
-                    />
-                  ))}
-                </AssistantModelSelector.Group>
-              );
-            })}
-
-            {hasMoreModels && (
-              <ModelListSkeleton
-                key={visibleModelCount}
-                count={Math.min(MODEL_SKELETON_COUNT, remainingModelCount)}
-                label={t("extensions.modelSelector.loadingMore")}
-                onVisible={loadMoreModels}
-              />
-            )}
-          </AssistantModelSelector.List>
-
-          {selectedModel?.efforts && (
-            <div className="border-t p-2.5" onKeyDown={(event) => event.stopPropagation()}>
-              <ReasoningEffortControl
-                className="max-w-none gap-2"
-                levels={reasoningLevels}
-                selectedKey={reasoningEffort}
-                label={t("extensions.modelSelector.thinking")}
-                formatNumber={number}
-                onSelect={(effort) => {
-                  if (REASONING_EFFORTS.has(effort as ReasoningEffort)) {
-                    setReasoningEffort(effort as ReasoningEffort);
-                  }
-                }}
-              />
-            </div>
+        <DropdownMenuContent align="end" side="bottom" sideOffset={4} className="w-72 min-w-72">
+          {(selectionFailed || currentUnavailable) && (
+            <MenuStatus alert={selectionFailed}>
+              {selectionFailed
+                ? t("extensions.modelSelector.selectFailed")
+                : t("extensions.modelSelector.currentUnavailable")}
+            </MenuStatus>
           )}
-        </AssistantModelSelector.Content>
-      </AssistantModelSelector.Root>
+
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger
+              disabled={selectionLocked || !models.length}
+              className="min-h-9 gap-3 px-2 py-1.5 [&>svg]:ml-1.5"
+            >
+              <span>{t("assistant.model.model")}</span>
+              <MenuCurrentValue>
+                {selectedModel?.name ?? t("assistant.model.select")}
+              </MenuCurrentValue>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent
+              className="max-h-80 w-72 overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:bg-transparent"
+              sideOffset={4}
+              onScroll={(event) => {
+                if (!hasMoreModels) return;
+                const popup = event.currentTarget;
+                if (popup.scrollHeight - popup.scrollTop - popup.clientHeight <= 64) {
+                  loadMoreModels();
+                }
+              }}
+            >
+              {loadFailed || !models.length ? (
+                <MenuStatus alert={loadFailed}>
+                  {loadFailed
+                    ? t("extensions.modelSelector.loadFailed")
+                    : t("extensions.modelSelector.noModels")}
+                </MenuStatus>
+              ) : (
+                <DropdownMenuRadioGroup value={selectedModel?.id} onValueChange={changeModel}>
+                  {providers.map(([providerId, providerName], index) => {
+                    const providerModels = visibleModels.filter(
+                      (model) => model.provider === providerId,
+                    );
+                    if (!providerModels.length) return null;
+                    return (
+                      <div key={providerId}>
+                        {index > 0 && <DropdownMenuSeparator />}
+                        <ModelMenuGroup
+                          providerName={providerName}
+                          models={providerModels}
+                          disabled={selectionLocked}
+                        />
+                      </div>
+                    );
+                  })}
+                  {hasMoreModels && (
+                    <div role="status" className="text-muted-foreground px-2 py-1.5 text-xs">
+                      {t("extensions.modelSelector.loadingMore")}
+                    </div>
+                  )}
+                </DropdownMenuRadioGroup>
+              )}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger
+              disabled={selectionLocked || !reasoningLevels.length}
+              className="min-h-9 gap-3 px-2 py-1.5 [&>svg]:ml-1.5"
+            >
+              <span>{t("assistant.model.reasoningEffort")}</span>
+              <MenuCurrentValue>{selectedEffortLabel ?? "—"}</MenuCurrentValue>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="w-44" sideOffset={4}>
+              <DropdownMenuRadioGroup value={selectedEffort} onValueChange={changeEffort}>
+                {reasoningLevels.map((level) => (
+                  <DropdownMenuRadioItem
+                    key={level.id}
+                    value={level.id}
+                    disabled={selectionLocked}
+                    className="h-8 px-2 pe-8"
+                  >
+                    <span className="min-w-0 flex-1 truncate">{level.name}</span>
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </fieldset>
   );
 }

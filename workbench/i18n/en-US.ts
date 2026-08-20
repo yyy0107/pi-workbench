@@ -3,12 +3,9 @@ import type { MessageFormatters } from "@/i18n/types";
 export const workbenchEnUS = {
   chat: {
     empty: {
-      title: "What are you working on?",
+      question: "What will you make in Pi Workbench?",
       description:
         "Ask a question, attach context, or open a workbench panel when the conversation needs more room.",
-      selectWorkspaceTitle: "Select a workspace to begin",
-      selectWorkspaceDescription:
-        "Every conversation belongs to a workspace. Add or choose one from the sidebar before sending a message.",
       planProject: "Help me plan a small project",
       explainConcept: "Explain a difficult concept simply",
       reviewIdea: "Review an idea and find its risks",
@@ -22,6 +19,7 @@ export const workbenchEnUS = {
       stopGenerating: "Stop generating",
       sendMessage: "Send message",
       queueFollowUp: "Add to follow-up queue",
+      dismissError: "Dismiss message",
       openDrawer: "Show composer options",
       closeDrawer: "Hide composer options",
       drawer: "Composer options",
@@ -42,6 +40,37 @@ export const workbenchEnUS = {
     sourceFallback: "Source",
     generating: "Generating response…",
     working: "Pi Working...",
+    workingElapsed: ({ duration }: { duration: string }) => `Pi Working... · ${duration}`,
+    separators: {
+      modelChanged: "Model switched",
+      modelChangedAnnouncement: ({
+        previousModel,
+        model,
+      }: {
+        previousModel?: string;
+        model: string;
+      }) =>
+        previousModel
+          ? `Model switched from ${previousModel} to ${model}`
+          : `Model switched to ${model}`,
+      contextCompacted: "Context compacted",
+      contextCompactedTokens: (
+        { before, after }: { before: number; after: number },
+        { number }: MessageFormatters,
+      ) =>
+        `${number(before, { notation: "compact" })} → ${number(after, { notation: "compact" })} tokens`,
+      contextCompactedBefore: ({ before }: { before: number }, { number }: MessageFormatters) =>
+        `${number(before, { notation: "compact" })} tokens before`,
+      contextCompactedAnnouncement: (
+        { before, after }: { before?: number; after?: number },
+        { number }: MessageFormatters,
+      ) =>
+        before !== undefined && after !== undefined
+          ? `Context compacted from ${number(before)} to approximately ${number(after)} tokens`
+          : before !== undefined
+            ? `Context compacted from ${number(before)} tokens`
+            : "Context compacted",
+    },
     errors: {
       sessionBusy: "This conversation is already generating a response.",
       emptyPrompt: "Enter a message or attach an image before sending.",
@@ -49,6 +78,11 @@ export const workbenchEnUS = {
       invalidWorkingDirectory: "The Pi working directory is not available.",
       invalidWorkspace: "Select a valid workspace before starting a conversation.",
       modelNotAvailable: "This model is not available from the configured Pi providers.",
+      modelDoesNotSupportImages:
+        "The current model does not accept images. Remove the image or choose an image-capable model.",
+      invalidImage: "This image could not be sent. Use a valid PNG, JPEG, GIF, or WebP image.",
+      imageTooLarge: "This image is too large to send. Choose a smaller image.",
+      tooManyImages: "There are too many images to send at once. Remove some images and try again.",
       requestFailed: "Pi could not complete the request. Please try again.",
     },
     scrollLatest: "Scroll to latest",
@@ -64,9 +98,12 @@ export const workbenchEnUS = {
     loadingMoreWorkspaces: "Loading more workspaces",
     empty: "Conversations will appear here after you send your first message.",
     noWorkspaces: "Add a workspace to start a conversation.",
+    ungrouped: "Ungrouped conversations",
     loadMore: "Show more",
     generating: "Generating",
     completed: "Completed in the background",
+    pin: "Pin conversation",
+    unpin: "Unpin conversation",
     archive: "Archive conversation",
     delete: "Delete conversation",
     resize: "Resize conversation sidebar",

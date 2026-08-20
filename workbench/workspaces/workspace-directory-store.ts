@@ -40,6 +40,7 @@ interface WorkspaceDirectoryState {
   syncDirectories(directories: readonly WorkspaceDirectory[]): void;
   removeDirectory(id: string): void;
   activateDirectory(id: string): void;
+  deactivateDirectory(): void;
   revealDirectory(id: string): void;
   toggleDirectory(id: string): void;
   beginNewThread(id: string): void;
@@ -102,35 +103,33 @@ export const useWorkspaceDirectoryStore = create<WorkspaceDirectoryState>((set) 
     }),
   syncDirectories: (incomingDirectories) =>
     set((state) => {
-      if (incomingDirectories.length === 0) return state;
-
       const removedWorkspaceIds = readRemovedWorkspaceIds();
-      const directories = [...state.directories];
-      const collapsedDirectoryIds = new Set(state.collapsedDirectoryIds);
-      let activeDirectoryId = state.activeDirectoryId;
-      let draftDirectoryId = state.draftDirectoryId;
+      for (const directory of incomingDirectories) removedWorkspaceIds.delete(directory.id);
+      writeRemovedWorkspaceIds(removedWorkspaceIds);
 
-      for (const directory of incomingDirectories) {
-        if (removedWorkspaceIds.has(directory.id)) continue;
-        const existingIndex = directories.findIndex(
-          (item) => item.id === directory.id || item.cwd === directory.cwd,
-        );
-        if (existingIndex === -1) {
-          directories.push(directory);
-          if (!activeDirectoryId) activeDirectoryId = directory.id;
-          else collapsedDirectoryIds.add(directory.id);
-          continue;
-        }
-
-        const existing = directories[existingIndex];
-        directories[existingIndex] = { ...existing, ...directory };
-        if (activeDirectoryId === existing.id) activeDirectoryId = directory.id;
-        if (draftDirectoryId === existing.id) draftDirectoryId = directory.id;
-        if (existing.id !== directory.id && collapsedDirectoryIds.delete(existing.id)) {
+      const directories = [...incomingDirectories];
+      const directoryIds = new Set(directories.map((directory) => directory.id));
+      const draftDirectoryId =
+        state.draftDirectoryId && directoryIds.has(state.draftDirectoryId)
+          ? state.draftDirectoryId
+          : undefined;
+      const activeDirectoryId =
+        state.activeDirectoryId && directoryIds.has(state.activeDirectoryId)
+          ? state.activeDirectoryId
+          : (draftDirectoryId ?? directories[0]?.id);
+      const existingDirectoryIds = new Set(state.directories.map((directory) => directory.id));
+      const collapsedDirectoryIds = new Set(
+        state.collapsedDirectoryIds.filter((directoryId) => directoryIds.has(directoryId)),
+      );
+      for (const directory of directories) {
+        if (
+          !existingDirectoryIds.has(directory.id) &&
+          directory.id !== activeDirectoryId &&
+          directory.id !== draftDirectoryId
+        ) {
           collapsedDirectoryIds.add(directory.id);
         }
       }
-
       if (activeDirectoryId) collapsedDirectoryIds.delete(activeDirectoryId);
       return {
         directories,
@@ -156,6 +155,7 @@ export const useWorkspaceDirectoryStore = create<WorkspaceDirectoryState>((set) 
       };
     }),
   activateDirectory: (id) => set({ activeDirectoryId: id }),
+  deactivateDirectory: () => set({ activeDirectoryId: undefined, draftDirectoryId: undefined }),
   revealDirectory: (id) =>
     set((state) => ({
       activeDirectoryId: id,

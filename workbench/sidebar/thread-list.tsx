@@ -5,6 +5,9 @@ import { ThreadListPrimitive, useAuiState } from "@assistant-ui/react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useI18n } from "@/i18n";
+import { usePiSessionManager } from "@/runtime/pi/client/runtime/context";
+import { resolveSidebarThreadWorkspaceId } from "@/workbench/workspaces/new-thread-policy";
+import { useWorkspaceDirectoryStore } from "@/workbench/workspaces/workspace-directory-store";
 
 import { WorkbenchThreadListItem } from "./thread-list-item";
 
@@ -26,17 +29,28 @@ export function WorkbenchThreadList({
   showLoadMore = false,
   showEmpty = true,
 }: {
-  workspaceId: string;
+  workspaceId?: string;
   onNavigate?: () => void;
   showLoadMore?: boolean;
   showEmpty?: boolean;
 }) {
   const { t } = useI18n();
+  const manager = usePiSessionManager();
+  const mainThreadId = useAuiState((state) => state.threads.mainThreadId);
+  const draftWorkspaceId = useWorkspaceDirectoryStore((state) => state.draftDirectoryId);
   const isLoading = useAuiState((state) => state.threads.isLoading);
   const hasThreads = useAuiState((state) =>
     state.threads.threadIds.some((threadId) => {
       const thread = state.threads.threadItems.find((item) => item.id === threadId);
-      return thread?.custom?.piWorkspaceId === workspaceId;
+      if (!thread) return false;
+      return (
+        resolveSidebarThreadWorkspaceId({
+          customWorkspaceId: thread.custom?.piWorkspaceId,
+          managedWorkspaceId: manager.getThreadCustom(thread.id)?.piWorkspaceId,
+          isMainThread: thread.id === state.threads.mainThreadId,
+          draftWorkspaceId,
+        }) === workspaceId
+      );
     }),
   );
   const hasMore = useAuiState((state) => state.threads.hasMore);
@@ -48,7 +62,12 @@ export function WorkbenchThreadList({
       {!isLoading ? (
         <ThreadListPrimitive.Items>
           {({ threadListItem }) => {
-            const threadWorkspaceId = threadListItem.custom?.piWorkspaceId;
+            const threadWorkspaceId = resolveSidebarThreadWorkspaceId({
+              customWorkspaceId: threadListItem.custom?.piWorkspaceId,
+              managedWorkspaceId: manager.getThreadCustom(threadListItem.id)?.piWorkspaceId,
+              isMainThread: threadListItem.id === mainThreadId,
+              draftWorkspaceId,
+            });
             if (threadWorkspaceId !== workspaceId) return null;
 
             return <WorkbenchThreadListItem workspaceId={workspaceId} onNavigate={onNavigate} />;

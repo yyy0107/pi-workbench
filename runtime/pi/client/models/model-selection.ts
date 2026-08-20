@@ -1,0 +1,30 @@
+import type { AppendMessage } from "@assistant-ui/react";
+
+import { PI_THINKING_LEVELS } from "../../contracts";
+import type { SessionSelectModelPayload } from "../../rpc-contracts";
+
+export type DraftSessionModelSelection = Omit<SessionSelectModelPayload, "sessionId">;
+
+/**
+ * A draft can carry its composer model into the session created for its first
+ * prompt. Once a remote session exists, its server-owned selection must never
+ * be overwritten implicitly by message metadata.
+ */
+export function draftSessionModelSelection(
+  remoteId: string | undefined,
+  message: AppendMessage,
+): DraftSessionModelSelection | undefined {
+  if (remoteId) return undefined;
+  const candidate = message.metadata?.custom?.piModel;
+  if (!candidate || typeof candidate !== "object") return undefined;
+  const selection = candidate as Record<string, unknown>;
+  if (typeof selection.provider !== "string" || typeof selection.modelId !== "string") {
+    return undefined;
+  }
+  const reasoningEffort = PI_THINKING_LEVELS.find((level) => level === selection.thinkingLevel);
+  return {
+    provider: selection.provider,
+    model: selection.modelId,
+    ...(reasoningEffort ? { reasoningEffort } : {}),
+  };
+}
