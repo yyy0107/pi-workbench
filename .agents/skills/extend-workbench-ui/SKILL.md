@@ -1,6 +1,6 @@
 ---
 name: extend-workbench-ui
-description: Builds, modifies, and reviews Pi Workbench frontend extensions using this repository's static Slot, Panel, Command, and Renderer platform. Use when adding Workbench UI features, extension components, composer/header/sidebar/statusbar contributions, panels, command-palette actions or shortcuts, assistant-ui tool/data renderers, enabledExtensions entries, or when deciding whether a frontend change belongs in an extension versus app, workbench, runtime, or backend core.
+description: Builds, modifies, and reviews Pi Workbench frontend extensions using this repository's static Slot, Panel, Command, Renderer, and Settings platform. Use when adding Workbench UI features, extension components, composer/header/sidebar/statusbar contributions, panels, settings sections or items, command-palette actions or shortcuts, assistant-ui tool/data renderers, enabledExtensions entries, or when deciding whether a frontend change belongs in an extension versus app, workbench, runtime, or backend core.
 ---
 
 # Extend Workbench UI
@@ -11,7 +11,7 @@ Implement frontend features through the repository's typed, statically bundled e
 
 1. Read the repository `AGENTS.md` and preserve unrelated worktree changes.
 2. Read [references/contracts.md](references/contracts.md) before editing extension code.
-3. Read [references/recipes.md](references/recipes.md) when implementing a Slot, Panel, Command, Renderer, or new host Slot.
+3. Read [references/recipes.md](references/recipes.md) when implementing a Slot, Panel, Command, Renderer, Settings contribution, or new host Slot.
 4. Read `docs/extensions.md` only when the task asks for public documentation or a detailed tutorial.
 5. Use the project `runtime` skill when changing `useAui`, thread, composer, or Runtime state usage.
 6. Use the project `primitives` skill when changing assistant-ui message, composer, or thread composition.
@@ -26,6 +26,7 @@ Implement the feature as an extension when it can be independently enabled or re
 - Use a **Panel** for a scrollable or form-heavy workspace.
 - Use a **Command** for an action shared by the command palette, a shortcut, or UI controls.
 - Use a **Renderer** for a complete assistant-ui message presentation or an existing tool-call/data message part.
+- Use **Settings** for a navigation section or a feature-owned preference inside the shared floating settings surface.
 - Combine contribution types inside one extension when they represent one feature.
 
 Keep the sidebar's New Conversation control and thread list in core. Register replaceable product
@@ -54,6 +55,7 @@ When no existing Slot fits, add a typed host Slot first, then register the featu
   - `token-usage`: derive assistant-ui Runtime state;
   - `skills`: Slot trigger plus Panel;
   - `terminal`: Panel, Command, shortcut, and responsive trigger;
+  - `settings`: sidebar trigger, Panel, Command, and extensible settings sections/items;
   - `model-selector`: assistant-ui ModelContext integration.
 - Check whether the requested id, shortcut, tool name, or data name already exists.
 - Search project-wide global `keydown` listeners before assigning a shortcut. Non-Command listeners may accept extra modifiers and still collide with an otherwise exact Command shortcut.
@@ -123,9 +125,9 @@ Run `pnpm build` when changing provider composition, public contracts, Workbench
 - Import extension contracts and hooks from `@/platform/extensions`; do not import registry or host internals.
 - Register component types, not pre-created React nodes.
 - Never call `register()` during React render.
-- Keep Extension, Panel, Command, Slot contribution, and Renderer identifiers within their documented uniqueness scopes.
+- Keep Extension, Panel, Command, Slot contribution, Renderer, Settings section, and Settings item identifiers within their documented uniqueness scopes.
 - Audit both registered Commands and standalone global keyboard listeners before choosing a shortcut.
-- Use `order` only for Slot contributions. Panel, Command, and Renderer APIs have no numeric priority.
+- Use `order` only for Slot and Settings contributions. Panel, Command, and Renderer APIs have no numeric priority.
 - Treat tool arguments as partial while streaming; guard missing fields and all status variants.
 - Do not duplicate `messages`, composer content, or `isRunning` in Zustand; derive them from assistant-ui.
 - Do not repeat the Panel title bar or close chrome inside Panel content.

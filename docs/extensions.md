@@ -1,6 +1,6 @@
 # Workbench 扩展组件开发指南
 
-本文说明如何为 Pi Workbench 第一版开发扩展组件，并给出 Slot、Panel、Command、Renderer 四类扩展的完整示例。
+本文说明如何为 Pi Workbench 第一版开发扩展组件，并给出 Slot、Panel、Command、Renderer、Settings 五类扩展能力的完整示例。
 
 让 AI 协助实现扩展时，可以显式调用项目技能 `$extend-workbench-ui`。技能位于 [`.agents/skills/extend-workbench-ui/`](../.agents/skills/extend-workbench-ui/SKILL.md)，会按本文的边界、流程和验证要求执行。
 
@@ -14,7 +14,7 @@
 
 扩展平台的公开入口是 [`platform/extensions/index.ts`](../platform/extensions/index.ts)。扩展应优先从 `@/platform/extensions` 导入类型、Hook 和注册 API，不要依赖 `registries/`、`hosts/` 等内部实现。
 
-## 1. 先理解四种扩展能力
+## 1. 先理解五种扩展能力
 
 一个扩展由 `defineExtension()` 定义，并在 `setup(context)` 中注册一个或多个贡献：
 
@@ -22,16 +22,17 @@
 enabledExtensions
   -> ExtensionProvider
     -> extension.setup(context)
-      -> Slot / Panel / Command / Renderer Registry
+      -> Slot / Panel / Command / Renderer / Settings Registry
         -> 对应 Host 渲染或执行
 ```
 
-四种贡献各自解决不同问题：
+五种贡献各自解决不同问题：
 
 - **Slot**：把小型组件插入宿主已经声明的位置，例如 Composer 按钮或状态栏指标。
 - **Panel**：提供独立工作区，例如 Skills、Terminal、文件预览器。
 - **Command**：提供可复用动作，同时进入命令面板和快捷键系统。
 - **Renderer**：接管整条消息的 Parts/分组策略，或按 tool name、data name 渲染单个 assistant-ui Part。
+- **Settings**：向共享悬浮设置面板注册导航分区或功能自有设置项。
 
 选择建议：
 
@@ -39,6 +40,7 @@ enabledExtensions
 - 需要滚动、表单或较大空间：使用 Panel。
 - 同一动作需要被快捷键、命令面板或按钮复用：使用 Command。
 - 需要决定 reasoning/tool 是否分组、消息样式，或展示模型工具调用和结构化数据：使用 Renderer。
+- 功能需要出现在共享悬浮设置面板：使用 Settings；分区由壳扩展注册，具体设置项由所属功能注册。
 - 需要一个新 URL：直接增加 Next.js 文件路由，不要放进扩展 API。
 
 ## 2. 扩展的最小结构
@@ -81,7 +83,7 @@ export const exampleExtension = defineExtension({
 
 `setup()` 当前必须是同步函数，不能声明为 `async`，也不能返回 Promise。异步工作应放到组件 `useEffect()`、Command 的 `run()`，或由 setup 启动并通过 Disposable 可靠取消。
 
-通过 `context.slots/panels/commands/renderers.register()` 创建的 Disposable 会被 Manager 追踪。仍建议显式返回它们；额外创建的事件监听、计时器或订阅则必须包装成 Disposable 并返回。
+通过 `context.slots/panels/commands/renderers/settings` 创建的 Disposable 会被 Manager 追踪。仍建议显式返回它们；额外创建的事件监听、计时器或订阅则必须包装成 Disposable 并返回。
 
 `defineExtension()` 是保留字面量类型的 identity helper，真正的运行时校验和激活由 ExtensionManager 完成。扩展对象应定义在模块顶层并保持引用稳定；不要在 React render 中临时创建新的扩展对象或 `extensions` 数组，否则相同 id 也会因对象引用变化而先停用再激活。
 
@@ -328,6 +330,7 @@ pnpm dev
 无 Context 参数的 Slot：
 
 - `header.left`、`header.center`、`header.right`；
+- `shell.background`、`shell.overlay`；
 - `sidebar.brand`、`sidebar.header`、`sidebar.navigation`、`sidebar.workspace.actions`、`sidebar.top`、`sidebar.bottom`、`sidebar.footer`；
 - `statusbar.left`、`statusbar.right`。
 
@@ -358,6 +361,10 @@ Composer Slot：
 完整类型定义见 [`platform/extensions/api/slot.ts`](../platform/extensions/api/slot.ts)。
 
 `sidebar.brand` 位于侧栏顶部，用于可替换的产品标识；默认 `workbench-brand` 扩展在这里贡献 “Pi-Workbench”。`sidebar.navigation` 位于核心“新建会话”按钮之后，适合 Agent、工具箱、资产等可选主导航；`sidebar.workspace.actions` 位于“工作区”标题右侧，适合添加、搜索或筛选等紧凑操作；`sidebar.footer` 位于侧栏固定底部，适合设置或状态入口。核心“新建会话”和 Thread List 不由扩展替换。
+
+`shell.background` 挂载在 Workbench 内容下方，适合全局底色、纹理、渐变或主题控制器。贡献必须保持非交互，不得在背景层放置按钮或链接；若要同步组件表面，应通过共享主题变量实现。
+
+`shell.overlay` 在 Workbench 全局层只挂载一次，适合由多个响应式入口共同控制的 Dialog 或其他 portal 悬浮表面。贡献组件自行拥有打开、关闭与焦点行为；宿主只负责全局挂载和错误隔离。
 
 当前移动端会话抽屉复用核心侧栏内容，但不挂载 `sidebar.*` Slot；Sidebar Slot 贡献目前只显示在桌面侧栏。需要移动端入口时，可像 Terminal 扩展一样额外注册 `header.right` 触发器。
 
@@ -553,7 +560,35 @@ export function RunNotesCommandButton() {
 
 优先让 Slot 按钮和快捷键调用同一个 Command，避免分别实现两套业务逻辑。若按钮只做简单的 Panel toggle，也可以像当前 Skills 扩展一样直接使用 `usePanelService()`。
 
-## 7. Renderer 开发参考
+## 7. Settings 开发参考
+
+共享悬浮设置面板由 `workbench.settings` 扩展提供。它通过 `shell.overlay` 全局挂载，不属于左、右或底部 Panel。设置分区与设置项是独立贡献：壳扩展注册分区，功能扩展把自己的设置项注册到目标分区，因此语言、主题或模型功能可以随扩展一起启用和卸载。
+
+```ts
+const section = context.settings.registerSection({
+  id: "general",
+  title: defineMessage("extensions.settings.general.title"),
+  order: 0,
+});
+
+const item = context.settings.registerItem({
+  sectionId: "general",
+  id: "language",
+  component: LocaleSettingsItem,
+  order: 10,
+});
+```
+
+- section id 全局唯一；item id 在同一 section 内唯一；
+- `title` 与 `description` 支持 `defineMessage(...)`，语言切换时由 Host 重新解析；
+- section 与 item 都按 `order` 升序排列，相同 order 保持注册顺序；
+- item 可以先于 section 注册，目标 section 出现后会自动渲染，避免静态扩展顺序形成隐式依赖；
+- `SettingsItemComponentProps` 提供稳定的 `sectionId` 和 `itemId`；设置值的状态与持久化仍由所属功能负责；
+- Host 拥有导航、分区标题、滚动、分隔线和错误边界，设置项只渲染自己的行或业务表面。
+
+React 组件可通过 `useSettingsRegistry()` 读取稳定快照并订阅注册变化。普通业务扩展应在 `setup()` 中注册贡献，不要在 React render 期间调用 registry。
+
+## 8. Renderer 开发参考
 
 Renderer 只负责展示消息 Part，不负责：
 
@@ -714,7 +749,7 @@ Message Renderer 全局唯一；Tool 和 Data Renderer 各自按名称唯一。�
 同一个 tool name 或 data name 重复注册会在开发阶段报错。名称来自模型或协议，必须使用精确匹配，不要依赖对象原型键或模糊匹配。
 匹配区分大小写：`get_weather` 与 `Get_Weather` 是两个不同名称。
 
-## 8. 生命周期与错误隔离
+## 9. 生命周期与错误隔离
 
 扩展由 [`ExtensionProvider`](../platform/extensions/extension-provider.tsx) 激活：
 
@@ -751,7 +786,7 @@ export const resizeObserverExtension = defineExtension({
 
 但要注意：`setup()` 在 Provider 的 client effect 中运行。尽管此时可以访问 `window`，更推荐把 React 相关副作用放入扩展组件自己的 `useEffect()`，让生命周期更直观。
 
-## 9. 状态应该放在哪里
+## 10. 状态应该放在哪里
 
 使用 assistant-ui Runtime 保存：
 
@@ -780,7 +815,7 @@ const messages = useAuiState((state) => state.thread.messages);
 const isRunning = useAuiState((state) => state.thread.isRunning);
 ```
 
-## 10. ID 与注册规则
+## 11. ID 与注册规则
 
 推荐命名：
 
@@ -803,10 +838,12 @@ data renderer name:    citation
 - Message renderer：整个 Message RendererRegistry 同时只能有一个；
 - Tool renderer name：Tool RendererRegistry；
 - Data renderer name：Data RendererRegistry。
+- Settings section id：整个 SettingsRegistry；
+- Settings item id：同一个 settings section 内。
 
 Slot、Panel、Command 定义在注册时会被复制并浅冻结。注册后不要修改原对象来尝试更新 UI；需要替换贡献时，应 dispose 后重新注册。
 
-## 11. 不要做的事情
+## 12. 不要做的事情
 
 - 不要从远程 URL `import()` 任意 JavaScript 插件。
 - 不要在扩展中注册 Next.js 路由。
@@ -820,16 +857,17 @@ Slot、Panel、Command 定义在注册时会被复制并浅冻结。注册后不
 - 不要复制 assistant-ui 的消息和 Composer 状态。
 - 不要在前端扩展中放 API Key 或其他秘密。
 
-## 12. 可参考的现有扩展
+## 13. 可参考的现有扩展
 
 - 最小 Slot：[`connection-status`](../extensions/builtin/connection-status/extension.ts)
 - assistant-ui ModelContext：[`model-selector`](../extensions/builtin/model-selector/extension.ts)
 - Slot + Panel：[`skills`](../extensions/builtin/skills/extension.ts)
 - Panel + Command + 移动端 Slot：[`terminal`](../extensions/builtin/terminal/extension.ts)
+- Sidebar/Header Slot + floating Settings：[`settings`](../extensions/builtin/settings/extension.ts)
 - Message 分组、reasoning 与 Tool/Data fallback：[`message-presentation`](../extensions/builtin/message-presentation/extension.ts)
 - Runtime 状态派生：[`token-usage`](../extensions/builtin/token-usage/extension.ts)
 
-如果新需求无法自然归入 Slot、Panel、Command 或 Renderer，先判断它是不是：
+如果新需求无法自然归入 Slot、Panel、Command、Renderer 或 Settings，先判断它是不是：
 
 1. Next.js 路由职责；
 2. assistant-ui Runtime/Tool 职责；

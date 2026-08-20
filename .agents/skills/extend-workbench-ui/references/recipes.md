@@ -6,6 +6,7 @@ Use these patterns as starting points. Adapt ids, labels, styling, and behavior 
 
 - [Slot-only feature](#slot-only-feature)
 - [Slot, Panel, and Command feature](#slot-panel-and-command-feature)
+- [Settings contribution](#settings-contribution)
 - [Message Renderer](#message-renderer)
 - [Tool Renderer](#tool-renderer)
 - [Data Renderer](#data-renderer)
@@ -240,6 +241,35 @@ const addMenuItem = context.slots.register("panel.right.add-menu", {
 
 Use `panel.right.actions` for compact icon-only actions such as refresh, fullscreen, or layout controls. Its component receives `{ activePanelId }`. The host owns the close, plus, and collapse buttons; do not duplicate them inside contributions.
 
+## Settings contribution
+
+Let the shared settings extension own its floating surface, navigation, headings, and separators. A feature
+registers only the section it owns or an item inside an existing section:
+
+```ts
+const section = context.settings.registerSection({
+  id: "general",
+  title: defineMessage("extensions.settings.general.title"),
+  order: 0,
+});
+
+const item = context.settings.registerItem({
+  sectionId: "general",
+  id: "language",
+  component: LocaleSettingsItem,
+  order: 10,
+});
+
+return [section, item];
+```
+
+Settings items may use Hooks and browser APIs in their client component. Keep preference state and
+persistence with the feature that owns the item. Do not register during render or import the
+concrete Settings registry implementation. Items may register before their section appears.
+
+Use `extensions/builtin/settings` for the shell and
+`extensions/builtin/locale-selector` for an independently owned item.
+
 ## Message Renderer
 
 Register one complete message presentation when an extension needs to choose part grouping,
@@ -425,6 +455,7 @@ Do not add a feature-specific Slot such as `notes.button`. Add a semantic host l
 - [ ] Import only the extension public surface.
 - [ ] Keep the extension object and enabled array stable.
 - [ ] Use unique ids and exact Renderer names.
+- [ ] Keep Settings section ids global and item ids unique within their section.
 - [ ] Audit registered shortcuts and standalone global `keydown` listeners.
 - [ ] Return Disposables for external resources.
 - [ ] Avoid duplicate Panel chrome.

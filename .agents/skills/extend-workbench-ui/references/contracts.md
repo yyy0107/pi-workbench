@@ -9,6 +9,7 @@ Use this reference to verify the current first-version public API before impleme
 - [Slot contract](#slot-contract)
 - [Panel contract](#panel-contract)
 - [Command contract](#command-contract)
+- [Settings contract](#settings-contract)
 - [Renderer contract](#renderer-contract)
 - [Services available to components](#services-available-to-components)
 - [Uniqueness and ordering](#uniqueness-and-ordering)
@@ -46,6 +47,7 @@ interface ExtensionContext {
   readonly panels: PanelRegistry;
   readonly commands: CommandRegistry;
   readonly renderers: RendererRegistry;
+  readonly settings: SettingsRegistry;
 }
 
 type ExtensionSetupResult = void | Disposable | readonly Disposable[];
@@ -70,6 +72,8 @@ Available slots:
 header.left
 header.center
 header.right
+shell.background
+shell.overlay
 sidebar.brand
 sidebar.header
 sidebar.navigation
@@ -125,6 +129,8 @@ interface RightPanelActionsSlotContext {
 }
 
 interface SlotPropsMap {
+  "shell.background": Record<never, never>;
+  "shell.overlay": Record<never, never>;
   "panel.right.add-menu": RightPanelAddMenuSlotContext;
   "panel.right.actions": RightPanelActionsSlotContext;
   "thread.left": { threadId?: string };
@@ -141,7 +147,7 @@ interface SlotPropsMap {
   "composer.drawer.left": ComposerDrawerSlotContext;
   "composer.drawer.right": ComposerDrawerSlotContext;
   "composer.after": ComposerSlotContext;
-  // Header, Sidebar, and Statusbar slots use Record<never, never>.
+  // Header, shell, Sidebar, and Statusbar slots use Record<never, never>.
 }
 ```
 
@@ -160,6 +166,15 @@ interface SlotContribution<K extends WorkbenchSlot> {
 ```
 
 Slot `order` defaults to `0`, sorts ascending, and preserves registration order for ties. Contribution id is unique within one Slot.
+
+`shell.background` mounts once beneath the Workbench content. Use it for non-interactive theme
+backgrounds, textures, and visual effects. Keep contributions pointer-inert and coordinate shared
+surface colors through theme variables rather than covering interactive content.
+
+`shell.overlay` mounts once in the Workbench global layer. Use it for controlled dialogs and other
+portal-backed floating surfaces that must be reachable from multiple responsive entry points. A
+feature owns the surface state and close behavior; the Slot host only provides global placement and
+error isolation.
 
 Sidebar positions are semantic:
 
@@ -252,6 +267,49 @@ Registered commands appear in the `Mod+K` palette. Shortcut tokens support `Mod`
 
 Also search standalone global `keydown` listeners outside `CommandService`. For example, the sidebar's `Mod+B` listener accepts `Mod+Shift+B` because it does not reject extra modifiers, so that combination would trigger both features.
 
+## Settings contract
+
+The shared floating settings surface is composed from independently registered sections and feature-owned items:
+
+```ts
+interface SettingsSectionDefinition {
+  id: string;
+  title: LocalizableText;
+  description?: LocalizableText;
+  icon?: LucideIcon;
+  order?: number;
+}
+
+interface SettingsItemComponentProps {
+  sectionId: string;
+  itemId: string;
+}
+
+interface SettingsItemDefinition {
+  sectionId: string;
+  id: string;
+  component: ComponentType<SettingsItemComponentProps>;
+  order?: number;
+}
+
+interface SettingsRegistry {
+  registerSection(section: SettingsSectionDefinition): Disposable;
+  registerItem(item: SettingsItemDefinition): Disposable;
+  getSections(): readonly SettingsSectionDefinition[];
+  getItems(): readonly SettingsItemDefinition[];
+  subscribe(listener: () => void): () => void;
+}
+```
+
+Section ids are globally unique. Item ids are unique within one section. Sections and items sort by
+ascending `order`, preserving registration order for ties. An item may register before its target
+section so static extension activation order does not create a dependency. The settings Host owns
+navigation, headings, scrolling, separators, and error isolation; item components own their
+preference UI, state, and persistence.
+
+Use `useSettingsRegistry()` only in the shared settings Host or tooling that needs subscribed
+snapshots. Business extensions should register contributions synchronously in `setup()`.
+
 ## Renderer contract
 
 ```ts
@@ -308,6 +366,8 @@ Extension id          global within ExtensionManager
 Slot contribution id unique within one Slot
 Panel id              global within PanelRegistry
 Command id            global within CommandRegistry
+Settings section id   global within SettingsRegistry
+Settings item id      unique within one settings section
 Message renderer      one active within Message RendererRegistry
 Tool renderer name    unique within Tool RendererRegistry
 Data renderer name    unique within Data RendererRegistry
@@ -315,10 +375,10 @@ Data renderer name    unique within Data RendererRegistry
 
 Only Slots have numeric ordering. The module-level `enabledExtensions` order determines activation order, same-order Slot ties, conflicting shortcut selection, and command display order within a category.
 
-Slot, Panel, and Command definitions are copied and shallow-frozen at registration. Dispose and register a replacement instead of mutating registered data.
+Slot, Panel, Command, Settings section, and Settings item definitions are copied and shallow-frozen at registration. Dispose and register a replacement instead of mutating registered data.
 
 ## Error isolation
 
-Slot, Panel, and Renderer contributions receive separate React Error Boundaries. Setup failures are reported and rolled back. Palette/keyboard Command execution reports rejected Promises.
+Slot, Panel, Settings item, and Renderer contributions receive separate React Error Boundaries. Setup failures are reported and rolled back. Palette/keyboard Command execution reports rejected Promises.
 
 React Error Boundaries do not catch event-handler errors or arbitrary asynchronous failures. Handle those locally or route them through the extension environment.
