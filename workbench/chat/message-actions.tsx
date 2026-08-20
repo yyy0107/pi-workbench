@@ -64,7 +64,7 @@ export function WorkbenchMessageActions({ className }: Readonly<{ className?: st
     >
       {role === "user" ? (
         <time dateTime={createdAt.toISOString()} className="me-1 text-xs tabular-nums">
-          {date(createdAt, { hour: "2-digit", minute: "2-digit" })}
+          {date(createdAt, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
         </time>
       ) : null}
       {capabilities.unstable_copy && (role === "user" || role === "assistant") ? (

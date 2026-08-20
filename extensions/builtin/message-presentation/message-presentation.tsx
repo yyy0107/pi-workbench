@@ -18,10 +18,12 @@ import { useI18n } from "@/i18n";
 import { RendererHost } from "@/platform/extensions";
 import { readPiTurnTiming, resolvePiTurnDuration } from "@/runtime/pi/client/messages/turn-timing";
 import { parsePiMessageTermination } from "@/runtime/pi/message-termination";
+import { WorkbenchComposerMessageText } from "@/workbench/chat/composer-message-text";
 
 import { formatCompletedDuration, completedWorkBoundary } from "./completed-turn-model";
 import { CompletedTurnPanel } from "./completed-turn-panel";
 import { MessageDisclosureProvider } from "./message-disclosure-context";
+import { messageTextPresentation } from "./message-presentation-policy";
 import { MessageToolTimeline } from "./message-tool-timeline";
 
 type PresentationGroup = "group-completed-turn" | "group-tool-timeline";
@@ -55,6 +57,7 @@ export function WorkbenchMessagePresentation() {
   const { t, date } = useI18n();
   const timing = useMessageTiming();
   const messageCreatedAt = useAuiState((state) => state.message.createdAt);
+  const messageRole = useAuiState((state) => state.message.role);
   const storedTurnTiming = useAuiState((state) => state.message.metadata.custom.piTurnTiming);
   const storedTermination = useAuiState((state) => state.message.metadata.custom.piTermination);
   const termination = parsePiMessageTermination(storedTermination);
@@ -132,6 +135,9 @@ export function WorkbenchMessagePresentation() {
             }
             case "text":
               if (part.status.type === "running" && part.text === "") return null;
+              if (messageTextPresentation(messageRole) === "composer") {
+                return <WorkbenchComposerMessageText text={part.text} />;
+              }
               return <MarkdownText />;
             case "reasoning":
               return null;

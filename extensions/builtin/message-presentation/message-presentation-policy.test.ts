@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   defaultMessageDisclosureOpen,
+  messageTextPresentation,
   type MessagePresentationDisclosure,
   type MessagePresentationPhase,
 } from "./message-presentation-policy";
@@ -37,4 +38,10 @@ test("closes every disclosure after the response completes", () => {
     tool: false,
     "parallel-tools": false,
   });
+});
+
+test("renders user text through the shared Composer document presentation", () => {
+  assert.equal(messageTextPresentation("user"), "composer");
+  assert.equal(messageTextPresentation("assistant"), "markdown");
+  assert.equal(messageTextPresentation("system"), "markdown");
 });

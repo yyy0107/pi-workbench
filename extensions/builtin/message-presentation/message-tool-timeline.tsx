@@ -129,7 +129,14 @@ function TimelineReasoning({
       activeLabel={t("extensions.messagePresentation.reasoning.active")}
       restingLabel={t("extensions.messagePresentation.reasoning.step")}
       icon={SparklesIcon}
-      activeIcon={<ThinkingOrb state="composing" size={20} speed={3.0} />}
+      activeIcon={
+        <ThinkingOrb
+          state="composing"
+          size={20}
+          speed={3.0}
+          style={{ width: "100%", height: "100%" }}
+        />
+      }
       collapsedPreview={collapsedPreview}
       elapsed={
         elapsedSeconds === undefined
@@ -182,6 +189,7 @@ function TimelineToolCall({
     >
       {part.toolName === "bash" && !part.isError ? (
         <BashTerminal
+          toolCallId={part.toolCallId}
           command={
             typeof part.args === "object" &&
             part.args !== null &&

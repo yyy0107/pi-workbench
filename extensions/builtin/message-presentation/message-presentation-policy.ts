@@ -7,6 +7,12 @@ export type MessagePresentationDisclosure =
 
 export type MessagePresentationPhase = "streaming" | "completed";
 
+export function messageTextPresentation(
+  role: "user" | "assistant" | "system",
+): "composer" | "markdown" {
+  return role === "user" ? "composer" : "markdown";
+}
+
 const DEFAULT_OPEN: Readonly<
   Record<MessagePresentationPhase, Readonly<Record<MessagePresentationDisclosure, boolean>>>
 > = {

@@ -56,7 +56,7 @@ export function ReasoningPanel({
           <span
             data-slot="reasoning-panel-icon"
             aria-hidden="true"
-            className="flex size-5 shrink-0 items-center justify-center"
+            className="flex size-3.5 shrink-0 items-center justify-center"
           >
             {activeIcon}
           </span>

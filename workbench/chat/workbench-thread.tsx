@@ -229,15 +229,21 @@ function PiWorkingStatus() {
       role="status"
       aria-live="polite"
       aria-label={t("workbench.chat.working")}
-      className="text-foreground/70 flex h-12 w-full shrink-0 items-center gap-2 text-sm font-medium [overflow-anchor:none]"
+      className="text-foreground/70 flex h-10 w-full shrink-0 items-center gap-1.5 text-[13.5px] font-medium [overflow-anchor:none]"
     >
-      <ThinkingOrb
-        state="connecting"
-        size={20}
-        speed={3.0}
-        role="presentation"
+      <span
+        data-slot="pi-working-icon"
         aria-hidden="true"
-      />
+        className="flex size-3.5 shrink-0 items-center justify-center"
+      >
+        <ThinkingOrb
+          state="connecting"
+          size={20}
+          speed={3.0}
+          style={{ width: "100%", height: "100%" }}
+          role="presentation"
+        />
+      </span>
       <span
         data-slot="pi-working-label"
         aria-hidden="true"

@@ -58,7 +58,7 @@ export function WorkbenchSidebarContent({
 
       <div
         data-workspace-scroll-container
-        className="min-h-0 flex-1 overflow-y-auto py-1 ps-3 pe-[2px] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-[6px]"
+        className="min-h-0 flex-1 overflow-y-auto py-1 ps-3 pe-[2px] [scrollbar-gutter:stable] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-[6px]"
       >
         {!mobile ? (
           <SlotHost name="sidebar.top" className="mb-1 flex flex-col gap-1 empty:hidden" />

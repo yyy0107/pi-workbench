@@ -1,102 +1,211 @@
 "use client";
 
-import { useAuiState, type ThreadMessage } from "@assistant-ui/react";
-import { GaugeIcon } from "lucide-react";
-import { useMemo, useRef } from "react";
+import { useAuiState } from "@assistant-ui/react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useI18n } from "@/i18n";
+import { formatCompactDuration } from "@/lib/format-duration";
+import {
+  aggregatePiSessionStatistics,
+  mergeMonotonicPiSessionStatistics,
+  type PiSessionStatistics,
+} from "@/runtime/pi/client/messages/session-statistics";
 
-function estimateTextTokens(text: string) {
-  let estimate = 0;
+import {
+  interpolateTokenQuantities,
+  TOKEN_ANIMATION_DURATION_MS,
+  tokenQuantities,
+  tokenQuantitiesEqual,
+  type TokenQuantities,
+} from "./token-animation";
 
-  for (const character of text) {
-    estimate += character.codePointAt(0)! > 0x2e7f ? 1 : 0.25;
-  }
-
-  return estimate;
+function Separator() {
+  return (
+    <span aria-hidden="true" className="px-2 text-border">
+      |
+    </span>
+  );
 }
 
-function estimateMessageTokens(message: ThreadMessage) {
-  let estimate = 0;
+function useLiveStatisticsTime(isRunning: boolean): number {
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
 
-  for (const part of message.content) {
-    if (part.type === "text" || part.type === "reasoning") {
-      estimate += estimateTextTokens(part.text);
-    } else if (part.type === "tool-call") {
-      estimate += estimateTextTokens(part.toolName);
-      estimate += estimateTextTokens(part.argsText);
-    }
-  }
+  useEffect(() => {
+    if (!isRunning) return;
+    const interval = window.setInterval(() => setCurrentTime(Date.now()), 500);
+    return () => window.clearInterval(interval);
+  }, [isRunning]);
 
-  return estimate;
+  return currentTime;
 }
 
-function hasSameTokenInput(
-  previous: ThreadMessage["content"],
-  next: ThreadMessage["content"],
-): boolean {
-  if (previous === next) return true;
-  if (previous.length !== next.length) return false;
+function useMonotonicSessionStatistics(current: PiSessionStatistics): PiSessionStatistics {
+  const snapshot = useRef(current);
+  snapshot.current = mergeMonotonicPiSessionStatistics(snapshot.current, current);
+  return snapshot.current;
+}
 
-  return previous.every((part, index) => {
-    const candidate = next[index];
-    if (!candidate || part.type !== candidate.type) return false;
+interface TokenAnimationState {
+  displayed: TokenQuantities;
+  from: TokenQuantities;
+  target: TokenQuantities;
+  startedAt: number;
+  frameId?: number;
+}
 
-    if (part.type === "text" && candidate.type === "text") {
-      return part.text === candidate.text;
-    }
-    if (part.type === "reasoning" && candidate.type === "reasoning") {
-      return part.text === candidate.text;
-    }
-    if (part.type === "tool-call" && candidate.type === "tool-call") {
-      return part.toolName === candidate.toolName && part.argsText === candidate.argsText;
-    }
-    return true;
+function useAnimatedTokenStatistics(statistics: PiSessionStatistics): PiSessionStatistics {
+  const target = useMemo(
+    () => tokenQuantities(statistics),
+    [
+      statistics.cacheReadTokens,
+      statistics.cacheWriteTokens,
+      statistics.inputTokens,
+      statistics.outputTokens,
+    ],
+  );
+  const [displayed, setDisplayed] = useState(target);
+  const animation = useRef<TokenAnimationState>({
+    displayed: target,
+    from: target,
+    target,
+    startedAt: 0,
   });
-}
 
-interface CachedMessageEstimate {
-  content: ThreadMessage["content"];
-  estimate: number;
-}
+  useEffect(() => {
+    const state = animation.current;
+    const now = performance.now();
+    const progress =
+      state.frameId === undefined ? 1 : (now - state.startedAt) / TOKEN_ANIMATION_DURATION_MS;
+    const current = interpolateTokenQuantities(state.from, state.target, progress);
+    state.displayed = current;
+    state.from = current;
+    state.target = target;
+    state.startedAt = now;
 
-export function TokenUsage() {
-  const { t } = useI18n();
-  const messages = useAuiState((state) => state.thread.messages);
-  const cache = useRef(new Map<string, CachedMessageEstimate>());
+    if (tokenQuantitiesEqual(current, target) || state.frameId !== undefined) return;
 
-  const tokenEstimate = useMemo(() => {
-    let estimate = 0;
-    const activeMessageIds = new Set<string>();
-
-    for (const message of messages) {
-      activeMessageIds.add(message.id);
-      const cached = cache.current.get(message.id);
-      if (cached && hasSameTokenInput(cached.content, message.content)) {
-        estimate += cached.estimate;
-        continue;
+    const animate = (time: number) => {
+      const active = animation.current;
+      const next = interpolateTokenQuantities(
+        active.from,
+        active.target,
+        (time - active.startedAt) / TOKEN_ANIMATION_DURATION_MS,
+      );
+      active.displayed = next;
+      setDisplayed(next);
+      if (tokenQuantitiesEqual(next, active.target)) {
+        active.frameId = undefined;
+        return;
       }
+      active.frameId = window.requestAnimationFrame(animate);
+    };
 
-      const messageEstimate = estimateMessageTokens(message);
-      cache.current.set(message.id, { content: message.content, estimate: messageEstimate });
-      estimate += messageEstimate;
-    }
+    state.frameId = window.requestAnimationFrame(animate);
+  }, [target]);
 
-    for (const messageId of cache.current.keys()) {
-      if (!activeMessageIds.has(messageId)) cache.current.delete(messageId);
-    }
+  useEffect(
+    () => () => {
+      const frameId = animation.current.frameId;
+      if (frameId !== undefined) window.cancelAnimationFrame(frameId);
+    },
+    [],
+  );
 
-    return Math.ceil(estimate);
-  }, [messages]);
+  return { ...statistics, ...displayed };
+}
+
+function ThreadTokenUsage() {
+  const { number, t } = useI18n();
+  const messages = useAuiState((state) => state.thread.messages);
+  const isRunning = useAuiState((state) => state.thread.isRunning);
+  const currentTime = useLiveStatisticsTime(isRunning);
+  const currentStatistics = useMemo(
+    () => aggregatePiSessionStatistics(messages, isRunning ? currentTime : undefined),
+    [currentTime, isRunning, messages],
+  );
+  const monotonicStatistics = useMonotonicSessionStatistics(currentStatistics);
+  const statistics = useAnimatedTokenStatistics(monotonicStatistics);
+  const promptTokens =
+    statistics.inputTokens + statistics.cacheReadTokens + statistics.cacheWriteTokens;
+  const averageFirstToken =
+    statistics.firstTokenSamples > 0
+      ? statistics.firstTokenDurationMs / statistics.firstTokenSamples
+      : undefined;
+  const tokensPerSecond =
+    statistics.llmDurationMs > 0
+      ? statistics.outputTokens / (statistics.llmDurationMs / 1_000)
+      : undefined;
+  const cacheHitRate = promptTokens > 0 ? statistics.cacheReadTokens / promptTokens : undefined;
+  const compactTokens = (tokens: number) =>
+    number(Math.round(tokens), {
+      notation: "compact",
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    });
+  const duration = (milliseconds: number) =>
+    formatCompactDuration(milliseconds, { zeroValue: "0s" });
+  const averageDuration = (milliseconds: number) =>
+    milliseconds < 1_000
+      ? `${number(Math.round(milliseconds))}ms`
+      : `${number(milliseconds / 1_000, {
+          minimumFractionDigits: 1,
+          maximumFractionDigits: 1,
+        })}s`;
+  const unavailable = t("extensions.tokenUsage.unavailable");
 
   return (
     <div
-      aria-label={t("extensions.tokenUsage.accessibleLabel", { count: tokenEstimate })}
-      className="inline-flex h-6 items-center gap-1.5 rounded-md px-1.5 font-mono text-[11px] tracking-tight text-muted-foreground tabular-nums"
+      className="flex h-6 min-w-0 items-center overflow-hidden whitespace-nowrap text-[11px] tabular-nums"
       title={t("extensions.tokenUsage.description")}
     >
-      <GaugeIcon aria-hidden="true" className="size-3" />
-      <span>{t("extensions.tokenUsage.display", { count: tokenEstimate })}</span>
+      <span>{t("extensions.tokenUsage.turns", { count: statistics.turns })}</span>
+      <span className="px-1">·</span>
+      <span>{t("extensions.tokenUsage.steps", { count: statistics.steps })}</span>
+      <Separator />
+      <span>
+        {t("extensions.tokenUsage.llm")} {duration(statistics.llmDurationMs)}
+      </span>
+      <span className="px-1">·</span>
+      <span>
+        {t("extensions.tokenUsage.toolCalls")} {duration(statistics.toolDurationMs)}
+      </span>
+      <Separator />
+      <span>
+        {t("extensions.tokenUsage.averageFirstToken")}{" "}
+        {averageFirstToken === undefined ? unavailable : averageDuration(averageFirstToken)}
+      </span>
+      <span className="px-1">·</span>
+      <span>
+        {tokensPerSecond === undefined
+          ? unavailable
+          : number(tokensPerSecond, {
+              minimumFractionDigits: 1,
+              maximumFractionDigits: 1,
+            })}{" "}
+        {t("extensions.tokenUsage.tokensPerSecondUnit")}
+      </span>
+      <Separator />
+      <span>
+        {t("extensions.tokenUsage.cacheHit")}{" "}
+        {cacheHitRate === undefined
+          ? unavailable
+          : number(cacheHitRate, { style: "percent", maximumFractionDigits: 0 })}
+      </span>
+      <Separator />
+      <span>
+        {t("extensions.tokenUsage.input")} {compactTokens(promptTokens)}{" "}
+        {t("extensions.tokenUsage.tokenUnit")}
+      </span>
+      <span className="px-1">·</span>
+      <span>
+        {t("extensions.tokenUsage.output")} {compactTokens(statistics.outputTokens)}{" "}
+        {t("extensions.tokenUsage.tokenUnit")}
+      </span>
     </div>
   );
+}
+
+export function TokenUsage() {
+  const threadId = useAuiState((state) => state.threads.mainThreadId);
+  return <ThreadTokenUsage key={threadId} />;
 }
