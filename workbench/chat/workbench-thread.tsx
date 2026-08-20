@@ -25,7 +25,6 @@ import { WorkbenchEmpty } from "./workbench-empty";
 import {
   conversationPairKey,
   isLastConversationPair,
-  messageRowHasVisibleContent,
   shouldShowWorkingStatus,
 } from "./workbench-message-rows";
 import {
@@ -41,7 +40,6 @@ interface MessageRow {
   role: "user" | "assistant" | "system";
   createdAt: number;
   status: string;
-  hasVisibleContent: boolean;
 }
 
 interface ThreadScrollPosition {
@@ -190,9 +188,7 @@ function useThreadMessageRows(): readonly MessageRow[] {
           row.id === messages[index]?.id &&
           row.role === messages[index]?.role &&
           row.createdAt === messages[index]?.createdAt.getTime() &&
-          row.status === (messages[index]?.status?.type ?? "complete") &&
-          row.hasVisibleContent ===
-            (messages[index] ? messageRowHasVisibleContent(messages[index]) : false),
+          row.status === (messages[index]?.status?.type ?? "complete"),
       )
     ) {
       return previous;
@@ -203,7 +199,6 @@ function useThreadMessageRows(): readonly MessageRow[] {
       role: message.role,
       createdAt: message.createdAt.getTime(),
       status: message.status?.type ?? "complete",
-      hasVisibleContent: messageRowHasVisibleContent(message),
     }));
     previousRows.current = next;
     return next;
@@ -316,7 +311,6 @@ function WorkbenchMessages({ isRunning }: Readonly<{ isRunning: boolean }>) {
       isLastPair: isLastConversationPair(messages, pairMessageIndex),
       threadIsRunning: isRunning,
       assistantStatus: assistantMessage?.status,
-      assistantHasVisibleContent: assistantMessage?.hasVisibleContent ?? false,
     });
     const hasAssistantTurn = hasAssistantMessage || showWorkingStatus;
 

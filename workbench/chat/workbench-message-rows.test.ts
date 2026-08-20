@@ -4,7 +4,6 @@ import test from "node:test";
 import {
   conversationPairKey,
   isLastConversationPair,
-  messageRowHasVisibleContent,
   shouldShowWorkingStatus,
 } from "./workbench-message-rows";
 
@@ -24,21 +23,11 @@ test("keeps a conversation pair mounted while assistant output is attached", () 
   assert.equal(conversationPairKey(withSettledAssistant[0]!), "user-1");
 });
 
-test("distinguishes an empty assistant placeholder from visible streamed output", () => {
-  assert.equal(messageRowHasVisibleContent({ content: [{ type: "text", text: "" }] }), false);
-  assert.equal(
-    messageRowHasVisibleContent({ content: [{ type: "reasoning", text: "thinking" }] }),
-    true,
-  );
-  assert.equal(messageRowHasVisibleContent({ content: [{ type: "tool-call" }] }), true);
-});
-
-test("keeps working visible from run start through the assistant placeholder", () => {
+test("keeps working visible from run start through the complete assistant response", () => {
   assert.equal(
     shouldShowWorkingStatus({
       isLastPair: true,
       threadIsRunning: true,
-      assistantHasVisibleContent: false,
     }),
     true,
   );
@@ -47,7 +36,6 @@ test("keeps working visible from run start through the assistant placeholder", (
       isLastPair: true,
       threadIsRunning: false,
       assistantStatus: "running",
-      assistantHasVisibleContent: false,
     }),
     true,
   );
@@ -55,8 +43,15 @@ test("keeps working visible from run start through the assistant placeholder", (
     shouldShowWorkingStatus({
       isLastPair: true,
       threadIsRunning: true,
-      assistantStatus: "running",
-      assistantHasVisibleContent: true,
+      assistantStatus: "complete",
+    }),
+    true,
+  );
+  assert.equal(
+    shouldShowWorkingStatus({
+      isLastPair: true,
+      threadIsRunning: false,
+      assistantStatus: "complete",
     }),
     false,
   );
