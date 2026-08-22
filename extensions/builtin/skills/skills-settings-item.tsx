@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useI18n } from "@/i18n";
 import type { SettingsItemComponentProps } from "@/platform/extensions";
 import { usePiActiveSessionId } from "@/runtime/pi/client/runtime/context";
@@ -12,6 +13,20 @@ import { listPiSkills, PiApiError } from "@/runtime/pi/client/transport/api";
 import type { SkillView } from "@/runtime/pi/rpc-contracts";
 
 type LoadState = "idle" | "loading" | "ready" | "failed";
+
+function SkillsSkeleton() {
+  return (
+    <div className="space-y-3">
+      {[0, 1, 2].map((item) => (
+        <div key={item} className="rounded-2xl border p-4">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="mt-3 h-3 w-full" />
+          <Skeleton className="mt-2 h-3 w-2/3" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export function SkillsSettingsItem({ sectionId, itemId }: SettingsItemComponentProps) {
   const { locale, t } = useI18n();
@@ -70,32 +85,6 @@ export function SkillsSettingsItem({ sectionId, itemId }: SettingsItemComponentP
         <div className="text-muted-foreground rounded-2xl border border-dashed px-5 py-10 text-center text-sm leading-6">
           {t("extensions.skills.noSession")}
         </div>
-      ) : loadState === "loading" ? (
-        <div aria-live="polite" aria-label={t("extensions.skills.loading")} className="space-y-3">
-          {[0, 1, 2].map((item) => (
-            <div key={item} className="rounded-2xl border p-4">
-              <div className="bg-muted h-4 w-32 animate-pulse rounded" />
-              <div className="bg-muted mt-3 h-3 w-full animate-pulse rounded" />
-              <div className="bg-muted mt-2 h-3 w-2/3 animate-pulse rounded" />
-            </div>
-          ))}
-        </div>
-      ) : loadState === "failed" ? (
-        <div
-          role="alert"
-          className="rounded-2xl border border-destructive/30 px-5 py-8 text-center"
-        >
-          <p className="text-sm font-medium">
-            {t(
-              sessionUnavailable
-                ? "extensions.skills.sessionUnavailable"
-                : "extensions.skills.loadFailed",
-            )}
-          </p>
-          <Button type="button" variant="outline" size="sm" className="mt-4" onClick={load}>
-            {t("extensions.skills.retry")}
-          </Button>
-        </div>
       ) : (
         <>
           <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -117,59 +106,86 @@ export function SkillsSettingsItem({ sectionId, itemId }: SettingsItemComponentP
               aria-label={t("extensions.skills.refresh")}
               title={t("extensions.skills.refresh")}
               onClick={load}
+              disabled={loadState === "loading"}
             >
-              <RefreshCwIcon className="size-3.5" />
+              <RefreshCwIcon
+                className={`size-3.5 ${loadState === "loading" ? "animate-spin" : ""}`}
+              />
             </Button>
           </div>
 
-          <p className="text-muted-foreground mb-3 text-xs">
-            {t("extensions.skills.count", { count: filteredSkills.length })}
-          </p>
-
-          {skills.length === 0 ? (
-            <div className="text-muted-foreground rounded-2xl border border-dashed px-5 py-10 text-center text-sm leading-6">
-              {t("extensions.skills.empty")}
+          {loadState === "loading" ? (
+            <div aria-live="polite" aria-label={t("extensions.skills.loading")} aria-busy="true">
+              <SkillsSkeleton />
             </div>
-          ) : filteredSkills.length === 0 ? (
-            <div className="text-muted-foreground rounded-2xl border border-dashed px-5 py-10 text-center text-sm leading-6">
-              {t("extensions.skills.noMatches")}
+          ) : loadState === "failed" ? (
+            <div
+              role="alert"
+              className="rounded-2xl border border-destructive/30 px-5 py-8 text-center"
+            >
+              <p className="text-sm font-medium">
+                {t(
+                  sessionUnavailable
+                    ? "extensions.skills.sessionUnavailable"
+                    : "extensions.skills.loadFailed",
+                )}
+              </p>
+              <Button type="button" variant="outline" size="sm" className="mt-4" onClick={load}>
+                {t("extensions.skills.retry")}
+              </Button>
             </div>
           ) : (
-            <div className="space-y-2">
-              {filteredSkills.map((skill) => (
-                <article key={skill.name} className="rounded-2xl border px-4 py-3.5">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="min-w-0 flex-1 font-mono text-sm font-medium break-all">
-                      {skill.name}
-                    </h3>
-                    <span
-                      className={
-                        skill.modelInvocable
-                          ? "rounded-full bg-emerald-500/10 px-2 py-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-300"
-                          : "bg-muted text-muted-foreground rounded-full px-2 py-1 text-[11px] font-medium"
-                      }
-                    >
-                      {t(
-                        skill.modelInvocable
-                          ? "extensions.skills.modelInvocable"
-                          : "extensions.skills.manualOnly",
-                      )}
-                    </span>
-                  </div>
-                  <p className="text-muted-foreground mt-2 text-sm leading-5">
-                    {skill.description}
-                  </p>
-                  {skill.whenToUse ? (
-                    <p className="text-muted-foreground mt-2 text-xs leading-5">
-                      <span className="text-foreground font-medium">
-                        {t("extensions.skills.whenToUse")}
-                      </span>{" "}
-                      {skill.whenToUse}
-                    </p>
-                  ) : null}
-                </article>
-              ))}
-            </div>
+            <>
+              <p className="text-muted-foreground mb-3 text-xs">
+                {t("extensions.skills.count", { count: filteredSkills.length })}
+              </p>
+
+              {skills.length === 0 ? (
+                <div className="text-muted-foreground rounded-2xl border border-dashed px-5 py-10 text-center text-sm leading-6">
+                  {t("extensions.skills.empty")}
+                </div>
+              ) : filteredSkills.length === 0 ? (
+                <div className="text-muted-foreground rounded-2xl border border-dashed px-5 py-10 text-center text-sm leading-6">
+                  {t("extensions.skills.noMatches")}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {filteredSkills.map((skill) => (
+                    <article key={skill.name} className="rounded-2xl border px-4 py-3.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="min-w-0 flex-1 font-mono text-sm font-medium break-all">
+                          {skill.name}
+                        </h3>
+                        <span
+                          className={
+                            skill.modelInvocable
+                              ? "rounded-full bg-emerald-500/10 px-2 py-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-300"
+                              : "bg-muted text-muted-foreground rounded-full px-2 py-1 text-[11px] font-medium"
+                          }
+                        >
+                          {t(
+                            skill.modelInvocable
+                              ? "extensions.skills.modelInvocable"
+                              : "extensions.skills.manualOnly",
+                          )}
+                        </span>
+                      </div>
+                      <p className="text-muted-foreground mt-2 text-sm leading-5">
+                        {skill.description}
+                      </p>
+                      {skill.whenToUse ? (
+                        <p className="text-muted-foreground mt-2 text-xs leading-5">
+                          <span className="text-foreground font-medium">
+                            {t("extensions.skills.whenToUse")}
+                          </span>{" "}
+                          {skill.whenToUse}
+                        </p>
+                      ) : null}
+                    </article>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </>
       )}
