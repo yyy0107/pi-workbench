@@ -1,5 +1,6 @@
 "use client";
 
+import type { RefObject } from "react";
 import { PanelLeftCloseIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -127,16 +128,16 @@ export interface WorkbenchSidebarProps {
   width: number;
   minWidth: number;
   maxWidth: number;
+  shellRef: RefObject<HTMLElement | null>;
   onResize(width: number): void;
-  onResizingChange(resizing: boolean): void;
 }
 
 export function WorkbenchSidebar({
   width,
   minWidth,
   maxWidth,
+  shellRef,
   onResize,
-  onResizingChange,
 }: WorkbenchSidebarProps) {
   const { t } = useI18n();
   const { isMobile, setOpenMobile } = useSidebar();
@@ -150,17 +151,19 @@ export function WorkbenchSidebar({
       mobileTitle={t("workbench.sidebar.mobileTitle")}
       collapsible="offcanvas"
     >
-      <WorkbenchSidebarContent
-        mobile={isMobile}
-        onNavigate={isMobile ? () => setOpenMobile(false) : undefined}
-      />
+      <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+        <WorkbenchSidebarContent
+          mobile={isMobile}
+          onNavigate={isMobile ? () => setOpenMobile(false) : undefined}
+        />
+      </div>
       {!isMobile ? (
         <SidebarResizeHandle
           width={width}
           minWidth={minWidth}
           maxWidth={maxWidth}
+          shellRef={shellRef}
           onResize={onResize}
-          onResizingChange={onResizingChange}
         />
       ) : null}
     </Sidebar>

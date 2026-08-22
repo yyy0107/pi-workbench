@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type CSSProperties, type ReactNode } from "react";
+import { useRef, useState, type CSSProperties, type ReactNode } from "react";
 
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { RightWorkspace, useRightWorkspaceState } from "@/components/right-workspace";
@@ -21,7 +21,7 @@ const MAX_SIDEBAR_WIDTH = 560;
 
 export function WorkbenchShell({ children }: Readonly<{ children: ReactNode }>) {
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH);
-  const [isSidebarResizing, setIsSidebarResizing] = useState(false);
+  const shellRef = useRef<HTMLDivElement>(null);
   const workspaceOpen = useRightWorkspaceState((state) => state.open);
   const workspaceMaximized = useRightWorkspaceState((state) => state.maximized);
   const conversationHidden = workspaceOpen && workspaceMaximized;
@@ -35,10 +35,10 @@ export function WorkbenchShell({ children }: Readonly<{ children: ReactNode }>) 
 
   return (
     <SidebarProvider
+      ref={shellRef}
       className="bg-background text-foreground relative isolate h-dvh min-h-0 overflow-hidden"
       data-workbench-shell=""
       data-workbench-surface="shell"
-      data-resizing={isSidebarResizing ? "true" : undefined}
       style={{ "--sidebar-width": `${sidebarWidth}px` } as CSSProperties}
     >
       <SlotHost
@@ -50,8 +50,8 @@ export function WorkbenchShell({ children }: Readonly<{ children: ReactNode }>) 
         width={sidebarWidth}
         minWidth={MIN_SIDEBAR_WIDTH}
         maxWidth={MAX_SIDEBAR_WIDTH}
+        shellRef={shellRef}
         onResize={resizeSidebar}
-        onResizingChange={setIsSidebarResizing}
       />
 
       <div className="flex min-w-0 flex-1 overflow-hidden">
