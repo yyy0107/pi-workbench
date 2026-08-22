@@ -1,11 +1,19 @@
 "use client";
 
 import { PanelsTopLeftIcon, PinIcon, XIcon } from "lucide-react";
-import { useMemo } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { useI18n } from "@/i18n";
+import { cn } from "@/lib/utils";
 
-import { selectContextSurfaces } from "./core/workspace-selectors";
+import { selectContextSurfacesByPlacement } from "./core/workspace-selectors";
 import {
   useRightWorkspace,
   useRightWorkspaceEnvironment,
@@ -13,6 +21,55 @@ import {
   useWorkspaceContext,
   useWorkspaceSurfaceDefinitions,
 } from "./workspace-context";
+
+type DropPosition = "before" | "after";
+type PointerDragCandidate = {
+  grabOffsetX: number;
+  grabOffsetY: number;
+  height: number;
+  lastClientX: number;
+  lastClientY: number;
+  pointerId: number;
+  startX: number;
+  startY: number;
+  surfaceId: string;
+  width: number;
+};
+
+const TAB_REORDER_ANIMATION_DURATION_MS = 180;
+const TAB_DRAG_ACTIVATION_DISTANCE_PX = 5;
+const TAB_DRAG_CLICK_SUPPRESSION_MS = 400;
+
+function horizontalLayoutBounds(element: HTMLElement) {
+  const bounds = element.getBoundingClientRect();
+  const transform = getComputedStyle(element).transform;
+  if (transform === "none") {
+    return { left: bounds.left, right: bounds.right, width: bounds.width };
+  }
+
+  try {
+    const matrix = new DOMMatrixReadOnly(transform);
+    return {
+      left: bounds.left - matrix.m41,
+      right: bounds.right - matrix.m41,
+      width: bounds.width,
+    };
+  } catch {
+    return { left: bounds.left, right: bounds.right, width: bounds.width };
+  }
+}
+
+function horizontalDropPosition(clientX: number, element: HTMLElement): DropPosition {
+  const bounds = horizontalLayoutBounds(element);
+  const beforeMidpoint = clientX < bounds.left + bounds.width / 2;
+  return getComputedStyle(element).direction === "rtl"
+    ? beforeMidpoint
+      ? "after"
+      : "before"
+    : beforeMidpoint
+      ? "before"
+      : "after";
+}
 
 export function WorkspaceTabs() {
   const { t } = useI18n();
@@ -22,6 +79,14 @@ export function WorkspaceTabs() {
   const surfaceOrder = useRightWorkspaceState((state) => state.surfaceOrder);
   const surfacesById = useRightWorkspaceState((state) => state.surfaces);
   const activeSurfaceId = useRightWorkspaceState((state) => state.activeSurfaceId);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const draggingIdRef = useRef<string | null>(null);
+  const pointerDragCandidate = useRef<PointerDragCandidate | null>(null);
+  const suppressedClick = useRef<{ surfaceId: string; until: number } | null>(null);
+  const dragOverlayElement = useRef<HTMLDivElement>(null);
+  const tabElements = useRef(new Map<string, HTMLDivElement>());
+  const previousTabPositions = useRef<Map<string, number> | null>(null);
+  const tabAnimations = useRef(new Map<string, Animation>());
   const definitions = useWorkspaceSurfaceDefinitions();
   const definitionByKind = useMemo(
     () => new Map(definitions.map((definition) => [definition.kind, definition])),
@@ -29,58 +94,328 @@ export function WorkspaceTabs() {
   );
   const surfaces = useMemo(
     () =>
-      selectContextSurfaces(
+      selectContextSurfacesByPlacement(
         { ...environment.store.getState(), surfaceOrder, surfaces: surfacesById },
         context,
+        "primary",
       ),
     [context, environment.store, surfaceOrder, surfacesById],
   );
+  const previewReorder = useCallback(
+    (targetId: string, position: DropPosition) => {
+      const currentDraggingId = draggingIdRef.current;
+      if (!currentDraggingId || currentDraggingId === targetId) return;
+      const draggingIndex = surfaces.findIndex((surface) => surface.id === currentDraggingId);
+      const targetIndex = surfaces.findIndex((surface) => surface.id === targetId);
+      if (draggingIndex < 0 || targetIndex < 0) return;
+      const alreadyAtPosition =
+        position === "before"
+          ? draggingIndex === targetIndex - 1
+          : draggingIndex === targetIndex + 1;
+      if (alreadyAtPosition) return;
+
+      const positions = new Map<string, number>();
+      for (const surface of surfaces) {
+        const element = tabElements.current.get(surface.id);
+        if (element) positions.set(surface.id, element.getBoundingClientRect().left);
+      }
+      previousTabPositions.current = positions;
+      for (const animation of tabAnimations.current.values()) animation.cancel();
+      tabAnimations.current.clear();
+      controller.reorder(currentDraggingId, targetId, position);
+    },
+    [controller, surfaces],
+  );
+  const previewReorderAt = useCallback(
+    (clientX: number) => {
+      const targets = surfaces.flatMap((surface) => {
+        const element = tabElements.current.get(surface.id);
+        return element ? [{ element, surface }] : [];
+      });
+      if (targets.length === 0) return;
+      const target =
+        targets.find(({ element }) => clientX <= horizontalLayoutBounds(element).right) ??
+        targets.at(-1);
+      if (!target) return;
+      previewReorder(target.surface.id, horizontalDropPosition(clientX, target.element));
+    },
+    [previewReorder, surfaces],
+  );
+  const previewReorderAtRef = useRef(previewReorderAt);
+  previewReorderAtRef.current = previewReorderAt;
+  const positionDragOverlay = useCallback((clientX: number, clientY: number) => {
+    const candidate = pointerDragCandidate.current;
+    if (!candidate) return;
+    candidate.lastClientX = clientX;
+    candidate.lastClientY = clientY;
+    const element = dragOverlayElement.current;
+    if (!element) return;
+    element.style.transform = `translate3d(${clientX - candidate.grabOffsetX}px, ${clientY - candidate.grabOffsetY}px, 0)`;
+  }, []);
+
+  useLayoutEffect(() => {
+    const candidate = pointerDragCandidate.current;
+    if (candidate && draggingIdRef.current === candidate.surfaceId) {
+      positionDragOverlay(candidate.lastClientX, candidate.lastClientY);
+    }
+
+    const previousPositions = previousTabPositions.current;
+    if (!previousPositions) return;
+    previousTabPositions.current = null;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    for (const surface of surfaces) {
+      const element = tabElements.current.get(surface.id);
+      const previousLeft = previousPositions.get(surface.id);
+      if (!element || previousLeft === undefined) continue;
+      const deltaX = previousLeft - element.getBoundingClientRect().left;
+      if (Math.abs(deltaX) < 0.5) continue;
+
+      const animation = element.animate(
+        [{ transform: `translateX(${deltaX}px)` }, { transform: "translateX(0)" }],
+        {
+          duration: TAB_REORDER_ANIMATION_DURATION_MS,
+          easing: "cubic-bezier(0.2, 0, 0, 1)",
+        },
+      );
+      tabAnimations.current.set(surface.id, animation);
+      animation.addEventListener("finish", () => {
+        if (tabAnimations.current.get(surface.id) === animation) {
+          tabAnimations.current.delete(surface.id);
+        }
+      });
+    }
+  }, [draggingId, positionDragOverlay, surfaces]);
+
+  useEffect(() => {
+    const clearPointerDrag = () => {
+      pointerDragCandidate.current = null;
+      draggingIdRef.current = null;
+      setDraggingId(null);
+    };
+    const handlePointerMove = (event: globalThis.PointerEvent) => {
+      const candidate = pointerDragCandidate.current;
+      if (!candidate || candidate.pointerId !== event.pointerId) return;
+      if (event.pointerType === "mouse" && (event.buttons & 1) === 0) {
+        clearPointerDrag();
+        return;
+      }
+
+      if (!draggingIdRef.current) {
+        const distance = Math.hypot(
+          event.clientX - candidate.startX,
+          event.clientY - candidate.startY,
+        );
+        if (distance < TAB_DRAG_ACTIVATION_DISTANCE_PX) return;
+        draggingIdRef.current = candidate.surfaceId;
+        setDraggingId(candidate.surfaceId);
+        tabAnimations.current.get(candidate.surfaceId)?.cancel();
+        tabAnimations.current.delete(candidate.surfaceId);
+      }
+
+      if (event.cancelable) event.preventDefault();
+      positionDragOverlay(event.clientX, event.clientY);
+      previewReorderAtRef.current(event.clientX);
+    };
+    const handlePointerUp = (event: globalThis.PointerEvent) => {
+      const candidate = pointerDragCandidate.current;
+      if (!candidate || candidate.pointerId !== event.pointerId) return;
+      if (draggingIdRef.current === candidate.surfaceId) {
+        if (event.cancelable) event.preventDefault();
+        previewReorderAtRef.current(event.clientX);
+        suppressedClick.current = {
+          surfaceId: candidate.surfaceId,
+          until: performance.now() + TAB_DRAG_CLICK_SUPPRESSION_MS,
+        };
+      }
+      clearPointerDrag();
+    };
+    const handlePointerCancel = (event: globalThis.PointerEvent) => {
+      if (pointerDragCandidate.current?.pointerId !== event.pointerId) return;
+      clearPointerDrag();
+    };
+    window.addEventListener("pointermove", handlePointerMove, {
+      capture: true,
+      passive: false,
+    });
+    window.addEventListener("pointerup", handlePointerUp, true);
+    window.addEventListener("pointercancel", handlePointerCancel, true);
+    window.addEventListener("blur", clearPointerDrag);
+    return () => {
+      pointerDragCandidate.current = null;
+      draggingIdRef.current = null;
+      window.removeEventListener("pointermove", handlePointerMove, true);
+      window.removeEventListener("pointerup", handlePointerUp, true);
+      window.removeEventListener("pointercancel", handlePointerCancel, true);
+      window.removeEventListener("blur", clearPointerDrag);
+      for (const animation of tabAnimations.current.values()) animation.cancel();
+      tabAnimations.current.clear();
+    };
+  }, [positionDragOverlay]);
+
+  const draggingSurface = draggingId ? surfacesById[draggingId] : undefined;
+  const DraggingIcon = draggingSurface
+    ? (definitionByKind.get(draggingSurface.kind)?.icon ?? PanelsTopLeftIcon)
+    : PanelsTopLeftIcon;
 
   return (
-    <div
-      role="tablist"
-      aria-label={t("rightWorkspace.tabs")}
-      className="flex min-w-0 max-w-full shrink items-center gap-1 overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-    >
-      {surfaces.map((surface) => {
-        const Icon = definitionByKind.get(surface.kind)?.icon ?? PanelsTopLeftIcon;
-        const active = surface.id === activeSurfaceId;
-        return (
-          <div
-            key={surface.id}
-            role="presentation"
-            data-state={active ? "active" : "inactive"}
-            className="group/tab text-muted-foreground hover:bg-muted/70 hover:text-foreground focus-within:bg-muted/70 focus-within:text-foreground data-[state=active]:bg-muted data-[state=active]:text-foreground after:bg-border/70 relative flex h-7 w-52 min-w-20 max-w-52 flex-[1_1_13rem] items-center rounded-lg text-xs transition-colors after:absolute after:inset-y-1.5 after:end-[-3px] after:w-px after:content-[''] last:after:hidden hover:after:hidden focus-within:after:hidden data-[state=active]:after:hidden"
-          >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={active}
-              title={surface.title}
-              className="flex h-full min-w-0 flex-1 items-center gap-2 rounded-s-lg ps-2.5 pe-1 outline-none group-hover/tab:pe-8 group-focus-within/tab:pe-8 group-data-[state=active]/tab:pe-8 focus-visible:ring-2 focus-visible:ring-inset"
-              onClick={() => controller.focus(surface.id)}
-            >
-              <Icon className="size-3.5 shrink-0" />
-              <span className="min-w-0 flex-1 overflow-hidden whitespace-nowrap text-start [mask-image:linear-gradient(to_right,#000_calc(100%_-_0.75rem),transparent)]">
-                {surface.title}
-              </span>
-              {surface.dirty ? (
-                <span className="bg-foreground size-1.5 shrink-0 rounded-full" aria-hidden="true" />
-              ) : null}
-              {surface.pinned ? <PinIcon className="size-3 shrink-0" aria-hidden="true" /> : null}
-            </button>
-            <button
-              type="button"
-              aria-label={t("rightWorkspace.closeTab", { title: surface.title })}
-              title={t("rightWorkspace.closeTab", { title: surface.title })}
-              className="text-foreground/65 hover:bg-foreground/[0.04] hover:text-foreground pointer-events-none absolute end-[5px] top-1/2 z-10 inline-flex size-[22px] -translate-y-1/2 items-center justify-center rounded-md opacity-0 transition-[background-color,color,opacity] group-hover/tab:pointer-events-auto group-hover/tab:opacity-100 group-focus-within/tab:pointer-events-auto group-focus-within/tab:opacity-100 group-data-[state=active]/tab:pointer-events-auto group-data-[state=active]/tab:opacity-100 focus-visible:bg-foreground/[0.04] focus-visible:text-foreground focus-visible:opacity-100 dark:hover:bg-background/35 dark:focus-visible:bg-background/35"
-              onClick={() => controller.close(surface.id)}
-            >
-              <XIcon className="size-3.5" />
-            </button>
-          </div>
-        );
-      })}
-    </div>
+    <>
+      <div className="relative min-w-0 max-w-full shrink">
+        <div
+          role="tablist"
+          aria-label={t("rightWorkspace.tabs")}
+          className="flex min-w-0 max-w-full shrink items-center gap-1 overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          {surfaces.map((surface, surfaceIndex) => {
+            const Icon = definitionByKind.get(surface.kind)?.icon ?? PanelsTopLeftIcon;
+            const active = surface.id === activeSurfaceId;
+            const canCloseToRight = surfaceIndex < surfaces.length - 1;
+            const canCloseOthers = surfaces.length > 1;
+            return (
+              <ContextMenu key={surface.id}>
+                <ContextMenuTrigger
+                  ref={(element) => {
+                    if (element) tabElements.current.set(surface.id, element);
+                    else tabElements.current.delete(surface.id);
+                  }}
+                  role="presentation"
+                  data-state={active ? "active" : "inactive"}
+                  data-dragging={draggingId === surface.id ? "true" : undefined}
+                  className={cn(
+                    "group/tab text-muted-foreground hover:bg-muted/70 hover:text-foreground focus-within:bg-muted/70 focus-within:text-foreground data-[state=active]:bg-muted data-[state=active]:text-foreground after:bg-border/70 relative flex h-7 w-40 min-w-20 max-w-40 flex-[1_1_10rem] select-none items-center rounded-lg text-xs transition-[background-color,color,opacity] after:absolute after:inset-y-1.5 after:end-[-3px] after:w-px after:content-[''] last:after:hidden hover:after:hidden focus-within:after:hidden data-[dragging=true]:cursor-grabbing data-[dragging=true]:opacity-25 data-[state=active]:after:hidden",
+                    surfaces.length > 1 ? "cursor-grab active:cursor-grabbing" : "cursor-default",
+                  )}
+                  onPointerDown={(event) => {
+                    if (
+                      surfaces.length < 2 ||
+                      !event.isPrimary ||
+                      event.button !== 0 ||
+                      (event.target as Element).closest('[data-workspace-tab-close="true"]')
+                    ) {
+                      return;
+                    }
+                    const bounds = event.currentTarget.getBoundingClientRect();
+                    pointerDragCandidate.current = {
+                      grabOffsetX: event.clientX - bounds.left,
+                      grabOffsetY: event.clientY - bounds.top,
+                      height: bounds.height,
+                      lastClientX: event.clientX,
+                      lastClientY: event.clientY,
+                      pointerId: event.pointerId,
+                      startX: event.clientX,
+                      startY: event.clientY,
+                      surfaceId: surface.id,
+                      width: bounds.width,
+                    };
+                    event.currentTarget.setPointerCapture(event.pointerId);
+                  }}
+                >
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    title={surface.title}
+                    className="flex h-full min-w-0 flex-1 items-center gap-2 rounded-s-lg ps-2.5 pe-1 outline-none group-hover/tab:pe-8 group-focus-within/tab:pe-8 group-data-[state=active]/tab:pe-8 focus-visible:ring-2 focus-visible:ring-inset"
+                    onClick={(event) => {
+                      const suppressed = suppressedClick.current;
+                      suppressedClick.current = null;
+                      if (
+                        suppressed?.surfaceId === surface.id &&
+                        performance.now() <= suppressed.until
+                      ) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        return;
+                      }
+                      controller.focus(surface.id);
+                    }}
+                  >
+                    <Icon className="size-3.5 shrink-0" />
+                    <span className="min-w-0 flex-1 overflow-hidden whitespace-nowrap text-start [mask-image:linear-gradient(to_right,#000_calc(100%_-_0.75rem),transparent)]">
+                      {surface.title}
+                    </span>
+                    {surface.dirty ? (
+                      <span
+                        className="bg-foreground size-1.5 shrink-0 rounded-full"
+                        aria-hidden="true"
+                      />
+                    ) : null}
+                    {surface.pinned ? (
+                      <PinIcon className="size-3 shrink-0" aria-hidden="true" />
+                    ) : null}
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={t("rightWorkspace.closeTab", { title: surface.title })}
+                    title={t("rightWorkspace.closeTab", { title: surface.title })}
+                    data-workspace-tab-close="true"
+                    className="text-foreground/65 hover:bg-foreground/[0.04] hover:text-foreground pointer-events-none absolute end-[5px] top-1/2 z-10 inline-flex size-[22px] -translate-y-1/2 items-center justify-center rounded-md opacity-0 transition-colors duration-75 group-hover/tab:pointer-events-auto group-hover/tab:opacity-100 group-focus-within/tab:pointer-events-auto group-focus-within/tab:opacity-100 group-data-[state=active]/tab:pointer-events-auto group-data-[state=active]/tab:opacity-100 focus-visible:bg-foreground/[0.04] focus-visible:text-foreground focus-visible:opacity-100 dark:hover:bg-background/35 dark:focus-visible:bg-background/35"
+                    onPointerUp={(event) => {
+                      if (!event.isPrimary || event.button !== 0) return;
+                      event.preventDefault();
+                      controller.close(surface.id);
+                    }}
+                    onClick={(event) => {
+                      if (event.detail !== 0) return;
+                      controller.close(surface.id);
+                    }}
+                  >
+                    <XIcon className="size-3.5" />
+                  </button>
+                </ContextMenuTrigger>
+                <ContextMenuContent>
+                  <ContextMenuItem onClick={() => controller.close(surface.id)}>
+                    {t("rightWorkspace.closeTabAction")}
+                  </ContextMenuItem>
+                  <ContextMenuItem
+                    disabled={!canCloseToRight}
+                    onClick={() => controller.closeToRight(surface.id, context)}
+                  >
+                    {t("rightWorkspace.closeToRight")}
+                  </ContextMenuItem>
+                  <ContextMenuItem
+                    disabled={!canCloseOthers}
+                    onClick={() => controller.closeOthers(surface.id, context)}
+                  >
+                    {t("rightWorkspace.closeOthers")}
+                  </ContextMenuItem>
+                </ContextMenuContent>
+              </ContextMenu>
+            );
+          })}
+        </div>
+      </div>
+      {draggingSurface && pointerDragCandidate.current && typeof document !== "undefined"
+        ? createPortal(
+            <>
+              <div
+                aria-hidden="true"
+                data-workspace-tab-drag-shield="true"
+                className="fixed inset-0 z-[2147483646] cursor-grabbing"
+              />
+              <div
+                ref={dragOverlayElement}
+                aria-hidden="true"
+                data-workspace-tab-drag-overlay="true"
+                className="bg-muted text-foreground pointer-events-none fixed left-0 top-0 z-[2147483647] flex select-none items-center gap-2 overflow-hidden rounded-lg px-2.5 text-xs opacity-95 shadow-xl ring-1 ring-black/10 will-change-transform dark:ring-white/10"
+                style={{
+                  height: pointerDragCandidate.current.height,
+                  width: pointerDragCandidate.current.width,
+                }}
+              >
+                <DraggingIcon className="size-3.5 shrink-0" />
+                <span className="min-w-0 flex-1 overflow-hidden whitespace-nowrap text-start [mask-image:linear-gradient(to_right,#000_calc(100%_-_0.75rem),transparent)]">
+                  {draggingSurface.title}
+                </span>
+                {draggingSurface.dirty ? (
+                  <span className="bg-foreground size-1.5 shrink-0 rounded-full" />
+                ) : null}
+                {draggingSurface.pinned ? <PinIcon className="size-3 shrink-0" /> : null}
+              </div>
+            </>,
+            document.body,
+          )
+        : null}
+    </>
   );
 }
