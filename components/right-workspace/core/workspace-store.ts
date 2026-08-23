@@ -2,8 +2,8 @@ import { createStore, type StoreApi } from "zustand/vanilla";
 
 import type { RightWorkspaceState } from "./surface-types";
 
-export const DEFAULT_RIGHT_WORKSPACE_WIDTH = 480;
 export const MIN_RIGHT_WORKSPACE_WIDTH = 360;
+export const DEFAULT_RIGHT_WORKSPACE_WIDTH = MIN_RIGHT_WORKSPACE_WIDTH;
 export const MAX_RIGHT_WORKSPACE_VIEWPORT_RATIO = 0.7;
 export const DEFAULT_AUXILIARY_SURFACE_WIDTH = 420;
 export const MIN_AUXILIARY_SURFACE_WIDTH = 220;

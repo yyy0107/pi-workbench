@@ -4,9 +4,10 @@ import { useAuiState } from "@assistant-ui/react";
 import { PanelLeftOpenIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { RightWorkspaceToggleButton } from "@/components/right-workspace";
+import { useRightWorkspaceState } from "@/components/right-workspace";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useI18n } from "@/i18n";
+import { cn } from "@/lib/utils";
 import { SlotHost } from "@/platform/extensions";
 import { usePiThreadListItemSnapshot } from "@/runtime/pi/client/runtime/context";
 
@@ -32,6 +33,7 @@ function SidebarOpenButton() {
 
 export function WorkbenchHeader() {
   const { t } = useI18n();
+  const workspaceOpen = useRightWorkspaceState((state) => state.open);
   const currentThread = useAuiState((state) =>
     state.threads.threadItems.find((thread) => thread.id === state.threads.mainThreadId),
   );
@@ -43,7 +45,10 @@ export function WorkbenchHeader() {
   return (
     <header
       data-workbench-surface="header"
-      className="bg-background grid h-10 shrink-0 grid-cols-[1fr_auto_1fr] items-center border-b px-3"
+      className={cn(
+        "bg-background grid h-10 shrink-0 grid-cols-[1fr_auto_1fr] items-center border-b ps-3",
+        workspaceOpen ? "pe-3" : "pe-12",
+      )}
     >
       <div className="flex min-w-0 items-center gap-2">
         <SidebarOpenButton />
@@ -57,7 +62,6 @@ export function WorkbenchHeader() {
 
       <div className="flex min-w-0 items-center justify-end gap-2">
         <SlotHost name="header.right" className="flex min-w-0 items-center justify-end gap-2" />
-        <RightWorkspaceToggleButton />
       </div>
     </header>
   );

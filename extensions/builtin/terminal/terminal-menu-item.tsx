@@ -33,9 +33,7 @@ export function TerminalMenuItem({ closeMenu }: WorkspaceSurfaceMenuItemProps) {
       }}
     >
       <TerminalIcon className="text-muted-foreground size-4" />
-      <span className="min-w-0 flex-1 truncate text-start">
-        {t("extensions.terminal.newTerminal")}
-      </span>
+      <span className="min-w-0 flex-1 truncate text-start">{t("extensions.terminal.title")}</span>
       <kbd className="text-muted-foreground ms-auto text-xs">Ctrl+`</kbd>
     </Button>
   );

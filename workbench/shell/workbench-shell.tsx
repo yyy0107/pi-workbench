@@ -3,7 +3,7 @@
 import { useRef, useState, type CSSProperties, type ReactNode } from "react";
 
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { RightWorkspace } from "@/components/right-workspace";
+import { RightWorkspace, RightWorkspaceToggleButton } from "@/components/right-workspace";
 import { useRightWorkspaceState } from "@/components/right-workspace/workspace-context";
 import { cn } from "@/lib/utils";
 import { SlotHost } from "@/platform/extensions";
@@ -55,7 +55,7 @@ export function WorkbenchShell({ children }: Readonly<{ children: ReactNode }>) 
         onResize={resizeSidebar}
       />
 
-      <div className="flex min-w-0 flex-1 overflow-hidden">
+      <div className="relative flex min-w-0 flex-1 overflow-hidden">
         <div
           aria-hidden={conversationHidden ? true : undefined}
           inert={conversationHidden ? true : undefined}
@@ -71,6 +71,7 @@ export function WorkbenchShell({ children }: Readonly<{ children: ReactNode }>) 
           <WorkbenchStatusbar />
         </div>
         <RightWorkspace />
+        <RightWorkspaceToggleButton className="absolute end-3 top-1 z-30" />
       </div>
 
       <WorkbenchGlobalLayer />

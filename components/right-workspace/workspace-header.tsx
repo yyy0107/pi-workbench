@@ -1,6 +1,6 @@
 "use client";
 
-import { Maximize2Icon, Minimize2Icon, PanelRightCloseIcon } from "lucide-react";
+import { Maximize2Icon, Minimize2Icon } from "lucide-react";
 import { useMemo } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,7 @@ export function WorkspaceHeader() {
 
   return (
     <header className="shrink-0">
-      <div className="flex h-10 items-center gap-1.5 px-2">
+      <div className="flex h-10 items-center gap-1.5 ps-2 pe-12">
         <div className="flex min-w-0 flex-1 items-center gap-1">
           {hasSurfaces ? (
             <>
@@ -57,19 +57,6 @@ export function WorkspaceHeader() {
           context={{ activeSurfaceId: active?.id, isOpen: state.open }}
           className="flex shrink-0 items-center gap-1"
         />
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          aria-controls="right-workspace"
-          aria-expanded={true}
-          aria-label={t("rightWorkspace.collapse")}
-          title={t("rightWorkspace.collapse")}
-          className="text-foreground me-1 aria-expanded:bg-transparent aria-expanded:hover:bg-muted"
-          onClick={() => controller.setWorkspaceOpen(false)}
-        >
-          <PanelRightCloseIcon className="size-[18px]" />
-        </Button>
       </div>
     </header>
   );

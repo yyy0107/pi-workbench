@@ -555,7 +555,7 @@ export function WorkspaceTabs() {
 
   return (
     <>
-      <div className="relative min-w-0 flex-1 overflow-hidden">
+      <div className="relative w-fit min-w-0 max-w-full flex-[0_1_auto] overflow-hidden">
         <div
           ref={tabListElement}
           role="tablist"
