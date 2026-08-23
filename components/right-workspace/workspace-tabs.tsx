@@ -42,6 +42,13 @@ const TAB_DRAG_CLICK_SUPPRESSION_MS = 400;
 const TAB_AUTO_SCROLL_EDGE_PX = 48;
 const TAB_AUTO_SCROLL_MAX_SPEED_PX = 10;
 const TAB_AUTO_SCROLL_VERTICAL_TOLERANCE_PX = 24;
+const WHEEL_LINE_HEIGHT_PX = 16;
+
+function wheelDeltaInPixels(delta: number, deltaMode: number, pageSize: number): number {
+  if (deltaMode === WheelEvent.DOM_DELTA_LINE) return delta * WHEEL_LINE_HEIGHT_PX;
+  if (deltaMode === WheelEvent.DOM_DELTA_PAGE) return delta * pageSize;
+  return delta;
+}
 
 function tabAutoScrollVelocity(clientX: number, bounds: DOMRect): number {
   const leftEdgeDistance = bounds.left + TAB_AUTO_SCROLL_EDGE_PX - clientX;
@@ -206,6 +213,24 @@ export function WorkspaceTabs() {
       });
     }
   }, [draggingId, positionDragOverlay, surfaces]);
+
+  useEffect(() => {
+    const element = tabListElement.current;
+    if (!element) return;
+    const handleWheel = (event: WheelEvent) => {
+      if (element.scrollWidth <= element.clientWidth) return;
+      const dominantDelta =
+        Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+      const delta = wheelDeltaInPixels(dominantDelta, event.deltaMode, element.clientWidth);
+      if (delta === 0) return;
+      const previousScrollLeft = element.scrollLeft;
+      element.scrollLeft += delta;
+      if (Math.abs(element.scrollLeft - previousScrollLeft) < 0.5) return;
+      event.preventDefault();
+    };
+    element.addEventListener("wheel", handleWheel, { passive: false });
+    return () => element.removeEventListener("wheel", handleWheel);
+  }, []);
 
   useEffect(() => {
     let autoScrollFrame: number | null = null;
