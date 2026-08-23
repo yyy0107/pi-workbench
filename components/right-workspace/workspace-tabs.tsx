@@ -25,6 +25,10 @@ import {
 import { workspaceTabScrollDelta } from "./workspace-tab-layout";
 
 type DropPosition = "before" | "after";
+type TabLayout = {
+  left: number;
+  width: number;
+};
 type PointerDragCandidate = {
   grabOffsetX: number;
   grabOffsetY: number;
@@ -38,7 +42,7 @@ type PointerDragCandidate = {
   width: number;
 };
 
-const TAB_REORDER_ANIMATION_DURATION_MS = 180;
+const TAB_LAYOUT_ANIMATION_DURATION_MS = 180;
 const TAB_DRAG_ACTIVATION_DISTANCE_PX = 5;
 const TAB_DRAG_CLICK_SUPPRESSION_MS = 400;
 const TAB_AUTO_SCROLL_EDGE_PX = 48;
@@ -114,8 +118,12 @@ export function WorkspaceTabs() {
   const dragOverlayElement = useRef<HTMLDivElement>(null);
   const tabListElement = useRef<HTMLDivElement>(null);
   const tabElements = useRef(new Map<string, HTMLDivElement>());
-  const previousTabPositions = useRef<Map<string, number> | null>(null);
+  const previousTabLayouts = useRef<Map<string, TabLayout> | null>(null);
   const tabAnimations = useRef(new Map<string, Animation>());
+  const tabWidthAnimations = useRef(new Map<string, Animation>());
+  const tabTrailingSpaceAnimation = useRef<Animation | null>(null);
+  const tabWidthLockStartedAt = useRef<number | null>(null);
+  const tabWidthReleaseTimer = useRef<number | null>(null);
   const definitions = useWorkspaceSurfaceDefinitions();
   const definitionByKind = useMemo(
     () => new Map(definitions.map((definition) => [definition.kind, definition])),
@@ -130,6 +138,182 @@ export function WorkspaceTabs() {
       ),
     [context, environment.store, surfaceOrder, surfacesById],
   );
+  const captureTabLayouts = useCallback(() => {
+    const layouts = new Map<string, TabLayout>();
+    for (const [surfaceId, element] of tabElements.current) {
+      const bounds = element.getBoundingClientRect();
+      layouts.set(surfaceId, { left: bounds.left, width: bounds.width });
+    }
+    return layouts;
+  }, []);
+  const cancelTabAnimations = useCallback(() => {
+    for (const animation of tabAnimations.current.values()) animation.cancel();
+    tabAnimations.current.clear();
+  }, []);
+  const cancelTabWidthAnimations = useCallback(() => {
+    for (const animation of tabWidthAnimations.current.values()) animation.cancel();
+    tabWidthAnimations.current.clear();
+    tabTrailingSpaceAnimation.current?.cancel();
+    tabTrailingSpaceAnimation.current = null;
+  }, []);
+  const releaseTabWidths = useCallback(() => {
+    if (tabWidthReleaseTimer.current !== null) {
+      window.clearTimeout(tabWidthReleaseTimer.current);
+      tabWidthReleaseTimer.current = null;
+    }
+    if (tabWidthLockStartedAt.current === null) return;
+    tabWidthLockStartedAt.current = null;
+
+    const currentLayouts = captureTabLayouts();
+    if (currentLayouts.size === 0) return;
+
+    const elements = [...tabElements.current.entries()];
+    const list = tabListElement.current;
+    const currentScrollLeft = list?.scrollLeft ?? 0;
+    const currentTrailingSpace = list
+      ? Number.parseFloat(getComputedStyle(list).paddingInlineEnd) || 0
+      : 0;
+    // Measure the unlocked flex layout without painting it, then restore the locked
+    // geometry so every tab can animate to its final width without a visual jump.
+    for (const [, element] of elements) {
+      element.style.setProperty("transition-property", "none");
+      element.style.removeProperty("flex");
+    }
+    list?.style.setProperty("transition-property", "none");
+    list?.style.removeProperty("padding-inline-end");
+
+    const targetWidths = new Map<string, number>();
+    for (const [surfaceId, element] of elements) {
+      targetWidths.set(surfaceId, element.getBoundingClientRect().width);
+    }
+
+    for (const [surfaceId, element] of elements) {
+      const currentWidth = currentLayouts.get(surfaceId)?.width;
+      if (currentWidth !== undefined) {
+        element.style.setProperty("flex", `0 0 ${currentWidth}px`);
+      }
+    }
+    if (list && currentTrailingSpace > 0) {
+      list.style.setProperty("padding-inline-end", `${currentTrailingSpace}px`);
+    }
+    void list?.offsetWidth;
+    if (list) list.scrollLeft = currentScrollLeft;
+    for (const [, element] of elements) element.style.removeProperty("transition-property");
+    list?.style.removeProperty("transition-property");
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      for (const [, element] of elements) element.style.removeProperty("flex");
+      list?.style.removeProperty("padding-inline-end");
+      return;
+    }
+
+    for (const [surfaceId, element] of elements) {
+      const currentWidth = currentLayouts.get(surfaceId)?.width;
+      const targetWidth = targetWidths.get(surfaceId);
+      if (
+        currentWidth === undefined ||
+        targetWidth === undefined ||
+        Math.abs(currentWidth - targetWidth) < 0.5
+      ) {
+        element.style.removeProperty("flex");
+        continue;
+      }
+
+      element.style.setProperty("flex", `0 0 ${targetWidth}px`);
+      const animation = element.animate(
+        [{ flexBasis: `${currentWidth}px` }, { flexBasis: `${targetWidth}px` }],
+        {
+          duration: TAB_LAYOUT_ANIMATION_DURATION_MS,
+          easing: "cubic-bezier(0.2, 0, 0, 1)",
+        },
+      );
+      tabWidthAnimations.current.set(surfaceId, animation);
+      animation.addEventListener("finish", () => {
+        if (tabWidthAnimations.current.get(surfaceId) !== animation) return;
+        tabWidthAnimations.current.delete(surfaceId);
+        element.style.removeProperty("flex");
+      });
+    }
+
+    if (list && currentTrailingSpace >= 0.5) {
+      list.style.setProperty("padding-inline-end", "0px");
+      const animation = list.animate(
+        [{ paddingInlineEnd: `${currentTrailingSpace}px` }, { paddingInlineEnd: "0px" }],
+        {
+          duration: TAB_LAYOUT_ANIMATION_DURATION_MS,
+          easing: "cubic-bezier(0.2, 0, 0, 1)",
+        },
+      );
+      tabTrailingSpaceAnimation.current = animation;
+      animation.addEventListener("finish", () => {
+        if (tabTrailingSpaceAnimation.current !== animation) return;
+        tabTrailingSpaceAnimation.current = null;
+        list.style.removeProperty("padding-inline-end");
+      });
+    } else {
+      list?.style.removeProperty("padding-inline-end");
+    }
+  }, [captureTabLayouts]);
+  const scheduleTabWidthRelease = useCallback(() => {
+    const startedAt = tabWidthLockStartedAt.current;
+    if (startedAt === null) return;
+    if (tabWidthReleaseTimer.current !== null) {
+      window.clearTimeout(tabWidthReleaseTimer.current);
+    }
+    const remainingDelay = Math.max(
+      0,
+      TAB_LAYOUT_ANIMATION_DURATION_MS - (performance.now() - startedAt),
+    );
+    tabWidthReleaseTimer.current = window.setTimeout(releaseTabWidths, remainingDelay);
+  }, [releaseTabWidths]);
+  const closeWithTabAnimation = useCallback(
+    (closedSurfaceIds: readonly string[], close: () => void, holdWidthsForPointer: boolean) => {
+      if (tabWidthReleaseTimer.current !== null) {
+        window.clearTimeout(tabWidthReleaseTimer.current);
+        tabWidthReleaseTimer.current = null;
+      }
+
+      const layouts = captureTabLayouts();
+      previousTabLayouts.current = layouts;
+      for (const [surfaceId, layout] of layouts) {
+        const element = tabElements.current.get(surfaceId);
+        if (!element) continue;
+        element.style.setProperty("transition-property", "none");
+        element.style.setProperty("flex", `0 0 ${layout.width}px`);
+      }
+      const list = tabListElement.current;
+      if (list) {
+        const currentTrailingSpace =
+          Number.parseFloat(getComputedStyle(list).paddingInlineEnd) || 0;
+        list.style.setProperty("padding-inline-end", `${currentTrailingSpace}px`);
+      }
+      cancelTabAnimations();
+      cancelTabWidthAnimations();
+      if (list) {
+        const closedLayouts = closedSurfaceIds.flatMap((surfaceId) => {
+          const layout = layouts.get(surfaceId);
+          return layout ? [layout] : [];
+        });
+        const remainingTabCount = layouts.size - closedLayouts.length;
+        if (closedLayouts.length > 0 && remainingTabCount > 0) {
+          const currentTrailingSpace = Number.parseFloat(list.style.paddingInlineEnd) || 0;
+          const gap = Number.parseFloat(getComputedStyle(list).columnGap) || 0;
+          const closedExtent = closedLayouts.reduce(
+            (total, layout) => total + layout.width + gap,
+            0,
+          );
+          // Preserve the old scroll range while the pointer remains in the strip.
+          // Otherwise a close at the overflow edge clamps scrollLeft immediately.
+          list.style.setProperty("padding-inline-end", `${currentTrailingSpace + closedExtent}px`);
+        }
+      }
+      tabWidthLockStartedAt.current = performance.now();
+
+      close();
+      if (!holdWidthsForPointer) scheduleTabWidthRelease();
+    },
+    [cancelTabAnimations, cancelTabWidthAnimations, captureTabLayouts, scheduleTabWidthRelease],
+  );
   const previewReorder = useCallback(
     (targetId: string, position: DropPosition) => {
       const currentDraggingId = draggingIdRef.current;
@@ -143,17 +327,11 @@ export function WorkspaceTabs() {
           : draggingIndex === targetIndex + 1;
       if (alreadyAtPosition) return;
 
-      const positions = new Map<string, number>();
-      for (const surface of surfaces) {
-        const element = tabElements.current.get(surface.id);
-        if (element) positions.set(surface.id, element.getBoundingClientRect().left);
-      }
-      previousTabPositions.current = positions;
-      for (const animation of tabAnimations.current.values()) animation.cancel();
-      tabAnimations.current.clear();
+      previousTabLayouts.current = captureTabLayouts();
+      cancelTabAnimations();
       controller.reorder(currentDraggingId, targetId, position);
     },
-    [controller, surfaces],
+    [cancelTabAnimations, captureTabLayouts, controller, surfaces],
   );
   const previewReorderAt = useCallback(
     (clientX: number) => {
@@ -188,22 +366,32 @@ export function WorkspaceTabs() {
       positionDragOverlay(candidate.lastClientX, candidate.lastClientY);
     }
 
-    const previousPositions = previousTabPositions.current;
-    if (!previousPositions) return;
-    previousTabPositions.current = null;
+    const previousLayouts = previousTabLayouts.current;
+    if (!previousLayouts) return;
+    previousTabLayouts.current = null;
+
+    const currentPositions = new Map<string, number>();
+    for (const surface of surfaces) {
+      const element = tabElements.current.get(surface.id);
+      if (element) currentPositions.set(surface.id, element.getBoundingClientRect().left);
+    }
+    for (const element of tabElements.current.values()) {
+      element.style.removeProperty("transition-property");
+    }
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
     for (const surface of surfaces) {
       const element = tabElements.current.get(surface.id);
-      const previousLeft = previousPositions.get(surface.id);
-      if (!element || previousLeft === undefined) continue;
-      const deltaX = previousLeft - element.getBoundingClientRect().left;
+      const previousLeft = previousLayouts.get(surface.id)?.left;
+      const currentLeft = currentPositions.get(surface.id);
+      if (!element || previousLeft === undefined || currentLeft === undefined) continue;
+      const deltaX = previousLeft - currentLeft;
       if (Math.abs(deltaX) < 0.5) continue;
 
       const animation = element.animate(
         [{ transform: `translateX(${deltaX}px)` }, { transform: "translateX(0)" }],
         {
-          duration: TAB_REORDER_ANIMATION_DURATION_MS,
+          duration: TAB_LAYOUT_ANIMATION_DURATION_MS,
           easing: "cubic-bezier(0.2, 0, 0, 1)",
         },
       );
@@ -223,7 +411,7 @@ export function WorkspaceTabs() {
     if (!list || !activeTab) return;
 
     const viewport = list.getBoundingClientRect();
-    const tab = activeTab.getBoundingClientRect();
+    const tab = horizontalLayoutBounds(activeTab);
     const delta = workspaceTabScrollDelta(viewport.left, viewport.right, tab.left, tab.right);
     if (Math.abs(delta) < 0.5) return;
     list.scrollBy({ left: delta });
@@ -336,7 +524,11 @@ export function WorkspaceTabs() {
     });
     window.addEventListener("pointerup", handlePointerUp, true);
     window.addEventListener("pointercancel", handlePointerCancel, true);
-    window.addEventListener("blur", clearPointerDrag);
+    const handleWindowBlur = () => {
+      clearPointerDrag();
+      scheduleTabWidthRelease();
+    };
+    window.addEventListener("blur", handleWindowBlur);
     return () => {
       pointerDragCandidate.current = null;
       draggingIdRef.current = null;
@@ -344,11 +536,15 @@ export function WorkspaceTabs() {
       window.removeEventListener("pointermove", handlePointerMove, true);
       window.removeEventListener("pointerup", handlePointerUp, true);
       window.removeEventListener("pointercancel", handlePointerCancel, true);
-      window.removeEventListener("blur", clearPointerDrag);
-      for (const animation of tabAnimations.current.values()) animation.cancel();
-      tabAnimations.current.clear();
+      window.removeEventListener("blur", handleWindowBlur);
+      if (tabWidthReleaseTimer.current !== null) {
+        window.clearTimeout(tabWidthReleaseTimer.current);
+        tabWidthReleaseTimer.current = null;
+      }
+      cancelTabAnimations();
+      cancelTabWidthAnimations();
     };
-  }, [positionDragOverlay]);
+  }, [cancelTabAnimations, cancelTabWidthAnimations, positionDragOverlay, scheduleTabWidthRelease]);
 
   const draggingSurface = draggingId ? surfacesById[draggingId] : undefined;
   const DraggingIcon = draggingSurface
@@ -363,6 +559,7 @@ export function WorkspaceTabs() {
           role="tablist"
           aria-label={t("rightWorkspace.tabs")}
           className="flex w-full min-w-0 items-center gap-1 overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          onPointerLeave={scheduleTabWidthRelease}
         >
           {surfaces.map((surface, surfaceIndex) => {
             const Icon = definitionByKind.get(surface.kind)?.icon ?? PanelsTopLeftIcon;
@@ -459,11 +656,19 @@ export function WorkspaceTabs() {
                     onPointerUp={(event) => {
                       if (!event.isPrimary || event.button !== 0) return;
                       event.preventDefault();
-                      controller.close(surface.id);
+                      closeWithTabAnimation(
+                        [surface.id],
+                        () => controller.close(surface.id),
+                        event.pointerType === "mouse",
+                      );
                     }}
                     onClick={(event) => {
                       if (event.detail !== 0) return;
-                      controller.close(surface.id);
+                      closeWithTabAnimation(
+                        [surface.id],
+                        () => controller.close(surface.id),
+                        false,
+                      );
                     }}
                   >
                     <span
@@ -475,18 +680,36 @@ export function WorkspaceTabs() {
                   </Button>
                 </ContextMenuTrigger>
                 <ContextMenuContent>
-                  <ContextMenuItem onClick={() => controller.close(surface.id)}>
+                  <ContextMenuItem
+                    onClick={() =>
+                      closeWithTabAnimation([surface.id], () => controller.close(surface.id), false)
+                    }
+                  >
                     {t("rightWorkspace.closeTabAction")}
                   </ContextMenuItem>
                   <ContextMenuItem
                     disabled={!canCloseToRight}
-                    onClick={() => controller.closeToRight(surface.id, context)}
+                    onClick={() =>
+                      closeWithTabAnimation(
+                        surfaces.slice(surfaceIndex + 1).map((candidate) => candidate.id),
+                        () => controller.closeToRight(surface.id, context),
+                        false,
+                      )
+                    }
                   >
                     {t("rightWorkspace.closeToRight")}
                   </ContextMenuItem>
                   <ContextMenuItem
                     disabled={!canCloseOthers}
-                    onClick={() => controller.closeOthers(surface.id, context)}
+                    onClick={() =>
+                      closeWithTabAnimation(
+                        surfaces
+                          .filter((candidate) => candidate.id !== surface.id)
+                          .map((candidate) => candidate.id),
+                        () => controller.closeOthers(surface.id, context),
+                        false,
+                      )
+                    }
                   >
                     {t("rightWorkspace.closeOthers")}
                   </ContextMenuItem>

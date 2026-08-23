@@ -347,11 +347,17 @@ export class DefaultRightWorkspaceController implements RightWorkspaceController
         sameScope(candidateSurface.scope, closed.scope)
       );
     };
+    const closedIndex = current.surfaceOrder.indexOf(surfaceId);
+    const adjacentSurfaceIds =
+      closedIndex >= 0
+        ? [
+            ...current.surfaceOrder.slice(closedIndex + 1),
+            ...current.surfaceOrder.slice(0, closedIndex).reverse(),
+          ]
+        : navigationHistory.toReversed();
     const nextActiveId =
       activeSurfaceIdForPlacement(current, closed.placement) === surfaceId
-        ? (navigationHistory.findLast(matchesClosedPane) ??
-          surfaceOrder.findLast(matchesClosedPane) ??
-          null)
+        ? (adjacentSurfaceIds.find(matchesClosedPane) ?? null)
         : activeSurfaceIdForPlacement(current, closed.placement);
     const activeSurfaceId = closed.placement === "primary" ? nextActiveId : current.activeSurfaceId;
     const activeAuxiliarySurfaceId =

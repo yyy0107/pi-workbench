@@ -127,7 +127,7 @@ test("reveal deduplicates a file resource and closing the workspace preserves it
   assert.equal(store.getState().activeSurfaceId, first);
 });
 
-test("closing an active surface restores history from the same scope", () => {
+test("closing an active surface selects the adjacent right tab before falling back left", () => {
   const store = createRightWorkspaceStore();
   const controller = new DefaultRightWorkspaceController(store, createRegistry());
   const first = controller.open({
@@ -148,10 +148,18 @@ test("closing an active surface restores history from the same scope", () => {
     params: { artifactId: "other" },
     context: { ...context, threadId: "thread-2" },
   });
+  const third = controller.open({
+    kind: "artifact",
+    title: "Third",
+    params: { artifactId: "third" },
+    context,
+  });
   controller.focus(second);
 
   controller.close(second);
+  assert.equal(store.getState().activeSurfaceId, third);
 
+  controller.close(third);
   assert.equal(store.getState().activeSurfaceId, first);
 });
 
