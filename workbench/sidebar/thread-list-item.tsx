@@ -142,7 +142,7 @@ export function WorkbenchThreadListItem({
           )}
           onClick={() => void togglePinned()}
         >
-          {isPinned ? <PinOffIcon className="size-[18px]" /> : <PinIcon className="size-[18px]" />}
+          {isPinned ? <PinOffIcon className="size-4" /> : <PinIcon className="size-4" />}
         </Button>
         <ThreadListItemPrimitive.Archive
           onClick={leaveRemovedThreadRoute}
@@ -157,7 +157,7 @@ export function WorkbenchThreadListItem({
             />
           }
         >
-          <ArchiveIcon className="size-[18px]" />
+          <ArchiveIcon className="size-4" />
         </ThreadListItemPrimitive.Archive>
       </div>
     </ThreadListItemPrimitive.Root>

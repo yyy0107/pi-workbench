@@ -12,7 +12,9 @@ import {
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 
+import { collapsePanel } from "@/components/elements/surfaces";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useI18n } from "@/i18n";
@@ -84,24 +86,27 @@ function PinnedWorkspaceSection({
   );
 
   return (
-    <section className="flex flex-col gap-0.5">
+    <Collapsible
+      render={<section />}
+      open={expanded}
+      onOpenChange={setExpanded}
+      className="flex flex-col gap-0.5"
+    >
       <div
         data-workbench-selection-surface=""
         className="group/pinned-workspace hover:bg-sidebar-accent focus-within:bg-sidebar-accent relative flex h-9 w-full items-center rounded-lg px-1.5 transition-colors"
       >
-        <button
+        <CollapsibleTrigger
           type="button"
           aria-labelledby={`${workspaceLabelId} ${workspaceActionId}`}
-          aria-expanded={expanded}
           className="focus-visible:ring-sidebar-ring absolute inset-0 rounded-lg outline-none focus-visible:ring-2"
-          onClick={() => setExpanded((value) => !value)}
         />
 
         <div className="pointer-events-none relative size-7 shrink-0">
           <FolderIcon className="absolute left-1/2 top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 transition-opacity max-md:opacity-0 md:group-hover/pinned-workspace:opacity-0 md:group-has-[:focus-visible]/pinned-workspace:opacity-0" />
           <ChevronRightIcon
             className={cn(
-              "absolute left-1/2 top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 opacity-100 transition-[transform,opacity] md:opacity-0 md:group-hover/pinned-workspace:opacity-100 md:group-has-[:focus-visible]/pinned-workspace:opacity-100",
+              "absolute left-1/2 top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 opacity-100 transition-[transform,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none md:opacity-0 md:group-hover/pinned-workspace:opacity-100 md:group-has-[:focus-visible]/pinned-workspace:opacity-100",
               expanded && "rotate-90",
             )}
           />
@@ -130,7 +135,7 @@ function PinnedWorkspaceSection({
                   menuOpen && "md:opacity-100",
                 )}
               >
-                <MoreHorizontalIcon className="size-[18px]" />
+                <MoreHorizontalIcon className="size-4" />
               </Button>
             }
           />
@@ -152,7 +157,7 @@ function PinnedWorkspaceSection({
         </Popover>
       </div>
 
-      {expanded ? (
+      <CollapsibleContent className={cn(collapsePanel, "outline-none")}>
         <div className="flex flex-col gap-[2px] ps-6">
           <WorkbenchThreadList
             workspaceId={directory.id}
@@ -160,8 +165,8 @@ function PinnedWorkspaceSection({
             onNavigate={onNavigate}
           />
         </div>
-      ) : null}
-    </section>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
@@ -357,20 +362,23 @@ function WorkspaceDirectorySection({
   const toggleExpanded = () => toggleDirectory(directory.id);
 
   return (
-    <section className="flex flex-col gap-0.5">
+    <Collapsible
+      render={<section />}
+      open={expanded}
+      onOpenChange={(open) => {
+        onActivate();
+        if (open !== expanded) toggleExpanded();
+      }}
+      className="flex flex-col gap-0.5"
+    >
       <div
         data-workbench-selection-surface=""
         className="group/workspace hover:bg-sidebar-accent focus-within:bg-sidebar-accent relative flex h-9 w-full items-center rounded-lg px-1.5 transition-colors"
       >
-        <button
+        <CollapsibleTrigger
           type="button"
           aria-labelledby={`${workspaceLabelId} ${workspaceActionId}`}
-          aria-expanded={expanded}
           className="focus-visible:ring-sidebar-ring absolute inset-0 rounded-lg outline-none focus-visible:ring-2"
-          onClick={() => {
-            onActivate();
-            toggleExpanded();
-          }}
         />
 
         <div className="pointer-events-none relative size-7 shrink-0">
@@ -382,7 +390,7 @@ function WorkspaceDirectorySection({
           />
           <ChevronRightIcon
             className={cn(
-              "absolute left-1/2 top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 opacity-100 transition-[transform,opacity] md:opacity-0 md:group-hover/workspace:opacity-100 md:group-has-[:focus-visible]/workspace:opacity-100",
+              "absolute left-1/2 top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 opacity-100 transition-[transform,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none md:opacity-0 md:group-hover/workspace:opacity-100 md:group-has-[:focus-visible]/workspace:opacity-100",
               expanded && "rotate-90",
             )}
           />
@@ -417,7 +425,7 @@ function WorkspaceDirectorySection({
                   aria-label={t("workbench.sidebar.workspaceOptions")}
                   className="aui-button-icon text-muted-foreground hover:text-foreground focus-visible:text-foreground aria-expanded:text-foreground size-7 p-1 active:scale-90"
                 >
-                  <MoreHorizontalIcon className="size-[18px]" />
+                  <MoreHorizontalIcon className="size-4" />
                 </Button>
               }
             />
@@ -463,7 +471,7 @@ function WorkspaceDirectorySection({
         </div>
       </div>
 
-      {expanded ? (
+      <CollapsibleContent className={cn(collapsePanel, "outline-none")}>
         <div className="flex flex-col gap-[2px] ps-6">
           {hasNewThread ? (
             <DraftThreadListItem workspaceId={directory.id} onNavigate={onNavigate} />
@@ -474,8 +482,8 @@ function WorkspaceDirectorySection({
             onNavigate={onNavigate}
           />
         </div>
-      ) : null}
-    </section>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 

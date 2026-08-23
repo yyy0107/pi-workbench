@@ -4,7 +4,9 @@ import { useId, useState, type ReactNode, type RefObject } from "react";
 import { useAuiState } from "@assistant-ui/react";
 import { ChevronRightIcon, PanelLeftCloseIcon } from "lucide-react";
 
+import { collapsePanel } from "@/components/elements/surfaces";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Sidebar, useSidebar } from "@/components/ui/sidebar";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
@@ -69,21 +71,31 @@ export function WorkbenchSidebarContent({
         className="min-h-0 flex-1 overflow-y-auto py-1 ps-3 pe-[2px] [scrollbar-gutter:stable] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-[6px]"
       >
         {hasPinnedThreads || hasPinnedDirectories ? (
-          <section className="mb-1 flex flex-col gap-0.5">
+          <Collapsible
+            render={<section />}
+            open={pinnedExpanded}
+            onOpenChange={setPinnedExpanded}
+            className="mb-1 flex flex-col gap-0.5"
+          >
             <SidebarSectionHeading
               label={t("workbench.sidebar.pinned")}
               expanded={pinnedExpanded}
-              onToggle={() => setPinnedExpanded((value) => !value)}
             />
-            {pinnedExpanded ? <WorkbenchPinnedThreadList onNavigate={onNavigate} /> : null}
-          </section>
+            <CollapsibleContent className={cn(collapsePanel, "outline-none")}>
+              <WorkbenchPinnedThreadList onNavigate={onNavigate} />
+            </CollapsibleContent>
+          </Collapsible>
         ) : null}
 
-        <section className="flex flex-col gap-0.5">
+        <Collapsible
+          render={<section />}
+          open={workspaceExpanded}
+          onOpenChange={setWorkspaceExpanded}
+          className="flex flex-col gap-0.5"
+        >
           <SidebarSectionHeading
             label={t("workbench.shell.workspace")}
             expanded={workspaceExpanded}
-            onToggle={() => setWorkspaceExpanded((value) => !value)}
             actions={
               <SlotHost
                 name="sidebar.workspace.actions"
@@ -92,15 +104,15 @@ export function WorkbenchSidebarContent({
             }
           />
 
-          {workspaceExpanded ? (
-            <>
+          <CollapsibleContent className={cn(collapsePanel, "outline-none")}>
+            <div>
               {!mobile ? (
                 <SlotHost name="sidebar.top" className="mb-1 flex flex-col gap-1 empty:hidden" />
               ) : null}
               <WorkbenchWorkspaceThreadList onNavigate={onNavigate} />
-            </>
-          ) : null}
-        </section>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       </div>
 
       {!mobile ? (
@@ -123,12 +135,10 @@ export function WorkbenchSidebarContent({
 function SidebarSectionHeading({
   label,
   expanded,
-  onToggle,
   actions,
 }: {
   label: string;
   expanded: boolean;
-  onToggle(): void;
   actions?: ReactNode;
 }) {
   const { t } = useI18n();
@@ -143,12 +153,10 @@ function SidebarSectionHeading({
       data-workbench-selection-surface=""
       className="group/sidebar-section hover:bg-sidebar-accent focus-within:bg-sidebar-accent relative flex h-9 w-full shrink-0 items-center rounded-lg ps-2 pe-1 transition-colors"
     >
-      <button
+      <CollapsibleTrigger
         type="button"
         aria-labelledby={`${labelId} ${actionId}`}
-        aria-expanded={expanded}
         className="focus-visible:ring-sidebar-ring absolute inset-0 rounded-lg outline-none focus-visible:ring-2"
-        onClick={onToggle}
       />
       <h2
         id={labelId}
@@ -159,7 +167,7 @@ function SidebarSectionHeading({
       <div className="pointer-events-none flex size-7 shrink-0 items-center justify-center">
         <ChevronRightIcon
           className={cn(
-            "size-4 opacity-100 transition-[transform,opacity] md:opacity-0 md:group-hover/sidebar-section:opacity-100 md:group-focus-within/sidebar-section:opacity-100",
+            "size-4 opacity-100 transition-[transform,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none md:opacity-0 md:group-hover/sidebar-section:opacity-100 md:group-focus-within/sidebar-section:opacity-100",
             expanded && "rotate-90",
           )}
         />
@@ -187,7 +195,7 @@ function MobileSidebarHeader() {
         title={t("workbench.sidebar.closeMobile")}
         onClick={() => setOpenMobile(false)}
       >
-        <PanelLeftCloseIcon className="size-[18px]" />
+        <PanelLeftCloseIcon className="size-4" />
       </Button>
     </div>
   );
@@ -207,7 +215,7 @@ function SidebarCollapseButton() {
       onClick={() => setOpen(false)}
       className="text-muted-foreground hover:text-foreground"
     >
-      <PanelLeftCloseIcon className="size-[18px]" />
+      <PanelLeftCloseIcon className="size-4" />
     </Button>
   );
 }

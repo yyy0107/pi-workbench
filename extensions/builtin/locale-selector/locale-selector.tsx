@@ -55,7 +55,7 @@ function LocaleSelector({ compact = false }: { compact?: boolean }) {
       )}
       onClick={() => selectLocale(nextLocale)}
     >
-      <LanguagesIcon className={compact ? "size-4" : "size-[18px]"} />
+      <LanguagesIcon className="size-4" />
       {!compact ? <span>{currentLanguage}</span> : null}
     </Button>
   );

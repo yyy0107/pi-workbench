@@ -80,9 +80,9 @@ export function DirectoryPickerButton() {
         )}
       >
         {picking ? (
-          <LoaderCircleIcon className="size-[18px] animate-spin" />
+          <LoaderCircleIcon className="size-4 animate-spin" />
         ) : (
-          <FolderPlusIcon className="size-[18px]" />
+          <FolderPlusIcon className="size-4" />
         )}
       </Button>
       <RemoteDirectoryPickerDialog

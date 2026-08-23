@@ -30,7 +30,7 @@ function SettingsTrigger({ compact = false }: { compact?: boolean }) {
         });
       }}
     >
-      <SettingsIcon className={compact ? "size-4" : "size-[18px]"} />
+      <SettingsIcon className="size-4" />
       {!compact ? <span className="truncate">{t("extensions.settings.trigger")}</span> : null}
     </Button>
   );

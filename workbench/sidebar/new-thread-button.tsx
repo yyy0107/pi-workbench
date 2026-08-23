@@ -40,7 +40,7 @@ export function NewThreadButton({
           className,
         )}
       >
-        <PlusIcon className="size-[18px]" />
+        <PlusIcon className="size-4" />
       </button>
     ) : (
       <button
