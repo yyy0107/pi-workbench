@@ -982,6 +982,45 @@ test("keeps the optimistic assistant after agent start until the run settles", (
   assert.equal(session.getSnapshot().isRunning, false);
 });
 
+test("projects automatic-retry progress until the complete run settles", (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  (manager as unknown as { refreshMetadata(): Promise<void> }).refreshMetadata = async () => {};
+  const session = manager.getSession("local-session", "remote-session");
+  const internals = session as unknown as {
+    handleEvent(event: PiEvent): void;
+    publishMessagesAndSetRunning(running: boolean): void;
+    reload(): Promise<void>;
+  };
+  internals.reload = async () => {};
+  internals.publishMessagesAndSetRunning(true);
+
+  internals.handleEvent({
+    type: "auto_retry_start",
+    sequence: 0,
+    attempt: 2,
+    maxAttempts: 3,
+    delayMs: 4_000,
+    errorMessage: "fetch failed",
+  });
+
+  assert.deepEqual(session.getSnapshot().autoRetry, { attempt: 2, maxAttempts: 3 });
+  assert.equal(session.getSnapshot().isRunning, true);
+
+  internals.handleEvent({
+    type: "auto_retry_end",
+    sequence: 1,
+    success: false,
+    attempt: 2,
+    finalError: "fetch failed",
+  });
+  assert.deepEqual(session.getSnapshot().autoRetry, { attempt: 2, maxAttempts: 3 });
+
+  internals.handleEvent({ type: "agent_settled", sequence: 2 });
+  assert.equal(session.getSnapshot().autoRetry, undefined);
+  assert.equal(session.getSnapshot().isRunning, false);
+});
+
 test("keeps the optimistic assistant id from stream start through completion", (t) => {
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());

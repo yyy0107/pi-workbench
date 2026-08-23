@@ -106,6 +106,11 @@ import {
   piPromptContent,
   piSummaryFromSessionListItem,
 } from "../sessions/session-rpc-adapter";
+import {
+  piAutoRetryFromEvent,
+  piAutoRetryFromHistory,
+  type PiAutoRetrySnapshot,
+} from "./auto-retry";
 
 const ARCHIVED_STORAGE_KEY = `${WORKBENCH_STORAGE_PREFIX}pi-archived-sessions`;
 const PINNED_STORAGE_KEY = `${WORKBENCH_STORAGE_PREFIX}pi-pinned-sessions`;
@@ -161,6 +166,7 @@ export interface PiSessionSnapshot {
   messages: readonly ThreadMessage[];
   isRunning: boolean;
   runStartedAt?: number;
+  autoRetry?: PiAutoRetrySnapshot;
   isLoading: boolean;
   queuePaused: boolean;
   steeringQueueIds: readonly string[];
@@ -419,7 +425,12 @@ export class PiClientSession {
       if (!preserveUnpersistedOptimisticTurn && this.streamingMessage === streamingMessageAtStart) {
         this.streamingMessage = undefined;
       }
-      this.publishMessages();
+      const historySequence = value.events.at(-1)?.event.seq ?? -1;
+      const autoRetry =
+        this.snapshotValue.isRunning && historySequence >= this.lastSequence
+          ? piAutoRetryFromHistory(value)
+          : this.snapshotValue.autoRetry;
+      this.publishMessages({ autoRetry });
     };
     this.reloadTask = fetchProgressiveSessionHistory(remoteId, fetchPiRpcSessionHistory, {
       onInitialPage: (history) => {
@@ -685,6 +696,16 @@ export class PiClientSession {
     if (event.type === "agent_start") {
       this.markPromptStarted();
       this.setRunning(true);
+      return;
+    }
+    if (event.type === "auto_retry_start") {
+      const autoRetry = piAutoRetryFromEvent(event);
+      if (autoRetry) this.replaceSnapshot({ autoRetry });
+      return;
+    }
+    if (event.type === "auto_retry_end") {
+      // Keep the retry presentation mounted until agent_settled closes the complete run. Clearing
+      // it here creates a brief, misleading Pi Working frame after the final retry response.
       return;
     }
 
@@ -1063,13 +1084,20 @@ export class PiClientSession {
 
   private setRunning(running: boolean, notifyManager = true): void {
     if (this.snapshotValue.isRunning === running) {
+      if (!running && this.snapshotValue.autoRetry !== undefined) {
+        this.replaceSnapshot({ autoRetry: undefined });
+      }
       if (notifyManager && this.remoteIdValue) {
         this.manager.updateRunningFromSession(this.remoteIdValue, running, this);
       }
       return;
     }
     this.runStartedAtValue = running ? (this.runStartedAtValue ?? Date.now()) : undefined;
-    this.replaceSnapshot({ isRunning: running, runStartedAt: this.runStartedAtValue });
+    this.replaceSnapshot({
+      isRunning: running,
+      runStartedAt: this.runStartedAtValue,
+      ...(running ? {} : { autoRetry: undefined }),
+    });
     if (notifyManager && this.remoteIdValue) {
       this.manager.updateRunningFromSession(this.remoteIdValue, running, this);
     }
@@ -1112,10 +1140,11 @@ export class PiClientSession {
     return true;
   }
 
-  private publishMessages(): void {
+  private publishMessages(patch: Pick<Partial<PiSessionSnapshot>, "autoRetry"> = {}): void {
     this.replaceSnapshot({
       messages: this.currentMessages(),
       runStartedAt: this.runStartedAtValue,
+      ...patch,
     });
   }
 
@@ -1125,6 +1154,7 @@ export class PiClientSession {
       messages: this.currentMessages(),
       isRunning: running,
       runStartedAt: this.runStartedAtValue,
+      autoRetry: undefined,
     });
     if (this.remoteIdValue) {
       this.manager.updateRunningFromSession(this.remoteIdValue, running, this);

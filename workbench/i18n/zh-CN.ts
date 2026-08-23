@@ -67,6 +67,15 @@ export const workbenchZhCN = {
     generating: "正在生成回答…",
     working: "Pi Working...",
     workingElapsed: ({ duration }: { duration: string }) => `Pi Working... · ${duration}`,
+    connectionInterruptedRetryingElapsed: ({
+      attempt,
+      maxAttempts,
+      duration,
+    }: {
+      attempt: number;
+      maxAttempts: number;
+      duration: string;
+    }) => `连接中断，正在重试 ${attempt}/${maxAttempts} · ${duration}`,
     commandResponses: {
       compactRunning: "正在压缩上下文…",
       compactSucceeded: "会话上下文已压缩。",

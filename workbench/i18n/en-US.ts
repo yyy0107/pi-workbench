@@ -68,6 +68,15 @@ export const workbenchEnUS = {
     generating: "Generating response…",
     working: "Pi Working...",
     workingElapsed: ({ duration }: { duration: string }) => `Pi Working... · ${duration}`,
+    connectionInterruptedRetryingElapsed: ({
+      attempt,
+      maxAttempts,
+      duration,
+    }: {
+      attempt: number;
+      maxAttempts: number;
+      duration: string;
+    }) => `Connection interrupted, retrying ${attempt}/${maxAttempts} · ${duration}`,
     commandResponses: {
       compactRunning: "Compacting conversation context…",
       compactSucceeded: "Conversation context was compacted.",

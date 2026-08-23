@@ -32,7 +32,7 @@ import {
   WorkbenchSystemMessage,
   WorkbenchUserMessage,
 } from "./workbench-message";
-import { currentRunStartedAt, piRunStartedAt } from "./workbench-thread-timing";
+import { currentRunStartedAt, piAutoRetryStatus, piRunStartedAt } from "./workbench-thread-timing";
 
 interface MessageRow {
   id: string;
@@ -210,6 +210,7 @@ function PiWorkingStatus() {
   const runStartedAt = useAuiState(
     (state) => piRunStartedAt(state.thread.extras) ?? currentRunStartedAt(state.thread.messages),
   );
+  const autoRetry = useAuiState((state) => piAutoRetryStatus(state.thread.extras));
   const fallbackStartedAt = useRef<number | undefined>(undefined);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
@@ -225,12 +226,21 @@ function PiWorkingStatus() {
     return () => window.clearInterval(interval);
   }, [runStartedAt]);
 
+  const duration = formatCompactDuration(elapsedSeconds * 1_000, { zeroValue: "0s" });
+  const label = autoRetry
+    ? t("workbench.chat.connectionInterruptedRetryingElapsed", {
+        attempt: autoRetry.attempt,
+        maxAttempts: autoRetry.maxAttempts,
+        duration,
+      })
+    : t("workbench.chat.workingElapsed", { duration });
+
   return (
     <div
       data-slot="pi-working"
       role="status"
       aria-live="polite"
-      aria-label={t("workbench.chat.working")}
+      aria-label={label}
       className="text-foreground/40 flex h-10 w-full shrink-0 items-center gap-1.5 text-[13.5px] font-medium [overflow-anchor:none]"
     >
       <span
@@ -251,9 +261,7 @@ function PiWorkingStatus() {
         aria-hidden="true"
         className="shimmer [--shimmer-color:black] [--shimmer-repeat-delay:900] [--shimmer-speed:180] [--shimmer-spread:52px] motion-reduce:animate-none"
       >
-        {t("workbench.chat.workingElapsed", {
-          duration: formatCompactDuration(elapsedSeconds * 1_000, { zeroValue: "0s" }),
-        })}
+        {label}
       </span>
     </div>
   );

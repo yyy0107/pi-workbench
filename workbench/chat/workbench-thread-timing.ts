@@ -11,6 +11,11 @@ interface ThreadTimingMessage {
   };
 }
 
+export interface PiAutoRetryStatus {
+  readonly attempt: number;
+  readonly maxAttempts: number;
+}
+
 /** Read the runtime-owned start of the active Pi run from assistant-ui thread extras. */
 export function piRunStartedAt(extras: unknown): number | undefined {
   if (!extras || typeof extras !== "object" || !("piRun" in extras)) return undefined;
@@ -18,6 +23,28 @@ export function piRunStartedAt(extras: unknown): number | undefined {
   if (!piRun || typeof piRun !== "object" || !("startedAt" in piRun)) return undefined;
   const startedAt = piRun.startedAt;
   return typeof startedAt === "number" && Number.isFinite(startedAt) ? startedAt : undefined;
+}
+
+/** Read the active automatic-retry attempt from assistant-ui thread extras. */
+export function piAutoRetryStatus(extras: unknown): PiAutoRetryStatus | undefined {
+  if (!extras || typeof extras !== "object" || !("piRun" in extras)) return undefined;
+  const piRun = extras.piRun;
+  if (!piRun || typeof piRun !== "object" || !("autoRetry" in piRun)) return undefined;
+  const autoRetry = piRun.autoRetry;
+  if (!autoRetry || typeof autoRetry !== "object") return undefined;
+  if (!("attempt" in autoRetry) || !("maxAttempts" in autoRetry)) return undefined;
+  const { attempt, maxAttempts } = autoRetry;
+  if (
+    typeof attempt !== "number" ||
+    !Number.isInteger(attempt) ||
+    attempt <= 0 ||
+    typeof maxAttempts !== "number" ||
+    !Number.isInteger(maxAttempts) ||
+    maxAttempts < attempt
+  ) {
+    return undefined;
+  }
+  return autoRetry as PiAutoRetryStatus;
 }
 
 /** Return a stable wall-clock start for the currently running turn. */

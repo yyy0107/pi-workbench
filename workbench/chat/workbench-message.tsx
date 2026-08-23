@@ -22,6 +22,7 @@ import { parsePiMessageTermination } from "@/runtime/pi/message-termination";
 import { WorkbenchComposerCommandResponse } from "./composer-command-response";
 import { WorkbenchMessageActions } from "./message-actions";
 import { WorkbenchMessageParts } from "./message-parts";
+import { shouldShowMessageError } from "./workbench-message-error";
 
 function MessageSlot({ name }: { name: "message.before" | "message.after" }) {
   const messageId = useAuiState((state) => state.message.id);
@@ -76,7 +77,12 @@ function WorkbenchMessageError() {
     if (retryPhase === "running" && !isRunning) setRetryPhase("idle");
   }, [isRunning, retryPhase]);
 
-  if (status?.type !== "incomplete" || termination?.kind === "completed") return null;
+  if (
+    status?.type !== "incomplete" ||
+    !shouldShowMessageError({ isRunning, terminationKind: termination?.kind })
+  ) {
+    return null;
+  }
 
   const rawDetail = termination?.errorMessage ?? readableErrorDetail(status.error);
   const kind = termination?.kind ?? status.reason;

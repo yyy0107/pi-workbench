@@ -73,6 +73,7 @@ function useWorkbenchPiRuntime(manager: PiSessionManager) {
       },
       piRun: {
         startedAt: snapshot.runStartedAt,
+        autoRetry: snapshot.autoRetry,
       },
       piComposer: {
         error: composerError,
@@ -83,6 +84,7 @@ function useWorkbenchPiRuntime(manager: PiSessionManager) {
       clearComposerError,
       composerError,
       session,
+      snapshot.autoRetry,
       snapshot.queuePaused,
       snapshot.runStartedAt,
       snapshot.steeringQueueIds,

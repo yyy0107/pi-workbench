@@ -1,12 +1,26 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { currentRunStartedAt, piRunStartedAt } from "./workbench-thread-timing";
+import { currentRunStartedAt, piAutoRetryStatus, piRunStartedAt } from "./workbench-thread-timing";
 
 test("reads a stable runtime-owned Pi run start", () => {
   assert.equal(piRunStartedAt({ piRun: { startedAt: 12_345 } }), 12_345);
   assert.equal(piRunStartedAt({ piRun: { startedAt: Number.NaN } }), undefined);
   assert.equal(piRunStartedAt({}), undefined);
+});
+
+test("reads only valid automatic-retry state from Pi runtime extras", () => {
+  const retry = { attempt: 2, maxAttempts: 3 };
+  assert.equal(piAutoRetryStatus({ piRun: { autoRetry: retry } }), retry);
+  assert.equal(
+    piAutoRetryStatus({ piRun: { autoRetry: { attempt: 0, maxAttempts: 3 } } }),
+    undefined,
+  );
+  assert.equal(
+    piAutoRetryStatus({ piRun: { autoRetry: { attempt: 4, maxAttempts: 3 } } }),
+    undefined,
+  );
+  assert.equal(piAutoRetryStatus({ piRun: {} }), undefined);
 });
 
 test("keeps the running turn anchored to the latest user message across remounts", () => {
