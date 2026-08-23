@@ -4,7 +4,7 @@ import { CuboidIcon } from "lucide-react";
 import { useAuiState } from "@assistant-ui/react";
 import { useCallback, useMemo, useSyncExternalStore } from "react";
 
-import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { CompactMarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ComposerCommandToken } from "@/components/elements/composer";
 import { useComposerCommandRegistry } from "@/platform/extensions";
 import { usePiCommands } from "@/runtime/pi/client/runtime/command-context";
@@ -93,5 +93,5 @@ export function WorkbenchComposerMessageText({ text }: { text: string }) {
     );
   }
 
-  return <MarkdownText />;
+  return <CompactMarkdownText />;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { ComposerPrimitive, MessagePrimitive, useAui, useAuiState } from "@assistant-ui/react";
 
 import { ComposerAttachments, UserMessageAttachments } from "@/components/assistant-ui/attachment";
@@ -137,22 +137,8 @@ function WorkbenchMessageError() {
 }
 
 export function WorkbenchUserMessage() {
-  const bubbleRef = useRef<HTMLDivElement>(null);
   const isOptimistic = useAuiState((state) => state.message.metadata.isOptimistic === true);
   const [animateOnMount] = useState(isOptimistic);
-  const [isSelected, setIsSelected] = useState(false);
-
-  useEffect(() => {
-    if (!isSelected) return;
-
-    const handlePointerDown = (event: PointerEvent) => {
-      if (event.target instanceof Node && bubbleRef.current?.contains(event.target)) return;
-      setIsSelected(false);
-    };
-
-    document.addEventListener("pointerdown", handlePointerDown);
-    return () => document.removeEventListener("pointerdown", handlePointerDown);
-  }, [isSelected]);
 
   return (
     <MessagePrimitive.Root
@@ -169,22 +155,9 @@ export function WorkbenchUserMessage() {
       >
         <UserMessageAttachments />
         <div
-          ref={bubbleRef}
-          tabIndex={0}
           data-slot="user-message-bubble"
-          data-selected={isSelected || undefined}
           data-workbench-glass-surface=""
-          className={cn(
-            "min-w-0 max-w-full rounded-[22px] border border-transparent bg-[rgb(237,243,254)] px-3.5 py-2 break-words text-start outline-none transition-[border-color,box-shadow] dark:bg-[rgb(44,44,46)]",
-            "focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500/20",
-            "data-[selected]:border-blue-500 data-[selected]:ring-2 data-[selected]:ring-blue-500/20",
-          )}
-          onClick={() => setIsSelected(true)}
-          onKeyDown={(event) => {
-            if (event.key !== "Escape") return;
-            setIsSelected(false);
-            event.currentTarget.blur();
-          }}
+          className="w-fit max-w-full min-w-0 self-end rounded-[12px] bg-muted/50 px-4 py-2.5 text-base leading-6 text-foreground whitespace-pre-wrap [overflow-wrap:anywhere] text-start"
         >
           <WorkbenchMessageParts />
         </div>

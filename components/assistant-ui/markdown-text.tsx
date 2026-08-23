@@ -24,13 +24,19 @@ export type MarkdownTextProps = Omit<
   "components" | "controls" | "lineNumbers" | "plugins" | "shikiTheme"
 > & {
   codeTheme?: CodeTheme;
+  inheritLineHeight?: boolean;
+  preserveWhitespace?: boolean;
+  resetParagraphMargins?: boolean;
 };
 
 const MarkdownTextImpl = ({
   className,
   codeTheme: codeThemeOverride,
   defer = true,
+  inheritLineHeight = false,
   mode = "streaming",
+  preserveWhitespace = false,
+  resetParagraphMargins = false,
   ...props
 }: MarkdownTextProps) => {
   const { codeTheme: preferredCodeTheme } = useAppearancePreferences();
@@ -48,7 +54,14 @@ const MarkdownTextImpl = ({
   return (
     <StreamdownTextPrimitive
       {...props}
-      className={cn("aui-streamdown space-y-0", className)}
+      className={cn(
+        "aui-streamdown space-y-0",
+        inheritLineHeight &&
+          "[&_p]:leading-[inherit]! [&_[data-streamdown=list-item]]:leading-[inherit]!",
+        preserveWhitespace && "[&_p]:whitespace-pre-wrap!",
+        resetParagraphMargins && "[&_p]:m-0!",
+        className,
+      )}
       components={streamdownComponents}
       controls={false}
       defer={defer}
@@ -63,6 +76,10 @@ const ConfiguredMarkdownText = memo(MarkdownTextImpl);
 
 export const MarkdownText = memo(function MarkdownText() {
   return <ConfiguredMarkdownText />;
+});
+
+export const CompactMarkdownText = memo(function CompactMarkdownText() {
+  return <ConfiguredMarkdownText inheritLineHeight preserveWhitespace resetParagraphMargins />;
 });
 
 export const MarkdownTextContent = memo(function MarkdownTextContent({
