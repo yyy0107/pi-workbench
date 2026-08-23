@@ -46,33 +46,32 @@ export function useProgressiveTextDocument(
   source: ProgressiveTextSource | undefined,
 ): ProgressiveTextState {
   const [attempt, setAttempt] = useState(0);
+  const sourceAvailable = source !== undefined;
+  const sourceText = source?.text;
+  const sourceTotalBytes = source?.totalBytes;
+  const sourceVersion = source?.version;
+  const streamRelativePath = source?.stream?.relativePath;
+  const streamWorkspaceId = source?.stream?.workspaceId;
   const document = useMemo(
-    () => new ProgressiveTextDocument(source?.totalBytes),
-    [
-      attempt,
-      source?.stream?.relativePath,
-      source?.stream?.workspaceId,
-      source?.text,
-      source?.version,
-    ],
+    () => new ProgressiveTextDocument(sourceTotalBytes),
+    [attempt, sourceText, sourceTotalBytes, sourceVersion, streamRelativePath, streamWorkspaceId],
   );
   const initialState = useMemo<InternalProgressiveTextState>(
     () => ({
       document,
       snapshot: document.snapshot(),
-      stage: source ? (source.text === undefined ? "loading" : "rendering") : "idle",
+      stage: sourceAvailable ? (sourceText === undefined ? "loading" : "rendering") : "idle",
     }),
-    [document, source],
+    [document, sourceAvailable, sourceText],
   );
   const [state, setState] = useState(initialState);
 
   useEffect(() => {
-    if (!source) return;
+    if (!sourceAvailable || sourceTotalBytes === undefined) return;
 
     const abortController = new AbortController();
     let cancelIdle: (() => void) | undefined;
     let publishFrame: number | undefined;
-    let readyFrame: number | undefined;
     let active = true;
 
     const publish = (stage: ProgressiveTextStage) => {
@@ -91,14 +90,13 @@ export function useProgressiveTextDocument(
       if (publishFrame !== undefined) window.cancelAnimationFrame(publishFrame);
       publishFrame = undefined;
       document.finish(loadedBytes, totalBytes);
-      publish("rendering");
-      readyFrame = window.requestAnimationFrame(() => publish("ready"));
+      publish("ready");
     };
 
     setState(initialState);
 
-    if (source.text !== undefined) {
-      const text = source.text;
+    if (sourceText !== undefined) {
+      const text = sourceText;
       let offset = 0;
       const parseNextChunk = (deadline?: IdleDeadline) => {
         if (!active) return;
@@ -107,9 +105,9 @@ export function useProgressiveTextDocument(
           const end = Math.min(offset + STATIC_PARSE_CHUNK_CHARACTERS, text.length);
           const loadedBytes =
             text.length === 0
-              ? source.totalBytes
-              : Math.round((end / text.length) * source.totalBytes);
-          document.append(text.slice(offset, end), loadedBytes, source.totalBytes);
+              ? sourceTotalBytes
+              : Math.round((end / text.length) * sourceTotalBytes);
+          document.append(text.slice(offset, end), loadedBytes, sourceTotalBytes);
           offset = end;
         } while (
           offset < text.length &&
@@ -121,19 +119,22 @@ export function useProgressiveTextDocument(
         if (offset < text.length) {
           cancelIdle = scheduleIdle(parseNextChunk);
         } else {
-          finish(source.totalBytes, source.totalBytes);
+          finish(sourceTotalBytes, sourceTotalBytes);
         }
       };
       cancelIdle = scheduleIdle(parseNextChunk);
-    } else if (source.stream) {
-      void streamPiWorkspaceFileText(source.stream, {
-        signal: abortController.signal,
-        onChunk(chunk) {
-          document.append(chunk.text, chunk.loadedBytes, chunk.totalBytes ?? source.totalBytes);
-          schedulePublish("loading");
+    } else if (streamWorkspaceId && streamRelativePath) {
+      void streamPiWorkspaceFileText(
+        { workspaceId: streamWorkspaceId, relativePath: streamRelativePath },
+        {
+          signal: abortController.signal,
+          onChunk(chunk) {
+            document.append(chunk.text, chunk.loadedBytes, chunk.totalBytes ?? sourceTotalBytes);
+            schedulePublish("loading");
+          },
         },
-      }).then(
-        (result) => finish(result.loadedBytes, result.totalBytes ?? source.totalBytes),
+      ).then(
+        (result) => finish(result.loadedBytes, result.totalBytes ?? sourceTotalBytes),
         () => {
           if (!abortController.signal.aborted) publish("error");
         },
@@ -145,9 +146,16 @@ export function useProgressiveTextDocument(
       abortController.abort();
       cancelIdle?.();
       if (publishFrame !== undefined) window.cancelAnimationFrame(publishFrame);
-      if (readyFrame !== undefined) window.cancelAnimationFrame(readyFrame);
     };
-  }, [document, initialState, source]);
+  }, [
+    document,
+    initialState,
+    sourceAvailable,
+    sourceText,
+    sourceTotalBytes,
+    streamRelativePath,
+    streamWorkspaceId,
+  ]);
 
   const retry = useCallback(() => setAttempt((value) => value + 1), []);
   const current = state.document === document ? state : initialState;
