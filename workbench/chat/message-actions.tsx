@@ -24,7 +24,7 @@ function CopyAction({ role }: Readonly<{ role: "user" | "assistant" }>) {
       : t("workbench.chat.actions.copyResponse");
 
   return (
-    <ActionBarPrimitive.Root hideWhenRunning autohide="never" className="flex items-center gap-0.5">
+    <ActionBarPrimitive.Root autohide="never" className="flex items-center gap-0.5">
       <ActionBarPrimitive.Copy render={<TooltipIconButton tooltip={tooltip} />}>
         {role === "assistant" ? (
           <>
@@ -49,14 +49,13 @@ export function WorkbenchMessageActions({ className }: Readonly<{ className?: st
   const role = useAuiState((state) => state.message.role);
   const createdAt = useAuiState((state) => state.message.createdAt);
   const isLast = useAuiState((state) => state.message.isLast);
-  const isRunning = useAuiState((state) => state.thread.isRunning);
   const capabilities = useAuiState((state) => state.thread.capabilities);
   const visible = useAuiState((state) =>
     shouldShowMessageActions(state.thread.messages, state.message.index),
   );
   const context = { messageId, role, isLast };
 
-  if (!visible || (isLast && isRunning)) return null;
+  if (!visible) return null;
 
   return (
     <div

@@ -26,6 +26,8 @@ import {
   usePiThreadListItemSnapshot,
 } from "@/runtime/pi/client/runtime/context";
 
+import { shouldShowMessagePerformance } from "./message-performance-visibility";
+
 interface PiUsageStats {
   input: number;
   output: number;
@@ -107,7 +109,7 @@ function MessagePerformance() {
   if (stats.length === 0) return null;
 
   return (
-    <ActionBarPrimitive.Root hideWhenRunning autohide="always" className="flex items-center">
+    <ActionBarPrimitive.Root autohide="always" className="flex items-center">
       <MessageTiming stats={stats} className="w-auto max-w-none" />
     </ActionBarPrimitive.Root>
   );
@@ -159,6 +161,7 @@ function AssistantActions({ canReload }: Readonly<{ canReload: boolean }>) {
   const sessionId = usePiActiveSessionId();
   const session = usePiThreadListItemSnapshot(sessionId);
   const reportError = useExtensionErrorReporter();
+  const isRunning = useAuiState((state) => state.thread.isRunning);
   const rawEventSeq = useAuiState((state) => state.message.metadata.custom.piEventSeq);
   const eventSeq =
     typeof rawEventSeq === "number" && Number.isSafeInteger(rawEventSeq) && rawEventSeq >= 0
@@ -166,7 +169,7 @@ function AssistantActions({ canReload }: Readonly<{ canReload: boolean }>) {
       : undefined;
   const [forkState, setForkState] = useState<"idle" | "pending" | "failed">("idle");
   const forkConversation = useCallback(async () => {
-    if (!sessionId || eventSeq === undefined || forkState === "pending") return;
+    if (isRunning || !sessionId || eventSeq === undefined || forkState === "pending") return;
     setForkState("pending");
     try {
       const forked = await manager.forkSessionAt({
@@ -183,7 +186,7 @@ function AssistantActions({ canReload }: Readonly<{ canReload: boolean }>) {
         contributionId: "message-actions.fork-conversation",
       });
     }
-  }, [aui, eventSeq, forkState, manager, reportError, session?.title, sessionId, t]);
+  }, [aui, eventSeq, forkState, isRunning, manager, reportError, session?.title, sessionId, t]);
   const forkTooltip =
     forkState === "pending"
       ? t("extensions.messageActions.forkConversationPending")
@@ -192,12 +195,12 @@ function AssistantActions({ canReload }: Readonly<{ canReload: boolean }>) {
         : t("extensions.messageActions.forkConversation");
 
   return (
-    <ActionBarPrimitive.Root hideWhenRunning autohide="never" className="flex items-center gap-0.5">
+    <ActionBarPrimitive.Root autohide="never" className="flex items-center gap-0.5">
       {sessionId && eventSeq !== undefined ? (
         <TooltipIconButton
           tooltip={forkTooltip}
           type="button"
-          disabled={forkState === "pending"}
+          disabled={isRunning || forkState === "pending"}
           onClick={forkConversation}
         >
           <SplitIcon className="size-3.5 rotate-90" />
@@ -214,8 +217,10 @@ function AssistantActions({ canReload }: Readonly<{ canReload: boolean }>) {
   );
 }
 
-export function MessageActions({ role }: MessageSlotContext) {
+export function MessageActions({ role, isLast }: MessageSlotContext) {
   const capabilities = useAuiState((state) => state.thread.capabilities);
+  const isRunning = useAuiState((state) => state.thread.isRunning);
+  const showPerformance = shouldShowMessagePerformance({ isLast, isRunning });
 
   return (
     <>
@@ -224,7 +229,7 @@ export function MessageActions({ role }: MessageSlotContext) {
       {role === "assistant" ? (
         <>
           <AssistantActions canReload={capabilities.reload} />
-          <MessagePerformance />
+          {showPerformance ? <MessagePerformance /> : null}
         </>
       ) : null}
     </>
