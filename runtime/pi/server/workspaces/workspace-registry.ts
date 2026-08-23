@@ -6,9 +6,11 @@ import { WorkspaceStore } from "./workspace-store";
 interface WorkspaceRegistryGlobal {
   __workbenchWorkspaceStore?: WorkspaceStore;
   __workbenchWorkspaceStateFile?: string;
+  __workbenchWorkspaceStoreImplementationVersion?: number;
 }
 
 const registryGlobal = globalThis as typeof globalThis & WorkspaceRegistryGlobal;
+const WORKSPACE_STORE_IMPLEMENTATION_VERSION = 2;
 
 function configuredWorkspaceStateFile(): string {
   const explicitFile = process.env.PI_WORKBENCH_WORKSPACE_STATE_FILE?.trim();
@@ -25,10 +27,14 @@ export function getWorkspaceStore(): WorkspaceStore {
   const stateFile = configuredWorkspaceStateFile();
   if (
     !registryGlobal.__workbenchWorkspaceStore ||
-    registryGlobal.__workbenchWorkspaceStateFile !== stateFile
+    registryGlobal.__workbenchWorkspaceStateFile !== stateFile ||
+    registryGlobal.__workbenchWorkspaceStoreImplementationVersion !==
+      WORKSPACE_STORE_IMPLEMENTATION_VERSION
   ) {
     registryGlobal.__workbenchWorkspaceStore = new WorkspaceStore({ stateFile });
     registryGlobal.__workbenchWorkspaceStateFile = stateFile;
+    registryGlobal.__workbenchWorkspaceStoreImplementationVersion =
+      WORKSPACE_STORE_IMPLEMENTATION_VERSION;
   }
   return registryGlobal.__workbenchWorkspaceStore;
 }
