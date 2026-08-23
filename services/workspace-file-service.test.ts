@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   BufferedFileWorkspaceService,
+  isPathWithinWorkspace,
   MemoryFileWorkspaceService,
   workspaceRelativePath,
   type FileWorkspaceBackend,
@@ -167,4 +168,13 @@ test("workspaceRelativePath rejects paths outside the authoritative root", () =>
   assert.equal(workspaceRelativePath("C:\\work", "C:\\work\\src\\app.ts"), "src/app.ts");
   assert.throws(() => workspaceRelativePath("/workspace", "/other/app.ts"), /outside/);
   assert.throws(() => workspaceRelativePath("/workspace", "../other/app.ts"), /outside/);
+});
+
+test("workspace path containment can be checked without throwing", () => {
+  assert.equal(isPathWithinWorkspace("/workspace", "/workspace/src/app.ts"), true);
+  assert.equal(isPathWithinWorkspace("C:\\work", "c:\\WORK\\src\\app.ts"), true);
+  assert.equal(isPathWithinWorkspace("/workspace", "src/app.ts"), true);
+  assert.equal(isPathWithinWorkspace("/workspace", "/other/app.ts"), false);
+  assert.equal(isPathWithinWorkspace(undefined, "/workspace/src/app.ts"), false);
+  assert.equal(isPathWithinWorkspace("/workspace", "../other/app.ts"), false);
 });

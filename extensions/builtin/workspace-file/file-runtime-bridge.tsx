@@ -4,7 +4,11 @@ import { useCallback } from "react";
 
 import { useRightWorkspace, useWorkspaceContext } from "@/components/right-workspace";
 import { toolResultText, toolStringArg, useCompletedToolCalls } from "@/runtime/tool-events";
-import { fileWorkspaceContext, fileWorkspaceService } from "@/services/workspace-file-service";
+import {
+  fileWorkspaceContext,
+  fileWorkspaceService,
+  isPathWithinWorkspace,
+} from "@/services/workspace-file-service";
 
 export function FileRuntimeBridge() {
   const controller = useRightWorkspace();
@@ -24,6 +28,9 @@ export function FileRuntimeBridge() {
         ) {
           return false;
         }
+        // Tool events can render before the workspace context catches up during a thread switch.
+        // Leave mismatched paths unconsumed so the next context update can retry them safely.
+        if (!isPathWithinWorkspace(context.rootPath, path)) return false;
         const scope = { type: "thread" as const, key: context.threadId };
         const snapshot = fileWorkspaceService.attachFile(
           fileWorkspaceContext(scope, context),

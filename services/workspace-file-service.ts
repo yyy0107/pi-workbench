@@ -141,6 +141,15 @@ export function workspaceRelativePath(rootPath: string | undefined, path: string
   return normalizeRelativePath(target.slice(prefix.length));
 }
 
+export function isPathWithinWorkspace(rootPath: string | undefined, path: string): boolean {
+  try {
+    workspaceRelativePath(rootPath, path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function workspaceAbsolutePath(rootPath: string | undefined, path: string): string {
   if (isAbsoluteWorkspacePath(path) || !rootPath) return path;
   const relativePath = normalizeRelativePath(path);
