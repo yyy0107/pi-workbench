@@ -10,6 +10,7 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 
@@ -447,12 +448,14 @@ export function WorkspaceTabs() {
                       <PinIcon className="size-3 shrink-0" aria-hidden="true" />
                     ) : null}
                   </button>
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="icon-sm"
                     aria-label={t("rightWorkspace.closeTab", { title: surface.title })}
                     title={t("rightWorkspace.closeTab", { title: surface.title })}
                     data-workspace-tab-close="true"
-                    className="text-foreground/65 hover:bg-foreground/[0.04] hover:text-foreground pointer-events-none absolute end-[5px] top-1/2 z-10 inline-flex size-[22px] -translate-y-1/2 items-center justify-center rounded-md opacity-0 transition-colors duration-75 group-hover/tab:pointer-events-auto group-hover/tab:opacity-100 group-focus-within/tab:pointer-events-auto group-focus-within/tab:opacity-100 group-data-[state=active]/tab:pointer-events-auto group-data-[state=active]/tab:opacity-100 focus-visible:bg-foreground/[0.04] focus-visible:text-foreground focus-visible:opacity-100 dark:hover:bg-background/35 dark:focus-visible:bg-background/35"
+                    className="group/tab-close text-foreground/65 hover:bg-transparent hover:text-foreground pointer-events-none absolute end-[2px] top-1/2 z-10 -translate-y-1/2 rounded-md opacity-0 transition-colors duration-75 group-hover/tab:pointer-events-auto group-hover/tab:opacity-100 group-focus-within/tab:pointer-events-auto group-focus-within/tab:opacity-100 group-data-[state=active]/tab:pointer-events-auto group-data-[state=active]/tab:opacity-100 focus-visible:bg-transparent focus-visible:text-foreground focus-visible:opacity-100 active:-translate-y-1/2! dark:hover:bg-transparent dark:focus-visible:bg-transparent"
                     onPointerUp={(event) => {
                       if (!event.isPrimary || event.button !== 0) return;
                       event.preventDefault();
@@ -463,8 +466,13 @@ export function WorkspaceTabs() {
                       controller.close(surface.id);
                     }}
                   >
-                    <XIcon className="size-3.5" />
-                  </button>
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute left-1/2 top-1/2 flex size-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-[5px] transition-colors duration-75 group-hover/tab-close:bg-foreground/[0.04] group-focus-visible/tab-close:bg-foreground/[0.04] dark:group-hover/tab-close:bg-background/35 dark:group-focus-visible/tab-close:bg-background/35"
+                    >
+                      <XIcon className="size-4 scale-[0.875]" />
+                    </span>
+                  </Button>
                 </ContextMenuTrigger>
                 <ContextMenuContent>
                   <ContextMenuItem onClick={() => controller.close(surface.id)}>

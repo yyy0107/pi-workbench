@@ -36,7 +36,9 @@ export default async function RootLayout({
 
   return (
     <html lang={locale}>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased [&_button_svg.lucide]:size-4 [&_svg.lucide]:[stroke-width:1.5]`}
+      >
         <I18nProvider initialLocale={locale}>
           <TooltipProvider>{children}</TooltipProvider>
         </I18nProvider>

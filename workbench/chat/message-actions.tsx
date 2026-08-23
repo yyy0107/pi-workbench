@@ -10,6 +10,12 @@ import { SlotHost } from "@/platform/extensions";
 
 import { shouldShowMessageActions } from "./message-action-visibility";
 
+const messageActionStyles = [
+  "[&_button.aui-button-icon]:size-[26px]!",
+  "[&_button.aui-button-icon]:p-[6px]!",
+  "[&_button_svg.lucide]:size-3.5!",
+].join(" ");
+
 function CopyAction({ role }: Readonly<{ role: "user" | "assistant" }>) {
   const { t } = useI18n();
   const tooltip =
@@ -56,21 +62,22 @@ export function WorkbenchMessageActions({ className }: Readonly<{ className?: st
     <div
       data-slot="message-actions"
       className={cn(
-        "text-muted-foreground flex min-h-7 flex-wrap items-center gap-1",
+        messageActionStyles,
+        "text-muted-foreground flex min-h-[26px] flex-wrap items-center gap-0.5",
         role === "user" &&
           "opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100 motion-reduce:transition-none",
         className,
       )}
     >
       {role === "user" ? (
-        <time dateTime={createdAt.toISOString()} className="me-1 text-xs tabular-nums">
+        <time dateTime={createdAt.toISOString()} className="text-xs tabular-nums">
           {date(createdAt, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
         </time>
       ) : null}
       {capabilities.unstable_copy && (role === "user" || role === "assistant") ? (
         <CopyAction role={role} />
       ) : null}
-      <SlotHost name="message.actions" context={context} className="flex items-center gap-1" />
+      <SlotHost name="message.actions" context={context} className="flex items-center gap-0.5" />
     </div>
   );
 }
