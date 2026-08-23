@@ -14,6 +14,7 @@ import { File } from "@/components/assistant-ui/file";
 import { Image } from "@/components/assistant-ui/image";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
+import { ScrollCompensatedDetails } from "@/components/elements/scroll-compensated-details";
 import { useI18n } from "@/i18n";
 import { RendererHost } from "@/platform/extensions";
 import { readPiTurnTiming, resolvePiTurnDuration } from "@/runtime/pi/client/messages/turn-timing";
@@ -45,12 +46,12 @@ function serializeData(value: unknown) {
 }
 
 const MessageDataFallback: DataMessagePartComponent = ({ name, data }) => (
-  <details className="bg-muted/40 my-2 rounded-lg border px-3 py-2 text-sm">
+  <ScrollCompensatedDetails className="bg-muted/40 my-2 rounded-lg border px-3 py-2 text-sm">
     <summary className="cursor-pointer font-medium">{name}</summary>
     <pre className="text-muted-foreground mt-2 max-h-72 overflow-auto whitespace-pre-wrap break-all text-xs">
       {serializeData(data)}
     </pre>
-  </details>
+  </ScrollCompensatedDetails>
 );
 
 export function WorkbenchMessagePresentation() {

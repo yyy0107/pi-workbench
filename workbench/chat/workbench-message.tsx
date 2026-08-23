@@ -9,6 +9,7 @@ import {
   ForkSeparator,
   ModelChangeSeparator,
 } from "@/components/elements/conversation-separator";
+import { DisclosureScrollDirectionProvider } from "@/components/elements/disclosure-scroll-direction";
 import { ErrorState } from "@/components/elements/error-state";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
@@ -195,15 +196,19 @@ export function WorkbenchUserMessage() {
 }
 
 export function WorkbenchAssistantMessage() {
+  const preferUpward = useAuiState((state) => state.thread.isRunning && state.message.isLast);
+
   return (
     <MessagePrimitive.Root data-role="assistant" className="w-full min-w-0">
-      <MessageSlot name="message.before" />
-      <div className="min-w-0 break-words leading-relaxed [overflow-anchor:none]">
-        <WorkbenchMessageParts />
-        <WorkbenchMessageError />
-        <WorkbenchMessageActions className="mt-1" />
-      </div>
-      <MessageSlot name="message.after" />
+      <DisclosureScrollDirectionProvider preferUpward={preferUpward}>
+        <MessageSlot name="message.before" />
+        <div className="min-w-0 break-words leading-relaxed [overflow-anchor:none]">
+          <WorkbenchMessageParts />
+          <WorkbenchMessageError />
+          <WorkbenchMessageActions className="mt-1" />
+        </div>
+        <MessageSlot name="message.after" />
+      </DisclosureScrollDirectionProvider>
     </MessagePrimitive.Root>
   );
 }

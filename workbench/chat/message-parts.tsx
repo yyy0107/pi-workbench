@@ -6,6 +6,7 @@ import { ExternalLinkIcon, Loader2Icon } from "lucide-react";
 
 import { File } from "@/components/assistant-ui/file";
 import { Image } from "@/components/assistant-ui/image";
+import { ScrollCompensatedDetails } from "@/components/elements/scroll-compensated-details";
 import { useI18n } from "@/i18n";
 import { MessageRendererHost, RendererHost } from "@/platform/extensions";
 
@@ -22,7 +23,7 @@ function serialize(value: unknown) {
 }
 
 const DefaultToolFallback: ToolCallMessagePartComponent = ({ toolName, args, result, isError }) => (
-  <details className="my-2 rounded border px-3 py-2 text-sm">
+  <ScrollCompensatedDetails className="my-2 rounded border px-3 py-2 text-sm">
     <summary className="cursor-pointer font-mono text-xs">{toolName}</summary>
     <pre
       className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap break-all text-xs"
@@ -30,16 +31,16 @@ const DefaultToolFallback: ToolCallMessagePartComponent = ({ toolName, args, res
     >
       {serialize(result === undefined ? args : result)}
     </pre>
-  </details>
+  </ScrollCompensatedDetails>
 );
 
 const DefaultDataFallback: DataMessagePartComponent = ({ name, data }) => (
-  <details className="my-2 rounded border px-3 py-2 text-sm">
+  <ScrollCompensatedDetails className="my-2 rounded border px-3 py-2 text-sm">
     <summary className="cursor-pointer font-mono text-xs">{name}</summary>
     <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap break-all text-xs">
       {serialize(data)}
     </pre>
-  </details>
+  </ScrollCompensatedDetails>
 );
 
 function DefaultWorkbenchMessageParts() {

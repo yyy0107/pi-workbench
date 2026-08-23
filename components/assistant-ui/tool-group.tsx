@@ -1,11 +1,11 @@
 "use client";
 
-import { memo, useCallback, useRef, useState, type FC, type PropsWithChildren } from "react";
+import { memo, useCallback, useState, type FC, type PropsWithChildren } from "react";
 import { ChevronDownIcon, LoaderIcon, type LucideIcon } from "lucide-react";
 import { cva, type VariantProps } from "class-variance-authority";
-import { useScrollLock } from "@assistant-ui/react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { collapsePanel } from "@/components/elements/surfaces";
+import { useDisclosureScrollLock } from "@/components/elements/use-disclosure-scroll-lock";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n";
 
@@ -41,23 +41,21 @@ function ToolGroupRoot({
   children,
   ...props
 }: ToolGroupRootProps) {
-  const collapsibleRef = useRef<HTMLDivElement>(null);
   const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
-  const lockScroll = useScrollLock(collapsibleRef, ANIMATION_DURATION);
 
   const isControlled = controlledOpen !== undefined;
   const isOpen = isControlled ? controlledOpen : uncontrolledOpen;
 
-  const handleOpenChange = useCallback(
+  const commitOpenChange = useCallback(
     (open: boolean) => {
-      lockScroll();
       if (!isControlled) {
         setUncontrolledOpen(open);
       }
       controlledOnOpenChange?.(open);
     },
-    [lockScroll, isControlled, controlledOnOpenChange],
+    [isControlled, controlledOnOpenChange],
   );
+  const [collapsibleRef, handleOpenChange] = useDisclosureScrollLock(commitOpenChange);
 
   return (
     <Collapsible
