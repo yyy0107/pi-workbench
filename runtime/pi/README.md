@@ -77,8 +77,9 @@ Unary RPC 是 session、workspace 和 running 状态的权威快照；WebSocket 
 参考文档中的 Agent Presets、Goals、Credentials 和 Message Feedback 等接口
 尚未在本目录实现。
 
-`host.describe` 同时返回 Workbench 的 `version` 和当前嵌入 Pi coding agent 的 `piVersion`；
-状态栏等客户端界面应使用后者展示 Pi 版本。
+`host.describe` 同时返回稳定的 `product: "pi-workbench"`、Workbench 的 `version` 和当前嵌入
+Pi coding agent 的 `piVersion`；原生壳使用 `product` 识别服务，状态栏等客户端界面应使用
+`piVersion` 展示 Pi 版本。
 
 当前 Settings 协议只暴露全局 `pi.agent` 命名空间，并且仅允许 loopback 请求。系统提示词写入
 Pi agent 目录下的 `SYSTEM.md`；上下文压缩参数写入同目录的 `settings.json`，且会保留文件中的
@@ -516,8 +517,8 @@ downlink 发送消息后的 `1008` close。
 
 - `session.attachment` 已保留协议形状，但 Pi 当前没有按 `attachmentId` 读取持久附件的仓库；
   该方法稳定返回 `attachment-error`。发送 prompt 时的 inline image 已支持。
-- Inline image 仅接受 PNG、JPEG、WebP 和 GIF；最多 20 张，单张解码后最多 20 MiB，总计最多
-  100 MiB。媒体类型必须与文件签名一致。
+- Inline image 仅接受 PNG、JPEG、WebP 和 GIF；最多 20 张，单张解码后最多 10 MiB，总计最多
+  25 MiB。媒体类型必须与文件签名一致。
 - 当前 queue edit 只接受 text content；图片 queue item 可以保留、删除或 steer，但不能通过该
   RPC 改写为新的图片内容。
 - Skills 当前只实现 session-scoped `skill.list`；启停、编辑、安装和 reload 尚未加入 Workbench
