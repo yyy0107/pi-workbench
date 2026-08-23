@@ -5,9 +5,11 @@ import "@assistant-ui/react-markdown/styles/dot.css";
 import {
   type CodeHeaderProps,
   MarkdownTextPrimitive,
+  type MarkdownTextPrimitiveProps,
   unstable_memoizeMarkdownComponents as memoizeMarkdownComponents,
   useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
+import { TextMessagePartProvider } from "@assistant-ui/react";
 import remarkGfm from "remark-gfm";
 import { type FC, memo, useState } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
@@ -18,17 +20,38 @@ import { cn } from "@/lib/utils";
 
 import { SyntaxHighlighter } from "./shiki-highlighter";
 
-const MarkdownTextImpl = () => {
+export type MarkdownTextProps = Omit<
+  MarkdownTextPrimitiveProps,
+  "children" | "components" | "remarkPlugins"
+>;
+
+const MarkdownTextImpl = ({ className, ...props }: MarkdownTextProps) => {
   return (
     <MarkdownTextPrimitive
+      {...props}
       remarkPlugins={[remarkGfm]}
-      className="aui-md"
+      className={cn("aui-md", className)}
       components={defaultComponents}
     />
   );
 };
 
-export const MarkdownText = memo(MarkdownTextImpl);
+const ConfiguredMarkdownText = memo(MarkdownTextImpl);
+
+export const MarkdownText = memo(function MarkdownText() {
+  return <ConfiguredMarkdownText />;
+});
+
+export const MarkdownTextContent = memo(function MarkdownTextContent({
+  text,
+  ...props
+}: MarkdownTextProps & Readonly<{ text: string }>) {
+  return (
+    <TextMessagePartProvider text={text}>
+      <ConfiguredMarkdownText {...props} />
+    </TextMessagePartProvider>
+  );
+});
 
 const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
   const { t } = useI18n();

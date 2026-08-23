@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuiState } from "@assistant-ui/react";
 
+import { MarkdownTextContent } from "@/components/assistant-ui/markdown-text";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
@@ -32,12 +33,37 @@ function getTextPreview(
   content: readonly { type: string; text?: string }[],
   length = PREVIEW_LENGTH,
 ): string {
-  return content
+  const text = content
     .flatMap((part) => (part.type === "text" && typeof part.text === "string" ? [part.text] : []))
-    .join(" ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, length);
+    .join("\n\n")
+    .trim();
+
+  return text.length > length ? text.slice(0, length).trimEnd() : text;
+}
+
+function MarkdownIndexPreview({
+  text,
+  lines,
+  className,
+}: Readonly<{
+  text: string;
+  lines: 1 | 2;
+  className?: string;
+}>) {
+  return (
+    <div
+      inert
+      className={cn(
+        "min-w-0 max-w-full text-start leading-5",
+        "[&>.aui-md]:overflow-hidden [&>.aui-md>*]:my-0 [&>.aui-md>*]:text-[inherit] [&>.aui-md>*]:leading-[inherit]",
+        "[&_.aui-code-header-root]:hidden [&_.aui-md-pre]:rounded-md [&_.aui-md-pre]:border-t [&_.aui-md-pre]:p-1",
+        lines === 1 ? "[&>.aui-md]:line-clamp-1" : "[&>.aui-md]:line-clamp-2",
+        className,
+      )}
+    >
+      <MarkdownTextContent text={text} smooth={false} />
+    </div>
+  );
 }
 
 function getMessageElement(root: HTMLElement, messageId: string): HTMLElement | undefined {
@@ -241,13 +267,17 @@ export function UserMessageIndex({ threadId }: UserMessageIndexProps) {
                     className="max-w-[calc(100vw-5rem)] w-80 flex-col items-start gap-1 rounded-xl border border-border/70 bg-popover px-3.5 py-3 text-sm text-popover-foreground shadow-xl md:w-96 [&>div[aria-hidden=true]]:hidden"
                   >
                     <span className="sr-only">{label}</span>
-                    <p className="line-clamp-1 text-start font-medium leading-5 whitespace-pre-wrap">
-                      {message.preview || t("extensions.userMessageIndex.nonTextPreview")}
-                    </p>
+                    <MarkdownIndexPreview
+                      text={message.preview || t("extensions.userMessageIndex.nonTextPreview")}
+                      lines={1}
+                      className="font-medium"
+                    />
                     {message.responsePreview ? (
-                      <p className="text-muted-foreground line-clamp-2 text-start leading-5 whitespace-pre-wrap">
-                        {message.responsePreview}
-                      </p>
+                      <MarkdownIndexPreview
+                        text={message.responsePreview}
+                        lines={2}
+                        className="text-muted-foreground"
+                      />
                     ) : null}
                   </TooltipContent>
                 </Tooltip>

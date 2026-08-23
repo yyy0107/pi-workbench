@@ -7,11 +7,7 @@ import {
   useAui,
   useAuiState,
 } from "@assistant-ui/react";
-import {
-  DirectiveNode,
-  LexicalComposerInput,
-  type DirectiveChipProps,
-} from "@assistant-ui/react-lexical";
+import { DirectiveNode, type DirectiveChipProps } from "@assistant-ui/react-lexical";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import {
   $createTextNode,
@@ -87,6 +83,7 @@ import {
 import { composerCommandArgumentHint } from "./composer-command-argument-hint";
 import { ComposerCommandParameterPanel } from "./composer-command-parameter-panel";
 import { addComposerImagesFromPaste } from "./composer-image-paste";
+import { MarkdownComposerInput } from "./markdown-composer-input";
 import { submitWorkbenchComposer } from "./composer-submit";
 import { ComposerTriggerEngine, excludeSlashPathOrCode } from "./composer-trigger-engine";
 import { formatPiCommandLabel } from "./pi-command";
@@ -241,51 +238,6 @@ function CaptureLexicalEditor({
     onChange(editor);
     return () => onChange(null);
   }, [editor, onChange]);
-  return null;
-}
-
-function ComposerCursorPlugin({ onChange }: Readonly<{ onChange(position: number): void }>) {
-  const [editor] = useLexicalComposerContext();
-  useEffect(
-    () =>
-      editor.registerUpdateListener(({ editorState }) => {
-        editorState.read(() => {
-          const selection = $getSelection();
-          if (!$isRangeSelection(selection) || !selection.isCollapsed()) {
-            onChange(0);
-            return;
-          }
-
-          const anchor = selection.anchor;
-          const anchorNode = anchor.getNode();
-          if (anchor.type !== "text" || !$isTextNode(anchorNode)) {
-            onChange(0);
-            return;
-          }
-
-          const paragraph = anchorNode.getParent();
-          if (!paragraph || !$isElementNode(paragraph)) {
-            onChange(anchor.offset);
-            return;
-          }
-
-          let position = 0;
-          for (const child of $getRoot().getChildren()) {
-            if (child === paragraph) break;
-            position += child.getTextContentSize() + 1;
-          }
-          for (const child of paragraph.getChildren()) {
-            if (child === anchorNode) {
-              position += anchor.offset;
-              break;
-            }
-            position += child.getTextContentSize();
-          }
-          onChange(position);
-        });
-      }),
-    [editor, onChange],
-  );
   return null;
 }
 
@@ -861,6 +813,11 @@ export function WorkbenchComposer() {
     lexicalEditorRef.current = editor;
   }, []);
 
+  const updateComposerMarkdown = useCallback(
+    (markdown: string) => aui.thread.composer().setText(markdown),
+    [aui],
+  );
+
   const renderDirectiveChip = useCallback(
     ({ directiveId, directiveType, label }: DirectiveChipProps) => {
       if (directiveType === COMMAND_ARGUMENT_END_DIRECTIVE_TYPE) {
@@ -988,11 +945,14 @@ export function WorkbenchComposer() {
               <ComposerWorkspaceFeedback />
               <ComposerAttachments />
               <div className="flex w-full min-w-0 items-start px-4 pt-1 pb-0">
-                <LexicalComposerInput
+                <MarkdownComposerInput
                   submitMode="none"
                   formatter={workbenchComposerDirectiveFormatter}
+                  value={composerValue}
+                  onChange={updateComposerMarkdown}
                   directiveChip={renderDirectiveChip}
                   directivePluginProps={{ onDirectiveSelect: handleDirectiveSelect }}
+                  onCursorPositionChange={setComposerCursorPosition}
                   placeholder={t("workbench.chat.composer.placeholder")}
                   className={cn(
                     "relative max-h-[336px] min-w-0 flex-1 overflow-y-auto bg-transparent text-base leading-6 outline-none",
@@ -1019,14 +979,13 @@ export function WorkbenchComposer() {
                   }}
                 >
                   <CaptureLexicalEditor onChange={captureLexicalEditor} />
-                  <ComposerCursorPlugin onChange={setComposerCursorPosition} />
                   <ComposerEditableGuard enabled={canCompose} />
                   <ComposerAccessibilityPlugin
                     enabled={canCompose}
                     label={t("workbench.chat.composer.messageInput")}
                   />
                   <ComposerEnterPlugin onSubmit={dispatchComposer} />
-                </LexicalComposerInput>
+                </MarkdownComposerInput>
               </div>
 
               <div className="flex min-h-[42px] items-center justify-between gap-3 px-2 py-1">
