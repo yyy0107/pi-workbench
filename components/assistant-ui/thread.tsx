@@ -6,12 +6,9 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   CopyIcon,
-  DownloadIcon,
   LoaderIcon,
   PencilIcon,
   RefreshCwIcon,
-  ThumbsDownIcon,
-  ThumbsUpIcon,
 } from "lucide-react";
 import {
   ActionBarPrimitive,
@@ -317,27 +314,11 @@ function AssistantActionBar() {
           <CopyIcon />
         </AuiIf>
       </ActionBarPrimitive.Copy>
-      <ActionBarPrimitive.ExportMarkdown
-        render={<TooltipIconButton tooltip={t("assistant.actions.exportMarkdown")} />}
-      >
-        <DownloadIcon />
-      </ActionBarPrimitive.ExportMarkdown>
       <ActionBarPrimitive.Reload
         render={<TooltipIconButton tooltip={t("assistant.actions.refresh")} />}
       >
         <RefreshCwIcon />
       </ActionBarPrimitive.Reload>
-
-      <ActionBarPrimitive.FeedbackPositive
-        render={<TooltipIconButton tooltip={t("assistant.actions.goodResponse")} />}
-      >
-        <ThumbsUpIcon />
-      </ActionBarPrimitive.FeedbackPositive>
-      <ActionBarPrimitive.FeedbackNegative
-        render={<TooltipIconButton tooltip={t("assistant.actions.badResponse")} />}
-      >
-        <ThumbsDownIcon />
-      </ActionBarPrimitive.FeedbackNegative>
     </ActionBarPrimitive.Root>
   );
 }

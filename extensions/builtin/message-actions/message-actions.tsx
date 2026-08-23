@@ -10,12 +10,9 @@ import {
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
-  DownloadIcon,
   PencilIcon,
   RefreshCwIcon,
   SplitIcon,
-  ThumbsDownIcon,
-  ThumbsUpIcon,
 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 
@@ -155,10 +152,7 @@ function UserActions() {
   );
 }
 
-function AssistantActions({
-  canReload,
-  canSubmitFeedback,
-}: Readonly<{ canReload: boolean; canSubmitFeedback: boolean }>) {
+function AssistantActions({ canReload }: Readonly<{ canReload: boolean }>) {
   const { t } = useI18n();
   const aui = useAui();
   const manager = usePiSessionManager();
@@ -199,11 +193,6 @@ function AssistantActions({
 
   return (
     <ActionBarPrimitive.Root hideWhenRunning autohide="never" className="flex items-center gap-0.5">
-      <ActionBarPrimitive.ExportMarkdown
-        render={<TooltipIconButton tooltip={t("extensions.messageActions.exportMarkdown")} />}
-      >
-        <DownloadIcon className="size-3.5" />
-      </ActionBarPrimitive.ExportMarkdown>
       {sessionId && eventSeq !== undefined ? (
         <TooltipIconButton
           tooltip={forkTooltip}
@@ -221,20 +210,6 @@ function AssistantActions({
           <RefreshCwIcon className="size-3.5" />
         </ActionBarPrimitive.Reload>
       ) : null}
-      {canSubmitFeedback ? (
-        <>
-          <ActionBarPrimitive.FeedbackPositive
-            render={<TooltipIconButton tooltip={t("extensions.messageActions.goodResponse")} />}
-          >
-            <ThumbsUpIcon className="size-3.5" />
-          </ActionBarPrimitive.FeedbackPositive>
-          <ActionBarPrimitive.FeedbackNegative
-            render={<TooltipIconButton tooltip={t("extensions.messageActions.poorResponse")} />}
-          >
-            <ThumbsDownIcon className="size-3.5" />
-          </ActionBarPrimitive.FeedbackNegative>
-        </>
-      ) : null}
     </ActionBarPrimitive.Root>
   );
 }
@@ -248,10 +223,7 @@ export function MessageActions({ role }: MessageSlotContext) {
       {role === "user" && capabilities.edit ? <UserActions /> : null}
       {role === "assistant" ? (
         <>
-          <AssistantActions
-            canReload={capabilities.reload}
-            canSubmitFeedback={capabilities.feedback}
-          />
+          <AssistantActions canReload={capabilities.reload} />
           <MessagePerformance />
         </>
       ) : null}

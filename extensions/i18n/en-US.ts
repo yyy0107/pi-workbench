@@ -694,13 +694,10 @@ export const extensionsEnUS = {
     previousResponse: "Previous response",
     nextResponse: "Next response",
     editMessage: "Edit message",
-    exportMarkdown: "Export as Markdown",
     forkConversation: "Fork conversation here",
     forkConversationPending: "Forking conversation…",
     forkConversationFailed: "Couldn't fork conversation. Try again",
     regenerateResponse: "Regenerate response",
-    goodResponse: "Good response",
-    poorResponse: "Poor response",
     timing: {
       total: "total",
       firstToken: "first token",

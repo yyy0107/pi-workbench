@@ -28,10 +28,7 @@ export const assistantEnUS = {
   actions: {
     edit: "Edit",
     copy: "Copy",
-    exportMarkdown: "Export as Markdown",
     refresh: "Refresh",
-    goodResponse: "Good response",
-    badResponse: "Bad response",
   },
   codeBlock: {
     plainText: "Text",

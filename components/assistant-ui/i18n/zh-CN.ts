@@ -28,10 +28,7 @@ export const assistantZhCN = {
   actions: {
     edit: "编辑",
     copy: "复制",
-    exportMarkdown: "导出为 Markdown",
     refresh: "重新生成",
-    goodResponse: "回答很好",
-    badResponse: "回答欠佳",
   },
   codeBlock: {
     plainText: "文本",
