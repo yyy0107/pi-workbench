@@ -1818,21 +1818,28 @@ test("updates image recognition in place and preserves the original image at use
     timestamp: 1_300,
   });
 
-  let user = session.getSnapshot().messages[0];
+  let snapshot = session.getSnapshot();
+  let user = snapshot.messages[0];
+  let assistant = snapshot.messages[1];
+  assert.deepEqual(
+    snapshot.messages.map((message) => message.role),
+    ["user", "assistant"],
+  );
   assert.equal(user?.id, "optimistic-image-user");
   assert.equal(
     user?.content.filter(
       (part) => part.type === "data" && part.name === "workbench.image-recognition",
     ).length,
-    1,
+    0,
   );
-  const recognition = user?.content.find(
+  const recognition = assistant?.content.find(
     (part) => part.type === "data" && part.name === "workbench.image-recognition",
   );
   assert.equal(
     recognition?.type === "data" ? (recognition.data as { status?: string }).status : undefined,
     "succeeded",
   );
+  const recognitionAssistantId = assistant?.id;
 
   internals.handleEvent({
     type: "message_end",
@@ -1847,8 +1854,10 @@ test("updates image recognition in place and preserves the original image at use
     },
   });
 
-  user = session.getSnapshot().messages[0];
-  assert.equal(session.getSnapshot().messages.length, 1);
+  snapshot = session.getSnapshot();
+  user = snapshot.messages[0];
+  assistant = snapshot.messages[1];
+  assert.equal(snapshot.messages.length, 2);
   assert.equal(user?.id, "optimistic-image-user");
   assert.equal(
     user?.content.some((part) => part.type === "image" && part.image === originalImage),
@@ -1858,9 +1867,17 @@ test("updates image recognition in place and preserves the original image at use
     user?.content.filter(
       (part) => part.type === "data" && part.name === "workbench.image-recognition",
     ).length,
-    1,
+    0,
   );
   assert.equal(user?.metadata.custom.workbenchComposerSubmissionId, "image-submission-live");
+  assert.equal(assistant?.id, recognitionAssistantId);
+  assert.equal(assistant?.role, "assistant");
+  assert.equal(
+    assistant?.content[0]?.type === "data"
+      ? (assistant.content[0].data as { status?: string }).status
+      : undefined,
+    "succeeded",
+  );
 });
 
 test("publishes image-recognition updates through the repository for a base-history user", (t) => {
@@ -1917,10 +1934,23 @@ test("publishes image-recognition updates through the repository for a base-hist
   });
 
   const snapshot = session.getSnapshot();
-  const visiblePart = snapshot.messages[0]?.content.find(
+  assert.deepEqual(
+    snapshot.messages.map((message) => message.role),
+    ["user", "assistant"],
+  );
+  assert.equal(
+    snapshot.messages[0]?.content.some(
+      (part) => part.type === "data" && part.name === "workbench.image-recognition",
+    ),
+    false,
+  );
+  const visiblePart = snapshot.messages[1]?.content.find(
     (part) => part.type === "data" && part.name === "workbench.image-recognition",
   );
-  const repositoryPart = snapshot.messageRepository.messages[0]?.message.content.find(
+  const repositoryAssistant = snapshot.messageRepository.messages.find(
+    (item) => item.message.role === "assistant",
+  );
+  const repositoryPart = repositoryAssistant?.message.content.find(
     (part) => part.type === "data" && part.name === "workbench.image-recognition",
   );
   assert.equal(
@@ -1935,6 +1965,8 @@ test("publishes image-recognition updates through the repository for a base-hist
   );
   assert.equal(snapshot.messageRepository.messages[0]?.message.id, user.id);
   assert.equal(snapshot.messageRepository.messages[0]?.parentId, null);
+  assert.equal(repositoryAssistant?.parentId, user.id);
+  assert.equal(snapshot.messageRepository.headId, repositoryAssistant?.message.id);
   const repository = new INTERNAL.MessageRepository();
   assert.doesNotThrow(() => repository.import(snapshot.messageRepository));
 });
@@ -2041,8 +2073,19 @@ test("does not let stale history replace a newer image-recognition revision", as
     return part?.type === "data" ? (part.data as { status?: string }).status : undefined;
   };
   let snapshot = session.getSnapshot();
-  assert.equal(recognitionStatus(snapshot.messages[0]), "succeeded");
-  assert.equal(recognitionStatus(snapshot.messageRepository.messages[0]?.message), "succeeded");
+  assert.deepEqual(
+    snapshot.messages.map((message) => message.role),
+    ["user", "assistant"],
+  );
+  assert.equal(recognitionStatus(snapshot.messages[0]), undefined);
+  assert.equal(recognitionStatus(snapshot.messages[1]), "succeeded");
+  assert.equal(
+    recognitionStatus(
+      snapshot.messageRepository.messages.find((item) => item.message.role === "assistant")
+        ?.message,
+    ),
+    "succeeded",
+  );
 
   internals.handleEvent({
     type: "message",
@@ -2055,8 +2098,15 @@ test("does not let stale history replace a newer image-recognition revision", as
     timestamp: 1_200,
   });
   snapshot = session.getSnapshot();
-  assert.equal(recognitionStatus(snapshot.messages[0]), "succeeded");
-  assert.equal(recognitionStatus(snapshot.messageRepository.messages[0]?.message), "succeeded");
+  assert.equal(recognitionStatus(snapshot.messages[0]), undefined);
+  assert.equal(recognitionStatus(snapshot.messages[1]), "succeeded");
+  assert.equal(
+    recognitionStatus(
+      snapshot.messageRepository.messages.find((item) => item.message.role === "assistant")
+        ?.message,
+    ),
+    "succeeded",
+  );
   const repository = new INTERNAL.MessageRepository();
   assert.doesNotThrow(() => repository.import(snapshot.messageRepository));
 });
