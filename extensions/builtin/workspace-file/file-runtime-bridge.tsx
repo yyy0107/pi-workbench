@@ -3,23 +3,18 @@
 import { useCallback } from "react";
 
 import { useRightWorkspace, useWorkspaceContext } from "@/components/right-workspace";
-
-import {
-  stringArg,
-  resultText,
-  useCompletedWorkspaceToolCalls,
-} from "../workspace-shared/runtime-tool-events";
-import { fileWorkspaceService } from "./file-workspace-service";
+import { toolResultText, toolStringArg, useCompletedToolCalls } from "@/runtime/tool-events";
+import { fileWorkspaceContext, fileWorkspaceService } from "@/services/workspace-file-service";
 
 export function FileRuntimeBridge() {
   const controller = useRightWorkspace();
   const context = useWorkspaceContext();
 
-  useCompletedWorkspaceToolCalls(
+  useCompletedToolCalls(
     useCallback(
       (part) => {
-        const path = stringArg(part.args, "path", "file_path", "filePath");
-        const content = resultText(part.result);
+        const path = toolStringArg(part.args, "path", "file_path", "filePath");
+        const content = toolResultText(part.result);
         if (
           part.toolName !== "read" ||
           !path ||
@@ -29,13 +24,31 @@ export function FileRuntimeBridge() {
         ) {
           return false;
         }
-        fileWorkspaceService.attachFile(path, content);
+        const scope = { type: "thread" as const, key: context.threadId };
+        const snapshot = fileWorkspaceService.attachFile(
+          fileWorkspaceContext(scope, context),
+          path,
+          content,
+        );
         controller.reveal({
           kind: "file",
-          title: path.split(/[\\/]/).at(-1) ?? path,
-          params: { absolutePath: path },
+          title: snapshot.name,
+          params: {
+            absolutePath: snapshot.path,
+            ...(snapshot.relativePath ? { relativePath: snapshot.relativePath } : {}),
+            ...(snapshot.workspaceId ? { workspaceId: snapshot.workspaceId } : {}),
+            name: snapshot.name,
+            mediaType: "text/plain",
+            encoding: "utf-8",
+            version: snapshot.version,
+            size: snapshot.size,
+            modifiedAt: snapshot.modifiedAt,
+            viewMode: "source",
+            diffId: undefined,
+            diffCycle: undefined,
+          },
           context,
-          scope: { type: "thread", key: context.threadId },
+          scope,
           status: "ready",
           policy: "background",
         });

@@ -1,15 +1,21 @@
 import { FolderTreeIcon } from "lucide-react";
 
 import type { WorkspaceSurfaceDefinition } from "@/platform/extensions";
-import { defineExtension } from "@/platform/extensions";
+import { createLazyWorkspaceSurface, defineExtension } from "@/platform/extensions";
 
-import { ExplorerMenuItem } from "./explorer-menu-item";
-import { ExplorerSurface, type ExplorerSurfaceParams } from "./explorer-surface";
+import { ExplorerRuntimeBridge } from "./explorer-runtime-bridge";
+import type { ExplorerSurfaceParams } from "./explorer-surface";
+
+const ExplorerSurface = createLazyWorkspaceSurface(async () => {
+  const module = await import("./explorer-surface");
+  return { default: module.ExplorerSurface };
+});
 
 export const explorerSurfaceDefinition = {
   kind: "explorer",
   icon: FolderTreeIcon,
   cachePolicy: "keep-alive",
+  defaultPlacement: "auxiliary",
   allowDuplicateResources: false,
   getResourceKey: (params, context) =>
     `explorer:${encodeURIComponent(context.threadId ?? "application")}:${encodeURIComponent(params.rootPath)}`,
@@ -18,7 +24,7 @@ export const explorerSurfaceDefinition = {
     key: context.threadId ?? context.applicationId,
   }),
   render: ExplorerSurface,
-  menuItem: ExplorerMenuItem,
+  runtime: ExplorerRuntimeBridge,
 } satisfies WorkspaceSurfaceDefinition<ExplorerSurfaceParams>;
 
 export const workspaceExplorerExtension = defineExtension({

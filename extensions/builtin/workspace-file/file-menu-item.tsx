@@ -1,38 +1,40 @@
 "use client";
 
-import { FolderTreeIcon } from "lucide-react";
+import { FileCode2Icon } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { useRightWorkspace, useWorkspaceContext } from "@/components/right-workspace";
+import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import type { WorkspaceSurfaceMenuItemProps } from "@/platform/extensions";
 
-export function ExplorerMenuItem({ closeMenu }: WorkspaceSurfaceMenuItemProps) {
+export function FileMenuItem({ closeMenu }: WorkspaceSurfaceMenuItemProps) {
   const { t } = useI18n();
   const controller = useRightWorkspace();
   const context = useWorkspaceContext();
+  const hasWorkspace = Boolean(context.rootPath && (context.worktreeId ?? context.projectId));
 
   return (
     <Button
       type="button"
       role="menuitem"
       variant="ghost"
-      disabled={!context.rootPath || !context.worktreeId}
+      disabled={!hasWorkspace}
       className="h-9 w-full justify-start gap-3 rounded-xl px-2.5 font-normal"
       onClick={() => {
-        if (!context.rootPath || !context.worktreeId) return;
+        if (!hasWorkspace) return;
         controller.reveal({
-          kind: "explorer",
-          title: t("extensions.workspaceExplorer.title"),
-          params: { rootPath: context.rootPath },
+          kind: "file",
+          title: t("extensions.workspaceFile.openFileTitle"),
+          params: { launcher: true },
           context,
           status: "ready",
         });
+        controller.setAuxiliaryOpen(true);
         closeMenu();
       }}
     >
-      <FolderTreeIcon className="text-muted-foreground size-4" />
-      {t("extensions.workspaceExplorer.title")}
+      <FileCode2Icon className="text-muted-foreground size-4" />
+      {t("extensions.workspaceFile.title")}
     </Button>
   );
 }

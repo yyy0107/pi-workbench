@@ -1,0 +1,66 @@
+.viewer {
+  width: 100%;
+  height: 100%;
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+/* The viewer shell declares its own defaults, so theme the exported Shadow
+ * Part rather than relying on inherited host variables. */
+.viewer::part(shell) {
+  --file-viewer-bg: transparent;
+  --file-viewer-content-bg: color-mix(in srgb, var(--muted) 35%, transparent);
+  --file-viewer-text: var(--foreground);
+  --file-viewer-muted: var(--muted-foreground);
+  --file-viewer-font: 12px/1.35 var(--font-sans);
+  --file-viewer-border: var(--border);
+  --file-viewer-toolbar-bg: color-mix(in srgb, var(--background) 92%, transparent);
+  --file-viewer-toolbar-border: var(--border);
+  --file-viewer-toolbar-shadow: 0 1px 3px color-mix(in oklab, var(--foreground) 9%, transparent);
+  --file-viewer-toolbar-radius: var(--radius);
+  --file-viewer-toolbar-gap: 2px;
+  --file-viewer-toolbar-padding: 2px;
+  --file-viewer-toolbar-floating-min-height: 32px;
+  --file-viewer-toolbar-floating-padding: 2px;
+  --file-viewer-toolbar-floating-offset: 8px;
+  --file-viewer-group-bg: transparent;
+  --file-viewer-group-border: transparent;
+  --file-viewer-group-gap: 1px;
+  --file-viewer-group-padding: 0;
+  --file-viewer-button-color: var(--muted-foreground);
+  --file-viewer-button-hover-bg: var(--muted);
+  --file-viewer-button-hover-color: var(--foreground);
+  --file-viewer-button-disabled-color: color-mix(in srgb, var(--muted-foreground) 45%, transparent);
+  --file-viewer-button-radius: calc(var(--radius) - 2px);
+  --file-viewer-button-min-width: 28px;
+  --file-viewer-button-height: 28px;
+  --file-viewer-button-padding: 0 7px;
+  --file-viewer-icon-button-size: 28px;
+  --file-viewer-zoom-meter-min-width: 40px;
+  --file-viewer-zoom-meter-padding: 0 5px;
+  --file-viewer-floating-button-min-width: 28px;
+  --file-viewer-floating-button-height: 28px;
+  --file-viewer-floating-icon-button-size: 28px;
+  --file-viewer-floating-zoom-meter-min-width: 40px;
+  --file-viewer-focus-ring: color-mix(in srgb, var(--ring) 40%, transparent);
+  --file-viewer-input-bg: var(--background);
+  --file-viewer-input-color: var(--foreground);
+}
+
+.viewer::part(toolbar) {
+  backdrop-filter: blur(8px);
+}
+
+.viewer::part(toolbar-group) {
+  border-color: transparent;
+  background: transparent;
+}
+
+.viewer::part(button),
+.viewer::part(toolbar-status) {
+  border-radius: calc(var(--radius) - 2px);
+  font-weight: 500;
+  transition:
+    color 100ms ease,
+    background-color 100ms ease;
+}

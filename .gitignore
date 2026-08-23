@@ -16,6 +16,8 @@
 # next.js
 /.next/
 /out/
+/public/vendor/material-icon-theme/
+/public/file-viewer/
 
 # production
 /build

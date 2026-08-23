@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  CODE_THEMES,
+  CODE_THEME_PAIRS,
   DEFAULT_APPEARANCE_PREFERENCES,
   isDefaultAppearancePreferences,
   parseAppearancePreferences,
@@ -35,7 +37,7 @@ test("parses persisted appearance preferences", () => {
       reduceMotion: true,
       uiFontSize: 18,
       codeFontSize: 15,
-      codeStyle: "catppuccin",
+      codeTheme: "dracula",
       showDiffMarkers: false,
     }),
   );
@@ -66,7 +68,7 @@ test("parses persisted appearance preferences", () => {
     reduceMotion: true,
     uiFontSize: 18,
     codeFontSize: 15,
-    codeStyle: "catppuccin",
+    codeTheme: "dracula",
     showDiffMarkers: false,
   });
   assert.equal(isDefaultAppearancePreferences(preferences), false);
@@ -92,7 +94,7 @@ test("falls back field by field when persisted values are invalid", () => {
       reduceMotion: "always",
       uiFontSize: 99,
       codeFontSize: 1,
-      codeStyle: "rainbow",
+      codeTheme: "rainbow",
       showDiffMarkers: "symbols",
     }),
   );
@@ -118,4 +120,39 @@ test("migrates fonts from split light and dark preferences", () => {
   assert.equal("darkUiFont" in preferences, false);
   assert.equal("lightCodeFont" in preferences, false);
   assert.equal("darkCodeFont" in preferences, false);
+});
+
+test("migrates the previous paired code styles to Shiki themes", () => {
+  assert.equal(
+    parseAppearancePreferences(JSON.stringify({ codeStyle: "github" })).codeTheme,
+    "dark-plus",
+  );
+  assert.equal(
+    parseAppearancePreferences(JSON.stringify({ codeStyle: "catppuccin" })).codeTheme,
+    "catppuccin-mocha",
+  );
+});
+
+test("accepts additional bundled Shiki themes", () => {
+  for (const codeTheme of [
+    "ayu-dark",
+    "everforest-light",
+    "material-theme-ocean",
+    "rose-pine-moon",
+    "solarized-light",
+  ]) {
+    assert.equal(parseAppearancePreferences(JSON.stringify({ codeTheme })).codeTheme, codeTheme);
+  }
+});
+
+test("pairs every selectable Shiki theme with light and dark appearances", () => {
+  assert.deepEqual(CODE_THEME_PAIRS[DEFAULT_APPEARANCE_PREFERENCES.codeTheme], {
+    light: "light-plus",
+    dark: "dark-plus",
+  });
+
+  for (const codeTheme of CODE_THEMES) {
+    assert.equal(typeof CODE_THEME_PAIRS[codeTheme].light, "string");
+    assert.equal(typeof CODE_THEME_PAIRS[codeTheme].dark, "string");
+  }
 });

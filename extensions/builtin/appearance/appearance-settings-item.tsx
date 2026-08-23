@@ -3,7 +3,7 @@
 import { CheckIcon, ChevronDownIcon, ImagePlusIcon, RotateCcwIcon, Trash2Icon } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
-import { CodeStylePreview } from "@/components/assistant-ui/shiki-highlighter";
+import { CodeThemePreview } from "@/components/assistant-ui/shiki-highlighter";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu } from "@/components/ui/dropdown-menu";
 import {
@@ -19,7 +19,7 @@ import {
   BACKGROUND_BLURS,
   BORDER_STYLES,
   CODE_FONT_FAMILIES,
-  CODE_STYLES,
+  CODE_THEMES,
   COLOR_MODES,
   CORNER_RADIUS_STYLES,
   GLASS_BLURS,
@@ -36,7 +36,7 @@ import {
   type BackgroundBlur,
   type BorderStyle,
   type CodeFontFamily,
-  type CodeStyle,
+  type CodeTheme,
   type ColorMode,
   type CornerRadiusStyle,
   type GlassBlur,
@@ -525,8 +525,8 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
     t(`extensions.appearance.fontFamilies.ui.${value}`);
   const codeFontLabel = (value: CodeFontFamily): string =>
     t(`extensions.appearance.fontFamilies.code.${value}`);
-  const codeStyleLabel = (value: CodeStyle): string =>
-    t(`extensions.appearance.codeStyles.${value}`);
+  const codeThemeLabel = (value: CodeTheme): string =>
+    t(`extensions.appearance.codeThemes.${value}`);
   const contrastLabel = (value: number): string =>
     t("extensions.appearance.themeSettings.contrastValue", { contrast: value });
   const fontSizeLabel = (value: number): string =>
@@ -847,23 +847,23 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
               />
             </SettingRow>
             <SettingRow
-              label={t("extensions.appearance.preferences.codeStyle")}
-              description={t("extensions.appearance.preferences.codeStyleDescription")}
+              label={t("extensions.appearance.preferences.codeTheme")}
+              description={t("extensions.appearance.preferences.codeThemeDescription")}
             >
               <SelectControl
-                label={t("extensions.appearance.preferences.codeStyle")}
-                value={preferences.codeStyle}
-                options={CODE_STYLES}
-                optionLabel={codeStyleLabel}
-                onChange={(codeStyle) => appearanceStore.update({ codeStyle })}
+                label={t("extensions.appearance.preferences.codeTheme")}
+                value={preferences.codeTheme}
+                options={CODE_THEMES}
+                optionLabel={codeThemeLabel}
+                onChange={(codeTheme) => appearanceStore.update({ codeTheme })}
               />
             </SettingRow>
             <div className="py-3">
-              <CodeStylePreview
+              <CodeThemePreview
                 code={CODE_PREVIEW}
                 language="tsx"
                 label={t("extensions.appearance.preferences.codePreview")}
-                codeStyle={preferences.codeStyle}
+                codeTheme={preferences.codeTheme}
               />
             </div>
             <SettingRow

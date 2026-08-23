@@ -1,113 +1,216 @@
 "use client";
 
-import { FileCode2Icon, FolderOpenIcon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { AlertCircleIcon, FolderTreeIcon, LoaderCircleIcon, SearchIcon, XIcon } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ExplorerTree } from "@/components/workspace-file-tree";
 import { useI18n } from "@/i18n";
 import type { WorkspaceSurfaceProps } from "@/platform/extensions";
-
-import { useRightWorkspace } from "@/components/right-workspace";
 import {
+  fileWorkspaceContext,
   fileWorkspaceService as files,
   type FileNode,
-} from "../workspace-file/file-workspace-service";
+} from "@/services/workspace-file-service";
 
+import { useActiveWorkspaceSurface, useOpenerService } from "@/components/right-workspace";
 export interface ExplorerSurfaceParams extends Record<string, unknown> {
   rootPath: string;
 }
+
+type RootLoadState =
+  | { status: "loading"; nodes: readonly FileNode[] }
+  | { status: "ready"; nodes: readonly FileNode[] }
+  | { status: "error"; nodes: readonly FileNode[] };
 
 export function ExplorerSurface({
   surface,
   context,
 }: WorkspaceSurfaceProps<ExplorerSurfaceParams>) {
   const { t } = useI18n();
-  const controller = useRightWorkspace();
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [nodes, setNodes] = useState<readonly FileNode[]>([]);
+  const openers = useOpenerService();
+  const activeSurface = useActiveWorkspaceSurface();
+  const rootRequest = useRef(0);
+  const [filter, setFilter] = useState("");
+  const [openError, setOpenError] = useState<string>();
+  const [truncatedPaths, setTruncatedPaths] = useState<ReadonlySet<string>>(() => new Set());
+  const [rootState, setRootState] = useState<RootLoadState>({
+    status: "loading",
+    nodes: [],
+  });
+  const fileContext = useMemo(
+    () => fileWorkspaceContext(surface.scope, context),
+    [context.projectId, context.rootPath, context.worktreeId, surface.scope],
+  );
+  const activeFilePath =
+    activeSurface?.kind === "file" && typeof activeSurface.params.absolutePath === "string"
+      ? activeSurface.params.absolutePath
+      : undefined;
+  const loadRoot = useCallback(async () => {
+    const request = ++rootRequest.current;
+    setRootState((current) => ({ status: "loading", nodes: current.nodes }));
+    try {
+      const listing = await files.listDirectory(fileContext, "");
+      if (request !== rootRequest.current) return;
+      setRootState({ status: "ready", nodes: listing.nodes });
+      setTruncatedPaths((current) => {
+        const next = new Set(current);
+        if (listing.truncated) next.add(listing.relativePath);
+        else next.delete(listing.relativePath);
+        return next;
+      });
+    } catch {
+      if (request !== rootRequest.current) return;
+      setRootState((current) => ({ status: "error", nodes: current.nodes }));
+    }
+  }, [fileContext]);
 
-  const refresh = () => {
-    void files
-      .listDirectory(surface.params.rootPath)
-      .then(setNodes)
-      .catch(() => controller.update(surface.id, { status: "error" }));
-  };
+  useEffect(() => {
+    setFilter("");
+    setOpenError(undefined);
+    setTruncatedPaths(new Set());
+    void loadRoot();
+    return () => {
+      rootRequest.current += 1;
+    };
+  }, [loadRoot, surface.params.rootPath]);
 
-  useEffect(refresh, [controller, files, surface.id, surface.params.rootPath]);
+  const loadDirectory = useCallback(
+    async (node: FileNode, signal: AbortSignal) => {
+      const listing = await files.listDirectory(fileContext, node.relativePath ?? node.path);
+      signal.throwIfAborted();
+      setTruncatedPaths((current) => {
+        const next = new Set(current);
+        if (listing.truncated) next.add(listing.relativePath);
+        else next.delete(listing.relativePath);
+        return next;
+      });
+      return listing.nodes;
+    },
+    [fileContext],
+  );
+
+  const openFile = useCallback(
+    async (node: FileNode) => {
+      setOpenError(undefined);
+      await openers.open({
+        resource: {
+          scheme: "workspace-file",
+          path: node.relativePath || node.path,
+          label: node.name,
+        },
+        context,
+        policy: "reveal",
+      });
+    },
+    [context, openers],
+  );
 
   return (
     <section
       className="flex h-full min-h-0 flex-col"
       aria-label={t("extensions.workspaceExplorer.files")}
     >
-      <input
-        ref={inputRef}
-        type="file"
-        multiple
-        className="hidden"
-        onChange={(event) => {
-          const selected = Array.from(event.currentTarget.files ?? []);
-          event.currentTarget.value = "";
-          void Promise.all(
-            selected.map((file) => files.importFile(file, surface.params.rootPath)),
-          ).then((snapshots) => {
-            for (const snapshot of snapshots) {
-              controller.reveal({
-                kind: "file",
-                title: snapshot.name,
-                params: { absolutePath: snapshot.path },
-                context,
-                scope: surface.scope,
-                status: "ready",
-              });
-            }
-            refresh();
-          });
-        }}
-      />
-      <div className="flex h-10 shrink-0 items-center border-b px-3">
-        <span className="min-w-0 flex-1 truncate text-xs font-medium">
-          {surface.params.rootPath}
-        </span>
-        <button
-          type="button"
-          className="hover:bg-muted text-muted-foreground hover:text-foreground inline-flex h-7 items-center gap-1.5 rounded-lg px-2 text-xs"
-          onClick={() => inputRef.current?.click()}
-        >
-          <FolderOpenIcon className="size-3.5" />
-          {t("extensions.workspaceExplorer.openFiles")}
-        </button>
+      <div className="relative shrink-0 px-2.5 pt-2 pb-1">
+        <div className="relative min-w-0 flex-1">
+          <SearchIcon
+            aria-hidden="true"
+            className="text-muted-foreground pointer-events-none absolute top-1/2 left-3.5 size-[18px] -translate-y-1/2"
+          />
+          <Input
+            value={filter}
+            type="search"
+            autoComplete="off"
+            spellCheck={false}
+            aria-label={t("extensions.workspaceExplorer.filterLabel")}
+            placeholder={t("extensions.workspaceExplorer.filterPlaceholder")}
+            className="border-border/80 h-8 rounded-xl bg-background pr-9 pl-10 text-[15px] shadow-none placeholder:text-muted-foreground/75 md:text-[15px] [&::-webkit-search-cancel-button]:hidden"
+            onChange={(event) => setFilter(event.currentTarget.value)}
+            onKeyDown={(event) => {
+              if (event.key !== "Escape" || !filter) return;
+              event.preventDefault();
+              setFilter("");
+            }}
+          />
+          {filter ? (
+            <button
+              type="button"
+              aria-label={t("extensions.workspaceExplorer.clearFilter")}
+              title={t("extensions.workspaceExplorer.clearFilter")}
+              className="text-muted-foreground hover:bg-muted hover:text-foreground absolute top-1/2 right-1.5 flex size-7 -translate-y-1/2 items-center justify-center rounded-lg outline-none focus-visible:ring-2"
+              onClick={() => setFilter("")}
+            >
+              <XIcon aria-hidden="true" className="size-3.5" />
+            </button>
+          ) : null}
+        </div>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto p-2">
-        {nodes.length ? (
-          <div className="space-y-0.5">
-            {nodes.map((node) => (
-              <button
-                key={node.path}
-                type="button"
-                className="hover:bg-muted/60 flex h-8 w-full items-center gap-2 rounded-lg px-2 text-left text-xs"
-                onClick={() =>
-                  controller.reveal({
-                    kind: "file",
-                    title: node.name,
-                    params: { absolutePath: node.path },
-                    context,
-                    scope: surface.scope,
-                    status: "ready",
-                  })
-                }
-              >
-                <FileCode2Icon className="text-muted-foreground size-3.5" />
-                <span className="min-w-0 flex-1 truncate">{node.path}</span>
-              </button>
-            ))}
+
+      {openError ? (
+        <div role="alert" className="border-b px-3 py-2 text-xs text-destructive">
+          {openError}
+        </div>
+      ) : null}
+
+      <div className="min-h-0 flex-1 overflow-hidden px-2.5 pb-1 [overflow-anchor:none]">
+        {rootState.status === "loading" && rootState.nodes.length === 0 ? (
+          <div
+            role="status"
+            className="text-muted-foreground flex h-full flex-col items-center justify-center gap-2 p-8 text-center text-xs"
+          >
+            <LoaderCircleIcon aria-hidden="true" className="size-5 animate-spin" />
+            {t("extensions.shared.fileTree.loading")}
+          </div>
+        ) : rootState.status === "error" && rootState.nodes.length === 0 ? (
+          <div
+            role="alert"
+            className="text-muted-foreground flex h-full flex-col items-center justify-center gap-3 p-8 text-center text-xs"
+          >
+            <AlertCircleIcon aria-hidden="true" className="text-destructive size-6" />
+            <p>{t("extensions.shared.fileTree.loadError")}</p>
+            <Button type="button" variant="outline" size="sm" onClick={() => void loadRoot()}>
+              {t("extensions.shared.fileTree.retry")}
+            </Button>
           </div>
         ) : (
-          <div className="text-muted-foreground flex h-full flex-col items-center justify-center gap-3 p-8 text-center text-xs">
-            <FolderOpenIcon className="size-7 opacity-45" />
-            <p>{t("extensions.workspaceExplorer.empty")}</p>
-          </div>
+          <ExplorerTree
+            key={surface.params.rootPath}
+            rootPath={surface.params.rootPath}
+            nodes={rootState.nodes}
+            filter={filter}
+            selectedPath={activeFilePath}
+            labels={{
+              tree: t("extensions.shared.fileTree.tree"),
+              empty: t("extensions.shared.fileTree.empty"),
+              noMatches: t("extensions.shared.fileTree.noMatches"),
+              loadingDirectory: ({ name }) =>
+                t("extensions.shared.fileTree.loadingDirectory", { name }),
+              loadDirectoryError: ({ name }) =>
+                t("extensions.shared.fileTree.loadDirectoryError", { name }),
+              retryDirectory: ({ name }) =>
+                t("extensions.shared.fileTree.retryDirectory", { name }),
+              emptyDirectory: ({ name }) =>
+                t("extensions.shared.fileTree.emptyDirectory", { name }),
+            }}
+            loadDirectory={loadDirectory}
+            openFile={openFile}
+            onOpenFileError={(_error, node) =>
+              setOpenError(t("extensions.shared.fileTree.openError", { name: node.name }))
+            }
+          />
         )}
       </div>
+
+      {truncatedPaths.size > 0 ? (
+        <div
+          role="status"
+          className="text-muted-foreground flex shrink-0 items-center gap-2 border-t px-3 py-2 text-xs"
+        >
+          <FolderTreeIcon aria-hidden="true" className="size-3.5" />
+          {t("extensions.shared.fileTree.truncated")}
+        </div>
+      ) : null}
     </section>
   );
 }
