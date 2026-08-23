@@ -25,12 +25,13 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import {
   SettingsDropdownContent,
   SettingsDropdownRadioItem,
   SettingsDropdownTrigger,
 } from "@/components/ui/settings-control";
-import { useI18n } from "@/i18n";
+import { useI18n, type StaticMessageKey } from "@/i18n";
 import type { SettingsItemComponentProps } from "@/platform/extensions";
 import {
   cancelPiModelProviderLogin,
@@ -46,10 +47,23 @@ import {
 } from "@/runtime/pi/client/transport/api";
 import type {
   ConfigurableProviderView,
+  ModelProviderConfiguration,
   ModelProviderLoginValue,
-  ModelProviderModelConfiguration,
   ModelProvidersValue,
 } from "@/runtime/pi/rpc-contracts";
+
+import {
+  MODEL_PROVIDER_APIS,
+  emptyDraft,
+  emptyModel,
+  prepareProviderConfiguration,
+  preferredAuthType,
+  toModelDraft,
+  toProviderDraft,
+  type ModelDraft,
+  type ProviderDraft,
+  type ProviderDraftError,
+} from "./model-config-draft";
 
 type LoadState = "loading" | "ready" | "failed";
 type Editor =
@@ -57,83 +71,19 @@ type Editor =
   | { mode: "add-custom" }
   | { mode: "edit"; provider: string };
 
-const MODEL_PROVIDER_APIS = [
-  "openai-completions",
-  "openai-responses",
-  "anthropic-messages",
-  "google-generative-ai",
-] as const;
 const PROVIDER_ID_PATTERN = /^[a-z][a-z0-9._-]*$/u;
-type ModelProviderApi = (typeof MODEL_PROVIDER_APIS)[number];
-
-interface ModelDraft {
-  key: number;
-  id: string;
-  name: string;
-  contextWindow: string;
-  maxTokens: string;
-  expanded: boolean;
-}
-
-interface ProviderDraft {
-  provider: string;
-  displayName: string;
-  authType: "api_key" | "oauth";
-  apiKey: string;
-  baseURL: string;
-  defaultBaseURL: string;
-  api: ModelProviderApi;
-  customOpen: boolean;
-  modelsSource: "adapter" | "custom";
-  models: ModelDraft[];
-  availableModels: ModelProviderModelConfiguration[];
-}
-
-let nextModelKey = 1;
+const PROVIDER_DRAFT_ERROR_KEYS = {
+  apiAddressRequired: "extensions.modelConfig.errors.apiAddressRequired",
+  modelRequired: "extensions.modelConfig.errors.modelRequired",
+  invalidModel: "extensions.modelConfig.errors.invalidModel",
+  duplicateModel: "extensions.modelConfig.errors.duplicateModel",
+} as const satisfies Record<ProviderDraftError, StaticMessageKey>;
 
 function visibleProviders(value?: ModelProvidersValue): ConfigurableProviderView[] {
   return (
     value?.providers.filter((provider) => provider.configured || provider.configurationDefined) ??
     []
   );
-}
-
-function formatCapacity(value?: number): string {
-  if (!value) return "";
-  if (value % 1_000_000 === 0) return `${value / 1_000_000}M`;
-  if (value % 1_000 === 0) return `${value / 1_000}K`;
-  return String(value);
-}
-
-function parseCapacity(value: string): number | undefined {
-  const match = value.trim().match(/^(\d+(?:\.\d+)?)\s*([km])?$/iu);
-  if (!match) return undefined;
-  const multiplier = match[2]?.toLowerCase() === "m" ? 1_000_000 : match[2] ? 1_000 : 1;
-  const result = Number(match[1]) * multiplier;
-  return Number.isInteger(result) && result > 0 ? result : undefined;
-}
-
-function toModelDraft(model: ModelProviderModelConfiguration, expanded = false): ModelDraft {
-  return {
-    key: nextModelKey++,
-    id: model.id,
-    name: model.name ?? "",
-    contextWindow: formatCapacity(model.contextWindow),
-    maxTokens: formatCapacity(model.maxTokens),
-    expanded,
-  };
-}
-
-function emptyModel(): ModelDraft {
-  return toModelDraft({ id: "" });
-}
-
-function preferredAuthType(provider?: ConfigurableProviderView): "api_key" | "oauth" {
-  if (provider?.authType && provider.authMethods?.some(({ type }) => type === provider.authType)) {
-    return provider.authType;
-  }
-  if (provider?.authMethods?.some(({ type }) => type === "oauth")) return "oauth";
-  return "api_key";
 }
 
 function safeExternalUrl(raw: string): string | undefined {
@@ -143,22 +93,6 @@ function safeExternalUrl(raw: string): string | undefined {
   } catch {
     return undefined;
   }
-}
-
-function emptyDraft(provider = "", authType: ProviderDraft["authType"] = "api_key"): ProviderDraft {
-  return {
-    provider,
-    displayName: "",
-    authType,
-    apiKey: "",
-    baseURL: "",
-    defaultBaseURL: "",
-    api: "openai-completions",
-    customOpen: false,
-    modelsSource: "adapter",
-    models: [],
-    availableModels: [],
-  };
 }
 
 export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemComponentProps) {
@@ -249,22 +183,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
       try {
         const configuration = await getPiModelProviderConfig({ provider: provider.provider });
         if (request !== configRequest.current) return;
-        setDraft({
-          provider: provider.provider,
-          displayName: configuration.displayName,
-          authType: preferredAuthType(provider),
-          apiKey: "",
-          baseURL: configuration.baseURL ?? "",
-          defaultBaseURL: configuration.defaultBaseURL ?? "",
-          api: MODEL_PROVIDER_APIS.find((api) => api === configuration.api) ?? "openai-completions",
-          customOpen: false,
-          modelsSource: configuration.modelsSource,
-          models:
-            configuration.modelsSource === "custom"
-              ? configuration.models.map((model) => toModelDraft(model))
-              : [],
-          availableModels: configuration.models,
-        });
+        setDraft(toProviderDraft(provider, configuration));
       } catch {
         if (request === configRequest.current) {
           setError(t("extensions.modelConfig.errors.loadDetailsFailed"));
@@ -455,49 +374,14 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
       return;
     }
 
-    let configuration;
+    let configuration: ModelProviderConfiguration | undefined;
     if (customProviderMode || draft.customOpen) {
-      const baseURL = draft.baseURL.trim() || draft.defaultBaseURL.trim();
-      if (!baseURL) {
-        setError(t("extensions.modelConfig.errors.apiAddressRequired"));
+      const prepared = prepareProviderConfiguration(draft);
+      if (!prepared.ok) {
+        setError(t(PROVIDER_DRAFT_ERROR_KEYS[prepared.error]));
         return;
       }
-      if (draft.modelsSource === "custom" && draft.models.length === 0) {
-        setError(t("extensions.modelConfig.errors.modelRequired"));
-        return;
-      }
-      const models: ModelProviderModelConfiguration[] = [];
-      for (const model of draft.modelsSource === "custom" ? draft.models : []) {
-        const id = model.id.trim();
-        const contextWindow = model.contextWindow.trim()
-          ? parseCapacity(model.contextWindow)
-          : undefined;
-        const maxTokens = model.maxTokens.trim() ? parseCapacity(model.maxTokens) : undefined;
-        if (
-          !id ||
-          (model.contextWindow.trim() && !contextWindow) ||
-          (model.maxTokens.trim() && !maxTokens)
-        ) {
-          setError(t("extensions.modelConfig.errors.invalidModel"));
-          return;
-        }
-        models.push({
-          id,
-          ...(model.name.trim() ? { name: model.name.trim() } : {}),
-          ...(contextWindow ? { contextWindow } : {}),
-          ...(maxTokens ? { maxTokens } : {}),
-        });
-      }
-      if (new Set(models.map(({ id }) => id)).size !== models.length) {
-        setError(t("extensions.modelConfig.errors.duplicateModel"));
-        return;
-      }
-      configuration = {
-        ...(draft.displayName.trim() ? { displayName: draft.displayName.trim() } : {}),
-        baseURL,
-        api: draft.api,
-        ...(draft.modelsSource === "custom" ? { models } : {}),
-      };
+      configuration = prepared.configuration;
     }
 
     const apiKey = draft.apiKey.trim();
@@ -1016,7 +900,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                               />
                               <Button
                                 type="button"
-                                size="icon"
+                                size="icon-sm"
                                 variant="outline"
                                 className="rounded-full"
                                 disabled={busy}
@@ -1037,7 +921,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                               </Button>
                               <Button
                                 type="button"
-                                size="icon"
+                                size="icon-sm"
                                 variant="ghost"
                                 disabled={busy}
                                 aria-label={t("extensions.modelConfig.removeModel", {
@@ -1093,6 +977,24 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                                       updateModel(model.key, {
                                         maxTokens: event.currentTarget.value,
                                       })
+                                    }
+                                  />
+                                </div>
+                                <div className="flex items-center justify-between gap-3 rounded-md border px-3 py-2 sm:col-span-2">
+                                  <div className="min-w-0">
+                                    <p className="text-sm font-medium">
+                                      {t("extensions.modelConfig.imageInput")}
+                                    </p>
+                                    <p className="text-muted-foreground mt-0.5 text-xs">
+                                      {t("extensions.modelConfig.imageInputDescription")}
+                                    </p>
+                                  </div>
+                                  <Switch
+                                    checked={model.supportsImages}
+                                    disabled={busy}
+                                    aria-label={t("extensions.modelConfig.imageInput")}
+                                    onCheckedChange={(checked) =>
+                                      updateModel(model.key, { supportsImages: checked })
                                     }
                                   />
                                 </div>

@@ -46,7 +46,7 @@ function LocaleSelector({ compact = false }: { compact?: boolean }) {
     <Button
       type="button"
       variant="ghost"
-      size={compact ? "icon-sm" : "lg"}
+      size={compact ? "icon" : "lg"}
       aria-label={switchLabel}
       title={switchLabel}
       className={cn(

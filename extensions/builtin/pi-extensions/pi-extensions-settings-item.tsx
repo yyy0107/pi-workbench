@@ -1,18 +1,30 @@
 "use client";
 
 import { ChevronDownIcon, RefreshCwIcon, SearchIcon } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useI18n } from "@/i18n";
 import type { SettingsItemComponentProps } from "@/platform/extensions";
-import { usePiActiveSessionId } from "@/runtime/pi/client/runtime/context";
-import { listPiExtensions, PiApiError } from "@/runtime/pi/client/transport/api";
+import { usePiSessionCatalog } from "@/runtime/pi/client/runtime/session-catalog";
+import { listPiExtensions } from "@/runtime/pi/client/transport/api";
 import type { ExtensionView } from "@/runtime/pi/rpc-contracts";
 
-type LoadState = "idle" | "loading" | "ready" | "failed";
+interface PiExtensionsCatalog {
+  readonly extensions: readonly ExtensionView[];
+  readonly loadErrorCount: number;
+}
+
+const EMPTY_PI_EXTENSIONS_CATALOG: PiExtensionsCatalog = {
+  extensions: [],
+  loadErrorCount: 0,
+};
+
+async function loadPiExtensionsCatalog(sessionId: string): Promise<PiExtensionsCatalog> {
+  return listPiExtensions({ sessionId });
+}
 
 function capabilityNames(extension: ExtensionView): string[] {
   return [...extension.eventNames, ...extension.toolNames, ...extension.commandNames];
@@ -61,49 +73,20 @@ function CapabilityDetails({
 
 export function PiExtensionsSettingsItem({ sectionId, itemId }: SettingsItemComponentProps) {
   const { locale, t } = useI18n();
-  const sessionId = usePiActiveSessionId();
-  const [extensions, setExtensions] = useState<readonly ExtensionView[]>([]);
-  const [loadErrorCount, setLoadErrorCount] = useState(0);
+  const {
+    sessionId,
+    value: { extensions, loadErrorCount },
+    loadState,
+    sessionUnavailable,
+    refresh,
+  } = usePiSessionCatalog(loadPiExtensionsCatalog, EMPTY_PI_EXTENSIONS_CATALOG);
   const [query, setQuery] = useState("");
-  const [loadState, setLoadState] = useState<LoadState>("idle");
-  const [sessionUnavailable, setSessionUnavailable] = useState(false);
   const [expandedExtensionKey, setExpandedExtensionKey] = useState<string>();
-  const request = useRef(0);
-
-  const load = useCallback(() => {
-    const requestId = ++request.current;
-    setSessionUnavailable(false);
-    if (!sessionId) {
-      setExtensions([]);
-      setLoadErrorCount(0);
-      setLoadState("idle");
-      return;
-    }
-
-    setLoadState("loading");
-    void listPiExtensions({ sessionId }).then(
-      ({ extensions: nextExtensions, loadErrorCount: nextLoadErrorCount }) => {
-        if (request.current !== requestId) return;
-        setExtensions(nextExtensions);
-        setLoadErrorCount(nextLoadErrorCount);
-        setLoadState("ready");
-      },
-      (error: unknown) => {
-        if (request.current !== requestId) return;
-        setSessionUnavailable(error instanceof PiApiError && error.code === "session-not-found");
-        setLoadState("failed");
-      },
-    );
-  }, [sessionId]);
 
   useEffect(() => {
     setQuery("");
     setExpandedExtensionKey(undefined);
-    load();
-    return () => {
-      request.current += 1;
-    };
-  }, [load]);
+  }, [sessionId]);
 
   const filteredExtensions = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase(locale);
@@ -148,10 +131,10 @@ export function PiExtensionsSettingsItem({ sectionId, itemId }: SettingsItemComp
             <Button
               type="button"
               variant="outline"
-              size="icon"
+              size="icon-sm"
               aria-label={t("extensions.piExtensions.refresh")}
               title={t("extensions.piExtensions.refresh")}
-              onClick={load}
+              onClick={refresh}
               disabled={loadState === "loading"}
             >
               <RefreshCwIcon
@@ -180,7 +163,7 @@ export function PiExtensionsSettingsItem({ sectionId, itemId }: SettingsItemComp
                     : "extensions.piExtensions.loadFailed",
                 )}
               </p>
-              <Button type="button" variant="outline" size="sm" className="mt-4" onClick={load}>
+              <Button type="button" variant="outline" size="sm" className="mt-4" onClick={refresh}>
                 {t("extensions.piExtensions.retry")}
               </Button>
             </div>

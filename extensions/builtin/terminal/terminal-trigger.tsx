@@ -19,7 +19,7 @@ export function TerminalTrigger() {
     <Button
       type="button"
       variant="ghost"
-      size="icon-sm"
+      size="icon"
       className="md:hidden"
       aria-label={t("extensions.terminal.newTerminal")}
       onClick={() => {

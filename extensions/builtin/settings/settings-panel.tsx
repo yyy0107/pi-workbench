@@ -57,6 +57,9 @@ export function SettingsPanel() {
   );
   const allItems = useSyncExternalStore(registry.subscribe, registry.getItems, () => EMPTY_ITEMS);
   const [activeSectionId, setActiveSectionId] = useState<string>();
+  const [activatedSectionIds, setActivatedSectionIds] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
   const activeSection = sections.find(({ id }) => id === activeSectionId) ?? sections.at(0);
   const navigationGroups = useMemo(() => groupSettingsSections(sections), [sections]);
 
@@ -64,12 +67,20 @@ export function SettingsPanel() {
     if (activeSection && activeSection.id !== activeSectionId) {
       setActiveSectionId(activeSection.id);
     }
-  }, [activeSection, activeSectionId]);
+    if (activeSection && !activatedSectionIds.has(activeSection.id)) {
+      setActivatedSectionIds((current) => new Set(current).add(activeSection.id));
+    }
+  }, [activatedSectionIds, activeSection, activeSectionId]);
 
-  const items = useMemo(
-    () => allItems.filter(({ sectionId }) => sectionId === activeSection?.id),
-    [activeSection?.id, allItems],
-  );
+  const itemsBySection = useMemo(() => {
+    const groupedItems = new Map<string, SettingsItemDefinition[]>();
+    for (const item of allItems) {
+      const items = groupedItems.get(item.sectionId);
+      if (items) items.push(item);
+      else groupedItems.set(item.sectionId, [item]);
+    }
+    return groupedItems;
+  }, [allItems]);
 
   return (
     <div
@@ -105,7 +116,13 @@ export function SettingsPanel() {
                           ? "bg-background font-medium text-foreground shadow-sm ring-1 ring-foreground/5"
                           : "text-muted-foreground hover:bg-background/70 hover:text-foreground",
                       )}
-                      onClick={() => setActiveSectionId(section.id)}
+                      onClick={() => {
+                        setActivatedSectionIds((current) => {
+                          if (current.has(section.id)) return current;
+                          return new Set(current).add(section.id);
+                        });
+                        setActiveSectionId(section.id);
+                      }}
                     >
                       {Icon ? <Icon className="size-4 shrink-0" /> : null}
                       <span className="min-w-0 flex-1 truncate">{text(section.title)}</span>
@@ -120,47 +137,62 @@ export function SettingsPanel() {
 
       <div className="min-h-0 overflow-y-auto px-5 py-5 sm:px-6">
         {activeSection ? (
-          <section aria-labelledby={`settings-section-${activeSection.id}`}>
-            <header className="mb-5">
-              <h2
-                id={`settings-section-${activeSection.id}`}
-                className="text-base font-semibold tracking-tight"
-              >
-                {text(activeSection.title)}
-              </h2>
-              {activeSection.description ? (
-                <p className="text-muted-foreground mt-1 text-sm leading-5">
-                  {text(activeSection.description)}
-                </p>
-              ) : null}
-            </header>
+          sections
+            .filter(
+              (section) => section.id === activeSection.id || activatedSectionIds.has(section.id),
+            )
+            .map((section) => {
+              const items = itemsBySection.get(section.id) ?? EMPTY_ITEMS;
+              const active = section.id === activeSection.id;
+              return (
+                <section
+                  key={section.id}
+                  aria-labelledby={`settings-section-${section.id}`}
+                  hidden={!active}
+                  inert={!active ? true : undefined}
+                >
+                  <header className="mb-5">
+                    <h2
+                      id={`settings-section-${section.id}`}
+                      className="text-base font-semibold tracking-tight"
+                    >
+                      {text(section.title)}
+                    </h2>
+                    {section.description ? (
+                      <p className="text-muted-foreground mt-1 text-sm leading-5">
+                        {text(section.description)}
+                      </p>
+                    ) : null}
+                  </header>
 
-            {items.length > 0 ? (
-              <div className="divide-y">
-                {items.map((item) => {
-                  const Item = item.component;
-                  const contributionId = `${item.sectionId}.${item.id}`;
+                  {items.length > 0 ? (
+                    <div className="divide-y">
+                      {items.map((item) => {
+                        const Item = item.component;
+                        const contributionId = `${item.sectionId}.${item.id}`;
 
-                  return (
-                    <div key={contributionId}>
-                      <ExtensionErrorBoundary
-                        contributionId={contributionId}
-                        source="setting"
-                        onError={reportError}
-                        resetKey={Item}
-                      >
-                        <Item sectionId={item.sectionId} itemId={item.id} />
-                      </ExtensionErrorBoundary>
+                        return (
+                          <div key={contributionId}>
+                            <ExtensionErrorBoundary
+                              contributionId={contributionId}
+                              source="setting"
+                              onError={reportError}
+                              resetKey={Item}
+                            >
+                              <Item sectionId={item.sectionId} itemId={item.id} />
+                            </ExtensionErrorBoundary>
+                          </div>
+                        );
+                      })}
                     </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="text-muted-foreground rounded-2xl border border-dashed px-4 py-8 text-center text-sm">
-                {t("extensions.settings.emptySection")}
-              </div>
-            )}
-          </section>
+                  ) : (
+                    <div className="text-muted-foreground rounded-2xl border border-dashed px-4 py-8 text-center text-sm">
+                      {t("extensions.settings.emptySection")}
+                    </div>
+                  )}
+                </section>
+              );
+            })
         ) : (
           <div className="text-muted-foreground flex size-full items-center justify-center text-sm">
             {t("extensions.settings.empty")}

@@ -33,7 +33,7 @@ import type {
   SessionModelsValue,
 } from "@/runtime/pi/rpc-contracts";
 import { usePiSessionManager } from "@/runtime/pi/client/runtime/context";
-import { useWorkspaceDirectoryStore } from "@/workbench/workspaces/workspace-directory-store";
+import { useWorkspaceSelection } from "@/services/workspace-selection-service";
 
 import {
   draftSelectorModels,
@@ -46,6 +46,7 @@ import {
   type SelectorModel,
 } from "./model-selector-state";
 import { useModelSelectorStore } from "./model-selector-store";
+import { reasoningEffortLabel } from "./reasoning-effort-label";
 
 type AppModel = SelectorModel;
 
@@ -198,9 +199,7 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
   const setDraftSelection = useModelSelectorStore((state) => state.setDraftSelection);
   const clearDraftSelection = useModelSelectorStore((state) => state.clearDraftSelection);
   const rememberSelection = useModelSelectorStore((state) => state.rememberSelection);
-  const draftWorkspace = useWorkspaceDirectoryStore((state) =>
-    state.directories.find((directory) => directory.id === state.draftDirectoryId),
-  );
+  const { draftWorkspace } = useWorkspaceSelection();
   const [modelQuery, setModelQuery] = useState("");
   const [loadedCatalog, setLoadedCatalog] = useState<LoadedCatalog>();
   const [failedScope, setFailedScope] = useState<string>();
@@ -306,7 +305,10 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
       ).reasoningEffort
     : undefined;
   const reasoningLevels = selectedModel?.efforts ?? [];
-  const selectedEffortLabel = reasoningLevels.find((level) => level.id === selectedEffort)?.name;
+  const selectedEffortOption = reasoningLevels.find((level) => level.id === selectedEffort);
+  const selectedEffortLabel = selectedEffortOption
+    ? reasoningEffortLabel(selectedEffortOption, t)
+    : undefined;
 
   const applySessionSelection = useCallback(
     (selection: ModelSelection) => {
@@ -447,7 +449,7 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
         <DropdownMenuTrigger
           disabled={selectionLocked}
           aria-label={t("assistant.model.select")}
-          className="group hover:bg-muted data-popup-open:bg-muted data-popup-open:w-72 relative flex h-[34px] w-48 max-w-[calc(100vw-8rem)] items-center justify-center rounded-md bg-transparent px-2 py-0 text-base outline-none transition-[width,background-color,color] duration-200 ease-out focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed"
+          className="group hover:bg-muted data-popup-open:bg-muted data-popup-open:w-[min(18rem,calc(100vw-1rem))] relative flex h-[34px] w-32 max-w-[calc(100vw-8rem)] items-center justify-center rounded-md bg-transparent px-2 py-0 text-base outline-none transition-[width,background-color,color] duration-200 ease-out focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed max-[360px]:w-24 sm:w-48"
         >
           <span
             className="group-hover:pe-6 group-hover:text-start group-focus-visible:pe-6 group-focus-visible:text-start group-data-popup-open:px-6 group-data-popup-open:text-center block w-full min-w-0 truncate text-center font-mono font-medium transition-[padding] duration-200 ease-out"
@@ -537,7 +539,9 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
                     disabled={selectionLocked}
                     className="h-8 px-2 pe-8"
                   >
-                    <span className="min-w-0 flex-1 truncate">{level.name}</span>
+                    <span className="min-w-0 flex-1 truncate">
+                      {reasoningEffortLabel(level, t)}
+                    </span>
                   </DropdownMenuRadioItem>
                 ))}
               </DropdownMenuRadioGroup>

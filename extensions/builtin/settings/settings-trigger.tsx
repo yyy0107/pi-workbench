@@ -16,7 +16,7 @@ function SettingsTrigger({ compact = false }: { compact?: boolean }) {
     <Button
       type="button"
       variant="ghost"
-      size={compact ? "icon-sm" : "lg"}
+      size={compact ? "icon" : "lg"}
       aria-label={label}
       aria-haspopup="dialog"
       title={label}

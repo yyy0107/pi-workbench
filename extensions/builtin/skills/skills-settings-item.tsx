@@ -1,18 +1,22 @@
 "use client";
 
 import { RefreshCwIcon, SearchIcon } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useI18n } from "@/i18n";
 import type { SettingsItemComponentProps } from "@/platform/extensions";
-import { usePiActiveSessionId } from "@/runtime/pi/client/runtime/context";
-import { listPiSkills, PiApiError } from "@/runtime/pi/client/transport/api";
+import { usePiSessionCatalog } from "@/runtime/pi/client/runtime/session-catalog";
+import { listPiSkills } from "@/runtime/pi/client/transport/api";
 import type { SkillView } from "@/runtime/pi/rpc-contracts";
 
-type LoadState = "idle" | "loading" | "ready" | "failed";
+const EMPTY_SKILLS: readonly SkillView[] = [];
+
+async function loadSkills(sessionId: string): Promise<readonly SkillView[]> {
+  return (await listPiSkills({ sessionId })).skills;
+}
 
 function SkillsSkeleton() {
   return (
@@ -30,44 +34,18 @@ function SkillsSkeleton() {
 
 export function SkillsSettingsItem({ sectionId, itemId }: SettingsItemComponentProps) {
   const { locale, t } = useI18n();
-  const sessionId = usePiActiveSessionId();
-  const [skills, setSkills] = useState<readonly SkillView[]>([]);
+  const {
+    sessionId,
+    value: skills,
+    loadState,
+    sessionUnavailable,
+    refresh,
+  } = usePiSessionCatalog(loadSkills, EMPTY_SKILLS);
   const [query, setQuery] = useState("");
-  const [loadState, setLoadState] = useState<LoadState>("idle");
-  const [sessionUnavailable, setSessionUnavailable] = useState(false);
-  const request = useRef(0);
-
-  const load = useCallback(() => {
-    const requestId = ++request.current;
-    setSessionUnavailable(false);
-    if (!sessionId) {
-      setSkills([]);
-      setLoadState("idle");
-      return;
-    }
-
-    setLoadState("loading");
-    void listPiSkills({ sessionId }).then(
-      ({ skills: nextSkills }) => {
-        if (request.current !== requestId) return;
-        setSkills(nextSkills);
-        setLoadState("ready");
-      },
-      (error: unknown) => {
-        if (request.current !== requestId) return;
-        setSessionUnavailable(error instanceof PiApiError && error.code === "session-not-found");
-        setLoadState("failed");
-      },
-    );
-  }, [sessionId]);
 
   useEffect(() => {
     setQuery("");
-    load();
-    return () => {
-      request.current += 1;
-    };
-  }, [load]);
+  }, [sessionId]);
 
   const filteredSkills = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase(locale);
@@ -102,10 +80,10 @@ export function SkillsSettingsItem({ sectionId, itemId }: SettingsItemComponentP
             <Button
               type="button"
               variant="outline"
-              size="icon"
+              size="icon-sm"
               aria-label={t("extensions.skills.refresh")}
               title={t("extensions.skills.refresh")}
-              onClick={load}
+              onClick={refresh}
               disabled={loadState === "loading"}
             >
               <RefreshCwIcon
@@ -130,7 +108,7 @@ export function SkillsSettingsItem({ sectionId, itemId }: SettingsItemComponentP
                     : "extensions.skills.loadFailed",
                 )}
               </p>
-              <Button type="button" variant="outline" size="sm" className="mt-4" onClick={load}>
+              <Button type="button" variant="outline" size="sm" className="mt-4" onClick={refresh}>
                 {t("extensions.skills.retry")}
               </Button>
             </div>

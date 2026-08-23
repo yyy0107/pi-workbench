@@ -20,8 +20,10 @@ export function SettingsOverlay() {
     settingsOverlayStore.getSnapshot,
     settingsOverlayStore.getServerSnapshot,
   );
+  const [hasOpened, setHasOpened] = useState(open);
 
   useEffect(() => {
+    if (open) setHasOpened(true);
     if (!open) {
       setOpeningDocument(false);
       setDocumentError(false);
@@ -46,6 +48,7 @@ export function SettingsOverlay() {
       <DialogContent
         id="workbench-settings-dialog"
         closeLabel={t("extensions.settings.close")}
+        keepMounted
         className="h-[min(42rem,calc(100dvh-2rem))] w-[calc(100vw-2rem)] max-w-4xl grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden rounded-2xl p-0 sm:max-w-4xl"
       >
         <DialogHeader className="h-12 flex-row items-center gap-3 px-5 pr-12">
@@ -72,7 +75,7 @@ export function SettingsOverlay() {
             {t("extensions.settings.openConfigurationFileFailed")}
           </p>
         ) : null}
-        <SettingsPanel />
+        {hasOpened || open ? <SettingsPanel /> : null}
       </DialogContent>
     </Dialog>
   );
