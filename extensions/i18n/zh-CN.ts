@@ -814,6 +814,9 @@ export const extensionsZhCN = {
       view: "在终端中查看",
       activityComplete: "运行",
       activityRunning: "正在运行",
+      shellTitle: "Shell",
+      statusRunning: "运行中",
+      statusSuccess: "成功",
     },
     transcript: {
       output: "会话终端输出",

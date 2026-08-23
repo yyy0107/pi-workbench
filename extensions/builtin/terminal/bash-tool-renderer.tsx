@@ -39,11 +39,12 @@ export function BashTerminal({ toolCallId, command, result, running }: BashTermi
       lines={lines}
       visibleCount={lines.length}
       done={!running}
-      headerAction={
+      title={t("extensions.terminal.tool.shellTitle")}
+      titleAction={
         <TooltipIconButton
           data-slot="terminal-block-action"
           tooltip={t("extensions.terminal.tool.view")}
-          className="text-foreground/40 hover:text-foreground"
+          className="size-6 text-muted-foreground/60 hover:text-foreground"
           onClick={() =>
             revealTerminalTranscript({
               controller,
@@ -58,7 +59,10 @@ export function BashTerminal({ toolCallId, command, result, running }: BashTermi
           <SquareTerminalIcon className="size-3.5" />
         </TooltipIconButton>
       }
-      variant="paper"
+      runningLabel={t("extensions.terminal.tool.statusRunning")}
+      successLabel={t("extensions.terminal.tool.statusSuccess")}
+      role="region"
+      aria-label={t("extensions.terminal.output")}
     />
   );
 }
