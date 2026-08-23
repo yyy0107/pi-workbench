@@ -50,13 +50,20 @@ function selectActiveSurfaceByPlacement(
   context: WorkspaceContext,
   placement: WorkspaceSurfacePlacement,
 ): WorkspaceSurfaceInstance | undefined {
+  const matchesContextAndPlacement = (surfaceId: string) => {
+    const surface = state.surfaces[surfaceId];
+    return surface?.placement === placement && scopeMatchesContext(surface.scope, context);
+  };
   const activeSurfaceId =
     placement === "primary" ? state.activeSurfaceId : state.activeAuxiliarySurfaceId;
-  const active = activeSurfaceId ? state.surfaces[activeSurfaceId] : undefined;
-  if (active && active.placement === placement && scopeMatchesContext(active.scope, context)) {
-    return active;
+  if (activeSurfaceId && matchesContextAndPlacement(activeSurfaceId)) {
+    return state.surfaces[activeSurfaceId];
   }
-  return selectContextSurfacesByPlacement(state, context, placement).at(-1);
+  const historicalSurfaceId = state.navigationHistory.findLast(matchesContextAndPlacement);
+  if (historicalSurfaceId) return state.surfaces[historicalSurfaceId];
+  return selectContextSurfacesByPlacement(state, context, placement)
+    .toSorted((left, right) => left.lastActiveAt - right.lastActiveAt)
+    .at(-1);
 }
 
 export function selectActiveSurface(

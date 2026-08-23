@@ -10,6 +10,7 @@ import {
   RIGHT_WORKSPACE_STORAGE_KEY,
   type WorkspaceStorage,
 } from "./workspace-controller";
+import { selectActiveSurface, selectContextSurfaces } from "./workspace-selectors";
 import { createRightWorkspaceStore } from "./workspace-store";
 
 class MemoryStorage implements WorkspaceStorage {
@@ -125,6 +126,56 @@ test("reveal deduplicates a file resource and closing the workspace preserves it
   assert.equal(store.getState().open, false);
   assert.ok(store.getState().surfaces[first]);
   assert.equal(store.getState().activeSurfaceId, first);
+});
+
+test("conversation content is isolated while workspace width stays shared", () => {
+  const store = createRightWorkspaceStore();
+  const controller = new DefaultRightWorkspaceController(store, createRegistry());
+  const firstContext = context;
+  const secondContext = { ...context, threadId: "thread-2" };
+  const first = controller.open({
+    kind: "artifact",
+    title: "First conversation",
+    params: { artifactId: "first" },
+    context: firstContext,
+  });
+  const laterInFirstConversation = controller.open({
+    kind: "artifact",
+    title: "Later in first conversation",
+    params: { artifactId: "later" },
+    context: firstContext,
+  });
+  controller.focus(first);
+  controller.setWidth(612);
+  const second = controller.open({
+    kind: "artifact",
+    title: "Second conversation",
+    params: { artifactId: "first" },
+    context: secondContext,
+    policy: "background",
+  });
+
+  assert.notEqual(first, second);
+  assert.deepEqual(
+    selectContextSurfaces(store.getState(), firstContext).map((surface) => surface.id),
+    [first, laterInFirstConversation],
+  );
+  assert.deepEqual(
+    selectContextSurfaces(store.getState(), secondContext).map((surface) => surface.id),
+    [second],
+  );
+  assert.equal(selectActiveSurface(store.getState(), firstContext)?.id, first);
+  assert.equal(selectActiveSurface(store.getState(), secondContext)?.id, second);
+  assert.equal(store.getState().width, 612);
+
+  controller.setWidth(744);
+  controller.restoreContext(firstContext);
+  assert.equal(store.getState().activeSurfaceId, first);
+  assert.equal(store.getState().width, 744);
+
+  controller.restoreContext(secondContext);
+  assert.equal(store.getState().activeSurfaceId, second);
+  assert.equal(store.getState().width, 744);
 });
 
 test("closing an active surface selects the adjacent right tab before falling back left", () => {

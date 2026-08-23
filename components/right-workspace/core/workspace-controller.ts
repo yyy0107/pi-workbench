@@ -10,7 +10,11 @@ import {
   type WorkspaceSurfacePlacement,
   type WorkspaceSurfaceRegistry,
 } from "./surface-types";
-import { scopeMatchesContext } from "./workspace-selectors";
+import {
+  scopeMatchesContext,
+  selectActiveAuxiliarySurface,
+  selectActiveSurface,
+} from "./workspace-selectors";
 import {
   DEFAULT_AUXILIARY_SURFACE_WIDTH,
   DEFAULT_RIGHT_WORKSPACE_WIDTH,
@@ -511,15 +515,8 @@ export class DefaultRightWorkspaceController implements RightWorkspaceController
 
   restoreContext = (context: WorkspaceContext): void => {
     const state = this.#store.getState();
-    const candidates = state.surfaceOrder
-      .map((id) => state.surfaces[id])
-      .filter((surface): surface is WorkspaceSurfaceInstance => Boolean(surface))
-      .filter((surface) => scopeMatchesContext(surface.scope, context))
-      .sort((left, right) => left.lastActiveAt - right.lastActiveAt);
-    const activeSurfaceId =
-      candidates.findLast((surface) => surface.placement === "primary")?.id ?? null;
-    const activeAuxiliarySurfaceId =
-      candidates.findLast((surface) => surface.placement === "auxiliary")?.id ?? null;
+    const activeSurfaceId = selectActiveSurface(state, context)?.id ?? null;
+    const activeAuxiliarySurfaceId = selectActiveAuxiliarySurface(state, context)?.id ?? null;
     if (
       state.activeSurfaceId === activeSurfaceId &&
       state.activeAuxiliarySurfaceId === activeAuxiliarySurfaceId

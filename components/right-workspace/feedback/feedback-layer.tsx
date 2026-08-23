@@ -6,14 +6,14 @@ import { useState } from "react";
 import { useI18n } from "@/i18n";
 
 import {
-  useRightWorkspaceState,
+  useActiveWorkspaceSurface,
   useWorkspaceFeedbackState,
   useWorkspaceFeedbackStore,
 } from "../workspace-context";
 
 export function WorkspaceFeedbackLayer() {
   const { t } = useI18n();
-  const activeSurfaceId = useRightWorkspaceState((state) => state.activeSurfaceId);
+  const activeSurfaceId = useActiveWorkspaceSurface()?.id;
   const feedbackStore = useWorkspaceFeedbackStore();
   const feedback = useWorkspaceFeedbackState((snapshot) =>
     snapshot.feedback.filter((item) => item.surfaceId === activeSurfaceId),

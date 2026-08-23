@@ -14,7 +14,7 @@ import type {
   WorkspaceSurfaceInstance,
   WorkspaceSurfaceRegistry,
 } from "./core/surface-types";
-import { scopeMatchesContext } from "./core/workspace-selectors";
+import { selectActiveSurface, selectContextSurfaces } from "./core/workspace-selectors";
 import type { RightWorkspaceStoreApi } from "./core/workspace-store";
 import type { WorkspaceFeedbackSnapshot, WorkspaceFeedbackStore } from "./feedback/feedback-store";
 
@@ -53,22 +53,17 @@ export function useWorkspaceContext(): WorkspaceContext {
 }
 
 export function useWorkspaceSurfaces(kind: string): readonly WorkspaceSurfaceInstance[] {
+  const context = useWorkspaceContext();
   return useRightWorkspaceState(
     useShallow((state) =>
-      state.surfaceOrder.flatMap((surfaceId) => {
-        const surface = state.surfaces[surfaceId];
-        return surface?.kind === kind ? [surface] : [];
-      }),
+      selectContextSurfaces(state, context).filter((surface) => surface.kind === kind),
     ),
   );
 }
 
 export function useActiveWorkspaceSurface(): WorkspaceSurfaceInstance | undefined {
   const context = useWorkspaceContext();
-  const active = useRightWorkspaceState((state) =>
-    state.activeSurfaceId ? state.surfaces[state.activeSurfaceId] : undefined,
-  );
-  return active && scopeMatchesContext(active.scope, context) ? active : undefined;
+  return useRightWorkspaceState((state) => selectActiveSurface(state, context));
 }
 
 export function useWorkspaceOpen(): boolean {

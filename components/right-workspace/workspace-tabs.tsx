@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 
-import { selectContextSurfacesByPlacement } from "./core/workspace-selectors";
+import { selectActiveSurface, selectContextSurfacesByPlacement } from "./core/workspace-selectors";
 import {
   useRightWorkspace,
   useRightWorkspaceEnvironment,
@@ -110,7 +110,9 @@ export function WorkspaceTabs() {
   const context = useWorkspaceContext();
   const surfaceOrder = useRightWorkspaceState((state) => state.surfaceOrder);
   const surfacesById = useRightWorkspaceState((state) => state.surfaces);
-  const activeSurfaceId = useRightWorkspaceState((state) => state.activeSurfaceId);
+  const activeSurfaceId = useRightWorkspaceState(
+    (state) => selectActiveSurface(state, context)?.id ?? null,
+  );
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const draggingIdRef = useRef<string | null>(null);
   const pointerDragCandidate = useRef<PointerDragCandidate | null>(null);
