@@ -59,6 +59,8 @@ export function BashTerminal({ toolCallId, command, result, running }: BashTermi
           <SquareTerminalIcon className="size-3.5" />
         </TooltipIconButton>
       }
+      collapseCommandLabel={t("extensions.terminal.tool.collapseCommand")}
+      expandCommandLabel={t("extensions.terminal.tool.expandCommand")}
       runningLabel={t("extensions.terminal.tool.statusRunning")}
       successLabel={t("extensions.terminal.tool.statusSuccess")}
       role="region"

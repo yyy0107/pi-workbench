@@ -814,6 +814,8 @@ export const extensionsZhCN = {
       view: "在终端中查看",
       activityComplete: "运行",
       activityRunning: "正在运行",
+      collapseCommand: "收起命令",
+      expandCommand: "展开命令",
       shellTitle: "Shell",
       statusRunning: "运行中",
       statusSuccess: "成功",

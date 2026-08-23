@@ -832,6 +832,8 @@ export const extensionsEnUS = {
       view: "View in terminal",
       activityComplete: "Ran",
       activityRunning: "Running",
+      collapseCommand: "Collapse command",
+      expandCommand: "Expand command",
       shellTitle: "Shell",
       statusRunning: "Running",
       statusSuccess: "Success",
