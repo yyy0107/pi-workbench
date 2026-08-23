@@ -3,6 +3,7 @@
 import { useEffect, useMemo } from "react";
 
 import {
+  useActiveWorkspaceSurface,
   useRightWorkspace,
   useRightWorkspaceState,
   useWorkspaceContext,
@@ -10,21 +11,18 @@ import {
 } from "@/components/right-workspace";
 import { useI18n } from "@/i18n";
 
-import { contextExplorerSurfaces, contextHasFileSurface } from "./explorer-runtime-policy";
+import { contextExplorerSurfaces, isFileSurfaceActive } from "./explorer-runtime-policy";
 
 export function ExplorerRuntimeBridge() {
   const { t } = useI18n();
   const controller = useRightWorkspace();
   const context = useWorkspaceContext();
   const hydrated = useRightWorkspaceState((state) => state.hydrated);
-  const fileSurfaces = useWorkspaceSurfaces("file");
+  const activeSurface = useActiveWorkspaceSurface();
   const explorerSurfaces = useWorkspaceSurfaces("explorer");
   const title = t("extensions.workspaceExplorer.title");
   const { applicationId, projectId, rootPath, threadId, worktreeId } = context;
-  const hasFileSurface = useMemo(
-    () => contextHasFileSurface(fileSurfaces, context),
-    [context, fileSurfaces],
-  );
+  const fileSurfaceActive = isFileSurfaceActive(activeSurface);
   const contextExplorers = useMemo(
     () => contextExplorerSurfaces(explorerSurfaces, context),
     [context, explorerSurfaces],
@@ -34,7 +32,7 @@ export function ExplorerRuntimeBridge() {
   useEffect(() => {
     if (!hydrated) return;
 
-    const shouldShow = Boolean(hasFileSurface && rootPath && (worktreeId ?? projectId));
+    const shouldShow = Boolean(fileSurfaceActive && rootPath && (worktreeId ?? projectId));
     for (const surface of contextExplorers) {
       if (!shouldShow || surface.id !== currentExplorer?.id) controller.close(surface.id);
     }
@@ -60,7 +58,7 @@ export function ExplorerRuntimeBridge() {
     contextExplorers,
     controller,
     currentExplorer,
-    hasFileSurface,
+    fileSurfaceActive,
     hydrated,
     projectId,
     rootPath,

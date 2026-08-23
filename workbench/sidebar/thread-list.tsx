@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useI18n } from "@/i18n";
 import { usePiSessionManager } from "@/runtime/pi/client/runtime/context";
+import { useWorkspaceSelection } from "@/services/workspace-selection-service";
 import { resolveSidebarThreadWorkspaceId } from "@/workbench/workspaces/new-thread-policy";
-import { useWorkspaceDirectoryStore } from "@/workbench/workspaces/workspace-directory-store";
 
 import { WorkbenchThreadListItem } from "./thread-list-item";
 
@@ -41,7 +41,7 @@ export function WorkbenchThreadList({
   const { t } = useI18n();
   const manager = usePiSessionManager();
   const mainThreadId = useAuiState((state) => state.threads.mainThreadId);
-  const draftWorkspaceId = useWorkspaceDirectoryStore((state) => state.draftDirectoryId);
+  const { draftWorkspaceId } = useWorkspaceSelection();
   const isLoading = useAuiState((state) => state.threads.isLoading);
   const threadCount = useAuiState(
     (state) => state.threads.threadIds.length + state.threads.archivedThreadIds.length,

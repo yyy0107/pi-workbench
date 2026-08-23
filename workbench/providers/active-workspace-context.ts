@@ -1,4 +1,4 @@
-import type { WorkspaceContext } from "@/components/right-workspace";
+import type { WorkspaceContext, WorkspaceScope } from "@/components/right-workspace";
 
 export interface ActiveWorkspaceContextInput {
   threadId?: string;
@@ -17,4 +17,11 @@ export function activeWorkspaceContext({
     ...(workspaceId ? { projectId: workspaceId, worktreeId: workspaceId } : {}),
     ...(rootPath ? { rootPath } : {}),
   };
+}
+
+export function shouldPromoteThreadSurfaceScope(
+  scope: WorkspaceScope,
+  promotedScopeId: string | undefined,
+): boolean {
+  return Boolean(promotedScopeId && scope.type === "thread" && scope.key === promotedScopeId);
 }

@@ -5,19 +5,20 @@ import { PlusIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
+import {
+  useWorkspaceCapabilities,
+  useWorkspaceSelection,
+} from "@/services/workspace-selection-service";
 import { preferredNewThreadWorkspaceId } from "@/workbench/workspaces/new-thread-policy";
-import { useWorkspaceDirectoryStore } from "@/workbench/workspaces/workspace-directory-store";
 
 export function NewThreadNavigationItem() {
   const { t } = useI18n();
-  const targetWorkspaceId = useWorkspaceDirectoryStore((state) =>
-    preferredNewThreadWorkspaceId(
-      state.activeDirectoryId,
-      state.directories.map((directory) => directory.id),
-    ),
+  const { activeWorkspaceId, workspaces } = useWorkspaceSelection();
+  const targetWorkspaceId = preferredNewThreadWorkspaceId(
+    activeWorkspaceId,
+    workspaces.map((workspace) => workspace.id),
   );
-  const beginNewThread = useWorkspaceDirectoryStore((state) => state.beginNewThread);
-  const destroyNewThread = useWorkspaceDirectoryStore((state) => state.destroyNewThread);
+  const { beginNewThread, destroyNewThread } = useWorkspaceCapabilities();
 
   return (
     <ThreadListPrimitive.New

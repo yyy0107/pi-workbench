@@ -7,10 +7,12 @@ import { useState } from "react";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import type { ComposerDrawerSlotContext } from "@/platform/extensions";
-import { usePiSessionManager } from "@/runtime/pi/client/runtime/context";
 import { PiApiError, pickPiWorkspace } from "@/runtime/pi/client/transport/api";
 import type { PiWorkspaceSummary } from "@/runtime/pi/contracts";
-import { useWorkspaceDirectoryStore } from "@/workbench/workspaces/workspace-directory-store";
+import {
+  useWorkspaceCapabilities,
+  useWorkspaceSelection,
+} from "@/services/workspace-selection-service";
 
 import {
   RemoteDirectoryPickerDialog,
@@ -19,23 +21,18 @@ import {
 
 export function WorkspaceDirectorySummary(_context: ComposerDrawerSlotContext) {
   const { t } = useI18n();
-  const manager = usePiSessionManager();
   const [picking, setPicking] = useState(false);
   const [remotePickerOpen, setRemotePickerOpen] = useState(false);
   const [error, setError] = useState(false);
   const isNewThread = useAuiState(
     (state) => state.threads.mainThreadId === state.threads.newThreadId,
   );
-  const directories = useWorkspaceDirectoryStore((state) => state.directories);
-  const activeDirectoryId = useWorkspaceDirectoryStore((state) => state.activeDirectoryId);
-  const draftDirectoryId = useWorkspaceDirectoryStore((state) => state.draftDirectoryId);
-  const addDirectory = useWorkspaceDirectoryStore((state) => state.addDirectory);
-  const selectedDirectory = directories.find(
-    (directory) => directory.id === (isNewThread ? draftDirectoryId : activeDirectoryId),
-  );
+  const { activeWorkspace, draftWorkspace } = useWorkspaceSelection();
+  const { beginNewThreadWithCreatedWorkspace } = useWorkspaceCapabilities();
+  const selectedDirectory = isNewThread ? draftWorkspace : activeWorkspace;
 
   const selectWorkspace = (workspace: PiWorkspaceSummary) => {
-    addDirectory(workspace);
+    beginNewThreadWithCreatedWorkspace(workspace);
   };
 
   const pickDirectory = async () => {
@@ -51,7 +48,6 @@ export function WorkspaceDirectorySummary(_context: ComposerDrawerSlotContext) {
       const workspace = await pickPiWorkspace();
       if (workspace) {
         selectWorkspace(workspace);
-        await manager.refreshWorkspaceMetadata().catch(() => undefined);
       }
     } catch (cause) {
       if (cause instanceof PiApiError && cause.code === "directory-picker-unavailable") {
@@ -103,10 +99,7 @@ export function WorkspaceDirectorySummary(_context: ComposerDrawerSlotContext) {
       <RemoteDirectoryPickerDialog
         open={remotePickerOpen}
         onOpenChange={setRemotePickerOpen}
-        onSelect={async (workspace) => {
-          selectWorkspace(workspace);
-          await manager.refreshWorkspaceMetadata().catch(() => undefined);
-        }}
+        onSelect={selectWorkspace}
       />
     </>
   );

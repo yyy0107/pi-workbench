@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 
 import { useI18n } from "@/i18n";
-import { useWorkspaceDirectoryStore } from "@/workbench/workspaces/workspace-directory-store";
+import { useWorkspaceCapabilities } from "@/services/workspace-selection-service";
 
 export function DraftThreadListItem({
   workspaceId,
@@ -14,7 +14,7 @@ export function DraftThreadListItem({
 }) {
   const { t } = useI18n();
   const router = useRouter();
-  const activateDirectory = useWorkspaceDirectoryStore((state) => state.activateDirectory);
+  const { activateWorkspace } = useWorkspaceCapabilities();
 
   return (
     <button
@@ -25,7 +25,7 @@ export function DraftThreadListItem({
       aria-current="page"
       className="text-sidebar-foreground hover:bg-sidebar-accent focus-visible:ring-sidebar-ring relative -ms-6 flex h-9 w-[calc(100%+1.5rem)] items-center rounded-lg pe-2.5 ps-[34px] text-start text-sm outline-none focus-visible:ring-2"
       onClick={() => {
-        activateDirectory(workspaceId);
+        activateWorkspace(workspaceId);
         router.push("/");
         onNavigate?.();
       }}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState, type ReactNode, type RefObject } from "react";
+import { useId, useLayoutEffect, useState, type ReactNode, type RefObject } from "react";
 import { useAuiState } from "@assistant-ui/react";
 import { ChevronRightIcon, PanelLeftCloseIcon } from "lucide-react";
 
@@ -11,12 +11,12 @@ import { Sidebar, useSidebar } from "@/components/ui/sidebar";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { SlotHost } from "@/platform/extensions";
+import { useWorkspaceSelection } from "@/services/workspace-selection-service";
 import { SidebarResizeHandle } from "@/workbench/sidebar/sidebar-resize-handle";
 import {
   WorkbenchPinnedThreadList,
   WorkbenchWorkspaceThreadList,
 } from "@/workbench/sidebar/workspace-thread-list";
-import { useWorkspaceDirectoryStore } from "@/workbench/workspaces/workspace-directory-store";
 
 export function WorkbenchSidebarContent({
   mobile = false,
@@ -32,8 +32,8 @@ export function WorkbenchSidebarContent({
       return thread?.custom?.piPinned === true;
     }),
   );
-  const hasPinnedDirectories = useWorkspaceDirectoryStore(
-    (state) => state.pinnedDirectoryIds.length > 0,
+  const hasPinnedDirectories = useWorkspaceSelection().workspaces.some(
+    (workspace) => workspace.pinned === true,
   );
   const [pinnedExpanded, setPinnedExpanded] = useState(true);
   const [workspaceExpanded, setWorkspaceExpanded] = useState(true);
@@ -59,12 +59,17 @@ export function WorkbenchSidebarContent({
         />
       ) : null}
 
-      {!mobile ? (
-        <SlotHost
-          name="sidebar.navigation"
-          className="mx-4 mb-5 flex shrink-0 flex-col gap-1 empty:hidden"
-        />
-      ) : null}
+      <div
+        className="mx-4 mb-5 flex shrink-0 flex-col gap-1 empty:hidden"
+        onClick={(event) => {
+          if (!mobile || !(event.target instanceof Element) || !event.target.closest("button, a")) {
+            return;
+          }
+          onNavigate?.();
+        }}
+      >
+        <SlotHost name="sidebar.navigation" />
+      </div>
 
       <div
         data-workspace-scroll-container
@@ -190,7 +195,7 @@ function MobileSidebarHeader() {
       <Button
         type="button"
         variant="ghost"
-        size="icon-sm"
+        size="icon"
         aria-label={t("workbench.sidebar.closeMobile")}
         title={t("workbench.sidebar.closeMobile")}
         onClick={() => setOpenMobile(false)}
@@ -209,7 +214,7 @@ function SidebarCollapseButton() {
     <Button
       type="button"
       variant="ghost"
-      size="icon-sm"
+      size="icon"
       aria-label={t("workbench.sidebar.collapse")}
       title={t("workbench.sidebar.collapse")}
       onClick={() => setOpen(false)}
@@ -236,7 +241,15 @@ export function WorkbenchSidebar({
   onResize,
 }: WorkbenchSidebarProps) {
   const { t } = useI18n();
-  const { isMobile, setOpenMobile } = useSidebar();
+  const { isMobile, setOpenMobile, state } = useSidebar();
+
+  useLayoutEffect(() => {
+    if (state !== "collapsed") return;
+
+    shellRef.current?.style.setProperty("--sidebar-width", `${width}px`);
+    shellRef.current?.style.setProperty("--sidebar-content-width", `${width}px`);
+    shellRef.current?.style.setProperty("--sidebar-resize-translate-x", "0px");
+  }, [shellRef, state, width]);
 
   return (
     <Sidebar

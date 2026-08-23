@@ -21,10 +21,18 @@ import { PiSessionManagerProvider } from "@/runtime/pi/client/runtime/context";
 import { PiSessionManager } from "@/runtime/pi/client/runtime/manager";
 import { piThreadListStructureMatches } from "@/runtime/pi/client/runtime/thread-list-sync";
 import { useWorkbenchRuntime } from "@/runtime/use-workbench-runtime";
+import {
+  useWorkspaceCapabilities,
+  useWorkspaceSelection,
+} from "@/services/workspace-selection-service";
 import { resolvePendingThreadPromotionId } from "@/workbench/workspaces/new-thread-policy";
-import { useWorkspaceDirectoryStore } from "@/workbench/workspaces/workspace-directory-store";
+import type { PromptFeedbackPort } from "@/services/workspace-feedback-service";
 
-import { activeWorkspaceContext } from "./active-workspace-context";
+import {
+  activeWorkspaceContext,
+  shouldPromoteThreadSurfaceScope,
+} from "./active-workspace-context";
+import { WorkbenchWorkspaceSelectionProvider } from "./workspace-selection-provider";
 
 function ActivePiThreadTracker({ manager }: { manager: PiSessionManager }) {
   const aui = useAui();
@@ -48,8 +56,7 @@ function ActivePiThreadTracker({ manager }: { manager: PiSessionManager }) {
   const reloadDeferred = useRef(false);
   const draftThreadId = useRef<string | undefined>(undefined);
   const pendingPromotionThreadId = useRef<string | undefined>(undefined);
-  const syncDirectory = useWorkspaceDirectoryStore((state) => state.syncDirectory);
-  const revealDirectory = useWorkspaceDirectoryStore((state) => state.revealDirectory);
+  const { revealWorkspace } = useWorkspaceCapabilities();
 
   if (mainThreadId && mainThreadId === newThreadId) {
     draftThreadId.current = mainThreadId;
@@ -157,28 +164,16 @@ function ActivePiThreadTracker({ manager }: { manager: PiSessionManager }) {
       ? manager.getThreadCustom(mainThread.remoteId)
       : mainThread?.custom;
     const id = custom?.piWorkspaceId;
-    const name = custom?.piWorkspaceName;
-    const cwd = custom?.piWorkspaceCwd;
-    if (typeof id !== "string" || typeof name !== "string" || typeof cwd !== "string") return;
-    syncDirectory({ id, name, cwd });
-    revealDirectory(id);
-  }, [
-    mainThread?.custom,
-    mainThread?.remoteId,
-    manager,
-    managerRevision,
-    revealDirectory,
-    syncDirectory,
-  ]);
+    if (typeof id !== "string") return;
+    revealWorkspace(id);
+  }, [mainThread?.custom, mainThread?.remoteId, manager, managerRevision, revealWorkspace]);
 
   return null;
 }
 
 function PiDraftWorkspaceTracker({ manager }: { manager: PiSessionManager }) {
   const newThreadId = useAuiState((state) => state.threads.newThreadId);
-  const draftWorkspace = useWorkspaceDirectoryStore((state) =>
-    state.directories.find((directory) => directory.id === state.draftDirectoryId),
-  );
+  const { draftWorkspace } = useWorkspaceSelection();
 
   useLayoutEffect(() => {
     if (!newThreadId) return;
@@ -224,10 +219,7 @@ function ActiveWorkspaceContextTracker() {
           : undefined;
       for (const surfaceId of surfaceOrder) {
         const surface = surfacesById[surfaceId];
-        if (
-          !surface ||
-          (surface.scope.type === "thread" && surface.scope.key !== promotedScopeId)
-        ) {
+        if (!surface || !shouldPromoteThreadSurfaceScope(surface.scope, promotedScopeId)) {
           continue;
         }
         controller.update(surfaceId, { scope: { type: "thread", key: threadScopeId } });
@@ -253,7 +245,14 @@ export function WorkbenchAssistantRuntimeProvider({ children }: Readonly<{ child
   const workspaceFeedback = useWorkspaceFeedbackStore();
   const managerRef = useRef<PiSessionManager | null>(null);
   const managerLifecycleRef = useRef(0);
-  if (!managerRef.current) managerRef.current = new PiSessionManager({ workspaceFeedback });
+  if (!managerRef.current) {
+    const promptFeedback: PromptFeedbackPort = {
+      claimForThreads: (threadIds) => workspaceFeedback.claimForThreads(threadIds),
+      commit: (token) => workspaceFeedback.commit(token),
+      release: (token) => workspaceFeedback.release(token),
+    };
+    managerRef.current = new PiSessionManager({ promptFeedback });
+  }
   const manager = managerRef.current;
   const runtime = useWorkbenchRuntime(manager);
 
@@ -273,14 +272,16 @@ export function WorkbenchAssistantRuntimeProvider({ children }: Readonly<{ child
 
   return (
     <PiSessionManagerProvider manager={manager}>
-      <AssistantRuntimeProvider runtime={runtime}>
-        <PiCommandsProvider>
-          <ActivePiThreadTracker manager={manager} />
-          <PiDraftWorkspaceTracker manager={manager} />
-          <ActiveWorkspaceContextTracker />
-          {children}
-        </PiCommandsProvider>
-      </AssistantRuntimeProvider>
+      <WorkbenchWorkspaceSelectionProvider>
+        <AssistantRuntimeProvider runtime={runtime}>
+          <PiCommandsProvider>
+            <ActivePiThreadTracker manager={manager} />
+            <PiDraftWorkspaceTracker manager={manager} />
+            <ActiveWorkspaceContextTracker />
+            {children}
+          </PiCommandsProvider>
+        </AssistantRuntimeProvider>
+      </WorkbenchWorkspaceSelectionProvider>
     </PiSessionManagerProvider>
   );
 }

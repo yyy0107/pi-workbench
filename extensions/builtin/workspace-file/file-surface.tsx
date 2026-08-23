@@ -1,7 +1,7 @@
 "use client";
 
 import { FileWarningIcon, FolderOpenIcon } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import { useRightWorkspace } from "@/components/right-workspace";
 import { languageForFilename, shouldHighlightWorkbenchCode } from "@/components/code-highlighting";
@@ -14,6 +14,12 @@ import {
 } from "@/services/workspace-file-service";
 
 import { FileCodeEditor } from "./file-code-editor";
+import { saveFileBuffer } from "./file-buffer-actions";
+import {
+  browserFileBufferDraftStorage,
+  readFileBufferDraft,
+  writeFileBufferDraft,
+} from "./file-buffer-draft";
 import { fileDiffService } from "./file-diff-service";
 import { FileDiffViewer } from "./file-diff-viewer";
 import { FileDocumentPreview } from "./file-document-preview";
@@ -88,7 +94,11 @@ function UnavailableFile({ title, description }: { title: string; description: s
   );
 }
 
-export function FileSurface({ surface, context }: WorkspaceSurfaceProps<FileSurfaceParams>) {
+export function FileSurface({
+  surface,
+  context,
+  retryToken = 0,
+}: WorkspaceSurfaceProps<FileSurfaceParams>) {
   const { t } = useI18n();
   const controller = useRightWorkspace();
   const path = surface.params.absolutePath;
@@ -182,7 +192,15 @@ export function FileSurface({ surface, context }: WorkspaceSurfaceProps<FileSurf
     return () => {
       current = false;
     };
-  }, [controller, fileContext, initialDescriptor, path, surface.id, surface.params.relativePath]);
+  }, [
+    controller,
+    fileContext,
+    initialDescriptor,
+    path,
+    retryToken,
+    surface.id,
+    surface.params.relativePath,
+  ]);
 
   useEffect(() => {
     if (!path || !needsTextSnapshot) return;
@@ -214,15 +232,49 @@ export function FileSurface({ surface, context }: WorkspaceSurfaceProps<FileSurf
     fileContext,
     needsTextSnapshot,
     path,
+    retryToken,
     snapshot,
     surface.id,
     surface.params.relativePath,
   ]);
 
+  useEffect(() => {
+    if (!path || !snapshot) return;
+    const storage = browserFileBufferDraftStorage();
+    const draft = readFileBufferDraft(storage, surface.id);
+    const compatibleDraft =
+      draft && (draft.version === snapshot.version || draft.savedContent === snapshot.savedContent);
+
+    if (compatibleDraft && draft.content !== snapshot.content) {
+      files.updateBuffer(fileContext, path, draft.content);
+      controller.update(surface.id, { dirty: draft.content !== snapshot.savedContent });
+      return;
+    }
+
+    const dirty = Boolean(compatibleDraft && draft.content !== snapshot.savedContent);
+    if (surface.dirty !== dirty) controller.update(surface.id, { dirty });
+  }, [controller, fileContext, path, snapshot, surface.dirty, surface.id]);
+
+  useEffect(() => {
+    if (!surface.dirty) return;
+    const preventAccidentalUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", preventAccidentalUnload);
+    return () => window.removeEventListener("beforeunload", preventAccidentalUnload);
+  }, [surface.dirty]);
+
   const save = useCallback(async () => {
-    if (!path || !snapshot || snapshot.content === snapshot.savedContent) return;
+    if (!path) return;
     try {
-      await files.writeFile(fileContext, path, snapshot.content, snapshot.version);
+      const available = await saveFileBuffer({
+        context: fileContext,
+        path,
+        storage: browserFileBufferDraftStorage(),
+        surfaceId: surface.id,
+      });
+      if (!available) return;
       controller.update(surface.id, { dirty: false, status: "ready", statusMessage: undefined });
     } catch (error) {
       controller.update(surface.id, {
@@ -230,7 +282,16 @@ export function FileSurface({ surface, context }: WorkspaceSurfaceProps<FileSurf
         statusMessage: error instanceof Error ? error.message : String(error),
       });
     }
-  }, [controller, fileContext, path, snapshot, surface.id]);
+  }, [controller, fileContext, path, surface.id]);
+  const handledRetryToken = useRef(0);
+
+  useEffect(() => {
+    if (retryToken === 0 || retryToken === handledRetryToken.current || !surface.dirty) {
+      return;
+    }
+    handledRetryToken.current = retryToken;
+    void save();
+  }, [retryToken, save, surface.dirty]);
 
   if (!path) {
     return (
@@ -352,10 +413,16 @@ export function FileSurface({ surface, context }: WorkspaceSurfaceProps<FileSurf
         value={snapshot.content}
         name={snapshot.name}
         ariaLabel={t("extensions.workspaceFile.source", { name: snapshot.name })}
+        exitLabel={t("extensions.workspaceFile.exitEditor")}
         saveLabel={t("extensions.workspaceFile.saveShortcut")}
         onSave={save}
         onChange={(content) => {
           files.updateBuffer(fileContext, path, content);
+          writeFileBufferDraft(browserFileBufferDraftStorage(), surface.id, {
+            version: snapshot.version,
+            savedContent: snapshot.savedContent,
+            content,
+          });
           controller.update(surface.id, {
             dirty: content !== snapshot.savedContent,
             status: "ready",

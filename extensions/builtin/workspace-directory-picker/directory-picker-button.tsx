@@ -8,30 +8,31 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
-import { usePiSessionManager } from "@/runtime/pi/client/runtime/context";
 import { PiApiError, pickPiWorkspace } from "@/runtime/pi/client/transport/api";
 import type { PiWorkspaceSummary } from "@/runtime/pi/contracts";
-import { useWorkspaceDirectoryStore } from "@/workbench/workspaces/workspace-directory-store";
+import { useWorkspaceCapabilities } from "@/services/workspace-selection-service";
 
 import {
   RemoteDirectoryPickerDialog,
   shouldUseNativeDirectoryPicker,
 } from "./remote-directory-picker-dialog";
+import { activateCreatedWorkspace } from "./workspace-activation";
 
 export function DirectoryPickerButton() {
   const { t } = useI18n();
   const aui = useAui();
-  const manager = usePiSessionManager();
   const router = useRouter();
   const [picking, setPicking] = useState(false);
   const [remotePickerOpen, setRemotePickerOpen] = useState(false);
   const [error, setError] = useState(false);
-  const addDirectory = useWorkspaceDirectoryStore((state) => state.addDirectory);
+  const { beginNewThreadWithCreatedWorkspace } = useWorkspaceCapabilities();
 
   const activateDirectory = async (workspace: PiWorkspaceSummary) => {
-    addDirectory(workspace);
-    await aui.threads.switchToNewThread();
-    router.push("/");
+    await activateCreatedWorkspace(workspace, {
+      beginNewThreadWithCreatedWorkspace,
+      switchToNewThread: () => aui.threads.switchToNewThread(),
+      navigateHome: () => router.push("/"),
+    });
   };
 
   const pickDirectory = async () => {
@@ -47,7 +48,6 @@ export function DirectoryPickerButton() {
       const workspace = await pickPiWorkspace();
       if (workspace) {
         await activateDirectory(workspace);
-        await manager.refreshWorkspaceMetadata().catch(() => undefined);
       }
     } catch (cause) {
       if (cause instanceof PiApiError && cause.code === "directory-picker-unavailable") {
@@ -91,7 +91,6 @@ export function DirectoryPickerButton() {
         onSelect={async (workspace) => {
           try {
             await activateDirectory(workspace);
-            await manager.refreshWorkspaceMetadata().catch(() => undefined);
           } catch (cause) {
             setError(true);
             throw cause;

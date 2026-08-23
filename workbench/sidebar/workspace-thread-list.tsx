@@ -19,12 +19,13 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Skeleton } from "@/components/ui/skeleton";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
-import { usePiSessionManager, usePiWorkspaces } from "@/runtime/pi/client/runtime/context";
-import { resolveSidebarThreadWorkspaceId } from "@/workbench/workspaces/new-thread-policy";
+import { usePiSessionManager } from "@/runtime/pi/client/runtime/context";
 import {
-  useWorkspaceDirectoryStore,
-  type WorkspaceDirectory,
-} from "@/workbench/workspaces/workspace-directory-store";
+  useWorkspaceCapabilities,
+  useWorkspaceSelection,
+  type WorkspaceSummary,
+} from "@/services/workspace-selection-service";
+import { resolveSidebarThreadWorkspaceId } from "@/workbench/workspaces/new-thread-policy";
 
 import { NewThreadButton } from "./new-thread-button";
 import { DraftThreadListItem } from "./draft-thread-list-item";
@@ -39,14 +40,10 @@ export function WorkbenchPinnedThreadList({ onNavigate }: { onNavigate?: () => v
       return thread?.custom?.piPinned === true;
     }),
   );
-  const directories = useWorkspaceDirectoryStore((state) => state.directories);
-  const pinnedDirectoryIds = useWorkspaceDirectoryStore((state) => state.pinnedDirectoryIds);
+  const { workspaces } = useWorkspaceSelection();
   const pinnedDirectories = useMemo(
-    () =>
-      pinnedDirectoryIds
-        .map((directoryId) => directories.find((directory) => directory.id === directoryId))
-        .filter((directory): directory is WorkspaceDirectory => directory !== undefined),
-    [directories, pinnedDirectoryIds],
+    () => workspaces.filter((workspace) => workspace.pinned === true),
+    [workspaces],
   );
 
   return (
@@ -72,7 +69,7 @@ function PinnedWorkspaceSection({
   directory,
   onNavigate,
 }: {
-  directory: WorkspaceDirectory;
+  directory: WorkspaceSummary;
   onNavigate?: () => void;
 }) {
   const { t } = useI18n();
@@ -80,7 +77,7 @@ function PinnedWorkspaceSection({
   const workspaceActionId = useId();
   const [expanded, setExpanded] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
-  const manager = usePiSessionManager();
+  const { setWorkspacePinned } = useWorkspaceCapabilities();
   const expansionLabel = t(
     expanded ? "workbench.sidebar.collapseWorkspace" : "workbench.sidebar.expandWorkspace",
   );
@@ -128,10 +125,10 @@ function PinnedWorkspaceSection({
               <Button
                 type="button"
                 variant="ghost"
-                size="icon"
+                size="icon-sm"
                 aria-label={t("workbench.sidebar.workspaceOptions")}
                 className={cn(
-                  "aui-button-icon text-muted-foreground hover:text-foreground focus-visible:text-foreground aria-expanded:text-foreground absolute end-1 z-10 size-7 p-1 opacity-100 active:scale-90 md:opacity-0 md:group-hover/pinned-workspace:opacity-100 md:group-focus-within/pinned-workspace:opacity-100",
+                  "text-muted-foreground hover:text-foreground focus-visible:text-foreground aria-expanded:text-foreground absolute end-1 z-10 opacity-100 active:scale-90 md:opacity-0 md:group-hover/pinned-workspace:opacity-100 md:group-focus-within/pinned-workspace:opacity-100",
                   menuOpen && "md:opacity-100",
                 )}
               >
@@ -145,9 +142,9 @@ function PinnedWorkspaceSection({
               className="hover:bg-accent focus-visible:bg-accent flex h-8 w-full items-center gap-2 rounded-md px-2 text-start text-sm outline-none"
               onClick={() => {
                 setMenuOpen(false);
-                void manager
-                  .setWorkspacePinned(directory.id, false)
-                  .catch((error) => console.error("[workbench] failed to unpin workspace", error));
+                void setWorkspacePinned(directory.id, false).catch((error) =>
+                  console.error("[workbench] failed to unpin workspace", error),
+                );
               }}
             >
               <PinOffIcon className="size-4" />
@@ -183,10 +180,16 @@ export function WorkbenchWorkspaceThreadList({ onNavigate }: { onNavigate?: () =
       state.threads.mainThreadId === state.threads.newThreadId &&
       state.thread.messages.length === 0,
   );
-  const directories = useWorkspaceDirectoryStore((state) => state.directories);
-  const pinnedDirectoryIds = useWorkspaceDirectoryStore((state) => state.pinnedDirectoryIds);
-  const activeDirectoryId = useWorkspaceDirectoryStore((state) => state.activeDirectoryId);
-  const draftDirectoryId = useWorkspaceDirectoryStore((state) => state.draftDirectoryId);
+  const {
+    workspaces: directories,
+    activeWorkspaceId: activeDirectoryId,
+    draftWorkspaceId: draftDirectoryId,
+  } = useWorkspaceSelection();
+  const {
+    activateWorkspace: activateDirectory,
+    destroyNewThread,
+    removeWorkspace: removeWorkspaceCapability,
+  } = useWorkspaceCapabilities();
   const hasUngroupedThreads = useAuiState((state) =>
     state.threads.threadIds.some((threadId) => {
       const thread = state.threads.threadItems.find((item) => item.id === threadId);
@@ -202,22 +205,16 @@ export function WorkbenchWorkspaceThreadList({ onNavigate }: { onNavigate?: () =
       );
     }),
   );
-  const syncDirectories = useWorkspaceDirectoryStore((state) => state.syncDirectories);
-  const removeDirectory = useWorkspaceDirectoryStore((state) => state.removeDirectory);
-  const activateDirectory = useWorkspaceDirectoryStore((state) => state.activateDirectory);
-  const destroyNewThread = useWorkspaceDirectoryStore((state) => state.destroyNewThread);
-  const threadWorkspaces = usePiWorkspaces();
   const [visibleWorkspaceCount, setVisibleWorkspaceCount] = useState(WORKSPACE_PAGE_SIZE);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const visibleDirectories = useMemo(
-    () => directories.filter((directory) => !pinnedDirectoryIds.includes(directory.id)),
-    [directories, pinnedDirectoryIds],
+    () => directories.filter((directory) => directory.pinned !== true),
+    [directories],
   );
 
   const removeWorkspace = async (directoryId: string, active: boolean) => {
     try {
-      await manager.deleteWorkspace(directoryId);
-      removeDirectory(directoryId);
+      await removeWorkspaceCapability(directoryId);
       if (!active) return;
       aui.threads.switchToNewThread();
       router.push("/");
@@ -226,10 +223,6 @@ export function WorkbenchWorkspaceThreadList({ onNavigate }: { onNavigate?: () =
       console.error("[workbench] failed to remove workspace", error);
     }
   };
-
-  useEffect(() => {
-    syncDirectories(threadWorkspaces);
-  }, [syncDirectories, threadWorkspaces]);
 
   useEffect(() => {
     if (pathname !== "/") destroyNewThread();
@@ -336,7 +329,7 @@ function WorkspaceDirectorySection({
   onRemove,
   onNavigate,
 }: {
-  directory: WorkspaceDirectory;
+  directory: WorkspaceSummary;
   active: boolean;
   hasNewThread: boolean;
   onActivate(): void;
@@ -347,19 +340,15 @@ function WorkspaceDirectorySection({
   const workspaceLabelId = useId();
   const workspaceActionId = useId();
   const [menuOpen, setMenuOpen] = useState(false);
-  const manager = usePiSessionManager();
-  const pinned = useWorkspaceDirectoryStore((state) =>
-    state.pinnedDirectoryIds.includes(directory.id),
-  );
-  const collapsed = useWorkspaceDirectoryStore((state) =>
-    state.collapsedDirectoryIds.includes(directory.id),
-  );
-  const toggleDirectory = useWorkspaceDirectoryStore((state) => state.toggleDirectory);
+  const { collapsedWorkspaceIds } = useWorkspaceSelection();
+  const { setWorkspacePinned, toggleWorkspaceCollapsed } = useWorkspaceCapabilities();
+  const pinned = directory.pinned === true;
+  const collapsed = collapsedWorkspaceIds.includes(directory.id);
   const expanded = !collapsed;
   const expansionLabel = t(
     expanded ? "workbench.sidebar.collapseWorkspace" : "workbench.sidebar.expandWorkspace",
   );
-  const toggleExpanded = () => toggleDirectory(directory.id);
+  const toggleExpanded = () => toggleWorkspaceCollapsed(directory.id);
 
   return (
     <Collapsible
@@ -421,9 +410,9 @@ function WorkspaceDirectorySection({
                 <Button
                   type="button"
                   variant="ghost"
-                  size="icon"
+                  size="icon-sm"
                   aria-label={t("workbench.sidebar.workspaceOptions")}
-                  className="aui-button-icon text-muted-foreground hover:text-foreground focus-visible:text-foreground aria-expanded:text-foreground size-7 p-1 active:scale-90"
+                  className="text-muted-foreground hover:text-foreground focus-visible:text-foreground aria-expanded:text-foreground active:scale-90"
                 >
                   <MoreHorizontalIcon className="size-4" />
                 </Button>
@@ -443,11 +432,9 @@ function WorkspaceDirectorySection({
                 className="hover:bg-accent focus-visible:bg-accent flex h-8 w-full items-center gap-2 rounded-md px-2 text-start text-sm outline-none"
                 onClick={() => {
                   setMenuOpen(false);
-                  void manager
-                    .setWorkspacePinned(directory.id, !pinned)
-                    .catch((error) =>
-                      console.error("[workbench] failed to update pinned workspace", error),
-                    );
+                  void setWorkspacePinned(directory.id, !pinned).catch((error) =>
+                    console.error("[workbench] failed to update pinned workspace", error),
+                  );
                 }}
               >
                 {pinned ? <PinOffIcon className="size-4" /> : <PinIcon className="size-4" />}

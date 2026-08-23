@@ -225,6 +225,7 @@ export function FileCodeView({
 
 export function FileCodeEditor({
   ariaLabel,
+  exitLabel,
   name,
   saveLabel,
   value,
@@ -232,6 +233,7 @@ export function FileCodeEditor({
   onSave,
 }: Readonly<{
   ariaLabel: string;
+  exitLabel: string;
   name: string;
   saveLabel: string;
   value: string;
@@ -239,8 +241,14 @@ export function FileCodeEditor({
   onSave(): void | Promise<void>;
 }>) {
   const editorRef = useRef<HTMLTextAreaElement>(null);
+  const helpId = useId();
 
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.currentTarget.blur();
+      return;
+    }
     if ((event.metaKey || event.ctrlKey) && event.key.toLocaleLowerCase() === "s") {
       event.preventDefault();
       void onSave();
@@ -269,12 +277,16 @@ export function FileCodeEditor({
         autoCapitalize="off"
         autoCorrect="off"
         aria-label={ariaLabel}
+        aria-describedby={helpId}
         title={saveLabel}
         className="caret-foreground absolute inset-0 z-10 size-full resize-none overflow-hidden border-0 bg-transparent py-1 pe-3 ps-[60px] font-mono leading-6 whitespace-pre-wrap text-transparent outline-none selection:bg-blue-500/20 [font-size:var(--workbench-code-font-size,13px)]"
         style={{ tabSize: 2 }}
         onChange={(event) => onChange(event.currentTarget.value)}
         onKeyDown={handleKeyDown}
       />
+      <span id={helpId} className="sr-only">
+        {exitLabel}
+      </span>
     </FileCodeView>
   );
 }

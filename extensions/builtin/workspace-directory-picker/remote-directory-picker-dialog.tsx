@@ -169,7 +169,7 @@ export function RemoteDirectoryPickerDialog({
           <Button
             type="button"
             variant="outline"
-            size="icon"
+            size="icon-sm"
             aria-label={t("extensions.workspaceDirectory.home")}
             disabled={loading || interactionLocked || !listing}
             onClick={() => void navigateTo(listing?.home)}
@@ -179,7 +179,7 @@ export function RemoteDirectoryPickerDialog({
           <Button
             type="button"
             variant="outline"
-            size="icon"
+            size="icon-sm"
             aria-label={t("extensions.workspaceDirectory.parent")}
             disabled={loading || interactionLocked || !parentCrumb}
             onClick={() => void navigateTo(parentCrumb?.path)}

@@ -6,7 +6,7 @@ import { PlusIcon } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
-import { useWorkspaceDirectoryStore } from "@/workbench/workspaces/workspace-directory-store";
+import { useWorkspaceCapabilities } from "@/services/workspace-selection-service";
 
 export function NewThreadButton({
   className,
@@ -22,7 +22,7 @@ export function NewThreadButton({
   onNavigate?: () => void;
 }) {
   const { t } = useI18n();
-  const beginNewThread = useWorkspaceDirectoryStore((state) => state.beginNewThread);
+  const { beginNewThread } = useWorkspaceCapabilities();
 
   const prepareNewThread = () => {
     beginNewThread(workspaceId);
@@ -35,8 +35,8 @@ export function NewThreadButton({
         type="button"
         aria-label={t("workbench.sidebar.newThread")}
         className={cn(
-          buttonVariants({ variant: "ghost", size: "icon" }),
-          "aui-button-icon text-muted-foreground hover:text-foreground focus-visible:text-foreground active:text-foreground size-7 p-1 active:scale-90",
+          buttonVariants({ variant: "ghost", size: "icon-sm" }),
+          "text-muted-foreground hover:text-foreground focus-visible:text-foreground active:text-foreground active:scale-90",
           className,
         )}
       >

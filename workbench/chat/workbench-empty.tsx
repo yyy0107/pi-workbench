@@ -4,16 +4,14 @@ import { ThreadPrimitive, useAuiState } from "@assistant-ui/react";
 import type { ReactNode } from "react";
 
 import { useI18n } from "@/i18n";
-import { useWorkspaceDirectoryStore } from "@/workbench/workspaces/workspace-directory-store";
+import { useWorkspaceSelection } from "@/services/workspace-selection-service";
 
 export function WorkbenchEmpty({ children }: Readonly<{ children: ReactNode }>) {
   const { t } = useI18n();
   const isNewThread = useAuiState(
     (state) => state.threads.mainThreadId === state.threads.newThreadId,
   );
-  const hasDraftWorkspace = useWorkspaceDirectoryStore((state) =>
-    state.directories.some((directory) => directory.id === state.draftDirectoryId),
-  );
+  const hasDraftWorkspace = useWorkspaceSelection().draftWorkspace !== undefined;
   const needsWorkspace = isNewThread && !hasDraftWorkspace;
   const starterPrompts = [
     t("workbench.chat.empty.planProject"),

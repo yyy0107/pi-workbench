@@ -9,8 +9,8 @@ import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { usePiThreadListItemState } from "@/runtime/pi/client/runtime/context";
+import { useWorkspaceCapabilities } from "@/services/workspace-selection-service";
 import { conversationThreadIdFromPathname } from "@/workbench/workspaces/new-thread-policy";
-import { useWorkspaceDirectoryStore } from "@/workbench/workspaces/workspace-directory-store";
 
 export function WorkbenchThreadListItem({
   workspaceId,
@@ -39,9 +39,7 @@ export function WorkbenchThreadListItem({
       state.threads.mainThreadId === state.threads.newThreadId &&
       state.thread.messages.length === 0,
   );
-  const activateDirectory = useWorkspaceDirectoryStore((state) => state.activateDirectory);
-  const deactivateDirectory = useWorkspaceDirectoryStore((state) => state.deactivateDirectory);
-  const destroyNewThread = useWorkspaceDirectoryStore((state) => state.destroyNewThread);
+  const { activateWorkspace, deactivateWorkspace, destroyNewThread } = useWorkspaceCapabilities();
   const isRunning = runtimeIsRunning || piState.running;
   const title = piState.thread?.title ?? runtimeTitle;
   const lastMessageAt = piState.thread?.lastMessageAt ?? runtimeLastMessageAt;
@@ -53,8 +51,8 @@ export function WorkbenchThreadListItem({
         .reset()
         .catch((error) => console.error("[workbench] failed to discard empty conversation", error));
     }
-    if (workspaceId) activateDirectory(workspaceId);
-    else deactivateDirectory();
+    if (workspaceId) activateWorkspace(workspaceId);
+    else deactivateWorkspace();
     const href = `/c/${encodeURIComponent(routeThreadId)}`;
     if (window.location.pathname !== href) window.history.pushState(null, "", href);
     onNavigate?.();
@@ -109,35 +107,35 @@ export function WorkbenchThreadListItem({
         className="focus-visible:ring-sidebar-ring flex h-9 min-w-0 flex-1 items-center rounded-lg pe-2.5 ps-[34px] text-start text-sm outline-none focus-visible:ring-2"
         onClick={openThreadRoute}
       >
-        <span className="min-w-0 flex-1 truncate group-hover/thread:pe-14 group-has-[:focus-visible]/thread:pe-14">
+        <span className="min-w-0 flex-1 truncate pe-16 md:pe-0 md:group-hover/thread:pe-14 md:group-has-[:focus-visible]/thread:pe-14">
           {title || t("workbench.sidebar.newThread")}
         </span>
         {!isRunning && piState.completed ? (
           <>
             <span
               aria-hidden="true"
-              className="bg-primary ms-2 size-2 shrink-0 rounded-full group-hover/thread:hidden group-has-[:focus-visible]/thread:hidden"
+              className="bg-primary ms-2 size-2 shrink-0 rounded-full max-md:hidden group-hover/thread:hidden group-has-[:focus-visible]/thread:hidden"
             />
             <span className="sr-only">{t("workbench.sidebar.completed")}</span>
           </>
         ) : !isRunning && lastMessageAt ? (
-          <span className="text-muted-foreground ms-2 shrink-0 text-[11px] tabular-nums group-hover/thread:hidden group-has-[:focus-visible]/thread:hidden">
+          <span className="text-muted-foreground ms-2 shrink-0 text-[11px] tabular-nums max-md:hidden group-hover/thread:hidden group-has-[:focus-visible]/thread:hidden">
             {formattedTime}
           </span>
         ) : null}
         {isRunning ? <span className="sr-only">{t("workbench.sidebar.generating")}</span> : null}
       </ThreadListItemPrimitive.Trigger>
 
-      <div className="pointer-events-none absolute end-0 flex items-center opacity-0 transition-opacity group-hover/thread:pointer-events-auto group-hover/thread:opacity-100 group-has-[:focus-visible]/thread:pointer-events-auto group-has-[:focus-visible]/thread:opacity-100">
+      <div className="pointer-events-auto absolute end-0 flex items-center opacity-100 transition-opacity md:pointer-events-none md:opacity-0 md:group-hover/thread:pointer-events-auto md:group-hover/thread:opacity-100 md:group-has-[:focus-visible]/thread:pointer-events-auto md:group-has-[:focus-visible]/thread:opacity-100">
         <Button
           type="button"
           variant="ghost"
-          size="icon"
+          size="icon-sm"
           aria-label={t(isPinned ? "workbench.sidebar.unpin" : "workbench.sidebar.pin")}
           aria-pressed={isPinned}
           title={t(isPinned ? "workbench.sidebar.unpin" : "workbench.sidebar.pin")}
           className={cn(
-            "aui-button-icon text-muted-foreground hover:text-foreground size-7 p-1 active:scale-90",
+            "text-muted-foreground hover:text-foreground size-8! active:scale-90",
             isPinned && "text-foreground",
           )}
           onClick={() => void togglePinned()}
@@ -150,10 +148,10 @@ export function WorkbenchThreadListItem({
             <Button
               type="button"
               variant="ghost"
-              size="icon"
+              size="icon-sm"
               aria-label={t("workbench.sidebar.archive")}
               title={t("workbench.sidebar.archive")}
-              className="aui-button-icon text-muted-foreground hover:text-foreground size-7 p-1 active:scale-90"
+              className="text-muted-foreground hover:text-foreground size-8! active:scale-90"
             />
           }
         >

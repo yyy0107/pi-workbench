@@ -4,13 +4,8 @@ import {
   type WorkspaceSurfaceInstance,
 } from "@/components/right-workspace";
 
-export function contextHasFileSurface(
-  surfaces: readonly WorkspaceSurfaceInstance[],
-  context: WorkspaceContext,
-): boolean {
-  return surfaces.some(
-    (surface) => surface.kind === "file" && scopeMatchesContext(surface.scope, context),
-  );
+export function isFileSurfaceActive(surface: WorkspaceSurfaceInstance | undefined): boolean {
+  return surface?.kind === "file";
 }
 
 export function contextExplorerSurfaces(

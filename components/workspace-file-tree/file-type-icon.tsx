@@ -1,4 +1,4 @@
-import manifestData from "material-icon-theme/dist/material-icons.json";
+import manifestData from "material-icon-theme/dist/material-icons.json" with { type: "json" };
 import type { Manifest } from "material-icon-theme";
 import { Link2Icon } from "lucide-react";
 
@@ -29,26 +29,20 @@ function MaterialThemeIcon({
   return (
     <span
       aria-hidden="true"
-      className={cn(
-        "relative inline-flex size-[18px] shrink-0 items-center justify-center",
-        className,
-      )}
+      className={cn("relative inline-flex size-4 shrink-0 items-center justify-center", className)}
     >
       <img
         alt=""
         draggable={false}
         src={lightSource}
-        className={cn(
-          "pointer-events-none size-[18px] select-none",
-          themeSpecific && "dark:hidden",
-        )}
+        className={cn("pointer-events-none size-4 select-none", themeSpecific && "dark:hidden")}
       />
       {themeSpecific ? (
         <img
           alt=""
           draggable={false}
           src={darkSource}
-          className="pointer-events-none hidden size-[18px] select-none dark:block"
+          className="pointer-events-none hidden size-4 select-none dark:block"
         />
       ) : null}
       {symbolicLink ? (

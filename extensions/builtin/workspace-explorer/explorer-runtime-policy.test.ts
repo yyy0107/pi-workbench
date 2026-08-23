@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { WorkspaceContext, WorkspaceSurfaceInstance } from "@/components/right-workspace";
 
-import { contextExplorerSurfaces, contextHasFileSurface } from "./explorer-runtime-policy";
+import { contextExplorerSurfaces, isFileSurfaceActive } from "./explorer-runtime-policy";
 
 const context: WorkspaceContext = {
   applicationId: "app",
@@ -27,10 +27,11 @@ function surface(id: string, kind: string, scopeKey = "thread-1"): WorkspaceSurf
   };
 }
 
-test("shows Explorer only when the current context owns a File Surface", () => {
-  assert.equal(contextHasFileSurface([surface("terminal:1", "terminal")], context), false);
-  assert.equal(contextHasFileSurface([surface("file:other", "file", "thread-2")], context), false);
-  assert.equal(contextHasFileSurface([surface("file:1", "file")], context), true);
+test("shows Explorer only while a File Surface is active", () => {
+  assert.equal(isFileSurfaceActive(surface("file:1", "file")), true);
+  assert.equal(isFileSurfaceActive(surface("terminal:1", "terminal")), false);
+  assert.equal(isFileSurfaceActive(surface("browser:1", "browser")), false);
+  assert.equal(isFileSurfaceActive(undefined), false);
 });
 
 test("selects only Explorer Surfaces owned by the current context", () => {

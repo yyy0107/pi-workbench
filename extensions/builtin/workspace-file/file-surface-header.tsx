@@ -1,7 +1,15 @@
 "use client";
 
-import { ChevronDownIcon, Code2Icon, EyeIcon, FileCode2Icon, FoldersIcon } from "lucide-react";
-import { useCallback } from "react";
+import {
+  ChevronDownIcon,
+  Code2Icon,
+  EyeIcon,
+  FileCode2Icon,
+  FoldersIcon,
+  LoaderCircleIcon,
+  SaveIcon,
+} from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
 
 import {
   DropdownMenu,
@@ -9,13 +17,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import type { WorkspaceSurfaceProps } from "@/platform/extensions";
 import { openPiHostPath } from "@/runtime/pi/client/transport/api";
+import { fileWorkspaceContext } from "@/services/workspace-file-service";
 
 import { useRightWorkspace, useRightWorkspaceState } from "@/components/right-workspace";
 import { cn } from "@/lib/utils";
 import { FileBreadcrumbTree } from "./file-breadcrumb-tree";
+import { saveFileBuffer } from "./file-buffer-actions";
+import { browserFileBufferDraftStorage } from "./file-buffer-draft";
 import type { FileSurfaceParams } from "./file-surface";
 import {
   isFileViewerPreviewFile,
@@ -40,7 +52,12 @@ export function FileSurfaceHeader({ surface, context }: WorkspaceSurfaceProps<Fi
   const { t } = useI18n();
   const controller = useRightWorkspace();
   const auxiliaryOpen = useRightWorkspaceState((state) => state.auxiliaryOpen);
+  const [saving, setSaving] = useState(false);
   const path = surface.params.absolutePath;
+  const fileContext = useMemo(
+    () => fileWorkspaceContext(surface.scope, context),
+    [context, surface.scope],
+  );
   const markdown = isMarkdownFile(path);
   const largeText =
     surface.params.encoding === "utf-8" && isLargeTextFile(surface.params.size ?? 0);
@@ -66,17 +83,59 @@ export function FileSurfaceHeader({ surface, context }: WorkspaceSurfaceProps<Fi
     },
     [controller, surface.id],
   );
+  const save = useCallback(async () => {
+    if (!path || saving) return;
+    setSaving(true);
+    try {
+      const available = await saveFileBuffer({
+        context: fileContext,
+        path,
+        storage: browserFileBufferDraftStorage(),
+        surfaceId: surface.id,
+      });
+      if (!available) return;
+      controller.update(surface.id, { dirty: false, status: "ready", statusMessage: undefined });
+    } catch (error) {
+      controller.update(surface.id, {
+        status: "error",
+        statusMessage: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setSaving(false);
+    }
+  }, [controller, fileContext, path, saving, surface.id]);
 
   return (
     <div className="flex size-full min-w-0 items-center gap-3 px-3">
       <FileBreadcrumbTree surface={surface} context={context} />
 
-      {viewMode === "diff" ? (
-        <button
+      {surface.dirty && path ? (
+        <Button
           type="button"
+          variant="ghost"
+          size="icon-sm"
+          disabled={saving}
+          aria-label={
+            saving ? t("extensions.workspaceFile.saving") : t("extensions.workspaceFile.save")
+          }
+          title={saving ? t("extensions.workspaceFile.saving") : t("extensions.workspaceFile.save")}
+          onClick={() => void save()}
+        >
+          {saving ? (
+            <LoaderCircleIcon className="size-4 animate-spin motion-reduce:animate-none" />
+          ) : (
+            <SaveIcon className="size-4" />
+          )}
+        </Button>
+      ) : null}
+
+      {viewMode === "diff" ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
           aria-label={t("extensions.workspaceFile.viewSource")}
           title={t("extensions.workspaceFile.viewSource")}
-          className="hover:bg-muted flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors"
           onClick={() =>
             controller.update(surface.id, {
               params: {
@@ -88,11 +147,13 @@ export function FileSurfaceHeader({ surface, context }: WorkspaceSurfaceProps<Fi
             })
           }
         >
-          <Code2Icon className="size-[18px]" />
-        </button>
+          <Code2Icon className="size-4" />
+        </Button>
       ) : previewToggle ? (
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon-sm"
           aria-pressed={viewMode === "preview"}
           aria-label={
             viewMode === "preview"
@@ -104,10 +165,7 @@ export function FileSurfaceHeader({ surface, context }: WorkspaceSurfaceProps<Fi
               ? t("extensions.workspaceFile.viewSource")
               : t("extensions.workspaceFile.viewPreview")
           }
-          className={cn(
-            "hover:bg-muted flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors",
-            viewMode === "preview" && "bg-muted/55",
-          )}
+          className={cn(viewMode === "preview" && "bg-muted/55")}
           onClick={() =>
             controller.update(surface.id, {
               params: { ...surface.params, viewMode: toggleFileViewMode(viewMode) },
@@ -115,15 +173,17 @@ export function FileSurfaceHeader({ surface, context }: WorkspaceSurfaceProps<Fi
           }
         >
           {viewMode === "preview" ? (
-            <Code2Icon className="size-[18px]" />
+            <Code2Icon className="size-4" />
           ) : (
-            <EyeIcon className="size-[18px]" />
+            <EyeIcon className="size-4" />
           )}
-        </button>
+        </Button>
       ) : null}
 
-      <button
+      <Button
         type="button"
+        variant="ghost"
+        size="icon-sm"
         aria-controls="right-workspace-auxiliary-pane"
         aria-expanded={auxiliaryOpen}
         aria-label={
@@ -136,14 +196,11 @@ export function FileSurfaceHeader({ surface, context }: WorkspaceSurfaceProps<Fi
             ? t("extensions.workspaceFile.hideFileTree")
             : t("extensions.workspaceFile.showFileTree")
         }
-        className={cn(
-          "hover:bg-muted flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors",
-          auxiliaryOpen && "bg-muted/55",
-        )}
+        className={cn(auxiliaryOpen && "bg-muted/55")}
         onClick={() => controller.setAuxiliaryOpen(!auxiliaryOpen)}
       >
-        <FoldersIcon className="size-[18px]" />
-      </button>
+        <FoldersIcon className="size-4" />
+      </Button>
 
       {path && folderPath ? (
         <div className="flex h-7 shrink-0 items-stretch overflow-hidden rounded-lg border bg-background shadow-xs">
