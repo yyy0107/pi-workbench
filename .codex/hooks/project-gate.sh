@@ -208,12 +208,15 @@ run_quality_gate() {
     pnpm exec oxfmt --check "${format_files[@]}" >&2 || failed=1
   fi
 
+  if ((${#application_files[@]} > 0)); then
+    log "Running TypeScript typecheck."
+    pnpm typecheck >&2 || failed=1
+  fi
+
   mapfile -t test_files < <(rg --files -g '*.test.ts' -g '*.test.tsx' -g '*.spec.ts' -g '*.spec.tsx' | sort)
   if ((${#application_files[@]} > 0 && ${#test_files[@]} > 0)); then
     log "Running ${#test_files[@]} Node test file(s)."
-    node --no-warnings=ExperimentalWarning \
-      --import ./.codex/hooks/register-typescript-loader.mjs \
-      --test "${test_files[@]}" >&2 || failed=1
+    pnpm test >&2 || failed=1
   fi
 
   run_security_check || failed=1
