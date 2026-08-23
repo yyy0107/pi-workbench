@@ -17,6 +17,8 @@ import type { CommandDefinition } from "../api/command";
 import { useExtensionEnvironment } from "../extension-context";
 import { formatShortcut, matchesShortcut } from "@/services/command-service";
 
+import { commandPaletteStore } from "./command-palette-store";
+
 const EMPTY_COMMANDS = Object.freeze([]) as readonly CommandDefinition[];
 const DEFAULT_PALETTE_SHORTCUT = Object.freeze(["Mod", "K"]);
 
@@ -57,7 +59,13 @@ export function CommandPaletteHost({
     () => EMPTY_COMMANDS,
   );
   const [internalOpen, setInternalOpen] = useState(defaultOpen);
-  const open = controlledOpen ?? internalOpen;
+  const [executionError, setExecutionError] = useState<string>();
+  const requestedOpen = useSyncExternalStore(
+    commandPaletteStore.subscribe,
+    commandPaletteStore.getSnapshot,
+    commandPaletteStore.getServerSnapshot,
+  );
+  const open = controlledOpen ?? (internalOpen || requestedOpen);
   const paletteShortcut = useMemo(
     () =>
       typeof shortcut === "string" ? shortcut.split("+").map((token) => token.trim()) : shortcut,
@@ -66,7 +74,11 @@ export function CommandPaletteHost({
 
   const setOpen = useCallback(
     (nextOpen: boolean) => {
-      if (controlledOpen === undefined) setInternalOpen(nextOpen);
+      if (!nextOpen) setExecutionError(undefined);
+      if (controlledOpen === undefined) {
+        setInternalOpen(nextOpen);
+        commandPaletteStore.setOpen(nextOpen);
+      }
       onOpenChange?.(nextOpen);
     },
     [controlledOpen, onOpenChange],
@@ -77,9 +89,11 @@ export function CommandPaletteHost({
       setOpen(false);
       void commandService.execute(commandId).catch((error: unknown) => {
         reportError(error, { source: "command", commandId });
+        setExecutionError(t("platform.extensions.commandPalette.executionFailed"));
+        setOpen(true);
       });
     },
-    [commandService, reportError, setOpen],
+    [commandService, reportError, setOpen, t],
   );
 
   useEffect(() => {
@@ -137,6 +151,11 @@ export function CommandPaletteHost({
       closeLabel={t("platform.extensions.commandPalette.close")}
     >
       <Command>
+        {executionError ? (
+          <p className="text-destructive px-3 py-2 text-sm" role="alert">
+            {executionError}
+          </p>
+        ) : null}
         <CommandInput
           placeholder={placeholder ?? t("platform.extensions.commandPalette.placeholder")}
           autoFocus
