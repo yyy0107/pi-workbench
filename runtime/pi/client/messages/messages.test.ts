@@ -28,6 +28,10 @@ import {
   aggregatePiSessionStatistics,
   mergeMonotonicPiSessionStatistics,
 } from "./session-statistics";
+import {
+  WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE,
+  WORKBENCH_IMAGE_RECOGNITION_DATA_NAME,
+} from "../../../image-understanding/state-machine";
 
 const assistantMessage: PiAssistantMessage = {
   role: "assistant",
@@ -71,6 +75,141 @@ test("marks optimistic user messages for repository eviction", () => {
 
   assert.equal(optimistic.metadata.isOptimistic, true);
   assert.equal(optimistic.metadata.custom.piOptimistic, true);
+});
+
+test("correlates an optimistic image-recognition lifecycle with its prompt RPC", () => {
+  const message: AppendMessage = {
+    role: "user",
+    content: [{ type: "image", image: "data:image/png;base64,iVBORw0KGgo=" }],
+    attachments: [],
+    createdAt: new Date(0),
+    metadata: { custom: {} },
+    parentId: null,
+    runConfig: undefined,
+    sourceId: null,
+  };
+
+  const optimistic = optimisticUserMessage(message, "user-live", "session.prompt:test");
+  assert.equal(optimistic.metadata.custom.workbenchPromptRpcId, "session.prompt:test");
+});
+
+test("folds image recognition into the assistant message and preserves the user image", () => {
+  const base = {
+    version: 1 as const,
+    operationId: "recognition-1",
+    submissionId: "submission-images",
+    rpcId: "session.prompt:images",
+    method: "ocr" as const,
+    providerId: "glm-ocr",
+    imageCount: 1,
+    timestamps: { createdAt: 1_000, updatedAt: 1_000 },
+  };
+  const history: PiSessionHistory = {
+    sessionId: "session",
+    context: {
+      entryIds: ["marker", "pending", "running", "success", "resolved-user", "assistant"],
+      thinkingLevel: "off",
+      model: null,
+      messages: [
+        {
+          role: "custom",
+          customType: WORKBENCH_COMPOSER_USER_CUSTOM_TYPE,
+          content: "",
+          display: false,
+          details: {
+            version: 2,
+            submissionId: "submission-images",
+            sourceText: "Read this image",
+            text: "Read this image",
+            document: [{ type: "text", text: "Read this image" }],
+            commands: [],
+            images: [{ data: "iVBORw0KGgo=", mimeType: "image/png", name: "scan.png" }],
+            status: "accepted",
+          },
+        },
+        {
+          role: "custom",
+          customType: WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE,
+          content: "",
+          display: true,
+          details: { ...base, revision: 0, status: "pending", completedCount: 0, progress: 0 },
+        },
+        {
+          role: "custom",
+          customType: WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE,
+          content: "",
+          display: true,
+          details: {
+            ...base,
+            revision: 1,
+            status: "running",
+            stage: "recognizing",
+            completedCount: 0,
+            progress: 0,
+            timestamps: { createdAt: 1_000, updatedAt: 1_100 },
+          },
+        },
+        {
+          role: "custom",
+          customType: WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE,
+          content: "",
+          display: true,
+          details: {
+            ...base,
+            revision: 2,
+            status: "succeeded",
+            completedCount: 1,
+            progress: 1,
+            timestamps: { createdAt: 1_000, updatedAt: 1_200, completedAt: 1_200 },
+          },
+        },
+        {
+          role: "user",
+          content: "<workbench-untrusted-context>recognized</workbench-untrusted-context>",
+          workbenchComposer: {
+            version: 1,
+            submissionId: "submission-images",
+            sourceText: "Read this image",
+            document: [{ type: "text", text: "Read this image" }],
+            hidden: true,
+          },
+        },
+        {
+          role: "assistant",
+          content: [{ type: "text", text: "The image contains recognized text." }],
+        },
+      ],
+    },
+  };
+
+  const projected = piHistoryToThreadMessages(history);
+  assert.equal(projected.length, 2);
+  const user = projected[0];
+  assert.equal(user?.role, "user");
+  if (user?.role !== "user") return;
+  assert.equal(user.content.filter((part) => part.type === "image").length, 1);
+  assert.equal(
+    user.content.some(
+      (part) => part.type === "data" && part.name === WORKBENCH_IMAGE_RECOGNITION_DATA_NAME,
+    ),
+    false,
+  );
+  const assistant = projected[1];
+  assert.equal(assistant?.role, "assistant");
+  if (assistant?.role !== "assistant") return;
+  const statePart = assistant.content.find(
+    (part) => part.type === "data" && part.name === WORKBENCH_IMAGE_RECOGNITION_DATA_NAME,
+  );
+  assert.equal(statePart?.type, "data");
+  assert.equal(
+    statePart?.type === "data" &&
+      typeof statePart.data === "object" &&
+      statePart.data !== null &&
+      "status" in statePart.data
+      ? statePart.data.status
+      : undefined,
+    "succeeded",
+  );
 });
 
 test("renders token-only Composer source text in its optimistic user bubble", () => {

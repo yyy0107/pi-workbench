@@ -1,3 +1,8 @@
+import type {
+  ComposerSubmission as WorkbenchComposerSubmission,
+  ComposerUserProjection as WorkbenchComposerUserProjection,
+} from "../../contracts/composer";
+
 export interface PiSessionSummary {
   id: string;
   cwd: string;
@@ -35,6 +40,7 @@ export interface PiImageContent {
   type: "image";
   data: string;
   mimeType: string;
+  name?: string;
 }
 
 export interface PiToolCallContent {
@@ -191,6 +197,7 @@ export interface PiModelSummary {
   name: string;
   reasoning: boolean;
   contextWindow: number;
+  input?: Array<"text" | "image">;
 }
 
 export interface PiModelListResponse {
@@ -278,7 +285,3 @@ export type PiSessionCommand =
   | PiSetQueuePausedCommand
   | PiSteerQueuedCommand
   | PiCancelCommand;
-import type {
-  WorkbenchComposerSubmission,
-  WorkbenchComposerUserProjection,
-} from "../composer-request";

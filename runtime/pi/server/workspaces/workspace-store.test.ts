@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, readdir, rm, stat } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, stat, utimes, writeFile } from "node:fs/promises";
 import { registerHooks } from "node:module";
-import { tmpdir } from "node:os";
+import { hostname, tmpdir } from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
+import { setTimeout as delay } from "node:timers/promises";
 
 const moduleHooks = registerHooks({
   resolve(specifier, context, nextResolve) {
@@ -207,16 +208,54 @@ test("serializes concurrent mutations and persists stable workspace order atomic
     [betaId, gammaId, alphaId],
   );
   assert.deepEqual(await readdir(path.dirname(files.stateFile)), [path.basename(files.stateFile)]);
+  if (process.platform !== "win32") {
+    const mask = process.umask();
+    assert.equal((await stat(path.dirname(files.stateFile))).mode & 0o777, 0o777 & ~mask);
+    assert.equal((await stat(files.stateFile)).mode & 0o777, 0o600 & ~mask);
+  }
 });
 
 test("serializes mutations across store instances sharing one state file", async (t) => {
   const files = await fixture(t);
   const [alpha, beta] = await Promise.all([files.workspace("alpha"), files.workspace("beta")]);
-  const first = new WorkspaceStore({ stateFile: files.stateFile, now: tickingClock() });
-  const second = new WorkspaceStore({ stateFile: files.stateFile, now: tickingClock() });
-  await Promise.all([first.list(), second.list()]);
+  let firstEntered!: () => void;
+  const firstAtMutation = new Promise<void>((resolve) => {
+    firstEntered = resolve;
+  });
+  let releaseFirst!: () => void;
+  const firstGate = new Promise<void>((resolve) => {
+    releaseFirst = resolve;
+  });
+  let secondEntered = false;
+  const first = new WorkspaceStore({
+    stateFile: files.stateFile,
+    now: tickingClock(),
+    canonicalize: async (workspacePath) => {
+      firstEntered();
+      await firstGate;
+      return workspacePath;
+    },
+  });
+  const second = new WorkspaceStore({
+    stateFile: files.stateFile,
+    now: tickingClock(),
+    canonicalize: (workspacePath) => {
+      secondEntered = true;
+      return workspacePath;
+    },
+  });
 
-  const [createdAlpha, createdBeta] = await Promise.all([first.create(alpha), second.create(beta)]);
+  const alphaMutation = first.create(alpha);
+  await firstAtMutation;
+  const betaMutation = second.create(beta);
+  try {
+    await delay(25);
+    assert.equal(secondEntered, false, "the second instance must wait for the first file lock");
+  } finally {
+    releaseFirst();
+  }
+
+  const [createdAlpha, createdBeta] = await Promise.all([alphaMutation, betaMutation]);
   assert.equal(createdAlpha.created, true);
   assert.equal(createdBeta.created, true);
 
@@ -225,6 +264,52 @@ test("serializes mutations across store instances sharing one state file", async
     "alpha",
     "beta",
   ]);
+});
+
+test("releases the shared file lock when a workspace mutation throws", async (t) => {
+  const files = await fixture(t);
+  const alpha = await files.workspace("alpha");
+  const first = new WorkspaceStore({ stateFile: files.stateFile, now: tickingClock() });
+  const second = new WorkspaceStore({ stateFile: files.stateFile, now: tickingClock() });
+
+  await expectStoreError(first.rename("missing", "Missing workspace"), "workspace-not-found", {
+    workspaceId: "missing",
+  });
+  assert.equal((await second.create(alpha)).created, true);
+  await assert.rejects(stat(`${files.stateFile}.lock`), { code: "ENOENT" });
+});
+
+test("supports live and stale legacy workspace locks", async (t) => {
+  const files = await fixture(t);
+  const lockDirectory = `${files.stateFile}.lock`;
+  const ownerFile = path.join(lockDirectory, "owner");
+  const store = new WorkspaceStore({ stateFile: files.stateFile, now: tickingClock() });
+
+  await mkdir(lockDirectory, { recursive: true });
+  await writeFile(ownerFile, `${hostname()}:${process.pid}:live-legacy-owner`, { mode: 0o600 });
+  let settled = false;
+  const waitingList = store.list().then((value) => {
+    settled = true;
+    return value;
+  });
+  await delay(25);
+  assert.equal(settled, false, "a live legacy owner must retain the canonical lock");
+  await rm(lockDirectory, { recursive: true, force: true });
+  await waitingList;
+  await assert.rejects(stat(lockDirectory), { code: "ENOENT" });
+
+  await mkdir(lockDirectory);
+  await writeFile(ownerFile, `${hostname()}:${process.pid}:stale-legacy-owner`, { mode: 0o600 });
+  const old = new Date(Date.now() - 60_000);
+  await utimes(ownerFile, old, old);
+  await utimes(lockDirectory, old, old);
+  await store.list();
+  await assert.rejects(stat(lockDirectory), { code: "ENOENT" });
+
+  await mkdir(lockDirectory);
+  await utimes(lockDirectory, old, old);
+  await store.list();
+  await assert.rejects(stat(lockDirectory), { code: "ENOENT" });
 });
 
 test("prepends attached sessions, reorders them locally, and archives globally", async (t) => {

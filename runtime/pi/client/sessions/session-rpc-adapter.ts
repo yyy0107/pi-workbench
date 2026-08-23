@@ -7,6 +7,7 @@ import type {
   PiSessionSummary,
   PiWorkspaceSummary,
 } from "../../contracts";
+import { isInlineImageMediaType } from "../../attachment-contracts";
 import { parseWorkbenchComposerUserProjection } from "../../../composer-request";
 import type {
   SessionHistoryValue,
@@ -166,6 +167,7 @@ export function piHistoryFromSessionEvents(
   };
 
   for (const { event } of history.events) {
+    const eventId = event.entryId ?? `pi-event-${event.seq}`;
     const data = record(event.data);
     if (event.type === "tool_execution_start" && typeof data?.toolCallId === "string") {
       toolStarts.set(data.toolCallId, event.time);
@@ -201,7 +203,7 @@ export function piHistoryFromSessionEvents(
     if (conversationEvent) {
       pushConversationEvent(
         conversationEvent,
-        `pi-event-${event.seq}:conversation-event`,
+        `${eventId}:conversation-event`,
         event.time,
         event.seq,
       );
@@ -243,7 +245,7 @@ export function piHistoryFromSessionEvents(
       if (derivedModelChange) {
         insertConversationEventBeforeLastMessage(
           derivedModelChange,
-          `pi-event-${event.seq}:derived-model-change`,
+          `${eventId}:derived-model-change`,
           event.time,
           event.seq,
         );
@@ -272,7 +274,7 @@ export function piHistoryFromSessionEvents(
 
     pushMessage(
       projectedMessage,
-      `pi-event-${event.seq}`,
+      eventId,
       event.time,
       completedFirstTokenAt,
       event.type === "message_end" ? event.seq : undefined,
@@ -302,15 +304,8 @@ export function piHistoryFromSessionEvents(
 function promptMediaType(
   mimeType: string,
 ): Extract<SessionPromptContent, { type: "image" }>["mediaType"] {
-  switch (mimeType) {
-    case "image/png":
-    case "image/jpeg":
-    case "image/webp":
-    case "image/gif":
-      return mimeType;
-    default:
-      throw new TypeError(`Unsupported Pi prompt image type: ${mimeType}`);
-  }
+  if (isInlineImageMediaType(mimeType)) return mimeType;
+  throw new TypeError(`Unsupported Pi prompt image type: ${mimeType}`);
 }
 
 export function piPromptContent(
@@ -323,6 +318,7 @@ export function piPromptContent(
       type: "image" as const,
       mediaType: promptMediaType(image.mimeType),
       data: image.data,
+      ...(image.name === undefined ? {} : { name: image.name }),
     })),
   ];
 }

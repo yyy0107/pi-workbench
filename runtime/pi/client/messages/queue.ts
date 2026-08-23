@@ -9,8 +9,8 @@ import type {
 import type { PiQueuedPrompt, PiQueueMode } from "../../contracts";
 import type { SessionQueueAction } from "../../rpc-contracts";
 import type { QueueItem } from "../../stream-contracts";
+import { stripWorkspaceFeedbackContext } from "@/services/workspace-feedback-service";
 import { appendMessageToPiPrompt } from "./messages";
-import { stripWorkspaceFeedbackContext } from "../../../../components/right-workspace/feedback/feedback-adapter";
 
 interface PiMessageQueueOptions {
   isRunning(): boolean;
@@ -28,13 +28,35 @@ interface PiMessageQueueOptions {
     steering: readonly PiQueuedPrompt[],
     followUp: readonly PiQueuedPrompt[],
   ): Promise<void>;
+  onEnqueueRejected?(message: AppendMessage, error: unknown): void;
   onSteerRejected(itemId: string): void;
   onChange(): void;
 }
 
-function appendContent(message: AppendMessage): SessionQueueAction & { kind: "edit" } {
+function appendContent(
+  message: AppendMessage,
+  workspaceFeedbackSuffix?: string,
+): SessionQueueAction & { kind: "edit" } {
   const prompt = appendMessageToPiPrompt(message);
-  return { kind: "edit", content: [{ type: "text", text: prompt.text }] };
+  const text = workspaceFeedbackSuffix
+    ? `${prompt.text.trimEnd()}${workspaceFeedbackSuffix}`
+    : prompt.text;
+  return { kind: "edit", content: [{ type: "text", text }] };
+}
+
+function queueItemRawText(item: QueueItem): string {
+  return item.message.content
+    .filter((part) => part.type === "text" && typeof part.text === "string")
+    .map((part) => part.text as string)
+    .join("");
+}
+
+function extractWorkspaceFeedbackSuffix(item: QueueItem | undefined): string | undefined {
+  if (!item) return undefined;
+  const text = queueItemRawText(item);
+  const visibleText = stripWorkspaceFeedbackContext(text);
+  if (visibleText === text || !text.startsWith(visibleText)) return undefined;
+  return text.slice(visibleText.length);
 }
 
 function queueItemParts(item: QueueItem): readonly (FileMessagePart | TextMessagePart)[] {
@@ -96,7 +118,14 @@ function promptFromQueueItem(item: QueueItem): PiQueuedPrompt {
     .join("");
   const images = item.message.content.flatMap((part) =>
     part.type === "image" && typeof part.data === "string" && typeof part.mediaType === "string"
-      ? [{ type: "image" as const, data: part.data, mimeType: part.mediaType }]
+      ? [
+          {
+            type: "image" as const,
+            data: part.data,
+            mimeType: part.mediaType,
+            ...(typeof part.name === "string" ? { name: part.name } : {}),
+          },
+        ]
       : [],
   );
   return { message, ...(images.length ? { images } : {}) };
@@ -115,6 +144,7 @@ function optimisticQueueItem(id: string, mode: PiQueueMode, prompt: PiQueuedProm
           type: "image",
           mediaType: image.mimeType,
           data: image.data,
+          ...(image.name === undefined ? {} : { name: image.name }),
         })),
       ],
       source: { kind: "optimistic" },
@@ -136,6 +166,7 @@ export class PiMessageQueue {
   private reorderRevision = 0;
   private paused = false;
   private editingId?: string;
+  private editingWorkspaceFeedbackSuffix?: string;
   private transform: (message: AppendMessage) => AppendMessage = (message) => message;
   private syncTask: Promise<void> = Promise.resolve();
 
@@ -157,7 +188,14 @@ export class PiMessageQueue {
         }
         this.reorder(id, placement);
       },
-      edit: (id, message) => this.mutate(id, appendContent(this.transform(message))),
+      edit: (id, message) =>
+        this.mutate(
+          id,
+          appendContent(
+            this.transform(message),
+            extractWorkspaceFeedbackSuffix(this.items.find((item) => item.id === id)),
+          ),
+        ),
       remove: (id) => this.mutate(id, { kind: "remove" }),
       __internal_setDispatchTransform: (transform) => {
         this.transform = transform;
@@ -165,6 +203,7 @@ export class PiMessageQueue {
       __internal_notifyCancelled: () => {
         if (!this.editingId) return;
         this.editingId = undefined;
+        this.editingWorkspaceFeedbackSuffix = undefined;
         this.publish();
       },
     };
@@ -195,6 +234,7 @@ export class PiMessageQueue {
     this.rebuildItems();
     if (this.editingId && !this.items.some((item) => item.id === this.editingId)) {
       this.editingId = undefined;
+      this.editingWorkspaceFeedbackSuffix = undefined;
     }
     this.publish();
   }
@@ -206,13 +246,17 @@ export class PiMessageQueue {
   }
 
   beginEdit(id: string): QueueItemState | undefined {
-    if (this.editingId) this.editingId = undefined;
+    if (this.editingId) {
+      this.editingId = undefined;
+      this.editingWorkspaceFeedbackSuffix = undefined;
+    }
     const item = this.items.find((candidate) => candidate.id === id);
     if (!item || item.placement !== "queued") {
       this.publish();
       return undefined;
     }
     this.editingId = id;
+    this.editingWorkspaceFeedbackSuffix = extractWorkspaceFeedbackSuffix(item);
     this.publish();
     return queueItemState(item);
   }
@@ -244,9 +288,11 @@ export class PiMessageQueue {
     const message = this.transform(rawMessage);
     if (this.editingId) {
       const itemId = this.editingId;
+      const feedbackSuffix = this.editingWorkspaceFeedbackSuffix;
       this.editingId = undefined;
+      this.editingWorkspaceFeedbackSuffix = undefined;
       this.publish();
-      this.mutate(itemId, appendContent(message));
+      this.mutate(itemId, appendContent(message, feedbackSuffix));
       return;
     }
     if (!this.options.isRunning()) {
@@ -271,6 +317,7 @@ export class PiMessageQueue {
       .then((admission) => this.confirmEnqueue(optimisticId, admission))
       .catch((error) => {
         this.rejectEnqueue(optimisticId);
+        this.options.onEnqueueRejected?.(message, error);
         console.error(`[workbench-pi] ${mode} queue failed`, error);
       });
   }

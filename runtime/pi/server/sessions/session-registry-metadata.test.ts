@@ -22,28 +22,40 @@ const moduleHooks = registerHooks({
   },
 });
 const {
+  cancelSession,
   compactAssistantMessageUpdate,
   createSession,
   createDetachedSessionFork,
+  getSessionEventBranches,
   getSessionEvents,
   getSessionHistory,
+  getOrStartSession,
   listSessions,
   messagesHaveImages,
+  queuePrompt,
   renameSession,
+  replacePromptQueue,
   resolveWorkbenchComposerCommands,
+  sendPrompt,
   SerializedSessionMutations,
   sessionModifiedAt,
+  setPromptQueuePaused,
+  steerQueuedPrompt,
   submitPrompt,
   updatePromptQueueItem,
 } = (await import(
   new URL("./session-registry.ts", import.meta.url).href
 )) as typeof import("./session-registry");
-const { appendSessionEventJournal, SESSION_EVENT_CUSTOM_TYPE } = (await import(
-  new URL("./session-event-journal.ts", import.meta.url).href
-)) as typeof import("./session-event-journal");
+const { appendSessionEventJournal, initializeSessionEventJournal, SESSION_EVENT_CUSTOM_TYPE } =
+  (await import(
+    new URL("./session-event-journal.ts", import.meta.url).href
+  )) as typeof import("./session-event-journal");
 const { createStreamHub, STREAM_HUB_SYMBOL } = (await import(
   new URL("../streams/stream-hub.ts", import.meta.url).href
 )) as typeof import("../streams/stream-hub");
+const { getImageUnderstandingSettingsStore } = (await import(
+  new URL("../image-understanding/registry.ts", import.meta.url).href
+)) as typeof import("../image-understanding/registry");
 moduleHooks.deregister();
 
 test("detects image content across durable session message roles", () => {
@@ -753,6 +765,679 @@ test("keeps a durable token-only user message when its built-in command fails", 
   );
 });
 
+test("preprocesses a generic image prompt and persists failure without starting the text model", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-image-understanding-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+  const previousStateDir = process.env.PI_WORKBENCH_STATE_DIR;
+  process.env.PI_CODING_AGENT_DIR = path.join(root, "agent");
+  process.env.PI_WORKBENCH_STATE_DIR = path.join(root, "state");
+  t.after(() => {
+    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+    if (previousStateDir === undefined) delete process.env.PI_WORKBENCH_STATE_DIR;
+    else process.env.PI_WORKBENCH_STATE_DIR = previousStateDir;
+  });
+
+  await getImageUnderstandingSettingsStore().update({
+    patch: { routing: "always-preprocess", engine: "ocr", ocrProvider: "glm-ocr" },
+  });
+  const cwd = path.join(root, "project");
+  await mkdir(cwd, { recursive: true });
+  const host = await createSession(cwd, "image-understanding-missing-credential");
+  t.after(() => host.shutdown());
+
+  await submitPrompt(
+    host.id,
+    "followUp",
+    {
+      message: "Read the image",
+      images: [
+        {
+          type: "image",
+          mimeType: "image/png",
+          data: "iVBORw0KGgo=",
+          name: "scan.png",
+        },
+      ],
+    },
+    { rpcId: "image-recognition-rpc" },
+  );
+
+  const history = await getSessionHistory(host.id);
+  const marker = history.context.messages.find(
+    (message) => message.role === "custom" && message.customType === "workbench.composer-user.v2",
+  );
+  assert.ok(marker && marker.role === "custom");
+  assert.deepEqual((marker.details as { images?: unknown }).images, [
+    { data: "iVBORw0KGgo=", mimeType: "image/png", name: "scan.png" },
+  ]);
+  const events = await getSessionEvents(host.id);
+  const recognitionStates = events.flatMap((event) => {
+    const data = event.data as {
+      customType?: string;
+      details?: { status?: string; errorCode?: string; rpcId?: string };
+    };
+    return event.type === "message" &&
+      data.customType === "workbench.image-recognition.v1" &&
+      data.details?.status
+      ? [data.details]
+      : [];
+  });
+  assert.deepEqual(
+    recognitionStates.map(({ status }) => status),
+    ["pending", "running", "failed"],
+  );
+  assert.equal(recognitionStates.at(-1)?.errorCode, "preprocessor-not-configured");
+  assert.equal(recognitionStates.at(-1)?.rpcId, "image-recognition-rpc");
+  assert.equal(events.at(-1)?.type, "command_error");
+  assert.equal(host.isRunning, false);
+  assert.equal(
+    host.session.sessionManager
+      .buildSessionContext()
+      .messages.some(
+        (message) =>
+          message.role === "custom" && message.customType === "workbench.image-recognition.v1",
+      ),
+    false,
+  );
+});
+
+test("injects successful OCR as isolated context without forwarding the image to the text model", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-image-understanding-success-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+  const previousStateDir = process.env.PI_WORKBENCH_STATE_DIR;
+  process.env.PI_CODING_AGENT_DIR = path.join(root, "agent");
+  process.env.PI_WORKBENCH_STATE_DIR = path.join(root, "state");
+  t.after(() => {
+    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+    if (previousStateDir === undefined) delete process.env.PI_WORKBENCH_STATE_DIR;
+    else process.env.PI_WORKBENCH_STATE_DIR = previousStateDir;
+  });
+
+  const credential = "private-glm-credential";
+  await getImageUnderstandingSettingsStore().update({
+    patch: {
+      routing: "always-preprocess",
+      engine: "ocr",
+      ocrProvider: "glm-ocr",
+      glm: {
+        endpoint: "https://ocr.example/layout",
+        model: "glm-ocr",
+        apiKey: credential,
+      },
+    },
+  });
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (input, init) => {
+    assert.equal(String(input), "https://ocr.example/layout");
+    assert.equal(new Headers(init?.headers).get("Authorization"), `Bearer ${credential}`);
+    const body = JSON.parse(String(init?.body)) as { file?: string; model?: string };
+    assert.equal(body.model, "glm-ocr");
+    assert.match(body.file ?? "", /^data:image\/png;base64,/);
+    return new Response(JSON.stringify({ md_results: "Invoice total: 42" }));
+  };
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  const cwd = path.join(root, "project");
+  await mkdir(cwd, { recursive: true });
+  const host = await createSession(cwd, "image-understanding-success");
+  const fakeAgent = host.session as unknown as {
+    model?: unknown;
+    modelRuntime: { getAvailableSnapshot(): unknown[] };
+    prompt(
+      message: string,
+      options: {
+        images?: unknown[];
+        preflightResult?: (accepted: boolean) => void;
+      },
+    ): Promise<void>;
+  };
+  const originalPrompt = fakeAgent.prompt;
+  const originalAvailableSnapshot = fakeAgent.modelRuntime.getAvailableSnapshot;
+  let forwardedPrompt = "";
+  let forwardedImages: unknown[] | undefined;
+  fakeAgent.modelRuntime.getAvailableSnapshot = () =>
+    fakeAgent.model === undefined ? [] : [fakeAgent.model];
+  fakeAgent.prompt = async (message, options) => {
+    forwardedPrompt = message;
+    forwardedImages = options.images;
+    options.preflightResult?.(true);
+  };
+  t.after(() => {
+    fakeAgent.prompt = originalPrompt;
+    fakeAgent.modelRuntime.getAvailableSnapshot = originalAvailableSnapshot;
+    return host.shutdown();
+  });
+
+  const admission = await submitPrompt(
+    host.id,
+    "followUp",
+    {
+      message: "Read the invoice",
+      images: [
+        {
+          type: "image",
+          mimeType: "image/png",
+          data: "iVBORw0KGgo=",
+          name: "invoice.png",
+        },
+      ],
+    },
+    {
+      rpcId: "image-recognition-success-rpc",
+      composer: {
+        version: 1,
+        document: [{ type: "text", text: "Read the invoice" }],
+        sourceText: "Read the invoice",
+        text: "Read the invoice",
+        context: [],
+        metadata: {},
+        commands: [],
+      },
+    },
+  );
+  await new Promise<void>((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(admission, { queued: false });
+  assert.equal(forwardedImages, undefined, "a text-model prompt must not retain image parts");
+  assert.match(forwardedPrompt, /<workbench-untrusted-context>/);
+  assert.match(forwardedPrompt, /Invoice total: 42/);
+  assert.match(forwardedPrompt, /Read the invoice/);
+  assert.equal(forwardedPrompt.includes(credential), false);
+
+  const events = await getSessionEvents(host.id);
+  const recognitionStates = events.flatMap((event) => {
+    const data = event.data as {
+      customType?: string;
+      details?: { status?: string; stage?: string; rpcId?: string };
+    };
+    return event.type === "message" &&
+      data.customType === "workbench.image-recognition.v1" &&
+      data.details?.status
+      ? [data.details]
+      : [];
+  });
+  assert.deepEqual(
+    recognitionStates.map(({ status, stage }) => ({ status, stage })),
+    [
+      { status: "pending", stage: undefined },
+      { status: "running", stage: "routing" },
+      { status: "running", stage: "submitting" },
+      { status: "running", stage: "recognizing" },
+      { status: "running", stage: "normalizing" },
+      { status: "succeeded", stage: undefined },
+    ],
+  );
+  assert.equal(recognitionStates.at(-1)?.rpcId, "image-recognition-success-rpc");
+});
+
+test("routes exported sendPrompt images through recognition before calling a text-only agent", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-legacy-direct-image-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+  const previousStateDir = process.env.PI_WORKBENCH_STATE_DIR;
+  process.env.PI_CODING_AGENT_DIR = path.join(root, "agent");
+  process.env.PI_WORKBENCH_STATE_DIR = path.join(root, "state");
+  t.after(() => {
+    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+    if (previousStateDir === undefined) delete process.env.PI_WORKBENCH_STATE_DIR;
+    else process.env.PI_WORKBENCH_STATE_DIR = previousStateDir;
+  });
+
+  await getImageUnderstandingSettingsStore().update({
+    patch: {
+      routing: "always-preprocess",
+      engine: "ocr",
+      ocrProvider: "glm-ocr",
+      glm: { apiKey: "legacy-direct-private-credential" },
+    },
+  });
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify({ md_results: "Recognized by the legacy direct path" }));
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  const cwd = path.join(root, "project");
+  await mkdir(cwd, { recursive: true });
+  const host = await createSession(cwd, "legacy-direct-image");
+  const fakeAgent = host.session as unknown as {
+    model?: { input?: string[] };
+    modelRuntime: { getAvailableSnapshot(): unknown[] };
+    prompt(
+      message: string,
+      options: {
+        images?: unknown[];
+        preflightResult?: (accepted: boolean) => void;
+      },
+    ): Promise<void>;
+    followUp(message: string, images?: unknown[]): Promise<void>;
+  };
+  assert.equal(fakeAgent.model?.input?.includes("image") ?? false, false);
+  const originalPrompt = fakeAgent.prompt;
+  const originalFollowUp = fakeAgent.followUp;
+  const originalAvailableSnapshot = fakeAgent.modelRuntime.getAvailableSnapshot;
+  let releaseRun: (() => void) | undefined;
+  let forwardedPrompt = "";
+  let forwardedImages: unknown[] | undefined;
+  fakeAgent.modelRuntime.getAvailableSnapshot = () =>
+    fakeAgent.model === undefined ? [] : [fakeAgent.model];
+  fakeAgent.prompt = async (message, options) => {
+    forwardedPrompt = message;
+    forwardedImages = options.images;
+    options.preflightResult?.(true);
+  };
+  t.after(() => {
+    releaseRun?.();
+    fakeAgent.prompt = originalPrompt;
+    fakeAgent.followUp = originalFollowUp;
+    fakeAgent.modelRuntime.getAvailableSnapshot = originalAvailableSnapshot;
+    return host.shutdown();
+  });
+
+  await sendPrompt(host.id, "Read this legacy image", [
+    {
+      type: "image",
+      mimeType: "image/png",
+      data: "iVBORw0KGgo=",
+      name: "legacy.png",
+    },
+  ]);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+
+  assert.equal(forwardedImages, undefined, "the text-only agent must never receive image parts");
+  assert.match(forwardedPrompt, /Recognized by the legacy direct path/);
+  assert.match(forwardedPrompt, /Read this legacy image/);
+  const recognitionStates = (await getSessionEvents(host.id)).flatMap((event) => {
+    const data = event.data as {
+      customType?: string;
+      details?: { status?: string };
+    };
+    return event.type === "message" &&
+      data.customType === "workbench.image-recognition.v1" &&
+      data.details?.status
+      ? [data.details.status]
+      : [];
+  });
+  assert.deepEqual(recognitionStates, [
+    "pending",
+    "running",
+    "running",
+    "running",
+    "running",
+    "succeeded",
+  ]);
+
+  let queuedPrompt = "";
+  let queuedImages: unknown[] | undefined;
+  fakeAgent.prompt = async (_message, options) => {
+    options.preflightResult?.(true);
+    await new Promise<void>((resolve) => {
+      releaseRun = resolve;
+    });
+  };
+  fakeAgent.followUp = async (message, images) => {
+    queuedPrompt = message;
+    queuedImages = images;
+  };
+  await sendPrompt(host.id, "Hold an active text-only turn");
+  await queuePrompt(host.id, "followUp", {
+    message: "Read this queued legacy image",
+    images: [{ type: "image", mimeType: "image/png", data: "iVBORw0KGgo=" }],
+  });
+  assert.equal(queuedImages, undefined, "a queued text-only turn must not receive image parts");
+  assert.match(queuedPrompt, /Recognized by the legacy direct path/);
+  assert.match(queuedPrompt, /Read this queued legacy image/);
+  const queuedRecognitionStates = (await getSessionEvents(host.id)).flatMap((event) => {
+    const data = event.data as {
+      customType?: string;
+      details?: { status?: string };
+    };
+    return event.type === "message" &&
+      data.customType === "workbench.image-recognition.v1" &&
+      data.details?.status
+      ? [data.details.status]
+      : [];
+  });
+  assert.deepEqual(queuedRecognitionStates.slice(-6), recognitionStates);
+  releaseRun?.();
+});
+
+test("rejects image-bearing legacy queue snapshots before mutating a text-only agent queue", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-legacy-image-queue-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+  process.env.PI_CODING_AGENT_DIR = path.join(root, "agent");
+  t.after(() => {
+    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+  });
+
+  const cwd = path.join(root, "project");
+  await mkdir(cwd, { recursive: true });
+  const host = await createSession(cwd, "legacy-image-queue");
+  const fakeAgent = host.session as unknown as {
+    model?: { input?: string[] };
+    modelRuntime: { getAvailableSnapshot(): unknown[] };
+    prompt(
+      message: string,
+      options: { preflightResult?: (accepted: boolean) => void },
+    ): Promise<void>;
+  };
+  const originalAvailableSnapshot = fakeAgent.modelRuntime.getAvailableSnapshot;
+  const originalPrompt = fakeAgent.prompt;
+  let releaseRun: (() => void) | undefined;
+  fakeAgent.modelRuntime.getAvailableSnapshot = () =>
+    fakeAgent.model === undefined ? [] : [fakeAgent.model];
+  fakeAgent.prompt = async (_message, options) => {
+    options.preflightResult?.(true);
+    await new Promise<void>((resolve) => {
+      releaseRun = resolve;
+    });
+  };
+  t.after(() => {
+    releaseRun?.();
+    fakeAgent.prompt = originalPrompt;
+    fakeAgent.modelRuntime.getAvailableSnapshot = originalAvailableSnapshot;
+    return host.shutdown();
+  });
+  const model = fakeAgent.model;
+  assert.equal(model?.input?.includes("image") ?? false, false);
+  const imagePrompt = {
+    message: "queued image",
+    images: [{ type: "image" as const, mimeType: "image/png", data: "iVBORw0KGgo=" }],
+  };
+  const rejectedWithoutMutation = async (operation: () => Promise<void>) => {
+    await assert.rejects(operation(), {
+      code: "pi_model_image_unsupported",
+      status: 400,
+    });
+    assert.deepEqual(host.steeringMessages, []);
+    assert.deepEqual(host.followUpMessages, []);
+  };
+
+  await rejectedWithoutMutation(() => replacePromptQueue(host.id, [], [imagePrompt]));
+  await rejectedWithoutMutation(() => setPromptQueuePaused(host.id, true, [], [imagePrompt]));
+  await rejectedWithoutMutation(() => steerQueuedPrompt(host.id, imagePrompt, [], []));
+
+  await submitPrompt(host.id, "followUp", { message: "hold the active run" });
+  const queued = await submitPrompt(
+    host.id,
+    "followUp",
+    { message: "safe queued text" },
+    { rpcId: "legacy-image-edit" },
+  );
+  assert.deepEqual(queued, { queued: true, queueItemId: "legacy-image-edit" });
+  await assert.rejects(
+    updatePromptQueueItem(host.id, "legacy-image-edit", {
+      kind: "edit",
+      prompt: imagePrompt,
+    }),
+    { code: "pi_model_image_unsupported", status: 400 },
+  );
+  assert.equal(host.followUpMessages.includes("safe queued text"), true);
+  assert.equal(host.followUpMessages.includes("queued image"), false);
+  releaseRun?.();
+});
+
+test("rejects refreshed or directly selected text-only models when native image history exists", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-native-image-history-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+  process.env.PI_CODING_AGENT_DIR = path.join(root, "agent");
+  t.after(() => {
+    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+  });
+
+  const cwd = path.join(root, "project");
+  await mkdir(cwd, { recursive: true });
+  const host = await createSession(cwd, "native-image-history");
+  host.session.sessionManager.appendMessage({
+    role: "user",
+    content: [
+      { type: "text", text: "Previous native image" },
+      { type: "image", mimeType: "image/png", data: "iVBORw0KGgo=" },
+    ],
+    timestamp: Date.now(),
+  });
+  const fakeAgent = host.session as unknown as {
+    model?: { provider: string; id: string; input: string[] };
+    modelRuntime: { getAvailableSnapshot(): unknown[] };
+    prompt(): Promise<void>;
+  };
+  const originalAvailableSnapshot = fakeAgent.modelRuntime.getAvailableSnapshot;
+  const originalPrompt = fakeAgent.prompt;
+  const selectedTextModel = {
+    provider: "test-provider",
+    id: "selected-text-only",
+    input: ["text"],
+  };
+  fakeAgent.modelRuntime.getAvailableSnapshot = () => [
+    ...(fakeAgent.model === undefined ? [] : [{ ...fakeAgent.model, input: ["text"] }]),
+    selectedTextModel,
+  ];
+  fakeAgent.prompt = async () => assert.fail("image history must be rejected before agent.prompt");
+  t.after(() => {
+    fakeAgent.modelRuntime.getAvailableSnapshot = originalAvailableSnapshot;
+    fakeAgent.prompt = originalPrompt;
+    return host.shutdown();
+  });
+
+  await assert.rejects(sendPrompt(host.id, "Continue after the image"), {
+    code: "pi_model_image_unsupported",
+    status: 400,
+  });
+  await assert.rejects(
+    sendPrompt(host.id, "Switch and continue", undefined, {
+      provider: selectedTextModel.provider,
+      modelId: selectedTextModel.id,
+    }),
+    { code: "pi_model_image_unsupported", status: 400 },
+  );
+});
+
+test("cancels in-flight image recognition without starting a model turn", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-image-understanding-cancel-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+  const previousStateDir = process.env.PI_WORKBENCH_STATE_DIR;
+  process.env.PI_CODING_AGENT_DIR = path.join(root, "agent");
+  process.env.PI_WORKBENCH_STATE_DIR = path.join(root, "state");
+  t.after(() => {
+    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+    if (previousStateDir === undefined) delete process.env.PI_WORKBENCH_STATE_DIR;
+    else process.env.PI_WORKBENCH_STATE_DIR = previousStateDir;
+  });
+
+  await getImageUnderstandingSettingsStore().update({
+    patch: {
+      routing: "always-preprocess",
+      engine: "ocr",
+      ocrProvider: "glm-ocr",
+      glm: { apiKey: "private-glm-credential" },
+    },
+  });
+
+  let reportFetchStarted!: () => void;
+  const fetchStarted = new Promise<void>((resolve) => {
+    reportFetchStarted = resolve;
+  });
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (_input, init) => {
+    reportFetchStarted();
+    return new Promise<Response>((_resolve, reject) => {
+      const abort = () => reject(new DOMException("aborted", "AbortError"));
+      if (init?.signal?.aborted) abort();
+      else init?.signal?.addEventListener("abort", abort, { once: true });
+    });
+  };
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  const cwd = path.join(root, "project");
+  await mkdir(cwd, { recursive: true });
+  const host = await createSession(cwd, "image-understanding-cancel");
+  const fakeAgent = host.session as unknown as {
+    prompt(): Promise<void>;
+  };
+  const originalPrompt = fakeAgent.prompt;
+  fakeAgent.prompt = async () => assert.fail("cancelled recognition must not start the model");
+  t.after(() => {
+    fakeAgent.prompt = originalPrompt;
+    return host.shutdown();
+  });
+
+  const submission = submitPrompt(
+    host.id,
+    "followUp",
+    {
+      message: "Read the image",
+      images: [{ type: "image", mimeType: "image/png", data: "iVBORw0KGgo=" }],
+    },
+    {
+      rpcId: "image-recognition-cancel-rpc",
+      composer: {
+        version: 1,
+        document: [{ type: "text", text: "Read the image" }],
+        sourceText: "Read the image",
+        text: "Read the image",
+        context: [],
+        metadata: {},
+        commands: [],
+      },
+    },
+  );
+  await fetchStarted;
+  await cancelSession(host.id);
+  assert.deepEqual(await submission, { queued: false });
+
+  const events = await getSessionEvents(host.id);
+  const recognitionStates = events.flatMap((event) => {
+    const data = event.data as {
+      customType?: string;
+      details?: { status?: string; rpcId?: string };
+    };
+    return event.type === "message" &&
+      data.customType === "workbench.image-recognition.v1" &&
+      data.details?.status
+      ? [data.details]
+      : [];
+  });
+  assert.equal(recognitionStates.at(-1)?.status, "cancelled");
+  assert.equal(recognitionStates.at(-1)?.rpcId, "image-recognition-cancel-rpc");
+  assert.equal(events.at(-1)?.type, "command_error");
+  assert.equal(host.isRunning, false);
+});
+
+test("keeps cancellation authoritative during the recognition-to-prompt handoff", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-image-handoff-cancel-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+  const previousStateDir = process.env.PI_WORKBENCH_STATE_DIR;
+  process.env.PI_CODING_AGENT_DIR = path.join(root, "agent");
+  process.env.PI_WORKBENCH_STATE_DIR = path.join(root, "state");
+  t.after(() => {
+    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+    if (previousStateDir === undefined) delete process.env.PI_WORKBENCH_STATE_DIR;
+    else process.env.PI_WORKBENCH_STATE_DIR = previousStateDir;
+  });
+
+  await getImageUnderstandingSettingsStore().update({
+    patch: {
+      routing: "always-preprocess",
+      engine: "ocr",
+      ocrProvider: "glm-ocr",
+      glm: { apiKey: "private-glm-credential" },
+    },
+  });
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ md_results: "handoff OCR result" }));
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  const cwd = path.join(root, "project");
+  await mkdir(cwd, { recursive: true });
+  const host = await createSession(cwd, "image-understanding-handoff-cancel");
+  let reportResolutionReached!: () => void;
+  let releaseResolution!: () => void;
+  const resolutionReached = new Promise<void>((resolve) => {
+    reportResolutionReached = resolve;
+  });
+  const resolutionGate = new Promise<void>((resolve) => {
+    releaseResolution = resolve;
+  });
+  const fakeAgent = host.session as unknown as {
+    prompt(): Promise<void>;
+    sendCustomMessage(
+      message: { customType: string; content: unknown; display: boolean; details?: unknown },
+      options?: { triggerTurn?: boolean },
+    ): Promise<void>;
+  };
+  const originalPrompt = fakeAgent.prompt;
+  const originalSendCustomMessage = fakeAgent.sendCustomMessage;
+  let promptCalled = false;
+  fakeAgent.prompt = async () => {
+    promptCalled = true;
+  };
+  fakeAgent.sendCustomMessage = async (message, options) => {
+    if (message.customType === "workbench.composer-resolution.v1") {
+      reportResolutionReached();
+      await resolutionGate;
+    }
+    await originalSendCustomMessage.call(host.session, message, options);
+  };
+  t.after(() => {
+    fakeAgent.prompt = originalPrompt;
+    fakeAgent.sendCustomMessage = originalSendCustomMessage;
+    releaseResolution?.();
+    return host.shutdown();
+  });
+
+  const submission = submitPrompt(
+    host.id,
+    "followUp",
+    {
+      message: "Read the image",
+      images: [{ type: "image", mimeType: "image/png", data: "iVBORw0KGgo=" }],
+    },
+    {
+      rpcId: "image-handoff-cancel-rpc",
+      composer: {
+        version: 1,
+        document: [{ type: "text", text: "Read the image" }],
+        sourceText: "Read the image",
+        text: "Read the image",
+        context: [],
+        metadata: {},
+        commands: [],
+      },
+    },
+  );
+  await resolutionReached;
+  assert.equal(host.isRunning, true);
+  const cancellation = cancelSession(host.id);
+  releaseResolution();
+  await Promise.all([cancellation, submission]);
+
+  assert.equal(promptCalled, false);
+  assert.equal(host.isRunning, false);
+  const events = await getSessionEvents(host.id);
+  assert.equal(events.at(-1)?.type, "command_error");
+});
+
 test("validates every Pi command before executing any Composer command", async () => {
   let promptCount = 0;
   const session = {
@@ -865,6 +1550,334 @@ test("read-only journal migration does not refresh a cold session's modified tim
   );
   assert.ok(after);
   assert.equal(after.modified, before.modified);
+});
+
+test("discovers sibling assistant branches with stable shared user events", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-session-branches-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+  process.env.PI_CODING_AGENT_DIR = path.join(root, "agent");
+  t.after(() => {
+    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+  });
+
+  const cwd = path.join(root, "project");
+  await mkdir(cwd, { recursive: true });
+  const manager = SessionManager.create(cwd, undefined, { id: "assistant-branches" });
+  initializeSessionEventJournal(manager, []);
+  const user = { role: "user" as const, content: "Explain branches", timestamp: 1 };
+  const userEvent = appendSessionEventJournal(manager, {
+    type: "message_end",
+    seq: 0,
+    time: 1,
+    data: { message: user },
+  });
+  const userEntryId = manager.appendMessage(user);
+
+  const appendAssistantBranch = (text: string, timestamp: number) => {
+    const assistant = assistantMessage(text, timestamp);
+    const assistantEvent = appendSessionEventJournal(manager, {
+      type: "message_end",
+      seq: 1,
+      time: timestamp,
+      data: { message: assistant },
+    });
+    manager.appendMessage(assistant);
+    const settled = appendSessionEventJournal(manager, {
+      type: "command_done",
+      seq: 2,
+      time: timestamp + 1,
+      data: {},
+    });
+    return { assistantEvent, leafId: settled.entryId! };
+  };
+
+  const first = appendAssistantBranch("First answer", 2);
+  manager.branch(userEntryId);
+  const second = appendAssistantBranch("Second answer", 3);
+  const branches = await getSessionEventBranches("assistant-branches");
+
+  assert.equal(branches.headLeafId, second.leafId);
+  assert.equal(branches.items.length, 2);
+  assert.deepEqual(
+    branches.items.map((branch) => branch.events[0]?.event.entryId),
+    [userEvent.entryId, userEvent.entryId],
+  );
+  assert.deepEqual(
+    new Set(branches.items.map((branch) => branch.events[1]?.event.entryId)),
+    new Set([first.assistantEvent.entryId, second.assistantEvent.entryId]),
+  );
+});
+
+test("projects legacy retry branches from shared Pi context entry ids", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-session-legacy-branches-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+  process.env.PI_CODING_AGENT_DIR = path.join(root, "agent");
+  t.after(() => {
+    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+  });
+
+  const cwd = path.join(root, "project");
+  await mkdir(cwd, { recursive: true });
+  const manager = SessionManager.create(cwd, undefined, { id: "legacy-assistant-branches" });
+  const user = { role: "user" as const, content: "Legacy question", timestamp: 1 };
+  const firstAssistant = assistantMessage("First legacy answer", 2);
+  const userEntryId = manager.appendMessage(user);
+  const firstAssistantEntryId = manager.appendMessage(firstAssistant);
+  initializeSessionEventJournal(manager, [
+    { type: "message", seq: 0, time: 1, data: user },
+    { type: "message", seq: 1, time: 2, data: firstAssistant },
+  ]);
+
+  manager.branch(userEntryId);
+  initializeSessionEventJournal(manager, [{ type: "message", seq: 0, time: 1, data: user }]);
+  const secondAssistant = assistantMessage("Second legacy answer", 3);
+  appendSessionEventJournal(manager, {
+    type: "message_end",
+    seq: 1,
+    time: 3,
+    data: { message: secondAssistant },
+  });
+  const secondAssistantEntryId = manager.appendMessage(secondAssistant);
+  appendSessionEventJournal(manager, { type: "command_done", seq: 2, time: 4, data: {} });
+
+  const branches = await getSessionEventBranches("legacy-assistant-branches");
+  assert.equal(branches.items.length, 2);
+  assert.deepEqual(
+    branches.items.map((branch) => branch.events[0]?.event.entryId),
+    [userEntryId, userEntryId],
+  );
+  assert.deepEqual(
+    new Set(branches.items.map((branch) => branch.events[1]?.event.entryId)),
+    new Set([firstAssistantEntryId, secondAssistantEntryId]),
+  );
+});
+
+test("keeps Composer correlation when branch history falls back to Pi context entries", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-composer-context-branch-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+  process.env.PI_CODING_AGENT_DIR = path.join(root, "agent");
+  t.after(() => {
+    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+  });
+
+  const cwd = path.join(root, "project");
+  await mkdir(cwd, { recursive: true });
+  const manager = SessionManager.create(cwd, undefined, { id: "composer-context-branch" });
+  manager.appendCustomMessageEntry("workbench.composer-user.v2", "", false, {
+    version: 2,
+    submissionId: "submission-context-branch",
+    sourceText: "Read the image",
+    text: "Read the image",
+    document: [{ type: "text", text: "Read the image" }],
+    commands: [],
+    composer: {
+      version: 1,
+      sourceText: "Read the image",
+      text: "Read the image",
+      document: [{ type: "text", text: "Read the image" }],
+      context: [],
+      metadata: {},
+      commands: [],
+    },
+    images: [{ data: "iVBORw0KGgo=", mimeType: "image/png", name: "scan.png" }],
+    status: "accepted",
+  });
+  manager.appendCustomEntry("workbench.image-recognition.v1", {
+    version: 1,
+    operationId: "operation-context-branch",
+    submissionId: "submission-context-branch",
+    revision: 1,
+    status: "succeeded",
+    method: "ocr",
+    providerId: "glm-ocr",
+    imageCount: 1,
+    completedCount: 1,
+    progress: 1,
+  });
+  manager.appendCustomMessageEntry("workbench.composer-resolution.v1", "", false, {
+    version: 1,
+    submissionId: "submission-context-branch",
+    status: "resolved",
+    commandTrace: [],
+  });
+  const compiledPrompt =
+    "<workbench-untrusted-context>OCR 42</workbench-untrusted-context>\n<user-request>Read the image</user-request>";
+  manager.appendMessage({ role: "user", content: compiledPrompt, timestamp: 2_000 });
+  manager.appendMessage(assistantMessage("Done", 2_001));
+  initializeSessionEventJournal(manager, [
+    { type: "message", seq: 0, time: 2_000, data: { role: "user", content: compiledPrompt } },
+  ]);
+
+  const branches = await getSessionEventBranches("composer-context-branch");
+  const userEvents = branches.items[0]?.events.filter(({ event }) => {
+    const data = event.data as { role?: string };
+    return event.type === "message" && data.role === "user";
+  });
+  assert.equal(userEvents?.length, 1);
+  const projected = userEvents?.[0]?.event.data as {
+    content?: string;
+    workbenchComposer?: { submissionId?: string; sourceText?: string };
+  };
+  assert.equal(projected.content, compiledPrompt);
+  assert.deepEqual(projected.workbenchComposer, {
+    version: 1,
+    submissionId: "submission-context-branch",
+    sourceText: "Read the image",
+    document: [{ type: "text", text: "Read the image" }],
+    hidden: true,
+  });
+});
+
+test("reconciles an interrupted image-recognition operation when a session reopens", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-interrupted-recognition-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+  process.env.PI_CODING_AGENT_DIR = path.join(root, "agent");
+  t.after(() => {
+    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+  });
+
+  const cwd = path.join(root, "project");
+  await mkdir(cwd, { recursive: true });
+  const manager = SessionManager.create(cwd, undefined, { id: "interrupted-recognition" });
+  const user = { role: "user" as const, content: "Read", timestamp: 1_000 };
+  const assistant = assistantMessage("Previous answer", 1_001);
+  manager.appendMessage(user);
+  manager.appendMessage(assistant);
+  manager.appendCustomMessageEntry("workbench.composer-user.v2", "", false, {
+    version: 2,
+    submissionId: "interrupted-submission",
+    sourceText: "Old image request",
+    text: "Old image request",
+    document: [{ type: "text", text: "Old image request" }],
+    commands: [],
+    status: "accepted",
+  });
+  initializeSessionEventJournal(manager, [
+    { type: "message", seq: 0, time: 1_000, data: user },
+    { type: "message", seq: 1, time: 1_001, data: assistant },
+    {
+      type: "message",
+      seq: 2,
+      time: 1_002,
+      data: {
+        role: "custom",
+        customType: "workbench.image-recognition.v1",
+        content: "",
+        display: true,
+        details: {
+          version: 1,
+          operationId: "interrupted-operation",
+          submissionId: "interrupted-submission",
+          revision: 0,
+          status: "pending",
+          method: "ocr",
+          providerId: "glm-ocr",
+          imageCount: 1,
+          completedCount: 0,
+          progress: 0,
+          timestamps: { createdAt: 1_002, updatedAt: 1_002 },
+        },
+      },
+    },
+  ]);
+
+  const host = await getOrStartSession("interrupted-recognition");
+  t.after(() => host.shutdown());
+  const events = await getSessionEvents(host.id);
+  const snapshots = events.flatMap((event) => {
+    const data = event.data as {
+      customType?: string;
+      details?: { status?: string; stage?: string; errorCode?: string };
+    };
+    return event.type === "message" &&
+      data.customType === "workbench.image-recognition.v1" &&
+      data.details?.status
+      ? [data.details]
+      : [];
+  });
+  assert.deepEqual(
+    snapshots.map(({ status, stage, errorCode }) => ({ status, stage, errorCode })),
+    [
+      { status: "pending", stage: undefined, errorCode: undefined },
+      { status: "running", stage: "fallback", errorCode: undefined },
+      { status: "failed", stage: undefined, errorCode: "recognition-interrupted" },
+    ],
+  );
+
+  const resolutions = events.flatMap((event) => {
+    const data = event.data as {
+      customType?: string;
+      details?: { submissionId?: string; status?: string; commandTrace?: unknown[] };
+    };
+    return event.type === "message" &&
+      data.customType === "workbench.composer-resolution.v1" &&
+      data.details?.submissionId === "interrupted-submission"
+      ? [data.details]
+      : [];
+  });
+  assert.deepEqual(resolutions, [
+    {
+      version: 1,
+      submissionId: "interrupted-submission",
+      status: "command_error",
+      commandTrace: [],
+    },
+  ]);
+
+  await host.shutdown();
+  const sessionFile = manager.getSessionFile();
+  assert.ok(sessionFile);
+  const reopened = SessionManager.open(sessionFile);
+  reopened.appendCustomMessageEntry("workbench.composer-user.v2", "", false, {
+    version: 2,
+    submissionId: "next-command-submission",
+    sourceText: "New command request",
+    text: "New command request",
+    document: [{ type: "text", text: "New command request" }],
+    commands: [],
+    status: "accepted",
+  });
+  reopened.appendMessage({
+    role: "user",
+    content: "/plan New command request",
+    timestamp: 2_000,
+  });
+  reopened.appendMessage(assistantMessage("New command answer", 2_001));
+  reopened.appendCustomMessageEntry("workbench.composer-resolution.v1", "", false, {
+    version: 1,
+    submissionId: "next-command-submission",
+    status: "completed",
+    commandTrace: [],
+  });
+
+  const branches = await getSessionEventBranches("interrupted-recognition");
+  const projectedNextUser = branches.items[0]?.events.find(({ event }) => {
+    const data = event.data as { role?: string; content?: string };
+    return (
+      event.type === "message" &&
+      data.role === "user" &&
+      data.content === "/plan New command request"
+    );
+  })?.event.data as
+    | {
+        workbenchComposer?: { submissionId?: string; sourceText?: string };
+      }
+    | undefined;
+  assert.deepEqual(projectedNextUser?.workbenchComposer, {
+    version: 1,
+    submissionId: "next-command-submission",
+    sourceText: "New command request",
+    document: [{ type: "text", text: "New command request" }],
+    hidden: true,
+  });
 });
 
 test("coalesces the initial scan and incrementally refreshes changed files", async (t) => {

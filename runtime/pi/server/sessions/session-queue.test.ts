@@ -43,7 +43,7 @@ test("projects complete text and image messages without losing full content on P
   const queue = new SessionQueueProjection({ createId: ids() });
   queue.append("followUp", {
     message: "look",
-    images: [{ type: "image", mimeType: "image/png", data: "base64-data" }],
+    images: [{ type: "image", mimeType: "image/png", data: "base64-data", name: "diagram.png" }],
   });
   queue.reconcile([], [{ message: "look" }]);
 
@@ -56,12 +56,44 @@ test("projects complete text and image messages without losing full content on P
         role: "user",
         content: [
           { type: "text", text: "look" },
-          { type: "image", mediaType: "image/png", data: "base64-data" },
+          {
+            type: "image",
+            mediaType: "image/png",
+            data: "base64-data",
+            name: "diagram.png",
+          },
         ],
         source: { kind: "user" },
       },
     },
   ]);
+});
+
+test("uses image names to reconcile otherwise identical queued prompts", () => {
+  const queue = new SessionQueueProjection({ createId: ids() });
+  const first = {
+    message: "look",
+    images: [
+      { type: "image" as const, mimeType: "image/png", data: "same-data", name: "first.png" },
+    ],
+  };
+  const second = {
+    message: "look",
+    images: [
+      { type: "image" as const, mimeType: "image/png", data: "same-data", name: "second.png" },
+    ],
+  };
+  queue.reconcile([], [first, second]);
+
+  queue.reconcile([], [second, first]);
+
+  assert.deepEqual(
+    queue.items().map((item) => [item.id, item.message.content[1]?.name]),
+    [
+      ["queue-2", "second.png"],
+      ["queue-1", "first.png"],
+    ],
+  );
 });
 
 test("uses the prompt RPC id as the stable queue id when it is available", () => {

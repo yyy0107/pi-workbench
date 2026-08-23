@@ -115,6 +115,7 @@ function harness(overrides: Partial<SessionRpcDependencies> = {}) {
       calls.push({ name: "fork", value: [sessionId, atSeq] });
       return { id: "session-forked" };
     },
+    getSessionEventBranches: async () => ({ headLeafId: null, items: [] }),
     getSessionEvents: async () => [],
     getSessionHistory: async () => history(),
     listModels: async () => ({
@@ -124,6 +125,12 @@ function harness(overrides: Partial<SessionRpcDependencies> = {}) {
     renameSession: async (sessionId, title) => {
       calls.push({ name: "rename", value: [sessionId, title] });
       return 7;
+    },
+    regenerateSession: async (sessionId, messageId) => {
+      calls.push({ name: "regenerate", value: [sessionId, messageId] });
+    },
+    selectSessionBranch: async (sessionId, leafId) => {
+      calls.push({ name: "select-branch", value: [sessionId, leafId] });
     },
     submitPrompt: async (sessionId, mode, prompt, provenance) => {
       calls.push({ name: "submit-prompt", value: [sessionId, mode, prompt, provenance] });
@@ -428,6 +435,33 @@ test("projects paginated history and returns projections only on the tail page",
   });
 });
 
+test("projects branch history and forwards branch mutations", async () => {
+  const events = canonicalEvents(2);
+  const branch = {
+    headLeafId: "leaf-2",
+    items: [{ leafId: "leaf-2", events: events.map((event) => ({ event })) }],
+  };
+  const branchHarness = harness({
+    getSessionEvents: async () => events,
+    getSessionEventBranches: async () => branch,
+  });
+
+  const historyValue = await branchHarness.service.history({ sessionId: "session-1" });
+  assert.deepEqual(historyValue.branches, branch);
+  assert.deepEqual(
+    await branchHarness.service.regenerate({ sessionId: "session-1", messageId: "message-1" }),
+    { accepted: true },
+  );
+  assert.deepEqual(
+    await branchHarness.service.selectBranch({ sessionId: "session-1", leafId: "leaf-1" }),
+    { selected: true },
+  );
+  assert.deepEqual(branchHarness.calls.slice(-2), [
+    { name: "regenerate", value: ["session-1", "message-1"] },
+    { name: "select-branch", value: ["session-1", "leaf-1"] },
+  ]);
+});
+
 test("paginates long streamed events by whole message groups", async () => {
   const events: SessionEvent[] = [
     { type: "turn_start", seq: 0, time: 1, data: { turnIndex: 0 } },
@@ -553,7 +587,7 @@ test("renames, prompts, queues, and cancels supported session operations", async
     "followUp",
     {
       message: "hello",
-      images: [{ type: "image", data: PNG_BASE64, mimeType: "image/png" }],
+      images: [{ type: "image", data: PNG_BASE64, mimeType: "image/png", name: "screen.png" }],
     },
     { rpcId: "rpc-prompt", clientTimeZone: "America/Los_Angeles" },
   ]);
@@ -799,7 +833,7 @@ test("reports the document-defined attachment error", async () => {
     (error: unknown) => {
       assert.ok(error instanceof SessionRpcServiceError);
       assert.equal(error.code, "attachment-error");
-      assert.equal(typeof error.details.reason, "string");
+      assert.equal(error.details.reason, "PERSISTED_ATTACHMENT_UNAVAILABLE");
       return true;
     },
   );

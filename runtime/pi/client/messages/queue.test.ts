@@ -4,6 +4,8 @@ import test from "node:test";
 
 import type { AppendMessage } from "@assistant-ui/react";
 
+import { appendWorkspaceFeedbackContext } from "@/services/workspace-feedback-service";
+
 import type { QueueItem } from "../../stream-contracts";
 
 const moduleHooks = registerHooks({
@@ -36,6 +38,16 @@ function message(text: string): AppendMessage {
   };
 }
 
+function imageMessage(text: string, filename: string): AppendMessage {
+  return {
+    ...message(text),
+    content: [
+      { type: "text", text },
+      { type: "file", data: "payload", mimeType: "image/png", filename },
+    ],
+  };
+}
+
 function queued(id: string, text: string, placement: QueueItem["placement"] = "queued"): QueueItem {
   return {
     id,
@@ -44,6 +56,22 @@ function queued(id: string, text: string, placement: QueueItem["placement"] = "q
       id,
       role: "user",
       content: [{ type: "text", text }],
+      source: { kind: "user" },
+    },
+  };
+}
+
+function queuedImage(id: string, text: string, name: string): QueueItem {
+  return {
+    id,
+    placement: "queued",
+    message: {
+      id,
+      role: "user",
+      content: [
+        { type: "text", text },
+        { type: "image", mediaType: "image/png", data: "payload", name },
+      ],
       source: { kind: "user" },
     },
   };
@@ -101,6 +129,41 @@ test("publishes a follow-up immediately and lets the authoritative snapshot adop
   );
 });
 
+test("preserves an image filename in the optimistic queue item and submitted prompt", async () => {
+  const { queue, calls } = harness();
+
+  queue.adapter.enqueue(imageMessage("look", "optimistic.png"));
+
+  assert.deepEqual(queue.adapter.items[0]?.parts, [
+    { type: "text", text: "look" },
+    {
+      type: "file",
+      data: "payload",
+      mimeType: "image/png",
+      filename: "optimistic.png",
+    },
+  ]);
+  await flush();
+  assert.deepEqual(calls, [
+    [
+      "enqueue",
+      "followUp",
+      {
+        message: "look",
+        images: [
+          {
+            type: "image",
+            data: "payload",
+            mimeType: "image/png",
+            name: "optimistic.png",
+          },
+        ],
+      },
+      "client-queue-1",
+    ],
+  ]);
+});
+
 test("reorders follow-ups optimistically and keeps the order across an older snapshot", async () => {
   const { queue, calls } = harness();
   queue.replaceAuthoritative([
@@ -133,6 +196,82 @@ test("reorders follow-ups optimistically and keeps the order across an older sna
     queue.adapter.items.map((item) => item.id),
     ["queue-3", "queue-1", "queue-2"],
   );
+});
+
+test("preserves image names when reconstructing paused and reordered prompts", async () => {
+  const { queue, calls } = harness();
+  queue.replaceAuthoritative([
+    queuedImage("queue-1", "one", "one.png"),
+    queuedImage("queue-2", "two", "two.png"),
+  ]);
+
+  queue.setPaused(true);
+  await flush();
+  assert.deepEqual(calls, [
+    [
+      "paused",
+      true,
+      [],
+      [
+        {
+          message: "one",
+          images: [
+            {
+              type: "image",
+              data: "payload",
+              mimeType: "image/png",
+              name: "one.png",
+            },
+          ],
+        },
+        {
+          message: "two",
+          images: [
+            {
+              type: "image",
+              data: "payload",
+              mimeType: "image/png",
+              name: "two.png",
+            },
+          ],
+        },
+      ],
+    ],
+  ]);
+
+  calls.length = 0;
+  queue.adapter.move("queue-2", { insertBefore: "queue-1" });
+  await flush();
+  assert.deepEqual(calls, [
+    [
+      "replace",
+      [],
+      [
+        {
+          message: "two",
+          images: [
+            {
+              type: "image",
+              data: "payload",
+              mimeType: "image/png",
+              name: "two.png",
+            },
+          ],
+        },
+        {
+          message: "one",
+          images: [
+            {
+              type: "image",
+              data: "payload",
+              mimeType: "image/png",
+              name: "one.png",
+            },
+          ],
+        },
+      ],
+    ],
+  ]);
 });
 
 test("rolls an optimistic follow-up reorder back when queue replacement fails", async (t) => {
@@ -221,6 +360,7 @@ test("keeps an optimistic follow-up across stale snapshots and rolls it back on 
     console.error = originalConsoleError;
   });
   let rejectRequest: ((error: Error) => void) | undefined;
+  const rejectedMessages: AppendMessage[] = [];
   const queue = new PiMessageQueue({
     isRunning: () => true,
     run: async () => {},
@@ -232,6 +372,7 @@ test("keeps an optimistic follow-up across stale snapshots and rolls it back on 
     update: async () => {},
     replace: async () => {},
     setPaused: async () => {},
+    onEnqueueRejected: (rejectedMessage) => rejectedMessages.push(rejectedMessage),
     onSteerRejected: () => {},
     onChange: () => {},
   });
@@ -247,6 +388,8 @@ test("keeps an optimistic follow-up across stale snapshots and rolls it back on 
   rejectRequest?.(new Error("queue rejected"));
   await flush();
   assert.deepEqual(queue.adapter.items, []);
+  assert.equal(rejectedMessages.length, 1);
+  assert.equal(rejectedMessages[0]?.content.find((part) => part.type === "text")?.text, "later");
 });
 
 test("removes the optimistic queue row when admission starts it as the next turn", async () => {
@@ -293,6 +436,60 @@ test("edits, removes, and steers using the stable host item id", async () => {
   assert.deepEqual(calls, [
     ["update", "queue-2", { kind: "remove" }],
     ["update", "queue-1", { kind: "edit", content: [{ type: "text", text: "edited" }] }],
+  ]);
+});
+
+test("shows visible feedback text while preserving the original envelope on edit", async () => {
+  const { queue, calls } = harness();
+  const original = appendWorkspaceFeedbackContext("Original visible text", [
+    {
+      id: "feedback-1",
+      kind: "diff-line",
+      target: { path: "src/app.ts", line: 42 },
+      text: "Keep this context.",
+    },
+  ]);
+  queue.replaceAuthoritative([queued("queue-feedback", original)]);
+
+  const draft = queue.beginEdit("queue-feedback");
+  assert.equal(draft?.prompt, "Original visible text");
+  assert.deepEqual(draft?.parts, [{ type: "text", text: "Original visible text" }]);
+
+  queue.adapter.enqueue(message("Edited visible text"));
+  await flush();
+
+  assert.deepEqual(calls, [
+    [
+      "update",
+      "queue-feedback",
+      {
+        kind: "edit",
+        content: [
+          {
+            type: "text",
+            text: original.replace("Original visible text", "Edited visible text"),
+          },
+        ],
+      },
+    ],
+  ]);
+});
+
+test("edits an ordinary queue item without adding a feedback envelope", async () => {
+  const { queue, calls } = harness();
+  queue.replaceAuthoritative([queued("queue-plain", "Original plain text")]);
+
+  const draft = queue.beginEdit("queue-plain");
+  assert.equal(draft?.prompt, "Original plain text");
+  queue.adapter.enqueue(message("Edited plain text"));
+  await flush();
+
+  assert.deepEqual(calls, [
+    [
+      "update",
+      "queue-plain",
+      { kind: "edit", content: [{ type: "text", text: "Edited plain text" }] },
+    ],
   ]);
 });
 
@@ -465,7 +662,7 @@ test("maps queued and steering content while leaving context outside the compose
       message: {
         id: "image",
         role: "user",
-        content: [{ type: "image", mediaType: "image/png", data: "payload" }],
+        content: [{ type: "image", mediaType: "image/png", data: "payload", name: "queued.png" }],
         source: { kind: "user" },
       },
     },
@@ -483,6 +680,6 @@ test("maps queued and steering content while leaving context outside the compose
     [["steering", "now"]],
   );
   assert.deepEqual(queue.adapter.items[1]?.parts, [
-    { type: "file", data: "payload", mimeType: "image/png" },
+    { type: "file", data: "payload", mimeType: "image/png", filename: "queued.png" },
   ]);
 });

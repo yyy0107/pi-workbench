@@ -1,0 +1,192 @@
+import {
+  IMAGE_RECOGNITION_METHODS as SHARED_IMAGE_RECOGNITION_METHODS,
+  IMAGE_RECOGNITION_STAGES as SHARED_IMAGE_RECOGNITION_STAGES,
+  IMAGE_RECOGNITION_TERMINAL_STATUSES,
+  WORKBENCH_IMAGE_RECOGNITION_DATA_NAME,
+  parseImageRecognitionSnapshot,
+  type ImageRecognitionMethod as SharedImageRecognitionMethod,
+  type ImageRecognitionSnapshot,
+  type ImageRecognitionStage as SharedImageRecognitionStage,
+  type ImageRecognitionStatus as SharedImageRecognitionStatus,
+} from "@/runtime/image-understanding/state-machine";
+
+export const IMAGE_RECOGNITION_DATA_PART_NAME = WORKBENCH_IMAGE_RECOGNITION_DATA_NAME;
+
+export const IMAGE_RECOGNITION_STATUSES = [
+  "pending",
+  "running",
+  ...IMAGE_RECOGNITION_TERMINAL_STATUSES,
+] as const;
+
+export const IMAGE_RECOGNITION_STAGES = SHARED_IMAGE_RECOGNITION_STAGES;
+export const IMAGE_RECOGNITION_METHODS = SHARED_IMAGE_RECOGNITION_METHODS;
+
+export type ImageRecognitionStatus = SharedImageRecognitionStatus;
+export type ImageRecognitionStage = SharedImageRecognitionStage;
+export type ImageRecognitionMethod = SharedImageRecognitionMethod;
+
+/**
+ * The version-one transport shape emitted as a named assistant-ui data part.
+ * The renderer deliberately keeps operation identifiers and timestamps out of
+ * its presentation model so they can never become accidental user-facing text.
+ */
+export type ImageRecognitionDataPartV1 = ImageRecognitionSnapshot;
+
+export type ImageRecognitionErrorKind =
+  | "authentication"
+  | "configuration"
+  | "rateLimited"
+  | "timeout"
+  | "network"
+  | "serviceUnavailable"
+  | "unsupportedImage"
+  | "invalidResponse"
+  | "generic";
+
+export type ImageRecognitionSkipKind = "native" | "disabled" | "notNeeded" | "generic";
+
+export interface ImageRecognitionPresentationState {
+  readonly status: ImageRecognitionStatus;
+  readonly stage?: ImageRecognitionStage;
+  readonly method: ImageRecognitionMethod;
+  readonly providerId?: string;
+  readonly imageCount: number;
+  readonly completedCount: number;
+  /** Normalized finite progress in the inclusive range 0..1. */
+  readonly progress: number;
+  readonly errorKind?: ImageRecognitionErrorKind;
+  readonly skipKind?: ImageRecognitionSkipKind;
+}
+
+export interface ImageRecognitionLiveRegion {
+  readonly role: "alert" | "status";
+  readonly live: "assertive" | "polite";
+}
+
+const SAFE_IDENTIFIER = /^[a-z0-9][a-z0-9._-]{0,127}$/iu;
+
+function safeIdentifier(value: unknown): string | undefined {
+  return typeof value === "string" && SAFE_IDENTIFIER.test(value) ? value : undefined;
+}
+
+export function imageRecognitionLiveRegion(
+  status: ImageRecognitionStatus,
+): ImageRecognitionLiveRegion {
+  return status === "failed"
+    ? { role: "alert", live: "assertive" }
+    : { role: "status", live: "polite" };
+}
+
+export function imageRecognitionErrorKind(errorCode: unknown): ImageRecognitionErrorKind {
+  const normalized = safeIdentifier(errorCode)?.toLowerCase();
+  switch (normalized) {
+    case "auth":
+    case "auth-failed":
+    case "authentication-failed":
+    case "credential-missing":
+    case "invalid-credential":
+    case "invalid-credentials":
+    case "provider-authentication-failed":
+    case "unauthorized":
+      return "authentication";
+    case "config-invalid":
+    case "configuration-invalid":
+    case "image-settings-conflict":
+    case "image-settings-invalid":
+    case "image-settings-io":
+    case "invalid-config":
+    case "preprocessor-not-configured":
+    case "provider-not-configured":
+    case "recognition-disabled":
+      return "configuration";
+    case "rate-limit":
+    case "rate-limited":
+    case "provider-rate-limited":
+    case "too-many-requests":
+      return "rateLimited";
+    case "deadline-exceeded":
+    case "poll-timeout":
+    case "provider-poll-timeout":
+    case "provider-timeout":
+    case "timeout":
+      return "timeout";
+    case "connection-failed":
+    case "network":
+    case "network-error":
+    case "provider-network-error":
+      return "network";
+    case "provider-unavailable":
+    case "recognition-interrupted":
+    case "service-unavailable":
+      return "serviceUnavailable";
+    case "invalid-image":
+    case "native-model-required":
+    case "provider-invalid-input":
+    case "unsupported-image":
+    case "unsupported-media-type":
+      return "unsupportedImage";
+    case "invalid-response":
+    case "malformed-response":
+    case "provider-invalid-response":
+    case "provider-response-too-large":
+      return "invalidResponse";
+    default:
+      return "generic";
+  }
+}
+
+export function imageRecognitionSkipKind(
+  method: ImageRecognitionMethod,
+  errorCode: unknown,
+  skipReason: unknown,
+): ImageRecognitionSkipKind {
+  if (method === "native") return "native";
+
+  const normalized = (safeIdentifier(skipReason) ?? safeIdentifier(errorCode))?.toLowerCase();
+  switch (normalized) {
+    case "disabled":
+    case "recognition-disabled":
+      return "disabled";
+    case "native":
+    case "native-vision":
+      return "native";
+    case "already-supported":
+    case "not-needed":
+    case "not-required":
+      return "notNeeded";
+    default:
+      return "generic";
+  }
+}
+
+/**
+ * Safely narrows untrusted data-part payloads through the shared FSM parser,
+ * then projects only the non-sensitive fields used by the renderer. Payloads
+ * containing unknown fields such as OCR text, endpoint, API keys, request
+ * bodies, or base64 image data are rejected instead of rendered.
+ */
+export function parseImageRecognitionPresentation(
+  value: unknown,
+): ImageRecognitionPresentationState | undefined {
+  const snapshot = parseImageRecognitionSnapshot(value);
+  if (!snapshot) return undefined;
+
+  const providerId = safeIdentifier(snapshot.providerId);
+  const progress = snapshot.progress ?? snapshot.completedCount / snapshot.imageCount;
+
+  return {
+    status: snapshot.status,
+    ...(snapshot.status === "running" ? { stage: snapshot.stage } : {}),
+    method: snapshot.method,
+    ...(providerId ? { providerId } : {}),
+    imageCount: snapshot.imageCount,
+    completedCount: snapshot.completedCount,
+    progress,
+    ...(snapshot.status === "failed"
+      ? { errorKind: imageRecognitionErrorKind(snapshot.errorCode) }
+      : {}),
+    ...(snapshot.status === "skipped"
+      ? { skipKind: imageRecognitionSkipKind(snapshot.method, undefined, undefined) }
+      : {}),
+  };
+}

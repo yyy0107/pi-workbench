@@ -1,7 +1,6 @@
-import { createHash, randomUUID } from "node:crypto";
-import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { readFile, rm } from "node:fs/promises";
 import path from "node:path";
-import { setTimeout as delay } from "node:timers/promises";
 
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
 
@@ -15,6 +14,7 @@ import {
   type PiCompactionSettingsValue,
   type SettingsDescribeValue,
 } from "../../rpc-contracts";
+import { atomicReplaceFile, withCrossProcessFileLock } from "../core/file-persistence";
 
 type JsonObject = Record<string, unknown>;
 
@@ -92,9 +92,6 @@ const AGENT_SETTINGS_SCHEMA = Object.freeze({
   },
 });
 
-const LOCK_WAIT_MS = 10_000;
-const LOCK_STALE_MS = 30_000;
-
 function isObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -158,7 +155,6 @@ export class AgentSettingsService {
   readonly agentDir: string;
   readonly settingsFile: string;
   readonly systemPromptFile: string;
-  private queue: Promise<void> = Promise.resolve();
 
   constructor(options: AgentSettingsServiceOptions = {}) {
     this.agentDir = options.agentDir ?? getAgentDir();
@@ -212,54 +208,18 @@ export class AgentSettingsService {
   }
 
   private async writeOptional(file: string, content: string | undefined): Promise<void> {
-    await mkdir(path.dirname(file), { recursive: true });
     if (content === undefined) {
       await rm(file, { force: true });
       return;
     }
-    const temporary = `${file}.${process.pid}.${randomUUID()}.tmp`;
-    try {
-      await writeFile(temporary, content, { encoding: "utf8", mode: 0o600 });
-      await rename(temporary, file);
-    } finally {
-      await rm(temporary, { force: true });
-    }
+    await atomicReplaceFile(file, content);
   }
 
   private async withLock<T>(operation: () => Promise<T>): Promise<T> {
-    let releaseQueue!: () => void;
-    const previous = this.queue;
-    this.queue = new Promise<void>((resolve) => {
-      releaseQueue = resolve;
-    });
-    await previous;
-
-    const lockDirectory = path.join(this.agentDir, ".workbench-agent-settings-lock");
-    const deadline = Date.now() + LOCK_WAIT_MS;
-    let acquired = false;
-    try {
-      await mkdir(this.agentDir, { recursive: true });
-      for (;;) {
-        try {
-          await mkdir(lockDirectory);
-          acquired = true;
-          break;
-        } catch (error) {
-          if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-          const lockStat = await stat(lockDirectory).catch(() => undefined);
-          if (lockStat && Date.now() - lockStat.mtimeMs > LOCK_STALE_MS) {
-            await rm(lockDirectory, { recursive: true, force: true });
-            continue;
-          }
-          if (Date.now() >= deadline) throw new Error("Timed out waiting for agent settings lock.");
-          await delay(25);
-        }
-      }
-      return await operation();
-    } finally {
-      if (acquired) await rm(lockDirectory, { recursive: true, force: true });
-      releaseQueue();
-    }
+    return withCrossProcessFileLock(
+      { lockDirectory: path.join(this.agentDir, ".workbench-agent-settings-lock") },
+      operation,
+    );
   }
 
   async describe(): Promise<SettingsDescribeValue> {

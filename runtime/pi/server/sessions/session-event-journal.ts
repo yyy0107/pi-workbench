@@ -6,6 +6,7 @@ export const SESSION_EVENT_JOURNAL_CUSTOM_TYPE = "workbench.session-event-journa
 const JOURNAL_VERSION = 1;
 
 interface SessionJournalEntry {
+  id?: string;
   type: string;
   customType?: string;
   data?: unknown;
@@ -94,7 +95,9 @@ function hasJournalMarker(entries: readonly SessionJournalEntry[]): boolean {
 }
 
 function sameEvent(left: SessionEvent, right: SessionEvent): boolean {
-  return JSON.stringify(left) === JSON.stringify(right);
+  const { entryId: _leftEntryId, ...leftEvent } = left;
+  const { entryId: _rightEntryId, ...rightEvent } = right;
+  return JSON.stringify(leftEvent) === JSON.stringify(rightEvent);
 }
 
 export function createCanonicalSessionEvent(
@@ -122,7 +125,7 @@ export function readSessionEventJournal(store: SessionEventJournalStore): Sessio
     const event = storedEvent(entry.data);
     // A corrupt, duplicate, or interrupted entry must not shift later sequence numbers.
     if (!event || event.seq !== events.length) continue;
-    events.push(event);
+    events.push(entry.id ? { ...event, entryId: entry.id } : event);
   }
   return events;
 }
@@ -132,9 +135,10 @@ export function appendSessionEventJournal(
   event: SessionEvent,
 ): SessionEvent {
   const normalized = normalizeSessionEvent(event);
-  const data: StoredSessionEvent = { version: JOURNAL_VERSION, event: normalized };
-  store.appendCustomEntry(SESSION_EVENT_CUSTOM_TYPE, data);
-  return normalized;
+  const { entryId: _entryId, ...persistedEvent } = normalized;
+  const data: StoredSessionEvent = { version: JOURNAL_VERSION, event: persistedEvent };
+  const entryId = store.appendCustomEntry(SESSION_EVENT_CUSTOM_TYPE, data);
+  return { ...normalized, entryId };
 }
 
 /**
@@ -165,8 +169,7 @@ export function initializeSessionEventJournal(
   for (let index = migrationStart; index < normalizedLegacy.length; index += 1) {
     const event = normalizeSessionEvent(normalizedLegacy[index], events.length);
     try {
-      appendSessionEventJournal(store, event);
-      events.push(event);
+      events.push(appendSessionEventJournal(store, event));
     } catch (error) {
       return { events, error };
     }

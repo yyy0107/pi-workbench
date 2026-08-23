@@ -1,9 +1,10 @@
 import type {
-  WorkbenchComposerCommandArgsBinding,
-  WorkbenchComposerCommandArgsSchema,
-  WorkbenchComposerCommandEffect,
-  WorkbenchComposerSubmission,
-} from "../composer-request";
+  ComposerCommandArgsBinding as WorkbenchComposerCommandArgsBinding,
+  ComposerCommandArgsSchema as WorkbenchComposerCommandArgsSchema,
+  ComposerCommandEffect as WorkbenchComposerCommandEffect,
+  ComposerSubmission as WorkbenchComposerSubmission,
+} from "../../contracts/composer";
+import type { InlineImageMediaType } from "./attachment-contracts";
 
 export type RpcIssuePathSegment = string | number;
 
@@ -198,6 +199,8 @@ export interface WorkspaceFileWritePayload extends WorkspaceFileReadPayload {
 }
 
 export interface HostDescription {
+  /** Stable product identity for native shells and protocol clients. */
+  product?: "pi-workbench";
   version: string;
   piVersion: string;
   cwd: string;
@@ -223,6 +226,7 @@ export interface ModelCatalogModel {
   id: string;
   name: string;
   description?: string;
+  input?: Array<"text" | "image">;
   reasoning?: {
     efforts: ModelReasoningEffort[];
     defaultEffort?: string;
@@ -337,6 +341,7 @@ export interface ModelProviderModelConfiguration {
   name?: string;
   contextWindow?: number;
   maxTokens?: number;
+  input?: Array<"text" | "image">;
 }
 
 export interface ModelProviderConfiguration {
@@ -397,6 +402,7 @@ export interface DiscoveredModel {
   name?: string;
   contextWindow?: number;
   maxTokens?: number;
+  input?: Array<"text" | "image">;
 }
 
 export interface DiscoverModelsValue {
@@ -452,6 +458,66 @@ export interface SettingsDescribeValue {
 
 export interface SettingsOpenDocumentValue {
   opened: true;
+}
+
+export type ImageUnderstandingRouting = "auto" | "always-preprocess" | "native-only" | "disabled";
+export type ImageUnderstandingEngine = "ocr" | "multimodal";
+export type ImageUnderstandingOcrProvider = "glm-ocr" | "paddleocr";
+
+export interface ImageUnderstandingSettingsValue {
+  routing: ImageUnderstandingRouting;
+  engine: ImageUnderstandingEngine;
+  ocrProvider: ImageUnderstandingOcrProvider;
+  glm: {
+    endpoint: string;
+    model: string;
+    credentialConfigured: boolean;
+  };
+  paddle: {
+    endpoint: string;
+    model: string;
+    credentialConfigured: boolean;
+    pollIntervalMs: number;
+    pollTimeoutMs: number;
+  };
+  multimodal: {
+    provider: string;
+    model: string;
+  };
+}
+
+export interface ImageUnderstandingDescribeValue {
+  revision: number;
+  value: ImageUnderstandingSettingsValue;
+}
+
+export interface ImageUnderstandingSettingsPatch {
+  routing?: ImageUnderstandingRouting;
+  engine?: ImageUnderstandingEngine;
+  ocrProvider?: ImageUnderstandingOcrProvider;
+  glm?: {
+    endpoint?: string;
+    model?: string;
+    /** Omit or use an empty string to retain the current secret; null removes it. */
+    apiKey?: string | null;
+  };
+  paddle?: {
+    endpoint?: string;
+    model?: string;
+    /** Omit or use an empty string to retain the current secret; null removes it. */
+    apiKey?: string | null;
+    pollIntervalMs?: number;
+    pollTimeoutMs?: number;
+  };
+  multimodal?: {
+    provider?: string;
+    model?: string;
+  };
+}
+
+export interface ImageUnderstandingUpdatePayload {
+  patch: ImageUnderstandingSettingsPatch;
+  expectedRevision?: number;
 }
 
 export interface PiAgentSettingsPatch {
@@ -602,6 +668,8 @@ export interface SessionEvent {
   seq: number;
   time: number;
   data: unknown;
+  /** Stable Pi journal entry id. Unlike `seq`, this remains unique across branches. */
+  entryId?: string;
   sourceEventSeqs?: number[];
   surfaceOp?: unknown;
   ignorable?: true;
@@ -622,6 +690,37 @@ export interface SessionHistoryValue {
   events: Array<{ event: SessionEvent; view?: ToolEventView }>;
   hasMore: boolean;
   projections?: SessionProjections;
+  branches?: SessionHistoryBranches;
+}
+
+export interface SessionHistoryBranch {
+  /** Pi leaf that can be selected to make this branch active. */
+  leafId: string;
+  events: Array<{ event: SessionEvent; view?: ToolEventView }>;
+}
+
+export interface SessionHistoryBranches {
+  headLeafId: string | null;
+  items: SessionHistoryBranch[];
+}
+
+export interface SessionRegeneratePayload {
+  sessionId: string;
+  /** Stable journal entry id of the user message to regenerate from. */
+  messageId: string;
+}
+
+export interface SessionRegenerateValue {
+  accepted: true;
+}
+
+export interface SessionSelectBranchPayload {
+  sessionId: string;
+  leafId: string;
+}
+
+export interface SessionSelectBranchValue {
+  selected: true;
 }
 
 export interface SessionModelsPayload {
@@ -677,7 +776,7 @@ export type SessionPromptContent =
   | { type: "text"; text: string }
   | {
       type: "image";
-      mediaType: "image/png" | "image/jpeg" | "image/webp" | "image/gif";
+      mediaType: InlineImageMediaType;
       data: string;
       name?: string;
     };
@@ -705,7 +804,7 @@ export interface SessionAttachmentPayload {
 export interface SessionAttachmentValue {
   attachment: {
     attachmentId: string;
-    mediaType: "image/png" | "image/jpeg" | "image/webp" | "image/gif";
+    mediaType: InlineImageMediaType;
     bytes: number;
     width: number;
     height: number;

@@ -10,6 +10,7 @@ import {
   type PiSessionSummary,
   type PiThinkingLevel,
 } from "../../contracts";
+import type { SessionAttachmentErrorReason } from "../../attachment-contracts";
 import type {
   ModelCatalogFailure,
   ModelProviderGroup,
@@ -35,12 +36,16 @@ import type {
   SessionPromptContent,
   SessionPromptPayload,
   SessionPromptValue,
+  SessionRegeneratePayload,
+  SessionRegenerateValue,
   SessionRenamePayload,
   SessionRenameValue,
   SessionSearchPayload,
   SessionSearchValue,
   SessionSelectModelPayload,
   SessionSelectModelValue,
+  SessionSelectBranchPayload,
+  SessionSelectBranchValue,
   SessionUpdateQueuePayload,
   SessionUpdateQueueValue,
   WorkspaceView,
@@ -56,16 +61,20 @@ import {
   createSession,
   deleteSession,
   forkSession,
+  getSessionEventBranches,
   getSessionEvents,
   getSessionHistory,
   listModels,
   listSessions,
   type PromptSubmissionResult,
   renameSession,
+  regenerateSession,
+  selectSessionBranch,
   selectSessionModel,
   submitPrompt,
   updatePromptQueueItem,
 } from "./session-registry";
+import { admitInlineImages, InlineImageAdmissionError } from "./inline-image-admission";
 import { workspaceFromCwd } from "../workspaces/workspace-paths";
 
 export type SessionListInput = SessionListPayload;
@@ -78,6 +87,8 @@ export type SessionSelectModelInput = SessionSelectModelPayload;
 export type SessionRenameInput = SessionRenamePayload;
 export type SessionForkInput = SessionForkPayload;
 export type SessionPromptInput = SessionPromptPayload;
+export type SessionRegenerateInput = SessionRegeneratePayload;
+export type SessionSelectBranchInput = SessionSelectBranchPayload;
 export type SessionAttachmentInput = SessionAttachmentPayload;
 export type SessionUpdateQueueInput = SessionUpdateQueuePayload;
 export type SessionCancelInput = SessionCancelPayload;
@@ -94,9 +105,11 @@ export type {
   SessionModelsValue,
   SessionPromptContent,
   SessionPromptValue,
+  SessionRegenerateValue,
   SessionRenameValue,
   SessionSearchValue,
   SessionSelectModelValue,
+  SessionSelectBranchValue,
   SessionUpdateQueueValue,
 } from "../../rpc-contracts";
 
@@ -111,12 +124,13 @@ export interface SessionRpcServiceErrorDetails {
   "workspace-invalid-path": { path: string };
   "agent-preset-invalid": { agentPreset: string; reason: string };
   "agent-busy": { reason: string };
-  "attachment-error": { reason: string };
+  "attachment-error": { reason: SessionAttachmentErrorReason };
   "queue-item-not-found": { itemId: string };
   "steer-unavailable": { itemId: string };
   "command-error": Record<string, never>;
   "title-invalid": { sessionId: string };
   "fork-unavailable": { sessionId: string };
+  "branch-not-found": { sessionId: string };
   internal: Record<string, never>;
 }
 
@@ -173,10 +187,13 @@ export interface SessionRpcDependencies {
   createSession(input: SessionEngineCreateInput): Promise<SessionEngineCreateResult>;
   deleteSession(sessionId: string): Promise<void>;
   forkSession(sessionId: string, atSeq?: number): Promise<{ id: string }>;
+  getSessionEventBranches(sessionId: string): Promise<SessionHistoryValue["branches"]>;
   getSessionEvents(sessionId: string): Promise<SessionEvent[]>;
   getSessionHistory(sessionId: string): Promise<PiSessionHistory>;
   listModels(cwd: string): Promise<PiModelListResponse>;
   renameSession(sessionId: string, title: string): Promise<number | void>;
+  regenerateSession(sessionId: string, messageId: string): Promise<void>;
+  selectSessionBranch(sessionId: string, leafId: string): Promise<void>;
   submitPrompt(
     sessionId: string,
     mode: "steer" | "followUp",
@@ -218,10 +235,6 @@ const MAX_SEARCH_RESULTS = 20;
 const MAX_SEARCH_SNIPPET_CODE_POINTS = 240;
 const WORKBENCH_SESSION_SUMMARY_PROJECTION = "workbench.piSessionSummary";
 const DEFAULT_HISTORY_MESSAGES = 50;
-const MAX_INLINE_IMAGE_COUNT = 20;
-const MAX_INLINE_IMAGE_BYTES = 20 * 1024 * 1024;
-const MAX_INLINE_IMAGES_TOTAL_BYTES = 100 * 1024 * 1024;
-const STRICT_BASE64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 
 function issue(path: Array<string | number>, message: string, code = "custom"): RpcIssue {
   return { code, path, message };
@@ -232,85 +245,23 @@ function badRequest(issues: RpcIssue[]): SessionRpcServiceError<"bad-request"> {
 }
 
 function attachmentError(
-  reason: string,
+  reason: SessionAttachmentErrorReason,
   message: string,
 ): SessionRpcServiceError<"attachment-error"> {
   return new SessionRpcServiceError("attachment-error", message, { reason });
 }
 
-function detectedImageMediaType(bytes: Uint8Array): PiImageContent["mimeType"] | undefined {
-  if (
-    bytes.length >= 8 &&
-    bytes[0] === 0x89 &&
-    bytes[1] === 0x50 &&
-    bytes[2] === 0x4e &&
-    bytes[3] === 0x47 &&
-    bytes[4] === 0x0d &&
-    bytes[5] === 0x0a &&
-    bytes[6] === 0x1a &&
-    bytes[7] === 0x0a
-  ) {
-    return "image/png";
-  }
-  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
-    return "image/jpeg";
-  }
-  if (bytes.length >= 6) {
-    const gifHeader = String.fromCharCode(...bytes.subarray(0, 6));
-    if (gifHeader === "GIF87a" || gifHeader === "GIF89a") return "image/gif";
-  }
-  if (
-    bytes.length >= 12 &&
-    String.fromCharCode(...bytes.subarray(0, 4)) === "RIFF" &&
-    String.fromCharCode(...bytes.subarray(8, 12)) === "WEBP"
-  ) {
-    return "image/webp";
-  }
-  return undefined;
-}
-
-function admitInlineImages(
+function admitSessionInlineImages(
   parts: readonly Extract<SessionPromptContent, { type: "image" }>[],
 ): PiImageContent[] {
-  if (parts.length > MAX_INLINE_IMAGE_COUNT) {
-    throw attachmentError("TOO_MANY_INLINE_IMAGES", "The prompt contains too many inline images.");
+  try {
+    return admitInlineImages(parts);
+  } catch (error) {
+    if (error instanceof InlineImageAdmissionError) {
+      throw attachmentError(error.reason, error.message);
+    }
+    throw error;
   }
-  let totalBytes = 0;
-  return parts.map((part) => {
-    if (!part.data || !STRICT_BASE64.test(part.data)) {
-      throw attachmentError("INVALID_IMAGE_BASE64", "An inline image is not canonical base64.");
-    }
-    const padding = part.data.endsWith("==") ? 2 : part.data.endsWith("=") ? 1 : 0;
-    const decodedBytes = (part.data.length / 4) * 3 - padding;
-    if (decodedBytes > MAX_INLINE_IMAGE_BYTES) {
-      throw attachmentError("INLINE_IMAGE_TOO_LARGE", "An inline image exceeds the size limit.");
-    }
-    totalBytes += decodedBytes;
-    if (totalBytes > MAX_INLINE_IMAGES_TOTAL_BYTES) {
-      throw attachmentError(
-        "INLINE_IMAGES_TOTAL_TOO_LARGE",
-        "The prompt's inline images exceed the total size limit.",
-      );
-    }
-    const bytes = Buffer.from(part.data, "base64");
-    if (bytes.length !== decodedBytes || bytes.toString("base64") !== part.data) {
-      throw attachmentError("INVALID_IMAGE_BASE64", "An inline image is not canonical base64.");
-    }
-    const detected = detectedImageMediaType(bytes);
-    if (detected === undefined) {
-      throw attachmentError(
-        "UNRECOGNIZED_IMAGE_FORMAT",
-        "An inline image does not have a supported image signature.",
-      );
-    }
-    if (detected !== part.mediaType) {
-      throw attachmentError(
-        "IMAGE_MEDIA_TYPE_MISMATCH",
-        "An inline image's media type does not match its file signature.",
-      );
-    }
-    return { type: "image", data: part.data, mimeType: part.mediaType };
-  });
 }
 
 function nonEmpty(value: string, path: string): string {
@@ -466,10 +417,13 @@ function defaultDependencies(): SessionRpcDependencies {
       const hosted = await forkSession(sessionId, atSeq);
       return { id: hosted.id };
     },
+    getSessionEventBranches,
     getSessionEvents,
     getSessionHistory,
     listModels,
     renameSession,
+    regenerateSession,
+    selectSessionBranch,
     submitPrompt,
     updateQueueItem: updatePromptQueueItem,
     cancelSession,
@@ -489,6 +443,14 @@ export class SessionRpcService {
   constructor(options: SessionRpcServiceOptions) {
     this.workspaceStore = options.workspaceStore;
     this.dependencies = { ...defaultDependencies(), ...options.dependencies };
+    if (
+      options.dependencies?.getSessionEvents &&
+      options.dependencies.getSessionEventBranches === undefined
+    ) {
+      // Tests and alternate engines that replace the linear event source remain compatible until
+      // they opt into branch discovery explicitly.
+      this.dependencies.getSessionEventBranches = async () => ({ headLeafId: null, items: [] });
+    }
     this.modelServiceFactory = options.modelServiceFactory ?? ((cwd) => new ModelService({ cwd }));
     this.defaultCwd = options.defaultCwd ?? process.cwd();
   }
@@ -553,6 +515,14 @@ export class SessionRpcService {
       throw new SessionRpcServiceError(
         "fork-unavailable",
         "The session cannot be forked at the requested protocol boundary.",
+        { sessionId: context.sessionId },
+        { cause: error },
+      );
+    }
+    if (code === "pi_branch_not_found" && context.sessionId) {
+      throw new SessionRpcServiceError(
+        "branch-not-found",
+        "The requested conversation branch does not exist.",
         { sessionId: context.sessionId },
         { cause: error },
       );
@@ -895,11 +865,42 @@ export class SessionRpcService {
       input.maxMessages ?? DEFAULT_HISTORY_MESSAGES,
     );
     const isTailPage = input.beforeSeq === undefined;
+    let branches: SessionHistoryValue["branches"];
+    if (isTailPage) {
+      try {
+        branches = await this.dependencies.getSessionEventBranches(input.sessionId);
+      } catch (error) {
+        this.translate(error, { sessionId: input.sessionId });
+      }
+    }
     return {
       events: page.events.map((event) => ({ event })),
       hasMore: page.hasMore,
       ...(isTailPage ? { projections: { asOfSeq: allEvents.at(-1)?.seq ?? -1, values: {} } } : {}),
+      ...(branches?.items.length ? { branches } : {}),
     };
+  }
+
+  async regenerate(input: SessionRegenerateInput): Promise<SessionRegenerateValue> {
+    nonEmpty(input.sessionId, "sessionId");
+    nonEmpty(input.messageId, "messageId");
+    try {
+      await this.dependencies.regenerateSession(input.sessionId, input.messageId);
+    } catch (error) {
+      this.translate(error, { sessionId: input.sessionId });
+    }
+    return { accepted: true };
+  }
+
+  async selectBranch(input: SessionSelectBranchInput): Promise<SessionSelectBranchValue> {
+    nonEmpty(input.sessionId, "sessionId");
+    nonEmpty(input.leafId, "leafId");
+    try {
+      await this.dependencies.selectSessionBranch(input.sessionId, input.leafId);
+    } catch (error) {
+      this.translate(error, { sessionId: input.sessionId });
+    }
+    return { selected: true };
   }
 
   async models(input: SessionModelsInput): Promise<SessionModelsValue> {
@@ -1086,7 +1087,7 @@ export class SessionRpcService {
       )
       .map((part) => part.text)
       .join("\n\n");
-    const images = admitInlineImages(
+    const images = admitSessionInlineImages(
       input.content.filter(
         (part): part is Extract<SessionPromptContent, { type: "image" }> => part.type === "image",
       ),
@@ -1132,7 +1133,7 @@ export class SessionRpcService {
     throw new SessionRpcServiceError(
       "attachment-error",
       "The active session engine does not expose persisted attachments by identifier.",
-      { reason: `Attachment ${input.attachmentId} cannot be retrieved by identifier.` },
+      { reason: "PERSISTED_ATTACHMENT_UNAVAILABLE" },
     );
   }
 

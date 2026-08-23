@@ -16,7 +16,7 @@ const {
 type SessionEventJournalStore = import("./session-event-journal").SessionEventJournalStore;
 
 class MemoryJournal implements SessionEventJournalStore {
-  readonly entries: Array<{ type: string; customType: string; data?: unknown }> = [];
+  readonly entries: Array<{ id?: string; type: string; customType: string; data?: unknown }> = [];
   failAfter = Number.POSITIVE_INFINITY;
 
   getBranch() {
@@ -25,8 +25,9 @@ class MemoryJournal implements SessionEventJournalStore {
 
   appendCustomEntry(customType: string, data?: unknown): string {
     if (this.entries.length >= this.failAfter) throw new Error("disk full");
-    this.entries.push({ type: "custom", customType, data: structuredClone(data) });
-    return `entry-${this.entries.length}`;
+    const id = `entry-${this.entries.length + 1}`;
+    this.entries.push({ id, type: "custom", customType, data: structuredClone(data) });
+    return id;
   }
 }
 
@@ -48,7 +49,13 @@ test("empty journals use lastSeq -1 and the first event uses seq 0", () => {
   const first = createCanonicalSessionEvent({ type: "agent_start", runId: "run-1" }, 0, 123);
   appendSessionEventJournal(store, first);
   assert.deepEqual(readSessionEventJournal(store), [
-    { type: "agent_start", seq: 0, time: 123, data: { runId: "run-1" } },
+    {
+      type: "agent_start",
+      seq: 0,
+      time: 123,
+      data: { runId: "run-1" },
+      entryId: "entry-2",
+    },
   ]);
 });
 
@@ -64,7 +71,10 @@ test("legacy migration is stable, resumable, and runs only once", () => {
     messageEvent(0, "one"),
     messageEvent(1, "two"),
   ]);
-  assert.deepEqual(migrated.events, [messageEvent(0, "one"), messageEvent(1, "two")]);
+  assert.deepEqual(migrated.events, [
+    messageEvent(0, "one"),
+    { ...messageEvent(1, "two"), entryId: "entry-2" },
+  ]);
   assert.equal(store.entries.length, 3);
 
   const reopened = initializeSessionEventJournal(store, [
@@ -90,7 +100,9 @@ test("JSON-unsafe values and journal write failures do not corrupt the committed
     messageEvent(0, "one"),
     messageEvent(1, "two"),
   ]);
-  assert.deepEqual(initialized.events, [messageEvent(0, "one")]);
+  assert.deepEqual(initialized.events, [{ ...messageEvent(0, "one"), entryId: "entry-1" }]);
   assert.match(String(initialized.error), /disk full/);
-  assert.deepEqual(readSessionEventJournal(store), [messageEvent(0, "one")]);
+  assert.deepEqual(readSessionEventJournal(store), [
+    { ...messageEvent(0, "one"), entryId: "entry-1" },
+  ]);
 });

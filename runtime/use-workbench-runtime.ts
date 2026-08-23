@@ -69,6 +69,7 @@ function useWorkbenchPiRuntime(manager: PiSessionManager) {
       piQueue: {
         ...session.runtimeExtras.piQueue,
         paused: snapshot.queuePaused,
+        rejectedDraft: snapshot.rejectedQueueDraft,
         steeringIds: snapshot.steeringQueueIds,
       },
       piRun: {
@@ -86,6 +87,7 @@ function useWorkbenchPiRuntime(manager: PiSessionManager) {
       session,
       snapshot.autoRetry,
       snapshot.queuePaused,
+      snapshot.rejectedQueueDraft,
       snapshot.runStartedAt,
       snapshot.steeringQueueIds,
     ],
@@ -99,6 +101,13 @@ function useWorkbenchPiRuntime(manager: PiSessionManager) {
 
   return useExternalStoreRuntime({
     messages: snapshot.messages,
+    messageRepository: snapshot.messageRepository,
+    // assistant-ui requires this callback to enable branch switching. The durable
+    // mutation is handled by `unstable_onBranchChange` against Pi's session tree.
+    setMessages: () => undefined,
+    unstable_onBranchChange: ({ headId }) => {
+      if (headId) session.selectBranch(headId);
+    },
     isRunning: snapshot.isRunning,
     isLoading: snapshot.isLoading,
     extras,
@@ -116,9 +125,12 @@ function useWorkbenchPiRuntime(manager: PiSessionManager) {
         const composerError = piComposerSendError(error);
         if (composerError) {
           setComposerErrorState({ session, code: composerError });
-          throw new MessageNotSentError(localized.message);
         }
-        throw localized;
+        // assistant-ui only restores the submitted text and attachments when
+        // the adapter identifies the failure as a rejected send. Transport,
+        // session, and provider failures are just as recoverable from the
+        // composer's perspective as attachment-admission failures.
+        throw new MessageNotSentError(localized.message);
       }
     },
     onCancel: async () => {

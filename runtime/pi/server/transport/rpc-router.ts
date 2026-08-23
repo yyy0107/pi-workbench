@@ -1,5 +1,6 @@
 import { VERSION as PI_VERSION } from "@earendil-works/pi-coding-agent";
 
+import { INLINE_IMAGE_MEDIA_TYPES } from "../../attachment-contracts";
 import {
   canOpenHostPath,
   createHostDirectory,
@@ -15,6 +16,8 @@ import {
   AgentSettingsService,
   AgentSettingsServiceError,
 } from "../settings/agent-settings-service";
+import { ImageUnderstandingSettingsStoreError } from "../image-understanding/settings-store";
+import { getImageUnderstandingSettingsStore } from "../image-understanding/registry";
 import { handleInteractiveResponsePost } from "../sessions/interactive-response-registry";
 import {
   getAttachedSessionCount,
@@ -105,6 +108,7 @@ const providerModelConfiguration = rpcObject({
   name: rpcOptional(rpcString()),
   contextWindow: rpcOptional(rpcInteger({ minimum: 1 })),
   maxTokens: rpcOptional(rpcInteger({ minimum: 1 })),
+  input: rpcOptional(rpcArray(rpcEnum(["text", "image"]))),
 });
 const providerConfiguration = rpcObject({
   displayName: rpcOptional(rpcString()),
@@ -158,6 +162,39 @@ const settingsUpdatePayload = rpcObject({
   patch: agentSettingsPatch,
   expectedRevision: rpcOptional(rpcInteger({ minimum: 0 })),
 });
+const imageUnderstandingCredential = rpcOptional(
+  rpcUnion([rpcString({ maxLength: 16_384 }), rpcLiteral(null)]),
+);
+const imageUnderstandingUpdatePayload = rpcObject({
+  expectedRevision: rpcOptional(rpcInteger({ minimum: 0 })),
+  patch: rpcObject({
+    routing: rpcOptional(rpcEnum(["auto", "always-preprocess", "native-only", "disabled"])),
+    engine: rpcOptional(rpcEnum(["ocr", "multimodal"])),
+    ocrProvider: rpcOptional(rpcEnum(["glm-ocr", "paddleocr"])),
+    glm: rpcOptional(
+      rpcObject({
+        endpoint: rpcOptional(rpcString({ maxLength: 2_048 })),
+        model: rpcOptional(rpcString({ maxLength: 256 })),
+        apiKey: imageUnderstandingCredential,
+      }),
+    ),
+    paddle: rpcOptional(
+      rpcObject({
+        endpoint: rpcOptional(rpcString({ maxLength: 2_048 })),
+        model: rpcOptional(rpcString({ maxLength: 256 })),
+        apiKey: imageUnderstandingCredential,
+        pollIntervalMs: rpcOptional(rpcInteger({ minimum: 100, maximum: 60_000 })),
+        pollTimeoutMs: rpcOptional(rpcInteger({ minimum: 1_000, maximum: 3_600_000 })),
+      }),
+    ),
+    multimodal: rpcOptional(
+      rpcObject({
+        provider: rpcOptional(rpcString({ maxLength: 256 })),
+        model: rpcOptional(rpcString({ maxLength: 256 })),
+      }),
+    ),
+  }),
+});
 const commandService = new CommandService();
 const modelService = new ModelService();
 const extensionService = new ExtensionService();
@@ -182,6 +219,14 @@ const sessionHistoryPayload = rpcObject({
   beforeSeq: rpcOptional(rpcInteger({ minimum: 0 })),
   maxMessages: rpcOptional(rpcInteger({ minimum: 1 })),
 });
+const sessionRegeneratePayload = rpcObject({
+  sessionId: nonEmptyString,
+  messageId: nonEmptyString,
+});
+const sessionSelectBranchPayload = rpcObject({
+  sessionId: nonEmptyString,
+  leafId: nonEmptyString,
+});
 const sessionModelPayload = rpcObject({ sessionId: nonEmptyString });
 const sessionSelectModelPayload = rpcObject({
   sessionId: nonEmptyString,
@@ -197,7 +242,7 @@ const sessionForkPayload = rpcObject({
 const promptTextContent = rpcObject({ type: rpcLiteral("text"), text: rpcString() });
 const promptImageContent = rpcObject({
   type: rpcLiteral("image"),
-  mediaType: rpcEnum(["image/png", "image/jpeg", "image/webp", "image/gif"]),
+  mediaType: rpcEnum(INLINE_IMAGE_MEDIA_TYPES),
   data: rpcString(),
   name: rpcOptional(rpcString()),
 });
@@ -242,6 +287,14 @@ const composerDocumentNode = rpcUnion([
     scope: rpcEnum(["message", "segment"]),
     source: rpcEnum(["workbench", "pi"]),
     args: rpcOptional(composerJsonValue),
+    inactive: rpcOptional(rpcLiteral(true)),
+  }),
+  rpcObject({
+    type: rpcLiteral("command-argument"),
+    id: rpcString({ minLength: 1, maxLength: 4096 }),
+    commandNodeId: rpcString({ minLength: 1, maxLength: 4096 }),
+    field: rpcString({ minLength: 1, maxLength: 2048 }),
+    text: rpcString({ maxLength: 200_000 }),
   }),
   rpcObject({
     type: rpcLiteral("mention"),
@@ -300,6 +353,19 @@ const sessionUpdateQueuePayload = rpcObject({
 });
 
 function throwDomainError(error: unknown): never {
+  if (error instanceof ImageUnderstandingSettingsStoreError) {
+    throw rpcBusinessError(
+      error.code,
+      error.message,
+      {
+        ...(error.expectedRevision === undefined
+          ? {}
+          : { expectedRevision: error.expectedRevision }),
+        ...(error.actualRevision === undefined ? {} : { actualRevision: error.actualRevision }),
+      },
+      { cause: error },
+    );
+  }
   if (
     error instanceof WorkspaceStoreError ||
     error instanceof WorkspaceFileError ||
@@ -362,6 +428,7 @@ async function setWorkspaceSessionPinned(sessionId: string, pinned: boolean) {
 async function hostDescription() {
   const models = await listModels(process.cwd()).catch(() => undefined);
   return {
+    product: "pi-workbench" as const,
     version: WORKBENCH_VERSION,
     piVersion: PI_VERSION,
     cwd: process.cwd(),
@@ -417,6 +484,30 @@ export async function handlePiRpcPost(request: Request, method: string): Promise
         handler: async (payload) => {
           try {
             return await sessionService().history(payload);
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
+      });
+    case "session.regenerate":
+      return handleRpcPost(request, {
+        method,
+        payload: sessionRegeneratePayload,
+        handler: async (payload) => {
+          try {
+            return await sessionService().regenerate(payload);
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
+      });
+    case "session.selectBranch":
+      return handleRpcPost(request, {
+        method,
+        payload: sessionSelectBranchPayload,
+        handler: async (payload) => {
+          try {
+            return await sessionService().selectBranch(payload);
           } catch (error) {
             throwDomainError(error);
           }
@@ -844,6 +935,32 @@ export async function handlePiRpcPost(request: Request, method: string): Promise
         handler: async (payload) => {
           try {
             return await agentSettingsService.update(payload);
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
+      });
+    case "imageUnderstanding.describe":
+      return handleRpcPost(request, {
+        method,
+        payload: emptyPayload,
+        loopbackOnly: true,
+        handler: async () => {
+          try {
+            return await getImageUnderstandingSettingsStore().describe();
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
+      });
+    case "imageUnderstanding.update":
+      return handleRpcPost(request, {
+        method,
+        payload: imageUnderstandingUpdatePayload,
+        loopbackOnly: true,
+        handler: async (payload) => {
+          try {
+            return await getImageUnderstandingSettingsStore().update(payload);
           } catch (error) {
             throwDomainError(error);
           }

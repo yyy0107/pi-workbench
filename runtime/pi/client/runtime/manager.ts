@@ -1,9 +1,11 @@
 import type {
   AppendMessage,
+  ExportedMessageRepository,
   ExternalThreadQueueAdapter,
   MessageTiming,
   QueueItemState,
   RemoteThreadListAdapter,
+  ThreadAssistantMessage,
   ThreadMessage,
   ThreadUserMessage,
   ToolCallTiming,
@@ -11,15 +13,24 @@ import type {
 import { createAssistantStream } from "assistant-stream";
 
 import { workbenchBrowserStorage, WORKBENCH_STORAGE_PREFIX } from "@/runtime/adapters/history";
-import { appendWorkspaceFeedbackContext } from "@/components/right-workspace/feedback/feedback-adapter";
-import type { WorkspaceFeedbackStore } from "@/components/right-workspace/feedback/feedback-store";
 import {
   parseWorkbenchComposerUserProjection,
   parseWorkbenchComposerCommandResponseDetails,
-  parseWorkbenchComposerSubmission,
   WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE,
-  WORKBENCH_COMPOSER_RUN_CONFIG_KEY,
 } from "@/runtime/composer-request";
+import {
+  parseImageRecognitionSnapshot,
+  reconcileImageRecognitionSnapshot,
+  reduceImageRecognitionSnapshot,
+  WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE,
+  WORKBENCH_IMAGE_RECOGNITION_DATA_NAME,
+  type ImageRecognitionSnapshot,
+} from "@/runtime/image-understanding/state-machine";
+import {
+  appendWorkspaceFeedbackContext,
+  type PromptFeedbackClaim,
+  type PromptFeedbackPort,
+} from "@/services/workspace-feedback-service";
 
 import {
   type PiAssistantMessage,
@@ -45,10 +56,12 @@ import {
   listPiWorkspaces,
   PiApiError,
   promptPiRpcSession,
+  regeneratePiRpcSession,
   renamePiRpcSession,
   replacePiSessionQueue,
   respondPiRpc,
   selectPiRpcSessionModel,
+  selectPiRpcSessionBranch,
   setPiSessionQueuePaused,
   setPiWorkspacePinned,
   setPiWorkspaceSessionPinned,
@@ -82,12 +95,19 @@ import {
   coalesceConsecutiveAssistantMessages,
   eventMessage,
   hasRunningWorkbenchCompactCommandResponse,
+  imageRecognitionSnapshotFromMessage,
+  isImageRecognitionOnlyAssistant,
   optimisticUserMessage,
   piAssistantToThreadMessage,
   piHistoryToThreadMessages,
+  reconcileImageRecognitionInMessages,
+  reconcileImageRecognitionAssistantPart,
   reconcileLiveMessagesAfterHistory,
   sameUserPrompt,
+  upsertImageRecognitionInMessages,
+  upsertImageRecognitionAssistantPart,
   upsertWorkbenchComposerCommandResponse,
+  withoutImageRecognitionUserParts,
   workbenchComposerCommandResponseId,
 } from "../messages/messages";
 import { draftSessionModelSelection } from "../models/model-selection";
@@ -157,6 +177,9 @@ function livePiUserMessage(
         ...(workbenchComposer?.document === undefined
           ? {}
           : { workbenchComposerDocument: workbenchComposer.document }),
+        ...(workbenchComposer === undefined
+          ? {}
+          : { workbenchComposerSubmissionId: workbenchComposer.submissionId }),
       },
     },
   };
@@ -164,12 +187,17 @@ function livePiUserMessage(
 
 export interface PiSessionSnapshot {
   messages: readonly ThreadMessage[];
+  messageRepository: ExportedMessageRepository;
   isRunning: boolean;
   runStartedAt?: number;
   autoRetry?: PiAutoRetrySnapshot;
   isLoading: boolean;
   queuePaused: boolean;
   steeringQueueIds: readonly string[];
+  rejectedQueueDraft?: {
+    revision: number;
+    message: AppendMessage;
+  };
 }
 
 export interface PiThreadListItemSnapshot {
@@ -290,6 +318,7 @@ export class PiClientSession {
   readonly runtimeExtras: {
     piQueue: {
       beginEdit(id: string): QueueItemState | undefined;
+      clearRejectedDraft(revision: number): void;
       setPaused(paused: boolean): void;
     };
   };
@@ -297,11 +326,15 @@ export class PiClientSession {
   private readonly listeners = new Set<Listener>();
   private remoteIdValue?: string;
   private baseMessages: ThreadMessage[] = [];
+  private baseMessageRepository: ExportedMessageRepository = { headId: null, messages: [] };
+  private branchLeafByHeadMessageId = new Map<string, string>();
+  private branchSwitchTask?: Promise<void>;
   private liveMessages: ThreadMessage[] = [];
   private streamingMessage?: ThreadMessage;
   private activeUserMessageId?: string;
   private activeAssistantMessageId?: string;
   private runStartedAtValue?: number;
+  private queueRejectionRevision = 0;
   private readonly authoritativeMessageIdAliases = new Map<string, string>();
   private snapshotValue: PiSessionSnapshot;
   private openTask?: Promise<void>;
@@ -311,6 +344,7 @@ export class PiClientSession {
   private promptRequestPending = false;
   private localRunLeaseActive = false;
   private readonly pendingPromptRpcIds = new Set<string>();
+  private readonly imageRecognitionSnapshots = new Map<string, ImageRecognitionSnapshot>();
   private promptStartTimer?: ReturnType<typeof setTimeout>;
   private activeMessageTiming?: ActiveMessageTiming;
   private messagePublishScheduled = false;
@@ -318,6 +352,117 @@ export class PiClientSession {
   private readonly toolTimingById = new Map<string, ToolCallTiming>();
   private readonly steeringMessageIds = new Map<string, string>();
   private readonly messageQueue: PiMessageQueue;
+
+  private messageRepositoryFromHistory(
+    sessionId: string,
+    history: SessionHistoryValue,
+    activeMessages: readonly ThreadMessage[],
+  ): {
+    repository: ExportedMessageRepository;
+    leafByHeadMessageId: Map<string, string>;
+    activeMessages: ThreadMessage[];
+  } {
+    const fallbackMessages = activeMessages.map((message, index) => ({
+      message,
+      parentId: activeMessages[index - 1]?.id ?? null,
+    }));
+    const fallback = {
+      repository: {
+        headId: activeMessages.at(-1)?.id ?? null,
+        messages: fallbackMessages,
+      },
+      leafByHeadMessageId: new Map<string, string>(),
+      activeMessages: [...activeMessages],
+    };
+    if (!history.branches?.items.length) return fallback;
+
+    const repositoryItems = new Map<string, ExportedMessageRepository["messages"][number]>();
+    const leafByHeadMessageId = new Map<string, string>();
+    const branchScopedMessageIds = new Map<string, string>();
+    const activeBranch = history.branches.items.find(
+      (branch) => branch.leafId === history.branches?.headLeafId,
+    );
+    if (!activeBranch) return fallback;
+    const orderedBranches = [
+      activeBranch,
+      ...history.branches.items.filter((branch) => branch !== activeBranch),
+    ];
+    const scopedMessageId = (leafId: string, messageId: string): string => {
+      const key = JSON.stringify([leafId, messageId]);
+      const reserved = branchScopedMessageIds.get(key);
+      if (reserved) return reserved;
+
+      const base = `pi-branch:${encodeURIComponent(leafId)}:${encodeURIComponent(messageId)}`;
+      let candidate = base;
+      let suffix = 2;
+      while (repositoryItems.has(candidate)) {
+        candidate = `${base}:${suffix}`;
+        suffix += 1;
+      }
+      branchScopedMessageIds.set(key, candidate);
+      return candidate;
+    };
+    let headId: string | null = null;
+    for (const branch of orderedBranches) {
+      const branchHistory = piHistoryFromSessionEvents(sessionId, {
+        events: branch.events,
+        hasMore: false,
+      });
+      const projectedBranchMessages =
+        branch === activeBranch && activeMessages.length > 0
+          ? activeMessages
+          : piHistoryToThreadMessages(
+              branchHistory,
+              this.messageTimingByTimestamp,
+              this.toolTimingById,
+            );
+      const branchMessages = projectedBranchMessages.map((message) => {
+        const alias = this.authoritativeMessageIdAliases.get(message.id);
+        return alias ? { ...message, id: alias } : message;
+      });
+      let effectiveParentId: string | null = null;
+      for (const message of branchMessages) {
+        const canonical = repositoryItems.get(message.id);
+        let effectiveId = message.id;
+        if (canonical && canonical.parentId !== effectiveParentId) {
+          if (branch === activeBranch) return fallback;
+          effectiveId = scopedMessageId(branch.leafId, message.id);
+        }
+
+        if (!repositoryItems.has(effectiveId)) {
+          repositoryItems.set(effectiveId, {
+            message: effectiveId === message.id ? message : { ...message, id: effectiveId },
+            parentId: effectiveParentId,
+          });
+        }
+        effectiveParentId = effectiveId;
+      }
+      if (effectiveParentId) leafByHeadMessageId.set(effectiveParentId, branch.leafId);
+      if (branch === activeBranch) headId = effectiveParentId;
+    }
+
+    if (headId === null || !repositoryItems.has(headId)) return fallback;
+    for (const message of activeMessages) {
+      const item = repositoryItems.get(message.id);
+      if (item) item.message = message;
+    }
+    // Each branch is visited root-to-leaf and an existing node is never reparented, so insertion
+    // order is also a valid parent-before-child import order for assistant-ui's repository.
+    const repository = { headId, messages: [...repositoryItems.values()] };
+    const visibleMessages: ThreadMessage[] = [];
+    let cursor: string | null = headId;
+    while (cursor) {
+      const item = repositoryItems.get(cursor);
+      if (!item) break;
+      visibleMessages.unshift(item.message);
+      cursor = item.parentId;
+    }
+    return {
+      repository,
+      leafByHeadMessageId,
+      activeMessages: visibleMessages.length ? visibleMessages : [...activeMessages],
+    };
+  }
 
   constructor(
     manager: PiSessionManager,
@@ -331,6 +476,7 @@ export class PiClientSession {
     this.runStartedAtValue = running ? Date.now() : undefined;
     this.snapshotValue = {
       messages: [],
+      messageRepository: this.baseMessageRepository,
       isRunning: running,
       runStartedAt: this.runStartedAtValue,
       isLoading: Boolean(remoteId),
@@ -345,12 +491,24 @@ export class PiClientSession {
       update: (itemId, action) => this.updateQueue(itemId, action),
       replace: (steering, followUp) => this.replaceQueue(steering, followUp),
       setPaused: (paused, steering, followUp) => this.setQueuePaused(paused, steering, followUp),
+      onEnqueueRejected: (message) => {
+        this.replaceSnapshot({
+          rejectedQueueDraft: {
+            revision: ++this.queueRejectionRevision,
+            message,
+          },
+        });
+      },
       onSteerRejected: (itemId) => this.rejectOptimisticSteer(itemId),
       onChange: () => this.publishQueueState(),
     });
     this.runtimeExtras = {
       piQueue: {
         beginEdit: (id) => this.messageQueue.beginEdit(id),
+        clearRejectedDraft: (revision) => {
+          if (this.snapshotValue.rejectedQueueDraft?.revision !== revision) return;
+          this.replaceSnapshot({ rejectedQueueDraft: undefined });
+        },
         setPaused: (paused) => this.messageQueue.setPaused(paused),
       },
     };
@@ -409,11 +567,17 @@ export class PiClientSession {
     const applyHistory = (value: SessionHistoryValue) => {
       if (this.remoteIdValue !== remoteId) return;
       const history = piHistoryFromSessionEvents(remoteId, value);
-      const baseMessages = this.stabilizeAuthoritativeMessageIds(
-        piHistoryToThreadMessages(history, this.messageTimingByTimestamp, this.toolTimingById),
+      const projectedBaseMessages = this.stabilizeAuthoritativeMessageIds(
+        this.mergeImageRecognitionHistory(
+          piHistoryToThreadMessages(history, this.messageTimingByTimestamp, this.toolTimingById),
+        ),
         baseMessageIdsAtStart,
       );
+      const branchState = this.messageRepositoryFromHistory(remoteId, value, projectedBaseMessages);
+      const baseMessages = branchState.activeMessages;
       this.baseMessages = baseMessages;
+      this.baseMessageRepository = branchState.repository;
+      this.branchLeafByHeadMessageId = branchState.leafByHeadMessageId;
       this.liveMessages = reconcileLiveMessagesAfterHistory(this.liveMessages, baseMessages, {
         liveMessageIdsAtStart,
         baseMessageIdsAtStart,
@@ -426,6 +590,9 @@ export class PiClientSession {
         this.streamingMessage = undefined;
       }
       const historySequence = value.events.at(-1)?.event.seq ?? -1;
+      if (!preserveUnpersistedOptimisticTurn || historySequence >= this.lastSequence) {
+        this.lastSequence = historySequence;
+      }
       const autoRetry =
         this.snapshotValue.isRunning && historySequence >= this.lastSequence
           ? piAutoRetryFromHistory(value)
@@ -462,11 +629,13 @@ export class PiClientSession {
   }
 
   async send(message: AppendMessage): Promise<void> {
+    await this.branchSwitchTask;
     const optimisticUserId = createClientMessageId("pi-user");
     const optimisticAssistantId = createClientMessageId("pi-assistant");
-    this.liveMessages.push(optimisticUserMessage(message, optimisticUserId));
+    const promptRpcId = createPiRpcId("session.prompt");
+    this.liveMessages.push(optimisticUserMessage(message, optimisticUserId, promptRpcId));
     this.activeAssistantMessageId = optimisticAssistantId;
-    this.streamingMessage = piAssistantToThreadMessage(
+    const optimisticAssistant = piAssistantToThreadMessage(
       { role: "assistant", content: [] },
       optimisticAssistantId,
       {
@@ -475,6 +644,16 @@ export class PiClientSession {
         createdAt: message.createdAt.getTime(),
       },
     );
+    this.streamingMessage = {
+      ...optimisticAssistant,
+      metadata: {
+        ...optimisticAssistant.metadata,
+        custom: {
+          ...optimisticAssistant.metadata.custom,
+          workbenchPromptRpcId: promptRpcId,
+        },
+      },
+    };
     this.promptRequestPending = true;
     this.localRunLeaseActive = true;
     const submittedAt = message.createdAt.getTime();
@@ -486,11 +665,17 @@ export class PiClientSession {
     this.publishMessagesAndSetRunning(true);
 
     const prompt = appendMessageToPiPrompt(message);
-    const workspaceFeedback = this.manager.getWorkspaceFeedback(this.localId, this.remoteIdValue);
-    const promptText = appendWorkspaceFeedbackContext(prompt.text, workspaceFeedback);
-    const draftModel = draftSessionModelSelection(this.remoteIdValue, message);
+    const workspaceFeedbackClaim = this.manager.claimPromptFeedback(
+      this.localId,
+      this.remoteIdValue,
+    );
     let remoteId: string | undefined;
     try {
+      const promptText = appendWorkspaceFeedbackContext(
+        prompt.text,
+        workspaceFeedbackClaim?.items ?? [],
+      );
+      const draftModel = draftSessionModelSelection(this.remoteIdValue, message);
       const summary = await this.manager.ensureRemote(this);
       const submittedRemoteId = summary.id;
       remoteId = submittedRemoteId;
@@ -501,7 +686,6 @@ export class PiClientSession {
       }
 
       const clientTimeZone = browserTimeZone();
-      const promptRpcId = createPiRpcId("session.prompt");
       this.pendingPromptRpcIds.add(promptRpcId);
       await promptPiRpcSession(
         {
@@ -513,7 +697,7 @@ export class PiClientSession {
         },
         promptRpcId,
       );
-      this.manager.commitWorkspaceFeedback(workspaceFeedback.map((feedback) => feedback.id));
+      this.manager.commitPromptFeedback(workspaceFeedbackClaim);
       this.manager.notePrompt(submittedRemoteId, prompt.text);
       if (this.promptRequestPending) {
         this.promptStartTimer = setTimeout(() => {
@@ -524,6 +708,7 @@ export class PiClientSession {
         }, 15_000);
       }
     } catch (error) {
+      this.manager.releasePromptFeedback(workspaceFeedbackClaim);
       this.liveMessages = this.liveMessages.filter(
         (candidate) => candidate.id !== optimisticUserId,
       );
@@ -540,7 +725,8 @@ export class PiClientSession {
     }
   }
 
-  async retry(parentId: string | null, runConfig: AppendMessage["runConfig"]): Promise<void> {
+  async retry(parentId: string | null, _runConfig: AppendMessage["runConfig"]): Promise<void> {
+    await this.branchSwitchTask;
     const messages = this.snapshotValue.messages;
     const parentIndex =
       parentId === null ? messages.length - 1 : messages.findIndex(({ id }) => id === parentId);
@@ -557,29 +743,73 @@ export class PiClientSession {
 
     if (!source) throw new PiApiError("pi_empty_prompt", 400);
 
-    const persistedComposer = parseWorkbenchComposerSubmission(
-      source.metadata.custom.workbenchComposerSubmission,
+    if (!this.remoteIdValue) throw new PiApiError("pi_session_not_found", 404);
+    const resolvedEntryId = source.metadata.custom.piResolvedEntryId;
+    const sourceEntryId = typeof resolvedEntryId === "string" ? resolvedEntryId : source.id;
+    const sourceSequence = source.metadata.custom.piEventSeq;
+    const optimisticAssistantId = createClientMessageId("pi-assistant");
+    const sourceIndex = messages.findIndex((message) => message.id === source.id);
+    const currentRepository = this.currentMessageRepository();
+    const retainedMessages = messages.slice(0, sourceIndex + 1);
+    this.baseMessages = retainedMessages;
+    this.baseMessageRepository = currentRepository.messages.some(
+      ({ message }) => message.id === source.id,
+    )
+      ? { ...currentRepository, headId: source.id }
+      : {
+          headId: source.id,
+          messages: retainedMessages.map((message, index) => ({
+            message,
+            parentId: retainedMessages[index - 1]?.id ?? null,
+          })),
+        };
+    this.liveMessages = [];
+    this.activeAssistantMessageId = optimisticAssistantId;
+    this.streamingMessage = piAssistantToThreadMessage(
+      { role: "assistant", content: [] },
+      optimisticAssistantId,
+      { optimistic: true, streaming: true, createdAt: Date.now() },
     );
-    const retryRunConfig = persistedComposer
-      ? {
-          ...runConfig,
-          custom: {
-            ...runConfig?.custom,
-            [WORKBENCH_COMPOSER_RUN_CONFIG_KEY]: persistedComposer,
-          },
-        }
-      : runConfig;
+    if (typeof sourceSequence === "number") this.lastSequence = sourceSequence;
+    this.promptRequestPending = true;
+    this.localRunLeaseActive = true;
+    this.runStartedAtValue = Date.now();
+    this.publishMessagesAndSetRunning(true);
 
-    await this.send({
-      role: "user",
-      content: source.content,
-      attachments: source.attachments ?? [],
-      createdAt: new Date(),
-      metadata: { custom: {} },
-      parentId: null,
-      sourceId: null,
-      runConfig: retryRunConfig,
-    });
+    try {
+      await this.manager.connections.ensureSessionEvents(this.remoteIdValue, this.handleEvent);
+      await regeneratePiRpcSession({ sessionId: this.remoteIdValue, messageId: sourceEntryId });
+    } catch (error) {
+      if (this.streamingMessage?.id === optimisticAssistantId) this.streamingMessage = undefined;
+      if (this.activeAssistantMessageId === optimisticAssistantId) {
+        this.activeAssistantMessageId = undefined;
+      }
+      this.clearLocalRunLease();
+      this.publishMessagesAndSetRunning(false);
+      await this.reload().catch(() => undefined);
+      throw error;
+    }
+  }
+
+  selectBranch(headMessageId: string): void {
+    const leafId = this.branchLeafByHeadMessageId.get(headMessageId);
+    if (!leafId || !this.remoteIdValue) return;
+    const sessionId = this.remoteIdValue;
+    const task = selectPiRpcSessionBranch({ sessionId, leafId })
+      .then(() => this.reload())
+      .catch(async (error) => {
+        // assistant-ui switches its local repository optimistically before this
+        // RPC runs. Re-publish the authoritative server branch on failure so a
+        // rejected switch cannot leave the visible conversation on a branch
+        // that Pi never selected.
+        await this.reload().catch(() => this.publishMessages());
+        throw error;
+      })
+      .finally(() => {
+        if (this.branchSwitchTask === task) this.branchSwitchTask = undefined;
+      });
+    this.branchSwitchTask = task;
+    void task.catch((error) => console.error("[workbench-pi] branch selection failed", error));
   }
 
   async cancel(): Promise<void> {
@@ -595,22 +825,30 @@ export class PiClientSession {
     if (!this.remoteIdValue) throw new PiApiError("pi_session_not_found", 404);
     await this.manager.connections.ensureSessionEvents(this.remoteIdValue, this.handleEvent);
     const clientTimeZone = browserTimeZone();
-    const workspaceFeedback = this.manager.getWorkspaceFeedback(this.localId, this.remoteIdValue);
-    const admission = await promptPiRpcSession(
-      {
-        sessionId: this.remoteIdValue,
-        mode: mode === "steer" ? "steer" : "queue",
-        content: piPromptContent(
-          appendWorkspaceFeedbackContext(prompt.message, workspaceFeedback),
-          prompt.images,
-        ),
-        ...(prompt.composer === undefined ? {} : { composer: prompt.composer }),
-        ...(clientTimeZone === undefined ? {} : { clientTimeZone }),
-      },
-      rpcId,
+    const workspaceFeedbackClaim = this.manager.claimPromptFeedback(
+      this.localId,
+      this.remoteIdValue,
     );
-    this.manager.commitWorkspaceFeedback(workspaceFeedback.map((feedback) => feedback.id));
-    return admission;
+    try {
+      const admission = await promptPiRpcSession(
+        {
+          sessionId: this.remoteIdValue,
+          mode: mode === "steer" ? "steer" : "queue",
+          content: piPromptContent(
+            appendWorkspaceFeedbackContext(prompt.message, workspaceFeedbackClaim?.items ?? []),
+            prompt.images,
+          ),
+          ...(prompt.composer === undefined ? {} : { composer: prompt.composer }),
+          ...(clientTimeZone === undefined ? {} : { clientTimeZone }),
+        },
+        rpcId,
+      );
+      this.manager.commitPromptFeedback(workspaceFeedbackClaim);
+      return admission;
+    } catch (error) {
+      this.manager.releasePromptFeedback(workspaceFeedbackClaim);
+      throw error;
+    }
   }
 
   private async updateQueue(itemId: string, action: SessionQueueAction): Promise<void> {
@@ -657,7 +895,11 @@ export class PiClientSession {
     if (!running && this.localRunLeaseActive) return;
     const wasRunning = this.snapshotValue.isRunning;
     if (!running && this.discardEmptyOptimisticAssistant()) {
-      this.replaceSnapshot({ messages: this.currentMessages(), isRunning: false });
+      this.replaceSnapshot({
+        messages: this.currentMessages(),
+        messageRepository: this.currentMessageRepository(),
+        isRunning: false,
+      });
     } else {
       this.setRunning(running, false);
     }
@@ -727,6 +969,19 @@ export class PiClientSession {
       return;
     }
 
+    if (
+      event.type === "message" &&
+      event.role === "custom" &&
+      event.customType === WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE
+    ) {
+      const snapshot = parseImageRecognitionSnapshot(event.details);
+      if (snapshot) {
+        this.markPromptStarted();
+        this.applyImageRecognitionSnapshot(snapshot);
+      }
+      return;
+    }
+
     const conversationEvent = conversationEventFromSessionEvent(event.type, event);
     if (conversationEvent) {
       if (
@@ -763,15 +1018,13 @@ export class PiClientSession {
           this.streamingMessage?.id ??
           createClientMessageId("pi-assistant");
         this.activeAssistantMessageId = assistantMessageId;
-        this.streamingMessage = piAssistantToThreadMessage(
-          message as PiAssistantMessage,
-          assistantMessageId,
-          {
+        this.streamingMessage = this.preserveActiveAssistantRecognition(
+          piAssistantToThreadMessage(message as PiAssistantMessage, assistantMessageId, {
             optimistic: true,
             streaming: true,
             timing: this.currentMessageTiming(message as PiAssistantMessage),
             toolTimingById: this.toolTimingById,
-          },
+          }),
         );
         this.scheduleMessagesPublish();
       }
@@ -798,12 +1051,14 @@ export class PiClientSession {
           this.streamingMessage?.id ??
           createClientMessageId("pi-assistant");
         this.activeAssistantMessageId = assistantMessageId;
-        this.streamingMessage = piAssistantToThreadMessage(assistantMessage, assistantMessageId, {
-          optimistic: true,
-          streaming: true,
-          timing: this.currentMessageTiming(assistantMessage),
-          toolTimingById: this.toolTimingById,
-        });
+        this.streamingMessage = this.preserveActiveAssistantRecognition(
+          piAssistantToThreadMessage(assistantMessage, assistantMessageId, {
+            optimistic: true,
+            streaming: true,
+            timing: this.currentMessageTiming(assistantMessage),
+            toolTimingById: this.toolTimingById,
+          }),
+        );
         this.scheduleMessagesPublish();
       }
       return;
@@ -882,12 +1137,14 @@ export class PiClientSession {
           this.streamingMessage?.id ??
           createClientMessageId("pi-assistant");
         this.insertCompletedAssistantMessage(
-          piAssistantToThreadMessage(assistantMessage, assistantMessageId, {
-            optimistic: true,
-            timing,
-            toolTimingById: this.toolTimingById,
-            eventSeq: sequence,
-          }),
+          this.preserveActiveAssistantRecognition(
+            piAssistantToThreadMessage(assistantMessage, assistantMessageId, {
+              optimistic: true,
+              timing,
+              toolTimingById: this.toolTimingById,
+              eventSeq: sequence,
+            }),
+          ),
         );
         this.activeMessageTiming = undefined;
         this.activeAssistantMessageId = undefined;
@@ -926,6 +1183,32 @@ export class PiClientSession {
         await this.reload();
       })
       .catch((error) => console.error("[workbench-pi] stream rebaseline failed", error));
+  }
+
+  private preserveActiveAssistantRecognition(message: ThreadMessage): ThreadMessage {
+    if (message.role !== "assistant" || this.streamingMessage?.role !== "assistant") return message;
+
+    const previous = this.streamingMessage;
+    const promptRpcId = previous.metadata.custom.workbenchPromptRpcId;
+    const submissionId = previous.metadata.custom.workbenchImageRecognitionSubmissionId;
+    let projected: ThreadAssistantMessage = {
+      ...message,
+      metadata: {
+        ...message.metadata,
+        custom: {
+          ...message.metadata.custom,
+          ...(typeof promptRpcId === "string" ? { workbenchPromptRpcId: promptRpcId } : {}),
+          ...(typeof submissionId === "string"
+            ? { workbenchImageRecognitionSubmissionId: submissionId }
+            : {}),
+        },
+      },
+    };
+    const recognition = imageRecognitionSnapshotFromMessage(previous);
+    if (recognition) {
+      projected = upsertImageRecognitionAssistantPart(projected, recognition);
+    }
+    return projected;
   }
 
   private publishLiveUserMessage(
@@ -976,9 +1259,22 @@ export class PiClientSession {
       const optimistic = this.liveMessages[optimisticIndex] as ThreadUserMessage;
       isSteering = optimistic.metadata.custom.piSteering === true;
       publishedId = optimistic.id;
+      const authoritativeContent =
+        activeIndex >= 0 || workbenchComposer ? projectedUserMessage.content : optimistic.content;
+      const authoritativeImages = new Set(
+        authoritativeContent.flatMap((part) => (part.type === "image" ? [part.image] : [])),
+      );
+      const optimisticDisplayImages = optimistic.content.filter(
+        (part) => part.type === "image" && !authoritativeImages.has(part.image),
+      );
       this.liveMessages[optimisticIndex] = {
         ...optimistic,
-        ...(activeIndex >= 0 || workbenchComposer ? { content: projectedUserMessage.content } : {}),
+        content: [
+          ...authoritativeContent.filter(
+            (part) => part.type !== "data" || part.name !== WORKBENCH_IMAGE_RECOGNITION_DATA_NAME,
+          ),
+          ...optimisticDisplayImages,
+        ],
         createdAt: projectedUserMessage.createdAt,
         metadata: {
           ...optimistic.metadata,
@@ -1029,6 +1325,100 @@ export class PiClientSession {
       );
     }
     this.publishMessages();
+  }
+
+  private applyImageRecognitionSnapshot(incoming: ImageRecognitionSnapshot): void {
+    const current = this.imageRecognitionSnapshots.get(incoming.operationId);
+    let next = incoming;
+    if (current) {
+      try {
+        next = reduceImageRecognitionSnapshot(current, incoming);
+      } catch {
+        return;
+      }
+      if (next === current) return;
+    }
+    this.imageRecognitionSnapshots.set(next.operationId, next);
+    this.baseMessages = withoutImageRecognitionUserParts(this.baseMessages);
+    this.liveMessages = withoutImageRecognitionUserParts(this.liveMessages);
+    const streamingRecognition = this.streamingMessage
+      ? imageRecognitionSnapshotFromMessage(this.streamingMessage)
+      : undefined;
+    const streamingPromptRpcId = this.streamingMessage?.metadata.custom.workbenchPromptRpcId;
+    const streamingSubmissionId =
+      this.streamingMessage?.metadata.custom.workbenchImageRecognitionSubmissionId;
+    const belongsToStreamingAssistant =
+      this.streamingMessage?.role === "assistant" &&
+      (streamingRecognition?.operationId === next.operationId ||
+        (next.rpcId !== undefined && streamingPromptRpcId === next.rpcId) ||
+        streamingSubmissionId === next.submissionId ||
+        (streamingRecognition === undefined && this.localRunLeaseActive));
+    if (belongsToStreamingAssistant && this.streamingMessage?.role === "assistant") {
+      this.streamingMessage = upsertImageRecognitionAssistantPart(this.streamingMessage, next);
+    } else {
+      this.baseMessages = upsertImageRecognitionInMessages(this.baseMessages, next);
+      this.liveMessages = upsertImageRecognitionInMessages(this.liveMessages, next);
+    }
+    this.publishMessages();
+  }
+
+  private mergeImageRecognitionHistory(messages: readonly ThreadMessage[]): ThreadMessage[] {
+    for (const message of messages) {
+      const incoming = imageRecognitionSnapshotFromMessage(message);
+      if (!incoming) continue;
+      const current = this.imageRecognitionSnapshots.get(incoming.operationId);
+      if (!current) {
+        this.imageRecognitionSnapshots.set(incoming.operationId, incoming);
+        continue;
+      }
+      try {
+        const next = reconcileImageRecognitionSnapshot(current, incoming);
+        if (next !== current) this.imageRecognitionSnapshots.set(next.operationId, next);
+      } catch {
+        // Keep the last valid live snapshot when persisted history conflicts at one revision.
+      }
+    }
+
+    let reconciled = withoutImageRecognitionUserParts(messages);
+    for (const snapshot of this.imageRecognitionSnapshots.values()) {
+      const streamingRecognition = this.streamingMessage
+        ? imageRecognitionSnapshotFromMessage(this.streamingMessage)
+        : undefined;
+      const streamingPromptRpcId = this.streamingMessage?.metadata.custom.workbenchPromptRpcId;
+      const streamingSubmissionId =
+        this.streamingMessage?.metadata.custom.workbenchImageRecognitionSubmissionId;
+      const matchingUserIndex = reconciled.findIndex(
+        (message) =>
+          message.role === "user" &&
+          (message.metadata.custom.workbenchComposerSubmissionId === snapshot.submissionId ||
+            (snapshot.rpcId !== undefined &&
+              message.metadata.custom.workbenchPromptRpcId === snapshot.rpcId)),
+      );
+      const lastUserIndex = reconciled.findLastIndex((message) => message.role === "user");
+      const belongsToStreamingAssistant =
+        this.streamingMessage?.role === "assistant" &&
+        (streamingRecognition?.operationId === snapshot.operationId ||
+          (snapshot.rpcId !== undefined && streamingPromptRpcId === snapshot.rpcId) ||
+          streamingSubmissionId === snapshot.submissionId ||
+          (streamingRecognition === undefined &&
+            this.snapshotValue.isRunning &&
+            matchingUserIndex >= 0 &&
+            matchingUserIndex === lastUserIndex));
+      if (belongsToStreamingAssistant && this.streamingMessage?.role === "assistant") {
+        this.streamingMessage = reconcileImageRecognitionAssistantPart(
+          this.streamingMessage,
+          snapshot,
+        );
+        reconciled = reconciled.filter(
+          (message) =>
+            !isImageRecognitionOnlyAssistant(message) ||
+            imageRecognitionSnapshotFromMessage(message)?.operationId !== snapshot.operationId,
+        );
+      } else {
+        reconciled = reconcileImageRecognitionInMessages(reconciled, snapshot);
+      }
+    }
+    return reconciled;
   }
 
   private startToolTiming(toolCallId: string): ToolCallTiming {
@@ -1123,6 +1513,34 @@ export class PiClientSession {
 
   private discardEmptyOptimisticAssistant(): boolean {
     const message = this.streamingMessage;
+    const recognition = message ? imageRecognitionSnapshotFromMessage(message) : undefined;
+    const recognitionOnly =
+      message?.role === "assistant" &&
+      recognition !== undefined &&
+      message.content.every(
+        (part) =>
+          (part.type === "text" && part.text === "") ||
+          (part.type === "data" && part.name === WORKBENCH_IMAGE_RECOGNITION_DATA_NAME),
+      );
+    if (
+      message?.role === "assistant" &&
+      recognitionOnly &&
+      recognition !== undefined &&
+      !(recognition.status === "skipped" && recognition.method === "native")
+    ) {
+      this.insertCompletedAssistantMessage({
+        ...message,
+        content: message.content.filter(
+          (part) => part.type === "data" && part.name === WORKBENCH_IMAGE_RECOGNITION_DATA_NAME,
+        ),
+        status: { type: "complete", reason: "unknown" },
+      });
+      this.streamingMessage = undefined;
+      if (this.activeAssistantMessageId === message.id) {
+        this.activeAssistantMessageId = undefined;
+      }
+      return true;
+    }
     if (
       message?.role !== "assistant" ||
       message.status.type !== "running" ||
@@ -1143,6 +1561,7 @@ export class PiClientSession {
   private publishMessages(patch: Pick<Partial<PiSessionSnapshot>, "autoRetry"> = {}): void {
     this.replaceSnapshot({
       messages: this.currentMessages(),
+      messageRepository: this.currentMessageRepository(),
       runStartedAt: this.runStartedAtValue,
       ...patch,
     });
@@ -1152,6 +1571,7 @@ export class PiClientSession {
     this.runStartedAtValue = running ? (this.runStartedAtValue ?? Date.now()) : undefined;
     this.replaceSnapshot({
       messages: this.currentMessages(),
+      messageRepository: this.currentMessageRepository(),
       isRunning: running,
       runStartedAt: this.runStartedAtValue,
       autoRetry: undefined,
@@ -1169,6 +1589,33 @@ export class PiClientSession {
       else liveMessages.splice(pendingSteerIndex, 0, this.streamingMessage);
     }
     return coalesceConsecutiveAssistantMessages([...this.baseMessages, ...liveMessages]);
+  }
+
+  private currentMessageRepository(): ExportedMessageRepository {
+    const messages = this.baseMessageRepository.messages.map((item) => ({ ...item }));
+    const byId = new Map(messages.map((item) => [item.message.id, item]));
+    for (const message of this.baseMessages) {
+      const existing = byId.get(message.id);
+      if (existing) existing.message = message;
+    }
+    let parentId = this.baseMessageRepository.headId ?? null;
+    const liveMessages = [...this.liveMessages];
+    if (this.streamingMessage) {
+      const pendingSteerIndex = this.firstPendingSteeringMessageIndex(liveMessages);
+      if (pendingSteerIndex < 0) liveMessages.push(this.streamingMessage);
+      else liveMessages.splice(pendingSteerIndex, 0, this.streamingMessage);
+    }
+    for (const message of liveMessages) {
+      const item = { message, parentId };
+      const existing = byId.get(message.id);
+      if (existing) Object.assign(existing, item);
+      else {
+        messages.push(item);
+        byId.set(message.id, item);
+      }
+      parentId = message.id;
+    }
+    return { headId: parentId, messages };
   }
 
   private firstPendingSteeringMessageIndex(messages: readonly ThreadMessage[]): number {
@@ -1240,6 +1687,7 @@ export class PiClientSession {
       ...(messagesChanged
         ? {
             messages: this.currentMessages(),
+            messageRepository: this.currentMessageRepository(),
           }
         : {}),
     });
@@ -1305,10 +1753,10 @@ export class PiSessionManager {
   private realtimeRefreshTask?: Promise<void>;
   private forkTaskTail: Promise<void> = Promise.resolve();
   private revision = 0;
-  private readonly workspaceFeedback?: WorkspaceFeedbackStore;
+  private readonly promptFeedback?: PromptFeedbackPort;
 
-  constructor(options: Readonly<{ workspaceFeedback?: WorkspaceFeedbackStore }> = {}) {
-    this.workspaceFeedback = options.workspaceFeedback;
+  constructor(options: Readonly<{ promptFeedback?: PromptFeedbackPort }> = {}) {
+    this.promptFeedback = options.promptFeedback;
     this.connections = new PiConnectionController({
       onMuxFrame: (frame, generation) => this.handleMuxFrame(frame, generation),
       onHostFrame: (payload, generation) => this.handleHostFrame(payload, generation),
@@ -1327,12 +1775,16 @@ export class PiSessionManager {
     return () => this.activeSessionListeners.delete(listener);
   };
 
-  getWorkspaceFeedback(localId: string, remoteId?: string) {
-    return this.workspaceFeedback?.forThread([localId, ...(remoteId ? [remoteId] : [])]) ?? [];
+  claimPromptFeedback(localId: string, remoteId?: string): PromptFeedbackClaim | undefined {
+    return this.promptFeedback?.claimForThreads([localId, ...(remoteId ? [remoteId] : [])]);
   }
 
-  commitWorkspaceFeedback(ids: readonly string[]): void {
-    if (ids.length) this.workspaceFeedback?.clear(ids);
+  commitPromptFeedback(claim: PromptFeedbackClaim | undefined): void {
+    if (claim) this.promptFeedback?.commit(claim.token);
+  }
+
+  releasePromptFeedback(claim: PromptFeedbackClaim | undefined): void {
+    if (claim) this.promptFeedback?.release(claim.token);
   }
 
   getWorkspaces(): readonly PiWorkspaceSummary[] {
@@ -1944,6 +2396,33 @@ export class PiSessionManager {
 
   refreshWorkspaceMetadata(): Promise<void> {
     return this.refreshWorkspaces();
+  }
+
+  acceptCreatedWorkspace(workspace: PiWorkspaceSummary): void {
+    // The create RPC result is authoritative for identity/path/title even if the host event or a
+    // follow-up workspace.list has not arrived yet. Advancing the generation also prevents a list
+    // request started before create from erasing this accepted result when it eventually resolves.
+    this.workspaceGeneration += 1;
+    const existing = this.workspaces.get(workspace.id);
+    const now = new Date().toISOString();
+    const accepted: WorkspaceView = existing
+      ? { ...existing, path: workspace.cwd, title: workspace.name }
+      : {
+          workspaceId: workspace.id,
+          path: workspace.cwd,
+          title: workspace.name,
+          sessionIds: [],
+          createdAt: now,
+          updatedAt: now,
+        };
+    const workspaceChanged = !workspaceViewsEqual(existing, accepted);
+    this.workspaces.set(workspace.id, accepted);
+
+    const wasPinned = this.pinnedWorkspaces.has(workspace.id);
+    if (workspace.pinned === true) this.pinnedWorkspaces.add(workspace.id);
+    else if (workspace.pinned === false) this.pinnedWorkspaces.delete(workspace.id);
+    const pinnedChanged = wasPinned !== this.pinnedWorkspaces.has(workspace.id);
+    if (workspaceChanged || pinnedChanged) this.notify();
   }
 
   forkSessionAt(input: {

@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
 import test, { before } from "node:test";
-import type { AppendMessage } from "@assistant-ui/react";
+import { INTERNAL, type AppendMessage, type ThreadMessage } from "@assistant-ui/react";
 
 import type { PiEvent, PiSessionSummary } from "../../contracts";
+import type { SessionHistoryValue } from "../../rpc-contracts";
 import type { HostStreamPayload, MuxStreamPayload, ServerRequest } from "../../stream-contracts";
 
 let PiSessionManager: typeof import("./manager").PiSessionManager;
@@ -96,6 +97,490 @@ test("publishes the current Pi version from the host description", async (t) => 
   await internals.refreshHostDescription();
 
   assert.equal(manager.getHostDescription()?.piVersion, "0.84.2");
+});
+
+test("regenerates from the existing user node without appending a duplicate user message", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  const requests: Array<{ method: string; payload: unknown }> = [];
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as {
+      rpcId: string;
+      method: string;
+      payload: unknown;
+    };
+    requests.push({ method: request.method, payload: request.payload });
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: { ok: true, value: { accepted: true } },
+    });
+  };
+
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("remote-session", "remote-session");
+  const user: ThreadMessage = {
+    id: "journal-user-1",
+    role: "user",
+    content: [{ type: "text", text: "Explain branches" }],
+    attachments: [],
+    createdAt: new Date(1_000),
+    metadata: { custom: { piEventSeq: 2 } },
+  };
+  const assistant: ThreadMessage = {
+    id: "journal-assistant-1",
+    role: "assistant",
+    content: [{ type: "text", text: "First answer", status: { type: "complete" } }],
+    status: { type: "complete", reason: "stop" },
+    createdAt: new Date(2_000),
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      steps: [],
+      custom: {},
+    },
+  };
+  const internals = session as unknown as {
+    baseMessages: ThreadMessage[];
+    baseMessageRepository: {
+      headId: string | null;
+      messages: Array<{ message: ThreadMessage; parentId: string | null }>;
+    };
+    snapshotValue: ReturnType<typeof session.getSnapshot>;
+  };
+  internals.baseMessages = [user, assistant];
+  internals.baseMessageRepository = {
+    headId: assistant.id,
+    messages: [
+      { message: user, parentId: null },
+      { message: assistant, parentId: user.id },
+    ],
+  };
+  internals.snapshotValue = {
+    ...internals.snapshotValue,
+    messages: [user, assistant],
+    messageRepository: internals.baseMessageRepository,
+    isLoading: false,
+  };
+  const connectionInternals = manager.connections as unknown as {
+    ensureSessionEvents(): Promise<void>;
+  };
+  connectionInternals.ensureSessionEvents = async () => undefined;
+
+  await session.retry(user.id, undefined);
+
+  assert.deepEqual(requests, [
+    {
+      method: "session.regenerate",
+      payload: { sessionId: "remote-session", messageId: "journal-user-1" },
+    },
+  ]);
+  assert.equal(
+    session.getSnapshot().messages.filter((message) => message.role === "user").length,
+    1,
+  );
+  assert.equal(
+    session.getSnapshot().messageRepository.headId,
+    session.getSnapshot().messages[1]?.id,
+  );
+});
+
+test("retains a live-only user as the parent when regenerating before history reloads", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as { rpcId: string; method: string };
+    assert.equal(request.method, "session.regenerate");
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: { ok: true, value: { accepted: true } },
+    });
+  };
+
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("remote-session", "remote-session");
+  const user: ThreadMessage = {
+    id: "live-user",
+    role: "user",
+    content: [{ type: "text", text: "Retry this answer" }],
+    attachments: [],
+    createdAt: new Date(1_000),
+    metadata: {
+      custom: { piEventSeq: 4, piResolvedEntryId: "journal-live-user" },
+      isOptimistic: true,
+    },
+  };
+  const completedAssistant: ThreadMessage = {
+    id: "live-assistant",
+    role: "assistant",
+    content: [{ type: "text", text: "First answer", status: { type: "complete" } }],
+    status: { type: "complete", reason: "stop" },
+    createdAt: new Date(2_000),
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      steps: [],
+      custom: {},
+    },
+  };
+  const internals = session as unknown as {
+    liveMessages: ThreadMessage[];
+    publishMessages(): void;
+  };
+  internals.liveMessages = [user, completedAssistant];
+  internals.publishMessages();
+  const connectionInternals = manager.connections as unknown as {
+    ensureSessionEvents(): Promise<void>;
+  };
+  connectionInternals.ensureSessionEvents = async () => undefined;
+
+  await session.retry(user.id, undefined);
+
+  const snapshot = session.getSnapshot();
+  const byId = new Map(snapshot.messageRepository.messages.map((item) => [item.message.id, item]));
+  assert.equal(byId.get(user.id)?.parentId, null);
+  assert.equal(byId.get(completedAssistant.id)?.parentId, user.id);
+  assert.equal(byId.get(snapshot.messageRepository.headId ?? "")?.parentId, user.id);
+
+  const repository = new INTERNAL.MessageRepository();
+  assert.doesNotThrow(() => repository.import(snapshot.messageRepository));
+  assert.deepEqual(
+    repository.getMessages().map((message) => [message.id, message.role]),
+    [
+      [user.id, "user"],
+      [snapshot.messageRepository.headId, "assistant"],
+    ],
+  );
+});
+
+test("maps regenerated assistant answers to sibling repository branches", (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("remote-session", "remote-session");
+  const userEvent = {
+    event: {
+      type: "message_end",
+      seq: 0,
+      time: 1_000,
+      entryId: "journal-user-1",
+      data: { message: { role: "user", content: "Explain branches", timestamp: 1_000 } },
+    },
+  };
+  const assistantEvent = (entryId: string, text: string, time: number) => ({
+    event: {
+      type: "message_end",
+      seq: 1,
+      time,
+      entryId,
+      data: {
+        message: {
+          role: "assistant",
+          content: [{ type: "text", text }],
+          timestamp: time,
+        },
+      },
+    },
+  });
+  const internals = session as unknown as {
+    messageRepositoryFromHistory(
+      sessionId: string,
+      history: {
+        events: never[];
+        hasMore: false;
+        branches: {
+          headLeafId: string;
+          items: Array<{
+            leafId: string;
+            events: Array<typeof userEvent | ReturnType<typeof assistantEvent>>;
+          }>;
+        };
+      },
+      activeMessages: readonly ThreadMessage[],
+    ): {
+      repository: {
+        headId: string | null;
+        messages: Array<{ message: ThreadMessage; parentId: string | null }>;
+      };
+      leafByHeadMessageId: Map<string, string>;
+    };
+  };
+
+  const state = internals.messageRepositoryFromHistory(
+    "remote-session",
+    {
+      events: [],
+      hasMore: false,
+      branches: {
+        headLeafId: "leaf-2",
+        items: [
+          {
+            leafId: "leaf-1",
+            events: [userEvent, assistantEvent("journal-assistant-1", "First", 2_000)],
+          },
+          {
+            leafId: "leaf-2",
+            events: [userEvent, assistantEvent("journal-assistant-2", "Second", 3_000)],
+          },
+        ],
+      },
+    },
+    [],
+  );
+  const byId = new Map(state.repository.messages.map((item) => [item.message.id, item]));
+  assert.equal(byId.get("journal-assistant-1")?.parentId, "journal-user-1");
+  assert.equal(byId.get("journal-assistant-2")?.parentId, "journal-user-1");
+  assert.equal(state.repository.headId, "journal-assistant-2");
+  assert.equal(state.leafByHeadMessageId.get("journal-assistant-1"), "leaf-1");
+  assert.equal(state.leafByHeadMessageId.get("journal-assistant-2"), "leaf-2");
+});
+
+test("reloads the authoritative branch after a branch selection is rejected", async (t) => {
+  const originalFetch = globalThis.fetch;
+  const originalConsoleError = console.error;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+    console.error = originalConsoleError;
+  });
+  const methods: string[] = [];
+  console.error = () => undefined;
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as { rpcId: string; method: string };
+    methods.push(request.method);
+    if (request.method === "session.selectBranch") {
+      return Response.json({
+        type: "server-response",
+        rpcId: request.rpcId,
+        result: {
+          ok: false,
+          error: {
+            code: "pi_branch_not_found",
+            message: "Branch not found",
+            details: {},
+          },
+        },
+      });
+    }
+    assert.equal(request.method, "session.history");
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: {
+        ok: true,
+        value: { events: [], hasMore: false },
+      },
+    });
+  };
+
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("remote-session", "remote-session");
+  const internals = session as unknown as {
+    branchLeafByHeadMessageId: Map<string, string>;
+    branchSwitchTask?: Promise<void>;
+  };
+  internals.branchLeafByHeadMessageId.set("assistant-head", "missing-leaf");
+
+  session.selectBranch("assistant-head");
+  const task = internals.branchSwitchTask;
+  assert.ok(task);
+  await assert.rejects(task, /Branch not found/);
+
+  assert.deepEqual(methods, ["session.selectBranch", "session.history"]);
+  assert.equal(internals.branchSwitchTask, undefined);
+});
+
+test("keeps projected Composer messages on both repository branches without reparenting the active id", (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("remote-session", "remote-session");
+  const previousUser: SessionHistoryValue["events"][number] = {
+    event: {
+      type: "message",
+      seq: 0,
+      time: 1_000,
+      entryId: "previous-user",
+      data: { role: "user", content: "Initial prompt", timestamp: 1_000 },
+    },
+  };
+  const composerMarker: SessionHistoryValue["events"][number] = {
+    event: {
+      type: "message",
+      seq: 1,
+      time: 2_000,
+      entryId: "composer-marker",
+      data: {
+        role: "custom",
+        customType: "workbench.composer-user.v2",
+        content: "",
+        display: false,
+        details: {
+          version: 1,
+          submissionId: "follow-up-submission",
+          sourceText: "Follow-up prompt",
+        },
+        timestamp: 2_000,
+      },
+    },
+  };
+  const composerResolution: SessionHistoryValue["events"][number] = {
+    event: {
+      type: "message",
+      seq: 2,
+      time: 2_100,
+      entryId: "composer-resolution",
+      data: {
+        role: "custom",
+        customType: "workbench.composer-resolution.v1",
+        content: "",
+        display: false,
+        details: {
+          version: 1,
+          submissionId: "follow-up-submission",
+          status: "resolved",
+          commandTrace: [],
+        },
+        timestamp: 2_100,
+      },
+    },
+  };
+  const previousAssistant: SessionHistoryValue["events"][number] = {
+    event: {
+      type: "message",
+      seq: 3,
+      time: 3_000,
+      entryId: "previous-assistant",
+      data: {
+        role: "assistant",
+        content: [{ type: "text", text: "Initial answer" }],
+        timestamp: 3_000,
+      },
+    },
+  };
+  const projectedUser: SessionHistoryValue["events"][number] = {
+    event: {
+      type: "message",
+      seq: 4,
+      time: 4_000,
+      entryId: "projected-user",
+      data: {
+        role: "user",
+        content: "Compiled follow-up prompt",
+        timestamp: 4_000,
+        workbenchComposer: {
+          version: 1,
+          submissionId: "follow-up-submission",
+          sourceText: "Follow-up prompt",
+          hidden: true,
+        },
+      },
+    },
+  };
+  const unresolvedEvents = [previousUser, composerMarker, previousAssistant];
+  const resolvedEvents = [
+    previousUser,
+    composerMarker,
+    composerResolution,
+    previousAssistant,
+    projectedUser,
+  ];
+  const history: SessionHistoryValue = {
+    events: resolvedEvents,
+    hasMore: false,
+    branches: {
+      headLeafId: "resolved-leaf",
+      // Deliberately return the inactive branch first: the active branch must still own canonical
+      // message ids when the projection moves composer-marker after previous-assistant.
+      items: [
+        { leafId: "unresolved-leaf", events: unresolvedEvents },
+        { leafId: "resolved-leaf", events: resolvedEvents },
+      ],
+    },
+  };
+  const internals = session as unknown as {
+    messageRepositoryFromHistory(
+      sessionId: string,
+      value: SessionHistoryValue,
+      activeMessages: readonly ThreadMessage[],
+    ): {
+      repository: {
+        headId: string | null;
+        messages: Array<{ message: ThreadMessage; parentId: string | null }>;
+      };
+      leafByHeadMessageId: Map<string, string>;
+    };
+  };
+
+  const state = internals.messageRepositoryFromHistory("remote-session", history, []);
+  const byId = new Map(state.repository.messages.map((item) => [item.message.id, item]));
+  const branchPath = (headId: string): string[] => {
+    const path: string[] = [];
+    let cursor: string | null = headId;
+    while (cursor) {
+      const item = byId.get(cursor);
+      assert.ok(item, `repository is missing ${cursor}`);
+      path.unshift(cursor);
+      cursor = item.parentId;
+    }
+    return path;
+  };
+
+  assert.equal(state.repository.headId, "composer-marker");
+  assert.equal(byId.get("composer-marker")?.parentId, "previous-assistant");
+  assert.deepEqual(branchPath("composer-marker"), [
+    "previous-user",
+    "previous-assistant",
+    "composer-marker",
+  ]);
+  assert.equal(state.leafByHeadMessageId.get("composer-marker"), "resolved-leaf");
+
+  const unresolvedHead = [...state.leafByHeadMessageId].find(
+    ([, leafId]) => leafId === "unresolved-leaf",
+  )?.[0];
+  assert.ok(unresolvedHead);
+  const unresolvedPath = branchPath(unresolvedHead);
+  assert.equal(unresolvedPath[0], "previous-user");
+  assert.match(unresolvedPath[1] ?? "", /^pi-branch:unresolved-leaf:composer-marker/);
+  assert.match(unresolvedPath[2] ?? "", /^pi-branch:unresolved-leaf:previous-assistant/);
+  assert.equal(state.leafByHeadMessageId.get(unresolvedHead), "unresolved-leaf");
+
+  const seen = new Set<string>();
+  for (const item of state.repository.messages) {
+    assert.equal(
+      item.parentId === null || seen.has(item.parentId),
+      true,
+      `${item.message.id} must be exported after its parent ${item.parentId}`,
+    );
+    assert.equal(seen.has(item.message.id), false, `${item.message.id} must be exported once`);
+    seen.add(item.message.id);
+  }
+
+  const repository = new INTERNAL.MessageRepository();
+  assert.doesNotThrow(() => repository.import(state.repository));
+  assert.deepEqual(
+    repository.getMessages().map((message) => message.id),
+    ["previous-user", "previous-assistant", "composer-marker"],
+  );
+  repository.switchToBranch(unresolvedPath[1] ?? "");
+  assert.deepEqual(
+    repository.getMessages().map((message) => message.id),
+    unresolvedPath,
+  );
+
+  const repeated = internals.messageRepositoryFromHistory("remote-session", history, []);
+  assert.deepEqual(
+    repeated.repository.messages.map((item) => [item.message.id, item.parentId]),
+    state.repository.messages.map((item) => [item.message.id, item.parentId]),
+  );
+  assert.deepEqual([...repeated.leafByHeadMessageId], [...state.leafByHeadMessageId]);
 });
 
 test("applies unarchive state from the host event rather than the mutation response", async (t) => {
@@ -1238,6 +1723,342 @@ test("updates a built-in command response from running to success without a sile
       ?.status,
     "success",
   );
+});
+
+test("updates image recognition in place and preserves the original image at user message end", (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("local-session", "remote-session");
+  const internals = session as unknown as {
+    handleEvent(event: PiEvent): void;
+    liveMessages: ThreadMessage[];
+    publishMessages(): void;
+  };
+  const originalImage = "data:image/png;base64,iVBORw0KGgo=";
+  internals.liveMessages = [
+    {
+      id: "optimistic-image-user",
+      role: "user",
+      content: [
+        { type: "text", text: "Read the image" },
+        { type: "image", image: originalImage },
+      ],
+      attachments: [],
+      createdAt: new Date(1_000),
+      metadata: {
+        custom: {
+          piOptimistic: true,
+          workbenchPromptRpcId: "image-prompt-rpc",
+        },
+        isOptimistic: true,
+      },
+    },
+  ];
+  internals.publishMessages();
+
+  const common = {
+    version: 1 as const,
+    operationId: "image-operation-live",
+    submissionId: "image-submission-live",
+    rpcId: "image-prompt-rpc",
+    method: "ocr" as const,
+    providerId: "glm-ocr",
+    imageCount: 1,
+    timestamps: { createdAt: 1_100, updatedAt: 1_100 },
+  };
+  internals.handleEvent({
+    type: "message",
+    sequence: 0,
+    role: "custom",
+    customType: "workbench.image-recognition.v1",
+    content: "",
+    display: true,
+    details: {
+      ...common,
+      revision: 0,
+      status: "pending",
+      completedCount: 0,
+      progress: 0,
+    },
+    timestamp: 1_100,
+  });
+  internals.handleEvent({
+    type: "message",
+    sequence: 1,
+    role: "custom",
+    customType: "workbench.image-recognition.v1",
+    content: "",
+    display: true,
+    details: {
+      ...common,
+      revision: 1,
+      status: "running",
+      stage: "recognizing",
+      completedCount: 0,
+      progress: 0.5,
+      timestamps: { createdAt: 1_100, updatedAt: 1_200 },
+    },
+    timestamp: 1_200,
+  });
+  internals.handleEvent({
+    type: "message",
+    sequence: 2,
+    role: "custom",
+    customType: "workbench.image-recognition.v1",
+    content: "",
+    display: true,
+    details: {
+      ...common,
+      revision: 2,
+      status: "succeeded",
+      completedCount: 1,
+      progress: 1,
+      timestamps: { createdAt: 1_100, updatedAt: 1_300, completedAt: 1_300 },
+    },
+    timestamp: 1_300,
+  });
+
+  let user = session.getSnapshot().messages[0];
+  assert.equal(user?.id, "optimistic-image-user");
+  assert.equal(
+    user?.content.filter(
+      (part) => part.type === "data" && part.name === "workbench.image-recognition",
+    ).length,
+    1,
+  );
+  const recognition = user?.content.find(
+    (part) => part.type === "data" && part.name === "workbench.image-recognition",
+  );
+  assert.equal(
+    recognition?.type === "data" ? (recognition.data as { status?: string }).status : undefined,
+    "succeeded",
+  );
+
+  internals.handleEvent({
+    type: "message_end",
+    sequence: 3,
+    message: { role: "user", content: "compiled text-only prompt", timestamp: 2_000 },
+    workbenchComposer: {
+      version: 1,
+      submissionId: "image-submission-live",
+      sourceText: "Read the image",
+      document: [{ type: "text", text: "Read the image" }],
+      hidden: true,
+    },
+  });
+
+  user = session.getSnapshot().messages[0];
+  assert.equal(session.getSnapshot().messages.length, 1);
+  assert.equal(user?.id, "optimistic-image-user");
+  assert.equal(
+    user?.content.some((part) => part.type === "image" && part.image === originalImage),
+    true,
+  );
+  assert.equal(
+    user?.content.filter(
+      (part) => part.type === "data" && part.name === "workbench.image-recognition",
+    ).length,
+    1,
+  );
+  assert.equal(user?.metadata.custom.workbenchComposerSubmissionId, "image-submission-live");
+});
+
+test("publishes image-recognition updates through the repository for a base-history user", (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("local-session", "remote-session");
+  const user: ThreadMessage = {
+    id: "base-image-user",
+    role: "user",
+    content: [{ type: "text", text: "Read the persisted image" }],
+    attachments: [],
+    createdAt: new Date(1_000),
+    metadata: {
+      custom: { workbenchComposerSubmissionId: "base-image-submission" },
+    },
+  };
+  const internals = session as unknown as {
+    baseMessages: ThreadMessage[];
+    baseMessageRepository: {
+      headId: string | null;
+      messages: Array<{ message: ThreadMessage; parentId: string | null }>;
+    };
+    handleEvent(event: PiEvent): void;
+    publishMessages(): void;
+  };
+  internals.baseMessages = [user];
+  internals.baseMessageRepository = {
+    headId: user.id,
+    messages: [{ message: user, parentId: null }],
+  };
+  internals.publishMessages();
+
+  internals.handleEvent({
+    type: "message",
+    sequence: 0,
+    role: "custom",
+    customType: "workbench.image-recognition.v1",
+    content: "",
+    display: true,
+    details: {
+      version: 1,
+      operationId: "base-image-operation",
+      submissionId: "base-image-submission",
+      revision: 0,
+      status: "pending",
+      method: "ocr",
+      providerId: "glm-ocr",
+      imageCount: 1,
+      completedCount: 0,
+      progress: 0,
+      timestamps: { createdAt: 1_100, updatedAt: 1_100 },
+    },
+    timestamp: 1_100,
+  });
+
+  const snapshot = session.getSnapshot();
+  const visiblePart = snapshot.messages[0]?.content.find(
+    (part) => part.type === "data" && part.name === "workbench.image-recognition",
+  );
+  const repositoryPart = snapshot.messageRepository.messages[0]?.message.content.find(
+    (part) => part.type === "data" && part.name === "workbench.image-recognition",
+  );
+  assert.equal(
+    visiblePart?.type === "data" ? (visiblePart.data as { status?: string }).status : undefined,
+    "pending",
+  );
+  assert.equal(
+    repositoryPart?.type === "data"
+      ? (repositoryPart.data as { status?: string }).status
+      : undefined,
+    "pending",
+  );
+  assert.equal(snapshot.messageRepository.messages[0]?.message.id, user.id);
+  assert.equal(snapshot.messageRepository.messages[0]?.parentId, null);
+  const repository = new INTERNAL.MessageRepository();
+  assert.doesNotThrow(() => repository.import(snapshot.messageRepository));
+});
+
+test("does not let stale history replace a newer image-recognition revision", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  const pending = {
+    version: 1 as const,
+    operationId: "stale-history-image-operation",
+    submissionId: "stale-history-image-submission",
+    revision: 0,
+    status: "pending" as const,
+    method: "ocr" as const,
+    providerId: "glm-ocr",
+    imageCount: 1,
+    completedCount: 0,
+    progress: 0,
+    timestamps: { createdAt: 1_000, updatedAt: 1_000 },
+  };
+  const succeeded = {
+    ...pending,
+    revision: 2,
+    status: "succeeded" as const,
+    completedCount: 1,
+    progress: 1,
+    timestamps: { createdAt: 1_000, updatedAt: 1_200, completedAt: 1_200 },
+  };
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as { rpcId: string; method: string };
+    assert.equal(request.method, "session.history");
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: {
+        ok: true,
+        value: {
+          events: [
+            {
+              event: {
+                type: "message",
+                seq: 0,
+                time: 1_000,
+                entryId: "stale-history-image-pending",
+                data: {
+                  role: "custom",
+                  customType: "workbench.image-recognition.v1",
+                  content: "",
+                  display: true,
+                  details: pending,
+                  timestamp: 1_000,
+                },
+              },
+            },
+            {
+              event: {
+                type: "message",
+                seq: 1,
+                time: 1_100,
+                entryId: "stale-history-image-user",
+                data: {
+                  role: "user",
+                  content: "compiled text-only prompt",
+                  timestamp: 1_100,
+                  workbenchComposer: {
+                    version: 1,
+                    submissionId: pending.submissionId,
+                    sourceText: "Read the image",
+                    hidden: true,
+                  },
+                },
+              },
+            },
+          ],
+          hasMore: false,
+        },
+      },
+    });
+  };
+
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("local-session", "remote-session");
+  const internals = session as unknown as { handleEvent(event: PiEvent): void };
+  internals.handleEvent({
+    type: "message",
+    sequence: 10,
+    role: "custom",
+    customType: "workbench.image-recognition.v1",
+    content: "",
+    display: true,
+    details: succeeded,
+    timestamp: 1_200,
+  });
+
+  await session.reload();
+
+  const recognitionStatus = (message: ThreadMessage | undefined): string | undefined => {
+    const part = message?.content.find(
+      (candidate) => candidate.type === "data" && candidate.name === "workbench.image-recognition",
+    );
+    return part?.type === "data" ? (part.data as { status?: string }).status : undefined;
+  };
+  let snapshot = session.getSnapshot();
+  assert.equal(recognitionStatus(snapshot.messages[0]), "succeeded");
+  assert.equal(recognitionStatus(snapshot.messageRepository.messages[0]?.message), "succeeded");
+
+  internals.handleEvent({
+    type: "message",
+    sequence: 11,
+    role: "custom",
+    customType: "workbench.image-recognition.v1",
+    content: "",
+    display: true,
+    details: succeeded,
+    timestamp: 1_200,
+  });
+  snapshot = session.getSnapshot();
+  assert.equal(recognitionStatus(snapshot.messages[0]), "succeeded");
+  assert.equal(recognitionStatus(snapshot.messageRepository.messages[0]?.message), "succeeded");
+  const repository = new INTERNAL.MessageRepository();
+  assert.doesNotThrow(() => repository.import(snapshot.messageRepository));
 });
 
 test("binds a created session without starting a redundant metadata pull", async (t) => {

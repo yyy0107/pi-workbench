@@ -174,11 +174,13 @@ const AttachmentUI: FC = () => {
               render={
                 <div
                   className={cn(
-                    "aui-attachment-tile bg-muted hover:after:bg-foreground/10 focus-visible:ring-ring/50 relative size-14 cursor-pointer overflow-hidden rounded-[calc(var(--composer-radius,1.5rem)-var(--composer-padding,8px))] transition-transform outline-none after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:ring-1 after:ring-black/10 after:transition-colors after:ring-inset focus-visible:ring-3 active:scale-[0.96] motion-reduce:transition-none dark:after:ring-white/10",
+                    "aui-attachment-tile bg-muted relative size-14 overflow-hidden rounded-[calc(var(--composer-radius,1.5rem)-var(--composer-padding,8px))] outline-none after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:ring-1 after:ring-black/10 after:ring-inset dark:after:ring-white/10",
+                    isImage &&
+                      "hover:after:bg-foreground/10 focus-visible:ring-ring/50 cursor-pointer transition-transform after:transition-colors focus-visible:ring-3 active:scale-[0.96] motion-reduce:transition-none",
                     isError && "after:ring-destructive/60 dark:after:ring-destructive/60",
                   )}
-                  role="button"
-                  tabIndex={0}
+                  role={isImage ? "button" : "group"}
+                  tabIndex={isImage ? 0 : undefined}
                   aria-label={t("assistant.attachment.accessibleLabel", {
                     type: typeLabel,
                     status: statusLabel,
@@ -268,7 +270,7 @@ export const ComposerAddAttachment: FC = () => {
         />
       }
     >
-      <PaperclipIcon className="aui-attachment-add-icon size-[18px]" />
+      <PaperclipIcon className="aui-attachment-add-icon size-4" />
     </ComposerPrimitive.AddAttachment>
   );
 };

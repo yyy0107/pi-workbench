@@ -110,6 +110,7 @@ export interface ModelRuntimeModel {
   thinkingLevelMap?: Partial<Record<PiThinkingLevel, string | null>>;
   contextWindow: number;
   maxTokens: number;
+  input?: Array<"text" | "image">;
   api?: string;
   baseUrl?: string;
 }
@@ -488,6 +489,7 @@ export function toModelCatalogModel(model: ModelRuntimeModel): ModelCatalogModel
   return {
     id: model.id,
     name: model.name || model.id,
+    input: model.input ?? ["text"],
     ...(reasoning ? { reasoning } : {}),
   };
 }
@@ -572,11 +574,16 @@ function configuredModel(
       providerConfigurationFailure(provider, `The model ${field} must be a positive integer.`);
     }
   }
+  const input = model.input === undefined ? undefined : [...new Set(model.input)];
+  if (input?.length === 0) {
+    providerConfigurationFailure(provider, "Every configured model needs an input modality.");
+  }
   return {
     id,
     ...(name ? { name } : {}),
     ...(model.contextWindow ? { contextWindow: model.contextWindow } : {}),
     ...(model.maxTokens ? { maxTokens: model.maxTokens } : {}),
+    ...(input ? { input } : {}),
   };
 }
 
@@ -628,6 +635,7 @@ function runtimeModelConfiguration(model: ModelRuntimeModel): ModelProviderModel
     ...(Number.isInteger(model.maxTokens) && model.maxTokens > 0
       ? { maxTokens: model.maxTokens }
       : {}),
+    ...(model.input ? { input: [...new Set(model.input)] } : {}),
   };
 }
 
@@ -791,6 +799,7 @@ function discoveredModel(model: ModelRuntimeModel): DiscoveredModel {
     ...(Number.isInteger(model.maxTokens) && model.maxTokens >= 1
       ? { maxTokens: model.maxTokens }
       : {}),
+    ...(model.input ? { input: [...new Set(model.input)] } : {}),
   };
 }
 

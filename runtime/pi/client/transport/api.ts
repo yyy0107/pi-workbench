@@ -21,6 +21,8 @@ import type {
   ExtensionListValue,
   HostDescription,
   HostDirectoryListing,
+  ImageUnderstandingDescribeValue,
+  ImageUnderstandingUpdatePayload,
   ModelCatalogValue,
   ModelContextWindowPayload,
   ModelContextWindowValue,
@@ -52,12 +54,16 @@ import type {
   SessionModelsValue,
   SessionPromptPayload,
   SessionPromptValue,
+  SessionRegeneratePayload,
+  SessionRegenerateValue,
   SessionRenamePayload,
   SessionRenameValue,
   SessionSearchPayload,
   SessionSearchValue,
   SessionSelectModelPayload,
   SessionSelectModelValue,
+  SessionSelectBranchPayload,
+  SessionSelectBranchValue,
   SessionUpdateQueuePayload,
   SessionUpdateQueueValue,
   SkillListPayload,
@@ -564,6 +570,16 @@ export function updatePiAgentSettings(
   return callPiRpc("settings.update", payload);
 }
 
+export function describeImageUnderstandingSettings(): Promise<ImageUnderstandingDescribeValue> {
+  return callPiRpc("imageUnderstanding.describe", {});
+}
+
+export function updateImageUnderstandingSettings(
+  payload: ImageUnderstandingUpdatePayload,
+): Promise<ImageUnderstandingDescribeValue> {
+  return callPiRpc("imageUnderstanding.update", payload);
+}
+
 export function listPiRpcSessions(payload: SessionListPayload = {}): Promise<SessionListValue> {
   return callPiRpc("session.list", payload);
 }
@@ -580,6 +596,18 @@ export function fetchPiRpcSessionHistory(
   payload: SessionHistoryPayload,
 ): Promise<SessionHistoryValue> {
   return callPiRpc("session.history", payload);
+}
+
+export function regeneratePiRpcSession(
+  payload: SessionRegeneratePayload,
+): Promise<SessionRegenerateValue> {
+  return callPiRpc("session.regenerate", payload);
+}
+
+export function selectPiRpcSessionBranch(
+  payload: SessionSelectBranchPayload,
+): Promise<SessionSelectBranchValue> {
+  return callPiRpc("session.selectBranch", payload);
 }
 
 export function listPiRpcSessionModels(payload: SessionModelsPayload): Promise<SessionModelsValue> {

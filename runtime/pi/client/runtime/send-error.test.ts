@@ -35,13 +35,27 @@ test("classifies recoverable image admission failures for the composer", () => {
   );
   assert.equal(
     piComposerSendError(
-      new PiApiError("attachment-error", 200, { reason: "IMAGE_TOTAL_TOO_LARGE" }),
+      new PiApiError("attachment-error", 200, { reason: "INLINE_IMAGE_TOO_LARGE" }),
+    ),
+    "image-too-large",
+  );
+  assert.equal(
+    piComposerSendError(
+      new PiApiError("attachment-error", 200, {
+        reason: "INLINE_IMAGES_TOTAL_TOO_LARGE",
+      }),
     ),
     "image-too-large",
   );
   assert.equal(
     piComposerSendError(
       new PiApiError("attachment-error", 200, { reason: "IMAGE_MEDIA_TYPE_MISMATCH" }),
+    ),
+    "image-invalid",
+  );
+  assert.equal(
+    piComposerSendError(
+      new PiApiError("attachment-error", 200, { reason: "FUTURE_ATTACHMENT_REASON" }),
     ),
     "image-invalid",
   );

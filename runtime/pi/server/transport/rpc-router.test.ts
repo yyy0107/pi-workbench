@@ -6,7 +6,12 @@ import path from "node:path";
 import test from "node:test";
 import { VERSION as PI_VERSION } from "@earendil-works/pi-coding-agent";
 
-import type { HostDescription, ServerResponse, WorkspaceView } from "../../rpc-contracts";
+import type {
+  HostDescription,
+  ImageUnderstandingDescribeValue,
+  ServerResponse,
+  WorkspaceView,
+} from "../../rpc-contracts";
 
 const moduleHooks = registerHooks({
   resolve(specifier, context, nextResolve) {
@@ -55,6 +60,7 @@ test("host.describe reports the embedded Pi version", async () => {
     await handlePiRpcPost(rpcRequest("host.describe", {}), "host.describe"),
   );
 
+  assert.equal(description.product, "pi-workbench");
   assert.equal(description.piVersion, PI_VERSION);
 });
 
@@ -298,6 +304,64 @@ test("routes session validation failures through the shared error envelope", asy
   assert.equal(composerBody.result.error.code, "bad-request");
   const issues = composerBody.result.error.details.issues as Array<{ path?: unknown }>;
   assert.deepEqual(issues[0]?.path, ["payload", "composer", "commands", 0, "source"]);
+
+  const historicalArgumentResponse = await handlePiRpcPost(
+    rpcRequest("session.prompt", {
+      sessionId: "missing-session",
+      mode: "queue",
+      content: [{ type: "text", text: "summarize" }],
+      composer: {
+        version: 1,
+        document: [
+          {
+            type: "command",
+            id: "command:pi:plan:0",
+            commandId: "plan",
+            label: "Plan",
+            scope: "message",
+            source: "pi",
+            inactive: true,
+          },
+          {
+            type: "command",
+            id: "command:pi:compact:0",
+            commandId: "compact",
+            label: "Compact",
+            scope: "message",
+            source: "pi",
+            args: { customInstructions: "Focus on decisions" },
+          },
+          {
+            type: "command-argument",
+            id: "argument:compact:0",
+            commandNodeId: "command:pi:compact:0",
+            field: "customInstructions",
+            text: "Focus on decisions",
+          },
+        ],
+        sourceText: ":pi-command[plan|Plan] :pi-command[compact|Compact] Focus on decisions",
+        text: "summarize",
+        context: [],
+        metadata: {},
+        commands: [
+          {
+            id: "command:pi:compact:0",
+            commandId: "compact",
+            label: "Compact",
+            scope: "message",
+            source: "pi",
+            args: { customInstructions: "Focus on decisions" },
+          },
+        ],
+      },
+    }),
+    "session.prompt",
+  );
+  const historicalArgumentBody =
+    (await historicalArgumentResponse.json()) as ServerResponse<unknown>;
+  assert.equal(historicalArgumentBody.result.ok, false);
+  if (historicalArgumentBody.result.ok) assert.fail("Expected the missing session error");
+  assert.notEqual(historicalArgumentBody.result.error.code, "bad-request");
 });
 
 test("validates workspace.unarchiveSession at the shared RPC boundary", async () => {
@@ -324,6 +388,20 @@ test("validates session.delete at the shared RPC boundary", async () => {
   assert.equal(body.result.error.code, "bad-request");
   const issues = body.result.error.details.issues as Array<{ path?: unknown }>;
   assert.deepEqual(issues[0]?.path, ["payload", "sessionId"]);
+});
+
+test("validates session branch mutations at the shared RPC boundary", async () => {
+  for (const [method, payload] of [
+    ["session.regenerate", { sessionId: "session-1", messageId: "" }],
+    ["session.selectBranch", { sessionId: "session-1", leafId: "" }],
+  ] as const) {
+    const response = await handlePiRpcPost(rpcRequest(method, payload), method);
+    assert.equal(response.status, 200);
+    const body = (await response.json()) as ServerResponse<unknown>;
+    assert.equal(body.result.ok, false);
+    if (body.result.ok) assert.fail(`Expected a ${method} validation error`);
+    assert.equal(body.result.error.code, "bad-request");
+  }
 });
 
 test("validates skill.list at the shared RPC boundary", async () => {
@@ -386,6 +464,68 @@ test("validates and restricts the exposed agent settings namespace", async () =>
   assert.equal(hiddenBody.result.ok, false);
   if (hiddenBody.result.ok) assert.fail("Expected an unexposed namespace error");
   assert.equal(hiddenBody.result.error.code, "settings-not-exposed");
+});
+
+test("updates image-understanding settings without returning provider credentials", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-image-understanding-rpc-"));
+  const previousStateFile = process.env.PI_WORKBENCH_IMAGE_UNDERSTANDING_STATE_FILE;
+  process.env.PI_WORKBENCH_IMAGE_UNDERSTANDING_STATE_FILE = path.join(root, "settings.json");
+  t.after(async () => {
+    if (previousStateFile === undefined) {
+      delete process.env.PI_WORKBENCH_IMAGE_UNDERSTANDING_STATE_FILE;
+    } else {
+      process.env.PI_WORKBENCH_IMAGE_UNDERSTANDING_STATE_FILE = previousStateFile;
+    }
+    await rm(root, { recursive: true, force: true });
+  });
+
+  const secret = "private-image-provider-key";
+  const updateResponse = await handlePiRpcPost(
+    rpcRequest("imageUnderstanding.update", {
+      expectedRevision: 0,
+      patch: {
+        routing: "always-preprocess",
+        engine: "ocr",
+        ocrProvider: "glm-ocr",
+        glm: {
+          endpoint: "https://ocr.example/layout",
+          model: "glm-ocr",
+          apiKey: secret,
+        },
+      },
+    }),
+    "imageUnderstanding.update",
+  );
+  assert.equal((await updateResponse.clone().text()).includes(secret), false);
+  const updated = await rpcValue<ImageUnderstandingDescribeValue>(updateResponse);
+  assert.equal(updated.revision, 1);
+  assert.equal(updated.value.glm.credentialConfigured, true);
+  assert.equal("apiKey" in updated.value.glm, false);
+
+  const described = await rpcValue<ImageUnderstandingDescribeValue>(
+    await handlePiRpcPost(
+      rpcRequest("imageUnderstanding.describe", {}, "rpc-image-describe"),
+      "imageUnderstanding.describe",
+    ),
+  );
+  assert.deepEqual(described, updated);
+
+  const conflict = await handlePiRpcPost(
+    rpcRequest(
+      "imageUnderstanding.update",
+      { expectedRevision: 0, patch: { routing: "auto" } },
+      "rpc-image-conflict",
+    ),
+    "imageUnderstanding.update",
+  );
+  const conflictBody = (await conflict.json()) as ServerResponse<unknown>;
+  assert.equal(conflictBody.result.ok, false);
+  if (conflictBody.result.ok) assert.fail("Expected an image settings revision conflict");
+  assert.equal(conflictBody.result.error.code, "image-settings-conflict");
+  assert.deepEqual(conflictBody.result.error.details, {
+    expectedRevision: 0,
+    actualRevision: 1,
+  });
 });
 
 test("validates model context-window updates at the shared RPC boundary", async () => {

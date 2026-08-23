@@ -1,5 +1,7 @@
 import type { ThreadAssistantMessage, ThreadMessage } from "@assistant-ui/react";
 
+import { readPiUsage } from "./pi-usage";
+
 export interface PiTurnStatistics {
   readonly steps: number;
   readonly llmDurationMs: number;
@@ -34,13 +36,6 @@ export function mergeMonotonicPiSessionStatistics(
   };
 }
 
-interface PiUsageStatistics {
-  readonly input: number;
-  readonly output: number;
-  readonly cacheRead: number;
-  readonly cacheWrite: number;
-}
-
 const EMPTY_TURN_STATISTICS: PiTurnStatistics = {
   steps: 0,
   llmDurationMs: 0,
@@ -60,24 +55,6 @@ function nonNegativeNumber(value: unknown): number | undefined {
 function nonNegativeInteger(value: unknown): number | undefined {
   const number = nonNegativeNumber(value);
   return number !== undefined && Number.isInteger(number) ? number : undefined;
-}
-
-function readPiUsage(value: unknown): PiUsageStatistics | undefined {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
-  const usage = value as Record<string, unknown>;
-  const input = nonNegativeNumber(usage.input);
-  const output = nonNegativeNumber(usage.output);
-  const cacheRead = nonNegativeNumber(usage.cacheRead);
-  const cacheWrite = nonNegativeNumber(usage.cacheWrite);
-  if (
-    input === undefined ||
-    output === undefined ||
-    cacheRead === undefined ||
-    cacheWrite === undefined
-  ) {
-    return undefined;
-  }
-  return { input, output, cacheRead, cacheWrite };
 }
 
 export function readPiTurnStatistics(value: unknown): PiTurnStatistics | undefined {

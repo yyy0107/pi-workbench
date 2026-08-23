@@ -34,7 +34,12 @@ test("merges provider models without exposing or overwriting credentials", async
           "api": "openai-completions",
           "apiKey": "never-return-this",
           "headers": { "X-Private": "keep-me" },
-          "models": [{ "id": "acme-large", "name": "Old", "reasoning": true }],
+          "models": [{
+            "id": "acme-large",
+            "name": "Old",
+            "reasoning": true,
+            "input": ["text", "image"]
+          }],
         },
       },
     }`,
@@ -46,7 +51,7 @@ test("merges provider models without exposing or overwriting credentials", async
       displayName: "Old name",
       baseURL: "https://old.example.test/v1",
       api: "openai-completions",
-      models: [{ id: "acme-large", name: "Old" }],
+      models: [{ id: "acme-large", name: "Old", input: ["text", "image"] }],
     },
   });
   assert.equal(JSON.stringify(await store.providers()).includes("never-return-this"), false);
@@ -55,7 +60,14 @@ test("merges provider models without exposing or overwriting credentials", async
     displayName: "Acme",
     baseURL: "https://api.example.test/v1",
     api: "openai-responses",
-    models: [{ id: "acme-large", contextWindow: 1_000_000, maxTokens: 256_000 }],
+    models: [
+      {
+        id: "acme-large",
+        contextWindow: 1_000_000,
+        maxTokens: 256_000,
+        input: ["text", "image"],
+      },
+    ],
   });
   const saved = JSON.parse(await readFile(stateFile, "utf8")) as {
     schemaNote: string;
@@ -70,11 +82,96 @@ test("merges provider models without exposing or overwriting credentials", async
       reasoning: true,
       contextWindow: 1_000_000,
       maxTokens: 256_000,
+      input: ["text", "image"],
     },
   ]);
 
   await mutation.rollback();
   assert.match(await readFile(stateFile, "utf8"), /Pi model configuration/u);
+});
+
+test("does not roll back a provider mutation over a newer successful write", async (t) => {
+  const directory = await mkdtemp(path.join(tmpdir(), "workbench-model-config-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const store = new ModelConfigStore({ stateFile: path.join(directory, "models.json") });
+
+  const older = await store.setProvider("acme", {
+    displayName: "Older",
+    baseURL: "https://older.example.test/v1",
+    api: "openai-completions",
+  });
+  await store.setProvider("acme", {
+    displayName: "Newer",
+    baseURL: "https://newer.example.test/v1",
+    api: "openai-responses",
+  });
+
+  await older.rollback();
+
+  assert.deepEqual(await store.providers(), {
+    acme: {
+      displayName: "Newer",
+      baseURL: "https://newer.example.test/v1",
+      api: "openai-responses",
+    },
+  });
+});
+
+test("does not roll back over a newer mutation that writes identical content", async (t) => {
+  const directory = await mkdtemp(path.join(tmpdir(), "workbench-model-config-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const stateFile = path.join(directory, "models.json");
+  const olderStore = new ModelConfigStore({ stateFile });
+  const newerStore = new ModelConfigStore({ stateFile });
+  const configuration = {
+    displayName: "Same",
+    baseURL: "https://same.example.test/v1",
+    api: "openai-responses",
+  } as const;
+
+  const older = await olderStore.setProvider("acme", configuration);
+  await newerStore.setProvider("acme", configuration);
+
+  await older.rollback();
+
+  assert.deepEqual(await olderStore.providers(), {
+    acme: configuration,
+  });
+});
+
+test("a failed content write restores the prior revision so an older rollback stays valid", async (t) => {
+  const directory = await mkdtemp(path.join(tmpdir(), "workbench-model-config-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const stateFile = path.join(directory, "models.json");
+  const revisionFile = `${stateFile}.workbench-revision`;
+  const store = new ModelConfigStore({ stateFile });
+  const older = await store.setProvider("acme", {
+    displayName: "Pending",
+    baseURL: "https://pending.example.test/v1",
+    api: "openai-responses",
+  });
+  const olderRevision = await readFile(revisionFile, "utf8");
+  const mutableStore = store as unknown as {
+    writeContent(content: string | undefined): Promise<void>;
+  };
+  const writeContent = mutableStore.writeContent.bind(store);
+  mutableStore.writeContent = async () => {
+    throw new Error("injected content write failure");
+  };
+
+  await assert.rejects(
+    store.setProvider("acme", {
+      displayName: "Rejected",
+      baseURL: "https://rejected.example.test/v1",
+      api: "openai-completions",
+    }),
+    /injected content write failure/u,
+  );
+  mutableStore.writeContent = writeContent;
+
+  assert.equal(await readFile(revisionFile, "utf8"), olderRevision);
+  await older.rollback();
+  await assert.rejects(readFile(stateFile, "utf8"), { code: "ENOENT" });
 });
 
 test("writes one model context-window override while preserving provider configuration", async (t) => {

@@ -1,17 +1,7 @@
 import { randomUUID } from "node:crypto";
-import {
-  mkdir,
-  open,
-  readFile,
-  realpath,
-  rename as renameFile,
-  rm,
-  stat,
-  utimes,
-} from "node:fs/promises";
-import { homedir, hostname } from "node:os";
+import { readFile, realpath, stat } from "node:fs/promises";
+import { homedir } from "node:os";
 import path from "node:path";
-import { setTimeout as delay } from "node:timers/promises";
 
 import type {
   WorkspacePinValue,
@@ -19,6 +9,7 @@ import type {
   WorkspaceSessionPinValue,
   WorkspaceView,
 } from "../../rpc-contracts";
+import { atomicReplaceFile, withCrossProcessFileLock } from "../core/file-persistence";
 import { getStreamHub } from "../streams/stream-hub";
 
 export type { WorkspaceView } from "../../rpc-contracts";
@@ -197,26 +188,6 @@ function archiveResult(sessionId: string, archived: boolean): WorkspaceSessionAr
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function nodeErrorCode(error: unknown): string | undefined {
-  if (!isRecord(error)) return undefined;
-  return typeof error.code === "string" ? error.code : undefined;
-}
-
-async function lockOwnerIsAlive(ownerFile: string): Promise<boolean | undefined> {
-  try {
-    const [ownerHost, ownerPid] = (await readFile(ownerFile, "utf8")).split(":");
-    if (ownerHost !== hostname() || !/^\d+$/.test(ownerPid ?? "")) return undefined;
-    try {
-      process.kill(Number(ownerPid), 0);
-      return true;
-    } catch (error) {
-      return nodeErrorCode(error) === "ESRCH" ? false : true;
-    }
-  } catch (error) {
-    return nodeErrorCode(error) === "ENOENT" ? undefined : true;
-  }
 }
 
 function nonEmptyString(value: unknown, field: string): string {
@@ -913,84 +884,19 @@ export class WorkspaceStore {
     return run;
   }
 
-  private async withFileLock<Result>(operation: () => Promise<Result>): Promise<Result> {
-    const release = await this.acquireFileLock();
-    try {
-      await this.load();
-      return await operation();
-    } finally {
-      await release();
-    }
-  }
-
-  private async acquireFileLock(): Promise<() => Promise<void>> {
-    const lockDirectory = `${this.stateFile}.lock`;
-    await mkdir(path.dirname(lockDirectory), { recursive: true });
-    const deadline = Date.now() + LOCK_WAIT_TIMEOUT_MS;
-    let waitMs = 5;
-
-    for (;;) {
-      const owner = `${hostname()}:${process.pid}:${randomUUID()}`;
-      let acquired = false;
-      try {
-        await mkdir(lockDirectory);
-        acquired = true;
-      } catch (error) {
-        if (nodeErrorCode(error) !== "EEXIST") throw error;
-      }
-
-      if (acquired) {
-        const ownerFile = path.join(lockDirectory, "owner");
-        try {
-          const handle = await open(ownerFile, "wx", 0o600);
-          try {
-            await handle.writeFile(owner, "utf8");
-          } finally {
-            await handle.close();
-          }
-          const heartbeat = setInterval(() => {
-            const now = new Date();
-            void utimes(lockDirectory, now, now).catch(() => undefined);
-          }, LOCK_HEARTBEAT_MS);
-          heartbeat.unref?.();
-          return async () => {
-            clearInterval(heartbeat);
-            try {
-              if ((await readFile(ownerFile, "utf8")) === owner) {
-                await rm(lockDirectory, { recursive: true, force: true });
-              }
-            } catch (error) {
-              if (nodeErrorCode(error) !== "ENOENT") throw error;
-            }
-          };
-        } catch (error) {
-          await rm(lockDirectory, { recursive: true, force: true });
-          throw error;
-        }
-      }
-
-      try {
-        const lockStat = await stat(lockDirectory);
-        const ownerAlive = await lockOwnerIsAlive(path.join(lockDirectory, "owner"));
-        if (ownerAlive === false || Date.now() - lockStat.mtimeMs > LOCK_STALE_AFTER_MS) {
-          const staleDirectory = `${lockDirectory}.stale.${randomUUID()}`;
-          try {
-            await renameFile(lockDirectory, staleDirectory);
-            await rm(staleDirectory, { recursive: true, force: true });
-            continue;
-          } catch (error) {
-            if (nodeErrorCode(error) !== "ENOENT") throw error;
-          }
-        }
-      } catch (error) {
-        if (nodeErrorCode(error) === "ENOENT") continue;
-        throw error;
-      }
-
-      if (Date.now() >= deadline) throw new Error(`Timed out waiting for ${lockDirectory}`);
-      await delay(waitMs);
-      waitMs = Math.min(waitMs * 2, 100);
-    }
+  private withFileLock<Result>(operation: () => Promise<Result>): Promise<Result> {
+    return withCrossProcessFileLock(
+      {
+        lockDirectory: `${this.stateFile}.lock`,
+        waitTimeoutMs: LOCK_WAIT_TIMEOUT_MS,
+        staleAfterMs: LOCK_STALE_AFTER_MS,
+        heartbeatIntervalMs: LOCK_HEARTBEAT_MS,
+      },
+      async () => {
+        await this.load();
+        return await operation();
+      },
+    );
   }
 
   private async load(): Promise<void> {
@@ -1059,26 +965,9 @@ export class WorkspaceStore {
   }
 
   private async persist(state: WorkspaceState): Promise<void> {
-    const directory = path.dirname(this.stateFile);
-    await mkdir(directory, { recursive: true });
-    const temporaryFile = path.join(
-      directory,
-      `.${path.basename(this.stateFile)}.${process.pid}.${randomUUID()}.tmp`,
-    );
-    let replaced = false;
-    try {
-      const handle = await open(temporaryFile, "wx", 0o600);
-      try {
-        await handle.writeFile(`${JSON.stringify(state, null, 2)}\n`, "utf8");
-        await handle.sync();
-      } finally {
-        await handle.close();
-      }
-      await renameFile(temporaryFile, this.stateFile);
-      replaced = true;
-    } finally {
-      if (!replaced) await rm(temporaryFile, { force: true });
-    }
+    await atomicReplaceFile(this.stateFile, `${JSON.stringify(state, null, 2)}\n`, {
+      fileMode: 0o600,
+    });
   }
 
   private emit(event: WorkspaceStoreEvent): void {

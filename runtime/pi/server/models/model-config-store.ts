@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
+import { readFile, rm } from "node:fs/promises";
 import path from "node:path";
-import { setTimeout as delay } from "node:timers/promises";
 
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
 
@@ -9,6 +8,7 @@ import type {
   ModelProviderConfiguration,
   ModelProviderModelConfiguration,
 } from "../../rpc-contracts";
+import { atomicReplaceFile, withCrossProcessFileLock } from "../core/file-persistence";
 
 interface JsonObject {
   [key: string]: unknown;
@@ -26,6 +26,11 @@ export interface StoredModelProviderConfiguration {
 }
 
 export interface ModelConfigMutation {
+  /**
+   * Restores the pre-mutation file only while both the current bytes and write revision still
+   * belong to this mutation. A newer write makes rollback a no-op even when it writes identical
+   * bytes, so an older failed request cannot overwrite it.
+   */
   rollback(): Promise<void>;
 }
 
@@ -46,9 +51,6 @@ export interface ModelConfigStorage {
 export interface ModelConfigStoreOptions {
   stateFile?: string;
 }
-
-const LOCK_WAIT_MS = 10_000;
-const LOCK_STALE_MS = 30_000;
 
 function isObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -81,6 +83,10 @@ function modelConfiguration(value: unknown): ModelProviderModelConfiguration | u
     ...(typeof value.name === "string" && value.name ? { name: value.name } : {}),
     ...(typeof value.contextWindow === "number" ? { contextWindow: value.contextWindow } : {}),
     ...(typeof value.maxTokens === "number" ? { maxTokens: value.maxTokens } : {}),
+    ...(Array.isArray(value.input) &&
+    value.input.every((item) => item === "text" || item === "image")
+      ? { input: [...new Set(value.input)] as Array<"text" | "image"> }
+      : {}),
   };
 }
 
@@ -115,15 +121,18 @@ function storedModel(
   else delete next.contextWindow;
   if (model.maxTokens) next.maxTokens = model.maxTokens;
   else delete next.maxTokens;
+  if (model.input) next.input = [...new Set(model.input)];
+  else delete next.input;
   return next;
 }
 
 export class ModelConfigStore implements ModelConfigStorage {
   readonly stateFile: string;
-  private queue: Promise<void> = Promise.resolve();
+  private readonly revisionFile: string;
 
   constructor(options: ModelConfigStoreOptions = {}) {
     this.stateFile = options.stateFile ?? path.join(getAgentDir(), "models.json");
+    this.revisionFile = `${this.stateFile}.workbench-revision`;
   }
 
   private async readContent(): Promise<string | undefined> {
@@ -136,54 +145,69 @@ export class ModelConfigStore implements ModelConfigStorage {
   }
 
   private async writeContent(content: string | undefined): Promise<void> {
-    await mkdir(path.dirname(this.stateFile), { recursive: true });
     if (content === undefined) {
       await rm(this.stateFile, { force: true });
       return;
     }
-    const temporary = `${this.stateFile}.${process.pid}.${randomUUID()}.tmp`;
+    await atomicReplaceFile(this.stateFile, content);
+  }
+
+  private async readRevision(): Promise<string | undefined> {
     try {
-      await writeFile(temporary, content, { encoding: "utf8", mode: 0o600 });
-      await rename(temporary, this.stateFile);
-    } finally {
-      await rm(temporary, { force: true });
+      return await readFile(this.revisionFile, "utf8");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+      throw error;
     }
   }
 
-  private async withLock<T>(operation: () => Promise<T>): Promise<T> {
-    let releaseQueue!: () => void;
-    const previous = this.queue;
-    this.queue = new Promise<void>((resolve) => {
-      releaseQueue = resolve;
-    });
-    await previous;
-
-    const lockDirectory = `${this.stateFile}.workbench-lock`;
-    const deadline = Date.now() + LOCK_WAIT_MS;
-    let acquired = false;
-    try {
-      await mkdir(path.dirname(lockDirectory), { recursive: true });
-      for (;;) {
-        try {
-          await mkdir(lockDirectory);
-          acquired = true;
-          break;
-        } catch (error) {
-          if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-          const lockStat = await stat(lockDirectory).catch(() => undefined);
-          if (lockStat && Date.now() - lockStat.mtimeMs > LOCK_STALE_MS) {
-            await rm(lockDirectory, { recursive: true, force: true });
-            continue;
-          }
-          if (Date.now() >= deadline) throw new Error(`Timed out waiting for ${lockDirectory}`);
-          await delay(25);
-        }
-      }
-      return await operation();
-    } finally {
-      if (acquired) await rm(lockDirectory, { recursive: true, force: true });
-      releaseQueue();
+  private async writeRevision(revision: string | undefined): Promise<void> {
+    if (revision === undefined) {
+      await rm(this.revisionFile, { force: true });
+      return;
     }
+    await atomicReplaceFile(this.revisionFile, revision);
+  }
+
+  private async withLock<T>(operation: () => Promise<T>): Promise<T> {
+    return withCrossProcessFileLock(
+      { lockDirectory: `${this.stateFile}.workbench-lock` },
+      operation,
+    );
+  }
+
+  private async writeMutation(
+    previous: string | undefined,
+    next: string | undefined,
+  ): Promise<ModelConfigMutation> {
+    const previousRevision = await this.readRevision();
+    const revision = randomUUID();
+    // Publish the identity before the content. If the content write fails, advancing the identity
+    // must be compensated while the same cross-process lock is still held; otherwise a failed
+    // mutation could incorrectly invalidate an older request's still-valid rollback.
+    await this.writeRevision(revision);
+    try {
+      await this.writeContent(next);
+    } catch (writeError) {
+      try {
+        await this.writeRevision(previousRevision);
+      } catch (revisionError) {
+        throw new AggregateError(
+          [writeError, revisionError],
+          "Failed to write model configuration and restore its mutation revision.",
+        );
+      }
+      throw writeError;
+    }
+    return {
+      rollback: () =>
+        this.withLock(async () => {
+          if ((await this.readRevision()) !== revision) return;
+          if ((await this.readContent()) !== next) return;
+          await this.writeRevision(randomUUID());
+          await this.writeContent(previous);
+        }),
+    };
   }
 
   async providers(): Promise<Record<string, StoredModelProviderConfiguration>> {
@@ -226,8 +250,7 @@ export class ModelConfigStore implements ModelConfigStorage {
         delete nextProvider.models;
       }
       providers[provider] = nextProvider;
-      await this.writeContent(serialized({ ...state, providers }));
-      return { rollback: () => this.withLock(() => this.writeContent(previous)) };
+      return this.writeMutation(previous, serialized({ ...state, providers }));
     });
   }
 
@@ -254,8 +277,7 @@ export class ModelConfigStore implements ModelConfigStorage {
           [model]: { ...currentOverride, contextWindow },
         },
       };
-      await this.writeContent(serialized({ ...state, providers }));
-      return { rollback: () => this.withLock(() => this.writeContent(previous)) };
+      return this.writeMutation(previous, serialized({ ...state, providers }));
     });
   }
 
@@ -267,8 +289,7 @@ export class ModelConfigStore implements ModelConfigStorage {
       const providers = { ...state.providers };
       if (!(provider in providers)) return undefined;
       delete providers[provider];
-      await this.writeContent(serialized({ ...state, providers }));
-      return { rollback: () => this.withLock(() => this.writeContent(previous)) };
+      return this.writeMutation(previous, serialized({ ...state, providers }));
     });
   }
 }

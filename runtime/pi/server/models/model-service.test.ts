@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import { mkdtemp, rm } from "node:fs/promises";
 import { registerHooks } from "node:module";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 const moduleHooks = registerHooks({
@@ -17,6 +20,9 @@ const moduleHooks = registerHooks({
 const { ModelService, ModelServiceError, toModelCatalogModel } = (await import(
   new URL("./model-service.ts", import.meta.url).href
 )) as typeof import("./model-service");
+const { ModelConfigStore } = (await import(
+  new URL("./model-config-store.ts", import.meta.url).href
+)) as typeof import("./model-config-store");
 moduleHooks.deregister();
 
 type ModelRuntimeLike = import("./model-service").ModelRuntimeLike;
@@ -252,6 +258,7 @@ test("maps provider auth status without reading credential values", async () => 
   assert.deepEqual(catalog.groups[0].models[0], {
     id: "claude-fast",
     name: "Claude Fast",
+    input: ["text"],
   });
   assert.deepEqual(catalog.groups[1].models[0].reasoning, {
     efforts: [
@@ -646,6 +653,77 @@ test("persists a custom provider catalog, refreshes its route, and keeps credent
   assert.equal(refreshes.length, 2);
 });
 
+test("a deferred failed configuration cannot roll back a newer successful write", async (t) => {
+  const directory = await mkdtemp(path.join(tmpdir(), "workbench-model-service-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const store = new ModelConfigStore({ stateFile: path.join(directory, "models.json") });
+
+  let markFirstRefreshStarted!: () => void;
+  const firstRefreshStarted = new Promise<void>((resolve) => {
+    markFirstRefreshStarted = resolve;
+  });
+  let releaseFirstRefresh!: () => void;
+  const firstRefreshReleased = new Promise<void>((resolve) => {
+    releaseFirstRefresh = resolve;
+  });
+  t.after(() => releaseFirstRefresh());
+
+  let refreshCount = 0;
+  const service = modelService({
+    modelConfigStore: store,
+    runtime: runtime({
+      getProviders: () => [{ id: "acme", name: "Acme" }],
+      getModels: () => [],
+      refresh: async () => {
+        refreshCount += 1;
+        if (refreshCount === 1) {
+          markFirstRefreshStarted();
+          await firstRefreshReleased;
+          return {
+            aborted: false,
+            errors: new Map([["acme", new Error("deferred refresh failure")]]),
+          };
+        }
+        return { aborted: false, errors: new Map() };
+      },
+    }),
+  });
+
+  const olderRequest = service.configureProvider({
+    provider: "acme",
+    configuration: {
+      displayName: "Older",
+      baseURL: "https://older.example.test/v1",
+      api: "openai-completions",
+    },
+  });
+  await firstRefreshStarted;
+
+  await service.configureProvider({
+    provider: "acme",
+    configuration: {
+      displayName: "Newer",
+      baseURL: "https://newer.example.test/v1",
+      api: "openai-responses",
+    },
+  });
+  releaseFirstRefresh();
+
+  await assert.rejects(
+    olderRequest,
+    (error: unknown) =>
+      error instanceof ModelServiceError && error.code === "model-provider-configuration-failed",
+  );
+  assert.equal(refreshCount, 3);
+  assert.deepEqual(await store.providers(), {
+    acme: {
+      displayName: "Newer",
+      baseURL: "https://newer.example.test/v1",
+      api: "openai-responses",
+    },
+  });
+});
+
 test("returns adapter defaults without turning them into a custom override", async () => {
   const service = modelService({ runtime: runtime() });
   assert.deepEqual(await service.providerConfig({ provider: "openai" }), {
@@ -871,6 +949,11 @@ test("maps PI reasoning effort fallbacks", () => {
       ?.defaultEffort,
     "low",
   );
+  assert.deepEqual(toModelCatalogModel(models[0]!).input, ["text"]);
+  assert.deepEqual(toModelCatalogModel({ ...models[0]!, input: ["text", "image"] }).input, [
+    "text",
+    "image",
+  ]);
 });
 
 test("returns per-provider and runtime catalog failures without dropping healthy groups", async () => {
@@ -896,7 +979,7 @@ test("returns per-provider and runtime catalog failures without dropping healthy
       {
         id: "anthropic",
         name: "Anthropic",
-        models: [{ id: "claude-fast", name: "Claude Fast" }],
+        models: [{ id: "claude-fast", name: "Claude Fast", input: ["text"] }],
       },
     ],
     failures: [

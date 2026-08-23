@@ -5,6 +5,7 @@ import path from "node:path";
 import {
   type AgentSession,
   type AgentSessionServices,
+  buildContextEntries,
   createAgentSessionFromServices,
   createAgentSessionServices,
   getAgentDir,
@@ -37,6 +38,8 @@ import {
   WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE,
   WORKBENCH_COMPOSER_RESOLUTION_CUSTOM_TYPE,
   WORKBENCH_COMPOSER_USER_CUSTOM_TYPE,
+  parseWorkbenchComposerResolutionDetails,
+  parseWorkbenchComposerUserDetails,
   type WorkbenchComposerCommandResponse,
   type WorkbenchComposerCommandResponseDetails,
   type WorkbenchComposerCommandTrace,
@@ -48,7 +51,7 @@ import {
 } from "../../../composer-request";
 import { PI_MODEL_CHANGED_EVENT, PI_SESSION_FORKED_EVENT } from "../../contracts";
 import { PI_CANCEL_INTENT_CUSTOM_TYPE } from "../../message-termination";
-import type { SessionEvent } from "../../rpc-contracts";
+import type { SessionEvent, SessionHistoryBranches } from "../../rpc-contracts";
 import { applySessionMessageDelta, copyPiAssistantMessage } from "../../session-message-reducer";
 import {
   createSessionEventPayload,
@@ -81,11 +84,29 @@ import { getStreamHub } from "../streams/stream-hub";
 import { getWorkspaceStore } from "../workspaces/workspace-registry";
 import { validateWorkspace, workspaceFromCwd } from "../workspaces/workspace-paths";
 import { createInteractiveBashTool } from "../../../terminal/server/interactive-bash-tool";
+import {
+  isTerminalImageRecognitionSnapshot,
+  parseImageRecognitionSnapshot,
+  reduceImageRecognitionSnapshot,
+  WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE,
+  type ImageRecognitionSnapshot,
+} from "../../../image-understanding/state-machine";
+import {
+  decideImageUnderstandingRoute,
+  GlmOcrProvider,
+  ImageUnderstandingProviderError,
+  PaddleOcrProvider,
+  type ImageUnderstandingObservation,
+} from "../image-understanding/index";
+import { ImageRecognitionLifecycle } from "../image-understanding/lifecycle";
+import { recognizeWithMultimodalModel } from "../image-understanding/multimodal";
+import { getImageUnderstandingSettingsStore } from "../image-understanding/registry";
 
 export { PiServerError } from "../core/errors";
 
 const SESSION_IDLE_TIMEOUT_MS = 10 * 60 * 1000;
 const TOOL_TIMING_CUSTOM_TYPE = "workbench.tool-timing.v1";
+const BRANCH_SELECTION_CUSTOM_TYPE = "workbench.branch-selection.v1";
 export const PROMPT_SOURCE_CUSTOM_TYPE = "workbench.prompt-source.v1";
 const modelProviderRevisions = new Map<string, number>();
 
@@ -119,6 +140,11 @@ interface ActiveAssistantStream {
   revision: number;
   message: PiAssistantMessage;
   toolCallJson: Map<number, string>;
+}
+
+interface ReadonlyPromptQueueSnapshot {
+  readonly steering: readonly PiQueuedPrompt[];
+  readonly followUp: readonly PiQueuedPrompt[];
 }
 
 interface SessionTimestampEntry {
@@ -546,7 +572,7 @@ function copyQueuedPrompts(prompts: readonly PiQueuedPrompt[]): PiQueuedPrompt[]
   }));
 }
 
-function copyQueueSnapshot(queue: PromptQueueSnapshot): PromptQueueSnapshot {
+function copyQueueSnapshot(queue: ReadonlyPromptQueueSnapshot): PromptQueueSnapshot {
   return {
     steering: copyQueuedPrompts(queue.steering),
     followUp: copyQueuedPrompts(queue.followUp),
@@ -565,7 +591,7 @@ export function messagesHaveImages(messages: readonly unknown[]): boolean {
   return messages.some((candidate) => isRecord(candidate) && contentHasImage(candidate.content));
 }
 
-function promptsHaveImages(prompts: PromptQueueSnapshot): boolean {
+function promptsHaveImages(prompts: ReadonlyPromptQueueSnapshot): boolean {
   return [...prompts.steering, ...prompts.followUp].some((prompt) =>
     prompt.images?.some((image) => image.type === "image" && Boolean(image.data)),
   );
@@ -610,6 +636,124 @@ export class SerializedSessionMutations {
   }
 }
 
+type ImageUnderstandingRunResult =
+  | { kind: "native"; images: PiImageContent[] }
+  | { kind: "preprocessed"; observations: ImageUnderstandingObservation[] }
+  | { kind: "failed"; errorCode: string }
+  | { kind: "cancelled" };
+
+const MAX_IMAGE_UNDERSTANDING_CONTEXT_CHARACTERS = 250_000;
+
+function validateImageUnderstandingObservations(
+  observations: readonly ImageUnderstandingObservation[],
+  expectedImageIds: readonly string[],
+): void {
+  const imageCount = expectedImageIds.length;
+  if (observations.length !== imageCount) {
+    throw new ImageUnderstandingProviderError("provider-invalid-response");
+  }
+  const imageIds = new Set(observations.map(({ imageId }) => imageId));
+  if (imageIds.size !== imageCount || expectedImageIds.some((imageId) => !imageIds.has(imageId))) {
+    throw new ImageUnderstandingProviderError("provider-invalid-response");
+  }
+  const totalCharacters = observations.reduce((total, observation) => {
+    return total + observation.text.length;
+  }, 0);
+  if (totalCharacters > MAX_IMAGE_UNDERSTANDING_CONTEXT_CHARACTERS) {
+    throw new ImageUnderstandingProviderError("provider-response-too-large");
+  }
+}
+
+function stableImageUnderstandingErrorCode(error: unknown): string {
+  if (error instanceof ImageUnderstandingProviderError) return error.code;
+  if (error instanceof Error && error.name === "AbortError") return "provider-aborted";
+  if (isRecord(error) && typeof error.code === "string" && /^[a-z0-9._-]+$/u.test(error.code)) {
+    return error.code;
+  }
+  return "provider-unavailable";
+}
+
+function interruptedImageRecognitionTransitions(
+  events: readonly SessionEvent[],
+  now = Date.now(),
+): ImageRecognitionSnapshot[][] {
+  const latest = new Map<string, ImageRecognitionSnapshot>();
+  for (const event of events) {
+    if (event.type !== "message" || !isRecord(event.data)) continue;
+    if (event.data.customType !== WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE) continue;
+    const incoming = parseImageRecognitionSnapshot(event.data.details);
+    if (!incoming) continue;
+    const current = latest.get(incoming.operationId);
+    if (!current) {
+      latest.set(incoming.operationId, incoming);
+      continue;
+    }
+    try {
+      latest.set(incoming.operationId, reduceImageRecognitionSnapshot(current, incoming));
+    } catch {
+      // A corrupt operation does not prevent independent operations from being reconciled.
+    }
+  }
+
+  const transition = (
+    current: ImageRecognitionSnapshot,
+    state:
+      | { status: "running"; stage: "fallback" }
+      | { status: "failed"; errorCode: "recognition-interrupted" },
+  ): ImageRecognitionSnapshot => {
+    const updatedAt = Math.max(current.timestamps?.updatedAt ?? 0, now);
+    const incoming = parseImageRecognitionSnapshot({
+      version: 1,
+      operationId: current.operationId,
+      submissionId: current.submissionId,
+      ...(current.rpcId === undefined ? {} : { rpcId: current.rpcId }),
+      revision: current.revision + 1,
+      ...state,
+      method: current.method,
+      ...(current.providerId === undefined ? {} : { providerId: current.providerId }),
+      imageCount: current.imageCount,
+      completedCount: current.completedCount,
+      ...(current.progress === undefined ? {} : { progress: current.progress }),
+      timestamps: {
+        createdAt: current.timestamps?.createdAt ?? updatedAt,
+        updatedAt,
+        ...(state.status === "failed" ? { completedAt: updatedAt } : {}),
+      },
+    });
+    if (!incoming) throw new TypeError("Could not reconcile an interrupted image operation.");
+    return reduceImageRecognitionSnapshot(current, incoming);
+  };
+
+  return [...latest.values()].flatMap((snapshot) => {
+    if (isTerminalImageRecognitionSnapshot(snapshot)) return [];
+    const running =
+      snapshot.status === "pending"
+        ? transition(snapshot, { status: "running", stage: "fallback" })
+        : snapshot;
+    const failed = transition(running, {
+      status: "failed",
+      errorCode: "recognition-interrupted",
+    });
+    return [snapshot.status === "pending" ? [running, failed] : [failed]];
+  });
+}
+
+function persistedComposerResolutionSubmissionIds(entries: readonly SessionEntry[]): Set<string> {
+  const submissionIds = new Set<string>();
+  for (const entry of entries) {
+    const details =
+      entry.type === "custom_message" &&
+      entry.customType === WORKBENCH_COMPOSER_RESOLUTION_CUSTOM_TYPE
+        ? entry.details
+        : entry.type === "custom" && entry.customType === WORKBENCH_COMPOSER_RESOLUTION_CUSTOM_TYPE
+          ? entry.data
+          : undefined;
+    const resolution = parseWorkbenchComposerResolutionDetails(details);
+    if (resolution) submissionIds.add(resolution.submissionId);
+  }
+  return submissionIds;
+}
+
 class HostedPiSession {
   readonly session: AgentSession;
   private readonly listeners = new Set<SessionEventListener>();
@@ -618,6 +762,10 @@ class HostedPiSession {
   private readonly unsubscribeAgent: () => void;
   private idleTimer: ReturnType<typeof setTimeout> | undefined;
   private promptTask: Promise<void> | undefined;
+  private imageRecognitionTask: Promise<ImageUnderstandingRunResult> | undefined;
+  private imageRecognitionAbort: AbortController | undefined;
+  private imageRecognitionCompletion: Promise<void> | undefined;
+  private completeImageRecognition: (() => void) | undefined;
   private activePromptHasImages = false;
   private sequence = -1;
   private activeAssistantStream: ActiveAssistantStream | undefined;
@@ -694,8 +842,68 @@ class HostedPiSession {
     });
     if (initializedJournal.error !== undefined) {
       this.reportJournalFailure(initializedJournal.error);
+    } else {
+      this.reconcileInterruptedImageRecognition();
     }
     this.touch();
+  }
+
+  private reconcileInterruptedImageRecognition(): void {
+    const resolvedComposerSubmissions = persistedComposerResolutionSubmissionIds(
+      this.session.sessionManager.getBranch(),
+    );
+    for (const transitions of interruptedImageRecognitionTransitions(this.canonicalEventsValue)) {
+      for (const snapshot of transitions) {
+        const timestamp = snapshot.timestamps?.updatedAt ?? Date.now();
+        this.publish(
+          {
+            type: "message",
+            role: "custom",
+            customType: WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE,
+            content: "",
+            display: true,
+            details: snapshot,
+            timestamp,
+          },
+          timestamp,
+        );
+      }
+      const terminal = transitions.at(-1);
+      if (terminal && isTerminalImageRecognitionSnapshot(terminal)) {
+        this.session.sessionManager.appendCustomEntry(
+          WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE,
+          terminal,
+        );
+        if (!resolvedComposerSubmissions.has(terminal.submissionId)) {
+          const resolution: WorkbenchComposerResolutionDetails = {
+            version: 1,
+            submissionId: terminal.submissionId,
+            status: "command_error",
+            commandTrace: [],
+          };
+          this.session.sessionManager.appendCustomMessageEntry(
+            WORKBENCH_COMPOSER_RESOLUTION_CUSTOM_TYPE,
+            "",
+            false,
+            resolution,
+          );
+          const timestamp = terminal.timestamps?.updatedAt ?? Date.now();
+          this.publish(
+            {
+              type: "message",
+              role: "custom",
+              customType: WORKBENCH_COMPOSER_RESOLUTION_CUSTOM_TYPE,
+              content: "",
+              display: false,
+              details: resolution,
+              timestamp,
+            },
+            timestamp,
+          );
+          resolvedComposerSubmissions.add(terminal.submissionId);
+        }
+      }
+    }
   }
 
   get id(): string {
@@ -707,6 +915,10 @@ class HostedPiSession {
   }
 
   get isRunning(): boolean {
+    return this.imageRecognitionAbort !== undefined || this.hasActiveAgentRun;
+  }
+
+  private get hasActiveAgentRun(): boolean {
     return this.promptTask !== undefined || this.session.isStreaming;
   }
 
@@ -1059,48 +1271,34 @@ class HostedPiSession {
     this.idleTimer.unref?.();
   }
 
+  private requireModelImageCompatibility(
+    model: { input: readonly string[] } | undefined,
+    incomingImages = false,
+  ): void {
+    if (model?.input.includes("image")) return;
+    if (
+      incomingImages ||
+      this.activePromptHasImages ||
+      messagesHaveImages(this.session.sessionManager.buildSessionContext().messages) ||
+      promptsHaveImages(this.queueProjection.prompts())
+    ) {
+      throw imageUnsupported();
+    }
+  }
+
   private async promptNow(
     message: string,
     images?: PiImageContent[],
     selection?: PiModelSelection,
-  ): Promise<void> {
-    if (this.isRunning) throw new PiServerError("pi_session_busy", 409);
-
-    const requestedProvider = selection?.provider ?? this.session.model?.provider;
-    if (requestedProvider) await this.refreshChangedModelProvider(requestedProvider);
+    cancellationSignal?: AbortSignal,
+  ): Promise<boolean> {
+    if (cancellationSignal?.aborted) return false;
+    if (this.hasActiveAgentRun) throw new PiServerError("pi_session_busy", 409);
 
     if (selection) {
-      const model = this.session.modelRuntime
-        .getAvailableSnapshot()
-        .find(
-          (candidate) =>
-            candidate.provider === selection.provider && candidate.id === selection.modelId,
-        );
-      if (!model) throw new PiServerError("pi_model_not_available", 400);
-      if (images?.length && !model.input.includes("image")) throw imageUnsupported();
-      if (this.session.model?.provider !== model.provider || this.session.model?.id !== model.id) {
-        const previousModel = this.session.model;
-        const hadConversation =
-          this.session.sessionManager.buildSessionContext().messages.length > 0;
-        await this.session.setModel(model);
-        if (hadConversation) {
-          this.publish({
-            type: PI_MODEL_CHANGED_EVENT,
-            provider: model.provider,
-            model: model.id,
-            ...(previousModel
-              ? {
-                  previousProvider: previousModel.provider,
-                  previousModel: previousModel.id,
-                }
-              : {}),
-          });
-        }
-      }
-      if (selection.thinkingLevel) {
-        this.session.setThinkingLevel(selection.thinkingLevel);
-      }
+      await this.applyPromptSelection(selection);
     } else if (this.session.model) {
+      await this.refreshChangedModelProvider(this.session.model.provider);
       const refreshedModel = this.session.modelRuntime
         .getAvailableSnapshot()
         .find(
@@ -1109,12 +1307,12 @@ class HostedPiSession {
             candidate.id === this.session.model.id,
         );
       if (!refreshedModel) throw new PiServerError("pi_model_not_available", 400);
+      this.requireModelImageCompatibility(refreshedModel, Boolean(images?.length));
       if (refreshedModel !== this.session.model) await this.session.setModel(refreshedModel);
     }
 
-    if (images?.length && !this.session.model?.input.includes("image")) {
-      throw imageUnsupported();
-    }
+    this.requireModelImageCompatibility(this.session.model, Boolean(images?.length));
+    if (cancellationSignal?.aborted) return false;
 
     let reportPreflight: ((accepted: boolean) => void) | undefined;
     const preflight = new Promise<boolean>((resolvePreflight) => {
@@ -1161,16 +1359,400 @@ class HostedPiSession {
         () => false,
       ),
     ]);
-    if (!accepted) throw new PiServerError("pi_prompt_rejected", 400);
+    if (!accepted) {
+      if (cancellationSignal?.aborted) return false;
+      throw new PiServerError("pi_prompt_rejected", 400);
+    }
+    return true;
   }
 
-  prompt(message: string, images?: PiImageContent[], selection?: PiModelSelection): Promise<void> {
-    return this.runQueueMutation(() => this.promptNow(message, images, selection));
+  /** Applies a direct-prompt model selection before image routing inspects model capabilities. */
+  private async applyPromptSelection(selection: PiModelSelection): Promise<void> {
+    await this.refreshChangedModelProvider(selection.provider);
+    const model = this.session.modelRuntime
+      .getAvailableSnapshot()
+      .find(
+        (candidate) =>
+          candidate.provider === selection.provider && candidate.id === selection.modelId,
+      );
+    if (!model) throw new PiServerError("pi_model_not_available", 400);
+    this.requireModelImageCompatibility(model);
+    if (this.session.model?.provider !== model.provider || this.session.model?.id !== model.id) {
+      const previousModel = this.session.model;
+      const hadConversation = this.session.sessionManager.buildSessionContext().messages.length > 0;
+      await this.session.setModel(model);
+      if (hadConversation) {
+        this.publish({
+          type: PI_MODEL_CHANGED_EVENT,
+          provider: model.provider,
+          model: model.id,
+          ...(previousModel
+            ? {
+                previousProvider: previousModel.provider,
+                previousModel: previousModel.id,
+              }
+            : {}),
+        });
+      }
+    }
+    if (selection.thinkingLevel) this.session.setThinkingLevel(selection.thinkingLevel);
+  }
+
+  private activateBranch(leafId: string, persistSelection: boolean): void {
+    const manager = this.session.sessionManager;
+    if (!manager.getEntry(leafId)) throw new PiServerError("pi_branch_not_found", 404);
+    manager.branch(leafId);
+    if (persistSelection) {
+      manager.appendCustomEntry(BRANCH_SELECTION_CUSTOM_TYPE, { selectedLeafId: leafId });
+    }
+    this.session.agent.state.messages = manager.buildSessionContext().messages;
+    const events = readSessionEventJournal(manager);
+    this.canonicalEventsValue.splice(0, this.canonicalEventsValue.length, ...events);
+    this.sequence = events.at(-1)?.seq ?? -1;
+    this.clearAssistantMessageStream();
+    this.assistantMessageActive = false;
+    this.assistantFirstTokenAt = undefined;
+    this.toolStartedAtById.clear();
+    try {
+      // Branch-local journal sequences restart from the shared prefix. Reset every connected
+      // client's watermark before any events from the selected branch can be published.
+      getStreamHub().publishMux({
+        type: "session/subscribed",
+        sessionId: this.id,
+        lastSeq: this.sequence,
+      });
+    } catch {
+      // Unary branch history remains authoritative after reconnect.
+    }
+    announceSessionChanged(this);
+  }
+
+  selectBranch(leafId: string): Promise<void> {
+    return this.runQueueMutation(async () => {
+      if (this.isRunning) throw new PiServerError("pi_session_busy", 409);
+      this.activateBranch(leafId, true);
+    });
+  }
+
+  regenerate(messageId: string): Promise<void> {
+    return this.runQueueMutation(async () => {
+      if (this.isRunning) throw new PiServerError("pi_session_busy", 409);
+      const manager = this.session.sessionManager;
+      const selectedEntry = manager.getEntry(messageId);
+      const event = selectedEntry ? storedCanonicalEvent(selectedEntry) : undefined;
+      const eventData = isRecord(event?.data) ? event.data : undefined;
+      const eventMessage = event?.type === "message" ? eventData : eventData?.message;
+      let legacySource = false;
+      const userEntry = (() => {
+        if (
+          selectedEntry?.type === "message" &&
+          isRecord(selectedEntry.message) &&
+          selectedEntry.message.role === "user"
+        ) {
+          legacySource = true;
+          return selectedEntry;
+        }
+        if (
+          (event?.type !== "message_end" && event?.type !== "message") ||
+          !isRecord(eventMessage) ||
+          eventMessage.role !== "user"
+        ) {
+          return undefined;
+        }
+        if (event.type === "message_end") {
+          return manager
+            .getChildren(messageId)
+            .find(
+              (entry) =>
+                entry.type === "message" &&
+                isRecord(entry.message) &&
+                entry.message.role === "user" &&
+                jsonEqual(entry.message, eventMessage),
+            );
+        }
+        // Legacy journal migration records canonical `message` events after the original context.
+        // Its sequence is the stable index into that migrated context.
+        const entryId = historyFromManager(manager).context.entryIds[event.seq];
+        const entry = entryId ? manager.getEntry(entryId) : undefined;
+        if (entry?.type !== "message" || !jsonEqual(entry.message, eventMessage)) return undefined;
+        legacySource = true;
+        return entry;
+      })();
+      if (!userEntry) throw new PiServerError("pi_branch_not_found", 404);
+
+      let branchLeafId = userEntry.id;
+      if (legacySource) {
+        manager.branch(userEntry.id);
+        const initialized = initializeSessionEventJournal(
+          manager,
+          legacySessionEventsFromManager(manager),
+        );
+        if (initialized.error !== undefined) throw initialized.error;
+        branchLeafId = manager.getLeafId() ?? userEntry.id;
+      }
+      this.activateBranch(branchLeafId, false);
+      const run = this.session.agent.continue();
+      this.promptTask = run;
+      this.activePromptHasImages = false;
+      this.touch();
+      this.onRunningChanged();
+      void run
+        .then(() => this.publish({ type: "command_done" }))
+        .catch((error: unknown) => {
+          this.publish({ type: "command_error", code: "pi_prompt_failed" });
+          try {
+            getStreamHub().publishHost({
+              type: "host/agent-error",
+              sessionId: this.id,
+              message: error instanceof Error ? error.message : "The agent command failed.",
+            });
+          } catch {
+            // The durable command_error event remains available through history.
+          }
+        })
+        .finally(() => {
+          if (this.promptTask === run) this.promptTask = undefined;
+          this.touch();
+          this.onRunningChanged();
+          announceSessionChanged(this);
+        });
+    });
+  }
+
+  async prompt(
+    message: string,
+    images?: PiImageContent[],
+    selection?: PiModelSelection,
+  ): Promise<void> {
+    await this.submit("followUp", { message, ...(images?.length ? { images } : {}) }, undefined, {
+      requireIdle: true,
+      ...(selection === undefined ? {} : { selection }),
+    });
+  }
+
+  private async understandImages(
+    images: PiImageContent[],
+    submissionId: string,
+    rpcId?: string,
+  ): Promise<ImageUnderstandingRunResult> {
+    if (this.imageRecognitionTask || this.imageRecognitionAbort) {
+      throw new PiServerError("pi_session_busy", 409);
+    }
+    const controller = new AbortController();
+    this.imageRecognitionAbort = controller;
+    this.imageRecognitionCompletion = new Promise<void>((resolve) => {
+      this.completeImageRecognition = resolve;
+    });
+    const task = (async (): Promise<ImageUnderstandingRunResult> => {
+      const settingsStore = getImageUnderstandingSettingsStore();
+      let runtimeSettings;
+      try {
+        runtimeSettings = await settingsStore.resolveRuntimeSettings();
+      } catch (error) {
+        const lifecycle = new ImageRecognitionLifecycle({
+          operationId: randomUUID(),
+          submissionId,
+          ...(rpcId === undefined ? {} : { rpcId }),
+          method: "ocr",
+          imageCount: images.length,
+          publish: (snapshot) => {
+            const timestamp = snapshot.timestamps?.updatedAt ?? Date.now();
+            this.publish(
+              {
+                type: "message",
+                role: "custom",
+                customType: WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE,
+                content: "",
+                display: true,
+                details: snapshot,
+                timestamp,
+              },
+              timestamp,
+            );
+          },
+        });
+        await lifecycle.pending();
+        await lifecycle.running("routing");
+        if (controller.signal.aborted) await lifecycle.cancelled();
+        else await lifecycle.failed(stableImageUnderstandingErrorCode(error));
+        this.session.sessionManager.appendCustomEntry(
+          WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE,
+          lifecycle.current,
+        );
+        return controller.signal.aborted
+          ? { kind: "cancelled" }
+          : {
+              kind: "failed",
+              errorCode: lifecycle.current.errorCode ?? "image-settings-invalid",
+            };
+      }
+
+      const selectedModel = this.session.model;
+      if (selectedModel?.provider) await this.refreshChangedModelProvider(selectedModel.provider);
+      const availableModels = this.session.modelRuntime.getAvailableSnapshot();
+      const currentModel = selectedModel
+        ? availableModels.find(
+            (model) => model.provider === selectedModel.provider && model.id === selectedModel.id,
+          )
+        : availableModels[0];
+      const route = decideImageUnderstandingRoute({
+        settings: runtimeSettings.value,
+        hasImages: images.length > 0,
+        modelSupportsImages: currentModel?.input.includes("image") === true,
+      });
+      const method = route.kind === "native" ? "native" : runtimeSettings.value.engine;
+      const providerId = route.kind === "preprocess" ? route.providerId : undefined;
+      const lifecycle = new ImageRecognitionLifecycle({
+        operationId: randomUUID(),
+        submissionId,
+        ...(rpcId === undefined ? {} : { rpcId }),
+        method,
+        ...(providerId === undefined ? {} : { providerId }),
+        imageCount: images.length,
+        publish: (snapshot) => {
+          const timestamp = snapshot.timestamps?.updatedAt ?? Date.now();
+          this.publish(
+            {
+              type: "message",
+              role: "custom",
+              customType: WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE,
+              content: "",
+              display: true,
+              details: snapshot,
+              timestamp,
+            },
+            timestamp,
+          );
+        },
+      });
+      try {
+        await lifecycle.pending();
+        await lifecycle.running("routing");
+        if (controller.signal.aborted) {
+          await lifecycle.cancelled();
+          return { kind: "cancelled" };
+        }
+        if (route.kind === "native") {
+          await lifecycle.skipped("native");
+          return { kind: "native", images };
+        }
+        if (route.kind === "none") {
+          await lifecycle.skipped(method);
+          return { kind: "preprocessed", observations: [] };
+        }
+        if (route.kind === "unsupported") {
+          await lifecycle.failed(route.reason);
+          return { kind: "failed", errorCode: route.reason };
+        }
+
+        const inputs = images.map((image, index) => ({
+          id: `image-${index + 1}`,
+          ...(image.name === undefined ? {} : { name: image.name }),
+          mimeType: image.mimeType,
+          data: image.data,
+        }));
+        let observations: ImageUnderstandingObservation[];
+        if (route.method === "ocr") {
+          const credential = runtimeSettings.credential;
+          if (!credential) {
+            await lifecycle.failed("preprocessor-not-configured");
+            return { kind: "failed", errorCode: "preprocessor-not-configured" };
+          }
+          await lifecycle.running("submitting");
+          if (runtimeSettings.value.ocrProvider === "glm-ocr") {
+            await lifecycle.running("recognizing");
+            observations = await new GlmOcrProvider({
+              endpoint: runtimeSettings.value.glm.endpoint,
+              model: runtimeSettings.value.glm.model,
+            }).recognize({ images: inputs, credential, signal: controller.signal });
+          } else {
+            await lifecycle.running("polling");
+            observations = await new PaddleOcrProvider({
+              endpoint: runtimeSettings.value.paddle.endpoint,
+              model: runtimeSettings.value.paddle.model,
+              pollIntervalMs: runtimeSettings.value.paddle.pollIntervalMs,
+              pollTimeoutMs: runtimeSettings.value.paddle.pollTimeoutMs,
+            }).recognize({ images: inputs, credential, signal: controller.signal });
+          }
+        } else {
+          await lifecycle.running("submitting");
+          await lifecycle.running("recognizing");
+          observations = await recognizeWithMultimodalModel({
+            runtime: this.session.modelRuntime,
+            provider: runtimeSettings.value.multimodal.provider,
+            model: runtimeSettings.value.multimodal.model,
+            images: inputs,
+            signal: controller.signal,
+            onProgress: async (completedCount) => {
+              await lifecycle.running("recognizing", {
+                completedCount,
+                progress: completedCount / images.length,
+              });
+            },
+          });
+        }
+        validateImageUnderstandingObservations(
+          observations,
+          inputs.map(({ id }) => id),
+        );
+        await lifecycle.running("normalizing", {
+          completedCount: observations.length,
+          progress: observations.length / images.length,
+        });
+        await lifecycle.succeeded();
+        return { kind: "preprocessed", observations };
+      } catch (error) {
+        if (
+          controller.signal.aborted ||
+          stableImageUnderstandingErrorCode(error) === "provider-aborted"
+        ) {
+          if (!isTerminalImageRecognitionSnapshot(lifecycle.current)) await lifecycle.cancelled();
+          return { kind: "cancelled" };
+        }
+        const errorCode = stableImageUnderstandingErrorCode(error);
+        if (!isTerminalImageRecognitionSnapshot(lifecycle.current))
+          await lifecycle.failed(errorCode);
+        return { kind: "failed", errorCode };
+      } finally {
+        if (isTerminalImageRecognitionSnapshot(lifecycle.current)) {
+          this.session.sessionManager.appendCustomEntry(
+            WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE,
+            lifecycle.current,
+          );
+        }
+      }
+    })();
+    this.imageRecognitionTask = task;
+    this.touch();
+    this.onRunningChanged();
+    try {
+      return await task;
+    } finally {
+      if (this.imageRecognitionTask === task) {
+        this.imageRecognitionTask = undefined;
+      }
+      this.touch();
+      this.onRunningChanged();
+      announceSessionChanged(this);
+    }
+  }
+
+  private releaseImageRecognitionLease(): void {
+    if (!this.imageRecognitionAbort && !this.imageRecognitionCompletion) return;
+    this.imageRecognitionAbort = undefined;
+    const complete = this.completeImageRecognition;
+    this.completeImageRecognition = undefined;
+    this.imageRecognitionCompletion = undefined;
+    complete?.();
+    this.touch();
+    this.onRunningChanged();
+    announceSessionChanged(this);
   }
 
   private async resolveComposerSubmission(
     prompt: PiQueuedPrompt,
     submission: WorkbenchComposerSubmission,
+    rpcId?: string,
   ): Promise<PiQueuedPrompt | undefined> {
     const plannedCommands = preflightPlanWorkbenchComposerCommands(this.session, submission);
     const submissionId = randomUUID();
@@ -1183,6 +1765,15 @@ class HostedPiSession {
           document: submission.document,
           commands: submission.commands,
           composer: submission,
+          ...(prompt.images?.length
+            ? {
+                images: prompt.images.map(({ data, mimeType, name }) => ({
+                  data,
+                  mimeType,
+                  ...(name === undefined ? {} : { name }),
+                })),
+              }
+            : {}),
           status: "accepted" as const,
         }
       : {
@@ -1248,10 +1839,48 @@ class HostedPiSession {
       (command) => command.status === "execution-failed",
     );
     const commandOwnsAgentTurn = plannedCommands.some((command) => command.effect === "agent-turn");
+    let resolvedImages = prompt.images;
+    let imageUnderstandingFailure: string | undefined;
+    let usedImagePreprocessing = false;
+    if (prompt.images?.length && !commandFailed && !commandOwnsAgentTurn) {
+      const imageUnderstanding = await this.understandImages(prompt.images, submissionId, rpcId);
+      if (imageUnderstanding.kind === "native") {
+        resolvedImages = imageUnderstanding.images;
+      } else if (imageUnderstanding.kind === "preprocessed") {
+        resolvedImages = undefined;
+        usedImagePreprocessing = true;
+        resolution.request.untrustedContext.push({
+          source: "workbench.image-understanding",
+          trust: "untrusted-context",
+          value: {
+            version: 1,
+            kind: "image-understanding",
+            observations: imageUnderstanding.observations.map((observation) => ({
+              imageId: observation.imageId,
+              providerId: observation.providerId,
+              method: observation.method,
+              format: observation.format,
+              text: observation.text,
+            })),
+          },
+        });
+      } else {
+        resolvedImages = undefined;
+        imageUnderstandingFailure =
+          imageUnderstanding.kind === "cancelled"
+            ? "image-recognition-cancelled"
+            : imageUnderstanding.errorCode;
+      }
+      if (this.imageRecognitionAbort?.signal.aborted) {
+        resolvedImages = undefined;
+        imageUnderstandingFailure = "image-recognition-cancelled";
+      }
+    }
     const needsMainTurn =
       !commandOwnsAgentTurn &&
       !commandFailed &&
-      (Boolean(prompt.images?.length) ||
+      imageUnderstandingFailure === undefined &&
+      (Boolean(resolvedImages?.length) ||
         Boolean(resolution.request.userText.trim()) ||
         resolution.request.instructions.length > 0 ||
         resolution.request.trustedContext.length > 0 ||
@@ -1259,7 +1888,12 @@ class HostedPiSession {
     const resolutionDetails: WorkbenchComposerResolutionDetails = {
       version: 1,
       submissionId,
-      status: needsMainTurn ? "resolved" : commandFailed ? "command_error" : "completed",
+      status:
+        needsMainTurn || (!commandFailed && imageUnderstandingFailure === undefined)
+          ? needsMainTurn
+            ? "resolved"
+            : "completed"
+          : "command_error",
       commandTrace: resolution.request.commandTrace,
     };
     await this.session.sendCustomMessage(
@@ -1285,19 +1919,23 @@ class HostedPiSession {
 
     if (!needsMainTurn) {
       this.publish(
-        commandFailed
-          ? { type: "command_error", code: "pi_composer_command_failed" }
+        commandFailed || imageUnderstandingFailure
+          ? {
+              type: "command_error",
+              code: commandFailed ? "pi_composer_command_failed" : "pi_image_recognition_failed",
+            }
           : { type: "command_done" },
       );
       return undefined;
     }
-    const resolvedPrompt = hasWorkbenchComposerSemantics(submission)
-      ? compileWorkbenchComposerPrompt(resolution.request)
-      : resolution.request.userText;
+    const resolvedPrompt =
+      hasWorkbenchComposerSemantics(submission) || usedImagePreprocessing
+        ? compileWorkbenchComposerPrompt(resolution.request)
+        : resolution.request.userText;
     this.queueComposerUserProjection(projection, resolvedPrompt);
     return {
       message: resolvedPrompt,
-      ...(prompt.images?.length ? { images: prompt.images } : {}),
+      ...(resolvedImages?.length ? { images: resolvedImages } : {}),
     };
   }
 
@@ -1305,84 +1943,135 @@ class HostedPiSession {
     mode: PiQueueMode,
     prompt: PiQueuedPrompt,
     provenance?: PromptSubmissionProvenance,
+    options: Readonly<{
+      requireIdle?: boolean;
+      requireRunning?: boolean;
+      selection?: PiModelSelection;
+    }> = {},
   ): Promise<PromptSubmissionResult> {
     return this.runQueueMutation(async () => {
-      if (provenance?.rpcId && this.cancelledQueueItemIds.delete(provenance.rpcId)) {
-        return { queued: false };
-      }
-      let admission: PromptSubmissionResult = { queued: false };
-      const composer = provenance?.composer;
-      const resolvedPrompt =
-        composer &&
-        (hasWorkbenchComposerDocument(composer) || hasWorkbenchComposerSemantics(composer))
-          ? await this.resolveComposerSubmission(prompt, composer)
-          : prompt;
-      if (resolvedPrompt) {
-        try {
-          if (this.isRunning) {
-            admission = {
-              queued: true,
-              queueItemId: await this.queueNow(mode, resolvedPrompt, provenance?.rpcId),
-            };
-          } else await this.promptNow(resolvedPrompt.message, resolvedPrompt.images);
-        } catch (error) {
-          if (resolvedPrompt !== prompt) {
-            const projection = this.pendingComposerUserProjections.at(-1);
-            if (projection?.promptText === resolvedPrompt.message) {
-              this.pendingComposerUserProjections.pop();
+      try {
+        if (options.requireIdle && this.isRunning) {
+          throw new PiServerError("pi_session_busy", 409);
+        }
+        if (options.requireRunning && !this.isRunning) {
+          throw new PiServerError("pi_session_not_running", 409);
+        }
+        if (provenance?.rpcId && this.cancelledQueueItemIds.delete(provenance.rpcId)) {
+          return { queued: false };
+        }
+        if (options.selection) await this.applyPromptSelection(options.selection);
+        let admission: PromptSubmissionResult = { queued: false };
+        const submittedComposer = provenance?.composer;
+        const composer = submittedComposer
+          ? prompt.images?.length &&
+            !hasWorkbenchComposerDocument(submittedComposer) &&
+            !hasWorkbenchComposerSemantics(submittedComposer)
+            ? {
+                ...submittedComposer,
+                document: [{ type: "text" as const, text: submittedComposer.sourceText }],
+              }
+            : submittedComposer
+          : prompt.images?.length
+            ? {
+                version: 1 as const,
+                document: [{ type: "text" as const, text: prompt.message }],
+                sourceText: prompt.message,
+                text: prompt.message,
+                context: [],
+                metadata: {},
+                commands: [],
+              }
+            : undefined;
+        let resolvedPrompt =
+          composer &&
+          (hasWorkbenchComposerDocument(composer) || hasWorkbenchComposerSemantics(composer))
+            ? await this.resolveComposerSubmission(prompt, composer, provenance?.rpcId)
+            : prompt;
+        const recognitionSignal = this.imageRecognitionAbort?.signal;
+        if (resolvedPrompt && recognitionSignal?.aborted) {
+          resolvedPrompt = undefined;
+          this.publish({ type: "command_error", code: "pi_image_recognition_cancelled" });
+        }
+        if (resolvedPrompt) {
+          try {
+            if (this.hasActiveAgentRun) {
+              admission = {
+                queued: true,
+                queueItemId: await this.queueNow(mode, resolvedPrompt, provenance?.rpcId),
+              };
+            } else {
+              const started = await this.promptNow(
+                resolvedPrompt.message,
+                resolvedPrompt.images,
+                undefined,
+                recognitionSignal,
+              );
+              if (!started) {
+                this.publish({ type: "command_error", code: "pi_image_recognition_cancelled" });
+              }
+            }
+          } catch (error) {
+            if (resolvedPrompt !== prompt) {
+              const projection = this.pendingComposerUserProjections.at(-1);
+              if (projection?.promptText === resolvedPrompt.message) {
+                this.pendingComposerUserProjections.pop();
+              }
+            }
+            throw error;
+          }
+        }
+
+        if (provenance !== undefined) {
+          try {
+            this.session.sessionManager.appendCustomEntry(PROMPT_SOURCE_CUSTOM_TYPE, {
+              version: 1,
+              mode,
+              source: {
+                kind: "rpc",
+                ...(provenance.rpcId === undefined ? {} : { rpcId: provenance.rpcId }),
+                ...(provenance.clientTimeZone === undefined
+                  ? {}
+                  : { clientTimeZone: provenance.clientTimeZone }),
+              },
+            });
+          } catch (error) {
+            try {
+              getStreamHub().publishHost({
+                type: "host/agent-error",
+                sessionId: this.id,
+                message:
+                  error instanceof Error
+                    ? `Prompt provenance could not be persisted: ${error.message}`
+                    : "Prompt provenance could not be persisted.",
+              });
+            } catch {
+              // Prompt admission already succeeded; provenance failure must not duplicate the turn.
             }
           }
-          throw error;
         }
-      }
 
-      if (provenance !== undefined) {
-        try {
-          this.session.sessionManager.appendCustomEntry(PROMPT_SOURCE_CUSTOM_TYPE, {
-            version: 1,
-            mode,
-            source: {
-              kind: "rpc",
-              ...(provenance.rpcId === undefined ? {} : { rpcId: provenance.rpcId }),
-              ...(provenance.clientTimeZone === undefined
-                ? {}
-                : { clientTimeZone: provenance.clientTimeZone }),
-            },
-          });
-        } catch (error) {
+        if (provenance?.rpcId) {
           try {
-            getStreamHub().publishHost({
-              type: "host/agent-error",
-              sessionId: this.id,
-              message:
-                error instanceof Error
-                  ? `Prompt provenance could not be persisted: ${error.message}`
-                  : "Prompt provenance could not be persisted.",
-            });
-          } catch {
-            // Prompt admission already succeeded; provenance failure must not duplicate the turn.
+            getStreamHub().publishMux(
+              {
+                type: "session/prompt-accepted",
+                sessionId: this.id,
+                mode: mode === "followUp" ? "queue" : "steer",
+                running: this.isRunning,
+              },
+              { rpcId: provenance.rpcId },
+            );
+          } catch (error) {
+            // The prompt is already admitted. Never turn an acknowledgement transport
+            // failure into an HTTP failure that could make the caller submit it twice.
+            console.error("[workbench-pi] prompt acknowledgement publish failed", error);
           }
         }
+        return admission;
+      } finally {
+        this.releaseImageRecognitionLease();
       }
-
-      if (provenance?.rpcId) {
-        try {
-          getStreamHub().publishMux(
-            {
-              type: "session/prompt-accepted",
-              sessionId: this.id,
-              mode: mode === "followUp" ? "queue" : "steer",
-              running: this.isRunning,
-            },
-            { rpcId: provenance.rpcId },
-          );
-        } catch (error) {
-          // The prompt is already admitted. Never turn an acknowledgement transport
-          // failure into an HTTP failure that could make the caller submit it twice.
-          console.error("[workbench-pi] prompt acknowledgement publish failed", error);
-        }
-      }
-      return admission;
     });
   }
 
@@ -1400,14 +2089,7 @@ class HostedPiSession {
             candidate.provider === selection.provider && candidate.id === selection.model,
         );
       if (!model) throw new PiServerError("pi_model_not_available", 400);
-      if (
-        !model.input.includes("image") &&
-        (this.activePromptHasImages ||
-          messagesHaveImages(this.session.sessionManager.buildSessionContext().messages) ||
-          promptsHaveImages(this.queueProjection.prompts()))
-      ) {
-        throw imageUnsupported();
-      }
+      this.requireModelImageCompatibility(model);
       if (this.session.model?.provider !== model.provider || this.session.model?.id !== model.id) {
         const previousModel = this.session.model;
         const hadConversation =
@@ -1441,7 +2123,12 @@ class HostedPiSession {
         source: "workbench",
       });
     }
+    const recognition = this.imageRecognitionTask;
+    const recognitionCompletion = this.imageRecognitionCompletion;
+    this.imageRecognitionAbort?.abort();
     await this.session.abort();
+    await recognition?.catch(() => undefined);
+    await recognitionCompletion?.catch(() => undefined);
     this.touch();
   }
 
@@ -1500,6 +2187,23 @@ class HostedPiSession {
     }
   }
 
+  private async requireQueueImageCapability(queue: ReadonlyPromptQueueSnapshot): Promise<void> {
+    if (!promptsHaveImages(queue)) return;
+    const currentModel = this.session.model;
+    if (currentModel) {
+      await this.refreshChangedModelProvider(currentModel.provider);
+      const refreshedModel = this.session.modelRuntime
+        .getAvailableSnapshot()
+        .find(
+          (candidate) =>
+            candidate.provider === currentModel.provider && candidate.id === currentModel.id,
+        );
+      if (!refreshedModel) throw new PiServerError("pi_model_not_available", 400);
+      if (refreshedModel !== currentModel) await this.session.setModel(refreshedModel);
+    }
+    if (!this.session.model?.input.includes("image")) throw imageUnsupported();
+  }
+
   replaceQueue(
     steering: readonly PiQueuedPrompt[],
     followUp: readonly PiQueuedPrompt[],
@@ -1511,6 +2215,7 @@ class HostedPiSession {
     steering: readonly PiQueuedPrompt[],
     followUp: readonly PiQueuedPrompt[],
   ): Promise<void> {
+    await this.requireQueueImageCapability({ steering, followUp });
     const nextQueue = {
       steering: copyQueuedPrompts(steering),
       followUp: copyQueuedPrompts(followUp),
@@ -1554,6 +2259,10 @@ class HostedPiSession {
     steering: readonly PiQueuedPrompt[],
     followUp: readonly PiQueuedPrompt[],
   ): Promise<void> {
+    await this.requireQueueImageCapability({
+      steering: [prompt, ...steering],
+      followUp,
+    });
     const remaining = {
       steering: copyQueuedPrompts(steering),
       followUp: copyQueuedPrompts(followUp),
@@ -1597,6 +2306,7 @@ class HostedPiSession {
     steering: readonly PiQueuedPrompt[],
     followUp: readonly PiQueuedPrompt[],
   ): Promise<void> {
+    await this.requireQueueImageCapability({ steering, followUp });
     const nextQueue = {
       steering: copyQueuedPrompts(steering),
       followUp: copyQueuedPrompts(followUp),
@@ -1649,11 +2359,18 @@ class HostedPiSession {
       throw new PiServerError("pi_steer_unavailable", 409);
     }
 
+    const previousQueue = this.queueProjection.prompts();
     if (mutation.kind === "edit") this.queueProjection.edit(itemId, mutation.prompt);
     else if (mutation.kind === "steer") this.queueProjection.moveToSteering(itemId);
     else this.queueProjection.remove(itemId);
 
     const nextQueue = this.queueProjection.prompts();
+    try {
+      await this.requireQueueImageCapability(nextQueue);
+    } catch (error) {
+      this.queueProjection.reconcile(previousQueue.steering, previousQueue.followUp);
+      throw error;
+    }
     if (this.pausedQueue) this.pausedQueue = copyQueueSnapshot(nextQueue);
     this.suppressQueueUpdates += 1;
     try {
@@ -1698,8 +2415,11 @@ class HostedPiSession {
     this.alive = false;
     getInteractiveResponseRegistry().clearSession(this.id);
     if (this.idleTimer) clearTimeout(this.idleTimer);
+    const recognitionCompletion = this.imageRecognitionCompletion;
+    this.imageRecognitionAbort?.abort();
     try {
       if (this.isRunning) await this.session.abort();
+      await recognitionCompletion?.catch(() => undefined);
     } catch {
       // Disposal below remains authoritative.
     }
@@ -1886,7 +2606,7 @@ function canonicalJournalEntries(branch: readonly SessionEntry[]): CanonicalJour
     const entry = branch[branchIndex]!;
     const event = storedCanonicalEvent(entry);
     if (!event || event.seq !== result.length) continue;
-    result.push({ entry, event, branchIndex });
+    result.push({ entry, event: { ...event, entryId: entry.id }, branchIndex });
   }
   return result;
 }
@@ -2570,11 +3290,19 @@ export async function listModels(cwd: string): Promise<PiModelListResponse> {
       name: model.name,
       reasoning: model.reasoning,
       contextWindow: model.contextWindow,
+      input: [...model.input],
     })),
     defaultModel: defaultModel
       ? { provider: defaultModel.provider, modelId: defaultModel.id }
       : null,
   };
+}
+
+function isWorkbenchDisplayOnlyCustomType(customType: string): boolean {
+  return (
+    customType === WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE ||
+    customType === WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE
+  );
 }
 
 function historyFromManager(manager: SessionManager): PiSessionHistory {
@@ -2607,12 +3335,11 @@ function historyFromManager(manager: SessionManager): PiSessionHistory {
   }
   for (const entry of manager.buildContextEntries()) {
     const projectedMessages =
-      entry.type === "custom" &&
-      entry.customType === WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE
+      entry.type === "custom" && isWorkbenchDisplayOnlyCustomType(entry.customType)
         ? [
             {
               role: "custom" as const,
-              customType: WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE,
+              customType: entry.customType,
               content: "",
               display: true,
               details: entry.data,
@@ -2679,6 +3406,181 @@ export async function getSessionEvents(id: string): Promise<SessionEvent[]> {
   );
   if (initialized.error !== undefined) throw initialized.error;
   return initialized.events;
+}
+
+function entryCustomMessage(
+  entry: SessionEntry,
+): { customType: string; details: unknown } | undefined {
+  if (entry.type === "custom_message") {
+    return { customType: entry.customType, details: entry.details };
+  }
+  if (entry.type === "custom") {
+    return { customType: entry.customType, details: entry.data };
+  }
+  return undefined;
+}
+
+function contextBranchEvents(entries: readonly SessionEntry[]): Array<{ event: SessionEvent }> {
+  const projections = new Map<string, WorkbenchComposerUserProjection>();
+  const projectionOrder: string[] = [];
+  const readyProjections = new Set<string>();
+  const removeProjection = (submissionId: string) => {
+    projections.delete(submissionId);
+    readyProjections.delete(submissionId);
+    const index = projectionOrder.indexOf(submissionId);
+    if (index >= 0) projectionOrder.splice(index, 1);
+  };
+
+  return entries.flatMap((entry) => {
+    const custom = entryCustomMessage(entry);
+    if (
+      custom?.customType === WORKBENCH_COMPOSER_USER_CUSTOM_TYPE ||
+      custom?.customType === LEGACY_WORKBENCH_COMPOSER_USER_CUSTOM_TYPE
+    ) {
+      const details = parseWorkbenchComposerUserDetails(custom.details);
+      if (details) {
+        projections.set(details.submissionId, {
+          version: 1,
+          submissionId: details.submissionId,
+          sourceText: details.sourceText,
+          ...(details.document === undefined ? {} : { document: details.document }),
+          hidden: true,
+        });
+        if (!projectionOrder.includes(details.submissionId)) {
+          projectionOrder.push(details.submissionId);
+        }
+      }
+    } else if (custom?.customType === WORKBENCH_COMPOSER_RESOLUTION_CUSTOM_TYPE) {
+      const resolution = parseWorkbenchComposerResolutionDetails(custom.details);
+      if (resolution?.status === "resolved" && projections.has(resolution.submissionId)) {
+        readyProjections.add(resolution.submissionId);
+      } else if (resolution) {
+        removeProjection(resolution.submissionId);
+      }
+    }
+
+    const messages =
+      entry.type === "custom" && isWorkbenchDisplayOnlyCustomType(entry.customType)
+        ? [
+            {
+              role: "custom" as const,
+              customType: entry.customType,
+              content: "",
+              display: true,
+              details: entry.data,
+              timestamp: Date.parse(entry.timestamp),
+            },
+          ]
+        : (sessionEntryToContextMessages(entry) as PiAgentMessage[]);
+    return messages.map((message) => {
+      let projectedMessage:
+        | PiAgentMessage
+        | (PiAgentMessage & {
+            workbenchComposer: WorkbenchComposerUserProjection;
+          }) = message;
+      if (message.role === "user") {
+        const submissionId =
+          projectionOrder.find((candidate) => readyProjections.has(candidate)) ??
+          projectionOrder[0];
+        const projection = submissionId ? projections.get(submissionId) : undefined;
+        if (submissionId && projection) {
+          projectedMessage = { ...message, workbenchComposer: projection };
+          removeProjection(submissionId);
+        }
+      }
+      return {
+        event: {
+          type: "message",
+          seq: 0,
+          time: historyEventTime(projectedMessage, Date.parse(entry.timestamp)),
+          data: projectedMessage,
+          entryId: entry.id,
+        },
+      };
+    });
+  });
+}
+
+function conversationRole(event: SessionEvent): string | undefined {
+  if (event.type === "message") {
+    return isRecord(event.data) && typeof event.data.role === "string"
+      ? event.data.role
+      : undefined;
+  }
+  if (event.type !== "message_end" || !isRecord(event.data)) return undefined;
+  return isRecord(event.data.message) && typeof event.data.message.role === "string"
+    ? event.data.message.role
+    : undefined;
+}
+
+function sessionEventBranchesFromManager(manager: SessionManager): SessionHistoryBranches {
+  const entries = manager.getEntries();
+  const entriesById = new Map(entries.map((entry) => [entry.id, entry]));
+  const parentIds = new Set(entries.flatMap((entry) => (entry.parentId ? [entry.parentId] : [])));
+  const currentLeafId = manager.getLeafId();
+  const leaves = entries
+    .filter((entry) => !parentIds.has(entry.id))
+    .sort((left, right) => Number(right.id === currentLeafId) - Number(left.id === currentLeafId));
+  const candidates = leaves.map((leaf) => {
+    const canonicalEvents = canonicalJournalEntries(manager.getBranch(leaf.id)).map(
+      ({ event }) => ({ event }),
+    );
+    const contextEvents = contextBranchEvents(buildContextEntries(entries, leaf.id, entriesById));
+    contextEvents.forEach(({ event }, seq) => {
+      event.seq = seq;
+    });
+    const conversationRoles = new Set(["user", "assistant", "toolResult"]);
+    const canonicalMessageEvents = canonicalEvents.filter(({ event }) =>
+      conversationRoles.has(conversationRole(event) ?? ""),
+    );
+    const contextMessageEvents = contextEvents.filter(({ event }) =>
+      conversationRoles.has(conversationRole(event) ?? ""),
+    );
+    const requiresContextProjection =
+      canonicalMessageEvents.length < contextMessageEvents.length ||
+      canonicalMessageEvents.some(
+        ({ event }, index) =>
+          event.type === "message" && event.entryId !== contextMessageEvents[index]?.event.entryId,
+      );
+    return { leafId: leaf.id, canonicalEvents, contextEvents, requiresContextProjection };
+  });
+  // A migrated legacy journal lives after its original context. Once a branch starts from an old
+  // user entry, that journal is no longer an ancestor. Project every leaf from the Pi context in
+  // this case so shared messages keep the same real SessionEntry ids across sibling answers.
+  const useContextEvents = candidates.some((candidate) => candidate.requiresContextProjection);
+  const seenPaths = new Set<string>();
+  const items = candidates.flatMap((candidate) => {
+    const events = useContextEvents ? candidate.contextEvents : candidate.canonicalEvents;
+    const pathKey = events.map(({ event }) => event.entryId ?? `${event.seq}`).join("\u0000");
+    if (seenPaths.has(pathKey)) return [];
+    seenPaths.add(pathKey);
+    return [{ leafId: candidate.leafId, events }];
+  });
+  return { headLeafId: manager.getLeafId(), items };
+}
+
+export async function getSessionEventBranches(id: string): Promise<SessionHistoryBranches> {
+  const live = state().sessions.get(id);
+  if (live?.isAlive) return sessionEventBranchesFromManager(live.session.sessionManager);
+  const info = await persistedSession(id);
+  if (!info) throw new PiServerError("pi_session_not_found", 404);
+  const manager = SessionManager.open(info.path);
+  const initialized = initializeSessionEventJournal(
+    manager,
+    legacySessionEventsFromManager(manager),
+  );
+  if (initialized.error !== undefined) throw initialized.error;
+  return sessionEventBranchesFromManager(manager);
+}
+
+export async function regenerateSession(id: string, messageId: string): Promise<void> {
+  const host = await getOrStartSession(id);
+  await host.regenerate(messageId);
+}
+
+export async function selectSessionBranch(id: string, leafId: string): Promise<void> {
+  const host = await getOrStartSession(id);
+  await host.selectBranch(leafId);
 }
 
 export async function renameSession(id: string, name: string): Promise<number> {
@@ -2771,7 +3673,7 @@ export async function queuePrompt(
     throw new PiServerError("pi_empty_prompt", 400);
   }
   const host = await getOrStartSession(id);
-  await host.queue(mode, prompt);
+  await host.submit(mode, prompt, undefined, { requireRunning: true });
 }
 
 /** Decide prompt-vs-queue against one live HostedPiSession state without a stale list snapshot. */

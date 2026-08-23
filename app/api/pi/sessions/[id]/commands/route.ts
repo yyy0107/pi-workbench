@@ -13,6 +13,10 @@ import {
   setPromptQueuePaused,
   steerQueuedPrompt,
 } from "@/runtime/pi/server/sessions/session-registry";
+import {
+  admitInlineImages,
+  InlineImageAdmissionError,
+} from "@/runtime/pi/server/sessions/inline-image-admission";
 import { rejectUntrustedApiRequest } from "@/runtime/pi/server/transport/api-request-guard";
 import { piErrorResponse } from "@/runtime/pi/server/transport/responses";
 
@@ -27,8 +31,42 @@ function isImage(value: unknown): value is PiImageContent {
   if (!value || typeof value !== "object") return false;
   const image = value as Partial<PiImageContent>;
   return (
-    image.type === "image" && typeof image.data === "string" && typeof image.mimeType === "string"
+    image.type === "image" &&
+    typeof image.data === "string" &&
+    typeof image.mimeType === "string" &&
+    (image.name === undefined || typeof image.name === "string")
   );
+}
+
+function admittedImages(images: readonly PiImageContent[]): PiImageContent[] | undefined {
+  try {
+    return admitInlineImages(
+      images.map((image) => ({
+        type: "image",
+        mediaType: image.mimeType,
+        data: image.data,
+        ...(image.name === undefined ? {} : { name: image.name }),
+      })),
+    );
+  } catch (error) {
+    if (error instanceof InlineImageAdmissionError) return undefined;
+    throw error;
+  }
+}
+
+function admittedQueuedPrompt(value: unknown): PiQueuedPrompt | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const prompt = value as Partial<PiQueuedPrompt>;
+  if (
+    typeof prompt.message !== "string" ||
+    (prompt.images !== undefined &&
+      (!Array.isArray(prompt.images) || !prompt.images.every(isImage)))
+  ) {
+    return undefined;
+  }
+  const images = prompt.images === undefined ? [] : admittedImages(prompt.images);
+  if (!images) return undefined;
+  return { message: prompt.message, ...(images.length ? { images } : {}) };
 }
 
 function isModelSelection(value: unknown): value is PiModelSelection {
@@ -40,15 +78,6 @@ function isModelSelection(value: unknown): value is PiModelSelection {
     typeof selection.modelId === "string" &&
     selection.modelId.length > 0 &&
     (selection.thinkingLevel === undefined || PI_THINKING_LEVELS.includes(selection.thinkingLevel))
-  );
-}
-
-function isQueuedPrompt(value: unknown): value is PiQueuedPrompt {
-  if (!value || typeof value !== "object") return false;
-  const prompt = value as Partial<PiQueuedPrompt>;
-  return (
-    typeof prompt.message === "string" &&
-    (prompt.images === undefined || (Array.isArray(prompt.images) && prompt.images.every(isImage)))
   );
 }
 
@@ -74,46 +103,64 @@ export async function POST(request: Request, context: RouteContext) {
     }
     const queueMode = body.type;
     if (queueMode === "steer" || queueMode === "followUp") {
-      if (!isQueuedPrompt(body)) throw new PiServerError("pi_invalid_command", 400);
-      await queuePrompt(id, queueMode, body);
+      const prompt = admittedQueuedPrompt(body);
+      if (!prompt) throw new PiServerError("pi_invalid_command", 400);
+      await queuePrompt(id, queueMode, prompt);
       return Response.json({ ok: true }, { status: 202 });
     }
     if (body.type === "replaceQueue") {
+      const steering = Array.isArray(body.steering) ? body.steering.map(admittedQueuedPrompt) : [];
+      const followUp = Array.isArray(body.followUp) ? body.followUp.map(admittedQueuedPrompt) : [];
       if (
         !Array.isArray(body.steering) ||
-        !body.steering.every(isQueuedPrompt) ||
+        steering.some((prompt) => prompt === undefined) ||
         !Array.isArray(body.followUp) ||
-        !body.followUp.every(isQueuedPrompt)
+        followUp.some((prompt) => prompt === undefined)
       ) {
         throw new PiServerError("pi_invalid_command", 400);
       }
-      await replacePromptQueue(id, body.steering, body.followUp);
+      await replacePromptQueue(id, steering as PiQueuedPrompt[], followUp as PiQueuedPrompt[]);
       return Response.json({ ok: true }, { status: 202 });
     }
     if (body.type === "setQueuePaused") {
+      const steering = Array.isArray(body.steering) ? body.steering.map(admittedQueuedPrompt) : [];
+      const followUp = Array.isArray(body.followUp) ? body.followUp.map(admittedQueuedPrompt) : [];
       if (
         typeof body.paused !== "boolean" ||
         !Array.isArray(body.steering) ||
-        !body.steering.every(isQueuedPrompt) ||
+        steering.some((prompt) => prompt === undefined) ||
         !Array.isArray(body.followUp) ||
-        !body.followUp.every(isQueuedPrompt)
+        followUp.some((prompt) => prompt === undefined)
       ) {
         throw new PiServerError("pi_invalid_command", 400);
       }
-      await setPromptQueuePaused(id, body.paused, body.steering, body.followUp);
+      await setPromptQueuePaused(
+        id,
+        body.paused,
+        steering as PiQueuedPrompt[],
+        followUp as PiQueuedPrompt[],
+      );
       return Response.json({ ok: true }, { status: 202 });
     }
     if (body.type === "steerQueued") {
+      const prompt = admittedQueuedPrompt(body.prompt);
+      const steering = Array.isArray(body.steering) ? body.steering.map(admittedQueuedPrompt) : [];
+      const followUp = Array.isArray(body.followUp) ? body.followUp.map(admittedQueuedPrompt) : [];
       if (
-        !isQueuedPrompt(body.prompt) ||
+        !prompt ||
         !Array.isArray(body.steering) ||
-        !body.steering.every(isQueuedPrompt) ||
+        steering.some((candidate) => candidate === undefined) ||
         !Array.isArray(body.followUp) ||
-        !body.followUp.every(isQueuedPrompt)
+        followUp.some((candidate) => candidate === undefined)
       ) {
         throw new PiServerError("pi_invalid_command", 400);
       }
-      await steerQueuedPrompt(id, body.prompt, body.steering, body.followUp);
+      await steerQueuedPrompt(
+        id,
+        prompt,
+        steering as PiQueuedPrompt[],
+        followUp as PiQueuedPrompt[],
+      );
       return Response.json({ ok: true }, { status: 202 });
     }
     if (
@@ -125,12 +172,9 @@ export async function POST(request: Request, context: RouteContext) {
       throw new PiServerError("pi_invalid_command", 400);
     }
 
-    await sendPrompt(
-      id,
-      body.message,
-      body.images as PiImageContent[] | undefined,
-      body.model as PiModelSelection | undefined,
-    );
+    const images = admittedImages((body.images as PiImageContent[] | undefined) ?? []);
+    if (!images) throw new PiServerError("pi_invalid_command", 400);
+    await sendPrompt(id, body.message, images, body.model as PiModelSelection | undefined);
     return Response.json({ ok: true }, { status: 202 });
   } catch (error) {
     return piErrorResponse(error);

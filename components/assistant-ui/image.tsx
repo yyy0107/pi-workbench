@@ -1,7 +1,6 @@
 "use client";
 
 import { memo, useState, useEffect, useRef, type PropsWithChildren } from "react";
-import { createPortal } from "react-dom";
 import { cva, type VariantProps } from "class-variance-authority";
 import {
   CopyIcon,
@@ -13,6 +12,7 @@ import {
   ShieldAlertIcon,
 } from "lucide-react";
 import type { ImageMessagePart, ImageMessagePartComponent } from "@assistant-ui/react";
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 
@@ -151,7 +151,7 @@ function ImagePreview({
           data-slot="image-preview-loading"
           className="bg-muted/50 absolute inset-0 flex items-center justify-center"
         >
-          <ImageIcon className="text-muted-foreground size-8 animate-pulse" />
+          <ImageIcon className="text-muted-foreground size-8 animate-pulse motion-reduce:animate-none" />
         </div>
       )}
       {error ? (
@@ -203,72 +203,30 @@ type ImageZoomProps = PropsWithChildren<{
 
 function ImageZoom({ src, alt, children }: ImageZoomProps) {
   const { t } = useI18n();
-  const [isMounted, setIsMounted] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  const handleOpen = () => setIsOpen(true);
-  const handleClose = () => setIsOpen(false);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setIsOpen(false);
-    };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = originalOverflow;
-    };
-  }, [isOpen]);
 
   return (
-    <>
-      <div
-        onClick={handleOpen}
-        onKeyDown={(e) => e.key === "Enter" && handleOpen()}
-        role="button"
-        tabIndex={0}
-        className="aui-image-zoom-trigger cursor-zoom-in"
+    <Dialog>
+      <DialogTrigger
+        type="button"
         aria-label={t("assistant.image.zoom")}
+        className="aui-image-zoom-trigger block w-full cursor-zoom-in border-0 bg-transparent p-0 text-start"
       >
         {children}
-      </div>
-      {isMounted &&
-        isOpen &&
-        createPortal(
-          <div
-            data-slot="image-zoom-overlay"
-            role="button"
-            tabIndex={0}
-            className="aui-image-zoom-overlay fade-in animate-in fixed inset-0 z-50 flex items-center justify-center bg-black/80 duration-200"
-            onClick={handleClose}
-            onKeyDown={(e) => e.key === "Enter" && handleClose()}
-            aria-label={t("assistant.image.closeZoom")}
-          >
-            <img
-              data-slot="image-zoom-content"
-              src={src}
-              alt={alt ?? t("assistant.image.contentAlt")}
-              className="aui-image-zoom-content fade-in zoom-in-95 animate-in max-h-[90vh] max-w-[90vw] cursor-zoom-out object-contain duration-200"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleClose();
-              }}
-            />
-          </div>,
-          document.body,
-        )}
-    </>
+      </DialogTrigger>
+      <DialogContent
+        closeLabel={t("assistant.image.closeZoom")}
+        overlayClassName="bg-black/80 supports-backdrop-filter:backdrop-blur-sm"
+        className="aui-image-zoom-dialog max-h-[calc(100dvh-2rem)] w-auto max-w-[calc(100vw-2rem)] bg-transparent p-0 shadow-none ring-0 sm:max-w-[calc(100vw-2rem)] [&>button]:bg-black/65 [&>button]:text-white [&>button]:hover:bg-black/85"
+      >
+        <DialogTitle className="sr-only">{t("assistant.image.zoom")}</DialogTitle>
+        <img
+          data-slot="image-zoom-content"
+          src={src}
+          alt={alt ?? t("assistant.image.contentAlt")}
+          className="aui-image-zoom-content max-h-[90dvh] max-w-[90vw] rounded-lg object-contain"
+        />
+      </DialogContent>
+    </Dialog>
   );
 }
 

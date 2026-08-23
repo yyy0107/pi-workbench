@@ -52,6 +52,7 @@ test("adapts canonical message groups and durable tool timing", () => {
           type: "message_end",
           seq: 0,
           time: 10,
+          entryId: "journal-user-1",
           data: { message: { role: "user", content: "hello", timestamp: 5 } },
         },
       },
@@ -83,7 +84,7 @@ test("adapts canonical message groups and durable tool timing", () => {
     hasMore: false,
   });
 
-  assert.deepEqual(history.context.entryIds, ["pi-event-0", "pi-event-3"]);
+  assert.deepEqual(history.context.entryIds, ["journal-user-1", "pi-event-3"]);
   assert.deepEqual(history.context.entrySeqs, [0, null]);
   assert.deepEqual(history.context.entryCompletedAts, [10, 40]);
   assert.deepEqual(history.context.toolTimings, [

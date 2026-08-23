@@ -25,7 +25,7 @@ function copyPrompt(prompt: PiQueuedPrompt): PiQueuedPrompt {
 function promptFingerprint(prompt: PiQueuedPrompt): string {
   return JSON.stringify([
     prompt.message,
-    ...(prompt.images ?? []).map((image) => [image.mimeType, image.data]),
+    ...(prompt.images ?? []).map((image) => [image.mimeType, image.data, image.name ?? null]),
   ]);
 }
 
@@ -43,6 +43,7 @@ function queueContent(prompt: PiQueuedPrompt): QueueItem["message"]["content"] {
       type: "image",
       mediaType: image.mimeType,
       data: image.data,
+      ...(image.name === undefined ? {} : { name: image.name }),
     })),
   ];
 }
