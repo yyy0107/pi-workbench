@@ -81,3 +81,10 @@ test("uses follow-up queue semantics while the thread is running", () => {
   assert.equal(submitWorkbenchComposer(thread), true);
   assert.deepEqual(sends, [{ steer: false }]);
 });
+
+test("uses steering semantics when requested while the thread is running", () => {
+  const { sends, thread } = submitHarness({ canSend: true, isRunning: true, canQueue: true });
+
+  assert.equal(submitWorkbenchComposer(thread, undefined, undefined, { steer: true }), true);
+  assert.deepEqual(sends, [{ steer: true }]);
+});

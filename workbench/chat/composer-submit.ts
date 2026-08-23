@@ -20,6 +20,10 @@ export interface ComposerSubmitThread {
   composer(): ComposerSubmitTarget;
 }
 
+interface ComposerSubmitOptions {
+  readonly steer?: boolean;
+}
+
 /**
  * Dispatches from the live runtime state instead of a render-time `canSend`
  * snapshot. IME completion and command-token updates can make the composer
@@ -29,6 +33,7 @@ export function submitWorkbenchComposer(
   thread: ComposerSubmitThread,
   inputText?: string,
   request?: CompiledComposerRequest,
+  options?: ComposerSubmitOptions,
 ): boolean {
   const composer = thread.composer();
   if (inputText !== undefined && composer.getState().text !== inputText) {
@@ -49,7 +54,9 @@ export function submitWorkbenchComposer(
 
   const threadState = thread.getState();
   composer.send(
-    threadState.isRunning && threadState.capabilities.queue ? { steer: false } : undefined,
+    threadState.isRunning && threadState.capabilities.queue
+      ? { steer: options?.steer ?? false }
+      : undefined,
   );
   return true;
 }

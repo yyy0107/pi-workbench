@@ -92,6 +92,9 @@ import { submitWorkbenchComposer } from "./composer-submit";
 import { ComposerTriggerEngine, excludeSlashPathOrCode } from "./composer-trigger-engine";
 import { formatPiCommandLabel } from "./pi-command";
 
+const COMPOSER_PRIMARY_ACTION_CLASS_NAME =
+  "rounded-full [&:hover:not(:active)]:bg-primary! dark:[&:hover:not(:active)]:bg-primary!";
+
 interface ComposerDraftSnapshot {
   text: string;
   attachments: readonly (File | CreateAttachment)[];
@@ -318,7 +321,7 @@ function ComposerAccessibilityPlugin({
   return null;
 }
 
-function ComposerEnterPlugin({ onSubmit }: Readonly<{ onSubmit(): void }>) {
+function ComposerEnterPlugin({ onSubmit }: Readonly<{ onSubmit(steer: boolean): void }>) {
   const [editor] = useLexicalComposerContext();
   useEffect(
     () =>
@@ -328,7 +331,7 @@ function ComposerEnterPlugin({ onSubmit }: Readonly<{ onSubmit(): void }>) {
           if (!event || event.isComposing || event.shiftKey) return false;
           event.preventDefault();
           event.stopPropagation();
-          if (!event.repeat) onSubmit();
+          if (!event.repeat) onSubmit(event.ctrlKey || event.metaKey);
           return true;
         },
         COMMAND_PRIORITY_NORMAL,
@@ -866,55 +869,58 @@ export function WorkbenchComposer() {
     ],
   );
 
-  const dispatchComposer = useCallback(() => {
-    const threadState = aui.thread.getState();
-    const composerState = aui.thread.composer().getState();
-    if (!canCompose) return;
-    if (threadState.isRunning && !threadState.capabilities.queue) return;
+  const dispatchComposer = useCallback(
+    (steer = false) => {
+      const threadState = aui.thread.getState();
+      const composerState = aui.thread.composer().getState();
+      if (!canCompose) return;
+      if (threadState.isRunning && !threadState.capabilities.queue) return;
 
-    try {
-      const document = applyComposerCommandArguments(
-        parseComposerDocument(composerState.text, composerCommandRegistry, piCommands),
-        commandParametersByKey,
-      );
-      const commandNodes = document.filter((node) => node.type === "command");
-      if (
-        commandNodes.length > 1 &&
-        commandNodes.some(
-          (node) =>
-            composerSuggestionsByKey.get(
-              suggestionKey({
-                id: node.commandId,
-                type:
-                  node.source === "pi"
-                    ? PI_COMMAND_DIRECTIVE_TYPE
-                    : WORKBENCH_COMMAND_DIRECTIVE_TYPE,
-              }),
-            )?.exclusive,
-        )
-      ) {
-        throw new Error("Exclusive Composer commands must be submitted separately");
+      try {
+        const document = applyComposerCommandArguments(
+          parseComposerDocument(composerState.text, composerCommandRegistry, piCommands),
+          commandParametersByKey,
+        );
+        const commandNodes = document.filter((node) => node.type === "command");
+        if (
+          commandNodes.length > 1 &&
+          commandNodes.some(
+            (node) =>
+              composerSuggestionsByKey.get(
+                suggestionKey({
+                  id: node.commandId,
+                  type:
+                    node.source === "pi"
+                      ? PI_COMMAND_DIRECTIVE_TYPE
+                      : WORKBENCH_COMMAND_DIRECTIVE_TYPE,
+                }),
+              )?.exclusive,
+          )
+        ) {
+          throw new Error("Exclusive Composer commands must be submitted separately");
+        }
+        const request = compileComposerDocument(document, composerCommandRegistry, piCommands);
+        const dispatched = submitWorkbenchComposer(aui.thread, undefined, request, { steer });
+        if (!dispatched) return;
+        setComposerCommandError(false);
+        setIsDrawerOpen(false);
+        setIsComposerSelected(false);
+        clearCommandParameterValues();
+      } catch (error) {
+        reportComposerCommandError(error);
       }
-      const request = compileComposerDocument(document, composerCommandRegistry, piCommands);
-      const dispatched = submitWorkbenchComposer(aui.thread, undefined, request);
-      if (!dispatched) return;
-      setComposerCommandError(false);
-      setIsDrawerOpen(false);
-      setIsComposerSelected(false);
-      clearCommandParameterValues();
-    } catch (error) {
-      reportComposerCommandError(error);
-    }
-  }, [
-    aui,
-    canCompose,
-    clearCommandParameterValues,
-    commandParametersByKey,
-    composerCommandRegistry,
-    composerSuggestionsByKey,
-    piCommands,
-    reportComposerCommandError,
-  ]);
+    },
+    [
+      aui,
+      canCompose,
+      clearCommandParameterValues,
+      commandParametersByKey,
+      composerCommandRegistry,
+      composerSuggestionsByKey,
+      piCommands,
+      reportComposerCommandError,
+    ],
+  );
 
   const captureLexicalEditor = useCallback((editor: LexicalEditor | null) => {
     lexicalEditorRef.current = editor;
@@ -1173,7 +1179,7 @@ export function WorkbenchComposer() {
                           type="button"
                           size="icon"
                           variant="default"
-                          className="rounded-full"
+                          className={COMPOSER_PRIMARY_ACTION_CLASS_NAME}
                         />
                       }
                     >
@@ -1186,8 +1192,11 @@ export function WorkbenchComposer() {
                       size="icon"
                       disabled={!canCompose || !canSend}
                       variant="default"
-                      className="rounded-full disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100"
-                      onClick={dispatchComposer}
+                      className={cn(
+                        COMPOSER_PRIMARY_ACTION_CLASS_NAME,
+                        "disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100",
+                      )}
+                      onClick={() => dispatchComposer()}
                     >
                       <ArrowUpIcon className="size-4" />
                     </TooltipIconButton>
