@@ -94,7 +94,7 @@ export function WorkbenchMessagePresentation() {
       const timelinePath = groupTimelinePart(part, context);
       const index = partIndices.get(part);
 
-      if (partBelongsToCompletedWork(messageRole, index, completedBoundary)) {
+      if (partBelongsToCompletedWork(messageRole, part, index, completedBoundary)) {
         return ["group-completed-turn", ...timelinePath];
       }
 
