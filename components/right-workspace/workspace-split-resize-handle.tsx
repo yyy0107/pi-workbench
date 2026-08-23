@@ -59,7 +59,7 @@ export function WorkspaceSplitResizeHandle({
       aria-valuemin={MIN_AUXILIARY_SURFACE_WIDTH}
       aria-valuemax={Math.round(maximum)}
       aria-valuenow={Math.round(width)}
-      className="group relative z-30 -mx-1 w-2 shrink-0 touch-none cursor-col-resize outline-none after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-border hover:after:bg-ring focus-visible:after:bg-ring"
+      className="group relative z-30 -mx-1 w-2 shrink-0 touch-none cursor-col-resize outline-none after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-border after:blur-[0.35px] hover:after:bg-ring/30 focus-visible:after:bg-ring/50"
       onPointerDown={resize.onPointerDown}
       onPointerMove={resize.onPointerMove}
       onPointerUp={resize.onPointerUp}

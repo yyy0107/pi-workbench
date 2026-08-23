@@ -121,7 +121,7 @@ export function PanelResizeHandle({
       data-slot="workbench-panel-resize-handle"
       data-location={location}
       className={cn(
-        "group absolute z-30 touch-none outline-none after:absolute after:bg-transparent after:transition-colors hover:after:bg-ring focus-visible:after:bg-ring",
+        "group absolute z-30 touch-none outline-none after:absolute after:bg-transparent after:blur-[0.35px] after:transition-colors hover:after:bg-ring/30 focus-visible:after:bg-ring/50",
         location === "left" &&
           "inset-y-0 -right-1 w-2 cursor-col-resize after:inset-y-0 after:left-1/2 after:w-px",
         location === "right" &&

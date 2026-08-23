@@ -59,7 +59,7 @@ export function SidebarResizeHandle({
       aria-valuemin={Math.round(minWidth)}
       aria-valuemax={Math.round(maxWidth)}
       data-slot="workbench-sidebar-resize-handle"
-      className="group absolute inset-y-0 -right-[5px] z-30 w-[10px] touch-none cursor-col-resize outline-none after:absolute after:inset-y-0 after:left-1/2 after:w-px after:bg-transparent after:transition-colors hover:after:bg-ring focus-visible:after:bg-ring"
+      className="group absolute inset-y-0 -right-[5px] z-30 w-[10px] touch-none cursor-col-resize outline-none after:absolute after:inset-y-0 after:left-1/2 after:w-px after:bg-transparent after:blur-[0.35px] after:transition-colors hover:after:bg-ring/30 focus-visible:after:bg-ring/50"
       onPointerDown={resize.onPointerDown}
       onPointerMove={resize.onPointerMove}
       onPointerUp={resize.onPointerUp}

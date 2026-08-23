@@ -98,7 +98,7 @@
   --accent: oklch(0.967 0.001 286.375);
   --accent-foreground: oklch(0.21 0.006 285.885);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.92 0.004 286.32);
+  --border: oklch(0.95 0.003 286.32);
   --input: oklch(0.92 0.004 286.32);
   --ring: oklch(0.705 0.015 286.067);
   --chart-1: oklch(0.646 0.222 41.116);
@@ -112,14 +112,14 @@
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.967 0.001 286.375);
   --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
-  --sidebar-border: oklch(0.92 0.004 286.32);
+  --sidebar-border: oklch(0.95 0.003 286.32);
   --sidebar-ring: oklch(0.705 0.015 286.067);
   --aui-accent: #10a37f;
   --aui-accent-foreground: #ffffff;
   --aui-background: #ffffff;
   --aui-foreground: #0d0d0d;
   --aui-muted-foreground: #6e6e6e;
-  --aui-border: #e5e5e5;
+  --aui-border: #f0f0f0;
   --aui-user-message: #f7f7f8;
   --aui-composer: #f7f7f8;
   --aui-max-width: 48rem;
@@ -143,7 +143,7 @@
   --accent: oklch(0.274 0.006 286.033);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
+  --border: oklch(1 0 0 / 8%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.552 0.016 285.938);
   --chart-1: oklch(0.488 0.243 264.376);
@@ -157,14 +157,14 @@
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.274 0.006 286.033);
   --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-border: oklch(1 0 0 / 8%);
   --sidebar-ring: oklch(0.552 0.016 285.938);
   --aui-accent: #ffffff;
   --aui-accent-foreground: #000000;
   --aui-background: #212121;
   --aui-foreground: #ececec;
   --aui-muted-foreground: #9b9b9b;
-  --aui-border: #424242;
+  --aui-border: #383838;
   --aui-user-message: #2f2f2f;
   --aui-composer: #2f2f2f;
   --aui-max-width: 48rem;
@@ -175,13 +175,33 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
-    scrollbar-color: color-mix(in oklab, var(--foreground) 24%, transparent) transparent;
+    scrollbar-color: color-mix(in oklab, var(--foreground) 14%, transparent) transparent;
+  }
+
+  :where(
+    [data-slot="separator"],
+    [data-slot="sidebar-separator"],
+    [data-slot="dropdown-menu-separator"],
+    [data-slot="context-menu-separator"],
+    [data-slot="command-separator"],
+    [data-slot="model-selector-separator"]
+  ) {
+    filter: blur(0.35px);
   }
 
   *::-webkit-scrollbar,
   *::-webkit-scrollbar-track,
   *::-webkit-scrollbar-corner {
     background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background: color-mix(in oklab, var(--foreground) 14%, transparent);
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklab, var(--foreground) 20%, transparent);
   }
 
   :root {

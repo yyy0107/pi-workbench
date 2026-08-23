@@ -40,8 +40,8 @@ const APPEARANCE_OVERRIDES = `
   --accent-foreground: var(--workbench-theme-foreground);
   --sidebar-accent: var(--muted);
   --sidebar-accent-foreground: var(--workbench-theme-foreground);
-  --border: color-mix(in srgb, var(--workbench-theme-background) 82%, var(--workbench-theme-foreground));
-  --input: var(--border);
+  --border: color-mix(in srgb, var(--workbench-theme-background) 92%, var(--workbench-theme-foreground));
+  --input: color-mix(in srgb, var(--workbench-theme-background) 82%, var(--workbench-theme-foreground));
   --sidebar-border: var(--border);
   --aui-accent: var(--workbench-theme-accent);
   --aui-accent-foreground: var(--workbench-theme-background);

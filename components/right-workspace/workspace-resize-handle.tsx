@@ -48,7 +48,7 @@ export function WorkspaceResizeHandle({
       aria-valuemin={MIN_RIGHT_WORKSPACE_WIDTH}
       aria-valuemax={Math.round(maximum)}
       aria-valuenow={Math.round(width)}
-      className="group absolute inset-y-0 -left-[5px] z-40 w-[10px] touch-none cursor-col-resize outline-none after:absolute after:inset-y-0 after:left-1/2 after:w-px after:bg-transparent hover:after:bg-ring focus-visible:after:bg-ring"
+      className="group absolute inset-y-0 -left-[5px] z-40 w-[10px] touch-none cursor-col-resize outline-none after:absolute after:inset-y-0 after:left-1/2 after:w-px after:bg-transparent after:blur-[0.35px] hover:after:bg-ring/30 focus-visible:after:bg-ring/50"
       onPointerDown={resize.onPointerDown}
       onPointerMove={resize.onPointerMove}
       onPointerUp={resize.onPointerUp}
