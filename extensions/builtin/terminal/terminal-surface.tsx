@@ -29,8 +29,10 @@ import {
   bashCommandFromArgs,
   findBashToolCall,
   findBashToolCallMessage,
+  terminalOutputAppendDelta,
   terminalResultLines,
 } from "./terminal-tool-transcript";
+import { createTerminalFrameWriter, type TerminalFrameWriter } from "./terminal-frame-writer";
 
 type ConnectionStatus =
   | { phase: "connecting" }
@@ -106,7 +108,8 @@ function resolveThemeColor(container: HTMLElement, property: string, fallback: s
 
 function resolveTerminalTheme(container: HTMLElement): ITheme {
   const root = container.ownerDocument.documentElement;
-  const background = resolveThemeColor(container, "--background", "#ffffff");
+  const themeBackground = resolveThemeColor(container, "--background", "#ffffff");
+  const background = resolveThemeColor(container, "--workbench-canvas-background", themeBackground);
   const foreground = resolveThemeColor(container, "--foreground", "#18181b");
   const accent = resolveThemeColor(container, "--primary", foreground);
   const muted = resolveThemeColor(container, "--muted", background);
@@ -243,6 +246,7 @@ function TerminalTranscriptSurface({
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const interruptRef = useRef<() => void>(() => {});
+  const fallbackSnapshotRef = useRef<{ command: string; output: string } | undefined>(undefined);
   const [connection, setConnection] = useState<ToolConnectionStatus>({ phase: "connecting" });
   const { piSessionId, toolCallId } = target;
   const message = useAuiState((state) =>
@@ -284,6 +288,7 @@ function TerminalTranscriptSurface({
     let resizeObserver: ResizeObserver | undefined;
     let dataSubscription: { dispose(): void } | undefined;
     let terminal: Terminal | undefined;
+    let terminalWriter: TerminalFrameWriter | undefined;
     let stopThemeSync: (() => void) | undefined;
 
     const start = async () => {
@@ -298,6 +303,8 @@ function TerminalTranscriptSurface({
       terminal = new XtermTerminal(xtermOptions(container, true));
       terminal.loadAddon(fitAddon);
       terminal.open(container);
+      const writer = createTerminalFrameWriter(terminal);
+      terminalWriter = writer;
       stopThemeSync = synchronizeTerminalTheme(container, terminal);
       terminalRef.current = terminal;
       fitAddon.fit();
@@ -325,7 +332,10 @@ function TerminalTranscriptSurface({
           showFallback();
           return;
         }
-        if (attempts > 0) terminal.reset();
+        if (attempts > 0) {
+          writer.flush();
+          terminal.reset();
+        }
         ready = false;
         setConnection(attempts === 0 ? { phase: "connecting" } : { phase: "disconnected" });
         const nextSocket = new WebSocket(url);
@@ -340,8 +350,9 @@ function TerminalTranscriptSurface({
           }
           const frame = parseTerminalServerFrame(value);
           if (!frame || !terminal) return;
-          if (frame.type === "data") terminal.write(frame.data);
+          if (frame.type === "data") writer.enqueue(frame.data);
           else if (frame.type === "ready") {
+            writer.flush();
             ready = true;
             attempts = 0;
             terminal.options.disableStdin = false;
@@ -350,15 +361,18 @@ function TerminalTranscriptSurface({
             send({ type: "resize", cols: terminal.cols, rows: terminal.rows });
             terminal.focus();
           } else if (frame.type === "exit") {
+            writer.flush();
             exited = true;
             ready = false;
             terminal.options.disableStdin = true;
             terminal.options.cursorBlink = false;
             setConnection({ phase: "exited", exitCode: frame.exitCode });
           } else if (frame.code === "invalid-session") {
+            writer.flush();
             exited = true;
             showFallback();
           } else {
+            writer.flush();
             exited = true;
             ready = false;
             setConnection({ phase: "error" });
@@ -366,6 +380,7 @@ function TerminalTranscriptSurface({
         });
         nextSocket.addEventListener("close", (event) => {
           if (disposed || nextSocket !== socket || exited) return;
+          writer.flush();
           ready = false;
           terminal!.options.disableStdin = true;
           if (event.code === 1008) {
@@ -413,6 +428,7 @@ function TerminalTranscriptSurface({
       dataSubscription?.dispose();
       stopThemeSync?.();
       socket?.close(1000, "surface closed");
+      terminalWriter?.dispose();
       terminal?.dispose();
       terminalRef.current = null;
       interruptRef.current = () => {};
@@ -420,12 +436,27 @@ function TerminalTranscriptSurface({
   }, [piSessionId, toolCallId]);
 
   useEffect(() => {
-    if (connection.phase !== "fallback") return;
+    if (connection.phase !== "fallback") {
+      fallbackSnapshotRef.current = undefined;
+      return;
+    }
     const terminal = terminalRef.current;
     if (!terminal) return;
+
+    const previous = fallbackSnapshotRef.current;
+    if (previous?.command === command) {
+      const delta = terminalOutputAppendDelta(previous.output, output);
+      if (delta !== undefined) {
+        if (delta) terminal.write(terminalText(delta));
+        fallbackSnapshotRef.current = { command, output };
+        return;
+      }
+    }
+
     terminal.reset();
     terminal.write(`$ ${terminalText(command)}\r\n`);
     if (output) terminal.write(terminalText(output));
+    fallbackSnapshotRef.current = { command, output };
   }, [command, connection.phase, output]);
 
   const connectionLabel =
@@ -441,7 +472,8 @@ function TerminalTranscriptSurface({
 
   return (
     <section
-      className="bg-background text-foreground flex size-full min-h-0 flex-col"
+      className="text-foreground flex size-full min-h-0 flex-col"
+      style={{ backgroundColor: "var(--workbench-canvas-background, var(--background))" }}
       aria-label={t("extensions.terminal.transcript.output")}
       aria-busy={running || connection.phase === "stopping"}
     >
@@ -473,30 +505,30 @@ function TerminalTranscriptSurface({
         <Button
           type="button"
           variant="ghost"
-          size="icon-xs"
+          size="icon-sm"
           className="text-muted-foreground hover:bg-muted hover:text-foreground"
           disabled={!running || connection.phase !== "connected"}
           aria-label={t("extensions.terminal.transcript.stop")}
           title={t("extensions.terminal.transcript.stop")}
           onClick={() => interruptRef.current()}
         >
-          <SquareIcon className="size-3" fill="currentColor" />
+          <SquareIcon className="size-4" fill="currentColor" />
         </Button>
         <Button
           type="button"
           variant="ghost"
-          size="icon-xs"
+          size="icon-sm"
           className="text-muted-foreground hover:bg-muted hover:text-foreground"
           aria-label={t("extensions.terminal.clear")}
           title={t("extensions.terminal.clear")}
           onClick={() => terminalRef.current?.clear()}
         >
-          <Trash2Icon className="size-3.5" />
+          <Trash2Icon className="size-4" />
         </Button>
       </div>
       <div
         ref={containerRef}
-        className="min-h-0 flex-1 overflow-hidden p-2 [&_.xterm]:h-full [&_.xterm-viewport]:!overflow-y-auto"
+        className="min-h-0 flex-1 overflow-hidden p-2 [&_.xterm]:h-full [&_.xterm-viewport]:!bg-transparent [&_.xterm-viewport]:!overflow-y-auto"
       />
     </section>
   );
@@ -534,6 +566,7 @@ function PtyTerminalSurface({
     let dataSubscription: { dispose(): void } | undefined;
     let titleSubscription: { dispose(): void } | undefined;
     let terminal: Terminal | undefined;
+    let terminalWriter: TerminalFrameWriter | undefined;
     let stopThemeSync: (() => void) | undefined;
     let promptTitleResolved = false;
     let lastReportedTitle: string | undefined;
@@ -573,6 +606,8 @@ function PtyTerminalSurface({
       terminal = new XtermTerminal(xtermOptions(container));
       terminal.loadAddon(fitAddon);
       terminal.open(container);
+      const writer = createTerminalFrameWriter(terminal);
+      terminalWriter = writer;
       stopThemeSync = synchronizeTerminalTheme(container, terminal);
       terminalRef.current = terminal;
       fitAddon.fit();
@@ -626,8 +661,9 @@ function PtyTerminalSurface({
           const frame = parseTerminalServerFrame(value);
           if (!frame || !terminal) return;
           if (frame.type === "data") {
-            terminal.write(frame.data, schedulePromptTitle);
+            writer.enqueue(frame.data, schedulePromptTitle);
           } else if (frame.type === "ready") {
+            writer.flush();
             ready = true;
             attempts = 0;
             reportStatus({
@@ -638,6 +674,7 @@ function PtyTerminalSurface({
             });
             send({ type: "resize", cols: terminal.cols, rows: terminal.rows });
           } else if (frame.type === "exit") {
+            writer.flush();
             exited = true;
             ready = false;
             reportStatus({ phase: "exited", exitCode: frame.exitCode });
@@ -645,6 +682,7 @@ function PtyTerminalSurface({
               `\r\n${t("extensions.terminal.status.exited", { code: frame.exitCode })}`,
             );
           } else {
+            writer.flush();
             exited = true;
             ready = false;
             reportStatus({ phase: "error", code: frame.code });
@@ -653,6 +691,7 @@ function PtyTerminalSurface({
         });
         nextSocket.addEventListener("close", (event) => {
           if (disposed || ownGeneration !== generation || exited) return;
+          writer.flush();
           ready = false;
           if (event.code === 1008) {
             exited = true;
@@ -704,6 +743,7 @@ function PtyTerminalSurface({
       titleSubscription?.dispose();
       stopThemeSync?.();
       socket?.close(1000, "surface closed");
+      terminalWriter?.dispose();
       terminal?.dispose();
       terminalRef.current = null;
       reconnectRef.current = () => {};
@@ -726,7 +766,8 @@ function PtyTerminalSurface({
 
   return (
     <section
-      className="bg-background text-foreground flex size-full min-h-0 flex-col"
+      className="text-foreground flex size-full min-h-0 flex-col"
+      style={{ backgroundColor: "var(--workbench-canvas-background, var(--background))" }}
       aria-label={t("extensions.terminal.output")}
     >
       <div className="bg-muted/40 flex h-8 shrink-0 items-center gap-2 border-b px-2.5">
@@ -746,29 +787,29 @@ function PtyTerminalSurface({
         <Button
           type="button"
           variant="ghost"
-          size="icon-xs"
+          size="icon-sm"
           className="text-muted-foreground hover:bg-muted hover:text-foreground"
           aria-label={t("extensions.terminal.reconnect")}
           title={t("extensions.terminal.reconnect")}
           onClick={() => reconnectRef.current()}
         >
-          <RotateCwIcon className="size-3.5" />
+          <RotateCwIcon className="size-4" />
         </Button>
         <Button
           type="button"
           variant="ghost"
-          size="icon-xs"
+          size="icon-sm"
           className="text-muted-foreground hover:bg-muted hover:text-foreground"
           aria-label={t("extensions.terminal.clear")}
           title={t("extensions.terminal.clear")}
           onClick={() => terminalRef.current?.clear()}
         >
-          <Trash2Icon className="size-3.5" />
+          <Trash2Icon className="size-4" />
         </Button>
       </div>
       <div
         ref={containerRef}
-        className="min-h-0 flex-1 overflow-hidden p-2 [&_.xterm]:h-full [&_.xterm-viewport]:!overflow-y-auto"
+        className="min-h-0 flex-1 overflow-hidden p-2 [&_.xterm]:h-full [&_.xterm-viewport]:!bg-transparent [&_.xterm-viewport]:!overflow-y-auto"
       />
     </section>
   );

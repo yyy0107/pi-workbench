@@ -6,6 +6,7 @@ import {
   bashCommandFromArgs,
   findBashToolCall,
   findBashToolCallMessage,
+  terminalOutputAppendDelta,
   terminalResultLines,
   terminalResultText,
 } from "./terminal-tool-transcript";
@@ -52,4 +53,10 @@ test("normalizes command output for both terminal presentations", () => {
   assert.equal(terminalResultText({ text: "one\r\ntwo" }), "one\r\ntwo");
   assert.deepEqual(terminalResultLines({ text: "one\r\ntwo" }), ["one", "two"]);
   assert.equal(terminalResultText({ ok: true }), '{\n  "ok": true\n}');
+});
+
+test("extracts only newly appended terminal output", () => {
+  assert.equal(terminalOutputAppendDelta("first", "first\nsecond"), "\nsecond");
+  assert.equal(terminalOutputAppendDelta("same", "same"), "");
+  assert.equal(terminalOutputAppendDelta("old output", "replacement"), undefined);
 });

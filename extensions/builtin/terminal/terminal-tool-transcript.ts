@@ -52,3 +52,7 @@ export function terminalResultLines(result: unknown): string[] {
   if (!output) return [];
   return output.replace(/\r\n?/g, "\n").split("\n");
 }
+
+export function terminalOutputAppendDelta(previous: string, next: string): string | undefined {
+  return next.startsWith(previous) ? next.slice(previous.length) : undefined;
+}
