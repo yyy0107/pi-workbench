@@ -447,6 +447,57 @@ test("keeps a streaming assistant segment before steering messages as they arriv
   );
 });
 
+test("applies cumulative transient updates without advancing the durable sequence", async (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("local-session", "remote-session");
+  const internals = session as unknown as {
+    lastSequence: number;
+    handleEvent(event: PiEvent): void;
+  };
+
+  internals.handleEvent({
+    type: "message_start",
+    sequence: 10,
+    message: { role: "assistant", content: [], timestamp: 1_000 },
+  });
+  internals.handleEvent({
+    type: "message_update",
+    message: {
+      role: "assistant",
+      content: [{ type: "text", text: "partial" }],
+      timestamp: 1_000,
+    },
+    transientKind: "delta",
+    transientStreamId: "stream-1",
+    transientRevision: 1,
+    transientMessageStartSeq: 10,
+  });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+
+  assert.equal(internals.lastSequence, 10);
+  const streamingPart = session.getSnapshot().messages.at(-1)?.content[0];
+  assert.equal(streamingPart?.type, "text");
+  assert.equal(streamingPart?.type === "text" ? streamingPart.text : undefined, "partial");
+
+  internals.handleEvent({
+    type: "message_end",
+    sequence: 11,
+    message: {
+      role: "assistant",
+      content: [{ type: "text", text: "complete" }],
+      stopReason: "stop",
+      timestamp: 1_000,
+    },
+  });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+
+  assert.equal(internals.lastSequence, 11);
+  const completedPart = session.getSnapshot().messages.at(-1)?.content[0];
+  assert.equal(completedPart?.type === "text" ? completedPart.text : undefined, "complete");
+  assert.equal(session.getSnapshot().messages.at(-1)?.status?.type, "complete");
+});
+
 test("renders a consumed follow-up at user message_start before the next assistant output", async (t) => {
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());

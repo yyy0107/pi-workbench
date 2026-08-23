@@ -92,6 +92,133 @@ test("publishes prompt admission with the original RPC id without retaining it",
   assert.deepEqual(reconnectFrames, []);
 });
 
+test("delivers transient message updates without advancing or retaining the durable watermark", async () => {
+  const hub = createStreamHub({ createRpcId: () => "rpc-transient" });
+  hub.publishMux(sessionEvent(3));
+  const liveFrames: ServerRequest<MuxStreamPayload>[] = [];
+  const live = hub.subscribe("mux", {
+    onFrame: (frame) => liveFrames.push(frame),
+    onError: (error) => assert.fail(error.message),
+  });
+  await live.ready;
+  liveFrames.length = 0;
+
+  hub.publishMux({
+    type: "session/message-update",
+    format: "pi-messages-v1",
+    sessionId: "session-1",
+    streamId: "stream-1",
+    revision: 1,
+    startSeq: 3,
+    time: 1_725_000_000_004,
+    message: { role: "assistant" },
+    update: { type: "text_delta", contentIndex: 0, delta: "partial" },
+  });
+
+  assert.deepEqual(
+    liveFrames.map((frame) => frame.payload.type),
+    ["session/message-update"],
+  );
+  live.close();
+
+  const reconnectFrames: ServerRequest<MuxStreamPayload>[] = [];
+  const reconnect = hub.subscribe("mux", {
+    onFrame: (frame) => reconnectFrames.push(frame),
+    onError: (error) => assert.fail(error.message),
+  });
+  await reconnect.ready;
+  assert.deepEqual(
+    reconnectFrames.map((frame) => frame.payload),
+    [{ type: "session/subscribed", sessionId: "session-1", lastSeq: 3 }],
+  );
+});
+
+test("bootstraps one atomic active snapshot before post-cut deltas and durable completion", async () => {
+  const hub = createStreamHub({ createRpcId: () => "rpc-snapshot" });
+  hub.publishMux(sessionEvent(3));
+  hub.setSessionMessageSnapshot({
+    type: "session/message-snapshot",
+    format: "pi-messages-v1",
+    sessionId: "session-1",
+    streamId: "stream-1",
+    revision: 1,
+    startSeq: 3,
+    time: 1_725_000_000_004,
+    message: {
+      role: "assistant",
+      content: [{ type: "text", text: "one" }],
+    },
+  });
+
+  const frames: ServerRequest<MuxStreamPayload>[] = [];
+  const reconnect = hub.subscribe("mux", {
+    onFrame: (frame) => frames.push(frame),
+    onError: (error) => assert.fail(error.message),
+  });
+
+  hub.setSessionMessageSnapshot({
+    type: "session/message-snapshot",
+    format: "pi-messages-v1",
+    sessionId: "session-1",
+    streamId: "stream-1",
+    revision: 2,
+    startSeq: 3,
+    time: 1_725_000_000_005,
+    message: {
+      role: "assistant",
+      content: [{ type: "text", text: "onetwo" }],
+    },
+  });
+  hub.publishMux({
+    type: "session/message-update",
+    format: "pi-messages-v1",
+    sessionId: "session-1",
+    streamId: "stream-1",
+    revision: 2,
+    startSeq: 3,
+    time: 1_725_000_000_005,
+    message: { role: "assistant" },
+    update: { type: "text_delta", contentIndex: 0, delta: "two" },
+  });
+  hub.clearSessionMessageSnapshot("session-1", "stream-1");
+  hub.publishMux({
+    type: "session/event",
+    sessionId: "session-1",
+    event: {
+      type: "message_end",
+      seq: 4,
+      time: 1_725_000_000_006,
+      data: {
+        message: {
+          role: "assistant",
+          content: [{ type: "text", text: "onetwo" }],
+        },
+      },
+    },
+  });
+
+  await reconnect.ready;
+  assert.deepEqual(
+    frames.map((frame) => frame.payload.type),
+    ["session/subscribed", "session/message-snapshot", "session/message-update", "session/event"],
+  );
+  const snapshot = frames[1]?.payload;
+  assert.equal(snapshot?.type === "session/message-snapshot" && snapshot.revision, 1);
+  reconnect.close();
+
+  const afterCompletion: ServerRequest<MuxStreamPayload>[] = [];
+  const later = hub.subscribe("mux", {
+    onFrame: (frame) => afterCompletion.push(frame),
+    onError: (error) => assert.fail(error.message),
+  });
+  await later.ready;
+  assert.deepEqual(
+    afterCompletion.map((frame) => frame.payload.type),
+    ["session/subscribed"],
+  );
+  later.close();
+});
+
 test("buffers post-watermark frames until bootstrap and subscribed frames finish", async () => {
   let nextId = 0;
   const hub = createStreamHub({ createRpcId: () => `rpc-${++nextId}` });

@@ -313,6 +313,15 @@ Workbench 在 Pi JSONL 中保存 canonical event journal。每个 `SessionEvent`
 `seq`、epoch-millisecond `time` 和原始 `data`，因此 cold history 和 live mux 使用同一事件
 序列。`session.history` 按完整消息组分页，避免把 `message_start` / `message_end` 组从中间切开。
 
+token 级 `message_update` 是例外：它通过 `session/message-update` 作为无 durable `seq` 的
+transient compact delta 实时发送，不写 JSONL、不进入 canonical event cache，也不推进 reconnect
+watermark。delta 复用 `@earendil-works/pi-ai` 的 `PiMessagesEvent` 内容事件子集，并由固定的
+`streamId`、`message_start` durable `startSeq` 和 stream 内 revision 定序；payload 只重复不含
+`content` 的固定大小 message metadata。`message_start` 后会先保留 revision 0 的空基线，因此在首个
+token 到达前连接的客户端也能建立正确 stream。最终 durable `message_end` 仍是完成态的权威校正，首 token
+时间也只在 `message_end.data.workbenchTiming` 中持久化一次。旧 JSONL 中已经存在的 durable
+`message_update` 仍按原序列读取，以保持历史和 fork 坐标兼容。
+
 其他关键行为：
 
 - `session.create` 支持调用方指定 session ID，并对同一 ID 串行化以保证幂等和 cwd 冲突检测；
@@ -338,6 +347,8 @@ approval 的上行回答必须通过 `POST /api/respond`。
 `/api/events.mux` 当前承载：
 
 - canonical session event 和 session watermark；
+- 不参与 journal、durable sequence 或 reconnect watermark 的 transient `session/message-update`；
+- 仅在连接 bootstrap 或 compact projector 自修复时出现的 `session/message-snapshot`；
 - `session.prompt` 真正接纳后的瞬时 `session/prompt-accepted` 确认；其 frame `rpcId` 与原 HTTP
   RPC 相同，并携带接纳后的运行态，但不重复传输 prompt 内容；
 - 权威 queue snapshot；
@@ -349,8 +360,13 @@ approval 的上行回答必须通过 `POST /api/respond`。
 error、workspace changed/removed/order、archived session 变化和兼容的 remote event。连接中的浏览器
 可以直接应用会话创建、标题/消息元数据、运行与归档增量；`session.list` 只负责首屏和断线重建基线。
 
-新 mux subscriber 会先收到已保留的 session watermark、queue 和未决交互，再收到 bootstrap
-期间缓冲的 live frame。bootstrap 缓冲上限为 10,000 帧；单 socket 待发送数据上限为 1 MiB。
+每个 active assistant stream 在 Hub 中只保留一份物化快照。Hub 在订阅调用栈内同步捕获 snapshot
+cut，随后按 `session/subscribed → session/message-snapshot → queue/interaction → cut 后 live delta`
+发送；客户端丢弃不高于 snapshot revision 的重复 delta，revision 缺口则废弃本代连接并通过新
+snapshot 恢复。snapshot 还携带尚未完成的 tool-call 原始 JSON buffer，因为已经解析的 arguments
+不能继续拼接后续 JSON fragment。durable `message_end`、branch reset 和 host shutdown 会清除该
+快照，避免重连复活已完成的 streaming row。bootstrap 缓冲上限为 10,000 帧；单 socket 待发送
+数据上限为 1 MiB。
 消费者过慢、序列化失败或 stream 异常时，服务尽力发送 `stream/error`，然后以 `1011` 结束
 连接。普通 `GET|HEAD` 访问这两个路径而不 upgrade 会得到 `426 Upgrade Required`。
 

@@ -1,4 +1,6 @@
-import type { PiSessionSummary } from "./contracts";
+import type { PiMessagesEvent } from "@earendil-works/pi-ai";
+
+import type { PiAssistantMessage, PiSessionSummary } from "./contracts";
 import type { RpcError, SessionEvent, ToolEventView, WorkspaceView } from "./rpc-contracts";
 
 export type { SessionEvent, ToolEventView } from "./rpc-contracts";
@@ -42,6 +44,41 @@ export interface SessionEventPayload {
   sessionId: string;
   event: SessionEvent;
   view?: ToolEventView;
+}
+
+export type SessionMessageDelta = Exclude<PiMessagesEvent, { type: "start" | "done" | "error" }>;
+
+export type SessionMessageMetadata = Omit<PiAssistantMessage, "content">;
+
+interface SessionMessageStreamPayload {
+  format: "pi-messages-v1";
+  sessionId: string;
+  /** Stable for one assistant generation; unrelated generations must never share an id. */
+  streamId: string;
+  /** Monotonic within `streamId`; snapshots may start at 0 before the first delta. */
+  revision: number;
+  /** Durable sequence of the matching assistant `message_start`. */
+  startSeq: number;
+  time: number;
+}
+
+/** A compact, transient assistant content update. */
+export interface SessionMessageUpdatePayload extends SessionMessageStreamPayload {
+  type: "session/message-update";
+  /** Message fields that can change while streaming, excluding cumulative content. */
+  message: SessionMessageMetadata;
+  update: SessionMessageDelta;
+}
+
+/**
+ * A reconnect-only materialized view. The hub retains at most one per active session and clears it
+ * before the matching durable `message_end` is published.
+ */
+export interface SessionMessageSnapshotPayload extends SessionMessageStreamPayload {
+  type: "session/message-snapshot";
+  message: PiAssistantMessage;
+  /** Raw partial tool argument JSON needed to continue parsing deltas after a reconnect. */
+  toolCallJson?: Record<string, string>;
 }
 
 export interface SessionSubscribedPayload {
@@ -114,6 +151,8 @@ export interface StreamErrorPayload {
 
 export type MuxStreamPayload =
   | SessionEventPayload
+  | SessionMessageUpdatePayload
+  | SessionMessageSnapshotPayload
   | SessionSubscribedPayload
   | SessionPromptAcceptedPayload
   | ApprovalRequestedPayload
@@ -257,5 +296,132 @@ export function createSessionEventPayload(
     sessionId,
     event,
     ...(view === undefined ? {} : { view }),
+  };
+}
+
+function assertSessionMessageStreamCoordinates(
+  sessionId: string,
+  streamId: string,
+  revision: number,
+  startSeq: number,
+  time: number,
+): void {
+  if (sessionId.length === 0) throw new TypeError("A session id must not be empty.");
+  if (streamId.length === 0) throw new TypeError("An assistant stream id must not be empty.");
+  if (!Number.isInteger(revision) || revision < 0) {
+    throw new RangeError("An assistant stream revision must be a non-negative integer.");
+  }
+  if (!Number.isInteger(startSeq) || startSeq < -1) {
+    throw new RangeError("An assistant stream start sequence must be at least -1.");
+  }
+  if (!Number.isFinite(time)) {
+    throw new RangeError("An assistant stream time must be finite.");
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function hasContentIndex(value: Record<string, unknown>): boolean {
+  return Number.isInteger(value.contentIndex) && (value.contentIndex as number) >= 0;
+}
+
+function hasOptionalString(value: unknown): boolean {
+  return value === undefined || typeof value === "string";
+}
+
+/** Runtime validation for the compact subset reused from pi-ai's streaming protocol. */
+export function isSessionMessageDelta(value: unknown): value is SessionMessageDelta {
+  if (!isRecord(value) || typeof value.type !== "string" || !hasContentIndex(value)) return false;
+  switch (value.type) {
+    case "text_start":
+    case "thinking_start":
+      return true;
+    case "text_delta":
+    case "thinking_delta":
+    case "toolcall_delta":
+      return typeof value.delta === "string";
+    case "text_end":
+      return typeof value.content === "string" && hasOptionalString(value.contentSignature);
+    case "thinking_end":
+      return (
+        typeof value.content === "string" &&
+        hasOptionalString(value.contentSignature) &&
+        (value.redacted === undefined || typeof value.redacted === "boolean")
+      );
+    case "toolcall_start":
+      return typeof value.id === "string" && typeof value.toolName === "string";
+    case "toolcall_end": {
+      const toolCall = value.toolCall;
+      return (
+        isRecord(toolCall) &&
+        toolCall.type === "toolCall" &&
+        typeof toolCall.id === "string" &&
+        typeof toolCall.name === "string" &&
+        isRecord(toolCall.arguments)
+      );
+    }
+    default:
+      return false;
+  }
+}
+
+export function createSessionMessageUpdatePayload(
+  sessionId: string,
+  streamId: string,
+  revision: number,
+  startSeq: number,
+  time: number,
+  message: SessionMessageMetadata,
+  update: SessionMessageDelta,
+): SessionMessageUpdatePayload {
+  assertSessionMessageStreamCoordinates(sessionId, streamId, revision, startSeq, time);
+  if (revision < 1) {
+    throw new RangeError("An assistant stream update revision must be a positive integer.");
+  }
+  if (message.role !== "assistant") {
+    throw new TypeError("An assistant stream update requires assistant message metadata.");
+  }
+  if (!isSessionMessageDelta(update)) {
+    throw new TypeError("An assistant stream update must use a supported pi message event.");
+  }
+
+  return {
+    type: "session/message-update",
+    format: "pi-messages-v1",
+    sessionId,
+    streamId,
+    revision,
+    startSeq,
+    time,
+    message,
+    update,
+  };
+}
+
+export function createSessionMessageSnapshotPayload(
+  sessionId: string,
+  streamId: string,
+  revision: number,
+  startSeq: number,
+  time: number,
+  message: PiAssistantMessage,
+  toolCallJson?: Record<string, string>,
+): SessionMessageSnapshotPayload {
+  assertSessionMessageStreamCoordinates(sessionId, streamId, revision, startSeq, time);
+  if (message.role !== "assistant" || !Array.isArray(message.content)) {
+    throw new TypeError("An assistant stream snapshot requires an assistant message.");
+  }
+  return {
+    type: "session/message-snapshot",
+    format: "pi-messages-v1",
+    sessionId,
+    streamId,
+    revision,
+    startSeq,
+    time,
+    message,
+    ...(toolCallJson === undefined ? {} : { toolCallJson }),
   };
 }

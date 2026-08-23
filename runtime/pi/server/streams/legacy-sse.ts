@@ -72,7 +72,7 @@ export async function createSessionEventResponse(request: Request, sessionId: st
       }
       ready = true;
       for (const event of buffered) {
-        if ((event.sequence ?? 0) > sequence) send(event);
+        if (event.sequence === undefined || event.sequence > sequence) send(event);
       }
       request.signal.addEventListener("abort", cleanup, { once: true });
       if (request.signal.aborted) cleanup();

@@ -89,6 +89,17 @@ function piMessage(value: unknown): PiAgentMessage | undefined {
   return candidate as unknown as PiAgentMessage;
 }
 
+function assistantMessageHasOutput(message: PiAgentMessage | undefined): boolean {
+  return (
+    message?.role === "assistant" &&
+    message.content.some(
+      (part) =>
+        (part.type === "text" && part.text.length > 0) ||
+        (part.type === "thinking" && !part.redacted && part.thinking.length > 0),
+    )
+  );
+}
+
 /** Convert canonical session history events into the existing assistant-ui message projection. */
 export function piHistoryFromSessionEvents(
   sessionId: string,
@@ -103,6 +114,7 @@ export function piHistoryFromSessionEvents(
   const toolTimings: NonNullable<PiSessionHistory["context"]["toolTimings"]> = [];
   let currentModel: Pick<PiAssistantMessage, "model" | "provider"> | undefined;
   let assistantMessageActive = false;
+  let assistantMessageStartedAt: number | undefined;
   let firstAssistantTokenAt: number | undefined;
 
   const pushMessage = (
@@ -167,7 +179,8 @@ export function piHistoryFromSessionEvents(
     if (event.type === "message_start") {
       const startedMessage = piMessage(data?.message);
       assistantMessageActive = startedMessage?.role === "assistant";
-      if (assistantMessageActive) firstAssistantTokenAt = undefined;
+      assistantMessageStartedAt = assistantMessageActive ? event.time : undefined;
+      firstAssistantTokenAt = undefined;
     } else if (
       event.type === "message_update" &&
       assistantMessageActive &&
@@ -180,13 +193,7 @@ export function piHistoryFromSessionEvents(
         (updateType === "text_delta" || updateType === "thinking_delta") &&
         typeof update?.delta === "string" &&
         update.delta.length > 0;
-      const hasCumulativeOutput =
-        updatedMessage?.role === "assistant" &&
-        updatedMessage.content.some(
-          (part) =>
-            (part.type === "text" && part.text.length > 0) ||
-            (part.type === "thinking" && !part.redacted && part.thinking.length > 0),
-        );
+      const hasCumulativeOutput = assistantMessageHasOutput(updatedMessage);
       if (hasTextDelta || hasCumulativeOutput) firstAssistantTokenAt = event.time;
     }
 
@@ -244,15 +251,35 @@ export function piHistoryFromSessionEvents(
       currentModel = { model: projectedMessage.model, provider: projectedMessage.provider };
     }
 
+    const persistedFirstTokenAt = numberValue(record(data?.workbenchTiming)?.firstTokenAt);
+    const validPersistedFirstTokenAt =
+      event.type === "message_end" &&
+      projectedMessage.role === "assistant" &&
+      assistantMessageStartedAt !== undefined &&
+      persistedFirstTokenAt !== undefined &&
+      persistedFirstTokenAt >= assistantMessageStartedAt &&
+      persistedFirstTokenAt <= event.time
+        ? persistedFirstTokenAt
+        : undefined;
+    const completedFirstTokenAt =
+      event.type === "message_end" && projectedMessage.role === "assistant"
+        ? (validPersistedFirstTokenAt ??
+          firstAssistantTokenAt ??
+          (assistantMessageStartedAt !== undefined && assistantMessageHasOutput(projectedMessage)
+            ? event.time
+            : undefined))
+        : undefined;
+
     pushMessage(
       projectedMessage,
       `pi-event-${event.seq}`,
       event.time,
-      projectedMessage.role === "assistant" ? firstAssistantTokenAt : undefined,
+      completedFirstTokenAt,
       event.type === "message_end" ? event.seq : undefined,
     );
     if (projectedMessage.role === "assistant") {
       assistantMessageActive = false;
+      assistantMessageStartedAt = undefined;
       firstAssistantTokenAt = undefined;
     }
   }

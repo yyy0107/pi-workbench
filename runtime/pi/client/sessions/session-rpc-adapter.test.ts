@@ -134,6 +134,42 @@ test("restores time to first token from durable stream updates", () => {
   assert.equal(message?.metadata.custom.piEventSeq, 2);
 });
 
+test("restores time to first token from compact message completion timing", () => {
+  const history = piHistoryFromSessionEvents("s-1", {
+    events: [
+      {
+        event: {
+          type: "message_start",
+          seq: 0,
+          time: 1_000,
+          data: { message: { role: "assistant", content: [], timestamp: 1_000 } },
+        },
+      },
+      {
+        event: {
+          type: "message_end",
+          seq: 1,
+          time: 2_000,
+          data: {
+            message: {
+              role: "assistant",
+              content: [{ type: "text", text: "Hello" }],
+              timestamp: 1_000,
+            },
+            workbenchTiming: { firstTokenAt: 1_250 },
+          },
+        },
+      },
+    ],
+    hasMore: false,
+  });
+
+  assert.deepEqual(history.context.entryFirstTokenAts, [1_250]);
+  const [message] = piHistoryToThreadMessages(history);
+  assert.equal(message?.metadata.timing?.firstTokenTime, 250);
+  assert.equal(message?.metadata.custom.piEventSeq, 1);
+});
+
 test("carries the Workbench Composer projection beside the unchanged Pi user message", () => {
   const history = piHistoryFromSessionEvents("s-1", {
     events: [

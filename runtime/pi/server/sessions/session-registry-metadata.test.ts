@@ -22,6 +22,7 @@ const moduleHooks = registerHooks({
   },
 });
 const {
+  compactAssistantMessageUpdate,
   createSession,
   createDetachedSessionFork,
   getSessionEvents,
@@ -37,7 +38,7 @@ const {
 } = (await import(
   new URL("./session-registry.ts", import.meta.url).href
 )) as typeof import("./session-registry");
-const { appendSessionEventJournal } = (await import(
+const { appendSessionEventJournal, SESSION_EVENT_CUSTOM_TYPE } = (await import(
   new URL("./session-event-journal.ts", import.meta.url).href
 )) as typeof import("./session-event-journal");
 const { createStreamHub, STREAM_HUB_SYMBOL } = (await import(
@@ -58,6 +59,105 @@ test("detects image content across durable session message roles", () => {
       },
     ]),
     true,
+  );
+});
+
+test("projects Pi assistant updates into the compact public wire vocabulary", () => {
+  assert.deepEqual(
+    compactAssistantMessageUpdate({
+      type: "message_update",
+      message: {
+        role: "assistant",
+        content: [{ type: "text", text: "done", textSignature: "" }],
+      },
+      assistantMessageEvent: { type: "text_end", contentIndex: 0, content: "done" },
+    }),
+    { type: "text_end", contentIndex: 0, content: "done", contentSignature: "" },
+  );
+  assert.deepEqual(
+    compactAssistantMessageUpdate({
+      type: "message_update",
+      message: {
+        role: "assistant",
+        content: [
+          {
+            type: "thinking",
+            thinking: "[Reasoning redacted]",
+            thinkingSignature: "opaque",
+            redacted: true,
+          },
+        ],
+      },
+      assistantMessageEvent: {
+        type: "thinking_end",
+        contentIndex: 0,
+        content: "[Reasoning redacted]",
+      },
+    }),
+    {
+      type: "thinking_end",
+      contentIndex: 0,
+      content: "[Reasoning redacted]",
+      contentSignature: "opaque",
+      redacted: true,
+    },
+  );
+  assert.deepEqual(
+    compactAssistantMessageUpdate({
+      type: "message_update",
+      message: {
+        role: "assistant",
+        content: [{ type: "toolCall", id: "tool-1", name: "search", arguments: {} }],
+      },
+      assistantMessageEvent: { type: "toolcall_start", contentIndex: 0 },
+    }),
+    {
+      type: "toolcall_start",
+      contentIndex: 0,
+      id: "tool-1",
+      toolName: "search",
+    },
+  );
+  assert.deepEqual(
+    compactAssistantMessageUpdate({
+      type: "message_update",
+      message: {
+        role: "assistant",
+        content: [
+          {
+            type: "toolCall",
+            id: "tool-1",
+            name: "search",
+            arguments: { query: "hello" },
+          },
+        ],
+      },
+      assistantMessageEvent: {
+        type: "toolcall_end",
+        contentIndex: 0,
+        toolCall: {
+          type: "toolCall",
+          id: "tool-1",
+          name: "search",
+          arguments: { query: "hello" },
+          thoughtSignature: "thought",
+          namespace: "builtin",
+          partialJson: "must not leak",
+        },
+      },
+    }),
+    {
+      type: "toolcall_end",
+      contentIndex: 0,
+      toolCall: {
+        type: "toolCall",
+        id: "tool-1",
+        name: "search",
+        arguments: { query: "hello" },
+        thoughtSignature: "thought",
+        namespace: "builtin",
+      },
+    },
   );
 });
 
@@ -1074,6 +1174,337 @@ test("cold rename publishes its canonical event and retains the same lastSeq", a
     assert.fail("Expected retained session/subscribed frame");
   }
   assert.equal(retained.payload.lastSeq, seq);
+});
+
+test("keeps legacy updates cumulative while mux deltas and the durable journal stay linear", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-transient-message-updates-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+  process.env.PI_CODING_AGENT_DIR = path.join(root, "agent");
+  t.after(() => {
+    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+  });
+
+  const hub = createStreamHub({ createRpcId: () => "transient-update-rpc" });
+  const globals = globalThis as unknown as Record<PropertyKey, unknown>;
+  const previousHub = globals[STREAM_HUB_SYMBOL];
+  globals[STREAM_HUB_SYMBOL] = hub;
+  t.after(() => {
+    if (previousHub === undefined) delete globals[STREAM_HUB_SYMBOL];
+    else globals[STREAM_HUB_SYMBOL] = previousHub;
+  });
+
+  const muxFrames: ServerRequest<MuxStreamPayload>[] = [];
+  const muxSubscription = hub.subscribe("mux", {
+    onFrame: (frame) => muxFrames.push(frame),
+    onError: (error) => assert.fail(error.message),
+  });
+  t.after(() => muxSubscription.close());
+  await muxSubscription.ready;
+
+  const cwd = path.join(root, "project");
+  await mkdir(cwd, { recursive: true });
+  const host = await createSession(cwd, "transient-message-updates");
+  t.after(() => host.shutdown());
+  const legacyEvents: Array<{ type: string; sequence?: number; [key: string]: unknown }> = [];
+  const unsubscribeLegacy = host.subscribe((event) => legacyEvents.push(event));
+  t.after(() => {
+    unsubscribeLegacy();
+  });
+  muxFrames.length = 0;
+
+  const eventSink = host.session as unknown as {
+    _handleAgentEvent(event: Record<string, unknown>): Promise<void>;
+  };
+  const startedAt = 1_725_000_000_000;
+  const initialMessage = {
+    ...assistantMessage("", startedAt),
+    content: [],
+    stopReason: "pending",
+  };
+  await eventSink._handleAgentEvent({ type: "message_start", message: initialMessage });
+  const preTokenFrames: ServerRequest<MuxStreamPayload>[] = [];
+  const preTokenReconnect = hub.subscribe("mux", {
+    onFrame: (frame) => preTokenFrames.push(frame),
+    onError: (error) => assert.fail(error.message),
+  });
+  t.after(() => preTokenReconnect.close());
+  await preTokenReconnect.ready;
+  const preTokenSnapshot = preTokenFrames.find(
+    (frame) =>
+      frame.payload.type === "session/message-snapshot" && frame.payload.sessionId === host.id,
+  )?.payload;
+  assert.ok(preTokenSnapshot?.type === "session/message-snapshot");
+  assert.equal(preTokenSnapshot.revision, 0);
+  assert.equal(preTokenSnapshot.startSeq, 0);
+  assert.deepEqual(preTokenSnapshot.message.content, []);
+
+  const chunk = "0123456789abcdef";
+  const updateCount = 128;
+  const emptyPartial = {
+    ...assistantMessage("", startedAt),
+    stopReason: "pending",
+  };
+  await eventSink._handleAgentEvent({
+    type: "message_update",
+    message: emptyPartial,
+    assistantMessageEvent: {
+      type: "text_start",
+      contentIndex: 0,
+      partial: emptyPartial,
+    },
+  });
+  let text = "";
+  for (let index = 0; index < updateCount; index += 1) {
+    text += chunk;
+    const partial = {
+      ...assistantMessage(text, startedAt),
+      stopReason: "pending",
+    };
+    await eventSink._handleAgentEvent({
+      type: "message_update",
+      message: partial,
+      assistantMessageEvent: {
+        type: "text_delta",
+        contentIndex: 0,
+        delta: chunk,
+        partial,
+      },
+    });
+  }
+
+  const activeReconnectFrames: ServerRequest<MuxStreamPayload>[] = [];
+  const activeReconnect = hub.subscribe("mux", {
+    onFrame: (frame) => activeReconnectFrames.push(frame),
+    onError: (error) => assert.fail(error.message),
+  });
+  t.after(() => activeReconnect.close());
+  await activeReconnect.ready;
+  const activeSnapshot = activeReconnectFrames.find(
+    (frame) =>
+      frame.payload.type === "session/message-snapshot" && frame.payload.sessionId === host.id,
+  )?.payload;
+  assert.ok(activeSnapshot?.type === "session/message-snapshot");
+  assert.equal(activeSnapshot.revision, updateCount + 1);
+  assert.equal(activeSnapshot.startSeq, 0);
+  assert.equal(activeSnapshot.message.content[0]?.type, "text");
+  assert.equal(
+    activeSnapshot.message.content[0]?.type === "text"
+      ? activeSnapshot.message.content[0].text
+      : undefined,
+    text,
+  );
+
+  const finalMessage = assistantMessage(text, startedAt);
+  await eventSink._handleAgentEvent({ type: "message_end", message: finalMessage });
+
+  const durableEvents = await getSessionEvents(host.id);
+  assert.deepEqual(
+    durableEvents.map((event) => [event.seq, event.type]),
+    [
+      [0, "message_start"],
+      [1, "message_end"],
+    ],
+  );
+  assert.equal(host.currentSequence, 1);
+  assert.equal(host.canonicalEvents.length, 2);
+  assert.equal(
+    host.session.sessionManager
+      .getBranch()
+      .filter((entry) => entry.type === "custom" && entry.customType === SESSION_EVENT_CUSTOM_TYPE)
+      .length,
+    2,
+  );
+  const completionData = durableEvents[1]?.data as {
+    workbenchTiming?: { firstTokenAt?: number };
+  };
+  assert.equal(typeof completionData.workbenchTiming?.firstTokenAt, "number");
+
+  const legacyUpdates = legacyEvents.filter((event) => event.type === "message_update");
+  assert.equal(legacyUpdates.length, updateCount + 1);
+  assert.ok(legacyUpdates.every((event) => event.sequence === undefined));
+  const lastLegacyMessage = legacyUpdates.at(-1)?.message as {
+    content?: Array<{ type?: string; text?: string }>;
+  };
+  assert.equal(lastLegacyMessage.content?.[0]?.text, text);
+
+  const transientFrames = muxFrames.filter(
+    (frame) => frame.payload.type === "session/message-update",
+  );
+  assert.equal(transientFrames.length, updateCount + 1);
+  const lastTransient = transientFrames.at(-1)?.payload;
+  assert.ok(lastTransient?.type === "session/message-update");
+  assert.equal(lastTransient.revision, updateCount + 1);
+  assert.equal(lastTransient.startSeq, 0);
+  assert.equal(lastTransient.format, "pi-messages-v1");
+  assert.equal(Object.hasOwn(lastTransient.message, "content"), false);
+  assert.deepEqual(lastTransient.update, {
+    type: "text_delta",
+    contentIndex: 0,
+    delta: chunk,
+  });
+  assert.ok(
+    transientFrames.every(
+      (frame) =>
+        frame.payload.type === "session/message-update" &&
+        frame.payload.streamId === lastTransient.streamId &&
+        !Object.hasOwn(frame.payload.message, "content") &&
+        !Object.hasOwn(frame.payload.update, "partial"),
+    ),
+  );
+  const frameSizes = transientFrames
+    .filter(
+      (frame) =>
+        frame.payload.type === "session/message-update" &&
+        frame.payload.update.type === "text_delta",
+    )
+    .map((frame) => Buffer.byteLength(JSON.stringify(frame.payload)));
+  assert.ok(Math.max(...frameSizes) - Math.min(...frameSizes) < 16);
+  const firstHalfBytes = frameSizes
+    .slice(0, updateCount / 2)
+    .reduce((total, size) => total + size, 0);
+  const secondHalfBytes = frameSizes
+    .slice(updateCount / 2)
+    .reduce((total, size) => total + size, 0);
+  assert.ok(secondHalfBytes <= firstHalfBytes * 1.05);
+
+  const reconnectFrames: ServerRequest<MuxStreamPayload>[] = [];
+  const reconnect = hub.subscribe("mux", {
+    onFrame: (frame) => reconnectFrames.push(frame),
+    onError: (error) => assert.fail(error.message),
+  });
+  t.after(() => reconnect.close());
+  await reconnect.ready;
+  assert.equal(
+    reconnectFrames.some(
+      (frame) =>
+        frame.payload.type === "session/message-update" ||
+        frame.payload.type === "session/message-snapshot",
+    ),
+    false,
+  );
+  const retained = reconnectFrames.find(
+    (frame) => frame.payload.type === "session/subscribed" && frame.payload.sessionId === host.id,
+  );
+  assert.ok(retained?.payload.type === "session/subscribed");
+  assert.equal(retained.payload.lastSeq, 1);
+
+  const history = await getSessionHistory(host.id);
+  assert.equal(history.context.messages.length, 1);
+  const completedMessage = history.context.messages[0];
+  assert.equal(completedMessage?.role, "assistant");
+  assert.equal(
+    completedMessage?.role === "assistant" && completedMessage.content[0]?.type === "text"
+      ? completedMessage.content[0].text
+      : undefined,
+    text,
+  );
+
+  const toolStartedAt = startedAt + 10_000;
+  const toolInitial = {
+    ...assistantMessage("", toolStartedAt),
+    content: [],
+    stopReason: "pending",
+  };
+  await eventSink._handleAgentEvent({ type: "message_start", message: toolInitial });
+  const toolStartPartial = {
+    ...toolInitial,
+    content: [{ type: "toolCall", id: "tool-1", name: "search", arguments: {} }],
+  };
+  await eventSink._handleAgentEvent({
+    type: "message_update",
+    message: toolStartPartial,
+    assistantMessageEvent: {
+      type: "toolcall_start",
+      contentIndex: 0,
+      partial: toolStartPartial,
+    },
+  });
+  const toolDeltaPartial = {
+    ...toolInitial,
+    content: [{ type: "toolCall", id: "tool-1", name: "search", arguments: { query: "hel" } }],
+  };
+  await eventSink._handleAgentEvent({
+    type: "message_update",
+    message: toolDeltaPartial,
+    assistantMessageEvent: {
+      type: "toolcall_delta",
+      contentIndex: 0,
+      delta: '{"query":"hel',
+      partial: toolDeltaPartial,
+    },
+  });
+
+  const toolReconnectFrames: ServerRequest<MuxStreamPayload>[] = [];
+  const toolReconnect = hub.subscribe("mux", {
+    onFrame: (frame) => toolReconnectFrames.push(frame),
+    onError: (error) => assert.fail(error.message),
+  });
+  t.after(() => toolReconnect.close());
+  await toolReconnect.ready;
+  const toolSnapshot = toolReconnectFrames.find(
+    (frame) =>
+      frame.payload.type === "session/message-snapshot" && frame.payload.sessionId === host.id,
+  )?.payload;
+  assert.ok(toolSnapshot?.type === "session/message-snapshot");
+  assert.notEqual(toolSnapshot.streamId, lastTransient.streamId);
+  assert.equal(toolSnapshot.revision, 2);
+  assert.equal(toolSnapshot.startSeq, 2);
+  assert.deepEqual(toolSnapshot.toolCallJson, { "0": '{"query":"hel' });
+
+  await renameSession(host.id, "Renamed during tool stream");
+  const finalToolCall = {
+    type: "toolCall" as const,
+    id: "tool-1",
+    name: "search",
+    arguments: { query: "hello" },
+  };
+  const toolCompletePartial = { ...toolInitial, content: [finalToolCall] };
+  await eventSink._handleAgentEvent({
+    type: "message_update",
+    message: toolCompletePartial,
+    assistantMessageEvent: {
+      type: "toolcall_delta",
+      contentIndex: 0,
+      delta: 'lo"}',
+      partial: toolCompletePartial,
+    },
+  });
+  const renamedReconnectFrames: ServerRequest<MuxStreamPayload>[] = [];
+  const renamedReconnect = hub.subscribe("mux", {
+    onFrame: (frame) => renamedReconnectFrames.push(frame),
+    onError: (error) => assert.fail(error.message),
+  });
+  t.after(() => renamedReconnect.close());
+  await renamedReconnect.ready;
+  const renamedSnapshot = renamedReconnectFrames.find(
+    (frame) =>
+      frame.payload.type === "session/message-snapshot" && frame.payload.sessionId === host.id,
+  )?.payload;
+  assert.ok(renamedSnapshot?.type === "session/message-snapshot");
+  assert.equal(renamedSnapshot.startSeq, 2);
+  assert.equal(renamedSnapshot.revision, 3);
+  const renamedWatermark = renamedReconnectFrames.find(
+    (frame) => frame.payload.type === "session/subscribed" && frame.payload.sessionId === host.id,
+  )?.payload;
+  assert.ok(renamedWatermark?.type === "session/subscribed");
+  assert.equal(renamedWatermark.lastSeq, 3);
+
+  await eventSink._handleAgentEvent({
+    type: "message_update",
+    message: toolCompletePartial,
+    assistantMessageEvent: {
+      type: "toolcall_end",
+      contentIndex: 0,
+      toolCall: finalToolCall,
+      partial: toolCompletePartial,
+    },
+  });
+  await eventSink._handleAgentEvent({
+    type: "message_end",
+    message: { ...toolCompletePartial, stopReason: "toolUse" },
+  });
 });
 
 function assistantMessage(text: string, timestamp: number) {

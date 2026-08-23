@@ -21,11 +21,13 @@ export interface PiWorkspaceSummary {
 export interface PiTextContent {
   type: "text";
   text: string;
+  textSignature?: string;
 }
 
 export interface PiThinkingContent {
   type: "thinking";
   thinking: string;
+  thinkingSignature?: string;
   redacted?: boolean;
 }
 
@@ -40,6 +42,8 @@ export interface PiToolCallContent {
   id: string;
   name: string;
   arguments: Record<string, unknown>;
+  thoughtSignature?: string;
+  namespace?: string;
 }
 
 export type PiAssistantContent =

@@ -5,6 +5,7 @@ import type {
   HostStreamPayload,
   MuxStreamPayload,
   ServerRequest,
+  SessionMessageSnapshotPayload,
   StreamName,
   StreamPayloadMap,
 } from "../../stream-contracts";
@@ -65,6 +66,10 @@ export interface StreamHub {
     payload: HostStreamPayload,
     options?: StreamPublishOptions,
   ): ServerRequest<HostStreamPayload>;
+  /** Retains one immutable active assistant view; callers replace rather than mutate it. */
+  setSessionMessageSnapshot(payload: SessionMessageSnapshotPayload): void;
+  /** Clears only the expected generation when `streamId` is provided. */
+  clearSessionMessageSnapshot(sessionId: string, streamId?: string): void;
   subscribe<Stream extends StreamName>(
     stream: Stream,
     subscriber: StreamSubscriber<Stream>,
@@ -101,6 +106,8 @@ interface StreamState<Stream extends StreamName> {
 
 const MUX_TYPES = new Set<string>([
   "session/event",
+  "session/message-snapshot",
+  "session/message-update",
   "session/subscribed",
   "session/prompt-accepted",
   "approval/requested",
@@ -187,6 +194,7 @@ export function createStreamHub(options: StreamHubOptions = {}): StreamHub {
     host: { watermark: 0, subscribers: new Set() },
   };
   const sessionWatermarks = new Map<string, number>();
+  const retainedSessionMessageSnapshots = new Map<string, SessionMessageSnapshotPayload>();
   const retainedSessionQueues = new Map<string, ServerRequest<MuxStreamPayload>>();
   const retainedMuxRequests = new Map<string, ServerRequest<MuxStreamPayload>>();
 
@@ -260,6 +268,7 @@ export function createStreamHub(options: StreamHubOptions = {}): StreamHub {
       const muxPayload = payload as MuxStreamPayload;
       if (muxPayload.type === "session/subscribed") {
         sessionWatermarks.set(muxPayload.sessionId, muxPayload.lastSeq);
+        retainedSessionMessageSnapshots.delete(muxPayload.sessionId);
       } else if (muxPayload.type === "session/event") {
         sessionWatermarks.set(
           muxPayload.sessionId,
@@ -295,6 +304,7 @@ export function createStreamHub(options: StreamHubOptions = {}): StreamHub {
       const hostPayload = payload as HostStreamPayload;
       if (hostPayload.type === "host/session-removed") {
         sessionWatermarks.delete(hostPayload.sessionId);
+        retainedSessionMessageSnapshots.delete(hostPayload.sessionId);
         retainedSessionQueues.delete(hostPayload.sessionId);
       }
     }
@@ -355,6 +365,14 @@ export function createStreamHub(options: StreamHubOptions = {}): StreamHub {
             payload: frame.payload,
           }))
         : [];
+    // Capture the active-message cut synchronously with `capturedWatermark`. Any later delta is
+    // already buffered by this subscriber, so snapshot revision de-duplication is sufficient.
+    const retainedMessageSnapshots =
+      stream === "mux"
+        ? [...retainedSessionMessageSnapshots.values()].map((payload) => ({
+            payload: plainJsonClone(payload),
+          }))
+        : [];
     const retainedQueues =
       stream === "mux"
         ? [...retainedSessionQueues.values()].map((frame) => ({
@@ -372,6 +390,7 @@ export function createStreamHub(options: StreamHubOptions = {}): StreamHub {
         const inputs = [
           ...(customBootstrap ??
             (retainedSessions as unknown as readonly StreamFrameInput<Stream>[])),
+          ...(retainedMessageSnapshots as unknown as readonly StreamFrameInput<Stream>[]),
           ...(retainedQueues as unknown as readonly StreamFrameInput<Stream>[]),
           ...(retainedInteractions as unknown as readonly StreamFrameInput<Stream>[]),
         ];
@@ -402,6 +421,14 @@ export function createStreamHub(options: StreamHubOptions = {}): StreamHub {
     publish,
     publishMux: (payload, publishOptions) => publish("mux", payload, publishOptions),
     publishHost: (payload, publishOptions) => publish("host", payload, publishOptions),
+    setSessionMessageSnapshot(payload) {
+      retainedSessionMessageSnapshots.set(payload.sessionId, payload);
+    },
+    clearSessionMessageSnapshot(sessionId, streamId) {
+      const retained = retainedSessionMessageSnapshots.get(sessionId);
+      if (!retained || (streamId !== undefined && retained.streamId !== streamId)) return;
+      retainedSessionMessageSnapshots.delete(sessionId);
+    },
     subscribe,
     fail(stream, error) {
       const state = states[stream] as StreamState<StreamName>;

@@ -1,10 +1,14 @@
-import type { PiEvent } from "../../contracts";
+import type { PiAssistantMessage, PiEvent } from "../../contracts";
+import { isSessionMessageDelta } from "../../stream-contracts";
 import type {
   HostStreamPayload,
   MuxStreamPayload,
   ServerRequest,
+  SessionMessageSnapshotPayload,
+  SessionMessageUpdatePayload,
   StreamName,
 } from "../../stream-contracts";
+import { SessionMessageAccumulator } from "./session-message-accumulator";
 
 const IDLE_CLOSE_DELAY_MS = 30_000;
 const CONNECT_WAIT_MS = 10_000;
@@ -33,6 +37,8 @@ function logConnectionWarning(message: string, details: Record<string, unknown>)
 
 const MUX_PAYLOAD_TYPES = new Set([
   "session/event",
+  "session/message-snapshot",
+  "session/message-update",
   "session/subscribed",
   "session/prompt-accepted",
   "approval/requested",
@@ -93,6 +99,9 @@ export interface PiConnectionControllerOptions {
 interface SessionConnection {
   listener: (event: PiEvent) => void;
   closeTimer?: unknown;
+  deliveredWatermark?: number;
+  deliveredStreamId?: string;
+  deliveredStreamRevision?: number;
 }
 
 interface ReadyWaiter {
@@ -209,6 +218,71 @@ function isSessionEventPayload(payload: ServerRequestFrame["payload"]): boolean 
   );
 }
 
+function hasSessionMessageCoordinates(payload: ServerRequestFrame["payload"]): boolean {
+  return (
+    payload.format === "pi-messages-v1" &&
+    isNonEmptyString(payload.sessionId) &&
+    isNonEmptyString(payload.streamId) &&
+    Number.isInteger(payload.revision) &&
+    (payload.revision as number) >= 0 &&
+    Number.isInteger(payload.startSeq) &&
+    (payload.startSeq as number) >= -1 &&
+    typeof payload.time === "number" &&
+    Number.isFinite(payload.time)
+  );
+}
+
+function isAssistantContent(value: unknown): boolean {
+  if (!isRecord(value) || typeof value.type !== "string") return false;
+  switch (value.type) {
+    case "text":
+      return typeof value.text === "string";
+    case "thinking":
+      return typeof value.thinking === "string";
+    case "image":
+      return typeof value.data === "string" && typeof value.mimeType === "string";
+    case "toolCall":
+      return (
+        typeof value.id === "string" && typeof value.name === "string" && isRecord(value.arguments)
+      );
+    default:
+      return false;
+  }
+}
+
+function isAssistantMessage(value: unknown): value is PiAssistantMessage {
+  return (
+    isRecord(value) &&
+    value.role === "assistant" &&
+    Array.isArray(value.content) &&
+    value.content.every(isAssistantContent)
+  );
+}
+
+function isSessionMessageUpdatePayload(payload: ServerRequestFrame["payload"]): boolean {
+  return (
+    hasSessionMessageCoordinates(payload) &&
+    (payload.revision as number) >= 1 &&
+    isRecord(payload.message) &&
+    payload.message.role === "assistant" &&
+    !Object.hasOwn(payload.message, "content") &&
+    isSessionMessageDelta(payload.update)
+  );
+}
+
+function isSessionMessageSnapshotPayload(payload: ServerRequestFrame["payload"]): boolean {
+  return (
+    hasSessionMessageCoordinates(payload) &&
+    isAssistantMessage(payload.message) &&
+    (payload.toolCallJson === undefined ||
+      (isRecord(payload.toolCallJson) &&
+        Object.entries(payload.toolCallJson).every(
+          ([rawIndex, json]) =>
+            Number.isInteger(Number(rawIndex)) && Number(rawIndex) >= 0 && typeof json === "string",
+        )))
+  );
+}
+
 function isQuestion(value: unknown): boolean {
   return isRecord(value) && typeof value.id === "string" && typeof value.question === "string";
 }
@@ -246,6 +320,10 @@ function isMuxPayload(payload: ServerRequestFrame["payload"]): boolean {
   switch (payload.type) {
     case "session/event":
       return isSessionEventPayload(payload);
+    case "session/message-snapshot":
+      return isSessionMessageSnapshotPayload(payload);
+    case "session/message-update":
+      return isSessionMessageUpdatePayload(payload);
     case "session/subscribed":
       return isNonEmptyString(payload.sessionId) && Number.isInteger(payload.lastSeq);
     case "session/prompt-accepted":
@@ -432,6 +510,8 @@ function subscribedEventFromPayload(payload: ServerRequestFrame["payload"]):
 export class PiConnectionController {
   private readonly sessions = new Map<string, SessionConnection>();
   private readonly sessionWatermarks = new Map<string, number>();
+  private readonly sessionMessageAccumulators = new Map<string, SessionMessageAccumulator>();
+  private readonly endedSessionMessageStreams = new Map<string, string>();
   private readonly running = new Set<string>();
   private readonly webSocketFactory: PiWebSocketFactory;
   private readonly timers: PiConnectionTimers;
@@ -473,6 +553,11 @@ export class PiConnectionController {
     if (this.disposed) return;
     const current = this.sessions.get(sessionId);
     if (current) {
+      if (current.listener !== listener) {
+        current.deliveredWatermark = undefined;
+        current.deliveredStreamId = undefined;
+        current.deliveredStreamRevision = undefined;
+      }
       current.listener = listener;
       if (current.closeTimer !== undefined) {
         this.timers.clearTimeout(current.closeTimer);
@@ -486,13 +571,14 @@ export class PiConnectionController {
     await this.waitUntilConnected();
     const registered = this.sessions.get(sessionId);
     const watermark = this.sessionWatermarks.get(sessionId);
-    if (registered?.listener === listener && watermark !== undefined) {
-      try {
-        listener({ type: "subscribed", sequence: watermark });
-      } catch {
-        // A session consumer must not invalidate the shared transport.
-      }
+    if (
+      registered?.listener === listener &&
+      watermark !== undefined &&
+      registered.deliveredWatermark !== watermark
+    ) {
+      this.deliverSessionEvent(sessionId, { type: "subscribed", sequence: watermark });
     }
+    if (registered?.listener === listener) this.replaySessionMessageSnapshot(sessionId);
   }
 
   scheduleSessionClose(sessionId: string): void {
@@ -527,6 +613,8 @@ export class PiConnectionController {
       if (connection.closeTimer !== undefined) this.timers.clearTimeout(connection.closeTimer);
     }
     this.sessions.clear();
+    this.sessionMessageAccumulators.clear();
+    this.endedSessionMessageStreams.clear();
     for (const waiter of this.readyWaiters) {
       if (waiter.timer !== undefined) this.timers.clearTimeout(waiter.timer);
       waiter.resolve();
@@ -609,6 +697,8 @@ export class PiConnectionController {
     if (!generation.muxOpen || !generation.hostOpen) return;
 
     generation.ready = true;
+    this.sessionMessageAccumulators.clear();
+    this.endedSessionMessageStreams.clear();
     this.reconnectAttempt = 0;
     logConnectionInfo("ready", { generation: generation.id });
     for (const waiter of this.readyWaiters) {
@@ -642,6 +732,39 @@ export class PiConnectionController {
     this.dispatchFrame(generation, stream, data);
   }
 
+  private deliverSessionEvent(sessionId: string, event: PiEvent): void {
+    const session = this.sessions.get(sessionId);
+    if (!session) return;
+    if (event.type === "subscribed" && typeof event.sequence === "number") {
+      session.deliveredWatermark = event.sequence;
+    } else if (
+      event.type === "message_update" &&
+      typeof event.transientStreamId === "string" &&
+      typeof event.transientRevision === "number"
+    ) {
+      session.deliveredStreamId = event.transientStreamId;
+      session.deliveredStreamRevision = event.transientRevision;
+    }
+    try {
+      session.listener(event);
+    } catch {
+      // A session consumer must not invalidate the shared transport.
+    }
+  }
+
+  private replaySessionMessageSnapshot(sessionId: string): void {
+    const session = this.sessions.get(sessionId);
+    const event = this.sessionMessageAccumulators.get(sessionId)?.currentEvent();
+    if (!session || !event) return;
+    if (
+      session.deliveredStreamId === event.transientStreamId &&
+      session.deliveredStreamRevision === event.transientRevision
+    ) {
+      return;
+    }
+    this.deliverSessionEvent(sessionId, event);
+  }
+
   private dispatchFrame(generation: ConnectionGeneration, stream: StreamName, data: unknown): void {
     if (!this.isCurrent(generation)) return;
     const frame = parseServerRequest(stream, data);
@@ -666,21 +789,82 @@ export class PiConnectionController {
       // Consumer callbacks must not invalidate a healthy transport.
     }
 
+    const muxPayload = frame.payload as unknown as MuxStreamPayload;
+    if (muxPayload.type === "session/message-snapshot") {
+      if (this.endedSessionMessageStreams.get(muxPayload.sessionId) === muxPayload.streamId) return;
+      const accumulator =
+        this.sessionMessageAccumulators.get(muxPayload.sessionId) ??
+        new SessionMessageAccumulator();
+      this.sessionMessageAccumulators.set(muxPayload.sessionId, accumulator);
+      const result = accumulator.applySnapshot(muxPayload as SessionMessageSnapshotPayload);
+      if (result.kind === "event") this.deliverSessionEvent(muxPayload.sessionId, result.event);
+      return;
+    }
+    if (muxPayload.type === "session/message-update") {
+      if (this.endedSessionMessageStreams.get(muxPayload.sessionId) === muxPayload.streamId) return;
+      const accumulator =
+        this.sessionMessageAccumulators.get(muxPayload.sessionId) ??
+        new SessionMessageAccumulator();
+      this.sessionMessageAccumulators.set(muxPayload.sessionId, accumulator);
+      const result = accumulator.applyUpdate(muxPayload as SessionMessageUpdatePayload);
+      if (result.kind === "gap") {
+        this.invalidateGeneration(generation, "mux", "error");
+      } else if (result.kind === "event") {
+        this.deliverSessionEvent(muxPayload.sessionId, result.event);
+      }
+      return;
+    }
+
+    if (muxPayload.type === "session/subscribed") {
+      this.sessionMessageAccumulators.delete(muxPayload.sessionId);
+      this.endedSessionMessageStreams.delete(muxPayload.sessionId);
+      const session = this.sessions.get(muxPayload.sessionId);
+      if (session) {
+        session.deliveredStreamId = undefined;
+        session.deliveredStreamRevision = undefined;
+      }
+    }
+
     const routed =
       sessionEventFromPayload(frame.payload) ?? subscribedEventFromPayload(frame.payload);
     if (!routed) return;
     const previousWatermark = this.sessionWatermarks.get(routed.sessionId) ?? -1;
     const sequence = routed.event.sequence;
     if (typeof sequence === "number") {
-      this.sessionWatermarks.set(routed.sessionId, Math.max(previousWatermark, sequence));
+      this.sessionWatermarks.set(
+        routed.sessionId,
+        frame.payload.type === "session/subscribed"
+          ? sequence
+          : Math.max(previousWatermark, sequence),
+      );
     }
-    const session = this.sessions.get(routed.sessionId);
-    if (!session) return;
-    try {
-      session.listener(routed.event);
-    } catch {
-      // A session consumer must not invalidate the shared transport.
+    const eventMessage = routed.event.message;
+    if (
+      routed.event.type === "message_start" &&
+      isAssistantMessage(eventMessage) &&
+      typeof sequence === "number"
+    ) {
+      const accumulator = new SessionMessageAccumulator();
+      const eventTime = muxPayload.type === "session/event" ? muxPayload.event.time : Date.now();
+      accumulator.start(eventMessage, sequence, eventTime);
+      this.sessionMessageAccumulators.set(routed.sessionId, accumulator);
+      this.endedSessionMessageStreams.delete(routed.sessionId);
+      const session = this.sessions.get(routed.sessionId);
+      if (session) {
+        session.deliveredStreamId = undefined;
+        session.deliveredStreamRevision = undefined;
+      }
+    } else if (
+      routed.event.type === "agent_settled" ||
+      (routed.event.type === "message_end" && isAssistantMessage(eventMessage))
+    ) {
+      const accumulator = this.sessionMessageAccumulators.get(routed.sessionId);
+      if (accumulator?.streamId) {
+        this.endedSessionMessageStreams.set(routed.sessionId, accumulator.streamId);
+      }
+      this.sessionMessageAccumulators.delete(routed.sessionId);
     }
+    this.deliverSessionEvent(routed.sessionId, routed.event);
   }
 
   private applyHostPayload(payload: HostStreamPayload): void {
@@ -688,11 +872,17 @@ export class PiConnectionController {
     if (payload.type === "host/session-status") {
       const hadSession = this.running.has(payload.sessionId);
       if (payload.running) this.running.add(payload.sessionId);
-      else this.running.delete(payload.sessionId);
+      else {
+        this.running.delete(payload.sessionId);
+        this.sessionMessageAccumulators.delete(payload.sessionId);
+        this.endedSessionMessageStreams.delete(payload.sessionId);
+      }
       changed = hadSession !== payload.running;
     } else if (payload.type === "host/session-removed") {
       changed = this.running.delete(payload.sessionId);
       this.sessionWatermarks.delete(payload.sessionId);
+      this.sessionMessageAccumulators.delete(payload.sessionId);
+      this.endedSessionMessageStreams.delete(payload.sessionId);
     }
     if (!changed) return;
     try {
@@ -713,6 +903,8 @@ export class PiConnectionController {
       stream,
       reason,
     });
+    this.sessionMessageAccumulators.clear();
+    this.endedSessionMessageStreams.clear();
     this.generation = undefined;
     this.closeGeneration(generation);
     this.scheduleReconnect();

@@ -247,6 +247,18 @@ test("routes canonical mux session frames to only the matching legacy listener",
   );
   mux.message(
     serverFrame({
+      type: "session/message-snapshot",
+      format: "pi-messages-v1",
+      sessionId: "session-1",
+      streamId: "stream-1",
+      revision: 1,
+      startSeq: 4,
+      time: 1_725_000_000_001,
+      message: { role: "assistant", content: [{ type: "text", text: "partial" }] },
+    }),
+  );
+  mux.message(
+    serverFrame({
       type: "session/event",
       sessionId: "session-2",
       event: { type: "agent_start", seq: 1, time: 1, data: {} },
@@ -310,12 +322,22 @@ test("routes canonical mux session frames to only the matching legacy listener",
       type: "message_start",
       sequence: 4,
     },
+    {
+      message: { role: "assistant", content: [{ type: "text", text: "partial" }] },
+      type: "message_update",
+      eventTime: 1_725_000_000_001,
+      transientKind: "snapshot",
+      transientStreamId: "stream-1",
+      transientRevision: 1,
+      transientMessageStartSeq: 4,
+    },
     { type: "subscribed", sequence: 4 },
   ]);
   assert.deepEqual(
     muxFrames.map((frame) => frame.payload.type),
     [
       "session/event",
+      "session/message-snapshot",
       "session/event",
       "session/subscribed",
       "session/queue",
@@ -328,11 +350,11 @@ test("routes canonical mux session frames to only the matching legacy listener",
 
   controller.closeSession("session-1");
   mux.message(serverFrame({ type: "session/subscribed", sessionId: "session-1", lastSeq: 7 }));
-  assert.equal(events.length, 2);
+  assert.equal(events.length, 3);
   controller.dispose();
 });
 
-test("late session listeners receive the retained canonical watermark", async () => {
+test("late session listeners receive the durable watermark before the active stream snapshot", async () => {
   const sockets: FakeSocket[] = [];
   const events: PiEvent[] = [];
   const controller = new PiConnectionController({
@@ -350,23 +372,144 @@ test("late session listeners receive the retained canonical watermark", async ()
   mux.message(serverFrame({ type: "session/subscribed", sessionId: "session-late", lastSeq: 7 }));
   mux.message(
     serverFrame({
+      type: "session/message-snapshot",
+      format: "pi-messages-v1",
+      sessionId: "session-late",
+      streamId: "stream-late",
+      revision: 2,
+      startSeq: 7,
+      time: 123,
+      message: {
+        role: "assistant",
+        content: [{ type: "text", text: "partial" }],
+      },
+    }),
+  );
+  mux.message(
+    serverFrame({
       type: "session/event",
       sessionId: "session-late",
-      event: { type: "message_end", seq: 8, time: 123, data: { message: "missed" } },
+      event: { type: "session_info_changed", seq: 8, time: 124, data: { name: "renamed" } },
     }),
   );
 
   await controller.ensureSessionEvents("session-late", (event) => events.push(event));
-  assert.deepEqual(events, [{ type: "subscribed", sequence: 8 }]);
+  assert.deepEqual(events, [
+    { type: "subscribed", sequence: 8 },
+    {
+      type: "message_update",
+      message: {
+        role: "assistant",
+        content: [{ type: "text", text: "partial" }],
+      },
+      eventTime: 123,
+      transientKind: "snapshot",
+      transientStreamId: "stream-late",
+      transientRevision: 2,
+      transientMessageStartSeq: 7,
+    },
+  ]);
+
+  mux.message(
+    serverFrame({
+      type: "session/message-update",
+      format: "pi-messages-v1",
+      sessionId: "session-late",
+      streamId: "stream-late",
+      revision: 3,
+      startSeq: 7,
+      time: 125,
+      message: { role: "assistant" },
+      update: { type: "text_delta", contentIndex: 0, delta: " text" },
+    }),
+  );
+  const liveMessage = events.at(-1)?.message as
+    | { content?: Array<{ type?: string; text?: string }> }
+    | undefined;
+  assert.equal(liveMessage?.content?.[0]?.text, "partial text");
 
   mux.message(
     serverFrame({
       type: "session/event",
       sessionId: "session-late",
-      event: { type: "agent_settled", seq: 9, time: 124, data: {} },
+      event: { type: "agent_settled", seq: 9, time: 126, data: {} },
     }),
   );
   assert.deepEqual(events.at(-1), { type: "agent_settled", sequence: 9 });
+  controller.dispose();
+});
+
+test("invalidates the paired generation when a compact stream revision has a gap", async () => {
+  const timers = new FakeTimers();
+  const sockets: FakeSocket[] = [];
+  const controller = new PiConnectionController({
+    webSocketFactory: (path) => {
+      const socket = new FakeSocket(path);
+      sockets.push(socket);
+      return socket;
+    },
+    timers,
+  });
+
+  const connected = controller.ensureSessionEvents("session-gap", () => undefined);
+  const [mux, host] = socketPair(sockets, 1);
+  mux.open();
+  host.open();
+  await connected;
+  mux.message(
+    serverFrame({
+      type: "session/event",
+      sessionId: "session-gap",
+      event: {
+        type: "message_start",
+        seq: 1,
+        time: 1,
+        data: { message: { role: "assistant", content: [] } },
+      },
+    }),
+  );
+  mux.message(
+    serverFrame({
+      type: "session/message-update",
+      format: "pi-messages-v1",
+      sessionId: "session-gap",
+      streamId: "stream-gap",
+      revision: 2,
+      startSeq: 1,
+      time: 2,
+      message: { role: "assistant" },
+      update: { type: "text_start", contentIndex: 0 },
+    }),
+  );
+
+  assert.equal(mux.closeCalls.at(-1)?.reason, "generation closed");
+  assert.equal(host.closeCalls.at(-1)?.reason, "generation closed");
+  assert.equal(timers.pending().length, 1);
+  controller.dispose();
+});
+
+test("a branch subscription can reset the retained watermark to a shared prefix", async () => {
+  const sockets: FakeSocket[] = [];
+  const events: PiEvent[] = [];
+  const controller = new PiConnectionController({
+    webSocketFactory: (path) => {
+      const socket = new FakeSocket(path);
+      sockets.push(socket);
+      return socket;
+    },
+  });
+
+  controller.startRunningEvents(() => undefined);
+  const [mux, host] = socketPair(sockets, 1);
+  mux.open();
+  host.open();
+  mux.message(
+    serverFrame({ type: "session/subscribed", sessionId: "session-branch", lastSeq: 12 }),
+  );
+  mux.message(serverFrame({ type: "session/subscribed", sessionId: "session-branch", lastSeq: 3 }));
+
+  await controller.ensureSessionEvents("session-branch", (event) => events.push(event));
+  assert.deepEqual(events, [{ type: "subscribed", sequence: 3 }]);
   controller.dispose();
 });
 

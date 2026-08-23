@@ -16,6 +16,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 
 import type {
+  PiAssistantMessage,
   PiAgentMessage,
   PiEvent,
   PiImageContent,
@@ -48,7 +49,14 @@ import {
 import { PI_MODEL_CHANGED_EVENT, PI_SESSION_FORKED_EVENT } from "../../contracts";
 import { PI_CANCEL_INTENT_CUSTOM_TYPE } from "../../message-termination";
 import type { SessionEvent } from "../../rpc-contracts";
-import { createSessionEventPayload } from "../../stream-contracts";
+import { applySessionMessageDelta, copyPiAssistantMessage } from "../../session-message-reducer";
+import {
+  createSessionEventPayload,
+  createSessionMessageSnapshotPayload,
+  createSessionMessageUpdatePayload,
+  type SessionMessageDelta,
+  type SessionMessageMetadata,
+} from "../../stream-contracts";
 import {
   preflightPlanWorkbenchComposerCommands,
   type PlannedWorkbenchComposerCommand,
@@ -104,6 +112,15 @@ interface PromptQueueSnapshot {
   followUp: PiQueuedPrompt[];
 }
 
+interface ActiveAssistantStream {
+  id: string;
+  /** Durable coordinate of the matching assistant message_start; fixed for this stream. */
+  startSeq: number;
+  revision: number;
+  message: PiAssistantMessage;
+  toolCallJson: Map<number, string>;
+}
+
 interface SessionTimestampEntry {
   type?: string;
   timestamp: string;
@@ -132,6 +149,144 @@ function agentMessageText(value: unknown): string {
       isRecord(part) && part.type === "text" && typeof part.text === "string" ? [part.text] : [],
     )
     .join("\n");
+}
+
+function assistantMessageHasOutput(value: unknown): boolean {
+  if (!isRecord(value) || value.role !== "assistant" || !Array.isArray(value.content)) {
+    return false;
+  }
+  return value.content.some(
+    (part) =>
+      isRecord(part) &&
+      ((part.type === "text" && typeof part.text === "string" && part.text.length > 0) ||
+        (part.type === "thinking" &&
+          part.redacted !== true &&
+          typeof part.thinking === "string" &&
+          part.thinking.length > 0)),
+  );
+}
+
+function assistantUpdateHasOutput(event: PiEvent): boolean {
+  const update = isRecord(event.assistantMessageEvent) ? event.assistantMessageEvent : undefined;
+  const hasDelta =
+    (update?.type === "text_delta" || update?.type === "thinking_delta") &&
+    typeof update.delta === "string" &&
+    update.delta.length > 0;
+  return hasDelta || assistantMessageHasOutput(event.message);
+}
+
+function assistantMessageMetadata(value: unknown): SessionMessageMetadata | undefined {
+  if (!isRecord(value) || value.role !== "assistant" || !Array.isArray(value.content)) {
+    return undefined;
+  }
+  const { content: _content, ...metadata } = value;
+  return {
+    ...metadata,
+    ...(isRecord(metadata.usage) ? { usage: { ...metadata.usage } } : {}),
+    ...(Array.isArray(metadata.diagnostics)
+      ? {
+          diagnostics: metadata.diagnostics.map((diagnostic) =>
+            isRecord(diagnostic) ? { ...diagnostic } : diagnostic,
+          ),
+        }
+      : {}),
+  } as SessionMessageMetadata;
+}
+
+function assistantMessagePart(
+  message: unknown,
+  contentIndex: number,
+): Record<string, unknown> | undefined {
+  if (!isRecord(message) || !Array.isArray(message.content)) return undefined;
+  const part = message.content[contentIndex];
+  return isRecord(part) ? part : undefined;
+}
+
+function compactToolCall(
+  value: unknown,
+): Extract<SessionMessageDelta, { type: "toolcall_end" }>["toolCall"] | undefined {
+  if (
+    !isRecord(value) ||
+    value.type !== "toolCall" ||
+    typeof value.id !== "string" ||
+    typeof value.name !== "string" ||
+    !isRecord(value.arguments)
+  ) {
+    return undefined;
+  }
+  return {
+    type: "toolCall",
+    id: value.id,
+    name: value.name,
+    arguments: value.arguments,
+    ...(typeof value.thoughtSignature === "string"
+      ? { thoughtSignature: value.thoughtSignature }
+      : {}),
+    ...(typeof value.namespace === "string" ? { namespace: value.namespace } : {}),
+  };
+}
+
+/** Convert Pi's cumulative AgentSession event into the compact pi-messages wire vocabulary. */
+export function compactAssistantMessageUpdate(event: PiEvent): SessionMessageDelta | undefined {
+  const source = isRecord(event.assistantMessageEvent) ? event.assistantMessageEvent : undefined;
+  if (!source || !Number.isInteger(source.contentIndex) || (source.contentIndex as number) < 0) {
+    return undefined;
+  }
+  const contentIndex = source.contentIndex as number;
+  const part = assistantMessagePart(event.message, contentIndex);
+  switch (source.type) {
+    case "text_start":
+      return { type: "text_start", contentIndex };
+    case "text_delta":
+      return typeof source.delta === "string"
+        ? { type: "text_delta", contentIndex, delta: source.delta }
+        : undefined;
+    case "text_end":
+      return typeof source.content === "string"
+        ? {
+            type: "text_end",
+            contentIndex,
+            content: source.content,
+            ...(typeof part?.textSignature === "string"
+              ? { contentSignature: part.textSignature }
+              : {}),
+          }
+        : undefined;
+    case "thinking_start":
+      return { type: "thinking_start", contentIndex };
+    case "thinking_delta":
+      return typeof source.delta === "string"
+        ? { type: "thinking_delta", contentIndex, delta: source.delta }
+        : undefined;
+    case "thinking_end":
+      return typeof source.content === "string"
+        ? {
+            type: "thinking_end",
+            contentIndex,
+            content: source.content,
+            ...(typeof part?.thinkingSignature === "string"
+              ? { contentSignature: part.thinkingSignature }
+              : {}),
+            ...(typeof part?.redacted === "boolean" ? { redacted: part.redacted } : {}),
+          }
+        : undefined;
+    case "toolcall_start":
+      return part?.type === "toolCall" &&
+        typeof part.id === "string" &&
+        typeof part.name === "string"
+        ? { type: "toolcall_start", contentIndex, id: part.id, toolName: part.name }
+        : undefined;
+    case "toolcall_delta":
+      return typeof source.delta === "string"
+        ? { type: "toolcall_delta", contentIndex, delta: source.delta }
+        : undefined;
+    case "toolcall_end": {
+      const toolCall = compactToolCall(source.toolCall ?? part);
+      return toolCall ? { type: "toolcall_end", contentIndex, toolCall } : undefined;
+    }
+    default:
+      return undefined;
+  }
 }
 
 function commandArgumentText(
@@ -465,6 +620,9 @@ class HostedPiSession {
   private promptTask: Promise<void> | undefined;
   private activePromptHasImages = false;
   private sequence = -1;
+  private activeAssistantStream: ActiveAssistantStream | undefined;
+  private assistantMessageActive = false;
+  private assistantFirstTokenAt: number | undefined;
   private readonly canonicalEventsValue: SessionEvent[];
   private journalWritable = true;
   private journalFailureReported = false;
@@ -495,7 +653,8 @@ class HostedPiSession {
     this.reconcileQueueProjection();
     this.unsubscribeAgent = session.subscribe((event) => {
       const eventTime = Date.now();
-      this.touch();
+      const transientMessageUpdate = event.type === "message_update";
+      if (!transientMessageUpdate) this.touch();
       if (event.type === "tool_execution_start") {
         this.toolStartedAtById.set(event.toolCallId, eventTime);
       } else if (event.type === "tool_execution_update") {
@@ -531,7 +690,7 @@ class HostedPiSession {
       } else if (event.type !== "queue_update") {
         this.publish(event as PiEvent, eventTime);
       }
-      this.onRunningChanged();
+      if (!transientMessageUpdate) this.onRunningChanged();
     });
     if (initializedJournal.error !== undefined) {
       this.reportJournalFailure(initializedJournal.error);
@@ -656,17 +815,157 @@ class HostedPiSession {
     };
   }
 
+  private projectAssistantMessageTiming(event: PiEvent, time: number): PiEvent {
+    const message = isRecord(event.message) ? event.message : undefined;
+    if (event.type === "message_start") {
+      this.assistantMessageActive = message?.role === "assistant";
+      this.assistantFirstTokenAt = undefined;
+      return event;
+    }
+    if (event.type === "message_update") {
+      if (
+        this.assistantMessageActive &&
+        this.assistantFirstTokenAt === undefined &&
+        assistantUpdateHasOutput(event)
+      ) {
+        this.assistantFirstTokenAt = time;
+      }
+      return event;
+    }
+    if (event.type !== "message_end" || message?.role !== "assistant") return event;
+
+    const firstTokenAt =
+      this.assistantFirstTokenAt ?? (assistantMessageHasOutput(message) ? time : undefined);
+    this.assistantMessageActive = false;
+    this.assistantFirstTokenAt = undefined;
+    return firstTokenAt === undefined ? event : { ...event, workbenchTiming: { firstTokenAt } };
+  }
+
+  private beginAssistantMessageStream(
+    message: unknown,
+    startSeq: number,
+    time: number,
+  ): ActiveAssistantStream | undefined {
+    if (!assistantMessageMetadata(message)) return undefined;
+    const assistantMessage = message as PiAssistantMessage;
+    this.clearAssistantMessageStream();
+    const stream = {
+      id: randomUUID(),
+      startSeq,
+      revision: 0,
+      message: copyPiAssistantMessage(assistantMessage),
+      toolCallJson: new Map<number, string>(),
+    } satisfies ActiveAssistantStream;
+    this.activeAssistantStream = stream;
+    try {
+      getStreamHub().setSessionMessageSnapshot(
+        createSessionMessageSnapshotPayload(
+          this.id,
+          stream.id,
+          0,
+          stream.startSeq,
+          time,
+          stream.message,
+        ),
+      );
+    } catch {
+      // The first compact delta will replace this optional pre-token bootstrap state.
+    }
+    return stream;
+  }
+
+  private clearAssistantMessageStream(): void {
+    const stream = this.activeAssistantStream;
+    this.activeAssistantStream = undefined;
+    if (!stream) return;
+    try {
+      getStreamHub().clearSessionMessageSnapshot(this.id, stream.id);
+    } catch {
+      // A reconnect without the stale snapshot still converges through durable history.
+    }
+  }
+
+  private publishMessageUpdate(event: PiEvent, time: number): void {
+    const { sequence: _sequence, ...legacyEvent } = event;
+    this.notifyLegacyListeners(legacyEvent);
+    if (!this.journalWritable) return;
+    const metadata = assistantMessageMetadata(event.message);
+    if (!metadata) return;
+    const stream =
+      this.activeAssistantStream ??
+      this.beginAssistantMessageStream(event.message, this.sequence, time);
+    if (!stream) return;
+    const update = compactAssistantMessageUpdate(event);
+    const revision = ++stream.revision;
+    stream.message = {
+      ...stream.message,
+      ...metadata,
+      role: "assistant",
+      content: stream.message.content,
+    };
+    const nextMessage = update
+      ? applySessionMessageDelta(stream.message, stream.toolCallJson, update)
+      : undefined;
+    stream.message = nextMessage ?? copyPiAssistantMessage(event.message as PiAssistantMessage);
+    const toolCallJson =
+      stream.toolCallJson.size === 0
+        ? undefined
+        : Object.fromEntries(
+            [...stream.toolCallJson].map(([contentIndex, json]) => [String(contentIndex), json]),
+          );
+    const snapshot = createSessionMessageSnapshotPayload(
+      this.id,
+      stream.id,
+      revision,
+      stream.startSeq,
+      time,
+      stream.message,
+      toolCallJson,
+    );
+    try {
+      const hub = getStreamHub();
+      hub.setSessionMessageSnapshot(snapshot);
+      hub.publishMux(
+        update !== undefined && nextMessage !== undefined
+          ? createSessionMessageUpdatePayload(
+              this.id,
+              stream.id,
+              revision,
+              stream.startSeq,
+              time,
+              metadata,
+              update,
+            )
+          : snapshot,
+      );
+    } catch {
+      // A malformed/failed transient frame is repaired by the retained snapshot or message_end.
+    }
+  }
+
   private publish(sourceEvent: PiEvent, time = Date.now()): void {
-    const event = this.projectComposerUserEvent(sourceEvent);
+    const event = this.projectAssistantMessageTiming(
+      this.projectComposerUserEvent(sourceEvent),
+      time,
+    );
+    if (event.type === "message_update") {
+      this.publishMessageUpdate(event, time);
+      return;
+    }
+    const endsAssistantStream =
+      event.type === "agent_settled" ||
+      (event.type === "message_end" && assistantMessageMetadata(event.message) !== undefined);
     let canonical: SessionEvent;
     try {
       canonical = createCanonicalSessionEvent(event, this.sequence + 1, time);
     } catch (error) {
+      if (endsAssistantStream) this.clearAssistantMessageStream();
       this.reportJournalFailure(error);
       return;
     }
 
     if (!this.journalWritable) {
+      if (endsAssistantStream) this.clearAssistantMessageStream();
       this.notifyLegacyListeners(this.legacyEvent(canonical, false));
       return;
     }
@@ -678,6 +977,7 @@ class HostedPiSession {
       // Freeze the canonical prefix after a failed append so history and mux cannot allocate a
       // duplicate sequence in this process. Legacy listeners remain usable without a sequence.
       this.journalWritable = false;
+      if (endsAssistantStream) this.clearAssistantMessageStream();
       this.reportJournalFailure(error);
       this.notifyLegacyListeners(this.legacyEvent(canonical, false));
       return;
@@ -685,6 +985,13 @@ class HostedPiSession {
 
     this.sequence = canonical.seq;
     this.canonicalEventsValue.push(canonical);
+    const canonicalData = isRecord(canonical.data) ? canonical.data : undefined;
+    const canonicalMessage = canonicalData?.message;
+    if (canonical.type === "message_start" && assistantMessageMetadata(canonicalMessage)) {
+      this.beginAssistantMessageStream(canonicalMessage, canonical.seq, canonical.time);
+    } else if (endsAssistantStream) {
+      this.clearAssistantMessageStream();
+    }
     this.notifyLegacyListeners(this.legacyEvent(canonical, true));
     try {
       getStreamHub().publishMux(createSessionEventPayload(this.id, canonical));
@@ -1396,6 +1703,7 @@ class HostedPiSession {
     } catch {
       // Disposal below remains authoritative.
     }
+    this.clearAssistantMessageStream();
     this.unsubscribeAgent();
     this.listeners.clear();
     this.session.dispose();
