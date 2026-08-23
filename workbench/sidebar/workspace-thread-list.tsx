@@ -33,14 +33,45 @@ import { WorkbenchThreadList } from "./thread-list";
 
 const WORKSPACE_PAGE_SIZE = 24;
 
+function useRemoveWorkspace(onNavigate?: () => void) {
+  const aui = useAui();
+  const router = useRouter();
+  const { removeWorkspace } = useWorkspaceCapabilities();
+
+  return async (directoryId: string, active: boolean) => {
+    try {
+      await removeWorkspace(directoryId);
+      if (!active) return;
+      aui.threads.switchToNewThread();
+      router.push("/");
+      onNavigate?.();
+    } catch (error) {
+      console.error("[workbench] failed to remove workspace", error);
+    }
+  };
+}
+
 export function WorkbenchPinnedThreadList({ onNavigate }: { onNavigate?: () => void }) {
+  const pathname = usePathname();
   const hasPinnedThreads = useAuiState((state) =>
     state.threads.threadIds.some((threadId) => {
       const thread = state.threads.threadItems.find((item) => item.id === threadId);
       return thread?.custom?.piPinned === true;
     }),
   );
-  const { workspaces } = useWorkspaceSelection();
+  const hasEmptyDraftNewThread = useAuiState(
+    (state) =>
+      state.threads.newThreadId !== undefined &&
+      state.threads.mainThreadId === state.threads.newThreadId &&
+      state.thread.messages.length === 0,
+  );
+  const {
+    workspaces,
+    activeWorkspaceId: activeDirectoryId,
+    draftWorkspaceId: draftDirectoryId,
+  } = useWorkspaceSelection();
+  const { activateWorkspace: activateDirectory } = useWorkspaceCapabilities();
+  const removeWorkspace = useRemoveWorkspace(onNavigate);
   const pinnedDirectories = useMemo(
     () => workspaces.filter((workspace) => workspace.pinned === true),
     [workspaces],
@@ -59,120 +90,26 @@ export function WorkbenchPinnedThreadList({ onNavigate }: { onNavigate?: () => v
         </div>
       ) : null}
       {pinnedDirectories.map((directory) => (
-        <PinnedWorkspaceSection key={directory.id} directory={directory} onNavigate={onNavigate} />
+        <WorkspaceDirectorySection
+          key={directory.id}
+          directory={directory}
+          active={directory.id === activeDirectoryId}
+          hasNewThread={
+            directory.id === draftDirectoryId && hasEmptyDraftNewThread && pathname === "/"
+          }
+          onActivate={() => activateDirectory(directory.id)}
+          onRemove={() => void removeWorkspace(directory.id, directory.id === activeDirectoryId)}
+          onNavigate={onNavigate}
+        />
       ))}
     </div>
   );
 }
 
-function PinnedWorkspaceSection({
-  directory,
-  onNavigate,
-}: {
-  directory: WorkspaceSummary;
-  onNavigate?: () => void;
-}) {
-  const { t } = useI18n();
-  const workspaceLabelId = useId();
-  const workspaceActionId = useId();
-  const [expanded, setExpanded] = useState(true);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const { setWorkspacePinned } = useWorkspaceCapabilities();
-  const expansionLabel = t(
-    expanded ? "workbench.sidebar.collapseWorkspace" : "workbench.sidebar.expandWorkspace",
-  );
-
-  return (
-    <Collapsible
-      render={<section />}
-      open={expanded}
-      onOpenChange={setExpanded}
-      className="flex flex-col gap-0.5"
-    >
-      <div
-        data-workbench-selection-surface=""
-        className="group/pinned-workspace hover:bg-sidebar-accent focus-within:bg-sidebar-accent relative flex h-9 w-full items-center rounded-lg px-1.5 transition-colors"
-      >
-        <CollapsibleTrigger
-          type="button"
-          aria-labelledby={`${workspaceLabelId} ${workspaceActionId}`}
-          className="focus-visible:ring-sidebar-ring absolute inset-0 rounded-lg outline-none focus-visible:ring-2"
-        />
-
-        <div className="pointer-events-none relative size-7 shrink-0">
-          <FolderIcon className="absolute left-1/2 top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 transition-opacity max-md:opacity-0 md:group-hover/pinned-workspace:opacity-0 md:group-has-[:focus-visible]/pinned-workspace:opacity-0" />
-          <ChevronRightIcon
-            className={cn(
-              "absolute left-1/2 top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 opacity-100 transition-[transform,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none md:opacity-0 md:group-hover/pinned-workspace:opacity-100 md:group-has-[:focus-visible]/pinned-workspace:opacity-100",
-              expanded && "rotate-90",
-            )}
-          />
-        </div>
-
-        <div
-          id={workspaceLabelId}
-          className="pointer-events-none min-w-0 flex-1 truncate ps-1 pe-8 text-start text-sm font-medium"
-        >
-          {directory.name}
-        </div>
-        <span id={workspaceActionId} className="sr-only">
-          {expansionLabel}
-        </span>
-
-        <Popover open={menuOpen} onOpenChange={setMenuOpen}>
-          <PopoverTrigger
-            render={
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label={t("workbench.sidebar.workspaceOptions")}
-                className={cn(
-                  "text-muted-foreground hover:text-foreground focus-visible:text-foreground aria-expanded:text-foreground absolute end-1 z-10 opacity-100 active:scale-90 md:opacity-0 md:group-hover/pinned-workspace:opacity-100 md:group-focus-within/pinned-workspace:opacity-100",
-                  menuOpen && "md:opacity-100",
-                )}
-              >
-                <MoreHorizontalIcon className="size-4" />
-              </Button>
-            }
-          />
-          <PopoverContent align="end" side="bottom" sideOffset={4} className="w-44 gap-0 p-1.5">
-            <button
-              type="button"
-              className="hover:bg-accent focus-visible:bg-accent flex h-8 w-full items-center gap-2 rounded-md px-2 text-start text-sm outline-none"
-              onClick={() => {
-                setMenuOpen(false);
-                void setWorkspacePinned(directory.id, false).catch((error) =>
-                  console.error("[workbench] failed to unpin workspace", error),
-                );
-              }}
-            >
-              <PinOffIcon className="size-4" />
-              {t("workbench.sidebar.unpinWorkspace")}
-            </button>
-          </PopoverContent>
-        </Popover>
-      </div>
-
-      <CollapsibleContent className={cn(collapsePanel, "outline-none")}>
-        <div className="flex flex-col gap-[2px] ps-6">
-          <WorkbenchThreadList
-            workspaceId={directory.id}
-            showEmpty={false}
-            onNavigate={onNavigate}
-          />
-        </div>
-      </CollapsibleContent>
-    </Collapsible>
-  );
-}
-
 export function WorkbenchWorkspaceThreadList({ onNavigate }: { onNavigate?: () => void }) {
   const { t } = useI18n();
-  const aui = useAui();
   const manager = usePiSessionManager();
   const pathname = usePathname();
-  const router = useRouter();
   const isLoading = useAuiState((state) => state.threads.isLoading);
   const hasEmptyDraftNewThread = useAuiState(
     (state) =>
@@ -185,11 +122,8 @@ export function WorkbenchWorkspaceThreadList({ onNavigate }: { onNavigate?: () =
     activeWorkspaceId: activeDirectoryId,
     draftWorkspaceId: draftDirectoryId,
   } = useWorkspaceSelection();
-  const {
-    activateWorkspace: activateDirectory,
-    destroyNewThread,
-    removeWorkspace: removeWorkspaceCapability,
-  } = useWorkspaceCapabilities();
+  const { activateWorkspace: activateDirectory, destroyNewThread } = useWorkspaceCapabilities();
+  const removeWorkspace = useRemoveWorkspace(onNavigate);
   const hasUngroupedThreads = useAuiState((state) =>
     state.threads.threadIds.some((threadId) => {
       const thread = state.threads.threadItems.find((item) => item.id === threadId);
@@ -211,18 +145,6 @@ export function WorkbenchWorkspaceThreadList({ onNavigate }: { onNavigate?: () =
     () => directories.filter((directory) => directory.pinned !== true),
     [directories],
   );
-
-  const removeWorkspace = async (directoryId: string, active: boolean) => {
-    try {
-      await removeWorkspaceCapability(directoryId);
-      if (!active) return;
-      aui.threads.switchToNewThread();
-      router.push("/");
-      onNavigate?.();
-    } catch (error) {
-      console.error("[workbench] failed to remove workspace", error);
-    }
-  };
 
   useEffect(() => {
     if (pathname !== "/") destroyNewThread();
@@ -387,10 +309,7 @@ function WorkspaceDirectorySection({
 
         <div
           id={workspaceLabelId}
-          className={cn(
-            "pointer-events-none min-w-0 flex-1 truncate py-0 ps-1 pe-14 text-start text-sm font-medium transition-[padding] md:pe-1 md:group-hover/workspace:pe-14 md:group-focus-within/workspace:pe-14",
-            menuOpen && "md:pe-14",
-          )}
+          className="pointer-events-none min-w-0 flex-1 truncate py-0 ps-1 pe-14 text-start text-sm font-medium"
         >
           {directory.name}
         </div>
@@ -400,8 +319,8 @@ function WorkspaceDirectorySection({
 
         <div
           className={cn(
-            "absolute end-0 z-10 flex items-center opacity-100 transition-opacity md:opacity-0 md:group-hover/workspace:opacity-100 md:group-focus-within/workspace:opacity-100",
-            menuOpen && "md:opacity-100",
+            "absolute end-0 z-10 flex items-center opacity-100 transition-opacity duration-150 ease-out motion-reduce:transition-none md:pointer-events-none md:opacity-0 md:group-hover/workspace:pointer-events-auto md:group-hover/workspace:opacity-100 md:group-focus-within/workspace:pointer-events-auto md:group-focus-within/workspace:opacity-100",
+            menuOpen && "md:pointer-events-auto md:opacity-100",
           )}
         >
           <Popover open={menuOpen} onOpenChange={setMenuOpen}>
@@ -412,13 +331,18 @@ function WorkspaceDirectorySection({
                   variant="ghost"
                   size="icon-sm"
                   aria-label={t("workbench.sidebar.workspaceOptions")}
-                  className="text-muted-foreground hover:text-foreground focus-visible:text-foreground aria-expanded:text-foreground active:scale-90"
+                  className="text-muted-foreground hover:text-foreground focus-visible:text-foreground aria-expanded:text-foreground transition-colors duration-150"
                 >
                   <MoreHorizontalIcon className="size-4" />
                 </Button>
               }
             />
-            <PopoverContent align="end" side="bottom" sideOffset={4} className="w-44 gap-0 p-1.5">
+            <PopoverContent
+              align="end"
+              side="bottom"
+              sideOffset={4}
+              className="w-44 gap-0 p-1.5 duration-150 ease-out data-[side=bottom]:slide-in-from-top-1 data-open:zoom-in-100 data-closed:zoom-out-100 motion-reduce:animate-none"
+            >
               <NewThreadButton
                 workspaceId={directory.id}
                 variant="menu"
