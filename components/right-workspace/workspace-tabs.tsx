@@ -39,6 +39,25 @@ type PointerDragCandidate = {
 const TAB_REORDER_ANIMATION_DURATION_MS = 180;
 const TAB_DRAG_ACTIVATION_DISTANCE_PX = 5;
 const TAB_DRAG_CLICK_SUPPRESSION_MS = 400;
+const TAB_AUTO_SCROLL_EDGE_PX = 48;
+const TAB_AUTO_SCROLL_MAX_SPEED_PX = 10;
+const TAB_AUTO_SCROLL_VERTICAL_TOLERANCE_PX = 24;
+
+function tabAutoScrollVelocity(clientX: number, bounds: DOMRect): number {
+  const leftEdgeDistance = bounds.left + TAB_AUTO_SCROLL_EDGE_PX - clientX;
+  if (leftEdgeDistance > 0) {
+    const intensity = Math.min(1, leftEdgeDistance / TAB_AUTO_SCROLL_EDGE_PX);
+    return -(1 + intensity * (TAB_AUTO_SCROLL_MAX_SPEED_PX - 1));
+  }
+
+  const rightEdgeDistance = clientX - (bounds.right - TAB_AUTO_SCROLL_EDGE_PX);
+  if (rightEdgeDistance > 0) {
+    const intensity = Math.min(1, rightEdgeDistance / TAB_AUTO_SCROLL_EDGE_PX);
+    return 1 + intensity * (TAB_AUTO_SCROLL_MAX_SPEED_PX - 1);
+  }
+
+  return 0;
+}
 
 function horizontalLayoutBounds(element: HTMLElement) {
   const bounds = element.getBoundingClientRect();
@@ -84,6 +103,7 @@ export function WorkspaceTabs() {
   const pointerDragCandidate = useRef<PointerDragCandidate | null>(null);
   const suppressedClick = useRef<{ surfaceId: string; until: number } | null>(null);
   const dragOverlayElement = useRef<HTMLDivElement>(null);
+  const tabListElement = useRef<HTMLDivElement>(null);
   const tabElements = useRef(new Map<string, HTMLDivElement>());
   const previousTabPositions = useRef<Map<string, number> | null>(null);
   const tabAnimations = useRef(new Map<string, Animation>());
@@ -188,10 +208,45 @@ export function WorkspaceTabs() {
   }, [draggingId, positionDragOverlay, surfaces]);
 
   useEffect(() => {
+    let autoScrollFrame: number | null = null;
+    const stopAutoScroll = () => {
+      if (autoScrollFrame === null) return;
+      window.cancelAnimationFrame(autoScrollFrame);
+      autoScrollFrame = null;
+    };
     const clearPointerDrag = () => {
+      stopAutoScroll();
       pointerDragCandidate.current = null;
       draggingIdRef.current = null;
       setDraggingId(null);
+    };
+    const runAutoScroll = () => {
+      autoScrollFrame = null;
+      const candidate = pointerDragCandidate.current;
+      const element = tabListElement.current;
+      if (!candidate || !draggingIdRef.current || !element) return;
+      if (element.scrollWidth <= element.clientWidth) return;
+
+      const bounds = element.getBoundingClientRect();
+      if (
+        candidate.lastClientY < bounds.top - TAB_AUTO_SCROLL_VERTICAL_TOLERANCE_PX ||
+        candidate.lastClientY > bounds.bottom + TAB_AUTO_SCROLL_VERTICAL_TOLERANCE_PX
+      ) {
+        return;
+      }
+
+      const velocity = tabAutoScrollVelocity(candidate.lastClientX, bounds);
+      if (velocity === 0) return;
+      const previousScrollLeft = element.scrollLeft;
+      element.scrollLeft += velocity;
+      if (Math.abs(element.scrollLeft - previousScrollLeft) < 0.5) return;
+
+      previewReorderAtRef.current(candidate.lastClientX);
+      autoScrollFrame = window.requestAnimationFrame(runAutoScroll);
+    };
+    const scheduleAutoScroll = () => {
+      if (autoScrollFrame !== null) return;
+      autoScrollFrame = window.requestAnimationFrame(runAutoScroll);
     };
     const handlePointerMove = (event: globalThis.PointerEvent) => {
       const candidate = pointerDragCandidate.current;
@@ -216,6 +271,7 @@ export function WorkspaceTabs() {
       if (event.cancelable) event.preventDefault();
       positionDragOverlay(event.clientX, event.clientY);
       previewReorderAtRef.current(event.clientX);
+      scheduleAutoScroll();
     };
     const handlePointerUp = (event: globalThis.PointerEvent) => {
       const candidate = pointerDragCandidate.current;
@@ -244,6 +300,7 @@ export function WorkspaceTabs() {
     return () => {
       pointerDragCandidate.current = null;
       draggingIdRef.current = null;
+      stopAutoScroll();
       window.removeEventListener("pointermove", handlePointerMove, true);
       window.removeEventListener("pointerup", handlePointerUp, true);
       window.removeEventListener("pointercancel", handlePointerCancel, true);
@@ -262,6 +319,7 @@ export function WorkspaceTabs() {
     <>
       <div className="relative min-w-0 max-w-full shrink">
         <div
+          ref={tabListElement}
           role="tablist"
           aria-label={t("rightWorkspace.tabs")}
           className="flex min-w-0 max-w-full shrink items-center gap-1 overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
