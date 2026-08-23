@@ -1,9 +1,9 @@
 const { spawn } = require("node:child_process");
-const http = require("node:http");
 const net = require("node:net");
 const path = require("node:path");
 
-const { app, BrowserWindow, dialog, session, shell } = require("electron");
+const { app, BrowserWindow, dialog, nativeTheme, session, shell } = require("electron");
+const { isWorkbenchServer, waitForWorkbenchServer } = require("./server-probe.cjs");
 
 const LOOPBACK_HOST = "127.0.0.1";
 const STARTUP_TIMEOUT_MS = 120_000;
@@ -14,6 +14,12 @@ let mainWindow;
 let serverProcess;
 let serverProcessError;
 let serverReady = false;
+
+function titleBarOverlayOptions() {
+  return nativeTheme.shouldUseDarkColors
+    ? { color: "#18181b80", symbolColor: "#ffffff" }
+    : { color: "#ffffff80", symbolColor: "#18181b" };
+}
 
 function parseConfiguredPort() {
   const rawPort = process.env.PORT?.trim();
@@ -97,54 +103,19 @@ function stopWorkbenchServer() {
   serverProcess = undefined;
 }
 
-function requestServer(url) {
-  return new Promise((resolve, reject) => {
-    const request = http.get(url, (response) => {
-      response.resume();
-      resolve();
-    });
-    request.setTimeout(1_000, () => request.destroy(new Error("Server readiness timed out.")));
-    request.once("error", reject);
-  });
-}
-
-function isWorkbenchServer(url) {
-  return new Promise((resolve) => {
-    const request = http.get(url, (response) => {
-      if (response.statusCode !== 200 || !response.headers["content-type"]?.includes("text/html")) {
-        response.resume();
-        resolve(false);
-        return;
-      }
-
-      let body = "";
-      response.setEncoding("utf8");
-      response.on("data", (chunk) => {
-        if (body.length < 1_000_000) body += chunk;
-      });
-      response.once("end", () => resolve(body.includes("<title>Pi Workbench")));
-      response.once("error", () => resolve(false));
-    });
-    request.setTimeout(1_000, () => request.destroy());
-    request.once("error", () => resolve(false));
-  });
-}
-
 async function waitForServer(url) {
-  const deadline = Date.now() + STARTUP_TIMEOUT_MS;
-  while (Date.now() < deadline) {
-    if (serverProcessError) throw serverProcessError;
-    if (!serverProcess || serverProcess.exitCode !== null) {
-      throw new Error(`Workbench server exited with code ${serverProcess?.exitCode ?? "unknown"}.`);
-    }
-
-    try {
-      await requestServer(url);
-      return;
-    } catch {
-      await new Promise((resolve) => setTimeout(resolve, 250));
-    }
-  }
+  const ready = await waitForWorkbenchServer(url, {
+    timeoutMs: STARTUP_TIMEOUT_MS,
+    beforeAttempt: () => {
+      if (serverProcessError) throw serverProcessError;
+      if (!serverProcess || serverProcess.exitCode !== null) {
+        throw new Error(
+          `Workbench server exited with code ${serverProcess?.exitCode ?? "unknown"}.`,
+        );
+      }
+    },
+  });
+  if (ready) return;
 
   throw new Error(`Workbench server did not become ready within ${STARTUP_TIMEOUT_MS / 1_000}s.`);
 }
@@ -179,6 +150,8 @@ function createMainWindow(workbenchUrl) {
     show: false,
     backgroundColor: "#09090b",
     autoHideMenuBar: process.platform !== "darwin",
+    titleBarStyle: "hidden",
+    titleBarOverlay: titleBarOverlayOptions(),
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -249,6 +222,11 @@ if (!hasSingleInstanceLock) {
   });
   app.on("window-all-closed", () => {
     if (process.platform !== "darwin") app.quit();
+  });
+  nativeTheme.on("updated", () => {
+    if (process.platform !== "darwin" && mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.setTitleBarOverlay(titleBarOverlayOptions());
+    }
   });
   app.on("before-quit", () => {
     isQuitting = true;
