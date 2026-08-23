@@ -22,7 +22,11 @@ export const agentConfigurationExtension = defineExtension({
       title: defineMessage("extensions.agentConfiguration.context.title"),
       description: defineMessage("extensions.agentConfiguration.context.description"),
       icon: GaugeIcon,
-      order: 6,
+      group: {
+        id: "intelligence",
+        title: defineMessage("extensions.settings.groups.intelligence"),
+      },
+      order: 50,
     });
     const contextSettings = context.settings.registerItem({
       sectionId: "context-management",

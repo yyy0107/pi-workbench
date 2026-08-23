@@ -34,8 +34,17 @@ export class SettingsRegistryImpl implements SettingsRegistry {
     if (typeof section.title === "string" && section.title.trim().length === 0) {
       throw new Error(`Settings section "${section.id}" has an empty title`);
     }
+    if (section.group) {
+      assertNonEmptyId(section.group.id, "Settings section group id");
+      if (typeof section.group.title === "string" && section.group.title.trim().length === 0) {
+        throw new Error(`Settings section group "${section.group.id}" has an empty title`);
+      }
+    }
 
-    const stored = Object.freeze({ ...section });
+    const stored = Object.freeze({
+      ...section,
+      group: section.group ? Object.freeze({ ...section.group }) : undefined,
+    });
     const entry = Object.freeze({ sequence: this.#sequence++, value: stored });
     this.#sections.set(section.id, entry);
     this.#updateSnapshots();

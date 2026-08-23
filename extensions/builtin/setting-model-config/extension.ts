@@ -16,7 +16,11 @@ export const settingModelConfigExtension = defineExtension({
       title: defineMessage("extensions.modelConfig.title"),
       description: defineMessage("extensions.modelConfig.description"),
       icon: BotIcon,
-      order: 5,
+      group: {
+        id: "intelligence",
+        title: defineMessage("extensions.settings.groups.intelligence"),
+      },
+      order: 40,
     });
     const item = context.settings.registerItem({
       sectionId: "model-config",

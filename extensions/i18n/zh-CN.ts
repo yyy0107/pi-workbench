@@ -54,8 +54,14 @@ export const extensionsZhCN = {
     sections: "设置分区",
     empty: "当前没有可用的设置分区。",
     emptySection: "此分区暂时没有可用的设置项。",
+    groups: {
+      basics: "基础",
+      intelligence: "智能",
+      capabilities: "能力",
+      data: "数据",
+    },
     general: {
-      title: "通用设置",
+      title: "常规",
       description: "配置语言及其他工作台通用偏好。",
     },
   },
@@ -83,7 +89,7 @@ export const extensionsZhCN = {
       useDefault: "使用默认提示词",
     },
     context: {
-      title: "上下文管理",
+      title: "上下文",
       description: "设置默认模型的上下文窗口，并控制 Pi 何时压缩长会话。",
       loading: "正在加载上下文设置…",
       modelWindowTitle: "模型上下文窗口",
@@ -109,7 +115,7 @@ export const extensionsZhCN = {
   },
   appearance: {
     title: "外观",
-    description: "自定义工作台的明暗模式、背景、模糊、组件边框和圆角。",
+    description: "自定义工作台的明暗模式、主题颜色、字体、组件和交互效果。",
     theme: {
       title: "白天与黑夜模式",
       description: "跟随操作系统，或让工作台固定使用一种明暗模式。",
@@ -174,6 +180,7 @@ export const extensionsZhCN = {
       kanagawa: "Kanagawa",
     },
     background: {
+      sectionTitle: "背景",
       title: "全局背景",
       description: "使用颜色或保存在本机浏览器中的图片作为工作台背景。",
       colorTitle: "颜色",
@@ -238,6 +245,7 @@ export const extensionsZhCN = {
       rounded: "圆润",
     },
     code: {
+      sectionTitle: "代码",
       title: "代码显示",
       description: "集中设置代码字体、字号、语法颜色和差异标记。",
       font: "代码字体",
@@ -404,7 +412,7 @@ export const extensionsZhCN = {
     whenToUse: "适用场景：",
   },
   piExtensions: {
-    title: "Pi 扩展",
+    title: "扩展",
     description: "查看当前 Pi 会话已加载的扩展。",
     loading: "正在加载会话扩展…",
     noSession: "请选择一个已有对话，以查看对应 Pi 会话已加载的扩展。",

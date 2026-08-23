@@ -61,20 +61,36 @@ function SettingGroup({
   title,
   description,
   layout = "rows",
+  showHeading = true,
   children,
 }: {
   title: string;
   description: string;
   layout?: "rows" | "cards";
+  showHeading?: boolean;
   children: ReactNode;
 }) {
   return (
     <section className="py-5 first:pt-1 last:pb-3">
-      <div>
-        <h3 className="text-sm font-medium">{title}</h3>
-        <p className="text-muted-foreground mt-1 text-sm leading-5">{description}</p>
+      {showHeading ? (
+        <div>
+          <h3 className="text-sm font-medium">{title}</h3>
+          <p className="text-muted-foreground mt-1 text-sm leading-5">{description}</p>
+        </div>
+      ) : null}
+      <div
+        className={
+          layout === "cards"
+            ? showHeading
+              ? "mt-4 space-y-3"
+              : "space-y-3"
+            : showHeading
+              ? "mt-4 divide-y"
+              : "divide-y"
+        }
+      >
+        {children}
       </div>
-      <div className={layout === "cards" ? "mt-4 space-y-3" : "mt-4 divide-y"}>{children}</div>
     </section>
   );
 }
@@ -491,6 +507,7 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
   const { t } = useI18n();
   const preferences = useAppearancePreferences();
   const backgroundImage = useBackgroundImage();
+  const page = sectionId === "background" || sectionId === "code" ? sectionId : "appearance";
 
   const colorModeLabel = (value: ColorMode): string =>
     t(`extensions.appearance.colorModes.${value}`);
@@ -517,364 +534,378 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
   return (
     <div data-settings-section={sectionId} data-settings-item={itemId} className="py-4">
       <div className="divide-y">
-        <SettingGroup
-          title={t("extensions.appearance.theme.title")}
-          description={t("extensions.appearance.theme.description")}
-        >
-          <SettingRow label={t("extensions.appearance.theme.mode")}>
-            <SelectControl
-              label={t("extensions.appearance.theme.mode")}
-              value={preferences.colorMode}
-              options={COLOR_MODES}
-              optionLabel={colorModeLabel}
-              onChange={(colorMode) => appearanceStore.update({ colorMode })}
-            />
-          </SettingRow>
-        </SettingGroup>
+        {page === "appearance" ? (
+          <>
+            <SettingGroup
+              title={t("extensions.appearance.theme.title")}
+              description={t("extensions.appearance.theme.description")}
+            >
+              <SettingRow label={t("extensions.appearance.theme.mode")}>
+                <SelectControl
+                  label={t("extensions.appearance.theme.mode")}
+                  value={preferences.colorMode}
+                  options={COLOR_MODES}
+                  optionLabel={colorModeLabel}
+                  onChange={(colorMode) => appearanceStore.update({ colorMode })}
+                />
+              </SettingRow>
+            </SettingGroup>
 
-        <SettingGroup
-          title={t("extensions.appearance.palette.title")}
-          description={t("extensions.appearance.palette.description")}
-        >
-          <SettingRow label={t("extensions.appearance.themeSettings.accent")} wideControl>
-            <ThemeModeControls
-              lightLabel={colorModeLabel("light")}
-              darkLabel={colorModeLabel("dark")}
-              lightControl={
-                <ColorControl
-                  color={preferences.lightAccentColor}
-                  label={t("extensions.appearance.themeSettings.lightAccent")}
-                  onChange={(lightAccentColor) => appearanceStore.update({ lightAccentColor })}
-                />
-              }
-              darkControl={
-                <ColorControl
-                  color={preferences.darkAccentColor}
-                  label={t("extensions.appearance.themeSettings.darkAccent")}
-                  onChange={(darkAccentColor) => appearanceStore.update({ darkAccentColor })}
-                />
-              }
-            />
-          </SettingRow>
-          <SettingRow label={t("extensions.appearance.themeSettings.background")} wideControl>
-            <ThemeModeControls
-              lightLabel={colorModeLabel("light")}
-              darkLabel={colorModeLabel("dark")}
-              lightControl={
-                <ColorControl
-                  color={preferences.lightBackgroundColor}
-                  label={t("extensions.appearance.themeSettings.lightBackground")}
-                  onChange={(lightBackgroundColor) =>
-                    appearanceStore.update({ lightBackgroundColor })
+            <SettingGroup
+              title={t("extensions.appearance.palette.title")}
+              description={t("extensions.appearance.palette.description")}
+            >
+              <SettingRow label={t("extensions.appearance.themeSettings.accent")} wideControl>
+                <ThemeModeControls
+                  lightLabel={colorModeLabel("light")}
+                  darkLabel={colorModeLabel("dark")}
+                  lightControl={
+                    <ColorControl
+                      color={preferences.lightAccentColor}
+                      label={t("extensions.appearance.themeSettings.lightAccent")}
+                      onChange={(lightAccentColor) => appearanceStore.update({ lightAccentColor })}
+                    />
+                  }
+                  darkControl={
+                    <ColorControl
+                      color={preferences.darkAccentColor}
+                      label={t("extensions.appearance.themeSettings.darkAccent")}
+                      onChange={(darkAccentColor) => appearanceStore.update({ darkAccentColor })}
+                    />
                   }
                 />
-              }
-              darkControl={
-                <ColorControl
-                  color={preferences.darkBackgroundColor}
-                  label={t("extensions.appearance.themeSettings.darkBackground")}
-                  onChange={(darkBackgroundColor) =>
-                    appearanceStore.update({ darkBackgroundColor })
+              </SettingRow>
+              <SettingRow label={t("extensions.appearance.themeSettings.background")} wideControl>
+                <ThemeModeControls
+                  lightLabel={colorModeLabel("light")}
+                  darkLabel={colorModeLabel("dark")}
+                  lightControl={
+                    <ColorControl
+                      color={preferences.lightBackgroundColor}
+                      label={t("extensions.appearance.themeSettings.lightBackground")}
+                      onChange={(lightBackgroundColor) =>
+                        appearanceStore.update({ lightBackgroundColor })
+                      }
+                    />
+                  }
+                  darkControl={
+                    <ColorControl
+                      color={preferences.darkBackgroundColor}
+                      label={t("extensions.appearance.themeSettings.darkBackground")}
+                      onChange={(darkBackgroundColor) =>
+                        appearanceStore.update({ darkBackgroundColor })
+                      }
+                    />
                   }
                 />
-              }
-            />
-          </SettingRow>
-          <SettingRow label={t("extensions.appearance.themeSettings.foreground")} wideControl>
-            <ThemeModeControls
-              lightLabel={colorModeLabel("light")}
-              darkLabel={colorModeLabel("dark")}
-              lightControl={
-                <ColorControl
-                  color={preferences.lightForegroundColor}
-                  label={t("extensions.appearance.themeSettings.lightForeground")}
-                  onChange={(lightForegroundColor) =>
-                    appearanceStore.update({ lightForegroundColor })
+              </SettingRow>
+              <SettingRow label={t("extensions.appearance.themeSettings.foreground")} wideControl>
+                <ThemeModeControls
+                  lightLabel={colorModeLabel("light")}
+                  darkLabel={colorModeLabel("dark")}
+                  lightControl={
+                    <ColorControl
+                      color={preferences.lightForegroundColor}
+                      label={t("extensions.appearance.themeSettings.lightForeground")}
+                      onChange={(lightForegroundColor) =>
+                        appearanceStore.update({ lightForegroundColor })
+                      }
+                    />
+                  }
+                  darkControl={
+                    <ColorControl
+                      color={preferences.darkForegroundColor}
+                      label={t("extensions.appearance.themeSettings.darkForeground")}
+                      onChange={(darkForegroundColor) =>
+                        appearanceStore.update({ darkForegroundColor })
+                      }
+                    />
                   }
                 />
-              }
-              darkControl={
-                <ColorControl
-                  color={preferences.darkForegroundColor}
-                  label={t("extensions.appearance.themeSettings.darkForeground")}
-                  onChange={(darkForegroundColor) =>
-                    appearanceStore.update({ darkForegroundColor })
+              </SettingRow>
+              <SettingRow label={t("extensions.appearance.themeSettings.contrast")} wideControl>
+                <ThemeModeControls
+                  lightLabel={colorModeLabel("light")}
+                  darkLabel={colorModeLabel("dark")}
+                  lightControl={
+                    <RangeControl
+                      label={t("extensions.appearance.themeSettings.lightContrast")}
+                      value={preferences.lightContrast}
+                      formatValue={contrastLabel}
+                      minimum={MIN_THEME_CONTRAST}
+                      maximum={MAX_THEME_CONTRAST}
+                      onChange={(lightContrast) => appearanceStore.update({ lightContrast })}
+                    />
+                  }
+                  darkControl={
+                    <RangeControl
+                      label={t("extensions.appearance.themeSettings.darkContrast")}
+                      value={preferences.darkContrast}
+                      formatValue={contrastLabel}
+                      minimum={MIN_THEME_CONTRAST}
+                      maximum={MAX_THEME_CONTRAST}
+                      onChange={(darkContrast) => appearanceStore.update({ darkContrast })}
+                    />
                   }
                 />
-              }
-            />
-          </SettingRow>
-          <SettingRow label={t("extensions.appearance.themeSettings.contrast")} wideControl>
-            <ThemeModeControls
-              lightLabel={colorModeLabel("light")}
-              darkLabel={colorModeLabel("dark")}
-              lightControl={
+              </SettingRow>
+            </SettingGroup>
+
+            <SettingGroup
+              title={t("extensions.appearance.typography.title")}
+              description={t("extensions.appearance.typography.description")}
+            >
+              <SettingRow label={t("extensions.appearance.typography.font")}>
+                <SelectControl
+                  label={t("extensions.appearance.typography.font")}
+                  value={preferences.uiFont}
+                  options={UI_FONT_FAMILIES}
+                  optionLabel={uiFontLabel}
+                  onChange={(uiFont) => appearanceStore.update({ uiFont })}
+                />
+              </SettingRow>
+              <SettingRow
+                label={t("extensions.appearance.preferences.uiFontSize")}
+                description={t("extensions.appearance.preferences.uiFontSizeDescription")}
+              >
                 <RangeControl
-                  label={t("extensions.appearance.themeSettings.lightContrast")}
-                  value={preferences.lightContrast}
-                  formatValue={contrastLabel}
-                  minimum={MIN_THEME_CONTRAST}
-                  maximum={MAX_THEME_CONTRAST}
-                  onChange={(lightContrast) => appearanceStore.update({ lightContrast })}
+                  label={t("extensions.appearance.preferences.uiFontSize")}
+                  value={preferences.uiFontSize}
+                  formatValue={fontSizeLabel}
+                  minimum={MIN_UI_FONT_SIZE}
+                  maximum={MAX_UI_FONT_SIZE}
+                  onChange={(uiFontSize) => appearanceStore.update({ uiFontSize })}
                 />
-              }
-              darkControl={
+              </SettingRow>
+            </SettingGroup>
+          </>
+        ) : null}
+
+        {page === "background" ? (
+          <SettingGroup
+            title={t("extensions.appearance.background.title")}
+            description={t("extensions.appearance.background.description")}
+            layout="cards"
+            showHeading={false}
+          >
+            <SettingSubgroup
+              title={t("extensions.appearance.background.colorTitle")}
+              description={t("extensions.appearance.background.colorDescription")}
+            >
+              <SettingRow label={t("extensions.appearance.background.custom")}>
+                <SwitchControl
+                  checked={preferences.customBackground}
+                  label={t("extensions.appearance.background.custom")}
+                  onChange={(customBackground) => appearanceStore.update({ customBackground })}
+                />
+              </SettingRow>
+              <SettingRow label={t("extensions.appearance.background.color")}>
+                <ColorControl
+                  color={preferences.backgroundColor}
+                  disabled={!preferences.customBackground}
+                  label={t("extensions.appearance.background.color")}
+                  onChange={(backgroundColor) => appearanceStore.update({ backgroundColor })}
+                />
+              </SettingRow>
+              <SettingRow label={t("extensions.appearance.background.syncSurfaces")}>
+                <SwitchControl
+                  checked={preferences.syncSurfaceColors}
+                  disabled={!preferences.customBackground}
+                  label={t("extensions.appearance.background.syncSurfaces")}
+                  onChange={(syncSurfaceColors) => appearanceStore.update({ syncSurfaceColors })}
+                />
+              </SettingRow>
+            </SettingSubgroup>
+
+            <SettingSubgroup
+              title={t("extensions.appearance.background.imageTitle")}
+              description={t("extensions.appearance.background.imageDescription")}
+            >
+              <SettingRow label={t("extensions.appearance.background.image")}>
+                <BackgroundImagePicker image={backgroundImage} />
+              </SettingRow>
+              <SettingRow label={t("extensions.appearance.background.blur")}>
+                <SelectControl
+                  label={t("extensions.appearance.background.blur")}
+                  value={preferences.backgroundBlur}
+                  options={BACKGROUND_BLURS}
+                  optionLabel={backgroundBlurLabel}
+                  disabled={!backgroundImage.url}
+                  onChange={(backgroundBlur) => appearanceStore.update({ backgroundBlur })}
+                />
+              </SettingRow>
+            </SettingSubgroup>
+          </SettingGroup>
+        ) : null}
+
+        {page === "appearance" ? (
+          <SettingGroup
+            title={t("extensions.appearance.components.title")}
+            description={t("extensions.appearance.components.description")}
+            layout="cards"
+          >
+            <SettingSubgroup
+              title={t("extensions.appearance.surfaces.title")}
+              description={t("extensions.appearance.surfaces.description")}
+            >
+              <SettingRow label={t("extensions.appearance.surfaces.opacity")}>
                 <RangeControl
-                  label={t("extensions.appearance.themeSettings.darkContrast")}
-                  value={preferences.darkContrast}
-                  formatValue={contrastLabel}
-                  minimum={MIN_THEME_CONTRAST}
-                  maximum={MAX_THEME_CONTRAST}
-                  onChange={(darkContrast) => appearanceStore.update({ darkContrast })}
+                  label={t("extensions.appearance.surfaces.opacity")}
+                  value={preferences.surfaceOpacity}
+                  formatValue={surfaceOpacityLabel}
+                  minimum={MIN_SURFACE_OPACITY}
+                  maximum={MAX_SURFACE_OPACITY}
+                  disabled={!preferences.customBackground && !backgroundImage.url}
+                  onChange={(surfaceOpacity) => appearanceStore.update({ surfaceOpacity })}
                 />
-              }
-            />
-          </SettingRow>
-        </SettingGroup>
+              </SettingRow>
+              <SettingRow label={t("extensions.appearance.surfaces.glassBlur")}>
+                <SelectControl
+                  label={t("extensions.appearance.surfaces.glassBlur")}
+                  value={preferences.glassBlur}
+                  options={GLASS_BLURS}
+                  optionLabel={glassBlurLabel}
+                  disabled={!preferences.customBackground && !backgroundImage.url}
+                  onChange={(glassBlur) => appearanceStore.update({ glassBlur })}
+                />
+              </SettingRow>
+            </SettingSubgroup>
 
-        <SettingGroup
-          title={t("extensions.appearance.typography.title")}
-          description={t("extensions.appearance.typography.description")}
-        >
-          <SettingRow label={t("extensions.appearance.typography.font")}>
-            <SelectControl
-              label={t("extensions.appearance.typography.font")}
-              value={preferences.uiFont}
-              options={UI_FONT_FAMILIES}
-              optionLabel={uiFontLabel}
-              onChange={(uiFont) => appearanceStore.update({ uiFont })}
-            />
-          </SettingRow>
-          <SettingRow
-            label={t("extensions.appearance.preferences.uiFontSize")}
-            description={t("extensions.appearance.preferences.uiFontSizeDescription")}
-          >
-            <RangeControl
-              label={t("extensions.appearance.preferences.uiFontSize")}
-              value={preferences.uiFontSize}
-              formatValue={fontSizeLabel}
-              minimum={MIN_UI_FONT_SIZE}
-              maximum={MAX_UI_FONT_SIZE}
-              onChange={(uiFontSize) => appearanceStore.update({ uiFontSize })}
-            />
-          </SettingRow>
-        </SettingGroup>
+            <SettingSubgroup
+              title={t("extensions.appearance.borders.title")}
+              description={t("extensions.appearance.borders.description")}
+            >
+              <SettingRow label={t("extensions.appearance.borders.style")}>
+                <SelectControl
+                  label={t("extensions.appearance.borders.style")}
+                  value={preferences.borderStyle}
+                  options={BORDER_STYLES}
+                  optionLabel={borderStyleLabel}
+                  onChange={(borderStyle) => appearanceStore.update({ borderStyle })}
+                />
+              </SettingRow>
+              <SettingRow label={t("extensions.appearance.borders.customColor")}>
+                <SwitchControl
+                  checked={preferences.customBorderColor}
+                  label={t("extensions.appearance.borders.customColor")}
+                  onChange={(customBorderColor) => appearanceStore.update({ customBorderColor })}
+                />
+              </SettingRow>
+              <SettingRow label={t("extensions.appearance.borders.color")}>
+                <ColorControl
+                  color={preferences.borderColor}
+                  disabled={!preferences.customBorderColor}
+                  label={t("extensions.appearance.borders.color")}
+                  onChange={(borderColor) => appearanceStore.update({ borderColor })}
+                />
+              </SettingRow>
+            </SettingSubgroup>
 
-        <SettingGroup
-          title={t("extensions.appearance.background.title")}
-          description={t("extensions.appearance.background.description")}
-          layout="cards"
-        >
-          <SettingSubgroup
-            title={t("extensions.appearance.background.colorTitle")}
-            description={t("extensions.appearance.background.colorDescription")}
-          >
-            <SettingRow label={t("extensions.appearance.background.custom")}>
-              <SwitchControl
-                checked={preferences.customBackground}
-                label={t("extensions.appearance.background.custom")}
-                onChange={(customBackground) => appearanceStore.update({ customBackground })}
-              />
-            </SettingRow>
-            <SettingRow label={t("extensions.appearance.background.color")}>
-              <ColorControl
-                color={preferences.backgroundColor}
-                disabled={!preferences.customBackground}
-                label={t("extensions.appearance.background.color")}
-                onChange={(backgroundColor) => appearanceStore.update({ backgroundColor })}
-              />
-            </SettingRow>
-            <SettingRow label={t("extensions.appearance.background.syncSurfaces")}>
-              <SwitchControl
-                checked={preferences.syncSurfaceColors}
-                disabled={!preferences.customBackground}
-                label={t("extensions.appearance.background.syncSurfaces")}
-                onChange={(syncSurfaceColors) => appearanceStore.update({ syncSurfaceColors })}
-              />
-            </SettingRow>
-          </SettingSubgroup>
+            <SettingSubgroup
+              title={t("extensions.appearance.corners.title")}
+              description={t("extensions.appearance.corners.description")}
+            >
+              <SettingRow label={t("extensions.appearance.corners.radius")}>
+                <SelectControl
+                  label={t("extensions.appearance.corners.radius")}
+                  value={preferences.cornerRadius}
+                  options={CORNER_RADIUS_STYLES}
+                  optionLabel={cornerRadiusLabel}
+                  onChange={(cornerRadius) => appearanceStore.update({ cornerRadius })}
+                />
+              </SettingRow>
+            </SettingSubgroup>
+          </SettingGroup>
+        ) : null}
 
-          <SettingSubgroup
-            title={t("extensions.appearance.background.imageTitle")}
-            description={t("extensions.appearance.background.imageDescription")}
+        {page === "code" ? (
+          <SettingGroup
+            title={t("extensions.appearance.code.title")}
+            description={t("extensions.appearance.code.description")}
+            showHeading={false}
           >
-            <SettingRow label={t("extensions.appearance.background.image")}>
-              <BackgroundImagePicker image={backgroundImage} />
-            </SettingRow>
-            <SettingRow label={t("extensions.appearance.background.blur")}>
+            <SettingRow label={t("extensions.appearance.code.font")}>
               <SelectControl
-                label={t("extensions.appearance.background.blur")}
-                value={preferences.backgroundBlur}
-                options={BACKGROUND_BLURS}
-                optionLabel={backgroundBlurLabel}
-                disabled={!backgroundImage.url}
-                onChange={(backgroundBlur) => appearanceStore.update({ backgroundBlur })}
+                label={t("extensions.appearance.code.font")}
+                value={preferences.codeFont}
+                options={CODE_FONT_FAMILIES}
+                optionLabel={codeFontLabel}
+                onChange={(codeFont) => appearanceStore.update({ codeFont })}
               />
             </SettingRow>
-          </SettingSubgroup>
-        </SettingGroup>
-
-        <SettingGroup
-          title={t("extensions.appearance.components.title")}
-          description={t("extensions.appearance.components.description")}
-          layout="cards"
-        >
-          <SettingSubgroup
-            title={t("extensions.appearance.surfaces.title")}
-            description={t("extensions.appearance.surfaces.description")}
-          >
-            <SettingRow label={t("extensions.appearance.surfaces.opacity")}>
-              <RangeControl
-                label={t("extensions.appearance.surfaces.opacity")}
-                value={preferences.surfaceOpacity}
-                formatValue={surfaceOpacityLabel}
-                minimum={MIN_SURFACE_OPACITY}
-                maximum={MAX_SURFACE_OPACITY}
-                disabled={!preferences.customBackground && !backgroundImage.url}
-                onChange={(surfaceOpacity) => appearanceStore.update({ surfaceOpacity })}
-              />
-            </SettingRow>
-            <SettingRow label={t("extensions.appearance.surfaces.glassBlur")}>
-              <SelectControl
-                label={t("extensions.appearance.surfaces.glassBlur")}
-                value={preferences.glassBlur}
-                options={GLASS_BLURS}
-                optionLabel={glassBlurLabel}
-                disabled={!preferences.customBackground && !backgroundImage.url}
-                onChange={(glassBlur) => appearanceStore.update({ glassBlur })}
-              />
-            </SettingRow>
-          </SettingSubgroup>
-
-          <SettingSubgroup
-            title={t("extensions.appearance.borders.title")}
-            description={t("extensions.appearance.borders.description")}
-          >
-            <SettingRow label={t("extensions.appearance.borders.style")}>
-              <SelectControl
-                label={t("extensions.appearance.borders.style")}
-                value={preferences.borderStyle}
-                options={BORDER_STYLES}
-                optionLabel={borderStyleLabel}
-                onChange={(borderStyle) => appearanceStore.update({ borderStyle })}
-              />
-            </SettingRow>
-            <SettingRow label={t("extensions.appearance.borders.customColor")}>
-              <SwitchControl
-                checked={preferences.customBorderColor}
-                label={t("extensions.appearance.borders.customColor")}
-                onChange={(customBorderColor) => appearanceStore.update({ customBorderColor })}
-              />
-            </SettingRow>
-            <SettingRow label={t("extensions.appearance.borders.color")}>
-              <ColorControl
-                color={preferences.borderColor}
-                disabled={!preferences.customBorderColor}
-                label={t("extensions.appearance.borders.color")}
-                onChange={(borderColor) => appearanceStore.update({ borderColor })}
-              />
-            </SettingRow>
-          </SettingSubgroup>
-
-          <SettingSubgroup
-            title={t("extensions.appearance.corners.title")}
-            description={t("extensions.appearance.corners.description")}
-          >
-            <SettingRow label={t("extensions.appearance.corners.radius")}>
-              <SelectControl
-                label={t("extensions.appearance.corners.radius")}
-                value={preferences.cornerRadius}
-                options={CORNER_RADIUS_STYLES}
-                optionLabel={cornerRadiusLabel}
-                onChange={(cornerRadius) => appearanceStore.update({ cornerRadius })}
-              />
-            </SettingRow>
-          </SettingSubgroup>
-        </SettingGroup>
-
-        <SettingGroup
-          title={t("extensions.appearance.code.title")}
-          description={t("extensions.appearance.code.description")}
-        >
-          <SettingRow label={t("extensions.appearance.code.font")}>
-            <SelectControl
-              label={t("extensions.appearance.code.font")}
-              value={preferences.codeFont}
-              options={CODE_FONT_FAMILIES}
-              optionLabel={codeFontLabel}
-              onChange={(codeFont) => appearanceStore.update({ codeFont })}
-            />
-          </SettingRow>
-          <SettingRow
-            label={t("extensions.appearance.preferences.codeFontSize")}
-            description={t("extensions.appearance.preferences.codeFontSizeDescription")}
-          >
-            <RangeControl
+            <SettingRow
               label={t("extensions.appearance.preferences.codeFontSize")}
-              value={preferences.codeFontSize}
-              formatValue={fontSizeLabel}
-              minimum={MIN_CODE_FONT_SIZE}
-              maximum={MAX_CODE_FONT_SIZE}
-              onChange={(codeFontSize) => appearanceStore.update({ codeFontSize })}
-            />
-          </SettingRow>
-          <SettingRow
-            label={t("extensions.appearance.preferences.codeStyle")}
-            description={t("extensions.appearance.preferences.codeStyleDescription")}
-          >
-            <SelectControl
+              description={t("extensions.appearance.preferences.codeFontSizeDescription")}
+            >
+              <RangeControl
+                label={t("extensions.appearance.preferences.codeFontSize")}
+                value={preferences.codeFontSize}
+                formatValue={fontSizeLabel}
+                minimum={MIN_CODE_FONT_SIZE}
+                maximum={MAX_CODE_FONT_SIZE}
+                onChange={(codeFontSize) => appearanceStore.update({ codeFontSize })}
+              />
+            </SettingRow>
+            <SettingRow
               label={t("extensions.appearance.preferences.codeStyle")}
-              value={preferences.codeStyle}
-              options={CODE_STYLES}
-              optionLabel={codeStyleLabel}
-              onChange={(codeStyle) => appearanceStore.update({ codeStyle })}
-            />
-          </SettingRow>
-          <div className="py-3">
-            <CodeStylePreview
-              code={CODE_PREVIEW}
-              language="tsx"
-              label={t("extensions.appearance.preferences.codePreview")}
-              codeStyle={preferences.codeStyle}
-            />
-          </div>
-          <SettingRow
-            label={t("extensions.appearance.preferences.diffMarkers")}
-            description={t("extensions.appearance.preferences.diffMarkersDescription")}
-          >
-            <SwitchControl
-              checked={preferences.showDiffMarkers}
+              description={t("extensions.appearance.preferences.codeStyleDescription")}
+            >
+              <SelectControl
+                label={t("extensions.appearance.preferences.codeStyle")}
+                value={preferences.codeStyle}
+                options={CODE_STYLES}
+                optionLabel={codeStyleLabel}
+                onChange={(codeStyle) => appearanceStore.update({ codeStyle })}
+              />
+            </SettingRow>
+            <div className="py-3">
+              <CodeStylePreview
+                code={CODE_PREVIEW}
+                language="tsx"
+                label={t("extensions.appearance.preferences.codePreview")}
+                codeStyle={preferences.codeStyle}
+              />
+            </div>
+            <SettingRow
               label={t("extensions.appearance.preferences.diffMarkers")}
-              onChange={(showDiffMarkers) => appearanceStore.update({ showDiffMarkers })}
-            />
-          </SettingRow>
-        </SettingGroup>
+              description={t("extensions.appearance.preferences.diffMarkersDescription")}
+            >
+              <SwitchControl
+                checked={preferences.showDiffMarkers}
+                label={t("extensions.appearance.preferences.diffMarkers")}
+                onChange={(showDiffMarkers) => appearanceStore.update({ showDiffMarkers })}
+              />
+            </SettingRow>
+          </SettingGroup>
+        ) : null}
 
-        <SettingGroup
-          title={t("extensions.appearance.interaction.title")}
-          description={t("extensions.appearance.interaction.description")}
-        >
-          <SettingRow
-            label={t("extensions.appearance.preferences.pointerCursor")}
-            description={t("extensions.appearance.preferences.pointerCursorDescription")}
+        {page === "appearance" ? (
+          <SettingGroup
+            title={t("extensions.appearance.interaction.title")}
+            description={t("extensions.appearance.interaction.description")}
           >
-            <SwitchControl
-              checked={preferences.usePointerCursor}
+            <SettingRow
               label={t("extensions.appearance.preferences.pointerCursor")}
-              onChange={(usePointerCursor) => appearanceStore.update({ usePointerCursor })}
-            />
-          </SettingRow>
-          <SettingRow
-            label={t("extensions.appearance.preferences.reduceMotion")}
-            description={t("extensions.appearance.preferences.reduceMotionDescription")}
-          >
-            <SwitchControl
-              checked={preferences.reduceMotion}
+              description={t("extensions.appearance.preferences.pointerCursorDescription")}
+            >
+              <SwitchControl
+                checked={preferences.usePointerCursor}
+                label={t("extensions.appearance.preferences.pointerCursor")}
+                onChange={(usePointerCursor) => appearanceStore.update({ usePointerCursor })}
+              />
+            </SettingRow>
+            <SettingRow
               label={t("extensions.appearance.preferences.reduceMotion")}
-              onChange={(reduceMotion) => appearanceStore.update({ reduceMotion })}
-            />
-          </SettingRow>
-        </SettingGroup>
+              description={t("extensions.appearance.preferences.reduceMotionDescription")}
+            >
+              <SwitchControl
+                checked={preferences.reduceMotion}
+                label={t("extensions.appearance.preferences.reduceMotion")}
+                onChange={(reduceMotion) => appearanceStore.update({ reduceMotion })}
+              />
+            </SettingRow>
+          </SettingGroup>
+        ) : null}
       </div>
 
       <div className="flex justify-end pt-1">

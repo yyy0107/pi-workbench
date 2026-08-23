@@ -16,7 +16,11 @@ export const skillsExtension = defineExtension({
       title: defineMessage("extensions.skills.title"),
       description: defineMessage("extensions.skills.description"),
       icon: SparklesIcon,
-      order: 7,
+      group: {
+        id: "capabilities",
+        title: defineMessage("extensions.settings.groups.capabilities"),
+      },
+      order: 60,
     });
     const item = context.settings.registerItem({
       sectionId: "skills",

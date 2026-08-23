@@ -16,7 +16,11 @@ export const piExtensionsExtension = defineExtension({
       title: defineMessage("extensions.piExtensions.title"),
       description: defineMessage("extensions.piExtensions.description"),
       icon: PuzzleIcon,
-      order: 8,
+      group: {
+        id: "capabilities",
+        title: defineMessage("extensions.settings.groups.capabilities"),
+      },
+      order: 70,
     });
     const item = context.settings.registerItem({
       sectionId: "pi-extensions",

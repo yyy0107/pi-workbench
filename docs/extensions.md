@@ -713,6 +713,10 @@ export function RunNotesCommandButton() {
 const section = context.settings.registerSection({
   id: "general",
   title: defineMessage("extensions.settings.general.title"),
+  group: {
+    id: "basics",
+    title: defineMessage("extensions.settings.groups.basics"),
+  },
   order: 0,
 });
 
@@ -726,6 +730,7 @@ const item = context.settings.registerItem({
 
 - section id 全局唯一；item id 在同一 section 内唯一；
 - `title` 与 `description` 支持 `defineMessage(...)`，语言切换时由 Host 重新解析；
+- section 可通过带稳定 `id` 和本地化 `title` 的 `group` 归入同一个导航分组；
 - section 与 item 都按 `order` 升序排列，相同 order 保持注册顺序；
 - item 可以先于 section 注册，目标 section 出现后会自动渲染，避免静态扩展顺序形成隐式依赖；
 - `SettingsItemComponentProps` 提供稳定的 `sectionId` 和 `itemId`；设置值的状态与持久化仍由所属功能负责；

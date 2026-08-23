@@ -5,6 +5,14 @@ import type { LocalizableText } from "@/i18n";
 
 import type { Disposable } from "./disposable";
 
+/** Stable navigation grouping shared by related settings sections. */
+export interface SettingsSectionGroupDefinition {
+  /** Stable id used to collect sections into one navigation group. */
+  id: string;
+  /** Localizable group heading shown in the settings navigation. */
+  title: LocalizableText;
+}
+
 /** Props received by one independently registered settings item. */
 export interface SettingsItemComponentProps {
   /** Stable id of the section currently hosting the item. */
@@ -23,6 +31,8 @@ export interface SettingsSectionDefinition {
   description?: LocalizableText;
   /** Optional navigation icon. */
   icon?: LucideIcon;
+  /** Optional navigation group for related settings sections. */
+  group?: SettingsSectionGroupDefinition;
   /** Lower values appear first; registration order breaks ties. */
   order?: number;
 }

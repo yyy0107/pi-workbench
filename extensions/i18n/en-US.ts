@@ -54,6 +54,12 @@ export const extensionsEnUS = {
     sections: "Settings sections",
     empty: "No settings sections are available.",
     emptySection: "No settings are available in this section yet.",
+    groups: {
+      basics: "Basics",
+      intelligence: "AI",
+      capabilities: "Capabilities",
+      data: "Data",
+    },
     general: {
       title: "General",
       description: "Configure the language and other shared Workbench preferences.",
@@ -84,7 +90,7 @@ export const extensionsEnUS = {
       useDefault: "Use default prompt",
     },
     context: {
-      title: "Context management",
+      title: "Context",
       description:
         "Set the default model's context window and control when Pi compacts long sessions.",
       loading: "Loading context settings…",
@@ -115,7 +121,7 @@ export const extensionsEnUS = {
   },
   appearance: {
     title: "Appearance",
-    description: "Customize color mode, background, blur, component borders, and corner radius.",
+    description: "Customize color mode, theme colors, typography, components, and interaction.",
     theme: {
       title: "Light and dark mode",
       description: "Follow the operating system or keep Workbench in one color mode.",
@@ -180,6 +186,7 @@ export const extensionsEnUS = {
       kanagawa: "Kanagawa",
     },
     background: {
+      sectionTitle: "Background",
       title: "Global background",
       description: "Use a color or a locally stored image across the Workbench.",
       colorTitle: "Color",
@@ -245,6 +252,7 @@ export const extensionsEnUS = {
       rounded: "Rounded",
     },
     code: {
+      sectionTitle: "Code",
       title: "Code display",
       description: "Configure code fonts, sizing, syntax colors, and change markers.",
       font: "Code font",
@@ -414,7 +422,7 @@ export const extensionsEnUS = {
     whenToUse: "When to use:",
   },
   piExtensions: {
-    title: "Pi extensions",
+    title: "Extensions",
     description: "View the extensions loaded for the current Pi session.",
     loading: "Loading session extensions…",
     noSession: "Select an existing conversation to view the extensions loaded by its Pi session.",

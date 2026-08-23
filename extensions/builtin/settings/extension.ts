@@ -19,6 +19,10 @@ export const settingsExtension = defineExtension({
       title: defineMessage("extensions.settings.general.title"),
       description: defineMessage("extensions.settings.general.description"),
       icon: SlidersHorizontalIcon,
+      group: {
+        id: "basics",
+        title: defineMessage("extensions.settings.groups.basics"),
+      },
       order: 0,
     });
     const overlay = context.slots.register("shell.overlay", {
