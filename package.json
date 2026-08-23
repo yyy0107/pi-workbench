@@ -23,15 +23,11 @@
     "format:fix": "oxfmt"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^4.0.34",
-    "@ai-sdk/openai-compatible": "^3.0.30",
     "@assistant-ui/next": "latest",
     "@assistant-ui/react": "latest",
-    "@assistant-ui/react-ai-sdk": "latest",
     "@assistant-ui/react-lexical": "0.2.9",
     "@assistant-ui/react-markdown": "latest",
     "@assistant-ui/react-streamdown": "^0.3.11",
-    "@assistant-ui/react-ui": "^0.2.1",
     "@base-ui/react": "^1.7.0",
     "@earendil-works/pi-ai": "0.84.2",
     "@earendil-works/pi-coding-agent": "0.84.2",
@@ -51,7 +47,6 @@
     "@tanstack/react-virtual": "3.14.10",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
-    "ai": "^7.0.56",
     "assistant-stream": "0.3.37",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
