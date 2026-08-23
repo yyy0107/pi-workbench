@@ -783,9 +783,6 @@ export const extensionsEnUS = {
     renderingLargeText: "Rendering visible lines…",
     renderingLargeTextProgress: ({ percent }: { percent: number }, { number }: MessageFormatters) =>
       `Rendering visible lines… ${number(percent)}%`,
-    optimizedLargeText: ({ lines }: { lines: number }, { number }: MessageFormatters) =>
-      `${number(lines)} lines · read-only optimized view`,
-    largeTextReadOnly: "Large text files use an optimized read-only view.",
     largeTextLoadFailed: "The large text file could not be loaded.",
     retryLargeText: "Retry",
     unavailable: "This file buffer is not attached.",

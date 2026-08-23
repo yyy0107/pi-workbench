@@ -765,9 +765,6 @@ export const extensionsZhCN = {
     renderingLargeText: "正在渲染可见行…",
     renderingLargeTextProgress: ({ percent }: { percent: number }, { number }: MessageFormatters) =>
       `正在渲染可见行… ${number(percent)}%`,
-    optimizedLargeText: ({ lines }: { lines: number }, { number }: MessageFormatters) =>
-      `${number(lines)} 行 · 只读优化视图`,
-    largeTextReadOnly: "大文本文件使用优化的只读视图。",
     largeTextLoadFailed: "无法加载此大文本文件。",
     retryLargeText: "重试",
     unavailable: "此文件缓冲区尚未连接。",

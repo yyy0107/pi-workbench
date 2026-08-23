@@ -4,7 +4,7 @@ import { FileWarningIcon, FolderOpenIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
 import { useRightWorkspace } from "@/components/right-workspace";
-import { shouldHighlightWorkbenchCode } from "@/components/code-highlighting";
+import { languageForFilename, shouldHighlightWorkbenchCode } from "@/components/code-highlighting";
 import { useI18n } from "@/i18n";
 import type { WorkspaceSurfaceProps } from "@/platform/extensions";
 import {
@@ -307,6 +307,7 @@ export function FileSurface({ surface, context }: WorkspaceSurfaceProps<FileSurf
         <VirtualizedTextViewer
           ariaLabel={t("extensions.workspaceFile.source", { name: descriptor.name })}
           document={progressiveText.document}
+          language={languageForFilename(descriptor.name)}
           snapshot={progressiveText.snapshot}
           stage={progressiveText.stage}
           onRetry={progressiveText.retry}
