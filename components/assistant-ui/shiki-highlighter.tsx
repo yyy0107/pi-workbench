@@ -2,6 +2,7 @@
 
 import type { SyntaxHighlighterProps } from "@assistant-ui/react-markdown";
 
+import { MarkdownCodeBlockContent } from "@/components/assistant-ui/markdown-text";
 import { useWorkbenchHighlightedCode } from "@/components/code-highlighting";
 import type { CodeTheme } from "@/extensions/builtin/appearance/appearance-preferences";
 
@@ -32,21 +33,14 @@ export function SyntaxHighlighter({ code, language, components }: SyntaxHighligh
 }
 
 export function CodeThemePreview({ code, language, label, codeTheme }: CodeThemePreviewProps) {
-  const highlightedCode = useWorkbenchHighlightedCode(code, language, codeTheme);
-
   return (
-    <figure aria-label={label} className="bg-muted/30 overflow-hidden rounded-xl border">
-      <figcaption className="text-muted-foreground flex items-center justify-between border-b px-3 py-1.5 text-xs">
-        <span className="font-medium">{label}</span>
-        <span className="font-mono lowercase">{language}</span>
-      </figcaption>
-      <div className="[&>pre]:m-0 [&>pre]:overflow-x-auto [&>pre]:p-3 [&>pre]:leading-relaxed [&>pre]:[font-size:var(--workbench-code-font-size,13px)]">
-        {highlightedCode ?? (
-          <pre>
-            <code>{code}</code>
-          </pre>
-        )}
-      </div>
+    <figure aria-label={label}>
+      <MarkdownCodeBlockContent
+        className="aui-codex-code-preview"
+        code={code}
+        codeTheme={codeTheme}
+        language={language}
+      />
     </figure>
   );
 }

@@ -2,6 +2,12 @@
 
 import type { ComponentType } from "react";
 
+import {
+  MarkdownCodeBlockContent,
+  MarkdownTextContent,
+} from "@/components/assistant-ui/markdown-text";
+import { languageForFilename } from "@/components/code-highlighting";
+
 import type { ArtifactDescriptor, ArtifactRendererKind } from "./artifact-preview-service";
 
 export interface ArtifactRendererProps {
@@ -14,6 +20,26 @@ function TextArtifactRenderer({ artifact }: ArtifactRendererProps) {
     <pre className="size-full overflow-auto whitespace-pre-wrap p-4 font-mono text-xs leading-6">
       {artifact.content ?? ""}
     </pre>
+  );
+}
+
+function MarkdownArtifactRenderer({ artifact }: ArtifactRendererProps) {
+  return (
+    <div className="size-full overflow-auto px-6 py-5">
+      <MarkdownTextContent text={artifact.content ?? ""} defer={false} mode="static" />
+    </div>
+  );
+}
+
+function CodeArtifactRenderer({ artifact }: ArtifactRendererProps) {
+  return (
+    <div className="size-full overflow-auto p-4">
+      <MarkdownCodeBlockContent
+        className="aui-codex-code-preview"
+        code={artifact.content ?? ""}
+        language={languageForFilename(artifact.title)}
+      />
+    </div>
   );
 }
 
@@ -38,7 +64,17 @@ function PdfArtifactRenderer({ artifact }: ArtifactRendererProps) {
 }
 
 function HtmlArtifactRenderer({ artifact, mode }: ArtifactRendererProps) {
-  if (mode === "source") return <TextArtifactRenderer artifact={artifact} mode={mode} />;
+  if (mode === "source") {
+    return (
+      <div className="size-full overflow-auto p-4">
+        <MarkdownCodeBlockContent
+          className="aui-codex-code-preview"
+          code={artifact.content ?? ""}
+          language="html"
+        />
+      </div>
+    );
+  }
   return (
     <iframe
       sandbox="allow-forms allow-scripts"
@@ -61,9 +97,21 @@ const textDefinition: ArtifactRendererDefinition = {
   supportsSource: false,
 };
 
+const codeDefinition: ArtifactRendererDefinition = {
+  render: CodeArtifactRenderer,
+  supportsAnnotation: true,
+  supportsSource: false,
+};
+
+const markdownDefinition: ArtifactRendererDefinition = {
+  render: MarkdownArtifactRenderer,
+  supportsAnnotation: true,
+  supportsSource: false,
+};
+
 export const artifactRendererRegistry = {
-  markdown: textDefinition,
-  code: textDefinition,
+  markdown: markdownDefinition,
+  code: codeDefinition,
   image: {
     render: ImageArtifactRenderer,
     supportsAnnotation: true,

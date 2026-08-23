@@ -23,7 +23,6 @@ import {
   useAuiState,
 } from "@assistant-ui/react";
 import { useRef } from "react";
-import "@assistant-ui/react-markdown/styles/dot.css";
 
 import { Button } from "@/components/ui/button";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
