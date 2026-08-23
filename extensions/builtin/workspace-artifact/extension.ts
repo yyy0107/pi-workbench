@@ -3,7 +3,6 @@ import { FileOutputIcon } from "lucide-react";
 import type { WorkspaceSurfaceDefinition } from "@/platform/extensions";
 import { createLazyWorkspaceSurface, defineExtension } from "@/platform/extensions";
 
-import { ArtifactMenuItem } from "./artifact-menu-item";
 import { ArtifactRuntimeBridge } from "./artifact-runtime-bridge";
 import type { ArtifactSurfaceParams } from "./artifact-surface";
 
@@ -16,6 +15,7 @@ export const artifactSurfaceDefinition = {
   kind: "artifact",
   icon: FileOutputIcon,
   cachePolicy: "keep-alive",
+  persistence: "session",
   allowDuplicateResources: false,
   getResourceKey: (params, context) =>
     `artifact:${encodeURIComponent(context.threadId ?? "application")}:${encodeURIComponent(params.artifactId)}`,
@@ -24,7 +24,6 @@ export const artifactSurfaceDefinition = {
     key: context.threadId ?? context.applicationId,
   }),
   render: ArtifactSurface,
-  menuItem: ArtifactMenuItem,
   runtime: ArtifactRuntimeBridge,
 } satisfies WorkspaceSurfaceDefinition<ArtifactSurfaceParams>;
 

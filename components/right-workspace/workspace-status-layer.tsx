@@ -11,11 +11,12 @@ import {
 import { useI18n } from "@/i18n";
 
 import type { WorkspaceSurfaceInstance } from "./core/surface-types";
-import { useRightWorkspace } from "./workspace-context";
 
-export function WorkspaceStatusLayer({ surface }: Readonly<{ surface: WorkspaceSurfaceInstance }>) {
+export function WorkspaceStatusLayer({
+  surface,
+  onRetry,
+}: Readonly<{ surface: WorkspaceSurfaceInstance; onRetry(): void }>) {
   const { t } = useI18n();
-  const controller = useRightWorkspace();
 
   if (surface.status === "idle" || surface.status === "ready") return null;
 
@@ -64,13 +65,14 @@ export function WorkspaceStatusLayer({ surface }: Readonly<{ surface: WorkspaceS
       <p className={blocking ? "text-muted-foreground text-sm" : "min-w-0 flex-1"}>
         {state.message}
       </p>
+      {surface.statusMessage ? (
+        <p className="text-foreground/75 max-w-lg break-words text-xs">{surface.statusMessage}</p>
+      ) : null}
       {surface.status !== "loading" ? (
         <button
           type="button"
           className="hover:bg-muted h-7 rounded-lg border px-2.5 text-xs"
-          onClick={() =>
-            controller.update(surface.id, { status: "ready", statusMessage: undefined })
-          }
+          onClick={onRetry}
         >
           {t("rightWorkspace.status.retry")}
         </button>

@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowLeftIcon, ArrowRightIcon, Globe2Icon, RefreshCwIcon } from "lucide-react";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { useI18n } from "@/i18n";
 import type { WorkspaceSurfaceProps } from "@/platform/extensions";
@@ -15,7 +15,10 @@ export interface BrowserSurfaceParams extends Record<string, unknown> {
   url?: string;
 }
 
-export function BrowserSurface({ surface }: WorkspaceSurfaceProps<BrowserSurfaceParams>) {
+export function BrowserSurface({
+  surface,
+  retryToken = 0,
+}: WorkspaceSurfaceProps<BrowserSurfaceParams>) {
   const { t } = useI18n();
   const controller = useRightWorkspace();
   useSyncExternalStore(browser.subscribe.bind(browser), browser.getRevision.bind(browser), () => 0);
@@ -26,15 +29,8 @@ export function BrowserSurface({ surface }: WorkspaceSurfaceProps<BrowserSurface
     if (session?.url) setAddress(session.url);
   }, [session?.url]);
 
-  if (!session) {
-    return (
-      <div className="text-muted-foreground flex h-full items-center justify-center p-8 text-center text-sm">
-        {t("rightWorkspace.status.disconnected")}
-      </div>
-    );
-  }
-
   const navigate = () => {
+    if (!session) return;
     controller.update(surface.id, { status: "loading" });
     void browser
       .navigate(session.id, address)
@@ -52,6 +48,21 @@ export function BrowserSurface({ surface }: WorkspaceSurfaceProps<BrowserSurface
         }),
       );
   };
+  const retryNavigate = useRef(navigate);
+  retryNavigate.current = navigate;
+
+  useEffect(() => {
+    if (retryToken === 0) return;
+    retryNavigate.current();
+  }, [retryToken]);
+
+  if (!session) {
+    return (
+      <div className="text-muted-foreground flex h-full items-center justify-center p-8 text-center text-sm">
+        {t("rightWorkspace.status.disconnected")}
+      </div>
+    );
+  }
 
   return (
     <section className="flex h-full min-h-0 flex-col">

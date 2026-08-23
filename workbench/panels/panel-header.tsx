@@ -27,8 +27,7 @@ export function PanelHeader({ title, icon: Icon, onClose, className }: PanelHead
           tooltip={t("workbench.panels.closePanel")}
           type="button"
           variant="ghost"
-          size="icon"
-          className="size-7"
+          size="icon-sm"
           onClick={onClose}
         >
           <XIcon className="size-4" />

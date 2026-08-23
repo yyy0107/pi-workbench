@@ -15,6 +15,12 @@ export const rightWorkspaceZhCN = {
   closeToRight: "关闭右侧标签",
   closeOthers: "关闭其它标签",
   closeAll: "关闭全部表面",
+  discardUnsavedTitle: "要丢弃未保存的更改吗？",
+  confirmDiscardUnsaved: ({ count }: { count: number }, { number }: MessageFormatters) =>
+    `${number(count)} 个表面包含未保存的更改。仍要关闭并丢弃这些更改吗？`,
+  keepEditing: "继续编辑",
+  discardAndClose: "丢弃并关闭",
+  closeDiscardDialog: "关闭丢弃更改确认框",
   pin: "固定表面",
   unpin: "取消固定表面",
   empty: {

@@ -2,7 +2,10 @@
 
 import type { RefObject } from "react";
 
-import { useCollapsibleResize } from "@/hooks/use-collapsible-resize";
+import {
+  resolveCollapsibleResizePreview,
+  useCollapsibleResize,
+} from "@/hooks/use-collapsible-resize";
 import { useI18n } from "@/i18n";
 
 import { DEFAULT_RIGHT_WORKSPACE_WIDTH, MIN_RIGHT_WORKSPACE_WIDTH } from "./core/workspace-store";
@@ -29,7 +32,19 @@ export function WorkspaceResizeHandle({
     getRenderedWidth: () => workspaceRef.current?.getBoundingClientRect().width || width,
     getSnapPoints: () => [DEFAULT_RIGHT_WORKSPACE_WIDTH, WIDE_RIGHT_WORKSPACE_WIDTH],
     onPreview: (nextWidth) => {
-      workspaceRef.current?.style.setProperty("--right-workspace-width", `${nextWidth}px`);
+      const preview = resolveCollapsibleResizePreview(nextWidth, MIN_RIGHT_WORKSPACE_WIDTH, -1);
+      workspaceRef.current?.style.setProperty(
+        "--right-workspace-layout-width",
+        `${preview.layoutWidth}px`,
+      );
+      workspaceRef.current?.style.setProperty(
+        "--right-workspace-content-width",
+        `${preview.contentWidth}px`,
+      );
+      workspaceRef.current?.style.setProperty(
+        "--right-workspace-resize-translate-x",
+        `${preview.translateX}px`,
+      );
     },
     onCommit: controller.setWidth,
     onOpenChange: controller.setWorkspaceOpen,

@@ -30,6 +30,7 @@ import { WorkspaceEmptyState } from "./workspace-empty-state";
 import { SurfaceHeaderHost } from "./surface-header-host";
 import { WorkspaceSplitResizeHandle } from "./workspace-split-resize-handle";
 import { WorkspaceStatusLayer } from "./workspace-status-layer";
+import { workspaceTabId, workspaceTabPanelId } from "./workspace-tab-a11y";
 
 interface SurfacePaneProps {
   active?: WorkspaceSurfaceInstance;
@@ -38,6 +39,7 @@ interface SurfacePaneProps {
   definitionByKind: ReadonlyMap<string, AnyWorkspaceSurfaceDefinition>;
   empty?: ReactNode;
   surfaces: readonly WorkspaceSurfaceInstance[];
+  tabbed?: boolean;
 }
 
 function SurfacePane({
@@ -47,8 +49,11 @@ function SurfacePane({
   definitionByKind,
   empty,
   surfaces,
+  tabbed = false,
 }: SurfacePaneProps) {
   const { t } = useI18n();
+  const controller = useRightWorkspaceEnvironment().controller;
+  const [retryTokens, setRetryTokens] = useState<Readonly<Record<string, number>>>({});
 
   if (!active) return empty ?? null;
 
@@ -75,6 +80,9 @@ function SurfacePane({
               data-surface-kind={surface.kind}
               data-surface-placement={surface.placement}
               data-state="unavailable"
+              role={tabbed ? "tabpanel" : undefined}
+              id={tabbed ? workspaceTabPanelId(surface.id) : undefined}
+              aria-labelledby={tabbed ? workspaceTabId(surface.id) : undefined}
               className="text-muted-foreground flex size-full items-center justify-center p-8 text-center text-sm"
             >
               <div>
@@ -92,6 +100,9 @@ function SurfacePane({
             data-surface-kind={surface.kind}
             data-surface-placement={surface.placement}
             data-state={isActive ? "active" : "inactive"}
+            role={tabbed ? "tabpanel" : undefined}
+            id={tabbed ? workspaceTabPanelId(surface.id) : undefined}
+            aria-labelledby={tabbed ? workspaceTabId(surface.id) : undefined}
             hidden={!isActive}
             inert={!isActive ? true : undefined}
             className="size-full"
@@ -107,13 +118,26 @@ function SurfacePane({
                   </div>
                 }
               >
-                <Surface surface={surface} context={context} />
+                <Surface
+                  surface={surface}
+                  context={context}
+                  retryToken={retryTokens[surface.id] ?? 0}
+                />
               </Suspense>
             </WorkspaceSurfaceBoundary>
           </div>
         );
       })}
-      <WorkspaceStatusLayer surface={active} />
+      <WorkspaceStatusLayer
+        surface={active}
+        onRetry={() => {
+          setRetryTokens((current) => ({
+            ...current,
+            [active.id]: (current[active.id] ?? 0) + 1,
+          }));
+          controller.update(active.id, { status: "ready", statusMessage: undefined });
+        }}
+      />
     </div>
   );
 }
@@ -241,6 +265,7 @@ export function SurfaceHost() {
             definitionByKind={definitionByKind}
             empty={<WorkspaceEmptyState />}
             surfaces={primarySurfaces}
+            tabbed
           />
         </div>
 

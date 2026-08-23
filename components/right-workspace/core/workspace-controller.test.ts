@@ -432,6 +432,38 @@ test("serializable placement metadata survives while its extension is unavailabl
   );
 });
 
+test("session-only surfaces do not restore disconnected tabs after reload", () => {
+  const storage = new MemoryStorage();
+  const registry = createRegistry();
+  registry.register({
+    kind: "browser",
+    icon: PanelsTopLeftIcon,
+    cachePolicy: "keep-alive",
+    persistence: "session",
+    getResourceKey: (params) => `browser:${String(params.sessionId)}`,
+    render: () => null,
+  });
+  const store = createRightWorkspaceStore();
+  const controller = new DefaultRightWorkspaceController(store, registry);
+  controller.hydrate(storage);
+  controller.open({
+    kind: "browser",
+    title: "Browser",
+    params: { sessionId: "memory-only" },
+    context,
+  });
+
+  const serialized = storage.values.get(RIGHT_WORKSPACE_STORAGE_KEY);
+  assert.ok(serialized);
+  assert.deepEqual(JSON.parse(serialized).surfaces, []);
+  assert.equal(JSON.parse(serialized).open, false);
+
+  const restoredStore = createRightWorkspaceStore();
+  new DefaultRightWorkspaceController(restoredStore, registry).hydrate(storage);
+  assert.deepEqual(restoredStore.getState().surfaceOrder, []);
+  assert.equal(restoredStore.getState().open, false);
+});
+
 test("legacy hydration reconciles an existing resource to its registered placement", () => {
   const storage = new MemoryStorage();
   const surfaceId = "explorer:legacy";

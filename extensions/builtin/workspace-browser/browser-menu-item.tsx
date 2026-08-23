@@ -17,7 +17,6 @@ export function BrowserMenuItem({ closeMenu }: WorkspaceSurfaceMenuItemProps) {
   return (
     <Button
       type="button"
-      role="menuitem"
       variant="ghost"
       className="h-9 w-full justify-start gap-3 rounded-xl px-2.5 font-normal"
       onClick={() => {

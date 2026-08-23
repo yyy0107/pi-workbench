@@ -13,7 +13,7 @@ export function WorkspaceEmptyState() {
   return (
     <div className="flex size-full items-center justify-center px-8 py-16">
       <div
-        role="menu"
+        role="group"
         aria-label={t("rightWorkspace.addSurface")}
         className="flex w-full max-w-md flex-col gap-2"
       >

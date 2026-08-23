@@ -3,6 +3,7 @@
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useI18n } from "@/i18n";
 import { ExtensionErrorBoundary, useExtensionErrorReporter } from "@/platform/extensions";
@@ -45,15 +46,21 @@ export function WorkspaceAddMenu() {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
-        type="button"
-        aria-label={t("rightWorkspace.addSurface")}
-        title={t("rightWorkspace.addSurface")}
-        className="text-muted-foreground hover:bg-muted hover:text-foreground inline-flex size-8 shrink-0 items-center justify-center rounded-lg"
+        render={
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label={t("rightWorkspace.addSurface")}
+            title={t("rightWorkspace.addSurface")}
+            className="text-muted-foreground hover:text-foreground"
+          />
+        }
       >
         <PlusIcon className="size-4" />
       </PopoverTrigger>
       <PopoverContent
-        role="menu"
+        role="group"
         aria-label={t("rightWorkspace.addSurface")}
         align="start"
         side="bottom"

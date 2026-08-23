@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useLayoutEffect, useMemo, useState, type ReactNode } from "react";
 
 import type { OpenerRegistry } from "@/platform/extensions";
 import { DefaultOpenerService } from "@/services/opener-service";
@@ -36,7 +36,7 @@ export function RightWorkspaceProvider({
   );
   const [context, setContext] = useState<WorkspaceContext>(DEFAULT_CONTEXT);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     controller.hydrate(window.localStorage);
   }, [controller]);
 

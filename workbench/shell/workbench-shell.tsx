@@ -3,8 +3,13 @@
 import { useRef, useState, type CSSProperties, type ReactNode } from "react";
 
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { RightWorkspace, RightWorkspaceToggleButton } from "@/components/right-workspace";
-import { useRightWorkspaceState } from "@/components/right-workspace/workspace-context";
+import {
+  RIGHT_WORKSPACE_OVERLAY_MEDIA_QUERY,
+  RightWorkspace,
+  RightWorkspaceToggleButton,
+  useRightWorkspaceState,
+} from "@/components/right-workspace";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
 import { SlotHost } from "@/platform/extensions";
 
@@ -25,7 +30,8 @@ export function WorkbenchShell({ children }: Readonly<{ children: ReactNode }>) 
   const shellRef = useRef<HTMLDivElement>(null);
   const workspaceOpen = useRightWorkspaceState((state) => state.open);
   const workspaceMaximized = useRightWorkspaceState((state) => state.maximized);
-  const conversationHidden = workspaceOpen && workspaceMaximized;
+  const workspaceOverlay = useMediaQuery(RIGHT_WORKSPACE_OVERLAY_MEDIA_QUERY);
+  const conversationHidden = workspaceOpen && (workspaceMaximized || workspaceOverlay);
 
   const resizeSidebar = (width: number) => {
     const viewportMaximum = Math.floor(window.innerWidth / 2);
@@ -40,7 +46,20 @@ export function WorkbenchShell({ children }: Readonly<{ children: ReactNode }>) 
       className="bg-background text-foreground relative isolate h-dvh min-h-0 overflow-hidden"
       data-workbench-shell=""
       data-workbench-surface="shell"
-      style={{ "--sidebar-width": `${sidebarWidth}px` } as CSSProperties}
+      style={
+        {
+          "--sidebar-width": `${sidebarWidth}px`,
+          "--sidebar-content-width": `${sidebarWidth}px`,
+          "--sidebar-resize-translate-x": "0px",
+          "--desktop-window-controls-inset-end":
+            "calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw))",
+          "--right-workspace-toggle-closed-inset-end":
+            "calc(0.75rem + var(--desktop-window-controls-inset-end))",
+          "--right-workspace-toggle-open-inset-end":
+            "calc(0.75rem + min(var(--desktop-window-controls-inset-end), max(0px, calc(2.25rem - env(titlebar-area-height, 0px)))))",
+          "--right-workspace-toggle-reserved-width": "2.375rem",
+        } as CSSProperties
+      }
     >
       <SlotHost
         name="shell.background"
@@ -71,7 +90,14 @@ export function WorkbenchShell({ children }: Readonly<{ children: ReactNode }>) 
           <WorkbenchStatusbar />
         </div>
         <RightWorkspace />
-        <RightWorkspaceToggleButton className="absolute end-3 top-1 z-30" />
+        <RightWorkspaceToggleButton
+          className={cn(
+            "absolute z-30",
+            workspaceOpen
+              ? "[inset-block-start:calc(env(titlebar-area-height,0px)_+_0.25rem)] [inset-inline-end:var(--right-workspace-toggle-open-inset-end)]"
+              : "top-1 [inset-inline-end:var(--right-workspace-toggle-closed-inset-end)]",
+          )}
+        />
       </div>
 
       <WorkbenchGlobalLayer />

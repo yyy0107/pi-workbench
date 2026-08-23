@@ -145,6 +145,8 @@ export function CodeDiff({
           display: block;
           width: max-content;
           min-width: 100%;
+          font-size: 0;
+          line-height: 0;
         }
         ${rootSelector} [data-diff-code] .line {
           position: relative;
@@ -152,6 +154,7 @@ export function CodeDiff({
           min-height: 28px;
           padding-inline-start: 84px;
           padding-inline-end: 24px;
+          font-size: 13px;
           line-height: 28px;
           white-space: pre;
         }

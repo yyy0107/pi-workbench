@@ -99,16 +99,30 @@ function resolvePlacement(
   return placement;
 }
 
-function persistedState(state: RightWorkspaceState): PersistedRightWorkspaceState {
+function persistedState(
+  state: RightWorkspaceState,
+  registry: WorkspaceSurfaceRegistry,
+): PersistedRightWorkspaceState {
+  const surfaceOrder = state.surfaceOrder.filter((id) => {
+    const surface = state.surfaces[id];
+    return surface && registry.get(surface.kind)?.persistence !== "session";
+  });
+  const surfaces = surfaceOrder.flatMap((id) => (state.surfaces[id] ? [state.surfaces[id]] : []));
+  const activeSurfaceId = surfaceOrder.includes(state.activeSurfaceId ?? "")
+    ? state.activeSurfaceId
+    : (surfaceOrder.findLast((id) => state.surfaces[id]?.placement === "primary") ?? null);
+  const activeAuxiliarySurfaceId = surfaceOrder.includes(state.activeAuxiliarySurfaceId ?? "")
+    ? state.activeAuxiliarySurfaceId
+    : (surfaceOrder.findLast((id) => state.surfaces[id]?.placement === "auxiliary") ?? null);
   return {
-    open: state.open,
+    open: state.open && (surfaces.length > 0 || state.surfaceOrder.length === 0),
     width: state.width,
-    activeSurfaceId: state.activeSurfaceId,
-    activeAuxiliarySurfaceId: state.activeAuxiliarySurfaceId,
+    activeSurfaceId,
+    activeAuxiliarySurfaceId,
     auxiliaryOpen: state.auxiliaryOpen,
     auxiliaryWidth: state.auxiliaryWidth,
-    surfaceOrder: [...state.surfaceOrder],
-    surfaces: state.surfaceOrder.flatMap((id) => (state.surfaces[id] ? [state.surfaces[id]] : [])),
+    surfaceOrder,
+    surfaces,
   };
 }
 
@@ -158,6 +172,7 @@ function parsePersistedState(
     if (!isRecord(value) || !Array.isArray(value.surfaces)) return undefined;
     const surfaces = value.surfaces
       .filter((surface) => isSurface(surface))
+      .filter((surface) => registry.get(surface.kind)?.persistence !== "session")
       .map((surface) => ({
         ...surface,
         placement: isPlacement(surface.placement)
@@ -596,7 +611,7 @@ export class DefaultRightWorkspaceController implements RightWorkspaceController
     try {
       this.#storage.setItem(
         RIGHT_WORKSPACE_STORAGE_KEY,
-        JSON.stringify(persistedState(this.#store.getState())),
+        JSON.stringify(persistedState(this.#store.getState(), this.#registry)),
       );
     } catch {
       // Layout restoration is best effort when browser storage is unavailable.

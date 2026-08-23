@@ -16,6 +16,12 @@ const DEFAULT_RELEASE_DISTANCE = 24;
 
 type ResizeDirection = -1 | 1;
 
+export interface CollapsibleResizePreview {
+  layoutWidth: number;
+  contentWidth: number;
+  translateX: number;
+}
+
 interface ResizeSession {
   pointerId: number;
   startX: number;
@@ -57,6 +63,22 @@ export function resolveCollapsibleResizeThreshold(
     ? Math.min(1, Math.max(0, collapseRatio))
     : DEFAULT_COLLAPSE_RATIO;
   return minimum * (1 - ratio);
+}
+
+export function resolveCollapsibleResizePreview(
+  width: number,
+  minimumWidth: number,
+  direction: ResizeDirection,
+): CollapsibleResizePreview {
+  const layoutWidth = Number.isFinite(width) ? Math.max(0, width) : 0;
+  const minimum = Number.isFinite(minimumWidth) ? Math.max(0, minimumWidth) : 0;
+  const contentWidth = Math.max(layoutWidth, minimum);
+
+  return {
+    layoutWidth,
+    contentWidth,
+    translateX: (layoutWidth - contentWidth) * direction,
+  };
 }
 
 export function useCollapsibleResize(options: UseCollapsibleResizeOptions): {

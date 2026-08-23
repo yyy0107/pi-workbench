@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
 
 import { CommandService } from "@/services/command-service";
 import { NavigationService } from "@/services/navigation-service";
@@ -97,7 +97,7 @@ export function ExtensionProvider({
     [onError],
   );
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     synchronizeExtensions(manager, extensions, onError);
     return () => {
       try {

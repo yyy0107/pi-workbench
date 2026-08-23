@@ -3,6 +3,7 @@
 import { PlusIcon } from "lucide-react";
 import { useCallback, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useI18n } from "@/i18n";
 import { SlotHost } from "@/platform/extensions";
@@ -19,12 +20,18 @@ export function RightPanelAddMenu({ activePanelId }: RightPanelAddMenuProps) {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
-        type="button"
-        aria-label={t("workbench.panels.addTab")}
-        title={t("workbench.panels.addTab")}
-        className="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 ml-1 inline-flex size-8 shrink-0 items-center justify-center rounded-xl border border-transparent outline-none transition-colors focus-visible:ring-3"
+        render={
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label={t("workbench.panels.addTab")}
+            title={t("workbench.panels.addTab")}
+            className="text-muted-foreground hover:text-foreground ml-1 rounded-xl"
+          />
+        }
       >
-        <PlusIcon className="size-[18px]" />
+        <PlusIcon className="size-4" />
       </PopoverTrigger>
       <PopoverContent
         role="menu"

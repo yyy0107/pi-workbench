@@ -101,6 +101,8 @@ function ReviewableDiffHunkCode({ filename, hunk }: { filename: string; hunk: Di
           display: block;
           width: max-content;
           min-width: 100%;
+          font-size: 0;
+          line-height: 0;
         }
         ${rootSelector} [data-reviewable-diff-code] .line {
           position: relative;
@@ -108,6 +110,7 @@ function ReviewableDiffHunkCode({ filename, hunk }: { filename: string; hunk: Di
           min-height: 24px;
           padding-inline-start: 68px;
           padding-inline-end: 16px;
+          font-size: 12px;
           line-height: 24px;
           white-space: pre;
         }

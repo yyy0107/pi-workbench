@@ -60,13 +60,13 @@ export function RightPanelTabs() {
       <Button
         type="button"
         variant="ghost"
-        size="icon-sm"
+        size="icon"
         aria-label={t("workbench.panels.collapseRight")}
         title={t("workbench.panels.collapseRight")}
         className="text-muted-foreground hover:bg-muted hover:text-foreground ml-1 shrink-0 rounded-xl"
         onClick={collapse}
       >
-        <PanelRightCloseIcon className="size-[18px]" />
+        <PanelRightCloseIcon className="size-4" />
       </Button>
     </header>
   );

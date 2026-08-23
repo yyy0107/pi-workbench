@@ -11,7 +11,16 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useI18n } from "@/i18n";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { cn } from "@/lib/utils";
 
 import { selectActiveSurface, selectContextSurfacesByPlacement } from "./core/workspace-selectors";
@@ -22,6 +31,7 @@ import {
   useWorkspaceContext,
   useWorkspaceSurfaceDefinitions,
 } from "./workspace-context";
+import { nextWorkspaceTabIndex, workspaceTabId, workspaceTabPanelId } from "./workspace-tab-a11y";
 import { workspaceTabScrollDelta } from "./workspace-tab-layout";
 
 type DropPosition = "before" | "after";
@@ -40,6 +50,11 @@ type PointerDragCandidate = {
   startY: number;
   surfaceId: string;
   width: number;
+};
+type PendingSurfaceClose = {
+  closedSurfaceIds: readonly string[];
+  close: () => void;
+  holdWidthsForPointer: boolean;
 };
 
 const TAB_LAYOUT_ANIMATION_DURATION_MS = 180;
@@ -105,6 +120,7 @@ function horizontalDropPosition(clientX: number, element: HTMLElement): DropPosi
 
 export function WorkspaceTabs() {
   const { t } = useI18n();
+  const reduceMotion = useReducedMotion();
   const controller = useRightWorkspace();
   const environment = useRightWorkspaceEnvironment();
   const context = useWorkspaceContext();
@@ -114,6 +130,7 @@ export function WorkspaceTabs() {
     (state) => selectActiveSurface(state, context)?.id ?? null,
   );
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [pendingClose, setPendingClose] = useState<PendingSurfaceClose>();
   const draggingIdRef = useRef<string | null>(null);
   const pointerDragCandidate = useRef<PointerDragCandidate | null>(null);
   const suppressedClick = useRef<{ surfaceId: string; until: number } | null>(null);
@@ -139,6 +156,20 @@ export function WorkspaceTabs() {
         "primary",
       ),
     [context, environment.store, surfaceOrder, surfacesById],
+  );
+  const focusTabAt = useCallback(
+    (index: number) => {
+      const surface = surfaces[index];
+      if (!surface) return;
+      controller.focus(surface.id);
+      window.requestAnimationFrame(() => {
+        tabElements.current
+          .get(surface.id)
+          ?.querySelector<HTMLButtonElement>('[role="tab"]')
+          ?.focus();
+      });
+    },
+    [controller, surfaces],
   );
   const captureTabLayouts = useCallback(() => {
     const layouts = new Map<string, TabLayout>();
@@ -203,7 +234,7 @@ export function WorkspaceTabs() {
     for (const [, element] of elements) element.style.removeProperty("transition-property");
     list?.style.removeProperty("transition-property");
 
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (reduceMotion) {
       for (const [, element] of elements) element.style.removeProperty("flex");
       list?.style.removeProperty("padding-inline-end");
       return;
@@ -255,7 +286,7 @@ export function WorkspaceTabs() {
     } else {
       list?.style.removeProperty("padding-inline-end");
     }
-  }, [captureTabLayouts]);
+  }, [captureTabLayouts, reduceMotion]);
   const scheduleTabWidthRelease = useCallback(() => {
     const startedAt = tabWidthLockStartedAt.current;
     if (startedAt === null) return;
@@ -315,6 +346,22 @@ export function WorkspaceTabs() {
       if (!holdWidthsForPointer) scheduleTabWidthRelease();
     },
     [cancelTabAnimations, cancelTabWidthAnimations, captureTabLayouts, scheduleTabWidthRelease],
+  );
+  const requestCloseWithTabAnimation = useCallback(
+    (closedSurfaceIds: readonly string[], close: () => void, holdWidthsForPointer: boolean) => {
+      const dirtyCount = closedSurfaceIds.reduce(
+        (count, surfaceId) => count + (surfacesById[surfaceId]?.dirty ? 1 : 0),
+        0,
+      );
+      if (dirtyCount > 0) {
+        // The close is deferred until the dialog action, so pointer-hover width
+        // locking must not outlive the original tab interaction.
+        setPendingClose({ closedSurfaceIds, close, holdWidthsForPointer: false });
+        return;
+      }
+      closeWithTabAnimation(closedSurfaceIds, close, holdWidthsForPointer);
+    },
+    [closeWithTabAnimation, surfacesById],
   );
   const previewReorder = useCallback(
     (targetId: string, position: DropPosition) => {
@@ -380,7 +427,7 @@ export function WorkspaceTabs() {
     for (const element of tabElements.current.values()) {
       element.style.removeProperty("transition-property");
     }
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (reduceMotion) return;
 
     for (const surface of surfaces) {
       const element = tabElements.current.get(surface.id);
@@ -404,7 +451,7 @@ export function WorkspaceTabs() {
         }
       });
     }
-  }, [draggingId, positionDragOverlay, surfaces]);
+  }, [draggingId, positionDragOverlay, reduceMotion, surfaces]);
 
   useLayoutEffect(() => {
     if (!activeSurfaceId) return;
@@ -616,7 +663,10 @@ export function WorkspaceTabs() {
                   <button
                     type="button"
                     role="tab"
+                    id={workspaceTabId(surface.id)}
+                    aria-controls={workspaceTabPanelId(surface.id)}
                     aria-selected={active}
+                    tabIndex={active ? 0 : -1}
                     title={surface.title}
                     className="flex h-full min-w-0 flex-1 items-center gap-2 rounded-s-lg ps-2.5 pe-1 outline-none group-hover/tab:pe-8 group-focus-within/tab:pe-8 group-data-[state=active]/tab:pe-8 focus-visible:ring-2 focus-visible:ring-inset"
                     onClick={(event) => {
@@ -631,6 +681,22 @@ export function WorkspaceTabs() {
                         return;
                       }
                       controller.focus(surface.id);
+                    }}
+                    onKeyDown={(event) => {
+                      const direction =
+                        getComputedStyle(tabListElement.current ?? event.currentTarget)
+                          .direction === "rtl"
+                          ? "rtl"
+                          : "ltr";
+                      const nextIndex = nextWorkspaceTabIndex(
+                        event.key,
+                        surfaceIndex,
+                        surfaces.length,
+                        direction,
+                      );
+                      if (nextIndex === undefined) return;
+                      event.preventDefault();
+                      focusTabAt(nextIndex);
                     }}
                   >
                     <Icon className="size-3.5 shrink-0" />
@@ -654,11 +720,12 @@ export function WorkspaceTabs() {
                     aria-label={t("rightWorkspace.closeTab", { title: surface.title })}
                     title={t("rightWorkspace.closeTab", { title: surface.title })}
                     data-workspace-tab-close="true"
+                    tabIndex={active ? 0 : -1}
                     className="group/tab-close text-foreground/65 hover:bg-transparent hover:text-foreground pointer-events-none absolute end-[2px] top-1/2 z-10 -translate-y-1/2 rounded-md opacity-0 transition-colors duration-75 group-hover/tab:pointer-events-auto group-hover/tab:opacity-100 group-focus-within/tab:pointer-events-auto group-focus-within/tab:opacity-100 group-data-[state=active]/tab:pointer-events-auto group-data-[state=active]/tab:opacity-100 focus-visible:bg-transparent focus-visible:text-foreground focus-visible:opacity-100 active:-translate-y-1/2! dark:hover:bg-transparent dark:focus-visible:bg-transparent"
                     onPointerUp={(event) => {
                       if (!event.isPrimary || event.button !== 0) return;
                       event.preventDefault();
-                      closeWithTabAnimation(
+                      requestCloseWithTabAnimation(
                         [surface.id],
                         () => controller.close(surface.id),
                         event.pointerType === "mouse",
@@ -666,7 +733,7 @@ export function WorkspaceTabs() {
                     }}
                     onClick={(event) => {
                       if (event.detail !== 0) return;
-                      closeWithTabAnimation(
+                      requestCloseWithTabAnimation(
                         [surface.id],
                         () => controller.close(surface.id),
                         false,
@@ -684,7 +751,11 @@ export function WorkspaceTabs() {
                 <ContextMenuContent>
                   <ContextMenuItem
                     onClick={() =>
-                      closeWithTabAnimation([surface.id], () => controller.close(surface.id), false)
+                      requestCloseWithTabAnimation(
+                        [surface.id],
+                        () => controller.close(surface.id),
+                        false,
+                      )
                     }
                   >
                     {t("rightWorkspace.closeTabAction")}
@@ -692,7 +763,7 @@ export function WorkspaceTabs() {
                   <ContextMenuItem
                     disabled={!canCloseToRight}
                     onClick={() =>
-                      closeWithTabAnimation(
+                      requestCloseWithTabAnimation(
                         surfaces.slice(surfaceIndex + 1).map((candidate) => candidate.id),
                         () => controller.closeToRight(surface.id, context),
                         false,
@@ -704,7 +775,7 @@ export function WorkspaceTabs() {
                   <ContextMenuItem
                     disabled={!canCloseOthers}
                     onClick={() =>
-                      closeWithTabAnimation(
+                      requestCloseWithTabAnimation(
                         surfaces
                           .filter((candidate) => candidate.id !== surface.id)
                           .map((candidate) => candidate.id),
@@ -752,6 +823,52 @@ export function WorkspaceTabs() {
             document.body,
           )
         : null}
+      <Dialog
+        open={pendingClose !== undefined}
+        onOpenChange={(open) => {
+          if (!open) setPendingClose(undefined);
+        }}
+      >
+        <DialogContent closeLabel={t("rightWorkspace.closeDiscardDialog")}>
+          <DialogHeader>
+            <DialogTitle>{t("rightWorkspace.discardUnsavedTitle")}</DialogTitle>
+            <DialogDescription>
+              {t("rightWorkspace.confirmDiscardUnsaved", {
+                count:
+                  pendingClose?.closedSurfaceIds.reduce(
+                    (count, surfaceId) => count + (surfacesById[surfaceId]?.dirty ? 1 : 0),
+                    0,
+                  ) ?? 0,
+              })}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter closeLabel={t("rightWorkspace.keepEditing")} className="m-0">
+            <Button
+              type="button"
+              variant="outline"
+              autoFocus
+              onClick={() => setPendingClose(undefined)}
+            >
+              {t("rightWorkspace.keepEditing")}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => {
+                if (!pendingClose) return;
+                setPendingClose(undefined);
+                closeWithTabAnimation(
+                  pendingClose.closedSurfaceIds,
+                  pendingClose.close,
+                  pendingClose.holdWidthsForPointer,
+                );
+              }}
+            >
+              {t("rightWorkspace.discardAndClose")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

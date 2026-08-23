@@ -28,8 +28,18 @@ export function WorkspaceHeader() {
   );
 
   return (
-    <header className="shrink-0">
-      <div className="flex h-10 items-center gap-1.5 ps-2 pe-12">
+    <header className="relative shrink-0 [padding-top:env(titlebar-area-height,0px)]">
+      <div
+        aria-hidden="true"
+        data-workbench-surface="right-workspace-titlebar"
+        className="absolute inset-x-0 top-0 h-[env(titlebar-area-height,0px)] [app-region:drag]"
+      />
+      {/* The persistent shell toggle stays mounted during workspace motion;
+          reserve its 2rem hit target and the 0.375rem control gap here. */}
+      <div
+        data-workbench-surface="right-workspace-header"
+        className="flex h-10 items-center gap-1.5 ps-2 [padding-inline-end:calc(var(--right-workspace-toggle-open-inset-end)_+_var(--right-workspace-toggle-reserved-width))]"
+      >
         <div className="flex min-w-0 flex-1 items-center gap-1">
           {hasSurfaces ? (
             <>
@@ -39,17 +49,18 @@ export function WorkspaceHeader() {
           ) : null}
         </div>
         <Button
+          data-workbench-surface="right-workspace-maximize"
           type="button"
           variant="ghost"
-          size="icon-xs"
+          size="icon"
           aria-label={state.maximized ? t("rightWorkspace.restore") : t("rightWorkspace.maximize")}
           title={state.maximized ? t("rightWorkspace.restore") : t("rightWorkspace.maximize")}
           onClick={() => controller.setMaximized(!state.maximized)}
         >
           {state.maximized ? (
-            <Minimize2Icon className="size-3.5" />
+            <Minimize2Icon className="size-4" viewBox="-2 -2 28 28" />
           ) : (
-            <Maximize2Icon className="size-3.5" />
+            <Maximize2Icon className="size-4" viewBox="-2 -2 28 28" />
           )}
         </Button>
         <SlotHost

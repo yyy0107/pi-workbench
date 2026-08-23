@@ -21,12 +21,12 @@ function SidebarOpenButton() {
     <Button
       type="button"
       variant="ghost"
-      size="icon-sm"
+      size="icon"
       aria-label={isMobile ? t("workbench.sidebar.openMobile") : t("workbench.sidebar.expand")}
       title={isMobile ? t("workbench.sidebar.openMobile") : t("workbench.sidebar.expand")}
       onClick={toggleSidebar}
     >
-      <PanelLeftOpenIcon className="size-[18px]" />
+      <PanelLeftOpenIcon className="size-4" />
     </Button>
   );
 }
@@ -46,8 +46,10 @@ export function WorkbenchHeader() {
     <header
       data-workbench-surface="header"
       className={cn(
-        "bg-background grid h-10 shrink-0 grid-cols-[1fr_auto_1fr] items-center border-b ps-3",
-        workspaceOpen ? "pe-3" : "pe-12",
+        "bg-background grid h-10 shrink-0 grid-cols-[1fr_auto_1fr] items-center border-b ps-3 [app-region:drag] select-none [&_a]:[app-region:no-drag] [&_[data-slot=button]]:[app-region:no-drag]",
+        workspaceOpen
+          ? "pe-3"
+          : "[padding-inline-end:calc(var(--right-workspace-toggle-closed-inset-end)_+_var(--right-workspace-toggle-reserved-width))]",
       )}
     >
       <div className="flex min-w-0 items-center gap-2">

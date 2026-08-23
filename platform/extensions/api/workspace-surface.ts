@@ -58,6 +58,8 @@ export interface WorkspaceSurfaceProps<
 > {
   surface: WorkspaceSurfaceInstance<P>;
   context: WorkspaceContext;
+  /** Increments when the host asks an error state to retry its last resource operation. */
+  retryToken?: number;
 }
 
 export interface WorkspaceSurfaceMenuItemProps {
@@ -65,6 +67,7 @@ export interface WorkspaceSurfaceMenuItemProps {
 }
 
 export type WorkspaceSurfaceCachePolicy = "unmount" | "keep-alive";
+export type WorkspaceSurfacePersistence = "persistent" | "session";
 
 export type WorkspaceSurfaceRenderer<P extends Record<string, unknown> = Record<string, unknown>> =
   ComponentType<WorkspaceSurfaceProps<P>>;
@@ -77,6 +80,8 @@ export interface WorkspaceSurfaceDefinition<
   /** Icon rendered by the core tab host. */
   icon: LucideIcon;
   cachePolicy: WorkspaceSurfaceCachePolicy;
+  /** Session surfaces depend on in-memory resources and are not restored after a reload. */
+  persistence?: WorkspaceSurfacePersistence;
   /** Default host pane. Omitted definitions render in the primary tabbed pane. */
   defaultPlacement?: WorkspaceSurfacePlacement;
   allowDuplicateResources?: boolean;

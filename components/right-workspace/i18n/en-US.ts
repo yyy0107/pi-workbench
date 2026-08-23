@@ -15,6 +15,14 @@ export const rightWorkspaceEnUS = {
   closeToRight: "Close Tabs to the Right",
   closeOthers: "Close Other Tabs",
   closeAll: "Close all surfaces",
+  discardUnsavedTitle: "Discard unsaved changes?",
+  confirmDiscardUnsaved: ({ count }: { count: number }, { number }: MessageFormatters) =>
+    count === 1
+      ? "This surface has unsaved changes. Close it and discard the changes?"
+      : `${number(count)} surfaces have unsaved changes. Close them and discard the changes?`,
+  keepEditing: "Keep editing",
+  discardAndClose: "Discard and close",
+  closeDiscardDialog: "Close discard confirmation",
   pin: "Pin surface",
   unpin: "Unpin surface",
   empty: {

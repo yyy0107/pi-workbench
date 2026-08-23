@@ -15,6 +15,7 @@ export {
   type WorkspaceSurfaceKind,
   type WorkspaceSurfaceMenuItemProps,
   type WorkspaceSurfacePlacement,
+  type WorkspaceSurfacePersistence,
   type WorkspaceSurfaceProps,
   type WorkspaceSurfaceRegistry,
   type WorkspaceSurfaceStatus,

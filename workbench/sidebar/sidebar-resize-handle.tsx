@@ -3,7 +3,10 @@
 import type { RefObject } from "react";
 
 import { useSidebar } from "@/components/ui/sidebar";
-import { useCollapsibleResize } from "@/hooks/use-collapsible-resize";
+import {
+  resolveCollapsibleResizePreview,
+  useCollapsibleResize,
+} from "@/hooks/use-collapsible-resize";
 import { useI18n } from "@/i18n";
 
 const NORMAL_SIDEBAR_WIDTH = 268;
@@ -39,7 +42,13 @@ export function SidebarResizeHandle({
         : width,
     getSnapPoints: () => [NORMAL_SIDEBAR_WIDTH, WIDE_SIDEBAR_WIDTH],
     onPreview: (nextWidth) => {
-      shellRef.current?.style.setProperty("--sidebar-width", `${nextWidth}px`);
+      const preview = resolveCollapsibleResizePreview(nextWidth, minWidth, 1);
+      shellRef.current?.style.setProperty("--sidebar-width", `${preview.layoutWidth}px`);
+      shellRef.current?.style.setProperty("--sidebar-content-width", `${preview.contentWidth}px`);
+      shellRef.current?.style.setProperty(
+        "--sidebar-resize-translate-x",
+        `${preview.translateX}px`,
+      );
     },
     onCommit: onResize,
     onOpenChange: setOpen,

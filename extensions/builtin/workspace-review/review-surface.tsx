@@ -15,7 +15,10 @@ export interface ReviewSurfaceParams extends Record<string, unknown> {
   revision?: string;
 }
 
-export function ReviewSurface({ surface }: WorkspaceSurfaceProps<ReviewSurfaceParams>) {
+export function ReviewSurface({
+  surface,
+  retryToken = 0,
+}: WorkspaceSurfaceProps<ReviewSurfaceParams>) {
   const { t } = useI18n();
   const controller = useRightWorkspace();
   const revision = useSyncExternalStore(
@@ -45,7 +48,7 @@ export function ReviewSurface({ surface }: WorkspaceSurfaceProps<ReviewSurfacePa
       );
   };
 
-  useEffect(refresh, [revision, surface.resourceKey]);
+  useEffect(refresh, [retryToken, revision, surface.resourceKey]);
 
   return (
     <section className="flex h-full min-h-0 flex-col">

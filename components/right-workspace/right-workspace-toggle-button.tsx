@@ -19,17 +19,20 @@ export function RightWorkspaceToggleButton({ className }: Readonly<{ className?:
       data-workbench-surface="right-workspace-toggle"
       type="button"
       variant="ghost"
-      size="icon-sm"
+      size="icon"
       aria-controls="right-workspace"
       aria-expanded={open}
       aria-label={label}
       title={label}
-      className={cn("text-muted-foreground hover:text-foreground shrink-0", className)}
+      className={cn(
+        "text-muted-foreground hover:text-foreground shrink-0 [app-region:no-drag]",
+        className,
+      )}
       onClick={() => controller.setWorkspaceOpen(!open)}
     >
-      <span aria-hidden="true" className="relative size-[18px]">
-        <PanelRightOpenIcon className={cn("absolute inset-0 size-[18px]", open && "opacity-0")} />
-        <PanelRightCloseIcon className={cn("absolute inset-0 size-[18px]", !open && "opacity-0")} />
+      <span aria-hidden="true" className="relative size-4">
+        <PanelRightOpenIcon className={cn("absolute inset-0 size-4", open && "opacity-0")} />
+        <PanelRightCloseIcon className={cn("absolute inset-0 size-4", !open && "opacity-0")} />
       </span>
     </Button>
   );

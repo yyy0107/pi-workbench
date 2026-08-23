@@ -17,7 +17,7 @@ export function RightPanelToggleButton() {
     <Button
       type="button"
       variant="ghost"
-      size="icon-sm"
+      size="icon"
       disabled={!canToggle}
       aria-label={t("workbench.panels.expandRight")}
       title={t("workbench.panels.expandRight")}
@@ -25,7 +25,7 @@ export function RightPanelToggleButton() {
       className="text-muted-foreground hover:text-foreground"
       onClick={toggle}
     >
-      <PanelRightOpenIcon className="size-[18px]" />
+      <PanelRightOpenIcon className="size-4" />
     </Button>
   );
 }

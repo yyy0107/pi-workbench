@@ -65,12 +65,12 @@ export function RightPanelTab({ definition, isActive, onClose, onSelect }: Right
       <Button
         type="button"
         variant="ghost"
-        size="icon-xs"
+        size="icon-sm"
         aria-label={t("workbench.panels.closeTab", { label })}
         title={t("workbench.panels.closeTab", { label })}
         data-panel-tab-part="close-button"
         className={cn(
-          "text-muted-foreground hover:text-foreground mr-1 size-6 rounded-lg opacity-65 hover:opacity-100 focus-visible:opacity-100",
+          "text-muted-foreground hover:text-foreground mr-1 rounded-lg opacity-65 hover:opacity-100 focus-visible:opacity-100",
           resolveClassName(classNames?.closeButton, styleContext),
         )}
         onClick={onClose}
