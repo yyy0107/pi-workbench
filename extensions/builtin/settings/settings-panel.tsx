@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useI18n } from "@/i18n";
 import {
   ExtensionErrorBoundary,
-  useExtensionEnvironment,
+  useExtensionErrorReporter,
   useSettingsRegistry,
   type SettingsItemDefinition,
   type SettingsSectionDefinition,
@@ -49,7 +49,7 @@ function groupSettingsSections(
 export function SettingsPanel() {
   const { t, text } = useI18n();
   const registry = useSettingsRegistry();
-  const { reportError } = useExtensionEnvironment();
+  const reportError = useExtensionErrorReporter();
   const sections = useSyncExternalStore(
     registry.subscribe,
     registry.getSections,

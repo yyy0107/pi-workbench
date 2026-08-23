@@ -1,7 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDownIcon, ChevronRightIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import {
+  ChevronDownIcon,
+  ChevronRightIcon,
+  ExternalLinkIcon,
+  PlusIcon,
+  Trash2Icon,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -12,7 +18,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { DropdownMenu, DropdownMenuRadioGroup } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
   SettingsDropdownContent,
@@ -22,15 +33,20 @@ import {
 import { useI18n } from "@/i18n";
 import type { SettingsItemComponentProps } from "@/platform/extensions";
 import {
+  cancelPiModelProviderLogin,
   configurePiModelProvider,
   discoverPiModels,
   getPiModelProviderConfig,
+  getPiModelProviderLogin,
   listPiModelProviders,
   PiApiError,
   removePiModelProvider,
+  respondPiModelProviderLogin,
+  startPiModelProviderLogin,
 } from "@/runtime/pi/client/transport/api";
 import type {
   ConfigurableProviderView,
+  ModelProviderLoginValue,
   ModelProviderModelConfiguration,
   ModelProvidersValue,
 } from "@/runtime/pi/rpc-contracts";
@@ -62,6 +78,7 @@ interface ModelDraft {
 interface ProviderDraft {
   provider: string;
   displayName: string;
+  authType: "api_key" | "oauth";
   apiKey: string;
   baseURL: string;
   defaultBaseURL: string;
@@ -111,10 +128,28 @@ function emptyModel(): ModelDraft {
   return toModelDraft({ id: "" });
 }
 
-function emptyDraft(provider = ""): ProviderDraft {
+function preferredAuthType(provider?: ConfigurableProviderView): "api_key" | "oauth" {
+  if (provider?.authType && provider.authMethods?.some(({ type }) => type === provider.authType)) {
+    return provider.authType;
+  }
+  if (provider?.authMethods?.some(({ type }) => type === "oauth")) return "oauth";
+  return "api_key";
+}
+
+function safeExternalUrl(raw: string): string | undefined {
+  try {
+    const url = new URL(raw);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function emptyDraft(provider = "", authType: ProviderDraft["authType"] = "api_key"): ProviderDraft {
   return {
     provider,
     displayName: "",
+    authType,
     apiKey: "",
     baseURL: "",
     defaultBaseURL: "",
@@ -139,9 +174,15 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
   const [modelPickerLoading, setModelPickerLoading] = useState(false);
   const [modelPickerError, setModelPickerError] = useState<string>();
+  const [providerLogin, setProviderLogin] = useState<ModelProviderLoginValue>();
+  const [loginStarting, setLoginStarting] = useState(false);
+  const [loginResponding, setLoginResponding] = useState(false);
+  const [loginPromptValue, setLoginPromptValue] = useState("");
+  const [loginError, setLoginError] = useState<string>();
   const [selectedModelIds, setSelectedModelIds] = useState<Set<string>>(() => new Set());
   const configRequest = useRef(0);
   const modelCatalogRequest = useRef(0);
+  const refreshedLoginId = useRef<string | undefined>(undefined);
 
   const applyProviders = useCallback((next: ModelProvidersValue) => setValue(next), []);
 
@@ -166,7 +207,8 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
       providers.filter(
         (provider) =>
           provider.active &&
-          provider.apiKeyConfigurable &&
+          (provider.apiKeyConfigurable ||
+            provider.authMethods?.some(({ type }) => type === "oauth")) &&
           !configured.some(({ provider: id }) => id === provider.provider),
       ),
     [configured, providers],
@@ -182,9 +224,17 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
     setModelPickerOpen(false);
     setModelPickerLoading(false);
     setModelPickerError(undefined);
+    if (providerLogin?.status === "running") {
+      void cancelPiModelProviderLogin({ loginId: providerLogin.loginId }).catch(() => undefined);
+    }
+    setProviderLogin(undefined);
+    setLoginStarting(false);
+    setLoginResponding(false);
+    setLoginPromptValue("");
+    setLoginError(undefined);
     setSelectedModelIds(new Set());
     setError(undefined);
-  }, []);
+  }, [providerLogin]);
 
   const loadProviderConfig = useCallback(
     async (provider: ConfigurableProviderView) => {
@@ -192,7 +242,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
       setConfigLoading(true);
       setError(undefined);
       setDraft({
-        ...emptyDraft(provider.provider),
+        ...emptyDraft(provider.provider, preferredAuthType(provider)),
         apiKey: "",
         displayName: provider.displayName,
       });
@@ -202,6 +252,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
         setDraft({
           provider: provider.provider,
           displayName: configuration.displayName,
+          authType: preferredAuthType(provider),
           apiKey: "",
           baseURL: configuration.baseURL ?? "",
           defaultBaseURL: configuration.defaultBaseURL ?? "",
@@ -238,7 +289,10 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
   );
 
   const addProvider = useCallback(() => {
-    const first = addableProviders[0];
+    const first =
+      addableProviders.find((provider) =>
+        provider.authMethods?.some(({ type }) => type === "oauth"),
+      ) ?? addableProviders[0];
     setEditor({ mode: "add-provider" });
     setError(undefined);
     if (first) void loadProviderConfig(first);
@@ -274,6 +328,112 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
     [t],
   );
 
+  const applyProviderLogin = useCallback(
+    (next: ModelProviderLoginValue) => {
+      setProviderLogin(next);
+      if (next.status === "complete" && refreshedLoginId.current !== next.loginId) {
+        refreshedLoginId.current = next.loginId;
+        void listPiModelProviders().then(applyProviders, () => undefined);
+      }
+    },
+    [applyProviders],
+  );
+
+  const startAccountLogin = useCallback(
+    async (providerId = draft.provider) => {
+      if (loginStarting || providerLogin?.status === "running") return;
+      const selectedProvider = providers.find(({ provider }) => provider === providerId);
+      if (!selectedProvider?.authMethods?.some(({ type }) => type === "oauth")) {
+        setError(t("extensions.modelConfig.errors.accountLoginUnsupported"));
+        return;
+      }
+      setLoginStarting(true);
+      setLoginError(undefined);
+      setError(undefined);
+      setLoginPromptValue("");
+      refreshedLoginId.current = undefined;
+      try {
+        applyProviderLogin(
+          await startPiModelProviderLogin({
+            provider: selectedProvider.provider,
+            authType: "oauth",
+          }),
+        );
+      } catch (failure) {
+        setError(
+          failure instanceof PiApiError && failure.code === "model-provider-login-in-progress"
+            ? t("extensions.modelConfig.errors.loginInProgress")
+            : t("extensions.modelConfig.errors.loginStartFailed"),
+        );
+      } finally {
+        setLoginStarting(false);
+      }
+    },
+    [applyProviderLogin, draft.provider, loginStarting, providerLogin?.status, providers, t],
+  );
+
+  useEffect(() => {
+    if (!providerLogin || providerLogin.status !== "running") return;
+    let disposed = false;
+    let timer: number | undefined;
+    const poll = async () => {
+      try {
+        const next = await getPiModelProviderLogin({ loginId: providerLogin.loginId });
+        if (disposed) return;
+        applyProviderLogin(next);
+        if (next.status === "running") timer = window.setTimeout(poll, 700);
+      } catch {
+        if (!disposed) {
+          setLoginError(t("extensions.modelConfig.errors.loginStatusFailed"));
+          timer = window.setTimeout(poll, 1_500);
+        }
+      }
+    };
+    timer = window.setTimeout(poll, 500);
+    return () => {
+      disposed = true;
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, [applyProviderLogin, providerLogin?.loginId, providerLogin?.status, t]);
+
+  useEffect(() => {
+    setLoginPromptValue("");
+  }, [providerLogin?.prompt?.id]);
+
+  const respondToProviderLogin = useCallback(
+    async (value: string) => {
+      if (!providerLogin?.prompt || loginResponding) return;
+      setLoginResponding(true);
+      setLoginError(undefined);
+      try {
+        applyProviderLogin(
+          await respondPiModelProviderLogin({
+            loginId: providerLogin.loginId,
+            promptId: providerLogin.prompt.id,
+            value,
+          }),
+        );
+        setLoginPromptValue("");
+      } catch {
+        setLoginError(t("extensions.modelConfig.errors.loginResponseFailed"));
+      } finally {
+        setLoginResponding(false);
+      }
+    },
+    [applyProviderLogin, loginResponding, providerLogin, t],
+  );
+
+  const closeProviderLogin = useCallback(() => {
+    if (providerLogin?.status === "running") {
+      void cancelPiModelProviderLogin({ loginId: providerLogin.loginId }).catch(() => undefined);
+    }
+    const complete = providerLogin?.status === "complete";
+    setProviderLogin(undefined);
+    setLoginPromptValue("");
+    setLoginError(undefined);
+    if (complete) closeEditor();
+  }, [closeEditor, providerLogin]);
+
   const save = useCallback(async () => {
     if (!editor || saving || configLoading) return;
     const providerId = draft.provider.trim();
@@ -288,7 +448,8 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
 
     const selectedProvider = providers.find(({ provider }) => provider === providerId);
     const customProviderMode =
-      editor.mode === "add-custom" || (editor.mode === "edit" && selectedProvider?.removable);
+      editor.mode === "add-custom" ||
+      (editor.mode === "edit" && selectedProvider?.kind === "custom");
     if (customProviderMode && !PROVIDER_ID_PATTERN.test(providerId)) {
       setError(t("extensions.modelConfig.errors.invalidProviderId"));
       return;
@@ -343,7 +504,11 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
     if (!configuration && !apiKey) {
       const existing = providers.find(({ provider }) => provider === providerId);
       if (!existing?.configured) {
-        setError(t("extensions.modelConfig.errors.environmentMissing"));
+        setError(
+          draft.authType === "oauth"
+            ? t("extensions.modelConfig.errors.loginRequired")
+            : t("extensions.modelConfig.errors.environmentMissing"),
+        );
         return;
       }
       closeEditor();
@@ -461,7 +626,36 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
     const selectedProvider = providers.find(({ provider }) => provider === draft.provider);
     const addMode = mode === "add-provider";
     const customProviderMode =
-      mode === "add-custom" || (mode === "edit" && selectedProvider?.removable);
+      mode === "add-custom" || (mode === "edit" && selectedProvider?.kind === "custom");
+    const oauthMethod = selectedProvider?.authMethods?.find(({ type }) => type === "oauth");
+    const configurableAuthMethods =
+      selectedProvider?.authMethods?.filter(
+        ({ type }) =>
+          type === "oauth" || (type === "api_key" && selectedProvider.apiKeyConfigurable),
+      ) ?? [];
+    const accountLoginProviders = addableProviders.filter((provider) =>
+      provider.authMethods?.some(({ type }) => type === "oauth"),
+    );
+    const apiKeyOnlyProviders = addableProviders.filter(
+      (provider) =>
+        provider.apiKeyConfigurable && !provider.authMethods?.some(({ type }) => type === "oauth"),
+    );
+    const providerGroups = [
+      {
+        id: "account-login",
+        label: t("extensions.modelConfig.accountLogin"),
+        providers: accountLoginProviders,
+      },
+      {
+        id: "api-key",
+        label: t("extensions.modelConfig.apiKey"),
+        providers: apiKeyOnlyProviders,
+      },
+    ].filter(({ providers: groupProviders }) => groupProviders.length > 0);
+    const selectProvider = (providerId: string) => {
+      const provider = providers.find(({ provider: id }) => id === providerId);
+      if (provider) void loadProviderConfig(provider);
+    };
     return (
       <div className="bg-muted/60 rounded-xl p-3 sm:p-4">
         {addMode ? (
@@ -479,20 +673,30 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                 </span>
                 <ChevronDownIcon className="text-muted-foreground size-3.5 shrink-0" />
               </SettingsDropdownTrigger>
-              <SettingsDropdownContent align="start" side="bottom" className="max-h-72">
-                <DropdownMenuRadioGroup
-                  value={draft.provider}
-                  onValueChange={(providerId) => {
-                    const provider = providers.find(({ provider }) => provider === providerId);
-                    if (provider) void loadProviderConfig(provider);
-                  }}
-                >
-                  {addableProviders.map((provider) => (
-                    <SettingsDropdownRadioItem key={provider.provider} value={provider.provider}>
-                      <span className="min-w-0 flex-1 truncate">{provider.displayName}</span>
-                    </SettingsDropdownRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
+              <SettingsDropdownContent align="start" side="bottom" className="max-h-72 p-0">
+                {providerGroups.map((group, groupIndex) => (
+                  <div key={group.id} className="pb-1">
+                    {groupIndex > 0 ? <DropdownMenuSeparator className="mx-0 my-0" /> : null}
+                    <DropdownMenuRadioGroup
+                      value={draft.provider}
+                      onValueChange={selectProvider}
+                      aria-label={group.label}
+                    >
+                      <DropdownMenuLabel className="bg-popover sticky top-0 z-10 px-2 py-1.5">
+                        {group.label}
+                      </DropdownMenuLabel>
+                      {group.providers.map((provider) => (
+                        <SettingsDropdownRadioItem
+                          key={provider.provider}
+                          value={provider.provider}
+                          className="mx-1"
+                        >
+                          <span className="min-w-0 flex-1 truncate">{provider.displayName}</span>
+                        </SettingsDropdownRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </div>
+                ))}
               </SettingsDropdownContent>
             </DropdownMenu>
           </div>
@@ -589,37 +793,101 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
           </div>
         ) : null}
 
-        <div className={`${addMode || customProviderMode ? "mt-3" : ""} space-y-1.5`}>
-          <label
-            htmlFor={`model-provider-api-key-${mode}`}
-            className="text-muted-foreground block text-sm"
+        {!customProviderMode && configurableAuthMethods.length > 1 ? (
+          <div className={`${addMode ? "mt-3" : ""} space-y-1.5`}>
+            <label className="text-muted-foreground block text-sm">
+              {t("extensions.modelConfig.authenticationMethod")}
+            </label>
+            <DropdownMenu>
+              <SettingsDropdownTrigger
+                disabled={busy || configLoading}
+                aria-label={t("extensions.modelConfig.authenticationMethod")}
+              >
+                <span className="min-w-0 truncate text-start">
+                  {configurableAuthMethods.find(({ type }) => type === draft.authType)?.label}
+                </span>
+                <ChevronDownIcon className="text-muted-foreground size-3.5 shrink-0" />
+              </SettingsDropdownTrigger>
+              <SettingsDropdownContent align="start" side="bottom">
+                <DropdownMenuRadioGroup
+                  value={draft.authType}
+                  onValueChange={(authType) => {
+                    if (authType === "oauth" || authType === "api_key") {
+                      setDraft((current) => ({ ...current, authType, apiKey: "" }));
+                    }
+                  }}
+                >
+                  {configurableAuthMethods.map((method) => (
+                    <SettingsDropdownRadioItem key={method.type} value={method.type}>
+                      {method.label}
+                    </SettingsDropdownRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </SettingsDropdownContent>
+            </DropdownMenu>
+          </div>
+        ) : null}
+
+        {!customProviderMode && draft.authType === "oauth" && oauthMethod ? (
+          <div
+            className={`${addMode || configurableAuthMethods.length > 1 ? "mt-3" : ""} space-y-2 rounded-lg border bg-background/70 p-3`}
           >
-            {t("extensions.modelConfig.apiKey")}
-          </label>
-          <Input
-            id={`model-provider-api-key-${mode}`}
-            type="password"
-            autoComplete="new-password"
-            value={draft.apiKey}
-            disabled={
-              busy ||
-              configLoading ||
-              (!customProviderMode && !selectedProvider?.apiKeyConfigurable)
-            }
-            placeholder={
-              !customProviderMode && !selectedProvider?.apiKeyConfigurable
-                ? t("extensions.modelConfig.environmentOnly")
-                : mode === "edit"
-                  ? t("extensions.modelConfig.apiKeyEditPlaceholder")
-                  : t("extensions.modelConfig.apiKeyPlaceholder")
-            }
-            className="bg-background h-10"
-            onChange={(event) => {
-              const apiKey = event.currentTarget.value;
-              setDraft((current) => ({ ...current, apiKey }));
-            }}
-          />
-        </div>
+            <div>
+              <p className="text-sm font-medium">{oauthMethod.label}</p>
+              <p className="text-muted-foreground mt-1 text-xs leading-5">
+                {t("extensions.modelConfig.accountLoginDescription", {
+                  provider: selectedProvider?.displayName ?? draft.provider,
+                })}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-full"
+              disabled={busy || configLoading || loginStarting}
+              onClick={() => void startAccountLogin()}
+            >
+              <ExternalLinkIcon />
+              {loginStarting
+                ? t("extensions.modelConfig.startingLogin")
+                : selectedProvider?.configured && selectedProvider.authType === "oauth"
+                  ? t("extensions.modelConfig.signInAgain")
+                  : t("extensions.modelConfig.signInWithAccount")}
+            </Button>
+          </div>
+        ) : (
+          <div className={`${addMode || customProviderMode ? "mt-3" : ""} space-y-1.5`}>
+            <label
+              htmlFor={`model-provider-api-key-${mode}`}
+              className="text-muted-foreground block text-sm"
+            >
+              {t("extensions.modelConfig.apiKey")}
+            </label>
+            <Input
+              id={`model-provider-api-key-${mode}`}
+              type="password"
+              autoComplete="new-password"
+              value={draft.apiKey}
+              disabled={
+                busy ||
+                configLoading ||
+                (!customProviderMode && !selectedProvider?.apiKeyConfigurable)
+              }
+              placeholder={
+                !customProviderMode && !selectedProvider?.apiKeyConfigurable
+                  ? t("extensions.modelConfig.environmentOnly")
+                  : mode === "edit"
+                    ? t("extensions.modelConfig.apiKeyEditPlaceholder")
+                    : t("extensions.modelConfig.apiKeyPlaceholder")
+              }
+              className="bg-background h-10"
+              onChange={(event) => {
+                const apiKey = event.currentTarget.value;
+                setDraft((current) => ({ ...current, apiKey }));
+              }}
+            />
+          </div>
+        )}
 
         <Collapsible
           open={customProviderMode || draft.customOpen}
@@ -934,14 +1202,22 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
           <div key={provider.provider} className="space-y-1.5">
             <div className="flex min-h-12 items-center gap-2 rounded-lg border px-3 py-1.5">
               <div className="min-w-0 flex-1">
-                <span className="truncate text-sm font-medium" title={provider.displayName}>
-                  {provider.displayName}
-                </span>
-                <span
-                  className="ms-2 inline-block size-2.5 rounded-full bg-emerald-500 align-middle"
-                  aria-label={t("extensions.modelConfig.configured")}
-                  title={t("extensions.modelConfig.configured")}
-                />
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="truncate text-sm font-medium" title={provider.displayName}>
+                    {provider.displayName}
+                  </span>
+                  <span
+                    className="inline-block size-2.5 shrink-0 rounded-full bg-emerald-500"
+                    aria-hidden="true"
+                  />
+                  <span className="text-muted-foreground shrink-0 text-xs">
+                    {t(
+                      provider.authType === "oauth"
+                        ? "extensions.modelConfig.accountConfigured"
+                        : "extensions.modelConfig.configured",
+                    )}
+                  </span>
+                </div>
               </div>
               <Button
                 type="button"
@@ -962,8 +1238,16 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                   onClick={() => void remove(provider.provider)}
                 >
                   {removingProviderId === provider.provider
-                    ? t("extensions.modelConfig.removing")
-                    : t("extensions.modelConfig.delete")}
+                    ? t(
+                        provider.kind === "custom"
+                          ? "extensions.modelConfig.deleting"
+                          : "extensions.modelConfig.removing",
+                      )
+                    : t(
+                        provider.kind === "custom"
+                          ? "extensions.modelConfig.delete"
+                          : "extensions.modelConfig.remove",
+                      )}
                 </Button>
               ) : null}
             </div>
@@ -1004,6 +1288,206 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
           {t("extensions.modelConfig.addCustomProvider")}
         </Button>
       </div>
+
+      <Dialog
+        open={providerLogin !== undefined}
+        onOpenChange={(open) => {
+          if (!open) closeProviderLogin();
+        }}
+      >
+        <DialogContent
+          closeLabel={t("extensions.modelConfig.closeLogin")}
+          className="flex max-h-[min(34rem,calc(100dvh-4rem))] w-[calc(100vw-2rem)] max-w-md flex-col gap-3 rounded-xl p-4 sm:max-w-md"
+        >
+          <DialogHeader className="gap-2 pe-8">
+            <DialogTitle className="text-lg">
+              {t("extensions.modelConfig.accountLoginTitle", {
+                provider:
+                  providers.find(({ provider }) => provider === providerLogin?.provider)
+                    ?.displayName ??
+                  providerLogin?.provider ??
+                  "",
+              })}
+            </DialogTitle>
+            <DialogDescription>
+              {t("extensions.modelConfig.accountLoginDialogDescription")}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="min-h-28 flex-1 space-y-3 overflow-y-auto pe-1">
+            {providerLogin?.events.map((event, index) => {
+              if (event.type === "auth_url") {
+                const url = safeExternalUrl(event.url);
+                return (
+                  <div key={`${event.type}-${index}`} className="space-y-2 rounded-lg border p-3">
+                    {event.instructions ? (
+                      <p className="text-sm leading-5">{event.instructions}</p>
+                    ) : null}
+                    {url ? (
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="border-border bg-background hover:bg-muted inline-flex h-8 items-center justify-center gap-1.5 rounded-full border px-2.5 text-sm font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                      >
+                        <ExternalLinkIcon className="size-4" />
+                        {t("extensions.modelConfig.openLoginPage")}
+                      </a>
+                    ) : null}
+                  </div>
+                );
+              }
+              if (event.type === "device_code") {
+                const url = safeExternalUrl(event.verificationUri);
+                return (
+                  <div key={`${event.type}-${index}`} className="space-y-2 rounded-lg border p-3">
+                    <p className="text-muted-foreground text-xs">
+                      {t("extensions.modelConfig.deviceCode")}
+                    </p>
+                    <code className="block select-all rounded-md bg-muted px-3 py-2 text-center text-base font-semibold tracking-wider">
+                      {event.userCode}
+                    </code>
+                    {url ? (
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary inline-flex items-center gap-1 text-sm underline underline-offset-4"
+                      >
+                        <ExternalLinkIcon className="size-3.5" />
+                        {t("extensions.modelConfig.openVerificationPage")}
+                      </a>
+                    ) : null}
+                  </div>
+                );
+              }
+              if (event.type === "info") {
+                return (
+                  <div key={`${event.type}-${index}`} className="space-y-1.5 text-sm leading-5">
+                    <p>{event.message}</p>
+                    {event.links?.map((link) => {
+                      const url = safeExternalUrl(link.url);
+                      return url ? (
+                        <a
+                          key={link.url}
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary me-3 inline-flex items-center gap-1 underline underline-offset-4"
+                        >
+                          <ExternalLinkIcon className="size-3.5" />
+                          {link.label || t("extensions.modelConfig.openLoginPage")}
+                        </a>
+                      ) : null;
+                    })}
+                  </div>
+                );
+              }
+              return (
+                <p
+                  key={`${event.type}-${index}`}
+                  className="text-muted-foreground text-sm leading-5"
+                  role="status"
+                >
+                  {event.message}
+                </p>
+              );
+            })}
+
+            {providerLogin?.status === "running" && providerLogin.prompt ? (
+              <div className="space-y-2 rounded-lg border bg-muted/40 p-3">
+                <p className="text-sm leading-5">{providerLogin.prompt.message}</p>
+                {providerLogin.prompt.type === "select" ? (
+                  <div className="space-y-2">
+                    {providerLogin.prompt.options?.map((option) => (
+                      <Button
+                        key={option.id}
+                        type="button"
+                        variant="outline"
+                        className="h-auto w-full justify-start rounded-lg px-3 py-2 text-start whitespace-normal"
+                        disabled={loginResponding}
+                        onClick={() => void respondToProviderLogin(option.id)}
+                      >
+                        <span>
+                          <span className="block">{option.label}</span>
+                          {option.description ? (
+                            <span className="text-muted-foreground mt-0.5 block text-xs font-normal">
+                              {option.description}
+                            </span>
+                          ) : null}
+                        </span>
+                      </Button>
+                    ))}
+                  </div>
+                ) : (
+                  <form
+                    className="space-y-2"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      if (loginPromptValue) void respondToProviderLogin(loginPromptValue);
+                    }}
+                  >
+                    <Input
+                      type={providerLogin.prompt.type === "secret" ? "password" : "text"}
+                      autoComplete="off"
+                      value={loginPromptValue}
+                      placeholder={providerLogin.prompt.placeholder}
+                      disabled={loginResponding}
+                      autoFocus
+                      onChange={(event) => setLoginPromptValue(event.currentTarget.value)}
+                    />
+                    <Button
+                      type="submit"
+                      className="rounded-full"
+                      disabled={loginResponding || !loginPromptValue}
+                    >
+                      {loginResponding
+                        ? t("extensions.modelConfig.continuingLogin")
+                        : t("extensions.modelConfig.continueLogin")}
+                    </Button>
+                  </form>
+                )}
+              </div>
+            ) : null}
+
+            {providerLogin?.status === "running" &&
+            providerLogin.events.length === 0 &&
+            !providerLogin.prompt ? (
+              <p className="text-muted-foreground py-6 text-center text-sm" role="status">
+                {t("extensions.modelConfig.preparingLogin")}
+              </p>
+            ) : null}
+            {providerLogin?.status === "complete" ? (
+              <p className="rounded-lg bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-300">
+                {t("extensions.modelConfig.loginComplete")}
+              </p>
+            ) : null}
+            {providerLogin?.status === "failed" ? (
+              <p className="text-destructive rounded-lg bg-destructive/10 p-3 text-sm" role="alert">
+                {t("extensions.modelConfig.errors.loginFailed")}
+              </p>
+            ) : null}
+            {loginError ? (
+              <p className="text-destructive text-sm" role="alert">
+                {loginError}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="flex justify-end gap-2 border-t pt-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-full"
+              onClick={closeProviderLogin}
+            >
+              {providerLogin?.status === "running"
+                ? t("extensions.modelConfig.cancelLogin")
+                : t("extensions.modelConfig.done")}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={modelPickerOpen}
