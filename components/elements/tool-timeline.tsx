@@ -7,6 +7,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { cn } from "@/lib/utils";
 import { collapsePanel, ShimmerLabel, SwapLabel } from "./surfaces";
 import { take } from "./range";
+import { useDisclosureScrollLock } from "./use-disclosure-scroll-lock";
 
 export interface TimelineStep {
   verb: string;
@@ -45,12 +46,15 @@ export function ToolTimeline({
   children,
   className,
 }: ToolTimelineProps) {
+  const [rootRef, handleOpenChange] = useDisclosureScrollLock(onOpenChange);
+
   return (
     <Collapsible
+      ref={rootRef}
       data-slot="tool-timeline"
       aria-busy={streaming}
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={handleOpenChange}
       className={cn("w-full", className)}
     >
       <CollapsibleTrigger className="group/trigger text-foreground/55 hover:text-foreground/90 flex items-center gap-1.5 rounded-md py-1 text-[13.5px] transition-colors outline-none">

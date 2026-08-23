@@ -32,7 +32,7 @@ import {
   WorkbenchSystemMessage,
   WorkbenchUserMessage,
 } from "./workbench-message";
-import { currentRunStartedAt } from "./workbench-thread-timing";
+import { currentRunStartedAt, piRunStartedAt } from "./workbench-thread-timing";
 
 interface MessageRow {
   id: string;
@@ -207,7 +207,9 @@ function useThreadMessageRows(): readonly MessageRow[] {
 
 function PiWorkingStatus() {
   const { t } = useI18n();
-  const runStartedAt = useAuiState((state) => currentRunStartedAt(state.thread.messages));
+  const runStartedAt = useAuiState(
+    (state) => piRunStartedAt(state.thread.extras) ?? currentRunStartedAt(state.thread.messages),
+  );
   const fallbackStartedAt = useRef<number | undefined>(undefined);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
@@ -229,7 +231,7 @@ function PiWorkingStatus() {
       role="status"
       aria-live="polite"
       aria-label={t("workbench.chat.working")}
-      className="text-foreground/70 flex h-10 w-full shrink-0 items-center gap-1.5 text-[13.5px] font-medium [overflow-anchor:none]"
+      className="text-foreground/40 flex h-10 w-full shrink-0 items-center gap-1.5 text-[13.5px] font-medium [overflow-anchor:none]"
     >
       <span
         data-slot="pi-working-icon"
@@ -247,7 +249,7 @@ function PiWorkingStatus() {
       <span
         data-slot="pi-working-label"
         aria-hidden="true"
-        className="shimmer [--shimmer-color:white] [--shimmer-repeat-delay:900] [--shimmer-speed:180] [--shimmer-spread:52px] motion-reduce:animate-none"
+        className="shimmer [--shimmer-color:black] [--shimmer-repeat-delay:900] [--shimmer-speed:180] [--shimmer-spread:52px] motion-reduce:animate-none"
       >
         {t("workbench.chat.workingElapsed", {
           duration: formatCompactDuration(elapsedSeconds * 1_000, { zeroValue: "0s" }),

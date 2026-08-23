@@ -186,7 +186,7 @@ function ThreadTokenUsage() {
       </span>
       <Separator />
       <span>
-        {t("extensions.tokenUsage.cacheHit")}{" "}
+        {t("extensions.tokenUsage.averageCacheHit")}{" "}
         {cacheHitRate === undefined
           ? unavailable
           : number(cacheHitRate, { style: "percent", maximumFractionDigits: 0 })}

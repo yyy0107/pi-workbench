@@ -4,6 +4,7 @@ import { basename, resolve } from "node:path";
 import { spawn, type IPty } from "node-pty";
 
 import type { TerminalErrorCode } from "../contracts";
+import { terminalEnvironment } from "./terminal-environment";
 
 const DEFAULT_COLS = 100;
 const DEFAULT_ROWS = 30;
@@ -206,7 +207,7 @@ export class TerminalSessionManager {
     const cols = boundedDimension(options.cols, DEFAULT_COLS, 2, 500);
     const rows = boundedDimension(options.rows, DEFAULT_ROWS, 1, 300);
     const environment = {
-      ...this.#environment,
+      ...terminalEnvironment(this.#environment),
       TERM: "xterm-256color",
       COLORTERM: "truecolor",
       TERM_PROGRAM: "Pi Workbench",

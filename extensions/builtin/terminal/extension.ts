@@ -1,14 +1,23 @@
-import { TerminalIcon } from "lucide-react";
+import { SquareTerminalIcon, TerminalIcon } from "lucide-react";
 
-import { defineExtension, type WorkspaceSurfaceDefinition } from "@/platform/extensions";
+import { defineMessage } from "@/i18n";
+import {
+  createLazyWorkspaceSurface,
+  defineExtension,
+  type WorkspaceSurfaceDefinition,
+} from "@/platform/extensions";
 
 import { toggleTerminalCommand } from "./open-terminal-command";
 import { BashToolRenderer } from "./bash-tool-renderer";
 import { TerminalMenuItem } from "./terminal-menu-item";
 import { TerminalRuntimeBridge } from "./terminal-runtime-bridge";
-import { TerminalSurface } from "./terminal-surface";
 import { isTerminalTranscriptTarget, type TerminalTarget } from "./terminal-target";
 import { TerminalTrigger } from "./terminal-trigger";
+
+const TerminalSurface = createLazyWorkspaceSurface(async () => {
+  const module = await import("./terminal-surface");
+  return { default: module.TerminalSurface };
+});
 
 export const terminalSurfaceDefinition = {
   kind: "terminal",
@@ -45,12 +54,17 @@ export const terminalExtension = defineExtension({
     const surface = context.workspace.register(terminalSurfaceDefinition);
     const command = context.commands.register(toggleTerminalCommand);
     const bashRenderer = context.renderers.tools.register("bash", BashToolRenderer);
+    const bashPresentation = context.renderers.toolPresentations.register("bash", {
+      label: defineMessage("extensions.terminal.tool.activityComplete"),
+      activeLabel: defineMessage("extensions.terminal.tool.activityRunning"),
+      icon: SquareTerminalIcon,
+    });
     const mobileTrigger = context.slots.register("header.right", {
       id: "workbench.terminal.mobile-trigger",
       order: 100,
       component: TerminalTrigger,
     });
 
-    return [surface, command, bashRenderer, mobileTrigger];
+    return [surface, command, bashRenderer, bashPresentation, mobileTrigger];
   },
 });

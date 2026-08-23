@@ -4,6 +4,7 @@ import type { PropsWithChildren } from "react";
 import { CheckCircle2Icon, ChevronRightIcon } from "lucide-react";
 
 import { collapsePanel } from "@/components/elements/surfaces";
+import { useDisclosureScrollLock } from "@/components/elements/use-disclosure-scroll-lock";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 
@@ -18,14 +19,16 @@ export function CompletedTurnPanel({
   label: string;
 }>) {
   const [open, setOpen] = useMessageDisclosure("completed-turn", "turn");
+  const [rootRef, handleOpenChange] = useDisclosureScrollLock(setOpen);
 
   if (!completed) return children;
 
   return (
     <Collapsible
+      ref={rootRef}
       data-slot="completed-turn-panel"
       open={open}
-      onOpenChange={setOpen}
+      onOpenChange={handleOpenChange}
       className="w-full [overflow-anchor:none]"
     >
       <CollapsibleTrigger className="group/trigger text-foreground/55 hover:text-foreground/90 flex w-full items-center gap-1.5 py-1 text-[13.5px] transition-[color,scale] outline-none active:scale-[0.995]">

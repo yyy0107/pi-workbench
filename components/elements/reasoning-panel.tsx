@@ -6,6 +6,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { cn } from "@/lib/utils";
 import { collapsePanel, mono, ShimmerLabel, SwapLabel } from "./surfaces";
 import { take } from "./range";
+import { useDisclosureScrollLock } from "./use-disclosure-scroll-lock";
 
 export interface ReasoningStep {
   title?: ReactNode;
@@ -43,12 +44,14 @@ export function ReasoningPanel({
   className,
 }: ReasoningPanelProps) {
   const shown = take(steps, visibleSteps);
+  const [rootRef, handleOpenChange] = useDisclosureScrollLock(onOpenChange);
 
   return (
     <Collapsible
+      ref={rootRef}
       data-slot="reasoning-panel"
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={handleOpenChange}
       className={cn("w-full", className)}
     >
       <CollapsibleTrigger className="group/trigger text-foreground/55 hover:text-foreground/90 flex w-full items-center gap-1.5 py-1 text-[13.5px] transition-[color,scale] outline-none active:scale-[0.995]">

@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { ReasoningMessagePart, ToolCallMessagePart } from "@assistant-ui/react";
+import { WrenchIcon } from "lucide-react";
+
+import type { ToolPresentationDefinition } from "@/platform/extensions";
 import {
   liveReasoningPreview,
   reasoningPartTiming,
@@ -43,6 +46,44 @@ test("maps reasoning and common Pi tools to compact timeline steps", () => {
       { kind: "searched", chip: "https://example.com/docs" },
     ],
   );
+});
+
+test("uses an exact registered tool presentation without changing fallback classification", () => {
+  const presentation = {
+    label: "Deployed",
+    activeLabel: "Deploying",
+    icon: WrenchIcon,
+    summarize: (part) => {
+      const args = part.args as { environment?: unknown };
+      return typeof args.environment === "string" ? args.environment : undefined;
+    },
+  } satisfies ToolPresentationDefinition;
+
+  const [step] = timelineSteps([tool("deploy", { environment: "production" })], {
+    deploy: presentation,
+  });
+
+  assert.equal(step?.kind, "used");
+  assert.equal(step?.chip, "production");
+  assert.equal(step?.presentation, presentation);
+});
+
+test("falls back to the existing summary when an extension summary is unavailable", () => {
+  const presentation = {
+    label: "Inspected",
+    activeLabel: "Inspecting",
+    icon: WrenchIcon,
+    summarize: () => {
+      throw new Error("broken presentation");
+    },
+  } satisfies ToolPresentationDefinition;
+
+  const [step] = timelineSteps([tool("inspect", { path: "/workspace/thread.tsx" })], {
+    inspect: presentation,
+  });
+
+  assert.equal(step?.chip, "/workspace/thread.tsx");
+  assert.equal(step?.presentation, presentation);
 });
 
 test("uses the beginning of reasoning for the collapsed preview", () => {

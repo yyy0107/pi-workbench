@@ -13,6 +13,7 @@ import {
   type TerminalSessionClient,
   type TerminalSessionSubscription,
 } from "./terminal-session-manager";
+import { terminalEnvironment } from "./terminal-environment";
 
 const DEFAULT_COLS = 100;
 const DEFAULT_ROWS = 30;
@@ -161,8 +162,7 @@ export class ToolTerminalSessionManager {
     }
 
     const environment = {
-      ...this.#environment,
-      ...options.env,
+      ...terminalEnvironment({ ...this.#environment, ...options.env }),
       TERM: "xterm-256color",
       COLORTERM: "truecolor",
       TERM_PROGRAM: "Pi Workbench",

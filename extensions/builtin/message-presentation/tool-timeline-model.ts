@@ -1,10 +1,13 @@
 import type { ReasoningMessagePart, ToolCallMessagePart } from "@assistant-ui/react";
 
+import type { ToolPresentationDefinition } from "@/platform/extensions";
+
 export type ToolTimelineStepKind = "thinking" | "read" | "ran" | "edited" | "searched" | "used";
 
 export interface ToolTimelineStepModel {
   kind: ToolTimelineStepKind;
   chip: string;
+  presentation?: ToolPresentationDefinition;
 }
 
 export interface ToolTimelineStatModel {
@@ -130,7 +133,25 @@ export function timelineEntries(parts: readonly TimelineSourcePart[]): ToolTimel
   return entries;
 }
 
-function toolChip(part: ToolCallMessagePart): string {
+function registeredToolChip(
+  part: ToolCallMessagePart,
+  presentation: ToolPresentationDefinition | undefined,
+): string | undefined {
+  if (!presentation?.summarize) return undefined;
+
+  try {
+    const summary = presentation.summarize(part);
+    return typeof summary === "string" && summary.trim() ? compact(summary) : undefined;
+  } catch {
+    // A presentation is optional chrome. Keep the message readable if an extension summary fails.
+    return undefined;
+  }
+}
+
+function toolChip(part: ToolCallMessagePart, presentation?: ToolPresentationDefinition): string {
+  const registeredSummary = registeredToolChip(part, presentation);
+  if (registeredSummary) return registeredSummary;
+
   const args = asRecord(part.args);
   const path = asString(args?.path) ?? asString(args?.file) ?? asString(args?.filePath);
 
@@ -164,14 +185,26 @@ function toolKind(toolName: string): ToolTimelineStepKind {
   return "used";
 }
 
-export function timelineSteps(parts: readonly TimelineSourcePart[]): ToolTimelineStepModel[] {
+export function timelineSteps(
+  parts: readonly TimelineSourcePart[],
+  presentations: Readonly<Record<string, ToolPresentationDefinition>> = {},
+): ToolTimelineStepModel[] {
   return parts.flatMap((part) => {
     if (part.type === "reasoning") {
       const chip = reasoningPreview(part.text || part.unstable_summary || "") || "…";
       return [{ kind: "thinking" as const, chip }];
     }
 
-    return [{ kind: toolKind(part.toolName), chip: toolChip(part) }];
+    const presentation = Object.hasOwn(presentations, part.toolName)
+      ? presentations[part.toolName]
+      : undefined;
+    return [
+      {
+        kind: toolKind(part.toolName),
+        chip: toolChip(part, presentation),
+        ...(presentation ? { presentation } : {}),
+      },
+    ];
   });
 }
 

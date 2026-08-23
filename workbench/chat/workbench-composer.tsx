@@ -64,9 +64,10 @@ import {
   type ComposerJsonValue,
   type ComposerCommandRegistry,
   SlotHost,
-  useExtensionEnvironment,
-  useExtensionManager,
+  useComposerCommandRegistry,
+  useExtensionErrorReporter,
 } from "@/platform/extensions";
+import { useExtensionManager } from "@/platform/extensions/internal";
 import { usePiCommands } from "@/runtime/pi/client/runtime/command-context";
 import type { CommandView } from "@/runtime/pi/rpc-contracts";
 import type { PiComposerSendError } from "@/runtime/pi/client/runtime/send-error";
@@ -457,8 +458,8 @@ function ComposerDrawerStats({ contextCount }: Readonly<{ contextCount: number }
 export function WorkbenchComposer() {
   const { t, text: localize } = useI18n();
   const aui = useAui();
-  const extensionEnvironment = useExtensionEnvironment();
-  const composerCommandRegistry = extensionEnvironment.manager.composerCommands;
+  const composerCommandRegistry = useComposerCommandRegistry();
+  const reportExtensionError = useExtensionErrorReporter();
   const getComposerCommands = useCallback(
     () => composerCommandRegistry.getAll(),
     [composerCommandRegistry],
@@ -691,12 +692,12 @@ export function WorkbenchComposer() {
   const reportComposerCommandError = useCallback(
     (error: unknown, commandId?: string) => {
       setComposerCommandError(true);
-      extensionEnvironment.reportError(error, {
+      reportExtensionError(error, {
         source: "composer-command",
         ...(commandId ? { commandId } : {}),
       });
     },
-    [extensionEnvironment],
+    [reportExtensionError],
   );
 
   const updateCommandParameterValues = useCallback(

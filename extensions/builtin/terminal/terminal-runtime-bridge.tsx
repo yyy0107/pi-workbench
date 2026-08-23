@@ -3,9 +3,11 @@
 import { useEffect, useMemo } from "react";
 
 import {
+  useActiveWorkspaceSurface,
   useRightWorkspace,
-  useRightWorkspaceState,
   useWorkspaceContext,
+  useWorkspaceOpen,
+  useWorkspaceSurfaces,
 } from "@/components/right-workspace";
 import { useI18n } from "@/i18n";
 
@@ -17,29 +19,25 @@ export function TerminalRuntimeBridge() {
   const controller = useRightWorkspace();
   const context = useWorkspaceContext();
   const launch = useTerminalLaunchContext();
-  const workspaceOpen = useRightWorkspaceState((state) => state.open);
-  const surfaceOrder = useRightWorkspaceState((state) => state.surfaceOrder);
-  const surfacesById = useRightWorkspaceState((state) => state.surfaces);
+  const workspaceOpen = useWorkspaceOpen();
+  const terminalSurfaces = useWorkspaceSurfaces("terminal");
   const legacyTerminals = useMemo(
     () =>
-      surfaceOrder.flatMap((surfaceId) => {
-        const surface = surfacesById[surfaceId];
+      terminalSurfaces.flatMap((surface) => {
         const legacy =
-          surface?.kind === "terminal" &&
           !isTerminalTranscriptTarget(surface.params) &&
           (typeof surface.params.threadId !== "string" ||
             surface.params.threadId === "application" ||
             (surface.scope.type === "thread" &&
               surface.scope.key === launch.threadId &&
               surface.params.threadId !== launch.threadId));
-        return legacy ? [{ id: surfaceId, params: surface.params }] : [];
+        return legacy ? [{ id: surface.id, params: surface.params }] : [];
       }),
-    [surfaceOrder, surfacesById],
+    [terminalSurfaces],
   );
-  const activeTerminal = useRightWorkspaceState((state) => {
-    const active = state.activeSurfaceId ? state.surfaces[state.activeSurfaceId] : undefined;
-    return active?.kind === "terminal" && !isTerminalTranscriptTarget(active.params);
-  });
+  const activeSurface = useActiveWorkspaceSurface();
+  const activeTerminal =
+    activeSurface?.kind === "terminal" && !isTerminalTranscriptTarget(activeSurface.params);
 
   useEffect(() => {
     if (launch.threadId === "application") return;
