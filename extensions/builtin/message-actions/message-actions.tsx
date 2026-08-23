@@ -119,14 +119,14 @@ function BranchPicker() {
   return (
     <BranchPickerPrimitive.Root
       hideWhenSingleBranch
-      className="text-muted-foreground me-1 inline-flex items-center text-xs"
+      className="text-muted-foreground inline-flex items-center text-xs"
     >
       <BranchPickerPrimitive.Previous
         render={<TooltipIconButton tooltip={t("extensions.messageActions.previousResponse")} />}
       >
         <ChevronLeftIcon className="size-3.5" />
       </BranchPickerPrimitive.Previous>
-      <span className="px-1 font-medium tabular-nums">
+      <span className="px-0.5 font-medium tabular-nums">
         <BranchPickerPrimitive.Number /> / <BranchPickerPrimitive.Count />
       </span>
       <BranchPickerPrimitive.Next
