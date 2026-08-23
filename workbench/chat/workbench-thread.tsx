@@ -689,6 +689,12 @@ export function WorkbenchThread() {
         style={
           {
             "--composer-dock-inset": `${composerDockInset}px`,
+            "--composer-dock-bottom-gap": "1rem",
+            "--composer-dock-corner-radius": "1.375rem",
+            "--composer-dock-fade-end-offset":
+              "calc(var(--composer-dock-bottom-gap) + var(--composer-dock-corner-radius))",
+            "--composer-dock-fade-start-offset":
+              "calc(var(--composer-dock-fade-end-offset) + var(--composer-dock-corner-radius))",
           } as React.CSSProperties
         }
       >
@@ -708,6 +714,16 @@ export function WorkbenchThread() {
           scrollToBottomOnRunStart
           scrollToBottomOnThreadSwitch={false}
           className={`relative flex min-h-0 flex-1 scroll-smooth flex-col overflow-x-hidden overflow-y-auto px-4 pt-4 motion-reduce:scroll-auto [overflow-anchor:none] ${isEmpty ? "" : "[padding-bottom:var(--composer-dock-inset)]"}`}
+          style={
+            isEmpty
+              ? undefined
+              : {
+                  WebkitMaskImage:
+                    "linear-gradient(to bottom, #000 0, #000 calc(100% - var(--composer-dock-fade-start-offset)), transparent calc(100% - var(--composer-dock-fade-end-offset)), transparent 100%)",
+                  maskImage:
+                    "linear-gradient(to bottom, #000 0, #000 calc(100% - var(--composer-dock-fade-start-offset)), transparent calc(100% - var(--composer-dock-fade-end-offset)), transparent 100%)",
+                }
+          }
         >
           <SlotHost
             name="thread.before"
@@ -758,7 +774,7 @@ export function WorkbenchThread() {
           <div
             ref={composerDockRef}
             data-workbench-composer-dock=""
-            className="absolute right-4 bottom-0 left-4 z-20 mx-auto flex max-w-[var(--thread-max-width)] flex-col bg-transparent pt-2 pb-4 [overflow-anchor:none]"
+            className="absolute right-4 bottom-0 left-4 z-20 mx-auto flex max-w-[var(--thread-max-width)] flex-col bg-transparent pt-2 pb-[var(--composer-dock-bottom-gap)] [overflow-anchor:none]"
           >
             <WorkbenchComposer />
           </div>
