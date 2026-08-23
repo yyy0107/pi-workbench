@@ -9,6 +9,7 @@ Use this reference to verify the current first-version public API before impleme
 - [Slot contract](#slot-contract)
 - [Panel contract](#panel-contract)
 - [Command contract](#command-contract)
+- [Opener contract](#opener-contract)
 - [Composer Command contract](#composer-command-contract)
 - [Settings contract](#settings-contract)
 - [Renderer contract](#renderer-contract)
@@ -54,6 +55,7 @@ interface ExtensionContext {
   readonly slots: SlotRegistry;
   readonly panels: PanelRegistry;
   readonly commands: CommandRegistry;
+  readonly openers: OpenerRegistry;
   readonly renderers: RendererRegistry;
   readonly settings: SettingsRegistry;
   readonly workspace: WorkspaceSurfaceRegistry;
@@ -70,6 +72,9 @@ interface WorkbenchExtension {
 ```
 
 `defineExtension()` preserves literal types; ExtensionManager performs runtime validation and activation. `setup()` is synchronous. Setup failure rolls back registrations. Deactivation disposes resources in reverse order.
+
+These extensions are trusted, in-process, statically bundled contribution containers. They are not
+third-party plugins and do not imply an Extension Host, permissions, or a stable external ABI.
 
 Define extension objects at module scope. ExtensionProvider compares object identity when synchronizing the static array.
 
@@ -210,9 +215,8 @@ entry point.
 `panel.right.add-menu` and `panel.right.actions` remain declared for the legacy right PanelDock, but
 the current shell does not mount a right Panel host. Do not use them for new entry points. The
 current inspector toolbar mounts `workspace.actions`; contributions receive
-`{ activeSurfaceId?, isOpen }` and should render one compact, accessible control. Use it for external
-resources such as Terminal. Inspector capabilities are registered separately through
-`context.workspace.register(...)`.
+`{ activeSurfaceId?, isOpen }` and should render one compact, accessible control. Inspector
+capabilities are registered separately through `context.workspace.register(...)`.
 
 ## Panel contract
 
@@ -255,7 +259,7 @@ Sizes are pixels. Registration only defines a Panel; it does not open it. A Pane
 
 `tabClassNames` merges extension classes after the host defaults through `cn()`/`tailwind-merge`, so an extension can override the tab `root`, selection `trigger`, and `closeButton` without copying host behavior. Each entry may be a string or a pure function of `{ panelId, isActive }`. Class functions run during render and must not call React hooks; use `tabComponent` when render-time hooks are required. The root exposes `data-panel-id` and `data-state="active|inactive"` for variant selectors.
 
-Only one Panel is active per location. Size is stored per location, not per Panel, and is not persisted across reloads in v1. Although `PanelLocation` still includes `"right"`, the current shell mounts Panel hosts only for `"left"` and `"bottom"`; a Panel moved to `"right"` has no visible host. New persistent inspector content belongs in RightWorkspace. The terminal is the canonical bottom Panel example and explicitly calls `move(panelId, "bottom")` before toggling so stale stored locations cannot hide it.
+Only one Panel is active per location. Size is stored per location, not per Panel, and is not persisted across reloads in v1. Although `PanelLocation` still includes `"right"`, the current shell mounts Panel hosts only for `"left"` and `"bottom"`; a Panel moved to `"right"` has no visible host. New persistent inspector content belongs in RightWorkspace. A fixed-location Panel should explicitly call `move(panelId, location)` before toggling so stale stored locations cannot hide it.
 
 ## Command contract
 
@@ -391,6 +395,44 @@ A Renderer only displays an existing message Part. It does not define a tool, ex
 
 Tool args are partial during streaming. Handle `running`, `complete`, `incomplete`, and `requires-action` as applicable. Tool renderer props can expose `addResult()`, `resume()`, and `respondToApproval()`; call them only in the matching Runtime state.
 
+## Opener contract
+
+Use an Open Handler when one contribution needs to open a resource owned by another contribution.
+The caller submits a neutral resource descriptor; the owner translates it into its own Surface:
+
+```ts
+interface OpenableResource {
+  scheme: string;
+  path: string;
+  label?: string;
+}
+
+interface OpenResourceRequest {
+  resource: OpenableResource;
+  context: WorkspaceContext;
+  scope?: WorkspaceScope;
+  policy?: SurfaceOpenPolicy;
+}
+
+interface OpenHandlerDefinition {
+  id: string;
+  canOpen(request: OpenResourceRequest): number;
+  open(
+    request: OpenResourceRequest,
+    context: { surfaces: WorkspaceSurfaceOpenOperations },
+  ): string | void | Promise<string | void>;
+}
+```
+
+Register ownership synchronously with `context.openers.register(handler)`. A `canOpen()` score of
+zero means unsupported; the highest positive score wins and registration order breaks ties. Client
+components call `useOpenerService().open(request)` from `@/components/right-workspace` and must
+handle rejection in event handlers. Setup never calls a React hook because the service injects
+`open/reveal` Surface operations only when executing the handler.
+
+Do not deep-import a sibling `extensions/builtin/<feature>`. Promote genuinely shared capability
+contracts to `services/` or `runtime/`, and use the Opener only for resource ownership/routing.
+
 ## RightWorkspace boundary
 
 RightWorkspace is the generic inspector tab host mounted to the right of the Workbench. Concrete
@@ -418,6 +460,7 @@ const surface = context.workspace.register({
     type: "project",
     key: workspaceContext.projectId ?? workspaceContext.applicationId,
   }),
+  header: ExampleSurfaceHeader,
   render: ExampleSurface,
   menuItem: ExampleMenuItem,
   runtime: ExampleRuntimeBridge,
@@ -428,11 +471,27 @@ const surface = context.workspace.register({
 mounted once inside AssistantRuntimeProvider. Both are optional and owned by the extension.
 Registration is tracked and removed on rollback/deactivation.
 
+`header` is optional active-primary chrome. The core mounts it once above both the primary and
+auxiliary panes, so feature-owned breadcrumbs or resource actions can span the complete inspector
+without the core knowing the feature kind. It is never persisted and is not rendered for an
+auxiliary-only Surface.
+
+`render` accepts a component. Use `createLazyWorkspaceSurface()` around a dynamic import for code
+splitting; `SurfaceHost` supplies the shared Suspense fallback, mounts the implementation on first
+activation, and recreates a rejected lazy loader when the user retries. Lightweight definitions are
+still registered synchronously at startup.
+
 RightWorkspace core treats `kind` as an opaque stable id. It does not contain capability maps,
 feature icons, domain services, or Agent tool mappings. Persisted instances survive while a
 definition is unavailable and render again if the extension returns. Use `useRightWorkspace()` and
 `useWorkspaceContext()` inside client contributions to open a registered kind; do not call hooks
 from setup.
+
+`RightWorkspaceController.setAuxiliaryOpen(boolean)` controls only the generic auxiliary-pane
+visibility. Hiding it preserves the active auxiliary Surface instance and its mounted state;
+explicitly focusing/opening an auxiliary Surface reveals it again, while a background reveal does
+not override the user's hidden choice. Extensions may use this generic layout action without
+importing or naming the contribution currently rendered in that pane.
 
 ## Pi runtime boundary
 
@@ -478,8 +537,9 @@ CommandService `execute(id)` returns a Promise. Catch rejection when invoking it
 `useSettingsRegistry()` is intended for the shared Settings host or subscribed tooling. Business
 extensions normally register sections/items synchronously through `context.settings`.
 
-RightWorkspace hooks come from `@/components/right-workspace`, Workspace Surface registration comes
-from `context.workspace`, and Pi manager hooks come from `@/runtime/pi/client/runtime/context`.
+RightWorkspace and `useOpenerService()` hooks come from `@/components/right-workspace`, Workspace
+Surface/Open Handler registration comes from `context.workspace`/`context.openers`, and Pi manager
+hooks come from `@/runtime/pi/client/runtime/context`.
 
 Use `useAui()` and `useAuiState()` for assistant-ui Runtime state. Do not mirror chat state in a separate extension store.
 
@@ -490,6 +550,7 @@ Extension id          global within ExtensionManager
 Slot contribution id unique within one Slot
 Panel id              global within PanelRegistry
 Command id            global within CommandRegistry
+Open handler id       global within OpenerRegistry
 Settings section id   global within SettingsRegistry
 Settings item id      unique within one settings section
 Message renderer      one active within Message RendererRegistry
@@ -500,7 +561,7 @@ Workspace surface kind global within WorkspaceSurfaceRegistry
 
 Slots and Settings sections/items have numeric ordering. The module-level `enabledExtensions` order determines activation order, same-order ties across extension registrations, conflicting shortcut selection, and command display order within a category.
 
-Slot, Panel, Command, Settings, and Workspace Surface definitions are copied and shallow-frozen at registration. Dispose and register a replacement instead of mutating registered data.
+Slot, Panel, Command, Open Handler, Settings, and Workspace Surface definitions are copied and shallow-frozen at registration. Dispose and register a replacement instead of mutating registered data.
 
 ## Error isolation
 

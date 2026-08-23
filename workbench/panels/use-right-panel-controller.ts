@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 
-import { useExtensionManager, usePanelService, type PanelDefinition } from "@/platform/extensions";
+import { usePanelService, type PanelDefinition } from "@/platform/extensions";
+import { useExtensionManager } from "@/platform/extensions/internal";
 
 export interface RightPanelController {
   activePanelId: string | undefined;

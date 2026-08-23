@@ -4,6 +4,8 @@ import type {
   MessageRendererRegistry,
   NamedRendererRegistry,
   RendererRegistry,
+  ToolPresentationDefinition,
+  ToolPresentationRegistry,
   ToolRendererComponent,
 } from "../api/renderer";
 import { createDisposable } from "../api/disposable";
@@ -91,10 +93,54 @@ class MessageRendererRegistryImpl implements MessageRendererRegistry {
   };
 }
 
+class ToolPresentationRegistryImpl implements ToolPresentationRegistry {
+  readonly #presentations = new Map<string, ToolPresentationDefinition>();
+  readonly #listeners = new Set<() => void>();
+  #snapshot: Readonly<Record<string, ToolPresentationDefinition>> = EMPTY_COMPONENT_MAP;
+
+  register(toolName: string, presentation: ToolPresentationDefinition) {
+    assertNonEmptyId(toolName, "Tool presentation name");
+    if (this.#presentations.has(toolName)) {
+      throw new Error(`Tool presentation "${toolName}" is already registered`);
+    }
+
+    const registered = Object.freeze({ ...presentation });
+    this.#presentations.set(toolName, registered);
+    this.#updateSnapshot();
+
+    return createDisposable(() => {
+      if (this.#presentations.get(toolName) !== registered) return;
+      this.#presentations.delete(toolName);
+      this.#updateSnapshot();
+    });
+  }
+
+  get(toolName: string): ToolPresentationDefinition | undefined {
+    return this.#presentations.get(toolName);
+  }
+
+  getPresentationMap(): Readonly<Record<string, ToolPresentationDefinition>> {
+    return this.#snapshot;
+  }
+
+  readonly subscribe = (listener: () => void): (() => void) => {
+    this.#listeners.add(listener);
+    return () => this.#listeners.delete(listener);
+  };
+
+  #updateSnapshot(): void {
+    const snapshot = Object.create(null) as Record<string, ToolPresentationDefinition>;
+    for (const [name, presentation] of this.#presentations) snapshot[name] = presentation;
+    this.#snapshot = Object.freeze(snapshot);
+    emitRegistryChange(this.#listeners);
+  }
+}
+
 export class RendererRegistryImpl implements RendererRegistry {
   readonly message: MessageRendererRegistry = new MessageRendererRegistryImpl();
   readonly tools: NamedRendererRegistry<ToolRendererComponent> =
     new NamedRendererRegistryImpl<ToolRendererComponent>("Tool");
   readonly data: NamedRendererRegistry<DataRendererComponent> =
     new NamedRendererRegistryImpl<DataRendererComponent>("Data");
+  readonly toolPresentations: ToolPresentationRegistry = new ToolPresentationRegistryImpl();
 }

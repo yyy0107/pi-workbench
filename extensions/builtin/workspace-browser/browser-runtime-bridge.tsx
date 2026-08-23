@@ -3,19 +3,19 @@
 import { useCallback } from "react";
 
 import { useRightWorkspace, useWorkspaceContext } from "@/components/right-workspace";
+import { toolStringArg, useCompletedToolCalls } from "@/runtime/tool-events";
 
-import { stringArg, useCompletedWorkspaceToolCalls } from "../workspace-shared/runtime-tool-events";
 import { browserSessionService } from "./browser-session-service";
 
 export function BrowserRuntimeBridge() {
   const controller = useRightWorkspace();
   const context = useWorkspaceContext();
 
-  useCompletedWorkspaceToolCalls(
+  useCompletedToolCalls(
     useCallback(
       (part) => {
-        const url = stringArg(part.args, "url");
-        const sessionId = stringArg(part.args, "browserSessionId", "sessionId", "session_id");
+        const url = toolStringArg(part.args, "url");
+        const sessionId = toolStringArg(part.args, "browserSessionId", "sessionId", "session_id");
         if (!/browser/i.test(part.toolName) || part.result === undefined || !url || !sessionId) {
           return false;
         }

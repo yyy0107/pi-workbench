@@ -2,6 +2,9 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
+import type { OpenerRegistry } from "@/platform/extensions";
+import { DefaultOpenerService } from "@/services/opener-service";
+
 import { DefaultRightWorkspaceController } from "./core/workspace-controller";
 import type { WorkspaceContext, WorkspaceSurfaceRegistry } from "./core/surface-types";
 import { createRightWorkspaceStore } from "./core/workspace-store";
@@ -14,11 +17,23 @@ const DEFAULT_CONTEXT: WorkspaceContext = {
 
 export function RightWorkspaceProvider({
   children,
+  openers,
   registry,
-}: Readonly<{ children: ReactNode; registry: WorkspaceSurfaceRegistry }>) {
+}: Readonly<{
+  children: ReactNode;
+  openers: OpenerRegistry;
+  registry: WorkspaceSurfaceRegistry;
+}>) {
   const [store] = useState(createRightWorkspaceStore);
   const [feedback] = useState(() => new MemoryWorkspaceFeedbackStore());
-  const [controller] = useState(() => new DefaultRightWorkspaceController(store, registry));
+  const controller = useMemo(
+    () => new DefaultRightWorkspaceController(store, registry),
+    [registry, store],
+  );
+  const opener = useMemo(
+    () => new DefaultOpenerService(openers, controller),
+    [controller, openers],
+  );
   const [context, setContext] = useState<WorkspaceContext>(DEFAULT_CONTEXT);
 
   useEffect(() => {
@@ -28,13 +43,14 @@ export function RightWorkspaceProvider({
   const value = useMemo<RightWorkspaceEnvironment>(
     () => ({
       controller,
+      opener,
       store,
       registry,
       feedback,
       context,
       setContext,
     }),
-    [context, controller, feedback, registry, store],
+    [context, controller, feedback, opener, registry, store],
   );
 
   return (

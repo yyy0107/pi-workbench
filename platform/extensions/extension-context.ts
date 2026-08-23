@@ -8,6 +8,7 @@ import type { PanelService } from "@/services/panel-service";
 
 import type { SettingsRegistry } from "./api/settings";
 import type { ComposerCommandRegistry } from "./api/composer-command";
+import type { OpenerRegistry } from "./api/opener";
 import type { WorkspaceSurfaceRegistry } from "./api/workspace-surface";
 
 import type { ExtensionManager } from "./extension-manager";
@@ -60,6 +61,14 @@ export function usePanelService(): PanelService {
 
 export function useCommandService(): CommandService {
   return useExtensionEnvironment().commands;
+}
+
+export function useExtensionErrorReporter(): ExtensionErrorHandler {
+  return useExtensionEnvironment().reportError;
+}
+
+export function useOpenerRegistry(): OpenerRegistry {
+  return useExtensionEnvironment().manager.openers;
 }
 
 export function useComposerCommandRegistry(): ComposerCommandRegistry {

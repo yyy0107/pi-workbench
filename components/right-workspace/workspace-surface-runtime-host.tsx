@@ -1,12 +1,12 @@
 "use client";
 
-import { ExtensionErrorBoundary, useExtensionEnvironment } from "@/platform/extensions";
+import { ExtensionErrorBoundary, useExtensionErrorReporter } from "@/platform/extensions";
 
 import { useWorkspaceSurfaceDefinitions } from "./workspace-context";
 
 export function WorkspaceSurfaceRuntimeHost() {
   const definitions = useWorkspaceSurfaceDefinitions();
-  const { reportError } = useExtensionEnvironment();
+  const reportError = useExtensionErrorReporter();
 
   return definitions.flatMap((definition) => {
     const Runtime = definition.runtime;

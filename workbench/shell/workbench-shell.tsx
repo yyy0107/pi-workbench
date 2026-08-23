@@ -3,7 +3,8 @@
 import { useRef, useState, type CSSProperties, type ReactNode } from "react";
 
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { RightWorkspace, useRightWorkspaceState } from "@/components/right-workspace";
+import { RightWorkspace } from "@/components/right-workspace";
+import { useRightWorkspaceState } from "@/components/right-workspace/workspace-context";
 import { cn } from "@/lib/utils";
 import { SlotHost } from "@/platform/extensions";
 

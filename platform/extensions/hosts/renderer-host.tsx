@@ -7,7 +7,11 @@ import type {
   ToolCallMessagePartComponent,
 } from "@assistant-ui/react";
 
-import type { DataRendererComponent, ToolRendererComponent } from "../api/renderer";
+import type {
+  DataRendererComponent,
+  ToolPresentationDefinition,
+  ToolRendererComponent,
+} from "../api/renderer";
 import { useExtensionEnvironment } from "../extension-context";
 import { ExtensionErrorBoundary } from "./extension-error-boundary";
 
@@ -16,6 +20,9 @@ const EMPTY_TOOL_RENDERERS = Object.freeze(Object.create(null)) as Readonly<
 >;
 const EMPTY_DATA_RENDERERS = Object.freeze(Object.create(null)) as Readonly<
   Record<string, DataRendererComponent>
+>;
+const EMPTY_TOOL_PRESENTATIONS = Object.freeze(Object.create(null)) as Readonly<
+  Record<string, ToolPresentationDefinition>
 >;
 
 export function MessageRendererHost({ fallback = null }: { fallback?: ReactNode }) {
@@ -57,6 +64,15 @@ export function useDataRendererMap(): Readonly<Record<string, DataRendererCompon
     manager.renderers.data.subscribe,
     () => manager.renderers.data.getComponentMap(),
     () => EMPTY_DATA_RENDERERS,
+  );
+}
+
+export function useToolPresentationMap(): Readonly<Record<string, ToolPresentationDefinition>> {
+  const { manager } = useExtensionEnvironment();
+  return useSyncExternalStore(
+    manager.renderers.toolPresentations.subscribe,
+    () => manager.renderers.toolPresentations.getPresentationMap(),
+    () => EMPTY_TOOL_PRESENTATIONS,
   );
 }
 

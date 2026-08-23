@@ -1,6 +1,6 @@
 ---
 name: extend-workbench-ui
-description: Builds, modifies, and reviews Pi Workbench frontend extensions using this repository's static Slot, Panel, Command, Renderer, Settings, and Workspace Surface platform, including its boundaries with the Inspector RightWorkspace and Pi runtime. Use when adding Workbench UI features, extension components, composer/header/sidebar/statusbar/workspace contributions, inspector surfaces, panels, settings sections or items, command-palette actions or shortcuts, assistant-ui tool/data renderers, enabledExtensions entries, or when deciding whether a frontend change belongs in an extension versus app, workbench, RightWorkspace, runtime, or backend core.
+description: Builds, modifies, and reviews Pi Workbench frontend extensions using this repository's static Slot, Panel, Command, Opener, Renderer, Settings, and Workspace Surface platform, including its boundaries with the Inspector RightWorkspace and Pi runtime. Use when adding Workbench UI features, extension components, composer/header/sidebar/statusbar/workspace contributions, inspector surfaces, resource open handlers, panels, settings sections or items, command-palette actions or shortcuts, assistant-ui tool/data renderers, enabledExtensions entries, or when deciding whether a frontend change belongs in an extension versus app, workbench, RightWorkspace, runtime, or backend core.
 ---
 
 # Extend Workbench UI
@@ -11,7 +11,7 @@ Implement frontend features through the repository's typed, statically bundled e
 
 1. Read the repository `AGENTS.md` and preserve unrelated worktree changes.
 2. Read [references/contracts.md](references/contracts.md) before editing extension code.
-3. Read [references/recipes.md](references/recipes.md) when implementing a Slot, Panel, Command, Renderer, Settings contribution, RightWorkspace integration, or new host Slot.
+3. Read [references/recipes.md](references/recipes.md) when implementing a Slot, Panel, Command, Opener, Renderer, Settings contribution, RightWorkspace integration, or new host Slot.
 4. If the feature reads or mutates Pi host/session/workspace/model state, read [`runtime/pi/README.md`](../../../runtime/pi/README.md) completely before choosing an API. Then inspect the named contract and client files; do not infer the protocol from legacy routes or a generic Harness reference.
 5. Read `docs/extensions.md` only when the task asks for public documentation or a detailed tutorial.
 6. Use the project `runtime` skill when changing assistant-ui `useAui`, thread, composer, or Runtime state usage.
@@ -26,6 +26,7 @@ Implement the feature as an extension when it can be independently enabled or re
 - Use a **Slot** for a small button, badge, control, or status indicator.
 - Use a **Panel** for a host-managed left or bottom surface. The current shell does not mount a right Panel host.
 - Use a **Command** for an action shared by the command palette, a shortcut, or UI controls.
+- Use an **Opener** when one contribution needs to open a resource owned by another without importing its surface kind, component, or store.
 - Use a **Renderer** for a complete assistant-ui message presentation or an existing tool-call/data message part.
 - Use **Settings** for a navigation section or a feature-owned preference inside the shared floating settings surface.
 - Use a **Workspace Surface** contribution for persistent inspector capabilities such as review, explorer, file, browser, and artifact views. RightWorkspace core owns only tabs, layout, scope restoration, persistence, status, and feedback chrome. `workspace.actions` remains its compact toolbar Slot for actions outside a Surface lifecycle.
@@ -41,7 +42,8 @@ Modify core layers instead when the task changes:
 - a Next.js route or page assembly: `app/`;
 - shell structure, responsive layout, or a new insertion contract: `workbench/`;
 - Inspector tab lifecycle, generic persistence, status, or feedback host: `components/right-workspace/`;
-- a feature-owned inspector Surface, menu item, Runtime bridge, or domain service: `extensions/builtin/<feature>/`;
+- a feature-owned inspector Surface, menu item, Runtime bridge, or single-feature domain service: `extensions/builtin/<feature>/`;
+- a capability consumed by multiple contributions: promote its contract/adapter to `services/` or the appropriate `runtime/` layer;
 - assistant runtime, persistence, transport, or adapters: `runtime/`;
 - shared UI primitives: `components/ui/`;
 - tool definition/execution or protocol behavior: assistant-ui Tool/Runtime or backend code.
@@ -59,7 +61,8 @@ When no existing Slot fits, add a typed host Slot first, then register the featu
   - `token-usage`: derive assistant-ui Runtime state;
   - `workspace-review`, `workspace-explorer`, `workspace-file`, `workspace-browser`, and `workspace-artifact`: Workspace Surface contributions;
   - `skills`: Pi-backed Settings section using a typed unary RPC helper;
-  - `terminal`: bottom Panel, Command with explicit `move()`, `bash` Renderer, `workspace.actions`, and mobile trigger;
+  - `terminal`: Workspace Surface, Command, `bash` Renderer, Runtime bridge, and mobile trigger;
+  - `workspace-file`: Workspace Surface plus a `file` Open Handler;
   - `settings`: sidebar/header triggers, `shell.overlay`, Command, and extensible settings sections/items;
   - `appearance`: Settings section/item plus `shell.background` contribution;
   - `model-selector`: assistant-ui ModelContext plus default-model Settings integration.
@@ -130,6 +133,7 @@ When changing Pi transport or session behavior, also run the Pi tests documented
 ## Enforce the guardrails
 
 - Import extension contracts and hooks from `@/platform/extensions`; do not import registry or host internals.
+- Never deep-import a sibling `extensions/builtin/<feature>`; collaborate through a public Registry, Renderer, Command, Opener, or promoted Service.
 - Register component types, not pre-created React nodes.
 - Never call `register()` during React render.
 - Keep Extension, Panel, Command, Slot contribution, Renderer, Settings section, and Settings item identifiers within their documented uniqueness scopes.
@@ -141,6 +145,7 @@ When changing Pi transport or session behavior, also run the Pi tests documented
 - Do not assume registering a Panel opens it; use PanelService or a Command.
 - Do not target `defaultLocation: "right"` or `panel.right.*` for new features while the current shell uses RightWorkspace instead of a right Panel host.
 - Register inspector kinds only through `context.workspace.register(...)`; keep the kind, icon, resource key, default scope, renderer, optional menu item, Runtime bridge, and domain service in the owning extension.
+- Register cross-feature resource handlers through `context.openers.register(...)`; callers use `useOpenerService()` and handle Promise rejection.
 - Do not add feature-specific kind branches, icons, services, or Agent tool mappings back to `components/right-workspace/`.
 - Do not assume registering a Renderer exposes or executes a model tool.
 - Do not call raw Pi endpoints, open another event stream, or copy RPC payload types into an extension. Follow `runtime/pi/README.md`, reuse `runtime/pi/client/transport/api.ts` or the manager hooks, and treat `/api/pi/**` as compatibility-only unless the README names an exception.

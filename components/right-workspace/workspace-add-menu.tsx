@@ -5,7 +5,7 @@ import { useState } from "react";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useI18n } from "@/i18n";
-import { ExtensionErrorBoundary, useExtensionEnvironment } from "@/platform/extensions";
+import { ExtensionErrorBoundary, useExtensionErrorReporter } from "@/platform/extensions";
 
 import { useWorkspaceSurfaceDefinitions } from "./workspace-context";
 
@@ -15,7 +15,7 @@ interface WorkspaceSurfaceMenuItemsProps {
 
 export function WorkspaceSurfaceMenuItems({ closeMenu }: WorkspaceSurfaceMenuItemsProps) {
   const definitions = useWorkspaceSurfaceDefinitions();
-  const { reportError } = useExtensionEnvironment();
+  const reportError = useExtensionErrorReporter();
   const contributions = definitions.filter((definition) => definition.menuItem);
 
   return contributions.map((definition) => {

@@ -1,7 +1,17 @@
 export * from "./api";
+export * from "./create-lazy-workspace-surface";
 export * from "./define-extension";
-export * from "./extension-context";
-export * from "./extension-manager";
-export * from "./extension-provider";
 export * from "./hosts";
-export * from "./registries";
+export type {
+  ExtensionErrorDetails,
+  ExtensionErrorHandler,
+  ExtensionErrorSource,
+} from "./extension-context";
+export {
+  useCommandService,
+  useComposerCommandRegistry,
+  useExtensionErrorReporter,
+  useNavigationService,
+  usePanelService,
+  useSettingsRegistry,
+} from "./extension-context";

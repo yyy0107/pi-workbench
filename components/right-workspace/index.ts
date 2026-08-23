@@ -13,18 +13,22 @@ export { RightWorkspaceToggleButton } from "./right-workspace-toggle-button";
 export type { RightWorkspaceController } from "./core/workspace-controller";
 export type {
   OpenSurfaceRequest,
-  RightWorkspaceState,
   WorkspaceContext,
   WorkspaceScope,
   WorkspaceSurfaceInstance,
   WorkspaceSurfaceKind,
   WorkspaceSurfaceRegistry,
 } from "./core/surface-types";
+export { scopeMatchesContext } from "./core/workspace-selectors";
 export {
   useRightWorkspace,
   useRightWorkspaceState,
+  useOpenerService,
+  useActiveWorkspaceSurface,
   useSetWorkspaceContext,
   useWorkspaceContext,
+  useWorkspaceOpen,
+  useWorkspaceSurfaces,
   useWorkspaceFeedbackState,
   useWorkspaceFeedbackStore,
   useWorkspaceSurfaceDefinitions,

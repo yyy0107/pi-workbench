@@ -1,16 +1,21 @@
 import { Globe2Icon } from "lucide-react";
 
 import type { WorkspaceSurfaceDefinition } from "@/platform/extensions";
-import { defineExtension } from "@/platform/extensions";
+import { createLazyWorkspaceSurface, defineExtension } from "@/platform/extensions";
 
 import { BrowserMenuItem } from "./browser-menu-item";
 import { BrowserRuntimeBridge } from "./browser-runtime-bridge";
-import { BrowserSurface, type BrowserSurfaceParams } from "./browser-surface";
+import type { BrowserSurfaceParams } from "./browser-surface";
+
+const BrowserSurface = createLazyWorkspaceSurface(async () => {
+  const module = await import("./browser-surface");
+  return { default: module.BrowserSurface };
+});
 
 export const browserSurfaceDefinition = {
   kind: "browser",
   icon: Globe2Icon,
-  cachePolicy: "persistent",
+  cachePolicy: "keep-alive",
   allowDuplicateResources: false,
   getResourceKey: (params, context) =>
     `browser:${encodeURIComponent(context.threadId ?? "application")}:${encodeURIComponent(params.browserSessionId)}`,

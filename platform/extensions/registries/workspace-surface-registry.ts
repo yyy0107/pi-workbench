@@ -1,13 +1,15 @@
 import { createDisposable } from "../api/disposable";
-import type {
-  AnyWorkspaceSurfaceDefinition,
-  WorkspaceSurfaceDefinition,
-  WorkspaceSurfaceRegistry,
+import {
+  WORKSPACE_SURFACE_PLACEMENTS,
+  type AnyWorkspaceSurfaceDefinition,
+  type WorkspaceSurfaceDefinition,
+  type WorkspaceSurfaceRegistry,
 } from "../api/workspace-surface";
 import { assertNonEmptyId, emitRegistryChange } from "./registry-utils";
 
 const EMPTY_SURFACES = Object.freeze([]) as readonly AnyWorkspaceSurfaceDefinition[];
-const CACHE_POLICIES = new Set(["unmount", "keep-alive", "persistent"]);
+const CACHE_POLICIES = new Set(["unmount", "keep-alive"]);
+const SURFACE_PLACEMENTS = new Set(WORKSPACE_SURFACE_PLACEMENTS);
 
 export class WorkspaceSurfaceRegistryImpl implements WorkspaceSurfaceRegistry {
   readonly #definitions = new Map<string, AnyWorkspaceSurfaceDefinition>();
@@ -22,6 +24,11 @@ export class WorkspaceSurfaceRegistryImpl implements WorkspaceSurfaceRegistry {
     if (!CACHE_POLICIES.has(definition.cachePolicy)) {
       throw new Error(
         `Workspace surface "${definition.kind}" has invalid cache policy "${definition.cachePolicy}"`,
+      );
+    }
+    if (definition.defaultPlacement && !SURFACE_PLACEMENTS.has(definition.defaultPlacement)) {
+      throw new Error(
+        `Workspace surface "${definition.kind}" has invalid default placement "${definition.defaultPlacement}"`,
       );
     }
 

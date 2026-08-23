@@ -3,7 +3,8 @@ import test from "node:test";
 
 import { PanelsTopLeftIcon } from "lucide-react";
 
-import { WorkspaceSurfaceRegistryImpl } from "@/platform/extensions";
+import { type ExtensionContext } from "@/platform/extensions";
+import { ExtensionManager, WorkspaceSurfaceRegistryImpl } from "@/platform/extensions/internal";
 import {
   DefaultRightWorkspaceController,
   RIGHT_WORKSPACE_STORAGE_KEY,
@@ -31,19 +32,36 @@ const context = {
   rootPath: "/workspace",
 };
 
+const fileDefinition = {
+  kind: "file",
+  icon: PanelsTopLeftIcon,
+  cachePolicy: "keep-alive" as const,
+  getResourceKey: (params: Record<string, unknown>, value: typeof context) =>
+    `file:${value.worktreeId}:${String(params.absolutePath)}`,
+  getDefaultScope: (_params: Record<string, unknown>, value: typeof context) => ({
+    type: "worktree" as const,
+    key: value.worktreeId ?? value.applicationId,
+  }),
+  render: () => null,
+};
+
+const explorerDefinition = {
+  kind: "explorer",
+  icon: PanelsTopLeftIcon,
+  cachePolicy: "keep-alive" as const,
+  defaultPlacement: "auxiliary" as const,
+  getResourceKey: (params: Record<string, unknown>, value: typeof context) =>
+    `explorer:${value.worktreeId}:${encodeURIComponent(String(params.rootPath))}`,
+  getDefaultScope: (_params: Record<string, unknown>, value: typeof context) => ({
+    type: "worktree" as const,
+    key: value.worktreeId ?? value.applicationId,
+  }),
+  render: () => null,
+};
+
 function createRegistry() {
   const registry = new WorkspaceSurfaceRegistryImpl();
-  registry.register({
-    kind: "file",
-    icon: PanelsTopLeftIcon,
-    cachePolicy: "keep-alive",
-    getResourceKey: (params, value) => `file:${value.worktreeId}:${String(params.absolutePath)}`,
-    getDefaultScope: (_params, value) => ({
-      type: "worktree",
-      key: value.worktreeId ?? value.applicationId,
-    }),
-    render: () => null,
-  });
+  registry.register(fileDefinition);
   registry.register({
     kind: "artifact",
     icon: PanelsTopLeftIcon,
@@ -55,16 +73,13 @@ function createRegistry() {
     }),
     render: () => null,
   });
+  registry.register(explorerDefinition);
   registry.register({
-    kind: "explorer",
+    kind: "terminal",
     icon: PanelsTopLeftIcon,
     cachePolicy: "keep-alive",
-    getResourceKey: (params, value) =>
-      `explorer:${value.worktreeId}:${encodeURIComponent(String(params.rootPath))}`,
-    getDefaultScope: (_params, value) => ({
-      type: "worktree",
-      key: value.worktreeId ?? value.applicationId,
-    }),
+    allowDuplicateResources: true,
+    getResourceKey: (params) => `terminal:${String(params.sessionId)}`,
     render: () => null,
   });
   return registry;
@@ -140,7 +155,189 @@ test("closing an active surface restores history from the same scope", () => {
   assert.equal(store.getState().activeSurfaceId, first);
 });
 
-test("serializable tab metadata survives while its extension is unavailable", () => {
+test("primary and auxiliary surfaces activate independently", () => {
+  const store = createRightWorkspaceStore();
+  const controller = new DefaultRightWorkspaceController(store, createRegistry());
+  const file = controller.open({
+    kind: "file",
+    title: "app.ts",
+    params: { absolutePath: "/workspace/app.ts" },
+    context,
+  });
+  const explorer = controller.open({
+    kind: "explorer",
+    title: "Explorer",
+    params: { rootPath: "/workspace" },
+    context,
+  });
+
+  assert.equal(store.getState().surfaces[file]?.placement, "primary");
+  assert.equal(store.getState().surfaces[explorer]?.placement, "auxiliary");
+  assert.equal(store.getState().activeSurfaceId, file);
+  assert.equal(store.getState().activeAuxiliarySurfaceId, explorer);
+
+  controller.close(file);
+  assert.equal(store.getState().activeSurfaceId, null);
+  assert.equal(store.getState().activeAuxiliarySurfaceId, explorer);
+  assert.equal(store.getState().open, true);
+});
+
+test("focus, close fallback, and closeOthers stay within one placement", () => {
+  const store = createRightWorkspaceStore();
+  const controller = new DefaultRightWorkspaceController(store, createRegistry());
+  const firstFile = controller.open({
+    kind: "file",
+    title: "one.ts",
+    params: { absolutePath: "/workspace/one.ts" },
+    context,
+  });
+  const secondFile = controller.open({
+    kind: "file",
+    title: "two.ts",
+    params: { absolutePath: "/workspace/two.ts" },
+    context,
+  });
+  const firstExplorer = controller.open({
+    kind: "explorer",
+    title: "Explorer one",
+    params: { rootPath: "/workspace" },
+    context,
+  });
+  const secondExplorer = controller.open({
+    kind: "explorer",
+    title: "Explorer two",
+    params: { rootPath: "/workspace/packages" },
+    context,
+  });
+
+  controller.focus(firstExplorer);
+  assert.equal(store.getState().activeSurfaceId, secondFile);
+  assert.equal(store.getState().activeAuxiliarySurfaceId, firstExplorer);
+
+  controller.close(firstExplorer);
+  assert.equal(store.getState().activeSurfaceId, secondFile);
+  assert.equal(store.getState().activeAuxiliarySurfaceId, secondExplorer);
+
+  controller.closeOthers(firstFile);
+  assert.deepEqual(store.getState().surfaceOrder, [firstFile, secondExplorer]);
+  assert.equal(store.getState().activeSurfaceId, firstFile);
+  assert.equal(store.getState().activeAuxiliarySurfaceId, secondExplorer);
+});
+
+test("reorder moves tabs within a placement without disturbing auxiliary surfaces", () => {
+  const store = createRightWorkspaceStore();
+  const controller = new DefaultRightWorkspaceController(store, createRegistry());
+  const first = controller.open({
+    kind: "file",
+    title: "one.ts",
+    params: { absolutePath: "/workspace/one.ts" },
+    context,
+  });
+  const explorer = controller.open({
+    kind: "explorer",
+    title: "Explorer",
+    params: { rootPath: "/workspace" },
+    context,
+  });
+  const second = controller.open({
+    kind: "file",
+    title: "two.ts",
+    params: { absolutePath: "/workspace/two.ts" },
+    context,
+  });
+  const third = controller.open({
+    kind: "file",
+    title: "three.ts",
+    params: { absolutePath: "/workspace/three.ts" },
+    context,
+  });
+
+  controller.reorder(third, first, "before");
+  assert.deepEqual(store.getState().surfaceOrder, [third, first, explorer, second]);
+
+  controller.reorder(first, explorer, "after");
+  assert.deepEqual(store.getState().surfaceOrder, [third, first, explorer, second]);
+});
+
+test("closeToRight closes only visible tabs to the right and restores focus to its anchor", () => {
+  const store = createRightWorkspaceStore();
+  const controller = new DefaultRightWorkspaceController(store, createRegistry());
+  const first = controller.open({
+    kind: "file",
+    title: "one.ts",
+    params: { absolutePath: "/workspace/one.ts" },
+    context,
+  });
+  const hidden = controller.open({
+    kind: "file",
+    title: "hidden.ts",
+    params: { absolutePath: "/other/hidden.ts" },
+    context: { ...context, worktreeId: "worktree-2" },
+  });
+  const second = controller.open({
+    kind: "file",
+    title: "two.ts",
+    params: { absolutePath: "/workspace/two.ts" },
+    context,
+  });
+  const explorer = controller.open({
+    kind: "explorer",
+    title: "Explorer",
+    params: { rootPath: "/workspace" },
+    context,
+  });
+  const third = controller.open({
+    kind: "file",
+    title: "three.ts",
+    params: { absolutePath: "/workspace/three.ts" },
+    context,
+  });
+
+  controller.closeToRight(first, context);
+
+  assert.deepEqual(store.getState().surfaceOrder, [first, hidden, explorer]);
+  assert.equal(store.getState().surfaces[second], undefined);
+  assert.equal(store.getState().surfaces[third], undefined);
+  assert.equal(store.getState().activeSurfaceId, first);
+  assert.equal(store.getState().activeAuxiliarySurfaceId, explorer);
+});
+
+test("context-aware closeOthers preserves tabs outside the visible workspace context", () => {
+  const store = createRightWorkspaceStore();
+  const controller = new DefaultRightWorkspaceController(store, createRegistry());
+  const first = controller.open({
+    kind: "file",
+    title: "one.ts",
+    params: { absolutePath: "/workspace/one.ts" },
+    context,
+  });
+  const hidden = controller.open({
+    kind: "file",
+    title: "hidden.ts",
+    params: { absolutePath: "/other/hidden.ts" },
+    context: { ...context, worktreeId: "worktree-2" },
+  });
+  controller.open({
+    kind: "file",
+    title: "two.ts",
+    params: { absolutePath: "/workspace/two.ts" },
+    context,
+  });
+  const explorer = controller.open({
+    kind: "explorer",
+    title: "Explorer",
+    params: { rootPath: "/workspace" },
+    context,
+  });
+
+  controller.closeOthers(first, context);
+
+  assert.deepEqual(store.getState().surfaceOrder, [first, hidden, explorer]);
+  assert.equal(store.getState().activeSurfaceId, first);
+  assert.equal(store.getState().activeAuxiliarySurfaceId, explorer);
+});
+
+test("serializable placement metadata survives while its extension is unavailable", () => {
   const storage = new MemoryStorage();
   const firstStore = createRightWorkspaceStore();
   const firstController = new DefaultRightWorkspaceController(firstStore, createRegistry());
@@ -167,9 +364,184 @@ test("serializable tab metadata survives while its extension is unavailable", ()
   assert.equal(restoredStore.getState().hydrated, true);
   assert.equal(restoredStore.getState().width, 612);
   assert.equal(restoredStore.getState().open, false);
-  assert.equal(restoredStore.getState().activeSurfaceId, surfaceId);
+  assert.equal(restoredStore.getState().activeSurfaceId, null);
+  assert.equal(restoredStore.getState().activeAuxiliarySurfaceId, surfaceId);
+  assert.equal(restoredStore.getState().surfaces[surfaceId]?.placement, "auxiliary");
   assert.equal(
     restoredStore.getState().surfaces[surfaceId]?.resourceKey,
     "explorer:worktree-1:%2Fworkspace",
   );
+});
+
+test("legacy hydration reconciles an existing resource to its registered placement", () => {
+  const storage = new MemoryStorage();
+  const surfaceId = "explorer:legacy";
+  storage.values.set(
+    RIGHT_WORKSPACE_STORAGE_KEY,
+    JSON.stringify({
+      open: true,
+      width: 640,
+      activeSurfaceId: surfaceId,
+      surfaceOrder: [surfaceId],
+      surfaces: [
+        {
+          id: surfaceId,
+          kind: "explorer",
+          title: "Explorer",
+          resourceKey: "explorer:worktree-1:%2Fworkspace",
+          scope: { type: "worktree", key: "worktree-1" },
+          params: { rootPath: "/workspace" },
+          status: "ready",
+          createdAt: 1,
+          lastActiveAt: 1,
+        },
+      ],
+    }),
+  );
+  const registry = new WorkspaceSurfaceRegistryImpl();
+  const store = createRightWorkspaceStore();
+  const controller = new DefaultRightWorkspaceController(store, registry);
+  controller.hydrate(storage);
+
+  assert.equal(store.getState().surfaces[surfaceId]?.placement, "primary");
+  registry.register(explorerDefinition);
+  const revealed = controller.reveal({
+    kind: "explorer",
+    title: "Explorer",
+    params: { rootPath: "/workspace" },
+    context,
+    policy: "background",
+  });
+
+  assert.equal(revealed, surfaceId);
+  assert.equal(store.getState().surfaceOrder.length, 1);
+  assert.equal(store.getState().surfaces[surfaceId]?.placement, "auxiliary");
+  assert.equal(store.getState().activeSurfaceId, null);
+  assert.equal(store.getState().activeAuxiliarySurfaceId, surfaceId);
+});
+
+test("auxiliary width is clamped and persisted", () => {
+  const storage = new MemoryStorage();
+  const store = createRightWorkspaceStore();
+  const controller = new DefaultRightWorkspaceController(store, createRegistry());
+  controller.hydrate(storage);
+
+  controller.setAuxiliaryWidth(120);
+  assert.equal(store.getState().auxiliaryWidth, 220);
+
+  controller.setAuxiliaryWidth(486);
+  const restoredStore = createRightWorkspaceStore();
+  new DefaultRightWorkspaceController(restoredStore, createRegistry()).hydrate(storage);
+  assert.equal(restoredStore.getState().auxiliaryWidth, 486);
+});
+
+test("auxiliary visibility is hidden persistently and legacy state defaults to visible", () => {
+  const storage = new MemoryStorage();
+  const store = createRightWorkspaceStore();
+  const controller = new DefaultRightWorkspaceController(store, createRegistry());
+  controller.hydrate(storage);
+
+  controller.setAuxiliaryOpen(false);
+  assert.equal(store.getState().auxiliaryOpen, false);
+
+  const restoredStore = createRightWorkspaceStore();
+  new DefaultRightWorkspaceController(restoredStore, createRegistry()).hydrate(storage);
+  assert.equal(restoredStore.getState().auxiliaryOpen, false);
+
+  storage.values.set(
+    RIGHT_WORKSPACE_STORAGE_KEY,
+    JSON.stringify({ open: true, width: 640, surfaceOrder: [], surfaces: [] }),
+  );
+  const legacyStore = createRightWorkspaceStore();
+  new DefaultRightWorkspaceController(legacyStore, createRegistry()).hydrate(storage);
+  assert.equal(legacyStore.getState().auxiliaryOpen, true);
+});
+
+test("background auxiliary reveals preserve a hidden auxiliary pane", () => {
+  const store = createRightWorkspaceStore();
+  const controller = new DefaultRightWorkspaceController(store, createRegistry());
+  const request = {
+    kind: "explorer" as const,
+    title: "Explorer",
+    params: { rootPath: "/workspace" },
+    context,
+  };
+  controller.reveal(request);
+  controller.setAuxiliaryOpen(false);
+
+  controller.reveal({ ...request, policy: "background" });
+  assert.equal(store.getState().auxiliaryOpen, false);
+
+  controller.reveal({
+    ...request,
+    params: { rootPath: "/workspace/packages" },
+    policy: "background",
+  });
+  assert.equal(store.getState().auxiliaryOpen, false);
+});
+
+test("explicit auxiliary focus and open restore a hidden auxiliary pane", () => {
+  const store = createRightWorkspaceStore();
+  const controller = new DefaultRightWorkspaceController(store, createRegistry());
+  const request = {
+    kind: "explorer" as const,
+    title: "Explorer",
+    params: { rootPath: "/workspace" },
+    context,
+  };
+  const surfaceId = controller.open(request);
+
+  controller.setAuxiliaryOpen(false);
+  controller.focus(surfaceId);
+  assert.equal(store.getState().auxiliaryOpen, true);
+
+  controller.setAuxiliaryOpen(false);
+  assert.equal(controller.open(request), surfaceId);
+  assert.equal(store.getState().auxiliaryOpen, true);
+});
+
+test("surface instances survive contribution deactivation and recover on reactivation", () => {
+  const manager = new ExtensionManager();
+  const extension = {
+    id: "workbench.file-fixture",
+    name: "File Fixture",
+    version: "1.0.0",
+    setup: (extensionContext: ExtensionContext) =>
+      extensionContext.workspace.register(fileDefinition),
+  };
+  manager.activate(extension);
+  const store = createRightWorkspaceStore();
+  const controller = new DefaultRightWorkspaceController(store, manager.workspace);
+  const request = {
+    kind: "file" as const,
+    title: "app.ts",
+    params: { absolutePath: "/workspace/app.ts" },
+    context,
+  };
+  const surfaceId = controller.reveal(request);
+
+  manager.deactivate(extension.id);
+  assert.equal(manager.workspace.get("file"), undefined);
+  assert.equal(store.getState().surfaces[surfaceId]?.id, surfaceId);
+
+  manager.activate(extension);
+  assert.equal(controller.reveal(request), surfaceId);
+  assert.equal(manager.workspace.get("file")?.kind, "file");
+});
+
+test("duplicate-enabled surface definitions create independent instances", () => {
+  const store = createRightWorkspaceStore();
+  const controller = new DefaultRightWorkspaceController(store, createRegistry());
+  const request = {
+    kind: "terminal" as const,
+    title: "Terminal",
+    params: { sessionId: "session-1" },
+    context,
+  };
+
+  const first = controller.open(request);
+  const second = controller.open(request);
+
+  assert.notEqual(first, second);
+  assert.deepEqual(store.getState().surfaceOrder, [first, second]);
 });

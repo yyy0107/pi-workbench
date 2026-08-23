@@ -3,22 +3,17 @@
 import { useCallback } from "react";
 
 import { useRightWorkspace, useWorkspaceContext } from "@/components/right-workspace";
-
-import {
-  resultText,
-  stringArg,
-  useCompletedWorkspaceToolCalls,
-} from "../workspace-shared/runtime-tool-events";
+import { toolResultText, toolStringArg, useCompletedToolCalls } from "@/runtime/tool-events";
 import { artifactPreviewService } from "./artifact-preview-service";
 
 export function ArtifactRuntimeBridge() {
   const controller = useRightWorkspace();
   const context = useWorkspaceContext();
 
-  useCompletedWorkspaceToolCalls(
+  useCompletedToolCalls(
     useCallback(
       (part) => {
-        const artifactId = stringArg(part.args, "artifactId", "artifact_id");
+        const artifactId = toolStringArg(part.args, "artifactId", "artifact_id");
         if (
           !/artifact/i.test(part.toolName) ||
           part.result === undefined ||
@@ -27,13 +22,13 @@ export function ArtifactRuntimeBridge() {
         ) {
           return false;
         }
-        const title = stringArg(part.args, "title", "name") ?? artifactId;
+        const title = toolStringArg(part.args, "title", "name") ?? artifactId;
         artifactPreviewService.upsertArtifact({
           id: artifactId,
           threadId: context.threadId,
           title,
           rendererKind: "unknown",
-          content: resultText(part.result),
+          content: toolResultText(part.result),
           updatedAt: Date.now(),
         });
         controller.reveal({

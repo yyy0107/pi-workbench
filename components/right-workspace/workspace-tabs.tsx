@@ -21,6 +21,7 @@ import {
   useWorkspaceContext,
   useWorkspaceSurfaceDefinitions,
 } from "./workspace-context";
+import { workspaceTabScrollDelta } from "./workspace-tab-layout";
 
 type DropPosition = "before" | "after";
 type PointerDragCandidate = {
@@ -214,6 +215,19 @@ export function WorkspaceTabs() {
     }
   }, [draggingId, positionDragOverlay, surfaces]);
 
+  useLayoutEffect(() => {
+    if (!activeSurfaceId) return;
+    const list = tabListElement.current;
+    const activeTab = tabElements.current.get(activeSurfaceId);
+    if (!list || !activeTab) return;
+
+    const viewport = list.getBoundingClientRect();
+    const tab = activeTab.getBoundingClientRect();
+    const delta = workspaceTabScrollDelta(viewport.left, viewport.right, tab.left, tab.right);
+    if (Math.abs(delta) < 0.5) return;
+    list.scrollBy({ left: delta });
+  }, [activeSurfaceId, surfaces]);
+
   useEffect(() => {
     const element = tabListElement.current;
     if (!element) return;
@@ -342,12 +356,12 @@ export function WorkspaceTabs() {
 
   return (
     <>
-      <div className="relative min-w-0 max-w-full shrink">
+      <div className="relative min-w-0 flex-1 overflow-hidden">
         <div
           ref={tabListElement}
           role="tablist"
           aria-label={t("rightWorkspace.tabs")}
-          className="flex min-w-0 max-w-full shrink items-center gap-1 overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="flex w-full min-w-0 items-center gap-1 overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {surfaces.map((surface, surfaceIndex) => {
             const Icon = definitionByKind.get(surface.kind)?.icon ?? PanelsTopLeftIcon;
@@ -365,18 +379,24 @@ export function WorkspaceTabs() {
                   data-state={active ? "active" : "inactive"}
                   data-dragging={draggingId === surface.id ? "true" : undefined}
                   className={cn(
-                    "group/tab text-muted-foreground hover:bg-muted/70 hover:text-foreground focus-within:bg-muted/70 focus-within:text-foreground data-[state=active]:bg-muted data-[state=active]:text-foreground after:bg-border/70 relative flex h-7 w-40 min-w-20 max-w-40 flex-[1_1_10rem] select-none items-center rounded-lg text-xs transition-[background-color,color,opacity] after:absolute after:inset-y-1.5 after:end-[-3px] after:w-px after:content-[''] last:after:hidden hover:after:hidden focus-within:after:hidden data-[dragging=true]:cursor-grabbing data-[dragging=true]:opacity-25 data-[state=active]:after:hidden",
+                    "group/tab text-muted-foreground hover:bg-muted/70 hover:text-foreground data-[state=active]:bg-muted data-[state=active]:text-foreground after:bg-border/70 relative flex h-7 w-40 min-w-20 max-w-40 flex-[1_1_10rem] select-none items-center rounded-lg text-xs transition-[background-color,color,opacity] after:absolute after:inset-y-1.5 after:end-[-3px] after:w-px after:content-[''] last:after:hidden hover:after:hidden focus-within:after:hidden data-[dragging=true]:cursor-grabbing data-[dragging=true]:opacity-25 data-[state=active]:after:hidden",
                     surfaces.length > 1 ? "cursor-grab active:cursor-grabbing" : "cursor-default",
                   )}
                   onPointerDown={(event) => {
                     if (
-                      surfaces.length < 2 ||
                       !event.isPrimary ||
                       event.button !== 0 ||
                       (event.target as Element).closest('[data-workspace-tab-close="true"]')
                     ) {
                       return;
                     }
+
+                    // Selecting on press keeps tab activation independent from the drag gesture.
+                    // A small pointer movement may suppress the later click, but must not leave
+                    // focus styling on one tab while another surface remains active.
+                    controller.focus(surface.id);
+                    if (surfaces.length < 2) return;
+
                     const bounds = event.currentTarget.getBoundingClientRect();
                     pointerDragCandidate.current = {
                       grabOffsetX: event.clientX - bounds.left,
@@ -390,7 +410,7 @@ export function WorkspaceTabs() {
                       surfaceId: surface.id,
                       width: bounds.width,
                     };
-                    event.currentTarget.setPointerCapture(event.pointerId);
+                    event.currentTarget.setPointerCapture?.(event.pointerId);
                   }}
                 >
                   <button

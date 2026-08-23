@@ -4,6 +4,7 @@ import type {
   WorkspaceScope,
   WorkspaceScopeType,
   WorkspaceSurfaceInstance,
+  WorkspaceSurfacePlacement,
 } from "./surface-types";
 
 export function contextScopeKey(
@@ -36,11 +37,38 @@ export function selectContextSurfaces(
   });
 }
 
+export function selectContextSurfacesByPlacement(
+  state: RightWorkspaceState,
+  context: WorkspaceContext,
+  placement: WorkspaceSurfacePlacement,
+): readonly WorkspaceSurfaceInstance[] {
+  return selectContextSurfaces(state, context).filter((surface) => surface.placement === placement);
+}
+
+function selectActiveSurfaceByPlacement(
+  state: RightWorkspaceState,
+  context: WorkspaceContext,
+  placement: WorkspaceSurfacePlacement,
+): WorkspaceSurfaceInstance | undefined {
+  const activeSurfaceId =
+    placement === "primary" ? state.activeSurfaceId : state.activeAuxiliarySurfaceId;
+  const active = activeSurfaceId ? state.surfaces[activeSurfaceId] : undefined;
+  if (active && active.placement === placement && scopeMatchesContext(active.scope, context)) {
+    return active;
+  }
+  return selectContextSurfacesByPlacement(state, context, placement).at(-1);
+}
+
 export function selectActiveSurface(
   state: RightWorkspaceState,
   context: WorkspaceContext,
 ): WorkspaceSurfaceInstance | undefined {
-  const active = state.activeSurfaceId ? state.surfaces[state.activeSurfaceId] : undefined;
-  if (active && scopeMatchesContext(active.scope, context)) return active;
-  return selectContextSurfaces(state, context).at(-1);
+  return selectActiveSurfaceByPlacement(state, context, "primary");
+}
+
+export function selectActiveAuxiliarySurface(
+  state: RightWorkspaceState,
+  context: WorkspaceContext,
+): WorkspaceSurfaceInstance | undefined {
+  return selectActiveSurfaceByPlacement(state, context, "auxiliary");
 }

@@ -1,6 +1,12 @@
 import type { ComponentType } from "react";
-import type { DataMessagePartComponent, ToolCallMessagePartComponent } from "@assistant-ui/react";
+import type {
+  DataMessagePartComponent,
+  ToolCallMessagePart,
+  ToolCallMessagePartComponent,
+} from "@assistant-ui/react";
+import type { LucideIcon } from "lucide-react";
 
+import type { LocalizableText } from "@/i18n";
 import type { Disposable } from "./disposable";
 
 /**
@@ -74,9 +80,43 @@ export interface NamedRendererRegistry<TComponent> {
 }
 
 /**
+ * 一个工具调用在消息工作轨迹中的轻量展示描述。
+ *
+ * 它只控制外层动作标签、图标和折叠摘要，不替代 Tool Renderer，也不改变或执行工具。
+ * `summarize` 会在参数仍可能部分到达的 streaming 阶段调用，因此必须是纯函数并容忍缺失字段。
+ */
+export interface ToolPresentationDefinition {
+  /** 工具完成后的动作标签，例如“运行”。 */
+  readonly label: LocalizableText;
+  /** 工具执行中的动作标签，例如“正在运行”。 */
+  readonly activeLabel: LocalizableText;
+  /** 时间线步骤图标。 */
+  readonly icon: LucideIcon;
+  /** 可选的单行摘要提取器；返回空值时继续使用 Workbench 的安全 fallback。 */
+  readonly summarize?: (part: ToolCallMessagePart) => string | undefined;
+}
+
+/**
+ * 按 `toolName` 精确匹配时间线展示描述的可订阅 Registry。
+ *
+ * 名称区分大小写且唯一。注册值会被复制并浅冻结，快照在 Registry 变化前保持引用稳定。
+ */
+export interface ToolPresentationRegistry {
+  /** 注册一个工具展示描述并返回撤销注册的 Disposable。 */
+  register(toolName: string, presentation: ToolPresentationDefinition): Disposable;
+  /** 读取一个工具的展示描述。 */
+  get(toolName: string): ToolPresentationDefinition | undefined;
+  /** 返回 toolName 到展示描述的冻结稳定快照。 */
+  getPresentationMap(): Readonly<Record<string, ToolPresentationDefinition>>;
+  /** 订阅注册/注销变化并返回取消订阅函数。 */
+  subscribe(listener: () => void): () => void;
+}
+
+/**
  * 扩展可注册的消息呈现能力集合。
  *
- * `message` 决定整条消息如何遍历和分组；`tools`/`data` 提供可叠加的精确叶子 renderer。
+ * `message` 决定整条消息如何遍历和分组；`tools`/`data` 提供可叠加的精确叶子 renderer；
+ * `toolPresentations` 为工具调用提供与具体消息布局解耦的时间线元数据。
  * 常见能力扩展应把其 Panel、Command、Slot 和相关 Tool/Data Renderer 放在同一 setup 生命周期
  * 中，使扩展停用时入口与展示一起清理。
  */
@@ -87,4 +127,6 @@ export interface RendererRegistry {
   readonly tools: NamedRendererRegistry<ToolRendererComponent>;
   /** 按 `data.name` 精确匹配的 Data renderer。 */
   readonly data: NamedRendererRegistry<DataRendererComponent>;
+  /** 按 `toolName` 精确匹配的工具时间线展示描述。 */
+  readonly toolPresentations: ToolPresentationRegistry;
 }

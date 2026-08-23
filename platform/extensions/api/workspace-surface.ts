@@ -31,11 +31,16 @@ export type WorkspaceSurfaceStatus =
 
 export type WorkspaceSurfaceKind = string;
 
+export const WORKSPACE_SURFACE_PLACEMENTS = ["primary", "auxiliary"] as const;
+
+export type WorkspaceSurfacePlacement = (typeof WORKSPACE_SURFACE_PLACEMENTS)[number];
+
 export interface WorkspaceSurfaceInstance<
   P extends Record<string, unknown> = Record<string, unknown>,
 > {
   id: string;
   kind: WorkspaceSurfaceKind;
+  placement: WorkspaceSurfacePlacement;
   title: string;
   resourceKey: string;
   scope: WorkspaceScope;
@@ -59,7 +64,10 @@ export interface WorkspaceSurfaceMenuItemProps {
   closeMenu(): void;
 }
 
-export type WorkspaceSurfaceCachePolicy = "unmount" | "keep-alive" | "persistent";
+export type WorkspaceSurfaceCachePolicy = "unmount" | "keep-alive";
+
+export type WorkspaceSurfaceRenderer<P extends Record<string, unknown> = Record<string, unknown>> =
+  ComponentType<WorkspaceSurfaceProps<P>>;
 
 export interface WorkspaceSurfaceDefinition<
   P extends Record<string, unknown> = Record<string, unknown>,
@@ -69,10 +77,15 @@ export interface WorkspaceSurfaceDefinition<
   /** Icon rendered by the core tab host. */
   icon: LucideIcon;
   cachePolicy: WorkspaceSurfaceCachePolicy;
+  /** Default host pane. Omitted definitions render in the primary tabbed pane. */
+  defaultPlacement?: WorkspaceSurfacePlacement;
   allowDuplicateResources?: boolean;
   getResourceKey(params: P, context: WorkspaceContext): string;
   getDefaultScope?(params: P, context: WorkspaceContext): WorkspaceScope;
-  render: ComponentType<WorkspaceSurfaceProps<P>>;
+  /** Optional active-primary chrome rendered by the core host above every workspace pane. */
+  header?: WorkspaceSurfaceRenderer<P>;
+  /** Renderer component. Use createLazyWorkspaceSurface() for retryable code splitting. */
+  render: WorkspaceSurfaceRenderer<P>;
   /** Optional feature-owned entry rendered in the core add-surface menu. */
   menuItem?: ComponentType<WorkspaceSurfaceMenuItemProps>;
   /** Optional feature-owned runtime bridge mounted once while the extension is active. */
@@ -97,6 +110,7 @@ export interface OpenSurfaceRequest<P extends Record<string, unknown> = Record<s
   title: string;
   params: P;
   context: WorkspaceContext;
+  placement?: WorkspaceSurfacePlacement;
   scope?: WorkspaceScope;
   status?: WorkspaceSurfaceStatus;
   statusMessage?: string;

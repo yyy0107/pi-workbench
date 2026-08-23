@@ -3,7 +3,8 @@
 import { useAuiState, type MessagePartState } from "@assistant-ui/react";
 import { useEffect, useRef } from "react";
 
-export function stringArg(args: unknown, ...keys: string[]): string | undefined {
+/** Read the first non-empty string argument matching one of the supplied protocol field names. */
+export function toolStringArg(args: unknown, ...keys: string[]): string | undefined {
   if (!args || typeof args !== "object") return undefined;
   const record = args as Record<string, unknown>;
   for (const key of keys) {
@@ -12,7 +13,8 @@ export function stringArg(args: unknown, ...keys: string[]): string | undefined 
   return undefined;
 }
 
-export function resultText(result: unknown): string | undefined {
+/** Extract the common text payload shapes returned by tool adapters. */
+export function toolResultText(result: unknown): string | undefined {
   if (typeof result === "string") return result;
   if (!result || typeof result !== "object") return undefined;
   const candidate = result as Record<string, unknown>;
@@ -21,7 +23,13 @@ export function resultText(result: unknown): string | undefined {
   return undefined;
 }
 
-export function useCompletedWorkspaceToolCalls(
+/**
+ * Observe completed tool calls once per assistant-ui thread.
+ *
+ * Returning `true` marks a call as consumed. Returning `false` leaves it eligible for a later pass,
+ * which lets a feature wait until streaming arguments or results are complete.
+ */
+export function useCompletedToolCalls(
   handle: (part: Extract<MessagePartState, { type: "tool-call" }>) => boolean,
 ): void {
   const messages = useAuiState((state) => state.thread.messages);

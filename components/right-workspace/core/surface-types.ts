@@ -2,6 +2,7 @@ import type { WorkspaceSurfaceInstance } from "@/platform/extensions";
 
 export {
   WORKSPACE_SCOPE_TYPES,
+  WORKSPACE_SURFACE_PLACEMENTS,
   type AnyWorkspaceSurfaceDefinition,
   type OpenSurfaceRequest,
   type SurfaceOpenPolicy,
@@ -13,6 +14,7 @@ export {
   type WorkspaceSurfaceInstance,
   type WorkspaceSurfaceKind,
   type WorkspaceSurfaceMenuItemProps,
+  type WorkspaceSurfacePlacement,
   type WorkspaceSurfaceProps,
   type WorkspaceSurfaceRegistry,
   type WorkspaceSurfaceStatus,
@@ -23,6 +25,9 @@ export interface RightWorkspaceState {
   width: number;
   maximized: boolean;
   activeSurfaceId: string | null;
+  activeAuxiliarySurfaceId: string | null;
+  auxiliaryOpen: boolean;
+  auxiliaryWidth: number;
   surfaceOrder: readonly string[];
   surfaces: Readonly<Record<string, WorkspaceSurfaceInstance>>;
   navigationHistory: readonly string[];
@@ -33,6 +38,9 @@ export interface PersistedRightWorkspaceState {
   open: boolean;
   width: number;
   activeSurfaceId: string | null;
+  activeAuxiliarySurfaceId: string | null;
+  auxiliaryOpen: boolean;
+  auxiliaryWidth: number;
   surfaceOrder: string[];
   surfaces: WorkspaceSurfaceInstance[];
 }

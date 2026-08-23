@@ -12,10 +12,10 @@ import { AssistantRuntimeProvider, useAui, useAuiState } from "@assistant-ui/rea
 
 import {
   useRightWorkspace,
-  useRightWorkspaceState,
   useSetWorkspaceContext,
   useWorkspaceFeedbackStore,
 } from "@/components/right-workspace";
+import { useRightWorkspaceState } from "@/components/right-workspace/workspace-context";
 import { PiCommandsProvider } from "@/runtime/pi/client/runtime/command-context";
 import { PiSessionManagerProvider } from "@/runtime/pi/client/runtime/context";
 import { PiSessionManager } from "@/runtime/pi/client/runtime/manager";

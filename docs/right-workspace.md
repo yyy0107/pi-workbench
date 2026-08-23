@@ -11,7 +11,8 @@ ExtensionManager
     ├── Explorer Extension
     ├── File Extension
     ├── Browser Extension
-    └── Artifact Extension
+    ├── Artifact Extension
+    └── Terminal Extension
               ↓
 RightWorkspace Core
 ├── WorkspaceHeader / Tabs
@@ -20,9 +21,9 @@ RightWorkspace Core
 └── StatusLayer
 ```
 
-终端仍是独立的 Bottom Panel/Drawer。RightWorkspace 工具栏中的终端按钮来自
-`workspace.actions` Slot，空状态启动入口来自 `workspace.empty.actions` Slot，但终端会话不属于
-Surface 生命周期。
+这里的 `Extension` 是受信任、同进程、静态打包的 contribution bundle，不是具有独立 Host 或
+权限隔离的第三方插件。Terminal 与 Explorer、File、Review、Browser、Artifact 一样注册为
+Workspace Surface；底部 Panel 系统仍是通用宿主，但不再拥有 Terminal 业务语义。
 
 ## Surface Contribution
 
@@ -38,6 +39,7 @@ context.workspace.register({
     type: "project",
     key: context.projectId ?? context.applicationId,
   }),
+  header: ExampleSurfaceHeader,
   render: ExampleSurface,
   menuItem: ExampleMenuItem,
   runtime: ExampleRuntimeBridge,
@@ -45,6 +47,9 @@ context.workspace.register({
 ```
 
 - `render`：业务 Surface；核心只负责挂载、隐藏和错误隔离。
+- `header`：可选的主 Surface 顶部 chrome；由核心横跨主区和辅助区统一挂载，适合面包屑与资源操作。
+- `render` 可使用 `createLazyWorkspaceSurface()` 包装动态 import；核心 `SurfaceHost` 提供统一
+  Suspense loading fallback，重试时会重新执行失败的 loader。
 - `menuItem`：可选的功能自有添加入口，由核心加号菜单统一承载。
 - `runtime`：可选的功能自有 Runtime 桥，用于把 Agent 工具事件转换为该能力的打开或刷新动作。
 - `icon`：由核心标签 Host 渲染。
@@ -56,14 +61,36 @@ context.workspace.register({
 ## 核心生命周期
 
 所有标签写操作仍经过 `RightWorkspaceController`：`open`、`reveal`、`focus`、`close`、
-`closeOthers`、`closeAll` 和 `update`。关闭工作区只把宽度收为零，不删除实例。
+`closeOthers`、`closeAll` 和 `update`。布局写操作同样只经过 Controller，包括
+`setWorkspaceOpen`、`setAuxiliaryOpen` 和尺寸更新。关闭工作区或辅助区只隐藏布局，不删除实例。
 
 核心不会根据 `kind` 判断业务作用域，也不会导入任何具体 Surface/Service。扩展未注册时，持久化实例
 仍会被恢复并显示为不可用标签；相同 kind 的扩展稍后激活后，标签可再次渲染。这避免 ExtensionProvider
 激活时序或临时禁用扩展导致用户布局丢失。
 
-布局元数据保存在 `pi-workbench:right-workspace:v1`。React 组件、Service、WebSocket、Browser
+布局元数据（包括辅助区显隐与宽度）保存在 `pi-workbench:right-workspace:v1`。React 组件、Service、WebSocket、Browser
 Session、文件缓冲区和其他不可序列化资源不进入核心 Store。
+
+## 资源打开边界
+
+跨能力打开资源通过 `OpenerRegistry + OpenerService`，而不是直接 import 另一个 contribution：
+
+```text
+Explorer
+  └── open({ scheme: "file", path })
+        ↓
+    OpenerService
+        ↓ highest canOpen score
+    File open handler
+        ↓
+    RightWorkspaceController.reveal({ kind: "file", ... })
+```
+
+File contribution 在同步 `setup()` 中通过 `context.openers.register(...)` 注册 handler。执行时
+Service 注入通用 Surface operations，因此 setup 不需要 React Hook；Explorer 不知道 File 的
+React component、store 或 surface kind。共享文件能力位于 `services/workspace-file-service.ts`，
+并以 Workspace scope + path 隔离缓冲与订阅；后续替换为 App Server-backed adapter 时不需要改
+Explorer/File 的组件边界。
 
 ## 当前内置扩展
 
@@ -72,7 +99,9 @@ Session、文件缓冲区和其他不可序列化资源不进入核心 Store。
 - `workbench.workspace-file`
 - `workbench.workspace-browser`
 - `workbench.workspace-artifact`
+- `workbench.terminal`
 
 它们在 `extensions/enabled-extensions.ts` 静态启用。各自拥有 Surface、菜单入口、领域 Service、
 Runtime Bridge 和 `extensions.*` i18n 文案；禁用任一扩展不影响核心聊天或其他 Surface 能力。
-Terminal 扩展只贡献外部 Drawer 入口。
+Surface 实现模块在实例首次激活时懒加载，切走后按 `keep-alive` 保留；注册元数据与轻量 Runtime
+bridge 仍在启动时同步激活。

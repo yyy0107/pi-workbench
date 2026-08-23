@@ -1,23 +1,22 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 
 import {
   useRightWorkspace,
-  useRightWorkspaceState,
   useWorkspaceContext,
+  useWorkspaceSurfaces,
 } from "@/components/right-workspace";
+import { toolStringArg, useCompletedToolCalls } from "@/runtime/tool-events";
 
-import { stringArg, useCompletedWorkspaceToolCalls } from "../workspace-shared/runtime-tool-events";
 import { gitReviewService } from "./git-review-service";
 
 export function ReviewRuntimeBridge() {
   const controller = useRightWorkspace();
-  const surfacesById = useRightWorkspaceState((state) => state.surfaces);
-  const surfaces = useMemo(() => Object.values(surfacesById), [surfacesById]);
+  const surfaces = useWorkspaceSurfaces("review");
   const context = useWorkspaceContext();
 
-  useCompletedWorkspaceToolCalls(
+  useCompletedToolCalls(
     useCallback(
       (part) => {
         if (
@@ -28,7 +27,7 @@ export function ReviewRuntimeBridge() {
         ) {
           return false;
         }
-        const path = stringArg(part.args, "path", "file_path", "filePath");
+        const path = toolStringArg(part.args, "path", "file_path", "filePath");
         if (path) gitReviewService.noteChanged(context.worktreeId, path);
         const target = surfaces.find(
           (surface) =>

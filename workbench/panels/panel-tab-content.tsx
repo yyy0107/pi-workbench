@@ -2,7 +2,7 @@
 
 import type { PanelDefinition } from "@/platform/extensions";
 import { useI18n } from "@/i18n";
-import { ExtensionErrorBoundary, useExtensionEnvironment } from "@/platform/extensions";
+import { ExtensionErrorBoundary, useExtensionErrorReporter } from "@/platform/extensions";
 
 export interface PanelTabContentProps {
   definition: PanelDefinition;
@@ -24,7 +24,7 @@ function StaticPanelTabContent({ definition }: Pick<PanelTabContentProps, "defin
 }
 
 export function PanelTabContent({ definition, isActive }: PanelTabContentProps) {
-  const { reportError } = useExtensionEnvironment();
+  const reportError = useExtensionErrorReporter();
   const Tab = definition.tabComponent;
 
   if (!Tab) return <StaticPanelTabContent definition={definition} />;

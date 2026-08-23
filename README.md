@@ -2,6 +2,10 @@
 
 基于 Next.js 与 assistant-ui 的单应用 AI Workbench。第一版采用静态内置扩展，不加载远程 JavaScript 插件。
 
+当前 `extensions/builtin/*` 是随应用编译、同进程运行且受信任的 **Workbench Contribution
+Bundle**；`extension` 只是静态注册容器的项目命名，不代表已经提供第三方插件 ABI、权限隔离或
+Extension Host。真正的外部插件体系应在未来单独引入 `extensions/api` 与隔离 Host。
+
 ## 本地开发
 
 ```bash
@@ -33,10 +37,14 @@ pnpm electron:dist
 
 ```bash
 pnpm lint
+pnpm typecheck
+pnpm test
+pnpm check
 pnpm build
 ```
 
 ## 开发文档
 
 - [Workbench 扩展组件开发指南](docs/extensions.md)
+- [RightWorkspace 扩展架构](docs/right-workspace.md)
 - [项目级 Agent Skill：Extend Workbench UI](.agents/skills/extend-workbench-ui/SKILL.md)

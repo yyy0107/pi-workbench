@@ -1,11 +1,16 @@
 import { FileDiffIcon } from "lucide-react";
 
 import type { WorkspaceSurfaceDefinition } from "@/platform/extensions";
-import { defineExtension } from "@/platform/extensions";
+import { createLazyWorkspaceSurface, defineExtension } from "@/platform/extensions";
 
 import { ReviewMenuItem } from "./review-menu-item";
 import { ReviewRuntimeBridge } from "./review-runtime-bridge";
-import { ReviewSurface, type ReviewSurfaceParams } from "./review-surface";
+import type { ReviewSurfaceParams } from "./review-surface";
+
+const ReviewSurface = createLazyWorkspaceSurface(async () => {
+  const module = await import("./review-surface");
+  return { default: module.ReviewSurface };
+});
 
 export const reviewSurfaceDefinition = {
   kind: "review",

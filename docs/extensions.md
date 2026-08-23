@@ -1,6 +1,6 @@
 # Workbench 扩展组件开发指南
 
-本文说明如何为 Pi Workbench 开发扩展组件，并介绍 Slot、Panel、Command、Composer Command、Renderer、Settings、Workspace Surface 七类扩展能力。
+本文说明如何为 Pi Workbench 开发扩展组件，并介绍 Slot、Panel、Command、Composer Command、Renderer、Settings、Workspace Surface、Open Handler 八类扩展能力。
 
 让 AI 协助实现扩展时，可以显式调用项目技能 `$extend-workbench-ui`。技能位于 [`.agents/skills/extend-workbench-ui/`](../.agents/skills/extend-workbench-ui/SKILL.md)，会按本文的边界、流程和验证要求执行。
 
@@ -12,9 +12,13 @@
 - 不支持从远程 URL 加载 JavaScript；
 - 不支持由扩展动态注册 Next.js 路由。
 
+这里的内置 `Extension` 是受信任、同进程、静态打包的 **Contribution Bundle**。它不是第三方
+插件 ABI，也没有权限隔离或独立 Extension Host；未来的外部插件体系应使用单独的 public API
+与隔离边界。
+
 扩展平台的公开入口是 [`platform/extensions/index.ts`](../platform/extensions/index.ts)。扩展应优先从 `@/platform/extensions` 导入类型、Hook 和注册 API，不要依赖 `registries/`、`hosts/` 等内部实现。
 
-## 1. 先理解七种扩展能力
+## 1. 先理解八种扩展能力
 
 一个扩展由 `defineExtension()` 定义，并在 `setup(context)` 中注册一个或多个贡献：
 
@@ -22,25 +26,27 @@
 enabledExtensions
   -> ExtensionProvider
     -> extension.setup(context)
-      -> Slot / Panel / Command / Composer Command / Renderer / Settings / Workspace Surface Registry
+      -> Slot / Panel / Command / Composer Command / Renderer / Settings / Workspace Surface / Opener Registry
         -> 对应 Host 渲染或执行
 ```
 
-七种贡献各自解决不同问题：
+八种贡献各自解决不同问题：
 
 - **Slot**：把小型组件插入宿主已经声明的位置，例如 Composer 按钮或状态栏指标。
-- **Panel**：提供独立工作区，例如 Terminal 或文件预览器。
+- **Panel**：提供宿主管理尺寸与开关状态的左侧或底部辅助区域。
 - **Command**：提供可复用动作，同时进入命令面板和快捷键系统。
 - **Composer Command**：把 `/` 面板选项注册为结构化 Token，并在提交时编译为一次 Agent 请求。
 - **Renderer**：接管整条消息的 Parts/分组策略，或按 tool name、data name 渲染单个 assistant-ui Part。
 - **Settings**：向共享悬浮设置面板注册导航分区或功能自有设置项。
 - **Workspace Surface**：向右侧 Inspector 注册可持久化的检查能力；核心只管理标签和布局。
+- **Open Handler**：按资源能力评分处理 `file`、`https`、`artifact` 等打开请求，避免 feature 之间直接引用。
 
 选择建议：
 
 - 一个图标、按钮、状态值：使用 Slot。
 - 需要左侧或底部独立工作区：使用 Panel。
 - 需要右侧带标签、resourceKey 去重和作用域恢复的检查界面：使用 Workspace Surface。
+- 一个 feature 需要打开另一个 feature 所拥有的资源：使用 OpenerService，不要 import 对方内部实现。
 - 同一动作需要被快捷键、命令面板或按钮复用：使用 Command。
 - 需要在消息文字中插入可删除、可组合的 `/command` Token：使用 Composer Command。
 - 需要决定 reasoning/tool 是否分组、消息样式，或展示模型工具调用和结构化数据：使用 Renderer。
@@ -87,7 +93,7 @@ export const exampleExtension = defineExtension({
 
 `setup()` 当前必须是同步函数，不能声明为 `async`，也不能返回 Promise。异步工作应放到组件 `useEffect()`、Command 的 `run()`，或由 setup 启动并通过 Disposable 可靠取消。
 
-通过 `context.slots/panels/commands/composerCommands/renderers/settings/workspace` 创建的 Disposable 会被 Manager 追踪。仍建议显式返回它们；额外创建的事件监听、计时器或订阅则必须包装成 Disposable 并返回。
+通过 `context.slots/panels/commands/openers/composerCommands/renderers/settings/workspace` 创建的 Disposable 会被 Manager 追踪。仍建议显式返回它们；额外创建的事件监听、计时器或订阅则必须包装成 Disposable 并返回。
 
 `defineExtension()` 是保留字面量类型的 identity helper，真正的运行时校验和激活由 ExtensionManager 完成。扩展对象应定义在模块顶层并保持引用稳定；不要在 React render 中临时创建新的扩展对象或 `extensions` 数组，否则相同 id 也会因对象引用变化而先停用再激活。
 
@@ -340,7 +346,7 @@ pnpm dev
 
 Inspector Workspace 工具栏 Slot：
 
-- `workspace.actions`：参数为 `{ activeSurfaceId?: string, isOpen: boolean }`；适合终端等不属于 Surface 生命周期的外部资源入口。
+- `workspace.actions`：参数为 `{ activeSurfaceId?: string, isOpen: boolean }`；适合不属于 Surface 生命周期的紧凑外部动作。
 - `workspace.empty.actions`：参数为 `{ isOpen: boolean }`；用于空 Workspace 的可启动能力列表，贡献应渲染完整宽度的可访问操作项。
 
 旧版右侧 Panel 标签行 Slot（兼容保留，当前 Workbench Shell 不再挂载对应 Host）：
@@ -353,7 +359,7 @@ Thread Slot：
 - `thread.left`、`thread.header`、`thread.before`、`thread.after`、`thread.right`；
 - 参数为 `{ threadId?: string }`。
 
-`thread.left` 与 `thread.right` 以全高形式挂载在对话中央列两侧，贡献组件需要自行定义宽度。文件、审查、浏览器和产物等检查型界面通过 Workspace Surface Contribution 注册；终端继续使用底部 Panel。
+`thread.left` 与 `thread.right` 以全高形式挂载在对话中央列两侧，贡献组件需要自行定义宽度。文件、审查、浏览器、产物和终端等检查型界面通过 Workspace Surface Contribution 注册。
 
 Message Slot：
 
@@ -377,9 +383,9 @@ Composer Slot：
 
 当前移动端会话抽屉复用核心侧栏内容，但不挂载 `sidebar.*` Slot；Sidebar Slot 贡献目前只显示在桌面侧栏。需要移动端入口时，可像 Terminal 扩展一样额外注册 `header.right` 触发器。
 
-`workspace.actions` 贡献应渲染紧凑按钮并提供 `aria-label`。Terminal 扩展在这里切换外部 `TerminalDrawer`，但始终先把 Terminal Panel 移回 `bottom`，因此关闭 Inspector Workspace 不会影响终端会话。
+`workspace.actions` 贡献应渲染紧凑按钮并提供 `aria-label`。已有 Workspace Surface 的入口优先由 definition 自有的 `menuItem` 注册到统一加号菜单。
 
-`workspace.empty.actions` 贡献应渲染适合启动列表的完整操作项。Terminal 同时注册该入口，因此空 Workspace 不需要依赖顶部加号也能打开终端。
+`workspace.empty.actions` 贡献应渲染适合启动列表的完整操作项；它只用于 Surface 生命周期之外的补充入口。
 
 `panel.right.add-menu` 与 `panel.right.actions` 只为旧扩展的类型兼容保留；当前 Shell 不挂载旧版右侧 Panel Host。新功能不要继续注册这两个 Slot。
 
@@ -451,13 +457,47 @@ const contribution = context.workspace.register({
 - `icon`：由核心标签 Host 渲染；
 - `getResourceKey`：定义同一资源的去重规则；
 - `getDefaultScope`：决定实例跟随 thread、worktree、project 还是 application；
-- `render`：扩展拥有的 Surface 组件；
+- `render`：扩展拥有的 Surface 组件；需要代码分包时使用 `createLazyWorkspaceSurface()`，核心提供统一 Suspense fallback 和可重新执行 loader 的错误重试；
 - `menuItem`：可选，挂载到核心加号菜单；
 - `runtime`：可选，在 AssistantRuntimeProvider 内挂载一次，用于监听 Agent 状态并打开或刷新该能力。
 
 扩展同时拥有对应的领域 Service 和 `extensions.*` 文案。不要把功能分支、图标映射、Service 或工具名判断写回 `components/right-workspace/`。扩展停用时定义会被撤销，但核心保留已持久化的标签实例；重新启用同一 kind 后可以恢复渲染。
 
-当前参考实现位于 `extensions/builtin/workspace-review`、`workspace-explorer`、`workspace-file`、`workspace-browser` 和 `workspace-artifact`。
+当前参考实现位于 `extensions/builtin/workspace-review`、`workspace-explorer`、`workspace-file`、`workspace-browser`、`workspace-artifact` 和 `terminal`。
+
+### 跨 Contribution 打开资源：Opener
+
+资源消费者只提交协议化标识；资源所有者在 `setup()` 中注册 handler：
+
+```ts
+const opener = context.openers.register({
+  id: "workspace.file",
+  canOpen: ({ resource }) => (resource.scheme === "file" ? 100 : 0),
+  open: ({ resource, context, scope, policy }, { surfaces }) =>
+    surfaces.reveal({
+      kind: "file",
+      title: resource.label ?? resource.path,
+      params: { absolutePath: resource.path },
+      context,
+      ...(scope ? { scope } : {}),
+      policy,
+    }),
+});
+```
+
+消费组件通过 `useOpenerService()` 打开，不知道最终 surface kind 或 React component：
+
+```ts
+await openers.open({
+  resource: { scheme: "file", path, label: fileName },
+  context: workspaceContext,
+  scope: currentSurface.scope,
+});
+```
+
+`canOpen()` 返回零表示不支持；最高正分 handler 获得请求，同分保持注册顺序。事件处理器必须处理
+`open()` 的 Promise rejection。跨多个 feature 的能力接口应提升到 `services/` 或 runtime，不能
+放进某个 feature 的 `internal` 后再让其他 contribution 深层导入。
 
 ## 6. Panel 开发参考
 
@@ -469,7 +509,7 @@ context.panels.register({
   title: defineMessage("extensions.preview.title"),
   icon: EyeIcon,
   component: PreviewPanel,
-  defaultLocation: "right",
+  defaultLocation: "left",
   defaultSize: 420,
   minSize: 280,
   maxSize: 720,
@@ -564,7 +604,7 @@ context.panels.register({
 - 组件只渲染内容，不要重复实现宿主标题栏；
 - 完整工作区优先使用 Panel，不要把大型 UI 塞入 Slot。
 
-当前 Shell 只使用 Panel 系统承载左侧辅助 Panel 和底部 `TerminalDrawer`。全高右侧检查区由 `RightWorkspace` 核心管理标签、resourceKey 去重、cachePolicy、作用域恢复和持久化，具体能力由 Workspace Surface 扩展注册；详见 [`docs/right-workspace.md`](./right-workspace.md)。`PanelLocation` 中的 `right` 只作为旧扩展协议兼容保留，不应作为新功能入口。
+当前 Shell 只使用 Panel 系统承载左侧与底部通用辅助区域。全高右侧检查区由 `RightWorkspace` 核心管理标签、resourceKey 去重、cachePolicy、作用域恢复和持久化，具体能力由 Workspace Surface 扩展注册；详见 [`docs/right-workspace.md`](./right-workspace.md)。`PanelLocation` 中的 `right` 只作为旧扩展协议兼容保留，不应作为新功能入口。
 
 React 组件内使用 `usePanelService()`；Command 内使用 `context.panels`。两者用途不同：前者暴露完整 PanelService，后者只暴露命令执行所需的 `open/close/toggle/move`。
 
@@ -797,7 +837,7 @@ const messageRenderer = context.renderers.message.register({
 
 同一时间只能启用一个 Message Renderer；重复注册会在 setup 阶段失败并回滚该扩展。
 卸载它后，Workbench 会恢复最小安全 fallback。Tool/Data Renderer 是可叠加的精确名称贡献，
-通常由提供对应能力的扩展注册，例如 Terminal 扩展同时注册 Panel、Command 和 `bash`
+通常由提供对应能力的扩展注册，例如 Terminal 扩展同时注册 Workspace Surface、Command 和 `bash`
 Tool Renderer。这样卸载能力扩展时，其入口和工具呈现会一起消失。
 
 ### Tool Renderer
@@ -974,6 +1014,7 @@ extension id:          workbench.notes
 slot contribution id: workbench.notes.composer
 panel id:              notes
 command id:            notes.toggle
+open handler id:       workspace.file
 message renderer id:   workbench.compact-message
 tool renderer name:    get_weather
 data renderer name:    citation
@@ -985,6 +1026,7 @@ data renderer name:    citation
 - Slot contribution id：同一个 Slot 内；
 - Panel id：整个 PanelRegistry；
 - Command id：整个 CommandRegistry；
+- Open handler id：整个 OpenerRegistry；
 - Message renderer：整个 Message RendererRegistry 同时只能有一个；
 - Tool renderer name：Tool RendererRegistry；
 - Data renderer name：Data RendererRegistry。
@@ -998,6 +1040,7 @@ Slot、Panel、Command 定义在注册时会被复制并浅冻结。注册后不
 - 不要从远程 URL `import()` 任意 JavaScript 插件。
 - 不要在扩展中注册 Next.js 路由。
 - 不要从业务扩展 import Registry 或 Host 的内部实现。
+- 不要从一个 `extensions/builtin/<feature>` 深层 import 另一个 feature；通过公开 Registry、Service 或 Renderer 协作。
 - 不要在 React render 期间调用 `register()`。
 - 不要在 `setup()` 中调用 React Hook；`setup()` 不是组件。
 - 不要把 ReactNode 作为 Slot 注册值；应注册组件类型。
@@ -1012,7 +1055,8 @@ Slot、Panel、Command 定义在注册时会被复制并浅冻结。注册后不
 - 最小 Slot：[`connection-status`](../extensions/builtin/connection-status/extension.ts)
 - assistant-ui ModelContext：[`model-selector`](../extensions/builtin/model-selector/extension.ts)
 - Settings + Pi RPC：[`skills`](../extensions/builtin/skills/extension.ts)
-- Panel + Command + 移动端 Slot：[`terminal`](../extensions/builtin/terminal/extension.ts)
+- Workspace Surface + Open Handler：[`workspace-file`](../extensions/builtin/workspace-file/extension.ts)
+- Workspace Surface + Command + Tool Renderer：[`terminal`](../extensions/builtin/terminal/extension.ts)
 - Sidebar/Header Slot + floating Settings：[`settings`](../extensions/builtin/settings/extension.ts)
 - Message 分组、reasoning 与 Tool/Data fallback：[`message-presentation`](../extensions/builtin/message-presentation/extension.ts)
 - Runtime 状态派生：[`token-usage`](../extensions/builtin/token-usage/extension.ts)

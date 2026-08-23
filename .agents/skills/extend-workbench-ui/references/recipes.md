@@ -171,15 +171,15 @@ Prefer this command-first trigger when the action has a Command. For a trivial P
 The current shell mounts Panel hosts at `"left"` and `"bottom"`. Although `"right"`,
 `tabComponent`, `tabClassNames`, and `panel.right.*` remain in the compatibility types, the current
 shell does not mount a right Panel host. Do not use them for new features. Put persistent inspector
-content in RightWorkspace, or use a bottom Panel for an independent drawer such as Terminal.
+content in RightWorkspace, or use a bottom Panel for an independent drawer such as logs.
 
 If a Panel must always render in one mounted location, move it before opening/toggling so a stale
-stored location cannot hide it. The Terminal command is the in-repository example:
+stored location cannot hide it:
 
 ```ts
 run(context) {
-  context.panels.move("terminal", "bottom");
-  context.panels.toggle("terminal");
+  context.panels.move("notes", "bottom");
+  context.panels.toggle("notes");
 }
 ```
 
@@ -253,7 +253,29 @@ export const notesExtension = defineExtension({
 The extension owns its typed params, renderer, menu item, Runtime mapping, domain service, and i18n.
 The core host supplies tabs, resource-key deduplication, cache-policy mounting, scope restoration,
 persistence, status, and feedback chrome. Use `workspace.actions` only for compact actions outside a
-Surface lifecycle, such as toggling the external Terminal Drawer.
+Surface lifecycle.
+
+When another contribution needs to open this Surface's resource, let the owner register an Open
+Handler and keep its `kind` private to the owning feature:
+
+```ts
+const opener = context.openers.register({
+  id: "workspace.notes",
+  canOpen: ({ resource }) => (resource.scheme === "notes" ? 100 : 0),
+  open: ({ resource, context, scope, policy }, { surfaces }) =>
+    surfaces.reveal({
+      kind: "notes",
+      title: resource.label ?? resource.path,
+      params: { id: resource.path },
+      context,
+      ...(scope ? { scope } : {}),
+      policy,
+    }),
+});
+```
+
+Client callers obtain `useOpenerService()` from `@/components/right-workspace` and handle the
+Promise returned by `open()`. Do not import the owner's component, store, or internal service.
 
 ## Pi-backed extension
 
@@ -313,7 +335,7 @@ const renderer = context.renderers.message.register({
 
 Only one Message Renderer can be active. Keep exact-name Tool/Data renderers in their capability
 extensions and resolve them with `RendererHost`; for example a terminal extension can register its
-Panel, Command, and `bash` renderer together so all terminal UI disposes as one unit.
+Workspace Surface, Command, and `bash` renderer together so all terminal UI disposes as one unit.
 
 ## Tool Renderer
 
@@ -459,6 +481,7 @@ Do not add a feature-specific Slot such as `notes.button`. Add a semantic host l
 - [ ] Use unique ids and exact Renderer names.
 - [ ] Keep Settings section ids global and item ids unique within their section.
 - [ ] Register inspector kinds through `context.workspace`; keep feature branches and services out of RightWorkspace core.
+- [ ] Register cross-feature resource routing through `context.openers`; do not deep-import sibling builtin features.
 - [ ] Use `workspace.actions` only for compact controls outside a Surface lifecycle.
 - [ ] Read `runtime/pi/README.md` before Pi-backed work and reuse the shared manager/contracts/client helpers.
 - [ ] Audit registered shortcuts and standalone global `keydown` listeners.

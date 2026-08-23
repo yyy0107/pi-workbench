@@ -11,6 +11,7 @@ const definition = {
   icon: PanelsTopLeftIcon,
   cachePolicy: "keep-alive" as const,
   getResourceKey: () => "fixture:one",
+  header: () => null,
   render: () => null,
 };
 
@@ -19,11 +20,27 @@ test("workspace surface definitions are unique and disposable", () => {
   const disposable = registry.register(definition);
 
   assert.equal(registry.get("fixture")?.kind, "fixture");
+  assert.equal(registry.get("fixture")?.header, definition.header);
   assert.equal(Object.isFrozen(registry.get("fixture")), true);
   assert.throws(() => registry.register(definition), /already registered/);
 
   disposable.dispose();
   assert.equal(registry.get("fixture"), undefined);
+});
+
+test("workspace surface definitions validate auxiliary placement", () => {
+  const registry = new WorkspaceSurfaceRegistryImpl();
+  registry.register({ ...definition, defaultPlacement: "auxiliary" });
+
+  assert.equal(registry.get("fixture")?.defaultPlacement, "auxiliary");
+  assert.throws(
+    () =>
+      new WorkspaceSurfaceRegistryImpl().register({
+        ...definition,
+        defaultPlacement: "bottom" as never,
+      }),
+    /invalid default placement/,
+  );
 });
 
 test("extension deactivation removes its workspace capabilities", () => {

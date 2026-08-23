@@ -2,6 +2,7 @@ export * from "./command";
 export * from "./composer-command";
 export * from "./disposable";
 export * from "./extension";
+export * from "./opener";
 export * from "./panel";
 export * from "./renderer";
 export * from "./settings";

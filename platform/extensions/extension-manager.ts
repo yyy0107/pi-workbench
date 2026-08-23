@@ -8,11 +8,13 @@ import type {
   MessageRendererRegistry,
   NamedRendererRegistry,
   RendererRegistry,
+  ToolPresentationRegistry,
   ToolRendererComponent,
 } from "./api/renderer";
 import type { SettingsRegistry } from "./api/settings";
 import type { SlotContribution, SlotRegistry, WorkbenchSlot } from "./api/slot";
 import type { WorkspaceSurfaceDefinition, WorkspaceSurfaceRegistry } from "./api/workspace-surface";
+import type { OpenerRegistry } from "./api/opener";
 import { CommandRegistryImpl } from "./registries/command-registry";
 import { ComposerCommandRegistryImpl } from "./registries/composer-command-registry";
 import { PanelRegistryImpl } from "./registries/panel-registry";
@@ -20,6 +22,7 @@ import { RendererRegistryImpl } from "./registries/renderer-registry";
 import { SettingsRegistryImpl } from "./registries/settings-registry";
 import { SlotRegistryImpl } from "./registries/slot-registry";
 import { WorkspaceSurfaceRegistryImpl } from "./registries/workspace-surface-registry";
+import { OpenerRegistryImpl } from "./registries/opener-registry";
 
 interface ActiveExtension {
   readonly extension: WorkbenchExtension;
@@ -32,6 +35,7 @@ export class ExtensionManager implements Disposable {
   readonly slots: SlotRegistry = new SlotRegistryImpl();
   readonly panels: PanelRegistry = new PanelRegistryImpl();
   readonly commands: CommandRegistry = new CommandRegistryImpl();
+  readonly openers: OpenerRegistry = new OpenerRegistryImpl();
   readonly composerCommands: ComposerCommandRegistry = new ComposerCommandRegistryImpl();
   readonly renderers: RendererRegistry = new RendererRegistryImpl();
   readonly settings: SettingsRegistry = new SettingsRegistryImpl();
@@ -161,6 +165,12 @@ export class ExtensionManager implements Disposable {
       subscribe: this.commands.subscribe,
     };
 
+    const openers: OpenerRegistry = {
+      register: (handler) => track(this.openers.register(handler)),
+      getAll: () => this.openers.getAll(),
+      subscribe: this.openers.subscribe,
+    };
+
     const composerCommands: ComposerCommandRegistry = {
       register: (command) => track(this.composerCommands.register(command)),
       get: (commandId) => this.composerCommands.get(commandId),
@@ -185,6 +195,13 @@ export class ExtensionManager implements Disposable {
       } satisfies MessageRendererRegistry,
       tools: wrapRenderers<ToolRendererComponent>(this.renderers.tools),
       data: wrapRenderers<DataRendererComponent>(this.renderers.data),
+      toolPresentations: {
+        register: (toolName, presentation) =>
+          track(this.renderers.toolPresentations.register(toolName, presentation)),
+        get: (toolName) => this.renderers.toolPresentations.get(toolName),
+        getPresentationMap: () => this.renderers.toolPresentations.getPresentationMap(),
+        subscribe: this.renderers.toolPresentations.subscribe,
+      } satisfies ToolPresentationRegistry,
     };
 
     const settings: SettingsRegistry = {
@@ -207,6 +224,7 @@ export class ExtensionManager implements Disposable {
       slots,
       panels,
       commands,
+      openers,
       composerCommands,
       renderers,
       settings,

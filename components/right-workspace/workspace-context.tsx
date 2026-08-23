@@ -2,19 +2,25 @@
 
 import { createContext, useCallback, useContext, useSyncExternalStore } from "react";
 import { useStore } from "zustand";
+import { useShallow } from "zustand/react/shallow";
+
+import type { OpenerService } from "@/platform/extensions";
 
 import type { RightWorkspaceController } from "./core/workspace-controller";
 import type {
   AnyWorkspaceSurfaceDefinition,
   RightWorkspaceState,
   WorkspaceContext,
+  WorkspaceSurfaceInstance,
   WorkspaceSurfaceRegistry,
 } from "./core/surface-types";
+import { scopeMatchesContext } from "./core/workspace-selectors";
 import type { RightWorkspaceStoreApi } from "./core/workspace-store";
 import type { WorkspaceFeedbackSnapshot, WorkspaceFeedbackStore } from "./feedback/feedback-store";
 
 export interface RightWorkspaceEnvironment {
   controller: RightWorkspaceController;
+  opener: OpenerService;
   store: RightWorkspaceStoreApi;
   registry: WorkspaceSurfaceRegistry;
   feedback: WorkspaceFeedbackStore;
@@ -34,12 +40,39 @@ export function useRightWorkspace(): RightWorkspaceController {
   return useRightWorkspaceEnvironment().controller;
 }
 
+export function useOpenerService(): OpenerService {
+  return useRightWorkspaceEnvironment().opener;
+}
+
 export function useRightWorkspaceState<T>(selector: (state: RightWorkspaceState) => T): T {
   return useStore(useRightWorkspaceEnvironment().store, selector);
 }
 
 export function useWorkspaceContext(): WorkspaceContext {
   return useRightWorkspaceEnvironment().context;
+}
+
+export function useWorkspaceSurfaces(kind: string): readonly WorkspaceSurfaceInstance[] {
+  return useRightWorkspaceState(
+    useShallow((state) =>
+      state.surfaceOrder.flatMap((surfaceId) => {
+        const surface = state.surfaces[surfaceId];
+        return surface?.kind === kind ? [surface] : [];
+      }),
+    ),
+  );
+}
+
+export function useActiveWorkspaceSurface(): WorkspaceSurfaceInstance | undefined {
+  const context = useWorkspaceContext();
+  const active = useRightWorkspaceState((state) =>
+    state.activeSurfaceId ? state.surfaces[state.activeSurfaceId] : undefined,
+  );
+  return active && scopeMatchesContext(active.scope, context) ? active : undefined;
+}
+
+export function useWorkspaceOpen(): boolean {
+  return useRightWorkspaceState((state) => state.open);
 }
 
 export function useSetWorkspaceContext(): (context: WorkspaceContext) => void {
