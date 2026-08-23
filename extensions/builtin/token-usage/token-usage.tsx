@@ -4,7 +4,8 @@ import { useAuiState } from "@assistant-ui/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useI18n } from "@/i18n";
-import { formatCompactDuration } from "@/lib/format-duration";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
+import { formatAdaptiveDuration, formatCompactDuration } from "@/lib/format-duration";
 import {
   aggregatePiSessionStatistics,
   mergeMonotonicPiSessionStatistics,
@@ -53,7 +54,10 @@ interface TokenAnimationState {
   frameId?: number;
 }
 
-function useAnimatedTokenStatistics(statistics: PiSessionStatistics): PiSessionStatistics {
+function useAnimatedTokenStatistics(
+  statistics: PiSessionStatistics,
+  reduceMotion: boolean,
+): PiSessionStatistics {
   const target = useMemo(
     () => tokenQuantities(statistics),
     [
@@ -73,6 +77,14 @@ function useAnimatedTokenStatistics(statistics: PiSessionStatistics): PiSessionS
 
   useEffect(() => {
     const state = animation.current;
+    if (reduceMotion) {
+      if (state.frameId !== undefined) window.cancelAnimationFrame(state.frameId);
+      state.displayed = target;
+      state.from = target;
+      state.target = target;
+      state.frameId = undefined;
+      return;
+    }
     const now = performance.now();
     const progress =
       state.frameId === undefined ? 1 : (now - state.startedAt) / TOKEN_ANIMATION_DURATION_MS;
@@ -101,7 +113,7 @@ function useAnimatedTokenStatistics(statistics: PiSessionStatistics): PiSessionS
     };
 
     state.frameId = window.requestAnimationFrame(animate);
-  }, [target]);
+  }, [reduceMotion, target]);
 
   useEffect(
     () => () => {
@@ -111,11 +123,12 @@ function useAnimatedTokenStatistics(statistics: PiSessionStatistics): PiSessionS
     [],
   );
 
-  return { ...statistics, ...displayed };
+  return { ...statistics, ...(reduceMotion ? target : displayed) };
 }
 
 function ThreadTokenUsage() {
-  const { number, t } = useI18n();
+  const { locale, number, t } = useI18n();
+  const reduceMotion = useReducedMotion();
   const messages = useAuiState((state) => state.thread.messages);
   const isRunning = useAuiState((state) => state.thread.isRunning);
   const currentTime = useLiveStatisticsTime(isRunning);
@@ -124,7 +137,7 @@ function ThreadTokenUsage() {
     [currentTime, isRunning, messages],
   );
   const monotonicStatistics = useMonotonicSessionStatistics(currentStatistics);
-  const statistics = useAnimatedTokenStatistics(monotonicStatistics);
+  const statistics = useAnimatedTokenStatistics(monotonicStatistics, reduceMotion);
   const promptTokens =
     statistics.inputTokens + statistics.cacheReadTokens + statistics.cacheWriteTokens;
   const averageFirstToken =
@@ -143,14 +156,12 @@ function ThreadTokenUsage() {
       maximumFractionDigits: 1,
     });
   const duration = (milliseconds: number) =>
-    formatCompactDuration(milliseconds, { zeroValue: "0s" });
+    formatCompactDuration(milliseconds, locale, { includeZero: true });
   const averageDuration = (milliseconds: number) =>
-    milliseconds < 1_000
-      ? `${number(Math.round(milliseconds))}ms`
-      : `${number(milliseconds / 1_000, {
-          minimumFractionDigits: 1,
-          maximumFractionDigits: 1,
-        })}s`;
+    formatAdaptiveDuration(milliseconds, locale, {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    });
   const unavailable = t("extensions.tokenUsage.unavailable");
 
   return (

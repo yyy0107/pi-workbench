@@ -21,7 +21,11 @@ import { readPiTurnTiming, resolvePiTurnDuration } from "@/runtime/pi/client/mes
 import { parsePiMessageTermination } from "@/runtime/pi/message-termination";
 import { WorkbenchComposerMessageText } from "@/workbench/chat/composer-message-text";
 
-import { formatCompletedDuration, completedWorkBoundary } from "./completed-turn-model";
+import {
+  completedWorkBoundary,
+  formatCompletedDuration,
+  partBelongsToCompletedWork,
+} from "./completed-turn-model";
 import { CompletedTurnPanel } from "./completed-turn-panel";
 import { MessageDisclosureProvider } from "./message-disclosure-context";
 import { messageTextPresentation } from "./message-presentation-policy";
@@ -55,7 +59,7 @@ const MessageDataFallback: DataMessagePartComponent = ({ name, data }) => (
 );
 
 export function WorkbenchMessagePresentation() {
-  const { t, date } = useI18n();
+  const { t, date, locale } = useI18n();
   const timing = useMessageTiming();
   const messageCreatedAt = useAuiState((state) => state.message.createdAt);
   const messageRole = useAuiState((state) => state.message.role);
@@ -82,7 +86,7 @@ export function WorkbenchMessagePresentation() {
       minute: "2-digit",
       second: "2-digit",
     }),
-    duration: formatCompletedDuration(turnDuration),
+    duration: formatCompletedDuration(turnDuration, locale),
     kind: termination?.kind ?? "completed",
   });
   const groupMessagePart = useCallback(
@@ -90,13 +94,13 @@ export function WorkbenchMessagePresentation() {
       const timelinePath = groupTimelinePart(part, context);
       const index = partIndices.get(part);
 
-      if (index !== undefined && index < completedBoundary) {
+      if (partBelongsToCompletedWork(messageRole, index, completedBoundary)) {
         return ["group-completed-turn", ...timelinePath];
       }
 
       return timelinePath;
     },
-    [completedBoundary, partIndices],
+    [completedBoundary, messageRole, partIndices],
   );
   const activeTimelinePartIndex = useAuiState((state) => {
     if (!state.thread.isRunning || !state.message.isLast) return -1;

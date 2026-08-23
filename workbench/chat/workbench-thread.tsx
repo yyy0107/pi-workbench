@@ -12,6 +12,7 @@ import { MessagePair } from "@/components/elements/message-pair";
 import { TypingIndicator } from "@/components/elements/typing-indicator";
 import { useI18n } from "@/i18n";
 import { formatCompactDuration } from "@/lib/format-duration";
+import { cn } from "@/lib/utils";
 import { SlotHost } from "@/platform/extensions";
 import {
   conversationThreadIdFromPathname,
@@ -206,7 +207,7 @@ function useThreadMessageRows(): readonly MessageRow[] {
 }
 
 function PiWorkingStatus() {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const runStartedAt = useAuiState(
     (state) => piRunStartedAt(state.thread.extras) ?? currentRunStartedAt(state.thread.messages),
   );
@@ -226,23 +227,29 @@ function PiWorkingStatus() {
     return () => window.clearInterval(interval);
   }, [runStartedAt]);
 
-  const duration = formatCompactDuration(elapsedSeconds * 1_000, { zeroValue: "0s" });
-  const label = autoRetry
+  const duration = formatCompactDuration(elapsedSeconds * 1_000, locale, { includeZero: true });
+  const visualLabel = autoRetry
     ? t("workbench.chat.connectionInterruptedRetryingElapsed", {
         attempt: autoRetry.attempt,
         maxAttempts: autoRetry.maxAttempts,
         duration,
       })
     : t("workbench.chat.workingElapsed", { duration });
+  const announcement = autoRetry
+    ? t("workbench.chat.connectionInterruptedRetrying", {
+        attempt: autoRetry.attempt,
+        maxAttempts: autoRetry.maxAttempts,
+      })
+    : t("workbench.chat.working");
 
   return (
     <div
       data-slot="pi-working"
       role="status"
       aria-live="polite"
-      aria-label={label}
-      className="text-foreground/40 flex h-10 w-full shrink-0 items-center gap-1.5 text-[13.5px] font-medium [overflow-anchor:none]"
+      className="text-foreground/70 flex h-10 w-full shrink-0 items-center gap-1.5 text-[13.5px] font-medium [overflow-anchor:none]"
     >
+      <span className="sr-only">{announcement}</span>
       <span
         data-slot="pi-working-icon"
         aria-hidden="true"
@@ -261,7 +268,7 @@ function PiWorkingStatus() {
         aria-hidden="true"
         className="shimmer [--shimmer-color:black] [--shimmer-repeat-delay:900] [--shimmer-speed:180] [--shimmer-spread:52px] motion-reduce:animate-none"
       >
-        {label}
+        {visualLabel}
       </span>
     </div>
   );
@@ -344,7 +351,10 @@ function WorkbenchMessages({ isRunning }: Readonly<{ isRunning: boolean }>) {
           hasAssistantTurn ? (
             <div
               data-slot="assistant-message-slot"
-              className="min-h-[var(--assistant-turn-min-height)] w-full [overflow-anchor:none]"
+              className={cn(
+                "w-full [overflow-anchor:none]",
+                showWorkingStatus && "min-h-[var(--assistant-turn-min-height)]",
+              )}
             >
               {hasAssistantMessage ? (
                 <ThreadPrimitive.MessageByIndex
@@ -678,8 +688,8 @@ export function WorkbenchThread() {
       style={
         {
           "--thread-max-width": "48rem",
-          // A one-line settled turn is at most 84px with the current completion/reasoning chrome.
-          // Reserving that scaffold from the optimistic frame prevents a vertical snap.
+          // Reserve the active optimistic turn's scaffold to prevent a vertical snap. Completed
+          // turns return to their natural height so compact status rows do not create large gaps.
           "--assistant-turn-min-height": "5.25rem",
         } as React.CSSProperties
       }
@@ -761,6 +771,7 @@ export function WorkbenchThread() {
               <TooltipIconButton
                 tooltip={t("workbench.chat.scrollLatest")}
                 variant="outline"
+                size="icon"
                 className="bg-background absolute bottom-[calc(var(--composer-dock-inset)+0.5rem)] left-1/2 z-30 size-8 -translate-x-1/2 rounded-full shadow-sm disabled:invisible"
               />
             }

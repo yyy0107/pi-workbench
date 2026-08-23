@@ -1,7 +1,10 @@
 "use client";
 
 import {
+  type AppendMessage,
   ComposerPrimitive,
+  type Attachment,
+  type CreateAttachment,
   type Unstable_TriggerItem,
   unstable_useTriggerPopoverScopeContext,
   useAui,
@@ -35,6 +38,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -67,7 +71,7 @@ import { useExtensionManager } from "@/platform/extensions/internal";
 import { usePiCommands } from "@/runtime/pi/client/runtime/command-context";
 import type { CommandView } from "@/runtime/pi/rpc-contracts";
 import type { PiComposerSendError } from "@/runtime/pi/client/runtime/send-error";
-import { useWorkspaceDirectoryStore } from "@/workbench/workspaces/workspace-directory-store";
+import { useWorkspaceSelection } from "@/services/workspace-selection-service";
 
 import {
   applyComposerCommandArguments,
@@ -88,9 +92,54 @@ import { submitWorkbenchComposer } from "./composer-submit";
 import { ComposerTriggerEngine, excludeSlashPathOrCode } from "./composer-trigger-engine";
 import { formatPiCommandLabel } from "./pi-command";
 
+interface ComposerDraftSnapshot {
+  text: string;
+  attachments: readonly (File | CreateAttachment)[];
+}
+
+function restorableComposerAttachment(attachment: Attachment): File | CreateAttachment | undefined {
+  if (attachment.file) return attachment.file;
+  if (!attachment.content) return undefined;
+  return {
+    type: attachment.type,
+    name: attachment.name,
+    ...(attachment.contentType ? { contentType: attachment.contentType } : {}),
+    content: [...attachment.content],
+  };
+}
+
 interface PiComposerActions {
   error?: PiComposerSendError;
   clearError(): void;
+}
+
+interface PiRejectedQueueDraftActions {
+  rejectedDraft: {
+    revision: number;
+    message: AppendMessage;
+  };
+  clearRejectedDraft(revision: number): void;
+}
+
+function piRejectedQueueDraftActions(extras: unknown): PiRejectedQueueDraftActions | undefined {
+  if (
+    !extras ||
+    typeof extras !== "object" ||
+    !("piQueue" in extras) ||
+    !extras.piQueue ||
+    typeof extras.piQueue !== "object" ||
+    !("rejectedDraft" in extras.piQueue) ||
+    !extras.piQueue.rejectedDraft ||
+    typeof extras.piQueue.rejectedDraft !== "object" ||
+    !("revision" in extras.piQueue.rejectedDraft) ||
+    typeof extras.piQueue.rejectedDraft.revision !== "number" ||
+    !("message" in extras.piQueue.rejectedDraft) ||
+    !("clearRejectedDraft" in extras.piQueue) ||
+    typeof extras.piQueue.clearRejectedDraft !== "function"
+  ) {
+    return undefined;
+  }
+  return extras.piQueue as unknown as PiRejectedQueueDraftActions;
 }
 
 interface WorkbenchComposerSuggestion {
@@ -423,29 +472,89 @@ export function WorkbenchComposer() {
   );
   const extras = useAuiState((state) => state.thread.extras);
   const composerActions = piComposerActions(extras);
+  const rejectedQueueDraftActions = piRejectedQueueDraftActions(extras);
   const drawerId = useId();
   const composerRef = useRef<HTMLFormElement>(null);
   const lexicalEditorRef = useRef<LexicalEditor | null>(null);
   const isRunning = useAuiState((state) => state.thread.isRunning);
   const isEmpty = useAuiState((state) => state.thread.composer.isEmpty);
   const composerValue = useAuiState((state) => state.thread.composer.text);
+  const composerAttachments = useAuiState((state) => state.thread.composer.attachments);
   const canSend = useAuiState((state) => state.thread.composer.canSend);
   const canQueue = useAuiState((state) => state.thread.capabilities.queue);
   const isDictating = useAuiState((state) => state.thread.composer.dictation != null);
   const mainThreadId = useAuiState((state) => state.threads.mainThreadId);
   const newThreadId = useAuiState((state) => state.threads.newThreadId);
   const isNewThread = mainThreadId === newThreadId;
+  const composerDrafts = useRef(new Map<string, ComposerDraftSnapshot>());
+  const composerDraftThreadId = useRef(mainThreadId);
   const [isDrawerOpen, setIsDrawerOpen] = useState(isNewThread);
   const [isComposerSelected, setIsComposerSelected] = useState(false);
   const [isComposerFocused, setIsComposerFocused] = useState(false);
   const [isComposerComposing, setIsComposerComposing] = useState(false);
   const [composerCursorPosition, setComposerCursorPosition] = useState(0);
   const [composerCommandError, setComposerCommandError] = useState(false);
+  const [queueRestoreErrorThreadId, setQueueRestoreErrorThreadId] = useState<string>();
+  const queueRestoreError = queueRestoreErrorThreadId === mainThreadId;
   const commandParametersByThreadRef = useRef(new Map<string, ComposerCommandParametersByKey>());
   const [commandParametersByKey, setCommandParametersByKey] =
     useState<ComposerCommandParametersByKey>({});
   const [activeCommandParameterKey, setActiveCommandParameterKey] = useState<string>();
   const piCommands = usePiCommands();
+  const handledRejectedQueueDraft = useRef("");
+
+  useLayoutEffect(() => {
+    if (composerDraftThreadId.current === mainThreadId) {
+      const attachments = composerAttachments.flatMap((attachment) => {
+        const restorable = restorableComposerAttachment(attachment);
+        return restorable ? [restorable] : [];
+      });
+      if (composerValue || attachments.length > 0) {
+        composerDrafts.current.set(mainThreadId, { text: composerValue, attachments });
+      } else {
+        composerDrafts.current.delete(mainThreadId);
+      }
+      return;
+    }
+
+    composerDraftThreadId.current = mainThreadId;
+    const draft = composerDrafts.current.get(mainThreadId);
+    if (!draft || !isEmpty) return;
+
+    const composer = aui.thread.composer();
+    composer.setText(draft.text);
+    void Promise.all(
+      draft.attachments.map((attachment) => composer.addAttachment(attachment)),
+    ).catch((error) => console.error("[workbench] failed to restore conversation draft", error));
+  }, [aui, composerAttachments, composerValue, isEmpty, mainThreadId]);
+
+  useEffect(() => {
+    const rejected = rejectedQueueDraftActions?.rejectedDraft;
+    const rejectionKey = rejected ? `${mainThreadId}:${rejected.revision}` : undefined;
+    if (!rejected || !rejectionKey || handledRejectedQueueDraft.current === rejectionKey) return;
+    handledRejectedQueueDraft.current = rejectionKey;
+
+    const composer = aui.thread.composer();
+    const current = composer.getState();
+    const rejectedText = rejected.message.content
+      .filter((part) => part.type === "text")
+      .map((part) => part.text)
+      .join("\n\n");
+    const restoredText = [rejectedText, current.text].filter(Boolean).join("\n\n");
+    if (restoredText) composer.setText(restoredText);
+    if (current.isEmpty) composer.setRunConfig(rejected.message.runConfig ?? {});
+
+    const attachments = (rejected.message.attachments ?? []).flatMap((attachment) => {
+      const restorable = restorableComposerAttachment(attachment);
+      return restorable ? [restorable] : [];
+    });
+    void Promise.all(attachments.map((attachment) => composer.addAttachment(attachment))).catch(
+      (error) => console.error("[workbench] failed to restore rejected queue attachments", error),
+    );
+    rejectedQueueDraftActions.clearRejectedDraft(rejected.revision);
+    setQueueRestoreErrorThreadId(mainThreadId);
+  }, [aui, mainThreadId, rejectedQueueDraftActions]);
+
   const composerSuggestions = useMemo<readonly WorkbenchComposerSuggestion[]>(() => {
     const definitions = new Map(
       registeredComposerCommands.map((definition) => [definition.id, definition]),
@@ -581,9 +690,7 @@ export function WorkbenchComposer() {
       slashCommandTriggerEngine,
     ],
   );
-  const hasDraftWorkspace = useWorkspaceDirectoryStore((state) =>
-    state.directories.some((directory) => directory.id === state.draftDirectoryId),
-  );
+  const hasDraftWorkspace = useWorkspaceSelection().draftWorkspace !== undefined;
   const canCompose = !isNewThread || hasDraftWorkspace;
   const showWorkspacePrompt = !canCompose && isComposerSelected;
   const contextCount = useAuiState(
@@ -953,7 +1060,11 @@ export function WorkbenchComposer() {
                   directiveChip={renderDirectiveChip}
                   directivePluginProps={{ onDirectiveSelect: handleDirectiveSelect }}
                   onCursorPositionChange={setComposerCursorPosition}
-                  placeholder={t("workbench.chat.composer.placeholder")}
+                  placeholder={t(
+                    isRunning && canQueue
+                      ? "workbench.chat.composer.runningPlaceholder"
+                      : "workbench.chat.composer.placeholder",
+                  )}
                   className={cn(
                     "relative max-h-[336px] min-w-0 flex-1 overflow-y-auto bg-transparent text-base leading-6 outline-none",
                     "[&_.aui-lexical-input]:min-h-7 [&_.aui-lexical-input]:whitespace-pre-wrap [&_.aui-lexical-input]:break-words [&_.aui-lexical-input]:outline-none",
@@ -988,10 +1099,11 @@ export function WorkbenchComposer() {
                 </MarkdownComposerInput>
               </div>
 
-              <div className="flex min-h-[42px] items-center justify-between gap-3 px-2 py-1">
-                <div className="flex h-[34px] min-w-0 items-center gap-2">
+              <div className="flex min-h-[42px] items-center justify-between gap-2 px-2 py-1 max-[360px]:gap-1 max-[360px]:px-1.5">
+                <div className="flex h-[34px] min-w-0 flex-1 items-center gap-2">
                   <TooltipIconButton
                     type="button"
+                    size="icon"
                     tooltip={
                       isDrawerOpen
                         ? t("workbench.chat.composer.closeDrawer")
@@ -1008,11 +1120,7 @@ export function WorkbenchComposer() {
                     className="text-muted-foreground hover:text-foreground size-8 rounded-full"
                     onClick={() => setIsDrawerOpen((open) => !open)}
                   >
-                    {isDrawerOpen ? (
-                      <XIcon className="size-[18px]" />
-                    ) : (
-                      <PlusIcon className="size-[18px]" />
-                    )}
+                    {isDrawerOpen ? <XIcon className="size-4" /> : <PlusIcon className="size-4" />}
                   </TooltipIconButton>
                   <SlotHost
                     name="composer.actions.left"
@@ -1022,7 +1130,7 @@ export function WorkbenchComposer() {
                   <ComposerAddAttachment />
                 </div>
 
-                <div className="flex h-[34px] min-w-0 items-center justify-end gap-2">
+                <div className="flex h-[34px] min-w-0 shrink-0 items-center justify-end gap-2 max-[360px]:gap-1">
                   <SlotHost
                     name="composer.actions.right"
                     context={context}
@@ -1034,12 +1142,13 @@ export function WorkbenchComposer() {
                         <TooltipIconButton
                           tooltip={t("workbench.chat.composer.stopVoiceInput")}
                           type="button"
+                          size="icon"
                           variant="ghost"
-                          className="text-muted-foreground hover:text-foreground size-8 rounded-full"
+                          className="text-muted-foreground hover:text-foreground size-8 rounded-full max-[360px]:hidden"
                         />
                       }
                     >
-                      <SquareIcon className="size-3 fill-current" />
+                      <SquareIcon className="size-4 fill-current" />
                     </ComposerPrimitive.StopDictation>
                   ) : (
                     <ComposerPrimitive.Dictate
@@ -1047,54 +1156,40 @@ export function WorkbenchComposer() {
                         <TooltipIconButton
                           tooltip={t("workbench.chat.composer.voiceInput")}
                           type="button"
+                          size="icon"
                           variant="ghost"
-                          className="text-muted-foreground hover:text-foreground size-8 rounded-full"
+                          className="text-muted-foreground hover:text-foreground size-8 rounded-full max-[360px]:hidden"
                         />
                       }
                     >
-                      <MicIcon className="size-[18px]" />
+                      <MicIcon className="size-4" />
                     </ComposerPrimitive.Dictate>
                   )}
                   {isRunning ? (
-                    <>
-                      <ComposerPrimitive.Cancel
-                        render={
-                          <TooltipIconButton
-                            tooltip={t("workbench.chat.composer.stopGenerating")}
-                            type="button"
-                            variant="default"
-                            className="size-[34px] rounded-full"
-                          />
-                        }
-                      >
-                        <SquareIcon className="size-3 fill-current" />
-                      </ComposerPrimitive.Cancel>
-                      {canQueue ? (
+                    <ComposerPrimitive.Cancel
+                      render={
                         <TooltipIconButton
-                          tooltip={t("workbench.chat.composer.queueFollowUp")}
-                          aria-label={t("workbench.chat.composer.queueFollowUp")}
+                          tooltip={t("workbench.chat.composer.stopGenerating")}
                           type="button"
-                          disabled={!canCompose || !canSend}
+                          size="icon"
                           variant="default"
-                          className="size-[34px] rounded-full disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100"
-                          onClick={() => {
-                            dispatchComposer();
-                          }}
-                        >
-                          <ArrowUpIcon className="size-5" />
-                        </TooltipIconButton>
-                      ) : null}
-                    </>
+                          className="rounded-full"
+                        />
+                      }
+                    >
+                      <SquareIcon className="size-4 fill-current" />
+                    </ComposerPrimitive.Cancel>
                   ) : (
                     <TooltipIconButton
                       tooltip={t("workbench.chat.composer.sendMessage")}
                       type="button"
+                      size="icon"
                       disabled={!canCompose || !canSend}
                       variant="default"
-                      className="size-[34px] rounded-full disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100"
+                      className="rounded-full disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100"
                       onClick={dispatchComposer}
                     >
-                      <ArrowUpIcon className="size-5" />
+                      <ArrowUpIcon className="size-4" />
                     </TooltipIconButton>
                   )}
                 </div>
@@ -1136,7 +1231,7 @@ export function WorkbenchComposer() {
             ) : null}
           </ComposerPrimitive.AttachmentDropzone>
 
-          {composerActions?.error || composerCommandError ? (
+          {composerActions?.error || composerCommandError || queueRestoreError ? (
             <div
               role="alert"
               aria-live="polite"
@@ -1146,7 +1241,9 @@ export function WorkbenchComposer() {
               <span className="min-w-0 flex-1">
                 {composerActions?.error
                   ? composerErrorMessage(composerActions.error, t)
-                  : t("workbench.chat.errors.commandCompileFailed")}
+                  : queueRestoreError
+                    ? t("workbench.chat.errors.queueSendFailedRestored")
+                    : t("workbench.chat.errors.commandCompileFailed")}
               </span>
               <button
                 type="button"
@@ -1155,6 +1252,7 @@ export function WorkbenchComposer() {
                 onClick={() => {
                   composerActions?.clearError();
                   setComposerCommandError(false);
+                  setQueueRestoreErrorThreadId(undefined);
                 }}
               >
                 <XIcon aria-hidden="true" className="size-3.5" />

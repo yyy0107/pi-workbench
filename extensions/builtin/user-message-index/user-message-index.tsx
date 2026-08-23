@@ -6,6 +6,7 @@ import { useAuiState } from "@assistant-ui/react";
 import { MarkdownTextContent } from "@/components/assistant-ui/markdown-text";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useI18n } from "@/i18n";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { cn } from "@/lib/utils";
 
 import { shouldShowUserMessageIndex } from "./user-message-index-layout";
@@ -86,6 +87,7 @@ function getScrollViewport(element: HTMLElement, threadRoot: HTMLElement): HTMLE
 
 export function UserMessageIndex({ threadId }: UserMessageIndexProps) {
   const { t } = useI18n();
+  const reduceMotion = useReducedMotion();
   const messages = useAuiState((state) => state.thread.messages);
   const navRef = useRef<HTMLElement>(null);
   const [activeMessageId, setActiveMessageId] = useState<string>();
@@ -188,24 +190,25 @@ export function UserMessageIndex({ threadId }: UserMessageIndexProps) {
     };
   }, [threadId, userMessages]);
 
-  const jumpToMessage = useCallback((messageId: string) => {
-    const nav = navRef.current;
-    const threadRoot = nav?.closest<HTMLElement>('[data-workbench-surface="thread"]');
-    const message = threadRoot ? getMessageElement(threadRoot, messageId) : undefined;
-    const viewport = message && threadRoot ? getScrollViewport(message, threadRoot) : undefined;
-    if (!message || !viewport) return;
+  const jumpToMessage = useCallback(
+    (messageId: string) => {
+      const nav = navRef.current;
+      const threadRoot = nav?.closest<HTMLElement>('[data-workbench-surface="thread"]');
+      const message = threadRoot ? getMessageElement(threadRoot, messageId) : undefined;
+      const viewport = message && threadRoot ? getScrollViewport(message, threadRoot) : undefined;
+      if (!message || !viewport) return;
 
-    const viewportRect = viewport.getBoundingClientRect();
-    const messageRect = message.getBoundingClientRect();
-    const top = viewport.scrollTop + messageRect.top - viewportRect.top - 16;
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-    setActiveMessageId(messageId);
-    viewport.scrollTo({
-      top: Math.max(0, top),
-      behavior: reduceMotion ? "auto" : "smooth",
-    });
-  }, []);
+      const viewportRect = viewport.getBoundingClientRect();
+      const messageRect = message.getBoundingClientRect();
+      const top = viewport.scrollTop + messageRect.top - viewportRect.top - 16;
+      setActiveMessageId(messageId);
+      viewport.scrollTo({
+        top: Math.max(0, top),
+        behavior: reduceMotion ? "auto" : "smooth",
+      });
+    },
+    [reduceMotion],
+  );
 
   if (!hasUserMessages) return null;
 
@@ -222,13 +225,13 @@ export function UserMessageIndex({ threadId }: UserMessageIndexProps) {
         )}
         onPointerLeave={() => setHoveredMarkerIndex(undefined)}
       >
-        <ol className="flex h-full w-full flex-col justify-center py-5">
+        <ol className="flex h-full w-full flex-col overflow-y-auto py-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {userMessages.map((message, index) => {
             const isActive = activeMessageId ? activeMessageId === message.id : index === 0;
             const label = t("extensions.userMessageIndex.jumpTo", { index: index + 1 });
 
             return (
-              <li key={message.id} className="h-[10px] w-full shrink-0">
+              <li key={message.id} className="h-6 w-full shrink-0 first:mt-auto last:mb-auto">
                 <Tooltip>
                   <TooltipTrigger
                     render={

@@ -9,6 +9,8 @@ import {
   type QueueItemState,
 } from "@assistant-ui/react";
 import {
+  ArrowDownIcon,
+  ArrowUpIcon,
   CornerDownLeftIcon,
   ListRestartIcon,
   ListXIcon,
@@ -81,6 +83,10 @@ interface ComposerQueueItemProps {
   onDrop(targetId: string, position: DropPosition): void;
   onSteer(id: string): void;
   onEdit(queueItem: QueueItemState): void;
+  canMoveDown: boolean;
+  canMoveUp: boolean;
+  onMoveDown(): void;
+  onMoveUp(): void;
   queuePaused: boolean;
   onToggleQueueMode(): void;
 }
@@ -95,6 +101,10 @@ function ComposerQueueItem({
   onDrop,
   onSteer,
   onEdit,
+  canMoveDown,
+  canMoveUp,
+  onMoveDown,
+  onMoveUp,
   queuePaused,
   onToggleQueueMode,
 }: ComposerQueueItemProps) {
@@ -109,7 +119,7 @@ function ComposerQueueItem({
         onDrop(queueItem.id, dropPosition(event));
       }}
       className={cn(
-        "group relative flex min-h-8 items-center px-2 transition-colors duration-100 hover:bg-muted/40",
+        "group relative flex min-h-9 items-center px-2 transition-colors duration-100 hover:bg-muted/40",
         dragging && "bg-muted/50 opacity-40",
       )}
     >
@@ -129,7 +139,7 @@ function ComposerQueueItem({
         title={t("extensions.messageQueue.drag")}
         onDragStart={(event) => onDragStart(event, queueItem.id)}
         onDragEnd={onDragEnd}
-        className="me-1 flex size-5 shrink-0 cursor-grab items-center justify-center text-muted-foreground/35 active:cursor-grabbing"
+        className="me-1 flex size-7 shrink-0 cursor-grab items-center justify-center rounded-md text-muted-foreground/50 hover:bg-muted hover:text-foreground active:cursor-grabbing"
       >
         <ListRestartIcon className="size-3" />
       </button>
@@ -144,21 +154,21 @@ function ComposerQueueItem({
             event.preventDefault();
             flushSync(() => onSteer(queueItem.id));
           }}
-          className="flex h-5 items-center gap-1 rounded-md px-1.5 text-xs text-muted-foreground/65 transition-colors hover:bg-muted hover:text-foreground"
+          className="flex h-7 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground/65 transition-colors hover:bg-muted hover:text-foreground"
         >
           <CornerDownLeftIcon className="size-3" />
           <span>{t("extensions.messageQueue.steer")}</span>
         </QueueItemPrimitive.Steer>
         <QueueItemPrimitive.Remove
           aria-label={t("extensions.messageQueue.remove")}
-          className="flex size-5 items-center justify-center rounded-md text-muted-foreground/50 transition-colors hover:bg-muted hover:text-foreground"
+          className="flex size-7 items-center justify-center rounded-md text-muted-foreground/50 transition-colors hover:bg-muted hover:text-foreground"
         >
           <Trash2Icon className="size-3" />
         </QueueItemPrimitive.Remove>
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-label={t("extensions.messageQueue.more")}
-            className="flex size-5 items-center justify-center rounded-md text-muted-foreground/50 transition-colors hover:bg-muted hover:text-foreground data-popup-open:bg-muted data-popup-open:text-foreground"
+            className="flex size-7 items-center justify-center rounded-md text-muted-foreground/50 transition-colors hover:bg-muted hover:text-foreground data-popup-open:bg-muted data-popup-open:text-foreground"
           >
             <MoreHorizontalIcon className="size-3.5" />
           </DropdownMenuTrigger>
@@ -166,6 +176,14 @@ function ComposerQueueItem({
             <DropdownMenuItem onClick={() => onEdit(queueItem)} className="gap-2">
               <PencilIcon className="size-4" />
               <span>{t("extensions.messageQueue.edit")}</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled={!canMoveUp} onClick={onMoveUp} className="gap-2">
+              <ArrowUpIcon className="size-4" />
+              <span>{t("extensions.messageQueue.moveUp")}</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled={!canMoveDown} onClick={onMoveDown} className="gap-2">
+              <ArrowDownIcon className="size-4" />
+              <span>{t("extensions.messageQueue.moveDown")}</span>
             </DropdownMenuItem>
             <DropdownMenuItem onClick={onToggleQueueMode} className="gap-2">
               {queuePaused ? (
@@ -198,9 +216,9 @@ export function ComposerMessageQueue() {
     id: string;
     position: DropPosition;
   } | null>(null);
-  const visibleQueueLength = queue.filter((item) => !steeringIds.has(item.id)).length;
+  const visibleQueue = queue.filter((item) => !steeringIds.has(item.id));
 
-  if (visibleQueueLength === 0) return null;
+  if (visibleQueue.length === 0) return null;
 
   const reorder = (targetId: string, position: DropPosition) => {
     if (!draggingId || draggingId === targetId) return;
@@ -239,7 +257,9 @@ export function ComposerMessageQueue() {
     }
     requestAnimationFrame(() => {
       document
-        .querySelector<HTMLTextAreaElement>('[data-slot="workbench-composer-card"] textarea')
+        .querySelector<HTMLElement>(
+          '[data-slot="workbench-composer-card"] [contenteditable="true"]',
+        )
         ?.focus();
     });
   };
@@ -284,6 +304,31 @@ export function ComposerMessageQueue() {
                   aui.thread.composer().queueItem({ id }).move({ lane: "steer", insertAfter: null })
                 }
                 onEdit={(item) => void editInComposer(item)}
+                canMoveUp={visibleQueue.findIndex((item) => item.id === queueItem.id) > 0}
+                canMoveDown={
+                  visibleQueue.findIndex((item) => item.id === queueItem.id) <
+                  visibleQueue.length - 1
+                }
+                onMoveUp={() => {
+                  const index = visibleQueue.findIndex((item) => item.id === queueItem.id);
+                  const previous = visibleQueue[index - 1];
+                  if (previous) {
+                    aui.thread
+                      .composer()
+                      .queueItem({ id: queueItem.id })
+                      .move({ insertBefore: previous.id });
+                  }
+                }}
+                onMoveDown={() => {
+                  const index = visibleQueue.findIndex((item) => item.id === queueItem.id);
+                  const next = visibleQueue[index + 1];
+                  if (next) {
+                    aui.thread
+                      .composer()
+                      .queueItem({ id: queueItem.id })
+                      .move({ insertAfter: next.id });
+                  }
+                }}
                 queuePaused={queueActions?.paused ?? false}
                 onToggleQueueMode={() => queueActions?.setPaused(!queueActions.paused)}
               />

@@ -212,7 +212,7 @@ export function timelineStats(parts: readonly TimelineSourcePart[]): ToolTimelin
   const stats = new Map<string, Required<Omit<ToolTimelineStatModel, "file">>>();
 
   for (const part of parts) {
-    if (part.type !== "tool-call") continue;
+    if (part.type !== "tool-call" || part.isError) continue;
     const args = asRecord(part.args);
     const path = asString(args?.path) ?? asString(args?.file) ?? asString(args?.filePath);
     if (!path || (part.toolName !== "edit" && part.toolName !== "write")) continue;

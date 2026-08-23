@@ -389,9 +389,9 @@ const ThreadListItemMore: FC<{ onRename: () => void }> = ({ onRename }) => {
         render={
           <Button
             variant="ghost"
-            size="icon"
+            size="icon-sm"
             data-slot="aui_thread-list-item-more"
-            className="data-[state=open]:bg-accent absolute end-1.5 top-1/2 size-6 -translate-y-1/2 p-0 opacity-0 group-hover:opacity-100 group-has-focus-visible:opacity-100 group-data-active:opacity-100 data-[state=open]:opacity-100"
+            className="data-[state=open]:bg-accent absolute end-1.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 group-has-focus-visible:opacity-100 group-data-active:opacity-100 data-[state=open]:opacity-100"
           />
         }
       >

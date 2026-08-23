@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useDisclosureScrollLock } from "@/components/elements/use-disclosure-scroll-lock";
 import { useI18n, type Translate } from "@/i18n";
+import { formatAdaptiveDuration } from "@/lib/format-duration";
 
 const ANIMATION_DURATION = 200;
 
@@ -81,16 +82,9 @@ const statusIconMap: Record<ToolStatus, React.ElementType> = {
   "requires-action": AlertCircleIcon,
 };
 
-const formatToolDuration = (ms: number) => {
-  if (ms < 1000) return "<1s";
-  const seconds = ms / 1000;
-  if (seconds < 10) return `${(Math.floor(seconds * 10) / 10).toFixed(1)}s`;
-  if (seconds < 60) return `${Math.floor(seconds)}s`;
-  return `${Math.floor(seconds / 60)}m ${Math.floor(seconds % 60)}s`;
-};
-
 function ToolFallbackDuration({ className, ...props }: React.ComponentProps<"span">) {
   const elapsedMs = useToolCallElapsed();
+  const { locale } = useI18n();
   if (elapsedMs === undefined) return null;
 
   return (
@@ -102,7 +96,7 @@ function ToolFallbackDuration({ className, ...props }: React.ComponentProps<"spa
       )}
       {...props}
     >
-      {formatToolDuration(elapsedMs)}
+      {formatAdaptiveDuration(elapsedMs, locale, { maximumFractionDigits: 1 })}
     </span>
   );
 }

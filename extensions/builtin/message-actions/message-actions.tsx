@@ -10,6 +10,7 @@ import {
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
+  GaugeIcon,
   PencilIcon,
   RefreshCwIcon,
   SplitIcon,
@@ -17,42 +18,25 @@ import {
 import { useCallback, useMemo, useState } from "react";
 
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { MessageTiming, type TimingStat } from "@/components/elements/message-timing";
+import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useI18n } from "@/i18n";
+import { formatAdaptiveDuration } from "@/lib/format-duration";
 import { type MessageSlotContext, useExtensionErrorReporter } from "@/platform/extensions";
 import {
   usePiActiveSessionId,
   usePiSessionManager,
   usePiThreadListItemSnapshot,
 } from "@/runtime/pi/client/runtime/context";
+import { readPiUsage } from "@/runtime/pi/client/messages/pi-usage";
 
 import { shouldShowMessagePerformance } from "./message-performance-visibility";
-
-interface PiUsageStats {
-  input: number;
-  output: number;
-  cacheRead: number;
-  cacheWrite: number;
-}
-
-function readPiUsage(value: unknown): PiUsageStats | undefined {
-  if (!value || typeof value !== "object") return undefined;
-  const usage = value as Record<string, unknown>;
-  if (
-    typeof usage.input !== "number" ||
-    typeof usage.output !== "number" ||
-    typeof usage.cacheRead !== "number" ||
-    typeof usage.cacheWrite !== "number"
-  ) {
-    return undefined;
-  }
-  return {
-    input: usage.input,
-    output: usage.output,
-    cacheRead: usage.cacheRead,
-    cacheWrite: usage.cacheWrite,
-  };
-}
 
 function MessagePerformance() {
   const timing = useMessageTiming();
@@ -60,19 +44,15 @@ function MessagePerformance() {
     state.message.role === "assistant" ? state.message.metadata.custom.piUsage : undefined,
   );
   const usage = useMemo(() => readPiUsage(rawUsage), [rawUsage]);
-  const { number, t } = useI18n();
-  const stats: TimingStat[] = [];
-  const formatDuration = (milliseconds: number) =>
-    milliseconds < 1_000
-      ? `${number(Math.round(milliseconds))}ms`
-      : `${number(milliseconds / 1_000, { maximumFractionDigits: 2 })}s`;
+  const { locale, number, t } = useI18n();
+  const stats: { label: string; value: string }[] = [];
   const formatTokens = (tokens: number) =>
     number(tokens, { notation: "compact", maximumFractionDigits: 1 });
 
   if (timing?.firstTokenTime !== undefined) {
     stats.push({
       label: t("extensions.messageActions.timing.firstToken"),
-      value: formatDuration(timing.firstTokenTime),
+      value: formatAdaptiveDuration(timing.firstTokenTime, locale),
     });
   }
   if (usage) {
@@ -108,9 +88,43 @@ function MessagePerformance() {
 
   if (stats.length === 0) return null;
 
+  const label = t("extensions.messageActions.timing.details");
+
   return (
-    <ActionBarPrimitive.Root autohide="always" className="flex items-center">
-      <MessageTiming stats={stats} className="w-auto max-w-none" />
+    <ActionBarPrimitive.Root autohide="never" className="flex items-center">
+      <Popover>
+        <PopoverTrigger
+          openOnHover
+          delay={100}
+          closeDelay={100}
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label={label}
+              className="active:scale-90"
+            />
+          }
+        >
+          <GaugeIcon className="size-3.5" />
+        </PopoverTrigger>
+        <PopoverContent side="right" align="center" sideOffset={6} className="w-52 gap-3 p-3">
+          <PopoverHeader>
+            <PopoverTitle>{label}</PopoverTitle>
+          </PopoverHeader>
+          <dl className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2">
+            {stats.map((stat) => (
+              <div key={stat.label} className="contents">
+                <dt className="text-muted-foreground text-xs">{stat.label}</dt>
+                <dd className="text-foreground text-right font-mono text-xs font-medium tabular-nums">
+                  {stat.value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </PopoverContent>
+      </Popover>
     </ActionBarPrimitive.Root>
   );
 }
@@ -142,10 +156,12 @@ function BranchPicker() {
 
 function UserActions() {
   const { t } = useI18n();
+  const isRunning = useAuiState((state) => state.thread.isRunning);
 
   return (
-    <ActionBarPrimitive.Root hideWhenRunning autohide="never" className="flex items-center gap-0.5">
+    <ActionBarPrimitive.Root autohide="never" className="flex items-center gap-0.5">
       <ActionBarPrimitive.Edit
+        disabled={isRunning}
         render={<TooltipIconButton tooltip={t("extensions.messageActions.editMessage")} />}
       >
         <PencilIcon className="size-3.5" />

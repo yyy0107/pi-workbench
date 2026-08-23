@@ -12,6 +12,7 @@ export const workbenchEnUS = {
     },
     composer: {
       placeholder: "Describe what you want to accomplish, or paste content to work with…",
+      runningPlaceholder: "You can still send queued and steering messages…",
       selectWorkspacePlaceholder: "Select a workspace before starting a conversation…",
       messageInput: "Message input",
       commandSuggestions: "Command suggestions",
@@ -68,6 +69,13 @@ export const workbenchEnUS = {
     generating: "Generating response…",
     working: "Pi Working...",
     workingElapsed: ({ duration }: { duration: string }) => `Pi Working... · ${duration}`,
+    connectionInterruptedRetrying: ({
+      attempt,
+      maxAttempts,
+    }: {
+      attempt: number;
+      maxAttempts: number;
+    }) => `Connection interrupted, retrying ${attempt}/${maxAttempts}`,
     connectionInterruptedRetryingElapsed: ({
       attempt,
       maxAttempts,
@@ -149,6 +157,8 @@ export const workbenchEnUS = {
       networkFailure: "The connection to the model provider was interrupted.",
       apiFailure: "The model provider could not complete the request.",
       providerFailure: "The configured model provider could not complete the request.",
+      queueSendFailedRestored:
+        "The message could not be queued. Its draft was restored so you can try again.",
       unknownFailure: "The response could not be completed.",
     },
     scrollLatest: "Scroll to latest",

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-const { shouldShowMessageActions } = (await import(
+const { shouldShowMessageActions, shouldShowMessageNavigation } = (await import(
   new URL("./message-action-visibility.ts", import.meta.url).href
 )) as typeof import("./message-action-visibility");
 
@@ -14,6 +14,10 @@ const assistant = (id: string, ...types: string[]) => ({
   id,
   role: "assistant" as const,
   content: types.map((type) => (type === "text" ? { type, text: `${id} response` } : { type })),
+});
+const branchedAssistant = (id: string, branchCount: number, ...types: string[]) => ({
+  ...assistant(id, ...types),
+  branchCount,
 });
 const system = (id: string) => ({
   id,
@@ -69,4 +73,19 @@ test("does not expose actions for an empty final assistant response", () => {
   const messages = [user("user-1"), assistant("reasoning-step", "reasoning")];
 
   assert.equal(shouldShowMessageActions(messages, 1), false);
+});
+
+test("keeps branch navigation mounted for an empty error response", () => {
+  const messages = [user("user-1"), branchedAssistant("failed-response", 2)];
+
+  assert.equal(shouldShowMessageActions(messages, 1), false);
+  assert.equal(shouldShowMessageNavigation(messages, 1, true), true);
+});
+
+test("does not mount branch navigation without multiple switchable branches", () => {
+  const singleBranch = [user("user-1"), branchedAssistant("failed-response", 1)];
+  const multipleBranches = [user("user-1"), branchedAssistant("failed-response", 2)];
+
+  assert.equal(shouldShowMessageNavigation(singleBranch, 1, true), false);
+  assert.equal(shouldShowMessageNavigation(multipleBranches, 1, false), false);
 });

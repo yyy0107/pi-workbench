@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { CheckIcon, ChevronRightIcon, type LucideIcon } from "lucide-react";
+import { CheckIcon, ChevronRightIcon, CircleXIcon, type LucideIcon } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { collapsePanel, field, mono, ShimmerLabel } from "./surfaces";
@@ -18,6 +18,8 @@ export interface ToolCallProps {
   resultLabel: string;
   icon?: LucideIcon;
   running: boolean;
+  failed?: boolean;
+  failedLabel?: string;
   elapsed?: string;
   showCompletionIcon?: boolean;
   expandable?: boolean;
@@ -38,6 +40,8 @@ export function ToolCall({
   resultLabel,
   icon: Icon,
   running,
+  failed = false,
+  failedLabel,
   elapsed,
   showCompletionIcon = true,
   expandable = true,
@@ -64,9 +68,12 @@ export function ToolCall({
         <span className="flex min-w-0 items-center">
           <ShimmerLabel
             active={running}
-            className="relative shrink-0 whitespace-nowrap leading-none"
+            className={cn(
+              "relative shrink-0 whitespace-nowrap leading-none",
+              failed && "text-destructive",
+            )}
           >
-            {running ? activeLabel : label}
+            {running ? activeLabel : failed ? (failedLabel ?? label) : label}
           </ShimmerLabel>
           {elapsed !== undefined && (
             <span className={cn(mono, "text-foreground/30 shrink-0 tabular-nums")}>{elapsed}</span>
@@ -83,9 +90,17 @@ export function ToolCall({
           </span>
         </span>
       )}
-      {!running && showCompletionIcon && (
-        <CheckIcon className="fade-in zoom-in-90 animate-in size-3.5 shrink-0 text-emerald-500 duration-200" />
-      )}
+      {!running && failed ? (
+        <CircleXIcon
+          aria-hidden="true"
+          className="fade-in zoom-in-90 animate-in text-destructive size-3.5 shrink-0 duration-200 motion-reduce:animate-none"
+        />
+      ) : !running && showCompletionIcon ? (
+        <CheckIcon
+          aria-hidden="true"
+          className="fade-in zoom-in-90 animate-in size-3.5 shrink-0 text-emerald-500 duration-200 motion-reduce:animate-none"
+        />
+      ) : null}
     </>
   );
   const chevron = expandable ? (
@@ -113,7 +128,12 @@ export function ToolCall({
 
   if (!expandable) {
     return (
-      <div data-slot="tool-call" aria-busy={running} className={cn("w-full", className)}>
+      <div
+        data-slot="tool-call"
+        data-status={failed ? "error" : running ? "running" : "complete"}
+        aria-busy={running}
+        className={cn("w-full", className)}
+      >
         <div
           data-slot="tool-call-summary"
           className="group/trigger text-foreground/55 hover:text-foreground/90 flex w-full min-w-0 items-center gap-1.5 rounded-md py-1 text-[13.5px] transition-colors outline-none"
@@ -130,6 +150,7 @@ export function ToolCall({
       <Collapsible
         ref={rootRef}
         data-slot="tool-call"
+        data-status={failed ? "error" : running ? "running" : "complete"}
         aria-busy={running}
         open={open}
         onOpenChange={handleOpenChange}
@@ -140,7 +161,7 @@ export function ToolCall({
           className="group/tool-summary relative flex w-full min-w-0 items-center gap-1.5 rounded-md py-1 text-[13.5px] outline-none"
         >
           <CollapsibleTrigger
-            aria-label={`${running ? activeLabel : label} ${query}`.trim()}
+            aria-label={`${running ? activeLabel : failed ? (failedLabel ?? label) : label} ${query}`.trim()}
             className="peer/trigger absolute inset-0 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           />
           <div className="pointer-events-none relative z-10 flex min-w-0 items-center gap-1.5 text-foreground/55 [--tool-diff-additions:currentColor] [--tool-diff-deletions:currentColor] transition-colors group-hover/tool-summary:text-foreground group-hover/tool-summary:[--tool-diff-additions:var(--color-emerald-600)] group-hover/tool-summary:[--tool-diff-deletions:var(--color-red-600)] group-focus-within/tool-summary:text-foreground group-focus-within/tool-summary:[--tool-diff-additions:var(--color-emerald-600)] group-focus-within/tool-summary:[--tool-diff-deletions:var(--color-red-600)] dark:group-hover/tool-summary:[--tool-diff-additions:var(--color-emerald-400)] dark:group-hover/tool-summary:[--tool-diff-deletions:var(--color-red-400)] dark:group-focus-within/tool-summary:[--tool-diff-additions:var(--color-emerald-400)] dark:group-focus-within/tool-summary:[--tool-diff-deletions:var(--color-red-400)]">
@@ -159,6 +180,7 @@ export function ToolCall({
     <Collapsible
       ref={rootRef}
       data-slot="tool-call"
+      data-status={failed ? "error" : running ? "running" : "complete"}
       aria-busy={running}
       open={open}
       onOpenChange={handleOpenChange}

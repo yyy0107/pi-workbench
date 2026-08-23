@@ -11,6 +11,7 @@ export const workbenchZhCN = {
     },
     composer: {
       placeholder: "描述你想完成的任务，或粘贴需要处理的内容…",
+      runningPlaceholder: "还可以发送排队消息和引导消息…",
       selectWorkspacePlaceholder: "请先选择工作区，再开始会话…",
       messageInput: "消息输入框",
       commandSuggestions: "命令建议",
@@ -67,6 +68,13 @@ export const workbenchZhCN = {
     generating: "正在生成回答…",
     working: "Pi Working...",
     workingElapsed: ({ duration }: { duration: string }) => `Pi Working... · ${duration}`,
+    connectionInterruptedRetrying: ({
+      attempt,
+      maxAttempts,
+    }: {
+      attempt: number;
+      maxAttempts: number;
+    }) => `连接中断，正在重试 ${attempt}/${maxAttempts}`,
     connectionInterruptedRetryingElapsed: ({
       attempt,
       maxAttempts,
@@ -143,6 +151,7 @@ export const workbenchZhCN = {
       networkFailure: "与模型 Provider 的连接已中断。",
       apiFailure: "模型 Provider 未能完成该请求。",
       providerFailure: "当前配置的模型 Provider 未能完成该请求。",
+      queueSendFailedRestored: "消息排队失败，草稿已恢复，你可以再次尝试发送。",
       unknownFailure: "本次回答未能完成。",
     },
     scrollLatest: "滚动到最新消息",

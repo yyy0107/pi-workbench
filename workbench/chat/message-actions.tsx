@@ -8,12 +8,12 @@ import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { SlotHost } from "@/platform/extensions";
 
-import { shouldShowMessageActions } from "./message-action-visibility";
+import { shouldShowMessageActions, shouldShowMessageNavigation } from "./message-action-visibility";
 
 const messageActionStyles = [
-  "[&_button.aui-button-icon]:size-[26px]!",
-  "[&_button.aui-button-icon]:p-[6px]!",
-  "[&_button_svg.lucide]:size-3.5!",
+  "[&_button.aui-button-icon]:size-8!",
+  "[&_button.aui-button-icon]:p-2!",
+  "[&_button_svg.lucide]:size-4!",
 ].join(" ");
 
 function CopyAction({ role }: Readonly<{ role: "user" | "assistant" }>) {
@@ -50,30 +50,37 @@ export function WorkbenchMessageActions({ className }: Readonly<{ className?: st
   const createdAt = useAuiState((state) => state.message.createdAt);
   const isLast = useAuiState((state) => state.message.isLast);
   const capabilities = useAuiState((state) => state.thread.capabilities);
-  const visible = useAuiState((state) =>
+  const actionsVisible = useAuiState((state) =>
     shouldShowMessageActions(state.thread.messages, state.message.index),
+  );
+  const navigationVisible = useAuiState((state) =>
+    shouldShowMessageNavigation(
+      state.thread.messages,
+      state.message.index,
+      state.thread.capabilities.switchToBranch,
+    ),
   );
   const context = { messageId, role, isLast };
 
-  if (!visible) return null;
+  if (!actionsVisible && !navigationVisible) return null;
 
   return (
     <div
       data-slot="message-actions"
       className={cn(
         messageActionStyles,
-        "text-muted-foreground flex min-h-[26px] flex-wrap items-center gap-0.5",
+        "text-muted-foreground flex min-h-8 flex-wrap items-center gap-0.5",
         role === "user" &&
-          "opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100 motion-reduce:transition-none",
+          "opacity-100 transition-opacity md:opacity-0 md:group-focus-within/message:opacity-100 md:group-hover/message:opacity-100 motion-reduce:transition-none",
         className,
       )}
     >
-      {role === "user" ? (
+      {actionsVisible && role === "user" ? (
         <time dateTime={createdAt.toISOString()} className="text-xs tabular-nums">
           {date(createdAt, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
         </time>
       ) : null}
-      {capabilities.unstable_copy && (role === "user" || role === "assistant") ? (
+      {actionsVisible && capabilities.unstable_copy && (role === "user" || role === "assistant") ? (
         <CopyAction role={role} />
       ) : null}
       <SlotHost name="message.actions" context={context} className="flex items-center gap-0.5" />

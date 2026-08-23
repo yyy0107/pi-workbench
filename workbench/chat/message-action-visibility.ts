@@ -2,6 +2,7 @@ interface MessageActionVisibilityMessage {
   readonly id: string;
   readonly role: "user" | "assistant" | "system";
   readonly content: readonly { readonly type: string; readonly text?: string }[];
+  readonly branchCount?: number;
 }
 
 function hasActionableAssistantContent(message: MessageActionVisibilityMessage): boolean {
@@ -26,4 +27,16 @@ export function shouldShowMessageActions(
   }
 
   return hasActionableAssistantContent(message);
+}
+
+/** Branch navigation must remain reachable even when a branch has no renderable content. */
+export function shouldShowMessageNavigation(
+  messages: readonly MessageActionVisibilityMessage[],
+  messageIndex: number,
+  canSwitchToBranch: boolean,
+): boolean {
+  const message = messages[messageIndex];
+  return Boolean(
+    canSwitchToBranch && message && message.role !== "system" && (message.branchCount ?? 1) > 1,
+  );
 }

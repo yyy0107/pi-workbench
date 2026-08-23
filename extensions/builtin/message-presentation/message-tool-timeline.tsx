@@ -32,6 +32,7 @@ import { ToolCall } from "@/components/elements/tool-call";
 import { useOpenerService, useWorkspaceContext } from "@/components/right-workspace";
 import { useI18n } from "@/i18n";
 import { formatCompactDuration } from "@/lib/format-duration";
+import { cn } from "@/lib/utils";
 import {
   RendererHost,
   useToolPresentationMap,
@@ -134,7 +135,7 @@ function TimelineReasoning({
   preview: string;
   disclosureId: string | number;
 }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const [open, setOpen] = useMessageDisclosure("reasoning", disclosureId);
   const elapsedSeconds = useElapsedSeconds(running, reasoningPartTiming(part));
   const collapsedPreview = running
@@ -169,7 +170,9 @@ function TimelineReasoning({
         elapsedSeconds === undefined
           ? undefined
           : t("extensions.messagePresentation.elapsed", {
-              duration: formatCompactDuration(elapsedSeconds * 1_000, { zeroValue: "0s" }),
+              duration: formatCompactDuration(elapsedSeconds * 1_000, locale, {
+                includeZero: true,
+              }),
             })
       }
       className="max-w-none"
@@ -192,7 +195,7 @@ function TimelineToolCall({
   running: boolean;
   presentation?: ToolPresentationDefinition;
 }) {
-  const { number, t, text } = useI18n();
+  const { locale, number, t, text } = useI18n();
   const [open, setOpen] = useMessageDisclosure("tool", part.toolCallId);
   const openers = useOpenerService();
   const workspaceContext = useWorkspaceContext();
@@ -219,7 +222,8 @@ function TimelineToolCall({
     part.toolName === "write"
       ? t("extensions.messagePresentation.toolTimeline.activeSteps.creating")
       : activeLabel;
-  const fileDiff = useMemo(() => toolDiffModel(part), [part]);
+  const failedLabel = t("extensions.messagePresentation.toolTimeline.failed");
+  const fileDiff = useMemo(() => (part.isError ? undefined : toolDiffModel(part)), [part]);
   const [hunkDecisions, setHunkDecisions] = useState<Readonly<Record<string, HunkDecision>>>({});
   const reviewHunks = useMemo(
     () =>
@@ -259,9 +263,12 @@ function TimelineToolCall({
       });
   }, [diffId, fileDiff, openers, workspaceContext]);
   const fileMutationSummary = isFileMutation ? (
-    <span data-slot="file-mutation-tool-summary" className="flex min-w-0 items-center gap-1">
+    <span
+      data-slot="file-mutation-tool-summary"
+      className={cn("flex min-w-0 items-center gap-1", part.isError && "text-destructive")}
+    >
       <ShimmerLabel active={running} className="relative shrink-0 whitespace-nowrap leading-none">
-        {running ? displayActiveLabel : displayLabel}
+        {running ? displayActiveLabel : part.isError ? failedLabel : displayLabel}
       </ShimmerLabel>
       {fileDiff ? (
         <button
@@ -280,16 +287,18 @@ function TimelineToolCall({
           {query}
         </span>
       )}
-      <span className="flex shrink-0 items-center gap-1 font-mono text-[11px] tabular-nums">
-        <span className="text-[var(--tool-diff-additions)] transition-colors">
-          <span data-diff-marker="">+</span>
-          {number(fileDiff?.additions ?? 0)}
+      {fileDiff ? (
+        <span className="flex shrink-0 items-center gap-1 font-mono text-[11px] tabular-nums">
+          <span className="text-[var(--tool-diff-additions)] transition-colors">
+            <span data-diff-marker="">+</span>
+            {number(fileDiff.additions)}
+          </span>
+          <span className="text-[var(--tool-diff-deletions)] transition-colors">
+            <span data-diff-marker="">-</span>
+            {number(fileDiff.deletions)}
+          </span>
         </span>
-        <span className="text-[var(--tool-diff-deletions)] transition-colors">
-          <span data-diff-marker="">-</span>
-          {number(fileDiff?.deletions ?? 0)}
-        </span>
-      </span>
+      ) : null}
     </span>
   ) : undefined;
 
@@ -305,15 +314,19 @@ function TimelineToolCall({
       resultLabel={t("extensions.messagePresentation.toolTimeline.result")}
       icon={Icon}
       running={running}
+      failed={part.isError}
+      failedLabel={failedLabel}
       showCompletionIcon={!isFileMutation}
-      expandable={!isFileMutation || Boolean(fileDiff)}
+      expandable={!isFileMutation || Boolean(fileDiff) || part.isError}
       open={open}
       onOpenChange={setOpen}
       elapsed={
         elapsedSeconds === undefined
           ? undefined
           : t("extensions.messagePresentation.elapsed", {
-              duration: formatCompactDuration(elapsedSeconds * 1_000, { zeroValue: "0s" }),
+              duration: formatCompactDuration(elapsedSeconds * 1_000, locale, {
+                includeZero: true,
+              }),
             })
       }
     >
@@ -363,7 +376,7 @@ function ParallelToolGroup({
   presentations: readonly (ToolPresentationDefinition | undefined)[];
   turnStreaming: boolean;
 }) {
-  const running = turnStreaming && parts.some((part) => part.result === undefined);
+  const running = turnStreaming && parts.some((part) => !part.isError && part.result === undefined);
   const [open, setOpen] = useMessageDisclosure("parallel-tools", batchId);
 
   return (
@@ -385,7 +398,7 @@ function ParallelToolGroup({
           const query = queries[index];
           const partIndex = partIndices[index];
           if (!kind || query === undefined || partIndex === undefined) return null;
-          const toolRunning = turnStreaming && part.result === undefined;
+          const toolRunning = turnStreaming && !part.isError && part.result === undefined;
 
           return (
             <TimelineToolCall
@@ -473,7 +486,7 @@ export function MessageToolTimeline({
           partIndex={indices[sourceIndex] ?? sourceIndex}
           kind={model.kind}
           query={model.chip}
-          running={turnStreaming && part.result === undefined}
+          running={turnStreaming && !part.isError && part.result === undefined}
           presentation={model.presentation}
         />
       ),

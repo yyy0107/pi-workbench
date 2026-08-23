@@ -176,3 +176,27 @@ test("aggregates edited and written lines by file", () => {
     [{ file: "thread.tsx", added: 5, removed: 2 }],
   );
 });
+
+test("does not report failed file mutations as successful changes", () => {
+  assert.deepEqual(
+    timelineStats([
+      {
+        ...tool("edit", {
+          path: "/workspace/thread.tsx",
+          edits: [{ oldText: "before", newText: "after" }],
+        }),
+        isError: true,
+        result: "permission denied",
+      },
+      {
+        ...tool("write", {
+          path: "/workspace/new.tsx",
+          content: "not written",
+        }),
+        isError: true,
+        result: "disk full",
+      },
+    ]),
+    [],
+  );
+});

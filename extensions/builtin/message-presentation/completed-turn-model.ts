@@ -1,3 +1,5 @@
+import { formatCompactDuration } from "@/lib/format-duration";
+
 interface MessagePartLike {
   readonly type: string;
 }
@@ -15,23 +17,22 @@ export function completedWorkBoundary(parts: readonly MessagePartLike[]): number
   return parts.length;
 }
 
-export function formatCompletedDuration(milliseconds: number | undefined): string {
-  const totalSeconds = Math.max(0, Math.round((milliseconds ?? 0) / 1_000));
-  if (totalSeconds === 0) return "";
+/**
+ * Completed-work disclosure belongs to assistant turns only. In particular,
+ * a user message made entirely of data parts (for example an image-recognition
+ * state snapshot) must remain visible instead of being folded as tool work.
+ */
+export function partBelongsToCompletedWork(
+  role: string,
+  partIndex: number | undefined,
+  boundary: number,
+): boolean {
+  return role === "assistant" && partIndex !== undefined && partIndex < boundary;
+}
 
-  const units = [
-    { seconds: 86_400, suffix: "d" },
-    { seconds: 3_600, suffix: "h" },
-    { seconds: 60, suffix: "m" },
-    { seconds: 1, suffix: "s" },
-  ] as const;
-  let remaining = totalSeconds;
-
-  return units
-    .flatMap((unit) => {
-      const value = Math.floor(remaining / unit.seconds);
-      remaining %= unit.seconds;
-      return value === 0 ? [] : `${value}${unit.suffix}`;
-    })
-    .join("");
+export function formatCompletedDuration(
+  milliseconds: number | undefined,
+  locale: string,
+): string {
+  return formatCompactDuration(milliseconds, locale);
 }

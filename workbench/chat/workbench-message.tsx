@@ -16,13 +16,14 @@ import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { SlotHost } from "@/platform/extensions";
 import { parsePiConversationEvent } from "@/runtime/pi/client/messages/conversation-events";
+import { readPiUsage } from "@/runtime/pi/client/messages/pi-usage";
 import { parseWorkbenchComposerCommandResponseDetails } from "@/runtime/composer-request";
 import { parsePiMessageTermination } from "@/runtime/pi/message-termination";
 
 import { WorkbenchComposerCommandResponse } from "./composer-command-response";
 import { WorkbenchMessageActions } from "./message-actions";
 import { WorkbenchMessageParts } from "./message-parts";
-import { shouldShowMessageError } from "./workbench-message-error";
+import { isMessageInLatestTurn, shouldShowMessageError } from "./workbench-message-error";
 
 function MessageSlot({ name }: { name: "message.before" | "message.after" }) {
   const messageId = useAuiState((state) => state.message.id);
@@ -53,23 +54,20 @@ function readableErrorDetail(value: unknown): string | undefined {
   }
 }
 
-function outputTokenCount(value: unknown): number | undefined {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
-  const output = (value as { output?: unknown }).output;
-  return typeof output === "number" && Number.isFinite(output) && output >= 0 ? output : undefined;
-}
-
 function WorkbenchMessageError() {
   const { t } = useI18n();
   const aui = useAui();
   const status = useAuiState((state) => state.message.status);
   const isRunning = useAuiState((state) => state.thread.isRunning);
+  const isInLatestTurn = useAuiState((state) =>
+    isMessageInLatestTurn(state.thread.messages, state.message.index),
+  );
   const termination = parsePiMessageTermination(
     useAuiState((state) => state.message.metadata.custom.piTermination),
   );
-  const outputTokens = outputTokenCount(
+  const outputTokens = readPiUsage(
     useAuiState((state) => state.message.metadata.custom.piUsage),
-  );
+  )?.output;
   const [retryPhase, setRetryPhase] = useState<"idle" | "requested" | "running">("idle");
 
   useEffect(() => {
@@ -79,7 +77,11 @@ function WorkbenchMessageError() {
 
   if (
     status?.type !== "incomplete" ||
-    !shouldShowMessageError({ isRunning, terminationKind: termination?.kind })
+    !shouldShowMessageError({
+      isRunning,
+      isInLatestTurn,
+      terminationKind: termination?.kind,
+    })
   ) {
     return null;
   }
@@ -118,6 +120,7 @@ function WorkbenchMessageError() {
   }
 
   const retry = () => {
+    if (isRunning) return;
     setRetryPhase("requested");
     try {
       void Promise.resolve(aui.message.reload()).then(
@@ -135,6 +138,7 @@ function WorkbenchMessageError() {
       title={title}
       detail={detail}
       retrying={retryPhase !== "idle"}
+      retryDisabled={isRunning}
       retryLabel={t("workbench.chat.errors.retry")}
       retryingLabel={t("workbench.chat.errors.retrying")}
       onRetry={retry}
