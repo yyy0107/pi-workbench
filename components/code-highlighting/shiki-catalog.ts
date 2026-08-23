@@ -1,6 +1,6 @@
 import type { LanguageInput, ThemeInput } from "shiki/core";
 
-import type { WorkbenchCodeTheme } from "@/extensions/builtin/appearance/appearance-preferences";
+import type { WorkbenchCodeTheme } from "@/services/appearance/appearance-preferences";
 
 const SHIKI_LANGUAGE_LOADERS = {
   c: () => import("@shikijs/langs/c"),

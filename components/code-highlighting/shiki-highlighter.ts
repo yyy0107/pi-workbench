@@ -1,7 +1,7 @@
 import { createHighlighterCore, type HighlighterCore, type ThemedToken } from "shiki/core";
 import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
 
-import type { WorkbenchCodeTheme } from "@/extensions/builtin/appearance/appearance-preferences";
+import type { WorkbenchCodeTheme } from "@/services/appearance/appearance-preferences";
 
 import {
   getShikiLanguageLoader,

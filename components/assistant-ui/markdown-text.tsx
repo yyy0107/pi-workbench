@@ -12,12 +12,9 @@ import { memo, useMemo } from "react";
 import { CodeBlock } from "streamdown";
 
 import { CodexCodeHeader } from "@/components/assistant-ui/codex-code-header";
-import {
-  CODE_THEME_PAIRS,
-  type CodeTheme,
-} from "@/extensions/builtin/appearance/appearance-preferences";
-import { useAppearancePreferences } from "@/extensions/builtin/appearance/appearance-store";
 import { cn } from "@/lib/utils";
+import { CODE_THEME_PAIRS, type CodeTheme } from "@/services/appearance/appearance-preferences";
+import { useAppearancePreferences } from "@/services/appearance/appearance-store";
 
 export type MarkdownTextProps = Omit<
   StreamdownTextPrimitiveProps,
@@ -55,7 +52,7 @@ const MarkdownTextImpl = ({
     <StreamdownTextPrimitive
       {...props}
       className={cn(
-        "aui-streamdown space-y-0",
+        "aui-streamdown space-y-0 [&>*:first-child]:mt-0! [&>*:last-child]:mb-0!",
         inheritLineHeight &&
           "[&_p]:leading-[inherit]! [&_[data-streamdown=list-item]]:leading-[inherit]!",
         preserveWhitespace && "[&_p]:whitespace-pre-wrap!",

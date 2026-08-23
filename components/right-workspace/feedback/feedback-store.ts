@@ -1,3 +1,8 @@
+import type {
+  PromptFeedbackClaim,
+  PromptFeedbackPort,
+} from "@/services/workspace-feedback-service";
+
 import type { WorkspaceContext } from "../core/surface-types";
 import { scopeMatchesContext } from "../core/workspace-selectors";
 import type { WorkspaceFeedback, WorkspaceFeedbackDraft } from "./feedback-types";
@@ -7,7 +12,7 @@ export interface WorkspaceFeedbackSnapshot {
   revision: number;
 }
 
-export interface WorkspaceFeedbackStore {
+export interface WorkspaceFeedbackStore extends PromptFeedbackPort {
   getSnapshot(): WorkspaceFeedbackSnapshot;
   subscribe(listener: () => void): () => void;
   add(draft: WorkspaceFeedbackDraft): string;
@@ -26,8 +31,18 @@ function createFeedbackId(): string {
   );
 }
 
+function createFeedbackClaimToken(): string {
+  return (
+    globalThis.crypto?.randomUUID?.() ??
+    `feedback-claim-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+  );
+}
+
 export class MemoryWorkspaceFeedbackStore implements WorkspaceFeedbackStore {
   readonly #listeners = new Set<() => void>();
+  readonly #claims = new Map<string, readonly WorkspaceFeedback[]>();
+  readonly #claimByFeedbackId = new Map<string, string>();
+  #claimSequence = 0;
   #snapshot: WorkspaceFeedbackSnapshot = { feedback: [], revision: 0 };
 
   getSnapshot = (): WorkspaceFeedbackSnapshot => this.#snapshot;
@@ -87,6 +102,55 @@ export class MemoryWorkspaceFeedbackStore implements WorkspaceFeedbackStore {
       (feedback) => feedback.threadId !== undefined && ids.has(feedback.threadId),
     );
   };
+
+  claimForThreads = (threadIds: readonly string[]): PromptFeedbackClaim | undefined => {
+    const feedback = this.forThread(threadIds).filter(
+      (item) => !this.#claimByFeedbackId.has(item.id),
+    );
+    if (feedback.length === 0) return undefined;
+
+    const token = `${createFeedbackClaimToken()}-${++this.#claimSequence}`;
+    this.#claims.set(token, feedback);
+    for (const item of feedback) this.#claimByFeedbackId.set(item.id, token);
+
+    return {
+      token,
+      items: feedback.map(({ id, kind, target, text }) => ({
+        id,
+        kind,
+        target: { ...target },
+        text,
+      })),
+    };
+  };
+
+  commit = (token: string): void => {
+    const claimed = this.takeClaim(token);
+    if (!claimed) return;
+
+    // Store updates replace an item object. Identity is therefore an item-level CAS: only the
+    // exact version sent to Pi is removed, while an edit made during the RPC remains pending.
+    const claimedVersionById = new Map(claimed.map((item) => [item.id, item]));
+    this.replace(
+      this.#snapshot.feedback.filter((item) => claimedVersionById.get(item.id) !== item),
+    );
+  };
+
+  release = (token: string): void => {
+    this.takeClaim(token);
+  };
+
+  private takeClaim(token: string): readonly WorkspaceFeedback[] | undefined {
+    const claimed = this.#claims.get(token);
+    if (!claimed) return undefined;
+    this.#claims.delete(token);
+    for (const item of claimed) {
+      if (this.#claimByFeedbackId.get(item.id) === token) {
+        this.#claimByFeedbackId.delete(item.id);
+      }
+    }
+    return claimed;
+  }
 
   private replace(feedback: readonly WorkspaceFeedback[]): void {
     if (

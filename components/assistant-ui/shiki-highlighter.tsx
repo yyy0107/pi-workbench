@@ -4,7 +4,7 @@ import type { SyntaxHighlighterProps } from "@assistant-ui/react-markdown";
 
 import { MarkdownCodeBlockContent } from "@/components/assistant-ui/markdown-text";
 import { useWorkbenchHighlightedCode } from "@/components/code-highlighting";
-import type { CodeTheme } from "@/extensions/builtin/appearance/appearance-preferences";
+import type { CodeTheme } from "@/services/appearance/appearance-preferences";
 
 export interface CodeThemePreviewProps {
   code: string;

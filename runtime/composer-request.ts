@@ -1,3 +1,17 @@
+import {
+  COMPOSER_COMMAND_EFFECTS,
+  type ComposerCommandArgsBinding,
+  type ComposerCommandArgsSchema,
+  type ComposerCommandEffect,
+  type ComposerCommandSubmission,
+  type ComposerContextSubmission,
+  type ComposerDocument,
+  type ComposerDocumentNode,
+  type ComposerJsonValue,
+  type ComposerSubmission,
+  type ComposerUserProjection,
+} from "@/contracts/composer";
+
 export const WORKBENCH_COMPOSER_RUN_CONFIG_KEY = "workbenchComposer";
 export const LEGACY_WORKBENCH_COMPOSER_USER_CUSTOM_TYPE = "workbench.composer-user.v1";
 export const WORKBENCH_COMPOSER_USER_CUSTOM_TYPE = "workbench.composer-user.v2";
@@ -5,92 +19,35 @@ export const WORKBENCH_COMPOSER_RESOLUTION_CUSTOM_TYPE = "workbench.composer-res
 export const WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE =
   "workbench.composer-command-response.v1";
 
-export type WorkbenchComposerJsonValue =
-  | string
-  | number
-  | boolean
-  | null
-  | WorkbenchComposerJsonValue[]
-  | { [key: string]: WorkbenchComposerJsonValue };
+export type WorkbenchComposerJsonValue = ComposerJsonValue;
 
 /** JSON-Schema-compatible command argument description shared by catalog and Composer clients. */
-export type WorkbenchComposerCommandArgsSchema = Readonly<
-  Record<string, WorkbenchComposerJsonValue>
->;
+export type WorkbenchComposerCommandArgsSchema = ComposerCommandArgsSchema;
 
 /**
  * Identifies the primary free-text field rendered by the structured command parameter panel.
  * `consumeText` remains part of the wire contract for legacy clients that sent inline arguments.
  */
-export interface WorkbenchComposerCommandArgsBinding {
-  readonly kind: "message-text";
-  readonly field: string;
-  readonly consumeText: boolean;
-}
+export type WorkbenchComposerCommandArgsBinding = ComposerCommandArgsBinding;
 
-export type WorkbenchComposerCommandEffect =
-  | "session-action"
-  | "request-config"
-  | "instruction"
-  | "context-provider"
-  | "prompt-transform"
-  | "agent-turn";
+export type WorkbenchComposerCommandEffect = ComposerCommandEffect;
 
 export type WorkbenchComposerResultTrust =
   | "trusted-instruction"
   | "trusted-config"
   | "untrusted-context";
 
-export interface WorkbenchComposerCommandSubmission {
-  id: string;
-  commandId: string;
-  label: string;
-  scope: "message" | "segment";
-  source: "workbench" | "pi";
-  args?: WorkbenchComposerJsonValue;
-}
+export type WorkbenchComposerCommandSubmission = ComposerCommandSubmission;
+export type WorkbenchComposerDocumentNode = ComposerDocumentNode;
+export type WorkbenchComposerContextSubmission = ComposerContextSubmission;
 
-export type WorkbenchComposerDocumentNode =
-  | { type: "text"; text: string }
-  | ({ type: "command" } & WorkbenchComposerCommandSubmission)
-  | {
-      type: "command-argument";
-      id: string;
-      commandNodeId: string;
-      field: string;
-      text: string;
-    }
-  | {
-      type: "mention";
-      id: string;
-      mentionType: string;
-      value: string;
-      label: string;
-    }
-  | {
-      type: "attachment";
-      id: string;
-      attachmentType: string;
-      value: string;
-      label: string;
-    };
+export type WorkbenchComposerSubmission = ComposerSubmission;
 
-export interface WorkbenchComposerContextSubmission {
-  type: string;
-  value: WorkbenchComposerJsonValue;
-}
-
-export interface WorkbenchComposerSubmission {
-  version: 1;
-  /** Canonical document. Optional only for compatibility with pre-document v1 clients. */
-  document?: WorkbenchComposerDocumentNode[];
-  sourceText: string;
-  text: string;
-  mode?: string;
-  model?: string;
-  context: WorkbenchComposerContextSubmission[];
-  metadata: Record<string, WorkbenchComposerJsonValue>;
-  commands: WorkbenchComposerCommandSubmission[];
+/** Display-only image persisted with the Composer marker when preprocessing removes Pi image parts. */
+export interface WorkbenchComposerImageProjection {
+  data: string;
+  mimeType: string;
+  name?: string;
 }
 
 export interface WorkbenchComposerUserDetails {
@@ -98,19 +55,14 @@ export interface WorkbenchComposerUserDetails {
   submissionId: string;
   sourceText: string;
   text?: string;
-  document?: WorkbenchComposerDocumentNode[];
-  commands?: WorkbenchComposerCommandSubmission[];
+  document?: ComposerDocument;
+  commands?: readonly WorkbenchComposerCommandSubmission[];
   composer?: WorkbenchComposerSubmission;
+  images?: WorkbenchComposerImageProjection[];
   status?: "accepted";
 }
 
-export interface WorkbenchComposerUserProjection {
-  version: 1;
-  submissionId: string;
-  sourceText: string;
-  document?: WorkbenchComposerDocumentNode[];
-  hidden: true;
-}
+export type WorkbenchComposerUserProjection = ComposerUserProjection;
 
 export interface WorkbenchComposerCommandTrace {
   source: "workbench" | "pi";
@@ -189,9 +141,12 @@ export function composerDocumentMatchesCommands(submission: WorkbenchComposerSub
   const documentCommands = submission.document
     .filter(
       (node): node is Extract<WorkbenchComposerDocumentNode, { type: "command" }> =>
-        node.type === "command",
+        node.type === "command" && node.inactive !== true,
     )
-    .map(({ type: _type, ...command }) => command);
+    .map(({ inactive: _inactive, type: _type, ...command }) => command);
+
+  // The compiler marks superseded display tokens explicitly. Every remaining active document
+  // command must therefore match the executable projection one-for-one and in order.
   return (
     documentCommands.length === submission.commands.length &&
     documentCommands.every((command, index) => {
@@ -249,8 +204,15 @@ function composerDocumentNode(value: unknown): WorkbenchComposerDocumentNode | u
     return { type: "text", text: value.text };
   }
   if (value.type === "command") {
+    if (value.inactive !== undefined && value.inactive !== true) return undefined;
     const command = composerCommand(value);
-    return command ? { type: "command", ...command } : undefined;
+    return command
+      ? {
+          type: "command",
+          ...command,
+          ...(value.inactive === true ? { inactive: true as const } : {}),
+        }
+      : undefined;
   }
   if (value.type === "command-argument") {
     const { id, commandNodeId, field, text } = value;
@@ -333,6 +295,22 @@ export function parseWorkbenchComposerSubmission(
   };
 }
 
+function composerImageProjection(value: unknown): WorkbenchComposerImageProjection | undefined {
+  if (
+    !isRecord(value) ||
+    typeof value.data !== "string" ||
+    typeof value.mimeType !== "string" ||
+    (value.name !== undefined && typeof value.name !== "string")
+  ) {
+    return undefined;
+  }
+  return {
+    data: value.data,
+    mimeType: value.mimeType,
+    ...(value.name === undefined ? {} : { name: value.name }),
+  };
+}
+
 export function workbenchComposerSubmissionFromRunConfig(
   runConfig: unknown,
 ): WorkbenchComposerSubmission | undefined {
@@ -361,11 +339,13 @@ export function parseWorkbenchComposerUserDetails(
   const document = parseWorkbenchComposerDocument(value.document);
   const commands = Array.isArray(value.commands) ? value.commands.map(composerCommand) : [];
   const composer = parseWorkbenchComposerSubmission(value.composer);
+  const images = Array.isArray(value.images) ? value.images.map(composerImageProjection) : [];
   if (
     typeof value.text !== "string" ||
     value.status !== "accepted" ||
     document === undefined ||
-    commands.some((command) => command === undefined)
+    commands.some((command) => command === undefined) ||
+    images.some((image) => image === undefined)
   ) {
     return undefined;
   }
@@ -377,6 +357,7 @@ export function parseWorkbenchComposerUserDetails(
     document,
     commands: commands as WorkbenchComposerCommandSubmission[],
     ...(composer === undefined ? {} : { composer }),
+    ...(value.images === undefined ? {} : { images: images as WorkbenchComposerImageProjection[] }),
     status: "accepted",
   };
 }
@@ -413,14 +394,7 @@ function commandTraceEntry(value: unknown): WorkbenchComposerCommandTrace | unde
     typeof commandId !== "string" ||
     typeof label !== "string" ||
     (scope !== "message" && scope !== "segment") ||
-    ![
-      "session-action",
-      "request-config",
-      "instruction",
-      "context-provider",
-      "prompt-transform",
-      "agent-turn",
-    ].includes(effect as string) ||
+    !COMPOSER_COMMAND_EFFECTS.some((candidate) => candidate === effect) ||
     (status !== "success" && status !== "execution-failed") ||
     (args !== undefined && !isJsonValue(args))
   ) {

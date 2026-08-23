@@ -9,8 +9,9 @@ import {
   type CornerRadiusStyle,
   type GlassBlur,
   type UiFontFamily,
-} from "./appearance-preferences";
-import { appearanceStore, useAppearancePreferences } from "./appearance-store";
+} from "@/services/appearance/appearance-preferences";
+import { appearanceStore, useAppearancePreferences } from "@/services/appearance/appearance-store";
+
 import { useBackgroundImage } from "./background-image-store";
 
 const APPEARANCE_OVERRIDES = `
@@ -20,6 +21,7 @@ const APPEARANCE_OVERRIDES = `
 
 :root[data-workbench-appearance] {
   --background: var(--workbench-theme-background);
+  --workbench-canvas-background: var(--workbench-theme-background);
   --foreground: var(--workbench-theme-foreground);
   --card: var(--workbench-theme-background);
   --card-foreground: var(--workbench-theme-foreground);
@@ -114,6 +116,19 @@ const APPEARANCE_OVERRIDES = `
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;
   transition-duration: 0.01ms !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root,
+  :root :where(*, *::before, *::after) {
+    scroll-behavior: auto !important;
+  }
+
+  :root :where(*, *::before, *::after) {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 :root[data-workbench-hide-diff-markers] [data-diff-marker] {
@@ -345,6 +360,9 @@ export function AppearanceBackground() {
     }
 
     root.setAttribute("data-workbench-appearance", "");
+    if (preferences.customBackground) {
+      setProperty(root, "--workbench-canvas-background", preferences.backgroundColor, originals);
+    }
     root.toggleAttribute("data-workbench-pointer-cursor", preferences.usePointerCursor);
     root.toggleAttribute("data-workbench-reduce-motion", preferences.reduceMotion);
     root.toggleAttribute("data-workbench-hide-diff-markers", !preferences.showDiffMarkers);

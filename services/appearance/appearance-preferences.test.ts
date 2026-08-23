@@ -2,12 +2,17 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  APPEARANCE_STORAGE_KEY,
   CODE_THEMES,
   CODE_THEME_PAIRS,
   DEFAULT_APPEARANCE_PREFERENCES,
   isDefaultAppearancePreferences,
   parseAppearancePreferences,
 } from "./appearance-preferences";
+
+test("keeps the persisted appearance storage contract stable", () => {
+  assert.equal(APPEARANCE_STORAGE_KEY, "workbench.appearance.v1");
+});
 
 test("parses persisted appearance preferences", () => {
   const preferences = parseAppearancePreferences(

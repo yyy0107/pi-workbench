@@ -41,8 +41,9 @@ import {
   type CornerRadiusStyle,
   type GlassBlur,
   type UiFontFamily,
-} from "./appearance-preferences";
-import { appearanceStore, useAppearancePreferences } from "./appearance-store";
+} from "@/services/appearance/appearance-preferences";
+import { appearanceStore, useAppearancePreferences } from "@/services/appearance/appearance-store";
+
 import {
   backgroundImageStore,
   useBackgroundImage,
@@ -230,7 +231,7 @@ function BackgroundImagePicker({ image }: { image: BackgroundImageSnapshot }) {
           <Button
             type="button"
             variant="ghost"
-            size="icon"
+            size="icon-sm"
             disabled={image.status === "loading"}
             className="rounded-full"
             aria-label={t("extensions.appearance.background.removeImage")}

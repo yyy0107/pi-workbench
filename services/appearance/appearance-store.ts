@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useLayoutEffect, useSyncExternalStore } from "react";
 
 import {
   APPEARANCE_STORAGE_KEY,
@@ -87,7 +87,7 @@ export function useAppearancePreferences(): AppearancePreferences {
     appearanceStore.getServerSnapshot,
   );
 
-  useEffect(() => appearanceStore.hydrate(), []);
+  useLayoutEffect(() => appearanceStore.hydrate(), []);
 
   return snapshot;
 }

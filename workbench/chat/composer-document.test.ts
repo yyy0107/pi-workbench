@@ -15,6 +15,8 @@ import {
 } from "./composer-document";
 import {
   compiledComposerTextFromRunConfig,
+  composerDocumentMatchesCommands,
+  parseWorkbenchComposerSubmission,
   WORKBENCH_COMPOSER_RUN_CONFIG_KEY,
 } from "@/runtime/composer-request";
 
@@ -138,6 +140,46 @@ test("compiler applies grouped modifiers once with the last command winning", ()
     result.commands.map((command) => command.commandId),
     ["execute"],
   );
+  assert.deepEqual(
+    result.document
+      .filter((node) => node.type === "command")
+      .map((node) => ({ commandId: node.commandId, inactive: node.inactive })),
+    [
+      { commandId: "plan", inactive: true },
+      { commandId: "execute", inactive: undefined },
+    ],
+  );
+  assert.equal(composerDocumentMatchesCommands(result), true);
+  assert.deepEqual(parseWorkbenchComposerSubmission(result), result);
+});
+
+test("compiler keeps repeated modifier chips while projecting only the last command", () => {
+  const planDefinition = definition("plan", "modifier", (draft) => {
+    draft.mode = "plan";
+  });
+  const plan = workbenchComposerDirectiveFormatter.serialize({
+    id: "plan",
+    type: WORKBENCH_COMMAND_DIRECTIVE_TYPE,
+    label: "Plan",
+  });
+  const planRegistry = registry([planDefinition]);
+
+  const result = compileComposerDocument(
+    parseComposerDocument(`${plan} inspect ${plan} carefully`, planRegistry),
+    planRegistry,
+  );
+
+  assert.equal(result.document.filter((node) => node.type === "command").length, 2);
+  assert.deepEqual(
+    result.document.filter((node) => node.type === "command").map((node) => node.inactive),
+    [true, undefined],
+  );
+  assert.deepEqual(
+    result.commands.map((command) => command.commandId),
+    ["plan"],
+  );
+  assert.equal(composerDocumentMatchesCommands(result), true);
+  assert.deepEqual(parseWorkbenchComposerSubmission(result), result);
 });
 
 test("compiler accumulates context commands and preserves transform order", () => {
@@ -191,6 +233,21 @@ test("Pi commands remain structured and do not rewrite the user request text", (
     result.commands.map((command) => command.commandId),
     ["create-skill"],
   );
+});
+
+test("compiled requests round-trip through the runtime parser without contract translation", () => {
+  const command = workbenchComposerDirectiveFormatter.serialize({
+    id: "create-skill",
+    type: PI_COMMAND_DIRECTIVE_TYPE,
+    label: "Create Skill",
+  });
+  const emptyRegistry = registry([]);
+  const compiled = compileComposerDocument(
+    parseComposerDocument(`${command} describe the skill`, emptyRegistry),
+    emptyRegistry,
+  );
+
+  assert.deepEqual(parseWorkbenchComposerSubmission(compiled), compiled);
 });
 
 test("parameter-panel arguments stay structured while following text remains the prompt", () => {

@@ -11,6 +11,7 @@ import type {
   ComposerCommandNode,
   ComposerCommandRegistry,
   ComposerCommandRequestDraft,
+  ComposerCommandSubmission,
   ComposerDocument,
   ComposerDocumentNode,
   ComposerJsonValue,
@@ -234,6 +235,26 @@ function definitionFor(
   return definition;
 }
 
+function commandSubmission(node: ComposerCommandNode): ComposerCommandSubmission {
+  const { inactive: _inactive, type: _type, ...submission } = node;
+  return submission;
+}
+
+function markInactiveCommands(
+  document: ComposerDocument,
+  activeIndexes: ReadonlySet<number>,
+): ComposerDocument {
+  return Object.freeze(
+    document.map((node, index) => {
+      if (node.type !== "command") return node;
+      if (!activeIndexes.has(index)) return { ...node, inactive: true as const };
+      if (node.inactive === undefined) return node;
+      const { inactive: _inactive, ...activeNode } = node;
+      return activeNode;
+    }),
+  );
+}
+
 function activeCommandIndexes(
   document: ComposerDocument,
   registry: RegistryReader,
@@ -365,10 +386,10 @@ export function compileComposerDocument(
   const activeIndexes = activeCommandIndexes(document, registry);
   const piCommands = new Map(commandCatalog.map((command) => [command.invocationName, command]));
   const bound = bindMessageTextArguments(document, activeIndexes, registry, piCommands);
-  const compiledDocument = bound.document;
+  const compiledDocument = markInactiveCommands(bound.document, activeIndexes);
   const draft = createDraft(compiledDocument);
   if (bound.consumeText) draft.text = "";
-  const commands: ComposerCommandNode[] = [];
+  const commands: ComposerCommandSubmission[] = [];
 
   for (let index = 0; index < compiledDocument.length; index += 1) {
     const node = compiledDocument[index];
@@ -376,7 +397,7 @@ export function compileComposerDocument(
 
     const definition = registry.get(node.commandId);
     if (!definition && node.source === "pi") {
-      commands.push(node);
+      commands.push(commandSubmission(node));
       continue;
     }
     if (!definition) {
@@ -392,7 +413,7 @@ export function compileComposerDocument(
       document: compiledDocument,
       index,
     });
-    commands.push(node);
+    commands.push(commandSubmission(node));
   }
 
   return Object.freeze({

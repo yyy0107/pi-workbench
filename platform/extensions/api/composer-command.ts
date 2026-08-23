@@ -1,84 +1,46 @@
 import type { LucideIcon } from "lucide-react";
 
+import type {
+  CanonicalComposerRequest,
+  ComposerAttachmentNode as CanonicalComposerAttachmentNode,
+  ComposerCommandArgsBinding as CanonicalComposerCommandArgsBinding,
+  ComposerCommandArgsSchema as CanonicalComposerCommandArgsSchema,
+  ComposerCommandArgumentNode as CanonicalComposerCommandArgumentNode,
+  ComposerCommandEffect as CanonicalComposerCommandEffect,
+  ComposerCommandNode as CanonicalComposerCommandNode,
+  ComposerCommandScope as CanonicalComposerCommandScope,
+  ComposerCommandSubmission as CanonicalComposerCommandSubmission,
+  ComposerContextSubmission,
+  ComposerDocument as CanonicalComposerDocument,
+  ComposerDocumentNode as CanonicalComposerDocumentNode,
+  ComposerJsonPrimitive as CanonicalComposerJsonPrimitive,
+  ComposerJsonValue as CanonicalComposerJsonValue,
+  ComposerMentionNode as CanonicalComposerMentionNode,
+  ComposerTextNode as CanonicalComposerTextNode,
+} from "@/contracts/composer";
 import type { LocalizableText } from "@/i18n";
-import type { WorkbenchComposerCommandArgsBinding } from "@/runtime/composer-request";
 
 import type { Disposable } from "./disposable";
 
-export type ComposerJsonPrimitive = string | number | boolean | null;
-export type ComposerJsonValue =
-  | ComposerJsonPrimitive
-  | readonly ComposerJsonValue[]
-  | { readonly [key: string]: ComposerJsonValue };
+export type ComposerJsonPrimitive = CanonicalComposerJsonPrimitive;
+export type ComposerJsonValue = CanonicalComposerJsonValue;
 
 /** JSON-Schema-compatible command argument description owned by the contributing extension. */
-export type ComposerCommandArgsSchema = Readonly<Record<string, ComposerJsonValue>>;
-export type ComposerCommandArgsBinding = WorkbenchComposerCommandArgsBinding;
+export type ComposerCommandArgsSchema = CanonicalComposerCommandArgsSchema;
+export type ComposerCommandArgsBinding = CanonicalComposerCommandArgsBinding;
 
 export type ComposerCommandBehavior = "modifier" | "context" | "transform" | "immediate";
-export type ComposerCommandScope = "message" | "segment";
-export type ComposerCommandEffect =
-  | "session-action"
-  | "request-config"
-  | "instruction"
-  | "context-provider"
-  | "prompt-transform"
-  | "agent-turn";
-
-export interface ComposerTextNode {
-  readonly type: "text";
-  readonly text: string;
-}
-
-export interface ComposerCommandNode {
-  readonly type: "command";
-  /** Stable node identity within one composer document. */
-  readonly id: string;
-  /** Registry id. This is never inferred from the visible label. */
-  readonly commandId: string;
-  readonly label: string;
-  readonly args?: ComposerJsonValue;
-  readonly scope: ComposerCommandScope;
-  readonly source: "workbench" | "pi";
-}
-
-export interface ComposerCommandArgumentNode {
-  readonly type: "command-argument";
-  readonly id: string;
-  readonly commandNodeId: string;
-  readonly field: string;
-  readonly text: string;
-}
-
-export interface ComposerMentionNode {
-  readonly type: "mention";
-  readonly id: string;
-  readonly mentionType: string;
-  readonly value: string;
-  readonly label: string;
-}
-
-export interface ComposerAttachmentNode {
-  readonly type: "attachment";
-  readonly id: string;
-  readonly attachmentType: string;
-  readonly value: string;
-  readonly label: string;
-}
-
-export type ComposerDocumentNode =
-  | ComposerTextNode
-  | ComposerCommandNode
-  | ComposerCommandArgumentNode
-  | ComposerMentionNode
-  | ComposerAttachmentNode;
-
-export type ComposerDocument = readonly ComposerDocumentNode[];
-
-export interface ComposerCompiledContext {
-  readonly type: string;
-  readonly value: ComposerJsonValue;
-}
+export type ComposerCommandScope = CanonicalComposerCommandScope;
+export type ComposerCommandEffect = CanonicalComposerCommandEffect;
+export type ComposerTextNode = CanonicalComposerTextNode;
+export type ComposerCommandNode = CanonicalComposerCommandNode;
+export type ComposerCommandSubmission = CanonicalComposerCommandSubmission;
+export type ComposerCommandArgumentNode = CanonicalComposerCommandArgumentNode;
+export type ComposerMentionNode = CanonicalComposerMentionNode;
+export type ComposerAttachmentNode = CanonicalComposerAttachmentNode;
+export type ComposerDocumentNode = CanonicalComposerDocumentNode;
+export type ComposerDocument = CanonicalComposerDocument;
+export type ComposerCompiledContext = ComposerContextSubmission;
 
 /** Mutable, request-scoped target passed to a command's `apply()` function. */
 export interface ComposerCommandRequestDraft {
@@ -96,19 +58,7 @@ export interface ComposerCommandApplyContext {
   readonly index: number;
 }
 
-export interface CompiledComposerRequest {
-  readonly version: 1;
-  /** Canonical structural representation persisted with the Workbench user message. */
-  readonly document: ComposerDocument;
-  /** Directive-bearing source used only to restore the user-facing Composer document. */
-  readonly sourceText: string;
-  readonly text: string;
-  readonly mode?: string;
-  readonly model?: string;
-  readonly context: readonly ComposerCompiledContext[];
-  readonly metadata: Readonly<Record<string, ComposerJsonValue>>;
-  readonly commands: readonly ComposerCommandNode[];
-}
+export type CompiledComposerRequest = CanonicalComposerRequest;
 
 export interface ComposerCommandOptions {
   /** How the token participates in request compilation. */

@@ -6,7 +6,10 @@ import test from "node:test";
 
 const BUILTIN_ROOT = fileURLToPath(new URL(".", import.meta.url));
 const PROJECT_ROOT = resolve(BUILTIN_ROOT, "../..");
+const COMPONENTS_ROOT = resolve(PROJECT_ROOT, "components");
+const PLATFORM_API_ROOT = resolve(PROJECT_ROOT, "platform/extensions/api");
 const RIGHT_WORKSPACE_ROOT = resolve(PROJECT_ROOT, "components/right-workspace");
+const RUNTIME_ROOT = resolve(PROJECT_ROOT, "runtime");
 const EXTENSION_PUBLIC_ENTRY = resolve(PROJECT_ROOT, "platform/extensions/index.ts");
 
 function sourceFiles(root: string): string[] {
@@ -50,6 +53,23 @@ function builtinFeatureForTarget(sourcePath: string, specifier: string): string 
   return targetRelative.split(sep)[0];
 }
 
+function projectTarget(sourcePath: string, specifier: string): string | undefined {
+  if (specifier.startsWith("@/")) return resolve(PROJECT_ROOT, specifier.slice(2));
+  if (specifier.startsWith(".")) return resolve(dirname(sourcePath), specifier);
+  return undefined;
+}
+
+function crossLayerImports(sourceRoot: string, targetRoot: string): string[] {
+  return sourceFiles(sourceRoot).flatMap((sourcePath) =>
+    moduleSpecifiers(sourcePath).flatMap((specifier) => {
+      const target = projectTarget(sourcePath, specifier);
+      return target?.startsWith(`${targetRoot}${sep}`) || target === targetRoot
+        ? [`${relative(PROJECT_ROOT, sourcePath)} -> ${specifier}`]
+        : [];
+    }),
+  );
+}
+
 test("built-in contributions do not import sibling feature internals", () => {
   const violations: string[] = [];
 
@@ -85,6 +105,18 @@ test("RightWorkspace core does not import business extensions", () => {
   );
 
   assert.deepEqual(violations, []);
+});
+
+test("generic components do not depend on concrete built-in extensions", () => {
+  assert.deepEqual(crossLayerImports(COMPONENTS_ROOT, BUILTIN_ROOT), []);
+});
+
+test("runtime does not depend on component implementations", () => {
+  assert.deepEqual(crossLayerImports(RUNTIME_ROOT, COMPONENTS_ROOT), []);
+});
+
+test("public extension API contracts do not depend on product runtime", () => {
+  assert.deepEqual(crossLayerImports(PLATFORM_API_ROOT, RUNTIME_ROOT), []);
 });
 
 test("the public extension barrel does not export host implementations", () => {

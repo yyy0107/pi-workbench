@@ -6,8 +6,8 @@ import {
   CODE_THEME_PAIRS,
   type CodeTheme,
   type WorkbenchCodeTheme,
-} from "@/extensions/builtin/appearance/appearance-preferences";
-import { useAppearancePreferences } from "@/extensions/builtin/appearance/appearance-store";
+} from "@/services/appearance/appearance-preferences";
+import { useAppearancePreferences } from "@/services/appearance/appearance-store";
 
 import { normalizeShikiLanguage, type WorkbenchShikiLanguage } from "./shiki-catalog";
 import { highlightWorkbenchCodeTokens, type WorkbenchHighlightedTokens } from "./shiki-highlighter";

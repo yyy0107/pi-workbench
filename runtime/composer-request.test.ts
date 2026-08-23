@@ -103,6 +103,41 @@ test("keeps structured command arguments identical in document and command proje
   );
 });
 
+test("does not allow an ordinary document command to disappear from its executable projection", () => {
+  assert.equal(composerDocumentMatchesCommands({ ...submission, commands: [] }), false);
+  const reviewCommand = {
+    id: "command:pi:review:1",
+    commandId: "review",
+    label: "Review",
+    scope: "message" as const,
+    source: "pi" as const,
+  };
+  assert.equal(
+    composerDocumentMatchesCommands({
+      ...submission,
+      document: [
+        ...submission.document!,
+        {
+          type: "command",
+          ...reviewCommand,
+        },
+      ],
+    }),
+    false,
+  );
+  assert.equal(
+    composerDocumentMatchesCommands({
+      ...submission,
+      document: [
+        { type: "command", ...submission.commands[0]!, inactive: true },
+        { type: "command", ...reviewCommand },
+      ],
+      commands: [reviewCommand],
+    }),
+    true,
+  );
+});
+
 test("parses a safe built-in command response without accepting raw error fields", () => {
   const response = {
     version: 1,
