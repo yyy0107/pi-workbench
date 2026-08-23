@@ -133,8 +133,8 @@ function updateImageRecognitionAssistantPart(
   return {
     ...message,
     content: [
-      ...content,
       { type: "data", name: WORKBENCH_IMAGE_RECOGNITION_DATA_NAME, data: next },
+      ...content,
     ],
     ...(message.metadata.custom.workbenchImageRecognitionOnly === true
       ? { status: imageRecognitionMessageStatus(next) }

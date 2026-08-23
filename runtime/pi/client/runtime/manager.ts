@@ -1237,7 +1237,9 @@ export class PiClientSession {
               candidate.role === "user" &&
               candidate.metadata.custom.piOptimistic === true &&
               candidate.metadata.custom.piUserMessageStarted !== true &&
-              (sameUserPrompt(candidate, rawUserMessage) ||
+              (imageRecognitionSnapshotFromMessage(candidate)?.submissionId ===
+                workbenchComposer?.submissionId ||
+                sameUserPrompt(candidate, rawUserMessage) ||
                 sameUserPrompt(candidate, projectedUserMessage)),
           );
 
@@ -1356,8 +1358,21 @@ export class PiClientSession {
     if (belongsToStreamingAssistant && this.streamingMessage?.role === "assistant") {
       this.streamingMessage = upsertImageRecognitionAssistantPart(this.streamingMessage, next);
     } else {
-      this.baseMessages = upsertImageRecognitionInMessages(this.baseMessages, next);
+      const baseMessageIds = new Set(this.baseMessages.map((message) => message.id));
+      const projectedBaseMessages = upsertImageRecognitionInMessages(this.baseMessages, next);
+      const detachedBaseStatus = projectedBaseMessages.find(
+        (message) => !baseMessageIds.has(message.id) && isImageRecognitionOnlyAssistant(message),
+      );
+      this.baseMessages = projectedBaseMessages.filter((message) => baseMessageIds.has(message.id));
       this.liveMessages = upsertImageRecognitionInMessages(this.liveMessages, next);
+      const liveHasStatus = this.liveMessages.some(
+        (message) =>
+          message.role === "assistant" &&
+          imageRecognitionSnapshotFromMessage(message)?.operationId === next.operationId,
+      );
+      if (detachedBaseStatus && !liveHasStatus) {
+        this.liveMessages.unshift(detachedBaseStatus);
+      }
     }
     this.publishMessages();
   }
@@ -1525,15 +1540,29 @@ export class PiClientSession {
     if (
       message?.role === "assistant" &&
       recognitionOnly &&
-      recognition !== undefined &&
-      !(recognition.status === "skipped" && recognition.method === "native")
+      recognition?.status === "skipped" &&
+      recognition.method === "native"
     ) {
+      this.streamingMessage = undefined;
+      if (this.activeAssistantMessageId === message.id) {
+        this.activeAssistantMessageId = undefined;
+      }
+      return true;
+    }
+    if (message?.role === "assistant" && recognitionOnly && recognition !== undefined) {
       this.insertCompletedAssistantMessage({
         ...message,
         content: message.content.filter(
           (part) => part.type === "data" && part.name === WORKBENCH_IMAGE_RECOGNITION_DATA_NAME,
         ),
         status: { type: "complete", reason: "unknown" },
+        metadata: {
+          ...message.metadata,
+          custom: {
+            ...message.metadata.custom,
+            workbenchImageRecognitionOnly: true,
+          },
+        },
       });
       this.streamingMessage = undefined;
       if (this.activeAssistantMessageId === message.id) {
