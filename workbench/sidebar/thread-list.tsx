@@ -25,11 +25,15 @@ function ThreadListLoading() {
 
 export function WorkbenchThreadList({
   workspaceId,
+  pinnedOnly = false,
+  ignoreWorkspace = false,
   onNavigate,
   showLoadMore = false,
   showEmpty = true,
 }: {
   workspaceId?: string;
+  pinnedOnly?: boolean;
+  ignoreWorkspace?: boolean;
   onNavigate?: () => void;
   showLoadMore?: boolean;
   showEmpty?: boolean;
@@ -47,7 +51,11 @@ export function WorkbenchThreadList({
     state.threads.threadIds.some((threadId) => {
       const thread = state.threads.threadItems.find((item) => item.id === threadId);
       if (!thread) return false;
+      const isPinned = thread.custom?.piPinned === true;
+      if (pinnedOnly ? !isPinned : isPinned) return false;
+
       return (
+        ignoreWorkspace ||
         resolveSidebarThreadWorkspaceId({
           customWorkspaceId: thread.custom?.piWorkspaceId,
           managedWorkspaceId: manager.getThreadCustom(thread.id)?.piWorkspaceId,
@@ -66,15 +74,20 @@ export function WorkbenchThreadList({
       {!isInitialLoading ? (
         <ThreadListPrimitive.Items>
           {({ threadListItem }) => {
+            const isPinned = threadListItem.custom?.piPinned === true;
+            if (pinnedOnly ? !isPinned : isPinned) return null;
+
             const threadWorkspaceId = resolveSidebarThreadWorkspaceId({
               customWorkspaceId: threadListItem.custom?.piWorkspaceId,
               managedWorkspaceId: manager.getThreadCustom(threadListItem.id)?.piWorkspaceId,
               isMainThread: threadListItem.id === mainThreadId,
               draftWorkspaceId,
             });
-            if (threadWorkspaceId !== workspaceId) return null;
+            if (!ignoreWorkspace && threadWorkspaceId !== workspaceId) return null;
 
-            return <WorkbenchThreadListItem workspaceId={workspaceId} onNavigate={onNavigate} />;
+            return (
+              <WorkbenchThreadListItem workspaceId={threadWorkspaceId} onNavigate={onNavigate} />
+            );
           }}
         </ThreadListPrimitive.Items>
       ) : null}

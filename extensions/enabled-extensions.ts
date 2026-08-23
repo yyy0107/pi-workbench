@@ -1,6 +1,7 @@
 import type { WorkbenchExtension } from "@/platform/extensions";
 
 import { agentConfigurationExtension } from "./builtin/agent-configuration";
+import { archivedChatsExtension } from "./builtin/archived-chats";
 import { appearanceExtension } from "./builtin/appearance";
 import { connectionStatusExtension } from "./builtin/connection-status";
 import { interactiveRequestsExtension } from "./builtin/interactive-requests";
@@ -39,6 +40,7 @@ export const enabledExtensions = [
   settingModelConfigExtension,
   skillsExtension,
   piExtensionsExtension,
+  archivedChatsExtension,
   modelSelectorExtension,
   connectionStatusExtension,
   tokenUsageExtension,

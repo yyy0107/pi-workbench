@@ -1,0 +1,1 @@
+export { archivedChatsExtension } from "./extension";

@@ -1,7 +1,7 @@
 "use client";
 
 import { ThreadListItemPrimitive, useAui, useAuiState } from "@assistant-ui/react";
-import { ArchiveIcon, PinIcon } from "lucide-react";
+import { ArchiveIcon, PinIcon, PinOffIcon } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { ThinkingOrb } from "thinking-orbs";
 
@@ -142,7 +142,7 @@ export function WorkbenchThreadListItem({
           )}
           onClick={() => void togglePinned()}
         >
-          <PinIcon className="size-[18px]" />
+          {isPinned ? <PinOffIcon className="size-[18px]" /> : <PinIcon className="size-[18px]" />}
         </Button>
         <ThreadListItemPrimitive.Archive
           onClick={leaveRemovedThreadRoute}

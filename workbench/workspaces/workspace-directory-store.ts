@@ -28,11 +28,13 @@ export interface WorkspaceDirectory {
   id: string;
   name: string;
   cwd: string;
+  pinned?: boolean;
 }
 
 interface WorkspaceDirectoryState {
   directories: readonly WorkspaceDirectory[];
   collapsedDirectoryIds: readonly string[];
+  pinnedDirectoryIds: readonly string[];
   activeDirectoryId?: string;
   draftDirectoryId?: string;
   addDirectory(directory: WorkspaceDirectory): void;
@@ -50,6 +52,7 @@ interface WorkspaceDirectoryState {
 export const useWorkspaceDirectoryStore = create<WorkspaceDirectoryState>((set) => ({
   directories: [],
   collapsedDirectoryIds: [],
+  pinnedDirectoryIds: [],
   addDirectory: (directory) =>
     set((state) => {
       const removedWorkspaceIds = readRemovedWorkspaceIds();
@@ -84,8 +87,12 @@ export const useWorkspaceDirectoryStore = create<WorkspaceDirectoryState>((set) 
         (item) => item.id === directory.id || item.cwd === directory.cwd,
       );
       if (existingIndex === -1) {
+        const directories = [...state.directories, directory];
         return {
-          directories: [...state.directories, directory],
+          directories,
+          pinnedDirectoryIds: directories
+            .filter((item) => item.pinned === true)
+            .map((item) => item.id),
           activeDirectoryId: state.activeDirectoryId ?? directory.id,
         };
       }
@@ -95,6 +102,9 @@ export const useWorkspaceDirectoryStore = create<WorkspaceDirectoryState>((set) 
       directories[existingIndex] = { ...existing, ...directory };
       return {
         directories,
+        pinnedDirectoryIds: directories
+          .filter((item) => item.pinned === true)
+          .map((item) => item.id),
         activeDirectoryId:
           state.activeDirectoryId === existing.id ? directory.id : state.activeDirectoryId,
         draftDirectoryId:
@@ -109,6 +119,9 @@ export const useWorkspaceDirectoryStore = create<WorkspaceDirectoryState>((set) 
 
       const directories = [...incomingDirectories];
       const directoryIds = new Set(directories.map((directory) => directory.id));
+      const pinnedDirectoryIds = directories
+        .filter((directory) => directory.pinned === true)
+        .map((directory) => directory.id);
       const draftDirectoryId =
         state.draftDirectoryId && directoryIds.has(state.draftDirectoryId)
           ? state.draftDirectoryId
@@ -134,6 +147,7 @@ export const useWorkspaceDirectoryStore = create<WorkspaceDirectoryState>((set) 
       return {
         directories,
         collapsedDirectoryIds: [...collapsedDirectoryIds],
+        pinnedDirectoryIds,
         activeDirectoryId,
         draftDirectoryId,
       };
@@ -149,6 +163,7 @@ export const useWorkspaceDirectoryStore = create<WorkspaceDirectoryState>((set) 
         collapsedDirectoryIds: state.collapsedDirectoryIds.filter(
           (directoryId) => directoryId !== id,
         ),
+        pinnedDirectoryIds: state.pinnedDirectoryIds.filter((directoryId) => directoryId !== id),
         activeDirectoryId:
           state.activeDirectoryId === id ? directories[0]?.id : state.activeDirectoryId,
         draftDirectoryId: state.draftDirectoryId === id ? undefined : state.draftDirectoryId,
