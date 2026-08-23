@@ -727,7 +727,9 @@ export function WorkbenchThread() {
         <ThreadPrimitive.Viewport
           ref={viewportRef}
           turnAnchor="bottom"
-          autoScroll
+          // Follow model output while it can still grow. Completed turns contain interactive
+          // disclosures whose user-driven expansion must not be mistaken for streamed content.
+          autoScroll={isRunning}
           scrollToBottomOnInitialize={false}
           scrollToBottomOnRunStart
           scrollToBottomOnThreadSwitch={false}
