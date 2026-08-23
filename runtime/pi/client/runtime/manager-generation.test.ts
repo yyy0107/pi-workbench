@@ -1657,6 +1657,83 @@ test("removes an unused optimistic assistant when a command settles without mode
   assert.equal(internals.activeAssistantMessageId, undefined);
 });
 
+test("does not leave an empty assistant message when native vision skips preprocessing", (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const managerInternals = manager as unknown as { refreshMetadata(): Promise<void> };
+  managerInternals.refreshMetadata = async () => {};
+  const session = manager.getSession("local-session");
+  const internals = session as unknown as {
+    activeAssistantMessageId?: string;
+    liveMessages: ThreadMessage[];
+    streamingMessage?: ThreadMessage;
+    handleEvent(event: PiEvent): void;
+    publishMessagesAndSetRunning(running: boolean): void;
+  };
+  const assistantId = "native-vision-assistant";
+  internals.liveMessages = [
+    {
+      id: "native-vision-user",
+      role: "user",
+      content: [{ type: "text", text: "Describe this image" }],
+      attachments: [],
+      createdAt: new Date(1_000),
+      metadata: { custom: { workbenchPromptRpcId: "native-vision-rpc" } },
+    },
+  ];
+  internals.activeAssistantMessageId = assistantId;
+  internals.streamingMessage = {
+    id: assistantId,
+    role: "assistant",
+    content: [{ type: "text", text: "", status: { type: "running" } }],
+    status: { type: "running" },
+    createdAt: new Date(1_000),
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      steps: [],
+      custom: { workbenchPromptRpcId: "native-vision-rpc" },
+      isOptimistic: true,
+    },
+  };
+  internals.publishMessagesAndSetRunning(true);
+
+  internals.handleEvent({
+    type: "message",
+    sequence: 0,
+    role: "custom",
+    customType: "workbench.image-recognition.v1",
+    content: "",
+    display: true,
+    details: {
+      version: 1,
+      operationId: "native-vision-operation",
+      submissionId: "native-vision-submission",
+      rpcId: "native-vision-rpc",
+      revision: 0,
+      status: "skipped",
+      method: "native",
+      imageCount: 1,
+      completedCount: 0,
+      progress: 0,
+      timestamps: { createdAt: 1_000, updatedAt: 1_100, completedAt: 1_100 },
+    },
+    timestamp: 1_100,
+  });
+
+  assert.deepEqual(
+    session.getSnapshot().messages.map((message) => message.role),
+    ["user", "assistant"],
+  );
+  internals.handleEvent({ type: "command_done", sequence: 1 });
+  assert.deepEqual(
+    session.getSnapshot().messages.map((message) => message.role),
+    ["user"],
+  );
+  assert.equal(internals.activeAssistantMessageId, undefined);
+});
+
 test("updates a built-in command response from running to success without a silent gap", (t) => {
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());

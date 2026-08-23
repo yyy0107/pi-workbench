@@ -200,6 +200,7 @@ test("folds image recognition into the assistant message and preserves the user 
   const statePart = assistant.content.find(
     (part) => part.type === "data" && part.name === WORKBENCH_IMAGE_RECOGNITION_DATA_NAME,
   );
+  assert.equal(assistant.content[0], statePart);
   assert.equal(statePart?.type, "data");
   assert.equal(
     statePart?.type === "data" &&
