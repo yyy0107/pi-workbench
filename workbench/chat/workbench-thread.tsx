@@ -666,7 +666,7 @@ export function WorkbenchThread() {
   return (
     <ThreadPrimitive.Root
       data-workbench-surface="thread"
-      className="bg-background flex h-full min-h-0 min-w-0 text-base"
+      className="bg-background relative flex h-full min-h-0 min-w-0 text-base"
       style={
         {
           "--thread-max-width": "48rem",

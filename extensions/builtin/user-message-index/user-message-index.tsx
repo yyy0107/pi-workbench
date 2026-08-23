@@ -7,6 +7,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 
+import { shouldShowUserMessageIndex } from "./user-message-index-layout";
+
 interface UserMessageIndexProps {
   threadId?: string;
 }
@@ -63,6 +65,7 @@ export function UserMessageIndex({ threadId }: UserMessageIndexProps) {
   const [activeMessageId, setActiveMessageId] = useState<string>();
   const [hoveredMarkerIndex, setHoveredMarkerIndex] = useState<number>();
   const [focusedMarkerIndex, setFocusedMarkerIndex] = useState<number>();
+  const [indexVisible, setIndexVisible] = useState(false);
   const highlightedMarkerIndex = hoveredMarkerIndex ?? focusedMarkerIndex;
 
   const userMessages = useMemo<readonly UserMessageSummary[]>(() => {
@@ -86,6 +89,33 @@ export function UserMessageIndex({ threadId }: UserMessageIndexProps) {
 
     return summaries;
   }, [messages]);
+  const hasUserMessages = userMessages.length > 0;
+
+  useEffect(() => {
+    if (!hasUserMessages) return;
+
+    const nav = navRef.current;
+    const threadRoot = nav?.closest<HTMLElement>('[data-workbench-surface="thread"]');
+    const composerDock = threadRoot?.querySelector<HTMLElement>("[data-workbench-composer-dock]");
+    if (!nav || !threadRoot || !composerDock) return;
+
+    const updateVisibility = () => {
+      const threadBounds = threadRoot.getBoundingClientRect();
+      const composerBounds = composerDock.getBoundingClientRect();
+      const nextVisible = shouldShowUserMessageIndex({
+        composerStart: composerBounds.left,
+        threadStart: threadBounds.left,
+      });
+      setIndexVisible((current) => (current === nextVisible ? current : nextVisible));
+    };
+
+    const observer = new ResizeObserver(updateVisibility);
+    observer.observe(threadRoot);
+    observer.observe(composerDock);
+    updateVisibility();
+
+    return () => observer.disconnect();
+  }, [hasUserMessages, threadId]);
 
   useEffect(() => {
     const nav = navRef.current;
@@ -151,14 +181,19 @@ export function UserMessageIndex({ threadId }: UserMessageIndexProps) {
     });
   }, []);
 
-  if (userMessages.length === 0) return null;
+  if (!hasUserMessages) return null;
 
   return (
     <TooltipProvider delay={140}>
       <nav
         ref={navRef}
         aria-label={t("extensions.userMessageIndex.navigationLabel")}
-        className="relative hidden h-full w-12 shrink-0 md:block"
+        data-state={indexVisible ? "visible" : "hidden"}
+        data-workbench-user-message-index=""
+        className={cn(
+          "absolute inset-y-0 left-0 z-10 h-full w-12",
+          indexVisible ? "block" : "hidden",
+        )}
         onPointerLeave={() => setHoveredMarkerIndex(undefined)}
       >
         <ol className="flex h-full w-full flex-col justify-center py-5">
