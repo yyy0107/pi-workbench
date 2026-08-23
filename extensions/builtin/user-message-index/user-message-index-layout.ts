@@ -1,4 +1,4 @@
-export const MIN_COMPOSER_INDEX_GAP = 60;
+export const MIN_COMPOSER_INDEX_GAP = 36;
 
 export interface UserMessageIndexLayoutInput {
   composerStart: number;
