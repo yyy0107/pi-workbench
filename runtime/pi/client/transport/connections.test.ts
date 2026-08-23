@@ -413,6 +413,27 @@ test("aggregates host session status while forwarding every valid host payload",
       summary: sessionSummary("session-live"),
     }),
   );
+  host.message(
+    serverFrame({
+      type: "host/session-archive-changed",
+      sessionId: "session-live",
+      archived: false,
+    }),
+  );
+  host.message(
+    serverFrame({
+      type: "host/workspace-pinned-changed",
+      workspaceId: "workspace-1",
+      pinned: true,
+    }),
+  );
+  host.message(
+    serverFrame({
+      type: "host/session-pinned-changed",
+      sessionId: "session-live",
+      pinned: true,
+    }),
+  );
   host.message(serverFrame({ type: "host/session-removed", sessionId: "session-a" }));
   host.message(
     serverFrame(
@@ -436,6 +457,9 @@ test("aggregates host session status while forwarding every valid host payload",
     "host/session-status",
     "host/workspace-changed",
     "host/session-changed",
+    "host/session-archive-changed",
+    "host/workspace-pinned-changed",
+    "host/session-pinned-changed",
     "host/session-removed",
   ]);
   assert.equal(mux.sendCalls.length + host.sendCalls.length, 0);

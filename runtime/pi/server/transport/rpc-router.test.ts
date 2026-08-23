@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { registerHooks } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -62,6 +62,7 @@ test("routes workspace CRUD through the shared RPC transport", async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), "workbench-rpc-router-"));
   const workspacePath = path.join(root, "project");
   await mkdir(workspacePath);
+  await writeFile(path.join(workspacePath, "index.ts"), "export const value = 1;\n");
   const previousStateFile = process.env.PI_WORKBENCH_WORKSPACE_STATE_FILE;
   process.env.PI_WORKBENCH_WORKSPACE_STATE_FILE = path.join(root, "state", "workspaces.json");
   t.after(async () => {
@@ -98,6 +99,94 @@ test("routes workspace CRUD through the shared RPC transport", async (t) => {
     ),
   );
   assert.equal(renamed.workspace.title, "Renamed");
+
+  const workspaceList = await rpcValue<Record<string, unknown>>(
+    await handlePiRpcPost(rpcRequest("workspace.list", {}, "rpc-list"), "workspace.list"),
+  );
+  assert.deepEqual(Object.keys(workspaceList), ["items", "pinnedWorkspaceIds", "pinnedSessionIds"]);
+  const pinned = await rpcValue<{ workspaceId: string; pinned: boolean }>(
+    await handlePiRpcPost(
+      rpcRequest(
+        "workspace.setPinned",
+        { workspaceId: created.workspace.workspaceId, pinned: true },
+        "rpc-pin",
+      ),
+      "workspace.setPinned",
+    ),
+  );
+  assert.deepEqual(pinned, { workspaceId: created.workspace.workspaceId, pinned: true });
+  const pinnedWorkspaceList = await rpcValue<{
+    pinnedWorkspaceIds: string[];
+    pinnedSessionIds: string[];
+  }>(await handlePiRpcPost(rpcRequest("workspace.list", {}, "rpc-list-pinned"), "workspace.list"));
+  assert.deepEqual(pinnedWorkspaceList.pinnedWorkspaceIds, [created.workspace.workspaceId]);
+  assert.deepEqual(pinnedWorkspaceList.pinnedSessionIds, []);
+
+  const fileListing = await rpcValue<{
+    entries: Array<{ name: string; kind: string; relativePath: string }>;
+  }>(
+    await handlePiRpcPost(
+      rpcRequest("workspace.files.list", { workspaceId: created.workspace.workspaceId }),
+      "workspace.files.list",
+    ),
+  );
+  assert.deepEqual(fileListing.entries, [
+    {
+      name: "index.ts",
+      kind: "file",
+      relativePath: "index.ts",
+      absolutePath: path.join(workspacePath, "index.ts"),
+      hidden: false,
+    },
+  ]);
+
+  const describedFile = await rpcValue<{ mediaType: string; encoding: string | null }>(
+    await handlePiRpcPost(
+      rpcRequest("workspace.files.describe", {
+        workspaceId: created.workspace.workspaceId,
+        relativePath: "index.ts",
+      }),
+      "workspace.files.describe",
+    ),
+  );
+  assert.equal(describedFile.mediaType, "text/plain");
+  assert.equal(describedFile.encoding, "utf-8");
+
+  const openedFile = await rpcValue<{ content: string; version: string }>(
+    await handlePiRpcPost(
+      rpcRequest("workspace.files.read", {
+        workspaceId: created.workspace.workspaceId,
+        relativePath: "index.ts",
+      }),
+      "workspace.files.read",
+    ),
+  );
+  assert.equal(openedFile.content, "export const value = 1;\n");
+
+  const savedFile = await rpcValue<{ content: string }>(
+    await handlePiRpcPost(
+      rpcRequest("workspace.files.write", {
+        workspaceId: created.workspace.workspaceId,
+        relativePath: "index.ts",
+        content: "export const value = 2;\n",
+        expectedVersion: openedFile.version,
+      }),
+      "workspace.files.write",
+    ),
+  );
+  assert.equal(savedFile.content, "export const value = 2;\n");
+  assert.equal(
+    await readFile(path.join(workspacePath, "index.ts"), "utf8"),
+    "export const value = 2;\n",
+  );
+
+  const archivedList = await rpcValue<{ sessionIds: string[] }>(
+    await handlePiRpcPost(
+      rpcRequest("workspace.listArchivedSessions", {}, "rpc-archived-list"),
+      "workspace.listArchivedSessions",
+    ),
+  );
+  assert.deepEqual(archivedList, { sessionIds: [] });
 
   assert.deepEqual(
     await rpcValue(
@@ -223,6 +312,20 @@ test("validates workspace.unarchiveSession at the shared RPC boundary", async ()
   assert.equal(body.result.error.code, "bad-request");
 });
 
+test("validates session.delete at the shared RPC boundary", async () => {
+  const response = await handlePiRpcPost(
+    rpcRequest("session.delete", { sessionId: "" }),
+    "session.delete",
+  );
+  assert.equal(response.status, 200);
+  const body = (await response.json()) as ServerResponse<unknown>;
+  assert.equal(body.result.ok, false);
+  if (body.result.ok) assert.fail("Expected a session.delete validation error");
+  assert.equal(body.result.error.code, "bad-request");
+  const issues = body.result.error.details.issues as Array<{ path?: unknown }>;
+  assert.deepEqual(issues[0]?.path, ["payload", "sessionId"]);
+});
+
 test("validates skill.list at the shared RPC boundary", async () => {
   const response = await handlePiRpcPost(rpcRequest("skill.list", { sessionId: "" }), "skill.list");
   assert.equal(response.status, 200);
@@ -311,6 +414,33 @@ test("rejects blank provider credentials before invoking model configuration", a
   if (body.result.ok) assert.fail("Expected a provider configuration validation error");
   assert.equal(body.result.error.code, "bad-request");
   assert.equal(JSON.stringify(body).includes('apiKey":"   '), false);
+});
+
+test("validates provider account-login interactions at the shared RPC boundary", async () => {
+  const start = await handlePiRpcPost(
+    rpcRequest("llm.startProviderLogin", {
+      provider: "openai-codex",
+      authType: "api_key",
+    }),
+    "llm.startProviderLogin",
+  );
+  const startBody = (await start.json()) as ServerResponse<unknown>;
+  assert.equal(startBody.result.ok, false);
+  if (startBody.result.ok) assert.fail("Expected an account-login validation error");
+  assert.equal(startBody.result.error.code, "bad-request");
+
+  const response = await handlePiRpcPost(
+    rpcRequest("llm.respondProviderLogin", {
+      loginId: "login-1",
+      promptId: "",
+      value: "browser",
+    }),
+    "llm.respondProviderLogin",
+  );
+  const responseBody = (await response.json()) as ServerResponse<unknown>;
+  assert.equal(responseBody.result.ok, false);
+  if (responseBody.result.ok) assert.fail("Expected a login-prompt validation error");
+  assert.equal(responseBody.result.error.code, "bad-request");
 });
 
 test("rejects malformed custom provider catalogs at the RPC boundary", async () => {

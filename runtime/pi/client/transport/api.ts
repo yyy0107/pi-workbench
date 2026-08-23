@@ -26,10 +26,13 @@ import type {
   ModelContextWindowValue,
   ModelProviderConfigPayload,
   ModelProviderConfigValue,
+  ModelProviderLoginPayload,
+  ModelProviderLoginValue,
   ModelProvidersValue,
   PiAgentSettingsNamespaceView,
   PiAgentSettingsUpdatePayload,
   RemoveModelProviderPayload,
+  RespondModelProviderLoginPayload,
   RpcReceipt,
   SessionAttachmentPayload,
   SessionAttachmentValue,
@@ -37,6 +40,8 @@ import type {
   SessionCancelValue,
   SessionCreatePayload,
   SessionCreateValue,
+  SessionDeletePayload,
+  SessionDeleteValue,
   SessionForkPayload,
   SessionForkValue,
   SessionHistoryPayload,
@@ -59,8 +64,20 @@ import type {
   SkillListValue,
   SettingsDescribeValue,
   SettingsOpenDocumentValue,
+  StartModelProviderLoginPayload,
   UpdateModelContextWindowPayload,
+  WorkspaceArchivedSessionsValue,
+  WorkspaceFileDescribePayload,
+  WorkspaceFileDescriptorValue,
+  WorkspaceFileReadPayload,
+  WorkspaceFileSnapshotValue,
+  WorkspaceFilesListPayload,
+  WorkspaceFilesListValue,
+  WorkspaceFileWritePayload,
   WorkspaceListValue,
+  WorkspacePinValue,
+  WorkspaceSessionArchiveValue,
+  WorkspaceSessionPinValue,
   WorkspaceView,
 } from "../../rpc-contracts";
 import { invalidatePiModelCatalog } from "../models/model-catalog-invalidation";
@@ -244,12 +261,118 @@ export function openPiHostPath(path: string): Promise<{ opened: true }> {
   return callPiRpc("host.openPath", { path });
 }
 
+export function listPiWorkspaceFiles(
+  payload: WorkspaceFilesListPayload,
+): Promise<WorkspaceFilesListValue> {
+  return callPiRpc("workspace.files.list", payload);
+}
+
+export function describePiWorkspaceFile(
+  payload: WorkspaceFileDescribePayload,
+): Promise<WorkspaceFileDescriptorValue> {
+  return callPiRpc("workspace.files.describe", payload);
+}
+
+export function piWorkspaceFileContentUrl(payload: WorkspaceFileDescribePayload): string {
+  const query = new URLSearchParams({
+    workspaceId: payload.workspaceId,
+    relativePath: payload.relativePath,
+  });
+  return `/api/workspace.files.content?${query.toString()}`;
+}
+
+export interface PiWorkspaceFileTextChunk {
+  text: string;
+  loadedBytes: number;
+  totalBytes?: number;
+}
+
+export interface StreamPiWorkspaceFileTextOptions {
+  signal?: AbortSignal;
+  onChunk(chunk: PiWorkspaceFileTextChunk): void;
+}
+
+function contentLength(response: Response): number | undefined {
+  const header = response.headers.get("content-length");
+  if (header === null) return undefined;
+  const value = Number(header);
+  return Number.isSafeInteger(value) && value >= 0 ? value : undefined;
+}
+
+function decodeWorkspaceFileText(decoder: TextDecoder, value?: Uint8Array, stream = false): string {
+  try {
+    return value ? decoder.decode(value, { stream }) : decoder.decode();
+  } catch {
+    throw new PiApiError("workspace-file-unsupported-encoding", 422);
+  }
+}
+
+export async function streamPiWorkspaceFileText(
+  payload: WorkspaceFileDescribePayload,
+  { signal, onChunk }: StreamPiWorkspaceFileTextOptions,
+): Promise<{ loadedBytes: number; totalBytes?: number }> {
+  const response = await fetch(piWorkspaceFileContentUrl(payload), {
+    headers: { Accept: "text/plain, text/*;q=0.9, application/json;q=0.8, */*;q=0.1" },
+    signal,
+  });
+  if (!response.ok) {
+    throw new PiApiError("workspace_file_content_failed", response.status);
+  }
+
+  const totalBytes = contentLength(response);
+  const decoder = new TextDecoder("utf-8", { fatal: true });
+  const reader = response.body?.getReader();
+  if (!reader) throw new PiApiError("workspace_file_content_unavailable", response.status);
+
+  let loadedBytes = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      signal?.throwIfAborted();
+      if (done) break;
+      if (value.includes(0)) {
+        throw new PiApiError("workspace-file-unsupported-encoding", 422);
+      }
+      loadedBytes += value.byteLength;
+      const text = decodeWorkspaceFileText(decoder, value, true);
+      onChunk({ text, loadedBytes, ...(totalBytes === undefined ? {} : { totalBytes }) });
+    }
+    const text = decodeWorkspaceFileText(decoder);
+    if (text) {
+      onChunk({ text, loadedBytes, ...(totalBytes === undefined ? {} : { totalBytes }) });
+    }
+  } catch (error) {
+    if (error instanceof PiApiError || signal?.aborted) throw error;
+    throw new PiApiError("workspace_file_content_failed", response.status);
+  } finally {
+    reader.releaseLock();
+  }
+
+  return { loadedBytes, ...(totalBytes === undefined ? {} : { totalBytes }) };
+}
+
+export function readPiWorkspaceFile(
+  payload: WorkspaceFileReadPayload,
+): Promise<WorkspaceFileSnapshotValue> {
+  return callPiRpc("workspace.files.read", payload);
+}
+
+export function writePiWorkspaceFile(
+  payload: WorkspaceFileWritePayload,
+): Promise<WorkspaceFileSnapshotValue> {
+  return callPiRpc("workspace.files.write", payload);
+}
+
 function workspaceSummary(workspace: WorkspaceView): PiWorkspaceSummary {
   return { id: workspace.workspaceId, name: workspace.title, cwd: workspace.path };
 }
 
 export function listPiWorkspaces(): Promise<WorkspaceListValue> {
   return callPiRpc("workspace.list", {});
+}
+
+export function listPiArchivedWorkspaceSessions(): Promise<WorkspaceArchivedSessionsValue> {
+  return callPiRpc("workspace.listArchivedSessions", {});
 }
 
 export function createPiWorkspace(
@@ -288,15 +411,29 @@ export function insertPiSessionBefore(
   });
 }
 
+export function setPiWorkspacePinned(
+  workspaceId: string,
+  pinned: boolean,
+): Promise<WorkspacePinValue> {
+  return callPiRpc("workspace.setPinned", { workspaceId, pinned });
+}
+
+export function setPiWorkspaceSessionPinned(
+  sessionId: string,
+  pinned: boolean,
+): Promise<WorkspaceSessionPinValue> {
+  return callPiRpc("workspace.setSessionPinned", { sessionId, pinned });
+}
+
 export function archivePiWorkspaceSession(
   sessionId: string,
-): Promise<{ archivedSessionIds: string[] }> {
+): Promise<WorkspaceSessionArchiveValue> {
   return callPiRpc("workspace.archiveSession", { sessionId });
 }
 
 export function unarchivePiWorkspaceSession(
   sessionId: string,
-): Promise<{ archivedSessionIds: string[] }> {
+): Promise<WorkspaceSessionArchiveValue> {
   return callPiRpc("workspace.unarchiveSession", { sessionId });
 }
 
@@ -308,6 +445,50 @@ export function getPiModelProviderConfig(
   payload: ModelProviderConfigPayload,
 ): Promise<ModelProviderConfigValue> {
   return callPiRpc("llm.providerConfig", payload);
+}
+
+function providerLoginValue(value: ModelProviderLoginValue): ModelProviderLoginValue {
+  if (value.status === "complete") invalidatePiModelCatalog();
+  return value;
+}
+
+export async function startPiModelProviderLogin(
+  payload: StartModelProviderLoginPayload,
+): Promise<ModelProviderLoginValue> {
+  return providerLoginValue(
+    await callPiRpc<StartModelProviderLoginPayload, ModelProviderLoginValue>(
+      "llm.startProviderLogin",
+      payload,
+    ),
+  );
+}
+
+export async function getPiModelProviderLogin(
+  payload: ModelProviderLoginPayload,
+): Promise<ModelProviderLoginValue> {
+  return providerLoginValue(
+    await callPiRpc<ModelProviderLoginPayload, ModelProviderLoginValue>(
+      "llm.providerLogin",
+      payload,
+    ),
+  );
+}
+
+export async function respondPiModelProviderLogin(
+  payload: RespondModelProviderLoginPayload,
+): Promise<ModelProviderLoginValue> {
+  return providerLoginValue(
+    await callPiRpc<RespondModelProviderLoginPayload, ModelProviderLoginValue>(
+      "llm.respondProviderLogin",
+      payload,
+    ),
+  );
+}
+
+export function cancelPiModelProviderLogin(
+  payload: ModelProviderLoginPayload,
+): Promise<ModelProviderLoginValue> {
+  return callPiRpc("llm.cancelProviderLogin", payload);
 }
 
 export function getPiModelContextWindow(
@@ -413,6 +594,10 @@ export function selectPiRpcSessionModel(
 
 export function renamePiRpcSession(payload: SessionRenamePayload): Promise<SessionRenameValue> {
   return callPiRpc("session.rename", payload);
+}
+
+export function deletePiRpcSession(payload: SessionDeletePayload): Promise<SessionDeleteValue> {
+  return callPiRpc("session.delete", payload);
 }
 
 export function forkPiRpcSession(payload: SessionForkPayload): Promise<SessionForkValue> {

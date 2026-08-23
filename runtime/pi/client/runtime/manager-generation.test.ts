@@ -98,6 +98,137 @@ test("publishes the current Pi version from the host description", async (t) => 
   assert.equal(manager.getHostDescription()?.piVersion, "0.84.2");
 });
 
+test("applies unarchive state from the host event rather than the mutation response", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as {
+      rpcId: string;
+      method: string;
+      payload: unknown;
+    };
+    assert.equal(request.method, "workspace.unarchiveSession");
+    assert.deepEqual(request.payload, { sessionId: "remote-session" });
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: {
+        ok: true,
+        value: {
+          sessionId: "remote-session",
+          archived: false,
+        },
+      },
+    });
+  };
+
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const internals = manager as unknown as {
+    archived: Set<string>;
+    handleHostFrame(payload: HostStreamPayload, generation: number): void;
+    setSessionArchivedMetadata(sessionId: string, archived: boolean): Promise<void>;
+    workspaces: Map<
+      string,
+      { workspaceId: string; title: string; path: string; sessionIds: string[] }
+    >;
+  };
+  internals.archived.add("remote-session");
+  internals.workspaces.set("workspace-1", {
+    workspaceId: "workspace-1",
+    title: "Workspace",
+    path: "/workspace",
+    sessionIds: [],
+  });
+
+  await internals.setSessionArchivedMetadata("remote-session", false);
+
+  assert.equal(internals.archived.has("remote-session"), true);
+  assert.deepEqual(internals.workspaces.get("workspace-1")?.sessionIds, []);
+
+  internals.handleHostFrame(
+    {
+      type: "host/session-archive-changed",
+      sessionId: "remote-session",
+      archived: false,
+      workspace: {
+        workspaceId: "workspace-1",
+        title: "Workspace",
+        path: "/workspace",
+        sessionIds: ["remote-session"],
+        createdAt: "2026-08-20T00:00:00.000Z",
+        updatedAt: "2026-08-20T00:00:01.000Z",
+      },
+    },
+    1,
+  );
+
+  assert.equal(internals.archived.has("remote-session"), false);
+  assert.deepEqual(internals.workspaces.get("workspace-1")?.sessionIds, ["remote-session"]);
+});
+
+test("persists conversation and workspace pins through workspace RPC", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  const requests: Array<{ method: string; payload: unknown }> = [];
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as {
+      rpcId: string;
+      method: string;
+      payload: { workspaceId?: string; sessionId?: string; pinned: boolean };
+    };
+    requests.push({ method: request.method, payload: request.payload });
+    const value =
+      request.method === "workspace.setPinned"
+        ? { workspaceId: request.payload.workspaceId, pinned: request.payload.pinned }
+        : { sessionId: request.payload.sessionId, pinned: request.payload.pinned };
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: { ok: true, value },
+    });
+  };
+
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const internals = manager as unknown as {
+    setSummary(value: PiSessionSummary): boolean;
+    workspaces: Map<
+      string,
+      { workspaceId: string; title: string; path: string; sessionIds: string[] }
+    >;
+  };
+  internals.setSummary(summary());
+  internals.workspaces.set("workspace-1", {
+    workspaceId: "workspace-1",
+    title: "Workspace",
+    path: "/workspace",
+    sessionIds: ["remote-session"],
+  });
+
+  const updateCustom = manager.createThreadListAdapter().updateCustom;
+  assert.ok(updateCustom);
+  await updateCustom("remote-session", { piPinned: true });
+  await manager.setWorkspacePinned("workspace-1", true);
+
+  assert.deepEqual(requests, [
+    {
+      method: "workspace.setSessionPinned",
+      payload: { sessionId: "remote-session", pinned: true },
+    },
+    {
+      method: "workspace.setPinned",
+      payload: { workspaceId: "workspace-1", pinned: true },
+    },
+  ]);
+  assert.equal(manager.getThreadCustom("remote-session")?.piPinned, true);
+  assert.equal(manager.getWorkspaces()[0]?.pinned, true);
+});
+
 test("forks at the selected event and increments the conversation title", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => {
@@ -165,6 +296,13 @@ test("renders an authoritative steering item as an optimistic user message", (t)
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
   const session = manager.getSession("local-session", "remote-session");
+  const internals = session as unknown as {
+    handleEvent(event: PiEvent): void;
+    publishMessagesAndSetRunning(running: boolean): void;
+  };
+  internals.publishMessagesAndSetRunning(true);
+  const originalRunStartedAt = session.getSnapshot().runStartedAt;
+  assert.equal(typeof originalRunStartedAt, "number");
 
   session.applyQueueSnapshot([
     {
@@ -180,6 +318,7 @@ test("renders an authoritative steering item as an optimistic user message", (t)
   ]);
 
   assert.deepEqual(session.getSnapshot().steeringQueueIds, ["queue-steer-1"]);
+  assert.equal(session.getSnapshot().messages[0]?.metadata.custom.piSteering, true);
   assert.deepEqual(
     session
       .getSnapshot()
@@ -193,6 +332,230 @@ test("renders an authoritative steering item as an optimistic user message", (t)
   session.applyQueueSnapshot([]);
   assert.deepEqual(session.getSnapshot().steeringQueueIds, []);
   assert.equal(session.getSnapshot().messages.length, 1);
+
+  internals.handleEvent({
+    type: "message_start",
+    sequence: 10,
+    message: {
+      role: "user",
+      content:
+        'change direction\n\n<pi-workbench-workspace-feedback version="1">\n[]\n</pi-workbench-workspace-feedback>',
+      timestamp: 2_000,
+    },
+  });
+  assert.equal(session.getSnapshot().messages.length, 1);
+  assert.equal(session.getSnapshot().runStartedAt, originalRunStartedAt);
+  assert.equal(session.getSnapshot().messages[0]?.metadata.custom.piSteering, true);
+});
+
+test("keeps a streaming assistant segment before steering messages as they arrive", async (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("local-session", "remote-session");
+  const internals = session as unknown as {
+    handleEvent(event: PiEvent): void;
+  };
+
+  internals.handleEvent({
+    type: "message_start",
+    sequence: 0,
+    message: { role: "user", content: "initial", timestamp: 1_000 },
+  });
+  internals.handleEvent({
+    type: "message_end",
+    sequence: 1,
+    message: { role: "user", content: "initial", timestamp: 1_000 },
+  });
+  internals.handleEvent({
+    type: "message_start",
+    sequence: 2,
+    message: { role: "assistant", content: [], timestamp: 1_100 },
+  });
+  internals.handleEvent({
+    type: "message_update",
+    sequence: 3,
+    message: {
+      role: "assistant",
+      content: [{ type: "text", text: "partial answer" }],
+      timestamp: 1_100,
+    },
+  });
+
+  session.applyQueueSnapshot([
+    {
+      id: "queue-steer-streaming",
+      placement: "steering",
+      message: {
+        id: "queue-steer-streaming",
+        role: "user",
+        content: [{ type: "text", text: "change direction" }],
+        source: { kind: "user" },
+      },
+    },
+  ]);
+
+  assert.deepEqual(
+    session
+      .getSnapshot()
+      .messages.map((message) => [
+        message.role,
+        message.content[0]?.type === "text" ? message.content[0].text : undefined,
+      ]),
+    [
+      ["user", "initial"],
+      ["assistant", "partial answer"],
+      ["user", "change direction"],
+    ],
+  );
+
+  internals.handleEvent({
+    type: "message_end",
+    sequence: 4,
+    message: {
+      role: "assistant",
+      content: [{ type: "text", text: "completed first segment" }],
+      stopReason: "stop",
+      timestamp: 1_100,
+    },
+  });
+  assert.deepEqual(
+    session.getSnapshot().messages.map((message) => message.role),
+    ["user", "assistant", "user"],
+  );
+
+  session.applyQueueSnapshot([]);
+  internals.handleEvent({
+    type: "message_start",
+    sequence: 5,
+    message: { role: "user", content: "change direction", timestamp: 1_200 },
+  });
+  internals.handleEvent({
+    type: "message_end",
+    sequence: 6,
+    message: { role: "user", content: "change direction", timestamp: 1_200 },
+  });
+  internals.handleEvent({
+    type: "message_start",
+    sequence: 7,
+    message: { role: "assistant", content: [], timestamp: 1_300 },
+  });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(
+    session.getSnapshot().messages.map((message) => message.role),
+    ["user", "assistant", "user", "assistant"],
+  );
+});
+
+test("renders a consumed follow-up at user message_start before the next assistant output", async (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("local-session", "remote-session");
+  const internals = session as unknown as {
+    handleEvent(event: PiEvent): void;
+  };
+
+  session.applyQueueSnapshot([
+    {
+      id: "queue-follow-up-1",
+      placement: "queued",
+      message: {
+        id: "queue-follow-up-1",
+        role: "user",
+        content: [{ type: "text", text: "continue after this turn" }],
+        source: { kind: "user" },
+      },
+    },
+  ]);
+  session.applyQueueSnapshot([]);
+  assert.deepEqual(session.getSnapshot().messages, []);
+
+  internals.handleEvent({
+    type: "message_start",
+    sequence: 10,
+    message: {
+      role: "user",
+      content: "continue after this turn",
+      timestamp: 1_000,
+    },
+  });
+
+  assert.equal(session.getSnapshot().runStartedAt, 1_000);
+
+  assert.deepEqual(
+    session
+      .getSnapshot()
+      .messages.map((message) => [
+        message.role,
+        message.content[0]?.type === "text" ? message.content[0].text : undefined,
+      ]),
+    [["user", "continue after this turn"]],
+  );
+
+  internals.handleEvent({
+    type: "message_end",
+    sequence: 11,
+    message: {
+      role: "user",
+      content: "continue after this turn",
+      timestamp: 1_000,
+    },
+  });
+  assert.equal(session.getSnapshot().messages.length, 1);
+
+  internals.handleEvent({
+    type: "message_start",
+    sequence: 12,
+    message: { role: "assistant", content: [], timestamp: 1_001 },
+  });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(
+    session.getSnapshot().messages.map((message) => message.role),
+    ["user", "assistant"],
+  );
+});
+
+test("does not collapse identical follow-up turns or duplicate an unclaimed optimistic user", (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("local-session", "remote-session");
+  const internals = session as unknown as {
+    handleEvent(event: PiEvent): void;
+    liveMessages: import("@assistant-ui/react").ThreadMessage[];
+    publishMessages(): void;
+  };
+  internals.liveMessages = [
+    {
+      id: "optimistic-user",
+      role: "user",
+      content: [{ type: "text", text: "same prompt" }],
+      attachments: [],
+      createdAt: new Date(0),
+      metadata: { custom: { piOptimistic: true }, isOptimistic: true },
+    },
+  ];
+  internals.publishMessages();
+
+  internals.handleEvent({
+    type: "message_end",
+    sequence: 20,
+    message: { role: "user", content: "same prompt", timestamp: 2_000 },
+  });
+  assert.equal(session.getSnapshot().messages.length, 1);
+
+  internals.handleEvent({
+    type: "message_end",
+    sequence: 21,
+    message: { role: "user", content: "same prompt", timestamp: 3_000 },
+  });
+  assert.deepEqual(
+    session.getSnapshot().messages.map((message) => [message.id, message.role]),
+    [
+      ["optimistic-user", "user"],
+      ["pi-event-21", "user"],
+    ],
+  );
 });
 
 test("publishes a complete optimistic turn and running state in one session snapshot", async (t) => {
@@ -919,6 +1282,47 @@ test("applies rich host session deltas without requesting a list refresh", async
   listed = await manager.createThreadListAdapter().list();
   assert.equal(listed.threads[0]?.title, "Renamed elsewhere");
   assert.equal(refreshCount, 0);
+});
+
+test("publishes thread-list invalidation after applying an archive host delta", async (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const internals = manager as unknown as {
+    start(): Promise<void>;
+    handleHostFrame(payload: HostStreamPayload, generation: number): void;
+  };
+  internals.start = async () => {};
+
+  const created = summary();
+  internals.handleHostFrame(
+    {
+      type: "host/session-added",
+      sessionId: created.id,
+      blank: false,
+      summary: created,
+      cwd: created.cwd,
+    },
+    1,
+  );
+
+  let invalidations = 0;
+  const unsubscribe = manager.subscribeThreadList(() => {
+    invalidations += 1;
+  });
+  t.after(unsubscribe);
+
+  internals.handleHostFrame(
+    {
+      type: "host/session-archive-changed",
+      sessionId: created.id,
+      archived: true,
+    },
+    1,
+  );
+
+  assert.equal(invalidations, 1);
+  const listed = await manager.createThreadListAdapter().list();
+  assert.equal(listed.threads[0]?.status, "archived");
 });
 
 test("does not expose a remote duplicate while the same browser promotes its draft", async (t) => {

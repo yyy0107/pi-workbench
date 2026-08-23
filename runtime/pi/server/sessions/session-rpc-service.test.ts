@@ -108,6 +108,9 @@ function harness(overrides: Partial<SessionRpcDependencies> = {}) {
       calls.push({ name: "create", value: input });
       return { id: "session-created" };
     },
+    deleteSession: async (sessionId) => {
+      calls.push({ name: "delete", value: sessionId });
+    },
     forkSession: async (sessionId, atSeq) => {
       calls.push({ name: "fork", value: [sessionId, atSeq] });
       return { id: "session-forked" };
@@ -209,6 +212,23 @@ test("lists legacy summaries and searches with protocol bounds", async () => {
     assert.ok(error instanceof SessionRpcServiceError);
     assert.equal(error.code, "bad-request");
     assert.deepEqual(error.details.issues[0].path, ["query"]);
+    return true;
+  });
+});
+
+test("deletes an existing session through the session service", async () => {
+  const { service, calls } = harness();
+
+  assert.deepEqual(await service.delete({ sessionId: "session-1" }), { deleted: true });
+  assert.deepEqual(calls.at(-1), { name: "delete", value: "session-1" });
+
+  const missing = harness({
+    listSessions: async () => ({ sessions: [], runningSessionIds: [] }),
+  });
+  await assert.rejects(missing.service.delete({ sessionId: "missing" }), (error: unknown) => {
+    assert.ok(error instanceof SessionRpcServiceError);
+    assert.equal(error.code, "session-not-found");
+    assert.deepEqual(error.details, { sessionId: "missing" });
     return true;
   });
 });

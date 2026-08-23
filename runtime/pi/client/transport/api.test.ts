@@ -16,20 +16,33 @@ const moduleHooks = registerHooks({
 });
 const {
   callPiRpc,
+  cancelPiModelProviderLogin,
   configurePiModelProvider,
+  deletePiRpcSession,
+  describePiWorkspaceFile,
   describePiSettings,
   getPiModelContextWindow,
+  getPiModelProviderLogin,
+  listPiArchivedWorkspaceSessions,
   listPiCommands,
   listPiExtensions,
   listPiSkills,
+  listPiWorkspaceFiles,
+  listPiWorkspaces,
   openPiSettingsDocument,
+  piWorkspaceFileContentUrl,
   PiApiError,
   pickPiWorkspace,
+  readPiWorkspaceFile,
   removePiModelProvider,
+  respondPiModelProviderLogin,
   respondPiRpc,
+  startPiModelProviderLogin,
+  streamPiWorkspaceFileText,
   updatePiAgentSettings,
   updatePiModelContextWindow,
   unarchivePiWorkspaceSession,
+  writePiWorkspaceFile,
 } = (await import(new URL("./api.ts", import.meta.url).href)) as typeof import("./api");
 const { getPiModelCatalogRevision, subscribePiModelCatalogInvalidation } = (await import(
   new URL("../models/model-catalog-invalidation.ts", import.meta.url).href
@@ -74,6 +87,155 @@ test("callPiRpc sends and verifies the shared RPC envelope", async (t) => {
     method: "workspace.test",
     payload: { extra: 1 },
   });
+});
+
+test("workspace file helpers use the typed workspace.files RPC methods", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  const calls: Array<{ method: string; payload: unknown }> = [];
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as {
+      rpcId: string;
+      method: string;
+      payload: unknown;
+    };
+    calls.push({ method: request.method, payload: request.payload });
+    const value =
+      request.method === "workspace.files.list"
+        ? {
+            workspaceId: "workspace-1",
+            relativePath: "",
+            absolutePath: "/work/project",
+            entries: [],
+            truncated: false,
+          }
+        : request.method === "workspace.files.describe"
+          ? {
+              workspaceId: "workspace-1",
+              relativePath: "src/app.ts",
+              absolutePath: "/work/project/src/app.ts",
+              name: "app.ts",
+              mediaType: "text/plain",
+              encoding: "utf-8",
+              version: "stat-sha256:version",
+              size: 6,
+              modifiedAt: 1,
+            }
+          : {
+              workspaceId: "workspace-1",
+              relativePath: "src/app.ts",
+              absolutePath: "/work/project/src/app.ts",
+              name: "app.ts",
+              content: request.method === "workspace.files.write" ? "updated" : "source",
+              encoding: "utf-8",
+              version: "sha256:version",
+              size: 6,
+              modifiedAt: 1,
+            };
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: { ok: true, value },
+    });
+  };
+
+  assert.equal(
+    (await listPiWorkspaceFiles({ workspaceId: "workspace-1" })).absolutePath,
+    "/work/project",
+  );
+  assert.equal(
+    (
+      await describePiWorkspaceFile({
+        workspaceId: "workspace-1",
+        relativePath: "src/app.ts",
+      })
+    ).mediaType,
+    "text/plain",
+  );
+  assert.equal(
+    piWorkspaceFileContentUrl({ workspaceId: "workspace-1", relativePath: "src/app.ts" }),
+    "/api/workspace.files.content?workspaceId=workspace-1&relativePath=src%2Fapp.ts",
+  );
+  assert.equal(
+    (
+      await readPiWorkspaceFile({
+        workspaceId: "workspace-1",
+        relativePath: "src/app.ts",
+      })
+    ).content,
+    "source",
+  );
+  assert.equal(
+    (
+      await writePiWorkspaceFile({
+        workspaceId: "workspace-1",
+        relativePath: "src/app.ts",
+        content: "updated",
+        expectedVersion: "sha256:old",
+      })
+    ).content,
+    "updated",
+  );
+  assert.deepEqual(calls, [
+    { method: "workspace.files.list", payload: { workspaceId: "workspace-1" } },
+    {
+      method: "workspace.files.describe",
+      payload: { workspaceId: "workspace-1", relativePath: "src/app.ts" },
+    },
+    {
+      method: "workspace.files.read",
+      payload: { workspaceId: "workspace-1", relativePath: "src/app.ts" },
+    },
+    {
+      method: "workspace.files.write",
+      payload: {
+        workspaceId: "workspace-1",
+        relativePath: "src/app.ts",
+        content: "updated",
+        expectedVersion: "sha256:old",
+      },
+    },
+  ]);
+});
+
+test("streams UTF-8 workspace text incrementally across byte boundaries", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  const bytes = new TextEncoder().encode("first\n雪\nlast");
+  const chunks = [bytes.subarray(0, 7), bytes.subarray(7, 8), bytes.subarray(8)];
+  globalThis.fetch = async () =>
+    new Response(
+      new ReadableStream<Uint8Array>({
+        start(controller) {
+          for (const chunk of chunks) controller.enqueue(chunk);
+          controller.close();
+        },
+      }),
+      { headers: { "content-length": String(bytes.byteLength) } },
+    );
+
+  const received: string[] = [];
+  const progress: number[] = [];
+  const result = await streamPiWorkspaceFileText(
+    { workspaceId: "workspace-1", relativePath: "notes.txt" },
+    {
+      onChunk(chunk) {
+        received.push(chunk.text);
+        progress.push(chunk.loadedBytes);
+        assert.equal(chunk.totalBytes, bytes.byteLength);
+      },
+    },
+  );
+
+  assert.equal(received.join(""), "first\n雪\nlast");
+  assert.deepEqual(progress, [7, 8, bytes.byteLength]);
+  assert.deepEqual(result, { loadedBytes: bytes.byteLength, totalBytes: bytes.byteLength });
 });
 
 test("callPiRpc exposes structured business errors", async (t) => {
@@ -150,6 +312,63 @@ test("successful provider mutations invalidate the shared model catalog", async 
   await assert.rejects(configurePiModelProvider({ provider: "acme", apiKey: "private-key" }));
   assert.equal(getPiModelCatalogRevision(), initialRevision + 2);
   assert.equal(notifications, 2);
+});
+
+test("provider account-login helpers use typed RPC methods and invalidate on completion", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  const requests: Array<{ method: string; payload: unknown }> = [];
+  const initialRevision = getPiModelCatalogRevision();
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as {
+      rpcId: string;
+      method: string;
+      payload: unknown;
+    };
+    requests.push({ method: request.method, payload: request.payload });
+    const status = request.method === "llm.providerLogin" ? "complete" : "running";
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: {
+        ok: true,
+        value: {
+          loginId: "login-1",
+          provider: "openai-codex",
+          authType: "oauth",
+          status,
+          revision: requests.length,
+          events: [],
+        },
+      },
+    });
+  };
+
+  await startPiModelProviderLogin({ provider: "openai-codex", authType: "oauth" });
+  await respondPiModelProviderLogin({
+    loginId: "login-1",
+    promptId: "prompt-1",
+    value: "browser",
+  });
+  await cancelPiModelProviderLogin({ loginId: "login-1" });
+  await getPiModelProviderLogin({ loginId: "login-1" });
+
+  assert.equal(getPiModelCatalogRevision(), initialRevision + 1);
+  assert.deepEqual(requests, [
+    {
+      method: "llm.startProviderLogin",
+      payload: { provider: "openai-codex", authType: "oauth" },
+    },
+    {
+      method: "llm.respondProviderLogin",
+      payload: { loginId: "login-1", promptId: "prompt-1", value: "browser" },
+    },
+    { method: "llm.cancelProviderLogin", payload: { loginId: "login-1" } },
+    { method: "llm.providerLogin", payload: { loginId: "login-1" } },
+  ]);
 });
 
 test("Pi agent settings helpers use the shared Settings RPC methods", async (t) => {
@@ -379,6 +598,31 @@ test("pickPiWorkspace composes host.pickDirectory and workspace.create", async (
   assert.deepEqual(methods, ["host.pickDirectory", "workspace.create"]);
 });
 
+test("workspace list helpers keep visible and archived sessions in separate RPCs", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  const methods: string[] = [];
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as { rpcId: string; method: string };
+    methods.push(request.method);
+    const value =
+      request.method === "workspace.list" ? { items: [] } : { sessionIds: ["archived-session"] };
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: { ok: true, value },
+    });
+  };
+
+  assert.deepEqual(await listPiWorkspaces(), { items: [] });
+  assert.deepEqual(await listPiArchivedWorkspaceSessions(), {
+    sessionIds: ["archived-session"],
+  });
+  assert.deepEqual(methods, ["workspace.list", "workspace.listArchivedSessions"]);
+});
+
 test("unarchivePiWorkspaceSession uses the durable workspace mutation RPC", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => {
@@ -396,14 +640,46 @@ test("unarchivePiWorkspaceSession uses the durable workspace mutation RPC", asyn
     return Response.json({
       type: "server-response",
       rpcId: request.rpcId,
-      result: { ok: true, value: { archivedSessionIds: [] } },
+      result: {
+        ok: true,
+        value: {
+          sessionId: "session-1",
+          archived: false,
+        },
+      },
     });
   };
 
   assert.deepEqual(await unarchivePiWorkspaceSession("session-1"), {
-    archivedSessionIds: [],
+    sessionId: "session-1",
+    archived: false,
   });
   assert.equal(method, "workspace.unarchiveSession");
+});
+
+test("deletePiRpcSession uses the typed session.delete RPC", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  let method = "";
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as {
+      rpcId: string;
+      method: string;
+      payload: unknown;
+    };
+    method = request.method;
+    assert.deepEqual(request.payload, { sessionId: "session-1" });
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: { ok: true, value: { deleted: true } },
+    });
+  };
+
+  assert.deepEqual(await deletePiRpcSession({ sessionId: "session-1" }), { deleted: true });
+  assert.equal(method, "session.delete");
 });
 
 test("listPiSkills calls the session-scoped skill.list RPC", async (t) => {

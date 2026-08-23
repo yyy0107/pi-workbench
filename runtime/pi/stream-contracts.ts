@@ -174,9 +174,23 @@ export interface HostWorkspaceOrderChangedPayload {
   workspaceIds: string[];
 }
 
-export interface HostArchivedSessionsChangedPayload {
-  type: "host/archived-sessions-changed";
-  archivedSessionIds: string[];
+export interface HostWorkspacePinnedChangedPayload {
+  type: "host/workspace-pinned-changed";
+  workspaceId: string;
+  pinned: boolean;
+}
+
+export interface HostSessionArchiveChangedPayload {
+  type: "host/session-archive-changed";
+  sessionId: string;
+  archived: boolean;
+  workspace?: WorkspaceView;
+}
+
+export interface HostSessionPinnedChangedPayload {
+  type: "host/session-pinned-changed";
+  sessionId: string;
+  pinned: boolean;
 }
 
 export interface HostRemoteEventPayload {
@@ -194,7 +208,9 @@ export type HostStreamPayload =
   | HostWorkspaceChangedPayload
   | HostWorkspaceRemovedPayload
   | HostWorkspaceOrderChangedPayload
-  | HostArchivedSessionsChangedPayload
+  | HostWorkspacePinnedChangedPayload
+  | HostSessionArchiveChangedPayload
+  | HostSessionPinnedChangedPayload
   | HostRemoteEventPayload
   | StreamErrorPayload;
 

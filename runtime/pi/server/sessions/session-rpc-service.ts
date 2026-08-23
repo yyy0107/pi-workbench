@@ -21,6 +21,8 @@ import type {
   SessionCancelValue,
   SessionCreatePayload,
   SessionCreateValue,
+  SessionDeletePayload,
+  SessionDeleteValue,
   SessionEvent,
   SessionForkPayload,
   SessionForkValue,
@@ -52,6 +54,7 @@ import { ModelService } from "../models/model-service";
 import {
   cancelSession,
   createSession,
+  deleteSession,
   forkSession,
   getSessionEvents,
   getSessionHistory,
@@ -68,6 +71,7 @@ import { workspaceFromCwd } from "../workspaces/workspace-paths";
 export type SessionListInput = SessionListPayload;
 export type SessionSearchInput = SessionSearchPayload;
 export type SessionCreateInput = SessionCreatePayload;
+export type SessionDeleteInput = SessionDeletePayload;
 export type SessionHistoryInput = SessionHistoryPayload;
 export type SessionModelsInput = SessionModelsPayload;
 export type SessionSelectModelInput = SessionSelectModelPayload;
@@ -82,6 +86,7 @@ export type {
   SessionAttachmentValue,
   SessionCancelValue,
   SessionCreateValue,
+  SessionDeleteValue,
   SessionEvent,
   SessionForkValue,
   SessionHistoryValue,
@@ -166,6 +171,7 @@ export interface SessionRpcDependencies {
   listSessions(): Promise<{ sessions: PiSessionSummary[]; runningSessionIds: string[] }>;
   listSessionSearchText(): Promise<Array<{ sessionId: string; allMessagesText: string }>>;
   createSession(input: SessionEngineCreateInput): Promise<SessionEngineCreateResult>;
+  deleteSession(sessionId: string): Promise<void>;
   forkSession(sessionId: string, atSeq?: number): Promise<{ id: string }>;
   getSessionEvents(sessionId: string): Promise<SessionEvent[]>;
   getSessionHistory(sessionId: string): Promise<PiSessionHistory>;
@@ -455,6 +461,7 @@ function defaultDependencies(): SessionRpcDependencies {
       const hosted = await createSession(cwd, sessionId);
       return { id: hosted.id };
     },
+    deleteSession,
     forkSession: async (sessionId, atSeq) => {
       const hosted = await forkSession(sessionId, atSeq);
       return { id: hosted.id };
@@ -1018,6 +1025,16 @@ export class SessionRpcService {
       });
     }
     return { title, seq: seq as number };
+  }
+
+  async delete(input: SessionDeleteInput): Promise<SessionDeleteValue> {
+    await this.requireSession(input.sessionId);
+    try {
+      await this.dependencies.deleteSession(input.sessionId);
+    } catch (error) {
+      this.translate(error, { sessionId: input.sessionId });
+    }
+    return { deleted: true };
   }
 
   async fork(input: SessionForkInput): Promise<SessionForkValue> {

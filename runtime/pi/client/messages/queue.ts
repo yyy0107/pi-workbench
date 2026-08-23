@@ -22,6 +22,7 @@ interface PiMessageQueueOptions {
     rpcId: string,
   ): Promise<{ queued: boolean; queueItemId?: string }>;
   update(itemId: string, action: SessionQueueAction): Promise<void>;
+  replace(steering: readonly PiQueuedPrompt[], followUp: readonly PiQueuedPrompt[]): Promise<void>;
   setPaused(
     paused: boolean,
     steering: readonly PiQueuedPrompt[],
@@ -130,6 +131,9 @@ export class PiMessageQueue {
   private readonly pendingEnqueues = new Map<string, QueueItem>();
   private readonly rejectedEnqueueIds = new Set<string>();
   private readonly pendingSteers = new Set<string>();
+  private readonly pendingRemovals = new Set<string>();
+  private pendingOrder?: readonly string[];
+  private reorderRevision = 0;
   private paused = false;
   private editingId?: string;
   private transform: (message: AppendMessage) => AppendMessage = (message) => message;
@@ -149,7 +153,9 @@ export class PiMessageQueue {
           placement.insertBefore === undefined
         ) {
           this.mutate(id, { kind: "steer" });
+          return;
         }
+        this.reorder(id, placement);
       },
       edit: (id, message) => this.mutate(id, appendContent(this.transform(message))),
       remove: (id) => this.mutate(id, { kind: "remove" }),
@@ -177,7 +183,14 @@ export class PiMessageQueue {
     for (const itemId of this.rejectedEnqueueIds) {
       if (!nextItems.some((item) => item.id === itemId)) this.rejectedEnqueueIds.delete(itemId);
     }
-    this.authoritativeItems = nextItems.filter((item) => !this.rejectedEnqueueIds.has(item.id));
+    for (const itemId of this.pendingRemovals) {
+      if (!nextItems.some((item) => item.id === itemId) && !this.pendingEnqueues.has(itemId)) {
+        this.pendingRemovals.delete(itemId);
+      }
+    }
+    this.authoritativeItems = nextItems.filter(
+      (item) => !this.rejectedEnqueueIds.has(item.id) && !this.pendingRemovals.has(item.id),
+    );
     for (const item of this.authoritativeItems) this.pendingEnqueues.delete(item.id);
     this.rebuildItems();
     if (this.editingId && !this.items.some((item) => item.id === this.editingId)) {
@@ -265,6 +278,28 @@ export class PiMessageQueue {
   private mutate(itemId: string, action: SessionQueueAction): void {
     const item = this.items.find((candidate) => candidate.id === itemId);
     if (!item) return;
+    if (action.kind === "remove") {
+      this.pendingRemovals.add(itemId);
+      this.rebuildItems();
+      this.publish();
+      void this.options
+        .update(itemId, action)
+        .then(() => {
+          this.authoritativeItems = this.authoritativeItems.filter(
+            (candidate) => candidate.id !== itemId,
+          );
+          this.pendingEnqueues.delete(itemId);
+          this.rebuildItems();
+          this.publish();
+        })
+        .catch((error) => {
+          this.pendingRemovals.delete(itemId);
+          this.rebuildItems();
+          this.publish();
+          console.error("[workbench-pi] queue remove failed", error);
+        });
+      return;
+    }
     if (action.kind === "steer") {
       if (item.placement !== "queued" || this.pendingSteers.has(itemId)) return;
       this.pendingSteers.add(itemId);
@@ -289,6 +324,104 @@ export class PiMessageQueue {
         }
         console.error("[workbench-pi] queue update failed", error);
       });
+  }
+
+  private reorder(
+    itemId: string,
+    placement: Parameters<ExternalThreadQueueAdapter["move"]>[1],
+  ): void {
+    const item = this.items.find((candidate) => candidate.id === itemId);
+    if (!item || item.placement !== "queued") return;
+    if (placement.lane !== undefined && placement.lane !== "queue") return;
+
+    const queued = this.items.filter((candidate) => candidate.placement === "queued");
+    const destination = queued.filter((candidate) => candidate.id !== itemId);
+    const anchorIndex = (anchorId: string): number | undefined => {
+      if (anchorId === itemId) return undefined;
+      const index = destination.findIndex((candidate) => candidate.id === anchorId);
+      return index < 0 ? undefined : index;
+    };
+    const { insertAfter, insertBefore } = placement;
+    let index: number;
+    if (insertAfter === undefined && insertBefore === undefined) return;
+    if (insertAfter !== undefined && insertBefore !== undefined) {
+      const afterIndex = insertAfter === null ? -1 : anchorIndex(insertAfter);
+      const beforeIndex = insertBefore === null ? destination.length : anchorIndex(insertBefore);
+      if (afterIndex === undefined || beforeIndex === undefined || beforeIndex !== afterIndex + 1) {
+        return;
+      }
+      index = afterIndex + 1;
+    } else if (insertAfter !== undefined) {
+      const afterIndex = insertAfter === null ? -1 : anchorIndex(insertAfter);
+      if (afterIndex === undefined) return;
+      index = afterIndex + 1;
+    } else {
+      const beforeIndex = insertBefore === null ? destination.length : anchorIndex(insertBefore!);
+      if (beforeIndex === undefined) return;
+      index = beforeIndex;
+    }
+
+    const nextQueued = [...destination.slice(0, index), item, ...destination.slice(index)];
+    if (
+      nextQueued.every((candidate, candidateIndex) => candidate.id === queued[candidateIndex]?.id)
+    ) {
+      return;
+    }
+
+    const previousOrder = this.pendingOrder;
+    const revision = ++this.reorderRevision;
+    this.items = [
+      ...nextQueued,
+      ...this.items.filter((candidate) => candidate.placement !== "queued"),
+    ];
+    this.pendingOrder = this.items.map((candidate) => candidate.id);
+    const desiredOrder = this.pendingOrder;
+    this.publish();
+
+    this.syncTask = this.syncTask
+      .catch(() => undefined)
+      .then(() => {
+        if (!this.items.some((candidate) => candidate.id === itemId)) return;
+        const orderedItems = this.applyOrder(this.items, desiredOrder);
+        const steering = orderedItems
+          .filter((candidate) => candidate.placement === "steering")
+          .map(promptFromQueueItem);
+        const followUp = orderedItems
+          .filter((candidate) => candidate.placement === "queued")
+          .map(promptFromQueueItem);
+        return this.options.replace(steering, followUp);
+      })
+      .then(() => {
+        if (this.reorderRevision !== revision) return;
+        this.authoritativeItems = this.applyOrder(this.authoritativeItems, desiredOrder);
+        this.pendingOrder = undefined;
+        this.rebuildItems();
+        this.publish();
+      })
+      .catch((error) => {
+        if (this.reorderRevision === revision) {
+          this.authoritativeItems = this.applyOrder(this.authoritativeItems, previousOrder);
+          this.pendingOrder = undefined;
+          this.rebuildItems();
+          this.publish();
+        }
+        console.error("[workbench-pi] queue reorder failed", error);
+      });
+  }
+
+  private applyOrder(
+    items: readonly QueueItem[],
+    order: readonly string[] | undefined,
+  ): readonly QueueItem[] {
+    if (!order) return items;
+    const byId = new Map(items.map((item) => [item.id, item]));
+    const ordered = order.flatMap((id) => {
+      const item = byId.get(id);
+      if (!item) return [];
+      byId.delete(id);
+      return [item];
+    });
+    return [...ordered, ...byId.values()];
   }
 
   private withPendingSteers(items: readonly QueueItem[]): readonly QueueItem[] {
@@ -317,6 +450,9 @@ export class PiMessageQueue {
 
     const queueItemId = admission.queueItemId ?? optimisticId;
     if (queueItemId !== optimisticId) {
+      if (this.pendingRemovals.delete(optimisticId)) {
+        this.pendingRemovals.add(queueItemId);
+      }
       const pending = this.pendingEnqueues.get(optimisticId);
       this.pendingEnqueues.delete(optimisticId);
       if (pending) {
@@ -347,7 +483,14 @@ export class PiMessageQueue {
     const pending = [...this.pendingEnqueues.values()].filter(
       (item) => !authoritativeIds.has(item.id),
     );
-    this.items = this.withPendingSteers([...this.authoritativeItems, ...pending]);
+    this.items = this.applyOrder(
+      this.withPendingSteers(
+        [...this.authoritativeItems, ...pending].filter(
+          (item) => !this.pendingRemovals.has(item.id),
+        ),
+      ),
+      this.pendingOrder,
+    );
   }
 
   private publish(): void {

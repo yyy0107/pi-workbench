@@ -76,7 +76,12 @@ test("creates, idempotently canonicalizes, renames, and metadata-deletes workspa
   const events: WorkspaceStoreEvent[] = [];
   const unsubscribe = store.subscribe((event) => events.push(event));
 
-  assert.deepEqual(await store.list(), { items: [], archivedSessionIds: [] });
+  assert.deepEqual(await store.list(), {
+    items: [],
+    archivedSessionIds: [],
+    pinnedWorkspaceIds: [],
+    pinnedSessionIds: [],
+  });
   const created = await store.create({ path: alpha });
   assert.equal(created.created, true);
   assert.equal(created.workspace.title, "alpha");
@@ -115,7 +120,12 @@ test("creates, idempotently canonicalizes, renames, and metadata-deletes workspa
     true,
     "metadata deletion must keep the directory",
   );
-  assert.deepEqual(await store.list(), { items: [], archivedSessionIds: [] });
+  assert.deepEqual(await store.list(), {
+    items: [],
+    archivedSessionIds: [],
+    pinnedWorkspaceIds: [],
+    pinnedSessionIds: [],
+  });
   const recreated = await store.create(alpha);
   assert.notEqual(recreated.workspace.workspaceId, created.workspace.workspaceId);
   unsubscribe();
@@ -272,20 +282,28 @@ test("prepends attached sessions, reorders them locally, and archives globally",
     },
   );
 
-  assert.deepEqual(await store.archiveSession("session-a"), {
-    archivedSessionIds: ["session-a"],
-  });
-  assert.deepEqual(await store.archiveSession({ sessionId: "session-a" }), {
-    archivedSessionIds: ["session-a"],
-  });
-  assert.deepEqual(await store.archiveSession("session-c"), {
-    archivedSessionIds: ["session-a", "session-c"],
-  });
-  assert.deepEqual(await store.setSessionArchived("session-a", false), {
-    archivedSessionIds: ["session-c"],
-  });
+  const archivedAlpha = await store.archiveSession("session-a");
+  assert.deepEqual(archivedAlpha, { sessionId: "session-a", archived: true });
+
+  const alreadyArchivedAlpha = await store.archiveSession({ sessionId: "session-a" });
+  assert.deepEqual(alreadyArchivedAlpha, { sessionId: "session-a", archived: true });
+
+  const archivedBeta = await store.archiveSession("session-c");
+  assert.deepEqual(archivedBeta, { sessionId: "session-c", archived: true });
+
+  const unarchivedAlpha = await store.setSessionArchived("session-a", false);
+  assert.deepEqual(unarchivedAlpha, { sessionId: "session-a", archived: false });
   const list = await store.list();
   assert.deepEqual(list.archivedSessionIds, ["session-c"]);
+  assert.deepEqual(
+    list.items.find((workspace) => workspace.workspaceId === alphaWorkspace.workspaceId)
+      ?.sessionIds,
+    ["session-b", "session-a", "session-d"],
+  );
+  assert.deepEqual(
+    list.items.find((workspace) => workspace.workspaceId === betaWorkspace.workspaceId)?.sessionIds,
+    [],
+  );
 
   assert.deepEqual(
     events.map((event) => event.type),
@@ -293,9 +311,25 @@ test("prepends attached sessions, reorders them locally, and archives globally",
       "host/workspace-changed",
       "host/workspace-changed",
       "host/workspace-changed",
-      "host/archived-sessions-changed",
-      "host/archived-sessions-changed",
-      "host/archived-sessions-changed",
+      "host/session-archive-changed",
+      "host/session-archive-changed",
+      "host/session-archive-changed",
+      "host/session-archive-changed",
+    ],
+  );
+  assert.deepEqual(
+    events
+      .slice(-4)
+      .map((event) =>
+        event.type === "host/session-archive-changed"
+          ? [event.sessionId, event.archived, event.workspace?.sessionIds]
+          : [event.type],
+      ),
+    [
+      ["session-a", true, ["session-b", "session-d"]],
+      ["session-a", true, ["session-b", "session-d"]],
+      ["session-c", true, []],
+      ["session-a", false, ["session-b", "session-a", "session-d"]],
     ],
   );
 });
@@ -375,6 +409,69 @@ test("reloads state and only imports unknown legacy workspaces once", async (t) 
   assert.deepEqual(await third.list(), await second.list());
 });
 
+test("persists workspace and session pins and publishes authoritative changes", async (t) => {
+  const files = await fixture(t);
+  const alpha = await files.workspace("alpha");
+  const first = new WorkspaceStore({ stateFile: files.stateFile, now: tickingClock() });
+  const imported = await first.reconcile([{ id: "session-a", cwd: alpha }]);
+  const workspaceId = imported.items[0].workspaceId;
+  const events: WorkspaceStoreEvent[] = [];
+  first.subscribe((event) => events.push(event));
+
+  assert.deepEqual(await first.setPinned({ workspaceId, pinned: true }), {
+    workspaceId,
+    pinned: true,
+  });
+  assert.deepEqual(await first.setSessionPinned({ sessionId: "session-a", pinned: true }), {
+    sessionId: "session-a",
+    pinned: true,
+  });
+  assert.deepEqual((await first.list()).pinnedWorkspaceIds, [workspaceId]);
+  assert.deepEqual((await first.list()).pinnedSessionIds, ["session-a"]);
+
+  const second = new WorkspaceStore({ stateFile: files.stateFile, now: tickingClock() });
+  assert.deepEqual((await second.list()).pinnedWorkspaceIds, [workspaceId]);
+  assert.deepEqual((await second.list()).pinnedSessionIds, ["session-a"]);
+  await second.removeSession("session-a");
+  await second.delete(workspaceId);
+  assert.deepEqual((await second.list()).pinnedWorkspaceIds, []);
+  assert.deepEqual((await second.list()).pinnedSessionIds, []);
+
+  assert.deepEqual(
+    events.map((event) => event.type),
+    ["host/workspace-pinned-changed", "host/session-pinned-changed"],
+  );
+});
+
+test("unarchive restores an unassigned session to its canonical workspace atomically", async (t) => {
+  const files = await fixture(t);
+  const alpha = await files.workspace("alpha");
+  const store = new WorkspaceStore({ stateFile: files.stateFile, now: tickingClock() });
+  const imported = await store.reconcile([{ id: "session-a", cwd: alpha }]);
+  await store.archiveSession("session-a");
+  await store.delete(imported.items[0].workspaceId);
+
+  const events: WorkspaceStoreEvent[] = [];
+  store.subscribe((event) => events.push(event));
+  assert.deepEqual(await store.unarchiveSession({ id: "session-a", cwd: alpha }), {
+    sessionId: "session-a",
+    archived: false,
+  });
+
+  const restored = await store.list();
+  assert.deepEqual(restored.archivedSessionIds, []);
+  assert.deepEqual(
+    restored.items.map((workspace) => [workspace.title, workspace.sessionIds]),
+    [["alpha", ["session-a"]]],
+  );
+  assert.equal(events.length, 1);
+  assert.equal(events[0]?.type, "host/session-archive-changed");
+  if (events[0]?.type !== "host/session-archive-changed") {
+    assert.fail("expected one atomic archive event");
+  }
+  assert.deepEqual(events[0].workspace?.sessionIds, ["session-a"]);
+});
+
 test("explicit session removal clears workspace and archive metadata", async (t) => {
   const files = await fixture(t);
   const alpha = await files.workspace("alpha");
@@ -394,6 +491,6 @@ test("explicit session removal clears workspace and archive metadata", async (t)
   assert.equal(reconciled.items[0].workspaceId, workspace.workspaceId);
   assert.deepEqual(
     events.map((event) => event.type),
-    ["host/workspace-changed", "host/archived-sessions-changed"],
+    ["host/workspace-changed", "host/session-archive-changed"],
   );
 });

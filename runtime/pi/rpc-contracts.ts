@@ -101,7 +101,28 @@ export interface WorkspaceView {
 
 export interface WorkspaceListValue {
   items: WorkspaceView[];
-  archivedSessionIds: string[];
+  /** Server-owned presentation state. Missing fields are treated as empty for older hosts. */
+  pinnedWorkspaceIds?: string[];
+  pinnedSessionIds?: string[];
+}
+
+export interface WorkspaceArchivedSessionsValue {
+  sessionIds: string[];
+}
+
+export interface WorkspaceSessionArchiveValue {
+  sessionId: string;
+  archived: boolean;
+}
+
+export interface WorkspacePinValue {
+  workspaceId: string;
+  pinned: boolean;
+}
+
+export interface WorkspaceSessionPinValue {
+  sessionId: string;
+  pinned: boolean;
 }
 
 export interface DirectoryEntry {
@@ -116,6 +137,64 @@ export interface HostDirectoryListing {
   crumbs: DirectoryEntry[];
   entries: DirectoryEntry[];
   truncated: boolean;
+}
+
+export interface WorkspaceFileEntry {
+  name: string;
+  relativePath: string;
+  absolutePath: string;
+  kind: "file" | "directory";
+  hidden: boolean;
+  symbolicLink?: boolean;
+}
+
+export interface WorkspaceFilesListPayload {
+  workspaceId: string;
+  relativePath?: string;
+}
+
+export interface WorkspaceFilesListValue {
+  workspaceId: string;
+  relativePath: string;
+  absolutePath: string;
+  entries: WorkspaceFileEntry[];
+  truncated: boolean;
+}
+
+export interface WorkspaceFileReadPayload {
+  workspaceId: string;
+  relativePath: string;
+}
+
+export type WorkspaceFileDescribePayload = WorkspaceFileReadPayload;
+
+export interface WorkspaceFileDescriptorValue {
+  workspaceId: string;
+  relativePath: string;
+  absolutePath: string;
+  name: string;
+  mediaType: string;
+  encoding: "utf-8" | null;
+  version: string;
+  size: number;
+  modifiedAt: number;
+}
+
+export interface WorkspaceFileSnapshotValue {
+  workspaceId: string;
+  relativePath: string;
+  absolutePath: string;
+  name: string;
+  content: string;
+  encoding: "utf-8";
+  version: string;
+  size: number;
+  modifiedAt: number;
+}
+
+export interface WorkspaceFileWritePayload extends WorkspaceFileReadPayload {
+  content: string;
+  expectedVersion: string;
 }
 
 export interface HostDescription {
@@ -165,6 +244,7 @@ export interface ModelCatalogFailure {
 export interface ConfigurableProviderView {
   provider: string;
   displayName: string;
+  kind: "built-in" | "custom";
   settingsNs: string;
   settingsPath: string[];
   active: boolean;
@@ -177,9 +257,69 @@ export interface ConfigurableProviderView {
     | "fallback"
     | "models_json_key"
     | "models_json_command";
+  authType?: "api_key" | "oauth";
+  authMethods?: ModelProviderAuthMethod[];
   apiKeyConfigurable: boolean;
   removable: boolean;
   configurationDefined: boolean;
+}
+
+export interface ModelProviderAuthMethod {
+  type: "api_key" | "oauth";
+  label: string;
+  isSubscription?: boolean;
+}
+
+export interface StartModelProviderLoginPayload {
+  provider: string;
+  authType: "oauth";
+}
+
+export interface ModelProviderLoginPayload {
+  loginId: string;
+}
+
+export interface RespondModelProviderLoginPayload extends ModelProviderLoginPayload {
+  promptId: string;
+  value: string;
+}
+
+export interface ModelProviderLoginPrompt {
+  id: string;
+  type: "text" | "secret" | "select" | "manual_code";
+  message: string;
+  placeholder?: string;
+  options?: Array<{
+    id: string;
+    label: string;
+    description?: string;
+  }>;
+}
+
+export type ModelProviderLoginEvent =
+  | {
+      type: "info";
+      message: string;
+      links?: Array<{ url: string; label?: string }>;
+    }
+  | { type: "auth_url"; url: string; instructions?: string }
+  | {
+      type: "device_code";
+      userCode: string;
+      verificationUri: string;
+      intervalSeconds?: number;
+      expiresInSeconds?: number;
+    }
+  | { type: "progress"; message: string };
+
+export interface ModelProviderLoginValue {
+  loginId: string;
+  provider: string;
+  authType: "oauth";
+  status: "running" | "complete" | "failed" | "cancelled";
+  revision: number;
+  events: ModelProviderLoginEvent[];
+  prompt?: ModelProviderLoginPrompt;
 }
 
 export interface ModelProvidersValue {
@@ -514,6 +654,14 @@ export interface SessionRenamePayload {
 export interface SessionRenameValue {
   title: string;
   seq: number;
+}
+
+export interface SessionDeletePayload {
+  sessionId: string;
+}
+
+export interface SessionDeleteValue {
+  deleted: true;
 }
 
 export interface SessionForkPayload {

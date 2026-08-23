@@ -14,7 +14,7 @@ const moduleHooks = registerHooks({
     if (
       specifier.startsWith(".") &&
       !/\.[^/]+$/.test(specifier) &&
-      context.parentURL?.includes("/runtime/pi/")
+      context.parentURL?.includes("/runtime/")
     ) {
       return nextResolve(`${specifier}.ts`, context);
     }
@@ -33,6 +33,7 @@ const {
   SerializedSessionMutations,
   sessionModifiedAt,
   submitPrompt,
+  updatePromptQueueItem,
 } = (await import(
   new URL("./session-registry.ts", import.meta.url).href
 )) as typeof import("./session-registry");
@@ -964,6 +965,16 @@ test("publishes prompt admission and retains the HTTP RPC id for queued follow-u
     queued: true,
     queueItemId: "follow-up-http-rpc",
   });
+
+  await updatePromptQueueItem(host.id, "cancelled-follow-up-rpc", { kind: "remove" });
+  const cancelledAdmission = await submitPrompt(
+    host.id,
+    "followUp",
+    { message: "must never be consumed" },
+    { rpcId: "cancelled-follow-up-rpc" },
+  );
+  assert.deepEqual(cancelledAdmission, { queued: false });
+  assert.equal(host.followUpMessages.includes("must never be consumed"), false);
 
   const admission = muxFrames.find(
     (frame) =>

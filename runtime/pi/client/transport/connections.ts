@@ -54,7 +54,9 @@ const HOST_PAYLOAD_TYPES = new Set([
   "host/workspace-changed",
   "host/workspace-removed",
   "host/workspace-order-changed",
-  "host/archived-sessions-changed",
+  "host/workspace-pinned-changed",
+  "host/session-archive-changed",
+  "host/session-pinned-changed",
   "host/remote-event",
   "stream/error",
 ]);
@@ -332,8 +334,16 @@ function isHostPayload(payload: ServerRequestFrame["payload"]): boolean {
       return isNonEmptyString(payload.workspaceId);
     case "host/workspace-order-changed":
       return isStringArray(payload.workspaceIds);
-    case "host/archived-sessions-changed":
-      return isStringArray(payload.archivedSessionIds);
+    case "host/workspace-pinned-changed":
+      return isNonEmptyString(payload.workspaceId) && typeof payload.pinned === "boolean";
+    case "host/session-archive-changed":
+      return (
+        isNonEmptyString(payload.sessionId) &&
+        typeof payload.archived === "boolean" &&
+        (payload.workspace === undefined || isWorkspaceView(payload.workspace))
+      );
+    case "host/session-pinned-changed":
+      return isNonEmptyString(payload.sessionId) && typeof payload.pinned === "boolean";
     case "host/remote-event":
       return isNonEmptyString(payload.event) && Array.isArray(payload.args);
     case "stream/error":

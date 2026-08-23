@@ -122,7 +122,9 @@ const HOST_TYPES = new Set<string>([
   "host/workspace-changed",
   "host/workspace-removed",
   "host/workspace-order-changed",
-  "host/archived-sessions-changed",
+  "host/workspace-pinned-changed",
+  "host/session-archive-changed",
+  "host/session-pinned-changed",
   "host/remote-event",
   "stream/error",
 ]);

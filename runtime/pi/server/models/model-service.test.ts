@@ -199,6 +199,7 @@ test("maps provider auth status without reading credential values", async () => 
       {
         provider: "anthropic",
         displayName: "Anthropic",
+        kind: "built-in",
         settingsNs: "",
         settingsPath: [],
         active: true,
@@ -210,6 +211,7 @@ test("maps provider auth status without reading credential values", async () => 
       {
         provider: "dormant",
         displayName: "Dormant gateway",
+        kind: "built-in",
         settingsNs: "llm.pi",
         settingsPath: ["providers", "dormant"],
         active: false,
@@ -222,6 +224,7 @@ test("maps provider auth status without reading credential values", async () => 
       {
         provider: "openai",
         displayName: "OpenAI",
+        kind: "built-in",
         settingsNs: "llm.openai",
         settingsPath: ["connection"],
         active: true,
@@ -262,7 +265,185 @@ test("maps provider auth status without reading credential values", async () => 
   });
 });
 
-test("persists an internal provider API key without making the provider removable", async () => {
+test("refreshes externally changed Pi account authentication before listing providers", async () => {
+  let authRefreshed = false;
+  const service = modelService({
+    runtime: runtime({
+      getProviders: () => [
+        {
+          id: "openai-codex",
+          name: "OpenAI Codex",
+          auth: {
+            oauth: {
+              name: "OpenAI (ChatGPT Plus/Pro)",
+              isSubscription: true,
+              login() {},
+            },
+          },
+        },
+      ],
+      getModels: () => [],
+      getAvailable: async (provider) => {
+        assert.equal(provider, undefined);
+        authRefreshed = true;
+        return [];
+      },
+      getProviderAuthStatus: () =>
+        authRefreshed ? { configured: true, source: "stored" } : { configured: false },
+      isUsingOAuth: () => true,
+      getRegisteredProviderIds: () => [],
+    }),
+  });
+
+  const result = await service.providers();
+  assert.equal(authRefreshed, true);
+  assert.deepEqual(result.providers[0], {
+    provider: "openai-codex",
+    displayName: "OpenAI Codex",
+    kind: "built-in",
+    settingsNs: "",
+    settingsPath: [],
+    active: true,
+    configured: true,
+    authSource: "stored",
+    authType: "oauth",
+    authMethods: [
+      {
+        type: "oauth",
+        label: "OpenAI (ChatGPT Plus/Pro)",
+        isSubscription: true,
+      },
+    ],
+    apiKeyConfigurable: false,
+    removable: true,
+    configurationDefined: false,
+  });
+});
+
+test("runs provider-owned account login prompts and keeps answers out of snapshots", async () => {
+  let configured = false;
+  const oauthProviders: ModelRuntimeProvider[] = [
+    {
+      id: "openai-codex",
+      name: "OpenAI Codex",
+      auth: {
+        oauth: {
+          name: "OpenAI (ChatGPT Plus/Pro)",
+          loginLabel: "Sign in with ChatGPT",
+          isSubscription: true,
+          login() {},
+        },
+        apiKey: { name: "OpenAI API key", login() {} },
+      },
+    },
+  ];
+  const service = modelService({
+    runtime: runtime({
+      getProviders: () => oauthProviders,
+      getModels: () => [],
+      getAvailable: async () => [],
+      getProviderAuthStatus: () =>
+        configured ? { configured: true, source: "stored" } : { configured: false },
+      isUsingOAuth: () => configured,
+      login: async (provider, type, interaction) => {
+        assert.equal(provider, "openai-codex");
+        assert.equal(type, "oauth");
+        assert.ok(interaction.signal);
+        interaction.notify({
+          type: "auth_url",
+          url: "https://auth.example.test/start",
+          instructions: "Open the provider login page.",
+        });
+        const flow = await interaction.prompt({
+          type: "select",
+          message: "Choose a login flow",
+          options: [
+            { id: "browser", label: "Browser" },
+            { id: "device", label: "Device code" },
+          ],
+        });
+        assert.equal(flow, "browser");
+        interaction.notify({ type: "progress", message: "Waiting for authorization" });
+        const code = await interaction.prompt({
+          type: "manual_code",
+          message: "Paste the authorization code",
+          placeholder: "code",
+        });
+        assert.equal(code, "private-oauth-code");
+        configured = true;
+      },
+    }),
+  });
+
+  const providersValue = await service.providers();
+  assert.deepEqual(providersValue.providers[0]?.authMethods, [
+    {
+      type: "oauth",
+      label: "Sign in with ChatGPT",
+      isSubscription: true,
+    },
+    { type: "api_key", label: "OpenAI API key" },
+  ]);
+
+  const started = await service.startProviderLogin({
+    provider: "openai-codex",
+    authType: "oauth",
+  });
+  assert.equal(started.status, "running");
+  assert.equal(started.events[0]?.type, "auth_url");
+  assert.equal(started.prompt?.type, "select");
+
+  service.respondProviderLogin({
+    loginId: started.loginId,
+    promptId: started.prompt!.id,
+    value: "browser",
+  });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  const manualCode = service.providerLogin({ loginId: started.loginId });
+  assert.equal(manualCode.prompt?.type, "manual_code");
+  assert.equal(manualCode.events.at(-1)?.type, "progress");
+
+  service.respondProviderLogin({
+    loginId: started.loginId,
+    promptId: manualCode.prompt!.id,
+    value: "private-oauth-code",
+  });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  const completed = service.providerLogin({ loginId: started.loginId });
+  assert.equal(completed.status, "complete");
+  assert.equal(completed.prompt, undefined);
+  assert.equal(JSON.stringify(completed).includes("private-oauth-code"), false);
+});
+
+test("cancels a pending provider account login", async () => {
+  const service = modelService({
+    runtime: runtime({
+      getProviders: () => [
+        {
+          id: "anthropic",
+          name: "Anthropic",
+          auth: { oauth: { name: "Anthropic account", login() {} } },
+        },
+      ],
+      getModels: () => [],
+      login: async (_provider, _type, interaction) => {
+        await interaction.prompt({ type: "text", message: "Organization" });
+      },
+    }),
+  });
+  const started = await service.startProviderLogin({
+    provider: "anthropic",
+    authType: "oauth",
+  });
+  assert.equal(started.prompt?.type, "text");
+  const cancelled = service.cancelProviderLogin({ loginId: started.loginId });
+  assert.equal(cancelled.status, "cancelled");
+  assert.equal(cancelled.prompt, undefined);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(service.providerLogin({ loginId: started.loginId }).status, "cancelled");
+});
+
+test("persists and removes an internal provider API key without deleting the provider", async () => {
   const controller = new AbortController();
   const configurableProviders: ModelRuntimeProvider[] = [
     {
@@ -305,23 +486,37 @@ test("persists an internal provider API key without making the provider removabl
   assert.deepEqual(saved.providers[0], {
     provider: "openai",
     displayName: "OpenAI",
+    kind: "built-in",
     settingsNs: "",
     settingsPath: [],
     active: true,
     configured: true,
     authSource: "stored",
+    authMethods: [{ type: "api_key", label: "API key" }],
     apiKeyConfigurable: true,
-    removable: false,
+    removable: true,
     configurationDefined: false,
   });
   assert.equal(JSON.stringify(saved).includes("private-key"), false);
 
-  await assert.rejects(
-    () => service.removeProvider({ provider: "openai" }, { signal: controller.signal }),
-    (error: unknown) =>
-      error instanceof ModelServiceError && error.code === "model-provider-configuration-readonly",
+  const removed = await service.removeProvider(
+    { provider: "openai" },
+    { signal: controller.signal },
   );
-  assert.equal(logoutCalls, 0);
+  assert.deepEqual(removed.providers[0], {
+    provider: "openai",
+    displayName: "OpenAI",
+    kind: "built-in",
+    settingsNs: "",
+    settingsPath: [],
+    active: true,
+    configured: false,
+    authMethods: [{ type: "api_key", label: "API key" }],
+    apiKeyConfigurable: true,
+    removable: false,
+    configurationDefined: false,
+  });
+  assert.equal(logoutCalls, 1);
 });
 
 test("persists a custom provider catalog, refreshes its route, and keeps credentials separate", async () => {
@@ -418,11 +613,13 @@ test("persists a custom provider catalog, refreshes its route, and keeps credent
   assert.deepEqual(saved.providers[0], {
     provider: "acme",
     displayName: "Acme AI",
+    kind: "custom",
     settingsNs: "",
     settingsPath: [],
     active: true,
     configured: true,
     authSource: "stored",
+    authMethods: [{ type: "api_key", label: "API key" }],
     apiKeyConfigurable: true,
     removable: true,
     configurationDefined: true,
@@ -510,6 +707,24 @@ test("restores an internal provider's adapter model catalog", async () => {
     baseURL: "https://api.openai.test/v1",
     api: "openai-responses",
     configurationDefined: true,
+    modelsSource: "adapter",
+    models: [
+      {
+        id: "gpt-reasoning",
+        name: "GPT Reasoning",
+        contextWindow: 200_000,
+        maxTokens: 32_000,
+      },
+    ],
+  });
+
+  await service.removeProvider({ provider: "openai" });
+  assert.deepEqual(await store.providers(), {});
+  assert.deepEqual(await service.providerConfig({ provider: "openai" }), {
+    provider: "openai",
+    displayName: "OpenAI",
+    defaultBaseURL: "https://api.openai.com/v1",
+    configurationDefined: false,
     modelsSource: "adapter",
     models: [
       {

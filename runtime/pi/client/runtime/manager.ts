@@ -14,6 +14,7 @@ import { workbenchBrowserStorage, WORKBENCH_STORAGE_PREFIX } from "@/runtime/ada
 import { appendWorkspaceFeedbackContext } from "@/components/right-workspace/feedback/feedback-adapter";
 import type { WorkspaceFeedbackStore } from "@/components/right-workspace/feedback/feedback-store";
 import {
+  parseWorkbenchComposerUserProjection,
   parseWorkbenchComposerCommandResponseDetails,
   parseWorkbenchComposerSubmission,
   WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE,
@@ -26,6 +27,7 @@ import {
   type PiQueuedPrompt,
   type PiQueueMode,
   type PiSessionSummary,
+  type PiUserMessage,
   type PiWorkspaceSummary,
 } from "../../contracts";
 import {
@@ -34,17 +36,22 @@ import {
   createPiRpcId,
   createPiRpcSession,
   describePiHost,
+  deletePiRpcSession,
   deletePiWorkspace,
   fetchPiRpcSessionHistory,
   forkPiRpcSession,
+  listPiArchivedWorkspaceSessions,
   listPiRpcSessions,
   listPiWorkspaces,
   PiApiError,
   promptPiRpcSession,
   renamePiRpcSession,
+  replacePiSessionQueue,
   respondPiRpc,
   selectPiRpcSessionModel,
   setPiSessionQueuePaused,
+  setPiWorkspacePinned,
+  setPiWorkspaceSessionPinned,
   unarchivePiWorkspaceSession,
   updatePiRpcSessionQueue,
 } from "../transport/api";
@@ -102,10 +109,58 @@ import {
 
 const ARCHIVED_STORAGE_KEY = `${WORKBENCH_STORAGE_PREFIX}pi-archived-sessions`;
 const PINNED_STORAGE_KEY = `${WORKBENCH_STORAGE_PREFIX}pi-pinned-sessions`;
+const PINNED_WORKSPACES_STORAGE_KEY = "pi-workbench:pinned-workspaces";
+
+function livePiUserMessage(
+  message: PiUserMessage,
+  id: string,
+  sequence: number | undefined,
+  workbenchComposer: PiUserMessage["workbenchComposer"],
+): ThreadUserMessage {
+  const appendMessage = queueItemAppendMessage({
+    id,
+    placement: "context",
+    message: {
+      id,
+      role: "user",
+      content:
+        typeof message.content === "string"
+          ? [{ type: "text", text: message.content }]
+          : message.content.map((part) => ({ ...part })),
+      source: { kind: "user" },
+    },
+  });
+  const projected = optimisticUserMessage(appendMessage, id) as ThreadUserMessage;
+  const content = workbenchComposer
+    ? [
+        { type: "text" as const, text: workbenchComposer.sourceText },
+        ...projected.content.filter((part) => part.type === "image" || part.type === "file"),
+      ]
+    : projected.content;
+
+  return {
+    ...projected,
+    content,
+    createdAt: new Date(message.timestamp ?? Date.now()),
+    metadata: {
+      ...projected.metadata,
+      custom: {
+        ...projected.metadata.custom,
+        piUserMessageStarted: true,
+        piMessageTimestamp: message.timestamp ?? null,
+        ...(sequence === undefined ? {} : { piEventSeq: sequence }),
+        ...(workbenchComposer?.document === undefined
+          ? {}
+          : { workbenchComposerDocument: workbenchComposer.document }),
+      },
+    },
+  };
+}
 
 export interface PiSessionSnapshot {
   messages: readonly ThreadMessage[];
   isRunning: boolean;
+  runStartedAt?: number;
   isLoading: boolean;
   queuePaused: boolean;
   steeringQueueIds: readonly string[];
@@ -211,6 +266,19 @@ function stringSetsEqual(left: ReadonlySet<string>, right: readonly string[]): b
   return left.size === right.length && right.every((value) => left.has(value));
 }
 
+function workspaceViewsEqual(left: WorkspaceView | undefined, right: WorkspaceView): boolean {
+  return (
+    left !== undefined &&
+    left.workspaceId === right.workspaceId &&
+    left.path === right.path &&
+    left.title === right.title &&
+    left.createdAt === right.createdAt &&
+    left.updatedAt === right.updatedAt &&
+    left.sessionIds.length === right.sessionIds.length &&
+    left.sessionIds.every((sessionId, index) => sessionId === right.sessionIds[index])
+  );
+}
+
 export class PiClientSession {
   readonly localId: string;
   readonly runtimeExtras: {
@@ -225,7 +293,9 @@ export class PiClientSession {
   private baseMessages: ThreadMessage[] = [];
   private liveMessages: ThreadMessage[] = [];
   private streamingMessage?: ThreadMessage;
+  private activeUserMessageId?: string;
   private activeAssistantMessageId?: string;
+  private runStartedAtValue?: number;
   private readonly authoritativeMessageIdAliases = new Map<string, string>();
   private snapshotValue: PiSessionSnapshot;
   private openTask?: Promise<void>;
@@ -252,9 +322,11 @@ export class PiClientSession {
     this.manager = manager;
     this.localId = localId;
     this.remoteIdValue = remoteId;
+    this.runStartedAtValue = running ? Date.now() : undefined;
     this.snapshotValue = {
       messages: [],
       isRunning: running,
+      runStartedAt: this.runStartedAtValue,
       isLoading: Boolean(remoteId),
       queuePaused: false,
       steeringQueueIds: [],
@@ -265,6 +337,7 @@ export class PiClientSession {
       createId: () => createPiRpcId("session.prompt"),
       enqueue: (mode, prompt, rpcId) => this.queuePrompt(mode, prompt, rpcId),
       update: (itemId, action) => this.updateQueue(itemId, action),
+      replace: (steering, followUp) => this.replaceQueue(steering, followUp),
       setPaused: (paused, steering, followUp) => this.setQueuePaused(paused, steering, followUp),
       onSteerRejected: (itemId) => this.rejectOptimisticSteer(itemId),
       onChange: () => this.publishQueueState(),
@@ -393,6 +466,8 @@ export class PiClientSession {
     );
     this.promptRequestPending = true;
     this.localRunLeaseActive = true;
+    const submittedAt = message.createdAt.getTime();
+    this.runStartedAtValue = Number.isFinite(submittedAt) ? submittedAt : Date.now();
     // A running external-store snapshot is a complete turn: user and assistant rows are both
     // present from its first observable frame and keep the same ids for the whole stream. Establish
     // the local lease before publishing so synchronous subscribers cannot observe an unprotected
@@ -542,6 +617,14 @@ export class PiClientSession {
     await setPiSessionQueuePaused(this.remoteIdValue, paused, steering, followUp);
   }
 
+  private async replaceQueue(
+    steering: readonly PiQueuedPrompt[],
+    followUp: readonly PiQueuedPrompt[],
+  ): Promise<void> {
+    if (!this.remoteIdValue) throw new PiApiError("pi_session_not_found", 404);
+    await replacePiSessionQueue(this.remoteIdValue, steering, followUp);
+  }
+
   applyQueueSnapshot(items: readonly QueueItem[]): void {
     this.messageQueue.replaceAuthoritative(items);
   }
@@ -647,7 +730,9 @@ export class PiClientSession {
     if (event.type === "message_start") {
       this.markPromptStarted();
       const message = eventMessage(event);
-      if (message?.role === "assistant") {
+      if (message?.role === "user") {
+        this.publishLiveUserMessage(message, sequence, undefined, false);
+      } else if (message?.role === "assistant") {
         this.activeMessageTiming = {
           streamStartTime: Date.now(),
           totalChunks: 0,
@@ -760,6 +845,11 @@ export class PiClientSession {
     if (event.type === "message_end") {
       this.markPromptStarted();
       const message = eventMessage(event);
+      if (message?.role === "user") {
+        const workbenchComposer = parseWorkbenchComposerUserProjection(event.workbenchComposer);
+        this.publishLiveUserMessage(message, sequence, workbenchComposer, true);
+        return;
+      }
       if (message?.role === "assistant") {
         const assistantMessage = message as PiAssistantMessage;
         const timing = this.completeMessageTiming(assistantMessage);
@@ -770,7 +860,7 @@ export class PiClientSession {
           this.activeAssistantMessageId ??
           this.streamingMessage?.id ??
           createClientMessageId("pi-assistant");
-        this.liveMessages.push(
+        this.insertCompletedAssistantMessage(
           piAssistantToThreadMessage(assistantMessage, assistantMessageId, {
             optimistic: true,
             timing,
@@ -815,6 +905,76 @@ export class PiClientSession {
         await this.reload();
       })
       .catch((error) => console.error("[workbench-pi] stream rebaseline failed", error));
+  }
+
+  private publishLiveUserMessage(
+    message: PiUserMessage,
+    sequence: number | undefined,
+    workbenchComposer: PiUserMessage["workbenchComposer"],
+    completed: boolean,
+  ): void {
+    const generatedId =
+      sequence === undefined ? createClientMessageId("pi-user") : `pi-event-${sequence}`;
+    const activeIndex = this.activeUserMessageId
+      ? this.liveMessages.findIndex((candidate) => candidate.id === this.activeUserMessageId)
+      : -1;
+    const rawUserMessage = livePiUserMessage(message, generatedId, sequence, undefined);
+    const projectedUserMessage = livePiUserMessage(
+      message,
+      generatedId,
+      sequence,
+      workbenchComposer,
+    );
+    const optimisticIndex =
+      activeIndex >= 0
+        ? activeIndex
+        : this.liveMessages.findIndex(
+            (candidate): candidate is ThreadUserMessage =>
+              candidate.role === "user" &&
+              candidate.metadata.custom.piOptimistic === true &&
+              candidate.metadata.custom.piUserMessageStarted !== true &&
+              (sameUserPrompt(candidate, rawUserMessage) ||
+                sameUserPrompt(candidate, projectedUserMessage)),
+          );
+
+    let publishedId = generatedId;
+    let isSteering = false;
+    if (optimisticIndex < 0) {
+      const alreadyPublished = this.liveMessages.some(
+        (candidate) =>
+          candidate.role === "user" && candidate.metadata.custom.piEventSeq === sequence,
+      );
+      const alreadyAuthoritative = this.baseMessages.some(
+        (candidate) =>
+          candidate.role === "user" && candidate.metadata.custom.piEventSeq === sequence,
+      );
+      if (!alreadyPublished && !alreadyAuthoritative) {
+        this.liveMessages.push(projectedUserMessage);
+      }
+    } else {
+      const optimistic = this.liveMessages[optimisticIndex] as ThreadUserMessage;
+      isSteering = optimistic.metadata.custom.piSteering === true;
+      publishedId = optimistic.id;
+      this.liveMessages[optimisticIndex] = {
+        ...optimistic,
+        ...(activeIndex >= 0 || workbenchComposer ? { content: projectedUserMessage.content } : {}),
+        createdAt: projectedUserMessage.createdAt,
+        metadata: {
+          ...optimistic.metadata,
+          custom: {
+            ...optimistic.metadata.custom,
+            ...projectedUserMessage.metadata.custom,
+          },
+        },
+      };
+    }
+
+    this.activeUserMessageId = completed ? undefined : publishedId;
+    if (!completed && !isSteering) {
+      const messageStartedAt = message.timestamp ?? Date.now();
+      this.runStartedAtValue = Number.isFinite(messageStartedAt) ? messageStartedAt : Date.now();
+    }
+    this.publishMessages();
   }
 
   private updateToolExecution(update: Parameters<typeof applyToolExecutionUpdate>[1]): boolean {
@@ -908,7 +1068,8 @@ export class PiClientSession {
       }
       return;
     }
-    this.replaceSnapshot({ isRunning: running });
+    this.runStartedAtValue = running ? (this.runStartedAtValue ?? Date.now()) : undefined;
+    this.replaceSnapshot({ isRunning: running, runStartedAt: this.runStartedAtValue });
     if (notifyManager && this.remoteIdValue) {
       this.manager.updateRunningFromSession(this.remoteIdValue, running, this);
     }
@@ -954,22 +1115,45 @@ export class PiClientSession {
   private publishMessages(): void {
     this.replaceSnapshot({
       messages: this.currentMessages(),
+      runStartedAt: this.runStartedAtValue,
     });
   }
 
   private publishMessagesAndSetRunning(running: boolean): void {
-    this.replaceSnapshot({ messages: this.currentMessages(), isRunning: running });
+    this.runStartedAtValue = running ? (this.runStartedAtValue ?? Date.now()) : undefined;
+    this.replaceSnapshot({
+      messages: this.currentMessages(),
+      isRunning: running,
+      runStartedAt: this.runStartedAtValue,
+    });
     if (this.remoteIdValue) {
       this.manager.updateRunningFromSession(this.remoteIdValue, running, this);
     }
   }
 
   private currentMessages(): readonly ThreadMessage[] {
-    return coalesceConsecutiveAssistantMessages([
-      ...this.baseMessages,
-      ...this.liveMessages,
-      ...(this.streamingMessage ? [this.streamingMessage] : []),
-    ]);
+    const liveMessages = [...this.liveMessages];
+    if (this.streamingMessage) {
+      const pendingSteerIndex = this.firstPendingSteeringMessageIndex(liveMessages);
+      if (pendingSteerIndex < 0) liveMessages.push(this.streamingMessage);
+      else liveMessages.splice(pendingSteerIndex, 0, this.streamingMessage);
+    }
+    return coalesceConsecutiveAssistantMessages([...this.baseMessages, ...liveMessages]);
+  }
+
+  private firstPendingSteeringMessageIndex(messages: readonly ThreadMessage[]): number {
+    return messages.findIndex(
+      (message) =>
+        message.role === "user" &&
+        message.metadata.custom.piSteering === true &&
+        message.metadata.custom.piUserMessageStarted !== true,
+    );
+  }
+
+  private insertCompletedAssistantMessage(message: ThreadMessage): void {
+    const pendingSteerIndex = this.firstPendingSteeringMessageIndex(this.liveMessages);
+    if (pendingSteerIndex < 0) this.liveMessages.push(message);
+    else this.liveMessages.splice(pendingSteerIndex, 0, message);
   }
 
   private stabilizeAuthoritativeMessageIds(
@@ -1004,7 +1188,20 @@ export class PiClientSession {
       if (this.steeringMessageIds.has(item.id)) continue;
       const messageId = `pi-steer-${item.id}`;
       this.steeringMessageIds.set(item.id, messageId);
-      this.liveMessages.push(optimisticUserMessage(queueItemAppendMessage(item), messageId));
+      const steeringMessage = optimisticUserMessage(
+        queueItemAppendMessage(item),
+        messageId,
+      ) as ThreadUserMessage;
+      this.liveMessages.push({
+        ...steeringMessage,
+        metadata: {
+          ...steeringMessage.metadata,
+          custom: {
+            ...steeringMessage.metadata.custom,
+            piSteering: true,
+          },
+        },
+      });
       messagesChanged = true;
     }
     this.replaceSnapshot({
@@ -1012,11 +1209,7 @@ export class PiClientSession {
       steeringQueueIds: this.messageQueue.steeringItems.map((item) => item.id),
       ...(messagesChanged
         ? {
-            messages: coalesceConsecutiveAssistantMessages([
-              ...this.baseMessages,
-              ...this.liveMessages,
-              ...(this.streamingMessage ? [this.streamingMessage] : []),
-            ]),
+            messages: this.currentMessages(),
           }
         : {}),
     });
@@ -1052,6 +1245,7 @@ export class PiClientSession {
 export class PiSessionManager {
   readonly connections: PiConnectionController;
   private readonly listeners = new Set<Listener>();
+  private readonly threadListListeners = new Set<Listener>();
   private readonly activeSessionListeners = new Set<Listener>();
   private readonly summaries = new Map<string, PiSessionSummary>();
   private readonly workspaces = new Map<string, WorkspaceView>();
@@ -1064,6 +1258,7 @@ export class PiSessionManager {
   private readonly pendingInteractions = new Map<string, StoredPendingInteraction>();
   private readonly archived = new Set<string>();
   private readonly pinned = new Set<string>();
+  private readonly pinnedWorkspaces = new Set<string>();
   private readonly completed = new Set<string>();
   private running = new Set<string>();
   private activeLocalId?: string;
@@ -1115,6 +1310,7 @@ export class PiSessionManager {
       id: workspace.workspaceId,
       name: workspace.title,
       cwd: workspace.path,
+      pinned: this.pinnedWorkspaces.has(workspace.workspaceId),
     }));
   }
 
@@ -1251,15 +1447,20 @@ export class PiSessionManager {
     return {
       piRunning: summary.running,
       piPinned: this.pinned.has(remoteId),
-      piWorkspaceId: workspace?.workspaceId,
-      piWorkspaceName: workspace?.title,
-      piWorkspaceCwd: workspace?.path,
+      piWorkspaceId: workspace?.workspaceId ?? summary.workspace.id,
+      piWorkspaceName: workspace?.title ?? summary.workspace.name,
+      piWorkspaceCwd: workspace?.path ?? summary.workspace.cwd,
     };
   }
 
   subscribe = (listener: Listener): (() => void) => {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
+  };
+
+  subscribeThreadList = (listener: Listener): (() => void) => {
+    this.threadListListeners.add(listener);
+    return () => this.threadListListeners.delete(listener);
   };
 
   start(): Promise<void> {
@@ -1270,7 +1471,11 @@ export class PiSessionManager {
   }
 
   private async loadInitialMetadata(): Promise<void> {
-    await Promise.all([this.loadArchiveState(), this.loadPinnedState()]);
+    const [, legacyPinnedSessionIds, legacyPinnedWorkspaceIds] = await Promise.all([
+      this.loadArchiveState(),
+      this.loadLegacyPinnedIds(PINNED_STORAGE_KEY),
+      this.loadLegacyPinnedIds(PINNED_WORKSPACES_STORAGE_KEY),
+    ]);
     const legacyArchived = [...this.archived];
     await Promise.all([this.refreshMetadata(), this.refreshHostDescription()]);
     for (const sessionId of legacyArchived) {
@@ -1281,6 +1486,7 @@ export class PiSessionManager {
         // The server list remains authoritative if a one-time local migration fails.
       }
     }
+    await this.migrateLegacyPinnedState(legacyPinnedSessionIds, legacyPinnedWorkspaceIds);
     await this.saveArchiveState();
   }
 
@@ -1399,6 +1605,7 @@ export class PiSessionManager {
     if (payload.type === "host/workspace-removed") {
       this.workspaceGeneration += 1;
       this.workspaces.delete(payload.workspaceId);
+      this.pinnedWorkspaces.delete(payload.workspaceId);
       this.notify();
       return;
     }
@@ -1419,10 +1626,41 @@ export class PiSessionManager {
       this.notify();
       return;
     }
-    if (payload.type === "host/archived-sessions-changed") {
+    if (payload.type === "host/workspace-pinned-changed") {
       this.workspaceGeneration += 1;
-      const changed = this.replaceArchived(payload.archivedSessionIds);
+      const changed = payload.pinned
+        ? !this.pinnedWorkspaces.has(payload.workspaceId)
+        : this.pinnedWorkspaces.has(payload.workspaceId);
+      if (payload.pinned) this.pinnedWorkspaces.add(payload.workspaceId);
+      else this.pinnedWorkspaces.delete(payload.workspaceId);
+      if (changed) this.notify();
+      return;
+    }
+    if (payload.type === "host/session-archive-changed") {
+      this.workspaceGeneration += 1;
+      const wasArchived = this.archived.has(payload.sessionId);
+      if (payload.archived) this.archived.add(payload.sessionId);
+      else this.archived.delete(payload.sessionId);
+      let changed = wasArchived !== payload.archived;
+      if (
+        payload.workspace &&
+        !workspaceViewsEqual(this.workspaces.get(payload.workspace.workspaceId), payload.workspace)
+      ) {
+        this.workspaces.set(payload.workspace.workspaceId, payload.workspace);
+        changed = true;
+      }
       void this.saveArchiveState();
+      if (changed) this.notify();
+      this.notifyThreadList();
+      return;
+    }
+    if (payload.type === "host/session-pinned-changed") {
+      this.workspaceGeneration += 1;
+      const changed = payload.pinned
+        ? !this.pinned.has(payload.sessionId)
+        : this.pinned.has(payload.sessionId);
+      if (payload.pinned) this.pinned.add(payload.sessionId);
+      else this.pinned.delete(payload.sessionId);
       if (changed) this.notify();
       return;
     }
@@ -1460,25 +1698,7 @@ export class PiSessionManager {
       return;
     }
     if (payload.type === "host/session-removed") {
-      this.connections.closeSession(payload.sessionId);
-      this.deleteSummary(payload.sessionId);
-      this.running.delete(payload.sessionId);
-      this.completed.delete(payload.sessionId);
-      this.archived.delete(payload.sessionId);
-      this.pendingQueues.delete(payload.sessionId);
-      for (const [key, stored] of this.pendingInteractions) {
-        if (stored.interaction.sessionId === payload.sessionId) {
-          this.pendingInteractions.delete(key);
-        }
-      }
-      this.workspaceGeneration += 1;
-      for (const [workspaceId, workspace] of this.workspaces) {
-        if (!workspace.sessionIds.includes(payload.sessionId)) continue;
-        this.workspaces.set(workspaceId, {
-          ...workspace,
-          sessionIds: workspace.sessionIds.filter((id) => id !== payload.sessionId),
-        });
-      }
+      this.removeSessionMetadata(payload.sessionId);
       this.notify();
       return;
     }
@@ -1611,8 +1831,12 @@ export class PiSessionManager {
     this.metadataMutations = mutations;
     this.metadataRunningMutations = runningMutations;
     const workspaceGeneration = ++this.workspaceGeneration;
-    const task = Promise.all([listPiRpcSessions(), listPiWorkspaces()])
-      .then(([response, workspaceResponse]) => {
+    const task = Promise.all([
+      listPiRpcSessions(),
+      listPiWorkspaces(),
+      listPiArchivedWorkspaceSessions(),
+    ])
+      .then(([response, workspaceResponse, archivedResponse]) => {
         const summaries = response.items.map(piSummaryFromSessionListItem);
         const next = new Map(summaries.map((summary) => [summary.id, summary]));
         for (const [id, summary] of mutations) {
@@ -1630,7 +1854,7 @@ export class PiSessionManager {
           if (!next.has(stored.interaction.sessionId)) this.pendingInteractions.delete(key);
         }
         if (workspaceGeneration === this.workspaceGeneration) {
-          this.applyWorkspaceSnapshot(workspaceResponse);
+          this.applyWorkspaceSnapshot(workspaceResponse, archivedResponse);
         } else {
           // A host frame landed while this unary snapshot was in flight. Fetch
           // again so changes missed during the disconnected window are not lost.
@@ -1660,20 +1884,32 @@ export class PiSessionManager {
 
   private async refreshWorkspaces(): Promise<void> {
     const generation = ++this.workspaceGeneration;
-    const response = await listPiWorkspaces();
+    const [response, archivedResponse] = await Promise.all([
+      listPiWorkspaces(),
+      listPiArchivedWorkspaceSessions(),
+    ]);
     if (generation !== this.workspaceGeneration) {
       this.requestRealtimeRefresh();
       return;
     }
-    this.applyWorkspaceSnapshot(response);
+    this.applyWorkspaceSnapshot(response, archivedResponse);
     this.notify();
   }
 
-  private applyWorkspaceSnapshot(response: Awaited<ReturnType<typeof listPiWorkspaces>>): void {
+  private applyWorkspaceSnapshot(
+    response: Awaited<ReturnType<typeof listPiWorkspaces>>,
+    archivedResponse: Awaited<ReturnType<typeof listPiArchivedWorkspaceSessions>>,
+  ): void {
     this.workspaces.clear();
     for (const workspace of response.items) this.workspaces.set(workspace.workspaceId, workspace);
+    this.pinnedWorkspaces.clear();
+    for (const workspaceId of response.pinnedWorkspaceIds ?? []) {
+      this.pinnedWorkspaces.add(workspaceId);
+    }
+    this.pinned.clear();
+    for (const sessionId of response.pinnedSessionIds ?? []) this.pinned.add(sessionId);
     this.archived.clear();
-    for (const sessionId of response.archivedSessionIds) this.archived.add(sessionId);
+    for (const sessionId of archivedResponse.sessionIds) this.archived.add(sessionId);
   }
 
   refreshWorkspaceMetadata(): Promise<void> {
@@ -1756,19 +1992,41 @@ export class PiSessionManager {
     await deletePiWorkspace(workspaceId);
     this.workspaceGeneration += 1;
     this.workspaces.delete(workspaceId);
+    this.pinnedWorkspaces.delete(workspaceId);
     this.notify();
   }
 
-  private async archiveSessionMetadata(sessionId: string): Promise<void> {
-    const generation = ++this.workspaceGeneration;
-    const result = await archivePiWorkspaceSession(sessionId);
-    if (generation !== this.workspaceGeneration) {
-      if (stringSetsEqual(this.archived, result.archivedSessionIds)) return;
-      await this.refreshWorkspaces();
-      return;
-    }
+  async setWorkspacePinned(workspaceId: string, pinned: boolean): Promise<void> {
     this.workspaceGeneration += 1;
-    if (this.replaceArchived(result.archivedSessionIds)) this.notify();
+    const result = await setPiWorkspacePinned(workspaceId, pinned);
+    this.workspaceGeneration += 1;
+    const changed = result.pinned
+      ? !this.pinnedWorkspaces.has(result.workspaceId)
+      : this.pinnedWorkspaces.has(result.workspaceId);
+    if (result.pinned) this.pinnedWorkspaces.add(result.workspaceId);
+    else this.pinnedWorkspaces.delete(result.workspaceId);
+    if (changed) this.notify();
+  }
+
+  private async setSessionPinned(sessionId: string, pinned: boolean): Promise<void> {
+    this.workspaceGeneration += 1;
+    const result = await setPiWorkspaceSessionPinned(sessionId, pinned);
+    this.workspaceGeneration += 1;
+    const changed = result.pinned
+      ? !this.pinned.has(result.sessionId)
+      : this.pinned.has(result.sessionId);
+    if (result.pinned) this.pinned.add(result.sessionId);
+    else this.pinned.delete(result.sessionId);
+    if (changed) this.notify();
+  }
+
+  private async archiveSessionMetadata(sessionId: string): Promise<void> {
+    return this.setSessionArchivedMetadata(sessionId, true);
+  }
+
+  private async setSessionArchivedMetadata(sessionId: string, archived: boolean): Promise<void> {
+    if (archived) await archivePiWorkspaceSession(sessionId);
+    else await unarchivePiWorkspaceSession(sessionId);
   }
 
   createThreadListAdapter(): RemoteThreadListAdapter {
@@ -1806,10 +2064,7 @@ export class PiSessionManager {
         const pinned = custom?.piPinned === true;
         const changed = pinned ? !this.pinned.has(remoteId) : this.pinned.has(remoteId);
         if (!changed) return;
-        if (pinned) this.pinned.add(remoteId);
-        else this.pinned.delete(remoteId);
-        await this.savePinnedState();
-        this.notify();
+        await this.setSessionPinned(remoteId, pinned);
       },
       rename: async (remoteId, newTitle) => {
         await renamePiRpcSession({ sessionId: remoteId, title: newTitle });
@@ -1818,17 +2073,15 @@ export class PiSessionManager {
       },
       archive: async (remoteId) => {
         await this.archiveSessionMetadata(remoteId);
-        await this.saveArchiveState();
       },
       unarchive: async (remoteId) => {
-        const result = await unarchivePiWorkspaceSession(remoteId);
-        const changed = this.replaceArchived(result.archivedSessionIds);
-        await this.saveArchiveState();
-        if (changed) this.notify();
+        await this.setSessionArchivedMetadata(remoteId, false);
       },
       delete: async (remoteId) => {
-        await this.archiveSessionMetadata(remoteId);
+        await deletePiRpcSession({ sessionId: remoteId });
+        this.removeSessionMetadata(remoteId);
         await this.saveArchiveState();
+        this.notify();
       },
       generateTitle: async (remoteId, messages) => {
         const title = this.titleFromMessages(messages);
@@ -1982,6 +2235,27 @@ export class PiSessionManager {
     this.metadataMutations?.set(remoteId, null);
   }
 
+  private removeSessionMetadata(sessionId: string): void {
+    this.connections.closeSession(sessionId);
+    this.deleteSummary(sessionId);
+    this.running.delete(sessionId);
+    this.completed.delete(sessionId);
+    this.archived.delete(sessionId);
+    this.pinned.delete(sessionId);
+    this.pendingQueues.delete(sessionId);
+    for (const [key, stored] of this.pendingInteractions) {
+      if (stored.interaction.sessionId === sessionId) this.pendingInteractions.delete(key);
+    }
+    this.workspaceGeneration += 1;
+    for (const [workspaceId, workspace] of this.workspaces) {
+      if (!workspace.sessionIds.includes(sessionId)) continue;
+      this.workspaces.set(workspaceId, {
+        ...workspace,
+        sessionIds: workspace.sessionIds.filter((id) => id !== sessionId),
+      });
+    }
+  }
+
   private async loadArchiveState(): Promise<void> {
     const value = await workbenchBrowserStorage.getItem(ARCHIVED_STORAGE_KEY);
     if (!value) return;
@@ -2002,25 +2276,55 @@ export class PiSessionManager {
     );
   }
 
-  private async loadPinnedState(): Promise<void> {
-    const value = await workbenchBrowserStorage.getItem(PINNED_STORAGE_KEY);
-    if (!value) return;
+  private async loadLegacyPinnedIds(key: string): Promise<string[]> {
+    const value = await workbenchBrowserStorage.getItem(key);
+    if (!value) return [];
     try {
       const ids = JSON.parse(value) as unknown;
       if (Array.isArray(ids)) {
-        for (const id of ids) if (typeof id === "string") this.pinned.add(id);
+        return ids.filter((id): id is string => typeof id === "string");
       }
     } catch {
       // Ignore damaged local presentation metadata.
     }
+    return [];
   }
 
-  private savePinnedState(): Promise<void> {
-    return workbenchBrowserStorage.setItem(PINNED_STORAGE_KEY, JSON.stringify([...this.pinned]));
+  private async migrateLegacyPinnedState(
+    sessionIds: readonly string[],
+    workspaceIds: readonly string[],
+  ): Promise<void> {
+    let sessionsMigrated = true;
+    for (const sessionId of sessionIds) {
+      if (!this.summaries.has(sessionId) || this.pinned.has(sessionId)) continue;
+      try {
+        await this.setSessionPinned(sessionId, true);
+      } catch {
+        sessionsMigrated = false;
+      }
+    }
+    if (sessionsMigrated) await workbenchBrowserStorage.removeItem(PINNED_STORAGE_KEY);
+
+    let workspacesMigrated = true;
+    for (const workspaceId of workspaceIds) {
+      if (!this.workspaces.has(workspaceId) || this.pinnedWorkspaces.has(workspaceId)) continue;
+      try {
+        await this.setWorkspacePinned(workspaceId, true);
+      } catch {
+        workspacesMigrated = false;
+      }
+    }
+    if (workspacesMigrated) {
+      await workbenchBrowserStorage.removeItem(PINNED_WORKSPACES_STORAGE_KEY);
+    }
   }
 
   private notify(): void {
     this.revision++;
     for (const listener of this.listeners) listener();
+  }
+
+  private notifyThreadList(): void {
+    for (const listener of this.threadListListeners) listener();
   }
 }

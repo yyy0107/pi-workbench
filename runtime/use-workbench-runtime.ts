@@ -71,12 +71,22 @@ function useWorkbenchPiRuntime(manager: PiSessionManager) {
         paused: snapshot.queuePaused,
         steeringIds: snapshot.steeringQueueIds,
       },
+      piRun: {
+        startedAt: snapshot.runStartedAt,
+      },
       piComposer: {
         error: composerError,
         clearError: clearComposerError,
       },
     }),
-    [clearComposerError, composerError, session, snapshot.queuePaused, snapshot.steeringQueueIds],
+    [
+      clearComposerError,
+      composerError,
+      session,
+      snapshot.queuePaused,
+      snapshot.runStartedAt,
+      snapshot.steeringQueueIds,
+    ],
   );
 
   useEffect(() => {
@@ -134,8 +144,18 @@ function useWorkbenchPiRuntime(manager: PiSessionManager) {
 
 export function useWorkbenchRuntime(manager: PiSessionManager) {
   const adapter = useMemo(() => manager.createThreadListAdapter(), [manager]);
-  return useRemoteThreadListRuntime({
+  const runtime = useRemoteThreadListRuntime({
     adapter,
     runtimeHook: () => useWorkbenchPiRuntime(manager),
   });
+  useEffect(
+    () =>
+      manager.subscribeThreadList(() => {
+        void runtime.threads
+          .reload()
+          .catch((error) => console.error("[workbench-pi] thread list reload failed", error));
+      }),
+    [manager, runtime],
+  );
+  return runtime;
 }

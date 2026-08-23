@@ -245,6 +245,8 @@ export class ModelConfigStore implements ModelConfigStorage {
         ? currentProvider.modelOverrides
         : {};
       const currentOverride = isObject(modelOverrides[model]) ? modelOverrides[model] : {};
+      // `contextWindow` is local model-capacity metadata used for accounting and compaction.
+      // Keep `maxTokens` untouched: it is the separate provider output-token budget.
       providers[provider] = {
         ...currentProvider,
         modelOverrides: {

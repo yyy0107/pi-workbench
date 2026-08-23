@@ -48,19 +48,24 @@ Unary RPC 是 session、workspace 和 running 状态的权威快照；WebSocket 
 
 - Host：`host.describe`、`host.pickDirectory`、`host.listDirectory`、
   `host.createDirectory`、`host.openPath`；
-- Workspace：`workspace.list`、`workspace.create`、`workspace.rename`、
+- Workspace：`workspace.list`、`workspace.listArchivedSessions`、`workspace.create`、`workspace.rename`、
   `workspace.delete`、`workspace.insertBefore`、`workspace.insertSessionBefore`、
-  `workspace.archiveSession`、`workspace.unarchiveSession`；
+  `workspace.setPinned`、`workspace.setSessionPinned`、`workspace.archiveSession`、
+  `workspace.unarchiveSession`；
+- Workspace files：`workspace.files.list`、`workspace.files.describe`、`workspace.files.read`、
+  `workspace.files.write`，以及 `GET/HEAD /api/workspace.files.content`；
 - Skills：`skill.list`；
 - Commands：`command.list`；
 - Extensions：`extension.list`；
 - Settings：`settings.describe`、`settings.openDocument`、`settings.update`；
-- LLM：`llm.providers`、`llm.providerConfig`、`llm.configureProvider`、
+- LLM：`llm.providers`、`llm.providerConfig`、`llm.startProviderLogin`、
+  `llm.providerLogin`、`llm.respondProviderLogin`、`llm.cancelProviderLogin`、`llm.configureProvider`、
   `llm.removeProvider`、`llm.modelContextWindow`、`llm.updateModelContextWindow`、
   `llm.models`、`llm.discoverModels`；
 - Session：`session.list`、`session.search`、`session.create`、`session.history`、
   `session.models`、`session.selectModel`、`session.rename`、`session.fork`、
-  `session.prompt`、`session.attachment`、`session.updateQueue`、`session.cancel`。
+  `session.delete`、`session.prompt`、`session.attachment`、`session.updateQueue`、
+  `session.cancel`。
 
 另外还提供：
 
@@ -157,10 +162,19 @@ Cookie session 或 Bearer Token；如需跨机器暴露，必须在外层增加�
 ## Workspace 和 Host 目录
 
 `WorkspaceStore` 维护 canonical path、显示名称、workspace 顺序、每个 workspace 的 session
-顺序和 archived session 集合。新 workspace 使用持久随机 UUID；不要使用 legacy
+顺序、archived session 集合，以及 workspace/session 的置顶状态。新 workspace 使用持久随机 UUID；不要使用 legacy
 `PiWorkspaceSummary` 的 cwd hash 推导新 `workspaceId`。
 
-状态默认写入 `~/.pi/workbench/workspaces.json`。写入使用进程间锁和原子替换；启动和
+对外返回的 `WorkspaceView.sessionIds` 只包含当前未归档的 session；底层仍保留完整顺序，取消归档
+后会恢复到原位置。`workspace.list` 只返回可见工作区快照，归档集合的权威基线由独立的
+`workspace.listArchivedSessions` 返回。归档与取消归档 RPC 只确认本次 `sessionId` 和目标
+`archived` 状态；持久化成功后的权威增量由 `events.host` 的
+`host/session-archive-changed` 发布，并携带所属工作区更新后的可见快照。历史归档记录若尚未
+归属 canonical Workspace，取消归档会先按 session 的 canonical cwd 恢复工作区成员关系，再以同一个
+host 增量原子发布，避免恢复后的会话成为无工作区列表项。
+
+状态默认写入 `~/.pi/workbench/workspaces.json`，置顶状态因此由服务端持久化并同步到连接同一
+Workbench host 的多个浏览器。写入使用进程间锁和原子替换；启动和
 `workspace.list` 会与 Pi 已持久化的 session 对账。Archive 只影响 Workbench 组织状态，
 不会删除 Pi session JSONL。
 
@@ -168,19 +182,38 @@ Cookie session 或 Bearer Token；如需跨机器暴露，必须在外层增加�
 `host.listDirectory` 与 `host.createDirectory` 完成远程目录选择。目录列表只返回可进入的目录，
 单次最多 500 项，并通过 `truncated` 表示截断。
 
+资源管理器使用独立的 workspace-bound 文件接口，不复用目录选择器协议。请求携带
+`workspaceId` 和规范的 `/` 分隔相对路径；服务端从 `WorkspaceStore` 读取权威根目录，同时执行
+词法与 `realpath` 边界检查，拒绝 `..`、绝对路径和逃逸工作区的软链接。目录按需列出直接子项，
+目录优先且单次最多 2,000 项。`workspace.files.describe` 只读取元数据和最多 64 KiB 的编码样本，
+用于在不加载完整文件的前提下区分 UTF-8 文本与二进制文件。可编辑文本缓冲的读取和写入仍仅支持
+最大 5 MiB 的 UTF-8 普通文件；写入必须携带读取时的 SHA-256 version，磁盘内容已变化时返回冲突，
+避免静默覆盖。大文本源码与图片、PDF、音视频和 Office 文档通过同源
+`workspace.files.content` 端点按需流式读取；前端对大文本做增量 UTF-8 解码和可见行虚拟化，避免先
+缓冲完整 JSON 或挂载完整 textarea。内容端点支持 `HEAD`、单段 `Range`、ETag 和最大 100 MiB 的
+预览边界，并复用相同的 workspace/realpath 授权规则，不向浏览器暴露主机文件路径。
+
 ## 模型
 
 Pi `ModelRuntime` 是 provider、model 和凭证状态的权威来源：
 
-- `llm.providers` 返回当前可配置或已注册的 provider；
+- `llm.providers` 返回当前可配置或已注册的 provider，并刷新 Pi 的认证可用性快照，因此 Pi TUI
+  在同一个 `auth.json` 中新增或移除的账号登录/API key 无需重启 Workbench 即可反映到设置页；
 - `llm.providerConfig` 返回 provider 的非敏感连接参数和模型目录；
+- `llm.providers` 同时返回 Pi provider 声明的可交互认证方式及其原始展示名称。账号登录通过
+  `startProviderLogin` 启动后台认证会话，页面轮询 `providerLogin`，并用
+  `respondProviderLogin` 回答 Pi 发出的 `text`、`secret`、`select` 或 `manual_code` prompt；
+  `auth_url`、`device_code`、`info` 和 `progress` 事件直接驱动浏览器登录 UI。认证答案只用于
+  当前 prompt，不进入状态快照、日志或 provider 配置，凭据仍由 Pi credential store 持久化；
 - `llm.configureProvider` 将自定义连接与模型目录写入 Pi `models.json`，API key 则通过 Pi
-  credential store 单独持久化；`llm.removeProvider` 删除由 Workbench 管理的对应配置；
+  credential store 单独持久化；`llm.removeProvider` 移除由 Workbench 管理的内置 provider
+  配置与凭据，对于自定义 provider 则删除其定义；
 - `llm.models` 按 provider 分组返回可用模型和 reasoning efforts，单个 provider 失败不会使
   整个 catalog 失败；
 - `llm.modelContextWindow` 读取单个模型的有效上下文窗口；`llm.updateModelContextWindow` 通过
   `models.json` 的 `modelOverrides` 只覆盖该模型的 `contextWindow`，并保留 provider 凭证、headers
-  及其他模型配置；
+  及其他模型配置。这个值只供 Pi 做 token 容量统计、溢出判断和自动压缩，不会作为 API 的
+  `max_tokens` 发送；`maxTokens` 是独立的最大输出元数据，由 provider 适配器映射到对应的输出参数；
 - `session.models` 在 catalog 之外还返回 session 当前选择和 `routable` 状态；
 - `session.selectModel` 与 prompt/queue mutation 串行执行，避免与正在提交的图片 prompt
   发生竞态。
@@ -288,7 +321,7 @@ Workbench 在 Pi JSONL 中保存 canonical event journal。每个 `SessionEvent`
 - follow-up/steer 先以 prompt `rpcId` 乐观加入客户端队列；服务端接纳后沿用该 ID，
   `session.prompt` 响应通过 `queued` 和可选 `queueItemId` 区分进入队列或直接成为下一轮，失败则按 ID
   精确回滚；
-- queue item 有稳定 ID，可执行 edit、remove 或将 follow-up 提升为 steer；
+- queue item 有稳定 ID，可执行 edit、remove、follow-up 重排或将 follow-up 提升为 steer；
 - prompt 的 `rpcId` 和规范化 IANA client timezone 会作为 provenance 写入 JSONL；
 - inline image 会在进入 Pi 前校验 base64、文件签名、媒体类型和模型图片能力；
 - fork 只在可证明已持久化的完整 turn boundary 建立独立 child，不替换或修改 source session；
@@ -323,8 +356,8 @@ error、workspace changed/removed/order、archived session 变化和兼容的 re
 
 浏览器把 mux 和 host 作为同一个 connection generation：只有两条 socket 都打开后才提交该代
 frame；任意一条断开都会废弃整代并同时重建两条连接。重连使用带抖动的指数退避（250 ms 到
-10 s），随后通过 `host.describe`、`session.list` 和 `workspace.list` 恢复权威基线，旧一代的
-未决交互不会覆盖新状态。
+10 s），随后通过 `host.describe`、`session.list`、`workspace.list` 和
+`workspace.listArchivedSessions` 恢复权威基线，旧一代的未决交互不会覆盖新状态。
 
 开发模式会在浏览器 Console 输出 `websocket connecting`、两条 `stream open` 和最终的
 `websocket ready`；Network 面板中 mux/host 应同时保持 `101 Switching Protocols`。若普通
@@ -482,7 +515,7 @@ downlink 发送消息后的 `1008` close。
   后返回 `agent-preset-invalid`。
 - 不能把包含历史图片、活动图片 prompt 或待处理图片队列的 session 切换到 text-only model。
 - `/api/pi/**`、`legacy-sse.ts` 和 legacy contracts 仍为兼容层；新 UI 的核心读写使用
-  `/api/<method>` 与 mux/host WS。队列 pause 暂时仍经过 legacy command，因为目标协议没有
-  pause 方法。
+  `/api/<method>` 与 mux/host WS。队列 pause 与 follow-up 重排暂时仍经过 legacy command，因为目标
+  协议没有对应方法。
 - 当前实现不等同于参考 Harness 的完整 Host；新增接口时应先扩展 contracts、RPC validation、
   domain service 和测试，再接入 UI，不能直接在组件中发明第二套协议。

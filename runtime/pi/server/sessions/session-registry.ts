@@ -479,6 +479,7 @@ class HostedPiSession {
     promptText?: string;
     projection: WorkbenchComposerUserProjection;
   }> = [];
+  private readonly cancelledQueueItemIds = new Set<string>();
 
   constructor(session: AgentSession, onRunningChanged: () => void, onDestroyed: () => void) {
     this.session = session;
@@ -999,6 +1000,9 @@ class HostedPiSession {
     provenance?: PromptSubmissionProvenance,
   ): Promise<PromptSubmissionResult> {
     return this.runQueueMutation(async () => {
+      if (provenance?.rpcId && this.cancelledQueueItemIds.delete(provenance.rpcId)) {
+        return { queued: false };
+      }
       let admission: PromptSubmissionResult = { queued: false };
       const composer = provenance?.composer;
       const resolvedPrompt =
@@ -1325,7 +1329,15 @@ class HostedPiSession {
 
   private async updateQueueItemNow(itemId: string, mutation: PromptQueueMutation): Promise<void> {
     const item = this.queueProjection.find(itemId);
-    if (!item) throw new PiServerError("pi_queue_item_not_found", 404);
+    if (!item) {
+      if (mutation.kind === "remove") {
+        // A client can remove its optimistic row before the matching prompt admission reaches this
+        // session. Retain that id as a cancellation intent so the later serialized submit is a no-op.
+        this.cancelledQueueItemIds.add(itemId);
+        return;
+      }
+      throw new PiServerError("pi_queue_item_not_found", 404);
+    }
     if (mutation.kind === "steer" && (item.lane !== "followUp" || !this.isRunning)) {
       throw new PiServerError("pi_steer_unavailable", 409);
     }

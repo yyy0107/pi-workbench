@@ -43,6 +43,7 @@ import {
 import type { WorkbenchComposerJsonValue } from "../../../composer-request";
 import { SessionRpcService, SessionRpcServiceError } from "../sessions/session-rpc-service";
 import { getWorkspaceStore } from "../workspaces/workspace-registry";
+import { WorkspaceFileError, WorkspaceFileService } from "../workspaces/workspace-files";
 import { WorkspaceStoreError } from "../workspaces/workspace-store";
 
 const emptyPayload = rpcObject({});
@@ -54,6 +55,20 @@ const createDirectoryPayload = rpcObject({
   name: rpcString(),
 });
 const pathPayload = rpcObject({ path: nonEmptyString });
+const workspaceFilesListPayload = rpcObject({
+  workspaceId: nonEmptyString,
+  relativePath: rpcOptional(rpcString({ maxLength: 16_384 })),
+});
+const workspaceFileReadPayload = rpcObject({
+  workspaceId: nonEmptyString,
+  relativePath: rpcString({ minLength: 1, maxLength: 16_384 }),
+});
+const workspaceFileWritePayload = rpcObject({
+  workspaceId: nonEmptyString,
+  relativePath: rpcString({ minLength: 1, maxLength: 16_384 }),
+  content: rpcString({ maxLength: 5 * 1024 * 1024 }),
+  expectedVersion: nonEmptyString,
+});
 const createWorkspacePayload = rpcObject({ path: rpcString() });
 const renameWorkspacePayload = rpcObject({
   workspaceId: nonEmptyString,
@@ -69,7 +84,15 @@ const insertSessionPayload = rpcObject({
   sessionId: nonEmptyString,
   beforeSessionId: rpcOptional(nonEmptyString),
 });
+const setWorkspacePinnedPayload = rpcObject({
+  workspaceId: nonEmptyString,
+  pinned: rpcBoolean,
+});
 const sessionIdPayload = rpcObject({ sessionId: nonEmptyString });
+const setSessionPinnedPayload = rpcObject({
+  sessionId: nonEmptyString,
+  pinned: rpcBoolean,
+});
 const discoverModelsPayload = rpcObject({
   settingsNs: nonEmptyString,
   provider: rpcOptional(nonEmptyString),
@@ -100,6 +123,18 @@ const configureModelProviderPayload = rpcObject({
   configuration: rpcOptional(providerConfiguration),
 });
 const modelProviderPayload = rpcObject({ provider: nonEmptyString });
+const startModelProviderLoginPayload = rpcObject({
+  provider: nonEmptyString,
+  authType: rpcLiteral("oauth"),
+});
+const modelProviderLoginPayload = rpcObject({
+  loginId: rpcString({ minLength: 1, maxLength: 256 }),
+});
+const respondModelProviderLoginPayload = rpcObject({
+  loginId: rpcString({ minLength: 1, maxLength: 256 }),
+  promptId: rpcString({ minLength: 1, maxLength: 256 }),
+  value: rpcString({ maxLength: 16_384 }),
+});
 const modelContextWindowPayload = rpcObject({
   provider: nonEmptyString,
   model: nonEmptyString,
@@ -128,6 +163,7 @@ const modelService = new ModelService();
 const extensionService = new ExtensionService();
 const skillService = new SkillService();
 const agentSettingsService = new AgentSettingsService();
+const workspaceFileService = new WorkspaceFileService({ workspaceStore: getWorkspaceStore });
 
 function sessionService(): SessionRpcService {
   return new SessionRpcService({ workspaceStore: getWorkspaceStore() });
@@ -266,6 +302,7 @@ const sessionUpdateQueuePayload = rpcObject({
 function throwDomainError(error: unknown): never {
   if (
     error instanceof WorkspaceStoreError ||
+    error instanceof WorkspaceFileError ||
     error instanceof HostDirectoryError ||
     error instanceof CommandServiceError ||
     error instanceof ModelServiceError ||
@@ -285,9 +322,16 @@ function isAborted(error: unknown, signal: AbortSignal): boolean {
 
 async function workspaceList() {
   const { sessions } = await listSessions();
-  return getWorkspaceStore().reconcileSessions(
-    sessions.map((session) => ({ id: session.id, cwd: session.cwd })),
-  );
+  const { items, pinnedWorkspaceIds, pinnedSessionIds } =
+    await getWorkspaceStore().reconcileSessions(
+      sessions.map((session) => ({ id: session.id, cwd: session.cwd })),
+    );
+  return { items, pinnedWorkspaceIds, pinnedSessionIds };
+}
+
+async function workspaceArchivedSessionsList() {
+  const { archivedSessionIds } = await getWorkspaceStore().list();
+  return { sessionIds: archivedSessionIds };
 }
 
 async function archiveWorkspaceSession(sessionId: string) {
@@ -300,10 +344,19 @@ async function archiveWorkspaceSession(sessionId: string) {
 
 async function unarchiveWorkspaceSession(sessionId: string) {
   const { sessions } = await listSessions();
+  const session = sessions.find((candidate) => candidate.id === sessionId);
+  if (!session) {
+    throw rpcBusinessError("session-not-found", "The session does not exist.", { sessionId });
+  }
+  return getWorkspaceStore().unarchiveSession({ id: session.id, cwd: session.cwd });
+}
+
+async function setWorkspaceSessionPinned(sessionId: string, pinned: boolean) {
+  const { sessions } = await listSessions();
   if (!sessions.some((session) => session.id === sessionId)) {
     throw rpcBusinessError("session-not-found", "The session does not exist.", { sessionId });
   }
-  return getWorkspaceStore().setSessionArchived(sessionId, false);
+  return getWorkspaceStore().setSessionPinned({ sessionId, pinned });
 }
 
 async function hostDescription() {
@@ -400,6 +453,18 @@ export async function handlePiRpcPost(request: Request, method: string): Promise
         handler: async (payload) => {
           try {
             return await sessionService().rename(payload);
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
+      });
+    case "session.delete":
+      return handleRpcPost(request, {
+        method,
+        payload: sessionIdPayload,
+        handler: async (payload) => {
+          try {
+            return await sessionService().delete(payload);
           } catch (error) {
             throwDomainError(error);
           }
@@ -536,11 +601,78 @@ export async function handlePiRpcPost(request: Request, method: string): Promise
           }
         },
       });
+    case "workspace.files.list":
+      return handleRpcPost(request, {
+        method,
+        payload: workspaceFilesListPayload,
+        handler: async (payload, context) => {
+          try {
+            return await workspaceFileService.listDirectory(payload, context.signal);
+          } catch (error) {
+            if (isAborted(error, context.signal)) {
+              throw rpcBusinessError("cancelled", "Directory listing was cancelled.", {});
+            }
+            throwDomainError(error);
+          }
+        },
+      });
+    case "workspace.files.describe":
+      return handleRpcPost(request, {
+        method,
+        payload: workspaceFileReadPayload,
+        handler: async (payload, context) => {
+          try {
+            return await workspaceFileService.describeFile(payload, context.signal);
+          } catch (error) {
+            if (isAborted(error, context.signal)) {
+              throw rpcBusinessError("cancelled", "File inspection was cancelled.", {});
+            }
+            throwDomainError(error);
+          }
+        },
+      });
+    case "workspace.files.read":
+      return handleRpcPost(request, {
+        method,
+        payload: workspaceFileReadPayload,
+        handler: async (payload, context) => {
+          try {
+            return await workspaceFileService.readFile(payload, context.signal);
+          } catch (error) {
+            if (isAborted(error, context.signal)) {
+              throw rpcBusinessError("cancelled", "File reading was cancelled.", {});
+            }
+            throwDomainError(error);
+          }
+        },
+      });
+    case "workspace.files.write":
+      return handleRpcPost(request, {
+        method,
+        payload: workspaceFileWritePayload,
+        maxRequestBodyBytes: 20 * 1024 * 1024,
+        handler: async (payload, context) => {
+          try {
+            return await workspaceFileService.writeFile(payload, context.signal);
+          } catch (error) {
+            if (isAborted(error, context.signal)) {
+              throw rpcBusinessError("cancelled", "File writing was cancelled.", {});
+            }
+            throwDomainError(error);
+          }
+        },
+      });
     case "workspace.list":
       return handleRpcPost(request, {
         method,
         payload: emptyPayload,
         handler: workspaceList,
+      });
+    case "workspace.listArchivedSessions":
+      return handleRpcPost(request, {
+        method,
+        payload: emptyPayload,
+        handler: workspaceArchivedSessionsList,
       });
     case "workspace.create":
       return handleRpcPost(request, {
@@ -601,6 +733,24 @@ export async function handlePiRpcPost(request: Request, method: string): Promise
             throwDomainError(error);
           }
         },
+      });
+    case "workspace.setPinned":
+      return handleRpcPost(request, {
+        method,
+        payload: setWorkspacePinnedPayload,
+        handler: async (payload) => {
+          try {
+            return await getWorkspaceStore().setPinned(payload);
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
+      });
+    case "workspace.setSessionPinned":
+      return handleRpcPost(request, {
+        method,
+        payload: setSessionPinnedPayload,
+        handler: ({ sessionId, pinned }) => setWorkspaceSessionPinned(sessionId, pinned),
       });
     case "workspace.archiveSession":
       return handleRpcPost(request, {
@@ -703,13 +853,81 @@ export async function handlePiRpcPost(request: Request, method: string): Promise
       return handleRpcPost(request, {
         method,
         payload: emptyPayload,
-        handler: () => modelService.providers(),
+        handler: async () => {
+          const value = await modelService.providers();
+          // This read also detects credentials changed by Pi TUI. Mark hosted
+          // sessions for a cache-only refresh before their next model action.
+          for (const provider of value.providers) {
+            if (provider.active) notifyModelProviderConfigurationChanged(provider.provider);
+          }
+          return value;
+        },
       });
     case "llm.providerConfig":
       return handleRpcPost(request, {
         method,
         payload: modelProviderPayload,
         handler: (payload) => modelService.providerConfig(payload),
+      });
+    case "llm.startProviderLogin":
+      return handleRpcPost(request, {
+        method,
+        payload: startModelProviderLoginPayload,
+        loopbackOnly: true,
+        handler: async (payload) => {
+          try {
+            return await modelService.startProviderLogin(payload);
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
+      });
+    case "llm.providerLogin":
+      return handleRpcPost(request, {
+        method,
+        payload: modelProviderLoginPayload,
+        loopbackOnly: true,
+        handler: (payload) => {
+          try {
+            const value = modelService.providerLogin(payload);
+            if (value.status === "complete") {
+              notifyModelProviderConfigurationChanged(value.provider);
+            }
+            return value;
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
+      });
+    case "llm.respondProviderLogin":
+      return handleRpcPost(request, {
+        method,
+        payload: respondModelProviderLoginPayload,
+        loopbackOnly: true,
+        handler: (payload) => {
+          try {
+            const value = modelService.respondProviderLogin(payload);
+            if (value.status === "complete") {
+              notifyModelProviderConfigurationChanged(value.provider);
+            }
+            return value;
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
+      });
+    case "llm.cancelProviderLogin":
+      return handleRpcPost(request, {
+        method,
+        payload: modelProviderLoginPayload,
+        loopbackOnly: true,
+        handler: (payload) => {
+          try {
+            return modelService.cancelProviderLogin(payload);
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
       });
     case "llm.modelContextWindow":
       return handleRpcPost(request, {

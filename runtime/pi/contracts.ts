@@ -15,6 +15,7 @@ export interface PiWorkspaceSummary {
   id: string;
   name: string;
   cwd: string;
+  pinned?: boolean;
 }
 
 export interface PiTextContent {

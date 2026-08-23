@@ -1,5 +1,6 @@
 import { createAgentSessionServices } from "@earendil-works/pi-coding-agent";
 import type { KnownProvider } from "@earendil-works/pi-ai";
+import type { AuthEvent } from "@earendil-works/pi-ai";
 import { builtinProviders } from "@earendil-works/pi-ai/providers/all";
 
 import { PI_THINKING_LEVELS, type PiThinkingLevel } from "../../contracts";
@@ -16,8 +17,12 @@ import type {
   ModelContextWindowValue,
   ModelProviderGroup,
   ModelProviderConfigValue,
+  ModelProviderLoginPayload,
+  ModelProviderLoginValue,
   ModelProviderModelConfiguration,
   ModelProvidersValue,
+  RespondModelProviderLoginPayload,
+  StartModelProviderLoginPayload,
   UpdateModelContextWindowPayload,
 } from "../../rpc-contracts";
 import {
@@ -50,6 +55,18 @@ export interface ModelServiceErrorDetails {
   };
   "model-provider-api-key-unsupported": {
     provider: string;
+  };
+  "model-provider-account-login-unsupported": {
+    provider: string;
+  };
+  "model-provider-login-in-progress": {
+    provider: string;
+  };
+  "model-provider-login-not-found": {
+    loginId: string;
+  };
+  "model-provider-login-prompt-mismatch": {
+    loginId: string;
   };
   "model-provider-configuration-failed": {
     provider: string;
@@ -104,6 +121,13 @@ export interface ModelRuntimeProvider {
   baseUrl?: string;
   auth?: {
     apiKey?: {
+      name?: string;
+      login?: unknown;
+    };
+    oauth?: {
+      name?: string;
+      isSubscription?: boolean;
+      loginLabel?: string;
       login?: unknown;
     };
   };
@@ -125,13 +149,16 @@ export interface ModelRuntimeAuthStatus {
 
 export interface ModelRuntimeAuthPrompt {
   type: "text" | "secret" | "select" | "manual_code";
+  message?: string;
+  placeholder?: string;
+  options?: readonly { id: string; label: string; description?: string }[];
   signal?: AbortSignal;
 }
 
 export interface ModelRuntimeAuthInteraction {
   signal?: AbortSignal;
   prompt(prompt: ModelRuntimeAuthPrompt): Promise<string>;
-  notify(event: unknown): void;
+  notify(event: AuthEvent): void;
 }
 
 export interface ModelRuntimeRefreshResult {
@@ -163,6 +190,7 @@ export interface ModelRuntimeLike {
   getError?(): string | undefined;
   getRegisteredProviderIds?(): readonly string[];
   getProviderAuthStatus?(provider: string): ModelRuntimeAuthStatus;
+  isUsingOAuth?(provider: string): boolean;
   getAuth?(
     provider: string,
     options?: { signal?: AbortSignal },
@@ -219,6 +247,13 @@ export interface ModelServiceOptions {
 interface LoadedModelServices {
   runtime: ModelRuntimeLike;
   diagnostics: readonly ModelServiceDiagnostic[];
+}
+
+interface ModelProviderLoginSession {
+  value: ModelProviderLoginValue;
+  controller: AbortController;
+  answerPrompt?: (value: string) => void;
+  rejectPrompt?: (reason: unknown) => void;
 }
 
 const RUNTIME_FAILURE_ID = "model-runtime";
@@ -315,6 +350,87 @@ function errorMessage(error: unknown): string {
 
 function compareText(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
+}
+
+function providerAuthMethods(route?: ModelRuntimeProvider) {
+  if (!route?.auth) return [];
+  return [
+    ...(typeof route.auth.oauth?.login === "function"
+      ? [
+          {
+            type: "oauth" as const,
+            label:
+              route.auth.oauth.loginLabel || route.auth.oauth.name || "Sign in with an account",
+            ...(route.auth.oauth.isSubscription === undefined
+              ? {}
+              : { isSubscription: route.auth.oauth.isSubscription }),
+          },
+        ]
+      : []),
+    ...(typeof route.auth.apiKey?.login === "function"
+      ? [
+          {
+            type: "api_key" as const,
+            label: route.auth.apiKey.name || "API key",
+          },
+        ]
+      : []),
+  ];
+}
+
+function loginPrompt(prompt: ModelRuntimeAuthPrompt, id: string) {
+  return {
+    id,
+    type: prompt.type,
+    message: prompt.message ?? "",
+    ...(prompt.type === "select"
+      ? {
+          options: (prompt.options ?? []).map((option) => ({
+            id: option.id,
+            label: option.label,
+            ...(option.description ? { description: option.description } : {}),
+          })),
+        }
+      : prompt.placeholder
+        ? { placeholder: prompt.placeholder }
+        : {}),
+  };
+}
+
+function loginEvent(event: AuthEvent) {
+  switch (event.type) {
+    case "info":
+      return {
+        type: event.type,
+        message: event.message,
+        ...(event.links
+          ? {
+              links: event.links.map((link) => ({
+                url: link.url,
+                ...(link.label ? { label: link.label } : {}),
+              })),
+            }
+          : {}),
+      } satisfies ModelProviderLoginValue["events"][number];
+    case "auth_url":
+      return {
+        type: event.type,
+        url: event.url,
+        ...(event.instructions ? { instructions: event.instructions } : {}),
+      } satisfies ModelProviderLoginValue["events"][number];
+    case "device_code":
+      return {
+        type: event.type,
+        userCode: event.userCode,
+        verificationUri: event.verificationUri,
+        ...(event.intervalSeconds === undefined ? {} : { intervalSeconds: event.intervalSeconds }),
+        ...(event.expiresInSeconds === undefined
+          ? {}
+          : { expiresInSeconds: event.expiresInSeconds }),
+      } satisfies ModelProviderLoginValue["events"][number];
+    case "progress":
+      return { type: event.type, message: event.message };
+  }
 }
 
 interface ConfigurableProviderDirectoryEntry {
@@ -685,6 +801,7 @@ export class ModelService {
   private readonly fetcher: typeof fetch;
   private readonly settingsOverrides?: ModelServiceOptions["providerSettings"];
   private readonly modelConfigStore: ModelConfigStorage;
+  private readonly providerLogins = new Map<string, ModelProviderLoginSession>();
   private loaded?: Promise<LoadedModelServices>;
 
   constructor(options: ModelServiceOptions = {}) {
@@ -718,6 +835,10 @@ export class ModelService {
 
   async providers(): Promise<ModelProvidersResult> {
     const { runtime } = await this.load();
+    // AuthStorage notices external auth.json revisions when it is read. Refresh
+    // the runtime's derived availability/status snapshot so account logins made
+    // in Pi TUI become visible without restarting Workbench.
+    await runtime.getAvailable();
     const storedConfigurations = await this.modelConfigStore.providers();
     // Pi's provider registry is the route authority. Authentication is a
     // separate concern: a registered route remains active while its credential
@@ -731,21 +852,26 @@ export class ModelService {
     const providers: ConfigurableProviderView[] = directory.map((entry) => {
       const route = routes.get(entry.provider);
       const status = route ? runtime.getProviderAuthStatus?.(entry.provider) : undefined;
+      const builtIn = internal.has(entry.provider);
+      const usingOAuth = status?.configured ? runtime.isUsingOAuth?.(entry.provider) : undefined;
+      const authMethods = providerAuthMethods(route);
       return {
         provider: entry.provider,
         displayName: entry.displayName,
+        kind: builtIn ? "built-in" : "custom",
         settingsNs: entry.settingsNs,
         settingsPath: [...entry.settingsPath],
         active: active.has(entry.provider),
         ...(entry.declared === undefined ? {} : { declared: entry.declared }),
         configured: status?.configured ?? false,
         ...(status?.source ? { authSource: status.source } : {}),
+        ...(usingOAuth === undefined ? {} : { authType: usingOAuth ? "oauth" : "api_key" }),
+        ...(authMethods.length > 0 ? { authMethods } : {}),
         apiKeyConfigurable: typeof route?.auth?.apiKey?.login === "function",
         removable:
-          !internal.has(entry.provider) &&
-          (entry.provider in storedConfigurations ||
-            status?.source === "stored" ||
-            status?.source === "runtime"),
+          entry.provider in storedConfigurations ||
+          status?.source === "stored" ||
+          status?.source === "runtime",
         configurationDefined: entry.provider in storedConfigurations,
       };
     });
@@ -755,20 +881,25 @@ export class ModelService {
     for (const route of registered) {
       if (declared.has(route.id)) continue;
       const status = runtime.getProviderAuthStatus?.(route.id);
+      const builtIn = internal.has(route.id);
+      const usingOAuth = status?.configured ? runtime.isUsingOAuth?.(route.id) : undefined;
+      const authMethods = providerAuthMethods(route);
       providers.push({
         provider: route.id,
         displayName: route.name || route.id,
+        kind: builtIn ? "built-in" : "custom",
         settingsNs: "",
         settingsPath: [],
         active: true,
         configured: status?.configured ?? false,
         ...(status?.source ? { authSource: status.source } : {}),
+        ...(usingOAuth === undefined ? {} : { authType: usingOAuth ? "oauth" : "api_key" }),
+        ...(authMethods.length > 0 ? { authMethods } : {}),
         apiKeyConfigurable: typeof route.auth?.apiKey?.login === "function",
         removable:
-          !internal.has(route.id) &&
-          (route.id in storedConfigurations ||
-            status?.source === "stored" ||
-            status?.source === "runtime"),
+          route.id in storedConfigurations ||
+          status?.source === "stored" ||
+          status?.source === "runtime",
         configurationDefined: route.id in storedConfigurations,
       });
     }
@@ -806,6 +937,208 @@ export class ModelService {
       modelsSource: stored?.models ? "custom" : "adapter",
       models: stored?.models ?? runtimeModels.map(runtimeModelConfiguration),
     };
+  }
+
+  private providerLoginSnapshot(session: ModelProviderLoginSession): ModelProviderLoginValue {
+    return structuredClone(session.value);
+  }
+
+  private providerLoginSession(loginId: string): ModelProviderLoginSession {
+    const session = this.providerLogins.get(loginId);
+    if (!session) {
+      throw new ModelServiceError(
+        "model-provider-login-not-found",
+        "The provider login session does not exist.",
+        { loginId },
+      );
+    }
+    return session;
+  }
+
+  private finishProviderLogin(
+    session: ModelProviderLoginSession,
+    status: Exclude<ModelProviderLoginValue["status"], "running">,
+  ): void {
+    if (session.value.status !== "running") return;
+    session.value.status = status;
+    session.value.revision += 1;
+    delete session.value.prompt;
+    session.answerPrompt = undefined;
+    session.rejectPrompt = undefined;
+    const timer = setTimeout(() => {
+      if (this.providerLogins.get(session.value.loginId) === session) {
+        this.providerLogins.delete(session.value.loginId);
+      }
+    }, 5 * 60_000);
+    timer.unref?.();
+  }
+
+  private promptProviderLogin(
+    session: ModelProviderLoginSession,
+    prompt: ModelRuntimeAuthPrompt,
+  ): Promise<string> {
+    if (session.value.status !== "running") {
+      return Promise.reject(new DOMException("Provider login was cancelled.", "AbortError"));
+    }
+    const promptId = globalThis.crypto.randomUUID();
+    session.value.prompt = loginPrompt(prompt, promptId);
+    session.value.revision += 1;
+
+    return new Promise<string>((resolve, reject) => {
+      let settled = false;
+      const cleanup = () => {
+        session.controller.signal.removeEventListener("abort", handleLoginAbort);
+        prompt.signal?.removeEventListener("abort", handlePromptAbort);
+        if (session.value.prompt?.id === promptId) delete session.value.prompt;
+        if (session.answerPrompt === answer) session.answerPrompt = undefined;
+        if (session.rejectPrompt === rejectPrompt) session.rejectPrompt = undefined;
+        session.value.revision += 1;
+      };
+      const answer = (value: string) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        resolve(value);
+      };
+      const rejectPrompt = (reason: unknown) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        reject(reason);
+      };
+      const handleLoginAbort = () =>
+        rejectPrompt(
+          session.controller.signal.reason ??
+            new DOMException("Provider login was cancelled.", "AbortError"),
+        );
+      const handlePromptAbort = () =>
+        rejectPrompt(
+          prompt.signal?.reason ??
+            new DOMException("Provider login prompt was cancelled.", "AbortError"),
+        );
+
+      session.answerPrompt = answer;
+      session.rejectPrompt = rejectPrompt;
+      session.controller.signal.addEventListener("abort", handleLoginAbort, { once: true });
+      prompt.signal?.addEventListener("abort", handlePromptAbort, { once: true });
+      if (session.controller.signal.aborted) handleLoginAbort();
+      else if (prompt.signal?.aborted) handlePromptAbort();
+    });
+  }
+
+  private notifyProviderLogin(session: ModelProviderLoginSession, event: AuthEvent): void {
+    if (session.value.status !== "running") return;
+    const next = loginEvent(event);
+    const previous = session.value.events.at(-1);
+    if (next.type === "progress" && previous?.type === "progress") {
+      session.value.events[session.value.events.length - 1] = next;
+    } else {
+      session.value.events.push(next);
+      if (session.value.events.length > 32) session.value.events.shift();
+    }
+    session.value.revision += 1;
+  }
+
+  private async runProviderLogin(
+    session: ModelProviderLoginSession,
+    runtime: ModelRuntimeLike,
+  ): Promise<void> {
+    try {
+      await runtime.login!(session.value.provider, session.value.authType, {
+        signal: session.controller.signal,
+        prompt: (prompt) => this.promptProviderLogin(session, prompt),
+        notify: (event) => this.notifyProviderLogin(session, event),
+      });
+      await runtime.getAvailable(session.value.provider).catch(() => undefined);
+      this.finishProviderLogin(session, "complete");
+    } catch (error) {
+      if (session.value.status !== "running") return;
+      this.finishProviderLogin(
+        session,
+        session.controller.signal.aborted || (error instanceof Error && error.name === "AbortError")
+          ? "cancelled"
+          : "failed",
+      );
+    }
+  }
+
+  async startProviderLogin(
+    input: StartModelProviderLoginPayload,
+  ): Promise<ModelProviderLoginValue> {
+    const { runtime } = await this.load();
+    const route = runtime.getProviders().find(({ id }) => id === input.provider);
+    if (!route) {
+      throw new ModelServiceError(
+        "model-provider-not-found",
+        "The model provider does not exist.",
+        { provider: input.provider },
+      );
+    }
+    if (typeof route.auth?.oauth?.login !== "function" || !runtime.login) {
+      throw new ModelServiceError(
+        "model-provider-account-login-unsupported",
+        "This provider does not support account login.",
+        { provider: input.provider },
+      );
+    }
+    if (
+      [...this.providerLogins.values()].some(
+        (session) =>
+          session.value.provider === input.provider && session.value.status === "running",
+      )
+    ) {
+      throw new ModelServiceError(
+        "model-provider-login-in-progress",
+        "An account login is already in progress for this provider.",
+        { provider: input.provider },
+      );
+    }
+
+    const loginId = globalThis.crypto.randomUUID();
+    const session: ModelProviderLoginSession = {
+      controller: new AbortController(),
+      value: {
+        loginId,
+        provider: input.provider,
+        authType: input.authType,
+        status: "running",
+        revision: 0,
+        events: [],
+      },
+    };
+    this.providerLogins.set(loginId, session);
+    void this.runProviderLogin(session, runtime);
+    return this.providerLoginSnapshot(session);
+  }
+
+  providerLogin(input: ModelProviderLoginPayload): ModelProviderLoginValue {
+    return this.providerLoginSnapshot(this.providerLoginSession(input.loginId));
+  }
+
+  respondProviderLogin(input: RespondModelProviderLoginPayload): ModelProviderLoginValue {
+    const session = this.providerLoginSession(input.loginId);
+    if (
+      session.value.status !== "running" ||
+      session.value.prompt?.id !== input.promptId ||
+      !session.answerPrompt
+    ) {
+      throw new ModelServiceError(
+        "model-provider-login-prompt-mismatch",
+        "The provider login prompt is no longer pending.",
+        { loginId: input.loginId },
+      );
+    }
+    session.answerPrompt(input.value);
+    return this.providerLoginSnapshot(session);
+  }
+
+  cancelProviderLogin(input: ModelProviderLoginPayload): ModelProviderLoginValue {
+    const session = this.providerLoginSession(input.loginId);
+    if (session.value.status === "running") {
+      this.finishProviderLogin(session, "cancelled");
+      session.controller.abort(new DOMException("Provider login was cancelled.", "AbortError"));
+    }
+    return this.providerLoginSnapshot(session);
   }
 
   private async refreshProvider(
@@ -987,15 +1320,6 @@ export class ModelService {
       throw new ModelServiceError(
         "model-provider-not-found",
         "The model provider does not exist.",
-        { provider: input.provider },
-      );
-    }
-
-    const directory = configurableProviderDirectory(runtime.getProviders(), this.settingsOverrides);
-    if (internalProviderIds(runtime, directory).has(input.provider)) {
-      throw new ModelServiceError(
-        "model-provider-configuration-readonly",
-        "Built-in model providers cannot be deleted.",
         { provider: input.provider },
       );
     }

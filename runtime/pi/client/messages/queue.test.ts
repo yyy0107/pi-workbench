@@ -65,6 +65,9 @@ function harness() {
     update: async (id, action) => {
       calls.push(["update", id, action]);
     },
+    replace: async (steering, followUp) => {
+      calls.push(["replace", steering, followUp]);
+    },
     setPaused: async (paused, steering, followUp) => {
       calls.push(["paused", paused, steering, followUp]);
     },
@@ -98,6 +101,119 @@ test("publishes a follow-up immediately and lets the authoritative snapshot adop
   );
 });
 
+test("reorders follow-ups optimistically and keeps the order across an older snapshot", async () => {
+  const { queue, calls } = harness();
+  queue.replaceAuthoritative([
+    queued("queue-1", "one"),
+    queued("queue-2", "two"),
+    queued("queue-3", "three"),
+  ]);
+
+  queue.adapter.move("queue-3", { insertBefore: "queue-1" });
+  assert.deepEqual(
+    queue.adapter.items.map((item) => item.id),
+    ["queue-3", "queue-1", "queue-2"],
+  );
+
+  queue.replaceAuthoritative([
+    queued("queue-1", "one"),
+    queued("queue-2", "two"),
+    queued("queue-3", "three"),
+  ]);
+  assert.deepEqual(
+    queue.adapter.items.map((item) => item.id),
+    ["queue-3", "queue-1", "queue-2"],
+  );
+
+  await flush();
+  assert.deepEqual(calls, [
+    ["replace", [], [{ message: "three" }, { message: "one" }, { message: "two" }]],
+  ]);
+  assert.deepEqual(
+    queue.adapter.items.map((item) => item.id),
+    ["queue-3", "queue-1", "queue-2"],
+  );
+});
+
+test("rolls an optimistic follow-up reorder back when queue replacement fails", async (t) => {
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  t.after(() => {
+    console.error = originalConsoleError;
+  });
+  const queue = new PiMessageQueue({
+    isRunning: () => true,
+    run: async () => {},
+    createId: () => "client-queue",
+    enqueue: async (_mode, _prompt, rpcId) => ({ queued: true, queueItemId: rpcId }),
+    update: async () => {},
+    replace: async () => {
+      throw new Error("replace rejected");
+    },
+    setPaused: async () => {},
+    onSteerRejected: () => {},
+    onChange: () => {},
+  });
+  queue.replaceAuthoritative([queued("queue-1", "one"), queued("queue-2", "two")]);
+
+  queue.adapter.move("queue-2", { insertBefore: "queue-1" });
+  assert.deepEqual(
+    queue.adapter.items.map((item) => item.id),
+    ["queue-2", "queue-1"],
+  );
+
+  await flush();
+  assert.deepEqual(
+    queue.adapter.items.map((item) => item.id),
+    ["queue-1", "queue-2"],
+  );
+});
+
+test("rolls a failed rapid reorder back to the last accepted order", async (t) => {
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  t.after(() => {
+    console.error = originalConsoleError;
+  });
+  const replacements: string[][] = [];
+  const queue = new PiMessageQueue({
+    isRunning: () => true,
+    run: async () => {},
+    createId: () => "client-queue",
+    enqueue: async (_mode, _prompt, rpcId) => ({ queued: true, queueItemId: rpcId }),
+    update: async () => {},
+    replace: async (_steering, followUp) => {
+      replacements.push(followUp.map((prompt) => prompt.message));
+      if (replacements.length === 2) throw new Error("second replace rejected");
+    },
+    setPaused: async () => {},
+    onSteerRejected: () => {},
+    onChange: () => {},
+  });
+  queue.replaceAuthoritative([
+    queued("queue-1", "one"),
+    queued("queue-2", "two"),
+    queued("queue-3", "three"),
+  ]);
+
+  queue.adapter.move("queue-3", { insertBefore: "queue-1" });
+  queue.adapter.move("queue-2", { insertBefore: "queue-3" });
+  assert.deepEqual(
+    queue.adapter.items.map((item) => item.id),
+    ["queue-2", "queue-3", "queue-1"],
+  );
+
+  await flush();
+  assert.deepEqual(replacements, [
+    ["three", "one", "two"],
+    ["two", "three", "one"],
+  ]);
+  assert.deepEqual(
+    queue.adapter.items.map((item) => item.id),
+    ["queue-3", "queue-1", "queue-2"],
+  );
+});
+
 test("keeps an optimistic follow-up across stale snapshots and rolls it back on rejection", async (t) => {
   const originalConsoleError = console.error;
   console.error = () => {};
@@ -114,6 +230,7 @@ test("keeps an optimistic follow-up across stale snapshots and rolls it back on 
         rejectRequest = reject;
       }),
     update: async () => {},
+    replace: async () => {},
     setPaused: async () => {},
     onSteerRejected: () => {},
     onChange: () => {},
@@ -139,6 +256,7 @@ test("removes the optimistic queue row when admission starts it as the next turn
     createId: () => "client-queue",
     enqueue: async () => ({ queued: false }),
     update: async () => {},
+    replace: async () => {},
     setPaused: async () => {},
     onSteerRejected: () => {},
     onChange: () => {},
@@ -169,17 +287,120 @@ test("edits, removes, and steers using the stable host item id", async () => {
     queue.adapter.items.map((item) => item.id),
     ["queue-1"],
   );
-  assert.deepEqual(
-    queue.adapter.steerItems.map((item) => item.id),
-    ["queue-2"],
-  );
+  assert.deepEqual(queue.adapter.steerItems, []);
   await flush();
 
   assert.deepEqual(calls, [
-    ["update", "queue-1", { kind: "edit", content: [{ type: "text", text: "edited" }] }],
     ["update", "queue-2", { kind: "remove" }],
-    ["update", "queue-2", { kind: "steer" }],
+    ["update", "queue-1", { kind: "edit", content: [{ type: "text", text: "edited" }] }],
   ]);
+});
+
+test("keeps a removed item hidden across stale authoritative snapshots", async () => {
+  let resolveRemove: (() => void) | undefined;
+  const queue = new PiMessageQueue({
+    isRunning: () => true,
+    run: async () => {},
+    createId: () => "client-queue",
+    enqueue: async (_mode, _prompt, rpcId) => ({ queued: true, queueItemId: rpcId }),
+    update: () =>
+      new Promise<void>((resolve) => {
+        resolveRemove = resolve;
+      }),
+    replace: async () => {},
+    setPaused: async () => {},
+    onSteerRejected: () => {},
+    onChange: () => {},
+  });
+  queue.replaceAuthoritative([queued("queue-1", "delete me")]);
+
+  queue.adapter.remove("queue-1");
+  assert.equal(queue.adapter.items.length, 0);
+
+  queue.replaceAuthoritative([queued("queue-1", "delete me")]);
+  assert.equal(queue.adapter.items.length, 0);
+
+  resolveRemove?.();
+  await flush();
+  queue.replaceAuthoritative([queued("queue-1", "delete me")]);
+  assert.equal(queue.adapter.items.length, 0);
+
+  queue.replaceAuthoritative([]);
+  queue.replaceAuthoritative([queued("queue-1", "new occurrence")]);
+  assert.deepEqual(
+    queue.adapter.items.map((item) => item.prompt),
+    ["new occurrence"],
+  );
+});
+
+test("restores a removed item when the server rejects the removal", async (t) => {
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  t.after(() => {
+    console.error = originalConsoleError;
+  });
+  const queue = new PiMessageQueue({
+    isRunning: () => true,
+    run: async () => {},
+    createId: () => "client-queue",
+    enqueue: async (_mode, _prompt, rpcId) => ({ queued: true, queueItemId: rpcId }),
+    update: async () => {
+      throw new Error("remove rejected");
+    },
+    replace: async () => {},
+    setPaused: async () => {},
+    onSteerRejected: () => {},
+    onChange: () => {},
+  });
+  queue.replaceAuthoritative([queued("queue-1", "keep me")]);
+
+  queue.adapter.remove("queue-1");
+  assert.equal(queue.adapter.items.length, 0);
+  await flush();
+
+  assert.deepEqual(
+    queue.adapter.items.map((item) => item.prompt),
+    ["keep me"],
+  );
+});
+
+test("dispatches removal while optimistic admission is still pending", async () => {
+  const calls: unknown[] = [];
+  let resolveAdmission:
+    | ((admission: { queued: boolean; queueItemId?: string }) => void)
+    | undefined;
+  const queue = new PiMessageQueue({
+    isRunning: () => true,
+    run: async () => {},
+    createId: () => "pending-queue-item",
+    enqueue: (_mode, _prompt, rpcId) => {
+      calls.push(["enqueue", rpcId]);
+      return new Promise((resolve) => {
+        resolveAdmission = resolve;
+      });
+    },
+    update: async (id, action) => {
+      calls.push(["update", id, action]);
+    },
+    replace: async () => {},
+    setPaused: async () => {},
+    onSteerRejected: () => {},
+    onChange: () => {},
+  });
+
+  queue.adapter.enqueue(message("cancel before admission"));
+  queue.adapter.remove("pending-queue-item");
+  assert.deepEqual(queue.adapter.items, []);
+  assert.deepEqual(calls, [["update", "pending-queue-item", { kind: "remove" }]]);
+
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.deepEqual(calls, [
+    ["update", "pending-queue-item", { kind: "remove" }],
+    ["enqueue", "pending-queue-item"],
+  ]);
+  resolveAdmission?.({ queued: false });
+  await flush();
+  assert.deepEqual(queue.adapter.items, []);
 });
 
 test("keeps an accepted steer promoted across an older queued snapshot", async () => {
@@ -213,6 +434,7 @@ test("restores the queued row when steer is rejected", async (t) => {
     update: async () => {
       throw new Error("steer rejected");
     },
+    replace: async () => {},
     setPaused: async () => {},
     onSteerRejected: (id) => calls.push(["steer-rejected", id]),
     onChange: () => {},

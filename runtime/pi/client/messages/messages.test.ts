@@ -303,6 +303,96 @@ test("restores the canonical Composer document, resolution trace, and one projec
   assert.equal(user.metadata.custom.piResolvedEntryId, "resolved");
 });
 
+test("places a resolved follow-up Composer message after the assistant turn it waited for", () => {
+  const history: PiSessionHistory = {
+    sessionId: "session",
+    context: {
+      entryIds: [
+        "initial-user",
+        "follow-up-composer",
+        "follow-up-resolution",
+        "initial-assistant",
+        "follow-up-user",
+        "follow-up-assistant",
+      ],
+      thinkingLevel: "off",
+      model: null,
+      messages: [
+        { role: "user", content: "需要", timestamp: 10 },
+        {
+          role: "custom",
+          customType: WORKBENCH_COMPOSER_USER_CUSTOM_TYPE,
+          content: "",
+          display: false,
+          details: {
+            version: 2,
+            submissionId: "submission-follow-up",
+            sourceText: "你",
+            text: "你",
+            document: [{ type: "text", text: "你" }],
+            commands: [],
+            status: "accepted",
+          },
+          timestamp: 20,
+        },
+        {
+          role: "custom",
+          customType: WORKBENCH_COMPOSER_RESOLUTION_CUSTOM_TYPE,
+          content: "",
+          display: false,
+          details: {
+            version: 1,
+            submissionId: "submission-follow-up",
+            status: "resolved",
+            commandTrace: [],
+          },
+          timestamp: 21,
+        },
+        {
+          role: "assistant",
+          content: [{ type: "text", text: "上一条回答" }],
+          timestamp: 30,
+        },
+        {
+          role: "user",
+          content: "你",
+          timestamp: 40,
+          workbenchComposer: {
+            version: 1,
+            submissionId: "submission-follow-up",
+            sourceText: "你",
+            document: [{ type: "text", text: "你" }],
+            hidden: true,
+          },
+        },
+        {
+          role: "assistant",
+          content: [{ type: "text", text: "follow-up 回答" }],
+          timestamp: 50,
+        },
+      ],
+    },
+  };
+
+  const converted = piHistoryToThreadMessages(history);
+
+  assert.deepEqual(
+    converted.map((message) => [
+      message.role,
+      message.content[0]?.type === "text" ? message.content[0].text : undefined,
+    ]),
+    [
+      ["user", "需要"],
+      ["assistant", "上一条回答"],
+      ["user", "你"],
+      ["assistant", "follow-up 回答"],
+    ],
+  );
+  assert.equal(converted[2]?.id, "follow-up-composer");
+  assert.equal(converted[2]?.createdAt.getTime(), 40);
+  assert.equal(converted[2]?.metadata.custom.piResolvedEntryId, "follow-up-user");
+});
+
 test("uses the projected token source when a partial history page omits the Composer marker", () => {
   const sourceText = ":pi-command[compact|Compact] keep decisions continue";
   const document = [

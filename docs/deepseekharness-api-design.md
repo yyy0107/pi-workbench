@@ -673,12 +673,18 @@ HTTP 头名称不区分大小写；下列 Schema 统一使用小写键表示。�
 
 ### 5.3 Workspace
 
-所有 Workspace 响应中的 `WorkspaceView` 使用第 4.3 节 Schema。
+所有 Workspace 响应中的 `WorkspaceView` 使用第 4.3 节 Schema；其中 `sessionIds` 只包含当前
+未归档的 session。服务端可在持久状态中保留完整顺序，以便取消归档后恢复原位置。
 
 #### `POST /api/workspace.list`
 
 - 请求 payload: `{}`。
-- 成功 value: `{ "items": WorkspaceView[], "archivedSessionIds": non-empty-string[] }`。
+- 成功 value: `{ "items": WorkspaceView[] }`。
+
+#### `POST /api/workspace.listArchivedSessions`
+
+- 请求 payload: `{}`。
+- 成功 value: `{ "sessionIds": non-empty-string[] }`。
 
 #### `POST /api/workspace.create`
 
@@ -710,7 +716,12 @@ HTTP 头名称不区分大小写；下列 Schema 统一使用小写键表示。�
 #### `POST /api/workspace.archiveSession`
 
 - 请求 payload: `{ "sessionId": non-empty string }`。
-- 成功 value: `{ "archivedSessionIds": non-empty-string[] }`。
+- 成功 value: `{ "sessionId": non-empty string, "archived": true, "archivedSessionIds": non-empty-string[], "workspace"?: WorkspaceView }`。
+
+#### `POST /api/workspace.unarchiveSession`
+
+- 请求 payload: `{ "sessionId": non-empty string }`。
+- 成功 value: `{ "sessionId": non-empty string, "archived": false, "archivedSessionIds": non-empty-string[], "workspace"?: WorkspaceView }`。
 
 ### 5.4 Skill
 

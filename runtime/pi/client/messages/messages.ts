@@ -572,6 +572,9 @@ export function piHistoryToThreadMessages(
   const messages: ThreadMessage[] = [];
   const entryIdCounts = new Map<string, number>();
   const composerUserIndexes = new Map<string, number>();
+  // A queued Composer marker is persisted before the preceding assistant turn finishes.
+  // Once its real user event arrives, keep the marker identity but render it at that event.
+  const supersededComposerUserIndexes = new Set<number>();
   const composerCommandResponseIndexes = new Map<string, number>();
   const runningCompactCommandResponses = new Set<string>();
   const resolvedToolTimingById = new Map<string, ToolCallTiming>();
@@ -613,12 +616,16 @@ export function piHistoryToThreadMessages(
         const projectedIndex = projection
           ? composerUserIndexes.get(projection.submissionId)
           : undefined;
-        if (projectedIndex !== undefined) {
+        if (projection && projectedIndex !== undefined) {
           const projected = messages[projectedIndex];
           if (projected?.role === "user") {
-            messages[projectedIndex] = {
+            const resolved = {
               ...projected,
               content: [...projected.content, ...content.filter((part) => part.type === "image")],
+              createdAt: messageDate(
+                message.timestamp ?? history.context.entryCompletedAts?.[index] ?? undefined,
+                index,
+              ),
               metadata: {
                 ...projected.metadata,
                 custom: {
@@ -628,6 +635,9 @@ export function piHistoryToThreadMessages(
                 },
               },
             };
+            supersededComposerUserIndexes.add(projectedIndex);
+            composerUserIndexes.set(projection.submissionId, messages.length);
+            messages.push(resolved);
             break;
           }
         }
@@ -830,14 +840,18 @@ export function piHistoryToThreadMessages(
     }
   });
 
-  return coalesceConsecutiveAssistantMessages(messages);
+  const chronologicallyProjectedMessages = supersededComposerUserIndexes.size
+    ? messages.filter((_message, index) => !supersededComposerUserIndexes.has(index))
+    : messages;
+  return coalesceConsecutiveAssistantMessages(chronologicallyProjectedMessages);
 }
 
 export function sameUserPrompt(left: ThreadUserMessage, right: ThreadUserMessage): boolean {
   const leftPrompt = appendMessageToPiPrompt(left);
   const rightPrompt = appendMessageToPiPrompt(right);
   if (
-    leftPrompt.text !== rightPrompt.text ||
+    stripWorkspaceFeedbackContext(leftPrompt.text) !==
+      stripWorkspaceFeedbackContext(rightPrompt.text) ||
     leftPrompt.images.length !== rightPrompt.images.length
   ) {
     return false;

@@ -13,7 +13,12 @@ import { homedir, hostname } from "node:os";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 
-import type { WorkspaceView } from "../../rpc-contracts";
+import type {
+  WorkspacePinValue,
+  WorkspaceSessionArchiveValue,
+  WorkspaceSessionPinValue,
+  WorkspaceView,
+} from "../../rpc-contracts";
 import { getStreamHub } from "../streams/stream-hub";
 
 export type { WorkspaceView } from "../../rpc-contracts";
@@ -23,6 +28,8 @@ export interface WorkspaceState {
   legacyReconciled: boolean;
   workspaces: WorkspaceView[];
   archivedSessionIds: string[];
+  pinnedWorkspaceIds: string[];
+  pinnedSessionIds: string[];
   ignoredWorkspacePaths: string[];
 }
 
@@ -30,7 +37,14 @@ export type WorkspaceStoreEvent =
   | { type: "host/workspace-changed"; workspace: WorkspaceView }
   | { type: "host/workspace-removed"; workspaceId: string }
   | { type: "host/workspace-order-changed"; workspaceIds: string[] }
-  | { type: "host/archived-sessions-changed"; archivedSessionIds: string[] };
+  | { type: "host/workspace-pinned-changed"; workspaceId: string; pinned: boolean }
+  | {
+      type: "host/session-archive-changed";
+      sessionId: string;
+      archived: boolean;
+      workspace?: WorkspaceView;
+    }
+  | { type: "host/session-pinned-changed"; sessionId: string; pinned: boolean };
 
 export interface WorkspaceStoreErrorDetails {
   "workspace-invalid-path": { path: string };
@@ -77,6 +91,8 @@ export interface WorkspaceReconcileOptions {
 export interface WorkspaceListResult {
   items: WorkspaceView[];
   archivedSessionIds: string[];
+  pinnedWorkspaceIds: string[];
+  pinnedSessionIds: string[];
 }
 
 export interface WorkspaceCreateResult {
@@ -95,6 +111,16 @@ export interface WorkspaceRenameInput {
 
 export interface WorkspaceDeleteInput {
   workspaceId: string;
+}
+
+export interface WorkspaceSetPinnedInput {
+  workspaceId: string;
+  pinned: boolean;
+}
+
+export interface WorkspaceSetSessionPinnedInput {
+  sessionId: string;
+  pinned: boolean;
 }
 
 export interface WorkspaceInsertBeforeInput {
@@ -119,6 +145,8 @@ const EMPTY_STATE = (): WorkspaceState => ({
   legacyReconciled: false,
   workspaces: [],
   archivedSessionIds: [],
+  pinnedWorkspaceIds: [],
+  pinnedSessionIds: [],
   ignoredWorkspacePaths: [],
 });
 const LOCK_HEARTBEAT_MS = 5 * 1000;
@@ -135,15 +163,36 @@ function cloneState(state: WorkspaceState): WorkspaceState {
     legacyReconciled: state.legacyReconciled,
     workspaces: state.workspaces.map(cloneWorkspace),
     archivedSessionIds: [...state.archivedSessionIds],
+    pinnedWorkspaceIds: [...state.pinnedWorkspaceIds],
+    pinnedSessionIds: [...state.pinnedSessionIds],
     ignoredWorkspacePaths: [...state.ignoredWorkspacePaths],
+  };
+}
+
+function visibleWorkspace(
+  workspace: WorkspaceView,
+  archivedSessionIds: readonly string[],
+): WorkspaceView {
+  const archived = new Set(archivedSessionIds);
+  return {
+    ...workspace,
+    sessionIds: workspace.sessionIds.filter((sessionId) => !archived.has(sessionId)),
   };
 }
 
 function listResult(state: WorkspaceState): WorkspaceListResult {
   return {
-    items: state.workspaces.map(cloneWorkspace),
+    items: state.workspaces.map((workspace) =>
+      visibleWorkspace(workspace, state.archivedSessionIds),
+    ),
     archivedSessionIds: [...state.archivedSessionIds],
+    pinnedWorkspaceIds: [...state.pinnedWorkspaceIds],
+    pinnedSessionIds: [...state.pinnedSessionIds],
   };
+}
+
+function archiveResult(sessionId: string, archived: boolean): WorkspaceSessionArchiveValue {
+  return { sessionId, archived };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -241,6 +290,10 @@ function parseState(value: unknown): WorkspaceState {
     legacyReconciled: value.legacyReconciled === true,
     workspaces,
     archivedSessionIds: stringArray(value.archivedSessionIds, "archivedSessionIds"),
+    pinnedWorkspaceIds: stringArray(value.pinnedWorkspaceIds, "pinnedWorkspaceIds").filter(
+      (workspaceId) => workspaceIds.has(workspaceId),
+    ),
+    pinnedSessionIds: stringArray(value.pinnedSessionIds, "pinnedSessionIds"),
     ignoredWorkspacePaths: stringArray(value.ignoredWorkspacePaths, "ignoredWorkspacePaths").filter(
       (workspacePath) => !activePaths.has(workspacePath),
     ),
@@ -326,7 +379,10 @@ export class WorkspaceStore {
           );
           await this.commit(next, []);
         }
-        return { workspace: cloneWorkspace(existing), created: false };
+        return {
+          workspace: visibleWorkspace(existing, this.state.archivedSessionIds),
+          created: false,
+        };
       }
 
       const title = path.basename(canonicalPath) || canonicalPath;
@@ -351,7 +407,10 @@ export class WorkspaceStore {
           workspaceIds: next.workspaces.map((item) => item.workspaceId),
         },
       ]);
-      return { workspace: cloneWorkspace(workspace), created: true };
+      return {
+        workspace: visibleWorkspace(workspace, next.archivedSessionIds),
+        created: true,
+      };
     });
   }
 
@@ -385,13 +444,45 @@ export class WorkspaceStore {
         );
       }
       const current = this.state.workspaces[index];
-      if (current.title === title) return { workspace: cloneWorkspace(current) };
+      if (current.title === title) {
+        return { workspace: visibleWorkspace(current, this.state.archivedSessionIds) };
+      }
 
       const next = cloneState(this.state);
       const workspace = { ...next.workspaces[index], title, updatedAt: this.timestamp() };
       next.workspaces[index] = workspace;
       await this.commit(next, [{ type: "host/workspace-changed", workspace }]);
-      return { workspace: cloneWorkspace(workspace) };
+      return { workspace: visibleWorkspace(workspace, next.archivedSessionIds) };
+    });
+  }
+
+  setPinned(workspaceId: string, pinned: boolean): Promise<WorkspacePinValue>;
+  setPinned(input: WorkspaceSetPinnedInput): Promise<WorkspacePinValue>;
+  setPinned(
+    input: string | WorkspaceSetPinnedInput,
+    positionalPinned?: boolean,
+  ): Promise<WorkspacePinValue> {
+    const workspaceId = typeof input === "string" ? input : input.workspaceId;
+    const pinned = typeof input === "string" ? positionalPinned === true : input.pinned;
+    return this.exclusive(async () => {
+      this.workspaceIndex(workspaceId);
+      const isPinned = this.state.pinnedWorkspaceIds.includes(workspaceId);
+      const event: WorkspaceStoreEvent = {
+        type: "host/workspace-pinned-changed",
+        workspaceId,
+        pinned,
+      };
+      if (isPinned === pinned) {
+        this.emit(event);
+        return { workspaceId, pinned };
+      }
+
+      const next = cloneState(this.state);
+      next.pinnedWorkspaceIds = pinned
+        ? [...next.pinnedWorkspaceIds, workspaceId]
+        : next.pinnedWorkspaceIds.filter((id) => id !== workspaceId);
+      await this.commit(next, [event]);
+      return { workspaceId, pinned };
     });
   }
 
@@ -403,6 +494,7 @@ export class WorkspaceStore {
       const index = this.workspaceIndex(workspaceId);
       const next = cloneState(this.state);
       const [workspace] = next.workspaces.splice(index, 1);
+      next.pinnedWorkspaceIds = next.pinnedWorkspaceIds.filter((id) => id !== workspaceId);
       if (!next.ignoredWorkspacePaths.includes(workspace.path)) {
         next.ignoredWorkspacePaths.push(workspace.path);
       }
@@ -479,7 +571,7 @@ export class WorkspaceStore {
         throw moveInvalid(workspaceId, sessionId, beforeSessionId);
       }
       if (beforeSessionId === sessionId) {
-        return { workspace: cloneWorkspace(current) };
+        return { workspace: visibleWorkspace(current, this.state.archivedSessionIds) };
       }
 
       const next = cloneState(this.state);
@@ -492,23 +584,55 @@ export class WorkspaceStore {
       destination.sessionIds.splice(insertionIndex, 0, sessionId);
 
       if (current.sessionIds.every((id, index) => id === destination.sessionIds[index])) {
-        return { workspace: cloneWorkspace(current) };
+        return { workspace: visibleWorkspace(current, this.state.archivedSessionIds) };
       }
 
       const timestamp = this.timestamp();
       destination.updatedAt = timestamp;
       await this.commit(next, [{ type: "host/workspace-changed", workspace: destination }]);
-      return { workspace: cloneWorkspace(next.workspaces[destinationIndex]) };
+      return {
+        workspace: visibleWorkspace(next.workspaces[destinationIndex], next.archivedSessionIds),
+      };
     });
   }
 
-  archiveSession(sessionId: string): Promise<{ archivedSessionIds: string[] }>;
-  archiveSession(input: WorkspaceArchiveSessionInput): Promise<{ archivedSessionIds: string[] }>;
+  archiveSession(sessionId: string): Promise<WorkspaceSessionArchiveValue>;
+  archiveSession(input: WorkspaceArchiveSessionInput): Promise<WorkspaceSessionArchiveValue>;
   archiveSession(
     input: string | WorkspaceArchiveSessionInput,
-  ): Promise<{ archivedSessionIds: string[] }> {
+  ): Promise<WorkspaceSessionArchiveValue> {
     const sessionId = typeof input === "string" ? input : input.sessionId;
     return this.setSessionArchived(sessionId, true);
+  }
+
+  setSessionPinned(sessionId: string, pinned: boolean): Promise<WorkspaceSessionPinValue>;
+  setSessionPinned(input: WorkspaceSetSessionPinnedInput): Promise<WorkspaceSessionPinValue>;
+  setSessionPinned(
+    input: string | WorkspaceSetSessionPinnedInput,
+    positionalPinned?: boolean,
+  ): Promise<WorkspaceSessionPinValue> {
+    const sessionId = typeof input === "string" ? input : input.sessionId;
+    const pinned = typeof input === "string" ? positionalPinned === true : input.pinned;
+    return this.exclusive(async () => {
+      if (!sessionId.trim()) throw new TypeError("sessionId must not be empty");
+      const isPinned = this.state.pinnedSessionIds.includes(sessionId);
+      const event: WorkspaceStoreEvent = {
+        type: "host/session-pinned-changed",
+        sessionId,
+        pinned,
+      };
+      if (isPinned === pinned) {
+        this.emit(event);
+        return { sessionId, pinned };
+      }
+
+      const next = cloneState(this.state);
+      next.pinnedSessionIds = pinned
+        ? [...next.pinnedSessionIds, sessionId]
+        : next.pinnedSessionIds.filter((id) => id !== sessionId);
+      await this.commit(next, [event]);
+      return { sessionId, pinned };
+    });
   }
 
   attachSession(workspaceId: string, sessionId: string): Promise<{ workspace: WorkspaceView }> {
@@ -519,7 +643,12 @@ export class WorkspaceStore {
         workspace.sessionIds.includes(sessionId),
       );
       if (currentIndex === destinationIndex) {
-        return { workspace: cloneWorkspace(this.state.workspaces[destinationIndex]) };
+        return {
+          workspace: visibleWorkspace(
+            this.state.workspaces[destinationIndex],
+            this.state.archivedSessionIds,
+          ),
+        };
       }
 
       const next = cloneState(this.state);
@@ -537,27 +666,95 @@ export class WorkspaceStore {
         .filter((_, index) => changedIndices.has(index))
         .map((workspace) => ({ type: "host/workspace-changed", workspace }));
       await this.commit(next, events);
-      return { workspace: cloneWorkspace(next.workspaces[destinationIndex]) };
+      return {
+        workspace: visibleWorkspace(next.workspaces[destinationIndex], next.archivedSessionIds),
+      };
     });
   }
 
-  setSessionArchived(
-    sessionId: string,
-    archived: boolean,
-  ): Promise<{ archivedSessionIds: string[] }> {
+  setSessionArchived(sessionId: string, archived: boolean): Promise<WorkspaceSessionArchiveValue> {
     return this.exclusive(async () => {
       if (!sessionId.trim()) throw new TypeError("sessionId must not be empty");
       const isArchived = this.state.archivedSessionIds.includes(sessionId);
       if (isArchived === archived) {
-        return { archivedSessionIds: [...this.state.archivedSessionIds] };
+        const workspace = this.state.workspaces.find((candidate) =>
+          candidate.sessionIds.includes(sessionId),
+        );
+        this.emit({
+          type: "host/session-archive-changed",
+          sessionId,
+          archived,
+          ...(workspace ? { workspace } : {}),
+        });
+        return archiveResult(sessionId, archived);
       }
       const next = cloneState(this.state);
       next.archivedSessionIds = archived
         ? [...next.archivedSessionIds, sessionId]
         : next.archivedSessionIds.filter((id) => id !== sessionId);
-      const archivedSessionIds = [...next.archivedSessionIds];
-      await this.commit(next, [{ type: "host/archived-sessions-changed", archivedSessionIds }]);
-      return { archivedSessionIds };
+      const workspace = next.workspaces.find((candidate) =>
+        candidate.sessionIds.includes(sessionId),
+      );
+      await this.commit(next, [
+        {
+          type: "host/session-archive-changed",
+          sessionId,
+          archived,
+          ...(workspace ? { workspace } : {}),
+        },
+      ]);
+      return archiveResult(sessionId, archived);
+    });
+  }
+
+  unarchiveSession(session: WorkspaceSessionSnapshot): Promise<WorkspaceSessionArchiveValue> {
+    return this.exclusive(async () => {
+      const sessionId = session.id.trim();
+      if (!sessionId) throw new TypeError("session.id must not be empty");
+
+      const next = cloneState(this.state);
+      let workspace = next.workspaces.find((candidate) => candidate.sessionIds.includes(sessionId));
+      let workspaceChanged = false;
+
+      if (!workspace) {
+        const canonicalPath = await this.tryCanonicalPath(session.cwd);
+        if (canonicalPath) {
+          workspace = next.workspaces.find((candidate) => candidate.path === canonicalPath);
+          const timestamp = this.timestamp();
+          if (!workspace) {
+            workspace = {
+              workspaceId: randomUUID(),
+              path: canonicalPath,
+              title: uniqueMigrationTitle(next, canonicalPath),
+              sessionIds: [],
+              createdAt: timestamp,
+              updatedAt: timestamp,
+            };
+            next.workspaces.push(workspace);
+          }
+          workspace.sessionIds.unshift(sessionId);
+          workspace.updatedAt = timestamp;
+          next.ignoredWorkspacePaths = next.ignoredWorkspacePaths.filter(
+            (ignoredPath) => ignoredPath !== canonicalPath,
+          );
+          workspaceChanged = true;
+        }
+      }
+
+      const wasArchived = next.archivedSessionIds.includes(sessionId);
+      if (wasArchived) {
+        next.archivedSessionIds = next.archivedSessionIds.filter((id) => id !== sessionId);
+      }
+
+      const event: WorkspaceStoreEvent = {
+        type: "host/session-archive-changed",
+        sessionId,
+        archived: false,
+        ...(workspace ? { workspace } : {}),
+      };
+      if (!wasArchived && !workspaceChanged) this.emit(event);
+      else await this.commit(next, [event]);
+      return archiveResult(sessionId, false);
     });
   }
 
@@ -576,15 +773,29 @@ export class WorkspaceStore {
       if (archivedChanged) {
         next.archivedSessionIds = next.archivedSessionIds.filter((id) => id !== sessionId);
       }
-      if (changedWorkspaceIds.size === 0 && !archivedChanged) return { removed: false };
+      const pinnedChanged = next.pinnedSessionIds.includes(sessionId);
+      if (pinnedChanged) {
+        next.pinnedSessionIds = next.pinnedSessionIds.filter((id) => id !== sessionId);
+      }
+      if (changedWorkspaceIds.size === 0 && !archivedChanged && !pinnedChanged) {
+        return { removed: false };
+      }
 
       const events: WorkspaceStoreEvent[] = next.workspaces
         .filter((workspace) => changedWorkspaceIds.has(workspace.workspaceId))
         .map((workspace) => ({ type: "host/workspace-changed", workspace }));
       if (archivedChanged) {
         events.push({
-          type: "host/archived-sessions-changed",
-          archivedSessionIds: [...next.archivedSessionIds],
+          type: "host/session-archive-changed",
+          sessionId,
+          archived: false,
+        });
+      }
+      if (pinnedChanged) {
+        events.push({
+          type: "host/session-pinned-changed",
+          sessionId,
+          pinned: false,
         });
       }
       await this.commit(next, events);
@@ -605,6 +816,14 @@ export class WorkspaceStore {
         seenSnapshots.add(session.id);
         return true;
       });
+      const stalePinnedSessionIds = next.pinnedSessionIds.filter(
+        (sessionId) => !seenSnapshots.has(sessionId),
+      );
+      if (stalePinnedSessionIds.length > 0) {
+        next.pinnedSessionIds = next.pinnedSessionIds.filter((sessionId) =>
+          seenSnapshots.has(sessionId),
+        );
+      }
       const changedWorkspaceIds = new Set<string>();
       let orderChanged = false;
       let timestamp: string | undefined;
@@ -649,7 +868,12 @@ export class WorkspaceStore {
 
       const markerChanged = !next.legacyReconciled;
       next.legacyReconciled = true;
-      if (!markerChanged && changedWorkspaceIds.size === 0 && !orderChanged) {
+      if (
+        !markerChanged &&
+        changedWorkspaceIds.size === 0 &&
+        !orderChanged &&
+        stalePinnedSessionIds.length === 0
+      ) {
         return listResult(this.state);
       }
 
@@ -661,6 +885,9 @@ export class WorkspaceStore {
           type: "host/workspace-order-changed",
           workspaceIds: next.workspaces.map((workspace) => workspace.workspaceId),
         });
+      }
+      for (const sessionId of stalePinnedSessionIds) {
+        events.push({ type: "host/session-pinned-changed", sessionId, pinned: false });
       }
       await this.commit(next, events);
       return listResult(next);
@@ -857,11 +1084,17 @@ export class WorkspaceStore {
   private emit(event: WorkspaceStoreEvent): void {
     const snapshot: WorkspaceStoreEvent =
       event.type === "host/workspace-changed"
-        ? { ...event, workspace: cloneWorkspace(event.workspace) }
+        ? {
+            ...event,
+            workspace: visibleWorkspace(event.workspace, this.state.archivedSessionIds),
+          }
         : event.type === "host/workspace-order-changed"
           ? { ...event, workspaceIds: [...event.workspaceIds] }
-          : event.type === "host/archived-sessions-changed"
-            ? { ...event, archivedSessionIds: [...event.archivedSessionIds] }
+          : event.type === "host/session-archive-changed" && event.workspace
+            ? {
+                ...event,
+                workspace: visibleWorkspace(event.workspace, this.state.archivedSessionIds),
+              }
             : { ...event };
     for (const listener of this.listeners) {
       try {
