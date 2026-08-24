@@ -6,7 +6,12 @@ export { RightWorkspace } from "./right-workspace";
 export { RightWorkspaceProvider } from "./right-workspace-provider";
 export { WorkspaceSurfaceRuntimeHost } from "./workspace-surface-runtime-host";
 export { RightWorkspaceToggleButton } from "./right-workspace-toggle-button";
-export { RIGHT_WORKSPACE_OVERLAY_MEDIA_QUERY } from "./right-workspace-layout";
+export {
+  MIN_DOCKED_RIGHT_WORKSPACE_HOST_WIDTH,
+  resolveRightWorkspacePresentation,
+  shouldCollapseRightWorkspaceBeforeSidebar,
+  type RightWorkspacePresentation,
+} from "./right-workspace-layout";
 export type { RightWorkspaceController } from "./core/workspace-controller";
 export type {
   OpenSurfaceRequest,

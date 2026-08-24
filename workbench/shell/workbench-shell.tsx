@@ -1,15 +1,16 @@
 "use client";
 
-import { useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
 import { SidebarProvider } from "@/components/ui/sidebar";
 import {
-  RIGHT_WORKSPACE_OVERLAY_MEDIA_QUERY,
   RightWorkspace,
   RightWorkspaceToggleButton,
+  resolveRightWorkspacePresentation,
+  shouldCollapseRightWorkspaceBeforeSidebar,
+  useRightWorkspace,
   useRightWorkspaceState,
 } from "@/components/right-workspace";
-import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
 import { SlotHost } from "@/platform/extensions";
 
@@ -28,10 +29,43 @@ const MAX_SIDEBAR_WIDTH = 560;
 export function WorkbenchShell({ children }: Readonly<{ children: ReactNode }>) {
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH);
   const shellRef = useRef<HTMLDivElement>(null);
+  const workspaceHostRef = useRef<HTMLDivElement>(null);
+  const previousWorkspaceHostWidthRef = useRef<number | undefined>(undefined);
+  const workspaceController = useRightWorkspace();
   const workspaceOpen = useRightWorkspaceState((state) => state.open);
   const workspaceMaximized = useRightWorkspaceState((state) => state.maximized);
-  const workspaceOverlay = useMediaQuery(RIGHT_WORKSPACE_OVERLAY_MEDIA_QUERY);
-  const conversationHidden = workspaceOpen && (workspaceMaximized || workspaceOverlay);
+  const workspacePresentation = resolveRightWorkspacePresentation(
+    workspaceOpen,
+    workspaceMaximized,
+  );
+  const conversationHidden = workspacePresentation === "maximized";
+
+  useLayoutEffect(() => {
+    const workspaceHost = workspaceHostRef.current;
+    if (!workspaceHost) return;
+
+    const update = () => {
+      const availableWidth = workspaceHost.clientWidth;
+      const previousAvailableWidth = previousWorkspaceHostWidthRef.current;
+      previousWorkspaceHostWidthRef.current = availableWidth;
+      if (previousAvailableWidth === undefined) return;
+
+      if (
+        shouldCollapseRightWorkspaceBeforeSidebar(
+          workspacePresentation,
+          previousAvailableWidth,
+          availableWidth,
+        )
+      ) {
+        workspaceController.setWorkspaceOpen(false);
+      }
+    };
+
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(workspaceHost);
+    return () => observer.disconnect();
+  }, [workspaceController, workspacePresentation]);
 
   const resizeSidebar = (width: number) => {
     const viewportMaximum = Math.floor(window.innerWidth / 2);
@@ -74,7 +108,7 @@ export function WorkbenchShell({ children }: Readonly<{ children: ReactNode }>) 
         onResize={resizeSidebar}
       />
 
-      <div className="relative flex min-w-0 flex-1 overflow-hidden">
+      <div ref={workspaceHostRef} className="relative flex min-w-0 flex-1 overflow-hidden">
         <div
           aria-hidden={conversationHidden ? true : undefined}
           inert={conversationHidden ? true : undefined}

@@ -2,7 +2,6 @@
 
 import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 
-import { useMediaQuery } from "@/hooks/use-media-query";
 import { useI18n } from "@/i18n";
 
 import {
@@ -13,7 +12,7 @@ import {
 import { WorkspaceFeedbackLayer } from "./feedback/feedback-layer";
 import {
   MIN_CONVERSATION_WIDTH,
-  RIGHT_WORKSPACE_OVERLAY_MEDIA_QUERY,
+  resolveRightWorkspacePresentation,
 } from "./right-workspace-layout";
 import { SurfaceHost } from "./surface-host";
 import { useRightWorkspaceState } from "./workspace-context";
@@ -37,9 +36,9 @@ export function RightWorkspace() {
   const open = useRightWorkspaceState((state) => state.open);
   const width = useRightWorkspaceState((state) => state.width);
   const maximized = useRightWorkspaceState((state) => state.maximized);
-  const overlay = useMediaQuery(RIGHT_WORKSPACE_OVERLAY_MEDIA_QUERY);
   const [maximum, setMaximum] = useState(DEFAULT_RIGHT_WORKSPACE_WIDTH);
   const workspaceLayoutRef = useRef<HTMLDivElement>(null);
+  const presentation = resolveRightWorkspacePresentation(open, maximized);
 
   useLayoutEffect(() => {
     const update = () => setMaximum(workspaceMaximum(workspaceLayoutRef.current));
@@ -76,17 +75,18 @@ export function RightWorkspace() {
       data-slot="right-workspace-layout"
       data-state={open ? "open" : "closed"}
       data-maximized={maximized ? "true" : undefined}
-      className="relative h-full min-h-0 min-w-0 shrink-0 transition-[width] duration-[240ms] ease-[cubic-bezier(0.45,0,0.8,0.7)] motion-reduce:transition-none data-[resizing=true]:transition-none data-[resizing=true]:will-change-[width] data-[state=closed]:pointer-events-none max-[1199px]:absolute max-[1199px]:inset-y-0 max-[1199px]:right-0 max-[1199px]:z-20 max-[1199px]:data-[state=open]:w-full!"
+      className="relative h-full min-h-0 min-w-0 shrink-0 transition-[width] duration-[240ms] ease-[cubic-bezier(0.45,0,0.8,0.7)] motion-reduce:transition-none data-[resizing=true]:transition-none data-[resizing=true]:will-change-[width] data-[state=closed]:pointer-events-none"
       style={
         {
           "--right-workspace-layout-width": `${renderedWidth}px`,
           "--right-workspace-content-width": `${renderedWidth}px`,
           "--right-workspace-resize-translate-x": "0px",
-          width: open
-            ? maximized || overlay
-              ? "100%"
-              : "min(var(--right-workspace-layout-width), 100%)"
-            : 0,
+          width:
+            presentation === "closed"
+              ? 0
+              : presentation === "maximized"
+                ? "100%"
+                : "min(var(--right-workspace-layout-width), 100%)",
           maxWidth: "100%",
         } as CSSProperties
       }
@@ -99,11 +99,11 @@ export function RightWorkspace() {
         data-workbench-surface="right-workspace"
         data-state={open ? "open" : "closed"}
         data-maximized={maximized ? "true" : undefined}
-        className="bg-background absolute inset-y-0 right-0 flex min-h-0 min-w-0 flex-col overflow-hidden border-l transition-[width,transform,border-color] duration-[240ms] ease-[cubic-bezier(0.45,0,0.8,0.7)] motion-reduce:transition-none in-data-[resizing=true]:transition-none in-data-[resizing=true]:will-change-[width,transform] data-[resizing=true]:transition-none data-[resizing=true]:will-change-[width,transform] data-[state=closed]:border-transparent max-[1199px]:data-[state=open]:w-full!"
+        className="bg-background absolute inset-y-0 right-0 flex min-h-0 min-w-0 flex-col overflow-hidden border-l transition-[width,transform,border-color] duration-[240ms] ease-[cubic-bezier(0.45,0,0.8,0.7)] motion-reduce:transition-none in-data-[resizing=true]:transition-none in-data-[resizing=true]:will-change-[width,transform] data-[resizing=true]:transition-none data-[resizing=true]:will-change-[width,transform] data-[state=closed]:border-transparent"
         style={
           {
             width:
-              maximized || overlay
+              presentation === "maximized"
                 ? "100%"
                 : "min(var(--right-workspace-content-width), var(--right-workspace-layout-width), 100vw)",
             maxWidth: "100vw",
@@ -120,7 +120,7 @@ export function RightWorkspace() {
           <SurfaceHost />
           <WorkspaceFeedbackLayer />
         </div>
-        {open && !maximized && !overlay ? (
+        {presentation === "panel" ? (
           <WorkspaceResizeHandle
             width={renderedWidth}
             maximum={maximum}
