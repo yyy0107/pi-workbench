@@ -240,7 +240,6 @@ export function MessageActions({ role, isLast }: MessageSlotContext) {
 
   return (
     <>
-      {capabilities.switchToBranch ? <BranchPicker /> : null}
       {role === "user" && capabilities.edit ? <UserActions /> : null}
       {role === "assistant" ? (
         <>
@@ -248,6 +247,7 @@ export function MessageActions({ role, isLast }: MessageSlotContext) {
           {showPerformance ? <MessagePerformance /> : null}
         </>
       ) : null}
+      {capabilities.switchToBranch ? <BranchPicker /> : null}
     </>
   );
 }
