@@ -1623,18 +1623,13 @@ export class PiClientSession {
   private currentMessageRepository(): ExportedMessageRepository {
     const messages = this.baseMessageRepository.messages.map((item) => ({ ...item }));
     const byId = new Map(messages.map((item) => [item.message.id, item]));
-    for (const message of this.baseMessages) {
-      const existing = byId.get(message.id);
-      if (existing) existing.message = message;
-    }
-    let parentId = this.baseMessageRepository.headId ?? null;
-    const liveMessages = [...this.liveMessages];
-    if (this.streamingMessage) {
-      const pendingSteerIndex = this.firstPendingSteeringMessageIndex(liveMessages);
-      if (pendingSteerIndex < 0) liveMessages.push(this.streamingMessage);
-      else liveMessages.splice(pendingSteerIndex, 0, this.streamingMessage);
-    }
-    for (const message of liveMessages) {
+    let parentId: string | null = null;
+
+    // assistant-ui treats messageRepository as authoritative when both repository and
+    // messages are supplied. Project the active branch from the same coalesced messages
+    // used by the flat snapshot so one Pi agent turn does not render every internal
+    // model/tool cycle as a separate completed assistant response.
+    for (const message of this.currentMessages()) {
       const item = { message, parentId };
       const existing = byId.get(message.id);
       if (existing) Object.assign(existing, item);

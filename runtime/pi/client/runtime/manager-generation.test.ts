@@ -262,6 +262,93 @@ test("retains a live-only user as the parent when regenerating before history re
   );
 });
 
+test("coalesces internal assistant cycles in the active message repository", (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("remote-session", "remote-session");
+  const user: ThreadMessage = {
+    id: "user",
+    role: "user",
+    content: [{ type: "text", text: "Crawl the site" }],
+    attachments: [],
+    createdAt: new Date(1_000),
+    metadata: { custom: {} },
+  };
+  const firstCycle: ThreadMessage = {
+    id: "assistant-cycle-1",
+    role: "assistant",
+    content: [{ type: "text", text: "Intermediate tool turn", status: { type: "complete" } }],
+    status: { type: "complete", reason: "stop" },
+    createdAt: new Date(2_000),
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      steps: [],
+      custom: {},
+    },
+  };
+  const finalCycle: ThreadMessage = {
+    id: "assistant-cycle-2",
+    role: "assistant",
+    content: [{ type: "text", text: "Final answer", status: { type: "running" } }],
+    status: { type: "running" },
+    createdAt: new Date(3_000),
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      steps: [],
+      custom: {},
+    },
+  };
+  const internals = session as unknown as {
+    liveMessages: ThreadMessage[];
+    publishMessagesAndSetRunning(running: boolean): void;
+  };
+  internals.liveMessages = [user, firstCycle, finalCycle];
+  internals.publishMessagesAndSetRunning(true);
+
+  const snapshot = session.getSnapshot();
+  const repository = new INTERNAL.MessageRepository();
+  assert.doesNotThrow(() => repository.import(snapshot.messageRepository));
+  const activeMessages = repository.getMessages();
+
+  assert.equal(snapshot.isRunning, true);
+  assert.deepEqual(
+    activeMessages.map((message) => [message.id, message.role]),
+    [
+      [user.id, "user"],
+      [firstCycle.id, "assistant"],
+    ],
+  );
+  const assistant = activeMessages.at(-1);
+  assert.equal(assistant?.status?.type, "running");
+  assert.deepEqual(
+    assistant?.content.map((part) => (part.type === "text" ? part.text : part.type)),
+    ["Intermediate tool turn", "Final answer"],
+  );
+
+  internals.liveMessages = [
+    user,
+    firstCycle,
+    {
+      ...finalCycle,
+      content: [{ type: "text", text: "Final answer", status: { type: "complete" } }],
+      status: { type: "complete", reason: "stop" },
+    },
+  ];
+  internals.publishMessagesAndSetRunning(false);
+
+  const completedSnapshot = session.getSnapshot();
+  const completedRepository = new INTERNAL.MessageRepository();
+  assert.doesNotThrow(() => completedRepository.import(completedSnapshot.messageRepository));
+  const completedMessages = completedRepository.getMessages();
+  assert.equal(completedSnapshot.isRunning, false);
+  assert.equal(completedMessages.length, 2);
+  assert.equal(completedMessages.at(-1)?.status?.type, "complete");
+});
+
 test("maps regenerated assistant answers to sibling repository branches", (t) => {
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
