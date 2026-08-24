@@ -18,26 +18,26 @@ const { piComposerSendError } = (await import(
 )) as typeof import("./send-error");
 moduleHooks.deregister();
 
-test("classifies recoverable image admission failures for the composer", () => {
+test("classifies recoverable attachment admission failures for the composer", () => {
   assert.equal(
     piComposerSendError(
       new PiApiError("attachment-error", 200, {
         reason: "MODEL_DOES_NOT_SUPPORT_IMAGES",
       }),
     ),
-    "model-image-unsupported",
+    "model-attachment-unsupported",
   );
   assert.equal(
     piComposerSendError(
       new PiApiError("attachment-error", 200, { reason: "TOO_MANY_INLINE_IMAGES" }),
     ),
-    "too-many-images",
+    "too-many-attachments",
   );
   assert.equal(
     piComposerSendError(
       new PiApiError("attachment-error", 200, { reason: "INLINE_IMAGE_TOO_LARGE" }),
     ),
-    "image-too-large",
+    "attachment-too-large",
   );
   assert.equal(
     piComposerSendError(
@@ -45,19 +45,31 @@ test("classifies recoverable image admission failures for the composer", () => {
         reason: "INLINE_IMAGES_TOTAL_TOO_LARGE",
       }),
     ),
-    "image-too-large",
+    "attachment-too-large",
   );
   assert.equal(
     piComposerSendError(
       new PiApiError("attachment-error", 200, { reason: "IMAGE_MEDIA_TYPE_MISMATCH" }),
     ),
-    "image-invalid",
+    "attachment-invalid",
+  );
+  assert.equal(
+    piComposerSendError(
+      new PiApiError("attachment-error", 200, { reason: "INLINE_DOCUMENT_TOO_LARGE" }),
+    ),
+    "attachment-too-large",
+  );
+  assert.equal(
+    piComposerSendError(
+      new PiApiError("attachment-error", 200, { reason: "UNRECOGNIZED_DOCUMENT_FORMAT" }),
+    ),
+    "attachment-invalid",
   );
   assert.equal(
     piComposerSendError(
       new PiApiError("attachment-error", 200, { reason: "FUTURE_ATTACHMENT_REASON" }),
     ),
-    "image-invalid",
+    "attachment-invalid",
   );
 });
 

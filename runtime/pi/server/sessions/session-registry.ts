@@ -19,6 +19,7 @@ import {
 import type {
   PiAssistantMessage,
   PiAgentMessage,
+  PiDocumentContent,
   PiEvent,
   PiImageContent,
   PiModelListResponse,
@@ -85,20 +86,23 @@ import { getWorkspaceStore } from "../workspaces/workspace-registry";
 import { validateWorkspace, workspaceFromCwd } from "../workspaces/workspace-paths";
 import { createInteractiveBashTool } from "../../../terminal/server/interactive-bash-tool";
 import {
-  isTerminalImageRecognitionSnapshot,
-  parseImageRecognitionSnapshot,
-  reduceImageRecognitionSnapshot,
+  attachmentReferenceId,
+  isTerminalAttachmentRecognitionSnapshot,
+  parseAttachmentRecognitionSnapshot,
+  reduceAttachmentRecognitionSnapshot,
+  WORKBENCH_ATTACHMENT_RECOGNITION_CUSTOM_TYPE,
   WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE,
-  type ImageRecognitionSnapshot,
+  type AttachmentRecognitionSnapshot,
 } from "../../../image-understanding/state-machine";
 import {
-  decideImageUnderstandingRoute,
-  GlmOcrProvider,
+  decideAttachmentUnderstandingRoute,
   ImageUnderstandingProviderError,
-  PaddleOcrProvider,
-  type ImageUnderstandingObservation,
+  OcrAdapterProvider,
+  projectAttachmentRecognitionResults,
+  type AttachmentUnderstandingObservation,
+  type RecognizableAttachment,
 } from "../image-understanding/index";
-import { ImageRecognitionLifecycle } from "../image-understanding/lifecycle";
+import { AttachmentRecognitionLifecycle } from "../image-understanding/lifecycle";
 import { recognizeWithMultimodalModel } from "../image-understanding/multimodal";
 import { getImageUnderstandingSettingsStore } from "../image-understanding/registry";
 
@@ -569,6 +573,9 @@ function copyQueuedPrompts(prompts: readonly PiQueuedPrompt[]): PiQueuedPrompt[]
   return prompts.map((prompt) => ({
     message: prompt.message,
     ...(prompt.images?.length ? { images: prompt.images.map((image) => ({ ...image })) } : {}),
+    ...(prompt.documents?.length
+      ? { documents: prompt.documents.map((document) => ({ ...document })) }
+      : {}),
   }));
 }
 
@@ -586,9 +593,37 @@ function contentHasImage(content: unknown): boolean {
   );
 }
 
-/** Durable context image detection shared by model-switch admission and its regression tests. */
+/** Detects Pi image parts in durable or projected model context. */
 export function messagesHaveImages(messages: readonly unknown[]): boolean {
   return messages.some((candidate) => isRecord(candidate) && contentHasImage(candidate.content));
+}
+
+const HISTORICAL_IMAGE_OMISSION_PREFIX = "[Workbench omitted historical image";
+
+/**
+ * Builds an ephemeral text-only model context without mutating durable session history. Previous
+ * image turns stay available to the UI and to future vision models, while a text-only model sees a
+ * stable placeholder instead of an unsupported image block.
+ */
+export function textOnlyModelContext(messages: readonly unknown[]): readonly unknown[] {
+  let imageSequence = 0;
+  let changed = false;
+  const next = messages.map((candidate) => {
+    if (!isRecord(candidate) || !Array.isArray(candidate.content)) return candidate;
+    let messageChanged = false;
+    const content = candidate.content.map((part) => {
+      if (!isRecord(part) || part.type !== "image" || typeof part.data !== "string") return part;
+      imageSequence += 1;
+      changed = true;
+      messageChanged = true;
+      return {
+        type: "text",
+        text: `${HISTORICAL_IMAGE_OMISSION_PREFIX} ${imageSequence} because the current model accepts text only.]`,
+      };
+    });
+    return messageChanged ? { ...candidate, content } : candidate;
+  });
+  return changed ? next : messages;
 }
 
 function promptsHaveImages(prompts: ReadonlyPromptQueueSnapshot): boolean {
@@ -597,8 +632,18 @@ function promptsHaveImages(prompts: ReadonlyPromptQueueSnapshot): boolean {
   );
 }
 
+function promptsHaveDocuments(prompts: ReadonlyPromptQueueSnapshot): boolean {
+  return [...prompts.steering, ...prompts.followUp].some((prompt) =>
+    prompt.documents?.some((document) => document.type === "file" && Boolean(document.data)),
+  );
+}
+
 function imageUnsupported(): PiServerError {
   return new PiServerError("pi_model_image_unsupported", 400);
+}
+
+function documentPreprocessingRequired(): PiServerError {
+  return new PiServerError("pi_attachment_preprocessing_required", 400);
 }
 
 function firstUserText(messages: readonly unknown[]): string {
@@ -636,30 +681,69 @@ export class SerializedSessionMutations {
   }
 }
 
-type ImageUnderstandingRunResult =
+type AttachmentUnderstandingRunResult =
   | { kind: "native"; images: PiImageContent[] }
-  | { kind: "preprocessed"; observations: ImageUnderstandingObservation[] }
+  | { kind: "preprocessed"; observations: AttachmentUnderstandingObservation[] }
   | { kind: "failed"; errorCode: string }
   | { kind: "cancelled" };
 
-const MAX_IMAGE_UNDERSTANDING_CONTEXT_CHARACTERS = 250_000;
+const MAX_ATTACHMENT_UNDERSTANDING_CONTEXT_CHARACTERS = 250_000;
 
-function validateImageUnderstandingObservations(
-  observations: readonly ImageUnderstandingObservation[],
-  expectedImageIds: readonly string[],
+function recognizableAttachments(
+  images: readonly PiImageContent[],
+  documents: readonly PiDocumentContent[],
+): RecognizableAttachment[] {
+  return [
+    ...images.map((attachment, index) => {
+      const sequence = index + 1;
+      return {
+        id: attachmentReferenceId({ kind: "image", sequence }),
+        kind: "image" as const,
+        sequence,
+        ...(attachment.name === undefined ? {} : { name: attachment.name }),
+        mimeType: attachment.mimeType,
+        data: attachment.data,
+      };
+    }),
+    ...documents.map((attachment, index) => {
+      const sequence = index + 1;
+      return {
+        id: attachmentReferenceId({ kind: "pdf", sequence }),
+        kind: "pdf" as const,
+        sequence,
+        ...(attachment.name === undefined ? {} : { name: attachment.name }),
+        mimeType: attachment.mimeType,
+        data: attachment.data,
+      };
+    }),
+  ];
+}
+
+function validateAttachmentUnderstandingObservations(
+  observations: readonly AttachmentUnderstandingObservation[],
+  expectedAttachments: readonly RecognizableAttachment[],
 ): void {
-  const imageCount = expectedImageIds.length;
-  if (observations.length !== imageCount) {
+  const attachmentCount = expectedAttachments.length;
+  if (observations.length !== attachmentCount) {
     throw new ImageUnderstandingProviderError("provider-invalid-response");
   }
-  const imageIds = new Set(observations.map(({ imageId }) => imageId));
-  if (imageIds.size !== imageCount || expectedImageIds.some((imageId) => !imageIds.has(imageId))) {
+  const expectedById = new Map(
+    expectedAttachments.map((attachment) => [attachment.id, attachment]),
+  );
+  const observedIds = new Set<string>();
+  const referencesMatch = observations.every((observation) => {
+    const expected = expectedById.get(observation.attachmentId);
+    if (!expected || observedIds.has(observation.attachmentId)) return false;
+    observedIds.add(observation.attachmentId);
+    return expected.kind === observation.kind && expected.sequence === observation.sequence;
+  });
+  if (expectedById.size !== attachmentCount || !referencesMatch) {
     throw new ImageUnderstandingProviderError("provider-invalid-response");
   }
   const totalCharacters = observations.reduce((total, observation) => {
     return total + observation.text.length;
   }, 0);
-  if (totalCharacters > MAX_IMAGE_UNDERSTANDING_CONTEXT_CHARACTERS) {
+  if (totalCharacters > MAX_ATTACHMENT_UNDERSTANDING_CONTEXT_CHARACTERS) {
     throw new ImageUnderstandingProviderError("provider-response-too-large");
   }
 }
@@ -673,15 +757,24 @@ function stableImageUnderstandingErrorCode(error: unknown): string {
   return "provider-unavailable";
 }
 
-function interruptedImageRecognitionTransitions(
+function stableAttachmentRecognitionDiagnostic(error: unknown) {
+  return error instanceof ImageUnderstandingProviderError ? error.diagnostic : undefined;
+}
+
+function interruptedAttachmentRecognitionTransitions(
   events: readonly SessionEvent[],
   now = Date.now(),
-): ImageRecognitionSnapshot[][] {
-  const latest = new Map<string, ImageRecognitionSnapshot>();
+): AttachmentRecognitionSnapshot[][] {
+  const latest = new Map<string, AttachmentRecognitionSnapshot>();
   for (const event of events) {
     if (event.type !== "message" || !isRecord(event.data)) continue;
-    if (event.data.customType !== WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE) continue;
-    const incoming = parseImageRecognitionSnapshot(event.data.details);
+    if (
+      event.data.customType !== WORKBENCH_ATTACHMENT_RECOGNITION_CUSTOM_TYPE &&
+      event.data.customType !== WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE
+    ) {
+      continue;
+    }
+    const incoming = parseAttachmentRecognitionSnapshot(event.data.details);
     if (!incoming) continue;
     const current = latest.get(incoming.operationId);
     if (!current) {
@@ -689,20 +782,20 @@ function interruptedImageRecognitionTransitions(
       continue;
     }
     try {
-      latest.set(incoming.operationId, reduceImageRecognitionSnapshot(current, incoming));
+      latest.set(incoming.operationId, reduceAttachmentRecognitionSnapshot(current, incoming));
     } catch {
       // A corrupt operation does not prevent independent operations from being reconciled.
     }
   }
 
   const transition = (
-    current: ImageRecognitionSnapshot,
+    current: AttachmentRecognitionSnapshot,
     state:
       | { status: "running"; stage: "fallback" }
       | { status: "failed"; errorCode: "recognition-interrupted" },
-  ): ImageRecognitionSnapshot => {
+  ): AttachmentRecognitionSnapshot => {
     const updatedAt = Math.max(current.timestamps?.updatedAt ?? 0, now);
-    const incoming = parseImageRecognitionSnapshot({
+    const incoming = parseAttachmentRecognitionSnapshot({
       version: 1,
       operationId: current.operationId,
       submissionId: current.submissionId,
@@ -711,7 +804,7 @@ function interruptedImageRecognitionTransitions(
       ...state,
       method: current.method,
       ...(current.providerId === undefined ? {} : { providerId: current.providerId }),
-      imageCount: current.imageCount,
+      attachmentCount: current.attachmentCount,
       completedCount: current.completedCount,
       ...(current.progress === undefined ? {} : { progress: current.progress }),
       timestamps: {
@@ -720,12 +813,12 @@ function interruptedImageRecognitionTransitions(
         ...(state.status === "failed" ? { completedAt: updatedAt } : {}),
       },
     });
-    if (!incoming) throw new TypeError("Could not reconcile an interrupted image operation.");
-    return reduceImageRecognitionSnapshot(current, incoming);
+    if (!incoming) throw new TypeError("Could not reconcile an interrupted attachment operation.");
+    return reduceAttachmentRecognitionSnapshot(current, incoming);
   };
 
   return [...latest.values()].flatMap((snapshot) => {
-    if (isTerminalImageRecognitionSnapshot(snapshot)) return [];
+    if (isTerminalAttachmentRecognitionSnapshot(snapshot)) return [];
     const running =
       snapshot.status === "pending"
         ? transition(snapshot, { status: "running", stage: "fallback" })
@@ -762,7 +855,7 @@ class HostedPiSession {
   private readonly unsubscribeAgent: () => void;
   private idleTimer: ReturnType<typeof setTimeout> | undefined;
   private promptTask: Promise<void> | undefined;
-  private imageRecognitionTask: Promise<ImageUnderstandingRunResult> | undefined;
+  private imageRecognitionTask: Promise<AttachmentUnderstandingRunResult> | undefined;
   private imageRecognitionAbort: AbortController | undefined;
   private imageRecognitionCompletion: Promise<void> | undefined;
   private completeImageRecognition: (() => void) | undefined;
@@ -843,23 +936,25 @@ class HostedPiSession {
     if (initializedJournal.error !== undefined) {
       this.reportJournalFailure(initializedJournal.error);
     } else {
-      this.reconcileInterruptedImageRecognition();
+      this.reconcileInterruptedAttachmentRecognition();
     }
     this.touch();
   }
 
-  private reconcileInterruptedImageRecognition(): void {
+  private reconcileInterruptedAttachmentRecognition(): void {
     const resolvedComposerSubmissions = persistedComposerResolutionSubmissionIds(
       this.session.sessionManager.getBranch(),
     );
-    for (const transitions of interruptedImageRecognitionTransitions(this.canonicalEventsValue)) {
+    for (const transitions of interruptedAttachmentRecognitionTransitions(
+      this.canonicalEventsValue,
+    )) {
       for (const snapshot of transitions) {
         const timestamp = snapshot.timestamps?.updatedAt ?? Date.now();
         this.publish(
           {
             type: "message",
             role: "custom",
-            customType: WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE,
+            customType: WORKBENCH_ATTACHMENT_RECOGNITION_CUSTOM_TYPE,
             content: "",
             display: true,
             details: snapshot,
@@ -869,9 +964,9 @@ class HostedPiSession {
         );
       }
       const terminal = transitions.at(-1);
-      if (terminal && isTerminalImageRecognitionSnapshot(terminal)) {
+      if (terminal && isTerminalAttachmentRecognitionSnapshot(terminal)) {
         this.session.sessionManager.appendCustomEntry(
-          WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE,
+          WORKBENCH_ATTACHMENT_RECOGNITION_CUSTOM_TYPE,
           terminal,
         );
         if (!resolvedComposerSubmissions.has(terminal.submissionId)) {
@@ -1279,11 +1374,17 @@ class HostedPiSession {
     if (
       incomingImages ||
       this.activePromptHasImages ||
-      messagesHaveImages(this.session.sessionManager.buildSessionContext().messages) ||
       promptsHaveImages(this.queueProjection.prompts())
     ) {
       throw imageUnsupported();
     }
+  }
+
+  private prepareModelContext(model: { input: readonly string[] } | undefined): void {
+    const durableMessages = this.session.sessionManager.buildSessionContext().messages;
+    this.session.agent.state.messages = (
+      model?.input.includes("image") ? durableMessages : textOnlyModelContext(durableMessages)
+    ) as typeof this.session.agent.state.messages;
   }
 
   private async promptNow(
@@ -1312,6 +1413,7 @@ class HostedPiSession {
     }
 
     this.requireModelImageCompatibility(this.session.model, Boolean(images?.length));
+    this.prepareModelContext(this.session.model);
     if (cancellationSignal?.aborted) return false;
 
     let reportPreflight: ((accepted: boolean) => void) | undefined;
@@ -1395,6 +1497,7 @@ class HostedPiSession {
         });
       }
     }
+    this.prepareModelContext(model);
     if (selection.thinkingLevel) this.session.setThinkingLevel(selection.thinkingLevel);
   }
 
@@ -1530,11 +1633,13 @@ class HostedPiSession {
     });
   }
 
-  private async understandImages(
+  private async understandAttachments(
     images: PiImageContent[],
+    documents: PiDocumentContent[],
+    attachments: readonly RecognizableAttachment[],
     submissionId: string,
     rpcId?: string,
-  ): Promise<ImageUnderstandingRunResult> {
+  ): Promise<AttachmentUnderstandingRunResult> {
     if (this.imageRecognitionTask || this.imageRecognitionAbort) {
       throw new PiServerError("pi_session_busy", 409);
     }
@@ -1543,25 +1648,25 @@ class HostedPiSession {
     this.imageRecognitionCompletion = new Promise<void>((resolve) => {
       this.completeImageRecognition = resolve;
     });
-    const task = (async (): Promise<ImageUnderstandingRunResult> => {
+    const task = (async (): Promise<AttachmentUnderstandingRunResult> => {
       const settingsStore = getImageUnderstandingSettingsStore();
       let runtimeSettings;
       try {
         runtimeSettings = await settingsStore.resolveRuntimeSettings();
       } catch (error) {
-        const lifecycle = new ImageRecognitionLifecycle({
+        const lifecycle = new AttachmentRecognitionLifecycle({
           operationId: randomUUID(),
           submissionId,
           ...(rpcId === undefined ? {} : { rpcId }),
           method: "ocr",
-          imageCount: images.length,
+          attachmentCount: attachments.length,
           publish: (snapshot) => {
             const timestamp = snapshot.timestamps?.updatedAt ?? Date.now();
             this.publish(
               {
                 type: "message",
                 role: "custom",
-                customType: WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE,
+                customType: WORKBENCH_ATTACHMENT_RECOGNITION_CUSTOM_TYPE,
                 content: "",
                 display: true,
                 details: snapshot,
@@ -1574,9 +1679,14 @@ class HostedPiSession {
         await lifecycle.pending();
         await lifecycle.running("routing");
         if (controller.signal.aborted) await lifecycle.cancelled();
-        else await lifecycle.failed(stableImageUnderstandingErrorCode(error));
+        else {
+          await lifecycle.failed(
+            stableImageUnderstandingErrorCode(error),
+            stableAttachmentRecognitionDiagnostic(error),
+          );
+        }
         this.session.sessionManager.appendCustomEntry(
-          WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE,
+          WORKBENCH_ATTACHMENT_RECOGNITION_CUSTOM_TYPE,
           lifecycle.current,
         );
         return controller.signal.aborted
@@ -1595,27 +1705,28 @@ class HostedPiSession {
             (model) => model.provider === selectedModel.provider && model.id === selectedModel.id,
           )
         : availableModels[0];
-      const route = decideImageUnderstandingRoute({
+      const route = decideAttachmentUnderstandingRoute({
         settings: runtimeSettings.value,
         hasImages: images.length > 0,
+        hasDocuments: documents.length > 0,
         modelSupportsImages: currentModel?.input.includes("image") === true,
       });
       const method = route.kind === "native" ? "native" : runtimeSettings.value.engine;
       const providerId = route.kind === "preprocess" ? route.providerId : undefined;
-      const lifecycle = new ImageRecognitionLifecycle({
+      const lifecycle = new AttachmentRecognitionLifecycle({
         operationId: randomUUID(),
         submissionId,
         ...(rpcId === undefined ? {} : { rpcId }),
         method,
         ...(providerId === undefined ? {} : { providerId }),
-        imageCount: images.length,
+        attachmentCount: attachments.length,
         publish: (snapshot) => {
           const timestamp = snapshot.timestamps?.updatedAt ?? Date.now();
           this.publish(
             {
               type: "message",
               role: "custom",
-              customType: WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE,
+              customType: WORKBENCH_ATTACHMENT_RECOGNITION_CUSTOM_TYPE,
               content: "",
               display: true,
               details: snapshot,
@@ -1645,13 +1756,8 @@ class HostedPiSession {
           return { kind: "failed", errorCode: route.reason };
         }
 
-        const inputs = images.map((image, index) => ({
-          id: `image-${index + 1}`,
-          ...(image.name === undefined ? {} : { name: image.name }),
-          mimeType: image.mimeType,
-          data: image.data,
-        }));
-        let observations: ImageUnderstandingObservation[];
+        const inputs = attachments;
+        let observations: AttachmentUnderstandingObservation[];
         if (route.method === "ocr") {
           const credential = runtimeSettings.credential;
           if (!credential) {
@@ -1659,21 +1765,27 @@ class HostedPiSession {
             return { kind: "failed", errorCode: "preprocessor-not-configured" };
           }
           await lifecycle.running("submitting");
-          if (runtimeSettings.value.ocrProvider === "glm-ocr") {
+          const provider = new OcrAdapterProvider({
+            source: runtimeSettings.value.ocrAdapter.source,
+            endpoint: runtimeSettings.value.ocrAdapter.endpoint,
+            model: runtimeSettings.value.ocrAdapter.model,
+            pollIntervalMs: runtimeSettings.value.ocrAdapter.pollIntervalMs,
+            pollTimeoutMs: runtimeSettings.value.ocrAdapter.pollTimeoutMs,
+            onSubmissionRetry: async () => {
+              await lifecycle.running("submitting");
+            },
+            onSubmitted: async () => {
+              await lifecycle.running("polling");
+            },
+          });
+          if (provider.definition.operation.kind === "sync") {
             await lifecycle.running("recognizing");
-            observations = await new GlmOcrProvider({
-              endpoint: runtimeSettings.value.glm.endpoint,
-              model: runtimeSettings.value.glm.model,
-            }).recognize({ images: inputs, credential, signal: controller.signal });
-          } else {
-            await lifecycle.running("polling");
-            observations = await new PaddleOcrProvider({
-              endpoint: runtimeSettings.value.paddle.endpoint,
-              model: runtimeSettings.value.paddle.model,
-              pollIntervalMs: runtimeSettings.value.paddle.pollIntervalMs,
-              pollTimeoutMs: runtimeSettings.value.paddle.pollTimeoutMs,
-            }).recognize({ images: inputs, credential, signal: controller.signal });
           }
+          observations = await provider.recognize({
+            attachments: inputs,
+            credential,
+            signal: controller.signal,
+          });
         } else {
           await lifecycle.running("submitting");
           await lifecycle.running("recognizing");
@@ -1681,42 +1793,43 @@ class HostedPiSession {
             runtime: this.session.modelRuntime,
             provider: runtimeSettings.value.multimodal.provider,
             model: runtimeSettings.value.multimodal.model,
-            images: inputs,
+            attachments: inputs,
             signal: controller.signal,
             onProgress: async (completedCount) => {
               await lifecycle.running("recognizing", {
                 completedCount,
-                progress: completedCount / images.length,
+                progress: completedCount / attachments.length,
               });
             },
           });
         }
-        validateImageUnderstandingObservations(
-          observations,
-          inputs.map(({ id }) => id),
-        );
+        validateAttachmentUnderstandingObservations(observations, inputs);
         await lifecycle.running("normalizing", {
           completedCount: observations.length,
-          progress: observations.length / images.length,
+          progress: observations.length / attachments.length,
         });
-        await lifecycle.succeeded();
+        await lifecycle.succeeded({
+          results: projectAttachmentRecognitionResults(observations),
+        });
         return { kind: "preprocessed", observations };
       } catch (error) {
         if (
           controller.signal.aborted ||
           stableImageUnderstandingErrorCode(error) === "provider-aborted"
         ) {
-          if (!isTerminalImageRecognitionSnapshot(lifecycle.current)) await lifecycle.cancelled();
+          if (!isTerminalAttachmentRecognitionSnapshot(lifecycle.current)) {
+            await lifecycle.cancelled();
+          }
           return { kind: "cancelled" };
         }
         const errorCode = stableImageUnderstandingErrorCode(error);
-        if (!isTerminalImageRecognitionSnapshot(lifecycle.current))
-          await lifecycle.failed(errorCode);
+        if (!isTerminalAttachmentRecognitionSnapshot(lifecycle.current))
+          await lifecycle.failed(errorCode, stableAttachmentRecognitionDiagnostic(error));
         return { kind: "failed", errorCode };
       } finally {
-        if (isTerminalImageRecognitionSnapshot(lifecycle.current)) {
+        if (isTerminalAttachmentRecognitionSnapshot(lifecycle.current)) {
           this.session.sessionManager.appendCustomEntry(
-            WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE,
+            WORKBENCH_ATTACHMENT_RECOGNITION_CUSTOM_TYPE,
             lifecycle.current,
           );
         }
@@ -1765,13 +1878,15 @@ class HostedPiSession {
           document: submission.document,
           commands: submission.commands,
           composer: submission,
-          ...(prompt.images?.length
+          ...(prompt.images?.length || prompt.documents?.length
             ? {
-                images: prompt.images.map(({ data, mimeType, name }) => ({
-                  data,
-                  mimeType,
-                  ...(name === undefined ? {} : { name }),
-                })),
+                attachments: [...(prompt.images ?? []), ...(prompt.documents ?? [])].map(
+                  ({ data, mimeType, name }) => ({
+                    data,
+                    mimeType,
+                    ...(name === undefined ? {} : { name }),
+                  }),
+                ),
               }
             : {}),
           status: "accepted" as const,
@@ -1840,23 +1955,55 @@ class HostedPiSession {
     );
     const commandOwnsAgentTurn = plannedCommands.some((command) => command.effect === "agent-turn");
     let resolvedImages = prompt.images;
-    let imageUnderstandingFailure: string | undefined;
-    let usedImagePreprocessing = false;
-    if (prompt.images?.length && !commandFailed && !commandOwnsAgentTurn) {
-      const imageUnderstanding = await this.understandImages(prompt.images, submissionId, rpcId);
-      if (imageUnderstanding.kind === "native") {
-        resolvedImages = imageUnderstanding.images;
-      } else if (imageUnderstanding.kind === "preprocessed") {
+    let attachmentUnderstandingFatalError: string | undefined;
+    let usedAttachmentPreprocessing = false;
+    let usedAttachmentReferences = false;
+    if (
+      (prompt.images?.length || prompt.documents?.length) &&
+      !commandFailed &&
+      !commandOwnsAgentTurn
+    ) {
+      const attachmentReferences = recognizableAttachments(
+        prompt.images ?? [],
+        prompt.documents ?? [],
+      );
+      resolution.request.untrustedContext.push({
+        source: "workbench.attachment-references",
+        trust: "untrusted-context",
+        value: {
+          version: 1,
+          kind: "attachment-references",
+          sequenceScope: "per-kind",
+          references: attachmentReferences.map(({ id, kind, sequence }) => ({
+            attachmentId: id,
+            kind,
+            sequence,
+          })),
+        },
+      });
+      usedAttachmentReferences = true;
+      const attachmentUnderstanding = await this.understandAttachments(
+        prompt.images ?? [],
+        prompt.documents ?? [],
+        attachmentReferences,
+        submissionId,
+        rpcId,
+      );
+      if (attachmentUnderstanding.kind === "native") {
+        resolvedImages = attachmentUnderstanding.images;
+      } else if (attachmentUnderstanding.kind === "preprocessed") {
         resolvedImages = undefined;
-        usedImagePreprocessing = true;
+        usedAttachmentPreprocessing = true;
         resolution.request.untrustedContext.push({
-          source: "workbench.image-understanding",
+          source: "workbench.attachment-understanding",
           trust: "untrusted-context",
           value: {
             version: 1,
-            kind: "image-understanding",
-            observations: imageUnderstanding.observations.map((observation) => ({
-              imageId: observation.imageId,
+            kind: "attachment-understanding",
+            observations: attachmentUnderstanding.observations.map((observation) => ({
+              attachmentId: observation.attachmentId,
+              kind: observation.kind,
+              sequence: observation.sequence,
               providerId: observation.providerId,
               method: observation.method,
               format: observation.format,
@@ -1864,22 +2011,36 @@ class HostedPiSession {
             })),
           },
         });
+      } else if (attachmentUnderstanding.kind === "cancelled") {
+        resolvedImages = undefined;
+        attachmentUnderstandingFatalError = "attachment-recognition-cancelled";
       } else {
         resolvedImages = undefined;
-        imageUnderstandingFailure =
-          imageUnderstanding.kind === "cancelled"
-            ? "image-recognition-cancelled"
-            : imageUnderstanding.errorCode;
+        resolution.request.trustedContext.push({
+          source: "workbench.attachment-understanding-status",
+          trust: "trusted-config",
+          value: {
+            version: 1,
+            kind: "attachment-understanding-status",
+            status: "failed",
+            errorCode: attachmentUnderstanding.errorCode,
+            unavailableAttachments: attachmentReferences.map(({ id, kind, sequence }) => ({
+              attachmentId: id,
+              kind,
+              sequence,
+            })),
+          },
+        });
       }
       if (this.imageRecognitionAbort?.signal.aborted) {
         resolvedImages = undefined;
-        imageUnderstandingFailure = "image-recognition-cancelled";
+        attachmentUnderstandingFatalError = "attachment-recognition-cancelled";
       }
     }
     const needsMainTurn =
       !commandOwnsAgentTurn &&
       !commandFailed &&
-      imageUnderstandingFailure === undefined &&
+      attachmentUnderstandingFatalError === undefined &&
       (Boolean(resolvedImages?.length) ||
         Boolean(resolution.request.userText.trim()) ||
         resolution.request.instructions.length > 0 ||
@@ -1889,7 +2050,7 @@ class HostedPiSession {
       version: 1,
       submissionId,
       status:
-        needsMainTurn || (!commandFailed && imageUnderstandingFailure === undefined)
+        needsMainTurn || (!commandFailed && attachmentUnderstandingFatalError === undefined)
           ? needsMainTurn
             ? "resolved"
             : "completed"
@@ -1919,17 +2080,21 @@ class HostedPiSession {
 
     if (!needsMainTurn) {
       this.publish(
-        commandFailed || imageUnderstandingFailure
+        commandFailed || attachmentUnderstandingFatalError
           ? {
               type: "command_error",
-              code: commandFailed ? "pi_composer_command_failed" : "pi_image_recognition_failed",
+              code: commandFailed
+                ? "pi_composer_command_failed"
+                : "pi_attachment_recognition_failed",
             }
           : { type: "command_done" },
       );
       return undefined;
     }
     const resolvedPrompt =
-      hasWorkbenchComposerSemantics(submission) || usedImagePreprocessing
+      hasWorkbenchComposerSemantics(submission) ||
+      usedAttachmentPreprocessing ||
+      usedAttachmentReferences
         ? compileWorkbenchComposerPrompt(resolution.request)
         : resolution.request.userText;
     this.queueComposerUserProjection(projection, resolvedPrompt);
@@ -1963,8 +2128,11 @@ class HostedPiSession {
         if (options.selection) await this.applyPromptSelection(options.selection);
         let admission: PromptSubmissionResult = { queued: false };
         const submittedComposer = provenance?.composer;
+        const hasRecognizableAttachments = Boolean(
+          prompt.images?.length || prompt.documents?.length,
+        );
         const composer = submittedComposer
-          ? prompt.images?.length &&
+          ? hasRecognizableAttachments &&
             !hasWorkbenchComposerDocument(submittedComposer) &&
             !hasWorkbenchComposerSemantics(submittedComposer)
             ? {
@@ -1972,7 +2140,7 @@ class HostedPiSession {
                 document: [{ type: "text" as const, text: submittedComposer.sourceText }],
               }
             : submittedComposer
-          : prompt.images?.length
+          : hasRecognizableAttachments
             ? {
                 version: 1 as const,
                 document: [{ type: "text" as const, text: prompt.message }],
@@ -1991,7 +2159,7 @@ class HostedPiSession {
         const recognitionSignal = this.imageRecognitionAbort?.signal;
         if (resolvedPrompt && recognitionSignal?.aborted) {
           resolvedPrompt = undefined;
-          this.publish({ type: "command_error", code: "pi_image_recognition_cancelled" });
+          this.publish({ type: "command_error", code: "pi_attachment_recognition_cancelled" });
         }
         if (resolvedPrompt) {
           try {
@@ -2008,7 +2176,10 @@ class HostedPiSession {
                 recognitionSignal,
               );
               if (!started) {
-                this.publish({ type: "command_error", code: "pi_image_recognition_cancelled" });
+                this.publish({
+                  type: "command_error",
+                  code: "pi_attachment_recognition_cancelled",
+                });
               }
             }
           } catch (error) {
@@ -2109,6 +2280,7 @@ class HostedPiSession {
           });
         }
       }
+      this.prepareModelContext(model);
       if (selection.reasoningEffort) {
         this.session.setThinkingLevel(selection.reasoningEffort as PiThinkingLevel);
       }
@@ -2144,6 +2316,7 @@ class HostedPiSession {
     requestedId?: string,
   ): Promise<string> {
     if (!this.isRunning) throw new PiServerError("pi_session_not_running", 409);
+    if (prompt.documents?.length) throw documentPreprocessingRequired();
     if (prompt.images?.length && !this.session.model?.input.includes("image")) {
       throw imageUnsupported();
     }
@@ -2188,6 +2361,7 @@ class HostedPiSession {
   }
 
   private async requireQueueImageCapability(queue: ReadonlyPromptQueueSnapshot): Promise<void> {
+    if (promptsHaveDocuments(queue)) throw documentPreprocessingRequired();
     if (!promptsHaveImages(queue)) return;
     const currentModel = this.session.model;
     if (currentModel) {
@@ -3669,7 +3843,7 @@ export async function queuePrompt(
   mode: PiQueueMode,
   prompt: PiQueuedPrompt,
 ): Promise<void> {
-  if (!prompt.message.trim() && !prompt.images?.length) {
+  if (!prompt.message.trim() && !prompt.images?.length && !prompt.documents?.length) {
     throw new PiServerError("pi_empty_prompt", 400);
   }
   const host = await getOrStartSession(id);
@@ -3687,6 +3861,7 @@ export async function submitPrompt(
   if (
     !prompt.message.trim() &&
     !prompt.images?.length &&
+    !prompt.documents?.length &&
     !(composer && hasWorkbenchComposerSemantics(composer))
   ) {
     throw new PiServerError("pi_empty_prompt", 400);
@@ -3720,7 +3895,7 @@ export async function steerQueuedPrompt(
   steering: readonly PiQueuedPrompt[],
   followUp: readonly PiQueuedPrompt[],
 ): Promise<void> {
-  if (!prompt.message.trim() && !prompt.images?.length) {
+  if (!prompt.message.trim() && !prompt.images?.length && !prompt.documents?.length) {
     throw new PiServerError("pi_empty_prompt", 400);
   }
   const host = await getOrStartSession(id);

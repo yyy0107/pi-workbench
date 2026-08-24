@@ -19,11 +19,11 @@ function readFileAsDataUrl(file: File): Promise<string> {
 }
 
 export const workbenchAttachmentAdapter: AttachmentAdapter = {
-  accept: "image/*",
+  accept: "image/*,application/pdf,.pdf",
   async add({ file }) {
     return {
       id: createAttachmentId(),
-      type: file.type.startsWith("image/") ? "image" : "file",
+      type: file.type.startsWith("image/") ? "image" : "document",
       name: file.name,
       file,
       contentType: file.type,
@@ -32,10 +32,20 @@ export const workbenchAttachmentAdapter: AttachmentAdapter = {
     };
   },
   async send(attachment) {
+    const data = await readFileAsDataUrl(attachment.file);
     return {
       ...attachment,
       status: { type: "complete" },
-      content: [{ type: "image", image: await readFileAsDataUrl(attachment.file) }],
+      content: attachment.file.type.startsWith("image/")
+        ? [{ type: "image", image: data }]
+        : [
+            {
+              type: "file",
+              data,
+              mimeType: attachment.file.type || "application/pdf",
+              filename: attachment.name,
+            },
+          ],
     };
   },
   async remove() {},

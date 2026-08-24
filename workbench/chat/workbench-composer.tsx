@@ -8,6 +8,7 @@ import {
   type Unstable_TriggerItem,
   unstable_useTriggerPopoverScopeContext,
   useAui,
+  useAuiEvent,
   useAuiState,
 } from "@assistant-ui/react";
 import { DirectiveNode, type DirectiveChipProps } from "@assistant-ui/react-lexical";
@@ -423,14 +424,14 @@ function piComposerActions(extras: unknown): PiComposerActions | undefined {
 
 function composerErrorMessage(error: PiComposerSendError, t: ReturnType<typeof useI18n>["t"]) {
   switch (error) {
-    case "model-image-unsupported":
-      return t("workbench.chat.errors.modelDoesNotSupportImages");
-    case "image-too-large":
-      return t("workbench.chat.errors.imageTooLarge");
-    case "too-many-images":
-      return t("workbench.chat.errors.tooManyImages");
-    case "image-invalid":
-      return t("workbench.chat.errors.invalidImage");
+    case "model-attachment-unsupported":
+      return t("workbench.chat.errors.modelDoesNotSupportAttachments");
+    case "attachment-too-large":
+      return t("workbench.chat.errors.attachmentTooLarge");
+    case "too-many-attachments":
+      return t("workbench.chat.errors.tooManyAttachments");
+    case "attachment-invalid":
+      return t("workbench.chat.errors.invalidAttachment");
   }
 }
 
@@ -505,6 +506,17 @@ export function WorkbenchComposer() {
   const [activeCommandParameterKey, setActiveCommandParameterKey] = useState<string>();
   const piCommands = usePiCommands();
   const handledRejectedQueueDraft = useRef("");
+
+  useAuiEvent("composer.send", ({ threadId, messageId }) => {
+    if (messageId !== undefined) return;
+    // assistant-ui removes the attachments selected for this send before it emits
+    // composer.send. Invalidate Workbench's per-thread draft copy at the same boundary so an
+    // intermediate sending snapshot cannot restore those attachments into a later turn. A
+    // rejected send is still recoverable: assistant-ui restores it into the live composer and
+    // the layout effect below records that restored draft again.
+    composerDrafts.current.delete(threadId);
+    composerDrafts.current.delete(composerDraftThreadId.current);
+  });
 
   useLayoutEffect(() => {
     if (composerDraftThreadId.current === mainThreadId) {

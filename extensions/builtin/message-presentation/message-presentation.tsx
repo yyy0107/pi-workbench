@@ -16,7 +16,7 @@ import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { ScrollCompensatedDetails } from "@/components/elements/scroll-compensated-details";
 import { useI18n } from "@/i18n";
-import { RendererHost } from "@/platform/extensions";
+import { RendererHost, useDataPresentationMap } from "@/platform/extensions";
 import { readPiTurnTiming, resolvePiTurnDuration } from "@/runtime/pi/client/messages/turn-timing";
 import { parsePiMessageTermination } from "@/runtime/pi/message-termination";
 import { WorkbenchComposerMessageText } from "@/workbench/chat/composer-message-text";
@@ -28,12 +28,13 @@ import {
 } from "./completed-turn-model";
 import { CompletedTurnPanel } from "./completed-turn-panel";
 import { MessageDisclosureProvider } from "./message-disclosure-context";
-import { messageTextPresentation } from "./message-presentation-policy";
+import { messageAttachmentReference, messageTextPresentation } from "./message-presentation-policy";
 import { MessageToolTimeline } from "./message-tool-timeline";
+import { dataTimelineState } from "./tool-timeline-model";
 
 type PresentationGroup = "group-completed-turn" | "group-tool-timeline";
 
-const groupTimelinePart = groupPartByType<PresentationGroup>({
+const groupTimelinePartByType = groupPartByType<PresentationGroup>({
   reasoning: ["group-tool-timeline"],
   "tool-call": ["group-tool-timeline"],
   "standalone-tool-call": [],
@@ -69,6 +70,7 @@ export function WorkbenchMessagePresentation() {
   const turnTiming = readPiTurnTiming(storedTurnTiming);
   const turnStreaming = useAuiState((state) => state.thread.isRunning && state.message.isLast);
   const messageParts = useAuiState((state) => state.message.parts);
+  const dataPresentations = useDataPresentationMap();
   const completedBoundary = useMemo(() => completedWorkBoundary(messageParts), [messageParts]);
   const partIndices = useMemo(
     () => new Map(messageParts.map((part, index) => [part, index])),
@@ -89,18 +91,28 @@ export function WorkbenchMessagePresentation() {
     duration: formatCompletedDuration(turnDuration, locale),
     kind: termination?.kind ?? "completed",
   });
+  const groupTimelinePart = useCallback(
+    (part: PartState, context: GroupByContext): readonly PresentationGroup[] => {
+      const typePath = groupTimelinePartByType(part, context);
+      if (typePath.length > 0) return typePath;
+      return part.type === "data" && dataTimelineState(part, dataPresentations)
+        ? ["group-tool-timeline"]
+        : [];
+    },
+    [dataPresentations],
+  );
   const groupMessagePart = useCallback(
     (part: PartState, context: GroupByContext): readonly PresentationGroup[] => {
       const timelinePath = groupTimelinePart(part, context);
       const index = partIndices.get(part);
 
-      if (partBelongsToCompletedWork(messageRole, part, index, completedBoundary)) {
+      if (partBelongsToCompletedWork(messageRole, index, completedBoundary)) {
         return ["group-completed-turn", ...timelinePath];
       }
 
       return timelinePath;
     },
-    [completedBoundary, messageRole, partIndices],
+    [completedBoundary, groupTimelinePart, messageRole, partIndices],
   );
   const activeTimelinePartIndex = useAuiState((state) => {
     if (!state.thread.isRunning || !state.message.isLast) return -1;
@@ -109,6 +121,9 @@ export function WorkbenchMessagePresentation() {
       const part = state.message.content[index];
       if (part?.type === "tool-call" && part.result === undefined) return index;
       if (index === state.message.content.length - 1 && part?.type === "reasoning") return index;
+      if (part?.type === "data" && dataTimelineState(part, dataPresentations)?.active === true) {
+        return index;
+      }
     }
     return -1;
   });
@@ -119,6 +134,20 @@ export function WorkbenchMessagePresentation() {
     <MessageDisclosureProvider key={disclosurePhase} phase={disclosurePhase}>
       <MessagePrimitive.GroupedParts groupBy={groupMessagePart}>
         {({ part, children }) => {
+          const index = partIndices.get(part as PartState);
+          const attachmentReference =
+            messageRole === "user" && index !== undefined
+              ? messageAttachmentReference(messageParts, index)
+              : undefined;
+          const attachmentReferenceLabel = attachmentReference
+            ? t(
+                attachmentReference.kind === "image"
+                  ? "extensions.imageUnderstanding.recognition.results.image"
+                  : "extensions.imageUnderstanding.recognition.results.pdf",
+                { index: attachmentReference.sequence },
+              )
+            : undefined;
+
           switch (part.type) {
             case "group-completed-turn": {
               return (
@@ -147,9 +176,30 @@ export function WorkbenchMessagePresentation() {
             case "reasoning":
               return null;
             case "image":
-              return <Image {...part} />;
+              return attachmentReferenceLabel ? (
+                <div data-slot="user-attachment-reference" className="relative max-w-full">
+                  <Image {...part} />
+                  <span className="bg-background/85 text-foreground pointer-events-none absolute top-2 left-2 rounded-full border border-foreground/10 px-2 py-0.5 text-[11px] font-medium shadow-sm backdrop-blur-sm">
+                    {attachmentReferenceLabel}
+                  </span>
+                </div>
+              ) : (
+                <Image {...part} />
+              );
             case "file":
-              return <File {...part} />;
+              return attachmentReferenceLabel ? (
+                <div
+                  data-slot="user-attachment-reference"
+                  className="flex max-w-full items-center gap-2"
+                >
+                  <span className="bg-muted text-muted-foreground shrink-0 rounded-full px-2 py-1 text-[11px] font-medium">
+                    {attachmentReferenceLabel}
+                  </span>
+                  <File {...part} />
+                </div>
+              ) : (
+                <File {...part} />
+              );
             case "source": {
               const label =
                 part.title || part.url || t("extensions.messagePresentation.sourceFallback");

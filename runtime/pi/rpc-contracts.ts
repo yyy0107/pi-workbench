@@ -4,7 +4,8 @@ import type {
   ComposerCommandEffect as WorkbenchComposerCommandEffect,
   ComposerSubmission as WorkbenchComposerSubmission,
 } from "../../contracts/composer";
-import type { InlineImageMediaType } from "./attachment-contracts";
+import type { InlineDocumentMediaType, InlineImageMediaType } from "./attachment-contracts";
+import type { OcrAdapterPresetId } from "../image-understanding/ocr-adapter";
 
 export type RpcIssuePathSegment = string | number;
 
@@ -489,6 +490,18 @@ export type ImageUnderstandingRouting = "auto" | "always-preprocess" | "native-o
 export type ImageUnderstandingEngine = "ocr" | "multimodal";
 export type ImageUnderstandingOcrProvider = "glm-ocr" | "paddleocr";
 
+export interface ImageUnderstandingOcrAdapterSettingsValue {
+  /** A built-in template identifier, or `custom` after the source is edited. */
+  preset: OcrAdapterPresetId;
+  /** Declarative TypeScript. The server parses this as data and never evaluates JavaScript. */
+  source: string;
+  endpoint: string;
+  model: string;
+  credentialConfigured: boolean;
+  pollIntervalMs: number;
+  pollTimeoutMs: number;
+}
+
 export interface ImageUnderstandingSettingsValue {
   routing: ImageUnderstandingRouting;
   engine: ImageUnderstandingEngine;
@@ -505,6 +518,7 @@ export interface ImageUnderstandingSettingsValue {
     pollIntervalMs: number;
     pollTimeoutMs: number;
   };
+  ocrAdapter: ImageUnderstandingOcrAdapterSettingsValue;
   multimodal: {
     provider: string;
     model: string;
@@ -534,6 +548,16 @@ export interface ImageUnderstandingSettingsPatch {
     pollIntervalMs?: number;
     pollTimeoutMs?: number;
   };
+  ocrAdapter?: {
+    preset?: OcrAdapterPresetId;
+    source?: string;
+    endpoint?: string;
+    model?: string;
+    /** Omit or use an empty string to retain the active adapter credential; null removes it. */
+    apiKey?: string | null;
+    pollIntervalMs?: number;
+    pollTimeoutMs?: number;
+  };
   multimodal?: {
     provider?: string;
     model?: string;
@@ -544,6 +568,15 @@ export interface ImageUnderstandingUpdatePayload {
   patch: ImageUnderstandingSettingsPatch;
   expectedRevision?: number;
 }
+
+/** Canonical attachment-neutral settings names; the wire endpoint remains stable. */
+export type AttachmentUnderstandingRouting = ImageUnderstandingRouting;
+export type AttachmentUnderstandingEngine = ImageUnderstandingEngine;
+export type AttachmentUnderstandingOcrProvider = ImageUnderstandingOcrProvider;
+export type AttachmentUnderstandingSettingsValue = ImageUnderstandingSettingsValue;
+export type AttachmentUnderstandingDescribeValue = ImageUnderstandingDescribeValue;
+export type AttachmentUnderstandingSettingsPatch = ImageUnderstandingSettingsPatch;
+export type AttachmentUnderstandingUpdatePayload = ImageUnderstandingUpdatePayload;
 
 export interface PiAgentSettingsPatch {
   systemPrompt?: string;
@@ -802,6 +835,12 @@ export type SessionPromptContent =
   | {
       type: "image";
       mediaType: InlineImageMediaType;
+      data: string;
+      name?: string;
+    }
+  | {
+      type: "file";
+      mediaType: InlineDocumentMediaType;
       data: string;
       name?: string;
     };

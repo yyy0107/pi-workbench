@@ -28,6 +28,7 @@ type SessionRpcDependencies = import("./session-rpc-service").SessionRpcDependen
 type SessionRpcWorkspaceStore = import("./session-rpc-service").SessionRpcWorkspaceStore;
 
 const PNG_BASE64 = "iVBORw0KGgo=";
+const PDF_BASE64 = Buffer.from("%PDF-1.7\nfixture").toString("base64");
 
 const workspace: WorkspaceView = {
   workspaceId: "workspace-1",
@@ -571,6 +572,12 @@ test("renames, prompts, queues, and cancels supported session operations", async
         content: [
           { type: "text", text: "hello" },
           { type: "image", mediaType: "image/png", data: PNG_BASE64, name: "screen.png" },
+          {
+            type: "file",
+            mediaType: "application/pdf",
+            data: PDF_BASE64,
+            name: "notes.pdf",
+          },
         ],
       },
       { rpcId: "rpc-prompt" },
@@ -588,6 +595,14 @@ test("renames, prompts, queues, and cancels supported session operations", async
     {
       message: "hello",
       images: [{ type: "image", data: PNG_BASE64, mimeType: "image/png", name: "screen.png" }],
+      documents: [
+        {
+          type: "file",
+          data: PDF_BASE64,
+          mimeType: "application/pdf",
+          name: "notes.pdf",
+        },
+      ],
     },
     { rpcId: "rpc-prompt", clientTimeZone: "America/Los_Angeles" },
   ]);
@@ -738,6 +753,63 @@ test("strictly admits inline image base64, signatures, media types, and count", 
   assert.equal(
     calls.some(({ name }) => name === "submit-prompt"),
     false,
+  );
+});
+
+test("strictly admits PDF base64, signatures, media types, and mixed attachment count", async () => {
+  const { service, calls } = harness();
+  await service.prompt({
+    sessionId: "session-1",
+    mode: "queue",
+    content: [
+      { type: "file", mediaType: "application/pdf", data: PDF_BASE64, name: "invoice.pdf" },
+    ],
+  });
+  assert.deepEqual(calls.at(-1), {
+    name: "submit-prompt",
+    value: [
+      "session-1",
+      "followUp",
+      {
+        message: "",
+        documents: [
+          {
+            type: "file",
+            mimeType: "application/pdf",
+            data: PDF_BASE64,
+            name: "invoice.pdf",
+          },
+        ],
+      },
+      {},
+    ],
+  });
+
+  await assert.rejects(
+    service.prompt({
+      sessionId: "session-1",
+      mode: "queue",
+      content: [
+        {
+          type: "file",
+          mediaType: "application/pdf",
+          data: Buffer.from("not a PDF").toString("base64"),
+        },
+      ],
+    }),
+    { code: "attachment-error", details: { reason: "UNRECOGNIZED_DOCUMENT_FORMAT" } },
+  );
+  await assert.rejects(
+    service.prompt({
+      sessionId: "session-1",
+      mode: "queue",
+      content: Array.from({ length: 21 }, () => ({
+        type: "file" as const,
+        mediaType: "application/pdf" as const,
+        data: PDF_BASE64,
+      })),
+    }),
+    { code: "attachment-error", details: { reason: "TOO_MANY_INLINE_ATTACHMENTS" } },
   );
 });
 

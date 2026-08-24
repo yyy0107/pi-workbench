@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type PropsWithChildr
 import {
   MessagePrimitive,
   useAuiState,
+  type DataMessagePart,
+  type EnrichedPartState,
   type ReasoningMessagePart,
   type ToolCallMessagePart,
   type ToolCallMessagePartComponent,
@@ -35,6 +37,7 @@ import { formatCompactDuration } from "@/lib/format-duration";
 import { cn } from "@/lib/utils";
 import {
   RendererHost,
+  useDataPresentationMap,
   useToolPresentationMap,
   useToolRendererMap,
   type ToolPresentationDefinition,
@@ -43,15 +46,16 @@ import {
 import { useMessageDisclosure } from "./message-disclosure-context";
 import { toolDiffModel } from "./tool-diff-model";
 import {
+  dataTimelineState,
   liveReasoningPreview,
   reasoningPartTiming,
   timelineEntries,
   timelineStats,
   timelineSteps,
+  type TimelineSourcePart,
   type ToolTimelineStepKind,
 } from "./tool-timeline-model";
 
-type TimelineSourcePart = ReasoningMessagePart | ToolCallMessagePart;
 type TimelineReasoningPart = ReasoningMessagePart;
 type TimelineToolPart = ToolCallMessagePart;
 
@@ -75,10 +79,16 @@ const TIMELINE_TOOL_DETAIL_COMPONENTS = {
   tools: { Override: TimelineToolDetail },
 };
 
-function isTimelineSourcePart(value: unknown): value is TimelineSourcePart {
+function isTimelineSourcePart(
+  value: unknown,
+  dataPresentations: ReturnType<typeof useDataPresentationMap>,
+): value is TimelineSourcePart {
   if (!value || typeof value !== "object") return false;
   const type = (value as { type?: unknown }).type;
-  return type === "reasoning" || type === "tool-call";
+  if (type === "reasoning" || type === "tool-call") return true;
+  return (
+    type === "data" && dataTimelineState(value as DataMessagePart, dataPresentations) !== undefined
+  );
 }
 
 function serializeToolValue(value: unknown): string {
@@ -429,11 +439,17 @@ export function MessageToolTimeline({
   const { t } = useI18n();
   const content = useAuiState((state) => state.message.content);
   const toolPresentations = useToolPresentationMap();
+  const dataPresentations = useDataPresentationMap();
   const [open, setOpen] = useMessageDisclosure("steps", indices[0] ?? "empty");
   const activeStepIndex = indices.indexOf(activePartIndex);
   const parts = useMemo(
-    () => indices.map((index) => content[index]).filter(isTimelineSourcePart),
-    [content, indices],
+    () =>
+      indices
+        .map((index) => content[index])
+        .filter((part): part is TimelineSourcePart =>
+          isTimelineSourcePart(part, dataPresentations),
+        ),
+    [content, dataPresentations, indices],
   );
   const stepModels = useMemo(
     () => timelineSteps(parts, toolPresentations),
@@ -451,9 +467,13 @@ export function MessageToolTimeline({
             batchId={entry.batchId}
             parts={entry.parts}
             partIndices={entry.sourceIndices.map((index) => indices[index] ?? index)}
-            kinds={models.flatMap((model) => (model ? [model.kind] : []))}
-            queries={models.flatMap((model) => (model ? [model.chip] : []))}
-            presentations={models.map((model) => model?.presentation)}
+            kinds={models.flatMap((model) => (model && model.kind !== "data" ? [model.kind] : []))}
+            queries={models.flatMap((model) =>
+              model && model.kind !== "data" ? [model.chip] : [],
+            )}
+            presentations={models.map((model) =>
+              model?.kind === "data" ? undefined : model?.presentation,
+            )}
             turnStreaming={turnStreaming}
           />
         ),
@@ -463,6 +483,21 @@ export function MessageToolTimeline({
     const { part, sourceIndex } = entry;
     const model = stepModels[sourceIndex];
     if (!model) return { body: null };
+
+    if (part.type === "data") {
+      const timelineState = dataTimelineState(part, dataPresentations);
+      const enrichedPart = {
+        ...part,
+        status: { type: timelineState?.active ? "running" : "complete" },
+        dataRendererUI: null,
+      } satisfies EnrichedPartState;
+      return {
+        marker: false,
+        body: <RendererHost part={enrichedPart} />,
+      };
+    }
+
+    if (model.kind === "data") return { body: null };
 
     if (part.type === "reasoning") {
       return {

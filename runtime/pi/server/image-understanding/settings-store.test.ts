@@ -38,10 +38,15 @@ test("describes version-one defaults without creating a settings document", asyn
   const described = await store.describe();
 
   assert.equal(described.revision, 0);
+  assert.equal(DEFAULT_IMAGE_UNDERSTANDING_SETTINGS.paddle.model, "PaddleOCR-VL-1.6");
   assert.deepEqual(described.value, {
     ...DEFAULT_IMAGE_UNDERSTANDING_SETTINGS,
     glm: { ...DEFAULT_IMAGE_UNDERSTANDING_SETTINGS.glm, credentialConfigured: false },
     paddle: { ...DEFAULT_IMAGE_UNDERSTANDING_SETTINGS.paddle, credentialConfigured: false },
+    ocrAdapter: {
+      ...DEFAULT_IMAGE_UNDERSTANDING_SETTINGS.ocrAdapter,
+      credentialConfigured: false,
+    },
   });
   await assert.rejects(readFile(stateFile, "utf8"), { code: "ENOENT" });
 });
@@ -82,7 +87,87 @@ test("atomically writes mode-0600 settings and never exposes stored credentials"
   assert.equal(runtimeSettings.revision, updated.revision);
   assert.equal(runtimeSettings.value.ocrProvider, "paddleocr");
   assert.equal(runtimeSettings.credential, paddleSecret);
+  assert.equal(runtimeSettings.value.ocrAdapter.preset, "paddleocr-vl-1.6");
+  assert.equal(runtimeSettings.value.ocrAdapter.credentialConfigured, true);
   assert.equal(runtimeSettings.value.glm.endpoint, "https://glm.example.test/layout");
+});
+
+test("selects built-in adapter templates and keeps credentials write-only", async (t) => {
+  const { stateFile, store } = await fixture(t);
+  const secret = "pp-ocrv6-secret";
+  const updated = await store.update({
+    expectedRevision: 0,
+    patch: {
+      ocrAdapter: {
+        preset: "pp-ocrv6",
+        apiKey: secret,
+      },
+    },
+  });
+
+  assert.equal(updated.value.ocrAdapter.preset, "pp-ocrv6");
+  assert.equal(updated.value.ocrAdapter.model, "PP-OCRv6");
+  assert.equal(updated.value.ocrAdapter.credentialConfigured, true);
+  assert.equal(updated.value.ocrAdapter.source.includes("ocrResults"), true);
+  assert.equal(JSON.stringify(updated).includes(secret), false);
+  assert.equal((await store.resolveRuntimeSettings()).credential, secret);
+  assert.equal((await readFile(stateFile, "utf8")).includes(secret), true);
+});
+
+test("migrates a legacy provider-only document to an adapter view without rewriting it", async (t) => {
+  const { stateFile, store } = await fixture(t);
+  await mkdir(path.dirname(stateFile), { recursive: true });
+  const legacy = {
+    version: 1,
+    revision: 4,
+    settings: {
+      routing: "always-preprocess",
+      engine: "ocr",
+      ocrProvider: "paddleocr",
+      glm: {
+        endpoint: "https://api.z.ai/api/paas/v4/layout_parsing",
+        model: "glm-ocr",
+      },
+      paddle: {
+        endpoint: "https://paddleocr.aistudio-app.com/api/v2/ocr/jobs",
+        model: "PP-StructureV3",
+        pollIntervalMs: 5_000,
+        pollTimeoutMs: 700_000,
+      },
+      multimodal: { provider: "", model: "" },
+    },
+    secrets: { paddleocr: "legacy-secret" },
+  };
+  const serializedLegacy = `${JSON.stringify(legacy, undefined, 2)}\n`;
+  await writeFile(stateFile, serializedLegacy, { mode: 0o600 });
+
+  const described = await store.describe();
+  assert.equal(described.revision, 4);
+  assert.equal(described.value.ocrAdapter.preset, "pp-structure-v3");
+  assert.equal(described.value.ocrAdapter.model, "PP-StructureV3");
+  assert.equal(described.value.ocrAdapter.credentialConfigured, true);
+  assert.equal((await store.resolveRuntimeSettings()).credential, "legacy-secret");
+  assert.equal(await readFile(stateFile, "utf8"), serializedLegacy);
+});
+
+test("rejects executable or malformed custom adapter source before persisting", async (t) => {
+  const { stateFile, store } = await fixture(t);
+  await assert.rejects(
+    store.update({
+      patch: {
+        ocrAdapter: {
+          preset: "custom",
+          source: "export default (() => process.exit(1))();",
+        },
+      },
+    }),
+    (error) => {
+      assert.ok(error instanceof ImageUnderstandingSettingsStoreError);
+      assert.equal(error.code, "image-settings-invalid");
+      return true;
+    },
+  );
+  await assert.rejects(readFile(stateFile, "utf8"), { code: "ENOENT" });
 });
 
 test("empty secret patches retain credentials while null deletes them", async (t) => {

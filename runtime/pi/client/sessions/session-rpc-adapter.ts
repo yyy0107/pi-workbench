@@ -2,12 +2,13 @@ import type {
   PiAgentMessage,
   PiAssistantMessage,
   PiConversationEvent,
+  PiDocumentContent,
   PiImageContent,
   PiSessionHistory,
   PiSessionSummary,
   PiWorkspaceSummary,
 } from "../../contracts";
-import { isInlineImageMediaType } from "../../attachment-contracts";
+import { isInlineDocumentMediaType, isInlineImageMediaType } from "../../attachment-contracts";
 import { parseWorkbenchComposerUserProjection } from "../../../composer-request";
 import type {
   SessionHistoryValue,
@@ -308,9 +309,17 @@ function promptMediaType(
   throw new TypeError(`Unsupported Pi prompt image type: ${mimeType}`);
 }
 
+function promptDocumentMediaType(
+  mimeType: string,
+): Extract<SessionPromptContent, { type: "file" }>["mediaType"] {
+  if (isInlineDocumentMediaType(mimeType)) return mimeType;
+  throw new TypeError(`Unsupported Workbench prompt document type: ${mimeType}`);
+}
+
 export function piPromptContent(
   text: string,
   images: readonly PiImageContent[] = [],
+  documents: readonly PiDocumentContent[] = [],
 ): SessionPromptContent[] {
   return [
     ...(text ? [{ type: "text" as const, text }] : []),
@@ -319,6 +328,12 @@ export function piPromptContent(
       mediaType: promptMediaType(image.mimeType),
       data: image.data,
       ...(image.name === undefined ? {} : { name: image.name }),
+    })),
+    ...documents.map((document) => ({
+      type: "file" as const,
+      mediaType: promptDocumentMediaType(document.mimeType),
+      data: document.data,
+      ...(document.name === undefined ? {} : { name: document.name }),
     })),
   ];
 }

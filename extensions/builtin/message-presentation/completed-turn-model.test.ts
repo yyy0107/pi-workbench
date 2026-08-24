@@ -22,15 +22,12 @@ test("includes every part when a completed turn has no text body", () => {
   assert.equal(completedWorkBoundary([{ type: "reasoning" }, { type: "tool-call" }]), 2);
 });
 
-test("folds only ordinary assistant data into completed work", () => {
+test("folds every assistant work part before the final answer", () => {
   const boundary = completedWorkBoundary([{ type: "data" }]);
-  const ordinaryData = { type: "data", name: "example.result" };
-  const recognitionData = { type: "data", name: "workbench.image-recognition" };
 
-  assert.equal(partBelongsToCompletedWork("user", ordinaryData, 0, boundary), false);
-  assert.equal(partBelongsToCompletedWork("assistant", ordinaryData, 0, boundary), true);
-  assert.equal(partBelongsToCompletedWork("assistant", recognitionData, 0, boundary), false);
-  assert.equal(partBelongsToCompletedWork("system", ordinaryData, 0, boundary), false);
+  assert.equal(partBelongsToCompletedWork("user", 0, boundary), false);
+  assert.equal(partBelongsToCompletedWork("assistant", 0, boundary), true);
+  assert.equal(partBelongsToCompletedWork("system", 0, boundary), false);
 });
 
 test("formats a completed duration without leading zeroes", () => {

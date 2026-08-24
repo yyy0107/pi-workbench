@@ -11,10 +11,13 @@ import {
 import {
   applyToolExecutionUpdate,
   appendMessageToPiPrompt,
+  attachmentRecognitionAssistantMessage,
   coalesceConsecutiveAssistantMessages,
+  isAttachmentRecognitionOnlyAssistant,
   optimisticUserMessage,
   piAssistantToThreadMessage,
   piHistoryToThreadMessages,
+  piUserMessageContent,
   reconcileLiveMessagesAfterHistory,
 } from "./messages";
 import {
@@ -29,8 +32,8 @@ import {
   mergeMonotonicPiSessionStatistics,
 } from "./session-statistics";
 import {
-  WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE,
-  WORKBENCH_IMAGE_RECOGNITION_DATA_NAME,
+  WORKBENCH_ATTACHMENT_RECOGNITION_CUSTOM_TYPE,
+  WORKBENCH_ATTACHMENT_RECOGNITION_DATA_NAME,
 } from "../../../image-understanding/state-machine";
 
 const assistantMessage: PiAssistantMessage = {
@@ -77,6 +80,138 @@ test("marks optimistic user messages for repository eviction", () => {
   assert.equal(optimistic.metadata.custom.piOptimistic, true);
 });
 
+test("projects a sent image attachment into the same message part used by persisted history", () => {
+  const message: AppendMessage = {
+    role: "user",
+    content: [{ type: "text", text: "Describe this" }],
+    attachments: [
+      {
+        id: "attachment-1",
+        type: "image",
+        name: "layout.png",
+        content: [{ type: "image", image: "data:image/png;base64,iVBORw0KGgo=" }],
+        status: { type: "complete" },
+      },
+    ],
+    createdAt: new Date(0),
+    metadata: { custom: {} },
+    parentId: null,
+    runConfig: undefined,
+    sourceId: null,
+  };
+
+  const optimistic = optimisticUserMessage(message, "user-live");
+
+  assert.equal(optimistic.role, "user");
+  if (optimistic.role !== "user") return;
+  assert.deepEqual(optimistic.content, [
+    { type: "text", text: "Describe this" },
+    {
+      type: "image",
+      image: "data:image/png;base64,iVBORw0KGgo=",
+      filename: "layout.png",
+    },
+  ]);
+  assert.deepEqual(optimistic.attachments, []);
+  assert.deepEqual(
+    piUserMessageContent([
+      { type: "text", text: "Describe this" },
+      {
+        type: "image",
+        data: "iVBORw0KGgo=",
+        mimeType: "image/png",
+        name: "layout.png",
+      },
+    ]),
+    optimistic.content,
+  );
+  const [persisted] = piHistoryToThreadMessages({
+    sessionId: "session",
+    context: {
+      entryIds: ["user-persisted"],
+      thinkingLevel: "off",
+      model: null,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Describe this" },
+            {
+              type: "image",
+              data: "iVBORw0KGgo=",
+              mimeType: "image/png",
+              name: "layout.png",
+            },
+          ],
+        },
+      ],
+    },
+  });
+  assert.equal(persisted?.role, "user");
+  if (persisted?.role === "user") {
+    assert.deepEqual(persisted.content, optimistic.content);
+  }
+  assert.deepEqual(appendMessageToPiPrompt(message).images, [
+    {
+      type: "image",
+      data: "iVBORw0KGgo=",
+      mimeType: "image/png",
+      name: "layout.png",
+    },
+  ]);
+});
+
+test("projects a sent PDF attachment and separates its base64 for the session RPC", () => {
+  const pdfBase64 = Buffer.from("%PDF-1.7\nfixture").toString("base64");
+  const dataUrl = `data:application/pdf;base64,${pdfBase64}`;
+  const message: AppendMessage = {
+    role: "user",
+    content: [{ type: "text", text: "Read this PDF" }],
+    attachments: [
+      {
+        id: "attachment-pdf",
+        type: "document",
+        name: "invoice.pdf",
+        content: [
+          {
+            type: "file",
+            data: dataUrl,
+            mimeType: "application/pdf",
+            filename: "invoice.pdf",
+          },
+        ],
+        status: { type: "complete" },
+      },
+    ],
+    createdAt: new Date(0),
+    metadata: { custom: {} },
+    parentId: null,
+    runConfig: undefined,
+    sourceId: null,
+  };
+
+  const optimistic = optimisticUserMessage(message, "user-pdf");
+  assert.equal(optimistic.role, "user");
+  if (optimistic.role !== "user") return;
+  assert.deepEqual(optimistic.content, [
+    { type: "text", text: "Read this PDF" },
+    {
+      type: "file",
+      data: dataUrl,
+      mimeType: "application/pdf",
+      filename: "invoice.pdf",
+    },
+  ]);
+  assert.deepEqual(appendMessageToPiPrompt(message).documents, [
+    {
+      type: "file",
+      data: pdfBase64,
+      mimeType: "application/pdf",
+      name: "invoice.pdf",
+    },
+  ]);
+});
+
 test("correlates an optimistic image-recognition lifecycle with its prompt RPC", () => {
   const message: AppendMessage = {
     role: "user",
@@ -93,7 +228,8 @@ test("correlates an optimistic image-recognition lifecycle with its prompt RPC",
   assert.equal(optimistic.metadata.custom.workbenchPromptRpcId, "session.prompt:test");
 });
 
-test("folds image recognition into the assistant message and preserves the user image", () => {
+test("folds attachment recognition into the assistant message and preserves image and PDF files", () => {
+  const pdf = Buffer.from("%PDF-1.7\nfixture").toString("base64");
   const base = {
     version: 1 as const,
     operationId: "recognition-1",
@@ -101,7 +237,7 @@ test("folds image recognition into the assistant message and preserves the user 
     rpcId: "session.prompt:images",
     method: "ocr" as const,
     providerId: "glm-ocr",
-    imageCount: 1,
+    attachmentCount: 2,
     timestamps: { createdAt: 1_000, updatedAt: 1_000 },
   };
   const history: PiSessionHistory = {
@@ -123,20 +259,23 @@ test("folds image recognition into the assistant message and preserves the user 
             text: "Read this image",
             document: [{ type: "text", text: "Read this image" }],
             commands: [],
-            images: [{ data: "iVBORw0KGgo=", mimeType: "image/png", name: "scan.png" }],
+            attachments: [
+              { data: "iVBORw0KGgo=", mimeType: "image/png", name: "scan.png" },
+              { data: pdf, mimeType: "application/pdf", name: "invoice.pdf" },
+            ],
             status: "accepted",
           },
         },
         {
           role: "custom",
-          customType: WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE,
+          customType: WORKBENCH_ATTACHMENT_RECOGNITION_CUSTOM_TYPE,
           content: "",
           display: true,
           details: { ...base, revision: 0, status: "pending", completedCount: 0, progress: 0 },
         },
         {
           role: "custom",
-          customType: WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE,
+          customType: WORKBENCH_ATTACHMENT_RECOGNITION_CUSTOM_TYPE,
           content: "",
           display: true,
           details: {
@@ -151,15 +290,27 @@ test("folds image recognition into the assistant message and preserves the user 
         },
         {
           role: "custom",
-          customType: WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE,
+          customType: WORKBENCH_ATTACHMENT_RECOGNITION_CUSTOM_TYPE,
           content: "",
           display: true,
           details: {
             ...base,
             revision: 2,
             status: "succeeded",
-            completedCount: 1,
+            completedCount: 2,
             progress: 1,
+            results: [
+              {
+                attachmentId: "attachment-1",
+                format: "markdown",
+                text: "# Recognized invoice\nTotal: 42",
+              },
+              {
+                attachmentId: "attachment-2",
+                format: "text",
+                text: "PDF reference A-17",
+              },
+            ],
             timestamps: { createdAt: 1_000, updatedAt: 1_200, completedAt: 1_200 },
           },
         },
@@ -188,9 +339,10 @@ test("folds image recognition into the assistant message and preserves the user 
   assert.equal(user?.role, "user");
   if (user?.role !== "user") return;
   assert.equal(user.content.filter((part) => part.type === "image").length, 1);
+  assert.equal(user.content.filter((part) => part.type === "file").length, 1);
   assert.equal(
     user.content.some(
-      (part) => part.type === "data" && part.name === WORKBENCH_IMAGE_RECOGNITION_DATA_NAME,
+      (part) => part.type === "data" && part.name === WORKBENCH_ATTACHMENT_RECOGNITION_DATA_NAME,
     ),
     false,
   );
@@ -198,7 +350,7 @@ test("folds image recognition into the assistant message and preserves the user 
   assert.equal(assistant?.role, "assistant");
   if (assistant?.role !== "assistant") return;
   const statePart = assistant.content.find(
-    (part) => part.type === "data" && part.name === WORKBENCH_IMAGE_RECOGNITION_DATA_NAME,
+    (part) => part.type === "data" && part.name === WORKBENCH_ATTACHMENT_RECOGNITION_DATA_NAME,
   );
   assert.equal(assistant.content[0], statePart);
   assert.equal(statePart?.type, "data");
@@ -210,6 +362,26 @@ test("folds image recognition into the assistant message and preserves the user 
       ? statePart.data.status
       : undefined,
     "succeeded",
+  );
+  assert.deepEqual(
+    statePart?.type === "data" &&
+      typeof statePart.data === "object" &&
+      statePart.data !== null &&
+      "results" in statePart.data
+      ? statePart.data.results
+      : undefined,
+    [
+      {
+        attachmentId: "attachment-1",
+        format: "markdown",
+        text: "# Recognized invoice\nTotal: 42",
+      },
+      {
+        attachmentId: "attachment-2",
+        format: "text",
+        text: "PDF reference A-17",
+      },
+    ],
   );
 });
 
@@ -1587,6 +1759,60 @@ test("keeps visible message boundaries between assistant runs", () => {
     coalesced.map((message) => message.id),
     ["first", "boundary", "third"],
   );
+});
+
+test("keeps one attachment-recognition step when consecutive retry fragments are coalesced", () => {
+  const failedRecognition = (operationId: string, updatedAt: number) =>
+    attachmentRecognitionAssistantMessage({
+      version: 1,
+      operationId,
+      submissionId: "submission-image-retry",
+      revision: 2,
+      status: "failed",
+      method: "ocr",
+      providerId: "paddleocr",
+      attachmentCount: 1,
+      completedCount: 0,
+      errorCode: "provider-invalid-response",
+      timestamps: { createdAt: updatedAt - 2, updatedAt, completedAt: updatedAt },
+    });
+  const final = piAssistantToThreadMessage(
+    { role: "assistant", content: [{ type: "text", text: "Unable to read the attachment." }] },
+    "assistant-final",
+  );
+
+  const [merged] = coalesceConsecutiveAssistantMessages([
+    failedRecognition("recognition-1", 1_002),
+    failedRecognition("recognition-2", 2_002),
+    failedRecognition("recognition-3", 3_002),
+    final,
+  ]);
+
+  assert.equal(merged?.role, "assistant");
+  if (merged?.role !== "assistant") return;
+  const recognitionParts = merged.content.filter(
+    (part) => part.type === "data" && part.name === WORKBENCH_ATTACHMENT_RECOGNITION_DATA_NAME,
+  );
+  assert.equal(recognitionParts.length, 1);
+  assert.equal(
+    recognitionParts[0]?.type === "data" &&
+      typeof recognitionParts[0].data === "object" &&
+      recognitionParts[0].data !== null &&
+      "operationId" in recognitionParts[0].data
+      ? recognitionParts[0].data.operationId
+      : undefined,
+    "recognition-3",
+  );
+  assert.equal(
+    merged.content.some(
+      (part) => part.type === "text" && part.text === "Unable to read the attachment.",
+    ),
+    true,
+  );
+  assert.equal(isAttachmentRecognitionOnlyAssistant(merged), false);
+  assert.equal(merged.metadata.custom.workbenchImageRecognition, undefined);
+  assert.equal(merged.metadata.custom.workbenchImageRecognitionOnly, undefined);
+  assert.ok(merged.metadata.custom.workbenchAttachmentRecognition);
 });
 
 test("collapses consecutive model changes to the first source and final target", () => {

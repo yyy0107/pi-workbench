@@ -1790,7 +1790,7 @@ test("does not leave an empty assistant message when native vision skips preproc
     type: "message",
     sequence: 0,
     role: "custom",
-    customType: "workbench.image-recognition.v1",
+    customType: "workbench.attachment-recognition.v1",
     content: "",
     display: true,
     details: {
@@ -1801,7 +1801,7 @@ test("does not leave an empty assistant message when native vision skips preproc
       revision: 0,
       status: "skipped",
       method: "native",
-      imageCount: 1,
+      attachmentCount: 1,
       completedCount: 0,
       progress: 0,
       timestamps: { createdAt: 1_000, updatedAt: 1_100, completedAt: 1_100 },
@@ -1819,6 +1819,220 @@ test("does not leave an empty assistant message when native vision skips preproc
     ["user"],
   );
   assert.equal(internals.activeAssistantMessageId, undefined);
+});
+
+test("keeps a late attachment-recognition event on its original turn", (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("local-session", "remote-session");
+  const originalUser: ThreadMessage = {
+    id: "original-attachment-user",
+    role: "user",
+    content: [{ type: "text", text: "Read the original image" }],
+    attachments: [],
+    createdAt: new Date(1_000),
+    metadata: {
+      custom: {
+        workbenchComposerSubmissionId: "original-attachment-submission",
+        workbenchComposerProjectionResolved: true,
+        workbenchPromptRpcId: "original-attachment-rpc",
+      },
+    },
+  };
+  const originalAssistant: ThreadMessage = {
+    id: "original-attachment-assistant",
+    role: "assistant",
+    content: [{ type: "text", text: "Original answer", status: { type: "complete" } }],
+    status: { type: "complete", reason: "stop" },
+    createdAt: new Date(2_000),
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      steps: [],
+      custom: {},
+    },
+  };
+  const currentUser: ThreadMessage = {
+    id: "current-text-user",
+    role: "user",
+    content: [{ type: "text", text: "This is a new turn without an attachment" }],
+    attachments: [],
+    createdAt: new Date(3_000),
+    metadata: {
+      custom: { piOptimistic: true, workbenchPromptRpcId: "current-text-rpc" },
+      isOptimistic: true,
+    },
+  };
+  const currentAssistant: ThreadMessage = {
+    id: "current-text-assistant",
+    role: "assistant",
+    content: [{ type: "text", text: "", status: { type: "running" } }],
+    status: { type: "running" },
+    createdAt: new Date(3_000),
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      steps: [],
+      custom: { workbenchPromptRpcId: "current-text-rpc" },
+      isOptimistic: true,
+    },
+  };
+  const internals = session as unknown as {
+    baseMessages: ThreadMessage[];
+    baseMessageRepository: {
+      headId: string | null;
+      messages: Array<{ message: ThreadMessage; parentId: string | null }>;
+    };
+    liveMessages: ThreadMessage[];
+    streamingMessage?: ThreadMessage;
+    localRunLeaseActive: boolean;
+    handleEvent(event: PiEvent): void;
+    publishMessagesAndSetRunning(running: boolean): void;
+  };
+  internals.baseMessages = [originalUser, originalAssistant];
+  internals.baseMessageRepository = {
+    headId: originalAssistant.id,
+    messages: [
+      { message: originalUser, parentId: null },
+      { message: originalAssistant, parentId: originalUser.id },
+    ],
+  };
+  internals.liveMessages = [currentUser];
+  internals.streamingMessage = currentAssistant;
+  internals.localRunLeaseActive = true;
+  internals.publishMessagesAndSetRunning(true);
+
+  internals.handleEvent({
+    type: "message",
+    sequence: 0,
+    role: "custom",
+    customType: "workbench.attachment-recognition.v1",
+    content: "",
+    display: true,
+    details: {
+      version: 1,
+      operationId: "original-attachment-operation",
+      submissionId: "original-attachment-submission",
+      rpcId: "original-attachment-rpc",
+      revision: 2,
+      status: "succeeded",
+      method: "ocr",
+      providerId: "paddleocr",
+      attachmentCount: 1,
+      completedCount: 1,
+      progress: 1,
+      results: [{ attachmentId: "image-1", format: "text", text: "Original OCR" }],
+      timestamps: { createdAt: 1_100, updatedAt: 3_100, completedAt: 3_100 },
+    },
+    timestamp: 3_100,
+  });
+
+  const messages = session.getSnapshot().messages;
+  const updatedOriginal = messages.find((message) => message.id === originalAssistant.id);
+  const untouchedCurrent = messages.find((message) => message.id === currentAssistant.id);
+  assert.equal(
+    updatedOriginal?.content.some(
+      (part) =>
+        part.type === "data" &&
+        typeof part.data === "object" &&
+        part.data !== null &&
+        "operationId" in part.data &&
+        part.data.operationId === "original-attachment-operation",
+    ),
+    true,
+  );
+  assert.equal(
+    untouchedCurrent?.content.some((part) => part.type === "data"),
+    false,
+    "a late event from the previous prompt must not appear in the current assistant turn",
+  );
+});
+
+test("does not replay cached attachment recognition into a newer running turn", (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("local-session", "remote-session");
+  const recognition = {
+    version: 1 as const,
+    operationId: "cached-attachment-operation",
+    submissionId: "cached-attachment-submission",
+    rpcId: "cached-attachment-rpc",
+    revision: 2,
+    status: "succeeded" as const,
+    method: "ocr" as const,
+    providerId: "paddleocr",
+    attachmentCount: 1,
+    completedCount: 1,
+    progress: 1,
+    results: [{ attachmentId: "image-1", format: "text" as const, text: "Cached OCR" }],
+    timestamps: { createdAt: 1_000, updatedAt: 2_000, completedAt: 2_000 },
+  };
+  const originalUser: ThreadMessage = {
+    id: "cached-attachment-user",
+    role: "user",
+    content: [{ type: "text", text: "Read the cached image" }],
+    attachments: [],
+    createdAt: new Date(1_000),
+    metadata: {
+      custom: {
+        workbenchComposerSubmissionId: recognition.submissionId,
+        workbenchComposerProjectionResolved: true,
+        workbenchPromptRpcId: recognition.rpcId,
+      },
+    },
+  };
+  const originalAssistant: ThreadMessage = {
+    id: "cached-attachment-assistant",
+    role: "assistant",
+    content: [{ type: "text", text: "Cached answer", status: { type: "complete" } }],
+    status: { type: "complete", reason: "stop" },
+    createdAt: new Date(2_000),
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      steps: [],
+      custom: {},
+    },
+  };
+  const currentAssistant: ThreadMessage = {
+    id: "new-running-assistant",
+    role: "assistant",
+    content: [{ type: "text", text: "", status: { type: "running" } }],
+    status: { type: "running" },
+    createdAt: new Date(3_000),
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      steps: [],
+      custom: { workbenchPromptRpcId: "new-running-rpc" },
+      isOptimistic: true,
+    },
+  };
+  const internals = session as unknown as {
+    attachmentRecognitionSnapshots: Map<string, typeof recognition>;
+    streamingMessage?: ThreadMessage;
+    snapshotValue: ReturnType<typeof session.getSnapshot>;
+    mergeAttachmentRecognitionHistory(messages: readonly ThreadMessage[]): ThreadMessage[];
+  };
+  internals.attachmentRecognitionSnapshots.set(recognition.operationId, recognition);
+  internals.streamingMessage = currentAssistant;
+  internals.snapshotValue = { ...internals.snapshotValue, isRunning: true };
+
+  const reconciled = internals.mergeAttachmentRecognitionHistory([originalUser, originalAssistant]);
+  const updatedOriginal = reconciled.find((message) => message.id === originalAssistant.id);
+  assert.equal(
+    updatedOriginal?.content.some((part) => part.type === "data"),
+    true,
+  );
+  assert.equal(
+    internals.streamingMessage?.content.some((part) => part.type === "data"),
+    false,
+    "history refresh must not copy an earlier OCR result into the new assistant",
+  );
 });
 
 test("updates a built-in command response from running to success without a silent gap", (t) => {
@@ -1927,14 +2141,14 @@ test("updates image recognition in place and preserves the original image at use
     rpcId: "image-prompt-rpc",
     method: "ocr" as const,
     providerId: "glm-ocr",
-    imageCount: 1,
+    attachmentCount: 1,
     timestamps: { createdAt: 1_100, updatedAt: 1_100 },
   };
   internals.handleEvent({
     type: "message",
     sequence: 0,
     role: "custom",
-    customType: "workbench.image-recognition.v1",
+    customType: "workbench.attachment-recognition.v1",
     content: "",
     display: true,
     details: {
@@ -1950,7 +2164,7 @@ test("updates image recognition in place and preserves the original image at use
     type: "message",
     sequence: 1,
     role: "custom",
-    customType: "workbench.image-recognition.v1",
+    customType: "workbench.attachment-recognition.v1",
     content: "",
     display: true,
     details: {
@@ -1968,7 +2182,7 @@ test("updates image recognition in place and preserves the original image at use
     type: "message",
     sequence: 2,
     role: "custom",
-    customType: "workbench.image-recognition.v1",
+    customType: "workbench.attachment-recognition.v1",
     content: "",
     display: true,
     details: {
@@ -1977,6 +2191,13 @@ test("updates image recognition in place and preserves the original image at use
       status: "succeeded",
       completedCount: 1,
       progress: 1,
+      results: [
+        {
+          attachmentId: "image-1",
+          format: "text",
+          text: "Recognized live result",
+        },
+      ],
       timestamps: { createdAt: 1_100, updatedAt: 1_300, completedAt: 1_300 },
     },
     timestamp: 1_300,
@@ -1992,16 +2213,20 @@ test("updates image recognition in place and preserves the original image at use
   assert.equal(user?.id, "optimistic-image-user");
   assert.equal(
     user?.content.filter(
-      (part) => part.type === "data" && part.name === "workbench.image-recognition",
+      (part) => part.type === "data" && part.name === "workbench.attachment-recognition",
     ).length,
     0,
   );
   const recognition = assistant?.content.find(
-    (part) => part.type === "data" && part.name === "workbench.image-recognition",
+    (part) => part.type === "data" && part.name === "workbench.attachment-recognition",
   );
   assert.equal(
     recognition?.type === "data" ? (recognition.data as { status?: string }).status : undefined,
     "succeeded",
+  );
+  assert.deepEqual(
+    recognition?.type === "data" ? (recognition.data as { results?: unknown }).results : undefined,
+    [{ attachmentId: "image-1", format: "text", text: "Recognized live result" }],
   );
   const recognitionAssistantId = assistant?.id;
 
@@ -2029,7 +2254,7 @@ test("updates image recognition in place and preserves the original image at use
   );
   assert.equal(
     user?.content.filter(
-      (part) => part.type === "data" && part.name === "workbench.image-recognition",
+      (part) => part.type === "data" && part.name === "workbench.attachment-recognition",
     ).length,
     0,
   );
@@ -2041,6 +2266,12 @@ test("updates image recognition in place and preserves the original image at use
       ? (assistant.content[0].data as { status?: string }).status
       : undefined,
     "succeeded",
+  );
+  assert.deepEqual(
+    assistant?.content[0]?.type === "data"
+      ? (assistant.content[0].data as { results?: unknown }).results
+      : undefined,
+    [{ attachmentId: "image-1", format: "text", text: "Recognized live result" }],
   );
 });
 
@@ -2078,7 +2309,7 @@ test("publishes image-recognition updates through the repository for a base-hist
     type: "message",
     sequence: 0,
     role: "custom",
-    customType: "workbench.image-recognition.v1",
+    customType: "workbench.attachment-recognition.v1",
     content: "",
     display: true,
     details: {
@@ -2089,7 +2320,7 @@ test("publishes image-recognition updates through the repository for a base-hist
       status: "pending",
       method: "ocr",
       providerId: "glm-ocr",
-      imageCount: 1,
+      attachmentCount: 1,
       completedCount: 0,
       progress: 0,
       timestamps: { createdAt: 1_100, updatedAt: 1_100 },
@@ -2104,18 +2335,18 @@ test("publishes image-recognition updates through the repository for a base-hist
   );
   assert.equal(
     snapshot.messages[0]?.content.some(
-      (part) => part.type === "data" && part.name === "workbench.image-recognition",
+      (part) => part.type === "data" && part.name === "workbench.attachment-recognition",
     ),
     false,
   );
   const visiblePart = snapshot.messages[1]?.content.find(
-    (part) => part.type === "data" && part.name === "workbench.image-recognition",
+    (part) => part.type === "data" && part.name === "workbench.attachment-recognition",
   );
   const repositoryAssistant = snapshot.messageRepository.messages.find(
     (item) => item.message.role === "assistant",
   );
   const repositoryPart = repositoryAssistant?.message.content.find(
-    (part) => part.type === "data" && part.name === "workbench.image-recognition",
+    (part) => part.type === "data" && part.name === "workbench.attachment-recognition",
   );
   assert.equal(
     visiblePart?.type === "data" ? (visiblePart.data as { status?: string }).status : undefined,
@@ -2148,7 +2379,7 @@ test("does not let stale history replace a newer image-recognition revision", as
     status: "pending" as const,
     method: "ocr" as const,
     providerId: "glm-ocr",
-    imageCount: 1,
+    attachmentCount: 1,
     completedCount: 0,
     progress: 0,
     timestamps: { createdAt: 1_000, updatedAt: 1_000 },
@@ -2179,7 +2410,7 @@ test("does not let stale history replace a newer image-recognition revision", as
                 entryId: "stale-history-image-pending",
                 data: {
                   role: "custom",
-                  customType: "workbench.image-recognition.v1",
+                  customType: "workbench.attachment-recognition.v1",
                   content: "",
                   display: true,
                   details: pending,
@@ -2221,7 +2452,7 @@ test("does not let stale history replace a newer image-recognition revision", as
     type: "message",
     sequence: 10,
     role: "custom",
-    customType: "workbench.image-recognition.v1",
+    customType: "workbench.attachment-recognition.v1",
     content: "",
     display: true,
     details: succeeded,
@@ -2232,7 +2463,8 @@ test("does not let stale history replace a newer image-recognition revision", as
 
   const recognitionStatus = (message: ThreadMessage | undefined): string | undefined => {
     const part = message?.content.find(
-      (candidate) => candidate.type === "data" && candidate.name === "workbench.image-recognition",
+      (candidate) =>
+        candidate.type === "data" && candidate.name === "workbench.attachment-recognition",
     );
     return part?.type === "data" ? (part.data as { status?: string }).status : undefined;
   };
@@ -2255,7 +2487,7 @@ test("does not let stale history replace a newer image-recognition revision", as
     type: "message",
     sequence: 11,
     role: "custom",
-    customType: "workbench.image-recognition.v1",
+    customType: "workbench.attachment-recognition.v1",
     content: "",
     display: true,
     details: succeeded,

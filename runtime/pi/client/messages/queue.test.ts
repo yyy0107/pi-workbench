@@ -48,6 +48,16 @@ function imageMessage(text: string, filename: string): AppendMessage {
   };
 }
 
+function documentMessage(text: string, filename: string): AppendMessage {
+  return {
+    ...message(text),
+    content: [
+      { type: "text", text },
+      { type: "file", data: "pdf-payload", mimeType: "application/pdf", filename },
+    ],
+  };
+}
+
 function queued(id: string, text: string, placement: QueueItem["placement"] = "queued"): QueueItem {
   return {
     id,
@@ -156,6 +166,41 @@ test("preserves an image filename in the optimistic queue item and submitted pro
             data: "payload",
             mimeType: "image/png",
             name: "optimistic.png",
+          },
+        ],
+      },
+      "client-queue-1",
+    ],
+  ]);
+});
+
+test("preserves a PDF filename in the optimistic queue item and submitted prompt", async () => {
+  const { queue, calls } = harness();
+
+  queue.adapter.enqueue(documentMessage("read", "invoice.pdf"));
+
+  assert.deepEqual(queue.adapter.items[0]?.parts, [
+    { type: "text", text: "read" },
+    {
+      type: "file",
+      data: "pdf-payload",
+      mimeType: "application/pdf",
+      filename: "invoice.pdf",
+    },
+  ]);
+  await flush();
+  assert.deepEqual(calls, [
+    [
+      "enqueue",
+      "followUp",
+      {
+        message: "read",
+        documents: [
+          {
+            type: "file",
+            data: "pdf-payload",
+            mimeType: "application/pdf",
+            name: "invoice.pdf",
           },
         ],
       },

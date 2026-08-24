@@ -130,16 +130,18 @@ export const workbenchEnUS = {
     },
     errors: {
       sessionBusy: "This conversation is already generating a response.",
-      emptyPrompt: "Enter a message or attach an image before sending.",
+      emptyPrompt: "Enter a message or attach an image or PDF before sending.",
       sessionNotFound: "This conversation is no longer available.",
       invalidWorkingDirectory: "The Pi working directory is not available.",
       invalidWorkspace: "Select a valid workspace before starting a conversation.",
       modelNotAvailable: "This model is not available from the configured Pi providers.",
-      modelDoesNotSupportImages:
-        "The current model does not accept images. Remove the image or choose an image-capable model.",
-      invalidImage: "This image could not be sent. Use a valid PNG, JPEG, GIF, or WebP image.",
-      imageTooLarge: "This image is too large to send. Choose a smaller image.",
-      tooManyImages: "There are too many images to send at once. Remove some images and try again.",
+      modelDoesNotSupportAttachments:
+        "The current route cannot accept this attachment. Remove it or choose a compatible recognition route.",
+      invalidAttachment:
+        "This attachment could not be sent. Use a valid PNG, JPEG, GIF, WebP, or PDF file.",
+      attachmentTooLarge: "This attachment is too large to send. Choose a smaller file.",
+      tooManyAttachments:
+        "There are too many attachments to send at once. Remove some files and try again.",
       requestFailed: "Pi could not complete the request. Please try again.",
       commandCompileFailed:
         "This command combination cannot be sent. Remove conflicting or unavailable command tokens and try again.",

@@ -1,4 +1,6 @@
 import type {
+  DataPresentationDefinition,
+  DataPresentationRegistry,
   DataRendererComponent,
   MessageRendererContribution,
   MessageRendererRegistry,
@@ -93,33 +95,38 @@ class MessageRendererRegistryImpl implements MessageRendererRegistry {
   };
 }
 
-class ToolPresentationRegistryImpl implements ToolPresentationRegistry {
-  readonly #presentations = new Map<string, ToolPresentationDefinition>();
+class NamedPresentationRegistryImpl<TPresentation extends object> {
+  readonly #kind: string;
+  readonly #presentations = new Map<string, Readonly<TPresentation>>();
   readonly #listeners = new Set<() => void>();
-  #snapshot: Readonly<Record<string, ToolPresentationDefinition>> = EMPTY_COMPONENT_MAP;
+  #snapshot: Readonly<Record<string, Readonly<TPresentation>>> = EMPTY_COMPONENT_MAP;
 
-  register(toolName: string, presentation: ToolPresentationDefinition) {
-    assertNonEmptyId(toolName, "Tool presentation name");
-    if (this.#presentations.has(toolName)) {
-      throw new Error(`Tool presentation "${toolName}" is already registered`);
+  constructor(kind: string) {
+    this.#kind = kind;
+  }
+
+  register(name: string, presentation: TPresentation) {
+    assertNonEmptyId(name, `${this.#kind} presentation name`);
+    if (this.#presentations.has(name)) {
+      throw new Error(`${this.#kind} presentation "${name}" is already registered`);
     }
 
     const registered = Object.freeze({ ...presentation });
-    this.#presentations.set(toolName, registered);
+    this.#presentations.set(name, registered);
     this.#updateSnapshot();
 
     return createDisposable(() => {
-      if (this.#presentations.get(toolName) !== registered) return;
-      this.#presentations.delete(toolName);
+      if (this.#presentations.get(name) !== registered) return;
+      this.#presentations.delete(name);
       this.#updateSnapshot();
     });
   }
 
-  get(toolName: string): ToolPresentationDefinition | undefined {
-    return this.#presentations.get(toolName);
+  get(name: string): Readonly<TPresentation> | undefined {
+    return this.#presentations.get(name);
   }
 
-  getPresentationMap(): Readonly<Record<string, ToolPresentationDefinition>> {
+  getPresentationMap(): Readonly<Record<string, Readonly<TPresentation>>> {
     return this.#snapshot;
   }
 
@@ -129,7 +136,7 @@ class ToolPresentationRegistryImpl implements ToolPresentationRegistry {
   };
 
   #updateSnapshot(): void {
-    const snapshot = Object.create(null) as Record<string, ToolPresentationDefinition>;
+    const snapshot = Object.create(null) as Record<string, Readonly<TPresentation>>;
     for (const [name, presentation] of this.#presentations) snapshot[name] = presentation;
     this.#snapshot = Object.freeze(snapshot);
     emitRegistryChange(this.#listeners);
@@ -142,5 +149,8 @@ export class RendererRegistryImpl implements RendererRegistry {
     new NamedRendererRegistryImpl<ToolRendererComponent>("Tool");
   readonly data: NamedRendererRegistry<DataRendererComponent> =
     new NamedRendererRegistryImpl<DataRendererComponent>("Data");
-  readonly toolPresentations: ToolPresentationRegistry = new ToolPresentationRegistryImpl();
+  readonly toolPresentations: ToolPresentationRegistry =
+    new NamedPresentationRegistryImpl<ToolPresentationDefinition>("Tool");
+  readonly dataPresentations: DataPresentationRegistry =
+    new NamedPresentationRegistryImpl<DataPresentationDefinition>("Data");
 }

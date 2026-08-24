@@ -1,10 +1,11 @@
 import type {
-  ImageUnderstandingEngine,
-  ImageUnderstandingSettingsValue,
+  AttachmentUnderstandingEngine,
+  AttachmentUnderstandingSettingsValue,
 } from "../../rpc-contracts";
+import { parseOcrAdapterSource } from "../../../image-understanding/ocr-adapter";
 
-export type ImageUnderstandingRouteDecision =
-  | { kind: "none"; reason: "no-images" }
+export type AttachmentUnderstandingRouteDecision =
+  | { kind: "none"; reason: "no-attachments" }
   | {
       kind: "native";
       method: "native";
@@ -12,36 +13,47 @@ export type ImageUnderstandingRouteDecision =
     }
   | {
       kind: "preprocess";
-      method: ImageUnderstandingEngine;
+      method: AttachmentUnderstandingEngine;
       providerId: string;
       model: string;
       reason: "auto-text-only" | "always-preprocess";
     }
   | {
       kind: "unsupported";
-      reason: "recognition-disabled" | "native-model-required" | "preprocessor-not-configured";
+      reason:
+        | "recognition-disabled"
+        | "native-model-required"
+        | "document-ocr-required"
+        | "preprocessor-not-configured";
     };
 
-export interface DecideImageUnderstandingRouteInput {
-  settings: ImageUnderstandingSettingsValue;
+export interface DecideAttachmentUnderstandingRouteInput {
+  settings: AttachmentUnderstandingSettingsValue;
   hasImages: boolean;
+  hasDocuments?: boolean;
   modelSupportsImages: boolean;
 }
 
 function preprocessDecision(
-  settings: ImageUnderstandingSettingsValue,
+  settings: AttachmentUnderstandingSettingsValue,
   reason: "auto-text-only" | "always-preprocess",
-): ImageUnderstandingRouteDecision {
+): AttachmentUnderstandingRouteDecision {
   if (settings.engine === "ocr") {
-    const provider = settings.ocrProvider === "glm-ocr" ? settings.glm : settings.paddle;
-    if (!provider.model.trim() || !provider.credentialConfigured) {
+    const adapter = settings.ocrAdapter;
+    if (!adapter.model.trim() || !adapter.credentialConfigured) {
+      return { kind: "unsupported", reason: "preprocessor-not-configured" };
+    }
+    let providerId: string;
+    try {
+      providerId = parseOcrAdapterSource(adapter.source).id;
+    } catch {
       return { kind: "unsupported", reason: "preprocessor-not-configured" };
     }
     return {
       kind: "preprocess",
       method: "ocr",
-      providerId: settings.ocrProvider,
-      model: provider.model,
+      providerId,
+      model: adapter.model,
       reason,
     };
   }
@@ -57,25 +69,36 @@ function preprocessDecision(
   };
 }
 
-export function decideImageUnderstandingRoute(
-  input: DecideImageUnderstandingRouteInput,
-): ImageUnderstandingRouteDecision {
-  if (!input.hasImages) return { kind: "none", reason: "no-images" };
+export function decideAttachmentUnderstandingRoute(
+  input: DecideAttachmentUnderstandingRouteInput,
+): AttachmentUnderstandingRouteDecision {
+  const hasDocuments = input.hasDocuments === true;
+  if (!input.hasImages && !hasDocuments) return { kind: "none", reason: "no-attachments" };
   if (input.settings.routing === "disabled") {
-    return input.modelSupportsImages
+    return !hasDocuments && input.modelSupportsImages
       ? { kind: "native", method: "native", reason: "recognition-disabled" }
       : { kind: "unsupported", reason: "recognition-disabled" };
   }
   if (input.settings.routing === "native-only") {
+    if (hasDocuments) return { kind: "unsupported", reason: "document-ocr-required" };
     return input.modelSupportsImages
       ? { kind: "native", method: "native", reason: "native-only" }
       : { kind: "unsupported", reason: "native-model-required" };
   }
+  if (hasDocuments && input.settings.engine !== "ocr") {
+    return { kind: "unsupported", reason: "document-ocr-required" };
+  }
   if (input.settings.routing === "always-preprocess") {
     return preprocessDecision(input.settings, "always-preprocess");
   }
-  if (input.modelSupportsImages) {
+  if (!hasDocuments && input.modelSupportsImages) {
     return { kind: "native", method: "native", reason: "auto-native" };
   }
   return preprocessDecision(input.settings, "auto-text-only");
 }
+
+/** @deprecated Use the attachment-neutral coordinator name for new integrations. */
+export type ImageUnderstandingRouteDecision = AttachmentUnderstandingRouteDecision;
+/** @deprecated Use the attachment-neutral coordinator input name for new integrations. */
+export type DecideImageUnderstandingRouteInput = DecideAttachmentUnderstandingRouteInput;
+export const decideImageUnderstandingRoute = decideAttachmentUnderstandingRoute;

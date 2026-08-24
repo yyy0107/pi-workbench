@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   defaultMessageDisclosureOpen,
+  messageAttachmentReference,
   messageTextPresentation,
   type MessagePresentationDisclosure,
   type MessagePresentationPhase,
@@ -44,4 +45,23 @@ test("renders user text through the shared Composer document presentation", () =
   assert.equal(messageTextPresentation("user"), "composer");
   assert.equal(messageTextPresentation("assistant"), "markdown");
   assert.equal(messageTextPresentation("system"), "markdown");
+});
+
+test("numbers image and PDF references independently in message order", () => {
+  const parts = [
+    { type: "text" },
+    { type: "image" },
+    { type: "file", mimeType: "application/pdf" },
+    { type: "image" },
+    { type: "file", mimeType: "text/plain" },
+    { type: "file", mimeType: "application/pdf" },
+  ];
+
+  assert.equal(messageAttachmentReference(parts, 0), undefined);
+  assert.deepEqual(messageAttachmentReference(parts, 1), { kind: "image", sequence: 1 });
+  assert.deepEqual(messageAttachmentReference(parts, 2), { kind: "pdf", sequence: 1 });
+  assert.deepEqual(messageAttachmentReference(parts, 3), { kind: "image", sequence: 2 });
+  assert.equal(messageAttachmentReference(parts, 4), undefined);
+  assert.deepEqual(messageAttachmentReference(parts, 5), { kind: "pdf", sequence: 2 });
+  assert.equal(messageAttachmentReference(parts, 99), undefined);
 });

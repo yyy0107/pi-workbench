@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { WrenchIcon } from "lucide-react";
 
-import type { ToolPresentationDefinition } from "../api/renderer";
+import type { DataPresentationDefinition, ToolPresentationDefinition } from "../api/renderer";
 import { ExtensionManager } from "../extension-manager";
 import { RendererRegistryImpl } from "./renderer-registry";
 
@@ -13,6 +13,16 @@ const presentation = {
   icon: WrenchIcon,
   summarize: (part) => part.toolName,
 } satisfies ToolPresentationDefinition;
+
+const dataPresentation = {
+  display: "timeline",
+  isVisible: (part) => part.data !== null,
+  isActive: (part) =>
+    typeof part.data === "object" &&
+    part.data !== null &&
+    "status" in part.data &&
+    part.data.status === "running",
+} satisfies DataPresentationDefinition;
 
 test("tool presentations publish stable frozen snapshots and dispose independently", () => {
   const registry = new RendererRegistryImpl().toolPresentations;
@@ -64,4 +74,33 @@ test("extension lifecycle tracks tool presentation registrations", () => {
 
   activation.dispose();
   assert.equal(manager.renderers.toolPresentations.get("custom_tool"), undefined);
+});
+
+test("data presentations publish stable frozen snapshots and follow extension lifecycle", () => {
+  const manager = new ExtensionManager();
+  const emptySnapshot = manager.renderers.dataPresentations.getPresentationMap();
+  const activation = manager.activate({
+    id: "workbench.test-data-presentation",
+    name: "Data Presentation Test",
+    version: "1.0.0",
+    setup(context) {
+      return context.renderers.dataPresentations.register("custom.data", dataPresentation);
+    },
+  });
+
+  const registered = manager.renderers.dataPresentations.get("custom.data");
+  const populatedSnapshot = manager.renderers.dataPresentations.getPresentationMap();
+  assert.notEqual(registered, dataPresentation);
+  assert.equal(registered?.display, "timeline");
+  assert.equal(Object.isFrozen(registered), true);
+  assert.equal(Object.isFrozen(populatedSnapshot), true);
+  assert.notEqual(populatedSnapshot, emptySnapshot);
+  assert.equal(populatedSnapshot["custom.data"], registered);
+  assert.equal(
+    registered?.isActive?.({ type: "data", name: "custom.data", data: { status: "running" } }),
+    true,
+  );
+
+  activation.dispose();
+  assert.equal(manager.renderers.dataPresentations.get("custom.data"), undefined);
 });

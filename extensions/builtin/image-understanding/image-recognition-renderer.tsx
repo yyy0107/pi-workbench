@@ -1,27 +1,47 @@
 "use client";
 
+import { useState } from "react";
 import type { DataMessagePartComponent } from "@assistant-ui/react";
-import {
-  BanIcon,
-  CheckCircle2Icon,
-  CircleAlertIcon,
-  CircleDashedIcon,
-  CircleMinusIcon,
-  LoaderCircleIcon,
-} from "lucide-react";
+import { ScanTextIcon } from "lucide-react";
 
+import { field, mono } from "@/components/elements/surfaces";
+import { ToolCall } from "@/components/elements/tool-call";
 import { useI18n } from "@/i18n";
-import { cn } from "@/lib/utils";
+import type {
+  AttachmentRecognitionFailurePhase,
+  AttachmentRecognitionResultSource,
+} from "@/runtime/image-understanding/state-machine";
 
 import {
   imageRecognitionLiveRegion,
-  parseImageRecognitionPresentation,
+  parseAttachmentRecognitionPresentation,
   type ImageRecognitionErrorKind,
   type ImageRecognitionMethod,
-  type ImageRecognitionPresentationState,
+  type ImageRecognitionResultFormat,
+  type ImageRecognitionPresentationResult,
   type ImageRecognitionSkipKind,
   type ImageRecognitionStage,
 } from "./image-recognition-presentation";
+
+function resultReferenceLabel(
+  result: ImageRecognitionPresentationResult,
+  t: ReturnType<typeof useI18n>["t"],
+): string {
+  switch (result.referenceKind) {
+    case "image":
+      return t("extensions.imageUnderstanding.recognition.results.image", {
+        index: result.sequence,
+      });
+    case "pdf":
+      return t("extensions.imageUnderstanding.recognition.results.pdf", {
+        index: result.sequence,
+      });
+    case "attachment":
+      return t("extensions.imageUnderstanding.recognition.results.attachment", {
+        index: result.sequence,
+      });
+  }
+}
 
 function methodLabel(method: ImageRecognitionMethod, t: ReturnType<typeof useI18n>["t"]): string {
   switch (method) {
@@ -32,6 +52,15 @@ function methodLabel(method: ImageRecognitionMethod, t: ReturnType<typeof useI18
     case "native":
       return t("extensions.imageUnderstanding.recognition.methods.native");
   }
+}
+
+function resultFormatLabel(
+  format: ImageRecognitionResultFormat,
+  t: ReturnType<typeof useI18n>["t"],
+): string {
+  return format === "markdown"
+    ? t("extensions.imageUnderstanding.recognition.results.formats.markdown")
+    : t("extensions.imageUnderstanding.recognition.results.formats.text");
 }
 
 function stageLabel(stage: ImageRecognitionStage, t: ReturnType<typeof useI18n>["t"]): string {
@@ -49,6 +78,37 @@ function stageLabel(stage: ImageRecognitionStage, t: ReturnType<typeof useI18n>[
     case "fallback":
       return t("extensions.imageUnderstanding.recognition.stages.fallback");
   }
+}
+
+function failurePhaseLabel(
+  phase: AttachmentRecognitionFailurePhase,
+  t: ReturnType<typeof useI18n>["t"],
+): string {
+  switch (phase) {
+    case "configuration":
+      return t("extensions.imageUnderstanding.recognition.diagnostics.phases.configuration");
+    case "routing":
+      return t("extensions.imageUnderstanding.recognition.diagnostics.phases.routing");
+    case "submission":
+      return t("extensions.imageUnderstanding.recognition.diagnostics.phases.submission");
+    case "polling":
+      return t("extensions.imageUnderstanding.recognition.diagnostics.phases.polling");
+    case "result-download":
+      return t("extensions.imageUnderstanding.recognition.diagnostics.phases.resultDownload");
+    case "result-parsing":
+      return t("extensions.imageUnderstanding.recognition.diagnostics.phases.resultParsing");
+    case "normalizing":
+      return t("extensions.imageUnderstanding.recognition.diagnostics.phases.normalizing");
+  }
+}
+
+function resultSourceLabel(
+  source: AttachmentRecognitionResultSource,
+  t: ReturnType<typeof useI18n>["t"],
+): string {
+  return source === "jsonl"
+    ? t("extensions.imageUnderstanding.recognition.diagnostics.sources.jsonl")
+    : t("extensions.imageUnderstanding.recognition.diagnostics.sources.markdown");
 }
 
 function errorLabel(kind: ImageRecognitionErrorKind, t: ReturnType<typeof useI18n>["t"]): string {
@@ -87,45 +147,14 @@ function skipLabel(kind: ImageRecognitionSkipKind, t: ReturnType<typeof useI18n>
   }
 }
 
-function RecognitionProgress({ state }: { state: ImageRecognitionPresentationState }) {
-  const { t, number } = useI18n();
-  const percent = Math.round(state.progress * 100);
-
-  return (
-    <div className="mt-2">
-      <div className="text-muted-foreground flex items-center justify-between gap-3 text-xs">
-        <span>
-          {t("extensions.imageUnderstanding.recognition.progress", {
-            completed: state.completedCount,
-            total: state.imageCount,
-          })}
-        </span>
-        <span aria-hidden="true">{number(state.progress, { style: "percent" })}</span>
-      </div>
-      <div
-        role="progressbar"
-        aria-label={t("extensions.imageUnderstanding.recognition.progressLabel")}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={percent}
-        className="bg-muted mt-1.5 h-1.5 overflow-hidden rounded-full"
-      >
-        <div
-          className="bg-primary h-full rounded-full transition-[width] motion-reduce:transition-none"
-          style={{ width: `${percent}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
-export const ImageRecognitionRenderer: DataMessagePartComponent = ({ data }) => {
-  const { t } = useI18n();
-  const state = parseImageRecognitionPresentation(data);
+export const AttachmentRecognitionRenderer: DataMessagePartComponent = ({ data }) => {
+  const { number, t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const state = parseAttachmentRecognitionPresentation(data);
   if (!state || (state.status === "skipped" && state.method === "native")) return null;
 
   const failed = state.status === "failed";
-  const running = state.status === "running";
+  const running = state.status === "pending" || state.status === "running";
   const liveRegion = imageRecognitionLiveRegion(state.status);
   const title = (() => {
     switch (state.status) {
@@ -150,60 +179,147 @@ export const ImageRecognitionRenderer: DataMessagePartComponent = ({ data }) => 
       : running && state.stage
         ? stageLabel(state.stage, t)
         : undefined;
-  const Icon = (() => {
-    switch (state.status) {
-      case "pending":
-        return CircleDashedIcon;
-      case "running":
-        return LoaderCircleIcon;
-      case "succeeded":
-        return CheckCircle2Icon;
-      case "failed":
-        return CircleAlertIcon;
-      case "cancelled":
-        return BanIcon;
-      case "skipped":
-        return CircleMinusIcon;
-    }
-  })();
+  const progress = running
+    ? `${t("extensions.imageUnderstanding.recognition.progress", {
+        completed: state.completedCount,
+        total: state.attachmentCount,
+      })} · ${number(state.progress, { style: "percent" })}`
+    : undefined;
+  const query = [
+    detail ?? methodLabel(state.method, t),
+    state.providerId
+      ? t("extensions.imageUnderstanding.recognition.provider", {
+          providerId: state.providerId,
+        })
+      : undefined,
+    progress,
+  ]
+    .filter((value): value is string => Boolean(value))
+    .join(" · ");
+  const expandable = failed || state.results.length > 0;
+  const diagnosticRows = failed
+    ? [
+        {
+          label: t("extensions.imageUnderstanding.recognition.diagnostics.errorCode"),
+          value: state.errorCode,
+        },
+        {
+          label: t("extensions.imageUnderstanding.recognition.diagnostics.phase"),
+          value: state.diagnostic ? failurePhaseLabel(state.diagnostic.phase, t) : undefined,
+        },
+        {
+          label: t("extensions.imageUnderstanding.recognition.diagnostics.reason"),
+          value: state.diagnostic?.reason,
+        },
+        {
+          label: t("extensions.imageUnderstanding.recognition.diagnostics.httpStatus"),
+          value: state.diagnostic?.httpStatus?.toString(),
+        },
+        {
+          label: t("extensions.imageUnderstanding.recognition.diagnostics.providerCode"),
+          value: state.diagnostic?.providerCode,
+        },
+        {
+          label: t("extensions.imageUnderstanding.recognition.diagnostics.resultSource"),
+          value: state.diagnostic?.resultSource
+            ? resultSourceLabel(state.diagnostic.resultSource, t)
+            : undefined,
+        },
+        {
+          label: t("extensions.imageUnderstanding.recognition.diagnostics.method"),
+          value: methodLabel(state.method, t),
+        },
+        {
+          label: t("extensions.imageUnderstanding.recognition.diagnostics.provider"),
+          value: state.providerId,
+        },
+      ].filter((row): row is { label: string; value: string } => Boolean(row.value))
+    : [];
 
   return (
-    <div
-      role={liveRegion.role}
-      aria-live={liveRegion.live}
-      aria-atomic="true"
-      className={cn(
-        "my-2 rounded-lg border px-3 py-2 text-sm",
-        failed ? "border-destructive/30 bg-destructive/5" : "bg-muted/30",
-      )}
-    >
-      <div className="flex items-start gap-2">
-        <Icon
-          aria-hidden="true"
-          className={cn(
-            "mt-0.5 size-4 shrink-0",
-            running && "animate-spin motion-reduce:animate-none",
-            failed && "text-destructive",
-            state.status === "succeeded" && "text-emerald-600 dark:text-emerald-400",
-          )}
-        />
-        <div className="min-w-0 flex-1">
-          <p className="font-medium">{title}</p>
-          <p className={cn("text-muted-foreground mt-0.5 text-xs", failed && "text-destructive")}>
-            {detail ?? methodLabel(state.method, t)}
-          </p>
-          {state.providerId ? (
-            <p className="text-muted-foreground mt-0.5 truncate text-xs">
-              {t("extensions.imageUnderstanding.recognition.provider", {
-                providerId: state.providerId,
-              })}
+    <div data-slot="attachment-recognition-timeline-step" className="w-full">
+      <span
+        role={liveRegion.role}
+        aria-live={liveRegion.live}
+        aria-atomic="true"
+        className="sr-only"
+      >
+        {title}. {query}
+      </span>
+      <ToolCall
+        label={title}
+        activeLabel={title}
+        query={query}
+        request=""
+        result=""
+        requestLabel=""
+        resultLabel=""
+        icon={ScanTextIcon}
+        iconClassName="size-4"
+        running={running}
+        failed={failed}
+        failedLabel={title}
+        showCompletionIcon={state.status === "succeeded"}
+        expandable={expandable}
+        open={expandable && open}
+        onOpenChange={setOpen}
+      >
+        {failed ? (
+          <div data-slot="attachment-recognition-diagnostics">
+            <p className={`${mono} text-foreground/35 mb-1.5`}>
+              {t("extensions.imageUnderstanding.recognition.diagnostics.title")}
             </p>
-          ) : null}
-          {(state.status === "pending" || running) && state.imageCount > 0 ? (
-            <RecognitionProgress state={state} />
-          ) : null}
-        </div>
-      </div>
+            <dl className={`${field} divide-foreground/10 divide-y rounded-2xl px-3.5`}>
+              {diagnosticRows.map((row) => (
+                <div key={row.label} className="flex items-start justify-between gap-4 py-2.5">
+                  <dt className="text-foreground/45 text-xs">{row.label}</dt>
+                  <dd className="text-foreground/80 break-all text-right font-mono text-xs">
+                    {row.value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+            <p className="text-foreground/40 mt-2 text-xs">
+              {t("extensions.imageUnderstanding.recognition.diagnostics.sanitizedNote")}
+            </p>
+          </div>
+        ) : expandable ? (
+          <div data-slot="attachment-recognition-results">
+            <p className={`${mono} text-foreground/35 mb-1.5`}>
+              {t("extensions.imageUnderstanding.recognition.results.title")}
+            </p>
+            <div className={`${field} max-h-96 overflow-auto rounded-2xl`}>
+              {state.results.map((result) => (
+                <section
+                  key={result.attachmentId}
+                  aria-label={resultReferenceLabel(result, t)}
+                  className="px-3.5 py-3 [&+&]:border-t [&+&]:border-foreground/10"
+                >
+                  <div className="mb-2 flex items-center gap-2">
+                    <span className={`${mono} text-foreground/55`}>
+                      {resultReferenceLabel(result, t)}
+                    </span>
+                    <span className="bg-foreground/[0.06] text-foreground/45 rounded-full px-1.5 py-0.5 text-[10px] font-medium uppercase">
+                      {resultFormatLabel(result.format, t)}
+                    </span>
+                  </div>
+                  <pre className="text-foreground/80 whitespace-pre-wrap break-words font-mono text-xs leading-relaxed">
+                    {result.text}
+                  </pre>
+                  {result.truncated ? (
+                    <p className="text-foreground/45 mt-2 text-xs italic">
+                      {t("extensions.imageUnderstanding.recognition.results.truncated")}
+                    </p>
+                  ) : null}
+                </section>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </ToolCall>
     </div>
   );
 };
+
+/** @deprecated Use the attachment-neutral renderer name for new registrations. */
+export const ImageRecognitionRenderer = AttachmentRecognitionRenderer;

@@ -1,8 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ChevronDownIcon } from "lucide-react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
+import { ChevronDownIcon, ExternalLinkIcon } from "lucide-react";
 
+import { WorkbenchCodeEditor } from "@/components/code-highlighting";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuRadioGroup } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -14,34 +23,54 @@ import {
 import { useI18n } from "@/i18n";
 import type { SettingsItemComponentProps } from "@/platform/extensions";
 import {
-  describeImageUnderstandingSettings,
+  describeAttachmentUnderstandingSettings,
+  listPiModelCatalog,
+  listPiModelProviders,
   PiApiError,
-  updateImageUnderstandingSettings,
+  updateAttachmentUnderstandingSettings,
 } from "@/runtime/pi/client/transport/api";
+import {
+  getPiModelCatalogRevision,
+  subscribePiModelCatalogInvalidation,
+} from "@/runtime/pi/client/models/model-catalog-invalidation";
 import type {
-  ImageUnderstandingDescribeValue,
-  ImageUnderstandingEngine,
-  ImageUnderstandingOcrProvider,
-  ImageUnderstandingRouting,
-  ImageUnderstandingSettingsValue,
+  AttachmentUnderstandingDescribeValue,
+  AttachmentUnderstandingEngine,
+  AttachmentUnderstandingRouting,
+  AttachmentUnderstandingSettingsValue,
 } from "@/runtime/pi/rpc-contracts";
+import {
+  getOcrAdapterPreset,
+  OCR_ADAPTER_PRESETS,
+  parseOcrAdapterSource,
+  type OcrAdapterPresetId,
+} from "@/runtime/image-understanding/ocr-adapter";
+
+import {
+  configuredMultimodalModelOptions,
+  type MultimodalProviderOption,
+} from "./image-understanding-model-options";
+import { ocrCredentialWebsiteForPreset } from "./image-understanding-credential-link";
+import {
+  hasOcrAdapterSettings,
+  ocrAdapterSettingsFromValue,
+} from "./image-understanding-settings-compat";
 
 type LoadState = "loading" | "ready" | "failed";
+type ModelCatalogLoadState = "loading" | "ready" | "failed";
+type AttachmentUnderstandingRoutingChoice = Exclude<AttachmentUnderstandingRouting, "auto">;
 
 interface SettingsDraft {
-  routing: ImageUnderstandingRouting;
-  engine: ImageUnderstandingEngine;
-  ocrProvider: ImageUnderstandingOcrProvider;
-  glmEndpoint: string;
-  glmModel: string;
-  glmApiKey: string;
-  clearGlmCredential: boolean;
-  paddleEndpoint: string;
-  paddleModel: string;
-  paddleApiKey: string;
-  clearPaddleCredential: boolean;
-  paddlePollIntervalMs: string;
-  paddlePollTimeoutMs: string;
+  routing: AttachmentUnderstandingRoutingChoice;
+  engine: AttachmentUnderstandingEngine;
+  ocrAdapterPreset: OcrAdapterPresetId;
+  ocrAdapterSource: string;
+  ocrEndpoint: string;
+  ocrModel: string;
+  ocrApiKey: string;
+  clearOcrCredential: boolean;
+  ocrPollIntervalMs: string;
+  ocrPollTimeoutMs: string;
   multimodalProvider: string;
   multimodalModel: string;
 }
@@ -51,42 +80,39 @@ interface ChoiceOption<TValue extends string> {
   readonly label: string;
 }
 
-function draftFromValue(value: ImageUnderstandingSettingsValue): SettingsDraft {
+function draftFromValue(value: AttachmentUnderstandingSettingsValue): SettingsDraft {
+  const adapter = ocrAdapterSettingsFromValue(value);
   return {
-    routing: value.routing,
+    // Keep accepting historical `auto` values from the wire, but only expose explicit choices.
+    routing: value.routing === "auto" ? "always-preprocess" : value.routing,
     engine: value.engine,
-    ocrProvider: value.ocrProvider,
-    glmEndpoint: value.glm.endpoint,
-    glmModel: value.glm.model,
-    glmApiKey: "",
-    clearGlmCredential: false,
-    paddleEndpoint: value.paddle.endpoint,
-    paddleModel: value.paddle.model,
-    paddleApiKey: "",
-    clearPaddleCredential: false,
-    paddlePollIntervalMs: String(value.paddle.pollIntervalMs),
-    paddlePollTimeoutMs: String(value.paddle.pollTimeoutMs),
+    ocrAdapterPreset: adapter.preset,
+    ocrAdapterSource: adapter.source,
+    ocrEndpoint: adapter.endpoint,
+    ocrModel: adapter.model,
+    ocrApiKey: "",
+    clearOcrCredential: false,
+    ocrPollIntervalMs: String(adapter.pollIntervalMs),
+    ocrPollTimeoutMs: String(adapter.pollTimeoutMs),
     multimodalProvider: value.multimodal.provider,
     multimodalModel: value.multimodal.model,
   };
 }
 
-function settingsDirty(view: ImageUnderstandingDescribeValue, draft: SettingsDraft): boolean {
+function settingsDirty(view: AttachmentUnderstandingDescribeValue, draft: SettingsDraft): boolean {
   const value = view.value;
+  const adapter = ocrAdapterSettingsFromValue(value);
   return (
     draft.routing !== value.routing ||
     draft.engine !== value.engine ||
-    draft.ocrProvider !== value.ocrProvider ||
-    draft.glmEndpoint !== value.glm.endpoint ||
-    draft.glmModel !== value.glm.model ||
-    draft.glmApiKey.length > 0 ||
-    draft.clearGlmCredential ||
-    draft.paddleEndpoint !== value.paddle.endpoint ||
-    draft.paddleModel !== value.paddle.model ||
-    draft.paddleApiKey.length > 0 ||
-    draft.clearPaddleCredential ||
-    draft.paddlePollIntervalMs !== String(value.paddle.pollIntervalMs) ||
-    draft.paddlePollTimeoutMs !== String(value.paddle.pollTimeoutMs) ||
+    draft.ocrAdapterPreset !== adapter.preset ||
+    draft.ocrAdapterSource !== adapter.source ||
+    draft.ocrEndpoint !== adapter.endpoint ||
+    draft.ocrModel !== adapter.model ||
+    draft.ocrApiKey.length > 0 ||
+    draft.clearOcrCredential ||
+    draft.ocrPollIntervalMs !== String(adapter.pollIntervalMs) ||
+    draft.ocrPollTimeoutMs !== String(adapter.pollTimeoutMs) ||
     draft.multimodalProvider !== value.multimodal.provider ||
     draft.multimodalModel !== value.multimodal.model
   );
@@ -95,7 +121,7 @@ function settingsDirty(view: ImageUnderstandingDescribeValue, draft: SettingsDra
 function isHttpsEndpoint(value: string): boolean {
   try {
     const url = new URL(value);
-    return url.protocol === "https:";
+    return url.protocol === "https:" && !url.username && !url.password && !url.search && !url.hash;
   } catch {
     return false;
   }
@@ -107,39 +133,72 @@ function parsePositiveInteger(value: string): number | undefined {
 }
 
 function ChoiceControl<TValue extends string>({
+  id,
   label,
   value,
   options,
   disabled,
+  placeholder,
+  emptyMessage,
+  emptyAlert,
+  align = "end",
+  triggerClassName,
+  contentClassName,
+  onOpenChange,
   onChange,
 }: {
+  id?: string;
   label: string;
   value: TValue;
   options: readonly ChoiceOption<TValue>[];
   disabled?: boolean;
+  placeholder?: string;
+  emptyMessage?: string;
+  emptyAlert?: boolean;
+  align?: "start" | "center" | "end";
+  triggerClassName?: string;
+  contentClassName?: string;
+  onOpenChange?(open: boolean): void;
   onChange(value: TValue): void;
 }) {
   const selected = options.find((option) => option.value === value);
   return (
-    <DropdownMenu>
-      <SettingsDropdownTrigger aria-label={label} disabled={disabled}>
-        <span className="truncate">{selected?.label ?? value}</span>
+    <DropdownMenu onOpenChange={onOpenChange}>
+      <SettingsDropdownTrigger
+        id={id}
+        aria-label={label}
+        className={triggerClassName}
+        disabled={disabled}
+      >
+        <span className="truncate">{selected?.label ?? (value || placeholder)}</span>
         <ChevronDownIcon aria-hidden="true" className="size-3.5" />
       </SettingsDropdownTrigger>
-      <SettingsDropdownContent align="end" side="bottom">
-        <DropdownMenuRadioGroup
-          value={value}
-          onValueChange={(next) => {
-            const option = options.find(({ value: candidate }) => candidate === next);
-            if (option) onChange(option.value);
-          }}
-        >
-          {options.map((option) => (
-            <SettingsDropdownRadioItem key={option.value} value={option.value}>
-              {option.label}
-            </SettingsDropdownRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
+      <SettingsDropdownContent align={align} side="bottom" className={contentClassName}>
+        {options.length > 0 ? (
+          <DropdownMenuRadioGroup
+            value={value}
+            aria-label={label}
+            onValueChange={(next) => {
+              const option = options.find(({ value: candidate }) => candidate === next);
+              if (option) onChange(option.value);
+            }}
+          >
+            {options.map((option) => (
+              <SettingsDropdownRadioItem key={option.value} value={option.value}>
+                <span className="truncate" title={option.label}>
+                  {option.label}
+                </span>
+              </SettingsDropdownRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        ) : emptyMessage ? (
+          <p
+            role={emptyAlert ? "alert" : "status"}
+            className="text-muted-foreground max-w-72 px-2.5 py-2 text-xs leading-5"
+          >
+            {emptyMessage}
+          </p>
+        ) : null}
       </SettingsDropdownContent>
     </DropdownMenu>
   );
@@ -155,7 +214,7 @@ function SettingsRow({
   children: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0 sm:max-w-[65%]">
         <p className="text-sm font-medium">{title}</p>
         <p className="text-muted-foreground mt-1 text-xs leading-5">{description}</p>
@@ -168,45 +227,64 @@ function SettingsRow({
 function Field({
   id,
   label,
+  labelAction,
   description,
   children,
 }: {
   id: string;
   label: string;
-  description?: string;
+  labelAction?: ReactNode;
+  description?: ReactNode;
   children: ReactNode;
 }) {
   const descriptionId = description ? `${id}-description` : undefined;
   return (
-    <div>
-      <label htmlFor={id} className="text-sm font-medium">
-        {label}
-      </label>
+    <div className="flex h-full min-w-0 flex-col">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <label htmlFor={id} className="text-sm font-medium">
+          {label}
+        </label>
+        {labelAction}
+      </div>
       {description ? (
         <p id={descriptionId} className="text-muted-foreground mt-1 text-xs leading-5">
           {description}
         </p>
       ) : null}
-      <div className="mt-2">{children}</div>
+      <div className="mt-auto pt-2">{children}</div>
     </div>
   );
 }
 
-export function ImageUnderstandingSettingsItem({ sectionId, itemId }: SettingsItemComponentProps) {
+export function AttachmentUnderstandingSettingsItem({
+  sectionId,
+  itemId,
+}: SettingsItemComponentProps) {
   const { t } = useI18n();
-  const [view, setView] = useState<ImageUnderstandingDescribeValue>();
+  const [view, setView] = useState<AttachmentUnderstandingDescribeValue>();
   const [draft, setDraft] = useState<SettingsDraft>();
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string>();
   const requestRef = useRef(0);
+  const [modelCatalogLoadState, setModelCatalogLoadState] =
+    useState<ModelCatalogLoadState>("loading");
+  const [multimodalProviders, setMultimodalProviders] = useState<
+    readonly MultimodalProviderOption[]
+  >([]);
+  const modelCatalogRequestRef = useRef(0);
+  const modelCatalogRevision = useSyncExternalStore(
+    subscribePiModelCatalogInvalidation,
+    getPiModelCatalogRevision,
+    getPiModelCatalogRevision,
+  );
 
   const load = useCallback(() => {
     const request = ++requestRef.current;
     setLoadState("loading");
     setSaveError(undefined);
-    void describeImageUnderstandingSettings().then(
+    void describeAttachmentUnderstandingSettings().then(
       (next) => {
         if (request !== requestRef.current) return;
         setView(next);
@@ -226,18 +304,36 @@ export function ImageUnderstandingSettingsItem({ sectionId, itemId }: SettingsIt
     };
   }, [load]);
 
+  const loadModelCatalog = useCallback(() => {
+    const request = ++modelCatalogRequestRef.current;
+    setModelCatalogLoadState("loading");
+    void Promise.all([listPiModelProviders(), listPiModelCatalog()]).then(
+      ([directory, catalog]) => {
+        if (request !== modelCatalogRequestRef.current) return;
+        setMultimodalProviders(configuredMultimodalModelOptions(directory, catalog));
+        setModelCatalogLoadState("ready");
+      },
+      () => {
+        if (request === modelCatalogRequestRef.current) setModelCatalogLoadState("failed");
+      },
+    );
+  }, []);
+
+  useEffect(() => {
+    loadModelCatalog();
+    return () => {
+      modelCatalogRequestRef.current += 1;
+    };
+  }, [loadModelCatalog, modelCatalogRevision]);
+
   const updateDraft = useCallback((patch: Partial<SettingsDraft>) => {
     setDraft((current) => (current ? { ...current, ...patch } : current));
     setSaved(false);
     setSaveError(undefined);
   }, []);
 
-  const routingOptions = useMemo<readonly ChoiceOption<ImageUnderstandingRouting>[]>(
+  const routingOptions = useMemo<readonly ChoiceOption<AttachmentUnderstandingRoutingChoice>[]>(
     () => [
-      {
-        value: "auto",
-        label: t("extensions.imageUnderstanding.settings.routing.options.auto"),
-      },
       {
         value: "always-preprocess",
         label: t("extensions.imageUnderstanding.settings.routing.options.alwaysPreprocess"),
@@ -253,7 +349,7 @@ export function ImageUnderstandingSettingsItem({ sectionId, itemId }: SettingsIt
     ],
     [t],
   );
-  const engineOptions = useMemo<readonly ChoiceOption<ImageUnderstandingEngine>[]>(
+  const engineOptions = useMemo<readonly ChoiceOption<AttachmentUnderstandingEngine>[]>(
     () => [
       { value: "ocr", label: t("extensions.imageUnderstanding.settings.engine.options.ocr") },
       {
@@ -263,81 +359,107 @@ export function ImageUnderstandingSettingsItem({ sectionId, itemId }: SettingsIt
     ],
     [t],
   );
-  const ocrProviderOptions = useMemo<readonly ChoiceOption<ImageUnderstandingOcrProvider>[]>(
+  const ocrAdapterOptions = useMemo<readonly ChoiceOption<OcrAdapterPresetId>[]>(
     () => [
       {
         value: "glm-ocr",
-        label: t("extensions.imageUnderstanding.settings.ocrProvider.options.glm"),
+        label: t("extensions.imageUnderstanding.settings.ocrAdapter.options.glm"),
       },
       {
-        value: "paddleocr",
-        label: t("extensions.imageUnderstanding.settings.ocrProvider.options.paddle"),
+        value: "paddleocr-vl-1.6",
+        label: t("extensions.imageUnderstanding.settings.ocrAdapter.options.paddleVl16"),
+      },
+      {
+        value: "pp-ocrv6",
+        label: t("extensions.imageUnderstanding.settings.ocrAdapter.options.ppOcrV6"),
+      },
+      {
+        value: "pp-structure-v3",
+        label: t("extensions.imageUnderstanding.settings.ocrAdapter.options.ppStructureV3"),
+      },
+      {
+        value: "custom",
+        label: t("extensions.imageUnderstanding.settings.ocrAdapter.options.custom"),
       },
     ],
     [t],
   );
+  const selectedMultimodalProvider = multimodalProviders.find(
+    (provider) => provider.value === draft?.multimodalProvider,
+  );
+  const adapterProtocolAvailable = view ? hasOcrAdapterSettings(view.value) : false;
 
   const validationError = useMemo(() => {
     if (!draft) return undefined;
     if (
-      !draft.glmEndpoint.trim() ||
-      !draft.glmModel.trim() ||
-      !draft.paddleEndpoint.trim() ||
-      !draft.paddleModel.trim()
+      draft.engine === "ocr" &&
+      draft.routing !== "disabled" &&
+      draft.routing !== "native-only" &&
+      !adapterProtocolAvailable
     ) {
+      return t("extensions.imageUnderstanding.settings.errors.hostRestartRequired");
+    }
+    if (!draft.ocrEndpoint.trim() || !draft.ocrModel.trim() || !draft.ocrAdapterSource.trim()) {
       return t("extensions.imageUnderstanding.settings.errors.requiredFields");
     }
-    if (!isHttpsEndpoint(draft.glmEndpoint) || !isHttpsEndpoint(draft.paddleEndpoint)) {
+    if (!isHttpsEndpoint(draft.ocrEndpoint)) {
       return t("extensions.imageUnderstanding.settings.errors.invalidEndpoint");
     }
     if (
-      !parsePositiveInteger(draft.paddlePollIntervalMs) ||
-      !parsePositiveInteger(draft.paddlePollTimeoutMs)
+      !parsePositiveInteger(draft.ocrPollIntervalMs) ||
+      !parsePositiveInteger(draft.ocrPollTimeoutMs)
     ) {
       return t("extensions.imageUnderstanding.settings.errors.invalidPolling");
     }
+    try {
+      parseOcrAdapterSource(draft.ocrAdapterSource);
+    } catch {
+      return t("extensions.imageUnderstanding.settings.errors.invalidAdapterSource");
+    }
     if (draft.routing === "disabled" || draft.routing === "native-only") return undefined;
     if (draft.engine === "multimodal") {
-      return draft.multimodalProvider.trim() && draft.multimodalModel.trim()
+      if (modelCatalogLoadState === "loading") return undefined;
+      if (modelCatalogLoadState === "failed") {
+        return t("extensions.imageUnderstanding.settings.errors.modelCatalogLoadFailed");
+      }
+      const provider = multimodalProviders.find(
+        (candidate) => candidate.value === draft.multimodalProvider,
+      );
+      if (!provider) {
+        return t("extensions.imageUnderstanding.settings.errors.configuredProviderRequired");
+      }
+      return provider.models.some((model) => model.value === draft.multimodalModel)
         ? undefined
-        : t("extensions.imageUnderstanding.settings.errors.requiredFields");
+        : t("extensions.imageUnderstanding.settings.errors.configuredModelRequired");
     }
     return undefined;
-  }, [draft, t]);
+  }, [adapterProtocolAvailable, draft, modelCatalogLoadState, multimodalProviders, t]);
 
   const save = useCallback(async () => {
     if (!view || !draft || saving || validationError) return;
-    const pollIntervalMs = parsePositiveInteger(draft.paddlePollIntervalMs);
-    const pollTimeoutMs = parsePositiveInteger(draft.paddlePollTimeoutMs);
+    const pollIntervalMs = parsePositiveInteger(draft.ocrPollIntervalMs);
+    const pollTimeoutMs = parsePositiveInteger(draft.ocrPollTimeoutMs);
     if (!pollIntervalMs || !pollTimeoutMs) return;
 
     setSaving(true);
     setSaved(false);
     setSaveError(undefined);
     try {
-      const updated = await updateImageUnderstandingSettings({
+      const updated = await updateAttachmentUnderstandingSettings({
         expectedRevision: view.revision,
         patch: {
           routing: draft.routing,
           engine: draft.engine,
-          ocrProvider: draft.ocrProvider,
-          glm: {
-            endpoint: draft.glmEndpoint.trim(),
-            model: draft.glmModel.trim(),
-            ...(draft.glmApiKey
-              ? { apiKey: draft.glmApiKey }
-              : draft.clearGlmCredential
-                ? { apiKey: null }
-                : {}),
-          },
-          paddle: {
-            endpoint: draft.paddleEndpoint.trim(),
-            model: draft.paddleModel.trim(),
+          ocrAdapter: {
+            preset: draft.ocrAdapterPreset,
+            source: draft.ocrAdapterSource,
+            endpoint: draft.ocrEndpoint.trim(),
+            model: draft.ocrModel.trim(),
             pollIntervalMs,
             pollTimeoutMs,
-            ...(draft.paddleApiKey
-              ? { apiKey: draft.paddleApiKey }
-              : draft.clearPaddleCredential
+            ...(draft.ocrApiKey
+              ? { apiKey: draft.ocrApiKey }
+              : draft.clearOcrCredential
                 ? { apiKey: null }
                 : {}),
           },
@@ -384,13 +506,24 @@ export function ImageUnderstandingSettingsItem({ sectionId, itemId }: SettingsIt
   }
 
   const dirty = settingsDirty(view, draft);
+  const persistedAdapter = ocrAdapterSettingsFromValue(view.value);
   const selectedCredentialConfigured =
-    draft.ocrProvider === "glm-ocr"
-      ? draft.glmApiKey.length > 0 ||
-        (!draft.clearGlmCredential && view.value.glm.credentialConfigured)
-      : draft.paddleApiKey.length > 0 ||
-        (!draft.clearPaddleCredential && view.value.paddle.credentialConfigured);
-  const providerPrefix = draft.ocrProvider === "glm-ocr" ? "image-glm-ocr" : "image-paddleocr";
+    draft.ocrApiKey.length > 0 ||
+    (!draft.clearOcrCredential &&
+      draft.ocrAdapterSource === persistedAdapter.source &&
+      persistedAdapter.credentialConfigured);
+  const ocrAdapterDisabled =
+    saving ||
+    !adapterProtocolAvailable ||
+    draft.routing === "native-only" ||
+    draft.routing === "disabled";
+  let parsedAdapter: ReturnType<typeof parseOcrAdapterSource> | undefined;
+  try {
+    parsedAdapter = parseOcrAdapterSource(draft.ocrAdapterSource);
+  } catch {
+    parsedAdapter = undefined;
+  }
+  const credentialWebsite = ocrCredentialWebsiteForPreset(draft.ocrAdapterPreset);
 
   return (
     <div data-settings-section={sectionId} data-settings-item={itemId} className="py-5">
@@ -421,15 +554,31 @@ export function ImageUnderstandingSettingsItem({ sectionId, itemId }: SettingsIt
         </SettingsRow>
         {draft.engine === "ocr" ? (
           <SettingsRow
-            title={t("extensions.imageUnderstanding.settings.ocrProvider.label")}
-            description={t("extensions.imageUnderstanding.settings.ocrProvider.description")}
+            title={t("extensions.imageUnderstanding.settings.ocrAdapter.label")}
+            description={t("extensions.imageUnderstanding.settings.ocrAdapter.description")}
           >
             <ChoiceControl
-              label={t("extensions.imageUnderstanding.settings.ocrProvider.label")}
-              value={draft.ocrProvider}
-              options={ocrProviderOptions}
-              disabled={saving || draft.routing === "native-only" || draft.routing === "disabled"}
-              onChange={(ocrProvider) => updateDraft({ ocrProvider })}
+              label={t("extensions.imageUnderstanding.settings.ocrAdapter.label")}
+              value={draft.ocrAdapterPreset}
+              options={ocrAdapterOptions}
+              disabled={ocrAdapterDisabled}
+              onChange={(ocrAdapterPreset) => {
+                if (ocrAdapterPreset === "custom") {
+                  updateDraft({ ocrAdapterPreset });
+                  return;
+                }
+                const preset = getOcrAdapterPreset(ocrAdapterPreset);
+                updateDraft({
+                  ocrAdapterPreset,
+                  ocrAdapterSource: preset.source,
+                  ocrEndpoint: preset.endpoint,
+                  ocrModel: preset.model,
+                  ocrApiKey: "",
+                  clearOcrCredential: false,
+                  ocrPollIntervalMs: String(preset.pollIntervalMs),
+                  ocrPollTimeoutMs: String(preset.pollTimeoutMs),
+                });
+              }}
             />
           </SettingsRow>
         ) : null}
@@ -439,137 +588,172 @@ export function ImageUnderstandingSettingsItem({ sectionId, itemId }: SettingsIt
         <section className="bg-muted/20 mt-5 rounded-xl border p-4">
           <div>
             <h3 className="text-sm font-medium">
-              {draft.ocrProvider === "glm-ocr"
-                ? t("extensions.imageUnderstanding.settings.providers.glmTitle")
-                : t("extensions.imageUnderstanding.settings.providers.paddleTitle")}
+              {t("extensions.imageUnderstanding.settings.ocrAdapter.title")}
             </h3>
             <p className="text-muted-foreground mt-1 text-xs leading-5">
-              {t("extensions.imageUnderstanding.settings.providers.description")}
+              {t("extensions.imageUnderstanding.settings.ocrAdapter.sourceDescription")}
             </p>
           </div>
 
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <Field
-              id={`${providerPrefix}-endpoint`}
+              id="attachment-ocr-adapter-endpoint"
               label={t("extensions.imageUnderstanding.settings.providers.endpoint")}
             >
               <Input
-                id={`${providerPrefix}-endpoint`}
+                id="attachment-ocr-adapter-endpoint"
                 type="url"
-                value={draft.ocrProvider === "glm-ocr" ? draft.glmEndpoint : draft.paddleEndpoint}
-                disabled={saving}
+                value={draft.ocrEndpoint}
+                disabled={ocrAdapterDisabled}
                 spellCheck={false}
                 autoComplete="url"
-                onChange={(event) =>
-                  updateDraft(
-                    draft.ocrProvider === "glm-ocr"
-                      ? { glmEndpoint: event.currentTarget.value }
-                      : { paddleEndpoint: event.currentTarget.value },
-                  )
-                }
+                onChange={(event) => updateDraft({ ocrEndpoint: event.currentTarget.value })}
               />
             </Field>
             <Field
-              id={`${providerPrefix}-model`}
+              id="attachment-ocr-adapter-model"
               label={t("extensions.imageUnderstanding.settings.providers.model")}
             >
               <Input
-                id={`${providerPrefix}-model`}
-                value={draft.ocrProvider === "glm-ocr" ? draft.glmModel : draft.paddleModel}
-                disabled={saving}
+                id="attachment-ocr-adapter-model"
+                value={draft.ocrModel}
+                disabled={ocrAdapterDisabled}
                 spellCheck={false}
-                onChange={(event) =>
-                  updateDraft(
-                    draft.ocrProvider === "glm-ocr"
-                      ? { glmModel: event.currentTarget.value }
-                      : { paddleModel: event.currentTarget.value },
-                  )
-                }
+                onChange={(event) => updateDraft({ ocrModel: event.currentTarget.value })}
               />
             </Field>
-            <Field
-              id={`${providerPrefix}-api-key`}
-              label={t("extensions.imageUnderstanding.settings.providers.apiKey")}
-              description={
-                selectedCredentialConfigured
-                  ? t("extensions.imageUnderstanding.settings.providers.credentialConfigured")
-                  : t("extensions.imageUnderstanding.settings.providers.credentialNotConfigured")
-              }
-            >
-              <div className="flex gap-2">
+            <div className="sm:col-span-2">
+              <Field
+                id="attachment-ocr-adapter-api-key"
+                label={t("extensions.imageUnderstanding.settings.providers.apiKey")}
+                labelAction={
+                  credentialWebsite ? (
+                    <a
+                      href={credentialWebsite.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary inline-flex items-center gap-1 text-xs font-medium underline underline-offset-4"
+                    >
+                      {t("extensions.imageUnderstanding.settings.providers.openCredentialWebsite", {
+                        provider: credentialWebsite.provider,
+                      })}
+                      <ExternalLinkIcon aria-hidden="true" className="size-3 shrink-0" />
+                    </a>
+                  ) : null
+                }
+                description={
+                  selectedCredentialConfigured
+                    ? t("extensions.imageUnderstanding.settings.providers.credentialConfigured")
+                    : t("extensions.imageUnderstanding.settings.providers.credentialNotConfigured")
+                }
+              >
+                <div className="flex gap-2">
+                  <Input
+                    id="attachment-ocr-adapter-api-key"
+                    aria-describedby="attachment-ocr-adapter-api-key-description"
+                    type="password"
+                    value={draft.ocrApiKey}
+                    disabled={ocrAdapterDisabled}
+                    autoComplete="new-password"
+                    placeholder={t(
+                      "extensions.imageUnderstanding.settings.providers.apiKeyPlaceholder",
+                    )}
+                    onChange={(event) =>
+                      updateDraft({
+                        ocrApiKey: event.currentTarget.value,
+                        clearOcrCredential: false,
+                      })
+                    }
+                  />
+                  {selectedCredentialConfigured ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={ocrAdapterDisabled}
+                      onClick={() => updateDraft({ ocrApiKey: "", clearOcrCredential: true })}
+                    >
+                      {t("extensions.imageUnderstanding.settings.providers.clearCredential")}
+                    </Button>
+                  ) : null}
+                </div>
+              </Field>
+            </div>
+            <div className="sm:col-span-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field
+                id="attachment-ocr-adapter-poll-interval"
+                label={t("extensions.imageUnderstanding.settings.providers.pollInterval")}
+              >
                 <Input
-                  id={`${providerPrefix}-api-key`}
-                  aria-describedby={`${providerPrefix}-api-key-description`}
-                  type="password"
-                  value={draft.ocrProvider === "glm-ocr" ? draft.glmApiKey : draft.paddleApiKey}
-                  disabled={saving}
-                  autoComplete="new-password"
-                  placeholder={t(
-                    "extensions.imageUnderstanding.settings.providers.apiKeyPlaceholder",
-                  )}
+                  id="attachment-ocr-adapter-poll-interval"
+                  type="number"
+                  min={100}
+                  value={draft.ocrPollIntervalMs}
+                  disabled={ocrAdapterDisabled}
                   onChange={(event) =>
-                    updateDraft(
-                      draft.ocrProvider === "glm-ocr"
-                        ? { glmApiKey: event.currentTarget.value, clearGlmCredential: false }
-                        : {
-                            paddleApiKey: event.currentTarget.value,
-                            clearPaddleCredential: false,
-                          },
-                    )
+                    updateDraft({ ocrPollIntervalMs: event.currentTarget.value })
                   }
                 />
-                {selectedCredentialConfigured ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={saving}
-                    onClick={() =>
-                      updateDraft(
-                        draft.ocrProvider === "glm-ocr"
-                          ? { glmApiKey: "", clearGlmCredential: true }
-                          : { paddleApiKey: "", clearPaddleCredential: true },
+              </Field>
+              <Field
+                id="attachment-ocr-adapter-poll-timeout"
+                label={t("extensions.imageUnderstanding.settings.providers.pollTimeout")}
+              >
+                <Input
+                  id="attachment-ocr-adapter-poll-timeout"
+                  type="number"
+                  min={1000}
+                  value={draft.ocrPollTimeoutMs}
+                  disabled={ocrAdapterDisabled}
+                  onChange={(event) => updateDraft({ ocrPollTimeoutMs: event.currentTarget.value })}
+                />
+              </Field>
+            </div>
+            <div className="sm:col-span-2">
+              <Field
+                id="attachment-ocr-adapter-source"
+                label={t("extensions.imageUnderstanding.settings.ocrAdapter.sourceLabel")}
+                description={t("extensions.imageUnderstanding.settings.ocrAdapter.sourceSecurity")}
+              >
+                <WorkbenchCodeEditor
+                  id="attachment-ocr-adapter-source"
+                  ariaLabel={t("extensions.imageUnderstanding.settings.ocrAdapter.sourceLabel")}
+                  exitLabel={t("extensions.imageUnderstanding.settings.ocrAdapter.exitEditor")}
+                  saveLabel={t("extensions.imageUnderstanding.settings.ocrAdapter.saveShortcut")}
+                  name="ocr-adapter.ts"
+                  value={draft.ocrAdapterSource}
+                  disabled={ocrAdapterDisabled}
+                  className="bg-background focus-within:border-ring focus-within:ring-ring/50 h-96 min-h-64 max-h-[36rem] resize-y rounded-lg border focus-within:ring-3"
+                  onSave={save}
+                  onChange={(source) => {
+                    const matchingPreset = OCR_ADAPTER_PRESETS.find(
+                      (preset) => preset.source === source,
+                    );
+                    updateDraft({
+                      ocrAdapterSource: source,
+                      ocrAdapterPreset: matchingPreset?.id ?? "custom",
+                    });
+                  }}
+                />
+              </Field>
+              {parsedAdapter ? (
+                <p className="text-muted-foreground mt-2 text-xs leading-5" role="status">
+                  {t("extensions.imageUnderstanding.settings.ocrAdapter.validSummary", {
+                    id: parsedAdapter.id,
+                    operation:
+                      parsedAdapter.operation.kind === "sync"
+                        ? t("extensions.imageUnderstanding.settings.ocrAdapter.operations.sync")
+                        : t("extensions.imageUnderstanding.settings.ocrAdapter.operations.async"),
+                    kinds: parsedAdapter.accepts
+                      .map((kind) =>
+                        kind === "pdf"
+                          ? t("extensions.imageUnderstanding.settings.ocrAdapter.kinds.pdf")
+                          : t("extensions.imageUnderstanding.settings.ocrAdapter.kinds.image"),
                       )
-                    }
-                  >
-                    {t("extensions.imageUnderstanding.settings.providers.clearCredential")}
-                  </Button>
-                ) : null}
-              </div>
-            </Field>
-            {draft.ocrProvider === "paddleocr" ? (
-              <div className="grid grid-cols-2 gap-3">
-                <Field
-                  id="image-paddleocr-poll-interval"
-                  label={t("extensions.imageUnderstanding.settings.providers.pollInterval")}
-                >
-                  <Input
-                    id="image-paddleocr-poll-interval"
-                    type="number"
-                    min={1}
-                    value={draft.paddlePollIntervalMs}
-                    disabled={saving}
-                    onChange={(event) =>
-                      updateDraft({ paddlePollIntervalMs: event.currentTarget.value })
-                    }
-                  />
-                </Field>
-                <Field
-                  id="image-paddleocr-poll-timeout"
-                  label={t("extensions.imageUnderstanding.settings.providers.pollTimeout")}
-                >
-                  <Input
-                    id="image-paddleocr-poll-timeout"
-                    type="number"
-                    min={1}
-                    value={draft.paddlePollTimeoutMs}
-                    disabled={saving}
-                    onChange={(event) =>
-                      updateDraft({ paddlePollTimeoutMs: event.currentTarget.value })
-                    }
-                  />
-                </Field>
-              </div>
-            ) : null}
+                      .join(" / "),
+                  })}
+                </p>
+              ) : null}
+            </div>
           </div>
         </section>
       ) : (
@@ -585,24 +769,65 @@ export function ImageUnderstandingSettingsItem({ sectionId, itemId }: SettingsIt
               id="image-multimodal-provider"
               label={t("extensions.imageUnderstanding.settings.multimodal.provider")}
             >
-              <Input
+              <ChoiceControl
                 id="image-multimodal-provider"
+                label={t("extensions.imageUnderstanding.settings.multimodal.provider")}
                 value={draft.multimodalProvider}
+                options={multimodalProviders}
                 disabled={saving}
-                spellCheck={false}
-                onChange={(event) => updateDraft({ multimodalProvider: event.currentTarget.value })}
+                placeholder={t(
+                  "extensions.imageUnderstanding.settings.multimodal.providerPlaceholder",
+                )}
+                emptyMessage={
+                  modelCatalogLoadState === "loading"
+                    ? t("extensions.imageUnderstanding.settings.multimodal.loadingModels")
+                    : modelCatalogLoadState === "failed"
+                      ? t("extensions.imageUnderstanding.settings.multimodal.modelsLoadFailed")
+                      : t("extensions.imageUnderstanding.settings.multimodal.noConfiguredProviders")
+                }
+                emptyAlert={modelCatalogLoadState === "failed"}
+                align="start"
+                triggerClassName="bg-background h-9 w-full justify-between rounded-lg border"
+                contentClassName="max-h-72 overflow-y-auto"
+                onOpenChange={(open) => {
+                  if (open && modelCatalogLoadState === "failed") loadModelCatalog();
+                }}
+                onChange={(multimodalProvider) => {
+                  const provider = multimodalProviders.find(
+                    (candidate) => candidate.value === multimodalProvider,
+                  );
+                  const currentModelIsAvailable = provider?.models.some(
+                    (model) => model.value === draft.multimodalModel,
+                  );
+                  updateDraft({
+                    multimodalProvider,
+                    multimodalModel: currentModelIsAvailable
+                      ? draft.multimodalModel
+                      : (provider?.models[0]?.value ?? ""),
+                  });
+                }}
               />
             </Field>
             <Field
               id="image-multimodal-model"
               label={t("extensions.imageUnderstanding.settings.providers.model")}
             >
-              <Input
+              <ChoiceControl
                 id="image-multimodal-model"
+                label={t("extensions.imageUnderstanding.settings.providers.model")}
                 value={draft.multimodalModel}
+                options={selectedMultimodalProvider?.models ?? []}
                 disabled={saving}
-                spellCheck={false}
-                onChange={(event) => updateDraft({ multimodalModel: event.currentTarget.value })}
+                placeholder={t(
+                  "extensions.imageUnderstanding.settings.multimodal.modelPlaceholder",
+                )}
+                emptyMessage={t(
+                  "extensions.imageUnderstanding.settings.multimodal.selectProviderFirst",
+                )}
+                align="start"
+                triggerClassName="bg-background h-9 w-full justify-between rounded-lg border"
+                contentClassName="max-h-72 overflow-y-auto"
+                onChange={(multimodalModel) => updateDraft({ multimodalModel })}
               />
             </Field>
           </div>
@@ -628,7 +853,15 @@ export function ImageUnderstandingSettingsItem({ sectionId, itemId }: SettingsIt
         <Button
           type="button"
           className="ms-auto rounded-full"
-          disabled={saving || !dirty || Boolean(validationError)}
+          disabled={
+            saving ||
+            !dirty ||
+            Boolean(validationError) ||
+            (draft.routing !== "disabled" &&
+              draft.routing !== "native-only" &&
+              draft.engine === "multimodal" &&
+              modelCatalogLoadState === "loading")
+          }
           onClick={() => void save()}
         >
           {saving
@@ -642,3 +875,6 @@ export function ImageUnderstandingSettingsItem({ sectionId, itemId }: SettingsIt
     </div>
   );
 }
+
+/** @deprecated Use the attachment-neutral settings component name. */
+export const ImageUnderstandingSettingsItem = AttachmentUnderstandingSettingsItem;

@@ -43,12 +43,15 @@ export type WorkbenchComposerContextSubmission = ComposerContextSubmission;
 
 export type WorkbenchComposerSubmission = ComposerSubmission;
 
-/** Display-only image persisted with the Composer marker when preprocessing removes Pi image parts. */
-export interface WorkbenchComposerImageProjection {
+/** Display-only attachment persisted when preprocessing removes content from the Pi prompt. */
+export interface WorkbenchComposerAttachmentProjection {
   data: string;
   mimeType: string;
   name?: string;
 }
+
+/** @deprecated Old composer markers used an image-specific field name. */
+export type WorkbenchComposerImageProjection = WorkbenchComposerAttachmentProjection;
 
 export interface WorkbenchComposerUserDetails {
   version: 1 | 2;
@@ -58,6 +61,8 @@ export interface WorkbenchComposerUserDetails {
   document?: ComposerDocument;
   commands?: readonly WorkbenchComposerCommandSubmission[];
   composer?: WorkbenchComposerSubmission;
+  attachments?: WorkbenchComposerAttachmentProjection[];
+  /** @deprecated Read-only compatibility for persisted v2 image markers. */
   images?: WorkbenchComposerImageProjection[];
   status?: "accepted";
 }
@@ -295,7 +300,9 @@ export function parseWorkbenchComposerSubmission(
   };
 }
 
-function composerImageProjection(value: unknown): WorkbenchComposerImageProjection | undefined {
+function composerAttachmentProjection(
+  value: unknown,
+): WorkbenchComposerAttachmentProjection | undefined {
   if (
     !isRecord(value) ||
     typeof value.data !== "string" ||
@@ -339,12 +346,16 @@ export function parseWorkbenchComposerUserDetails(
   const document = parseWorkbenchComposerDocument(value.document);
   const commands = Array.isArray(value.commands) ? value.commands.map(composerCommand) : [];
   const composer = parseWorkbenchComposerSubmission(value.composer);
-  const images = Array.isArray(value.images) ? value.images.map(composerImageProjection) : [];
+  const attachments = Array.isArray(value.attachments)
+    ? value.attachments.map(composerAttachmentProjection)
+    : [];
+  const images = Array.isArray(value.images) ? value.images.map(composerAttachmentProjection) : [];
   if (
     typeof value.text !== "string" ||
     value.status !== "accepted" ||
     document === undefined ||
     commands.some((command) => command === undefined) ||
+    attachments.some((attachment) => attachment === undefined) ||
     images.some((image) => image === undefined)
   ) {
     return undefined;
@@ -357,6 +368,9 @@ export function parseWorkbenchComposerUserDetails(
     document,
     commands: commands as WorkbenchComposerCommandSubmission[],
     ...(composer === undefined ? {} : { composer }),
+    ...(value.attachments === undefined
+      ? {}
+      : { attachments: attachments as WorkbenchComposerAttachmentProjection[] }),
     ...(value.images === undefined ? {} : { images: images as WorkbenchComposerImageProjection[] }),
     status: "accepted",
   };

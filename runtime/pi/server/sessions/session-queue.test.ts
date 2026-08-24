@@ -39,11 +39,19 @@ test("preserves occurrence ids across snapshots, edits, lane moves, and duplicat
   );
 });
 
-test("projects complete text and image messages without losing full content on Pi text snapshots", () => {
+test("projects complete text and attachment messages without losing full content on Pi text snapshots", () => {
   const queue = new SessionQueueProjection({ createId: ids() });
   queue.append("followUp", {
     message: "look",
     images: [{ type: "image", mimeType: "image/png", data: "base64-data", name: "diagram.png" }],
+    documents: [
+      {
+        type: "file",
+        mimeType: "application/pdf",
+        data: "pdf-data",
+        name: "spec.pdf",
+      },
+    ],
   });
   queue.reconcile([], [{ message: "look" }]);
 
@@ -61,6 +69,12 @@ test("projects complete text and image messages without losing full content on P
             mediaType: "image/png",
             data: "base64-data",
             name: "diagram.png",
+          },
+          {
+            type: "file",
+            mediaType: "application/pdf",
+            data: "pdf-data",
+            name: "spec.pdf",
           },
         ],
         source: { kind: "user" },

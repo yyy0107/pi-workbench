@@ -2,7 +2,7 @@ import { lookup as dnsLookup } from "node:dns/promises";
 import { request as httpsRequest, type RequestOptions as HttpsRequestOptions } from "node:https";
 import { isIP } from "node:net";
 
-import { ImageUnderstandingProviderError, type ImageUnderstandingInputImage } from "./contracts";
+import { ImageUnderstandingProviderError, type RecognizableAttachment } from "./contracts";
 
 export type ImageUnderstandingFetch = typeof fetch;
 
@@ -13,6 +13,11 @@ export interface BoundedFetchOptions {
   signal?: AbortSignal;
   timeoutMs: number;
   maxResponseBytes: number;
+  /** Optional provider-specific mapper for bounded, non-success response bodies. */
+  mapErrorResponse?: (response: {
+    status: number;
+    text: string;
+  }) => ImageUnderstandingProviderError | undefined;
 }
 
 export interface PublicAddress {
@@ -53,10 +58,24 @@ export interface BoundedPublicHttpsOptions {
   signal?: AbortSignal;
   timeoutMs: number;
   maxResponseBytes: number;
+  /** Maximum number of validated HTTPS redirects. Defaults to zero. */
+  maxRedirects?: number;
   /** Test seam. Production callers must leave this unset. */
   resolver?: PublicAddressResolver;
   /** Test seam. Production callers must leave this unset. */
   transport?: PublicHttpsTransport;
+}
+
+export interface BoundedAllowedHttpsOptions {
+  fetch: ImageUnderstandingFetch;
+  url: string;
+  field: string;
+  allowedHostnameSuffixes: readonly string[];
+  signal?: AbortSignal;
+  timeoutMs: number;
+  maxResponseBytes: number;
+  /** Maximum number of independently validated HTTPS redirects. Defaults to zero. */
+  maxRedirects?: number;
 }
 
 function positiveInteger(value: number): boolean {
@@ -92,6 +111,64 @@ export function requireHttpsUrl(value: string, field: string): string {
     throw new TypeError(`${field} must use HTTPS.`);
   }
   return url;
+}
+
+function normalizedHostname(value: string): string {
+  return value
+    .replace(/^\[|\]$/g, "")
+    .replace(/\.$/, "")
+    .toLowerCase();
+}
+
+function allowedHostname(hostname: string, suffixes: readonly string[]): boolean {
+  return suffixes.some((candidate) => {
+    const suffix = normalizedHostname(candidate).replace(/^\.+/, "");
+    return suffix.length > 0 && (hostname === suffix || hostname.endsWith(`.${suffix}`));
+  });
+}
+
+/** Returns true only for credential-free HTTPS URLs on port 443 in an explicit host namespace. */
+export function matchesAllowedHttpsHostname(
+  value: string,
+  allowedHostnameSuffixes: readonly string[],
+): boolean {
+  try {
+    const parsed = new URL(requireHttpsUrl(value, "url"));
+    const hostname = normalizedHostname(parsed.hostname);
+    return (
+      isIP(hostname) === 0 &&
+      (!parsed.port || parsed.port === "443") &&
+      allowedHostname(hostname, allowedHostnameSuffixes)
+    );
+  } catch {
+    return false;
+  }
+}
+
+class AllowedHttpsUrlError extends TypeError {}
+
+function requireAllowedHttpsUrl(
+  value: string,
+  field: string,
+  allowedHostnameSuffixes: readonly string[],
+): string {
+  let normalized: string;
+  try {
+    normalized = requireHttpsUrl(value, field);
+  } catch (error) {
+    throw new AllowedHttpsUrlError(error instanceof Error ? error.message : `${field} is invalid.`);
+  }
+  const parsed = new URL(normalized);
+  const hostname = normalizedHostname(parsed.hostname);
+  if (
+    isIP(hostname) !== 0 ||
+    (parsed.port && parsed.port !== "443") ||
+    !allowedHostname(hostname, allowedHostnameSuffixes)
+  ) {
+    throw new AllowedHttpsUrlError(`${field} must use an allowed HTTPS hostname.`);
+  }
+  parsed.hash = "";
+  return parsed.toString();
 }
 
 function ipv4Number(address: string): number | undefined {
@@ -376,13 +453,17 @@ async function readBoundedPublicHttpsBody(
 }
 
 /**
- * Downloads a provider-controlled HTTPS URL through one validated, pinned public IP address.
- * Redirects are never followed, and the response remains subject to the standard timeout,
- * cancellation, status mapping, and byte limit.
+ * Downloads a provider-controlled HTTPS URL through a validated, pinned public IP address.
+ * Redirects are bounded and every hop is independently HTTPS/DNS/public-IP validated and pinned.
+ * The complete chain remains subject to one timeout, cancellation, status mapping, and byte limit.
  */
 export async function boundedPublicHttpsText(options: BoundedPublicHttpsOptions): Promise<string> {
   requirePositiveInteger(options.timeoutMs, "timeoutMs");
   requirePositiveInteger(options.maxResponseBytes, "maxResponseBytes");
+  const maxRedirects = options.maxRedirects ?? 0;
+  if (!Number.isSafeInteger(maxRedirects) || maxRedirects < 0 || maxRedirects > 10) {
+    throw new TypeError("maxRedirects must be an integer between 0 and 10.");
+  }
   if (options.signal?.aborted) {
     throw new ImageUnderstandingProviderError("provider-aborted");
   }
@@ -397,28 +478,48 @@ export async function boundedPublicHttpsText(options: BoundedPublicHttpsOptions)
   }, options.timeoutMs);
 
   try {
-    const target = await resolvePublicHttpsTarget(
-      options.url,
-      options.field,
-      options.resolver,
-      controller.signal,
-    );
-    const response = await interruptible(
-      (options.transport ?? defaultPublicHttpsTransport)(target, controller.signal),
-      controller.signal,
-    );
-    if (response.status < 200 || response.status >= 300) {
-      response.cancel();
-      throw errorForStatus(response.status);
-    }
-    try {
-      return await interruptible(
-        readBoundedPublicHttpsBody(response, options.maxResponseBytes, controller.signal),
+    let currentUrl = options.url;
+    for (let redirectCount = 0; ; redirectCount += 1) {
+      const target = await resolvePublicHttpsTarget(
+        currentUrl,
+        options.field,
+        options.resolver,
         controller.signal,
       );
-    } catch (error) {
-      if (error instanceof PublicHttpsAbortError) response.cancel();
-      throw error;
+      const response = await interruptible(
+        (options.transport ?? defaultPublicHttpsTransport)(target, controller.signal),
+        controller.signal,
+      );
+      if ([301, 302, 303, 307, 308].includes(response.status)) {
+        const location = response.headers.get("location");
+        response.cancel();
+        if (!location || redirectCount >= maxRedirects) {
+          throw new ImageUnderstandingProviderError("provider-invalid-response", {
+            status: response.status,
+          });
+        }
+        try {
+          currentUrl = new URL(location, currentUrl).toString();
+        } catch {
+          throw new ImageUnderstandingProviderError("provider-invalid-response", {
+            status: response.status,
+          });
+        }
+        continue;
+      }
+      if (response.status < 200 || response.status >= 300) {
+        response.cancel();
+        throw errorForStatus(response.status);
+      }
+      try {
+        return await interruptible(
+          readBoundedPublicHttpsBody(response, options.maxResponseBytes, controller.signal),
+          controller.signal,
+        );
+      } catch (error) {
+        if (error instanceof PublicHttpsAbortError) response.cancel();
+        throw error;
+      }
     }
   } catch (error) {
     if (error instanceof TypeError || error instanceof ImageUnderstandingProviderError) throw error;
@@ -446,30 +547,39 @@ function canonicalBase64(value: string): boolean {
   }
 }
 
-export function imageDataUrl(image: ImageUnderstandingInputImage): string {
-  if (image.data.startsWith("data:")) {
-    const matched = /^data:([^;,]+);base64,([A-Za-z0-9+/]*={0,2})$/.exec(image.data);
+function isRecognizableMediaType(value: string): boolean {
+  return value.startsWith("image/") || value === "application/pdf";
+}
+
+export function attachmentDataUrl(attachment: RecognizableAttachment): string {
+  if (attachment.data.startsWith("data:")) {
+    const matched = /^data:([^;,]+);base64,([A-Za-z0-9+/]*={0,2})$/.exec(attachment.data);
     if (
       !matched ||
-      !matched[1]?.startsWith("image/") ||
-      matched[1] !== image.mimeType ||
+      !isRecognizableMediaType(matched[1] ?? "") ||
+      matched[1] !== attachment.mimeType ||
       !canonicalBase64(matched[2]!)
     ) {
       throw new ImageUnderstandingProviderError("provider-invalid-input");
     }
-    return image.data;
+    return attachment.data;
   }
-  if (!canonicalBase64(image.data) || !image.mimeType.startsWith("image/")) {
+  if (!canonicalBase64(attachment.data) || !isRecognizableMediaType(attachment.mimeType)) {
     throw new ImageUnderstandingProviderError("provider-invalid-input");
   }
-  return `data:${image.mimeType};base64,${image.data}`;
+  return `data:${attachment.mimeType};base64,${attachment.data}`;
 }
 
-export function imageBytes(image: ImageUnderstandingInputImage): Uint8Array {
-  const dataUrl = imageDataUrl(image);
+export function attachmentBytes(attachment: RecognizableAttachment): Uint8Array {
+  const dataUrl = attachmentDataUrl(attachment);
   const separator = dataUrl.indexOf(",");
   return Buffer.from(dataUrl.slice(separator + 1), "base64");
 }
+
+/** @deprecated Use the attachment-neutral helpers. */
+export const imageDataUrl = attachmentDataUrl;
+/** @deprecated Use the attachment-neutral helpers. */
+export const imageBytes = attachmentBytes;
 
 function errorForStatus(status: number): ImageUnderstandingProviderError {
   if (status === 401 || status === 403) {
@@ -553,7 +663,13 @@ export async function boundedFetchText(options: BoundedFetchOptions): Promise<st
       signal: controller.signal,
     });
     if (!response.ok) {
-      await response.body?.cancel().catch(() => undefined);
+      if (options.mapErrorResponse) {
+        const text = await readBoundedBody(response, options.maxResponseBytes);
+        const mapped = options.mapErrorResponse({ status: response.status, text });
+        if (mapped) throw mapped;
+      } else {
+        await response.body?.cancel().catch(() => undefined);
+      }
       throw errorForStatus(response.status);
     }
     return await readBoundedBody(response, options.maxResponseBytes);
@@ -563,6 +679,92 @@ export async function boundedFetchText(options: BoundedFetchOptions): Promise<st
       throw new ImageUnderstandingProviderError("provider-aborted");
     }
     if (timedOut) {
+      throw new ImageUnderstandingProviderError("provider-timeout", { retryable: true });
+    }
+    throw new ImageUnderstandingProviderError("provider-network-error", { retryable: true });
+  } finally {
+    clearTimeout(timer);
+    options.signal?.removeEventListener("abort", abort);
+  }
+}
+
+/**
+ * Downloads from an explicit HTTPS host namespace through the environment's native fetch stack.
+ * This is reserved for trusted provider storage domains whose DNS may intentionally resolve to a
+ * local proxy address. Every redirect remains inside the same allowlist; arbitrary result hosts
+ * must continue to use `boundedPublicHttpsText` and its DNS-pinned transport.
+ */
+export async function boundedAllowedHttpsText(
+  options: BoundedAllowedHttpsOptions,
+): Promise<string> {
+  requirePositiveInteger(options.timeoutMs, "timeoutMs");
+  requirePositiveInteger(options.maxResponseBytes, "maxResponseBytes");
+  const maxRedirects = options.maxRedirects ?? 0;
+  if (!Number.isSafeInteger(maxRedirects) || maxRedirects < 0 || maxRedirects > 10) {
+    throw new TypeError("maxRedirects must be an integer between 0 and 10.");
+  }
+  if (options.allowedHostnameSuffixes.length === 0) {
+    throw new TypeError("allowedHostnameSuffixes must not be empty.");
+  }
+  if (options.signal?.aborted) {
+    throw new ImageUnderstandingProviderError("provider-aborted");
+  }
+
+  const controller = new AbortController();
+  let timedOut = false;
+  const abort = () => controller.abort();
+  options.signal?.addEventListener("abort", abort, { once: true });
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, options.timeoutMs);
+
+  try {
+    let currentUrl = requireAllowedHttpsUrl(
+      options.url,
+      options.field,
+      options.allowedHostnameSuffixes,
+    );
+    for (let redirectCount = 0; ; redirectCount += 1) {
+      const response = await options.fetch(currentUrl, {
+        method: "GET",
+        redirect: "manual",
+        signal: controller.signal,
+      });
+      if ([301, 302, 303, 307, 308].includes(response.status)) {
+        const location = response.headers.get("location");
+        await response.body?.cancel().catch(() => undefined);
+        if (!location || redirectCount >= maxRedirects) {
+          throw new ImageUnderstandingProviderError("provider-invalid-response", {
+            status: response.status,
+          });
+        }
+        let redirected: string;
+        try {
+          redirected = new URL(location, currentUrl).toString();
+        } catch {
+          throw new AllowedHttpsUrlError(`${options.field} redirect is invalid.`);
+        }
+        currentUrl = requireAllowedHttpsUrl(
+          redirected,
+          options.field,
+          options.allowedHostnameSuffixes,
+        );
+        continue;
+      }
+      if (!response.ok) {
+        await response.body?.cancel().catch(() => undefined);
+        throw errorForStatus(response.status);
+      }
+      return await readBoundedBody(response, options.maxResponseBytes);
+    }
+  } catch (error) {
+    if (error instanceof ImageUnderstandingProviderError) throw error;
+    if (error instanceof AllowedHttpsUrlError) throw new TypeError(error.message);
+    if (options.signal?.aborted) {
+      throw new ImageUnderstandingProviderError("provider-aborted");
+    }
+    if (timedOut || (error instanceof Error && error.name === "AbortError")) {
       throw new ImageUnderstandingProviderError("provider-timeout", { retryable: true });
     }
     throw new ImageUnderstandingProviderError("provider-network-error", { retryable: true });

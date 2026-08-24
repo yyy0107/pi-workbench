@@ -8,6 +8,7 @@ import type {
 } from "@assistant-ui/react";
 
 import type {
+  DataPresentationDefinition,
   DataRendererComponent,
   ToolPresentationDefinition,
   ToolRendererComponent,
@@ -20,6 +21,9 @@ const EMPTY_TOOL_RENDERERS = Object.freeze(Object.create(null)) as Readonly<
 >;
 const EMPTY_DATA_RENDERERS = Object.freeze(Object.create(null)) as Readonly<
   Record<string, DataRendererComponent>
+>;
+const EMPTY_DATA_PRESENTATIONS = Object.freeze(Object.create(null)) as Readonly<
+  Record<string, DataPresentationDefinition>
 >;
 const EMPTY_TOOL_PRESENTATIONS = Object.freeze(Object.create(null)) as Readonly<
   Record<string, ToolPresentationDefinition>
@@ -73,6 +77,15 @@ export function useToolPresentationMap(): Readonly<Record<string, ToolPresentati
     manager.renderers.toolPresentations.subscribe,
     () => manager.renderers.toolPresentations.getPresentationMap(),
     () => EMPTY_TOOL_PRESENTATIONS,
+  );
+}
+
+export function useDataPresentationMap(): Readonly<Record<string, DataPresentationDefinition>> {
+  const { manager } = useExtensionEnvironment();
+  return useSyncExternalStore(
+    manager.renderers.dataPresentations.subscribe,
+    () => manager.renderers.dataPresentations.getPresentationMap(),
+    () => EMPTY_DATA_PRESENTATIONS,
   );
 }
 

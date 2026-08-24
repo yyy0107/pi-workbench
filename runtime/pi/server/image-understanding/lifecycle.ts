@@ -1,36 +1,43 @@
 import {
-  parseImageRecognitionSnapshot,
-  reduceImageRecognitionSnapshot,
-  type ImageRecognitionMethod,
-  type ImageRecognitionSnapshot,
-  type ImageRecognitionStage,
+  parseAttachmentRecognitionSnapshot,
+  reduceAttachmentRecognitionSnapshot,
+  type AttachmentRecognitionFailureDiagnostic,
+  type AttachmentRecognitionMethod,
+  type AttachmentRecognitionResult,
+  type AttachmentRecognitionSnapshot,
+  type AttachmentRecognitionStage,
 } from "../../../image-understanding/state-machine";
 
-export interface ImageRecognitionLifecycleOptions {
+export interface AttachmentRecognitionLifecycleOptions {
   operationId: string;
   submissionId: string;
   rpcId?: string;
-  method: ImageRecognitionMethod;
+  method: AttachmentRecognitionMethod;
   providerId?: string;
-  imageCount: number;
+  attachmentCount: number;
   now?: () => number;
-  publish: (snapshot: ImageRecognitionSnapshot) => void | Promise<void>;
+  publish: (snapshot: AttachmentRecognitionSnapshot) => void | Promise<void>;
 }
 
-export interface ImageRecognitionProgressUpdate {
-  method?: ImageRecognitionMethod;
+export interface AttachmentRecognitionProgressUpdate {
+  method?: AttachmentRecognitionMethod;
   providerId?: string;
   completedCount?: number;
   progress?: number;
 }
 
-/** The sole server-side writer for one status operation. Provider adapters only report progress. */
-export class ImageRecognitionLifecycle {
-  private readonly options: ImageRecognitionLifecycleOptions;
-  private readonly createdAt: number;
-  private currentValue: ImageRecognitionSnapshot;
+export interface AttachmentRecognitionSuccessUpdate extends AttachmentRecognitionProgressUpdate {
+  /** Bounded normalized output suitable for the terminal message disclosure. */
+  results?: readonly AttachmentRecognitionResult[];
+}
 
-  constructor(options: ImageRecognitionLifecycleOptions) {
+/** The sole server-side writer for one status operation. Provider adapters only report progress. */
+export class AttachmentRecognitionLifecycle {
+  private readonly options: AttachmentRecognitionLifecycleOptions;
+  private readonly createdAt: number;
+  private currentValue: AttachmentRecognitionSnapshot;
+
+  constructor(options: AttachmentRecognitionLifecycleOptions) {
     this.options = options;
     this.createdAt = (options.now ?? Date.now)();
     this.currentValue = this.parse({
@@ -44,19 +51,19 @@ export class ImageRecognitionLifecycle {
     });
   }
 
-  get current(): ImageRecognitionSnapshot {
+  get current(): AttachmentRecognitionSnapshot {
     return this.currentValue;
   }
 
-  async pending(): Promise<ImageRecognitionSnapshot> {
+  async pending(): Promise<AttachmentRecognitionSnapshot> {
     await this.options.publish(this.currentValue);
     return this.currentValue;
   }
 
   async running(
-    stage: ImageRecognitionStage,
-    update: ImageRecognitionProgressUpdate = {},
-  ): Promise<ImageRecognitionSnapshot> {
+    stage: AttachmentRecognitionStage,
+    update: AttachmentRecognitionProgressUpdate = {},
+  ): Promise<AttachmentRecognitionSnapshot> {
     return this.transition({
       status: "running",
       stage,
@@ -67,17 +74,23 @@ export class ImageRecognitionLifecycle {
     });
   }
 
-  async succeeded(update: ImageRecognitionProgressUpdate = {}): Promise<ImageRecognitionSnapshot> {
+  async succeeded(
+    update: AttachmentRecognitionSuccessUpdate = {},
+  ): Promise<AttachmentRecognitionSnapshot> {
     return this.terminal({
       status: "succeeded",
       method: update.method ?? this.currentValue.method,
       providerId: update.providerId ?? this.currentValue.providerId,
-      completedCount: this.options.imageCount,
+      completedCount: this.options.attachmentCount,
       progress: 1,
+      ...(update.results === undefined ? {} : { results: update.results }),
     });
   }
 
-  async failed(errorCode: string): Promise<ImageRecognitionSnapshot> {
+  async failed(
+    errorCode: string,
+    diagnostic?: AttachmentRecognitionFailureDiagnostic,
+  ): Promise<AttachmentRecognitionSnapshot> {
     return this.terminal({
       status: "failed",
       method: this.currentValue.method,
@@ -85,10 +98,11 @@ export class ImageRecognitionLifecycle {
       completedCount: this.currentValue.completedCount,
       progress: this.currentValue.progress,
       errorCode,
+      ...(diagnostic === undefined ? {} : { diagnostic }),
     });
   }
 
-  async cancelled(): Promise<ImageRecognitionSnapshot> {
+  async cancelled(): Promise<AttachmentRecognitionSnapshot> {
     return this.terminal({
       status: "cancelled",
       method: this.currentValue.method,
@@ -99,9 +113,9 @@ export class ImageRecognitionLifecycle {
   }
 
   async skipped(
-    method: ImageRecognitionMethod,
+    method: AttachmentRecognitionMethod,
     providerId?: string,
-  ): Promise<ImageRecognitionSnapshot> {
+  ): Promise<AttachmentRecognitionSnapshot> {
     return this.terminal({
       status: "skipped",
       method,
@@ -114,21 +128,30 @@ export class ImageRecognitionLifecycle {
   private async terminal(
     state:
       | {
-          status: "succeeded" | "cancelled" | "skipped";
-          method: ImageRecognitionMethod;
+          status: "succeeded";
+          method: AttachmentRecognitionMethod;
+          providerId?: string;
+          completedCount: number;
+          progress?: number;
+          results?: readonly AttachmentRecognitionResult[];
+        }
+      | {
+          status: "cancelled" | "skipped";
+          method: AttachmentRecognitionMethod;
           providerId?: string;
           completedCount: number;
           progress?: number;
         }
       | {
           status: "failed";
-          method: ImageRecognitionMethod;
+          method: AttachmentRecognitionMethod;
           providerId?: string;
           completedCount: number;
           progress?: number;
           errorCode: string;
+          diagnostic?: AttachmentRecognitionFailureDiagnostic;
         },
-  ): Promise<ImageRecognitionSnapshot> {
+  ): Promise<AttachmentRecognitionSnapshot> {
     const completedAt = this.nextTimestamp();
     return this.transition({
       ...state,
@@ -142,10 +165,10 @@ export class ImageRecognitionLifecycle {
 
   private async transition(
     state: Omit<
-      ImageRecognitionSnapshot,
-      "version" | "operationId" | "submissionId" | "rpcId" | "revision" | "imageCount"
+      AttachmentRecognitionSnapshot,
+      "version" | "operationId" | "submissionId" | "rpcId" | "revision" | "attachmentCount"
     >,
-  ): Promise<ImageRecognitionSnapshot> {
+  ): Promise<AttachmentRecognitionSnapshot> {
     const updatedAt = this.nextTimestamp();
     const incoming = this.parse({
       ...state,
@@ -153,10 +176,10 @@ export class ImageRecognitionLifecycle {
       timestamps:
         state.timestamps ??
         ({ createdAt: this.createdAt, updatedAt } satisfies NonNullable<
-          ImageRecognitionSnapshot["timestamps"]
+          AttachmentRecognitionSnapshot["timestamps"]
         >),
     });
-    this.currentValue = reduceImageRecognitionSnapshot(this.currentValue, incoming);
+    this.currentValue = reduceAttachmentRecognitionSnapshot(this.currentValue, incoming);
     await this.options.publish(this.currentValue);
     return this.currentValue;
   }
@@ -171,19 +194,27 @@ export class ImageRecognitionLifecycle {
 
   private parse(
     state: Omit<
-      ImageRecognitionSnapshot,
-      "version" | "operationId" | "submissionId" | "rpcId" | "imageCount"
+      AttachmentRecognitionSnapshot,
+      "version" | "operationId" | "submissionId" | "rpcId" | "attachmentCount"
     >,
-  ): ImageRecognitionSnapshot {
-    const snapshot = parseImageRecognitionSnapshot({
+  ): AttachmentRecognitionSnapshot {
+    const snapshot = parseAttachmentRecognitionSnapshot({
       version: 1,
       operationId: this.options.operationId,
       submissionId: this.options.submissionId,
       ...(this.options.rpcId === undefined ? {} : { rpcId: this.options.rpcId }),
-      imageCount: this.options.imageCount,
+      attachmentCount: this.options.attachmentCount,
       ...state,
     });
-    if (!snapshot) throw new TypeError("The image recognition lifecycle produced invalid state.");
+    if (!snapshot) {
+      throw new TypeError("The attachment recognition lifecycle produced invalid state.");
+    }
     return snapshot;
   }
 }
+
+/** @deprecated Compatibility aliases for integrations compiled against the image-only API. */
+export type ImageRecognitionLifecycleOptions = AttachmentRecognitionLifecycleOptions;
+export type ImageRecognitionProgressUpdate = AttachmentRecognitionProgressUpdate;
+export type ImageRecognitionSuccessUpdate = AttachmentRecognitionSuccessUpdate;
+export const ImageRecognitionLifecycle = AttachmentRecognitionLifecycle;

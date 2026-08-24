@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 const {
+  ATTACHMENT_RECOGNITION_DATA_PART_NAME,
   IMAGE_RECOGNITION_DATA_PART_NAME,
   IMAGE_RECOGNITION_STAGES,
   IMAGE_RECOGNITION_STATUSES,
+  LEGACY_IMAGE_RECOGNITION_DATA_PART_NAME,
   imageRecognitionErrorKind,
   imageRecognitionLiveRegion,
   imageRecognitionSkipKind,
@@ -24,15 +26,17 @@ function payload(overrides: Record<string, unknown> = {}): Record<string, unknow
     stage: "recognizing",
     method: "ocr",
     providerId: "glm-ocr",
-    imageCount: 3,
+    attachmentCount: 3,
     completedCount: 1,
     progress: 1 / 3,
     ...overrides,
   };
 }
 
-test("uses the exact image-recognition data-part name", () => {
-  assert.equal(IMAGE_RECOGNITION_DATA_PART_NAME, "workbench.image-recognition");
+test("uses an attachment-neutral data-part name while retaining the legacy image name", () => {
+  assert.equal(ATTACHMENT_RECOGNITION_DATA_PART_NAME, "workbench.attachment-recognition");
+  assert.equal(IMAGE_RECOGNITION_DATA_PART_NAME, ATTACHMENT_RECOGNITION_DATA_PART_NAME);
+  assert.equal(LEGACY_IMAGE_RECOGNITION_DATA_PART_NAME, "workbench.image-recognition");
 });
 
 test("parses every state and every running stage in the version-one FSM", () => {
@@ -62,17 +66,53 @@ test("parses every state and every running stage in the version-one FSM", () => 
   }
 });
 
-test("normalizes progress from the canonical snapshot or completed image count", () => {
+test("normalizes progress from the canonical snapshot or completed attachment count", () => {
   assert.equal(parseImageRecognitionPresentation(payload({ progress: 0.75 }))?.progress, 0.75);
   assert.equal(
     parseImageRecognitionPresentation(
-      payload({ imageCount: 5, completedCount: 2, progress: undefined }),
+      payload({ attachmentCount: 5, completedCount: 2, progress: undefined }),
     )?.progress,
     0.4,
   );
 });
 
-test("rejects payloads carrying secrets, OCR output, endpoints, or image bytes", () => {
+test("projects bounded normalized recognition results without exposing operation metadata", () => {
+  const parsed = parseImageRecognitionPresentation(
+    payload({
+      status: "succeeded",
+      stage: undefined,
+      attachmentCount: 2,
+      completedCount: 2,
+      progress: 1,
+      results: [
+        { attachmentId: "image-1", format: "markdown", text: "# Invoice" },
+        { attachmentId: "pdf-1", format: "text", text: "Total: 42", truncated: true },
+      ],
+    }),
+  );
+
+  assert.deepEqual(parsed?.results, [
+    {
+      attachmentId: "image-1",
+      referenceKind: "image",
+      sequence: 1,
+      format: "markdown",
+      text: "# Invoice",
+    },
+    {
+      attachmentId: "pdf-1",
+      referenceKind: "pdf",
+      sequence: 1,
+      format: "text",
+      text: "Total: 42",
+      truncated: true,
+    },
+  ]);
+  assert.equal("operationId" in (parsed ?? {}), false);
+  assert.equal("submissionId" in (parsed ?? {}), false);
+});
+
+test("rejects raw provider fields, secrets, endpoints, and image bytes", () => {
   assert.equal(
     parseImageRecognitionPresentation(
       payload({
@@ -81,6 +121,48 @@ test("rejects payloads carrying secrets, OCR output, endpoints, or image bytes",
         text: "complete OCR output",
         image: "data:image/png;base64,abcdef",
         request: { authorization: "Bearer super-secret" },
+      }),
+    ),
+    undefined,
+  );
+
+  assert.equal(
+    parseImageRecognitionPresentation(
+      payload({
+        status: "succeeded",
+        stage: undefined,
+        attachmentCount: 1,
+        completedCount: 1,
+        progress: 1,
+        results: [
+          {
+            attachmentId: "image-1",
+            format: "text",
+            text: "recognized",
+            rawResponse: { authorization: "Bearer super-secret" },
+          },
+        ],
+      }),
+    ),
+    undefined,
+  );
+
+  assert.equal(
+    parseImageRecognitionPresentation(
+      payload({
+        status: "succeeded",
+        stage: undefined,
+        attachmentCount: 1,
+        completedCount: 1,
+        progress: 1,
+        results: [
+          {
+            attachmentId: "image-1",
+            format: "text",
+            text: "recognized",
+            truncated: false,
+          },
+        ],
       }),
     ),
     undefined,
@@ -99,6 +181,7 @@ test("rejects payloads carrying secrets, OCR output, endpoints, or image bytes",
 test("maps stable failure codes without exposing unknown provider errors", () => {
   assert.equal(imageRecognitionErrorKind("invalid-credentials"), "authentication");
   assert.equal(imageRecognitionErrorKind("provider-authentication-failed"), "authentication");
+  assert.equal(imageRecognitionErrorKind("provider-configuration-invalid"), "configuration");
   assert.equal(imageRecognitionErrorKind("provider-not-configured"), "configuration");
   assert.equal(imageRecognitionErrorKind("preprocessor-not-configured"), "configuration");
   assert.equal(imageRecognitionErrorKind("recognition-disabled"), "configuration");
@@ -113,11 +196,42 @@ test("maps stable failure codes without exposing unknown provider errors", () =>
   assert.equal(imageRecognitionErrorKind("provider-invalid-input"), "unsupportedImage");
   assert.equal(imageRecognitionErrorKind("provider-invalid-response"), "invalidResponse");
   assert.equal(imageRecognitionErrorKind("vendor said: secret endpoint"), "generic");
+  const failed = parseImageRecognitionPresentation(
+    payload({
+      status: "failed",
+      stage: undefined,
+      errorCode: "provider-poll-timeout",
+      diagnostic: {
+        phase: "polling",
+        reason: "request-failed",
+        httpStatus: 503,
+        providerCode: "500",
+      },
+    }),
+  );
+  assert.equal(failed?.errorKind, "timeout");
+  assert.equal(failed?.errorCode, "provider-poll-timeout");
+  assert.deepEqual(failed?.diagnostic, {
+    phase: "polling",
+    reason: "request-failed",
+    httpStatus: 503,
+    providerCode: "500",
+  });
+
   assert.equal(
     parseImageRecognitionPresentation(
-      payload({ status: "failed", stage: undefined, errorCode: "provider-poll-timeout" }),
-    )?.errorKind,
-    "timeout",
+      payload({
+        status: "failed",
+        stage: undefined,
+        errorCode: "provider-invalid-response",
+        diagnostic: {
+          phase: "result-parsing",
+          reason: "raw upstream response",
+          responseBody: "secret",
+        },
+      }),
+    ),
+    undefined,
   );
 });
 
@@ -150,10 +264,10 @@ test("rejects malformed envelopes and invalid state-machine transitions", () => 
   assert.equal(parseImageRecognitionPresentation(payload({ operationId: "" })), undefined);
   assert.equal(parseImageRecognitionPresentation(payload({ status: "finished" })), undefined);
   assert.equal(parseImageRecognitionPresentation(payload({ method: "tool" })), undefined);
-  assert.equal(parseImageRecognitionPresentation(payload({ imageCount: -1 })), undefined);
+  assert.equal(parseImageRecognitionPresentation(payload({ attachmentCount: -1 })), undefined);
   assert.equal(
     parseImageRecognitionPresentation(
-      payload({ imageCount: 2, completedCount: 9, progress: Number.POSITIVE_INFINITY }),
+      payload({ attachmentCount: 2, completedCount: 9, progress: Number.POSITIVE_INFINITY }),
     ),
     undefined,
   );
@@ -162,5 +276,35 @@ test("rejects malformed envelopes and invalid state-machine transitions", () => 
       payload({ status: "succeeded", stage: undefined, completedCount: 2, progress: 0.5 }),
     ),
     undefined,
+  );
+});
+
+test("normalizes persisted image-only snapshots through the compatibility seam", () => {
+  const { attachmentCount, ...common } = payload();
+  const parsed = parseImageRecognitionPresentation({ ...common, imageCount: attachmentCount });
+  assert.equal(parsed?.attachmentCount, 3);
+});
+
+test("falls back to result order for persisted generic attachment identifiers", () => {
+  const parsed = parseImageRecognitionPresentation(
+    payload({
+      status: "succeeded",
+      stage: undefined,
+      attachmentCount: 2,
+      completedCount: 2,
+      progress: 1,
+      results: [
+        { attachmentId: "attachment-4", format: "text", text: "legacy one" },
+        { attachmentId: "attachment-7", format: "text", text: "legacy two" },
+      ],
+    }),
+  );
+
+  assert.deepEqual(
+    parsed?.results.map(({ referenceKind, sequence }) => ({ referenceKind, sequence })),
+    [
+      { referenceKind: "attachment", sequence: 1 },
+      { referenceKind: "attachment", sequence: 2 },
+    ],
   );
 });

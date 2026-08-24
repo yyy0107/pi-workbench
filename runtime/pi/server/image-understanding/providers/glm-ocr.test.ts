@@ -6,9 +6,19 @@ import { GlmOcrProvider } from "./glm-ocr";
 
 const image = {
   id: "image-1",
+  kind: "image" as const,
+  sequence: 1,
   name: "receipt.png",
   mimeType: "image/png",
   data: Buffer.from("validated-image").toString("base64"),
+};
+const pdf = {
+  id: "pdf-1",
+  kind: "pdf" as const,
+  sequence: 1,
+  name: "invoice.pdf",
+  mimeType: "application/pdf",
+  data: Buffer.from("%PDF-1.7\nvalidated-document").toString("base64"),
 };
 
 function errorCode(error: unknown): string | undefined {
@@ -39,11 +49,13 @@ test("calls the hosted GLM layout parser with bearer auth and a data URL", async
   };
   const provider = new GlmOcrProvider({ fetch: fetchImpl });
 
-  const result = await provider.recognize({ images: [image], credential: token });
+  const result = await provider.recognize({ attachments: [image], credential: token });
 
   assert.deepEqual(result, [
     {
-      imageId: "image-1",
+      attachmentId: "image-1",
+      kind: "image",
+      sequence: 1,
       providerId: "glm-ocr",
       method: "ocr",
       format: "markdown",
@@ -66,11 +78,33 @@ test("accepts a validated data URL and falls back to normalized layout text", as
   });
 
   const result = await provider.recognize({
-    images: [{ ...image, data: `data:image/png;base64,${image.data}` }],
+    attachments: [{ ...image, data: `data:image/png;base64,${image.data}` }],
     credential: "token",
   });
   assert.equal(result[0]?.format, "text");
   assert.equal(result[0]?.text, "line one\nline two");
+});
+
+test("submits PDF attachments through the hosted GLM layout parser", async () => {
+  const provider = new GlmOcrProvider({
+    fetch: async (_input, init) => {
+      const body = JSON.parse(String(init?.body));
+      assert.equal(body.file, `data:application/pdf;base64,${pdf.data}`);
+      return new Response(JSON.stringify({ md_results: "# PDF invoice" }));
+    },
+  });
+
+  assert.deepEqual(await provider.recognize({ attachments: [pdf], credential: "token" }), [
+    {
+      attachmentId: "pdf-1",
+      kind: "pdf",
+      sequence: 1,
+      providerId: "glm-ocr",
+      method: "ocr",
+      format: "markdown",
+      text: "# PDF invoice",
+    },
+  ]);
 });
 
 test("maps authentication and oversized responses to stable redacted errors", async () => {
@@ -78,7 +112,7 @@ test("maps authentication and oversized responses to stable redacted errors", as
     fetch: async () => new Response("raw upstream secret", { status: 401 }),
   });
   await assert.rejects(
-    authProvider.recognize({ images: [image], credential: "token" }),
+    authProvider.recognize({ attachments: [image], credential: "token" }),
     (error) => {
       assert.equal(errorCode(error), "provider-authentication-failed");
       assert.equal((error as Error).message.includes("raw upstream secret"), false);
@@ -94,7 +128,7 @@ test("maps authentication and oversized responses to stable redacted errors", as
       }),
   });
   await assert.rejects(
-    largeProvider.recognize({ images: [image], credential: "token" }),
+    largeProvider.recognize({ attachments: [image], credential: "token" }),
     (error) => errorCode(error) === "provider-response-too-large",
   );
 
@@ -103,7 +137,7 @@ test("maps authentication and oversized responses to stable redacted errors", as
     fetch: async () => new Response(JSON.stringify({ md_results: "12345" })),
   });
   await assert.rejects(
-    longObservationProvider.recognize({ images: [image], credential: "token" }),
+    longObservationProvider.recognize({ attachments: [image], credential: "token" }),
     (error) => errorCode(error) === "provider-response-too-large",
   );
 });
@@ -124,7 +158,7 @@ test("distinguishes caller cancellation from provider timeout", async () => {
   cancelled.abort();
   await assert.rejects(
     new GlmOcrProvider({ fetch: neverFetch }).recognize({
-      images: [image],
+      attachments: [image],
       credential: "token",
       signal: cancelled.signal,
     }),
@@ -133,7 +167,7 @@ test("distinguishes caller cancellation from provider timeout", async () => {
 
   await assert.rejects(
     new GlmOcrProvider({ fetch: neverFetch, timeoutMs: 5 }).recognize({
-      images: [image],
+      attachments: [image],
       credential: "token",
     }),
     (error) => errorCode(error) === "provider-timeout",
@@ -152,7 +186,7 @@ test("rejects image formats outside the hosted GLM-OCR contract before sending a
   await assert.rejects(
     provider.recognize({
       credential: "token",
-      images: [{ ...image, mimeType: "image/webp" }],
+      attachments: [{ ...image, mimeType: "image/webp" }],
     }),
     (error) => errorCode(error) === "provider-invalid-input",
   );

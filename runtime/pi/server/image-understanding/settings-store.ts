@@ -11,6 +11,18 @@ import type {
   ImageUnderstandingSettingsPatch,
   ImageUnderstandingUpdatePayload,
 } from "../../rpc-contracts";
+import {
+  DEFAULT_PADDLE_AI_STUDIO_ASYNC_MODEL,
+  PADDLE_AI_STUDIO_ASYNC_ENDPOINT,
+} from "../../../image-understanding/paddleocr-models";
+import {
+  getOcrAdapterPreset,
+  inferOcrAdapterPreset,
+  OCR_ADAPTER_PRESET_IDS,
+  OCR_ADAPTER_PRESETS,
+  parseOcrAdapterSource,
+  type OcrAdapterPresetId,
+} from "../../../image-understanding/ocr-adapter";
 import { atomicReplaceFile, withCrossProcessFileLock } from "../core/file-persistence";
 
 type JsonObject = Record<string, unknown>;
@@ -26,14 +38,24 @@ interface StoredSettingsValue {
     pollIntervalMs: number;
     pollTimeoutMs: number;
   };
+  ocrAdapter: {
+    preset: OcrAdapterPresetId;
+    source: string;
+    endpoint: string;
+    model: string;
+    pollIntervalMs: number;
+    pollTimeoutMs: number;
+  };
   multimodal: { provider: string; model: string };
 }
+
+type OcrCredentialSlot = ImageUnderstandingOcrProvider | "custom";
 
 interface StoredDocumentV1 {
   version: 1;
   revision: number;
   settings: StoredSettingsValue;
-  secrets: Partial<Record<ImageUnderstandingOcrProvider, string>>;
+  secrets: Partial<Record<OcrCredentialSlot, string>>;
 }
 
 interface StoreSnapshot {
@@ -65,10 +87,10 @@ export class ImageUnderstandingSettingsStoreError extends Error {
   ) {
     const message =
       code === "image-settings-conflict"
-        ? "Image understanding settings changed before the update was applied."
+        ? "Attachment understanding settings changed before the update was applied."
         : code === "image-settings-invalid"
-          ? "Image understanding settings are invalid."
-          : "Image understanding settings could not be read or saved.";
+          ? "Attachment understanding settings are invalid."
+          : "Attachment understanding settings could not be read or saved.";
     super(message);
     this.name = "ImageUnderstandingSettingsStoreError";
     this.code = code;
@@ -86,10 +108,18 @@ export const DEFAULT_IMAGE_UNDERSTANDING_SETTINGS = Object.freeze({
     model: "glm-ocr",
   },
   paddle: {
-    endpoint: "https://paddleocr.aistudio-app.com/api/v2/ocr/jobs",
-    model: "PaddleOCR-VL-1.5",
+    endpoint: PADDLE_AI_STUDIO_ASYNC_ENDPOINT,
+    model: DEFAULT_PADDLE_AI_STUDIO_ASYNC_MODEL,
     pollIntervalMs: 3_000,
     pollTimeoutMs: 600_000,
+  },
+  ocrAdapter: {
+    preset: "glm-ocr" as const,
+    source: getOcrAdapterPreset("glm-ocr").source,
+    endpoint: getOcrAdapterPreset("glm-ocr").endpoint,
+    model: getOcrAdapterPreset("glm-ocr").model,
+    pollIntervalMs: getOcrAdapterPreset("glm-ocr").pollIntervalMs,
+    pollTimeoutMs: getOcrAdapterPreset("glm-ocr").pollTimeoutMs,
   },
   multimodal: { provider: "", model: "" },
 }) satisfies StoredSettingsValue;
@@ -102,6 +132,8 @@ const ROUTING_VALUES = new Set<ImageUnderstandingRouting>([
 ]);
 const ENGINE_VALUES = new Set<ImageUnderstandingEngine>(["ocr", "multimodal"]);
 const OCR_PROVIDER_VALUES = new Set<ImageUnderstandingOcrProvider>(["glm-ocr", "paddleocr"]);
+const OCR_ADAPTER_PRESET_VALUES = new Set<OcrAdapterPresetId>(OCR_ADAPTER_PRESET_IDS);
+const OCR_CREDENTIAL_SLOTS = new Set<OcrCredentialSlot>(["glm-ocr", "paddleocr", "custom"]);
 function isObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -144,6 +176,52 @@ function positiveInteger(value: unknown, field: string): number {
   return value as number;
 }
 
+function inferredAdapterSettings(
+  provider: ImageUnderstandingOcrProvider,
+  glm: StoredSettingsValue["glm"],
+  paddle: StoredSettingsValue["paddle"],
+): StoredSettingsValue["ocrAdapter"] {
+  const presetId = inferOcrAdapterPreset(
+    provider,
+    provider === "glm-ocr" ? glm.model : paddle.model,
+  );
+  const preset = getOcrAdapterPreset(presetId);
+  const selected = provider === "glm-ocr" ? glm : paddle;
+  return {
+    preset: presetId,
+    source: preset.source,
+    endpoint: selected.endpoint,
+    model: selected.model,
+    pollIntervalMs: provider === "paddleocr" ? paddle.pollIntervalMs : preset.pollIntervalMs,
+    pollTimeoutMs: provider === "paddleocr" ? paddle.pollTimeoutMs : preset.pollTimeoutMs,
+  };
+}
+
+function parseAdapterSettings(
+  value: unknown,
+  fallback: StoredSettingsValue["ocrAdapter"],
+): StoredSettingsValue["ocrAdapter"] {
+  if (value === undefined) return fallback;
+  if (!isObject(value)) throw new TypeError("settings.ocrAdapter must be an object.");
+  if (!OCR_ADAPTER_PRESET_VALUES.has(value.preset as OcrAdapterPresetId)) {
+    throw new TypeError("settings.ocrAdapter.preset is invalid.");
+  }
+  const source = nonEmptyString(value.source, "settings.ocrAdapter.source", 100_000);
+  parseOcrAdapterSource(source);
+  const preset = value.preset as OcrAdapterPresetId;
+  if (preset !== "custom" && source !== getOcrAdapterPreset(preset).source) {
+    throw new TypeError("settings.ocrAdapter.source does not match its preset.");
+  }
+  return {
+    preset,
+    source,
+    endpoint: endpoint(value.endpoint, "settings.ocrAdapter.endpoint"),
+    model: nonEmptyString(value.model, "settings.ocrAdapter.model", 256),
+    pollIntervalMs: positiveInteger(value.pollIntervalMs, "settings.ocrAdapter.pollIntervalMs"),
+    pollTimeoutMs: positiveInteger(value.pollTimeoutMs, "settings.ocrAdapter.pollTimeoutMs"),
+  };
+}
+
 function parseSettings(value: unknown): StoredSettingsValue {
   if (!isObject(value)) throw new TypeError("settings must be an object.");
   if (!ROUTING_VALUES.has(value.routing as ImageUnderstandingRouting)) {
@@ -158,23 +236,27 @@ function parseSettings(value: unknown): StoredSettingsValue {
   if (!isObject(value.glm) || !isObject(value.paddle) || !isObject(value.multimodal)) {
     throw new TypeError("provider settings must be objects.");
   }
+  const glm = {
+    endpoint: endpoint(value.glm.endpoint, "settings.glm.endpoint"),
+    model: nonEmptyString(value.glm.model, "settings.glm.model", 256),
+  };
+  const paddle = {
+    endpoint: endpoint(value.paddle.endpoint, "settings.paddle.endpoint"),
+    model: nonEmptyString(value.paddle.model, "settings.paddle.model", 256),
+    pollIntervalMs: positiveInteger(value.paddle.pollIntervalMs, "settings.paddle.pollIntervalMs"),
+    pollTimeoutMs: positiveInteger(value.paddle.pollTimeoutMs, "settings.paddle.pollTimeoutMs"),
+  };
+  const ocrProvider = value.ocrProvider as ImageUnderstandingOcrProvider;
   return {
     routing: value.routing as ImageUnderstandingRouting,
     engine: value.engine as ImageUnderstandingEngine,
-    ocrProvider: value.ocrProvider as ImageUnderstandingOcrProvider,
-    glm: {
-      endpoint: endpoint(value.glm.endpoint, "settings.glm.endpoint"),
-      model: nonEmptyString(value.glm.model, "settings.glm.model", 256),
-    },
-    paddle: {
-      endpoint: endpoint(value.paddle.endpoint, "settings.paddle.endpoint"),
-      model: nonEmptyString(value.paddle.model, "settings.paddle.model", 256),
-      pollIntervalMs: positiveInteger(
-        value.paddle.pollIntervalMs,
-        "settings.paddle.pollIntervalMs",
-      ),
-      pollTimeoutMs: positiveInteger(value.paddle.pollTimeoutMs, "settings.paddle.pollTimeoutMs"),
-    },
+    ocrProvider,
+    glm,
+    paddle,
+    ocrAdapter: parseAdapterSettings(
+      value.ocrAdapter,
+      inferredAdapterSettings(ocrProvider, glm, paddle),
+    ),
     multimodal: {
       provider: optionalProviderId(value.multimodal.provider, "settings.multimodal.provider"),
       model: optionalString(value.multimodal.model, "settings.multimodal.model"),
@@ -185,14 +267,12 @@ function parseSettings(value: unknown): StoredSettingsValue {
 function parseSecrets(value: unknown): StoredDocumentV1["secrets"] {
   if (!isObject(value)) throw new TypeError("secrets must be an object.");
   const secrets: StoredDocumentV1["secrets"] = {};
-  for (const provider of OCR_PROVIDER_VALUES) {
+  for (const provider of OCR_CREDENTIAL_SLOTS) {
     const secret = value[provider];
     if (secret === undefined) continue;
     secrets[provider] = nonEmptyString(secret, `secrets.${provider}`, 16_384);
   }
-  if (
-    Object.keys(value).some((key) => !OCR_PROVIDER_VALUES.has(key as ImageUnderstandingOcrProvider))
-  ) {
+  if (Object.keys(value).some((key) => !OCR_CREDENTIAL_SLOTS.has(key as OcrCredentialSlot))) {
     throw new TypeError("secrets contains an unknown provider.");
   }
   return secrets;
@@ -206,6 +286,7 @@ function defaultDocument(): StoredDocumentV1 {
       ...DEFAULT_IMAGE_UNDERSTANDING_SETTINGS,
       glm: { ...DEFAULT_IMAGE_UNDERSTANDING_SETTINGS.glm },
       paddle: { ...DEFAULT_IMAGE_UNDERSTANDING_SETTINGS.paddle },
+      ocrAdapter: { ...DEFAULT_IMAGE_UNDERSTANDING_SETTINGS.ocrAdapter },
       multimodal: { ...DEFAULT_IMAGE_UNDERSTANDING_SETTINGS.multimodal },
     },
     secrets: {},
@@ -236,6 +317,14 @@ function serialized(document: StoredDocumentV1): string {
   return `${JSON.stringify(document, undefined, 2)}\n`;
 }
 
+function credentialSlotForAdapter(adapter: StoredSettingsValue["ocrAdapter"]): OcrCredentialSlot {
+  if (adapter.preset !== "custom") return getOcrAdapterPreset(adapter.preset).credentialSlot;
+  const id = parseOcrAdapterSource(adapter.source).id.toLowerCase();
+  if (id === "glm-ocr" || id.startsWith("glm-")) return "glm-ocr";
+  if (id.includes("paddle") || id.startsWith("pp-")) return "paddleocr";
+  return "custom";
+}
+
 function describeDocument(document: StoredDocumentV1): ImageUnderstandingDescribeValue {
   return {
     revision: document.revision,
@@ -249,6 +338,11 @@ function describeDocument(document: StoredDocumentV1): ImageUnderstandingDescrib
         ...document.settings.paddle,
         credentialConfigured: document.secrets.paddleocr !== undefined,
       },
+      ocrAdapter: {
+        ...document.settings.ocrAdapter,
+        credentialConfigured:
+          document.secrets[credentialSlotForAdapter(document.settings.ocrAdapter)] !== undefined,
+      },
     },
   };
 }
@@ -257,7 +351,7 @@ function mergeSettings(
   current: StoredSettingsValue,
   patch: ImageUnderstandingSettingsPatch,
 ): StoredSettingsValue {
-  const candidate: StoredSettingsValue = {
+  const legacy: Omit<StoredSettingsValue, "ocrAdapter"> = {
     routing: patch.routing ?? current.routing,
     engine: patch.engine ?? current.engine,
     ocrProvider: patch.ocrProvider ?? current.ocrProvider,
@@ -276,12 +370,40 @@ function mergeSettings(
       model: patch.multimodal?.model ?? current.multimodal.model,
     },
   };
+  let adapter = current.ocrAdapter;
+  if (patch.ocrAdapter !== undefined) {
+    const requestedPreset = patch.ocrAdapter.preset;
+    const presetBase =
+      requestedPreset !== undefined && requestedPreset !== "custom"
+        ? getOcrAdapterPreset(requestedPreset)
+        : undefined;
+    const source = patch.ocrAdapter.source ?? presetBase?.source ?? adapter.source;
+    const exactPreset = OCR_ADAPTER_PRESETS.find((candidate) => candidate.source === source)?.id;
+    const preset = requestedPreset ?? exactPreset ?? "custom";
+    adapter = {
+      preset,
+      source,
+      endpoint: patch.ocrAdapter.endpoint ?? presetBase?.endpoint ?? adapter.endpoint,
+      model: patch.ocrAdapter.model ?? presetBase?.model ?? adapter.model,
+      pollIntervalMs:
+        patch.ocrAdapter.pollIntervalMs ?? presetBase?.pollIntervalMs ?? adapter.pollIntervalMs,
+      pollTimeoutMs:
+        patch.ocrAdapter.pollTimeoutMs ?? presetBase?.pollTimeoutMs ?? adapter.pollTimeoutMs,
+    };
+  } else if (
+    patch.ocrProvider !== undefined ||
+    patch.glm !== undefined ||
+    patch.paddle !== undefined
+  ) {
+    adapter = inferredAdapterSettings(legacy.ocrProvider, legacy.glm, legacy.paddle);
+  }
+  const candidate: StoredSettingsValue = { ...legacy, ocrAdapter: adapter };
   return parseSettings(candidate);
 }
 
 function applySecretPatch(
   secrets: StoredDocumentV1["secrets"],
-  provider: ImageUnderstandingOcrProvider,
+  provider: OcrCredentialSlot,
   value: string | null | undefined,
 ): void {
   if (value === undefined || (typeof value === "string" && value.trim() === "")) return;
@@ -362,7 +484,7 @@ export class ImageUnderstandingSettingsStore {
     try {
       const { document } = await this.snapshot();
       const described = describeDocument(document);
-      const credential = document.secrets[document.settings.ocrProvider];
+      const credential = document.secrets[credentialSlotForAdapter(document.settings.ocrAdapter)];
       return {
         ...described,
         ...(credential === undefined ? {} : { credential }),
@@ -394,6 +516,11 @@ export class ImageUnderstandingSettingsStore {
         const secrets = { ...current.secrets };
         applySecretPatch(secrets, "glm-ocr", payload.patch.glm?.apiKey);
         applySecretPatch(secrets, "paddleocr", payload.patch.paddle?.apiKey);
+        applySecretPatch(
+          secrets,
+          credentialSlotForAdapter(settings.ocrAdapter),
+          payload.patch.ocrAdapter?.apiKey,
+        );
         const unchanged =
           JSON.stringify(settings) === JSON.stringify(current.settings) &&
           JSON.stringify(secrets) === JSON.stringify(current.secrets);

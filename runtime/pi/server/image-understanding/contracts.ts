@@ -1,42 +1,60 @@
-import type { ImageRecognitionSnapshot } from "../../../image-understanding/state-machine";
+import type {
+  AttachmentRecognitionFailureDiagnostic,
+  AttachmentRecognitionSnapshot,
+  AttachmentReferenceKind,
+} from "../../../image-understanding/state-machine";
 
-export type ImageUnderstandingProviderId = "glm-ocr" | "paddleocr";
+/** Adapter-defined stable identifier. Built-in legacy providers use `glm-ocr` and `paddleocr`. */
+export type ImageUnderstandingProviderId = string;
 export type ImageUnderstandingPreprocessMethod = "ocr" | "multimodal";
 
-export interface ImageUnderstandingInputImage {
+export interface RecognizableAttachment {
   id: string;
+  /** Stable type-local reference used in both display and model context. */
+  kind: AttachmentReferenceKind;
+  /** One-based sequence within `kind` (for example, image 2 or PDF 1). */
+  sequence: number;
   name?: string;
   mimeType: string;
   /** Canonical base64 or a base64 data URL. */
   data: string;
 }
 
-export interface ImageUnderstandingObservation {
-  imageId: string;
+export interface AttachmentUnderstandingObservation {
+  attachmentId: string;
+  kind: AttachmentReferenceKind;
+  sequence: number;
   providerId: string;
   method: ImageUnderstandingPreprocessMethod;
   format: "markdown" | "text";
   text: string;
 }
 
-export type ImageRecognitionObserver = (snapshot: ImageRecognitionSnapshot) => void | Promise<void>;
+export type AttachmentRecognitionObserver = (
+  snapshot: AttachmentRecognitionSnapshot,
+) => void | Promise<void>;
 
-export interface ImageUnderstandingRecognitionRequest {
-  images: readonly ImageUnderstandingInputImage[];
+export interface AttachmentRecognitionRequest {
+  attachments: readonly RecognizableAttachment[];
   /** Resolved server-side credential. It must never be copied into status metadata. */
   credential: string;
   signal?: AbortSignal;
   /** Reserved for the session coordinator that owns the shared recognition FSM. */
-  observer?: ImageRecognitionObserver;
+  observer?: AttachmentRecognitionObserver;
 }
 
-export interface ImageUnderstandingProvider {
+export interface AttachmentRecognitionProvider {
   readonly id: ImageUnderstandingProviderId;
   readonly method: ImageUnderstandingPreprocessMethod;
-  recognize(
-    request: ImageUnderstandingRecognitionRequest,
-  ): Promise<ImageUnderstandingObservation[]>;
+  recognize(request: AttachmentRecognitionRequest): Promise<AttachmentUnderstandingObservation[]>;
 }
+
+/** @deprecated Compatibility aliases for the original image-only provider contract. */
+export type ImageUnderstandingInputImage = RecognizableAttachment;
+export type ImageUnderstandingObservation = AttachmentUnderstandingObservation;
+export type ImageRecognitionObserver = AttachmentRecognitionObserver;
+export type ImageUnderstandingRecognitionRequest = AttachmentRecognitionRequest;
+export type ImageUnderstandingProvider = AttachmentRecognitionProvider;
 
 export type ImageUnderstandingProviderErrorCode =
   | "provider-aborted"
@@ -44,6 +62,7 @@ export type ImageUnderstandingProviderErrorCode =
   | "provider-poll-timeout"
   | "provider-response-too-large"
   | "provider-authentication-failed"
+  | "provider-configuration-invalid"
   | "provider-rate-limited"
   | "provider-unavailable"
   | "provider-invalid-response"
@@ -52,32 +71,39 @@ export type ImageUnderstandingProviderErrorCode =
   | "provider-invalid-input";
 
 const PROVIDER_ERROR_MESSAGES = Object.freeze({
-  "provider-aborted": "Image recognition was cancelled.",
-  "provider-timeout": "The image recognition provider timed out.",
-  "provider-poll-timeout": "The image recognition job did not finish in time.",
-  "provider-response-too-large": "The image recognition provider response was too large.",
-  "provider-authentication-failed": "The image recognition credential was rejected.",
-  "provider-rate-limited": "The image recognition provider rate limit was reached.",
-  "provider-unavailable": "The image recognition provider is unavailable.",
-  "provider-invalid-response": "The image recognition provider returned an invalid response.",
-  "provider-job-failed": "The image recognition job failed.",
-  "provider-network-error": "The image recognition provider could not be reached.",
-  "provider-invalid-input": "The image recognition input is invalid.",
+  "provider-aborted": "Attachment recognition was cancelled.",
+  "provider-timeout": "The attachment recognition provider timed out.",
+  "provider-poll-timeout": "The attachment recognition job did not finish in time.",
+  "provider-response-too-large": "The attachment recognition provider response was too large.",
+  "provider-authentication-failed": "The attachment recognition credential was rejected.",
+  "provider-configuration-invalid": "The attachment recognition provider configuration is invalid.",
+  "provider-rate-limited": "The attachment recognition provider rate limit was reached.",
+  "provider-unavailable": "The attachment recognition provider is unavailable.",
+  "provider-invalid-response": "The attachment recognition provider returned an invalid response.",
+  "provider-job-failed": "The attachment recognition job failed.",
+  "provider-network-error": "The attachment recognition provider could not be reached.",
+  "provider-invalid-input": "The attachment recognition input is invalid.",
 }) satisfies Record<ImageUnderstandingProviderErrorCode, string>;
 
 export class ImageUnderstandingProviderError extends Error {
   readonly code: ImageUnderstandingProviderErrorCode;
   readonly retryable: boolean;
   readonly status?: number;
+  readonly diagnostic?: AttachmentRecognitionFailureDiagnostic;
 
   constructor(
     code: ImageUnderstandingProviderErrorCode,
-    options: { retryable?: boolean; status?: number } = {},
+    options: {
+      retryable?: boolean;
+      status?: number;
+      diagnostic?: AttachmentRecognitionFailureDiagnostic;
+    } = {},
   ) {
     super(PROVIDER_ERROR_MESSAGES[code]);
     this.name = "ImageUnderstandingProviderError";
     this.code = code;
     this.retryable = options.retryable ?? false;
     this.status = options.status;
+    this.diagnostic = options.diagnostic;
   }
 }

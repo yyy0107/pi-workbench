@@ -3,7 +3,6 @@ import { SessionManager } from "@earendil-works/pi-coding-agent";
 import {
   PI_THINKING_LEVELS,
   type PiAgentMessage,
-  type PiImageContent,
   type PiModelListResponse,
   type PiQueuedPrompt,
   type PiSessionHistory,
@@ -74,7 +73,7 @@ import {
   submitPrompt,
   updatePromptQueueItem,
 } from "./session-registry";
-import { admitInlineImages, InlineImageAdmissionError } from "./inline-image-admission";
+import { admitInlineAttachments, InlineAttachmentAdmissionError } from "./inline-image-admission";
 import { workspaceFromCwd } from "../workspaces/workspace-paths";
 
 export type SessionListInput = SessionListPayload;
@@ -251,13 +250,13 @@ function attachmentError(
   return new SessionRpcServiceError("attachment-error", message, { reason });
 }
 
-function admitSessionInlineImages(
-  parts: readonly Extract<SessionPromptContent, { type: "image" }>[],
-): PiImageContent[] {
+function admitSessionInlineAttachments(
+  parts: readonly Extract<SessionPromptContent, { type: "image" | "file" }>[],
+) {
   try {
-    return admitInlineImages(parts);
+    return admitInlineAttachments(parts);
   } catch (error) {
-    if (error instanceof InlineImageAdmissionError) {
+    if (error instanceof InlineAttachmentAdmissionError) {
       throw attachmentError(error.reason, error.message);
     }
     throw error;
@@ -1087,9 +1086,10 @@ export class SessionRpcService {
       )
       .map((part) => part.text)
       .join("\n\n");
-    const images = admitSessionInlineImages(
+    const attachments = admitSessionInlineAttachments(
       input.content.filter(
-        (part): part is Extract<SessionPromptContent, { type: "image" }> => part.type === "image",
+        (part): part is Extract<SessionPromptContent, { type: "image" | "file" }> =>
+          part.type === "image" || part.type === "file",
       ),
     );
     const composerHasSemantics = Boolean(
@@ -1102,12 +1102,18 @@ export class SessionRpcService {
         {},
       );
     }
-    if (!message.trim() && images.length === 0 && !composerHasSemantics) {
+    if (
+      !message.trim() &&
+      attachments.images.length === 0 &&
+      attachments.documents.length === 0 &&
+      !composerHasSemantics
+    ) {
       throw new SessionRpcServiceError("command-error", "The prompt has no content.", {});
     }
     const prompt: PiQueuedPrompt = {
       message,
-      ...(images.length ? { images } : {}),
+      ...(attachments.images.length ? { images: attachments.images } : {}),
+      ...(attachments.documents.length ? { documents: attachments.documents } : {}),
     };
     let admission: PromptSubmissionResult;
     try {

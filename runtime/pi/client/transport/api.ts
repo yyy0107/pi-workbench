@@ -14,6 +14,8 @@ import type {
   ClientResponse,
   CommandListPayload,
   CommandListValue,
+  AttachmentUnderstandingDescribeValue,
+  AttachmentUnderstandingUpdatePayload,
   ConfigureModelProviderPayload,
   DiscoverModelsPayload,
   DiscoverModelsValue,
@@ -24,8 +26,6 @@ import type {
   LocalAppOpenPayload,
   LocalAppOpenValue,
   LocalAppsListValue,
-  ImageUnderstandingDescribeValue,
-  ImageUnderstandingUpdatePayload,
   ModelCatalogValue,
   ModelContextWindowPayload,
   ModelContextWindowValue,
@@ -585,15 +585,20 @@ export function updatePiAgentSettings(
   return callPiRpc("settings.update", payload);
 }
 
-export function describeImageUnderstandingSettings(): Promise<ImageUnderstandingDescribeValue> {
+export function describeAttachmentUnderstandingSettings(): Promise<AttachmentUnderstandingDescribeValue> {
   return callPiRpc("imageUnderstanding.describe", {});
 }
 
-export function updateImageUnderstandingSettings(
-  payload: ImageUnderstandingUpdatePayload,
-): Promise<ImageUnderstandingDescribeValue> {
+export function updateAttachmentUnderstandingSettings(
+  payload: AttachmentUnderstandingUpdatePayload,
+): Promise<AttachmentUnderstandingDescribeValue> {
   return callPiRpc("imageUnderstanding.update", payload);
 }
+
+/** @deprecated Use the attachment-neutral settings API name. */
+export const describeImageUnderstandingSettings = describeAttachmentUnderstandingSettings;
+/** @deprecated Use the attachment-neutral settings API name. */
+export const updateImageUnderstandingSettings = updateAttachmentUnderstandingSettings;
 
 export function listPiRpcSessions(payload: SessionListPayload = {}): Promise<SessionListValue> {
   return callPiRpc("session.list", payload);

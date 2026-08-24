@@ -1,5 +1,6 @@
 import type {
   AppendMessage,
+  ImageMessagePart,
   MessageTiming,
   ThreadAssistantMessage,
   ThreadMessage,
@@ -9,12 +10,14 @@ import type {
 } from "@assistant-ui/react";
 
 import {
-  parseImageRecognitionSnapshot,
-  reconcileImageRecognitionSnapshot,
-  reduceImageRecognitionSnapshot,
+  parseAttachmentRecognitionSnapshot,
+  reconcileAttachmentRecognitionSnapshot,
+  reduceAttachmentRecognitionSnapshot,
+  WORKBENCH_ATTACHMENT_RECOGNITION_CUSTOM_TYPE,
+  WORKBENCH_ATTACHMENT_RECOGNITION_DATA_NAME,
   WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE,
   WORKBENCH_IMAGE_RECOGNITION_DATA_NAME,
-  type ImageRecognitionSnapshot,
+  type AttachmentRecognitionSnapshot,
 } from "../../../image-understanding/state-machine";
 
 import {
@@ -35,10 +38,12 @@ import type {
 import type {
   PiAgentMessage,
   PiAssistantMessage,
+  PiDocumentContent,
   PiImageContent,
   PiModelChangeConversationEvent,
   PiSessionHistory,
   PiToolResultMessage,
+  PiUserMessage,
 } from "../../contracts";
 import { stripWorkspaceFeedbackContext } from "@/services/workspace-feedback-service";
 import { PI_CONVERSATION_EVENT_CUSTOM_TYPE } from "../../contracts";
@@ -56,33 +61,55 @@ function metadata(custom: Record<string, unknown> = {}) {
   return { custom };
 }
 
-export function imageRecognitionSnapshotFromMessage(
-  message: ThreadMessage,
-): ImageRecognitionSnapshot | undefined {
-  const part = message.content.find(
-    (candidate) =>
-      candidate.type === "data" && candidate.name === WORKBENCH_IMAGE_RECOGNITION_DATA_NAME,
+function isRecognitionDataName(name: string): boolean {
+  return (
+    name === WORKBENCH_ATTACHMENT_RECOGNITION_DATA_NAME ||
+    name === WORKBENCH_IMAGE_RECOGNITION_DATA_NAME
   );
-  if (part?.type === "data") return parseImageRecognitionSnapshot(part.data);
-  return parseImageRecognitionSnapshot(message.metadata.custom.workbenchImageRecognition);
 }
 
-function imageRecognitionMessageStatus(
-  snapshot: ImageRecognitionSnapshot,
+function attachmentRecognitionMetadata(message: ThreadMessage): unknown {
+  return (
+    message.metadata.custom.workbenchAttachmentRecognition ??
+    message.metadata.custom.workbenchImageRecognition
+  );
+}
+
+export function attachmentRecognitionSubmissionIdFromMessage(
+  message: ThreadMessage,
+): string | undefined {
+  const value =
+    message.metadata.custom.workbenchAttachmentRecognitionSubmissionId ??
+    message.metadata.custom.workbenchImageRecognitionSubmissionId;
+  return typeof value === "string" ? value : undefined;
+}
+
+export function attachmentRecognitionSnapshotFromMessage(
+  message: ThreadMessage,
+): AttachmentRecognitionSnapshot | undefined {
+  const part = message.content.find(
+    (candidate) => candidate.type === "data" && isRecognitionDataName(candidate.name),
+  );
+  if (part?.type === "data") return parseAttachmentRecognitionSnapshot(part.data);
+  return parseAttachmentRecognitionSnapshot(attachmentRecognitionMetadata(message));
+}
+
+function attachmentRecognitionMessageStatus(
+  snapshot: AttachmentRecognitionSnapshot,
 ): ThreadAssistantMessage["status"] {
   return snapshot.status === "pending" || snapshot.status === "running"
     ? { type: "running" }
     : { type: "complete", reason: "unknown" };
 }
 
-export function imageRecognitionAssistantMessage(
-  snapshot: ImageRecognitionSnapshot,
+export function attachmentRecognitionAssistantMessage(
+  snapshot: AttachmentRecognitionSnapshot,
 ): ThreadAssistantMessage {
   return {
-    id: `workbench-image-recognition:${snapshot.operationId}`,
+    id: `workbench-attachment-recognition:${snapshot.operationId}`,
     role: "assistant",
-    content: [{ type: "data", name: WORKBENCH_IMAGE_RECOGNITION_DATA_NAME, data: snapshot }],
-    status: imageRecognitionMessageStatus(snapshot),
+    content: [{ type: "data", name: WORKBENCH_ATTACHMENT_RECOGNITION_DATA_NAME, data: snapshot }],
+    status: attachmentRecognitionMessageStatus(snapshot),
     createdAt: new Date(snapshot.timestamps?.createdAt ?? 0),
     metadata: {
       unstable_state: null,
@@ -90,34 +117,37 @@ export function imageRecognitionAssistantMessage(
       unstable_data: [],
       steps: [],
       custom: {
-        workbenchImageRecognition: snapshot,
-        workbenchImageRecognitionOnly: true,
-        workbenchImageRecognitionSubmissionId: snapshot.submissionId,
+        workbenchAttachmentRecognition: snapshot,
+        workbenchAttachmentRecognitionOnly: true,
+        workbenchAttachmentRecognitionSubmissionId: snapshot.submissionId,
         ...(snapshot.rpcId === undefined ? {} : { workbenchPromptRpcId: snapshot.rpcId }),
       },
     },
   };
 }
 
-export function isImageRecognitionOnlyAssistant(message: ThreadMessage): boolean {
+export function isAttachmentRecognitionOnlyAssistant(message: ThreadMessage): boolean {
   return (
     message.role === "assistant" &&
-    message.metadata.custom.workbenchImageRecognitionOnly === true &&
-    imageRecognitionSnapshotFromMessage(message) !== undefined
+    (message.metadata.custom.workbenchAttachmentRecognitionOnly === true ||
+      message.metadata.custom.workbenchImageRecognitionOnly === true) &&
+    message.content.length > 0 &&
+    message.content.every((part) => part.type === "data" && isRecognitionDataName(part.name)) &&
+    attachmentRecognitionSnapshotFromMessage(message) !== undefined
   );
 }
 
-function updateImageRecognitionAssistantPart(
+function updateAttachmentRecognitionAssistantPart(
   message: ThreadAssistantMessage,
   incomingValue: unknown,
   mergeSnapshot: (
-    current: ImageRecognitionSnapshot,
-    incoming: ImageRecognitionSnapshot,
-  ) => ImageRecognitionSnapshot,
+    current: AttachmentRecognitionSnapshot,
+    incoming: AttachmentRecognitionSnapshot,
+  ) => AttachmentRecognitionSnapshot,
 ): ThreadAssistantMessage {
-  const incoming = parseImageRecognitionSnapshot(incomingValue);
+  const incoming = parseAttachmentRecognitionSnapshot(incomingValue);
   if (!incoming) return message;
-  const current = imageRecognitionSnapshotFromMessage(message);
+  const current = attachmentRecognitionSnapshotFromMessage(message);
   let next = incoming;
   if (current) {
     try {
@@ -128,59 +158,59 @@ function updateImageRecognitionAssistantPart(
     if (next === current) return message;
   }
   const content = message.content.filter(
-    (part) => part.type !== "data" || part.name !== WORKBENCH_IMAGE_RECOGNITION_DATA_NAME,
+    (part) => part.type !== "data" || !isRecognitionDataName(part.name),
   );
   return {
     ...message,
     content: [
-      { type: "data", name: WORKBENCH_IMAGE_RECOGNITION_DATA_NAME, data: next },
+      { type: "data", name: WORKBENCH_ATTACHMENT_RECOGNITION_DATA_NAME, data: next },
       ...content,
     ],
-    ...(message.metadata.custom.workbenchImageRecognitionOnly === true
-      ? { status: imageRecognitionMessageStatus(next) }
+    ...(isAttachmentRecognitionOnlyAssistant(message)
+      ? { status: attachmentRecognitionMessageStatus(next) }
       : {}),
     metadata: {
       ...message.metadata,
       custom: {
         ...message.metadata.custom,
-        workbenchImageRecognition: next,
-        workbenchImageRecognitionSubmissionId: next.submissionId,
+        workbenchAttachmentRecognition: next,
+        workbenchAttachmentRecognitionSubmissionId: next.submissionId,
         ...(next.rpcId === undefined ? {} : { workbenchPromptRpcId: next.rpcId }),
       },
     },
   };
 }
 
-export function upsertImageRecognitionAssistantPart(
+export function upsertAttachmentRecognitionAssistantPart(
   message: ThreadAssistantMessage,
   incomingValue: unknown,
 ): ThreadAssistantMessage {
-  return updateImageRecognitionAssistantPart(
+  return updateAttachmentRecognitionAssistantPart(
     message,
     incomingValue,
-    reduceImageRecognitionSnapshot,
+    reduceAttachmentRecognitionSnapshot,
   );
 }
 
-export function reconcileImageRecognitionAssistantPart(
+export function reconcileAttachmentRecognitionAssistantPart(
   message: ThreadAssistantMessage,
   incomingValue: unknown,
 ): ThreadAssistantMessage {
-  return updateImageRecognitionAssistantPart(
+  return updateAttachmentRecognitionAssistantPart(
     message,
     incomingValue,
-    reconcileImageRecognitionSnapshot,
+    reconcileAttachmentRecognitionSnapshot,
   );
 }
 
-export function withoutImageRecognitionUserParts(
+export function withoutAttachmentRecognitionUserParts(
   messages: readonly ThreadMessage[],
 ): ThreadMessage[] {
   let changed = false;
   const updated = messages.map((message) => {
     if (message.role !== "user") return message;
     const content = message.content.filter(
-      (part) => part.type !== "data" || part.name !== WORKBENCH_IMAGE_RECOGNITION_DATA_NAME,
+      (part) => part.type !== "data" || !isRecognitionDataName(part.name),
     );
     if (content.length === message.content.length) return message;
     changed = true;
@@ -189,23 +219,23 @@ export function withoutImageRecognitionUserParts(
   return changed ? updated : (messages as ThreadMessage[]);
 }
 
-function updateImageRecognitionInMessages(
+function updateAttachmentRecognitionInMessages(
   messages: readonly ThreadMessage[],
   incomingValue: unknown,
   updatePart: (
     message: ThreadAssistantMessage,
-    incoming: ImageRecognitionSnapshot,
+    incoming: AttachmentRecognitionSnapshot,
   ) => ThreadAssistantMessage,
 ): ThreadMessage[] {
-  const incoming = parseImageRecognitionSnapshot(incomingValue);
+  const incoming = parseAttachmentRecognitionSnapshot(incomingValue);
   if (!incoming) return messages as ThreadMessage[];
 
-  let updated = withoutImageRecognitionUserParts(messages);
+  let updated = withoutAttachmentRecognitionUserParts(messages);
   const explicitAssistantIndex = updated.findIndex(
     (message) =>
       message.role === "assistant" &&
-      (imageRecognitionSnapshotFromMessage(message)?.operationId === incoming.operationId ||
-        message.metadata.custom.workbenchImageRecognitionSubmissionId === incoming.submissionId ||
+      (attachmentRecognitionSnapshotFromMessage(message)?.operationId === incoming.operationId ||
+        attachmentRecognitionSubmissionIdFromMessage(message) === incoming.submissionId ||
         (incoming.rpcId !== undefined &&
           message.metadata.custom.workbenchPromptRpcId === incoming.rpcId)),
   );
@@ -215,8 +245,8 @@ function updateImageRecognitionInMessages(
       ((incoming.rpcId !== undefined &&
         message.metadata.custom.workbenchPromptRpcId === incoming.rpcId) ||
         message.metadata.custom.workbenchComposerSubmissionId === incoming.submissionId ||
-        parseImageRecognitionSnapshot(message.metadata.custom.workbenchImageRecognition)
-          ?.operationId === incoming.operationId),
+        parseAttachmentRecognitionSnapshot(attachmentRecognitionMetadata(message))?.operationId ===
+          incoming.operationId),
   );
   if (userIndex >= 0) {
     const user = updated[userIndex];
@@ -228,7 +258,7 @@ function updateImageRecognitionInMessages(
           ...user.metadata,
           custom: {
             ...user.metadata.custom,
-            workbenchImageRecognition: incoming,
+            workbenchAttachmentRecognition: incoming,
           },
         },
       };
@@ -268,31 +298,48 @@ function updateImageRecognitionInMessages(
     updated[userIndex]?.metadata.custom.workbenchComposerProjectionResolved === true;
   const insertionIndex = resolvedUser ? userIndex + 1 : updated.length;
   updated = [...updated];
-  updated.splice(insertionIndex, 0, imageRecognitionAssistantMessage(incoming));
+  updated.splice(insertionIndex, 0, attachmentRecognitionAssistantMessage(incoming));
   return updated;
 }
 
-export function upsertImageRecognitionInMessages(
+export function upsertAttachmentRecognitionInMessages(
   messages: readonly ThreadMessage[],
   incomingValue: unknown,
 ): ThreadMessage[] {
-  return updateImageRecognitionInMessages(
+  return updateAttachmentRecognitionInMessages(
     messages,
     incomingValue,
-    upsertImageRecognitionAssistantPart,
+    upsertAttachmentRecognitionAssistantPart,
   );
 }
 
-export function reconcileImageRecognitionInMessages(
+export function reconcileAttachmentRecognitionInMessages(
   messages: readonly ThreadMessage[],
   incomingValue: unknown,
 ): ThreadMessage[] {
-  return updateImageRecognitionInMessages(
+  return updateAttachmentRecognitionInMessages(
     messages,
     incomingValue,
-    reconcileImageRecognitionAssistantPart,
+    reconcileAttachmentRecognitionAssistantPart,
   );
 }
+
+/** @deprecated Use the attachment-recognition name. */
+export const imageRecognitionSnapshotFromMessage = attachmentRecognitionSnapshotFromMessage;
+/** @deprecated Use the attachment-recognition name. */
+export const imageRecognitionAssistantMessage = attachmentRecognitionAssistantMessage;
+/** @deprecated Use the attachment-recognition name. */
+export const isImageRecognitionOnlyAssistant = isAttachmentRecognitionOnlyAssistant;
+/** @deprecated Use the attachment-recognition name. */
+export const upsertImageRecognitionAssistantPart = upsertAttachmentRecognitionAssistantPart;
+/** @deprecated Use the attachment-recognition name. */
+export const reconcileImageRecognitionAssistantPart = reconcileAttachmentRecognitionAssistantPart;
+/** @deprecated Use the attachment-recognition name. */
+export const withoutImageRecognitionUserParts = withoutAttachmentRecognitionUserParts;
+/** @deprecated Use the attachment-recognition name. */
+export const upsertImageRecognitionInMessages = upsertAttachmentRecognitionInMessages;
+/** @deprecated Use the attachment-recognition name. */
+export const reconcileImageRecognitionInMessages = reconcileAttachmentRecognitionInMessages;
 
 export function workbenchComposerCommandResponseId(
   response: Pick<WorkbenchComposerCommandResponseDetails, "submissionId" | "commandId">,
@@ -345,6 +392,52 @@ export function hasRunningWorkbenchCompactCommandResponse(
 function imageUrl(image: PiImageContent): string {
   if (image.data.startsWith("data:") || /^https?:\/\//i.test(image.data)) return image.data;
   return `data:${image.mimeType};base64,${image.data}`;
+}
+
+function threadImagePart(image: PiImageContent): ImageMessagePart {
+  return {
+    type: "image",
+    image: imageUrl(image),
+    ...(image.name === undefined ? {} : { filename: image.name }),
+  };
+}
+
+function threadRecognizableAttachmentPart(attachment: {
+  data: string;
+  mimeType: string;
+  name?: string;
+}): ThreadUserMessage["content"][number] {
+  if (attachment.mimeType.startsWith("image/")) {
+    return threadImagePart({
+      type: "image",
+      data: attachment.data,
+      mimeType: attachment.mimeType,
+      ...(attachment.name === undefined ? {} : { name: attachment.name }),
+    });
+  }
+  const data = attachment.data.startsWith("data:")
+    ? attachment.data
+    : `data:${attachment.mimeType};base64,${attachment.data}`;
+  return {
+    type: "file",
+    data,
+    mimeType: attachment.mimeType,
+    ...(attachment.name === undefined ? {} : { filename: attachment.name }),
+  };
+}
+
+export function piUserMessageContent(
+  content: PiUserMessage["content"],
+): ThreadUserMessage["content"] {
+  if (typeof content === "string") {
+    return [{ type: "text", text: stripWorkspaceFeedbackContext(content) }];
+  }
+
+  return content.map((part) =>
+    part.type === "image"
+      ? threadImagePart(part)
+      : { type: "text", text: stripWorkspaceFeedbackContext(part.text) },
+  );
 }
 
 function messageContentText(content: string | readonly { type: string; text?: string }[]): string {
@@ -495,7 +588,7 @@ export function piAssistantToThreadMessage(
           ...(providerMetadata === undefined ? {} : { providerMetadata }),
         };
       case "image":
-        return { type: "image" as const, image: imageUrl(part) };
+        return threadImagePart(part);
       case "toolCall":
         const toolTiming =
           toolTimingById?.get(part.id) ??
@@ -760,12 +853,32 @@ export function coalesceConsecutiveAssistantMessages(
     const first = assistantGroup[0];
     if (!first) return;
 
-    const content = [...first.content];
+    const content: ThreadAssistantMessage["content"][number][] = [];
+    const appendContent = (parts: ThreadAssistantMessage["content"]) => {
+      for (const part of parts) {
+        if (part.type === "data" && isRecognitionDataName(part.name)) {
+          const previousIndex = content.findIndex(
+            (candidate) => candidate.type === "data" && isRecognitionDataName(candidate.name),
+          );
+          if (previousIndex >= 0) {
+            // Attachment recognition is one aggregate state machine per assistant turn.
+            // Retries can leave several consecutive recognition-only assistant
+            // fragments in history; retain the newest snapshot instead of exposing
+            // every fragment as a duplicate timeline step.
+            content[previousIndex] = part;
+            continue;
+          }
+        }
+        content.push(part);
+      }
+    };
+
+    appendContent(first.content);
     let merged = first;
     for (let index = 1; index < assistantGroup.length; index += 1) {
       const next = assistantGroup[index];
       if (!next) continue;
-      if (!isEmptyStreamingPlaceholder(next)) content.push(...next.content);
+      if (!isEmptyStreamingPlaceholder(next)) appendContent(next.content);
       merged = {
         ...merged,
         status: next.status,
@@ -824,7 +937,7 @@ export function piHistoryToThreadMessages(
   // Once its real user event arrives, keep the marker identity but render it at that event.
   const supersededComposerUserIndexes = new Set<number>();
   const composerCommandResponseIndexes = new Map<string, number>();
-  const imageRecognitionBySubmissionId = new Map<string, ImageRecognitionSnapshot>();
+  const attachmentRecognitionBySubmissionId = new Map<string, AttachmentRecognitionSnapshot>();
   const runningCompactCommandResponses = new Set<string>();
   const resolvedToolTimingById = new Map<string, ToolCallTiming>();
   for (const timing of history.context.toolTimings ?? []) {
@@ -850,17 +963,7 @@ export function piHistoryToThreadMessages(
     const id = previousMatches ? `${entryId}-${previousMatches}` : entryId;
     switch (message.role) {
       case "user": {
-        const content =
-          typeof message.content === "string"
-            ? [{ type: "text" as const, text: message.content }]
-            : message.content.map((part) =>
-                part.type === "image"
-                  ? { type: "image" as const, image: imageUrl(part) }
-                  : { type: "text" as const, text: stripWorkspaceFeedbackContext(part.text) },
-              );
-        if (typeof message.content === "string" && content[0]?.type === "text") {
-          content[0] = { ...content[0], text: stripWorkspaceFeedbackContext(content[0].text) };
-        }
+        const content = piUserMessageContent(message.content);
         const projection = message.workbenchComposer;
         const projectedIndex = projection
           ? composerUserIndexes.get(projection.submissionId)
@@ -890,10 +993,10 @@ export function piHistoryToThreadMessages(
                   piResolvedEntryId: history.context.entryIds[index],
                   piResolvedMessageTimestamp: message.timestamp ?? null,
                   workbenchComposerProjectionResolved: true,
-                  ...(imageRecognitionBySubmissionId.get(projection.submissionId) === undefined
+                  ...(attachmentRecognitionBySubmissionId.get(projection.submissionId) === undefined
                     ? {}
                     : {
-                        workbenchImageRecognition: imageRecognitionBySubmissionId.get(
+                        workbenchAttachmentRecognition: attachmentRecognitionBySubmissionId.get(
                           projection.submissionId,
                         ),
                       }),
@@ -938,10 +1041,10 @@ export function piHistoryToThreadMessages(
               : {
                   workbenchComposerSubmissionId: projection.submissionId,
                   workbenchComposerProjectionResolved: true,
-                  ...(imageRecognitionBySubmissionId.get(projection.submissionId) === undefined
+                  ...(attachmentRecognitionBySubmissionId.get(projection.submissionId) === undefined
                     ? {}
                     : {
-                        workbenchImageRecognition: imageRecognitionBySubmissionId.get(
+                        workbenchAttachmentRecognition: attachmentRecognitionBySubmissionId.get(
                           projection.submissionId,
                         ),
                       }),
@@ -980,14 +1083,13 @@ export function piHistoryToThreadMessages(
           const details = parseWorkbenchComposerUserDetails(message.details);
           if (details) {
             const messageIndex = messages.length;
-            const displayImages = (details.images ?? []).map((image) => ({
-              type: "image" as const,
-              image: imageUrl({ type: "image", data: image.data, mimeType: image.mimeType }),
-            }));
+            const displayAttachments = (details.attachments ?? details.images ?? []).map(
+              threadRecognizableAttachmentPart,
+            );
             const projectedMessage: ThreadUserMessage = {
               id,
               role: "user",
-              content: [{ type: "text", text: details.sourceText }, ...displayImages],
+              content: [{ type: "text", text: details.sourceText }, ...displayAttachments],
               attachments: [],
               createdAt: messageDate(
                 message.timestamp ?? history.context.entryCompletedAts?.[index] ?? undefined,
@@ -1009,10 +1111,10 @@ export function piHistoryToThreadMessages(
                 ...(details.status === undefined
                   ? {}
                   : { workbenchComposerStatus: details.status }),
-                ...(imageRecognitionBySubmissionId.get(details.submissionId) === undefined
+                ...(attachmentRecognitionBySubmissionId.get(details.submissionId) === undefined
                   ? {}
                   : {
-                      workbenchImageRecognition: imageRecognitionBySubmissionId.get(
+                      workbenchAttachmentRecognition: attachmentRecognitionBySubmissionId.get(
                         details.submissionId,
                       ),
                     }),
@@ -1021,33 +1123,35 @@ export function piHistoryToThreadMessages(
             messages.push(projectedMessage);
             composerUserIndexes.set(details.submissionId, messageIndex);
           }
-        } else if (message.customType === WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE) {
-          const incoming = parseImageRecognitionSnapshot(message.details);
+        } else if (
+          message.customType === WORKBENCH_ATTACHMENT_RECOGNITION_CUSTOM_TYPE ||
+          message.customType === WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE
+        ) {
+          const incoming = parseAttachmentRecognitionSnapshot(message.details);
           if (incoming) {
-            const current = imageRecognitionBySubmissionId.get(incoming.submissionId);
+            const current = attachmentRecognitionBySubmissionId.get(incoming.submissionId);
             let next = incoming;
             if (current) {
               try {
-                next = reduceImageRecognitionSnapshot(current, incoming);
+                next = reduceAttachmentRecognitionSnapshot(current, incoming);
               } catch {
                 break;
               }
             }
-            imageRecognitionBySubmissionId.set(incoming.submissionId, next);
+            attachmentRecognitionBySubmissionId.set(incoming.submissionId, next);
             const messageIndex = composerUserIndexes.get(incoming.submissionId);
             const projected = messageIndex === undefined ? undefined : messages[messageIndex];
             if (messageIndex !== undefined && projected?.role === "user") {
               messages[messageIndex] = {
                 ...projected,
                 content: projected.content.filter(
-                  (part) =>
-                    part.type !== "data" || part.name !== WORKBENCH_IMAGE_RECOGNITION_DATA_NAME,
+                  (part) => part.type !== "data" || !isRecognitionDataName(part.name),
                 ),
                 metadata: {
                   ...projected.metadata,
                   custom: {
                     ...projected.metadata.custom,
-                    workbenchImageRecognition: next,
+                    workbenchAttachmentRecognition: next,
                   },
                 },
               };
@@ -1172,8 +1276,8 @@ export function piHistoryToThreadMessages(
   let chronologicallyProjectedMessages = supersededComposerUserIndexes.size
     ? messages.filter((_message, index) => !supersededComposerUserIndexes.has(index))
     : messages;
-  for (const snapshot of imageRecognitionBySubmissionId.values()) {
-    chronologicallyProjectedMessages = reconcileImageRecognitionInMessages(
+  for (const snapshot of attachmentRecognitionBySubmissionId.values()) {
+    chronologicallyProjectedMessages = reconcileAttachmentRecognitionInMessages(
       chronologicallyProjectedMessages,
       snapshot,
     );
@@ -1187,14 +1291,22 @@ export function sameUserPrompt(left: ThreadUserMessage, right: ThreadUserMessage
   if (
     stripWorkspaceFeedbackContext(leftPrompt.text) !==
       stripWorkspaceFeedbackContext(rightPrompt.text) ||
-    leftPrompt.images.length !== rightPrompt.images.length
+    leftPrompt.images.length !== rightPrompt.images.length ||
+    leftPrompt.documents.length !== rightPrompt.documents.length
   ) {
     return false;
   }
-  return leftPrompt.images.every(
-    (image, index) =>
-      image.mimeType === rightPrompt.images[index]?.mimeType &&
-      image.data === rightPrompt.images[index]?.data,
+  return (
+    leftPrompt.images.every(
+      (image, index) =>
+        image.mimeType === rightPrompt.images[index]?.mimeType &&
+        image.data === rightPrompt.images[index]?.data,
+    ) &&
+    leftPrompt.documents.every(
+      (document, index) =>
+        document.mimeType === rightPrompt.documents[index]?.mimeType &&
+        document.data === rightPrompt.documents[index]?.data,
+    )
   );
 }
 
@@ -1241,12 +1353,27 @@ function splitDataUrl(value: string, fallbackMimeType: string, name?: string): P
   };
 }
 
+function splitDocumentDataUrl(
+  value: string,
+  fallbackMimeType: "application/pdf",
+  name?: string,
+): PiDocumentContent {
+  const match = /^data:([^;,]+);base64,([\s\S]*)$/.exec(value);
+  return {
+    type: "file",
+    mimeType: (match?.[1] ?? fallbackMimeType) as "application/pdf",
+    data: match?.[2] ?? value,
+    ...(name === undefined ? {} : { name }),
+  };
+}
+
 export function appendMessageToPiPrompt(
   message: Pick<AppendMessage, "content" | "attachments"> &
     Partial<Pick<AppendMessage, "runConfig">>,
 ): {
   text: string;
   images: PiImageContent[];
+  documents: PiDocumentContent[];
   composer?: WorkbenchComposerSubmission;
 } {
   const sourceText = message.content
@@ -1256,18 +1383,25 @@ export function appendMessageToPiPrompt(
   const composer = workbenchComposerSubmissionFromRunConfig(message.runConfig);
   const text = composer?.text ?? sourceText;
   const images: PiImageContent[] = [];
+  const documents: PiDocumentContent[] = [];
 
-  const collect = (part: (typeof message.content)[number]) => {
+  const collect = (part: (typeof message.content)[number], fallbackName?: string) => {
     if (part.type === "image") {
-      images.push(splitDataUrl(part.image, "image/png"));
+      images.push(splitDataUrl(part.image, "image/png", part.filename ?? fallbackName));
     } else if (part.type === "file" && part.mimeType.startsWith("image/")) {
-      images.push(splitDataUrl(part.data, part.mimeType, part.filename));
+      images.push(splitDataUrl(part.data, part.mimeType, part.filename ?? fallbackName));
+    } else if (part.type === "file" && part.mimeType === "application/pdf") {
+      documents.push(
+        splitDocumentDataUrl(part.data, "application/pdf", part.filename ?? fallbackName),
+      );
     }
   };
-  message.content.forEach(collect);
-  message.attachments?.forEach((attachment) => attachment.content.forEach(collect));
+  message.content.forEach((part) => collect(part));
+  message.attachments?.forEach((attachment) =>
+    attachment.content.forEach((part) => collect(part, attachment.name)),
+  );
 
-  return { text, images, ...(composer === undefined ? {} : { composer }) };
+  return { text, images, documents, ...(composer === undefined ? {} : { composer }) };
 }
 
 export function optimisticUserMessage(
@@ -1283,18 +1417,34 @@ export function optimisticUserMessage(
       part.type === "data" ||
       part.type === "audio",
   );
+  const attachmentParts: ThreadUserMessage["content"] = (message.attachments ?? []).flatMap(
+    (attachment) =>
+      attachment.content.flatMap((part) =>
+        part.type === "image" || part.type === "file"
+          ? [
+              {
+                ...part,
+                filename: part.filename ?? attachment.name,
+              },
+            ]
+          : [],
+      ),
+  );
+  const sentContent = [...content, ...attachmentParts];
   const composer = workbenchComposerSubmissionFromRunConfig(message.runConfig);
   const visibleContent: ThreadUserMessage["content"] = composer
     ? [
         { type: "text", text: composer.sourceText },
-        ...content.filter((part) => part.type === "image"),
+        ...sentContent.filter((part) => part.type === "image" || part.type === "file"),
       ]
-    : content;
+    : sentContent;
   return {
     id,
     role: "user",
     content: visibleContent,
-    attachments: message.attachments ?? [],
+    // Sent attachments are canonical message parts. Keeping both projections would render
+    // twice and make the optimistic layout differ from the persisted Pi history.
+    attachments: [],
     createdAt: message.createdAt,
     metadata: {
       ...metadata({

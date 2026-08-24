@@ -19,12 +19,14 @@ import {
   WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE,
 } from "@/runtime/composer-request";
 import {
-  parseImageRecognitionSnapshot,
-  reconcileImageRecognitionSnapshot,
-  reduceImageRecognitionSnapshot,
+  parseAttachmentRecognitionSnapshot,
+  reconcileAttachmentRecognitionSnapshot,
+  reduceAttachmentRecognitionSnapshot,
+  WORKBENCH_ATTACHMENT_RECOGNITION_CUSTOM_TYPE,
+  WORKBENCH_ATTACHMENT_RECOGNITION_DATA_NAME,
   WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE,
   WORKBENCH_IMAGE_RECOGNITION_DATA_NAME,
-  type ImageRecognitionSnapshot,
+  type AttachmentRecognitionSnapshot,
 } from "@/runtime/image-understanding/state-machine";
 import {
   appendWorkspaceFeedbackContext,
@@ -92,22 +94,24 @@ import {
 import {
   applyToolExecutionUpdate,
   appendMessageToPiPrompt,
+  attachmentRecognitionSnapshotFromMessage,
+  attachmentRecognitionSubmissionIdFromMessage,
   coalesceConsecutiveAssistantMessages,
   eventMessage,
   hasRunningWorkbenchCompactCommandResponse,
-  imageRecognitionSnapshotFromMessage,
-  isImageRecognitionOnlyAssistant,
+  isAttachmentRecognitionOnlyAssistant,
   optimisticUserMessage,
   piAssistantToThreadMessage,
   piHistoryToThreadMessages,
-  reconcileImageRecognitionInMessages,
-  reconcileImageRecognitionAssistantPart,
+  piUserMessageContent,
+  reconcileAttachmentRecognitionAssistantPart,
+  reconcileAttachmentRecognitionInMessages,
   reconcileLiveMessagesAfterHistory,
   sameUserPrompt,
-  upsertImageRecognitionInMessages,
-  upsertImageRecognitionAssistantPart,
+  upsertAttachmentRecognitionAssistantPart,
+  upsertAttachmentRecognitionInMessages,
   upsertWorkbenchComposerCommandResponse,
-  withoutImageRecognitionUserParts,
+  withoutAttachmentRecognitionUserParts,
   workbenchComposerCommandResponseId,
 } from "../messages/messages";
 import { draftSessionModelSelection } from "../models/model-selection";
@@ -136,13 +140,20 @@ const ARCHIVED_STORAGE_KEY = `${WORKBENCH_STORAGE_PREFIX}pi-archived-sessions`;
 const PINNED_STORAGE_KEY = `${WORKBENCH_STORAGE_PREFIX}pi-pinned-sessions`;
 const PINNED_WORKSPACES_STORAGE_KEY = "pi-workbench:pinned-workspaces";
 
+function isRecognitionDataName(name: string): boolean {
+  return (
+    name === WORKBENCH_ATTACHMENT_RECOGNITION_DATA_NAME ||
+    name === WORKBENCH_IMAGE_RECOGNITION_DATA_NAME
+  );
+}
+
 function livePiUserMessage(
   message: PiUserMessage,
   id: string,
   sequence: number | undefined,
   workbenchComposer: PiUserMessage["workbenchComposer"],
 ): ThreadUserMessage {
-  const appendMessage = queueItemAppendMessage({
+  const queueAppendMessage = queueItemAppendMessage({
     id,
     placement: "context",
     message: {
@@ -155,6 +166,10 @@ function livePiUserMessage(
       source: { kind: "user" },
     },
   });
+  const appendMessage = {
+    ...queueAppendMessage,
+    content: piUserMessageContent(message.content),
+  };
   const projected = optimisticUserMessage(appendMessage, id) as ThreadUserMessage;
   const content = workbenchComposer
     ? [
@@ -344,7 +359,10 @@ export class PiClientSession {
   private promptRequestPending = false;
   private localRunLeaseActive = false;
   private readonly pendingPromptRpcIds = new Set<string>();
-  private readonly imageRecognitionSnapshots = new Map<string, ImageRecognitionSnapshot>();
+  private readonly attachmentRecognitionSnapshots = new Map<
+    string,
+    AttachmentRecognitionSnapshot
+  >();
   private promptStartTimer?: ReturnType<typeof setTimeout>;
   private activeMessageTiming?: ActiveMessageTiming;
   private messagePublishScheduled = false;
@@ -568,7 +586,7 @@ export class PiClientSession {
       if (this.remoteIdValue !== remoteId) return;
       const history = piHistoryFromSessionEvents(remoteId, value);
       const projectedBaseMessages = this.stabilizeAuthoritativeMessageIds(
-        this.mergeImageRecognitionHistory(
+        this.mergeAttachmentRecognitionHistory(
           piHistoryToThreadMessages(history, this.messageTimingByTimestamp, this.toolTimingById),
         ),
         baseMessageIdsAtStart,
@@ -691,7 +709,7 @@ export class PiClientSession {
         {
           sessionId: submittedRemoteId,
           mode: "queue",
-          content: piPromptContent(promptText, prompt.images),
+          content: piPromptContent(promptText, prompt.images, prompt.documents),
           ...(prompt.composer === undefined ? {} : { composer: prompt.composer }),
           ...(clientTimeZone === undefined ? {} : { clientTimeZone }),
         },
@@ -837,6 +855,7 @@ export class PiClientSession {
           content: piPromptContent(
             appendWorkspaceFeedbackContext(prompt.message, workspaceFeedbackClaim?.items ?? []),
             prompt.images,
+            prompt.documents,
           ),
           ...(prompt.composer === undefined ? {} : { composer: prompt.composer }),
           ...(clientTimeZone === undefined ? {} : { clientTimeZone }),
@@ -972,12 +991,13 @@ export class PiClientSession {
     if (
       event.type === "message" &&
       event.role === "custom" &&
-      event.customType === WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE
+      (event.customType === WORKBENCH_ATTACHMENT_RECOGNITION_CUSTOM_TYPE ||
+        event.customType === WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE)
     ) {
-      const snapshot = parseImageRecognitionSnapshot(event.details);
+      const snapshot = parseAttachmentRecognitionSnapshot(event.details);
       if (snapshot) {
         this.markPromptStarted();
-        this.applyImageRecognitionSnapshot(snapshot);
+        this.applyAttachmentRecognitionSnapshot(snapshot);
       }
       return;
     }
@@ -1190,7 +1210,7 @@ export class PiClientSession {
 
     const previous = this.streamingMessage;
     const promptRpcId = previous.metadata.custom.workbenchPromptRpcId;
-    const submissionId = previous.metadata.custom.workbenchImageRecognitionSubmissionId;
+    const submissionId = attachmentRecognitionSubmissionIdFromMessage(previous);
     let projected: ThreadAssistantMessage = {
       ...message,
       metadata: {
@@ -1199,14 +1219,14 @@ export class PiClientSession {
           ...message.metadata.custom,
           ...(typeof promptRpcId === "string" ? { workbenchPromptRpcId: promptRpcId } : {}),
           ...(typeof submissionId === "string"
-            ? { workbenchImageRecognitionSubmissionId: submissionId }
+            ? { workbenchAttachmentRecognitionSubmissionId: submissionId }
             : {}),
         },
       },
     };
-    const recognition = imageRecognitionSnapshotFromMessage(previous);
+    const recognition = attachmentRecognitionSnapshotFromMessage(previous);
     if (recognition) {
-      projected = upsertImageRecognitionAssistantPart(projected, recognition);
+      projected = upsertAttachmentRecognitionAssistantPart(projected, recognition);
     }
     return projected;
   }
@@ -1237,7 +1257,7 @@ export class PiClientSession {
               candidate.role === "user" &&
               candidate.metadata.custom.piOptimistic === true &&
               candidate.metadata.custom.piUserMessageStarted !== true &&
-              (imageRecognitionSnapshotFromMessage(candidate)?.submissionId ===
+              (attachmentRecognitionSnapshotFromMessage(candidate)?.submissionId ===
                 workbenchComposer?.submissionId ||
                 sameUserPrompt(candidate, rawUserMessage) ||
                 sameUserPrompt(candidate, projectedUserMessage)),
@@ -1263,19 +1283,28 @@ export class PiClientSession {
       publishedId = optimistic.id;
       const authoritativeContent =
         activeIndex >= 0 || workbenchComposer ? projectedUserMessage.content : optimistic.content;
-      const authoritativeImages = new Set(
-        authoritativeContent.flatMap((part) => (part.type === "image" ? [part.image] : [])),
+      const authoritativeAttachments = new Set(
+        authoritativeContent.flatMap((part) =>
+          part.type === "image"
+            ? [`image:${part.image}`]
+            : part.type === "file"
+              ? [`file:${part.mimeType}:${part.data}`]
+              : [],
+        ),
       );
-      const optimisticDisplayImages = optimistic.content.filter(
-        (part) => part.type === "image" && !authoritativeImages.has(part.image),
+      const optimisticDisplayAttachments = optimistic.content.filter(
+        (part) =>
+          (part.type === "image" && !authoritativeAttachments.has(`image:${part.image}`)) ||
+          (part.type === "file" &&
+            !authoritativeAttachments.has(`file:${part.mimeType}:${part.data}`)),
       );
       this.liveMessages[optimisticIndex] = {
         ...optimistic,
         content: [
           ...authoritativeContent.filter(
-            (part) => part.type !== "data" || part.name !== WORKBENCH_IMAGE_RECOGNITION_DATA_NAME,
+            (part) => part.type !== "data" || !isRecognitionDataName(part.name),
           ),
-          ...optimisticDisplayImages,
+          ...optimisticDisplayAttachments,
         ],
         createdAt: projectedUserMessage.createdAt,
         metadata: {
@@ -1329,46 +1358,47 @@ export class PiClientSession {
     this.publishMessages();
   }
 
-  private applyImageRecognitionSnapshot(incoming: ImageRecognitionSnapshot): void {
-    const current = this.imageRecognitionSnapshots.get(incoming.operationId);
+  private applyAttachmentRecognitionSnapshot(incoming: AttachmentRecognitionSnapshot): void {
+    const current = this.attachmentRecognitionSnapshots.get(incoming.operationId);
     let next = incoming;
     if (current) {
       try {
-        next = reduceImageRecognitionSnapshot(current, incoming);
+        next = reduceAttachmentRecognitionSnapshot(current, incoming);
       } catch {
         return;
       }
       if (next === current) return;
     }
-    this.imageRecognitionSnapshots.set(next.operationId, next);
-    this.baseMessages = withoutImageRecognitionUserParts(this.baseMessages);
-    this.liveMessages = withoutImageRecognitionUserParts(this.liveMessages);
+    this.attachmentRecognitionSnapshots.set(next.operationId, next);
+    this.baseMessages = withoutAttachmentRecognitionUserParts(this.baseMessages);
+    this.liveMessages = withoutAttachmentRecognitionUserParts(this.liveMessages);
     const streamingRecognition = this.streamingMessage
-      ? imageRecognitionSnapshotFromMessage(this.streamingMessage)
+      ? attachmentRecognitionSnapshotFromMessage(this.streamingMessage)
       : undefined;
     const streamingPromptRpcId = this.streamingMessage?.metadata.custom.workbenchPromptRpcId;
-    const streamingSubmissionId =
-      this.streamingMessage?.metadata.custom.workbenchImageRecognitionSubmissionId;
+    const streamingSubmissionId = this.streamingMessage
+      ? attachmentRecognitionSubmissionIdFromMessage(this.streamingMessage)
+      : undefined;
     const belongsToStreamingAssistant =
       this.streamingMessage?.role === "assistant" &&
       (streamingRecognition?.operationId === next.operationId ||
         (next.rpcId !== undefined && streamingPromptRpcId === next.rpcId) ||
-        streamingSubmissionId === next.submissionId ||
-        (streamingRecognition === undefined && this.localRunLeaseActive));
+        streamingSubmissionId === next.submissionId);
     if (belongsToStreamingAssistant && this.streamingMessage?.role === "assistant") {
-      this.streamingMessage = upsertImageRecognitionAssistantPart(this.streamingMessage, next);
+      this.streamingMessage = upsertAttachmentRecognitionAssistantPart(this.streamingMessage, next);
     } else {
       const baseMessageIds = new Set(this.baseMessages.map((message) => message.id));
-      const projectedBaseMessages = upsertImageRecognitionInMessages(this.baseMessages, next);
+      const projectedBaseMessages = upsertAttachmentRecognitionInMessages(this.baseMessages, next);
       const detachedBaseStatus = projectedBaseMessages.find(
-        (message) => !baseMessageIds.has(message.id) && isImageRecognitionOnlyAssistant(message),
+        (message) =>
+          !baseMessageIds.has(message.id) && isAttachmentRecognitionOnlyAssistant(message),
       );
       this.baseMessages = projectedBaseMessages.filter((message) => baseMessageIds.has(message.id));
-      this.liveMessages = upsertImageRecognitionInMessages(this.liveMessages, next);
+      this.liveMessages = upsertAttachmentRecognitionInMessages(this.liveMessages, next);
       const liveHasStatus = this.liveMessages.some(
         (message) =>
           message.role === "assistant" &&
-          imageRecognitionSnapshotFromMessage(message)?.operationId === next.operationId,
+          attachmentRecognitionSnapshotFromMessage(message)?.operationId === next.operationId,
       );
       if (detachedBaseStatus && !liveHasStatus) {
         this.liveMessages.unshift(detachedBaseStatus);
@@ -1377,60 +1407,49 @@ export class PiClientSession {
     this.publishMessages();
   }
 
-  private mergeImageRecognitionHistory(messages: readonly ThreadMessage[]): ThreadMessage[] {
+  private mergeAttachmentRecognitionHistory(messages: readonly ThreadMessage[]): ThreadMessage[] {
     for (const message of messages) {
-      const incoming = imageRecognitionSnapshotFromMessage(message);
+      const incoming = attachmentRecognitionSnapshotFromMessage(message);
       if (!incoming) continue;
-      const current = this.imageRecognitionSnapshots.get(incoming.operationId);
+      const current = this.attachmentRecognitionSnapshots.get(incoming.operationId);
       if (!current) {
-        this.imageRecognitionSnapshots.set(incoming.operationId, incoming);
+        this.attachmentRecognitionSnapshots.set(incoming.operationId, incoming);
         continue;
       }
       try {
-        const next = reconcileImageRecognitionSnapshot(current, incoming);
-        if (next !== current) this.imageRecognitionSnapshots.set(next.operationId, next);
+        const next = reconcileAttachmentRecognitionSnapshot(current, incoming);
+        if (next !== current) this.attachmentRecognitionSnapshots.set(next.operationId, next);
       } catch {
         // Keep the last valid live snapshot when persisted history conflicts at one revision.
       }
     }
 
-    let reconciled = withoutImageRecognitionUserParts(messages);
-    for (const snapshot of this.imageRecognitionSnapshots.values()) {
+    let reconciled = withoutAttachmentRecognitionUserParts(messages);
+    for (const snapshot of this.attachmentRecognitionSnapshots.values()) {
       const streamingRecognition = this.streamingMessage
-        ? imageRecognitionSnapshotFromMessage(this.streamingMessage)
+        ? attachmentRecognitionSnapshotFromMessage(this.streamingMessage)
         : undefined;
       const streamingPromptRpcId = this.streamingMessage?.metadata.custom.workbenchPromptRpcId;
-      const streamingSubmissionId =
-        this.streamingMessage?.metadata.custom.workbenchImageRecognitionSubmissionId;
-      const matchingUserIndex = reconciled.findIndex(
-        (message) =>
-          message.role === "user" &&
-          (message.metadata.custom.workbenchComposerSubmissionId === snapshot.submissionId ||
-            (snapshot.rpcId !== undefined &&
-              message.metadata.custom.workbenchPromptRpcId === snapshot.rpcId)),
-      );
-      const lastUserIndex = reconciled.findLastIndex((message) => message.role === "user");
+      const streamingSubmissionId = this.streamingMessage
+        ? attachmentRecognitionSubmissionIdFromMessage(this.streamingMessage)
+        : undefined;
       const belongsToStreamingAssistant =
         this.streamingMessage?.role === "assistant" &&
         (streamingRecognition?.operationId === snapshot.operationId ||
           (snapshot.rpcId !== undefined && streamingPromptRpcId === snapshot.rpcId) ||
-          streamingSubmissionId === snapshot.submissionId ||
-          (streamingRecognition === undefined &&
-            this.snapshotValue.isRunning &&
-            matchingUserIndex >= 0 &&
-            matchingUserIndex === lastUserIndex));
+          streamingSubmissionId === snapshot.submissionId);
       if (belongsToStreamingAssistant && this.streamingMessage?.role === "assistant") {
-        this.streamingMessage = reconcileImageRecognitionAssistantPart(
+        this.streamingMessage = reconcileAttachmentRecognitionAssistantPart(
           this.streamingMessage,
           snapshot,
         );
         reconciled = reconciled.filter(
           (message) =>
-            !isImageRecognitionOnlyAssistant(message) ||
-            imageRecognitionSnapshotFromMessage(message)?.operationId !== snapshot.operationId,
+            !isAttachmentRecognitionOnlyAssistant(message) ||
+            attachmentRecognitionSnapshotFromMessage(message)?.operationId !== snapshot.operationId,
         );
       } else {
-        reconciled = reconcileImageRecognitionInMessages(reconciled, snapshot);
+        reconciled = reconcileAttachmentRecognitionInMessages(reconciled, snapshot);
       }
     }
     return reconciled;
@@ -1528,14 +1547,14 @@ export class PiClientSession {
 
   private discardEmptyOptimisticAssistant(): boolean {
     const message = this.streamingMessage;
-    const recognition = message ? imageRecognitionSnapshotFromMessage(message) : undefined;
+    const recognition = message ? attachmentRecognitionSnapshotFromMessage(message) : undefined;
     const recognitionOnly =
       message?.role === "assistant" &&
       recognition !== undefined &&
       message.content.every(
         (part) =>
           (part.type === "text" && part.text === "") ||
-          (part.type === "data" && part.name === WORKBENCH_IMAGE_RECOGNITION_DATA_NAME),
+          (part.type === "data" && isRecognitionDataName(part.name)),
       );
     if (
       message?.role === "assistant" &&
@@ -1553,14 +1572,14 @@ export class PiClientSession {
       this.insertCompletedAssistantMessage({
         ...message,
         content: message.content.filter(
-          (part) => part.type === "data" && part.name === WORKBENCH_IMAGE_RECOGNITION_DATA_NAME,
+          (part) => part.type === "data" && isRecognitionDataName(part.name),
         ),
         status: { type: "complete", reason: "unknown" },
         metadata: {
           ...message.metadata,
           custom: {
             ...message.metadata.custom,
-            workbenchImageRecognitionOnly: true,
+            workbenchAttachmentRecognitionOnly: true,
           },
         },
       });

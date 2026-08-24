@@ -10,3 +10,8 @@ export {
 } from "./shiki-catalog";
 export { useWorkbenchHighlightedCode } from "./use-workbench-highlighted-code";
 export { useWorkbenchHighlightedLines } from "./use-workbench-highlighted-lines";
+export {
+  WorkbenchCodeEditor,
+  WorkbenchCodeView,
+  type WorkbenchCodeLineDecoration,
+} from "./workbench-code-editor";

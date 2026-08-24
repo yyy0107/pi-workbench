@@ -1,11 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ReasoningMessagePart, ToolCallMessagePart } from "@assistant-ui/react";
+import type {
+  DataMessagePart,
+  ReasoningMessagePart,
+  ToolCallMessagePart,
+} from "@assistant-ui/react";
 import { WrenchIcon } from "lucide-react";
 
-import type { ToolPresentationDefinition } from "@/platform/extensions";
+import type { DataPresentationDefinition, ToolPresentationDefinition } from "@/platform/extensions";
 import {
+  dataTimelineState,
   liveReasoningPreview,
   reasoningPartTiming,
   reasoningPreview,
@@ -22,6 +27,10 @@ function tool(toolName: string, args: Record<string, unknown>): ToolCallMessageP
     args: args as ToolCallMessagePart["args"],
     argsText: JSON.stringify(args),
   };
+}
+
+function data(name: string, value: unknown): DataMessagePart {
+  return { type: "data", name, data: value };
 }
 
 test("maps reasoning and common Pi tools to compact timeline steps", () => {
@@ -46,6 +55,74 @@ test("maps reasoning and common Pi tools to compact timeline steps", () => {
       { kind: "searched", chip: "https://example.com/docs" },
     ],
   );
+});
+
+test("admits only data parts that opt into the shared work timeline", () => {
+  const presentations = {
+    "workbench.progress": {
+      display: "timeline",
+      isVisible: (part) => part.data !== "hidden",
+      isActive: (part) => part.data === "running",
+    },
+  } satisfies Readonly<Record<string, DataPresentationDefinition>>;
+
+  assert.deepEqual(dataTimelineState(data("workbench.progress", "running"), presentations), {
+    active: true,
+  });
+  assert.deepEqual(dataTimelineState(data("workbench.progress", "complete"), presentations), {
+    active: false,
+  });
+  assert.equal(dataTimelineState(data("workbench.progress", "hidden"), presentations), undefined);
+  assert.equal(dataTimelineState(data("unregistered", "running"), presentations), undefined);
+  assert.deepEqual(timelineSteps([data("workbench.progress", "complete")]), [{ kind: "data" }]);
+});
+
+test("keeps a data step in sequence with reasoning and tools", () => {
+  const recognition = data("workbench.image-recognition", { status: "succeeded" });
+  const parts = [
+    { type: "reasoning", text: "Inspect the request" } satisfies ReasoningMessagePart,
+    recognition,
+    tool("read", { path: "/workspace/result.ts" }),
+  ];
+
+  assert.deepEqual(
+    timelineEntries(parts).map((entry) =>
+      entry.kind === "part"
+        ? entry.part.type === "data"
+          ? entry.part.name
+          : entry.part.type === "reasoning"
+            ? "reasoning"
+            : entry.part.toolName
+        : entry.batchId,
+    ),
+    ["reasoning", "workbench.image-recognition", "read"],
+  );
+  assert.deepEqual(
+    timelineSteps(parts).map((step) => step.kind),
+    ["thinking", "data", "read"],
+  );
+});
+
+test("isolates failing data presentation predicates", () => {
+  const visibleFailure = {
+    progress: {
+      display: "timeline",
+      isVisible: () => {
+        throw new Error("broken visibility");
+      },
+    },
+  } satisfies Readonly<Record<string, DataPresentationDefinition>>;
+  const activeFailure = {
+    progress: {
+      display: "timeline",
+      isActive: () => {
+        throw new Error("broken activity");
+      },
+    },
+  } satisfies Readonly<Record<string, DataPresentationDefinition>>;
+
+  assert.equal(dataTimelineState(data("progress", {}), visibleFailure), undefined);
+  assert.deepEqual(dataTimelineState(data("progress", {}), activeFailure), { active: false });
 });
 
 test("uses an exact registered tool presentation without changing fallback classification", () => {
@@ -82,6 +159,8 @@ test("falls back to the existing summary when an extension summary is unavailabl
     inspect: presentation,
   });
 
+  assert.notEqual(step?.kind, "data");
+  if (!step || step.kind === "data") return;
   assert.equal(step?.chip, "/workspace/thread.tsx");
   assert.equal(step?.presentation, presentation);
 });
@@ -153,7 +232,9 @@ test("groups only adjacent tools carrying the same parallel batch metadata", () 
       entry.kind === "part"
         ? entry.part.type === "reasoning"
           ? "reasoning"
-          : entry.part.toolName
+          : entry.part.type === "data"
+            ? "data"
+            : entry.part.toolName
         : `${entry.batchId}:${entry.parts.map((part) => part.toolName).join(",")}`,
     ),
     ["reasoning", "batch-a:read,search", "bash", "read", "batch-b:read,edit"],

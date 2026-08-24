@@ -58,7 +58,8 @@ Unary RPC 是 session、workspace 和 running 状态的权威快照；WebSocket 
 - Skills：`skill.list`；
 - Commands：`command.list`；
 - Extensions：`extension.list`；
-- Settings：`settings.describe`、`settings.openDocument`、`settings.update`；
+- Settings：`settings.describe`、`settings.openDocument`、`settings.update`，以及附件识别配置
+  `imageUnderstanding.describe`、`imageUnderstanding.update`；
 - LLM：`llm.providers`、`llm.providerConfig`、`llm.startProviderLogin`、
   `llm.providerLogin`、`llm.respondProviderLogin`、`llm.cancelProviderLogin`、`llm.configureProvider`、
   `llm.removeProvider`、`llm.modelContextWindow`、`llm.updateModelContextWindow`、
@@ -343,7 +344,8 @@ token 到达前连接的客户端也能建立正确 stream。最终 durable `mes
   精确回滚；
 - queue item 有稳定 ID，可执行 edit、remove、follow-up 重排或将 follow-up 提升为 steer；
 - prompt 的 `rpcId` 和规范化 IANA client timezone 会作为 provenance 写入 JSONL；
-- inline image 会在进入 Pi 前校验 base64、文件签名、媒体类型和模型图片能力；
+- inline 图片和 PDF 会在进入 session 前校验 base64、文件签名、媒体类型及大小；附件路由会在
+  文本模型运行前决定原生视觉或 OCR 预处理；
 - fork 只在可证明已持久化的完整 turn boundary 建立独立 child，不替换或修改 source session；
 - create、rename、fork、cold rename、running 状态、归档状态和 workspace 变更都会发布对应实时增量；
 - export 直接流式打包原始 JSONL，不先把整个 ZIP 或 session 读入内存。
@@ -523,14 +525,79 @@ node --no-warnings=ExperimentalWarning \
 RPC envelope、恶意 Host 的 `403`、普通 stream GET 的 `426`、两个 WS handshake，以及向
 downlink 发送消息后的 `1008` close。
 
+## OCR 适配器规范
+
+OCR 设置中的源码是以下形式的有效 TypeScript，但运行时不会把它交给 TypeScript/JavaScript 引擎：
+
+```ts
+export default defineOcrAdapter({
+  version: 1,
+  id: "example-ocr",
+  label: "Example OCR",
+  accepts: ["image"],
+  authentication: { header: "Authorization", prefix: "Bearer " },
+  request: {
+    kind: "json",
+    body: { model: "$model", file: "$attachment.dataUrl" },
+  },
+  operation: {
+    kind: "sync",
+    output: {
+      strategy: "first-non-empty",
+      rules: [{ path: "result.text", format: "text" }],
+    },
+  },
+});
+```
+
+服务端提取中间的严格 JSON，执行字段白名单、长度/深度/数组上限、标识符、HTTP header、路径语法和
+版本校验后，再交给统一执行器。源码不能包含注释、import、函数、表达式或 wrapper 外的语句；因此
+它不是 Node `vm` 沙箱，也不会获得 `process`、文件系统、环境变量或原始凭据。
+
+版本 1 的顶层字段如下：
+
+- `id` / `label`：稳定 Provider ID 和展示标签；
+- `accepts`：`image`、`pdf` 或两者；
+- `authentication`：写入凭据的 header 和 prefix。凭据仍由服务端独立的 mode-0600 settings
+  document 保存，不出现在源码或 describe RPC；
+- `request`：`json` body 模板或 `multipart` 文件字段/普通字段。模板值支持 `$model`、
+  `$attachment.dataUrl`、`$attachment.base64`、`$attachment.name` 和
+  `$attachment.mimeType`；
+- `api`：可选的服务码路径、成功值及到稳定 Workbench 错误码的映射；
+- `operation`：`sync` 直接按 output rules 取文本，或 `async-job` 声明 job ID、poll path、状态值、
+  JSONL/纯文本结果源和 output rules；
+- `retry`：仅对映射中显式标记 `retryable` 的提交错误做有界指数退避。
+
+output rule 使用受限 dot path，并以 `[]` 展平数组，例如
+`result.layoutParsingResults[].markdown.text` 或
+`result.ocrResults[].prunedResult.rec_texts[]`。多个 rule 按顺序执行，第一个非空结果获胜；JSONL
+逐行解析后再合并。所有 HTTP 请求仍受超时、取消、响应大小、HTTPS、重定向和结果下载 SSRF 防护。
+新增厂商或模型应优先新增/调整模板，不应在 session coordinator 中增加厂商分支。
+
 ## 当前能力边界
 
 - `session.attachment` 已保留协议形状，但 Pi 当前没有按 `attachmentId` 读取持久附件的仓库；
-  该方法稳定返回 `attachment-error`。发送 prompt 时的 inline image 已支持。
-- Inline image 仅接受 PNG、JPEG、WebP 和 GIF；最多 20 张，单张解码后最多 10 MiB，总计最多
-  25 MiB。媒体类型必须与文件签名一致。
-- 当前 queue edit 只接受 text content；图片 queue item 可以保留、删除或 steer，但不能通过该
-  RPC 改写为新的图片内容。
+  该方法稳定返回 `attachment-error`。发送 prompt 时的 inline 图片与 PDF 已支持。
+- Inline 附件最多 20 个。图片仅接受 PNG、JPEG、WebP 和 GIF，单张解码后最多 10 MiB；PDF
+  仅接受 `application/pdf`，单文件最多 50 MiB；混合附件解码后总计最多 50 MiB。媒体类型必须与
+  文件签名一致。
+- 附件预处理使用 `workbench.attachment-recognition.v1` 状态机，并以
+  `workbench.attachment-recognition` data part 合并到 AI 消息工作时间线；状态从 pending、running
+  进入 succeeded/failed/cancelled/skipped 终态，成功结果可展开。历史
+  `workbench.image-recognition.v1` 事件仍可读取，但新事件不再使用图片专属字段名。
+- 图片与 PDF 使用种类内独立、从 1 开始的稳定引用（`image-1`、`image-2`、`pdf-1` 等）。同一引用
+  同时用于展开结果和隔离的模型上下文，因此用户说“图一 / 图二”时不会依赖 Provider 返回顺序；
+  旧历史中的通用附件 ID 会按结果顺序回退显示为“附件 N”。
+- OCR 通过版本化的声明式 TypeScript 适配器执行。设置页内置 GLM-OCR、PaddleOCR-VL-1.6、
+  PP-OCRv6 和 PP-StructureV3 模板，也允许编辑自定义适配器。适配器声明鉴权头、JSON/Multipart
+  请求、同步/异步作业、错误码、轮询状态、结果 URL 和文本提取路径；服务端只把源码解析为受限
+  数据，不执行 import、函数或任意 JavaScript。多模态预处理仍使用固定的 Pi ModelRuntime 实现。
+- 内置 OCR 适配器接收图片与 PDF。PDF 不会作为 Pi 原生模型内容发送，也不会走当前仅支持图片的
+  多模态预处理；只要请求包含 PDF，路由就要求已配置且声明支持 PDF 的 OCR 适配器。识别文本以
+  隔离的 `workbench-untrusted-context` 注入文本模型，原始 Provider 响应、凭据与附件字节不会进入
+  状态消息。旧版 GLM/Paddle 配置在读取时映射为对应适配器，原凭据保持 write-only 且不会被覆盖。
+- 当前 queue edit 只接受 text content；附件 queue item 可以保留、删除或 steer，但不能通过该
+  RPC 改写为新的附件内容。
 - Skills 当前只实现 session-scoped `skill.list`；启停、编辑、安装和 reload 尚未加入 Workbench
   协议。
 - Extensions 当前只实现 session-scoped `extension.list`；启停、编辑、安装和 reload 尚未加入
@@ -540,7 +607,8 @@ downlink 发送消息后的 `1008` close。
   等价语义，并继续使用 Pi 的公开 API。
 - `session.create.agentPreset` 是兼容字段，当前 Pi session engine 不支持创建时选择 preset，传入
   后返回 `agent-preset-invalid`。
-- 不能把包含历史图片、活动图片 prompt 或待处理图片队列的 session 切换到 text-only model。
+- 历史图片在 text-only 模型上下文中会被稳定占位文本替换，不会阻止后续纯文字消息；仍不能在活动
+  图片 prompt 或待处理图片队列存在时切换到 text-only model。
 - `/api/pi/**`、`legacy-sse.ts` 和 legacy contracts 仍为兼容层；新 UI 的核心读写使用
   `/api/<method>` 与 mux/host WS。队列 pause 与 follow-up 重排暂时仍经过 legacy command，因为目标
   协议没有对应方法。

@@ -1,15 +1,20 @@
 import { ScanTextIcon } from "lucide-react";
+import type { DataMessagePart } from "@assistant-ui/react";
 
 import { defineMessage } from "@/i18n";
 import { defineExtension } from "@/platform/extensions";
 
-import { ImageUnderstandingSettingsItem } from "./image-understanding-settings-item";
-import { ImageRecognitionRenderer } from "./image-recognition-renderer";
-import { IMAGE_RECOGNITION_DATA_PART_NAME } from "./image-recognition-presentation";
+import { AttachmentUnderstandingSettingsItem } from "./image-understanding-settings-item";
+import { AttachmentRecognitionRenderer } from "./image-recognition-renderer";
+import {
+  ATTACHMENT_RECOGNITION_DATA_PART_NAME,
+  LEGACY_IMAGE_RECOGNITION_DATA_PART_NAME,
+  parseAttachmentRecognitionPresentation,
+} from "./image-recognition-presentation";
 
-export const imageUnderstandingExtension = defineExtension({
+export const attachmentUnderstandingExtension = defineExtension({
   id: "workbench.image-understanding",
-  name: "Image Understanding",
+  name: "Attachment Understanding",
   version: "1.0.0",
 
   setup(context) {
@@ -27,13 +32,39 @@ export const imageUnderstandingExtension = defineExtension({
     const item = context.settings.registerItem({
       sectionId: "image-understanding",
       id: "providers",
-      component: ImageUnderstandingSettingsItem,
+      component: AttachmentUnderstandingSettingsItem,
     });
     const renderer = context.renderers.data.register(
-      IMAGE_RECOGNITION_DATA_PART_NAME,
-      ImageRecognitionRenderer,
+      ATTACHMENT_RECOGNITION_DATA_PART_NAME,
+      AttachmentRecognitionRenderer,
+    );
+    const legacyRenderer = context.renderers.data.register(
+      LEGACY_IMAGE_RECOGNITION_DATA_PART_NAME,
+      AttachmentRecognitionRenderer,
+    );
+    const presentationDefinition = {
+      display: "timeline" as const,
+      isVisible(part: DataMessagePart) {
+        const state = parseAttachmentRecognitionPresentation(part.data);
+        return Boolean(state && !(state.status === "skipped" && state.method === "native"));
+      },
+      isActive(part: DataMessagePart) {
+        const state = parseAttachmentRecognitionPresentation(part.data);
+        return state?.status === "pending" || state?.status === "running";
+      },
+    };
+    const presentation = context.renderers.dataPresentations.register(
+      ATTACHMENT_RECOGNITION_DATA_PART_NAME,
+      presentationDefinition,
+    );
+    const legacyPresentation = context.renderers.dataPresentations.register(
+      LEGACY_IMAGE_RECOGNITION_DATA_PART_NAME,
+      presentationDefinition,
     );
 
-    return [section, item, renderer];
+    return [section, item, renderer, legacyRenderer, presentation, legacyPresentation];
   },
 });
+
+/** @deprecated The extension id is stable, but new code should use the attachment-neutral export. */
+export const imageUnderstandingExtension = attachmentUnderstandingExtension;

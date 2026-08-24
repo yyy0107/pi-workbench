@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 import type {
+  DataMessagePart,
   DataMessagePartComponent,
   ToolCallMessagePart,
   ToolCallMessagePartComponent,
@@ -113,10 +114,39 @@ export interface ToolPresentationRegistry {
 }
 
 /**
+ * 命名 Data Part 在消息工作轨迹中的展示声明。
+ *
+ * Data Renderer 仍然拥有步骤内容；该声明只让整条消息 Renderer 知道这个 Part 应和 reasoning、
+ * tool-call 一起进入工作时间线，以及它当前是否为活动步骤。谓词会在 React render 期间调用，
+ * 必须是纯函数、容忍未知 data，并且不能泄露或修改 payload。
+ */
+export interface DataPresentationDefinition {
+  /** 当前仅支持进入 reasoning/tool 共用时间线。 */
+  readonly display: "timeline";
+  /** 可选可见性判断；返回 false 时 Part 不进入时间线，仍由普通 Data Renderer 决定是否显示。 */
+  readonly isVisible?: (part: DataMessagePart) => boolean;
+  /** 可选活动状态判断，用于时间线的展开状态与进行中提示。 */
+  readonly isActive?: (part: DataMessagePart) => boolean;
+}
+
+/** 按 `data.name` 精确匹配 Data Part 时间线展示声明的可订阅 Registry。 */
+export interface DataPresentationRegistry {
+  /** 注册一个 Data Part 展示声明并返回撤销注册的 Disposable。 */
+  register(dataName: string, presentation: DataPresentationDefinition): Disposable;
+  /** 读取一个 Data Part 的展示声明。 */
+  get(dataName: string): DataPresentationDefinition | undefined;
+  /** 返回 dataName 到展示声明的冻结稳定快照。 */
+  getPresentationMap(): Readonly<Record<string, DataPresentationDefinition>>;
+  /** 订阅注册/注销变化并返回取消订阅函数。 */
+  subscribe(listener: () => void): () => void;
+}
+
+/**
  * 扩展可注册的消息呈现能力集合。
  *
  * `message` 决定整条消息如何遍历和分组；`tools`/`data` 提供可叠加的精确叶子 renderer；
- * `toolPresentations` 为工具调用提供与具体消息布局解耦的时间线元数据。
+ * `toolPresentations`/`dataPresentations` 为工具和命名 Data Part 提供与具体消息布局解耦的
+ * 时间线元数据。
  * 常见能力扩展应把其 Panel、Command、Slot 和相关 Tool/Data Renderer 放在同一 setup 生命周期
  * 中，使扩展停用时入口与展示一起清理。
  */
@@ -129,4 +159,6 @@ export interface RendererRegistry {
   readonly data: NamedRendererRegistry<DataRendererComponent>;
   /** 按 `toolName` 精确匹配的工具时间线展示描述。 */
   readonly toolPresentations: ToolPresentationRegistry;
+  /** 按 `data.name` 精确匹配的 Data Part 时间线展示描述。 */
+  readonly dataPresentations: DataPresentationRegistry;
 }

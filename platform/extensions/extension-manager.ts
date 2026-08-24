@@ -4,6 +4,7 @@ import { disposeAll, type Disposable } from "./api/disposable";
 import type { ExtensionContext, ExtensionSetupResult, WorkbenchExtension } from "./api/extension";
 import type { PanelRegistry } from "./api/panel";
 import type {
+  DataPresentationRegistry,
   DataRendererComponent,
   MessageRendererRegistry,
   NamedRendererRegistry,
@@ -202,6 +203,13 @@ export class ExtensionManager implements Disposable {
         getPresentationMap: () => this.renderers.toolPresentations.getPresentationMap(),
         subscribe: this.renderers.toolPresentations.subscribe,
       } satisfies ToolPresentationRegistry,
+      dataPresentations: {
+        register: (dataName, presentation) =>
+          track(this.renderers.dataPresentations.register(dataName, presentation)),
+        get: (dataName) => this.renderers.dataPresentations.get(dataName),
+        getPresentationMap: () => this.renderers.dataPresentations.getPresentationMap(),
+        subscribe: this.renderers.dataPresentations.subscribe,
+      } satisfies DataPresentationRegistry,
     };
 
     const settings: SettingsRegistry = {

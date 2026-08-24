@@ -1,14 +1,22 @@
-import type { ReasoningMessagePart, ToolCallMessagePart } from "@assistant-ui/react";
+import type {
+  DataMessagePart,
+  ReasoningMessagePart,
+  ToolCallMessagePart,
+} from "@assistant-ui/react";
 
-import type { ToolPresentationDefinition } from "@/platform/extensions";
+import type { DataPresentationDefinition, ToolPresentationDefinition } from "@/platform/extensions";
 
 export type ToolTimelineStepKind = "thinking" | "read" | "ran" | "edited" | "searched" | "used";
 
-export interface ToolTimelineStepModel {
-  kind: ToolTimelineStepKind;
-  chip: string;
-  presentation?: ToolPresentationDefinition;
-}
+export type ToolTimelineStepModel =
+  | {
+      kind: "data";
+    }
+  | {
+      kind: ToolTimelineStepKind;
+      chip: string;
+      presentation?: ToolPresentationDefinition;
+    };
 
 export interface ToolTimelineStatModel {
   file: string;
@@ -16,7 +24,7 @@ export interface ToolTimelineStatModel {
   removed?: number;
 }
 
-type TimelineSourcePart = ReasoningMessagePart | ToolCallMessagePart;
+export type TimelineSourcePart = ReasoningMessagePart | ToolCallMessagePart | DataMessagePart;
 
 export type ToolTimelineEntry =
   | {
@@ -30,6 +38,32 @@ export type ToolTimelineEntry =
       parts: readonly ToolCallMessagePart[];
       sourceIndices: readonly number[];
     };
+
+export interface DataTimelineState {
+  readonly active: boolean;
+}
+
+export function dataTimelineState(
+  part: DataMessagePart,
+  presentations: Readonly<Record<string, DataPresentationDefinition>>,
+): DataTimelineState | undefined {
+  const presentation = Object.hasOwn(presentations, part.name)
+    ? presentations[part.name]
+    : undefined;
+  if (!presentation || presentation.display !== "timeline") return undefined;
+
+  try {
+    if (presentation.isVisible && !presentation.isVisible(part)) return undefined;
+  } catch {
+    return undefined;
+  }
+
+  try {
+    return { active: presentation.isActive?.(part) === true };
+  } catch {
+    return { active: false };
+  }
+}
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {
   return value !== null && typeof value === "object" && !Array.isArray(value)
@@ -189,22 +223,22 @@ export function timelineSteps(
   parts: readonly TimelineSourcePart[],
   presentations: Readonly<Record<string, ToolPresentationDefinition>> = {},
 ): ToolTimelineStepModel[] {
-  return parts.flatMap((part) => {
+  return parts.map((part): ToolTimelineStepModel => {
+    if (part.type === "data") return { kind: "data" };
+
     if (part.type === "reasoning") {
       const chip = reasoningPreview(part.text || part.unstable_summary || "") || "…";
-      return [{ kind: "thinking" as const, chip }];
+      return { kind: "thinking", chip };
     }
 
     const presentation = Object.hasOwn(presentations, part.toolName)
       ? presentations[part.toolName]
       : undefined;
-    return [
-      {
-        kind: toolKind(part.toolName),
-        chip: toolChip(part, presentation),
-        ...(presentation ? { presentation } : {}),
-      },
-    ];
+    return {
+      kind: toolKind(part.toolName),
+      chip: toolChip(part, presentation),
+      ...(presentation ? { presentation } : {}),
+    };
   });
 }
 

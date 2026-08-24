@@ -1,12 +1,12 @@
 import {
   ImageUnderstandingProviderError,
-  type ImageUnderstandingObservation,
-  type ImageUnderstandingProvider,
-  type ImageUnderstandingRecognitionRequest,
+  type AttachmentRecognitionProvider,
+  type AttachmentRecognitionRequest,
+  type AttachmentUnderstandingObservation,
 } from "../contracts";
 import {
+  attachmentDataUrl,
   boundedFetchText,
-  imageDataUrl,
   parseJsonObject,
   requireHttpUrl,
   requirePositiveInteger,
@@ -28,7 +28,7 @@ export interface GlmOcrProviderOptions {
 const DEFAULT_TIMEOUT_MS = 300_000;
 const DEFAULT_MAX_RESPONSE_BYTES = 8 * 1024 * 1024;
 const DEFAULT_MAX_OBSERVATION_CHARACTERS = 250_000;
-const GLM_OCR_IMAGE_MEDIA_TYPES = new Set(["image/jpeg", "image/png"]);
+const GLM_OCR_ATTACHMENT_MEDIA_TYPES = new Set(["application/pdf", "image/jpeg", "image/png"]);
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -63,7 +63,7 @@ function normalizedResponse(payload: Record<string, unknown>): {
   throw new ImageUnderstandingProviderError("provider-invalid-response");
 }
 
-export class GlmOcrProvider implements ImageUnderstandingProvider {
+export class GlmOcrProvider implements AttachmentRecognitionProvider {
   readonly id = "glm-ocr" as const;
   readonly method = "ocr" as const;
   readonly endpoint: string;
@@ -89,21 +89,22 @@ export class GlmOcrProvider implements ImageUnderstandingProvider {
   }
 
   async recognize(
-    request: ImageUnderstandingRecognitionRequest,
-  ): Promise<ImageUnderstandingObservation[]> {
+    request: AttachmentRecognitionRequest,
+  ): Promise<AttachmentUnderstandingObservation[]> {
     if (
       !request.credential.trim() ||
-      request.images.length === 0 ||
-      request.images.some(
-        (image) => !image.id.trim() || !GLM_OCR_IMAGE_MEDIA_TYPES.has(image.mimeType),
+      request.attachments.length === 0 ||
+      request.attachments.some(
+        (attachment) =>
+          !attachment.id.trim() || !GLM_OCR_ATTACHMENT_MEDIA_TYPES.has(attachment.mimeType),
       )
     ) {
       throw new ImageUnderstandingProviderError("provider-invalid-input");
     }
 
-    const observations: ImageUnderstandingObservation[] = [];
+    const observations: AttachmentUnderstandingObservation[] = [];
     let observationCharacters = 0;
-    for (const image of request.images) {
+    for (const attachment of request.attachments) {
       if (request.signal?.aborted) {
         throw new ImageUnderstandingProviderError("provider-aborted");
       }
@@ -121,7 +122,7 @@ export class GlmOcrProvider implements ImageUnderstandingProvider {
           },
           body: JSON.stringify({
             model: this.model,
-            file: imageDataUrl(image),
+            file: attachmentDataUrl(attachment),
             return_crop_images: false,
             need_layout_visualization: false,
           }),
@@ -133,7 +134,9 @@ export class GlmOcrProvider implements ImageUnderstandingProvider {
         throw new ImageUnderstandingProviderError("provider-response-too-large");
       }
       observations.push({
-        imageId: image.id,
+        attachmentId: attachment.id,
+        kind: attachment.kind,
+        sequence: attachment.sequence,
         providerId: this.id,
         method: this.method,
         ...normalized,

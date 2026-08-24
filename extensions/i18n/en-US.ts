@@ -489,7 +489,7 @@ export const extensionsEnUS = {
     maxOutputTokens: "Maximum output tokens",
     imageInput: "Image input",
     imageInputDescription:
-      "Enable this only when the model accepts native image parts. Text-only models can use Workbench image understanding instead.",
+      "Enable this only when the model accepts native image parts. Text-only models can use Workbench attachment understanding instead.",
     expandModel: ({ name }: { name: string }) => `Expand ${name || "model"}`,
     collapseModel: ({ name }: { name: string }) => `Collapse ${name || "model"}`,
     removeModel: ({ name }: { name: string }) => `Remove ${name || "model"}`,
@@ -591,11 +591,11 @@ export const extensionsEnUS = {
     nonTextPreview: "This message contains attachments or structured content.",
   },
   imageUnderstanding: {
-    title: "Image understanding",
+    title: "Attachment understanding",
     description:
-      "Recognize images before a text-only model runs, using an OCR API or a multimodal model.",
+      "Recognize image and PDF attachments before a text-only model runs, using an OCR API or a multimodal model.",
     settings: {
-      loading: "Loading image understanding settings…",
+      loading: "Loading attachment understanding settings…",
       retry: "Retry",
       save: "Save",
       saving: "Saving…",
@@ -603,12 +603,12 @@ export const extensionsEnUS = {
       securityNote:
         "API keys are write-only. Workbench never returns a saved key to this settings screen.",
       routing: {
-        label: "Image routing",
-        description: "Choose when Workbench should preprocess image attachments.",
+        label: "Attachment routing",
+        description:
+          "Choose when Workbench should preprocess attachments. PDF documents always require a compatible OCR provider.",
         options: {
-          auto: "Automatic",
           alwaysPreprocess: "Always preprocess",
-          nativeOnly: "Native vision only",
+          nativeOnly: "Native vision only (images)",
           disabled: "Disabled",
         },
       },
@@ -628,6 +628,42 @@ export const extensionsEnUS = {
           paddle: "PaddleOCR",
         },
       },
+      ocrAdapter: {
+        label: "OCR adapter",
+        description: "Choose a built-in adapter template or edit a custom declarative adapter.",
+        title: "OCR adapter implementation",
+        sourceDescription:
+          "Endpoint, model, credential, polling, and the adapter source form one active OCR configuration.",
+        sourceLabel: "TypeScript adapter source",
+        sourceSecurity:
+          "This is a versioned declarative TypeScript object. Workbench parses it as data; imports, functions, and arbitrary JavaScript are not executed.",
+        exitEditor: "Press Escape to leave the adapter source editor.",
+        saveShortcut: "Save attachment understanding settings (Ctrl or Command + S)",
+        options: {
+          glm: "GLM-OCR",
+          paddleVl16: "PaddleOCR-VL-1.6",
+          ppOcrV6: "PP-OCRv6",
+          ppStructureV3: "PP-StructureV3",
+          custom: "Custom adapter",
+        },
+        operations: {
+          sync: "synchronous",
+          async: "asynchronous job",
+        },
+        kinds: {
+          image: "images",
+          pdf: "PDFs",
+        },
+        validSummary: ({
+          id,
+          operation,
+          kinds,
+        }: {
+          id: string;
+          operation: string;
+          kinds: string;
+        }) => `Valid adapter · ${id} · ${operation} · ${kinds}`,
+      },
       providers: {
         glmTitle: "GLM-OCR API",
         paddleTitle: "PaddleOCR API",
@@ -639,6 +675,7 @@ export const extensionsEnUS = {
         apiKeyPlaceholder: "Leave blank to keep the saved key",
         credentialConfigured: "A credential is configured. Enter a new key only to replace it.",
         credentialNotConfigured: "No credential is configured.",
+        openCredentialWebsite: ({ provider }: { provider: string }) => `Get a ${provider} API key`,
         clearCredential: "Clear key",
         pollInterval: "Poll interval (ms)",
         pollTimeout: "Poll timeout (ms)",
@@ -648,30 +685,46 @@ export const extensionsEnUS = {
         description:
           "Reference a provider and model already configured in Workbench model settings.",
         provider: "Provider",
+        providerPlaceholder: "Select a configured provider",
+        modelPlaceholder: "Select a configured model",
+        loadingModels: "Loading configured models…",
+        modelsLoadFailed: "Configured models could not be loaded. Open this menu to retry.",
+        noConfiguredProviders: "No configured providers have an image-capable model.",
+        selectProviderFirst: "Select a configured provider first.",
       },
       errors: {
-        loadFailed: "Image understanding settings could not be loaded.",
-        saveFailed: "Image understanding settings could not be saved. Try again.",
+        loadFailed: "Attachment understanding settings could not be loaded.",
+        saveFailed: "Attachment understanding settings could not be saved. Try again.",
         conflict: "These settings changed elsewhere. Reload them and try again.",
-        requiredFields: "Complete the required endpoint, provider, and model fields before saving.",
+        requiredFields: "Complete the adapter source, endpoint, and model fields before saving.",
         invalidEndpoint: "Enter a valid HTTPS endpoint.",
         invalidPolling: "Polling values must be positive whole numbers.",
+        invalidAdapterSource:
+          "The adapter source is invalid. Use export default defineOcrAdapter({ … }); with only supported version-one properties.",
+        hostRestartRequired:
+          "The running Workbench Host still uses the legacy OCR settings protocol. Restart Workbench before editing or using OCR adapters.",
+        unsupportedPaddleAsyncModel:
+          "The AI Studio async jobs endpoint supports PaddleOCR-VL-1.6, PaddleOCR-VL-1.5, PaddleOCR-VL, PP-StructureV3, or PP-OCRv5. Choose one of these model names.",
+        modelCatalogLoadFailed:
+          "Configured models could not be loaded. Try opening the provider menu again.",
+        configuredProviderRequired: "Select a configured provider with an image-capable model.",
+        configuredModelRequired: "Select an image-capable model configured for this provider.",
       },
     },
     recognition: {
       status: {
-        pending: "Image recognition queued",
-        running: "Recognizing images",
-        succeeded: "Image recognition complete",
-        failed: "Image recognition failed",
-        cancelled: "Image recognition cancelled",
-        skipped: "Image recognition skipped",
+        pending: "Attachment recognition queued",
+        running: "Recognizing attachments",
+        succeeded: "Attachment recognition complete",
+        failed: "Attachment recognition failed",
+        cancelled: "Attachment recognition cancelled",
+        skipped: "Attachment recognition skipped",
       },
       stages: {
         routing: "Choosing the recognition path…",
-        submitting: "Submitting images…",
+        submitting: "Submitting attachments…",
         polling: "Waiting for the OCR service…",
-        recognizing: "Recognizing image content…",
+        recognizing: "Recognizing attachment content…",
         normalizing: "Preparing recognized content…",
         fallback: "Trying the fallback recognizer…",
       },
@@ -683,9 +736,23 @@ export const extensionsEnUS = {
       progress: (
         { completed, total }: { completed: number; total: number },
         { number }: MessageFormatters,
-      ) => `${number(completed)} of ${number(total)} images`,
-      progressLabel: "Image recognition progress",
+      ) => `${number(completed)} of ${number(total)} attachments`,
+      progressLabel: "Attachment recognition progress",
       provider: ({ providerId }: { providerId: string }) => `Provider: ${providerId}`,
+      results: {
+        title: "Recognition result",
+        attachment: ({ index }: { index: number }, { number }: MessageFormatters) =>
+          `Attachment ${number(index)}`,
+        image: ({ index }: { index: number }, { number }: MessageFormatters) =>
+          `Image ${number(index)}`,
+        pdf: ({ index }: { index: number }, { number }: MessageFormatters) =>
+          `PDF ${number(index)}`,
+        formats: {
+          markdown: "Markdown",
+          text: "Plain text",
+        },
+        truncated: "The display is truncated; the model context retains the complete text.",
+      },
       errors: {
         authentication: "The recognition service rejected its credential.",
         configuration: "The recognition provider is not configured correctly.",
@@ -693,14 +760,41 @@ export const extensionsEnUS = {
         timeout: "The recognition service did not finish in time.",
         network: "Workbench could not reach the recognition service.",
         serviceUnavailable: "The recognition service is unavailable.",
-        unsupportedImage: "The recognition service does not support this image.",
+        unsupportedImage:
+          "The recognition service does not support this attachment or file format.",
         invalidResponse: "The recognition service returned an invalid response.",
-        generic: "The images could not be recognized.",
+        generic: "The attachments could not be recognized.",
+      },
+      diagnostics: {
+        title: "Failure details",
+        errorCode: "Workbench error code",
+        phase: "Failure phase",
+        reason: "Reason",
+        httpStatus: "HTTP status",
+        providerCode: "Provider code",
+        resultSource: "Result source",
+        method: "Method",
+        provider: "Provider",
+        sanitizedNote:
+          "Sensitive values, attachment content, endpoints, and raw provider responses are omitted.",
+        phases: {
+          configuration: "Configuration",
+          routing: "Routing",
+          submission: "Job submission",
+          polling: "Job polling",
+          resultDownload: "Result download",
+          resultParsing: "Result parsing",
+          normalizing: "Result normalization",
+        },
+        sources: {
+          jsonl: "JSONL",
+          markdown: "Markdown",
+        },
       },
       skipped: {
         native: "The selected model can read images directly.",
-        disabled: "Image preprocessing is disabled.",
-        notNeeded: "Image preprocessing was not needed.",
+        disabled: "Attachment preprocessing is disabled.",
+        notNeeded: "Attachment preprocessing was not needed.",
         generic: "No preprocessing was performed.",
       },
     },

@@ -17,6 +17,8 @@ export interface ToolCallProps {
   requestLabel: string;
   resultLabel: string;
   icon?: LucideIcon;
+  /** Optional optical-size correction for glyphs with unusually inset viewBox artwork. */
+  iconClassName?: string;
   running: boolean;
   failed?: boolean;
   failedLabel?: string;
@@ -39,6 +41,7 @@ export function ToolCall({
   requestLabel,
   resultLabel,
   icon: Icon,
+  iconClassName,
   running,
   failed = false,
   failedLabel,
@@ -61,6 +64,7 @@ export function ToolCall({
           className={cn(
             "size-3.5 shrink-0",
             hasCustomSummary ? "text-current" : "text-foreground/45",
+            iconClassName,
           )}
         />
       )}

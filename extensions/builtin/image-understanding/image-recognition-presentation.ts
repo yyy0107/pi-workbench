@@ -1,36 +1,45 @@
 import {
-  IMAGE_RECOGNITION_METHODS as SHARED_IMAGE_RECOGNITION_METHODS,
-  IMAGE_RECOGNITION_STAGES as SHARED_IMAGE_RECOGNITION_STAGES,
-  IMAGE_RECOGNITION_TERMINAL_STATUSES,
+  ATTACHMENT_RECOGNITION_METHODS as SHARED_ATTACHMENT_RECOGNITION_METHODS,
+  ATTACHMENT_RECOGNITION_STAGES as SHARED_ATTACHMENT_RECOGNITION_STAGES,
+  ATTACHMENT_RECOGNITION_TERMINAL_STATUSES,
+  WORKBENCH_ATTACHMENT_RECOGNITION_DATA_NAME,
   WORKBENCH_IMAGE_RECOGNITION_DATA_NAME,
-  parseImageRecognitionSnapshot,
-  type ImageRecognitionMethod as SharedImageRecognitionMethod,
-  type ImageRecognitionSnapshot,
-  type ImageRecognitionStage as SharedImageRecognitionStage,
-  type ImageRecognitionStatus as SharedImageRecognitionStatus,
+  parseAttachmentRecognitionSnapshot,
+  parseAttachmentReferenceId,
+  type AttachmentRecognitionMethod as SharedAttachmentRecognitionMethod,
+  type AttachmentRecognitionFailureDiagnostic,
+  type AttachmentRecognitionResultFormat as SharedAttachmentRecognitionResultFormat,
+  type AttachmentRecognitionSnapshot,
+  type AttachmentRecognitionStage as SharedAttachmentRecognitionStage,
+  type AttachmentRecognitionStatus as SharedAttachmentRecognitionStatus,
+  type AttachmentReferenceKind,
 } from "@/runtime/image-understanding/state-machine";
 
-export const IMAGE_RECOGNITION_DATA_PART_NAME = WORKBENCH_IMAGE_RECOGNITION_DATA_NAME;
+export const ATTACHMENT_RECOGNITION_DATA_PART_NAME = WORKBENCH_ATTACHMENT_RECOGNITION_DATA_NAME;
+export const LEGACY_IMAGE_RECOGNITION_DATA_PART_NAME = WORKBENCH_IMAGE_RECOGNITION_DATA_NAME;
+/** @deprecated Register the attachment-neutral data-part name for new messages. */
+export const IMAGE_RECOGNITION_DATA_PART_NAME = ATTACHMENT_RECOGNITION_DATA_PART_NAME;
 
 export const IMAGE_RECOGNITION_STATUSES = [
   "pending",
   "running",
-  ...IMAGE_RECOGNITION_TERMINAL_STATUSES,
+  ...ATTACHMENT_RECOGNITION_TERMINAL_STATUSES,
 ] as const;
 
-export const IMAGE_RECOGNITION_STAGES = SHARED_IMAGE_RECOGNITION_STAGES;
-export const IMAGE_RECOGNITION_METHODS = SHARED_IMAGE_RECOGNITION_METHODS;
+export const IMAGE_RECOGNITION_STAGES = SHARED_ATTACHMENT_RECOGNITION_STAGES;
+export const IMAGE_RECOGNITION_METHODS = SHARED_ATTACHMENT_RECOGNITION_METHODS;
 
-export type ImageRecognitionStatus = SharedImageRecognitionStatus;
-export type ImageRecognitionStage = SharedImageRecognitionStage;
-export type ImageRecognitionMethod = SharedImageRecognitionMethod;
+export type ImageRecognitionStatus = SharedAttachmentRecognitionStatus;
+export type ImageRecognitionStage = SharedAttachmentRecognitionStage;
+export type ImageRecognitionMethod = SharedAttachmentRecognitionMethod;
+export type ImageRecognitionResultFormat = SharedAttachmentRecognitionResultFormat;
 
 /**
  * The version-one transport shape emitted as a named assistant-ui data part.
  * The renderer deliberately keeps operation identifiers and timestamps out of
  * its presentation model so they can never become accidental user-facing text.
  */
-export type ImageRecognitionDataPartV1 = ImageRecognitionSnapshot;
+export type ImageRecognitionDataPartV1 = AttachmentRecognitionSnapshot;
 
 export type ImageRecognitionErrorKind =
   | "authentication"
@@ -45,15 +54,27 @@ export type ImageRecognitionErrorKind =
 
 export type ImageRecognitionSkipKind = "native" | "disabled" | "notNeeded" | "generic";
 
+export interface ImageRecognitionPresentationResult {
+  readonly attachmentId: string;
+  readonly referenceKind: AttachmentReferenceKind | "attachment";
+  readonly sequence: number;
+  readonly format: ImageRecognitionResultFormat;
+  readonly text: string;
+  readonly truncated?: true;
+}
+
 export interface ImageRecognitionPresentationState {
   readonly status: ImageRecognitionStatus;
   readonly stage?: ImageRecognitionStage;
   readonly method: ImageRecognitionMethod;
   readonly providerId?: string;
-  readonly imageCount: number;
+  readonly attachmentCount: number;
   readonly completedCount: number;
   /** Normalized finite progress in the inclusive range 0..1. */
   readonly progress: number;
+  readonly results: readonly ImageRecognitionPresentationResult[];
+  readonly errorCode?: string;
+  readonly diagnostic?: AttachmentRecognitionFailureDiagnostic;
   readonly errorKind?: ImageRecognitionErrorKind;
   readonly skipKind?: ImageRecognitionSkipKind;
 }
@@ -96,6 +117,7 @@ export function imageRecognitionErrorKind(errorCode: unknown): ImageRecognitionE
     case "image-settings-io":
     case "invalid-config":
     case "preprocessor-not-configured":
+    case "provider-configuration-invalid":
     case "provider-not-configured":
     case "recognition-disabled":
       return "configuration";
@@ -161,32 +183,53 @@ export function imageRecognitionSkipKind(
 
 /**
  * Safely narrows untrusted data-part payloads through the shared FSM parser,
- * then projects only the non-sensitive fields used by the renderer. Payloads
- * containing unknown fields such as OCR text, endpoint, API keys, request
- * bodies, or base64 image data are rejected instead of rendered.
+ * then projects only the fields used by the renderer. The terminal result is
+ * already bounded normalized user content; endpoint, API keys, request bodies,
+ * raw provider objects, and base64 image data remain structurally impossible.
  */
-export function parseImageRecognitionPresentation(
+export function parseAttachmentRecognitionPresentation(
   value: unknown,
 ): ImageRecognitionPresentationState | undefined {
-  const snapshot = parseImageRecognitionSnapshot(value);
+  const snapshot = parseAttachmentRecognitionSnapshot(value);
   if (!snapshot) return undefined;
 
   const providerId = safeIdentifier(snapshot.providerId);
-  const progress = snapshot.progress ?? snapshot.completedCount / snapshot.imageCount;
+  const progress = snapshot.progress ?? snapshot.completedCount / snapshot.attachmentCount;
 
   return {
     status: snapshot.status,
     ...(snapshot.status === "running" ? { stage: snapshot.stage } : {}),
     method: snapshot.method,
     ...(providerId ? { providerId } : {}),
-    imageCount: snapshot.imageCount,
+    attachmentCount: snapshot.attachmentCount,
     completedCount: snapshot.completedCount,
     progress,
+    results:
+      snapshot.status === "succeeded"
+        ? (snapshot.results?.map(({ attachmentId, format, text, truncated }, index) => {
+            const reference = parseAttachmentReferenceId(attachmentId);
+            return {
+              attachmentId,
+              referenceKind: reference?.kind ?? "attachment",
+              sequence: reference?.sequence ?? index + 1,
+              format,
+              text,
+              ...(truncated === true ? { truncated: true as const } : {}),
+            };
+          }) ?? [])
+        : [],
     ...(snapshot.status === "failed"
-      ? { errorKind: imageRecognitionErrorKind(snapshot.errorCode) }
+      ? {
+          errorCode: snapshot.errorCode,
+          ...(snapshot.diagnostic === undefined ? {} : { diagnostic: snapshot.diagnostic }),
+          errorKind: imageRecognitionErrorKind(snapshot.errorCode),
+        }
       : {}),
     ...(snapshot.status === "skipped"
       ? { skipKind: imageRecognitionSkipKind(snapshot.method, undefined, undefined) }
       : {}),
   };
 }
+
+/** @deprecated Use the attachment-neutral presentation parser for new integrations. */
+export const parseImageRecognitionPresentation = parseAttachmentRecognitionPresentation;

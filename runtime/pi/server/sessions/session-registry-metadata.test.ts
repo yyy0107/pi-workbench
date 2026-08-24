@@ -42,6 +42,7 @@ const {
   setPromptQueuePaused,
   steerQueuedPrompt,
   submitPrompt,
+  textOnlyModelContext,
   updatePromptQueueItem,
 } = (await import(
   new URL("./session-registry.ts", import.meta.url).href
@@ -72,6 +73,33 @@ test("detects image content across durable session message roles", () => {
     ]),
     true,
   );
+});
+
+test("projects historical images as placeholders for a text-only model without mutating history", () => {
+  const durable = [
+    {
+      role: "user",
+      content: [
+        { type: "text", text: "Keep this text" },
+        { type: "image", mimeType: "image/png", data: "private-image-data" },
+      ],
+    },
+    {
+      role: "toolResult",
+      content: [{ type: "image", mimeType: "image/png", data: "second-private-image" }],
+    },
+  ];
+
+  const projected = textOnlyModelContext(durable);
+
+  assert.equal(messagesHaveImages(projected), false);
+  assert.equal(messagesHaveImages(durable), true);
+  assert.equal(JSON.stringify(projected).includes("private-image-data"), false);
+  assert.match(JSON.stringify(projected), /Keep this text/);
+  assert.match(JSON.stringify(projected), /historical image 1/);
+  assert.match(JSON.stringify(projected), /historical image 2/);
+  const textOnly = [{ role: "user", content: "text only" }];
+  assert.equal(textOnlyModelContext(textOnly), textOnly);
 });
 
 test("projects Pi assistant updates into the compact public wire vocabulary", () => {
@@ -765,7 +793,7 @@ test("keeps a durable token-only user message when its built-in command fails", 
   );
 });
 
-test("preprocesses a generic image prompt and persists failure without starting the text model", async (t) => {
+test("keeps the model turn alive when attachment preprocessing fails", async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), "workbench-image-understanding-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
@@ -785,7 +813,30 @@ test("preprocesses a generic image prompt and persists failure without starting 
   const cwd = path.join(root, "project");
   await mkdir(cwd, { recursive: true });
   const host = await createSession(cwd, "image-understanding-missing-credential");
-  t.after(() => host.shutdown());
+  const fakeAgent = host.session as unknown as {
+    model?: unknown;
+    modelRuntime: { getAvailableSnapshot(): unknown[] };
+    prompt(
+      message: string,
+      options: { images?: unknown[]; preflightResult?: (accepted: boolean) => void },
+    ): Promise<void>;
+  };
+  const originalPrompt = fakeAgent.prompt;
+  const originalAvailableSnapshot = fakeAgent.modelRuntime.getAvailableSnapshot;
+  let forwardedPrompt = "";
+  let forwardedImages: unknown[] | undefined;
+  fakeAgent.modelRuntime.getAvailableSnapshot = () =>
+    fakeAgent.model === undefined ? [] : [fakeAgent.model];
+  fakeAgent.prompt = async (message, options) => {
+    forwardedPrompt = message;
+    forwardedImages = options.images;
+    options.preflightResult?.(true);
+  };
+  t.after(() => {
+    fakeAgent.prompt = originalPrompt;
+    fakeAgent.modelRuntime.getAvailableSnapshot = originalAvailableSnapshot;
+    return host.shutdown();
+  });
 
   await submitPrompt(
     host.id,
@@ -803,13 +854,14 @@ test("preprocesses a generic image prompt and persists failure without starting 
     },
     { rpcId: "image-recognition-rpc" },
   );
+  await new Promise<void>((resolve) => setImmediate(resolve));
 
   const history = await getSessionHistory(host.id);
   const marker = history.context.messages.find(
     (message) => message.role === "custom" && message.customType === "workbench.composer-user.v2",
   );
   assert.ok(marker && marker.role === "custom");
-  assert.deepEqual((marker.details as { images?: unknown }).images, [
+  assert.deepEqual((marker.details as { attachments?: unknown }).attachments, [
     { data: "iVBORw0KGgo=", mimeType: "image/png", name: "scan.png" },
   ]);
   const events = await getSessionEvents(host.id);
@@ -819,7 +871,7 @@ test("preprocesses a generic image prompt and persists failure without starting 
       details?: { status?: string; errorCode?: string; rpcId?: string };
     };
     return event.type === "message" &&
-      data.customType === "workbench.image-recognition.v1" &&
+      data.customType === "workbench.attachment-recognition.v1" &&
       data.details?.status
       ? [data.details]
       : [];
@@ -830,20 +882,134 @@ test("preprocesses a generic image prompt and persists failure without starting 
   );
   assert.equal(recognitionStates.at(-1)?.errorCode, "preprocessor-not-configured");
   assert.equal(recognitionStates.at(-1)?.rpcId, "image-recognition-rpc");
-  assert.equal(events.at(-1)?.type, "command_error");
+  assert.equal(
+    events.some((event) => event.type === "command_error"),
+    false,
+    "a recoverable attachment failure must not settle the whole prompt as failed",
+  );
+  assert.equal(forwardedImages, undefined, "unrecognized attachments must not reach a text model");
+  assert.match(forwardedPrompt, /Read the image/);
+  assert.match(forwardedPrompt, /"source":"workbench\.attachment-understanding-status"/);
+  assert.match(forwardedPrompt, /"status":"failed"/);
+  assert.match(forwardedPrompt, /"errorCode":"preprocessor-not-configured"/);
+  assert.match(forwardedPrompt, /"attachmentId":"image-1","kind":"image","sequence":1/);
+  assert.equal(forwardedPrompt.includes("iVBORw0KGgo="), false);
   assert.equal(host.isRunning, false);
   assert.equal(
     host.session.sessionManager
       .buildSessionContext()
       .messages.some(
         (message) =>
-          message.role === "custom" && message.customType === "workbench.image-recognition.v1",
+          message.role === "custom" && message.customType === "workbench.attachment-recognition.v1",
       ),
     false,
   );
+
+  forwardedPrompt = "";
+  forwardedImages = undefined;
+  await submitPrompt(
+    host.id,
+    "followUp",
+    { message: "Hello after the failed attachment" },
+    { rpcId: "text-after-failed-recognition-rpc" },
+  );
+  await new Promise<void>((resolve) => setImmediate(resolve));
+
+  assert.equal(forwardedImages, undefined);
+  assert.match(forwardedPrompt, /Hello after the failed attachment/);
+  assert.equal(
+    host.session.sessionManager
+      .buildSessionContext()
+      .messages.some(
+        (message) =>
+          message.role === "user" &&
+          Array.isArray(message.content) &&
+          message.content.some((part) => part.type === "image"),
+      ),
+    false,
+    "a failed preprocessing turn must not leave a durable image in model context",
+  );
 });
 
-test("injects successful OCR as isolated context without forwarding the image to the text model", async (t) => {
+test("gives native image inputs the same one-based references used by the UI", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-native-image-references-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+  const previousStateDir = process.env.PI_WORKBENCH_STATE_DIR;
+  process.env.PI_CODING_AGENT_DIR = path.join(root, "agent");
+  process.env.PI_WORKBENCH_STATE_DIR = path.join(root, "state");
+  t.after(() => {
+    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+    if (previousStateDir === undefined) delete process.env.PI_WORKBENCH_STATE_DIR;
+    else process.env.PI_WORKBENCH_STATE_DIR = previousStateDir;
+  });
+
+  await getImageUnderstandingSettingsStore().update({ patch: { routing: "auto" } });
+  const cwd = path.join(root, "project");
+  await mkdir(cwd, { recursive: true });
+  const host = await createSession(cwd, "native-image-references");
+  const fakeAgent = host.session as unknown as {
+    model?: { provider: string; id: string; input: readonly string[] } & Record<string, unknown>;
+    modelRuntime: { getAvailableSnapshot(): unknown[] };
+    prompt(
+      message: string,
+      options: { images?: unknown[]; preflightResult?: (accepted: boolean) => void },
+    ): Promise<void>;
+  };
+  const originalModel = fakeAgent.model;
+  const originalPrompt = fakeAgent.prompt;
+  const originalAvailableSnapshot = fakeAgent.modelRuntime.getAvailableSnapshot;
+  assert.ok(originalModel);
+  const visionModel = { ...originalModel, input: ["text", "image"] };
+  Object.defineProperty(fakeAgent, "model", { configurable: true, value: visionModel });
+  fakeAgent.modelRuntime.getAvailableSnapshot = () => [visionModel];
+  let forwardedPrompt = "";
+  let forwardedImages: unknown[] | undefined;
+  fakeAgent.prompt = async (message, options) => {
+    forwardedPrompt = message;
+    forwardedImages = options.images;
+    options.preflightResult?.(true);
+  };
+  t.after(async () => {
+    Reflect.deleteProperty(fakeAgent, "model");
+    fakeAgent.prompt = originalPrompt;
+    fakeAgent.modelRuntime.getAvailableSnapshot = originalAvailableSnapshot;
+    await host.shutdown();
+  });
+
+  const admission = await submitPrompt(
+    host.id,
+    "followUp",
+    {
+      message: "Compare image one with image two",
+      images: [
+        { type: "image", mimeType: "image/png", data: "iVBORw0KGgo=", name: "one.png" },
+        { type: "image", mimeType: "image/jpeg", data: "/9j/", name: "two.jpg" },
+      ],
+    },
+    {
+      rpcId: "native-image-reference-rpc",
+      composer: {
+        version: 1,
+        document: [{ type: "text", text: "Compare image one with image two" }],
+        sourceText: "Compare image one with image two",
+        text: "Compare image one with image two",
+        context: [],
+        metadata: {},
+        commands: [],
+      },
+    },
+  );
+  await new Promise<void>((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(admission, { queued: false });
+  assert.equal(forwardedImages?.length, 2);
+  assert.match(forwardedPrompt, /"attachmentId":"image-1","kind":"image","sequence":1/);
+  assert.match(forwardedPrompt, /"attachmentId":"image-2","kind":"image","sequence":2/);
+});
+
+test("injects image and PDF OCR as isolated context without forwarding attachments to the text model", async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), "workbench-image-understanding-success-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
@@ -872,13 +1038,19 @@ test("injects successful OCR as isolated context without forwarding the image to
   });
 
   const originalFetch = globalThis.fetch;
+  const submittedFiles: string[] = [];
   globalThis.fetch = async (input, init) => {
     assert.equal(String(input), "https://ocr.example/layout");
     assert.equal(new Headers(init?.headers).get("Authorization"), `Bearer ${credential}`);
     const body = JSON.parse(String(init?.body)) as { file?: string; model?: string };
     assert.equal(body.model, "glm-ocr");
-    assert.match(body.file ?? "", /^data:image\/png;base64,/);
-    return new Response(JSON.stringify({ md_results: "Invoice total: 42" }));
+    assert.ok(body.file);
+    submittedFiles.push(body.file);
+    if (body.file.startsWith("data:application/pdf;base64,")) {
+      return new Response(JSON.stringify({ md_results: "PDF reference: A-17" }));
+    }
+    assert.match(body.file, /^data:image\/png;base64,/);
+    return new Response(JSON.stringify({ md_results: "Image total: 42" }));
   };
   t.after(() => {
     globalThis.fetch = originalFetch;
@@ -928,6 +1100,14 @@ test("injects successful OCR as isolated context without forwarding the image to
           name: "invoice.png",
         },
       ],
+      documents: [
+        {
+          type: "file",
+          mimeType: "application/pdf",
+          data: Buffer.from("%PDF-1.7\ninvoice fixture").toString("base64"),
+          name: "invoice.pdf",
+        },
+      ],
     },
     {
       rpcId: "image-recognition-success-rpc",
@@ -945,20 +1125,33 @@ test("injects successful OCR as isolated context without forwarding the image to
   await new Promise<void>((resolve) => setImmediate(resolve));
 
   assert.deepEqual(admission, { queued: false });
-  assert.equal(forwardedImages, undefined, "a text-model prompt must not retain image parts");
+  assert.equal(forwardedImages, undefined, "a text-model prompt must not retain attachment parts");
   assert.match(forwardedPrompt, /<workbench-untrusted-context>/);
-  assert.match(forwardedPrompt, /Invoice total: 42/);
+  assert.match(forwardedPrompt, /"source":"workbench\.attachment-references"/);
+  assert.match(forwardedPrompt, /"attachmentId":"image-1","kind":"image","sequence":1/);
+  assert.match(forwardedPrompt, /"attachmentId":"pdf-1","kind":"pdf","sequence":1/);
+  assert.match(forwardedPrompt, /Image total: 42/);
+  assert.match(forwardedPrompt, /PDF reference: A-17/);
   assert.match(forwardedPrompt, /Read the invoice/);
   assert.equal(forwardedPrompt.includes(credential), false);
+  assert.deepEqual(
+    submittedFiles.map((file) => file.slice(5, file.indexOf(";"))),
+    ["image/png", "application/pdf"],
+  );
 
   const events = await getSessionEvents(host.id);
   const recognitionStates = events.flatMap((event) => {
     const data = event.data as {
       customType?: string;
-      details?: { status?: string; stage?: string; rpcId?: string };
+      details?: {
+        status?: string;
+        stage?: string;
+        rpcId?: string;
+        results?: unknown;
+      };
     };
     return event.type === "message" &&
-      data.customType === "workbench.image-recognition.v1" &&
+      data.customType === "workbench.attachment-recognition.v1" &&
       data.details?.status
       ? [data.details]
       : [];
@@ -975,6 +1168,19 @@ test("injects successful OCR as isolated context without forwarding the image to
     ],
   );
   assert.equal(recognitionStates.at(-1)?.rpcId, "image-recognition-success-rpc");
+  assert.deepEqual(recognitionStates.at(-1)?.results, [
+    {
+      attachmentId: "image-1",
+      format: "markdown",
+      text: "Image total: 42",
+    },
+    {
+      attachmentId: "pdf-1",
+      format: "markdown",
+      text: "PDF reference: A-17",
+    },
+  ]);
+  assert.equal(JSON.stringify(recognitionStates).includes(credential), false);
 });
 
 test("routes exported sendPrompt images through recognition before calling a text-only agent", async (t) => {
@@ -1062,7 +1268,7 @@ test("routes exported sendPrompt images through recognition before calling a tex
       details?: { status?: string };
     };
     return event.type === "message" &&
-      data.customType === "workbench.image-recognition.v1" &&
+      data.customType === "workbench.attachment-recognition.v1" &&
       data.details?.status
       ? [data.details.status]
       : [];
@@ -1102,7 +1308,7 @@ test("routes exported sendPrompt images through recognition before calling a tex
       details?: { status?: string };
     };
     return event.type === "message" &&
-      data.customType === "workbench.image-recognition.v1" &&
+      data.customType === "workbench.attachment-recognition.v1" &&
       data.details?.status
       ? [data.details.status]
       : [];
@@ -1188,7 +1394,7 @@ test("rejects image-bearing legacy queue snapshots before mutating a text-only a
   releaseRun?.();
 });
 
-test("rejects refreshed or directly selected text-only models when native image history exists", async (t) => {
+test("continues text-only prompts while retaining native image history for the UI", async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), "workbench-native-image-history-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
@@ -1212,37 +1418,75 @@ test("rejects refreshed or directly selected text-only models when native image 
   const fakeAgent = host.session as unknown as {
     model?: { provider: string; id: string; input: string[] };
     modelRuntime: { getAvailableSnapshot(): unknown[] };
-    prompt(): Promise<void>;
+    prompt(
+      message: string,
+      options: { preflightResult?: (accepted: boolean) => void },
+    ): Promise<void>;
+    setModel(model: { provider: string; id: string; input: string[] }): Promise<void>;
   };
   const originalAvailableSnapshot = fakeAgent.modelRuntime.getAvailableSnapshot;
   const originalPrompt = fakeAgent.prompt;
+  const originalSetModel = fakeAgent.setModel;
   const selectedTextModel = {
     provider: "test-provider",
     id: "selected-text-only",
     input: ["text"],
   };
+  const selectedVisionModel = {
+    provider: "test-provider",
+    id: "selected-vision",
+    input: ["text", "image"],
+  };
   fakeAgent.modelRuntime.getAvailableSnapshot = () => [
-    ...(fakeAgent.model === undefined ? [] : [{ ...fakeAgent.model, input: ["text"] }]),
+    ...(fakeAgent.model === undefined ||
+    fakeAgent.model.id === selectedTextModel.id ||
+    fakeAgent.model.id === selectedVisionModel.id
+      ? []
+      : [{ ...fakeAgent.model, input: ["text"] }]),
     selectedTextModel,
+    selectedVisionModel,
   ];
-  fakeAgent.prompt = async () => assert.fail("image history must be rejected before agent.prompt");
+  const promptContexts: unknown[][] = [];
+  fakeAgent.prompt = async (_message, options) => {
+    promptContexts.push(structuredClone(host.session.agent.state.messages));
+    options.preflightResult?.(true);
+  };
+  fakeAgent.setModel = async (model) => {
+    (host.session.agent.state as { model: typeof model }).model = model;
+  };
   t.after(() => {
     fakeAgent.modelRuntime.getAvailableSnapshot = originalAvailableSnapshot;
     fakeAgent.prompt = originalPrompt;
+    fakeAgent.setModel = originalSetModel;
     return host.shutdown();
   });
 
-  await assert.rejects(sendPrompt(host.id, "Continue after the image"), {
-    code: "pi_model_image_unsupported",
-    status: 400,
+  await sendPrompt(host.id, "Continue after the image");
+  await sendPrompt(host.id, "Switch and continue", undefined, {
+    provider: selectedTextModel.provider,
+    modelId: selectedTextModel.id,
   });
-  await assert.rejects(
-    sendPrompt(host.id, "Switch and continue", undefined, {
-      provider: selectedTextModel.provider,
-      modelId: selectedTextModel.id,
-    }),
-    { code: "pi_model_image_unsupported", status: 400 },
+
+  assert.equal(promptContexts.length, 2);
+  for (const context of promptContexts) {
+    assert.equal(messagesHaveImages(context), false);
+    assert.match(JSON.stringify(context), /Previous native image/);
+    assert.match(JSON.stringify(context), /historical image 1/);
+    assert.equal(JSON.stringify(context).includes("iVBORw0KGgo="), false);
+  }
+  assert.equal(
+    messagesHaveImages(host.session.sessionManager.buildSessionContext().messages),
+    true,
+    "the durable history remains unchanged so the UI and future vision models keep the image",
   );
+
+  await sendPrompt(host.id, "Switch back to vision", undefined, {
+    provider: selectedVisionModel.provider,
+    modelId: selectedVisionModel.id,
+  });
+  assert.equal(promptContexts.length, 3);
+  assert.equal(messagesHaveImages(promptContexts[2] ?? []), true);
+  assert.match(JSON.stringify(promptContexts[2]), /iVBORw0KGgo=/);
 });
 
 test("cancels in-flight image recognition without starting a model turn", async (t) => {
@@ -1329,7 +1573,7 @@ test("cancels in-flight image recognition without starting a model turn", async 
       details?: { status?: string; rpcId?: string };
     };
     return event.type === "message" &&
-      data.customType === "workbench.image-recognition.v1" &&
+      data.customType === "workbench.attachment-recognition.v1" &&
       data.details?.status
       ? [data.details]
       : [];
@@ -1688,7 +1932,7 @@ test("keeps Composer correlation when branch history falls back to Pi context en
     images: [{ data: "iVBORw0KGgo=", mimeType: "image/png", name: "scan.png" }],
     status: "accepted",
   });
-  manager.appendCustomEntry("workbench.image-recognition.v1", {
+  manager.appendCustomEntry("workbench.attachment-recognition.v1", {
     version: 1,
     operationId: "operation-context-branch",
     submissionId: "submission-context-branch",
@@ -1696,7 +1940,7 @@ test("keeps Composer correlation when branch history falls back to Pi context en
     status: "succeeded",
     method: "ocr",
     providerId: "glm-ocr",
-    imageCount: 1,
+    attachmentCount: 1,
     completedCount: 1,
     progress: 1,
   });
@@ -1769,7 +2013,7 @@ test("reconciles an interrupted image-recognition operation when a session reope
       time: 1_002,
       data: {
         role: "custom",
-        customType: "workbench.image-recognition.v1",
+        customType: "workbench.attachment-recognition.v1",
         content: "",
         display: true,
         details: {
@@ -1780,7 +2024,7 @@ test("reconciles an interrupted image-recognition operation when a session reope
           status: "pending",
           method: "ocr",
           providerId: "glm-ocr",
-          imageCount: 1,
+          attachmentCount: 1,
           completedCount: 0,
           progress: 0,
           timestamps: { createdAt: 1_002, updatedAt: 1_002 },
@@ -1798,7 +2042,7 @@ test("reconciles an interrupted image-recognition operation when a session reope
       details?: { status?: string; stage?: string; errorCode?: string };
     };
     return event.type === "message" &&
-      data.customType === "workbench.image-recognition.v1" &&
+      data.customType === "workbench.attachment-recognition.v1" &&
       data.details?.status
       ? [data.details]
       : [];

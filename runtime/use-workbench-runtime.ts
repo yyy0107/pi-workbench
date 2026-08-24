@@ -144,7 +144,14 @@ function useWorkbenchPiRuntime(manager: PiSessionManager) {
       try {
         await session.retry(parentId, config.runConfig);
       } catch (error) {
-        throw localizedPiError(error, t);
+        // MessageRuntime.reload() currently dispatches this async adapter callback
+        // through a void message action, so a rejection cannot be observed by the
+        // caller and becomes an unhandled promise rejection. The Pi session has
+        // already restored its authoritative history in retry()'s failure path;
+        // keep the existing failed message visible and terminate the callback here.
+        const localized = localizedPiError(error, t);
+        const code = error instanceof PiApiError ? error.code : "unknown";
+        console.warn(`[workbench-pi] message reload failed (${code}): ${localized.message}`);
       }
     },
     onRefetchThread: () => session.reload(),

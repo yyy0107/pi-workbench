@@ -3,8 +3,8 @@ import type { Api, Model } from "@earendil-works/pi-ai";
 
 import {
   ImageUnderstandingProviderError,
-  type ImageUnderstandingInputImage,
-  type ImageUnderstandingObservation,
+  type AttachmentUnderstandingObservation,
+  type RecognizableAttachment,
 } from "./contracts";
 
 const MAX_OBSERVATION_CHARACTERS = 250_000;
@@ -13,7 +13,7 @@ export interface MultimodalRecognitionOptions {
   runtime: ModelRuntime;
   provider?: string;
   model?: string;
-  images: readonly ImageUnderstandingInputImage[];
+  attachments: readonly RecognizableAttachment[];
   signal?: AbortSignal;
   onProgress?: (completedCount: number) => void | Promise<void>;
 }
@@ -54,15 +54,18 @@ function responseText(response: Awaited<ReturnType<ModelRuntime["complete"]>>): 
 /** Uses a configured Pi vision model as an internal preprocessor; it is not exposed as an LLM tool. */
 export async function recognizeWithMultimodalModel(
   options: MultimodalRecognitionOptions,
-): Promise<ImageUnderstandingObservation[]> {
+): Promise<AttachmentUnderstandingObservation[]> {
   options.signal?.throwIfAborted();
+  if (options.attachments.some((attachment) => !attachment.mimeType.startsWith("image/"))) {
+    throw new ImageUnderstandingProviderError("provider-invalid-input");
+  }
   const model = resolveVisionModel(
     options.runtime,
     options.provider?.trim() || undefined,
     options.model?.trim() || undefined,
   );
-  const observations: ImageUnderstandingObservation[] = [];
-  for (const [index, image] of options.images.entries()) {
+  const observations: AttachmentUnderstandingObservation[] = [];
+  for (const attachment of options.attachments) {
     options.signal?.throwIfAborted();
     let response;
     try {
@@ -77,9 +80,13 @@ export async function recognizeWithMultimodalModel(
               content: [
                 {
                   type: "text",
-                  text: `Image ${index + 1} of ${options.images.length}. Return a complete factual transcription and visual description.`,
+                  text: `Image ${attachment.sequence} of ${options.attachments.length}. Return a complete factual transcription and visual description.`,
                 },
-                { type: "image", data: image.data, mimeType: image.mimeType },
+                {
+                  type: "image",
+                  data: attachment.data,
+                  mimeType: attachment.mimeType,
+                },
               ],
               timestamp: Date.now(),
             },
@@ -95,7 +102,9 @@ export async function recognizeWithMultimodalModel(
       throw new ImageUnderstandingProviderError("provider-network-error", { retryable: true });
     }
     observations.push({
-      imageId: image.id,
+      attachmentId: attachment.id,
+      kind: attachment.kind,
+      sequence: attachment.sequence,
       providerId: `${model.provider}/${model.id}`,
       method: "multimodal",
       format: "text",

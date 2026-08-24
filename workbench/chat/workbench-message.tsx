@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { ComposerPrimitive, MessagePrimitive, useAui, useAuiState } from "@assistant-ui/react";
 
-import { ComposerAttachments, UserMessageAttachments } from "@/components/assistant-ui/attachment";
+import { ComposerAttachments } from "@/components/assistant-ui/attachment";
 import {
   CompactionSeparator,
   ForkSeparator,
@@ -163,14 +163,7 @@ export function WorkbenchUserMessage() {
             "fade-in-0 slide-in-from-bottom-2 animate-in fill-mode-both duration-200 ease-out motion-reduce:animate-none",
         )}
       >
-        <UserMessageAttachments />
-        <div
-          data-slot="user-message-bubble"
-          data-workbench-glass-surface=""
-          className="w-fit max-w-full min-w-0 self-end rounded-[12px] bg-muted/50 px-4 py-2.5 text-base leading-6 text-foreground whitespace-pre-wrap [overflow-wrap:anywhere] text-start"
-        >
-          <WorkbenchMessageParts />
-        </div>
+        <WorkbenchMessageParts />
       </div>
       <WorkbenchMessageActions className="justify-end" />
       <MessageSlot name="message.after" />

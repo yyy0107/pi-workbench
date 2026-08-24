@@ -4,7 +4,7 @@ import { agentConfigurationExtension } from "./builtin/agent-configuration";
 import { archivedChatsExtension } from "./builtin/archived-chats";
 import { appearanceExtension } from "./builtin/appearance";
 import { connectionStatusExtension } from "./builtin/connection-status";
-import { imageUnderstandingExtension } from "./builtin/image-understanding";
+import { attachmentUnderstandingExtension } from "./builtin/image-understanding";
 import { interactiveRequestsExtension } from "./builtin/interactive-requests";
 import { localeSelectorExtension } from "./builtin/locale-selector";
 import { messageActionsExtension } from "./builtin/message-actions";
@@ -39,7 +39,7 @@ export const enabledExtensions = [
   userMessageIndexExtension,
   messageQueueExtension,
   settingModelConfigExtension,
-  imageUnderstandingExtension,
+  attachmentUnderstandingExtension,
   skillsExtension,
   piExtensionsExtension,
   archivedChatsExtension,

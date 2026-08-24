@@ -13,6 +13,18 @@ import { parseWorkbenchComposerDocument } from "@/runtime/composer-request";
 import { parseComposerDocument } from "./composer-document";
 import { formatPiCommandLabel, parsePiCommandText, removePiCommandBuffer } from "./pi-command";
 
+function UserMessageTextBubble({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      data-slot="user-message-bubble"
+      data-workbench-glass-surface=""
+      className="w-fit max-w-full min-w-0 self-end rounded-[12px] bg-muted/50 px-4 py-2.5 text-start text-base leading-6 text-foreground whitespace-pre-wrap [overflow-wrap:anywhere]"
+    >
+      {children}
+    </div>
+  );
+}
+
 /** Renders the serialized Composer document in a sent user message using the same Token UI. */
 export function WorkbenchComposerMessageText({ text }: { text: string }) {
   const commands = usePiCommands();
@@ -36,39 +48,47 @@ export function WorkbenchComposerMessageText({ text }: { text: string }) {
   const composerDocument =
     parseWorkbenchComposerDocument(persistedDocument) ??
     parseComposerDocument(text, composerCommandRegistry, commands);
+  const hasTextPresentation = composerDocument.some(
+    (node) => node.type !== "attachment" && (node.type !== "text" || node.text.length > 0),
+  );
+
+  if (!hasTextPresentation) return null;
 
   if (composerDocument.some((node) => node.type === "command")) {
     return (
-      <p className="whitespace-pre-wrap">
-        {composerDocument.map((node, index) => {
-          switch (node.type) {
-            case "text":
-              return <span key={`text:${index}`}>{node.text}</span>;
-            case "command-argument":
-              return (
-                <span
-                  key={node.id}
-                  data-slot="composer-command-argument"
-                  className="text-blue-500 dark:text-blue-400"
-                >
-                  {node.text}
-                </span>
-              );
-            case "command":
-              return (
-                <ComposerCommandToken
-                  key={node.id}
-                  label={node.label}
-                  icon={composerCommandsById.get(node.commandId)?.icon ?? CuboidIcon}
-                  className="mx-0.5 align-baseline"
-                />
-              );
-            case "mention":
-            case "attachment":
-              return <span key={node.id}>{node.label}</span>;
-          }
-        })}
-      </p>
+      <UserMessageTextBubble>
+        <p className="whitespace-pre-wrap">
+          {composerDocument.map((node, index) => {
+            switch (node.type) {
+              case "text":
+                return <span key={`text:${index}`}>{node.text}</span>;
+              case "command-argument":
+                return (
+                  <span
+                    key={node.id}
+                    data-slot="composer-command-argument"
+                    className="text-blue-500 dark:text-blue-400"
+                  >
+                    {node.text}
+                  </span>
+                );
+              case "command":
+                return (
+                  <ComposerCommandToken
+                    key={node.id}
+                    label={node.label}
+                    icon={composerCommandsById.get(node.commandId)?.icon ?? CuboidIcon}
+                    className="mx-0.5 align-baseline"
+                  />
+                );
+              case "mention":
+                return <span key={node.id}>{node.label}</span>;
+              case "attachment":
+                return null;
+            }
+          })}
+        </p>
+      </UserMessageTextBubble>
     );
   }
 
@@ -77,21 +97,27 @@ export function WorkbenchComposerMessageText({ text }: { text: string }) {
     const argumentsText = removePiCommandBuffer(commandText.argumentsText);
     const commandOwnsArguments = commandText.command.argsBinding?.kind === "message-text";
     return (
-      <p className="whitespace-pre-wrap">
-        <ComposerCommandToken
-          label={formatPiCommandLabel(commandText.command.name)}
-          icon={CuboidIcon}
-          className="me-1 align-baseline"
-        />
-        <span
-          data-slot={commandOwnsArguments ? "composer-command-argument" : undefined}
-          className={commandOwnsArguments ? "text-blue-500 dark:text-blue-400" : undefined}
-        >
-          {argumentsText}
-        </span>
-      </p>
+      <UserMessageTextBubble>
+        <p className="whitespace-pre-wrap">
+          <ComposerCommandToken
+            label={formatPiCommandLabel(commandText.command.name)}
+            icon={CuboidIcon}
+            className="me-1 align-baseline"
+          />
+          <span
+            data-slot={commandOwnsArguments ? "composer-command-argument" : undefined}
+            className={commandOwnsArguments ? "text-blue-500 dark:text-blue-400" : undefined}
+          >
+            {argumentsText}
+          </span>
+        </p>
+      </UserMessageTextBubble>
     );
   }
 
-  return <CompactMarkdownText />;
+  return (
+    <UserMessageTextBubble>
+      <CompactMarkdownText />
+    </UserMessageTextBubble>
+  );
 }
