@@ -156,7 +156,7 @@ function SidebarSectionHeading({
   return (
     <div
       data-workbench-selection-surface=""
-      className="group/sidebar-section hover:bg-sidebar-accent focus-within:bg-sidebar-accent relative flex h-9 w-full shrink-0 items-center rounded-lg ps-2 pe-1 transition-colors"
+      className="group/sidebar-section hover:bg-sidebar-accent focus-within:bg-sidebar-accent relative flex h-9 w-full shrink-0 items-center rounded-lg ps-2 transition-colors"
     >
       <CollapsibleTrigger
         type="button"
