@@ -64,6 +64,7 @@ import {
   type ProviderDraft,
   type ProviderDraftError,
 } from "./model-config-draft";
+import { modelProviderCredentialWebsite } from "./model-provider-credential-links";
 
 type LoadState = "loading" | "ready" | "failed";
 type Editor =
@@ -511,6 +512,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
     const addMode = mode === "add-provider";
     const customProviderMode =
       mode === "add-custom" || (mode === "edit" && selectedProvider?.kind === "custom");
+    const credentialWebsite = modelProviderCredentialWebsite(selectedProvider);
     const oauthMethod = selectedProvider?.authMethods?.find(({ type }) => type === "oauth");
     const configurableAuthMethods =
       selectedProvider?.authMethods?.filter(
@@ -741,12 +743,27 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
           </div>
         ) : (
           <div className={`${addMode || customProviderMode ? "mt-3" : ""} space-y-1.5`}>
-            <label
-              htmlFor={`model-provider-api-key-${mode}`}
-              className="text-muted-foreground block text-sm"
-            >
-              {t("extensions.modelConfig.apiKey")}
-            </label>
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+              <label
+                htmlFor={`model-provider-api-key-${mode}`}
+                className="text-muted-foreground block text-sm"
+              >
+                {t("extensions.modelConfig.apiKey")}
+              </label>
+              {credentialWebsite && selectedProvider ? (
+                <a
+                  href={credentialWebsite}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary inline-flex items-center gap-1 text-xs font-medium underline underline-offset-4"
+                >
+                  {t("extensions.modelConfig.openApiKeyPage", {
+                    provider: selectedProvider.displayName,
+                  })}
+                  <ExternalLinkIcon aria-hidden="true" className="size-3 shrink-0" />
+                </a>
+              ) : null}
+            </div>
             <Input
               id={`model-provider-api-key-${mode}`}
               type="password"

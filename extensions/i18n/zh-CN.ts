@@ -416,6 +416,7 @@ export const extensionsZhCN = {
     apiProtocol: "API 协议",
     authenticationMethod: "认证方式",
     apiKey: "API 密钥",
+    openApiKeyPage: ({ provider }: { provider: string }) => `获取 ${provider} API 密钥`,
     apiKeyPlaceholder: "输入 API 密钥，或留空使用环境认证",
     apiKeyEditPlaceholder: "输入新 API 密钥，或留空保留当前配置",
     environmentOnly: "此提供方使用环境认证",

@@ -424,6 +424,7 @@ export const extensionsEnUS = {
     apiProtocol: "API protocol",
     authenticationMethod: "Authentication method",
     apiKey: "API key",
+    openApiKeyPage: ({ provider }: { provider: string }) => `Get a ${provider} API key`,
     apiKeyPlaceholder: "Enter an API key, or leave blank to use environment authentication",
     apiKeyEditPlaceholder: "Enter a new API key, or leave blank to keep the current configuration",
     environmentOnly: "This provider uses environment authentication",
