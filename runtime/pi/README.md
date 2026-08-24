@@ -186,11 +186,11 @@ Workbench host 的多个浏览器。写入使用进程间锁和原子替换；�
 单次最多 500 项，并通过 `truncated` 表示截断。
 
 本地应用集成运行在 Electron 启动的本机 Host 进程中，不在 Renderer 中读取平台或安装路径。
-统一 Registry 定义编辑器、终端和文件管理器；Windows Detector 使用 App Paths、Uninstall Registry、
+统一 Registry 定义编辑器、媒体播放器、终端和文件管理器，并声明各应用支持的文件类别；Windows Detector 使用 App Paths、Uninstall Registry、
 已知目录、PATH 与 JetBrains Toolbox，macOS 使用 Bundle ID/Spotlight 与应用目录回退，Linux 使用
 XDG application 目录、本地化用户桌面中的 `.desktop`、PATH 与 Flatpak。探测结果缓存在内存中，
 只有 `host.localApps.refresh` 会主动重扫。
-RPC 只返回稳定的 `id`、`name`、`kind` 和 `icon`，可执行文件、Bundle ID、desktop entry 与启动参数
+RPC 只返回稳定的 `id`、`name`、`kind`、`icon` 和 `supportedFileKinds`，可执行文件、Bundle ID、desktop entry 与启动参数
 始终留在 Host 内；品牌图标固定维护在 `extensions/builtin/workspace-file/icons`，不从操作系统动态提取。
 所有启动均通过参数数组执行且禁用 shell，避免把用户路径拼进命令字符串。
 
@@ -202,8 +202,10 @@ RPC 只返回稳定的 `id`、`name`、`kind` 和 `icon`，可执行文件、Bun
 最大 5 MiB 的 UTF-8 普通文件；写入必须携带读取时的 SHA-256 version，磁盘内容已变化时返回冲突，
 避免静默覆盖。大文本源码与图片、PDF、音视频和 Office 文档通过同源
 `workspace.files.content` 端点按需流式读取；前端对大文本做增量 UTF-8 解码和可见行虚拟化，避免先
-缓冲完整 JSON 或挂载完整 textarea。内容端点支持 `HEAD`、单段 `Range`、ETag 和最大 100 MiB 的
-预览边界，并复用相同的 workspace/realpath 授权规则，不向浏览器暴露主机文件路径。
+缓冲完整 JSON 或挂载完整 textarea。内容端点支持 `HEAD`、单段 `Range` 和 ETag；超过 100 MiB 的
+文件仅允许元数据、分段读取及浏览器原生音视频流，其他无 Range 的整文件预览仍返回 `413`，避免
+PDF、Office 等缓冲型查看器一次性占用过多内存。端点复用相同的 workspace/realpath 授权规则，
+不向浏览器暴露主机文件路径。
 
 ## 模型
 

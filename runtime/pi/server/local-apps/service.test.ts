@@ -12,6 +12,7 @@ const detectedEditor: DetectedLocalApp = {
   name: "VS Code",
   kind: "editor",
   icon: "vscode",
+  supportedFileKinds: ["text"],
   platform: "linux",
   targetMode: "path",
   launcher: { type: "executable", path: "/usr/bin/code" },
@@ -30,7 +31,15 @@ test("caches detection, refreshes explicitly, and hides launcher details", async
   const second = await service.list();
   assert.equal(detections, 1);
   assert.deepEqual(first, {
-    apps: [{ id: "vscode", name: "VS Code", kind: "editor", icon: "vscode" }],
+    apps: [
+      {
+        id: "vscode",
+        name: "VS Code",
+        kind: "editor",
+        icon: "vscode",
+        supportedFileKinds: ["text"],
+      },
+    ],
   });
   assert.deepEqual(second, first);
   assert.equal("launcher" in first.apps[0]!, false);

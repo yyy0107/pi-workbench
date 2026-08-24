@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { useI18n } from "@/i18n";
+import { cn } from "@/lib/utils";
 
 import {
   selectActiveAuxiliarySurface,
@@ -200,7 +201,7 @@ export function SurfaceHost() {
   const split = resolveWorkspaceSplitLayout(
     containerWidth,
     auxiliaryWidth,
-    Boolean(activeAuxiliary) && auxiliaryOpen,
+    Boolean(activeAuxiliary),
   );
 
   useEffect(() => {
@@ -238,7 +239,7 @@ export function SurfaceHost() {
   return (
     <div
       ref={containerRef}
-      data-split-mode={split.mode}
+      data-split-mode={auxiliaryOpen ? split.mode : "single"}
       className="flex size-full min-h-0 min-w-0 flex-col overflow-hidden"
     >
       <SurfaceHeaderHost
@@ -293,14 +294,19 @@ export function SurfaceHost() {
               id="right-workspace-auxiliary-pane"
               aria-label={activeAuxiliary.title}
               aria-hidden={!auxiliaryOpen ? true : undefined}
-              hidden={!auxiliaryOpen}
+              inert={!auxiliaryOpen ? true : undefined}
               data-state={auxiliaryOpen ? "open" : "closed"}
-              className={
+              className={cn(
+                "relative min-w-0 overflow-hidden transition-[width,flex-basis,min-height,opacity,transform] duration-[240ms] ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none data-[state=closed]:pointer-events-none data-[state=closed]:opacity-0",
                 split.mode === "stacked"
-                  ? "relative min-h-48 min-w-0 basis-[42%] overflow-hidden"
-                  : "relative min-h-0 min-w-0 shrink overflow-hidden"
+                  ? "min-h-48 basis-[42%] data-[state=closed]:min-h-0 data-[state=closed]:basis-0 data-[state=closed]:translate-y-2"
+                  : "min-h-0 shrink data-[state=closed]:shrink-0 data-[state=closed]:translate-x-2",
+              )}
+              style={
+                split.mode === "horizontal"
+                  ? { width: auxiliaryOpen ? split.auxiliaryWidth : 0 }
+                  : undefined
               }
-              style={split.mode === "horizontal" ? { width: split.auxiliaryWidth } : undefined}
             >
               <SurfacePane
                 active={activeAuxiliary}

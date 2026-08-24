@@ -111,6 +111,7 @@ function detectedExecutable(definition: LocalAppDefinition, executable: string):
     name: definition.name,
     kind: definition.kind,
     ...(definition.icon ? { icon: definition.icon } : {}),
+    supportedFileKinds: [...definition.supportedFileKinds],
     platform: "linux",
     targetMode: definition.targetMode ?? "path",
     launcher: { type: "executable", path: executable },
@@ -169,6 +170,7 @@ export async function detectLinuxApps(
         name: definition.name,
         kind: definition.kind,
         ...(definition.icon ? { icon: definition.icon } : {}),
+        supportedFileKinds: [...definition.supportedFileKinds],
         platform: "linux",
         targetMode: definition.targetMode ?? "path",
         launcher: {
@@ -198,6 +200,7 @@ export async function detectLinuxApps(
         name: definition.name,
         kind: definition.kind,
         ...(definition.icon ? { icon: definition.icon } : {}),
+        supportedFileKinds: [...definition.supportedFileKinds],
         platform: "linux",
         targetMode: definition.targetMode ?? "path",
         launcher: { type: "flatpak", command: flatpak, applicationId: flatpakId },

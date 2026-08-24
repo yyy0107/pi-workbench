@@ -3,8 +3,8 @@
 import { setDefaultFileViewerAssetBaseUrl } from "@file-viewer/core";
 import litePreset from "@file-viewer/preset-lite";
 import officePreset from "@file-viewer/preset-office";
-import FileViewer from "@file-viewer/react";
-import { useMemo } from "react";
+import FileViewer, { type FileViewerHandle, type ViewerState } from "@file-viewer/react";
+import { useEffect, useMemo, useRef } from "react";
 
 import type { Locale } from "@/i18n";
 
@@ -21,6 +21,8 @@ export interface FileDocumentViewerRuntimeProps {
   size: number;
   locale: Locale;
   ariaLabel: string;
+  onLoadingChange(loading: boolean): void;
+  onLoadError(error: unknown): void;
 }
 
 export function FileDocumentViewerRuntime({
@@ -31,7 +33,10 @@ export function FileDocumentViewerRuntime({
   size,
   locale,
   ariaLabel,
+  onLoadingChange,
+  onLoadError,
 }: FileDocumentViewerRuntimeProps) {
+  const viewerRef = useRef<FileViewerHandle>(null);
   const type = resolveFileViewerType(name);
   const isVideo = isFileViewerVideoType(type);
   const file = useMemo(
@@ -62,14 +67,41 @@ export function FileDocumentViewerRuntime({
     [isVideo, locale],
   );
 
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+    let active = true;
+    onLoadingChange(true);
+    void viewer
+      .load({
+        ...(file ? { file } : { url }),
+        name,
+        type,
+        size,
+        options,
+        onStateChange: (state: ViewerState) => {
+          if (!active) return;
+          if (state.ready) onLoadingChange(false);
+          else if (state.error) onLoadError(state.error);
+        },
+      })
+      .then(
+        () => {
+          if (active) onLoadingChange(false);
+        },
+        (error: unknown) => {
+          if (active) onLoadError(error);
+        },
+      );
+    return () => {
+      active = false;
+    };
+  }, [file, name, onLoadError, onLoadingChange, options, size, type, url]);
+
   return (
     <FileViewer
+      ref={viewerRef}
       className={isVideo ? `${styles.viewer} ${styles.videoViewer}` : styles.viewer}
-      {...(file ? { file } : { url })}
-      name={name}
-      type={type}
-      size={size}
-      options={options}
       aria-label={ariaLabel}
     />
   );

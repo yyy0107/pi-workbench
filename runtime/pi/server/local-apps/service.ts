@@ -64,6 +64,7 @@ function view(app: DetectedLocalApp) {
     name: app.name,
     kind: app.kind,
     ...(app.icon ? { icon: app.icon } : {}),
+    supportedFileKinds: [...app.supportedFileKinds],
   };
 }
 

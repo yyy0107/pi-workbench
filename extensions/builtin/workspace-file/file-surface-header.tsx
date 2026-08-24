@@ -4,12 +4,17 @@ import {
   ChevronDownIcon,
   Code2Icon,
   EyeIcon,
-  FileCode2Icon,
+  FileArchiveIcon,
+  FileIcon,
+  FileTextIcon,
   FolderIcon,
   FoldersIcon,
+  ImageIcon,
   LoaderCircleIcon,
+  MusicIcon,
   SaveIcon,
   TerminalIcon,
+  VideoIcon,
 } from "lucide-react";
 import Image, { type StaticImageData } from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -27,7 +32,7 @@ import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import type { WorkspaceSurfaceProps } from "@/platform/extensions";
 import { listPiLocalApps, openPiHostPath, openPiLocalApp } from "@/runtime/pi/client/transport/api";
-import type { LocalAppView } from "@/runtime/pi/rpc-contracts";
+import type { LocalAppFileKind, LocalAppView } from "@/runtime/pi/rpc-contracts";
 import { fileWorkspaceContext } from "@/services/workspace-file-service";
 
 import { useRightWorkspace, useRightWorkspaceState } from "@/components/right-workspace";
@@ -35,12 +40,15 @@ import { cn } from "@/lib/utils";
 import { FileBreadcrumbTree } from "./file-breadcrumb-tree";
 import { saveFileBuffer } from "./file-buffer-actions";
 import { browserFileBufferDraftStorage } from "./file-buffer-draft";
+import { compatibleLocalFileApps, localAppFileKindFor, localSystemApps } from "./file-open-apps";
 import cursorIcon from "./icons/cursor.svg";
 import datagripIcon from "./icons/datagrip.svg";
 import ideaIcon from "./icons/idea.svg";
+import mpvIcon from "./icons/mpv.svg";
 import pycharmIcon from "./icons/pycharm.svg";
 import qoderIcon from "./icons/qoder.svg";
 import traeIcon from "./icons/trae.svg";
+import vlcIcon from "./icons/vlc.svg";
 import vscodeIcon from "./icons/vscode.svg";
 import webstormIcon from "./icons/webstorm.svg";
 import type { FileSurfaceParams } from "./file-surface";
@@ -56,9 +64,11 @@ const LOCAL_APP_ICON_SOURCES: Readonly<Record<string, StaticImageData>> = {
   cursor: cursorIcon,
   datagrip: datagripIcon,
   idea: ideaIcon,
+  mpv: mpvIcon,
   pycharm: pycharmIcon,
   qoder: qoderIcon,
   trae: traeIcon,
+  vlc: vlcIcon,
   vscode: vscodeIcon,
   webstorm: webstormIcon,
 };
@@ -85,7 +95,20 @@ function LocalAppIcon({ app }: { app?: LocalAppView }) {
   }
   if (app?.kind === "terminal") return <TerminalIcon className="size-4 shrink-0" />;
   if (app?.kind === "file-manager") return <FolderIcon className="size-4 shrink-0" />;
+  if (app?.kind === "media-player") return <VideoIcon className="size-4 shrink-0" />;
   return <Code2Icon className="size-4 shrink-0" />;
+}
+
+function FileKindIcon({ kind }: { kind: LocalAppFileKind }) {
+  if (kind === "image") return <ImageIcon className="size-4 shrink-0" />;
+  if (kind === "audio") return <MusicIcon className="size-4 shrink-0" />;
+  if (kind === "video") return <VideoIcon className="size-4 shrink-0" />;
+  if (kind === "pdf" || kind === "document") {
+    return <FileTextIcon className="size-4 shrink-0" />;
+  }
+  if (kind === "archive") return <FileArchiveIcon className="size-4 shrink-0" />;
+  if (kind === "text") return <Code2Icon className="size-4 shrink-0" />;
+  return <FileIcon className="size-4 shrink-0" />;
 }
 
 export function FileSurfaceHeader({ surface, context }: WorkspaceSurfaceProps<FileSurfaceParams>) {
@@ -113,9 +136,16 @@ export function FileSurfaceHeader({ surface, context }: WorkspaceSurfaceProps<Fi
   const folderPath = path
     ? (context.rootPath ?? (path.replace(/[\\/][^\\/]+$/, "") || path))
     : undefined;
-  const editorApps = useMemo(() => localApps.filter((app) => app.kind === "editor"), [localApps]);
-  const systemApps = useMemo(() => localApps.filter((app) => app.kind !== "editor"), [localApps]);
-  const primaryApp = editorApps[0];
+  const fileKind = useMemo(
+    () => localAppFileKindFor(path, surface.params.mediaType, surface.params.encoding),
+    [path, surface.params.encoding, surface.params.mediaType],
+  );
+  const fileApps = useMemo(
+    () => compatibleLocalFileApps(localApps, fileKind),
+    [fileKind, localApps],
+  );
+  const systemApps = useMemo(() => localSystemApps(localApps), [localApps]);
+  const primaryApp = fileApps[0];
   const localAppName = useCallback(
     (app: LocalAppView) => {
       if (app.id === "terminal") return t("extensions.workspaceFile.terminal");
@@ -306,7 +336,7 @@ export function FileSurfaceHeader({ surface, context }: WorkspaceSurfaceProps<Fi
             className="hover:bg-muted flex w-7 items-center justify-center transition-colors"
             onClick={() => void (primaryApp ? openWithLocalApp(primaryApp, path) : openPath(path))}
           >
-            <LocalAppIcon app={primaryApp} />
+            {primaryApp ? <LocalAppIcon app={primaryApp} /> : <FileKindIcon kind={fileKind} />}
           </button>
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -325,18 +355,16 @@ export function FileSurfaceHeader({ surface, context }: WorkspaceSurfaceProps<Fi
                     {t("extensions.workspaceFile.loadingLocalApps")}
                   </DropdownMenuItem>
                 ) : null}
-                {editorApps.map((app) => (
+                {fileApps.map((app) => (
                   <DropdownMenuItem key={app.id} onClick={() => void openWithLocalApp(app, path)}>
                     <LocalAppIcon app={app} />
                     {localAppName(app)}
                   </DropdownMenuItem>
                 ))}
-                {!localAppsLoading && editorApps.length === 0 ? (
-                  <DropdownMenuItem onClick={() => void openPath(path)}>
-                    <FileCode2Icon />
-                    {t("extensions.workspaceFile.openFile")}
-                  </DropdownMenuItem>
-                ) : null}
+                <DropdownMenuItem onClick={() => void openPath(path)}>
+                  <FileKindIcon kind={fileKind} />
+                  {t("extensions.workspaceFile.openFile")}
+                </DropdownMenuItem>
               </DropdownMenuGroup>
               {systemApps.length > 0 ? <DropdownMenuSeparator /> : null}
               {systemApps.map((app) => (

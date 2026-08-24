@@ -13,3 +13,7 @@ export function resolveFileViewerType(name: string): string {
 export function isFileViewerVideoType(type: string): boolean {
   return FILE_VIEWER_VIDEO_TYPES.has(type.trim().toLowerCase());
 }
+
+export function isNativeMediaPreviewType(mediaType: string): boolean {
+  return /^(?:audio|video)\//i.test(mediaType.trim());
+}

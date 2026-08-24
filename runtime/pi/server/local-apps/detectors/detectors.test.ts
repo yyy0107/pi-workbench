@@ -192,3 +192,53 @@ test("Linux recognizes Trae and Trae CN from their desktop entries", async (t) =
     ["trae", "trae-cn", "file-manager"],
   );
 });
+
+test("Linux exposes installed media players with their supported file kinds", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-local-app-media-"));
+  const applications = path.join(root, "applications");
+  const mpv = path.join(applications, "mpv.desktop");
+  const vlc = path.join(applications, "vlc.desktop");
+  await mkdir(applications);
+  await writeFile(mpv, "[Desktop Entry]\nName=mpv\nExec=/usr/bin/mpv %F\nType=Application\n");
+  await writeFile(vlc, "[Desktop Entry]\nName=VLC\nExec=/usr/bin/vlc %F\nType=Application\n");
+  t.after(() => rm(root, { recursive: true, force: true }));
+
+  const apps = await detectLinuxApps(undefined, {
+    env: { PATH: "/usr/bin", XDG_DATA_HOME: root, XDG_DATA_DIRS: root },
+    home: root,
+    exists: async (candidate) =>
+      candidate === mpv || candidate === vlc || candidate === "/usr/bin/gio",
+    run: async () => {
+      throw new Error("not found");
+    },
+  });
+
+  assert.deepEqual(
+    apps.map(({ id, name, icon, supportedFileKinds }) => ({
+      id,
+      name,
+      icon,
+      supportedFileKinds,
+    })),
+    [
+      {
+        id: "mpv",
+        name: "mpv Media Player",
+        icon: "mpv",
+        supportedFileKinds: ["audio", "video"],
+      },
+      {
+        id: "vlc",
+        name: "VLC media player",
+        icon: "vlc",
+        supportedFileKinds: ["audio", "video"],
+      },
+      {
+        id: "file-manager",
+        name: "File Manager",
+        icon: "file-manager",
+        supportedFileKinds: [],
+      },
+    ],
+  );
+});

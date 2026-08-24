@@ -141,7 +141,17 @@ export interface HostDirectoryListing {
   truncated: boolean;
 }
 
-export type LocalAppKind = "editor" | "terminal" | "file-manager";
+export type LocalAppKind = "editor" | "media-player" | "terminal" | "file-manager";
+
+export type LocalAppFileKind =
+  | "text"
+  | "image"
+  | "audio"
+  | "video"
+  | "pdf"
+  | "document"
+  | "archive"
+  | "other";
 
 export type LocalAppPlatform = "windows" | "macos" | "linux";
 
@@ -151,6 +161,7 @@ export interface LocalAppView {
   name: string;
   kind: LocalAppKind;
   icon?: string;
+  supportedFileKinds: readonly LocalAppFileKind[];
 }
 
 export interface LocalAppsListValue {
@@ -194,6 +205,9 @@ export interface WorkspaceFileReadPayload {
 }
 
 export type WorkspaceFileDescribePayload = WorkspaceFileReadPayload;
+
+/** Maximum file size that browser previewers may buffer in full. */
+export const WORKSPACE_FILE_BUFFERED_PREVIEW_SIZE_LIMIT = 100 * 1024 * 1024;
 
 export interface WorkspaceFileDescriptorValue {
   workspaceId: string;

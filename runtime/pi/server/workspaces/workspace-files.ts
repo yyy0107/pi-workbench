@@ -16,7 +16,6 @@ import type { WorkspaceStore } from "./workspace-store";
 
 const DIRECTORY_ENTRY_LIMIT = 2_000;
 export const WORKSPACE_FILE_SIZE_LIMIT = 5 * 1024 * 1024;
-export const WORKSPACE_FILE_PREVIEW_SIZE_LIMIT = 100 * 1024 * 1024;
 const MAX_RELATIVE_PATH_LENGTH = 16_384;
 const ENCODING_SAMPLE_SIZE = 64 * 1024;
 const WINDOWS_ABSOLUTE_PATH = /^[a-zA-Z]:[\\/]/;

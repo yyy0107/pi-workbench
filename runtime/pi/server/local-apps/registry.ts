@@ -6,6 +6,7 @@ export const APP_REGISTRY: readonly LocalAppDefinition[] = [
     name: "VS Code",
     kind: "editor",
     icon: "vscode",
+    supportedFileKinds: ["text"],
     windows: {
       executables: ["Code.exe", "code.cmd"],
       appPaths: ["Code.exe"],
@@ -30,6 +31,7 @@ export const APP_REGISTRY: readonly LocalAppDefinition[] = [
     name: "Cursor",
     kind: "editor",
     icon: "cursor",
+    supportedFileKinds: ["text"],
     windows: {
       executables: ["Cursor.exe", "cursor.cmd"],
       appPaths: ["Cursor.exe"],
@@ -50,6 +52,7 @@ export const APP_REGISTRY: readonly LocalAppDefinition[] = [
     name: "Trae",
     kind: "editor",
     icon: "trae",
+    supportedFileKinds: ["text"],
     windows: {
       executables: ["Trae.exe", "trae.exe", "trae.cmd"],
       appPaths: ["Trae.exe"],
@@ -71,6 +74,7 @@ export const APP_REGISTRY: readonly LocalAppDefinition[] = [
     name: "Trae CN",
     kind: "editor",
     icon: "trae",
+    supportedFileKinds: ["text"],
     windows: {
       executables: ["Trae CN.exe", "trae-cn.exe", "trae-cn.cmd"],
       appPaths: ["Trae CN.exe"],
@@ -94,6 +98,7 @@ export const APP_REGISTRY: readonly LocalAppDefinition[] = [
     name: "Qoder",
     kind: "editor",
     icon: "qoder",
+    supportedFileKinds: ["text"],
     windows: {
       executables: ["Qoder.exe", "qoder.exe", "qoder.cmd"],
       appPaths: ["Qoder.exe"],
@@ -117,6 +122,7 @@ export const APP_REGISTRY: readonly LocalAppDefinition[] = [
     name: "IntelliJ IDEA",
     kind: "editor",
     icon: "idea",
+    supportedFileKinds: ["text"],
     windows: {
       executables: ["idea64.exe", "idea.exe"],
       uninstallNames: ["IntelliJ IDEA"],
@@ -138,6 +144,7 @@ export const APP_REGISTRY: readonly LocalAppDefinition[] = [
     name: "DataGrip",
     kind: "editor",
     icon: "datagrip",
+    supportedFileKinds: ["text"],
     windows: {
       executables: ["datagrip64.exe", "datagrip.exe"],
       uninstallNames: ["DataGrip"],
@@ -159,6 +166,7 @@ export const APP_REGISTRY: readonly LocalAppDefinition[] = [
     name: "PyCharm",
     kind: "editor",
     icon: "pycharm",
+    supportedFileKinds: ["text"],
     windows: {
       executables: ["pycharm64.exe", "pycharm.exe"],
       uninstallNames: ["PyCharm"],
@@ -180,6 +188,7 @@ export const APP_REGISTRY: readonly LocalAppDefinition[] = [
     name: "WebStorm",
     kind: "editor",
     icon: "webstorm",
+    supportedFileKinds: ["text"],
     windows: {
       executables: ["webstorm64.exe", "webstorm.exe"],
       uninstallNames: ["WebStorm"],
@@ -197,10 +206,54 @@ export const APP_REGISTRY: readonly LocalAppDefinition[] = [
     },
   },
   {
+    id: "mpv",
+    name: "mpv Media Player",
+    kind: "media-player",
+    icon: "mpv",
+    supportedFileKinds: ["audio", "video"],
+    windows: {
+      executables: ["mpv.exe", "mpv.com"],
+      uninstallNames: ["mpv"],
+      knownPaths: ["%ProgramFiles%\\mpv\\mpv.exe", "%LOCALAPPDATA%\\Programs\\mpv\\mpv.exe"],
+    },
+    macos: {
+      appNames: ["mpv"],
+    },
+    linux: {
+      executables: ["mpv"],
+      desktopIds: ["mpv.desktop", "io.mpv.Mpv.desktop"],
+      flatpakIds: ["io.mpv.Mpv"],
+    },
+  },
+  {
+    id: "vlc",
+    name: "VLC media player",
+    kind: "media-player",
+    icon: "vlc",
+    supportedFileKinds: ["audio", "video"],
+    windows: {
+      executables: ["vlc.exe"],
+      uninstallNames: ["VLC media player"],
+      knownPaths: [
+        "%ProgramFiles%\\VideoLAN\\VLC\\vlc.exe",
+        "%ProgramFiles(x86)%\\VideoLAN\\VLC\\vlc.exe",
+      ],
+    },
+    macos: {
+      appNames: ["VLC"],
+    },
+    linux: {
+      executables: ["vlc"],
+      desktopIds: ["vlc.desktop", "org.videolan.VLC.desktop"],
+      flatpakIds: ["org.videolan.VLC"],
+    },
+  },
+  {
     id: "terminal",
     name: "Terminal",
     kind: "terminal",
     icon: "terminal",
+    supportedFileKinds: [],
     targetMode: "directory",
     windows: {
       executables: ["wt.exe", "wt", "pwsh.exe", "powershell.exe", "cmd.exe"],
@@ -217,10 +270,11 @@ export const APP_REGISTRY: readonly LocalAppDefinition[] = [
   },
 ];
 
-export const FILE_MANAGER_APP: LocalAppDefinition = {
+export const FILE_MANAGER_APP = {
   id: "file-manager",
   name: "File Manager",
   kind: "file-manager",
   icon: "file-manager",
+  supportedFileKinds: [],
   targetMode: "directory",
-};
+} satisfies LocalAppDefinition;

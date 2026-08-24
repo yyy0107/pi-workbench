@@ -1,4 +1,9 @@
-import type { LocalAppKind, LocalAppPlatform, LocalAppView } from "../../rpc-contracts";
+import type {
+  LocalAppFileKind,
+  LocalAppKind,
+  LocalAppPlatform,
+  LocalAppView,
+} from "../../rpc-contracts";
 
 export type LocalAppTargetMode = "path" | "directory";
 
@@ -77,4 +82,4 @@ export type LocalAppLauncherFunction = (
   target: LocalAppLaunchTarget,
 ) => Promise<void>;
 
-export type { LocalAppKind, LocalAppPlatform, LocalAppView };
+export type { LocalAppFileKind, LocalAppKind, LocalAppPlatform, LocalAppView };

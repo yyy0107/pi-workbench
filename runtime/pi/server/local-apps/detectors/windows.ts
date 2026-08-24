@@ -198,6 +198,7 @@ function detectedApp(definition: LocalAppDefinition, executable: string): Detect
     name: definition.name,
     kind: definition.kind,
     ...(definition.icon ? { icon: definition.icon } : {}),
+    supportedFileKinds: [...definition.supportedFileKinds],
     platform: "windows",
     targetMode: definition.targetMode ?? "path",
     launcher: { type: "executable", path: executable },

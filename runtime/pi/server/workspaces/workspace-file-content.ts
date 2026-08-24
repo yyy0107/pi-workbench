@@ -1,10 +1,10 @@
 import { createReadStream } from "node:fs";
 import { Readable } from "node:stream";
 
+import { WORKSPACE_FILE_BUFFERED_PREVIEW_SIZE_LIMIT } from "../../rpc-contracts";
 import { rejectUntrustedApiRequest } from "../transport/api-request-guard";
 import { getWorkspaceStore } from "./workspace-registry";
 import {
-  WORKSPACE_FILE_PREVIEW_SIZE_LIMIT,
   WorkspaceFileError,
   WorkspaceFileService,
   type ResolvedWorkspaceFileContent,
@@ -157,10 +157,6 @@ export async function handleWorkspaceFileContentRequest(
     return errorResponse(request, error);
   }
 
-  if (file.size > WORKSPACE_FILE_PREVIEW_SIZE_LIMIT) {
-    return textErrorResponse(request, 413, FILE_TOO_LARGE_TEXT);
-  }
-
   const etag = `"${file.version}"`;
   const range = parseRange(request.headers.get("range"), file.size);
   if (range === null) {
@@ -171,6 +167,15 @@ export async function handleWorkspaceFileContentRequest(
         headers: { "content-range": `bytes */${file.size}` },
       }),
     );
+  }
+  const streamableMedia = /^(?:audio|video)\//i.test(file.mediaType);
+  if (
+    file.size > WORKSPACE_FILE_BUFFERED_PREVIEW_SIZE_LIMIT &&
+    request.method !== "HEAD" &&
+    range === undefined &&
+    !streamableMedia
+  ) {
+    return textErrorResponse(request, 413, FILE_TOO_LARGE_TEXT);
   }
   if (range === undefined && matchesEtag(request.headers.get("if-none-match"), etag)) {
     return new Response(null, { status: 304, headers: { etag } });

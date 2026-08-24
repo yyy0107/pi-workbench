@@ -922,11 +922,17 @@ export const extensionsZhCN = {
     previewUnsupportedTitle: "无法预览",
     previewUnsupportedDescription: ({ name }: { name: string }) =>
       `${name} 是二进制文件，当前已安装的预览器不支持此格式。`,
+    previewTooLargeDescription: ({ name }: { name: string }) =>
+      `${name} 过大，无法在应用内完整缓冲预览。请通过“打开”菜单使用本地应用查看。`,
+    previewLoadFailed: ({ name }: { name: string }) =>
+      `无法在预览器中加载 ${name}。请通过“打开”菜单使用本地应用查看。`,
+    mediaPreviewLoadFailed: ({ name }: { name: string }) =>
+      `无法在浏览器中流式加载 ${name}。请通过“打开”菜单使用本地应用查看。`,
     filePath: "文件路径",
     browsePath: ({ name }: { name: string }) => `在文件树中浏览 ${name}`,
     open: "打开",
     openOptions: "打开选项",
-    openFile: "在默认编辑器中打开文件",
+    openFile: "使用默认应用打开",
     openWith: ({ name }: { name: string }) => `使用 ${name} 打开`,
     openWithApps: "打开方式",
     loadingLocalApps: "正在查找应用…",

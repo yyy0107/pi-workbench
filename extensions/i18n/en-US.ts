@@ -949,11 +949,17 @@ export const extensionsEnUS = {
     previewUnsupportedTitle: "Preview unavailable",
     previewUnsupportedDescription: ({ name }: { name: string }) =>
       `${name} is a binary file that the installed previewers do not support.`,
+    previewTooLargeDescription: ({ name }: { name: string }) =>
+      `${name} is too large for the in-app preview. Use the Open menu to view it in a local application.`,
+    previewLoadFailed: ({ name }: { name: string }) =>
+      `${name} could not be loaded in the preview. Use the Open menu to view it in a local application.`,
+    mediaPreviewLoadFailed: ({ name }: { name: string }) =>
+      `${name} could not be streamed in the browser. Use the Open menu to view it in a local application.`,
     filePath: "File path",
     browsePath: ({ name }: { name: string }) => `Browse ${name} in the file tree`,
     open: "Open",
     openOptions: "Open options",
-    openFile: "Open file in the default editor",
+    openFile: "Open with the default application",
     openWith: ({ name }: { name: string }) => `Open with ${name}`,
     openWithApps: "Open with",
     loadingLocalApps: "Finding applications…",
