@@ -6,22 +6,15 @@ import {
   upwardDisclosureScrollDelta,
 } from "./disclosure-scroll-policy";
 
-test("moves the full disclosure growth upward when enough space is available", () => {
-  assert.equal(upwardDisclosureScrollDelta(180, 320), 180);
+test("moves the full disclosure growth upward so content below stays fixed", () => {
+  assert.equal(upwardDisclosureScrollDelta(180), 180);
+  assert.equal(upwardDisclosureScrollDelta(320), 320);
 });
 
-test("uses only the visible space above and lets the remainder grow downward", () => {
-  assert.equal(upwardDisclosureScrollDelta(320, 120), 120);
-});
-
-test("keeps expansion downward when no space is available above", () => {
-  assert.equal(upwardDisclosureScrollDelta(180, 0), 0);
-});
-
-test("does not compensate collapsing or invalid measurements", () => {
-  assert.equal(upwardDisclosureScrollDelta(-80, 120), 0);
-  assert.equal(upwardDisclosureScrollDelta(Number.NaN, 120), 0);
-  assert.equal(upwardDisclosureScrollDelta(80, Number.POSITIVE_INFINITY), 0);
+test("does not compensate shrinking or invalid measurements", () => {
+  assert.equal(upwardDisclosureScrollDelta(-80), 0);
+  assert.equal(upwardDisclosureScrollDelta(Number.NaN), 0);
+  assert.equal(upwardDisclosureScrollDelta(Number.POSITIVE_INFINITY), 0);
 });
 
 test("compensates only while an in-progress response opens a disclosure", () => {

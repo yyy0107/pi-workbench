@@ -31,9 +31,6 @@ function lockDisclosureTransition(
   if (!scrollContainer) return () => undefined;
 
   const initialRootRect = root.getBoundingClientRect();
-  const scrollContainerRect = scrollContainer.getBoundingClientRect();
-  const visibleContainerTop = Math.max(0, scrollContainerRect.top + scrollContainer.clientTop);
-  const visibleSpaceAbove = Math.max(0, initialRootRect.top - visibleContainerTop);
   const initialRootHeight = initialRootRect.height;
   const initialScrollTop = scrollContainer.scrollTop;
   let targetScrollTop = initialScrollTop;
@@ -61,8 +58,7 @@ function lockDisclosureTransition(
   const applyPosition = () => {
     if (opening) {
       const heightIncrease = root.getBoundingClientRect().height - initialRootHeight;
-      targetScrollTop =
-        initialScrollTop + upwardDisclosureScrollDelta(heightIncrease, visibleSpaceAbove);
+      targetScrollTop = initialScrollTop + upwardDisclosureScrollDelta(heightIncrease);
     }
 
     if (Math.abs(scrollContainer.scrollTop - targetScrollTop) > 0.5) {
