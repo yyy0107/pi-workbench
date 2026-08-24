@@ -1179,11 +1179,11 @@ export function WorkbenchComposer() {
                           type="button"
                           size="icon"
                           variant="default"
-                          className={COMPOSER_PRIMARY_ACTION_CLASS_NAME}
+                          className={cn(COMPOSER_PRIMARY_ACTION_CLASS_NAME, "[&_svg]:size-3!")}
                         />
                       }
                     >
-                      <SquareIcon className="size-4 fill-current" />
+                      <SquareIcon className="size-3 fill-current" />
                     </ComposerPrimitive.Cancel>
                   ) : (
                     <TooltipIconButton
