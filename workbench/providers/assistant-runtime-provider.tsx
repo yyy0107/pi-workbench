@@ -25,7 +25,10 @@ import {
   useWorkspaceCapabilities,
   useWorkspaceSelection,
 } from "@/services/workspace-selection-service";
-import { resolvePendingThreadPromotionId } from "@/workbench/workspaces/new-thread-policy";
+import {
+  resolvePendingThreadPromotionId,
+  shouldCloseRightWorkspaceForNewThread,
+} from "@/workbench/workspaces/new-thread-policy";
 import type { PromptFeedbackPort } from "@/services/workspace-feedback-service";
 
 import {
@@ -184,6 +187,34 @@ function PiDraftWorkspaceTracker({ manager }: { manager: PiSessionManager }) {
   return null;
 }
 
+function NewThreadWorkspaceVisibilityTracker() {
+  const controller = useRightWorkspace();
+  const hydrated = useRightWorkspaceState((state) => state.hydrated);
+  const mainThreadId = useAuiState((state) => state.threads.mainThreadId);
+  const newThreadId = useAuiState((state) => state.threads.newThreadId);
+  const handledNewThreadIds = useRef(new Set<string>());
+
+  useLayoutEffect(() => {
+    if (!mainThreadId) return;
+    const alreadyHandled = handledNewThreadIds.current.has(mainThreadId);
+    if (
+      !shouldCloseRightWorkspaceForNewThread({
+        hydrated,
+        mainThreadId,
+        newThreadId,
+        alreadyHandled,
+      })
+    ) {
+      return;
+    }
+
+    handledNewThreadIds.current.add(mainThreadId);
+    controller.setWorkspaceOpen(false);
+  }, [controller, hydrated, mainThreadId, newThreadId]);
+
+  return null;
+}
+
 function ActiveWorkspaceContextTracker() {
   const controller = useRightWorkspace();
   const setContext = useSetWorkspaceContext();
@@ -277,6 +308,7 @@ export function WorkbenchAssistantRuntimeProvider({ children }: Readonly<{ child
           <PiCommandsProvider>
             <ActivePiThreadTracker manager={manager} />
             <PiDraftWorkspaceTracker manager={manager} />
+            <NewThreadWorkspaceVisibilityTracker />
             <ActiveWorkspaceContextTracker />
             {children}
           </PiCommandsProvider>

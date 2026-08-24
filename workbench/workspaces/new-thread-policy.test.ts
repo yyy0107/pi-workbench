@@ -7,6 +7,7 @@ import {
   resolvePendingThreadPromotionId,
   resolvePromotedThreadRouteId,
   resolveSidebarThreadWorkspaceId,
+  shouldCloseRightWorkspaceForNewThread,
   shouldProjectNewThreadRoute,
 } from "./new-thread-policy";
 
@@ -95,6 +96,58 @@ test("an explicit new-thread selection outranks the previously synchronized rout
     }),
     false,
     "the root route already represents the new-thread view",
+  );
+});
+
+test("a new conversation closes the hydrated right workspace only once", () => {
+  assert.equal(
+    shouldCloseRightWorkspaceForNewThread({
+      hydrated: false,
+      mainThreadId: "draft-thread",
+      newThreadId: "draft-thread",
+      alreadyHandled: false,
+    }),
+    false,
+    "persisted workspace state must hydrate before applying the new-thread default",
+  );
+  assert.equal(
+    shouldCloseRightWorkspaceForNewThread({
+      hydrated: true,
+      mainThreadId: undefined,
+      newThreadId: undefined,
+      alreadyHandled: false,
+    }),
+    false,
+    "missing thread ids are not a new conversation",
+  );
+  assert.equal(
+    shouldCloseRightWorkspaceForNewThread({
+      hydrated: true,
+      mainThreadId: "existing-thread",
+      newThreadId: "draft-thread",
+      alreadyHandled: false,
+    }),
+    false,
+    "existing conversations keep their workspace visibility",
+  );
+  assert.equal(
+    shouldCloseRightWorkspaceForNewThread({
+      hydrated: true,
+      mainThreadId: "draft-thread",
+      newThreadId: "draft-thread",
+      alreadyHandled: false,
+    }),
+    true,
+  );
+  assert.equal(
+    shouldCloseRightWorkspaceForNewThread({
+      hydrated: true,
+      mainThreadId: "draft-thread",
+      newThreadId: "draft-thread",
+      alreadyHandled: true,
+    }),
+    false,
+    "manually reopening the workspace in the draft must not close it again",
   );
 });
 

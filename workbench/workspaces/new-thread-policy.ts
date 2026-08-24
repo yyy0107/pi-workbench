@@ -30,6 +30,20 @@ export function shouldProjectNewThreadRoute({
   return routeThreadId !== undefined && isNewThread && syncedRouteThreadId === routeThreadId;
 }
 
+export function shouldCloseRightWorkspaceForNewThread({
+  hydrated,
+  mainThreadId,
+  newThreadId,
+  alreadyHandled,
+}: {
+  hydrated: boolean;
+  mainThreadId: string | undefined;
+  newThreadId: string | null | undefined;
+  alreadyHandled: boolean;
+}): boolean {
+  return hydrated && mainThreadId !== undefined && mainThreadId === newThreadId && !alreadyHandled;
+}
+
 export function resolvePromotedThreadRouteId({
   mainThreadId,
   newThreadId,
