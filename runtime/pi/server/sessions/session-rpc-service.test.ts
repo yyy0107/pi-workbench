@@ -86,6 +86,7 @@ function modelGroups(): ModelProviderGroup[] {
         {
           id: "gpt-reasoning",
           name: "GPT Reasoning",
+          imageInput: "unknown",
           reasoning: {
             efforts: [
               { id: "low", name: "Low" },

@@ -1,4 +1,8 @@
-import type { ModelCatalogValue, ModelProvidersValue } from "@/runtime/pi/rpc-contracts";
+import type {
+  ModelCapabilityState,
+  ModelCatalogValue,
+  ModelProvidersValue,
+} from "@/runtime/pi/rpc-contracts";
 
 export interface MultimodalModelOption {
   readonly value: string;
@@ -7,6 +11,7 @@ export interface MultimodalModelOption {
 
 export interface MultimodalProviderOption extends MultimodalModelOption {
   readonly models: readonly MultimodalModelOption[];
+  readonly imageInput: ModelCapabilityState;
 }
 
 export function configuredMultimodalModelOptions(
@@ -26,15 +31,20 @@ export function configuredMultimodalModelOptions(
     if (!configuredProvider) return [];
 
     const models = group.models
-      .filter((model) => model.input?.includes("image"))
+      .filter((model) => model.imageInput === "supported")
       .map((model) => ({ value: model.id, label: model.name }));
-    if (models.length === 0) return [];
-
+    const imageInput =
+      models.length > 0
+        ? "supported"
+        : group.models.some((model) => model.imageInput === "unknown")
+          ? "unknown"
+          : "unsupported";
     return [
       {
         value: group.id,
         label: configuredProvider.displayName || group.name,
         models,
+        imageInput,
       },
     ];
   });

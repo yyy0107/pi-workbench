@@ -56,6 +56,7 @@ test("uses the session catalog and its server-provided reasoning efforts", () =>
           {
             id: "gpt-reasoning",
             name: "GPT Reasoning",
+            imageInput: "unknown",
             reasoning: {
               efforts: [
                 { id: "off", name: "Off" },
@@ -97,7 +98,7 @@ test("keeps an unavailable session current model visible without making it selec
       {
         id: "openai",
         name: "OpenAI",
-        models: [{ id: "gpt", name: "GPT" }],
+        models: [{ id: "gpt", name: "GPT", imageInput: "unknown" }],
       },
     ],
   });
@@ -125,6 +126,7 @@ test("draft catalogs use the shared protocol model groups and reasoning efforts"
             id: "reasoning",
             name: "Reasoning",
             description: "128000 tokens",
+            imageInput: "unknown",
             reasoning: {
               efforts: [
                 { id: "low", name: "Low" },
@@ -137,6 +139,7 @@ test("draft catalogs use the shared protocol model groups and reasoning efforts"
           {
             id: "plain",
             name: "Plain",
+            imageInput: "unknown",
           },
         ],
       },

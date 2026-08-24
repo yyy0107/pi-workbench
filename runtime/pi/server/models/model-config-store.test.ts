@@ -38,6 +38,7 @@ test("merges provider models without exposing or overwriting credentials", async
             "id": "acme-large",
             "name": "Old",
             "reasoning": true,
+            "thinkingLevelMap": { "minimal": "low", "xhigh": null },
             "input": ["text", "image"]
           }],
         },
@@ -51,7 +52,15 @@ test("merges provider models without exposing or overwriting credentials", async
       displayName: "Old name",
       baseURL: "https://old.example.test/v1",
       api: "openai-completions",
-      models: [{ id: "acme-large", name: "Old", input: ["text", "image"] }],
+      models: [
+        {
+          id: "acme-large",
+          name: "Old",
+          reasoning: true,
+          thinkingLevelMap: { minimal: "low", xhigh: null },
+          input: ["text", "image"],
+        },
+      ],
     },
   });
   assert.equal(JSON.stringify(await store.providers()).includes("never-return-this"), false);
@@ -65,13 +74,17 @@ test("merges provider models without exposing or overwriting credentials", async
         id: "acme-large",
         contextWindow: 1_000_000,
         maxTokens: 256_000,
+        reasoning: true,
+        thinkingLevelMap: { minimal: "low", xhigh: null },
         input: ["text", "image"],
+        imageInputSource: "provider-api",
       },
     ],
   });
   const saved = JSON.parse(await readFile(stateFile, "utf8")) as {
     schemaNote: string;
     providers: Record<string, Record<string, unknown>>;
+    "x-workbench-model-capability-sources": Record<string, Record<string, string>>;
   };
   assert.equal(saved.schemaNote, "keep-me");
   assert.equal(saved.providers.acme.apiKey, "never-return-this");
@@ -80,14 +93,62 @@ test("merges provider models without exposing or overwriting credentials", async
     {
       id: "acme-large",
       reasoning: true,
+      thinkingLevelMap: { minimal: "low", xhigh: null },
       contextWindow: 1_000_000,
       maxTokens: 256_000,
       input: ["text", "image"],
     },
   ]);
+  assert.deepEqual(saved["x-workbench-model-capability-sources"], {
+    acme: { "acme-large": "provider-api" },
+  });
+  assert.deepEqual((await store.providers()).acme.models, [
+    {
+      id: "acme-large",
+      contextWindow: 1_000_000,
+      maxTokens: 256_000,
+      reasoning: true,
+      thinkingLevelMap: { minimal: "low", xhigh: null },
+      input: ["text", "image"],
+      imageInputSource: "provider-api",
+    },
+  ]);
 
   await mutation.rollback();
   assert.match(await readFile(stateFile, "utf8"), /Pi model configuration/u);
+});
+
+test("persists a user-selected model type in Workbench capability metadata", async (t) => {
+  const directory = await mkdtemp(path.join(tmpdir(), "workbench-model-config-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const stateFile = path.join(directory, "models.json");
+  const store = new ModelConfigStore({ stateFile });
+
+  await store.setProvider("acme", {
+    baseURL: "https://api.example.test/v1",
+    api: "openai-responses",
+    models: [
+      {
+        id: "acme-text",
+        input: ["text"],
+        imageInputSource: "user",
+      },
+    ],
+  });
+
+  const saved = JSON.parse(await readFile(stateFile, "utf8")) as {
+    "x-workbench-model-capability-sources": Record<string, Record<string, string>>;
+  };
+  assert.deepEqual(saved["x-workbench-model-capability-sources"], {
+    acme: { "acme-text": "user" },
+  });
+  assert.deepEqual((await store.providers()).acme.models, [
+    {
+      id: "acme-text",
+      input: ["text"],
+      imageInputSource: "user",
+    },
+  ]);
 });
 
 test("does not roll back a provider mutation over a newer successful write", async (t) => {

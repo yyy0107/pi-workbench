@@ -20,7 +20,11 @@ export interface ModelDraft {
   name: string;
   contextWindow: string;
   maxTokens: string;
-  supportsImages: boolean;
+  reasoning: boolean;
+  thinkingLevelMap?: ModelProviderModelConfiguration["thinkingLevelMap"];
+  /** Detected or explicitly selected model-type metadata. Undefined means unknown. */
+  input?: ModelProviderModelConfiguration["input"];
+  imageInputSource?: ModelProviderModelConfiguration["imageInputSource"];
   expanded: boolean;
 }
 
@@ -36,6 +40,11 @@ export interface ProviderDraft {
   modelsSource: "adapter" | "custom";
   models: ModelDraft[];
   availableModels: ModelProviderModelConfiguration[];
+}
+
+export interface ProviderModelAvailability {
+  configuredModelIds: string[];
+  unavailableModelIds: string[];
 }
 
 export type ProviderDraftError =
@@ -81,7 +90,10 @@ export function toModelDraft(model: ModelProviderModelConfiguration, expanded = 
     name: model.name ?? "",
     contextWindow: normalizeContextWindowInput(String(model.contextWindow ?? "")),
     maxTokens: formatCapacity(model.maxTokens),
-    supportsImages: model.input?.includes("image") === true,
+    reasoning: model.reasoning ?? false,
+    ...(model.thinkingLevelMap ? { thinkingLevelMap: { ...model.thinkingLevelMap } } : {}),
+    ...(model.input ? { input: [...model.input] } : {}),
+    ...(model.imageInputSource ? { imageInputSource: model.imageInputSource } : {}),
     expanded,
   };
 }
@@ -115,6 +127,28 @@ export function emptyDraft(
     models: [],
     availableModels: [],
   };
+}
+
+export function evaluateProviderModelAvailability(
+  configuredModels: readonly Pick<ModelDraft, "id">[],
+  availableModels: readonly { id: string }[],
+): ProviderModelAvailability {
+  const availableModelIds = new Set(
+    availableModels.map(({ id }) => id.trim()).filter((id) => id.length > 0),
+  );
+  const seenConfiguredModelIds = new Set<string>();
+  const configuredModelIds: string[] = [];
+  const unavailableModelIds: string[] = [];
+
+  for (const model of configuredModels) {
+    const id = model.id.trim();
+    if (!id || seenConfiguredModelIds.has(id)) continue;
+    seenConfiguredModelIds.add(id);
+    configuredModelIds.push(id);
+    if (!availableModelIds.has(id)) unavailableModelIds.push(id);
+  }
+
+  return { configuredModelIds, unavailableModelIds };
 }
 
 export function toProviderDraft(
@@ -165,7 +199,18 @@ export function prepareProviderConfiguration(draft: ProviderDraft): PreparedProv
       ...(model.name.trim() ? { name: model.name.trim() } : {}),
       ...(contextWindow ? { contextWindow } : {}),
       ...(maxTokens ? { maxTokens } : {}),
-      input: model.supportsImages ? ["text", "image"] : ["text"],
+      ...(model.reasoning
+        ? {
+            reasoning: true,
+            ...(model.thinkingLevelMap ? { thinkingLevelMap: { ...model.thinkingLevelMap } } : {}),
+          }
+        : {}),
+      ...(model.input && model.imageInputSource
+        ? {
+            input: [...new Set(model.input)],
+            imageInputSource: model.imageInputSource,
+          }
+        : {}),
     });
   }
 

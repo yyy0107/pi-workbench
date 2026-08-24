@@ -4,6 +4,7 @@ import type { AuthEvent } from "@earendil-works/pi-ai";
 import { builtinProviders } from "@earendil-works/pi-ai/providers/all";
 
 import { PI_THINKING_LEVELS, type PiThinkingLevel } from "../../contracts";
+import { imageInputCapability, type ModelInputModality } from "../../model-capabilities";
 import type {
   ConfigurableProviderView,
   ConfigureModelProviderPayload,
@@ -13,8 +14,11 @@ import type {
   ModelCatalogFailure,
   ModelCatalogModel,
   ModelCatalogValue,
+  ModelCapabilityState,
   ModelContextWindowPayload,
   ModelContextWindowValue,
+  ModelDiscoveryFailureDetails,
+  ModelDiscoveryFailureReason,
   ModelProviderGroup,
   ModelProviderConfigValue,
   ModelProviderLoginPayload,
@@ -29,6 +33,7 @@ import {
   ModelConfigStore,
   type ModelConfigMutation,
   type ModelConfigStorage,
+  type StoredModelProviderConfiguration,
 } from "./model-config-store";
 
 export type {
@@ -46,10 +51,7 @@ export type DiscoverModelsInput = DiscoverModelsPayload;
 export type DiscoverModelsResult = DiscoverModelsValue;
 
 export interface ModelServiceErrorDetails {
-  "model-discovery-failed": {
-    settingsNs: string;
-    baseURL?: string;
-  };
+  "model-discovery-failed": ModelDiscoveryFailureDetails;
   "model-provider-not-found": {
     provider: string;
   };
@@ -265,6 +267,7 @@ const MODEL_LISTING_MAX_PAGES = 100;
 const ANTHROPIC_VERSION = "2023-06-01";
 const LISTABLE_MODEL_APIS = new Set([
   "anthropic-messages",
+  "google-generative-ai",
   "openai-completions",
   "openai-responses",
 ]);
@@ -484,12 +487,20 @@ function modelReasoning(model: ModelRuntimeModel): ModelCatalogModel["reasoning"
   };
 }
 
-export function toModelCatalogModel(model: ModelRuntimeModel): ModelCatalogModel {
+export function toModelCatalogModel(
+  model: ModelRuntimeModel,
+  imageInput = imageInputCapability(model.input),
+  imageInputSource: ModelCatalogModel["imageInputSource"] = model.input === undefined
+    ? undefined
+    : "runtime",
+): ModelCatalogModel {
   const reasoning = modelReasoning(model);
   return {
     id: model.id,
     name: model.name || model.id,
     input: model.input ?? ["text"],
+    imageInput,
+    ...(imageInputSource ? { imageInputSource } : {}),
     ...(reasoning ? { reasoning } : {}),
   };
 }
@@ -510,10 +521,15 @@ function uniqueFailures(failures: readonly ModelCatalogFailure[]): ModelCatalogF
 
 function discoveryDetails(
   input: DiscoverModelsInput,
+  cause?: unknown,
 ): ModelServiceErrorDetails["model-discovery-failed"] {
   return {
     settingsNs: input.settingsNs,
     ...(input.baseURL ? { baseURL: input.baseURL } : {}),
+    reason: cause instanceof EndpointDiscoveryError ? cause.reason : "runtime",
+    ...(cause instanceof EndpointDiscoveryError && cause.httpStatus !== undefined
+      ? { httpStatus: cause.httpStatus }
+      : {}),
   };
 }
 
@@ -521,16 +537,33 @@ function discoveryError(input: DiscoverModelsInput, cause?: unknown): ModelServi
   return new ModelServiceError(
     "model-discovery-failed",
     cause instanceof EndpointDiscoveryError ? cause.message : "Model discovery failed.",
-    discoveryDetails(input),
+    discoveryDetails(input, cause),
     cause === undefined ? undefined : { cause },
   );
 }
 
 class EndpointDiscoveryError extends Error {
-  constructor(message: string, options?: ErrorOptions) {
+  readonly reason: ModelDiscoveryFailureReason;
+  readonly httpStatus?: number;
+
+  constructor(
+    reason: ModelDiscoveryFailureReason,
+    message: string,
+    options: ErrorOptions & { httpStatus?: number } = {},
+  ) {
     super(message, options);
     this.name = "EndpointDiscoveryError";
+    this.reason = reason;
+    this.httpStatus = options.httpStatus;
   }
+}
+
+function modelListingHttpFailureReason(status: number): ModelDiscoveryFailureReason {
+  if (status === 401 || status === 403) return "authentication";
+  if (status === 404) return "endpoint-not-found";
+  if (status === 429) return "rate-limited";
+  if (status >= 500) return "provider-unavailable";
+  return "http-error";
 }
 
 class ApiKeyInteractionError extends Error {
@@ -578,12 +611,16 @@ function configuredModel(
   if (input?.length === 0) {
     providerConfigurationFailure(provider, "Every configured model needs an input modality.");
   }
+  const thinkingLevelMap = model.thinkingLevelMap ? { ...model.thinkingLevelMap } : undefined;
   return {
     id,
     ...(name ? { name } : {}),
     ...(model.contextWindow ? { contextWindow: model.contextWindow } : {}),
     ...(model.maxTokens ? { maxTokens: model.maxTokens } : {}),
+    ...(model.reasoning === undefined ? {} : { reasoning: model.reasoning }),
+    ...(thinkingLevelMap ? { thinkingLevelMap } : {}),
     ...(input ? { input } : {}),
+    ...(input && model.imageInputSource ? { imageInputSource: model.imageInputSource } : {}),
   };
 }
 
@@ -635,35 +672,53 @@ function runtimeModelConfiguration(model: ModelRuntimeModel): ModelProviderModel
     ...(Number.isInteger(model.maxTokens) && model.maxTokens > 0
       ? { maxTokens: model.maxTokens }
       : {}),
+    ...(model.reasoning ? { reasoning: true } : {}),
+    ...(model.thinkingLevelMap ? { thinkingLevelMap: { ...model.thinkingLevelMap } } : {}),
     ...(model.input ? { input: [...new Set(model.input)] } : {}),
+    ...(model.input ? { imageInputSource: "runtime" as const } : {}),
   };
 }
 
 interface ModelListingEntry {
   id?: unknown;
   name?: unknown;
+  baseModelId?: unknown;
+  displayName?: unknown;
   display_name?: unknown;
+  inputTokenLimit?: unknown;
   max_input_tokens?: unknown;
   context_window?: unknown;
   context_length?: unknown;
+  outputTokenLimit?: unknown;
   max_tokens?: unknown;
   max_output_tokens?: unknown;
+  architecture?: unknown;
+  capabilities?: unknown;
+  input_modalities?: unknown;
+  supportedGenerationMethods?: unknown;
 }
 
 interface ModelListingPage {
   models: DiscoveredModel[];
   hasMore: boolean;
   lastId?: string;
+  nextPageToken?: string;
 }
 
-function modelListingUrl(baseURL: string, api: string, afterId?: string): string {
+function modelListingUrl(baseURL: string, api: string, cursor?: string): string {
   const normalized = baseURL.replace(/\/+$/u, "");
+  if (api === "google-generative-ai") {
+    const url = new URL(`${normalized}/models`);
+    url.searchParams.set("pageSize", String(MODEL_LISTING_PAGE_LIMIT));
+    if (cursor) url.searchParams.set("pageToken", cursor);
+    return url.toString();
+  }
   if (api !== "anthropic-messages") return `${normalized}/models`;
 
   const endpoint = normalized.endsWith("/v1") ? `${normalized}/models` : `${normalized}/v1/models`;
   const url = new URL(endpoint);
   url.searchParams.set("limit", String(MODEL_LISTING_PAGE_LIMIT));
-  if (afterId) url.searchParams.set("after_id", afterId);
+  if (cursor) url.searchParams.set("after_id", cursor);
   return url.toString();
 }
 
@@ -677,13 +732,53 @@ function listingCapacity(...values: readonly unknown[]): number | undefined {
   );
 }
 
+function listingRecord(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+function listingModalities(value: unknown): readonly string[] | undefined {
+  return Array.isArray(value) && value.every((item) => typeof item === "string")
+    ? value
+    : undefined;
+}
+
+function listingInputCapability(entry: ModelListingEntry): {
+  input?: ModelInputModality[];
+  imageInput: ModelCapabilityState;
+} {
+  const capabilities = listingRecord(entry.capabilities);
+  const imageInput = listingRecord(capabilities?.image_input)?.supported;
+  if (typeof imageInput === "boolean") {
+    return {
+      input: imageInput ? ["text", "image"] : ["text"],
+      imageInput: imageInput ? "supported" : "unsupported",
+    };
+  }
+
+  const architecture = listingRecord(entry.architecture);
+  const modalities =
+    listingModalities(architecture?.input_modalities) ?? listingModalities(entry.input_modalities);
+  if (modalities === undefined) return { imageInput: "unknown" };
+
+  const input: ModelInputModality[] = [];
+  if (modalities.includes("text")) input.push("text");
+  if (modalities.includes("image")) input.push("image");
+  return {
+    ...(input.length > 0 ? { input } : {}),
+    imageInput: modalities.includes("image") ? "supported" : "unsupported",
+  };
+}
+
 function requestApiKey(raw: string): string {
   const key = raw.trim();
   if (!key) {
-    throw new EndpointDiscoveryError("The request-scoped API key is blank.");
+    throw new EndpointDiscoveryError("invalid-api-key", "The request-scoped API key is blank.");
   }
   if (!/^[\x21-\x7e]+$/u.test(key)) {
     throw new EndpointDiscoveryError(
+      "invalid-api-key",
       "The request-scoped API key contains characters that cannot be sent in an HTTP header.",
     );
   }
@@ -699,6 +794,7 @@ async function readBoundedListing(
   signal?.throwIfAborted();
   const oversized = () =>
     new EndpointDiscoveryError(
+      "invalid-response",
       `${url} answered with more than ${MODEL_LISTING_RESPONSE_LIMIT} bytes.`,
     );
   const declared = Number(response.headers.get("content-length") ?? Number.NaN);
@@ -754,6 +850,7 @@ function parseModelListing(body: unknown): ModelListingPage {
   const data = record && "data" in record ? (record as { data: unknown }).data : undefined;
   if (!Array.isArray(data)) {
     throw new EndpointDiscoveryError(
+      "invalid-response",
       'The endpoint model listing has no "data" array; enter this provider\'s models manually.',
     );
   }
@@ -773,11 +870,15 @@ function parseModelListing(body: unknown): ModelListingPage {
       entry.context_length,
     );
     const maxTokens = listingCapacity(entry.max_output_tokens, entry.max_tokens);
+    const capability = listingInputCapability(entry);
     models.push({
       id,
       ...(name ? { name } : {}),
       ...(contextWindow ? { contextWindow } : {}),
       ...(maxTokens ? { maxTokens } : {}),
+      ...(capability.input ? { input: capability.input } : {}),
+      imageInput: capability.imageInput,
+      ...(capability.imageInput === "unknown" ? {} : { imageInputSource: "provider-api" as const }),
     });
   }
   return {
@@ -785,6 +886,53 @@ function parseModelListing(body: unknown): ModelListingPage {
     hasMore: record !== undefined && "has_more" in record && record.has_more === true,
     ...(record !== undefined && "last_id" in record
       ? { lastId: listingLabel(record.last_id) }
+      : {}),
+  };
+}
+
+function googleModelResourceId(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const id = value.startsWith("models/") ? value.slice("models/".length) : value;
+  return id || undefined;
+}
+
+function parseGoogleModelListing(body: unknown): ModelListingPage {
+  const record = listingRecord(body);
+  const data = record?.models;
+  if (!Array.isArray(data)) {
+    throw new EndpointDiscoveryError(
+      "invalid-response",
+      'The Google model listing has no "models" array; enter this provider\'s models manually.',
+    );
+  }
+
+  const seen = new Set<string>();
+  const models: DiscoveredModel[] = [];
+  for (const raw of data) {
+    if (typeof raw !== "object" || raw === null) continue;
+    const entry = raw as ModelListingEntry;
+    const generationMethods = listingModalities(entry.supportedGenerationMethods);
+    if (generationMethods && !generationMethods.includes("generateContent")) continue;
+    const id = listingLabel(entry.baseModelId, googleModelResourceId(entry.name));
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    const name = listingLabel(entry.displayName);
+    const contextWindow = listingCapacity(entry.inputTokenLimit);
+    const maxTokens = listingCapacity(entry.outputTokenLimit);
+    models.push({
+      id,
+      ...(name ? { name } : {}),
+      ...(contextWindow ? { contextWindow } : {}),
+      ...(maxTokens ? { maxTokens } : {}),
+      imageInput: "unknown",
+    });
+  }
+
+  return {
+    models,
+    hasMore: false,
+    ...(typeof record?.nextPageToken === "string" && record.nextPageToken
+      ? { nextPageToken: record.nextPageToken }
       : {}),
   };
 }
@@ -799,7 +947,11 @@ function discoveredModel(model: ModelRuntimeModel): DiscoveredModel {
     ...(Number.isInteger(model.maxTokens) && model.maxTokens >= 1
       ? { maxTokens: model.maxTokens }
       : {}),
+    ...(model.reasoning ? { reasoning: true } : {}),
+    ...(model.thinkingLevelMap ? { thinkingLevelMap: { ...model.thinkingLevelMap } } : {}),
     ...(model.input ? { input: [...new Set(model.input)] } : {}),
+    imageInput: imageInputCapability(model.input),
+    ...(model.input ? { imageInputSource: "runtime" as const } : {}),
   };
 }
 
@@ -1389,17 +1541,33 @@ export class ModelService {
 
     const { runtime, diagnostics } = loaded;
     const providers = runtime.getProviders();
+    const storedProviders: Record<string, StoredModelProviderConfiguration> =
+      await this.modelConfigStore.providers().catch(() => ({}));
     const entries = await Promise.all(
       providers.map(async (provider) => {
         try {
           const models = await runtime.getAvailable(provider.id);
+          const storedModels = new Map(
+            storedProviders[provider.id]?.models?.map((model) => [model.id, model] as const) ?? [],
+          );
           return {
             group: {
               id: provider.id,
               name: provider.name || provider.id,
               models: [...models]
                 .sort((left, right) => compareText(left.id, right.id))
-                .map(toModelCatalogModel),
+                .map((model) => {
+                  const storedModel = storedModels.get(model.id);
+                  return storedModel
+                    ? toModelCatalogModel(
+                        model,
+                        storedModel.imageInputSource
+                          ? imageInputCapability(storedModel.input)
+                          : "unknown",
+                        storedModel.imageInputSource,
+                      )
+                    : toModelCatalogModel(model);
+                }),
             } satisfies ModelProviderGroup,
           };
         } catch (error) {
@@ -1460,7 +1628,7 @@ export class ModelService {
     }
 
     const provider = runtime ? this.discoveryProvider(input, runtime) : undefined;
-    if (provider) {
+    if (provider && input.source !== "endpoint") {
       const catalog = runtime?.getModels(provider) ?? [];
       if (catalog.length > 0) {
         return {
@@ -1471,13 +1639,22 @@ export class ModelService {
       }
     }
 
-    if (!input.baseURL) throw discoveryError(input);
+    if (!input.baseURL) {
+      throw discoveryError(
+        input,
+        new EndpointDiscoveryError(
+          "missing-api-address",
+          "The provider API address is required for endpoint discovery.",
+        ),
+      );
+    }
 
     const api = input.api ?? "openai-completions";
     if (!LISTABLE_MODEL_APIS.has(api)) {
       throw discoveryError(
         input,
         new EndpointDiscoveryError(
+          "unsupported-protocol",
           `Pi API protocol "${api}" has no model listing this build can read; enter this provider's models manually.`,
         ),
       );
@@ -1499,18 +1676,22 @@ export class ModelService {
               "anthropic-version": ANTHROPIC_VERSION,
               ...(apiKey ? { "x-api-key": apiKey } : {}),
             }
-          : apiKey
-            ? { authorization: `Bearer ${apiKey}` }
-            : {}),
+          : api === "google-generative-ai"
+            ? apiKey
+              ? { "x-goog-api-key": apiKey }
+              : {}
+            : apiKey
+              ? { authorization: `Bearer ${apiKey}` }
+              : {}),
       };
       const models: DiscoveredModel[] = [];
       const seenModelIds = new Set<string>();
       const seenCursors = new Set<string>();
-      let afterId: string | undefined;
+      let cursor: string | undefined;
       let remainingBytes = MODEL_LISTING_RESPONSE_LIMIT;
 
       for (let pageIndex = 0; pageIndex < MODEL_LISTING_MAX_PAGES; pageIndex += 1) {
-        url = modelListingUrl(input.baseURL, api, afterId);
+        url = modelListingUrl(input.baseURL, api, cursor);
         const response = await this.fetcher(url, {
           method: "GET",
           headers,
@@ -1520,9 +1701,11 @@ export class ModelService {
         if (!response.ok) {
           void response.body?.cancel().catch(() => undefined);
           throw new EndpointDiscoveryError(
+            modelListingHttpFailureReason(response.status),
             `${url} answered ${response.status}${
               response.status === 401 || response.status === 403 ? "; check the API key" : ""
             }.`,
+            { httpStatus: response.status },
           );
         }
 
@@ -1532,26 +1715,44 @@ export class ModelService {
         try {
           body = JSON.parse(text);
         } catch (error) {
-          throw new EndpointDiscoveryError(`${url} did not answer with JSON.`, { cause: error });
+          throw new EndpointDiscoveryError("invalid-response", `${url} did not answer with JSON.`, {
+            cause: error,
+          });
         }
-        const page = parseModelListing(body);
+        const page =
+          api === "google-generative-ai" ? parseGoogleModelListing(body) : parseModelListing(body);
         for (const model of page.models) {
           if (seenModelIds.has(model.id)) continue;
           seenModelIds.add(model.id);
           models.push(model);
         }
 
+        if (api === "google-generative-ai") {
+          if (!page.nextPageToken) return { models };
+          if (seenCursors.has(page.nextPageToken)) {
+            throw new EndpointDiscoveryError(
+              "invalid-response",
+              `${url} returned an invalid Google model-listing cursor.`,
+            );
+          }
+          seenCursors.add(page.nextPageToken);
+          cursor = page.nextPageToken;
+          continue;
+        }
+
         if (api !== "anthropic-messages" || !page.hasMore) return { models };
         if (!page.lastId || seenCursors.has(page.lastId)) {
           throw new EndpointDiscoveryError(
+            "invalid-response",
             `${url} returned an invalid Anthropic model-listing cursor.`,
           );
         }
         seenCursors.add(page.lastId);
-        afterId = page.lastId;
+        cursor = page.lastId;
       }
 
       throw new EndpointDiscoveryError(
+        "invalid-response",
         `${url} returned more than ${MODEL_LISTING_MAX_PAGES} model-listing pages.`,
       );
     } catch (error) {
@@ -1559,7 +1760,7 @@ export class ModelService {
       if (error instanceof EndpointDiscoveryError) throw discoveryError(input, error);
       throw discoveryError(
         input,
-        new EndpointDiscoveryError(`Could not reach ${url}.`, { cause: error }),
+        new EndpointDiscoveryError("network", `Could not reach ${url}.`, { cause: error }),
       );
     }
   }

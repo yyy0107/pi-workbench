@@ -619,6 +619,31 @@ test("rejects malformed custom provider catalogs at the RPC boundary", async () 
   assert.equal(body.result.error.code, "bad-request");
 });
 
+test("rejects malformed model reasoning levels at the RPC boundary", async () => {
+  const response = await handlePiRpcPost(
+    rpcRequest("llm.configureProvider", {
+      provider: "acme",
+      configuration: {
+        baseURL: "https://api.acme.test/v1",
+        api: "openai-responses",
+        models: [
+          {
+            id: "acme-large",
+            reasoning: true,
+            thinkingLevelMap: { medium: 8 },
+          },
+        ],
+      },
+    }),
+    "llm.configureProvider",
+  );
+  assert.equal(response.status, 200);
+  const body = (await response.json()) as ServerResponse<unknown>;
+  assert.equal(body.result.ok, false);
+  if (body.result.ok) assert.fail("Expected a reasoning-level validation error");
+  assert.equal(body.result.error.code, "bad-request");
+});
+
 test("maps an aborted model discovery to the RPC cancelled envelope", async () => {
   const controller = new AbortController();
   controller.abort();

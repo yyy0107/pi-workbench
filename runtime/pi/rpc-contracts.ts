@@ -262,11 +262,19 @@ export interface ModelReasoningEffort {
   description?: string;
 }
 
+export type ModelCapabilityState = "supported" | "unsupported" | "unknown";
+export type ModelCapabilitySource = "provider-api" | "runtime" | "user";
+export type ModelThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
+export type ModelThinkingLevelMap = Partial<Record<ModelThinkingLevel, string | null>>;
+
 export interface ModelCatalogModel {
   id: string;
   name: string;
   description?: string;
   input?: Array<"text" | "image">;
+  /** Normalized server-side capability result; never inferred from the model ID. */
+  imageInput: ModelCapabilityState;
+  imageInputSource?: ModelCapabilitySource;
   reasoning?: {
     efforts: ModelReasoningEffort[];
     defaultEffort?: string;
@@ -381,7 +389,11 @@ export interface ModelProviderModelConfiguration {
   name?: string;
   contextWindow?: number;
   maxTokens?: number;
+  reasoning?: boolean;
+  thinkingLevelMap?: ModelThinkingLevelMap;
   input?: Array<"text" | "image">;
+  /** Workbench-owned provenance; not part of Pi's provider request configuration. */
+  imageInputSource?: ModelCapabilitySource;
 }
 
 export interface ModelProviderConfiguration {
@@ -435,6 +447,28 @@ export interface DiscoverModelsPayload {
   baseURL?: string;
   api?: string;
   apiKey?: string;
+  /** Custom providers must bypass their self-declared runtime catalog for capability discovery. */
+  source?: "catalog" | "endpoint";
+}
+
+export type ModelDiscoveryFailureReason =
+  | "authentication"
+  | "endpoint-not-found"
+  | "http-error"
+  | "invalid-api-key"
+  | "invalid-response"
+  | "missing-api-address"
+  | "network"
+  | "provider-unavailable"
+  | "rate-limited"
+  | "runtime"
+  | "unsupported-protocol";
+
+export interface ModelDiscoveryFailureDetails {
+  settingsNs: string;
+  baseURL?: string;
+  reason: ModelDiscoveryFailureReason;
+  httpStatus?: number;
 }
 
 export interface DiscoveredModel {
@@ -442,7 +476,12 @@ export interface DiscoveredModel {
   name?: string;
   contextWindow?: number;
   maxTokens?: number;
+  reasoning?: boolean;
+  thinkingLevelMap?: ModelThinkingLevelMap;
   input?: Array<"text" | "image">;
+  /** Capability reported by the provider API or Pi's runtime model catalog. */
+  imageInput: ModelCapabilityState;
+  imageInputSource?: ModelCapabilitySource;
 }
 
 export interface DiscoverModelsValue {

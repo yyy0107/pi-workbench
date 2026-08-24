@@ -35,6 +35,7 @@ import {
   rpcEnum,
   rpcInteger,
   rpcLiteral,
+  rpcNullable,
   rpcObject,
   rpcOptional,
   rpcRecord,
@@ -107,13 +108,27 @@ const discoverModelsPayload = rpcObject({
   baseURL: rpcOptional(nonEmptyString),
   api: rpcOptional(nonEmptyString),
   apiKey: rpcOptional(nonEmptyString),
+  source: rpcOptional(rpcEnum(["catalog", "endpoint"])),
+});
+const thinkingLevelValue = rpcNullable(rpcString());
+const thinkingLevelMap = rpcObject({
+  off: rpcOptional(thinkingLevelValue),
+  minimal: rpcOptional(thinkingLevelValue),
+  low: rpcOptional(thinkingLevelValue),
+  medium: rpcOptional(thinkingLevelValue),
+  high: rpcOptional(thinkingLevelValue),
+  xhigh: rpcOptional(thinkingLevelValue),
+  max: rpcOptional(thinkingLevelValue),
 });
 const providerModelConfiguration = rpcObject({
   id: nonEmptyString,
   name: rpcOptional(rpcString()),
   contextWindow: rpcOptional(rpcInteger({ minimum: 1 })),
   maxTokens: rpcOptional(rpcInteger({ minimum: 1 })),
+  reasoning: rpcOptional(rpcBoolean),
+  thinkingLevelMap: rpcOptional(thinkingLevelMap),
   input: rpcOptional(rpcArray(rpcEnum(["text", "image"]))),
+  imageInputSource: rpcOptional(rpcEnum(["provider-api", "runtime", "user"])),
 });
 const providerConfiguration = rpcObject({
   displayName: rpcOptional(rpcString()),

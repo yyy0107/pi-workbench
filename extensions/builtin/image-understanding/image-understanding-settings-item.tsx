@@ -78,6 +78,8 @@ interface SettingsDraft {
 interface ChoiceOption<TValue extends string> {
   readonly value: TValue;
   readonly label: string;
+  readonly disabled?: boolean;
+  readonly description?: string;
 }
 
 function draftFromValue(value: AttachmentUnderstandingSettingsValue): SettingsDraft {
@@ -180,13 +182,24 @@ function ChoiceControl<TValue extends string>({
             aria-label={label}
             onValueChange={(next) => {
               const option = options.find(({ value: candidate }) => candidate === next);
-              if (option) onChange(option.value);
+              if (option && !option.disabled) onChange(option.value);
             }}
           >
             {options.map((option) => (
-              <SettingsDropdownRadioItem key={option.value} value={option.value}>
-                <span className="truncate" title={option.label}>
-                  {option.label}
+              <SettingsDropdownRadioItem
+                key={option.value}
+                value={option.value}
+                disabled={option.disabled}
+              >
+                <span className="min-w-0">
+                  <span className="block truncate" title={option.label}>
+                    {option.label}
+                  </span>
+                  {option.description ? (
+                    <span className="text-muted-foreground mt-0.5 block max-w-72 text-xs leading-4 whitespace-normal">
+                      {option.description}
+                    </span>
+                  ) : null}
                 </span>
               </SettingsDropdownRadioItem>
             ))}
@@ -332,6 +345,41 @@ export function AttachmentUnderstandingSettingsItem({
     setSaveError(undefined);
   }, []);
 
+  const saveRouting = useCallback(
+    async (routing: AttachmentUnderstandingRoutingChoice) => {
+      if (!view || !draft || saving || routing === draft.routing) return;
+
+      const optimisticDraft = { ...draft, routing };
+      setDraft(optimisticDraft);
+      setSaving(true);
+      setSaved(false);
+      setSaveError(undefined);
+      try {
+        const updated = await updateAttachmentUnderstandingSettings({
+          expectedRevision: view.revision,
+          patch: { routing },
+        });
+        setView(updated);
+        setDraft(optimisticDraft);
+        setSaved(!settingsDirty(updated, optimisticDraft));
+      } catch (error) {
+        setDraft({
+          ...optimisticDraft,
+          routing: draftFromValue(view.value).routing,
+        });
+        setSaveError(
+          error instanceof PiApiError &&
+            (error.code === "image-settings-conflict" || error.code === "settings-conflict")
+            ? t("extensions.imageUnderstanding.settings.errors.conflict")
+            : t("extensions.imageUnderstanding.settings.errors.saveFailed"),
+        );
+      } finally {
+        setSaving(false);
+      }
+    },
+    [draft, saving, t, view],
+  );
+
   const routingOptions = useMemo<readonly ChoiceOption<AttachmentUnderstandingRoutingChoice>[]>(
     () => [
       {
@@ -358,6 +406,24 @@ export function AttachmentUnderstandingSettingsItem({
       },
     ],
     [t],
+  );
+  const multimodalProviderChoices = useMemo<readonly ChoiceOption<string>[]>(
+    () =>
+      multimodalProviders.map((provider) => ({
+        value: provider.value,
+        label: provider.label,
+        disabled: provider.imageInput !== "supported",
+        ...(provider.imageInput !== "supported"
+          ? {
+              description: t(
+                provider.imageInput === "unknown"
+                  ? "extensions.imageUnderstanding.settings.multimodal.imageInputUnknown"
+                  : "extensions.imageUnderstanding.settings.multimodal.imageInputRequired",
+              ),
+            }
+          : {}),
+      })),
+    [multimodalProviders, t],
   );
   const ocrAdapterOptions = useMemo<readonly ChoiceOption<OcrAdapterPresetId>[]>(
     () => [
@@ -537,7 +603,7 @@ export function AttachmentUnderstandingSettingsItem({
             value={draft.routing}
             options={routingOptions}
             disabled={saving}
-            onChange={(routing) => updateDraft({ routing })}
+            onChange={(routing) => void saveRouting(routing)}
           />
         </SettingsRow>
         <SettingsRow
@@ -585,7 +651,7 @@ export function AttachmentUnderstandingSettingsItem({
       </section>
 
       {draft.engine === "ocr" ? (
-        <section className="bg-muted/20 mt-5 rounded-xl border p-4">
+        <section className="mt-5 rounded-xl border p-4">
           <div>
             <h3 className="text-sm font-medium">
               {t("extensions.imageUnderstanding.settings.ocrAdapter.title")}
@@ -757,7 +823,7 @@ export function AttachmentUnderstandingSettingsItem({
           </div>
         </section>
       ) : (
-        <section className="bg-muted/20 mt-5 rounded-xl border p-4">
+        <section className="mt-5 rounded-xl border p-4">
           <h3 className="text-sm font-medium">
             {t("extensions.imageUnderstanding.settings.multimodal.title")}
           </h3>
@@ -773,7 +839,7 @@ export function AttachmentUnderstandingSettingsItem({
                 id="image-multimodal-provider"
                 label={t("extensions.imageUnderstanding.settings.multimodal.provider")}
                 value={draft.multimodalProvider}
-                options={multimodalProviders}
+                options={multimodalProviderChoices}
                 disabled={saving}
                 placeholder={t(
                   "extensions.imageUnderstanding.settings.multimodal.providerPlaceholder",
@@ -787,10 +853,10 @@ export function AttachmentUnderstandingSettingsItem({
                 }
                 emptyAlert={modelCatalogLoadState === "failed"}
                 align="start"
-                triggerClassName="bg-background h-9 w-full justify-between rounded-lg border"
+                triggerClassName="h-9 w-full justify-between rounded-lg border"
                 contentClassName="max-h-72 overflow-y-auto"
                 onOpenChange={(open) => {
-                  if (open && modelCatalogLoadState === "failed") loadModelCatalog();
+                  if (open && modelCatalogLoadState !== "loading") loadModelCatalog();
                 }}
                 onChange={(multimodalProvider) => {
                   const provider = multimodalProviders.find(
@@ -822,10 +888,14 @@ export function AttachmentUnderstandingSettingsItem({
                   "extensions.imageUnderstanding.settings.multimodal.modelPlaceholder",
                 )}
                 emptyMessage={t(
-                  "extensions.imageUnderstanding.settings.multimodal.selectProviderFirst",
+                  selectedMultimodalProvider?.imageInput === "unknown"
+                    ? "extensions.imageUnderstanding.settings.multimodal.imageInputUnknown"
+                    : selectedMultimodalProvider?.imageInput === "unsupported"
+                      ? "extensions.imageUnderstanding.settings.multimodal.imageInputRequired"
+                      : "extensions.imageUnderstanding.settings.multimodal.selectProviderFirst",
                 )}
                 align="start"
-                triggerClassName="bg-background h-9 w-full justify-between rounded-lg border"
+                triggerClassName="h-9 w-full justify-between rounded-lg border"
                 contentClassName="max-h-72 overflow-y-auto"
                 onChange={(multimodalModel) => updateDraft({ multimodalModel })}
               />

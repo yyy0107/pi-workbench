@@ -462,6 +462,8 @@ export const extensionsEnUS = {
     customModels: "Custom model catalog",
     fetchAvailableModels: "Get available models",
     fetchingAvailableModels: "Getting available models…",
+    fetchLatestProviderModels: "Fetch latest from provider",
+    fetchingLatestProviderModels: "Fetching latest…",
     restoreDefaultModels: "Restore default models",
     adapterCatalogEmpty:
       "No models will appear in the model selector; IDs outside the catalog can still be sent directly.",
@@ -471,18 +473,46 @@ export const extensionsEnUS = {
     availableModelsEmpty: "This provider did not return any available models.",
     addSelectedModels: "Add selected",
     modelId: "Model ID",
+    selectAvailableModel: "Select an available model",
     modelName: "Display name",
     contextWindow: "Context window",
     maxOutputTokens: "Maximum output tokens",
-    imageInput: "Image input",
-    imageInputDescription:
-      "Enable this only when the model accepts native image parts. Text-only models can use Workbench attachment understanding instead.",
+    maxOutputTokensOff: "Off",
+    editMaxOutputTokens: "Edit maximum output tokens",
+    modelType: "Model type",
+    thinkingModel: "Thinking model",
+    reasoningLevels: "Reasoning levels",
+    reasoningLevelsSelected: ({ count }: { count: number }, { number }: MessageFormatters) =>
+      `${number(count)} levels enabled`,
+    reasoningLevelsDisabled: "Enable thinking model first",
+    reasoningLevelMinimal: "Minimal",
+    reasoningLevelLow: "Low",
+    reasoningLevelMedium: "Medium",
+    reasoningLevelHigh: "High",
+    reasoningLevelXhigh: "Extra high",
+    reasoningLevelMax: "Maximum",
+    multimodalSupport: "Multimodal support",
+    multimodalSupported: "Supported",
+    multimodalUnsupported: "Not supported",
+    modelTypeMultimodal: "Multimodal",
+    modelTypeText: "Text",
+    modelTypeUnknown: "Unknown",
     expandModel: ({ name }: { name: string }) => `Expand ${name || "model"}`,
     collapseModel: ({ name }: { name: string }) => `Collapse ${name || "model"}`,
     removeModel: ({ name }: { name: string }) => `Remove ${name || "model"}`,
     addModel: "Add model",
     modelIdRequired: ({ index }: { index: number }) => `Model ${index}: Model ID is required.`,
     cancel: "Cancel",
+    testProvider: "Test",
+    testingProvider: "Testing…",
+    testProviderHint:
+      "Tests the API key and every configured model ID without sending an inference request.",
+    testProviderSucceeded: ({ count }: { count: number }, { number }: MessageFormatters) =>
+      `API key is valid · all ${number(count)} configured ${count === 1 ? "model is" : "models are"} available.`,
+    testProviderNoConfiguredModels:
+      "The API key is valid, but there are no configured model IDs to verify.",
+    testProviderModelsUnavailable: ({ modelIds }: { modelIds: string }) =>
+      `The API key is valid, but these configured model IDs are unavailable: ${modelIds}.`,
     save: "Save",
     createProvider: "Create provider",
     saving: "Saving…",
@@ -500,6 +530,30 @@ export const extensionsEnUS = {
         "No environment authentication was found for this provider. Enter an API key or configure the runtime environment first.",
       loadDetailsFailed: "Could not load this provider's settings.",
       fetchModelsFailed: "Could not get the available models from this provider.",
+      fetchLatestModelsFailed: "Could not fetch the latest model list directly from the provider.",
+      testProviderAuthenticationFailed:
+        "The API key is invalid or does not have permission to read the provider's model list.",
+      testProviderEndpointNotFound:
+        "The model-list endpoint was not found. Check the API address and version path.",
+      testProviderFailed:
+        "API key validation failed. Check the API address, API key, and protocol, then try again.",
+      testProviderHttpFailed: ({ status }: { status: number }) =>
+        `The provider rejected the model-list request with HTTP ${status}.`,
+      testProviderInvalidApiKey:
+        "The API key is blank or contains characters that cannot be sent in an HTTP header.",
+      testProviderInvalidResponse:
+        "The provider returned an invalid model list. Check that the selected protocol matches the API.",
+      testProviderNetworkFailed:
+        "The provider could not be reached. Check the API address and network connection.",
+      testProviderRateLimited:
+        "The provider rate-limited the test request. Wait a moment and try again.",
+      testProviderRuntimeFailed:
+        "The saved provider credentials or model runtime could not be loaded.",
+      testProviderServiceUnavailable: "The local model configuration service could not be reached.",
+      testProviderUnavailable:
+        "The provider's model-list service is temporarily unavailable. Try again later.",
+      testProviderUnsupportedProtocol:
+        "The selected protocol does not provide a model-list endpoint that Workbench can test.",
       providerRequired: "Enter a provider ID.",
       invalidProviderId:
         "Provider ID must start with a lowercase letter and may only contain lowercase letters, numbers, dots, underscores, and hyphens.",
@@ -592,7 +646,7 @@ export const extensionsEnUS = {
       routing: {
         label: "Attachment routing",
         description:
-          "Choose when Workbench should preprocess attachments. PDF documents always require a compatible OCR provider.",
+          "Choose when Workbench should preprocess attachments. Changes apply immediately to new submissions. PDF documents always require a compatible OCR provider.",
         options: {
           alwaysPreprocess: "Always preprocess",
           nativeOnly: "Native vision only (images)",
@@ -676,7 +730,10 @@ export const extensionsEnUS = {
         modelPlaceholder: "Select a configured model",
         loadingModels: "Loading configured models…",
         modelsLoadFailed: "Configured models could not be loaded. Open this menu to retry.",
-        noConfiguredProviders: "No configured providers have an image-capable model.",
+        noConfiguredProviders: "No configured model providers are available.",
+        imageInputRequired: "The provider reports no models that support image input.",
+        imageInputUnknown:
+          "No verified image-input capability is available. Use Get available models in Model settings to refresh it; APIs without capability metadata remain unavailable here.",
         selectProviderFirst: "Select a configured provider first.",
       },
       errors: {

@@ -6,6 +6,7 @@ import type { ConfigurableProviderView } from "@/runtime/pi/rpc-contracts";
 import {
   emptyDraft,
   emptyModel,
+  evaluateProviderModelAvailability,
   formatCapacity,
   normalizeContextWindowInput,
   parseCapacity,
@@ -74,7 +75,10 @@ test("converts configured models and providers into editable drafts", () => {
       name: "Vision Model",
       contextWindow: 1_000_000,
       maxTokens: 256_000,
+      reasoning: true,
+      thinkingLevelMap: { minimal: "low", max: null },
       input: ["text", "image"],
+      imageInputSource: "provider-api",
     },
     true,
   );
@@ -87,7 +91,10 @@ test("converts configured models and providers into editable drafts", () => {
       name: "Vision Model",
       contextWindow: "1000000",
       maxTokens: "256K",
-      supportsImages: true,
+      reasoning: true,
+      thinkingLevelMap: { minimal: "low", max: null },
+      input: ["text", "image"],
+      imageInputSource: "provider-api",
       expanded: true,
     },
   );
@@ -100,13 +107,31 @@ test("converts configured models and providers into editable drafts", () => {
     api: "openai-responses",
     configurationDefined: true,
     modelsSource: "custom",
-    models: [{ id: "vision-model", input: ["text", "image"] }],
+    models: [
+      {
+        id: "vision-model",
+        reasoning: true,
+        thinkingLevelMap: { high: null },
+        input: ["text", "image"],
+        imageInputSource: "provider-api",
+      },
+    ],
   });
   assert.equal(draft.provider, "acme");
   assert.equal(draft.authType, "oauth");
   assert.equal(draft.api, "openai-responses");
-  assert.equal(draft.models[0]?.supportsImages, true);
-  assert.deepEqual(draft.availableModels, [{ id: "vision-model", input: ["text", "image"] }]);
+  assert.equal(draft.models[0]?.reasoning, true);
+  assert.deepEqual(draft.models[0]?.thinkingLevelMap, { high: null });
+  assert.deepEqual(draft.models[0]?.input, ["text", "image"]);
+  assert.deepEqual(draft.availableModels, [
+    {
+      id: "vision-model",
+      reasoning: true,
+      thinkingLevelMap: { high: null },
+      input: ["text", "image"],
+      imageInputSource: "provider-api",
+    },
+  ]);
 });
 
 test("prefers a supported current auth type and otherwise falls back deterministically", () => {
@@ -116,6 +141,19 @@ test("prefers a supported current auth type and otherwise falls back determinist
     "oauth",
   );
   assert.equal(preferredAuthType({ ...provider, authType: undefined, authMethods: [] }), "api_key");
+});
+
+test("checks every unique configured model ID against the provider model listing", () => {
+  assert.deepEqual(
+    evaluateProviderModelAvailability(
+      [{ id: " model-a " }, { id: "model-b" }, { id: "model-a" }, { id: " " }, { id: "MODEL-C" }],
+      [{ id: "model-a" }, { id: " model-b " }, { id: "model-c" }],
+    ),
+    {
+      configuredModelIds: ["model-a", "model-b", "MODEL-C"],
+      unavailableModelIds: ["MODEL-C"],
+    },
+  );
 });
 
 test("normalizes a custom provider draft into the existing configuration payload", () => {
@@ -132,9 +170,17 @@ test("normalizes a custom provider draft into the existing configuration payload
         name: " Vision Model ",
         contextWindow: "1M",
         maxTokens: "256K",
-        supportsImages: true,
+        reasoning: true,
+        thinkingLevelMap: { minimal: "low", xhigh: null },
+        input: ["text", "image"],
+        imageInputSource: "provider-api",
       },
-      { ...emptyModel(), id: " text-model ", supportsImages: false },
+      {
+        ...emptyModel(),
+        id: " text-model ",
+        input: ["text"],
+        imageInputSource: "runtime",
+      },
     ],
   };
 
@@ -150,9 +196,12 @@ test("normalizes a custom provider draft into the existing configuration payload
           name: "Vision Model",
           contextWindow: 1_000_000,
           maxTokens: 256_000,
+          reasoning: true,
+          thinkingLevelMap: { minimal: "low", xhigh: null },
           input: ["text", "image"],
+          imageInputSource: "provider-api",
         },
-        { id: "text-model", input: ["text"] },
+        { id: "text-model", input: ["text"], imageInputSource: "runtime" },
       ],
     },
   });
@@ -170,6 +219,59 @@ test("omits model overrides when the adapter catalog is selected", () => {
       configuration: {
         baseURL: "https://api.example.test/v1",
         api: "openai-completions",
+      },
+    },
+  );
+});
+
+test("does not submit legacy image-input values without capability provenance", () => {
+  assert.deepEqual(
+    prepareProviderConfiguration({
+      ...validCustomDraft(),
+      models: [
+        {
+          ...emptyModel(),
+          id: "legacy-vision-model",
+          input: ["text", "image"],
+        },
+      ],
+    }),
+    {
+      ok: true,
+      configuration: {
+        baseURL: "https://api.example.test/v1",
+        api: "openai-completions",
+        models: [{ id: "legacy-vision-model" }],
+      },
+    },
+  );
+});
+
+test("submits an explicitly selected model type with user provenance", () => {
+  assert.deepEqual(
+    prepareProviderConfiguration({
+      ...validCustomDraft(),
+      models: [
+        {
+          ...emptyModel(),
+          id: "selected-vision-model",
+          input: ["text", "image"],
+          imageInputSource: "user",
+        },
+      ],
+    }),
+    {
+      ok: true,
+      configuration: {
+        baseURL: "https://api.example.test/v1",
+        api: "openai-completions",
+        models: [
+          {
+            id: "selected-vision-model",
+            input: ["text", "image"],
+            imageInputSource: "user",
+          },
+        ],
       },
     },
   );

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SettingsInlineEditor } from "@/components/ui/settings-control";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useI18n } from "@/i18n";
@@ -27,27 +28,6 @@ type LoadState = "loading" | "ready" | "failed";
 const DEFAULT_RESERVE_TOKENS = 16_384;
 const DEFAULT_KEEP_RECENT_TOKENS = 20_000;
 const MAX_CONTEXT_SETTING_TOKENS = 10_000_000;
-
-function WidePencilIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="size-4"
-      viewBox="0 0 20 20"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="m3.4 16.6 1.05-3.85L13.1 4.1a2 2 0 0 1 2.8 0 2 2 0 0 1 0 2.8l-8.65 8.65L3.4 16.6Z"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.5"
-      />
-      <path d="m12.2 5 2.8 2.8" stroke="currentColor" strokeLinecap="round" strokeWidth="1.5" />
-    </svg>
-  );
-}
 
 function useAgentSettingsNamespace() {
   const [view, setView] = useState<PiAgentSettingsNamespaceView>();
@@ -262,7 +242,7 @@ function SettingGroup({
         <h3 className="text-sm font-medium">{title}</h3>
         <p className="text-muted-foreground mt-1 text-sm leading-5">{description}</p>
       </div>
-      <div className="bg-muted/20 mt-4 rounded-xl border px-4 py-1">
+      <div className="mt-4 rounded-xl border px-4 py-1">
         <div className="divide-y">{children}</div>
       </div>
     </section>
@@ -322,36 +302,31 @@ function InlineNumberEditor({
     onEditingChange(false);
   };
 
-  if (!editing) {
-    const parsed = parseTokenCount(value);
-    return (
-      <div className="flex min-h-9 items-center justify-end gap-1">
-        <span className="text-sm tabular-nums">
-          {parsed === undefined ? value : number(parsed)}
-        </span>
-        <span className="text-muted-foreground text-xs">
-          {t("extensions.agentConfiguration.context.tokens")}
-        </span>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          className="text-muted-foreground hover:text-foreground"
-          disabled={disabled}
-          aria-label={t("extensions.agentConfiguration.editValue", { label })}
-          onClick={() => {
-            editStartValueRef.current = value;
-            onEditingChange(true);
-          }}
-        >
-          <WidePencilIcon />
-        </Button>
-      </div>
-    );
-  }
-
+  const parsed = parseTokenCount(value);
   return (
-    <div className="flex w-full max-w-72 items-center justify-end gap-2">
+    <SettingsInlineEditor
+      editing={editing}
+      display={
+        <>
+          <span className="text-sm tabular-nums">
+            {parsed === undefined ? value : number(parsed)}
+          </span>
+          <span className="text-muted-foreground text-xs">
+            {t("extensions.agentConfiguration.context.tokens")}
+          </span>
+        </>
+      }
+      editLabel={t("extensions.agentConfiguration.editValue", { label })}
+      cancelLabel={t("extensions.agentConfiguration.cancel")}
+      disabled={disabled}
+      cancelButtonVariant="default"
+      cancelButtonClassName="rounded-full"
+      onEdit={() => {
+        editStartValueRef.current = value;
+        onEditingChange(true);
+      }}
+      onCancel={cancelEditing}
+    >
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <Input
           autoFocus
@@ -380,10 +355,7 @@ function InlineNumberEditor({
           {t("extensions.agentConfiguration.context.tokens")}
         </span>
       </div>
-      <Button type="button" className="rounded-full" disabled={disabled} onClick={cancelEditing}>
-        {t("extensions.agentConfiguration.cancel")}
-      </Button>
-    </div>
+    </SettingsInlineEditor>
   );
 }
 

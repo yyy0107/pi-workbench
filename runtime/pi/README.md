@@ -224,6 +224,9 @@ Pi `ModelRuntime` 是 provider、model 和凭证状态的权威来源：
   配置与凭据，对于自定义 provider 则删除其定义；
 - `llm.models` 按 provider 分组返回可用模型和 reasoning efforts，单个 provider 失败不会使
   整个 catalog 失败；
+- 自定义模型的高级选项直接映射 Pi `models.json` 的 `reasoning` 与 `thinkingLevelMap`。思考模型
+  开关决定是否公开推理控制，未启用的标准推理等级以 `null` 保存；已有的厂商级字符串映射会在
+  设置页编辑与保存时保留；
 - `llm.modelContextWindow` 读取单个模型的有效上下文窗口；`llm.updateModelContextWindow` 通过
   `models.json` 的 `modelOverrides` 只覆盖该模型的 `contextWindow`，并保留 provider 凭证、headers
   及其他模型配置。这个值只供 Pi 做 token 容量统计、溢出判断和自动压缩，不会作为 API 的
@@ -233,9 +236,21 @@ Pi `ModelRuntime` 是 provider、model 和凭证状态的权威来源：
   发生竞态。
 
 `llm.discoverModels` 可以读取 OpenAI-compatible `GET <baseURL>/models`，也可以使用
-Anthropic `GET <baseURL>/v1/models`（当 base URL 已以 `/v1` 结尾时不会重复追加）及其游标分页。
+Anthropic `GET <baseURL>/v1/models`（当 base URL 已以 `/v1` 结尾时不会重复追加）及其游标分页，
+还支持 Google Generative AI `GET <baseURL>/models` 的 `pageToken` 分页与
+`x-goog-api-key` 认证。
 显式传入的 `apiKey` 优先，否则已确定 provider 时会尝试 Pi 中已保存的凭证；请求级 key 不会
-持久化、回传或写入日志。一次发现的全部模型列表响应合计最多读取 4 MiB，并支持请求取消。
+持久化、回传或写入日志。图片输入能力归一化为 `supported`、`unsupported` 或 `unknown`：
+OpenRouter 风格响应读取 `architecture.input_modalities`，Anthropic 响应读取
+`capabilities.image_input.supported`，Pi 已知 provider 使用运行时模型元数据；没有能力字段的
+OpenAI-compatible 响应保持 `unknown`，不按模型名推断，也不发送可能计费的探测请求。一次发现的
+API/运行时来源会随自定义模型配置写入 Workbench 自有的来源标记；设置页模型类型下拉框的显式
+选择以 `user` 来源保存，后续重新获取并添加同一模型时会被最新 API 检测结果覆盖。没有来源标记的
+历史手动 `input` 值仍按 `unknown` 处理。自定义 provider 的模型选择器强制使用 endpoint discovery，
+避免把它自己在 `models.json` 声明的 `input` 反向当成 API 证据。一次发现的全部模型列表响应合计
+最多读取 4 MiB，并支持请求取消。发现失败时，`model-discovery-failed` 的 details 会返回稳定的
+`reason`，并在 HTTP 失败时返回 `httpStatus`；设置页据此区分凭据、地址、限流、提供方故障、
+协议、响应格式和网络错误，不解析服务端英文错误文本。
 
 Project-local settings、extensions 和 resources 默认不可信。只有
 `PI_WORKBENCH_TRUST_PROJECT=1` 时，session 和模型服务才允许 Pi 加载这些项目资源。

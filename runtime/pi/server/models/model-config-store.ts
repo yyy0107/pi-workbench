@@ -5,8 +5,10 @@ import path from "node:path";
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
 
 import type {
+  ModelCapabilitySource,
   ModelProviderConfiguration,
   ModelProviderModelConfiguration,
+  ModelThinkingLevelMap,
 } from "../../rpc-contracts";
 import { atomicReplaceFile, withCrossProcessFileLock } from "../core/file-persistence";
 
@@ -17,6 +19,10 @@ interface JsonObject {
 interface ModelsFile extends JsonObject {
   providers?: Record<string, unknown>;
 }
+
+const CAPABILITY_SOURCES_KEY = "x-workbench-model-capability-sources";
+type CapabilitySources = Record<string, Record<string, ModelCapabilitySource>>;
+const MODEL_THINKING_LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
 
 export interface StoredModelProviderConfiguration {
   displayName?: string;
@@ -76,25 +82,74 @@ function parseModelsFile(content: string): ModelsFile {
   return parsed as ModelsFile;
 }
 
-function modelConfiguration(value: unknown): ModelProviderModelConfiguration | undefined {
+function modelThinkingLevelMap(value: unknown): ModelThinkingLevelMap | undefined {
+  if (!isObject(value)) return undefined;
+  const entries = MODEL_THINKING_LEVELS.flatMap((level) => {
+    const mapped = value[level];
+    return typeof mapped === "string" || mapped === null ? [[level, mapped] as const] : [];
+  });
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+}
+
+function modelConfiguration(
+  value: unknown,
+  imageInputSource?: ModelCapabilitySource,
+): ModelProviderModelConfiguration | undefined {
   if (!isObject(value) || typeof value.id !== "string" || !value.id) return undefined;
+  const thinkingLevelMap = modelThinkingLevelMap(value.thinkingLevelMap);
   return {
     id: value.id,
     ...(typeof value.name === "string" && value.name ? { name: value.name } : {}),
     ...(typeof value.contextWindow === "number" ? { contextWindow: value.contextWindow } : {}),
     ...(typeof value.maxTokens === "number" ? { maxTokens: value.maxTokens } : {}),
+    ...(typeof value.reasoning === "boolean" ? { reasoning: value.reasoning } : {}),
+    ...(thinkingLevelMap ? { thinkingLevelMap } : {}),
     ...(Array.isArray(value.input) &&
     value.input.every((item) => item === "text" || item === "image")
       ? { input: [...new Set(value.input)] as Array<"text" | "image"> }
       : {}),
+    ...(imageInputSource ? { imageInputSource } : {}),
   };
 }
 
-function safeProvider(value: unknown): StoredModelProviderConfiguration {
+function capabilitySources(value: unknown): CapabilitySources {
+  if (!isObject(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value).flatMap(([provider, models]) => {
+      if (!isObject(models)) return [];
+      const sources = Object.fromEntries(
+        Object.entries(models).filter(
+          (entry): entry is [string, ModelCapabilitySource] =>
+            entry[1] === "provider-api" || entry[1] === "runtime" || entry[1] === "user",
+        ),
+      );
+      return Object.keys(sources).length > 0 ? [[provider, sources]] : [];
+    }),
+  );
+}
+
+function stateWithCapabilitySources(
+  state: ModelsFile,
+  providers: Record<string, unknown>,
+  sources: CapabilitySources,
+): ModelsFile {
+  const next: ModelsFile = { ...state, providers };
+  if (Object.keys(sources).length > 0) next[CAPABILITY_SOURCES_KEY] = sources;
+  else delete next[CAPABILITY_SOURCES_KEY];
+  return next;
+}
+
+function safeProvider(
+  value: unknown,
+  sources: Readonly<Record<string, ModelCapabilitySource>> = {},
+): StoredModelProviderConfiguration {
   if (!isObject(value)) return {};
   const models = Array.isArray(value.models)
     ? value.models.flatMap((model) => {
-        const parsed = modelConfiguration(model);
+        const parsed = modelConfiguration(
+          model,
+          isObject(model) && typeof model.id === "string" ? sources[model.id] : undefined,
+        );
         return parsed ? [parsed] : [];
       })
     : undefined;
@@ -121,6 +176,10 @@ function storedModel(
   else delete next.contextWindow;
   if (model.maxTokens) next.maxTokens = model.maxTokens;
   else delete next.maxTokens;
+  if (model.reasoning !== undefined) next.reasoning = model.reasoning;
+  else delete next.reasoning;
+  if (model.thinkingLevelMap) next.thinkingLevelMap = { ...model.thinkingLevelMap };
+  else delete next.thinkingLevelMap;
   if (model.input) next.input = [...new Set(model.input)];
   else delete next.input;
   return next;
@@ -214,10 +273,11 @@ export class ModelConfigStore implements ModelConfigStorage {
     const content = await this.readContent();
     if (content === undefined) return {};
     const state = parseModelsFile(content);
+    const sources = capabilitySources(state[CAPABILITY_SOURCES_KEY]);
     return Object.fromEntries(
       Object.entries(state.providers ?? {}).map(([provider, value]) => [
         provider,
-        safeProvider(value),
+        safeProvider(value, sources[provider]),
       ]),
     );
   }
@@ -230,6 +290,7 @@ export class ModelConfigStore implements ModelConfigStorage {
       const previous = await this.readContent();
       const state = previous === undefined ? {} : parseModelsFile(previous);
       const providers = { ...state.providers };
+      const sources = capabilitySources(state[CAPABILITY_SOURCES_KEY]);
       const current = isObject(providers[provider]) ? providers[provider] : {};
       const existingModels = new Map(
         (Array.isArray(current.models) ? current.models : [])
@@ -246,11 +307,22 @@ export class ModelConfigStore implements ModelConfigStorage {
         nextProvider.models = configuration.models.map((model) =>
           storedModel(existingModels.get(model.id), model),
         );
+        const providerSources = Object.fromEntries(
+          configuration.models.flatMap((model) =>
+            model.imageInputSource ? [[model.id, model.imageInputSource] as const] : [],
+          ),
+        );
+        if (Object.keys(providerSources).length > 0) sources[provider] = providerSources;
+        else delete sources[provider];
       } else {
         delete nextProvider.models;
+        delete sources[provider];
       }
       providers[provider] = nextProvider;
-      return this.writeMutation(previous, serialized({ ...state, providers }));
+      return this.writeMutation(
+        previous,
+        serialized(stateWithCapabilitySources(state, providers, sources)),
+      );
     });
   }
 
@@ -289,7 +361,12 @@ export class ModelConfigStore implements ModelConfigStorage {
       const providers = { ...state.providers };
       if (!(provider in providers)) return undefined;
       delete providers[provider];
-      return this.writeMutation(previous, serialized({ ...state, providers }));
+      const sources = capabilitySources(state[CAPABILITY_SOURCES_KEY]);
+      delete sources[provider];
+      return this.writeMutation(
+        previous,
+        serialized(stateWithCapabilitySources(state, providers, sources)),
+      );
     });
   }
 }

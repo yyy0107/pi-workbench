@@ -259,6 +259,7 @@ test("maps provider auth status without reading credential values", async () => 
     id: "claude-fast",
     name: "Claude Fast",
     input: ["text"],
+    imageInput: "unknown",
   });
   assert.deepEqual(catalog.groups[1].models[0].reasoning, {
     efforts: [
@@ -591,6 +592,8 @@ test("persists a custom provider catalog, refreshes its route, and keeps credent
           name: "Acme Large",
           contextWindow: 1_000_000,
           maxTokens: 256_000,
+          reasoning: true,
+          thinkingLevelMap: { minimal: "low", xhigh: null },
         },
       ],
     },
@@ -612,6 +615,8 @@ test("persists a custom provider catalog, refreshes its route, and keeps credent
           name: "Acme Large",
           contextWindow: 1_000_000,
           maxTokens: 256_000,
+          reasoning: true,
+          thinkingLevelMap: { minimal: "low", xhigh: null },
         },
       ],
     },
@@ -644,6 +649,8 @@ test("persists a custom provider catalog, refreshes its route, and keeps credent
         name: "Acme Large",
         contextWindow: 1_000_000,
         maxTokens: 256_000,
+        reasoning: true,
+        thinkingLevelMap: { minimal: "low", xhigh: null },
       },
     ],
   });
@@ -738,6 +745,8 @@ test("returns adapter defaults without turning them into a custom override", asy
         name: "GPT Reasoning",
         contextWindow: 200_000,
         maxTokens: 32_000,
+        reasoning: true,
+        thinkingLevelMap: { minimal: null, max: null },
       },
     ],
   });
@@ -792,6 +801,8 @@ test("restores an internal provider's adapter model catalog", async () => {
         name: "GPT Reasoning",
         contextWindow: 200_000,
         maxTokens: 32_000,
+        reasoning: true,
+        thinkingLevelMap: { minimal: null, max: null },
       },
     ],
   });
@@ -810,6 +821,8 @@ test("restores an internal provider's adapter model catalog", async () => {
         name: "GPT Reasoning",
         contextWindow: 200_000,
         maxTokens: 32_000,
+        reasoning: true,
+        thinkingLevelMap: { minimal: null, max: null },
       },
     ],
   });
@@ -950,10 +963,56 @@ test("maps PI reasoning effort fallbacks", () => {
     "low",
   );
   assert.deepEqual(toModelCatalogModel(models[0]!).input, ["text"]);
+  assert.equal(toModelCatalogModel(models[0]!).imageInput, "unknown");
   assert.deepEqual(toModelCatalogModel({ ...models[0]!, input: ["text", "image"] }).input, [
     "text",
     "image",
   ]);
+  assert.equal(
+    toModelCatalogModel({ ...models[0]!, input: ["text", "image"] }).imageInput,
+    "supported",
+  );
+  assert.equal(
+    toModelCatalogModel({ ...models[0]!, input: ["text", "image"] }).imageInputSource,
+    "runtime",
+  );
+});
+
+test("requires Workbench capability provenance before trusting stored image input", async () => {
+  const visionModel = { ...models[0]!, input: ["text", "image"] as Array<"text" | "image"> };
+  const runtimeWithVision = runtime({
+    getAvailable: async (provider) =>
+      provider === "openai" ? [visionModel] : models.filter((model) => model.provider === provider),
+  });
+  const legacy = modelService({
+    runtime: runtimeWithVision,
+    modelConfigStore: memoryModelConfigStore({
+      openai: { models: [{ id: visionModel.id, input: ["text", "image"] }] },
+    }),
+  });
+  const detected = modelService({
+    runtime: runtimeWithVision,
+    modelConfigStore: memoryModelConfigStore({
+      openai: {
+        models: [
+          {
+            id: visionModel.id,
+            input: ["text", "image"],
+            imageInputSource: "provider-api",
+          },
+        ],
+      },
+    }),
+  });
+
+  assert.deepEqual(
+    (await legacy.models()).groups.find(({ id }) => id === "openai")?.models[0]?.imageInput,
+    "unknown",
+  );
+  assert.deepEqual(
+    (await detected.models()).groups.find(({ id }) => id === "openai")?.models[0]?.imageInput,
+    "supported",
+  );
 });
 
 test("returns per-provider and runtime catalog failures without dropping healthy groups", async () => {
@@ -979,7 +1038,14 @@ test("returns per-provider and runtime catalog failures without dropping healthy
       {
         id: "anthropic",
         name: "Anthropic",
-        models: [{ id: "claude-fast", name: "Claude Fast", input: ["text"] }],
+        models: [
+          {
+            id: "claude-fast",
+            name: "Claude Fast",
+            input: ["text"],
+            imageInput: "unknown",
+          },
+        ],
       },
     ],
     failures: [
@@ -1059,10 +1125,57 @@ test("answers a known provider from the installed catalog without using the endp
         name: "GPT Reasoning",
         contextWindow: 200_000,
         maxTokens: 32_000,
+        reasoning: true,
+        thinkingLevelMap: { minimal: null, max: null },
+        imageInput: "unknown",
       },
     ],
   });
   assert.deepEqual(runtimeCalls, ["models:openai"]);
+});
+
+test("bypasses a custom provider's self-declared runtime input when endpoint discovery is required", async () => {
+  let requests = 0;
+  const service = modelService({
+    runtime: runtime({
+      getModels: () => [{ ...models[0]!, input: ["text", "image"] }],
+    }),
+    fetcher: async () => {
+      requests += 1;
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              id: "remote-model",
+              architecture: { input_modalities: ["text"] },
+            },
+          ],
+        }),
+      );
+    },
+  });
+
+  assert.deepEqual(
+    await service.discoverModels({
+      settingsNs: "custom:openai",
+      provider: "openai",
+      baseURL: "https://models.example.test/v1",
+      api: "openai-responses",
+      apiKey: "key",
+      source: "endpoint",
+    }),
+    {
+      models: [
+        {
+          id: "remote-model",
+          input: ["text"],
+          imageInput: "unsupported",
+          imageInputSource: "provider-api",
+        },
+      ],
+    },
+  );
+  assert.equal(requests, 1);
 });
 
 test("discovers an unknown OpenAI-compatible endpoint with a one-shot bearer key", async () => {
@@ -1082,8 +1195,15 @@ test("discovers an unknown OpenAI-compatible endpoint with a one-shot bearer key
               display_name: "Acme Large",
               context_length: 65_536,
               max_output_tokens: 4096,
+              architecture: { input_modalities: ["text", "image"] },
             },
-            { id: "acme-small", context_window: 0, max_tokens: -1 },
+            {
+              id: "acme-small",
+              context_window: 0,
+              max_tokens: -1,
+              architecture: { input_modalities: ["text"] },
+            },
+            { id: "acme-unknown" },
             { id: "acme-large", name: "Duplicate" },
             { name: "missing id" },
           ],
@@ -1108,8 +1228,17 @@ test("discovers an unknown OpenAI-compatible endpoint with a one-shot bearer key
           name: "Acme Large",
           contextWindow: 65_536,
           maxTokens: 4096,
+          input: ["text", "image"],
+          imageInput: "supported",
+          imageInputSource: "provider-api",
         },
-        { id: "acme-small" },
+        {
+          id: "acme-small",
+          input: ["text"],
+          imageInput: "unsupported",
+          imageInputSource: "provider-api",
+        },
+        { id: "acme-unknown", imageInput: "unknown" },
       ],
     },
   );
@@ -1137,6 +1266,7 @@ test("discovers and paginates Anthropic models with Anthropic authentication", a
                 display_name: "Claude Opus 4.6",
                 max_input_tokens: 200_000,
                 max_tokens: 32_000,
+                capabilities: { image_input: { supported: true } },
               },
             ],
             has_more: true,
@@ -1148,7 +1278,11 @@ test("discovers and paginates Anthropic models with Anthropic authentication", a
         JSON.stringify({
           data: [
             { id: "claude-opus-4-6", display_name: "Duplicate" },
-            { id: "claude-haiku-4-5", display_name: "Claude Haiku 4.5" },
+            {
+              id: "claude-haiku-4-5",
+              display_name: "Claude Haiku 4.5",
+              capabilities: { image_input: { supported: false } },
+            },
           ],
           has_more: false,
           last_id: "claude-haiku-4-5",
@@ -1171,8 +1305,17 @@ test("discovers and paginates Anthropic models with Anthropic authentication", a
           name: "Claude Opus 4.6",
           contextWindow: 200_000,
           maxTokens: 32_000,
+          input: ["text", "image"],
+          imageInput: "supported",
+          imageInputSource: "provider-api",
         },
-        { id: "claude-haiku-4-5", name: "Claude Haiku 4.5" },
+        {
+          id: "claude-haiku-4-5",
+          name: "Claude Haiku 4.5",
+          input: ["text"],
+          imageInput: "unsupported",
+          imageInputSource: "provider-api",
+        },
       ],
     },
   );
@@ -1212,6 +1355,88 @@ test("does not duplicate the Anthropic v1 path", async () => {
   assert.equal(requestURL, "https://gateway.example.test/anthropic/v1/models?limit=1000");
 });
 
+test("discovers and paginates Google models with API-key authentication", async () => {
+  const requests: Array<{ url: string; headers: Headers }> = [];
+  const service = modelService({
+    runtime: runtime({ getProviders: () => [], getModels: () => [] }),
+    fetcher: async (input, init) => {
+      const url = String(input);
+      requests.push({ url, headers: new Headers(init?.headers) });
+      if (!url.includes("pageToken=")) {
+        return new Response(
+          JSON.stringify({
+            models: [
+              {
+                name: "models/gemini-3.5-flash-001",
+                baseModelId: "gemini-3.5-flash",
+                displayName: "Gemini 3.5 Flash",
+                inputTokenLimit: 1_048_576,
+                outputTokenLimit: 65_536,
+                supportedGenerationMethods: ["generateContent", "countTokens"],
+              },
+              {
+                name: "models/text-embedding-004",
+                baseModelId: "text-embedding-004",
+                supportedGenerationMethods: ["embedContent"],
+              },
+            ],
+            nextPageToken: "next token",
+          }),
+        );
+      }
+      return new Response(
+        JSON.stringify({
+          models: [
+            {
+              name: "models/gemma-4-26b-a4b-it",
+              displayName: "Gemma 4 26B",
+              supportedGenerationMethods: ["generateContent"],
+            },
+          ],
+        }),
+      );
+    },
+  });
+
+  assert.deepEqual(
+    await service.discoverModels({
+      settingsNs: "google",
+      baseURL: "https://generativelanguage.googleapis.com/v1beta/",
+      api: "google-generative-ai",
+      apiKey: "  google-key  ",
+      source: "endpoint",
+    }),
+    {
+      models: [
+        {
+          id: "gemini-3.5-flash",
+          name: "Gemini 3.5 Flash",
+          contextWindow: 1_048_576,
+          maxTokens: 65_536,
+          imageInput: "unknown",
+        },
+        {
+          id: "gemma-4-26b-a4b-it",
+          name: "Gemma 4 26B",
+          imageInput: "unknown",
+        },
+      ],
+    },
+  );
+  assert.deepEqual(
+    requests.map(({ url }) => url),
+    [
+      "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000",
+      "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000&pageToken=next+token",
+    ],
+  );
+  for (const { headers } of requests) {
+    assert.equal(headers.get("accept"), "application/json");
+    assert.equal(headers.get("x-goog-api-key"), "google-key");
+    assert.equal(headers.get("authorization"), null);
+  }
+});
+
 test("uses stored provider auth only as a request-scoped discovery fallback", async () => {
   const controller = new AbortController();
   const authorizations: Array<string | null> = [];
@@ -1245,7 +1470,9 @@ test("uses stored provider auth only as a request-scoped discovery fallback", as
     },
     { signal: controller.signal },
   );
-  assert.deepEqual(storedResult, { models: [{ id: "remote-model" }] });
+  assert.deepEqual(storedResult, {
+    models: [{ id: "remote-model", imageInput: "unknown" }],
+  });
   assert.equal(JSON.stringify(storedResult).includes("stored-private-key"), false);
   assert.deepEqual(authorizations, ["Bearer stored-private-key"]);
   assert.deepEqual(authSignals, [controller.signal]);
@@ -1257,7 +1484,9 @@ test("uses stored provider auth only as a request-scoped discovery fallback", as
     baseURL: "https://models.example.test/v1",
     apiKey: "explicit-private-key",
   });
-  assert.deepEqual(explicitResult, { models: [{ id: "remote-model" }] });
+  assert.deepEqual(explicitResult, {
+    models: [{ id: "remote-model", imageInput: "unknown" }],
+  });
   assert.equal(authCalls, 1);
   assert.deepEqual(authorizations, ["Bearer stored-private-key", "Bearer explicit-private-key"]);
 });
@@ -1335,7 +1564,7 @@ test("can probe a draft endpoint even when the local model runtime cannot load",
       settingsNs: "custom",
       baseURL: "https://draft.example.test/v1",
     }),
-    { models: [{ id: "draft-model" }] },
+    { models: [{ id: "draft-model", imageInput: "unknown" }] },
   );
   assert.equal(authorization, null);
 });
@@ -1354,7 +1583,7 @@ test("maps unsupported protocols and endpoint failures to credential-safe domain
     service.discoverModels({
       settingsNs: "custom",
       baseURL: "https://models.example.test/v1",
-      api: "google-generative-ai",
+      api: "unsupported-api",
       apiKey: "hide",
     }),
     (error: unknown) => {
@@ -1364,6 +1593,7 @@ test("maps unsupported protocols and endpoint failures to credential-safe domain
       assert.deepEqual(error.details, {
         settingsNs: "custom",
         baseURL: "https://models.example.test/v1",
+        reason: "unsupported-protocol",
       });
       assert.equal(JSON.stringify(error).includes("hide"), false);
       return true;
@@ -1380,11 +1610,64 @@ test("maps unsupported protocols and endpoint failures to credential-safe domain
     (error: unknown) => {
       assert.ok(error instanceof ModelServiceError);
       assert.match(error.message, /answered 401; check the API key/);
+      assert.deepEqual(error.details, {
+        settingsNs: "custom",
+        baseURL: "https://models.example.test/v1",
+        reason: "authentication",
+        httpStatus: 401,
+      });
       assert.equal(JSON.stringify(error).includes("hide"), false);
       return true;
     },
   );
   assert.equal(fetchCalls, 1);
+});
+
+test("classifies provider HTTP and network failures for actionable test feedback", async () => {
+  const failures = [
+    { status: 404, reason: "endpoint-not-found" },
+    { status: 429, reason: "rate-limited" },
+    { status: 503, reason: "provider-unavailable" },
+    { status: 400, reason: "http-error" },
+  ] as const;
+  const pendingStatuses = failures.map(({ status }) => status);
+  const service = modelService({
+    runtime: runtime({ getProviders: () => [], getModels: () => [] }),
+    fetcher: async () => new Response("{}", { status: pendingStatuses.shift() ?? 500 }),
+  });
+
+  for (const expected of failures) {
+    await assert.rejects(
+      service.discoverModels({
+        settingsNs: "custom",
+        baseURL: "https://models.example.test/v1",
+      }),
+      (error: unknown) => {
+        assert.ok(error instanceof ModelServiceError);
+        assert.equal(error.details.reason, expected.reason);
+        assert.equal(error.details.httpStatus, expected.status);
+        return true;
+      },
+    );
+  }
+
+  const unreachable = modelService({
+    runtime: runtime({ getProviders: () => [], getModels: () => [] }),
+    fetcher: async () => {
+      throw new TypeError("connection refused");
+    },
+  });
+  await assert.rejects(
+    unreachable.discoverModels({
+      settingsNs: "custom",
+      baseURL: "https://models.example.test/v1",
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof ModelServiceError);
+      assert.equal(error.details.reason, "network");
+      return true;
+    },
+  );
 });
 
 test("rejects malformed, oversized, and unusably authenticated listings", async () => {
@@ -1408,6 +1691,7 @@ test("rejects malformed, oversized, and unusably authenticated listings", async 
     (error: unknown) => {
       assert.ok(error instanceof ModelServiceError);
       assert.match(error.message, /has no "data" array/);
+      assert.equal(error.details.reason, "invalid-response");
       return true;
     },
   );
@@ -1431,6 +1715,7 @@ test("rejects malformed, oversized, and unusably authenticated listings", async 
     (error: unknown) => {
       assert.ok(error instanceof ModelServiceError);
       assert.match(error.message, /cannot be sent in an HTTP header/);
+      assert.equal(error.details.reason, "invalid-api-key");
       assert.equal(JSON.stringify(error).includes("key-"), false);
       return true;
     },
