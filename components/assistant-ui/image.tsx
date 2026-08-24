@@ -145,7 +145,10 @@ function ImagePreview({
   }, [src]);
 
   return (
-    <div data-slot="image-preview" className={cn("relative min-h-32", containerClassName)}>
+    <div
+      data-slot="image-preview"
+      className={cn("relative", !loaded && !error && "min-h-32", containerClassName)}
+    >
       {!loaded && !error && (
         <div
           data-slot="image-preview-loading"
@@ -334,7 +337,6 @@ const ImageImpl: ImageMessagePartComponent = (props) => {
     return (
       <ImageRoot>
         <ImageGenerating />
-        <ImageFilename>{filename}</ImageFilename>
       </ImageRoot>
     );
   }
@@ -352,7 +354,6 @@ const ImageImpl: ImageMessagePartComponent = (props) => {
       <ImageZoom src={image} alt={filename || t("assistant.image.contentAlt")}>
         <ImagePreview src={image} alt={filename || t("assistant.image.contentAlt")} />
       </ImageZoom>
-      <ImageFilename>{filename}</ImageFilename>
     </ImageRoot>
   );
 };
