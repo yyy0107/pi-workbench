@@ -379,5 +379,52 @@
 
 .aui-streamdown :where([data-streamdown="table-wrapper"]) {
   margin-block: 0.75rem;
-  background: color-mix(in oklab, var(--muted) 30%, transparent);
+  gap: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.aui-streamdown :where([data-streamdown="table-wrapper"] > div:last-child) {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.aui-streamdown :where([data-streamdown="table"]) {
+  border: 0;
+  background: transparent;
+}
+
+.aui-streamdown [data-streamdown="table"] > :where(thead, tbody),
+.aui-streamdown [data-streamdown="table-row"],
+.aui-streamdown :where([data-streamdown="table-header-cell"], [data-streamdown="table-cell"]) {
+  border: 0;
+}
+
+.aui-streamdown [data-streamdown="table-header"] {
+  border-block-end: 1px solid color-mix(in oklab, var(--foreground) 38%, transparent);
+  background: transparent;
+}
+
+.aui-streamdown
+  [data-streamdown="table-body"]
+  > [data-streamdown="table-row"]:not(:last-child) {
+  border-block-end: 1px solid color-mix(in oklab, var(--foreground) 14%, transparent);
+}
+
+.aui-streamdown :where([data-streamdown="table-header-cell"], [data-streamdown="table-cell"]) {
+  padding-block: 0.625rem;
+  vertical-align: top;
+}
+
+.aui-streamdown
+  :where([data-streamdown="table-header-cell"], [data-streamdown="table-cell"]):first-child {
+  padding-inline-start: 0.75rem;
+}
+
+.aui-streamdown
+  :where([data-streamdown="table-header-cell"], [data-streamdown="table-cell"]):last-child {
+  padding-inline-end: 0.75rem;
 }
