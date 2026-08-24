@@ -364,7 +364,7 @@ function InlineNumberEditor({
           disabled={disabled}
           aria-label={label}
           aria-invalid={invalid}
-          className="bg-background h-9 min-w-24 rounded-xl text-left tabular-nums [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          className="min-w-24 text-left tabular-nums [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
           onChange={(event) => onChange(event.currentTarget.value)}
           onKeyDown={(event) => {
             if (event.key === "Escape") {
@@ -380,13 +380,7 @@ function InlineNumberEditor({
           {t("extensions.agentConfiguration.context.tokens")}
         </span>
       </div>
-      <Button
-        type="button"
-        variant="secondary"
-        className="h-9 shrink-0 rounded-xl px-3 font-normal"
-        disabled={disabled}
-        onClick={cancelEditing}
-      >
+      <Button type="button" className="rounded-full" disabled={disabled} onClick={cancelEditing}>
         {t("extensions.agentConfiguration.cancel")}
       </Button>
     </div>

@@ -7,6 +7,7 @@ import {
   emptyDraft,
   emptyModel,
   formatCapacity,
+  normalizeContextWindowInput,
   parseCapacity,
   prepareProviderConfiguration,
   preferredAuthType,
@@ -57,6 +58,15 @@ test("formats and parses model capacity shorthand without changing accepted valu
   }
 });
 
+test("normalizes context-window drafts to decimal digits", () => {
+  assert.equal(normalizeContextWindowInput(""), "");
+  assert.equal(normalizeContextWindowInput("204800"), "204800");
+  assert.equal(normalizeContextWindowInput("200K"), "200000");
+  assert.equal(normalizeContextWindowInput("1M"), "1000000");
+  assert.equal(normalizeContextWindowInput("1.5K"), "1500");
+  assert.equal(normalizeContextWindowInput("12invalid34"), "1234");
+});
+
 test("converts configured models and providers into editable drafts", () => {
   const model = toModelDraft(
     {
@@ -75,7 +85,7 @@ test("converts configured models and providers into editable drafts", () => {
       key: 0,
       id: "vision-model",
       name: "Vision Model",
-      contextWindow: "1M",
+      contextWindow: "1000000",
       maxTokens: "256K",
       supportsImages: true,
       expanded: true,

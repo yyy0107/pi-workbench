@@ -56,6 +56,7 @@ import {
   MODEL_PROVIDER_APIS,
   emptyDraft,
   emptyModel,
+  normalizeContextWindowInput,
   prepareProviderConfiguration,
   preferredAuthType,
   toModelDraft,
@@ -602,7 +603,6 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                 value={draft.provider}
                 disabled={busy || mode === "edit"}
                 placeholder={t("extensions.modelConfig.providerIdPlaceholder")}
-                className="bg-background h-10"
                 onChange={(event) => {
                   const provider = event.currentTarget.value;
                   setDraft((current) => ({ ...current, provider }));
@@ -621,7 +621,6 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                 value={draft.displayName}
                 disabled={busy}
                 placeholder={t("extensions.modelConfig.providerNamePlaceholder")}
-                className="bg-background h-10"
                 onChange={(event) => {
                   const displayName = event.currentTarget.value;
                   setDraft((current) => ({ ...current, displayName }));
@@ -642,7 +641,6 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                 value={draft.baseURL}
                 disabled={busy}
                 placeholder={t("extensions.modelConfig.apiAddressPlaceholder")}
-                className="bg-background h-10"
                 onChange={(event) => {
                   const baseURL = event.currentTarget.value;
                   setDraft((current) => ({ ...current, baseURL }));
@@ -781,7 +779,6 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                     ? t("extensions.modelConfig.apiKeyEditPlaceholder")
                     : t("extensions.modelConfig.apiKeyPlaceholder")
               }
-              className="bg-background h-10"
               onChange={(event) => {
                 const apiKey = event.currentTarget.value;
                 setDraft((current) => ({ ...current, apiKey }));
@@ -830,7 +827,6 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                       placeholder={
                         draft.defaultBaseURL || t("extensions.modelConfig.apiAddressPlaceholder")
                       }
-                      className="bg-background h-10"
                       onChange={(event) => {
                         const baseURL = event.currentTarget.value;
                         setDraft((current) => ({ ...current, baseURL }));
@@ -900,7 +896,6 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                                 disabled={busy}
                                 aria-label={t("extensions.modelConfig.modelId")}
                                 placeholder={t("extensions.modelConfig.modelId")}
-                                className="bg-background h-8"
                                 onChange={(event) =>
                                   updateModel(model.key, { id: event.currentTarget.value })
                                 }
@@ -910,7 +905,6 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                                 disabled={busy}
                                 aria-label={t("extensions.modelConfig.modelName")}
                                 placeholder={t("extensions.modelConfig.modelName")}
-                                className="bg-background h-8"
                                 onChange={(event) =>
                                   updateModel(model.key, { name: event.currentTarget.value })
                                 }
@@ -968,16 +962,20 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                                     {t("extensions.modelConfig.contextWindow")}
                                   </label>
                                   <Input
-                                    inputMode="decimal"
-                                    value={model.contextWindow}
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
+                                    value={normalizeContextWindowInput(model.contextWindow)}
                                     disabled={busy}
-                                    placeholder="1M"
-                                    className="bg-background h-10"
-                                    onChange={(event) =>
+                                    placeholder="1000000"
+                                    onChange={(event) => {
+                                      const contextWindow = event.currentTarget.value.replace(
+                                        /\D+/gu,
+                                        "",
+                                      );
                                       updateModel(model.key, {
-                                        contextWindow: event.currentTarget.value,
-                                      })
-                                    }
+                                        contextWindow,
+                                      });
+                                    }}
                                   />
                                 </div>
                                 <div className="space-y-1.5">
@@ -989,7 +987,6 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                                     value={model.maxTokens}
                                     disabled={busy}
                                     placeholder="256K"
-                                    className="bg-background h-10"
                                     onChange={(event) =>
                                       updateModel(model.key, {
                                         maxTokens: event.currentTarget.value,

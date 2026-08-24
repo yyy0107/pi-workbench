@@ -65,12 +65,21 @@ export function parseCapacity(value: string): number | undefined {
   return Number.isInteger(result) && result > 0 ? result : undefined;
 }
 
+export function normalizeContextWindowInput(value: string): string {
+  const normalized = value.trim();
+  if (!normalized) return "";
+  if (/^\d+$/u.test(normalized)) return normalized;
+
+  const capacity = parseCapacity(normalized);
+  return capacity === undefined ? normalized.replace(/\D+/gu, "") : String(capacity);
+}
+
 export function toModelDraft(model: ModelProviderModelConfiguration, expanded = false): ModelDraft {
   return {
     key: nextModelKey++,
     id: model.id,
     name: model.name ?? "",
-    contextWindow: formatCapacity(model.contextWindow),
+    contextWindow: normalizeContextWindowInput(String(model.contextWindow ?? "")),
     maxTokens: formatCapacity(model.maxTokens),
     supportsImages: model.input?.includes("image") === true,
     expanded,
