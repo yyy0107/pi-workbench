@@ -6,7 +6,6 @@ import { ChevronDownIcon, SearchIcon } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
@@ -159,22 +158,71 @@ function ModelMenuItem({ model, disabled }: { model: AppModel; disabled: boolean
 }
 
 function ModelMenuGroup({
+  providerId,
   providerName,
+  providers,
   models,
+  selectedModelId,
   disabled,
+  groupRef,
+  onModelChange,
+  onProviderChange,
 }: {
+  providerId: string;
   providerName: string;
+  providers: ReadonlyArray<readonly [string, string]>;
   models: readonly AppModel[];
+  selectedModelId?: string;
   disabled: boolean;
+  groupRef: (element: HTMLDivElement | null) => void;
+  onModelChange: (modelId: string) => void;
+  onProviderChange: (providerId: string) => void;
 }) {
+  const [providerMenuOpen, setProviderMenuOpen] = useState(false);
+
+  const changeProvider = (nextProviderId: string) => {
+    setProviderMenuOpen(false);
+    window.requestAnimationFrame(() => onProviderChange(nextProviderId));
+  };
+
   return (
-    <div>
-      <DropdownMenuLabel className="bg-popover sticky top-10 z-10 px-2 py-1">
-        {providerName}
-      </DropdownMenuLabel>
-      {models.map((model) => (
-        <ModelMenuItem key={model.id} model={model} disabled={disabled} />
-      ))}
+    <div ref={groupRef}>
+      <DropdownMenuSub open={providerMenuOpen} onOpenChange={setProviderMenuOpen}>
+        <DropdownMenuSubTrigger
+          openOnHover={false}
+          className="bg-popover sticky top-0 z-10 h-7 w-full cursor-pointer rounded-none px-2 py-0 text-xs font-medium text-muted-foreground focus:bg-accent data-popup-open:bg-accent [&>svg:last-child]:hidden"
+        >
+          <span className="min-w-0 flex-1 truncate text-start">{providerName}</span>
+          <ChevronDownIcon className="size-3.5 shrink-0 opacity-50" />
+        </DropdownMenuSubTrigger>
+        <DropdownMenuSubContent
+          align="start"
+          alignOffset={0}
+          side="bottom"
+          sideOffset={0}
+          className="max-h-64 w-52 overflow-y-auto"
+        >
+          <DropdownMenuRadioGroup value={providerId} onValueChange={changeProvider}>
+            {providers.map(([candidateId, candidateName]) => (
+              <DropdownMenuRadioItem
+                key={candidateId}
+                value={candidateId}
+                closeOnClick={false}
+                className="h-8 px-2 pe-8"
+              >
+                <span className="min-w-0 flex-1 truncate" title={candidateName}>
+                  {candidateName}
+                </span>
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuSubContent>
+      </DropdownMenuSub>
+      <DropdownMenuRadioGroup value={selectedModelId} onValueChange={onModelChange}>
+        {models.map((model) => (
+          <ModelMenuItem key={model.id} model={model} disabled={disabled} />
+        ))}
+      </DropdownMenuRadioGroup>
     </div>
   );
 }
@@ -191,7 +239,7 @@ function ModelSearch({
   placeholder: string;
 }) {
   return (
-    <div className="bg-popover sticky top-0 z-20 flex h-10 items-center px-1">
+    <div className="bg-popover flex h-10 items-center px-1">
       <div className="relative w-full">
         <SearchIcon className="text-muted-foreground pointer-events-none absolute start-2.5 top-1/2 size-3.5 -translate-y-1/2" />
         <Input
@@ -254,6 +302,7 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
   const triggerAnimationFrameRef = useRef<number | undefined>(undefined);
   const menuRevealTimeoutRef = useRef<number | undefined>(undefined);
   const menuOpenRef = useRef(false);
+  const providerGroupRefs = useRef(new Map<string, HTMLDivElement>());
   currentScopeRef.current = scopeKey;
   const catalogRevision = useSyncExternalStore(
     subscribePiModelCatalogInvalidation,
@@ -480,6 +529,9 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
       ),
     [filteredModels],
   );
+  const selectProviderGroup = useCallback((providerId: string) => {
+    providerGroupRefs.current.get(providerId)?.scrollIntoView({ block: "start" });
+  }, []);
   const currentUnavailable = catalog?.kind === "session" && !catalog.value.routable;
   const loading = !catalog && !loadFailed;
   const selectionLocked = isRunning || savingSelection || loading;
@@ -622,7 +674,10 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
                 {selectedModel?.name ?? t("assistant.model.select")}
               </MenuCurrentValue>
             </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="max-h-80 w-72 overflow-y-auto p-0" sideOffset={4}>
+            <DropdownMenuSubContent
+              className="grid max-h-80 w-72 grid-rows-[auto_minmax(0,1fr)] overflow-hidden p-0"
+              sideOffset={4}
+            >
               {!loadFailed && models.length > 0 && (
                 <ModelSearch
                   value={modelQuery}
@@ -631,17 +686,17 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
                   placeholder={t("extensions.modelSelector.searchPlaceholder")}
                 />
               )}
-              {loadFailed || !models.length ? (
-                <MenuStatus alert={loadFailed}>
-                  {loadFailed
-                    ? t("extensions.modelSelector.loadFailed")
-                    : t("extensions.modelSelector.noModels")}
-                </MenuStatus>
-              ) : !filteredModels.length ? (
-                <MenuStatus>{t("extensions.modelSelector.noSearchResults")}</MenuStatus>
-              ) : (
-                <DropdownMenuRadioGroup value={selectedModel?.id} onValueChange={changeModel}>
-                  {providers.map(([providerId, providerName], index) => {
+              <div className="min-h-0 overflow-y-auto">
+                {loadFailed || !models.length ? (
+                  <MenuStatus alert={loadFailed}>
+                    {loadFailed
+                      ? t("extensions.modelSelector.loadFailed")
+                      : t("extensions.modelSelector.noModels")}
+                  </MenuStatus>
+                ) : !filteredModels.length ? (
+                  <MenuStatus>{t("extensions.modelSelector.noSearchResults")}</MenuStatus>
+                ) : (
+                  providers.map(([providerId, providerName], index) => {
                     const providerModels = filteredModels.filter(
                       (model) => model.provider === providerId,
                     );
@@ -650,15 +705,24 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
                       <div key={providerId}>
                         {index > 0 && <DropdownMenuSeparator className="mx-0 my-0" />}
                         <ModelMenuGroup
+                          providerId={providerId}
                           providerName={providerName}
+                          providers={providers}
                           models={providerModels}
+                          selectedModelId={selectedModel?.id}
                           disabled={selectionLocked}
+                          groupRef={(element) => {
+                            if (element) providerGroupRefs.current.set(providerId, element);
+                            else providerGroupRefs.current.delete(providerId);
+                          }}
+                          onModelChange={changeModel}
+                          onProviderChange={selectProviderGroup}
                         />
                       </div>
                     );
-                  })}
-                </DropdownMenuRadioGroup>
-              )}
+                  })
+                )}
+              </div>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
 
