@@ -74,7 +74,7 @@ export function WorkspaceDirectorySummary(_context: ComposerDrawerSlotContext) {
           }
           onClick={() => void pickDirectory()}
           className={cn(
-            "group-data-[selected=true]/composer:border-blue-200 group-data-[selected=true]/composer:bg-blue-50 group-data-[selected=true]/composer:text-blue-600 inline-flex h-6 min-w-0 items-center gap-1 rounded-md border border-transparent bg-transparent px-2 font-medium text-foreground outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/40 disabled:pointer-events-none dark:group-data-[selected=true]/composer:border-blue-800 dark:group-data-[selected=true]/composer:bg-blue-950/50 dark:group-data-[selected=true]/composer:text-blue-400",
+            "group-data-[selected=true]/composer:border-input group-data-[selected=true]/composer:bg-muted group-data-[selected=true]/composer:text-foreground inline-flex h-6 min-w-0 items-center gap-1 rounded-md border border-transparent bg-transparent px-2 font-medium text-foreground outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/40 disabled:pointer-events-none",
             error && "text-destructive",
           )}
         >

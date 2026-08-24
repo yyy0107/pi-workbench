@@ -962,7 +962,7 @@ export function WorkbenchComposer() {
           className={cn(
             "mx-0.5 align-baseline",
             parameterKey &&
-              "cursor-pointer rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30",
+              "cursor-pointer rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
           )}
           onPointerDown={
             parameterKey
@@ -1043,7 +1043,7 @@ export function WorkbenchComposer() {
           <ComposerPrimitive.AttachmentDropzone
             data-slot="workbench-composer-card"
             className={cn(
-              "bg-background data-[dragging=true]:bg-accent/50 flex w-full flex-col overflow-hidden rounded-[22px] border shadow-[0_1px_3px_rgba(0,0,0,0.08)] outline-none transition-[border-color,box-shadow,background-color] focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 data-[dragging=true]:border-dashed",
+              "bg-background data-[dragging=true]:bg-accent/50 flex w-full flex-col overflow-hidden rounded-[22px] border shadow-[0_1px_3px_rgba(0,0,0,0.08)] outline-none transition-[border-color,box-shadow,background-color] data-[dragging=true]:border-dashed",
               showWorkspacePrompt &&
                 "border-dashed border-muted-foreground/40 dark:border-muted-foreground/50",
             )}

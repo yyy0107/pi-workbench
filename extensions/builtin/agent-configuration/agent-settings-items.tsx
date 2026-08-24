@@ -364,7 +364,7 @@ function InlineNumberEditor({
           disabled={disabled}
           aria-label={label}
           aria-invalid={invalid}
-          className="bg-background h-9 min-w-24 rounded-xl text-left tabular-nums focus-visible:border-primary focus-visible:ring-primary/20 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          className="bg-background h-9 min-w-24 rounded-xl text-left tabular-nums [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
           onChange={(event) => onChange(event.currentTarget.value)}
           onKeyDown={(event) => {
             if (event.key === "Escape") {

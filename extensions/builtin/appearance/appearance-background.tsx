@@ -33,7 +33,11 @@ const APPEARANCE_OVERRIDES = `
   --primary-foreground: var(--workbench-theme-background);
   --sidebar-primary: var(--workbench-theme-accent);
   --sidebar-primary-foreground: var(--workbench-theme-background);
-  --ring: var(--workbench-theme-accent);
+  --ring: color-mix(
+    in srgb,
+    var(--workbench-theme-foreground) 40%,
+    var(--workbench-theme-background)
+  );
   --muted: color-mix(in srgb, var(--workbench-theme-background) 92%, var(--workbench-theme-foreground));
   --muted-foreground: color-mix(in srgb, var(--workbench-theme-foreground) 62%, var(--workbench-theme-background));
   --secondary: var(--muted);
