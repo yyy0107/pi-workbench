@@ -86,6 +86,10 @@
 
 :root {
   --radius: 0.625rem;
+  --scrollbar-size: 6px;
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: color-mix(in oklab, var(--foreground) 14%, transparent);
+  --scrollbar-thumb-hover: color-mix(in oklab, var(--foreground) 20%, transparent);
   --background: oklch(1 0 0);
   --foreground: oklch(0.141 0.005 285.823);
   --card: oklch(1 0 0);
@@ -178,7 +182,13 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
-    scrollbar-color: color-mix(in oklab, var(--foreground) 14%, transparent) transparent;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  }
+
+  @supports not selector(::-webkit-scrollbar) {
+    * {
+      scrollbar-width: thin;
+    }
   }
 
   :where(
@@ -192,19 +202,24 @@
     filter: blur(0.35px);
   }
 
-  *::-webkit-scrollbar,
+  *::-webkit-scrollbar {
+    width: var(--scrollbar-size);
+    height: var(--scrollbar-size);
+    background: var(--scrollbar-track);
+  }
+
   *::-webkit-scrollbar-track,
   *::-webkit-scrollbar-corner {
-    background: transparent;
+    background: var(--scrollbar-track);
   }
 
   *::-webkit-scrollbar-thumb {
     border-radius: 9999px;
-    background: color-mix(in oklab, var(--foreground) 14%, transparent);
+    background: var(--scrollbar-thumb);
   }
 
   *::-webkit-scrollbar-thumb:hover {
-    background: color-mix(in oklab, var(--foreground) 20%, transparent);
+    background: var(--scrollbar-thumb-hover);
   }
 
   :root {

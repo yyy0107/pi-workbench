@@ -479,10 +479,7 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
                 {selectedModel?.name ?? t("assistant.model.select")}
               </MenuCurrentValue>
             </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent
-              className="max-h-80 w-72 overflow-y-auto p-0 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:bg-transparent"
-              sideOffset={4}
-            >
+            <DropdownMenuSubContent className="max-h-80 w-72 overflow-y-auto p-0" sideOffset={4}>
               {!loadFailed && models.length > 0 && (
                 <ModelSearch
                   value={modelQuery}

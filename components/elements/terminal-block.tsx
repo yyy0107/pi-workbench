@@ -114,7 +114,7 @@ export function TerminalBlock({
 
       <div
         data-slot="terminal-block-scroll-area"
-        className="relative mt-1 min-h-12 max-h-[240px] overflow-auto [scrollbar-width:thin]"
+        className="relative mt-1 min-h-12 max-h-[240px] overflow-auto"
         style={{ maskImage: OUTPUT_EDGE_MASK, WebkitMaskImage: OUTPUT_EDGE_MASK }}
       >
         <div className="min-w-max px-3 pt-1 pb-10">
