@@ -183,14 +183,14 @@ export const extensionsEnUS = {
   },
   appearance: {
     title: "Appearance",
-    description: "Customize color mode, theme colors, typography, components, and interaction.",
+    description: "Customize color mode, theme colors, typography, and component appearance.",
     theme: {
-      title: "Light and dark mode",
+      title: "Theme",
       description: "Follow the operating system or keep Workbench in one color mode.",
       mode: "Color mode",
     },
     colorModes: {
-      system: "Follow system",
+      system: "System",
       light: "Light",
       dark: "Dark",
     },
@@ -291,9 +291,7 @@ export const extensionsEnUS = {
       title: "Global background",
       description: "Use a color or a locally stored image across the Workbench.",
       colorTitle: "Color",
-      colorDescription: "Set a custom canvas color and optionally share it with surfaces.",
       imageTitle: "Image and blur",
-      imageDescription: "Choose a local image and control how strongly it is blurred.",
       image: "Local image",
       custom: "Use a custom background",
       color: "Global background color",
@@ -314,14 +312,8 @@ export const extensionsEnUS = {
       medium: "Medium",
       strong: "Strong",
     },
-    components: {
-      title: "Component appearance",
-      description: "Control surface, border, and corner treatments in one place.",
-    },
     surfaces: {
-      title: "Surfaces",
-      description:
-        "Adjust component transparency and glass blur when a custom color or image is active.",
+      title: "Component surfaces",
       opacity: "Surface opacity",
       opacityValue: ({ opacity }: { opacity: number }, { number }: MessageFormatters) =>
         `${number(opacity)}%`,
@@ -329,7 +321,6 @@ export const extensionsEnUS = {
     },
     borders: {
       title: "Borders",
-      description: "Apply one border treatment to components that already define a border.",
       style: "Border style",
       customColor: "Use a custom border color",
       color: "Component border color",
@@ -343,7 +334,6 @@ export const extensionsEnUS = {
     },
     corners: {
       title: "Corners",
-      description: "Adjust the shared radius tokens used by buttons, cards, inputs, and panels.",
       radius: "Corner style",
     },
     cornerRadiusStyles: {
@@ -358,17 +348,7 @@ export const extensionsEnUS = {
       description: "Configure code fonts, sizing, syntax colors, and change markers.",
       font: "Code font",
     },
-    interaction: {
-      title: "Interaction",
-      description: "Control pointer feedback and interface motion.",
-    },
     preferences: {
-      title: "Preferences",
-      description: "Adjust pointer, motion, typography, and change indicators.",
-      pointerCursor: "Use pointer cursor",
-      pointerCursorDescription: "Switch to a pointer cursor when hovering interactive elements.",
-      reduceMotion: "Reduce motion",
-      reduceMotionDescription: "Minimize interface animations and smooth scrolling.",
       uiFontSize: "UI font size",
       uiFontSizeDescription: "Adjust the base size used by the Workbench interface.",
       codeFontSize: "Code font size",

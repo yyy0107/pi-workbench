@@ -65,27 +65,30 @@ function SettingGroup({
   showHeading = true,
   children,
 }: {
-  title: string;
-  description: string;
+  title?: string;
+  description?: string;
   layout?: "rows" | "cards";
   showHeading?: boolean;
   children: ReactNode;
 }) {
+  const hasHeading = showHeading && Boolean(title);
   return (
     <section className="py-5 first:pt-1 last:pb-3">
-      {showHeading ? (
+      {hasHeading ? (
         <div>
           <h3 className="text-sm font-medium">{title}</h3>
-          <p className="text-muted-foreground mt-1 text-sm leading-5">{description}</p>
+          {description ? (
+            <p className="text-muted-foreground mt-1 text-sm leading-5">{description}</p>
+          ) : null}
         </div>
       ) : null}
       <div
         className={
           layout === "cards"
-            ? showHeading
-              ? "mt-4 space-y-3"
-              : "space-y-3"
-            : showHeading
+            ? hasHeading
+              ? "mt-4 space-y-6"
+              : "space-y-6"
+            : hasHeading
               ? "mt-4 divide-y"
               : "divide-y"
         }
@@ -96,22 +99,13 @@ function SettingGroup({
   );
 }
 
-function SettingSubgroup({
-  title,
-  description,
-  children,
-}: {
-  title: string;
-  description: string;
-  children: ReactNode;
-}) {
+function SettingSubgroup({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="bg-muted/20 rounded-lg border px-4 py-3">
-      <div className="pb-2">
-        <h4 className="text-[13px] font-medium">{title}</h4>
-        <p className="text-muted-foreground mt-0.5 text-xs leading-4">{description}</p>
+    <section>
+      <h4 className="text-sm font-medium">{title}</h4>
+      <div className="mt-4 rounded-lg border px-4 py-1">
+        <div className="divide-y">{children}</div>
       </div>
-      <div className="divide-y">{children}</div>
     </section>
   );
 }
@@ -151,6 +145,129 @@ function SettingRow({
         {children}
       </div>
     </div>
+  );
+}
+
+const COLOR_MODE_PREVIEW_PALETTES = {
+  system: {
+    shell: "linear-gradient(90deg, #a6a6a6 0 50%, #565656 50% 100%)",
+    chrome: "linear-gradient(90deg, #c8c8c8 0 50%, #999999 50% 100%)",
+    panel: "linear-gradient(90deg, #f7f7f7 0 50%, #3c3c3c 50% 100%)",
+    line: "linear-gradient(90deg, #d4d4d4 0 50%, #777777 50% 100%)",
+    divider: "linear-gradient(90deg, #e5e5e5 0 50%, #555555 50% 100%)",
+  },
+  light: {
+    shell: "#f3f3f3",
+    chrome: "#c7c7c7",
+    panel: "#ffffff",
+    line: "#d5d5d5",
+    divider: "#e7e7e7",
+  },
+  dark: {
+    shell: "#5c5c5c",
+    chrome: "#adadad",
+    panel: "#ffffff",
+    line: "#d5d5d5",
+    divider: "#e7e7e7",
+  },
+} satisfies Record<
+  ColorMode,
+  {
+    shell: string;
+    chrome: string;
+    panel: string;
+    line: string;
+    divider: string;
+  }
+>;
+
+function ColorModePreview({ mode }: { mode: ColorMode }) {
+  const palette = COLOR_MODE_PREVIEW_PALETTES[mode];
+  return (
+    <div
+      aria-hidden="true"
+      className="relative aspect-[1.45] w-full overflow-hidden rounded-xl border-2 border-border shadow-xs transition-[border-color,box-shadow] group-hover:border-foreground peer-checked:border-foreground peer-checked:ring-1 peer-checked:ring-foreground peer-focus-visible:ring-3 peer-focus-visible:ring-ring/50"
+      style={{ background: palette.shell }}
+    >
+      <div
+        className="absolute top-[22%] left-1/2 h-[5%] w-[43%] -translate-x-1/2 rounded-full"
+        style={{ background: palette.chrome }}
+      />
+      <div
+        className="absolute top-[30%] left-1/2 h-[3%] w-[62%] -translate-x-1/2 rounded-full opacity-70"
+        style={{ background: palette.chrome }}
+      />
+      <div
+        className="absolute inset-x-[8%] top-[38%] -bottom-px overflow-hidden rounded-t-xl"
+        style={{ background: palette.panel }}
+      >
+        <div className="absolute inset-x-[6%] top-[14%] h-[5%]">
+          <div className="h-full w-[34%] rounded-full" style={{ background: palette.line }} />
+          <div
+            className="mt-[4%] h-[35%] w-[55%] rounded-full opacity-55"
+            style={{ background: palette.line }}
+          />
+        </div>
+        <div
+          className="absolute inset-x-0 top-[39%] h-px"
+          style={{ background: palette.divider }}
+        />
+        <div className="absolute inset-x-[6%] top-[48%] h-[5%]">
+          <div className="h-full w-[34%] rounded-full" style={{ background: palette.line }} />
+          <div
+            className="mt-[4%] h-[35%] w-[55%] rounded-full opacity-55"
+            style={{ background: palette.line }}
+          />
+        </div>
+        <div
+          className="absolute inset-x-0 top-[73%] h-px"
+          style={{ background: palette.divider }}
+        />
+        <div className="absolute inset-x-[6%] top-[82%] h-[5%]">
+          <div className="h-full w-[34%] rounded-full" style={{ background: palette.line }} />
+          <div
+            className="mt-[4%] h-[35%] w-[55%] rounded-full opacity-55"
+            style={{ background: palette.line }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ColorModePicker({
+  label,
+  value,
+  optionLabel,
+  onChange,
+}: {
+  label: string;
+  value: ColorMode;
+  optionLabel(value: ColorMode): string;
+  onChange(value: ColorMode): void;
+}) {
+  return (
+    <fieldset>
+      <legend className="sr-only">{label}</legend>
+      <div className="grid grid-cols-3 gap-3">
+        {COLOR_MODES.map((mode) => (
+          <label key={mode} className="group min-w-0 cursor-pointer">
+            <input
+              type="radio"
+              name="workbench-color-mode"
+              value={mode}
+              checked={value === mode}
+              className="peer sr-only"
+              onChange={() => onChange(mode)}
+            />
+            <ColorModePreview mode={mode} />
+            <span className="text-muted-foreground mt-2 block text-center text-sm transition-colors peer-checked:font-medium peer-checked:text-foreground">
+              {optionLabel(mode)}
+            </span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
   );
 }
 
@@ -537,19 +654,13 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
       <div className="divide-y">
         {page === "appearance" ? (
           <>
-            <SettingGroup
-              title={t("extensions.appearance.theme.title")}
-              description={t("extensions.appearance.theme.description")}
-            >
-              <SettingRow label={t("extensions.appearance.theme.mode")}>
-                <SelectControl
-                  label={t("extensions.appearance.theme.mode")}
-                  value={preferences.colorMode}
-                  options={COLOR_MODES}
-                  optionLabel={colorModeLabel}
-                  onChange={(colorMode) => appearanceStore.update({ colorMode })}
-                />
-              </SettingRow>
+            <SettingGroup title={t("extensions.appearance.theme.title")}>
+              <ColorModePicker
+                label={t("extensions.appearance.theme.mode")}
+                value={preferences.colorMode}
+                optionLabel={colorModeLabel}
+                onChange={(colorMode) => appearanceStore.update({ colorMode })}
+              />
             </SettingGroup>
 
             <SettingGroup
@@ -689,10 +800,7 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
             layout="cards"
             showHeading={false}
           >
-            <SettingSubgroup
-              title={t("extensions.appearance.background.colorTitle")}
-              description={t("extensions.appearance.background.colorDescription")}
-            >
+            <SettingSubgroup title={t("extensions.appearance.background.colorTitle")}>
               <SettingRow label={t("extensions.appearance.background.custom")}>
                 <SwitchControl
                   checked={preferences.customBackground}
@@ -718,10 +826,7 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
               </SettingRow>
             </SettingSubgroup>
 
-            <SettingSubgroup
-              title={t("extensions.appearance.background.imageTitle")}
-              description={t("extensions.appearance.background.imageDescription")}
-            >
+            <SettingSubgroup title={t("extensions.appearance.background.imageTitle")}>
               <SettingRow label={t("extensions.appearance.background.image")}>
                 <BackgroundImagePicker image={backgroundImage} />
               </SettingRow>
@@ -740,15 +845,8 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
         ) : null}
 
         {page === "appearance" ? (
-          <SettingGroup
-            title={t("extensions.appearance.components.title")}
-            description={t("extensions.appearance.components.description")}
-            layout="cards"
-          >
-            <SettingSubgroup
-              title={t("extensions.appearance.surfaces.title")}
-              description={t("extensions.appearance.surfaces.description")}
-            >
+          <SettingGroup layout="cards" showHeading={false}>
+            <SettingSubgroup title={t("extensions.appearance.surfaces.title")}>
               <SettingRow label={t("extensions.appearance.surfaces.opacity")}>
                 <RangeControl
                   label={t("extensions.appearance.surfaces.opacity")}
@@ -772,10 +870,7 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
               </SettingRow>
             </SettingSubgroup>
 
-            <SettingSubgroup
-              title={t("extensions.appearance.borders.title")}
-              description={t("extensions.appearance.borders.description")}
-            >
+            <SettingSubgroup title={t("extensions.appearance.borders.title")}>
               <SettingRow label={t("extensions.appearance.borders.style")}>
                 <SelectControl
                   label={t("extensions.appearance.borders.style")}
@@ -802,10 +897,7 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
               </SettingRow>
             </SettingSubgroup>
 
-            <SettingSubgroup
-              title={t("extensions.appearance.corners.title")}
-              description={t("extensions.appearance.corners.description")}
-            >
+            <SettingSubgroup title={t("extensions.appearance.corners.title")}>
               <SettingRow label={t("extensions.appearance.corners.radius")}>
                 <SelectControl
                   label={t("extensions.appearance.corners.radius")}
@@ -875,34 +967,6 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
                 checked={preferences.showDiffMarkers}
                 label={t("extensions.appearance.preferences.diffMarkers")}
                 onChange={(showDiffMarkers) => appearanceStore.update({ showDiffMarkers })}
-              />
-            </SettingRow>
-          </SettingGroup>
-        ) : null}
-
-        {page === "appearance" ? (
-          <SettingGroup
-            title={t("extensions.appearance.interaction.title")}
-            description={t("extensions.appearance.interaction.description")}
-          >
-            <SettingRow
-              label={t("extensions.appearance.preferences.pointerCursor")}
-              description={t("extensions.appearance.preferences.pointerCursorDescription")}
-            >
-              <SwitchControl
-                checked={preferences.usePointerCursor}
-                label={t("extensions.appearance.preferences.pointerCursor")}
-                onChange={(usePointerCursor) => appearanceStore.update({ usePointerCursor })}
-              />
-            </SettingRow>
-            <SettingRow
-              label={t("extensions.appearance.preferences.reduceMotion")}
-              description={t("extensions.appearance.preferences.reduceMotionDescription")}
-            >
-              <SwitchControl
-                checked={preferences.reduceMotion}
-                label={t("extensions.appearance.preferences.reduceMotion")}
-                onChange={(reduceMotion) => appearanceStore.update({ reduceMotion })}
               />
             </SettingRow>
           </SettingGroup>

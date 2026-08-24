@@ -188,7 +188,7 @@ export function SystemPromptSettingsItem({ sectionId, itemId }: SettingsItemComp
         </p>
       </div>
 
-      <div className="bg-muted/20 mt-4 rounded-xl border p-3 sm:p-4">
+      <div className="mt-4">
         <label htmlFor="global-pi-system-prompt" className="text-muted-foreground block text-sm">
           {t("extensions.agentConfiguration.systemPrompt.editorLabel")}
         </label>

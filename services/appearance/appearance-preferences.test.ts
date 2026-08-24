@@ -38,8 +38,6 @@ test("parses persisted appearance preferences", () => {
       darkContrast: 114,
       uiFont: "rounded",
       codeFont: "jetBrainsMono",
-      usePointerCursor: true,
-      reduceMotion: true,
       uiFontSize: 18,
       codeFontSize: 15,
       codeTheme: "dracula",
@@ -69,8 +67,6 @@ test("parses persisted appearance preferences", () => {
     darkContrast: 114,
     uiFont: "rounded",
     codeFont: "jetBrainsMono",
-    usePointerCursor: true,
-    reduceMotion: true,
     uiFontSize: 18,
     codeFontSize: 15,
     codeTheme: "dracula",
@@ -95,8 +91,6 @@ test("falls back field by field when persisted values are invalid", () => {
       darkContrast: 20,
       uiFont: "comicSans",
       codeFont: "proportional",
-      usePointerCursor: "yes",
-      reduceMotion: "always",
       uiFontSize: 99,
       codeFontSize: 1,
       codeTheme: "rainbow",
@@ -107,6 +101,16 @@ test("falls back field by field when persisted values are invalid", () => {
   assert.deepEqual(preferences, DEFAULT_APPEARANCE_PREFERENCES);
   assert.equal(isDefaultAppearancePreferences(preferences), true);
   assert.equal(parseAppearancePreferences("{"), DEFAULT_APPEARANCE_PREFERENCES);
+});
+
+test("ignores retired interaction preferences", () => {
+  const preferences = parseAppearancePreferences(
+    JSON.stringify({ usePointerCursor: true, reduceMotion: true }),
+  );
+
+  assert.equal("usePointerCursor" in preferences, false);
+  assert.equal("reduceMotion" in preferences, false);
+  assert.equal(isDefaultAppearancePreferences(preferences), true);
 });
 
 test("migrates fonts from split light and dark preferences", () => {

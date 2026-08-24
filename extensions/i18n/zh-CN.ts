@@ -177,16 +177,16 @@ export const extensionsZhCN = {
   },
   appearance: {
     title: "外观",
-    description: "自定义工作台的明暗模式、主题颜色、字体、组件和交互效果。",
+    description: "自定义工作台的明暗模式、主题颜色、字体和组件外观。",
     theme: {
-      title: "白天与黑夜模式",
+      title: "主题",
       description: "跟随操作系统，或让工作台固定使用一种明暗模式。",
       mode: "明暗模式",
     },
     colorModes: {
-      system: "跟随系统",
-      light: "白天",
-      dark: "黑夜",
+      system: "系统",
+      light: "浅色",
+      dark: "深色",
     },
     palette: {
       title: "主题颜色",
@@ -285,9 +285,7 @@ export const extensionsZhCN = {
       title: "全局背景",
       description: "使用颜色或保存在本机浏览器中的图片作为工作台背景。",
       colorTitle: "颜色",
-      colorDescription: "设置自定义画布颜色，并可让组件表面使用相同底色。",
       imageTitle: "图片与模糊",
-      imageDescription: "选择本地图片并调整图片的模糊程度。",
       image: "本地图片",
       custom: "使用自定义背景",
       color: "全局背景颜色",
@@ -308,13 +306,8 @@ export const extensionsZhCN = {
       medium: "中等",
       strong: "强烈",
     },
-    components: {
-      title: "组件外观",
-      description: "集中调整组件表面、边框和圆角样式。",
-    },
     surfaces: {
-      title: "表面",
-      description: "启用自定义背景色或背景图后，调整组件透明度和玻璃模糊程度。",
+      title: "组件表面",
       opacity: "表面不透明度",
       opacityValue: ({ opacity }: { opacity: number }, { number }: MessageFormatters) =>
         `${number(opacity)}%`,
@@ -322,7 +315,6 @@ export const extensionsZhCN = {
     },
     borders: {
       title: "边框",
-      description: "为已经定义边框的组件统一应用边框样式。",
       style: "边框样式",
       customColor: "使用自定义边框颜色",
       color: "组件边框颜色",
@@ -336,7 +328,6 @@ export const extensionsZhCN = {
     },
     corners: {
       title: "圆角",
-      description: "调整按钮、卡片、输入框和面板共用的圆角尺寸。",
       radius: "圆角样式",
     },
     cornerRadiusStyles: {
@@ -351,17 +342,7 @@ export const extensionsZhCN = {
       description: "集中设置代码字体、字号、语法颜色和差异标记。",
       font: "代码字体",
     },
-    interaction: {
-      title: "交互",
-      description: "控制指针反馈和界面动态效果。",
-    },
     preferences: {
-      title: "偏好设置",
-      description: "调整指针、动态效果、字号和差异提示。",
-      pointerCursor: "使用指针光标",
-      pointerCursorDescription: "悬停交互元素时切换为指针光标。",
-      reduceMotion: "减少动态效果",
-      reduceMotionDescription: "减少界面动画和流畅滚动效果。",
       uiFontSize: "UI 字号",
       uiFontSizeDescription: "调整工作台界面使用的基准字号。",
       codeFontSize: "代码字体大小",

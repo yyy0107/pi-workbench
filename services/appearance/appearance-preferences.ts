@@ -190,8 +190,6 @@ export interface AppearancePreferences {
   darkContrast: ThemeContrast;
   uiFont: UiFontFamily;
   codeFont: CodeFontFamily;
-  usePointerCursor: boolean;
-  reduceMotion: boolean;
   uiFontSize: UiFontSize;
   codeFontSize: CodeFontSize;
   codeTheme: CodeTheme;
@@ -220,8 +218,6 @@ export const DEFAULT_APPEARANCE_PREFERENCES = Object.freeze({
   darkContrast: 100,
   uiFont: "geist",
   codeFont: "geistMono",
-  usePointerCursor: false,
-  reduceMotion: false,
   uiFontSize: 16,
   codeFontSize: 13,
   codeTheme: "dark-plus",
@@ -342,14 +338,6 @@ export function parseAppearancePreferences(serialized: string | null): Appearanc
         : isOneOf(value.darkCodeFont, CODE_FONT_FAMILIES)
           ? value.darkCodeFont
           : DEFAULT_APPEARANCE_PREFERENCES.codeFont,
-    usePointerCursor:
-      typeof value.usePointerCursor === "boolean"
-        ? value.usePointerCursor
-        : DEFAULT_APPEARANCE_PREFERENCES.usePointerCursor,
-    reduceMotion:
-      typeof value.reduceMotion === "boolean"
-        ? value.reduceMotion
-        : DEFAULT_APPEARANCE_PREFERENCES.reduceMotion,
     uiFontSize: isIntegerInRange(value.uiFontSize, MIN_UI_FONT_SIZE, MAX_UI_FONT_SIZE)
       ? value.uiFontSize
       : DEFAULT_APPEARANCE_PREFERENCES.uiFontSize,
@@ -393,8 +381,6 @@ export function isDefaultAppearancePreferences(preferences: AppearancePreference
     preferences.darkContrast === DEFAULT_APPEARANCE_PREFERENCES.darkContrast &&
     preferences.uiFont === DEFAULT_APPEARANCE_PREFERENCES.uiFont &&
     preferences.codeFont === DEFAULT_APPEARANCE_PREFERENCES.codeFont &&
-    preferences.usePointerCursor === DEFAULT_APPEARANCE_PREFERENCES.usePointerCursor &&
-    preferences.reduceMotion === DEFAULT_APPEARANCE_PREFERENCES.reduceMotion &&
     preferences.uiFontSize === DEFAULT_APPEARANCE_PREFERENCES.uiFontSize &&
     preferences.codeFontSize === DEFAULT_APPEARANCE_PREFERENCES.codeFontSize &&
     preferences.codeTheme === DEFAULT_APPEARANCE_PREFERENCES.codeTheme &&

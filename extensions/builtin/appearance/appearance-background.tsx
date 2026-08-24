@@ -94,34 +94,6 @@ const APPEARANCE_OVERRIDES = `
   filter: contrast(var(--workbench-theme-contrast));
 }
 
-:root[data-workbench-pointer-cursor] :where(
-  a[href],
-  button,
-  summary,
-  select,
-  [role="button"],
-  [role="menuitem"],
-  [role="option"],
-  [role="tab"],
-  input[type="checkbox"],
-  input[type="radio"],
-  input[type="range"],
-  label:has(input[type="checkbox"], input[type="radio"], input[type="range"])
-) {
-  cursor: pointer !important;
-}
-
-:root[data-workbench-reduce-motion],
-:root[data-workbench-reduce-motion] :where(*, *::before, *::after) {
-  scroll-behavior: auto !important;
-}
-
-:root[data-workbench-reduce-motion] :where(*, *::before, *::after) {
-  animation-duration: 0.01ms !important;
-  animation-iteration-count: 1 !important;
-  transition-duration: 0.01ms !important;
-}
-
 @media (prefers-reduced-motion: reduce) {
   :root,
   :root :where(*, *::before, *::after) {
@@ -338,8 +310,6 @@ export function AppearanceBackground() {
     const originalAppearance = root.getAttribute("data-workbench-appearance");
     const originalBorderStyle = root.getAttribute("data-workbench-border-style");
     const originalBackdrop = root.getAttribute("data-workbench-backdrop");
-    const originalPointerCursor = root.getAttribute("data-workbench-pointer-cursor");
-    const originalReduceMotion = root.getAttribute("data-workbench-reduce-motion");
     const originalHideDiffMarkers = root.getAttribute("data-workbench-hide-diff-markers");
 
     const themeProperties = {
@@ -367,8 +337,6 @@ export function AppearanceBackground() {
     if (preferences.customBackground) {
       setProperty(root, "--workbench-canvas-background", preferences.backgroundColor, originals);
     }
-    root.toggleAttribute("data-workbench-pointer-cursor", preferences.usePointerCursor);
-    root.toggleAttribute("data-workbench-reduce-motion", preferences.reduceMotion);
     root.toggleAttribute("data-workbench-hide-diff-markers", !preferences.showDiffMarkers);
     const computedStyle = getComputedStyle(root);
 
@@ -448,10 +416,6 @@ export function AppearanceBackground() {
       else root.setAttribute("data-workbench-border-style", originalBorderStyle);
       if (originalBackdrop === null) root.removeAttribute("data-workbench-backdrop");
       else root.setAttribute("data-workbench-backdrop", originalBackdrop);
-      if (originalPointerCursor === null) root.removeAttribute("data-workbench-pointer-cursor");
-      else root.setAttribute("data-workbench-pointer-cursor", originalPointerCursor);
-      if (originalReduceMotion === null) root.removeAttribute("data-workbench-reduce-motion");
-      else root.setAttribute("data-workbench-reduce-motion", originalReduceMotion);
       if (originalHideDiffMarkers === null)
         root.removeAttribute("data-workbench-hide-diff-markers");
       else root.setAttribute("data-workbench-hide-diff-markers", originalHideDiffMarkers);
