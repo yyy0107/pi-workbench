@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import {
   buildExplorerTreeItems,
   explorerDirectoryOnPath,
+  explorerNodeListsEqual,
   explorerNodeMatchesFilter,
   explorerPathIsDescendant,
   explorerTreeItemsHaveMatch,
@@ -49,6 +50,8 @@ export interface ExplorerTreeProps {
   rootPath: string;
   rootNode?: ExplorerTreeNode;
   nodes: readonly ExplorerTreeNode[];
+  /** Revalidates every expanded directory while preserving the current tree UI state. */
+  refreshToken?: number;
   filter?: string;
   showHidden?: boolean;
   selectedPath?: string | null;
@@ -340,6 +343,7 @@ export function ExplorerTree({
   rootPath,
   rootNode,
   nodes,
+  refreshToken,
   filter = "",
   showHidden = true,
   selectedPath,
@@ -363,6 +367,7 @@ export function ExplorerTree({
   const directoriesRef = useRef(directories);
   const requests = useRef(new Map<string, AbortController>());
   const rootGeneration = useRef(0);
+  const lastRefreshToken = useRef(refreshToken);
   const treeRef = useRef<TreeApi<ExplorerTreeItem>>(null);
   const activeSelectedPath = selectedPath === undefined ? internalSelectedPath : selectedPath;
   const topLevelNodes = useMemo(() => (rootNode ? [rootNode] : nodes), [nodes, rootNode]);
@@ -378,19 +383,32 @@ export function ExplorerTree({
     () => (rootNode ? { [rootNode.path]: true } : undefined),
     [rootNode],
   );
+  const rootResetKey = `${rootPath}\0${rootNode?.path ?? ""}`;
 
   useEffect(() => {
     rootGeneration.current += 1;
     for (const request of requests.current.values()) request.abort();
     requests.current.clear();
-    const nextDirectories = rootNode
-      ? new Map([[rootNode.path, { status: "loaded" as const, children: nodes }]])
-      : new Map<string, ExplorerDirectorySnapshot>();
+    const nextDirectories = new Map<string, ExplorerDirectorySnapshot>();
     directoriesRef.current = nextDirectories;
     setDirectories(nextDirectories);
     setInternalSelectedPath(undefined);
     setStickyAncestors([]);
-  }, [nodes, rootNode, rootPath]);
+  }, [rootResetKey]);
+
+  useEffect(() => {
+    if (!rootNode) return;
+    setDirectories((current) => {
+      const snapshot = current.get(rootNode.path);
+      if (snapshot?.status === "loaded" && explorerNodeListsEqual(snapshot.children, nodes)) {
+        return current;
+      }
+      const next = new Map(current);
+      next.set(rootNode.path, { status: "loaded", children: nodes });
+      directoriesRef.current = next;
+      return next;
+    });
+  }, [nodes, rootNode]);
 
   useEffect(
     () => () => {
@@ -405,25 +423,37 @@ export function ExplorerTree({
   }, [filter]);
 
   const loadChildren = useCallback(
-    async (node: ExplorerTreeNode): Promise<readonly ExplorerTreeNode[] | undefined> => {
+    async (
+      node: ExplorerTreeNode,
+      mode: "foreground" | "background" = "foreground",
+    ): Promise<readonly ExplorerTreeNode[] | undefined> => {
       requests.current.get(node.path)?.abort();
       const request = new AbortController();
       const generation = rootGeneration.current;
       requests.current.set(node.path, request);
-      setDirectories((current) => {
-        const next = new Map(current);
-        next.set(node.path, {
-          status: "loading",
-          children: current.get(node.path)?.children ?? [],
+      if (mode === "foreground") {
+        setDirectories((current) => {
+          const next = new Map(current);
+          next.set(node.path, {
+            status: "loading",
+            children: current.get(node.path)?.children ?? [],
+          });
+          directoriesRef.current = next;
+          return next;
         });
-        directoriesRef.current = next;
-        return next;
-      });
+      }
 
       try {
         const children = await loadDirectory(node, request.signal);
         if (request.signal.aborted || generation !== rootGeneration.current) return;
         setDirectories((current) => {
+          const snapshot = current.get(node.path);
+          if (
+            snapshot?.status === "loaded" &&
+            explorerNodeListsEqual(snapshot.children, children)
+          ) {
+            return current;
+          }
           const next = new Map(current);
           next.set(node.path, { status: "loaded", children });
           directoriesRef.current = next;
@@ -438,6 +468,7 @@ export function ExplorerTree({
         ) {
           return;
         }
+        if (mode === "background") return;
         setDirectories((current) => {
           const next = new Map(current);
           next.set(node.path, {
@@ -454,6 +485,28 @@ export function ExplorerTree({
     },
     [loadDirectory],
   );
+
+  useEffect(() => {
+    if (refreshToken === undefined || Object.is(refreshToken, lastRefreshToken.current)) return;
+    lastRefreshToken.current = refreshToken;
+
+    const tree = treeRef.current;
+    if (!tree) return;
+    const expandedDirectories: ExplorerTreeNode[] = [];
+    for (const [path, snapshot] of directoriesRef.current) {
+      if (snapshot.status !== "loaded") continue;
+      const treeNode = tree.get(path);
+      if (
+        treeNode?.isOpen &&
+        treeNode.data.type === "entry" &&
+        treeNode.data.node.kind === "directory"
+      ) {
+        expandedDirectories.push(treeNode.data.node);
+      }
+    }
+
+    void Promise.all(expandedDirectories.map((directory) => loadChildren(directory, "background")));
+  }, [loadChildren, refreshToken]);
 
   useEffect(() => {
     let cancelled = false;

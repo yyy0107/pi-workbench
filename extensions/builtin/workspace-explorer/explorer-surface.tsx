@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ExplorerTree } from "@/components/workspace-file-tree";
+import { ExplorerTree, explorerNodeListsEqual } from "@/components/workspace-file-tree";
 import { useI18n } from "@/i18n";
 import type { WorkspaceSurfaceProps } from "@/platform/extensions";
 import {
@@ -14,7 +14,14 @@ import {
   type FileNode,
 } from "@/services/workspace-file-service";
 
-import { useActiveWorkspaceSurface, useOpenerService } from "@/components/right-workspace";
+import {
+  useActiveWorkspaceSurface,
+  useOpenerService,
+  useRightWorkspaceState,
+} from "@/components/right-workspace";
+
+const DIRECTORY_REFRESH_INTERVAL_MS = 2_000;
+
 export interface ExplorerSurfaceParams extends Record<string, unknown> {
   rootPath: string;
 }
@@ -24,6 +31,18 @@ type RootLoadState =
   | { status: "ready"; nodes: readonly FileNode[] }
   | { status: "error"; nodes: readonly FileNode[] };
 
+function updateTruncatedPath(
+  current: ReadonlySet<string>,
+  path: string,
+  truncated: boolean,
+): ReadonlySet<string> {
+  if (current.has(path) === truncated) return current;
+  const next = new Set(current);
+  if (truncated) next.add(path);
+  else next.delete(path);
+  return next;
+}
+
 export function ExplorerSurface({
   surface,
   context,
@@ -31,9 +50,13 @@ export function ExplorerSurface({
   const { t } = useI18n();
   const openers = useOpenerService();
   const activeSurface = useActiveWorkspaceSurface();
+  const isExplorerVisible = useRightWorkspaceState(
+    (state) => state.open && state.auxiliaryOpen && state.activeAuxiliarySurfaceId === surface.id,
+  );
   const rootRequest = useRef(0);
   const [filter, setFilter] = useState("");
   const [openError, setOpenError] = useState<string>();
+  const [treeRefreshToken, setTreeRefreshToken] = useState(0);
   const [truncatedPaths, setTruncatedPaths] = useState<ReadonlySet<string>>(() => new Set());
   const [rootState, setRootState] = useState<RootLoadState>({
     status: "loading",
@@ -47,45 +70,84 @@ export function ExplorerSurface({
     activeSurface?.kind === "file" && typeof activeSurface.params.absolutePath === "string"
       ? activeSurface.params.absolutePath
       : undefined;
-  const loadRoot = useCallback(async () => {
-    const request = ++rootRequest.current;
-    setRootState((current) => ({ status: "loading", nodes: current.nodes }));
-    try {
-      const listing = await files.listDirectory(fileContext, "");
-      if (request !== rootRequest.current) return;
-      setRootState({ status: "ready", nodes: listing.nodes });
-      setTruncatedPaths((current) => {
-        const next = new Set(current);
-        if (listing.truncated) next.add(listing.relativePath);
-        else next.delete(listing.relativePath);
-        return next;
-      });
-    } catch {
-      if (request !== rootRequest.current) return;
-      setRootState((current) => ({ status: "error", nodes: current.nodes }));
-    }
-  }, [fileContext]);
+  const loadRoot = useCallback(
+    async (mode: "foreground" | "background" = "foreground") => {
+      const request = ++rootRequest.current;
+      if (mode === "foreground") {
+        setRootState((current) => ({ status: "loading", nodes: current.nodes }));
+      }
+      try {
+        const listing = await files.listDirectory(fileContext, "");
+        if (request !== rootRequest.current) return;
+        setRootState((current) =>
+          current.status === "ready" && explorerNodeListsEqual(current.nodes, listing.nodes)
+            ? current
+            : { status: "ready", nodes: listing.nodes },
+        );
+        setTruncatedPaths((current) =>
+          updateTruncatedPath(current, listing.relativePath, listing.truncated),
+        );
+        setTreeRefreshToken((current) => current + 1);
+      } catch {
+        if (request !== rootRequest.current) return;
+        if (mode === "background") return;
+        setRootState((current) => ({ status: "error", nodes: current.nodes }));
+      }
+    },
+    [fileContext],
+  );
 
   useEffect(() => {
     setFilter("");
     setOpenError(undefined);
     setTruncatedPaths(new Set());
-    void loadRoot();
+    void loadRoot("foreground");
     return () => {
       rootRequest.current += 1;
     };
   }, [loadRoot, surface.params.rootPath]);
 
+  useEffect(() => {
+    if (!isExplorerVisible) return;
+
+    let cancelled = false;
+    let paused = document.visibilityState !== "visible";
+    let refreshing = false;
+    let timer: number | undefined;
+    const schedule = (delay: number) => {
+      if (cancelled || paused || refreshing || timer !== undefined) return;
+      timer = window.setTimeout(() => {
+        timer = undefined;
+        refreshing = true;
+        void loadRoot("background").finally(() => {
+          refreshing = false;
+          schedule(DIRECTORY_REFRESH_INTERVAL_MS);
+        });
+      }, delay);
+    };
+    const handleVisibilityChange = () => {
+      paused = document.visibilityState !== "visible";
+      if (timer !== undefined) window.clearTimeout(timer);
+      timer = undefined;
+      if (!paused) schedule(0);
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    if (!paused) schedule(DIRECTORY_REFRESH_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, [isExplorerVisible, loadRoot]);
+
   const loadDirectory = useCallback(
     async (node: FileNode, signal: AbortSignal) => {
       const listing = await files.listDirectory(fileContext, node.relativePath ?? node.path);
       signal.throwIfAborted();
-      setTruncatedPaths((current) => {
-        const next = new Set(current);
-        if (listing.truncated) next.add(listing.relativePath);
-        else next.delete(listing.relativePath);
-        return next;
-      });
+      setTruncatedPaths((current) =>
+        updateTruncatedPath(current, listing.relativePath, listing.truncated),
+      );
       return listing.nodes;
     },
     [fileContext],
@@ -178,6 +240,7 @@ export function ExplorerSurface({
             key={surface.params.rootPath}
             rootPath={surface.params.rootPath}
             nodes={rootState.nodes}
+            refreshToken={treeRefreshToken}
             filter={filter}
             selectedPath={activeFilePath}
             labels={{

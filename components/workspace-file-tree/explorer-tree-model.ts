@@ -55,6 +55,28 @@ export function sortExplorerNodes(nodes: readonly ExplorerTreeNode[]): readonly 
   return [...nodes].sort(compareExplorerNodes);
 }
 
+/** Compares directory snapshots without depending on object identity from a fresh RPC response. */
+export function explorerNodeListsEqual(
+  left: readonly ExplorerTreeNode[],
+  right: readonly ExplorerTreeNode[],
+): boolean {
+  return (
+    left.length === right.length &&
+    left.every((node, index) => {
+      const candidate = right[index];
+      return (
+        candidate !== undefined &&
+        node.path === candidate.path &&
+        node.relativePath === candidate.relativePath &&
+        node.name === candidate.name &&
+        node.kind === candidate.kind &&
+        node.hidden === candidate.hidden &&
+        node.symbolicLink === candidate.symbolicLink
+      );
+    })
+  );
+}
+
 function normalized(value: string): string {
   return value.trim().toLocaleLowerCase();
 }

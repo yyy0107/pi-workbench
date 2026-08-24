@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   buildExplorerTreeItems,
   explorerDirectoryOnPath,
+  explorerNodeListsEqual,
   explorerNodeMatchesFilter,
   explorerPathIsDescendant,
   explorerPathsEqual,
@@ -34,6 +35,27 @@ test("sorts directories before files using natural name order", () => {
       directory("/workspace/alpha"),
     ]).map((node) => node.name),
     ["alpha", "zeta", "file2.ts", "file10.ts"],
+  );
+});
+
+test("compares fresh directory listings by file metadata instead of object identity", () => {
+  const nodes = [directory("/workspace/src"), file("/workspace/app.ts")];
+
+  assert.equal(
+    explorerNodeListsEqual(
+      nodes,
+      nodes.map((node) => ({ ...node })),
+    ),
+    true,
+  );
+  assert.equal(
+    explorerNodeListsEqual(nodes, [directory("/workspace/src"), file("/workspace/new.ts")]),
+    false,
+  );
+  assert.equal(explorerNodeListsEqual(nodes, [...nodes].reverse()), false);
+  assert.equal(
+    explorerNodeListsEqual(nodes, [{ ...nodes[0]!, symbolicLink: true }, nodes[1]!]),
+    false,
   );
 });
 
