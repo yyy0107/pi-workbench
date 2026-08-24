@@ -231,7 +231,7 @@ export function UserMessageIndex({ threadId }: UserMessageIndexProps) {
             const label = t("extensions.userMessageIndex.jumpTo", { index: index + 1 });
 
             return (
-              <li key={message.id} className="h-6 w-full shrink-0 first:mt-auto last:mb-auto">
+              <li key={message.id} className="h-2.5 w-full shrink-0 first:mt-auto last:mb-auto">
                 <Tooltip>
                   <TooltipTrigger
                     render={
@@ -242,6 +242,11 @@ export function UserMessageIndex({ threadId }: UserMessageIndexProps) {
                         className="group/marker flex h-full w-full items-center pl-2.5 outline-none"
                         onClick={() => jumpToMessage(message.id)}
                         onPointerEnter={() => setHoveredMarkerIndex(index)}
+                        onPointerLeave={() =>
+                          setHoveredMarkerIndex((current) =>
+                            current === index ? undefined : current,
+                          )
+                        }
                         onFocus={() => setFocusedMarkerIndex(index)}
                         onBlur={() =>
                           setFocusedMarkerIndex((current) =>
