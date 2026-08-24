@@ -31,7 +31,7 @@ export function CompletedTurnPanel({
       onOpenChange={handleOpenChange}
       className="w-full [overflow-anchor:none]"
     >
-      <CollapsibleTrigger className="group/trigger text-foreground/55 hover:text-foreground/90 flex w-full items-center gap-1.5 py-1 text-[13.5px] transition-[color,scale] outline-none active:scale-[0.995]">
+      <CollapsibleTrigger className="group/trigger text-foreground/55 hover:text-foreground/90 flex w-full items-center gap-1.5 py-1 text-[13.5px] transition-colors outline-none">
         <CheckCircle2Icon aria-hidden="true" className="text-foreground/45 size-3.5 shrink-0" />
         <span className="text-start leading-none">{label}</span>
         <ChevronRightIcon className="size-3.5 shrink-0 opacity-0 transition-[transform,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover/trigger:opacity-60 group-focus-visible/trigger:opacity-60 group-data-open/trigger:rotate-90 group-data-open/trigger:opacity-60 motion-reduce:transition-none" />

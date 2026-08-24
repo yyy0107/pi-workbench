@@ -54,7 +54,7 @@ export function ReasoningPanel({
       onOpenChange={handleOpenChange}
       className={cn("w-full", className)}
     >
-      <CollapsibleTrigger className="group/trigger text-foreground/55 hover:text-foreground/90 flex w-full items-center gap-1.5 py-1 text-[13.5px] transition-[color,scale] outline-none active:scale-[0.995]">
+      <CollapsibleTrigger className="group/trigger text-foreground/55 hover:text-foreground/90 flex w-full items-center gap-1.5 py-1 text-[13.5px] transition-colors outline-none">
         {streaming && activeIcon !== undefined ? (
           <span
             data-slot="reasoning-panel-icon"
