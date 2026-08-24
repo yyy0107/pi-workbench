@@ -10,9 +10,26 @@ import {
 
 test("all built-in OCR adapter TypeScript templates round-trip through the strict parser", () => {
   for (const preset of OCR_ADAPTER_PRESETS) {
+    assert.match(preset.source, /Workbench OCR adapter contract/);
     assert.deepEqual(parseOcrAdapterSource(preset.source), preset.definition);
     assert.equal(serializeOcrAdapterSource(preset.definition), preset.source);
   }
+});
+
+test("the adapter source accepts comments without changing comment markers inside strings", () => {
+  const definition = structuredClone(getOcrAdapterPreset("glm-ocr").definition);
+  if (definition.request.kind !== "json") assert.fail("expected JSON request preset");
+  definition.request.body.callback = "https://example.com/a//b/*literal*/";
+
+  const source = serializeOcrAdapterSource(definition)
+    .replace('  "version": 1,', '  // The schema version is intentionally fixed.\n  "version": 1,')
+    .replace('  "id": "glm-ocr",', '  /* Stable adapter identity. */\n  "id": "glm-ocr",');
+
+  assert.deepEqual(parseOcrAdapterSource(source), definition);
+  assert.throws(
+    () => parseOcrAdapterSource(source.replace(/\n\);$/, "\n/* unfinished\n);")),
+    /unterminated block comment/,
+  );
 });
 
 test("built-in templates cover GLM and the three requested Paddle implementations", () => {

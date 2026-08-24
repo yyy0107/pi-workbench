@@ -150,6 +150,33 @@ test("migrates a legacy provider-only document to an adapter view without rewrit
   assert.equal(await readFile(stateFile, "utf8"), serializedLegacy);
 });
 
+test("loads pre-comment built-in adapter source as the current annotated template", async (t) => {
+  const { stateFile, store } = await fixture(t);
+  await mkdir(path.dirname(stateFile), { recursive: true });
+  const oldSource = DEFAULT_IMAGE_UNDERSTANDING_SETTINGS.ocrAdapter.source.replace(
+    /\/\*\*[\s\S]*?\*\/\n/,
+    "",
+  );
+  const document = {
+    version: 1,
+    revision: 2,
+    settings: {
+      ...DEFAULT_IMAGE_UNDERSTANDING_SETTINGS,
+      ocrAdapter: {
+        ...DEFAULT_IMAGE_UNDERSTANDING_SETTINGS.ocrAdapter,
+        source: oldSource,
+      },
+    },
+    secrets: {},
+  };
+  const persisted = `${JSON.stringify(document, undefined, 2)}\n`;
+  await writeFile(stateFile, persisted, { mode: 0o600 });
+
+  const described = await store.describe();
+  assert.match(described.value.ocrAdapter.source, /Workbench OCR adapter contract/);
+  assert.equal(await readFile(stateFile, "utf8"), persisted);
+});
+
 test("rejects executable or malformed custom adapter source before persisting", async (t) => {
   const { stateFile, store } = await fixture(t);
   await assert.rejects(

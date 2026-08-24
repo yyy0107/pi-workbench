@@ -601,7 +601,7 @@ export const extensionsZhCN = {
         sourceDescription: "端点、模型、凭据、轮询参数和适配器源码共同组成当前 OCR 配置。",
         sourceLabel: "TypeScript 适配器源码",
         sourceSecurity:
-          "这是带版本的声明式 TypeScript 对象。Workbench 只会把它解析为数据，不会执行 import、函数或任意 JavaScript。",
+          "这是支持注释、带版本的声明式 TypeScript 对象。Workbench 只会把它解析为数据，不会执行 import、函数或任意 JavaScript。",
         exitEditor: "按 Escape 离开适配器源码编辑器。",
         saveShortcut: "保存附件理解设置（Ctrl 或 Command + S）",
         options: {

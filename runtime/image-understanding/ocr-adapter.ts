@@ -487,7 +487,101 @@ function parseDefinition(value: unknown): OcrAdapterDefinitionV1 {
 }
 
 export function serializeOcrAdapterSource(definition: OcrAdapterDefinitionV1): string {
-  return `${OCR_ADAPTER_SOURCE_PREFIX}\n${JSON.stringify(definition, undefined, 2)}\n${OCR_ADAPTER_SOURCE_SUFFIX}`;
+  return `${OCR_ADAPTER_SOURCE_PREFIX}\n/**
+ * Workbench OCR adapter contract (version 1).
+ *
+ * This source is parsed as declarative data and is never executed as JavaScript.
+ * - accepts: attachment kinds handled by this adapter ("image" and/or "pdf").
+ * - authentication: credential header and prefix; the API key is stored separately.
+ * - request: JSON or multipart request template. Available placeholders are
+ *   $model, $attachment.dataUrl, $attachment.base64, $attachment.name, and
+ *   $attachment.mimeType.
+ * - api: optional provider response-code mapping to stable Workbench errors.
+ * - operation: synchronous output extraction or asynchronous job polling.
+ * - retry: bounded retries for errors explicitly marked as retryable.
+ *
+ * Output paths use dot notation; append [] to flatten array values.
+ */
+${JSON.stringify(definition, undefined, 2)}
+${OCR_ADAPTER_SOURCE_SUFFIX}`;
+}
+
+function stripOcrAdapterSourceComments(source: string): string {
+  type State = "code" | "string" | "line-comment" | "block-comment";
+
+  let state: State = "code";
+  let escaped = false;
+  let result = "";
+
+  for (let index = 0; index < source.length; index += 1) {
+    const character = source[index]!;
+    const next = source[index + 1];
+
+    if (state === "string") {
+      result += character;
+      if (escaped) {
+        escaped = false;
+      } else if (character === "\\") {
+        escaped = true;
+      } else if (character === '"') {
+        state = "code";
+      }
+      continue;
+    }
+
+    if (state === "line-comment") {
+      if (
+        character === "\n" ||
+        character === "\r" ||
+        character === "\u2028" ||
+        character === "\u2029"
+      ) {
+        result += character;
+        state = "code";
+      } else {
+        result += " ";
+      }
+      continue;
+    }
+
+    if (state === "block-comment") {
+      if (character === "*" && next === "/") {
+        result += "  ";
+        index += 1;
+        state = "code";
+      } else if (
+        character === "\n" ||
+        character === "\r" ||
+        character === "\u2028" ||
+        character === "\u2029"
+      ) {
+        result += character;
+      } else {
+        result += " ";
+      }
+      continue;
+    }
+
+    if (character === '"') {
+      result += character;
+      state = "string";
+    } else if (character === "/" && next === "/") {
+      result += "  ";
+      index += 1;
+      state = "line-comment";
+    } else if (character === "/" && next === "*") {
+      result += "  ";
+      index += 1;
+      state = "block-comment";
+    } else {
+      result += character;
+    }
+  }
+
+  if (state === "block-comment") {
+    throw new TypeError("OCR adapter source contains an unterminated block comment.");
+  }
+  return result;
 }
 
 export function parseOcrAdapterSource(source: string): OcrAdapterDefinitionV1 {
@@ -504,7 +598,7 @@ export function parseOcrAdapterSource(source: string): OcrAdapterDefinitionV1 {
     );
   }
   const json = trimmed.slice(OCR_ADAPTER_SOURCE_PREFIX.length, -OCR_ADAPTER_SOURCE_SUFFIX.length);
-  return parseDefinition(JSON.parse(json));
+  return parseDefinition(JSON.parse(stripOcrAdapterSourceComments(json)));
 }
 
 const PADDLE_API = {

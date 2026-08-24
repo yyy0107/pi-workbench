@@ -21,6 +21,7 @@ import {
   OCR_ADAPTER_PRESET_IDS,
   OCR_ADAPTER_PRESETS,
   parseOcrAdapterSource,
+  serializeOcrAdapterSource,
   type OcrAdapterPresetId,
 } from "../../../image-understanding/ocr-adapter";
 import { atomicReplaceFile, withCrossProcessFileLock } from "../core/file-persistence";
@@ -207,14 +208,18 @@ function parseAdapterSettings(
     throw new TypeError("settings.ocrAdapter.preset is invalid.");
   }
   const source = nonEmptyString(value.source, "settings.ocrAdapter.source", 100_000);
-  parseOcrAdapterSource(source);
+  const definition = parseOcrAdapterSource(source);
   const preset = value.preset as OcrAdapterPresetId;
-  if (preset !== "custom" && source !== getOcrAdapterPreset(preset).source) {
-    throw new TypeError("settings.ocrAdapter.source does not match its preset.");
+  const presetDefinition = preset === "custom" ? undefined : getOcrAdapterPreset(preset);
+  if (
+    presetDefinition !== undefined &&
+    serializeOcrAdapterSource(definition) !== presetDefinition.source
+  ) {
+    throw new TypeError("settings.ocrAdapter.source does not match its preset definition.");
   }
   return {
     preset,
-    source,
+    source: presetDefinition?.source ?? source,
     endpoint: endpoint(value.endpoint, "settings.ocrAdapter.endpoint"),
     model: nonEmptyString(value.model, "settings.ocrAdapter.model", 256),
     pollIntervalMs: positiveInteger(value.pollIntervalMs, "settings.ocrAdapter.pollIntervalMs"),

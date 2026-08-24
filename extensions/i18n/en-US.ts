@@ -617,7 +617,7 @@ export const extensionsEnUS = {
           "Endpoint, model, credential, polling, and the adapter source form one active OCR configuration.",
         sourceLabel: "TypeScript adapter source",
         sourceSecurity:
-          "This is a versioned declarative TypeScript object. Workbench parses it as data; imports, functions, and arbitrary JavaScript are not executed.",
+          "This is a commented, versioned declarative TypeScript object. Workbench parses it as data; imports, functions, and arbitrary JavaScript are not executed.",
         exitEditor: "Press Escape to leave the adapter source editor.",
         saveShortcut: "Save attachment understanding settings (Ctrl or Command + S)",
         options: {
