@@ -11,7 +11,6 @@ export const toggleTerminalCommand = {
   description: defineMessage("extensions.terminal.toggleDescription"),
   category: defineMessage("extensions.shared.panelsCategory"),
   icon: TerminalIcon,
-  shortcut: ["Ctrl", "`"],
   run() {
     terminalWorkspaceService.toggle();
   },

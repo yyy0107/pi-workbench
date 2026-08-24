@@ -65,7 +65,7 @@ export function WorkspaceAddMenu() {
         align="start"
         side="bottom"
         sideOffset={6}
-        className="w-72 gap-1 rounded-2xl p-2"
+        className="w-44 gap-1 rounded-xl p-1.5"
       >
         <WorkspaceSurfaceMenuItems closeMenu={() => setOpen(false)} />
       </PopoverContent>

@@ -3,7 +3,7 @@
 import "@xterm/xterm/css/xterm.css";
 
 import { useAuiState } from "@assistant-ui/react";
-import { RotateCwIcon, SquareIcon, Trash2Icon } from "lucide-react";
+import { SquareIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { ITerminalInitOnlyOptions, ITerminalOptions, ITheme, Terminal } from "@xterm/xterm";
 
@@ -472,60 +472,27 @@ function TerminalTranscriptSurface({
 
   return (
     <section
-      className="text-foreground flex size-full min-h-0 flex-col"
+      className="group/terminal text-foreground relative flex size-full min-h-0 flex-col"
       style={{ backgroundColor: "var(--workbench-canvas-background, var(--background))" }}
       aria-label={t("extensions.terminal.transcript.output")}
       aria-busy={running || connection.phase === "stopping"}
     >
-      <div className="bg-muted/40 flex h-8 shrink-0 items-center gap-2 border-b px-2.5">
-        <span
-          className={`size-1.5 shrink-0 rounded-full ${
-            connection.phase === "error" || failed
-              ? "bg-destructive"
-              : connection.phase === "connecting" ||
-                  connection.phase === "disconnected" ||
-                  connection.phase === "stopping"
-                ? "animate-pulse bg-amber-500 motion-reduce:animate-none"
-                : !part
-                  ? "bg-muted-foreground"
-                  : running
-                    ? "animate-pulse bg-emerald-500 motion-reduce:animate-none"
-                    : statusType === "requires-action"
-                      ? "bg-amber-500"
-                      : "bg-emerald-500"
-          }`}
-          aria-hidden="true"
-        />
-        <span
-          className="text-muted-foreground min-w-0 flex-1 truncate font-mono text-[10px]"
-          aria-live="polite"
-        >
-          {connectionLabel}
-        </span>
+      <span className="sr-only" role="status" aria-live="polite">
+        {connectionLabel}
+      </span>
+      {running && connection.phase === "connected" ? (
         <Button
           type="button"
           variant="ghost"
           size="icon-sm"
-          className="text-muted-foreground hover:bg-muted hover:text-foreground"
-          disabled={!running || connection.phase !== "connected"}
+          className="bg-background/85 text-muted-foreground hover:bg-muted hover:text-foreground absolute end-2 top-2 z-10 opacity-100 shadow-sm backdrop-blur-sm transition-opacity md:pointer-events-none md:opacity-0 md:group-hover/terminal:pointer-events-auto md:group-hover/terminal:opacity-100 md:group-focus-within/terminal:pointer-events-auto md:group-focus-within/terminal:opacity-100"
           aria-label={t("extensions.terminal.transcript.stop")}
           title={t("extensions.terminal.transcript.stop")}
           onClick={() => interruptRef.current()}
         >
           <SquareIcon className="size-4" fill="currentColor" />
         </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          className="text-muted-foreground hover:bg-muted hover:text-foreground"
-          aria-label={t("extensions.terminal.clear")}
-          title={t("extensions.terminal.clear")}
-          onClick={() => terminalRef.current?.clear()}
-        >
-          <Trash2Icon className="size-4" />
-        </Button>
-      </div>
+      ) : null}
       <div
         ref={containerRef}
         className="min-h-0 flex-1 overflow-hidden p-2 [&_.xterm]:h-full [&_.xterm-viewport]:!bg-transparent [&_.xterm-viewport]:!overflow-y-auto"
@@ -544,9 +511,6 @@ function PtyTerminalSurface({
   const { t } = useI18n();
   const controller = useRightWorkspace();
   const containerRef = useRef<HTMLDivElement>(null);
-  const terminalRef = useRef<Terminal | null>(null);
-  const reconnectRef = useRef<() => void>(() => {});
-  const [status, setStatus] = useState<ConnectionStatus>({ phase: "connecting" });
   const { sessionId, cwd } = target;
 
   useEffect(() => {
@@ -609,7 +573,6 @@ function PtyTerminalSurface({
       const writer = createTerminalFrameWriter(terminal);
       terminalWriter = writer;
       stopThemeSync = synchronizeTerminalTheme(container, terminal);
-      terminalRef.current = terminal;
       fitAddon.fit();
       terminal.focus();
       titleSubscription = terminal.onTitleChange((title) => {
@@ -629,7 +592,6 @@ function PtyTerminalSurface({
         return t("extensions.terminal.status.connected");
       };
       const reportStatus = (next: ConnectionStatus) => {
-        setStatus(next);
         container.setAttribute("aria-label", statusText(next));
       };
       const scheduleReconnect = (ownGeneration: number) => {
@@ -720,14 +682,6 @@ function PtyTerminalSurface({
         });
       });
       resizeObserver.observe(container);
-      reconnectRef.current = () => {
-        exited = false;
-        attempts = 0;
-        if (reconnectTimer) clearTimeout(reconnectTimer);
-        generation += 1;
-        socket?.close(4000, "reconnect");
-        connect();
-      };
       connect();
     };
 
@@ -745,24 +699,8 @@ function PtyTerminalSurface({
       socket?.close(1000, "surface closed");
       terminalWriter?.dispose();
       terminal?.dispose();
-      terminalRef.current = null;
-      reconnectRef.current = () => {};
     };
   }, [controller, cwd, sessionId, surfaceId, t]);
-
-  const statusLabel =
-    status.phase === "connecting"
-      ? t("extensions.terminal.status.connecting")
-      : status.phase === "connected"
-        ? t("extensions.terminal.status.connectedProcess", {
-            process: status.process,
-            pid: status.pid,
-          })
-        : status.phase === "disconnected"
-          ? t("extensions.terminal.status.disconnected")
-          : status.phase === "exited"
-            ? t("extensions.terminal.status.exited", { code: status.exitCode })
-            : t("extensions.terminal.status.error");
 
   return (
     <section
@@ -770,43 +708,6 @@ function PtyTerminalSurface({
       style={{ backgroundColor: "var(--workbench-canvas-background, var(--background))" }}
       aria-label={t("extensions.terminal.output")}
     >
-      <div className="bg-muted/40 flex h-8 shrink-0 items-center gap-2 border-b px-2.5">
-        <span
-          className={`size-1.5 shrink-0 rounded-full ${
-            status.phase === "connected"
-              ? "bg-emerald-500"
-              : status.phase === "connecting"
-                ? "animate-pulse bg-amber-500 motion-reduce:animate-none"
-                : "bg-destructive"
-          }`}
-          aria-hidden="true"
-        />
-        <span className="text-muted-foreground min-w-0 flex-1 truncate font-mono text-[10px]">
-          {status.phase === "connected" ? `${status.cwd} · ${statusLabel}` : statusLabel}
-        </span>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          className="text-muted-foreground hover:bg-muted hover:text-foreground"
-          aria-label={t("extensions.terminal.reconnect")}
-          title={t("extensions.terminal.reconnect")}
-          onClick={() => reconnectRef.current()}
-        >
-          <RotateCwIcon className="size-4" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          className="text-muted-foreground hover:bg-muted hover:text-foreground"
-          aria-label={t("extensions.terminal.clear")}
-          title={t("extensions.terminal.clear")}
-          onClick={() => terminalRef.current?.clear()}
-        >
-          <Trash2Icon className="size-4" />
-        </Button>
-      </div>
       <div
         ref={containerRef}
         className="min-h-0 flex-1 overflow-hidden p-2 [&_.xterm]:h-full [&_.xterm-viewport]:!bg-transparent [&_.xterm-viewport]:!overflow-y-auto"

@@ -18,7 +18,7 @@ export function ReviewMenuItem({ closeMenu }: WorkspaceSurfaceMenuItemProps) {
       type="button"
       variant="ghost"
       disabled={!repositoryId}
-      className="h-9 w-full justify-start gap-3 rounded-xl px-2.5 font-normal"
+      className="w-full justify-start font-normal"
       onClick={() => {
         if (!repositoryId) return;
         controller.reveal({

@@ -20,7 +20,7 @@ export function TerminalMenuItem({ closeMenu }: WorkspaceSurfaceMenuItemProps) {
     <Button
       type="button"
       variant="ghost"
-      className="h-9 w-full justify-start gap-3 rounded-xl px-2.5 font-normal"
+      className="w-full justify-start font-normal"
       onClick={() => {
         openTerminal({
           controller,
@@ -33,7 +33,6 @@ export function TerminalMenuItem({ closeMenu }: WorkspaceSurfaceMenuItemProps) {
     >
       <TerminalIcon className="text-muted-foreground size-4" />
       <span className="min-w-0 flex-1 truncate text-start">{t("extensions.terminal.title")}</span>
-      <kbd className="text-muted-foreground ms-auto text-xs">Ctrl+`</kbd>
     </Button>
   );
 }
