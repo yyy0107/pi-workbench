@@ -16,6 +16,7 @@ import { settingModelConfigExtension } from "./builtin/setting-model-config";
 import { settingsExtension } from "./builtin/settings";
 import { skillsExtension } from "./builtin/skills";
 import { terminalExtension } from "./builtin/terminal";
+import { toolboxExtension } from "./builtin/toolbox";
 import { tokenUsageExtension } from "./builtin/token-usage";
 import { userMessageIndexExtension } from "./builtin/user-message-index";
 import { workbenchBrandExtension } from "./builtin/workbench-brand";
@@ -42,6 +43,7 @@ export const enabledExtensions = [
   attachmentUnderstandingExtension,
   skillsExtension,
   piExtensionsExtension,
+  toolboxExtension,
   archivedChatsExtension,
   modelSelectorExtension,
   connectionStatusExtension,

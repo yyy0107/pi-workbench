@@ -1307,9 +1307,9 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                                       type="button"
                                       disabled={busy}
                                       aria-label={t("extensions.modelConfig.selectAvailableModel")}
-                                      className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 inline-flex size-6 shrink-0 items-center justify-center rounded-md outline-none transition-colors focus-visible:ring-3 disabled:pointer-events-none disabled:opacity-50"
+                                      className="group text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 inline-flex size-6 shrink-0 items-center justify-center rounded-md outline-none transition-colors focus-visible:ring-3 disabled:pointer-events-none disabled:opacity-50"
                                     >
-                                      <ChevronDownIcon className="size-3.5" />
+                                      <ChevronDownIcon className="size-3.5 transition-transform group-data-popup-open:rotate-180" />
                                     </DropdownMenuTrigger>
                                   </InputGroupAddon>
                                 </InputGroup>

@@ -1,0 +1,200 @@
+import {
+  getAgentDir,
+  hasTrustRequiringProjectResources,
+  ProjectTrustStore,
+  SettingsManager,
+} from "@earendil-works/pi-coding-agent";
+
+import type {
+  ProjectTrustDescribePayload,
+  ProjectTrustDescribeValue,
+  ProjectTrustUpdatePayload,
+} from "../../rpc-contracts";
+import { validateWorkspace } from "../workspaces/workspace-paths";
+
+export interface ProjectTrustServiceErrorDetails {
+  "project-trust-invalid-path": { path: string };
+  "project-trust-read-failed": { path: string };
+  "project-trust-write-failed": { path: string };
+}
+
+export type ProjectTrustServiceErrorCode = keyof ProjectTrustServiceErrorDetails;
+
+export class ProjectTrustServiceError<
+  Code extends ProjectTrustServiceErrorCode = ProjectTrustServiceErrorCode,
+> extends Error {
+  readonly code: Code;
+  readonly details: ProjectTrustServiceErrorDetails[Code];
+
+  constructor(
+    code: Code,
+    message: string,
+    details: ProjectTrustServiceErrorDetails[Code],
+    options?: ErrorOptions,
+  ) {
+    super(message, options);
+    this.name = "ProjectTrustServiceError";
+    this.code = code;
+    this.details = details;
+  }
+}
+
+export interface ProjectTrustServiceOptions {
+  agentDir?: string;
+  trustOverride?: () => boolean;
+}
+
+export class ProjectTrustService {
+  private readonly agentDir: string;
+  private readonly trustStore: ProjectTrustStore;
+  private readonly trustOverride: () => boolean;
+
+  constructor(options: ProjectTrustServiceOptions = {}) {
+    this.agentDir = options.agentDir ?? getAgentDir();
+    this.trustStore = new ProjectTrustStore(this.agentDir);
+    this.trustOverride =
+      options.trustOverride ?? (() => process.env.PI_WORKBENCH_TRUST_PROJECT === "1");
+  }
+
+  private canonicalPath(requestedPath: string): string {
+    try {
+      return validateWorkspace(requestedPath).cwd;
+    } catch (error) {
+      throw new ProjectTrustServiceError(
+        "project-trust-invalid-path",
+        "The project trust path is invalid.",
+        { path: requestedPath },
+        { cause: error },
+      );
+    }
+  }
+
+  describe({ path }: ProjectTrustDescribePayload): ProjectTrustDescribeValue {
+    const canonicalPath = this.canonicalPath(path);
+
+    try {
+      if (this.trustOverride()) {
+        return {
+          path: canonicalPath,
+          requiresTrust: hasTrustRequiringProjectResources(canonicalPath),
+          trusted: true,
+          promptRequired: false,
+        };
+      }
+
+      const requiresTrust = hasTrustRequiringProjectResources(canonicalPath);
+      if (!requiresTrust) {
+        return {
+          path: canonicalPath,
+          requiresTrust: false,
+          trusted: true,
+          promptRequired: false,
+        };
+      }
+
+      const saved = this.trustStore.getEntry(canonicalPath);
+      if (saved) {
+        return {
+          path: canonicalPath,
+          requiresTrust: true,
+          trusted: saved.decision,
+          promptRequired: false,
+          decisionPath: saved.path,
+        };
+      }
+
+      const defaultProjectTrust = SettingsManager.create(canonicalPath, this.agentDir, {
+        projectTrusted: false,
+      }).getDefaultProjectTrust();
+      const trusted =
+        defaultProjectTrust === "always" ? true : defaultProjectTrust === "never" ? false : null;
+      return {
+        path: canonicalPath,
+        requiresTrust: true,
+        trusted,
+        promptRequired: trusted === null,
+      };
+    } catch (error) {
+      if (error instanceof ProjectTrustServiceError) throw error;
+      throw new ProjectTrustServiceError(
+        "project-trust-read-failed",
+        "The project trust decision could not be read.",
+        { path: canonicalPath },
+        { cause: error },
+      );
+    }
+  }
+
+  update({ path, trusted }: ProjectTrustUpdatePayload): ProjectTrustDescribeValue {
+    const canonicalPath = this.canonicalPath(path);
+    try {
+      this.trustStore.set(canonicalPath, trusted);
+    } catch (error) {
+      throw new ProjectTrustServiceError(
+        "project-trust-write-failed",
+        "The project trust decision could not be saved.",
+        { path: canonicalPath },
+        { cause: error },
+      );
+    }
+    return this.describe({ path: canonicalPath });
+  }
+
+  trustExistingProjects(paths: readonly string[]): string[] {
+    const unresolvedPaths: string[] = [];
+    const seenPaths = new Set<string>();
+
+    for (const requestedPath of paths) {
+      let canonicalPath: string;
+      try {
+        canonicalPath = this.canonicalPath(requestedPath);
+      } catch (error) {
+        if (
+          error instanceof ProjectTrustServiceError &&
+          error.code === "project-trust-invalid-path"
+        ) {
+          continue;
+        }
+        throw error;
+      }
+      if (seenPaths.has(canonicalPath)) continue;
+      seenPaths.add(canonicalPath);
+
+      try {
+        if (this.trustStore.getEntry(canonicalPath) === null) {
+          unresolvedPaths.push(canonicalPath);
+        }
+      } catch (error) {
+        throw new ProjectTrustServiceError(
+          "project-trust-read-failed",
+          "The project trust decision could not be read.",
+          { path: canonicalPath },
+          { cause: error },
+        );
+      }
+    }
+
+    if (unresolvedPaths.length === 0) return [];
+    try {
+      this.trustStore.setMany(
+        unresolvedPaths.map((projectPath) => ({ path: projectPath, decision: true })),
+      );
+    } catch (error) {
+      throw new ProjectTrustServiceError(
+        "project-trust-write-failed",
+        "The project trust decision could not be saved.",
+        { path: unresolvedPaths[0] },
+        { cause: error },
+      );
+    }
+    return unresolvedPaths;
+  }
+
+  isTrusted(path: string): boolean {
+    return this.describe({ path }).trusted === true;
+  }
+}
+
+export function getProjectTrustService(): ProjectTrustService {
+  return new ProjectTrustService();
+}

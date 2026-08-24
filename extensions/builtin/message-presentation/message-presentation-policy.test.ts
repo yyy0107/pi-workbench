@@ -31,6 +31,16 @@ test("opens only the steps summary while a response is streaming", () => {
   });
 });
 
+test("keeps only the steps summary open for a segment interrupted by steering", () => {
+  assert.deepEqual(disclosureDefaults("steered"), {
+    "completed-turn": false,
+    steps: true,
+    reasoning: false,
+    tool: false,
+    "parallel-tools": false,
+  });
+});
+
 test("closes every disclosure after the response completes", () => {
   assert.deepEqual(disclosureDefaults("completed"), {
     "completed-turn": false,

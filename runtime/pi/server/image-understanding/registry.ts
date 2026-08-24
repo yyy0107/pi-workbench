@@ -2,6 +2,7 @@ import path from "node:path";
 
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
 
+import { configuredWorkbenchSettingsFile } from "../settings/workbench-settings-file";
 import { ImageUnderstandingSettingsStore } from "./settings-store";
 
 interface ImageUnderstandingRegistryGlobal {
@@ -20,14 +21,26 @@ function configuredStateFile(): string {
     : path.join(getAgentDir(), "workbench", "image-understanding.json");
 }
 
+function hasLegacyStateOverride(): boolean {
+  return Boolean(
+    process.env.PI_WORKBENCH_IMAGE_UNDERSTANDING_STATE_FILE?.trim() ||
+    process.env.PI_WORKBENCH_STATE_DIR?.trim(),
+  );
+}
+
 export function getImageUnderstandingSettingsStore(): ImageUnderstandingSettingsStore {
-  const stateFile = configuredStateFile();
+  const legacyStateFile = configuredStateFile();
+  const useLegacyStandaloneFile = hasLegacyStateOverride();
+  const stateFile = useLegacyStandaloneFile ? legacyStateFile : configuredWorkbenchSettingsFile();
   if (
     !registryGlobal.__workbenchImageUnderstandingSettings ||
     registryGlobal.__workbenchImageUnderstandingStateFile !== stateFile
   ) {
     registryGlobal.__workbenchImageUnderstandingSettings = new ImageUnderstandingSettingsStore({
       stateFile,
+      ...(useLegacyStandaloneFile
+        ? {}
+        : { documentSection: "imageUnderstanding", legacyStateFile }),
     });
     registryGlobal.__workbenchImageUnderstandingStateFile = stateFile;
   }

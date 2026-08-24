@@ -83,6 +83,7 @@ test("publishes the current Pi version from the host description", async (t) => 
           version: "0.1.0",
           piVersion: "0.84.2",
           cwd: "/workspace",
+          userPackageDir: "/home/example/.pi/agent/npm",
           attachedSessions: 0,
           canOpenPath: false,
         },
@@ -97,6 +98,7 @@ test("publishes the current Pi version from the host description", async (t) => 
   await internals.refreshHostDescription();
 
   assert.equal(manager.getHostDescription()?.piVersion, "0.84.2");
+  assert.equal(manager.getHostDescription()?.userPackageDir, "/home/example/.pi/agent/npm");
 });
 
 test("regenerates from the existing user node without appending a duplicate user message", async (t) => {
@@ -979,6 +981,7 @@ test("keeps a streaming assistant segment before steering messages as they arriv
       ["user", "change direction"],
     ],
   );
+  assert.equal(session.getSnapshot().messages[1]?.metadata.custom.piSteerInterrupted, true);
 
   internals.handleEvent({
     type: "message_end",

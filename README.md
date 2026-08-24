@@ -145,7 +145,8 @@ Electron 产物写入 `dist-electron/`。当前目标为 macOS DMG/ZIP、Windows
 ## 安全边界
 
 `PI_WORKBENCH_TRUSTED_HOSTS` 只放宽请求来源校验，不提供认证或 TLS；跨机器访问必须由外层可信代理
-提供身份认证和 TLS。只有信任当前项目时才启用 `PI_WORKBENCH_TRUST_PROJECT=1`。
+提供身份认证和 TLS。项目资源信任由工作区导入时的确认与 `~/.pi/agent/trust.json` 管理；仅在明确
+需要对本次进程信任所有项目时才使用 `PI_WORKBENCH_TRUST_PROJECT=1` 覆盖。
 
 完整说明见 [Pi Runtime 请求信任边界](./runtime/pi/README.md#请求信任边界) 和
 [Terminal Runtime](./runtime/terminal/README.md)。

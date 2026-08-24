@@ -11,7 +11,7 @@ import {
 } from "@/services/workspace-selection-service";
 import { preferredNewThreadWorkspaceId } from "@/workbench/workspaces/new-thread-policy";
 
-export function NewThreadNavigationItem() {
+export function NewThreadWorkspaceItem() {
   const { t } = useI18n();
   const { activeWorkspaceId, workspaces } = useWorkspaceSelection();
   const targetWorkspaceId = preferredNewThreadWorkspaceId(
@@ -31,7 +31,7 @@ export function NewThreadNavigationItem() {
       <Button
         type="button"
         variant="ghost"
-        className="hover:bg-sidebar-accent data-active:bg-sidebar-accent h-9 w-full justify-start gap-2 rounded-lg px-3 text-base font-medium"
+        className="hover:bg-sidebar-accent data-active:bg-sidebar-accent h-9 w-full justify-start gap-2 rounded-lg px-3 text-sm font-medium"
       >
         <PlusIcon className="size-4" />
         {t("extensions.workspaceDirectory.newThread")}

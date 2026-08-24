@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type PointerEvent } from "react";
 import { useAui, useAuiState } from "@assistant-ui/react";
 import {
   ChevronRightIcon,
@@ -29,9 +29,55 @@ import { resolveSidebarThreadWorkspaceId } from "@/workbench/workspaces/new-thre
 
 import { NewThreadButton } from "./new-thread-button";
 import { DraftThreadListItem } from "./draft-thread-list-item";
+import { sidebarItemIdAfterMove, type SidebarDropPosition } from "./sidebar-reorder";
 import { WorkbenchThreadList } from "./thread-list";
+import type { ThreadSortMode } from "./thread-sort";
+import { useSidebarPointerReorder } from "./use-sidebar-pointer-reorder";
 
 const WORKSPACE_PAGE_SIZE = 24;
+
+interface WorkspaceDirectoryDragState {
+  readonly enabled: boolean;
+  readonly dragging: boolean;
+  readonly dropPosition?: SidebarDropPosition;
+  registerElement(element: HTMLElement | null): void;
+  onPointerDown(event: PointerEvent<HTMLElement>): void;
+  shouldSuppressClick(): boolean;
+}
+
+function useWorkspaceDirectoryReorder(
+  directories: readonly WorkspaceSummary[],
+  searchQuery: string,
+) {
+  const { moveWorkspaceBefore } = useWorkspaceCapabilities();
+  const directoryIds = useMemo(() => directories.map((directory) => directory.id), [directories]);
+  const enabled = directoryIds.length > 1 && searchQuery.trim().length === 0;
+  const reorder = useSidebarPointerReorder({
+    enabled,
+    orderedIds: directoryIds,
+    ignoreSelector: "[data-workspace-item-actions]",
+    onMove: (sourceId, targetId, position) => {
+      const beforeWorkspaceId = sidebarItemIdAfterMove(directoryIds, sourceId, targetId, position);
+      void moveWorkspaceBefore(sourceId, beforeWorkspaceId).catch((error) =>
+        console.error("[workbench] failed to reorder workspace", error),
+      );
+    },
+  });
+
+  return {
+    item(directoryId: string): WorkspaceDirectoryDragState {
+      return {
+        enabled,
+        dragging: reorder.draggingId === directoryId,
+        dropPosition:
+          reorder.dropTarget?.itemId === directoryId ? reorder.dropTarget.position : undefined,
+        registerElement: (element) => reorder.registerItem(directoryId, element),
+        onPointerDown: (event) => reorder.prepareDragging(directoryId, event),
+        shouldSuppressClick: () => reorder.shouldSuppressClick(directoryId),
+      };
+    },
+  };
+}
 
 function useRemoveWorkspace(onNavigate?: () => void) {
   const aui = useAui();
@@ -51,7 +97,13 @@ function useRemoveWorkspace(onNavigate?: () => void) {
   };
 }
 
-export function WorkbenchPinnedThreadList({ onNavigate }: { onNavigate?: () => void }) {
+export function WorkbenchPinnedThreadList({
+  searchQuery = "",
+  onNavigate,
+}: {
+  searchQuery?: string;
+  onNavigate?: () => void;
+}) {
   const pathname = usePathname();
   const hasPinnedThreads = useAuiState((state) =>
     state.threads.threadIds.some((threadId) => {
@@ -76,6 +128,7 @@ export function WorkbenchPinnedThreadList({ onNavigate }: { onNavigate?: () => v
     () => workspaces.filter((workspace) => workspace.pinned === true),
     [workspaces],
   );
+  const directoryReorder = useWorkspaceDirectoryReorder(pinnedDirectories, searchQuery);
 
   return (
     <div className="flex flex-col gap-1">
@@ -85,6 +138,7 @@ export function WorkbenchPinnedThreadList({ onNavigate }: { onNavigate?: () => v
             pinnedOnly
             ignoreWorkspace
             showEmpty={false}
+            searchQuery={searchQuery}
             onNavigate={onNavigate}
           />
         </div>
@@ -99,6 +153,9 @@ export function WorkbenchPinnedThreadList({ onNavigate }: { onNavigate?: () => v
           }
           onActivate={() => activateDirectory(directory.id)}
           onRemove={() => void removeWorkspace(directory.id, directory.id === activeDirectoryId)}
+          searchQuery={searchQuery}
+          threadSortMode="manual"
+          drag={directoryReorder.item(directory.id)}
           onNavigate={onNavigate}
         />
       ))}
@@ -106,7 +163,17 @@ export function WorkbenchPinnedThreadList({ onNavigate }: { onNavigate?: () => v
   );
 }
 
-export function WorkbenchWorkspaceThreadList({ onNavigate }: { onNavigate?: () => void }) {
+export function WorkbenchWorkspaceThreadList({
+  searchQuery = "",
+  threadSortMode = "priority",
+  threadSortRevision = 0,
+  onNavigate,
+}: {
+  searchQuery?: string;
+  threadSortMode?: ThreadSortMode;
+  threadSortRevision?: number;
+  onNavigate?: () => void;
+}) {
   const { t } = useI18n();
   const manager = usePiSessionManager();
   const pathname = usePathname();
@@ -145,6 +212,7 @@ export function WorkbenchWorkspaceThreadList({ onNavigate }: { onNavigate?: () =
     () => directories.filter((directory) => directory.pinned !== true),
     [directories],
   );
+  const directoryReorder = useWorkspaceDirectoryReorder(visibleDirectories, searchQuery);
 
   useEffect(() => {
     if (pathname !== "/") destroyNewThread();
@@ -213,6 +281,10 @@ export function WorkbenchWorkspaceThreadList({ onNavigate }: { onNavigate?: () =
             }
             onActivate={() => activateDirectory(directory.id)}
             onRemove={() => void removeWorkspace(directory.id, directory.id === activeDirectoryId)}
+            searchQuery={searchQuery}
+            threadSortMode={threadSortMode}
+            threadSortRevision={threadSortRevision}
+            drag={directoryReorder.item(directory.id)}
             onNavigate={onNavigate}
           />
         );
@@ -235,7 +307,13 @@ export function WorkbenchWorkspaceThreadList({ onNavigate }: { onNavigate?: () =
             {t("workbench.sidebar.ungrouped")}
           </h3>
           <div className="flex flex-col gap-[2px] ps-6">
-            <WorkbenchThreadList showEmpty={false} onNavigate={onNavigate} />
+            <WorkbenchThreadList
+              showEmpty={false}
+              searchQuery={searchQuery}
+              sortMode={threadSortMode}
+              sortRevision={threadSortRevision}
+              onNavigate={onNavigate}
+            />
           </div>
         </section>
       ) : null}
@@ -249,6 +327,10 @@ function WorkspaceDirectorySection({
   hasNewThread,
   onActivate,
   onRemove,
+  searchQuery,
+  threadSortMode,
+  threadSortRevision = 0,
+  drag,
   onNavigate,
 }: {
   directory: WorkspaceSummary;
@@ -256,6 +338,10 @@ function WorkspaceDirectorySection({
   hasNewThread: boolean;
   onActivate(): void;
   onRemove(): void;
+  searchQuery: string;
+  threadSortMode: ThreadSortMode;
+  threadSortRevision?: number;
+  drag: WorkspaceDirectoryDragState;
   onNavigate?: () => void;
 }) {
   const { t } = useI18n();
@@ -270,6 +356,11 @@ function WorkspaceDirectorySection({
   const expansionLabel = t(
     expanded ? "workbench.sidebar.collapseWorkspace" : "workbench.sidebar.expandWorkspace",
   );
+  const normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase();
+  const showNewThread =
+    hasNewThread &&
+    (!normalizedSearchQuery ||
+      t("workbench.sidebar.newThread").toLocaleLowerCase().includes(normalizedSearchQuery));
   const toggleExpanded = () => toggleWorkspaceCollapsed(directory.id);
 
   return (
@@ -277,19 +368,44 @@ function WorkspaceDirectorySection({
       render={<section />}
       open={expanded}
       onOpenChange={(open) => {
+        if (drag.shouldSuppressClick()) return;
         onActivate();
         if (open !== expanded) toggleExpanded();
       }}
-      className="flex flex-col gap-0.5"
+      className={cn(
+        "relative flex flex-col gap-0.5 transition-opacity",
+        drag.dragging && "opacity-40",
+      )}
     >
+      {drag.dropPosition ? (
+        <span
+          aria-hidden="true"
+          className={cn(
+            "pointer-events-none absolute start-2 end-2 z-20 h-0.5 rounded-full bg-blue-500",
+            drag.dropPosition === "before" ? "-top-px" : "-bottom-px",
+          )}
+        >
+          <span className="absolute start-0 top-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500" />
+        </span>
+      ) : null}
       <div
         data-workbench-selection-surface=""
-        className="group/workspace hover:bg-sidebar-accent focus-within:bg-sidebar-accent relative flex h-9 w-full items-center rounded-lg px-1.5 transition-colors"
+        ref={drag.registerElement}
+        className={cn(
+          "group/workspace hover:bg-sidebar-accent focus-within:bg-sidebar-accent relative flex h-9 w-full items-center rounded-lg px-1.5 transition-colors",
+          drag.enabled && "cursor-grab active:cursor-grabbing",
+        )}
+        onPointerDown={drag.onPointerDown}
       >
         <CollapsibleTrigger
           type="button"
           aria-labelledby={`${workspaceLabelId} ${workspaceActionId}`}
           className="focus-visible:ring-sidebar-ring absolute inset-0 rounded-lg outline-none focus-visible:ring-2"
+          onClick={(event) => {
+            if (!drag.shouldSuppressClick()) return;
+            event.preventDefault();
+            event.stopPropagation();
+          }}
         />
 
         <div className="pointer-events-none relative size-7 shrink-0">
@@ -318,6 +434,7 @@ function WorkspaceDirectorySection({
         </span>
 
         <div
+          data-workspace-item-actions=""
           className={cn(
             "absolute end-0 z-10 flex items-center opacity-100 transition-opacity duration-150 ease-out motion-reduce:transition-none md:pointer-events-none md:opacity-0 md:group-hover/workspace:pointer-events-auto md:group-hover/workspace:opacity-100 md:group-focus-within/workspace:pointer-events-auto md:group-focus-within/workspace:opacity-100",
             menuOpen && "md:pointer-events-auto md:opacity-100",
@@ -384,12 +501,15 @@ function WorkspaceDirectorySection({
 
       <CollapsibleContent className={cn(collapsePanel, "outline-none")}>
         <div className="flex flex-col gap-[2px] ps-6">
-          {hasNewThread ? (
+          {showNewThread ? (
             <DraftThreadListItem workspaceId={directory.id} onNavigate={onNavigate} />
           ) : null}
           <WorkbenchThreadList
             workspaceId={directory.id}
-            showEmpty={!hasNewThread}
+            showEmpty={!showNewThread && !normalizedSearchQuery}
+            searchQuery={searchQuery}
+            sortMode={threadSortMode}
+            sortRevision={threadSortRevision}
             onNavigate={onNavigate}
           />
         </div>

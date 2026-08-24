@@ -49,6 +49,7 @@ Unary RPC 是 session、workspace 和 running 状态的权威快照；WebSocket 
 - Host：`host.describe`、`host.pickDirectory`、`host.listDirectory`、
   `host.createDirectory`、`host.openPath`，以及本地应用集成
   `host.localApps.list`、`host.localApps.refresh`、`host.localApps.open`；
+- Project Trust：`projectTrust.describe`、`projectTrust.update`；
 - Workspace：`workspace.list`、`workspace.listArchivedSessions`、`workspace.create`、`workspace.rename`、
   `workspace.delete`、`workspace.insertBefore`、`workspace.insertSessionBefore`、
   `workspace.setPinned`、`workspace.setSessionPinned`、`workspace.archiveSession`、
@@ -58,7 +59,9 @@ Unary RPC 是 session、workspace 和 running 状态的权威快照；WebSocket 
 - Skills：`skill.list`；
 - Commands：`command.list`；
 - Extensions：`extension.list`；
-- Settings：`settings.describe`、`settings.openDocument`、`settings.update`，以及附件识别配置
+- Pi Packages：`package.list`、`package.install`、`packageCatalog.search`、`packageCatalog.describe`；
+- Settings：Pi 原生设置 `settings.describe`、`settings.openDocument`、`settings.update`，Workbench
+  设置 `workbenchSettings.describe`、`workbenchSettings.update`，以及附件识别配置
   `imageUnderstanding.describe`、`imageUnderstanding.update`；
 - LLM：`llm.providers`、`llm.providerConfig`、`llm.startProviderLogin`、
   `llm.providerLogin`、`llm.respondProviderLogin`、`llm.cancelProviderLogin`、`llm.configureProvider`、
@@ -79,15 +82,28 @@ Unary RPC 是 session、workspace 和 running 状态的权威快照；WebSocket 
 参考文档中的 Agent Presets、Goals、Credentials 和 Message Feedback 等接口
 尚未在本目录实现。
 
-`host.describe` 同时返回稳定的 `product: "pi-workbench"`、Workbench 的 `version` 和当前嵌入
-Pi coding agent 的 `piVersion`；原生壳使用 `product` 识别服务，状态栏等客户端界面应使用
-`piVersion` 展示 Pi 版本。
+`host.describe` 同时返回稳定的 `product: "pi-workbench"`、Workbench 的 `version`、当前嵌入
+Pi coding agent 的 `piVersion`，以及用户级 Pi Package 的权威 `userPackageDir`；原生壳使用
+`product` 识别服务，状态栏等客户端界面应使用 `piVersion` 展示 Pi 版本。工具箱使用
+`userPackageDir` 展示安装位置，不在浏览器中推导用户主目录或写死默认路径。
 
 当前 Settings 协议只暴露全局 `pi.agent` 命名空间，并且仅允许 loopback 请求。系统提示词写入
 Pi agent 目录下的 `SYSTEM.md`；上下文压缩参数写入同目录的 `settings.json`，且会保留文件中的
 其他 Pi 配置。更新使用 revision 进行冲突检测，并在新 session 或已有 session 执行 `/reload`
 后生效。`settings.openDocument` 会在文件不存在时创建最小的 `settings.json`，再交给本地主机的
 默认应用打开。
+
+Workbench 自有的持久配置统一写入 Pi agent 目录下的 `workbench-settings.json`。文档使用
+`version`、全局 `revision`、`preferences`、`workspaces` 和 `imageUnderstanding` 顶层字段；三类
+写入共享进程间锁并使用 mode-0600 原子替换。`preferences` 包含外观与背景图、locale、模型选择器
+记忆、Toolbox 置顶、RightWorkspace 布局和侧栏开关。浏览器中的旧 localStorage、Cookie 与
+IndexedDB 值在对应功能首次 hydrate 时导入，成功后删除。滚动位置和未保存文件草稿仍是
+sessionStorage 临时状态，不属于跨窗口的用户配置。
+
+旧 `~/.pi/workbench/workspaces.json` 与
+`~/.pi/agent/workbench/image-understanding.json` 会在服务端首次读取时原子导入对应 section，成功
+提交新文档后删除旧文件。RPC 只向浏览器返回非敏感的 `preferences`；OCR secrets 与完整 Workspace
+状态虽然位于同一物理文件，但不会经过 Workbench Settings RPC 返回。
 
 ## RPC envelope 和错误
 
@@ -176,8 +192,8 @@ Cookie session 或 Bearer Token；如需跨机器暴露，必须在外层增加�
 归属 canonical Workspace，取消归档会先按 session 的 canonical cwd 恢复工作区成员关系，再以同一个
 host 增量原子发布，避免恢复后的会话成为无工作区列表项。
 
-状态默认写入 `~/.pi/workbench/workspaces.json`，置顶状态因此由服务端持久化并同步到连接同一
-Workbench host 的多个浏览器。写入使用进程间锁和原子替换；启动和
+状态默认写入 `~/.pi/agent/workbench-settings.json` 的 `workspaces` section，置顶状态因此由服务端
+持久化并同步到连接同一 Workbench host 的多个浏览器。写入使用共享进程间锁和原子替换；启动和
 `workspace.list` 会与 Pi 已持久化的 session 对账。Archive 只影响 Workbench 组织状态，
 不会删除 Pi session JSONL。
 
@@ -252,8 +268,13 @@ API/运行时来源会随自定义模型配置写入 Workbench 自有的来源�
 `reason`，并在 HTTP 失败时返回 `httpStatus`；设置页据此区分凭据、地址、限流、提供方故障、
 协议、响应格式和网络错误，不解析服务端英文错误文本。
 
-Project-local settings、extensions 和 resources 默认不可信。只有
-`PI_WORKBENCH_TRUST_PROJECT=1` 时，session 和模型服务才允许 Pi 加载这些项目资源。
+Project-local settings、extensions 和 resources 默认不可信。Workbench 在导入包含这些资源且
+没有当前目录或父目录决策的工作区时询问用户，并通过 Pi 官方 `ProjectTrustStore` 将决定写入
+`~/.pi/agent/trust.json`。已有决定优先；否则遵循全局 `defaultProjectTrust`。只有有效决定为信任时，
+session 和模型服务才允许 Pi 加载这些项目资源。`PI_WORKBENCH_TRUST_PROJECT=1` 保留为本次
+Workbench 进程全部信任的显式覆盖。升级到 Project Trust 的首次工作区对账会为此前已经导入、
+且没有当前目录或父目录保存决定的有效项目补写 `true`；显式 `false` 不会被覆盖。迁移完成标记
+保存在 Workspace 状态中，因此之后新导入的项目不会被兼容迁移自动信任。
 
 ## Skills
 
@@ -262,8 +283,8 @@ Project-local settings、extensions 和 resources 默认不可信。只有
 `disable-model-invocation: true` 的技能会返回 `modelInvocable: false`，但仍可通过显式 skill 命令
 调用。
 
-技能发现沿用 Pi 的全局、package、settings 和项目资源规则。项目级技能仍受
-`PI_WORKBENCH_TRUST_PROJECT=1` 控制；未信任时不会因为打开设置页而绕过资源信任边界。
+技能发现沿用 Pi 的全局、package、settings 和项目资源规则。项目级技能仍受按目录保存的 Pi
+Project Trust 决策控制；未信任时不会因为打开设置页而绕过资源信任边界。
 
 ## Commands
 
@@ -329,8 +350,35 @@ Workbench 等价语义的内置命令才会被暴露，避免把 UI action 错�
 的扩展。响应包含面向展示的扩展名称、来源范围、来源类型，以及其注册的事件、工具和命令名称；
 不会把扩展文件的绝对路径或具体加载错误内容返回浏览器，只返回加载失败数量。
 
-扩展发现沿用 Pi 的全局、package、settings 和项目资源规则。项目级扩展受
-`PI_WORKBENCH_TRUST_PROJECT=1` 控制；查询设置页不会提升项目资源信任。
+扩展发现沿用 Pi 的全局、package、settings 和项目资源规则。项目级扩展受按目录保存的 Pi
+Project Trust 决策控制；查询设置页不会提升项目资源信任。
+
+## Pi Package Catalog
+
+`package.list` 按 `sessionId` 返回当前 Pi session 用户级与项目级 settings 中已配置的 Packages。
+响应只包含 package source、作用域，以及是否采用资源筛选配置；不会向浏览器返回 settings 文件路径
+或具体资源路径。这个列表用于工具箱的“已安装”视图，并遵循当前 session 已生效的项目信任边界。
+
+`packageCatalog.search` 从固定来源 `https://pi.dev/packages` 读取 Pi 官方 Package Catalog，支持与
+官方页面一致的 `name`、`type`、`sort` 和 `page` 查询语义，并向浏览器返回归一化后的包名、说明、
+作者、资源类型、月下载量、发布时间、版本、npm/仓库/官方详情链接和安装命令。UI 扩展不直接请求
+或解析外部页面。
+
+`packageCatalog.describe` 只在用户打开一个目录项时按需读取该包的固定官方详情页，并返回官网展示
+的版本、发布时间、月/周下载量、作者、许可证、资源类型、包体积、依赖/peer 依赖数量和 Pi manifest。
+包名经过 RPC 校验并逐段编码，客户端不能传入任意 URL；市场列表不会为每个结果批量请求详情页。
+
+Pi 官方当前未公开目录 JSON API，服务端适配器因此只解析官方目录服务端渲染的结构化 card 属性，
+且把响应限制在 2 MiB；目录 URL 固定，不能由客户端传入，避免把该 RPC 变成任意 URL 代理。官方
+将来提供稳定 API 时，只需替换该 domain adapter，不改变前端 contract。
+
+`package.install` 只接受通过 npm 包名规则校验的官方目录名称，以及用户级 session 目标或项目级
+`workspaceId` 目标。项目目标由服务端通过 `WorkspaceStore` 解析为已导入项目的权威路径，浏览器不能
+提交任意安装目录；项目安装仍要求该权威路径具有有效的 Pi Project Trust 信任决定。服务端固定构造
+`npm:<package>` source，并通过 Pi 导出的 `DefaultPackageManager.installAndPersist()` 写入对应作用域。
+该方法仅允许 loopback 请求，安装任务在进程内串行执行，避免多个 npm 进程同时修改 Package 目录或
+settings。前端不会拼接或执行 shell 命令；安装成功后目标作用域内的 session 仍需执行 `/reload` 才会
+加载新资源。Pi Package 具有完整系统访问权限，安装前仍需审查来源。
 
 ## Session 生命周期和持久状态
 
@@ -502,9 +550,14 @@ runtime/pi/
 - `PORT`：对外监听端口，默认为 `3000`，必须为 `1..65535` 的整数；
 - `WORKBENCH_HOST`：对外监听 hostname，默认为 `127.0.0.1`；
 - `PI_WORKBENCH_TRUSTED_HOSTS`：额外允许的逗号分隔 `host[:port]` authority，默认没有；
-- `PI_WORKBENCH_TRUST_PROJECT`：只有精确值 `1` 才信任 project-local Pi 资源；
-- `PI_WORKBENCH_STATE_DIR`：Workspace 状态目录，默认为 `~/.pi/workbench`；
-- `PI_WORKBENCH_WORKSPACE_STATE_FILE`：Workspace 状态文件的显式路径，设置后优先于 state dir。
+- `PI_WORKBENCH_TRUST_PROJECT`：只有精确值 `1` 才对本次 Workbench 进程覆盖按目录保存的决定并信任
+  所有 project-local Pi 资源；常规持久信任由 `~/.pi/agent/trust.json` 管理；
+- `PI_WORKBENCH_SETTINGS_FILE`：统一 Workbench settings 文件，默认为
+  `~/.pi/agent/workbench-settings.json`；
+- `PI_WORKBENCH_STATE_DIR`：旧版 Workspace/OCR 独立状态目录兼容覆盖；设置后继续使用旧版独立文件，
+  供测试和已有部署逐步迁移；
+- `PI_WORKBENCH_WORKSPACE_STATE_FILE`：旧版 Workspace 独立状态文件兼容覆盖；
+- `PI_WORKBENCH_IMAGE_UNDERSTANDING_STATE_FILE`：旧版图片理解独立状态文件兼容覆盖。
 
 ## 运行和验证
 
@@ -576,8 +629,8 @@ export default defineOcrAdapter({
 
 - `id` / `label`：稳定 Provider ID 和展示标签；
 - `accepts`：`image`、`pdf` 或两者；
-- `authentication`：写入凭据的 header 和 prefix。凭据仍由服务端独立的 mode-0600 settings
-  document 保存，不出现在源码或 describe RPC；
+- `authentication`：写入凭据的 header 和 prefix。凭据由服务端统一 mode-0600 Workbench settings
+  document 的 `imageUnderstanding.secrets` 保存，不出现在源码或 describe RPC；
 - `request`：`json` body 模板或 `multipart` 文件字段/普通字段。模板值支持 `$model`、
   `$attachment.dataUrl`、`$attachment.base64`、`$attachment.name` 和
   `$attachment.mimeType`；
@@ -620,6 +673,8 @@ output rule 使用受限 dot path，并以 `[]` 展平数组，例如
   协议。
 - Extensions 当前只实现 session-scoped `extension.list`；启停、编辑、安装和 reload 尚未加入
   Workbench 协议。
+- Pi Packages 当前实现 session-scoped 已配置列表、官方目录搜索/详情，以及 loopback-only 的用户级和
+  已导入项目级 npm Package 安装；移除、更新和安装后自动 reload 尚未加入 Workbench 协议。
 - Commands 已聚合受支持的 Pi built-ins、session-scoped extension commands、prompt templates 和
   skills。终端专用的 interactive TUI commands 仍不会暴露；新增内置项时必须先提供 Workbench
   等价语义，并继续使用 Pi 的公开 API。

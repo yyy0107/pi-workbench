@@ -4,6 +4,7 @@ import { useCallback, useLayoutEffect, useMemo, useState, type ReactNode } from 
 
 import { CommandService } from "@/services/command-service";
 import { NavigationService } from "@/services/navigation-service";
+import { MainViewService } from "@/services/main-view-service";
 import { PanelService } from "@/services/panel-service";
 import type { PanelStoreApi } from "@/stores/panel-store";
 
@@ -83,6 +84,7 @@ export function ExtensionProvider({
   const [manager] = useState(() => new ExtensionManager());
   const [defaultNavigation] = useState(() => new NavigationService());
   const navigation = providedNavigation ?? defaultNavigation;
+  const mainViews = useMemo(() => new MainViewService(manager.mainViews), [manager]);
   const panels = useMemo(() => new PanelService(manager.panels, panelStore), [manager, panelStore]);
   const commands = useMemo(
     () => new CommandService(manager.commands, { panels, navigation }),
@@ -108,9 +110,11 @@ export function ExtensionProvider({
     };
   }, [extensions, manager, onError]);
 
+  useLayoutEffect(() => () => mainViews.dispose(), [mainViews]);
+
   const value = useMemo<ExtensionEnvironment>(
-    () => ({ manager, panels, commands, navigation, reportError }),
-    [commands, manager, navigation, panels, reportError],
+    () => ({ manager, panels, commands, navigation, mainViews, reportError }),
+    [commands, mainViews, manager, navigation, panels, reportError],
   );
 
   return <ExtensionReactContext.Provider value={value}>{children}</ExtensionReactContext.Provider>;

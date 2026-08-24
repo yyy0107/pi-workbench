@@ -53,6 +53,7 @@ import {
   deletePiWorkspace,
   fetchPiRpcSessionHistory,
   forkPiRpcSession,
+  insertPiWorkspaceBefore,
   listPiArchivedWorkspaceSessions,
   listPiRpcSessions,
   listPiWorkspaces,
@@ -1636,7 +1637,28 @@ export class PiClientSession {
       if (pendingSteerIndex < 0) liveMessages.push(this.streamingMessage);
       else liveMessages.splice(pendingSteerIndex, 0, this.streamingMessage);
     }
-    return coalesceConsecutiveAssistantMessages([...this.baseMessages, ...liveMessages]);
+    const messages = coalesceConsecutiveAssistantMessages([...this.baseMessages, ...liveMessages]);
+    return messages.map((message, index) => {
+      const nextMessage = messages[index + 1];
+      if (
+        message.role !== "assistant" ||
+        nextMessage?.role !== "user" ||
+        nextMessage.metadata.custom.piSteering !== true
+      ) {
+        return message;
+      }
+
+      return {
+        ...message,
+        metadata: {
+          ...message.metadata,
+          custom: {
+            ...message.metadata.custom,
+            piSteerInterrupted: true,
+          },
+        },
+      };
+    });
   }
 
   private currentMessageRepository(): ExportedMessageRepository {
@@ -2012,7 +2034,7 @@ export class PiSessionManager {
       }
     }
     await this.migrateLegacyPinnedState(legacyPinnedSessionIds, legacyPinnedWorkspaceIds);
-    await this.saveArchiveState();
+    await workbenchBrowserStorage.removeItem(ARCHIVED_STORAGE_KEY);
   }
 
   dispose(): void {
@@ -2174,7 +2196,6 @@ export class PiSessionManager {
         this.workspaces.set(payload.workspace.workspaceId, payload.workspace);
         changed = true;
       }
-      void this.saveArchiveState();
       if (changed) this.notify();
       this.notifyThreadList();
       return;
@@ -2548,6 +2569,28 @@ export class PiSessionManager {
     this.notify();
   }
 
+  async moveWorkspaceBefore(workspaceId: string, beforeWorkspaceId?: string): Promise<void> {
+    this.workspaceGeneration += 1;
+    const result = await insertPiWorkspaceBefore(workspaceId, beforeWorkspaceId);
+    this.workspaceGeneration += 1;
+    const reordered = new Map<string, WorkspaceView>();
+    for (const reorderedWorkspaceId of result.workspaceIds) {
+      const workspace = this.workspaces.get(reorderedWorkspaceId);
+      if (workspace) reordered.set(reorderedWorkspaceId, workspace);
+    }
+    for (const [existingWorkspaceId, workspace] of this.workspaces) {
+      if (!reordered.has(existingWorkspaceId)) reordered.set(existingWorkspaceId, workspace);
+    }
+    const currentIds = [...this.workspaces.keys()];
+    const nextIds = [...reordered.keys()];
+    if (currentIds.every((id, index) => id === nextIds[index])) return;
+    this.workspaces.clear();
+    for (const [reorderedWorkspaceId, workspace] of reordered) {
+      this.workspaces.set(reorderedWorkspaceId, workspace);
+    }
+    this.notify();
+  }
+
   async setWorkspacePinned(workspaceId: string, pinned: boolean): Promise<void> {
     this.workspaceGeneration += 1;
     const result = await setPiWorkspacePinned(workspaceId, pinned);
@@ -2632,7 +2675,6 @@ export class PiSessionManager {
       delete: async (remoteId) => {
         await deletePiRpcSession({ sessionId: remoteId });
         this.removeSessionMetadata(remoteId);
-        await this.saveArchiveState();
         this.notify();
       },
       generateTitle: async (remoteId, messages) => {
@@ -2819,13 +2861,6 @@ export class PiSessionManager {
     } catch {
       // Ignore damaged local presentation metadata.
     }
-  }
-
-  private saveArchiveState(): Promise<void> {
-    return workbenchBrowserStorage.setItem(
-      ARCHIVED_STORAGE_KEY,
-      JSON.stringify([...this.archived]),
-    );
   }
 
   private async loadLegacyPinnedIds(key: string): Promise<string[]> {

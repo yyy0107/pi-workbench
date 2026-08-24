@@ -1,10 +1,23 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 
-import { LOCALE_COOKIE_MAX_AGE, LOCALE_COOKIE_NAME, type Locale } from "./config";
+import { LOCALE_COOKIE_NAME, type Locale } from "./config";
 import { createI18n, resolveText, type LocalizableText, type Translate } from "./runtime";
 import type { I18nRuntime } from "./types";
+import {
+  loadWorkbenchSettingsPreferences,
+  updateWorkbenchSettingsPreferences,
+} from "@/runtime/pi/client/settings/workbench-settings-client";
 
 interface I18nContextValue extends I18nRuntime<Translate> {
   setLocale(locale: Locale): void;
@@ -18,13 +31,33 @@ export function I18nProvider({
   initialLocale,
 }: Readonly<{ children: ReactNode; initialLocale: Locale }>) {
   const [locale, setLocaleState] = useState(initialLocale);
+  const localRevision = useRef(0);
   const runtime = useMemo(() => createI18n(locale), [locale]);
 
   const setLocale = useCallback((nextLocale: Locale) => {
+    localRevision.current += 1;
     setLocaleState(nextLocale);
     document.documentElement.lang = nextLocale;
-    document.cookie = `${LOCALE_COOKIE_NAME}=${nextLocale}; path=/; max-age=${LOCALE_COOKIE_MAX_AGE}; samesite=lax`;
+    document.cookie = `${LOCALE_COOKIE_NAME}=; path=/; max-age=0; samesite=lax`;
+    void updateWorkbenchSettingsPreferences({ locale: nextLocale }).catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    const hydrationRevision = localRevision.current;
+    void loadWorkbenchSettingsPreferences()
+      .then(async (preferences) => {
+        if (preferences.locale) {
+          if (localRevision.current === hydrationRevision) {
+            setLocaleState(preferences.locale);
+            document.documentElement.lang = preferences.locale;
+          }
+        } else if (localRevision.current === hydrationRevision) {
+          await updateWorkbenchSettingsPreferences({ locale: initialLocale });
+        }
+        document.cookie = `${LOCALE_COOKIE_NAME}=; path=/; max-age=0; samesite=lax`;
+      })
+      .catch(() => undefined);
+  }, [initialLocale]);
 
   const value = useMemo<I18nContextValue>(
     () => ({

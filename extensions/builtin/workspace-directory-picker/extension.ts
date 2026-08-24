@@ -1,7 +1,7 @@
 import { defineExtension } from "@/platform/extensions";
 
 import { DirectoryPickerButton } from "./directory-picker-button";
-import { NewThreadNavigationItem } from "./new-thread-navigation-item";
+import { NewThreadWorkspaceItem } from "./new-thread-workspace-item";
 import { WorkspaceDirectorySummary } from "./workspace-directory-summary";
 
 export const workspaceDirectoryPickerExtension = defineExtension({
@@ -10,10 +10,10 @@ export const workspaceDirectoryPickerExtension = defineExtension({
   version: "1.0.0",
 
   setup(context) {
-    const newThread = context.slots.register("sidebar.navigation", {
-      id: "workbench.workspace-directory-picker.new-thread-navigation",
+    const newThread = context.slots.register("sidebar.top", {
+      id: "workbench.workspace-directory-picker.new-thread-workspace",
       order: 0,
-      component: NewThreadNavigationItem,
+      component: NewThreadWorkspaceItem,
     });
     const picker = context.slots.register("sidebar.workspace.actions", {
       id: "workbench.workspace-directory-picker.sidebar-action",

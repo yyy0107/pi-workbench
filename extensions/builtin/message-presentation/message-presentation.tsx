@@ -69,6 +69,9 @@ export function WorkbenchMessagePresentation() {
   const termination = parsePiMessageTermination(storedTermination);
   const turnTiming = readPiTurnTiming(storedTurnTiming);
   const turnStreaming = useAuiState((state) => state.thread.isRunning && state.message.isLast);
+  const interruptedBySteering = useAuiState(
+    (state) => state.message.metadata.custom.piSteerInterrupted === true,
+  );
   const messageParts = useAuiState((state) => state.message.parts);
   const dataPresentations = useDataPresentationMap();
   const completedBoundary = useMemo(() => completedWorkBoundary(messageParts), [messageParts]);
@@ -106,13 +109,16 @@ export function WorkbenchMessagePresentation() {
       const timelinePath = groupTimelinePart(part, context);
       const index = partIndices.get(part);
 
-      if (partBelongsToCompletedWork(messageRole, index, completedBoundary)) {
+      if (
+        !interruptedBySteering &&
+        partBelongsToCompletedWork(messageRole, index, completedBoundary)
+      ) {
         return ["group-completed-turn", ...timelinePath];
       }
 
       return timelinePath;
     },
-    [completedBoundary, groupTimelinePart, messageRole, partIndices],
+    [completedBoundary, groupTimelinePart, interruptedBySteering, messageRole, partIndices],
   );
   const activeTimelinePartIndex = useAuiState((state) => {
     if (!state.thread.isRunning || !state.message.isLast) return -1;
@@ -128,7 +134,11 @@ export function WorkbenchMessagePresentation() {
     return -1;
   });
 
-  const disclosurePhase = turnStreaming ? "streaming" : "completed";
+  const disclosurePhase = interruptedBySteering
+    ? "steered"
+    : turnStreaming
+      ? "streaming"
+      : "completed";
 
   return (
     <MessageDisclosureProvider key={disclosurePhase} phase={disclosurePhase}>

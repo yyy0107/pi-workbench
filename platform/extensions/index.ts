@@ -11,6 +11,8 @@ export {
   useCommandService,
   useComposerCommandRegistry,
   useExtensionErrorReporter,
+  useMainViewRegistry,
+  useMainViewService,
   useNavigationService,
   usePanelService,
   useSettingsRegistry,

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { readFile, realpath, stat } from "node:fs/promises";
+import { readFile, realpath, rm, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
 
@@ -10,6 +10,11 @@ import type {
   WorkspaceView,
 } from "../../rpc-contracts";
 import { atomicReplaceFile, withCrossProcessFileLock } from "../core/file-persistence";
+import {
+  nextWorkbenchSettingsDocument,
+  readWorkbenchSettingsDocument,
+  writeWorkbenchSettingsDocument,
+} from "../settings/workbench-settings-file";
 import { getStreamHub } from "../streams/stream-hub";
 
 export type { WorkspaceView } from "../../rpc-contracts";
@@ -17,6 +22,7 @@ export type { WorkspaceView } from "../../rpc-contracts";
 export interface WorkspaceState {
   schemaVersion: 1;
   legacyReconciled: boolean;
+  projectTrustMigrationCompleted: boolean;
   workspaces: WorkspaceView[];
   archivedSessionIds: string[];
   pinnedWorkspaceIds: string[];
@@ -66,6 +72,10 @@ export class WorkspaceStoreError<
 
 export interface WorkspaceStoreOptions {
   stateFile: string;
+  /** Embed the state under this key in workbench-settings.json. Omit for legacy standalone files. */
+  documentSection?: "workspaces";
+  /** Standalone state imported and removed after the embedded document is committed. */
+  legacyStateFile?: string;
   now?: () => Date | string | number;
   canonicalize?: (workspacePath: string) => string | Promise<string>;
 }
@@ -134,6 +144,7 @@ type WorkspaceStoreListener = (event: WorkspaceStoreEvent) => void;
 const EMPTY_STATE = (): WorkspaceState => ({
   schemaVersion: 1,
   legacyReconciled: false,
+  projectTrustMigrationCompleted: false,
   workspaces: [],
   archivedSessionIds: [],
   pinnedWorkspaceIds: [],
@@ -152,6 +163,7 @@ function cloneState(state: WorkspaceState): WorkspaceState {
   return {
     schemaVersion: 1,
     legacyReconciled: state.legacyReconciled,
+    projectTrustMigrationCompleted: state.projectTrustMigrationCompleted,
     workspaces: state.workspaces.map(cloneWorkspace),
     archivedSessionIds: [...state.archivedSessionIds],
     pinnedWorkspaceIds: [...state.pinnedWorkspaceIds],
@@ -259,6 +271,7 @@ function parseState(value: unknown): WorkspaceState {
   return {
     schemaVersion: 1,
     legacyReconciled: value.legacyReconciled === true,
+    projectTrustMigrationCompleted: value.projectTrustMigrationCompleted === true,
     workspaces,
     archivedSessionIds: stringArray(value.archivedSessionIds, "archivedSessionIds"),
     pinnedWorkspaceIds: stringArray(value.pinnedWorkspaceIds, "pinnedWorkspaceIds").filter(
@@ -308,6 +321,8 @@ function moveInvalid(
 
 export class WorkspaceStore {
   private readonly stateFile: string;
+  private readonly documentSection?: "workspaces";
+  private readonly legacyStateFile?: string;
   private readonly now: () => Date | string | number;
   private readonly canonicalizePath: (workspacePath: string) => string | Promise<string>;
   private readonly listeners = new Set<WorkspaceStoreListener>();
@@ -318,6 +333,10 @@ export class WorkspaceStore {
     const resolvedOptions = typeof options === "string" ? { stateFile: options } : options;
     if (!resolvedOptions.stateFile.trim()) throw new TypeError("stateFile must not be empty");
     this.stateFile = path.resolve(resolvedOptions.stateFile);
+    this.documentSection = resolvedOptions.documentSection;
+    this.legacyStateFile = resolvedOptions.legacyStateFile
+      ? path.resolve(resolvedOptions.legacyStateFile)
+      : undefined;
     this.now = resolvedOptions.now ?? (() => new Date());
     this.canonicalizePath = resolvedOptions.canonicalize ?? defaultCanonicalize;
   }
@@ -333,6 +352,20 @@ export class WorkspaceStore {
 
   getState(): Promise<WorkspaceState> {
     return this.exclusive(async () => cloneState(this.state));
+  }
+
+  migrateExistingProjectTrust(
+    migrate: (workspacePaths: readonly string[]) => void | Promise<void>,
+  ): Promise<WorkspaceListResult> {
+    return this.exclusive(async () => {
+      if (this.state.projectTrustMigrationCompleted) return listResult(this.state);
+
+      await migrate(this.state.workspaces.map((workspace) => workspace.path));
+      const next = cloneState(this.state);
+      next.projectTrustMigrationCompleted = true;
+      await this.commit(next, []);
+      return listResult(next);
+    });
   }
 
   create(workspacePath: string): Promise<WorkspaceCreateResult>;
@@ -900,6 +933,36 @@ export class WorkspaceStore {
   }
 
   private async load(): Promise<void> {
+    if (this.documentSection) {
+      const document = await readWorkbenchSettingsDocument(this.stateFile);
+      if (document.workspaces !== undefined) {
+        this.state = parseState(document.workspaces);
+        return;
+      }
+
+      let migrated = false;
+      if (this.legacyStateFile && this.legacyStateFile !== this.stateFile) {
+        try {
+          this.state = parseState(JSON.parse(await readFile(this.legacyStateFile, "utf8")));
+          migrated = true;
+        } catch (error) {
+          if (!isRecord(error) || error.code !== "ENOENT") throw error;
+          this.state = EMPTY_STATE();
+        }
+      } else {
+        this.state = EMPTY_STATE();
+      }
+
+      await writeWorkbenchSettingsDocument(
+        this.stateFile,
+        nextWorkbenchSettingsDocument(document, { workspaces: this.state }),
+      );
+      if (migrated && this.legacyStateFile) {
+        await rm(this.legacyStateFile, { force: true }).catch(() => undefined);
+      }
+      return;
+    }
+
     try {
       this.state = parseState(JSON.parse(await readFile(this.stateFile, "utf8")));
     } catch (error) {
@@ -965,6 +1028,14 @@ export class WorkspaceStore {
   }
 
   private async persist(state: WorkspaceState): Promise<void> {
+    if (this.documentSection) {
+      const document = await readWorkbenchSettingsDocument(this.stateFile);
+      await writeWorkbenchSettingsDocument(
+        this.stateFile,
+        nextWorkbenchSettingsDocument(document, { workspaces: state }),
+      );
+      return;
+    }
     await atomicReplaceFile(this.stateFile, `${JSON.stringify(state, null, 2)}\n`, {
       fileMode: 0o600,
     });

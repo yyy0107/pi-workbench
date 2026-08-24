@@ -8,7 +8,6 @@ import type {
   PiSessionHistory,
   PiSessionListResponse,
   PiSessionSummary,
-  PiWorkspaceSummary,
 } from "../../contracts";
 import type {
   ClientResponse,
@@ -23,6 +22,8 @@ import type {
   ExtensionListValue,
   HostDescription,
   HostDirectoryListing,
+  InstalledPackageListPayload,
+  InstalledPackageListValue,
   LocalAppOpenPayload,
   LocalAppOpenValue,
   LocalAppsListValue,
@@ -36,6 +37,15 @@ import type {
   ModelProvidersValue,
   PiAgentSettingsNamespaceView,
   PiAgentSettingsUpdatePayload,
+  PiPackageCatalogDescribePayload,
+  PiPackageCatalogDetailsView,
+  PiPackageCatalogSearchPayload,
+  PiPackageCatalogSearchValue,
+  PiPackageInstallPayload,
+  PiPackageInstallValue,
+  ProjectTrustDescribePayload,
+  ProjectTrustDescribeValue,
+  ProjectTrustUpdatePayload,
   RemoveModelProviderPayload,
   RespondModelProviderLoginPayload,
   RpcReceipt,
@@ -88,6 +98,9 @@ import type {
   WorkspaceSessionArchiveValue,
   WorkspaceSessionPinValue,
   WorkspaceView,
+  WorkbenchSettingsDescribeValue,
+  WorkbenchSettingsUpdatePayload,
+  WorkbenchSettingsUpdateValue,
 } from "../../rpc-contracts";
 import { invalidatePiModelCatalog } from "../models/model-catalog-invalidation";
 
@@ -244,14 +257,12 @@ export async function createPiSession(cwd: string): Promise<PiSessionSummary> {
   return body.session;
 }
 
-export async function pickPiWorkspace(): Promise<PiWorkspaceSummary | undefined> {
+export async function pickPiHostDirectory(): Promise<string | undefined> {
   const { path } = await callPiRpc<Record<string, never>, { path: string | null }>(
     "host.pickDirectory",
     {},
   );
-  if (!path) return undefined;
-  const { workspace } = await createPiWorkspace(path);
-  return workspaceSummary(workspace);
+  return path ?? undefined;
 }
 
 export function describePiHost(): Promise<HostDescription> {
@@ -268,6 +279,18 @@ export function createPiHostDirectory(path: string, name: string): Promise<{ pat
 
 export function openPiHostPath(path: string): Promise<{ opened: true }> {
   return callPiRpc("host.openPath", { path });
+}
+
+export function describePiProjectTrust(
+  payload: ProjectTrustDescribePayload,
+): Promise<ProjectTrustDescribeValue> {
+  return callPiRpc("projectTrust.describe", payload);
+}
+
+export function updatePiProjectTrust(
+  payload: ProjectTrustUpdatePayload,
+): Promise<ProjectTrustDescribeValue> {
+  return callPiRpc("projectTrust.update", payload);
 }
 
 export function listPiLocalApps(): Promise<LocalAppsListValue> {
@@ -382,10 +405,6 @@ export function writePiWorkspaceFile(
   payload: WorkspaceFileWritePayload,
 ): Promise<WorkspaceFileSnapshotValue> {
   return callPiRpc("workspace.files.write", payload);
-}
-
-function workspaceSummary(workspace: WorkspaceView): PiWorkspaceSummary {
-  return { id: workspace.workspaceId, name: workspace.title, cwd: workspace.path };
 }
 
 export function listPiWorkspaces(): Promise<WorkspaceListValue> {
@@ -571,6 +590,28 @@ export function listPiExtensions(payload: ExtensionListPayload): Promise<Extensi
   return callPiRpc("extension.list", payload);
 }
 
+export function listInstalledPiPackages(
+  payload: InstalledPackageListPayload,
+): Promise<InstalledPackageListValue> {
+  return callPiRpc("package.list", payload);
+}
+
+export function installPiPackage(payload: PiPackageInstallPayload): Promise<PiPackageInstallValue> {
+  return callPiRpc("package.install", payload);
+}
+
+export function searchPiPackageCatalog(
+  payload: PiPackageCatalogSearchPayload = {},
+): Promise<PiPackageCatalogSearchValue> {
+  return callPiRpc("packageCatalog.search", payload);
+}
+
+export function describePiPackageCatalog(
+  payload: PiPackageCatalogDescribePayload,
+): Promise<PiPackageCatalogDetailsView> {
+  return callPiRpc("packageCatalog.describe", payload);
+}
+
 export function describePiSettings(): Promise<SettingsDescribeValue> {
   return callPiRpc("settings.describe", {});
 }
@@ -583,6 +624,16 @@ export function updatePiAgentSettings(
   payload: PiAgentSettingsUpdatePayload,
 ): Promise<PiAgentSettingsNamespaceView> {
   return callPiRpc("settings.update", payload);
+}
+
+export function describeWorkbenchSettings(): Promise<WorkbenchSettingsDescribeValue> {
+  return callPiRpc("workbenchSettings.describe", {});
+}
+
+export function updateWorkbenchSettings(
+  payload: WorkbenchSettingsUpdatePayload,
+): Promise<WorkbenchSettingsUpdateValue> {
+  return callPiRpc("workbenchSettings.update", payload);
 }
 
 export function describeAttachmentUnderstandingSettings(): Promise<AttachmentUnderstandingDescribeValue> {

@@ -2,13 +2,14 @@
 
 import { useAuiState } from "@assistant-ui/react";
 import { PanelLeftOpenIcon } from "lucide-react";
+import { useSyncExternalStore } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useRightWorkspaceState } from "@/components/right-workspace";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
-import { SlotHost } from "@/platform/extensions";
+import { SlotHost, useMainViewService } from "@/platform/extensions";
 import { usePiThreadListItemSnapshot } from "@/runtime/pi/client/runtime/context";
 
 function SidebarOpenButton() {
@@ -32,7 +33,13 @@ function SidebarOpenButton() {
 }
 
 export function WorkbenchHeader() {
-  const { t } = useI18n();
+  const { t, text } = useI18n();
+  const mainViews = useMainViewService();
+  const activeMainView = useSyncExternalStore(
+    mainViews.subscribe,
+    mainViews.getSnapshot,
+    mainViews.getInitialSnapshot,
+  );
   const workspaceOpen = useRightWorkspaceState((state) => state.open);
   const currentThread = useAuiState((state) =>
     state.threads.threadItems.find((thread) => thread.id === state.threads.mainThreadId),
@@ -41,6 +48,9 @@ export function WorkbenchHeader() {
     currentThread?.remoteId ?? currentThread?.externalId ?? currentThread?.id,
   );
   const currentThreadTitle = managedThread?.title ?? currentThread?.title;
+  const title = activeMainView
+    ? text(activeMainView.title)
+    : currentThreadTitle || t("workbench.sidebar.newThread");
 
   return (
     <header
@@ -54,9 +64,7 @@ export function WorkbenchHeader() {
     >
       <div className="flex min-w-0 items-center gap-2">
         <SidebarOpenButton />
-        <span className="truncate text-sm font-semibold">
-          {currentThreadTitle || t("workbench.sidebar.newThread")}
-        </span>
+        <span className="truncate text-sm font-semibold">{title}</span>
         <SlotHost name="header.left" className="flex items-center gap-2" />
       </div>
 

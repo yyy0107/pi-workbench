@@ -18,9 +18,10 @@ export const WORKBENCH_SLOTS = [
 
   "sidebar.brand", // 侧边栏品牌区域：Logo、产品名称等
   "sidebar.header", // 侧边栏头部：标题、折叠按钮等
-  "sidebar.navigation", // 侧边栏导航区域：主导航、页面入口等
-  "sidebar.workspace.actions", // 工作区操作：新建会话、新建工作区等
-  "sidebar.top", // 侧边栏主体顶部扩展区域
+  "sidebar.navigation", // 侧边栏分段切换器下方：可选主导航、页面入口等
+  "sidebar.toolbox", // 工具箱分段主体：能力入口、分类列表与管理操作
+  "sidebar.workspace.actions", // 工作区操作行右侧：新建工作区、筛选等紧凑操作
+  "sidebar.top", // 工作区内容顶部：会话列表之前的主要操作
   "sidebar.bottom", // 侧边栏主体底部扩展区域
   "sidebar.footer", // 侧边栏页脚：设置、账户、版本信息等
 
@@ -86,6 +87,12 @@ export interface ComposerDrawerSlotContext extends ComposerSlotContext {
   closeDrawer(): void;
 }
 
+/** 工具箱主体贡献收到的宿主搜索状态。 */
+export interface SidebarToolboxSlotContext {
+  /** 顶部搜索框的当前原始输入；筛选语义由工具箱扩展负责。 */
+  searchQuery: string;
+}
+
 /**
  * 右侧 Panel 标签行“添加”菜单中的贡献上下文。
  *
@@ -133,9 +140,10 @@ export interface SlotPropsMap {
   "shell.overlay": Record<never, never>; // 全局悬浮层
   "sidebar.brand": Record<never, never>; // 侧边栏顶部品牌标识
   "sidebar.header": Record<never, never>; // 侧边栏品牌下方的头部控件
-  "sidebar.navigation": Record<never, never>; // “新建会话”下方的主导航
-  "sidebar.workspace.actions": Record<never, never>; // “工作区”标题右侧的操作区
-  "sidebar.top": Record<never, never>; // 会话列表上方的上下文区域
+  "sidebar.navigation": Record<never, never>; // 核心分段切换器下方的可选主导航
+  "sidebar.toolbox": SidebarToolboxSlotContext; // 工具箱分段的完整主体
+  "sidebar.workspace.actions": Record<never, never>; // 工作区主要操作行右侧的紧凑操作区
+  "sidebar.top": Record<never, never>; // 工作区会话列表上方的主要操作，桌面和移动端均挂载
   "sidebar.bottom": Record<never, never>; // 会话列表下方的上下文区域
   "sidebar.footer": Record<never, never>; // 侧边栏固定底部工具区
   "panel.right.add-menu": RightPanelAddMenuSlotContext; // 右侧 Panel 加号弹出菜单

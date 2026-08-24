@@ -1,6 +1,7 @@
 import type { CommandRegistry } from "./command";
 import type { ComposerCommandRegistry } from "./composer-command";
 import type { Disposable } from "./disposable";
+import type { MainViewRegistry } from "./main-view";
 import type { OpenerRegistry } from "./opener";
 import type { PanelRegistry } from "./panel";
 import type { RendererRegistry } from "./renderer";
@@ -30,6 +31,8 @@ export interface ExtensionContext {
   readonly renderers: RendererRegistry;
   /** 注册共享设置面板中的分区和功能自有设置项。 */
   readonly settings: SettingsRegistry;
+  /** 注册替换中央对话区域的完整功能主视图。 */
+  readonly mainViews: MainViewRegistry;
   /** 注册由 RightWorkspace 核心宿主管理标签和生命周期的检查能力。 */
   readonly workspace: WorkspaceSurfaceRegistry;
 }

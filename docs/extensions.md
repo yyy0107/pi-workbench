@@ -1,6 +1,6 @@
 # Workbench 扩展组件开发指南
 
-本文说明如何为 Pi Workbench 开发扩展组件，并介绍 Slot、Panel、Command、Composer Command、Renderer、Settings、Workspace Surface、Open Handler 八类扩展能力。
+本文说明如何为 Pi Workbench 开发扩展组件，并介绍 Slot、Panel、Command、Composer Command、Renderer、Settings、Main View、Workspace Surface、Open Handler 九类扩展能力。
 
 让 AI 协助实现扩展时，可以显式调用项目技能 `$extend-workbench-ui`。技能位于 [`.agents/skills/extend-workbench-ui/`](../.agents/skills/extend-workbench-ui/SKILL.md)，会按本文的边界、流程和验证要求执行。
 
@@ -18,7 +18,7 @@
 
 扩展平台的公开入口是 [`platform/extensions/index.ts`](../platform/extensions/index.ts)。扩展应优先从 `@/platform/extensions` 导入类型、Hook 和注册 API，不要依赖 `registries/`、`hosts/` 等内部实现。
 
-## 1. 先理解八种扩展能力
+## 1. 先理解九种扩展能力
 
 一个扩展由 `defineExtension()` 定义，并在 `setup(context)` 中注册一个或多个贡献：
 
@@ -26,11 +26,11 @@
 enabledExtensions
   -> ExtensionProvider
     -> extension.setup(context)
-      -> Slot / Panel / Command / Composer Command / Renderer / Settings / Workspace Surface / Opener Registry
+      -> Slot / Panel / Command / Composer Command / Renderer / Settings / Main View / Workspace Surface / Opener Registry
         -> 对应 Host 渲染或执行
 ```
 
-八种贡献各自解决不同问题：
+九种贡献各自解决不同问题：
 
 - **Slot**：把小型组件插入宿主已经声明的位置，例如 Composer 按钮或状态栏指标。
 - **Panel**：提供宿主管理尺寸与开关状态的左侧或底部辅助区域。
@@ -38,6 +38,7 @@ enabledExtensions
 - **Composer Command**：把 `/` 面板选项注册为结构化 Token，并在提交时编译为一次 Agent 请求。
 - **Renderer**：接管整条消息的 Parts/分组策略，或按 tool name、data name 渲染单个 assistant-ui Part。
 - **Settings**：向共享悬浮设置面板注册导航分区或功能自有设置项。
+- **Main View**：用完整功能页面替换中央对话区域；宿主管理“功能页 / 对话”的切换。
 - **Workspace Surface**：向右侧 Inspector 注册可持久化的检查能力；核心只管理标签和布局。
 - **Open Handler**：按资源能力评分处理 `file`、`https`、`artifact` 等打开请求，避免 feature 之间直接引用。
 
@@ -45,6 +46,7 @@ enabledExtensions
 
 - 一个图标、按钮、状态值：使用 Slot。
 - 需要左侧或底部独立工作区：使用 Panel。
+- 需要工具箱、管理中心等宽屏完整功能页，并在退出后返回对话：使用 Main View。
 - 需要右侧带标签、resourceKey 去重和作用域恢复的检查界面：使用 Workspace Surface。
 - 一个 feature 需要打开另一个 feature 所拥有的资源：使用 OpenerService，不要 import 对方内部实现。
 - 同一动作需要被快捷键、命令面板或按钮复用：使用 Command。
@@ -93,7 +95,7 @@ export const exampleExtension = defineExtension({
 
 `setup()` 当前必须是同步函数，不能声明为 `async`，也不能返回 Promise。异步工作应放到组件 `useEffect()`、Command 的 `run()`，或由 setup 启动并通过 Disposable 可靠取消。
 
-通过 `context.slots/panels/commands/openers/composerCommands/renderers/settings/workspace` 创建的 Disposable 会被 Manager 追踪。仍建议显式返回它们；额外创建的事件监听、计时器或订阅则必须包装成 Disposable 并返回。
+通过 `context.slots/panels/commands/openers/composerCommands/renderers/settings/mainViews/workspace` 创建的 Disposable 会被 Manager 追踪。仍建议显式返回它们；额外创建的事件监听、计时器或订阅则必须包装成 Disposable 并返回。
 
 `defineExtension()` 是保留字面量类型的 identity helper，真正的运行时校验和激活由 ExtensionManager 完成。扩展对象应定义在模块顶层并保持引用稳定；不要在 React render 中临时创建新的扩展对象或 `extensions` 数组，否则相同 id 也会因对象引用变化而先停用再激活。
 
@@ -375,7 +377,9 @@ Composer Slot：
 
 完整类型定义见 [`platform/extensions/api/slot.ts`](../platform/extensions/api/slot.ts)。
 
-`sidebar.brand` 位于侧栏顶部，用于可替换的产品标识；默认 `workbench-brand` 扩展在这里贡献 “Pi-Workbench”。`sidebar.navigation` 位于核心“新建会话”按钮之后，适合 Agent、工具箱、资产等可选主导航；`sidebar.workspace.actions` 位于“工作区”标题右侧，适合添加、搜索或筛选等紧凑操作；`sidebar.footer` 位于侧栏固定底部，适合设置或状态入口。核心“新建会话”和 Thread List 不由扩展替换。
+`sidebar.toolbox` 是“工具箱”分段的紧凑根视图，参数为 `{ searchQuery: string }`。贡献负责能力入口、固定项和分段内底部操作；宿主只传入顶部搜索框的原始输入。分类列表和长内容详情应通过 Main View 替换中央对话区域，不要在窄侧栏内钻取，也不要为管理页面占用右侧 Inspector。内置工具箱通过类型化的 `packageCatalog.search` RPC 使用 Pi 官方 `https://pi.dev/packages` 作为发现源；扩展组件不能自行抓取官方页面或直接执行第三方包安装。
+
+`sidebar.brand` 位于侧栏顶部，用于可替换的产品标识；默认 `workbench-brand` 扩展在这里贡献 “Pi-Workbench”。`sidebar.navigation` 位于核心分段切换器下方，适合 Agent、资产等可选主导航；`sidebar.top` 位于“工作区”内容顶部并同时挂载于桌面与移动侧栏，适合“新建会话”等主要操作；`sidebar.workspace.actions` 位于同一工作区操作行右侧，适合添加、筛选等紧凑操作；`sidebar.footer` 位于侧栏固定底部，适合工作区分段的设置或状态入口。核心 Thread List 不由扩展替换。
 
 `shell.background` 挂载在 Workbench 内容下方，适合全局底色、纹理、渐变或主题控制器。贡献必须保持非交互，不得在背景层放置按钮或链接；若要同步组件表面，应通过共享主题变量实现。
 
@@ -433,7 +437,62 @@ export interface SlotPropsMap {
 
 新增 Slot 是宿主 API 变更，应评估命名、布局、响应式和后续兼容性，不应由单个业务扩展随意添加。
 
-## 5. Workspace Surface 开发参考
+## 5. Main View 开发参考
+
+Main View 用于工具箱、管理中心等需要中央宽屏空间的完整功能页。扩展同步注册 renderer，再通过 `useMainViewService()` 打开或关闭：
+
+```tsx
+import { defineMessage } from "@/i18n";
+import { defineExtension, type MainViewProps, useMainViewService } from "@/platform/extensions";
+
+interface ExampleMainViewParams extends Record<string, unknown> {
+  section: "overview" | "catalog";
+}
+
+function ExampleMainView({ view, close }: MainViewProps<ExampleMainViewParams>) {
+  return (
+    <section className="h-full">
+      <button type="button" onClick={close}>
+        Return to conversation
+      </button>
+      <p>{view.params.section}</p>
+    </section>
+  );
+}
+
+const contribution = context.mainViews.register({
+  kind: "example",
+  component: ExampleMainView,
+});
+
+function ExampleTrigger() {
+  const mainViews = useMainViewService();
+  return (
+    <button
+      type="button"
+      onClick={() =>
+        mainViews.open({
+          kind: "example",
+          title: defineMessage("extensions.toolbox.packages.title"),
+          params: { section: "catalog" },
+        })
+      }
+    >
+      Open example
+    </button>
+  );
+}
+```
+
+- `kind` 是全局唯一、不可本地化的稳定 ID；`open()` 会拒绝未注册的 kind。
+- `title` 是顶部栏显示的可本地化标题；内置扩展应传入 `defineMessage(...)` 描述符。
+- `params` 是功能自有的瞬时导航状态；Service 会浅复制并冻结它。
+- `revision` 每次 `open()` 都会变化，因此同一 kind 可以响应新的分类或选中项。
+- `close()` 恢复默认对话；核心侧栏切回“工作区”、会话 URL 变化或定义被撤销时也会关闭当前 Main View。
+- Main View 拥有页面内部布局和文案，但不应复制 Workbench Shell、侧栏或右侧 Inspector。
+- Main View 不提供 URL、持久化标签、resourceKey 或 keep-alive；这些需求分别使用 Next.js 路由或 Workspace Surface。
+
+## 6. Workspace Surface 开发参考
 
 右侧 Inspector 核心不内置业务 kind。扩展通过 `context.workspace.register()` 同步注册完整能力：
 
@@ -499,7 +558,7 @@ await openers.open({
 `open()` 的 Promise rejection。跨多个 feature 的能力接口应提升到 `services/` 或 runtime，不能
 放进某个 feature 的 `internal` 后再让其他 contribution 深层导入。
 
-## 6. Panel 开发参考
+## 7. Panel 开发参考
 
 Panel 定义：
 
@@ -608,7 +667,7 @@ context.panels.register({
 
 React 组件内使用 `usePanelService()`；Command 内使用 `context.panels`。两者用途不同：前者暴露完整 PanelService，后者只暴露命令执行所需的 `open/close/toggle/move`。
 
-## 7. Command 开发参考
+## 8. Command 开发参考
 
 ### Composer Command：结构化输入命令
 
@@ -745,7 +804,7 @@ export function RunNotesCommandButton() {
 
 优先让 Slot 按钮和快捷键调用同一个 Command，避免分别实现两套业务逻辑。若按钮只做简单的 Panel toggle，也可以直接使用 `usePanelService()`。
 
-## 8. Settings 开发参考
+## 9. Settings 开发参考
 
 共享悬浮设置面板由 `workbench.settings` 扩展提供。它通过 `shell.overlay` 全局挂载，不属于左、右或底部 Panel。设置分区与设置项是独立贡献：壳扩展注册分区，功能扩展把自己的设置项注册到目标分区，因此语言、主题或模型功能可以随扩展一起启用和卸载。
 
@@ -778,7 +837,7 @@ const item = context.settings.registerItem({
 
 React 组件可通过 `useSettingsRegistry()` 读取稳定快照并订阅注册变化。普通业务扩展应在 `setup()` 中注册贡献，不要在 React render 期间调用 registry。
 
-## 9. Renderer 开发参考
+## 10. Renderer 开发参考
 
 Renderer 只负责展示消息 Part，不负责：
 
@@ -939,14 +998,14 @@ Message Renderer 全局唯一；Tool 和 Data Renderer 各自按名称唯一。�
 同一个 tool name 或 data name 重复注册会在开发阶段报错。名称来自模型或协议，必须使用精确匹配，不要依赖对象原型键或模糊匹配。
 匹配区分大小写：`get_weather` 与 `Get_Weather` 是两个不同名称。
 
-## 10. 生命周期与错误隔离
+## 11. 生命周期与错误隔离
 
 扩展由 [`ExtensionProvider`](../platform/extensions/extension-provider.tsx) 激活：
 
 - `setup()` 成功后扩展进入 active 状态；
 - setup 中途失败时，已经注册的贡献会回滚；
 - Provider 卸载或扩展被替换时，Disposable 会清理；
-- Slot、Panel、Renderer 组件分别由 Error Boundary 隔离；
+- Slot、Panel、Main View、Renderer 组件分别由 Error Boundary 隔离；
 - Command 的异步异常由 CommandPaletteHost 捕获并上报。
 
 React Error Boundary 不会捕获事件处理器和任意异步回调中的异常。组件直接调用 `useCommandService().execute()` 或自己的异步逻辑时，仍需显式处理 rejected Promise。
@@ -976,7 +1035,7 @@ export const resizeObserverExtension = defineExtension({
 
 但要注意：`setup()` 在 Provider 的 client effect 中运行。尽管此时可以访问 `window`，更推荐把 React 相关副作用放入扩展组件自己的 `useEffect()`，让生命周期更直观。
 
-## 11. 状态应该放在哪里
+## 12. 状态应该放在哪里
 
 使用 assistant-ui Runtime 保存：
 
@@ -1005,7 +1064,7 @@ const messages = useAuiState((state) => state.thread.messages);
 const isRunning = useAuiState((state) => state.thread.isRunning);
 ```
 
-## 12. ID 与注册规则
+## 13. ID 与注册规则
 
 推荐命名：
 
@@ -1035,7 +1094,7 @@ data renderer name:    citation
 
 Slot、Panel、Command 定义在注册时会被复制并浅冻结。注册后不要修改原对象来尝试更新 UI；需要替换贡献时，应 dispose 后重新注册。
 
-## 13. 不要做的事情
+## 14. 不要做的事情
 
 - 不要从远程 URL `import()` 任意 JavaScript 插件。
 - 不要在扩展中注册 Next.js 路由。
@@ -1050,7 +1109,7 @@ Slot、Panel、Command 定义在注册时会被复制并浅冻结。注册后不
 - 不要复制 assistant-ui 的消息和 Composer 状态。
 - 不要在前端扩展中放 API Key 或其他秘密。
 
-## 14. 可参考的现有扩展
+## 15. 可参考的现有扩展
 
 - 最小 Slot：[`connection-status`](../extensions/builtin/connection-status/extension.ts)
 - assistant-ui ModelContext：[`model-selector`](../extensions/builtin/model-selector/extension.ts)

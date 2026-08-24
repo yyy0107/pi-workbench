@@ -35,6 +35,7 @@ import {
   type ModelConfigStorage,
   type StoredModelProviderConfiguration,
 } from "./model-config-store";
+import { getProjectTrustService } from "../trust/project-trust-service";
 
 export type {
   ConfigurableProviderView,
@@ -981,7 +982,7 @@ export class ModelService {
       const services = await this.serviceFactory({
         cwd: this.cwd,
         resourceLoaderReloadOptions: {
-          resolveProjectTrust: async () => process.env.PI_WORKBENCH_TRUST_PROJECT === "1",
+          resolveProjectTrust: async () => getProjectTrustService().isTrusted(this.cwd),
         },
       });
       return {

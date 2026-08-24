@@ -1,5 +1,6 @@
 "use client";
 
+import type { PointerEvent } from "react";
 import { ThreadListItemPrimitive, useAui, useAuiState } from "@assistant-ui/react";
 import { ArchiveIcon, PinIcon, PinOffIcon } from "lucide-react";
 import { usePathname } from "next/navigation";
@@ -12,11 +13,27 @@ import { usePiThreadListItemState } from "@/runtime/pi/client/runtime/context";
 import { useWorkspaceCapabilities } from "@/services/workspace-selection-service";
 import { conversationThreadIdFromPathname } from "@/workbench/workspaces/new-thread-policy";
 
+import type { ThreadDropPosition } from "./thread-sort";
+
 export function WorkbenchThreadListItem({
   workspaceId,
+  sortOrder,
+  dragEnabled = false,
+  dragging = false,
+  dropPosition,
+  registerDragElement,
+  onPointerDown,
+  shouldSuppressNavigation,
   onNavigate,
 }: {
   workspaceId?: string;
+  sortOrder?: number;
+  dragEnabled?: boolean;
+  dragging?: boolean;
+  dropPosition?: ThreadDropPosition;
+  registerDragElement?: (element: HTMLElement | null) => void;
+  onPointerDown?: (event: PointerEvent<HTMLElement>) => void;
+  shouldSuppressNavigation?: () => boolean;
   onNavigate?: () => void;
 }) {
   const { date: formatDate, relativeTime, t } = useI18n();
@@ -93,8 +110,27 @@ export function WorkbenchThreadListItem({
     <ThreadListItemPrimitive.Root
       data-workbench-selection-surface=""
       data-workbench-selection-mode="foreground"
-      className="group/thread text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground focus-within:bg-sidebar-accent focus-within:text-sidebar-foreground data-active:text-sidebar-foreground relative -ms-6 flex min-h-9 items-center rounded-lg transition-colors"
+      data-dragging={dragging ? "" : undefined}
+      ref={registerDragElement}
+      style={sortOrder === undefined ? undefined : { order: sortOrder }}
+      className={cn(
+        "group/thread text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground focus-within:bg-sidebar-accent focus-within:text-sidebar-foreground data-active:text-sidebar-foreground relative -ms-6 flex min-h-9 items-center rounded-lg transition-[color,background-color,opacity]",
+        dragEnabled && "cursor-grab active:cursor-grabbing",
+        dragging && "opacity-40",
+      )}
+      onPointerDown={onPointerDown}
     >
+      {dropPosition ? (
+        <span
+          aria-hidden="true"
+          className={cn(
+            "pointer-events-none absolute start-2 end-2 z-20 h-0.5 rounded-full bg-blue-500",
+            dropPosition === "before" ? "-top-px" : "-bottom-px",
+          )}
+        >
+          <span className="absolute start-0 top-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500" />
+        </span>
+      ) : null}
       {isRunning ? (
         <ThinkingOrb
           state="working"
@@ -105,7 +141,14 @@ export function WorkbenchThreadListItem({
       ) : null}
       <ThreadListItemPrimitive.Trigger
         className="focus-visible:ring-sidebar-ring flex h-9 min-w-0 flex-1 items-center rounded-lg pe-2.5 ps-[34px] text-start text-sm outline-none focus-visible:ring-2"
-        onClick={openThreadRoute}
+        onClick={(event) => {
+          if (shouldSuppressNavigation?.()) {
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+          }
+          openThreadRoute();
+        }}
       >
         <span className="min-w-0 flex-1 truncate pe-16 md:pe-0 md:group-hover/thread:pe-14 md:group-has-[:focus-visible]/thread:pe-14">
           {title || t("workbench.sidebar.newThread")}
@@ -126,7 +169,10 @@ export function WorkbenchThreadListItem({
         {isRunning ? <span className="sr-only">{t("workbench.sidebar.generating")}</span> : null}
       </ThreadListItemPrimitive.Trigger>
 
-      <div className="pointer-events-auto absolute end-0 flex items-center opacity-100 transition-opacity md:pointer-events-none md:opacity-0 md:group-hover/thread:pointer-events-auto md:group-hover/thread:opacity-100 md:group-has-[:focus-visible]/thread:pointer-events-auto md:group-has-[:focus-visible]/thread:opacity-100">
+      <div
+        data-thread-item-actions=""
+        className="pointer-events-auto absolute end-0 flex items-center opacity-100 transition-opacity md:pointer-events-none md:opacity-0 md:group-hover/thread:pointer-events-auto md:group-hover/thread:opacity-100 md:group-has-[:focus-visible]/thread:pointer-events-auto md:group-has-[:focus-visible]/thread:opacity-100"
+      >
         <Button
           type="button"
           variant="ghost"

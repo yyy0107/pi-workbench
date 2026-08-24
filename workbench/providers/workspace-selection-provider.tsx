@@ -78,6 +78,8 @@ export function WorkbenchWorkspaceSelectionProvider({
         await manager.deleteWorkspace(workspaceId);
         discardWorkspace(workspaceId);
       },
+      moveWorkspaceBefore: (workspaceId, beforeWorkspaceId) =>
+        manager.moveWorkspaceBefore(workspaceId, beforeWorkspaceId),
       setWorkspacePinned: (workspaceId, pinned) => manager.setWorkspacePinned(workspaceId, pinned),
     }),
     [

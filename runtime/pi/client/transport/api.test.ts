@@ -19,27 +19,35 @@ const {
   cancelPiModelProviderLogin,
   configurePiModelProvider,
   deletePiRpcSession,
+  describePiPackageCatalog,
+  describePiProjectTrust,
   describePiWorkspaceFile,
   describePiSettings,
+  describeWorkbenchSettings,
   getPiModelContextWindow,
   getPiModelProviderLogin,
+  installPiPackage,
   listPiArchivedWorkspaceSessions,
   listPiCommands,
   listPiExtensions,
+  listInstalledPiPackages,
   listPiSkills,
   listPiWorkspaceFiles,
   listPiWorkspaces,
   openPiSettingsDocument,
   piWorkspaceFileContentUrl,
   PiApiError,
-  pickPiWorkspace,
+  pickPiHostDirectory,
   readPiWorkspaceFile,
   removePiModelProvider,
   respondPiModelProviderLogin,
   respondPiRpc,
+  searchPiPackageCatalog,
   startPiModelProviderLogin,
   streamPiWorkspaceFileText,
   updatePiAgentSettings,
+  updatePiProjectTrust,
+  updateWorkbenchSettings,
   updatePiModelContextWindow,
   unarchivePiWorkspaceSession,
   writePiWorkspaceFile,
@@ -427,6 +435,43 @@ test("Pi agent settings helpers use the shared Settings RPC methods", async (t) 
   assert.deepEqual(methods, ["settings.describe", "settings.openDocument", "settings.update"]);
 });
 
+test("Workbench settings helpers use the shared Workbench Settings RPC methods", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  const requests: Array<{ method: string; payload: unknown }> = [];
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as {
+      rpcId: string;
+      method: string;
+      payload: unknown;
+    };
+    requests.push({ method: request.method, payload: request.payload });
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: {
+        ok: true,
+        value:
+          request.method === "workbenchSettings.describe"
+            ? { revision: 4, preferences: { locale: "zh-CN" } }
+            : { revision: 5 },
+      },
+    });
+  };
+
+  assert.equal((await describeWorkbenchSettings()).preferences.locale, "zh-CN");
+  assert.deepEqual(await updateWorkbenchSettings({ patch: { sidebarOpen: false } }), {
+    revision: 5,
+  });
+  assert.deepEqual(requests, [
+    { method: "workbenchSettings.describe", payload: {} },
+    { method: "workbenchSettings.update", payload: { patch: { sidebarOpen: false } } },
+  ]);
+});
+
 test("model context-window helpers use typed LLM RPC methods", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => {
@@ -559,29 +604,29 @@ test("respondPiRpc preserves the server-request rpcId and validates carrier rece
   }
 });
 
-test("pickPiWorkspace composes host.pickDirectory and workspace.create", async (t) => {
+test("workspace admission helpers keep picking and project trust as explicit RPC steps", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => {
     globalThis.fetch = originalFetch;
   });
 
-  const methods: string[] = [];
+  const calls: Array<{ method: string; payload: unknown }> = [];
   globalThis.fetch = async (_input, init) => {
-    const request = JSON.parse(String(init?.body)) as { rpcId: string; method: string };
-    methods.push(request.method);
+    const request = JSON.parse(String(init?.body)) as {
+      rpcId: string;
+      method: string;
+      payload: unknown;
+    };
+    calls.push({ method: request.method, payload: request.payload });
     const value =
       request.method === "host.pickDirectory"
         ? { path: "/work/project" }
         : {
-            workspace: {
-              workspaceId: "workspace-1",
-              path: "/work/project",
-              title: "project",
-              sessionIds: [],
-              createdAt: "2026-01-01T00:00:00.000Z",
-              updatedAt: "2026-01-01T00:00:00.000Z",
-            },
-            created: true,
+            path: "/work/project",
+            requiresTrust: true,
+            trusted: request.method === "projectTrust.update" ? true : null,
+            promptRequired: request.method !== "projectTrust.update",
+            ...(request.method === "projectTrust.update" ? { decisionPath: "/work/project" } : {}),
           };
     return Response.json({
       type: "server-response",
@@ -590,12 +635,20 @@ test("pickPiWorkspace composes host.pickDirectory and workspace.create", async (
     });
   };
 
-  assert.deepEqual(await pickPiWorkspace(), {
-    id: "workspace-1",
-    name: "project",
-    cwd: "/work/project",
-  });
-  assert.deepEqual(methods, ["host.pickDirectory", "workspace.create"]);
+  assert.equal(await pickPiHostDirectory(), "/work/project");
+  assert.equal((await describePiProjectTrust({ path: "/work/project" })).promptRequired, true);
+  assert.equal(
+    (await updatePiProjectTrust({ path: "/work/project", trusted: true })).trusted,
+    true,
+  );
+  assert.deepEqual(calls, [
+    { method: "host.pickDirectory", payload: {} },
+    { method: "projectTrust.describe", payload: { path: "/work/project" } },
+    {
+      method: "projectTrust.update",
+      payload: { path: "/work/project", trusted: true },
+    },
+  ]);
 });
 
 test("workspace list helpers keep visible and archived sessions in separate RPCs", async (t) => {
@@ -816,4 +869,157 @@ test("listPiExtensions calls the session-scoped extension.list RPC", async (t) =
   });
   assert.equal(request?.method, "extension.list");
   assert.deepEqual(request?.payload, { sessionId: "session-1" });
+});
+
+test("listInstalledPiPackages calls the session-scoped package.list RPC", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  let request: Record<string, unknown> | undefined;
+  globalThis.fetch = async (_input, init) => {
+    request = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: {
+        ok: true,
+        value: {
+          packages: [
+            { source: "npm:pi-review", scope: "user", filtered: false },
+            { source: "git:github.com/example/pi-tools", scope: "project", filtered: true },
+          ],
+        },
+      },
+    });
+  };
+
+  assert.deepEqual(await listInstalledPiPackages({ sessionId: "session-1" }), {
+    packages: [
+      { source: "npm:pi-review", scope: "user", filtered: false },
+      { source: "git:github.com/example/pi-tools", scope: "project", filtered: true },
+    ],
+  });
+  assert.equal(request?.method, "package.list");
+  assert.deepEqual(request?.payload, { sessionId: "session-1" });
+});
+
+test("installPiPackage calls the loopback package.install RPC", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  let request: Record<string, unknown> | undefined;
+  globalThis.fetch = async (_input, init) => {
+    request = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: {
+        ok: true,
+        value: {
+          source: "npm:@example/pi-tools",
+          scope: "project",
+          workspaceId: "workspace-1",
+          reloadRequired: true,
+        },
+      },
+    });
+  };
+
+  assert.deepEqual(
+    await installPiPackage({
+      name: "@example/pi-tools",
+      target: { scope: "project", workspaceId: "workspace-1" },
+    }),
+    {
+      source: "npm:@example/pi-tools",
+      scope: "project",
+      workspaceId: "workspace-1",
+      reloadRequired: true,
+    },
+  );
+  assert.equal(request?.method, "package.install");
+  assert.deepEqual(request?.payload, {
+    name: "@example/pi-tools",
+    target: { scope: "project", workspaceId: "workspace-1" },
+  });
+});
+
+test("searchPiPackageCatalog calls the official package-catalog RPC", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  let request: Record<string, unknown> | undefined;
+  globalThis.fetch = async (_input, init) => {
+    request = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: {
+        ok: true,
+        value: {
+          sourceUrl: "https://pi.dev/packages",
+          page: 1,
+          pageSize: 50,
+          pageCount: 1,
+          filteredTotal: 1,
+          total: 5439,
+          packages: [],
+        },
+      },
+    });
+  };
+
+  assert.deepEqual(await searchPiPackageCatalog({ query: "review", type: "skill" }), {
+    sourceUrl: "https://pi.dev/packages",
+    page: 1,
+    pageSize: 50,
+    pageCount: 1,
+    filteredTotal: 1,
+    total: 5439,
+    packages: [],
+  });
+  assert.equal(request?.method, "packageCatalog.search");
+  assert.deepEqual(request?.payload, { query: "review", type: "skill" });
+});
+
+test("describePiPackageCatalog calls the official package-detail RPC", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  let request: Record<string, unknown> | undefined;
+  globalThis.fetch = async (_input, init) => {
+    request = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: {
+        ok: true,
+        value: {
+          name: "@example/pi-tools",
+          version: "1.2.3",
+          types: ["extension"],
+          weeklyDownloads: 500,
+          manifestJson: "{}",
+        },
+      },
+    });
+  };
+
+  assert.deepEqual(await describePiPackageCatalog({ name: "@example/pi-tools" }), {
+    name: "@example/pi-tools",
+    version: "1.2.3",
+    types: ["extension"],
+    weeklyDownloads: 500,
+    manifestJson: "{}",
+  });
+  assert.equal(request?.method, "packageCatalog.describe");
+  assert.deepEqual(request?.payload, { name: "@example/pi-tools" });
 });

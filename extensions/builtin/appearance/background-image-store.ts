@@ -2,6 +2,11 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 
+import {
+  loadWorkbenchSettingsPreferences,
+  updateWorkbenchSettingsPreferences,
+} from "@/runtime/pi/client/settings/workbench-settings-client";
+
 const DATABASE_NAME = "workbench-appearance";
 const DATABASE_VERSION = 1;
 const STORE_NAME = "assets";
@@ -101,6 +106,38 @@ async function writeStoredImage(image: StoredBackgroundImage | null): Promise<vo
   }
 }
 
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const value = reader.result;
+      if (typeof value !== "string") {
+        reject(new TypeError("Background image could not be encoded"));
+        return;
+      }
+      resolve(value.slice(value.indexOf(",") + 1));
+    };
+    reader.onerror = () => reject(reader.error ?? new Error("Background image could not be read"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function base64ToBlob(data: string, mimeType: string): Blob {
+  const binary = window.atob(data);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return new Blob([bytes], { type: mimeType });
+}
+
+function readySnapshot(image: StoredBackgroundImage): BackgroundImageSnapshot {
+  return {
+    status: "ready",
+    url: URL.createObjectURL(image.blob),
+    name: image.name,
+    error: null,
+  };
+}
+
 export const backgroundImageStore = Object.freeze({
   subscribe(listener: Listener): () => void {
     listeners.add(listener);
@@ -118,17 +155,32 @@ export const backgroundImageStore = Object.freeze({
     emit({ ...snapshot, status: "loading", error: null });
 
     try {
-      const stored = await readStoredImage();
-      if (!stored) {
+      const legacy = await readStoredImage().catch(() => null);
+      const preferences = await loadWorkbenchSettingsPreferences();
+      if (preferences.backgroundImage) {
+        emit(
+          readySnapshot({
+            blob: base64ToBlob(
+              preferences.backgroundImage.data,
+              preferences.backgroundImage.mimeType,
+            ),
+            name: preferences.backgroundImage.name,
+          }),
+        );
+        if (legacy) await writeStoredImage(null).catch(() => undefined);
+      } else if (legacy) {
+        await updateWorkbenchSettingsPreferences({
+          backgroundImage: {
+            name: legacy.name,
+            mimeType: legacy.blob.type || "image/*",
+            data: await blobToBase64(legacy.blob),
+          },
+        });
+        await writeStoredImage(null).catch(() => undefined);
+        emit(readySnapshot(legacy));
+      } else {
         emit(INITIAL_SNAPSHOT);
-        return;
       }
-      emit({
-        status: "ready",
-        url: URL.createObjectURL(stored.blob),
-        name: stored.name,
-        error: null,
-      });
     } catch {
       emit({ status: "error", url: null, name: null, error: "storage" });
     }
@@ -145,13 +197,15 @@ export const backgroundImageStore = Object.freeze({
 
     emit({ ...snapshot, status: "loading", error: null });
     try {
-      await writeStoredImage({ blob: file, name: file.name });
-      emit({
-        status: "ready",
-        url: URL.createObjectURL(file),
-        name: file.name,
-        error: null,
+      await updateWorkbenchSettingsPreferences({
+        backgroundImage: {
+          name: file.name,
+          mimeType: file.type,
+          data: await blobToBase64(file),
+        },
       });
+      await writeStoredImage(null).catch(() => undefined);
+      emit(readySnapshot({ blob: file, name: file.name }));
     } catch {
       emit({ ...snapshot, status: "error", error: "storage" });
     }
@@ -159,7 +213,8 @@ export const backgroundImageStore = Object.freeze({
   async clear(): Promise<void> {
     emit({ ...snapshot, status: "loading", error: null });
     try {
-      await writeStoredImage(null);
+      await updateWorkbenchSettingsPreferences({ backgroundImage: null });
+      await writeStoredImage(null).catch(() => undefined);
       emit(INITIAL_SNAPSHOT);
     } catch {
       emit({ ...snapshot, status: "error", error: "storage" });

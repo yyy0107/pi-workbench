@@ -1,5 +1,10 @@
 import { create } from "zustand";
 
+import {
+  loadWorkbenchSettingsPreferences,
+  updateWorkbenchSettingsPreferences,
+} from "@/runtime/pi/client/settings/workbench-settings-client";
+
 export const MODEL_SELECTOR_STORAGE_KEY = "workbench.model-selector.v1";
 
 export type ModelId = string;
@@ -45,12 +50,12 @@ function loadRememberedSelection(): RememberedModelSelection | undefined {
   }
 }
 
-function persistRememberedSelection(selection: RememberedModelSelection): void {
+function removeLegacyRememberedSelection(): void {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(MODEL_SELECTOR_STORAGE_KEY, JSON.stringify(selection));
+    window.localStorage.removeItem(MODEL_SELECTOR_STORAGE_KEY);
   } catch {
-    // Keep the in-memory default when browser storage is unavailable.
+    // The server document remains authoritative when browser cleanup is unavailable.
   }
 }
 
@@ -62,9 +67,12 @@ interface ModelSelectorState {
   rememberSelection(selection: RememberedModelSelection): void;
 }
 
+const legacyRememberedSelection = loadRememberedSelection();
+let rememberedSelectionRevision = 0;
+
 export const useModelSelectorStore = create<ModelSelectorState>((set) => ({
   draftSelections: {},
-  rememberedSelection: loadRememberedSelection(),
+  rememberedSelection: legacyRememberedSelection,
   setDraftSelection: (threadId, selection) =>
     set((state) => ({
       draftSelections: {
@@ -80,7 +88,32 @@ export const useModelSelectorStore = create<ModelSelectorState>((set) => ({
       return { draftSelections };
     }),
   rememberSelection: (selection) => {
-    persistRememberedSelection(selection);
+    rememberedSelectionRevision += 1;
     set({ rememberedSelection: selection });
+    void updateWorkbenchSettingsPreferences({ modelSelector: selection })
+      .then(removeLegacyRememberedSelection)
+      .catch(() => undefined);
   },
 }));
+
+async function hydrateRememberedSelection(): Promise<void> {
+  const hydrationRevision = rememberedSelectionRevision;
+  try {
+    const preferences = await loadWorkbenchSettingsPreferences();
+    if (preferences.modelSelector) {
+      if (rememberedSelectionRevision === hydrationRevision) {
+        useModelSelectorStore.setState({ rememberedSelection: preferences.modelSelector });
+      }
+      removeLegacyRememberedSelection();
+      return;
+    }
+    if (legacyRememberedSelection && rememberedSelectionRevision === hydrationRevision) {
+      await updateWorkbenchSettingsPreferences({ modelSelector: legacyRememberedSelection });
+      removeLegacyRememberedSelection();
+    }
+  } catch {
+    // Keep the legacy or in-memory selection while the host is unavailable.
+  }
+}
+
+if (typeof window !== "undefined") void hydrateRememberedSelection();

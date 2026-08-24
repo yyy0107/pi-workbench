@@ -4,6 +4,9 @@ import { cookies, headers } from "next/headers";
 
 import { DEFAULT_LOCALE, LOCALE_COOKIE_NAME, matchLocale, type Locale } from "./config";
 import { createI18n } from "./runtime";
+import { WorkbenchSettingsService } from "@/runtime/pi/server/settings/workbench-settings-service";
+
+const workbenchSettingsService = new WorkbenchSettingsService();
 
 function localeFromAcceptLanguage(value: string | null): Locale | undefined {
   if (!value) return undefined;
@@ -29,6 +32,12 @@ function localeFromAcceptLanguage(value: string | null): Locale | undefined {
 }
 
 export async function getRequestLocale(): Promise<Locale> {
+  try {
+    const storedLocale = (await workbenchSettingsService.describe()).preferences.locale;
+    if (storedLocale) return storedLocale;
+  } catch {
+    // Fall through to the legacy request-local preference when the host file is unavailable.
+  }
   const cookieLocale = matchLocale((await cookies()).get(LOCALE_COOKIE_NAME)?.value);
   if (cookieLocale) return cookieLocale;
 

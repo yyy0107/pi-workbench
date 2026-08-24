@@ -141,6 +141,27 @@ export interface HostDirectoryListing {
   truncated: boolean;
 }
 
+export interface ProjectTrustDescribePayload {
+  path: string;
+}
+
+export interface ProjectTrustDescribeValue {
+  /** Canonical project directory used as the trust identity. */
+  path: string;
+  /** Whether the directory currently contains project-local resources gated by Pi trust. */
+  requiresTrust: boolean;
+  /** Effective decision. Null means the Workbench UI must ask before admitting the directory. */
+  trusted: boolean | null;
+  promptRequired: boolean;
+  /** Canonical current or parent directory supplying a saved decision. */
+  decisionPath?: string;
+}
+
+export interface ProjectTrustUpdatePayload {
+  path: string;
+  trusted: boolean;
+}
+
 export type LocalAppKind = "editor" | "media-player" | "terminal" | "file-manager";
 
 export type LocalAppFileKind =
@@ -244,6 +265,8 @@ export interface HostDescription {
   version: string;
   piVersion: string;
   cwd: string;
+  /** Managed npm package directory for user-scoped Pi packages. */
+  userPackageDir?: string;
   provider?: string;
   model?: string;
   attachedSessions: number;
@@ -539,6 +562,53 @@ export interface SettingsOpenDocumentValue {
   opened: true;
 }
 
+export type WorkbenchSettingsJsonValue =
+  | null
+  | boolean
+  | number
+  | string
+  | WorkbenchSettingsJsonValue[]
+  | { [key: string]: WorkbenchSettingsJsonValue };
+
+export interface WorkbenchBackgroundImagePreference {
+  name: string;
+  mimeType: string;
+  /** Base64-encoded image bytes without a data URL prefix. */
+  data: string;
+}
+
+export interface WorkbenchModelSelectorPreference {
+  modelId: string;
+  reasoningEffort?: string;
+}
+
+export interface WorkbenchSettingsPreferences {
+  appearance?: Record<string, WorkbenchSettingsJsonValue>;
+  backgroundImage?: WorkbenchBackgroundImagePreference;
+  locale?: "en-US" | "zh-CN";
+  modelSelector?: WorkbenchModelSelectorPreference;
+  toolboxPins?: string[];
+  rightWorkspace?: Record<string, WorkbenchSettingsJsonValue>;
+  sidebarOpen?: boolean;
+}
+
+export type WorkbenchSettingsPreferencesPatch = {
+  [Key in keyof WorkbenchSettingsPreferences]?: WorkbenchSettingsPreferences[Key] | null;
+};
+
+export interface WorkbenchSettingsDescribeValue {
+  revision: number;
+  preferences: WorkbenchSettingsPreferences;
+}
+
+export interface WorkbenchSettingsUpdatePayload {
+  patch: WorkbenchSettingsPreferencesPatch;
+}
+
+export interface WorkbenchSettingsUpdateValue {
+  revision: number;
+}
+
 export type ImageUnderstandingRouting = "auto" | "always-preprocess" | "native-only" | "disabled";
 export type ImageUnderstandingEngine = "ocr" | "multimodal";
 export type ImageUnderstandingOcrProvider = "glm-ocr" | "paddleocr";
@@ -678,6 +748,98 @@ export interface ExtensionView {
 export interface ExtensionListValue {
   extensions: ExtensionView[];
   loadErrorCount: number;
+}
+
+export interface InstalledPackageListPayload {
+  sessionId: string;
+}
+
+export interface InstalledPackageView {
+  source: string;
+  scope: "user" | "project";
+  filtered: boolean;
+}
+
+export interface InstalledPackageListValue {
+  packages: InstalledPackageView[];
+}
+
+export type PiPackageInstallTarget =
+  | { scope: "user"; sessionId: string }
+  | { scope: "project"; workspaceId: string };
+
+export interface PiPackageInstallPayload {
+  name: string;
+  target: PiPackageInstallTarget;
+}
+
+export type PiPackageInstallValue =
+  | {
+      source: string;
+      scope: "user";
+      reloadRequired: true;
+    }
+  | {
+      source: string;
+      scope: "project";
+      workspaceId: string;
+      reloadRequired: true;
+    };
+
+export type PiPackageResourceType = "extension" | "skill" | "prompt" | "theme" | "package";
+
+export type PiPackageCatalogFilterType = Exclude<PiPackageResourceType, "package">;
+
+export type PiPackageCatalogSort = "downloads" | "recent" | "name";
+
+export interface PiPackageCatalogSearchPayload {
+  query?: string;
+  type?: PiPackageCatalogFilterType;
+  sort?: PiPackageCatalogSort;
+  page?: number;
+}
+
+export interface PiPackageCatalogItemView {
+  name: string;
+  description: string;
+  author: string;
+  types: PiPackageResourceType[];
+  monthlyDownloads: number;
+  publishedAt: number;
+  catalogUrl: string;
+  npmUrl: string;
+  repositoryUrl?: string;
+  version?: string;
+  installCommand: string;
+}
+
+export interface PiPackageCatalogDescribePayload {
+  name: string;
+}
+
+export interface PiPackageCatalogDetailsView {
+  name: string;
+  version?: string;
+  publishedAt?: number;
+  monthlyDownloads?: number;
+  weeklyDownloads?: number;
+  author?: string;
+  license?: string;
+  types: PiPackageResourceType[];
+  packageSizeBytes?: number;
+  dependencyCount?: number;
+  peerDependencyCount?: number;
+  manifestJson?: string;
+}
+
+export interface PiPackageCatalogSearchValue {
+  sourceUrl: string;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+  filteredTotal: number;
+  total: number;
+  packages: PiPackageCatalogItemView[];
 }
 
 export interface CommandListPayload {

@@ -21,13 +21,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useI18n } from "@/i18n";
-import {
-  createPiHostDirectory,
-  createPiWorkspace,
-  listPiHostDirectory,
-} from "@/runtime/pi/client/transport/api";
+import { createPiHostDirectory, listPiHostDirectory } from "@/runtime/pi/client/transport/api";
 import type { HostDirectoryListing } from "@/runtime/pi/rpc-contracts";
-import type { PiWorkspaceSummary } from "@/runtime/pi/contracts";
 
 type PickerError = "browse" | "create" | "select";
 
@@ -49,11 +44,11 @@ export function shouldUseNativeDirectoryPicker(): boolean {
 export function RemoteDirectoryPickerDialog({
   open,
   onOpenChange,
-  onSelect,
+  onSelectPath,
 }: {
   open: boolean;
   onOpenChange(open: boolean): void;
-  onSelect(workspace: PiWorkspaceSummary): void | Promise<void>;
+  onSelectPath(path: string): void | Promise<void>;
 }) {
   const { t } = useI18n();
   const requestId = useRef(0);
@@ -118,8 +113,7 @@ export function RemoteDirectoryPickerDialog({
     setSelecting(true);
     setError(null);
     try {
-      const { workspace } = await createPiWorkspace(listing.path);
-      await onSelect({ id: workspace.workspaceId, name: workspace.title, cwd: workspace.path });
+      await onSelectPath(listing.path);
       onOpenChange(false);
     } catch {
       setError("select");

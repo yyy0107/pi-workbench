@@ -68,7 +68,8 @@ context.workspace.register({
 仍会被恢复并显示为不可用标签；相同 kind 的扩展稍后激活后，标签可再次渲染。这避免 ExtensionProvider
 激活时序或临时禁用扩展导致用户布局丢失。
 
-布局元数据（包括辅助区显隐与宽度）保存在 `pi-workbench:right-workspace:v1`。React 组件、Service、WebSocket、Browser
+布局元数据（包括辅助区显隐与宽度）保存在 `~/.pi/agent/workbench-settings.json` 的
+`preferences.rightWorkspace`。旧浏览器键 `pi-workbench:right-workspace:v1` 会在首次 hydrate 时导入并删除。React 组件、Service、WebSocket、Browser
 Session、文件缓冲区和其他不可序列化资源不进入核心 Store。
 
 ## 资源打开边界

@@ -1,14 +1,14 @@
 "use client";
 
 import { useAui } from "@assistant-ui/react";
-import { FolderPlusIcon, LoaderCircleIcon } from "lucide-react";
+import { LoaderCircleIcon, PlusIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
-import { PiApiError, pickPiWorkspace } from "@/runtime/pi/client/transport/api";
+import { PiApiError, pickPiHostDirectory } from "@/runtime/pi/client/transport/api";
 import type { PiWorkspaceSummary } from "@/runtime/pi/contracts";
 import { useWorkspaceCapabilities } from "@/services/workspace-selection-service";
 
@@ -16,6 +16,8 @@ import {
   RemoteDirectoryPickerDialog,
   shouldUseNativeDirectoryPicker,
 } from "./remote-directory-picker-dialog";
+import { ProjectTrustDialog } from "./project-trust-dialog";
+import { useWorkspaceDirectoryAdmission } from "./use-workspace-directory-admission";
 import { activateCreatedWorkspace } from "./workspace-activation";
 
 export function DirectoryPickerButton() {
@@ -27,13 +29,17 @@ export function DirectoryPickerButton() {
   const [error, setError] = useState(false);
   const { beginNewThreadWithCreatedWorkspace } = useWorkspaceCapabilities();
 
-  const activateDirectory = async (workspace: PiWorkspaceSummary) => {
-    await activateCreatedWorkspace(workspace, {
-      beginNewThreadWithCreatedWorkspace,
-      switchToNewThread: () => aui.threads.switchToNewThread(),
-      navigateHome: () => router.push("/"),
-    });
-  };
+  const activateDirectory = useCallback(
+    async (workspace: PiWorkspaceSummary) => {
+      await activateCreatedWorkspace(workspace, {
+        beginNewThreadWithCreatedWorkspace,
+        switchToNewThread: () => aui.threads.switchToNewThread(),
+        navigateHome: () => router.push("/"),
+      });
+    },
+    [aui.threads, beginNewThreadWithCreatedWorkspace, router],
+  );
+  const admission = useWorkspaceDirectoryAdmission(activateDirectory);
 
   const pickDirectory = async () => {
     if (picking) return;
@@ -45,10 +51,8 @@ export function DirectoryPickerButton() {
     setPicking(true);
     setError(false);
     try {
-      const workspace = await pickPiWorkspace();
-      if (workspace) {
-        await activateDirectory(workspace);
-      }
+      const path = await pickPiHostDirectory();
+      if (path) await admission.selectPath(path);
     } catch (cause) {
       if (cause instanceof PiApiError && cause.code === "directory-picker-unavailable") {
         setRemotePickerOpen(true);
@@ -75,27 +79,35 @@ export function DirectoryPickerButton() {
         )}
         onClick={() => void pickDirectory()}
         className={cn(
-          "text-muted-foreground hover:text-foreground",
+          "text-muted-foreground hover:text-foreground focus-visible:border-transparent focus-visible:ring-0",
           error && "text-destructive hover:text-destructive",
         )}
       >
         {picking ? (
           <LoaderCircleIcon className="size-4 animate-spin" />
         ) : (
-          <FolderPlusIcon className="size-4" />
+          <PlusIcon className="size-4" />
         )}
       </Button>
       <RemoteDirectoryPickerDialog
         open={remotePickerOpen}
         onOpenChange={setRemotePickerOpen}
-        onSelect={async (workspace) => {
+        onSelectPath={async (path) => {
           try {
-            await activateDirectory(workspace);
+            await admission.selectPath(path);
           } catch (cause) {
             setError(true);
             throw cause;
           }
         }}
+      />
+      <ProjectTrustDialog
+        open={admission.pendingPath !== undefined}
+        path={admission.pendingPath ?? ""}
+        saving={admission.savingDecision}
+        error={admission.dialogError}
+        onCancel={admission.cancelTrust}
+        onDecision={admission.decideTrust}
       />
     </>
   );

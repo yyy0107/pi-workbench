@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { registerHooks } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -1057,17 +1057,25 @@ test("returns per-provider and runtime catalog failures without dropping healthy
 });
 
 test("keeps project extensions untrusted unless the workbench trust flag is exactly enabled", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-model-trust-"));
+  const workspacePath = path.join(root, "workspace");
+  await mkdir(path.join(workspacePath, ".pi", "extensions"), { recursive: true });
   const previousTrust = process.env.PI_WORKBENCH_TRUST_PROJECT;
-  t.after(() => {
+  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+  process.env.PI_CODING_AGENT_DIR = path.join(root, "agent");
+  t.after(async () => {
     if (previousTrust === undefined) delete process.env.PI_WORKBENCH_TRUST_PROJECT;
     else process.env.PI_WORKBENCH_TRUST_PROJECT = previousTrust;
+    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+    await rm(root, { recursive: true, force: true });
   });
 
   let resolveProjectTrust: (() => Promise<boolean>) | undefined;
   const service = modelService({
-    cwd: "/workspace",
+    cwd: workspacePath,
     serviceFactory: async (options) => {
-      assert.equal(options.cwd, "/workspace");
+      assert.equal(options.cwd, workspacePath);
       resolveProjectTrust = options.resourceLoaderReloadOptions.resolveProjectTrust;
       return { modelRuntime: runtime() };
     },

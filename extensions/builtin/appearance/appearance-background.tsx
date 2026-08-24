@@ -3,14 +3,13 @@
 import { useEffect, type CSSProperties } from "react";
 
 import {
-  APPEARANCE_STORAGE_KEY,
   type BackgroundBlur,
   type CodeFontFamily,
   type CornerRadiusStyle,
   type GlassBlur,
   type UiFontFamily,
 } from "@/services/appearance/appearance-preferences";
-import { appearanceStore, useAppearancePreferences } from "@/services/appearance/appearance-store";
+import { useAppearancePreferences } from "@/services/appearance/appearance-store";
 
 import { useBackgroundImage } from "./background-image-store";
 
@@ -275,15 +274,6 @@ function blendWithCustomBackground(themeColor: string, backgroundColor: string):
 export function AppearanceBackground() {
   const preferences = useAppearancePreferences();
   const backgroundImage = useBackgroundImage();
-
-  useEffect(() => {
-    const handleStorage = (event: StorageEvent) => {
-      if (event.key === APPEARANCE_STORAGE_KEY) appearanceStore.sync(event.newValue);
-    };
-
-    window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
-  }, []);
 
   useEffect(() => {
     const root = document.documentElement;

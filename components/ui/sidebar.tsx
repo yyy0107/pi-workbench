@@ -21,25 +21,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { PanelLeftIcon } from "lucide-react";
 
-const SIDEBAR_COOKIE_NAME = "sidebar_state";
-const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 const SIDEBAR_WIDTH = "16rem";
 const SIDEBAR_WIDTH_MOBILE = "18rem";
 const SIDEBAR_WIDTH_ICON = "3rem";
 const SIDEBAR_KEYBOARD_SHORTCUT = "b";
-
-function readPersistedSidebarState(cookie: string): boolean | undefined {
-  const prefix = `${SIDEBAR_COOKIE_NAME}=`;
-  const value = cookie
-    .split(";")
-    .map((part) => part.trim())
-    .find((part) => part.startsWith(prefix))
-    ?.slice(prefix.length);
-
-  if (value === "true") return true;
-  if (value === "false") return false;
-  return undefined;
-}
 
 type SidebarContextProps = {
   state: "expanded" | "collapsed";
@@ -83,12 +68,6 @@ function SidebarProvider({
   const [_open, _setOpen] = React.useState(defaultOpen);
   const open = openProp ?? _open;
 
-  React.useLayoutEffect(() => {
-    if (openProp !== undefined) return;
-    const persistedOpen = readPersistedSidebarState(document.cookie);
-    if (persistedOpen !== undefined) _setOpen(persistedOpen);
-  }, [openProp]);
-
   const setOpen = React.useCallback(
     (value: boolean | ((value: boolean) => boolean)) => {
       const openState = typeof value === "function" ? value(open) : value;
@@ -97,9 +76,6 @@ function SidebarProvider({
       } else {
         _setOpen(openState);
       }
-
-      // This sets the cookie to keep the sidebar state.
-      document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
     },
     [setOpenProp, open],
   );

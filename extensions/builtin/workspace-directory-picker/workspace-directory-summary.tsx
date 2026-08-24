@@ -2,12 +2,12 @@
 
 import { useAuiState } from "@assistant-ui/react";
 import { FolderIcon, LoaderCircleIcon, ShieldCheckIcon } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import type { ComposerDrawerSlotContext } from "@/platform/extensions";
-import { PiApiError, pickPiWorkspace } from "@/runtime/pi/client/transport/api";
+import { PiApiError, pickPiHostDirectory } from "@/runtime/pi/client/transport/api";
 import type { PiWorkspaceSummary } from "@/runtime/pi/contracts";
 import {
   useWorkspaceCapabilities,
@@ -18,6 +18,8 @@ import {
   RemoteDirectoryPickerDialog,
   shouldUseNativeDirectoryPicker,
 } from "./remote-directory-picker-dialog";
+import { ProjectTrustDialog } from "./project-trust-dialog";
+import { useWorkspaceDirectoryAdmission } from "./use-workspace-directory-admission";
 
 export function WorkspaceDirectorySummary(_context: ComposerDrawerSlotContext) {
   const { t } = useI18n();
@@ -31,9 +33,13 @@ export function WorkspaceDirectorySummary(_context: ComposerDrawerSlotContext) {
   const { beginNewThreadWithCreatedWorkspace } = useWorkspaceCapabilities();
   const selectedDirectory = isNewThread ? draftWorkspace : activeWorkspace;
 
-  const selectWorkspace = (workspace: PiWorkspaceSummary) => {
-    beginNewThreadWithCreatedWorkspace(workspace);
-  };
+  const selectWorkspace = useCallback(
+    (workspace: PiWorkspaceSummary) => {
+      beginNewThreadWithCreatedWorkspace(workspace);
+    },
+    [beginNewThreadWithCreatedWorkspace],
+  );
+  const admission = useWorkspaceDirectoryAdmission(selectWorkspace);
 
   const pickDirectory = async () => {
     if (picking) return;
@@ -45,10 +51,8 @@ export function WorkspaceDirectorySummary(_context: ComposerDrawerSlotContext) {
     setPicking(true);
     setError(false);
     try {
-      const workspace = await pickPiWorkspace();
-      if (workspace) {
-        selectWorkspace(workspace);
-      }
+      const path = await pickPiHostDirectory();
+      if (path) await admission.selectPath(path);
     } catch (cause) {
       if (cause instanceof PiApiError && cause.code === "directory-picker-unavailable") {
         setRemotePickerOpen(true);
@@ -99,7 +103,15 @@ export function WorkspaceDirectorySummary(_context: ComposerDrawerSlotContext) {
       <RemoteDirectoryPickerDialog
         open={remotePickerOpen}
         onOpenChange={setRemotePickerOpen}
-        onSelect={selectWorkspace}
+        onSelectPath={admission.selectPath}
+      />
+      <ProjectTrustDialog
+        open={admission.pendingPath !== undefined}
+        path={admission.pendingPath ?? ""}
+        saving={admission.savingDecision}
+        error={admission.dialogError}
+        onCancel={admission.cancelTrust}
+        onDecision={admission.decideTrust}
       />
     </>
   );

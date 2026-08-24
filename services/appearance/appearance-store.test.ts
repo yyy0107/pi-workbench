@@ -8,7 +8,7 @@ import {
 } from "./appearance-preferences";
 import { appearanceStore } from "./appearance-store";
 
-test("hydrates, persists, syncs, and resets appearance preferences", () => {
+test("hydrates legacy browser preferences without writing new browser state", () => {
   const originalWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, "window");
   const storageValues = new Map<string, string>([
     [APPEARANCE_STORAGE_KEY, JSON.stringify({ colorMode: "dark" })],
@@ -46,13 +46,11 @@ test("hydrates, persists, syncs, and resets appearance preferences", () => {
 
     appearanceStore.update({ codeTheme: "dracula" });
     assert.equal(appearanceStore.getSnapshot().codeTheme, "dracula");
-    assert.equal(writes.length, 1);
-    assert.equal(writes[0]?.[0], APPEARANCE_STORAGE_KEY);
-    assert.equal(JSON.parse(writes[0]?.[1] ?? "{}").codeTheme, "dracula");
+    assert.equal(writes.length, 0);
 
     appearanceStore.sync(JSON.stringify({ codeTheme: "nord" }));
     assert.equal(appearanceStore.getSnapshot().codeTheme, "nord");
-    assert.equal(writes.length, 1);
+    assert.equal(writes.length, 0);
 
     appearanceStore.reset();
     assert.equal(appearanceStore.getSnapshot(), DEFAULT_APPEARANCE_PREFERENCES);

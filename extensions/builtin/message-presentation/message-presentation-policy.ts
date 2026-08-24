@@ -7,7 +7,7 @@ export type MessagePresentationDisclosure =
   | "tool"
   | "parallel-tools";
 
-export type MessagePresentationPhase = "streaming" | "completed";
+export type MessagePresentationPhase = "streaming" | "steered" | "completed";
 
 export function messageTextPresentation(
   role: "user" | "assistant" | "system",
@@ -51,6 +51,13 @@ const DEFAULT_OPEN: Readonly<
   Record<MessagePresentationPhase, Readonly<Record<MessagePresentationDisclosure, boolean>>>
 > = {
   streaming: {
+    "completed-turn": false,
+    steps: true,
+    reasoning: false,
+    tool: false,
+    "parallel-tools": false,
+  },
+  steered: {
     "completed-turn": false,
     steps: true,
     reasoning: false,

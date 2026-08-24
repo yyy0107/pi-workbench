@@ -1,6 +1,14 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 
 import { SidebarProvider } from "@/components/ui/sidebar";
 import {
@@ -13,6 +21,10 @@ import {
 } from "@/components/right-workspace";
 import { cn } from "@/lib/utils";
 import { SlotHost } from "@/platform/extensions";
+import {
+  loadWorkbenchSettingsPreferences,
+  updateWorkbenchSettingsPreferences,
+} from "@/runtime/pi/client/settings/workbench-settings-client";
 
 import { PanelLayout } from "@/workbench/panels/panel-layout";
 
@@ -25,9 +37,28 @@ import { WorkbenchStatusbar } from "./workbench-statusbar";
 const DEFAULT_SIDEBAR_WIDTH = 268;
 const MIN_SIDEBAR_WIDTH = 240;
 const MAX_SIDEBAR_WIDTH = 560;
+const LEGACY_SIDEBAR_COOKIE_NAME = "sidebar_state";
+
+function readLegacySidebarOpen(): boolean | undefined {
+  const prefix = `${LEGACY_SIDEBAR_COOKIE_NAME}=`;
+  const value = document.cookie
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(prefix))
+    ?.slice(prefix.length);
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return undefined;
+}
+
+function clearLegacySidebarOpen(): void {
+  document.cookie = `${LEGACY_SIDEBAR_COOKIE_NAME}=; path=/; max-age=0; samesite=lax`;
+}
 
 export function WorkbenchShell({ children }: Readonly<{ children: ReactNode }>) {
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const sidebarRevision = useRef(0);
   const shellRef = useRef<HTMLDivElement>(null);
   const workspaceHostRef = useRef<HTMLDivElement>(null);
   const previousWorkspaceHostWidthRef = useRef<number | undefined>(undefined);
@@ -39,6 +70,30 @@ export function WorkbenchShell({ children }: Readonly<{ children: ReactNode }>) 
     workspaceMaximized,
   );
   const conversationHidden = workspacePresentation === "maximized";
+
+  useEffect(() => {
+    const legacyOpen = readLegacySidebarOpen();
+    const hydrationRevision = sidebarRevision.current;
+    if (legacyOpen !== undefined) setSidebarOpen(legacyOpen);
+    void loadWorkbenchSettingsPreferences()
+      .then(async (preferences) => {
+        if (preferences.sidebarOpen !== undefined) {
+          if (sidebarRevision.current === hydrationRevision) {
+            setSidebarOpen(preferences.sidebarOpen);
+          }
+        } else if (sidebarRevision.current === hydrationRevision) {
+          await updateWorkbenchSettingsPreferences({ sidebarOpen: legacyOpen ?? true });
+        }
+        clearLegacySidebarOpen();
+      })
+      .catch(() => undefined);
+  }, []);
+
+  const handleSidebarOpenChange = useCallback((open: boolean) => {
+    sidebarRevision.current += 1;
+    setSidebarOpen(open);
+    void updateWorkbenchSettingsPreferences({ sidebarOpen: open }).catch(() => undefined);
+  }, []);
 
   useLayoutEffect(() => {
     const workspaceHost = workspaceHostRef.current;
@@ -76,6 +131,8 @@ export function WorkbenchShell({ children }: Readonly<{ children: ReactNode }>) 
 
   return (
     <SidebarProvider
+      open={sidebarOpen}
+      onOpenChange={handleSidebarOpenChange}
       ref={shellRef}
       className="bg-background text-foreground relative isolate h-dvh min-h-0 overflow-hidden"
       data-workbench-shell=""

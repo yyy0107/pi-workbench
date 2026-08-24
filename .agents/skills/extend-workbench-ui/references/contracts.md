@@ -12,6 +12,7 @@ Use this reference to verify the current first-version public API before impleme
 - [Opener contract](#opener-contract)
 - [Composer Command contract](#composer-command-contract)
 - [Settings contract](#settings-contract)
+- [Main View contract](#main-view-contract)
 - [Renderer contract](#renderer-contract)
 - [RightWorkspace boundary](#rightworkspace-boundary)
 - [Pi runtime boundary](#pi-runtime-boundary)
@@ -27,12 +28,14 @@ Import from the barrel:
 import {
   defineExtension,
   useCommandService,
+  useMainViewService,
   useNavigationService,
   usePanelService,
   useSettingsRegistry,
   type CommandDefinition,
   type ComposerSlotContext,
   type PanelComponentProps,
+  type MainViewProps,
   type WorkspaceActionsSlotContext,
   type WorkspaceSurfaceDefinition,
 } from "@/platform/extensions";
@@ -44,9 +47,9 @@ Source of truth:
 - `platform/extensions/api/`
 - `platform/extensions/extension-context.ts`
 
-Business extensions must not import concrete registries, stores, or hosts. Workspace Surface
-registration is part of `ExtensionContext`; RightWorkspace controller hooks and Pi runtime remain
-separate public boundaries described below.
+Business extensions must not import concrete registries, stores, or hosts. Main View and Workspace
+Surface registration are part of `ExtensionContext`; RightWorkspace controller hooks and Pi runtime
+remain separate public boundaries described below.
 
 ## Extension lifecycle
 
@@ -58,6 +61,7 @@ interface ExtensionContext {
   readonly openers: OpenerRegistry;
   readonly renderers: RendererRegistry;
   readonly settings: SettingsRegistry;
+  readonly mainViews: MainViewRegistry;
   readonly workspace: WorkspaceSurfaceRegistry;
 }
 
@@ -201,11 +205,15 @@ Sidebar positions are semantic:
 
 - `sidebar.brand`: replaceable product identity at the top of the sidebar;
 - `sidebar.header`: optional compact controls below the brand;
-- `sidebar.navigation`: optional primary navigation directly after the core New Conversation control;
+- `sidebar.navigation`: optional navigation directly after the core section switcher;
 - `sidebar.workspace.actions`: compact controls on the right side of the Workspace heading;
 - `sidebar.top`: contextual content above the core thread list;
 - `sidebar.bottom`: contextual content below the core thread list;
 - `sidebar.footer`: persistent bottom utilities.
+
+`sidebar.toolbox` is the compact root of the Toolbox section and receives `{ searchQuery: string }`.
+Keep category pages and long details out of the narrow sidebar: open a Main View to replace the
+conversation. Do not route toolbox management pages into RightWorkspace.
 
 The mobile conversation Sheet mounts `sidebar.workspace.actions`, but not `sidebar.brand`,
 `sidebar.header`, `sidebar.navigation`, `sidebar.top`, `sidebar.bottom`, or `sidebar.footer`. Add a
@@ -374,6 +382,44 @@ preference UI, state, and persistence.
 Use `useSettingsRegistry()` only in the shared settings Host or tooling that needs subscribed
 snapshots. Business extensions should register contributions synchronously in `setup()`.
 
+## Main View contract
+
+Use a Main View for a full feature page that temporarily replaces the central conversation while
+preserving the Workbench shell and sidebar:
+
+```ts
+interface MainViewDefinition<P extends Record<string, unknown>> {
+  kind: string;
+  component: ComponentType<MainViewProps<P>>;
+}
+
+interface MainViewProps<P extends Record<string, unknown>> {
+  view: { kind: string; title: LocalizableText; params: P; revision: number };
+  close(): void;
+}
+
+context.mainViews.register({ kind: "example", component: ExampleMainView });
+mainViews.open({
+  kind: "example",
+  title: defineMessage("extensions.toolbox.packages.title"),
+  params: { section: "catalog" },
+});
+```
+
+Call `useMainViewService()` from a mounted extension component. `open()` accepts registered kinds
+only and shallow-freezes feature-owned params. Every request increments `revision`, including
+requests for the active kind. `close()` restores the conversation; switching the core sidebar to
+Workspace, changing the conversation URL, or unregistering the definition also closes the active
+Main View.
+
+Every open request also supplies a `LocalizableText` title. The Workbench header resolves it at
+render time, so built-in extensions should pass a `defineMessage(...)` descriptor instead of a
+translated string. A Main View title replaces the conversation title only while that view is active.
+
+Main Views own their internal navigation, layout, and i18n. They do not provide URL routing,
+resource keys, persistent tabs, scopes, or keep-alive behavior. Use a Next.js route for URL identity
+and a Workspace Surface for a persistent, resource-scoped right Inspector.
+
 ## Renderer contract
 
 ```ts
@@ -401,6 +447,12 @@ Resolution order:
 A Renderer only displays an existing message Part. It does not define a tool, expose it to a model, execute it, or cause a data Part to be emitted.
 
 Tool args are partial during streaming. Handle `running`, `complete`, `incomplete`, and `requires-action` as applicable. Tool renderer props can expose `addResult()`, `resume()`, and `respondToApproval()`; call them only in the matching Runtime state.
+
+`ToolPresentationDefinition.disclosureController` is an optional component mounted outside the
+tool-detail disclosure. It receives the current Part, `running`, `open`, and the host-owned
+`onOpenChange`; use it when an extension-owned asynchronous presentation signal—such as a terminal
+waiting for input—must reveal a collapsed Tool Renderer. It is presentation-only: do not execute the
+tool, duplicate the detail UI, or mutate the Part from this controller.
 
 ## Opener contract
 
@@ -559,6 +611,7 @@ Panel id              global within PanelRegistry
 Command id            global within CommandRegistry
 Open handler id       global within OpenerRegistry
 Settings section id   global within SettingsRegistry
+Main view kind         global within MainViewRegistry
 Settings item id      unique within one settings section
 Message renderer      one active within Message RendererRegistry
 Tool renderer name    unique within Tool RendererRegistry
@@ -568,10 +621,10 @@ Workspace surface kind global within WorkspaceSurfaceRegistry
 
 Slots and Settings sections/items have numeric ordering. The module-level `enabledExtensions` order determines activation order, same-order ties across extension registrations, conflicting shortcut selection, and command display order within a category.
 
-Slot, Panel, Command, Open Handler, Settings, and Workspace Surface definitions are copied and shallow-frozen at registration. Dispose and register a replacement instead of mutating registered data.
+Slot, Panel, Command, Open Handler, Settings, Main View, and Workspace Surface definitions are copied and shallow-frozen at registration. Dispose and register a replacement instead of mutating registered data.
 
 ## Error isolation
 
-Slot, Panel, Settings item, Renderer, and Workspace Surface contributions receive separate React Error Boundaries. Setup failures are reported and rolled back. Palette/keyboard Command execution reports rejected Promises.
+Slot, Panel, Settings item, Main View, Renderer, and Workspace Surface contributions receive separate React Error Boundaries. Setup failures are reported and rolled back. Palette/keyboard Command execution reports rejected Promises.
 
 React Error Boundaries do not catch event-handler errors or arbitrary asynchronous failures. Handle those locally or route them through the extension environment.

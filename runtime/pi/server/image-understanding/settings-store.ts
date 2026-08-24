@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, rm } from "node:fs/promises";
 import path from "node:path";
 
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
@@ -25,6 +25,11 @@ import {
   type OcrAdapterPresetId,
 } from "../../../image-understanding/ocr-adapter";
 import { atomicReplaceFile, withCrossProcessFileLock } from "../core/file-persistence";
+import {
+  nextWorkbenchSettingsDocument,
+  readWorkbenchSettingsDocument,
+  writeWorkbenchSettingsDocument,
+} from "../settings/workbench-settings-file";
 
 type JsonObject = Record<string, unknown>;
 
@@ -65,6 +70,10 @@ interface StoreSnapshot {
 
 export interface ImageUnderstandingSettingsStoreOptions {
   stateFile?: string;
+  /** Embed the document under this key in workbench-settings.json. */
+  documentSection?: "imageUnderstanding";
+  /** Standalone document imported and removed after a successful embedded write. */
+  legacyStateFile?: string;
 }
 
 export interface ImageUnderstandingRuntimeSettings extends ImageUnderstandingDescribeValue {
@@ -421,15 +430,21 @@ function applySecretPatch(
 
 export class ImageUnderstandingSettingsStore {
   readonly stateFile: string;
+  private readonly documentSection?: "imageUnderstanding";
+  private readonly legacyStateFile?: string;
 
   constructor(options: ImageUnderstandingSettingsStoreOptions = {}) {
     this.stateFile =
       options.stateFile ?? path.join(getAgentDir(), "workbench", "image-understanding.json");
+    this.documentSection = options.documentSection;
+    this.legacyStateFile = options.legacyStateFile
+      ? path.resolve(options.legacyStateFile)
+      : undefined;
   }
 
-  private async readOptional(): Promise<string | undefined> {
+  private async readOptional(stateFile = this.stateFile): Promise<string | undefined> {
     try {
-      return await readFile(this.stateFile, "utf8");
+      return await readFile(stateFile, "utf8");
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
       throw error;
@@ -437,11 +452,42 @@ export class ImageUnderstandingSettingsStore {
   }
 
   private async snapshot(): Promise<StoreSnapshot> {
+    if (this.documentSection) {
+      const workbenchDocument = await readWorkbenchSettingsDocument(this.stateFile);
+      if (workbenchDocument.imageUnderstanding !== undefined) {
+        return {
+          document: parseDocument(JSON.stringify(workbenchDocument.imageUnderstanding)),
+        };
+      }
+
+      const legacyContent = this.legacyStateFile
+        ? await this.readOptional(this.legacyStateFile)
+        : undefined;
+      const document =
+        legacyContent === undefined ? defaultDocument() : parseDocument(legacyContent);
+      await writeWorkbenchSettingsDocument(
+        this.stateFile,
+        nextWorkbenchSettingsDocument(workbenchDocument, { imageUnderstanding: document }),
+      );
+      if (legacyContent !== undefined && this.legacyStateFile) {
+        await rm(this.legacyStateFile, { force: true }).catch(() => undefined);
+      }
+      return { document };
+    }
+
     const content = await this.readOptional();
     return { document: content === undefined ? defaultDocument() : parseDocument(content) };
   }
 
   private async writeDocument(document: StoredDocumentV1): Promise<void> {
+    if (this.documentSection) {
+      const workbenchDocument = await readWorkbenchSettingsDocument(this.stateFile);
+      await writeWorkbenchSettingsDocument(
+        this.stateFile,
+        nextWorkbenchSettingsDocument(workbenchDocument, { imageUnderstanding: document }),
+      );
+      return;
+    }
     await atomicReplaceFile(this.stateFile, serialized(document), {
       directoryMode: 0o700,
       enforceFileModeAfterReplace: true,
@@ -451,7 +497,9 @@ export class ImageUnderstandingSettingsStore {
   private async withLock<T>(operation: () => Promise<T>): Promise<T> {
     return withCrossProcessFileLock(
       {
-        lockDirectory: `${this.stateFile}.workbench-lock`,
+        lockDirectory: this.documentSection
+          ? `${this.stateFile}.lock`
+          : `${this.stateFile}.workbench-lock`,
         parentDirectoryMode: 0o700,
       },
       operation,
@@ -460,7 +508,7 @@ export class ImageUnderstandingSettingsStore {
 
   async describe(): Promise<ImageUnderstandingDescribeValue> {
     try {
-      return describeDocument((await this.snapshot()).document);
+      return await this.withLock(async () => describeDocument((await this.snapshot()).document));
     } catch (error) {
       throw new ImageUnderstandingSettingsStoreError(
         error instanceof TypeError || error instanceof SyntaxError
@@ -475,7 +523,7 @@ export class ImageUnderstandingSettingsStore {
       throw new ImageUnderstandingSettingsStoreError("image-settings-invalid");
     }
     try {
-      return (await this.snapshot()).document.secrets[provider];
+      return await this.withLock(async () => (await this.snapshot()).document.secrets[provider]);
     } catch (error) {
       throw new ImageUnderstandingSettingsStoreError(
         error instanceof TypeError || error instanceof SyntaxError
@@ -487,13 +535,15 @@ export class ImageUnderstandingSettingsStore {
 
   async resolveRuntimeSettings(): Promise<ImageUnderstandingRuntimeSettings> {
     try {
-      const { document } = await this.snapshot();
-      const described = describeDocument(document);
-      const credential = document.secrets[credentialSlotForAdapter(document.settings.ocrAdapter)];
-      return {
-        ...described,
-        ...(credential === undefined ? {} : { credential }),
-      };
+      return await this.withLock(async () => {
+        const { document } = await this.snapshot();
+        const described = describeDocument(document);
+        const credential = document.secrets[credentialSlotForAdapter(document.settings.ocrAdapter)];
+        return {
+          ...described,
+          ...(credential === undefined ? {} : { credential }),
+        };
+      });
     } catch (error) {
       throw new ImageUnderstandingSettingsStoreError(
         error instanceof TypeError || error instanceof SyntaxError

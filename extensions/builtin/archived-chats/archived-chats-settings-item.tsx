@@ -316,7 +316,7 @@ export function ArchivedChatsSettingsItem({ sectionId, itemId }: SettingsItemCom
 
           <DropdownMenu>
             <SettingsDropdownTrigger
-              className="h-9 min-w-36 justify-between rounded-xl border border-input bg-background"
+              className="h-9 min-w-36 justify-between rounded-xl border border-input"
               aria-label={t("extensions.archivedChats.sortLabel")}
             >
               <ArrowDownAZIcon className="text-muted-foreground size-4" />
@@ -349,7 +349,7 @@ export function ArchivedChatsSettingsItem({ sectionId, itemId }: SettingsItemCom
 
           <DropdownMenu>
             <SettingsDropdownTrigger
-              className="h-9 min-w-40 justify-between rounded-xl border border-input bg-background"
+              className="h-9 min-w-40 justify-between rounded-xl border border-input"
               aria-label={t("extensions.archivedChats.projectFilterLabel")}
             >
               <FolderIcon className="text-muted-foreground size-4" />

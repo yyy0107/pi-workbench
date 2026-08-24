@@ -3,6 +3,7 @@ import type { ComposerCommandRegistry } from "./api/composer-command";
 import { disposeAll, type Disposable } from "./api/disposable";
 import type { ExtensionContext, ExtensionSetupResult, WorkbenchExtension } from "./api/extension";
 import type { PanelRegistry } from "./api/panel";
+import type { MainViewDefinition, MainViewRegistry } from "./api/main-view";
 import type {
   DataPresentationRegistry,
   DataRendererComponent,
@@ -19,6 +20,7 @@ import type { OpenerRegistry } from "./api/opener";
 import { CommandRegistryImpl } from "./registries/command-registry";
 import { ComposerCommandRegistryImpl } from "./registries/composer-command-registry";
 import { PanelRegistryImpl } from "./registries/panel-registry";
+import { MainViewRegistryImpl } from "./registries/main-view-registry";
 import { RendererRegistryImpl } from "./registries/renderer-registry";
 import { SettingsRegistryImpl } from "./registries/settings-registry";
 import { SlotRegistryImpl } from "./registries/slot-registry";
@@ -40,6 +42,7 @@ export class ExtensionManager implements Disposable {
   readonly composerCommands: ComposerCommandRegistry = new ComposerCommandRegistryImpl();
   readonly renderers: RendererRegistry = new RendererRegistryImpl();
   readonly settings: SettingsRegistry = new SettingsRegistryImpl();
+  readonly mainViews: MainViewRegistry = new MainViewRegistryImpl();
   readonly workspace: WorkspaceSurfaceRegistry = new WorkspaceSurfaceRegistryImpl();
 
   readonly #active = new Map<string, ActiveExtension>();
@@ -220,6 +223,14 @@ export class ExtensionManager implements Disposable {
       subscribe: this.settings.subscribe,
     };
 
+    const mainViews: MainViewRegistry = {
+      register: <P extends Record<string, unknown>>(definition: MainViewDefinition<P>) =>
+        track(this.mainViews.register(definition)),
+      get: (kind) => this.mainViews.get(kind),
+      getAll: () => this.mainViews.getAll(),
+      subscribe: this.mainViews.subscribe,
+    };
+
     const workspace: WorkspaceSurfaceRegistry = {
       register: <P extends Record<string, unknown>>(definition: WorkspaceSurfaceDefinition<P>) =>
         track(this.workspace.register(definition)),
@@ -236,6 +247,7 @@ export class ExtensionManager implements Disposable {
       composerCommands,
       renderers,
       settings,
+      mainViews,
       workspace,
     });
   }

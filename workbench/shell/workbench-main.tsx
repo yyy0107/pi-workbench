@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
+import { MainViewHost } from "@/platform/extensions";
 
 export function WorkbenchMain({
   children,
@@ -11,7 +12,7 @@ export function WorkbenchMain({
       data-workbench-surface="main"
       className={cn("bg-background min-h-0 min-w-0 flex-1 overflow-hidden", className)}
     >
-      {children}
+      <MainViewHost>{children}</MainViewHost>
     </main>
   );
 }

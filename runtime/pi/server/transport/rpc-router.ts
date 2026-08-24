@@ -1,4 +1,6 @@
-import { VERSION as PI_VERSION } from "@earendil-works/pi-coding-agent";
+import path from "node:path";
+
+import { getAgentDir, VERSION as PI_VERSION } from "@earendil-works/pi-coding-agent";
 
 import { INLINE_DOCUMENT_MEDIA_TYPES, INLINE_IMAGE_MEDIA_TYPES } from "../../attachment-contracts";
 import {
@@ -12,11 +14,23 @@ import {
 import { localAppService, LocalAppServiceError } from "../local-apps/index";
 import { CommandService, CommandServiceError } from "../commands/command-service";
 import { ExtensionService, ExtensionServiceError } from "../extensions/extension-service";
+import {
+  PiPackageCatalogService,
+  PiPackageCatalogServiceError,
+} from "../packages/package-catalog-service";
+import {
+  InstalledPackageService,
+  InstalledPackageServiceError,
+} from "../packages/installed-package-service";
 import { ModelService, ModelServiceError } from "../models/model-service";
 import {
   AgentSettingsService,
   AgentSettingsServiceError,
 } from "../settings/agent-settings-service";
+import {
+  WorkbenchSettingsService,
+  WorkbenchSettingsServiceError,
+} from "../settings/workbench-settings-service";
 import { ImageUnderstandingSettingsStoreError } from "../image-understanding/settings-store";
 import { getImageUnderstandingSettingsStore } from "../image-understanding/registry";
 import { handleInteractiveResponsePost } from "../sessions/interactive-response-registry";
@@ -46,10 +60,12 @@ import {
   type RpcValidator,
 } from "./rpc-transport";
 import type { WorkbenchComposerJsonValue } from "../../../composer-request";
+import type { WorkbenchSettingsUpdatePayload } from "../../rpc-contracts";
 import { SessionRpcService, SessionRpcServiceError } from "../sessions/session-rpc-service";
 import { getWorkspaceStore } from "../workspaces/workspace-registry";
 import { WorkspaceFileError, WorkspaceFileService } from "../workspaces/workspace-files";
 import { WorkspaceStoreError } from "../workspaces/workspace-store";
+import { getProjectTrustService, ProjectTrustServiceError } from "../trust/project-trust-service";
 
 const emptyPayload = rpcObject({});
 const nonEmptyString = rpcString({ minLength: 1 });
@@ -60,6 +76,10 @@ const createDirectoryPayload = rpcObject({
   name: rpcString(),
 });
 const pathPayload = rpcObject({ path: nonEmptyString });
+const projectTrustUpdatePayload = rpcObject({
+  path: nonEmptyString,
+  trusted: rpcBoolean,
+});
 const localAppOpenPayload = rpcObject({
   appId: rpcString({ minLength: 1, maxLength: 256 }),
   target: rpcString({ minLength: 1, maxLength: 32_768 }),
@@ -98,6 +118,31 @@ const setWorkspacePinnedPayload = rpcObject({
   pinned: rpcBoolean,
 });
 const sessionIdPayload = rpcObject({ sessionId: nonEmptyString });
+const packageCatalogSearchPayload = rpcObject({
+  query: rpcOptional(rpcString({ maxLength: 200, trim: true })),
+  type: rpcOptional(rpcEnum(["extension", "skill", "prompt", "theme"])),
+  sort: rpcOptional(rpcEnum(["downloads", "recent", "name"])),
+  page: rpcOptional(rpcInteger({ minimum: 1, maximum: 10_000 })),
+});
+const packageCatalogName = rpcRefine(
+  rpcString({ minLength: 1, maxLength: 214, trim: true }),
+  (name) => /^(?:@[a-z0-9][a-z0-9._~-]*\/)?[a-z0-9][a-z0-9._~-]*$/.test(name),
+  { message: "Expected a valid npm package name." },
+);
+const packageCatalogDescribePayload = rpcObject({ name: packageCatalogName });
+const packageInstallPayload = rpcObject({
+  name: packageCatalogName,
+  target: rpcUnion([
+    rpcObject({
+      scope: rpcLiteral("user"),
+      sessionId: nonEmptyString,
+    }),
+    rpcObject({
+      scope: rpcLiteral("project"),
+      workspaceId: nonEmptyString,
+    }),
+  ]),
+});
 const setSessionPinnedPayload = rpcObject({
   sessionId: nonEmptyString,
   pinned: rpcBoolean,
@@ -182,6 +227,34 @@ const settingsUpdatePayload = rpcObject({
   patch: agentSettingsPatch,
   expectedRevision: rpcOptional(rpcInteger({ minimum: 0 })),
 });
+const workbenchSettingsUpdatePayload = rpcObject({
+  patch: rpcObject({
+    appearance: rpcOptional(rpcNullable(rpcRecord(rpcUnknown))),
+    backgroundImage: rpcOptional(
+      rpcNullable(
+        rpcObject({
+          name: rpcString({ minLength: 1, maxLength: 1_024 }),
+          mimeType: rpcString({ minLength: 1, maxLength: 256 }),
+          data: rpcString({ minLength: 1, maxLength: 16 * 1024 * 1024 }),
+        }),
+      ),
+    ),
+    locale: rpcOptional(rpcNullable(rpcEnum(["en-US", "zh-CN"]))),
+    modelSelector: rpcOptional(
+      rpcNullable(
+        rpcObject({
+          modelId: rpcString({ minLength: 1, maxLength: 512 }),
+          reasoningEffort: rpcOptional(rpcString({ minLength: 1, maxLength: 128 })),
+        }),
+      ),
+    ),
+    toolboxPins: rpcOptional(
+      rpcNullable(rpcArray(rpcString({ minLength: 1, maxLength: 512 }), { maxLength: 1_000 })),
+    ),
+    rightWorkspace: rpcOptional(rpcNullable(rpcRecord(rpcUnknown))),
+    sidebarOpen: rpcOptional(rpcNullable(rpcBoolean)),
+  }),
+});
 const imageUnderstandingCredential = rpcOptional(
   rpcUnion([rpcString({ maxLength: 16_384 }), rpcLiteral(null)]),
 );
@@ -232,8 +305,14 @@ const commandService = new CommandService();
 const modelService = new ModelService();
 const extensionService = new ExtensionService();
 const skillService = new SkillService();
+const installedPackageService = new InstalledPackageService();
+const packageCatalogService = new PiPackageCatalogService();
 const agentSettingsService = new AgentSettingsService();
 const workspaceFileService = new WorkspaceFileService({ workspaceStore: getWorkspaceStore });
+
+function workbenchSettingsService(): WorkbenchSettingsService {
+  return new WorkbenchSettingsService();
+}
 
 function sessionService(): SessionRpcService {
   return new SessionRpcService({ workspaceStore: getWorkspaceStore() });
@@ -415,7 +494,11 @@ function throwDomainError(error: unknown): never {
     error instanceof SessionRpcServiceError ||
     error instanceof ExtensionServiceError ||
     error instanceof SkillServiceError ||
-    error instanceof AgentSettingsServiceError
+    error instanceof InstalledPackageServiceError ||
+    error instanceof PiPackageCatalogServiceError ||
+    error instanceof AgentSettingsServiceError ||
+    error instanceof WorkbenchSettingsServiceError ||
+    error instanceof ProjectTrustServiceError
   ) {
     throw rpcBusinessError(error.code, error.message, { ...error.details }, { cause: error });
   }
@@ -428,11 +511,19 @@ function isAborted(error: unknown, signal: AbortSignal): boolean {
 
 async function workspaceList() {
   const { sessions } = await listSessions();
+  const workspaceStore = getWorkspaceStore();
+  await workspaceStore.reconcileSessions(
+    sessions.map((session) => ({ id: session.id, cwd: session.cwd })),
+  );
   const { items, pinnedWorkspaceIds, pinnedSessionIds } =
-    await getWorkspaceStore().reconcileSessions(
-      sessions.map((session) => ({ id: session.id, cwd: session.cwd })),
-    );
+    await migrateExistingWorkspaceTrust(workspaceStore);
   return { items, pinnedWorkspaceIds, pinnedSessionIds };
+}
+
+async function migrateExistingWorkspaceTrust(workspaceStore = getWorkspaceStore()) {
+  return workspaceStore.migrateExistingProjectTrust((workspacePaths) => {
+    getProjectTrustService().trustExistingProjects(workspacePaths);
+  });
 }
 
 async function workspaceArchivedSessionsList() {
@@ -454,7 +545,9 @@ async function unarchiveWorkspaceSession(sessionId: string) {
   if (!session) {
     throw rpcBusinessError("session-not-found", "The session does not exist.", { sessionId });
   }
-  return getWorkspaceStore().unarchiveSession({ id: session.id, cwd: session.cwd });
+  const workspaceStore = getWorkspaceStore();
+  await migrateExistingWorkspaceTrust(workspaceStore);
+  return workspaceStore.unarchiveSession({ id: session.id, cwd: session.cwd });
 }
 
 async function setWorkspaceSessionPinned(sessionId: string, pinned: boolean) {
@@ -472,6 +565,7 @@ async function hostDescription() {
     version: WORKBENCH_VERSION,
     piVersion: PI_VERSION,
     cwd: process.cwd(),
+    userPackageDir: path.join(getAgentDir(), "npm"),
     ...(models?.defaultModel
       ? {
           provider: models.defaultModel.provider,
@@ -732,6 +826,18 @@ export async function handlePiRpcPost(request: Request, method: string): Promise
           }
         },
       });
+    case "projectTrust.describe":
+      return handleRpcPost(request, {
+        method,
+        payload: pathPayload,
+        handler: (payload) => getProjectTrustService().describe(payload),
+      });
+    case "projectTrust.update":
+      return handleRpcPost(request, {
+        method,
+        payload: projectTrustUpdatePayload,
+        handler: (payload) => getProjectTrustService().update(payload),
+      });
     case "host.localApps.list":
       return handleRpcPost(request, {
         method,
@@ -863,7 +969,9 @@ export async function handlePiRpcPost(request: Request, method: string): Promise
         payload: createWorkspacePayload,
         handler: async ({ path }) => {
           try {
-            return await getWorkspaceStore().create({ path });
+            const workspaceStore = getWorkspaceStore();
+            await migrateExistingWorkspaceTrust(workspaceStore);
+            return await workspaceStore.create({ path });
           } catch (error) {
             throwDomainError(error);
           }
@@ -983,6 +1091,55 @@ export async function handlePiRpcPost(request: Request, method: string): Promise
           }
         },
       });
+    case "package.list":
+      return handleRpcPost(request, {
+        method,
+        payload: sessionIdPayload,
+        handler: async (payload) => {
+          try {
+            return await installedPackageService.list(payload);
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
+      });
+    case "package.install":
+      return handleRpcPost(request, {
+        method,
+        payload: packageInstallPayload,
+        loopbackOnly: true,
+        handler: async (payload) => {
+          try {
+            return await installedPackageService.install(payload);
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
+      });
+    case "packageCatalog.search":
+      return handleRpcPost(request, {
+        method,
+        payload: packageCatalogSearchPayload,
+        handler: async (payload, context) => {
+          try {
+            return await packageCatalogService.search(payload, context.signal);
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
+      });
+    case "packageCatalog.describe":
+      return handleRpcPost(request, {
+        method,
+        payload: packageCatalogDescribePayload,
+        handler: async (payload, context) => {
+          try {
+            return await packageCatalogService.describe(payload, context.signal);
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
+      });
     case "settings.describe":
       return handleRpcPost(request, {
         method,
@@ -1027,6 +1184,32 @@ export async function handlePiRpcPost(request: Request, method: string): Promise
         handler: async (payload) => {
           try {
             return await agentSettingsService.update(payload);
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
+      });
+    case "workbenchSettings.describe":
+      return handleRpcPost(request, {
+        method,
+        payload: emptyPayload,
+        handler: async () => {
+          try {
+            return await workbenchSettingsService().describe();
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
+      });
+    case "workbenchSettings.update":
+      return handleRpcPost(request, {
+        method,
+        payload: workbenchSettingsUpdatePayload,
+        handler: async (payload) => {
+          try {
+            return await workbenchSettingsService().update(
+              payload as unknown as WorkbenchSettingsUpdatePayload,
+            );
           } catch (error) {
             throwDomainError(error);
           }

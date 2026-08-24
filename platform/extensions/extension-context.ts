@@ -4,9 +4,11 @@ import { createContext, useContext } from "react";
 
 import type { CommandService } from "@/services/command-service";
 import type { NavigationService } from "@/services/navigation-service";
+import type { MainViewService } from "@/services/main-view-service";
 import type { PanelService } from "@/services/panel-service";
 
 import type { SettingsRegistry } from "./api/settings";
+import type { MainViewRegistry } from "./api/main-view";
 import type { ComposerCommandRegistry } from "./api/composer-command";
 import type { OpenerRegistry } from "./api/opener";
 import type { WorkspaceSurfaceRegistry } from "./api/workspace-surface";
@@ -15,6 +17,7 @@ import type { ExtensionManager } from "./extension-manager";
 
 export type ExtensionErrorSource =
   | "command"
+  | "main-view"
   | "composer-command"
   | "panel"
   | "renderer"
@@ -38,6 +41,7 @@ export interface ExtensionEnvironment {
   readonly panels: PanelService;
   readonly commands: CommandService;
   readonly navigation: NavigationService;
+  readonly mainViews: MainViewService;
   readonly reportError: ExtensionErrorHandler;
 }
 
@@ -77,6 +81,14 @@ export function useComposerCommandRegistry(): ComposerCommandRegistry {
 
 export function useNavigationService(): NavigationService {
   return useExtensionEnvironment().navigation;
+}
+
+export function useMainViewService(): MainViewService {
+  return useExtensionEnvironment().mainViews;
+}
+
+export function useMainViewRegistry(): MainViewRegistry {
+  return useExtensionEnvironment().manager.mainViews;
 }
 
 export function useSettingsRegistry(): SettingsRegistry {

@@ -4,13 +4,14 @@ import { registerHooks } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { VERSION as PI_VERSION } from "@earendil-works/pi-coding-agent";
+import { getAgentDir, VERSION as PI_VERSION } from "@earendil-works/pi-coding-agent";
 
 import type {
   HostDescription,
   ImageUnderstandingDescribeValue,
   LocalAppsListValue,
   ServerResponse,
+  WorkbenchSettingsDescribeValue,
   WorkspaceView,
 } from "../../rpc-contracts";
 
@@ -63,6 +64,127 @@ test("host.describe reports the embedded Pi version", async () => {
 
   assert.equal(description.product, "pi-workbench");
   assert.equal(description.piVersion, PI_VERSION);
+  assert.equal(description.userPackageDir, path.join(getAgentDir(), "npm"));
+});
+
+test("routes project trust decisions through Pi trust.json", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-rpc-project-trust-"));
+  const agentDir = path.join(root, "agent");
+  const projectPath = path.join(root, "project");
+  await mkdir(path.join(projectPath, ".pi", "extensions"), { recursive: true });
+  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+  const previousTrustOverride = process.env.PI_WORKBENCH_TRUST_PROJECT;
+  process.env.PI_CODING_AGENT_DIR = agentDir;
+  delete process.env.PI_WORKBENCH_TRUST_PROJECT;
+  t.after(async () => {
+    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+    if (previousTrustOverride === undefined) delete process.env.PI_WORKBENCH_TRUST_PROJECT;
+    else process.env.PI_WORKBENCH_TRUST_PROJECT = previousTrustOverride;
+    await rm(root, { recursive: true, force: true });
+  });
+
+  const pending = await rpcValue<{
+    path: string;
+    requiresTrust: boolean;
+    trusted: boolean | null;
+    promptRequired: boolean;
+  }>(
+    await handlePiRpcPost(
+      rpcRequest("projectTrust.describe", { path: projectPath }),
+      "projectTrust.describe",
+    ),
+  );
+  assert.deepEqual(pending, {
+    path: projectPath,
+    requiresTrust: true,
+    trusted: null,
+    promptRequired: true,
+  });
+
+  const saved = await rpcValue<{ trusted: boolean; decisionPath: string }>(
+    await handlePiRpcPost(
+      rpcRequest(
+        "projectTrust.update",
+        { path: projectPath, trusted: true, ignored: true },
+        "rpc-project-trust-update",
+      ),
+      "projectTrust.update",
+    ),
+  );
+  assert.equal(saved.trusted, true);
+  assert.equal(saved.decisionPath, projectPath);
+  assert.deepEqual(JSON.parse(await readFile(path.join(agentDir, "trust.json"), "utf8")), {
+    [projectPath]: true,
+  });
+});
+
+test("backfills trust for preexisting workspaces without trusting later imports", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-rpc-trust-migration-"));
+  const agentDir = path.join(root, "agent");
+  const stateFile = path.join(root, "state", "workspaces.json");
+  const existingPath = path.join(root, "existing");
+  const laterPath = path.join(root, "later");
+  await Promise.all([
+    mkdir(path.join(existingPath, ".pi", "extensions"), { recursive: true }),
+    mkdir(path.join(laterPath, ".pi", "extensions"), { recursive: true }),
+    mkdir(path.dirname(stateFile), { recursive: true }),
+  ]);
+  await writeFile(
+    stateFile,
+    `${JSON.stringify({
+      schemaVersion: 1,
+      legacyReconciled: true,
+      workspaces: [
+        {
+          workspaceId: "existing-workspace",
+          path: existingPath,
+          title: "Existing",
+          sessionIds: [],
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      archivedSessionIds: [],
+      pinnedWorkspaceIds: [],
+      pinnedSessionIds: [],
+      ignoredWorkspacePaths: [],
+    })}\n`,
+  );
+  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+  const previousStateFile = process.env.PI_WORKBENCH_WORKSPACE_STATE_FILE;
+  process.env.PI_CODING_AGENT_DIR = agentDir;
+  process.env.PI_WORKBENCH_WORKSPACE_STATE_FILE = stateFile;
+  t.after(async () => {
+    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+    if (previousStateFile === undefined) delete process.env.PI_WORKBENCH_WORKSPACE_STATE_FILE;
+    else process.env.PI_WORKBENCH_WORKSPACE_STATE_FILE = previousStateFile;
+    await rm(root, { recursive: true, force: true });
+  });
+
+  await rpcValue(await handlePiRpcPost(rpcRequest("workspace.list", {}), "workspace.list"));
+  assert.deepEqual(JSON.parse(await readFile(path.join(agentDir, "trust.json"), "utf8")), {
+    [existingPath]: true,
+  });
+  assert.equal(
+    (JSON.parse(await readFile(stateFile, "utf8")) as Record<string, unknown>)
+      .projectTrustMigrationCompleted,
+    true,
+  );
+
+  await rpcValue(
+    await handlePiRpcPost(
+      rpcRequest("workspace.create", { path: laterPath }, "rpc-create-later"),
+      "workspace.create",
+    ),
+  );
+  await rpcValue(
+    await handlePiRpcPost(rpcRequest("workspace.list", {}, "rpc-list-later"), "workspace.list"),
+  );
+  assert.deepEqual(JSON.parse(await readFile(path.join(agentDir, "trust.json"), "utf8")), {
+    [existingPath]: true,
+  });
 });
 
 test("routes workspace CRUD through the shared RPC transport", async (t) => {
@@ -460,6 +582,77 @@ test("validates extension.list at the shared RPC boundary", async () => {
   assert.deepEqual(issues[0]?.path, ["payload", "sessionId"]);
 });
 
+test("validates package.list at the shared RPC boundary", async () => {
+  const response = await handlePiRpcPost(
+    rpcRequest("package.list", { sessionId: "" }),
+    "package.list",
+  );
+  assert.equal(response.status, 200);
+  const body = (await response.json()) as ServerResponse<unknown>;
+  assert.equal(body.result.ok, false);
+  if (body.result.ok) assert.fail("Expected a package.list validation error");
+  assert.equal(body.result.error.code, "bad-request");
+  const issues = body.result.error.details.issues as Array<{ path?: unknown }>;
+  assert.deepEqual(issues[0]?.path, ["payload", "sessionId"]);
+});
+
+test("validates package.install targets and official npm package names", async () => {
+  const response = await handlePiRpcPost(
+    rpcRequest("package.install", {
+      name: "https://example.com/arbitrary-source",
+      target: { scope: "project", workspaceId: "" },
+    }),
+    "package.install",
+  );
+  assert.equal(response.status, 200);
+  const body = (await response.json()) as ServerResponse<unknown>;
+  assert.equal(body.result.ok, false);
+  if (body.result.ok) assert.fail("Expected a package.install validation error");
+  assert.equal(body.result.error.code, "bad-request");
+  const issues = body.result.error.details.issues as Array<{ path?: unknown }>;
+  assert.deepEqual(
+    issues.map((issue) => issue.path),
+    [
+      ["payload", "name"],
+      ["payload", "target"],
+    ],
+  );
+});
+
+test("validates packageCatalog.search at the shared RPC boundary", async () => {
+  const response = await handlePiRpcPost(
+    rpcRequest("packageCatalog.search", { type: "plugin", page: 0 }),
+    "packageCatalog.search",
+  );
+  assert.equal(response.status, 200);
+  const body = (await response.json()) as ServerResponse<unknown>;
+  assert.equal(body.result.ok, false);
+  if (body.result.ok) assert.fail("Expected a packageCatalog.search validation error");
+  assert.equal(body.result.error.code, "bad-request");
+  const issues = body.result.error.details.issues as Array<{ path?: unknown }>;
+  assert.deepEqual(
+    issues.map((issue) => issue.path),
+    [
+      ["payload", "type"],
+      ["payload", "page"],
+    ],
+  );
+});
+
+test("validates packageCatalog.describe package names at the shared RPC boundary", async () => {
+  const response = await handlePiRpcPost(
+    rpcRequest("packageCatalog.describe", { name: "https://example.com/package" }),
+    "packageCatalog.describe",
+  );
+  assert.equal(response.status, 200);
+  const body = (await response.json()) as ServerResponse<unknown>;
+  assert.equal(body.result.ok, false);
+  if (body.result.ok) assert.fail("Expected a packageCatalog.describe validation error");
+  assert.equal(body.result.error.code, "bad-request");
+  const issues = body.result.error.details.issues as Array<{ path?: unknown }>;
+  assert.deepEqual(issues[0]?.path, ["payload", "name"]);
+});
+
 test("validates and restricts the exposed agent settings namespace", async () => {
   const invalid = await handlePiRpcPost(
     rpcRequest("settings.update", {
@@ -543,6 +736,50 @@ test("updates image-understanding settings without returning provider credential
     expectedRevision: 0,
     actualRevision: 1,
   });
+});
+
+test("persists Workbench preferences through the shared RPC boundary", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-settings-rpc-"));
+  const previousStateFile = process.env.PI_WORKBENCH_SETTINGS_FILE;
+  process.env.PI_WORKBENCH_SETTINGS_FILE = path.join(root, "workbench-settings.json");
+  t.after(async () => {
+    if (previousStateFile === undefined) delete process.env.PI_WORKBENCH_SETTINGS_FILE;
+    else process.env.PI_WORKBENCH_SETTINGS_FILE = previousStateFile;
+    await rm(root, { recursive: true, force: true });
+  });
+
+  await rpcValue(
+    await handlePiRpcPost(
+      rpcRequest("workbenchSettings.update", {
+        patch: { locale: "zh-CN", sidebarOpen: false, toolboxPins: ["skills", "skills"] },
+      }),
+      "workbenchSettings.update",
+    ),
+  );
+  const described = await rpcValue<WorkbenchSettingsDescribeValue>(
+    await handlePiRpcPost(
+      rpcRequest("workbenchSettings.describe", {}, "rpc-workbench-settings-describe"),
+      "workbenchSettings.describe",
+    ),
+  );
+  assert.deepEqual(described.preferences, {
+    locale: "zh-CN",
+    toolboxPins: ["skills"],
+    sidebarOpen: false,
+  });
+
+  const invalid = await handlePiRpcPost(
+    rpcRequest(
+      "workbenchSettings.update",
+      { patch: { backgroundImage: { name: "x", mimeType: "text/plain", data: "AAAA" } } },
+      "rpc-workbench-settings-invalid",
+    ),
+    "workbenchSettings.update",
+  );
+  const invalidBody = (await invalid.json()) as ServerResponse<unknown>;
+  assert.equal(invalidBody.result.ok, false);
+  if (invalidBody.result.ok) assert.fail("Expected invalid Workbench settings to fail");
+  assert.equal(invalidBody.result.error.code, "workbench-settings-invalid");
 });
 
 test("validates model context-window updates at the shared RPC boundary", async () => {

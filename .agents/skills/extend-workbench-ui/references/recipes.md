@@ -395,6 +395,32 @@ Register it using the exact tool name:
 const renderer = context.renderers.tools.register("get_weather", WeatherRenderer);
 ```
 
+When a tool can asynchronously require user attention while its detail is collapsed, register a
+presentation-owned disclosure controller instead of hard-coding the tool name into the Message
+Renderer:
+
+```tsx
+const disclosureController: ToolPresentationDisclosureController = ({
+  part,
+  running,
+  open,
+  onOpenChange,
+}) => {
+  const needsAttention = useToolAttention(part.toolCallId, running && !open);
+
+  useEffect(() => {
+    if (needsAttention && !open) onOpenChange(true);
+  }, [needsAttention, onOpenChange, open]);
+
+  return null;
+};
+```
+
+Register the component through `context.renderers.toolPresentations`; the host keeps it outside the
+collapsed detail and preserves its scroll-compensated disclosure behavior. The controller may
+observe presentation state, but it must not execute the tool or duplicate the registered Tool
+Renderer.
+
 Also define/expose the actual `get_weather` tool through the appropriate assistant-ui Tool/Runtime/backend path. Renderer registration is presentation-only.
 
 ## Data Renderer

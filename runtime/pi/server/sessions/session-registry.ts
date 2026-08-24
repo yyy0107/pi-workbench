@@ -105,6 +105,7 @@ import {
 import { AttachmentRecognitionLifecycle } from "../image-understanding/lifecycle";
 import { recognizeWithMultimodalModel } from "../image-understanding/multimodal";
 import { getImageUnderstandingSettingsStore } from "../image-understanding/registry";
+import { getProjectTrustService } from "../trust/project-trust-service";
 
 export { PiServerError } from "../core/errors";
 
@@ -2681,11 +2682,10 @@ function publishRunningSessions(): void {
 
 async function createHost(sessionManager: SessionManager): Promise<HostedPiSession> {
   const cwd = sessionManager.getCwd();
-  const trustProject = process.env.PI_WORKBENCH_TRUST_PROJECT === "1";
   const services = await createAgentSessionServices({
     cwd,
     resourceLoaderReloadOptions: {
-      resolveProjectTrust: async () => trustProject,
+      resolveProjectTrust: async () => getProjectTrustService().isTrusted(cwd),
     },
   });
   const { session } = await createAgentSessionFromServices({
@@ -2735,7 +2735,7 @@ async function modelServices(cwd: string): Promise<AgentSessionServices> {
   return createAgentSessionServices({
     cwd: workspace.cwd,
     resourceLoaderReloadOptions: {
-      resolveProjectTrust: async () => process.env.PI_WORKBENCH_TRUST_PROJECT === "1",
+      resolveProjectTrust: async () => getProjectTrustService().isTrusted(workspace.cwd),
     },
   });
 }
