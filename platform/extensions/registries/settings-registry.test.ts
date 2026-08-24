@@ -3,6 +3,10 @@ import test from "node:test";
 
 import { SettingsRegistryImpl } from "./settings-registry";
 
+function AppearanceHeaderAction() {
+  return null;
+}
+
 test("settings sections preserve navigation groups and global order", () => {
   const registry = new SettingsRegistryImpl();
   registry.registerSection({
@@ -14,6 +18,7 @@ test("settings sections preserve navigation groups and global order", () => {
   registry.registerSection({
     id: "appearance",
     title: "Appearance",
+    headerAction: AppearanceHeaderAction,
     group: { id: "basics", title: "Basics" },
     order: 10,
   });
@@ -26,6 +31,7 @@ test("settings sections preserve navigation groups and global order", () => {
     ],
   );
   assert.equal(Object.isFrozen(registry.getSections()[0]?.group), true);
+  assert.equal(registry.getSections()[0]?.headerAction, AppearanceHeaderAction);
 });
 
 test("settings section groups require stable ids and titles", () => {

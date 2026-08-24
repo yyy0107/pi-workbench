@@ -21,6 +21,12 @@ export interface SettingsItemComponentProps {
   itemId: string;
 }
 
+/** Props received by a feature-owned action rendered beside a settings section heading. */
+export interface SettingsSectionHeaderActionComponentProps {
+  /** Stable id of the section whose heading hosts the action. */
+  sectionId: string;
+}
+
 /** A navigation destination in the shared settings panel. */
 export interface SettingsSectionDefinition {
   /** Globally unique, stable section id. */
@@ -29,6 +35,8 @@ export interface SettingsSectionDefinition {
   title: LocalizableText;
   /** Optional localizable description shown below the section heading. */
   description?: LocalizableText;
+  /** Optional feature-owned action rendered beside the content heading. */
+  headerAction?: ComponentType<SettingsSectionHeaderActionComponentProps>;
   /** Optional navigation icon. */
   icon?: LucideIcon;
   /** Optional navigation group for related settings sections. */

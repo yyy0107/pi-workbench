@@ -334,7 +334,12 @@ interface SettingsSectionDefinition {
   title: LocalizableText;
   description?: LocalizableText;
   icon?: LucideIcon;
+  headerAction?: ComponentType<SettingsSectionHeaderActionComponentProps>;
   order?: number;
+}
+
+interface SettingsSectionHeaderActionComponentProps {
+  sectionId: string;
 }
 
 interface SettingsItemComponentProps {
@@ -358,7 +363,9 @@ interface SettingsRegistry {
 }
 ```
 
-Section ids are globally unique. Item ids are unique within one section. Sections and items sort by
+Section ids are globally unique. Item ids are unique within one section. `headerAction` renders a
+feature-owned control beside the section content heading and receives the stable section id; the
+Settings Host owns its placement and error isolation. Sections and items sort by
 ascending `order`, preserving registration order for ties. An item may register before its target
 section so static extension activation order does not create a dependency. The settings Host owns
 navigation, headings, scrolling, separators, and error isolation; item components own their

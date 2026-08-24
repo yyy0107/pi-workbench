@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckIcon, ChevronDownIcon, ImagePlusIcon, RotateCcwIcon, Trash2Icon } from "lucide-react";
+import { CheckIcon, ChevronDownIcon, ImagePlusIcon, Trash2Icon } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { CodeThemePreview } from "@/components/assistant-ui/shiki-highlighter";
@@ -32,7 +32,6 @@ import {
   MIN_THEME_CONTRAST,
   MIN_UI_FONT_SIZE,
   UI_FONT_FAMILIES,
-  isDefaultAppearancePreferences,
   type BackgroundBlur,
   type BorderStyle,
   type CodeFontFamily,
@@ -50,6 +49,7 @@ import {
   type BackgroundImageError,
   type BackgroundImageSnapshot,
 } from "./background-image-store";
+import { resolveAppearanceSettingsPage } from "./appearance-settings-pages";
 
 const CODE_PREVIEW = [
   "const greet = (name: string) => {",
@@ -625,7 +625,7 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
   const { t } = useI18n();
   const preferences = useAppearancePreferences();
   const backgroundImage = useBackgroundImage();
-  const page = sectionId === "background" || sectionId === "code" ? sectionId : "appearance";
+  const page = resolveAppearanceSettingsPage(sectionId);
 
   const colorModeLabel = (value: ColorMode): string =>
     t(`extensions.appearance.colorModes.${value}`);
@@ -654,7 +654,7 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
       <div className="divide-y">
         {page === "appearance" ? (
           <>
-            <SettingGroup title={t("extensions.appearance.theme.title")}>
+            <SettingGroup title={t("extensions.appearance.theme.mode")}>
               <ColorModePicker
                 label={t("extensions.appearance.theme.mode")}
                 value={preferences.colorMode}
@@ -762,7 +762,11 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
                 />
               </SettingRow>
             </SettingGroup>
+          </>
+        ) : null}
 
+        {page === "interface" ? (
+          <>
             <SettingGroup
               title={t("extensions.appearance.typography.title")}
               description={t("extensions.appearance.typography.description")}
@@ -789,6 +793,71 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
                   onChange={(uiFontSize) => appearanceStore.update({ uiFontSize })}
                 />
               </SettingRow>
+            </SettingGroup>
+
+            <SettingGroup layout="cards" showHeading={false}>
+              <SettingSubgroup title={t("extensions.appearance.surfaces.title")}>
+                <SettingRow label={t("extensions.appearance.surfaces.opacity")}>
+                  <RangeControl
+                    label={t("extensions.appearance.surfaces.opacity")}
+                    value={preferences.surfaceOpacity}
+                    formatValue={surfaceOpacityLabel}
+                    minimum={MIN_SURFACE_OPACITY}
+                    maximum={MAX_SURFACE_OPACITY}
+                    disabled={!preferences.customBackground && !backgroundImage.url}
+                    onChange={(surfaceOpacity) => appearanceStore.update({ surfaceOpacity })}
+                  />
+                </SettingRow>
+                <SettingRow label={t("extensions.appearance.surfaces.glassBlur")}>
+                  <SelectControl
+                    label={t("extensions.appearance.surfaces.glassBlur")}
+                    value={preferences.glassBlur}
+                    options={GLASS_BLURS}
+                    optionLabel={glassBlurLabel}
+                    disabled={!preferences.customBackground && !backgroundImage.url}
+                    onChange={(glassBlur) => appearanceStore.update({ glassBlur })}
+                  />
+                </SettingRow>
+              </SettingSubgroup>
+
+              <SettingSubgroup title={t("extensions.appearance.borders.title")}>
+                <SettingRow label={t("extensions.appearance.borders.style")}>
+                  <SelectControl
+                    label={t("extensions.appearance.borders.style")}
+                    value={preferences.borderStyle}
+                    options={BORDER_STYLES}
+                    optionLabel={borderStyleLabel}
+                    onChange={(borderStyle) => appearanceStore.update({ borderStyle })}
+                  />
+                </SettingRow>
+                <SettingRow label={t("extensions.appearance.borders.customColor")}>
+                  <SwitchControl
+                    checked={preferences.customBorderColor}
+                    label={t("extensions.appearance.borders.customColor")}
+                    onChange={(customBorderColor) => appearanceStore.update({ customBorderColor })}
+                  />
+                </SettingRow>
+                <SettingRow label={t("extensions.appearance.borders.color")}>
+                  <ColorControl
+                    color={preferences.borderColor}
+                    disabled={!preferences.customBorderColor}
+                    label={t("extensions.appearance.borders.color")}
+                    onChange={(borderColor) => appearanceStore.update({ borderColor })}
+                  />
+                </SettingRow>
+              </SettingSubgroup>
+
+              <SettingSubgroup title={t("extensions.appearance.corners.title")}>
+                <SettingRow label={t("extensions.appearance.corners.radius")}>
+                  <SelectControl
+                    label={t("extensions.appearance.corners.radius")}
+                    value={preferences.cornerRadius}
+                    options={CORNER_RADIUS_STYLES}
+                    optionLabel={cornerRadiusLabel}
+                    onChange={(cornerRadius) => appearanceStore.update({ cornerRadius })}
+                  />
+                </SettingRow>
+              </SettingSubgroup>
             </SettingGroup>
           </>
         ) : null}
@@ -838,73 +907,6 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
                   optionLabel={backgroundBlurLabel}
                   disabled={!backgroundImage.url}
                   onChange={(backgroundBlur) => appearanceStore.update({ backgroundBlur })}
-                />
-              </SettingRow>
-            </SettingSubgroup>
-          </SettingGroup>
-        ) : null}
-
-        {page === "appearance" ? (
-          <SettingGroup layout="cards" showHeading={false}>
-            <SettingSubgroup title={t("extensions.appearance.surfaces.title")}>
-              <SettingRow label={t("extensions.appearance.surfaces.opacity")}>
-                <RangeControl
-                  label={t("extensions.appearance.surfaces.opacity")}
-                  value={preferences.surfaceOpacity}
-                  formatValue={surfaceOpacityLabel}
-                  minimum={MIN_SURFACE_OPACITY}
-                  maximum={MAX_SURFACE_OPACITY}
-                  disabled={!preferences.customBackground && !backgroundImage.url}
-                  onChange={(surfaceOpacity) => appearanceStore.update({ surfaceOpacity })}
-                />
-              </SettingRow>
-              <SettingRow label={t("extensions.appearance.surfaces.glassBlur")}>
-                <SelectControl
-                  label={t("extensions.appearance.surfaces.glassBlur")}
-                  value={preferences.glassBlur}
-                  options={GLASS_BLURS}
-                  optionLabel={glassBlurLabel}
-                  disabled={!preferences.customBackground && !backgroundImage.url}
-                  onChange={(glassBlur) => appearanceStore.update({ glassBlur })}
-                />
-              </SettingRow>
-            </SettingSubgroup>
-
-            <SettingSubgroup title={t("extensions.appearance.borders.title")}>
-              <SettingRow label={t("extensions.appearance.borders.style")}>
-                <SelectControl
-                  label={t("extensions.appearance.borders.style")}
-                  value={preferences.borderStyle}
-                  options={BORDER_STYLES}
-                  optionLabel={borderStyleLabel}
-                  onChange={(borderStyle) => appearanceStore.update({ borderStyle })}
-                />
-              </SettingRow>
-              <SettingRow label={t("extensions.appearance.borders.customColor")}>
-                <SwitchControl
-                  checked={preferences.customBorderColor}
-                  label={t("extensions.appearance.borders.customColor")}
-                  onChange={(customBorderColor) => appearanceStore.update({ customBorderColor })}
-                />
-              </SettingRow>
-              <SettingRow label={t("extensions.appearance.borders.color")}>
-                <ColorControl
-                  color={preferences.borderColor}
-                  disabled={!preferences.customBorderColor}
-                  label={t("extensions.appearance.borders.color")}
-                  onChange={(borderColor) => appearanceStore.update({ borderColor })}
-                />
-              </SettingRow>
-            </SettingSubgroup>
-
-            <SettingSubgroup title={t("extensions.appearance.corners.title")}>
-              <SettingRow label={t("extensions.appearance.corners.radius")}>
-                <SelectControl
-                  label={t("extensions.appearance.corners.radius")}
-                  value={preferences.cornerRadius}
-                  options={CORNER_RADIUS_STYLES}
-                  optionLabel={cornerRadiusLabel}
-                  onChange={(cornerRadius) => appearanceStore.update({ cornerRadius })}
                 />
               </SettingRow>
             </SettingSubgroup>
@@ -971,26 +973,6 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
             </SettingRow>
           </SettingGroup>
         ) : null}
-      </div>
-
-      <div className="flex justify-end pt-1">
-        <Button
-          type="button"
-          variant="ghost"
-          className="rounded-full"
-          disabled={
-            isDefaultAppearancePreferences(preferences) &&
-            backgroundImage.url === null &&
-            backgroundImage.error === null
-          }
-          onClick={() => {
-            appearanceStore.reset();
-            void backgroundImageStore.clear();
-          }}
-        >
-          <RotateCcwIcon />
-          {t("extensions.appearance.reset")}
-        </Button>
       </div>
     </div>
   );

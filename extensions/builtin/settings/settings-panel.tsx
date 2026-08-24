@@ -144,6 +144,7 @@ export function SettingsPanel() {
             .map((section) => {
               const items = itemsBySection.get(section.id) ?? EMPTY_ITEMS;
               const active = section.id === activeSection.id;
+              const HeaderAction = section.headerAction;
               return (
                 <section
                   key={section.id}
@@ -152,12 +153,24 @@ export function SettingsPanel() {
                   inert={!active ? true : undefined}
                 >
                   <header className="mb-5">
-                    <h2
-                      id={`settings-section-${section.id}`}
-                      className="text-base font-semibold tracking-tight"
-                    >
-                      {text(section.title)}
-                    </h2>
+                    <div className="flex items-center justify-between gap-3">
+                      <h2
+                        id={`settings-section-${section.id}`}
+                        className="min-w-0 text-base font-semibold tracking-tight"
+                      >
+                        {text(section.title)}
+                      </h2>
+                      {HeaderAction ? (
+                        <ExtensionErrorBoundary
+                          contributionId={`${section.id}.header-action`}
+                          source="setting"
+                          onError={reportError}
+                          resetKey={HeaderAction}
+                        >
+                          <HeaderAction sectionId={section.id} />
+                        </ExtensionErrorBoundary>
+                      ) : null}
+                    </div>
                     {section.description ? (
                       <p className="text-muted-foreground mt-1 text-sm leading-5">
                         {text(section.description)}

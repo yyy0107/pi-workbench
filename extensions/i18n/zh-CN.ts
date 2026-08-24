@@ -82,6 +82,7 @@ export const extensionsZhCN = {
     emptySection: "此分区暂时没有可用的设置项。",
     groups: {
       basics: "基础",
+      appearance: "外观",
       intelligence: "智能",
       capabilities: "能力",
       data: "数据",
@@ -176,8 +177,8 @@ export const extensionsZhCN = {
     },
   },
   appearance: {
-    title: "外观",
-    description: "自定义工作台的明暗模式、主题颜色、字体和组件外观。",
+    title: "主题",
+    description: "选择明暗模式，并分别调整浅色与深色主题配色。",
     theme: {
       title: "主题",
       description: "跟随操作系统，或让工作台固定使用一种明暗模式。",
@@ -194,15 +195,15 @@ export const extensionsZhCN = {
     },
     themeSettings: {
       accent: "强调色",
-      background: "背景",
+      background: "基础色",
       foreground: "前景",
       contrast: "对比度",
       lightAccent: "浅色主题强调色",
-      lightBackground: "浅色主题背景色",
+      lightBackground: "浅色主题基础色",
       lightForeground: "浅色主题前景色",
       lightContrast: "浅色主题对比度",
       darkAccent: "深色主题强调色",
-      darkBackground: "深色主题背景色",
+      darkBackground: "深色主题基础色",
       darkForeground: "深色主题前景色",
       darkContrast: "深色主题对比度",
       contrastValue: ({ contrast }: { contrast: number }, { number }: MessageFormatters) =>
@@ -212,6 +213,10 @@ export const extensionsZhCN = {
       title: "字体",
       description: "选择界面字体并调整 UI 文字的基准大小。",
       font: "UI 字体",
+    },
+    interface: {
+      sectionTitle: "界面",
+      description: "调整界面字体、组件表面、边框和圆角。",
     },
     fontFamilies: {
       ui: {
@@ -282,20 +287,20 @@ export const extensionsZhCN = {
     },
     background: {
       sectionTitle: "背景",
-      title: "全局背景",
-      description: "使用颜色或保存在本机浏览器中的图片作为工作台背景。",
-      colorTitle: "颜色",
-      imageTitle: "图片与模糊",
+      title: "工作台背景",
+      description: "使用自定义画布颜色或本地图片，营造独立于主题配色的工作台背景。",
+      colorTitle: "画布颜色",
+      imageTitle: "背景图片",
       image: "本地图片",
-      custom: "使用自定义背景",
-      color: "全局背景颜色",
-      syncSurfaces: "面板和组件表面使用相同底色",
+      custom: "使用自定义画布颜色",
+      color: "画布颜色",
+      syncSurfaces: "让面板和组件底色与画布协调",
       preview: "背景图片预览",
       chooseImage: "选择图片",
       replaceImage: "更换图片",
       removeImage: "移除背景图片",
       loadingImage: "正在加载图片…",
-      blur: "背景模糊",
+      blur: "图片模糊",
       unsupportedImage: "请选择支持的图片文件。",
       imageTooLarge: "图片大小不能超过 12 MB。",
       imageStorageError: "无法在当前浏览器中保存背景图片。",
@@ -355,7 +360,7 @@ export const extensionsZhCN = {
       fontSizeValue: ({ size }: { size: number }, { number }: MessageFormatters) =>
         `${number(size)} 像素`,
     },
-    reset: "重置外观",
+    reset: "恢复默认",
   },
   connectionStatus: {
     loading: "正在加载",

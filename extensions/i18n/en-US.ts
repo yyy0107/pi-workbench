@@ -82,6 +82,7 @@ export const extensionsEnUS = {
     emptySection: "No settings are available in this section yet.",
     groups: {
       basics: "Basics",
+      appearance: "Appearance",
       intelligence: "AI",
       capabilities: "Capabilities",
       data: "Data",
@@ -182,8 +183,8 @@ export const extensionsEnUS = {
     },
   },
   appearance: {
-    title: "Appearance",
-    description: "Customize color mode, theme colors, typography, and component appearance.",
+    title: "Theme",
+    description: "Choose a color mode and customize the light and dark theme palettes.",
     theme: {
       title: "Theme",
       description: "Follow the operating system or keep Workbench in one color mode.",
@@ -200,15 +201,15 @@ export const extensionsEnUS = {
     },
     themeSettings: {
       accent: "Accent color",
-      background: "Background",
+      background: "Base color",
       foreground: "Foreground",
       contrast: "Contrast",
       lightAccent: "Light theme accent color",
-      lightBackground: "Light theme background color",
+      lightBackground: "Light theme base color",
       lightForeground: "Light theme foreground color",
       lightContrast: "Light theme contrast",
       darkAccent: "Dark theme accent color",
-      darkBackground: "Dark theme background color",
+      darkBackground: "Dark theme base color",
       darkForeground: "Dark theme foreground color",
       darkContrast: "Dark theme contrast",
       contrastValue: ({ contrast }: { contrast: number }, { number }: MessageFormatters) =>
@@ -218,6 +219,10 @@ export const extensionsEnUS = {
       title: "Typography",
       description: "Choose interface fonts and adjust the base UI text size.",
       font: "UI font",
+    },
+    interface: {
+      sectionTitle: "Interface",
+      description: "Adjust interface typography, component surfaces, borders, and corners.",
     },
     fontFamilies: {
       ui: {
@@ -288,20 +293,21 @@ export const extensionsEnUS = {
     },
     background: {
       sectionTitle: "Background",
-      title: "Global background",
-      description: "Use a color or a locally stored image across the Workbench.",
-      colorTitle: "Color",
-      imageTitle: "Image and blur",
+      title: "Workbench background",
+      description:
+        "Use a custom canvas color or local image to create a Workbench background independent of the theme palette.",
+      colorTitle: "Canvas color",
+      imageTitle: "Background image",
       image: "Local image",
-      custom: "Use a custom background",
-      color: "Global background color",
-      syncSurfaces: "Use the same color for panels and component surfaces",
+      custom: "Use a custom canvas color",
+      color: "Canvas color",
+      syncSurfaces: "Coordinate panel and component colors with the canvas",
       preview: "Background image preview",
       chooseImage: "Choose image",
       replaceImage: "Replace image",
       removeImage: "Remove background image",
       loadingImage: "Loading image…",
-      blur: "Background blur",
+      blur: "Image blur",
       unsupportedImage: "Choose a supported image file.",
       imageTooLarge: "The image must be 12 MB or smaller.",
       imageStorageError: "The background image could not be saved in this browser.",
@@ -362,7 +368,7 @@ export const extensionsEnUS = {
       fontSizeValue: ({ size }: { size: number }, { number }: MessageFormatters) =>
         `${number(size)} px`,
     },
-    reset: "Reset appearance",
+    reset: "Restore defaults",
   },
   connectionStatus: {
     loading: "Loading",

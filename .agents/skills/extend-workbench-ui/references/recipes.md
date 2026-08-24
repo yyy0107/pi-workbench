@@ -192,6 +192,7 @@ registers only the section it owns or an item inside an existing section:
 const section = context.settings.registerSection({
   id: "general",
   title: defineMessage("extensions.settings.general.title"),
+  headerAction: GeneralSettingsAction,
   order: 0,
 });
 
@@ -205,7 +206,10 @@ const item = context.settings.registerItem({
 return [section, item];
 ```
 
-Settings items may use Hooks and browser APIs in their client component. Keep preference state and
+Use `headerAction` for a compact feature-owned control that belongs beside the section heading, such
+as resetting the current section. The Host owns its placement and error isolation; the component
+receives `{ sectionId }` and may use Hooks. Settings items may also use Hooks and browser APIs in
+their client component. Keep preference state and
 persistence with the feature that owns the item. Do not register during render or import the
 concrete Settings registry implementation. Items may register before their section appears.
 
