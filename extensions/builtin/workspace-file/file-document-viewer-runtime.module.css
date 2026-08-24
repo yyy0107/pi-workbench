@@ -5,9 +5,10 @@
   font-family: var(--font-sans);
 }
 
-/* The viewer shell declares its own defaults, so theme the exported Shadow
- * Part rather than relying on inherited host variables. */
-.viewer::part(shell) {
+/* The viewer shell declares its own defaults. Documents expose Shadow Parts;
+ * video uses scoped light DOM so its renderer chrome can be removed locally. */
+.viewer::part(shell),
+.videoViewer :global(.file-viewer-web-shell) {
   --file-viewer-bg: transparent;
   --file-viewer-content-bg: color-mix(in srgb, var(--muted) 35%, transparent);
   --file-viewer-text: var(--foreground);
@@ -47,17 +48,63 @@
   --file-viewer-input-color: var(--foreground);
 }
 
-.viewer::part(toolbar) {
+.viewer::part(toolbar),
+.videoViewer :global(.file-viewer-web-toolbar) {
   backdrop-filter: blur(8px);
 }
 
-.viewer::part(toolbar-group) {
+.viewer::part(toolbar-group),
+.videoViewer :global(.file-viewer-web-toolbar-group) {
   border-color: transparent;
   background: transparent;
 }
 
+.videoViewer :global(.file-viewer-web-content) {
+  overflow: hidden;
+}
+
+.videoViewer :global(.file-render),
+.videoViewer :global(.fv-video-viewer) {
+  height: 100%;
+  min-height: 0;
+}
+
+.videoViewer :global(.fv-video-viewer) {
+  padding: 0.75rem;
+  background: color-mix(in oklab, var(--muted) 20%, transparent);
+}
+
+.videoViewer :global(.fv-video-shell) {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.videoViewer :global(.fv-video-heading),
+.videoViewer :global(.fv-video-hint) {
+  display: none;
+}
+
+.videoViewer :global(.fv-video-player) {
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: 100%;
+  aspect-ratio: auto;
+  object-fit: contain;
+}
+
 .viewer::part(button),
-.viewer::part(toolbar-status) {
+.viewer::part(toolbar-status),
+.videoViewer :global([part~="button"]),
+.videoViewer :global([part~="toolbar-status"]) {
   border-radius: calc(var(--radius) - 2px);
   font-weight: 500;
   transition:

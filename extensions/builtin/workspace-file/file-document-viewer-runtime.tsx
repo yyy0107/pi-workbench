@@ -9,7 +9,7 @@ import { useMemo } from "react";
 import type { Locale } from "@/i18n";
 
 import styles from "./file-document-viewer-runtime.module.css";
-import { resolveFileViewerType } from "./file-viewer-source";
+import { isFileViewerVideoType, resolveFileViewerType } from "./file-viewer-source";
 
 setDefaultFileViewerAssetBaseUrl("/file-viewer/");
 
@@ -32,6 +32,8 @@ export function FileDocumentViewerRuntime({
   locale,
   ariaLabel,
 }: FileDocumentViewerRuntimeProps) {
+  const type = resolveFileViewerType(name);
+  const isVideo = isFileViewerVideoType(type);
   const file = useMemo(
     () => (content === undefined ? undefined : new Blob([content], { type: mediaType })),
     [content, mediaType],
@@ -40,7 +42,7 @@ export function FileDocumentViewerRuntime({
     () => ({
       preset: [litePreset, officePreset],
       rendererMode: "replace" as const,
-      styleIsolation: "shadow" as const,
+      styleIsolation: isVideo ? ("scoped" as const) : ("shadow" as const),
       theme: "system" as const,
       locale,
       fit: { mode: "contain" as const, resize: "until-interaction" as const },
@@ -57,15 +59,15 @@ export function FileDocumentViewerRuntime({
         streaming: "same-origin" as const,
       },
     }),
-    [locale],
+    [isVideo, locale],
   );
 
   return (
     <FileViewer
-      className={styles.viewer}
+      className={isVideo ? `${styles.viewer} ${styles.videoViewer}` : styles.viewer}
       {...(file ? { file } : { url })}
       name={name}
-      type={resolveFileViewerType(name)}
+      type={type}
       size={size}
       options={options}
       aria-label={ariaLabel}
