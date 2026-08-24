@@ -463,8 +463,11 @@ export function WorkspaceTabs() {
     const tab = horizontalLayoutBounds(activeTab);
     const delta = workspaceTabScrollDelta(viewport.left, viewport.right, tab.left, tab.right);
     if (Math.abs(delta) < 0.5) return;
-    list.scrollBy({ left: delta });
-  }, [activeSurfaceId, surfaces]);
+    list.scrollBy({
+      left: delta,
+      behavior: reduceMotion ? "auto" : "smooth",
+    });
+  }, [activeSurfaceId, reduceMotion, surfaces]);
 
   useEffect(() => {
     const element = tabListElement.current;
@@ -626,7 +629,7 @@ export function WorkspaceTabs() {
                   data-state={active ? "active" : "inactive"}
                   data-dragging={draggingId === surface.id ? "true" : undefined}
                   className={cn(
-                    "group/tab text-muted-foreground hover:bg-muted/70 hover:text-foreground data-[state=active]:bg-muted data-[state=active]:text-foreground after:bg-border/70 relative flex h-7 w-40 min-w-20 max-w-40 flex-[1_1_10rem] select-none items-center rounded-lg text-xs transition-[background-color,color,opacity] after:absolute after:inset-y-1.5 after:end-[-3px] after:w-px after:content-[''] last:after:hidden hover:after:hidden focus-within:after:hidden data-[dragging=true]:cursor-grabbing data-[dragging=true]:opacity-25 data-[state=active]:after:hidden",
+                    "group/tab text-muted-foreground hover:bg-muted/70 hover:text-foreground data-[state=active]:text-foreground after:bg-border/70 relative flex h-7 w-40 min-w-20 max-w-40 flex-[1_1_10rem] select-none items-center rounded-lg text-xs transition-[background-color,color,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] before:pointer-events-none before:absolute before:inset-0 before:rounded-lg before:bg-muted before:opacity-0 before:scale-[0.96] before:transition-[opacity,scale] before:duration-200 before:ease-[cubic-bezier(0.32,0.72,0,1)] before:content-[''] after:absolute after:inset-y-1.5 after:end-[-3px] after:w-px after:content-[''] last:after:hidden hover:after:hidden focus-within:after:hidden motion-reduce:transition-none motion-reduce:before:transition-none data-[dragging=true]:cursor-grabbing data-[dragging=true]:opacity-25 data-[state=active]:before:opacity-100 data-[state=active]:before:scale-100 data-[state=active]:after:hidden",
                     surfaces.length > 1 ? "cursor-grab active:cursor-grabbing" : "cursor-default",
                   )}
                   onPointerDown={(event) => {
@@ -668,7 +671,7 @@ export function WorkspaceTabs() {
                     aria-selected={active}
                     tabIndex={active ? 0 : -1}
                     title={surface.title}
-                    className="flex h-full min-w-0 flex-1 items-center gap-2 rounded-s-lg ps-2.5 pe-1 outline-none group-hover/tab:pe-8 group-focus-within/tab:pe-8 group-data-[state=active]/tab:pe-8 focus-visible:ring-2 focus-visible:ring-inset"
+                    className="relative z-10 flex h-full min-w-0 flex-1 items-center gap-2 rounded-s-lg ps-2.5 pe-1 outline-none transition-[padding] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover/tab:pe-8 group-focus-within/tab:pe-8 group-data-[state=active]/tab:pe-8 focus-visible:ring-2 focus-visible:ring-inset motion-reduce:transition-none"
                     onClick={(event) => {
                       const suppressed = suppressedClick.current;
                       suppressedClick.current = null;
@@ -721,7 +724,7 @@ export function WorkspaceTabs() {
                     title={t("rightWorkspace.closeTab", { title: surface.title })}
                     data-workspace-tab-close="true"
                     tabIndex={active ? 0 : -1}
-                    className="group/tab-close text-foreground/65 hover:bg-transparent hover:text-foreground pointer-events-none absolute end-[2px] top-1/2 z-10 -translate-y-1/2 rounded-md opacity-0 transition-colors duration-75 group-hover/tab:pointer-events-auto group-hover/tab:opacity-100 group-focus-within/tab:pointer-events-auto group-focus-within/tab:opacity-100 group-data-[state=active]/tab:pointer-events-auto group-data-[state=active]/tab:opacity-100 focus-visible:bg-transparent focus-visible:text-foreground focus-visible:opacity-100 active:-translate-y-1/2! dark:hover:bg-transparent dark:focus-visible:bg-transparent"
+                    className="group/tab-close text-foreground/65 hover:bg-transparent hover:text-foreground pointer-events-none absolute end-[2px] top-1/2 z-10 -translate-y-1/2 scale-90 rounded-md opacity-0 transition-[color,opacity,scale] duration-150 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover/tab:pointer-events-auto group-hover/tab:scale-100 group-hover/tab:opacity-100 group-focus-within/tab:pointer-events-auto group-focus-within/tab:scale-100 group-focus-within/tab:opacity-100 group-data-[state=active]/tab:pointer-events-auto group-data-[state=active]/tab:scale-100 group-data-[state=active]/tab:opacity-100 focus-visible:scale-100 focus-visible:bg-transparent focus-visible:text-foreground focus-visible:opacity-100 active:-translate-y-1/2! motion-reduce:transition-none dark:hover:bg-transparent dark:focus-visible:bg-transparent"
                     onPointerUp={(event) => {
                       if (!event.isPrimary || event.button !== 0) return;
                       event.preventDefault();
@@ -804,7 +807,7 @@ export function WorkspaceTabs() {
                 ref={dragOverlayElement}
                 aria-hidden="true"
                 data-workspace-tab-drag-overlay="true"
-                className="bg-muted text-foreground pointer-events-none fixed left-0 top-0 z-[2147483647] flex select-none items-center gap-2 overflow-hidden rounded-lg px-2.5 text-xs opacity-95 shadow-xl ring-1 ring-black/10 will-change-transform dark:ring-white/10"
+                className="bg-muted text-foreground pointer-events-none fixed left-0 top-0 z-[2147483647] flex animate-in select-none items-center gap-2 overflow-hidden rounded-lg px-2.5 text-xs opacity-95 shadow-xl ring-1 ring-black/10 fade-in-0 duration-100 will-change-transform motion-reduce:animate-none dark:ring-white/10"
                 style={{
                   height: pointerDragCandidate.current.height,
                   width: pointerDragCandidate.current.width,
