@@ -8,11 +8,16 @@ import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { SlotHost } from "@/platform/extensions";
 
-import { shouldShowMessageActions, shouldShowMessageNavigation } from "./message-action-visibility";
+import {
+  shouldHideMessageActionBar,
+  shouldShowMessageActions,
+  shouldShowMessageNavigation,
+} from "./message-action-visibility";
 
 const messageActionStyles = [
   "[&_button.aui-button-icon]:size-8!",
   "[&_button.aui-button-icon]:p-2!",
+  "[&_button.aui-button-icon]:active:scale-100",
   "[&_button_svg.lucide]:size-4!",
 ].join(" ");
 
@@ -50,6 +55,9 @@ export function WorkbenchMessageActions({ className }: Readonly<{ className?: st
   const createdAt = useAuiState((state) => state.message.createdAt);
   const isLast = useAuiState((state) => state.message.isLast);
   const capabilities = useAuiState((state) => state.thread.capabilities);
+  const hideActionBar = useAuiState((state) =>
+    shouldHideMessageActionBar(state.message, state.thread.isRunning),
+  );
   const actionsVisible = useAuiState((state) =>
     shouldShowMessageActions(state.thread.messages, state.message.index),
   );
@@ -62,6 +70,7 @@ export function WorkbenchMessageActions({ className }: Readonly<{ className?: st
   );
   const context = { messageId, role, isLast };
 
+  if (hideActionBar) return null;
   if (!actionsVisible && !navigationVisible) return null;
 
   return (

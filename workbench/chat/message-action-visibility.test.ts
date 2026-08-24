@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-const { shouldShowMessageActions, shouldShowMessageNavigation } = (await import(
-  new URL("./message-action-visibility.ts", import.meta.url).href
-)) as typeof import("./message-action-visibility");
+const { shouldHideMessageActionBar, shouldShowMessageActions, shouldShowMessageNavigation } =
+  (await import(
+    new URL("./message-action-visibility.ts", import.meta.url).href
+  )) as typeof import("./message-action-visibility");
 
 const user = (id: string) => ({
   id,
@@ -30,6 +31,40 @@ test("shows actions for user messages and the final assistant response", () => {
 
   assert.equal(shouldShowMessageActions(messages, 0), true);
   assert.equal(shouldShowMessageActions(messages, 1), true);
+});
+
+test("hides the action bar while the current assistant response is running", () => {
+  const runningAssistant = {
+    ...assistant("assistant-running", "text"),
+    isLast: true,
+    status: { type: "running" },
+  };
+  const completedAssistant = {
+    ...assistant("assistant-complete", "text"),
+    isLast: true,
+    status: { type: "complete" },
+  };
+
+  assert.equal(shouldHideMessageActionBar(runningAssistant, true), true);
+  assert.equal(shouldHideMessageActionBar(completedAssistant, false), false);
+  assert.equal(shouldHideMessageActionBar(user("user-1"), true), false);
+});
+
+test("hides a completed-status branched response until its retry run finishes", () => {
+  const activeBranch = {
+    ...branchedAssistant("assistant-retry", 2, "reasoning", "tool-call"),
+    isLast: true,
+    status: { type: "complete" },
+  };
+  const historicalBranch = {
+    ...activeBranch,
+    id: "assistant-history",
+    isLast: false,
+  };
+
+  assert.equal(shouldHideMessageActionBar(activeBranch, true), true);
+  assert.equal(shouldHideMessageActionBar(activeBranch, false), false);
+  assert.equal(shouldHideMessageActionBar(historicalBranch, true), false);
 });
 
 test("hides actions for tool-call steps", () => {

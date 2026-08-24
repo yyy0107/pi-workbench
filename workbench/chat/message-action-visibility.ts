@@ -3,6 +3,18 @@ interface MessageActionVisibilityMessage {
   readonly role: "user" | "assistant" | "system";
   readonly content: readonly { readonly type: string; readonly text?: string }[];
   readonly branchCount?: number;
+  readonly isLast?: boolean;
+  readonly status?: { readonly type: string };
+}
+
+export function shouldHideMessageActionBar(
+  message: MessageActionVisibilityMessage,
+  isThreadRunning: boolean,
+): boolean {
+  return (
+    message.role === "assistant" &&
+    (message.status?.type === "running" || (isThreadRunning && message.isLast === true))
+  );
 }
 
 function hasActionableAssistantContent(message: MessageActionVisibilityMessage): boolean {
