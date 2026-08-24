@@ -8,6 +8,7 @@ import {
 } from "@/platform/extensions";
 
 import { toggleTerminalCommand } from "./open-terminal-command";
+import { BashToolDisclosureController } from "./bash-tool-disclosure-controller";
 import { BashToolRenderer } from "./bash-tool-renderer";
 import { TerminalMenuItem } from "./terminal-menu-item";
 import { TerminalRuntimeBridge } from "./terminal-runtime-bridge";
@@ -58,6 +59,7 @@ export const terminalExtension = defineExtension({
       label: defineMessage("extensions.terminal.tool.activityComplete"),
       activeLabel: defineMessage("extensions.terminal.tool.activityRunning"),
       icon: SquareTerminalIcon,
+      disclosureController: BashToolDisclosureController,
     });
     const mobileTrigger = context.slots.register("header.right", {
       id: "workbench.terminal.mobile-trigger",

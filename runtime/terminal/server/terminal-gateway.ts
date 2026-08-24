@@ -95,6 +95,7 @@ interface TerminalUpgradeOptions {
   cwd?: string;
   cols?: number;
   rows?: number;
+  observe?: "interaction";
 }
 
 function requestHeaders(source: TerminalUpgradeRequest["headers"]): Headers {
@@ -142,7 +143,11 @@ export function terminalOptionsForUpgradeUrl(
   const cwd = parsed.searchParams.get("cwd")?.trim() || undefined;
   const cols = parseDimension(parsed.searchParams.get("cols"), 2, 500);
   const rows = parseDimension(parsed.searchParams.get("rows"), 1, 300);
+  const observeValue = parsed.searchParams.get("observe");
+  const observe =
+    observeValue === null ? undefined : observeValue === "interaction" ? observeValue : null;
   if (!/^[A-Za-z0-9._:-]{1,200}$/.test(sessionId) || cols === null || rows === null) return null;
+  if (observe === null) return null;
   if (cwd && cwd.length > 4096) return null;
   if (toolCallId && (toolCallId.length > 512 || hasControlCharacters(toolCallId))) {
     return null;
@@ -153,6 +158,7 @@ export function terminalOptionsForUpgradeUrl(
     ...(cwd ? { cwd } : {}),
     ...(cols === undefined ? {} : { cols }),
     ...(rows === undefined ? {} : { rows }),
+    ...(observe === undefined ? {} : { observe }),
   };
 }
 
@@ -193,8 +199,10 @@ async function acceptTerminalWebSocket(
   onUnexpectedError?: (error: unknown) => void,
 ): Promise<void> {
   let closed = false;
+  let readySent = false;
   let subscription: TerminalSessionSubscription | undefined;
   let terminal: AttachedTerminalSession | undefined;
+  const pendingFrames: TerminalServerFrame[] = [];
 
   const close = (code: number, reason: string) => {
     if (closed) return;
@@ -223,6 +231,13 @@ async function acceptTerminalWebSocket(
       return false;
     }
   };
+  const publish = (frame: TerminalServerFrame): boolean => {
+    if (!readySent) {
+      pendingFrames.push(frame);
+      return true;
+    }
+    return send(frame);
+  };
 
   socket.on("close", () => {
     closed = true;
@@ -234,34 +249,60 @@ async function acceptTerminalWebSocket(
   });
 
   try {
-    terminal = await sessions.attach(request);
+    const { observe, ...attachOptions } = request;
+    terminal = await sessions.attach(attachOptions);
     if (closed) {
-      terminal.subscribe({ onData: () => {}, onExit: () => {} }).detach();
-      return;
-    }
-    if (
-      !send({
-        type: "ready",
-        sessionId: terminal.sessionId,
-        cwd: terminal.cwd,
-        process: terminal.process,
-        pid: terminal.pid,
-      })
-    ) {
-      terminal.subscribe({ onData: () => {}, onExit: () => {} }).detach();
+      terminal.subscribe({ onOutput: () => {}, onExit: () => {} }).detach();
       return;
     }
 
     subscription = terminal.subscribe({
-      onData: (data) => send({ type: "data", data }),
-      onExit: (event) => {
-        send({ type: "exit", ...event });
+      onOutput: (delta) =>
+        observe === "interaction" ? undefined : publish({ type: "process/output-delta", delta }),
+      onStateChange: (snapshot) =>
+        publish({
+          type: "process/state",
+          processHandle: snapshot.processHandle,
+          processState: snapshot.processState,
+          interactionState: snapshot.interactionState,
+          attachmentState: snapshot.attachmentState,
+        }),
+      onExit: (exit) => {
+        publish({ type: "process/exited", exit });
         close(1000, "terminal exited");
       },
     });
-    if (subscription.history) send({ type: "data", data: subscription.history });
+    const snapshot = terminal.snapshot();
+    if (!send({ type: "process/ready", process: snapshot })) {
+      subscription.detach();
+      return;
+    }
+    readySent = true;
+    if (observe !== "interaction" && subscription.replay.data) {
+      send({
+        type: "process/output-delta",
+        delta: {
+          processHandle: snapshot.processHandle,
+          sequence: subscription.replay.sequence,
+          stream: "terminal",
+          data: subscription.replay.data,
+          outputBytes: subscription.replay.outputBytes,
+          outputCapReached: subscription.replay.outputCapReached,
+        },
+      });
+    }
+    for (const frame of pendingFrames.splice(0)) send(frame);
 
     socket.on("message", (raw) => {
+      if (observe === "interaction") {
+        send({
+          type: "process/error",
+          ...(terminal ? { processHandle: terminal.processHandle } : {}),
+          code: "invalid-message",
+        });
+        close(1008, "interaction observer is read-only");
+        return;
+      }
       const text = rawMessageText(raw);
       let value: unknown;
       try {
@@ -270,25 +311,34 @@ async function acceptTerminalWebSocket(
         value = undefined;
       }
       const frame = parseTerminalClientFrame(value);
-      if (!frame || !terminal) {
-        send({ type: "error", code: "invalid-message" });
+      if (!frame || !terminal || frame.processHandle !== terminal.processHandle) {
+        send({
+          type: "process/error",
+          ...(terminal ? { processHandle: terminal.processHandle } : {}),
+          code: "invalid-message",
+        });
         close(1008, "invalid terminal message");
         return;
       }
       try {
-        if (frame.type === "input") terminal.write(frame.data);
-        else if (frame.type === "resize") terminal.resize(frame.cols, frame.rows);
-        else if (frame.type === "interrupt") terminal.interrupt();
+        if (frame.type === "process/write-stdin") terminal.writeStdin(frame.data);
+        else if (frame.type === "process/resize") terminal.resizePty(frame.cols, frame.rows);
+        else if (frame.type === "process/interrupt") terminal.interrupt();
+        else if (frame.type === "process/terminate") terminal.terminate();
         else terminal.run(frame.command);
       } catch (error) {
         onUnexpectedError?.(error);
-        send({ type: "error", code: "internal-error" });
+        send({
+          type: "process/error",
+          processHandle: terminal.processHandle,
+          code: "internal-error",
+        });
         close(1011, "terminal operation failed");
       }
     });
   } catch (error) {
     if (!(error instanceof TerminalSessionError)) onUnexpectedError?.(error);
-    send({ type: "error", code: errorCode(error) });
+    send({ type: "process/error", code: errorCode(error) });
     close(error instanceof TerminalSessionError ? 1008 : 1011, "terminal unavailable");
   }
 }

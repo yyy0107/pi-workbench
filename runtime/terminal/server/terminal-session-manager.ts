@@ -3,8 +3,14 @@ import { basename, resolve } from "node:path";
 
 import { spawn, type IPty } from "node-pty";
 
-import type { TerminalErrorCode } from "../contracts";
+import type {
+  TerminalErrorCode,
+  TerminalOutputDelta,
+  TerminalProcessExit,
+  TerminalProcessSnapshot,
+} from "../contracts";
 import { terminalEnvironment } from "./terminal-environment";
+import { TerminalProcessBuffer, type TerminalProcessReplay } from "./terminal-process-buffer";
 
 const DEFAULT_COLS = 100;
 const DEFAULT_ROWS = 30;
@@ -18,8 +24,9 @@ export interface TerminalExitEvent {
 }
 
 export interface TerminalSessionClient {
-  onData(data: string): void;
-  onExit(event: TerminalExitEvent): void;
+  onOutput(delta: TerminalOutputDelta): void;
+  onExit(event: TerminalProcessExit): void;
+  onStateChange?(snapshot: TerminalProcessSnapshot): void;
 }
 
 export interface TerminalPty {
@@ -63,20 +70,19 @@ export interface AttachTerminalSessionOptions {
 }
 
 export interface TerminalSessionSubscription {
-  readonly history: string;
+  readonly replay: TerminalProcessReplay;
   detach(): void;
 }
 
 export interface AttachedTerminalSession {
-  readonly sessionId: string;
-  readonly cwd: string;
-  readonly process: string;
-  readonly pid: number;
+  readonly processHandle: string;
+  snapshot(): TerminalProcessSnapshot;
   subscribe(client: TerminalSessionClient): TerminalSessionSubscription;
-  write(data: string): void;
+  writeStdin(data: string): void;
   run(command: string): void;
-  resize(cols: number, rows: number): void;
+  resizePty(cols: number, rows: number): void;
   interrupt(): void;
+  terminate(): void;
 }
 
 export class TerminalSessionError extends Error {
@@ -91,13 +97,16 @@ export class TerminalSessionError extends Error {
 
 interface ManagedTerminalSession {
   readonly id: string;
+  readonly processHandle: string;
   readonly cwd: string;
   readonly pty: TerminalPty;
   readonly clients: Set<TerminalSessionClient>;
-  history: string[];
-  historyBytes: number;
+  readonly output: TerminalProcessBuffer;
+  readonly startedAt: number;
   idleTimer?: NodeJS.Timeout;
   exited: boolean;
+  stopReason?: "terminated";
+  exitEvent?: TerminalProcessExit;
   dataSubscription?: { dispose(): void };
   exitSubscription?: { dispose(): void };
 }
@@ -126,10 +135,6 @@ function validSessionId(sessionId: string): boolean {
 
 function boundedDimension(value: number | undefined, fallback: number, min: number, max: number) {
   return Number.isInteger(value) ? Math.min(max, Math.max(min, Number(value))) : fallback;
-}
-
-function outputBytes(value: string): number {
-  return Buffer.byteLength(value, "utf8");
 }
 
 async function canonicalDirectory(candidate: string): Promise<string> {
@@ -219,13 +224,15 @@ export class TerminalSessionManager {
       env: environment,
       name: "xterm-256color",
     });
+    const processHandle = options.sessionId;
     const session: ManagedTerminalSession = {
       id: options.sessionId,
+      processHandle,
       cwd: options.cwd,
       pty: terminal,
       clients: new Set<TerminalSessionClient>(),
-      history: [],
-      historyBytes: 0,
+      output: new TerminalProcessBuffer(processHandle, this.#maxHistoryBytes),
+      startedAt: Date.now(),
       exited: false,
     };
 
@@ -247,12 +254,10 @@ export class TerminalSessionManager {
     }
 
     return {
-      sessionId: session.id,
-      cwd: session.cwd,
-      process: session.pty.process || basename(this.#shell),
-      pid: session.pty.pid,
+      processHandle: session.processHandle,
+      snapshot: () => this.snapshot(session),
       subscribe: (client) => this.subscribe(session, client),
-      write: (data) => {
+      writeStdin: (data) => {
         if (!session.exited) session.pty.write(data);
       },
       run: (command) => {
@@ -263,7 +268,7 @@ export class TerminalSessionManager {
           .replaceAll(/[\r]+$/g, "");
         session.pty.write(`${lines}\r`);
       },
-      resize: (cols, rows) => {
+      resizePty: (cols, rows) => {
         if (!session.exited) {
           session.pty.resize(
             boundedDimension(cols, DEFAULT_COLS, 2, 500),
@@ -274,6 +279,7 @@ export class TerminalSessionManager {
       interrupt: () => {
         if (!session.exited) session.pty.write("\u0003");
       },
+      terminate: () => this.terminateSession(session),
     };
   }
 
@@ -286,15 +292,16 @@ export class TerminalSessionManager {
       session.idleTimer = undefined;
     }
     session.clients.add(client);
-    const history = session.history.join("");
+    this.publishState(session);
     let attached = true;
 
     return {
-      history,
+      replay: session.output.replay(),
       detach: () => {
         if (!attached) return;
         attached = false;
         session.clients.delete(client);
+        this.publishState(session);
         if (session.clients.size === 0 && !session.exited) this.scheduleIdleDisposal(session);
       },
     };
@@ -302,13 +309,9 @@ export class TerminalSessionManager {
 
   private publishData(session: ManagedTerminalSession, data: string): void {
     if (session.exited || !data) return;
-    session.history.push(data);
-    session.historyBytes += outputBytes(data);
-    while (session.historyBytes > this.#maxHistoryBytes && session.history.length > 0) {
-      const removed = session.history.shift();
-      if (removed) session.historyBytes -= outputBytes(removed);
-    }
-    for (const client of session.clients) client.onData(data);
+    const delta = session.output.append(data);
+    if (!delta) return;
+    for (const client of session.clients) client.onOutput(delta);
   }
 
   private publishExit(session: ManagedTerminalSession, event: TerminalExitEvent): void {
@@ -316,7 +319,17 @@ export class TerminalSessionManager {
     session.exited = true;
     this.#sessions.delete(session.id);
     if (session.idleTimer) clearTimeout(session.idleTimer);
-    for (const client of session.clients) client.onExit(event);
+    const exit: TerminalProcessExit = {
+      processHandle: session.processHandle,
+      processState: session.stopReason ? "killed" : "exited",
+      reason: session.stopReason ?? "exited",
+      exitCode: event.exitCode,
+      ...(event.signal === undefined ? {} : { signal: event.signal }),
+      outputBytes: session.output.outputBytes,
+      outputCapReached: session.output.outputCapReached,
+    };
+    session.exitEvent = exit;
+    for (const client of session.clients) client.onExit(exit);
     session.clients.clear();
     session.dataSubscription?.dispose();
     session.exitSubscription?.dispose();
@@ -335,18 +348,41 @@ export class TerminalSessionManager {
 
   private destroySession(session: ManagedTerminalSession, kill: boolean): void {
     if (session.exited) return;
-    session.exited = true;
-    this.#sessions.delete(session.id);
-    if (session.idleTimer) clearTimeout(session.idleTimer);
-    session.dataSubscription?.dispose();
-    session.exitSubscription?.dispose();
-    session.clients.clear();
-    if (kill) {
-      try {
-        session.pty.kill();
-      } catch {
-        // The process may already have exited between the state check and the signal.
-      }
+    if (!kill) return;
+    this.terminateSession(session);
+  }
+
+  private terminateSession(session: ManagedTerminalSession): void {
+    if (session.exited) return;
+    session.stopReason ??= "terminated";
+    try {
+      session.pty.kill();
+    } catch {
+      this.publishExit(session, { exitCode: 130 });
     }
+  }
+
+  private snapshot(session: ManagedTerminalSession): TerminalProcessSnapshot {
+    return {
+      processHandle: session.processHandle,
+      sessionId: session.id,
+      kind: "shell",
+      cwd: session.cwd,
+      process: session.pty.process || basename(this.#shell),
+      pid: session.pty.pid,
+      tty: true,
+      processState: session.exitEvent?.processState ?? "running",
+      interactionState: "none",
+      attachmentState: session.clients.size > 0 ? "attached" : "detached",
+      startedAt: session.startedAt,
+      outputBytes: session.output.outputBytes,
+      outputBytesCap: session.output.outputBytesCap,
+      outputCapReached: session.output.outputCapReached,
+    };
+  }
+
+  private publishState(session: ManagedTerminalSession): void {
+    const snapshot = this.snapshot(session);
+    for (const client of session.clients) client.onStateChange?.(snapshot);
   }
 }

@@ -7,11 +7,16 @@ import type { DataPresentationDefinition, ToolPresentationDefinition } from "../
 import { ExtensionManager } from "../extension-manager";
 import { RendererRegistryImpl } from "./renderer-registry";
 
+function DisclosureController() {
+  return null;
+}
+
 const presentation = {
   label: "Used",
   activeLabel: "Using",
   icon: WrenchIcon,
   summarize: (part) => part.toolName,
+  disclosureController: DisclosureController,
 } satisfies ToolPresentationDefinition;
 
 const dataPresentation = {
@@ -39,6 +44,7 @@ test("tool presentations publish stable frozen snapshots and dispose independent
   assert.notEqual(registered, presentation);
   assert.equal(registered?.label, "Used");
   assert.equal(registered?.icon, WrenchIcon);
+  assert.equal(registered?.disclosureController, DisclosureController);
   assert.equal(Object.isFrozen(registered), true);
   assert.equal(Object.isFrozen(populatedSnapshot), true);
   assert.notEqual(populatedSnapshot, emptySnapshot);

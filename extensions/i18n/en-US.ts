@@ -1099,6 +1099,9 @@ export const extensionsEnUS = {
       shellTitle: "Shell",
       statusRunning: "Running",
       statusSuccess: "Success",
+      interactionPossible: "May be waiting for input",
+      interactionActive: "Terminal input active",
+      openTerminal: "Open terminal",
     },
     transcript: {
       output: "Conversation terminal output",
@@ -1111,6 +1114,8 @@ export const extensionsEnUS = {
       complete: "Command completed",
       failed: "Command did not complete",
       waiting: "Command is waiting for action",
+      interactionPossible: "Command may be waiting for terminal input",
+      interactionActive: "Terminal input is active",
       unavailable: "This command output is not available in the current conversation",
       waitingOutput: "Waiting for output…",
       noOutput: "No output",

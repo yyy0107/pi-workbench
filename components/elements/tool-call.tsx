@@ -27,6 +27,10 @@ export interface ToolCallProps {
   expandable?: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  disclosureController?: (controls: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+  }) => ReactNode;
   children?: ReactNode;
   className?: string;
 }
@@ -50,6 +54,7 @@ export function ToolCall({
   expandable = true,
   open,
   onOpenChange,
+  disclosureController,
   children,
   className,
 }: ToolCallProps) {
@@ -129,6 +134,10 @@ export function ToolCall({
       </div>
     </div>
   );
+  const controlledDisclosure = disclosureController?.({
+    open,
+    onOpenChange: handleOpenChange,
+  });
 
   if (!expandable) {
     return (
@@ -151,6 +160,41 @@ export function ToolCall({
 
   if (hasCustomSummary) {
     return (
+      <>
+        {controlledDisclosure}
+        <Collapsible
+          ref={rootRef}
+          data-slot="tool-call"
+          data-status={failed ? "error" : running ? "running" : "complete"}
+          aria-busy={running}
+          open={open}
+          onOpenChange={handleOpenChange}
+          className={cn("w-full", className)}
+        >
+          <div
+            data-slot="tool-call-summary"
+            className="group/tool-summary relative flex w-full min-w-0 items-center gap-1.5 rounded-md py-1 text-[13.5px] outline-none"
+          >
+            <CollapsibleTrigger
+              aria-label={`${running ? activeLabel : failed ? (failedLabel ?? label) : label} ${query}`.trim()}
+              className="peer/trigger absolute inset-0 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            />
+            <div className="pointer-events-none relative z-10 flex min-w-0 items-center gap-1.5 text-foreground/55 [--tool-diff-additions:currentColor] [--tool-diff-deletions:currentColor] transition-colors group-hover/tool-summary:text-foreground group-hover/tool-summary:[--tool-diff-additions:var(--color-emerald-600)] group-hover/tool-summary:[--tool-diff-deletions:var(--color-red-600)] group-focus-within/tool-summary:text-foreground group-focus-within/tool-summary:[--tool-diff-additions:var(--color-emerald-600)] group-focus-within/tool-summary:[--tool-diff-deletions:var(--color-red-600)] dark:group-hover/tool-summary:[--tool-diff-additions:var(--color-emerald-400)] dark:group-hover/tool-summary:[--tool-diff-deletions:var(--color-red-400)] dark:group-focus-within/tool-summary:[--tool-diff-additions:var(--color-emerald-400)] dark:group-focus-within/tool-summary:[--tool-diff-deletions:var(--color-red-400)]">
+              {summaryContent}
+            </div>
+            <ChevronRightIcon className="pointer-events-none relative z-10 size-3.5 shrink-0 opacity-0 transition-[transform,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] peer-hover/trigger:opacity-60 peer-focus-visible/trigger:opacity-60 peer-data-open/trigger:rotate-90 peer-data-open/trigger:opacity-60 peer-data-panel-open/trigger:rotate-90 peer-data-panel-open/trigger:opacity-60 motion-reduce:transition-none" />
+          </div>
+          <CollapsibleContent className={cn(collapsePanel, "outline-none")}>
+            {detailContent}
+          </CollapsibleContent>
+        </Collapsible>
+      </>
+    );
+  }
+
+  return (
+    <>
+      {controlledDisclosure}
       <Collapsible
         ref={rootRef}
         data-slot="tool-call"
@@ -160,43 +204,14 @@ export function ToolCall({
         onOpenChange={handleOpenChange}
         className={cn("w-full", className)}
       >
-        <div
-          data-slot="tool-call-summary"
-          className="group/tool-summary relative flex w-full min-w-0 items-center gap-1.5 rounded-md py-1 text-[13.5px] outline-none"
-        >
-          <CollapsibleTrigger
-            aria-label={`${running ? activeLabel : failed ? (failedLabel ?? label) : label} ${query}`.trim()}
-            className="peer/trigger absolute inset-0 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-          />
-          <div className="pointer-events-none relative z-10 flex min-w-0 items-center gap-1.5 text-foreground/55 [--tool-diff-additions:currentColor] [--tool-diff-deletions:currentColor] transition-colors group-hover/tool-summary:text-foreground group-hover/tool-summary:[--tool-diff-additions:var(--color-emerald-600)] group-hover/tool-summary:[--tool-diff-deletions:var(--color-red-600)] group-focus-within/tool-summary:text-foreground group-focus-within/tool-summary:[--tool-diff-additions:var(--color-emerald-600)] group-focus-within/tool-summary:[--tool-diff-deletions:var(--color-red-600)] dark:group-hover/tool-summary:[--tool-diff-additions:var(--color-emerald-400)] dark:group-hover/tool-summary:[--tool-diff-deletions:var(--color-red-400)] dark:group-focus-within/tool-summary:[--tool-diff-additions:var(--color-emerald-400)] dark:group-focus-within/tool-summary:[--tool-diff-deletions:var(--color-red-400)]">
-            {summaryContent}
-          </div>
-          <ChevronRightIcon className="pointer-events-none relative z-10 size-3.5 shrink-0 opacity-0 transition-[transform,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] peer-hover/trigger:opacity-60 peer-focus-visible/trigger:opacity-60 peer-data-open/trigger:rotate-90 peer-data-open/trigger:opacity-60 peer-data-panel-open/trigger:rotate-90 peer-data-panel-open/trigger:opacity-60 motion-reduce:transition-none" />
-        </div>
+        <CollapsibleTrigger className="group/trigger text-foreground/55 hover:text-foreground/90 flex w-full min-w-0 items-center gap-1.5 rounded-md py-1 text-[13.5px] transition-colors outline-none">
+          {summaryContent}
+          {chevron}
+        </CollapsibleTrigger>
         <CollapsibleContent className={cn(collapsePanel, "outline-none")}>
           {detailContent}
         </CollapsibleContent>
       </Collapsible>
-    );
-  }
-
-  return (
-    <Collapsible
-      ref={rootRef}
-      data-slot="tool-call"
-      data-status={failed ? "error" : running ? "running" : "complete"}
-      aria-busy={running}
-      open={open}
-      onOpenChange={handleOpenChange}
-      className={cn("w-full", className)}
-    >
-      <CollapsibleTrigger className="group/trigger text-foreground/55 hover:text-foreground/90 flex w-full min-w-0 items-center gap-1.5 rounded-md py-1 text-[13.5px] transition-colors outline-none">
-        {summaryContent}
-        {chevron}
-      </CollapsibleTrigger>
-      <CollapsibleContent className={cn(collapsePanel, "outline-none")}>
-        {detailContent}
-      </CollapsibleContent>
-    </Collapsible>
+    </>
   );
 }

@@ -84,7 +84,7 @@ import { SessionQueueProjection } from "./session-queue";
 import { getStreamHub } from "../streams/stream-hub";
 import { getWorkspaceStore } from "../workspaces/workspace-registry";
 import { validateWorkspace, workspaceFromCwd } from "../workspaces/workspace-paths";
-import { createInteractiveBashTool } from "../../../terminal/server/interactive-bash-tool";
+import { createWorkbenchBashToolOverride } from "../../../terminal/server/interactive-bash-tool";
 import {
   attachmentReferenceId,
   isTerminalAttachmentRecognitionSnapshot,
@@ -2692,7 +2692,9 @@ async function createHost(sessionManager: SessionManager): Promise<HostedPiSessi
     services,
     sessionManager,
     customTools: [
-      createInteractiveBashTool(cwd, sessionManager.getSessionId(), {
+      // Pi applies custom tools after built-ins, so this same-name definition is the
+      // Workbench execution override while the model continues to see the standard `bash` tool.
+      createWorkbenchBashToolOverride(cwd, sessionManager.getSessionId(), {
         commandPrefix: services.settingsManager.getShellCommandPrefix(),
         shellPath: services.settingsManager.getShellPath(),
       }),

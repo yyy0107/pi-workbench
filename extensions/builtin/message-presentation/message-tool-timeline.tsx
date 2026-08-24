@@ -217,6 +217,7 @@ function TimelineToolCall({
   const displayedResult = part.result ?? part.artifact;
   const elapsedSeconds = useElapsedSeconds(running, part.timing);
   const Icon = presentation?.icon ?? STEP_ICONS[kind];
+  const DisclosureController = presentation?.disclosureController;
   const label = presentation
     ? text(presentation.label)
     : t(`extensions.messagePresentation.toolTimeline.steps.${kind}`);
@@ -330,6 +331,18 @@ function TimelineToolCall({
       expandable={!isFileMutation || Boolean(fileDiff) || part.isError}
       open={open}
       onOpenChange={setOpen}
+      disclosureController={
+        DisclosureController
+          ? ({ open: disclosureOpen, onOpenChange }) => (
+              <DisclosureController
+                part={part}
+                running={running}
+                open={disclosureOpen}
+                onOpenChange={onOpenChange}
+              />
+            )
+          : undefined
+      }
       elapsed={
         elapsedSeconds === undefined
           ? undefined

@@ -1061,6 +1061,9 @@ export const extensionsZhCN = {
       shellTitle: "Shell",
       statusRunning: "运行中",
       statusSuccess: "成功",
+      interactionPossible: "可能正在等待输入",
+      interactionActive: "终端输入进行中",
+      openTerminal: "打开终端",
     },
     transcript: {
       output: "会话终端输出",
@@ -1073,6 +1076,8 @@ export const extensionsZhCN = {
       complete: "命令已完成",
       failed: "命令未完成",
       waiting: "命令正在等待操作",
+      interactionPossible: "命令可能正在等待终端输入",
+      interactionActive: "终端输入进行中",
       unavailable: "当前会话中没有这条命令的输出",
       waitingOutput: "正在等待输出…",
       noOutput: "没有输出",

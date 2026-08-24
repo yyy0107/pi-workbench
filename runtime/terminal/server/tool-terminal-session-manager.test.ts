@@ -5,6 +5,7 @@ import {
   ToolTerminalSessionManager,
   type ToolTerminalExecutionOptions,
 } from "./tool-terminal-session-manager";
+import type { TerminalProcessExit } from "../contracts";
 import type { TerminalExitEvent, TerminalPty } from "./terminal-session-manager";
 
 class FakePty implements TerminalPty {
@@ -47,6 +48,39 @@ class FakePty implements TerminalPty {
   }
 }
 
+test("registers a stable process handle before the tool process exits", async () => {
+  const terminal = new FakePty();
+  const manager = new ToolTerminalSessionManager({
+    retentionMs: 60_000,
+    spawnPty: () => terminal,
+    terminatePty: (target) => target.kill(),
+  });
+  const spawned = manager.spawn({
+    sessionId: "session-1",
+    toolCallId: "call-spawn",
+    command: "read answer",
+    cwd: "/workspace",
+    onData: () => {},
+  });
+  let completed = false;
+  void spawned.completion.finally(() => {
+    completed = true;
+  });
+
+  assert.equal(spawned.processHandle, "tool:session-1:call-spawn");
+  assert.equal(spawned.pid, terminal.pid);
+  assert.equal(completed, false);
+
+  const attached = await manager.attach({ sessionId: "session-1", toolCallId: "call-spawn" });
+  assert.equal(attached.processHandle, spawned.processHandle);
+  assert.equal(attached.snapshot().processState, "running");
+
+  terminal.emitExit({ exitCode: 0 });
+  assert.deepEqual(await spawned.completion, { exitCode: 0 });
+  assert.equal(completed, true);
+  manager.dispose();
+});
+
 test("shares tool PTY output, input, resize, and interruption with attached clients", async () => {
   const terminals: FakePty[] = [];
   const manager = new ToolTerminalSessionManager({
@@ -77,19 +111,21 @@ test("shares tool PTY output, input, resize, and interruption with attached clie
     rows: 40,
   });
   const live: string[] = [];
-  const exits: TerminalExitEvent[] = [];
+  const exits: TerminalProcessExit[] = [];
   const subscription = attached.subscribe({
-    onData: (data) => live.push(data),
+    onOutput: (delta) => live.push(delta.data),
     onExit: (event) => exits.push(event),
   });
 
-  assert.equal(subscription.history, "$ read value && echo $value\r\n");
+  assert.equal(subscription.replay.data, "$ read value && echo $value\r\n");
+  assert.equal(attached.snapshot().kind, "tool");
+  assert.equal(attached.snapshot().processHandle, "tool:session-1:call-1");
   terminals[0]!.emitData("\u001b[31mvalue?\u001b[0m ");
-  attached.write("answer\r");
-  attached.resize(90, 20);
-  attached.interrupt();
+  attached.writeStdin("answer\r");
+  attached.resizePty(90, 20);
+  attached.terminate();
 
-  assert.deepEqual(output, ["value? "]);
+  assert.deepEqual(output, []);
   assert.deepEqual(live, ["\u001b[31mvalue?\u001b[0m "]);
   assert.deepEqual(terminals[0]!.writes, ["answer\r"]);
   assert.deepEqual(terminals[0]!.sizes, [
@@ -100,8 +136,47 @@ test("shares tool PTY output, input, resize, and interruption with attached clie
 
   terminals[0]!.emitExit({ exitCode: 130 });
   await assert.rejects(running, /aborted/);
-  assert.deepEqual(exits, [{ exitCode: 130 }]);
+  assert.deepEqual(output, ["value? "]);
+  assert.equal(exits.length, 1);
+  assert.equal(exits[0]?.exitCode, 130);
+  assert.equal(exits[0]?.processState, "killed");
+  assert.equal(exits[0]?.reason, "terminated");
   subscription.detach();
+  manager.dispose();
+});
+
+test("keeps raw PTY redraws for xterm while projecting only their stable final line", async () => {
+  const terminal = new FakePty();
+  const manager = new ToolTerminalSessionManager({
+    retentionMs: 60_000,
+    spawnPty: () => terminal,
+    terminatePty: (target) => target.kill(),
+  });
+  const transcript: string[] = [];
+  const running = manager.execute({
+    sessionId: "session-1",
+    toolCallId: "call-redraw",
+    command: "download",
+    cwd: "/workspace",
+    onData: (data) => transcript.push(data.toString("utf8")),
+  });
+  const attached = await manager.attach({
+    sessionId: "session-1",
+    toolCallId: "call-redraw",
+  });
+  const raw: string[] = [];
+  attached.subscribe({
+    onOutput: (delta) => raw.push(delta.data),
+    onExit: () => {},
+  });
+
+  terminal.emitData("Cloning 10%\rCloning 20%\r");
+  terminal.emitData("Cloning 100%\r\n");
+  terminal.emitExit({ exitCode: 0 });
+
+  assert.deepEqual(await running, { exitCode: 0 });
+  assert.deepEqual(raw, ["Cloning 10%\rCloning 20%\r", "Cloning 100%\r\n"]);
+  assert.deepEqual(transcript, ["Cloning 100%\n"]);
   manager.dispose();
 });
 
@@ -124,10 +199,59 @@ test("keeps a completed tool terminal available for output replay", async () => 
 
   assert.deepEqual(await running, { exitCode: 0 });
   const attached = await manager.attach({ sessionId: "session-1", toolCallId: "call-2" });
-  const exit = new Promise<TerminalExitEvent>((resolve) => {
-    const subscription = attached.subscribe({ onData: () => {}, onExit: resolve });
-    assert.equal(subscription.history, "$ printf done\r\ndone");
+  const exit = new Promise<TerminalProcessExit>((resolve) => {
+    const subscription = attached.subscribe({ onOutput: () => {}, onExit: resolve });
+    assert.equal(subscription.replay.data, "$ printf done\r\ndone");
   });
-  assert.deepEqual(await exit, { exitCode: 0 });
+  const completed = await exit;
+  assert.equal(completed.exitCode, 0);
+  assert.equal(completed.processState, "exited");
+  assert.equal(completed.reason, "exited");
+  manager.dispose();
+});
+
+test("publishes possible and active interaction independently from process state", async () => {
+  const terminal = new FakePty();
+  const manager = new ToolTerminalSessionManager({
+    retentionMs: 60_000,
+    interactionDetectorOptions: { quietPeriodMs: 0 },
+    spawnPty: () => terminal,
+    terminatePty: (target) => target.kill(),
+  });
+  const running = manager.execute({
+    sessionId: "session-1",
+    toolCallId: "call-interactive",
+    command: "npx skills add example",
+    cwd: "/workspace",
+    onData: () => {},
+  });
+  const attached = await manager.attach({
+    sessionId: "session-1",
+    toolCallId: "call-interactive",
+  });
+  const states: string[] = [];
+  const possible = new Promise<void>((resolve) => {
+    attached.subscribe({
+      onOutput: () => {},
+      onExit: () => {},
+      onStateChange: (snapshot) => {
+        states.push(snapshot.interactionState);
+        if (snapshot.interactionState === "possible") resolve();
+      },
+    });
+  });
+
+  terminal.emitData("\u001b[?25l\u001b[1G\u001b[JSelect a skill");
+  await possible;
+  assert.equal(attached.snapshot().interactionState, "possible");
+
+  attached.writeStdin("1\r");
+  assert.equal(attached.snapshot().interactionState, "active");
+  assert.deepEqual(states, ["none", "possible", "active"]);
+
+  terminal.emitExit({ exitCode: 0 });
+  await running;
+  assert.equal(attached.snapshot().interactionState, "none");
+  assert.deepEqual(states, ["none", "possible", "active", "none"]);
   manager.dispose();
 });

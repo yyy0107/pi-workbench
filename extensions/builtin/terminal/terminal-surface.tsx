@@ -13,9 +13,9 @@ import { useI18n } from "@/i18n";
 import type { WorkspaceSurfaceProps } from "@/platform/extensions";
 import {
   parseTerminalServerFrame,
-  TERMINAL_WEBSOCKET_PATH,
   type TerminalClientFrame,
   type TerminalErrorCode,
+  type TerminalInteractionState,
 } from "@/runtime/terminal/contracts";
 
 import { normalizeTerminalTabTitle, terminalTabTitleFromPrompt } from "./terminal-tab-title";
@@ -33,6 +33,7 @@ import {
   terminalResultLines,
 } from "./terminal-tool-transcript";
 import { createTerminalFrameWriter, type TerminalFrameWriter } from "./terminal-frame-writer";
+import { ptyTerminalSocketUrl, toolTerminalSocketUrl } from "./terminal-socket-url";
 
 type ConnectionStatus =
   | { phase: "connecting" }
@@ -185,35 +186,6 @@ function currentLogicalLine(terminal: Terminal): string {
   return value;
 }
 
-function terminalSocketUrl(
-  target: Pick<TerminalPtyTarget, "sessionId" | "cwd">,
-  cols: number,
-  rows: number,
-): string {
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const url = new URL(TERMINAL_WEBSOCKET_PATH, `${protocol}//${window.location.host}`);
-  url.searchParams.set("sessionId", target.sessionId);
-  if (target.cwd) url.searchParams.set("cwd", target.cwd);
-  url.searchParams.set("cols", String(cols));
-  url.searchParams.set("rows", String(rows));
-  return url.toString();
-}
-
-function toolTerminalSocketUrl(
-  target: Pick<TerminalTranscriptTarget, "piSessionId" | "toolCallId">,
-  cols: number,
-  rows: number,
-): string | undefined {
-  if (!target.piSessionId) return undefined;
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const url = new URL(TERMINAL_WEBSOCKET_PATH, `${protocol}//${window.location.host}`);
-  url.searchParams.set("sessionId", target.piSessionId);
-  url.searchParams.set("toolCallId", target.toolCallId);
-  url.searchParams.set("cols", String(cols));
-  url.searchParams.set("rows", String(rows));
-  return url.toString();
-}
-
 function terminalText(value: string): string {
   return value.replace(/\r\n?/g, "\n").replaceAll("\n", "\r\n");
 }
@@ -248,6 +220,7 @@ function TerminalTranscriptSurface({
   const interruptRef = useRef<() => void>(() => {});
   const fallbackSnapshotRef = useRef<{ command: string; output: string } | undefined>(undefined);
   const [connection, setConnection] = useState<ToolConnectionStatus>({ phase: "connecting" });
+  const [interactionState, setInteractionState] = useState<TerminalInteractionState>("none");
   const { piSessionId, toolCallId } = target;
   const message = useAuiState((state) =>
     findBashToolCallMessage(state.thread.messages, toolCallId),
@@ -281,6 +254,7 @@ function TerminalTranscriptSurface({
     let disposed = false;
     let ready = false;
     let exited = false;
+    let processHandle: string | undefined;
     let attempts = 0;
     let socket: WebSocket | undefined;
     let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
@@ -317,6 +291,8 @@ function TerminalTranscriptSurface({
       const showFallback = () => {
         if (disposed || !terminal) return;
         ready = false;
+        processHandle = undefined;
+        setInteractionState("none");
         terminal.options.disableStdin = true;
         terminal.options.cursorBlink = false;
         setConnection({ phase: "fallback" });
@@ -325,8 +301,7 @@ function TerminalTranscriptSurface({
         if (disposed || exited || !terminal) return;
         const url = toolTerminalSocketUrl(
           { piSessionId, toolCallId },
-          terminal.cols,
-          terminal.rows,
+          { cols: terminal.cols, rows: terminal.rows },
         );
         if (!url) {
           showFallback();
@@ -350,28 +325,38 @@ function TerminalTranscriptSurface({
           }
           const frame = parseTerminalServerFrame(value);
           if (!frame || !terminal) return;
-          if (frame.type === "data") writer.enqueue(frame.data);
-          else if (frame.type === "ready") {
+          if (frame.type === "process/output-delta") writer.enqueue(frame.delta.data);
+          else if (frame.type === "process/state") {
+            setInteractionState(frame.interactionState);
+          } else if (frame.type === "process/ready") {
             writer.flush();
+            processHandle = frame.process.processHandle;
             ready = true;
             attempts = 0;
+            setInteractionState(frame.process.interactionState);
             terminal.options.disableStdin = false;
             terminal.options.cursorBlink = true;
             setConnection({ phase: "connected" });
-            send({ type: "resize", cols: terminal.cols, rows: terminal.rows });
+            send({
+              type: "process/resize",
+              processHandle,
+              cols: terminal.cols,
+              rows: terminal.rows,
+            });
             terminal.focus();
-          } else if (frame.type === "exit") {
+          } else if (frame.type === "process/exited") {
             writer.flush();
             exited = true;
             ready = false;
+            setInteractionState("none");
             terminal.options.disableStdin = true;
             terminal.options.cursorBlink = false;
-            setConnection({ phase: "exited", exitCode: frame.exitCode });
-          } else if (frame.code === "invalid-session") {
+            setConnection({ phase: "exited", exitCode: frame.exit.exitCode });
+          } else if (frame.type === "process/error" && frame.code === "invalid-session") {
             writer.flush();
             exited = true;
             showFallback();
-          } else {
+          } else if (frame.type === "process/error") {
             writer.flush();
             exited = true;
             ready = false;
@@ -394,7 +379,9 @@ function TerminalTranscriptSurface({
         });
       };
 
-      dataSubscription = terminal.onData((data) => send({ type: "input", data }));
+      dataSubscription = terminal.onData((data) =>
+        processHandle ? send({ type: "process/write-stdin", processHandle, data }) : false,
+      );
       resizeObserver = new ResizeObserver(() => {
         if (resizeFrame !== undefined) cancelAnimationFrame(resizeFrame);
         resizeFrame = requestAnimationFrame(() => {
@@ -407,12 +394,19 @@ function TerminalTranscriptSurface({
             return;
           }
           fitAddon.fit();
-          send({ type: "resize", cols: terminal.cols, rows: terminal.rows });
+          if (processHandle) {
+            send({
+              type: "process/resize",
+              processHandle,
+              cols: terminal.cols,
+              rows: terminal.rows,
+            });
+          }
         });
       });
       resizeObserver.observe(container);
       interruptRef.current = () => {
-        if (!send({ type: "interrupt" })) return;
+        if (!processHandle || !send({ type: "process/terminate", processHandle })) return;
         terminal!.options.disableStdin = true;
         setConnection({ phase: "stopping" });
       };
@@ -460,15 +454,19 @@ function TerminalTranscriptSurface({
   }, [command, connection.phase, output]);
 
   const connectionLabel =
-    connection.phase === "connecting"
-      ? t("extensions.terminal.transcript.connecting")
-      : connection.phase === "disconnected"
-        ? t("extensions.terminal.transcript.reconnecting")
-        : connection.phase === "stopping"
-          ? t("extensions.terminal.transcript.stopping")
-          : connection.phase === "error"
-            ? t("extensions.terminal.transcript.connectionError")
-            : statusLabel;
+    interactionState === "active"
+      ? t("extensions.terminal.transcript.interactionActive")
+      : interactionState === "possible"
+        ? t("extensions.terminal.transcript.interactionPossible")
+        : connection.phase === "connecting"
+          ? t("extensions.terminal.transcript.connecting")
+          : connection.phase === "disconnected"
+            ? t("extensions.terminal.transcript.reconnecting")
+            : connection.phase === "stopping"
+              ? t("extensions.terminal.transcript.stopping")
+              : connection.phase === "error"
+                ? t("extensions.terminal.transcript.connectionError")
+                : statusLabel;
 
   return (
     <section
@@ -520,6 +518,7 @@ function PtyTerminalSurface({
     let disposed = false;
     let ready = false;
     let exited = false;
+    let processHandle: string | undefined;
     let generation = 0;
     let attempts = 0;
     let socket: WebSocket | undefined;
@@ -603,9 +602,10 @@ function PtyTerminalSurface({
         if (disposed || exited) return;
         const ownGeneration = ++generation;
         ready = false;
+        processHandle = undefined;
         reportStatus(attempts === 0 ? { phase: "connecting" } : { phase: "disconnected" });
         const nextSocket = new WebSocket(
-          terminalSocketUrl(
+          ptyTerminalSocketUrl(
             { sessionId, ...(cwd ? { cwd } : {}) },
             terminal?.cols ?? 100,
             terminal?.rows ?? 30,
@@ -622,28 +622,36 @@ function PtyTerminalSurface({
           }
           const frame = parseTerminalServerFrame(value);
           if (!frame || !terminal) return;
-          if (frame.type === "data") {
-            writer.enqueue(frame.data, schedulePromptTitle);
-          } else if (frame.type === "ready") {
+          if (frame.type === "process/output-delta") {
+            writer.enqueue(frame.delta.data, schedulePromptTitle);
+          } else if (frame.type === "process/state") {
+            return;
+          } else if (frame.type === "process/ready") {
             writer.flush();
+            processHandle = frame.process.processHandle;
             ready = true;
             attempts = 0;
             reportStatus({
               phase: "connected",
-              process: frame.process,
-              pid: frame.pid,
-              cwd: frame.cwd,
+              process: frame.process.process,
+              pid: frame.process.pid,
+              cwd: frame.process.cwd,
             });
-            send({ type: "resize", cols: terminal.cols, rows: terminal.rows });
-          } else if (frame.type === "exit") {
+            send({
+              type: "process/resize",
+              processHandle,
+              cols: terminal.cols,
+              rows: terminal.rows,
+            });
+          } else if (frame.type === "process/exited") {
             writer.flush();
             exited = true;
             ready = false;
-            reportStatus({ phase: "exited", exitCode: frame.exitCode });
+            reportStatus({ phase: "exited", exitCode: frame.exit.exitCode });
             terminal.writeln(
-              `\r\n${t("extensions.terminal.status.exited", { code: frame.exitCode })}`,
+              `\r\n${t("extensions.terminal.status.exited", { code: frame.exit.exitCode })}`,
             );
-          } else {
+          } else if (frame.type === "process/error") {
             writer.flush();
             exited = true;
             ready = false;
@@ -665,7 +673,9 @@ function PtyTerminalSurface({
         });
       };
 
-      dataSubscription = terminal.onData((data) => send({ type: "input", data }));
+      dataSubscription = terminal.onData((data) =>
+        processHandle ? send({ type: "process/write-stdin", processHandle, data }) : false,
+      );
       resizeObserver = new ResizeObserver(() => {
         if (resizeFrame !== undefined) cancelAnimationFrame(resizeFrame);
         resizeFrame = requestAnimationFrame(() => {
@@ -678,7 +688,14 @@ function PtyTerminalSurface({
             return;
           }
           fitAddon.fit();
-          send({ type: "resize", cols: terminal.cols, rows: terminal.rows });
+          if (processHandle) {
+            send({
+              type: "process/resize",
+              processHandle,
+              cols: terminal.cols,
+              rows: terminal.rows,
+            });
+          }
         });
       });
       resizeObserver.observe(container);

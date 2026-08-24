@@ -27,6 +27,22 @@ export type ToolRendererComponent = ToolCallMessagePartComponent;
 export type DataRendererComponent = DataMessagePartComponent;
 
 /**
+ * 工具时间线折叠控制器接收当前 Part 与受控展开状态。
+ *
+ * 控制器只用于响应扩展拥有的展示状态，例如等待用户输入；它不渲染工具详情、不执行工具，
+ * 也不能修改 Part。Host 会把控制器挂在折叠内容之外，因此详情关闭时仍可请求展开。
+ */
+export interface ToolPresentationDisclosureControllerProps {
+  readonly part: ToolCallMessagePart;
+  readonly running: boolean;
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+}
+
+export type ToolPresentationDisclosureController =
+  ComponentType<ToolPresentationDisclosureControllerProps>;
+
+/**
  * 整条消息内容区域的无 props React 组件。
  *
  * 组件在 `MessagePrimitive.Root` 内挂载，应渲染一个 `MessagePrimitive.Parts` 或
@@ -95,6 +111,11 @@ export interface ToolPresentationDefinition {
   readonly icon: LucideIcon;
   /** 可选的单行摘要提取器；返回空值时继续使用 Workbench 的安全 fallback。 */
   readonly summarize?: (part: ToolCallMessagePart) => string | undefined;
+  /**
+   * 可选的受控折叠行为；适用于工具在运行中异步进入“需要用户操作”等展示状态时自动展开。
+   * 该组件始终位于折叠详情之外，不得执行工具或复制详情 UI。
+   */
+  readonly disclosureController?: ToolPresentationDisclosureController;
 }
 
 /**

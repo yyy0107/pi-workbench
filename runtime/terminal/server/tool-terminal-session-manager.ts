@@ -1,9 +1,8 @@
 import { basename } from "node:path";
-import { stripVTControlCharacters } from "node:util";
 
 import { spawn, type IPty } from "node-pty";
 
-import type { TerminalErrorCode } from "../contracts";
+import type { TerminalErrorCode, TerminalProcessExit, TerminalProcessSnapshot } from "../contracts";
 import {
   TerminalSessionError,
   type AttachedTerminalSession,
@@ -14,6 +13,12 @@ import {
   type TerminalSessionSubscription,
 } from "./terminal-session-manager";
 import { terminalEnvironment } from "./terminal-environment";
+import {
+  TerminalInteractionDetector,
+  type TerminalInteractionDetectorOptions,
+} from "./terminal-interaction-detector";
+import { TerminalProcessBuffer } from "./terminal-process-buffer";
+import { TerminalTranscriptProjector } from "./terminal-transcript-projector";
 
 const DEFAULT_COLS = 100;
 const DEFAULT_ROWS = 30;
@@ -33,6 +38,12 @@ export interface ToolTerminalExecutionOptions {
   shell?: string;
 }
 
+export interface SpawnedToolTerminalProcess {
+  readonly processHandle: string;
+  readonly pid: number;
+  readonly completion: Promise<{ exitCode: number | null }>;
+}
+
 export interface AttachToolTerminalOptions {
   sessionId: string;
   toolCallId: string;
@@ -49,9 +60,10 @@ export interface ToolTerminalSessionManagerOptions {
   maxHistoryBytes?: number;
   retentionMs?: number;
   maxSessions?: number;
+  interactionDetectorOptions?: Omit<TerminalInteractionDetectorOptions, "onStateChange">;
 }
 
-type StopReason = "aborted" | "timeout";
+type StopReason = "aborted" | "timeout" | "terminated";
 
 interface ManagedToolTerminalSession {
   readonly key: string;
@@ -61,15 +73,19 @@ interface ManagedToolTerminalSession {
   readonly cwd: string;
   readonly shell: string;
   readonly pty: TerminalPty;
+  readonly processHandle: string;
+  readonly startedAt: number;
+  readonly output: TerminalProcessBuffer;
+  readonly transcriptProjector: TerminalTranscriptProjector;
+  readonly onTranscriptData: ToolTerminalExecutionOptions["onData"];
+  readonly interactionDetector: TerminalInteractionDetector;
   readonly clients: Set<TerminalSessionClient>;
   readonly completion: Promise<{ exitCode: number | null }>;
   resolve(result: { exitCode: number | null }): void;
   reject(error: Error): void;
-  history: string[];
-  historyBytes: number;
   stopReason?: StopReason;
   timeoutSeconds?: number;
-  exitEvent?: TerminalExitEvent;
+  exitEvent?: TerminalProcessExit;
   timeoutHandle?: NodeJS.Timeout;
   retentionTimer?: NodeJS.Timeout;
   dataSubscription?: { dispose(): void };
@@ -118,10 +134,6 @@ function sessionKey(sessionId: string, toolCallId: string): string {
   return `${sessionId}\u0000${toolCallId}`;
 }
 
-function historyBytes(value: string): number {
-  return Buffer.byteLength(value, "utf8");
-}
-
 function terminalError(code: TerminalErrorCode, message: string): TerminalSessionError {
   return new TerminalSessionError(code, message);
 }
@@ -135,6 +147,7 @@ export class ToolTerminalSessionManager {
   readonly #maxHistoryBytes: number;
   readonly #retentionMs: number;
   readonly #maxSessions: number;
+  readonly #interactionDetectorOptions?: Omit<TerminalInteractionDetectorOptions, "onStateChange">;
   readonly #sessions = new Map<string, ManagedToolTerminalSession>();
 
   constructor(options: ToolTerminalSessionManagerOptions = {}) {
@@ -146,9 +159,14 @@ export class ToolTerminalSessionManager {
     this.#maxHistoryBytes = options.maxHistoryBytes ?? DEFAULT_HISTORY_BYTES;
     this.#retentionMs = options.retentionMs ?? DEFAULT_RETENTION_MS;
     this.#maxSessions = options.maxSessions ?? DEFAULT_MAX_SESSIONS;
+    this.#interactionDetectorOptions = options.interactionDetectorOptions;
   }
 
-  async execute(options: ToolTerminalExecutionOptions): Promise<{ exitCode: number | null }> {
+  execute(options: ToolTerminalExecutionOptions): Promise<{ exitCode: number | null }> {
+    return this.spawn(options).completion;
+  }
+
+  spawn(options: ToolTerminalExecutionOptions): SpawnedToolTerminalProcess {
     if (options.signal?.aborted) throw new Error("aborted");
     const key = sessionKey(options.sessionId, options.toolCallId);
     const existing = this.#sessions.get(key);
@@ -181,7 +199,13 @@ export class ToolTerminalSessionManager {
       resolve = resolvePromise;
       reject = rejectPromise;
     });
-    const session: ManagedToolTerminalSession = {
+    const processHandle = `tool:${options.sessionId}:${options.toolCallId}`;
+    let session!: ManagedToolTerminalSession;
+    const interactionDetector = new TerminalInteractionDetector({
+      ...this.#interactionDetectorOptions,
+      onStateChange: () => this.#publishInteractionState(session),
+    });
+    session = {
       key,
       sessionId: options.sessionId,
       toolCallId: options.toolCallId,
@@ -189,22 +213,29 @@ export class ToolTerminalSessionManager {
       cwd: options.cwd,
       shell,
       pty: terminal,
+      processHandle,
+      startedAt: Date.now(),
+      output: new TerminalProcessBuffer(processHandle, this.#maxHistoryBytes),
+      transcriptProjector: new TerminalTranscriptProjector(),
+      onTranscriptData: options.onData,
+      interactionDetector,
       clients: new Set(),
       completion,
       resolve,
       reject,
-      history: [],
-      historyBytes: 0,
     };
-    this.#appendHistory(session, `$ ${options.command.replace(/\r?\n/g, "\r\n")}\r\n`);
+    session.output.append(`$ ${options.command.replace(/\r?\n/g, "\r\n")}\r\n`);
     this.#sessions.set(key, session);
 
     session.dataSubscription = terminal.onData((data) => {
       if (session.exitEvent || !data) return;
-      this.#appendHistory(session, data);
-      const plainText = stripVTControlCharacters(data);
-      if (plainText) options.onData(Buffer.from(plainText, "utf8"));
-      for (const client of session.clients) client.onData(data);
+      session.interactionDetector.feed(data);
+      const delta = session.output.append(data);
+      const transcript = session.transcriptProjector.feed(data);
+      if (transcript) session.onTranscriptData(Buffer.from(transcript, "utf8"));
+      if (delta) {
+        for (const client of session.clients) client.onOutput(delta);
+      }
     });
     session.exitSubscription = terminal.onExit((event) => this.#finish(session, event));
 
@@ -222,7 +253,7 @@ export class ToolTerminalSessionManager {
       session.timeoutHandle.unref?.();
     }
 
-    return completion;
+    return { processHandle, pid: terminal.pid, completion };
   }
 
   async attach(options: AttachToolTerminalOptions): Promise<AttachedTerminalSession> {
@@ -254,18 +285,19 @@ export class ToolTerminalSessionManager {
 
   #attached(session: ManagedToolTerminalSession): AttachedTerminalSession {
     return {
-      sessionId: `tool:${session.sessionId}:${session.toolCallId}`,
-      cwd: session.cwd,
-      process: session.pty.process || basename(session.shell),
-      pid: session.pty.pid,
+      processHandle: session.processHandle,
+      snapshot: () => this.#snapshot(session),
       subscribe: (client) => this.#subscribe(session, client),
-      write: (data) => {
-        if (!session.exitEvent) session.pty.write(data);
+      writeStdin: (data) => {
+        if (!session.exitEvent) {
+          session.interactionDetector.recordInput();
+          session.pty.write(data);
+        }
       },
       run: () => {
         throw terminalError("invalid-message", "A tool terminal cannot run another command.");
       },
-      resize: (cols, rows) => {
+      resizePty: (cols, rows) => {
         if (!session.exitEvent) {
           session.pty.resize(
             boundedDimension(cols, DEFAULT_COLS, 2, 500),
@@ -273,7 +305,10 @@ export class ToolTerminalSessionManager {
           );
         }
       },
-      interrupt: () => this.#stop(session, "aborted"),
+      interrupt: () => {
+        if (!session.exitEvent) session.pty.write("\u0003");
+      },
+      terminate: () => this.#stop(session, "terminated"),
     };
   }
 
@@ -285,27 +320,21 @@ export class ToolTerminalSessionManager {
       clearTimeout(session.retentionTimer);
       session.retentionTimer = undefined;
     }
-    if (!session.exitEvent) session.clients.add(client);
-    else queueMicrotask(() => client.onExit(session.exitEvent!));
+    if (!session.exitEvent) {
+      session.clients.add(client);
+      this.#publishState(session);
+    } else queueMicrotask(() => client.onExit(session.exitEvent!));
     let attached = true;
     return {
-      history: session.history.join(""),
+      replay: session.output.replay(),
       detach: () => {
         if (!attached) return;
         attached = false;
         session.clients.delete(client);
+        this.#publishState(session);
         if (session.exitEvent && session.clients.size === 0) this.#scheduleRetention(session);
       },
     };
-  }
-
-  #appendHistory(session: ManagedToolTerminalSession, data: string): void {
-    session.history.push(data);
-    session.historyBytes += historyBytes(data);
-    while (session.historyBytes > this.#maxHistoryBytes && session.history.length > 0) {
-      const removed = session.history.shift();
-      if (removed) session.historyBytes -= historyBytes(removed);
-    }
   }
 
   #stop(session: ManagedToolTerminalSession, reason: StopReason): void {
@@ -320,15 +349,27 @@ export class ToolTerminalSessionManager {
 
   #finish(session: ManagedToolTerminalSession, event: TerminalExitEvent): void {
     if (session.exitEvent) return;
-    session.exitEvent = event;
+    const finalTranscript = session.transcriptProjector.flush();
+    if (finalTranscript) session.onTranscriptData(Buffer.from(finalTranscript, "utf8"));
+    session.exitEvent = {
+      processHandle: session.processHandle,
+      processState: session.stopReason ? "killed" : "exited",
+      reason: session.stopReason ?? "exited",
+      exitCode: event.exitCode,
+      ...(event.signal === undefined ? {} : { signal: event.signal }),
+      outputBytes: session.output.outputBytes,
+      outputCapReached: session.output.outputCapReached,
+    };
+    session.interactionDetector.finish();
     session.dataSubscription?.dispose();
     session.exitSubscription?.dispose();
     session.removeAbortListener?.();
     if (session.timeoutHandle) clearTimeout(session.timeoutHandle);
-    for (const client of session.clients) client.onExit(event);
+    for (const client of session.clients) client.onExit(session.exitEvent);
     session.clients.clear();
-    if (session.stopReason === "aborted") session.reject(new Error("aborted"));
-    else if (session.stopReason === "timeout") {
+    if (session.stopReason === "aborted" || session.stopReason === "terminated") {
+      session.reject(new Error("aborted"));
+    } else if (session.stopReason === "timeout") {
       session.reject(new Error(`timeout:${session.timeoutSeconds ?? 0}`));
     } else session.resolve({ exitCode: event.exitCode });
     this.#scheduleRetention(session);
@@ -347,6 +388,8 @@ export class ToolTerminalSessionManager {
   #delete(session: ManagedToolTerminalSession): void {
     if (this.#sessions.get(session.key) !== session) return;
     this.#sessions.delete(session.key);
+    session.interactionDetector.dispose();
+    session.transcriptProjector.reset();
     if (session.retentionTimer) clearTimeout(session.retentionTimer);
     session.dataSubscription?.dispose();
     session.exitSubscription?.dispose();
@@ -361,6 +404,34 @@ export class ToolTerminalSessionManager {
       this.#delete(session);
       if (this.#sessions.size < this.#maxSessions) return;
     }
+  }
+
+  #snapshot(session: ManagedToolTerminalSession): TerminalProcessSnapshot {
+    return {
+      processHandle: session.processHandle,
+      sessionId: session.sessionId,
+      kind: "tool",
+      cwd: session.cwd,
+      process: session.pty.process || basename(session.shell),
+      pid: session.pty.pid,
+      tty: true,
+      processState: session.exitEvent?.processState ?? "running",
+      interactionState: session.interactionDetector.state,
+      attachmentState: session.clients.size > 0 ? "attached" : "detached",
+      startedAt: session.startedAt,
+      outputBytes: session.output.outputBytes,
+      outputBytesCap: session.output.outputBytesCap,
+      outputCapReached: session.output.outputCapReached,
+    };
+  }
+
+  #publishState(session: ManagedToolTerminalSession): void {
+    const snapshot = this.#snapshot(session);
+    for (const client of session.clients) client.onStateChange?.(snapshot);
+  }
+
+  #publishInteractionState(session: ManagedToolTerminalSession): void {
+    this.#publishState(session);
   }
 }
 

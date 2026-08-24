@@ -5,3 +5,5 @@ allowBuilds:
   esbuild: true
   node-pty: true
   protobufjs: false
+  tree-sitter: false
+  tree-sitter-bash: false

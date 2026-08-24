@@ -69,25 +69,30 @@ test("keeps a PTY alive across clients and replays bounded output", async () => 
     const first = await manager.attach({ sessionId: "workspace-1", cols: 80, rows: 24 });
     const received: string[] = [];
     const subscription = first.subscribe({
-      onData: (data) => received.push(data),
+      onOutput: (delta) => received.push(delta.data),
       onExit: () => {},
     });
-    assert.equal(subscription.history, "");
+    assert.equal(subscription.replay.data, "");
+    assert.equal(first.snapshot().processHandle, "workspace-1");
+    assert.equal(first.snapshot().processState, "running");
+    assert.equal(first.snapshot().tty, true);
 
     terminals[0].emitData("hello");
     terminals[0].emitData(" world");
     assert.deepEqual(received, ["hello", " world"]);
-    first.write("pwd\r");
+    first.writeStdin("pwd\r");
     first.run("pnpm build");
     first.run("printf done\n");
-    first.resize(120, 40);
+    first.resizePty(120, 40);
     assert.deepEqual(terminals[0].writes, ["pwd\r", "pnpm build\r", "printf done\r"]);
     assert.deepEqual(terminals[0].sizes, [{ cols: 120, rows: 40 }]);
     subscription.detach();
 
     const second = await manager.attach({ sessionId: "workspace-1" });
-    const replay = second.subscribe({ onData: () => {}, onExit: () => {} });
-    assert.equal(replay.history, " world");
+    const replay = second.subscribe({ onOutput: () => {}, onExit: () => {} });
+    assert.equal(replay.replay.data, " world");
+    assert.equal(replay.replay.outputBytes, 11);
+    assert.equal(replay.replay.outputCapReached, true);
     assert.equal(terminals.length, 1);
     replay.detach();
   } finally {
@@ -134,8 +139,8 @@ test("keeps multiple terminal instance PTYs independent in one conversation dire
     const first = await manager.attach({ sessionId: "terminal:thread-1:one" });
     const second = await manager.attach({ sessionId: "terminal:thread-1:two" });
 
-    first.write("first\r");
-    second.write("second\r");
+    first.writeStdin("first\r");
+    second.writeStdin("second\r");
 
     assert.equal(terminals.length, 2);
     assert.deepEqual(terminals[0]?.writes, ["first\r"]);
