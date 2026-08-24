@@ -34,6 +34,7 @@ import {
   type ExplorerTreeItem,
   type ExplorerTreeNode,
 } from "./explorer-tree-model";
+import { splitFileName } from "./file-name-parts";
 import { FileTypeIcon, FolderTypeIcon } from "./file-type-icon";
 
 export interface ExplorerTreeLabels {
@@ -157,6 +158,7 @@ function ExplorerEntryContent({
 }) {
   const rowInset = TOP_LEVEL_INSET + level * TREE_LEVEL_INDENT;
   const node = item.node;
+  const fileName = node.kind === "file" ? splitFileName(node.name) : undefined;
 
   return (
     <div
@@ -204,7 +206,14 @@ function ExplorerEntryContent({
           />
         </>
       )}
-      <span className="min-w-0 flex-1 cursor-default truncate">{node.name}</span>
+      {fileName ? (
+        <span className="flex min-w-0 flex-1 cursor-default overflow-hidden">
+          <span className="min-w-0 flex-1 truncate">{fileName.stem}</span>
+          {fileName.extension ? <span className="shrink-0">{fileName.extension}</span> : null}
+        </span>
+      ) : (
+        <span className="min-w-0 flex-1 cursor-default truncate">{node.name}</span>
+      )}
     </div>
   );
 }
@@ -296,6 +305,11 @@ function ExplorerRowRenderer({
     <div
       {...attrs}
       ref={innerRef}
+      style={{
+        ...attrs.style,
+        // Arborist defaults rows to max-content, which prevents file-name ellipsis.
+        minWidth: 0,
+      }}
       aria-disabled={selectable ? undefined : true}
       aria-expanded={node.isInternal ? node.isOpen : undefined}
       title={item.type === "entry" ? (item.node.relativePath ?? item.node.path) : undefined}
