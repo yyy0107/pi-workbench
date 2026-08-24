@@ -748,6 +748,8 @@ export function WorkbenchThread() {
                     "linear-gradient(to bottom, transparent 0, #000 var(--thread-header-fade-size), #000 calc(100% - var(--composer-dock-fade-start-offset)), transparent calc(100% - var(--composer-dock-fade-end-offset)), transparent 100%)",
                   maskImage:
                     "linear-gradient(to bottom, transparent 0, #000 var(--thread-header-fade-size), #000 calc(100% - var(--composer-dock-fade-start-offset)), transparent calc(100% - var(--composer-dock-fade-end-offset)), transparent 100%)",
+                  WebkitClipPath: "inset(0 0 var(--composer-dock-fade-end-offset) 0)",
+                  clipPath: "inset(0 0 var(--composer-dock-fade-end-offset) 0)",
                 }
           }
         >
