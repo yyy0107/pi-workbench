@@ -21,6 +21,9 @@ import type {
   ExtensionListValue,
   HostDescription,
   HostDirectoryListing,
+  LocalAppOpenPayload,
+  LocalAppOpenValue,
+  LocalAppsListValue,
   ImageUnderstandingDescribeValue,
   ImageUnderstandingUpdatePayload,
   ModelCatalogValue,
@@ -265,6 +268,18 @@ export function createPiHostDirectory(path: string, name: string): Promise<{ pat
 
 export function openPiHostPath(path: string): Promise<{ opened: true }> {
   return callPiRpc("host.openPath", { path });
+}
+
+export function listPiLocalApps(): Promise<LocalAppsListValue> {
+  return callPiRpc("host.localApps.list", {});
+}
+
+export function refreshPiLocalApps(): Promise<LocalAppsListValue> {
+  return callPiRpc("host.localApps.refresh", {});
+}
+
+export function openPiLocalApp(payload: LocalAppOpenPayload): Promise<LocalAppOpenValue> {
+  return callPiRpc("host.localApps.open", payload);
 }
 
 export function listPiWorkspaceFiles(

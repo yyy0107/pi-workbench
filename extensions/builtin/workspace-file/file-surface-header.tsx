@@ -5,22 +5,29 @@ import {
   Code2Icon,
   EyeIcon,
   FileCode2Icon,
+  FolderIcon,
   FoldersIcon,
   LoaderCircleIcon,
   SaveIcon,
+  TerminalIcon,
 } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import Image, { type StaticImageData } from "next/image";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import type { WorkspaceSurfaceProps } from "@/platform/extensions";
-import { openPiHostPath } from "@/runtime/pi/client/transport/api";
+import { listPiLocalApps, openPiHostPath, openPiLocalApp } from "@/runtime/pi/client/transport/api";
+import type { LocalAppView } from "@/runtime/pi/rpc-contracts";
 import { fileWorkspaceContext } from "@/services/workspace-file-service";
 
 import { useRightWorkspace, useRightWorkspaceState } from "@/components/right-workspace";
@@ -28,6 +35,14 @@ import { cn } from "@/lib/utils";
 import { FileBreadcrumbTree } from "./file-breadcrumb-tree";
 import { saveFileBuffer } from "./file-buffer-actions";
 import { browserFileBufferDraftStorage } from "./file-buffer-draft";
+import cursorIcon from "./icons/cursor.svg";
+import datagripIcon from "./icons/datagrip.svg";
+import ideaIcon from "./icons/idea.svg";
+import pycharmIcon from "./icons/pycharm.svg";
+import qoderIcon from "./icons/qoder.svg";
+import traeIcon from "./icons/trae.svg";
+import vscodeIcon from "./icons/vscode.svg";
+import webstormIcon from "./icons/webstorm.svg";
 import type { FileSurfaceParams } from "./file-surface";
 import {
   isFileViewerPreviewFile,
@@ -37,15 +52,40 @@ import {
 } from "./file-view-mode";
 import { isLargeTextFile } from "./progressive-text-document";
 
-function VisualStudioCodeIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" className="size-4 shrink-0">
-      <path
-        fill="#22a6f2"
-        d="m17.6 2.9 4.1 2v14.2l-4.1 2-9-8.2-4.1 3.2L2.3 14l4-4-4-3.1 2.2-2.1 4.1 3.2 9-8.1Zm0 5.4-5.7 3.7 5.7 3.7V8.3Z"
+const LOCAL_APP_ICON_SOURCES: Readonly<Record<string, StaticImageData>> = {
+  cursor: cursorIcon,
+  datagrip: datagripIcon,
+  idea: ideaIcon,
+  pycharm: pycharmIcon,
+  qoder: qoderIcon,
+  trae: traeIcon,
+  vscode: vscodeIcon,
+  webstorm: webstormIcon,
+};
+
+function LocalAppIcon({ app }: { app?: LocalAppView }) {
+  const source = app?.icon ? LOCAL_APP_ICON_SOURCES[app.icon] : undefined;
+  const [failedSource, setFailedSource] = useState<string>();
+  if (source && failedSource !== source.src) {
+    return (
+      <Image
+        aria-hidden="true"
+        src={source}
+        alt=""
+        width={16}
+        height={16}
+        unoptimized
+        className={cn(
+          "size-4 shrink-0 object-contain",
+          app?.icon === "qoder" && "rounded-[3px] bg-[#101114] p-px",
+        )}
+        onError={() => setFailedSource(source.src)}
       />
-    </svg>
-  );
+    );
+  }
+  if (app?.kind === "terminal") return <TerminalIcon className="size-4 shrink-0" />;
+  if (app?.kind === "file-manager") return <FolderIcon className="size-4 shrink-0" />;
+  return <Code2Icon className="size-4 shrink-0" />;
 }
 
 export function FileSurfaceHeader({ surface, context }: WorkspaceSurfaceProps<FileSurfaceParams>) {
@@ -53,6 +93,9 @@ export function FileSurfaceHeader({ surface, context }: WorkspaceSurfaceProps<Fi
   const controller = useRightWorkspace();
   const auxiliaryOpen = useRightWorkspaceState((state) => state.auxiliaryOpen);
   const [saving, setSaving] = useState(false);
+  const [localApps, setLocalApps] = useState<LocalAppView[]>([]);
+  const [localAppsLoading, setLocalAppsLoading] = useState(true);
+  const [localAppsError, setLocalAppsError] = useState(false);
   const path = surface.params.absolutePath;
   const fileContext = useMemo(
     () => fileWorkspaceContext(surface.scope, context),
@@ -70,6 +113,35 @@ export function FileSurfaceHeader({ surface, context }: WorkspaceSurfaceProps<Fi
   const folderPath = path
     ? (context.rootPath ?? (path.replace(/[\\/][^\\/]+$/, "") || path))
     : undefined;
+  const editorApps = useMemo(() => localApps.filter((app) => app.kind === "editor"), [localApps]);
+  const systemApps = useMemo(() => localApps.filter((app) => app.kind !== "editor"), [localApps]);
+  const primaryApp = editorApps[0];
+  const localAppName = useCallback(
+    (app: LocalAppView) => {
+      if (app.id === "terminal") return t("extensions.workspaceFile.terminal");
+      if (app.id === "file-manager") return t("extensions.workspaceFile.fileManager");
+      return app.name;
+    },
+    [t],
+  );
+  useEffect(() => {
+    let active = true;
+    void listPiLocalApps()
+      .then(({ apps }) => {
+        if (!active) return;
+        setLocalApps(apps);
+        setLocalAppsError(false);
+      })
+      .catch(() => {
+        if (active) setLocalAppsError(true);
+      })
+      .finally(() => {
+        if (active) setLocalAppsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
   const openPath = useCallback(
     async (target: string) => {
       try {
@@ -82,6 +154,21 @@ export function FileSurfaceHeader({ surface, context }: WorkspaceSurfaceProps<Fi
       }
     },
     [controller, surface.id],
+  );
+  const openWithLocalApp = useCallback(
+    async (app: LocalAppView, target: string) => {
+      try {
+        await openPiLocalApp({ appId: app.id, target });
+      } catch {
+        controller.update(surface.id, {
+          status: "error",
+          statusMessage: t("extensions.workspaceFile.openWithError", {
+            name: localAppName(app),
+          }),
+        });
+      }
+    },
+    [controller, localAppName, surface.id, t],
   );
   const save = useCallback(async () => {
     if (!path || saving) return;
@@ -203,14 +290,23 @@ export function FileSurfaceHeader({ surface, context }: WorkspaceSurfaceProps<Fi
       </Button>
 
       {path && folderPath ? (
-        <div className="flex h-7 shrink-0 items-stretch overflow-hidden rounded-lg border bg-background shadow-xs">
+        <div className="flex h-7 w-14 shrink-0 items-stretch overflow-hidden rounded-lg border bg-background shadow-xs">
           <button
             type="button"
-            className="hover:bg-muted flex items-center gap-2 px-3 text-sm font-medium transition-colors"
-            onClick={() => void openPath(path)}
+            aria-label={
+              primaryApp
+                ? t("extensions.workspaceFile.openWith", { name: localAppName(primaryApp) })
+                : t("extensions.workspaceFile.openFile")
+            }
+            title={
+              primaryApp
+                ? t("extensions.workspaceFile.openWith", { name: localAppName(primaryApp) })
+                : t("extensions.workspaceFile.openFile")
+            }
+            className="hover:bg-muted flex w-7 items-center justify-center transition-colors"
+            onClick={() => void (primaryApp ? openWithLocalApp(primaryApp, path) : openPath(path))}
           >
-            <VisualStudioCodeIcon />
-            {t("extensions.workspaceFile.open")}
+            <LocalAppIcon app={primaryApp} />
           </button>
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -220,15 +316,43 @@ export function FileSurfaceHeader({ surface, context }: WorkspaceSurfaceProps<Fi
             >
               <ChevronDownIcon className="text-muted-foreground size-4" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={() => void openPath(path)}>
-                <FileCode2Icon className="text-blue-500" />
-                {t("extensions.workspaceFile.openFile")}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => void openPath(folderPath)}>
-                <FoldersIcon />
-                {t("extensions.workspaceFile.openWorkspaceFolder")}
-              </DropdownMenuItem>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>{t("extensions.workspaceFile.openWithApps")}</DropdownMenuLabel>
+                {localAppsLoading && localApps.length === 0 ? (
+                  <DropdownMenuItem disabled>
+                    <LoaderCircleIcon className="animate-spin motion-reduce:animate-none" />
+                    {t("extensions.workspaceFile.loadingLocalApps")}
+                  </DropdownMenuItem>
+                ) : null}
+                {editorApps.map((app) => (
+                  <DropdownMenuItem key={app.id} onClick={() => void openWithLocalApp(app, path)}>
+                    <LocalAppIcon app={app} />
+                    {localAppName(app)}
+                  </DropdownMenuItem>
+                ))}
+                {!localAppsLoading && editorApps.length === 0 ? (
+                  <DropdownMenuItem onClick={() => void openPath(path)}>
+                    <FileCode2Icon />
+                    {t("extensions.workspaceFile.openFile")}
+                  </DropdownMenuItem>
+                ) : null}
+              </DropdownMenuGroup>
+              {systemApps.length > 0 ? <DropdownMenuSeparator /> : null}
+              {systemApps.map((app) => (
+                <DropdownMenuItem
+                  key={app.id}
+                  onClick={() => void openWithLocalApp(app, folderPath)}
+                >
+                  <LocalAppIcon app={app} />
+                  {localAppName(app)}
+                </DropdownMenuItem>
+              ))}
+              {localAppsError ? (
+                <DropdownMenuItem disabled>
+                  {t("extensions.workspaceFile.localAppsLoadError")}
+                </DropdownMenuItem>
+              ) : null}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

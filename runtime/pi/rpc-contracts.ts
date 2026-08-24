@@ -140,6 +140,31 @@ export interface HostDirectoryListing {
   truncated: boolean;
 }
 
+export type LocalAppKind = "editor" | "terminal" | "file-manager";
+
+export type LocalAppPlatform = "windows" | "macos" | "linux";
+
+/** Renderer-safe local application metadata. Launcher details remain in the host process. */
+export interface LocalAppView {
+  id: string;
+  name: string;
+  kind: LocalAppKind;
+  icon?: string;
+}
+
+export interface LocalAppsListValue {
+  apps: LocalAppView[];
+}
+
+export interface LocalAppOpenPayload {
+  appId: string;
+  target: string;
+}
+
+export interface LocalAppOpenValue {
+  opened: true;
+}
+
 export interface WorkspaceFileEntry {
   name: string;
   relativePath: string;

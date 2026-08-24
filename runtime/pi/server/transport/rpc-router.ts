@@ -9,6 +9,7 @@ import {
   openHostPath,
   pickHostDirectory,
 } from "../host/host-directories";
+import { localAppService, LocalAppServiceError } from "../local-apps/index";
 import { CommandService, CommandServiceError } from "../commands/command-service";
 import { ExtensionService, ExtensionServiceError } from "../extensions/extension-service";
 import { ModelService, ModelServiceError } from "../models/model-service";
@@ -58,6 +59,10 @@ const createDirectoryPayload = rpcObject({
   name: rpcString(),
 });
 const pathPayload = rpcObject({ path: nonEmptyString });
+const localAppOpenPayload = rpcObject({
+  appId: rpcString({ minLength: 1, maxLength: 256 }),
+  target: rpcString({ minLength: 1, maxLength: 32_768 }),
+});
 const workspaceFilesListPayload = rpcObject({
   workspaceId: nonEmptyString,
   relativePath: rpcOptional(rpcString({ maxLength: 16_384 })),
@@ -370,6 +375,7 @@ function throwDomainError(error: unknown): never {
     error instanceof WorkspaceStoreError ||
     error instanceof WorkspaceFileError ||
     error instanceof HostDirectoryError ||
+    error instanceof LocalAppServiceError ||
     error instanceof CommandServiceError ||
     error instanceof ModelServiceError ||
     error instanceof SessionRpcServiceError ||
@@ -689,6 +695,58 @@ export async function handlePiRpcPost(request: Request, method: string): Promise
               {},
               { cause: error },
             );
+          }
+        },
+      });
+    case "host.localApps.list":
+      return handleRpcPost(request, {
+        method,
+        payload: emptyPayload,
+        loopbackOnly: true,
+        handler: async (_payload, context) => {
+          try {
+            return await localAppService.list(context.signal);
+          } catch (error) {
+            if (isAborted(error, context.signal)) {
+              throw rpcBusinessError("cancelled", "Local application detection was cancelled.", {});
+            }
+            throwDomainError(error);
+          }
+        },
+      });
+    case "host.localApps.refresh":
+      return handleRpcPost(request, {
+        method,
+        payload: emptyPayload,
+        loopbackOnly: true,
+        handler: async (_payload, context) => {
+          try {
+            return await localAppService.refresh(context.signal);
+          } catch (error) {
+            if (isAborted(error, context.signal)) {
+              throw rpcBusinessError("cancelled", "Local application detection was cancelled.", {});
+            }
+            throwDomainError(error);
+          }
+        },
+      });
+    case "host.localApps.open":
+      return handleRpcPost(request, {
+        method,
+        payload: localAppOpenPayload,
+        loopbackOnly: true,
+        handler: async ({ appId, target }, context) => {
+          try {
+            return await localAppService.open(appId, target, context.signal);
+          } catch (error) {
+            if (isAborted(error, context.signal)) {
+              throw rpcBusinessError(
+                "cancelled",
+                "Opening the local application was cancelled.",
+                {},
+              );
+            }
+            throwDomainError(error);
           }
         },
       });

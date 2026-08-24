@@ -47,7 +47,8 @@ Unary RPC 是 session、workspace 和 running 状态的权威快照；WebSocket 
 所有普通 unary 方法都使用 `POST /api/<method>`：
 
 - Host：`host.describe`、`host.pickDirectory`、`host.listDirectory`、
-  `host.createDirectory`、`host.openPath`；
+  `host.createDirectory`、`host.openPath`，以及本地应用集成
+  `host.localApps.list`、`host.localApps.refresh`、`host.localApps.open`；
 - Workspace：`workspace.list`、`workspace.listArchivedSessions`、`workspace.create`、`workspace.rename`、
   `workspace.delete`、`workspace.insertBefore`、`workspace.insertSessionBefore`、
   `workspace.setPinned`、`workspace.setSessionPinned`、`workspace.archiveSession`、
@@ -151,8 +152,8 @@ Workbench 默认监听 `127.0.0.1:3000`。所有 `/api` HTTP 请求和两条 Web
 - `Host` 必须是 loopback authority，或匹配 `PI_WORKBENCH_TRUSTED_HOSTS`；
 - `Origin` 存在时，其 authority 必须与 `Host` 完全一致；
 - `Sec-Fetch-Site: cross-site` 一律拒绝；
-- `host.pickDirectory`、`host.openPath` 和 `llm.discoverModels` 即使来自配置的 trusted host，
-  仍只允许 loopback 调用。
+- `host.pickDirectory`、`host.openPath`、所有 `host.localApps.*` 方法和 `llm.discoverModels`
+  即使来自配置的 trusted host，仍只允许 loopback 调用。
 
 `PI_WORKBENCH_TRUSTED_HOSTS` 是逗号分隔的规范 `host` 或 `host:port`。不带端口的条目匹配该
 host 的任意端口；带端口的条目精确匹配。
@@ -182,6 +183,15 @@ Workbench host 的多个浏览器。写入使用进程间锁和原子替换；�
 原生目录选择器仅供 loopback 使用。没有桌面选择器或通过 trusted host 访问时，客户端可以用
 `host.listDirectory` 与 `host.createDirectory` 完成远程目录选择。目录列表只返回可进入的目录，
 单次最多 500 项，并通过 `truncated` 表示截断。
+
+本地应用集成运行在 Electron 启动的本机 Host 进程中，不在 Renderer 中读取平台或安装路径。
+统一 Registry 定义编辑器、终端和文件管理器；Windows Detector 使用 App Paths、Uninstall Registry、
+已知目录、PATH 与 JetBrains Toolbox，macOS 使用 Bundle ID/Spotlight 与应用目录回退，Linux 使用
+XDG application 目录、本地化用户桌面中的 `.desktop`、PATH 与 Flatpak。探测结果缓存在内存中，
+只有 `host.localApps.refresh` 会主动重扫。
+RPC 只返回稳定的 `id`、`name`、`kind` 和 `icon`，可执行文件、Bundle ID、desktop entry 与启动参数
+始终留在 Host 内；品牌图标固定维护在 `extensions/builtin/workspace-file/icons`，不从操作系统动态提取。
+所有启动均通过参数数组执行且禁用 shell，避免把用户路径拼进命令字符串。
 
 资源管理器使用独立的 workspace-bound 文件接口，不复用目录选择器协议。请求携带
 `workspaceId` 和规范的 `/` 分隔相对路径；服务端从 `WorkspaceStore` 读取权威根目录，同时执行

@@ -9,6 +9,7 @@ import { VERSION as PI_VERSION } from "@earendil-works/pi-coding-agent";
 import type {
   HostDescription,
   ImageUnderstandingDescribeValue,
+  LocalAppsListValue,
   ServerResponse,
   WorkspaceView,
 } from "../../rpc-contracts";
@@ -234,6 +235,22 @@ test("routes Host directory listing and returns 404 for unknown methods", async 
   if (openBody.result.ok) assert.fail("Expected an open-path business error");
   assert.equal(openBody.result.error.code, "internal");
   assert.deepEqual(openBody.result.error.details, {});
+
+  const localApps = await rpcValue<LocalAppsListValue>(
+    await handlePiRpcPost(rpcRequest("host.localApps.list", {}), "host.localApps.list"),
+  );
+  assert.ok(localApps.apps.some((app) => app.id === "file-manager"));
+  assert.ok(localApps.apps.every((app) => !("launcher" in app)));
+
+  const unavailableAppResponse = await handlePiRpcPost(
+    rpcRequest("host.localApps.open", { appId: "missing", target: root }),
+    "host.localApps.open",
+  );
+  const unavailableAppBody = (await unavailableAppResponse.json()) as ServerResponse<unknown>;
+  assert.equal(unavailableAppBody.result.ok, false);
+  if (unavailableAppBody.result.ok) assert.fail("Expected a local-app business error");
+  assert.equal(unavailableAppBody.result.error.code, "local-app-not-found");
+  assert.deepEqual(unavailableAppBody.result.error.details, { appId: "missing" });
 
   const abortController = new AbortController();
   abortController.abort();
