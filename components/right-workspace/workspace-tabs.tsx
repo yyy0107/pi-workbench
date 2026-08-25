@@ -315,6 +315,7 @@ export function WorkspaceTabs() {
         element.style.setProperty("flex", `0 0 ${layout.width}px`);
       }
       const list = tabListElement.current;
+      const hadScrollableOverflow = list ? list.scrollWidth - list.clientWidth >= 0.5 : false;
       if (list) {
         const currentTrailingSpace =
           Number.parseFloat(getComputedStyle(list).paddingInlineEnd) || 0;
@@ -322,7 +323,7 @@ export function WorkspaceTabs() {
       }
       cancelTabAnimations();
       cancelTabWidthAnimations();
-      if (list) {
+      if (list && hadScrollableOverflow) {
         const closedLayouts = closedSurfaceIds.flatMap((surfaceId) => {
           const layout = layouts.get(surfaceId);
           return layout ? [layout] : [];
@@ -335,8 +336,8 @@ export function WorkspaceTabs() {
             (total, layout) => total + layout.width + gap,
             0,
           );
-          // Preserve the old scroll range while the pointer remains in the strip.
-          // Otherwise a close at the overflow edge clamps scrollLeft immediately.
+          // Preserve an existing scroll range while the pointer remains in the strip.
+          // A fitting tab row must shrink immediately so adjacent controls follow it.
           list.style.setProperty("padding-inline-end", `${currentTrailingSpace + closedExtent}px`);
         }
       }
