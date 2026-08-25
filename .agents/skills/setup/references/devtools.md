@@ -46,7 +46,9 @@ export function Assistant() {
 Note: the guard keys off `process.env.NODE_ENV`. If your bundler does not define it (some non-standard setups), gate the render yourself.
 
 ```tsx
-{process.env.NODE_ENV !== "production" && <DevToolsModal />}
+{
+  process.env.NODE_ENV !== "production" && <DevToolsModal />;
+}
 ```
 
 ## Inline Panel
@@ -58,7 +60,7 @@ import { DevToolsPanel } from "@assistant-ui/react-devtools";
 
 <div className="h-96 w-full">
   <DevToolsPanel theme="dark" onClose={() => setOpen(false)} />
-</div>
+</div>;
 ```
 
 `DevToolsModal` wraps a `DevToolsPanel`, so both surfaces show the same event log, context viewer, and runtime inspector.
@@ -72,11 +74,7 @@ Both surfaces take a `theme` prop. `DevToolsModal` accepts `"dark" | "light" | "
 The panel's tab list is a plugin array. `builtinPlugins` is the default set; `createDevToolsPlugin` types a custom entry.
 
 ```tsx
-import {
-  DevToolsModal,
-  builtinPlugins,
-  createDevToolsPlugin,
-} from "@assistant-ui/react-devtools";
+import { DevToolsModal, builtinPlugins, createDevToolsPlugin } from "@assistant-ui/react-devtools";
 
 const myTab = createDevToolsPlugin({
   id: "my-tab",
@@ -94,13 +92,13 @@ A standalone Chrome extension consumes the same package and connects to any page
 
 ## Exports
 
-| Export | Purpose |
-|-------|-------|
-| `DevToolsModal` | Floating button plus modal overlay; dev-only. Props: `plugins`, `theme`, `client` |
-| `DevToolsPanel` | Inline inspector surface. Props: `plugins`, `theme`, `onClose`, `client` |
-| `ShadowRoot` | Style-isolated container the panel renders into |
-| `builtinPlugins` / `createDevToolsPlugin` | Default tab set and helper for custom tabs |
-| `DevToolsClient` / `createInProcessClient` / `inProcessClient` | Client the panel reads from; swap it to inspect a remote page |
-| `serializeModelContext` / `normalizeToolList` | Serialization helpers used by custom hosts such as the Chrome extension |
+| Export                                                         | Purpose                                                                           |
+| -------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `DevToolsModal`                                                | Floating button plus modal overlay; dev-only. Props: `plugins`, `theme`, `client` |
+| `DevToolsPanel`                                                | Inline inspector surface. Props: `plugins`, `theme`, `onClose`, `client`          |
+| `ShadowRoot`                                                   | Style-isolated container the panel renders into                                   |
+| `builtinPlugins` / `createDevToolsPlugin`                      | Default tab set and helper for custom tabs                                        |
+| `DevToolsClient` / `createInProcessClient` / `inProcessClient` | Client the panel reads from; swap it to inspect a remote page                     |
+| `serializeModelContext` / `normalizeToolList`                  | Serialization helpers used by custom hosts such as the Chrome extension           |
 
 Most apps only need `DevToolsModal`.

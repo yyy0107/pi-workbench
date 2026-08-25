@@ -12,15 +12,15 @@ npm install @assistant-ui/react @assistant-ui/react-ai-sdk ai@^7 @ai-sdk/react@^
 
 Agents trained on older AI SDK versions will use outdated patterns. These are **AI SDK** breaking changes (not assistant-ui changes):
 
-| Concept | Old (v4/v5) | v6 | Current (v7) |
-|---------|-------------|----|--------------|
-| `ai` package | `ai@^4` / `ai@^5` | `ai@^6` | `ai@^7` |
-| `@ai-sdk/react` | `ai/react` / `@ai-sdk/react@^2` | `@ai-sdk/react@^3` | `@ai-sdk/react@^4` |
-| assistant-ui wiring | `useAISDKRuntime(chat)` | `useChatRuntime({ transport })` | `useChatRuntime()` |
-| Message conversion | Pass messages directly | `await convertToModelMessages(messages)` | `await convertToModelMessages(messages)` |
-| Stream response | `result.toDataStreamResponse()` | `result.toUIMessageStreamResponse()` | `createUIMessageStreamResponse({ stream: toUIMessageStream({ stream: result.stream }) })` |
-| Tool schema key | `parameters: z.object({...})` | `inputSchema: z.object({...})` | `inputSchema: zodSchema(z.object({...}))` |
-| Multi-step tools | `maxSteps: n` | `stopWhen: stepCountIs(n)` | `stopWhen: stepCountIs(n)` |
+| Concept             | Old (v4/v5)                     | v6                                       | Current (v7)                                                                              |
+| ------------------- | ------------------------------- | ---------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `ai` package        | `ai@^4` / `ai@^5`               | `ai@^6`                                  | `ai@^7`                                                                                   |
+| `@ai-sdk/react`     | `ai/react` / `@ai-sdk/react@^2` | `@ai-sdk/react@^3`                       | `@ai-sdk/react@^4`                                                                        |
+| assistant-ui wiring | `useAISDKRuntime(chat)`         | `useChatRuntime({ transport })`          | `useChatRuntime()`                                                                        |
+| Message conversion  | Pass messages directly          | `await convertToModelMessages(messages)` | `await convertToModelMessages(messages)`                                                  |
+| Stream response     | `result.toDataStreamResponse()` | `result.toUIMessageStreamResponse()`     | `createUIMessageStreamResponse({ stream: toUIMessageStream({ stream: result.stream }) })` |
+| Tool schema key     | `parameters: z.object({...})`   | `inputSchema: z.object({...})`           | `inputSchema: zodSchema(z.object({...}))`                                                 |
+| Multi-step tools    | `maxSteps: n`                   | `stopWhen: stepCountIs(n)`               | `stopWhen: stepCountIs(n)`                                                                |
 
 `result.toUIMessageStreamResponse()` still compiles in v7 but is deprecated and scheduled for removal in the next major; write new routes with the standalone helpers.
 
@@ -202,8 +202,7 @@ const result = streamText({
     }),
   },
   toolApproval: {
-    deploy: (input) =>
-      input.target === "production" ? "user-approval" : "not-applicable",
+    deploy: (input) => (input.target === "production" ? "user-approval" : "not-applicable"),
   },
 });
 ```
@@ -234,7 +233,7 @@ const WeatherToolUI = makeAssistantToolUI({
 <AssistantRuntimeProvider runtime={runtime}>
   <WeatherToolUI />
   <Thread />
-</AssistantRuntimeProvider>
+</AssistantRuntimeProvider>;
 ```
 
 ## Token Usage
@@ -282,9 +281,7 @@ const runtime = useChatRuntime({
 // Backend
 const { messages, model } = await req.json();
 
-const provider = model.startsWith("claude")
-  ? anthropic(model)
-  : openai(model);
+const provider = model.startsWith("claude") ? anthropic(model) : openai(model);
 
 const result = streamText({
   model: provider,
@@ -328,12 +325,14 @@ See the `/cloud` skill for authentication and configuration details.
 ## Troubleshooting
 
 **"Module not found: @ai-sdk/react"**
+
 ```bash
 npm install @ai-sdk/react@^4
 ```
 
 **"useChat is not a function"**
 Mixing AI SDK majors. Align `ai`, `@ai-sdk/react`, and the provider packages:
+
 ```bash
 npm install ai@^7 @ai-sdk/react@^4 @ai-sdk/openai@latest
 ```

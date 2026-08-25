@@ -25,7 +25,7 @@ import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
 const runtime = useChatRuntime({
   adapters: {
-    voice: new MyVoiceAdapter({ /* ... */ }),
+    voice: new MyVoiceAdapter({/* ... */}),
   },
 });
 ```
@@ -50,8 +50,8 @@ Returns the current session state, or `undefined` when no session is active.
 const voiceState = useVoiceState();
 
 voiceState?.status.type; // "starting" | "running" | "ended"
-voiceState?.isMuted;     // boolean
-voiceState?.mode;        // "listening" | "speaking"
+voiceState?.isMuted; // boolean
+voiceState?.mode; // "listening" | "speaking"
 ```
 
 ```tsx
@@ -128,11 +128,21 @@ An adapter's `connect` returns a `RealtimeVoiceAdapter.Session`. Each `on*` meth
 class MyVoiceAdapter implements RealtimeVoiceAdapter {
   connect(options: { abortSignal?: AbortSignal }): RealtimeVoiceAdapter.Session {
     return {
-      get status() { /* RealtimeVoiceAdapter.Status */ },
-      get isMuted() { /* boolean */ },
-      disconnect: () => { /* ... */ },
-      mute: () => { /* ... */ },
-      unmute: () => { /* ... */ },
+      get status() {
+        /* RealtimeVoiceAdapter.Status */
+      },
+      get isMuted() {
+        /* boolean */
+      },
+      disconnect: () => {
+        /* ... */
+      },
+      mute: () => {
+        /* ... */
+      },
+      unmute: () => {
+        /* ... */
+      },
       onStatusChange: (callback) => {
         // { type: "starting" } -> { type: "running" } -> { type: "ended", reason }
         return () => {}; // unsubscribe

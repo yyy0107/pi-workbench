@@ -2,12 +2,12 @@
 
 Keep an app on a legacy AI SDK release instead of migrating to v7. Each older AI SDK major needs a pinned adapter release, because `@assistant-ui/react-ai-sdk@latest` (1.4.x) depends on `ai@^7`. For new projects, see `ai-sdk.md` instead.
 
-| AI SDK | Adapter package to install | Runtime hook |
-|---|---|---|
-| `ai@^7` + `@ai-sdk/react@^4` | `@assistant-ui/react-ai-sdk@latest` | `useChatRuntime` |
-| `ai@^6` + `@ai-sdk/react@^3` | `@assistant-ui/react-ai-sdk@1.3.40` | `useChatRuntime` |
-| `ai@^5` + `@ai-sdk/react@^2` | `@assistant-ui/react-ai-sdk@1.1.21` | `useChatRuntime` |
-| `ai@^4` | `@assistant-ui/react-data-stream` | `useDataStreamRuntime` |
+| AI SDK                       | Adapter package to install          | Runtime hook           |
+| ---------------------------- | ----------------------------------- | ---------------------- |
+| `ai@^7` + `@ai-sdk/react@^4` | `@assistant-ui/react-ai-sdk@latest` | `useChatRuntime`       |
+| `ai@^6` + `@ai-sdk/react@^3` | `@assistant-ui/react-ai-sdk@1.3.40` | `useChatRuntime`       |
+| `ai@^5` + `@ai-sdk/react@^2` | `@assistant-ui/react-ai-sdk@1.1.21` | `useChatRuntime`       |
+| `ai@^4`                      | `@assistant-ui/react-data-stream`   | `useDataStreamRuntime` |
 
 These pins receive no new features and have known compatibility gaps against current `@assistant-ui/react`.
 
@@ -185,15 +185,15 @@ Note: human in the loop tools (`human()` interrupts) are not supported by the da
 
 Each AI SDK major introduced breaking API changes, and `@assistant-ui/react-ai-sdk` tracks the newest one. Differences that show up when a legacy stack is upgraded:
 
-| Area | v4 | v5 | v6 | v7 (current) |
-|---|---|---|---|---|
-| `ai` package | `ai@^4` | `ai@^5` | `ai@^6` | `ai@^7` |
-| `@ai-sdk/react` | `ai/react` | `^2` | `^3` | `^4` |
-| `@ai-sdk/openai` | any | `^1` | `^3` | `^4` |
-| Adapter package | `@assistant-ui/react-data-stream` | `@assistant-ui/react-ai-sdk@1.1.21` | `@assistant-ui/react-ai-sdk@1.3.40` | `@assistant-ui/react-ai-sdk@latest` |
-| Runtime hook | `useDataStreamRuntime` | `useChatRuntime` | `useChatRuntime` | `useChatRuntime` |
-| `convertToModelMessages` | not used | sync | async (`await`) | async (`await`) |
-| Tool schema key | n/a | `parameters:` | `inputSchema:` | `inputSchema: zodSchema(...)` |
-| Response | `toDataStreamResponse()` | `toDataStreamResponse()` | `toUIMessageStreamResponse()` | `createUIMessageStreamResponse({ stream: toUIMessageStream({ stream: result.stream }) })` |
+| Area                     | v4                                | v5                                  | v6                                  | v7 (current)                                                                              |
+| ------------------------ | --------------------------------- | ----------------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------- |
+| `ai` package             | `ai@^4`                           | `ai@^5`                             | `ai@^6`                             | `ai@^7`                                                                                   |
+| `@ai-sdk/react`          | `ai/react`                        | `^2`                                | `^3`                                | `^4`                                                                                      |
+| `@ai-sdk/openai`         | any                               | `^1`                                | `^3`                                | `^4`                                                                                      |
+| Adapter package          | `@assistant-ui/react-data-stream` | `@assistant-ui/react-ai-sdk@1.1.21` | `@assistant-ui/react-ai-sdk@1.3.40` | `@assistant-ui/react-ai-sdk@latest`                                                       |
+| Runtime hook             | `useDataStreamRuntime`            | `useChatRuntime`                    | `useChatRuntime`                    | `useChatRuntime`                                                                          |
+| `convertToModelMessages` | not used                          | sync                                | async (`await`)                     | async (`await`)                                                                           |
+| Tool schema key          | n/a                               | `parameters:`                       | `inputSchema:`                      | `inputSchema: zodSchema(...)`                                                             |
+| Response                 | `toDataStreamResponse()`          | `toDataStreamResponse()`            | `toUIMessageStreamResponse()`       | `createUIMessageStreamResponse({ stream: toUIMessageStream({ stream: result.stream }) })` |
 
 To move off legacy, switch the runtime hook to `useChatRuntime`, update the backend to v7 `streamText`, and apply the AI SDK codemods at `ai-sdk.dev/docs/migration-guides`.

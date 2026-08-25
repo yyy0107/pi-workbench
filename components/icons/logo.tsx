@@ -1,11 +1,6 @@
 export function LogoIcon({ className }: { className?: string }) {
   return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 800 800"
-      className={className}
-      fill="currentColor"
-    >
+    <svg aria-hidden="true" viewBox="0 0 800 800" className={className} fill="currentColor">
       <path
         fillRule="evenodd"
         d="M165.29 165.29 H517.36 V400 H400 V517.36 H282.65 V634.72 H165.29 Z M282.65 282.65 V400 H400 V282.65 Z"

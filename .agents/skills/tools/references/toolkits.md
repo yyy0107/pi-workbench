@@ -24,7 +24,7 @@ Add the compiler first; the directive is inert without it:
 ```ts
 // next.config.ts
 import { withAui } from "@assistant-ui/next";
-export default withAui({ /* ...your Next config... */ });
+export default withAui({/* ...your Next config... */});
 ```
 
 ```ts
@@ -61,7 +61,13 @@ export default defineToolkit({
       return fetchWeatherAPI(location, unit);
     },
     render: ({ args, result }) =>
-      result ? <div>{result.temperature}° {args.unit}</div> : <div>Fetching…</div>,
+      result ? (
+        <div>
+          {result.temperature}° {args.unit}
+        </div>
+      ) : (
+        <div>Fetching…</div>
+      ),
   },
 });
 ```
@@ -91,14 +97,14 @@ export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
 
 Inside a `"use generative"` file you never write `type`. The compiler infers the kind from `execute` and writes it back:
 
-| `execute` you write | Inferred kind | Server build keeps | Client build keeps |
-|---|---|---|---|
-| plain `async () => …` | **backend** | schema + `execute` (behind `server-only`) | schema + `render` |
-| `async () => { "use client"; … }` | **frontend** | schema only | schema + `execute` + `render`/`renderText` |
-| `humanTool()` (alias `hitl`) | **human** | schema only | schema + `render` |
-| `stubTool()` | **frontend**, executor supplied at runtime | schema only | schema + `render`/`renderText` |
-| `providerTool({ … })` | **provider** | schema + provider config | schema + provider config |
-| `externalTool()` | **backend**, defined elsewhere | omitted | `type: "backend"` + `render`/`renderText` |
+| `execute` you write               | Inferred kind                              | Server build keeps                        | Client build keeps                         |
+| --------------------------------- | ------------------------------------------ | ----------------------------------------- | ------------------------------------------ |
+| plain `async () => …`             | **backend**                                | schema + `execute` (behind `server-only`) | schema + `render`                          |
+| `async () => { "use client"; … }` | **frontend**                               | schema only                               | schema + `execute` + `render`/`renderText` |
+| `humanTool()` (alias `hitl`)      | **human**                                  | schema only                               | schema + `render`                          |
+| `stubTool()`                      | **frontend**, executor supplied at runtime | schema only                               | schema + `render`/`renderText`             |
+| `providerTool({ … })`             | **provider**                               | schema + provider config                  | schema + provider config                   |
+| `externalTool()`                  | **backend**, defined elsewhere             | omitted                                   | `type: "backend"` + `render`/`renderText`  |
 
 The compiler enforces at build time that every tool declares an `execute`, that a frontend tool declares `render` or `renderText`, and that a human tool declares `render`.
 
@@ -163,7 +169,12 @@ The same import resolves to the server build inside a route handler. Wrap it in 
 ```ts
 // app/api/chat/route.ts
 import { AISDKToolkit } from "@assistant-ui/react-ai-sdk";
-import { streamText, convertToModelMessages, createUIMessageStreamResponse, toUIMessageStream } from "ai";
+import {
+  streamText,
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  toUIMessageStream,
+} from "ai";
 import { openai } from "@ai-sdk/openai";
 import toolkit from "../../toolkit";
 
@@ -216,15 +227,15 @@ The object keys (`get_weather`) become the tool names the model receives and use
 
 ```tsx
 interface ToolDefinition<TArgs, TResult> {
-  type: "frontend";                          // browser-executed tool
-  description?: string;                       // model-visible description
+  type: "frontend"; // browser-executed tool
+  description?: string; // model-visible description
   parameters: StandardSchemaV1<TArgs> | JSONSchema7;
-  disabled?: boolean;                         // hides the tool from the model when true
+  disabled?: boolean; // hides the tool from the model when true
   execute?: ToolExecuteFunction<TArgs, TResult>;
   toModelOutput?: ToolModelOutputFunction<TArgs, TResult>;
   experimental_onSchemaValidationError?: OnSchemaValidationErrorFunction<TResult>;
   providerOptions?: ProviderOptions;
-  display?: ToolDisplay;                       // "inline" (default) or "standalone"
+  display?: ToolDisplay; // "inline" (default) or "standalone"
   render?: ToolCallMessagePartComponent<TArgs, TResult>;
 }
 ```
@@ -251,10 +262,10 @@ function App({ children }: { children: React.ReactNode }) {
 }
 ```
 
-| Option | Type | Notes |
-|------|------|-------|
-| `toolkit` | `Toolkit` | Tools and optional renderers to install |
-| `mcpApp` | `ResourceElement<McpAppResourceOutput>` | MCP app whose tools merge into context |
+| Option    | Type                                    | Notes                                   |
+| --------- | --------------------------------------- | --------------------------------------- |
+| `toolkit` | `Toolkit`                               | Tools and optional renderers to install |
+| `mcpApp`  | `ResourceElement<McpAppResourceOutput>` | MCP app whose tools merge into context  |
 
 ## Carrying render per tool
 
@@ -277,7 +288,11 @@ const toolkit = {
     execute: async ({ city }) => fetchWeather(city),
     render: ({ args, result, status }) => {
       if (status.type !== "complete") return <div>Loading {args.city}...</div>;
-      return <div>{result.temperature}° in {args.city}</div>;
+      return (
+        <div>
+          {result.temperature}° in {args.city}
+        </div>
+      );
     },
   }),
 

@@ -10,15 +10,21 @@
 
 @theme inline {
   @keyframes collapsible-down {
-  from {
-    height: 0;}
-  to {
-    height: var(--radix-collapsible-content-height, var(--collapsible-panel-height, auto));}}
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-collapsible-content-height, var(--collapsible-panel-height, auto));
+    }
+  }
   @keyframes collapsible-up {
-  from {
-    height: var(--radix-collapsible-content-height, var(--collapsible-panel-height, auto));}
-  to {
-    height: 0;}}
+    from {
+      height: var(--radix-collapsible-content-height, var(--collapsible-panel-height, auto));
+    }
+    to {
+      height: 0;
+    }
+  }
   --color-aui-accent: var(----aui-accent);
   --color-aui-accent-foreground: var(----aui-accent-foreground);
   --color-aui-background: var(----aui-background);
@@ -29,7 +35,7 @@
   --color-aui-composer: var(----aui-composer);
   --aui-max-width: var(----aui-max-width);
   --aui-border-radius: var(----aui-border-radius);
-  --aui-font-family: var(----aui-font-family)
+  --aui-font-family: var(----aui-font-family);
 }
 
 @custom-variant dark (&:is(.dark *));
@@ -72,8 +78,7 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --animate-shimmer: shimmer-sweep var(--shimmer-duration, 1000ms) linear
-    infinite both;
+  --animate-shimmer: shimmer-sweep var(--shimmer-duration, 1000ms) linear infinite both;
   @keyframes shimmer-sweep {
     from {
       background-position: 150% 0;
@@ -408,9 +413,7 @@
   background: transparent;
 }
 
-.aui-streamdown
-  [data-streamdown="table-body"]
-  > [data-streamdown="table-row"]:not(:last-child) {
+.aui-streamdown [data-streamdown="table-body"] > [data-streamdown="table-row"]:not(:last-child) {
   border-block-end: 1px solid color-mix(in oklab, var(--foreground) 14%, transparent);
 }
 

@@ -34,7 +34,7 @@ const WeatherToolUI = makeAssistantToolUI({
 <AssistantRuntimeProvider runtime={runtime}>
   <WeatherToolUI />
   <Thread />
-</AssistantRuntimeProvider>
+</AssistantRuntimeProvider>;
 ```
 
 ## Render Props
@@ -47,12 +47,12 @@ interface ToolCallMessagePartProps {
   toolName: string;
 
   args: Record<string, unknown>;
-  argsText: string;  // Raw streamed JSON string
+  argsText: string; // Raw streamed JSON string
 
   // Result (undefined while running)
   result?: unknown;
   isError?: boolean;
-  artifact?: unknown;  // UI-only artifact attached to the result
+  artifact?: unknown; // UI-only artifact attached to the result
 
   // Status is an OBJECT, not a string. Branch on status.type.
   status: ToolCallMessagePartStatus;
@@ -66,10 +66,10 @@ interface ToolCallMessagePartProps {
 }
 
 type ToolCallMessagePartStatus =
-  | { type: "running" }       // Tool executing
-  | { type: "complete" }      // Finished successfully
+  | { type: "running" } // Tool executing
+  | { type: "complete" } // Finished successfully
   | { type: "incomplete"; reason: "cancelled" | "length" | "content-filter" | "other" | "error" }
-  | { type: "requires-action"; reason: "interrupt" };  // Waiting for input
+  | { type: "requires-action"; reason: "interrupt" }; // Waiting for input
 ```
 
 ## useAssistantToolUI

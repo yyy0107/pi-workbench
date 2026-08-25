@@ -32,15 +32,15 @@ npx assistant-ui@latest create my-app --preset chatgpt
 
 Templates:
 
-| Template | Description |
-|-------|-------|
-| `default` | Default template with Vercel AI SDK |
-| `minimal` | Bare-bones starting point |
-| `cloud` | Cloud-backed persistence starter |
-| `cloud-clerk` | Cloud-backed starter with Clerk auth |
-| `langchain` | LangGraph starter using the `@assistant-ui/react-langchain` adapter |
-| `mcp` | MCP tools + MCP Apps renderer starter |
-| `eve` | Eve agent + Next.js starter |
+| Template      | Description                                                         |
+| ------------- | ------------------------------------------------------------------- |
+| `default`     | Default template with Vercel AI SDK                                 |
+| `minimal`     | Bare-bones starting point                                           |
+| `cloud`       | Cloud-backed persistence starter                                    |
+| `cloud-clerk` | Cloud-backed starter with Clerk auth                                |
+| `langchain`   | LangGraph starter using the `@assistant-ui/react-langchain` adapter |
+| `mcp`         | MCP tools + MCP Apps renderer starter                               |
+| `eve`         | Eve agent + Next.js starter                                         |
 
 There is no `langgraph` template; that path is now the `langchain` template (or the `with-langgraph` example for the `@assistant-ui/react-langgraph` adapter directly).
 
@@ -49,6 +49,7 @@ Examples (`--example <name>`) currently include: `with-ag-ui`, `with-ai-sdk-v7`,
 Other `create` flags: `--use-npm` / `--use-pnpm` / `--use-yarn` / `--use-bun`, `--skip-install`, and `--skills` / `--no-skills` (installs the assistant-ui agent skills for AI coding assistants; defaults to on in a non-TTY shell).
 
 When `-t` is omitted:
+
 - Interactive shell (TTY): an interactive template picker is shown.
 - Non-interactive shell (CI/agent): template defaults to `default`.
 
@@ -80,14 +81,14 @@ See [references/registry-components.md](./references/registry-components.md) for
 
 ### Other CLI Commands
 
-| Command | Purpose |
-|---------|---------|
-| `assistant-ui doctor` | Diagnose an existing install (version drift, misconfiguration); `--no-network` skips the registry check |
-| `assistant-ui info` | Print environment and package information for bug reports |
-| `assistant-ui update` | Bump assistant-ui packages to their latest versions (`--dry` prints the command) |
-| `assistant-ui upgrade` | Run the version codemods (`-d` dry run, `-p` print transformed files) |
-| `assistant-ui mcp` | Install the MCP docs server for Cursor, Windsurf, VSCode, Zed, Claude Code, or Claude Desktop |
-| `assistant-ui agent "<prompt>"` | Launch Claude Code preloaded with the assistant-ui skills (`--dry` prints the command) |
+| Command                         | Purpose                                                                                                 |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `assistant-ui doctor`           | Diagnose an existing install (version drift, misconfiguration); `--no-network` skips the registry check |
+| `assistant-ui info`             | Print environment and package information for bug reports                                               |
+| `assistant-ui update`           | Bump assistant-ui packages to their latest versions (`--dry` prints the command)                        |
+| `assistant-ui upgrade`          | Run the version codemods (`-d` dry run, `-p` print transformed files)                                   |
+| `assistant-ui mcp`              | Install the MCP docs server for Cursor, Windsurf, VSCode, Zed, Claude Code, or Claude Desktop           |
+| `assistant-ui agent "<prompt>"` | Launch Claude Code preloaded with the assistant-ui skills (`--dry` prints the command)                  |
 
 ---
 
@@ -101,33 +102,33 @@ When using CLI templates (`npx assistant-ui@latest create`), **never modify gene
 
 For runtimes other than AI SDK or frameworks other than Next.js, consult the reference files:
 
-| Setup | Runtime Hook | Reference |
-|-------|-------------|-----------|
-| AI SDK advanced (tools, cloud, options) | `useChatRuntime` | [references/ai-sdk.md](./references/ai-sdk.md) |
-| Styling and UI customization (shadcn / Base UI pattern) | n/a | [references/styling.md](./references/styling.md) |
-| LangGraph agents | `useLangGraphRuntime` | [references/langgraph.md](./references/langgraph.md) |
-| AG-UI protocol | `useAgUiRuntime` | [references/ag-ui.md](./references/ag-ui.md) |
-| A2A protocol | `useA2ARuntime` | [references/a2a.md](./references/a2a.md) |
-| Custom streaming API | `useLocalRuntime` | [references/custom-backend.md](./references/custom-backend.md) |
-| Existing state (Redux/Zustand) | `useExternalStoreRuntime` | [references/custom-backend.md](./references/custom-backend.md) |
-| Vite / TanStack Start | n/a | [references/tanstack.md](./references/tanstack.md) |
-| LangChain agents | `useStreamRuntime` | [references/langchain.md](./references/langchain.md) |
-| Google ADK agents | `useAdkRuntime` | [references/google-adk.md](./references/google-adk.md) |
-| Mastra agents | `useChatRuntime` | [references/mastra.md](./references/mastra.md) |
-| Cloudflare Agents | `useAISDKRuntime` | [references/cloudflare-agents.md](./references/cloudflare-agents.md) |
-| Legacy AI SDK v4/v5/v6 | pinned adapter release | [references/ai-sdk-legacy.md](./references/ai-sdk-legacy.md) |
-| Registry UI components (modal, sidebar, model selector) | registry | [references/registry-components.md](./references/registry-components.md) |
-| DevTools inspector | dev only | [references/devtools.md](./references/devtools.md) |
+| Setup                                                   | Runtime Hook              | Reference                                                                |
+| ------------------------------------------------------- | ------------------------- | ------------------------------------------------------------------------ |
+| AI SDK advanced (tools, cloud, options)                 | `useChatRuntime`          | [references/ai-sdk.md](./references/ai-sdk.md)                           |
+| Styling and UI customization (shadcn / Base UI pattern) | n/a                       | [references/styling.md](./references/styling.md)                         |
+| LangGraph agents                                        | `useLangGraphRuntime`     | [references/langgraph.md](./references/langgraph.md)                     |
+| AG-UI protocol                                          | `useAgUiRuntime`          | [references/ag-ui.md](./references/ag-ui.md)                             |
+| A2A protocol                                            | `useA2ARuntime`           | [references/a2a.md](./references/a2a.md)                                 |
+| Custom streaming API                                    | `useLocalRuntime`         | [references/custom-backend.md](./references/custom-backend.md)           |
+| Existing state (Redux/Zustand)                          | `useExternalStoreRuntime` | [references/custom-backend.md](./references/custom-backend.md)           |
+| Vite / TanStack Start                                   | n/a                       | [references/tanstack.md](./references/tanstack.md)                       |
+| LangChain agents                                        | `useStreamRuntime`        | [references/langchain.md](./references/langchain.md)                     |
+| Google ADK agents                                       | `useAdkRuntime`           | [references/google-adk.md](./references/google-adk.md)                   |
+| Mastra agents                                           | `useChatRuntime`          | [references/mastra.md](./references/mastra.md)                           |
+| Cloudflare Agents                                       | `useAISDKRuntime`         | [references/cloudflare-agents.md](./references/cloudflare-agents.md)     |
+| Legacy AI SDK v4/v5/v6                                  | pinned adapter release    | [references/ai-sdk-legacy.md](./references/ai-sdk-legacy.md)             |
+| Registry UI components (modal, sidebar, model selector) | registry                  | [references/registry-components.md](./references/registry-components.md) |
+| DevTools inspector                                      | dev only                  | [references/devtools.md](./references/devtools.md)                       |
 
 Runtime adapters with no reference file here (consult the docs site): `@assistant-ui/react-opencode` (`useOpenCodeRuntime`), `@assistant-ui/react-pi`, and `@assistant-ui/eve` (the `eve` template).
 
 ### Platform targets
 
-| Target | Package | Scaffold |
-|--------|---------|----------|
-| Web (React) | `@assistant-ui/react` | `create` |
-| Expo / React Native | `@assistant-ui/react-native` + `@assistant-ui/metro` | `create <name> --native` |
-| Terminal | `@assistant-ui/react-ink` + `@assistant-ui/react-ink-markdown` | `create <name> --ink` |
+| Target              | Package                                                        | Scaffold                 |
+| ------------------- | -------------------------------------------------------------- | ------------------------ |
+| Web (React)         | `@assistant-ui/react`                                          | `create`                 |
+| Expo / React Native | `@assistant-ui/react-native` + `@assistant-ui/metro`           | `create <name> --native` |
+| Terminal            | `@assistant-ui/react-ink` + `@assistant-ui/react-ink-markdown` | `create <name> --ink`    |
 
 ---
 

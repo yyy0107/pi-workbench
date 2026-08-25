@@ -1,6 +1,6 @@
 ---
 name: tools
-description: "Registers LLM tools and renders custom tool-call UI in assistant-ui (@assistant-ui/react). Covers the current authoring model: a \"use generative\" file exporting defineToolkit({...}) that co-locates schema, execute, and render and is split across the client/server boundary by the build plugin (withAui from @assistant-ui/next, aui() from @assistant-ui/vite, withAui from @assistant-ui/metro), mounted with Tools({ toolkit }) through useAui and exposed to the model with AISDKToolkit. Covers the tool kinds and their execute markers: backend (plain execute), frontend (\"use client\" inside execute), human via humanTool()/hitl, provider via providerTool(), external via externalTool(), stubs via stubTool() plus useAuiToolOverrides, and MCP via defineMcpToolkit. Also covers the component-scoped path (makeAssistantTool / useAssistantTool / makeAssistantToolUI / useAssistantToolUI), ToolCallMessagePartProps (status.type running/complete/incomplete/requires-action, args, argsText, result, artifact, addResult, resume, respondToApproval), server-side approval gates via the AI SDK v7 toolApproval option, generative UI from tool results, and the v0.15 s.tools.toolUIs registry. Reach for this when tool UI is not rendering, a tool is not being called, or a result is not showing."
+description: 'Registers LLM tools and renders custom tool-call UI in assistant-ui (@assistant-ui/react). Covers the current authoring model: a "use generative" file exporting defineToolkit({...}) that co-locates schema, execute, and render and is split across the client/server boundary by the build plugin (withAui from @assistant-ui/next, aui() from @assistant-ui/vite, withAui from @assistant-ui/metro), mounted with Tools({ toolkit }) through useAui and exposed to the model with AISDKToolkit. Covers the tool kinds and their execute markers: backend (plain execute), frontend ("use client" inside execute), human via humanTool()/hitl, provider via providerTool(), external via externalTool(), stubs via stubTool() plus useAuiToolOverrides, and MCP via defineMcpToolkit. Also covers the component-scoped path (makeAssistantTool / useAssistantTool / makeAssistantToolUI / useAssistantToolUI), ToolCallMessagePartProps (status.type running/complete/incomplete/requires-action, args, argsText, result, artifact, addResult, resume, respondToApproval), server-side approval gates via the AI SDK v7 toolApproval option, generative UI from tool results, and the v0.15 s.tools.toolUIs registry. Reach for this when tool UI is not rendering, a tool is not being called, or a result is not showing.'
 license: MIT
 ---
 
@@ -62,7 +62,9 @@ Mount it through `useAui`, and expose the same import to the model on the server
 const runtime = useChatRuntime();
 const aui = useAui({ tools: Tools({ toolkit }) });
 
-<AssistantRuntimeProvider aui={aui} runtime={runtime}>{children}</AssistantRuntimeProvider>
+<AssistantRuntimeProvider aui={aui} runtime={runtime}>
+  {children}
+</AssistantRuntimeProvider>;
 ```
 
 ```ts
@@ -124,14 +126,18 @@ const WeatherToolUI = makeAssistantToolUI({
   render: ({ args, result, status }) => {
     // status is an object; check status.type (not status === "running")
     if (status.type === "running") return <div>Loading weather...</div>;
-    return <div>{result?.city}: {result?.temp}°C</div>;
+    return (
+      <div>
+        {result?.city}: {result?.temp}°C
+      </div>
+    );
   },
 });
 
 <AssistantRuntimeProvider runtime={runtime}>
   <WeatherToolUI />
   <Thread />
-</AssistantRuntimeProvider>
+</AssistantRuntimeProvider>;
 ```
 
 ## Frontend-Only Tool
@@ -152,7 +158,7 @@ const CopyTool = makeAssistantTool({
 <AssistantRuntimeProvider runtime={runtime}>
   <CopyTool />
   <Thread />
-</AssistantRuntimeProvider>
+</AssistantRuntimeProvider>;
 ```
 
 ## API Reference
@@ -163,10 +169,10 @@ interface ToolCallMessagePartProps {
   toolCallId: string;
   toolName: string;
   args: Record<string, unknown>;
-  argsText: string;          // raw streamed JSON
+  argsText: string; // raw streamed JSON
   result?: unknown;
   isError?: boolean;
-  artifact?: unknown;        // UI-only artifact attached to the result
+  artifact?: unknown; // UI-only artifact attached to the result
 
   // status is an OBJECT, not a string. Branch on status.type.
   status:
@@ -201,10 +207,9 @@ AI SDK v7 can pause a tool call server-side two ways, and they coexist: `needsAp
 const result = streamText({
   model: openai("gpt-5.4-nano"),
   messages: await convertToModelMessages(messages),
-  tools: { deploy: tool({ /* ... */ }) },
+  tools: { deploy: tool({/* ... */}) },
   toolApproval: {
-    deploy: (input) =>
-      input.target === "production" ? "user-approval" : "not-applicable",
+    deploy: (input) => (input.target === "production" ? "user-approval" : "not-applicable"),
   },
 });
 ```
@@ -259,19 +264,24 @@ const DeleteToolUI = makeAssistantToolUI({
 ## Common Gotchas
 
 **Tool UI not rendering**
-- `toolName` must match exactly (case-sensitive); in a toolkit the object key *is* the tool name
+
+- `toolName` must match exactly (case-sensitive); in a toolkit the object key _is_ the tool name
 - Register UI inside `AssistantRuntimeProvider`
 
 **`"use generative"` file has no effect**
+
 - The directive needs a compiler. Add `withAui()` (`@assistant-ui/next`), `aui()` (`@assistant-ui/vite`), or `withAui()` (`@assistant-ui/metro`)
 
 **Tool not being called**
+
 - Check tool description is clear
 - Use `stopWhen: stepCountIs(n)` to allow multi-step
 
 **Result not showing**
+
 - Tool must return a value
 - Check `status.type === "complete"` before accessing result
 
 **Reading the tool UI registry**
+
 - `s.tools.tools` was removed in 0.15. Select `s.tools.toolUIs[toolName]?.[0]?.render`; entries carry the renderer alongside its presentation options

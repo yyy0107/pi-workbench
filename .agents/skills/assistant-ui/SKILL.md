@@ -17,13 +17,13 @@ React library for building AI chat interfaces with composable primitives.
 
 ## When to Use
 
-| Use Case | Best For |
-|----------|----------|
-| Chat UI from scratch | Full control over UX |
-| Existing AI backend | Connects to any streaming backend |
+| Use Case             | Best For                           |
+| -------------------- | ---------------------------------- |
+| Chat UI from scratch | Full control over UX               |
+| Existing AI backend  | Connects to any streaming backend  |
 | Custom message types | Tools, images, files, custom parts |
-| Multi-thread apps | Built-in thread list management |
-| Production apps | Cloud persistence, auth, analytics |
+| Multi-thread apps    | Built-in thread list management    |
+| Production apps      | Cloud persistence, auth, analytics |
 
 ## Architecture
 
@@ -64,16 +64,16 @@ Using AI SDK?
 
 ## Core Packages
 
-| Package | Purpose |
-|---------|---------|
-| `@assistant-ui/react` | UI primitives & hooks |
-| `@assistant-ui/core` | Framework-agnostic core runtime |
-| `@assistant-ui/store` | `useAui` / `AuiProvider` state layer |
-| `@assistant-ui/react-ai-sdk` | Vercel AI SDK v7 adapter |
+| Package                         | Purpose                                   |
+| ------------------------------- | ----------------------------------------- |
+| `@assistant-ui/react`           | UI primitives & hooks                     |
+| `@assistant-ui/core`            | Framework-agnostic core runtime           |
+| `@assistant-ui/store`           | `useAui` / `AuiProvider` state layer      |
+| `@assistant-ui/react-ai-sdk`    | Vercel AI SDK v7 adapter                  |
 | `@assistant-ui/react-langchain` | LangChain / LangGraph `useStream` adapter |
-| `@assistant-ui/react-markdown` | Markdown rendering |
-| `assistant-stream` | Streaming protocol |
-| `assistant-cloud` | Cloud persistence |
+| `@assistant-ui/react-markdown`  | Markdown rendering                        |
+| `assistant-stream`              | Streaming protocol                        |
+| `assistant-cloud`               | Cloud persistence                         |
 
 Non-web targets: `@assistant-ui/react-native` (Expo) and `@assistant-ui/react-ink` (terminal). See [./references/packages.md](./references/packages.md) for the full inventory.
 
@@ -108,8 +108,8 @@ aui.thread.append({ role: "user", content: [{ type: "text", text: "Hi" }] });
 aui.thread.cancelRun();
 aui.thread.composer().send();
 
-const messages = useAuiState(s => s.thread.messages);
-const isRunning = useAuiState(s => s.thread.isRunning);
+const messages = useAuiState((s) => s.thread.messages);
+const isRunning = useAuiState((s) => s.thread.isRunning);
 ```
 
 ## Related Skills

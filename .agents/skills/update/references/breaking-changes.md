@@ -4,24 +4,24 @@ Fast lookup for breaking changes by version.
 
 ## By Version
 
-| Version | Breaking Change | Migration |
-|---------|-----------------|-----------|
+| Version    | Breaking Change                                                                                                                                                                   | Migration                                                                                                                           |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | **0.15.0** | `aui` scope accessors become properties; v0.12-era legacy context hooks removed; `ToolsState.tools` removed; `"mcp-app"` group key removed; `useAui(clients, { parent })` removed | `aui.thread` not `aui.thread()`; `useAui`/`useAuiState`; `s.tools.toolUIs[n]?.[0]?.render`; `"standalone-tool-call"`; `AuiProvider` |
-| **0.14.0** | `components` prop → children render functions; deprecated hooks/aliases removed | Children render functions; `useAui`/`useAuiState`/`useAuiEvent`/`AuiIf`; drop `unstable_` prefixes |
-| **0.13.0** | `ThreadPrimitive.ViewportSlack` removed | Use `topAnchorMessageClamp` on `ThreadPrimitive.Viewport` |
-| **0.12.0** | Unified state API | Use `useAui`, `useAuiState`, `useAuiEvent`, `AuiIf` |
-| **0.11.0** | Runtime rearchitecture | Use `useAssistantApi`/`useAssistantState` (renamed to `useAui`/`useAuiState` in 0.12) |
-| **0.10.0** | CommonJS dropped | Use ESM, set `"type": "module"` |
-| **0.8.18** | `setResult`/`setArtifact` merged | Use `setResponse({ result, artifact })` |
-| **0.8.0** | UI moved out of core | Use shadcn registry (recommended) or primitives |
-| **0.7.44** | `runtime.switchToThread()` moved | Use `runtime.threads.switchToThread()` |
-| **0.7.44** | `runtime.threadList` renamed | Use `runtime.threads` |
-| **0.7.0** | Deprecated features dropped | Update to non-deprecated APIs |
-| **0.5.74** | `maxToolRoundtrips` renamed | Use `maxSteps` |
-| **0.4.0** | `AssistantMessage` renamed | Use `ThreadAssistantMessage` |
-| **0.4.0** | `UserMessage` renamed | Use `ThreadUserMessage` |
-| **0.3.0** | `Message.InProgress` dropped | Use message status |
-| **0.2.0** | `MessagePartText` renders as `<p>` | Adjust CSS |
+| **0.14.0** | `components` prop → children render functions; deprecated hooks/aliases removed                                                                                                   | Children render functions; `useAui`/`useAuiState`/`useAuiEvent`/`AuiIf`; drop `unstable_` prefixes                                  |
+| **0.13.0** | `ThreadPrimitive.ViewportSlack` removed                                                                                                                                           | Use `topAnchorMessageClamp` on `ThreadPrimitive.Viewport`                                                                           |
+| **0.12.0** | Unified state API                                                                                                                                                                 | Use `useAui`, `useAuiState`, `useAuiEvent`, `AuiIf`                                                                                 |
+| **0.11.0** | Runtime rearchitecture                                                                                                                                                            | Use `useAssistantApi`/`useAssistantState` (renamed to `useAui`/`useAuiState` in 0.12)                                               |
+| **0.10.0** | CommonJS dropped                                                                                                                                                                  | Use ESM, set `"type": "module"`                                                                                                     |
+| **0.8.18** | `setResult`/`setArtifact` merged                                                                                                                                                  | Use `setResponse({ result, artifact })`                                                                                             |
+| **0.8.0**  | UI moved out of core                                                                                                                                                              | Use shadcn registry (recommended) or primitives                                                                                     |
+| **0.7.44** | `runtime.switchToThread()` moved                                                                                                                                                  | Use `runtime.threads.switchToThread()`                                                                                              |
+| **0.7.44** | `runtime.threadList` renamed                                                                                                                                                      | Use `runtime.threads`                                                                                                               |
+| **0.7.0**  | Deprecated features dropped                                                                                                                                                       | Update to non-deprecated APIs                                                                                                       |
+| **0.5.74** | `maxToolRoundtrips` renamed                                                                                                                                                       | Use `maxSteps`                                                                                                                      |
+| **0.4.0**  | `AssistantMessage` renamed                                                                                                                                                        | Use `ThreadAssistantMessage`                                                                                                        |
+| **0.4.0**  | `UserMessage` renamed                                                                                                                                                             | Use `ThreadUserMessage`                                                                                                             |
+| **0.3.0**  | `Message.InProgress` dropped                                                                                                                                                      | Use message status                                                                                                                  |
+| **0.2.0**  | `MessagePartText` renders as `<p>`                                                                                                                                                | Adjust CSS                                                                                                                          |
 
 ## By Pattern
 
@@ -107,34 +107,34 @@ grep -rn "Message\.InProgress" --include="*.tsx"  # 0.3.0
 
 See [./ai-sdk-v6.md](./ai-sdk-v6.md) for the v4/v5 → v6 migration, which is still the bulk of the work for older projects:
 
-| Old (v4/v5) | v6 |
-|-----|-----|
-| `maxSteps` | `stopWhen: stepCountIs(n)` |
-| `parameters` | `inputSchema` (in `tool()`) |
-| `toDataStreamResponse()` | `toUIMessageStreamResponse()` |
-| `generateObject()` | `generateText() + Output.object()` |
-| `CoreMessage` | `ModelMessage` |
-| `Message` | `UIMessage` |
+| Old (v4/v5)              | v6                                 |
+| ------------------------ | ---------------------------------- |
+| `maxSteps`               | `stopWhen: stepCountIs(n)`         |
+| `parameters`             | `inputSchema` (in `tool()`)        |
+| `toDataStreamResponse()` | `toUIMessageStreamResponse()`      |
+| `generateObject()`       | `generateText() + Output.object()` |
+| `CoreMessage`            | `ModelMessage`                     |
+| `Message`                | `UIMessage`                        |
 
 v6 → v7 is a much smaller step, but the route response and the `@ai-sdk/*` major line both move:
 
-| v6 | v7 |
-|----|----|
-| `ai@^6`, `@ai-sdk/react@^3`, `@ai-sdk/openai@^3` | `ai@^7`, `@ai-sdk/react@^4`, `@ai-sdk/openai@^4` |
-| `result.toUIMessageStreamResponse()` | `createUIMessageStreamResponse({ stream: toUIMessageStream({ stream: result.stream }) })` (the method still compiles but is deprecated) |
-| `inputSchema: z.object({...})` | `inputSchema: zodSchema(z.object({...}))` |
-| n/a | `toolApproval` call-level option + `lastAssistantMessageIsCompleteWithApprovalResponses` |
+| v6                                               | v7                                                                                                                                      |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `ai@^6`, `@ai-sdk/react@^3`, `@ai-sdk/openai@^3` | `ai@^7`, `@ai-sdk/react@^4`, `@ai-sdk/openai@^4`                                                                                        |
+| `result.toUIMessageStreamResponse()`             | `createUIMessageStreamResponse({ stream: toUIMessageStream({ stream: result.stream }) })` (the method still compiles but is deprecated) |
+| `inputSchema: z.object({...})`                   | `inputSchema: zodSchema(z.object({...}))`                                                                                               |
+| n/a                                              | `toolApproval` call-level option + `lastAssistantMessageIsCompleteWithApprovalResponses`                                                |
 
 ## Version Compatibility
 
 Current latest: `@assistant-ui/react` 0.15.x, `@assistant-ui/react-ai-sdk` 1.4.x, `@assistant-ui/core` 0.3.x, `@assistant-ui/store` 0.3.x, `assistant-stream` 0.3.x.
 
-| @assistant-ui/react | react-ai-sdk | AI SDK | Zod |
-|---------------------|--------------|--------|-----|
-| 0.15.x | 1.4.x | 7.x | 3.25+ or 4.x |
-| 0.14.x | 1.3.x | 6.x | 3.25+ or 4.x |
-| 0.12.x to 0.13.x | 1.3.x | 6.x | 3.25+ or 4.x |
-| 0.11.x | 1.2.x | 6.x | 3.25+ or 4.x |
-| 0.10.x | 0.x | 4.x to 5.x | 3.x |
-| 0.8.x to 0.9.x | 0.x | 4.x | 3.x |
-| < 0.8.0 | 0.x | 4.x | 3.x |
+| @assistant-ui/react | react-ai-sdk | AI SDK     | Zod          |
+| ------------------- | ------------ | ---------- | ------------ |
+| 0.15.x              | 1.4.x        | 7.x        | 3.25+ or 4.x |
+| 0.14.x              | 1.3.x        | 6.x        | 3.25+ or 4.x |
+| 0.12.x to 0.13.x    | 1.3.x        | 6.x        | 3.25+ or 4.x |
+| 0.11.x              | 1.2.x        | 6.x        | 3.25+ or 4.x |
+| 0.10.x              | 0.x          | 4.x to 5.x | 3.x          |
+| 0.8.x to 0.9.x      | 0.x          | 4.x        | 3.x          |
+| < 0.8.0             | 0.x          | 4.x        | 3.x          |

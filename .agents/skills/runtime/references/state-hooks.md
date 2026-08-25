@@ -100,17 +100,17 @@ function Analytics() {
 
 Available events. Nearly all are deprecated as state-derivable: prefer observing the equivalent state with `useAuiState`, which is correct on first render and on replay, where an event handler is not.
 
-| Event | Payload | Status |
-|-------|---------|--------|
-| `thread.modelContextUpdate` | `{ threadId }` | Current: model context lives in a provider, so there is no state equivalent |
-| `composer.attachmentAddError` | error details | Current |
-| `composer.send` | `{ threadId, messageId? }` | Deprecated: observe composer `text` clearing |
-| `composer.attachmentAdd` | `{ threadId, messageId? }` | Deprecated: observe composer `attachments` |
-| `thread.runStart` | `{ threadId }` | Deprecated: observe `s.thread.isRunning` flipping to `true` |
-| `thread.runEnd` | `{ threadId }` | Deprecated: observe `s.thread.isRunning` flipping to `false` |
-| `thread.initialize` | `{ threadId }` | Deprecated: observe `s.thread.messages` becoming non-empty |
-| `threadListItem.switchedTo` | `{ threadId }` | Deprecated: compare `s.threads.mainThreadId` |
-| `threadListItem.switchedAway` | `{ threadId }` | Deprecated: compare `s.threads.mainThreadId` |
+| Event                         | Payload                    | Status                                                                      |
+| ----------------------------- | -------------------------- | --------------------------------------------------------------------------- |
+| `thread.modelContextUpdate`   | `{ threadId }`             | Current: model context lives in a provider, so there is no state equivalent |
+| `composer.attachmentAddError` | error details              | Current                                                                     |
+| `composer.send`               | `{ threadId, messageId? }` | Deprecated: observe composer `text` clearing                                |
+| `composer.attachmentAdd`      | `{ threadId, messageId? }` | Deprecated: observe composer `attachments`                                  |
+| `thread.runStart`             | `{ threadId }`             | Deprecated: observe `s.thread.isRunning` flipping to `true`                 |
+| `thread.runEnd`               | `{ threadId }`             | Deprecated: observe `s.thread.isRunning` flipping to `false`                |
+| `thread.initialize`           | `{ threadId }`             | Deprecated: observe `s.thread.messages` becoming non-empty                  |
+| `threadListItem.switchedTo`   | `{ threadId }`             | Deprecated: compare `s.threads.mainThreadId`                                |
+| `threadListItem.switchedAway` | `{ threadId }`             | Deprecated: compare `s.threads.mainThreadId`                                |
 
 ## State Shape
 
@@ -200,25 +200,25 @@ Imperatively, the equivalent guard is `aui.<scope>.source != null`.
 
 The v0.12-era context hooks were **removed in 0.15**. They no longer exist as exports; importing one is a build error, not a deprecation warning.
 
-| Removed | Replacement |
-|---------|-------------|
-| `useAssistantRuntime()` | `useAui()` |
-| `useThreadRuntime()` | `useAui().thread` |
-| `useThread(selector)` | `useAuiState((s) => s.thread)` |
-| `useThreadList(selector)` | `useAuiState((s) => s.threads)` |
-| `useThreadComposer(selector)` | `useAuiState((s) => s.thread.composer)` |
-| `useThreadModelContext(selector)` | `useAuiState((s) => s.modelContext)` |
-| `useMessageRuntime()` | `useAui().message` |
-| `useMessage(selector)` | `useAuiState((s) => s.message)` |
-| `useEditComposer(selector)` | `useAuiState((s) => s.message.composer)` |
-| `useComposerRuntime()` | `useAui().composer` |
-| `useComposer(selector)` | `useAuiState((s) => s.composer)` |
-| `useMessagePartRuntime()` | `useAui().part` |
-| `useMessagePart(selector)` | `useAuiState((s) => s.part)` |
-| `useAttachmentRuntime()` | `useAui().attachment` |
-| `useAttachment(selector)` | `useAuiState((s) => s.attachment)` |
-| `useThreadListItemRuntime()` | `useAui().threadListItem` |
-| `useThreadListItem(selector)` | `useAuiState((s) => s.threadListItem)` |
+| Removed                           | Replacement                              |
+| --------------------------------- | ---------------------------------------- |
+| `useAssistantRuntime()`           | `useAui()`                               |
+| `useThreadRuntime()`              | `useAui().thread`                        |
+| `useThread(selector)`             | `useAuiState((s) => s.thread)`           |
+| `useThreadList(selector)`         | `useAuiState((s) => s.threads)`          |
+| `useThreadComposer(selector)`     | `useAuiState((s) => s.thread.composer)`  |
+| `useThreadModelContext(selector)` | `useAuiState((s) => s.modelContext)`     |
+| `useMessageRuntime()`             | `useAui().message`                       |
+| `useMessage(selector)`            | `useAuiState((s) => s.message)`          |
+| `useEditComposer(selector)`       | `useAuiState((s) => s.message.composer)` |
+| `useComposerRuntime()`            | `useAui().composer`                      |
+| `useComposer(selector)`           | `useAuiState((s) => s.composer)`         |
+| `useMessagePartRuntime()`         | `useAui().part`                          |
+| `useMessagePart(selector)`        | `useAuiState((s) => s.part)`             |
+| `useAttachmentRuntime()`          | `useAui().attachment`                    |
+| `useAttachment(selector)`         | `useAuiState((s) => s.attachment)`       |
+| `useThreadListItemRuntime()`      | `useAui().threadListItem`                |
+| `useThreadListItem(selector)`     | `useAuiState((s) => s.threadListItem)`   |
 
 `useThreadMessages` was removed earlier and has no current export; use `useAuiState((s) => s.thread.messages)` (or `unstable_useThreadMessageIds()` when you only need ids and want to avoid re-rendering on content changes).
 
@@ -228,9 +228,9 @@ Still present but deprecated: `useMessagePartText`, `useMessagePartReasoning`, `
 
 ```tsx
 // Work anywhere inside AssistantRuntimeProvider
-useAui()
-useAuiState()
-useAuiEvent()
+useAui();
+useAuiState();
+useAuiEvent();
 
 // Scopes that require a surrounding provider before they resolve:
 //   s.message / aui.message        - inside ThreadPrimitive.Messages
@@ -264,10 +264,7 @@ function MessageList() {
   const messages = useAuiState((s) => s.thread.messages);
 
   // Memoize expensive computations
-  const userMessages = useMemo(
-    () => messages.filter((m) => m.role === "user"),
-    [messages]
-  );
+  const userMessages = useMemo(() => messages.filter((m) => m.role === "user"), [messages]);
 
   return <div>{userMessages.length} user messages</div>;
 }

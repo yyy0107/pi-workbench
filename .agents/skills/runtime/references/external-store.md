@@ -38,13 +38,16 @@ function App() {
       });
 
       const data = await response.json();
-      setMessages((prev) => [...prev, {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: [{ type: "text", text: data.text }],
-        status: { type: "complete" },
-        createdAt: new Date(),
-      }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: [{ type: "text", text: data.text }],
+          status: { type: "complete" },
+          createdAt: new Date(),
+        },
+      ]);
       setIsRunning(false);
     },
   });
@@ -319,31 +322,31 @@ const runtime = useExternalStoreRuntime({
 
 There is no `capabilities` option. `ExternalStoreRuntime` derives every capability from which callbacks and adapters you supply, so a capability turns on by implementing it:
 
-| Capability | Turned on by |
-|------------|--------------|
-| `edit` | `onEdit` |
-| `reload` | `onReload` |
-| `cancel` | `onCancel` |
-| `delete` | `onDelete` or `setMessages` |
-| `switchToBranch` | `setMessages` |
-| `attachments` | `adapters.attachments` |
-| `feedback` | `adapters.feedback` |
-| `speech` | `adapters.speech` |
-| `dictation` | `adapters.dictation` |
-| `voice` | `adapters.voice` |
-| `queue` | `queue` |
-| `unstable_copy` | on unless `unstable_capabilities.copy === false` |
-| `switchBranchDuringRun` | always `false` |
+| Capability              | Turned on by                                     |
+| ----------------------- | ------------------------------------------------ |
+| `edit`                  | `onEdit`                                         |
+| `reload`                | `onReload`                                       |
+| `cancel`                | `onCancel`                                       |
+| `delete`                | `onDelete` or `setMessages`                      |
+| `switchToBranch`        | `setMessages`                                    |
+| `attachments`           | `adapters.attachments`                           |
+| `feedback`              | `adapters.feedback`                              |
+| `speech`                | `adapters.speech`                                |
+| `dictation`             | `adapters.dictation`                             |
+| `voice`                 | `adapters.voice`                                 |
+| `queue`                 | `queue`                                          |
+| `unstable_copy`         | on unless `unstable_capabilities.copy === false` |
+| `switchBranchDuringRun` | always `false`                                   |
 
 ```tsx
 const runtime = useExternalStoreRuntime({
   messages,
   isRunning,
   onNew: handleNew,
-  onReload: handleReload,   // enables `reload`
-  onCancel: handleCancel,   // enables `cancel`
+  onReload: handleReload, // enables `reload`
+  onCancel: handleCancel, // enables `cancel`
   // omit onEdit to leave `edit` disabled
-  unstable_capabilities: { copy: false },  // the one capability you can force off
+  unstable_capabilities: { copy: false }, // the one capability you can force off
 });
 ```
 

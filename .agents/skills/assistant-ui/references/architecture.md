@@ -112,10 +112,7 @@ Primitives re-render with new state
 ## Message Model
 
 ```typescript
-type ThreadMessage =
-  | ThreadUserMessage
-  | ThreadAssistantMessage
-  | ThreadSystemMessage;
+type ThreadMessage = ThreadUserMessage | ThreadAssistantMessage | ThreadSystemMessage;
 
 type ThreadUserMessage = {
   id: string;
@@ -164,13 +161,13 @@ type ThreadUserMessagePart =
   | Unstable_AudioMessagePart;
 
 type ThreadAssistantMessagePart =
-  | TextMessagePart          // { type: "text"; text: string }
-  | ReasoningMessagePart     // { type: "reasoning"; text: string }
-  | ToolCallMessagePart      // { type: "tool-call"; toolCallId; toolName; args; argsText; result?; isError?; artifact? }
-  | SourceMessagePart        // { type: "source"; sourceType: "url"; id; url; title? }
-  | FileMessagePart          // { type: "file"; data; mimeType; filename?; sourceType?: "id" | "url" }
-  | ImageMessagePart         // { type: "image"; image: string; filename? }
-  | DataMessagePart          // { type: "data"; name: string; data: T }
+  | TextMessagePart // { type: "text"; text: string }
+  | ReasoningMessagePart // { type: "reasoning"; text: string }
+  | ToolCallMessagePart // { type: "tool-call"; toolCallId; toolName; args; argsText; result?; isError?; artifact? }
+  | SourceMessagePart // { type: "source"; sourceType: "url"; id; url; title? }
+  | FileMessagePart // { type: "file"; data; mimeType; filename?; sourceType?: "id" | "url" }
+  | ImageMessagePart // { type: "image"; image: string; filename? }
+  | DataMessagePart // { type: "data"; name: string; data: T }
   | GenerativeUIMessagePart; // { type: "generative-ui"; spec: GenerativeUISpec }
 ```
 
