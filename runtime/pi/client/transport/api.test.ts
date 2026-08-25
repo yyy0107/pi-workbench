@@ -1110,12 +1110,29 @@ test("listPiExtensions calls the session-scoped extension.list RPC", async (t) =
           extensions: [
             {
               name: "review",
+              filePath: "/home/test/.pi/agent/extensions/review.ts",
               source: "auto",
               scope: "user",
               origin: "top-level",
               eventNames: ["tool_call"],
               toolNames: ["review_changes"],
               commandNames: ["review"],
+              eventDetails: [{ name: "tool_call", handlerCount: 1 }],
+              toolDetails: [
+                {
+                  name: "review_changes",
+                  label: "Review changes",
+                  description: "Reviews the current diff.",
+                  parameterSchemaJson: '{"type":"object"}',
+                },
+              ],
+              commandDetails: [
+                {
+                  name: "review",
+                  description: "Review the current changes.",
+                  hasArgumentCompletions: false,
+                },
+              ],
             },
           ],
           loadErrorCount: 0,
@@ -1128,12 +1145,29 @@ test("listPiExtensions calls the session-scoped extension.list RPC", async (t) =
     extensions: [
       {
         name: "review",
+        filePath: "/home/test/.pi/agent/extensions/review.ts",
         source: "auto",
         scope: "user",
         origin: "top-level",
         eventNames: ["tool_call"],
         toolNames: ["review_changes"],
         commandNames: ["review"],
+        eventDetails: [{ name: "tool_call", handlerCount: 1 }],
+        toolDetails: [
+          {
+            name: "review_changes",
+            label: "Review changes",
+            description: "Reviews the current diff.",
+            parameterSchemaJson: '{"type":"object"}',
+          },
+        ],
+        commandDetails: [
+          {
+            name: "review",
+            description: "Review the current changes.",
+            hasArgumentCompletions: false,
+          },
+        ],
       },
     ],
     loadErrorCount: 0,

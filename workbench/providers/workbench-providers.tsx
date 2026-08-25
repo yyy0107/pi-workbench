@@ -2,7 +2,7 @@
 
 import { useMemo, type ReactNode } from "react";
 
-import { RightWorkspaceProvider, WorkspaceSurfaceRuntimeHost } from "@/components/right-workspace";
+import { RightWorkspaceProvider } from "@/components/right-workspace";
 import { useInstalledComponentExtensions } from "@/extensions/component-extension-installation";
 import { builtinExtensions } from "@/extensions/enabled-extensions";
 import {
@@ -19,10 +19,7 @@ function RightWorkspaceProviders({ children }: Readonly<{ children: ReactNode }>
 
   return (
     <RightWorkspaceProvider openers={openers} registry={registry}>
-      <WorkbenchAssistantRuntimeProvider>
-        <WorkspaceSurfaceRuntimeHost />
-        {children}
-      </WorkbenchAssistantRuntimeProvider>
+      <WorkbenchAssistantRuntimeProvider>{children}</WorkbenchAssistantRuntimeProvider>
     </RightWorkspaceProvider>
   );
 }

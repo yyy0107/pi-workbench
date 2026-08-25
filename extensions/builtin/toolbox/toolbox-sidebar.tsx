@@ -29,7 +29,7 @@ import {
   type ToolboxCapabilitySurfaceParams,
   type ToolboxMainSection,
 } from "./toolbox-capability";
-import { useToolboxSessionCatalogs, type ToolboxCapabilityItem } from "./toolbox-catalog";
+import { useToolboxCatalogs, type ToolboxCapabilityItem } from "./toolbox-catalog";
 import { toggleToolboxPin, useToolboxPins } from "./toolbox-pins";
 import { usePiPackageCatalog } from "./use-pi-package-catalog";
 
@@ -153,7 +153,18 @@ function CapabilityRow({
         onClick={() => onOpen(item)}
       >
         <span className="min-w-0 flex-1">
-          <span className="block truncate font-mono text-xs font-medium">{item.name}</span>
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="min-w-0 truncate font-mono text-xs font-medium">{item.name}</span>
+            {item.project ? (
+              <span
+                className="bg-sidebar-accent text-sidebar-accent-foreground max-w-24 shrink-0 truncate rounded px-1.5 py-0.5 text-[9px] leading-3 font-medium"
+                aria-label={t("extensions.toolbox.projectTag", { project: item.project.name })}
+                title={item.project.path}
+              >
+                {item.project.name}
+              </span>
+            ) : null}
+          </span>
           {item.description ? (
             <span className="text-muted-foreground mt-0.5 block truncate text-[11px]">
               {item.description}
@@ -276,7 +287,7 @@ export function ToolboxSidebar({ searchQuery }: SlotPropsMap["sidebar.toolbox"])
     promptsCatalog,
     skillItems,
     skillsCatalog,
-  } = useToolboxSessionCatalogs();
+  } = useToolboxCatalogs();
   const normalizedQuery = searchQuery.trim().toLocaleLowerCase(locale);
   const packageCatalog = usePiPackageCatalog({
     enabled: Boolean(normalizedQuery),
@@ -335,26 +346,18 @@ export function ToolboxSidebar({ searchQuery }: SlotPropsMap["sidebar.toolbox"])
     });
   };
   const renderCategoryItems = (
-    catalog: Pick<typeof skillsCatalog, "loadState" | "sessionId" | "sessionUnavailable">,
+    catalog: Pick<typeof skillsCatalog, "hasTargets" | "loadState">,
     items: readonly ToolboxCapabilityItem[],
     empty: string,
   ) => {
-    if (!catalog.sessionId) {
+    if (!catalog.hasTargets) {
       return <EmptyNote>{t("extensions.toolbox.noSession")}</EmptyNote>;
     }
     if (catalog.loadState === "loading") {
       return <CatalogSkeleton />;
     }
     if (catalog.loadState === "failed") {
-      return (
-        <EmptyNote>
-          {t(
-            catalog.sessionUnavailable
-              ? "extensions.toolbox.sessionUnavailable"
-              : "extensions.toolbox.loadFailed",
-          )}
-        </EmptyNote>
-      );
+      return <EmptyNote>{t("extensions.toolbox.loadFailed")}</EmptyNote>;
     }
     if (items.length === 0) return <EmptyNote>{empty}</EmptyNote>;
     return items.map((item) => renderCapability(item));

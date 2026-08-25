@@ -19,6 +19,12 @@ export function activeWorkspaceContext({
   };
 }
 
+export function mainViewWorkspaceContext(kind: string): WorkspaceContext {
+  return activeWorkspaceContext({
+    threadId: `workbench-main-view:${encodeURIComponent(kind)}`,
+  });
+}
+
 export function shouldPromoteThreadSurfaceScope(
   scope: WorkspaceScope,
   promotedScopeId: string | undefined,

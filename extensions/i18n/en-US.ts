@@ -693,11 +693,12 @@ export const extensionsEnUS = {
     capabilities: "Capabilities",
     manage: "Manage",
     searchResults: "Search results",
+    projectTag: ({ project }: { project: string }) => `Project: ${project}`,
     expandCategory: ({ name }: { name: string }) => `Expand ${name}`,
     collapseCategory: ({ name }: { name: string }) => `Collapse ${name}`,
     noMatches: "No capabilities match this search.",
-    noSession: "Select an existing conversation to load its Pi capabilities.",
-    sessionUnavailable: "This Pi session is no longer available.",
+    noSession: "No Pi capabilities are available yet.",
+    sessionUnavailable: "A Pi catalog source is no longer available.",
     loadFailed: "The capability catalog could not be loaded from Pi.",
     unavailable: "The current host does not expose this information.",
     managementUnavailable:
@@ -770,7 +771,7 @@ export const extensionsEnUS = {
     skills: {
       title: "Skills",
       currentSession: "Current session",
-      empty: "Pi did not load any skills for this session.",
+      empty: "No skills are available.",
       browse: "Browse skills",
       browseUnavailable:
         "The current Pi protocol can list loaded skills, but it cannot browse or install skills yet.",
@@ -813,18 +814,23 @@ export const extensionsEnUS = {
       title: "Pi Extensions",
       browse: "Browse Pi extensions",
       loaded: "Loaded",
-      empty: "Pi did not load any visible extensions for this session.",
+      empty: "Pi did not load any visible extensions.",
       disabled: "Disabled",
       updates: "Updates available",
       stateUnavailable:
         "Pi currently returns loaded extensions only; disabled extension state is not exposed.",
       updatesUnavailable: "Extension versions and available updates are not exposed by Pi.",
+      capabilitySummary: (
+        { events, tools, commands }: { events: number; tools: number; commands: number },
+        { number }: MessageFormatters,
+      ) =>
+        `${number(events)} ${events === 1 ? "event" : "events"} · ${number(tools)} ${tools === 1 ? "tool" : "tools"} · ${number(commands)} ${commands === 1 ? "command" : "commands"}`,
       loadErrors: ({ count }: { count: number }, { number }: MessageFormatters) =>
         `${number(count)} ${count === 1 ? "extension failed" : "extensions failed"} to load`,
     },
     prompts: {
       title: "Prompts",
-      empty: "Pi did not load any prompt templates for this session.",
+      empty: "No prompt templates are available.",
     },
     plugins: {
       title: "Plugins",
@@ -845,7 +851,7 @@ export const extensionsEnUS = {
       retry: "Retry",
       loadFailed: "The official Pi package catalog could not be loaded.",
       detailsLoadFailed: "The complete official package details could not be loaded.",
-      empty: "No Pi packages are configured for this session.",
+      empty: "No installed Pi Packages were found.",
       browseEmpty: "No Pi packages match this search and filter.",
       filteredResources: "Selected resources",
       allResources: "All package resources",
@@ -957,6 +963,7 @@ export const extensionsEnUS = {
       sourcePathCopied: "Copied",
       sourcePathCopyFailed: "Copy failed",
       scope: "Scope",
+      projectScope: ({ project }: { project: string }) => `Project: ${project}`,
       origin: "Origin",
       skillSourcePackage: ({ source }: { source: string }) => `Provided by Pi Package ${source}`,
       skillSourcePackageUnknown: "Provided by a Pi Package",
@@ -1063,6 +1070,26 @@ export const extensionsEnUS = {
       events: "Registered hooks / events",
       tools: "Registered tools",
       commands: "Registered commands",
+      contributionDetail: "Extension point details",
+      contributionName: "Name",
+      eventKind: "Hook / event",
+      toolKind: "Tool",
+      commandKind: "Command",
+      viewContributionDetail: ({ kind, name }: { kind: string; name: string }) =>
+        `View details for ${kind} “${name}”`,
+      closeContributionDetail: "Close details",
+      registeredHandlers: "Registered handlers",
+      toolLabel: "Display label",
+      description: "Description",
+      parameterSchema: "Parameter schema",
+      argumentCompletions: "Argument completions",
+      available: "Available",
+      unavailable: "Unavailable",
+      eventDetailLimit:
+        "Pi exposes only the number of handlers this extension registers for the event; handler source is not returned.",
+      toolDetailLimit: "Execution and custom rendering functions are not sent to the browser.",
+      commandDetailLimit:
+        "Command handlers and argument-completion implementations are not sent to the browser.",
       renderers: "Registered message renderers",
       none: "None",
       skillDocument: "SKILL.md",
@@ -1078,7 +1105,7 @@ export const extensionsEnUS = {
       promptProtocolLimit:
         "Prompt content and source paths are not included in the current command-list response.",
       extensionProtocolLimit:
-        "Version, permissions, enabled state, changelog, panels, editors, and file types are not included in the current extension-list response.",
+        "Version, permissions, enabled state, changelog, panels, editors, and file types are not included in the current extension-list response; extension-point details show only safe declarative metadata, never handler or execution source.",
       componentExtensionLifecycle:
         "Installable component extensions are separate from Workbench built-ins and Pi extensions. Uninstalling removes every component contribution from the active registry and persists that state; the static catalog entry remains available for reinstallation.",
     },

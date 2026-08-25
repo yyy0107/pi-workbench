@@ -839,14 +839,36 @@ export type ExtensionSourceScope = "user" | "project" | "temporary";
 
 export type ExtensionSourceOrigin = "package" | "top-level";
 
+export interface ExtensionRegisteredEventView {
+  name: string;
+  handlerCount: number;
+}
+
+export interface ExtensionRegisteredToolView {
+  name: string;
+  label: string;
+  description?: string;
+  parameterSchemaJson?: string;
+}
+
+export interface ExtensionRegisteredCommandView {
+  name: string;
+  description?: string;
+  hasArgumentCompletions: boolean;
+}
+
 export interface ExtensionView {
   name: string;
+  filePath: string;
   source: string;
   scope: ExtensionSourceScope;
   origin: ExtensionSourceOrigin;
   eventNames: string[];
   toolNames: string[];
   commandNames: string[];
+  eventDetails: ExtensionRegisteredEventView[];
+  toolDetails: ExtensionRegisteredToolView[];
+  commandDetails: ExtensionRegisteredCommandView[];
 }
 
 export interface ExtensionListValue {

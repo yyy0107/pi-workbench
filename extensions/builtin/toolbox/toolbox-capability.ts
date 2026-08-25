@@ -1,10 +1,14 @@
 import type {
+  ExtensionRegisteredCommandView,
+  ExtensionRegisteredEventView,
+  ExtensionRegisteredToolView,
   ExtensionView,
   InstalledPackageView,
   PiPackageCatalogItemView,
   PromptCommandView,
   SkillView,
 } from "@/runtime/pi/rpc-contracts";
+import type { PiResourceCatalogTarget } from "@/runtime/pi/client/runtime/manager";
 import type { ComponentType } from "react";
 import type { ComponentExtensionContributionKind } from "@/platform/extensions";
 
@@ -43,11 +47,15 @@ export interface ToolboxCapabilitySurfaceParams extends Record<string, unknown> 
   invocationName?: string;
   argumentHint?: string;
   source?: string;
+  filePath?: string;
   scope?: ExtensionView["scope"];
   origin?: ExtensionView["origin"];
   eventNames?: string[];
   toolNames?: string[];
   commandNames?: string[];
+  eventDetails?: ExtensionRegisteredEventView[];
+  toolDetails?: ExtensionRegisteredToolView[];
+  commandDetails?: ExtensionRegisteredCommandView[];
   entryFile?: string;
   componentExtensionId?: string;
   componentExtensionDistribution?: "builtin" | "installable";
@@ -65,6 +73,32 @@ export interface ToolboxCapabilitySurfaceParams extends Record<string, unknown> 
   installed?: boolean;
   packageScope?: InstalledPackageView["scope"];
   packageFiltered?: boolean;
+  catalogSessionId?: string;
+  projectId?: string;
+  projectName?: string;
+  projectPath?: string;
+}
+
+export function bindCapabilityToCatalogTarget(
+  params: ToolboxCapabilitySurfaceParams,
+  scope: ExtensionView["scope"] | InstalledPackageView["scope"],
+  target: PiResourceCatalogTarget,
+): ToolboxCapabilitySurfaceParams {
+  const project = scope === "project" ? target.project : undefined;
+  return {
+    ...params,
+    capabilityId: project
+      ? `${params.capabilityId}:project:${encodeURIComponent(project.id)}`
+      : params.capabilityId,
+    catalogSessionId: target.sessionId,
+    ...(project
+      ? {
+          projectId: project.id,
+          projectName: project.name,
+          projectPath: project.path,
+        }
+      : {}),
+  };
 }
 
 export function componentExtensionCapabilityId(extensionId: string): string {
@@ -154,12 +188,16 @@ export function extensionSurfaceParams(extension: ExtensionView): ToolboxCapabil
     capabilityId: extensionCapabilityId(extension),
     capabilityKind: "extension",
     name: extension.name,
+    filePath: extension.filePath,
     source: extension.source,
     scope: extension.scope,
     origin: extension.origin,
     eventNames: [...extension.eventNames],
     toolNames: [...extension.toolNames],
     commandNames: [...extension.commandNames],
+    eventDetails: (extension.eventDetails ?? []).map((detail) => ({ ...detail })),
+    toolDetails: (extension.toolDetails ?? []).map((detail) => ({ ...detail })),
+    commandDetails: (extension.commandDetails ?? []).map((detail) => ({ ...detail })),
     packageTypes: ["extension"],
     ...(packageName ? { packageName } : {}),
   };

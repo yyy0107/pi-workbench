@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useInstallableComponentExtensions } from "@/extensions/component-extension-installation";
 import { useI18n } from "@/i18n";
 import { useWorkbenchExtensions } from "@/platform/extensions";
-import { usePiSessionCatalog } from "@/runtime/pi/client/runtime/session-catalog";
+import { usePiResourceCatalogTargets } from "@/runtime/pi/client/runtime/context";
+import type { PiResourceCatalogTarget } from "@/runtime/pi/client/runtime/manager";
 import {
   listInstalledPiPackages,
   listPiCommands,
@@ -20,14 +21,11 @@ import type {
 } from "@/runtime/pi/rpc-contracts";
 
 import {
+  bindCapabilityToCatalogTarget,
   componentExtensionCapabilityId,
-  extensionCapabilityId,
   extensionSurfaceParams,
-  installedPackageCapabilityId,
   installedPackageSurfaceParams,
-  promptCapabilityId,
   promptSurfaceParams,
-  skillCapabilityId,
   skillSurfaceParams,
   type ToolboxCapabilitySurfaceParams,
 } from "./toolbox-capability";
@@ -43,14 +41,30 @@ export interface ToolboxCapabilityItem {
   readonly name: string;
   readonly description?: string;
   readonly status?: string;
+  readonly project?: PiResourceCatalogTarget["project"];
   readonly searchText: string;
   readonly params: ToolboxCapabilitySurfaceParams;
 }
 
-const EMPTY_SKILLS: readonly SkillView[] = [];
-const EMPTY_EXTENSIONS: PiExtensionsCatalog = { extensions: [], loadErrorCount: 0 };
-const EMPTY_PROMPTS: readonly PromptCommandView[] = [];
-const EMPTY_PACKAGES: readonly InstalledPackageView[] = [];
+type ToolboxCatalogLoadState = "idle" | "loading" | "ready" | "failed";
+
+interface ToolboxCatalogEntry<T> {
+  readonly target: PiResourceCatalogTarget;
+  readonly value: T;
+}
+
+interface ToolboxCatalog<T> {
+  readonly entries: readonly ToolboxCatalogEntry<T>[];
+  readonly hasTargets: boolean;
+  readonly loadState: ToolboxCatalogLoadState;
+  readonly refresh: () => void;
+}
+
+interface ToolboxCatalogState<T> {
+  readonly entries: readonly ToolboxCatalogEntry<T>[];
+  readonly loadState: ToolboxCatalogLoadState;
+}
+
 const skillChangeListeners = new Set<() => void>();
 const packageChangeListeners = new Set<() => void>();
 
@@ -80,14 +94,98 @@ async function loadPackages(sessionId: string): Promise<readonly InstalledPackag
   return (await listInstalledPiPackages({ sessionId })).packages;
 }
 
-export function useToolboxSessionCatalogs() {
+async function loadCatalogEntries<T>(
+  targets: readonly PiResourceCatalogTarget[],
+  loader: (sessionId: string) => Promise<T>,
+): Promise<{ entries: readonly ToolboxCatalogEntry<T>[]; failureCount: number }> {
+  const entries = Array.from<ToolboxCatalogEntry<T> | undefined>({ length: targets.length });
+  let failureCount = 0;
+  let nextIndex = 0;
+  const workerCount = Math.min(4, targets.length);
+
+  const worker = async () => {
+    while (nextIndex < targets.length) {
+      const index = nextIndex++;
+      const target = targets[index];
+      if (!target) continue;
+      try {
+        entries[index] = { target, value: await loader(target.sessionId) };
+      } catch {
+        failureCount += 1;
+      }
+    }
+  };
+
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  return {
+    entries: entries.filter((entry): entry is ToolboxCatalogEntry<T> => entry !== undefined),
+    failureCount,
+  };
+}
+
+function useToolboxCatalog<T>(
+  targets: readonly PiResourceCatalogTarget[],
+  loader: (sessionId: string) => Promise<T>,
+): ToolboxCatalog<T> {
+  const [reloadRevision, setReloadRevision] = useState(0);
+  const [state, setState] = useState<ToolboxCatalogState<T>>({
+    entries: [],
+    loadState: "idle",
+  });
+  const requestGeneration = useRef(0);
+  const refresh = useCallback(() => setReloadRevision((revision) => revision + 1), []);
+
+  useEffect(() => {
+    const requestId = ++requestGeneration.current;
+    if (targets.length === 0) {
+      setState({ entries: [], loadState: "idle" });
+      return;
+    }
+
+    setState({ entries: [], loadState: "loading" });
+    void loadCatalogEntries(targets, loader).then(({ entries, failureCount }) => {
+      if (requestGeneration.current !== requestId) return;
+      setState({
+        entries,
+        loadState: entries.length === 0 && failureCount > 0 ? "failed" : "ready",
+      });
+    });
+
+    return () => {
+      requestGeneration.current += 1;
+    };
+  }, [loader, reloadRevision, targets]);
+
+  return {
+    ...state,
+    hasTargets: targets.length > 0,
+    refresh,
+  };
+}
+
+function uniqueCapabilities(
+  items: readonly ToolboxCapabilityItem[],
+): readonly ToolboxCapabilityItem[] {
+  const unique = new Map<string, ToolboxCapabilityItem>();
+  for (const item of items) {
+    if (!unique.has(item.id)) unique.set(item.id, item);
+  }
+  return [...unique.values()];
+}
+
+function projectSearchText(target: PiResourceCatalogTarget): string {
+  return target.project ? `${target.project.name} ${target.project.path}` : "";
+}
+
+export function useToolboxCatalogs() {
   const { t, text } = useI18n();
   const workbenchExtensions = useWorkbenchExtensions();
   const installableComponentExtensions = useInstallableComponentExtensions();
-  const skillsCatalog = usePiSessionCatalog(loadSkills, EMPTY_SKILLS);
-  const extensionsCatalog = usePiSessionCatalog(loadExtensions, EMPTY_EXTENSIONS);
-  const promptsCatalog = usePiSessionCatalog(loadPrompts, EMPTY_PROMPTS);
-  const packagesCatalog = usePiSessionCatalog(loadPackages, EMPTY_PACKAGES);
+  const targets = usePiResourceCatalogTargets();
+  const skillsCatalog = useToolboxCatalog(targets, loadSkills);
+  const extensionsCatalog = useToolboxCatalog(targets, loadExtensions);
+  const promptsCatalog = useToolboxCatalog(targets, loadPrompts);
+  const packagesCatalog = useToolboxCatalog(targets, loadPackages);
 
   useEffect(() => {
     const refresh = skillsCatalog.refresh;
@@ -104,18 +202,37 @@ export function useToolboxSessionCatalogs() {
       packageChangeListeners.delete(refresh);
     };
   }, [packagesCatalog.refresh]);
+
   const skillItems = useMemo<readonly ToolboxCapabilityItem[]>(
     () =>
-      skillsCatalog.value.map((skill) => ({
-        id: skillCapabilityId(skill),
-        kind: "skill",
-        name: skill.name,
-        description: skill.description,
-        searchText: `${skill.name} ${skill.description} ${skill.whenToUse ?? ""}`,
-        params: skillSurfaceParams(skill),
-      })),
-    [skillsCatalog.value],
+      uniqueCapabilities(
+        skillsCatalog.entries.flatMap(({ target, value }) =>
+          value.map((skill) => {
+            const params = bindCapabilityToCatalogTarget(
+              skillSurfaceParams(skill),
+              skill.scope,
+              target,
+            );
+            return {
+              id: params.capabilityId,
+              kind: "skill" as const,
+              name: skill.name,
+              description: skill.description,
+              ...(params.projectId && target.project ? { project: target.project } : {}),
+              searchText: [
+                skill.name,
+                skill.description,
+                skill.whenToUse ?? "",
+                params.projectId ? projectSearchText(target) : "",
+              ].join(" "),
+              params,
+            };
+          }),
+        ),
+      ),
+    [skillsCatalog.entries],
   );
+
   const componentExtensionItems = useMemo<readonly ToolboxCapabilityItem[]>(() => {
     const installableIds = new Set(
       installableComponentExtensions.map(({ extension }) => extension.id),
@@ -202,52 +319,102 @@ export function useToolboxSessionCatalogs() {
       ];
     });
   }, [installableComponentExtensions, t, text, workbenchExtensions]);
+
   const extensionItems = useMemo<readonly ToolboxCapabilityItem[]>(
     () =>
-      extensionsCatalog.value.extensions.map((extension) => ({
-        id: extensionCapabilityId(extension),
-        kind: "extension",
-        name: extension.name,
-        searchText: [
-          extension.name,
-          extension.source,
-          extension.scope,
-          extension.origin,
-          ...extension.eventNames,
-          ...extension.toolNames,
-          ...extension.commandNames,
-        ].join(" "),
-        params: extensionSurfaceParams(extension),
-      })),
-    [extensionsCatalog.value.extensions],
+      uniqueCapabilities(
+        extensionsCatalog.entries.flatMap(({ target, value }) =>
+          value.extensions.map((extension) => {
+            const params = bindCapabilityToCatalogTarget(
+              extensionSurfaceParams(extension),
+              extension.scope,
+              target,
+            );
+            const description = t("extensions.toolbox.extensions.capabilitySummary", {
+              events: extension.eventNames.length,
+              tools: extension.toolNames.length,
+              commands: extension.commandNames.length,
+            });
+            return {
+              id: params.capabilityId,
+              kind: "extension" as const,
+              name: extension.name,
+              description,
+              ...(params.projectId && target.project ? { project: target.project } : {}),
+              searchText: [
+                extension.name,
+                description,
+                extension.source,
+                extension.scope,
+                extension.origin,
+                ...extension.eventNames,
+                ...extension.toolNames,
+                ...extension.commandNames,
+                params.projectId ? projectSearchText(target) : "",
+              ].join(" "),
+              params,
+            };
+          }),
+        ),
+      ),
+    [extensionsCatalog.entries, t],
   );
+
   const promptItems = useMemo<readonly ToolboxCapabilityItem[]>(
     () =>
-      promptsCatalog.value.map((prompt) => ({
-        id: promptCapabilityId(prompt),
-        kind: "prompt",
-        name: prompt.name,
-        ...(prompt.description ? { description: prompt.description } : {}),
-        searchText: [
-          prompt.name,
-          prompt.invocationName,
-          prompt.description ?? "",
-          prompt.argumentHint ?? "",
-        ].join(" "),
-        params: promptSurfaceParams(prompt),
-      })),
-    [promptsCatalog.value],
+      uniqueCapabilities(
+        promptsCatalog.entries.flatMap(({ target, value }) =>
+          value.map((prompt) => {
+            const params = bindCapabilityToCatalogTarget(
+              promptSurfaceParams(prompt),
+              prompt.scope,
+              target,
+            );
+            return {
+              id: params.capabilityId,
+              kind: "prompt" as const,
+              name: prompt.name,
+              ...(prompt.description ? { description: prompt.description } : {}),
+              ...(params.projectId && target.project ? { project: target.project } : {}),
+              searchText: [
+                prompt.name,
+                prompt.invocationName,
+                prompt.description ?? "",
+                prompt.argumentHint ?? "",
+                params.projectId ? projectSearchText(target) : "",
+              ].join(" "),
+              params,
+            };
+          }),
+        ),
+      ),
+    [promptsCatalog.entries],
   );
+
   const packageItems = useMemo<readonly ToolboxCapabilityItem[]>(
     () =>
-      packagesCatalog.value.map((item) => ({
-        id: installedPackageCapabilityId(item),
-        kind: "package",
-        name: item.source,
-        searchText: `${item.source} ${item.scope}`,
-        params: installedPackageSurfaceParams(item),
-      })),
-    [packagesCatalog.value],
+      uniqueCapabilities(
+        packagesCatalog.entries.flatMap(({ target, value }) =>
+          value.map((item) => {
+            const params = bindCapabilityToCatalogTarget(
+              installedPackageSurfaceParams(item),
+              item.scope,
+              target,
+            );
+            return {
+              id: params.capabilityId,
+              kind: "package" as const,
+              name: item.source,
+              ...(params.projectId && target.project ? { project: target.project } : {}),
+              searchText: `${item.source} ${item.scope} ${
+                params.projectId ? projectSearchText(target) : ""
+              }`,
+              params,
+            };
+          }),
+        ),
+      ),
+    [packagesCatalog.entries],
   );
 
   return {

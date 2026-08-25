@@ -395,8 +395,11 @@ Workbench 等价语义的内置命令才会被暴露，避免把 UI action 错�
 ## Extensions
 
 `extension.list` 按 `sessionId` 返回该 Pi session 的 `ResourceLoader` 已成功加载且未标记为 hidden
-的扩展。响应包含面向展示的扩展名称、来源范围、来源类型，以及其注册的事件、工具和命令名称；
-不会把扩展文件的绝对路径或具体加载错误内容返回浏览器，只返回加载失败数量。
+的扩展。响应包含面向展示的扩展名称、实际加载文件路径、来源范围、来源类型，以及其注册的事件、
+工具和命令名称。扩展点还带有可安全展示的声明性元数据：事件只返回处理器数量，工具返回显示名称、
+说明和有大小上限的参数 Schema，命令返回说明以及是否注册参数补全。处理函数、执行函数、自定义渲染
+函数、参数补全实现和源码都不会进入 RPC 响应。实际路径仅供工具箱在扩展名称下展示安装位置，不作为
+文件读取接口的输入；具体加载错误内容也不会返回浏览器，只返回加载失败数量。
 
 扩展发现沿用 Pi 的全局、package、settings 和项目资源规则。项目级扩展受按目录保存的 Pi
 Project Trust 决策控制；查询设置页不会提升项目资源信任。
@@ -731,8 +734,8 @@ output rule 使用受限 dot path，并以 `[]` 展平数组，例如
 - Skills 当前实现 session-scoped 目录与详情、官方资源过滤规则的启停、身份授权的目录浏览和只读
   文件查看，以及独立 Skill 删除；Package Skill 删除复用 `package.remove`。编辑 Skill 文件与独立
   Skill 安装尚未加入 Workbench 协议。
-- Extensions 当前只实现 session-scoped `extension.list`；启停、编辑、安装和 reload 尚未加入
-  Workbench 协议。
+- Extensions 当前只实现 session-scoped `extension.list`，包括扩展点名称与安全的声明性详情；启停、
+  编辑、安装和 reload 尚未加入 Workbench 协议。
 - Pi Packages 当前实现 session-scoped 已配置列表、官方目录搜索/详情，以及 loopback-only 的用户级和
   已导入项目级 npm Package 安装与精确作用域移除；更新和 mutation 后自动 reload 尚未加入 Workbench
   协议。

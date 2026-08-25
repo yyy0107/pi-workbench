@@ -103,6 +103,13 @@ type PackageRemoveFeedback =
 
 type SkillMutationState = "idle" | "updating" | "removing" | "failed" | "removed";
 type SkillDocumentMode = "preview" | "source";
+type ExtensionContributionKind = "command" | "event" | "tool";
+
+interface ExtensionContributionSelection {
+  capabilityId: string;
+  kind: ExtensionContributionKind;
+  name: string;
+}
 
 const COMPONENT_CONTRIBUTION_KIND_KEYS = {
   slot: "extensions.toolbox.componentContributionKinds.slot",
@@ -236,17 +243,261 @@ function DetailExternalLink({ href, children }: { href: string; children: ReactN
   );
 }
 
-function CapabilityNames({ names, empty }: { names: readonly string[]; empty: string }) {
+function CapabilityNames({
+  names,
+  empty,
+  getSelectionLabel,
+  onSelect,
+  selectedName,
+}: {
+  names: readonly string[];
+  empty: string;
+  getSelectionLabel?: (name: string) => string;
+  onSelect?: (name: string) => void;
+  selectedName?: string;
+}) {
   if (names.length === 0) return <span className="text-muted-foreground text-sm">{empty}</span>;
 
   return (
     <div className="flex flex-wrap gap-1.5">
-      {names.map((name) => (
-        <code key={name} className="bg-muted rounded-md px-2 py-1 text-[11px] break-all">
-          {name}
-        </code>
-      ))}
+      {names.map((name) => {
+        const selected = selectedName === name;
+        return onSelect ? (
+          <button
+            key={name}
+            type="button"
+            aria-label={getSelectionLabel?.(name)}
+            aria-pressed={selected}
+            className={
+              selected
+                ? "bg-foreground text-background focus-visible:ring-ring cursor-pointer rounded-md px-2 py-1 font-mono text-[11px] leading-4 break-all outline-none focus-visible:ring-2"
+                : "bg-muted/70 hover:bg-muted focus-visible:ring-ring cursor-pointer rounded-md px-2 py-1 font-mono text-[11px] leading-4 break-all outline-none transition-colors focus-visible:ring-2"
+            }
+            onClick={() => onSelect(name)}
+          >
+            {name}
+          </button>
+        ) : (
+          <span
+            key={name}
+            className="bg-muted/70 rounded-md px-2 py-1 font-mono text-[11px] leading-4 break-all"
+          >
+            {name}
+          </span>
+        );
+      })}
     </div>
+  );
+}
+
+function ExtensionContributionGroup({
+  className = "",
+  empty,
+  kindLabel,
+  label,
+  names,
+  onSelect,
+  selectedName,
+}: {
+  className?: string;
+  empty: string;
+  kindLabel: string;
+  label: string;
+  names: readonly string[];
+  onSelect: (name: string) => void;
+  selectedName?: string;
+}) {
+  const { number, t } = useI18n();
+
+  return (
+    <section className={`min-w-0 ${className}`}>
+      <header className="mb-2.5 flex items-center gap-2">
+        <h3 className="text-xs font-medium">{label}</h3>
+        <span className="bg-muted/60 text-muted-foreground inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] leading-4 tabular-nums">
+          {number(names.length)}
+        </span>
+      </header>
+      <CapabilityNames
+        names={names}
+        empty={empty}
+        selectedName={selectedName}
+        onSelect={onSelect}
+        getSelectionLabel={(name) =>
+          t("extensions.toolbox.details.viewContributionDetail", { kind: kindLabel, name })
+        }
+      />
+    </section>
+  );
+}
+
+function ExtensionContributionDetail({
+  onClose,
+  params,
+  selection,
+}: {
+  onClose: () => void;
+  params: ToolboxCapabilitySurfaceParams;
+  selection: ExtensionContributionSelection;
+}) {
+  const { number, t } = useI18n();
+  const eventDetail =
+    selection.kind === "event"
+      ? params.eventDetails?.find((detail) => detail.name === selection.name)
+      : undefined;
+  const toolDetail =
+    selection.kind === "tool"
+      ? params.toolDetails?.find((detail) => detail.name === selection.name)
+      : undefined;
+  const commandDetail =
+    selection.kind === "command"
+      ? params.commandDetails?.find((detail) => detail.name === selection.name)
+      : undefined;
+  const kindLabel = t(
+    selection.kind === "event"
+      ? "extensions.toolbox.details.eventKind"
+      : selection.kind === "tool"
+        ? "extensions.toolbox.details.toolKind"
+        : "extensions.toolbox.details.commandKind",
+  );
+  const detailLimit = t(
+    selection.kind === "event"
+      ? "extensions.toolbox.details.eventDetailLimit"
+      : selection.kind === "tool"
+        ? "extensions.toolbox.details.toolDetailLimit"
+        : "extensions.toolbox.details.commandDetailLimit",
+  );
+
+  return (
+    <section className="mt-5 border-t pt-4" aria-live="polite">
+      <header className="flex min-w-0 items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-muted-foreground text-xs font-medium">
+            {t("extensions.toolbox.details.contributionDetail")} · {kindLabel}
+          </p>
+          <h3 className="mt-1 font-mono text-base leading-6 font-semibold break-all">
+            {selection.name}
+          </h3>
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="xs"
+          className="shrink-0 active:translate-y-0!"
+          onClick={onClose}
+        >
+          {t("extensions.toolbox.details.closeContributionDetail")}
+        </Button>
+      </header>
+
+      <dl className="mt-4 grid gap-x-8 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+        <DetailField label={t("extensions.toolbox.details.contributionName")}>
+          <span className="font-mono break-all">{selection.name}</span>
+        </DetailField>
+        {selection.kind === "event" ? (
+          <DetailField label={t("extensions.toolbox.details.registeredHandlers")}>
+            {eventDetail
+              ? number(eventDetail.handlerCount)
+              : t("extensions.toolbox.details.notExposed")}
+          </DetailField>
+        ) : selection.kind === "tool" ? (
+          <>
+            <DetailField label={t("extensions.toolbox.details.toolLabel")}>
+              {toolDetail?.label || t("extensions.toolbox.details.notExposed")}
+            </DetailField>
+            <DetailField label={t("extensions.toolbox.details.description")}>
+              {toolDetail?.description || t("extensions.toolbox.details.descriptionUnavailable")}
+            </DetailField>
+          </>
+        ) : (
+          <>
+            <DetailField label={t("extensions.toolbox.details.description")}>
+              {commandDetail?.description || t("extensions.toolbox.details.descriptionUnavailable")}
+            </DetailField>
+            <DetailField label={t("extensions.toolbox.details.argumentCompletions")}>
+              {commandDetail
+                ? t(
+                    commandDetail.hasArgumentCompletions
+                      ? "extensions.toolbox.details.available"
+                      : "extensions.toolbox.details.unavailable",
+                  )
+                : t("extensions.toolbox.details.notExposed")}
+            </DetailField>
+          </>
+        )}
+      </dl>
+
+      {selection.kind === "tool" ? (
+        <div className="mt-4 border-t pt-4">
+          <h4 className="text-xs font-medium">{t("extensions.toolbox.details.parameterSchema")}</h4>
+          {toolDetail?.parameterSchemaJson ? (
+            <pre className="bg-muted/35 mt-2 max-h-72 overflow-auto rounded-md px-3 py-2 font-mono text-[11px]! leading-5 whitespace-pre-wrap break-words">
+              {toolDetail.parameterSchemaJson}
+            </pre>
+          ) : (
+            <p className="text-muted-foreground mt-2 text-xs">
+              {t("extensions.toolbox.details.notExposed")}
+            </p>
+          )}
+        </div>
+      ) : null}
+
+      <p className="text-muted-foreground mt-4 text-xs leading-5">{detailLimit}</p>
+    </section>
+  );
+}
+
+function ExtensionContributionsPanel({ params }: { params: ToolboxCapabilitySurfaceParams }) {
+  const { t } = useI18n();
+  const [selection, setSelection] = useState<ExtensionContributionSelection | null>(null);
+  const currentSelection = selection?.capabilityId === params.capabilityId ? selection : null;
+  const selectContribution = (kind: ExtensionContributionKind, name: string) => {
+    setSelection((current) =>
+      current?.capabilityId === params.capabilityId &&
+      current.kind === kind &&
+      current.name === name
+        ? null
+        : { capabilityId: params.capabilityId, kind, name },
+    );
+  };
+
+  return (
+    <section className="min-w-0">
+      <h2 className="text-sm font-semibold">{t("extensions.toolbox.details.contributions")}</h2>
+      <div className="mt-4 grid gap-x-6 gap-y-5 sm:grid-cols-2">
+        <ExtensionContributionGroup
+          className="sm:col-span-2"
+          kindLabel={t("extensions.toolbox.details.eventKind")}
+          label={t("extensions.toolbox.details.events")}
+          names={params.eventNames ?? []}
+          empty={t("extensions.toolbox.details.none")}
+          selectedName={currentSelection?.kind === "event" ? currentSelection.name : undefined}
+          onSelect={(name) => selectContribution("event", name)}
+        />
+        <ExtensionContributionGroup
+          kindLabel={t("extensions.toolbox.details.toolKind")}
+          label={t("extensions.toolbox.details.tools")}
+          names={params.toolNames ?? []}
+          empty={t("extensions.toolbox.details.none")}
+          selectedName={currentSelection?.kind === "tool" ? currentSelection.name : undefined}
+          onSelect={(name) => selectContribution("tool", name)}
+        />
+        <ExtensionContributionGroup
+          kindLabel={t("extensions.toolbox.details.commandKind")}
+          label={t("extensions.toolbox.details.commands")}
+          names={params.commandNames ?? []}
+          empty={t("extensions.toolbox.details.none")}
+          selectedName={currentSelection?.kind === "command" ? currentSelection.name : undefined}
+          onSelect={(name) => selectContribution("command", name)}
+        />
+      </div>
+      {currentSelection ? (
+        <ExtensionContributionDetail
+          params={params}
+          selection={currentSelection}
+          onClose={() => setSelection(null)}
+        />
+      ) : null}
+    </section>
   );
 }
 
@@ -357,6 +608,10 @@ function CapabilityMetadataFields({ params }: { params: ToolboxCapabilitySurface
   const isPrompt = params.capabilityKind === "prompt";
   const isInstalledPackage = params.capabilityKind === "package" && params.installed === true;
   const isComponentExtension = params.capabilityKind === "component-extension";
+  const scopeLabel = (scope: "user" | "project" | "temporary") =>
+    scope === "project" && params.projectName
+      ? t("extensions.toolbox.details.projectScope", { project: params.projectName })
+      : t(`extensions.toolbox.scopes.${scope}`);
 
   if (isInstalledPackage) {
     return (
@@ -366,7 +621,7 @@ function CapabilityMetadataFields({ params }: { params: ToolboxCapabilitySurface
         </DetailField>
         <DetailField label={t("extensions.toolbox.details.scope")}>
           {params.packageScope
-            ? t(`extensions.toolbox.scopes.${params.packageScope}`)
+            ? scopeLabel(params.packageScope)
             : t("extensions.toolbox.details.notExposed")}
         </DetailField>
         <DetailField label={t("extensions.toolbox.details.resourceSelection")}>
@@ -393,9 +648,7 @@ function CapabilityMetadataFields({ params }: { params: ToolboxCapabilitySurface
           <code className="text-xs break-all">{params.source}</code>
         </DetailField>
         <DetailField label={t("extensions.toolbox.details.scope")}>
-          {params.scope
-            ? t(`extensions.toolbox.scopes.${params.scope}`)
-            : t("extensions.toolbox.details.notExposed")}
+          {params.scope ? scopeLabel(params.scope) : t("extensions.toolbox.details.notExposed")}
         </DetailField>
         <DetailField label={t("extensions.toolbox.details.origin")}>
           {params.origin
@@ -420,7 +673,7 @@ function CapabilityMetadataFields({ params }: { params: ToolboxCapabilitySurface
         {isComponentExtension
           ? t("extensions.toolbox.scopes.application")
           : params.scope
-            ? t(`extensions.toolbox.scopes.${params.scope}`)
+            ? scopeLabel(params.scope)
             : t("extensions.toolbox.details.notExposed")}
       </DetailField>
       <DetailField label={t("extensions.toolbox.details.origin")}>
@@ -442,14 +695,16 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
   const { date, number, t } = useI18n();
   const opener = useOpenerService();
   const workspaceContext = useWorkspaceContext();
-  const sessionId = usePiActiveSessionId();
+  const activeSessionId = usePiActiveSessionId();
+  const sessionId = params.catalogSessionId ?? activeSessionId;
   const { running: sessionRunning } = usePiThreadActivity(sessionId ?? "");
-  const activeSession = usePiThreadListItemSnapshot(sessionId);
+  const catalogSession = usePiThreadListItemSnapshot(sessionId);
   const userPackageDir = usePiHostDescription()?.userPackageDir;
   const workspaces = usePiWorkspaces();
   const isSkill = params.capabilityKind === "skill";
   const isPrompt = params.capabilityKind === "prompt";
   const isPackage = params.capabilityKind === "package";
+  const isExtension = params.capabilityKind === "extension";
   const isComponentExtension = params.capabilityKind === "component-extension";
   const installableComponentExtensions = useInstallableComponentExtensions();
   const installableComponentExtension = installableComponentExtensions.find(
@@ -474,6 +729,15 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
   const displayedSkillFilePath = skillDetails.value?.filePath
     ? abbreviateUserHomePath(skillDetails.value.filePath)
     : undefined;
+  const displayedExtensionFilePath = params.filePath
+    ? abbreviateUserHomePath(params.filePath)
+    : undefined;
+  const displayedHeaderFilePath = isSkill
+    ? displayedSkillFilePath
+    : isExtension
+      ? displayedExtensionFilePath
+      : undefined;
+  const headerFilePathTitle = isSkill ? skillDetails.value?.filePath : params.filePath;
   const skillDirectoryPath = skillDetails.value?.filePath
     ? parentDirectoryPath(skillDetails.value.filePath)
     : undefined;
@@ -520,9 +784,10 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
     installedPackageRemoved ||
     (isComponentExtension && componentExtensionCanUninstall && !componentExtensionInstalled);
   const activeWorkspaceId =
-    typeof activeSession?.custom?.piWorkspaceId === "string"
-      ? activeSession.custom.piWorkspaceId
-      : workspaceContext.projectId;
+    params.projectId ??
+    (typeof catalogSession?.custom?.piWorkspaceId === "string"
+      ? catalogSession.custom.piWorkspaceId
+      : workspaceContext.projectId);
   const skillPackageRemovalTarget =
     params.origin === "package" && params.scope === "user" && sessionId
       ? { scope: "user" as const, sessionId }
@@ -625,6 +890,15 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
         : packageSizeBytes >= 1_000
           ? `${number(packageSizeBytes / 1_000, { maximumFractionDigits: 1 })} KB`
           : `${number(packageSizeBytes)} B`;
+  const displayedDescription =
+    params.description ||
+    (isExtension
+      ? t("extensions.toolbox.extensions.capabilitySummary", {
+          events: params.eventNames?.length ?? 0,
+          tools: params.toolNames?.length ?? 0,
+          commands: params.commandNames?.length ?? 0,
+        })
+      : t("extensions.toolbox.details.descriptionUnavailable"));
 
   const copyInstallCommand = () => {
     if (!selectedInstallCommand || !navigator.clipboard) return;
@@ -695,9 +969,10 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
             scope: "project",
             workspaceId: activeWorkspaceId,
             workspaceName:
+              params.projectName ??
               activeWorkspace?.name ??
-              (typeof activeSession?.custom?.piWorkspaceName === "string"
-                ? activeSession.custom.piWorkspaceName
+              (typeof catalogSession?.custom?.piWorkspaceName === "string"
+                ? catalogSession.custom.piWorkspaceName
                 : t("extensions.toolbox.packages.installLocationProjects")),
           }
         : null;
@@ -901,17 +1176,19 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
         className={
           isSkill
             ? "flex min-h-0 flex-1 flex-col overflow-hidden px-5 py-4"
-            : "min-h-0 flex-1 overflow-y-auto px-5 py-4"
+            : isExtension
+              ? "min-h-0 flex-1 overflow-y-auto px-5 pt-4 pb-6"
+              : "min-h-0 flex-1 overflow-y-auto px-5 py-4"
         }
       >
         <header className="flex shrink-0 items-start gap-2.5">
-          {!isSkill ? (
+          {!isSkill && !isExtension ? (
             <span className="bg-muted flex size-10 shrink-0 items-center justify-center rounded-xl">
               <Icon aria-hidden="true" className="size-4" />
             </span>
           ) : null}
           <div className="min-w-0 flex-1">
-            {!isSkill ? (
+            {!isSkill && !isExtension ? (
               <p className="text-muted-foreground text-xs font-medium">
                 {t(
                   isPrompt
@@ -934,23 +1211,31 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
                 <span className="text-muted-foreground text-xs leading-5">{skillSourceLabel}</span>
               </div>
             ) : (
-              <h1 className="mt-0.5 font-mono text-lg font-semibold break-all">{params.name}</h1>
-            )}
-            {isSkill && displayedSkillFilePath ? (
-              <code
-                className="text-muted-foreground mt-1 block text-xs leading-5 break-all"
-                title={skillDetails.value?.filePath}
+              <h1
+                className={
+                  isExtension
+                    ? "font-mono text-2xl leading-8 font-semibold break-all"
+                    : "mt-0.5 font-mono text-lg font-semibold break-all"
+                }
               >
-                {displayedSkillFilePath}
-              </code>
+                {params.name}
+              </h1>
+            )}
+            {displayedHeaderFilePath ? (
+              <span
+                className="text-muted-foreground mt-1 block text-base leading-6 break-all"
+                title={headerFilePathTitle}
+              >
+                {displayedHeaderFilePath}
+              </span>
             ) : null}
           </div>
           {!isSkill ? (
             <span
               className={
                 capabilityUninstalled
-                  ? "bg-muted text-muted-foreground px-2 py-1 text-[11px] font-medium"
-                  : "bg-emerald-500/10 px-2 py-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-300"
+                  ? "bg-muted text-muted-foreground rounded-full border px-2.5 py-1 text-[11px] font-medium"
+                  : "rounded-full border border-emerald-500/15 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-300"
               }
             >
               {t(
@@ -973,7 +1258,7 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
         </header>
 
         <p className="text-muted-foreground mt-3 shrink-0 text-sm leading-5">
-          {params.description || t("extensions.toolbox.details.descriptionUnavailable")}
+          {displayedDescription}
         </p>
 
         {isSkill && skillMutationState === "failed" ? (
@@ -990,8 +1275,8 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
           </p>
         ) : null}
 
-        {!isSkill ? (
-          <div className="mt-4 border-t pt-4">
+        {!isSkill && (!isExtension || showPackageOverview) ? (
+          <div className={isExtension ? "mt-5 border-t pt-5" : "mt-4 border-t pt-4"}>
             <div className="mb-3 flex min-h-7 items-center justify-between gap-3">
               <h2 className="text-sm font-semibold">{t("extensions.toolbox.details.overview")}</h2>
               {showPackageOverview ? (
@@ -1010,7 +1295,13 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
                 </div>
               ) : null}
             </div>
-            <dl className="grid grid-cols-2 gap-x-8 gap-y-3">
+            <dl
+              className={
+                isExtension
+                  ? "grid gap-x-8 gap-y-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5"
+                  : "grid grid-cols-2 gap-x-8 gap-y-3"
+              }
+            >
               {showPackageOverview ? (
                 <>
                   <PackageDetailRow label={t("extensions.toolbox.packages.packageName")}>
@@ -1109,7 +1400,7 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
           </div>
         ) : null}
 
-        {showPackageOverview && !isCatalogPackage ? (
+        {showPackageOverview && !isCatalogPackage && !isExtension ? (
           <div className="mt-4 border-t pt-4">
             <h2 className="mb-3 text-sm font-semibold">
               {t("extensions.toolbox.details.capabilityDetails")}
@@ -1117,6 +1408,22 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
             <dl className="grid gap-3">
               <CapabilityMetadataFields params={params} />
             </dl>
+          </div>
+        ) : null}
+
+        {isExtension ? (
+          <div className="mt-5 border-t pt-5">
+            <section>
+              <h2 className="mb-3 text-sm font-semibold">
+                {t("extensions.toolbox.details.capabilityDetails")}
+              </h2>
+              <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2 xl:grid-cols-3">
+                <CapabilityMetadataFields params={params} />
+              </dl>
+            </section>
+            <div className="mt-5 min-w-0 border-t pt-5">
+              <ExtensionContributionsPanel params={params} />
+            </div>
           </div>
         ) : null}
 
@@ -1255,12 +1562,12 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
             ) : skillDetails.value?.content ? (
               <div
                 aria-label={t("extensions.toolbox.details.skillDocument")}
-                className="focus-visible:ring-ring min-h-0 flex-1 overflow-auto rounded-lg border bg-transparent outline-none focus-visible:ring-2"
+                className="focus-visible:ring-ring mx-auto min-h-0 w-full max-w-4xl flex-1 overflow-auto rounded-lg border bg-transparent outline-none focus-visible:ring-2"
                 role="document"
                 tabIndex={0}
               >
                 {skillDocumentMode === "preview" ? (
-                  <article className="mx-auto w-full max-w-4xl px-6 py-5 text-sm leading-7 break-words">
+                  <article className="w-full px-6 py-5 text-sm leading-7 break-words">
                     <MarkdownTextContent
                       text={skillDetails.value.content}
                       defer={false}
@@ -1268,7 +1575,7 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
                     />
                   </article>
                 ) : (
-                  <pre className="min-h-full p-3 font-mono text-xs leading-5 whitespace-pre-wrap break-words">
+                  <pre className="min-h-full w-full p-3 font-mono text-xs leading-5 whitespace-pre-wrap break-words">
                     {skillDetails.value.content}
                   </pre>
                 )}
@@ -1543,34 +1850,6 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
               </div>
             </div>
           </div>
-        ) : params.capabilityKind === "extension" ? (
-          <div className="mt-4 border-t pt-4">
-            <h2 className="mb-3 text-sm font-semibold">
-              {t("extensions.toolbox.details.contributions")}
-            </h2>
-            <dl className="grid gap-3">
-              <>
-                <DetailField label={t("extensions.toolbox.details.events")}>
-                  <CapabilityNames
-                    names={params.eventNames ?? []}
-                    empty={t("extensions.toolbox.details.none")}
-                  />
-                </DetailField>
-                <DetailField label={t("extensions.toolbox.details.tools")}>
-                  <CapabilityNames
-                    names={params.toolNames ?? []}
-                    empty={t("extensions.toolbox.details.none")}
-                  />
-                </DetailField>
-                <DetailField label={t("extensions.toolbox.details.commands")}>
-                  <CapabilityNames
-                    names={params.commandNames ?? []}
-                    empty={t("extensions.toolbox.details.none")}
-                  />
-                </DetailField>
-              </>
-            </dl>
-          </div>
         ) : null}
 
         {isComponentExtension ? (
@@ -1691,7 +1970,7 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
         ) : null}
 
         {!isPackage && !isSkill ? (
-          <aside className="bg-muted/45 text-muted-foreground mt-4 rounded-xl px-3.5 py-3 text-xs leading-5">
+          <aside className="text-muted-foreground mt-5 border-t pt-4 text-xs leading-5">
             {t(
               isPrompt
                 ? "extensions.toolbox.details.promptProtocolLimit"

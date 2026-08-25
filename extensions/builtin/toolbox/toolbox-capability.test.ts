@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  bindCapabilityToCatalogTarget,
   componentExtensionCapabilityId,
+  extensionSurfaceParams,
   npmPackageNameFromSource,
   sectionForCapability,
   skillSurfaceParams,
@@ -51,4 +53,71 @@ test("preserves a disabled Skill when opening its Toolbox details", () => {
     }).enabled,
     false,
   );
+});
+
+test("gives project capabilities a project-specific identity and label context", () => {
+  const params = bindCapabilityToCatalogTarget(capability("skill"), "project", {
+    sessionId: "session-1",
+    project: {
+      id: "project-1",
+      name: "Workbench UI",
+      path: "/projects/workbench-ui",
+    },
+  });
+
+  assert.equal(params.capabilityId, "test:skill:project:project-1");
+  assert.equal(params.catalogSessionId, "session-1");
+  assert.equal(params.projectId, "project-1");
+  assert.equal(params.projectName, "Workbench UI");
+  assert.equal(params.projectPath, "/projects/workbench-ui");
+});
+
+test("preserves the loaded Pi extension path for the details header", () => {
+  const params = extensionSurfaceParams({
+    name: "review",
+    filePath: "/home/user/.pi/agent/extensions/review.ts",
+    source: "auto",
+    scope: "user",
+    origin: "top-level",
+    eventNames: [],
+    toolNames: [],
+    commandNames: [],
+    eventDetails: [{ name: "session_start", handlerCount: 1 }],
+    toolDetails: [
+      {
+        name: "review_changes",
+        label: "Review changes",
+        description: "Reviews the current diff.",
+        parameterSchemaJson: '{"type":"object"}',
+      },
+    ],
+    commandDetails: [
+      {
+        name: "review",
+        description: "Review the current changes.",
+        hasArgumentCompletions: false,
+      },
+    ],
+  });
+
+  assert.equal(params.filePath, "/home/user/.pi/agent/extensions/review.ts");
+  assert.deepEqual(params.eventDetails, [{ name: "session_start", handlerCount: 1 }]);
+  assert.equal(params.toolDetails?.[0]?.label, "Review changes");
+  assert.equal(params.commandDetails?.[0]?.description, "Review the current changes.");
+});
+
+test("deduplicates user capabilities independently from the representative project session", () => {
+  const params = bindCapabilityToCatalogTarget(capability("skill"), "user", {
+    sessionId: "session-1",
+    project: {
+      id: "project-1",
+      name: "Workbench UI",
+      path: "/projects/workbench-ui",
+    },
+  });
+
+  assert.equal(params.capabilityId, "test:skill");
+  assert.equal(params.catalogSessionId, "session-1");
+  assert.equal(params.projectId, undefined);
+  assert.equal(params.projectName, undefined);
 });

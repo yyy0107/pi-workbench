@@ -24,15 +24,30 @@ export interface TerminalTranscriptWorkspaceHost {
   title: string;
 }
 
+function terminalLaunchForContext(
+  launch: TerminalLaunchContext,
+  context: WorkspaceContext,
+): TerminalLaunchContext {
+  const threadId = context.threadId ?? "application";
+  if (threadId === launch.threadId) return launch;
+
+  return {
+    threadId,
+    workspaceId: context.projectId ?? "application",
+    ...(context.rootPath ? { cwd: context.rootPath } : {}),
+  };
+}
+
 export function openTerminal(
   host: Pick<TerminalWorkspaceHost, "controller" | "context" | "launch" | "title">,
   terminalId?: string,
 ): string {
-  const target = createTerminalTarget(host.launch, terminalId);
+  const launch = terminalLaunchForContext(host.launch, host.context);
+  const target = createTerminalTarget(launch, terminalId);
   const scope =
-    host.launch.threadId === "application"
+    launch.threadId === "application"
       ? { type: "application" as const, key: host.context.applicationId }
-      : { type: "thread" as const, key: host.launch.threadId };
+      : { type: "thread" as const, key: launch.threadId };
   return host.controller.open({
     kind: "terminal",
     title: host.title,

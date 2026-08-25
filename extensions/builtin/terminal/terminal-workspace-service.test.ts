@@ -67,6 +67,53 @@ test("allocates a different PTY session for every new terminal", () => {
   assert.notEqual(requests[0]?.params?.sessionId, requests[1]?.params?.sessionId);
 });
 
+test("opens a terminal inside the visible main-view workspace context", () => {
+  const requests: unknown[] = [];
+  const controller = {
+    open(request: unknown) {
+      requests.push(request);
+      return "terminal:toolbox";
+    },
+  } as RightWorkspaceController;
+
+  openTerminal(
+    {
+      controller,
+      context: {
+        applicationId: "workbench",
+        threadId: "workbench-main-view:toolbox",
+      },
+      launch: {
+        threadId: "conversation-1",
+        workspaceId: "project-1",
+        cwd: "/project-1",
+      },
+      title: "Terminal",
+    },
+    "terminal-1",
+  );
+
+  assert.deepEqual(requests, [
+    {
+      kind: "terminal",
+      title: "Terminal",
+      params: {
+        mode: "pty",
+        terminalId: "terminal-1",
+        threadId: "workbench-main-view:toolbox",
+        sessionId: "terminal:workbench-main-view:toolbox:terminal-1",
+        workspaceId: "application",
+      },
+      context: {
+        applicationId: "workbench",
+        threadId: "workbench-main-view:toolbox",
+      },
+      scope: { type: "thread", key: "workbench-main-view:toolbox" },
+      status: "ready",
+    },
+  ]);
+});
+
 test("reveals the thread-scoped terminal for the selected tool call", () => {
   const requests: unknown[] = [];
   const controller = {

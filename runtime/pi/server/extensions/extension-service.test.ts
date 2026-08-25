@@ -39,9 +39,22 @@ function extension(
       scope: options.scope ?? "user",
       origin: options.origin ?? "top-level",
     },
-    handlers: new Map((options.events ?? []).map((name) => [name, []])),
-    tools: new Map((options.tools ?? []).map((name) => [name, {}])),
-    commands: new Map((options.commands ?? []).map((name) => [name, {}])),
+    handlers: new Map((options.events ?? []).map((name) => [name, [{}]])),
+    tools: new Map(
+      (options.tools ?? []).map((name) => [
+        name,
+        {
+          definition: {
+            label: name,
+            description: `${name} tool`,
+            parameters: { type: "object" },
+          },
+        },
+      ]),
+    ),
+    commands: new Map(
+      (options.commands ?? []).map((name) => [name, { description: `${name} command` }]),
+    ),
   };
 }
 
@@ -80,21 +93,56 @@ test("lists visible extensions loaded by the target Pi session", async () => {
     extensions: [
       {
         name: "review",
+        filePath: "/home/user/.pi/agent/extensions/review.ts",
         source: "auto",
         scope: "user",
         origin: "top-level",
         eventNames: ["session_start", "tool_call"],
         toolNames: ["review_changes"],
         commandNames: ["review"],
+        eventDetails: [
+          { name: "session_start", handlerCount: 1 },
+          { name: "tool_call", handlerCount: 1 },
+        ],
+        toolDetails: [
+          {
+            name: "review_changes",
+            label: "review_changes",
+            description: "review_changes tool",
+            parameterSchemaJson: `{
+  "type": "object"
+}`,
+          },
+        ],
+        commandDetails: [
+          {
+            name: "review",
+            description: "review command",
+            hasArgumentCompletions: false,
+          },
+        ],
       },
       {
         name: "git-tools",
+        filePath: "/workspace/.pi/extensions/git-tools/index.ts",
         source: "npm:@acme/git-tools",
         scope: "project",
         origin: "package",
         eventNames: [],
         toolNames: ["git_status"],
         commandNames: [],
+        eventDetails: [],
+        toolDetails: [
+          {
+            name: "git_status",
+            label: "git_status",
+            description: "git_status tool",
+            parameterSchemaJson: `{
+  "type": "object"
+}`,
+          },
+        ],
+        commandDetails: [],
       },
     ],
     loadErrorCount: 1,

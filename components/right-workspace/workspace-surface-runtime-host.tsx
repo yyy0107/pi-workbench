@@ -1,14 +1,26 @@
 "use client";
 
+import { useMemo } from "react";
+
 import { ExtensionErrorBoundary, useExtensionErrorReporter } from "@/platform/extensions";
 
-import { useWorkspaceSurfaceDefinitions } from "./workspace-context";
+import type { WorkspaceContext } from "./core/surface-types";
+import {
+  RightWorkspaceReactContext,
+  useRightWorkspaceEnvironment,
+  useWorkspaceSurfaceDefinitions,
+} from "./workspace-context";
 
-export function WorkspaceSurfaceRuntimeHost() {
+export function WorkspaceSurfaceRuntimeHost({ context }: { context?: WorkspaceContext }) {
+  const environment = useRightWorkspaceEnvironment();
   const definitions = useWorkspaceSurfaceDefinitions();
   const reportError = useExtensionErrorReporter();
+  const runtimeEnvironment = useMemo(
+    () => (context ? { ...environment, context } : environment),
+    [context, environment],
+  );
 
-  return definitions.flatMap((definition) => {
+  const runtimes = definitions.flatMap((definition) => {
     const Runtime = definition.runtime;
     return Runtime
       ? [
@@ -23,4 +35,10 @@ export function WorkspaceSurfaceRuntimeHost() {
         ]
       : [];
   });
+
+  return (
+    <RightWorkspaceReactContext.Provider value={runtimeEnvironment}>
+      {runtimes}
+    </RightWorkspaceReactContext.Provider>
+  );
 }

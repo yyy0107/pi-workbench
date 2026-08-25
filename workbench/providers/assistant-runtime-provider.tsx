@@ -3,6 +3,7 @@
 import {
   useEffect,
   useLayoutEffect,
+  useMemo,
   useReducer,
   useRef,
   useSyncExternalStore,
@@ -14,8 +15,10 @@ import {
   useRightWorkspace,
   useSetWorkspaceContext,
   useWorkspaceFeedbackStore,
+  WorkspaceSurfaceRuntimeHost,
 } from "@/components/right-workspace";
 import { useRightWorkspaceState } from "@/components/right-workspace/workspace-context";
+import { useMainViewService } from "@/platform/extensions";
 import { PiCommandsProvider } from "@/runtime/pi/client/runtime/command-context";
 import { PiSessionManagerProvider } from "@/runtime/pi/client/runtime/context";
 import { PiSessionManager } from "@/runtime/pi/client/runtime/manager";
@@ -33,6 +36,7 @@ import type { PromptFeedbackPort } from "@/services/workspace-feedback-service";
 
 import {
   activeWorkspaceContext,
+  mainViewWorkspaceContext,
   shouldPromoteThreadSurfaceScope,
 } from "./active-workspace-context";
 import { WorkbenchWorkspaceSelectionProvider } from "./workspace-selection-provider";
@@ -217,11 +221,7 @@ function NewThreadWorkspaceVisibilityTracker() {
   return null;
 }
 
-function ActiveWorkspaceContextTracker() {
-  const controller = useRightWorkspace();
-  const setContext = useSetWorkspaceContext();
-  const surfaceOrder = useRightWorkspaceState((state) => state.surfaceOrder);
-  const surfacesById = useRightWorkspaceState((state) => state.surfaces);
+function useActiveConversationWorkspace() {
   const mainThreadId = useAuiState((state) => state.threads.mainThreadId);
   const mainThread = useAuiState((state) =>
     state.threads.threadItems.find((thread) => thread.id === state.threads.mainThreadId),
@@ -235,15 +235,47 @@ function ActiveWorkspaceContextTracker() {
       ? mainThread.custom.piWorkspaceCwd
       : undefined;
   const threadScopeId = mainThread?.remoteId ?? mainThread?.externalId ?? mainThreadId;
+  const context = useMemo(
+    () =>
+      activeWorkspaceContext({
+        ...(threadScopeId ? { threadId: threadScopeId } : {}),
+        ...(workspaceId ? { workspaceId } : {}),
+        ...(rootPath ? { rootPath } : {}),
+      }),
+    [rootPath, threadScopeId, workspaceId],
+  );
+
+  return { context, mainThreadId, threadScopeId } as const;
+}
+
+function ActiveWorkspaceContextTracker() {
+  const controller = useRightWorkspace();
+  const setContext = useSetWorkspaceContext();
+  const mainViews = useMainViewService();
+  const activeMainView = useSyncExternalStore(
+    mainViews.subscribe,
+    mainViews.getSnapshot,
+    mainViews.getInitialSnapshot,
+  );
+  const activeMainViewKind = activeMainView?.kind;
+  const surfaceOrder = useRightWorkspaceState((state) => state.surfaceOrder);
+  const surfacesById = useRightWorkspaceState((state) => state.surfaces);
+  const {
+    context: conversationContext,
+    mainThreadId,
+    threadScopeId,
+  } = useActiveConversationWorkspace();
   const previousThread = useRef<{ localId?: string; scopeId?: string }>({});
 
   useLayoutEffect(() => {
-    const context = activeWorkspaceContext({
-      ...(threadScopeId ? { threadId: threadScopeId } : {}),
-      ...(workspaceId ? { workspaceId } : {}),
-      ...(rootPath ? { rootPath } : {}),
-    });
-    setContext(context);
+    if (activeMainViewKind) {
+      const context = mainViewWorkspaceContext(activeMainViewKind);
+      setContext(context);
+      controller.restoreContext(context);
+      return;
+    }
+
+    setContext(conversationContext);
     if (threadScopeId) {
       const previous = previousThread.current;
       const promotedScopeId =
@@ -259,16 +291,16 @@ function ActiveWorkspaceContextTracker() {
       }
     }
     previousThread.current = { localId: mainThreadId, scopeId: threadScopeId };
-    controller.restoreContext(context);
+    controller.restoreContext(conversationContext);
   }, [
+    activeMainViewKind,
+    conversationContext,
     controller,
     mainThreadId,
-    rootPath,
     setContext,
     surfaceOrder,
     surfacesById,
     threadScopeId,
-    workspaceId,
   ]);
 
   return null;
@@ -312,6 +344,8 @@ export function WorkbenchAssistantRuntimeProvider({ children }: Readonly<{ child
             <PiDraftWorkspaceTracker manager={manager} />
             <NewThreadWorkspaceVisibilityTracker />
             <ActiveWorkspaceContextTracker />
+            {/* Surface runtimes must follow the active Main View context as well as conversations. */}
+            <WorkspaceSurfaceRuntimeHost />
             {children}
           </PiCommandsProvider>
         </AssistantRuntimeProvider>
