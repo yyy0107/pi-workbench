@@ -71,6 +71,7 @@ import {
   resolvePiCompactCustomInstructions,
 } from "../commands/pi-composer-command-arguments";
 import { PiServerError } from "../core/errors";
+import { ColdSessionEventCache } from "./cold-session-event-cache";
 import { getInteractiveResponseRegistry } from "./interactive-response-registry";
 import {
   appendSessionEventJournal,
@@ -114,6 +115,7 @@ const TOOL_TIMING_CUSTOM_TYPE = "workbench.tool-timing.v1";
 const BRANCH_SELECTION_CUSTOM_TYPE = "workbench.branch-selection.v1";
 export const PROMPT_SOURCE_CUSTOM_TYPE = "workbench.prompt-source.v1";
 const modelProviderRevisions = new Map<string, number>();
+const coldSessionEventCache = new ColdSessionEventCache();
 
 export function notifyModelProviderConfigurationChanged(provider: string): void {
   modelProviderRevisions.set(provider, (modelProviderRevisions.get(provider) ?? 0) + 1);
@@ -3226,6 +3228,7 @@ function ensureSessionCacheScope(registry: RegistryState): string {
   registry.persistedSessions.clear();
   registry.persistedSessionSummaries.clear();
   registry.persistedSessionFingerprints.clear();
+  coldSessionEventCache.clear();
   return cacheKey;
 }
 
@@ -3318,6 +3321,7 @@ function cachePersistedSessionManager(
 }
 
 function removeCachedSessionFile(registry: RegistryState, file: string): void {
+  coldSessionEventCache.invalidate(file);
   for (const [id, info] of registry.persistedSessions) {
     if (info.path !== file) continue;
     registry.persistedSessions.delete(id);
@@ -3575,13 +3579,15 @@ export async function getSessionEvents(id: string): Promise<SessionEvent[]> {
   if (live?.isAlive) return [...live.canonicalEvents];
   const info = await persistedSession(id);
   if (!info) throw new PiServerError("pi_session_not_found", 404);
-  const manager = SessionManager.open(info.path);
-  const initialized = initializeSessionEventJournal(
-    manager,
-    legacySessionEventsFromManager(manager),
-  );
-  if (initialized.error !== undefined) throw initialized.error;
-  return initialized.events;
+  return coldSessionEventCache.load(info.path, (canonicalPath) => {
+    const manager = SessionManager.open(canonicalPath);
+    const initialized = initializeSessionEventJournal(
+      manager,
+      legacySessionEventsFromManager(manager),
+    );
+    if (initialized.error !== undefined) throw initialized.error;
+    return initialized.events;
+  });
 }
 
 function entryCustomMessage(
@@ -3780,6 +3786,7 @@ export async function renameSession(id: string, name: string): Promise<number> {
     Date.now(),
   );
   appendSessionEventJournal(manager, event);
+  coldSessionEventCache.invalidate(info.path);
   const summary = cachePersistedSessionManager(state(), manager);
   try {
     getStreamHub().publishMux(createSessionEventPayload(id, event));
@@ -3803,6 +3810,7 @@ export async function deleteSession(id: string): Promise<void> {
   // fails, the next authoritative session reconciliation can safely reattach it;
   // the inverse order can leave an unrecoverable ghost session in workspace state.
   await getWorkspaceStore().removeSession(id);
+  if (info?.path) coldSessionEventCache.invalidate(info.path);
   if (info?.path && existsSync(info.path)) unlinkSync(info.path);
   const registry = state();
   registry.persistedSessions.delete(id);

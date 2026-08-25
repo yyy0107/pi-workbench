@@ -9,6 +9,8 @@ import { SessionManager, sessionEntryToContextMessages } from "@earendil-works/p
 import { fetchProgressiveSessionHistory } from "../../client/sessions/session-history-loader";
 import type { SessionEvent } from "../../rpc-contracts";
 
+import { ColdSessionEventCache } from "./cold-session-event-cache";
+import { initializeSessionEventJournal } from "./session-event-journal";
 import { SessionRpcService, type SessionRpcWorkspaceStore } from "./session-rpc-service";
 
 const HISTORY_SIZES = [1_000, 10_000] as const;
@@ -16,8 +18,8 @@ const HISTORY_SIZES = [1_000, 10_000] as const;
 interface BenchmarkResult {
   source: "active" | "cold";
   messages: number;
-  pages: number;
-  sourceReads: number;
+  rpcPages: number;
+  physicalColdLoads: number;
   durationMs: number;
   peakHeapDeltaMiB: number;
 }
@@ -82,7 +84,7 @@ async function createColdSession(root: string, messageCount: number): Promise<st
 function coldEvents(sessionFile: string): SessionEvent[] {
   const manager = SessionManager.open(sessionFile);
   let seq = 0;
-  return manager.buildContextEntries().flatMap((entry) =>
+  const legacyEvents = manager.buildContextEntries().flatMap((entry) =>
     sessionEntryToContextMessages(entry).map((message) => ({
       type: "message" as const,
       seq: seq++,
@@ -90,15 +92,20 @@ function coldEvents(sessionFile: string): SessionEvent[] {
       data: message,
     })),
   );
+  const initialized = initializeSessionEventJournal(manager, legacyEvents);
+  if (initialized.error !== undefined) throw initialized.error;
+  return initialized.events;
 }
 
 async function runScenario(
   source: BenchmarkResult["source"],
   messageCount: number,
-  loadEvents: () => SessionEvent[],
+  loadEvents: (canonicalPath?: string) => readonly SessionEvent[],
+  coldSessionFile?: string,
 ): Promise<BenchmarkResult> {
-  let sourceReads = 0;
-  let pages = 0;
+  let rpcPages = 0;
+  let physicalColdLoads = 0;
+  const coldCache = new ColdSessionEventCache();
   const heapBefore = process.memoryUsage().heapUsed;
   let peakHeapUsed = heapBefore;
   const sampleHeap = () => {
@@ -108,8 +115,16 @@ async function runScenario(
     workspaceStore,
     dependencies: {
       getSessionEvents: async () => {
-        sourceReads += 1;
-        const events = loadEvents();
+        let events: SessionEvent[];
+        if (coldSessionFile) {
+          events = await coldCache.load(coldSessionFile, (canonicalPath) => {
+            physicalColdLoads += 1;
+            return loadEvents(canonicalPath);
+          });
+        } else {
+          const active = loadEvents();
+          events = [...active];
+        }
         sampleHeap();
         return events;
       },
@@ -117,7 +132,7 @@ async function runScenario(
   });
   const startedAt = performance.now();
   const history = await fetchProgressiveSessionHistory("history-benchmark", async (payload) => {
-    pages += 1;
+    rpcPages += 1;
     const page = await service.history(payload);
     sampleHeap();
     return page;
@@ -132,8 +147,8 @@ async function runScenario(
   return {
     source,
     messages: messageCount,
-    pages,
-    sourceReads,
+    rpcPages,
+    physicalColdLoads,
     durationMs: Number(durationMs.toFixed(1)),
     peakHeapDeltaMiB: Number(peakHeapDeltaMiB.toFixed(1)),
   };
@@ -148,7 +163,14 @@ async function main(): Promise<void> {
       results.push(await runScenario("active", messageCount, () => [...active]));
 
       const sessionFile = await createColdSession(root, messageCount);
-      results.push(await runScenario("cold", messageCount, () => coldEvents(sessionFile)));
+      results.push(
+        await runScenario(
+          "cold",
+          messageCount,
+          (canonicalPath) => coldEvents(canonicalPath ?? sessionFile),
+          sessionFile,
+        ),
+      );
     }
   } finally {
     await rm(root, { recursive: true, force: true });
