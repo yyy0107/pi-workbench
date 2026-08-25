@@ -2,7 +2,8 @@
 
 import { useMemo } from "react";
 
-import { ExtensionErrorBoundary, useExtensionErrorReporter } from "@/platform/extensions";
+import { useExtensionErrorReporter } from "@/platform/extensions";
+import { ExtensionErrorBoundary } from "@/platform/extensions/hosts/extension-error-boundary";
 
 import type { WorkspaceContext } from "./core/surface-types";
 import {

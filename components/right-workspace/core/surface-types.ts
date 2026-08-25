@@ -1,4 +1,4 @@
-import type { WorkspaceSurfaceInstance } from "@/platform/extensions";
+import type { WorkspaceSurfaceInstance } from "@/platform/extensions/authoring";
 
 export {
   WORKSPACE_SCOPE_TYPES,
@@ -19,7 +19,7 @@ export {
   type WorkspaceSurfaceProps,
   type WorkspaceSurfaceRegistry,
   type WorkspaceSurfaceStatus,
-} from "@/platform/extensions";
+} from "@/platform/extensions/authoring";
 
 export interface RightWorkspaceState {
   open: boolean;

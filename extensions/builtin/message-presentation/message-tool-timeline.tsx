@@ -35,13 +35,13 @@ import { useOpenerService, useWorkspaceContext } from "@/components/right-worksp
 import { useI18n } from "@/i18n";
 import { formatCompactDuration } from "@/lib/format-duration";
 import { cn } from "@/lib/utils";
+import type { ToolPresentationDefinition } from "@/platform/extensions/authoring";
 import {
   RendererHost,
   useDataPresentationMap,
   useToolPresentationMap,
   useToolRendererMap,
-  type ToolPresentationDefinition,
-} from "@/platform/extensions";
+} from "@/platform/extensions/hosts/renderer-host";
 
 import { useMessageDisclosure } from "./message-disclosure-context";
 import { toolDiffModel } from "./tool-diff-model";

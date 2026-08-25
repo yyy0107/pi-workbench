@@ -1,7 +1,4 @@
-export * from "./api";
-export * from "./create-lazy-workspace-surface";
-export * from "./define-extension";
-export * from "./hosts";
+export * from "./authoring";
 export type {
   ExtensionErrorDetails,
   ExtensionErrorHandler,

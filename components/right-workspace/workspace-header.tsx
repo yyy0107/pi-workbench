@@ -5,7 +5,7 @@ import { useMemo } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
-import { SlotHost } from "@/platform/extensions";
+import { SlotHost } from "@/platform/extensions/hosts/slot-host";
 
 import { selectActiveSurface, selectContextSurfaces } from "./core/workspace-selectors";
 import {

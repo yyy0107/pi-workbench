@@ -1,7 +1,10 @@
 import { FileDiffIcon } from "lucide-react";
 
-import type { WorkspaceSurfaceDefinition } from "@/platform/extensions";
-import { createLazyWorkspaceSurface, defineExtension } from "@/platform/extensions";
+import {
+  createLazyWorkspaceSurface,
+  defineExtension,
+  type WorkspaceSurfaceDefinition,
+} from "@/platform/extensions/authoring";
 
 import { ReviewRuntimeBridge } from "./review-runtime-bridge";
 import type { ReviewSurfaceParams } from "./review-surface";

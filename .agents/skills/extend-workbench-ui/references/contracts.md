@@ -22,32 +22,38 @@ Use this reference to verify the current first-version public API before impleme
 
 ## Public boundary
 
-Import from the barrel:
+Import definitions and contribution contracts from the host-free authoring entry. Mounted client
+components import runtime hooks separately:
 
 ```ts
 import {
   defineExtension,
-  useCommandService,
-  useMainViewService,
-  useNavigationService,
-  usePanelService,
-  useSettingsRegistry,
   type CommandDefinition,
   type ComposerSlotContext,
   type PanelComponentProps,
   type MainViewProps,
   type WorkspaceActionsSlotContext,
   type WorkspaceSurfaceDefinition,
+} from "@/platform/extensions/authoring";
+import {
+  useCommandService,
+  useMainViewService,
+  useNavigationService,
+  usePanelService,
+  useSettingsRegistry,
 } from "@/platform/extensions";
 ```
 
 Source of truth:
 
+- `platform/extensions/authoring.ts`
 - `platform/extensions/index.ts`
 - `platform/extensions/api/`
 - `platform/extensions/extension-context.ts`
 
-Business extensions must not import concrete registries, stores, or hosts. Main View and Workspace
+Business extensions must not import concrete registries, stores, or the aggregate Host barrel. The
+active Message Renderer and shared extension surfaces may use the explicitly allowlisted
+`hosts/renderer-host` and `hosts/extension-error-boundary` leaf entries. Main View and Workspace
 Surface registration are part of `ExtensionContext`; RightWorkspace controller hooks and Pi runtime
 remain separate public boundaries described below.
 

@@ -1,4 +1,4 @@
-import { defineExtension } from "@/platform/extensions";
+import { defineExtension } from "@/platform/extensions/authoring";
 
 import { PiVersion } from "./pi-version";
 

@@ -55,7 +55,7 @@ When no existing Slot fits, add a typed host Slot first, then register the featu
 
 ### 1. Inspect before editing
 
-- Inspect `platform/extensions/index.ts` and the relevant public API type.
+- Inspect `platform/extensions/authoring.ts`, `platform/extensions/index.ts`, and the relevant public API type.
 - Inspect `extensions/enabled-extensions.ts`.
 - Choose the closest builtin example:
   - `connection-status`: minimal Slot;
@@ -96,7 +96,7 @@ Add `"use client"` only to components or modules that use React hooks, events, b
 Define the extension once at module scope:
 
 ```ts
-import { defineExtension } from "@/platform/extensions";
+import { defineExtension } from "@/platform/extensions/authoring";
 
 export const exampleExtension = defineExtension({
   id: "workbench.example",
@@ -145,7 +145,10 @@ When changing Pi transport or session behavior, also run the Pi tests documented
 
 ## Enforce the guardrails
 
-- Import extension contracts and hooks from `@/platform/extensions`; do not import registry or host internals.
+- Import extension definitions and contribution contracts from `@/platform/extensions/authoring`.
+  Mounted components may import public runtime hooks from `@/platform/extensions`. Only the active
+  Message Renderer and shared extension surfaces use the explicitly allowlisted leaf Host entries;
+  never import the aggregate `@/platform/extensions/hosts` entry or registry internals.
 - Keep uninstallable component extensions under `extensions/installable/`, never `extensions/builtin/`.
 - Keep Toolbox component placement previews as a faithful, proportionally scaled reproduction of the current Workbench panorama (sidebar, header, conversation, composer, RightWorkspace, status bar, panels, and global overlays). Reuse the same design tokens and surface hierarchy, and highlight the exact typed target as a non-layout overlay instead of falling back to an abstract empty-box diagram.
 - In message placement previews, render concrete system, user, and assistant examples plus representative visible Part states (text, reasoning, tool, data, source, attachment, audio, generative UI, and error). Give `message.before`, `message.actions`, and `message.after` labeled role-specific examples while active so a valid message Slot never collapses into an invisible strip.

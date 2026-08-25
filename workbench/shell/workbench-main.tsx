@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
-import { MainViewHost } from "@/platform/extensions";
+import { MainViewHost } from "@/platform/extensions/hosts/main-view-host";
 
 export function WorkbenchMain({
   children,

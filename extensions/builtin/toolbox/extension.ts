@@ -1,4 +1,4 @@
-import { defineExtension } from "@/platform/extensions";
+import { defineExtension } from "@/platform/extensions/authoring";
 
 import { ToolboxMainView } from "./toolbox-main-view";
 import { ToolboxSidebar } from "./toolbox-sidebar";

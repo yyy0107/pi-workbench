@@ -20,7 +20,7 @@ import {
   MessagePartRendererHost,
   RendererHost,
   useDataPresentationMap,
-} from "@/platform/extensions";
+} from "@/platform/extensions/hosts/renderer-host";
 import { readPiTurnTiming, resolvePiTurnDuration } from "@/runtime/pi/client/messages/turn-timing";
 import { parsePiMessageTermination } from "@/runtime/pi/message-termination";
 import { WorkbenchComposerMessageText } from "@/workbench/chat/composer-message-text";

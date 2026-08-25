@@ -20,7 +20,7 @@ import {
   useRightWorkspaceState,
 } from "@/components/right-workspace";
 import { cn } from "@/lib/utils";
-import { SlotHost } from "@/platform/extensions";
+import { SlotHost } from "@/platform/extensions/hosts/slot-host";
 import {
   loadWorkbenchSettingsPreferences,
   updateWorkbenchSettingsPreferences,

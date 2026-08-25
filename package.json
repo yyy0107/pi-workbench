@@ -14,7 +14,7 @@
     "prebuild": "pnpm icons:sync && pnpm file-viewer:sync",
     "build": "next build",
     "start": "tsx server.ts",
-    "test": "node --no-warnings=ExperimentalWarning --import ./.codex/hooks/register-typescript-loader.mjs --test",
+    "test": "node --no-warnings=ExperimentalWarning --import ./scripts/register-typescript-test-loader.mjs --test",
     "typecheck": "tsc --noEmit --incremental false",
     "check": "pnpm lint && pnpm typecheck && pnpm test",
     "lint": "oxlint && oxfmt --check",

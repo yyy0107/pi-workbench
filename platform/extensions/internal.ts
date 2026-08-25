@@ -1,4 +1,4 @@
-/** Host-side composition and concrete implementations. Business contributions use the public index. */
+/** Host-side composition and concrete implementations. Business definitions use the authoring entry. */
 export * from "./extension-context";
 export * from "./extension-manager";
 export * from "./extension-provider";

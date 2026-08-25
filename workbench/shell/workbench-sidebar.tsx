@@ -19,7 +19,8 @@ import { Input } from "@/components/ui/input";
 import { Sidebar, useSidebar } from "@/components/ui/sidebar";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
-import { SlotHost, useMainViewService } from "@/platform/extensions";
+import { useMainViewService } from "@/platform/extensions";
+import { SlotHost } from "@/platform/extensions/hosts/slot-host";
 import { useWorkspaceSelection } from "@/services/workspace-selection-service";
 import {
   SidebarPrimaryNavigation,

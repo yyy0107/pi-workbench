@@ -8,7 +8,11 @@ import { File } from "@/components/assistant-ui/file";
 import { Image } from "@/components/assistant-ui/image";
 import { ScrollCompensatedDetails } from "@/components/elements/scroll-compensated-details";
 import { useI18n } from "@/i18n";
-import { MessagePartRendererHost, MessageRendererHost, RendererHost } from "@/platform/extensions";
+import {
+  MessagePartRendererHost,
+  MessageRendererHost,
+  RendererHost,
+} from "@/platform/extensions/hosts/renderer-host";
 
 import { WorkbenchComposerMessageText } from "./composer-message-text";
 

@@ -33,7 +33,7 @@ export function SessionBadge() {
 
 ```ts
 // extensions/builtin/session-badge/extension.ts
-import { defineExtension } from "@/platform/extensions";
+import { defineExtension } from "@/platform/extensions/authoring";
 
 import { SessionBadge } from "./session-badge";
 
@@ -60,7 +60,8 @@ Use `connection-status` and `token-usage` as the in-repository references.
 // notes-trigger.tsx
 "use client";
 
-import { type ComposerSlotContext, useCommandService } from "@/platform/extensions";
+import { useCommandService } from "@/platform/extensions";
+import type { ComposerSlotContext } from "@/platform/extensions/authoring";
 
 export function NotesTrigger({ isRunning }: ComposerSlotContext) {
   const commands = useCommandService();
@@ -87,7 +88,7 @@ export function NotesTrigger({ isRunning }: ComposerSlotContext) {
 
 import { useState } from "react";
 
-import type { PanelComponentProps } from "@/platform/extensions";
+import type { PanelComponentProps } from "@/platform/extensions/authoring";
 
 export function NotesPanel({ panelId, close }: PanelComponentProps) {
   const [value, setValue] = useState("");
@@ -111,7 +112,7 @@ export function NotesPanel({ panelId, close }: PanelComponentProps) {
 ```ts
 // notes-command.ts
 import { defineMessage } from "@/i18n";
-import type { CommandDefinition } from "@/platform/extensions";
+import type { CommandDefinition } from "@/platform/extensions/authoring";
 
 export const toggleNotesCommand = {
   id: "notes.toggle",
@@ -130,7 +131,7 @@ export const toggleNotesCommand = {
 import { StickyNoteIcon } from "lucide-react";
 
 import { defineMessage } from "@/i18n";
-import { defineExtension } from "@/platform/extensions";
+import { defineExtension } from "@/platform/extensions/authoring";
 
 import { toggleNotesCommand } from "./notes-command";
 import { NotesPanel } from "./notes-panel";
@@ -224,7 +225,7 @@ capability as a Workspace Surface contribution:
 ```ts
 import { FileTextIcon } from "lucide-react";
 
-import { defineExtension, type WorkspaceSurfaceDefinition } from "@/platform/extensions";
+import { defineExtension, type WorkspaceSurfaceDefinition } from "@/platform/extensions/authoring";
 
 import { NotesMenuItem } from "./notes-menu-item";
 import { NotesRuntimeBridge } from "./notes-runtime-bridge";
@@ -306,7 +307,7 @@ reasoning appearance, tool-group chrome, and Tool/Data fallbacks:
 "use client";
 
 import { groupPartByType, MessagePrimitive } from "@assistant-ui/react";
-import { RendererHost } from "@/platform/extensions";
+import { RendererHost } from "@/platform/extensions/hosts/renderer-host";
 
 export function CompactMessageRenderer() {
   return (

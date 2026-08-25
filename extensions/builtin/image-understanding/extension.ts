@@ -2,7 +2,7 @@ import { ScanTextIcon } from "lucide-react";
 import type { DataMessagePart } from "@assistant-ui/react";
 
 import { defineMessage } from "@/i18n";
-import { defineExtension } from "@/platform/extensions";
+import { defineExtension } from "@/platform/extensions/authoring";
 
 import { AttachmentUnderstandingSettingsItem } from "./image-understanding-settings-item";
 import { AttachmentRecognitionRenderer } from "./image-recognition-renderer";

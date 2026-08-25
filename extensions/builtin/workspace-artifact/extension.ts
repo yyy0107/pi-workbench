@@ -1,7 +1,10 @@
 import { FileOutputIcon } from "lucide-react";
 
-import type { WorkspaceSurfaceDefinition } from "@/platform/extensions";
-import { createLazyWorkspaceSurface, defineExtension } from "@/platform/extensions";
+import {
+  createLazyWorkspaceSurface,
+  defineExtension,
+  type WorkspaceSurfaceDefinition,
+} from "@/platform/extensions/authoring";
 
 import { ArtifactRuntimeBridge } from "./artifact-runtime-bridge";
 import type { ArtifactSurfaceParams } from "./artifact-surface";

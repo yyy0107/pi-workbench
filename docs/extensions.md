@@ -16,7 +16,7 @@
 插件 ABI，也没有权限隔离或独立 Extension Host；未来的外部插件体系应使用单独的 public API
 与隔离边界。
 
-扩展平台的公开入口是 [`platform/extensions/index.ts`](../platform/extensions/index.ts)。扩展应优先从 `@/platform/extensions` 导入类型、Hook 和注册 API，不要依赖 `registries/`、`hosts/` 等内部实现。
+扩展定义和贡献契约的纯入口是 [`platform/extensions/authoring.ts`](../platform/extensions/authoring.ts)，使用 `@/platform/extensions/authoring` 不会加载 React Host 或 Next.js 宿主实现。挂载后的客户端组件从 `@/platform/extensions` 使用公开 Hook；Workbench 组合层以及平台明确允许的 Renderer/Error surface 使用具体 leaf Host 入口，不依赖聚合 `hosts/` barrel、Registry 或其他内部实现。
 
 ## 1. 先理解九种扩展能力
 
@@ -81,7 +81,7 @@ extensions/builtin/notes/
 最小扩展只有一个 `extension.ts`：
 
 ```ts
-import { defineExtension } from "@/platform/extensions";
+import { defineExtension } from "@/platform/extensions/authoring";
 
 export const exampleExtension = defineExtension({
   id: "workbench.example",
@@ -148,7 +148,7 @@ export const exampleExtension = defineExtension({
 
 import { useState } from "react";
 
-import type { PanelComponentProps } from "@/platform/extensions";
+import type { PanelComponentProps } from "@/platform/extensions/authoring";
 
 export function NotesPanel({ panelId, close }: PanelComponentProps) {
   const [value, setValue] = useState("");
@@ -191,7 +191,8 @@ export function NotesPanel({ panelId, close }: PanelComponentProps) {
 
 import { StickyNoteIcon } from "lucide-react";
 
-import { type ComposerSlotContext, usePanelService } from "@/platform/extensions";
+import { usePanelService } from "@/platform/extensions";
+import type { ComposerSlotContext } from "@/platform/extensions/authoring";
 
 export function NotesTrigger({ isRunning }: ComposerSlotContext) {
   const panels = usePanelService();
@@ -237,7 +238,7 @@ export function NotesTrigger({ isRunning }: ComposerSlotContext) {
 import { StickyNoteIcon } from "lucide-react";
 
 import { defineMessage } from "@/i18n";
-import type { CommandDefinition } from "@/platform/extensions";
+import type { CommandDefinition } from "@/platform/extensions/authoring";
 
 export const toggleNotesCommand = {
   id: "notes.toggle",
@@ -275,7 +276,7 @@ export const toggleNotesCommand = {
 import { StickyNoteIcon } from "lucide-react";
 
 import { defineMessage } from "@/i18n";
-import { defineExtension } from "@/platform/extensions";
+import { defineExtension } from "@/platform/extensions/authoring";
 
 import { NotesPanel } from "./notes-panel";
 import { NotesTrigger } from "./notes-trigger";
@@ -332,7 +333,7 @@ Panel Registry 只保存定义。打开状态、位置和尺寸由 Panel Store �
 修改 [`extensions/enabled-extensions.ts`](../extensions/enabled-extensions.ts)：
 
 ```ts
-import type { WorkbenchExtension } from "@/platform/extensions";
+import type { WorkbenchExtension } from "@/platform/extensions/authoring";
 
 import { notesExtension } from "./builtin/notes";
 // 其他内置扩展 import...
@@ -476,7 +477,8 @@ Main View 用于工具箱、管理中心等需要中央宽屏空间的完整功�
 
 ```tsx
 import { defineMessage } from "@/i18n";
-import { defineExtension, type MainViewProps, useMainViewService } from "@/platform/extensions";
+import { useMainViewService } from "@/platform/extensions";
+import { defineExtension, type MainViewProps } from "@/platform/extensions/authoring";
 
 interface ExampleMainViewParams extends Record<string, unknown> {
   section: "overview" | "catalog";
@@ -613,7 +615,8 @@ context.panels.register({
 ```tsx
 "use client";
 
-import { type RightPanelAddMenuSlotContext, usePanelService } from "@/platform/extensions";
+import { usePanelService } from "@/platform/extensions";
+import type { RightPanelAddMenuSlotContext } from "@/platform/extensions/authoring";
 
 export function BrowserAddMenuItem({ closeMenu }: RightPanelAddMenuSlotContext) {
   const panels = usePanelService();
@@ -646,7 +649,7 @@ context.slots.register("panel.right.add-menu", {
 ```tsx
 "use client";
 
-import type { PanelTabComponentProps } from "@/platform/extensions";
+import type { PanelTabComponentProps } from "@/platform/extensions/authoring";
 
 export function BrowserTab({ isActive }: PanelTabComponentProps) {
   const { faviconUrl, pageTitle } = useBrowserStore();
@@ -893,7 +896,7 @@ Message Renderer 接管一条消息内部的 `MessagePrimitive.Parts` 或
 "use client";
 
 import { groupPartByType, MessagePrimitive } from "@assistant-ui/react";
-import { RendererHost } from "@/platform/extensions";
+import { RendererHost } from "@/platform/extensions/hosts/renderer-host";
 
 export function CompactMessageRenderer() {
   return (
@@ -1072,7 +1075,7 @@ React Error Boundary 不会捕获事件处理器和任意异步回调中的异�
 如果扩展自己添加浏览器监听器，应返回清理对象：
 
 ```ts
-import { createDisposable, defineExtension } from "@/platform/extensions";
+import { createDisposable, defineExtension } from "@/platform/extensions/authoring";
 
 export const resizeObserverExtension = defineExtension({
   id: "workbench.resize-observer",

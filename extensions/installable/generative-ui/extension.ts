@@ -1,5 +1,5 @@
 import { defineMessage } from "@/i18n";
-import { defineExtension } from "@/platform/extensions";
+import { defineExtension } from "@/platform/extensions/authoring";
 
 import {
   canRenderGenerativeUIPart,

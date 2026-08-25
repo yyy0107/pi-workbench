@@ -1,4 +1,4 @@
-import { defineExtension } from "@/platform/extensions";
+import { defineExtension } from "@/platform/extensions/authoring";
 
 import { DirectoryPickerButton } from "./directory-picker-button";
 import { NewThreadWorkspaceItem } from "./new-thread-workspace-item";

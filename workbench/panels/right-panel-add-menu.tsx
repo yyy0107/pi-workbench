@@ -6,7 +6,7 @@ import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useI18n } from "@/i18n";
-import { SlotHost } from "@/platform/extensions";
+import { SlotHost } from "@/platform/extensions/hosts/slot-host";
 
 export interface RightPanelAddMenuProps {
   activePanelId: string;

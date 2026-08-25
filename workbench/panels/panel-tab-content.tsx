@@ -2,7 +2,8 @@
 
 import type { PanelDefinition } from "@/platform/extensions";
 import { useI18n } from "@/i18n";
-import { ExtensionErrorBoundary, useExtensionErrorReporter } from "@/platform/extensions";
+import { useExtensionErrorReporter } from "@/platform/extensions";
+import { ExtensionErrorBoundary } from "@/platform/extensions/hosts/extension-error-boundary";
 
 export interface PanelTabContentProps {
   definition: PanelDefinition;

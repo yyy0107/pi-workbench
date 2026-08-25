@@ -64,10 +64,10 @@ import {
   type ComposerCommandArgsBinding,
   type ComposerJsonValue,
   type ComposerCommandRegistry,
-  SlotHost,
   useComposerCommandRegistry,
   useExtensionErrorReporter,
 } from "@/platform/extensions";
+import { SlotHost } from "@/platform/extensions/hosts/slot-host";
 import { useExtensionManager } from "@/platform/extensions/internal";
 import { usePiCommands } from "@/runtime/pi/client/runtime/command-context";
 import type { CommandView } from "@/runtime/pi/rpc-contracts";

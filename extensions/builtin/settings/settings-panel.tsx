@@ -3,14 +3,13 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
 import { useI18n } from "@/i18n";
-import {
-  ExtensionErrorBoundary,
-  useExtensionErrorReporter,
-  useSettingsRegistry,
-  type SettingsItemDefinition,
-  type SettingsSectionDefinition,
-  type SettingsSectionGroupDefinition,
-} from "@/platform/extensions";
+import { useExtensionErrorReporter, useSettingsRegistry } from "@/platform/extensions";
+import type {
+  SettingsItemDefinition,
+  SettingsSectionDefinition,
+  SettingsSectionGroupDefinition,
+} from "@/platform/extensions/authoring";
+import { ExtensionErrorBoundary } from "@/platform/extensions/hosts/extension-error-boundary";
 import { cn } from "@/lib/utils";
 
 const EMPTY_SECTIONS = Object.freeze([]) as readonly SettingsSectionDefinition[];

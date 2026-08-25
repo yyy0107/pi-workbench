@@ -1,7 +1,7 @@
 import { ArchiveIcon } from "lucide-react";
 
 import { defineMessage } from "@/i18n";
-import { defineExtension } from "@/platform/extensions";
+import { defineExtension } from "@/platform/extensions/authoring";
 
 import { ArchivedChatsSettingsItem } from "./archived-chats-settings-item";
 

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { PanelsTopLeftIcon } from "lucide-react";
 
-import { type ExtensionContext } from "@/platform/extensions";
+import type { ExtensionContext } from "@/platform/extensions/authoring";
 import { ExtensionManager, WorkspaceSurfaceRegistryImpl } from "@/platform/extensions/internal";
 import {
   DefaultRightWorkspaceController,

@@ -5,7 +5,7 @@ import { Fragment } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
-import { SlotHost } from "@/platform/extensions";
+import { SlotHost } from "@/platform/extensions/hosts/slot-host";
 
 import { RightPanelAddMenu } from "./right-panel-add-menu";
 import { RightPanelTab } from "./right-panel-tab";

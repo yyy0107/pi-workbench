@@ -1,7 +1,7 @@
 import { PuzzleIcon } from "lucide-react";
 
 import { defineMessage } from "@/i18n";
-import { defineExtension } from "@/platform/extensions";
+import { defineExtension } from "@/platform/extensions/authoring";
 
 import { PiExtensionsSettingsItem } from "./pi-extensions-settings-item";
 

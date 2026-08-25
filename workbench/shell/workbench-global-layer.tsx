@@ -1,6 +1,7 @@
 "use client";
 
-import { CommandPaletteHost, SlotHost } from "@/platform/extensions";
+import { CommandPaletteHost } from "@/platform/extensions/hosts/command-palette-host";
+import { SlotHost } from "@/platform/extensions/hosts/slot-host";
 
 export function WorkbenchGlobalLayer() {
   return (

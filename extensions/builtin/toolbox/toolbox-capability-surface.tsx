@@ -54,12 +54,9 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { useI18n } from "@/i18n";
-import {
-  ExtensionErrorBoundary,
-  useExtensionErrorReporter,
-  type ComponentExtensionContributionKind,
-  type ExtensionErrorSource,
-} from "@/platform/extensions";
+import { useExtensionErrorReporter, type ExtensionErrorSource } from "@/platform/extensions";
+import type { ComponentExtensionContributionKind } from "@/platform/extensions/authoring";
+import { ExtensionErrorBoundary } from "@/platform/extensions/hosts/extension-error-boundary";
 import {
   usePiActiveSessionId,
   usePiHostDescription,

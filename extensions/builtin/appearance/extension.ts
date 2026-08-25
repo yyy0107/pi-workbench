@@ -1,7 +1,7 @@
 import { Code2Icon, ImageIcon, PaletteIcon, PanelsTopLeftIcon } from "lucide-react";
 
 import { defineMessage } from "@/i18n";
-import { defineExtension } from "@/platform/extensions";
+import { defineExtension } from "@/platform/extensions/authoring";
 
 import { AppearanceBackground } from "./appearance-background";
 import { AppearanceResetAction } from "./appearance-reset-action";

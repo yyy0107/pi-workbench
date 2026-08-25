@@ -1,6 +1,6 @@
 "use client";
 
-import { SlotHost } from "@/platform/extensions";
+import { SlotHost } from "@/platform/extensions/hosts/slot-host";
 
 export function WorkbenchStatusbar() {
   return (

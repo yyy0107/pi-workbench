@@ -5,7 +5,7 @@ import {
   createLazyWorkspaceSurface,
   defineExtension,
   type WorkspaceSurfaceDefinition,
-} from "@/platform/extensions";
+} from "@/platform/extensions/authoring";
 
 import { toggleTerminalCommand } from "./open-terminal-command";
 import { BashToolDisclosureController } from "./bash-tool-disclosure-controller";

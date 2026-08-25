@@ -9,7 +9,8 @@ import { useRightWorkspaceState } from "@/components/right-workspace";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
-import { SlotHost, useMainViewService } from "@/platform/extensions";
+import { useMainViewService } from "@/platform/extensions";
+import { SlotHost } from "@/platform/extensions/hosts/slot-host";
 import { usePiThreadListItemSnapshot } from "@/runtime/pi/client/runtime/context";
 
 function SidebarOpenButton() {

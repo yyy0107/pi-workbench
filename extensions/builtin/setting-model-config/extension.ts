@@ -1,7 +1,7 @@
 import { BotIcon } from "lucide-react";
 
 import { defineMessage } from "@/i18n";
-import { defineExtension } from "@/platform/extensions";
+import { defineExtension } from "@/platform/extensions/authoring";
 
 import { ModelConfigSettingsItem } from "./model-config-settings-item";
 

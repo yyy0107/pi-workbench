@@ -6,7 +6,7 @@ import { CheckIcon, CopyIcon } from "lucide-react";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
-import { SlotHost } from "@/platform/extensions";
+import { SlotHost } from "@/platform/extensions/hosts/slot-host";
 
 import {
   shouldHideMessageActionBar,

@@ -1,7 +1,10 @@
 import { Globe2Icon } from "lucide-react";
 
-import type { WorkspaceSurfaceDefinition } from "@/platform/extensions";
-import { createLazyWorkspaceSurface, defineExtension } from "@/platform/extensions";
+import {
+  createLazyWorkspaceSurface,
+  defineExtension,
+  type WorkspaceSurfaceDefinition,
+} from "@/platform/extensions/authoring";
 
 import { BrowserRuntimeBridge } from "./browser-runtime-bridge";
 import type { BrowserSurfaceParams } from "./browser-surface";

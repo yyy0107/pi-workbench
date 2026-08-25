@@ -1,4 +1,4 @@
-import { defineExtension } from "@/platform/extensions";
+import { defineExtension } from "@/platform/extensions/authoring";
 
 import { LocaleSettingsItem, MobileLocaleSelector, SidebarLocaleSelector } from "./locale-selector";
 

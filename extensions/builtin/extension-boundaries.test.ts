@@ -6,11 +6,18 @@ import test from "node:test";
 
 const BUILTIN_ROOT = fileURLToPath(new URL(".", import.meta.url));
 const PROJECT_ROOT = resolve(BUILTIN_ROOT, "../..");
+const INSTALLABLE_ROOT = resolve(PROJECT_ROOT, "extensions/installable");
 const COMPONENTS_ROOT = resolve(PROJECT_ROOT, "components");
 const PLATFORM_API_ROOT = resolve(PROJECT_ROOT, "platform/extensions/api");
 const RIGHT_WORKSPACE_ROOT = resolve(PROJECT_ROOT, "components/right-workspace");
 const RUNTIME_ROOT = resolve(PROJECT_ROOT, "runtime");
 const EXTENSION_PUBLIC_ENTRY = resolve(PROJECT_ROOT, "platform/extensions/index.ts");
+const EXTENSION_AUTHORING_ENTRY = resolve(PROJECT_ROOT, "platform/extensions/authoring.ts");
+const ALLOWED_EXTENSION_SUBPATHS = new Set([
+  "@/platform/extensions/authoring",
+  "@/platform/extensions/hosts/extension-error-boundary",
+  "@/platform/extensions/hosts/renderer-host",
+]);
 
 function sourceFiles(root: string): string[] {
   return readdirSync(root, { withFileTypes: true }).flatMap((entry) => {
@@ -81,11 +88,32 @@ test("built-in contributions do not import sibling feature internals", () => {
       if (targetFeature && targetFeature !== sourceFeature) {
         violations.push(`${sourceRelative} -> ${specifier}`);
       }
-      if (specifier.startsWith("@/platform/extensions/")) {
-        violations.push(`${sourceRelative} -> ${specifier} (use @/platform/extensions)`);
+      if (
+        specifier.startsWith("@/platform/extensions/") &&
+        !ALLOWED_EXTENSION_SUBPATHS.has(specifier)
+      ) {
+        violations.push(
+          `${sourceRelative} -> ${specifier} (use an approved public extension entry)`,
+        );
       }
     }
   }
+
+  assert.deepEqual(violations, []);
+});
+
+test("extension definitions use the pure authoring entry", () => {
+  const violations = [BUILTIN_ROOT, INSTALLABLE_ROOT].flatMap((root) =>
+    sourceFiles(root)
+      .filter((sourcePath) => sourcePath.endsWith(`${sep}extension.ts`))
+      .flatMap((sourcePath) => {
+        const specifiers = moduleSpecifiers(sourcePath);
+        return specifiers.includes("@/platform/extensions") ||
+          !specifiers.includes("@/platform/extensions/authoring")
+          ? [relative(PROJECT_ROOT, sourcePath)]
+          : [];
+      }),
+  );
 
   assert.deepEqual(violations, []);
 });
@@ -123,6 +151,7 @@ test("the public extension barrel does not export host implementations", () => {
   const internalExports = new Set([
     "./extension-manager",
     "./extension-provider",
+    "./hosts",
     "./internal",
     "./registries",
   ]);
@@ -130,4 +159,29 @@ test("the public extension barrel does not export host implementations", () => {
     moduleSpecifiers(EXTENSION_PUBLIC_ENTRY).filter((specifier) => internalExports.has(specifier)),
     [],
   );
+});
+
+test("the extension authoring entry does not export host or runtime implementations", () => {
+  const forbiddenExports = new Set([
+    "./extension-context",
+    "./extension-manager",
+    "./extension-provider",
+    "./hosts",
+    "./internal",
+    "./registries",
+  ]);
+  assert.deepEqual(
+    moduleSpecifiers(EXTENSION_AUTHORING_ENTRY).filter((specifier) =>
+      forbiddenExports.has(specifier),
+    ),
+    [],
+  );
+});
+
+test("the extension authoring entry loads without host implementations", async () => {
+  const authoring = (await import(
+    new URL("../../platform/extensions/authoring.ts", import.meta.url).href
+  )) as typeof import("../../platform/extensions/authoring");
+
+  assert.equal(typeof authoring.defineExtension, "function");
 });

@@ -6,7 +6,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useI18n } from "@/i18n";
-import { ExtensionErrorBoundary, useExtensionErrorReporter } from "@/platform/extensions";
+import { useExtensionErrorReporter } from "@/platform/extensions";
+import { ExtensionErrorBoundary } from "@/platform/extensions/hosts/extension-error-boundary";
 
 import { useWorkspaceSurfaceDefinitions } from "./workspace-context";
 

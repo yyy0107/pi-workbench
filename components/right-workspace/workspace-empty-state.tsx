@@ -1,7 +1,7 @@
 "use client";
 
 import { useI18n } from "@/i18n";
-import { SlotHost } from "@/platform/extensions";
+import { SlotHost } from "@/platform/extensions/hosts/slot-host";
 
 import { WorkspaceSurfaceMenuItems } from "./workspace-add-menu";
 

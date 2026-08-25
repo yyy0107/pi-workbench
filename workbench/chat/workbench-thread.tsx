@@ -13,7 +13,7 @@ import { TypingIndicator } from "@/components/elements/typing-indicator";
 import { useI18n } from "@/i18n";
 import { formatCompactDuration } from "@/lib/format-duration";
 import { cn } from "@/lib/utils";
-import { SlotHost } from "@/platform/extensions";
+import { SlotHost } from "@/platform/extensions/hosts/slot-host";
 import {
   conversationThreadIdFromPathname,
   resolvePromotedThreadRouteId,

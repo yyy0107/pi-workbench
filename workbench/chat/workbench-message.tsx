@@ -14,7 +14,7 @@ import { ErrorState } from "@/components/elements/error-state";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
-import { SlotHost } from "@/platform/extensions";
+import { SlotHost } from "@/platform/extensions/hosts/slot-host";
 import { parsePiConversationEvent } from "@/runtime/pi/client/messages/conversation-events";
 import { readPiUsage } from "@/runtime/pi/client/messages/pi-usage";
 import { parseWorkbenchComposerCommandResponseDetails } from "@/runtime/composer-request";

@@ -2,12 +2,8 @@
 
 import { useState, useSyncExternalStore } from "react";
 
-import {
-  PanelHost,
-  useActivePanel,
-  usePanelService,
-  type PanelLocation,
-} from "@/platform/extensions";
+import { usePanelService, type PanelLocation } from "@/platform/extensions";
+import { PanelHost, useActivePanel } from "@/platform/extensions/hosts/panel-host";
 import { cn } from "@/lib/utils";
 
 import { PanelContainer } from "./panel-container";
