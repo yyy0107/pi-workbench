@@ -142,6 +142,15 @@ const ARCHIVED_STORAGE_KEY = `${WORKBENCH_STORAGE_PREFIX}pi-archived-sessions`;
 const PINNED_STORAGE_KEY = `${WORKBENCH_STORAGE_PREFIX}pi-pinned-sessions`;
 const PINNED_WORKSPACES_STORAGE_KEY = "pi-workbench:pinned-workspaces";
 
+function rawToolArgsTextFromEvent(event: PiEvent): Readonly<Record<string, string>> | undefined {
+  const value: unknown = event.rawToolArgsText;
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
+  const entries = Object.entries(value).filter(
+    (entry): entry is [string, string] => typeof entry[1] === "string",
+  );
+  return entries.length === 0 ? undefined : Object.fromEntries(entries);
+}
+
 function isRecognitionDataName(name: string): boolean {
   return (
     name === WORKBENCH_ATTACHMENT_RECOGNITION_DATA_NAME ||
@@ -1182,6 +1191,7 @@ export class PiClientSession {
             streaming: true,
             timing: this.currentMessageTiming(assistantMessage),
             toolTimingById: this.toolTimingById,
+            rawToolArgsText: rawToolArgsTextFromEvent(event),
           }),
         );
         this.scheduleMessagesPublish();

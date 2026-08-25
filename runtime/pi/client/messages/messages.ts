@@ -553,6 +553,7 @@ export function piAssistantToThreadMessage(
     streaming = false,
     timing,
     toolTimingById,
+    rawToolArgsText,
     createdAt,
     eventSeq,
   }: Readonly<{
@@ -560,6 +561,7 @@ export function piAssistantToThreadMessage(
     streaming?: boolean;
     timing?: MessageTiming;
     toolTimingById?: ReadonlyMap<string, ToolCallTiming>;
+    rawToolArgsText?: Readonly<Record<string, string>>;
     createdAt?: number;
     eventSeq?: number;
   }> = {},
@@ -579,7 +581,7 @@ export function piAssistantToThreadMessage(
           },
         }
       : {};
-  let content: ThreadAssistantMessage["content"] = message.content.map((part) => {
+  let content: ThreadAssistantMessage["content"] = message.content.map((part, contentIndex) => {
     switch (part.type) {
       case "text":
         return {
@@ -608,7 +610,7 @@ export function piAssistantToThreadMessage(
           toolCallId: part.id,
           toolName: part.name,
           args: part.arguments as ToolCallMessagePart["args"],
-          argsText: JSON.stringify(part.arguments),
+          argsText: rawToolArgsText?.[String(contentIndex)] ?? JSON.stringify(part.arguments),
           ...parallelToolMetadata,
           ...(toolTiming ? { timing: toolTiming } : {}),
         };

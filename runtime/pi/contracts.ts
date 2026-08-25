@@ -224,6 +224,8 @@ export interface PiApiErrorBody {
 export interface PiEvent {
   type: string;
   sequence?: number;
+  /** Browser-side raw JSON buffers for in-flight tool calls, keyed by content index. */
+  rawToolArgsText?: Readonly<Record<string, string>>;
   [key: string]: unknown;
 }
 

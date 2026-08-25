@@ -187,7 +187,7 @@ test("deduplicates revisions, freezes on gaps, and accepts an authoritative snap
   assert.equal(next.content[0]?.text, "repaired!");
 });
 
-test("characterizes partial tool JSON being normalized before assistant-ui projection", () => {
+test("preserves partial tool JSON for assistant-ui projection", () => {
   const accumulator = new SessionMessageAccumulator();
   accumulator.start({ role: "assistant", content: [] }, 10, 1_725_000_000_000);
   messageFrom(
@@ -213,16 +213,65 @@ test("characterizes partial tool JSON being normalized before assistant-ui proje
   const projected = piAssistantToThreadMessage(
     result.event.message as PiAssistantMessage,
     "streaming-assistant",
-    { streaming: true },
+    { streaming: true, rawToolArgsText: result.event.rawToolArgsText },
   );
   const tool = projected.content.find((part) => part.type === "tool-call");
   assert.equal(tool?.type, "tool-call");
   if (tool?.type !== "tool-call") return;
 
-  // Known current behavior: only the best-effort parsed object crosses PiEvent, so argsText is
-  // reconstructed as valid JSON instead of preserving the raw, still-incomplete stream buffer.
   assert.deepEqual(tool.args, { query: "hel" });
-  assert.equal(tool.argsText, '{"query":"hel"}');
-  assert.notEqual(tool.argsText, rawPartialJson);
-  assert.equal("rawToolArgsText" in result.event, false);
+  assert.equal(tool.argsText, rawPartialJson);
+  assert.deepEqual(result.event.rawToolArgsText, { "0": rawPartialJson });
+});
+
+test("preserves reconnect snapshot tool JSON until the tool call ends", () => {
+  const accumulator = new SessionMessageAccumulator();
+  const rawSnapshotJson = '{"path":"/tmp/re';
+  const snapshot = accumulator.applySnapshot({
+    type: "session/message-snapshot",
+    format: "pi-messages-v1",
+    sessionId: "session-1",
+    streamId: "stream-1",
+    startSeq: 10,
+    revision: 4,
+    time: 1_725_000_000_004,
+    message: {
+      role: "assistant",
+      content: [
+        {
+          type: "toolCall",
+          id: "tool-1",
+          name: "read",
+          arguments: { path: "/tmp/re" },
+        },
+      ],
+    },
+    toolCallJson: { "0": rawSnapshotJson },
+  });
+  assert.equal(snapshot.kind, "event");
+  if (snapshot.kind !== "event") return;
+  assert.deepEqual(snapshot.event.rawToolArgsText, { "0": rawSnapshotJson });
+
+  const continued = accumulator.applyUpdate(
+    update(5, { type: "toolcall_delta", contentIndex: 0, delta: 'port"}' }),
+  );
+  assert.equal(continued.kind, "event");
+  if (continued.kind !== "event") return;
+  assert.deepEqual(continued.event.rawToolArgsText, { "0": '{"path":"/tmp/report"}' });
+
+  const ended = accumulator.applyUpdate(
+    update(6, {
+      type: "toolcall_end",
+      contentIndex: 0,
+      toolCall: {
+        type: "toolCall",
+        id: "tool-1",
+        name: "read",
+        arguments: { path: "/tmp/report" },
+      },
+    }),
+  );
+  assert.equal(ended.kind, "event");
+  if (ended.kind !== "event") return;
+  assert.equal(ended.event.rawToolArgsText, undefined);
 });

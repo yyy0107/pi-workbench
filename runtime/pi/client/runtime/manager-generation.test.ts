@@ -1075,6 +1075,73 @@ test("applies cumulative transient updates without advancing the durable sequenc
   assert.equal(session.getSnapshot().messages.at(-1)?.status?.type, "complete");
 });
 
+test("projects raw partial tool arguments from transient updates", async (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("local-session", "remote-session");
+  const internals = session as unknown as {
+    handleEvent(event: PiEvent): void;
+  };
+
+  internals.handleEvent({
+    type: "message_start",
+    sequence: 10,
+    message: { role: "assistant", content: [], timestamp: 1_000 },
+  });
+  internals.handleEvent({
+    type: "message_update",
+    message: {
+      role: "assistant",
+      content: [
+        {
+          type: "toolCall",
+          id: "tool-1",
+          name: "search",
+          arguments: { query: "hel" },
+        },
+      ],
+      timestamp: 1_000,
+    },
+    rawToolArgsText: { "0": '{"query":"hel' },
+    transientKind: "delta",
+    transientStreamId: "stream-1",
+    transientRevision: 1,
+    transientMessageStartSeq: 10,
+  });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+
+  const partial = session.getSnapshot().messages.at(-1)?.content[0];
+  assert.equal(partial?.type, "tool-call");
+  if (partial?.type !== "tool-call") return;
+  assert.deepEqual(partial.args, { query: "hel" });
+  assert.equal(partial.argsText, '{"query":"hel');
+
+  internals.handleEvent({
+    type: "message_end",
+    sequence: 11,
+    message: {
+      role: "assistant",
+      content: [
+        {
+          type: "toolCall",
+          id: "tool-1",
+          name: "search",
+          arguments: { query: "hello" },
+        },
+      ],
+      stopReason: "stop",
+      timestamp: 1_000,
+    },
+  });
+
+  const completed = session.getSnapshot().messages.at(-1)?.content[0];
+  assert.equal(completed?.type, "tool-call");
+  assert.equal(
+    completed?.type === "tool-call" ? completed.argsText : undefined,
+    '{"query":"hello"}',
+  );
+});
+
 test("renders a consumed follow-up at user message_start before the next assistant output", async (t) => {
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());

@@ -34,6 +34,12 @@ function toolCallJsonFromSnapshot(value: Record<string, string> | undefined): Ma
 }
 
 function transientEvent(state: ActiveMessageState, kind: "delta" | "snapshot"): PiEvent {
+  const rawToolArgsText =
+    state.toolCallJson.size === 0
+      ? undefined
+      : Object.fromEntries(
+          [...state.toolCallJson].map(([contentIndex, json]) => [String(contentIndex), json]),
+        );
   return {
     type: "message_update",
     message: state.message,
@@ -42,6 +48,7 @@ function transientEvent(state: ActiveMessageState, kind: "delta" | "snapshot"): 
     transientStreamId: state.streamId,
     transientRevision: state.revision,
     transientMessageStartSeq: state.startSeq,
+    ...(rawToolArgsText === undefined ? {} : { rawToolArgsText }),
   };
 }
 
