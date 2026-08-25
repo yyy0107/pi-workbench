@@ -54,6 +54,8 @@ function useWorkbenchPiRuntime(manager: PiSessionManager) {
     session.getSnapshot,
     session.getSnapshot,
   );
+  const [committedSession, setCommittedSession] = useState<typeof session>();
+  const isPublishedRunning = committedSession === session && snapshot.isRunning;
   const dictation = useMemo(() => new WebSpeechDictationAdapter(), []);
   const [composerErrorState, setComposerErrorState] = useState<{
     session: typeof session;
@@ -94,6 +96,15 @@ function useWorkbenchPiRuntime(manager: PiSessionManager) {
   );
 
   useEffect(() => {
+    // RemoteThreadResource publishes a newly bound runtime while React is rendering.
+    // Publishing an already-running runtime makes assistant-ui synchronously notify
+    // thread-list subscribers in that render, and React surfaces their failures as an
+    // AggregateError. Publish an idle first snapshot, then expose the authoritative
+    // running state after this session has completed its first commit.
+    setCommittedSession(session);
+  }, [session]);
+
+  useEffect(() => {
     void session
       .open()
       .catch((error) => console.error("[workbench-pi] history load failed", error));
@@ -108,14 +119,14 @@ function useWorkbenchPiRuntime(manager: PiSessionManager) {
     unstable_onBranchChange: ({ headId }) => {
       if (headId) session.selectBranch(headId);
     },
-    isRunning: snapshot.isRunning,
+    isRunning: isPublishedRunning,
     isLoading: snapshot.isLoading,
     extras,
     // The queue adapter is only a dispatch path while a run is active. Keeping
     // it installed while idle makes assistant-ui route ordinary sends through
     // `enqueue`, which cannot report a rejected send back to the composer for
     // draft restoration.
-    queue: snapshot.isRunning ? session.queueAdapter : undefined,
+    queue: isPublishedRunning ? session.queueAdapter : undefined,
     onNew: async (message) => {
       clearComposerError();
       try {
