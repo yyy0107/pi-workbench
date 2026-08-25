@@ -6,6 +6,13 @@ import type { SidebarDropPosition } from "./sidebar-reorder";
 
 const SIDEBAR_DRAG_ACTIVATION_DISTANCE_PX = 5;
 const SIDEBAR_DRAG_CLICK_SUPPRESSION_MS = 350;
+let sidebarDragClickSuppressionUntil = 0;
+
+function isSidebarDragClickSuppressed(now: number): boolean {
+  if (now <= sidebarDragClickSuppressionUntil) return true;
+  sidebarDragClickSuppressionUntil = 0;
+  return false;
+}
 
 interface SidebarPointerDragCandidate {
   readonly element: HTMLElement;
@@ -120,14 +127,27 @@ export function useSidebarPointerReorder({
       const sourceId = draggingIdRef.current;
       if (sourceId === candidate.itemId) {
         if (event.cancelable) event.preventDefault();
-        const target = updateDropTargetAt(event.clientY);
-        if (target) onMoveRef.current(sourceId, target.itemId, target.position);
+        const suppressionUntil = performance.now() + SIDEBAR_DRAG_CLICK_SUPPRESSION_MS;
+        sidebarDragClickSuppressionUntil = suppressionUntil;
         suppressedClickRef.current = {
           itemId: candidate.itemId,
-          until: performance.now() + SIDEBAR_DRAG_CLICK_SUPPRESSION_MS,
+          until: suppressionUntil,
         };
+        const target = updateDropTargetAt(event.clientY);
+        if (target) onMoveRef.current(sourceId, target.itemId, target.position);
       }
       finishDragging();
+    };
+    const handleClick = (event: MouseEvent) => {
+      const suppressedClick = suppressedClickRef.current;
+      if (!suppressedClick) return;
+      suppressedClickRef.current = undefined;
+      if (performance.now() > suppressedClick.until) return;
+
+      // Pointer capture and the reorder layout update can retarget the click generated after
+      // pointerup to another row. Stop that one click before any sidebar trigger receives it.
+      event.preventDefault();
+      event.stopPropagation();
     };
     const handlePointerCancel = (event: globalThis.PointerEvent) => {
       if (dragCandidateRef.current?.pointerId !== event.pointerId) return;
@@ -138,6 +158,7 @@ export function useSidebarPointerReorder({
     window.addEventListener("pointermove", handlePointerMove, { capture: true, passive: false });
     window.addEventListener("pointerup", handlePointerUp, true);
     window.addEventListener("pointercancel", handlePointerCancel, true);
+    window.addEventListener("click", handleClick, true);
     window.addEventListener("blur", handleWindowBlur);
     return () => {
       const candidate = dragCandidateRef.current;
@@ -150,6 +171,7 @@ export function useSidebarPointerReorder({
       window.removeEventListener("pointermove", handlePointerMove, true);
       window.removeEventListener("pointerup", handlePointerUp, true);
       window.removeEventListener("pointercancel", handlePointerCancel, true);
+      window.removeEventListener("click", handleClick, true);
       window.removeEventListener("blur", handleWindowBlur);
     };
   }, []);
@@ -182,9 +204,12 @@ export function useSidebarPointerReorder({
   };
 
   const shouldSuppressClick = (itemId: string) => {
+    const now = performance.now();
+    if (isSidebarDragClickSuppressed(now)) return true;
+
     const suppressedClick = suppressedClickRef.current;
     if (!suppressedClick || suppressedClick.itemId !== itemId) return false;
-    if (performance.now() <= suppressedClick.until) return true;
+    if (now <= suppressedClick.until) return true;
     suppressedClickRef.current = undefined;
     return false;
   };

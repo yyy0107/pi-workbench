@@ -1,77 +1,39 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  moveThreadId,
-  resolveManualThreadOrder,
-  resolveThreadOrder,
-  sortThreadIds,
-} from "./thread-sort";
+import { moveThreadId, resolveThreadOrder, sortThreadIdsByCreation } from "./thread-sort";
 
-const threadIds = ["manual-first", "recent", "running", "active"];
+const threadIds = ["older-active", "newest", "middle"];
 const threadItems = [
-  { id: "manual-first", lastMessageAt: new Date(100) },
-  { id: "recent", lastMessageAt: new Date(400) },
-  { id: "running", isRunning: true, lastMessageAt: new Date(200) },
-  { id: "active", lastMessageAt: new Date(300) },
+  { id: "older-active", custom: { piCreatedAt: "2026-01-01T00:00:00.000Z" } },
+  { id: "newest", custom: { piCreatedAt: "2026-03-01T00:00:00.000Z" } },
+  { id: "middle", custom: { piCreatedAt: "2026-02-01T00:00:00.000Z" } },
 ];
 
-test("keeps the runtime order for manual sorting", () => {
-  assert.equal(
-    sortThreadIds({ threadIds, threadItems, mode: "manual", activeThreadId: "active" }),
-    threadIds,
-  );
+test("sorts conversations by creation time instead of runtime activity order", () => {
+  assert.deepEqual(sortThreadIdsByCreation(threadIds, threadItems), [
+    "newest",
+    "middle",
+    "older-active",
+  ]);
 });
 
-test("sorts conversations from most to least recent", () => {
-  assert.deepEqual(
-    sortThreadIds({ threadIds, threadItems, mode: "recent", activeThreadId: "active" }),
-    ["recent", "active", "running", "manual-first"],
-  );
+test("uses the dragged id order after the canonical creation order", () => {
+  assert.deepEqual(resolveThreadOrder(threadIds, threadItems, ["middle", "older-active"]), [
+    "newest",
+    "middle",
+    "older-active",
+  ]);
 });
 
-test("prioritizes running and active conversations before recency", () => {
+test("reconciles the dragged id order with removed conversations", () => {
   assert.deepEqual(
-    sortThreadIds({ threadIds, threadItems, mode: "priority", activeThreadId: "active" }),
-    ["running", "active", "recent", "manual-first"],
-  );
-});
-
-test("reconciles stored manual order with added and removed conversations", () => {
-  assert.deepEqual(
-    resolveManualThreadOrder(["second", "new", "first"], ["removed", "first", "second"]),
-    ["first", "second", "new"],
+    resolveThreadOrder(threadIds, threadItems, ["removed", "older-active", "middle", "newest"]),
+    ["older-active", "middle", "newest"],
   );
 });
 
 test("moves a conversation before or after the drop target", () => {
   assert.deepEqual(moveThreadId(["a", "b", "c", "d"], "d", "b", "before"), ["a", "d", "b", "c"]);
   assert.deepEqual(moveThreadId(["a", "b", "c", "d"], "a", "c", "after"), ["b", "c", "a", "d"]);
-});
-
-test("keeps a drag override until the selected automatic sort is reapplied", () => {
-  assert.deepEqual(
-    resolveThreadOrder({
-      threadIds,
-      threadItems,
-      mode: "priority",
-      activeThreadId: "active",
-      storedManualOrder: ["recent", "manual-first", "running", "active"],
-      storedManualOrderRevision: 3,
-      sortRevision: 3,
-    }),
-    ["recent", "manual-first", "running", "active"],
-  );
-  assert.deepEqual(
-    resolveThreadOrder({
-      threadIds,
-      threadItems,
-      mode: "priority",
-      activeThreadId: "active",
-      storedManualOrder: ["recent", "manual-first", "running", "active"],
-      storedManualOrderRevision: 3,
-      sortRevision: 4,
-    }),
-    ["running", "active", "recent", "manual-first"],
-  );
 });

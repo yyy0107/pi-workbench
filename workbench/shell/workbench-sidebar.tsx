@@ -1,11 +1,9 @@
 "use client";
 
-import { useId, useLayoutEffect, useState, type ReactNode, type RefObject } from "react";
+import { useEffect, useId, useLayoutEffect, useState, type ReactNode, type RefObject } from "react";
 import { useAuiState } from "@assistant-ui/react";
 import {
-  CheckIcon,
   ChevronRightIcon,
-  MoreHorizontalIcon,
   PanelLeftCloseIcon,
   SearchIcon,
   ToolboxIcon,
@@ -18,7 +16,6 @@ import { collapsePanel } from "@/components/elements/surfaces";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Sidebar, useSidebar } from "@/components/ui/sidebar";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
@@ -29,7 +26,7 @@ import {
   type SidebarSection,
 } from "@/workbench/sidebar/sidebar-primary-navigation";
 import { SidebarResizeHandle } from "@/workbench/sidebar/sidebar-resize-handle";
-import type { ThreadAutomaticSortMode } from "@/workbench/sidebar/thread-sort";
+import { hydrateThreadOrderStore } from "@/workbench/sidebar/thread-order-store";
 import {
   WorkbenchPinnedThreadList,
   WorkbenchWorkspaceThreadList,
@@ -55,8 +52,6 @@ export function WorkbenchSidebarContent({
   );
   const [pinnedExpanded, setPinnedExpanded] = useState(true);
   const [projectsExpanded, setProjectsExpanded] = useState(true);
-  const [threadSortMode, setThreadSortMode] = useState<ThreadAutomaticSortMode>("priority");
-  const [threadSortRevision, setThreadSortRevision] = useState(0);
   const [activeSection, setActiveSection] = useState<SidebarSection>("workspace");
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -68,6 +63,12 @@ export function WorkbenchSidebarContent({
       thread.title?.toLocaleLowerCase().includes(normalizedSearchQuery),
     );
   });
+
+  useEffect(() => {
+    void hydrateThreadOrderStore().catch((error) =>
+      console.error("[workbench] failed to restore sidebar conversation order", error),
+    );
+  }, []);
 
   const changeSection = (section: SidebarSection) => {
     if (section === "workspace") mainViews.close();
@@ -230,22 +231,14 @@ export function WorkbenchSidebarContent({
                   label={t("workbench.sidebar.projects")}
                   expanded={projectsExpanded}
                   actions={
-                    <ProjectSectionActions
-                      sortMode={threadSortMode}
-                      onSortModeChange={(mode) => {
-                        setThreadSortMode(mode);
-                        setThreadSortRevision((revision) => revision + 1);
-                      }}
+                    <SlotHost
+                      name="sidebar.workspace.actions"
+                      className="flex shrink-0 items-center empty:hidden"
                     />
                   }
                 />
                 <CollapsibleContent className={cn(collapsePanel, "outline-none")}>
-                  <WorkbenchWorkspaceThreadList
-                    searchQuery={searchQuery}
-                    threadSortMode={threadSortMode}
-                    threadSortRevision={threadSortRevision}
-                    onNavigate={onNavigate}
-                  />
+                  <WorkbenchWorkspaceThreadList searchQuery={searchQuery} onNavigate={onNavigate} />
                 </CollapsibleContent>
               </Collapsible>
             </>
@@ -279,7 +272,7 @@ export function WorkbenchSidebarContent({
         />
       ) : null}
 
-      {!mobile && activeSection !== "toolbox" ? (
+      {!mobile ? (
         <SlotHost
           name="sidebar.footer"
           className="flex min-h-12 shrink-0 items-center gap-2 px-4 pt-2 pb-1 empty:hidden"
@@ -335,80 +328,6 @@ function SidebarSectionHeading({
         {actionLabel}
       </span>
     </div>
-  );
-}
-
-function ProjectSectionActions({
-  sortMode,
-  onSortModeChange,
-}: {
-  sortMode: ThreadAutomaticSortMode;
-  onSortModeChange(mode: ThreadAutomaticSortMode): void;
-}) {
-  const { t } = useI18n();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const sortOptions = [
-    { value: "priority", label: t("workbench.sidebar.chatSortPriority") },
-    { value: "recent", label: t("workbench.sidebar.chatSortRecent") },
-  ] as const;
-
-  return (
-    <>
-      <Popover open={menuOpen} onOpenChange={setMenuOpen}>
-        <PopoverTrigger
-          render={
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label={t("workbench.sidebar.chatSortTitle")}
-              title={t("workbench.sidebar.chatSortTitle")}
-              className="text-muted-foreground hover:text-foreground focus-visible:border-transparent focus-visible:ring-0"
-            >
-              <MoreHorizontalIcon aria-hidden="true" className="size-4" />
-            </Button>
-          }
-        />
-        <PopoverContent
-          align="end"
-          side="bottom"
-          sideOffset={4}
-          role="menu"
-          aria-label={t("workbench.sidebar.chatSortTitle")}
-          className="w-44 gap-0 p-1.5 duration-150 ease-out data-[side=bottom]:slide-in-from-top-1 data-open:zoom-in-100 data-closed:zoom-out-100 motion-reduce:animate-none"
-        >
-          <p className="text-muted-foreground px-2 pt-1 pb-1.5 text-xs">
-            {t("workbench.sidebar.chatSortTitle")}
-          </p>
-          {sortOptions.map((option) => {
-            const selected = sortMode === option.value;
-
-            return (
-              <button
-                key={option.value}
-                type="button"
-                role="menuitemradio"
-                aria-checked={selected}
-                className="hover:bg-accent focus-visible:bg-accent grid h-8 w-full grid-cols-[1fr_1rem] items-center gap-2 rounded-md px-2 text-start text-sm outline-none"
-                onClick={() => {
-                  onSortModeChange(option.value);
-                  setMenuOpen(false);
-                }}
-              >
-                <span>{option.label}</span>
-                <span className="flex size-4 items-center justify-center">
-                  {selected ? <CheckIcon aria-hidden="true" className="size-4" /> : null}
-                </span>
-              </button>
-            );
-          })}
-        </PopoverContent>
-      </Popover>
-      <SlotHost
-        name="sidebar.workspace.actions"
-        className="flex shrink-0 items-center empty:hidden"
-      />
-    </>
   );
 }
 

@@ -9,6 +9,7 @@ interface WorkspaceDirectoryState {
   activateDirectory(id: string): void;
   deactivateDirectory(): void;
   revealDirectory(id: string): void;
+  setDirectoryCollapsed(id: string, collapsed: boolean): void;
   toggleDirectory(id: string): void;
   beginNewThread(id: string): void;
   destroyNewThread(): void;
@@ -27,13 +28,16 @@ export const useWorkspaceDirectoryStore = create<WorkspaceDirectoryState>((set) 
         state.activeDirectoryId && availableIds.has(state.activeDirectoryId)
           ? state.activeDirectoryId
           : (draftDirectoryId ?? ids[0]);
+      const activeDirectoryChanged = activeDirectoryId !== state.activeDirectoryId;
       const collapsedDirectoryIds = new Set(
         state.collapsedDirectoryIds.filter((id) => availableIds.has(id)),
       );
       for (const id of newlyAddedIds) {
         if (id !== activeDirectoryId && id !== draftDirectoryId) collapsedDirectoryIds.add(id);
       }
-      if (activeDirectoryId) collapsedDirectoryIds.delete(activeDirectoryId);
+      if (activeDirectoryChanged && activeDirectoryId) {
+        collapsedDirectoryIds.delete(activeDirectoryId);
+      }
 
       return {
         activeDirectoryId,
@@ -58,6 +62,16 @@ export const useWorkspaceDirectoryStore = create<WorkspaceDirectoryState>((set) 
         (directoryId) => directoryId !== id,
       ),
     })),
+  setDirectoryCollapsed: (id, collapsed) =>
+    set((state) => {
+      const currentlyCollapsed = state.collapsedDirectoryIds.includes(id);
+      if (currentlyCollapsed === collapsed) return state;
+      return {
+        collapsedDirectoryIds: collapsed
+          ? [...state.collapsedDirectoryIds, id]
+          : state.collapsedDirectoryIds.filter((directoryId) => directoryId !== id),
+      };
+    }),
   toggleDirectory: (id) =>
     set((state) => ({
       collapsedDirectoryIds: state.collapsedDirectoryIds.includes(id)

@@ -185,6 +185,7 @@ export const workbenchZhCN = {
     pinned: "置顶",
     projects: "项目",
     chatSortTitle: "聊天排序方式",
+    chatSortManual: "手动排序",
     chatSortPriority: "优先级",
     chatSortRecent: "最近更新",
     ungrouped: "未分组会话",

@@ -49,3 +49,51 @@ test("stores only workspace UI ids and clears them without owning workspace enti
   assert.equal(useWorkspaceDirectoryStore.getState().activeDirectoryId, undefined);
   assert.equal(useWorkspaceDirectoryStore.getState().draftDirectoryId, undefined);
 });
+
+test("preserves an explicitly collapsed active workspace when only workspace order changes", (t) => {
+  useWorkspaceDirectoryStore.setState({
+    activeDirectoryId: "workspace-pinned",
+    draftDirectoryId: undefined,
+    collapsedDirectoryIds: ["workspace-pinned"],
+  });
+  t.after(() => {
+    useWorkspaceDirectoryStore.setState({
+      activeDirectoryId: undefined,
+      draftDirectoryId: undefined,
+      collapsedDirectoryIds: [],
+    });
+  });
+
+  useWorkspaceDirectoryStore
+    .getState()
+    .reconcileDirectoryIds(["workspace-b", "workspace-pinned", "workspace-a"], []);
+
+  assert.equal(useWorkspaceDirectoryStore.getState().activeDirectoryId, "workspace-pinned");
+  assert.deepEqual(useWorkspaceDirectoryStore.getState().collapsedDirectoryIds, [
+    "workspace-pinned",
+  ]);
+});
+
+test("restores a workspace to an explicit collapsed or expanded state", (t) => {
+  useWorkspaceDirectoryStore.setState({
+    activeDirectoryId: "workspace-a",
+    draftDirectoryId: undefined,
+    collapsedDirectoryIds: ["workspace-b"],
+  });
+  t.after(() => {
+    useWorkspaceDirectoryStore.setState({
+      activeDirectoryId: undefined,
+      draftDirectoryId: undefined,
+      collapsedDirectoryIds: [],
+    });
+  });
+
+  useWorkspaceDirectoryStore.getState().setDirectoryCollapsed("workspace-a", true);
+  assert.deepEqual(useWorkspaceDirectoryStore.getState().collapsedDirectoryIds, [
+    "workspace-b",
+    "workspace-a",
+  ]);
+
+  useWorkspaceDirectoryStore.getState().setDirectoryCollapsed("workspace-b", false);
+  assert.deepEqual(useWorkspaceDirectoryStore.getState().collapsedDirectoryIds, ["workspace-a"]);
+});

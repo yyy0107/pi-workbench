@@ -11,9 +11,10 @@ import { useWorkspaceSelection } from "@/services/workspace-selection-service";
 import { resolveSidebarThreadWorkspaceId } from "@/workbench/workspaces/new-thread-policy";
 
 import { WorkbenchThreadListItem } from "./thread-list-item";
+import { sidebarItemIdAfterMove } from "./sidebar-reorder";
 import { useThreadOrderStore } from "./thread-order-store";
 import { useSidebarPointerReorder } from "./use-sidebar-pointer-reorder";
-import { moveThreadId, resolveThreadOrder, type ThreadSortMode } from "./thread-sort";
+import { moveThreadId, resolveThreadOrder } from "./thread-sort";
 
 const EMPTY_THREAD_ORDER: readonly string[] = [];
 function ThreadListLoading() {
@@ -36,8 +37,6 @@ export function WorkbenchThreadList({
   showLoadMore = false,
   showEmpty = true,
   searchQuery = "",
-  sortMode = "manual",
-  sortRevision = 0,
 }: {
   workspaceId?: string;
   pinnedOnly?: boolean;
@@ -46,8 +45,6 @@ export function WorkbenchThreadList({
   showLoadMore?: boolean;
   showEmpty?: boolean;
   searchQuery?: string;
-  sortMode?: ThreadSortMode;
-  sortRevision?: number;
 }) {
   const { t } = useI18n();
   const manager = usePiSessionManager();
@@ -103,30 +100,10 @@ export function WorkbenchThreadList({
   const storedManualOrder = useThreadOrderStore(
     (state) => state.manualOrderByScope[orderScope] ?? EMPTY_THREAD_ORDER,
   );
-  const storedManualOrderRevision = useThreadOrderStore(
-    (state) => state.manualOrderRevisionByScope[orderScope],
-  );
   const setManualOrder = useThreadOrderStore((state) => state.setManualOrder);
   const resolvedScopeThreadIds = useMemo(
-    () =>
-      resolveThreadOrder({
-        threadIds: scopeThreadIds,
-        threadItems,
-        mode: sortMode,
-        activeThreadId: mainThreadId,
-        storedManualOrder,
-        storedManualOrderRevision,
-        sortRevision,
-      }),
-    [
-      mainThreadId,
-      scopeThreadIds,
-      threadItems,
-      sortMode,
-      sortRevision,
-      storedManualOrder,
-      storedManualOrderRevision,
-    ],
+    () => resolveThreadOrder(scopeThreadIds, threadItems, storedManualOrder),
+    [scopeThreadIds, storedManualOrder, threadItems],
   );
   const sortedThreadIds = useMemo(() => {
     if (!normalizedSearchQuery) return resolvedScopeThreadIds;
@@ -137,9 +114,9 @@ export function WorkbenchThreadList({
     () => new Map(sortedThreadIds.map((threadId, index) => [threadId, index])),
     [sortedThreadIds],
   );
-  const dragOrderContextRef = useRef({ orderScope, resolvedScopeThreadIds, sortRevision });
+  const dragOrderContextRef = useRef({ orderScope, resolvedScopeThreadIds });
   const dragEnabled = sortedThreadIds.length > 1;
-  dragOrderContextRef.current = { orderScope, resolvedScopeThreadIds, sortRevision };
+  dragOrderContextRef.current = { orderScope, resolvedScopeThreadIds };
   const {
     draggingId: draggedThreadId,
     dropTarget,
@@ -151,16 +128,28 @@ export function WorkbenchThreadList({
     orderedIds: sortedThreadIds,
     ignoreSelector: "[data-thread-item-actions]",
     onMove: (sourceThreadId, targetThreadId, position) => {
-      const {
-        orderScope: currentScope,
+      const { orderScope: currentScope, resolvedScopeThreadIds } = dragOrderContextRef.current;
+      const nextOrder = moveThreadId(
         resolvedScopeThreadIds,
-        sortRevision,
-      } = dragOrderContextRef.current;
-      setManualOrder(
-        currentScope,
-        moveThreadId(resolvedScopeThreadIds, sourceThreadId, targetThreadId, position),
-        sortRevision,
+        sourceThreadId,
+        targetThreadId,
+        position,
       );
+      setManualOrder(currentScope, nextOrder);
+
+      if (!workspaceId || pinnedOnly) return;
+      const beforeSessionId = sidebarItemIdAfterMove(
+        resolvedScopeThreadIds,
+        sourceThreadId,
+        targetThreadId,
+        position,
+      );
+      void manager
+        .moveWorkspaceSessionBefore(workspaceId, sourceThreadId, beforeSessionId)
+        .catch((error) => {
+          setManualOrder(currentScope, resolvedScopeThreadIds);
+          console.error("[workbench] failed to persist conversation order", error);
+        });
     },
   });
 

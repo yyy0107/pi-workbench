@@ -3,8 +3,36 @@ import test from "node:test";
 
 import {
   acceptCreatedWorkspaceAndBeginThread,
+  addedWorkspaceIdsForReconciliation,
   resolveWorkspaceSelection,
 } from "./workspace-selection-service";
+
+test("skips workspace UI reconciliation when only the authoritative order changes", () => {
+  assert.equal(
+    addedWorkspaceIdsForReconciliation(
+      ["workspace-pinned", "workspace-a", "workspace-b"],
+      ["workspace-pinned", "workspace-b", "workspace-a"],
+    ),
+    undefined,
+  );
+});
+
+test("reconciles workspace UI state when authoritative membership changes", () => {
+  assert.deepEqual(addedWorkspaceIdsForReconciliation(undefined, ["workspace-a", "workspace-b"]), [
+    "workspace-b",
+  ]);
+  assert.deepEqual(
+    addedWorkspaceIdsForReconciliation(
+      ["workspace-a", "workspace-b"],
+      ["workspace-a", "workspace-c"],
+    ),
+    ["workspace-c"],
+  );
+  assert.deepEqual(
+    addedWorkspaceIdsForReconciliation(["workspace-a", "workspace-b"], ["workspace-a"]),
+    [],
+  );
+});
 
 test("derives selected entities from the authoritative ordered workspace collection", () => {
   const workspaces = [

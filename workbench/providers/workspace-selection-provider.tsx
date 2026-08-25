@@ -5,6 +5,7 @@ import { useLayoutEffect, useMemo, useRef, type ReactNode } from "react";
 import { usePiSessionManager, usePiWorkspaces } from "@/runtime/pi/client/runtime/context";
 import {
   acceptCreatedWorkspaceAndBeginThread,
+  addedWorkspaceIdsForReconciliation,
   resolveWorkspaceSelection,
   WorkspaceSelectionProvider,
   type WorkspaceCapabilities,
@@ -23,6 +24,7 @@ export function WorkbenchWorkspaceSelectionProvider({
   const activateWorkspace = useWorkspaceDirectoryStore((state) => state.activateDirectory);
   const deactivateWorkspace = useWorkspaceDirectoryStore((state) => state.deactivateDirectory);
   const revealWorkspace = useWorkspaceDirectoryStore((state) => state.revealDirectory);
+  const setWorkspaceCollapsed = useWorkspaceDirectoryStore((state) => state.setDirectoryCollapsed);
   const toggleWorkspaceCollapsed = useWorkspaceDirectoryStore((state) => state.toggleDirectory);
   const beginNewThread = useWorkspaceDirectoryStore((state) => state.beginNewThread);
   const destroyNewThread = useWorkspaceDirectoryStore((state) => state.destroyNewThread);
@@ -31,20 +33,12 @@ export function WorkbenchWorkspaceSelectionProvider({
 
   useLayoutEffect(() => {
     const workspaceIds = workspaces.map((workspace) => workspace.id);
-    const previousIds = knownWorkspaceIds.current;
-    if (
-      previousIds &&
-      previousIds.length === workspaceIds.length &&
-      previousIds.every((id, index) => id === workspaceIds[index])
-    ) {
-      return;
-    }
-
-    const previousIdSet = new Set(previousIds ?? []);
-    const newlyAddedIds = previousIds
-      ? workspaceIds.filter((id) => !previousIdSet.has(id))
-      : workspaceIds.slice(1);
+    const newlyAddedIds = addedWorkspaceIdsForReconciliation(
+      knownWorkspaceIds.current,
+      workspaceIds,
+    );
     knownWorkspaceIds.current = workspaceIds;
+    if (!newlyAddedIds) return;
     reconcileWorkspaceIds(workspaceIds, newlyAddedIds);
   }, [reconcileWorkspaceIds, workspaces]);
 
@@ -62,6 +56,7 @@ export function WorkbenchWorkspaceSelectionProvider({
       activateWorkspace,
       deactivateWorkspace,
       revealWorkspace,
+      setWorkspaceCollapsed,
       toggleWorkspaceCollapsed,
       beginNewThread,
       beginNewThreadWithCreatedWorkspace: (workspace) =>
@@ -90,6 +85,7 @@ export function WorkbenchWorkspaceSelectionProvider({
       discardWorkspace,
       manager,
       revealWorkspace,
+      setWorkspaceCollapsed,
       toggleWorkspaceCollapsed,
     ],
   );

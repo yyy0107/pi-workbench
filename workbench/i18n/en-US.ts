@@ -195,6 +195,7 @@ export const workbenchEnUS = {
     pinned: "Pinned",
     projects: "Projects",
     chatSortTitle: "Chat sorting",
+    chatSortManual: "Manual",
     chatSortPriority: "Priority",
     chatSortRecent: "Most recent",
     ungrouped: "Ungrouped conversations",

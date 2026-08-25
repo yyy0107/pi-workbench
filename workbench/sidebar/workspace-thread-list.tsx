@@ -31,7 +31,6 @@ import { NewThreadButton } from "./new-thread-button";
 import { DraftThreadListItem } from "./draft-thread-list-item";
 import { sidebarItemIdAfterMove, type SidebarDropPosition } from "./sidebar-reorder";
 import { WorkbenchThreadList } from "./thread-list";
-import type { ThreadSortMode } from "./thread-sort";
 import { useSidebarPointerReorder } from "./use-sidebar-pointer-reorder";
 
 const WORKSPACE_PAGE_SIZE = 24;
@@ -49,7 +48,8 @@ function useWorkspaceDirectoryReorder(
   directories: readonly WorkspaceSummary[],
   searchQuery: string,
 ) {
-  const { moveWorkspaceBefore } = useWorkspaceCapabilities();
+  const { collapsedWorkspaceIds } = useWorkspaceSelection();
+  const { moveWorkspaceBefore, setWorkspaceCollapsed } = useWorkspaceCapabilities();
   const directoryIds = useMemo(() => directories.map((directory) => directory.id), [directories]);
   const enabled = directoryIds.length > 1 && searchQuery.trim().length === 0;
   const reorder = useSidebarPointerReorder({
@@ -57,7 +57,9 @@ function useWorkspaceDirectoryReorder(
     orderedIds: directoryIds,
     ignoreSelector: "[data-workspace-item-actions]",
     onMove: (sourceId, targetId, position) => {
+      const sourceWasCollapsed = collapsedWorkspaceIds.includes(sourceId);
       const beforeWorkspaceId = sidebarItemIdAfterMove(directoryIds, sourceId, targetId, position);
+      window.setTimeout(() => setWorkspaceCollapsed(sourceId, sourceWasCollapsed), 0);
       void moveWorkspaceBefore(sourceId, beforeWorkspaceId).catch((error) =>
         console.error("[workbench] failed to reorder workspace", error),
       );
@@ -154,7 +156,6 @@ export function WorkbenchPinnedThreadList({
           onActivate={() => activateDirectory(directory.id)}
           onRemove={() => void removeWorkspace(directory.id, directory.id === activeDirectoryId)}
           searchQuery={searchQuery}
-          threadSortMode="manual"
           drag={directoryReorder.item(directory.id)}
           onNavigate={onNavigate}
         />
@@ -165,13 +166,9 @@ export function WorkbenchPinnedThreadList({
 
 export function WorkbenchWorkspaceThreadList({
   searchQuery = "",
-  threadSortMode = "priority",
-  threadSortRevision = 0,
   onNavigate,
 }: {
   searchQuery?: string;
-  threadSortMode?: ThreadSortMode;
-  threadSortRevision?: number;
   onNavigate?: () => void;
 }) {
   const { t } = useI18n();
@@ -282,8 +279,6 @@ export function WorkbenchWorkspaceThreadList({
             onActivate={() => activateDirectory(directory.id)}
             onRemove={() => void removeWorkspace(directory.id, directory.id === activeDirectoryId)}
             searchQuery={searchQuery}
-            threadSortMode={threadSortMode}
-            threadSortRevision={threadSortRevision}
             drag={directoryReorder.item(directory.id)}
             onNavigate={onNavigate}
           />
@@ -310,8 +305,6 @@ export function WorkbenchWorkspaceThreadList({
             <WorkbenchThreadList
               showEmpty={false}
               searchQuery={searchQuery}
-              sortMode={threadSortMode}
-              sortRevision={threadSortRevision}
               onNavigate={onNavigate}
             />
           </div>
@@ -328,8 +321,6 @@ function WorkspaceDirectorySection({
   onActivate,
   onRemove,
   searchQuery,
-  threadSortMode,
-  threadSortRevision = 0,
   drag,
   onNavigate,
 }: {
@@ -339,8 +330,6 @@ function WorkspaceDirectorySection({
   onActivate(): void;
   onRemove(): void;
   searchQuery: string;
-  threadSortMode: ThreadSortMode;
-  threadSortRevision?: number;
   drag: WorkspaceDirectoryDragState;
   onNavigate?: () => void;
 }) {
@@ -508,8 +497,6 @@ function WorkspaceDirectorySection({
             workspaceId={directory.id}
             showEmpty={!showNewThread && !normalizedSearchQuery}
             searchQuery={searchQuery}
-            sortMode={threadSortMode}
-            sortRevision={threadSortRevision}
             onNavigate={onNavigate}
           />
         </div>

@@ -19,6 +19,7 @@ export interface WorkspaceCapabilities {
   activateWorkspace(workspaceId: string): void;
   deactivateWorkspace(): void;
   revealWorkspace(workspaceId: string): void;
+  setWorkspaceCollapsed(workspaceId: string, collapsed: boolean): void;
   toggleWorkspaceCollapsed(workspaceId: string): void;
   beginNewThread(workspaceId: string): void;
   beginNewThreadWithCreatedWorkspace(workspace: WorkspaceSummary): void;
@@ -43,6 +44,20 @@ export function acceptCreatedWorkspaceAndBeginThread(
   operations.acceptWorkspace(workspace);
   operations.beginNewThread(workspace.id);
   void operations.refreshWorkspaces().catch(operations.onRefreshError);
+}
+
+export function addedWorkspaceIdsForReconciliation(
+  previousIds: readonly string[] | undefined,
+  currentIds: readonly string[],
+): readonly string[] | undefined {
+  if (!previousIds) return currentIds.slice(1);
+
+  const previousIdSet = new Set(previousIds);
+  const membershipUnchanged =
+    previousIds.length === currentIds.length && currentIds.every((id) => previousIdSet.has(id));
+  if (membershipUnchanged) return undefined;
+
+  return currentIds.filter((id) => !previousIdSet.has(id));
 }
 
 interface WorkspaceSelectionIds {
