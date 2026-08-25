@@ -238,7 +238,19 @@ export const extensionsEnUS = {
     },
     interface: {
       sectionTitle: "Interface",
-      description: "Adjust interface typography, component surfaces, borders, and corners.",
+      description:
+        "Adjust interface typography, running indicators, component surfaces, borders, and corners.",
+    },
+    runningIndicator: {
+      title: "Running conversations",
+      description: "Choose the activity indicator shown beside running conversations.",
+      style: "Indicator style",
+      styles: {
+        orb: "Orbiting particles",
+        spinner: "Spinner",
+        pulse: "Pulsing dot",
+        none: "Hidden",
+      },
     },
     fontFamilies: {
       ui: {

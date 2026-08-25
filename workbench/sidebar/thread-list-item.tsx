@@ -4,15 +4,16 @@ import type { PointerEvent } from "react";
 import { ThreadListItemPrimitive, useAui, useAuiState } from "@assistant-ui/react";
 import { ArchiveIcon, PinIcon, PinOffIcon } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { ThinkingOrb } from "thinking-orbs";
 
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { usePiThreadListItemState } from "@/runtime/pi/client/runtime/context";
+import { useAppearancePreferences } from "@/services/appearance/appearance-store";
 import { useWorkspaceCapabilities } from "@/services/workspace-selection-service";
 import { conversationThreadIdFromPathname } from "@/workbench/workspaces/new-thread-policy";
 
+import { RunningThreadIndicator } from "./running-thread-indicator";
 import type { ThreadDropPosition } from "./thread-sort";
 
 export function WorkbenchThreadListItem({
@@ -37,6 +38,7 @@ export function WorkbenchThreadListItem({
   onNavigate?: () => void;
 }) {
   const { date: formatDate, relativeTime, t } = useI18n();
+  const { runningIndicatorId } = useAppearancePreferences();
   const aui = useAui();
   const pathname = usePathname();
   const runtimeIsRunning = useAuiState((state) => state.threadListItem.isRunning);
@@ -132,10 +134,8 @@ export function WorkbenchThreadListItem({
         </span>
       ) : null}
       {isRunning ? (
-        <ThinkingOrb
-          state="working"
-          size={20}
-          aria-hidden="true"
+        <RunningThreadIndicator
+          id={runningIndicatorId}
           className="pointer-events-none absolute start-2 top-1/2 -translate-y-1/2"
         />
       ) : null}

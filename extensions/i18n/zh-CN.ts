@@ -231,7 +231,18 @@ export const extensionsZhCN = {
     },
     interface: {
       sectionTitle: "界面",
-      description: "调整界面字体、组件表面、边框和圆角。",
+      description: "调整界面字体、运行状态指示器、组件表面、边框和圆角。",
+    },
+    runningIndicator: {
+      title: "运行中的会话",
+      description: "选择左侧会话列表中用于表示正在运行的动画。",
+      style: "指示器样式",
+      styles: {
+        orb: "轨道粒子",
+        spinner: "旋转加载",
+        pulse: "脉冲圆点",
+        none: "不显示",
+      },
     },
     fontFamilies: {
       ui: {

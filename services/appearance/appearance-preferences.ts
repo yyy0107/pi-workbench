@@ -24,6 +24,9 @@ export type CornerRadiusStyle = (typeof CORNER_RADIUS_STYLES)[number];
 export const UI_FONT_FAMILIES = ["system", "geist", "serif", "rounded"] as const;
 export type UiFontFamily = (typeof UI_FONT_FAMILIES)[number];
 
+export const RUNNING_INDICATOR_IDS = ["orb", "spinner", "pulse", "none"] as const;
+export type RunningIndicatorId = (typeof RUNNING_INDICATOR_IDS)[number];
+
 export const CODE_FONT_FAMILIES = [
   "geistMono",
   "systemMono",
@@ -189,6 +192,7 @@ export interface AppearancePreferences {
   darkForegroundColor: string;
   darkContrast: ThemeContrast;
   uiFont: UiFontFamily;
+  runningIndicatorId: RunningIndicatorId;
   codeFont: CodeFontFamily;
   uiFontSize: UiFontSize;
   codeFontSize: CodeFontSize;
@@ -217,6 +221,7 @@ export const DEFAULT_APPEARANCE_PREFERENCES = Object.freeze({
   darkForegroundColor: "#fafafa",
   darkContrast: 100,
   uiFont: "geist",
+  runningIndicatorId: "orb",
   codeFont: "geistMono",
   uiFontSize: 16,
   codeFontSize: 13,
@@ -331,6 +336,9 @@ export function parseAppearancePreferences(serialized: string | null): Appearanc
         : isOneOf(value.darkUiFont, UI_FONT_FAMILIES)
           ? value.darkUiFont
           : DEFAULT_APPEARANCE_PREFERENCES.uiFont,
+    runningIndicatorId: isOneOf(value.runningIndicatorId, RUNNING_INDICATOR_IDS)
+      ? value.runningIndicatorId
+      : DEFAULT_APPEARANCE_PREFERENCES.runningIndicatorId,
     codeFont: isOneOf(value.codeFont, CODE_FONT_FAMILIES)
       ? value.codeFont
       : isOneOf(value.lightCodeFont, CODE_FONT_FAMILIES)
@@ -380,6 +388,7 @@ export function isDefaultAppearancePreferences(preferences: AppearancePreference
     preferences.darkForegroundColor === DEFAULT_APPEARANCE_PREFERENCES.darkForegroundColor &&
     preferences.darkContrast === DEFAULT_APPEARANCE_PREFERENCES.darkContrast &&
     preferences.uiFont === DEFAULT_APPEARANCE_PREFERENCES.uiFont &&
+    preferences.runningIndicatorId === DEFAULT_APPEARANCE_PREFERENCES.runningIndicatorId &&
     preferences.codeFont === DEFAULT_APPEARANCE_PREFERENCES.codeFont &&
     preferences.uiFontSize === DEFAULT_APPEARANCE_PREFERENCES.uiFontSize &&
     preferences.codeFontSize === DEFAULT_APPEARANCE_PREFERENCES.codeFontSize &&

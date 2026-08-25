@@ -31,6 +31,7 @@ import {
   MIN_SURFACE_OPACITY,
   MIN_THEME_CONTRAST,
   MIN_UI_FONT_SIZE,
+  RUNNING_INDICATOR_IDS,
   UI_FONT_FAMILIES,
   type BackgroundBlur,
   type BorderStyle,
@@ -39,6 +40,7 @@ import {
   type ColorMode,
   type CornerRadiusStyle,
   type GlassBlur,
+  type RunningIndicatorId,
   type UiFontFamily,
 } from "@/services/appearance/appearance-preferences";
 import { appearanceStore, useAppearancePreferences } from "@/services/appearance/appearance-store";
@@ -641,6 +643,8 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
     t(`extensions.appearance.cornerRadiusStyles.${value}`);
   const uiFontLabel = (value: UiFontFamily): string =>
     t(`extensions.appearance.fontFamilies.ui.${value}`);
+  const runningIndicatorLabel = (value: RunningIndicatorId): string =>
+    t(`extensions.appearance.runningIndicator.styles.${value}`);
   const codeFontLabel = (value: CodeFontFamily): string =>
     t(`extensions.appearance.fontFamilies.code.${value}`);
   const codeThemeLabel = (value: CodeTheme): string =>
@@ -791,6 +795,21 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
                   minimum={MIN_UI_FONT_SIZE}
                   maximum={MAX_UI_FONT_SIZE}
                   onChange={(uiFontSize) => appearanceStore.update({ uiFontSize })}
+                />
+              </SettingRow>
+            </SettingGroup>
+
+            <SettingGroup
+              title={t("extensions.appearance.runningIndicator.title")}
+              description={t("extensions.appearance.runningIndicator.description")}
+            >
+              <SettingRow label={t("extensions.appearance.runningIndicator.style")}>
+                <SelectControl
+                  label={t("extensions.appearance.runningIndicator.style")}
+                  value={preferences.runningIndicatorId}
+                  options={RUNNING_INDICATOR_IDS}
+                  optionLabel={runningIndicatorLabel}
+                  onChange={(runningIndicatorId) => appearanceStore.update({ runningIndicatorId })}
                 />
               </SettingRow>
             </SettingGroup>

@@ -33,6 +33,7 @@ export const DEFAULT_APPEARANCE_PREFERENCES_BY_PAGE = {
     cornerRadius: DEFAULT_APPEARANCE_PREFERENCES.cornerRadius,
     uiFont: DEFAULT_APPEARANCE_PREFERENCES.uiFont,
     uiFontSize: DEFAULT_APPEARANCE_PREFERENCES.uiFontSize,
+    runningIndicatorId: DEFAULT_APPEARANCE_PREFERENCES.runningIndicatorId,
   },
   background: {
     customBackground: DEFAULT_APPEARANCE_PREFERENCES.customBackground,
