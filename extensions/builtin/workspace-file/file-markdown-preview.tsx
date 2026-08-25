@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { MarkdownTextContent } from "@/components/assistant-ui/markdown-text";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { useI18n } from "@/i18n";
+import { writeClipboardText } from "@/lib/clipboard";
 
 const COPY_FEEDBACK_DURATION_MS = 2_000;
 
@@ -30,9 +31,8 @@ export function FileMarkdownPreview({
   );
 
   const copyMarkdown = () => {
-    if (typeof navigator === "undefined" || !navigator.clipboard) return;
-    void navigator.clipboard.writeText(content).then(
-      () => {
+    void writeClipboardText(content).then((copySucceeded) => {
+      if (copySucceeded) {
         setCopied(true);
         if (feedbackTimeout.current !== undefined) {
           window.clearTimeout(feedbackTimeout.current);
@@ -41,9 +41,8 @@ export function FileMarkdownPreview({
           feedbackTimeout.current = undefined;
           setCopied(false);
         }, COPY_FEEDBACK_DURATION_MS);
-      },
-      () => {},
-    );
+      }
+    });
   };
 
   return (

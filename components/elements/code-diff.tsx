@@ -6,6 +6,7 @@ import { CopyIcon } from "lucide-react";
 import { languageForFilename, useWorkbenchHighlightedCode } from "@/components/code-highlighting";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { useI18n } from "@/i18n";
+import { writeClipboardText } from "@/lib/clipboard";
 import { cn } from "@/lib/utils";
 
 import { mono } from "./surfaces";
@@ -103,8 +104,8 @@ export function CodeDiff({
   const lineStyles = useMemo(() => diffLineStyles(rootSelector, lines), [lines, rootSelector]);
 
   const copyCode = () => {
-    if (!code || typeof navigator === "undefined" || !navigator.clipboard) return;
-    void navigator.clipboard.writeText(code).catch(() => {});
+    if (!code) return;
+    void writeClipboardText(code);
   };
 
   return (

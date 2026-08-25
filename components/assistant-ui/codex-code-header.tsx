@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { useI18n } from "@/i18n";
+import { writeClipboardText } from "@/lib/clipboard";
 import { cn } from "@/lib/utils";
 
 export interface CodexCodeHeaderProps {
@@ -52,15 +53,14 @@ function useCopyToClipboard({ copiedDuration = 3000 }: { copiedDuration?: number
   const [isCopied, setIsCopied] = useState(false);
 
   const copyToClipboard = (value: string) => {
-    if (!value || typeof navigator === "undefined" || !navigator.clipboard || isCopied) return;
+    if (!value || isCopied) return;
 
-    navigator.clipboard.writeText(value).then(
-      () => {
+    void writeClipboardText(value).then((copied) => {
+      if (copied) {
         setIsCopied(true);
         window.setTimeout(() => setIsCopied(false), copiedDuration);
-      },
-      () => {},
-    );
+      }
+    });
   };
 
   return { isCopied, copyToClipboard };

@@ -54,6 +54,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { useI18n } from "@/i18n";
+import { writeClipboardText } from "@/lib/clipboard";
 import { useExtensionErrorReporter, type ExtensionErrorSource } from "@/platform/extensions";
 import type { ComponentExtensionContributionKind } from "@/platform/extensions/authoring";
 import { ExtensionErrorBoundary } from "@/platform/extensions/hosts/extension-error-boundary";
@@ -179,15 +180,7 @@ function CopyableSourcePath({ path }: { path: string }) {
   );
 
   const copyPath = () => {
-    if (!navigator.clipboard) {
-      setCopyState("failed");
-      return;
-    }
-
-    void navigator.clipboard.writeText(path).then(
-      () => setCopyState("copied"),
-      () => setCopyState("failed"),
-    );
+    void writeClipboardText(path).then((copied) => setCopyState(copied ? "copied" : "failed"));
   };
 
   return (
@@ -975,14 +968,15 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
       : t("extensions.toolbox.details.descriptionUnavailable"));
 
   const copyInstallCommand = () => {
-    if (!selectedInstallCommand || !navigator.clipboard) return;
-    void navigator.clipboard.writeText(selectedInstallCommand).then(
-      () => {
+    if (!selectedInstallCommand) return;
+    void writeClipboardText(selectedInstallCommand).then((copySucceeded) => {
+      if (copySucceeded) {
         setCopied(true);
         window.setTimeout(() => setCopied(false), 1500);
-      },
-      () => setCopied(false),
-    );
+      } else {
+        setCopied(false);
+      }
+    });
   };
 
   const installPackage = (target: PackageInstallChoice) => {

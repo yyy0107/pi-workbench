@@ -154,12 +154,38 @@ function ActivePiThreadTracker({ manager }: { manager: PiSessionManager }) {
 function PiDraftWorkspaceTracker({ manager }: { manager: PiSessionManager }) {
   const newThreadId = useAuiState((state) => state.threads.newThreadId);
   const { draftWorkspace } = useWorkspaceSelection();
+  const draftWorkspaceId = draftWorkspace?.id;
+  const draftWorkspaceName = draftWorkspace?.name;
+  const draftWorkspaceCwd = draftWorkspace?.cwd;
+  const draftWorkspacePinned = draftWorkspace?.pinned;
 
   useLayoutEffect(() => {
     if (!newThreadId) return;
-    manager.setDraftWorkspace(newThreadId, draftWorkspace);
     return () => manager.setDraftWorkspace(newThreadId, undefined);
-  }, [draftWorkspace, manager, newThreadId]);
+  }, [manager, newThreadId]);
+
+  useLayoutEffect(() => {
+    if (!newThreadId) return;
+    const workspace =
+      draftWorkspaceId === undefined ||
+      draftWorkspaceName === undefined ||
+      draftWorkspaceCwd === undefined
+        ? undefined
+        : {
+            id: draftWorkspaceId,
+            name: draftWorkspaceName,
+            cwd: draftWorkspaceCwd,
+            ...(draftWorkspacePinned === undefined ? {} : { pinned: draftWorkspacePinned }),
+          };
+    manager.setDraftWorkspace(newThreadId, workspace);
+  }, [
+    draftWorkspaceCwd,
+    draftWorkspaceId,
+    draftWorkspaceName,
+    draftWorkspacePinned,
+    manager,
+    newThreadId,
+  ]);
 
   return null;
 }
