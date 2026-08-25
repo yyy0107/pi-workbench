@@ -2,28 +2,22 @@ import { moveSidebarItemId, type SidebarDropPosition } from "./sidebar-reorder";
 
 export type ThreadDropPosition = SidebarDropPosition;
 
-interface SortableThread {
-  readonly id: string;
-  readonly custom?: Readonly<Record<string, unknown>>;
-}
-
-function threadCreatedTime(thread: SortableThread | undefined): number {
-  const createdAt = thread?.custom?.piCreatedAt;
-  if (typeof createdAt !== "string") return 0;
+function threadCreatedTime(createdAt: string | undefined): number {
+  if (createdAt === undefined) return 0;
   const timestamp = Date.parse(createdAt);
   return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
 export function sortThreadIdsByCreation(
   threadIds: readonly string[],
-  threadItems: readonly SortableThread[],
+  createdAtByThreadId: ReadonlyMap<string, string | undefined>,
 ): readonly string[] {
-  const itemsById = new Map(threadItems.map((thread) => [thread.id, thread]));
   const originalOrder = new Map(threadIds.map((threadId, index) => [threadId, index]));
 
   return [...threadIds].sort((leftId, rightId) => {
     const creationDifference =
-      threadCreatedTime(itemsById.get(rightId)) - threadCreatedTime(itemsById.get(leftId));
+      threadCreatedTime(createdAtByThreadId.get(rightId)) -
+      threadCreatedTime(createdAtByThreadId.get(leftId));
     if (creationDifference !== 0) return creationDifference;
     return (originalOrder.get(leftId) ?? 0) - (originalOrder.get(rightId) ?? 0);
   });
@@ -51,10 +45,13 @@ export function resolveManualThreadOrder(
 
 export function resolveThreadOrder(
   threadIds: readonly string[],
-  threadItems: readonly SortableThread[],
+  createdAtByThreadId: ReadonlyMap<string, string | undefined>,
   storedOrder: readonly string[],
 ): readonly string[] {
-  return resolveManualThreadOrder(sortThreadIdsByCreation(threadIds, threadItems), storedOrder);
+  return resolveManualThreadOrder(
+    sortThreadIdsByCreation(threadIds, createdAtByThreadId),
+    storedOrder,
+  );
 }
 
 export function moveThreadId(

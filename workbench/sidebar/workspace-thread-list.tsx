@@ -19,7 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Skeleton } from "@/components/ui/skeleton";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
-import { usePiSessionManager } from "@/runtime/pi/client/runtime/context";
+import { usePiThreadStates } from "@/runtime/pi/client/runtime/context";
 import {
   useWorkspaceCapabilities,
   useWorkspaceSelection,
@@ -107,11 +107,11 @@ export function WorkbenchPinnedThreadList({
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
-  const hasPinnedThreads = useAuiState((state) =>
-    state.threads.threadIds.some((threadId) => {
-      const thread = state.threads.threadItems.find((item) => item.id === threadId);
-      return thread?.custom?.piPinned === true;
-    }),
+  const threadIds = useAuiState((state) => state.threads.threadIds);
+  const piThreadStates = usePiThreadStates(threadIds);
+  const hasPinnedThreads = useMemo(
+    () => threadIds.some((threadId) => piThreadStates.get(threadId)?.metadata.pinned === true),
+    [piThreadStates, threadIds],
   );
   const hasEmptyDraftNewThread = useAuiState(
     (state) =>
@@ -172,9 +172,11 @@ export function WorkbenchWorkspaceThreadList({
   onNavigate?: () => void;
 }) {
   const { t } = useI18n();
-  const manager = usePiSessionManager();
   const pathname = usePathname();
   const isLoading = useAuiState((state) => state.threads.isLoading);
+  const threadIds = useAuiState((state) => state.threads.threadIds);
+  const mainThreadId = useAuiState((state) => state.threads.mainThreadId);
+  const piThreadStates = usePiThreadStates(threadIds);
   const hasEmptyDraftNewThread = useAuiState(
     (state) =>
       state.threads.newThreadId !== undefined &&
@@ -188,20 +190,21 @@ export function WorkbenchWorkspaceThreadList({
   } = useWorkspaceSelection();
   const { activateWorkspace: activateDirectory, destroyNewThread } = useWorkspaceCapabilities();
   const removeWorkspace = useRemoveWorkspace(onNavigate);
-  const hasUngroupedThreads = useAuiState((state) =>
-    state.threads.threadIds.some((threadId) => {
-      const thread = state.threads.threadItems.find((item) => item.id === threadId);
-      if (!thread) return false;
-      if (thread.custom?.piPinned === true) return false;
-      return (
-        resolveSidebarThreadWorkspaceId({
-          customWorkspaceId: thread.custom?.piWorkspaceId,
-          managedWorkspaceId: manager.getThreadCustom(thread.id)?.piWorkspaceId,
-          isMainThread: thread.id === state.threads.mainThreadId,
-          draftWorkspaceId: draftDirectoryId,
-        }) === undefined
-      );
-    }),
+  const hasUngroupedThreads = useMemo(
+    () =>
+      threadIds.some((threadId) => {
+        const metadata = piThreadStates.get(threadId)?.metadata;
+        if (metadata?.pinned === true) return false;
+        return (
+          resolveSidebarThreadWorkspaceId({
+            customWorkspaceId: undefined,
+            managedWorkspaceId: metadata?.workspace?.id,
+            isMainThread: threadId === mainThreadId,
+            draftWorkspaceId: draftDirectoryId,
+          }) === undefined
+        );
+      }),
+    [draftDirectoryId, mainThreadId, piThreadStates, threadIds],
   );
   const [visibleWorkspaceCount, setVisibleWorkspaceCount] = useState(WORKSPACE_PAGE_SIZE);
   const loadMoreRef = useRef<HTMLDivElement>(null);

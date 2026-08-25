@@ -8,7 +8,7 @@ import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
-import { usePiThreadListItemState } from "@/runtime/pi/client/runtime/context";
+import { usePiSessionManager, usePiThreadListItemState } from "@/runtime/pi/client/runtime/context";
 import { useAppearancePreferences } from "@/services/appearance/appearance-store";
 import { useWorkspaceCapabilities } from "@/services/workspace-selection-service";
 import { conversationThreadIdFromPathname } from "@/workbench/workspaces/new-thread-policy";
@@ -40,14 +40,12 @@ export function WorkbenchThreadListItem({
   const { date: formatDate, relativeTime, t } = useI18n();
   const { runningIndicatorId } = useAppearancePreferences();
   const aui = useAui();
+  const manager = usePiSessionManager();
   const pathname = usePathname();
   const runtimeIsRunning = useAuiState((state) => state.threadListItem.isRunning);
   const runtimeTitle = useAuiState((state) => state.threadListItem.title);
   const runtimeLastMessageAt = useAuiState((state) => state.threadListItem.lastMessageAt);
   const isActive = useAuiState((state) => state.threads.mainThreadId === state.threadListItem.id);
-  const isPinned = useAuiState((state) => state.threadListItem.custom?.piPinned === true);
-  const threadCustom = useAuiState((state) => state.threadListItem.custom);
-  const threadId = useAuiState((state) => state.threadListItem.id);
   const routeThreadId = useAuiState(
     (state) =>
       state.threadListItem.remoteId ?? state.threadListItem.externalId ?? state.threadListItem.id,
@@ -59,7 +57,8 @@ export function WorkbenchThreadListItem({
       state.thread.messages.length === 0,
   );
   const { activateWorkspace, deactivateWorkspace, destroyNewThread } = useWorkspaceCapabilities();
-  const isRunning = runtimeIsRunning || piState.running;
+  const isPinned = piState.metadata.pinned;
+  const isRunning = runtimeIsRunning || piState.metadata.running;
   const showPinAction = workspaceId === undefined || isPinned;
   const title = piState.thread?.title ?? runtimeTitle;
   const lastMessageAt = piState.thread?.lastMessageAt ?? runtimeLastMessageAt;
@@ -85,10 +84,7 @@ export function WorkbenchThreadListItem({
   };
   const togglePinned = async () => {
     try {
-      await aui.threads.item({ id: threadId }).updateCustom({
-        ...threadCustom,
-        piPinned: !isPinned,
-      });
+      await manager.setThreadPinned(routeThreadId, !isPinned);
     } catch (error) {
       console.error("[workbench] failed to update pinned conversation", error);
     }
@@ -161,7 +157,7 @@ export function WorkbenchThreadListItem({
         >
           {title || t("workbench.sidebar.newThread")}
         </span>
-        {!isRunning && piState.completed ? (
+        {!isRunning && piState.metadata.completed ? (
           <>
             <span
               aria-hidden="true"

@@ -234,6 +234,27 @@ export interface PiThreadListItemSnapshot {
   readonly custom?: Record<string, unknown>;
 }
 
+export interface PiThreadMetadataSnapshot {
+  readonly running: boolean;
+  readonly completed: boolean;
+  readonly pinned: boolean;
+  readonly createdAt?: string;
+  readonly workspace?: PiWorkspaceSummary;
+}
+
+export interface PiThreadStateSnapshot {
+  readonly thread?: PiThreadListItemSnapshot;
+  readonly metadata: PiThreadMetadataSnapshot;
+}
+
+interface PiThreadStateBucket {
+  readonly listeners: Set<Listener>;
+  revision: number;
+  managerRevision: number;
+  signature: string;
+  snapshot: PiThreadStateSnapshot;
+}
+
 /**
  * One stable, representative Pi session for each resource scope known to Workbench.
  * Session-scoped catalog RPCs can query these targets to build an application-wide view without
@@ -283,6 +304,14 @@ interface StoredPendingInteraction {
 }
 
 type Listener = () => void;
+
+const EMPTY_THREAD_STATE_SNAPSHOT: PiThreadStateSnapshot = {
+  metadata: {
+    running: false,
+    completed: false,
+    pinned: false,
+  },
+};
 
 interface ActiveMessageTiming {
   streamStartTime: number;
@@ -1930,6 +1959,7 @@ export class PiSessionManager {
   private readonly listeners = new Set<Listener>();
   private readonly threadListListeners = new Set<Listener>();
   private readonly activeSessionListeners = new Set<Listener>();
+  private readonly threadStateBuckets = new Map<string, PiThreadStateBucket>();
   private readonly summaries = new Map<string, PiSessionSummary>();
   private readonly workspaces = new Map<string, WorkspaceView>();
   private readonly sessions = new Map<string, PiClientSession>();
@@ -2172,6 +2202,134 @@ export class PiSessionManager {
     };
   }
 
+  getThreadStateSnapshot(threadId: string | undefined): PiThreadStateSnapshot {
+    if (!threadId || this.disposed) return EMPTY_THREAD_STATE_SNAPSHOT;
+    const bucket = this.threadStateBuckets.get(threadId);
+    if (!bucket) return this.createThreadStateSnapshot(threadId);
+    this.refreshThreadStateBucket(threadId, bucket, false);
+    return bucket.snapshot;
+  }
+
+  getThreadRevision(threadId: string | undefined): number {
+    if (!threadId || this.disposed) return 0;
+    const bucket = this.threadStateBuckets.get(threadId);
+    if (!bucket) return this.revision;
+    this.refreshThreadStateBucket(threadId, bucket, false);
+    return bucket.revision;
+  }
+
+  subscribeThread = (threadId: string | undefined, listener: Listener): (() => void) => {
+    if (!threadId || this.disposed) return () => undefined;
+    const bucket = this.ensureThreadStateBucket(threadId);
+    this.refreshThreadStateBucket(threadId, bucket, false);
+    bucket.listeners.add(listener);
+    return () => {
+      bucket.listeners.delete(listener);
+      if (bucket.listeners.size === 0 && this.threadStateBuckets.get(threadId) === bucket) {
+        this.threadStateBuckets.delete(threadId);
+      }
+    };
+  };
+
+  private ensureThreadStateBucket(threadId: string): PiThreadStateBucket {
+    const existing = this.threadStateBuckets.get(threadId);
+    if (existing) return existing;
+    const snapshot = this.createThreadStateSnapshot(threadId);
+    const bucket: PiThreadStateBucket = {
+      listeners: new Set(),
+      revision: this.revision,
+      managerRevision: this.revision,
+      signature: this.threadStateSignature(snapshot),
+      snapshot,
+    };
+    this.threadStateBuckets.set(threadId, bucket);
+    return bucket;
+  }
+
+  private createThreadStateSnapshot(threadId: string): PiThreadStateSnapshot {
+    const remoteId = this.aliases.get(threadId) ?? threadId;
+    const summary = this.summaries.get(remoteId);
+    if (!summary) {
+      const workspace = this.draftWorkspaces.get(threadId);
+      return workspace
+        ? {
+            metadata: {
+              running: false,
+              completed: false,
+              pinned: false,
+              workspace: { ...workspace },
+            },
+          }
+        : EMPTY_THREAD_STATE_SNAPSHOT;
+    }
+
+    const workspaceView = this.workspaceForSession(remoteId);
+    const workspace: PiWorkspaceSummary = workspaceView
+      ? {
+          id: workspaceView.workspaceId,
+          name: workspaceView.title,
+          cwd: workspaceView.path,
+          pinned: this.pinnedWorkspaces.has(workspaceView.workspaceId),
+        }
+      : {
+          ...summary.workspace,
+          pinned: this.pinnedWorkspaces.has(summary.workspace.id),
+        };
+    return {
+      thread: this.getThreadListItemSnapshot(remoteId),
+      metadata: {
+        running: this.running.has(remoteId),
+        completed: this.completed.has(remoteId),
+        pinned: this.pinned.has(remoteId),
+        createdAt: summary.created,
+        workspace,
+      },
+    };
+  }
+
+  private threadStateSignature(snapshot: PiThreadStateSnapshot): string {
+    const { thread, metadata } = snapshot;
+    return JSON.stringify([
+      thread?.remoteId ?? null,
+      thread?.status ?? null,
+      thread?.title ?? null,
+      thread?.lastMessageAt.toISOString() ?? null,
+      thread?.custom ?? null,
+      metadata.running,
+      metadata.completed,
+      metadata.pinned,
+      metadata.createdAt ?? null,
+      metadata.workspace?.id ?? null,
+      metadata.workspace?.name ?? null,
+      metadata.workspace?.cwd ?? null,
+      metadata.workspace?.pinned ?? null,
+    ]);
+  }
+
+  private refreshThreadStateBucket(
+    threadId: string,
+    bucket: PiThreadStateBucket,
+    publish: boolean,
+  ): void {
+    if (bucket.managerRevision === this.revision) return;
+    const snapshot = this.createThreadStateSnapshot(threadId);
+    const signature = this.threadStateSignature(snapshot);
+    bucket.managerRevision = this.revision;
+    if (signature === bucket.signature) return;
+    bucket.signature = signature;
+    bucket.snapshot = snapshot;
+    bucket.revision += 1;
+    if (publish) {
+      for (const listener of bucket.listeners) listener();
+    }
+  }
+
+  private refreshSubscribedThreadStates(): void {
+    for (const [threadId, bucket] of this.threadStateBuckets) {
+      if (bucket.listeners.size > 0) this.refreshThreadStateBucket(threadId, bucket, true);
+    }
+  }
+
   subscribe = (listener: Listener): (() => void) => {
     if (this.disposed) return () => undefined;
     this.listeners.add(listener);
@@ -2244,6 +2402,7 @@ export class PiSessionManager {
     this.listeners.clear();
     this.threadListListeners.clear();
     this.activeSessionListeners.clear();
+    this.threadStateBuckets.clear();
   }
 
   private readonly handleGenerationReady = (generation: number): void => {
@@ -2629,9 +2788,10 @@ export class PiSessionManager {
           this.requestRealtimeRefresh();
         }
         const nextRunning = new Set(
-          response.items.filter((item) => item.running).map((item) => item.sessionId),
+          [...next.values()].filter((summary) => summary.running).map((summary) => summary.id),
         );
         for (const [id, running] of runningMutations) {
+          if (!next.has(id)) continue;
           if (running) nextRunning.add(id);
           else nextRunning.delete(id);
         }
@@ -2846,7 +3006,8 @@ export class PiSessionManager {
     if (changed) this.notify();
   }
 
-  private async setSessionPinned(sessionId: string, pinned: boolean): Promise<void> {
+  async setThreadPinned(threadId: string, pinned: boolean): Promise<void> {
+    const sessionId = this.aliases.get(threadId) ?? threadId;
     this.workspaceGeneration += 1;
     const result = await setPiWorkspaceSessionPinned(sessionId, pinned);
     this.workspaceGeneration += 1;
@@ -2902,7 +3063,7 @@ export class PiSessionManager {
         const pinned = custom?.piPinned === true;
         const changed = pinned ? !this.pinned.has(remoteId) : this.pinned.has(remoteId);
         if (!changed) return;
-        await this.setSessionPinned(remoteId, pinned);
+        await this.setThreadPinned(remoteId, pinned);
       },
       rename: async (remoteId, newTitle) => {
         await renamePiRpcSession({ sessionId: remoteId, title: newTitle });
@@ -2945,12 +3106,22 @@ export class PiSessionManager {
 
   setDraftWorkspace(localId: string, workspace: PiWorkspaceSummary | undefined): void {
     if (workspace) {
+      const current = this.draftWorkspaces.get(localId);
+      if (
+        current?.id === workspace.id &&
+        current.name === workspace.name &&
+        current.cwd === workspace.cwd &&
+        current.pinned === workspace.pinned
+      ) {
+        return;
+      }
       this.draftWorkspaces.set(localId, workspace);
+      this.notify();
       return;
     }
     const session = this.sessions.get(localId);
     if (session && !session.remoteId && session.getSnapshot().messages.length > 0) return;
-    this.draftWorkspaces.delete(localId);
+    if (this.draftWorkspaces.delete(localId)) this.notify();
   }
 
   isCompleted(threadId: string): boolean {
@@ -3185,7 +3356,7 @@ export class PiSessionManager {
     for (const sessionId of sessionIds) {
       if (!this.summaries.has(sessionId) || this.pinned.has(sessionId)) continue;
       try {
-        await this.setSessionPinned(sessionId, true);
+        await this.setThreadPinned(sessionId, true);
       } catch {
         sessionsMigrated = false;
       }
@@ -3209,6 +3380,7 @@ export class PiSessionManager {
   private notify(): void {
     if (this.disposed) return;
     this.revision++;
+    this.refreshSubscribedThreadStates();
     for (const listener of this.listeners) listener();
   }
 

@@ -20,7 +20,10 @@ import {
 import { useRightWorkspaceState } from "@/components/right-workspace/workspace-context";
 import { useMainViewService } from "@/platform/extensions";
 import { PiCommandsProvider } from "@/runtime/pi/client/runtime/command-context";
-import { PiSessionManagerProvider } from "@/runtime/pi/client/runtime/context";
+import {
+  PiSessionManagerProvider,
+  usePiThreadListItemState,
+} from "@/runtime/pi/client/runtime/context";
 import { PiSessionManager } from "@/runtime/pi/client/runtime/manager";
 import { piThreadListStructureMatches } from "@/runtime/pi/client/runtime/thread-list-sync";
 import { useWorkbenchRuntime } from "@/runtime/use-workbench-runtime";
@@ -56,6 +59,8 @@ function ActivePiThreadTracker({ manager }: { manager: PiSessionManager }) {
   const isThreadListLoading = useAuiState((state) => state.threads.isLoading);
   const threadItems = useAuiState((state) => state.threads.threadItems);
   const mainThread = threadItems.find((thread) => thread.id === mainThreadId);
+  const mainThreadScopeId = mainThread?.remoteId ?? mainThread?.externalId ?? mainThreadId ?? "";
+  const mainThreadState = usePiThreadListItemState(mainThreadScopeId);
   const [reconcileTick, requestReconcile] = useReducer((value: number) => value + 1, 0);
   const reloadedRevision = useRef(managerRevision);
   const requestedReloadRevision = useRef(managerRevision);
@@ -139,43 +144,9 @@ function ActivePiThreadTracker({ manager }: { manager: PiSessionManager }) {
   ]);
 
   useEffect(() => {
-    for (const thread of threadItems) {
-      if (!thread.remoteId) continue;
-      const custom = manager.getThreadCustom(thread.remoteId);
-      if (!custom) continue;
-      const changed = [
-        "piRunning",
-        "piPinned",
-        "piCreatedAt",
-        "piWorkspaceId",
-        "piWorkspaceName",
-        "piWorkspaceCwd",
-      ].some((key) => thread.custom?.[key] !== custom[key]);
-      if (!changed) continue;
-      const {
-        piRunning: _piRunning,
-        piPinned: _piPinned,
-        piCreatedAt: _piCreatedAt,
-        piWorkspaceId: _piWorkspaceId,
-        piWorkspaceName: _piWorkspaceName,
-        piWorkspaceCwd: _piWorkspaceCwd,
-        ...otherCustom
-      } = thread.custom ?? {};
-      const piCustom = Object.fromEntries(
-        Object.entries(custom).filter(([, value]) => value !== undefined),
-      );
-      aui.threads.item({ id: thread.id }).updateCustom({ ...otherCustom, ...piCustom });
-    }
-  }, [aui, manager, managerRevision, threadItems]);
-
-  useEffect(() => {
-    const custom = mainThread?.remoteId
-      ? manager.getThreadCustom(mainThread.remoteId)
-      : mainThread?.custom;
-    const id = custom?.piWorkspaceId;
-    if (typeof id !== "string") return;
-    revealWorkspace(id);
-  }, [mainThread?.custom, mainThread?.remoteId, manager, managerRevision, revealWorkspace]);
+    const workspaceId = mainThreadState.metadata.workspace?.id;
+    if (workspaceId) revealWorkspace(workspaceId);
+  }, [mainThreadState.metadata.workspace?.id, revealWorkspace]);
 
   return null;
 }
@@ -226,15 +197,10 @@ function useActiveConversationWorkspace() {
   const mainThread = useAuiState((state) =>
     state.threads.threadItems.find((thread) => thread.id === state.threads.mainThreadId),
   );
-  const workspaceId =
-    typeof mainThread?.custom?.piWorkspaceId === "string"
-      ? mainThread.custom.piWorkspaceId
-      : undefined;
-  const rootPath =
-    typeof mainThread?.custom?.piWorkspaceCwd === "string"
-      ? mainThread.custom.piWorkspaceCwd
-      : undefined;
   const threadScopeId = mainThread?.remoteId ?? mainThread?.externalId ?? mainThreadId;
+  const threadState = usePiThreadListItemState(threadScopeId ?? "");
+  const workspaceId = threadState.metadata.workspace?.id;
+  const rootPath = threadState.metadata.workspace?.cwd;
   const context = useMemo(
     () =>
       activeWorkspaceContext({

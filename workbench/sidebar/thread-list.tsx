@@ -6,7 +6,7 @@ import { ThreadListPrimitive, useAuiState } from "@assistant-ui/react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useI18n } from "@/i18n";
-import { usePiSessionManager } from "@/runtime/pi/client/runtime/context";
+import { usePiSessionManager, usePiThreadStates } from "@/runtime/pi/client/runtime/context";
 import { useWorkspaceSelection } from "@/services/workspace-selection-service";
 import { resolveSidebarThreadWorkspaceId } from "@/workbench/workspaces/new-thread-policy";
 
@@ -51,6 +51,7 @@ export function WorkbenchThreadList({
   const mainThreadId = useAuiState((state) => state.threads.mainThreadId);
   const threadIds = useAuiState((state) => state.threads.threadIds);
   const threadItems = useAuiState((state) => state.threads.threadItems);
+  const piThreadStates = usePiThreadStates(threadIds);
   const { draftWorkspaceId } = useWorkspaceSelection();
   const isLoading = useAuiState((state) => state.threads.isLoading);
   const threadCount = useAuiState(
@@ -64,14 +65,15 @@ export function WorkbenchThreadList({
     return threadIds.filter((threadId) => {
       const thread = itemsById.get(threadId);
       if (!thread) return false;
-      const isPinned = thread.custom?.piPinned === true;
+      const metadata = piThreadStates.get(threadId)?.metadata;
+      const isPinned = metadata?.pinned === true;
       if (pinnedOnly ? !isPinned : isPinned) return false;
 
       return (
         ignoreWorkspace ||
         resolveSidebarThreadWorkspaceId({
-          customWorkspaceId: thread.custom?.piWorkspaceId,
-          managedWorkspaceId: manager.getThreadCustom(thread.id)?.piWorkspaceId,
+          customWorkspaceId: undefined,
+          managedWorkspaceId: metadata?.workspace?.id,
           isMainThread: thread.id === mainThreadId,
           draftWorkspaceId,
         }) === workspaceId
@@ -81,7 +83,7 @@ export function WorkbenchThreadList({
     draftWorkspaceId,
     ignoreWorkspace,
     mainThreadId,
-    manager,
+    piThreadStates,
     pinnedOnly,
     threadIds,
     threadItems,
@@ -90,10 +92,11 @@ export function WorkbenchThreadList({
   const visibleThreadIds = useMemo(() => {
     if (!normalizedSearchQuery) return scopeThreadIds;
     const itemsById = new Map(threadItems.map((thread) => [thread.id, thread]));
-    return scopeThreadIds.filter((threadId) =>
-      itemsById.get(threadId)?.title?.toLocaleLowerCase().includes(normalizedSearchQuery),
-    );
-  }, [normalizedSearchQuery, scopeThreadIds, threadItems]);
+    return scopeThreadIds.filter((threadId) => {
+      const title = piThreadStates.get(threadId)?.thread?.title ?? itemsById.get(threadId)?.title;
+      return title?.toLocaleLowerCase().includes(normalizedSearchQuery);
+    });
+  }, [normalizedSearchQuery, piThreadStates, scopeThreadIds, threadItems]);
   const hasThreads = visibleThreadIds.length > 0;
   const hasMore = useAuiState((state) => state.threads.hasMore);
   const orderScope = pinnedOnly ? "pinned" : workspaceId ? `workspace:${workspaceId}` : "ungrouped";
@@ -101,9 +104,19 @@ export function WorkbenchThreadList({
     (state) => state.manualOrderByScope[orderScope] ?? EMPTY_THREAD_ORDER,
   );
   const setManualOrder = useThreadOrderStore((state) => state.setManualOrder);
+  const createdAtByThreadId = useMemo(
+    () =>
+      new Map(
+        scopeThreadIds.map((threadId) => [
+          threadId,
+          piThreadStates.get(threadId)?.metadata.createdAt,
+        ]),
+      ),
+    [piThreadStates, scopeThreadIds],
+  );
   const resolvedScopeThreadIds = useMemo(
-    () => resolveThreadOrder(scopeThreadIds, threadItems, storedManualOrder),
-    [scopeThreadIds, storedManualOrder, threadItems],
+    () => resolveThreadOrder(scopeThreadIds, createdAtByThreadId, storedManualOrder),
+    [createdAtByThreadId, scopeThreadIds, storedManualOrder],
   );
   const sortedThreadIds = useMemo(() => {
     if (!normalizedSearchQuery) return resolvedScopeThreadIds;
@@ -160,18 +173,21 @@ export function WorkbenchThreadList({
       {!isInitialLoading ? (
         <ThreadListPrimitive.Items>
           {({ threadListItem }) => {
-            const isPinned = threadListItem.custom?.piPinned === true;
+            const piThreadState = piThreadStates.get(threadListItem.id);
+            const metadata = piThreadState?.metadata;
+            const isPinned = metadata?.pinned === true;
             if (pinnedOnly ? !isPinned : isPinned) return null;
+            const title = piThreadState?.thread?.title ?? threadListItem.title;
             if (
               normalizedSearchQuery &&
-              !threadListItem.title?.toLocaleLowerCase().includes(normalizedSearchQuery)
+              !title?.toLocaleLowerCase().includes(normalizedSearchQuery)
             ) {
               return null;
             }
 
             const threadWorkspaceId = resolveSidebarThreadWorkspaceId({
-              customWorkspaceId: threadListItem.custom?.piWorkspaceId,
-              managedWorkspaceId: manager.getThreadCustom(threadListItem.id)?.piWorkspaceId,
+              customWorkspaceId: undefined,
+              managedWorkspaceId: metadata?.workspace?.id,
               isMainThread: threadListItem.id === mainThreadId,
               draftWorkspaceId,
             });

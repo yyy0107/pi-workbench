@@ -4,14 +4,14 @@ import test from "node:test";
 import { moveThreadId, resolveThreadOrder, sortThreadIdsByCreation } from "./thread-sort";
 
 const threadIds = ["older-active", "newest", "middle"];
-const threadItems = [
-  { id: "older-active", custom: { piCreatedAt: "2026-01-01T00:00:00.000Z" } },
-  { id: "newest", custom: { piCreatedAt: "2026-03-01T00:00:00.000Z" } },
-  { id: "middle", custom: { piCreatedAt: "2026-02-01T00:00:00.000Z" } },
-];
+const createdAtByThreadId = new Map([
+  ["older-active", "2026-01-01T00:00:00.000Z"],
+  ["newest", "2026-03-01T00:00:00.000Z"],
+  ["middle", "2026-02-01T00:00:00.000Z"],
+]);
 
 test("sorts conversations by creation time instead of runtime activity order", () => {
-  assert.deepEqual(sortThreadIdsByCreation(threadIds, threadItems), [
+  assert.deepEqual(sortThreadIdsByCreation(threadIds, createdAtByThreadId), [
     "newest",
     "middle",
     "older-active",
@@ -19,7 +19,7 @@ test("sorts conversations by creation time instead of runtime activity order", (
 });
 
 test("uses the dragged id order after the canonical creation order", () => {
-  assert.deepEqual(resolveThreadOrder(threadIds, threadItems, ["middle", "older-active"]), [
+  assert.deepEqual(resolveThreadOrder(threadIds, createdAtByThreadId, ["middle", "older-active"]), [
     "newest",
     "middle",
     "older-active",
@@ -28,7 +28,12 @@ test("uses the dragged id order after the canonical creation order", () => {
 
 test("reconciles the dragged id order with removed conversations", () => {
   assert.deepEqual(
-    resolveThreadOrder(threadIds, threadItems, ["removed", "older-active", "middle", "newest"]),
+    resolveThreadOrder(threadIds, createdAtByThreadId, [
+      "removed",
+      "older-active",
+      "middle",
+      "newest",
+    ]),
     ["older-active", "middle", "newest"],
   );
 });

@@ -3,6 +3,8 @@
 import { useAuiState } from "@assistant-ui/react";
 import { useMemo } from "react";
 
+import { usePiThreadListItemState } from "@/runtime/pi/client/runtime/context";
+
 export interface TerminalPtyTarget extends Record<string, unknown> {
   mode?: "pty";
   sessionId: string;
@@ -66,15 +68,10 @@ export function useTerminalLaunchContext(): TerminalLaunchContext {
   const mainThread = useAuiState((state) =>
     state.threads.threadItems.find((thread) => thread.id === state.threads.mainThreadId),
   );
-  const workspaceId =
-    typeof mainThread?.custom?.piWorkspaceId === "string"
-      ? mainThread.custom.piWorkspaceId
-      : "application";
-  const cwd =
-    typeof mainThread?.custom?.piWorkspaceCwd === "string"
-      ? mainThread.custom.piWorkspaceCwd
-      : undefined;
   const threadId = mainThread?.remoteId ?? mainThread?.externalId ?? mainThreadId ?? "application";
+  const threadState = usePiThreadListItemState(threadId);
+  const workspaceId = threadState.metadata.workspace?.id ?? "application";
+  const cwd = threadState.metadata.workspace?.cwd;
 
   return useMemo(
     () => ({

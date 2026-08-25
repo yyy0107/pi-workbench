@@ -60,8 +60,7 @@ import { ExtensionErrorBoundary } from "@/platform/extensions/hosts/extension-er
 import {
   usePiActiveSessionId,
   usePiHostDescription,
-  usePiThreadActivity,
-  usePiThreadListItemSnapshot,
+  usePiThreadListItemState,
   usePiWorkspaces,
 } from "@/runtime/pi/client/runtime/context";
 import {
@@ -703,8 +702,8 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
   const workspaceContext = useWorkspaceContext();
   const activeSessionId = usePiActiveSessionId();
   const sessionId = params.catalogSessionId ?? activeSessionId;
-  const { running: sessionRunning } = usePiThreadActivity(sessionId ?? "");
-  const catalogSession = usePiThreadListItemSnapshot(sessionId);
+  const catalogSessionState = usePiThreadListItemState(sessionId ?? "");
+  const sessionRunning = catalogSessionState.metadata.running;
   const userPackageDir = usePiHostDescription()?.userPackageDir;
   const workspaces = usePiWorkspaces();
   const isSkill = params.capabilityKind === "skill";
@@ -806,10 +805,7 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
   const capabilityInactive =
     capabilityUninstalled || (isExtension && (!extensionEnabled || extensionRemoved));
   const activeWorkspaceId =
-    params.projectId ??
-    (typeof catalogSession?.custom?.piWorkspaceId === "string"
-      ? catalogSession.custom.piWorkspaceId
-      : workspaceContext.projectId);
+    params.projectId ?? catalogSessionState.metadata.workspace?.id ?? workspaceContext.projectId;
   const skillPackageRemovalTarget =
     params.origin === "package" && params.scope === "user" && sessionId
       ? { scope: "user" as const, sessionId }
@@ -1049,9 +1045,8 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
             workspaceName:
               params.projectName ??
               activeWorkspace?.name ??
-              (typeof catalogSession?.custom?.piWorkspaceName === "string"
-                ? catalogSession.custom.piWorkspaceName
-                : t("extensions.toolbox.packages.installLocationProjects")),
+              catalogSessionState.metadata.workspace?.name ??
+              t("extensions.toolbox.packages.installLocationProjects"),
           }
         : null;
   const installedPackagePresent = isInstalledPackage && !installedPackageRemoved;

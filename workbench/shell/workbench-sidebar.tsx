@@ -21,6 +21,7 @@ import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { useMainViewService } from "@/platform/extensions";
 import { SlotHost } from "@/platform/extensions/hosts/slot-host";
+import { usePiThreadStates } from "@/runtime/pi/client/runtime/context";
 import { useWorkspaceSelection } from "@/services/workspace-selection-service";
 import {
   SidebarPrimaryNavigation,
@@ -42,11 +43,11 @@ export function WorkbenchSidebarContent({
 }) {
   const { t } = useI18n();
   const mainViews = useMainViewService();
-  const hasPinnedThreads = useAuiState((state) =>
-    state.threads.threadIds.some((threadId) => {
-      const thread = state.threads.threadItems.find((item) => item.id === threadId);
-      return thread?.custom?.piPinned === true;
-    }),
+  const threadIds = useAuiState((state) => state.threads.threadIds);
+  const threadItems = useAuiState((state) => state.threads.threadItems);
+  const piThreadStates = usePiThreadStates(threadIds);
+  const hasPinnedThreads = threadIds.some(
+    (threadId) => piThreadStates.get(threadId)?.metadata.pinned === true,
   );
   const hasPinnedDirectories = useWorkspaceSelection().workspaces.some(
     (workspace) => workspace.pinned === true,
@@ -57,13 +58,13 @@ export function WorkbenchSidebarContent({
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase();
-  const hasSearchResults = useAuiState((state) => {
-    if (!normalizedSearchQuery) return true;
-
-    return state.threads.threadItems.some((thread) =>
-      thread.title?.toLocaleLowerCase().includes(normalizedSearchQuery),
+  const hasSearchResults =
+    !normalizedSearchQuery ||
+    threadItems.some((thread) =>
+      (piThreadStates.get(thread.id)?.thread?.title ?? thread.title)
+        ?.toLocaleLowerCase()
+        .includes(normalizedSearchQuery),
     );
-  });
 
   useEffect(() => {
     void hydrateThreadOrderStore().catch((error) =>

@@ -9,6 +9,8 @@ import {
   PiSessionManager,
   type PiResourceCatalogTarget,
   type PiThreadListItemSnapshot,
+  type PiThreadMetadataSnapshot,
+  type PiThreadStateSnapshot,
 } from "./manager";
 
 const PiSessionManagerContext = createContext<PiSessionManager | null>(null);
@@ -41,44 +43,79 @@ export function usePiThreadActivity(threadId: string): {
   running: boolean;
   completed: boolean;
 } {
-  const manager = usePiSessionManager();
-  useSyncExternalStore(manager.subscribe, manager.getSnapshot, manager.getSnapshot);
+  const { metadata } = usePiThreadStateSnapshot(threadId);
   return {
-    running: manager.isRunning(threadId),
-    completed: manager.isCompleted(threadId),
+    running: metadata.running,
+    completed: metadata.completed,
   };
+}
+
+export function usePiThreadStateSnapshot(threadId: string | undefined): PiThreadStateSnapshot {
+  const manager = usePiSessionManager();
+  const subscribe = useMemo(
+    () => (listener: () => void) => manager.subscribeThread(threadId, listener),
+    [manager, threadId],
+  );
+  const getSnapshot = useMemo(() => () => manager.getThreadRevision(threadId), [manager, threadId]);
+  useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  return manager.getThreadStateSnapshot(threadId);
 }
 
 export function usePiThreadListItemSnapshot(
   threadId: string | undefined,
 ): PiThreadListItemSnapshot | undefined {
-  const manager = usePiSessionManager();
-  const revision = useSyncExternalStore(
-    manager.subscribe,
-    manager.getSnapshot,
-    manager.getSnapshot,
-  );
-  return useMemo(() => manager.getThreadListItemSnapshot(threadId), [manager, revision, threadId]);
+  return usePiThreadStateSnapshot(threadId).thread;
 }
 
 export function usePiThreadListItemState(threadId: string): {
   thread: PiThreadListItemSnapshot | undefined;
   running: boolean;
   completed: boolean;
+  metadata: PiThreadMetadataSnapshot;
 } {
+  const state = usePiThreadStateSnapshot(threadId);
+  return {
+    thread: state.thread,
+    running: state.metadata.running,
+    completed: state.metadata.completed,
+    metadata: state.metadata,
+  };
+}
+
+export function usePiThreadStates(
+  threadIds: readonly string[],
+): ReadonlyMap<string, PiThreadStateSnapshot> {
   const manager = usePiSessionManager();
-  const revision = useSyncExternalStore(
-    manager.subscribe,
-    manager.getSnapshot,
-    manager.getSnapshot,
+  const threadIdsSignature = JSON.stringify([...new Set(threadIds)]);
+  const stableThreadIds = useMemo(
+    () => JSON.parse(threadIdsSignature) as string[],
+    [threadIdsSignature],
   );
+  const subscribe = useMemo(
+    () => (listener: () => void) => {
+      const unsubscribers = stableThreadIds.map((threadId) =>
+        manager.subscribeThread(threadId, listener),
+      );
+      return () => {
+        for (const unsubscribe of unsubscribers) unsubscribe();
+      };
+    },
+    [manager, stableThreadIds],
+  );
+  const getSnapshot = useMemo(
+    () => () =>
+      JSON.stringify(
+        stableThreadIds.map((threadId) => [threadId, manager.getThreadRevision(threadId)]),
+      ),
+    [manager, stableThreadIds],
+  );
+  const revisionSignature = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
   return useMemo(
-    () => ({
-      thread: manager.getThreadListItemSnapshot(threadId),
-      running: manager.isRunning(threadId),
-      completed: manager.isCompleted(threadId),
-    }),
-    [manager, revision, threadId],
+    () =>
+      new Map(
+        stableThreadIds.map((threadId) => [threadId, manager.getThreadStateSnapshot(threadId)]),
+      ),
+    [manager, revisionSignature, stableThreadIds],
   );
 }
 

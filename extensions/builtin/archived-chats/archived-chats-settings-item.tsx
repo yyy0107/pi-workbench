@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/settings-control";
 import { useI18n } from "@/i18n";
 import type { SettingsItemComponentProps } from "@/platform/extensions";
-import { usePiSessionManager, usePiWorkspaces } from "@/runtime/pi/client/runtime/context";
+import { usePiThreadStates, usePiWorkspaces } from "@/runtime/pi/client/runtime/context";
 
 const ALL_PROJECTS = "all-projects";
 const UNGROUPED_PROJECT = "ungrouped-project";
@@ -49,10 +49,6 @@ interface ArchivedChatView {
 type DeleteTarget =
   | { kind: "all"; chats: readonly ArchivedChatView[] }
   | { kind: "chat"; chats: readonly [ArchivedChatView] };
-
-function stringValue(value: unknown): string | undefined {
-  return typeof value === "string" && value.length > 0 ? value : undefined;
-}
 
 function ArchivedChatRowsSkeleton({ label, count }: { label: string; count: number }) {
   return (
@@ -78,7 +74,6 @@ function ArchivedChatRowsSkeleton({ label, count }: { label: string; count: numb
 export function ArchivedChatsSettingsItem({ sectionId, itemId }: SettingsItemComponentProps) {
   const { date: formatDate, locale, t } = useI18n();
   const aui = useAui();
-  const manager = usePiSessionManager();
   const workspaces = usePiWorkspaces();
   const archivedThreadIds = useAuiState((state) => state.threads.archivedThreadIds);
   const threadItems = useAuiState((state) => state.threads.threadItems);
@@ -93,6 +88,14 @@ export function ArchivedChatsSettingsItem({ sectionId, itemId }: SettingsItemCom
   const [workspaceHeaderTop, setWorkspaceHeaderTop] = useState(0);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const stickyToolbarRef = useRef<HTMLDivElement>(null);
+  const archivedRouteThreadIds = useMemo(() => {
+    const itemsById = new Map(threadItems.map((thread) => [thread.id, thread]));
+    return archivedThreadIds.flatMap((threadId) => {
+      const thread = itemsById.get(threadId);
+      return thread ? [thread.remoteId ?? thread.externalId ?? thread.id] : [];
+    });
+  }, [archivedThreadIds, threadItems]);
+  const archivedThreadStates = usePiThreadStates(archivedRouteThreadIds);
 
   const archivedChats = useMemo<ArchivedChatView[]>(() => {
     const itemsById = new Map(threadItems.map((thread) => [thread.id, thread]));
@@ -100,26 +103,20 @@ export function ArchivedChatsSettingsItem({ sectionId, itemId }: SettingsItemCom
       const thread = itemsById.get(threadId);
       if (!thread) return [];
       const remoteId = thread.remoteId ?? thread.externalId ?? thread.id;
-      const managedThread = manager.getThreadListItemSnapshot(remoteId);
-      const managedCustom = manager.getThreadCustom(remoteId);
-      const workspaceId =
-        stringValue(thread.custom?.piWorkspaceId) ?? stringValue(managedCustom?.piWorkspaceId);
+      const managedState = archivedThreadStates.get(remoteId);
+      const workspace = managedState?.metadata.workspace;
       return [
         {
           id: thread.id,
-          title: managedThread?.title ?? thread.title,
-          lastMessageAt: managedThread?.lastMessageAt ?? thread.lastMessageAt,
-          workspaceId,
-          workspaceName:
-            stringValue(thread.custom?.piWorkspaceName) ??
-            stringValue(managedCustom?.piWorkspaceName),
-          workspaceCwd:
-            stringValue(thread.custom?.piWorkspaceCwd) ??
-            stringValue(managedCustom?.piWorkspaceCwd),
+          title: managedState?.thread?.title ?? thread.title,
+          lastMessageAt: managedState?.thread?.lastMessageAt ?? thread.lastMessageAt,
+          workspaceId: workspace?.id,
+          workspaceName: workspace?.name,
+          workspaceCwd: workspace?.cwd,
         },
       ];
     });
-  }, [archivedThreadIds, manager, threadItems]);
+  }, [archivedThreadIds, archivedThreadStates, threadItems]);
 
   const workspaceOptions = useMemo(() => {
     const options = workspaces.map((workspace) => ({
