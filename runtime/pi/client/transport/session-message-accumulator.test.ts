@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { PiEvent } from "../../contracts";
+import type { PiAssistantMessage, PiEvent } from "../../contracts";
 import type {
   SessionMessageSnapshotPayload,
   SessionMessageUpdatePayload,
 } from "../../stream-contracts";
+import { piAssistantToThreadMessage } from "../messages/messages";
 
 const { SessionMessageAccumulator } = (await import(
   new URL("./session-message-accumulator.ts", import.meta.url).href
@@ -184,4 +185,44 @@ test("deduplicates revisions, freezes on gaps, and accepts an authoritative snap
     accumulator.applyUpdate(update(4, { type: "text_delta", contentIndex: 0, delta: "!" })),
   ) as { content: Array<{ text?: string }> };
   assert.equal(next.content[0]?.text, "repaired!");
+});
+
+test("characterizes partial tool JSON being normalized before assistant-ui projection", () => {
+  const accumulator = new SessionMessageAccumulator();
+  accumulator.start({ role: "assistant", content: [] }, 10, 1_725_000_000_000);
+  messageFrom(
+    accumulator.applyUpdate(
+      update(1, {
+        type: "toolcall_start",
+        contentIndex: 0,
+        id: "tool-1",
+        toolName: "search",
+      }),
+    ),
+  );
+
+  const rawPartialJson = '{"query":"hel';
+  const result = accumulator.applyUpdate(
+    update(2, { type: "toolcall_delta", contentIndex: 0, delta: rawPartialJson }),
+  );
+  assert.equal(result.kind, "event");
+  if (result.kind !== "event") return;
+  assert.equal(result.event.type, "message_update");
+  if (result.event.type !== "message_update") return;
+
+  const projected = piAssistantToThreadMessage(
+    result.event.message as PiAssistantMessage,
+    "streaming-assistant",
+    { streaming: true },
+  );
+  const tool = projected.content.find((part) => part.type === "tool-call");
+  assert.equal(tool?.type, "tool-call");
+  if (tool?.type !== "tool-call") return;
+
+  // Known current behavior: only the best-effort parsed object crosses PiEvent, so argsText is
+  // reconstructed as valid JSON instead of preserving the raw, still-incomplete stream buffer.
+  assert.deepEqual(tool.args, { query: "hel" });
+  assert.equal(tool.argsText, '{"query":"hel"}');
+  assert.notEqual(tool.argsText, rawPartialJson);
+  assert.equal("rawToolArgsText" in result.event, false);
 });

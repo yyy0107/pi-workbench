@@ -21,9 +21,12 @@ export function ArtifactMenuItem({ closeMenu }: WorkspaceSurfaceMenuItemProps) {
       className="w-full justify-start font-normal"
       onClick={() => {
         const artifactId = `scratch-${Date.now()}`;
+        const scope = context.threadId
+          ? ({ type: "thread", key: context.threadId } as const)
+          : ({ type: "application", key: context.applicationId } as const);
         artifactPreviewService.upsertArtifact({
           id: artifactId,
-          ...(context.threadId ? { threadId: context.threadId } : {}),
+          scope,
           title: t("extensions.workspaceArtifact.title"),
           rendererKind: "markdown",
           content: "",
@@ -34,6 +37,7 @@ export function ArtifactMenuItem({ closeMenu }: WorkspaceSurfaceMenuItemProps) {
           title: t("extensions.workspaceArtifact.title"),
           params: { artifactId, rendererHint: "markdown" },
           context,
+          scope,
           status: "ready",
         });
         closeMenu();

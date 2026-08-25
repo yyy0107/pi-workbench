@@ -432,6 +432,37 @@ test("serializable placement metadata survives while its extension is unavailabl
   );
 });
 
+test("known current behavior: hydration replaces live surfaces opened during startup", () => {
+  const storage = new MemoryStorage();
+  const persistedStore = createRightWorkspaceStore();
+  const persistedController = new DefaultRightWorkspaceController(persistedStore, createRegistry());
+  persistedController.hydrate(storage);
+  const persistedSurfaceId = persistedController.open({
+    kind: "file",
+    title: "persisted.ts",
+    params: { absolutePath: "/workspace/persisted.ts" },
+    context,
+  });
+
+  const startupStore = createRightWorkspaceStore();
+  const startupController = new DefaultRightWorkspaceController(startupStore, createRegistry());
+  const liveSurfaceId = startupController.open({
+    kind: "file",
+    title: "live.ts",
+    params: { absolutePath: "/workspace/live.ts" },
+    context,
+  });
+  assert.ok(startupStore.getState().surfaces[liveSurfaceId]);
+
+  // Characterization only: the provider may resolve its asynchronous preference load after this
+  // live mutation, and hydrate currently replaces the store without a revision or dirty guard.
+  startupController.hydrate(storage);
+
+  assert.equal(startupStore.getState().surfaces[liveSurfaceId], undefined);
+  assert.ok(startupStore.getState().surfaces[persistedSurfaceId]);
+  assert.deepEqual(startupStore.getState().surfaceOrder, [persistedSurfaceId]);
+});
+
 test("session-only surfaces do not restore disconnected tabs after reload", () => {
   const storage = new MemoryStorage();
   const registry = createRegistry();

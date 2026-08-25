@@ -22,7 +22,7 @@ export function ArtifactSurface({ surface }: WorkspaceSurfaceProps<ArtifactSurfa
     artifacts.getRevision.bind(artifacts),
     () => 0,
   );
-  const artifact = artifacts.getArtifact(surface.params.artifactId);
+  const artifact = artifacts.getArtifact({ id: surface.params.artifactId, scope: surface.scope });
   const [mode, setMode] = useState<"rendered" | "source">("rendered");
 
   if (!artifact) {

@@ -23,9 +23,10 @@ export function ArtifactRuntimeBridge() {
           return false;
         }
         const title = toolStringArg(part.args, "title", "name") ?? artifactId;
+        const scope = { type: "thread", key: context.threadId } as const;
         artifactPreviewService.upsertArtifact({
           id: artifactId,
-          threadId: context.threadId,
+          scope,
           title,
           rendererKind: "unknown",
           content: toolResultText(part.result),
@@ -36,7 +37,7 @@ export function ArtifactRuntimeBridge() {
           title,
           params: { artifactId },
           context,
-          scope: { type: "thread", key: context.threadId },
+          scope,
           status: "ready",
           policy: "background",
         });

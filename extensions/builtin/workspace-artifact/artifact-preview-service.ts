@@ -1,3 +1,5 @@
+import type { WorkspaceScope } from "@/platform/extensions/authoring";
+
 export type ArtifactRendererKind =
   | "markdown"
   | "code"
@@ -10,7 +12,7 @@ export type ArtifactRendererKind =
 
 export interface ArtifactDescriptor {
   id: string;
-  threadId?: string;
+  scope: WorkspaceScope;
   title: string;
   mimeType?: string;
   rendererKind: ArtifactRendererKind;
@@ -19,8 +21,10 @@ export interface ArtifactDescriptor {
   updatedAt: number;
 }
 
+export type ArtifactKey = Pick<ArtifactDescriptor, "id" | "scope">;
+
 export interface ArtifactPreviewService {
-  getArtifact(artifactId: string): ArtifactDescriptor | undefined;
+  getArtifact(key: ArtifactKey): ArtifactDescriptor | undefined;
   upsertArtifact(artifact: ArtifactDescriptor): void;
   subscribe(listener: () => void): () => void;
   getRevision(): number;
@@ -31,12 +35,15 @@ export class MemoryArtifactPreviewService implements ArtifactPreviewService {
   readonly #listeners = new Set<() => void>();
   #revision = 0;
 
-  getArtifact(artifactId: string): ArtifactDescriptor | undefined {
-    return this.#artifacts.get(artifactId);
+  getArtifact(key: ArtifactKey): ArtifactDescriptor | undefined {
+    return this.#artifacts.get(toArtifactStorageKey(key));
   }
 
   upsertArtifact(artifact: ArtifactDescriptor): void {
-    this.#artifacts.set(artifact.id, { ...artifact });
+    this.#artifacts.set(toArtifactStorageKey(artifact), {
+      ...artifact,
+      scope: { ...artifact.scope },
+    });
     this.#revision += 1;
     for (const listener of this.#listeners) listener();
   }
@@ -49,6 +56,10 @@ export class MemoryArtifactPreviewService implements ArtifactPreviewService {
   getRevision(): number {
     return this.#revision;
   }
+}
+
+function toArtifactStorageKey({ id, scope }: ArtifactKey): string {
+  return JSON.stringify([scope.type, scope.key, id]);
 }
 
 export const artifactPreviewService = new MemoryArtifactPreviewService();

@@ -11,6 +11,7 @@
     "electron:dev": "electron .",
     "electron:pack": "pnpm build && node electron/prepare-package.cjs && electron-builder --dir",
     "electron:dist": "pnpm build && node electron/prepare-package.cjs && electron-builder",
+    "bench:pi-history": "node --no-warnings=ExperimentalWarning --import ./scripts/register-typescript-test-loader.mjs runtime/pi/server/sessions/session-history.benchmark.ts",
     "prebuild": "pnpm icons:sync && pnpm file-viewer:sync",
     "build": "next build",
     "start": "tsx server.ts",
