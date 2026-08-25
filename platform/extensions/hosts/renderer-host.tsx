@@ -12,6 +12,7 @@ import type {
   DataRendererComponent,
   ToolPresentationDefinition,
   ToolRendererComponent,
+  MessagePartRendererContribution,
 } from "../api/renderer";
 import { useExtensionEnvironment } from "../extension-context";
 import { ExtensionErrorBoundary } from "./extension-error-boundary";
@@ -28,6 +29,9 @@ const EMPTY_DATA_PRESENTATIONS = Object.freeze(Object.create(null)) as Readonly<
 const EMPTY_TOOL_PRESENTATIONS = Object.freeze(Object.create(null)) as Readonly<
   Record<string, ToolPresentationDefinition>
 >;
+const EMPTY_PART_RENDERERS = Object.freeze(
+  [],
+) as readonly Readonly<MessagePartRendererContribution>[];
 
 export function MessageRendererHost({ fallback = null }: { fallback?: ReactNode }) {
   const { manager, reportError } = useExtensionEnvironment();
@@ -49,6 +53,67 @@ export function MessageRendererHost({ fallback = null }: { fallback?: ReactNode 
       fallback={fallback}
     >
       <MessageRenderer />
+    </ExtensionErrorBoundary>
+  );
+}
+
+export function useMessagePartRenderers(): readonly Readonly<MessagePartRendererContribution>[] {
+  const { manager } = useExtensionEnvironment();
+  return useSyncExternalStore(
+    manager.renderers.parts.subscribe,
+    () => manager.renderers.parts.getAll(),
+    () => EMPTY_PART_RENDERERS,
+  );
+}
+
+export function MessagePartRendererHost({
+  part,
+  fallback = null,
+}: {
+  part: EnrichedPartState;
+  fallback?: ReactNode;
+}) {
+  const renderers = useMessagePartRenderers();
+  const { reportError } = useExtensionEnvironment();
+
+  return (
+    <ExtensionErrorBoundary
+      key={JSON.stringify(renderers.map((renderer) => renderer.id))}
+      contributionId="message-part-renderer.match"
+      source="renderer"
+      onError={reportError}
+      resetKey={part}
+      fallback={fallback}
+    >
+      <MatchedMessagePartRenderer part={part} renderers={renderers} fallback={fallback} />
+    </ExtensionErrorBoundary>
+  );
+}
+
+function MatchedMessagePartRenderer({
+  part,
+  renderers,
+  fallback,
+}: {
+  part: EnrichedPartState;
+  renderers: readonly Readonly<MessagePartRendererContribution>[];
+  fallback: ReactNode;
+}) {
+  const { reportError } = useExtensionEnvironment();
+  const contribution = renderers.find((renderer) => renderer.canRender(part));
+
+  if (!contribution) return fallback;
+  const PartRenderer = contribution.component;
+
+  return (
+    <ExtensionErrorBoundary
+      contributionId={contribution.id}
+      source="renderer"
+      onError={reportError}
+      resetKey={part}
+      fallback={fallback}
+    >
+      <PartRenderer part={part} />
     </ExtensionErrorBoundary>
   );
 }

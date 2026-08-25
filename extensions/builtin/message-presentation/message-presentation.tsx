@@ -16,7 +16,11 @@ import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { ScrollCompensatedDetails } from "@/components/elements/scroll-compensated-details";
 import { useI18n } from "@/i18n";
-import { RendererHost, useDataPresentationMap } from "@/platform/extensions";
+import {
+  MessagePartRendererHost,
+  RendererHost,
+  useDataPresentationMap,
+} from "@/platform/extensions";
 import { readPiTurnTiming, resolvePiTurnDuration } from "@/runtime/pi/client/messages/turn-timing";
 import { parsePiMessageTermination } from "@/runtime/pi/message-termination";
 import { WorkbenchComposerMessageText } from "@/workbench/chat/composer-message-text";
@@ -177,12 +181,18 @@ export function WorkbenchMessagePresentation() {
                 </MessageToolTimeline>
               );
             }
-            case "text":
+            case "text": {
               if (part.status.type === "running" && part.text === "") return null;
               if (messageTextPresentation(messageRole) === "composer") {
                 return <WorkbenchComposerMessageText text={part.text} />;
               }
-              return <MarkdownText />;
+              const fallback = <MarkdownText />;
+              return messageRole === "assistant" ? (
+                <MessagePartRendererHost part={part} fallback={fallback} />
+              ) : (
+                fallback
+              );
+            }
             case "reasoning":
               return null;
             case "image":
@@ -250,8 +260,8 @@ export function WorkbenchMessagePresentation() {
                 : `data:audio/${part.audio.format};base64,${part.audio.data}`;
               return <audio controls src={source} className="my-2 max-w-full" />;
             }
-            case "generative-ui":
-              return (
+            case "generative-ui": {
+              const fallback = (
                 <MessageDataFallback
                   type="data"
                   name="generative-ui"
@@ -259,6 +269,8 @@ export function WorkbenchMessagePresentation() {
                   status={part.status}
                 />
               );
+              return <MessagePartRendererHost part={part} fallback={fallback} />;
+            }
             default:
               return null;
           }

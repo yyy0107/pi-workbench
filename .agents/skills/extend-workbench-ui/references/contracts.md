@@ -80,6 +80,15 @@ interface WorkbenchExtension {
 These extensions are trusted, in-process, statically bundled contribution containers. They are not
 third-party plugins and do not imply an Extension Host, permissions, or a stable external ABI.
 
+Distribution is separate from the contribution lifecycle. Fixed product capabilities live in
+`extensions/builtin/` and enter `builtinExtensions`. User-installable component bundles live in
+`extensions/installable/`, declare `toolbox.distribution: "installable"`, and enter the static
+`installableComponentExtensions` catalog. The application persists whether each catalog entry is
+installed and passes only installed entries to `ExtensionProvider`; uninstalling therefore invokes
+normal ExtensionManager deactivation and disposes every owned contribution. Catalog code remains
+statically bundled for safe reinstallation—there is no filesystem discovery or arbitrary runtime
+JavaScript loading.
+
 Define extension objects at module scope. ExtensionProvider compares object identity when synchronizing the static array.
 
 ## Slot contract
@@ -619,7 +628,10 @@ Data renderer name    unique within Data RendererRegistry
 Workspace surface kind global within WorkspaceSurfaceRegistry
 ```
 
-Slots and Settings sections/items have numeric ordering. The module-level `enabledExtensions` order determines activation order, same-order ties across extension registrations, conflicting shortcut selection, and command display order within a category.
+Slots and Settings sections/items have numeric ordering. The combined active extension order
+(`builtinExtensions`, then installed entries from `installableComponentExtensions`) determines
+activation order, same-order ties across extension registrations, conflicting shortcut selection,
+and command display order within a category.
 
 Slot, Panel, Command, Open Handler, Settings, Main View, and Workspace Surface definitions are copied and shallow-frozen at registration. Dispose and register a replacement instead of mutating registered data.
 

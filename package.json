@@ -25,6 +25,7 @@
   "dependencies": {
     "@assistant-ui/next": "latest",
     "@assistant-ui/react": "latest",
+    "@assistant-ui/react-generative-ui": "^0.0.15",
     "@assistant-ui/react-lexical": "0.2.9",
     "@assistant-ui/react-markdown": "latest",
     "@assistant-ui/react-streamdown": "^0.3.11",

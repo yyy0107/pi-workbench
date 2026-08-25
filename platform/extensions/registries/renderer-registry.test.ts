@@ -3,13 +3,27 @@ import test from "node:test";
 
 import { WrenchIcon } from "lucide-react";
 
-import type { DataPresentationDefinition, ToolPresentationDefinition } from "../api/renderer";
+import type {
+  DataPresentationDefinition,
+  MessagePartRendererContribution,
+  ToolPresentationDefinition,
+} from "../api/renderer";
 import { ExtensionManager } from "../extension-manager";
 import { RendererRegistryImpl } from "./renderer-registry";
 
 function DisclosureController() {
   return null;
 }
+
+function PartRenderer() {
+  return null;
+}
+
+const partRenderer = {
+  id: "workbench.test-part-renderer",
+  canRender: (part) => part.type === "text",
+  component: PartRenderer,
+} satisfies MessagePartRendererContribution;
 
 const presentation = {
   label: "Used",
@@ -109,4 +123,59 @@ test("data presentations publish stable frozen snapshots and follow extension li
 
   activation.dispose();
   assert.equal(manager.renderers.dataPresentations.get("custom.data"), undefined);
+});
+
+test("message part renderers publish ordered frozen snapshots and dispose independently", () => {
+  const registry = new RendererRegistryImpl().parts;
+  const emptySnapshot = registry.getAll();
+  let changes = 0;
+  const unsubscribe = registry.subscribe(() => {
+    changes += 1;
+  });
+
+  const firstDisposable = registry.register(partRenderer);
+  const secondDisposable = registry.register({
+    ...partRenderer,
+    id: "workbench.test-part-renderer-second",
+  });
+  const populatedSnapshot = registry.getAll();
+
+  assert.equal(Object.isFrozen(populatedSnapshot), true);
+  assert.equal(Object.isFrozen(populatedSnapshot[0]), true);
+  assert.notEqual(populatedSnapshot, emptySnapshot);
+  assert.deepEqual(
+    populatedSnapshot.map((contribution) => contribution.id),
+    ["workbench.test-part-renderer", "workbench.test-part-renderer-second"],
+  );
+  assert.equal(registry.getAll(), populatedSnapshot);
+  assert.equal(changes, 2);
+  assert.throws(() => registry.register(partRenderer), /already registered/);
+  assert.throws(() => registry.register({ ...partRenderer, id: "  " }), /non-empty string/);
+
+  firstDisposable.dispose();
+  assert.deepEqual(
+    registry.getAll().map((contribution) => contribution.id),
+    ["workbench.test-part-renderer-second"],
+  );
+  secondDisposable.dispose();
+  assert.deepEqual(registry.getAll(), []);
+  assert.equal(changes, 4);
+  unsubscribe();
+});
+
+test("extension lifecycle tracks message part renderer registrations", () => {
+  const manager = new ExtensionManager();
+  const activation = manager.activate({
+    id: "workbench.test-part-renderer-extension",
+    name: "Message Part Renderer Test",
+    version: "1.0.0",
+    setup(context) {
+      return context.renderers.parts.register(partRenderer);
+    },
+  });
+
+  assert.equal(manager.renderers.parts.getAll()[0]?.id, partRenderer.id);
+
+  activation.dispose();
+  assert.deepEqual(manager.renderers.parts.getAll(), []);
 });

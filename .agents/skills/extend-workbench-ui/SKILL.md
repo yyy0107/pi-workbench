@@ -1,6 +1,6 @@
 ---
 name: extend-workbench-ui
-description: Builds, modifies, and reviews Pi Workbench frontend extensions using this repository's static Slot, Panel, Command, Opener, Renderer, Settings, and Workspace Surface platform, including its boundaries with the Inspector RightWorkspace and Pi runtime. Use when adding Workbench UI features, extension components, composer/header/sidebar/statusbar/workspace contributions, inspector surfaces, resource open handlers, panels, settings sections or items, command-palette actions or shortcuts, assistant-ui tool/data renderers, enabledExtensions entries, or when deciding whether a frontend change belongs in an extension versus app, workbench, RightWorkspace, runtime, or backend core.
+description: Builds, modifies, and reviews Pi Workbench frontend extensions using this repository's static Slot, Panel, Command, Opener, Renderer, Settings, and Workspace Surface platform, including its boundaries with the Inspector RightWorkspace and Pi runtime. Use when adding Workbench UI features, extension components, composer/header/sidebar/statusbar/workspace contributions, inspector surfaces, resource open handlers, panels, settings sections or items, command-palette actions or shortcuts, assistant-ui tool/data renderers, builtinExtensions or installableComponentExtensions entries, or when deciding whether a frontend change belongs in an extension versus app, workbench, RightWorkspace, runtime, or backend core.
 ---
 
 # Extend Workbench UI
@@ -43,6 +43,7 @@ Modify core layers instead when the task changes:
 - shell structure, responsive layout, or a new insertion contract: `workbench/`;
 - Inspector tab lifecycle, generic persistence, status, or feedback host: `components/right-workspace/`;
 - a feature-owned inspector Surface, menu item, Runtime bridge, or single-feature domain service: `extensions/builtin/<feature>/`;
+- a user-installable, statically trusted component contribution bundle: `extensions/installable/<feature>/`;
 - a capability consumed by multiple contributions: promote its contract/adapter to `services/` or the appropriate `runtime/` layer;
 - assistant runtime, persistence, transport, or adapters: `runtime/`;
 - shared UI primitives: `components/ui/`;
@@ -71,7 +72,7 @@ When no existing Slot fits, add a typed host Slot first, then register the featu
 
 ### 2. Create a cohesive feature directory
 
-Prefer this layout and omit files the feature does not need:
+Prefer this layout for fixed Workbench features and omit files the feature does not need:
 
 ```text
 extensions/builtin/<feature>/
@@ -82,6 +83,11 @@ extensions/builtin/<feature>/
 ├── <feature>-renderer.tsx
 └── index.ts
 ```
+
+For a component extension that users can uninstall, use the same internal layout under
+`extensions/installable/<feature>/`, declare `toolbox.distribution: "installable"`, and add the
+stable extension object to `installableComponentExtensions`. Do not place an uninstallable feature
+under `extensions/builtin/`.
 
 Add `"use client"` only to components or modules that use React hooks, events, browser APIs, or client-only assistant-ui hooks. Keep registration definitions free of render-time side effects.
 
@@ -111,11 +117,18 @@ export const exampleExtension = defineExtension({
 
 Keep `setup()` synchronous. Do not call React hooks in it. Return every custom event listener, timer, subscription, or other external resource as a `Disposable`. Registry registrations are tracked automatically, but return them explicitly to make lifecycle ownership clear.
 
-### 4. Enable statically
+### 4. Add to the correct static catalog
 
-Export the feature from its local `index.ts`, import it in `extensions/enabled-extensions.ts`, and add it to the module-level `enabledExtensions` array.
+Export a fixed Workbench feature from its local `index.ts`, import it in
+`extensions/enabled-extensions.ts`, and add it to the module-level `builtinExtensions` array. Export
+an uninstallable component extension from `extensions/installable/<feature>/` and add it to
+`installableComponentExtensions` in `extensions/installable-extensions.ts`; its persisted
+installation state determines whether Workbench includes it in the active ExtensionProvider list.
 
-Keep extension objects and the array reference stable. Do not add directory scanning, remote URL imports, arbitrary JavaScript loading, or runtime route registration.
+Keep extension objects and catalog array references stable. Installation and uninstallation only
+change the application registry and active contributions; the trusted code remains statically
+bundled so it can be reinstalled. Do not add directory scanning, remote URL imports, arbitrary
+JavaScript loading, or runtime route registration.
 
 ### 5. Validate proportionally
 
@@ -133,6 +146,9 @@ When changing Pi transport or session behavior, also run the Pi tests documented
 ## Enforce the guardrails
 
 - Import extension contracts and hooks from `@/platform/extensions`; do not import registry or host internals.
+- Keep uninstallable component extensions under `extensions/installable/`, never `extensions/builtin/`.
+- Keep Toolbox component placement previews as a faithful, proportionally scaled reproduction of the current Workbench panorama (sidebar, header, conversation, composer, RightWorkspace, status bar, panels, and global overlays). Reuse the same design tokens and surface hierarchy, and highlight the exact typed target as a non-layout overlay instead of falling back to an abstract empty-box diagram.
+- In message placement previews, render concrete system, user, and assistant examples plus representative visible Part states (text, reasoning, tool, data, source, attachment, audio, generative UI, and error). Give `message.before`, `message.actions`, and `message.after` labeled role-specific examples while active so a valid message Slot never collapses into an invisible strip.
 - Never deep-import a sibling `extensions/builtin/<feature>`; collaborate through a public Registry, Renderer, Command, Opener, or promoted Service.
 - Register component types, not pre-created React nodes.
 - Never call `register()` during React render.

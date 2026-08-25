@@ -23,7 +23,7 @@
 一个扩展由 `defineExtension()` 定义，并在 `setup(context)` 中注册一个或多个贡献：
 
 ```text
-enabledExtensions
+activeExtensions = builtinExtensions + 已安装的 installableComponentExtensions
   -> ExtensionProvider
     -> extension.setup(context)
       -> Slot / Panel / Command / Composer Command / Renderer / Settings / Main View / Workspace Surface / Opener Registry
@@ -68,6 +68,16 @@ extensions/builtin/notes/
 └── index.ts
 ```
 
+目录表达分发语义，而不是贡献类型：
+
+- `extensions/builtin/<feature>/`：Workbench 固定内建、用户不可卸载；
+- `extensions/installable/<feature>/`：静态受信任目录中的可安装组件拓展，安装状态决定是否交给
+  `ExtensionProvider` 激活。
+
+两类扩展使用完全相同的 Slot、Renderer、Panel 等贡献契约。`installable` 仍然随应用静态构建，
+不表示允许从远程 URL 执行任意 JavaScript；“卸载”移除的是应用安装注册表和活动贡献，静态目录
+项保留，因此用户可以重新安装。
+
 最小扩展只有一个 `extension.ts`：
 
 ```ts
@@ -89,6 +99,21 @@ export const exampleExtension = defineExtension({
 - `id`：扩展全局唯一，推荐使用 `workbench.<feature>` 命名。
 - `name`：供日志和开发工具识别的人类可读名称。
 - `version`：当前只作为元数据，推荐从 `1.0.0` 开始。
+- `toolbox`：可选的本地化能力目录元数据；当前需要显式声明
+  `kind: "component-extension"`，组件拓展目录会出现在工具箱独立的“组件拓展”列表中，而不会混入
+  Pi 扩展。`distribution` 明确声明它是不可卸载的 `builtin`，还是进入应用安装注册表的
+  `installable`。`contributions` 为该能力拥有的所有组件插入点；每项都要声明实际贡献 id、贡献类型、
+  Slot/Registry target、最终挂载 Host（如适用）、本地化位置说明和复用真实样式的 Preview
+  组件。`entryFile` 声明扩展注册入口，每项贡献的非空 `sourceFiles` 声明主要 React 组件、样式和
+  相关实现文件，工具箱会以可复制的项目相对路径显示。Slot target 受 `WorkbenchSlot` 约束，
+  Panel target 受 `PanelLocation` 约束，使工具箱项目全景可以在当前 Workbench 实际布局中高亮
+  真实宿主区域。位置预览应按比例完整复刻 Workbench Shell 的侧栏、顶部栏、对话、输入区、
+  RightWorkspace、面板、浮层和状态栏，复用同一设计变量和 Surface 层级；高亮只能作为不影响布局的
+  覆盖层，不能退化为空白区域组成的抽象框线图。消息位置还必须同时提供系统、用户、助手消息以及
+  文本、推理、工具、数据、来源、附件、音频、生成式 UI 和错误状态示例；激活
+  `message.before`、`message.actions` 或 `message.after` 时，要显示带消息角色的可见示例，不能只留
+  一条没有内容的高亮细线。卸载
+  `installable` 扩展时，其活动贡献立即移除，而静态目录项保留为“已卸载”状态以支持重新安装。
 - `setup`：只做注册和必要的资源初始化，不在模块顶层产生副作用。
 
 `setup()` 可以返回 `void`、一个 `Disposable`，或 `Disposable[]`。ExtensionProvider 卸载、热更新或替换扩展时，会按反向顺序清理资源。
@@ -98,6 +123,12 @@ export const exampleExtension = defineExtension({
 通过 `context.slots/panels/commands/openers/composerCommands/renderers/settings/mainViews/workspace` 创建的 Disposable 会被 Manager 追踪。仍建议显式返回它们；额外创建的事件监听、计时器或订阅则必须包装成 Disposable 并返回。
 
 `defineExtension()` 是保留字面量类型的 identity helper，真正的运行时校验和激活由 ExtensionManager 完成。扩展对象应定义在模块顶层并保持引用稳定；不要在 React render 中临时创建新的扩展对象或 `extensions` 数组，否则相同 id 也会因对象引用变化而先停用再激活。
+
+“组件拓展”是所有可承载 React UI 的前端贡献目录，不等同于某一种 Renderer。当前元数据支持
+`slot`、`panel`、`message-renderer`、`message-part-renderer`、`tool-renderer`、
+`data-renderer`、`settings-section`、`settings-item`、`main-view` 和
+`workspace-surface`。Command、Opener 等没有直接组件挂载点的行为契约不应伪装成组件插入点；
+它们继续使用各自的扩展 API。
 
 ## 3. 完整教程：Notes 扩展
 
@@ -306,13 +337,15 @@ import type { WorkbenchExtension } from "@/platform/extensions";
 import { notesExtension } from "./builtin/notes";
 // 其他内置扩展 import...
 
-export const enabledExtensions = [
+export const builtinExtensions = [
   // 其他内置扩展...
   notesExtension,
 ] satisfies readonly WorkbenchExtension[];
 ```
 
-完成后，ExtensionProvider 会在客户端激活它。不要增加目录扫描、运行时文件发现或远程 `import()`。
+完成后，Workbench 会把 `builtinExtensions` 与当前已安装的
+`installableComponentExtensions` 合成为稳定的活动列表，再由 ExtensionProvider 在客户端激活。
+不要增加目录扫描、运行时文件发现或远程 `import()`。
 
 数组顺序就是激活顺序，也会影响相同 Slot `order` 时的先后、冲突快捷键的匹配顺序，以及 Command Palette 中同组命令的显示顺序。保持数组为模块级稳定常量。若需要让其他模块直接导入该扩展，可再从 `extensions/index.ts` 选择性导出。
 
@@ -895,9 +928,34 @@ const messageRenderer = context.renderers.message.register({
 ```
 
 同一时间只能启用一个 Message Renderer；重复注册会在 setup 阶段失败并回滚该扩展。
-卸载它后，Workbench 会恢复最小安全 fallback。Tool/Data Renderer 是可叠加的精确名称贡献，
+卸载它后，Workbench 会恢复最小安全 fallback。Part/Tool/Data Renderer 是可叠加的叶子贡献，
 通常由提供对应能力的扩展注册，例如 Terminal 扩展同时注册 Workspace Surface、Command 和 `bash`
 Tool Renderer。这样卸载能力扩展时，其入口和工具呈现会一起消失。
+
+### Part Renderer：按消息 Part 谓词扩展
+
+当能力无法用 `toolName` 或 `data.name` 表达，但又不应接管整条消息时，使用
+`context.renderers.parts` 注册叶子 renderer。当前 Message Renderer 和最小安全 fallback 都应在
+对应 Part 分支挂载 `MessagePartRendererHost`，并传入原有展示作为 `fallback`：
+
+```tsx
+const fallback = <MarkdownText />;
+return <MessagePartRendererHost part={part} fallback={fallback} />;
+```
+
+扩展注册贡献：
+
+```ts
+const structuredTextRenderer = context.renderers.parts.register({
+  id: "workbench.structured-text.renderer",
+  canRender: (part) => part.type === "text" && isStructuredText(part.text),
+  component: StructuredTextRenderer,
+});
+```
+
+`canRender` 在 React render 期间运行，必须是纯函数并容忍 streaming 中的不完整 Part。多个贡献
+同时命中时，注册顺序靠前者优先；贡献 id 必须唯一。停用扩展会注销贡献，Host 随即恢复调用方
+提供的 fallback。
 
 ### Tool Renderer
 
@@ -986,7 +1044,8 @@ const citationRenderer = context.renderers.data.register("citation", CitationRen
 
 ### Renderer 匹配与优先顺序
 
-Message Renderer 全局唯一；Tool 和 Data Renderer 各自按名称唯一。三者都没有 `order` 或 `priority` 字段。
+Message Renderer 全局唯一；Part Renderer 按贡献 id 唯一并按注册顺序匹配；Tool 和 Data Renderer
+各自按名称唯一。这些 Registry 都没有 `order` 或 `priority` 字段。
 
 `RendererHost` 的解析顺序固定为：
 
@@ -1100,6 +1159,8 @@ Slot、Panel、Command 定义在注册时会被复制并浅冻结。注册后不
 - 不要在扩展中注册 Next.js 路由。
 - 不要从业务扩展 import Registry 或 Host 的内部实现。
 - 不要从一个 `extensions/builtin/<feature>` 深层 import 另一个 feature；通过公开 Registry、Service 或 Renderer 协作。
+- 不要把可卸载组件拓展放进 `extensions/builtin/`；放入 `extensions/installable/` 并加入
+  `installableComponentExtensions` 静态目录。
 - 不要在 React render 期间调用 `register()`。
 - 不要在 `setup()` 中调用 React Hook；`setup()` 不是组件。
 - 不要把 ReactNode 作为 Slot 注册值；应注册组件类型。

@@ -1,6 +1,21 @@
 import type { MessageFormatters } from "@/i18n/types";
 
 export const extensionsZhCN = {
+  generativeUi: {
+    name: "生成式 UI",
+    description: "渲染 AI 消息中经过组件白名单校验的生成式 UI 组件树。",
+    placement: {
+      surface: "AI 消息内的单个文本或生成式 UI Part",
+      description:
+        "当消息 Part 包含完整且通过白名单校验的组件树时，仅替换这个叶子 Part；未命中的内容继续使用原消息渲染器。",
+    },
+    preview: {
+      title: "结构化回复",
+      caption: "AI 消息组件",
+      body: "此预览与消息中的实际组件共用同一组件库、主题变量和作用域样式。",
+      action: "预览",
+    },
+  },
   shared: {
     panelsCategory: "面板",
     fileTree: {

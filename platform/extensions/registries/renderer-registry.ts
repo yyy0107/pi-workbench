@@ -2,6 +2,8 @@ import type {
   DataPresentationDefinition,
   DataPresentationRegistry,
   DataRendererComponent,
+  MessagePartRendererContribution,
+  MessagePartRendererRegistry,
   MessageRendererContribution,
   MessageRendererRegistry,
   NamedRendererRegistry,
@@ -14,6 +16,9 @@ import { createDisposable } from "../api/disposable";
 import { assertNonEmptyId, emitRegistryChange } from "./registry-utils";
 
 const EMPTY_COMPONENT_MAP = Object.freeze(Object.create(null));
+const EMPTY_PART_RENDERERS = Object.freeze(
+  [],
+) as readonly Readonly<MessagePartRendererContribution>[];
 
 class NamedRendererRegistryImpl<TComponent> implements NamedRendererRegistry<TComponent> {
   readonly #kind: string;
@@ -95,6 +100,43 @@ class MessageRendererRegistryImpl implements MessageRendererRegistry {
   };
 }
 
+class MessagePartRendererRegistryImpl implements MessagePartRendererRegistry {
+  readonly #contributions = new Map<string, Readonly<MessagePartRendererContribution>>();
+  readonly #listeners = new Set<() => void>();
+  #snapshot = EMPTY_PART_RENDERERS;
+
+  register(contribution: MessagePartRendererContribution) {
+    assertNonEmptyId(contribution.id, "Message part renderer id");
+    if (this.#contributions.has(contribution.id)) {
+      throw new Error(`Message part renderer "${contribution.id}" is already registered`);
+    }
+
+    const registered = Object.freeze({ ...contribution });
+    this.#contributions.set(registered.id, registered);
+    this.#updateSnapshot();
+
+    return createDisposable(() => {
+      if (this.#contributions.get(registered.id) !== registered) return;
+      this.#contributions.delete(registered.id);
+      this.#updateSnapshot();
+    });
+  }
+
+  getAll(): readonly Readonly<MessagePartRendererContribution>[] {
+    return this.#snapshot;
+  }
+
+  readonly subscribe = (listener: () => void): (() => void) => {
+    this.#listeners.add(listener);
+    return () => this.#listeners.delete(listener);
+  };
+
+  #updateSnapshot(): void {
+    this.#snapshot = Object.freeze(Array.from(this.#contributions.values()));
+    emitRegistryChange(this.#listeners);
+  }
+}
+
 class NamedPresentationRegistryImpl<TPresentation extends object> {
   readonly #kind: string;
   readonly #presentations = new Map<string, Readonly<TPresentation>>();
@@ -145,6 +187,7 @@ class NamedPresentationRegistryImpl<TPresentation extends object> {
 
 export class RendererRegistryImpl implements RendererRegistry {
   readonly message: MessageRendererRegistry = new MessageRendererRegistryImpl();
+  readonly parts: MessagePartRendererRegistry = new MessagePartRendererRegistryImpl();
   readonly tools: NamedRendererRegistry<ToolRendererComponent> =
     new NamedRendererRegistryImpl<ToolRendererComponent>("Tool");
   readonly data: NamedRendererRegistry<DataRendererComponent> =

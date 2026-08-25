@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext } from "react";
+import { createContext, useContext, useSyncExternalStore } from "react";
 
 import type { CommandService } from "@/services/command-service";
 import type { NavigationService } from "@/services/navigation-service";
@@ -14,6 +14,9 @@ import type { OpenerRegistry } from "./api/opener";
 import type { WorkspaceSurfaceRegistry } from "./api/workspace-surface";
 
 import type { ExtensionManager } from "./extension-manager";
+import type { WorkbenchExtension } from "./api/extension";
+
+const EMPTY_WORKBENCH_EXTENSIONS = Object.freeze([]) as readonly WorkbenchExtension[];
 
 export type ExtensionErrorSource =
   | "command"
@@ -57,6 +60,16 @@ export function useExtensionEnvironment(): ExtensionEnvironment {
 
 export function useExtensionManager(): ExtensionManager {
   return useExtensionEnvironment().manager;
+}
+
+/** 返回当前活动扩展的稳定快照，供工具箱等通用 Host 构建能力目录。 */
+export function useWorkbenchExtensions(): readonly WorkbenchExtension[] {
+  const manager = useExtensionManager();
+  return useSyncExternalStore(
+    manager.subscribe,
+    () => manager.getExtensions(),
+    () => EMPTY_WORKBENCH_EXTENSIONS,
+  );
 }
 
 export function usePanelService(): PanelService {

@@ -8,7 +8,7 @@ import { File } from "@/components/assistant-ui/file";
 import { Image } from "@/components/assistant-ui/image";
 import { ScrollCompensatedDetails } from "@/components/elements/scroll-compensated-details";
 import { useI18n } from "@/i18n";
-import { MessageRendererHost, RendererHost } from "@/platform/extensions";
+import { MessagePartRendererHost, MessageRendererHost, RendererHost } from "@/platform/extensions";
 
 import { WorkbenchComposerMessageText } from "./composer-message-text";
 
@@ -63,7 +63,8 @@ function DefaultWorkbenchMessageParts() {
 
             if (role === "user") return <WorkbenchComposerMessageText text={part.text} />;
 
-            return <p className="whitespace-pre-wrap">{part.text}</p>;
+            const fallback = <p className="whitespace-pre-wrap">{part.text}</p>;
+            return <MessagePartRendererHost part={part} fallback={fallback} />;
           }
           case "reasoning":
             return (
@@ -107,8 +108,8 @@ function DefaultWorkbenchMessageParts() {
               : `data:audio/${part.audio.format};base64,${part.audio.data}`;
             return <audio controls src={source} className="my-2 max-w-full" />;
           }
-          case "generative-ui":
-            return (
+          case "generative-ui": {
+            const fallback = (
               <DefaultDataFallback
                 type="data"
                 name="generative-ui"
@@ -116,6 +117,8 @@ function DefaultWorkbenchMessageParts() {
                 status={part.status}
               />
             );
+            return <MessagePartRendererHost part={part} fallback={fallback} />;
+          }
           default:
             return null;
         }

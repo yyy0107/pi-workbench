@@ -1,9 +1,10 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 
 import { RightWorkspaceProvider, WorkspaceSurfaceRuntimeHost } from "@/components/right-workspace";
-import { enabledExtensions } from "@/extensions/enabled-extensions";
+import { useInstalledComponentExtensions } from "@/extensions/component-extension-installation";
+import { builtinExtensions } from "@/extensions/enabled-extensions";
 import {
   ExtensionProvider,
   useOpenerRegistry,
@@ -27,8 +28,14 @@ function RightWorkspaceProviders({ children }: Readonly<{ children: ReactNode }>
 }
 
 export function WorkbenchProviders({ children }: Readonly<{ children: ReactNode }>) {
+  const installedComponentExtensions = useInstalledComponentExtensions();
+  const activeExtensions = useMemo(
+    () => [...builtinExtensions, ...installedComponentExtensions],
+    [installedComponentExtensions],
+  );
+
   return (
-    <ExtensionProvider extensions={enabledExtensions}>
+    <ExtensionProvider extensions={activeExtensions}>
       <RightWorkspaceProviders>{children}</RightWorkspaceProviders>
     </ExtensionProvider>
   );

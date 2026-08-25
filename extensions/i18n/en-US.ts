@@ -1,6 +1,22 @@
 import type { MessageFormatters } from "@/i18n/types";
 
 export const extensionsEnUS = {
+  generativeUi: {
+    name: "Generative UI",
+    description:
+      "Renders allowlisted generative UI component trees embedded in assistant messages.",
+    placement: {
+      surface: "Individual text or generative UI part inside an assistant message",
+      description:
+        "When a message part contains a complete allowlisted component tree, this renderer replaces only that leaf part; unmatched content keeps its original message renderer.",
+    },
+    preview: {
+      title: "Structured response",
+      caption: "Assistant message component",
+      body: "The preview uses the same component library, theme tokens, and scoped styles as the rendered message.",
+      action: "Preview",
+    },
+  },
   shared: {
     panelsCategory: "Panels",
     fileTree: {

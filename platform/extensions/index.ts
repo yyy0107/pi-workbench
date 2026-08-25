@@ -16,4 +16,5 @@ export {
   useNavigationService,
   usePanelService,
   useSettingsRegistry,
+  useWorkbenchExtensions,
 } from "./extension-context";

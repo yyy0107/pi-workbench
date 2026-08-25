@@ -7,6 +7,7 @@ import type { MainViewDefinition, MainViewRegistry } from "./api/main-view";
 import type {
   DataPresentationRegistry,
   DataRendererComponent,
+  MessagePartRendererRegistry,
   MessageRendererRegistry,
   NamedRendererRegistry,
   RendererRegistry,
@@ -197,6 +198,11 @@ export class ExtensionManager implements Disposable {
         get: () => this.renderers.message.get(),
         subscribe: this.renderers.message.subscribe,
       } satisfies MessageRendererRegistry,
+      parts: {
+        register: (contribution) => track(this.renderers.parts.register(contribution)),
+        getAll: () => this.renderers.parts.getAll(),
+        subscribe: this.renderers.parts.subscribe,
+      } satisfies MessagePartRendererRegistry,
       tools: wrapRenderers<ToolRendererComponent>(this.renderers.tools),
       data: wrapRenderers<DataRendererComponent>(this.renderers.data),
       toolPresentations: {

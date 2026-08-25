@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 import type {
   DataMessagePart,
   DataMessagePartComponent,
+  EnrichedPartState,
   ToolCallMessagePart,
   ToolCallMessagePartComponent,
 } from "@assistant-ui/react";
@@ -75,6 +76,43 @@ export interface MessageRendererRegistry {
   register(contribution: MessageRendererContribution): Disposable;
   /** 返回当前冻结贡献；未注册时返回 `undefined`。 */
   get(): MessageRendererContribution | undefined;
+  /** 订阅注册/注销变化并返回取消订阅函数。 */
+  subscribe(listener: () => void): () => void;
+}
+
+/** 单个 assistant-ui 消息 Part 的可叠加扩展 renderer 参数。 */
+export interface MessagePartRendererProps {
+  readonly part: EnrichedPartState;
+}
+
+export type MessagePartRendererComponent = ComponentType<MessagePartRendererProps>;
+
+/**
+ * 可叠加的消息 Part renderer。
+ *
+ * `canRender` 在 React render 期间调用，必须是纯函数、容忍 streaming 中的部分数据，并且不能
+ * 修改 Part。多个贡献同时匹配时，注册顺序靠前的贡献优先。
+ */
+export interface MessagePartRendererContribution {
+  /** 用于生命周期、错误隔离和诊断的非空稳定 id。 */
+  readonly id: string;
+  /** 判断该贡献是否接管当前 Part。 */
+  readonly canRender: (part: EnrichedPartState) => boolean;
+  /** 命中后挂载的组件类型。 */
+  readonly component: MessagePartRendererComponent;
+}
+
+/**
+ * 按注册顺序匹配任意消息 Part 的可订阅 Registry。
+ *
+ * 它用于无法通过 tool/data 协议名称表达的叶子级扩展，例如受约束的结构化文本展示。没有贡献
+ * 命中时，Host 必须回退到调用方已有的消息呈现。
+ */
+export interface MessagePartRendererRegistry {
+  /** 注册贡献并返回撤销注册的 Disposable；重复 id 或空 id 会同步抛错。 */
+  register(contribution: MessagePartRendererContribution): Disposable;
+  /** 返回冻结的注册顺序快照；Registry 变化前引用保持不变。 */
+  getAll(): readonly Readonly<MessagePartRendererContribution>[];
   /** 订阅注册/注销变化并返回取消订阅函数。 */
   subscribe(listener: () => void): () => void;
 }
@@ -165,7 +203,8 @@ export interface DataPresentationRegistry {
 /**
  * 扩展可注册的消息呈现能力集合。
  *
- * `message` 决定整条消息如何遍历和分组；`tools`/`data` 提供可叠加的精确叶子 renderer；
+ * `message` 决定整条消息如何遍历和分组；`parts` 提供按谓词匹配的可叠加叶子 renderer；
+ * `tools`/`data` 提供按协议名称精确匹配的叶子 renderer；
  * `toolPresentations`/`dataPresentations` 为工具和命名 Data Part 提供与具体消息布局解耦的
  * 时间线元数据。
  * 常见能力扩展应把其 Panel、Command、Slot 和相关 Tool/Data Renderer 放在同一 setup 生命周期
@@ -174,6 +213,8 @@ export interface DataPresentationRegistry {
 export interface RendererRegistry {
   /** 全局唯一的整条消息呈现器。 */
   readonly message: MessageRendererRegistry;
+  /** 按注册顺序匹配任意消息 Part 的可叠加 renderer。 */
+  readonly parts: MessagePartRendererRegistry;
   /** 按 `toolName` 精确匹配的 Tool renderer。 */
   readonly tools: NamedRendererRegistry<ToolRendererComponent>;
   /** 按 `data.name` 精确匹配的 Data renderer。 */

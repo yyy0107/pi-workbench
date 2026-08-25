@@ -27,7 +27,8 @@ import { workspaceExplorerExtension } from "./builtin/workspace-explorer";
 import { workspaceFileExtension } from "./builtin/workspace-file";
 import { workspaceReviewExtension } from "./builtin/workspace-review";
 
-export const enabledExtensions = [
+/** 随 Workbench 固定启用、不可由用户卸载的内建扩展。 */
+export const builtinExtensions = [
   workbenchBrandExtension,
   workspaceDirectoryPickerExtension,
   settingsExtension,

@@ -6,4 +6,5 @@ export { modelSelectorExtension } from "./builtin/model-selector";
 export { skillsExtension } from "./builtin/skills";
 export { terminalExtension } from "./builtin/terminal";
 export { tokenUsageExtension } from "./builtin/token-usage";
-export { enabledExtensions } from "./enabled-extensions";
+export { builtinExtensions } from "./enabled-extensions";
+export { installableComponentExtensions } from "./installable-extensions";
