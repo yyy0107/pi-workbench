@@ -187,7 +187,7 @@ export function extensionSurfaceParams(extension: ExtensionView): ToolboxCapabil
   return {
     capabilityId: extensionCapabilityId(extension),
     capabilityKind: "extension",
-    name: extension.name,
+    name: packageName ?? extension.name,
     filePath: extension.filePath,
     source: extension.source,
     scope: extension.scope,

@@ -106,6 +106,26 @@ test("preserves the loaded Pi extension path for the details header", () => {
   assert.equal(params.commandDetails?.[0]?.description, "Review the current changes.");
 });
 
+test("uses the npm package name to display package-provided Pi extensions", () => {
+  const params = extensionSurfaceParams({
+    name: "dist",
+    filePath: "/home/user/.pi/agent/npm/node_modules/@narumitw/pi-goal/dist/index.ts",
+    source: "npm:@narumitw/pi-goal",
+    scope: "user",
+    origin: "package",
+    eventNames: [],
+    toolNames: [],
+    commandNames: [],
+    eventDetails: [],
+    toolDetails: [],
+    commandDetails: [],
+  });
+
+  assert.equal(params.name, "@narumitw/pi-goal");
+  assert.equal(params.packageName, "@narumitw/pi-goal");
+  assert.match(params.capabilityId, /dist$/);
+});
+
 test("deduplicates user capabilities independently from the representative project session", () => {
   const params = bindCapabilityToCatalogTarget(capability("skill"), "user", {
     sessionId: "session-1",

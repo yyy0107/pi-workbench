@@ -338,10 +338,11 @@ export function useToolboxCatalogs() {
             return {
               id: params.capabilityId,
               kind: "extension" as const,
-              name: extension.name,
+              name: params.name,
               description,
               ...(params.projectId && target.project ? { project: target.project } : {}),
               searchText: [
+                params.name,
                 extension.name,
                 description,
                 extension.source,
