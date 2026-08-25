@@ -10,6 +10,7 @@ export interface TerminalPtyTarget extends Record<string, unknown> {
   threadId?: string;
   workspaceId: string;
   cwd?: string;
+  initialCommand?: string;
 }
 
 export interface TerminalLaunchContext {

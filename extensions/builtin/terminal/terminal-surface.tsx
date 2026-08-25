@@ -510,6 +510,23 @@ function PtyTerminalSurface({
   const controller = useRightWorkspace();
   const containerRef = useRef<HTMLDivElement>(null);
   const { sessionId, cwd } = target;
+  const pendingInitialCommandRef = useRef<{
+    command?: string;
+    params: TerminalPtyTarget;
+    sessionId: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (pendingInitialCommandRef.current?.sessionId === sessionId) return;
+    const { initialCommand, ...params } = target;
+    pendingInitialCommandRef.current = {
+      sessionId,
+      params,
+      ...(typeof initialCommand === "string" && initialCommand.trim()
+        ? { command: initialCommand.trim() }
+        : {}),
+    };
+  }, [sessionId, target]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -643,6 +660,16 @@ function PtyTerminalSurface({
               cols: terminal.cols,
               rows: terminal.rows,
             });
+            const pendingLaunch = pendingInitialCommandRef.current;
+            const pendingCommand = pendingLaunch?.command;
+            if (
+              pendingLaunch &&
+              pendingCommand &&
+              send({ type: "process/run", processHandle, command: pendingCommand })
+            ) {
+              pendingInitialCommandRef.current = { ...pendingLaunch, command: undefined };
+              controller.update(surfaceId, { params: pendingLaunch.params });
+            }
           } else if (frame.type === "process/exited") {
             writer.flush();
             exited = true;

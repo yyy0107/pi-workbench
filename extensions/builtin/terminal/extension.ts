@@ -11,6 +11,7 @@ import { toggleTerminalCommand } from "./open-terminal-command";
 import { BashToolDisclosureController } from "./bash-tool-disclosure-controller";
 import { BashToolRenderer } from "./bash-tool-renderer";
 import { TerminalMenuItem } from "./terminal-menu-item";
+import { terminalCommandOpenHandler } from "./terminal-command-opener";
 import { TerminalRuntimeBridge } from "./terminal-runtime-bridge";
 import { isTerminalTranscriptTarget, type TerminalTarget } from "./terminal-target";
 import { TerminalTrigger } from "./terminal-trigger";
@@ -53,6 +54,7 @@ export const terminalExtension = defineExtension({
 
   setup(context) {
     const surface = context.workspace.register(terminalSurfaceDefinition);
+    const commandOpener = context.openers.register(terminalCommandOpenHandler);
     const command = context.commands.register(toggleTerminalCommand);
     const bashRenderer = context.renderers.tools.register("bash", BashToolRenderer);
     const bashPresentation = context.renderers.toolPresentations.register("bash", {
@@ -67,6 +69,6 @@ export const terminalExtension = defineExtension({
       component: TerminalTrigger,
     });
 
-    return [surface, command, bashRenderer, bashPresentation, mobileTrigger];
+    return [surface, commandOpener, command, bashRenderer, bashPresentation, mobileTrigger];
   },
 });
