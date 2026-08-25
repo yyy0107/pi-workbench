@@ -3,7 +3,12 @@ import test from "node:test";
 
 import type { LocalAppView } from "@/runtime/pi/rpc-contracts";
 
-import { compatibleLocalFileApps, localAppFileKindFor, localSystemApps } from "./file-open-apps";
+import {
+  compatibleLocalFileApps,
+  compatibleLocalFolderApps,
+  localAppFileKindFor,
+  localSystemApps,
+} from "./file-open-apps";
 
 const apps: LocalAppView[] = [
   {
@@ -69,5 +74,12 @@ test("keeps terminal and file manager actions separate from file-opening applica
   assert.deepEqual(
     localSystemApps(apps).map((app) => app.id),
     ["terminal", "file-manager"],
+  );
+});
+
+test("offers installed editors for a file workspace root folder", () => {
+  assert.deepEqual(
+    compatibleLocalFolderApps(apps).map((app) => app.id),
+    ["vscode"],
   );
 });

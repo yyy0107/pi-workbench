@@ -3,7 +3,6 @@ import { FileDiffIcon } from "lucide-react";
 import type { WorkspaceSurfaceDefinition } from "@/platform/extensions";
 import { createLazyWorkspaceSurface, defineExtension } from "@/platform/extensions";
 
-import { ReviewMenuItem } from "./review-menu-item";
 import { ReviewRuntimeBridge } from "./review-runtime-bridge";
 import type { ReviewSurfaceParams } from "./review-surface";
 
@@ -30,7 +29,6 @@ export const reviewSurfaceDefinition = {
     key: context.threadId ?? context.applicationId,
   }),
   render: ReviewSurface,
-  menuItem: ReviewMenuItem,
   runtime: ReviewRuntimeBridge,
 } satisfies WorkspaceSurfaceDefinition<ReviewSurfaceParams>;
 

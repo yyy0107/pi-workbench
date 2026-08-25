@@ -863,6 +863,7 @@ export interface ExtensionView {
   source: string;
   scope: ExtensionSourceScope;
   origin: ExtensionSourceOrigin;
+  enabled: boolean;
   eventNames: string[];
   toolNames: string[];
   commandNames: string[];
@@ -874,6 +875,70 @@ export interface ExtensionView {
 export interface ExtensionListValue {
   extensions: ExtensionView[];
   loadErrorCount: number;
+}
+
+export interface ExtensionIdentityPayload extends ExtensionListPayload {
+  name: string;
+  filePath: string;
+  source: string;
+  scope: ExtensionSourceScope;
+  origin: ExtensionSourceOrigin;
+}
+
+export interface ExtensionSetEnabledPayload extends ExtensionIdentityPayload {
+  enabled: boolean;
+}
+
+export interface ExtensionSetEnabledValue {
+  name: string;
+  filePath: string;
+  enabled: boolean;
+}
+
+export type ExtensionRemovePayload = ExtensionIdentityPayload;
+
+export interface ExtensionRemoveValue {
+  name: string;
+  filePath: string;
+  removed: true;
+}
+
+export interface ExtensionFilesListPayload extends ExtensionIdentityPayload {
+  relativePath?: string;
+}
+
+export interface ExtensionFileEntry {
+  name: string;
+  relativePath: string;
+  kind: "file" | "directory";
+  hidden: boolean;
+  symbolicLink?: boolean;
+}
+
+export interface ExtensionFilesListValue {
+  extensionName: string;
+  rootPath: string;
+  relativePath: string;
+  entries: ExtensionFileEntry[];
+  truncated: boolean;
+}
+
+export interface ExtensionFileReadPayload extends ExtensionIdentityPayload {
+  relativePath?: string;
+}
+
+export interface ExtensionFileSnapshotValue {
+  extensionName: string;
+  rootPath: string;
+  relativePath: string;
+  absolutePath: string;
+  name: string;
+  content: string;
+  mediaType: string;
+  encoding: "utf-8";
+  version: string;
+  size: number;
+  modifiedAt: number;
 }
 
 export interface InstalledPackageListPayload {
@@ -905,13 +970,13 @@ export type PiPackageInstallValue =
   | {
       source: string;
       scope: "user";
-      reloadRequired: true;
+      reloadRequired: false;
     }
   | {
       source: string;
       scope: "project";
       workspaceId: string;
-      reloadRequired: true;
+      reloadRequired: false;
     };
 
 export interface PiPackageRemovePayload {
@@ -923,13 +988,13 @@ export type PiPackageRemoveValue =
   | {
       source: string;
       scope: "user";
-      reloadRequired: true;
+      reloadRequired: false;
     }
   | {
       source: string;
       scope: "project";
       workspaceId: string;
-      reloadRequired: true;
+      reloadRequired: false;
     };
 
 export type PiPackageResourceType = "extension" | "skill" | "prompt" | "theme" | "package";

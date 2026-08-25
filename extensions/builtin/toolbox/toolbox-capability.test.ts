@@ -8,6 +8,7 @@ import {
   npmPackageNameFromSource,
   sectionForCapability,
   skillSurfaceParams,
+  toolboxDirectoryResource,
   type ToolboxCapabilitySurfaceParams,
 } from "./toolbox-capability";
 
@@ -79,6 +80,7 @@ test("preserves the loaded Pi extension path for the details header", () => {
     source: "auto",
     scope: "user",
     origin: "top-level",
+    enabled: true,
     eventNames: [],
     toolNames: [],
     commandNames: [],
@@ -101,6 +103,8 @@ test("preserves the loaded Pi extension path for the details header", () => {
   });
 
   assert.equal(params.filePath, "/home/user/.pi/agent/extensions/review.ts");
+  assert.equal(params.extensionName, "review");
+  assert.equal(params.enabled, true);
   assert.deepEqual(params.eventDetails, [{ name: "session_start", handlerCount: 1 }]);
   assert.equal(params.toolDetails?.[0]?.label, "Review changes");
   assert.equal(params.commandDetails?.[0]?.description, "Review the current changes.");
@@ -113,6 +117,7 @@ test("uses the npm package name to display package-provided Pi extensions", () =
     source: "npm:@narumitw/pi-goal",
     scope: "user",
     origin: "package",
+    enabled: true,
     eventNames: [],
     toolNames: [],
     commandNames: [],
@@ -124,6 +129,54 @@ test("uses the npm package name to display package-provided Pi extensions", () =
   assert.equal(params.name, "@narumitw/pi-goal");
   assert.equal(params.packageName, "@narumitw/pi-goal");
   assert.match(params.capabilityId, /dist$/);
+});
+
+test("describes a selected Skill directory without waiting for a default file", () => {
+  assert.deepEqual(toolboxDirectoryResource(capability("skill"), "session-1"), {
+    scheme: "skill-directory",
+    path: "skill",
+    label: "skill",
+    metadata: {
+      sessionId: "session-1",
+      skillName: "skill",
+    },
+  });
+});
+
+test("keeps the complete extension identity in its directory resource", () => {
+  assert.deepEqual(
+    toolboxDirectoryResource(
+      {
+        capabilityId: "extension:review",
+        capabilityKind: "extension",
+        name: "pi-review",
+        extensionName: "review",
+        filePath: "/extensions/review.ts",
+        source: "npm:pi-review",
+        scope: "user",
+        origin: "package",
+      },
+      "session-1",
+    ),
+    {
+      scheme: "extension-directory",
+      path: "/extensions/review.ts",
+      label: "review",
+      metadata: {
+        sessionId: "session-1",
+        extensionName: "review",
+        extensionFilePath: "/extensions/review.ts",
+        extensionSource: "npm:pi-review",
+        extensionScope: "user",
+        extensionOrigin: "package",
+      },
+    },
+  );
+});
+
+test("does not invent directory resources for capabilities without an authorized root", () => {
+  assert.equal(toolboxDirectoryResource(capability("prompt"), "session-1"), undefined);
+  assert.equal(toolboxDirectoryResource(capability("skill"), undefined), undefined);
 });
 
 test("deduplicates user capabilities independently from the representative project session", () => {

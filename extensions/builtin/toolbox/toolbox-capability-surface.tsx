@@ -22,7 +22,7 @@ import {
   Trash2Icon,
   UserRoundIcon,
 } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { MarkdownTextContent } from "@/components/assistant-ui/markdown-text";
 import { useOpenerService, useWorkspaceContext } from "@/components/right-workspace";
@@ -71,17 +71,25 @@ import {
   installPiPackage,
   listInstalledPiPackages,
   PiApiError,
+  removePiExtension,
   removePiPackage,
   removePiSkill,
+  setPiExtensionEnabled,
   setPiSkillEnabled,
 } from "@/runtime/pi/client/transport/api";
+import { fileWorkspaceTargetService } from "@/services/file-workspace-target-service";
 
-import type {
-  ToolboxCapabilitySurfaceParams,
-  ToolboxComponentContribution,
+import {
+  toolboxDirectoryResource,
+  type ToolboxCapabilitySurfaceParams,
+  type ToolboxComponentContribution,
 } from "./toolbox-capability";
 import { ComponentPlacementPreview } from "./component-placement-preview";
-import { notifyToolboxPackagesChanged, notifyToolboxSkillsChanged } from "./toolbox-catalog";
+import {
+  notifyToolboxExtensionsChanged,
+  notifyToolboxPackagesChanged,
+  notifyToolboxSkillsChanged,
+} from "./toolbox-catalog";
 import { usePiPackageDetails } from "./use-pi-package-details";
 import { usePiSkillDetails } from "./use-pi-skill-details";
 
@@ -102,6 +110,7 @@ type PackageRemoveFeedback =
   | { status: "failed"; target: PackageInstallChoice; errorCode?: string };
 
 type SkillMutationState = "idle" | "updating" | "removing" | "failed" | "removed";
+type ExtensionMutationState = "idle" | "updating" | "removing" | "failed" | "removed";
 type SkillDocumentMode = "preview" | "source";
 type ExtensionContributionKind = "command" | "event" | "tool";
 
@@ -741,6 +750,7 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
   const skillDirectoryPath = skillDetails.value?.filePath
     ? parentDirectoryPath(skillDetails.value.filePath)
     : undefined;
+  const extensionDirectoryPath = params.filePath ? parentDirectoryPath(params.filePath) : undefined;
   const skillPackageSource = params.packageName ?? params.source;
   const skillSourceLabel = isSkill
     ? params.origin === "package"
@@ -780,15 +790,36 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
   const [skillDocumentMode, setSkillDocumentMode] = useState<SkillDocumentMode>("preview");
   const [skillDeleteDialogOpen, setSkillDeleteDialogOpen] = useState(false);
   const [skillRemoved, setSkillRemoved] = useState(false);
+  const [extensionEnabled, setExtensionEnabled] = useState(params.enabled !== false);
+  const [extensionMutationState, setExtensionMutationState] =
+    useState<ExtensionMutationState>("idle");
+  const [extensionDeleteDialogOpen, setExtensionDeleteDialogOpen] = useState(false);
+  const [extensionRemoved, setExtensionRemoved] = useState(false);
+  const [extensionOpenFailed, setExtensionOpenFailed] = useState(false);
+  const directoryResource = useMemo(
+    () =>
+      (isSkill && skillRemoved) || (isExtension && extensionRemoved)
+        ? undefined
+        : toolboxDirectoryResource(params, sessionId),
+    [extensionRemoved, isExtension, isSkill, params, sessionId, skillRemoved],
+  );
   const capabilityUninstalled =
     installedPackageRemoved ||
     (isComponentExtension && componentExtensionCanUninstall && !componentExtensionInstalled);
+  const capabilityInactive =
+    capabilityUninstalled || (isExtension && (!extensionEnabled || extensionRemoved));
   const activeWorkspaceId =
     params.projectId ??
     (typeof catalogSession?.custom?.piWorkspaceId === "string"
       ? catalogSession.custom.piWorkspaceId
       : workspaceContext.projectId);
   const skillPackageRemovalTarget =
+    params.origin === "package" && params.scope === "user" && sessionId
+      ? { scope: "user" as const, sessionId }
+      : params.origin === "package" && params.scope === "project" && activeWorkspaceId
+        ? { scope: "project" as const, workspaceId: activeWorkspaceId }
+        : undefined;
+  const extensionPackageRemovalTarget =
     params.origin === "package" && params.scope === "user" && sessionId
       ? { scope: "user" as const, sessionId }
       : params.origin === "package" && params.scope === "project" && activeWorkspaceId
@@ -817,6 +848,43 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
         params.source === "auto" &&
         params.scope !== "temporary" &&
         Boolean(skillDirectoryPath)));
+  const extensionMutationPending =
+    extensionMutationState === "updating" || extensionMutationState === "removing";
+  const extensionIdentity =
+    isExtension &&
+    sessionId &&
+    params.extensionName &&
+    params.filePath &&
+    params.source &&
+    params.scope &&
+    params.origin
+      ? {
+          sessionId,
+          name: params.extensionName,
+          filePath: params.filePath,
+          source: params.source,
+          scope: params.scope,
+          origin: params.origin,
+        }
+      : undefined;
+  const canToggleExtension =
+    Boolean(extensionIdentity) &&
+    !sessionRunning &&
+    !extensionRemoved &&
+    !extensionMutationPending &&
+    params.scope !== "temporary";
+  const canDeleteExtension =
+    Boolean(extensionIdentity) &&
+    !sessionRunning &&
+    !extensionRemoved &&
+    !extensionMutationPending &&
+    ((params.origin === "package" &&
+      Boolean(params.source) &&
+      Boolean(extensionPackageRemovalTarget)) ||
+      (params.origin === "top-level" &&
+        params.source === "auto" &&
+        params.scope !== "temporary" &&
+        Boolean(extensionDirectoryPath)));
   const selectedInstallCommand =
     params.installCommand && selectedInstallTarget?.scope === "project"
       ? `${params.installCommand} --local`
@@ -835,6 +903,19 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
     setSkillDeleteDialogOpen(false);
     setSkillRemoved(false);
   }, [params.capabilityId, params.enabled]);
+
+  useEffect(() => {
+    setExtensionEnabled(params.enabled !== false);
+    setExtensionMutationState("idle");
+    setExtensionDeleteDialogOpen(false);
+    setExtensionRemoved(false);
+    setExtensionOpenFailed(false);
+  }, [params.capabilityId, params.enabled]);
+
+  useEffect(() => {
+    if (!directoryResource) return;
+    return fileWorkspaceTargetService.activate(directoryResource);
+  }, [directoryResource]);
 
   useEffect(() => {
     if (!isCatalogPackage || !sessionId) return;
@@ -1079,26 +1160,16 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
     );
   };
   const openSkillDirectory = () => {
-    const skillFilePath = skillDetails.value?.filePath;
-    if (!sessionId || !skillFilePath || !skillDirectoryPath || skillRemoved) return;
-    void (async () => {
-      await opener.open({
-        resource: {
-          scheme: "skill-file",
-          path: skillFilePath,
-          label: "SKILL.md",
-          metadata: {
-            sessionId,
-            skillName: params.name,
-            relativePath: "SKILL.md",
-          },
-        },
+    if (directoryResource?.scheme !== "skill-directory") return;
+    void opener
+      .open({
+        resource: directoryResource,
         context: workspaceContext,
         policy: "force-focus",
+      })
+      .catch((error: unknown) => {
+        console.error(error);
       });
-    })().catch((error: unknown) => {
-      console.error(error);
-    });
   };
   const deleteSkill = () => {
     if (!sessionId || !canDeleteSkill) return;
@@ -1117,6 +1188,48 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
         if (params.origin === "package") notifyToolboxPackagesChanged();
       },
       () => setSkillMutationState("failed"),
+    );
+  };
+  const updateExtensionEnabled = (enabled: boolean) => {
+    if (!extensionIdentity || !canToggleExtension || enabled === extensionEnabled) return;
+    setExtensionMutationState("updating");
+    void setPiExtensionEnabled({ ...extensionIdentity, enabled }).then(
+      (value) => {
+        setExtensionEnabled(value.enabled);
+        setExtensionMutationState("idle");
+        notifyToolboxExtensionsChanged();
+      },
+      () => setExtensionMutationState("failed"),
+    );
+  };
+  const openExtensionDirectory = () => {
+    if (directoryResource?.scheme !== "extension-directory") return;
+    setExtensionOpenFailed(false);
+    void opener
+      .open({
+        resource: directoryResource,
+        context: workspaceContext,
+        policy: "force-focus",
+      })
+      .catch(() => setExtensionOpenFailed(true));
+  };
+  const deleteExtension = () => {
+    if (!extensionIdentity || !canDeleteExtension) return;
+    setExtensionMutationState("removing");
+    const operation =
+      params.origin === "package" && params.source && extensionPackageRemovalTarget
+        ? removePiPackage({ source: params.source, target: extensionPackageRemovalTarget })
+        : removePiExtension(extensionIdentity);
+    void operation.then(
+      () => {
+        setExtensionEnabled(false);
+        setExtensionRemoved(true);
+        setExtensionMutationState("removed");
+        setExtensionDeleteDialogOpen(false);
+        notifyToolboxExtensionsChanged();
+        if (params.origin === "package") notifyToolboxPackagesChanged();
+      },
+      () => setExtensionMutationState("failed"),
     );
   };
   const installStatusMessage = (() => {
@@ -1138,6 +1251,9 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
     }
     if (installFeedback.errorCode === "workspace-not-found") {
       return t("extensions.toolbox.packages.installWorkspaceMissing");
+    }
+    if (installFeedback.errorCode === "session-busy") {
+      return t("extensions.toolbox.packages.mutationSessionBusy");
     }
     return t("extensions.toolbox.packages.installFailed");
   })();
@@ -1167,6 +1283,9 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
     if (removeFeedback.errorCode === "session-not-found") {
       return t("extensions.toolbox.packages.removeSessionMissing");
     }
+    if (removeFeedback.errorCode === "session-busy") {
+      return t("extensions.toolbox.packages.mutationSessionBusy");
+    }
     return t("extensions.toolbox.packages.removeFailed");
   })();
 
@@ -1175,10 +1294,10 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
       <div
         className={
           isSkill
-            ? "flex min-h-0 flex-1 flex-col overflow-hidden px-5 py-4"
+            ? "flex min-h-0 flex-1 flex-col overflow-hidden px-12 py-4"
             : isExtension
-              ? "min-h-0 flex-1 overflow-y-auto px-5 pt-4 pb-6"
-              : "min-h-0 flex-1 overflow-y-auto px-5 py-4"
+              ? "min-h-0 flex-1 overflow-y-auto px-12 pt-4 pb-6"
+              : "min-h-0 flex-1 overflow-y-auto px-12 py-4"
         }
       >
         <header className="flex shrink-0 items-start gap-2.5">
@@ -1233,25 +1352,29 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
           {!isSkill ? (
             <span
               className={
-                capabilityUninstalled
+                capabilityInactive
                   ? "bg-muted text-muted-foreground rounded-full border px-2.5 py-1 text-[11px] font-medium"
                   : "rounded-full border border-emerald-500/15 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-300"
               }
             >
               {t(
-                isComponentExtension && componentExtensionCanUninstall
-                  ? componentExtensionInstalled
-                    ? "extensions.toolbox.status.installed"
-                    : "extensions.toolbox.status.uninstalled"
-                  : isCatalogPackage
-                    ? "extensions.toolbox.status.officialCatalog"
-                    : isInstalledPackage
-                      ? installedPackageRemoved
-                        ? "extensions.toolbox.status.uninstalled"
-                        : "extensions.toolbox.status.installed"
-                      : isPrompt
-                        ? "extensions.toolbox.status.available"
-                        : "extensions.toolbox.status.loaded",
+                isExtension
+                  ? extensionEnabled && !extensionRemoved
+                    ? "extensions.toolbox.extensions.loaded"
+                    : "extensions.toolbox.extensions.disabled"
+                  : isComponentExtension && componentExtensionCanUninstall
+                    ? componentExtensionInstalled
+                      ? "extensions.toolbox.status.installed"
+                      : "extensions.toolbox.status.uninstalled"
+                    : isCatalogPackage
+                      ? "extensions.toolbox.status.officialCatalog"
+                      : isInstalledPackage
+                        ? installedPackageRemoved
+                          ? "extensions.toolbox.status.uninstalled"
+                          : "extensions.toolbox.status.installed"
+                        : isPrompt
+                          ? "extensions.toolbox.status.available"
+                          : "extensions.toolbox.status.loaded",
               )}
             </span>
           ) : null}
@@ -1260,6 +1383,91 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
         <p className="text-muted-foreground mt-3 shrink-0 text-sm leading-5">
           {displayedDescription}
         </p>
+
+        {isExtension ? (
+          <div className="mt-4 shrink-0 border-t pt-4">
+            <div className="flex items-center gap-1">
+              <div className="bg-muted/30 dark:bg-foreground/8 flex h-7 items-center gap-1 rounded-lg px-1.5">
+                <Switch
+                  checked={extensionEnabled && !extensionRemoved}
+                  disabled={!canToggleExtension}
+                  className="h-4! w-7! [&_[data-slot=switch-thumb]]:size-3! [&_[data-slot=switch-thumb]]:data-checked:translate-x-3!"
+                  aria-label={t(
+                    extensionEnabled
+                      ? "extensions.toolbox.extensions.disableExtension"
+                      : "extensions.toolbox.extensions.enableExtension",
+                    { name: params.name },
+                  )}
+                  aria-busy={extensionMutationState === "updating"}
+                  title={t(
+                    sessionRunning
+                      ? "extensions.toolbox.extensions.sessionBusy"
+                      : extensionEnabled
+                        ? "extensions.toolbox.extensions.disableExtension"
+                        : "extensions.toolbox.extensions.enableExtension",
+                    { name: params.name },
+                  )}
+                  onCheckedChange={updateExtensionEnabled}
+                />
+                <span className="text-muted-foreground text-xs">
+                  {t(
+                    extensionEnabled && !extensionRemoved
+                      ? "extensions.toolbox.extensions.enabledStatus"
+                      : "extensions.toolbox.extensions.disabledStatus",
+                  )}
+                </span>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                disabled={directoryResource?.scheme !== "extension-directory"}
+                className="active:translate-y-0!"
+                aria-label={t("extensions.toolbox.extensions.openFolder", { name: params.name })}
+                title={t("extensions.toolbox.extensions.openFolder", { name: params.name })}
+                onClick={openExtensionDirectory}
+              >
+                <FolderOpenIcon aria-hidden="true" />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                disabled={!canDeleteExtension}
+                className="text-destructive hover:text-destructive active:translate-y-0!"
+                aria-label={t("extensions.toolbox.extensions.deleteExtension", {
+                  name: params.name,
+                })}
+                title={t(
+                  canDeleteExtension
+                    ? "extensions.toolbox.extensions.deleteExtension"
+                    : "extensions.toolbox.extensions.deleteUnavailable",
+                  { name: params.name },
+                )}
+                onClick={() => setExtensionDeleteDialogOpen(true)}
+              >
+                <Trash2Icon aria-hidden="true" />
+              </Button>
+            </div>
+            {extensionOpenFailed || extensionMutationState === "failed" ? (
+              <p className="text-destructive mt-2 text-xs leading-5" role="alert">
+                {t(
+                  extensionOpenFailed
+                    ? "extensions.toolbox.extensions.openFolderFailed"
+                    : "extensions.toolbox.extensions.actionFailed",
+                )}
+              </p>
+            ) : extensionMutationState === "removed" ? (
+              <p className="text-muted-foreground mt-2 text-xs leading-5" role="status">
+                {t(
+                  params.origin === "package"
+                    ? "extensions.toolbox.extensions.packageRemoved"
+                    : "extensions.toolbox.extensions.removed",
+                )}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
 
         {isSkill && skillMutationState === "failed" ? (
           <p className="text-destructive mt-2 text-xs leading-5" role="alert">
@@ -1276,7 +1484,7 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
         ) : null}
 
         {!isSkill && (!isExtension || showPackageOverview) ? (
-          <div className={isExtension ? "mt-5 border-t pt-5" : "mt-4 border-t pt-4"}>
+          <div className={isExtension ? "mt-4" : "mt-4 border-t pt-4"}>
             <div className="mb-3 flex min-h-7 items-center justify-between gap-3">
               <h2 className="text-sm font-semibold">{t("extensions.toolbox.details.overview")}</h2>
               {showPackageOverview ? (
@@ -1464,7 +1672,7 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
                 type="button"
                 variant="ghost"
                 size="icon-sm"
-                disabled={!sessionId || skillRemoved}
+                disabled={directoryResource?.scheme !== "skill-directory"}
                 className="active:translate-y-0!"
                 aria-label={t("extensions.toolbox.skills.openFolder", { name: params.name })}
                 title={t("extensions.toolbox.skills.openFolder", { name: params.name })}
@@ -1562,7 +1770,7 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
             ) : skillDetails.value?.content ? (
               <div
                 aria-label={t("extensions.toolbox.details.skillDocument")}
-                className="focus-visible:ring-ring mx-auto min-h-0 w-full max-w-4xl flex-1 overflow-auto rounded-lg border bg-transparent outline-none focus-visible:ring-2"
+                className="focus-visible:ring-ring min-h-0 w-full flex-1 overflow-auto rounded-lg border bg-transparent outline-none focus-visible:ring-2"
                 role="document"
                 tabIndex={0}
               >
@@ -2039,6 +2247,73 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
                   skillMutationState === "removing"
                     ? "extensions.toolbox.skills.deleting"
                     : "extensions.toolbox.skills.confirmDelete",
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ) : null}
+      {isExtension ? (
+        <Dialog
+          open={extensionDeleteDialogOpen}
+          onOpenChange={(open) => {
+            if (extensionMutationState === "removing") return;
+            if (open) setExtensionMutationState("idle");
+            setExtensionDeleteDialogOpen(open);
+          }}
+        >
+          <DialogContent
+            closeLabel={t("extensions.toolbox.extensions.cancelDelete")}
+            showCloseButton={false}
+          >
+            <DialogHeader>
+              <DialogTitle>{t("extensions.toolbox.extensions.deleteTitle")}</DialogTitle>
+              <DialogDescription>
+                {params.origin === "package"
+                  ? t("extensions.toolbox.extensions.deletePackageDescription", {
+                      source: params.source ?? params.name,
+                    })
+                  : t("extensions.toolbox.extensions.deleteIndependentDescription", {
+                      name: params.name,
+                      path: displayedExtensionFilePath ?? extensionDirectoryPath ?? params.name,
+                    })}
+              </DialogDescription>
+            </DialogHeader>
+            {extensionMutationState === "failed" ? (
+              <p className="text-destructive text-xs leading-5" role="alert">
+                {t("extensions.toolbox.extensions.deleteFailed")}
+              </p>
+            ) : null}
+            <DialogFooter
+              closeLabel={t("extensions.toolbox.extensions.cancelDelete")}
+              className="m-0"
+            >
+              <Button
+                type="button"
+                variant="outline"
+                disabled={extensionMutationState === "removing"}
+                onClick={() => setExtensionDeleteDialogOpen(false)}
+              >
+                {t("extensions.toolbox.extensions.cancelDelete")}
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={!canDeleteExtension}
+                onClick={deleteExtension}
+              >
+                {extensionMutationState === "removing" ? (
+                  <LoaderCircleIcon
+                    aria-hidden="true"
+                    className="animate-spin motion-reduce:animate-none"
+                  />
+                ) : (
+                  <Trash2Icon aria-hidden="true" />
+                )}
+                {t(
+                  extensionMutationState === "removing"
+                    ? "extensions.toolbox.extensions.deleting"
+                    : "extensions.toolbox.extensions.confirmDelete",
                 )}
               </Button>
             </DialogFooter>

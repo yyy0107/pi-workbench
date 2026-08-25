@@ -1,12 +1,26 @@
-import type { WorkspaceContext, WorkspaceScope } from "@/platform/extensions";
+import type { OpenableResource, WorkspaceScope } from "@/platform/extensions";
 import {
   describePiWorkspaceFile,
+  listPiExtensionFiles,
+  listPiSkillFiles,
   listPiWorkspaceFiles,
   piWorkspaceFileContentUrl,
+  readPiExtensionFile,
+  readPiSkillFile,
   readPiWorkspaceFile,
   writePiWorkspaceFile,
 } from "@/runtime/pi/client/transport/api";
 import type {
+  ExtensionFileReadPayload,
+  ExtensionFileSnapshotValue,
+  ExtensionFilesListPayload,
+  ExtensionFilesListValue,
+  ExtensionSourceOrigin,
+  ExtensionSourceScope,
+  SkillFileReadPayload,
+  SkillFileSnapshotValue,
+  SkillFilesListPayload,
+  SkillFilesListValue,
   WorkspaceFileDescribePayload,
   WorkspaceFileDescriptorValue,
   WorkspaceFileReadPayload,
@@ -16,10 +30,38 @@ import type {
   WorkspaceFileWritePayload,
 } from "@/runtime/pi/rpc-contracts";
 
+export interface WorkspaceFileSession {
+  source: "workspace";
+  rootPath: string;
+  workspaceId: string;
+}
+
+export interface SkillFileSession {
+  source: "skill";
+  rootPath: string;
+  sessionId: string;
+  skillName: string;
+}
+
+export interface ExtensionFileSession {
+  source: "extension";
+  rootPath: string;
+  sessionId: string;
+  extensionName: string;
+  extensionFilePath: string;
+  extensionSource: string;
+  extensionScope: ExtensionSourceScope;
+  extensionOrigin: ExtensionSourceOrigin;
+}
+
+export type ResourceFileSession = SkillFileSession | ExtensionFileSession;
+export type FileWorkspaceSession = WorkspaceFileSession | ResourceFileSession;
+
 export interface WorkspaceFileContext {
   scope: WorkspaceScope;
   workspaceId?: string;
   rootPath?: string;
+  session?: FileWorkspaceSession;
 }
 
 export interface FileNode {
@@ -42,7 +84,7 @@ export interface FileSnapshot {
   path: string;
   relativePath?: string;
   workspaceId?: string;
-  source: "memory" | "workspace";
+  source: "memory" | "workspace" | "resource";
   name: string;
   content: string;
   savedContent: string;
@@ -55,7 +97,7 @@ export interface FileDescriptor {
   path: string;
   relativePath?: string;
   workspaceId?: string;
-  source: "memory" | "workspace";
+  source: "memory" | "workspace" | "resource";
   name: string;
   mediaType: string;
   encoding: "utf-8" | null;
@@ -72,13 +114,18 @@ export interface FileWorkspaceBackend {
   describeFile(payload: WorkspaceFileDescribePayload): Promise<WorkspaceFileDescriptorValue>;
   readFile(payload: WorkspaceFileReadPayload): Promise<WorkspaceFileSnapshotValue>;
   writeFile(payload: WorkspaceFileWritePayload): Promise<WorkspaceFileSnapshotValue>;
+  listSkillDirectory?(payload: SkillFilesListPayload): Promise<SkillFilesListValue>;
+  readSkillFile?(payload: SkillFileReadPayload): Promise<SkillFileSnapshotValue>;
+  listExtensionDirectory?(payload: ExtensionFilesListPayload): Promise<ExtensionFilesListValue>;
+  readExtensionFile?(payload: ExtensionFileReadPayload): Promise<ExtensionFileSnapshotValue>;
 }
 
 /**
  * Shared file capability used by file-oriented contributions.
  *
- * `scope` isolates browser buffers between Workbench contexts. `workspaceId` is the server-side
- * authority used for real filesystem access; it must never be inferred from the scope key.
+ * `scope` isolates browser buffers between Workbench contexts. The resolved session carries either
+ * the authoritative `workspaceId` or the complete Skill/Extension identity used for filesystem
+ * access; neither may be inferred from the scope key.
  */
 export interface FileWorkspaceService {
   listDirectory(context: WorkspaceFileContext, path: string): Promise<FileDirectoryListing>;
@@ -150,6 +197,75 @@ export function isPathWithinWorkspace(rootPath: string | undefined, path: string
   }
 }
 
+function nonEmptyString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value : undefined;
+}
+
+/**
+ * Resolves the complete identity shared by File Surface chrome, breadcrumbs, Explorer, and file
+ * reads. An incomplete resource identity deliberately resolves to undefined so those capabilities
+ * cannot drift into independently enabled states.
+ */
+export function resolveFileWorkspaceSession(
+  params: Readonly<Record<string, unknown>>,
+): FileWorkspaceSession | undefined {
+  if (params.source === "workspace") {
+    const rootPath = nonEmptyString(params.rootPath);
+    const workspaceId = nonEmptyString(params.workspaceId);
+    const absolutePath = nonEmptyString(params.absolutePath);
+    if (!rootPath || !workspaceId) return undefined;
+    if (absolutePath && !isPathWithinWorkspace(rootPath, absolutePath)) return undefined;
+    return { source: "workspace", rootPath, workspaceId };
+  }
+
+  if (params.source === "skill") {
+    const rootPath = nonEmptyString(params.rootPath);
+    const sessionId = nonEmptyString(params.sessionId);
+    const skillName = nonEmptyString(params.skillName);
+    return rootPath && sessionId && skillName
+      ? { source: "skill", rootPath, sessionId, skillName }
+      : undefined;
+  }
+
+  if (params.source === "extension") {
+    const rootPath = nonEmptyString(params.rootPath);
+    const sessionId = nonEmptyString(params.sessionId);
+    const extensionName = nonEmptyString(params.extensionName);
+    const extensionFilePath = nonEmptyString(params.extensionFilePath);
+    const extensionSource = nonEmptyString(params.extensionSource);
+    const extensionScope =
+      params.extensionScope === "user" ||
+      params.extensionScope === "project" ||
+      params.extensionScope === "temporary"
+        ? params.extensionScope
+        : undefined;
+    const extensionOrigin =
+      params.extensionOrigin === "package" || params.extensionOrigin === "top-level"
+        ? params.extensionOrigin
+        : undefined;
+    return rootPath &&
+      sessionId &&
+      extensionName &&
+      extensionFilePath &&
+      extensionSource &&
+      extensionScope &&
+      extensionOrigin
+      ? {
+          source: "extension",
+          rootPath,
+          sessionId,
+          extensionName,
+          extensionFilePath,
+          extensionSource,
+          extensionScope,
+          extensionOrigin,
+        }
+      : undefined;
+  }
+
+  return undefined;
+}
+
 function workspaceAbsolutePath(rootPath: string | undefined, path: string): string {
   if (isAbsoluteWorkspacePath(path) || !rootPath) return path;
   const relativePath = normalizeRelativePath(path);
@@ -160,14 +276,33 @@ function workspaceAbsolutePath(rootPath: string | undefined, path: string): stri
 
 export function fileWorkspaceContext(
   scope: WorkspaceScope,
-  context?: Pick<WorkspaceContext, "worktreeId" | "projectId" | "rootPath">,
+  session: FileWorkspaceSession,
 ): WorkspaceFileContext {
-  const workspaceId = context?.worktreeId ?? context?.projectId;
   return {
     scope,
-    ...(workspaceId ? { workspaceId } : {}),
-    ...(context?.rootPath ? { rootPath: context.rootPath } : {}),
+    session,
+    rootPath: session.rootPath,
+    ...(session.source === "workspace" ? { workspaceId: session.workspaceId } : {}),
   };
+}
+
+export function fileWorkspaceSessionKey(session: FileWorkspaceSession): string {
+  if (session.source === "workspace") {
+    return JSON.stringify(["workspace", session.workspaceId, session.rootPath]);
+  }
+  if (session.source === "skill") {
+    return JSON.stringify(["skill", session.sessionId, session.skillName, session.rootPath]);
+  }
+  return JSON.stringify([
+    "extension",
+    session.sessionId,
+    session.extensionName,
+    session.extensionFilePath,
+    session.extensionSource,
+    session.extensionScope,
+    session.extensionOrigin,
+    session.rootPath,
+  ]);
 }
 
 function snapshotFromRemote(value: WorkspaceFileSnapshotValue): FileSnapshot {
@@ -224,6 +359,80 @@ function compareNodes(left: FileNode, right: FileNode): number {
   return left.name.localeCompare(right.name, "en-US", { numeric: true, sensitivity: "base" });
 }
 
+function resourceDirectoryListing(
+  rootPath: string,
+  listing: Pick<SkillFilesListValue, "relativePath" | "entries" | "truncated">,
+): FileDirectoryListing {
+  return {
+    path: workspaceAbsolutePath(rootPath, listing.relativePath),
+    relativePath: listing.relativePath,
+    nodes: listing.entries.map((entry) => ({
+      path: workspaceAbsolutePath(rootPath, entry.relativePath),
+      relativePath: entry.relativePath,
+      name: entry.name,
+      kind: entry.kind,
+      hidden: entry.hidden,
+      ...(entry.symbolicLink ? { symbolicLink: true } : {}),
+    })),
+    truncated: listing.truncated,
+  };
+}
+
+function resourceSnapshot(
+  value: SkillFileSnapshotValue | ExtensionFileSnapshotValue,
+): FileSnapshot {
+  return {
+    path: value.absolutePath,
+    relativePath: value.relativePath,
+    source: "resource",
+    name: value.name,
+    content: value.content,
+    savedContent: value.content,
+    version: value.version,
+    modifiedAt: value.modifiedAt,
+    size: value.size,
+  };
+}
+
+export function fileWorkspaceOpenableResource(
+  session: FileWorkspaceSession,
+  file: Pick<FileNode, "path" | "relativePath" | "name">,
+): OpenableResource {
+  if (session.source === "skill") {
+    return {
+      scheme: "skill-file",
+      path: file.path,
+      label: file.name,
+      metadata: {
+        sessionId: session.sessionId,
+        skillName: session.skillName,
+        relativePath: file.relativePath,
+      },
+    };
+  }
+  if (session.source === "extension") {
+    return {
+      scheme: "extension-file",
+      path: file.path,
+      label: file.name,
+      metadata: {
+        sessionId: session.sessionId,
+        extensionName: session.extensionName,
+        extensionFilePath: session.extensionFilePath,
+        extensionSource: session.extensionSource,
+        extensionScope: session.extensionScope,
+        extensionOrigin: session.extensionOrigin,
+        relativePath: file.relativePath,
+      },
+    };
+  }
+  return {
+    scheme: "workspace-file",
+    path: file.relativePath || file.path,
+    label: file.name,
+  };
+}
+
 export class BufferedFileWorkspaceService implements FileWorkspaceService {
   readonly #files = new Map<string, Map<string, FileSnapshot>>();
   readonly #listeners = new Map<string, Map<string, Set<() => void>>>();
@@ -234,6 +443,32 @@ export class BufferedFileWorkspaceService implements FileWorkspaceService {
   }
 
   async listDirectory(context: WorkspaceFileContext, path: string): Promise<FileDirectoryListing> {
+    if (context.session?.source === "skill") {
+      if (!this.#backend?.listSkillDirectory) {
+        throw new Error("The Skill file backend is unavailable");
+      }
+      const listing = await this.#backend.listSkillDirectory({
+        sessionId: context.session.sessionId,
+        name: context.session.skillName,
+        relativePath: workspaceRelativePath(context.rootPath, path),
+      });
+      return resourceDirectoryListing(listing.rootPath, listing);
+    }
+    if (context.session?.source === "extension") {
+      if (!this.#backend?.listExtensionDirectory) {
+        throw new Error("The extension file backend is unavailable");
+      }
+      const listing = await this.#backend.listExtensionDirectory({
+        sessionId: context.session.sessionId,
+        name: context.session.extensionName,
+        filePath: context.session.extensionFilePath,
+        source: context.session.extensionSource,
+        scope: context.session.extensionScope,
+        origin: context.session.extensionOrigin,
+        relativePath: workspaceRelativePath(context.rootPath, path),
+      });
+      return resourceDirectoryListing(listing.rootPath, listing);
+    }
     if (context.workspaceId && this.#backend) {
       const listing = await this.#backend.listDirectory({
         workspaceId: context.workspaceId,
@@ -296,11 +531,42 @@ export class BufferedFileWorkspaceService implements FileWorkspaceService {
       });
       return descriptorFromRemote(descriptor);
     }
+    if (context.session?.source === "skill" || context.session?.source === "extension") {
+      return descriptorFromSnapshot(await this.readFile(context, path));
+    }
     if (!snapshot) throw new Error(`File buffer is not attached: ${path}`);
     return descriptorFromSnapshot(snapshot);
   }
 
   async readFile(context: WorkspaceFileContext, path: string): Promise<FileSnapshot> {
+    let resource: SkillFileSnapshotValue | ExtensionFileSnapshotValue | undefined;
+    if (context.session?.source === "skill") {
+      if (!this.#backend?.readSkillFile) throw new Error("The Skill file backend is unavailable");
+      resource = await this.#backend.readSkillFile({
+        sessionId: context.session.sessionId,
+        name: context.session.skillName,
+        relativePath: workspaceRelativePath(context.rootPath, path),
+      });
+    } else if (context.session?.source === "extension") {
+      if (!this.#backend?.readExtensionFile) {
+        throw new Error("The extension file backend is unavailable");
+      }
+      resource = await this.#backend.readExtensionFile({
+        sessionId: context.session.sessionId,
+        name: context.session.extensionName,
+        filePath: context.session.extensionFilePath,
+        source: context.session.extensionSource,
+        scope: context.session.extensionScope,
+        origin: context.session.extensionOrigin,
+        relativePath: workspaceRelativePath(context.rootPath, path),
+      });
+    }
+    if (resource) {
+      const snapshot = resourceSnapshot(resource);
+      this.filesFor(context.scope).set(snapshot.path, snapshot);
+      this.notify(context.scope, snapshot.path);
+      return { ...snapshot };
+    }
     if (context.workspaceId && this.#backend) {
       const remote = await this.#backend.readFile({
         workspaceId: context.workspaceId,
@@ -323,6 +589,9 @@ export class BufferedFileWorkspaceService implements FileWorkspaceService {
     content: string,
     version: string,
   ): Promise<FileSnapshot> {
+    if (context.session?.source === "skill" || context.session?.source === "extension") {
+      throw new Error("Resource files are read-only");
+    }
     if (context.workspaceId && this.#backend) {
       const remote = await this.#backend.writeFile({
         workspaceId: context.workspaceId,
@@ -404,7 +673,10 @@ export class BufferedFileWorkspaceService implements FileWorkspaceService {
       ...(context.rootPath
         ? { relativePath: workspaceRelativePath(context.rootPath, absolutePath) }
         : {}),
-      source: "memory",
+      source:
+        context.session?.source === "skill" || context.session?.source === "extension"
+          ? "resource"
+          : "memory",
       name: current?.name ?? fileName(absolutePath),
       content,
       savedContent: content,
@@ -464,6 +736,10 @@ const piWorkspaceFileBackend: FileWorkspaceBackend = {
   describeFile: describePiWorkspaceFile,
   readFile: readPiWorkspaceFile,
   writeFile: writePiWorkspaceFile,
+  listSkillDirectory: listPiSkillFiles,
+  readSkillFile: readPiSkillFile,
+  listExtensionDirectory: listPiExtensionFiles,
+  readExtensionFile: readPiExtensionFile,
 };
 
 export const fileWorkspaceService = new BufferedFileWorkspaceService(piWorkspaceFileBackend);

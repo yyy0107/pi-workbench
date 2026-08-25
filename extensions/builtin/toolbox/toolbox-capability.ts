@@ -10,7 +10,7 @@ import type {
 } from "@/runtime/pi/rpc-contracts";
 import type { PiResourceCatalogTarget } from "@/runtime/pi/client/runtime/manager";
 import type { ComponentType } from "react";
-import type { ComponentExtensionContributionKind } from "@/platform/extensions";
+import type { ComponentExtensionContributionKind, OpenableResource } from "@/platform/extensions";
 
 export interface ToolboxComponentContribution {
   id: string;
@@ -48,6 +48,7 @@ export interface ToolboxCapabilitySurfaceParams extends Record<string, unknown> 
   argumentHint?: string;
   source?: string;
   filePath?: string;
+  extensionName?: string;
   scope?: ExtensionView["scope"];
   origin?: ExtensionView["origin"];
   eventNames?: string[];
@@ -110,6 +111,50 @@ export interface ToolboxMainViewParams extends Record<string, unknown> {
   detailOnly?: boolean;
   query?: string;
   selected?: ToolboxCapabilitySurfaceParams;
+}
+
+export function toolboxDirectoryResource(
+  params: ToolboxCapabilitySurfaceParams,
+  sessionId: string | undefined,
+): OpenableResource | undefined {
+  if (!sessionId) return undefined;
+
+  if (params.capabilityKind === "skill") {
+    return {
+      scheme: "skill-directory",
+      path: params.name,
+      label: params.name,
+      metadata: {
+        sessionId,
+        skillName: params.name,
+      },
+    };
+  }
+
+  if (
+    params.capabilityKind !== "extension" ||
+    !params.extensionName ||
+    !params.filePath ||
+    !params.source ||
+    !params.scope ||
+    !params.origin
+  ) {
+    return undefined;
+  }
+
+  return {
+    scheme: "extension-directory",
+    path: params.filePath,
+    label: params.extensionName,
+    metadata: {
+      sessionId,
+      extensionName: params.extensionName,
+      extensionFilePath: params.filePath,
+      extensionSource: params.source,
+      extensionScope: params.scope,
+      extensionOrigin: params.origin,
+    },
+  };
 }
 
 export function sectionForCapability(
@@ -188,6 +233,8 @@ export function extensionSurfaceParams(extension: ExtensionView): ToolboxCapabil
     capabilityId: extensionCapabilityId(extension),
     capabilityKind: "extension",
     name: packageName ?? extension.name,
+    extensionName: extension.name,
+    enabled: extension.enabled,
     filePath: extension.filePath,
     source: extension.source,
     scope: extension.scope,

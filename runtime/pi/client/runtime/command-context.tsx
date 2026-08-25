@@ -1,16 +1,32 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 
 import type { CommandView } from "../../rpc-contracts";
 import { listPiCommands } from "../transport/api";
 import { usePiActiveSessionId } from "./context";
+import {
+  getPiResourceCatalogRevision,
+  subscribePiResourceCatalog,
+} from "./resource-catalog-revision";
 
 const EMPTY_COMMANDS: readonly CommandView[] = [];
 const PiCommandsContext = createContext<readonly CommandView[] | null>(null);
 
 export function PiCommandsProvider({ children }: Readonly<{ children: ReactNode }>) {
   const sessionId = usePiActiveSessionId();
+  const resourceCatalogRevision = useSyncExternalStore(
+    subscribePiResourceCatalog,
+    getPiResourceCatalogRevision,
+    () => 0,
+  );
   const [commandState, setCommandState] = useState<{
     sessionId: string;
     commands: readonly CommandView[];
@@ -19,6 +35,7 @@ export function PiCommandsProvider({ children }: Readonly<{ children: ReactNode 
   useEffect(() => {
     if (!sessionId) return;
     let cancelled = false;
+    setCommandState(undefined);
 
     void listPiCommands({ sessionId })
       .then(({ commands }) => {
@@ -31,7 +48,7 @@ export function PiCommandsProvider({ children }: Readonly<{ children: ReactNode 
     return () => {
       cancelled = true;
     };
-  }, [sessionId]);
+  }, [resourceCatalogRevision, sessionId]);
 
   const commands =
     commandState && commandState.sessionId === sessionId ? commandState.commands : EMPTY_COMMANDS;

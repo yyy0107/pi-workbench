@@ -718,8 +718,7 @@ export const extensionsEnUS = {
     currentSession: "Current Pi session",
     main: {
       search: "Search capabilities",
-      searchPlaceholder:
-        "Search skills, component extensions, Pi extensions, prompts, and packages",
+      searchPlaceholder: "Search skills, Pi extensions, prompts, and packages",
       selectCapability: "Select a capability",
       selectCapabilityDescription:
         "Choose an item from the list to inspect its details in this workspace.",
@@ -810,7 +809,8 @@ export const extensionsEnUS = {
       deleting: "Deleting…",
       deleteFailed: "Deletion failed. Check the source or directory permissions and try again.",
       removed: "The skill was deleted.",
-      packageRemoved: "The Pi package was uninstalled; the change completes after session reload.",
+      packageRemoved:
+        "The Pi package was uninstalled and its capabilities were removed from the sessions.",
     },
     componentExtensions: {
       title: "Component Extensions",
@@ -829,9 +829,33 @@ export const extensionsEnUS = {
       empty: "Pi did not load any visible extensions.",
       disabled: "Disabled",
       updates: "Updates available",
-      stateUnavailable:
-        "Pi currently returns loaded extensions only; disabled extension state is not exposed.",
+      stateUnavailable: "Disabled extensions remain available here so they can be enabled again.",
       updatesUnavailable: "Extension versions and available updates are not exposed by Pi.",
+      enabledStatus: "Enabled",
+      disabledStatus: "Disabled",
+      enableExtension: ({ name }: { name: string }) => `Enable ${name}`,
+      disableExtension: ({ name }: { name: string }) => `Disable ${name}`,
+      sessionBusy: ({ name }: { name: string }) =>
+        `${name} can be changed after the current session run finishes`,
+      openFolder: ({ name }: { name: string }) => `Open the ${name} folder`,
+      openFolderFailed: "The extension folder could not be opened.",
+      deleteExtension: ({ name }: { name: string }) => `Delete ${name}`,
+      deleteUnavailable: ({ name }: { name: string }) =>
+        `${name} cannot be deleted here because of its source`,
+      actionFailed: "This extension could not be changed. Try again.",
+      deleteTitle: "Delete Pi extension?",
+      deletePackageDescription: ({ source }: { source: string }) =>
+        `This extension is provided by ${source}. Continuing will uninstall the entire Pi package and remove its other capabilities too.`,
+      deleteIndependentDescription: ({ name, path }: { name: string; path: string }) =>
+        `This will permanently delete the independently installed ${name} extension at ${path}. This action cannot be undone.`,
+      cancelDelete: "Cancel",
+      confirmDelete: "Delete",
+      deleting: "Deleting…",
+      deleteFailed:
+        "Deletion failed. Check the extension source or directory permissions and try again.",
+      removed: "The Pi extension was deleted.",
+      packageRemoved:
+        "The Pi package was uninstalled and its capabilities were removed from the sessions.",
       capabilitySummary: (
         { events, tools, commands }: { events: number; tools: number; commands: number },
         { number }: MessageFormatters,
@@ -912,12 +936,14 @@ export const extensionsEnUS = {
         count === 1 ? "1 imported project" : `${number(count)} imported projects`,
       installChooseLocation: "Choose a user or project, then choose an install method.",
       installingAt: ({ target }: { target: string }) => `Installing to ${target}…`,
-      installSuccess: "Installed. Run /reload in the current session to use it.",
+      installSuccess: "Installed and loaded into the affected sessions.",
       installProjectSuccess: ({ project }: { project: string }) =>
-        `Installed in ${project}. Run /reload in a session from that project to use it.`,
+        `Installed in ${project} and loaded into the affected project sessions.`,
       installProjectUntrusted:
         "This workspace is not trusted, so a project-level Pi Package cannot be installed. Update the folder's project trust decision in Pi, then retry.",
       installWorkspaceMissing: "That project is no longer imported. Refresh and choose another.",
+      mutationSessionBusy:
+        "A related Pi session is running. Wait for it to finish, then try again.",
       installProjectsEmpty: "No projects have been imported yet.",
       installFailed:
         "Installation failed. Check your network and Pi npm configuration, then retry.",
@@ -925,9 +951,9 @@ export const extensionsEnUS = {
       remove: "Uninstall",
       removing: "Uninstalling…",
       removingAt: ({ target }: { target: string }) => `Uninstalling from ${target}…`,
-      removeSuccess: "Uninstalled. Run /reload in the current session to apply the change.",
+      removeSuccess: "Uninstalled and removed from the affected sessions.",
       removeProjectSuccess: ({ project }: { project: string }) =>
-        `Uninstalled from ${project}. Run /reload in a session from that project to apply the change.`,
+        `Uninstalled from ${project} and removed from the affected project sessions.`,
       removeProjectUntrusted:
         "This workspace is not trusted, so the project-level Pi Package cannot be uninstalled.",
       removeWorkspaceMissing: "That project is no longer imported, so it cannot be uninstalled.",
@@ -1117,7 +1143,7 @@ export const extensionsEnUS = {
       promptProtocolLimit:
         "Prompt content and source paths are not included in the current command-list response.",
       extensionProtocolLimit:
-        "Version, permissions, enabled state, changelog, panels, editors, and file types are not included in the current extension-list response; extension-point details show only safe declarative metadata, never handler or execution source.",
+        "Version, permissions, changelog, panels, editors, and file types are not included in the current extension-list response; extension-point details show only safe declarative metadata, never handler or execution source.",
       componentExtensionLifecycle:
         "Installable component extensions are separate from Workbench built-ins and Pi extensions. Uninstalling removes every component contribution from the active registry and persists that state; the static catalog entry remains available for reinstallation.",
     },
@@ -1520,6 +1546,7 @@ export const extensionsEnUS = {
     open: "Open",
     openOptions: "Open options",
     openFile: "Open with the default application",
+    openFolder: "Open folder with the default application",
     openWith: ({ name }: { name: string }) => `Open with ${name}`,
     openWithApps: "Open with",
     loadingLocalApps: "Finding applications…",

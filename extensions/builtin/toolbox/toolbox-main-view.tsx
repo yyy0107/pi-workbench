@@ -54,10 +54,7 @@ function CatalogSkeleton() {
   return (
     <div className="space-y-1 p-2" aria-hidden="true">
       {CATALOG_SKELETON_ROWS.map((row, index) => (
-        <div
-          key={index}
-          className="flex min-h-16 w-full items-center gap-3 rounded-xl px-3 py-2.5"
-        >
+        <div key={index} className="flex min-h-16 w-full items-center gap-3 rounded-xl px-3 py-2.5">
           <div className="min-w-0 flex-1">
             <Skeleton className={cn("h-3.5 max-w-full", row.name)} />
             <Skeleton className={cn("mt-1.5 h-3 max-w-full", row.metadata)} />
@@ -302,7 +299,7 @@ export function ToolboxMainView({ view }: MainViewProps<ToolboxMainViewParams>) 
 
   return (
     <section aria-label={t("extensions.toolbox.title")} className="flex h-full min-h-0 flex-col">
-      <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col px-12">
         <div className="flex min-h-14 shrink-0 flex-wrap items-center gap-2 border-b px-4 py-2">
           <SearchField query={query} setQuery={setQuery} />
           <div className="flex items-center gap-2">

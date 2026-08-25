@@ -54,18 +54,26 @@ test("all built-in workspace capabilities are extension contributions", () => {
   assert.equal(manager.workspace.getAll().length, 0);
 });
 
-test("the file launcher is a stable resource distinct from real files", () => {
+test("the file directory workspace is a stable resource distinct from its files", () => {
+  const directory = {
+    source: "workspace" as const,
+    rootPath: "/workspace",
+    workspaceId: "project-1",
+  };
   assert.equal(
-    fileSurfaceDefinition.getResourceKey({ launcher: true }, first),
-    fileSurfaceDefinition.getResourceKey({ launcher: true }, first),
+    fileSurfaceDefinition.getResourceKey(directory, first),
+    fileSurfaceDefinition.getResourceKey(directory, first),
   );
   assert.notEqual(
-    fileSurfaceDefinition.getResourceKey({ launcher: true }, first),
-    fileSurfaceDefinition.getResourceKey({ absolutePath: "/workspace/app.ts" }, first),
+    fileSurfaceDefinition.getResourceKey(directory, first),
+    fileSurfaceDefinition.getResourceKey(
+      { ...directory, absolutePath: "/workspace/app.ts" },
+      first,
+    ),
   );
   assert.notEqual(
-    fileSurfaceDefinition.getResourceKey({ launcher: true }, first),
-    fileSurfaceDefinition.getResourceKey({ launcher: true }, second),
+    fileSurfaceDefinition.getResourceKey(directory, first),
+    fileSurfaceDefinition.getResourceKey(directory, second),
   );
 });
 
@@ -82,11 +90,20 @@ test("built-in workspace resources and scopes are conversation-exclusive", () =>
   const cases = [
     {
       definition: explorerSurfaceDefinition,
-      params: { rootPath: "/workspace" },
+      params: {
+        source: "workspace" as const,
+        rootPath: "/workspace",
+        workspaceId: "project-1",
+      },
     },
     {
       definition: fileSurfaceDefinition,
-      params: { absolutePath: "/workspace/app.ts" },
+      params: {
+        source: "workspace" as const,
+        rootPath: "/workspace",
+        workspaceId: "project-1",
+        absolutePath: "/workspace/app.ts",
+      },
     },
     {
       definition: browserSurfaceDefinition,

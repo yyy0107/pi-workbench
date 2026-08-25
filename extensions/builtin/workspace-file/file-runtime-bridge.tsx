@@ -24,7 +24,8 @@ export function FileRuntimeBridge() {
           !path ||
           content === undefined ||
           !context.threadId ||
-          !context.worktreeId
+          !context.worktreeId ||
+          !context.rootPath
         ) {
           return false;
         }
@@ -32,8 +33,13 @@ export function FileRuntimeBridge() {
         // Leave mismatched paths unconsumed so the next context update can retry them safely.
         if (!isPathWithinWorkspace(context.rootPath, path)) return false;
         const scope = { type: "thread" as const, key: context.threadId };
+        const fileSession = {
+          source: "workspace" as const,
+          rootPath: context.rootPath,
+          workspaceId: context.worktreeId,
+        };
         const snapshot = fileWorkspaceService.attachFile(
-          fileWorkspaceContext(scope, context),
+          fileWorkspaceContext(scope, fileSession),
           path,
           content,
         );
@@ -41,9 +47,9 @@ export function FileRuntimeBridge() {
           kind: "file",
           title: snapshot.name,
           params: {
+            ...fileSession,
             absolutePath: snapshot.path,
             ...(snapshot.relativePath ? { relativePath: snapshot.relativePath } : {}),
-            ...(snapshot.workspaceId ? { workspaceId: snapshot.workspaceId } : {}),
             name: snapshot.name,
             mediaType: "text/plain",
             encoding: "utf-8",

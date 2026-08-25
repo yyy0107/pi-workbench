@@ -59,7 +59,8 @@ Unary RPC 是 session、workspace 和 running 状态的权威快照；WebSocket 
 - Skills：`skill.list`、`skill.describe`、`skill.setEnabled`、`skill.files.list`、`skill.files.read`、
   `skill.remove`；
 - Commands：`command.list`；
-- Extensions：`extension.list`；
+- Extensions：`extension.list`、`extension.files.list`、`extension.files.read`、
+  `extension.setEnabled`、`extension.remove`；
 - Pi Packages：`package.list`、`package.install`、`package.remove`、`packageCatalog.search`、
   `packageCatalog.describe`；
 - Settings：Pi 原生设置 `settings.describe`、`settings.openDocument`、`settings.update`，Workbench
@@ -314,9 +315,10 @@ session，使开关状态与模型实际可见资源一致。
 
 `skill.files.list` 只接受 `sessionId`、Skill 名称和相对目录。服务端先从该 session 精确解析 Skill，
 再把 `SKILL.md` 所在目录作为授权根目录；真实路径、路径穿越和符号链接都必须留在这个根内。响应只
-返回目录项元数据，不返回文件正文，且每个目录最多返回 2,000 项。工具箱先用 `skill.files.read` 打开
-持有右侧工作区生命周期的 `SKILL.md` 文件标签，再把 Skill 目录作为该文件的辅助 Explorer；Explorer
-不会脱离文件标签独立恢复，因此用户级 Skill 不需要伪装成已导入项目文件。
+返回目录项元数据，不返回文件正文，且每个目录最多返回 2,000 项。工具箱打开的是以 Skill 根目录为
+身份的文件工作区，默认不选择或读取 `SKILL.md`；右侧编辑区保持空状态并显示辅助 Explorer，只有用户
+点击树节点后才通过 `skill.files.read` 创建对应的只读文件标签。目录会话统一拥有面包屑、文件树开关、
+本地编辑器菜单和 Explorer 生命周期，因此用户级 Skill 不需要伪装成已导入项目文件。
 
 `skill.files.read` 使用相同的 session、Skill 身份与目录根，只接受文件树返回的规范相对路径。读取的
 真实路径和符号链接仍必须位于 Skill 根目录内；当前返回最大 5 MiB 的 UTF-8 普通文件正文、内容版本
@@ -394,12 +396,38 @@ Workbench 等价语义的内置命令才会被暴露，避免把 UI action 错�
 
 ## Extensions
 
-`extension.list` 按 `sessionId` 返回该 Pi session 的 `ResourceLoader` 已成功加载且未标记为 hidden
-的扩展。响应包含面向展示的扩展名称、实际加载文件路径、来源范围、来源类型，以及其注册的事件、
-工具和命令名称。扩展点还带有可安全展示的声明性元数据：事件只返回处理器数量，工具返回显示名称、
-说明和有大小上限的参数 Schema，命令返回说明以及是否注册参数补全。处理函数、执行函数、自定义渲染
-函数、参数补全实现和源码都不会进入 RPC 响应。实际路径仅供工具箱在扩展名称下展示安装位置，不作为
-文件读取接口的输入；具体加载错误内容也不会返回浏览器，只返回加载失败数量。
+`extension.list` 按 `sessionId` 合并该 Pi session 的 `ResourceLoader` 已加载扩展与
+`DefaultPackageManager.resolve()` 解析出的扩展资源，因此已禁用扩展仍留在工具箱中并以
+`enabled: false` 返回，便于重新启用。响应包含面向展示的扩展名称、权威入口文件路径、来源范围、
+来源类型，以及已加载扩展注册的事件、工具和命令名称。扩展点还带有可安全展示的声明性元数据：事件
+只返回处理器数量，工具返回显示名称、说明和有大小上限的参数 Schema，命令返回说明以及是否注册参数
+补全。处理函数、执行函数、自定义渲染函数、参数补全实现和源码都不会进入 RPC 响应。入口路径用于
+工具箱显示安装位置和组成精确 mutation 身份，不会被任何读取接口作为任意文件输入；具体加载错误内容
+也不会返回浏览器，只返回加载失败数量。尚未加载的已禁用或加载失败资源不执行模块，因此扩展点列表
+为空。
+
+`extension.setEnabled` 是 loopback-only mutation，并要求请求携带当前列表返回的完整扩展身份。
+它沿用 Pi Config Selector 的精确 `+path` / `-path` 规则：顶层扩展更新对应作用域的 `extensions`，
+Package 扩展更新匹配 PackageSource 的 `extensions` filter。仅允许空闲 session 修改；持久化成功后
+reload 该 session。停用 Package 扩展时还会按同一个 package source 将当前启用的 Skill、Prompt 和
+Theme 写入各自的精确停用 filter；该扩展注册的 event、tool 和 command 则随 reload 一并卸载。重新启用
+扩展不会擅自重新启用这些独立资源，避免覆盖用户原有的逐项选择。资源 mutation 完成后，浏览器通过
+共享 catalog revision 同时刷新 Toolbox 与 Composer command catalog，不能继续展示已失效的 Skill、
+Prompt 或 Extension command。
+
+`extension.files.list` 和 `extension.files.read` 使用与 mutation 相同的完整扩展身份，在目标 session
+的已解析资源中精确匹配权威入口文件。以 `index.*` 为入口的目录型扩展可以列出并读取其扩展根目录内
+的文件；直接以单个文件为入口的扩展只暴露该入口文件，不会顺带暴露同一 `extensions` 目录中的其他
+扩展。所有目录与文件读取都经过真实路径边界检查，文本读取上限为 5 MiB 且只接受 UTF-8，因此这些
+接口不能用作任意宿主文件读取。工具箱先通过目录 Open Handler 建立以授权根目录为身份的文件工作区，
+默认不选择或读取入口文件；用户从配套 Explorer Surface 选择文件后，才由 `extension-file` Open
+Handler 创建对应的只读 File Surface。目录会话统一拥有面包屑、文件树开关、本地编辑器菜单和
+Explorer 生命周期，资源去重、聚焦和恢复仍由 RightWorkspace 管理。
+
+`extension.remove` 同样只允许 loopback 请求和空闲 session。它只删除 Pi 自动发现、非临时、独立
+安装且真实路径仍位于对应 `extensions` 根目录内的扩展；直接入口文件只删除该文件，子目录入口删除
+扩展根目录。Package 提供的扩展不直接删除 `node_modules` 文件，工具箱改走精确作用域的
+`package.remove`，并在确认框中提示同包其他能力也会一起移除。
 
 扩展发现沿用 Pi 的全局、package、settings 和项目资源规则。项目级扩展受按目录保存的 Pi
 Project Trust 决策控制；查询设置页不会提升项目资源信任。
@@ -433,14 +461,19 @@ Pi 官方当前未公开目录 JSON API，服务端适配器因此只解析官�
 提交任意安装目录；项目安装仍要求该权威路径具有有效的 Pi Project Trust 信任决定。服务端固定构造
 `npm:<package>` source，并通过 Pi 导出的 `DefaultPackageManager.installAndPersist()` 写入对应作用域。
 该方法仅允许 loopback 请求，安装任务在进程内串行执行，避免多个 npm 进程同时修改 Package 目录或
-settings。调用 `package.install` 的前端只提交包名和目标，不提交 shell 命令；安装成功后目标作用域内
-的 session 仍需执行 `/reload` 才会加载新资源。Pi Package 具有完整系统访问权限，安装前仍需审查来源。
+settings。调用 `package.install` 的前端只提交包名和目标，不提交 shell 命令。服务端在写入前确认全部
+受影响的已加载 session 均为空闲，并在安装成功后自动 reload：用户级变更同步全部已加载 session，
+项目级变更只同步 cwd 属于目标 Workspace 的 session；因此响应返回 `reloadRequired: false`，新资源
+可以立即进入 Toolbox 和 Composer catalog。Pi Package 具有完整系统访问权限，安装前仍需审查来源。
 
 `package.remove` 接受已配置 Package 的精确 source，以及与安装相同的用户级 session 或项目级
 `workspaceId` 目标。服务端先确认 source 确实存在于目标作用域的 Pi settings 中，再调用 Pi 导出的
 `DefaultPackageManager.removeAndPersist()`；项目目标同样必须来自已导入 Workspace 并通过 Project
 Trust。移除与安装共享同一个进程内串行队列，并且只允许 loopback 请求，避免跨作用域误删或与正在
-运行的 Package mutation 竞争。移除成功后相关 session 仍需执行 `/reload` 才会卸载已加载资源。
+运行的 Package mutation 竞争。若任一受影响的已加载 session 正在运行，服务端会在持久化前返回
+`session-busy`；移除成功后会自动 reload 全部受影响 session，再以 `reloadRequired: false` 返回。
+这使 settings 快照、已安装列表、Skill、Prompt、Theme、Extension 及其 tool/event/command 一次同步，
+不会留下“配置已删除但旧能力仍在内存中”的中间状态。
 
 ## Session 生命周期和持久状态
 
@@ -739,11 +772,12 @@ output rule 使用受限 dot path，并以 `[]` 展平数组，例如
 - Skills 当前实现 session-scoped 目录与详情、官方资源过滤规则的启停、身份授权的目录浏览和只读
   文件查看，以及独立 Skill 删除；Package Skill 删除复用 `package.remove`。编辑 Skill 文件与独立
   Skill 安装尚未加入 Workbench 协议。
-- Extensions 当前只实现 session-scoped `extension.list`，包括扩展点名称与安全的声明性详情；启停、
-  编辑、安装和 reload 尚未加入 Workbench 协议。
+- Extensions 当前实现 session-scoped 目录、禁用资源保留、官方资源过滤规则的启停、按完整身份浏览
+  授权目录与读取只读源码，以及独立扩展的边界校验删除；Package 扩展删除复用 `package.remove`。
+  编辑和独立安装尚未加入 Workbench 协议。
 - Pi Packages 当前实现 session-scoped 已配置列表、官方目录搜索/详情，以及 loopback-only 的用户级和
-  已导入项目级 npm Package 安装与精确作用域移除；更新和 mutation 后自动 reload 尚未加入 Workbench
-  协议。
+  已导入项目级 npm Package 安装与精确作用域移除；安装和移除会在确认相关 session 空闲后自动 reload
+  所有受影响的已加载 session。
 - Commands 已聚合受支持的 Pi built-ins、session-scoped extension commands、prompt templates 和
   skills。终端专用的 interactive TUI commands 仍不会暴露；新增内置项时必须先提供 Workbench
   等价语义，并继续使用 Pi 的公开 API。

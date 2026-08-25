@@ -6,7 +6,6 @@ import {
   FileTextIcon,
   PackageIcon,
   PackagePlusIcon,
-  PanelsTopLeftIcon,
   PinIcon,
   PlugIcon,
   StoreIcon,
@@ -275,10 +274,9 @@ export function ToolboxSidebar({ searchQuery }: SlotPropsMap["sidebar.toolbox"])
   const mainViews = useMainViewService();
   const pins = useToolboxPins();
   const [expandedSections, setExpandedSections] = useState<ReadonlySet<ToolboxMainSection>>(
-    () => new Set<ToolboxMainSection>(["component-extensions"]),
+    () => new Set(),
   );
   const {
-    componentExtensionItems,
     extensionItems,
     extensionsCatalog,
     packageItems,
@@ -293,13 +291,7 @@ export function ToolboxSidebar({ searchQuery }: SlotPropsMap["sidebar.toolbox"])
     enabled: Boolean(normalizedQuery),
     query: searchQuery,
   });
-  const allItems = [
-    ...skillItems,
-    ...componentExtensionItems,
-    ...extensionItems,
-    ...promptItems,
-    ...packageItems,
-  ];
+  const allItems = [...skillItems, ...extensionItems, ...promptItems, ...packageItems];
   const visibleItems = normalizedQuery
     ? allItems.filter((item) => item.searchText.toLocaleLowerCase(locale).includes(normalizedQuery))
     : allItems;
@@ -409,21 +401,6 @@ export function ToolboxSidebar({ searchQuery }: SlotPropsMap["sidebar.toolbox"])
                   skillsCatalog,
                   skillItems,
                   t("extensions.toolbox.skills.empty"),
-                )}
-              </CapabilityCategory>
-              <CapabilityCategory
-                icon={PanelsTopLeftIcon}
-                label={t("extensions.toolbox.componentExtensions.title")}
-                count={number(componentExtensionItems.length)}
-                expanded={expandedSections.has("component-extensions")}
-                onExpandedChange={(expanded) =>
-                  setSectionExpanded("component-extensions", expanded)
-                }
-              >
-                {componentExtensionItems.length > 0 ? (
-                  componentExtensionItems.map((item) => renderCapability(item))
-                ) : (
-                  <EmptyNote>{t("extensions.toolbox.componentExtensions.empty")}</EmptyNote>
                 )}
               </CapabilityCategory>
               <CapabilityCategory

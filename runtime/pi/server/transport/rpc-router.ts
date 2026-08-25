@@ -137,6 +137,41 @@ const skillFileReadPayload = rpcObject({
   name: rpcString({ minLength: 1, maxLength: 512, trim: true }),
   relativePath: rpcString({ minLength: 1, maxLength: 16_384 }),
 });
+const extensionIdentityPayload = rpcObject({
+  sessionId: nonEmptyString,
+  name: rpcString({ minLength: 1, maxLength: 512, trim: true }),
+  filePath: rpcString({ minLength: 1, maxLength: 32_768 }),
+  source: rpcString({ minLength: 1, maxLength: 2_048 }),
+  scope: rpcEnum(["user", "project", "temporary"]),
+  origin: rpcEnum(["package", "top-level"]),
+});
+const extensionFilesListPayload = rpcObject({
+  sessionId: nonEmptyString,
+  name: rpcString({ minLength: 1, maxLength: 512, trim: true }),
+  filePath: rpcString({ minLength: 1, maxLength: 32_768 }),
+  source: rpcString({ minLength: 1, maxLength: 2_048 }),
+  scope: rpcEnum(["user", "project", "temporary"]),
+  origin: rpcEnum(["package", "top-level"]),
+  relativePath: rpcOptional(rpcString({ maxLength: 16_384 })),
+});
+const extensionFileReadPayload = rpcObject({
+  sessionId: nonEmptyString,
+  name: rpcString({ minLength: 1, maxLength: 512, trim: true }),
+  filePath: rpcString({ minLength: 1, maxLength: 32_768 }),
+  source: rpcString({ minLength: 1, maxLength: 2_048 }),
+  scope: rpcEnum(["user", "project", "temporary"]),
+  origin: rpcEnum(["package", "top-level"]),
+  relativePath: rpcOptional(rpcString({ minLength: 1, maxLength: 16_384 })),
+});
+const extensionSetEnabledPayload = rpcObject({
+  sessionId: nonEmptyString,
+  name: rpcString({ minLength: 1, maxLength: 512, trim: true }),
+  filePath: rpcString({ minLength: 1, maxLength: 32_768 }),
+  source: rpcString({ minLength: 1, maxLength: 2_048 }),
+  scope: rpcEnum(["user", "project", "temporary"]),
+  origin: rpcEnum(["package", "top-level"]),
+  enabled: rpcBoolean,
+});
 const packageCatalogSearchPayload = rpcObject({
   query: rpcOptional(rpcString({ maxLength: 200, trim: true })),
   type: rpcOptional(rpcEnum(["extension", "skill", "prompt", "theme"])),
@@ -1191,6 +1226,56 @@ export async function handlePiRpcPost(request: Request, method: string): Promise
         handler: async (payload) => {
           try {
             return await extensionService.list(payload);
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
+      });
+    case "extension.files.read":
+      return handleRpcPost(request, {
+        method,
+        payload: extensionFileReadPayload,
+        handler: async (payload) => {
+          try {
+            return await extensionService.readFile(payload);
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
+      });
+    case "extension.files.list":
+      return handleRpcPost(request, {
+        method,
+        payload: extensionFilesListPayload,
+        handler: async (payload) => {
+          try {
+            return await extensionService.listFiles(payload);
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
+      });
+    case "extension.setEnabled":
+      return handleRpcPost(request, {
+        method,
+        payload: extensionSetEnabledPayload,
+        loopbackOnly: true,
+        handler: async (payload) => {
+          try {
+            return await extensionService.setEnabled(payload);
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
+      });
+    case "extension.remove":
+      return handleRpcPost(request, {
+        method,
+        payload: extensionIdentityPayload,
+        loopbackOnly: true,
+        handler: async (payload) => {
+          try {
+            return await extensionService.remove(payload);
           } catch (error) {
             throwDomainError(error);
           }

@@ -3,8 +3,11 @@ import test from "node:test";
 
 import {
   BufferedFileWorkspaceService,
+  fileWorkspaceContext,
+  fileWorkspaceOpenableResource,
   isPathWithinWorkspace,
   MemoryFileWorkspaceService,
+  resolveFileWorkspaceSession,
   workspaceRelativePath,
   type FileWorkspaceBackend,
 } from "./workspace-file-service";
@@ -161,6 +164,148 @@ test("Pi-backed file operations use workspace identity while caching by UI scope
       },
     },
   ]);
+});
+
+test("resource file sessions share directory, read, and opener behavior", async () => {
+  const calls: Array<{ method: string; payload: unknown }> = [];
+  const rootPath = "/home/user/.pi/agent/extensions/review";
+  const backend: FileWorkspaceBackend = {
+    listDirectory: async () => assert.fail("A resource session must not use workspace listing"),
+    describeFile: async () => assert.fail("A resource session must not use workspace describe"),
+    readFile: async () => assert.fail("A resource session must not use workspace reads"),
+    writeFile: async () => assert.fail("A resource session must not use workspace writes"),
+    listExtensionDirectory: async (payload) => {
+      calls.push({ method: "list", payload });
+      return {
+        extensionName: "review",
+        rootPath,
+        relativePath: "lib",
+        entries: [
+          {
+            name: "prompt.ts",
+            relativePath: "lib/prompt.ts",
+            kind: "file",
+            hidden: false,
+          },
+        ],
+        truncated: false,
+      };
+    },
+    readExtensionFile: async (payload) => {
+      calls.push({ method: "read", payload });
+      return {
+        extensionName: "review",
+        rootPath,
+        relativePath: "lib/prompt.ts",
+        absolutePath: `${rootPath}/lib/prompt.ts`,
+        name: "prompt.ts",
+        content: "export const prompt = 'review';\n",
+        mediaType: "text/typescript",
+        encoding: "utf-8",
+        version: "sha256:prompt",
+        size: 32,
+        modifiedAt: 1,
+      };
+    },
+  };
+  const files = new BufferedFileWorkspaceService(backend);
+  const params = {
+    source: "extension" as const,
+    rootPath,
+    sessionId: "session-1",
+    extensionName: "review",
+    extensionFilePath: `${rootPath}/index.ts`,
+    extensionSource: "auto",
+    extensionScope: "user" as const,
+    extensionOrigin: "top-level" as const,
+  };
+  const session = resolveFileWorkspaceSession(params);
+  assert.ok(session);
+  const context = fileWorkspaceContext(firstScope, session);
+
+  const listing = await files.listDirectory(context, "lib");
+  const opened = await files.readFile(context, "lib/prompt.ts");
+  assert.equal(listing.nodes[0]?.path, `${rootPath}/lib/prompt.ts`);
+  assert.equal(opened.source, "resource");
+  assert.deepEqual(fileWorkspaceOpenableResource(context.session!, listing.nodes[0]!), {
+    scheme: "extension-file",
+    path: `${rootPath}/lib/prompt.ts`,
+    label: "prompt.ts",
+    metadata: {
+      sessionId: "session-1",
+      extensionName: "review",
+      extensionFilePath: `${rootPath}/index.ts`,
+      extensionSource: "auto",
+      extensionScope: "user",
+      extensionOrigin: "top-level",
+      relativePath: "lib/prompt.ts",
+    },
+  });
+  assert.deepEqual(calls, [
+    {
+      method: "list",
+      payload: {
+        sessionId: "session-1",
+        name: "review",
+        filePath: `${rootPath}/index.ts`,
+        source: "auto",
+        scope: "user",
+        origin: "top-level",
+        relativePath: "lib",
+      },
+    },
+    {
+      method: "read",
+      payload: {
+        sessionId: "session-1",
+        name: "review",
+        filePath: `${rootPath}/index.ts`,
+        source: "auto",
+        scope: "user",
+        origin: "top-level",
+        relativePath: "lib/prompt.ts",
+      },
+    },
+  ]);
+});
+
+test("resource directory capabilities require one complete shared session identity", () => {
+  assert.equal(
+    resolveFileWorkspaceSession({
+      source: "extension",
+      rootPath: "/home/user/.pi/agent/extensions/review",
+      sessionId: "session-1",
+      extensionName: "review",
+      extensionFilePath: "/home/user/.pi/agent/extensions/review/index.ts",
+      extensionSource: "auto",
+      extensionScope: "user",
+    }),
+    undefined,
+  );
+  assert.deepEqual(
+    resolveFileWorkspaceSession({
+      source: "skill",
+      rootPath: "/home/user/.pi/agent/skills/review",
+      sessionId: "session-1",
+      skillName: "review",
+    }),
+    {
+      source: "skill",
+      rootPath: "/home/user/.pi/agent/skills/review",
+      sessionId: "session-1",
+      skillName: "review",
+    },
+  );
+  assert.equal(resolveFileWorkspaceSession({ absolutePath: "/workspace/src/app.ts" }), undefined);
+  assert.deepEqual(
+    resolveFileWorkspaceSession({
+      source: "workspace",
+      rootPath: "/workspace",
+      workspaceId: "workspace-1",
+      absolutePath: "/workspace/src/app.ts",
+    }),
+    { source: "workspace", rootPath: "/workspace", workspaceId: "workspace-1" },
+  );
 });
 
 test("workspaceRelativePath rejects paths outside the authoritative root", () => {

@@ -20,7 +20,11 @@ export function fileBreadcrumbSegments(
   relativePath: string | undefined,
   absolutePath: string | undefined,
 ): readonly FileBreadcrumbSegment[] {
-  if (!absolutePath) return [{ label: "/", path: "/", kind: "directory", current: true }];
+  if (!absolutePath) {
+    return rootPath
+      ? [{ label: fileName(rootPath), path: rootPath, kind: "directory", current: true }]
+      : [{ label: "/", path: "/", kind: "directory", current: true }];
+  }
 
   const relativeParts = relativePath?.split(/[\\/]/).filter(Boolean) ?? [];
   if (rootPath && relativeParts.length) {

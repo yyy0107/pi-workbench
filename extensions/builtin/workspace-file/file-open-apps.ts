@@ -145,3 +145,7 @@ export function compatibleLocalFileApps(
 export function localSystemApps(apps: readonly LocalAppView[]): LocalAppView[] {
   return apps.filter((app) => app.kind === "terminal" || app.kind === "file-manager");
 }
+
+export function compatibleLocalFolderApps(apps: readonly LocalAppView[]): LocalAppView[] {
+  return apps.filter((app) => app.kind === "editor");
+}

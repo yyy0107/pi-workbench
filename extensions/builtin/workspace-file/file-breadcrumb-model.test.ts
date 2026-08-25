@@ -59,3 +59,9 @@ test("preserves Windows workspace separators", () => {
     "C:\\workspace\\pi\\server",
   );
 });
+
+test("represents an unopened file workspace by its root directory", () => {
+  assert.deepEqual(fileBreadcrumbSegments("/workspace/pi", undefined, undefined), [
+    { label: "pi", path: "/workspace/pi", kind: "directory", current: true },
+  ]);
+});

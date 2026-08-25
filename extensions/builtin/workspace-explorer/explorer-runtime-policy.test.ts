@@ -4,11 +4,9 @@ import test from "node:test";
 import type { WorkspaceContext, WorkspaceSurfaceInstance } from "@/components/right-workspace";
 
 import {
+  activeFileWorkspaceSession,
   contextExplorerSurfaces,
-  contextSkillExplorerSurfaces,
-  isFileSurfaceActive,
-  skillExplorerMatchesFile,
-  skillFileExplorerIdentity,
+  explorerMatchesFileWorkspace,
 } from "./explorer-runtime-policy";
 
 const context: WorkspaceContext = {
@@ -18,7 +16,12 @@ const context: WorkspaceContext = {
   rootPath: "/workspace",
 };
 
-function surface(id: string, kind: string, scopeKey = "thread-1"): WorkspaceSurfaceInstance {
+function surface(
+  id: string,
+  kind: string,
+  params: Readonly<Record<string, unknown>> = {},
+  scopeKey = "thread-1",
+): WorkspaceSurfaceInstance {
   return {
     id,
     kind,
@@ -26,86 +29,123 @@ function surface(id: string, kind: string, scopeKey = "thread-1"): WorkspaceSurf
     title: id,
     resourceKey: id,
     scope: { type: "thread", key: scopeKey },
-    params: {},
+    params,
     status: "ready",
     createdAt: 1,
     lastActiveAt: 1,
   };
 }
 
-test("shows Explorer only while a File Surface is active", () => {
-  assert.equal(
-    isFileSurfaceActive({
-      ...surface("file:1", "file"),
-      params: { absolutePath: "/workspace/src/index.ts" },
-    }),
-    true,
+test("requires an explicit complete directory session for every File Surface", () => {
+  assert.deepEqual(
+    activeFileWorkspaceSession(
+      surface("file:workspace", "file", {
+        source: "workspace",
+        rootPath: "/workspace",
+        workspaceId: "workspace-1",
+        absolutePath: "/workspace/src/index.ts",
+      }),
+    ),
+    { source: "workspace", rootPath: "/workspace", workspaceId: "workspace-1" },
   );
-  assert.equal(isFileSurfaceActive(surface("file:launcher", "file")), false);
-  assert.equal(
-    isFileSurfaceActive({ ...surface("file:skill", "file"), params: { source: "skill" } }),
-    false,
-  );
-  assert.equal(isFileSurfaceActive(surface("terminal:1", "terminal")), false);
-  assert.equal(isFileSurfaceActive(surface("browser:1", "browser")), false);
-  assert.equal(isFileSurfaceActive(undefined), false);
-});
-
-test("selects only Explorer Surfaces owned by the current context", () => {
-  const current = surface("explorer:1", "explorer");
-  const other = surface("explorer:other", "explorer", "thread-2");
-  assert.deepEqual(contextExplorerSurfaces([current, other, surface("file:1", "file")], context), [
-    current,
-  ]);
-});
-
-test("keeps Skill Explorers in the paired file lifecycle", () => {
-  const workspaceExplorer = surface("explorer:workspace", "explorer");
-  const skillExplorer = {
-    ...surface("explorer:skill", "explorer"),
-    params: {
+  assert.deepEqual(
+    activeFileWorkspaceSession(
+      surface("file:skill", "file", {
+        source: "skill",
+        rootPath: "/home/user/.pi/agent/skills/example",
+        sessionId: "session-1",
+        skillName: "example",
+      }),
+    ),
+    {
       source: "skill",
       rootPath: "/home/user/.pi/agent/skills/example",
       sessionId: "session-1",
       skillName: "example",
     },
-  };
-
-  assert.deepEqual(contextExplorerSurfaces([workspaceExplorer, skillExplorer], context), [
-    workspaceExplorer,
-  ]);
-  assert.deepEqual(contextSkillExplorerSurfaces([workspaceExplorer, skillExplorer], context), [
-    skillExplorer,
-  ]);
+  );
+  assert.equal(
+    activeFileWorkspaceSession(
+      surface("file:legacy", "file", { absolutePath: "/workspace/src/index.ts" }),
+    ),
+    undefined,
+  );
+  assert.equal(
+    activeFileWorkspaceSession(surface("file:incomplete", "file", { source: "skill" })),
+    undefined,
+  );
+  assert.equal(activeFileWorkspaceSession(surface("terminal:1", "terminal")), undefined);
 });
 
-test("matches a Skill Explorer only to its owning file tab", () => {
-  const skillFile = {
-    ...surface("file:skill", "file"),
-    params: {
-      source: "skill",
-      rootPath: "/home/user/.pi/agent/skills/example",
-      sessionId: "session-1",
-      skillName: "example",
-    },
-  };
-  const identity = skillFileExplorerIdentity(skillFile);
-  assert.deepEqual(identity, {
+test("selects all Explorer Surfaces owned by the current context through one policy", () => {
+  const workspaceExplorer = surface("explorer:workspace", "explorer", {
+    source: "workspace",
+    rootPath: "/workspace",
+    workspaceId: "workspace-1",
+  });
+  const skillExplorer = surface("explorer:skill", "explorer", {
+    source: "skill",
     rootPath: "/home/user/.pi/agent/skills/example",
     sessionId: "session-1",
     skillName: "example",
   });
+  const other = surface("explorer:other", "explorer", workspaceExplorer.params, "thread-2");
+
+  assert.deepEqual(contextExplorerSurfaces([workspaceExplorer, skillExplorer, other], context), [
+    workspaceExplorer,
+    skillExplorer,
+  ]);
+});
+
+test("matches workspace, Skill, and Extension Explorers with the same session key", () => {
+  const workspaceSession = {
+    source: "workspace" as const,
+    rootPath: "/workspace",
+    workspaceId: "workspace-1",
+  };
+  const skillSession = {
+    source: "skill" as const,
+    rootPath: "/home/user/.pi/agent/skills/example",
+    sessionId: "session-1",
+    skillName: "example",
+  };
+  const extensionSession = {
+    source: "extension" as const,
+    rootPath: "/home/user/.pi/agent/extensions/review",
+    sessionId: "session-1",
+    extensionName: "review",
+    extensionFilePath: "/home/user/.pi/agent/extensions/review/index.ts",
+    extensionSource: "auto",
+    extensionScope: "user" as const,
+    extensionOrigin: "top-level" as const,
+  };
+
   assert.equal(
-    identity
-      ? skillExplorerMatchesFile(
-          {
-            ...surface("explorer:skill", "explorer"),
-            params: { source: "skill", ...identity },
-          },
-          identity,
-        )
-      : false,
+    explorerMatchesFileWorkspace(
+      surface("explorer:workspace", "explorer", workspaceSession),
+      workspaceSession,
+    ),
     true,
   );
-  assert.equal(skillFileExplorerIdentity(surface("file:workspace", "file")), undefined);
+  assert.equal(
+    explorerMatchesFileWorkspace(surface("explorer:skill", "explorer", skillSession), skillSession),
+    true,
+  );
+  assert.equal(
+    explorerMatchesFileWorkspace(
+      surface("explorer:extension", "explorer", extensionSession),
+      extensionSession,
+    ),
+    true,
+  );
+  assert.equal(
+    explorerMatchesFileWorkspace(
+      surface("explorer:other-extension", "explorer", {
+        ...extensionSession,
+        extensionOrigin: "package",
+      }),
+      extensionSession,
+    ),
+    false,
+  );
 });

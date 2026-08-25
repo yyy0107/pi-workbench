@@ -11,15 +11,16 @@ import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import type { WorkspaceSurfaceProps } from "@/platform/extensions";
 import {
+  fileWorkspaceContext,
+  fileWorkspaceOpenableResource,
   fileWorkspaceService as files,
-  isPathWithinWorkspace,
+  resolveFileWorkspaceSession,
   workspaceRelativePath,
   type FileNode,
 } from "@/services/workspace-file-service";
 
 import { fileBreadcrumbSegments, fileBreadcrumbTreeRootPath } from "./file-breadcrumb-model";
 import type { FileSurfaceParams } from "./file-surface";
-import { fileSurfaceWorkspaceContext, isSkillFileSource } from "./file-surface-source";
 
 type RootLoadState =
   | { status: "idle"; nodes: readonly FileNode[] }
@@ -41,32 +42,18 @@ export function FileBreadcrumbTree({ surface, context }: WorkspaceSurfaceProps<F
   const [openError, setOpenError] = useState<string>();
   const [truncated, setTruncated] = useState(false);
   const [rootState, setRootState] = useState<RootLoadState>({ status: "idle", nodes: [] });
-  const skillSource = isSkillFileSource(surface.params);
   const path = surface.params.absolutePath;
-  const rootPath =
-    skillSource && path && !isPathWithinWorkspace(context.rootPath, path)
-      ? undefined
-      : context.rootPath;
-  const relativePath =
-    skillSource && rootPath && path
-      ? workspaceRelativePath(rootPath, path)
-      : surface.params.relativePath;
-  const hasWorkspace =
-    !skillSource && Boolean(rootPath && (context.worktreeId ?? context.projectId));
+  const fileSession = useMemo(() => resolveFileWorkspaceSession(surface.params), [surface.params]);
+  const rootPath = fileSession?.rootPath;
+  const relativePath = surface.params.relativePath;
+  const hasWorkspace = Boolean(fileSession);
   const segments = useMemo(
     () => fileBreadcrumbSegments(rootPath, relativePath, path),
     [path, relativePath, rootPath],
   );
   const fileContext = useMemo(
-    () => fileSurfaceWorkspaceContext(surface.scope, context, surface.params),
-    [
-      context.projectId,
-      context.rootPath,
-      context.worktreeId,
-      surface.params.rootPath,
-      surface.params.source,
-      surface.scope,
-    ],
+    () => (fileSession ? fileWorkspaceContext(surface.scope, fileSession) : undefined),
+    [fileSession, surface.scope],
   );
   const rootNode = useMemo<FileNode | undefined>(
     () =>
@@ -83,6 +70,7 @@ export function FileBreadcrumbTree({ surface, context }: WorkspaceSurfaceProps<F
   );
 
   const loadRoot = useCallback(async () => {
+    if (!fileContext) throw new Error("The file workspace session is unavailable");
     const currentRequest = ++request.current;
     setRootState((current) => ({ status: "loading", nodes: current.nodes }));
     try {
@@ -117,6 +105,7 @@ export function FileBreadcrumbTree({ surface, context }: WorkspaceSurfaceProps<F
 
   const loadDirectory = useCallback(
     async (node: FileNode, signal: AbortSignal) => {
+      if (!fileContext) throw new Error("The file workspace session is unavailable");
       const listing = await files.listDirectory(fileContext, node.relativePath ?? node.path);
       signal.throwIfAborted();
       if (listing.truncated) setTruncated(true);
@@ -127,19 +116,16 @@ export function FileBreadcrumbTree({ surface, context }: WorkspaceSurfaceProps<F
 
   const openFile = useCallback(
     async (node: FileNode) => {
+      if (!fileSession) throw new Error("The file workspace session is unavailable");
       setOpenError(undefined);
       await openers.open({
-        resource: {
-          scheme: "workspace-file",
-          path: node.relativePath || node.path,
-          label: node.name,
-        },
+        resource: fileWorkspaceOpenableResource(fileSession, node),
         context,
         policy: "reveal",
       });
       setOpenSegment(undefined);
     },
-    [context, openers],
+    [context, fileSession, openers],
   );
 
   const treeLabels = {

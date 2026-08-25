@@ -32,6 +32,7 @@ const {
   insertPiWorkspaceBefore,
   listPiArchivedWorkspaceSessions,
   listPiCommands,
+  listPiExtensionFiles,
   listPiExtensions,
   listInstalledPiPackages,
   listPiSkills,
@@ -42,8 +43,10 @@ const {
   piWorkspaceFileContentUrl,
   PiApiError,
   pickPiHostDirectory,
+  readPiExtensionFile,
   readPiWorkspaceFile,
   readPiSkillFile,
+  removePiExtension,
   removePiPackage,
   removePiSkill,
   removePiModelProvider,
@@ -53,6 +56,7 @@ const {
   startPiModelProviderLogin,
   streamPiWorkspaceFileText,
   testPiModelImageInput,
+  setPiExtensionEnabled,
   setPiSkillEnabled,
   updatePiAgentSettings,
   updatePiProjectTrust,
@@ -1114,6 +1118,7 @@ test("listPiExtensions calls the session-scoped extension.list RPC", async (t) =
               source: "auto",
               scope: "user",
               origin: "top-level",
+              enabled: true,
               eventNames: ["tool_call"],
               toolNames: ["review_changes"],
               commandNames: ["review"],
@@ -1149,6 +1154,7 @@ test("listPiExtensions calls the session-scoped extension.list RPC", async (t) =
         source: "auto",
         scope: "user",
         origin: "top-level",
+        enabled: true,
         eventNames: ["tool_call"],
         toolNames: ["review_changes"],
         commandNames: ["review"],
@@ -1174,6 +1180,156 @@ test("listPiExtensions calls the session-scoped extension.list RPC", async (t) =
   });
   assert.equal(request?.method, "extension.list");
   assert.deepEqual(request?.payload, { sessionId: "session-1" });
+});
+
+test("readPiExtensionFile calls the identity-scoped extension.files.read RPC", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  let request: Record<string, unknown> | undefined;
+  globalThis.fetch = async (_input, init) => {
+    request = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: {
+        ok: true,
+        value: {
+          extensionName: "review",
+          rootPath: "/home/test/.pi/agent/extensions",
+          relativePath: "review.ts",
+          absolutePath: "/home/test/.pi/agent/extensions/review.ts",
+          name: "review.ts",
+          content: "export default function review() {}\n",
+          mediaType: "video/mp2t",
+          encoding: "utf-8",
+          version: "sha256:review",
+          size: 36,
+          modifiedAt: 1,
+        },
+      },
+    });
+  };
+  const identity = {
+    sessionId: "session-1",
+    name: "review",
+    filePath: "/home/test/.pi/agent/extensions/review.ts",
+    source: "auto",
+    scope: "user" as const,
+    origin: "top-level" as const,
+  };
+
+  assert.equal((await readPiExtensionFile(identity)).extensionName, "review");
+  assert.equal(request?.method, "extension.files.read");
+  assert.deepEqual(request?.payload, identity);
+});
+
+test("listPiExtensionFiles calls the identity-scoped extension.files.list RPC", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  let request: Record<string, unknown> | undefined;
+  globalThis.fetch = async (_input, init) => {
+    request = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: {
+        ok: true,
+        value: {
+          extensionName: "review",
+          rootPath: "/home/test/.pi/agent/extensions/review",
+          relativePath: "lib",
+          entries: [
+            {
+              name: "prompt.ts",
+              relativePath: "lib/prompt.ts",
+              kind: "file",
+              hidden: false,
+            },
+          ],
+          truncated: false,
+        },
+      },
+    });
+  };
+  const payload = {
+    sessionId: "session-1",
+    name: "review",
+    filePath: "/home/test/.pi/agent/extensions/review/index.ts",
+    source: "auto",
+    scope: "user" as const,
+    origin: "top-level" as const,
+    relativePath: "lib",
+  };
+
+  assert.equal((await listPiExtensionFiles(payload)).entries[0]?.name, "prompt.ts");
+  assert.equal(request?.method, "extension.files.list");
+  assert.deepEqual(request?.payload, payload);
+});
+
+test("extension management helpers call their exact identity-scoped RPC methods", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  const requests: Array<{ method: string; payload: unknown }> = [];
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as {
+      rpcId: string;
+      method: string;
+      payload: Record<string, unknown>;
+    };
+    requests.push({ method: request.method, payload: request.payload });
+    const value =
+      request.method === "extension.setEnabled"
+        ? {
+            name: request.payload.name,
+            filePath: request.payload.filePath,
+            enabled: request.payload.enabled,
+          }
+        : {
+            name: request.payload.name,
+            filePath: request.payload.filePath,
+            removed: true,
+          };
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: { ok: true, value },
+    });
+  };
+  const identity = {
+    sessionId: "session-1",
+    name: "review",
+    filePath: "/home/test/.pi/agent/extensions/review.ts",
+    source: "auto",
+    scope: "user" as const,
+    origin: "top-level" as const,
+  };
+
+  assert.deepEqual(await setPiExtensionEnabled({ ...identity, enabled: false }), {
+    name: "review",
+    filePath: identity.filePath,
+    enabled: false,
+  });
+  assert.deepEqual(await removePiExtension(identity), {
+    name: "review",
+    filePath: identity.filePath,
+    removed: true,
+  });
+  assert.deepEqual(requests, [
+    {
+      method: "extension.setEnabled",
+      payload: { ...identity, enabled: false },
+    },
+    { method: "extension.remove", payload: identity },
+  ]);
 });
 
 test("listInstalledPiPackages calls the session-scoped package.list RPC", async (t) => {
@@ -1228,7 +1384,7 @@ test("installPiPackage calls the loopback package.install RPC", async (t) => {
           source: "npm:@example/pi-tools",
           scope: "project",
           workspaceId: "workspace-1",
-          reloadRequired: true,
+          reloadRequired: false,
         },
       },
     });
@@ -1243,7 +1399,7 @@ test("installPiPackage calls the loopback package.install RPC", async (t) => {
       source: "npm:@example/pi-tools",
       scope: "project",
       workspaceId: "workspace-1",
-      reloadRequired: true,
+      reloadRequired: false,
     },
   );
   assert.equal(request?.method, "package.install");
@@ -1271,7 +1427,7 @@ test("removePiPackage calls the loopback package.remove RPC", async (t) => {
           source: "npm:@example/pi-tools",
           scope: "project",
           workspaceId: "workspace-1",
-          reloadRequired: true,
+          reloadRequired: false,
         },
       },
     });
@@ -1286,7 +1442,7 @@ test("removePiPackage calls the loopback package.remove RPC", async (t) => {
       source: "npm:@example/pi-tools",
       scope: "project",
       workspaceId: "workspace-1",
-      reloadRequired: true,
+      reloadRequired: false,
     },
   );
   assert.equal(request?.method, "package.remove");

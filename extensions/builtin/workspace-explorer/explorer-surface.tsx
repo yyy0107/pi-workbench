@@ -10,11 +10,12 @@ import { useI18n } from "@/i18n";
 import type { WorkspaceSurfaceProps } from "@/platform/extensions";
 import {
   fileWorkspaceContext,
+  fileWorkspaceOpenableResource,
   fileWorkspaceService as files,
+  resolveFileWorkspaceSession,
   type FileNode,
+  type FileWorkspaceSession,
 } from "@/services/workspace-file-service";
-import { listPiSkillFiles } from "@/runtime/pi/client/transport/api";
-import type { SkillFileEntry } from "@/runtime/pi/rpc-contracts";
 
 import {
   useActiveWorkspaceSurface,
@@ -24,40 +25,12 @@ import {
 
 const DIRECTORY_REFRESH_INTERVAL_MS = 2_000;
 
-export interface WorkspaceExplorerSurfaceParams extends Record<string, unknown> {
-  source?: "workspace";
-  rootPath: string;
-}
-
-export interface SkillExplorerSurfaceParams extends Record<string, unknown> {
-  source: "skill";
-  rootPath: string;
-  sessionId: string;
-  skillName: string;
-}
-
-export type ExplorerSurfaceParams = WorkspaceExplorerSurfaceParams | SkillExplorerSurfaceParams;
+export type ExplorerSurfaceParams = FileWorkspaceSession & Record<string, unknown>;
 
 type RootLoadState =
   | { status: "loading"; rootPath: string; nodes: readonly FileNode[] }
   | { status: "ready"; rootPath: string; nodes: readonly FileNode[] }
   | { status: "error"; rootPath: string; nodes: readonly FileNode[] };
-
-function skillEntryPath(rootPath: string, relativePath: string): string {
-  const normalizedRoot = rootPath.replaceAll("\\", "/").replace(/\/+$/, "");
-  return relativePath ? `${normalizedRoot}/${relativePath}` : normalizedRoot;
-}
-
-function skillFileNode(rootPath: string, entry: SkillFileEntry): FileNode {
-  return {
-    path: skillEntryPath(rootPath, entry.relativePath),
-    relativePath: entry.relativePath,
-    name: entry.name,
-    kind: entry.kind,
-    hidden: entry.hidden,
-    ...(entry.symbolicLink ? { symbolicLink: true } : {}),
-  };
-}
 
 function updateTruncatedPath(
   current: ReadonlySet<string>,
@@ -84,7 +57,7 @@ export function ExplorerSurface({
   const rootRequest = useRef(0);
   const [filter, setFilter] = useState("");
   const [openError, setOpenError] = useState<string>();
-  const [selectedSkillPath, setSelectedSkillPath] = useState<string>();
+  const [selectedResourcePath, setSelectedResourcePath] = useState<string>();
   const [treeRefreshToken, setTreeRefreshToken] = useState(0);
   const [truncatedPaths, setTruncatedPaths] = useState<ReadonlySet<string>>(() => new Set());
   const [rootState, setRootState] = useState<RootLoadState>({
@@ -92,10 +65,10 @@ export function ExplorerSurface({
     rootPath: surface.params.rootPath,
     nodes: [],
   });
-  const skillParams = surface.params.source === "skill" ? surface.params : undefined;
+  const fileSession = useMemo(() => resolveFileWorkspaceSession(surface.params), [surface.params]);
   const fileContext = useMemo(
-    () => fileWorkspaceContext(surface.scope, context),
-    [context.projectId, context.rootPath, context.worktreeId, surface.scope],
+    () => (fileSession ? fileWorkspaceContext(surface.scope, fileSession) : undefined),
+    [fileSession, surface.scope],
   );
   const activeFilePath =
     activeSurface?.kind === "file" && typeof activeSurface.params.absolutePath === "string"
@@ -108,26 +81,10 @@ export function ExplorerSurface({
         setRootState((current) => ({ ...current, status: "loading" }));
       }
       try {
-        let rootPath: string;
-        let relativePath: string;
-        let nodes: readonly FileNode[];
-        let truncated: boolean;
-        if (skillParams) {
-          const listing = await listPiSkillFiles({
-            sessionId: skillParams.sessionId,
-            name: skillParams.skillName,
-          });
-          rootPath = listing.rootPath;
-          relativePath = listing.relativePath;
-          nodes = listing.entries.map((entry) => skillFileNode(listing.rootPath, entry));
-          truncated = listing.truncated;
-        } else {
-          const listing = await files.listDirectory(fileContext, "");
-          rootPath = surface.params.rootPath;
-          relativePath = listing.relativePath;
-          nodes = listing.nodes;
-          truncated = listing.truncated;
-        }
+        if (!fileContext) throw new Error("The file workspace session is unavailable");
+        const listing = await files.listDirectory(fileContext, "");
+        const rootPath = fileSession?.rootPath ?? listing.path;
+        const { relativePath, nodes, truncated } = listing;
         if (request !== rootRequest.current) return;
         setRootState((current) =>
           current.status === "ready" &&
@@ -144,13 +101,13 @@ export function ExplorerSurface({
         setRootState((current) => ({ ...current, status: "error" }));
       }
     },
-    [fileContext, skillParams, surface.params.rootPath],
+    [fileContext, fileSession?.rootPath],
   );
 
   useEffect(() => {
     setFilter("");
     setOpenError(undefined);
-    setSelectedSkillPath(undefined);
+    setSelectedResourcePath(undefined);
     setTruncatedPaths(new Set());
     void loadRoot("foreground");
     return () => {
@@ -194,19 +151,7 @@ export function ExplorerSurface({
 
   const loadDirectory = useCallback(
     async (node: FileNode, signal: AbortSignal) => {
-      if (skillParams) {
-        const listing = await listPiSkillFiles({
-          sessionId: skillParams.sessionId,
-          name: skillParams.skillName,
-          relativePath: node.relativePath ?? "",
-        });
-        signal.throwIfAborted();
-        setTruncatedPaths((current) =>
-          updateTruncatedPath(current, listing.relativePath, listing.truncated),
-        );
-        return listing.entries.map((entry) => skillFileNode(listing.rootPath, entry));
-      }
-
+      if (!fileContext) throw new Error("The file workspace session is unavailable");
       const listing = await files.listDirectory(fileContext, node.relativePath ?? node.path);
       signal.throwIfAborted();
       setTruncatedPaths((current) =>
@@ -214,41 +159,21 @@ export function ExplorerSurface({
       );
       return listing.nodes;
     },
-    [fileContext, skillParams],
+    [fileContext],
   );
 
   const openFile = useCallback(
     async (node: FileNode) => {
-      if (skillParams) {
-        setSelectedSkillPath(node.path);
-        await openers.open({
-          resource: {
-            scheme: "skill-file",
-            path: node.path,
-            label: node.name,
-            metadata: {
-              sessionId: skillParams.sessionId,
-              skillName: skillParams.skillName,
-              relativePath: node.relativePath,
-            },
-          },
-          context,
-          policy: "reveal",
-        });
-        return;
-      }
+      if (!fileSession) throw new Error("The file workspace session is unavailable");
+      setSelectedResourcePath(node.path);
       setOpenError(undefined);
       await openers.open({
-        resource: {
-          scheme: "workspace-file",
-          path: node.relativePath || node.path,
-          label: node.name,
-        },
+        resource: fileWorkspaceOpenableResource(fileSession, node),
         context,
         policy: "reveal",
       });
     },
-    [context, openers, skillParams],
+    [context, fileSession, openers],
   );
 
   return (
@@ -324,7 +249,7 @@ export function ExplorerSurface({
             nodes={rootState.nodes}
             refreshToken={treeRefreshToken}
             filter={filter}
-            selectedPath={skillParams ? selectedSkillPath : activeFilePath}
+            selectedPath={activeFilePath ?? selectedResourcePath}
             labels={{
               tree: t("extensions.shared.fileTree.tree"),
               empty: t("extensions.shared.fileTree.empty"),
@@ -340,7 +265,7 @@ export function ExplorerSurface({
             }}
             loadDirectory={loadDirectory}
             openFile={openFile}
-            onSelectedPathChange={skillParams ? setSelectedSkillPath : undefined}
+            onSelectedPathChange={setSelectedResourcePath}
             onOpenFileError={(_error, node) =>
               setOpenError(t("extensions.shared.fileTree.openError", { name: node.name }))
             }

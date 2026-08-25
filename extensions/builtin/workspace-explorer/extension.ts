@@ -2,6 +2,10 @@ import { FolderTreeIcon } from "lucide-react";
 
 import type { WorkspaceSurfaceDefinition } from "@/platform/extensions";
 import { createLazyWorkspaceSurface, defineExtension } from "@/platform/extensions";
+import {
+  fileWorkspaceSessionKey,
+  resolveFileWorkspaceSession,
+} from "@/services/workspace-file-service";
 
 import { ExplorerRuntimeBridge } from "./explorer-runtime-bridge";
 import type { ExplorerSurfaceParams } from "./explorer-surface";
@@ -20,13 +24,10 @@ export const explorerSurfaceDefinition = {
   allowDuplicateResources: false,
   getResourceKey: (params, context) => {
     const contextKey = encodeURIComponent(context.threadId ?? "application");
-    if (params.source === "skill") {
-      return `explorer:${contextKey}:skill:${encodeURIComponent(params.sessionId)}:${encodeURIComponent(params.skillName)}`;
-    }
-    const workspaceKey = encodeURIComponent(
-      context.worktreeId ?? context.projectId ?? "application",
-    );
-    return `explorer:${contextKey}:workspace:${workspaceKey}:${encodeURIComponent(params.rootPath)}`;
+    const session = resolveFileWorkspaceSession(params);
+    return session
+      ? `explorer:${contextKey}:${encodeURIComponent(fileWorkspaceSessionKey(session))}`
+      : `explorer:${contextKey}:invalid`;
   },
   getDefaultScope: (_params, context) => ({
     type: context.threadId ? "thread" : "application",

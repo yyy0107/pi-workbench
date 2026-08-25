@@ -12,11 +12,9 @@ import {
 import { useI18n } from "@/i18n";
 
 import {
+  activeFileWorkspaceSession,
   contextExplorerSurfaces,
-  contextSkillExplorerSurfaces,
-  isFileSurfaceActive,
-  skillExplorerMatchesFile,
-  skillFileExplorerIdentity,
+  explorerMatchesFileWorkspace,
 } from "./explorer-runtime-policy";
 
 export function ExplorerRuntimeBridge() {
@@ -26,91 +24,40 @@ export function ExplorerRuntimeBridge() {
   const hydrated = useRightWorkspaceState((state) => state.hydrated);
   const activeSurface = useActiveWorkspaceSurface();
   const explorerSurfaces = useWorkspaceSurfaces("explorer");
-  const title = t("extensions.workspaceExplorer.title");
-  const { applicationId, projectId, rootPath, threadId, worktreeId } = context;
-  const fileSurfaceActive = isFileSurfaceActive(activeSurface);
-  const skillFileIdentity = useMemo(
-    () => skillFileExplorerIdentity(activeSurface),
-    [activeSurface],
-  );
+  const defaultTitle = t("extensions.workspaceExplorer.title");
+  const fileSession = useMemo(() => activeFileWorkspaceSession(activeSurface), [activeSurface]);
   const contextExplorers = useMemo(
     () => contextExplorerSurfaces(explorerSurfaces, context),
     [context, explorerSurfaces],
   );
-  const skillExplorers = useMemo(
-    () => contextSkillExplorerSurfaces(explorerSurfaces, context),
-    [context, explorerSurfaces],
-  );
-  const currentExplorer = contextExplorers.find((surface) => surface.params.rootPath === rootPath);
-  const currentSkillExplorer = skillFileIdentity
-    ? skillExplorers.find((surface) => skillExplorerMatchesFile(surface, skillFileIdentity))
+  const currentExplorer = fileSession
+    ? contextExplorers.find((surface) => explorerMatchesFileWorkspace(surface, fileSession))
     : undefined;
 
   useEffect(() => {
     if (!hydrated) return;
 
-    const shouldShow = Boolean(fileSurfaceActive && rootPath && (worktreeId ?? projectId));
     for (const surface of contextExplorers) {
-      if (!shouldShow || surface.id !== currentExplorer?.id) controller.close(surface.id);
+      if (!fileSession || surface.id !== currentExplorer?.id) controller.close(surface.id);
     }
-    for (const surface of skillExplorers) {
-      if (!skillFileIdentity || surface.id !== currentSkillExplorer?.id) {
-        controller.close(surface.id);
-      }
-    }
-    if (shouldShow && !currentExplorer && rootPath) {
-      controller.reveal({
-        kind: "explorer",
-        title,
-        params: { rootPath },
-        context: {
-          applicationId,
-          ...(threadId ? { threadId } : {}),
-          ...(worktreeId ? { worktreeId } : {}),
-          ...(projectId ? { projectId } : {}),
-          rootPath,
-        },
-        status: "ready",
-        policy: "background",
-      });
-    }
-    if (!skillFileIdentity || currentSkillExplorer) return;
+    if (!fileSession || currentExplorer) return;
+
+    const title =
+      fileSession.source === "skill"
+        ? fileSession.skillName
+        : fileSession.source === "extension"
+          ? fileSession.extensionName
+          : defaultTitle;
     controller.reveal({
       kind: "explorer",
-      title: skillFileIdentity.skillName,
-      params: {
-        source: "skill",
-        rootPath: skillFileIdentity.rootPath,
-        sessionId: skillFileIdentity.sessionId,
-        skillName: skillFileIdentity.skillName,
-      },
-      context: {
-        applicationId,
-        ...(threadId ? { threadId } : {}),
-        ...(worktreeId ? { worktreeId } : {}),
-        ...(projectId ? { projectId } : {}),
-        ...(rootPath ? { rootPath } : {}),
-      },
+      title,
+      params: { ...fileSession },
+      context,
       placement: "auxiliary",
       status: "ready",
-      policy: "force-focus",
+      policy: fileSession.source === "workspace" ? "background" : "force-focus",
     });
-  }, [
-    applicationId,
-    contextExplorers,
-    controller,
-    currentExplorer,
-    currentSkillExplorer,
-    fileSurfaceActive,
-    hydrated,
-    projectId,
-    rootPath,
-    skillExplorers,
-    skillFileIdentity,
-    threadId,
-    title,
-    worktreeId,
-  ]);
+  }, [context, contextExplorers, controller, currentExplorer, defaultTitle, fileSession, hydrated]);
 
   return null;
 }

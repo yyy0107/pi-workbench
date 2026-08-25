@@ -35,10 +35,19 @@ import { listPiLocalApps, openPiHostPath, openPiLocalApp } from "@/runtime/pi/cl
 import type { LocalAppFileKind, LocalAppView } from "@/runtime/pi/rpc-contracts";
 import { useRightWorkspace, useRightWorkspaceState } from "@/components/right-workspace";
 import { cn } from "@/lib/utils";
+import {
+  fileWorkspaceContext,
+  resolveFileWorkspaceSession,
+} from "@/services/workspace-file-service";
 import { FileBreadcrumbTree } from "./file-breadcrumb-tree";
 import { saveFileBuffer } from "./file-buffer-actions";
 import { browserFileBufferDraftStorage } from "./file-buffer-draft";
-import { compatibleLocalFileApps, localAppFileKindFor, localSystemApps } from "./file-open-apps";
+import {
+  compatibleLocalFileApps,
+  compatibleLocalFolderApps,
+  localAppFileKindFor,
+  localSystemApps,
+} from "./file-open-apps";
 import cursorIcon from "./icons/cursor.svg";
 import datagripIcon from "./icons/datagrip.svg";
 import ideaIcon from "./icons/idea.svg";
@@ -50,7 +59,6 @@ import vlcIcon from "./icons/vlc.svg";
 import vscodeIcon from "./icons/vscode.svg";
 import webstormIcon from "./icons/webstorm.svg";
 import type { FileSurfaceParams } from "./file-surface";
-import { fileSurfaceRootPath, fileSurfaceWorkspaceContext } from "./file-surface-source";
 import {
   isFileViewerPreviewFile,
   isMarkdownFile,
@@ -119,9 +127,11 @@ export function FileSurfaceHeader({ surface, context }: WorkspaceSurfaceProps<Fi
   const [localAppsLoading, setLocalAppsLoading] = useState(true);
   const [localAppsError, setLocalAppsError] = useState(false);
   const path = surface.params.absolutePath;
+  const fileSession = useMemo(() => resolveFileWorkspaceSession(surface.params), [surface.params]);
   const fileContext = useMemo(
-    () => fileSurfaceWorkspaceContext(surface.scope, context, surface.params),
-    [context, surface.params, surface.scope],
+    () =>
+      fileSession ? fileWorkspaceContext(surface.scope, fileSession) : { scope: surface.scope },
+    [fileSession, surface.scope],
   );
   const markdown = isMarkdownFile(path);
   const largeText =
@@ -132,9 +142,8 @@ export function FileSurfaceHeader({ surface, context }: WorkspaceSurfaceProps<Fi
       (surface.params.encoding === "utf-8" &&
         isFileViewerPreviewFile(surface.params.absolutePath)));
   const viewMode = resolveFileViewMode(path, surface.params.viewMode);
-  const folderPath = path
-    ? (fileSurfaceRootPath(surface.params, context) ?? (path.replace(/[\\/][^\\/]+$/, "") || path))
-    : undefined;
+  const folderPath =
+    fileSession?.rootPath ?? (path ? path.replace(/[\\/][^\\/]+$/, "") || path : undefined);
   const fileKind = useMemo(
     () => localAppFileKindFor(path, surface.params.mediaType, surface.params.encoding),
     [path, surface.params.encoding, surface.params.mediaType],
@@ -143,8 +152,11 @@ export function FileSurfaceHeader({ surface, context }: WorkspaceSurfaceProps<Fi
     () => compatibleLocalFileApps(localApps, fileKind),
     [fileKind, localApps],
   );
+  const folderApps = useMemo(() => compatibleLocalFolderApps(localApps), [localApps]);
   const systemApps = useMemo(() => localSystemApps(localApps), [localApps]);
-  const primaryApp = fileApps[0];
+  const targetApps = path ? fileApps : folderApps;
+  const primaryApp = targetApps[0];
+  const openTarget = path ?? folderPath;
   const localAppName = useCallback(
     (app: LocalAppView) => {
       if (app.id === "terminal") return t("extensions.workspaceFile.terminal");
@@ -225,7 +237,7 @@ export function FileSurfaceHeader({ surface, context }: WorkspaceSurfaceProps<Fi
     <div className="flex size-full min-w-0 items-center gap-3 px-3">
       <FileBreadcrumbTree surface={surface} context={context} />
 
-      {!surface.params.readOnly && surface.dirty && path ? (
+      {fileSession?.source === "workspace" && surface.dirty && path ? (
         <Button
           type="button"
           variant="ghost"
@@ -296,46 +308,64 @@ export function FileSurfaceHeader({ surface, context }: WorkspaceSurfaceProps<Fi
         </Button>
       ) : null}
 
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-sm"
-        aria-controls="right-workspace-auxiliary-pane"
-        aria-expanded={auxiliaryOpen}
-        aria-label={
-          auxiliaryOpen
-            ? t("extensions.workspaceFile.hideFileTree")
-            : t("extensions.workspaceFile.showFileTree")
-        }
-        title={
-          auxiliaryOpen
-            ? t("extensions.workspaceFile.hideFileTree")
-            : t("extensions.workspaceFile.showFileTree")
-        }
-        className={cn(auxiliaryOpen && "bg-muted/55")}
-        onClick={() => controller.setAuxiliaryOpen(!auxiliaryOpen)}
-      >
-        <FoldersIcon className="size-4" />
-      </Button>
+      {fileSession ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-controls="right-workspace-auxiliary-pane"
+          aria-expanded={auxiliaryOpen}
+          aria-label={
+            auxiliaryOpen
+              ? t("extensions.workspaceFile.hideFileTree")
+              : t("extensions.workspaceFile.showFileTree")
+          }
+          title={
+            auxiliaryOpen
+              ? t("extensions.workspaceFile.hideFileTree")
+              : t("extensions.workspaceFile.showFileTree")
+          }
+          className={cn(auxiliaryOpen && "bg-muted/55")}
+          onClick={() => controller.setAuxiliaryOpen(!auxiliaryOpen)}
+        >
+          <FoldersIcon className="size-4" />
+        </Button>
+      ) : null}
 
-      {path && folderPath ? (
+      {fileSession && openTarget && folderPath ? (
         <div className="flex h-7 w-14 shrink-0 items-stretch overflow-hidden rounded-lg border bg-background shadow-xs">
           <button
             type="button"
             aria-label={
               primaryApp
                 ? t("extensions.workspaceFile.openWith", { name: localAppName(primaryApp) })
-                : t("extensions.workspaceFile.openFile")
+                : t(
+                    path
+                      ? "extensions.workspaceFile.openFile"
+                      : "extensions.workspaceFile.openFolder",
+                  )
             }
             title={
               primaryApp
                 ? t("extensions.workspaceFile.openWith", { name: localAppName(primaryApp) })
-                : t("extensions.workspaceFile.openFile")
+                : t(
+                    path
+                      ? "extensions.workspaceFile.openFile"
+                      : "extensions.workspaceFile.openFolder",
+                  )
             }
             className="hover:bg-muted flex w-7 items-center justify-center transition-colors"
-            onClick={() => void (primaryApp ? openWithLocalApp(primaryApp, path) : openPath(path))}
+            onClick={() =>
+              void (primaryApp ? openWithLocalApp(primaryApp, openTarget) : openPath(openTarget))
+            }
           >
-            {primaryApp ? <LocalAppIcon app={primaryApp} /> : <FileKindIcon kind={fileKind} />}
+            {primaryApp ? (
+              <LocalAppIcon app={primaryApp} />
+            ) : path ? (
+              <FileKindIcon kind={fileKind} />
+            ) : (
+              <FolderIcon className="size-4 shrink-0" />
+            )}
           </button>
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -354,15 +384,26 @@ export function FileSurfaceHeader({ surface, context }: WorkspaceSurfaceProps<Fi
                     {t("extensions.workspaceFile.loadingLocalApps")}
                   </DropdownMenuItem>
                 ) : null}
-                {fileApps.map((app) => (
-                  <DropdownMenuItem key={app.id} onClick={() => void openWithLocalApp(app, path)}>
+                {targetApps.map((app) => (
+                  <DropdownMenuItem
+                    key={app.id}
+                    onClick={() => void openWithLocalApp(app, openTarget)}
+                  >
                     <LocalAppIcon app={app} />
                     {localAppName(app)}
                   </DropdownMenuItem>
                 ))}
-                <DropdownMenuItem onClick={() => void openPath(path)}>
-                  <FileKindIcon kind={fileKind} />
-                  {t("extensions.workspaceFile.openFile")}
+                <DropdownMenuItem onClick={() => void openPath(openTarget)}>
+                  {path ? (
+                    <FileKindIcon kind={fileKind} />
+                  ) : (
+                    <FolderIcon className="size-4 shrink-0" />
+                  )}
+                  {t(
+                    path
+                      ? "extensions.workspaceFile.openFile"
+                      : "extensions.workspaceFile.openFolder",
+                  )}
                 </DropdownMenuItem>
               </DropdownMenuGroup>
               {systemApps.length > 0 ? <DropdownMenuSeparator /> : null}

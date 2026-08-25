@@ -1,3 +1,5 @@
+import path from "node:path";
+
 import {
   DefaultPackageManager,
   getAgentDir,
@@ -11,10 +13,11 @@ import type {
   InstalledPackageView,
   PiPackageInstallPayload,
   PiPackageInstallValue,
+  PiPackageMutationTarget,
   PiPackageRemovePayload,
   PiPackageRemoveValue,
 } from "../../rpc-contracts";
-import { getOrStartSession } from "../sessions/session-registry";
+import { getLoadedSessions, getOrStartSession } from "../sessions/session-registry";
 import { getProjectTrustService } from "../trust/project-trust-service";
 import { getWorkspaceStore } from "../workspaces/workspace-registry";
 
@@ -31,9 +34,21 @@ export interface InstalledPackageSessionHost {
   };
 }
 
+export interface LoadedPackageSessionHost {
+  readonly id: string;
+  readonly isRunning: boolean;
+  readonly session: {
+    readonly sessionManager: {
+      getCwd(): string;
+    };
+    reload(): Promise<void>;
+  };
+}
+
 export interface InstalledPackageServiceDependencies {
   getSession(sessionId: string): Promise<InstalledPackageSessionHost>;
   getWorkspace(workspaceId: string): Promise<{ path: string } | undefined>;
+  getLoadedSessions(): readonly LoadedPackageSessionHost[];
   isProjectTrusted(workspacePath: string): boolean | Promise<boolean>;
   installUserPackage(sessionId: string, source: string): Promise<void>;
   installProjectPackage(workspacePath: string, source: string): Promise<void>;
@@ -45,6 +60,7 @@ export interface InstalledPackageServiceErrorDetails {
   "session-not-found": { sessionId: string };
   "workspace-not-found": { workspaceId: string };
   "project-untrusted": { workspaceId: string };
+  "session-busy": { sessionId: string };
   "install-failed": { name: string; scope: "user" | "project" };
   "package-not-installed": { source: string; scope: "user" | "project" };
   "remove-failed": { source: string; scope: "user" | "project" };
@@ -176,6 +192,7 @@ export class InstalledPackageService {
     this.dependencies = {
       getSession: getOrStartSession,
       getWorkspace,
+      getLoadedSessions,
       isProjectTrusted: (workspacePath) => getProjectTrustService().isTrusted(workspacePath),
       installUserPackage,
       installProjectPackage,
@@ -197,6 +214,44 @@ export class InstalledPackageService {
     } finally {
       release();
     }
+  }
+
+  private affectedLoadedSessions(
+    target: PiPackageMutationTarget,
+    workspacePath?: string,
+  ): readonly LoadedPackageSessionHost[] {
+    const sessions = this.dependencies.getLoadedSessions();
+    if (target.scope === "user") return sessions;
+    if (!workspacePath) return [];
+    const canonicalWorkspacePath = path.resolve(workspacePath);
+    return sessions.filter(
+      (host) => path.resolve(host.session.sessionManager.getCwd()) === canonicalWorkspacePath,
+    );
+  }
+
+  private assertSessionsIdle(sessions: readonly LoadedPackageSessionHost[]): void {
+    const busy = sessions.find((host) => host.isRunning);
+    if (!busy) return;
+    throw new InstalledPackageServiceError(
+      "session-busy",
+      "A related session is currently running.",
+      {
+        sessionId: busy.id,
+      },
+    );
+  }
+
+  private async reloadAffectedSessions(
+    target: PiPackageMutationTarget,
+    workspacePath?: string,
+  ): Promise<void> {
+    const results = await Promise.allSettled(
+      this.affectedLoadedSessions(target, workspacePath).map((host) => host.session.reload()),
+    );
+    const failure = results.find(
+      (result): result is PromiseRejectedResult => result.status === "rejected",
+    );
+    if (failure) throw failure.reason;
   }
 
   async list({ sessionId }: InstalledPackageListPayload): Promise<InstalledPackageListValue> {
@@ -272,16 +327,19 @@ export class InstalledPackageService {
       }
 
       try {
-        await this.serializeMutation(() =>
-          this.dependencies.installProjectPackage(workspace.path, source),
-        );
+        await this.serializeMutation(async () => {
+          this.assertSessionsIdle(this.affectedLoadedSessions(target, workspace.path));
+          await this.dependencies.installProjectPackage(workspace.path, source);
+          await this.reloadAffectedSessions(target, workspace.path);
+        });
         return {
           source,
           scope: "project",
           workspaceId: target.workspaceId,
-          reloadRequired: true,
+          reloadRequired: false,
         };
       } catch (error) {
+        if (error instanceof InstalledPackageServiceError) throw error;
         throw new InstalledPackageServiceError(
           "install-failed",
           "The Pi package could not be installed.",
@@ -292,11 +350,14 @@ export class InstalledPackageService {
     }
 
     try {
-      await this.serializeMutation(() =>
-        this.dependencies.installUserPackage(target.sessionId, source),
-      );
-      return { source, scope: "user", reloadRequired: true };
+      await this.serializeMutation(async () => {
+        this.assertSessionsIdle(this.affectedLoadedSessions(target));
+        await this.dependencies.installUserPackage(target.sessionId, source);
+        await this.reloadAffectedSessions(target);
+      });
+      return { source, scope: "user", reloadRequired: false };
     } catch (error) {
+      if (error instanceof InstalledPackageServiceError) throw error;
       if (errorCode(error) === "pi_session_not_found") {
         throw new InstalledPackageServiceError(
           "session-not-found",
@@ -343,21 +404,23 @@ export class InstalledPackageService {
       }
 
       try {
-        const removed = await this.serializeMutation(() =>
-          this.dependencies.removeProjectPackage(workspace.path, source),
-        );
-        if (!removed) {
-          throw new InstalledPackageServiceError(
-            "package-not-installed",
-            "The Pi package is not installed in this project.",
-            { source, scope: "project" },
-          );
-        }
+        await this.serializeMutation(async () => {
+          this.assertSessionsIdle(this.affectedLoadedSessions(target, workspace.path));
+          const removed = await this.dependencies.removeProjectPackage(workspace.path, source);
+          if (!removed) {
+            throw new InstalledPackageServiceError(
+              "package-not-installed",
+              "The Pi package is not installed in this project.",
+              { source, scope: "project" },
+            );
+          }
+          await this.reloadAffectedSessions(target, workspace.path);
+        });
         return {
           source,
           scope: "project",
           workspaceId: target.workspaceId,
-          reloadRequired: true,
+          reloadRequired: false,
         };
       } catch (error) {
         if (error instanceof InstalledPackageServiceError) throw error;
@@ -371,17 +434,19 @@ export class InstalledPackageService {
     }
 
     try {
-      const removed = await this.serializeMutation(() =>
-        this.dependencies.removeUserPackage(target.sessionId, source),
-      );
-      if (!removed) {
-        throw new InstalledPackageServiceError(
-          "package-not-installed",
-          "The Pi package is not installed for this user.",
-          { source, scope: "user" },
-        );
-      }
-      return { source, scope: "user", reloadRequired: true };
+      await this.serializeMutation(async () => {
+        this.assertSessionsIdle(this.affectedLoadedSessions(target));
+        const removed = await this.dependencies.removeUserPackage(target.sessionId, source);
+        if (!removed) {
+          throw new InstalledPackageServiceError(
+            "package-not-installed",
+            "The Pi package is not installed for this user.",
+            { source, scope: "user" },
+          );
+        }
+        await this.reloadAffectedSessions(target);
+      });
+      return { source, scope: "user", reloadRequired: false };
     } catch (error) {
       if (error instanceof InstalledPackageServiceError) throw error;
       if (errorCode(error) === "pi_session_not_found") {

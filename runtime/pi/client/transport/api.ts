@@ -18,8 +18,16 @@ import type {
   ConfigureModelProviderPayload,
   DiscoverModelsPayload,
   DiscoverModelsValue,
+  ExtensionFileReadPayload,
+  ExtensionFileSnapshotValue,
+  ExtensionFilesListPayload,
+  ExtensionFilesListValue,
   ExtensionListPayload,
   ExtensionListValue,
+  ExtensionRemovePayload,
+  ExtensionRemoveValue,
+  ExtensionSetEnabledPayload,
+  ExtensionSetEnabledValue,
   HostDescription,
   HostDirectoryListing,
   InstalledPackageListPayload,
@@ -628,6 +636,28 @@ export function listPiCommands(payload: CommandListPayload): Promise<CommandList
 
 export function listPiExtensions(payload: ExtensionListPayload): Promise<ExtensionListValue> {
   return callPiRpc("extension.list", payload);
+}
+
+export function readPiExtensionFile(
+  payload: ExtensionFileReadPayload,
+): Promise<ExtensionFileSnapshotValue> {
+  return callPiRpc("extension.files.read", payload);
+}
+
+export function listPiExtensionFiles(
+  payload: ExtensionFilesListPayload,
+): Promise<ExtensionFilesListValue> {
+  return callPiRpc("extension.files.list", payload);
+}
+
+export function setPiExtensionEnabled(
+  payload: ExtensionSetEnabledPayload,
+): Promise<ExtensionSetEnabledValue> {
+  return callPiRpc("extension.setEnabled", payload);
+}
+
+export function removePiExtension(payload: ExtensionRemovePayload): Promise<ExtensionRemoveValue> {
+  return callPiRpc("extension.remove", payload);
 }
 
 export function listInstalledPiPackages(

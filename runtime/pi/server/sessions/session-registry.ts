@@ -3917,6 +3917,11 @@ export function getRunningSessionIds(): string[] {
   return runningSessionIds();
 }
 
+/** Return only in-process sessions whose Pi runtime and settings snapshots are currently loaded. */
+export function getLoadedSessions(): readonly HostedSession[] {
+  return [...state().sessions.values()].filter((host) => host.isAlive);
+}
+
 export function getAttachedSessionCount(): number {
   return [...state().sessions.values()].filter((host) => host.isAlive).length;
 }

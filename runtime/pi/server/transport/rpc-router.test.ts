@@ -632,6 +632,55 @@ test("validates extension.list at the shared RPC boundary", async () => {
   assert.deepEqual(issues[0]?.path, ["payload", "sessionId"]);
 });
 
+test("validates extension management methods at the shared RPC boundary", async () => {
+  const identity = {
+    sessionId: "session-1",
+    name: "review",
+    filePath: "/home/test/.pi/agent/extensions/review.ts",
+    source: "auto",
+    scope: "user",
+    origin: "top-level",
+  };
+  const invalidRequests = [
+    {
+      method: "extension.setEnabled",
+      payload: { ...identity, enabled: "yes" },
+      expectedPath: ["payload", "enabled"],
+    },
+    {
+      method: "extension.remove",
+      payload: { ...identity, filePath: "" },
+      expectedPath: ["payload", "filePath"],
+    },
+    {
+      method: "extension.files.read",
+      payload: { ...identity, origin: "unknown" },
+      expectedPath: ["payload", "origin"],
+    },
+    {
+      method: "extension.files.list",
+      payload: { ...identity, relativePath: 1 },
+      expectedPath: ["payload", "relativePath"],
+    },
+    {
+      method: "extension.files.read",
+      payload: { ...identity, relativePath: "" },
+      expectedPath: ["payload", "relativePath"],
+    },
+  ] as const;
+
+  for (const { method, payload, expectedPath } of invalidRequests) {
+    const response = await handlePiRpcPost(rpcRequest(method, payload), method);
+    assert.equal(response.status, 200);
+    const body = (await response.json()) as ServerResponse<unknown>;
+    assert.equal(body.result.ok, false);
+    if (body.result.ok) assert.fail(`Expected a ${method} validation error`);
+    assert.equal(body.result.error.code, "bad-request");
+    const issues = body.result.error.details.issues as Array<{ path?: unknown }>;
+    assert.deepEqual(issues[0]?.path, expectedPath);
+  }
+});
+
 test("validates package.list at the shared RPC boundary", async () => {
   const response = await handlePiRpcPost(
     rpcRequest("package.list", { sessionId: "" }),

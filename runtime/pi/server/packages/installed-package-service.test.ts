@@ -90,10 +90,36 @@ test("installs an official catalog package into the user Pi configuration", asyn
     {
       source: "npm:@example/pi-tools",
       scope: "user",
-      reloadRequired: true,
+      reloadRequired: false,
     },
   );
   assert.deepEqual(installations, [{ sessionId: "session-1", source: "npm:@example/pi-tools" }]);
+});
+
+test("reloads affected sessions after installing a user Pi package", async () => {
+  const reloaded: string[] = [];
+  const service = new InstalledPackageService({
+    getLoadedSessions: () => [
+      {
+        id: "session-1",
+        isRunning: false,
+        session: {
+          sessionManager: { getCwd: () => "/projects/example" },
+          reload: async () => {
+            reloaded.push("session-1");
+          },
+        },
+      },
+    ],
+    installUserPackage: async () => undefined,
+  });
+
+  await service.install({
+    name: "@example/pi-tools",
+    target: { scope: "user", sessionId: "session-1" },
+  });
+
+  assert.deepEqual(reloaded, ["session-1"]);
 });
 
 test("installs an official catalog package into an imported project", async () => {
@@ -116,7 +142,7 @@ test("installs an official catalog package into an imported project", async () =
       source: "npm:@example/pi-tools",
       scope: "project",
       workspaceId: "workspace-1",
-      reloadRequired: true,
+      reloadRequired: false,
     },
   );
   assert.deepEqual(installations, [
@@ -141,10 +167,46 @@ test("removes a configured package from the user Pi configuration", async () => 
     {
       source: "npm:@example/pi-tools",
       scope: "user",
-      reloadRequired: true,
+      reloadRequired: false,
     },
   );
   assert.deepEqual(removals, [{ sessionId: "session-1", source: "npm:@example/pi-tools" }]);
+});
+
+test("reloads every loaded session after removing a user Pi package", async () => {
+  const reloaded: string[] = [];
+  const service = new InstalledPackageService({
+    getLoadedSessions: () => [
+      {
+        id: "session-1",
+        isRunning: false,
+        session: {
+          sessionManager: { getCwd: () => "/projects/one" },
+          reload: async () => {
+            reloaded.push("session-1");
+          },
+        },
+      },
+      {
+        id: "session-2",
+        isRunning: false,
+        session: {
+          sessionManager: { getCwd: () => "/projects/two" },
+          reload: async () => {
+            reloaded.push("session-2");
+          },
+        },
+      },
+    ],
+    removeUserPackage: async () => true,
+  });
+
+  await service.remove({
+    source: "npm:@example/pi-tools",
+    target: { scope: "user", sessionId: "session-1" },
+  });
+
+  assert.deepEqual(reloaded, ["session-1", "session-2"]);
 });
 
 test("removes a configured package from an imported project", async () => {
@@ -168,12 +230,84 @@ test("removes a configured package from an imported project", async () => {
       source: "git:github.com/example/pi-tools",
       scope: "project",
       workspaceId: "workspace-1",
-      reloadRequired: true,
+      reloadRequired: false,
     },
   );
   assert.deepEqual(removals, [
     { workspacePath: "/projects/example", source: "git:github.com/example/pi-tools" },
   ]);
+});
+
+test("reloads only sessions from the affected project after removing a project Pi package", async () => {
+  const reloaded: string[] = [];
+  const service = new InstalledPackageService({
+    getWorkspace: async () => ({ path: "/projects/example" }),
+    getLoadedSessions: () => [
+      {
+        id: "project-session",
+        isRunning: false,
+        session: {
+          sessionManager: { getCwd: () => "/projects/example" },
+          reload: async () => {
+            reloaded.push("project-session");
+          },
+        },
+      },
+      {
+        id: "other-session",
+        isRunning: false,
+        session: {
+          sessionManager: { getCwd: () => "/projects/other" },
+          reload: async () => {
+            reloaded.push("other-session");
+          },
+        },
+      },
+    ],
+    isProjectTrusted: () => true,
+    removeProjectPackage: async () => true,
+  });
+
+  await service.remove({
+    source: "git:github.com/example/pi-tools",
+    target: { scope: "project", workspaceId: "workspace-1" },
+  });
+
+  assert.deepEqual(reloaded, ["project-session"]);
+});
+
+test("rejects package removal before persistence when an affected session is running", async () => {
+  let removalAttempted = false;
+  const service = new InstalledPackageService({
+    getLoadedSessions: () => [
+      {
+        id: "session-busy",
+        isRunning: true,
+        session: {
+          sessionManager: { getCwd: () => "/projects/example" },
+          reload: async () => undefined,
+        },
+      },
+    ],
+    removeUserPackage: async () => {
+      removalAttempted = true;
+      return true;
+    },
+  });
+
+  await assert.rejects(
+    service.remove({
+      source: "npm:pi-tools",
+      target: { scope: "user", sessionId: "session-1" },
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof InstalledPackageServiceError);
+      assert.equal(error.code, "session-busy");
+      assert.deepEqual(error.details, { sessionId: "session-busy" });
+      return true;
+    },
+  );
+  assert.equal(removalAttempted, false);
 });
 
 test("reports a stable error when the package is no longer configured", async () => {

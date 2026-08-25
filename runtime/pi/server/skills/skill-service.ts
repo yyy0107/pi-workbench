@@ -6,7 +6,6 @@ import {
   DefaultPackageManager,
   getAgentDir,
   loadSkills,
-  type PackageSource,
   type ResolvedResource,
   type SettingsManager,
 } from "@earendil-works/pi-coding-agent";
@@ -28,6 +27,16 @@ import type {
   SkillSetEnabledPayload,
   SkillSetEnabledValue,
 } from "../../rpc-contracts";
+import {
+  clonePackageSource,
+  pathWithin,
+  withResourceEnabled,
+} from "../resources/resource-mutations";
+import {
+  readResourceTextFile,
+  ResourceTextFileTooLargeError,
+  ResourceTextFileUnsupportedEncodingError,
+} from "../resources/resource-text-file";
 import { getOrStartSession } from "../sessions/session-registry";
 
 export const MAX_SKILL_DOCUMENT_BYTES = 1024 * 1024;
@@ -37,9 +46,6 @@ const SKILL_DIRECTORY_ENTRY_LIMIT = 2_000;
 const WINDOWS_ABSOLUTE_PATH = /^[a-zA-Z]:[\\/]/;
 
 class SkillDocumentTooLargeError extends Error {}
-class SkillFileTooLargeError extends Error {}
-class SkillFileUnsupportedEncodingError extends Error {}
-
 async function readSkillDocument(filePath: string): Promise<string> {
   const file = await open(filePath, "r");
   try {
@@ -58,46 +64,6 @@ async function readSkillDocument(filePath: string): Promise<string> {
     }
 
     return Buffer.concat(chunks, totalBytes).toString("utf8");
-  } finally {
-    await file.close();
-  }
-}
-
-async function readSkillFileContent(filePath: string): Promise<{
-  content: string;
-  bytes: Buffer;
-  modifiedAt: number;
-}> {
-  const file = await open(filePath, "r");
-  try {
-    const metadata = await file.stat();
-    if (!metadata.isFile()) throw new Error("The requested Skill path is not a regular file.");
-    if (metadata.size > MAX_SKILL_FILE_BYTES) throw new SkillFileTooLargeError();
-
-    const chunks: Buffer[] = [];
-    let totalBytes = 0;
-    while (totalBytes <= MAX_SKILL_FILE_BYTES) {
-      const buffer = Buffer.allocUnsafe(
-        Math.min(SKILL_DOCUMENT_READ_CHUNK_BYTES, MAX_SKILL_FILE_BYTES + 1 - totalBytes),
-      );
-      const { bytesRead } = await file.read(buffer, 0, buffer.byteLength, null);
-      if (bytesRead === 0) break;
-      totalBytes += bytesRead;
-      if (totalBytes > MAX_SKILL_FILE_BYTES) throw new SkillFileTooLargeError();
-      chunks.push(buffer.subarray(0, bytesRead));
-    }
-
-    const bytes = Buffer.concat(chunks, totalBytes);
-    if (bytes.includes(0)) throw new SkillFileUnsupportedEncodingError();
-    try {
-      return {
-        content: new TextDecoder("utf-8", { fatal: true }).decode(bytes),
-        bytes,
-        modifiedAt: metadata.mtimeMs,
-      };
-    } catch {
-      throw new SkillFileUnsupportedEncodingError();
-    }
   } finally {
     await file.close();
   }
@@ -181,42 +147,6 @@ export class SkillServiceError<
 function errorCode(error: unknown): string | undefined {
   if (typeof error !== "object" || error === null || !("code" in error)) return undefined;
   return typeof error.code === "string" ? error.code : undefined;
-}
-
-function patternTarget(pattern: string): string {
-  return /^[!+-]/.test(pattern) ? pattern.slice(1) : pattern;
-}
-
-function withResourceEnabled(
-  current: readonly string[],
-  resourcePath: string,
-  enabled: boolean,
-): string[] {
-  return [
-    ...current.filter((pattern) => patternTarget(pattern) !== resourcePath),
-    `${enabled ? "+" : "-"}${resourcePath}`,
-  ];
-}
-
-function clonePackageSource(source: PackageSource): PackageSource {
-  if (typeof source === "string") return source;
-  return {
-    ...source,
-    ...(source.extensions ? { extensions: [...source.extensions] } : {}),
-    ...(source.skills ? { skills: [...source.skills] } : {}),
-    ...(source.prompts ? { prompts: [...source.prompts] } : {}),
-    ...(source.themes ? { themes: [...source.themes] } : {}),
-  };
-}
-
-function pathWithin(rootPath: string, candidatePath: string): boolean {
-  const relativePath = path.relative(rootPath, candidatePath);
-  return (
-    relativePath === "" ||
-    (!relativePath.startsWith(`..${path.sep}`) &&
-      relativePath !== ".." &&
-      !path.isAbsolute(relativePath))
-  );
 }
 
 function relativeDisplayPath(rootPath: string, candidatePath: string): string {
@@ -680,7 +610,7 @@ export class SkillService {
           { name, relativePath },
         );
       }
-      const file = await readSkillFileContent(canonicalPath);
+      const file = await readResourceTextFile(canonicalPath, MAX_SKILL_FILE_BYTES);
       return {
         skillName: skill.name,
         rootPath,
@@ -696,7 +626,7 @@ export class SkillService {
       };
     } catch (error) {
       if (error instanceof SkillServiceError) throw error;
-      if (error instanceof SkillFileTooLargeError) {
+      if (error instanceof ResourceTextFileTooLargeError) {
         throw new SkillServiceError(
           "skill-file-too-large",
           "The Skill file is too large to display.",
@@ -704,7 +634,7 @@ export class SkillService {
           { cause: error },
         );
       }
-      if (error instanceof SkillFileUnsupportedEncodingError) {
+      if (error instanceof ResourceTextFileUnsupportedEncodingError) {
         throw new SkillServiceError(
           "skill-file-unsupported-encoding",
           "The Skill file is not supported as UTF-8 text.",

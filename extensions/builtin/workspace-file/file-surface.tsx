@@ -7,10 +7,12 @@ import { useRightWorkspace } from "@/components/right-workspace";
 import { languageForFilename, shouldHighlightWorkbenchCode } from "@/components/code-highlighting";
 import { useI18n } from "@/i18n";
 import type { WorkspaceSurfaceProps } from "@/platform/extensions";
-import { readPiSkillFile } from "@/runtime/pi/client/transport/api";
 import {
+  fileWorkspaceContext,
   fileWorkspaceService as files,
+  resolveFileWorkspaceSession,
   type FileDescriptor,
+  type FileWorkspaceSession,
 } from "@/services/workspace-file-service";
 
 import { FileCodeEditor, FileCodeView } from "./file-code-editor";
@@ -31,21 +33,12 @@ import {
   type FileViewMode,
 } from "./file-view-mode";
 import { isLargeTextFile } from "./progressive-text-document";
-import { fileSurfaceWorkspaceContext } from "./file-surface-source";
 import { useProgressiveTextDocument } from "./use-progressive-text-document";
 import { VirtualizedTextViewer } from "./virtualized-text-viewer";
 
-export interface FileSurfaceParams extends Record<string, unknown> {
-  source?: "workspace" | "skill";
-  rootPath?: string;
-  sessionId?: string;
-  skillName?: string;
-  readOnly?: boolean;
+interface FileDocumentParams {
   absolutePath?: string;
   relativePath?: string;
-  workspaceId?: string;
-  bufferId?: string;
-  launcher?: boolean;
   viewMode?: FileViewMode;
   diffId?: string;
   diffCycle?: number;
@@ -57,6 +50,8 @@ export interface FileSurfaceParams extends Record<string, unknown> {
   modifiedAt?: number;
   contentUrl?: string;
 }
+
+export type FileSurfaceParams = FileWorkspaceSession & FileDocumentParams & Record<string, unknown>;
 
 function descriptorFromParams(params: FileSurfaceParams): FileDescriptor | undefined {
   if (
@@ -73,8 +68,8 @@ function descriptorFromParams(params: FileSurfaceParams): FileDescriptor | undef
   return {
     path: params.absolutePath,
     ...(params.relativePath ? { relativePath: params.relativePath } : {}),
-    ...(params.workspaceId ? { workspaceId: params.workspaceId } : {}),
-    source: params.workspaceId ? "workspace" : "memory",
+    ...(params.source === "workspace" ? { workspaceId: params.workspaceId } : {}),
+    source: params.source === "workspace" ? "workspace" : "resource",
     name: params.name,
     mediaType: params.mediaType,
     encoding: params.encoding,
@@ -100,26 +95,17 @@ function UnavailableFile({ title, description }: { title: string; description: s
   );
 }
 
-export function FileSurface({
-  surface,
-  context,
-  retryToken = 0,
-}: WorkspaceSurfaceProps<FileSurfaceParams>) {
+export function FileSurface({ surface, retryToken = 0 }: WorkspaceSurfaceProps<FileSurfaceParams>) {
   const { t } = useI18n();
   const controller = useRightWorkspace();
   const path = surface.params.absolutePath;
+  const fileSession = useMemo(() => resolveFileWorkspaceSession(surface.params), [surface.params]);
   const initialDescriptor = useMemo(() => descriptorFromParams(surface.params), [surface.params]);
   const [descriptor, setDescriptor] = useState<FileDescriptor | undefined>(initialDescriptor);
   const fileContext = useMemo(
-    () => fileSurfaceWorkspaceContext(surface.scope, context, surface.params),
-    [
-      context.projectId,
-      context.rootPath,
-      context.worktreeId,
-      surface.params.rootPath,
-      surface.params.source,
-      surface.scope,
-    ],
+    () =>
+      fileSession ? fileWorkspaceContext(surface.scope, fileSession) : { scope: surface.scope },
+    [fileSession, surface.scope],
   );
   const subscribe = useCallback(
     (listener: () => void) => (path ? files.watchPath(fileContext, path, listener) : () => {}),
@@ -175,7 +161,7 @@ export function FileSurface({
   const needsTextSnapshot = needsTextContent && !canStreamLargeText;
 
   useEffect(() => {
-    if (!path) {
+    if (!fileSession || !path) {
       setDescriptor(undefined);
       return;
     }
@@ -208,6 +194,7 @@ export function FileSurface({
   }, [
     controller,
     fileContext,
+    fileSession,
     initialDescriptor,
     path,
     retryToken,
@@ -216,40 +203,12 @@ export function FileSurface({
   ]);
 
   useEffect(() => {
-    if (!path || !needsTextSnapshot) return;
+    if (!fileSession || !path || !needsTextSnapshot) return;
     if (snapshot) {
       controller.update(surface.id, { status: "ready", statusMessage: undefined });
       return;
     }
-    if (surface.params.source === "skill" && surface.params.sessionId && surface.params.skillName) {
-      let current = true;
-      controller.update(surface.id, { status: "loading", statusMessage: undefined });
-      void readPiSkillFile({
-        sessionId: surface.params.sessionId,
-        name: surface.params.skillName,
-        relativePath:
-          surface.params.relativePath ?? path.split(/[\\/]/).filter(Boolean).at(-1) ?? "SKILL.md",
-      })
-        .then((skillFile) => {
-          if (!current) return;
-          if (skillFile.absolutePath.replaceAll("\\", "/") !== path.replaceAll("\\", "/")) {
-            throw new Error("The Skill file path changed");
-          }
-          files.attachFile(fileContext, path, skillFile.content);
-          controller.update(surface.id, { status: "ready", statusMessage: undefined });
-        })
-        .catch((error: unknown) => {
-          if (!current) return;
-          controller.update(surface.id, {
-            status: "error",
-            statusMessage: error instanceof Error ? error.message : String(error),
-          });
-        });
-      return () => {
-        current = false;
-      };
-    }
-    if (!fileContext.workspaceId) return;
+    if (!fileContext.workspaceId && !fileContext.session) return;
 
     let current = true;
     controller.update(surface.id, { status: "loading", statusMessage: undefined });
@@ -271,11 +230,17 @@ export function FileSurface({
   }, [
     controller,
     fileContext,
+    fileSession,
     needsTextSnapshot,
     path,
     retryToken,
     snapshot,
     surface.id,
+    surface.params.extensionFilePath,
+    surface.params.extensionName,
+    surface.params.extensionOrigin,
+    surface.params.extensionScope,
+    surface.params.extensionSource,
     surface.params.relativePath,
     surface.params.sessionId,
     surface.params.skillName,
@@ -336,6 +301,14 @@ export function FileSurface({
     handledRetryToken.current = retryToken;
     void save();
   }, [retryToken, save, surface.dirty]);
+
+  if (!fileSession) {
+    return (
+      <div className="text-muted-foreground flex h-full items-center justify-center p-8 text-center text-sm">
+        {t("extensions.workspaceFile.unavailable")}
+      </div>
+    );
+  }
 
   if (!path) {
     return (
@@ -451,7 +424,7 @@ export function FileSurface({
     );
   }
 
-  if (surface.params.readOnly) {
+  if (fileSession.source !== "workspace") {
     return (
       <section className="flex h-full min-h-0 flex-col">
         <FileCodeView

@@ -1,12 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
-import { useInstallableComponentExtensions } from "@/extensions/component-extension-installation";
 import { useI18n } from "@/i18n";
-import { useWorkbenchExtensions } from "@/platform/extensions";
 import { usePiResourceCatalogTargets } from "@/runtime/pi/client/runtime/context";
 import type { PiResourceCatalogTarget } from "@/runtime/pi/client/runtime/manager";
+import {
+  getPiResourceCatalogRevision,
+  invalidatePiResourceCatalog,
+  subscribePiResourceCatalog,
+} from "@/runtime/pi/client/runtime/resource-catalog-revision";
 import {
   listInstalledPiPackages,
   listPiCommands,
@@ -22,7 +25,6 @@ import type {
 
 import {
   bindCapabilityToCatalogTarget,
-  componentExtensionCapabilityId,
   extensionSurfaceParams,
   installedPackageSurfaceParams,
   promptSurfaceParams,
@@ -65,15 +67,16 @@ interface ToolboxCatalogState<T> {
   readonly loadState: ToolboxCatalogLoadState;
 }
 
-const skillChangeListeners = new Set<() => void>();
-const packageChangeListeners = new Set<() => void>();
-
 export function notifyToolboxSkillsChanged(): void {
-  for (const listener of skillChangeListeners) listener();
+  invalidatePiResourceCatalog();
+}
+
+export function notifyToolboxExtensionsChanged(): void {
+  invalidatePiResourceCatalog();
 }
 
 export function notifyToolboxPackagesChanged(): void {
-  for (const listener of packageChangeListeners) listener();
+  invalidatePiResourceCatalog();
 }
 
 async function loadSkills(sessionId: string): Promise<readonly SkillView[]> {
@@ -128,6 +131,11 @@ function useToolboxCatalog<T>(
   loader: (sessionId: string) => Promise<T>,
 ): ToolboxCatalog<T> {
   const [reloadRevision, setReloadRevision] = useState(0);
+  const resourceCatalogRevision = useSyncExternalStore(
+    subscribePiResourceCatalog,
+    getPiResourceCatalogRevision,
+    () => 0,
+  );
   const [state, setState] = useState<ToolboxCatalogState<T>>({
     entries: [],
     loadState: "idle",
@@ -154,7 +162,7 @@ function useToolboxCatalog<T>(
     return () => {
       requestGeneration.current += 1;
     };
-  }, [loader, reloadRevision, targets]);
+  }, [loader, reloadRevision, resourceCatalogRevision, targets]);
 
   return {
     ...state,
@@ -178,30 +186,12 @@ function projectSearchText(target: PiResourceCatalogTarget): string {
 }
 
 export function useToolboxCatalogs() {
-  const { t, text } = useI18n();
-  const workbenchExtensions = useWorkbenchExtensions();
-  const installableComponentExtensions = useInstallableComponentExtensions();
+  const { t } = useI18n();
   const targets = usePiResourceCatalogTargets();
   const skillsCatalog = useToolboxCatalog(targets, loadSkills);
   const extensionsCatalog = useToolboxCatalog(targets, loadExtensions);
   const promptsCatalog = useToolboxCatalog(targets, loadPrompts);
   const packagesCatalog = useToolboxCatalog(targets, loadPackages);
-
-  useEffect(() => {
-    const refresh = skillsCatalog.refresh;
-    skillChangeListeners.add(refresh);
-    return () => {
-      skillChangeListeners.delete(refresh);
-    };
-  }, [skillsCatalog.refresh]);
-
-  useEffect(() => {
-    const refresh = packagesCatalog.refresh;
-    packageChangeListeners.add(refresh);
-    return () => {
-      packageChangeListeners.delete(refresh);
-    };
-  }, [packagesCatalog.refresh]);
 
   const skillItems = useMemo<readonly ToolboxCapabilityItem[]>(
     () =>
@@ -233,93 +223,6 @@ export function useToolboxCatalogs() {
     [skillsCatalog.entries],
   );
 
-  const componentExtensionItems = useMemo<readonly ToolboxCapabilityItem[]>(() => {
-    const installableIds = new Set(
-      installableComponentExtensions.map(({ extension }) => extension.id),
-    );
-    const catalog = [
-      ...installableComponentExtensions,
-      ...workbenchExtensions
-        .filter(
-          (extension) =>
-            extension.toolbox?.kind === "component-extension" && !installableIds.has(extension.id),
-        )
-        .map((extension) => ({ extension, installed: true })),
-    ];
-
-    return catalog.flatMap(({ extension, installed }) => {
-      if (extension.toolbox?.kind !== "component-extension") return [];
-      const name = text(extension.toolbox.name);
-      const description = extension.toolbox.description
-        ? text(extension.toolbox.description)
-        : undefined;
-      const contributions = extension.toolbox.contributions.map((contribution) => {
-        const contributionDescription = contribution.description
-          ? text(contribution.description)
-          : undefined;
-        return {
-          id: contribution.id,
-          kind: contribution.kind,
-          surface: text(contribution.surface),
-          target: contribution.target,
-          ...(contribution.host ? { host: contribution.host } : {}),
-          ...(contributionDescription ? { description: contributionDescription } : {}),
-          preview: contribution.preview,
-          sourceFiles: [...contribution.sourceFiles],
-        };
-      });
-      const id = componentExtensionCapabilityId(extension.id);
-
-      return [
-        {
-          id,
-          kind: "component-extension" as const,
-          name,
-          ...(description ? { description } : {}),
-          status: t(
-            extension.toolbox.distribution === "installable"
-              ? installed
-                ? "extensions.toolbox.status.installed"
-                : "extensions.toolbox.status.uninstalled"
-              : "extensions.toolbox.status.loaded",
-          ),
-          searchText: [
-            name,
-            description ?? "",
-            extension.id,
-            extension.version,
-            extension.toolbox.entryFile,
-            ...contributions.flatMap((contribution) => [
-              contribution.kind,
-              contribution.id,
-              contribution.surface,
-              contribution.target,
-              contribution.host ?? "",
-              contribution.description ?? "",
-              ...contribution.sourceFiles,
-            ]),
-          ].join(" "),
-          params: {
-            capabilityId: id,
-            capabilityKind: "component-extension" as const,
-            name,
-            ...(description ? { description } : {}),
-            source: extension.id,
-            version: extension.version,
-            entryFile: extension.toolbox.entryFile,
-            componentExtensionId: extension.id,
-            componentExtensionDistribution: extension.toolbox.distribution,
-            installed,
-            eventNames: [],
-            toolNames: [],
-            commandNames: [],
-            componentContributions: contributions,
-          },
-        },
-      ];
-    });
-  }, [installableComponentExtensions, t, text, workbenchExtensions]);
-
   const extensionItems = useMemo<readonly ToolboxCapabilityItem[]>(
     () =>
       uniqueCapabilities(
@@ -340,6 +243,11 @@ export function useToolboxCatalogs() {
               kind: "extension" as const,
               name: params.name,
               description,
+              status: t(
+                extension.enabled
+                  ? "extensions.toolbox.extensions.loaded"
+                  : "extensions.toolbox.extensions.disabled",
+              ),
               ...(params.projectId && target.project ? { project: target.project } : {}),
               searchText: [
                 params.name,
@@ -419,7 +327,6 @@ export function useToolboxCatalogs() {
   );
 
   return {
-    componentExtensionItems,
     extensionItems,
     extensionsCatalog,
     packageItems,

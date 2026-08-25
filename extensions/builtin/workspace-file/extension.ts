@@ -2,10 +2,20 @@ import { FileCode2Icon } from "lucide-react";
 
 import type { WorkspaceSurfaceDefinition } from "@/platform/extensions";
 import { createLazyWorkspaceSurface, defineExtension } from "@/platform/extensions";
+import {
+  fileWorkspaceSessionKey,
+  resolveFileWorkspaceSession,
+} from "@/services/workspace-file-service";
 
 import { FileMenuItem } from "./file-menu-item";
 import { FileRuntimeBridge } from "./file-runtime-bridge";
-import { fileOpenHandler, skillFileOpenHandler } from "./file-opener";
+import {
+  extensionDirectoryOpenHandler,
+  extensionFileOpenHandler,
+  fileOpenHandler,
+  skillDirectoryOpenHandler,
+  skillFileOpenHandler,
+} from "./file-opener";
 import type { FileSurfaceParams } from "./file-surface";
 import { FileSurfaceHeader } from "./file-surface-header";
 
@@ -19,12 +29,16 @@ export const fileSurfaceDefinition = {
   icon: FileCode2Icon,
   cachePolicy: "keep-alive",
   allowDuplicateResources: false,
-  getResourceKey: (params, context) =>
-    params.absolutePath
-      ? `file:${encodeURIComponent(context.threadId ?? "application")}:${encodeURIComponent(params.absolutePath)}`
-      : `file-launcher:${encodeURIComponent(
-          context.threadId ?? context.worktreeId ?? context.projectId ?? context.applicationId,
-        )}`,
+  getResourceKey: (params, context) => {
+    const contextKey = encodeURIComponent(context.threadId ?? "application");
+    const session = resolveFileWorkspaceSession(params);
+    if (!session) return `file-workspace:${contextKey}:invalid`;
+    const sessionKey = encodeURIComponent(fileWorkspaceSessionKey(session));
+    if (params.absolutePath) {
+      return `file:${contextKey}:${sessionKey}:${encodeURIComponent(params.absolutePath)}`;
+    }
+    return `file-workspace:${contextKey}:${sessionKey}`;
+  },
   getDefaultScope: (_params, context) => ({
     type: context.threadId ? "thread" : "application",
     key: context.threadId ?? context.applicationId,
@@ -43,6 +57,16 @@ export const workspaceFileExtension = defineExtension({
     const surface = context.workspace.register(fileSurfaceDefinition);
     const opener = context.openers.register(fileOpenHandler);
     const skillOpener = context.openers.register(skillFileOpenHandler);
-    return [surface, opener, skillOpener];
+    const skillDirectoryOpener = context.openers.register(skillDirectoryOpenHandler);
+    const extensionOpener = context.openers.register(extensionFileOpenHandler);
+    const extensionDirectoryOpener = context.openers.register(extensionDirectoryOpenHandler);
+    return [
+      surface,
+      opener,
+      skillOpener,
+      skillDirectoryOpener,
+      extensionOpener,
+      extensionDirectoryOpener,
+    ];
   },
 });
