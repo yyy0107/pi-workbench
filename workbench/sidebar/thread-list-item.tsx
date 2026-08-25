@@ -60,6 +60,7 @@ export function WorkbenchThreadListItem({
   );
   const { activateWorkspace, deactivateWorkspace, destroyNewThread } = useWorkspaceCapabilities();
   const isRunning = runtimeIsRunning || piState.running;
+  const showPinAction = workspaceId === undefined || isPinned;
   const title = piState.thread?.title ?? runtimeTitle;
   const lastMessageAt = piState.thread?.lastMessageAt ?? runtimeLastMessageAt;
   const openThreadRoute = () => {
@@ -150,7 +151,14 @@ export function WorkbenchThreadListItem({
           openThreadRoute();
         }}
       >
-        <span className="min-w-0 flex-1 truncate pe-16 md:pe-0 md:group-hover/thread:pe-14 md:group-has-[:focus-visible]/thread:pe-14">
+        <span
+          className={cn(
+            "min-w-0 flex-1 truncate md:pe-0",
+            showPinAction
+              ? "pe-16 md:group-hover/thread:pe-14 md:group-has-[:focus-visible]/thread:pe-14"
+              : "pe-8 md:group-hover/thread:pe-6 md:group-has-[:focus-visible]/thread:pe-6",
+          )}
+        >
           {title || t("workbench.sidebar.newThread")}
         </span>
         {!isRunning && piState.completed ? (
@@ -173,21 +181,23 @@ export function WorkbenchThreadListItem({
         data-thread-item-actions=""
         className="pointer-events-auto absolute end-0 flex items-center opacity-100 transition-opacity md:pointer-events-none md:opacity-0 md:group-hover/thread:pointer-events-auto md:group-hover/thread:opacity-100 md:group-has-[:focus-visible]/thread:pointer-events-auto md:group-has-[:focus-visible]/thread:opacity-100"
       >
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          aria-label={t(isPinned ? "workbench.sidebar.unpin" : "workbench.sidebar.pin")}
-          aria-pressed={isPinned}
-          title={t(isPinned ? "workbench.sidebar.unpin" : "workbench.sidebar.pin")}
-          className={cn(
-            "text-muted-foreground hover:text-foreground size-8! active:scale-90",
-            isPinned && "text-foreground",
-          )}
-          onClick={() => void togglePinned()}
-        >
-          {isPinned ? <PinOffIcon className="size-4" /> : <PinIcon className="size-4" />}
-        </Button>
+        {showPinAction ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label={t(isPinned ? "workbench.sidebar.unpin" : "workbench.sidebar.pin")}
+            aria-pressed={isPinned}
+            title={t(isPinned ? "workbench.sidebar.unpin" : "workbench.sidebar.pin")}
+            className={cn(
+              "text-muted-foreground hover:text-foreground size-8! active:scale-90",
+              isPinned && "text-foreground",
+            )}
+            onClick={() => void togglePinned()}
+          >
+            {isPinned ? <PinOffIcon className="size-4" /> : <PinIcon className="size-4" />}
+          </Button>
+        ) : null}
         <ThreadListItemPrimitive.Archive
           onClick={leaveRemovedThreadRoute}
           render={
