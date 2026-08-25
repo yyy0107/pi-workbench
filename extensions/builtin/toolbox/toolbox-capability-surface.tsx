@@ -6,21 +6,39 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
   ClipboardIcon,
+  Code2Icon,
+  ComponentIcon,
   ExternalLinkIcon,
+  EyeIcon,
   FolderIcon,
+  FolderOpenIcon,
   LoaderCircleIcon,
+  MapPinIcon,
   MessageSquareTextIcon,
   PackageIcon,
   PackagePlusIcon,
-  PinIcon,
-  SettingsIcon,
   SparklesIcon,
+  SquareTerminalIcon,
+  Trash2Icon,
   UserRoundIcon,
 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
-import { useCommandService } from "@/platform/extensions";
+import { MarkdownTextContent } from "@/components/assistant-ui/markdown-text";
+import { useOpenerService, useWorkspaceContext } from "@/components/right-workspace";
 import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  setComponentExtensionInstalled,
+  useInstallableComponentExtensions,
+} from "@/extensions/component-extension-installation";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,20 +46,44 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Progress } from "@/components/ui/progress";
+import { Switch } from "@/components/ui/switch";
 import { useI18n } from "@/i18n";
+import {
+  ExtensionErrorBoundary,
+  useExtensionErrorReporter,
+  type ComponentExtensionContributionKind,
+  type ExtensionErrorSource,
+} from "@/platform/extensions";
 import {
   usePiActiveSessionId,
   usePiHostDescription,
+  usePiThreadActivity,
+  usePiThreadListItemSnapshot,
   usePiWorkspaces,
 } from "@/runtime/pi/client/runtime/context";
-import { installPiPackage, PiApiError } from "@/runtime/pi/client/transport/api";
+import {
+  installPiPackage,
+  listInstalledPiPackages,
+  PiApiError,
+  removePiPackage,
+  removePiSkill,
+  setPiSkillEnabled,
+} from "@/runtime/pi/client/transport/api";
 
-import type { ToolboxCapabilitySurfaceParams } from "./toolbox-capability";
-import { notifyToolboxPackagesChanged } from "./toolbox-catalog";
-import { toggleToolboxPin, useToolboxPins } from "./toolbox-pins";
+import type {
+  ToolboxCapabilitySurfaceParams,
+  ToolboxComponentContribution,
+} from "./toolbox-capability";
+import { ComponentPlacementPreview } from "./component-placement-preview";
+import { notifyToolboxPackagesChanged, notifyToolboxSkillsChanged } from "./toolbox-catalog";
 import { usePiPackageDetails } from "./use-pi-package-details";
+import { usePiSkillDetails } from "./use-pi-skill-details";
 
 type PackageInstallChoice =
   | { scope: "user" }
@@ -53,6 +95,41 @@ type PackageInstallFeedback =
   | { status: "installed"; target: PackageInstallChoice }
   | { status: "failed"; target: PackageInstallChoice; errorCode?: string };
 
+type PackageRemoveFeedback =
+  | { status: "idle" }
+  | { status: "removing"; target: PackageInstallChoice }
+  | { status: "removed"; target: PackageInstallChoice }
+  | { status: "failed"; target: PackageInstallChoice; errorCode?: string };
+
+type SkillMutationState = "idle" | "updating" | "removing" | "failed" | "removed";
+type SkillDocumentMode = "preview" | "source";
+
+const COMPONENT_CONTRIBUTION_KIND_KEYS = {
+  slot: "extensions.toolbox.componentContributionKinds.slot",
+  panel: "extensions.toolbox.componentContributionKinds.panel",
+  "message-renderer": "extensions.toolbox.componentContributionKinds.messageRenderer",
+  "message-part-renderer": "extensions.toolbox.componentContributionKinds.messagePartRenderer",
+  "tool-renderer": "extensions.toolbox.componentContributionKinds.toolRenderer",
+  "data-renderer": "extensions.toolbox.componentContributionKinds.dataRenderer",
+  "settings-section": "extensions.toolbox.componentContributionKinds.settingsSection",
+  "settings-item": "extensions.toolbox.componentContributionKinds.settingsItem",
+  "main-view": "extensions.toolbox.componentContributionKinds.mainView",
+  "workspace-surface": "extensions.toolbox.componentContributionKinds.workspaceSurface",
+} as const satisfies Readonly<Record<ComponentExtensionContributionKind, string>>;
+
+const COMPONENT_CONTRIBUTION_ERROR_SOURCES = {
+  slot: "slot",
+  panel: "panel",
+  "message-renderer": "renderer",
+  "message-part-renderer": "renderer",
+  "tool-renderer": "renderer",
+  "data-renderer": "renderer",
+  "settings-section": "setting",
+  "settings-item": "setting",
+  "main-view": "main-view",
+  "workspace-surface": "workspace",
+} as const satisfies Readonly<Record<ComponentExtensionContributionKind, ExtensionErrorSource>>;
+
 function installChoiceKey(choice: PackageInstallChoice): string {
   return choice.scope === "user" ? "user" : `project:${choice.workspaceId}`;
 }
@@ -62,6 +139,76 @@ function DetailField({ label, children }: { label: string; children: ReactNode }
     <div className="grid min-w-0 gap-1">
       <dt className="text-muted-foreground text-xs font-medium">{label}</dt>
       <dd className="text-sm leading-5 break-words">{children}</dd>
+    </div>
+  );
+}
+
+function abbreviateUserHomePath(filePath: string): string {
+  const posixPath = filePath.replace(/^(?:\/home\/[^/]+|\/Users\/[^/]+|\/root)(?=\/|$)/, "~");
+  if (posixPath !== filePath) return posixPath;
+
+  return filePath.replace(/^[a-z]:\\Users\\[^\\]+(?=\\|$)/i, "~");
+}
+
+function parentDirectoryPath(filePath: string): string {
+  const separatorIndex = Math.max(filePath.lastIndexOf("/"), filePath.lastIndexOf("\\"));
+  return separatorIndex > 0 ? filePath.slice(0, separatorIndex) : filePath;
+}
+
+function CopyableSourcePath({ path }: { path: string }) {
+  const { t } = useI18n();
+  const [copyState, setCopyState] = useState<"copied" | "failed" | "idle">("idle");
+  const copyLabel = t(
+    copyState === "copied"
+      ? "extensions.toolbox.details.sourcePathCopied"
+      : copyState === "failed"
+        ? "extensions.toolbox.details.sourcePathCopyFailed"
+        : "extensions.toolbox.details.copySourcePath",
+  );
+
+  const copyPath = () => {
+    if (!navigator.clipboard) {
+      setCopyState("failed");
+      return;
+    }
+
+    void navigator.clipboard.writeText(path).then(
+      () => setCopyState("copied"),
+      () => setCopyState("failed"),
+    );
+  };
+
+  return (
+    <div className="bg-muted/55 flex min-w-0 items-center gap-2 rounded-lg border p-1.5 ps-2.5">
+      <code className="min-w-0 flex-1 text-xs break-all" title={path}>
+        {path}
+      </code>
+      <Button
+        type="button"
+        variant="outline"
+        size="xs"
+        className="active:translate-y-0!"
+        aria-label={`${copyLabel}: ${path}`}
+        title={copyLabel}
+        onClick={copyPath}
+      >
+        {copyState === "copied" ? (
+          <CheckIcon aria-hidden="true" />
+        ) : (
+          <ClipboardIcon aria-hidden="true" />
+        )}
+        {copyLabel}
+      </Button>
+    </div>
+  );
+}
+
+function SourceFileList({ paths }: { paths: readonly string[] }) {
+  return (
+    <div className="grid gap-1.5">
+      {paths.map((path) => (
+        <CopyableSourcePath key={path} path={path} />
+      ))}
     </div>
   );
 }
@@ -103,21 +250,245 @@ function CapabilityNames({ names, empty }: { names: readonly string[]; empty: st
   );
 }
 
+function ComponentContributionDetails({
+  capabilityId,
+  contribution,
+}: {
+  capabilityId: string;
+  contribution: ToolboxComponentContribution;
+}) {
+  const { t } = useI18n();
+  const reportExtensionError = useExtensionErrorReporter();
+  const Preview = contribution.preview;
+
+  return (
+    <article className="rounded-xl border p-3 sm:p-4">
+      <header className="flex min-w-0 flex-wrap items-center gap-2">
+        <span className="bg-muted rounded-md px-2 py-1 text-[11px] font-medium">
+          {t(COMPONENT_CONTRIBUTION_KIND_KEYS[contribution.kind])}
+        </span>
+        <code
+          className="text-muted-foreground min-w-0 truncate text-[11px]"
+          title={contribution.id}
+        >
+          {contribution.id}
+        </code>
+      </header>
+
+      <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+        <DetailField label={t("extensions.toolbox.details.insertionPosition")}>
+          {contribution.surface}
+        </DetailField>
+        <DetailField label={t("extensions.toolbox.details.extensionPoint")}>
+          <code className="text-xs break-all">{contribution.target}</code>
+        </DetailField>
+        {contribution.host ? (
+          <DetailField label={t("extensions.toolbox.details.renderMountPoint")}>
+            <code className="text-xs break-all">{contribution.host}</code>
+          </DetailField>
+        ) : null}
+        {contribution.description ? (
+          <DetailField label={t("extensions.toolbox.details.mountBehavior")}>
+            {contribution.description}
+          </DetailField>
+        ) : null}
+        <div className="sm:col-span-2">
+          <DetailField label={t("extensions.toolbox.details.componentSourceFiles")}>
+            <SourceFileList paths={contribution.sourceFiles} />
+          </DetailField>
+        </div>
+      </dl>
+
+      <div className="mt-4 border-t pt-4">
+        <h3 className="text-xs font-semibold">{t("extensions.toolbox.details.projectPreview")}</h3>
+        <p className="text-muted-foreground mt-1 text-xs leading-5">
+          {t("extensions.toolbox.details.projectPreviewDescription")}
+        </p>
+        <div className="bg-muted/30 mt-3 rounded-xl border p-3 sm:p-4">
+          <ComponentPlacementPreview contribution={contribution} />
+        </div>
+      </div>
+
+      <div className="mt-4 border-t pt-4">
+        <h3 className="text-xs font-semibold">{t("extensions.toolbox.details.stylePreview")}</h3>
+        <p className="text-muted-foreground mt-1 text-xs leading-5">
+          {t("extensions.toolbox.details.stylePreviewDescription")}
+        </p>
+        <div
+          className="bg-muted/30 mt-3 rounded-xl border p-3 sm:p-4"
+          aria-label={t("extensions.toolbox.details.stylePreview")}
+        >
+          <div className="text-muted-foreground mb-3 flex min-w-0 items-center gap-2 text-xs">
+            <span className="bg-background flex size-7 shrink-0 items-center justify-center rounded-lg border">
+              <ComponentIcon aria-hidden="true" className="size-3.5" />
+            </span>
+            <span className="truncate">{contribution.surface}</span>
+          </div>
+          <div className="bg-background rounded-lg border p-3 shadow-sm sm:p-4">
+            <ExtensionErrorBoundary
+              contributionId={`${capabilityId}:${contribution.id}:preview`}
+              source={COMPONENT_CONTRIBUTION_ERROR_SOURCES[contribution.kind]}
+              onError={reportExtensionError}
+              resetKey={Preview}
+              fallback={
+                <p className="text-destructive text-xs" role="alert">
+                  {t("extensions.toolbox.details.stylePreviewError")}
+                </p>
+              }
+            >
+              <Preview />
+            </ExtensionErrorBoundary>
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function officialPackageUrl(name: string, kind: "catalog" | "npm"): string {
+  const encodedName = name.split("/").map(encodeURIComponent).join("/");
+  return kind === "catalog"
+    ? `https://pi.dev/packages/${encodedName}`
+    : `https://www.npmjs.com/package/${encodedName}`;
+}
+
+function CapabilityMetadataFields({ params }: { params: ToolboxCapabilitySurfaceParams }) {
+  const { t } = useI18n();
+  const isPrompt = params.capabilityKind === "prompt";
+  const isInstalledPackage = params.capabilityKind === "package" && params.installed === true;
+  const isComponentExtension = params.capabilityKind === "component-extension";
+
+  if (isInstalledPackage) {
+    return (
+      <>
+        <DetailField label={t("extensions.toolbox.details.source")}>
+          <code className="text-xs break-all">{params.source}</code>
+        </DetailField>
+        <DetailField label={t("extensions.toolbox.details.scope")}>
+          {params.packageScope
+            ? t(`extensions.toolbox.scopes.${params.packageScope}`)
+            : t("extensions.toolbox.details.notExposed")}
+        </DetailField>
+        <DetailField label={t("extensions.toolbox.details.resourceSelection")}>
+          {t(
+            params.packageFiltered
+              ? "extensions.toolbox.packages.filteredResources"
+              : "extensions.toolbox.packages.allResources",
+          )}
+        </DetailField>
+      </>
+    );
+  }
+
+  if (isPrompt) {
+    return (
+      <>
+        <DetailField label={t("extensions.toolbox.details.invocation")}>
+          <code className="text-xs">/{params.invocationName}</code>
+        </DetailField>
+        <DetailField label={t("extensions.toolbox.details.arguments")}>
+          {params.argumentHint || t("extensions.toolbox.details.none")}
+        </DetailField>
+        <DetailField label={t("extensions.toolbox.details.source")}>
+          <code className="text-xs break-all">{params.source}</code>
+        </DetailField>
+        <DetailField label={t("extensions.toolbox.details.scope")}>
+          {params.scope
+            ? t(`extensions.toolbox.scopes.${params.scope}`)
+            : t("extensions.toolbox.details.notExposed")}
+        </DetailField>
+        <DetailField label={t("extensions.toolbox.details.origin")}>
+          {params.origin
+            ? t(`extensions.toolbox.origins.${params.origin}`)
+            : t("extensions.toolbox.details.notExposed")}
+        </DetailField>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <DetailField label={t("extensions.toolbox.details.source")}>
+        <code className="text-xs break-all">{params.source}</code>
+      </DetailField>
+      {isComponentExtension && params.entryFile ? (
+        <DetailField label={t("extensions.toolbox.details.extensionEntryFile")}>
+          <CopyableSourcePath path={params.entryFile} />
+        </DetailField>
+      ) : null}
+      <DetailField label={t("extensions.toolbox.details.scope")}>
+        {isComponentExtension
+          ? t("extensions.toolbox.scopes.application")
+          : params.scope
+            ? t(`extensions.toolbox.scopes.${params.scope}`)
+            : t("extensions.toolbox.details.notExposed")}
+      </DetailField>
+      <DetailField label={t("extensions.toolbox.details.origin")}>
+        {isComponentExtension
+          ? t(
+              params.componentExtensionDistribution === "installable"
+                ? "extensions.toolbox.origins.installedComponent"
+                : "extensions.toolbox.origins.builtinComponent",
+            )
+          : params.origin
+            ? t(`extensions.toolbox.origins.${params.origin}`)
+            : t("extensions.toolbox.details.notExposed")}
+      </DetailField>
+    </>
+  );
+}
+
 export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapabilitySurfaceParams }) {
   const { date, number, t } = useI18n();
-  const commands = useCommandService();
+  const opener = useOpenerService();
+  const workspaceContext = useWorkspaceContext();
   const sessionId = usePiActiveSessionId();
+  const { running: sessionRunning } = usePiThreadActivity(sessionId ?? "");
+  const activeSession = usePiThreadListItemSnapshot(sessionId);
   const userPackageDir = usePiHostDescription()?.userPackageDir;
   const workspaces = usePiWorkspaces();
-  const pins = useToolboxPins();
-  const pinned = pins.includes(params.capabilityId);
   const isSkill = params.capabilityKind === "skill";
   const isPrompt = params.capabilityKind === "prompt";
   const isPackage = params.capabilityKind === "package";
+  const isComponentExtension = params.capabilityKind === "component-extension";
+  const installableComponentExtensions = useInstallableComponentExtensions();
+  const installableComponentExtension = installableComponentExtensions.find(
+    ({ extension }) => extension.id === params.componentExtensionId,
+  );
+  const componentExtensionInstalled =
+    installableComponentExtension?.installed ?? params.installed !== false;
+  const componentExtensionCanUninstall = installableComponentExtension !== undefined;
+  const componentContributions = params.componentContributions ?? [];
   const isInstalledPackage = isPackage && params.installed === true;
   const isCatalogPackage = isPackage && !isInstalledPackage;
+  const associatedPackageName = params.packageName;
+  const hasPackageOverview = Boolean(associatedPackageName);
+  const showPackageOverview = hasPackageOverview && !isSkill;
   const isPromptPackage = isCatalogPackage && params.packageTypes?.includes("prompt");
-  const packageDetails = usePiPackageDetails(params.name, isCatalogPackage);
+  const packageDetails = usePiPackageDetails(associatedPackageName ?? "", showPackageOverview);
+  const skillDetails = usePiSkillDetails(
+    sessionId ?? "",
+    params.name,
+    isSkill && Boolean(sessionId),
+  );
+  const displayedSkillFilePath = skillDetails.value?.filePath
+    ? abbreviateUserHomePath(skillDetails.value.filePath)
+    : undefined;
+  const skillDirectoryPath = skillDetails.value?.filePath
+    ? parentDirectoryPath(skillDetails.value.filePath)
+    : undefined;
+  const skillPackageSource = params.packageName ?? params.source;
+  const skillSourceLabel = isSkill
+    ? params.origin === "package"
+      ? skillPackageSource
+        ? t("extensions.toolbox.details.skillSourcePackage", {
+            source: skillPackageSource,
+          })
+        : t("extensions.toolbox.details.skillSourcePackageUnknown")
+      : params.origin === "top-level"
+        ? t("extensions.toolbox.details.skillSourceIndependent")
+        : t("extensions.toolbox.details.notExposed")
+    : undefined;
   const officialDetails = packageDetails.value;
   const Icon =
     isPrompt || isPromptPackage
@@ -126,22 +497,113 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
         ? PackageIcon
         : isSkill
           ? SparklesIcon
-          : BoxesIcon;
-  const pinLabel = t(pinned ? "extensions.toolbox.unpin" : "extensions.toolbox.pin");
+          : isComponentExtension
+            ? ComponentIcon
+            : BoxesIcon;
   const [copied, setCopied] = useState(false);
   const [installFeedback, setInstallFeedback] = useState<PackageInstallFeedback>({
     status: "idle",
   });
+  const [selectedInstallTarget, setSelectedInstallTarget] = useState<PackageInstallChoice | null>(
+    null,
+  );
   const [installedTargets, setInstalledTargets] = useState(() => new Set<string>());
+  const [terminalLaunchFailed, setTerminalLaunchFailed] = useState(false);
+  const [removeFeedback, setRemoveFeedback] = useState<PackageRemoveFeedback>({ status: "idle" });
+  const [installedPackageRemoved, setInstalledPackageRemoved] = useState(false);
+  const [skillEnabled, setSkillEnabled] = useState(params.enabled !== false);
+  const [skillMutationState, setSkillMutationState] = useState<SkillMutationState>("idle");
+  const [skillDocumentMode, setSkillDocumentMode] = useState<SkillDocumentMode>("preview");
+  const [skillDeleteDialogOpen, setSkillDeleteDialogOpen] = useState(false);
+  const [skillRemoved, setSkillRemoved] = useState(false);
+  const capabilityUninstalled =
+    installedPackageRemoved ||
+    (isComponentExtension && componentExtensionCanUninstall && !componentExtensionInstalled);
+  const activeWorkspaceId =
+    typeof activeSession?.custom?.piWorkspaceId === "string"
+      ? activeSession.custom.piWorkspaceId
+      : workspaceContext.projectId;
+  const skillPackageRemovalTarget =
+    params.origin === "package" && params.scope === "user" && sessionId
+      ? { scope: "user" as const, sessionId }
+      : params.origin === "package" && params.scope === "project" && activeWorkspaceId
+        ? { scope: "project" as const, workspaceId: activeWorkspaceId }
+        : undefined;
+  const skillMutationPending =
+    skillMutationState === "updating" || skillMutationState === "removing";
+  const canToggleSkill =
+    isSkill &&
+    Boolean(sessionId) &&
+    !sessionRunning &&
+    !skillRemoved &&
+    !skillMutationPending &&
+    params.scope !== "temporary" &&
+    (params.origin !== "package" || Boolean(params.source));
+  const canDeleteSkill =
+    isSkill &&
+    Boolean(sessionId) &&
+    !sessionRunning &&
+    !skillRemoved &&
+    !skillMutationPending &&
+    ((params.origin === "package" &&
+      Boolean(params.source) &&
+      Boolean(skillPackageRemovalTarget)) ||
+      (params.origin === "top-level" &&
+        params.source === "auto" &&
+        params.scope !== "temporary" &&
+        Boolean(skillDirectoryPath)));
+  const selectedInstallCommand =
+    params.installCommand && selectedInstallTarget?.scope === "project"
+      ? `${params.installCommand} --local`
+      : params.installCommand;
+  const selectedInstallProject =
+    selectedInstallTarget?.scope === "project"
+      ? workspaces.find((workspace) => workspace.id === selectedInstallTarget.workspaceId)
+      : undefined;
+  const selectedInstallPath =
+    selectedInstallTarget?.scope === "user" ? userPackageDir : selectedInstallProject?.cwd;
+
+  useEffect(() => {
+    setSkillEnabled(params.enabled !== false);
+    setSkillMutationState("idle");
+    setSkillDocumentMode("preview");
+    setSkillDeleteDialogOpen(false);
+    setSkillRemoved(false);
+  }, [params.capabilityId, params.enabled]);
+
+  useEffect(() => {
+    if (!isCatalogPackage || !sessionId) return;
+    let active = true;
+    const source = `npm:${params.name}`;
+    void listInstalledPiPackages({ sessionId }).then(
+      ({ packages }) => {
+        if (!active) return;
+        const discovered = new Set<string>();
+        for (const installedPackage of packages) {
+          if (installedPackage.source !== source) continue;
+          if (installedPackage.scope === "user") discovered.add("user");
+          else if (activeWorkspaceId) discovered.add(`project:${activeWorkspaceId}`);
+        }
+        if (discovered.size === 0) return;
+        setInstalledTargets((current) => new Set([...current, ...discovered]));
+      },
+      () => undefined,
+    );
+    return () => {
+      active = false;
+    };
+  }, [activeWorkspaceId, isCatalogPackage, params.name, sessionId]);
   const detailsPlaceholder = packageDetails.loadState === "loading" ? "…" : "—";
   const publishedAt = params.publishedAt ?? officialDetails?.publishedAt;
   const monthlyDownloads = officialDetails?.monthlyDownloads ?? params.monthlyDownloads;
   const weeklyDownloads = officialDetails?.weeklyDownloads;
   const packageTypes = officialDetails?.types ?? params.packageTypes ?? [];
   const catalogDetailUrl = (() => {
-    if (!params.catalogUrl) return undefined;
+    if (!associatedPackageName) return undefined;
     try {
-      const url = new URL(params.catalogUrl);
+      const url = new URL(
+        params.catalogUrl ?? officialPackageUrl(associatedPackageName, "catalog"),
+      );
       if (url.origin !== "https://pi.dev" || !url.pathname.startsWith("/packages/"))
         return undefined;
       const primaryType = packageTypes.find((type) => type !== "package");
@@ -151,6 +613,9 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
       return undefined;
     }
   })();
+  const npmUrl =
+    params.npmUrl ??
+    (associatedPackageName ? officialPackageUrl(associatedPackageName, "npm") : undefined);
   const packageSizeBytes = officialDetails?.packageSizeBytes;
   const packageSize =
     packageSizeBytes === undefined
@@ -161,13 +626,9 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
           ? `${number(packageSizeBytes / 1_000, { maximumFractionDigits: 1 })} KB`
           : `${number(packageSizeBytes)} B`;
 
-  const openSettings = () => {
-    void commands.execute("settings.open").catch((error) => console.error(error));
-  };
-
   const copyInstallCommand = () => {
-    if (!params.installCommand || !navigator.clipboard) return;
-    void navigator.clipboard.writeText(params.installCommand).then(
+    if (!selectedInstallCommand || !navigator.clipboard) return;
+    void navigator.clipboard.writeText(selectedInstallCommand).then(
       () => {
         setCopied(true);
         window.setTimeout(() => setCopied(false), 1500);
@@ -179,6 +640,7 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
   const installPackage = (target: PackageInstallChoice) => {
     if (
       installFeedback.status === "installing" ||
+      removeFeedback.status === "removing" ||
       installedTargets.has(installChoiceKey(target)) ||
       (target.scope === "user" && !sessionId)
     ) {
@@ -191,6 +653,7 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
           : undefined
         : { scope: "project" as const, workspaceId: target.workspaceId };
     if (!rpcTarget) return;
+    setRemoveFeedback({ status: "idle" });
     setInstallFeedback({ status: "installing", target });
     void installPiPackage({
       name: params.name,
@@ -215,15 +678,174 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
   };
 
   const installing = installFeedback.status === "installing";
-  const installed = installFeedback.status === "installed";
+  const selectedInstallKey = selectedInstallTarget
+    ? installChoiceKey(selectedInstallTarget)
+    : undefined;
+  const selectedTargetInstalled = selectedInstallKey
+    ? installedTargets.has(selectedInstallKey)
+    : false;
+  const activeWorkspace = activeWorkspaceId
+    ? workspaces.find((workspace) => workspace.id === activeWorkspaceId)
+    : undefined;
+  const installedPackageTarget: PackageInstallChoice | null =
+    isInstalledPackage && params.packageScope === "user"
+      ? { scope: "user" }
+      : isInstalledPackage && params.packageScope === "project" && activeWorkspaceId
+        ? {
+            scope: "project",
+            workspaceId: activeWorkspaceId,
+            workspaceName:
+              activeWorkspace?.name ??
+              (typeof activeSession?.custom?.piWorkspaceName === "string"
+                ? activeSession.custom.piWorkspaceName
+                : t("extensions.toolbox.packages.installLocationProjects")),
+          }
+        : null;
+  const installedPackagePresent = isInstalledPackage && !installedPackageRemoved;
+  const installationPresent = installedPackagePresent || selectedTargetInstalled;
+  const uninstallTarget = isInstalledPackage ? installedPackageTarget : selectedInstallTarget;
+  const uninstallSource = params.source ?? (isCatalogPackage ? `npm:${params.name}` : undefined);
+  const removing = removeFeedback.status === "removing";
+  const mutating = installing || removing;
+  const showUninstallRow = installationPresent || removeFeedback.status !== "idle";
   const installTargetLabel = (target: PackageInstallChoice): string =>
     target.scope === "user"
       ? t("extensions.toolbox.packages.installLocationUser")
       : target.workspaceName;
-  const installStatusMessage = (() => {
-    if (installFeedback.status === "idle") {
-      return t("extensions.toolbox.packages.installChooseLocation");
+  const selectInstallTarget = (target: PackageInstallChoice) => {
+    setSelectedInstallTarget(target);
+    setInstallFeedback({ status: "idle" });
+    setRemoveFeedback({ status: "idle" });
+    setTerminalLaunchFailed(false);
+    setCopied(false);
+  };
+  const installInTerminal = () => {
+    if (!selectedInstallTarget || !params.installCommand) return;
+    if (selectedInstallTarget.scope === "project" && !selectedInstallProject) {
+      setTerminalLaunchFailed(true);
+      return;
     }
+
+    const source = `npm:${params.name}`;
+    const quotedSource = `'${source.replaceAll("'", `'\\''`)}'`;
+    const command = `pi install ${quotedSource}${
+      selectedInstallTarget.scope === "project" ? " --local" : ""
+    }`;
+    const cwd = selectedInstallProject?.cwd ?? workspaceContext.rootPath;
+    const workspaceId =
+      selectedInstallTarget.scope === "project"
+        ? selectedInstallTarget.workspaceId
+        : (workspaceContext.projectId ?? "application");
+
+    setTerminalLaunchFailed(false);
+    void opener
+      .open({
+        resource: {
+          scheme: "terminal-command",
+          path: command,
+          label: t("extensions.toolbox.packages.terminalInstallTitle", { name: params.name }),
+          metadata: {
+            workspaceId,
+            ...(cwd ? { cwd } : {}),
+          },
+        },
+        context: workspaceContext,
+        scope: { type: "application", key: workspaceContext.applicationId },
+        policy: "force-focus",
+      })
+      .catch((error: unknown) => {
+        console.error(error);
+        setTerminalLaunchFailed(true);
+      });
+  };
+  const uninstallPackage = () => {
+    if (!installationPresent || !uninstallTarget || !uninstallSource || installing || removing) {
+      return;
+    }
+    const rpcTarget =
+      uninstallTarget.scope === "user"
+        ? sessionId
+          ? { scope: "user" as const, sessionId }
+          : undefined
+        : { scope: "project" as const, workspaceId: uninstallTarget.workspaceId };
+    if (!rpcTarget) return;
+
+    setRemoveFeedback({ status: "removing", target: uninstallTarget });
+    void removePiPackage({ source: uninstallSource, target: rpcTarget }).then(
+      () => {
+        setInstalledTargets((current) => {
+          const next = new Set(current);
+          next.delete(installChoiceKey(uninstallTarget));
+          return next;
+        });
+        if (isInstalledPackage) setInstalledPackageRemoved(true);
+        setInstallFeedback({ status: "idle" });
+        setRemoveFeedback({ status: "removed", target: uninstallTarget });
+        notifyToolboxPackagesChanged();
+      },
+      (error: unknown) =>
+        setRemoveFeedback({
+          status: "failed",
+          target: uninstallTarget,
+          ...(error instanceof PiApiError ? { errorCode: error.code } : {}),
+        }),
+    );
+  };
+  const updateSkillEnabled = (enabled: boolean) => {
+    if (!sessionId || !canToggleSkill || enabled === skillEnabled) return;
+    setSkillMutationState("updating");
+    void setPiSkillEnabled({ sessionId, name: params.name, enabled }).then(
+      (value) => {
+        setSkillEnabled(value.enabled);
+        setSkillMutationState("idle");
+        notifyToolboxSkillsChanged();
+      },
+      () => setSkillMutationState("failed"),
+    );
+  };
+  const openSkillDirectory = () => {
+    const skillFilePath = skillDetails.value?.filePath;
+    if (!sessionId || !skillFilePath || !skillDirectoryPath || skillRemoved) return;
+    void (async () => {
+      await opener.open({
+        resource: {
+          scheme: "skill-file",
+          path: skillFilePath,
+          label: "SKILL.md",
+          metadata: {
+            sessionId,
+            skillName: params.name,
+            relativePath: "SKILL.md",
+          },
+        },
+        context: workspaceContext,
+        policy: "force-focus",
+      });
+    })().catch((error: unknown) => {
+      console.error(error);
+    });
+  };
+  const deleteSkill = () => {
+    if (!sessionId || !canDeleteSkill) return;
+    setSkillMutationState("removing");
+    const operation =
+      params.origin === "package" && params.source && skillPackageRemovalTarget
+        ? removePiPackage({ source: params.source, target: skillPackageRemovalTarget })
+        : removePiSkill({ sessionId, name: params.name });
+    void operation.then(
+      () => {
+        setSkillEnabled(false);
+        setSkillRemoved(true);
+        setSkillMutationState("removed");
+        setSkillDeleteDialogOpen(false);
+        notifyToolboxSkillsChanged();
+        if (params.origin === "package") notifyToolboxPackagesChanged();
+      },
+      () => setSkillMutationState("failed"),
+    );
+  };
+  const installStatusMessage = (() => {
+    if (installFeedback.status === "idle") return "";
     if (installFeedback.status === "installing") {
       return t("extensions.toolbox.packages.installingAt", {
         target: installTargetLabel(installFeedback.target),
@@ -244,286 +866,450 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
     }
     return t("extensions.toolbox.packages.installFailed");
   })();
+  const removeStatusMessage = (() => {
+    if (removeFeedback.status === "idle") return "";
+    if (removeFeedback.status === "removing") {
+      return t("extensions.toolbox.packages.removingAt", {
+        target: installTargetLabel(removeFeedback.target),
+      });
+    }
+    if (removeFeedback.status === "removed") {
+      return removeFeedback.target.scope === "user"
+        ? t("extensions.toolbox.packages.removeSuccess")
+        : t("extensions.toolbox.packages.removeProjectSuccess", {
+            project: removeFeedback.target.workspaceName,
+          });
+    }
+    if (removeFeedback.errorCode === "project-untrusted") {
+      return t("extensions.toolbox.packages.removeProjectUntrusted");
+    }
+    if (removeFeedback.errorCode === "workspace-not-found") {
+      return t("extensions.toolbox.packages.removeWorkspaceMissing");
+    }
+    if (removeFeedback.errorCode === "package-not-installed") {
+      return t("extensions.toolbox.packages.removeAlreadyMissing");
+    }
+    if (removeFeedback.errorCode === "session-not-found") {
+      return t("extensions.toolbox.packages.removeSessionMissing");
+    }
+    return t("extensions.toolbox.packages.removeFailed");
+  })();
 
   return (
     <section className="flex h-full min-h-0 flex-col">
-      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-        <header className="flex items-start gap-2.5">
-          <span className="bg-muted flex size-10 shrink-0 items-center justify-center rounded-xl">
-            <Icon aria-hidden="true" className="size-4" />
-          </span>
+      <div
+        className={
+          isSkill
+            ? "flex min-h-0 flex-1 flex-col overflow-hidden px-5 py-4"
+            : "min-h-0 flex-1 overflow-y-auto px-5 py-4"
+        }
+      >
+        <header className="flex shrink-0 items-start gap-2.5">
+          {!isSkill ? (
+            <span className="bg-muted flex size-10 shrink-0 items-center justify-center rounded-xl">
+              <Icon aria-hidden="true" className="size-4" />
+            </span>
+          ) : null}
           <div className="min-w-0 flex-1">
-            <p className="text-muted-foreground text-xs font-medium">
-              {t(
-                isPrompt
-                  ? "extensions.toolbox.capabilityKinds.prompt"
-                  : isPackage
-                    ? isPromptPackage
-                      ? "extensions.toolbox.capabilityKinds.prompt"
-                      : "extensions.toolbox.capabilityKinds.package"
-                    : isSkill
-                      ? "extensions.toolbox.capabilityKinds.skill"
-                      : "extensions.toolbox.capabilityKinds.extension",
-              )}
-            </p>
-            <h1 className="mt-0.5 font-mono text-lg font-semibold break-all">{params.name}</h1>
-          </div>
-          <span className="bg-emerald-500/10 px-2 py-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
-            {t(
-              isCatalogPackage
-                ? "extensions.toolbox.status.officialCatalog"
-                : isInstalledPackage
-                  ? "extensions.toolbox.status.installed"
-                  : isSkill
-                    ? "extensions.toolbox.status.available"
-                    : isPrompt
-                      ? "extensions.toolbox.status.available"
-                      : "extensions.toolbox.status.loaded",
+            {!isSkill ? (
+              <p className="text-muted-foreground text-xs font-medium">
+                {t(
+                  isPrompt
+                    ? "extensions.toolbox.capabilityKinds.prompt"
+                    : isPackage
+                      ? isPromptPackage
+                        ? "extensions.toolbox.capabilityKinds.prompt"
+                        : "extensions.toolbox.capabilityKinds.package"
+                      : isComponentExtension
+                        ? "extensions.toolbox.capabilityKinds.componentExtension"
+                        : "extensions.toolbox.capabilityKinds.extension",
+                )}
+              </p>
+            ) : null}
+            {isSkill ? (
+              <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
+                <h1 className="font-mono text-2xl leading-8 font-semibold break-all">
+                  {params.name}
+                </h1>
+                <span className="text-muted-foreground text-xs leading-5">{skillSourceLabel}</span>
+              </div>
+            ) : (
+              <h1 className="mt-0.5 font-mono text-lg font-semibold break-all">{params.name}</h1>
             )}
-          </span>
+            {isSkill && displayedSkillFilePath ? (
+              <code
+                className="text-muted-foreground mt-1 block text-xs leading-5 break-all"
+                title={skillDetails.value?.filePath}
+              >
+                {displayedSkillFilePath}
+              </code>
+            ) : null}
+          </div>
+          {!isSkill ? (
+            <span
+              className={
+                capabilityUninstalled
+                  ? "bg-muted text-muted-foreground px-2 py-1 text-[11px] font-medium"
+                  : "bg-emerald-500/10 px-2 py-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-300"
+              }
+            >
+              {t(
+                isComponentExtension && componentExtensionCanUninstall
+                  ? componentExtensionInstalled
+                    ? "extensions.toolbox.status.installed"
+                    : "extensions.toolbox.status.uninstalled"
+                  : isCatalogPackage
+                    ? "extensions.toolbox.status.officialCatalog"
+                    : isInstalledPackage
+                      ? installedPackageRemoved
+                        ? "extensions.toolbox.status.uninstalled"
+                        : "extensions.toolbox.status.installed"
+                      : isPrompt
+                        ? "extensions.toolbox.status.available"
+                        : "extensions.toolbox.status.loaded",
+              )}
+            </span>
+          ) : null}
         </header>
 
-        <p className="text-muted-foreground mt-3 text-sm leading-5">
+        <p className="text-muted-foreground mt-3 shrink-0 text-sm leading-5">
           {params.description || t("extensions.toolbox.details.descriptionUnavailable")}
         </p>
 
-        <div className="mt-4 border-t pt-4">
-          <div className="mb-3 flex min-h-7 items-center justify-between gap-3">
-            <h2 className="text-sm font-semibold">{t("extensions.toolbox.details.overview")}</h2>
-            {isCatalogPackage ? (
-              <div className="flex min-w-0 flex-wrap items-center justify-end gap-x-3 gap-y-1">
-                {catalogDetailUrl ? (
-                  <DetailExternalLink href={catalogDetailUrl}>
-                    {t("extensions.toolbox.packages.openCatalog")}
-                  </DetailExternalLink>
-                ) : null}
-                {params.npmUrl ? (
-                  <DetailExternalLink href={params.npmUrl}>npm</DetailExternalLink>
-                ) : null}
-                {params.repositoryUrl ? (
-                  <DetailExternalLink href={params.repositoryUrl}>
-                    {t("extensions.toolbox.packages.repository")}
-                  </DetailExternalLink>
-                ) : null}
+        {isSkill && skillMutationState === "failed" ? (
+          <p className="text-destructive mt-2 text-xs leading-5" role="alert">
+            {t("extensions.toolbox.skills.actionFailed")}
+          </p>
+        ) : isSkill && skillMutationState === "removed" ? (
+          <p className="text-muted-foreground mt-2 text-xs leading-5" role="status">
+            {t(
+              params.origin === "package"
+                ? "extensions.toolbox.skills.packageRemoved"
+                : "extensions.toolbox.skills.removed",
+            )}
+          </p>
+        ) : null}
+
+        {!isSkill ? (
+          <div className="mt-4 border-t pt-4">
+            <div className="mb-3 flex min-h-7 items-center justify-between gap-3">
+              <h2 className="text-sm font-semibold">{t("extensions.toolbox.details.overview")}</h2>
+              {showPackageOverview ? (
+                <div className="flex min-w-0 flex-wrap items-center justify-end gap-x-3 gap-y-1">
+                  {catalogDetailUrl ? (
+                    <DetailExternalLink href={catalogDetailUrl}>
+                      {t("extensions.toolbox.packages.openCatalog")}
+                    </DetailExternalLink>
+                  ) : null}
+                  {npmUrl ? <DetailExternalLink href={npmUrl}>npm</DetailExternalLink> : null}
+                  {params.repositoryUrl ? (
+                    <DetailExternalLink href={params.repositoryUrl}>
+                      {t("extensions.toolbox.packages.repository")}
+                    </DetailExternalLink>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+            <dl className="grid grid-cols-2 gap-x-8 gap-y-3">
+              {showPackageOverview ? (
+                <>
+                  <PackageDetailRow label={t("extensions.toolbox.packages.packageName")}>
+                    <code className="text-xs break-all">{associatedPackageName}</code>
+                  </PackageDetailRow>
+                  <PackageDetailRow label={t("extensions.toolbox.packages.version")}>
+                    <code className="text-xs">
+                      {officialDetails?.version ?? params.version ?? detailsPlaceholder}
+                    </code>
+                  </PackageDetailRow>
+                  <PackageDetailRow label={t("extensions.toolbox.packages.published")}>
+                    {publishedAt ? date(publishedAt, { dateStyle: "medium" }) : detailsPlaceholder}
+                  </PackageDetailRow>
+                  <PackageDetailRow label={t("extensions.toolbox.packages.downloads")}>
+                    {monthlyDownloads === undefined
+                      ? detailsPlaceholder
+                      : weeklyDownloads === undefined
+                        ? t("extensions.toolbox.packages.downloadsPerMonth", {
+                            count: number(monthlyDownloads, {
+                              notation: "compact",
+                              maximumFractionDigits: 1,
+                            }),
+                          })
+                        : t("extensions.toolbox.packages.downloadsByPeriod", {
+                            monthly: number(monthlyDownloads, {
+                              notation: "compact",
+                              maximumFractionDigits: 1,
+                            }),
+                            weekly: number(weeklyDownloads, {
+                              notation: "compact",
+                              maximumFractionDigits: 1,
+                            }),
+                          })}
+                  </PackageDetailRow>
+                  <PackageDetailRow label={t("extensions.toolbox.packages.author")}>
+                    {officialDetails?.author || params.author || detailsPlaceholder}
+                  </PackageDetailRow>
+                  <PackageDetailRow label={t("extensions.toolbox.packages.license")}>
+                    {officialDetails?.license || detailsPlaceholder}
+                  </PackageDetailRow>
+                  <PackageDetailRow label={t("extensions.toolbox.packages.resourceTypes")}>
+                    <CapabilityNames
+                      names={packageTypes.map((type) =>
+                        t(`extensions.toolbox.packages.types.${type}`),
+                      )}
+                      empty={t("extensions.toolbox.details.none")}
+                    />
+                  </PackageDetailRow>
+                  <PackageDetailRow label={t("extensions.toolbox.packages.size")}>
+                    {packageSize ?? detailsPlaceholder}
+                  </PackageDetailRow>
+                  <PackageDetailRow label={t("extensions.toolbox.packages.dependencies")}>
+                    {officialDetails?.dependencyCount === undefined ||
+                    officialDetails.peerDependencyCount === undefined
+                      ? detailsPlaceholder
+                      : t("extensions.toolbox.packages.dependenciesSummary", {
+                          dependencies: officialDetails.dependencyCount,
+                          peers: officialDetails.peerDependencyCount,
+                        })}
+                  </PackageDetailRow>
+                  {officialDetails?.manifestJson ? (
+                    <PackageDetailRow label={t("extensions.toolbox.packages.manifest")}>
+                      <details className="group">
+                        <summary className="hover:bg-muted/70 focus-visible:ring-ring inline-flex h-6 cursor-pointer list-none items-center gap-1.5 rounded-md px-1.5 text-xs font-medium outline-none focus-visible:ring-2">
+                          <ChevronRightIcon
+                            aria-hidden="true"
+                            className="text-muted-foreground size-3.5 transition-transform group-open:rotate-90"
+                          />
+                          {t("extensions.toolbox.packages.manifestShow")}
+                        </summary>
+                        <pre className="bg-muted/45 mt-1 max-h-40 overflow-auto rounded-lg px-2 py-1.5 font-mono text-[11px] leading-4">
+                          {officialDetails.manifestJson}
+                        </pre>
+                      </details>
+                    </PackageDetailRow>
+                  ) : null}
+                </>
+              ) : (
+                <CapabilityMetadataFields params={params} />
+              )}
+            </dl>
+            {packageDetails.loadState === "failed" ? (
+              <div className="text-muted-foreground mt-3 flex items-center gap-2 text-xs">
+                <span>{t("extensions.toolbox.packages.detailsLoadFailed")}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="xs"
+                  className="active:translate-y-0!"
+                  onClick={packageDetails.refresh}
+                >
+                  {t("extensions.toolbox.packages.retry")}
+                </Button>
               </div>
             ) : null}
           </div>
-          <dl
-            className={
-              isCatalogPackage ? "grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2" : "grid gap-3"
-            }
-          >
-            {isCatalogPackage ? (
-              <>
-                <PackageDetailRow label={t("extensions.toolbox.packages.packageName")}>
-                  <code className="text-xs break-all">{params.name}</code>
-                </PackageDetailRow>
-                <PackageDetailRow label={t("extensions.toolbox.packages.version")}>
-                  <code className="text-xs">
-                    {officialDetails?.version ?? params.version ?? detailsPlaceholder}
-                  </code>
-                </PackageDetailRow>
-                <PackageDetailRow label={t("extensions.toolbox.packages.published")}>
-                  {publishedAt ? date(publishedAt, { dateStyle: "medium" }) : detailsPlaceholder}
-                </PackageDetailRow>
-                <PackageDetailRow label={t("extensions.toolbox.packages.downloads")}>
-                  {monthlyDownloads === undefined
-                    ? detailsPlaceholder
-                    : weeklyDownloads === undefined
-                      ? t("extensions.toolbox.packages.downloadsPerMonth", {
-                          count: number(monthlyDownloads, {
-                            notation: "compact",
-                            maximumFractionDigits: 1,
-                          }),
-                        })
-                      : t("extensions.toolbox.packages.downloadsByPeriod", {
-                          monthly: number(monthlyDownloads, {
-                            notation: "compact",
-                            maximumFractionDigits: 1,
-                          }),
-                          weekly: number(weeklyDownloads, {
-                            notation: "compact",
-                            maximumFractionDigits: 1,
-                          }),
-                        })}
-                </PackageDetailRow>
-                <PackageDetailRow label={t("extensions.toolbox.packages.author")}>
-                  {officialDetails?.author || params.author || detailsPlaceholder}
-                </PackageDetailRow>
-                <PackageDetailRow label={t("extensions.toolbox.packages.license")}>
-                  {officialDetails?.license || detailsPlaceholder}
-                </PackageDetailRow>
-                <PackageDetailRow label={t("extensions.toolbox.packages.resourceTypes")}>
-                  <CapabilityNames
-                    names={packageTypes.map((type) =>
-                      t(`extensions.toolbox.packages.types.${type}`),
-                    )}
-                    empty={t("extensions.toolbox.details.none")}
-                  />
-                </PackageDetailRow>
-                <PackageDetailRow label={t("extensions.toolbox.packages.size")}>
-                  {packageSize ?? detailsPlaceholder}
-                </PackageDetailRow>
-                <PackageDetailRow label={t("extensions.toolbox.packages.dependencies")}>
-                  {officialDetails?.dependencyCount === undefined ||
-                  officialDetails.peerDependencyCount === undefined
-                    ? detailsPlaceholder
-                    : t("extensions.toolbox.packages.dependenciesSummary", {
-                        dependencies: officialDetails.dependencyCount,
-                        peers: officialDetails.peerDependencyCount,
-                      })}
-                </PackageDetailRow>
-                {officialDetails?.manifestJson ? (
-                  <PackageDetailRow label={t("extensions.toolbox.packages.manifest")}>
-                    <details className="group">
-                      <summary className="hover:bg-muted/70 focus-visible:ring-ring inline-flex h-6 cursor-pointer list-none items-center gap-1.5 rounded-md px-1.5 text-xs font-medium outline-none focus-visible:ring-2">
-                        <ChevronRightIcon
-                          aria-hidden="true"
-                          className="text-muted-foreground size-3.5 transition-transform group-open:rotate-90"
-                        />
-                        {t("extensions.toolbox.packages.manifestShow")}
-                      </summary>
-                      <pre className="bg-muted/45 mt-1 max-h-40 overflow-auto rounded-lg px-2 py-1.5 font-mono text-[11px] leading-4">
-                        {officialDetails.manifestJson}
-                      </pre>
-                    </details>
-                  </PackageDetailRow>
-                ) : null}
-              </>
-            ) : isInstalledPackage ? (
-              <>
-                <DetailField label={t("extensions.toolbox.details.source")}>
-                  <code className="text-xs break-all">{params.source}</code>
-                </DetailField>
-                <DetailField label={t("extensions.toolbox.details.scope")}>
-                  {params.packageScope
-                    ? t(`extensions.toolbox.scopes.${params.packageScope}`)
-                    : t("extensions.toolbox.details.notExposed")}
-                </DetailField>
-                <DetailField label={t("extensions.toolbox.details.resourceSelection")}>
-                  {t(
-                    params.packageFiltered
-                      ? "extensions.toolbox.packages.filteredResources"
-                      : "extensions.toolbox.packages.allResources",
+        ) : null}
+
+        {showPackageOverview && !isCatalogPackage ? (
+          <div className="mt-4 border-t pt-4">
+            <h2 className="mb-3 text-sm font-semibold">
+              {t("extensions.toolbox.details.capabilityDetails")}
+            </h2>
+            <dl className="grid gap-3">
+              <CapabilityMetadataFields params={params} />
+            </dl>
+          </div>
+        ) : null}
+
+        {isSkill ? (
+          <div className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden border-t pt-4">
+            <div className="mb-4 flex shrink-0 items-center gap-1">
+              <div className="bg-muted/30 dark:bg-foreground/8 flex h-7 items-center gap-1 rounded-lg px-1.5">
+                <Switch
+                  checked={skillEnabled && !skillRemoved}
+                  disabled={!canToggleSkill}
+                  className="h-4! w-7! [&_[data-slot=switch-thumb]]:size-3! [&_[data-slot=switch-thumb]]:data-checked:translate-x-3!"
+                  aria-label={t(
+                    skillEnabled
+                      ? "extensions.toolbox.skills.disableSkill"
+                      : "extensions.toolbox.skills.enableSkill",
+                    { name: params.name },
                   )}
-                </DetailField>
-              </>
-            ) : isSkill ? (
-              <>
-                <DetailField label={t("extensions.toolbox.details.modelAccess")}>
-                  {t(
-                    params.modelInvocable
-                      ? "extensions.toolbox.status.modelInvocable"
-                      : "extensions.toolbox.status.manualOnly",
+                  aria-busy={skillMutationState === "updating"}
+                  title={t(
+                    sessionRunning
+                      ? "extensions.toolbox.skills.sessionBusy"
+                      : skillEnabled
+                        ? "extensions.toolbox.skills.disableSkill"
+                        : "extensions.toolbox.skills.enableSkill",
+                    { name: params.name },
                   )}
-                </DetailField>
-                {params.whenToUse ? (
-                  <DetailField label={t("extensions.toolbox.details.whenToUse")}>
-                    {params.whenToUse}
-                  </DetailField>
-                ) : null}
-                <DetailField label={t("extensions.toolbox.details.sourceAndScope")}>
-                  <span className="text-muted-foreground">
-                    {t("extensions.toolbox.details.notExposed")}
-                  </span>
-                </DetailField>
-              </>
-            ) : isPrompt ? (
-              <>
-                <DetailField label={t("extensions.toolbox.details.invocation")}>
-                  <code className="text-xs">/{params.invocationName}</code>
-                </DetailField>
-                <DetailField label={t("extensions.toolbox.details.arguments")}>
-                  {params.argumentHint || t("extensions.toolbox.details.none")}
-                </DetailField>
-              </>
-            ) : (
-              <>
-                <DetailField label={t("extensions.toolbox.details.source")}>
-                  <code className="text-xs break-all">{params.source}</code>
-                </DetailField>
-                <DetailField label={t("extensions.toolbox.details.scope")}>
-                  {params.scope
-                    ? t(`extensions.toolbox.scopes.${params.scope}`)
-                    : t("extensions.toolbox.details.notExposed")}
-                </DetailField>
-                <DetailField label={t("extensions.toolbox.details.origin")}>
-                  {params.origin
-                    ? t(`extensions.toolbox.origins.${params.origin}`)
-                    : t("extensions.toolbox.details.notExposed")}
-                </DetailField>
-              </>
-            )}
-          </dl>
-          {packageDetails.loadState === "failed" ? (
-            <div className="text-muted-foreground mt-3 flex items-center gap-2 text-xs">
-              <span>{t("extensions.toolbox.packages.detailsLoadFailed")}</span>
+                  onCheckedChange={updateSkillEnabled}
+                />
+                <span className="text-muted-foreground text-xs">
+                  {t(
+                    skillEnabled && !skillRemoved
+                      ? "extensions.toolbox.skills.enabledStatus"
+                      : "extensions.toolbox.skills.disabledStatus",
+                  )}
+                </span>
+              </div>
               <Button
                 type="button"
                 variant="ghost"
-                size="xs"
+                size="icon-sm"
+                disabled={!sessionId || skillRemoved}
                 className="active:translate-y-0!"
-                onClick={packageDetails.refresh}
+                aria-label={t("extensions.toolbox.skills.openFolder", { name: params.name })}
+                title={t("extensions.toolbox.skills.openFolder", { name: params.name })}
+                onClick={openSkillDirectory}
               >
-                {t("extensions.toolbox.packages.retry")}
+                <FolderOpenIcon aria-hidden="true" />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                disabled={!canDeleteSkill}
+                className="text-destructive hover:text-destructive active:translate-y-0!"
+                aria-label={t("extensions.toolbox.skills.deleteSkill", { name: params.name })}
+                title={t(
+                  canDeleteSkill
+                    ? "extensions.toolbox.skills.deleteSkill"
+                    : "extensions.toolbox.skills.deleteUnavailable",
+                  { name: params.name },
+                )}
+                onClick={() => setSkillDeleteDialogOpen(true)}
+              >
+                <Trash2Icon aria-hidden="true" />
               </Button>
             </div>
-          ) : null}
-        </div>
+            <div className="mb-3 flex min-h-7 shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-2">
+              <h2 className="text-sm font-semibold">
+                {t("extensions.toolbox.details.skillDocument")}
+              </h2>
+              <div
+                className="flex items-center gap-1"
+                role="group"
+                aria-label={t("extensions.toolbox.details.skillDocumentViewMode")}
+              >
+                {skillDetails.value?.content ? (
+                  <>
+                    <Button
+                      type="button"
+                      variant={skillDocumentMode === "preview" ? "secondary" : "ghost"}
+                      size="xs"
+                      className="active:translate-y-0!"
+                      aria-pressed={skillDocumentMode === "preview"}
+                      title={t("extensions.toolbox.details.skillDocumentPreview")}
+                      onClick={() => setSkillDocumentMode("preview")}
+                    >
+                      <EyeIcon aria-hidden="true" />
+                      {t("extensions.toolbox.details.skillDocumentPreview")}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={skillDocumentMode === "source" ? "secondary" : "ghost"}
+                      size="xs"
+                      className="active:translate-y-0!"
+                      aria-pressed={skillDocumentMode === "source"}
+                      title={t("extensions.toolbox.details.skillDocumentSource")}
+                      onClick={() => setSkillDocumentMode("source")}
+                    >
+                      <Code2Icon aria-hidden="true" />
+                      {t("extensions.toolbox.details.skillDocumentSource")}
+                    </Button>
+                  </>
+                ) : null}
+                {skillDetails.loadState === "failed" ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="xs"
+                    className="active:translate-y-0!"
+                    onClick={skillDetails.refresh}
+                  >
+                    {t("extensions.toolbox.details.retry")}
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+            {!sessionId ? (
+              <p className="text-muted-foreground text-xs leading-5">
+                {t("extensions.toolbox.details.skillDocumentSessionRequired")}
+              </p>
+            ) : skillDetails.loadState === "loading" ? (
+              <p
+                className="text-muted-foreground flex items-center gap-2 text-xs leading-5"
+                role="status"
+              >
+                <LoaderCircleIcon
+                  aria-hidden="true"
+                  className="size-3.5 animate-spin motion-reduce:animate-none"
+                />
+                {t("extensions.toolbox.details.skillDocumentLoading")}
+              </p>
+            ) : skillDetails.loadState === "failed" ? (
+              <p className="text-destructive text-xs leading-5" role="alert">
+                {t("extensions.toolbox.details.skillDocumentLoadFailed")}
+              </p>
+            ) : skillDetails.value?.content ? (
+              <div
+                aria-label={t("extensions.toolbox.details.skillDocument")}
+                className="focus-visible:ring-ring min-h-0 flex-1 overflow-auto rounded-lg border bg-transparent outline-none focus-visible:ring-2"
+                role="document"
+                tabIndex={0}
+              >
+                {skillDocumentMode === "preview" ? (
+                  <article className="mx-auto w-full max-w-4xl px-6 py-5 text-sm leading-7 break-words">
+                    <MarkdownTextContent
+                      text={skillDetails.value.content}
+                      defer={false}
+                      mode="static"
+                    />
+                  </article>
+                ) : (
+                  <pre className="min-h-full p-3 font-mono text-xs leading-5 whitespace-pre-wrap break-words">
+                    {skillDetails.value.content}
+                  </pre>
+                )}
+              </div>
+            ) : skillDetails.loadState === "ready" ? (
+              <p className="text-muted-foreground text-xs leading-5">
+                {t("extensions.toolbox.details.skillDocumentEmpty")}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
 
         {isCatalogPackage ? (
           <div className="mt-4 border-t pt-4">
             <h2 className="mb-3 text-sm font-semibold">
-              {t("extensions.toolbox.packages.install")}
+              {t("extensions.toolbox.packages.installLocation")}
             </h2>
-            <div className="bg-muted inline-flex max-w-full items-center gap-1.5 rounded-lg p-1 ps-2.5">
-              <code className="min-w-0 overflow-x-auto text-xs leading-5 whitespace-nowrap">
-                {params.installCommand}
-              </code>
-              <Button
-                type="button"
-                variant="outline"
-                size="xs"
-                className="shrink-0 active:translate-y-0!"
-                onClick={copyInstallCommand}
-              >
-                {copied ? <CheckIcon aria-hidden="true" /> : <ClipboardIcon aria-hidden="true" />}
-                {t(
-                  copied
-                    ? "extensions.toolbox.packages.copied"
-                    : "extensions.toolbox.packages.copyCommand",
-                )}
-              </Button>
-            </div>
-            <div className="mt-3 flex flex-wrap items-center gap-2" aria-live="polite">
+            <div className="flex flex-wrap items-center gap-2" aria-live="polite">
               <DropdownMenu>
                 <DropdownMenuTrigger
                   type="button"
-                  openOnHover
-                  delay={80}
-                  closeDelay={180}
-                  disabled={installing}
+                  disabled={mutating}
                   aria-label={t("extensions.toolbox.packages.chooseInstallLocation")}
-                  className={buttonVariants({ className: "active:translate-y-0!" })}
+                  className={buttonVariants({
+                    variant: "outline",
+                    className: "min-w-44 justify-between active:translate-y-0!",
+                  })}
                 >
-                  {installing ? (
-                    <LoaderCircleIcon
-                      aria-hidden="true"
-                      className="animate-spin motion-reduce:animate-none"
-                    />
-                  ) : installed ? (
-                    <CheckIcon aria-hidden="true" />
+                  {selectedInstallTarget?.scope === "user" ? (
+                    <UserRoundIcon aria-hidden="true" />
+                  ) : selectedInstallTarget?.scope === "project" ? (
+                    <FolderIcon aria-hidden="true" />
                   ) : (
-                    <PackagePlusIcon aria-hidden="true" />
+                    <MapPinIcon aria-hidden="true" />
                   )}
-                  {t(
-                    installing
-                      ? "extensions.toolbox.packages.installing"
-                      : installed
-                        ? "extensions.toolbox.packages.installed"
-                        : "extensions.toolbox.packages.installNow",
-                  )}
-                  <ChevronDownIcon aria-hidden="true" className="size-3.5 opacity-70" />
+                  <span className="min-w-0 flex-1 truncate text-left">
+                    {selectedInstallTarget
+                      ? installTargetLabel(selectedInstallTarget)
+                      : t("extensions.toolbox.packages.chooseInstallLocation")}
+                  </span>
+                  <ChevronDownIcon aria-hidden="true" className="size-3.5 shrink-0 opacity-70" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" side="bottom" className="w-72">
                   <DropdownMenuGroup>
@@ -531,9 +1317,9 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
                       {t("extensions.toolbox.packages.installLocation")}
                     </DropdownMenuLabel>
                     <DropdownMenuItem
-                      disabled={!sessionId || installedTargets.has("user")}
+                      disabled={!sessionId}
                       className="items-start py-2"
-                      onClick={() => installPackage({ scope: "user" })}
+                      onClick={() => selectInstallTarget({ scope: "user" })}
                     >
                       <UserRoundIcon aria-hidden="true" className="mt-0.5" />
                       <span className="min-w-0 flex-1">
@@ -552,71 +1338,209 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
                           </span>
                         ) : null}
                       </span>
-                      {installedTargets.has("user") ? (
-                        <CheckIcon aria-hidden="true" className="mt-0.5 text-emerald-600" />
+                      {installedTargets.has("user") || selectedInstallKey === "user" ? (
+                        <CheckIcon
+                          aria-hidden="true"
+                          className={
+                            installedTargets.has("user") ? "mt-0.5 text-emerald-600" : "mt-0.5"
+                          }
+                        />
                       ) : null}
                     </DropdownMenuItem>
                   </DropdownMenuGroup>
                   <DropdownMenuSeparator />
-                  <DropdownMenuGroup>
-                    <DropdownMenuLabel>
-                      {t("extensions.toolbox.packages.installLocationProjects")}
-                    </DropdownMenuLabel>
-                    {workspaces.length > 0 ? (
-                      workspaces.map((workspace) => {
-                        const targetKey = `project:${workspace.id}`;
-                        const targetInstalled = installedTargets.has(targetKey);
-                        return (
-                          <DropdownMenuItem
-                            key={workspace.id}
-                            disabled={targetInstalled}
-                            className="items-start py-2"
-                            onClick={() =>
-                              installPackage({
-                                scope: "project",
-                                workspaceId: workspace.id,
-                                workspaceName: workspace.name,
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger
+                      disabled={workspaces.length === 0}
+                      className="items-start py-2 data-disabled:pointer-events-none data-disabled:opacity-50"
+                    >
+                      <FolderIcon aria-hidden="true" className="mt-0.5" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-medium">
+                          {t("extensions.toolbox.packages.installLocationProjects")}
+                        </span>
+                        <span className="text-muted-foreground mt-0.5 block text-xs leading-4 whitespace-normal">
+                          {workspaces.length > 0
+                            ? t("extensions.toolbox.packages.installProjectsCount", {
+                                count: workspaces.length,
                               })
-                            }
-                          >
-                            <FolderIcon aria-hidden="true" className="mt-0.5" />
-                            <span className="min-w-0 flex-1">
-                              <span className="block truncate font-medium" title={workspace.name}>
-                                {workspace.name}
+                            : t("extensions.toolbox.packages.installProjectsEmpty")}
+                        </span>
+                      </span>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent className="w-72">
+                      <DropdownMenuGroup>
+                        <DropdownMenuLabel>
+                          {t("extensions.toolbox.packages.installLocationProjects")}
+                        </DropdownMenuLabel>
+                        {workspaces.map((workspace) => {
+                          const targetKey = `project:${workspace.id}`;
+                          const targetInstalled = installedTargets.has(targetKey);
+                          return (
+                            <DropdownMenuItem
+                              key={workspace.id}
+                              className="items-start py-2"
+                              onClick={() =>
+                                selectInstallTarget({
+                                  scope: "project",
+                                  workspaceId: workspace.id,
+                                  workspaceName: workspace.name,
+                                })
+                              }
+                            >
+                              <FolderIcon aria-hidden="true" className="mt-0.5" />
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate font-medium" title={workspace.name}>
+                                  {workspace.name}
+                                </span>
+                                <span
+                                  className="text-muted-foreground mt-0.5 block truncate text-xs"
+                                  title={workspace.cwd}
+                                >
+                                  {workspace.cwd}
+                                </span>
                               </span>
-                              <span
-                                className="text-muted-foreground mt-0.5 block truncate text-xs"
-                                title={workspace.cwd}
-                              >
-                                {workspace.cwd}
-                              </span>
-                            </span>
-                            {targetInstalled ? (
-                              <CheckIcon aria-hidden="true" className="mt-0.5 text-emerald-600" />
-                            ) : null}
-                          </DropdownMenuItem>
-                        );
-                      })
-                    ) : (
-                      <p className="text-muted-foreground px-1.5 py-2 text-xs leading-4">
-                        {t("extensions.toolbox.packages.installProjectsEmpty")}
-                      </p>
-                    )}
-                  </DropdownMenuGroup>
+                              {targetInstalled || selectedInstallKey === targetKey ? (
+                                <CheckIcon
+                                  aria-hidden="true"
+                                  className={targetInstalled ? "mt-0.5 text-emerald-600" : "mt-0.5"}
+                                />
+                              ) : null}
+                            </DropdownMenuItem>
+                          );
+                        })}
+                      </DropdownMenuGroup>
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <p
-                className={
-                  installFeedback.status === "failed"
-                    ? "text-destructive text-xs"
-                    : installFeedback.status === "installed"
-                      ? "text-emerald-700 text-xs dark:text-emerald-300"
-                      : "text-muted-foreground text-xs"
-                }
-                role={installFeedback.status === "failed" ? "alert" : "status"}
-              >
-                {installStatusMessage}
-              </p>
+              {selectedInstallTarget ? (
+                <code
+                  className="text-muted-foreground min-w-0 flex-1 truncate text-xs"
+                  title={selectedInstallPath}
+                >
+                  {selectedInstallPath ?? "…"}
+                </code>
+              ) : (
+                <p className="text-muted-foreground text-xs">
+                  {t("extensions.toolbox.packages.installChooseLocation")}
+                </p>
+              )}
+            </div>
+            <div className="mt-4 grid gap-4 border-t pt-4 sm:grid-cols-[15rem_minmax(0,1fr)]">
+              <div className="min-w-0">
+                <h2 className="mb-3 text-sm font-semibold">
+                  {t("extensions.toolbox.packages.installQuick")}
+                </h2>
+                <div className="flex flex-wrap items-center gap-2" aria-live="polite">
+                  <Button
+                    type="button"
+                    disabled={
+                      !selectedInstallTarget ||
+                      mutating ||
+                      selectedTargetInstalled ||
+                      (selectedInstallTarget.scope === "user" && !sessionId)
+                    }
+                    className="active:translate-y-0!"
+                    onClick={() => {
+                      if (selectedInstallTarget) installPackage(selectedInstallTarget);
+                    }}
+                  >
+                    {installing ? (
+                      <LoaderCircleIcon
+                        aria-hidden="true"
+                        className="animate-spin motion-reduce:animate-none"
+                      />
+                    ) : selectedTargetInstalled ? (
+                      <CheckIcon aria-hidden="true" />
+                    ) : (
+                      <PackagePlusIcon aria-hidden="true" />
+                    )}
+                    {t(
+                      installing
+                        ? "extensions.toolbox.packages.installing"
+                        : selectedTargetInstalled
+                          ? "extensions.toolbox.packages.installed"
+                          : "extensions.toolbox.packages.installNow",
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={
+                      !selectedInstallTarget ||
+                      mutating ||
+                      selectedTargetInstalled ||
+                      !params.installCommand ||
+                      (selectedInstallTarget.scope === "project" &&
+                        !workspaces.some(
+                          (workspace) => workspace.id === selectedInstallTarget.workspaceId,
+                        ))
+                    }
+                    className="active:translate-y-0!"
+                    onClick={installInTerminal}
+                  >
+                    <SquareTerminalIcon aria-hidden="true" />
+                    {t("extensions.toolbox.packages.installInTerminal")}
+                  </Button>
+                  {installFeedback.status !== "idle" ? (
+                    <p
+                      className={
+                        installFeedback.status === "failed"
+                          ? "text-destructive text-xs"
+                          : installFeedback.status === "installed"
+                            ? "text-emerald-700 text-xs dark:text-emerald-300"
+                            : "text-muted-foreground text-xs"
+                      }
+                      role={installFeedback.status === "failed" ? "alert" : "status"}
+                    >
+                      {installStatusMessage}
+                    </p>
+                  ) : null}
+                  {terminalLaunchFailed ? (
+                    <p className="text-destructive basis-full text-xs" role="alert">
+                      {t("extensions.toolbox.packages.terminalInstallOpenFailed")}
+                    </p>
+                  ) : null}
+                  {installing ? (
+                    <Progress
+                      value={null}
+                      aria-label={t("extensions.toolbox.packages.installing")}
+                      aria-valuetext={installStatusMessage}
+                      className="basis-full pt-1"
+                      trackClassName="max-w-md"
+                    />
+                  ) : null}
+                </div>
+              </div>
+              <div className="min-w-0 border-t pt-4 sm:border-t-0 sm:border-l sm:pt-0 sm:pl-4">
+                <h2 className="mb-3 text-sm font-semibold">
+                  {t("extensions.toolbox.packages.install")}
+                </h2>
+                <div className="bg-muted inline-flex max-w-full items-center gap-1.5 rounded-lg p-1 ps-2.5">
+                  <code className="min-w-0 overflow-x-auto text-xs leading-5 whitespace-nowrap">
+                    {selectedInstallCommand}
+                  </code>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="xs"
+                    className="shrink-0 active:translate-y-0!"
+                    onClick={copyInstallCommand}
+                  >
+                    {copied ? (
+                      <CheckIcon aria-hidden="true" />
+                    ) : (
+                      <ClipboardIcon aria-hidden="true" />
+                    )}
+                    {t(
+                      copied
+                        ? "extensions.toolbox.packages.copied"
+                        : "extensions.toolbox.packages.copyCommand",
+                    )}
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
         ) : params.capabilityKind === "extension" ? (
@@ -625,63 +1549,222 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
               {t("extensions.toolbox.details.contributions")}
             </h2>
             <dl className="grid gap-3">
-              <DetailField label={t("extensions.toolbox.details.events")}>
-                <CapabilityNames
-                  names={params.eventNames ?? []}
-                  empty={t("extensions.toolbox.details.none")}
-                />
-              </DetailField>
-              <DetailField label={t("extensions.toolbox.details.tools")}>
-                <CapabilityNames
-                  names={params.toolNames ?? []}
-                  empty={t("extensions.toolbox.details.none")}
-                />
-              </DetailField>
-              <DetailField label={t("extensions.toolbox.details.commands")}>
-                <CapabilityNames
-                  names={params.commandNames ?? []}
-                  empty={t("extensions.toolbox.details.none")}
-                />
-              </DetailField>
+              <>
+                <DetailField label={t("extensions.toolbox.details.events")}>
+                  <CapabilityNames
+                    names={params.eventNames ?? []}
+                    empty={t("extensions.toolbox.details.none")}
+                  />
+                </DetailField>
+                <DetailField label={t("extensions.toolbox.details.tools")}>
+                  <CapabilityNames
+                    names={params.toolNames ?? []}
+                    empty={t("extensions.toolbox.details.none")}
+                  />
+                </DetailField>
+                <DetailField label={t("extensions.toolbox.details.commands")}>
+                  <CapabilityNames
+                    names={params.commandNames ?? []}
+                    empty={t("extensions.toolbox.details.none")}
+                  />
+                </DetailField>
+              </>
             </dl>
           </div>
         ) : null}
 
-        {!isPackage ? (
+        {isComponentExtension ? (
+          <div className="mt-4 border-t pt-4">
+            <h2 className="text-sm font-semibold">
+              {t("extensions.toolbox.details.componentContributions")}
+            </h2>
+            <p className="text-muted-foreground mt-1 text-xs leading-5">
+              {t("extensions.toolbox.details.componentContributionsDescription")}
+            </p>
+            <div className="mt-3 grid gap-3">
+              {componentContributions.length > 0 ? (
+                componentContributions.map((contribution) => (
+                  <ComponentContributionDetails
+                    key={`${contribution.kind}:${contribution.id}`}
+                    capabilityId={params.capabilityId}
+                    contribution={contribution}
+                  />
+                ))
+              ) : (
+                <p className="text-muted-foreground text-xs" role="status">
+                  {t("extensions.toolbox.details.none")}
+                </p>
+              )}
+            </div>
+          </div>
+        ) : null}
+
+        {isComponentExtension && componentExtensionCanUninstall ? (
+          <div className="mt-4 flex flex-wrap items-center gap-2 border-t pt-4" aria-live="polite">
+            <Button
+              type="button"
+              variant={componentExtensionInstalled ? "destructive" : "default"}
+              className="active:translate-y-0!"
+              onClick={() => {
+                if (!params.componentExtensionId) return;
+                setComponentExtensionInstalled(
+                  params.componentExtensionId,
+                  !componentExtensionInstalled,
+                );
+              }}
+            >
+              {componentExtensionInstalled ? (
+                <Trash2Icon aria-hidden="true" />
+              ) : (
+                <PackagePlusIcon aria-hidden="true" />
+              )}
+              {t(
+                componentExtensionInstalled
+                  ? "extensions.toolbox.componentExtensions.uninstall"
+                  : "extensions.toolbox.componentExtensions.install",
+              )}
+            </Button>
+            <p className="text-muted-foreground text-xs">
+              {t(
+                componentExtensionInstalled
+                  ? "extensions.toolbox.componentExtensions.installedDescription"
+                  : "extensions.toolbox.componentExtensions.uninstalledDescription",
+              )}
+            </p>
+          </div>
+        ) : null}
+
+        {showUninstallRow ? (
+          <div className="mt-4 flex flex-wrap items-center gap-2 border-t pt-4" aria-live="polite">
+            {installationPresent ? (
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={!uninstallTarget || !uninstallSource || mutating}
+                className="active:translate-y-0!"
+                onClick={uninstallPackage}
+              >
+                {removing ? (
+                  <LoaderCircleIcon
+                    aria-hidden="true"
+                    className="animate-spin motion-reduce:animate-none"
+                  />
+                ) : (
+                  <Trash2Icon aria-hidden="true" />
+                )}
+                {t(
+                  removing
+                    ? "extensions.toolbox.packages.removing"
+                    : "extensions.toolbox.packages.remove",
+                )}
+              </Button>
+            ) : null}
+            {removeFeedback.status !== "idle" ? (
+              <p
+                className={
+                  removeFeedback.status === "failed"
+                    ? "text-destructive text-xs"
+                    : removeFeedback.status === "removed"
+                      ? "text-emerald-700 text-xs dark:text-emerald-300"
+                      : "text-muted-foreground text-xs"
+                }
+                role={removeFeedback.status === "failed" ? "alert" : "status"}
+              >
+                {removeStatusMessage}
+              </p>
+            ) : null}
+            {installationPresent && !uninstallTarget ? (
+              <p className="text-destructive basis-full text-xs" role="alert">
+                {t("extensions.toolbox.packages.removeTargetUnavailable")}
+              </p>
+            ) : null}
+            {removing ? (
+              <Progress
+                value={null}
+                aria-label={t("extensions.toolbox.packages.removing")}
+                aria-valuetext={removeStatusMessage}
+                className="basis-full pt-1"
+                trackClassName="max-w-md"
+              />
+            ) : null}
+          </div>
+        ) : null}
+
+        {!isPackage && !isSkill ? (
           <aside className="bg-muted/45 text-muted-foreground mt-4 rounded-xl px-3.5 py-3 text-xs leading-5">
             {t(
-              isSkill
-                ? "extensions.toolbox.details.skillProtocolLimit"
-                : isPrompt
-                  ? "extensions.toolbox.details.promptProtocolLimit"
+              isPrompt
+                ? "extensions.toolbox.details.promptProtocolLimit"
+                : isComponentExtension
+                  ? "extensions.toolbox.details.componentExtensionLifecycle"
                   : "extensions.toolbox.details.extensionProtocolLimit",
             )}
           </aside>
         ) : null}
       </div>
-
-      {!isCatalogPackage ? (
-        <footer className="flex shrink-0 items-center gap-2 border-t p-3">
-          <Button
-            type="button"
-            variant="outline"
-            aria-pressed={pinned}
-            className="active:translate-y-0!"
-            onClick={() => toggleToolboxPin(params.capabilityId)}
+      {isSkill ? (
+        <Dialog
+          open={skillDeleteDialogOpen}
+          onOpenChange={(open) => {
+            if (skillMutationState === "removing") return;
+            if (open) setSkillMutationState("idle");
+            setSkillDeleteDialogOpen(open);
+          }}
+        >
+          <DialogContent
+            closeLabel={t("extensions.toolbox.skills.cancelDelete")}
+            showCloseButton={false}
           >
-            <PinIcon aria-hidden="true" className={pinned ? "fill-current" : undefined} />
-            {pinLabel}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            className="active:translate-y-0!"
-            onClick={openSettings}
-          >
-            <SettingsIcon aria-hidden="true" />
-            {t("extensions.toolbox.openSettings")}
-          </Button>
-        </footer>
+            <DialogHeader>
+              <DialogTitle>{t("extensions.toolbox.skills.deleteTitle")}</DialogTitle>
+              <DialogDescription>
+                {params.origin === "package"
+                  ? t("extensions.toolbox.skills.deletePackageDescription", {
+                      source: params.source ?? params.name,
+                    })
+                  : t("extensions.toolbox.skills.deleteIndependentDescription", {
+                      name: params.name,
+                      path: displayedSkillFilePath ?? skillDirectoryPath ?? params.name,
+                    })}
+              </DialogDescription>
+            </DialogHeader>
+            {skillMutationState === "failed" ? (
+              <p className="text-destructive text-xs leading-5" role="alert">
+                {t("extensions.toolbox.skills.deleteFailed")}
+              </p>
+            ) : null}
+            <DialogFooter closeLabel={t("extensions.toolbox.skills.cancelDelete")} className="m-0">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={skillMutationState === "removing"}
+                onClick={() => setSkillDeleteDialogOpen(false)}
+              >
+                {t("extensions.toolbox.skills.cancelDelete")}
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={!canDeleteSkill}
+                onClick={deleteSkill}
+              >
+                {skillMutationState === "removing" ? (
+                  <LoaderCircleIcon
+                    aria-hidden="true"
+                    className="animate-spin motion-reduce:animate-none"
+                  />
+                ) : (
+                  <Trash2Icon aria-hidden="true" />
+                )}
+                {t(
+                  skillMutationState === "removing"
+                    ? "extensions.toolbox.skills.deleting"
+                    : "extensions.toolbox.skills.confirmDelete",
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       ) : null}
     </section>
   );

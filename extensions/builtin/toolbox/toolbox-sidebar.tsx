@@ -1,28 +1,26 @@
 "use client";
 
 import {
-  BoxesIcon,
   ChevronRightIcon,
   DownloadIcon,
-  MessageSquareTextIcon,
+  FileTextIcon,
   PackageIcon,
   PackagePlusIcon,
+  PanelsTopLeftIcon,
   PinIcon,
-  PlusIcon,
-  SettingsIcon,
-  SparklesIcon,
+  PlugIcon,
   StoreIcon,
+  WandSparklesIcon,
   type LucideIcon,
 } from "lucide-react";
 import { type ReactNode, useState } from "react";
 
 import { collapsePanel } from "@/components/elements/surfaces";
-import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
 import { defineMessage, useI18n, type LocalizableText } from "@/i18n";
 import { cn } from "@/lib/utils";
-import { useCommandService, useMainViewService, type SlotPropsMap } from "@/platform/extensions";
+import { useMainViewService, type SlotPropsMap } from "@/platform/extensions";
 import type { PiPackageCatalogItemView } from "@/runtime/pi/rpc-contracts";
 
 import {
@@ -37,6 +35,7 @@ import { usePiPackageCatalog } from "./use-pi-package-catalog";
 
 const TOOLBOX_SECTION_TITLES = {
   skills: defineMessage("extensions.toolbox.skills.title"),
+  "component-extensions": defineMessage("extensions.toolbox.componentExtensions.title"),
   extensions: defineMessage("extensions.toolbox.extensions.title"),
   prompts: defineMessage("extensions.toolbox.prompts.title"),
   packages: defineMessage("extensions.toolbox.packages.title"),
@@ -62,8 +61,7 @@ function CatalogSkeleton() {
   return (
     <div className="flex flex-col gap-[2px]" aria-hidden="true">
       {[0, 1, 2].map((item) => (
-        <div key={item} className="flex h-11 items-center gap-2 px-1.5">
-          <Skeleton className="size-7 rounded-lg" />
+        <div key={item} className="flex h-11 items-center px-1.5">
           <div className="min-w-0 flex-1">
             <Skeleton className="h-3 w-24" />
             <Skeleton className="mt-1.5 h-2.5 w-36" />
@@ -123,7 +121,7 @@ function CapabilityCategory({
         />
       </CollapsibleTrigger>
       <CollapsibleContent className={cn(collapsePanel, "outline-none")}>
-        <div className="flex flex-col gap-[2px] ps-6">{children}</div>
+        <div className="flex flex-col gap-[2px] ps-8">{children}</div>
       </CollapsibleContent>
     </Collapsible>
   );
@@ -131,51 +129,40 @@ function CapabilityCategory({
 
 function CapabilityRow({
   item,
-  nested = false,
   onOpen,
   onTogglePin,
   pinned,
 }: {
   item: ToolboxCapabilityItem;
-  nested?: boolean;
   onOpen(item: ToolboxCapabilityItem): void;
   onTogglePin(item: ToolboxCapabilityItem): void;
   pinned: boolean;
 }) {
   const { t } = useI18n();
-  const Icon =
-    item.kind === "skill"
-      ? SparklesIcon
-      : item.kind === "extension"
-        ? BoxesIcon
-        : item.kind === "prompt"
-          ? MessageSquareTextIcon
-          : PackageIcon;
   const pinLabel = t(pinned ? "extensions.toolbox.unpin" : "extensions.toolbox.pin");
 
   return (
     <div
       data-workbench-selection-surface=""
-      className={cn(
-        "group/capability hover:bg-sidebar-accent focus-within:bg-sidebar-accent flex min-h-11 items-center rounded-lg transition-colors",
-        nested && "-ms-6",
-      )}
+      className="group/capability hover:bg-sidebar-accent focus-within:bg-sidebar-accent flex min-h-9 items-center rounded-lg transition-colors"
     >
       <button
         type="button"
-        className="focus-visible:ring-sidebar-ring flex min-w-0 flex-1 items-center gap-1 rounded-lg px-1.5 py-1.5 text-left outline-none focus-visible:ring-2 active:translate-y-0!"
+        className="focus-visible:ring-sidebar-ring flex min-h-9 min-w-0 flex-1 items-center rounded-lg px-1.5 py-1.5 text-left outline-none focus-visible:ring-2 active:translate-y-0!"
         title={t("extensions.toolbox.openDetails", { name: item.name })}
         onClick={() => onOpen(item)}
       >
-        <span className="flex size-7 shrink-0 items-center justify-center">
-          <Icon aria-hidden="true" className="size-4" />
-        </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate font-mono text-xs font-medium">{item.name}</span>
-          <span className="text-muted-foreground mt-0.5 block truncate text-[11px]">
-            {item.secondary}
-          </span>
+          {item.description ? (
+            <span className="text-muted-foreground mt-0.5 block truncate text-[11px]">
+              {item.description}
+            </span>
+          ) : null}
         </span>
+        {item.status ? (
+          <span className="text-muted-foreground me-1 shrink-0 text-[10px]">{item.status}</span>
+        ) : null}
       </button>
       <button
         type="button"
@@ -204,25 +191,15 @@ function PackageRow({
   onOpen(item: PiPackageCatalogItemView): void;
 }) {
   const { number, t } = useI18n();
-  const Icon = item.types.includes("prompt")
-    ? MessageSquareTextIcon
-    : item.types.includes("skill")
-      ? SparklesIcon
-      : item.types.includes("extension")
-        ? BoxesIcon
-        : PackageIcon;
 
   return (
     <button
       type="button"
       data-workbench-selection-surface=""
-      className="hover:bg-sidebar-accent focus-visible:ring-sidebar-ring flex min-h-11 w-full items-center gap-1 rounded-lg px-1.5 py-1.5 text-left outline-none transition-colors focus-visible:ring-2 active:translate-y-0!"
+      className="hover:bg-sidebar-accent focus-visible:ring-sidebar-ring flex min-h-11 w-full items-center rounded-lg px-1.5 py-1.5 text-left outline-none transition-colors focus-visible:ring-2 active:translate-y-0!"
       title={t("extensions.toolbox.openDetails", { name: item.name })}
       onClick={() => onOpen(item)}
     >
-      <span className="flex size-7 shrink-0 items-center justify-center">
-        <Icon aria-hidden="true" className="size-4" />
-      </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate font-mono text-xs font-medium">{item.name}</span>
         <span className="text-muted-foreground mt-0.5 block truncate text-[11px]">
@@ -284,13 +261,13 @@ function ManagementRow({
 
 export function ToolboxSidebar({ searchQuery }: SlotPropsMap["sidebar.toolbox"]) {
   const { locale, number, t } = useI18n();
-  const commands = useCommandService();
   const mainViews = useMainViewService();
   const pins = useToolboxPins();
   const [expandedSections, setExpandedSections] = useState<ReadonlySet<ToolboxMainSection>>(
-    () => new Set(),
+    () => new Set<ToolboxMainSection>(["component-extensions"]),
   );
   const {
+    componentExtensionItems,
     extensionItems,
     extensionsCatalog,
     packageItems,
@@ -305,7 +282,13 @@ export function ToolboxSidebar({ searchQuery }: SlotPropsMap["sidebar.toolbox"])
     enabled: Boolean(normalizedQuery),
     query: searchQuery,
   });
-  const allItems = [...skillItems, ...extensionItems, ...promptItems, ...packageItems];
+  const allItems = [
+    ...skillItems,
+    ...componentExtensionItems,
+    ...extensionItems,
+    ...promptItems,
+    ...packageItems,
+  ];
   const visibleItems = normalizedQuery
     ? allItems.filter((item) => item.searchText.toLocaleLowerCase(locale).includes(normalizedQuery))
     : allItems;
@@ -334,14 +317,10 @@ export function ToolboxSidebar({ searchQuery }: SlotPropsMap["sidebar.toolbox"])
     const params = packageSurfaceParams(item);
     openMainView(sectionForCapability(params), params, true);
   };
-  const openSettings = () => {
-    void commands.execute("settings.open").catch((error) => console.error(error));
-  };
-  const renderCapability = (item: ToolboxCapabilityItem, nested = false) => (
+  const renderCapability = (item: ToolboxCapabilityItem) => (
     <CapabilityRow
       key={item.id}
       item={item}
-      nested={nested}
       pinned={pins.includes(item.id)}
       onOpen={openCapability}
       onTogglePin={(capability) => toggleToolboxPin(capability.id)}
@@ -360,8 +339,12 @@ export function ToolboxSidebar({ searchQuery }: SlotPropsMap["sidebar.toolbox"])
     items: readonly ToolboxCapabilityItem[],
     empty: string,
   ) => {
-    if (!catalog.sessionId) return <EmptyNote>{t("extensions.toolbox.noSession")}</EmptyNote>;
-    if (catalog.loadState === "loading") return <CatalogSkeleton />;
+    if (!catalog.sessionId) {
+      return <EmptyNote>{t("extensions.toolbox.noSession")}</EmptyNote>;
+    }
+    if (catalog.loadState === "loading") {
+      return <CatalogSkeleton />;
+    }
     if (catalog.loadState === "failed") {
       return (
         <EmptyNote>
@@ -374,7 +357,7 @@ export function ToolboxSidebar({ searchQuery }: SlotPropsMap["sidebar.toolbox"])
       );
     }
     if (items.length === 0) return <EmptyNote>{empty}</EmptyNote>;
-    return items.map((item) => renderCapability(item, true));
+    return items.map((item) => renderCapability(item));
   };
 
   return (
@@ -413,7 +396,7 @@ export function ToolboxSidebar({ searchQuery }: SlotPropsMap["sidebar.toolbox"])
             <section className="mb-1 flex flex-col gap-[2px]">
               <SectionLabel>{t("extensions.toolbox.capabilities")}</SectionLabel>
               <CapabilityCategory
-                icon={SparklesIcon}
+                icon={WandSparklesIcon}
                 label={t("extensions.toolbox.skills.title")}
                 count={catalogCount(skillsCatalog.loadState, skillItems.length)}
                 expanded={expandedSections.has("skills")}
@@ -426,7 +409,22 @@ export function ToolboxSidebar({ searchQuery }: SlotPropsMap["sidebar.toolbox"])
                 )}
               </CapabilityCategory>
               <CapabilityCategory
-                icon={BoxesIcon}
+                icon={PanelsTopLeftIcon}
+                label={t("extensions.toolbox.componentExtensions.title")}
+                count={number(componentExtensionItems.length)}
+                expanded={expandedSections.has("component-extensions")}
+                onExpandedChange={(expanded) =>
+                  setSectionExpanded("component-extensions", expanded)
+                }
+              >
+                {componentExtensionItems.length > 0 ? (
+                  componentExtensionItems.map((item) => renderCapability(item))
+                ) : (
+                  <EmptyNote>{t("extensions.toolbox.componentExtensions.empty")}</EmptyNote>
+                )}
+              </CapabilityCategory>
+              <CapabilityCategory
+                icon={PlugIcon}
                 label={t("extensions.toolbox.extensions.title")}
                 count={catalogCount(extensionsCatalog.loadState, extensionItems.length)}
                 expanded={expandedSections.has("extensions")}
@@ -439,7 +437,7 @@ export function ToolboxSidebar({ searchQuery }: SlotPropsMap["sidebar.toolbox"])
                 )}
               </CapabilityCategory>
               <CapabilityCategory
-                icon={MessageSquareTextIcon}
+                icon={FileTextIcon}
                 label={t("extensions.toolbox.prompts.title")}
                 count={catalogCount(promptsCatalog.loadState, promptItems.length)}
                 expanded={expandedSections.has("prompts")}
@@ -451,9 +449,13 @@ export function ToolboxSidebar({ searchQuery }: SlotPropsMap["sidebar.toolbox"])
                   t("extensions.toolbox.prompts.empty"),
                 )}
               </CapabilityCategory>
+            </section>
+
+            <section className="flex flex-col gap-[2px]">
+              <SectionLabel>{t("extensions.toolbox.manage")}</SectionLabel>
               <CapabilityCategory
                 icon={PackageIcon}
-                label={t("extensions.toolbox.packages.title")}
+                label={t("extensions.toolbox.packages.installedTitle")}
                 count={catalogCount(packagesCatalog.loadState, packageItems.length)}
                 expanded={expandedSections.has("packages")}
                 onExpandedChange={(expanded) => setSectionExpanded("packages", expanded)}
@@ -464,10 +466,6 @@ export function ToolboxSidebar({ searchQuery }: SlotPropsMap["sidebar.toolbox"])
                   t("extensions.toolbox.packages.empty"),
                 )}
               </CapabilityCategory>
-            </section>
-
-            <section className="flex flex-col gap-[2px]">
-              <SectionLabel>{t("extensions.toolbox.manage")}</SectionLabel>
               <ManagementRow
                 icon={StoreIcon}
                 label={t("extensions.toolbox.browsePiPackages")}
@@ -489,30 +487,6 @@ export function ToolboxSidebar({ searchQuery }: SlotPropsMap["sidebar.toolbox"])
           </>
         )}
       </div>
-
-      <footer className="flex min-h-12 shrink-0 items-center gap-2 px-4 pt-2 pb-1">
-        <Button
-          type="button"
-          variant="ghost"
-          size="lg"
-          className="min-w-0 flex-1 justify-start active:translate-y-0!"
-          onClick={() => openMainView("packages")}
-        >
-          <PlusIcon aria-hidden="true" />
-          <span className="truncate">{t("extensions.toolbox.addCapability")}</span>
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          aria-label={t("extensions.toolbox.openSettings")}
-          title={t("extensions.toolbox.openSettings")}
-          className="active:translate-y-0!"
-          onClick={openSettings}
-        >
-          <SettingsIcon aria-hidden="true" />
-        </Button>
-      </footer>
     </section>
   );
 }

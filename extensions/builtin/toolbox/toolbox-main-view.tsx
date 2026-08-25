@@ -1,14 +1,10 @@
 "use client";
 
 import {
-  BoxesIcon,
   ChevronDownIcon,
   ChevronRightIcon,
-  MessageSquareTextIcon,
-  PackageIcon,
   RefreshCwIcon,
   SearchIcon,
-  SparklesIcon,
   ToolboxIcon,
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
@@ -41,18 +37,48 @@ import { usePiPackageCatalog } from "./use-pi-package-catalog";
 
 type PackageTypeFilter = "all" | PiPackageCatalogFilterType;
 
+const CATALOG_SKELETON_ROWS = [
+  { name: "w-36", metadata: "w-28", type: "w-14" },
+  { name: "w-44", metadata: "w-24", type: "w-12" },
+  { name: "w-28", metadata: "w-32", type: "w-16" },
+  { name: "w-48", metadata: "w-28", type: "w-12" },
+  { name: "w-40", metadata: "w-20", type: "w-14" },
+  { name: "w-52", metadata: "w-32", type: "w-16" },
+  { name: "w-32", metadata: "w-24", type: "w-12" },
+  { name: "w-44", metadata: "w-28", type: "w-14" },
+  { name: "w-36", metadata: "w-20", type: "w-16" },
+  { name: "w-48", metadata: "w-32", type: "w-12" },
+] as const;
+
 function CatalogSkeleton() {
   return (
-    <div className="space-y-2 p-3" aria-hidden="true">
-      {[0, 1, 2, 3].map((item) => (
-        <div key={item} className="flex h-16 items-center gap-3 rounded-xl px-3">
-          <Skeleton className="size-9 rounded-xl" />
+    <div className="space-y-1 p-2" aria-hidden="true">
+      {CATALOG_SKELETON_ROWS.map((row, index) => (
+        <div
+          key={index}
+          className="flex min-h-16 w-full items-center gap-3 rounded-xl px-3 py-2.5"
+        >
           <div className="min-w-0 flex-1">
-            <Skeleton className="h-3.5 w-32" />
-            <Skeleton className="mt-2 h-3 w-48" />
+            <Skeleton className={cn("h-3.5 max-w-full", row.name)} />
+            <Skeleton className={cn("mt-1.5 h-3 max-w-full", row.metadata)} />
           </div>
+          <Skeleton className={cn("h-3 shrink-0", row.type)} />
+          <Skeleton className="size-3.5 shrink-0 rounded-sm" />
         </div>
       ))}
+    </div>
+  );
+}
+
+function CatalogPaginationSkeleton() {
+  return (
+    <div
+      className="flex h-12 shrink-0 items-center justify-between gap-2 border-t px-3"
+      aria-hidden="true"
+    >
+      <Skeleton className="h-7 w-14 rounded-lg" />
+      <Skeleton className="h-3 w-12" />
+      <Skeleton className="h-7 w-14 rounded-lg" />
     </div>
   );
 }
@@ -118,13 +144,6 @@ function MainPackageRow({
   onOpen(item: PiPackageCatalogItemView): void;
 }) {
   const { number, t } = useI18n();
-  const Icon = item.types.includes("prompt")
-    ? MessageSquareTextIcon
-    : item.types.includes("skill")
-      ? SparklesIcon
-      : item.types.includes("extension")
-        ? BoxesIcon
-        : PackageIcon;
 
   return (
     <button
@@ -137,9 +156,6 @@ function MainPackageRow({
       )}
       onClick={() => onOpen(item)}
     >
-      <span className="bg-background flex size-9 shrink-0 items-center justify-center rounded-xl border">
-        <Icon aria-hidden="true" className="size-4" />
-      </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate font-mono text-sm font-medium">{item.name}</span>
         <span className="text-muted-foreground mt-1 block truncate text-xs">
@@ -183,7 +199,7 @@ function DetailPane({ selected }: { selected?: ToolboxCapabilitySurfaceParams })
   const { t } = useI18n();
 
   return (
-    <div className="bg-background min-h-0 min-w-0 flex-1 overflow-hidden">
+    <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
       {selected ? (
         <ToolboxCapabilityDetails key={selected.capabilityId} params={selected} />
       ) : (
@@ -338,7 +354,9 @@ export function ToolboxMainView({ view }: MainViewProps<ToolboxMainViewParams>) 
         <div className="grid min-h-0 flex-1 grid-rows-[minmax(12rem,2fr)_minmax(0,3fr)] lg:grid-cols-[minmax(18rem,2fr)_minmax(0,3fr)] lg:grid-rows-1">
           <div className="bg-muted/20 flex min-h-0 flex-col border-b lg:border-e lg:border-b-0">
             <div className="min-h-0 flex-1 overflow-y-auto">{listContent}</div>
-            {packageCatalog.loadState === "ready" && packageCatalog.value.pageCount > 1 ? (
+            {packageCatalog.loadState === "loading" ? (
+              <CatalogPaginationSkeleton />
+            ) : packageCatalog.loadState === "ready" && packageCatalog.value.pageCount > 1 ? (
               <nav
                 aria-label={t("extensions.toolbox.packages.pagination")}
                 className="flex h-12 shrink-0 items-center justify-between gap-2 border-t px-3"

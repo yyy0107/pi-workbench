@@ -1,11 +1,12 @@
 "use client";
 
 import { useAuiState } from "@assistant-ui/react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import { useI18n } from "@/i18n";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { formatAdaptiveDuration, formatCompactDuration } from "@/lib/format-duration";
+import { useMainViewService } from "@/platform/extensions";
 import {
   aggregatePiSessionStatistics,
   mergeMonotonicPiSessionStatistics,
@@ -217,6 +218,15 @@ function ThreadTokenUsage() {
 }
 
 export function TokenUsage() {
+  const mainViews = useMainViewService();
+  const activeMainView = useSyncExternalStore(
+    mainViews.subscribe,
+    mainViews.getSnapshot,
+    mainViews.getInitialSnapshot,
+  );
   const threadId = useAuiState((state) => state.threads.mainThreadId);
+
+  if (activeMainView) return null;
+
   return <ThreadTokenUsage key={threadId} />;
 }

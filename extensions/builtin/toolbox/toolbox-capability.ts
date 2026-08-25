@@ -5,9 +5,32 @@ import type {
   PromptCommandView,
   SkillView,
 } from "@/runtime/pi/rpc-contracts";
+import type { ComponentType } from "react";
+import type { ComponentExtensionContributionKind } from "@/platform/extensions";
 
-export type ToolboxCapabilityKind = "skill" | "extension" | "prompt" | "package";
-export type ToolboxMainSection = "skills" | "extensions" | "prompts" | "packages";
+export interface ToolboxComponentContribution {
+  id: string;
+  kind: ComponentExtensionContributionKind;
+  surface: string;
+  target: string;
+  host?: string;
+  description?: string;
+  preview: ComponentType;
+  sourceFiles: readonly string[];
+}
+
+export type ToolboxCapabilityKind =
+  | "skill"
+  | "component-extension"
+  | "extension"
+  | "prompt"
+  | "package";
+export type ToolboxMainSection =
+  | "skills"
+  | "component-extensions"
+  | "extensions"
+  | "prompts"
+  | "packages";
 
 export interface ToolboxCapabilitySurfaceParams extends Record<string, unknown> {
   capabilityId: string;
@@ -16,6 +39,7 @@ export interface ToolboxCapabilitySurfaceParams extends Record<string, unknown> 
   description?: string;
   whenToUse?: string;
   modelInvocable?: boolean;
+  enabled?: boolean;
   invocationName?: string;
   argumentHint?: string;
   source?: string;
@@ -24,6 +48,10 @@ export interface ToolboxCapabilitySurfaceParams extends Record<string, unknown> 
   eventNames?: string[];
   toolNames?: string[];
   commandNames?: string[];
+  entryFile?: string;
+  componentExtensionId?: string;
+  componentExtensionDistribution?: "builtin" | "installable";
+  componentContributions?: ToolboxComponentContribution[];
   packageTypes?: PiPackageCatalogItemView["types"];
   author?: string;
   monthlyDownloads?: number;
@@ -33,9 +61,14 @@ export interface ToolboxCapabilitySurfaceParams extends Record<string, unknown> 
   repositoryUrl?: string;
   version?: string;
   installCommand?: string;
+  packageName?: string;
   installed?: boolean;
   packageScope?: InstalledPackageView["scope"];
   packageFiltered?: boolean;
+}
+
+export function componentExtensionCapabilityId(extensionId: string): string {
+  return `component-extension:${encodeURIComponent(extensionId)}`;
 }
 
 export interface ToolboxMainViewParams extends Record<string, unknown> {
@@ -50,13 +83,15 @@ export function sectionForCapability(
 ): ToolboxMainSection {
   return capability.capabilityKind === "skill"
     ? "skills"
-    : capability.capabilityKind === "extension"
-      ? "extensions"
-      : capability.capabilityKind === "prompt"
-        ? "prompts"
-        : capability.packageTypes?.includes("prompt")
+    : capability.capabilityKind === "component-extension"
+      ? "component-extensions"
+      : capability.capabilityKind === "extension"
+        ? "extensions"
+        : capability.capabilityKind === "prompt"
           ? "prompts"
-          : "packages";
+          : capability.packageTypes?.includes("prompt")
+            ? "prompts"
+            : "packages";
 }
 
 export function skillCapabilityId(skill: Pick<SkillView, "name">): string {
@@ -87,18 +122,34 @@ export function installedPackageCapabilityId(
   return `installed-package:${item.scope}:${encodeURIComponent(item.source)}`;
 }
 
+const NPM_PACKAGE_NAME = /^(?:@[a-z0-9][a-z0-9._~-]*\/)?[a-z0-9][a-z0-9._~-]*$/;
+
+export function npmPackageNameFromSource(source?: string): string | undefined {
+  if (!source?.startsWith("npm:")) return undefined;
+  const name = source.slice("npm:".length).trim();
+  return NPM_PACKAGE_NAME.test(name) ? name : undefined;
+}
+
 export function skillSurfaceParams(skill: SkillView): ToolboxCapabilitySurfaceParams {
+  const packageName = npmPackageNameFromSource(skill.source);
   return {
     capabilityId: skillCapabilityId(skill),
     capabilityKind: "skill",
     name: skill.name,
     description: skill.description,
     ...(skill.whenToUse ? { whenToUse: skill.whenToUse } : {}),
+    enabled: skill.enabled,
     modelInvocable: skill.modelInvocable,
+    source: skill.source,
+    scope: skill.scope,
+    origin: skill.origin,
+    packageTypes: ["skill"],
+    ...(packageName ? { packageName } : {}),
   };
 }
 
 export function extensionSurfaceParams(extension: ExtensionView): ToolboxCapabilitySurfaceParams {
+  const packageName = npmPackageNameFromSource(extension.source);
   return {
     capabilityId: extensionCapabilityId(extension),
     capabilityKind: "extension",
@@ -109,10 +160,13 @@ export function extensionSurfaceParams(extension: ExtensionView): ToolboxCapabil
     eventNames: [...extension.eventNames],
     toolNames: [...extension.toolNames],
     commandNames: [...extension.commandNames],
+    packageTypes: ["extension"],
+    ...(packageName ? { packageName } : {}),
   };
 }
 
 export function promptSurfaceParams(prompt: PromptCommandView): ToolboxCapabilitySurfaceParams {
+  const packageName = npmPackageNameFromSource(prompt.source);
   return {
     capabilityId: promptCapabilityId(prompt),
     capabilityKind: "prompt",
@@ -120,12 +174,18 @@ export function promptSurfaceParams(prompt: PromptCommandView): ToolboxCapabilit
     ...(prompt.description ? { description: prompt.description } : {}),
     invocationName: prompt.invocationName,
     ...(prompt.argumentHint ? { argumentHint: prompt.argumentHint } : {}),
+    source: prompt.source,
+    scope: prompt.scope,
+    origin: prompt.origin,
+    packageTypes: ["prompt"],
+    ...(packageName ? { packageName } : {}),
   };
 }
 
 export function installedPackageSurfaceParams(
   item: InstalledPackageView,
 ): ToolboxCapabilitySurfaceParams {
+  const packageName = npmPackageNameFromSource(item.source);
   return {
     capabilityId: installedPackageCapabilityId(item),
     capabilityKind: "package",
@@ -134,6 +194,7 @@ export function installedPackageSurfaceParams(
     installed: true,
     packageScope: item.scope,
     packageFiltered: item.filtered,
+    ...(packageName ? { packageName } : {}),
   };
 }
 
@@ -154,5 +215,6 @@ export function packageSurfaceParams(
     ...(item.repositoryUrl ? { repositoryUrl: item.repositoryUrl } : {}),
     ...(item.version ? { version: item.version } : {}),
     installCommand: item.installCommand,
+    packageName: item.name,
   };
 }
