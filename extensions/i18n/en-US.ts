@@ -1491,6 +1491,7 @@ export const extensionsEnUS = {
   },
   workspaceReview: {
     title: "Review",
+    loadFailed: "The review could not be loaded. Try again.",
     empty: "No changed files are known yet.",
     connectHint: "Agent file changes appear here; connect a Git service for complete hunks.",
     refresh: "Refresh review",
@@ -1523,6 +1524,9 @@ export const extensionsEnUS = {
   },
   workspaceFile: {
     title: "File",
+    loadFailed: "The file could not be loaded. Try again.",
+    saveFailed: "The file could not be saved. Try again.",
+    openFailed: "The file could not be opened in a local application.",
     openFileTitle: "Open File",
     openFileDescription: "Select a file from the workspace directory tree",
     viewSource: "View source code",
@@ -1580,6 +1584,7 @@ export const extensionsEnUS = {
   workspaceBrowser: {
     title: "Browser",
     newSession: "New browser session",
+    navigateFailed: "The browser could not navigate to that address. Try again.",
     address: "Browser address",
     navigate: "Navigate",
     back: "Go back",

@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { useRightWorkspace } from "@/components/right-workspace";
 import { languageForFilename, shouldHighlightWorkbenchCode } from "@/components/code-highlighting";
 import { useI18n } from "@/i18n";
-import type { WorkspaceSurfaceProps } from "@/platform/extensions";
+import { useExtensionErrorReporter, type WorkspaceSurfaceProps } from "@/platform/extensions";
 import {
   fileWorkspaceContext,
   fileWorkspaceService as files,
@@ -26,6 +26,7 @@ import { fileDiffService } from "./file-diff-service";
 import { FileDiffViewer } from "./file-diff-viewer";
 import { FileDocumentPreview } from "./file-document-preview";
 import { FileMarkdownPreview } from "./file-markdown-preview";
+import { FILE_SURFACE_LOAD_FAILED, FILE_SURFACE_SAVE_FAILED } from "./file-surface-messages";
 import {
   isFileViewerPreviewFile,
   isMarkdownFile,
@@ -98,6 +99,7 @@ function UnavailableFile({ title, description }: { title: string; description: s
 export function FileSurface({ surface, retryToken = 0 }: WorkspaceSurfaceProps<FileSurfaceParams>) {
   const { t } = useI18n();
   const controller = useRightWorkspace();
+  const reportError = useExtensionErrorReporter();
   const path = surface.params.absolutePath;
   const fileSession = useMemo(() => resolveFileWorkspaceSession(surface.params), [surface.params]);
   const initialDescriptor = useMemo(() => descriptorFromParams(surface.params), [surface.params]);
@@ -183,9 +185,10 @@ export function FileSurface({ surface, retryToken = 0 }: WorkspaceSurfaceProps<F
       })
       .catch((error: unknown) => {
         if (!current) return;
+        reportError(error, { source: "workspace", contributionId: surface.id });
         controller.update(surface.id, {
           status: "error",
-          statusMessage: error instanceof Error ? error.message : String(error),
+          statusMessage: FILE_SURFACE_LOAD_FAILED,
         });
       });
     return () => {
@@ -197,6 +200,7 @@ export function FileSurface({ surface, retryToken = 0 }: WorkspaceSurfaceProps<F
     fileSession,
     initialDescriptor,
     path,
+    reportError,
     retryToken,
     surface.id,
     surface.params.relativePath,
@@ -219,9 +223,10 @@ export function FileSurface({ surface, retryToken = 0 }: WorkspaceSurfaceProps<F
       })
       .catch((error: unknown) => {
         if (!current) return;
+        reportError(error, { source: "workspace", contributionId: surface.id });
         controller.update(surface.id, {
           status: "error",
-          statusMessage: error instanceof Error ? error.message : String(error),
+          statusMessage: FILE_SURFACE_LOAD_FAILED,
         });
       });
     return () => {
@@ -233,6 +238,7 @@ export function FileSurface({ surface, retryToken = 0 }: WorkspaceSurfaceProps<F
     fileSession,
     needsTextSnapshot,
     path,
+    reportError,
     retryToken,
     snapshot,
     surface.id,
@@ -286,12 +292,13 @@ export function FileSurface({ surface, retryToken = 0 }: WorkspaceSurfaceProps<F
       if (!available) return;
       controller.update(surface.id, { dirty: false, status: "ready", statusMessage: undefined });
     } catch (error) {
+      reportError(error, { source: "workspace", contributionId: surface.id });
       controller.update(surface.id, {
         status: "error",
-        statusMessage: error instanceof Error ? error.message : String(error),
+        statusMessage: FILE_SURFACE_SAVE_FAILED,
       });
     }
-  }, [controller, fileContext, path, surface.id]);
+  }, [controller, fileContext, path, reportError, surface.id]);
   const handledRetryToken = useRef(0);
 
   useEffect(() => {

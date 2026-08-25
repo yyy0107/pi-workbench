@@ -1,4 +1,5 @@
 import type { RightWorkspaceController, WorkspaceContext } from "@/components/right-workspace";
+import { defineMessage, type LocalizableText } from "@/i18n";
 
 import {
   createTerminalTarget,
@@ -10,7 +11,7 @@ export interface TerminalWorkspaceHost {
   controller: RightWorkspaceController;
   context: WorkspaceContext;
   launch: TerminalLaunchContext;
-  title: string;
+  title: LocalizableText;
   activeTerminal: boolean;
   workspaceOpen: boolean;
 }
@@ -21,8 +22,10 @@ export interface TerminalTranscriptWorkspaceHost {
   toolCallId: string;
   command: string;
   piSessionId?: string;
-  title: string;
+  title: LocalizableText;
 }
+
+export const TERMINAL_SURFACE_TITLE = defineMessage("extensions.terminal.title");
 
 function terminalLaunchForContext(
   launch: TerminalLaunchContext,

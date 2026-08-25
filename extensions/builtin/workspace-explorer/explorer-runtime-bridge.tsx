@@ -9,7 +9,7 @@ import {
   useWorkspaceContext,
   useWorkspaceSurfaces,
 } from "@/components/right-workspace";
-import { useI18n } from "@/i18n";
+import { defineMessage } from "@/i18n";
 
 import {
   activeFileWorkspaceSession,
@@ -17,14 +17,14 @@ import {
   explorerMatchesFileWorkspace,
 } from "./explorer-runtime-policy";
 
+const DEFAULT_EXPLORER_TITLE = defineMessage("extensions.workspaceExplorer.title");
+
 export function ExplorerRuntimeBridge() {
-  const { t } = useI18n();
   const controller = useRightWorkspace();
   const context = useWorkspaceContext();
   const hydrated = useRightWorkspaceState((state) => state.hydrated);
   const activeSurface = useActiveWorkspaceSurface();
   const explorerSurfaces = useWorkspaceSurfaces("explorer");
-  const defaultTitle = t("extensions.workspaceExplorer.title");
   const fileSession = useMemo(() => activeFileWorkspaceSession(activeSurface), [activeSurface]);
   const contextExplorers = useMemo(
     () => contextExplorerSurfaces(explorerSurfaces, context),
@@ -47,7 +47,7 @@ export function ExplorerRuntimeBridge() {
         ? fileSession.skillName
         : fileSession.source === "extension"
           ? fileSession.extensionName
-          : defaultTitle;
+          : DEFAULT_EXPLORER_TITLE;
     controller.reveal({
       kind: "explorer",
       title,
@@ -57,7 +57,7 @@ export function ExplorerRuntimeBridge() {
       status: "ready",
       policy: fileSession.source === "workspace" ? "background" : "force-focus",
     });
-  }, [context, contextExplorers, controller, currentExplorer, defaultTitle, fileSession, hydrated]);
+  }, [context, contextExplorers, controller, currentExplorer, fileSession, hydrated]);
 
   return null;
 }

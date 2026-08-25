@@ -22,6 +22,7 @@ import {
   MIN_RIGHT_WORKSPACE_WIDTH,
   type RightWorkspaceStoreApi,
 } from "./workspace-store";
+import { isLocalizableText } from "@/i18n/runtime";
 
 export const RIGHT_WORKSPACE_STORAGE_KEY = "pi-workbench:right-workspace:v1";
 
@@ -140,7 +141,7 @@ function isSurface(value: unknown): value is LegacyWorkspaceSurfaceInstance {
     typeof value.id !== "string" ||
     typeof value.kind !== "string" ||
     value.kind.trim().length === 0 ||
-    typeof value.title !== "string" ||
+    !isLocalizableText(value.title) ||
     typeof value.resourceKey !== "string" ||
     !isRecord(value.scope) ||
     typeof value.scope.type !== "string" ||
@@ -152,6 +153,7 @@ function isSurface(value: unknown): value is LegacyWorkspaceSurfaceInstance {
   ) {
     return false;
   }
+  if (value.statusMessage !== undefined && !isLocalizableText(value.statusMessage)) return false;
   return true;
 }
 

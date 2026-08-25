@@ -8,7 +8,7 @@ import { useI18n } from "@/i18n";
 import type { WorkspaceSurfaceMenuItemProps } from "@/platform/extensions";
 
 import { useTerminalLaunchContext } from "./terminal-target";
-import { openTerminal } from "./terminal-workspace-service";
+import { openTerminal, TERMINAL_SURFACE_TITLE } from "./terminal-workspace-service";
 
 export function TerminalMenuItem({ closeMenu }: WorkspaceSurfaceMenuItemProps) {
   const { t } = useI18n();
@@ -26,7 +26,7 @@ export function TerminalMenuItem({ closeMenu }: WorkspaceSurfaceMenuItemProps) {
           controller,
           context,
           launch,
-          title: t("extensions.terminal.title"),
+          title: TERMINAL_SURFACE_TITLE,
         });
         closeMenu();
       }}

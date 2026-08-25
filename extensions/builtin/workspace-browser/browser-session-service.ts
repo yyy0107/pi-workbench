@@ -65,7 +65,7 @@ export class MemoryBrowserSessionService implements BrowserSessionService {
       id,
       projectId: context.projectId,
       url,
-      title: url === "about:blank" ? "New browser session" : url,
+      title: url,
       status: "ready",
       canGoBack: false,
       canGoForward: false,

@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { PanelsTopLeftIcon } from "lucide-react";
 
+import { createI18n, defineMessage, isLocalizableText, resolveText } from "@/i18n/runtime";
 import type { ExtensionContext } from "@/platform/extensions/authoring";
 import { ExtensionManager, WorkspaceSurfaceRegistryImpl } from "@/platform/extensions/internal";
 import {
@@ -430,6 +431,68 @@ test("serializable placement metadata survives while its extension is unavailabl
     restoredStore.getState().surfaces[surfaceId]?.resourceKey,
     "explorer:worktree-1:%2Fworkspace",
   );
+});
+
+test("localizable titles and safe status messages survive persistence and locale changes", () => {
+  const storage = new MemoryStorage();
+  const firstStore = createRightWorkspaceStore();
+  const firstController = new DefaultRightWorkspaceController(firstStore, createRegistry());
+  firstController.hydrate(storage);
+
+  const localizedId = firstController.open({
+    kind: "file",
+    title: defineMessage("extensions.workspaceReview.title"),
+    params: { absolutePath: "/workspace/review" },
+    context,
+    status: "error",
+    statusMessage: defineMessage("extensions.workspaceReview.loadFailed"),
+  });
+  const literalId = firstController.open({
+    kind: "file",
+    title: "用户报告.md",
+    params: { absolutePath: "/workspace/user-report" },
+    context,
+    status: "error",
+    statusMessage: "Legacy literal status",
+  });
+
+  const restoredStore = createRightWorkspaceStore();
+  new DefaultRightWorkspaceController(restoredStore, createRegistry()).hydrate(storage);
+  const localized = restoredStore.getState().surfaces[localizedId];
+  const literal = restoredStore.getState().surfaces[literalId];
+  assert.ok(localized);
+  assert.ok(literal);
+  assert.deepEqual(localized.title, { key: "extensions.workspaceReview.title" });
+  assert.deepEqual(localized.statusMessage, {
+    key: "extensions.workspaceReview.loadFailed",
+  });
+
+  const enUS = createI18n("en-US");
+  const zhCN = createI18n("zh-CN");
+  assert.equal(resolveText(enUS.t, localized.title), "Review");
+  assert.equal(resolveText(zhCN.t, localized.title), "审查");
+  assert.equal(
+    resolveText(enUS.t, localized.statusMessage!),
+    "The review could not be loaded. Try again.",
+  );
+  assert.equal(resolveText(zhCN.t, localized.statusMessage!), "无法加载审查内容，请重试。");
+  assert.equal(resolveText(enUS.t, literal.title), "用户报告.md");
+  assert.equal(resolveText(zhCN.t, literal.title), "用户报告.md");
+  assert.equal(literal.statusMessage, "Legacy literal status");
+  assert.equal(
+    isLocalizableText({ key: "extensions.workspaceReview.title", unexpected: true }),
+    false,
+  );
+  assert.equal(
+    isLocalizableText({
+      key: "extensions.workspaceFile.markdownPreview",
+      values: { name: "README.md" },
+    }),
+    true,
+  );
+  for (const inheritedKey of ["toString", "constructor", "extensions.toString"]) {
+    assert.equal(isLocalizableText({ key: inheritedKey, values: {} }), false);
+  }
 });
 
 test("hydration does not replace a live surface opened after preference loading starts", () => {

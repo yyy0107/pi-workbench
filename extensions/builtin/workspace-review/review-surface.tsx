@@ -3,8 +3,8 @@
 import { FileDiffIcon, RefreshCwIcon } from "lucide-react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 
-import { useI18n } from "@/i18n";
-import type { WorkspaceSurfaceProps } from "@/platform/extensions";
+import { defineMessage, useI18n } from "@/i18n";
+import { useExtensionErrorReporter, type WorkspaceSurfaceProps } from "@/platform/extensions";
 
 import { InlineFeedbackForm, useRightWorkspace } from "@/components/right-workspace";
 import { gitReviewService as git, type GitDiff } from "./git-review-service";
@@ -15,12 +15,15 @@ export interface ReviewSurfaceParams extends Record<string, unknown> {
   revision?: string;
 }
 
+const REVIEW_LOAD_FAILED = defineMessage("extensions.workspaceReview.loadFailed");
+
 export function ReviewSurface({
   surface,
   retryToken = 0,
 }: WorkspaceSurfaceProps<ReviewSurfaceParams>) {
   const { t } = useI18n();
   const controller = useRightWorkspace();
+  const reportError = useExtensionErrorReporter();
   const revision = useSyncExternalStore(
     git.subscribe.bind(git),
     git.getRevision.bind(git),
@@ -40,12 +43,13 @@ export function ReviewSurface({
         setDiff(value);
         controller.update(surface.id, { status: "ready", statusMessage: undefined });
       })
-      .catch((error: unknown) =>
+      .catch((error: unknown) => {
+        reportError(error, { source: "workspace", contributionId: surface.id });
         controller.update(surface.id, {
           status: "error",
-          statusMessage: error instanceof Error ? error.message : String(error),
-        }),
-      );
+          statusMessage: REVIEW_LOAD_FAILED,
+        });
+      });
   };
 
   useEffect(refresh, [retryToken, revision, surface.resourceKey]);

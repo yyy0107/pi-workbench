@@ -4,7 +4,7 @@ import { FileOutputIcon } from "lucide-react";
 
 import { useRightWorkspace, useWorkspaceContext } from "@/components/right-workspace";
 import { Button } from "@/components/ui/button";
-import { useI18n } from "@/i18n";
+import { defineMessage, useI18n } from "@/i18n";
 import type { WorkspaceSurfaceMenuItemProps } from "@/platform/extensions";
 
 import { artifactPreviewService } from "./artifact-preview-service";
@@ -34,7 +34,7 @@ export function ArtifactMenuItem({ closeMenu }: WorkspaceSurfaceMenuItemProps) {
         });
         controller.reveal({
           kind: "artifact",
-          title: t("extensions.workspaceArtifact.title"),
+          title: defineMessage("extensions.workspaceArtifact.title"),
           params: { artifactId, rendererHint: "markdown" },
           context,
           scope,

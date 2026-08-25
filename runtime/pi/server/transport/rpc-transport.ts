@@ -12,7 +12,24 @@ import * as apiRequestTrust from "./local-api-request-trust.ts";
 
 const { configuredApiTrustedHosts, inspectApiRequestTrust } = apiRequestTrust;
 
-export const DEFAULT_MAX_RPC_REQUEST_BODY_BYTES = 160 * 1024 * 1024;
+const MEBIBYTE = 1024 * 1024;
+
+/**
+ * Carrier budgets are deliberately smaller than the domain limits they protect
+ * except where JSON encoding can expand otherwise-valid input. Keep large
+ * allowances opt-in at the endpoint so a new ordinary RPC cannot accidentally
+ * inherit an attachment-sized allocation budget.
+ */
+export const RPC_REQUEST_BODY_LIMITS = Object.freeze({
+  ordinary: 1 * MEBIBYTE,
+  agentSettingsUpdate: 4 * MEBIBYTE,
+  modelProviderConfiguration: 8 * MEBIBYTE,
+  workbenchSettingsUpdate: 24 * MEBIBYTE,
+  workspaceFileWrite: 20 * MEBIBYTE,
+  inlineAttachment: 80 * MEBIBYTE,
+});
+
+export const DEFAULT_MAX_RPC_REQUEST_BODY_BYTES = RPC_REQUEST_BODY_LIMITS.ordinary;
 
 export type RpcValidationResult<Value> =
   | { ok: true; value: Value }

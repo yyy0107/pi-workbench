@@ -7,7 +7,7 @@ import { useRightWorkspace, useWorkspaceContext } from "@/components/right-works
 import { useI18n } from "@/i18n";
 
 import { useTerminalLaunchContext } from "./terminal-target";
-import { openTerminal } from "./terminal-workspace-service";
+import { openTerminal, TERMINAL_SURFACE_TITLE } from "./terminal-workspace-service";
 
 export function TerminalTrigger() {
   const { t } = useI18n();
@@ -27,7 +27,7 @@ export function TerminalTrigger() {
           controller,
           context,
           launch,
-          title: t("extensions.terminal.title"),
+          title: TERMINAL_SURFACE_TITLE,
         });
       }}
     >

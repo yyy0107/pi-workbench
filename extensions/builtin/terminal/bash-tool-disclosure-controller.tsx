@@ -3,7 +3,6 @@
 import { useEffect, useRef } from "react";
 
 import { useRightWorkspace, useWorkspaceContext } from "@/components/right-workspace";
-import { useI18n } from "@/i18n";
 import type { ToolPresentationDisclosureControllerProps } from "@/platform/extensions";
 import { usePiActiveSessionId } from "@/runtime/pi/client/runtime/context";
 
@@ -13,7 +12,7 @@ import {
 } from "./terminal-disclosure-policy";
 import { normalizeTerminalTabTitle } from "./terminal-tab-title";
 import { bashCommandFromArgs } from "./terminal-tool-transcript";
-import { revealTerminalTranscript } from "./terminal-workspace-service";
+import { revealTerminalTranscript, TERMINAL_SURFACE_TITLE } from "./terminal-workspace-service";
 import { useToolTerminalInteraction } from "./use-tool-terminal-interaction";
 
 export function BashToolDisclosureController({
@@ -22,7 +21,6 @@ export function BashToolDisclosureController({
   open,
   onOpenChange,
 }: ToolPresentationDisclosureControllerProps) {
-  const { t } = useI18n();
   const controller = useRightWorkspace();
   const context = useWorkspaceContext();
   const piSessionId = usePiActiveSessionId();
@@ -49,7 +47,7 @@ export function BashToolDisclosureController({
       toolCallId: part.toolCallId,
       command,
       ...(piSessionId ? { piSessionId } : {}),
-      title: normalizeTerminalTabTitle(command) ?? t("extensions.terminal.title"),
+      title: normalizeTerminalTabTitle(command) ?? TERMINAL_SURFACE_TITLE,
     });
   }, [
     alreadyRevealed,
@@ -62,7 +60,6 @@ export function BashToolDisclosureController({
     part.toolCallId,
     piSessionId,
     running,
-    t,
   ]);
 
   return null;

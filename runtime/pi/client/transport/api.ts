@@ -1,14 +1,4 @@
-import type {
-  PiApiErrorBody,
-  PiImageContent,
-  PiModelListResponse,
-  PiModelSelection,
-  PiQueuedPrompt,
-  PiQueueMode,
-  PiSessionHistory,
-  PiSessionListResponse,
-  PiSessionSummary,
-} from "../../contracts";
+import type { PiApiErrorBody, PiQueuedPrompt } from "../../contracts";
 import type {
   ClientResponse,
   CommandListPayload,
@@ -257,26 +247,6 @@ export async function respondPiRpc(response: ClientResponse): Promise<RpcReceipt
     return { accepted: false, reason: receipt.reason };
   }
   throw new PiApiError("pi_rpc_invalid_response", carrier.status, { method: "respond" });
-}
-
-export async function listPiSessions(): Promise<PiSessionListResponse> {
-  return responseJson(await fetch(`${API_ROOT}/sessions`, { cache: "no-store" }));
-}
-
-export async function listPiModels(cwd: string): Promise<PiModelListResponse> {
-  const query = `?cwd=${encodeURIComponent(cwd)}`;
-  return responseJson(await fetch(`${API_ROOT}/models${query}`, { cache: "no-store" }));
-}
-
-export async function createPiSession(cwd: string): Promise<PiSessionSummary> {
-  const body = await responseJson<{ session: PiSessionSummary }>(
-    await fetch(`${API_ROOT}/sessions`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cwd }),
-    }),
-  );
-  return body.session;
 }
 
 export async function pickPiHostDirectory(): Promise<string | undefined> {
@@ -800,60 +770,6 @@ export function cancelPiRpcSession(payload: SessionCancelPayload): Promise<Sessi
   return callPiRpc("session.cancel", payload);
 }
 
-export async function fetchPiSessionHistory(sessionId: string): Promise<PiSessionHistory> {
-  return responseJson(
-    await fetch(`${API_ROOT}/sessions/${encodeURIComponent(sessionId)}`, {
-      cache: "no-store",
-    }),
-  );
-}
-
-export async function renamePiSession(sessionId: string, name: string): Promise<void> {
-  await responseJson(
-    await fetch(`${API_ROOT}/sessions/${encodeURIComponent(sessionId)}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
-    }),
-  );
-}
-
-export async function deletePiSession(sessionId: string): Promise<void> {
-  const response = await fetch(`${API_ROOT}/sessions/${encodeURIComponent(sessionId)}`, {
-    method: "DELETE",
-  });
-  if (!response.ok) await responseJson(response);
-}
-
-export async function promptPiSession(
-  sessionId: string,
-  message: string,
-  images?: PiImageContent[],
-  model?: PiModelSelection,
-): Promise<void> {
-  await responseJson(
-    await fetch(`${API_ROOT}/sessions/${encodeURIComponent(sessionId)}/commands`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "prompt", message, images, model }),
-    }),
-  );
-}
-
-export async function queuePiSession(
-  sessionId: string,
-  mode: PiQueueMode,
-  prompt: PiQueuedPrompt,
-): Promise<void> {
-  await responseJson(
-    await fetch(`${API_ROOT}/sessions/${encodeURIComponent(sessionId)}/commands`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: mode, ...prompt }),
-    }),
-  );
-}
-
 export async function replacePiSessionQueue(
   sessionId: string,
   steering: readonly PiQueuedPrompt[],
@@ -881,37 +797,4 @@ export async function setPiSessionQueuePaused(
       body: JSON.stringify({ type: "setQueuePaused", paused, steering, followUp }),
     }),
   );
-}
-
-export async function steerQueuedPiSession(
-  sessionId: string,
-  prompt: PiQueuedPrompt,
-  steering: readonly PiQueuedPrompt[],
-  followUp: readonly PiQueuedPrompt[],
-): Promise<void> {
-  await responseJson(
-    await fetch(`${API_ROOT}/sessions/${encodeURIComponent(sessionId)}/commands`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "steerQueued", prompt, steering, followUp }),
-    }),
-  );
-}
-
-export async function cancelPiSession(sessionId: string): Promise<void> {
-  await responseJson(
-    await fetch(`${API_ROOT}/sessions/${encodeURIComponent(sessionId)}/commands`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "cancel" }),
-    }),
-  );
-}
-
-export function piSessionEventsUrl(sessionId: string): string {
-  return `${API_ROOT}/sessions/${encodeURIComponent(sessionId)}/events`;
-}
-
-export function piRunningEventsUrl(): string {
-  return `${API_ROOT}/running/events`;
 }

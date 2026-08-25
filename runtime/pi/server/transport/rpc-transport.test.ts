@@ -4,6 +4,7 @@ import test from "node:test";
 const {
   createRpcError,
   createRpcPostHandler,
+  DEFAULT_MAX_RPC_REQUEST_BODY_BYTES,
   handleRpcPost,
   rpcArray,
   rpcBusinessError,
@@ -41,6 +42,30 @@ function request(
     headers,
     body: options.method === "GET" || options.method === "HEAD" ? undefined : body,
   });
+}
+
+function streamedRequest(chunks: readonly string[]): Request {
+  const encoder = new TextEncoder();
+  let index = 0;
+  const body = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      const chunk = chunks[index++];
+      if (chunk === undefined) {
+        controller.close();
+        return;
+      }
+      controller.enqueue(encoder.encode(chunk));
+    },
+  });
+  return new Request("http://127.0.0.1:3080/api/test.echo", {
+    method: "POST",
+    headers: {
+      host: "127.0.0.1:3080",
+      "content-type": "application/json",
+    },
+    body,
+    duplex: "half",
+  } as RequestInit & { duplex: "half" });
 }
 
 function clientRequest(
@@ -232,6 +257,40 @@ test("enforces both declared Content-Length and accumulated body limits", async 
     options,
   );
   assert.equal(malformedLength.status, 400);
+});
+
+test("ordinary RPCs reject declared and streamed bodies above the default budget", async () => {
+  const options = {
+    method: "test.echo",
+    payload: echoPayload,
+    handler: () => assert.fail("handler must not run"),
+  };
+
+  const declared = await handleRpcPost(
+    request(clientRequest({ name: "Ada" }), {
+      headers: { "content-length": String(DEFAULT_MAX_RPC_REQUEST_BODY_BYTES + 1) },
+    }),
+    options,
+  );
+  assert.equal(declared.status, 413);
+
+  const oversizedUnknownField = JSON.stringify({
+    type: "client-request",
+    rpcId: "rpc-oversized-unknown",
+    method: "test.echo",
+    payload: { name: "Ada" },
+    ignoredEnvelopeField: "x".repeat(DEFAULT_MAX_RPC_REQUEST_BODY_BYTES),
+  });
+  const midpoint = Math.floor(oversizedUnknownField.length / 2);
+  const streamed = streamedRequest([
+    oversizedUnknownField.slice(0, midpoint),
+    oversizedUnknownField.slice(midpoint),
+  ]);
+  assert.equal(streamed.headers.has("content-length"), false);
+
+  const accumulated = await handleRpcPost(streamed, options);
+  assert.equal(accumulated.status, 413);
+  assert.equal(accumulated.headers.get("connection"), "close");
 });
 
 test("uses HTTP 400 only when the JSON text itself cannot be parsed", async () => {

@@ -55,9 +55,13 @@ export type MessageDescriptor = {
 
 export type LocalizableText = string | MessageDescriptor;
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
 function readMessage(catalog: Messages, key: string): unknown {
   return key.split(".").reduce<unknown>((value, segment) => {
-    if (!value || typeof value !== "object") return undefined;
+    if (!value || typeof value !== "object" || !Object.hasOwn(value, segment)) return undefined;
     return (value as Record<string, unknown>)[segment];
   }, catalog);
 }
@@ -102,6 +106,21 @@ export function defineMessage<TKey extends MessageKey>(
   ...args: TranslationArgs<TKey>
 ): DescriptorFor<TKey> {
   return (args.length === 0 ? { key } : { key, values: args[0] }) as DescriptorFor<TKey>;
+}
+
+/**
+ * Validates localizable text restored from an untyped persistence boundary.
+ * Literal strings remain valid for user/resource labels and legacy snapshots.
+ */
+export function isLocalizableText(value: unknown): value is LocalizableText {
+  if (typeof value === "string") return true;
+  if (!isRecord(value) || typeof value.key !== "string") return false;
+  if (Object.keys(value).some((key) => key !== "key" && key !== "values")) return false;
+
+  const message = readMessage(messages[DEFAULT_LOCALE], value.key);
+  if (typeof message === "string") return !("values" in value);
+  if (typeof message === "function") return isRecord(value.values);
+  return false;
 }
 
 export function resolveText(t: Translate, value: LocalizableText): string {

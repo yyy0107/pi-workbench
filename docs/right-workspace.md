@@ -72,6 +72,11 @@ context.workspace.register({
 `preferences.rightWorkspace`。旧浏览器键 `pi-workbench:right-workspace:v1` 会在首次 hydrate 时导入并删除。React 组件、Service、WebSocket、Browser
 Session、文件缓冲区和其他不可序列化资源不进入核心 Store。
 
+Surface 的 `title` 与 `statusMessage` 以 `LocalizableText` 持久化：内置界面文案保存
+`defineMessage(...)` 描述符并由 Host 在渲染时解析，文件名、URL、用户/资源标题以及旧快照继续保存为
+literal string。异步 Surface 错误通过 Extension error reporter 记录原始诊断；持久化状态只保存稳定、
+面向用户的双语消息描述符，不直接保存或显示原始 `Error.message`。
+
 ## 资源打开边界
 
 跨能力打开资源通过 `OpenerRegistry + OpenerService`，而不是直接 import 另一个 contribution：

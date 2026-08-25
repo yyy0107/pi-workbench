@@ -16,7 +16,7 @@ export function WorkspaceStatusLayer({
   surface,
   onRetry,
 }: Readonly<{ surface: WorkspaceSurfaceInstance; onRetry(): void }>) {
-  const { t } = useI18n();
+  const { t, text } = useI18n();
 
   if (surface.status === "idle" || surface.status === "ready") return null;
 
@@ -66,7 +66,9 @@ export function WorkspaceStatusLayer({
         {state.message}
       </p>
       {surface.statusMessage ? (
-        <p className="text-foreground/75 max-w-lg break-words text-xs">{surface.statusMessage}</p>
+        <p className="text-foreground/75 max-w-lg break-words text-xs">
+          {text(surface.statusMessage)}
+        </p>
       ) : null}
       {surface.status !== "loading" ? (
         <button

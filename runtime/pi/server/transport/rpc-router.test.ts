@@ -30,6 +30,9 @@ const moduleHooks = registerHooks({
 const { handlePiRpcPost } = (await import(
   new URL("./rpc-router.ts", import.meta.url).href
 )) as typeof import("./rpc-router");
+const { DEFAULT_MAX_RPC_REQUEST_BODY_BYTES } = (await import(
+  new URL("./rpc-transport.ts", import.meta.url).href
+)) as typeof import("./rpc-transport");
 moduleHooks.deregister();
 
 function rpcRequest(
@@ -503,6 +506,65 @@ test("routes session validation failures through the shared error envelope", asy
   assert.notEqual(historicalArgumentBody.result.error.code, "bad-request");
 });
 
+test("large domain payloads use endpoint-specific budgets above the ordinary RPC limit", async () => {
+  const pdfBytes = Buffer.alloc(800 * 1024);
+  pdfBytes.write("%PDF-1.7\n", 0, "ascii");
+  const pdfData = pdfBytes.toString("base64");
+  assert.ok(pdfData.length > DEFAULT_MAX_RPC_REQUEST_BODY_BYTES);
+
+  const promptResponse = await handlePiRpcPost(
+    rpcRequest("session.prompt", {
+      sessionId: "transport-budget-missing-session",
+      mode: "queue",
+      content: [
+        {
+          type: "file",
+          mediaType: "application/pdf",
+          data: pdfData,
+          name: "large.pdf",
+        },
+      ],
+    }),
+    "session.prompt",
+  );
+  assert.equal(promptResponse.status, 200);
+  const promptBody = (await promptResponse.json()) as ServerResponse<unknown>;
+  assert.equal(promptBody.result.ok, false);
+  if (promptBody.result.ok) assert.fail("Expected the missing session error");
+  assert.equal(promptBody.result.error.code, "session-not-found");
+
+  const workspaceContent = "x".repeat(DEFAULT_MAX_RPC_REQUEST_BODY_BYTES + 1);
+  const workspaceResponse = await handlePiRpcPost(
+    rpcRequest("workspace.files.write", {
+      workspaceId: "transport-budget-missing-workspace",
+      relativePath: "large.txt",
+      content: workspaceContent,
+      expectedVersion: "missing",
+    }),
+    "workspace.files.write",
+  );
+  assert.equal(workspaceResponse.status, 200);
+  const workspaceBody = (await workspaceResponse.json()) as ServerResponse<unknown>;
+  assert.equal(workspaceBody.result.ok, false);
+  if (workspaceBody.result.ok) assert.fail("Expected the missing workspace error");
+  assert.equal(workspaceBody.result.error.code, "workspace-not-found");
+
+  const systemPrompt = "界".repeat(400_000);
+  assert.ok(Buffer.byteLength(systemPrompt, "utf8") > DEFAULT_MAX_RPC_REQUEST_BODY_BYTES);
+  const settingsResponse = await handlePiRpcPost(
+    rpcRequest("settings.update", {
+      ns: "not-exposed",
+      patch: { systemPrompt },
+    }),
+    "settings.update",
+  );
+  assert.equal(settingsResponse.status, 200);
+  const settingsBody = (await settingsResponse.json()) as ServerResponse<unknown>;
+  assert.equal(settingsBody.result.ok, false);
+  if (settingsBody.result.ok) assert.fail("Expected the settings namespace error");
+  assert.equal(settingsBody.result.error.code, "settings-not-exposed");
+});
+
 test("validates workspace.unarchiveSession at the shared RPC boundary", async () => {
   const response = await handlePiRpcPost(
     rpcRequest("workspace.unarchiveSession", { sessionId: "" }),
@@ -899,6 +961,26 @@ test("persists Workbench preferences through the shared RPC boundary", async (t)
     toolboxPins: ["skills"],
     sidebarOpen: false,
   });
+
+  const largeBackgroundData = "A".repeat(DEFAULT_MAX_RPC_REQUEST_BODY_BYTES);
+  await rpcValue(
+    await handlePiRpcPost(
+      rpcRequest(
+        "workbenchSettings.update",
+        {
+          patch: {
+            backgroundImage: {
+              name: "large.png",
+              mimeType: "image/png",
+              data: largeBackgroundData,
+            },
+          },
+        },
+        "rpc-workbench-settings-large",
+      ),
+      "workbenchSettings.update",
+    ),
+  );
 
   const invalid = await handlePiRpcPost(
     rpcRequest(

@@ -3,8 +3,8 @@
 import { ArrowLeftIcon, ArrowRightIcon, Globe2Icon, RefreshCwIcon } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
-import { useI18n } from "@/i18n";
-import type { WorkspaceSurfaceProps } from "@/platform/extensions";
+import { defineMessage, useI18n } from "@/i18n";
+import { useExtensionErrorReporter, type WorkspaceSurfaceProps } from "@/platform/extensions";
 
 import { useRightWorkspace } from "@/components/right-workspace";
 import { browserSessionService as browser } from "./browser-session-service";
@@ -15,12 +15,15 @@ export interface BrowserSurfaceParams extends Record<string, unknown> {
   url?: string;
 }
 
+const BROWSER_NAVIGATE_FAILED = defineMessage("extensions.workspaceBrowser.navigateFailed");
+
 export function BrowserSurface({
   surface,
   retryToken = 0,
 }: WorkspaceSurfaceProps<BrowserSurfaceParams>) {
   const { t } = useI18n();
   const controller = useRightWorkspace();
+  const reportError = useExtensionErrorReporter();
   useSyncExternalStore(browser.subscribe.bind(browser), browser.getRevision.bind(browser), () => 0);
   const session = browser.getSession(surface.params.browserSessionId);
   const [address, setAddress] = useState(session?.url ?? surface.params.url ?? "about:blank");
@@ -34,19 +37,21 @@ export function BrowserSurface({
     controller.update(surface.id, { status: "loading" });
     void browser
       .navigate(session.id, address)
-      .then(() =>
+      .then(() => {
+        const nextTitle = browser.getSession(session.id)?.title;
         controller.update(surface.id, {
           status: "ready",
-          title: browser.getSession(session.id)?.title ?? surface.title,
+          ...(nextTitle ? { title: nextTitle } : {}),
           params: { ...surface.params, url: browser.getSession(session.id)?.url },
-        }),
-      )
-      .catch((error: unknown) =>
+        });
+      })
+      .catch((error: unknown) => {
+        reportError(error, { source: "workspace", contributionId: surface.id });
         controller.update(surface.id, {
           status: "error",
-          statusMessage: error instanceof Error ? error.message : String(error),
-        }),
-      );
+          statusMessage: BROWSER_NAVIGATE_FAILED,
+        });
+      });
   };
   const retryNavigate = useRef(navigate);
   retryNavigate.current = navigate;

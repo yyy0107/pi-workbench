@@ -154,7 +154,12 @@ HTTP `200` 只表示 RPC 载体成功完成。调用方必须继续检查 `resul
 载体层规则：
 
 - 只接受 `POST` 和 `Content-Type: application/json`；
-- 默认最多缓冲 160 MiB 请求体，声明或实际超限返回 `413`；
+- 普通 RPC 最多缓冲 1 MiB 请求体；只有领域契约确实需要时才显式放宽：`settings.update` 为
+  4 MiB、`llm.configureProvider` 为 8 MiB、`workbenchSettings.update` 为 24 MiB、
+  `workspace.files.write` 为 20 MiB，包含 inline 图片/PDF 的 `session.prompt` 为 80 MiB；
+- 仍承载队列暂停和 follow-up 重排的 legacy session commands route 与附件 prompt 共用 80 MiB
+  上限；声明或实际读取超限都返回 `413`；
+- 请求体预算在 JSON 解析和兼容性未知字段剥离之前执行，未知字段不会绕过对应 method 的上限；
 - 非 JSON、非法 UTF-8 或非法 JSON 返回 `400`；
 - 非 JSON media type 返回 `415`；
 - 信任检查失败返回 `403`；

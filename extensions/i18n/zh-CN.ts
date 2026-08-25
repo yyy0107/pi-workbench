@@ -1410,6 +1410,7 @@ export const extensionsZhCN = {
   },
   workspaceReview: {
     title: "审查",
+    loadFailed: "无法加载审查内容，请重试。",
     empty: "暂未发现已变更文件。",
     connectHint: "Agent 修改的文件会显示在这里；连接 Git 服务后可加载完整变更块。",
     refresh: "刷新审查",
@@ -1442,6 +1443,9 @@ export const extensionsZhCN = {
   },
   workspaceFile: {
     title: "文件",
+    loadFailed: "无法加载文件，请重试。",
+    saveFailed: "无法保存文件，请重试。",
+    openFailed: "无法使用本地应用打开文件。",
     openFileTitle: "打开文件",
     openFileDescription: "从工作区目录树中选择文件",
     viewSource: "查看源代码",
@@ -1499,6 +1503,7 @@ export const extensionsZhCN = {
   workspaceBrowser: {
     title: "浏览器",
     newSession: "新建浏览器会话",
+    navigateFailed: "浏览器无法前往该地址，请重试。",
     address: "浏览器地址",
     navigate: "前往",
     back: "后退",

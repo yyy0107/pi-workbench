@@ -17,8 +17,11 @@ import {
   admitInlineImages,
   InlineImageAdmissionError,
 } from "@/runtime/pi/server/sessions/inline-image-admission";
-import { rejectUntrustedApiRequest } from "@/runtime/pi/server/transport/api-request-guard";
 import { piErrorResponse } from "@/runtime/pi/server/transport/responses";
+import {
+  readTrustedJsonPost,
+  RPC_REQUEST_BODY_LIMITS,
+} from "@/runtime/pi/server/transport/rpc-transport";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -82,11 +85,14 @@ function isModelSelection(value: unknown): value is PiModelSelection {
 }
 
 export async function POST(request: Request, context: RouteContext) {
-  const rejected = rejectUntrustedApiRequest(request);
-  if (rejected) return rejected;
+  const decoded = await readTrustedJsonPost(request, {
+    maxRequestBodyBytes: RPC_REQUEST_BODY_LIMITS.inlineAttachment,
+  });
+  if (!decoded.ok) return decoded.response;
+
   try {
     const { id } = await context.params;
-    const body = (await request.json()) as {
+    const body = decoded.value as {
       type?: unknown;
       message?: unknown;
       images?: unknown;

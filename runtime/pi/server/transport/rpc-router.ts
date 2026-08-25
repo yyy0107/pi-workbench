@@ -44,6 +44,7 @@ import {
 import { SkillService, SkillServiceError } from "../skills/skill-service";
 import {
   handleRpcPost,
+  RPC_REQUEST_BODY_LIMITS,
   rpcArray,
   rpcBoolean,
   rpcBusinessError,
@@ -793,6 +794,7 @@ export async function handlePiRpcPost(request: Request, method: string): Promise
       return handleRpcPost(request, {
         method,
         payload: sessionPromptPayload,
+        maxRequestBodyBytes: RPC_REQUEST_BODY_LIMITS.inlineAttachment,
         handler: async (payload, context) => {
           try {
             return await sessionService().prompt(payload, { rpcId: context.rpcId });
@@ -1021,7 +1023,7 @@ export async function handlePiRpcPost(request: Request, method: string): Promise
       return handleRpcPost(request, {
         method,
         payload: workspaceFileWritePayload,
-        maxRequestBodyBytes: 20 * 1024 * 1024,
+        maxRequestBodyBytes: RPC_REQUEST_BODY_LIMITS.workspaceFileWrite,
         handler: async (payload, context) => {
           try {
             return await workspaceFileService.writeFile(payload, context.signal);
@@ -1387,6 +1389,7 @@ export async function handlePiRpcPost(request: Request, method: string): Promise
       return handleRpcPost(request, {
         method,
         payload: settingsUpdatePayload,
+        maxRequestBodyBytes: RPC_REQUEST_BODY_LIMITS.agentSettingsUpdate,
         loopbackOnly: true,
         handler: async (payload) => {
           try {
@@ -1412,6 +1415,7 @@ export async function handlePiRpcPost(request: Request, method: string): Promise
       return handleRpcPost(request, {
         method,
         payload: workbenchSettingsUpdatePayload,
+        maxRequestBodyBytes: RPC_REQUEST_BODY_LIMITS.workbenchSettingsUpdate,
         handler: async (payload) => {
           try {
             return await workbenchSettingsService().update(
@@ -1569,6 +1573,7 @@ export async function handlePiRpcPost(request: Request, method: string): Promise
       return handleRpcPost(request, {
         method,
         payload: configureModelProviderPayload,
+        maxRequestBodyBytes: RPC_REQUEST_BODY_LIMITS.modelProviderConfiguration,
         loopbackOnly: true,
         handler: async (payload, context) => {
           try {

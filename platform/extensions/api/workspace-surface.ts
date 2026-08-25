@@ -1,6 +1,8 @@
 import type { LucideIcon } from "lucide-react";
 import type { ComponentType } from "react";
 
+import type { LocalizableText } from "@/i18n";
+
 import type { Disposable } from "./disposable";
 
 export const WORKSPACE_SCOPE_TYPES = ["thread", "worktree", "project", "application"] as const;
@@ -41,12 +43,14 @@ export interface WorkspaceSurfaceInstance<
   id: string;
   kind: WorkspaceSurfaceKind;
   placement: WorkspaceSurfacePlacement;
-  title: string;
+  /** Render-time localizable title. Literal strings remain valid for resource and user labels. */
+  title: LocalizableText;
   resourceKey: string;
   scope: WorkspaceScope;
   params: P;
   status: WorkspaceSurfaceStatus;
-  statusMessage?: string;
+  /** Optional render-time localizable, user-safe status detail. */
+  statusMessage?: LocalizableText;
   dirty?: boolean;
   pinned?: boolean;
   createdAt: number;
@@ -112,13 +116,15 @@ export type SurfaceOpenPolicy = "background" | "reveal" | "force-focus";
 
 export interface OpenSurfaceRequest<P extends Record<string, unknown> = Record<string, unknown>> {
   kind: WorkspaceSurfaceKind;
-  title: string;
+  /** Built-in product copy should use defineMessage(); resource and user labels stay literal. */
+  title: LocalizableText;
   params: P;
   context: WorkspaceContext;
   placement?: WorkspaceSurfacePlacement;
   scope?: WorkspaceScope;
   status?: WorkspaceSurfaceStatus;
-  statusMessage?: string;
+  /** Never pass raw Error.message; report diagnostics and provide a user-safe descriptor. */
+  statusMessage?: LocalizableText;
   dirty?: boolean;
   pinned?: boolean;
   policy?: SurfaceOpenPolicy;

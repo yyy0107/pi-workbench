@@ -9,8 +9,11 @@ import {
   useWorkspaceContext,
 } from "@/components/right-workspace";
 import { Button } from "@/components/ui/button";
-import { useI18n } from "@/i18n";
-import type { WorkspaceSurfaceMenuItemProps } from "@/platform/extensions";
+import { defineMessage, useI18n } from "@/i18n";
+import {
+  useExtensionErrorReporter,
+  type WorkspaceSurfaceMenuItemProps,
+} from "@/platform/extensions";
 import { fileWorkspaceTargetService } from "@/services/file-workspace-target-service";
 
 export function FileMenuItem({ closeMenu }: WorkspaceSurfaceMenuItemProps) {
@@ -18,6 +21,7 @@ export function FileMenuItem({ closeMenu }: WorkspaceSurfaceMenuItemProps) {
   const controller = useRightWorkspace();
   const opener = useOpenerService();
   const context = useWorkspaceContext();
+  const reportError = useExtensionErrorReporter();
   const directoryResource = useSyncExternalStore(
     fileWorkspaceTargetService.subscribe,
     fileWorkspaceTargetService.getSnapshot,
@@ -43,14 +47,14 @@ export function FileMenuItem({ closeMenu }: WorkspaceSurfaceMenuItemProps) {
               policy: "force-focus",
             })
             .catch((error: unknown) => {
-              console.error(error);
+              reportError(error, { source: "workspace", contributionId: "file" });
             });
           return;
         }
         if (!hasWorkspace) return;
         controller.reveal({
           kind: "file",
-          title: t("extensions.workspaceFile.openFileTitle"),
+          title: defineMessage("extensions.workspaceFile.openFileTitle"),
           params: {
             source: "workspace",
             rootPath: context.rootPath,

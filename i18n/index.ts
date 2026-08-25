@@ -10,6 +10,7 @@ export { I18nProvider, useI18n } from "./provider";
 export {
   createI18n,
   defineMessage,
+  isLocalizableText,
   resolveText,
   type LocalizableText,
   type MessageDescriptor,

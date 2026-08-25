@@ -4,7 +4,7 @@ import { FileDiffIcon } from "lucide-react";
 
 import { useRightWorkspace, useWorkspaceContext } from "@/components/right-workspace";
 import { Button } from "@/components/ui/button";
-import { useI18n } from "@/i18n";
+import { defineMessage, useI18n } from "@/i18n";
 import type { WorkspaceSurfaceMenuItemProps } from "@/platform/extensions";
 
 export function ReviewMenuItem({ closeMenu }: WorkspaceSurfaceMenuItemProps) {
@@ -23,7 +23,7 @@ export function ReviewMenuItem({ closeMenu }: WorkspaceSurfaceMenuItemProps) {
         if (!repositoryId) return;
         controller.reveal({
           kind: "review",
-          title: t("extensions.workspaceReview.title"),
+          title: defineMessage("extensions.workspaceReview.title"),
           params: { repositoryId, reviewScope: "unstaged" },
           context,
           status: "idle",

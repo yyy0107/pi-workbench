@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
-import type { WorkspaceSurfaceProps } from "@/platform/extensions";
+import { useExtensionErrorReporter, type WorkspaceSurfaceProps } from "@/platform/extensions";
 import { listPiLocalApps, openPiHostPath, openPiLocalApp } from "@/runtime/pi/client/transport/api";
 import type { LocalAppFileKind, LocalAppView } from "@/runtime/pi/rpc-contracts";
 import { useRightWorkspace, useRightWorkspaceState } from "@/components/right-workspace";
@@ -42,6 +42,7 @@ import {
 import { FileBreadcrumbTree } from "./file-breadcrumb-tree";
 import { saveFileBuffer } from "./file-buffer-actions";
 import { browserFileBufferDraftStorage } from "./file-buffer-draft";
+import { FILE_SURFACE_OPEN_FAILED, FILE_SURFACE_SAVE_FAILED } from "./file-surface-messages";
 import {
   compatibleLocalFileApps,
   compatibleLocalFolderApps,
@@ -121,6 +122,7 @@ function FileKindIcon({ kind }: { kind: LocalAppFileKind }) {
 export function FileSurfaceHeader({ surface, context }: WorkspaceSurfaceProps<FileSurfaceParams>) {
   const { t } = useI18n();
   const controller = useRightWorkspace();
+  const reportError = useExtensionErrorReporter();
   const auxiliaryOpen = useRightWorkspaceState((state) => state.auxiliaryOpen);
   const [saving, setSaving] = useState(false);
   const [localApps, setLocalApps] = useState<LocalAppView[]>([]);
@@ -173,7 +175,8 @@ export function FileSurfaceHeader({ surface, context }: WorkspaceSurfaceProps<Fi
         setLocalApps(apps);
         setLocalAppsError(false);
       })
-      .catch(() => {
+      .catch((error: unknown) => {
+        reportError(error, { source: "workspace", contributionId: surface.id });
         if (active) setLocalAppsError(true);
       })
       .finally(() => {
@@ -182,34 +185,34 @@ export function FileSurfaceHeader({ surface, context }: WorkspaceSurfaceProps<Fi
     return () => {
       active = false;
     };
-  }, []);
+  }, [reportError, surface.id]);
   const openPath = useCallback(
     async (target: string) => {
       try {
         await openPiHostPath(target);
       } catch (error) {
+        reportError(error, { source: "workspace", contributionId: surface.id });
         controller.update(surface.id, {
           status: "error",
-          statusMessage: error instanceof Error ? error.message : String(error),
+          statusMessage: FILE_SURFACE_OPEN_FAILED,
         });
       }
     },
-    [controller, surface.id],
+    [controller, reportError, surface.id],
   );
   const openWithLocalApp = useCallback(
     async (app: LocalAppView, target: string) => {
       try {
         await openPiLocalApp({ appId: app.id, target });
-      } catch {
+      } catch (error) {
+        reportError(error, { source: "workspace", contributionId: surface.id });
         controller.update(surface.id, {
           status: "error",
-          statusMessage: t("extensions.workspaceFile.openWithError", {
-            name: localAppName(app),
-          }),
+          statusMessage: FILE_SURFACE_OPEN_FAILED,
         });
       }
     },
-    [controller, localAppName, surface.id, t],
+    [controller, reportError, surface.id],
   );
   const save = useCallback(async () => {
     if (!path || saving) return;
@@ -224,14 +227,15 @@ export function FileSurfaceHeader({ surface, context }: WorkspaceSurfaceProps<Fi
       if (!available) return;
       controller.update(surface.id, { dirty: false, status: "ready", statusMessage: undefined });
     } catch (error) {
+      reportError(error, { source: "workspace", contributionId: surface.id });
       controller.update(surface.id, {
         status: "error",
-        statusMessage: error instanceof Error ? error.message : String(error),
+        statusMessage: FILE_SURFACE_SAVE_FAILED,
       });
     } finally {
       setSaving(false);
     }
-  }, [controller, fileContext, path, saving, surface.id]);
+  }, [controller, fileContext, path, reportError, saving, surface.id]);
 
   return (
     <div className="flex size-full min-w-0 items-center gap-3 px-3">

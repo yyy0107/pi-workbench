@@ -52,7 +52,7 @@ function SurfacePane({
   surfaces,
   tabbed = false,
 }: SurfacePaneProps) {
-  const { t } = useI18n();
+  const { t, text } = useI18n();
   const controller = useRightWorkspaceEnvironment().controller;
   const [retryTokens, setRetryTokens] = useState<Readonly<Record<string, number>>>({});
 
@@ -87,7 +87,7 @@ function SurfacePane({
               className="text-muted-foreground flex size-full items-center justify-center p-8 text-center text-sm"
             >
               <div>
-                <p className="text-foreground font-medium">{surface.title}</p>
+                <p className="text-foreground font-medium">{text(surface.title)}</p>
                 <p className="mt-1 text-xs">{t("rightWorkspace.status.capabilityUnavailable")}</p>
               </div>
             </div>
@@ -144,6 +144,7 @@ function SurfacePane({
 }
 
 export function SurfaceHost() {
+  const { text } = useI18n();
   const environment = useRightWorkspaceEnvironment();
   const context = useWorkspaceContext();
   const surfaceOrder = useRightWorkspaceState((state) => state.surfaceOrder);
@@ -292,7 +293,7 @@ export function SurfaceHost() {
               ref={auxiliaryPaneRef}
               key="auxiliary-pane"
               id="right-workspace-auxiliary-pane"
-              aria-label={activeAuxiliary.title}
+              aria-label={text(activeAuxiliary.title)}
               aria-hidden={!auxiliaryOpen ? true : undefined}
               inert={!auxiliaryOpen ? true : undefined}
               data-state={auxiliaryOpen ? "open" : "closed"}

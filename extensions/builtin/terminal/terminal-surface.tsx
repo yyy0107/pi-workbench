@@ -191,11 +191,13 @@ function terminalText(value: string): string {
 }
 
 export function TerminalSurface({ surface }: WorkspaceSurfaceProps<TerminalTarget>) {
+  const { text } = useI18n();
+
   if (isTerminalTranscriptTarget(surface.params)) {
     return (
       <TerminalTranscriptSurface
         surfaceId={surface.id}
-        surfaceTitle={surface.title}
+        surfaceTitle={text(surface.title)}
         target={surface.params}
       />
     );

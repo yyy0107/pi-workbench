@@ -9,13 +9,11 @@ import {
   useWorkspaceOpen,
   useWorkspaceSurfaces,
 } from "@/components/right-workspace";
-import { useI18n } from "@/i18n";
 
 import { isTerminalTranscriptTarget, useTerminalLaunchContext } from "./terminal-target";
-import { terminalWorkspaceService } from "./terminal-workspace-service";
+import { terminalWorkspaceService, TERMINAL_SURFACE_TITLE } from "./terminal-workspace-service";
 
 export function TerminalRuntimeBridge() {
-  const { t } = useI18n();
   const controller = useRightWorkspace();
   const context = useWorkspaceContext();
   const launch = useTerminalLaunchContext();
@@ -63,11 +61,11 @@ export function TerminalRuntimeBridge() {
         controller,
         context,
         launch,
-        title: t("extensions.terminal.title"),
+        title: TERMINAL_SURFACE_TITLE,
         activeTerminal,
         workspaceOpen,
       }),
-    [activeTerminal, context, controller, launch, t, workspaceOpen],
+    [activeTerminal, context, controller, launch, workspaceOpen],
   );
 
   return null;

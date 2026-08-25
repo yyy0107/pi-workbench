@@ -13,7 +13,7 @@ import { usePiActiveSessionId } from "@/runtime/pi/client/runtime/context";
 
 import { normalizeTerminalTabTitle } from "./terminal-tab-title";
 import { terminalResultLines } from "./terminal-tool-transcript";
-import { revealTerminalTranscript } from "./terminal-workspace-service";
+import { revealTerminalTranscript, TERMINAL_SURFACE_TITLE } from "./terminal-workspace-service";
 import { useToolTerminalInteraction } from "./use-tool-terminal-interaction";
 
 interface BashToolArgs {
@@ -42,7 +42,7 @@ export function BashTerminal({ toolCallId, command, result, running }: BashTermi
       toolCallId,
       command: displayedCommand,
       ...(piSessionId ? { piSessionId } : {}),
-      title: normalizeTerminalTabTitle(displayedCommand) ?? t("extensions.terminal.title"),
+      title: normalizeTerminalTabTitle(displayedCommand) ?? TERMINAL_SURFACE_TITLE,
     });
   const interactionLabel =
     interactionState === "active"

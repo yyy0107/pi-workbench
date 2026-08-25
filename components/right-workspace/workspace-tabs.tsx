@@ -119,7 +119,7 @@ function horizontalDropPosition(clientX: number, element: HTMLElement): DropPosi
 }
 
 export function WorkspaceTabs() {
-  const { t } = useI18n();
+  const { t, text } = useI18n();
   const reduceMotion = useReducedMotion();
   const controller = useRightWorkspace();
   const environment = useRightWorkspaceEnvironment();
@@ -619,6 +619,7 @@ export function WorkspaceTabs() {
             const active = surface.id === activeSurfaceId;
             const canCloseToRight = surfaceIndex < surfaces.length - 1;
             const canCloseOthers = surfaces.length > 1;
+            const title = text(surface.title);
             return (
               <ContextMenu key={surface.id}>
                 <ContextMenuTrigger
@@ -671,7 +672,7 @@ export function WorkspaceTabs() {
                     aria-controls={workspaceTabPanelId(surface.id)}
                     aria-selected={active}
                     tabIndex={active ? 0 : -1}
-                    title={surface.title}
+                    title={title}
                     className="relative z-10 flex h-full min-w-0 flex-1 items-center gap-2 rounded-s-lg ps-2.5 pe-1 outline-none transition-[padding] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover/tab:pe-8 group-focus-within/tab:pe-8 group-data-[state=active]/tab:pe-8 focus-visible:ring-2 focus-visible:ring-inset motion-reduce:transition-none"
                     onClick={(event) => {
                       const suppressed = suppressedClick.current;
@@ -705,7 +706,7 @@ export function WorkspaceTabs() {
                   >
                     <Icon className="size-3.5 shrink-0" />
                     <span className="min-w-0 flex-1 overflow-hidden whitespace-nowrap text-start [mask-image:linear-gradient(to_right,#000_calc(100%_-_0.75rem),transparent)]">
-                      {surface.title}
+                      {title}
                     </span>
                     {surface.dirty ? (
                       <span
@@ -721,8 +722,8 @@ export function WorkspaceTabs() {
                     type="button"
                     variant="ghost"
                     size="icon-sm"
-                    aria-label={t("rightWorkspace.closeTab", { title: surface.title })}
-                    title={t("rightWorkspace.closeTab", { title: surface.title })}
+                    aria-label={t("rightWorkspace.closeTab", { title })}
+                    title={t("rightWorkspace.closeTab", { title })}
                     data-workspace-tab-close="true"
                     tabIndex={active ? 0 : -1}
                     className="group/tab-close text-foreground/65 hover:bg-transparent hover:text-foreground pointer-events-none absolute end-[2px] top-1/2 z-10 -translate-y-1/2 scale-90 rounded-md opacity-0 transition-[color,opacity,scale] duration-150 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover/tab:pointer-events-auto group-hover/tab:scale-100 group-hover/tab:opacity-100 group-focus-within/tab:pointer-events-auto group-focus-within/tab:scale-100 group-focus-within/tab:opacity-100 group-data-[state=active]/tab:pointer-events-auto group-data-[state=active]/tab:scale-100 group-data-[state=active]/tab:opacity-100 focus-visible:scale-100 focus-visible:bg-transparent focus-visible:text-foreground focus-visible:opacity-100 active:-translate-y-1/2! motion-reduce:transition-none dark:hover:bg-transparent dark:focus-visible:bg-transparent"
@@ -816,7 +817,7 @@ export function WorkspaceTabs() {
               >
                 <DraggingIcon className="size-3.5 shrink-0" />
                 <span className="min-w-0 flex-1 overflow-hidden whitespace-nowrap text-start [mask-image:linear-gradient(to_right,#000_calc(100%_-_0.75rem),transparent)]">
-                  {draggingSurface.title}
+                  {text(draggingSurface.title)}
                 </span>
                 {draggingSurface.dirty ? (
                   <span className="bg-foreground size-1.5 shrink-0 rounded-full" />
