@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 
+import styles from "./sidebar-primary-navigation.module.css";
+
 export type SidebarSection = "workspace" | "toolbox" | "workflows";
 
 interface SidebarNavigationItem {
@@ -50,12 +52,21 @@ export function SidebarPrimaryNavigation({
         ? "workbench.sidebar.searchWorkflows"
         : "workbench.sidebar.search",
   );
+  const navigationGridClass =
+    activeSection === "workspace"
+      ? "grid-cols-[7rem_2.25rem_2.25rem]"
+      : activeSection === "toolbox"
+        ? "grid-cols-[2.25rem_7rem_2.25rem]"
+        : "grid-cols-[2.25rem_2.25rem_7rem]";
 
   return (
-    <div className="flex h-11 shrink-0 items-center gap-1 px-0.5">
+    <div className="flex h-11 shrink-0 items-center gap-1 ps-4 pe-0.5">
       <nav
         aria-label={t("workbench.sidebar.mainNavigation")}
-        className="flex min-w-0 items-center gap-1"
+        className={cn(
+          "grid min-w-0 items-center gap-1 transition-[grid-template-columns] duration-[240ms] ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
+          navigationGridClass,
+        )}
       >
         {items.map(({ id, icon: Icon, label }) => {
           const active = id === activeSection;
@@ -69,19 +80,22 @@ export function SidebarPrimaryNavigation({
               aria-label={label}
               title={label}
               className={cn(
-                "h-9! w-9 gap-0! overflow-hidden! rounded-xl px-[9px]! text-sm font-semibold transition-[width]! duration-200 ease-out motion-reduce:transition-none! active:translate-y-0!",
+                "relative h-9! w-full justify-start! gap-0! overflow-hidden! rounded-xl p-0! text-sm font-semibold transition-[background-color,color]! duration-150 ease-out motion-reduce:transition-none! active:translate-y-0!",
+                styles.navigationButton,
                 active
-                  ? "bg-sidebar-accent hover:bg-sidebar-accent w-28"
+                  ? "bg-sidebar-accent hover:bg-sidebar-accent"
                   : "text-muted-foreground hover:text-foreground",
               )}
               onClick={() => onSectionChange(id)}
             >
-              <Icon aria-hidden="true" className="size-[18px]!" />
+              <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center">
+                <Icon className={cn("size-[18px]!", styles.icon)} />
+              </span>
               <span
                 aria-hidden={!active}
                 className={cn(
-                  "ms-0 max-w-0 overflow-hidden opacity-0 transition-[max-width,margin-inline-start,opacity] duration-200 ease-out motion-reduce:transition-none",
-                  active && "ms-1.5 max-w-32 opacity-100",
+                  "pointer-events-none absolute start-9 top-1/2 w-[4.25rem] -translate-y-1/2 truncate opacity-0 transition-opacity duration-150 ease-out motion-reduce:transition-none",
+                  active ? "opacity-100 delay-75" : "delay-0",
                 )}
               >
                 {label}
