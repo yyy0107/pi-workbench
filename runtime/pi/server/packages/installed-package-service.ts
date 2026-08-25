@@ -1,5 +1,3 @@
-import path from "node:path";
-
 import {
   DefaultPackageManager,
   getAgentDir,
@@ -13,10 +11,15 @@ import type {
   InstalledPackageView,
   PiPackageInstallPayload,
   PiPackageInstallValue,
-  PiPackageMutationTarget,
   PiPackageRemovePayload,
   PiPackageRemoveValue,
 } from "../../rpc-contracts";
+import {
+  getPiResourceMutationCoordinator,
+  PiResourceMutationBusyError,
+  PiResourceMutationCoordinator,
+  type LoadedPiResourceMutationSessionHost,
+} from "../resources/pi-resource-mutation-coordinator";
 import { getLoadedSessions, getOrStartSession } from "../sessions/session-registry";
 import { getProjectTrustService } from "../trust/project-trust-service";
 import { getWorkspaceStore } from "../workspaces/workspace-registry";
@@ -34,7 +37,7 @@ export interface InstalledPackageSessionHost {
   };
 }
 
-export interface LoadedPackageSessionHost {
+export interface LoadedPackageSessionHost extends LoadedPiResourceMutationSessionHost {
   readonly id: string;
   readonly isRunning: boolean;
   readonly session: {
@@ -54,6 +57,7 @@ export interface InstalledPackageServiceDependencies {
   installProjectPackage(workspacePath: string, source: string): Promise<void>;
   removeUserPackage(sessionId: string, source: string): Promise<boolean>;
   removeProjectPackage(workspacePath: string, source: string): Promise<boolean>;
+  mutationCoordinator: PiResourceMutationCoordinator;
 }
 
 export interface InstalledPackageServiceErrorDetails {
@@ -186,9 +190,15 @@ async function removeProjectPackage(workspacePath: string, source: string): Prom
 
 export class InstalledPackageService {
   private readonly dependencies: InstalledPackageServiceDependencies;
-  private mutationTail: Promise<void> = Promise.resolve();
 
   constructor(dependencies: Partial<InstalledPackageServiceDependencies> = {}) {
+    const mutationCoordinator =
+      dependencies.mutationCoordinator ??
+      (dependencies.getLoadedSessions
+        ? new PiResourceMutationCoordinator({
+            getLoadedSessions: dependencies.getLoadedSessions,
+          })
+        : getPiResourceMutationCoordinator());
     this.dependencies = {
       getSession: getOrStartSession,
       getWorkspace,
@@ -199,59 +209,8 @@ export class InstalledPackageService {
       removeUserPackage,
       removeProjectPackage,
       ...dependencies,
+      mutationCoordinator,
     };
-  }
-
-  private async serializeMutation<Value>(operation: () => Promise<Value>): Promise<Value> {
-    const previous = this.mutationTail;
-    let release!: () => void;
-    this.mutationTail = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    await previous;
-    try {
-      return await operation();
-    } finally {
-      release();
-    }
-  }
-
-  private affectedLoadedSessions(
-    target: PiPackageMutationTarget,
-    workspacePath?: string,
-  ): readonly LoadedPackageSessionHost[] {
-    const sessions = this.dependencies.getLoadedSessions();
-    if (target.scope === "user") return sessions;
-    if (!workspacePath) return [];
-    const canonicalWorkspacePath = path.resolve(workspacePath);
-    return sessions.filter(
-      (host) => path.resolve(host.session.sessionManager.getCwd()) === canonicalWorkspacePath,
-    );
-  }
-
-  private assertSessionsIdle(sessions: readonly LoadedPackageSessionHost[]): void {
-    const busy = sessions.find((host) => host.isRunning);
-    if (!busy) return;
-    throw new InstalledPackageServiceError(
-      "session-busy",
-      "A related session is currently running.",
-      {
-        sessionId: busy.id,
-      },
-    );
-  }
-
-  private async reloadAffectedSessions(
-    target: PiPackageMutationTarget,
-    workspacePath?: string,
-  ): Promise<void> {
-    const results = await Promise.allSettled(
-      this.affectedLoadedSessions(target, workspacePath).map((host) => host.session.reload()),
-    );
-    const failure = results.find(
-      (result): result is PromiseRejectedResult => result.status === "rejected",
-    );
-    if (failure) throw failure.reason;
   }
 
   async list({ sessionId }: InstalledPackageListPayload): Promise<InstalledPackageListValue> {
@@ -327,11 +286,13 @@ export class InstalledPackageService {
       }
 
       try {
-        await this.serializeMutation(async () => {
-          this.assertSessionsIdle(this.affectedLoadedSessions(target, workspace.path));
-          await this.dependencies.installProjectPackage(workspace.path, source);
-          await this.reloadAffectedSessions(target, workspace.path);
-        });
+        await this.dependencies.mutationCoordinator.mutate(
+          { scope: "project", cwd: workspace.path },
+          async () => {
+            await this.dependencies.installProjectPackage(workspace.path, source);
+            return { value: undefined, reload: true };
+          },
+        );
         return {
           source,
           scope: "project",
@@ -340,6 +301,14 @@ export class InstalledPackageService {
         };
       } catch (error) {
         if (error instanceof InstalledPackageServiceError) throw error;
+        if (error instanceof PiResourceMutationBusyError) {
+          throw new InstalledPackageServiceError(
+            "session-busy",
+            "A related session is currently running.",
+            { sessionId: error.sessionId },
+            { cause: error },
+          );
+        }
         throw new InstalledPackageServiceError(
           "install-failed",
           "The Pi package could not be installed.",
@@ -350,14 +319,21 @@ export class InstalledPackageService {
     }
 
     try {
-      await this.serializeMutation(async () => {
-        this.assertSessionsIdle(this.affectedLoadedSessions(target));
+      await this.dependencies.mutationCoordinator.mutate({ scope: "user" }, async () => {
         await this.dependencies.installUserPackage(target.sessionId, source);
-        await this.reloadAffectedSessions(target);
+        return { value: undefined, reload: true };
       });
       return { source, scope: "user", reloadRequired: false };
     } catch (error) {
       if (error instanceof InstalledPackageServiceError) throw error;
+      if (error instanceof PiResourceMutationBusyError) {
+        throw new InstalledPackageServiceError(
+          "session-busy",
+          "A related session is currently running.",
+          { sessionId: error.sessionId },
+          { cause: error },
+        );
+      }
       if (errorCode(error) === "pi_session_not_found") {
         throw new InstalledPackageServiceError(
           "session-not-found",
@@ -404,18 +380,20 @@ export class InstalledPackageService {
       }
 
       try {
-        await this.serializeMutation(async () => {
-          this.assertSessionsIdle(this.affectedLoadedSessions(target, workspace.path));
-          const removed = await this.dependencies.removeProjectPackage(workspace.path, source);
-          if (!removed) {
-            throw new InstalledPackageServiceError(
-              "package-not-installed",
-              "The Pi package is not installed in this project.",
-              { source, scope: "project" },
-            );
-          }
-          await this.reloadAffectedSessions(target, workspace.path);
-        });
+        await this.dependencies.mutationCoordinator.mutate(
+          { scope: "project", cwd: workspace.path },
+          async () => {
+            const removed = await this.dependencies.removeProjectPackage(workspace.path, source);
+            if (!removed) {
+              throw new InstalledPackageServiceError(
+                "package-not-installed",
+                "The Pi package is not installed in this project.",
+                { source, scope: "project" },
+              );
+            }
+            return { value: undefined, reload: true };
+          },
+        );
         return {
           source,
           scope: "project",
@@ -424,6 +402,14 @@ export class InstalledPackageService {
         };
       } catch (error) {
         if (error instanceof InstalledPackageServiceError) throw error;
+        if (error instanceof PiResourceMutationBusyError) {
+          throw new InstalledPackageServiceError(
+            "session-busy",
+            "A related session is currently running.",
+            { sessionId: error.sessionId },
+            { cause: error },
+          );
+        }
         throw new InstalledPackageServiceError(
           "remove-failed",
           "The Pi package could not be removed.",
@@ -434,8 +420,7 @@ export class InstalledPackageService {
     }
 
     try {
-      await this.serializeMutation(async () => {
-        this.assertSessionsIdle(this.affectedLoadedSessions(target));
+      await this.dependencies.mutationCoordinator.mutate({ scope: "user" }, async () => {
         const removed = await this.dependencies.removeUserPackage(target.sessionId, source);
         if (!removed) {
           throw new InstalledPackageServiceError(
@@ -444,11 +429,19 @@ export class InstalledPackageService {
             { source, scope: "user" },
           );
         }
-        await this.reloadAffectedSessions(target);
+        return { value: undefined, reload: true };
       });
       return { source, scope: "user", reloadRequired: false };
     } catch (error) {
       if (error instanceof InstalledPackageServiceError) throw error;
+      if (error instanceof PiResourceMutationBusyError) {
+        throw new InstalledPackageServiceError(
+          "session-busy",
+          "A related session is currently running.",
+          { sessionId: error.sessionId },
+          { cause: error },
+        );
+      }
       if (errorCode(error) === "pi_session_not_found") {
         throw new InstalledPackageServiceError(
           "session-not-found",

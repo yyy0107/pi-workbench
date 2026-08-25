@@ -22,6 +22,7 @@ import {
   InstalledPackageService,
   InstalledPackageServiceError,
 } from "../packages/installed-package-service";
+import { getPiResourceMutationCoordinator } from "../resources/pi-resource-mutation-coordinator";
 import { ModelService, ModelServiceError } from "../models/model-service";
 import {
   AgentSettingsService,
@@ -379,11 +380,14 @@ const imageUnderstandingUpdatePayload = rpcObject({
     ),
   }),
 });
+const resourceMutationCoordinator = getPiResourceMutationCoordinator();
 const commandService = new CommandService();
 const modelService = new ModelService();
-const extensionService = new ExtensionService();
-const skillService = new SkillService();
-const installedPackageService = new InstalledPackageService();
+const extensionService = new ExtensionService({ mutationCoordinator: resourceMutationCoordinator });
+const skillService = new SkillService({ mutationCoordinator: resourceMutationCoordinator });
+const installedPackageService = new InstalledPackageService({
+  mutationCoordinator: resourceMutationCoordinator,
+});
 const packageCatalogService = getPiPackageCatalogService();
 const agentSettingsService = new AgentSettingsService();
 const workspaceFileService = new WorkspaceFileService({ workspaceStore: getWorkspaceStore });

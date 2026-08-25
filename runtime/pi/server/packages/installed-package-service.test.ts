@@ -441,13 +441,20 @@ test("translates package installation failures without exposing command output",
 test("serializes package installations that share Pi user settings", async () => {
   const calls: string[] = [];
   let releaseFirst!: () => void;
+  let markFirstStarted!: () => void;
+  const firstStarted = new Promise<void>((resolve) => {
+    markFirstStarted = resolve;
+  });
   const firstPending = new Promise<void>((resolve) => {
     releaseFirst = resolve;
   });
   const service = new InstalledPackageService({
     installUserPackage: async (_sessionId, source) => {
       calls.push(`start:${source}`);
-      if (source === "npm:first-package") await firstPending;
+      if (source === "npm:first-package") {
+        markFirstStarted();
+        await firstPending;
+      }
       calls.push(`end:${source}`);
     },
   });
@@ -460,7 +467,7 @@ test("serializes package installations that share Pi user settings", async () =>
     name: "second-package",
     target: { scope: "user", sessionId: "session-1" },
   });
-  await Promise.resolve();
+  await firstStarted;
   assert.deepEqual(calls, ["start:npm:first-package"]);
 
   releaseFirst();

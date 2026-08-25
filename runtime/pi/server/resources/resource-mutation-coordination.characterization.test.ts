@@ -2,39 +2,18 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
 
-import type { SettingsManager } from "@earendil-works/pi-coding-agent";
+import { SettingsManager } from "@earendil-works/pi-coding-agent";
 
 import { ExtensionService } from "../extensions/extension-service";
-import { InstalledPackageService } from "../packages/installed-package-service";
-import { SkillService } from "../skills/skill-service";
-
-interface MutableResourceSettings {
-  extensions?: string[];
-  skills?: string[];
-}
+import {
+  InstalledPackageService,
+  InstalledPackageServiceError,
+} from "../packages/installed-package-service";
+import { SkillService, SkillServiceError } from "../skills/skill-service";
+import { PiResourceMutationCoordinator } from "./pi-resource-mutation-coordinator";
 
 function resourceSettingsManager(): SettingsManager {
-  const globalSettings: MutableResourceSettings = {};
-  const projectSettings: MutableResourceSettings = {};
-
-  return {
-    getGlobalSettings: () => globalSettings,
-    getProjectSettings: () => projectSettings,
-    setExtensionPaths: (extensions: string[]) => {
-      globalSettings.extensions = extensions;
-    },
-    setProjectExtensionPaths: (extensions: string[]) => {
-      projectSettings.extensions = extensions;
-    },
-    setSkillPaths: (skills: string[]) => {
-      globalSettings.skills = skills;
-    },
-    setProjectSkillPaths: (skills: string[]) => {
-      projectSettings.skills = skills;
-    },
-    flush: async () => undefined,
-    drainErrors: () => [],
-  } as unknown as SettingsManager;
+  return SettingsManager.inMemory({}, { projectTrusted: true });
 }
 
 function extension(filePath: string, baseDir: string) {
@@ -73,9 +52,15 @@ function targetSession(options: {
   skillFile: string;
   baseDir: string;
   reload: () => Promise<void>;
+  id?: string;
+  cwd?: string;
+  isRunning?: () => boolean;
 }) {
   return {
-    isRunning: false,
+    id: options.id ?? "session-target",
+    get isRunning() {
+      return options.isRunning?.() ?? false;
+    },
     session: {
       resourceLoader: {
         getExtensions: () => ({
@@ -85,6 +70,7 @@ function targetSession(options: {
         getSkills: () => ({ skills: [skill(options.skillFile, options.baseDir)] }),
       },
       settingsManager: options.settingsManager,
+      sessionManager: { getCwd: () => options.cwd ?? "/workspace/target" },
       reload: options.reload,
     },
   };
@@ -113,7 +99,7 @@ const packageInstall = {
   target: { scope: "user" as const, sessionId: "session-target" },
 };
 
-test("characterizes known limitation: Extension, Skill, and Package mutations can overlap reloads for one session", async () => {
+test("serializes Extension, Skill, and Package mutations through one shared coordinator", async () => {
   const baseDir = path.join("/virtual", "pi-agent");
   const extensionFile = path.join(baseDir, "extensions", "review.ts");
   const skillFile = path.join(baseDir, "skills", "review-skill", "SKILL.md");
@@ -121,69 +107,45 @@ test("characterizes known limitation: Extension, Skill, and Package mutations ca
   let activeReloads = 0;
   let maximumActiveReloads = 0;
   let reloadStarts = 0;
-  let resolveThreeStarted!: () => void;
-  let releaseReloads!: () => void;
-  const threeStarted = new Promise<void>((resolve) => {
-    resolveThreeStarted = resolve;
-  });
-  const reloadGate = new Promise<void>((resolve) => {
-    releaseReloads = resolve;
-  });
   const reload = async () => {
     activeReloads += 1;
     reloadStarts += 1;
     maximumActiveReloads = Math.max(maximumActiveReloads, activeReloads);
-    if (reloadStarts === 3) resolveThreeStarted();
-    await reloadGate;
+    await new Promise<void>((resolve) => setImmediate(resolve));
     activeReloads -= 1;
   };
   const host = targetSession({ settingsManager, extensionFile, skillFile, baseDir, reload });
-  const extensionService = new ExtensionService({ getSession: async () => host });
-  const skillService = new SkillService({ getSession: async () => host });
+  const mutationCoordinator = new PiResourceMutationCoordinator({
+    getLoadedSessions: () => [host],
+  });
+  const extensionService = new ExtensionService({
+    getSession: async () => host,
+    mutationCoordinator,
+  });
+  const skillService = new SkillService({ getSession: async () => host, mutationCoordinator });
   const packageService = new InstalledPackageService({
-    getLoadedSessions: () => [
-      {
-        id: "session-target",
-        isRunning: false,
-        session: {
-          sessionManager: { getCwd: () => "/workspace" },
-          reload,
-        },
-      },
-    ],
+    mutationCoordinator,
     installUserPackage: async () => undefined,
   });
 
-  const operations = [
+  const results = await Promise.allSettled([
     extensionService.setEnabled(extensionToggle(extensionFile)),
     skillService.setEnabled(skillToggle),
     packageService.install(packageInstall),
-  ];
-  let timeout: ReturnType<typeof setTimeout> | undefined;
-  const overlapped = await Promise.race([
-    threeStarted.then(() => true),
-    new Promise<boolean>((resolve) => {
-      timeout = setTimeout(() => resolve(false), 2_000);
-    }),
   ]);
-  if (timeout) clearTimeout(timeout);
-  releaseReloads();
-  const results = await Promise.allSettled(operations);
 
-  assert.equal(
-    overlapped,
-    true,
-    "the current service-local mutation queues allow all three reloads to start together",
-  );
   assert.equal(reloadStarts, 3);
-  assert.equal(maximumActiveReloads, 3);
+  assert.equal(maximumActiveReloads, 1);
   assert.deepEqual(
     results.map((result) => result.status),
     ["fulfilled", "fulfilled", "fulfilled"],
   );
+  const globalSettings = settingsManager.getGlobalSettings();
+  assert.deepEqual(globalSettings.extensions, ["-extensions/review.ts"]);
+  assert.deepEqual(globalSettings.skills, ["-skills/review-skill/SKILL.md"]);
 });
 
-test("characterizes known limitation: user Extension and Skill changes reload only the addressed session while Package changes reload every loaded session", async () => {
+test("user Extension, Skill, and Package mutations reload every loaded session", async () => {
   const baseDir = path.join("/virtual", "pi-agent");
   const extensionFile = path.join(baseDir, "extensions", "review.ts");
   const skillFile = path.join(baseDir, "skills", "review-skill", "SKILL.md");
@@ -198,31 +160,27 @@ test("characterizes known limitation: user Extension and Skill changes reload on
       reloaded.push("session-target");
     },
   });
-  const extensionService = new ExtensionService({ getSession: async () => host });
-  const skillService = new SkillService({ getSession: async () => host });
+  const otherHost = {
+    id: "session-other",
+    isRunning: false,
+    session: {
+      sessionManager: { getCwd: () => "/workspace/other" },
+      reload: async () => {
+        reloaded.push("session-other");
+      },
+    },
+  };
+  const mutationCoordinator = new PiResourceMutationCoordinator({
+    getLoadedSessions: () => [host, otherHost],
+  });
+  const extensionService = new ExtensionService({
+    getSession: async () => host,
+    mutationCoordinator,
+  });
+  const skillService = new SkillService({ getSession: async () => host, mutationCoordinator });
   const packageService = new InstalledPackageService({
-    getLoadedSessions: () => [
-      {
-        id: "session-target",
-        isRunning: false,
-        session: {
-          sessionManager: { getCwd: () => "/workspace/target" },
-          reload: async () => {
-            reloaded.push("session-target");
-          },
-        },
-      },
-      {
-        id: "session-other",
-        isRunning: false,
-        session: {
-          sessionManager: { getCwd: () => "/workspace/other" },
-          reload: async () => {
-            reloaded.push("session-other");
-          },
-        },
-      },
-    ],
+    mutationCoordinator,
+    getLoadedSessions: () => [host, otherHost],
     installUserPackage: async () => undefined,
   });
 
@@ -230,10 +188,232 @@ test("characterizes known limitation: user Extension and Skill changes reload on
   await skillService.setEnabled(skillToggle);
   await packageService.install(packageInstall);
 
-  assert.deepEqual(reloaded, [
-    "session-target",
-    "session-target",
-    "session-target",
-    "session-other",
-  ]);
+  assert.equal(reloaded.filter((id) => id === "session-target").length, 3);
+  assert.equal(reloaded.filter((id) => id === "session-other").length, 3);
+});
+
+test("project mutations reload only sessions from the canonical project", async () => {
+  const reloaded: string[] = [];
+  const loadedSession = (id: string, cwd: string) => ({
+    id,
+    isRunning: false,
+    session: {
+      sessionManager: { getCwd: () => cwd },
+      reload: async () => {
+        reloaded.push(id);
+      },
+    },
+  });
+  const mutationCoordinator = new PiResourceMutationCoordinator({
+    getLoadedSessions: () => [
+      loadedSession("project-main", "/workspace/project"),
+      loadedSession("project-alias", "/workspace/project/../project"),
+      loadedSession("project-other", "/workspace/other"),
+    ],
+  });
+
+  await mutationCoordinator.mutate({ scope: "project", cwd: "/workspace/project/." }, async () => ({
+    value: undefined,
+    reload: true,
+  }));
+
+  assert.deepEqual(reloaded.sort(), ["project-alias", "project-main"]);
+});
+
+test("canonical project aliases share a lock while unrelated projects remain independent", async () => {
+  const mutationCoordinator = new PiResourceMutationCoordinator({
+    getLoadedSessions: () => [],
+  });
+  const calls: string[] = [];
+  let releaseFirst!: () => void;
+  let markFirstStarted!: () => void;
+  const firstStarted = new Promise<void>((resolve) => {
+    markFirstStarted = resolve;
+  });
+  const firstGate = new Promise<void>((resolve) => {
+    releaseFirst = resolve;
+  });
+  const first = mutationCoordinator.mutate(
+    { scope: "project", cwd: "/workspace/project" },
+    async () => {
+      calls.push("first:start");
+      markFirstStarted();
+      await firstGate;
+      calls.push("first:end");
+      return { value: undefined, reload: false };
+    },
+  );
+  await firstStarted;
+  const alias = mutationCoordinator.mutate(
+    { scope: "project", cwd: "/workspace/project/../project" },
+    async () => {
+      calls.push("alias");
+      return { value: undefined, reload: false };
+    },
+  );
+  const unrelated = mutationCoordinator.mutate(
+    { scope: "project", cwd: "/workspace/other" },
+    async () => {
+      calls.push("unrelated");
+      return { value: undefined, reload: false };
+    },
+  );
+
+  await unrelated;
+  assert.deepEqual(calls, ["first:start", "unrelated"]);
+
+  releaseFirst();
+  await Promise.all([first, alias]);
+  assert.deepEqual(calls, ["first:start", "unrelated", "first:end", "alias"]);
+});
+
+test("a queued mutation rechecks busy sessions before changing settings", async () => {
+  let busy = false;
+  let releaseFirst!: () => void;
+  let markFirstStarted!: () => void;
+  const firstStarted = new Promise<void>((resolve) => {
+    markFirstStarted = resolve;
+  });
+  const firstGate = new Promise<void>((resolve) => {
+    releaseFirst = resolve;
+  });
+  const installations: string[] = [];
+  const loadedHost = {
+    id: "session-target",
+    get isRunning() {
+      return busy;
+    },
+    session: {
+      sessionManager: { getCwd: () => "/workspace/target" },
+      reload: async () => {
+        busy = true;
+      },
+    },
+  };
+  const mutationCoordinator = new PiResourceMutationCoordinator({
+    getLoadedSessions: () => [loadedHost],
+  });
+  const packageService = new InstalledPackageService({
+    mutationCoordinator,
+    installUserPackage: async (_sessionId, source) => {
+      installations.push(source);
+      if (source !== "npm:first-package") return;
+      markFirstStarted();
+      await firstGate;
+    },
+  });
+
+  const first = packageService.install({
+    name: "first-package",
+    target: { scope: "user", sessionId: "session-target" },
+  });
+  await firstStarted;
+  const second = packageService.install({
+    name: "second-package",
+    target: { scope: "user", sessionId: "session-target" },
+  });
+  const secondRejected = assert.rejects(second, (error: unknown) => {
+    assert.ok(error instanceof InstalledPackageServiceError);
+    assert.equal(error.code, "session-busy");
+    assert.deepEqual(error.details, { sessionId: "session-target" });
+    return true;
+  });
+
+  releaseFirst();
+  await Promise.all([first, secondRejected]);
+  assert.deepEqual(installations, ["npm:first-package"]);
+});
+
+test("an already-matching Extension state does not reload sessions", async () => {
+  const baseDir = path.join("/virtual", "pi-agent");
+  const extensionFile = path.join(baseDir, "extensions", "review.ts");
+  const skillFile = path.join(baseDir, "skills", "review-skill", "SKILL.md");
+  const settingsManager = resourceSettingsManager();
+  let reloadCount = 0;
+  const host = targetSession({
+    settingsManager,
+    extensionFile,
+    skillFile,
+    baseDir,
+    reload: async () => {
+      reloadCount += 1;
+    },
+  });
+  const mutationCoordinator = new PiResourceMutationCoordinator({
+    getLoadedSessions: () => [host],
+  });
+  const extensionService = new ExtensionService({
+    getSession: async () => host,
+    mutationCoordinator,
+  });
+
+  assert.deepEqual(
+    await extensionService.setEnabled({ ...extensionToggle(extensionFile), enabled: true }),
+    { name: "review", filePath: extensionFile, enabled: true },
+  );
+  assert.equal(reloadCount, 0);
+});
+
+test("a queued Skill mutation rejects when the same name resolves to another identity", async () => {
+  const baseDir = path.join("/virtual", "pi-agent");
+  const initialSkillFile = path.join(baseDir, "skills", "review-skill", "SKILL.md");
+  const replacementBaseDir = path.join("/virtual", "replacement-agent");
+  const replacementSkillFile = path.join(replacementBaseDir, "skills", "review-skill", "SKILL.md");
+  const settingsManager = resourceSettingsManager();
+  let currentSkill = skill(initialSkillFile, baseDir);
+  let markInitialRead!: () => void;
+  const initialRead = new Promise<void>((resolve) => {
+    markInitialRead = resolve;
+  });
+  let skillReadCount = 0;
+  let reloadCount = 0;
+  const host = {
+    id: "session-target",
+    isRunning: false,
+    session: {
+      resourceLoader: {
+        getSkills: () => {
+          skillReadCount += 1;
+          if (skillReadCount === 1) markInitialRead();
+          return { skills: [currentSkill] };
+        },
+      },
+      settingsManager,
+      sessionManager: { getCwd: () => "/workspace/target" },
+      reload: async () => {
+        reloadCount += 1;
+      },
+    },
+  };
+  const mutationCoordinator = new PiResourceMutationCoordinator({
+    getLoadedSessions: () => [host],
+  });
+  let releaseBlocker!: () => void;
+  let markBlockerStarted!: () => void;
+  const blockerStarted = new Promise<void>((resolve) => {
+    markBlockerStarted = resolve;
+  });
+  const blockerGate = new Promise<void>((resolve) => {
+    releaseBlocker = resolve;
+  });
+  const blocker = mutationCoordinator.mutate({ scope: "user" }, async () => {
+    markBlockerStarted();
+    await blockerGate;
+    return { value: undefined, reload: false };
+  });
+  await blockerStarted;
+  const skillService = new SkillService({ getSession: async () => host, mutationCoordinator });
+  const pending = skillService.setEnabled(skillToggle);
+  await initialRead;
+  currentSkill = skill(replacementSkillFile, replacementBaseDir);
+  const rejected = assert.rejects(pending, (error: unknown) => {
+    assert.ok(error instanceof SkillServiceError);
+    assert.equal(error.code, "skill-not-found");
+    return true;
+  });
+
+  releaseBlocker();
+  await Promise.all([blocker, rejected]);
+  assert.equal(reloadCount, 0);
+  assert.equal(settingsManager.getGlobalSettings().skills, undefined);
 });

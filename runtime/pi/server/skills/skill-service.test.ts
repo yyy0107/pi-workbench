@@ -432,6 +432,7 @@ test("deletes only an independently installed Skill root and reloads the session
             ],
           }),
         },
+        sessionManager: { getCwd: () => cwd },
         reload: async () => {
           reloadCount += 1;
         },

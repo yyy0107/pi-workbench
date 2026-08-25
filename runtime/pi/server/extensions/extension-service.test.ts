@@ -506,6 +506,7 @@ test("deletes only an automatically discovered independent extension root", asyn
             errors: [],
           }),
         },
+        sessionManager: { getCwd: () => cwd },
         reload: async () => {
           reloadCount += 1;
         },

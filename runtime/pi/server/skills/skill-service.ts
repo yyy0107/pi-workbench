@@ -33,6 +33,13 @@ import {
   withResourceEnabled,
 } from "../resources/resource-mutations";
 import {
+  getPiResourceMutationCoordinator,
+  PiResourceMutationBusyError,
+  PiResourceMutationSessionUnavailableError,
+  type PiResourceMutationCoordinator,
+  type PiResourceMutationScope,
+} from "../resources/pi-resource-mutation-coordinator";
+import {
   readResourceTextFile,
   ResourceTextFileTooLargeError,
   ResourceTextFileUnsupportedEncodingError,
@@ -88,6 +95,15 @@ interface SkillRecord extends LoadedSkill {
   enabled: boolean;
 }
 
+function sameSkillMutationIdentity(left: SkillRecord, right: SkillRecord): boolean {
+  return (
+    left.filePath === right.filePath &&
+    left.sourceInfo.source === right.sourceInfo.source &&
+    left.sourceInfo.scope === right.sourceInfo.scope &&
+    left.sourceInfo.origin === right.sourceInfo.origin
+  );
+}
+
 export interface SkillSessionHost {
   readonly isRunning?: boolean;
   session: {
@@ -104,6 +120,7 @@ export interface SkillServiceDependencies {
   getSession(sessionId: string): Promise<SkillSessionHost>;
   readSkillDocument(filePath: string): Promise<string>;
   removeSkillPath(targetPath: string): Promise<void>;
+  mutationCoordinator: PiResourceMutationCoordinator;
 }
 
 export interface SkillServiceErrorDetails {
@@ -182,29 +199,15 @@ function compareDirectoryEntries(
 
 export class SkillService {
   private readonly dependencies: SkillServiceDependencies;
-  private mutationTail: Promise<void> = Promise.resolve();
 
   constructor(dependencies: Partial<SkillServiceDependencies> = {}) {
     this.dependencies = {
       getSession: getOrStartSession,
       readSkillDocument,
       removeSkillPath: (targetPath) => rm(targetPath, { recursive: true }),
+      mutationCoordinator: getPiResourceMutationCoordinator(),
       ...dependencies,
     };
-  }
-
-  private async serializeMutation<Value>(operation: () => Promise<Value>): Promise<Value> {
-    const previous = this.mutationTail;
-    let release!: () => void;
-    this.mutationTail = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    await previous;
-    try {
-      return await operation();
-    } finally {
-      release();
-    }
   }
 
   private async getSessionHost(sessionId: string): Promise<SkillSessionHost> {
@@ -305,11 +308,19 @@ export class SkillService {
     });
   }
 
-  private assertMutableSession(host: SkillSessionHost, sessionId: string): void {
-    if (!host.isRunning) return;
-    throw new SkillServiceError("session-busy", "The session is currently running.", {
-      sessionId,
-    });
+  private mutationScope(
+    host: SkillSessionHost,
+    scope: ExtensionSourceScope,
+    name: string,
+  ): PiResourceMutationScope {
+    if (scope !== "project") return { scope: "user" };
+    const cwd = host.session.sessionManager?.getCwd();
+    if (cwd) return { scope: "project", cwd };
+    throw new SkillServiceError(
+      "skill-source-unavailable",
+      "The skill source cannot be updated safely.",
+      { name },
+    );
   }
 
   private async persistSkillEnabled(
@@ -385,7 +396,6 @@ export class SkillService {
     await settingsManager.flush();
     const settingsError = settingsManager.drainErrors()[0];
     if (settingsError) throw settingsError.error;
-    await host.session.reload?.();
   }
 
   async list({ sessionId }: SkillListPayload): Promise<SkillListValue> {
@@ -446,18 +456,50 @@ export class SkillService {
     name,
     enabled,
   }: SkillSetEnabledPayload): Promise<SkillSetEnabledValue> {
-    const host = await this.getSessionHost(sessionId);
+    const initialHost = await this.getSessionHost(sessionId);
 
     try {
-      return await this.serializeMutation(async () => {
-        this.assertMutableSession(host, sessionId);
-        const skill = await this.findSkill(host, sessionId, name);
-        if (skill.enabled === enabled) return { name, enabled };
-        await this.persistSkillEnabled(host, skill, enabled);
-        return { name, enabled };
-      });
+      const skill = await this.findSkill(initialHost, sessionId, name);
+      const scope = this.mutationScope(initialHost, skill.sourceInfo.scope, name);
+      return await this.dependencies.mutationCoordinator.mutateForSession(
+        {
+          scope,
+          sessionId,
+          getSession: () => this.getSessionHost(sessionId),
+        },
+        async (host) => {
+          const currentSkill = await this.findSkill(host, sessionId, name);
+          if (!sameSkillMutationIdentity(currentSkill, skill)) {
+            throw new SkillServiceError("skill-not-found", "The skill identity changed.", {
+              sessionId,
+              name,
+            });
+          }
+          if (currentSkill.enabled === enabled) {
+            return { value: { name, enabled }, reload: false };
+          }
+          await this.persistSkillEnabled(host, currentSkill, enabled);
+          return { value: { name, enabled }, reload: true };
+        },
+      );
     } catch (error) {
       if (error instanceof SkillServiceError) throw error;
+      if (error instanceof PiResourceMutationBusyError) {
+        throw new SkillServiceError(
+          "session-busy",
+          "A related session is currently running.",
+          { sessionId: error.sessionId },
+          { cause: error },
+        );
+      }
+      if (error instanceof PiResourceMutationSessionUnavailableError) {
+        throw new SkillServiceError(
+          "session-not-found",
+          "The session does not exist.",
+          { sessionId: error.sessionId },
+          { cause: error },
+        );
+      }
       throw new SkillServiceError(
         "skill-update-failed",
         "The skill state could not be updated.",
@@ -468,49 +510,78 @@ export class SkillService {
   }
 
   async remove({ sessionId, name }: SkillRemovePayload): Promise<SkillRemoveValue> {
-    const host = await this.getSessionHost(sessionId);
+    const initialHost = await this.getSessionHost(sessionId);
 
     try {
-      return await this.serializeMutation(async () => {
-        this.assertMutableSession(host, sessionId);
-        const skill = await this.findSkill(host, sessionId, name);
-        if (skill.sourceInfo.origin === "package") {
-          throw new SkillServiceError(
-            "skill-package-managed",
-            "Package-provided skills must be removed through the package manager.",
-            { name, source: skill.sourceInfo.source },
-          );
-        }
-        if (
-          skill.sourceInfo.scope === "temporary" ||
-          skill.sourceInfo.source !== "auto" ||
-          !skill.sourceInfo.baseDir
-        ) {
-          throw new SkillServiceError("skill-read-only", "This skill source is read-only.", {
-            name,
-          });
-        }
-        const targetPath =
-          path.basename(skill.filePath).toLowerCase() === "skill.md"
-            ? path.dirname(skill.filePath)
-            : skill.filePath;
-        const [canonicalBase, canonicalTarget] = await Promise.all([
-          realpath(skill.sourceInfo.baseDir!),
-          realpath(targetPath),
-        ]);
-        if (canonicalBase === canonicalTarget || !pathWithin(canonicalBase, canonicalTarget)) {
-          throw new SkillServiceError(
-            "skill-source-unavailable",
-            "The skill deletion target is outside its source root.",
-            { name },
-          );
-        }
-        await this.dependencies.removeSkillPath(canonicalTarget);
-        await host.session.reload?.();
-        return { name, removed: true };
-      });
+      const skill = await this.findSkill(initialHost, sessionId, name);
+      const scope = this.mutationScope(initialHost, skill.sourceInfo.scope, name);
+      return await this.dependencies.mutationCoordinator.mutateForSession(
+        {
+          scope,
+          sessionId,
+          getSession: () => this.getSessionHost(sessionId),
+        },
+        async (host) => {
+          const currentSkill = await this.findSkill(host, sessionId, name);
+          if (!sameSkillMutationIdentity(currentSkill, skill)) {
+            throw new SkillServiceError("skill-not-found", "The skill identity changed.", {
+              sessionId,
+              name,
+            });
+          }
+          if (currentSkill.sourceInfo.origin === "package") {
+            throw new SkillServiceError(
+              "skill-package-managed",
+              "Package-provided skills must be removed through the package manager.",
+              { name, source: currentSkill.sourceInfo.source },
+            );
+          }
+          if (
+            currentSkill.sourceInfo.scope === "temporary" ||
+            currentSkill.sourceInfo.source !== "auto" ||
+            !currentSkill.sourceInfo.baseDir
+          ) {
+            throw new SkillServiceError("skill-read-only", "This skill source is read-only.", {
+              name,
+            });
+          }
+          const targetPath =
+            path.basename(currentSkill.filePath).toLowerCase() === "skill.md"
+              ? path.dirname(currentSkill.filePath)
+              : currentSkill.filePath;
+          const [canonicalBase, canonicalTarget] = await Promise.all([
+            realpath(currentSkill.sourceInfo.baseDir),
+            realpath(targetPath),
+          ]);
+          if (canonicalBase === canonicalTarget || !pathWithin(canonicalBase, canonicalTarget)) {
+            throw new SkillServiceError(
+              "skill-source-unavailable",
+              "The skill deletion target is outside its source root.",
+              { name },
+            );
+          }
+          await this.dependencies.removeSkillPath(canonicalTarget);
+          return { value: { name, removed: true }, reload: true };
+        },
+      );
     } catch (error) {
       if (error instanceof SkillServiceError) throw error;
+      if (error instanceof PiResourceMutationBusyError) {
+        throw new SkillServiceError(
+          "session-busy",
+          "A related session is currently running.",
+          { sessionId: error.sessionId },
+          { cause: error },
+        );
+      }
+      if (error instanceof PiResourceMutationSessionUnavailableError) {
+        throw new SkillServiceError(
+          "session-not-found",
+          "The session does not exist.",
+          { sessionId: error.sessionId },
+          { cause: error },
+        );
+      }
       throw new SkillServiceError(
         "skill-remove-failed",
         "The skill could not be removed.",
