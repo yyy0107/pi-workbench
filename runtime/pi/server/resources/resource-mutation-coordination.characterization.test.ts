@@ -267,6 +267,44 @@ test("canonical project aliases share a lock while unrelated projects remain ind
   assert.deepEqual(calls, ["first:start", "unrelated", "first:end", "alias"]);
 });
 
+test("keeps the resource mutation locked through post-reload cleanup", async () => {
+  const mutationCoordinator = new PiResourceMutationCoordinator({
+    getLoadedSessions: () => [],
+  });
+  const calls: string[] = [];
+  let releaseCleanup!: () => void;
+  let markCleanupStarted!: () => void;
+  const cleanupStarted = new Promise<void>((resolve) => {
+    markCleanupStarted = resolve;
+  });
+  const cleanupPending = new Promise<void>((resolve) => {
+    releaseCleanup = resolve;
+  });
+
+  const first = mutationCoordinator.mutate({ scope: "user" }, async () => ({
+    value: undefined,
+    reload: true,
+    afterReload: async () => {
+      calls.push("cleanup:start");
+      markCleanupStarted();
+      await cleanupPending;
+      calls.push("cleanup:end");
+    },
+  }));
+  await cleanupStarted;
+
+  const second = mutationCoordinator.mutate({ scope: "user" }, async () => {
+    calls.push("next-mutation");
+    return { value: undefined, reload: false };
+  });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.deepEqual(calls, ["cleanup:start"]);
+
+  releaseCleanup();
+  await Promise.all([first, second]);
+  assert.deepEqual(calls, ["cleanup:start", "cleanup:end", "next-mutation"]);
+});
+
 test("a queued mutation rechecks busy sessions before changing settings", async () => {
   let busy = false;
   let releaseFirst!: () => void;

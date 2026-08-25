@@ -27,6 +27,12 @@ export interface PiResourceMutationCoordinatorDependencies {
 export interface PiResourceMutationResult<Value> {
   readonly value: Value;
   readonly reload: boolean;
+  /**
+   * Runs after every affected session has reloaded, while the mutation scope is
+   * still locked. Package removal uses this to keep loaded extension code on
+   * disk until Pi has completed its session_shutdown/reload lifecycle.
+   */
+  readonly afterReload?: () => Promise<void>;
 }
 
 export class PiResourceMutationBusyError extends Error {
@@ -201,6 +207,7 @@ export class PiResourceMutationCoordinator {
       if (result.reload) {
         await this.reloadAffectedSessions(options.scope, primaryHost);
       }
+      await result.afterReload?.();
       return result.value;
     } finally {
       releaseScope();

@@ -2,6 +2,7 @@ import {
   DefaultPackageManager,
   getAgentDir,
   SettingsManager,
+  type PackageManager,
   type PackageSource,
 } from "@earendil-works/pi-coding-agent";
 
@@ -55,10 +56,18 @@ export interface InstalledPackageServiceDependencies {
   isProjectTrusted(workspacePath: string): boolean | Promise<boolean>;
   installUserPackage(sessionId: string, source: string): Promise<void>;
   installProjectPackage(workspacePath: string, source: string): Promise<void>;
-  removeUserPackage(sessionId: string, source: string): Promise<boolean>;
-  removeProjectPackage(workspacePath: string, source: string): Promise<boolean>;
+  prepareUserPackageRemoval(
+    sessionId: string,
+    source: string,
+  ): Promise<PackageRemovalCleanup | undefined>;
+  prepareProjectPackageRemoval(
+    workspacePath: string,
+    source: string,
+  ): Promise<PackageRemovalCleanup | undefined>;
   mutationCoordinator: PiResourceMutationCoordinator;
 }
+
+export type PackageRemovalCleanup = () => Promise<void>;
 
 export interface InstalledPackageServiceErrorDetails {
   "session-not-found": { sessionId: string };
@@ -154,38 +163,60 @@ function hasConfiguredSource(settings: PackageSettingsSnapshot, source: string):
   );
 }
 
-async function removeUserPackage(sessionId: string, source: string): Promise<boolean> {
+async function flushPackageSettings(
+  settingsManager: Pick<SettingsManager, "flush" | "drainErrors">,
+): Promise<void> {
+  await settingsManager.flush();
+  const settingsError = settingsManager.drainErrors()[0];
+  if (settingsError) throw settingsError.error;
+}
+
+async function preparePackageRemoval(
+  packageManager: Pick<PackageManager, "remove" | "removeSourceFromSettings">,
+  settingsManager: Pick<SettingsManager, "flush" | "drainErrors">,
+  source: string,
+  options?: { local?: boolean },
+): Promise<PackageRemovalCleanup | undefined> {
+  const removed = packageManager.removeSourceFromSettings(source, options);
+  if (!removed) return undefined;
+
+  // Persist the authoritative configuration before touching package files. A
+  // process restart can now leave only harmless orphaned files, rather than a
+  // configured-but-missing package that Pi immediately reinstalls on startup.
+  await flushPackageSettings(settingsManager);
+  return async () => packageManager.remove(source, options);
+}
+
+async function prepareUserPackageRemoval(
+  sessionId: string,
+  source: string,
+): Promise<PackageRemovalCleanup | undefined> {
   const host = await getOrStartSession(sessionId);
   const session = host.session;
-  if (!hasConfiguredSource(session.settingsManager.getGlobalSettings(), source)) return false;
+  if (!hasConfiguredSource(session.settingsManager.getGlobalSettings(), source)) return undefined;
   const packageManager = new DefaultPackageManager({
     cwd: session.sessionManager.getCwd(),
     agentDir: getAgentDir(),
     settingsManager: session.settingsManager,
   });
-  const removed = await packageManager.removeAndPersist(source);
-  await session.settingsManager.flush();
-  const settingsError = session.settingsManager.drainErrors()[0];
-  if (settingsError) throw settingsError.error;
-  return removed;
+  return preparePackageRemoval(packageManager, session.settingsManager, source);
 }
 
-async function removeProjectPackage(workspacePath: string, source: string): Promise<boolean> {
+async function prepareProjectPackageRemoval(
+  workspacePath: string,
+  source: string,
+): Promise<PackageRemovalCleanup | undefined> {
   const agentDir = getAgentDir();
   const settingsManager = SettingsManager.create(workspacePath, agentDir, {
     projectTrusted: true,
   });
-  if (!hasConfiguredSource(settingsManager.getProjectSettings(), source)) return false;
+  if (!hasConfiguredSource(settingsManager.getProjectSettings(), source)) return undefined;
   const packageManager = new DefaultPackageManager({
     cwd: workspacePath,
     agentDir,
     settingsManager,
   });
-  const removed = await packageManager.removeAndPersist(source, { local: true });
-  await settingsManager.flush();
-  const settingsError = settingsManager.drainErrors()[0];
-  if (settingsError) throw settingsError.error;
-  return removed;
+  return preparePackageRemoval(packageManager, settingsManager, source, { local: true });
 }
 
 export class InstalledPackageService {
@@ -206,8 +237,8 @@ export class InstalledPackageService {
       isProjectTrusted: (workspacePath) => getProjectTrustService().isTrusted(workspacePath),
       installUserPackage,
       installProjectPackage,
-      removeUserPackage,
-      removeProjectPackage,
+      prepareUserPackageRemoval,
+      prepareProjectPackageRemoval,
       ...dependencies,
       mutationCoordinator,
     };
@@ -383,15 +414,18 @@ export class InstalledPackageService {
         await this.dependencies.mutationCoordinator.mutate(
           { scope: "project", cwd: workspace.path },
           async () => {
-            const removed = await this.dependencies.removeProjectPackage(workspace.path, source);
-            if (!removed) {
+            const cleanup = await this.dependencies.prepareProjectPackageRemoval(
+              workspace.path,
+              source,
+            );
+            if (!cleanup) {
               throw new InstalledPackageServiceError(
                 "package-not-installed",
                 "The Pi package is not installed in this project.",
                 { source, scope: "project" },
               );
             }
-            return { value: undefined, reload: true };
+            return { value: undefined, reload: true, afterReload: cleanup };
           },
         );
         return {
@@ -421,15 +455,15 @@ export class InstalledPackageService {
 
     try {
       await this.dependencies.mutationCoordinator.mutate({ scope: "user" }, async () => {
-        const removed = await this.dependencies.removeUserPackage(target.sessionId, source);
-        if (!removed) {
+        const cleanup = await this.dependencies.prepareUserPackageRemoval(target.sessionId, source);
+        if (!cleanup) {
           throw new InstalledPackageServiceError(
             "package-not-installed",
             "The Pi package is not installed for this user.",
             { source, scope: "user" },
           );
         }
-        return { value: undefined, reload: true };
+        return { value: undefined, reload: true, afterReload: cleanup };
       });
       return { source, scope: "user", reloadRequired: false };
     } catch (error) {

@@ -153,9 +153,8 @@ test("installs an official catalog package into an imported project", async () =
 test("removes a configured package from the user Pi configuration", async () => {
   const removals: Array<{ sessionId: string; source: string }> = [];
   const service = new InstalledPackageService({
-    removeUserPackage: async (sessionId, source) => {
+    prepareUserPackageRemoval: async (sessionId, source) => async () => {
       removals.push({ sessionId, source });
-      return true;
     },
   });
 
@@ -173,8 +172,8 @@ test("removes a configured package from the user Pi configuration", async () => 
   assert.deepEqual(removals, [{ sessionId: "session-1", source: "npm:@example/pi-tools" }]);
 });
 
-test("reloads every loaded session after removing a user Pi package", async () => {
-  const reloaded: string[] = [];
+test("reloads every loaded session before deleting a user Pi package", async () => {
+  const lifecycle: string[] = [];
   const service = new InstalledPackageService({
     getLoadedSessions: () => [
       {
@@ -183,7 +182,7 @@ test("reloads every loaded session after removing a user Pi package", async () =
         session: {
           sessionManager: { getCwd: () => "/projects/one" },
           reload: async () => {
-            reloaded.push("session-1");
+            lifecycle.push("reload:session-1");
           },
         },
       },
@@ -193,12 +192,17 @@ test("reloads every loaded session after removing a user Pi package", async () =
         session: {
           sessionManager: { getCwd: () => "/projects/two" },
           reload: async () => {
-            reloaded.push("session-2");
+            lifecycle.push("reload:session-2");
           },
         },
       },
     ],
-    removeUserPackage: async () => true,
+    prepareUserPackageRemoval: async () => {
+      lifecycle.push("configuration-removed");
+      return async () => {
+        lifecycle.push("files-removed");
+      };
+    },
   });
 
   await service.remove({
@@ -206,7 +210,12 @@ test("reloads every loaded session after removing a user Pi package", async () =
     target: { scope: "user", sessionId: "session-1" },
   });
 
-  assert.deepEqual(reloaded, ["session-1", "session-2"]);
+  assert.deepEqual(lifecycle, [
+    "configuration-removed",
+    "reload:session-1",
+    "reload:session-2",
+    "files-removed",
+  ]);
 });
 
 test("removes a configured package from an imported project", async () => {
@@ -215,9 +224,8 @@ test("removes a configured package from an imported project", async () => {
     isProjectTrusted: () => true,
     getWorkspace: async (workspaceId) =>
       workspaceId === "workspace-1" ? { path: "/projects/example" } : undefined,
-    removeProjectPackage: async (workspacePath, source) => {
+    prepareProjectPackageRemoval: async (workspacePath, source) => async () => {
       removals.push({ workspacePath, source });
-      return true;
     },
   });
 
@@ -265,7 +273,7 @@ test("reloads only sessions from the affected project after removing a project P
       },
     ],
     isProjectTrusted: () => true,
-    removeProjectPackage: async () => true,
+    prepareProjectPackageRemoval: async () => async () => undefined,
   });
 
   await service.remove({
@@ -289,9 +297,9 @@ test("rejects package removal before persistence when an affected session is run
         },
       },
     ],
-    removeUserPackage: async () => {
+    prepareUserPackageRemoval: async () => {
       removalAttempted = true;
-      return true;
+      return async () => undefined;
     },
   });
 
@@ -312,7 +320,7 @@ test("rejects package removal before persistence when an affected session is run
 
 test("reports a stable error when the package is no longer configured", async () => {
   const service = new InstalledPackageService({
-    removeUserPackage: async () => false,
+    prepareUserPackageRemoval: async () => undefined,
   });
 
   await assert.rejects(
@@ -349,9 +357,9 @@ test("rejects project removals while project-local Pi resources are untrusted", 
   );
 });
 
-test("translates package removal failures without exposing command output", async () => {
+test("translates package cleanup failures without exposing command output", async () => {
   const service = new InstalledPackageService({
-    removeUserPackage: async () => {
+    prepareUserPackageRemoval: async () => async () => {
       throw new Error("private npm stderr and filesystem path");
     },
   });

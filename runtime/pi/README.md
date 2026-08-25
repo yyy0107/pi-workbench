@@ -472,13 +472,14 @@ settings。调用 `package.install` 的前端只提交包名和目标，不提�
 可以立即进入 Toolbox 和 Composer catalog。Pi Package 具有完整系统访问权限，安装前仍需审查来源。
 
 `package.remove` 接受已配置 Package 的精确 source，以及与安装相同的用户级 session 或项目级
-`workspaceId` 目标。服务端先确认 source 确实存在于目标作用域的 Pi settings 中，再调用 Pi 导出的
-`DefaultPackageManager.removeAndPersist()`；项目目标同样必须来自已导入 Workspace 并通过 Project
-Trust。移除与安装共享同一个进程内串行队列，并且只允许 loopback 请求，避免跨作用域误删或与正在
-运行的 Package mutation 竞争。若任一受影响的已加载 session 正在运行，服务端会在持久化前返回
-`session-busy`；移除成功后会自动 reload 全部受影响 session，再以 `reloadRequired: false` 返回。
-这使 settings 快照、已安装列表、Skill、Prompt、Theme、Extension 及其 tool/event/command 一次同步，
-不会留下“配置已删除但旧能力仍在内存中”的中间状态。
+`workspaceId` 目标。服务端先确认 source 确实存在于目标作用域的 Pi settings 中，通过 Pi 导出的
+`DefaultPackageManager.removeSourceFromSettings()` 持久化移除配置，再 reload 全部受影响 session；
+只有等旧 Extension 完成 `session_shutdown` 并退出活动 runtime 后，才在同一 mutation 锁内调用
+`DefaultPackageManager.remove()` 清理 npm/git 文件。项目目标同样必须来自已导入 Workspace 并通过
+Project Trust。移除与安装共享同一个进程内串行队列，并且只允许 loopback 请求，避免跨作用域误删或
+与正在运行的 Package mutation 竞争。若任一受影响的已加载 session 正在运行，服务端会在持久化前
+返回 `session-busy`；成功后以 `reloadRequired: false` 返回。配置优先的顺序也保证进程若在文件清理
+期间重启，最多留下不再加载的孤立文件，不会因旧配置仍在而自动把 Package 安装回来。
 
 ## Session 生命周期和持久状态
 
