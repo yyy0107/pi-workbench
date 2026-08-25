@@ -536,6 +536,11 @@ Terminal 的 PTY 生命周期和双向 frame 协议属于独立的
 这样可以避免 Next 与 Pi 分别监听端口或抢占 upgrade。不要直接用 `next dev` 或 `next start`
 启动本项目；`pnpm dev` 和 `pnpm start` 已经使用该入口。
 
+开发命令通过 [`scripts/dev-server.mjs`](../../scripts/dev-server.mjs) 启动 `tsx watch`，并显式排除
+用户级 Pi agent 目录和各 Workspace 的 `.pi` 目录。Pi Package 安装、移除或 session reload 因而只
+更新运行时资源，不会因为扩展文件增删而让外层监听器重启整个 Web server；Workbench 源码依赖仍按
+原有规则参与开发重载。
+
 ## 目录布局
 
 实现按传输层和业务域分组，测试与源文件共置：

@@ -7,7 +7,7 @@
     "icons:sync": "node scripts/sync-material-icon-theme.mjs",
     "file-viewer:sync": "node scripts/sync-file-viewer-assets.mjs",
     "predev": "pnpm icons:sync && pnpm file-viewer:sync",
-    "dev": "tsx watch server.ts --dev",
+    "dev": "node scripts/dev-server.mjs",
     "electron:dev": "electron .",
     "electron:pack": "pnpm build && node electron/prepare-package.cjs && electron-builder --dir",
     "electron:dist": "pnpm build && node electron/prepare-package.cjs && electron-builder",
