@@ -1,4 +1,3 @@
-import { withAui } from "@assistant-ui/next";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
@@ -12,4 +11,4 @@ const nextConfig: NextConfig = {
     "tree-sitter-bash",
   ],
 };
-export default withAui(nextConfig);
+export default nextConfig;
