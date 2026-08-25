@@ -52,6 +52,7 @@ import {
   removePiModelProvider,
   respondPiModelProviderLogin,
   startPiModelProviderLogin,
+  testPiModelImageInput,
 } from "@/runtime/pi/client/transport/api";
 import type {
   ConfigurableProviderView,
@@ -59,13 +60,17 @@ import type {
   ModelProviderLoginValue,
   ModelProviderModelConfiguration,
   ModelProvidersValue,
+  TestModelImageInputValue,
 } from "@/runtime/pi/rpc-contracts";
 
 import {
+  DEFAULT_MODEL_CONTEXT_WINDOW,
   MODEL_PROVIDER_APIS,
+  discoveredImageInputConfiguration,
   emptyDraft,
   emptyModel,
   evaluateProviderModelAvailability,
+  modelNameAfterIdChange,
   normalizeContextWindowInput,
   parseCapacity,
   prepareProviderConfiguration,
@@ -193,7 +198,7 @@ function MaxOutputTokensEditor({
             ? parsed === undefined
               ? value
               : number(parsed)
-            : t("extensions.modelConfig.maxOutputTokensOff")}
+            : t("extensions.modelConfig.maxOutputTokensUnset")}
         </span>
       }
       editLabel={t("extensions.modelConfig.editMaxOutputTokens")}
@@ -285,6 +290,10 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
   const [saving, setSaving] = useState(false);
   const [testingProvider, setTestingProvider] = useState(false);
   const [providerTestResult, setProviderTestResult] = useState<ProviderTestResult>();
+  const [testingModelKey, setTestingModelKey] = useState<number>();
+  const [modelImageTestResults, setModelImageTestResults] = useState<
+    Record<number, ProviderTestResult>
+  >({});
   const [removingProviderId, setRemovingProviderId] = useState<string>();
   const [error, setError] = useState<string>();
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
@@ -299,6 +308,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
   const configRequest = useRef(0);
   const modelCatalogRequest = useRef(0);
   const providerTestRequest = useRef(0);
+  const modelImageTestRequest = useRef(0);
   const refreshedLoginId = useRef<string | undefined>(undefined);
 
   const applyProviders = useCallback((next: ModelProvidersValue) => setValue(next), []);
@@ -349,6 +359,9 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
       ...(draft.apiKey.trim() ? { apiKey: draft.apiKey.trim() } : {}),
     } as const;
   }, [draft, editor?.mode, providers]);
+  const modelImageTestIdentity = draft.models
+    .map(({ key, id }) => `${key}:${id.trim()}`)
+    .join("\0");
 
   useEffect(() => {
     providerTestRequest.current += 1;
@@ -365,10 +378,25 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
     editor?.mode,
   ]);
 
+  useEffect(() => {
+    modelImageTestRequest.current += 1;
+    setTestingModelKey(undefined);
+    setModelImageTestResults({});
+  }, [
+    draft.api,
+    draft.apiKey,
+    draft.baseURL,
+    draft.defaultBaseURL,
+    draft.provider,
+    editor?.mode,
+    modelImageTestIdentity,
+  ]);
+
   const closeEditor = useCallback(() => {
     configRequest.current += 1;
     modelCatalogRequest.current += 1;
     providerTestRequest.current += 1;
+    modelImageTestRequest.current += 1;
     setEditor(undefined);
     setDraft(emptyDraft());
     setConfigLoading(false);
@@ -377,6 +405,8 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
     setModelPickerError(undefined);
     setTestingProvider(false);
     setProviderTestResult(undefined);
+    setTestingModelKey(undefined);
+    setModelImageTestResults({});
     if (providerLogin?.status === "running") {
       void cancelPiModelProviderLogin({ loginId: providerLogin.loginId }).catch(() => undefined);
     }
@@ -702,6 +732,17 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
   );
 
   const updateModel = useCallback((key: number, patch: Partial<ModelDraft>, markCustom = true) => {
+    if (
+      patch.id !== undefined ||
+      patch.input !== undefined ||
+      patch.imageInputSource !== undefined
+    ) {
+      setModelImageTestResults((current) => {
+        const next = { ...current };
+        delete next[key];
+        return next;
+      });
+    }
     setDraft((current) => ({
       ...current,
       ...(markCustom ? { modelsSource: "custom" as const } : {}),
@@ -711,6 +752,11 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
 
   const selectAvailableModel = useCallback(
     (key: number, configuration: ModelProviderModelConfiguration) => {
+      setModelImageTestResults((current) => {
+        const next = { ...current };
+        delete next[key];
+        return next;
+      });
       setDraft((current) => ({
         ...current,
         modelsSource: "custom",
@@ -722,6 +768,177 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
       }));
     },
     [],
+  );
+
+  const modelImageTestResult = useCallback(
+    (result: TestModelImageInputValue): ProviderTestResult => {
+      switch (result.outcome) {
+        case "supported":
+          return {
+            kind: "success",
+            message: t("extensions.modelConfig.multimodalTestSupported"),
+          };
+        case "unsupported":
+          return {
+            kind: "warning",
+            message: t("extensions.modelConfig.multimodalTestUnsupported"),
+          };
+        case "inconclusive":
+          switch (result.reason) {
+            case "model-not-found":
+              return {
+                kind: "warning",
+                message: t("extensions.modelConfig.multimodalTestSaveFirst"),
+              };
+            case "runtime-unavailable":
+              return {
+                kind: "warning",
+                message: t("extensions.modelConfig.multimodalTestRuntimeUnavailable"),
+              };
+            case "unexpected-response":
+              return {
+                kind: "warning",
+                message: t("extensions.modelConfig.multimodalTestUnexpectedResponse"),
+              };
+            case "authentication":
+              return {
+                kind: "warning",
+                message: t("extensions.modelConfig.multimodalTestAuthentication"),
+              };
+            case "quota-exceeded":
+              return {
+                kind: "warning",
+                message: t("extensions.modelConfig.multimodalTestQuotaExceeded"),
+              };
+            case "rate-limited":
+              return {
+                kind: "warning",
+                message: t("extensions.modelConfig.multimodalTestRateLimited"),
+              };
+            case "timeout":
+              return {
+                kind: "warning",
+                message: t("extensions.modelConfig.multimodalTestTimeout"),
+              };
+            case "network":
+              return {
+                kind: "warning",
+                message: t("extensions.modelConfig.multimodalTestNetwork"),
+              };
+            case "provider-unavailable":
+              return {
+                kind: "warning",
+                message: t("extensions.modelConfig.multimodalTestProviderUnavailable"),
+              };
+            case "protocol-mismatch":
+              return {
+                kind: "warning",
+                message: t("extensions.modelConfig.multimodalTestProtocolMismatch"),
+              };
+            case "model-unavailable":
+              return {
+                kind: "warning",
+                message: t("extensions.modelConfig.multimodalTestModelUnavailable"),
+              };
+            case "invalid-image":
+              return {
+                kind: "warning",
+                message: t("extensions.modelConfig.multimodalTestInvalidImage"),
+              };
+            case "safety":
+              return {
+                kind: "warning",
+                message: t("extensions.modelConfig.multimodalTestSafety"),
+              };
+            case "provider-error":
+              return {
+                kind: "warning",
+                message: t("extensions.modelConfig.multimodalTestProviderError"),
+              };
+            default:
+              return {
+                kind: "warning",
+                message: t("extensions.modelConfig.multimodalTestInconclusive"),
+              };
+          }
+      }
+    },
+    [t],
+  );
+
+  const testModelImageInput = useCallback(
+    async (model: ModelDraft) => {
+      const provider = draft.provider.trim();
+      const modelId = model.id.trim();
+      if (testingModelKey !== undefined || !provider || !modelId) return;
+      const request = ++modelImageTestRequest.current;
+      setTestingModelKey(model.key);
+      setModelImageTestResults((current) => {
+        const next = { ...current };
+        delete next[model.key];
+        return next;
+      });
+      try {
+        try {
+          const discovery = await discoverPiModels({
+            ...modelDiscoveryPayload,
+            source: "endpoint",
+          });
+          if (request !== modelImageTestRequest.current) return;
+          const discoveredConfiguration = discoveredImageInputConfiguration(
+            modelId,
+            discovery.models,
+          );
+          if (discoveredConfiguration) {
+            updateModel(model.key, discoveredConfiguration);
+            setModelImageTestResults((current) => ({
+              ...current,
+              [model.key]: {
+                kind: discoveredConfiguration.input.includes("image") ? "success" : "warning",
+                message: t(
+                  discoveredConfiguration.input.includes("image")
+                    ? "extensions.modelConfig.multimodalMetadataSupported"
+                    : "extensions.modelConfig.multimodalMetadataUnsupported",
+                ),
+              },
+            }));
+            return;
+          }
+        } catch {
+          // Model-list metadata is an optimization. Fall back to the inference test below.
+        }
+
+        const result = await testPiModelImageInput({ provider, model: modelId });
+        if (request !== modelImageTestRequest.current) return;
+        if (result.outcome === "supported") {
+          updateModel(model.key, {
+            input: ["text", "image"],
+            imageInputSource: "test",
+          });
+        } else if (result.outcome === "unsupported") {
+          updateModel(model.key, {
+            input: ["text"],
+            imageInputSource: "test",
+          });
+        }
+        setModelImageTestResults((current) => ({
+          ...current,
+          [model.key]: modelImageTestResult(result),
+        }));
+      } catch {
+        if (request !== modelImageTestRequest.current) return;
+        setModelImageTestResults((current) => ({
+          ...current,
+          [model.key]: {
+            kind: "warning",
+            message: t("extensions.modelConfig.multimodalTestServiceUnavailable"),
+          },
+        }));
+      } finally {
+        if (request === modelImageTestRequest.current) setTestingModelKey(undefined);
+      }
+    },
+    [draft.provider, modelDiscoveryPayload, modelImageTestResult, t, testingModelKey, updateModel],
   );
 
   const updateSelectedModelIds = useCallback(
@@ -1291,6 +1508,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                                       const id = event.currentTarget.value;
                                       updateModel(model.key, {
                                         id,
+                                        name: modelNameAfterIdChange(model, id),
                                         ...(id === model.id
                                           ? {}
                                           : {
@@ -1373,6 +1591,11 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                                 onChange={(event) =>
                                   updateModel(model.key, { name: event.currentTarget.value })
                                 }
+                                onBlur={() => {
+                                  if (!model.name.trim() && model.id.trim()) {
+                                    updateModel(model.key, { name: model.id.trim() });
+                                  }
+                                }}
                               />
                               <Input
                                 inputMode="numeric"
@@ -1390,6 +1613,13 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                                   updateModel(model.key, {
                                     contextWindow,
                                   });
+                                }}
+                                onBlur={() => {
+                                  if (!model.contextWindow.trim()) {
+                                    updateModel(model.key, {
+                                      contextWindow: String(DEFAULT_MODEL_CONTEXT_WINDOW),
+                                    });
+                                  }
                                 }}
                               />
                               <CollapsibleTrigger
@@ -1502,50 +1732,73 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                                   <span className="min-w-0 text-sm font-medium">
                                     {t("extensions.modelConfig.multimodalSupport")}
                                   </span>
-                                  <DropdownMenu>
-                                    <SettingsDropdownTrigger
-                                      disabled={busy}
-                                      aria-label={t("extensions.modelConfig.multimodalSupport")}
-                                    >
-                                      <span className="min-w-0 truncate text-start">
-                                        {t(
-                                          multimodalSupportMessageKey(
-                                            model.input,
-                                            model.imageInputSource,
-                                          ),
-                                        )}
-                                      </span>
-                                      <ChevronDownIcon className="text-muted-foreground size-3.5 shrink-0" />
-                                    </SettingsDropdownTrigger>
-                                    <SettingsDropdownContent align="end" side="bottom">
-                                      <DropdownMenuRadioGroup
-                                        value={
-                                          modelTypeValue(model.input, model.imageInputSource) ?? ""
-                                        }
+                                  <div className="flex shrink-0 items-center gap-1.5">
+                                    <DropdownMenu>
+                                      <SettingsDropdownTrigger
+                                        disabled={busy || testingModelKey !== undefined}
                                         aria-label={t("extensions.modelConfig.multimodalSupport")}
-                                        onValueChange={(modelType) => {
-                                          if (modelType === "multimodal") {
-                                            updateModel(model.key, {
-                                              input: ["text", "image"],
-                                              imageInputSource: "user",
-                                            });
-                                          } else if (modelType === "text") {
-                                            updateModel(model.key, {
-                                              input: ["text"],
-                                              imageInputSource: "user",
-                                            });
-                                          }
-                                        }}
                                       >
-                                        <SettingsDropdownRadioItem value="multimodal">
-                                          {t("extensions.modelConfig.multimodalSupported")}
-                                        </SettingsDropdownRadioItem>
-                                        <SettingsDropdownRadioItem value="text">
-                                          {t("extensions.modelConfig.multimodalUnsupported")}
-                                        </SettingsDropdownRadioItem>
-                                      </DropdownMenuRadioGroup>
-                                    </SettingsDropdownContent>
-                                  </DropdownMenu>
+                                        <span className="min-w-0 truncate text-start">
+                                          {t(
+                                            multimodalSupportMessageKey(
+                                              model.input,
+                                              model.imageInputSource,
+                                            ),
+                                          )}
+                                        </span>
+                                        <ChevronDownIcon className="text-muted-foreground size-3.5 shrink-0" />
+                                      </SettingsDropdownTrigger>
+                                      <SettingsDropdownContent align="end" side="bottom">
+                                        <DropdownMenuRadioGroup
+                                          value={
+                                            modelTypeValue(model.input, model.imageInputSource) ??
+                                            ""
+                                          }
+                                          aria-label={t("extensions.modelConfig.multimodalSupport")}
+                                          onValueChange={(modelType) => {
+                                            if (modelType === "multimodal") {
+                                              updateModel(model.key, {
+                                                input: ["text", "image"],
+                                                imageInputSource: "user",
+                                              });
+                                            } else if (modelType === "text") {
+                                              updateModel(model.key, {
+                                                input: ["text"],
+                                                imageInputSource: "user",
+                                              });
+                                            }
+                                          }}
+                                        >
+                                          <SettingsDropdownRadioItem value="multimodal">
+                                            {t("extensions.modelConfig.multimodalSupported")}
+                                          </SettingsDropdownRadioItem>
+                                          <SettingsDropdownRadioItem value="text">
+                                            {t("extensions.modelConfig.multimodalUnsupported")}
+                                          </SettingsDropdownRadioItem>
+                                        </DropdownMenuRadioGroup>
+                                      </SettingsDropdownContent>
+                                    </DropdownMenu>
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="outline"
+                                      className="rounded-full"
+                                      disabled={
+                                        busy ||
+                                        testingModelKey !== undefined ||
+                                        !draft.provider.trim() ||
+                                        !model.id.trim()
+                                      }
+                                      aria-label={t("extensions.modelConfig.testMultimodal", {
+                                        name: model.name || model.id,
+                                      })}
+                                      onClick={() => void testModelImageInput(model)}
+                                    >
+                                      {testingModelKey === model.key
+                                        ? t("extensions.modelConfig.testingMultimodal")
+                                        : t("extensions.modelConfig.testMultimodalShort")}
+                                    </Button>
+                                  </div>
                                 </div>
                                 <div className="flex min-h-14 items-center justify-between gap-3 rounded-md border px-3 py-2">
                                   <span className="min-w-0 text-sm font-medium">
@@ -1562,6 +1815,27 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                                   />
                                 </div>
                               </div>
+                              <p className="text-muted-foreground mt-2 text-xs">
+                                {t("extensions.modelConfig.multimodalTestHint")}
+                              </p>
+                              {modelImageTestResults[model.key] ? (
+                                <p
+                                  className={
+                                    modelImageTestResults[model.key].kind === "error"
+                                      ? "text-destructive mt-1.5 text-sm"
+                                      : modelImageTestResults[model.key].kind === "warning"
+                                        ? "mt-1.5 text-sm text-amber-700 dark:text-amber-300"
+                                        : "mt-1.5 text-sm text-emerald-700 dark:text-emerald-300"
+                                  }
+                                  role={
+                                    modelImageTestResults[model.key].kind === "error"
+                                      ? "alert"
+                                      : "status"
+                                  }
+                                >
+                                  {modelImageTestResults[model.key].message}
+                                </p>
+                              ) : null}
                             </CollapsibleContent>
                           </Collapsible>
                           {!model.id.trim() ? (
@@ -1635,7 +1909,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
             type="button"
             variant="outline"
             className="rounded-full"
-            disabled={busy || configLoading || testingProvider}
+            disabled={busy || configLoading || testingProvider || testingModelKey !== undefined}
             onClick={() => void testCurrentProvider()}
           >
             {testingProvider
@@ -1649,6 +1923,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
               busy ||
               configLoading ||
               testingProvider ||
+              testingModelKey !== undefined ||
               !draft.provider ||
               (customProviderMode && !draft.baseURL.trim())
             }

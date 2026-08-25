@@ -493,7 +493,7 @@ export const extensionsEnUS = {
     modelName: "Display name",
     contextWindow: "Context window",
     maxOutputTokens: "Maximum output tokens",
-    maxOutputTokensOff: "Off",
+    maxOutputTokensUnset: "Not set",
     editMaxOutputTokens: "Edit maximum output tokens",
     modelType: "Model type",
     thinkingModel: "Thinking model",
@@ -510,6 +510,50 @@ export const extensionsEnUS = {
     multimodalSupport: "Multimodal support",
     multimodalSupported: "Supported",
     multimodalUnsupported: "Not supported",
+    testMultimodal: ({ name }: { name: string }) => `Test image input for ${name || "this model"}`,
+    testMultimodalShort: "Test",
+    testingMultimodal: "Testing…",
+    multimodalTestHint:
+      "Checks provider model metadata first. Only when metadata is unknown does it send a small image using the saved configuration, which may incur a small charge.",
+    multimodalMetadataSupported:
+      "Provider model metadata confirms image input support. Save to keep this result.",
+    multimodalMetadataUnsupported:
+      "Provider model metadata confirms image input is not supported. Save to keep this result.",
+    multimodalTestSupported: "Image input verified. Save to keep this result.",
+    multimodalTestUnsupported:
+      "The provider explicitly rejected image input. Save to keep this result.",
+    multimodalTestSaveFirst:
+      "This model is not in the saved runtime configuration. Save it, reopen the provider, and test again.",
+    multimodalTestRuntimeUnavailable:
+      "The current model runtime cannot run an image-input capability test.",
+    multimodalTestUnexpectedResponse:
+      "The model responded but did not read the test image reliably. The current setting was not changed.",
+    multimodalTestAuthentication:
+      "Authentication failed. Save a valid API key or sign in to this provider, then try again; the current setting was not changed.",
+    multimodalTestQuotaExceeded:
+      "The provider reports insufficient credits, balance, or quota. The current setting was not changed.",
+    multimodalTestRateLimited:
+      "The provider rate-limited the image test. Wait a moment and try again; the current setting was not changed.",
+    multimodalTestTimeout:
+      "The image test timed out before the model returned a result. Try again; the current setting was not changed.",
+    multimodalTestNetwork:
+      "The image test could not connect to the provider. Check the API address and network; the current setting was not changed.",
+    multimodalTestProviderUnavailable:
+      "The provider is temporarily unavailable or overloaded. Try again later; the current setting was not changed.",
+    multimodalTestProtocolMismatch:
+      "The provider does not recognize the standard image request fields for the selected protocol. Choose the API protocol that matches this endpoint; the current setting was not changed.",
+    multimodalTestModelUnavailable:
+      "The provider could not find or route this model ID. Refresh the model list or check the model ID; the current setting was not changed.",
+    multimodalTestInvalidImage:
+      "The provider could not decode the built-in RGB PNG test image. The current setting was not changed.",
+    multimodalTestSafety:
+      "The provider blocked the image test with a safety or content filter. The current setting was not changed.",
+    multimodalTestProviderError:
+      "The provider rejected the image test without explicitly reporting that image input is unsupported. Check the selected protocol and model ID; the current setting was not changed.",
+    multimodalTestInconclusive:
+      "The test could not confirm image support. Check authentication, network access, or rate limits and try again; the current setting was not changed.",
+    multimodalTestServiceUnavailable:
+      "The image-input test could not reach the local model service. The current setting was not changed.",
     modelTypeMultimodal: "Multimodal",
     modelTypeText: "Text",
     modelTypeUnknown: "Unknown",
@@ -522,7 +566,7 @@ export const extensionsEnUS = {
     testProvider: "Test",
     testingProvider: "Testing…",
     testProviderHint:
-      "Tests the API key and every configured model ID without sending an inference request.",
+      "The provider test below checks the API key and configured model IDs without sending an inference request.",
     testProviderSucceeded: ({ count }: { count: number }, { number }: MessageFormatters) =>
       `API key is valid · all ${number(count)} configured ${count === 1 ? "model is" : "models are"} available.`,
     testProviderNoConfiguredModels:

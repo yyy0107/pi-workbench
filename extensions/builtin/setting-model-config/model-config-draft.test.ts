@@ -4,10 +4,13 @@ import test from "node:test";
 import type { ConfigurableProviderView } from "@/runtime/pi/rpc-contracts";
 
 import {
+  DEFAULT_MODEL_CONTEXT_WINDOW,
+  discoveredImageInputConfiguration,
   emptyDraft,
   emptyModel,
   evaluateProviderModelAvailability,
   formatCapacity,
+  modelNameAfterIdChange,
   normalizeContextWindowInput,
   parseCapacity,
   prepareProviderConfiguration,
@@ -66,6 +69,29 @@ test("normalizes context-window drafts to decimal digits", () => {
   assert.equal(normalizeContextWindowInput("1M"), "1000000");
   assert.equal(normalizeContextWindowInput("1.5K"), "1500");
   assert.equal(normalizeContextWindowInput("12invalid34"), "1234");
+});
+
+test("defaults a missing model display name to its ID", () => {
+  assert.equal(toModelDraft({ id: "model-without-name" }).name, "model-without-name");
+  assert.equal(
+    toModelDraft({ id: "model-with-blank-name", name: "  " }).name,
+    "model-with-blank-name",
+  );
+});
+
+test("defaults a missing model context window to Pi's custom-model fallback", () => {
+  assert.equal(DEFAULT_MODEL_CONTEXT_WINDOW, 128_000);
+  assert.equal(emptyModel().contextWindow, "128000");
+  assert.equal(toModelDraft({ id: "model-without-capacity" }).contextWindow, "128000");
+});
+
+test("keeps an ID-backed display name synchronized without replacing a custom name", () => {
+  assert.equal(modelNameAfterIdChange({ id: "old-id", name: "old-id" }, "new-id"), "new-id");
+  assert.equal(modelNameAfterIdChange({ id: "old-id", name: "" }, "new-id"), "new-id");
+  assert.equal(
+    modelNameAfterIdChange({ id: "old-id", name: "Custom display name" }, "new-id"),
+    "Custom display name",
+  );
 });
 
 test("converts configured models and providers into editable drafts", () => {
@@ -156,6 +182,46 @@ test("checks every unique configured model ID against the provider model listing
   );
 });
 
+test("uses decisive provider discovery metadata for image-input configuration", () => {
+  const availableModels = [
+    {
+      id: " vision-model ",
+      imageInput: "supported" as const,
+      imageInputSource: "provider-api" as const,
+    },
+    {
+      id: "text-model",
+      imageInput: "unsupported" as const,
+      imageInputSource: "runtime" as const,
+    },
+    { id: "unknown-model", imageInput: "unknown" as const },
+  ];
+
+  assert.deepEqual(discoveredImageInputConfiguration("vision-model", availableModels), {
+    input: ["text", "image"],
+    imageInputSource: "provider-api",
+  });
+  assert.deepEqual(discoveredImageInputConfiguration(" text-model ", availableModels), {
+    input: ["text"],
+    imageInputSource: "runtime",
+  });
+  assert.equal(discoveredImageInputConfiguration("unknown-model", availableModels), undefined);
+  assert.equal(discoveredImageInputConfiguration("missing-model", availableModels), undefined);
+  assert.equal(discoveredImageInputConfiguration("", availableModels), undefined);
+});
+
+test("labels decisive endpoint metadata without an explicit source as provider metadata", () => {
+  assert.deepEqual(
+    discoveredImageInputConfiguration("vision-model", [
+      { id: "vision-model", imageInput: "supported" },
+    ]),
+    {
+      input: ["text", "image"],
+      imageInputSource: "provider-api",
+    },
+  );
+});
+
 test("normalizes a custom provider draft into the existing configuration payload", () => {
   const draft: ProviderDraft = {
     ...validCustomDraft(),
@@ -201,7 +267,12 @@ test("normalizes a custom provider draft into the existing configuration payload
           input: ["text", "image"],
           imageInputSource: "provider-api",
         },
-        { id: "text-model", input: ["text"], imageInputSource: "runtime" },
+        {
+          id: "text-model",
+          contextWindow: 128_000,
+          input: ["text"],
+          imageInputSource: "runtime",
+        },
       ],
     },
   });
@@ -241,7 +312,7 @@ test("does not submit legacy image-input values without capability provenance", 
       configuration: {
         baseURL: "https://api.example.test/v1",
         api: "openai-completions",
-        models: [{ id: "legacy-vision-model" }],
+        models: [{ id: "legacy-vision-model", contextWindow: 128_000 }],
       },
     },
   );
@@ -268,6 +339,7 @@ test("submits an explicitly selected model type with user provenance", () => {
         models: [
           {
             id: "selected-vision-model",
+            contextWindow: 128_000,
             input: ["text", "image"],
             imageInputSource: "user",
           },

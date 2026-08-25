@@ -1,5 +1,6 @@
 import type {
   ConfigurableProviderView,
+  DiscoveredModel,
   ModelProviderConfiguration,
   ModelProviderConfigValue,
   ModelProviderModelConfiguration,
@@ -13,6 +14,9 @@ export const MODEL_PROVIDER_APIS = [
 ] as const;
 
 export type ModelProviderApi = (typeof MODEL_PROVIDER_APIS)[number];
+
+/** Pi's fallback for custom model definitions without an explicit context window. */
+export const DEFAULT_MODEL_CONTEXT_WINDOW = 128_000;
 
 export interface ModelDraft {
   key: number;
@@ -45,6 +49,11 @@ export interface ProviderDraft {
 export interface ProviderModelAvailability {
   configuredModelIds: string[];
   unavailableModelIds: string[];
+}
+
+export interface DiscoveredImageInputConfiguration {
+  input: Array<"text" | "image">;
+  imageInputSource: NonNullable<ModelProviderModelConfiguration["imageInputSource"]>;
 }
 
 export type ProviderDraftError =
@@ -83,12 +92,22 @@ export function normalizeContextWindowInput(value: string): string {
   return capacity === undefined ? normalized.replace(/\D+/gu, "") : String(capacity);
 }
 
+export function modelNameAfterIdChange(
+  model: Pick<ModelDraft, "id" | "name">,
+  nextId: string,
+): string {
+  const currentName = model.name.trim();
+  return !currentName || currentName === model.id.trim() ? nextId.trim() : model.name;
+}
+
 export function toModelDraft(model: ModelProviderModelConfiguration, expanded = false): ModelDraft {
   return {
     key: nextModelKey++,
     id: model.id,
-    name: model.name ?? "",
-    contextWindow: normalizeContextWindowInput(String(model.contextWindow ?? "")),
+    name: model.name?.trim() || model.id,
+    contextWindow: normalizeContextWindowInput(
+      String(model.contextWindow ?? DEFAULT_MODEL_CONTEXT_WINDOW),
+    ),
     maxTokens: formatCapacity(model.maxTokens),
     reasoning: model.reasoning ?? false,
     ...(model.thinkingLevelMap ? { thinkingLevelMap: { ...model.thinkingLevelMap } } : {}),
@@ -151,6 +170,22 @@ export function evaluateProviderModelAvailability(
   return { configuredModelIds, unavailableModelIds };
 }
 
+export function discoveredImageInputConfiguration(
+  modelId: string,
+  availableModels: readonly DiscoveredModel[],
+): DiscoveredImageInputConfiguration | undefined {
+  const normalizedModelId = modelId.trim();
+  if (!normalizedModelId) return undefined;
+
+  const discovered = availableModels.find(({ id }) => id.trim() === normalizedModelId);
+  if (!discovered || discovered.imageInput === "unknown") return undefined;
+
+  return {
+    input: discovered.imageInput === "supported" ? ["text", "image"] : ["text"],
+    imageInputSource: discovered.imageInputSource ?? "provider-api",
+  };
+}
+
 export function toProviderDraft(
   provider: ConfigurableProviderView,
   configuration: ModelProviderConfigValue,
@@ -183,20 +218,18 @@ export function prepareProviderConfiguration(draft: ProviderDraft): PreparedProv
   const models: ModelProviderModelConfiguration[] = [];
   for (const model of draft.modelsSource === "custom" ? draft.models : []) {
     const id = model.id.trim();
-    const contextWindow = model.contextWindow.trim()
-      ? parseCapacity(model.contextWindow)
-      : undefined;
+    const name = model.name.trim();
+    const rawContextWindow = model.contextWindow.trim();
+    const contextWindow = rawContextWindow
+      ? parseCapacity(rawContextWindow)
+      : DEFAULT_MODEL_CONTEXT_WINDOW;
     const maxTokens = model.maxTokens.trim() ? parseCapacity(model.maxTokens) : undefined;
-    if (
-      !id ||
-      (model.contextWindow.trim() && !contextWindow) ||
-      (model.maxTokens.trim() && !maxTokens)
-    ) {
+    if (!id || (rawContextWindow && !contextWindow) || (model.maxTokens.trim() && !maxTokens)) {
       return { ok: false, error: "invalidModel" };
     }
     models.push({
       id,
-      ...(model.name.trim() ? { name: model.name.trim() } : {}),
+      ...(name && name !== id ? { name } : {}),
       ...(contextWindow ? { contextWindow } : {}),
       ...(maxTokens ? { maxTokens } : {}),
       ...(model.reasoning
