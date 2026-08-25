@@ -191,6 +191,7 @@ export class PiMessageQueue {
   private editingWorkspaceFeedbackSuffix?: string;
   private transform: (message: AppendMessage) => AppendMessage = (message) => message;
   private syncTask: Promise<void> = Promise.resolve();
+  private disposed = false;
 
   constructor(options: PiMessageQueueOptions) {
     this.options = options;
@@ -220,9 +221,11 @@ export class PiMessageQueue {
         ),
       remove: (id) => this.mutate(id, { kind: "remove" }),
       __internal_setDispatchTransform: (transform) => {
+        if (this.disposed) return;
         this.transform = transform;
       },
       __internal_notifyCancelled: () => {
+        if (this.disposed) return;
         if (!this.editingId) return;
         this.editingId = undefined;
         this.editingWorkspaceFeedbackSuffix = undefined;
@@ -239,7 +242,25 @@ export class PiMessageQueue {
     return this.items.filter((item) => item.placement === "steering");
   }
 
+  dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
+    this.authoritativeItems = [];
+    this.items = [];
+    this.pendingEnqueues.clear();
+    this.rejectedEnqueueIds.clear();
+    this.pendingSteers.clear();
+    this.pendingRemovals.clear();
+    this.pendingOrder = undefined;
+    this.editingId = undefined;
+    this.editingWorkspaceFeedbackSuffix = undefined;
+    this.transform = (message) => message;
+    this.adapter.items = [];
+    this.adapter.steerItems = [];
+  }
+
   replaceAuthoritative(items: readonly QueueItem[]): void {
+    if (this.disposed) return;
     const nextItems = items.map((item) => structuredClone(item));
     for (const itemId of this.rejectedEnqueueIds) {
       if (!nextItems.some((item) => item.id === itemId)) this.rejectedEnqueueIds.delete(itemId);
@@ -262,12 +283,14 @@ export class PiMessageQueue {
   }
 
   setPausedFromServer(paused: boolean): void {
+    if (this.disposed) return;
     if (this.paused === paused) return;
     this.paused = paused;
     this.options.onChange();
   }
 
   beginEdit(id: string): QueueItemState | undefined {
+    if (this.disposed) return undefined;
     if (this.editingId) {
       this.editingId = undefined;
       this.editingWorkspaceFeedbackSuffix = undefined;
@@ -284,6 +307,7 @@ export class PiMessageQueue {
   }
 
   setPaused(paused: boolean): void {
+    if (this.disposed) return;
     if (this.paused === paused) return;
     const previous = this.paused;
     this.paused = paused;
@@ -296,8 +320,12 @@ export class PiMessageQueue {
       .map(promptFromQueueItem);
     this.syncTask = this.syncTask
       .catch(() => undefined)
-      .then(() => this.options.setPaused(paused, steering, followUp))
+      .then(() => {
+        if (this.disposed) return;
+        return this.options.setPaused(paused, steering, followUp);
+      })
       .catch((error) => {
+        if (this.disposed) return;
         if (this.paused === paused) {
           this.paused = previous;
           this.options.onChange();
@@ -307,6 +335,7 @@ export class PiMessageQueue {
   }
 
   private submit(mode: PiQueueMode, rawMessage: AppendMessage): void {
+    if (this.disposed) return;
     const message = this.transform(rawMessage);
     if (this.editingId) {
       const itemId = this.editingId;
@@ -336,9 +365,13 @@ export class PiMessageQueue {
     this.publish();
     this.syncTask = this.syncTask
       .catch(() => undefined)
-      .then(() => this.options.enqueue(mode, queued, optimisticId))
+      .then(() => {
+        if (this.disposed) return { queued: false };
+        return this.options.enqueue(mode, queued, optimisticId);
+      })
       .then((admission) => this.confirmEnqueue(optimisticId, admission))
       .catch((error) => {
+        if (this.disposed) return;
         this.rejectEnqueue(optimisticId);
         this.options.onEnqueueRejected?.(message, error);
         console.error(`[workbench-pi] ${mode} queue failed`, error);
@@ -346,6 +379,7 @@ export class PiMessageQueue {
   }
 
   private mutate(itemId: string, action: SessionQueueAction): void {
+    if (this.disposed) return;
     const item = this.items.find((candidate) => candidate.id === itemId);
     if (!item) return;
     if (action.kind === "remove") {
@@ -355,6 +389,7 @@ export class PiMessageQueue {
       void this.options
         .update(itemId, action)
         .then(() => {
+          if (this.disposed) return;
           this.authoritativeItems = this.authoritativeItems.filter(
             (candidate) => candidate.id !== itemId,
           );
@@ -363,6 +398,7 @@ export class PiMessageQueue {
           this.publish();
         })
         .catch((error) => {
+          if (this.disposed) return;
           this.pendingRemovals.delete(itemId);
           this.rebuildItems();
           this.publish();
@@ -380,8 +416,12 @@ export class PiMessageQueue {
     }
     this.syncTask = this.syncTask
       .catch(() => undefined)
-      .then(() => this.options.update(itemId, action))
+      .then(() => {
+        if (this.disposed) return;
+        return this.options.update(itemId, action);
+      })
       .catch((error) => {
+        if (this.disposed) return;
         if (action.kind === "steer") {
           this.pendingSteers.delete(itemId);
           this.items = this.withPendingSteers(this.authoritativeItems);
@@ -400,6 +440,7 @@ export class PiMessageQueue {
     itemId: string,
     placement: Parameters<ExternalThreadQueueAdapter["move"]>[1],
   ): void {
+    if (this.disposed) return;
     const item = this.items.find((candidate) => candidate.id === itemId);
     if (!item || item.placement !== "queued") return;
     if (placement.lane !== undefined && placement.lane !== "queue") return;
@@ -451,6 +492,7 @@ export class PiMessageQueue {
     this.syncTask = this.syncTask
       .catch(() => undefined)
       .then(() => {
+        if (this.disposed) return;
         if (!this.items.some((candidate) => candidate.id === itemId)) return;
         const orderedItems = this.applyOrder(this.items, desiredOrder);
         const steering = orderedItems
@@ -462,6 +504,7 @@ export class PiMessageQueue {
         return this.options.replace(steering, followUp);
       })
       .then(() => {
+        if (this.disposed) return;
         if (this.reorderRevision !== revision) return;
         this.authoritativeItems = this.applyOrder(this.authoritativeItems, desiredOrder);
         this.pendingOrder = undefined;
@@ -469,6 +512,7 @@ export class PiMessageQueue {
         this.publish();
       })
       .catch((error) => {
+        if (this.disposed) return;
         if (this.reorderRevision === revision) {
           this.authoritativeItems = this.applyOrder(this.authoritativeItems, previousOrder);
           this.pendingOrder = undefined;
@@ -508,6 +552,7 @@ export class PiMessageQueue {
     optimisticId: string,
     admission: { queued: boolean; queueItemId?: string },
   ): void {
+    if (this.disposed) return;
     if (!admission.queued) {
       this.pendingEnqueues.delete(optimisticId);
       this.authoritativeItems = this.authoritativeItems.filter(
@@ -541,6 +586,7 @@ export class PiMessageQueue {
   }
 
   private rejectEnqueue(optimisticId: string): void {
+    if (this.disposed) return;
     this.pendingEnqueues.delete(optimisticId);
     this.rejectedEnqueueIds.add(optimisticId);
     this.authoritativeItems = this.authoritativeItems.filter((item) => item.id !== optimisticId);
@@ -549,6 +595,7 @@ export class PiMessageQueue {
   }
 
   private rebuildItems(): void {
+    if (this.disposed) return;
     const authoritativeIds = new Set(this.authoritativeItems.map((item) => item.id));
     const pending = [...this.pendingEnqueues.values()].filter(
       (item) => !authoritativeIds.has(item.id),
@@ -564,6 +611,7 @@ export class PiMessageQueue {
   }
 
   private publish(): void {
+    if (this.disposed) return;
     this.adapter.items = this.items
       .filter((item) => item.placement === "queued" && item.id !== this.editingId)
       .map(queueItemState);

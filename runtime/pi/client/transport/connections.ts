@@ -597,6 +597,15 @@ export class PiConnectionController {
     this.sessions.delete(sessionId);
   }
 
+  /** Permanently forget all reconnect state for a deleted session. */
+  deleteSession(sessionId: string): void {
+    this.closeSession(sessionId);
+    this.sessionWatermarks.delete(sessionId);
+    this.sessionMessageAccumulators.delete(sessionId);
+    this.endedSessionMessageStreams.delete(sessionId);
+    this.running.delete(sessionId);
+  }
+
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
@@ -613,8 +622,11 @@ export class PiConnectionController {
       if (connection.closeTimer !== undefined) this.timers.clearTimeout(connection.closeTimer);
     }
     this.sessions.clear();
+    this.sessionWatermarks.clear();
     this.sessionMessageAccumulators.clear();
     this.endedSessionMessageStreams.clear();
+    this.running.clear();
+    this.runningListener = undefined;
     for (const waiter of this.readyWaiters) {
       if (waiter.timer !== undefined) this.timers.clearTimeout(waiter.timer);
       waiter.resolve();

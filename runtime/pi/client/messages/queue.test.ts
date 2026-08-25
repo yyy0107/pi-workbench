@@ -139,6 +139,20 @@ test("publishes a follow-up immediately and lets the authoritative snapshot adop
   );
 });
 
+test("dispose releases queue payloads and ignores late authoritative snapshots", () => {
+  const { queue } = harness();
+  queue.replaceAuthoritative([queuedImage("queue-1", "one", "large.png")]);
+  assert.equal(queue.adapter.items.length, 1);
+
+  queue.dispose();
+  queue.replaceAuthoritative([queued("queue-2", "two")]);
+  queue.adapter.enqueue(message("late"));
+
+  assert.deepEqual(queue.adapter.items, []);
+  assert.deepEqual(queue.adapter.steerItems, []);
+  assert.equal(queue.beginEdit("queue-1"), undefined);
+});
+
 test("preserves an image filename in the optimistic queue item and submitted prompt", async () => {
   const { queue, calls } = harness();
 
