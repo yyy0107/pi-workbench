@@ -53,6 +53,7 @@ import {
   deletePiWorkspace,
   fetchPiRpcSessionHistory,
   forkPiRpcSession,
+  insertPiSessionBefore,
   insertPiWorkspaceBefore,
   listPiArchivedWorkspaceSessions,
   listPiRpcSessions,
@@ -1394,15 +1395,27 @@ export class PiClientSession {
         (message) =>
           !baseMessageIds.has(message.id) && isAttachmentRecognitionOnlyAssistant(message),
       );
-      this.baseMessages = projectedBaseMessages.filter((message) => baseMessageIds.has(message.id));
-      this.liveMessages = upsertAttachmentRecognitionInMessages(this.liveMessages, next);
-      const liveHasStatus = this.liveMessages.some(
+      const projectedLiveMessages = upsertAttachmentRecognitionInMessages(this.liveMessages, next);
+      const liveStatus = projectedLiveMessages.find(
         (message) =>
           message.role === "assistant" &&
           attachmentRecognitionSnapshotFromMessage(message)?.operationId === next.operationId,
       );
-      if (detachedBaseStatus && !liveHasStatus) {
-        this.liveMessages.unshift(detachedBaseStatus);
+      if (detachedBaseStatus && (!liveStatus || isAttachmentRecognitionOnlyAssistant(liveStatus))) {
+        // A status projected from an older base user has to remain interleaved with that base
+        // history. Moving it into liveMessages puts it after every base turn, where consecutive
+        // assistant coalescing can incorrectly attach it to the currently streaming response.
+        this.baseMessages = projectedBaseMessages;
+        this.liveMessages = projectedLiveMessages.filter(
+          (message) =>
+            !isAttachmentRecognitionOnlyAssistant(message) ||
+            attachmentRecognitionSnapshotFromMessage(message)?.operationId !== next.operationId,
+        );
+      } else {
+        this.baseMessages = projectedBaseMessages.filter((message) =>
+          baseMessageIds.has(message.id),
+        );
+        this.liveMessages = projectedLiveMessages;
       }
     }
     this.publishMessages();
@@ -1994,6 +2007,7 @@ export class PiSessionManager {
     return {
       piRunning: summary.running,
       piPinned: this.pinned.has(remoteId),
+      piCreatedAt: summary.created,
       piWorkspaceId: workspace?.workspaceId ?? summary.workspace.id,
       piWorkspaceName: workspace?.title ?? summary.workspace.name,
       piWorkspaceCwd: workspace?.path ?? summary.workspace.cwd,
@@ -2588,6 +2602,24 @@ export class PiSessionManager {
     for (const [reorderedWorkspaceId, workspace] of reordered) {
       this.workspaces.set(reorderedWorkspaceId, workspace);
     }
+    this.notify();
+  }
+
+  async moveWorkspaceSessionBefore(
+    workspaceId: string,
+    sessionId: string,
+    beforeSessionId?: string,
+  ): Promise<void> {
+    const remoteSessionId = this.aliases.get(sessionId) ?? sessionId;
+    const remoteBeforeSessionId = beforeSessionId
+      ? (this.aliases.get(beforeSessionId) ?? beforeSessionId)
+      : undefined;
+    this.workspaceGeneration += 1;
+    const result = await insertPiSessionBefore(workspaceId, remoteSessionId, remoteBeforeSessionId);
+    this.workspaceGeneration += 1;
+    const current = this.workspaces.get(workspaceId);
+    if (workspaceViewsEqual(current, result.workspace)) return;
+    this.workspaces.set(workspaceId, result.workspace);
     this.notify();
   }
 

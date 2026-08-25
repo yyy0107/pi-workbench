@@ -296,7 +296,15 @@ function updateAttachmentRecognitionInMessages(
   }
   const resolvedUser =
     updated[userIndex]?.metadata.custom.workbenchComposerProjectionResolved === true;
-  const insertionIndex = resolvedUser ? userIndex + 1 : updated.length;
+  const hasLaterUser = updated.some(
+    (message, index) => index > userIndex && message.role === "user",
+  );
+  // An unresolved Composer marker normally stays at the chronological tail until Pi publishes
+  // its canonical user event. If a later user turn already exists, however, this recognition
+  // operation can no longer belong at the tail: doing so places the old status beside (and then
+  // coalesces it into) the newer assistant response. Keep stale terminal/history updates anchored
+  // to their originating user turn even when that turn never produced a canonical Pi user event.
+  const insertionIndex = resolvedUser || hasLaterUser ? userIndex + 1 : updated.length;
   updated = [...updated];
   updated.splice(insertionIndex, 0, attachmentRecognitionAssistantMessage(incoming));
   return updated;

@@ -385,6 +385,83 @@ test("folds attachment recognition into the assistant message and preserves imag
   );
 });
 
+test("keeps a failed recognition on its unresolved originating turn when newer turns exist", () => {
+  const history: PiSessionHistory = {
+    sessionId: "session",
+    context: {
+      entryIds: ["old-composer", "old-recognition", "current-user", "current-assistant"],
+      thinkingLevel: "off",
+      model: null,
+      messages: [
+        {
+          role: "custom",
+          customType: WORKBENCH_COMPOSER_USER_CUSTOM_TYPE,
+          content: "",
+          display: false,
+          details: {
+            version: 2,
+            submissionId: "old-attachment-submission",
+            sourceText: "Read the old attachment",
+            text: "Read the old attachment",
+            document: [{ type: "text", text: "Read the old attachment" }],
+            commands: [],
+            status: "accepted",
+          },
+          timestamp: 1_000,
+        },
+        {
+          role: "custom",
+          customType: WORKBENCH_ATTACHMENT_RECOGNITION_CUSTOM_TYPE,
+          content: "",
+          display: true,
+          details: {
+            version: 1,
+            operationId: "old-attachment-operation",
+            submissionId: "old-attachment-submission",
+            rpcId: "old-attachment-rpc",
+            revision: 2,
+            status: "failed",
+            method: "ocr",
+            providerId: "paddleocr",
+            attachmentCount: 1,
+            completedCount: 0,
+            progress: 0,
+            errorCode: "provider-invalid-response",
+            timestamps: { createdAt: 1_000, updatedAt: 1_100, completedAt: 1_100 },
+          },
+          timestamp: 1_100,
+        },
+        { role: "user", content: "A newer text-only turn", timestamp: 2_000 },
+        {
+          role: "assistant",
+          content: [{ type: "text", text: "The current answer" }],
+          timestamp: 3_000,
+        },
+      ],
+    },
+  };
+
+  const projected = piHistoryToThreadMessages(history);
+  assert.deepEqual(
+    projected.map((message) => message.role),
+    ["user", "assistant", "user", "assistant"],
+  );
+  assert.equal(projected[1]?.id, "workbench-attachment-recognition:old-attachment-operation");
+  assert.equal(
+    projected[1]?.content.some(
+      (part) => part.type === "data" && part.name === WORKBENCH_ATTACHMENT_RECOGNITION_DATA_NAME,
+    ),
+    true,
+  );
+  assert.equal(
+    projected[3]?.content.some(
+      (part) => part.type === "data" && part.name === WORKBENCH_ATTACHMENT_RECOGNITION_DATA_NAME,
+    ),
+    false,
+    "the old OCR failure must not be merged into the newer assistant response",
+  );
+});
+
 test("renders token-only Composer source text in its optimistic user bubble", () => {
   const sourceText = ":pi-command[compact|Compact] ";
   const command = {

@@ -2124,6 +2124,56 @@ test("reconciles an interrupted image-recognition operation when a session reope
   });
 });
 
+test("lists sessions by creation time instead of modified activity", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-session-creation-order-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+  process.env.PI_CODING_AGENT_DIR = path.join(root, "agent");
+  t.after(() => {
+    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+  });
+
+  const originalListAll = SessionManager.listAll;
+  Object.defineProperty(SessionManager, "listAll", {
+    configurable: true,
+    value: async () => [
+      {
+        path: path.join(root, "older-active.jsonl"),
+        id: "older-active",
+        cwd: root,
+        created: new Date("2026-01-01T00:00:00.000Z"),
+        modified: new Date("2026-03-01T00:00:00.000Z"),
+        messageCount: 2,
+        firstMessage: "older but active",
+        allMessagesText: "older but active",
+      },
+      {
+        path: path.join(root, "newer-idle.jsonl"),
+        id: "newer-idle",
+        cwd: root,
+        created: new Date("2026-02-01T00:00:00.000Z"),
+        modified: new Date("2026-02-01T00:00:00.000Z"),
+        messageCount: 0,
+        firstMessage: "",
+        allMessagesText: "",
+      },
+    ],
+  });
+  t.after(() => {
+    Object.defineProperty(SessionManager, "listAll", {
+      configurable: true,
+      value: originalListAll,
+    });
+  });
+
+  const listed = await listSessions();
+  assert.deepEqual(
+    listed.sessions.map((session) => session.id),
+    ["newer-idle", "older-active"],
+  );
+});
+
 test("coalesces the initial scan and incrementally refreshes changed files", async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), "workbench-session-cache-"));
   t.after(() => rm(root, { recursive: true, force: true }));

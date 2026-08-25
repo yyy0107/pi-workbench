@@ -3442,7 +3442,7 @@ export async function listSessions(): Promise<{
   }
   return {
     sessions: [...summaries.values()].sort((left, right) =>
-      right.modified.localeCompare(left.modified),
+      right.created.localeCompare(left.created),
     ),
     runningSessionIds: runningIds,
   };

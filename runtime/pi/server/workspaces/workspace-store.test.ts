@@ -343,6 +343,13 @@ test("prepends attached sessions, reorders them locally, and archives globally",
   assert.deepEqual(reordered.workspace.sessionIds, ["session-d", "session-b", "session-a"]);
   const appended = await store.insertSessionBefore(alphaWorkspace.workspaceId, "session-d");
   assert.deepEqual(appended.workspace.sessionIds, ["session-b", "session-a", "session-d"]);
+  const reloadedAfterReorder = new WorkspaceStore(files.stateFile);
+  assert.deepEqual(
+    (await reloadedAfterReorder.list()).items.find(
+      (workspace) => workspace.workspaceId === alphaWorkspace.workspaceId,
+    )?.sessionIds,
+    ["session-b", "session-a", "session-d"],
+  );
   await expectStoreError(
     store.insertSessionBefore(betaWorkspace.workspaceId, "session-b", "session-c"),
     "workspace-move-invalid",

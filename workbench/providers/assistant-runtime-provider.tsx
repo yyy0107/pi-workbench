@@ -142,6 +142,7 @@ function ActivePiThreadTracker({ manager }: { manager: PiSessionManager }) {
       const changed = [
         "piRunning",
         "piPinned",
+        "piCreatedAt",
         "piWorkspaceId",
         "piWorkspaceName",
         "piWorkspaceCwd",
@@ -150,6 +151,7 @@ function ActivePiThreadTracker({ manager }: { manager: PiSessionManager }) {
       const {
         piRunning: _piRunning,
         piPinned: _piPinned,
+        piCreatedAt: _piCreatedAt,
         piWorkspaceId: _piWorkspaceId,
         piWorkspaceName: _piWorkspaceName,
         piWorkspaceCwd: _piWorkspaceCwd,

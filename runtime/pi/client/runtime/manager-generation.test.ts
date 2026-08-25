@@ -776,7 +776,8 @@ test("persists conversation and workspace pins through workspace RPC", async (t)
       { workspaceId: string; title: string; path: string; sessionIds: string[] }
     >;
   };
-  internals.setSummary(summary());
+  const remoteSummary = summary();
+  internals.setSummary(remoteSummary);
   internals.workspaces.set("workspace-1", {
     workspaceId: "workspace-1",
     title: "Workspace",
@@ -800,6 +801,7 @@ test("persists conversation and workspace pins through workspace RPC", async (t)
     },
   ]);
   assert.equal(manager.getThreadCustom("remote-session")?.piPinned, true);
+  assert.equal(manager.getThreadCustom("remote-session")?.piCreatedAt, remoteSummary.created);
   assert.equal(manager.getWorkspaces()[0]?.pinned, true);
 });
 
@@ -1950,6 +1952,127 @@ test("keeps a late attachment-recognition event on its original turn", (t) => {
     untouchedCurrent?.content.some((part) => part.type === "data"),
     false,
     "a late event from the previous prompt must not appear in the current assistant turn",
+  );
+});
+
+test("keeps a late failed recognition before a newer attachment-free running turn", (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("local-session", "remote-session");
+  const originalUser: ThreadMessage = {
+    id: "failed-attachment-user",
+    role: "user",
+    content: [{ type: "text", text: "Read the old attachment" }],
+    attachments: [],
+    createdAt: new Date(1_000),
+    metadata: {
+      custom: {
+        workbenchComposerSubmissionId: "failed-attachment-submission",
+        workbenchComposerProjectionResolved: true,
+        workbenchPromptRpcId: "failed-attachment-rpc",
+      },
+    },
+  };
+  const currentUser: ThreadMessage = {
+    id: "attachment-free-user",
+    role: "user",
+    content: [{ type: "text", text: "This turn has no attachment" }],
+    attachments: [],
+    createdAt: new Date(2_000),
+    metadata: {
+      custom: {
+        workbenchComposerSubmissionId: "attachment-free-submission",
+        workbenchComposerProjectionResolved: true,
+        workbenchPromptRpcId: "attachment-free-rpc",
+      },
+    },
+  };
+  const currentAssistant: ThreadMessage = {
+    id: "attachment-free-assistant",
+    role: "assistant",
+    content: [{ type: "text", text: "Current answer", status: { type: "running" } }],
+    status: { type: "running" },
+    createdAt: new Date(2_000),
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      steps: [],
+      custom: { workbenchPromptRpcId: "attachment-free-rpc" },
+      isOptimistic: true,
+    },
+  };
+  const internals = session as unknown as {
+    baseMessages: ThreadMessage[];
+    baseMessageRepository: {
+      headId: string | null;
+      messages: Array<{ message: ThreadMessage; parentId: string | null }>;
+    };
+    liveMessages: ThreadMessage[];
+    streamingMessage?: ThreadMessage;
+    localRunLeaseActive: boolean;
+    handleEvent(event: PiEvent): void;
+    publishMessagesAndSetRunning(running: boolean): void;
+  };
+  internals.baseMessages = [originalUser, currentUser];
+  internals.baseMessageRepository = {
+    headId: currentUser.id,
+    messages: [
+      { message: originalUser, parentId: null },
+      { message: currentUser, parentId: originalUser.id },
+    ],
+  };
+  internals.liveMessages = [];
+  internals.streamingMessage = currentAssistant;
+  internals.localRunLeaseActive = true;
+  internals.publishMessagesAndSetRunning(true);
+
+  internals.handleEvent({
+    type: "message",
+    sequence: 0,
+    role: "custom",
+    customType: "workbench.attachment-recognition.v1",
+    content: "",
+    display: true,
+    details: {
+      version: 1,
+      operationId: "failed-attachment-operation",
+      submissionId: "failed-attachment-submission",
+      rpcId: "failed-attachment-rpc",
+      revision: 2,
+      status: "failed",
+      method: "ocr",
+      providerId: "paddleocr",
+      attachmentCount: 1,
+      completedCount: 0,
+      progress: 0,
+      errorCode: "provider-invalid-response",
+      timestamps: { createdAt: 1_000, updatedAt: 2_100, completedAt: 2_100 },
+    },
+    timestamp: 2_100,
+  });
+
+  const messages = session.getSnapshot().messages;
+  const recognitionIndex = messages.findIndex(
+    (message) =>
+      message.role === "assistant" &&
+      message.content.some(
+        (part) =>
+          part.type === "data" &&
+          typeof part.data === "object" &&
+          part.data !== null &&
+          "operationId" in part.data &&
+          part.data.operationId === "failed-attachment-operation",
+      ),
+  );
+  const currentUserIndex = messages.findIndex((message) => message.id === currentUser.id);
+  const untouchedCurrent = messages.find((message) => message.id === currentAssistant.id);
+  assert.equal(recognitionIndex, 1);
+  assert.equal(currentUserIndex, 2);
+  assert.equal(
+    untouchedCurrent?.content.some((part) => part.type === "data"),
+    false,
+    "the previous OCR failure must not appear in the attachment-free assistant turn",
   );
 });
 
