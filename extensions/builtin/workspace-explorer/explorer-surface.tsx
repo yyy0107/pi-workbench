@@ -13,6 +13,8 @@ import {
   fileWorkspaceService as files,
   type FileNode,
 } from "@/services/workspace-file-service";
+import { listPiSkillFiles } from "@/runtime/pi/client/transport/api";
+import type { SkillFileEntry } from "@/runtime/pi/rpc-contracts";
 
 import {
   useActiveWorkspaceSurface,
@@ -22,14 +24,40 @@ import {
 
 const DIRECTORY_REFRESH_INTERVAL_MS = 2_000;
 
-export interface ExplorerSurfaceParams extends Record<string, unknown> {
+export interface WorkspaceExplorerSurfaceParams extends Record<string, unknown> {
+  source?: "workspace";
   rootPath: string;
 }
 
+export interface SkillExplorerSurfaceParams extends Record<string, unknown> {
+  source: "skill";
+  rootPath: string;
+  sessionId: string;
+  skillName: string;
+}
+
+export type ExplorerSurfaceParams = WorkspaceExplorerSurfaceParams | SkillExplorerSurfaceParams;
+
 type RootLoadState =
-  | { status: "loading"; nodes: readonly FileNode[] }
-  | { status: "ready"; nodes: readonly FileNode[] }
-  | { status: "error"; nodes: readonly FileNode[] };
+  | { status: "loading"; rootPath: string; nodes: readonly FileNode[] }
+  | { status: "ready"; rootPath: string; nodes: readonly FileNode[] }
+  | { status: "error"; rootPath: string; nodes: readonly FileNode[] };
+
+function skillEntryPath(rootPath: string, relativePath: string): string {
+  const normalizedRoot = rootPath.replaceAll("\\", "/").replace(/\/+$/, "");
+  return relativePath ? `${normalizedRoot}/${relativePath}` : normalizedRoot;
+}
+
+function skillFileNode(rootPath: string, entry: SkillFileEntry): FileNode {
+  return {
+    path: skillEntryPath(rootPath, entry.relativePath),
+    relativePath: entry.relativePath,
+    name: entry.name,
+    kind: entry.kind,
+    hidden: entry.hidden,
+    ...(entry.symbolicLink ? { symbolicLink: true } : {}),
+  };
+}
 
 function updateTruncatedPath(
   current: ReadonlySet<string>,
@@ -56,12 +84,15 @@ export function ExplorerSurface({
   const rootRequest = useRef(0);
   const [filter, setFilter] = useState("");
   const [openError, setOpenError] = useState<string>();
+  const [selectedSkillPath, setSelectedSkillPath] = useState<string>();
   const [treeRefreshToken, setTreeRefreshToken] = useState(0);
   const [truncatedPaths, setTruncatedPaths] = useState<ReadonlySet<string>>(() => new Set());
   const [rootState, setRootState] = useState<RootLoadState>({
     status: "loading",
+    rootPath: surface.params.rootPath,
     nodes: [],
   });
+  const skillParams = surface.params.source === "skill" ? surface.params : undefined;
   const fileContext = useMemo(
     () => fileWorkspaceContext(surface.scope, context),
     [context.projectId, context.rootPath, context.worktreeId, surface.scope],
@@ -74,32 +105,52 @@ export function ExplorerSurface({
     async (mode: "foreground" | "background" = "foreground") => {
       const request = ++rootRequest.current;
       if (mode === "foreground") {
-        setRootState((current) => ({ status: "loading", nodes: current.nodes }));
+        setRootState((current) => ({ ...current, status: "loading" }));
       }
       try {
-        const listing = await files.listDirectory(fileContext, "");
+        let rootPath: string;
+        let relativePath: string;
+        let nodes: readonly FileNode[];
+        let truncated: boolean;
+        if (skillParams) {
+          const listing = await listPiSkillFiles({
+            sessionId: skillParams.sessionId,
+            name: skillParams.skillName,
+          });
+          rootPath = listing.rootPath;
+          relativePath = listing.relativePath;
+          nodes = listing.entries.map((entry) => skillFileNode(listing.rootPath, entry));
+          truncated = listing.truncated;
+        } else {
+          const listing = await files.listDirectory(fileContext, "");
+          rootPath = surface.params.rootPath;
+          relativePath = listing.relativePath;
+          nodes = listing.nodes;
+          truncated = listing.truncated;
+        }
         if (request !== rootRequest.current) return;
         setRootState((current) =>
-          current.status === "ready" && explorerNodeListsEqual(current.nodes, listing.nodes)
+          current.status === "ready" &&
+          current.rootPath === rootPath &&
+          explorerNodeListsEqual(current.nodes, nodes)
             ? current
-            : { status: "ready", nodes: listing.nodes },
+            : { status: "ready", rootPath, nodes },
         );
-        setTruncatedPaths((current) =>
-          updateTruncatedPath(current, listing.relativePath, listing.truncated),
-        );
+        setTruncatedPaths((current) => updateTruncatedPath(current, relativePath, truncated));
         setTreeRefreshToken((current) => current + 1);
       } catch {
         if (request !== rootRequest.current) return;
         if (mode === "background") return;
-        setRootState((current) => ({ status: "error", nodes: current.nodes }));
+        setRootState((current) => ({ ...current, status: "error" }));
       }
     },
-    [fileContext],
+    [fileContext, skillParams, surface.params.rootPath],
   );
 
   useEffect(() => {
     setFilter("");
     setOpenError(undefined);
+    setSelectedSkillPath(undefined);
     setTruncatedPaths(new Set());
     void loadRoot("foreground");
     return () => {
@@ -143,6 +194,19 @@ export function ExplorerSurface({
 
   const loadDirectory = useCallback(
     async (node: FileNode, signal: AbortSignal) => {
+      if (skillParams) {
+        const listing = await listPiSkillFiles({
+          sessionId: skillParams.sessionId,
+          name: skillParams.skillName,
+          relativePath: node.relativePath ?? "",
+        });
+        signal.throwIfAborted();
+        setTruncatedPaths((current) =>
+          updateTruncatedPath(current, listing.relativePath, listing.truncated),
+        );
+        return listing.entries.map((entry) => skillFileNode(listing.rootPath, entry));
+      }
+
       const listing = await files.listDirectory(fileContext, node.relativePath ?? node.path);
       signal.throwIfAborted();
       setTruncatedPaths((current) =>
@@ -150,11 +214,29 @@ export function ExplorerSurface({
       );
       return listing.nodes;
     },
-    [fileContext],
+    [fileContext, skillParams],
   );
 
   const openFile = useCallback(
     async (node: FileNode) => {
+      if (skillParams) {
+        setSelectedSkillPath(node.path);
+        await openers.open({
+          resource: {
+            scheme: "skill-file",
+            path: node.path,
+            label: node.name,
+            metadata: {
+              sessionId: skillParams.sessionId,
+              skillName: skillParams.skillName,
+              relativePath: node.relativePath,
+            },
+          },
+          context,
+          policy: "reveal",
+        });
+        return;
+      }
       setOpenError(undefined);
       await openers.open({
         resource: {
@@ -166,7 +248,7 @@ export function ExplorerSurface({
         policy: "reveal",
       });
     },
-    [context, openers],
+    [context, openers, skillParams],
   );
 
   return (
@@ -237,12 +319,12 @@ export function ExplorerSurface({
           </div>
         ) : (
           <ExplorerTree
-            key={surface.params.rootPath}
-            rootPath={surface.params.rootPath}
+            key={rootState.rootPath}
+            rootPath={rootState.rootPath}
             nodes={rootState.nodes}
             refreshToken={treeRefreshToken}
             filter={filter}
-            selectedPath={activeFilePath}
+            selectedPath={skillParams ? selectedSkillPath : activeFilePath}
             labels={{
               tree: t("extensions.shared.fileTree.tree"),
               empty: t("extensions.shared.fileTree.empty"),
@@ -258,6 +340,7 @@ export function ExplorerSurface({
             }}
             loadDirectory={loadDirectory}
             openFile={openFile}
+            onSelectedPathChange={skillParams ? setSelectedSkillPath : undefined}
             onOpenFileError={(_error, node) =>
               setOpenError(t("extensions.shared.fileTree.openError", { name: node.name }))
             }

@@ -15,10 +15,19 @@ export const explorerSurfaceDefinition = {
   kind: "explorer",
   icon: FolderTreeIcon,
   cachePolicy: "keep-alive",
+  persistence: "session",
   defaultPlacement: "auxiliary",
   allowDuplicateResources: false,
-  getResourceKey: (params, context) =>
-    `explorer:${encodeURIComponent(context.threadId ?? "application")}:${encodeURIComponent(params.rootPath)}`,
+  getResourceKey: (params, context) => {
+    const contextKey = encodeURIComponent(context.threadId ?? "application");
+    if (params.source === "skill") {
+      return `explorer:${contextKey}:skill:${encodeURIComponent(params.sessionId)}:${encodeURIComponent(params.skillName)}`;
+    }
+    const workspaceKey = encodeURIComponent(
+      context.worktreeId ?? context.projectId ?? "application",
+    );
+    return `explorer:${contextKey}:workspace:${workspaceKey}:${encodeURIComponent(params.rootPath)}`;
+  },
   getDefaultScope: (_params, context) => ({
     type: context.threadId ? "thread" : "application",
     key: context.threadId ?? context.applicationId,

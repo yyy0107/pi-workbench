@@ -5,7 +5,7 @@ import { createLazyWorkspaceSurface, defineExtension } from "@/platform/extensio
 
 import { FileMenuItem } from "./file-menu-item";
 import { FileRuntimeBridge } from "./file-runtime-bridge";
-import { fileOpenHandler } from "./file-opener";
+import { fileOpenHandler, skillFileOpenHandler } from "./file-opener";
 import type { FileSurfaceParams } from "./file-surface";
 import { FileSurfaceHeader } from "./file-surface-header";
 
@@ -42,6 +42,7 @@ export const workspaceFileExtension = defineExtension({
   setup(context) {
     const surface = context.workspace.register(fileSurfaceDefinition);
     const opener = context.openers.register(fileOpenHandler);
-    return [surface, opener];
+    const skillOpener = context.openers.register(skillFileOpenHandler);
+    return [surface, opener, skillOpener];
   },
 });

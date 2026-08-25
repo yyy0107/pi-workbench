@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { OpenSurfaceRequest } from "@/platform/extensions";
 
-import { fileOpenHandler } from "./file-opener";
+import { fileOpenHandler, skillFileOpenHandler } from "./file-opener";
 
 test("the file opener describes an unattached workspace file before revealing its Surface", async (t) => {
   const originalFetch = globalThis.fetch;
@@ -171,5 +171,97 @@ test("the file opener reveals tool diffs in the existing File Surface", async (t
   assert.equal(revealed?.params.viewMode, "diff");
   assert.equal(revealed?.params.diffId, "tool-1");
   assert.equal(typeof revealed?.params.diffCycle, "number");
+  assert.equal(revealed?.policy, "force-focus");
+});
+
+test("the skill file opener reads nested Skill files into the read-only File Surface", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  let rpcMethod = "";
+  let rpcPayload: unknown;
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as {
+      rpcId: string;
+      method: string;
+      payload: unknown;
+    };
+    rpcMethod = request.method;
+    rpcPayload = request.payload;
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: {
+        ok: true,
+        value: {
+          skillName: "example-skill",
+          rootPath: "/home/user/.pi/agent/skills/example-skill",
+          relativePath: "references/packages.md",
+          absolutePath: "/home/user/.pi/agent/skills/example-skill/references/packages.md",
+          name: "packages.md",
+          content: "# Packages\n",
+          mediaType: "text/markdown",
+          encoding: "utf-8",
+          version: "sha256:packages",
+          size: 11,
+          modifiedAt: 2,
+        },
+      },
+    });
+  };
+
+  let revealed: OpenSurfaceRequest | undefined;
+  const result = await skillFileOpenHandler.open(
+    {
+      resource: {
+        scheme: "skill-file",
+        path: "/home/user/.pi/agent/skills/example-skill/references/packages.md",
+        label: "packages.md",
+        metadata: {
+          sessionId: "session-1",
+          skillName: "example-skill",
+          relativePath: "references/packages.md",
+        },
+      },
+      context: {
+        applicationId: "pi-workbench",
+        threadId: "thread-opener",
+        projectId: "workspace-opener",
+        rootPath: "/workspace",
+      },
+      policy: "force-focus",
+    },
+    {
+      surfaces: {
+        open: () => assert.fail("A Skill file should reuse the File Surface"),
+        reveal: (request) => {
+          revealed = request;
+          return "skill-file-surface";
+        },
+      },
+    },
+  );
+
+  assert.equal(result, "skill-file-surface");
+  assert.equal(rpcMethod, "skill.files.read");
+  assert.deepEqual(rpcPayload, {
+    sessionId: "session-1",
+    name: "example-skill",
+    relativePath: "references/packages.md",
+  });
+  assert.equal(revealed?.kind, "file");
+  assert.equal(revealed?.title, "packages.md");
+  assert.equal(revealed?.params.source, "skill");
+  assert.equal(revealed?.params.rootPath, "/home/user/.pi/agent/skills/example-skill");
+  assert.equal(
+    revealed?.params.absolutePath,
+    "/home/user/.pi/agent/skills/example-skill/references/packages.md",
+  );
+  assert.equal(revealed?.params.relativePath, "references/packages.md");
+  assert.equal(revealed?.params.mediaType, "text/markdown");
+  assert.equal(revealed?.params.readOnly, true);
+  assert.equal(revealed?.params.viewMode, "source");
   assert.equal(revealed?.policy, "force-focus");
 });

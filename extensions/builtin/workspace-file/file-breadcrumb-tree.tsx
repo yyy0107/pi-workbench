@@ -11,14 +11,15 @@ import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import type { WorkspaceSurfaceProps } from "@/platform/extensions";
 import {
-  fileWorkspaceContext,
   fileWorkspaceService as files,
+  isPathWithinWorkspace,
   workspaceRelativePath,
   type FileNode,
 } from "@/services/workspace-file-service";
 
 import { fileBreadcrumbSegments, fileBreadcrumbTreeRootPath } from "./file-breadcrumb-model";
 import type { FileSurfaceParams } from "./file-surface";
+import { fileSurfaceWorkspaceContext, isSkillFileSource } from "./file-surface-source";
 
 type RootLoadState =
   | { status: "idle"; nodes: readonly FileNode[] }
@@ -40,16 +41,32 @@ export function FileBreadcrumbTree({ surface, context }: WorkspaceSurfaceProps<F
   const [openError, setOpenError] = useState<string>();
   const [truncated, setTruncated] = useState(false);
   const [rootState, setRootState] = useState<RootLoadState>({ status: "idle", nodes: [] });
-  const rootPath = context.rootPath;
-  const hasWorkspace = Boolean(rootPath && (context.worktreeId ?? context.projectId));
+  const skillSource = isSkillFileSource(surface.params);
+  const path = surface.params.absolutePath;
+  const rootPath =
+    skillSource && path && !isPathWithinWorkspace(context.rootPath, path)
+      ? undefined
+      : context.rootPath;
+  const relativePath =
+    skillSource && rootPath && path
+      ? workspaceRelativePath(rootPath, path)
+      : surface.params.relativePath;
+  const hasWorkspace =
+    !skillSource && Boolean(rootPath && (context.worktreeId ?? context.projectId));
   const segments = useMemo(
-    () =>
-      fileBreadcrumbSegments(rootPath, surface.params.relativePath, surface.params.absolutePath),
-    [rootPath, surface.params.absolutePath, surface.params.relativePath],
+    () => fileBreadcrumbSegments(rootPath, relativePath, path),
+    [path, relativePath, rootPath],
   );
   const fileContext = useMemo(
-    () => fileWorkspaceContext(surface.scope, context),
-    [context.projectId, context.rootPath, context.worktreeId, surface.scope],
+    () => fileSurfaceWorkspaceContext(surface.scope, context, surface.params),
+    [
+      context.projectId,
+      context.rootPath,
+      context.worktreeId,
+      surface.params.rootPath,
+      surface.params.source,
+      surface.scope,
+    ],
   );
   const rootNode = useMemo<FileNode | undefined>(
     () =>

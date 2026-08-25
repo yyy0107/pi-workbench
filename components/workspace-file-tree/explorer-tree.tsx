@@ -208,7 +208,7 @@ function ExplorerEntryContent({
       )}
       {fileName ? (
         <span className="flex min-w-0 flex-1 cursor-default overflow-hidden">
-          <span className="min-w-0 flex-1 truncate">{fileName.stem}</span>
+          <span className="min-w-0 truncate">{fileName.stem}</span>
           {fileName.extension ? <span className="shrink-0">{fileName.extension}</span> : null}
         </span>
       ) : (

@@ -33,8 +33,6 @@ import { useI18n } from "@/i18n";
 import type { WorkspaceSurfaceProps } from "@/platform/extensions";
 import { listPiLocalApps, openPiHostPath, openPiLocalApp } from "@/runtime/pi/client/transport/api";
 import type { LocalAppFileKind, LocalAppView } from "@/runtime/pi/rpc-contracts";
-import { fileWorkspaceContext } from "@/services/workspace-file-service";
-
 import { useRightWorkspace, useRightWorkspaceState } from "@/components/right-workspace";
 import { cn } from "@/lib/utils";
 import { FileBreadcrumbTree } from "./file-breadcrumb-tree";
@@ -52,6 +50,7 @@ import vlcIcon from "./icons/vlc.svg";
 import vscodeIcon from "./icons/vscode.svg";
 import webstormIcon from "./icons/webstorm.svg";
 import type { FileSurfaceParams } from "./file-surface";
+import { fileSurfaceRootPath, fileSurfaceWorkspaceContext } from "./file-surface-source";
 import {
   isFileViewerPreviewFile,
   isMarkdownFile,
@@ -121,8 +120,8 @@ export function FileSurfaceHeader({ surface, context }: WorkspaceSurfaceProps<Fi
   const [localAppsError, setLocalAppsError] = useState(false);
   const path = surface.params.absolutePath;
   const fileContext = useMemo(
-    () => fileWorkspaceContext(surface.scope, context),
-    [context, surface.scope],
+    () => fileSurfaceWorkspaceContext(surface.scope, context, surface.params),
+    [context, surface.params, surface.scope],
   );
   const markdown = isMarkdownFile(path);
   const largeText =
@@ -134,7 +133,7 @@ export function FileSurfaceHeader({ surface, context }: WorkspaceSurfaceProps<Fi
         isFileViewerPreviewFile(surface.params.absolutePath)));
   const viewMode = resolveFileViewMode(path, surface.params.viewMode);
   const folderPath = path
-    ? (context.rootPath ?? (path.replace(/[\\/][^\\/]+$/, "") || path))
+    ? (fileSurfaceRootPath(surface.params, context) ?? (path.replace(/[\\/][^\\/]+$/, "") || path))
     : undefined;
   const fileKind = useMemo(
     () => localAppFileKindFor(path, surface.params.mediaType, surface.params.encoding),
@@ -226,7 +225,7 @@ export function FileSurfaceHeader({ surface, context }: WorkspaceSurfaceProps<Fi
     <div className="flex size-full min-w-0 items-center gap-3 px-3">
       <FileBreadcrumbTree surface={surface} context={context} />
 
-      {surface.dirty && path ? (
+      {!surface.params.readOnly && surface.dirty && path ? (
         <Button
           type="button"
           variant="ghost"

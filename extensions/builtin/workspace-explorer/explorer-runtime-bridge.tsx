@@ -11,7 +11,13 @@ import {
 } from "@/components/right-workspace";
 import { useI18n } from "@/i18n";
 
-import { contextExplorerSurfaces, isFileSurfaceActive } from "./explorer-runtime-policy";
+import {
+  contextExplorerSurfaces,
+  contextSkillExplorerSurfaces,
+  isFileSurfaceActive,
+  skillExplorerMatchesFile,
+  skillFileExplorerIdentity,
+} from "./explorer-runtime-policy";
 
 export function ExplorerRuntimeBridge() {
   const { t } = useI18n();
@@ -23,11 +29,22 @@ export function ExplorerRuntimeBridge() {
   const title = t("extensions.workspaceExplorer.title");
   const { applicationId, projectId, rootPath, threadId, worktreeId } = context;
   const fileSurfaceActive = isFileSurfaceActive(activeSurface);
+  const skillFileIdentity = useMemo(
+    () => skillFileExplorerIdentity(activeSurface),
+    [activeSurface],
+  );
   const contextExplorers = useMemo(
     () => contextExplorerSurfaces(explorerSurfaces, context),
     [context, explorerSurfaces],
   );
+  const skillExplorers = useMemo(
+    () => contextSkillExplorerSurfaces(explorerSurfaces, context),
+    [context, explorerSurfaces],
+  );
   const currentExplorer = contextExplorers.find((surface) => surface.params.rootPath === rootPath);
+  const currentSkillExplorer = skillFileIdentity
+    ? skillExplorers.find((surface) => skillExplorerMatchesFile(surface, skillFileIdentity))
+    : undefined;
 
   useEffect(() => {
     if (!hydrated) return;
@@ -36,32 +53,60 @@ export function ExplorerRuntimeBridge() {
     for (const surface of contextExplorers) {
       if (!shouldShow || surface.id !== currentExplorer?.id) controller.close(surface.id);
     }
-    if (!shouldShow || currentExplorer || !rootPath) {
-      return;
+    for (const surface of skillExplorers) {
+      if (!skillFileIdentity || surface.id !== currentSkillExplorer?.id) {
+        controller.close(surface.id);
+      }
     }
+    if (shouldShow && !currentExplorer && rootPath) {
+      controller.reveal({
+        kind: "explorer",
+        title,
+        params: { rootPath },
+        context: {
+          applicationId,
+          ...(threadId ? { threadId } : {}),
+          ...(worktreeId ? { worktreeId } : {}),
+          ...(projectId ? { projectId } : {}),
+          rootPath,
+        },
+        status: "ready",
+        policy: "background",
+      });
+    }
+    if (!skillFileIdentity || currentSkillExplorer) return;
     controller.reveal({
       kind: "explorer",
-      title,
-      params: { rootPath },
+      title: skillFileIdentity.skillName,
+      params: {
+        source: "skill",
+        rootPath: skillFileIdentity.rootPath,
+        sessionId: skillFileIdentity.sessionId,
+        skillName: skillFileIdentity.skillName,
+      },
       context: {
         applicationId,
         ...(threadId ? { threadId } : {}),
         ...(worktreeId ? { worktreeId } : {}),
         ...(projectId ? { projectId } : {}),
-        rootPath,
+        ...(rootPath ? { rootPath } : {}),
       },
+      placement: "auxiliary",
       status: "ready",
-      policy: "background",
+      policy: "force-focus",
     });
   }, [
     applicationId,
     contextExplorers,
     controller,
     currentExplorer,
+    currentSkillExplorer,
     fileSurfaceActive,
     hydrated,
     projectId,
     rootPath,
+    skillExplorers,
+    skillFileIdentity,
     threadId,
     title,
     worktreeId,
