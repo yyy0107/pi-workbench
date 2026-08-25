@@ -17,6 +17,9 @@ import {
 
 const MAX_APPEARANCE_BYTES = 128 * 1024;
 const MAX_RIGHT_WORKSPACE_BYTES = 2 * 1024 * 1024;
+const MAX_SIDEBAR_THREAD_ORDER_BYTES = 2 * 1024 * 1024;
+const MAX_SIDEBAR_THREAD_ORDER_SCOPES = 2_000;
+const MAX_SIDEBAR_THREADS_PER_SCOPE = 10_000;
 const MAX_BACKGROUND_IMAGE_BYTES = 12 * 1024 * 1024;
 const MAX_BACKGROUND_IMAGE_BASE64_LENGTH = Math.ceil(MAX_BACKGROUND_IMAGE_BYTES / 3) * 4;
 
@@ -74,6 +77,30 @@ function stringList(value: unknown, field: string): string[] {
   return [...new Set(items)];
 }
 
+function sidebarThreadOrderByScope(value: unknown): Record<string, string[]> {
+  if (!isRecord(value)) throw new TypeError("sidebarThreadOrderByScope must be an object");
+  const entries = Object.entries(value);
+  if (
+    entries.length > MAX_SIDEBAR_THREAD_ORDER_SCOPES ||
+    Buffer.byteLength(JSON.stringify(value), "utf8") > MAX_SIDEBAR_THREAD_ORDER_BYTES
+  ) {
+    throw new TypeError("sidebarThreadOrderByScope is too large");
+  }
+
+  return Object.fromEntries(
+    entries.map(([scope, threadIds]) => {
+      shortString(scope, "sidebarThreadOrderByScope scope", 1_024);
+      if (!Array.isArray(threadIds) || threadIds.length > MAX_SIDEBAR_THREADS_PER_SCOPE) {
+        throw new TypeError(`sidebarThreadOrderByScope.${scope} is invalid`);
+      }
+      const orderedIds = threadIds.map((threadId) =>
+        shortString(threadId, `sidebarThreadOrderByScope.${scope}`, 512),
+      );
+      return [scope, [...new Set(orderedIds)]];
+    }),
+  );
+}
+
 function parsePreferences(value: unknown): WorkbenchSettingsPreferences {
   if (value === undefined) return {};
   if (!isRecord(value)) throw new TypeError("preferences must be an object");
@@ -104,6 +131,21 @@ function parsePreferences(value: unknown): WorkbenchSettingsPreferences {
             ),
           }),
     };
+  }
+  if (value.sidebarThreadOrderByScope !== undefined) {
+    preferences.sidebarThreadOrderByScope = sidebarThreadOrderByScope(
+      value.sidebarThreadOrderByScope,
+    );
+  }
+  if (value.sidebarThreadSortMode !== undefined) {
+    if (
+      value.sidebarThreadSortMode !== "priority" &&
+      value.sidebarThreadSortMode !== "recent" &&
+      value.sidebarThreadSortMode !== "manual"
+    ) {
+      throw new TypeError("sidebarThreadSortMode is invalid");
+    }
+    preferences.sidebarThreadSortMode = value.sidebarThreadSortMode;
   }
   if (value.toolboxPins !== undefined) {
     preferences.toolboxPins = stringList(value.toolboxPins, "toolboxPins");

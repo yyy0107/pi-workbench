@@ -13,6 +13,7 @@ const catalogHtml = `
   <span class="packages-count">1-2 / 2 (of 5439)</span>
   <article class="surface-panel content-card" data-package-card="true"
     data-package-name="@example/pi-tools" data-package-types="extension skill"
+    data-package-search="@example/pi-tools tools skills review example extension skill"
     data-package-downloads="1200" data-package-date="1787000000000">
     <div class="packages-card-body">
       <h3><a href="/packages/@example/pi-tools" data-package-path="/packages/@example/pi-tools">@example/pi-tools</a></h3>
@@ -26,6 +27,7 @@ const catalogHtml = `
     </div>
   </article>
   <article data-package-card="true" data-package-name="pi-theme" data-package-types="theme"
+    data-package-search="pi-theme theme designer"
     data-package-downloads="25" data-package-date="1786000000000">
     <p class="packages-desc">A theme.</p>
     <div class="packages-meta"><span>designer</span></div>
@@ -34,6 +36,27 @@ const catalogHtml = `
     </div>
   </article>
 `;
+
+const completeCatalogHtml = catalogHtml.replace("1-2 / 2 (of 5439)", "1-2 / 2");
+
+function generatedCatalogPage(start: number, end: number, total: number): string {
+  const cards = Array.from({ length: end - start + 1 }, (_, index) => start + index)
+    .map(
+      (item) => `
+        <article data-package-card="true" data-package-name="pi-cache-${String(item).padStart(3, "0")}"
+          data-package-search="pi-cache-${item} cached package ${item}"
+          data-package-types="extension" data-package-downloads="${item}"
+          data-package-date="${1_780_000_000_000 + item}">
+          <p class="packages-desc">Cached package ${item}.</p>
+          <div class="packages-meta"><span>cache-author</span></div>
+          <div class="packages-links">
+            <a href="https://www.npmjs.com/package/pi-cache-${String(item).padStart(3, "0")}">npm</a>
+          </div>
+        </article>`,
+    )
+    .join("\n");
+  return `<span class="packages-count">${start}-${end} / ${total}</span>${cards}`;
+}
 
 const detailHtml = `
   <dl class="definition-grid detail-grid">
@@ -138,28 +161,154 @@ test("parses the official package-detail fields and manifest", () => {
 
 test("fetches the package catalog only from pi.dev", async () => {
   let requestedUrl = "";
+  let requestCount = 0;
   const service = new PiPackageCatalogService({
     fetch: async (input) => {
+      requestCount += 1;
       requestedUrl = String(input);
       return new Response(catalogHtml, { status: 200 });
     },
   });
 
   const result = await service.search({ query: "tools", type: "extension" });
+  await service.search({ query: "tools", type: "extension" });
   assert.equal(requestedUrl, "https://pi.dev/packages?name=tools&type=extension");
+  assert.equal(requestCount, 1);
   assert.equal(result.packages[0]?.name, "@example/pi-tools");
+});
+
+test("coalesces concurrent cold requests for the same catalog query", async () => {
+  let requestCount = 0;
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const service = new PiPackageCatalogService({
+    fetch: async () => {
+      requestCount += 1;
+      await gate;
+      return new Response(catalogHtml, { status: 200 });
+    },
+  });
+
+  const first = service.search({ query: "review" });
+  const second = service.search({ query: "review" });
+  assert.equal(requestCount, 1);
+  release();
+  const [firstResult, secondResult] = await Promise.all([first, second]);
+  assert.deepEqual(secondResult, firstResult);
+  assert.equal(requestCount, 1);
 });
 
 test("fetches one package detail only from its fixed pi.dev path", async () => {
   let requestedUrl = "";
+  let requestCount = 0;
   const service = new PiPackageCatalogService({
     fetch: async (input) => {
+      requestCount += 1;
       requestedUrl = String(input);
       return new Response(detailHtml, { status: 200 });
     },
   });
 
   const result = await service.describe({ name: "@example/pi-tools" });
+  await service.describe({ name: "@example/pi-tools" });
   assert.equal(requestedUrl, "https://pi.dev/packages/%40example/pi-tools");
+  assert.equal(requestCount, 1);
   assert.equal(result.weeklyDownloads, 15_600);
+});
+
+test("periodically builds one complete snapshot and searches it without another upstream request", async () => {
+  const requestedUrls: string[] = [];
+  let scheduledTask: (() => void) | undefined;
+  let stopped = false;
+  const service = new PiPackageCatalogService(
+    {
+      fetch: async (input) => {
+        requestedUrls.push(String(input));
+        return new Response(completeCatalogHtml, { status: 200 });
+      },
+      scheduleInterval: (task, intervalMs) => {
+        assert.equal(intervalMs, 30 * 60 * 1000);
+        scheduledTask = task;
+        return () => {
+          stopped = true;
+        };
+      },
+    },
+    { backgroundRefresh: true },
+  );
+
+  const warm = await service.search({});
+  assert.equal(warm.total, 2);
+  await service.start();
+  assert.equal(typeof scheduledTask, "function");
+  assert.deepEqual(requestedUrls, ["https://pi.dev/packages", "https://pi.dev/packages?sort=name"]);
+
+  const result = await service.search({ query: "review", type: "extension", sort: "downloads" });
+  assert.equal(result.filteredTotal, 1);
+  assert.equal(result.total, 2);
+  assert.deepEqual(
+    result.packages.map(({ name }) => name),
+    ["@example/pi-tools"],
+  );
+  assert.equal(requestedUrls.length, 2);
+
+  service.dispose();
+  assert.equal(stopped, true);
+});
+
+test("keeps serving the previous complete snapshot when a scheduled refresh fails", async () => {
+  let fail = false;
+  const service = new PiPackageCatalogService({
+    fetch: async () =>
+      fail
+        ? new Response("unavailable", { status: 503 })
+        : new Response(completeCatalogHtml, { status: 200 }),
+  });
+
+  await service.refreshCatalog();
+  fail = true;
+  await assert.rejects(service.refreshCatalog(), { name: "PiPackageCatalogServiceError" });
+
+  const cached = await service.search({ sort: "name" });
+  assert.equal(cached.total, 2);
+  assert.deepEqual(
+    cached.packages.map(({ name }) => name),
+    ["@example/pi-tools", "pi-theme"],
+  );
+});
+
+test("crawls every official page once and paginates the cached snapshot locally", async () => {
+  const requestedUrls: string[] = [];
+  const service = new PiPackageCatalogService(
+    {
+      fetch: async (input) => {
+        const url = new URL(String(input));
+        requestedUrls.push(url.toString());
+        return new Response(
+          url.searchParams.get("page") === "2"
+            ? generatedCatalogPage(51, 51, 51)
+            : generatedCatalogPage(1, 50, 51),
+          { status: 200 },
+        );
+      },
+    },
+    { refreshConcurrency: 2 },
+  );
+
+  await service.refreshCatalog();
+  assert.deepEqual(requestedUrls, [
+    "https://pi.dev/packages?sort=name",
+    "https://pi.dev/packages?sort=name&page=2",
+  ]);
+
+  const secondPage = await service.search({ sort: "name", page: 2 });
+  assert.equal(secondPage.total, 51);
+  assert.equal(secondPage.pageCount, 2);
+  assert.deepEqual(
+    secondPage.packages.map(({ name }) => name),
+    ["pi-cache-051"],
+  );
+  assert.equal(requestedUrls.length, 2);
 });

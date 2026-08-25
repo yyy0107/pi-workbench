@@ -11,6 +11,8 @@ import type {
   InstalledPackageView,
   PiPackageInstallPayload,
   PiPackageInstallValue,
+  PiPackageRemovePayload,
+  PiPackageRemoveValue,
 } from "../../rpc-contracts";
 import { getOrStartSession } from "../sessions/session-registry";
 import { getProjectTrustService } from "../trust/project-trust-service";
@@ -35,6 +37,8 @@ export interface InstalledPackageServiceDependencies {
   isProjectTrusted(workspacePath: string): boolean | Promise<boolean>;
   installUserPackage(sessionId: string, source: string): Promise<void>;
   installProjectPackage(workspacePath: string, source: string): Promise<void>;
+  removeUserPackage(sessionId: string, source: string): Promise<boolean>;
+  removeProjectPackage(workspacePath: string, source: string): Promise<boolean>;
 }
 
 export interface InstalledPackageServiceErrorDetails {
@@ -42,6 +46,8 @@ export interface InstalledPackageServiceErrorDetails {
   "workspace-not-found": { workspaceId: string };
   "project-untrusted": { workspaceId: string };
   "install-failed": { name: string; scope: "user" | "project" };
+  "package-not-installed": { source: string; scope: "user" | "project" };
+  "remove-failed": { source: string; scope: "user" | "project" };
   internal: Record<string, never>;
 }
 
@@ -122,9 +128,49 @@ async function installProjectPackage(workspacePath: string, source: string): Pro
   if (settingsError) throw settingsError.error;
 }
 
+function hasConfiguredSource(settings: PackageSettingsSnapshot, source: string): boolean {
+  return (settings.packages ?? []).some((entry) =>
+    typeof entry === "string" ? entry === source : entry.source === source,
+  );
+}
+
+async function removeUserPackage(sessionId: string, source: string): Promise<boolean> {
+  const host = await getOrStartSession(sessionId);
+  const session = host.session;
+  if (!hasConfiguredSource(session.settingsManager.getGlobalSettings(), source)) return false;
+  const packageManager = new DefaultPackageManager({
+    cwd: session.sessionManager.getCwd(),
+    agentDir: getAgentDir(),
+    settingsManager: session.settingsManager,
+  });
+  const removed = await packageManager.removeAndPersist(source);
+  await session.settingsManager.flush();
+  const settingsError = session.settingsManager.drainErrors()[0];
+  if (settingsError) throw settingsError.error;
+  return removed;
+}
+
+async function removeProjectPackage(workspacePath: string, source: string): Promise<boolean> {
+  const agentDir = getAgentDir();
+  const settingsManager = SettingsManager.create(workspacePath, agentDir, {
+    projectTrusted: true,
+  });
+  if (!hasConfiguredSource(settingsManager.getProjectSettings(), source)) return false;
+  const packageManager = new DefaultPackageManager({
+    cwd: workspacePath,
+    agentDir,
+    settingsManager,
+  });
+  const removed = await packageManager.removeAndPersist(source, { local: true });
+  await settingsManager.flush();
+  const settingsError = settingsManager.drainErrors()[0];
+  if (settingsError) throw settingsError.error;
+  return removed;
+}
+
 export class InstalledPackageService {
   private readonly dependencies: InstalledPackageServiceDependencies;
-  private installTail: Promise<void> = Promise.resolve();
+  private mutationTail: Promise<void> = Promise.resolve();
 
   constructor(dependencies: Partial<InstalledPackageServiceDependencies> = {}) {
     this.dependencies = {
@@ -133,14 +179,16 @@ export class InstalledPackageService {
       isProjectTrusted: (workspacePath) => getProjectTrustService().isTrusted(workspacePath),
       installUserPackage,
       installProjectPackage,
+      removeUserPackage,
+      removeProjectPackage,
       ...dependencies,
     };
   }
 
-  private async serializeInstall<Value>(operation: () => Promise<Value>): Promise<Value> {
-    const previous = this.installTail;
+  private async serializeMutation<Value>(operation: () => Promise<Value>): Promise<Value> {
+    const previous = this.mutationTail;
     let release!: () => void;
-    this.installTail = new Promise<void>((resolve) => {
+    this.mutationTail = new Promise<void>((resolve) => {
       release = resolve;
     });
     await previous;
@@ -224,7 +272,7 @@ export class InstalledPackageService {
       }
 
       try {
-        await this.serializeInstall(() =>
+        await this.serializeMutation(() =>
           this.dependencies.installProjectPackage(workspace.path, source),
         );
         return {
@@ -244,7 +292,7 @@ export class InstalledPackageService {
     }
 
     try {
-      await this.serializeInstall(() =>
+      await this.serializeMutation(() =>
         this.dependencies.installUserPackage(target.sessionId, source),
       );
       return { source, scope: "user", reloadRequired: true };
@@ -261,6 +309,93 @@ export class InstalledPackageService {
         "install-failed",
         "The Pi package could not be installed.",
         { name, scope: "user" },
+        { cause: error },
+      );
+    }
+  }
+
+  async remove({ source, target }: PiPackageRemovePayload): Promise<PiPackageRemoveValue> {
+    if (target.scope === "project") {
+      let workspace: { path: string } | undefined;
+      try {
+        workspace = await this.dependencies.getWorkspace(target.workspaceId);
+      } catch (error) {
+        throw new InstalledPackageServiceError(
+          "remove-failed",
+          "The Pi package could not be removed.",
+          { source, scope: "project" },
+          { cause: error },
+        );
+      }
+      if (!workspace) {
+        throw new InstalledPackageServiceError(
+          "workspace-not-found",
+          "The workspace does not exist.",
+          { workspaceId: target.workspaceId },
+        );
+      }
+      if (!(await this.dependencies.isProjectTrusted(workspace.path))) {
+        throw new InstalledPackageServiceError(
+          "project-untrusted",
+          "Project-local Pi resources are not trusted.",
+          { workspaceId: target.workspaceId },
+        );
+      }
+
+      try {
+        const removed = await this.serializeMutation(() =>
+          this.dependencies.removeProjectPackage(workspace.path, source),
+        );
+        if (!removed) {
+          throw new InstalledPackageServiceError(
+            "package-not-installed",
+            "The Pi package is not installed in this project.",
+            { source, scope: "project" },
+          );
+        }
+        return {
+          source,
+          scope: "project",
+          workspaceId: target.workspaceId,
+          reloadRequired: true,
+        };
+      } catch (error) {
+        if (error instanceof InstalledPackageServiceError) throw error;
+        throw new InstalledPackageServiceError(
+          "remove-failed",
+          "The Pi package could not be removed.",
+          { source, scope: "project" },
+          { cause: error },
+        );
+      }
+    }
+
+    try {
+      const removed = await this.serializeMutation(() =>
+        this.dependencies.removeUserPackage(target.sessionId, source),
+      );
+      if (!removed) {
+        throw new InstalledPackageServiceError(
+          "package-not-installed",
+          "The Pi package is not installed for this user.",
+          { source, scope: "user" },
+        );
+      }
+      return { source, scope: "user", reloadRequired: true };
+    } catch (error) {
+      if (error instanceof InstalledPackageServiceError) throw error;
+      if (errorCode(error) === "pi_session_not_found") {
+        throw new InstalledPackageServiceError(
+          "session-not-found",
+          "The session does not exist.",
+          { sessionId: target.sessionId },
+          { cause: error },
+        );
+      }
+      throw new InstalledPackageServiceError(
+        "remove-failed",
+        "The Pi package could not be removed.",
+        { source, scope: "user" },
         { cause: error },
       );
     }

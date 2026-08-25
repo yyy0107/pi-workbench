@@ -21,17 +21,21 @@ const {
   deletePiRpcSession,
   describePiPackageCatalog,
   describePiProjectTrust,
+  describePiSkill,
   describePiWorkspaceFile,
   describePiSettings,
   describeWorkbenchSettings,
   getPiModelContextWindow,
   getPiModelProviderLogin,
   installPiPackage,
+  insertPiSessionBefore,
+  insertPiWorkspaceBefore,
   listPiArchivedWorkspaceSessions,
   listPiCommands,
   listPiExtensions,
   listInstalledPiPackages,
   listPiSkills,
+  listPiSkillFiles,
   listPiWorkspaceFiles,
   listPiWorkspaces,
   openPiSettingsDocument,
@@ -39,12 +43,17 @@ const {
   PiApiError,
   pickPiHostDirectory,
   readPiWorkspaceFile,
+  readPiSkillFile,
+  removePiPackage,
+  removePiSkill,
   removePiModelProvider,
   respondPiModelProviderLogin,
   respondPiRpc,
   searchPiPackageCatalog,
   startPiModelProviderLogin,
   streamPiWorkspaceFileText,
+  testPiModelImageInput,
+  setPiSkillEnabled,
   updatePiAgentSettings,
   updatePiProjectTrust,
   updateWorkbenchSettings,
@@ -320,6 +329,40 @@ test("successful provider mutations invalidate the shared model catalog", async 
   await assert.rejects(configurePiModelProvider({ provider: "acme", apiKey: "private-key" }));
   assert.equal(getPiModelCatalogRevision(), initialRevision + 2);
   assert.equal(notifications, 2);
+});
+
+test("image-input test helper uses the typed model capability RPC", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  let request: { method: string; payload: unknown } | undefined;
+  globalThis.fetch = async (_input, init) => {
+    const body = JSON.parse(String(init?.body)) as {
+      rpcId: string;
+      method: string;
+      payload: unknown;
+    };
+    request = { method: body.method, payload: body.payload };
+    return Response.json({
+      type: "server-response",
+      rpcId: body.rpcId,
+      result: {
+        ok: true,
+        value: { outcome: "supported", reason: "verified" },
+      },
+    });
+  };
+
+  assert.deepEqual(await testPiModelImageInput({ provider: "openai", model: "gpt-vision" }), {
+    outcome: "supported",
+    reason: "verified",
+  });
+  assert.deepEqual(request, {
+    method: "llm.testModelImageInput",
+    payload: { provider: "openai", model: "gpt-vision" },
+  });
 });
 
 test("provider account-login helpers use typed RPC methods and invalidate on completion", async (t) => {
@@ -676,6 +719,68 @@ test("workspace list helpers keep visible and archived sessions in separate RPCs
   assert.deepEqual(methods, ["workspace.list", "workspace.listArchivedSessions"]);
 });
 
+test("workspace reorder helpers use the durable workspace RPCs", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  const calls: Array<{ method: string; payload: unknown }> = [];
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as {
+      rpcId: string;
+      method: string;
+      payload: unknown;
+    };
+    calls.push({ method: request.method, payload: request.payload });
+    const value =
+      request.method === "workspace.insertBefore"
+        ? { workspaceIds: ["workspace-b", "workspace-a"] }
+        : {
+            workspace: {
+              workspaceId: "workspace-a",
+              path: "/workspace-a",
+              title: "Workspace A",
+              sessionIds: ["session-b", "session-a"],
+              createdAt: "2026-01-01T00:00:00.000Z",
+              updatedAt: "2026-01-01T00:00:01.000Z",
+            },
+          };
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: { ok: true, value },
+    });
+  };
+
+  assert.deepEqual(await insertPiWorkspaceBefore("workspace-b", "workspace-a"), {
+    workspaceIds: ["workspace-b", "workspace-a"],
+  });
+  assert.deepEqual(await insertPiSessionBefore("workspace-a", "session-b", "session-a"), {
+    workspace: {
+      workspaceId: "workspace-a",
+      path: "/workspace-a",
+      title: "Workspace A",
+      sessionIds: ["session-b", "session-a"],
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:01.000Z",
+    },
+  });
+  assert.deepEqual(calls, [
+    {
+      method: "workspace.insertBefore",
+      payload: { workspaceId: "workspace-b", beforeWorkspaceId: "workspace-a" },
+    },
+    {
+      method: "workspace.insertSessionBefore",
+      payload: {
+        workspaceId: "workspace-a",
+        sessionId: "session-b",
+        beforeSessionId: "session-a",
+      },
+    },
+  ]);
+});
+
 test("unarchivePiWorkspaceSession uses the durable workspace mutation RPC", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => {
@@ -754,7 +859,11 @@ test("listPiSkills calls the session-scoped skill.list RPC", async (t) => {
             {
               name: "review",
               description: "Review changes.",
+              enabled: true,
               modelInvocable: true,
+              source: "auto",
+              scope: "user",
+              origin: "top-level",
             },
           ],
         },
@@ -763,10 +872,172 @@ test("listPiSkills calls the session-scoped skill.list RPC", async (t) => {
   };
 
   assert.deepEqual(await listPiSkills({ sessionId: "session-1" }), {
-    skills: [{ name: "review", description: "Review changes.", modelInvocable: true }],
+    skills: [
+      {
+        name: "review",
+        description: "Review changes.",
+        enabled: true,
+        modelInvocable: true,
+        source: "auto",
+        scope: "user",
+        origin: "top-level",
+      },
+    ],
   });
   assert.equal(request?.method, "skill.list");
   assert.deepEqual(request?.payload, { sessionId: "session-1" });
+});
+
+test("describePiSkill calls the session-scoped skill.describe RPC", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  let request: Record<string, unknown> | undefined;
+  globalThis.fetch = async (_input, init) => {
+    request = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: {
+        ok: true,
+        value: {
+          name: "review",
+          content: "# Review",
+          filePath: "/skills/review/SKILL.md",
+        },
+      },
+    });
+  };
+
+  assert.deepEqual(await describePiSkill({ sessionId: "session-1", name: "review" }), {
+    name: "review",
+    content: "# Review",
+    filePath: "/skills/review/SKILL.md",
+  });
+  assert.equal(request?.method, "skill.describe");
+  assert.deepEqual(request?.payload, { sessionId: "session-1", name: "review" });
+});
+
+test("readPiSkillFile calls the identity-scoped skill.files.read RPC", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  let request: Record<string, unknown> | undefined;
+  globalThis.fetch = async (_input, init) => {
+    request = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: {
+        ok: true,
+        value: {
+          skillName: "review",
+          rootPath: "/skills/review",
+          relativePath: "references/packages.md",
+          absolutePath: "/skills/review/references/packages.md",
+          name: "packages.md",
+          content: "# Packages",
+          mediaType: "text/markdown",
+          encoding: "utf-8",
+          version: "sha256:packages",
+          size: 10,
+          modifiedAt: 1,
+        },
+      },
+    });
+  };
+
+  assert.equal(
+    (
+      await readPiSkillFile({
+        sessionId: "session-1",
+        name: "review",
+        relativePath: "references/packages.md",
+      })
+    ).content,
+    "# Packages",
+  );
+  assert.equal(request?.method, "skill.files.read");
+  assert.deepEqual(request?.payload, {
+    sessionId: "session-1",
+    name: "review",
+    relativePath: "references/packages.md",
+  });
+});
+
+test("skill management helpers call their identity-scoped RPC methods", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  const requests: Array<{ method: string; payload: unknown }> = [];
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as {
+      rpcId: string;
+      method: string;
+      payload: unknown;
+    };
+    requests.push({ method: request.method, payload: request.payload });
+    const value =
+      request.method === "skill.setEnabled"
+        ? { name: "review", enabled: false }
+        : request.method === "skill.remove"
+          ? { name: "review", removed: true }
+          : {
+              name: "review",
+              rootPath: "/skills/review",
+              relativePath: "references",
+              entries: [],
+              truncated: false,
+            };
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: { ok: true, value },
+    });
+  };
+
+  assert.deepEqual(
+    await setPiSkillEnabled({ sessionId: "session-1", name: "review", enabled: false }),
+    { name: "review", enabled: false },
+  );
+  assert.deepEqual(
+    await listPiSkillFiles({
+      sessionId: "session-1",
+      name: "review",
+      relativePath: "references",
+    }),
+    {
+      name: "review",
+      rootPath: "/skills/review",
+      relativePath: "references",
+      entries: [],
+      truncated: false,
+    },
+  );
+  assert.deepEqual(await removePiSkill({ sessionId: "session-1", name: "review" }), {
+    name: "review",
+    removed: true,
+  });
+  assert.deepEqual(requests, [
+    {
+      method: "skill.setEnabled",
+      payload: { sessionId: "session-1", name: "review", enabled: false },
+    },
+    {
+      method: "skill.files.list",
+      payload: { sessionId: "session-1", name: "review", relativePath: "references" },
+    },
+    {
+      method: "skill.remove",
+      payload: { sessionId: "session-1", name: "review" },
+    },
+  ]);
 });
 
 test("listPiCommands calls the session-scoped command.list RPC", async (t) => {
@@ -944,6 +1215,49 @@ test("installPiPackage calls the loopback package.install RPC", async (t) => {
   assert.equal(request?.method, "package.install");
   assert.deepEqual(request?.payload, {
     name: "@example/pi-tools",
+    target: { scope: "project", workspaceId: "workspace-1" },
+  });
+});
+
+test("removePiPackage calls the loopback package.remove RPC", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  let request: Record<string, unknown> | undefined;
+  globalThis.fetch = async (_input, init) => {
+    request = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: {
+        ok: true,
+        value: {
+          source: "npm:@example/pi-tools",
+          scope: "project",
+          workspaceId: "workspace-1",
+          reloadRequired: true,
+        },
+      },
+    });
+  };
+
+  assert.deepEqual(
+    await removePiPackage({
+      source: "npm:@example/pi-tools",
+      target: { scope: "project", workspaceId: "workspace-1" },
+    }),
+    {
+      source: "npm:@example/pi-tools",
+      scope: "project",
+      workspaceId: "workspace-1",
+      reloadRequired: true,
+    },
+  );
+  assert.equal(request?.method, "package.remove");
+  assert.deepEqual(request?.payload, {
+    source: "npm:@example/pi-tools",
     target: { scope: "project", workspaceId: "workspace-1" },
   });
 });

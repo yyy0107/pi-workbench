@@ -38,6 +38,32 @@ test("describes empty preferences without mutating the agent directory", async (
   await assert.rejects(readFile(stateFile, "utf8"), { code: "ENOENT" });
 });
 
+test("persists sidebar conversation sorting preferences across service instances", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-settings-sidebar-order-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const stateFile = path.join(root, "agent", "workbench-settings.json");
+  const first = new WorkbenchSettingsService(stateFile);
+
+  await first.update({
+    patch: {
+      sidebarThreadSortMode: "manual",
+      sidebarThreadOrderByScope: {
+        pinned: ["session-b", "session-a"],
+        "workspace:workspace-1": ["session-c", "session-d"],
+      },
+    },
+  });
+
+  const second = new WorkbenchSettingsService(stateFile);
+  assert.deepEqual((await second.describe()).preferences, {
+    sidebarThreadSortMode: "manual",
+    sidebarThreadOrderByScope: {
+      pinned: ["session-b", "session-a"],
+      "workspace:workspace-1": ["session-c", "session-d"],
+    },
+  });
+});
+
 test("unifies preferences, workspaces, and image understanding with atomic legacy migration", async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), "workbench-settings-"));
   t.after(() => rm(root, { recursive: true, force: true }));

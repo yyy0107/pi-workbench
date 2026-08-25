@@ -118,7 +118,7 @@ test("merges provider models without exposing or overwriting credentials", async
   assert.match(await readFile(stateFile, "utf8"), /Pi model configuration/u);
 });
 
-test("persists a user-selected model type in Workbench capability metadata", async (t) => {
+test("persists user-selected and tested model types in Workbench capability metadata", async (t) => {
   const directory = await mkdtemp(path.join(tmpdir(), "workbench-model-config-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const stateFile = path.join(directory, "models.json");
@@ -133,6 +133,11 @@ test("persists a user-selected model type in Workbench capability metadata", asy
         input: ["text"],
         imageInputSource: "user",
       },
+      {
+        id: "acme-vision",
+        input: ["text", "image"],
+        imageInputSource: "test",
+      },
     ],
   });
 
@@ -140,13 +145,18 @@ test("persists a user-selected model type in Workbench capability metadata", asy
     "x-workbench-model-capability-sources": Record<string, Record<string, string>>;
   };
   assert.deepEqual(saved["x-workbench-model-capability-sources"], {
-    acme: { "acme-text": "user" },
+    acme: { "acme-text": "user", "acme-vision": "test" },
   });
   assert.deepEqual((await store.providers()).acme.models, [
     {
       id: "acme-text",
       input: ["text"],
       imageInputSource: "user",
+    },
+    {
+      id: "acme-vision",
+      input: ["text", "image"],
+      imageInputSource: "test",
     },
   ]);
 });

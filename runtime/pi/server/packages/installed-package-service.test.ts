@@ -124,6 +124,119 @@ test("installs an official catalog package into an imported project", async () =
   ]);
 });
 
+test("removes a configured package from the user Pi configuration", async () => {
+  const removals: Array<{ sessionId: string; source: string }> = [];
+  const service = new InstalledPackageService({
+    removeUserPackage: async (sessionId, source) => {
+      removals.push({ sessionId, source });
+      return true;
+    },
+  });
+
+  assert.deepEqual(
+    await service.remove({
+      source: "npm:@example/pi-tools",
+      target: { scope: "user", sessionId: "session-1" },
+    }),
+    {
+      source: "npm:@example/pi-tools",
+      scope: "user",
+      reloadRequired: true,
+    },
+  );
+  assert.deepEqual(removals, [{ sessionId: "session-1", source: "npm:@example/pi-tools" }]);
+});
+
+test("removes a configured package from an imported project", async () => {
+  const removals: Array<{ workspacePath: string; source: string }> = [];
+  const service = new InstalledPackageService({
+    isProjectTrusted: () => true,
+    getWorkspace: async (workspaceId) =>
+      workspaceId === "workspace-1" ? { path: "/projects/example" } : undefined,
+    removeProjectPackage: async (workspacePath, source) => {
+      removals.push({ workspacePath, source });
+      return true;
+    },
+  });
+
+  assert.deepEqual(
+    await service.remove({
+      source: "git:github.com/example/pi-tools",
+      target: { scope: "project", workspaceId: "workspace-1" },
+    }),
+    {
+      source: "git:github.com/example/pi-tools",
+      scope: "project",
+      workspaceId: "workspace-1",
+      reloadRequired: true,
+    },
+  );
+  assert.deepEqual(removals, [
+    { workspacePath: "/projects/example", source: "git:github.com/example/pi-tools" },
+  ]);
+});
+
+test("reports a stable error when the package is no longer configured", async () => {
+  const service = new InstalledPackageService({
+    removeUserPackage: async () => false,
+  });
+
+  await assert.rejects(
+    service.remove({
+      source: "npm:pi-tools",
+      target: { scope: "user", sessionId: "session-1" },
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof InstalledPackageServiceError);
+      assert.equal(error.code, "package-not-installed");
+      assert.deepEqual(error.details, { source: "npm:pi-tools", scope: "user" });
+      return true;
+    },
+  );
+});
+
+test("rejects project removals while project-local Pi resources are untrusted", async () => {
+  const service = new InstalledPackageService({
+    getWorkspace: async () => ({ path: "/projects/untrusted" }),
+    isProjectTrusted: () => false,
+  });
+
+  await assert.rejects(
+    service.remove({
+      source: "npm:pi-tools",
+      target: { scope: "project", workspaceId: "workspace-1" },
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof InstalledPackageServiceError);
+      assert.equal(error.code, "project-untrusted");
+      assert.deepEqual(error.details, { workspaceId: "workspace-1" });
+      return true;
+    },
+  );
+});
+
+test("translates package removal failures without exposing command output", async () => {
+  const service = new InstalledPackageService({
+    removeUserPackage: async () => {
+      throw new Error("private npm stderr and filesystem path");
+    },
+  });
+
+  await assert.rejects(
+    service.remove({
+      source: "npm:pi-tools",
+      target: { scope: "user", sessionId: "session-1" },
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof InstalledPackageServiceError);
+      assert.equal(error.code, "remove-failed");
+      assert.deepEqual(error.details, { source: "npm:pi-tools", scope: "user" });
+      assert.equal(error.message.includes("private npm stderr"), false);
+      return true;
+    },
+  );
+});
+
 test("rejects project installs while project-local Pi resources are untrusted", async () => {
   const trustChecks: string[] = [];
   const service = new InstalledPackageService({

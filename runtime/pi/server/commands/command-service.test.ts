@@ -69,8 +69,23 @@ test("lists supported built-ins, extensions, prompt templates, and skills", asyn
               name: "explain",
               description: "Explain a topic.",
               argumentHint: "<topic>",
+              sourceInfo: {
+                path: "/private/package/prompts/explain.md",
+                source: "npm:@acme/prompts",
+                scope: "project" as const,
+                origin: "package" as const,
+              },
             },
-            { name: "review:1", description: "Shadowed by an extension command." },
+            {
+              name: "review:1",
+              description: "Shadowed by an extension command.",
+              sourceInfo: {
+                path: "/private/review.md",
+                source: "auto",
+                scope: "user" as const,
+                origin: "top-level" as const,
+              },
+            },
           ],
           resourceLoader: {
             getSkills: () => ({
@@ -79,6 +94,12 @@ test("lists supported built-ins, extensions, prompt templates, and skills", asyn
                   name: "create-skill",
                   description: "Create or update a skill.",
                   disableModelInvocation: true,
+                  sourceInfo: {
+                    path: "/private/create-skill/SKILL.md",
+                    source: "auto",
+                    scope: "user" as const,
+                    origin: "top-level" as const,
+                  },
                 },
               ],
             }),
@@ -148,6 +169,9 @@ test("lists supported built-ins, extensions, prompt templates, and skills", asyn
         exclusive: false,
         description: "Explain a topic.",
         argumentHint: "<topic>",
+        source: "npm:@acme/prompts",
+        scope: "project",
+        origin: "package",
       },
       {
         kind: "skill",

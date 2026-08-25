@@ -22,6 +22,11 @@ interface LoadedPromptTemplate {
   name: string;
   description?: string;
   argumentHint?: string;
+  sourceInfo: {
+    source: string;
+    scope: ExtensionSourceScope;
+    origin: ExtensionSourceOrigin;
+  };
 }
 
 interface LoadedSkill {
@@ -158,6 +163,9 @@ export class CommandService {
               ...(template.argumentHint === undefined
                 ? {}
                 : { argumentHint: template.argumentHint }),
+              source: template.sourceInfo.source,
+              scope: template.sourceInfo.scope,
+              origin: template.sourceInfo.origin,
             })),
           ...host.session.resourceLoader.getSkills().skills.map((skill) => ({
             kind: "skill" as const,

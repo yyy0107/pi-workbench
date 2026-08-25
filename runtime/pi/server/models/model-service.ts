@@ -1,6 +1,13 @@
 import { createAgentSessionServices } from "@earendil-works/pi-coding-agent";
-import type { KnownProvider } from "@earendil-works/pi-ai";
-import type { AuthEvent } from "@earendil-works/pi-ai";
+import type {
+  Api,
+  AssistantMessage,
+  AuthEvent,
+  Context,
+  KnownProvider,
+  Model,
+  ModelsApiStreamOptions,
+} from "@earendil-works/pi-ai";
 import { builtinProviders } from "@earendil-works/pi-ai/providers/all";
 
 import { PI_THINKING_LEVELS, type PiThinkingLevel } from "../../contracts";
@@ -27,6 +34,8 @@ import type {
   ModelProvidersValue,
   RespondModelProviderLoginPayload,
   StartModelProviderLoginPayload,
+  TestModelImageInputPayload,
+  TestModelImageInputValue,
   UpdateModelContextWindowPayload,
 } from "../../rpc-contracts";
 import {
@@ -207,6 +216,12 @@ export interface ModelRuntimeLike {
     interaction: ModelRuntimeAuthInteraction,
   ): Promise<unknown>;
   logout?(provider: string, options?: { signal?: AbortSignal }): Promise<void>;
+  getModel?(provider: string, model: string): Model<Api> | undefined;
+  complete?<TApi extends Api>(
+    model: Model<TApi>,
+    context: Context,
+    options?: ModelsApiStreamOptions<TApi>,
+  ): Promise<AssistantMessage>;
 }
 
 export interface ModelServiceDiagnostic {
@@ -265,6 +280,10 @@ const RUNTIME_FAILURE_NAME = "Model runtime";
 const MODEL_LISTING_RESPONSE_LIMIT = 4 * 1024 * 1024;
 const MODEL_LISTING_PAGE_LIMIT = 1000;
 const MODEL_LISTING_MAX_PAGES = 100;
+const MODEL_IMAGE_INPUT_TEST_TIMEOUT_MS = 90_000;
+const MODEL_IMAGE_INPUT_TEST_CODE = "K7P3";
+const MODEL_IMAGE_INPUT_TEST_PNG =
+  "iVBORw0KGgoAAAANSUhEUgAAAWgAAACMCAIAAADeJaSiAAACBUlEQVR42u3dwY7CIBRA0WL4/1+uOxKDNTUi8OCc1WQ2I2puXo1vms7zPAC+8fAUAMIB/F0uP6WUPB3AB+WTDRMH4FIF6HmpUk8jAMe7zzFMHIBLFUA4AOEAhAMQDgDhAIQDEA5AOADhABAOQDgA4QCEAxAOAOEAhAMQDkA4AOEANpfH/vk7d4Hq+V/XWz2eiHe3iniuVu+NVc9l4gCEAxAOQDgAhAMQDkA4AOEAhANAOADhALrL+xy1517MbLsGPXcxIu4WRXy9xj5mEwcgHIBwAMIBCAcgHADCAQgHIByAcADCAXBhkV2V+b/b7+yYOADhABAOQDgA4QCEAxAOAOEAhAMQDkA4gA0E2FWxhxLr7DvfwyXiuUwcgHAAwgEIByAcAMIBCAcgHIBwAMIBIBxAUwF2Ve58b3/VnY6IOzir7g3Nthcz9nk2cQDCAQgHIByAcADCASAcgHAAwgEIByAcABfyGsdYdZ8FTByAcADCASAcgHAAwgEIByAcAMIBCAcgHEAoeZ+j2mfhl9d9tveqiQNwqQIIB4BwAMIBCAcgHIBwAAgHIByAcABTSuVb8eXr+nYxgJdMVHEwcQAuVQDhAIQDEA5AOACEAxAOQDgA4QCEA0A4AOEAhAMQDkA4AIQDEA5AOADhAIQD2Fyuf1X+ozGAiQMQDmCQ5PZLgIkDEA5gPk9w52oPijxtGwAAAABJRU5ErkJggg==";
 const ANTHROPIC_VERSION = "2023-06-01";
 const LISTABLE_MODEL_APIS = new Set([
   "anthropic-messages",
@@ -351,6 +370,102 @@ const DEFAULT_EFFORT_ORDER: readonly PiThinkingLevel[] = [
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function explicitlyRejectsImageInput(message: string): boolean {
+  const normalized = message.toLowerCase();
+  const mentionsImage = /(?:image(?:_url| input)?|input_image|vision|multimodal|modality)/u.test(
+    normalized,
+  );
+  if (!mentionsImage) {
+    return /(?:不支持.{0,24}(?:图片|图像|多模态)|(?:图片|图像|多模态).{0,24}不支持)/u.test(message);
+  }
+  return /(?:unsupported|not supported|does not support|doesn't support|cannot support|can't support|does not accept|doesn't accept|text[- ]only|only supports? text|not allowed|not enabled|(?:image input|image modality|vision).{0,24}unavailable|only supported by|not (?:a )?(?:vision|multimodal)|no (?:available )?(?:endpoint|provider)s? (?:found )?(?:that |with )?.*(?:support|handle|accept))/u.test(
+    normalized,
+  );
+}
+
+function modelImageInputFailure(message: string): TestModelImageInputValue {
+  const normalized = message.toLowerCase();
+  if (
+    /(?:(?:invalid|unsupported|unrecognized) image (?:format|type|data|payload)|image.{0,32}(?:could not be decoded|decode failed|is corrupt|too (?:small|large))|无法(?:解码|读取).{0,12}(?:图片|图像))/u.test(
+      normalized,
+    )
+  ) {
+    return { outcome: "inconclusive", reason: "invalid-image" };
+  }
+  if (
+    /(?:(?:unknown|unrecognized|unexpected|unsupported|invalid) (?:parameter|field).{0,64}(?:image|content)|(?:image_url|input_image).{0,48}(?:unknown|unrecognized|unexpected|not permitted)|extra inputs are not permitted|expected (?:a )?(?:string|text).{0,48}content)/u.test(
+      normalized,
+    )
+  ) {
+    return { outcome: "inconclusive", reason: "protocol-mismatch" };
+  }
+  if (explicitlyRejectsImageInput(message)) {
+    return { outcome: "unsupported", reason: "provider-rejected-image" };
+  }
+  if (
+    /(?:model (?:was )?(?:not found|unavailable|unknown)|unknown model|invalid model|no such model|no (?:available )?endpoints? found|no available providers?|没有找到.{0,12}模型|模型不存在)/u.test(
+      normalized,
+    )
+  ) {
+    return { outcome: "inconclusive", reason: "model-unavailable" };
+  }
+  if (/(?:content[_ -]?filter|safety|moderation|内容审核|安全策略)/u.test(normalized)) {
+    return { outcome: "inconclusive", reason: "safety" };
+  }
+  if (
+    /(?:\b(?:401|403)\b|unauthori[sz]ed|forbidden|authentication|invalid (?:api[ -]?key|token)|api[ -]?key.{0,32}(?:invalid|missing|required)|no api key|provider is not configured|(?:missing|invalid|no) credentials?|未授权|鉴权|认证失败|无效.{0,12}(?:密钥|令牌))/u.test(
+      normalized,
+    )
+  ) {
+    return { outcome: "inconclusive", reason: "authentication" };
+  }
+  if (
+    /(?:\b402\b|insufficient (?:credits?|balance|funds)|credit balance|quota (?:exceeded|exhausted)|额度不足|余额不足|配额(?:不足|已用尽))/u.test(
+      normalized,
+    )
+  ) {
+    return { outcome: "inconclusive", reason: "quota-exceeded" };
+  }
+  if (/(?:\b429\b|rate.?limit|too many requests|请求过于频繁|限流)/u.test(normalized)) {
+    return { outcome: "inconclusive", reason: "rate-limited" };
+  }
+  if (/(?:\b408\b|\b504\b|timed? out|timeout|time out|aborted|超时)/u.test(normalized)) {
+    return { outcome: "inconclusive", reason: "timeout" };
+  }
+  if (
+    /(?:fetch failed|network(?: error)?|econn|enotfound|socket|connection (?:refused|reset|closed|failed)|dns|tls|certificate|网络|连接失败|无法连接)/u.test(
+      normalized,
+    )
+  ) {
+    return { outcome: "inconclusive", reason: "network" };
+  }
+  if (
+    /(?:\b(?:500|502|503)\b|service unavailable|temporarily unavailable|overloaded|服务不可用|过载)/u.test(
+      normalized,
+    )
+  ) {
+    return { outcome: "inconclusive", reason: "provider-unavailable" };
+  }
+  return { outcome: "inconclusive", reason: "provider-error" };
+}
+
+function modelImageInputTestResponse(response: AssistantMessage): TestModelImageInputValue {
+  if (response.stopReason === "error") {
+    return modelImageInputFailure(response.errorMessage ?? "");
+  }
+  if (response.stopReason === "aborted") {
+    return { outcome: "inconclusive", reason: "timeout" };
+  }
+  const normalized = response.content
+    .flatMap((part) => (part.type === "text" ? [part.text] : []))
+    .join("")
+    .toUpperCase()
+    .replaceAll(/[^A-Z0-9]/gu, "");
+  return normalized.includes(MODEL_IMAGE_INPUT_TEST_CODE)
+    ? { outcome: "supported", reason: "verified" }
+    : { outcome: "inconclusive", reason: "unexpected-response" };
 }
 
 function compareText(left: string, right: string): number {
@@ -1527,6 +1642,81 @@ export class ModelService {
     }
 
     return this.providers();
+  }
+
+  async testModelImageInput(
+    input: TestModelImageInputPayload,
+    options: { signal?: AbortSignal } = {},
+  ): Promise<TestModelImageInputValue> {
+    const { signal } = options;
+    signal?.throwIfAborted();
+    const { runtime } = await this.load();
+    if (!runtime.getModel || !runtime.complete) {
+      return { outcome: "inconclusive", reason: "runtime-unavailable" };
+    }
+    const model = runtime.getModel(input.provider, input.model);
+    if (!model) return { outcome: "inconclusive", reason: "model-not-found" };
+
+    // Unknown models default to text-only metadata in Pi. Force image admission
+    // only for this probe so the provider adapter receives the image and can
+    // give us real evidence; the configured model is never mutated here.
+    const testModel: Model<Api> = {
+      ...model,
+      reasoning: false,
+      input: ["text", "image"],
+      samplingParams: undefined,
+    };
+    const controller = new AbortController();
+    const forwardAbort = () =>
+      controller.abort(
+        signal?.reason ?? new DOMException("Model image-input test was cancelled.", "AbortError"),
+      );
+    signal?.addEventListener("abort", forwardAbort, { once: true });
+    if (signal?.aborted) forwardAbort();
+    const timeout = setTimeout(
+      () => controller.abort(new DOMException("Model image-input test timed out.", "TimeoutError")),
+      MODEL_IMAGE_INPUT_TEST_TIMEOUT_MS,
+    );
+    timeout.unref?.();
+
+    try {
+      const response = await runtime.complete(
+        testModel,
+        {
+          messages: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: "Read the four-character code in this image. Reply with only the code.",
+                },
+                {
+                  type: "image",
+                  data: MODEL_IMAGE_INPUT_TEST_PNG,
+                  mimeType: "image/png",
+                },
+              ],
+              timestamp: Date.now(),
+            },
+          ],
+        },
+        {
+          signal: controller.signal,
+          maxRetries: 0,
+          timeoutMs: MODEL_IMAGE_INPUT_TEST_TIMEOUT_MS,
+        },
+      );
+      signal?.throwIfAborted();
+      return modelImageInputTestResponse(response);
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      if (controller.signal.aborted) return { outcome: "inconclusive", reason: "timeout" };
+      return modelImageInputFailure(errorMessage(error));
+    } finally {
+      clearTimeout(timeout);
+      signal?.removeEventListener("abort", forwardAbort);
+    }
   }
 
   async models(): Promise<ModelCatalogResult> {

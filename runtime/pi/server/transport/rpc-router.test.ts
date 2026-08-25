@@ -554,6 +554,56 @@ test("validates skill.list at the shared RPC boundary", async () => {
   assert.deepEqual(issues[0]?.path, ["payload", "sessionId"]);
 });
 
+test("validates skill.describe at the shared RPC boundary", async () => {
+  const response = await handlePiRpcPost(
+    rpcRequest("skill.describe", { sessionId: "session-1", name: "" }),
+    "skill.describe",
+  );
+  assert.equal(response.status, 200);
+  const body = (await response.json()) as ServerResponse<unknown>;
+  assert.equal(body.result.ok, false);
+  if (body.result.ok) assert.fail("Expected a skill.describe validation error");
+  assert.equal(body.result.error.code, "bad-request");
+  const issues = body.result.error.details.issues as Array<{ path?: unknown }>;
+  assert.deepEqual(issues[0]?.path, ["payload", "name"]);
+});
+
+test("validates skill management methods at the shared RPC boundary", async () => {
+  const invalidRequests = [
+    {
+      method: "skill.setEnabled",
+      payload: { sessionId: "session-1", name: "review", enabled: "yes" },
+      expectedPath: ["payload", "enabled"],
+    },
+    {
+      method: "skill.remove",
+      payload: { sessionId: "session-1", name: "" },
+      expectedPath: ["payload", "name"],
+    },
+    {
+      method: "skill.files.list",
+      payload: { sessionId: "session-1", name: "review", relativePath: 1 },
+      expectedPath: ["payload", "relativePath"],
+    },
+    {
+      method: "skill.files.read",
+      payload: { sessionId: "session-1", name: "review", relativePath: "" },
+      expectedPath: ["payload", "relativePath"],
+    },
+  ] as const;
+
+  for (const { method, payload, expectedPath } of invalidRequests) {
+    const response = await handlePiRpcPost(rpcRequest(method, payload), method);
+    assert.equal(response.status, 200);
+    const body = (await response.json()) as ServerResponse<unknown>;
+    assert.equal(body.result.ok, false);
+    if (body.result.ok) assert.fail(`Expected a ${method} validation error`);
+    assert.equal(body.result.error.code, "bad-request");
+    const issues = body.result.error.details.issues as Array<{ path?: unknown }>;
+    assert.deepEqual(issues[0]?.path, expectedPath);
+  }
+});
+
 test("validates command.list at the shared RPC boundary", async () => {
   const response = await handlePiRpcPost(
     rpcRequest("command.list", { sessionId: "" }),
@@ -614,6 +664,29 @@ test("validates package.install targets and official npm package names", async (
     issues.map((issue) => issue.path),
     [
       ["payload", "name"],
+      ["payload", "target"],
+    ],
+  );
+});
+
+test("validates package.remove targets and configured package sources", async () => {
+  const response = await handlePiRpcPost(
+    rpcRequest("package.remove", {
+      source: "npm:pi-tools\nrm -rf /",
+      target: { scope: "project", workspaceId: "" },
+    }),
+    "package.remove",
+  );
+  assert.equal(response.status, 200);
+  const body = (await response.json()) as ServerResponse<unknown>;
+  assert.equal(body.result.ok, false);
+  if (body.result.ok) assert.fail("Expected a package.remove validation error");
+  assert.equal(body.result.error.code, "bad-request");
+  const issues = body.result.error.details.issues as Array<{ path?: unknown }>;
+  assert.deepEqual(
+    issues.map((issue) => issue.path),
+    [
+      ["payload", "source"],
       ["payload", "target"],
     ],
   );
@@ -751,7 +824,15 @@ test("persists Workbench preferences through the shared RPC boundary", async (t)
   await rpcValue(
     await handlePiRpcPost(
       rpcRequest("workbenchSettings.update", {
-        patch: { locale: "zh-CN", sidebarOpen: false, toolboxPins: ["skills", "skills"] },
+        patch: {
+          locale: "zh-CN",
+          sidebarOpen: false,
+          sidebarThreadSortMode: "manual",
+          sidebarThreadOrderByScope: {
+            pinned: ["session-b", "session-a"],
+          },
+          toolboxPins: ["skills", "skills"],
+        },
       }),
       "workbenchSettings.update",
     ),
@@ -764,6 +845,8 @@ test("persists Workbench preferences through the shared RPC boundary", async (t)
   );
   assert.deepEqual(described.preferences, {
     locale: "zh-CN",
+    sidebarThreadOrderByScope: { pinned: ["session-b", "session-a"] },
+    sidebarThreadSortMode: "manual",
     toolboxPins: ["skills"],
     sidebarOpen: false,
   });
@@ -794,6 +877,20 @@ test("validates model context-window updates at the shared RPC boundary", async 
   const body = (await response.json()) as ServerResponse<unknown>;
   assert.equal(body.result.ok, false);
   if (body.result.ok) assert.fail("Expected a model context-window validation error");
+  assert.equal(body.result.error.code, "bad-request");
+});
+
+test("validates image-input model tests at the shared RPC boundary", async () => {
+  const response = await handlePiRpcPost(
+    rpcRequest("llm.testModelImageInput", {
+      provider: "openai",
+      model: "",
+    }),
+    "llm.testModelImageInput",
+  );
+  const body = (await response.json()) as ServerResponse<unknown>;
+  assert.equal(body.result.ok, false);
+  if (body.result.ok) assert.fail("Expected an image-input test validation error");
   assert.equal(body.result.error.code, "bad-request");
 });
 

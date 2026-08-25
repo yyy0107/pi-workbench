@@ -10,6 +10,12 @@ import type {
 const PI_PACKAGE_CATALOG_URL = "https://pi.dev/packages";
 const PI_PACKAGE_CATALOG_PAGE_SIZE = 50;
 const MAX_CATALOG_RESPONSE_BYTES = 2 * 1024 * 1024;
+const CATALOG_REQUEST_TIMEOUT_MS = 15_000;
+const DEFAULT_CATALOG_REFRESH_INTERVAL_MS = 30 * 60 * 1000;
+const DEFAULT_DETAIL_REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const DEFAULT_CATALOG_REFRESH_CONCURRENCY = 6;
+const MAX_FALLBACK_SEARCH_CACHE_ENTRIES = 128;
+const MAX_DETAIL_CACHE_ENTRIES = 256;
 const PACKAGE_TYPES = new Set<PiPackageResourceType>([
   "extension",
   "skill",
@@ -20,6 +26,35 @@ const PACKAGE_TYPES = new Set<PiPackageResourceType>([
 
 export interface PiPackageCatalogServiceDependencies {
   fetch(input: string | URL, init?: RequestInit): Promise<Response>;
+  now(): number;
+  scheduleInterval(task: () => void, intervalMs: number): () => void;
+  onBackgroundError(error: unknown): void;
+}
+
+export interface PiPackageCatalogServiceOptions {
+  backgroundRefresh?: boolean;
+  refreshConcurrency?: number;
+  refreshIntervalMs?: number;
+}
+
+interface ParsedPackageCard {
+  item: PiPackageCatalogItemView;
+  searchText: string;
+}
+
+interface ParsedPackageCatalogPage {
+  entries: ParsedPackageCard[];
+  value: PiPackageCatalogSearchValue;
+}
+
+interface PackageCatalogSnapshot {
+  entries: ParsedPackageCard[];
+  total: number;
+}
+
+interface CachedValue<Value> {
+  refreshedAt: number;
+  value: Value;
 }
 
 export interface PiPackageCatalogServiceErrorDetails {
@@ -240,7 +275,7 @@ function parseVersion(markup: string): string | undefined {
   return undefined;
 }
 
-function parsePackageCard(attributesMarkup: string, body: string): PiPackageCatalogItemView | null {
+function parsePackageCard(attributesMarkup: string, body: string): ParsedPackageCard | null {
   const attributes = parseAttributes(attributesMarkup);
   const name = attributes["data-package-name"]?.trim();
   if (!name) return null;
@@ -259,11 +294,12 @@ function parsePackageCard(attributesMarkup: string, body: string): PiPackageCata
   const publishedAt = Number.parseInt(attributes["data-package-date"] ?? "0", 10);
   const version = parseVersion(body);
 
-  return {
+  const types = parsePackageTypes(attributes["data-package-types"] ?? "");
+  const item: PiPackageCatalogItemView = {
     name,
     description,
     author,
-    types: parsePackageTypes(attributes["data-package-types"] ?? ""),
+    types,
     monthlyDownloads: Number.isFinite(monthlyDownloads) ? monthlyDownloads : 0,
     publishedAt: Number.isFinite(publishedAt) ? publishedAt : 0,
     catalogUrl: packageCatalogUrl(name, body),
@@ -271,6 +307,11 @@ function parsePackageCard(attributesMarkup: string, body: string): PiPackageCata
     ...(repositoryUrl ? { repositoryUrl } : {}),
     ...(version ? { version } : {}),
     installCommand: `pi install npm:${name}`,
+  };
+  const fallbackSearchText = `${name} ${description} ${author} ${types.join(" ")}`;
+  return {
+    item,
+    searchText: (attributes["data-package-search"] ?? fallbackSearchText).toLowerCase(),
   };
 }
 
@@ -300,7 +341,7 @@ export function buildPiPackageCatalogUrl(payload: PiPackageCatalogSearchPayload)
   return url;
 }
 
-export function parsePiPackageCatalogHtml(html: string, page = 1): PiPackageCatalogSearchValue {
+function parsePiPackageCatalogPageHtml(html: string, page = 1): ParsedPackageCatalogPage {
   const counts = parseCatalogCounts(html);
   if (!counts) {
     throw new PiPackageCatalogServiceError(
@@ -310,30 +351,104 @@ export function parsePiPackageCatalogHtml(html: string, page = 1): PiPackageCata
     );
   }
 
-  const packages: PiPackageCatalogItemView[] = [];
+  const entries: ParsedPackageCard[] = [];
   for (const match of html.matchAll(
     /<article\b([^>]*\bdata-package-card="true"[^>]*)>([\s\S]*?)<\/article>/gi,
   )) {
-    const item = parsePackageCard(match[1] ?? "", match[2] ?? "");
-    if (item) packages.push(item);
+    const entry = parsePackageCard(match[1] ?? "", match[2] ?? "");
+    if (entry) entries.push(entry);
   }
 
   return {
-    sourceUrl: PI_PACKAGE_CATALOG_URL,
-    page,
-    pageSize: PI_PACKAGE_CATALOG_PAGE_SIZE,
-    pageCount: Math.ceil(counts.filteredTotal / PI_PACKAGE_CATALOG_PAGE_SIZE),
-    filteredTotal: counts.filteredTotal,
-    total: counts.total,
-    packages,
+    entries,
+    value: {
+      sourceUrl: PI_PACKAGE_CATALOG_URL,
+      page,
+      pageSize: PI_PACKAGE_CATALOG_PAGE_SIZE,
+      pageCount: Math.ceil(counts.filteredTotal / PI_PACKAGE_CATALOG_PAGE_SIZE),
+      filteredTotal: counts.filteredTotal,
+      total: counts.total,
+      packages: entries.map(({ item }) => item),
+    },
   };
+}
+
+export function parsePiPackageCatalogHtml(html: string, page = 1): PiPackageCatalogSearchValue {
+  return parsePiPackageCatalogPageHtml(html, page).value;
 }
 
 export class PiPackageCatalogService {
   private readonly dependencies: PiPackageCatalogServiceDependencies;
+  private readonly backgroundRefresh: boolean;
+  private readonly refreshConcurrency: number;
+  private readonly refreshIntervalMs: number;
+  private readonly fallbackSearchCache = new Map<
+    string,
+    CachedValue<PiPackageCatalogSearchValue>
+  >();
+  private readonly fallbackSearchRefreshes = new Map<
+    string,
+    Promise<PiPackageCatalogSearchValue>
+  >();
+  private readonly detailCache = new Map<string, CachedValue<PiPackageCatalogDetailsView>>();
+  private readonly detailRefreshes = new Map<string, Promise<PiPackageCatalogDetailsView>>();
+  private snapshot?: PackageCatalogSnapshot;
+  private snapshotRefresh?: Promise<void>;
+  private backgroundRefreshStarted = false;
+  private backgroundStartup?: Promise<void>;
+  private stopScheduler?: () => void;
 
-  constructor(dependencies: Partial<PiPackageCatalogServiceDependencies> = {}) {
-    this.dependencies = { fetch: globalThis.fetch, ...dependencies };
+  constructor(
+    dependencies: Partial<PiPackageCatalogServiceDependencies> = {},
+    options: PiPackageCatalogServiceOptions = {},
+  ) {
+    this.dependencies = {
+      fetch: globalThis.fetch,
+      now: Date.now,
+      onBackgroundError: (error) =>
+        console.warn("Pi package catalog background refresh failed.", error),
+      scheduleInterval: (task, intervalMs) => {
+        const timer = setInterval(task, intervalMs);
+        timer.unref?.();
+        return () => clearInterval(timer);
+      },
+      ...dependencies,
+    };
+    this.backgroundRefresh = options.backgroundRefresh ?? false;
+    this.refreshConcurrency = options.refreshConcurrency ?? DEFAULT_CATALOG_REFRESH_CONCURRENCY;
+    this.refreshIntervalMs = options.refreshIntervalMs ?? DEFAULT_CATALOG_REFRESH_INTERVAL_MS;
+    if (!Number.isSafeInteger(this.refreshConcurrency) || this.refreshConcurrency < 1) {
+      throw new RangeError("refreshConcurrency must be a positive integer.");
+    }
+    if (!Number.isFinite(this.refreshIntervalMs) || this.refreshIntervalMs <= 0) {
+      throw new RangeError("refreshIntervalMs must be a positive finite number.");
+    }
+  }
+
+  private cacheValue<Key, Value>(
+    cache: Map<Key, CachedValue<Value>>,
+    key: Key,
+    value: Value,
+    maximumEntries: number,
+  ): void {
+    cache.delete(key);
+    cache.set(key, { refreshedAt: this.dependencies.now(), value });
+    while (cache.size > maximumEntries) {
+      const oldestKey = cache.keys().next().value as Key | undefined;
+      if (oldestKey === undefined) break;
+      cache.delete(oldestKey);
+    }
+  }
+
+  private readCachedValue<Key, Value>(
+    cache: Map<Key, CachedValue<Value>>,
+    key: Key,
+  ): CachedValue<Value> | undefined {
+    const cached = cache.get(key);
+    if (!cached) return undefined;
+    cache.delete(key);
+    cache.set(key, cached);
+    return cached;
   }
 
   private async fetchHtml(url: URL, signal?: AbortSignal): Promise<string> {
@@ -342,7 +457,9 @@ export class PiPackageCatalogService {
       response = await this.dependencies.fetch(url, {
         headers: { Accept: "text/html", "User-Agent": "Pi-Workbench/0.1" },
         redirect: "follow",
-        signal,
+        signal: signal
+          ? AbortSignal.any([signal, AbortSignal.timeout(CATALOG_REQUEST_TIMEOUT_MS)])
+          : AbortSignal.timeout(CATALOG_REQUEST_TIMEOUT_MS),
       });
     } catch (error) {
       throw new PiPackageCatalogServiceError(
@@ -371,28 +488,291 @@ export class PiPackageCatalogService {
     return html;
   }
 
+  private async fetchCatalogPage(
+    payload: PiPackageCatalogSearchPayload,
+    signal?: AbortSignal,
+  ): Promise<ParsedPackageCatalogPage> {
+    const html = await this.fetchHtml(buildPiPackageCatalogUrl(payload), signal);
+    return parsePiPackageCatalogPageHtml(html, payload.page ?? 1);
+  }
+
+  private async loadCompleteSnapshot(): Promise<PackageCatalogSnapshot> {
+    const controller = new AbortController();
+    const firstPage = await this.fetchCatalogPage({ sort: "name", page: 1 }, controller.signal);
+    if (firstPage.value.filteredTotal !== firstPage.value.total) {
+      throw new PiPackageCatalogServiceError(
+        "catalog-invalid-response",
+        "The Pi package catalog snapshot was unexpectedly filtered.",
+        {},
+      );
+    }
+
+    const pages: Array<ParsedPackageCatalogPage | undefined> = Array.from({
+      length: firstPage.value.pageCount,
+    });
+    pages[0] = firstPage;
+    let nextPage = 2;
+    const worker = async (): Promise<void> => {
+      for (;;) {
+        const page = nextPage;
+        nextPage += 1;
+        if (page > firstPage.value.pageCount) return;
+        pages[page - 1] = await this.fetchCatalogPage({ sort: "name", page }, controller.signal);
+      }
+    };
+    try {
+      await Promise.all(
+        Array.from(
+          { length: Math.min(this.refreshConcurrency, Math.max(0, pages.length - 1)) },
+          () => worker(),
+        ),
+      );
+    } catch (error) {
+      controller.abort();
+      throw error;
+    }
+
+    const entries: ParsedPackageCard[] = [];
+    const names = new Set<string>();
+    for (const page of pages) {
+      if (!page) {
+        throw new PiPackageCatalogServiceError(
+          "catalog-invalid-response",
+          "The Pi package catalog snapshot was incomplete.",
+          {},
+        );
+      }
+      for (const entry of page.entries) {
+        if (names.has(entry.item.name)) continue;
+        names.add(entry.item.name);
+        entries.push(entry);
+      }
+    }
+    if (entries.length !== firstPage.value.total) {
+      throw new PiPackageCatalogServiceError(
+        "catalog-invalid-response",
+        "The Pi package catalog changed while its snapshot was being refreshed.",
+        {},
+      );
+    }
+    return { entries, total: entries.length };
+  }
+
+  refreshCatalog(): Promise<void> {
+    if (this.snapshotRefresh) return this.snapshotRefresh;
+    const refresh = this.loadCompleteSnapshot()
+      .then((snapshot) => {
+        this.snapshot = snapshot;
+        this.fallbackSearchCache.clear();
+      })
+      .finally(() => {
+        if (this.snapshotRefresh === refresh) this.snapshotRefresh = undefined;
+      });
+    this.snapshotRefresh = refresh;
+    return refresh;
+  }
+
+  private searchSnapshot(
+    snapshot: PackageCatalogSnapshot,
+    payload: PiPackageCatalogSearchPayload,
+  ): PiPackageCatalogSearchValue {
+    const query = payload.query?.trim().toLowerCase();
+    let entries = snapshot.entries.filter(
+      ({ item, searchText }) =>
+        (!query || searchText.includes(query)) &&
+        (!payload.type || item.types.includes(payload.type)),
+    );
+    const sort = payload.sort ?? "downloads";
+    if (sort === "downloads") {
+      entries = entries.toSorted(
+        (left, right) => right.item.monthlyDownloads - left.item.monthlyDownloads,
+      );
+    } else if (sort === "recent") {
+      entries = entries.toSorted((left, right) => right.item.publishedAt - left.item.publishedAt);
+    }
+
+    const page = payload.page ?? 1;
+    const filteredTotal = entries.length;
+    const offset = (page - 1) * PI_PACKAGE_CATALOG_PAGE_SIZE;
+    return {
+      sourceUrl: PI_PACKAGE_CATALOG_URL,
+      page,
+      pageSize: PI_PACKAGE_CATALOG_PAGE_SIZE,
+      pageCount: Math.ceil(filteredTotal / PI_PACKAGE_CATALOG_PAGE_SIZE),
+      filteredTotal,
+      total: snapshot.total,
+      packages: entries
+        .slice(offset, offset + PI_PACKAGE_CATALOG_PAGE_SIZE)
+        .map(({ item }) => item),
+    };
+  }
+
+  private refreshFallbackSearch(
+    payload: PiPackageCatalogSearchPayload,
+    signal?: AbortSignal,
+  ): Promise<PiPackageCatalogSearchValue> {
+    const key = buildPiPackageCatalogUrl(payload).toString();
+    const active = this.fallbackSearchRefreshes.get(key);
+    if (active) return active;
+    const refresh = this.fetchCatalogPage(payload, signal)
+      .then(({ value }) => {
+        this.cacheValue(this.fallbackSearchCache, key, value, MAX_FALLBACK_SEARCH_CACHE_ENTRIES);
+        return value;
+      })
+      .finally(() => {
+        if (this.fallbackSearchRefreshes.get(key) === refresh) {
+          this.fallbackSearchRefreshes.delete(key);
+        }
+      });
+    this.fallbackSearchRefreshes.set(key, refresh);
+    return refresh;
+  }
+
+  private refreshDetail(
+    payload: PiPackageCatalogDescribePayload,
+    signal?: AbortSignal,
+  ): Promise<PiPackageCatalogDetailsView> {
+    const active = this.detailRefreshes.get(payload.name);
+    if (active) return active;
+    const refresh = this.fetchHtml(buildPiPackageCatalogDetailUrl(payload.name), signal)
+      .then((html) => parsePiPackageCatalogDetailHtml(html))
+      .then((details) => {
+        if (details.name !== payload.name) {
+          throw new PiPackageCatalogServiceError(
+            "catalog-invalid-response",
+            "The Pi package detail response did not match the requested package.",
+            {},
+          );
+        }
+        this.cacheValue(this.detailCache, payload.name, details, MAX_DETAIL_CACHE_ENTRIES);
+        return details;
+      })
+      .finally(() => {
+        if (this.detailRefreshes.get(payload.name) === refresh) {
+          this.detailRefreshes.delete(payload.name);
+        }
+      });
+    this.detailRefreshes.set(payload.name, refresh);
+    return refresh;
+  }
+
+  private async refreshObservedFallbackSearches(): Promise<void> {
+    if (this.snapshot || this.fallbackSearchCache.size === 0) return;
+    const payloads = [...this.fallbackSearchCache.keys()].map((url) => {
+      const parsed = new URL(url);
+      const type = parsed.searchParams.get("type") as PiPackageCatalogSearchPayload["type"];
+      const sort = parsed.searchParams.get("sort") as PiPackageCatalogSearchPayload["sort"];
+      const page = Number(parsed.searchParams.get("page") ?? "1");
+      return {
+        ...(parsed.searchParams.get("name")
+          ? { query: parsed.searchParams.get("name") ?? undefined }
+          : {}),
+        ...(type ? { type } : {}),
+        ...(sort ? { sort } : {}),
+        ...(page > 1 ? { page } : {}),
+      } satisfies PiPackageCatalogSearchPayload;
+    });
+    await Promise.allSettled(payloads.map((payload) => this.refreshFallbackSearch(payload)));
+  }
+
+  private async refreshObservedDetails(): Promise<void> {
+    const threshold = this.dependencies.now() - DEFAULT_DETAIL_REFRESH_INTERVAL_MS;
+    const names = [...this.detailCache]
+      .filter(([, cached]) => cached.refreshedAt <= threshold)
+      .map(([name]) => name);
+    let nextIndex = 0;
+    const worker = async (): Promise<void> => {
+      for (;;) {
+        const index = nextIndex;
+        nextIndex += 1;
+        const name = names[index];
+        if (!name) return;
+        await this.refreshDetail({ name }).catch((error: unknown) =>
+          this.dependencies.onBackgroundError(error),
+        );
+      }
+    };
+    await Promise.all(
+      Array.from({ length: Math.min(this.refreshConcurrency, names.length) }, () => worker()),
+    );
+  }
+
+  private async runBackgroundRefresh(): Promise<void> {
+    try {
+      await this.refreshCatalog();
+    } catch (error) {
+      this.dependencies.onBackgroundError(error);
+      await this.refreshObservedFallbackSearches();
+    }
+    await this.refreshObservedDetails();
+  }
+
+  start(): Promise<void> {
+    if (!this.backgroundRefresh) return Promise.resolve();
+    if (this.backgroundRefreshStarted) return this.backgroundStartup ?? Promise.resolve();
+    this.backgroundRefreshStarted = true;
+    this.stopScheduler = this.dependencies.scheduleInterval(() => {
+      void this.runBackgroundRefresh();
+    }, this.refreshIntervalMs);
+    this.backgroundStartup = this.runBackgroundRefresh().finally(() => {
+      this.backgroundStartup = undefined;
+    });
+    return this.backgroundStartup;
+  }
+
+  dispose(): void {
+    this.stopScheduler?.();
+    this.stopScheduler = undefined;
+    this.backgroundRefreshStarted = false;
+  }
+
   async search(
     payload: PiPackageCatalogSearchPayload,
     signal?: AbortSignal,
   ): Promise<PiPackageCatalogSearchValue> {
-    const url = buildPiPackageCatalogUrl(payload);
-    const html = await this.fetchHtml(url, signal);
-    return parsePiPackageCatalogHtml(html, payload.page ?? 1);
+    try {
+      if (this.snapshot) return this.searchSnapshot(this.snapshot, payload);
+      const key = buildPiPackageCatalogUrl(payload).toString();
+      const cached = this.readCachedValue(this.fallbackSearchCache, key);
+      if (cached) return cached.value;
+      return await this.refreshFallbackSearch(payload, this.backgroundRefresh ? undefined : signal);
+    } finally {
+      void this.start();
+    }
   }
 
   async describe(
     payload: PiPackageCatalogDescribePayload,
     signal?: AbortSignal,
   ): Promise<PiPackageCatalogDetailsView> {
-    const html = await this.fetchHtml(buildPiPackageCatalogDetailUrl(payload.name), signal);
-    const details = parsePiPackageCatalogDetailHtml(html);
-    if (details.name !== payload.name) {
-      throw new PiPackageCatalogServiceError(
-        "catalog-invalid-response",
-        "The Pi package detail response did not match the requested package.",
-        {},
-      );
+    try {
+      const cached = this.readCachedValue(this.detailCache, payload.name);
+      if (cached) {
+        if (
+          this.backgroundRefresh &&
+          cached.refreshedAt <= this.dependencies.now() - DEFAULT_DETAIL_REFRESH_INTERVAL_MS
+        ) {
+          void this.refreshDetail(payload).catch((error: unknown) =>
+            this.dependencies.onBackgroundError(error),
+          );
+        }
+        return cached.value;
+      }
+      return await this.refreshDetail(payload, this.backgroundRefresh ? undefined : signal);
+    } finally {
+      void this.start();
     }
-    return details;
   }
+}
+
+const packageCatalogServiceKey = Symbol.for("pi-workbench.package-catalog-service.v1");
+const packageCatalogGlobal = globalThis as typeof globalThis & {
+  [packageCatalogServiceKey]?: PiPackageCatalogService;
+};
+
+export function getPiPackageCatalogService(): PiPackageCatalogService {
+  return (packageCatalogGlobal[packageCatalogServiceKey] ??= new PiPackageCatalogService(
+    {},
+    { backgroundRefresh: true },
+  ));
 }

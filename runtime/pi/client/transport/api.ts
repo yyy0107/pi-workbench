@@ -43,6 +43,8 @@ import type {
   PiPackageCatalogSearchValue,
   PiPackageInstallPayload,
   PiPackageInstallValue,
+  PiPackageRemovePayload,
+  PiPackageRemoveValue,
   ProjectTrustDescribePayload,
   ProjectTrustDescribeValue,
   ProjectTrustUpdatePayload,
@@ -79,11 +81,23 @@ import type {
   SessionSelectBranchValue,
   SessionUpdateQueuePayload,
   SessionUpdateQueueValue,
+  SkillDescribePayload,
+  SkillDescribeValue,
+  SkillFileReadPayload,
+  SkillFileSnapshotValue,
+  SkillFilesListPayload,
+  SkillFilesListValue,
   SkillListPayload,
   SkillListValue,
+  SkillRemovePayload,
+  SkillRemoveValue,
+  SkillSetEnabledPayload,
+  SkillSetEnabledValue,
   SettingsDescribeValue,
   SettingsOpenDocumentValue,
   StartModelProviderLoginPayload,
+  TestModelImageInputPayload,
+  TestModelImageInputValue,
   UpdateModelContextWindowPayload,
   WorkspaceArchivedSessionsValue,
   WorkspaceFileDescribePayload,
@@ -578,8 +592,34 @@ export function discoverPiModels(payload: DiscoverModelsPayload): Promise<Discov
   return callPiRpc("llm.discoverModels", payload);
 }
 
+export function testPiModelImageInput(
+  payload: TestModelImageInputPayload,
+): Promise<TestModelImageInputValue> {
+  return callPiRpc("llm.testModelImageInput", payload);
+}
+
 export function listPiSkills(payload: SkillListPayload): Promise<SkillListValue> {
   return callPiRpc("skill.list", payload);
+}
+
+export function describePiSkill(payload: SkillDescribePayload): Promise<SkillDescribeValue> {
+  return callPiRpc("skill.describe", payload);
+}
+
+export function setPiSkillEnabled(payload: SkillSetEnabledPayload): Promise<SkillSetEnabledValue> {
+  return callPiRpc("skill.setEnabled", payload);
+}
+
+export function removePiSkill(payload: SkillRemovePayload): Promise<SkillRemoveValue> {
+  return callPiRpc("skill.remove", payload);
+}
+
+export function listPiSkillFiles(payload: SkillFilesListPayload): Promise<SkillFilesListValue> {
+  return callPiRpc("skill.files.list", payload);
+}
+
+export function readPiSkillFile(payload: SkillFileReadPayload): Promise<SkillFileSnapshotValue> {
+  return callPiRpc("skill.files.read", payload);
 }
 
 export function listPiCommands(payload: CommandListPayload): Promise<CommandListValue> {
@@ -598,6 +638,10 @@ export function listInstalledPiPackages(
 
 export function installPiPackage(payload: PiPackageInstallPayload): Promise<PiPackageInstallValue> {
   return callPiRpc("package.install", payload);
+}
+
+export function removePiPackage(payload: PiPackageRemovePayload): Promise<PiPackageRemoveValue> {
+  return callPiRpc("package.remove", payload);
 }
 
 export function searchPiPackageCatalog(

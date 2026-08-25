@@ -32,10 +32,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-async function warmSessionMetadataViaRoute(requestHandler: WorkbenchRequestHandler): Promise<void> {
+async function warmServerStateViaRoute(requestHandler: WorkbenchRequestHandler): Promise<void> {
   // The Pi registry is ESM-only while this launcher enters through tsx's CommonJS path.
-  // Warming through Next's bundled route keeps that boundary intact and compiles the RPC before
-  // the public listener starts accepting requests.
+  // Warming through Next's bundled route keeps that boundary intact, compiles the RPC before the
+  // public listener starts accepting requests, and starts the package-catalog cache in the same
+  // module graph that will serve later requests.
   const warmupServer = createServer(requestHandler);
   await new Promise<void>((resolve, reject) => {
     const onError = (error: Error) => reject(error);
@@ -51,27 +52,36 @@ async function warmSessionMetadataViaRoute(requestHandler: WorkbenchRequestHandl
     if (!address || typeof address === "string") {
       throw new Error("Session metadata warmup server did not bind a TCP port.");
     }
-    const rpcId = "startup-session-metadata-warmup";
-    const response = await fetch(`http://127.0.0.1:${address.port}/api/session.list`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        type: "client-request",
-        rpcId,
-        method: "session.list",
-        payload: {},
-      }),
-    });
-    const body: unknown = await response.json();
-    if (
-      !response.ok ||
-      !isRecord(body) ||
-      body.type !== "server-response" ||
-      body.rpcId !== rpcId ||
-      !isRecord(body.result) ||
-      body.result.ok !== true
-    ) {
-      throw new Error(`Session metadata warmup failed with HTTP ${response.status}.`);
+    const warmRpc = async (method: string): Promise<void> => {
+      const rpcId = `startup-${method}-warmup`;
+      const response = await fetch(`http://127.0.0.1:${address.port}/api/${method}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "client-request",
+          rpcId,
+          method,
+          payload: {},
+        }),
+      });
+      const body: unknown = await response.json();
+      if (
+        !response.ok ||
+        !isRecord(body) ||
+        body.type !== "server-response" ||
+        body.rpcId !== rpcId ||
+        !isRecord(body.result) ||
+        body.result.ok !== true
+      ) {
+        throw new Error(`${method} warmup failed with HTTP ${response.status}.`);
+      }
+    };
+
+    await warmRpc("session.list");
+    try {
+      await warmRpc("packageCatalog.search");
+    } catch (error) {
+      console.warn("Workbench could not warm the Pi package catalog cache.", error);
     }
   } finally {
     await new Promise<void>((resolve, reject) => {
@@ -112,7 +122,7 @@ async function main(): Promise<void> {
   });
   const requestHandler = app.getRequestHandler();
   await app.prepare();
-  await warmSessionMetadataViaRoute(requestHandler);
+  await warmServerStateViaRoute(requestHandler);
 
   const piWebSocketServer = new WebSocketServer({
     noServer: true,

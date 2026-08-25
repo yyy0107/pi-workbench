@@ -286,7 +286,7 @@ export interface ModelReasoningEffort {
 }
 
 export type ModelCapabilityState = "supported" | "unsupported" | "unknown";
-export type ModelCapabilitySource = "provider-api" | "runtime" | "user";
+export type ModelCapabilitySource = "provider-api" | "runtime" | "test" | "user";
 export type ModelThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 export type ModelThinkingLevelMap = Partial<Record<ModelThinkingLevel, string | null>>;
 
@@ -511,6 +511,37 @@ export interface DiscoverModelsValue {
   models: DiscoveredModel[];
 }
 
+export interface TestModelImageInputPayload {
+  provider: string;
+  model: string;
+}
+
+export type ModelImageInputTestOutcome = "supported" | "unsupported" | "inconclusive";
+
+export type ModelImageInputTestReason =
+  | "verified"
+  | "provider-rejected-image"
+  | "model-not-found"
+  | "runtime-unavailable"
+  | "unexpected-response"
+  | "authentication"
+  | "quota-exceeded"
+  | "rate-limited"
+  | "timeout"
+  | "network"
+  | "provider-unavailable"
+  | "protocol-mismatch"
+  | "model-unavailable"
+  | "invalid-image"
+  | "safety"
+  | "provider-error"
+  | "request-failed";
+
+export interface TestModelImageInputValue {
+  outcome: ModelImageInputTestOutcome;
+  reason: ModelImageInputTestReason;
+}
+
 export const PI_AGENT_SETTINGS_NAMESPACE = "pi.agent" as const;
 
 export interface PiCompactionSettingsValue {
@@ -582,11 +613,15 @@ export interface WorkbenchModelSelectorPreference {
   reasoningEffort?: string;
 }
 
+export type WorkbenchSidebarThreadSortMode = "priority" | "recent" | "manual";
+
 export interface WorkbenchSettingsPreferences {
   appearance?: Record<string, WorkbenchSettingsJsonValue>;
   backgroundImage?: WorkbenchBackgroundImagePreference;
   locale?: "en-US" | "zh-CN";
   modelSelector?: WorkbenchModelSelectorPreference;
+  sidebarThreadOrderByScope?: Record<string, string[]>;
+  sidebarThreadSortMode?: WorkbenchSidebarThreadSortMode;
   toolboxPins?: string[];
   rightWorkspace?: Record<string, WorkbenchSettingsJsonValue>;
   sidebarOpen?: boolean;
@@ -720,11 +755,80 @@ export interface SkillView {
   name: string;
   description: string;
   whenToUse?: string;
+  enabled: boolean;
   modelInvocable: boolean;
+  source: string;
+  scope: ExtensionSourceScope;
+  origin: ExtensionSourceOrigin;
 }
 
 export interface SkillListValue {
   skills: SkillView[];
+}
+
+export interface SkillDescribePayload {
+  sessionId: string;
+  name: string;
+}
+
+export interface SkillDescribeValue {
+  name: string;
+  content: string;
+  filePath: string;
+}
+
+export interface SkillSetEnabledPayload extends SkillDescribePayload {
+  enabled: boolean;
+}
+
+export interface SkillSetEnabledValue {
+  name: string;
+  enabled: boolean;
+}
+
+export type SkillRemovePayload = SkillDescribePayload;
+
+export interface SkillRemoveValue {
+  name: string;
+  removed: true;
+}
+
+export interface SkillFilesListPayload extends SkillDescribePayload {
+  relativePath?: string;
+}
+
+export interface SkillFileEntry {
+  name: string;
+  relativePath: string;
+  kind: "file" | "directory";
+  hidden: boolean;
+  symbolicLink?: boolean;
+}
+
+export interface SkillFilesListValue {
+  name: string;
+  rootPath: string;
+  relativePath: string;
+  entries: SkillFileEntry[];
+  truncated: boolean;
+}
+
+export interface SkillFileReadPayload extends SkillDescribePayload {
+  relativePath: string;
+}
+
+export interface SkillFileSnapshotValue {
+  skillName: string;
+  rootPath: string;
+  relativePath: string;
+  absolutePath: string;
+  name: string;
+  content: string;
+  mediaType: string;
+  encoding: "utf-8";
+  version: string;
+  size: number;
+  modifiedAt: number;
 }
 
 export interface ExtensionListPayload {
@@ -764,9 +868,11 @@ export interface InstalledPackageListValue {
   packages: InstalledPackageView[];
 }
 
-export type PiPackageInstallTarget =
+export type PiPackageMutationTarget =
   | { scope: "user"; sessionId: string }
   | { scope: "project"; workspaceId: string };
+
+export type PiPackageInstallTarget = PiPackageMutationTarget;
 
 export interface PiPackageInstallPayload {
   name: string;
@@ -774,6 +880,24 @@ export interface PiPackageInstallPayload {
 }
 
 export type PiPackageInstallValue =
+  | {
+      source: string;
+      scope: "user";
+      reloadRequired: true;
+    }
+  | {
+      source: string;
+      scope: "project";
+      workspaceId: string;
+      reloadRequired: true;
+    };
+
+export interface PiPackageRemovePayload {
+  source: string;
+  target: PiPackageMutationTarget;
+}
+
+export type PiPackageRemoveValue =
   | {
       source: string;
       scope: "user";
@@ -873,6 +997,9 @@ export interface ExtensionCommandView extends CommandViewBase {
 
 export interface PromptCommandView extends CommandViewBase {
   kind: "prompt";
+  source: string;
+  scope: ExtensionSourceScope;
+  origin: ExtensionSourceOrigin;
 }
 
 export interface SkillCommandView extends CommandViewBase {

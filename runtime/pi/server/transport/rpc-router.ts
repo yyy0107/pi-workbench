@@ -15,7 +15,7 @@ import { localAppService, LocalAppServiceError } from "../local-apps/index";
 import { CommandService, CommandServiceError } from "../commands/command-service";
 import { ExtensionService, ExtensionServiceError } from "../extensions/extension-service";
 import {
-  PiPackageCatalogService,
+  getPiPackageCatalogService,
   PiPackageCatalogServiceError,
 } from "../packages/package-catalog-service";
 import {
@@ -118,6 +118,25 @@ const setWorkspacePinnedPayload = rpcObject({
   pinned: rpcBoolean,
 });
 const sessionIdPayload = rpcObject({ sessionId: nonEmptyString });
+const skillDescribePayload = rpcObject({
+  sessionId: nonEmptyString,
+  name: rpcString({ minLength: 1, maxLength: 512, trim: true }),
+});
+const skillSetEnabledPayload = rpcObject({
+  sessionId: nonEmptyString,
+  name: rpcString({ minLength: 1, maxLength: 512, trim: true }),
+  enabled: rpcBoolean,
+});
+const skillFilesListPayload = rpcObject({
+  sessionId: nonEmptyString,
+  name: rpcString({ minLength: 1, maxLength: 512, trim: true }),
+  relativePath: rpcOptional(rpcString({ maxLength: 16_384 })),
+});
+const skillFileReadPayload = rpcObject({
+  sessionId: nonEmptyString,
+  name: rpcString({ minLength: 1, maxLength: 512, trim: true }),
+  relativePath: rpcString({ minLength: 1, maxLength: 16_384 }),
+});
 const packageCatalogSearchPayload = rpcObject({
   query: rpcOptional(rpcString({ maxLength: 200, trim: true })),
   type: rpcOptional(rpcEnum(["extension", "skill", "prompt", "theme"])),
@@ -130,18 +149,32 @@ const packageCatalogName = rpcRefine(
   { message: "Expected a valid npm package name." },
 );
 const packageCatalogDescribePayload = rpcObject({ name: packageCatalogName });
+const packageMutationTarget = rpcUnion([
+  rpcObject({
+    scope: rpcLiteral("user"),
+    sessionId: nonEmptyString,
+  }),
+  rpcObject({
+    scope: rpcLiteral("project"),
+    workspaceId: nonEmptyString,
+  }),
+]);
 const packageInstallPayload = rpcObject({
   name: packageCatalogName,
-  target: rpcUnion([
-    rpcObject({
-      scope: rpcLiteral("user"),
-      sessionId: nonEmptyString,
+  target: packageMutationTarget,
+});
+const packageSource = rpcRefine(
+  rpcString({ minLength: 1, maxLength: 2_048, trim: true }),
+  (source) =>
+    [...source].every((character) => {
+      const codePoint = character.codePointAt(0) ?? 0;
+      return codePoint > 31 && codePoint !== 127;
     }),
-    rpcObject({
-      scope: rpcLiteral("project"),
-      workspaceId: nonEmptyString,
-    }),
-  ]),
+  { message: "Package sources cannot contain control characters." },
+);
+const packageRemovePayload = rpcObject({
+  source: packageSource,
+  target: packageMutationTarget,
 });
 const setSessionPinnedPayload = rpcObject({
   sessionId: nonEmptyString,
@@ -154,6 +187,10 @@ const discoverModelsPayload = rpcObject({
   api: rpcOptional(nonEmptyString),
   apiKey: rpcOptional(nonEmptyString),
   source: rpcOptional(rpcEnum(["catalog", "endpoint"])),
+});
+const testModelImageInputPayload = rpcObject({
+  provider: nonEmptyString,
+  model: nonEmptyString,
 });
 const thinkingLevelValue = rpcNullable(rpcString());
 const thinkingLevelMap = rpcObject({
@@ -173,7 +210,7 @@ const providerModelConfiguration = rpcObject({
   reasoning: rpcOptional(rpcBoolean),
   thinkingLevelMap: rpcOptional(thinkingLevelMap),
   input: rpcOptional(rpcArray(rpcEnum(["text", "image"]))),
-  imageInputSource: rpcOptional(rpcEnum(["provider-api", "runtime", "user"])),
+  imageInputSource: rpcOptional(rpcEnum(["provider-api", "runtime", "test", "user"])),
 });
 const providerConfiguration = rpcObject({
   displayName: rpcOptional(rpcString()),
@@ -248,6 +285,12 @@ const workbenchSettingsUpdatePayload = rpcObject({
         }),
       ),
     ),
+    sidebarThreadOrderByScope: rpcOptional(
+      rpcNullable(
+        rpcRecord(rpcArray(rpcString({ minLength: 1, maxLength: 512 }), { maxLength: 10_000 })),
+      ),
+    ),
+    sidebarThreadSortMode: rpcOptional(rpcNullable(rpcEnum(["priority", "recent", "manual"]))),
     toolboxPins: rpcOptional(
       rpcNullable(rpcArray(rpcString({ minLength: 1, maxLength: 512 }), { maxLength: 1_000 })),
     ),
@@ -306,7 +349,7 @@ const modelService = new ModelService();
 const extensionService = new ExtensionService();
 const skillService = new SkillService();
 const installedPackageService = new InstalledPackageService();
-const packageCatalogService = new PiPackageCatalogService();
+const packageCatalogService = getPiPackageCatalogService();
 const agentSettingsService = new AgentSettingsService();
 const workspaceFileService = new WorkspaceFileService({ workspaceStore: getWorkspaceStore });
 
@@ -1067,6 +1110,68 @@ export async function handlePiRpcPost(request: Request, method: string): Promise
           }
         },
       });
+    case "skill.describe":
+      return handleRpcPost(request, {
+        method,
+        payload: skillDescribePayload,
+        handler: async (payload) => {
+          try {
+            return await skillService.describe(payload);
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
+      });
+    case "skill.setEnabled":
+      return handleRpcPost(request, {
+        method,
+        payload: skillSetEnabledPayload,
+        loopbackOnly: true,
+        handler: async (payload) => {
+          try {
+            return await skillService.setEnabled(payload);
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
+      });
+    case "skill.remove":
+      return handleRpcPost(request, {
+        method,
+        payload: skillDescribePayload,
+        loopbackOnly: true,
+        handler: async (payload) => {
+          try {
+            return await skillService.remove(payload);
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
+      });
+    case "skill.files.list":
+      return handleRpcPost(request, {
+        method,
+        payload: skillFilesListPayload,
+        handler: async (payload) => {
+          try {
+            return await skillService.listFiles(payload);
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
+      });
+    case "skill.files.read":
+      return handleRpcPost(request, {
+        method,
+        payload: skillFileReadPayload,
+        handler: async (payload) => {
+          try {
+            return await skillService.readFile(payload);
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
+      });
     case "command.list":
       return handleRpcPost(request, {
         method,
@@ -1111,6 +1216,19 @@ export async function handlePiRpcPost(request: Request, method: string): Promise
         handler: async (payload) => {
           try {
             return await installedPackageService.install(payload);
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
+      });
+    case "package.remove":
+      return handleRpcPost(request, {
+        method,
+        payload: packageRemovePayload,
+        loopbackOnly: true,
+        handler: async (payload) => {
+          try {
+            return await installedPackageService.remove(payload);
           } catch (error) {
             throwDomainError(error);
           }
@@ -1431,6 +1549,27 @@ export async function handlePiRpcPost(request: Request, method: string): Promise
                 {
                   cause: error,
                 },
+              );
+            }
+            throwDomainError(error);
+          }
+        },
+      });
+    case "llm.testModelImageInput":
+      return handleRpcPost(request, {
+        method,
+        payload: testModelImageInputPayload,
+        loopbackOnly: true,
+        handler: async (payload, context) => {
+          try {
+            return await modelService.testModelImageInput(payload, { signal: context.signal });
+          } catch (error) {
+            if (isAborted(error, context.signal)) {
+              throw rpcBusinessError(
+                "cancelled",
+                "Model image-input test was cancelled.",
+                {},
+                { cause: error },
               );
             }
             throwDomainError(error);

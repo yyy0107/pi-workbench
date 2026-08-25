@@ -120,7 +120,10 @@ function capabilitySources(value: unknown): CapabilitySources {
       const sources = Object.fromEntries(
         Object.entries(models).filter(
           (entry): entry is [string, ModelCapabilitySource] =>
-            entry[1] === "provider-api" || entry[1] === "runtime" || entry[1] === "user",
+            entry[1] === "provider-api" ||
+            entry[1] === "runtime" ||
+            entry[1] === "test" ||
+            entry[1] === "user",
         ),
       );
       return Object.keys(sources).length > 0 ? [[provider, sources]] : [];

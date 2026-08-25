@@ -112,6 +112,183 @@ function runtime(overrides: Partial<ModelRuntimeLike> = {}): ModelRuntimeLike {
   };
 }
 
+const imageTestModel = {
+  provider: "openai",
+  id: "gpt-vision-check",
+  name: "GPT Vision Check",
+  api: "openai-responses",
+  baseUrl: "https://api.openai.test/v1",
+  reasoning: true,
+  input: ["text"],
+  cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+  contextWindow: 128_000,
+  maxTokens: 4_096,
+  samplingParams: { top_p: 0.9 },
+} satisfies import("@earendil-works/pi-ai").Model<"openai-responses">;
+
+function imageTestAssistantMessage(
+  text: string,
+  overrides: Partial<import("@earendil-works/pi-ai").AssistantMessage> = {},
+): import("@earendil-works/pi-ai").AssistantMessage {
+  return {
+    role: "assistant",
+    content: [{ type: "text", text }],
+    api: "openai-responses",
+    provider: imageTestModel.provider,
+    model: imageTestModel.id,
+    usage: {
+      input: 1,
+      output: 1,
+      cacheRead: 0,
+      cacheWrite: 0,
+      totalTokens: 2,
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+    },
+    stopReason: "stop",
+    timestamp: Date.now(),
+    ...overrides,
+  };
+}
+
+test("verifies image input with a real multimodal model request", async () => {
+  const received: {
+    model?: import("@earendil-works/pi-ai").Model<import("@earendil-works/pi-ai").Api>;
+    context?: import("@earendil-works/pi-ai").Context;
+    options?: import("@earendil-works/pi-ai").ModelsApiStreamOptions<
+      import("@earendil-works/pi-ai").Api
+    >;
+  } = {};
+  const service = modelService({
+    runtime: runtime({
+      getModel: () => imageTestModel,
+      complete: async (model, context, options) => {
+        received.model = model;
+        received.context = context;
+        received.options = options;
+        return imageTestAssistantMessage("K7P3");
+      },
+    }),
+  });
+
+  assert.deepEqual(
+    await service.testModelImageInput({ provider: "openai", model: imageTestModel.id }),
+    { outcome: "supported", reason: "verified" },
+  );
+  assert.deepEqual(received.model?.input, ["text", "image"]);
+  assert.equal(received.model?.reasoning, false);
+  assert.equal(received.model?.samplingParams, undefined);
+  assert.equal(received.context?.systemPrompt, undefined);
+  assert.equal(received.context?.messages[0]?.role, "user");
+  const content = received.context?.messages[0]?.content;
+  assert.ok(Array.isArray(content));
+  const image = content.find((part) => part.type === "image");
+  assert.equal(image?.mimeType, "image/png");
+  assert.ok((image?.data.length ?? 0) > 0);
+  assert.equal(Buffer.from(image?.data ?? "", "base64")[25], 2);
+  assert.equal(received.options?.maxTokens, undefined);
+  assert.equal(received.options?.maxRetries, 0);
+  assert.equal(received.options?.timeoutMs, 90_000);
+});
+
+test("marks image input unsupported only when the provider explicitly rejects it", async () => {
+  for (const errorMessage of [
+    "This model does not support image input.",
+    "No endpoints found that support image input.",
+  ]) {
+    const service = modelService({
+      runtime: runtime({
+        getModel: () => imageTestModel,
+        complete: async () =>
+          imageTestAssistantMessage("", {
+            stopReason: "error",
+            errorMessage,
+          }),
+      }),
+    });
+
+    assert.deepEqual(
+      await service.testModelImageInput({ provider: "openai", model: imageTestModel.id }),
+      { outcome: "unsupported", reason: "provider-rejected-image" },
+    );
+  }
+});
+
+test("keeps image input inconclusive for authentication and unexpected model responses", async () => {
+  const authentication = modelService({
+    runtime: runtime({
+      getModel: () => imageTestModel,
+      complete: async () => {
+        throw new Error("401 Unauthorized");
+      },
+    }),
+  });
+  const unexpected = modelService({
+    runtime: runtime({
+      getModel: () => imageTestModel,
+      complete: async () => imageTestAssistantMessage("I cannot read that clearly."),
+    }),
+  });
+
+  assert.deepEqual(
+    await authentication.testModelImageInput({
+      provider: "openai",
+      model: imageTestModel.id,
+    }),
+    { outcome: "inconclusive", reason: "authentication" },
+  );
+  assert.deepEqual(
+    await unexpected.testModelImageInput({ provider: "openai", model: imageTestModel.id }),
+    { outcome: "inconclusive", reason: "unexpected-response" },
+  );
+});
+
+test("classifies non-capability failures without exposing provider error text", async () => {
+  const cases = [
+    ["402 Insufficient credits", "quota-exceeded"],
+    ["429 Too many requests", "rate-limited"],
+    ["Request timed out", "timeout"],
+    ["fetch failed: ECONNREFUSED", "network"],
+    ["503 Service unavailable", "provider-unavailable"],
+    ["Unknown parameter input_image", "protocol-mismatch"],
+    ["Model was not found", "model-unavailable"],
+    ["No endpoints found for this model", "model-unavailable"],
+    ["Invalid image data", "invalid-image"],
+    ["Blocked by content_filter", "safety"],
+    ["400 Invalid request payload", "provider-error"],
+  ] as const;
+
+  for (const [errorMessage, reason] of cases) {
+    const service = modelService({
+      runtime: runtime({
+        getModel: () => imageTestModel,
+        complete: async () =>
+          imageTestAssistantMessage("", {
+            stopReason: "error",
+            errorMessage,
+          }),
+      }),
+    });
+    assert.deepEqual(
+      await service.testModelImageInput({ provider: "openai", model: imageTestModel.id }),
+      { outcome: "inconclusive", reason },
+    );
+  }
+});
+
+test("asks the user to save before testing a model missing from the runtime", async () => {
+  const service = modelService({
+    runtime: runtime({
+      getModel: () => undefined,
+      complete: async () => imageTestAssistantMessage("K7P3"),
+    }),
+  });
+
+  assert.deepEqual(await service.testModelImageInput({ provider: "openai", model: "not-saved" }), {
+    outcome: "inconclusive",
+    reason: "model-not-found",
+  });
+});
+
 test("reads and updates a model context-window override", async () => {
   const store = memoryModelConfigStore();
   let saved: { provider: string; model: string; contextWindow: number } | undefined;

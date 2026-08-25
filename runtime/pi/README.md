@@ -56,17 +56,19 @@ Unary RPC 是 session、workspace 和 running 状态的权威快照；WebSocket 
   `workspace.unarchiveSession`；
 - Workspace files：`workspace.files.list`、`workspace.files.describe`、`workspace.files.read`、
   `workspace.files.write`，以及 `GET/HEAD /api/workspace.files.content`；
-- Skills：`skill.list`；
+- Skills：`skill.list`、`skill.describe`、`skill.setEnabled`、`skill.files.list`、`skill.files.read`、
+  `skill.remove`；
 - Commands：`command.list`；
 - Extensions：`extension.list`；
-- Pi Packages：`package.list`、`package.install`、`packageCatalog.search`、`packageCatalog.describe`；
+- Pi Packages：`package.list`、`package.install`、`package.remove`、`packageCatalog.search`、
+  `packageCatalog.describe`；
 - Settings：Pi 原生设置 `settings.describe`、`settings.openDocument`、`settings.update`，Workbench
   设置 `workbenchSettings.describe`、`workbenchSettings.update`，以及附件识别配置
   `imageUnderstanding.describe`、`imageUnderstanding.update`；
 - LLM：`llm.providers`、`llm.providerConfig`、`llm.startProviderLogin`、
   `llm.providerLogin`、`llm.respondProviderLogin`、`llm.cancelProviderLogin`、`llm.configureProvider`、
   `llm.removeProvider`、`llm.modelContextWindow`、`llm.updateModelContextWindow`、
-  `llm.models`、`llm.discoverModels`；
+  `llm.models`、`llm.discoverModels`、`llm.testModelImageInput`；
 - Session：`session.list`、`session.search`、`session.create`、`session.history`、
   `session.models`、`session.selectModel`、`session.rename`、`session.fork`、
   `session.delete`、`session.prompt`、`session.attachment`、`session.updateQueue`、
@@ -268,6 +270,19 @@ API/运行时来源会随自定义模型配置写入 Workbench 自有的来源�
 `reason`，并在 HTTP 失败时返回 `httpStatus`；设置页据此区分凭据、地址、限流、提供方故障、
 协议、响应格式和网络错误，不解析服务端英文错误文本。
 
+设置页的单模型测试先通过 `llm.discoverModels` 直接读取提供方模型元数据；若目标模型的图片输入能力
+为明确的 `supported` 或 `unsupported`，则以 `provider-api` 来源更新草稿且不发送推理请求。只有元数据
+未知、模型未列出或模型列表请求失败时，才回退到 `llm.testModelImageInput`。该 RPC 使用已保存的
+provider、凭据和模型配置发送一张内置的小型 PNG，要求模型
+读出图中的固定验证码。只有验证码匹配才返回 `supported`，只有提供方明确拒绝图片输入才返回
+`unsupported`；认证、网络、限流、超时或模型未可靠读图都返回 `inconclusive`。探测会临时强制
+图片进入 provider 适配器，但不修改运行时模型对象；设置页仅在明确结果时以 `test` 来源更新草稿，
+仍需用户保存后才持久化。探测图使用标准 RGB PNG；请求最多等待 90 秒并禁用重试。为避免兼容 API
+因无关参数拒绝探测，请求不发送 system prompt 或显式输出上限，并在临时模型副本中关闭 reasoning
+与 sampling 参数。服务端将鉴权、额度、限流、超时、网络、协议不匹配、模型不可用、图片解码、
+安全过滤和提供方不可用归一化为稳定 reason，并识别 OpenRouter 的“没有支持图片输入的 endpoint”等
+明确拒绝；它属于可能计费的推理请求，因此 UI 必须在按钮附近明确提示。
+
 Project-local settings、extensions 和 resources 默认不可信。Workbench 在导入包含这些资源且
 没有当前目录或父目录决策的工作区时询问用户，并通过 Pi 官方 `ProjectTrustStore` 将决定写入
 `~/.pi/agent/trust.json`。已有决定优先；否则遵循全局 `defaultProjectTrust`。只有有效决定为信任时，
@@ -278,10 +293,40 @@ Workbench 进程全部信任的显式覆盖。升级到 Project Trust 的首次�
 
 ## Skills
 
-`skill.list` 按 `sessionId` 返回该 Pi session 的 `ResourceLoader` 已加载技能。响应只暴露协议定义的
-名称、描述和模型是否可调用，不向浏览器返回技能文件路径。带有
+`skill.list` 按 `sessionId` 合并该 Pi session 的 `ResourceLoader` 已加载技能与 Pi
+`DefaultPackageManager.resolve()` 解析出的技能资源，因此已禁用的技能仍会留在工具箱目录中，并以
+`enabled: false` 返回，便于重新启用。响应只暴露协议定义的名称、描述、启用状态、模型是否可调用，
+以及脱敏后的 package 来源、作用域和来源类型，不向浏览器返回技能文件路径。工具箱可据此把 npm
+package 提供的技能关联到同一个官方 Package 详情，同时保留技能自身的调用信息。带有
 `disable-model-invocation: true` 的技能会返回 `modelInvocable: false`，但仍可通过显式 skill 命令
 调用。
+
+`skill.describe` 按 `sessionId` 和技能名称读取详情页所需的 `SKILL.md` 正文。服务端只会在该 session
+已解析的技能集合中精确匹配名称，并使用 Pi 提供的权威文件路径读取正文；请求不接受文件路径，因此
+不能用作任意文件读取接口。响应会随正文返回这个已匹配技能的权威 `filePath`，
+供工具箱在作用域后显示实际 Skill 位置；不会返回其他候选技能或任意请求路径。正文按需读取且最大为
+1 MiB，超过限制时返回稳定的 `skill-document-too-large` 错误。
+
+`skill.setEnabled` 是 loopback-only mutation。它使用 Pi 官方 Config Selector 相同的精确 `+path` /
+`-path` 资源过滤规则：顶层 Skill 写入对应作用域的 `skills`，package Skill 把字符串 PackageSource
+按需转换为对象并更新其中的 `skills` filter。仅允许空闲 session 修改；持久化成功后 reload 该
+session，使开关状态与模型实际可见资源一致。
+
+`skill.files.list` 只接受 `sessionId`、Skill 名称和相对目录。服务端先从该 session 精确解析 Skill，
+再把 `SKILL.md` 所在目录作为授权根目录；真实路径、路径穿越和符号链接都必须留在这个根内。响应只
+返回目录项元数据，不返回文件正文，且每个目录最多返回 2,000 项。工具箱先用 `skill.files.read` 打开
+持有右侧工作区生命周期的 `SKILL.md` 文件标签，再把 Skill 目录作为该文件的辅助 Explorer；Explorer
+不会脱离文件标签独立恢复，因此用户级 Skill 不需要伪装成已导入项目文件。
+
+`skill.files.read` 使用相同的 session、Skill 身份与目录根，只接受文件树返回的规范相对路径。读取的
+真实路径和符号链接仍必须位于 Skill 根目录内；当前返回最大 5 MiB 的 UTF-8 普通文件正文、内容版本
+和文件元数据，供同一个只读 File Surface 打开 `references/` 等目录中的 Markdown 或源码文件。它不
+提供写入能力，也不接受浏览器提交任意绝对路径。
+
+`skill.remove` 也是 loopback-only mutation，只允许删除 Pi 自动发现、非临时、独立安装的 Skill
+根目录，并在删除前对 canonical target 和来源根做边界校验。Package 提供的 Skill 不会直接删除
+`node_modules` 内文件；工具箱会在确认后改走精确作用域的 `package.remove`，并明确提示同一包的其他
+能力也会一起移除。
 
 技能发现沿用 Pi 的全局、package、settings 和项目资源规则。项目级技能仍受按目录保存的 Pi
 Project Trust 决策控制；未信任时不会因为打开设置页而绕过资源信任边界。
@@ -292,6 +337,9 @@ Project Trust 决策控制；未信任时不会因为打开设置页而绕过资
 `kind`，当前聚合 Workbench 已适配的 Pi 内置命令、`extensionRunner.getRegisteredCommands()`、
 prompt templates，以及 `ResourceLoader` 已加载的 skills。扩展项同时包含注册时的 `name` 和解决
 重名后的 `invocationName`；只有 `invocationName` 能保证作为 `/command` 输入时准确命中目标命令。
+
+Extension command 和 prompt template 项还返回脱敏后的 package 来源、作用域和来源类型；不会返回
+具体文件路径。工具箱使用这些字段把 package 提供的 Prompt 关联到官方 Package 详情。
 
 扩展项还包含 description 和脱敏后的来源标签、scope、origin，不会把 handler、参数补全函数或
 扩展文件绝对路径返回浏览器。catalog 也返回命令的 `effect` 和 `exclusive`：`/compact`、`/reload`
@@ -359,14 +407,19 @@ Project Trust 决策控制；查询设置页不会提升项目资源信任。
 响应只包含 package source、作用域，以及是否采用资源筛选配置；不会向浏览器返回 settings 文件路径
 或具体资源路径。这个列表用于工具箱的“已安装”视图，并遵循当前 session 已生效的项目信任边界。
 
-`packageCatalog.search` 从固定来源 `https://pi.dev/packages` 读取 Pi 官方 Package Catalog，支持与
-官方页面一致的 `name`、`type`、`sort` 和 `page` 查询语义，并向浏览器返回归一化后的包名、说明、
-作者、资源类型、月下载量、发布时间、版本、npm/仓库/官方详情链接和安装命令。UI 扩展不直接请求
-或解析外部页面。
+`packageCatalog.search` 的外部来源固定为 `https://pi.dev/packages`。服务启动时会通过内部 RPC
+预热第一页，并在后台以有限并发按名称顺序抓取全部分页，保留官网 card 的搜索索引后原子替换完整
+进程内快照；之后浏览器提交的 `name`、`type`、`sort` 和 `page` 查询只在该快照上执行，不再为每次
+输入或翻页访问官网。完整快照默认每 30 分钟刷新一次；同一轮刷新会合并，刷新失败继续服务旧快照。
+首次启动尚未形成完整快照或官网暂时不可用时，已访问查询还有上限为 128 项的回退页缓存，并会合并
+相同的并发请求。响应继续包含归一化后的包名、说明、作者、资源类型、月下载量、发布时间、版本、
+npm/仓库/官方详情链接和安装命令。UI 扩展不直接请求或解析外部页面。
 
-`packageCatalog.describe` 只在用户打开一个目录项时按需读取该包的固定官方详情页，并返回官网展示
-的版本、发布时间、月/周下载量、作者、许可证、资源类型、包体积、依赖/peer 依赖数量和 Pi manifest。
-包名经过 RPC 校验并逐段编码，客户端不能传入任意 URL；市场列表不会为每个结果批量请求详情页。
+`packageCatalog.describe` 只在用户首次打开一个目录项时按需读取该包的固定官方详情页，并返回官网
+展示的版本、发布时间、月/周下载量、作者、许可证、资源类型、包体积、依赖/peer 依赖数量和 Pi
+manifest。详情使用最多 256 项的进程内 LRU 缓存；已观察详情超过 6 小时后由后台刷新，读取仍立即
+返回旧值。包名经过 RPC 校验并逐段编码，客户端不能传入任意 URL；市场列表不会为每个结果批量
+请求详情页。
 
 Pi 官方当前未公开目录 JSON API，服务端适配器因此只解析官方目录服务端渲染的结构化 card 属性，
 且把响应限制在 2 MiB；目录 URL 固定，不能由客户端传入，避免把该 RPC 变成任意 URL 代理。官方
@@ -377,8 +430,14 @@ Pi 官方当前未公开目录 JSON API，服务端适配器因此只解析官�
 提交任意安装目录；项目安装仍要求该权威路径具有有效的 Pi Project Trust 信任决定。服务端固定构造
 `npm:<package>` source，并通过 Pi 导出的 `DefaultPackageManager.installAndPersist()` 写入对应作用域。
 该方法仅允许 loopback 请求，安装任务在进程内串行执行，避免多个 npm 进程同时修改 Package 目录或
-settings。前端不会拼接或执行 shell 命令；安装成功后目标作用域内的 session 仍需执行 `/reload` 才会
-加载新资源。Pi Package 具有完整系统访问权限，安装前仍需审查来源。
+settings。调用 `package.install` 的前端只提交包名和目标，不提交 shell 命令；安装成功后目标作用域内
+的 session 仍需执行 `/reload` 才会加载新资源。Pi Package 具有完整系统访问权限，安装前仍需审查来源。
+
+`package.remove` 接受已配置 Package 的精确 source，以及与安装相同的用户级 session 或项目级
+`workspaceId` 目标。服务端先确认 source 确实存在于目标作用域的 Pi settings 中，再调用 Pi 导出的
+`DefaultPackageManager.removeAndPersist()`；项目目标同样必须来自已导入 Workspace 并通过 Project
+Trust。移除与安装共享同一个进程内串行队列，并且只允许 loopback 请求，避免跨作用域误删或与正在
+运行的 Package mutation 竞争。移除成功后相关 session 仍需执行 `/reload` 才会卸载已加载资源。
 
 ## Session 生命周期和持久状态
 
@@ -669,12 +728,14 @@ output rule 使用受限 dot path，并以 `[]` 展平数组，例如
   状态消息。旧版 GLM/Paddle 配置在读取时映射为对应适配器，原凭据保持 write-only 且不会被覆盖。
 - 当前 queue edit 只接受 text content；附件 queue item 可以保留、删除或 steer，但不能通过该
   RPC 改写为新的附件内容。
-- Skills 当前只实现 session-scoped `skill.list`；启停、编辑、安装和 reload 尚未加入 Workbench
-  协议。
+- Skills 当前实现 session-scoped 目录与详情、官方资源过滤规则的启停、身份授权的目录浏览和只读
+  文件查看，以及独立 Skill 删除；Package Skill 删除复用 `package.remove`。编辑 Skill 文件与独立
+  Skill 安装尚未加入 Workbench 协议。
 - Extensions 当前只实现 session-scoped `extension.list`；启停、编辑、安装和 reload 尚未加入
   Workbench 协议。
 - Pi Packages 当前实现 session-scoped 已配置列表、官方目录搜索/详情，以及 loopback-only 的用户级和
-  已导入项目级 npm Package 安装；移除、更新和安装后自动 reload 尚未加入 Workbench 协议。
+  已导入项目级 npm Package 安装与精确作用域移除；更新和 mutation 后自动 reload 尚未加入 Workbench
+  协议。
 - Commands 已聚合受支持的 Pi built-ins、session-scoped extension commands、prompt templates 和
   skills。终端专用的 interactive TUI commands 仍不会暴露；新增内置项时必须先提供 Workbench
   等价语义，并继续使用 Pi 的公开 API。
