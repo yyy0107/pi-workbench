@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { act, createElement } from "react";
+import { act, createElement, StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import type { WorkbenchExtension } from "./api/extension";
+import { useMainViewService } from "./extension-context";
 import { ExtensionProvider } from "./extension-provider";
 
 interface ReactDomGlobals {
@@ -84,7 +85,11 @@ function installMinimalReactDomEnvironment(): {
   };
 }
 
-test("known current behavior: changing the active extension list restarts unchanged extensions", async () => {
+function flushMicrotasks(): Promise<void> {
+  return new Promise((resolve) => queueMicrotask(resolve));
+}
+
+test("changing the active extension list only starts and stops changed extensions", async () => {
   const environment = installMinimalReactDomEnvironment();
   const lifecycle: string[] = [];
   const extension = (id: string): WorkbenchExtension => ({
@@ -103,6 +108,7 @@ test("known current behavior: changing the active extension list restarts unchan
   const stable = extension("stable");
   const added = extension("added");
   const root = createRoot(environment.container);
+  let mounted = true;
 
   try {
     await act(async () => {
@@ -115,12 +121,107 @@ test("known current behavior: changing the active extension list restarts unchan
         createElement(ExtensionProvider, { extensions: [stable, added], children: null }),
       );
     });
+    assert.deepEqual(lifecycle, ["stable:setup", "added:setup"]);
 
-    // Characterization only: the extensions-dependent effect currently disposes its manager
-    // before synchronizing the next list, so the unchanged extension is restarted as well.
-    assert.deepEqual(lifecycle, ["stable:setup", "stable:dispose", "stable:setup", "added:setup"]);
+    await act(async () => {
+      root.render(createElement(ExtensionProvider, { extensions: [stable], children: null }));
+    });
+    assert.deepEqual(lifecycle, ["stable:setup", "added:setup", "added:dispose"]);
+
+    await act(async () => {
+      root.unmount();
+      await flushMicrotasks();
+    });
+    mounted = false;
+    assert.deepEqual(lifecycle, ["stable:setup", "added:setup", "added:dispose", "stable:dispose"]);
   } finally {
-    await act(async () => root.unmount());
+    if (mounted) {
+      await act(async () => {
+        root.unmount();
+        await flushMicrotasks();
+      });
+    }
+    environment.restore();
+  }
+});
+
+test("Strict Effects do not dispose and restart the owned extension manager", async () => {
+  const environment = installMinimalReactDomEnvironment();
+  const lifecycle: string[] = [];
+  const FixtureView = () => null;
+  const stable: WorkbenchExtension = {
+    id: "stable",
+    name: "stable",
+    version: "1.0.0",
+    setup(context) {
+      lifecycle.push("setup");
+      const mainView = context.mainViews.register({ kind: "fixture", component: FixtureView });
+      return [
+        mainView,
+        {
+          dispose() {
+            lifecycle.push("dispose");
+          },
+        },
+      ];
+    },
+  };
+  let mainViews: ReturnType<typeof useMainViewService> | undefined;
+  function MainViewProbe() {
+    mainViews = useMainViewService();
+    return null;
+  }
+  const root = createRoot(environment.container);
+  let mounted = true;
+
+  try {
+    await act(async () => {
+      root.render(
+        createElement(
+          StrictMode,
+          null,
+          createElement(ExtensionProvider, {
+            extensions: [stable],
+            children: createElement(MainViewProbe),
+          }),
+        ),
+      );
+      await flushMicrotasks();
+    });
+    assert.deepEqual(lifecycle, ["setup"]);
+    assert.ok(mainViews);
+
+    mainViews.open({ kind: "fixture", title: "Fixture", params: {} });
+    assert.equal(mainViews.getSnapshot()?.kind, "fixture");
+
+    await act(async () => {
+      root.render(
+        createElement(
+          StrictMode,
+          null,
+          createElement(ExtensionProvider, {
+            extensions: [],
+            children: createElement(MainViewProbe),
+          }),
+        ),
+      );
+    });
+    assert.deepEqual(lifecycle, ["setup", "dispose"]);
+    assert.equal(mainViews.getSnapshot(), null);
+
+    await act(async () => {
+      root.unmount();
+      await flushMicrotasks();
+    });
+    mounted = false;
+    assert.deepEqual(lifecycle, ["setup", "dispose"]);
+  } finally {
+    if (mounted) {
+      await act(async () => {
+        root.unmount();
+        await flushMicrotasks();
+      });
+    }
     environment.restore();
   }
 });

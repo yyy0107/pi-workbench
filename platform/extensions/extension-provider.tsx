@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { CommandService } from "@/services/command-service";
 import { NavigationService } from "@/services/navigation-service";
@@ -82,6 +82,7 @@ export function ExtensionProvider({
   onError,
 }: ExtensionProviderProps) {
   const [manager] = useState(() => new ExtensionManager());
+  const managerLifecycleRef = useRef(0);
   const [defaultNavigation] = useState(() => new NavigationService());
   const navigation = providedNavigation ?? defaultNavigation;
   const mainViews = useMemo(() => new MainViewService(manager.mainViews), [manager]);
@@ -101,16 +102,24 @@ export function ExtensionProvider({
 
   useLayoutEffect(() => {
     synchronizeExtensions(manager, extensions, onError);
-    return () => {
-      try {
-        manager.dispose();
-      } catch (error) {
-        reportProviderError(onError, error);
-      }
-    };
   }, [extensions, manager, onError]);
 
-  useLayoutEffect(() => () => mainViews.dispose(), [mainViews]);
+  useLayoutEffect(() => {
+    const lifecycle = ++managerLifecycleRef.current;
+    return () => {
+      // React Strict Effects immediately mounts this effect again in development. Defer the
+      // irreversible owner cleanup so that replacement setup can retain the same manager.
+      queueMicrotask(() => {
+        if (managerLifecycleRef.current !== lifecycle) return;
+        mainViews.dispose();
+        try {
+          manager.dispose();
+        } catch (error) {
+          reportProviderError(onError, error);
+        }
+      });
+    };
+  }, [mainViews, manager, onError]);
 
   const value = useMemo<ExtensionEnvironment>(
     () => ({ manager, panels, commands, navigation, mainViews, reportError }),

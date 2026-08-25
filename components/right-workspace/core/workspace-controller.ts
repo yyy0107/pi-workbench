@@ -234,11 +234,14 @@ export class DefaultRightWorkspaceController implements RightWorkspaceController
   readonly #store: RightWorkspaceStoreApi;
   readonly #registry: WorkspaceSurfaceRegistry;
   #storage?: WorkspaceStorage;
+  #mutationRevision = 0;
 
   constructor(store: RightWorkspaceStoreApi, registry: WorkspaceSurfaceRegistry) {
     this.#store = store;
     this.#registry = registry;
   }
+
+  captureMutationRevision = (): number => this.#mutationRevision;
 
   open = <P extends Record<string, unknown>>(request: OpenSurfaceRequest<P>): string => {
     const definition = this.#registry.get(request.kind);
@@ -541,12 +544,15 @@ export class DefaultRightWorkspaceController implements RightWorkspaceController
     this.setState(() => ({ activeSurfaceId, activeAuxiliarySurfaceId }));
   };
 
-  hydrate = (storage: WorkspaceStorage): void => {
+  hydrate = (
+    storage: WorkspaceStorage,
+    expectedMutationRevision = this.#mutationRevision,
+  ): void => {
     this.#storage = storage;
-    const restored = parsePersistedState(
-      storage.getItem(RIGHT_WORKSPACE_STORAGE_KEY),
-      this.#registry,
-    );
+    const restored =
+      this.#mutationRevision === expectedMutationRevision
+        ? parsePersistedState(storage.getItem(RIGHT_WORKSPACE_STORAGE_KEY), this.#registry)
+        : undefined;
     this.#store.setState((state) => ({ ...state, ...restored, hydrated: true }), true);
     this.persist();
   };
@@ -602,7 +608,11 @@ export class DefaultRightWorkspaceController implements RightWorkspaceController
   }
 
   private setState(recipe: (state: RightWorkspaceState) => Partial<RightWorkspaceState>): void {
-    this.#store.setState((state) => ({ ...state, ...recipe(state) }), true);
+    this.#store.setState((state) => {
+      const patch = recipe(state);
+      this.#mutationRevision += 1;
+      return { ...state, ...patch };
+    }, true);
     this.persist();
   }
 

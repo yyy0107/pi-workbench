@@ -39,6 +39,7 @@ export function RightWorkspaceProvider({
     () => new DefaultRightWorkspaceController(store, registry),
     [registry, store],
   );
+  const hydrationRevision = useMemo(() => controller.captureMutationRevision(), [controller]);
   const opener = useMemo(
     () => new DefaultOpenerService(openers, controller),
     [controller, openers],
@@ -88,17 +89,17 @@ export function RightWorkspaceProvider({
             }
           },
         };
-        controller.hydrate(storage);
+        controller.hydrate(storage, hydrationRevision);
         window.localStorage.removeItem(RIGHT_WORKSPACE_STORAGE_KEY);
       })
       .catch(() => {
-        if (!cancelled) controller.hydrate(window.localStorage);
+        if (!cancelled) controller.hydrate(window.localStorage, hydrationRevision);
       });
 
     return () => {
       cancelled = true;
     };
-  }, [controller]);
+  }, [controller, hydrationRevision]);
 
   const value = useMemo<RightWorkspaceEnvironment>(
     () => ({

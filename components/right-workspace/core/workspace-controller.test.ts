@@ -432,7 +432,7 @@ test("serializable placement metadata survives while its extension is unavailabl
   );
 });
 
-test("known current behavior: hydration replaces live surfaces opened during startup", () => {
+test("hydration does not replace a live surface opened after preference loading starts", () => {
   const storage = new MemoryStorage();
   const persistedStore = createRightWorkspaceStore();
   const persistedController = new DefaultRightWorkspaceController(persistedStore, createRegistry());
@@ -446,6 +446,7 @@ test("known current behavior: hydration replaces live surfaces opened during sta
 
   const startupStore = createRightWorkspaceStore();
   const startupController = new DefaultRightWorkspaceController(startupStore, createRegistry());
+  const hydrationRevision = startupController.captureMutationRevision();
   const liveSurfaceId = startupController.open({
     kind: "file",
     title: "live.ts",
@@ -454,13 +455,85 @@ test("known current behavior: hydration replaces live surfaces opened during sta
   });
   assert.ok(startupStore.getState().surfaces[liveSurfaceId]);
 
-  // Characterization only: the provider may resolve its asynchronous preference load after this
-  // live mutation, and hydrate currently replaces the store without a revision or dirty guard.
-  startupController.hydrate(storage);
+  startupController.hydrate(storage, hydrationRevision);
 
-  assert.equal(startupStore.getState().surfaces[liveSurfaceId], undefined);
-  assert.ok(startupStore.getState().surfaces[persistedSurfaceId]);
-  assert.deepEqual(startupStore.getState().surfaceOrder, [persistedSurfaceId]);
+  assert.ok(startupStore.getState().surfaces[liveSurfaceId]);
+  assert.equal(startupStore.getState().surfaces[persistedSurfaceId], undefined);
+  assert.deepEqual(startupStore.getState().surfaceOrder, [liveSurfaceId]);
+  assert.equal(startupStore.getState().hydrated, true);
+
+  const saved = JSON.parse(storage.values.get(RIGHT_WORKSPACE_STORAGE_KEY) ?? "null");
+  assert.deepEqual(saved.surfaceOrder, [liveSurfaceId]);
+});
+
+test("hydration guard preserves startup reveal, update, and close mutations", () => {
+  const persistedStorage = new MemoryStorage();
+  const persistedController = new DefaultRightWorkspaceController(
+    createRightWorkspaceStore(),
+    createRegistry(),
+  );
+  persistedController.hydrate(persistedStorage);
+  persistedController.open({
+    kind: "file",
+    title: "persisted.ts",
+    params: { absolutePath: "/workspace/persisted.ts" },
+    context,
+  });
+  const persistedSerialized = persistedStorage.values.get(RIGHT_WORKSPACE_STORAGE_KEY);
+  assert.ok(persistedSerialized);
+  const createPersistedStorage = () => {
+    const storage = new MemoryStorage();
+    storage.values.set(RIGHT_WORKSPACE_STORAGE_KEY, persistedSerialized);
+    return storage;
+  };
+
+  const revealStore = createRightWorkspaceStore();
+  const revealController = new DefaultRightWorkspaceController(revealStore, createRegistry());
+  const revealedId = revealController.open({
+    kind: "file",
+    title: "live.ts",
+    params: { absolutePath: "/workspace/live.ts" },
+    context,
+  });
+  const revealRevision = revealController.captureMutationRevision();
+  revealController.reveal({
+    kind: "file",
+    title: "revealed.ts",
+    params: { absolutePath: "/workspace/live.ts" },
+    context,
+  });
+  revealController.hydrate(createPersistedStorage(), revealRevision);
+  assert.equal(revealStore.getState().surfaces[revealedId]?.title, "revealed.ts");
+  assert.deepEqual(revealStore.getState().surfaceOrder, [revealedId]);
+
+  const updateStore = createRightWorkspaceStore();
+  const updateController = new DefaultRightWorkspaceController(updateStore, createRegistry());
+  const updatedId = updateController.open({
+    kind: "file",
+    title: "before.ts",
+    params: { absolutePath: "/workspace/before.ts" },
+    context,
+  });
+  const updateRevision = updateController.captureMutationRevision();
+  updateController.update(updatedId, { title: "after.ts", dirty: true });
+  updateController.hydrate(createPersistedStorage(), updateRevision);
+  assert.equal(updateStore.getState().surfaces[updatedId]?.title, "after.ts");
+  assert.equal(updateStore.getState().surfaces[updatedId]?.dirty, true);
+
+  const closeStore = createRightWorkspaceStore();
+  const closeController = new DefaultRightWorkspaceController(closeStore, createRegistry());
+  const closedId = closeController.open({
+    kind: "file",
+    title: "closed.ts",
+    params: { absolutePath: "/workspace/closed.ts" },
+    context,
+  });
+  const closeRevision = closeController.captureMutationRevision();
+  closeController.close(closedId);
+  closeController.hydrate(createPersistedStorage(), closeRevision);
+  assert.deepEqual(closeStore.getState().surfaceOrder, []);
+  assert.deepEqual(closeStore.getState().surfaces, {});
+  assert.equal(closeStore.getState().hydrated, true);
 });
 
 test("session-only surfaces do not restore disconnected tabs after reload", () => {
