@@ -25,15 +25,17 @@ import {
   useWorkspaceSelection,
   type WorkspaceSummary,
 } from "@/services/workspace-selection-service";
-import { resolveSidebarThreadWorkspaceId } from "@/workbench/workspaces/new-thread-policy";
-
+import { useAppearancePreferences } from "@/services/appearance/appearance-store";
 import { NewThreadButton } from "./new-thread-button";
 import { DraftThreadListItem } from "./draft-thread-list-item";
+import { RunningThreadIndicator } from "./running-thread-indicator";
 import { sidebarItemIdAfterMove, type SidebarDropPosition } from "./sidebar-reorder";
+import { groupSidebarThreads } from "./thread-list-groups";
 import { WorkbenchThreadList } from "./thread-list";
 import { useSidebarPointerReorder } from "./use-sidebar-pointer-reorder";
 
 const WORKSPACE_PAGE_SIZE = 24;
+const EMPTY_THREAD_IDS: readonly string[] = [];
 
 interface WorkspaceDirectoryDragState {
   readonly enabled: boolean;
@@ -108,11 +110,12 @@ export function WorkbenchPinnedThreadList({
 }) {
   const pathname = usePathname();
   const threadIds = useAuiState((state) => state.threads.threadIds);
+  const mainThreadId = useAuiState((state) => state.threads.mainThreadId);
   const piThreadStates = usePiThreadStates(threadIds);
-  const hasPinnedThreads = useMemo(
-    () => threadIds.some((threadId) => piThreadStates.get(threadId)?.metadata.pinned === true),
-    [piThreadStates, threadIds],
-  );
+  const workspaceFallbackThreadId =
+    mainThreadId && !piThreadStates.get(mainThreadId)?.metadata.workspace?.id
+      ? mainThreadId
+      : undefined;
   const hasEmptyDraftNewThread = useAuiState(
     (state) =>
       state.threads.newThreadId !== undefined &&
@@ -124,6 +127,17 @@ export function WorkbenchPinnedThreadList({
     activeWorkspaceId: activeDirectoryId,
     draftWorkspaceId: draftDirectoryId,
   } = useWorkspaceSelection();
+  const threadGroups = useMemo(
+    () =>
+      groupSidebarThreads({
+        threadIds,
+        states: piThreadStates,
+        mainThreadId: workspaceFallbackThreadId,
+        draftWorkspaceId: draftDirectoryId,
+      }),
+    [draftDirectoryId, piThreadStates, threadIds, workspaceFallbackThreadId],
+  );
+  const hasPinnedThreads = threadGroups.pinnedThreadIds.length > 0;
   const { activateWorkspace: activateDirectory } = useWorkspaceCapabilities();
   const removeWorkspace = useRemoveWorkspace(onNavigate);
   const pinnedDirectories = useMemo(
@@ -137,6 +151,7 @@ export function WorkbenchPinnedThreadList({
       {hasPinnedThreads ? (
         <div className="flex flex-col gap-[2px] ps-6">
           <WorkbenchThreadList
+            candidateThreadIds={threadGroups.pinnedThreadIds}
             pinnedOnly
             ignoreWorkspace
             showEmpty={false}
@@ -156,6 +171,10 @@ export function WorkbenchPinnedThreadList({
           onActivate={() => activateDirectory(directory.id)}
           onRemove={() => void removeWorkspace(directory.id, directory.id === activeDirectoryId)}
           searchQuery={searchQuery}
+          candidateThreadIds={
+            threadGroups.threadIdsByWorkspace.get(directory.id) ?? EMPTY_THREAD_IDS
+          }
+          hasRunningThread={threadGroups.runningWorkspaceIds.has(directory.id)}
           drag={directoryReorder.item(directory.id)}
           onNavigate={onNavigate}
         />
@@ -177,6 +196,10 @@ export function WorkbenchWorkspaceThreadList({
   const threadIds = useAuiState((state) => state.threads.threadIds);
   const mainThreadId = useAuiState((state) => state.threads.mainThreadId);
   const piThreadStates = usePiThreadStates(threadIds);
+  const workspaceFallbackThreadId =
+    mainThreadId && !piThreadStates.get(mainThreadId)?.metadata.workspace?.id
+      ? mainThreadId
+      : undefined;
   const hasEmptyDraftNewThread = useAuiState(
     (state) =>
       state.threads.newThreadId !== undefined &&
@@ -190,22 +213,17 @@ export function WorkbenchWorkspaceThreadList({
   } = useWorkspaceSelection();
   const { activateWorkspace: activateDirectory, destroyNewThread } = useWorkspaceCapabilities();
   const removeWorkspace = useRemoveWorkspace(onNavigate);
-  const hasUngroupedThreads = useMemo(
+  const threadGroups = useMemo(
     () =>
-      threadIds.some((threadId) => {
-        const metadata = piThreadStates.get(threadId)?.metadata;
-        if (metadata?.pinned === true) return false;
-        return (
-          resolveSidebarThreadWorkspaceId({
-            customWorkspaceId: undefined,
-            managedWorkspaceId: metadata?.workspace?.id,
-            isMainThread: threadId === mainThreadId,
-            draftWorkspaceId: draftDirectoryId,
-          }) === undefined
-        );
+      groupSidebarThreads({
+        threadIds,
+        states: piThreadStates,
+        mainThreadId: workspaceFallbackThreadId,
+        draftWorkspaceId: draftDirectoryId,
       }),
-    [draftDirectoryId, mainThreadId, piThreadStates, threadIds],
+    [draftDirectoryId, piThreadStates, threadIds, workspaceFallbackThreadId],
   );
+  const hasUngroupedThreads = threadGroups.ungroupedThreadIds.length > 0;
   const [visibleWorkspaceCount, setVisibleWorkspaceCount] = useState(WORKSPACE_PAGE_SIZE);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const visibleDirectories = useMemo(
@@ -282,6 +300,10 @@ export function WorkbenchWorkspaceThreadList({
             onActivate={() => activateDirectory(directory.id)}
             onRemove={() => void removeWorkspace(directory.id, directory.id === activeDirectoryId)}
             searchQuery={searchQuery}
+            candidateThreadIds={
+              threadGroups.threadIdsByWorkspace.get(directory.id) ?? EMPTY_THREAD_IDS
+            }
+            hasRunningThread={threadGroups.runningWorkspaceIds.has(directory.id)}
             drag={directoryReorder.item(directory.id)}
             onNavigate={onNavigate}
           />
@@ -306,6 +328,7 @@ export function WorkbenchWorkspaceThreadList({
           </h3>
           <div className="flex flex-col gap-[2px] ps-6">
             <WorkbenchThreadList
+              candidateThreadIds={threadGroups.ungroupedThreadIds}
               showEmpty={false}
               searchQuery={searchQuery}
               onNavigate={onNavigate}
@@ -324,6 +347,8 @@ function WorkspaceDirectorySection({
   onActivate,
   onRemove,
   searchQuery,
+  candidateThreadIds,
+  hasRunningThread,
   drag,
   onNavigate,
 }: {
@@ -333,12 +358,16 @@ function WorkspaceDirectorySection({
   onActivate(): void;
   onRemove(): void;
   searchQuery: string;
+  candidateThreadIds: readonly string[];
+  hasRunningThread: boolean;
   drag: WorkspaceDirectoryDragState;
   onNavigate?: () => void;
 }) {
   const { t } = useI18n();
+  const { runningIndicatorId } = useAppearancePreferences();
   const workspaceLabelId = useId();
   const workspaceActionId = useId();
+  const workspaceStatusId = useId();
   const [menuOpen, setMenuOpen] = useState(false);
   const { collapsedWorkspaceIds } = useWorkspaceSelection();
   const { setWorkspacePinned, toggleWorkspaceCollapsed } = useWorkspaceCapabilities();
@@ -384,14 +413,14 @@ function WorkspaceDirectorySection({
         data-workbench-selection-surface=""
         ref={drag.registerElement}
         className={cn(
-          "group/workspace hover:bg-sidebar-accent focus-within:bg-sidebar-accent relative flex h-9 w-full items-center rounded-lg px-1.5 transition-colors",
+          "group/workspace hover:bg-sidebar-accent focus-within:bg-sidebar-accent relative flex h-[var(--control-hit-touch)] w-full items-center rounded-lg px-1.5 transition-colors md:h-9",
           drag.enabled && "cursor-grab active:cursor-grabbing",
         )}
         onPointerDown={drag.onPointerDown}
       >
         <CollapsibleTrigger
           type="button"
-          aria-labelledby={`${workspaceLabelId} ${workspaceActionId}`}
+          aria-labelledby={`${workspaceLabelId} ${workspaceActionId}${hasRunningThread ? ` ${workspaceStatusId}` : ""}`}
           className="focus-visible:ring-sidebar-ring absolute inset-0 rounded-lg outline-none focus-visible:ring-2"
           onClick={(event) => {
             if (!drag.shouldSuppressClick()) return;
@@ -424,6 +453,21 @@ function WorkspaceDirectorySection({
         <span id={workspaceActionId} className="sr-only">
           {expansionLabel}
         </span>
+        {hasRunningThread ? (
+          <span id={workspaceStatusId} className="sr-only">
+            {t("workbench.sidebar.generating")}
+          </span>
+        ) : null}
+
+        {hasRunningThread ? (
+          <RunningThreadIndicator
+            id={runningIndicatorId}
+            className={cn(
+              "pointer-events-none absolute end-2 top-1/2 hidden -translate-y-1/2 opacity-100 transition-opacity duration-150 ease-out motion-reduce:transition-none md:flex md:group-hover/workspace:opacity-0 md:group-focus-within/workspace:opacity-0",
+              menuOpen && "md:opacity-0",
+            )}
+          />
+        ) : null}
 
         <div
           data-workspace-item-actions=""
@@ -440,7 +484,7 @@ function WorkspaceDirectorySection({
                   variant="ghost"
                   size="icon-sm"
                   aria-label={t("workbench.sidebar.workspaceOptions")}
-                  className="text-muted-foreground hover:text-foreground focus-visible:text-foreground aria-expanded:text-foreground transition-colors duration-150"
+                  className="text-muted-foreground hover:text-foreground focus-visible:text-foreground aria-expanded:text-foreground size-[var(--control-hit-touch)]! transition-colors duration-150 md:size-[var(--control-hit-compact)]!"
                 >
                   <MoreHorizontalIcon className="size-4" />
                 </Button>
@@ -455,6 +499,7 @@ function WorkspaceDirectorySection({
               <NewThreadButton
                 workspaceId={directory.id}
                 variant="menu"
+                className="min-h-[var(--control-hit-touch)] md:min-h-8"
                 onNavigate={() => {
                   setMenuOpen(false);
                   onNavigate?.();
@@ -462,7 +507,7 @@ function WorkspaceDirectorySection({
               />
               <button
                 type="button"
-                className="hover:bg-accent focus-visible:bg-accent flex h-8 w-full items-center gap-2 rounded-md px-2 text-start text-sm outline-none"
+                className="hover:bg-accent focus-visible:bg-accent flex h-8 min-h-[var(--control-hit-touch)] w-full items-center gap-2 rounded-md px-2 text-start text-sm outline-none md:min-h-8"
                 onClick={() => {
                   setMenuOpen(false);
                   void setWorkspacePinned(directory.id, !pinned).catch((error) =>
@@ -475,7 +520,7 @@ function WorkspaceDirectorySection({
               </button>
               <button
                 type="button"
-                className="text-destructive hover:bg-accent hover:text-destructive focus-visible:bg-accent flex h-8 w-full items-center gap-2 rounded-md px-2 text-start text-sm outline-none"
+                className="text-destructive hover:bg-accent hover:text-destructive focus-visible:bg-accent flex h-8 min-h-[var(--control-hit-touch)] w-full items-center gap-2 rounded-md px-2 text-start text-sm outline-none md:min-h-8"
                 onClick={() => {
                   setMenuOpen(false);
                   onRemove();
@@ -487,7 +532,12 @@ function WorkspaceDirectorySection({
             </PopoverContent>
           </Popover>
 
-          <NewThreadButton workspaceId={directory.id} variant="icon" onNavigate={onNavigate} />
+          <NewThreadButton
+            workspaceId={directory.id}
+            variant="icon"
+            className="hidden md:inline-flex"
+            onNavigate={onNavigate}
+          />
         </div>
       </div>
 
@@ -498,6 +548,7 @@ function WorkspaceDirectorySection({
           ) : null}
           <WorkbenchThreadList
             workspaceId={directory.id}
+            candidateThreadIds={candidateThreadIds}
             showEmpty={!showNewThread && !normalizedSearchQuery}
             searchQuery={searchQuery}
             onNavigate={onNavigate}

@@ -1,8 +1,13 @@
 "use client";
 
 import type { PointerEvent } from "react";
-import { ThreadListItemPrimitive, useAui, useAuiState } from "@assistant-ui/react";
-import { ArchiveIcon, PinIcon, PinOffIcon } from "lucide-react";
+import {
+  ThreadListItemMorePrimitive,
+  ThreadListItemPrimitive,
+  useAui,
+  useAuiState,
+} from "@assistant-ui/react";
+import { ArchiveIcon, MoreHorizontalIcon, PinIcon, PinOffIcon } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -59,7 +64,6 @@ export function WorkbenchThreadListItem({
   const { activateWorkspace, deactivateWorkspace, destroyNewThread } = useWorkspaceCapabilities();
   const isPinned = piState.metadata.pinned;
   const isRunning = runtimeIsRunning || piState.metadata.running;
-  const showPinAction = workspaceId === undefined || isPinned;
   const title = piState.thread?.title ?? runtimeTitle;
   const lastMessageAt = piState.thread?.lastMessageAt ?? runtimeLastMessageAt;
   const openThreadRoute = () => {
@@ -113,7 +117,7 @@ export function WorkbenchThreadListItem({
       ref={registerDragElement}
       style={sortOrder === undefined ? undefined : { order: sortOrder }}
       className={cn(
-        "group/thread text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground focus-within:bg-sidebar-accent focus-within:text-sidebar-foreground data-active:text-sidebar-foreground relative -ms-6 flex min-h-9 items-center rounded-lg transition-[color,background-color,opacity]",
+        "group/thread text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground focus-within:bg-sidebar-accent focus-within:text-sidebar-foreground data-active:text-sidebar-foreground relative -ms-6 flex min-h-[var(--control-hit-touch)] items-center rounded-lg transition-[color,background-color,opacity] md:min-h-9",
         dragEnabled && "cursor-grab active:cursor-grabbing",
         dragging && "opacity-40",
       )}
@@ -137,7 +141,7 @@ export function WorkbenchThreadListItem({
         />
       ) : null}
       <ThreadListItemPrimitive.Trigger
-        className="focus-visible:ring-sidebar-ring flex h-9 min-w-0 flex-1 items-center rounded-lg pe-2.5 ps-[34px] text-start text-sm outline-none focus-visible:ring-2"
+        className="focus-visible:ring-sidebar-ring flex h-[var(--control-hit-touch)] min-w-0 flex-1 items-center rounded-lg pe-2.5 ps-[34px] text-start text-sm outline-none focus-visible:ring-2 md:h-9"
         onClick={(event) => {
           if (shouldSuppressNavigation?.()) {
             event.preventDefault();
@@ -147,14 +151,7 @@ export function WorkbenchThreadListItem({
           openThreadRoute();
         }}
       >
-        <span
-          className={cn(
-            "min-w-0 flex-1 truncate md:pe-0",
-            showPinAction
-              ? "pe-16 md:group-hover/thread:pe-14 md:group-has-[:focus-visible]/thread:pe-14"
-              : "pe-8 md:group-hover/thread:pe-6 md:group-has-[:focus-visible]/thread:pe-6",
-          )}
-        >
+        <span className="min-w-0 flex-1 truncate pe-10 md:pe-0 md:group-hover/thread:pe-14 md:group-has-[:focus-visible]/thread:pe-14">
           {title || t("workbench.sidebar.newThread")}
         </span>
         {!isRunning && piState.metadata.completed ? (
@@ -173,27 +170,66 @@ export function WorkbenchThreadListItem({
         {isRunning ? <span className="sr-only">{t("workbench.sidebar.generating")}</span> : null}
       </ThreadListItemPrimitive.Trigger>
 
+      <div data-thread-item-actions="" className="absolute end-0 flex items-center md:hidden">
+        <ThreadListItemMorePrimitive.Root sharedFocusGroup>
+          <ThreadListItemMorePrimitive.Trigger
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label={t("workbench.sidebar.conversationOptions")}
+                className="text-muted-foreground hover:text-foreground size-[var(--control-hit-touch)]! rounded-lg data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-foreground"
+              />
+            }
+          >
+            <MoreHorizontalIcon className="size-4" />
+          </ThreadListItemMorePrimitive.Trigger>
+          <ThreadListItemMorePrimitive.Content
+            side="bottom"
+            align="end"
+            sideOffset={4}
+            className="bg-popover/95 text-popover-foreground data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:animate-out data-[side=bottom]:slide-in-from-top-2 z-50 min-w-44 overflow-hidden rounded-xl border p-1.5 shadow-lg backdrop-blur-sm motion-reduce:animate-none"
+          >
+            <ThreadListItemMorePrimitive.Item
+              className="hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground flex min-h-[var(--control-hit-touch)] cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-sm outline-none select-none"
+              onSelect={() => void togglePinned()}
+            >
+              {isPinned ? <PinOffIcon className="size-4" /> : <PinIcon className="size-4" />}
+              {t(isPinned ? "workbench.sidebar.unpin" : "workbench.sidebar.pin")}
+            </ThreadListItemMorePrimitive.Item>
+            <ThreadListItemPrimitive.Archive
+              onClick={leaveRemovedThreadRoute}
+              render={
+                <ThreadListItemMorePrimitive.Item className="hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground flex min-h-[var(--control-hit-touch)] cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-sm outline-none select-none" />
+              }
+            >
+              <ArchiveIcon className="size-4" />
+              {t("workbench.sidebar.archive")}
+            </ThreadListItemPrimitive.Archive>
+          </ThreadListItemMorePrimitive.Content>
+        </ThreadListItemMorePrimitive.Root>
+      </div>
+
       <div
         data-thread-item-actions=""
-        className="pointer-events-auto absolute end-0 flex items-center opacity-100 transition-opacity md:pointer-events-none md:opacity-0 md:group-hover/thread:pointer-events-auto md:group-hover/thread:opacity-100 md:group-has-[:focus-visible]/thread:pointer-events-auto md:group-has-[:focus-visible]/thread:opacity-100"
+        className="pointer-events-none absolute end-0 hidden items-center opacity-0 transition-opacity md:flex md:group-hover/thread:pointer-events-auto md:group-hover/thread:opacity-100 md:group-has-[:focus-visible]/thread:pointer-events-auto md:group-has-[:focus-visible]/thread:opacity-100"
       >
-        {showPinAction ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label={t(isPinned ? "workbench.sidebar.unpin" : "workbench.sidebar.pin")}
-            aria-pressed={isPinned}
-            title={t(isPinned ? "workbench.sidebar.unpin" : "workbench.sidebar.pin")}
-            className={cn(
-              "text-muted-foreground hover:text-foreground size-8! active:scale-90",
-              isPinned && "text-foreground",
-            )}
-            onClick={() => void togglePinned()}
-          >
-            {isPinned ? <PinOffIcon className="size-4" /> : <PinIcon className="size-4" />}
-          </Button>
-        ) : null}
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label={t(isPinned ? "workbench.sidebar.unpin" : "workbench.sidebar.pin")}
+          aria-pressed={isPinned}
+          title={t(isPinned ? "workbench.sidebar.unpin" : "workbench.sidebar.pin")}
+          className={cn(
+            "text-muted-foreground hover:text-foreground size-8! active:scale-90",
+            isPinned && "text-foreground",
+          )}
+          onClick={() => void togglePinned()}
+        >
+          {isPinned ? <PinOffIcon className="size-4" /> : <PinIcon className="size-4" />}
+        </Button>
         <ThreadListItemPrimitive.Archive
           onClick={leaveRemovedThreadRoute}
           render={

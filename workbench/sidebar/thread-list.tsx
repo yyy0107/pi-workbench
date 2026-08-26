@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { createContext, useContext, useMemo, useRef, type PointerEvent } from "react";
 import { ThreadListPrimitive, useAuiState } from "@assistant-ui/react";
 
 import { Button } from "@/components/ui/button";
@@ -11,12 +11,52 @@ import { useWorkspaceSelection } from "@/services/workspace-selection-service";
 import { resolveSidebarThreadWorkspaceId } from "@/workbench/workspaces/new-thread-policy";
 
 import { WorkbenchThreadListItem } from "./thread-list-item";
+import { indexVisibleThreads } from "./thread-list-index";
 import { sidebarItemIdAfterMove } from "./sidebar-reorder";
 import { useThreadOrderStore } from "./thread-order-store";
 import { useSidebarPointerReorder } from "./use-sidebar-pointer-reorder";
-import { moveThreadId, resolveThreadOrder } from "./thread-sort";
+import { moveThreadId, resolveThreadOrder, type ThreadDropPosition } from "./thread-sort";
 
 const EMPTY_THREAD_ORDER: readonly string[] = [];
+
+interface ThreadItemRenderContextValue {
+  readonly workspaceId?: string;
+  readonly workspaceIdByThreadId: ReadonlyMap<string, string | undefined>;
+  readonly dragEnabled: boolean;
+  readonly draggedThreadId?: string;
+  readonly dropTarget?: { readonly itemId: string; readonly position: ThreadDropPosition };
+  readonly registerItem: (threadId: string, element: HTMLElement | null) => void;
+  readonly prepareDragging: (threadId: string, event: PointerEvent<HTMLElement>) => void;
+  readonly shouldSuppressClick: (threadId: string) => boolean;
+  readonly onNavigate?: () => void;
+}
+
+const ThreadItemRenderContext = createContext<ThreadItemRenderContextValue | null>(null);
+
+function ScopedWorkbenchThreadListItem() {
+  const context = useContext(ThreadItemRenderContext);
+  const threadId = useAuiState((state) => state.threadListItem.id);
+  if (!context) throw new Error("ThreadItemRenderContext is missing");
+  const workspaceId = context.workspaceIdByThreadId.get(threadId) ?? context.workspaceId;
+
+  return (
+    <WorkbenchThreadListItem
+      workspaceId={workspaceId}
+      dragEnabled={context.dragEnabled}
+      dragging={context.draggedThreadId === threadId}
+      dropPosition={
+        context.dropTarget?.itemId === threadId ? context.dropTarget.position : undefined
+      }
+      registerDragElement={(element) => context.registerItem(threadId, element)}
+      onPointerDown={(event) => context.prepareDragging(threadId, event)}
+      shouldSuppressNavigation={() => context.shouldSuppressClick(threadId)}
+      onNavigate={context.onNavigate}
+    />
+  );
+}
+
+const SCOPED_THREAD_ITEM_COMPONENTS = { ThreadListItem: ScopedWorkbenchThreadListItem };
+
 function ThreadListLoading() {
   const { t } = useI18n();
 
@@ -31,6 +71,7 @@ function ThreadListLoading() {
 
 export function WorkbenchThreadList({
   workspaceId,
+  candidateThreadIds,
   pinnedOnly = false,
   ignoreWorkspace = false,
   onNavigate,
@@ -39,6 +80,7 @@ export function WorkbenchThreadList({
   searchQuery = "",
 }: {
   workspaceId?: string;
+  candidateThreadIds?: readonly string[];
   pinnedOnly?: boolean;
   ignoreWorkspace?: boolean;
   onNavigate?: () => void;
@@ -51,8 +93,13 @@ export function WorkbenchThreadList({
   const mainThreadId = useAuiState((state) => state.threads.mainThreadId);
   const threadIds = useAuiState((state) => state.threads.threadIds);
   const threadItems = useAuiState((state) => state.threads.threadItems);
-  const piThreadStates = usePiThreadStates(threadIds);
+  const scopedCandidateThreadIds = candidateThreadIds ?? threadIds;
+  const piThreadStates = usePiThreadStates(scopedCandidateThreadIds);
   const { draftWorkspaceId } = useWorkspaceSelection();
+  const workspaceFallbackThreadId =
+    mainThreadId && !piThreadStates.get(mainThreadId)?.metadata.workspace?.id
+      ? mainThreadId
+      : undefined;
   const isLoading = useAuiState((state) => state.threads.isLoading);
   const threadCount = useAuiState(
     (state) => state.threads.threadIds.length + state.threads.archivedThreadIds.length,
@@ -62,7 +109,7 @@ export function WorkbenchThreadList({
   const scopeThreadIds = useMemo(() => {
     const itemsById = new Map(threadItems.map((thread) => [thread.id, thread]));
 
-    return threadIds.filter((threadId) => {
+    return scopedCandidateThreadIds.filter((threadId) => {
       const thread = itemsById.get(threadId);
       if (!thread) return false;
       const metadata = piThreadStates.get(threadId)?.metadata;
@@ -74,7 +121,7 @@ export function WorkbenchThreadList({
         resolveSidebarThreadWorkspaceId({
           customWorkspaceId: undefined,
           managedWorkspaceId: metadata?.workspace?.id,
-          isMainThread: thread.id === mainThreadId,
+          isMainThread: thread.id === workspaceFallbackThreadId,
           draftWorkspaceId,
         }) === workspaceId
       );
@@ -82,11 +129,11 @@ export function WorkbenchThreadList({
   }, [
     draftWorkspaceId,
     ignoreWorkspace,
-    mainThreadId,
     piThreadStates,
     pinnedOnly,
-    threadIds,
+    scopedCandidateThreadIds,
     threadItems,
+    workspaceFallbackThreadId,
     workspaceId,
   ]);
   const visibleThreadIds = useMemo(() => {
@@ -123,9 +170,24 @@ export function WorkbenchThreadList({
     const visibleIds = new Set(visibleThreadIds);
     return resolvedScopeThreadIds.filter((threadId) => visibleIds.has(threadId));
   }, [normalizedSearchQuery, resolvedScopeThreadIds, visibleThreadIds]);
-  const threadOrder = useMemo(
-    () => new Map(sortedThreadIds.map((threadId, index) => [threadId, index])),
-    [sortedThreadIds],
+  const indexedThreads = useMemo(
+    () => indexVisibleThreads(threadIds, sortedThreadIds),
+    [sortedThreadIds, threadIds],
+  );
+  const workspaceIdByThreadId = useMemo(
+    () =>
+      new Map(
+        sortedThreadIds.map((threadId) => [
+          threadId,
+          resolveSidebarThreadWorkspaceId({
+            customWorkspaceId: undefined,
+            managedWorkspaceId: piThreadStates.get(threadId)?.metadata.workspace?.id,
+            isMainThread: threadId === workspaceFallbackThreadId,
+            draftWorkspaceId,
+          }),
+        ]),
+      ),
+    [draftWorkspaceId, piThreadStates, sortedThreadIds, workspaceFallbackThreadId],
   );
   const dragOrderContextRef = useRef({ orderScope, resolvedScopeThreadIds });
   const dragEnabled = sortedThreadIds.length > 1;
@@ -165,51 +227,45 @@ export function WorkbenchThreadList({
         });
     },
   });
+  const threadItemRenderContext = useMemo<ThreadItemRenderContextValue>(
+    () => ({
+      ...(workspaceId === undefined ? {} : { workspaceId }),
+      workspaceIdByThreadId,
+      dragEnabled,
+      ...(draggedThreadId === undefined ? {} : { draggedThreadId }),
+      ...(dropTarget === undefined ? {} : { dropTarget }),
+      registerItem,
+      prepareDragging,
+      shouldSuppressClick,
+      ...(onNavigate === undefined ? {} : { onNavigate }),
+    }),
+    [
+      dragEnabled,
+      draggedThreadId,
+      dropTarget,
+      onNavigate,
+      prepareDragging,
+      registerItem,
+      shouldSuppressClick,
+      workspaceId,
+      workspaceIdByThreadId,
+    ],
+  );
 
   return (
     <ThreadListPrimitive.Root className="flex min-h-0 flex-col gap-[2px]">
       {isInitialLoading ? <ThreadListLoading /> : null}
 
       {!isInitialLoading ? (
-        <ThreadListPrimitive.Items>
-          {({ threadListItem }) => {
-            const piThreadState = piThreadStates.get(threadListItem.id);
-            const metadata = piThreadState?.metadata;
-            const isPinned = metadata?.pinned === true;
-            if (pinnedOnly ? !isPinned : isPinned) return null;
-            const title = piThreadState?.thread?.title ?? threadListItem.title;
-            if (
-              normalizedSearchQuery &&
-              !title?.toLocaleLowerCase().includes(normalizedSearchQuery)
-            ) {
-              return null;
-            }
-
-            const threadWorkspaceId = resolveSidebarThreadWorkspaceId({
-              customWorkspaceId: undefined,
-              managedWorkspaceId: metadata?.workspace?.id,
-              isMainThread: threadListItem.id === mainThreadId,
-              draftWorkspaceId,
-            });
-            if (!ignoreWorkspace && threadWorkspaceId !== workspaceId) return null;
-
-            return (
-              <WorkbenchThreadListItem
-                workspaceId={threadWorkspaceId}
-                sortOrder={threadOrder.get(threadListItem.id)}
-                dragEnabled={dragEnabled}
-                dragging={draggedThreadId === threadListItem.id}
-                dropPosition={
-                  dropTarget?.itemId === threadListItem.id ? dropTarget.position : undefined
-                }
-                registerDragElement={(element) => registerItem(threadListItem.id, element)}
-                onPointerDown={(event) => prepareDragging(threadListItem.id, event)}
-                shouldSuppressNavigation={() => shouldSuppressClick(threadListItem.id)}
-                onNavigate={onNavigate}
-              />
-            );
-          }}
-        </ThreadListPrimitive.Items>
+        <ThreadItemRenderContext.Provider value={threadItemRenderContext}>
+          {indexedThreads.map(({ threadId, index }) => (
+            <ThreadListPrimitive.ItemByIndex
+              key={threadId}
+              index={index}
+              components={SCOPED_THREAD_ITEM_COMPONENTS}
+            />
+          ))}
+        </ThreadItemRenderContext.Provider>
       ) : null}
 
       {showEmpty && !isInitialLoading && !hasThreads ? (

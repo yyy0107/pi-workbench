@@ -184,6 +184,7 @@ export const workbenchZhCN = {
     toolboxEmpty: "工具箱内容将在这里显示。",
     workflowsEmpty: "流程内容将在这里显示。",
     workspaceOptions: "工作区选项",
+    conversationOptions: "会话选项",
     removeWorkspace: "移除工作区",
     expandWorkspace: "展开工作区",
     collapseWorkspace: "收起工作区",

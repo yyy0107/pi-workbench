@@ -23,7 +23,7 @@ export function DraftThreadListItem({
       data-workbench-selection-mode="foreground"
       data-thread-status="new"
       aria-current="page"
-      className="text-sidebar-foreground hover:bg-sidebar-accent focus-visible:ring-sidebar-ring relative -ms-6 flex h-9 w-[calc(100%+1.5rem)] items-center rounded-lg pe-2.5 ps-[34px] text-start text-sm outline-none focus-visible:ring-2"
+      className="text-sidebar-foreground hover:bg-sidebar-accent focus-visible:ring-sidebar-ring relative -ms-6 flex h-[var(--control-hit-touch)] w-[calc(100%+1.5rem)] items-center rounded-lg pe-2.5 ps-[34px] text-start text-sm outline-none focus-visible:ring-2 md:h-9"
       onClick={() => {
         activateWorkspace(workspaceId);
         router.push("/");

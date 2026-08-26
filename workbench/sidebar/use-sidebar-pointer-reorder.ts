@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type PointerEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type PointerEvent } from "react";
 
 import type { SidebarDropPosition } from "./sidebar-reorder";
 
@@ -176,34 +176,37 @@ export function useSidebarPointerReorder({
     };
   }, []);
 
-  const prepareDragging = (itemId: string, event: PointerEvent<HTMLElement>) => {
-    if (
-      !enabled ||
-      !event.isPrimary ||
-      event.pointerType !== "mouse" ||
-      event.button !== 0 ||
-      (ignoreSelector &&
-        event.target instanceof Element &&
-        event.target.closest(ignoreSelector) !== null)
-    ) {
-      return;
-    }
+  const prepareDragging = useCallback(
+    (itemId: string, event: PointerEvent<HTMLElement>) => {
+      if (
+        !enabled ||
+        !event.isPrimary ||
+        event.pointerType !== "mouse" ||
+        event.button !== 0 ||
+        (ignoreSelector &&
+          event.target instanceof Element &&
+          event.target.closest(ignoreSelector) !== null)
+      ) {
+        return;
+      }
 
-    dragCandidateRef.current = {
-      element: event.currentTarget,
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      itemId,
-    };
-  };
+      dragCandidateRef.current = {
+        element: event.currentTarget,
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        itemId,
+      };
+    },
+    [enabled, ignoreSelector],
+  );
 
-  const registerItem = (itemId: string, element: HTMLElement | null) => {
+  const registerItem = useCallback((itemId: string, element: HTMLElement | null) => {
     if (element) itemElementsRef.current.set(itemId, element);
     else itemElementsRef.current.delete(itemId);
-  };
+  }, []);
 
-  const shouldSuppressClick = (itemId: string) => {
+  const shouldSuppressClick = useCallback((itemId: string) => {
     const now = performance.now();
     if (isSidebarDragClickSuppressed(now)) return true;
 
@@ -212,7 +215,7 @@ export function useSidebarPointerReorder({
     if (now <= suppressedClick.until) return true;
     suppressedClickRef.current = undefined;
     return false;
-  };
+  }, []);
 
   return { draggingId, dropTarget, prepareDragging, registerItem, shouldSuppressClick };
 }
