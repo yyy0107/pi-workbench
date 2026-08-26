@@ -6,7 +6,6 @@ import {
   FileTextIcon,
   PackageIcon,
   PackagePlusIcon,
-  PinIcon,
   PlugIcon,
   StoreIcon,
   WandSparklesIcon,
@@ -29,7 +28,6 @@ import {
   type ToolboxMainSection,
 } from "./toolbox-capability";
 import { useToolboxCatalogs, type ToolboxCapabilityItem } from "./toolbox-catalog";
-import { toggleToolboxPin, useToolboxPins } from "./toolbox-pins";
 import { usePiPackageCatalog } from "./use-pi-package-catalog";
 import { ToolboxScopeSelect } from "./toolbox-scope-select";
 import { useToolboxScope } from "./toolbox-scope-store";
@@ -131,67 +129,43 @@ function CapabilityCategory({
 function CapabilityRow({
   item,
   onOpen,
-  onTogglePin,
-  pinned,
 }: {
   item: ToolboxCapabilityItem;
   onOpen(item: ToolboxCapabilityItem): void;
-  onTogglePin(item: ToolboxCapabilityItem): void;
-  pinned: boolean;
 }) {
   const { t } = useI18n();
-  const pinLabel = t(pinned ? "extensions.toolbox.unpin" : "extensions.toolbox.pin");
 
   return (
-    <div
+    <button
+      type="button"
       data-workbench-selection-surface=""
-      className="group/capability hover:bg-sidebar-accent focus-within:bg-sidebar-accent flex min-h-9 items-center rounded-lg transition-colors"
+      className="hover:bg-sidebar-accent focus-visible:ring-sidebar-ring flex min-h-9 w-full min-w-0 items-center rounded-lg px-1.5 py-1.5 text-left outline-none transition-colors focus-visible:ring-2 active:translate-y-0!"
+      title={t("extensions.toolbox.openDetails", { name: item.name })}
+      onClick={() => onOpen(item)}
     >
-      <button
-        type="button"
-        className="focus-visible:ring-sidebar-ring flex min-h-9 min-w-0 flex-1 items-center rounded-lg px-1.5 py-1.5 text-left outline-none focus-visible:ring-2 active:translate-y-0!"
-        title={t("extensions.toolbox.openDetails", { name: item.name })}
-        onClick={() => onOpen(item)}
-      >
-        <span className="min-w-0 flex-1">
-          <span className="flex min-w-0 items-center gap-1.5">
-            <span className="min-w-0 truncate font-mono text-xs font-medium">{item.name}</span>
-            {item.project ? (
-              <span
-                className="bg-sidebar-accent text-sidebar-accent-foreground max-w-24 shrink-0 truncate rounded px-1.5 py-0.5 text-[9px] leading-3 font-medium"
-                aria-label={t("extensions.toolbox.projectTag", { project: item.project.name })}
-                title={item.project.path}
-              >
-                {item.project.name}
-              </span>
-            ) : null}
-          </span>
-          {item.description ? (
-            <span className="text-muted-foreground mt-0.5 block truncate text-[11px]">
-              {item.description}
+      <span className="min-w-0 flex-1">
+        <span className="flex min-w-0 items-center gap-1.5">
+          <span className="min-w-0 truncate font-mono text-xs font-medium">{item.name}</span>
+          {item.project ? (
+            <span
+              className="bg-sidebar-accent text-sidebar-accent-foreground max-w-24 shrink-0 truncate rounded px-1.5 py-0.5 text-[9px] leading-3 font-medium"
+              aria-label={t("extensions.toolbox.projectTag", { project: item.project.name })}
+              title={item.project.path}
+            >
+              {item.project.name}
             </span>
           ) : null}
         </span>
-        {item.status ? (
-          <span className="text-muted-foreground me-1 shrink-0 text-[10px]">{item.status}</span>
+        {item.description ? (
+          <span className="text-muted-foreground mt-0.5 block truncate text-[11px]">
+            {item.description}
+          </span>
         ) : null}
-      </button>
-      <button
-        type="button"
-        aria-label={`${pinLabel}: ${item.name}`}
-        title={`${pinLabel}: ${item.name}`}
-        aria-pressed={pinned}
-        className={cn(
-          "text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-sidebar-ring me-1 flex size-7 shrink-0 items-center justify-center rounded-lg outline-none transition-colors focus-visible:ring-2 active:translate-y-0!",
-          pinned
-            ? "text-foreground"
-            : "opacity-0 group-hover/capability:opacity-100 group-focus-within/capability:opacity-100",
-        )}
-        onClick={() => onTogglePin(item)}
-      >
-        <PinIcon aria-hidden="true" className={cn("size-3.5", pinned && "fill-current")} />
-      </button>
-    </div>
+      </span>
+      {item.status ? (
+        <span className="text-muted-foreground me-1 shrink-0 text-[10px]">{item.status}</span>
+      ) : null}
+    </button>
   );
 }
 
@@ -274,7 +248,6 @@ function ManagementRow({
 export function ToolboxSidebar({ searchQuery }: SlotPropsMap["sidebar.toolbox"]) {
   const { locale, number, t } = useI18n();
   const mainViews = useMainViewService();
-  const pins = useToolboxPins();
   const scope = useToolboxScope();
   const [expandedSections, setExpandedSections] = useState<ReadonlySet<ToolboxMainSection>>(
     () => new Set(),
@@ -298,7 +271,6 @@ export function ToolboxSidebar({ searchQuery }: SlotPropsMap["sidebar.toolbox"])
   const visibleItems = normalizedQuery
     ? allItems.filter((item) => item.searchText.toLocaleLowerCase(locale).includes(normalizedQuery))
     : allItems;
-  const visiblePinnedItems = visibleItems.filter((item) => pins.includes(item.id));
   const catalogCount = (loadState: typeof skillsCatalog.loadState, count: number) =>
     loadState === "ready" ? number(count) : loadState === "loading" ? "…" : "—";
   const openMainView = (
@@ -324,13 +296,7 @@ export function ToolboxSidebar({ searchQuery }: SlotPropsMap["sidebar.toolbox"])
     openMainView(sectionForCapability(params), params, true);
   };
   const renderCapability = (item: ToolboxCapabilityItem) => (
-    <CapabilityRow
-      key={item.id}
-      item={item}
-      pinned={pins.includes(item.id)}
-      onOpen={openCapability}
-      onTogglePin={(capability) => toggleToolboxPin(capability.id)}
-    />
+    <CapabilityRow key={item.id} item={item} onOpen={openCapability} />
   );
   const setSectionExpanded = (section: ToolboxMainSection, expanded: boolean) => {
     setExpandedSections((current) => {
@@ -392,13 +358,6 @@ export function ToolboxSidebar({ searchQuery }: SlotPropsMap["sidebar.toolbox"])
           </section>
         ) : (
           <>
-            {visiblePinnedItems.length > 0 ? (
-              <section className="mb-1 flex flex-col gap-[2px]">
-                <SectionLabel>{t("extensions.toolbox.pinned")}</SectionLabel>
-                {visiblePinnedItems.map((item) => renderCapability(item))}
-              </section>
-            ) : null}
-
             <section className="mb-1 flex flex-col gap-[2px]">
               <SectionLabel>{t("extensions.toolbox.capabilities")}</SectionLabel>
               <CapabilityCategory

@@ -1108,7 +1108,6 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
           },
         },
         context: workspaceContext,
-        scope: { type: "application", key: workspaceContext.applicationId },
         policy: "force-focus",
       })
       .catch((error: unknown) => {
