@@ -2,11 +2,13 @@ const { spawn } = require("node:child_process");
 const net = require("node:net");
 const path = require("node:path");
 
-const { app, BrowserWindow, dialog, nativeTheme, session, shell } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, nativeTheme, session, shell } = require("electron");
 const { isWorkbenchServer, waitForWorkbenchServer } = require("./server-probe.cjs");
 
 const LOOPBACK_HOST = "127.0.0.1";
 const STARTUP_TIMEOUT_MS = 120_000;
+const TITLE_BAR_OVERLAY_CHANNEL = "workbench:title-bar-overlay";
+const OPAQUE_HEX_COLOR_PATTERN = /^#[\da-f]{6}$/i;
 
 let isQuitting = false;
 let currentWorkbenchUrl;
@@ -14,12 +16,39 @@ let mainWindow;
 let serverProcess;
 let serverProcessError;
 let serverReady = false;
+let rendererTitleBarOverlayOptions;
 
 function titleBarOverlayOptions() {
+  if (rendererTitleBarOverlayOptions) return rendererTitleBarOverlayOptions;
   return nativeTheme.shouldUseDarkColors
-    ? { color: "#18181b80", symbolColor: "#ffffff" }
-    : { color: "#ffffff80", symbolColor: "#18181b" };
+    ? { color: "#18181b", symbolColor: "#fafafa" }
+    : { color: "#ffffff", symbolColor: "#18181b" };
 }
+
+function isTitleBarOverlayOptions(value) {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    OPAQUE_HEX_COLOR_PATTERN.test(value.color) &&
+    OPAQUE_HEX_COLOR_PATTERN.test(value.symbolColor)
+  );
+}
+
+ipcMain.on(TITLE_BAR_OVERLAY_CHANNEL, (event, options) => {
+  if (
+    process.platform === "darwin" ||
+    !mainWindow ||
+    mainWindow.isDestroyed() ||
+    event.sender !== mainWindow.webContents ||
+    event.senderFrame !== mainWindow.webContents.mainFrame ||
+    !isTitleBarOverlayOptions(options)
+  ) {
+    return;
+  }
+
+  rendererTitleBarOverlayOptions = options;
+  mainWindow.setTitleBarOverlay(options);
+});
 
 function parseConfiguredPort() {
   const rawPort = process.env.PORT?.trim();
@@ -141,6 +170,7 @@ function openExternalUrl(rawUrl, workbenchOrigin) {
 
 function createMainWindow(workbenchUrl) {
   const workbenchOrigin = new URL(workbenchUrl).origin;
+  rendererTitleBarOverlayOptions = undefined;
   const window = new BrowserWindow({
     width: 1440,
     height: 960,
@@ -153,6 +183,7 @@ function createMainWindow(workbenchUrl) {
     titleBarStyle: "hidden",
     titleBarOverlay: titleBarOverlayOptions(),
     webPreferences: {
+      preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -224,7 +255,12 @@ if (!hasSingleInstanceLock) {
     if (process.platform !== "darwin") app.quit();
   });
   nativeTheme.on("updated", () => {
-    if (process.platform !== "darwin" && mainWindow && !mainWindow.isDestroyed()) {
+    if (
+      process.platform !== "darwin" &&
+      !rendererTitleBarOverlayOptions &&
+      mainWindow &&
+      !mainWindow.isDestroyed()
+    ) {
       mainWindow.setTitleBarOverlay(titleBarOverlayOptions());
     }
   });
