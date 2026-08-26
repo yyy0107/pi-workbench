@@ -13,6 +13,7 @@ import type {
 import { createAssistantStream } from "assistant-stream";
 
 import { workbenchBrowserStorage, WORKBENCH_STORAGE_PREFIX } from "@/runtime/adapters/history";
+import { deriveSessionDisplayTitle } from "@/runtime/pi/session-display-title";
 import {
   parseWorkbenchComposerUserProjection,
   parseWorkbenchComposerCommandResponseDetails,
@@ -39,6 +40,7 @@ import {
   type PiEvent,
   type PiQueuedPrompt,
   type PiQueueMode,
+  type PiRunTiming,
   type PiSessionSummary,
   type PiUserMessage,
   type PiWorkspaceSummary,
@@ -61,6 +63,7 @@ import {
   PiApiError,
   promptPiRpcSession,
   regeneratePiRpcSession,
+  resumePiRpcSession,
   renamePiRpcSession,
   replacePiSessionQueue,
   respondPiRpc,
@@ -80,6 +83,7 @@ import type {
   SessionHistoryValue,
   SessionPromptValue,
   SessionQueueAction,
+  SessionResumeCheckpoint,
   WorkspaceView,
 } from "../../rpc-contracts";
 import type {
@@ -142,6 +146,28 @@ import {
 const ARCHIVED_STORAGE_KEY = `${WORKBENCH_STORAGE_PREFIX}pi-archived-sessions`;
 const PINNED_STORAGE_KEY = `${WORKBENCH_STORAGE_PREFIX}pi-pinned-sessions`;
 const PINNED_WORKSPACES_STORAGE_KEY = "pi-workbench:pinned-workspaces";
+
+export interface PiClientRunTiming extends PiRunTiming {
+  /** Monotonic browser timestamp captured when the server timing snapshot arrived. */
+  observedAt: number;
+}
+
+function monotonicNow(): number {
+  return globalThis.performance?.now() ?? Date.now();
+}
+
+function clientRunTiming(timing: PiRunTiming, current?: PiClientRunTiming): PiClientRunTiming {
+  const observedAt = monotonicNow();
+  const currentElapsed =
+    current?.startedAt === timing.startedAt
+      ? current.elapsedMs + Math.max(0, observedAt - current.observedAt)
+      : undefined;
+  return {
+    ...timing,
+    elapsedMs: Math.max(timing.elapsedMs, currentElapsed ?? 0),
+    observedAt,
+  };
+}
 
 function rawToolArgsTextFromEvent(event: PiEvent): Readonly<Record<string, string>> | undefined {
   const value: unknown = event.rawToolArgsText;
@@ -215,9 +241,11 @@ function livePiUserMessage(
 export interface PiSessionSnapshot {
   messages: readonly ThreadMessage[];
   messageRepository: ExportedMessageRepository;
+  /** User-visible response activity exposed to assistant-ui, excluding post-response host cleanup. */
   isRunning: boolean;
-  runStartedAt?: number;
+  runTiming?: PiClientRunTiming;
   autoRetry?: PiAutoRetrySnapshot;
+  resumeCheckpoint?: SessionResumeCheckpoint;
   isLoading: boolean;
   queuePaused: boolean;
   steeringQueueIds: readonly string[];
@@ -350,7 +378,8 @@ function summariesEqual(left: PiSessionSummary | undefined, right: PiSessionSumm
     left.messageCount === right.messageCount &&
     left.firstMessage === right.firstMessage &&
     left.transient === right.transient &&
-    left.running === right.running
+    left.running === right.running &&
+    left.runTiming?.startedAt === right.runTiming?.startedAt
   );
 }
 
@@ -391,7 +420,6 @@ export class PiClientSession {
   private streamingMessage?: ThreadMessage;
   private activeUserMessageId?: string;
   private activeAssistantMessageId?: string;
-  private runStartedAtValue?: number;
   private queueRejectionRevision = 0;
   private readonly authoritativeMessageIdAliases = new Map<string, string>();
   private snapshotValue: PiSessionSnapshot;
@@ -401,6 +429,7 @@ export class PiClientSession {
   private lastSequence = -1;
   private promptRequestPending = false;
   private localRunLeaseActive = false;
+  private terminalResponseReceived = false;
   private readonly pendingPromptRpcIds = new Set<string>();
   private readonly attachmentRecognitionSnapshots = new Map<
     string,
@@ -531,16 +560,16 @@ export class PiClientSession {
     localId: string,
     remoteId: string | undefined,
     running: boolean,
+    runTiming?: PiClientRunTiming,
   ) {
     this.manager = manager;
     this.localId = localId;
     this.remoteIdValue = remoteId;
-    this.runStartedAtValue = running ? Date.now() : undefined;
     this.snapshotValue = {
       messages: [],
       messageRepository: this.baseMessageRepository,
       isRunning: running,
-      runStartedAt: this.runStartedAtValue,
+      ...(running && runTiming !== undefined ? { runTiming } : {}),
       isLoading: Boolean(remoteId),
       queuePaused: false,
       steeringQueueIds: [],
@@ -608,10 +637,10 @@ export class PiClientSession {
     this.streamingMessage = undefined;
     this.activeUserMessageId = undefined;
     this.activeAssistantMessageId = undefined;
-    this.runStartedAtValue = undefined;
     this.lastSequence = -1;
     this.promptRequestPending = false;
     this.localRunLeaseActive = false;
+    this.terminalResponseReceived = false;
     this.messagePublishScheduled = false;
     this.authoritativeMessageIdAliases.clear();
     this.openTask = undefined;
@@ -639,7 +668,7 @@ export class PiClientSession {
   bindRemote(summary: PiSessionSummary): void {
     if (this.disposed) return;
     this.remoteIdValue = summary.id;
-    if (summary.running) this.setRunningFromManager(true);
+    if (summary.running) this.setRunningFromManager(true, summary.runTiming);
   }
 
   open(): Promise<void> {
@@ -707,7 +736,7 @@ export class PiClientSession {
         this.snapshotValue.isRunning && historySequence >= this.lastSequence
           ? piAutoRetryFromHistory(value)
           : this.snapshotValue.autoRetry;
-      this.publishMessages({ autoRetry });
+      this.publishMessages({ autoRetry, resumeCheckpoint: value.resume?.checkpoint });
     };
     this.reloadTask = fetchProgressiveSessionHistory(remoteId, fetchPiRpcSessionHistory, {
       onInitialPage: (history) => {
@@ -769,8 +798,7 @@ export class PiClientSession {
     };
     this.promptRequestPending = true;
     this.localRunLeaseActive = true;
-    const submittedAt = message.createdAt.getTime();
-    this.runStartedAtValue = Number.isFinite(submittedAt) ? submittedAt : Date.now();
+    this.terminalResponseReceived = false;
     // A running external-store snapshot is a complete turn: user and assistant rows are both
     // present from its first observable frame and keep the same ids for the whole stream. Establish
     // the local lease before publishing so synchronous subscribers cannot observe an unprotected
@@ -904,7 +932,7 @@ export class PiClientSession {
     if (typeof sourceSequence === "number") this.lastSequence = sourceSequence;
     this.promptRequestPending = true;
     this.localRunLeaseActive = true;
-    this.runStartedAtValue = Date.now();
+    this.terminalResponseReceived = false;
     this.publishMessagesAndSetRunning(true);
 
     try {
@@ -921,6 +949,65 @@ export class PiClientSession {
       await this.reload().catch(() => undefined);
       throw error;
     }
+  }
+
+  async resume(checkpointId: string, expectedLeafId: string): Promise<void> {
+    if (this.disposed) return;
+    await this.branchSwitchTask;
+    if (this.disposed) return;
+    if (!this.remoteIdValue) throw new PiApiError("pi_session_not_found", 404);
+    const checkpoint = this.snapshotValue.resumeCheckpoint;
+    if (
+      checkpoint?.checkpointId !== checkpointId ||
+      checkpoint.branchLeafId !== expectedLeafId ||
+      checkpoint.capability !== "ready"
+    ) {
+      throw new PiApiError("pi_resume_stale", 409);
+    }
+
+    const sessionId = this.remoteIdValue;
+    this.promptRequestPending = true;
+    this.localRunLeaseActive = true;
+    this.terminalResponseReceived = false;
+    this.publishMessagesAndSetRunning(true);
+    try {
+      await this.manager.connections.ensureSessionEvents(sessionId, this.handleEvent);
+      if (this.disposed) return;
+      await resumePiRpcSession({ sessionId, checkpointId, expectedLeafId });
+      if (this.promptRequestPending) {
+        this.promptStartTimer = setTimeout(() => {
+          this.promptRequestPending = false;
+          this.localRunLeaseActive = false;
+          if (!this.manager.isRunning(sessionId)) this.setRunningFromManager(false);
+        }, 15_000);
+      }
+    } catch (error) {
+      this.clearLocalRunLease();
+      this.publishMessagesAndSetRunning(false);
+      await this.reload().catch(() => undefined);
+      throw error;
+    }
+  }
+
+  async resumeLatest(terminalMessageId: string): Promise<void> {
+    if (this.disposed) return;
+    let checkpoint = this.snapshotValue.resumeCheckpoint;
+    if (checkpoint?.terminalMessageId !== terminalMessageId || checkpoint.capability !== "ready") {
+      await this.reload();
+      checkpoint = this.snapshotValue.resumeCheckpoint;
+    }
+    if (checkpoint?.terminalMessageId !== terminalMessageId) {
+      throw new PiApiError("pi_resume_stale", 409);
+    }
+    if (checkpoint.capability !== "ready") {
+      throw new PiApiError(
+        checkpoint.capability === "confirmation-required"
+          ? "pi_resume_confirmation_required"
+          : "pi_resume_unavailable",
+        409,
+      );
+    }
+    await this.resume(checkpoint.checkpointId, checkpoint.branchLeafId);
   }
 
   selectBranch(headMessageId: string): void {
@@ -1039,8 +1126,9 @@ export class PiClientSession {
     void this.manager.connections.ensureSessionEvents(this.remoteIdValue, this.handleEvent);
   }
 
-  setRunningFromManager(running: boolean): void {
+  setRunningFromManager(running: boolean, runTiming?: PiRunTiming): void {
     if (this.disposed) return;
+    if (running && this.terminalResponseReceived) return;
     if (!running && this.localRunLeaseActive) return;
     const wasRunning = this.snapshotValue.isRunning;
     if (!running && this.discardEmptyOptimisticAssistant()) {
@@ -1049,9 +1137,11 @@ export class PiClientSession {
         messages,
         messageRepository: this.currentMessageRepository(messages),
         isRunning: false,
+        runTiming: undefined,
+        autoRetry: undefined,
       });
     } else {
-      this.setRunning(running, false);
+      this.setRunning(running, false, runTiming);
     }
     if (running) this.connectIfRunning();
     else if (this.remoteIdValue) {
@@ -1077,6 +1167,12 @@ export class PiClientSession {
     if (sequence !== undefined && sequence <= this.lastSequence) return;
     if (sequence !== undefined) this.lastSequence = sequence;
 
+    if (event.runTiming !== undefined && this.snapshotValue.isRunning) {
+      this.replaceSnapshot({
+        runTiming: clientRunTiming(event.runTiming, this.snapshotValue.runTiming),
+      });
+    }
+
     if (event.type === "connected") {
       this.reconcileQueue(event);
       this.setRunningFromManager(event.isRunning === true);
@@ -1088,7 +1184,8 @@ export class PiClientSession {
     }
     if (event.type === "agent_start") {
       this.markPromptStarted();
-      this.setRunning(true);
+      this.resumeVisibleResponse(event.runTiming);
+      this.setRunning(true, true, event.runTiming);
       return;
     }
     if (event.type === "auto_retry_start") {
@@ -1157,6 +1254,7 @@ export class PiClientSession {
 
     if (event.type === "message_start") {
       this.markPromptStarted();
+      this.resumeVisibleResponse(event.runTiming);
       const message = eventMessage(event);
       if (message?.role === "user") {
         this.publishLiveUserMessage(message, sequence, undefined, false);
@@ -1303,6 +1401,13 @@ export class PiClientSession {
         this.activeAssistantMessageId = undefined;
         this.streamingMessage = undefined;
         this.publishMessages();
+        if (assistantMessage.stopReason === "stop") {
+          // Pi has completed the user-visible response. AgentSession may remain busy while
+          // agent_settled extension handlers finish, but assistant-ui must not keep this run open.
+          // The manager retains the authoritative host-running state until agent_settled.
+          this.terminalResponseReceived = true;
+          this.setRunning(false, false);
+        }
       }
       return;
     }
@@ -1398,7 +1503,6 @@ export class PiClientSession {
           );
 
     let publishedId = generatedId;
-    let isSteering = false;
     if (optimisticIndex < 0) {
       const alreadyPublished = this.liveMessages.some(
         (candidate) =>
@@ -1413,7 +1517,6 @@ export class PiClientSession {
       }
     } else {
       const optimistic = this.liveMessages[optimisticIndex] as ThreadUserMessage;
-      isSteering = optimistic.metadata.custom.piSteering === true;
       publishedId = optimistic.id;
       const authoritativeContent =
         activeIndex >= 0 || workbenchComposer ? projectedUserMessage.content : optimistic.content;
@@ -1452,10 +1555,6 @@ export class PiClientSession {
     }
 
     this.activeUserMessageId = completed ? undefined : publishedId;
-    if (!completed && !isSteering) {
-      const messageStartedAt = message.timestamp ?? Date.now();
-      this.runStartedAtValue = Number.isFinite(messageStartedAt) ? messageStartedAt : Date.now();
-    }
     this.publishMessages();
   }
 
@@ -1652,24 +1751,32 @@ export class PiClientSession {
     return this.currentMessageTiming(message, totalStreamTime);
   }
 
-  private setRunning(running: boolean, notifyManager = true): void {
+  private setRunning(running: boolean, notifyManager = true, runTiming?: PiRunTiming): void {
     if (this.snapshotValue.isRunning === running) {
-      if (!running && this.snapshotValue.autoRetry !== undefined) {
-        this.replaceSnapshot({ autoRetry: undefined });
+      if (running && runTiming !== undefined) {
+        this.replaceSnapshot({
+          runTiming: clientRunTiming(runTiming, this.snapshotValue.runTiming),
+        });
+      } else if (!running && (this.snapshotValue.autoRetry || this.snapshotValue.runTiming)) {
+        this.replaceSnapshot({ autoRetry: undefined, runTiming: undefined });
       }
       if (notifyManager && this.remoteIdValue) {
-        this.manager.updateRunningFromSession(this.remoteIdValue, running, this);
+        this.manager.updateRunningFromSession(this.remoteIdValue, running, this, runTiming);
       }
       return;
     }
-    this.runStartedAtValue = running ? (this.runStartedAtValue ?? Date.now()) : undefined;
     this.replaceSnapshot({
       isRunning: running,
-      runStartedAt: this.runStartedAtValue,
+      runTiming:
+        running && runTiming !== undefined
+          ? clientRunTiming(runTiming, this.snapshotValue.runTiming)
+          : running
+            ? this.snapshotValue.runTiming
+            : undefined,
       ...(running ? {} : { autoRetry: undefined }),
     });
     if (notifyManager && this.remoteIdValue) {
-      this.manager.updateRunningFromSession(this.remoteIdValue, running, this);
+      this.manager.updateRunningFromSession(this.remoteIdValue, running, this, runTiming);
     }
   }
 
@@ -1689,6 +1796,12 @@ export class PiClientSession {
   private clearLocalRunLease(): void {
     this.localRunLeaseActive = false;
     this.markPromptStarted();
+  }
+
+  private resumeVisibleResponse(runTiming?: PiRunTiming): void {
+    if (!this.terminalResponseReceived) return;
+    this.terminalResponseReceived = false;
+    this.setRunning(true, false, runTiming);
   }
 
   private discardEmptyOptimisticAssistant(): boolean {
@@ -1752,26 +1865,26 @@ export class PiClientSession {
     return true;
   }
 
-  private publishMessages(patch: Pick<Partial<PiSessionSnapshot>, "autoRetry"> = {}): void {
+  private publishMessages(
+    patch: Pick<Partial<PiSessionSnapshot>, "autoRetry" | "resumeCheckpoint"> = {},
+  ): void {
     if (this.disposed) return;
     const messages = this.currentMessages();
     this.replaceSnapshot({
       messages,
       messageRepository: this.currentMessageRepository(messages),
-      runStartedAt: this.runStartedAtValue,
       ...patch,
     });
   }
 
   private publishMessagesAndSetRunning(running: boolean): void {
     if (this.disposed) return;
-    this.runStartedAtValue = running ? (this.runStartedAtValue ?? Date.now()) : undefined;
     const messages = this.currentMessages();
     this.replaceSnapshot({
       messages,
       messageRepository: this.currentMessageRepository(messages),
       isRunning: running,
-      runStartedAt: this.runStartedAtValue,
+      ...(running ? {} : { runTiming: undefined }),
       autoRetry: undefined,
     });
     if (this.remoteIdValue) {
@@ -1943,7 +2056,27 @@ export class PiClientSession {
   }
 }
 
+export interface PiSessionTitleFallbacks {
+  readonly attachment: string;
+  readonly image: string;
+}
+
+interface PiSessionManagerOptions {
+  readonly promptFeedback?: PromptFeedbackPort;
+  readonly titleFallbacks?: PiSessionTitleFallbacks;
+}
+
+/**
+ * Fast Refresh preserves React refs while replacing this module. Managers created by an older
+ * module evaluation may therefore be missing newly added client-session methods. The provider
+ * compares this generation token and replaces those retained managers before exposing them again.
+ */
+export const PI_CLIENT_RUNTIME_IMPLEMENTATION_TOKEN = Object.freeze({
+  scope: "pi-client-runtime",
+});
+
 export class PiSessionManager {
+  readonly implementationToken = PI_CLIENT_RUNTIME_IMPLEMENTATION_TOKEN;
   readonly connections: PiConnectionController;
   private readonly listeners = new Set<Listener>();
   private readonly threadListListeners = new Set<Listener>();
@@ -1963,6 +2096,7 @@ export class PiSessionManager {
   private readonly pinned = new Set<string>();
   private readonly pinnedWorkspaces = new Set<string>();
   private readonly completed = new Set<string>();
+  private readonly runTimings = new Map<string, PiClientRunTiming>();
   private running = new Set<string>();
   private activeLocalId?: string;
   private activeRemoteId?: string;
@@ -1971,7 +2105,10 @@ export class PiSessionManager {
   private hostDescriptionTask?: Promise<void>;
   private metadataRefreshTask?: Promise<void>;
   private metadataMutations?: Map<string, PiSessionSummary | null>;
-  private metadataRunningMutations?: Map<string, boolean>;
+  private metadataRunningMutations?: Map<
+    string,
+    { readonly running: boolean; readonly runTiming?: PiRunTiming }
+  >;
   private workspaceGeneration = 0;
   private connectionGeneration = 0;
   private realtimeRefreshRequested = false;
@@ -1980,9 +2117,11 @@ export class PiSessionManager {
   private revision = 0;
   private disposed = false;
   private readonly promptFeedback?: PromptFeedbackPort;
+  private titleFallbacks?: PiSessionTitleFallbacks;
 
-  constructor(options: Readonly<{ promptFeedback?: PromptFeedbackPort }> = {}) {
+  constructor(options: Readonly<PiSessionManagerOptions> = {}) {
     this.promptFeedback = options.promptFeedback;
+    this.titleFallbacks = options.titleFallbacks;
     this.connections = new PiConnectionController({
       onMuxFrame: (frame, generation) => this.handleMuxFrame(frame, generation),
       onHostFrame: (payload, generation) => this.handleHostFrame(payload, generation),
@@ -1991,6 +2130,10 @@ export class PiSessionManager {
   }
 
   getSnapshot = (): number => this.revision;
+
+  setTitleFallbacks(fallbacks: PiSessionTitleFallbacks): void {
+    this.titleFallbacks = fallbacks;
+  }
 
   getActiveSessionId = (): string | undefined => this.activeRemoteId;
 
@@ -2118,7 +2261,7 @@ export class PiSessionManager {
     return this.orderedSummaries().map((summary) => ({
       status: this.archived.has(summary.id) ? "archived" : "regular",
       remoteId: summary.id,
-      title: summary.name || summary.firstMessage || undefined,
+      title: this.summaryTitle(summary) || undefined,
       lastMessageAt: new Date(summary.modified),
       custom: this.getThreadCustom(summary.id),
     }));
@@ -2132,7 +2275,7 @@ export class PiSessionManager {
     return {
       status: this.archived.has(remoteId) ? "archived" : "regular",
       remoteId,
-      title: summary.name || summary.firstMessage || undefined,
+      title: this.summaryTitle(summary) || undefined,
       lastMessageAt: new Date(summary.modified),
       custom: this.getThreadCustom(remoteId),
     };
@@ -2312,10 +2455,12 @@ export class PiSessionManager {
 
   start(): Promise<void> {
     if (this.disposed) return Promise.resolve();
+    // Realtime transport is independent from the unary catalog. Starting it first lets the host
+    // deliver active-session changes while the initial list baseline is still loading; the
+    // refresh mutation overlay below keeps those frames from being overwritten by an older list.
+    this.connections.startRunningEvents(this.applyRunningSnapshot);
     this.startTask ??= this.loadInitialMetadata();
-    return this.startTask.then(() => {
-      this.connections.startRunningEvents(this.applyRunningSnapshot);
-    });
+    return this.startTask;
   }
 
   private async loadInitialMetadata(): Promise<void> {
@@ -2325,7 +2470,10 @@ export class PiSessionManager {
       this.loadLegacyPinnedIds(PINNED_WORKSPACES_STORAGE_KEY),
     ]);
     const legacyArchived = [...this.archived];
-    await Promise.all([this.refreshMetadata(), this.refreshHostDescription()]);
+    await Promise.all([
+      this.refreshMetadata().then(() => globalThis.performance?.mark("workbench:catalog-ready")),
+      this.refreshHostDescription(),
+    ]);
     for (const sessionId of legacyArchived) {
       if (!this.summaries.has(sessionId) || this.archived.has(sessionId)) continue;
       try {
@@ -2356,6 +2504,7 @@ export class PiSessionManager {
     this.pinned.clear();
     this.pinnedWorkspaces.clear();
     this.completed.clear();
+    this.runTimings.clear();
     this.running.clear();
     this.activeLocalId = undefined;
     this.activeRemoteId = undefined;
@@ -2385,9 +2534,9 @@ export class PiSessionManager {
       pendingChanged = true;
     }
     if (pendingChanged) this.notify();
-    // The first socket generation starts only after loadInitialMetadata has completed, so its
-    // unary baseline is already current. Revalidating it immediately duplicated the two most
-    // expensive list requests on every page load; later generations still rebaseline reconnects.
+    // The first socket generation shares startup with the in-flight unary baseline. Revalidating
+    // it immediately would duplicate the list requests; later generations still rebaseline real
+    // reconnects after that initial task has settled.
     if (generation === 1) return;
     void this.refreshHostDescription()
       .catch((error) => console.error("[workbench-pi] host rebaseline failed", error))
@@ -2422,7 +2571,7 @@ export class PiSessionManager {
     const payload = frame.payload;
     if (payload.type === "session/prompt-accepted") {
       this.sessions.get(payload.sessionId)?.acknowledgePrompt(frame.rpcId);
-      this.updateRunning(payload.sessionId, payload.running);
+      this.updateRunning(payload.sessionId, payload.running, undefined, payload.runTiming);
       return;
     }
     if (payload.type === "session/queue") {
@@ -2483,6 +2632,11 @@ export class PiSessionManager {
     if (this.disposed) return;
     if (generation < this.connectionGeneration) return;
     this.connectionGeneration = generation;
+
+    if (payload.type === "host/session-status") {
+      this.updateRunning(payload.sessionId, payload.running, undefined, payload.runTiming);
+      return;
+    }
 
     if (payload.type === "host/workspace-changed") {
       this.workspaceGeneration += 1;
@@ -2624,8 +2778,15 @@ export class PiSessionManager {
       this.sessions.get(localId);
     if (existing) return existing;
 
+    const summary = resolvedRemoteId ? this.summaries.get(resolvedRemoteId) : undefined;
     const running = resolvedRemoteId ? this.running.has(resolvedRemoteId) : false;
-    const session = new PiClientSession(this, localId, resolvedRemoteId, running);
+    const runTiming = resolvedRemoteId
+      ? (this.runTimings.get(resolvedRemoteId) ??
+        (summary?.runTiming
+          ? this.observeRunTiming(resolvedRemoteId, summary.runTiming)
+          : undefined))
+      : undefined;
+    const session = new PiClientSession(this, localId, resolvedRemoteId, running, runTiming);
     this.sessions.set(localId, session);
     if (resolvedRemoteId) this.sessions.set(resolvedRemoteId, session);
     if (resolvedRemoteId) {
@@ -2718,7 +2879,10 @@ export class PiSessionManager {
     // flight. Replaying those local facts over the response prevents an older
     // list snapshot from temporarily removing the just-created thread.
     const mutations = new Map<string, PiSessionSummary | null>();
-    const runningMutations = new Map<string, boolean>();
+    const runningMutations = new Map<
+      string,
+      { readonly running: boolean; readonly runTiming?: PiRunTiming }
+    >();
     this.metadataMutations = mutations;
     this.metadataRunningMutations = runningMutations;
     const workspaceGeneration = ++this.workspaceGeneration;
@@ -2735,16 +2899,33 @@ export class PiSessionManager {
           if (summary) next.set(id, summary);
           else next.delete(id);
         }
+        for (const [id, mutation] of runningMutations) {
+          const summary = next.get(id);
+          if (!summary) continue;
+          next.set(id, {
+            ...summary,
+            running: mutation.running,
+            runTiming: mutation.running ? (mutation.runTiming ?? summary.runTiming) : undefined,
+          });
+        }
         for (const existingId of this.summaries.keys()) {
           if (next.has(existingId)) continue;
           this.disposeCachedSession(existingId);
           this.running.delete(existingId);
+          this.runTimings.delete(existingId);
           this.completed.delete(existingId);
           this.archived.delete(existingId);
           this.pinned.delete(existingId);
         }
         this.summaries.clear();
-        for (const summary of next.values()) this.summaries.set(summary.id, summary);
+        for (const summary of next.values()) {
+          this.summaries.set(summary.id, summary);
+          if (summary.running && summary.runTiming) {
+            this.observeRunTiming(summary.id, summary.runTiming);
+          } else if (!summary.running) {
+            this.runTimings.delete(summary.id);
+          }
+        }
         for (const sessionId of this.pendingQueues.keys()) {
           if (next.has(sessionId)) continue;
           this.pendingQueues.delete(sessionId);
@@ -2763,11 +2944,6 @@ export class PiSessionManager {
         const nextRunning = new Set(
           [...next.values()].filter((summary) => summary.running).map((summary) => summary.id),
         );
-        for (const [id, running] of runningMutations) {
-          if (!next.has(id)) continue;
-          if (running) nextRunning.add(id);
-          else nextRunning.delete(id);
-        }
         this.connections.replaceRunningBaseline([...nextRunning]);
         this.applyRunningSnapshot([...nextRunning]);
         this.notify();
@@ -2885,7 +3061,7 @@ export class PiSessionManager {
     const title = nextForkTitle(
       sourceTitle,
       siblingSummaries
-        .map((summary) => summary.name || summary.firstMessage)
+        .map((summary) => this.summaryTitle(summary))
         .filter((candidate): candidate is string => Boolean(candidate)),
     );
 
@@ -3013,9 +3189,10 @@ export class PiSessionManager {
         };
       },
       fetch: async (threadId) => {
-        await this.start();
         let summary = this.summaries.get(threadId);
         if (!summary) {
+          // Fetching the route-selected thread only needs the catalog baseline. Do not wait for
+          // host description or one-time legacy preference migrations owned by start().
           await this.refreshMetadata();
           summary = this.summaries.get(threadId);
         }
@@ -3024,7 +3201,7 @@ export class PiSessionManager {
           status: this.archived.has(threadId) ? "archived" : "regular",
           remoteId: threadId,
           externalId: threadId,
-          title: summary.name || summary.firstMessage || undefined,
+          title: this.summaryTitle(summary) || undefined,
           lastMessageAt: new Date(summary.modified),
           custom: this.getThreadCustom(summary.id),
         };
@@ -3055,10 +3232,15 @@ export class PiSessionManager {
         this.notify();
       },
       generateTitle: async (remoteId, messages) => {
-        const title = this.titleFromMessages(messages);
-        if (title) await renamePiRpcSession({ sessionId: remoteId, title });
         const summary = this.summaries.get(remoteId);
-        if (summary && title && this.setSummary({ ...summary, name: title })) this.notify();
+        const hasExistingName = Boolean(summary?.name?.trim());
+        const title = hasExistingName
+          ? deriveSessionDisplayTitle(summary?.name)
+          : this.titleFromMessages(messages);
+        if (!hasExistingName && title) {
+          await renamePiRpcSession({ sessionId: remoteId, title });
+          if (summary && this.setSummary({ ...summary, name: title })) this.notify();
+        }
         return createAssistantStream((controller) => {
           if (title) controller.appendText(title);
         });
@@ -3110,15 +3292,20 @@ export class PiSessionManager {
     if (!summary) return;
     const changed = this.setSummary({
       ...summary,
-      firstMessage: summary.firstMessage || text.trim(),
+      firstMessage: summary.firstMessage || deriveSessionDisplayTitle(text),
       modified: new Date().toISOString(),
       running: true,
     });
     if (changed) this.notify();
   }
 
-  updateRunningFromSession(remoteId: string, running: boolean, source: PiClientSession): void {
-    this.updateRunning(remoteId, running, source);
+  updateRunningFromSession(
+    remoteId: string,
+    running: boolean,
+    source: PiClientSession,
+    runTiming?: PiRunTiming,
+  ): void {
+    this.updateRunning(remoteId, running, source, runTiming);
   }
 
   private bindSession(
@@ -3156,23 +3343,50 @@ export class PiSessionManager {
     if (this.disposed) return;
     const next = new Set(sessionIds);
     const all = new Set([...this.running, ...next]);
-    for (const id of all) this.updateRunning(id, next.has(id));
+    for (const id of all) {
+      const running = next.has(id);
+      this.updateRunning(
+        id,
+        running,
+        undefined,
+        running ? this.summaries.get(id)?.runTiming : undefined,
+      );
+    }
   };
 
-  private updateRunning(remoteId: string, running: boolean, source?: PiClientSession): void {
+  private updateRunning(
+    remoteId: string,
+    running: boolean,
+    source?: PiClientSession,
+    runTiming?: PiRunTiming,
+  ): void {
     if (this.disposed) return;
-    this.metadataRunningMutations?.set(remoteId, running);
+    if (running && runTiming !== undefined) this.observeRunTiming(remoteId, runTiming);
+    else if (!running) this.runTimings.delete(remoteId);
+    this.metadataRunningMutations?.set(remoteId, {
+      running,
+      ...(runTiming === undefined ? {} : { runTiming }),
+    });
     const wasRunning = this.running.has(remoteId);
     if (running) this.running.add(remoteId);
     else this.running.delete(remoteId);
 
     const summary = this.summaries.get(remoteId);
-    if (summary && summary.running !== running) {
-      this.setSummary({ ...summary, running });
+    if (
+      summary &&
+      (summary.running !== running ||
+        runTiming !== undefined ||
+        (!running && summary.runTiming !== undefined))
+    ) {
+      this.setSummary({
+        ...summary,
+        running,
+        runTiming: running ? (runTiming ?? summary.runTiming) : undefined,
+      });
     }
 
     const session = this.sessions.get(remoteId);
-    if (session && session !== source) session.setRunningFromManager(running);
+    if (session && session !== source) session.setRunningFromManager(running, runTiming);
     if (wasRunning && !running && this.activeRemoteId !== remoteId) this.completed.add(remoteId);
     if (running) this.completed.delete(remoteId);
     if (wasRunning !== running) this.notify();
@@ -3184,18 +3398,35 @@ export class PiSessionManager {
     const text = firstUser.content
       .filter((part): part is { type: "text"; text: string } => part.type === "text")
       .map((part) => part.text)
-      .join(" ")
-      .replace(/\s+/g, " ")
-      .trim();
-    return text.length > 60 ? `${text.slice(0, 57)}…` : text;
+      .join(" ");
+    const hasFile =
+      firstUser.content.some((part) => part.type === "file") ||
+      firstUser.attachments?.some((attachment) => attachment.type !== "image");
+    const hasImage =
+      firstUser.content.some((part) => part.type === "image") ||
+      firstUser.attachments?.some((attachment) => attachment.type === "image");
+    const fallback = hasFile
+      ? this.titleFallbacks?.attachment
+      : hasImage
+        ? this.titleFallbacks?.image
+        : undefined;
+    return deriveSessionDisplayTitle(text, { fallback });
+  }
+
+  private summaryTitle(summary: PiSessionSummary): string {
+    return (
+      deriveSessionDisplayTitle(summary.name) || deriveSessionDisplayTitle(summary.firstMessage)
+    );
   }
 
   private applySummaryRunning(summary: PiSessionSummary): boolean {
     const wasRunning = this.running.has(summary.id);
     if (summary.running) this.running.add(summary.id);
     else this.running.delete(summary.id);
+    if (summary.running && summary.runTiming) this.observeRunTiming(summary.id, summary.runTiming);
+    else if (!summary.running) this.runTimings.delete(summary.id);
     const session = this.sessions.get(summary.id);
-    session?.setRunningFromManager(summary.running);
+    session?.setRunningFromManager(summary.running, summary.runTiming);
     if (wasRunning && !summary.running && this.activeRemoteId !== summary.id) {
       this.completed.add(summary.id);
     }
@@ -3203,11 +3434,21 @@ export class PiSessionManager {
     return wasRunning !== summary.running;
   }
 
+  private observeRunTiming(remoteId: string, timing: PiRunTiming): PiClientRunTiming {
+    const observed = clientRunTiming(timing, this.runTimings.get(remoteId));
+    this.runTimings.set(remoteId, observed);
+    return observed;
+  }
+
   private setSummary(summary: PiSessionSummary): boolean {
     if (this.disposed) return false;
-    const changed = !summariesEqual(this.summaries.get(summary.id), summary);
-    this.summaries.set(summary.id, summary);
-    this.metadataMutations?.set(summary.id, summary);
+    const sanitized = {
+      ...summary,
+      firstMessage: deriveSessionDisplayTitle(summary.firstMessage),
+    };
+    const changed = !summariesEqual(this.summaries.get(summary.id), sanitized);
+    this.summaries.set(summary.id, sanitized);
+    this.metadataMutations?.set(summary.id, sanitized);
     return changed;
   }
 
@@ -3220,6 +3461,7 @@ export class PiSessionManager {
 
   private deleteSummary(remoteId: string): void {
     this.summaries.delete(remoteId);
+    this.runTimings.delete(remoteId);
     this.metadataMutations?.set(remoteId, null);
   }
 

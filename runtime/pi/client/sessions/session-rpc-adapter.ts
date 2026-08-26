@@ -4,12 +4,14 @@ import type {
   PiConversationEvent,
   PiDocumentContent,
   PiImageContent,
+  PiRunTiming,
   PiSessionHistory,
   PiSessionSummary,
   PiWorkspaceSummary,
 } from "../../contracts";
 import { isInlineDocumentMediaType, isInlineImageMediaType } from "../../attachment-contracts";
 import { parseWorkbenchComposerUserProjection } from "../../../composer-request";
+import { deriveSessionDisplayTitle } from "../../session-display-title";
 import type {
   SessionHistoryValue,
   SessionListItem,
@@ -41,6 +43,23 @@ function booleanValue(value: unknown): boolean | undefined {
   return typeof value === "boolean" ? value : undefined;
 }
 
+function projectedRunTiming(value: unknown): PiRunTiming | undefined {
+  const candidate = record(value);
+  const startedAt = numberValue(candidate?.startedAt);
+  const elapsedMs = numberValue(candidate?.elapsedMs);
+  if (
+    startedAt === undefined ||
+    !Number.isInteger(startedAt) ||
+    startedAt < 0 ||
+    elapsedMs === undefined ||
+    !Number.isInteger(elapsedMs) ||
+    elapsedMs < 0
+  ) {
+    return undefined;
+  }
+  return { startedAt, elapsedMs };
+}
+
 function projectedWorkspace(value: unknown, cwd: string): PiWorkspaceSummary {
   const candidate = record(value);
   const projectedCwd = stringValue(candidate?.cwd) ?? cwd;
@@ -61,6 +80,7 @@ export function piSummaryFromSessionListItem(item: SessionListItem): PiSessionSu
   const updatedAt = new Date(item.updatedAt).toISOString();
   const created = stringValue(projected?.created) ?? updatedAt;
   const messageCount = numberValue(projected?.messageCount) ?? (item.blank ? 0 : 1);
+  const runTiming = item.runTiming ?? projectedRunTiming(projected?.runTiming);
 
   return {
     id: item.sessionId,
@@ -70,9 +90,10 @@ export function piSummaryFromSessionListItem(item: SessionListItem): PiSessionSu
     created,
     modified: updatedAt,
     messageCount,
-    firstMessage: stringValue(projected?.firstMessage) ?? "",
+    firstMessage: deriveSessionDisplayTitle(stringValue(projected?.firstMessage)),
     transient: booleanValue(projected?.transient) ?? false,
     running: item.running,
+    ...(item.running && runTiming !== undefined ? { runTiming } : {}),
   };
 }
 

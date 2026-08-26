@@ -237,6 +237,7 @@ test("routes canonical mux session frames to only the matching legacy listener",
     serverFrame({
       type: "session/event",
       sessionId: "session-1",
+      runTiming: { startedAt: 1_724_999_999_000, elapsedMs: 1_000 },
       event: {
         type: "message_start",
         seq: 4,
@@ -358,6 +359,8 @@ test("routes canonical mux session frames to only the matching legacy listener",
       message: { role: "assistant", content: [] },
       type: "message_start",
       sequence: 4,
+      eventTime: 1_725_000_000_000,
+      runTiming: { startedAt: 1_724_999_999_000, elapsedMs: 1_000 },
     },
     {
       message: { role: "assistant", content: [{ type: "text", text: "partial" }] },
@@ -476,7 +479,7 @@ test("late session listeners receive the durable watermark before the active str
       event: { type: "agent_settled", seq: 9, time: 126, data: {} },
     }),
   );
-  assert.deepEqual(events.at(-1), { type: "agent_settled", sequence: 9 });
+  assert.deepEqual(events.at(-1), { type: "agent_settled", sequence: 9, eventTime: 126 });
   controller.dispose();
 });
 

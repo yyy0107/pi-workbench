@@ -1,12 +1,19 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { currentRunStartedAt, piAutoRetryStatus, piRunStartedAt } from "./workbench-thread-timing";
+import { displayedPiRunElapsedMs, piAutoRetryStatus, piRunTiming } from "./workbench-thread-timing";
 
-test("reads a stable runtime-owned Pi run start", () => {
-  assert.equal(piRunStartedAt({ piRun: { startedAt: 12_345 } }), 12_345);
-  assert.equal(piRunStartedAt({ piRun: { startedAt: Number.NaN } }), undefined);
-  assert.equal(piRunStartedAt({}), undefined);
+test("reads a server-authoritative Pi run timing snapshot", () => {
+  const timing = { startedAt: 12_345, elapsedMs: 2_500, observedAt: 80 };
+  assert.equal(piRunTiming({ piRun: { timing } }), timing);
+  assert.equal(piRunTiming({ piRun: { timing: { ...timing, elapsedMs: Number.NaN } } }), undefined);
+  assert.equal(piRunTiming({ piRun: {} }), undefined);
+});
+
+test("advances only from the server elapsed baseline with a monotonic clock", () => {
+  const timing = { startedAt: 12_345, elapsedMs: 2_500, observedAt: 80 };
+  assert.equal(displayedPiRunElapsedMs(timing, 580), 3_000);
+  assert.equal(displayedPiRunElapsedMs(timing, 40), 2_500);
 });
 
 test("reads only valid automatic-retry state from Pi runtime extras", () => {
@@ -21,56 +28,4 @@ test("reads only valid automatic-retry state from Pi runtime extras", () => {
     undefined,
   );
   assert.equal(piAutoRetryStatus({ piRun: {} }), undefined);
-});
-
-test("keeps the running turn anchored to the latest user message across remounts", () => {
-  const messages = [
-    { role: "user", createdAt: new Date(1_000) },
-    {
-      role: "assistant",
-      createdAt: new Date(1_500),
-      metadata: { timing: { streamStartTime: 1_400 } },
-    },
-    { role: "user", createdAt: new Date(10_000) },
-    {
-      role: "assistant",
-      createdAt: new Date(10_500),
-      metadata: { timing: { streamStartTime: 10_400 } },
-    },
-  ];
-
-  assert.equal(currentRunStartedAt(messages), 10_000);
-  assert.equal(currentRunStartedAt(messages), 10_000);
-});
-
-test("falls back to the assistant stream time when no user message is available", () => {
-  assert.equal(
-    currentRunStartedAt([
-      {
-        role: "assistant",
-        createdAt: new Date(10_500),
-        metadata: { timing: { streamStartTime: 10_400 } },
-      },
-    ]),
-    10_400,
-  );
-});
-
-test("keeps the current run start when a steering user message is appended", () => {
-  assert.equal(
-    currentRunStartedAt([
-      { role: "user", createdAt: new Date(10_000) },
-      {
-        role: "assistant",
-        createdAt: new Date(10_500),
-        metadata: { timing: { streamStartTime: 10_400 } },
-      },
-      {
-        role: "user",
-        createdAt: new Date(25_000),
-        metadata: { custom: { piSteering: true } },
-      },
-    ]),
-    10_000,
-  );
 });

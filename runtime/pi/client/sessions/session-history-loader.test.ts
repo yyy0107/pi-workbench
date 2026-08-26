@@ -33,7 +33,22 @@ test("publishes a small tail page before older history finishes loading", async 
     "session-1",
     async (payload) => {
       calls.push(payload);
-      if (payload.beforeSeq === undefined) return history([10, 11], true);
+      if (payload.beforeSeq === undefined) {
+        return {
+          ...history([10, 11], true),
+          resume: {
+            checkpoint: {
+              checkpointId: "checkpoint-1",
+              terminalMessageId: "terminal-1",
+              branchLeafId: "leaf-1",
+              sourceEventSeq: 11,
+              reason: "user-cancelled",
+              capability: "ready",
+              createdAt: 1_777_000_000_000,
+            },
+          },
+        };
+      }
       await backfillGate;
       return history([0, 1], false);
     },
@@ -59,10 +74,12 @@ test("publishes a small tail page before older history finishes loading", async 
   ]);
 
   releaseBackfill?.();
+  const resolved = await result;
   assert.deepEqual(
-    (await result).events.map(({ event }) => event.seq),
+    resolved.events.map(({ event }) => event.seq),
     [0, 1, 10, 11],
   );
+  assert.equal(resolved.resume?.checkpoint?.checkpointId, "checkpoint-1");
 });
 
 test("returns a complete first page without requesting a backfill", async () => {

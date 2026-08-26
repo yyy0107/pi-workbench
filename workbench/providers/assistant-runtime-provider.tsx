@@ -18,13 +18,17 @@ import {
   WorkspaceSurfaceRuntimeHost,
 } from "@/components/right-workspace";
 import { useRightWorkspaceState } from "@/components/right-workspace/workspace-context";
+import { useI18n } from "@/i18n";
 import { useMainViewService } from "@/platform/extensions";
 import { PiCommandsProvider } from "@/runtime/pi/client/runtime/command-context";
 import {
   PiSessionManagerProvider,
   usePiThreadListItemState,
 } from "@/runtime/pi/client/runtime/context";
-import { PiSessionManager } from "@/runtime/pi/client/runtime/manager";
+import {
+  PI_CLIENT_RUNTIME_IMPLEMENTATION_TOKEN,
+  PiSessionManager,
+} from "@/runtime/pi/client/runtime/manager";
 import { piThreadListStructureMatches } from "@/runtime/pi/client/runtime/thread-list-sync";
 import { useWorkbenchRuntime } from "@/runtime/use-workbench-runtime";
 import {
@@ -299,19 +303,37 @@ function ActiveWorkspaceContextTracker() {
 }
 
 export function WorkbenchAssistantRuntimeProvider({ children }: Readonly<{ children: ReactNode }>) {
+  const { t } = useI18n();
   const workspaceFeedback = useWorkspaceFeedbackStore();
+  const titleFallbacks = useMemo(
+    () => ({
+      attachment: t("workbench.chat.titles.attachmentAnalysis"),
+      image: t("workbench.chat.titles.imageConversation"),
+    }),
+    [t],
+  );
   const managerRef = useRef<PiSessionManager | null>(null);
   const managerLifecycleRef = useRef(0);
+  // Fast Refresh keeps refs alive even when the manager module is replaced. Recreate the manager
+  // so existing sessions cannot retain an older class prototype without newly added RPC methods.
+  if (
+    managerRef.current &&
+    managerRef.current.implementationToken !== PI_CLIENT_RUNTIME_IMPLEMENTATION_TOKEN
+  ) {
+    managerRef.current = null;
+  }
   if (!managerRef.current) {
     const promptFeedback: PromptFeedbackPort = {
       claimForThreads: (threadIds) => workspaceFeedback.claimForThreads(threadIds),
       commit: (token) => workspaceFeedback.commit(token),
       release: (token) => workspaceFeedback.release(token),
     };
-    managerRef.current = new PiSessionManager({ promptFeedback });
+    managerRef.current = new PiSessionManager({ promptFeedback, titleFallbacks });
   }
   const manager = managerRef.current;
   const runtime = useWorkbenchRuntime(manager);
+
+  useEffect(() => manager.setTitleFallbacks(titleFallbacks), [manager, titleFallbacks]);
 
   useEffect(() => {
     const lifecycle = ++managerLifecycleRef.current;
@@ -322,7 +344,9 @@ export function WorkbenchAssistantRuntimeProvider({ children }: Readonly<{ child
       // React Strict Effects immediately mounts this effect again in development. Defer the
       // irreversible disposal so the replacement setup can claim the same manager first.
       queueMicrotask(() => {
-        if (managerLifecycleRef.current === lifecycle) manager.dispose();
+        if (managerRef.current !== manager || managerLifecycleRef.current === lifecycle) {
+          manager.dispose();
+        }
       });
     };
   }, [manager]);

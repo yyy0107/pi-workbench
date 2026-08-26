@@ -57,6 +57,7 @@ export async function fetchProgressiveSessionHistory(
         hasMore: false,
         ...(initialPage.projections === undefined ? {} : { projections: initialPage.projections }),
         ...(initialPage.branches === undefined ? {} : { branches: initialPage.branches }),
+        ...(initialPage.resume === undefined ? {} : { resume: initialPage.resume }),
       };
     }
     beforeSeq = nextBeforeSeq(page, beforeSeq);

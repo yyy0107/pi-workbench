@@ -55,6 +55,10 @@ export const workbenchZhCN = {
       extensionsCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
         `扩展 ${number(count)}`,
     },
+    titles: {
+      attachmentAnalysis: "附件分析",
+      imageConversation: "图片会话",
+    },
     actions: {
       copyMessage: "复制消息",
       copyResponse: "复制回答",

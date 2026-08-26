@@ -61,6 +61,8 @@ function useWorkbenchPiRuntime(manager: PiSessionManager) {
   }>();
   const composerError =
     composerErrorState?.session === session ? composerErrorState.code : undefined;
+  const supportsResume = typeof session.resume === "function";
+  const supportsResumeLatest = typeof session.resumeLatest === "function";
   const clearComposerError = useCallback(() => {
     setComposerErrorState((current) => (current?.session === session ? undefined : current));
   }, [session]);
@@ -73,8 +75,20 @@ function useWorkbenchPiRuntime(manager: PiSessionManager) {
         steeringIds: snapshot.steeringQueueIds,
       },
       piRun: {
-        startedAt: snapshot.runStartedAt,
+        timing: snapshot.runTiming,
         autoRetry: snapshot.autoRetry,
+        resumeCheckpoint: snapshot.resumeCheckpoint,
+        ...(supportsResume
+          ? {
+              resume: (checkpointId: string, expectedLeafId: string) =>
+                session.resume(checkpointId, expectedLeafId),
+            }
+          : {}),
+        ...(supportsResumeLatest
+          ? {
+              resumeLatest: (terminalMessageId: string) => session.resumeLatest(terminalMessageId),
+            }
+          : {}),
       },
       piComposer: {
         error: composerError,
@@ -88,8 +102,11 @@ function useWorkbenchPiRuntime(manager: PiSessionManager) {
       snapshot.autoRetry,
       snapshot.queuePaused,
       snapshot.rejectedQueueDraft,
-      snapshot.runStartedAt,
+      snapshot.resumeCheckpoint,
+      snapshot.runTiming,
       snapshot.steeringQueueIds,
+      supportsResume,
+      supportsResumeLatest,
     ],
   );
 
@@ -105,6 +122,7 @@ function useWorkbenchPiRuntime(manager: PiSessionManager) {
   useEffect(() => {
     void session
       .open()
+      .then(() => globalThis.performance?.mark("workbench:active-thread-ready"))
       .catch((error) => console.error("[workbench-pi] history load failed", error));
   }, [session]);
 

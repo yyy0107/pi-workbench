@@ -57,6 +57,10 @@ export const workbenchEnUS = {
       extensionsCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
         `Extensions ${number(count)}`,
     },
+    titles: {
+      attachmentAnalysis: "Attachment analysis",
+      imageConversation: "Image conversation",
+    },
     actions: {
       copyMessage: "Copy message",
       copyResponse: "Copy response",

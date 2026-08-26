@@ -1,4 +1,4 @@
-import type { PiAssistantMessage, PiEvent } from "../../contracts";
+import type { PiAssistantMessage, PiEvent, PiRunTiming } from "../../contracts";
 import { isSessionMessageDelta } from "../../stream-contracts";
 import type {
   HostStreamPayload,
@@ -165,6 +165,20 @@ function isOptionalString(value: unknown): boolean {
   return value === undefined || typeof value === "string";
 }
 
+function isPiRunTiming(value: unknown): value is PiRunTiming {
+  return (
+    isRecord(value) &&
+    Number.isInteger(value.startedAt) &&
+    (value.startedAt as number) >= 0 &&
+    Number.isInteger(value.elapsedMs) &&
+    (value.elapsedMs as number) >= 0
+  );
+}
+
+function isOptionalPiRunTiming(value: unknown): boolean {
+  return value === undefined || isPiRunTiming(value);
+}
+
 function isWorkspaceView(value: unknown): boolean {
   return (
     isRecord(value) &&
@@ -192,7 +206,8 @@ function isPiSessionSummary(value: unknown): boolean {
     (value.messageCount as number) >= 0 &&
     typeof value.firstMessage === "string" &&
     typeof value.transient === "boolean" &&
-    typeof value.running === "boolean"
+    typeof value.running === "boolean" &&
+    isOptionalPiRunTiming(value.runTiming)
   );
 }
 
@@ -215,7 +230,8 @@ function isSessionEventPayload(payload: ServerRequestFrame["payload"]): boolean 
     (event.seq as number) >= 0 &&
     typeof event.time === "number" &&
     Number.isFinite(event.time) &&
-    Object.hasOwn(event, "data")
+    Object.hasOwn(event, "data") &&
+    isOptionalPiRunTiming(payload.runTiming)
   );
 }
 
@@ -385,7 +401,8 @@ function isMuxPayload(payload: ServerRequestFrame["payload"]): boolean {
       return (
         isNonEmptyString(payload.sessionId) &&
         ["queue", "steer"].includes(payload.mode as string) &&
-        typeof payload.running === "boolean"
+        typeof payload.running === "boolean" &&
+        isOptionalPiRunTiming(payload.runTiming)
       );
     case "approval/requested":
       return (
@@ -463,7 +480,11 @@ function isHostPayload(payload: ServerRequestFrame["payload"]): boolean {
     case "host/session-removed":
       return isNonEmptyString(payload.sessionId);
     case "host/session-status":
-      return isNonEmptyString(payload.sessionId) && typeof payload.running === "boolean";
+      return (
+        isNonEmptyString(payload.sessionId) &&
+        typeof payload.running === "boolean" &&
+        isOptionalPiRunTiming(payload.runTiming)
+      );
     case "host/agent-error":
       return isNonEmptyString(payload.sessionId) && typeof payload.message === "string";
     case "host/workspace-changed":
@@ -544,6 +565,8 @@ function sessionEventFromPayload(payload: ServerRequestFrame["payload"]):
       ...(isRecord(data) ? data : { data }),
       type: event.type,
       sequence: event.seq as number,
+      eventTime: event.time,
+      ...(isPiRunTiming(payload.runTiming) ? { runTiming: payload.runTiming } : {}),
     },
   };
 }

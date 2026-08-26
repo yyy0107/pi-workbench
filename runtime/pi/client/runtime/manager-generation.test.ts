@@ -101,6 +101,32 @@ test("publishes the current Pi version from the host description", async (t) => 
   assert.equal(manager.getHostDescription()?.userPackageDir, "/home/example/.pi/agent/npm");
 });
 
+test("fetches a route-selected thread without waiting for full manager startup", async (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const internals = manager as unknown as {
+    summaries: Map<string, PiSessionSummary>;
+    refreshMetadata(): Promise<void>;
+    start(): Promise<void>;
+  };
+  let refreshCount = 0;
+  let startCount = 0;
+  internals.refreshMetadata = async () => {
+    refreshCount += 1;
+    internals.summaries.set("route-session", summary({ id: "route-session" }));
+  };
+  internals.start = async () => {
+    startCount += 1;
+    throw new Error("fetch must not wait for full startup");
+  };
+
+  const fetched = await manager.createThreadListAdapter().fetch("route-session");
+
+  assert.equal(fetched.remoteId, "route-session");
+  assert.equal(refreshCount, 1);
+  assert.equal(startCount, 0);
+});
+
 test("regenerates from the existing user node without appending a duplicate user message", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => {
@@ -189,6 +215,115 @@ test("regenerates from the existing user node without appending a duplicate user
     session.getSnapshot().messageRepository.headId,
     session.getSnapshot().messages[1]?.id,
   );
+});
+
+test("continues a matching checkpoint without regenerating or truncating messages", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  const requests: Array<{ method: string; payload: unknown }> = [];
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as {
+      rpcId: string;
+      method: string;
+      payload: unknown;
+    };
+    requests.push({ method: request.method, payload: request.payload });
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: { ok: true, value: { accepted: true } },
+    });
+  };
+
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("remote-session", "remote-session");
+  const internals = session as unknown as {
+    snapshotValue: ReturnType<typeof session.getSnapshot>;
+  };
+  const messages = internals.snapshotValue.messages;
+  internals.snapshotValue = {
+    ...internals.snapshotValue,
+    isLoading: false,
+    resumeCheckpoint: {
+      checkpointId: "checkpoint-1",
+      terminalMessageId: "assistant-1",
+      branchLeafId: "leaf-1",
+      sourceEventSeq: 8,
+      reason: "user-cancelled",
+      capability: "ready",
+      createdAt: 1_777_000_000_000,
+    },
+  };
+  const connectionInternals = manager.connections as unknown as {
+    ensureSessionEvents(): Promise<void>;
+  };
+  connectionInternals.ensureSessionEvents = async () => undefined;
+
+  await session.resume("checkpoint-1", "leaf-1");
+
+  assert.deepEqual(requests, [
+    {
+      method: "session.resume",
+      payload: {
+        sessionId: "remote-session",
+        checkpointId: "checkpoint-1",
+        expectedLeafId: "leaf-1",
+      },
+    },
+  ]);
+  assert.deepEqual(session.getSnapshot().messages, messages);
+  assert.equal(session.getSnapshot().isRunning, true);
+});
+
+test("reloads and repairs a missing checkpoint before continuing an existing stopped card", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  const methods: string[] = [];
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as { rpcId: string; method: string };
+    methods.push(request.method);
+    const value =
+      request.method === "session.history"
+        ? {
+            events: [],
+            hasMore: false,
+            resume: {
+              checkpoint: {
+                checkpointId: "checkpoint-repaired",
+                terminalMessageId: "assistant-stopped",
+                branchLeafId: "leaf-repaired",
+                sourceEventSeq: 12,
+                reason: "user-cancelled",
+                capability: "ready",
+                createdAt: 1_777_000_000_000,
+              },
+            },
+          }
+        : { accepted: true };
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: { ok: true, value },
+    });
+  };
+
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("remote-session", "remote-session");
+  const connectionInternals = manager.connections as unknown as {
+    ensureSessionEvents(): Promise<void>;
+  };
+  connectionInternals.ensureSessionEvents = async () => undefined;
+
+  await session.resumeLatest("assistant-stopped");
+
+  assert.deepEqual(methods, ["session.history", "session.resume"]);
+  assert.equal(session.getSnapshot().isRunning, true);
 });
 
 test("retains a live-only user as the parent when regenerating before history reloads", async (t) => {
@@ -874,11 +1009,10 @@ test("renders an authoritative steering item as an optimistic user message", (t)
   const session = manager.getSession("local-session", "remote-session");
   const internals = session as unknown as {
     handleEvent(event: PiEvent): void;
-    publishMessagesAndSetRunning(running: boolean): void;
   };
-  internals.publishMessagesAndSetRunning(true);
-  const originalRunStartedAt = session.getSnapshot().runStartedAt;
-  assert.equal(typeof originalRunStartedAt, "number");
+  session.setRunningFromManager(true, { startedAt: 1_000, elapsedMs: 250 });
+  const originalRunStartedAt = session.getSnapshot().runTiming?.startedAt;
+  assert.equal(originalRunStartedAt, 1_000);
 
   session.applyQueueSnapshot([
     {
@@ -912,6 +1046,7 @@ test("renders an authoritative steering item as an optimistic user message", (t)
   internals.handleEvent({
     type: "message_start",
     sequence: 10,
+    runTiming: { startedAt: 1_000, elapsedMs: 500 },
     message: {
       role: "user",
       content:
@@ -920,7 +1055,7 @@ test("renders an authoritative steering item as an optimistic user message", (t)
     },
   });
   assert.equal(session.getSnapshot().messages.length, 1);
-  assert.equal(session.getSnapshot().runStartedAt, originalRunStartedAt);
+  assert.equal(session.getSnapshot().runTiming?.startedAt, originalRunStartedAt);
   assert.equal(session.getSnapshot().messages[0]?.metadata.custom.piSteering, true);
 });
 
@@ -1166,8 +1301,14 @@ test("renders a consumed follow-up at user message_start before the next assista
   assert.deepEqual(session.getSnapshot().messages, []);
 
   internals.handleEvent({
+    type: "agent_start",
+    sequence: 9,
+    runTiming: { startedAt: 1_000, elapsedMs: 0 },
+  });
+  internals.handleEvent({
     type: "message_start",
     sequence: 10,
+    runTiming: { startedAt: 1_000, elapsedMs: 0 },
     message: {
       role: "user",
       content: "continue after this turn",
@@ -1175,7 +1316,7 @@ test("renders a consumed follow-up at user message_start before the next assista
     },
   });
 
-  assert.equal(session.getSnapshot().runStartedAt, 1_000);
+  assert.equal(session.getSnapshot().runTiming?.startedAt, 1_000);
 
   assert.deepEqual(
     session
@@ -1675,6 +1816,56 @@ test("keeps the optimistic assistant after agent start until the run settles", (
   internals.handleEvent({ type: "agent_settled", sequence: 1 });
   assert.equal(internals.localRunLeaseActive, false);
   assert.equal(session.getSnapshot().isRunning, false);
+});
+
+test("ends the visible run at a terminal response while host cleanup remains active", (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  (manager as unknown as { refreshMetadata(): Promise<void> }).refreshMetadata = async () => {};
+  const session = manager.getSession("local-session", "remote-session");
+  const internals = session as unknown as {
+    handleEvent(event: PiEvent): void;
+    publishMessagesAndSetRunning(running: boolean): void;
+    reload(): Promise<void>;
+  };
+  internals.reload = async () => {};
+  internals.publishMessagesAndSetRunning(true);
+
+  internals.handleEvent({
+    type: "message_start",
+    sequence: 0,
+    message: { role: "assistant", content: [], timestamp: 1 },
+  });
+  internals.handleEvent({
+    type: "message_end",
+    sequence: 1,
+    message: {
+      role: "assistant",
+      content: [{ type: "text", text: "Done" }],
+      stopReason: "stop",
+      timestamp: 1,
+    },
+  });
+
+  assert.equal(session.getSnapshot().isRunning, false);
+  assert.equal(manager.isRunning("remote-session"), true);
+
+  // A host/session-changed summary can still report cleanup as running. It must not reopen the
+  // completed assistant-ui run while Pi executes agent_settled extension handlers.
+  session.setRunningFromManager(true);
+  assert.equal(session.getSnapshot().isRunning, false);
+
+  // A queued continuation starts a new visible response even within the same host prompt task.
+  internals.handleEvent({
+    type: "message_start",
+    sequence: 2,
+    message: { role: "user", content: "Follow up", timestamp: 2 },
+  });
+  assert.equal(session.getSnapshot().isRunning, true);
+
+  internals.handleEvent({ type: "agent_settled", sequence: 3 });
+  assert.equal(session.getSnapshot().isRunning, false);
+  assert.equal(manager.isRunning("remote-session"), false);
 });
 
 test("projects automatic-retry progress until the complete run settles", (t) => {
@@ -2969,6 +3160,7 @@ test("applies the correlated prompt admission from events.mux", async (t) => {
         sessionId: created.id,
         mode: "queue",
         running: true,
+        runTiming: { startedAt: 1_000, elapsedMs: 250 },
       },
     },
     1,
@@ -2977,6 +3169,8 @@ test("applies the correlated prompt admission from events.mux", async (t) => {
   assert.equal(acknowledgedRpcId, "prompt-http-rpc");
   assert.equal(manager.isRunning(created.id), true);
   assert.equal(session.getSnapshot().isRunning, true);
+  assert.equal(session.getSnapshot().runTiming?.startedAt, 1_000);
+  assert.ok((session.getSnapshot().runTiming?.elapsedMs ?? 0) >= 250);
 });
 
 test("exposes context trace summaries to visualization subscribers", (t) => {
