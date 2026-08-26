@@ -46,6 +46,7 @@ import {
 import { useMessageDisclosure } from "./message-disclosure-context";
 import { toolDiffModel } from "./tool-diff-model";
 import {
+  activeToolPresentationLabel,
   dataTimelineState,
   liveReasoningPreview,
   reasoningPartTiming,
@@ -221,8 +222,9 @@ function TimelineToolCall({
   const label = presentation
     ? text(presentation.label)
     : t(`extensions.messagePresentation.toolTimeline.steps.${kind}`);
-  const activeLabel = presentation
-    ? text(presentation.activeLabel)
+  const presentationActiveLabel = activeToolPresentationLabel(part, presentation);
+  const activeLabel = presentationActiveLabel
+    ? text(presentationActiveLabel)
     : t(`extensions.messagePresentation.toolTimeline.activeSteps.${kind}`);
   const isFileMutation = part.toolName === "edit" || part.toolName === "write";
   const displayLabel =
@@ -449,7 +451,7 @@ export function MessageToolTimeline({
   activePartIndex: number;
   turnStreaming: boolean;
 }>) {
-  const { t } = useI18n();
+  const { t, text } = useI18n();
   const content = useAuiState((state) => state.message.content);
   const toolPresentations = useToolPresentationMap();
   const dataPresentations = useDataPresentationMap();
@@ -482,7 +484,7 @@ export function MessageToolTimeline({
             partIndices={entry.sourceIndices.map((index) => indices[index] ?? index)}
             kinds={models.flatMap((model) => (model && model.kind !== "data" ? [model.kind] : []))}
             queries={models.flatMap((model) =>
-              model && model.kind !== "data" ? [model.chip] : [],
+              model && model.kind !== "data" ? [text(model.chip)] : [],
             )}
             presentations={models.map((model) =>
               model?.kind === "data" ? undefined : model?.presentation,
@@ -519,7 +521,7 @@ export function MessageToolTimeline({
           <TimelineReasoning
             part={part}
             running={sourceIndex === activeStepIndex}
-            preview={model.chip}
+            preview={text(model.chip)}
             disclosureId={indices[sourceIndex] ?? sourceIndex}
           />
         ),
@@ -533,7 +535,7 @@ export function MessageToolTimeline({
           part={part}
           partIndex={indices[sourceIndex] ?? sourceIndex}
           kind={model.kind}
-          query={model.chip}
+          query={text(model.chip)}
           running={turnStreaming && !part.isError && part.result === undefined}
           presentation={model.presentation}
         />

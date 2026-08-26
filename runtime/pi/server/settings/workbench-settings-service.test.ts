@@ -26,6 +26,9 @@ const { WorkspaceStore } = (await import(
 const { WorkbenchSettingsService } = (await import(
   new URL("./workbench-settings-service.ts", import.meta.url).href
 )) as typeof import("./workbench-settings-service");
+const { subscribeWorkbenchSettingsPreferences } = (await import(
+  new URL("./workbench-settings-service.ts", import.meta.url).href
+)) as typeof import("./workbench-settings-service");
 moduleHooks.deregister();
 
 test("describes empty preferences without mutating the agent directory", async (t) => {
@@ -64,6 +67,38 @@ test("persists sidebar conversation sorting preferences across service instances
     },
     toolboxScope: { kind: "project", workspaceId: "workspace-1" },
   });
+});
+
+test("persists Ask User capability updates and notifies matching live sessions", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-settings-ask-user-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const stateFile = path.join(root, "agent", "workbench-settings.json");
+  const unrelatedStateFile = path.join(root, "other", "workbench-settings.json");
+  const service = new WorkbenchSettingsService(stateFile);
+  const observed: boolean[] = [];
+  const unrelated: boolean[] = [];
+  const unsubscribe = subscribeWorkbenchSettingsPreferences(stateFile, (preferences) => {
+    observed.push(preferences.askUserEnabled ?? true);
+  });
+  const unsubscribeUnrelated = subscribeWorkbenchSettingsPreferences(
+    unrelatedStateFile,
+    (preferences) => unrelated.push(preferences.askUserEnabled ?? true),
+  );
+  t.after(() => {
+    unsubscribe();
+    unsubscribeUnrelated();
+  });
+
+  await service.update({ patch: { askUserEnabled: false } });
+  await service.update({ patch: { askUserEnabled: false } });
+  await service.update({ patch: { askUserEnabled: true } });
+
+  assert.equal(
+    (await new WorkbenchSettingsService(stateFile).describe()).preferences.askUserEnabled,
+    true,
+  );
+  assert.deepEqual(observed, [false, true]);
+  assert.deepEqual(unrelated, []);
 });
 
 test("unifies preferences, workspaces, and image understanding with atomic legacy migration", async (t) => {

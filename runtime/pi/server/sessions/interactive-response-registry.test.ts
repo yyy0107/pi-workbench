@@ -107,6 +107,98 @@ test("maps extension select to a stable mux question and accepts only the first 
   );
 });
 
+test("maps Workbench Ask User question groups to one paginated interaction", async () => {
+  const { registry, frames, ready } = createHarness();
+  await ready;
+  const ui = registry.createExtensionUIContext("session-ask-user");
+  await assert.rejects(ui.workbenchAskUser([]), /Invalid Workbench Ask User question group/);
+  const questions = [
+    {
+      id: "scope",
+      header: "Scope",
+      question: "Which areas should change?",
+      options: [
+        { label: "Chat", recommended: true },
+        { label: "Workspace", description: "Workspace surfaces" },
+      ],
+      multiSelect: true,
+      required: true,
+    },
+    {
+      id: "component-name",
+      header: "Name",
+      question: "What should the component be called?",
+      required: true,
+    },
+  ];
+  await assert.rejects(
+    ui.workbenchAskUser([
+      {
+        id: "invalid-recommendations",
+        question: "Which target?",
+        options: [
+          { label: "Chat", recommended: true },
+          { label: "Workspace", recommended: true },
+        ],
+      },
+    ]),
+    /Invalid Workbench Ask User question group/,
+  );
+  const answers = ui.workbenchAskUser(questions);
+  const requested = requestedFrame(frames, "question/requested");
+
+  assert.equal(requested.rpcId, "interactive-1");
+  assert.deepEqual(requested.payload, {
+    type: "question/requested",
+    sessionId: "session-ask-user",
+    questions,
+  });
+
+  assert.deepEqual(
+    registry.respond({
+      type: "client-response",
+      rpcId: requested.rpcId,
+      result: {
+        ok: true,
+        value: {
+          sessionId: "session-ask-user",
+          answer: {
+            answers: [
+              { id: "scope", selected: [] },
+              { id: "component-name", selected: [], custom: "AskUserPanel" },
+            ],
+          },
+        },
+      },
+    }),
+    { accepted: false, reason: "bad-response" },
+  );
+
+  assert.deepEqual(
+    registry.respond({
+      type: "client-response",
+      rpcId: requested.rpcId,
+      result: {
+        ok: true,
+        value: {
+          sessionId: "session-ask-user",
+          answer: {
+            answers: [
+              { id: "component-name", selected: [], custom: "AskUserPanel" },
+              { id: "scope", selected: ["Chat", "Workspace"] },
+            ],
+          },
+        },
+      },
+    }),
+    { accepted: true },
+  );
+  assert.deepEqual(await answers, [
+    { id: "scope", selected: ["Chat", "Workspace"] },
+    { id: "component-name", selected: [], custom: "AskUserPanel" },
+  ]);
+});
+
 test("maps confirm and input answers and settles cancellation, abort, and timeout", async () => {
   const { registry, frames, ready } = createHarness();
   await ready;

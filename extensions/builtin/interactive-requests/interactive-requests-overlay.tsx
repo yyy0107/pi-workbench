@@ -1,7 +1,15 @@
 "use client";
 
 import { LoaderCircleIcon, ShieldAlertIcon } from "lucide-react";
-import { useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -23,6 +31,7 @@ import type {
 import { PiApiError } from "@/runtime/pi/client/transport/api";
 
 import { AskUserPanel } from "./ask-user-panel";
+import { useAskUserPreferences } from "./ask-user-preferences";
 import type { AskUserQuestion } from "./interaction-form-state";
 
 type SubmitError = "bad-response" | "network" | "not-pending";
@@ -83,29 +92,32 @@ function useInteractionSubmit(
   const [error, setError] = useState<SubmitError | null>(null);
   const requestInFlight = useRef(false);
 
-  const submit = async (response: PiInteractionResponse) => {
-    if (requestInFlight.current) return;
-    requestInFlight.current = true;
-    setSubmitting(true);
-    setError(null);
+  const submit = useCallback(
+    async (response: PiInteractionResponse) => {
+      if (requestInFlight.current) return;
+      requestInFlight.current = true;
+      setSubmitting(true);
+      setError(null);
 
-    try {
-      const receipt = await manager.respondInteraction(rpcId, response);
-      if (!receipt.accepted) {
-        setError(receipt.reason === "bad-response" ? "bad-response" : "not-pending");
+      try {
+        const receipt = await manager.respondInteraction(rpcId, response);
+        if (!receipt.accepted) {
+          setError(receipt.reason === "bad-response" ? "bad-response" : "not-pending");
+          requestInFlight.current = false;
+          setSubmitting(false);
+        }
+      } catch (cause) {
+        setError(
+          cause instanceof PiApiError && cause.code === "pi_interaction_not_found"
+            ? "not-pending"
+            : "network",
+        );
         requestInFlight.current = false;
         setSubmitting(false);
       }
-    } catch (cause) {
-      setError(
-        cause instanceof PiApiError && cause.code === "pi_interaction_not_found"
-          ? "not-pending"
-          : "network",
-      );
-      requestInFlight.current = false;
-      setSubmitting(false);
-    }
-  };
+    },
+    [manager, rpcId],
+  );
 
   return { error, submitting, submit };
 }
@@ -120,12 +132,25 @@ function QuestionComposerOverlay({
   setOverlayVisible(visible: boolean): void;
 }) {
   const { t } = useI18n();
+  const askUserPreference = useAskUserPreferences();
   const { error, submitting, submit } = useInteractionSubmit(manager, interaction.rpcId);
+  const preferenceReady = askUserPreference.status !== "loading";
+  const showQuestion = !preferenceReady || askUserPreference.enabled || error !== null;
 
   useLayoutEffect(() => {
+    if (!showQuestion) return;
     setOverlayVisible(true);
     return () => setOverlayVisible(false);
-  }, [setOverlayVisible]);
+  }, [setOverlayVisible, showQuestion]);
+
+  useEffect(() => {
+    if (!preferenceReady || askUserPreference.enabled) return;
+    void submit({ kind: "cancel" });
+  }, [askUserPreference.enabled, preferenceReady, submit]);
+
+  // Decline disabled requests without covering the composer. If that response fails,
+  // surface the panel again so the session cannot remain invisibly blocked.
+  if (!showQuestion) return null;
 
   const errorMessage =
     error === "bad-response"

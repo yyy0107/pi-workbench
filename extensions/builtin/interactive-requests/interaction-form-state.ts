@@ -3,7 +3,11 @@ export interface AskUserQuestion {
   readonly question: string;
   readonly header?: string;
   readonly detail?: string;
-  readonly options?: readonly { readonly label: string; readonly description?: string }[];
+  readonly options?: readonly {
+    readonly label: string;
+    readonly description?: string;
+    readonly recommended?: boolean;
+  }[];
   readonly multiSelect?: boolean;
   readonly required?: boolean;
 }

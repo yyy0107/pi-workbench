@@ -23,6 +23,10 @@ const MAX_SIDEBAR_THREADS_PER_SCOPE = 10_000;
 const MAX_BACKGROUND_IMAGE_BYTES = 12 * 1024 * 1024;
 const MAX_BACKGROUND_IMAGE_BASE64_LENGTH = Math.ceil(MAX_BACKGROUND_IMAGE_BYTES / 3) * 4;
 
+type WorkbenchSettingsPreferencesListener = (preferences: WorkbenchSettingsPreferences) => void;
+
+const preferenceListenersByStateFile = new Map<string, Set<WorkbenchSettingsPreferencesListener>>();
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -107,6 +111,12 @@ function parsePreferences(value: unknown): WorkbenchSettingsPreferences {
   const preferences: WorkbenchSettingsPreferences = {};
   if (value.appearance !== undefined) {
     preferences.appearance = jsonRecord(value.appearance, "appearance", MAX_APPEARANCE_BYTES);
+  }
+  if (value.askUserEnabled !== undefined) {
+    if (typeof value.askUserEnabled !== "boolean") {
+      throw new TypeError("askUserEnabled is invalid");
+    }
+    preferences.askUserEnabled = value.askUserEnabled;
   }
   if (value.backgroundImage !== undefined) {
     preferences.backgroundImage = backgroundImage(value.backgroundImage);
@@ -237,7 +247,8 @@ export class WorkbenchSettingsService {
 
   async update(payload: WorkbenchSettingsUpdatePayload): Promise<WorkbenchSettingsUpdateValue> {
     try {
-      return await this.withLock(async () => {
+      let updatedPreferences: WorkbenchSettingsPreferences | undefined;
+      const result = await this.withLock(async () => {
         const document = await readWorkbenchSettingsDocument(this.stateFile);
         const current = parsePreferences(document.preferences);
         const preferences = applyPatch(current, payload.patch);
@@ -246,8 +257,19 @@ export class WorkbenchSettingsService {
         }
         const next = nextWorkbenchSettingsDocument(document, { preferences });
         await writeWorkbenchSettingsDocument(this.stateFile, next);
+        updatedPreferences = preferences;
         return { revision: next.revision };
       });
+      if (updatedPreferences) {
+        for (const listener of preferenceListenersByStateFile.get(this.stateFile) ?? []) {
+          try {
+            listener(updatedPreferences);
+          } catch (error) {
+            console.error("[workbench-settings] preference listener failed.", error);
+          }
+        }
+      }
+      return result;
     } catch (error) {
       throw new WorkbenchSettingsServiceError(
         error instanceof TypeError || error instanceof SyntaxError
@@ -256,4 +278,20 @@ export class WorkbenchSettingsService {
       );
     }
   }
+}
+
+export function subscribeWorkbenchSettingsPreferences(
+  stateFile: string,
+  listener: WorkbenchSettingsPreferencesListener,
+): () => void {
+  let listeners = preferenceListenersByStateFile.get(stateFile);
+  if (!listeners) {
+    listeners = new Set();
+    preferenceListenersByStateFile.set(stateFile, listeners);
+  }
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+    if (listeners.size === 0) preferenceListenersByStateFile.delete(stateFile);
+  };
 }

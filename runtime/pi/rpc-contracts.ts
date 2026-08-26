@@ -629,6 +629,7 @@ export type WorkbenchToolboxScopePreference =
 
 export interface WorkbenchSettingsPreferences {
   appearance?: Record<string, WorkbenchSettingsJsonValue>;
+  askUserEnabled?: boolean;
   backgroundImage?: WorkbenchBackgroundImagePreference;
   locale?: "en-US" | "zh-CN";
   modelSelector?: WorkbenchModelSelectorPreference;

@@ -39,6 +39,7 @@ test("registers Workbench-owned adapters as hidden inline extensions", () => {
     workbenchInternalPiExtensions.map(({ name, hidden }) => ({ name, hidden })),
     [
       { name: "workbench.message-termination", hidden: true },
+      { name: "workbench.ask-user", hidden: true },
       { name: "workbench.context-trace", hidden: true },
     ],
   );

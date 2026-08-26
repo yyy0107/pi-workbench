@@ -71,6 +71,7 @@ export const extensionsZhCN = {
     reject: "拒绝",
     selectedCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
       `已选择 ${number(count)} 项`,
+    recommended: "推荐",
     navigator: {
       title: "问题列表",
       position: (
@@ -90,11 +91,26 @@ export const extensionsZhCN = {
     validation: {
       missingRequired: "请回答所有必填问题后再提交。",
     },
+    askUserTool: {
+      activityGenerating: "正在生成问题",
+      activityRunning: "正在询问用户",
+      activityComplete: "已询问用户",
+      questionCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
+        `${number(count)} 个问题`,
+      history: "问答记录",
+      waiting: "正在等待用户回答",
+      unanswered: "未提交回答",
+      cancelledAnswer: "取消前未提交回答",
+      cancelled: "请求已取消，没有提交回答。",
+      interrupted: "请求未完成，没有提交回答。",
+      disabled: "Ask User 已关闭，因此没有向用户提问。",
+    },
     settings: {
       title: "Ask User",
       description: "设置 Agent 是否可以暂停任务并请求结构化输入。",
       enable: "允许 Ask User",
       enableDescription: "当 Agent 需要你的决策或缺少必要信息时，允许它发起追问。",
+      saveError: "无法保存此设置，请检查连接后重试。",
     },
     errors: {
       badResponse: "主机拒绝了此回答，请检查各字段后重试。",

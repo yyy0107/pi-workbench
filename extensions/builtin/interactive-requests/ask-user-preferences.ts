@@ -2,12 +2,30 @@
 
 import { useLayoutEffect, useSyncExternalStore } from "react";
 
+import {
+  loadWorkbenchSettingsPreferences,
+  updateWorkbenchSettingsPreferences,
+} from "@/runtime/pi/client/settings/workbench-settings-client";
+
 export const ASK_USER_PREFERENCES_STORAGE_KEY = "workbench.ask-user.v1";
 
 type Listener = () => void;
 
-let askUserEnabled = true;
-let hydrated = false;
+export interface AskUserPreferenceSnapshot {
+  readonly enabled: boolean;
+  readonly pendingEnabled?: boolean;
+  readonly status: "loading" | "ready" | "saving";
+  readonly saveFailed: boolean;
+}
+
+const SERVER_SNAPSHOT: AskUserPreferenceSnapshot = Object.freeze({
+  enabled: true,
+  status: "loading",
+  saveFailed: false,
+});
+
+let snapshot: AskUserPreferenceSnapshot = SERVER_SNAPSHOT;
+let hydrationPromise: Promise<void> | undefined;
 const listeners = new Set<Listener>();
 
 export function parseAskUserEnabled(serialized: string | null): boolean {
@@ -22,18 +40,27 @@ export function parseAskUserEnabled(serialized: string | null): boolean {
   }
 }
 
-function emit(): void {
+function emit(nextSnapshot: AskUserPreferenceSnapshot): void {
+  snapshot = nextSnapshot;
   for (const listener of listeners) listener();
 }
 
-function persist(): void {
+function readLegacyPreference(): boolean | undefined {
+  if (typeof window === "undefined") return undefined;
   try {
-    window.localStorage.setItem(
-      ASK_USER_PREFERENCES_STORAGE_KEY,
-      JSON.stringify({ enabled: askUserEnabled }),
-    );
+    const serialized = window.localStorage.getItem(ASK_USER_PREFERENCES_STORAGE_KEY);
+    return serialized === null ? undefined : parseAskUserEnabled(serialized);
   } catch {
-    // Keep the current-page preference when browser storage is unavailable.
+    return undefined;
+  }
+}
+
+function removeLegacyPreference(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(ASK_USER_PREFERENCES_STORAGE_KEY);
+  } catch {
+    // The server-backed preference remains authoritative when browser storage is unavailable.
   }
 }
 
@@ -42,39 +69,80 @@ export const askUserPreferences = Object.freeze({
     listeners.add(listener);
     return () => listeners.delete(listener);
   },
-  getSnapshot(): boolean {
-    return askUserEnabled;
+  getSnapshot(): AskUserPreferenceSnapshot {
+    return snapshot;
   },
-  getServerSnapshot(): boolean {
-    return true;
+  getServerSnapshot(): AskUserPreferenceSnapshot {
+    return SERVER_SNAPSHOT;
   },
-  hydrate(): void {
-    if (hydrated || typeof window === "undefined") return;
-    hydrated = true;
+  hydrate(): Promise<void> {
+    if (snapshot.status !== "loading") return Promise.resolve();
+    hydrationPromise ??= (async () => {
+      try {
+        const preferences = await loadWorkbenchSettingsPreferences();
+        if (typeof preferences.askUserEnabled === "boolean") {
+          removeLegacyPreference();
+          emit({
+            enabled: preferences.askUserEnabled,
+            status: "ready",
+            saveFailed: false,
+          });
+          return;
+        }
+
+        const legacyEnabled = readLegacyPreference();
+        if (legacyEnabled !== undefined) {
+          await updateWorkbenchSettingsPreferences({ askUserEnabled: legacyEnabled });
+          removeLegacyPreference();
+        }
+        emit({
+          enabled: legacyEnabled ?? true,
+          status: "ready",
+          saveFailed: false,
+        });
+      } catch {
+        emit({ enabled: true, status: "ready", saveFailed: true });
+      }
+    })().finally(() => {
+      hydrationPromise = undefined;
+    });
+    return hydrationPromise;
+  },
+  async setEnabled(enabled: boolean): Promise<void> {
+    if (snapshot.status === "loading") await this.hydrate();
+    if (snapshot.status === "saving" || enabled === snapshot.enabled) return;
+
+    const previousEnabled = snapshot.enabled;
+    emit({
+      enabled: previousEnabled,
+      pendingEnabled: enabled,
+      status: "saving",
+      saveFailed: false,
+    });
     try {
-      askUserEnabled = parseAskUserEnabled(
-        window.localStorage.getItem(ASK_USER_PREFERENCES_STORAGE_KEY),
-      );
-    } catch {
-      askUserEnabled = true;
+      await updateWorkbenchSettingsPreferences({ askUserEnabled: enabled });
+      removeLegacyPreference();
+      emit({ enabled, status: "ready", saveFailed: false });
+    } catch (error) {
+      emit({ enabled: previousEnabled, status: "ready", saveFailed: true });
+      throw error;
     }
-    emit();
-  },
-  setEnabled(enabled: boolean): void {
-    if (enabled === askUserEnabled) return;
-    askUserEnabled = enabled;
-    if (typeof window !== "undefined") persist();
-    emit();
   },
 });
 
-export function useAskUserEnabled(): boolean {
-  const enabled = useSyncExternalStore(
+export function useAskUserPreferences(): AskUserPreferenceSnapshot {
+  const current = useSyncExternalStore(
     askUserPreferences.subscribe,
     askUserPreferences.getSnapshot,
     askUserPreferences.getServerSnapshot,
   );
 
-  useLayoutEffect(() => askUserPreferences.hydrate(), []);
-  return enabled;
+  useLayoutEffect(() => {
+    void askUserPreferences.hydrate();
+  }, []);
+  return current;
+}
+
+export function useAskUserEnabled(): boolean {
+  return useAskUserPreferences().enabled;
 }

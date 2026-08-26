@@ -19,8 +19,9 @@ export interface QuestionItem {
   question: string;
   header?: string;
   detail?: string;
-  options?: Array<{ label: string; description?: string }>;
+  options?: Array<{ label: string; description?: string; recommended?: boolean }>;
   multiSelect?: boolean;
+  required?: boolean;
   intent?: { kind: "plan-review"; approve: string };
 }
 

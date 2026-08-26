@@ -1,5 +1,6 @@
 import type { InlineExtension, LoadExtensionsResult } from "@earendil-works/pi-coding-agent";
 
+import { askUserExtension } from "./ask-user";
 import { contextTraceExtension } from "./context-trace";
 import { messageTerminationExtension } from "./message-termination";
 
@@ -9,6 +10,11 @@ export const workbenchInternalPiExtensions = [
   {
     name: "workbench.message-termination",
     factory: messageTerminationExtension,
+    hidden: true,
+  },
+  {
+    name: "workbench.ask-user",
+    factory: askUserExtension,
     hidden: true,
   },
   {

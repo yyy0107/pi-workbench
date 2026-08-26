@@ -4,6 +4,7 @@ import type {
   ToolCallMessagePart,
 } from "@assistant-ui/react";
 
+import type { LocalizableText } from "@/i18n";
 import type { DataPresentationDefinition, ToolPresentationDefinition } from "@/platform/extensions";
 
 export type ToolTimelineStepKind = "thinking" | "read" | "ran" | "edited" | "searched" | "used";
@@ -14,7 +15,7 @@ export type ToolTimelineStepModel =
     }
   | {
       kind: ToolTimelineStepKind;
-      chip: string;
+      chip: LocalizableText;
       presentation?: ToolPresentationDefinition;
     };
 
@@ -111,6 +112,22 @@ export function reasoningPartTiming(
   return validStartedAt === undefined ? undefined : { startedAt: validStartedAt };
 }
 
+export function activeToolPresentationLabel(
+  part: ToolCallMessagePart,
+  presentation: ToolPresentationDefinition | undefined,
+): LocalizableText | undefined {
+  if (!presentation) return undefined;
+  if (!presentation.getActiveLabel) return presentation.activeLabel;
+
+  try {
+    const activeLabel = presentation.getActiveLabel(part);
+    if (activeLabel === undefined) return presentation.activeLabel;
+    return activeLabel;
+  } catch {
+    return presentation.activeLabel;
+  }
+}
+
 function normalize(value: string): string {
   return value.replace(/\s+/g, " ").trim();
 }
@@ -170,19 +187,23 @@ export function timelineEntries(parts: readonly TimelineSourcePart[]): ToolTimel
 function registeredToolChip(
   part: ToolCallMessagePart,
   presentation: ToolPresentationDefinition | undefined,
-): string | undefined {
+): LocalizableText | undefined {
   if (!presentation?.summarize) return undefined;
 
   try {
     const summary = presentation.summarize(part);
-    return typeof summary === "string" && summary.trim() ? compact(summary) : undefined;
+    if (typeof summary === "string") return summary.trim() ? compact(summary) : undefined;
+    return summary;
   } catch {
     // A presentation is optional chrome. Keep the message readable if an extension summary fails.
     return undefined;
   }
 }
 
-function toolChip(part: ToolCallMessagePart, presentation?: ToolPresentationDefinition): string {
+function toolChip(
+  part: ToolCallMessagePart,
+  presentation?: ToolPresentationDefinition,
+): LocalizableText {
   const registeredSummary = registeredToolChip(part, presentation);
   if (registeredSummary) return registeredSummary;
 

@@ -143,12 +143,14 @@ export interface NamedRendererRegistry<TComponent> {
 export interface ToolPresentationDefinition {
   /** 工具完成后的动作标签，例如“运行”。 */
   readonly label: LocalizableText;
-  /** 工具执行中的动作标签，例如“正在运行”。 */
+  /** 工具执行中的默认动作标签，例如“正在运行”。 */
   readonly activeLabel: LocalizableText;
+  /** 可选的动态执行中标签；必须是纯函数、容忍部分参数，空值或异常时使用 `activeLabel`。 */
+  readonly getActiveLabel?: (part: ToolCallMessagePart) => LocalizableText | undefined;
   /** 时间线步骤图标。 */
   readonly icon: LucideIcon;
-  /** 可选的单行摘要提取器；返回空值时继续使用 Workbench 的安全 fallback。 */
-  readonly summarize?: (part: ToolCallMessagePart) => string | undefined;
+  /** 可选的单行摘要提取器；可返回本地化描述，空值时继续使用 Workbench 的安全 fallback。 */
+  readonly summarize?: (part: ToolCallMessagePart) => LocalizableText | undefined;
   /**
    * 可选的受控折叠行为；适用于工具在运行中异步进入“需要用户操作”等展示状态时自动展开。
    * 该组件始终位于折叠详情之外，不得执行工具或复制详情 UI。

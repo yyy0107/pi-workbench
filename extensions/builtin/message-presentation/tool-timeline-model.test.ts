@@ -8,8 +8,10 @@ import type {
 } from "@assistant-ui/react";
 import { WrenchIcon } from "lucide-react";
 
+import { defineMessage } from "@/i18n";
 import type { DataPresentationDefinition, ToolPresentationDefinition } from "@/platform/extensions";
 import {
+  activeToolPresentationLabel,
   dataTimelineState,
   liveReasoningPreview,
   reasoningPartTiming,
@@ -143,6 +145,51 @@ test("uses an exact registered tool presentation without changing fallback class
   assert.equal(step?.kind, "used");
   assert.equal(step?.chip, "production");
   assert.equal(step?.presentation, presentation);
+});
+
+test("preserves a localizable registered tool summary until the timeline renders it", () => {
+  const summary = defineMessage("extensions.interactiveRequests.askUserTool.questionCount", {
+    count: 2,
+  });
+  const presentation = {
+    label: "Asked user",
+    activeLabel: "Asking user",
+    icon: WrenchIcon,
+    summarize: () => summary,
+  } satisfies ToolPresentationDefinition;
+
+  const [step] = timelineSteps([tool("ask_user", { questions: [{}, {}] })], {
+    ask_user: presentation,
+  });
+
+  assert.notEqual(step?.kind, "data");
+  if (!step || step.kind === "data") return;
+  assert.equal(step.chip, summary);
+});
+
+test("resolves a stream-safe active label from partial tool arguments", () => {
+  const part = tool("ask_user", { questions: [{ id: "partial" }] });
+  const presentation = {
+    label: "Asked user",
+    activeLabel: "Asking user",
+    getActiveLabel: () =>
+      defineMessage("extensions.interactiveRequests.askUserTool.activityGenerating"),
+    icon: WrenchIcon,
+  } satisfies ToolPresentationDefinition;
+
+  assert.deepEqual(
+    activeToolPresentationLabel(part, presentation),
+    defineMessage("extensions.interactiveRequests.askUserTool.activityGenerating"),
+  );
+  assert.equal(
+    activeToolPresentationLabel(part, {
+      ...presentation,
+      getActiveLabel: () => {
+        throw new Error("broken active label");
+      },
+    }),
+    "Asking user",
+  );
 });
 
 test("falls back to the existing summary when an extension summary is unavailable", () => {

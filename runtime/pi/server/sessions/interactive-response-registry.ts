@@ -27,6 +27,14 @@ export const INTERACTIVE_RESPONSE_REGISTRY_SYMBOL = Symbol.for(
 type DialogOptions = Parameters<ExtensionUIContext["select"]>[2];
 type ApprovalOutcome = ApprovalResolvedPayload["outcome"];
 
+/** Workbench-only extension of Pi's mode-specific UI context. */
+export interface WorkbenchExtensionUIContext {
+  workbenchAskUser(
+    questions: QuestionItem[],
+    options?: DialogOptions,
+  ): Promise<QuestionAnswerItem[] | undefined>;
+}
+
 const HEADLESS_THEME = {
   fg: (_color: unknown, text: string) => text,
   bg: (_color: unknown, text: string) => text,
@@ -181,6 +189,94 @@ function validTimeout(value: number | undefined): value is number {
   return value !== undefined && Number.isFinite(value) && value > 0;
 }
 
+function validAskUserQuestions(questions: readonly QuestionItem[]): boolean {
+  if (questions.length === 0 || questions.length > 8) return false;
+
+  const questionIds = new Set<string>();
+  for (const question of questions) {
+    if (
+      typeof question.id !== "string" ||
+      question.id.length === 0 ||
+      questionIds.has(question.id) ||
+      typeof question.question !== "string" ||
+      question.question.length === 0
+    ) {
+      return false;
+    }
+    questionIds.add(question.id);
+
+    const options = question.options ?? [];
+    if (question.multiSelect && options.length === 0) return false;
+    const optionLabels = new Set<string>();
+    let recommendedOptions = 0;
+    for (const option of options) {
+      if (
+        typeof option.label !== "string" ||
+        option.label.length === 0 ||
+        optionLabels.has(option.label) ||
+        (option.recommended !== undefined && typeof option.recommended !== "boolean")
+      ) {
+        return false;
+      }
+      optionLabels.add(option.label);
+      if (option.recommended) recommendedOptions += 1;
+    }
+    if (recommendedOptions > 1) return false;
+  }
+  return true;
+}
+
+function parseAskUserAnswers(
+  questions: readonly QuestionItem[],
+  answers: readonly QuestionAnswerItem[],
+): Parsed<QuestionAnswerItem[]> {
+  if (questions.length === 0 || answers.length !== questions.length) return { ok: false };
+
+  const questionsById = new Map<string, QuestionItem>();
+  for (const question of questions) {
+    if (!question.id || questionsById.has(question.id)) return { ok: false };
+    questionsById.set(question.id, question);
+  }
+
+  const answersById = new Map<string, QuestionAnswerItem>();
+  for (const answer of answers) {
+    const question = questionsById.get(answer.id);
+    if (!question || answersById.has(answer.id)) return { ok: false };
+
+    const options = question.options ?? [];
+    if (options.length === 0) {
+      if (answer.selected.length !== 0 || typeof answer.custom !== "string") {
+        return { ok: false };
+      }
+      if (question.required && answer.custom.trim().length === 0) return { ok: false };
+    } else {
+      if (answer.custom !== undefined) return { ok: false };
+      const optionLabels = new Set(options.map((option) => option.label));
+      const uniqueSelections = new Set(answer.selected);
+      if (
+        uniqueSelections.size !== answer.selected.length ||
+        answer.selected.some((label) => !optionLabels.has(label)) ||
+        (!question.multiSelect && answer.selected.length > 1)
+      ) {
+        return { ok: false };
+      }
+      const required = question.required ?? !question.multiSelect;
+      if (required && answer.selected.length === 0) return { ok: false };
+    }
+
+    answersById.set(answer.id, {
+      id: answer.id,
+      selected: [...answer.selected],
+      ...(answer.custom === undefined ? {} : { custom: answer.custom }),
+    });
+  }
+
+  return {
+    ok: true,
+    value: questions.map((question) => answersById.get(question.id)!),
+  };
+}
+
 export class InteractiveResponseRegistry {
   private readonly hub: StreamHub;
   private readonly createRpcId: () => string;
@@ -292,8 +388,20 @@ export class InteractiveResponseRegistry {
     });
   }
 
-  createExtensionUIContext(sessionId: string): ExtensionUIContext {
+  createExtensionUIContext(sessionId: string): ExtensionUIContext & WorkbenchExtensionUIContext {
     return {
+      workbenchAskUser: (questions, dialogOptions) => {
+        if (!validAskUserQuestions(questions)) {
+          return Promise.reject(new Error("Invalid Workbench Ask User question group."));
+        }
+        return this.ask<QuestionAnswerItem[] | undefined>(
+          sessionId,
+          questions,
+          undefined,
+          (answers) => parseAskUserAnswers(questions, answers),
+          dialogOptions,
+        );
+      },
       select: (title, options, dialogOptions) => {
         const id = "selection";
         return this.ask<string | undefined>(

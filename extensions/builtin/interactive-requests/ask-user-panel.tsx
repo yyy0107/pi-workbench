@@ -27,6 +27,7 @@ import {
   type AskUserQuestion,
   type QuestionAnswerDraft,
 } from "./interaction-form-state";
+import { AskUserRecommendedMark } from "./ask-user-recommended-mark";
 
 interface AskUserPanelProps {
   questions: readonly AskUserQuestion[];
@@ -59,7 +60,7 @@ function QuestionNavigator({
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="flex shrink-0 items-center gap-0.5">
+    <div className="flex shrink-0 items-center gap-0.5 whitespace-nowrap">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger
           type="button"
@@ -68,7 +69,7 @@ function QuestionNavigator({
             current: currentIndex + 1,
             total: questions.length,
           })}
-          className="hover:bg-muted focus-visible:ring-ring/50 inline-flex h-8 items-center gap-1 rounded-lg px-2 text-xs font-medium outline-none focus-visible:ring-3 disabled:pointer-events-none disabled:opacity-50"
+          className="hover:bg-muted focus-visible:ring-ring/50 inline-flex h-8 items-center gap-1 rounded-lg px-1.5 text-xs font-medium outline-none focus-visible:ring-3 disabled:pointer-events-none disabled:opacity-50"
         >
           <span aria-hidden="true">
             {t("extensions.interactiveRequests.navigator.position", {
@@ -192,14 +193,19 @@ function QuestionControl({
   }
 
   return (
-    <fieldset className="space-y-2" disabled={disabled} aria-labelledby={questionLabelId}>
+    <fieldset
+      className="max-h-60 space-y-1.5 overflow-y-auto overscroll-contain pe-1 [scrollbar-gutter:stable]"
+      disabled={disabled}
+      aria-labelledby={questionLabelId}
+    >
       <legend className="sr-only">{question.question}</legend>
       {options.map((option, optionIndex) => {
         const checked = draft.selected.includes(option.label);
+        const displayLabel = formatOptionLabel(question, option.label);
         return (
           <label
             key={`${option.label}:${optionIndex}`}
-            className="has-checked:border-primary/45 has-checked:bg-primary/5 focus-within:ring-ring/50 flex min-h-11 cursor-pointer items-start gap-3 rounded-xl border bg-background/55 px-3 py-2.5 transition-[border-color,background-color,box-shadow] focus-within:ring-3 has-disabled:cursor-not-allowed has-disabled:opacity-60"
+            className="has-checked:border-primary/45 has-checked:bg-primary/5 focus-within:ring-ring/50 flex min-h-10 cursor-pointer items-start gap-2 rounded-lg border bg-background/55 px-2.5 py-1.5 transition-[border-color,background-color,box-shadow] focus-within:ring-2 has-disabled:cursor-not-allowed has-disabled:opacity-60"
           >
             <input
               type={question.multiSelect ? "checkbox" : "radio"}
@@ -209,12 +215,15 @@ function QuestionControl({
               className="mt-0.5 size-4 shrink-0 accent-primary outline-none"
               onChange={(event) => onOptionChange(option.label, event.currentTarget.checked)}
             />
-            <span className="min-w-0">
-              <span className="block text-sm font-medium">
-                {formatOptionLabel(question, option.label)}
+            <span className="min-w-0 flex-1">
+              <span className="flex min-w-0 items-center gap-1.5 text-sm font-medium leading-5">
+                <span className="min-w-0 truncate" title={displayLabel}>
+                  {displayLabel}
+                </span>
+                {option.recommended ? <AskUserRecommendedMark /> : null}
               </span>
               {option.description ? (
-                <span className="text-muted-foreground mt-0.5 block text-xs leading-5">
+                <span className="text-muted-foreground block text-xs leading-4">
                   {option.description}
                 </span>
               ) : null}
@@ -277,10 +286,10 @@ export function AskUserPanel({
       aria-labelledby={`${id}-title`}
       aria-busy={disabled}
       data-slot="ask-user-panel"
-      className="bg-background flex h-full min-h-[220px] w-full flex-col overflow-hidden rounded-[22px] border shadow-[0_2px_12px_rgba(0,0,0,0.08)]"
+      className="bg-background flex min-h-[196px] w-full flex-col overflow-hidden rounded-2xl border shadow-[0_2px_10px_rgba(0,0,0,0.07)]"
     >
-      <header className="flex items-center justify-between gap-3 border-b px-4 py-2.5 sm:px-5">
-        <h2 id={`${id}-title`} className="text-sm font-semibold">
+      <header className="flex items-center justify-between gap-2 border-b px-3 py-1.5 sm:px-4">
+        <h2 id={`${id}-title`} className="whitespace-nowrap text-sm font-semibold">
           {t("extensions.interactiveRequests.questionTitle")}
         </h2>
         <QuestionNavigator
@@ -301,7 +310,7 @@ export function AskUserPanel({
           else navigate(currentIndex + 1);
         }}
       >
-        <div className="min-h-[156px] flex-1 overflow-y-auto px-4 py-4 sm:px-5">
+        <div className="min-h-[132px] flex-1 overflow-y-auto px-3 py-3 sm:px-4">
           <div
             key={currentIndex}
             className={cn(
@@ -309,9 +318,9 @@ export function AskUserPanel({
               direction === "forward" ? "slide-in-from-right-1" : "slide-in-from-left-1",
             )}
           >
-            <div className="mb-4">
+            <div className="mb-2.5">
               {question.header ? (
-                <p className="text-muted-foreground mb-1 text-xs font-medium tracking-wide uppercase">
+                <p className="text-muted-foreground mb-0.5 text-xs font-medium tracking-wide uppercase">
                   {question.header}
                 </p>
               ) : null}
@@ -319,7 +328,7 @@ export function AskUserPanel({
                 ref={headingRef}
                 id={questionLabelId}
                 tabIndex={-1}
-                className="text-base font-medium text-balance outline-none"
+                className="text-base font-medium leading-5 outline-none"
               >
                 {question.question}
                 {isRequired(question) ? (
@@ -332,7 +341,9 @@ export function AskUserPanel({
                 ) : null}
               </h3>
               {question.detail ? (
-                <p className="text-muted-foreground mt-1 text-sm leading-5">{question.detail}</p>
+                <p className="text-muted-foreground mt-0.5 text-[13px] leading-5">
+                  {question.detail}
+                </p>
               ) : null}
             </div>
 
@@ -358,7 +369,7 @@ export function AskUserPanel({
           </div>
         </div>
 
-        <div className="border-t px-3 py-2.5 sm:px-4">
+        <div className="border-t px-3 py-2 sm:px-4">
           {validationError ? (
             <p id={validationId} role="alert" className="mb-2 px-1 text-sm text-destructive">
               {t("extensions.interactiveRequests.validation.missingRequired")}

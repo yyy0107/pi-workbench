@@ -533,9 +533,11 @@ with its existing fallback. Renderer APIs have no numeric `order` or `priority` 
 
 Tool/Data presentation registries add timeline metadata without replacing the corresponding Part
 renderer. Tool presentations provide localizable active/completed labels, an icon, an optional pure
-stream-safe summary, and an optional disclosure controller. Data presentations can opt a named Data
-Part into the timeline and provide pure visibility/activity predicates. Names are exact,
-case-sensitive, and independently unique from the Tool/Data renderer registries.
+stream-safe summary returning `LocalizableText`, and an optional disclosure controller. An optional
+`getActiveLabel` pure function may override the default active label when the running tool has
+distinct partial-argument-safe streaming phases. Data presentations can opt a named Data Part into the timeline and provide pure
+visibility/activity predicates. Names are exact, case-sensitive, and independently unique from the
+Tool/Data renderer registries.
 
 Resolution order:
 

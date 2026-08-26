@@ -72,6 +72,7 @@ export const extensionsEnUS = {
     reject: "Reject",
     selectedCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
       count === 1 ? "1 selected" : `${number(count)} selected`,
+    recommended: "Recommended",
     navigator: {
       title: "Questions",
       position: (
@@ -91,12 +92,27 @@ export const extensionsEnUS = {
     validation: {
       missingRequired: "Answer all required questions before submitting.",
     },
+    askUserTool: {
+      activityGenerating: "Generating questions",
+      activityRunning: "Asking user",
+      activityComplete: "Asked user",
+      questionCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
+        `${number(count)} ${count === 1 ? "question" : "questions"}`,
+      history: "Question and answer record",
+      waiting: "Waiting for the user's answer",
+      unanswered: "No answer submitted",
+      cancelledAnswer: "No answer submitted before cancellation",
+      cancelled: "The request was cancelled before answers were submitted.",
+      interrupted: "The request ended before answers were submitted.",
+      disabled: "Ask User was disabled, so no answers were requested.",
+    },
     settings: {
       title: "Ask User",
       description: "Control whether the agent may pause to request structured input.",
       enable: "Allow Ask User",
       enableDescription:
         "Let the agent ask follow-up questions when it needs a decision or missing detail.",
+      saveError: "Could not save this setting. Check the connection and try again.",
     },
     errors: {
       badResponse: "The host rejected this response. Review the fields and try again.",
