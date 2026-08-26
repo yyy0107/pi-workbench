@@ -4,16 +4,17 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { ThreadPrimitive, useAui, useAuiState } from "@assistant-ui/react";
 import { ArrowDownIcon } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { ThinkingOrb } from "thinking-orbs";
 
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { DaySeparator } from "@/components/elements/conversation-separator";
 import { MessagePair } from "@/components/elements/message-pair";
+import { PiWorkingOrb } from "@/components/elements/pi-working-orb";
 import { TypingIndicator } from "@/components/elements/typing-indicator";
 import { useI18n } from "@/i18n";
 import { formatCompactDuration } from "@/lib/format-duration";
 import { cn } from "@/lib/utils";
 import { SlotHost } from "@/platform/extensions/hosts/slot-host";
+import { useAppearancePreferences } from "@/services/appearance/appearance-store";
 import {
   conversationThreadIdFromPathname,
   resolvePromotedThreadRouteId,
@@ -33,7 +34,7 @@ import {
   WorkbenchSystemMessage,
   WorkbenchUserMessage,
 } from "./workbench-message";
-import { currentRunStartedAt, piAutoRetryStatus, piRunStartedAt } from "./workbench-thread-timing";
+import { displayedPiRunElapsedMs, piAutoRetryStatus, piRunTiming } from "./workbench-thread-timing";
 
 interface MessageRow {
   id: string;
@@ -208,33 +209,43 @@ function useThreadMessageRows(): readonly MessageRow[] {
 
 function PiWorkingStatus() {
   const { locale, t } = useI18n();
-  const runStartedAt = useAuiState(
-    (state) => piRunStartedAt(state.thread.extras) ?? currentRunStartedAt(state.thread.messages),
-  );
+  const { piWorkingOrbSize, piWorkingOrbState } = useAppearancePreferences();
+  const runTiming = useAuiState((state) => piRunTiming(state.thread.extras));
   const autoRetry = useAuiState((state) => piAutoRetryStatus(state.thread.extras));
-  const fallbackStartedAt = useRef<number | undefined>(undefined);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [elapsedMs, setElapsedMs] = useState<number | undefined>(runTiming?.elapsedMs);
 
   useEffect(() => {
-    const startedAt = runStartedAt ?? fallbackStartedAt.current ?? Date.now();
-    fallbackStartedAt.current = startedAt;
+    if (!runTiming) {
+      setElapsedMs(undefined);
+      return;
+    }
     const updateElapsed = () => {
-      setElapsedSeconds(Math.max(0, Math.floor((Date.now() - startedAt) / 1_000)));
+      setElapsedMs(displayedPiRunElapsedMs(runTiming, performance.now()));
     };
 
     updateElapsed();
     const interval = window.setInterval(updateElapsed, 1_000);
     return () => window.clearInterval(interval);
-  }, [runStartedAt]);
+  }, [runTiming]);
 
-  const duration = formatCompactDuration(elapsedSeconds * 1_000, locale, { includeZero: true });
+  const duration =
+    elapsedMs === undefined
+      ? undefined
+      : formatCompactDuration(elapsedMs, locale, { includeZero: true });
   const visualLabel = autoRetry
-    ? t("workbench.chat.connectionInterruptedRetryingElapsed", {
-        attempt: autoRetry.attempt,
-        maxAttempts: autoRetry.maxAttempts,
-        duration,
-      })
-    : t("workbench.chat.workingElapsed", { duration });
+    ? duration
+      ? t("workbench.chat.connectionInterruptedRetryingElapsed", {
+          attempt: autoRetry.attempt,
+          maxAttempts: autoRetry.maxAttempts,
+          duration,
+        })
+      : t("workbench.chat.connectionInterruptedRetrying", {
+          attempt: autoRetry.attempt,
+          maxAttempts: autoRetry.maxAttempts,
+        })
+    : duration
+      ? t("workbench.chat.workingElapsed", { duration })
+      : t("workbench.chat.working");
   const announcement = autoRetry
     ? t("workbench.chat.connectionInterruptedRetrying", {
         attempt: autoRetry.attempt,
@@ -253,15 +264,10 @@ function PiWorkingStatus() {
       <span
         data-slot="pi-working-icon"
         aria-hidden="true"
-        className="flex size-3.5 shrink-0 items-center justify-center"
+        className="flex shrink-0 items-center justify-center"
+        style={{ width: piWorkingOrbSize, height: piWorkingOrbSize }}
       >
-        <ThinkingOrb
-          state="connecting"
-          size={20}
-          speed={3.0}
-          style={{ width: "100%", height: "100%" }}
-          role="presentation"
-        />
+        <PiWorkingOrb state={piWorkingOrbState} />
       </span>
       <span
         data-slot="pi-working-label"

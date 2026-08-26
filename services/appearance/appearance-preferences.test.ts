@@ -6,6 +6,7 @@ import {
   CODE_THEMES,
   CODE_THEME_PAIRS,
   DEFAULT_APPEARANCE_PREFERENCES,
+  PI_WORKING_ORB_STATES,
   isDefaultAppearancePreferences,
   parseAppearancePreferences,
 } from "./appearance-preferences";
@@ -38,6 +39,8 @@ test("parses persisted appearance preferences", () => {
       darkContrast: 114,
       uiFont: "rounded",
       runningIndicatorId: "spinner",
+      piWorkingOrbState: "weaving",
+      piWorkingOrbSize: 26,
       codeFont: "jetBrainsMono",
       uiFontSize: 18,
       codeFontSize: 15,
@@ -68,6 +71,8 @@ test("parses persisted appearance preferences", () => {
     darkContrast: 114,
     uiFont: "rounded",
     runningIndicatorId: "spinner",
+    piWorkingOrbState: "weaving",
+    piWorkingOrbSize: 26,
     codeFont: "jetBrainsMono",
     uiFontSize: 18,
     codeFontSize: 15,
@@ -93,6 +98,8 @@ test("falls back field by field when persisted values are invalid", () => {
       darkContrast: 20,
       uiFont: "comicSans",
       runningIndicatorId: "sparkles",
+      piWorkingOrbState: "glowing",
+      piWorkingOrbSize: 64,
       codeFont: "proportional",
       uiFontSize: 99,
       codeFontSize: 1,
@@ -154,6 +161,15 @@ test("accepts additional bundled Shiki themes", () => {
     "solarized-light",
   ]) {
     assert.equal(parseAppearancePreferences(JSON.stringify({ codeTheme })).codeTheme, codeTheme);
+  }
+});
+
+test("accepts every bundled Pi Working orb state", () => {
+  for (const piWorkingOrbState of PI_WORKING_ORB_STATES) {
+    assert.equal(
+      parseAppearancePreferences(JSON.stringify({ piWorkingOrbState })).piWorkingOrbState,
+      piWorkingOrbState,
+    );
   }
 });
 

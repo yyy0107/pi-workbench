@@ -34,6 +34,8 @@ export const DEFAULT_APPEARANCE_PREFERENCES_BY_PAGE = {
     uiFont: DEFAULT_APPEARANCE_PREFERENCES.uiFont,
     uiFontSize: DEFAULT_APPEARANCE_PREFERENCES.uiFontSize,
     runningIndicatorId: DEFAULT_APPEARANCE_PREFERENCES.runningIndicatorId,
+    piWorkingOrbState: DEFAULT_APPEARANCE_PREFERENCES.piWorkingOrbState,
+    piWorkingOrbSize: DEFAULT_APPEARANCE_PREFERENCES.piWorkingOrbSize,
   },
   background: {
     customBackground: DEFAULT_APPEARANCE_PREFERENCES.customBackground,

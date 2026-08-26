@@ -1,4 +1,5 @@
 import type { BundledTheme } from "shiki";
+import type { OrbState } from "thinking-orbs";
 
 export const APPEARANCE_STORAGE_KEY = "workbench.appearance.v1";
 
@@ -26,6 +27,22 @@ export type UiFontFamily = (typeof UI_FONT_FAMILIES)[number];
 
 export const RUNNING_INDICATOR_IDS = ["orb", "spinner", "pulse", "none"] as const;
 export type RunningIndicatorId = (typeof RUNNING_INDICATOR_IDS)[number];
+
+export const PI_WORKING_ORB_STATES = [
+  "working",
+  "searching",
+  "solving",
+  "listening",
+  "connecting",
+  "weaving",
+  "composing",
+  "breathing",
+  "shaping",
+] as const satisfies readonly OrbState[];
+export type PiWorkingOrbState = (typeof PI_WORKING_ORB_STATES)[number];
+
+export const MIN_PI_WORKING_ORB_SIZE = 12;
+export const MAX_PI_WORKING_ORB_SIZE = 32;
 
 export const CODE_FONT_FAMILIES = [
   "geistMono",
@@ -193,6 +210,8 @@ export interface AppearancePreferences {
   darkContrast: ThemeContrast;
   uiFont: UiFontFamily;
   runningIndicatorId: RunningIndicatorId;
+  piWorkingOrbState: PiWorkingOrbState;
+  piWorkingOrbSize: number;
   codeFont: CodeFontFamily;
   uiFontSize: UiFontSize;
   codeFontSize: CodeFontSize;
@@ -222,6 +241,8 @@ export const DEFAULT_APPEARANCE_PREFERENCES = Object.freeze({
   darkContrast: 100,
   uiFont: "geist",
   runningIndicatorId: "orb",
+  piWorkingOrbState: "connecting",
+  piWorkingOrbSize: 14,
   codeFont: "geistMono",
   uiFontSize: 16,
   codeFontSize: 13,
@@ -339,6 +360,16 @@ export function parseAppearancePreferences(serialized: string | null): Appearanc
     runningIndicatorId: isOneOf(value.runningIndicatorId, RUNNING_INDICATOR_IDS)
       ? value.runningIndicatorId
       : DEFAULT_APPEARANCE_PREFERENCES.runningIndicatorId,
+    piWorkingOrbState: isOneOf(value.piWorkingOrbState, PI_WORKING_ORB_STATES)
+      ? value.piWorkingOrbState
+      : DEFAULT_APPEARANCE_PREFERENCES.piWorkingOrbState,
+    piWorkingOrbSize: isIntegerInRange(
+      value.piWorkingOrbSize,
+      MIN_PI_WORKING_ORB_SIZE,
+      MAX_PI_WORKING_ORB_SIZE,
+    )
+      ? value.piWorkingOrbSize
+      : DEFAULT_APPEARANCE_PREFERENCES.piWorkingOrbSize,
     codeFont: isOneOf(value.codeFont, CODE_FONT_FAMILIES)
       ? value.codeFont
       : isOneOf(value.lightCodeFont, CODE_FONT_FAMILIES)

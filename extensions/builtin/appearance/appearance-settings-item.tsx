@@ -4,11 +4,14 @@ import { CheckIcon, ChevronDownIcon, ImagePlusIcon, Trash2Icon } from "lucide-re
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { CodeThemePreview } from "@/components/assistant-ui/shiki-highlighter";
+import { PiWorkingOrb } from "@/components/elements/pi-working-orb";
+import { RunningThreadIndicator } from "@/components/elements/running-thread-indicator";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuRadioGroup } from "@/components/ui/dropdown-menu";
 import {
   SettingsDropdownContent,
   SettingsDropdownItem,
+  SettingsDropdownRadioItem,
   SettingsDropdownTrigger,
 } from "@/components/ui/settings-control";
 import { Switch } from "@/components/ui/switch";
@@ -24,13 +27,16 @@ import {
   CORNER_RADIUS_STYLES,
   GLASS_BLURS,
   MAX_CODE_FONT_SIZE,
+  MAX_PI_WORKING_ORB_SIZE,
   MAX_SURFACE_OPACITY,
   MAX_THEME_CONTRAST,
   MAX_UI_FONT_SIZE,
   MIN_CODE_FONT_SIZE,
+  MIN_PI_WORKING_ORB_SIZE,
   MIN_SURFACE_OPACITY,
   MIN_THEME_CONTRAST,
   MIN_UI_FONT_SIZE,
+  PI_WORKING_ORB_STATES,
   RUNNING_INDICATOR_IDS,
   UI_FONT_FAMILIES,
   type BackgroundBlur,
@@ -40,6 +46,7 @@ import {
   type ColorMode,
   type CornerRadiusStyle,
   type GlassBlur,
+  type PiWorkingOrbState,
   type RunningIndicatorId,
   type UiFontFamily,
 } from "@/services/appearance/appearance-preferences";
@@ -408,12 +415,67 @@ function SelectControl<Value extends string | number>({
   );
 }
 
+function AnimatedPreviewSelect<Value extends string>({
+  label,
+  value,
+  options,
+  optionLabel,
+  renderPreview,
+  onChange,
+}: {
+  label: string;
+  value: Value;
+  options: readonly Value[];
+  optionLabel(value: Value): string;
+  renderPreview(value: Value, animated: boolean): ReactNode;
+  onChange(value: Value): void;
+}) {
+  const [previewValue, setPreviewValue] = useState<Value | null>(null);
+
+  return (
+    <DropdownMenu onOpenChange={(open) => setPreviewValue(open ? value : null)}>
+      <SettingsDropdownTrigger aria-label={label}>
+        <span aria-hidden="true" className="flex size-5 shrink-0 items-center justify-center">
+          {renderPreview(value, true)}
+        </span>
+        <span className="min-w-0 truncate">{optionLabel(value)}</span>
+        <ChevronDownIcon className="text-muted-foreground size-3.5 shrink-0" />
+      </SettingsDropdownTrigger>
+      <SettingsDropdownContent align="end" side="bottom" className="min-w-64">
+        <DropdownMenuRadioGroup
+          value={value}
+          aria-label={label}
+          onValueChange={(nextValue) => {
+            const nextOption = options.find((option) => option === nextValue);
+            if (nextOption) onChange(nextOption);
+          }}
+        >
+          {options.map((option) => (
+            <SettingsDropdownRadioItem
+              key={option}
+              value={option}
+              onFocus={() => setPreviewValue(option)}
+              onPointerEnter={() => setPreviewValue(option)}
+            >
+              <span aria-hidden="true" className="flex size-5 shrink-0 items-center justify-center">
+                {renderPreview(option, option === (previewValue ?? value))}
+              </span>
+              <span className="min-w-0 flex-1">{optionLabel(option)}</span>
+            </SettingsDropdownRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </SettingsDropdownContent>
+    </DropdownMenu>
+  );
+}
+
 const RANGE_COMMIT_DELAY_MS = 100;
 
 function RangeControl({
   label,
   value,
   formatValue,
+  renderPreview,
   minimum,
   maximum,
   disabled,
@@ -422,6 +484,7 @@ function RangeControl({
   label: string;
   value: number;
   formatValue(value: number): string;
+  renderPreview?(value: number): ReactNode;
   minimum: number;
   maximum: number;
   disabled?: boolean;
@@ -488,6 +551,11 @@ function RangeControl({
 
   return (
     <div className="flex h-8 w-full items-center gap-3">
+      {renderPreview ? (
+        <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center">
+          {renderPreview(draftValue)}
+        </span>
+      ) : null}
       <input
         type="range"
         min={minimum}
@@ -645,6 +713,10 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
     t(`extensions.appearance.fontFamilies.ui.${value}`);
   const runningIndicatorLabel = (value: RunningIndicatorId): string =>
     t(`extensions.appearance.runningIndicator.styles.${value}`);
+  const piWorkingOrbLabel = (value: PiWorkingOrbState): string =>
+    t(`extensions.appearance.piWorkingAnimation.styles.${value}`);
+  const piWorkingOrbSizeLabel = (value: number): string =>
+    t("extensions.appearance.piWorkingAnimation.sizeValue", { size: value });
   const codeFontLabel = (value: CodeFontFamily): string =>
     t(`extensions.appearance.fontFamilies.code.${value}`);
   const codeThemeLabel = (value: CodeTheme): string =>
@@ -804,12 +876,54 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
               description={t("extensions.appearance.runningIndicator.description")}
             >
               <SettingRow label={t("extensions.appearance.runningIndicator.style")}>
-                <SelectControl
+                <AnimatedPreviewSelect
                   label={t("extensions.appearance.runningIndicator.style")}
                   value={preferences.runningIndicatorId}
                   options={RUNNING_INDICATOR_IDS}
                   optionLabel={runningIndicatorLabel}
+                  renderPreview={(runningIndicatorId, animated) => (
+                    <RunningThreadIndicator id={runningIndicatorId} animated={animated} />
+                  )}
                   onChange={(runningIndicatorId) => appearanceStore.update({ runningIndicatorId })}
+                />
+              </SettingRow>
+            </SettingGroup>
+
+            <SettingGroup
+              title={t("extensions.appearance.piWorkingAnimation.title")}
+              description={t("extensions.appearance.piWorkingAnimation.description")}
+            >
+              <SettingRow label={t("extensions.appearance.piWorkingAnimation.style")}>
+                <AnimatedPreviewSelect
+                  label={t("extensions.appearance.piWorkingAnimation.style")}
+                  value={preferences.piWorkingOrbState}
+                  options={PI_WORKING_ORB_STATES}
+                  optionLabel={piWorkingOrbLabel}
+                  renderPreview={(piWorkingOrbState, animated) => (
+                    <PiWorkingOrb state={piWorkingOrbState} paused={!animated} />
+                  )}
+                  onChange={(piWorkingOrbState) => appearanceStore.update({ piWorkingOrbState })}
+                />
+              </SettingRow>
+              <SettingRow
+                label={t("extensions.appearance.piWorkingAnimation.size")}
+                description={t("extensions.appearance.piWorkingAnimation.sizeDescription")}
+              >
+                <RangeControl
+                  label={t("extensions.appearance.piWorkingAnimation.size")}
+                  value={preferences.piWorkingOrbSize}
+                  formatValue={piWorkingOrbSizeLabel}
+                  renderPreview={(size) => (
+                    <span
+                      className="flex shrink-0 items-center justify-center"
+                      style={{ width: size, height: size }}
+                    >
+                      <PiWorkingOrb state={preferences.piWorkingOrbState} />
+                    </span>
+                  )}
+                  minimum={MIN_PI_WORKING_ORB_SIZE}
+                  maximum={MAX_PI_WORKING_ORB_SIZE}
+                  onChange={(piWorkingOrbSize) => appearanceStore.update({ piWorkingOrbSize })}
                 />
               </SettingRow>
             </SettingGroup>
