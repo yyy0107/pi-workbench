@@ -10,14 +10,15 @@ import { TerminalBlock } from "@/components/elements/terminal-block";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import { usePiActiveSessionId } from "@/runtime/pi/client/runtime/context";
+import type { WorkbenchBashInput } from "@/runtime/terminal/bash-tool-input";
 
 import { normalizeTerminalTabTitle } from "./terminal-tab-title";
 import { terminalResultLines } from "./terminal-tool-transcript";
 import { revealTerminalTranscript, TERMINAL_SURFACE_TITLE } from "./terminal-workspace-service";
-import { useToolTerminalInteraction } from "./use-tool-terminal-interaction";
 
 interface BashToolArgs {
   command?: string;
+  input?: WorkbenchBashInput;
 }
 
 export interface BashTerminalProps {
@@ -25,16 +26,17 @@ export interface BashTerminalProps {
   command?: string;
   result: unknown;
   running: boolean;
+  input?: WorkbenchBashInput;
 }
 
-export function BashTerminal({ toolCallId, command, result, running }: BashTerminalProps) {
+export function BashTerminal({ toolCallId, command, result, running, input }: BashTerminalProps) {
   const { t } = useI18n();
   const controller = useRightWorkspace();
   const context = useWorkspaceContext();
   const piSessionId = usePiActiveSessionId();
   const displayedCommand = command || "bash";
   const lines = terminalResultLines(result);
-  const interactionState = useToolTerminalInteraction(piSessionId, toolCallId, running);
+  const userInputRequested = running && input?.source === "user";
   const openTerminal = () =>
     revealTerminalTranscript({
       controller,
@@ -44,11 +46,6 @@ export function BashTerminal({ toolCallId, command, result, running }: BashTermi
       ...(piSessionId ? { piSessionId } : {}),
       title: normalizeTerminalTabTitle(displayedCommand) ?? TERMINAL_SURFACE_TITLE,
     });
-  const interactionLabel =
-    interactionState === "active"
-      ? t("extensions.terminal.tool.interactionActive")
-      : t("extensions.terminal.tool.interactionPossible");
-
   return (
     <TerminalBlock
       command={command || "bash"}
@@ -57,7 +54,7 @@ export function BashTerminal({ toolCallId, command, result, running }: BashTermi
       done={!running}
       title={t("extensions.terminal.tool.shellTitle")}
       titleAction={
-        interactionState === "none" ? (
+        !userInputRequested ? (
           <TooltipIconButton
             data-slot="terminal-block-action"
             tooltip={t("extensions.terminal.tool.view")}
@@ -73,7 +70,7 @@ export function BashTerminal({ toolCallId, command, result, running }: BashTermi
               role="status"
             >
               <KeyboardIcon className="size-3.5 shrink-0" />
-              <span className="truncate">{interactionLabel}</span>
+              <span className="truncate">{t("extensions.terminal.tool.userInputRequested")}</span>
             </span>
             <Button type="button" variant="outline" size="xs" onClick={openTerminal}>
               {t("extensions.terminal.tool.openTerminal")}
@@ -106,6 +103,7 @@ export const BashToolRenderer: ToolCallMessagePartComponent<BashToolArgs, unknow
       command={args.command}
       result={result ?? artifact}
       running={status.type !== "complete"}
+      input={args.input}
     />
   );
 };

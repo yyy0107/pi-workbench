@@ -87,3 +87,30 @@ test("the terminal command opener starts a focused primary terminal with one pen
   assert.equal(typeof opened?.params.terminalId, "string");
   assert.match(String(opened?.params.sessionId), /^terminal:application:/);
 });
+
+test("the terminal command opener defaults to the current thread scope", () => {
+  let opened: OpenSurfaceRequest | undefined;
+
+  terminalCommandOpenHandler.open(
+    {
+      resource: {
+        scheme: TERMINAL_COMMAND_SCHEME,
+        path: "pi install 'npm:pi-tools'",
+      },
+      context,
+    },
+    {
+      surfaces: {
+        open: (request) => {
+          opened = request;
+          return "terminal-surface";
+        },
+        reveal: () => assert.fail("A command must open a fresh terminal Surface"),
+      },
+    },
+  );
+
+  assert.deepEqual(opened?.scope, { type: "thread", key: "thread-current" });
+  assert.equal(opened?.params.threadId, "thread-current");
+  assert.equal(opened?.policy, "force-focus");
+});

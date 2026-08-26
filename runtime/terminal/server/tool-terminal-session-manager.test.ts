@@ -81,6 +81,28 @@ test("registers a stable process handle before the tool process exits", async ()
   manager.dispose();
 });
 
+test("writes agent-owned initial input into the PTY without waiting for UI attachment", async () => {
+  const terminal = new FakePty();
+  const manager = new ToolTerminalSessionManager({
+    retentionMs: 60_000,
+    spawnPty: () => terminal,
+    terminatePty: (target) => target.kill(),
+  });
+  const spawned = manager.spawn({
+    sessionId: "session-1",
+    toolCallId: "call-agent-input",
+    command: "read answer",
+    cwd: "/workspace",
+    initialInput: "yes\n",
+    onData: () => {},
+  });
+
+  assert.deepEqual(terminal.writes, ["yes\n"]);
+  terminal.emitExit({ exitCode: 0 });
+  assert.deepEqual(await spawned.completion, { exitCode: 0 });
+  manager.dispose();
+});
+
 test("shares tool PTY output, input, resize, and interruption with attached clients", async () => {
   const terminals: FakePty[] = [];
   const manager = new ToolTerminalSessionManager({

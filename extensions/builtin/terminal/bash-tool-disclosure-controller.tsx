@@ -5,15 +5,16 @@ import { useEffect, useRef } from "react";
 import { useRightWorkspace, useWorkspaceContext } from "@/components/right-workspace";
 import type { ToolPresentationDisclosureControllerProps } from "@/platform/extensions";
 import { usePiActiveSessionId } from "@/runtime/pi/client/runtime/context";
+import { workbenchBashInputFromArgs } from "@/runtime/terminal/bash-tool-input";
 
 import {
-  shouldExpandInteractiveTerminal,
-  shouldRevealInteractiveTerminal,
+  shouldExpandBashTerminalForUserInput,
+  shouldRevealBashTerminalForUserInput,
 } from "./terminal-disclosure-policy";
 import { normalizeTerminalTabTitle } from "./terminal-tab-title";
 import { bashCommandFromArgs } from "./terminal-tool-transcript";
 import { revealTerminalTranscript, TERMINAL_SURFACE_TITLE } from "./terminal-workspace-service";
-import { useToolTerminalInteraction } from "./use-tool-terminal-interaction";
+import { useToolTerminalReady } from "./use-tool-terminal-ready";
 
 export function BashToolDisclosureController({
   part,
@@ -26,18 +27,23 @@ export function BashToolDisclosureController({
   const piSessionId = usePiActiveSessionId();
   const revealedToolCallIdRef = useRef<string | undefined>(undefined);
   const alreadyRevealed = revealedToolCallIdRef.current === part.toolCallId;
-  const interactionState = useToolTerminalInteraction(
+  const inputSource = workbenchBashInputFromArgs(part.args)?.source;
+  const terminalReady = useToolTerminalReady(
     piSessionId,
     part.toolCallId,
-    running && (!open || !alreadyRevealed),
+    running && inputSource === "user" && !alreadyRevealed,
   );
 
   useEffect(() => {
-    if (shouldExpandInteractiveTerminal(interactionState, running, open)) {
+    if (shouldExpandBashTerminalForUserInput(inputSource, terminalReady, running, open)) {
       onOpenChange(true);
     }
 
-    if (!shouldRevealInteractiveTerminal(interactionState, running, alreadyRevealed)) return;
+    if (
+      !shouldRevealBashTerminalForUserInput(inputSource, terminalReady, running, alreadyRevealed)
+    ) {
+      return;
+    }
 
     const command = bashCommandFromArgs(part.args) ?? "bash";
     revealedToolCallIdRef.current = part.toolCallId;
@@ -53,13 +59,14 @@ export function BashToolDisclosureController({
     alreadyRevealed,
     context,
     controller,
-    interactionState,
+    inputSource,
     onOpenChange,
     open,
     part.args,
     part.toolCallId,
     piSessionId,
     running,
+    terminalReady,
   ]);
 
   return null;

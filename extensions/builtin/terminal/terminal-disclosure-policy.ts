@@ -1,17 +1,19 @@
-import type { TerminalInteractionState } from "@/runtime/terminal/contracts";
+import type { WorkbenchBashInput } from "@/runtime/terminal/bash-tool-input";
 
-export function shouldExpandInteractiveTerminal(
-  interactionState: TerminalInteractionState,
+export function shouldExpandBashTerminalForUserInput(
+  inputSource: WorkbenchBashInput["source"] | undefined,
+  terminalReady: boolean,
   running: boolean,
   open: boolean,
 ): boolean {
-  return running && !open && interactionState !== "none";
+  return running && terminalReady && !open && inputSource === "user";
 }
 
-export function shouldRevealInteractiveTerminal(
-  interactionState: TerminalInteractionState,
+export function shouldRevealBashTerminalForUserInput(
+  inputSource: WorkbenchBashInput["source"] | undefined,
+  terminalReady: boolean,
   running: boolean,
   alreadyRevealed: boolean,
 ): boolean {
-  return running && !alreadyRevealed && interactionState !== "none";
+  return running && terminalReady && !alreadyRevealed && inputSource === "user";
 }

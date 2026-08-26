@@ -37,9 +37,19 @@ changes attachment state without killing the shell, so reopening that process re
 Workbench registers `createWorkbenchBashToolOverride` as a custom tool named `bash`. Pi registers
 built-ins first and then replaces matching names with custom/extension definitions, so this
 definition deliberately overrides Pi's built-in `bash` without patching the Pi package or changing
-the model-visible schema. The override reuses Pi's standard Bash definition, preserving its output
-accumulation, timeout, truncation, renderer, and tool-result behavior, while replacing only the
-execution operations with `ToolTerminalSessionManager`.
+Pi itself. The override reuses Pi's standard Bash definition, preserving its command and timeout
+parameters, output accumulation, timeout, truncation, renderer, and tool-result behavior. It extends
+the model-visible schema with an optional discriminated `input` field and replaces the execution
+operations with `ToolTerminalSessionManager`.
+
+The `input` field makes stdin ownership an Agent decision instead of a renderer heuristic. The Agent
+omits it for commands that do not read stdin. For safe, deterministic answers it sends
+`{ source: "agent", data }`; Workbench writes the exact bounded data to the PTY immediately after
+startup, including any newlines supplied by the Agent. For secrets, user preferences, ambiguous
+choices, or prompts the Agent cannot reliably predict, it sends `{ source: "user" }`; the
+conversation waits for the matching tool PTY to become writable, then expands the Bash card and
+reveals that live terminal. A user-owned declaration never contains the input value in tool
+arguments.
 
 `ToolTerminalSessionManager.spawn()` registers and returns a stable process handle immediately;
 the Pi adapter separately awaits its `completion`. Output events, stdin, resize, interrupt,
@@ -68,15 +78,15 @@ line, coalesces carriage-return redraws such as spinners into their final stable
 backspaces, and flushes a final unterminated prompt when the process exits. This keeps full terminal
 fidelity for the user without filling the model result with repeated TUI frames.
 
-`TerminalInteractionDetector` remains a presentation hint, not an execution primitive. A running
-tool moves from `none` to `possible` only after multiple TUI signals (cursor control, erase,
-alternate-screen, or redraw behavior), or a high-confidence unterminated text prompt such as a
-confirmation, password, passphrase, or press-enter request, is followed by a quiet period. Silence
-without evidence does not qualify. Input written through the attached terminal moves it to
-`active`; resumed substantive output settles it back to `none`, allowing a later prompt in the same
-process to request attention again. Process exit also returns it to `none`. Conversation renderers
-observe only this state through a read-only terminal WebSocket mode; raw PTY output remains on the
-full terminal connection and the projected Pi tool-result path.
+`TerminalInteractionDetector` remains a presentation hint inside an attached terminal, not an
+execution or disclosure primitive. A running tool moves from `none` to `possible` only after
+multiple TUI signals (cursor control, erase, alternate-screen, or redraw behavior), or a
+high-confidence unterminated text prompt such as a confirmation, password, passphrase, or
+press-enter request, is followed by a quiet period. Silence without evidence does not qualify.
+Input written through the attached terminal moves it to `active`; resumed substantive output
+settles it back to `none`. Process exit also returns it to `none`. These observed states may refine
+status text after the terminal is open, but they never decide whether to open it; only the Bash
+tool's declared `input.source` does.
 
 Opening or closing the tool terminal only attaches or detaches a viewer. Clicking its stop control
 sends an explicit `process/terminate` request, terminates the shared PTY, and completes the original

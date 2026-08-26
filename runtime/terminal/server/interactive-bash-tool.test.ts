@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { Value } from "typebox/value";
+
 import { createWorkbenchBashToolOverride } from "./interactive-bash-tool";
 import type { ToolTerminalExecutionOptions } from "./tool-terminal-session-manager";
 
@@ -20,10 +22,34 @@ test("routes the Pi bash tool call through its addressable interactive terminal"
   );
 
   assert.equal(tool.name, "bash");
+  assert.equal("input" in tool.parameters.properties, true);
+  assert.match(tool.description, /declare input ownership/);
+  assert.equal(
+    Value.Check(tool.parameters, {
+      command: "read answer",
+      input: { source: "agent", data: "yes\n" },
+    }),
+    true,
+  );
+  assert.equal(
+    Value.Check(tool.parameters, { command: "read answer", input: { source: "user" } }),
+    true,
+  );
+  assert.equal(
+    Value.Check(tool.parameters, { command: "read answer", input: { source: "agent" } }),
+    false,
+  );
+  assert.equal(
+    Value.Check(tool.parameters, {
+      command: "read answer",
+      input: { source: "user", data: "invented secret" },
+    }),
+    false,
+  );
 
   const result = await tool.execute(
     "call-9",
-    { command: "echo ready" },
+    { command: "read answer && echo ready", input: { source: "agent", data: "yes\n" } },
     undefined,
     undefined,
     undefined as never,
@@ -31,14 +57,41 @@ test("routes the Pi bash tool call through its addressable interactive terminal"
 
   assert.equal(execution?.sessionId, "session-1");
   assert.equal(execution?.toolCallId, "call-9");
-  assert.equal(execution?.command, "source ~/.profile\necho ready");
+  assert.equal(execution?.command, "source ~/.profile\nread answer && echo ready");
   assert.equal(execution?.cwd, "/workspace");
   assert.equal(execution?.shell, "/bin/zsh");
+  assert.equal(execution?.initialInput, "yes\n");
   assert.equal(result.content[0]?.type, "text");
   assert.equal(
     result.content[0]?.type === "text" ? result.content[0].text : undefined,
     "live output",
   );
+});
+
+test("leaves stdin attached to the terminal when the agent delegates input to the user", async () => {
+  let execution: ToolTerminalExecutionOptions | undefined;
+  const tool = createWorkbenchBashToolOverride(
+    "/workspace",
+    "session-1",
+    {},
+    {
+      async execute(options) {
+        execution = options;
+        return { exitCode: 0 };
+      },
+    },
+  );
+
+  await tool.execute(
+    "call-user-input",
+    { command: "read -s secret", input: { source: "user" } },
+    undefined,
+    undefined,
+    undefined as never,
+  );
+
+  assert.equal(execution?.command, "read -s secret");
+  assert.equal(execution?.initialInput, undefined);
 });
 
 test("normalizes redundant temp-log capture after the configured command prefix", async () => {

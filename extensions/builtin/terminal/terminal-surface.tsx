@@ -11,6 +11,7 @@ import { useRightWorkspace } from "@/components/right-workspace";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import type { WorkspaceSurfaceProps } from "@/platform/extensions";
+import { workbenchBashInputFromArgs } from "@/runtime/terminal/bash-tool-input";
 import {
   parseTerminalServerFrame,
   type TerminalClientFrame,
@@ -190,7 +191,7 @@ function terminalText(value: string): string {
   return value.replace(/\r\n?/g, "\n").replaceAll("\n", "\r\n");
 }
 
-export function TerminalSurface({ surface }: WorkspaceSurfaceProps<TerminalTarget>) {
+export function TerminalSurface({ surface, isVisible }: WorkspaceSurfaceProps<TerminalTarget>) {
   const { text } = useI18n();
 
   if (isTerminalTranscriptTarget(surface.params)) {
@@ -199,27 +200,35 @@ export function TerminalSurface({ surface }: WorkspaceSurfaceProps<TerminalTarge
         surfaceId={surface.id}
         surfaceTitle={text(surface.title)}
         target={surface.params}
+        isVisible={isVisible}
       />
     );
   }
 
-  return <PtyTerminalSurface surfaceId={surface.id} target={surface.params} />;
+  return (
+    <PtyTerminalSurface surfaceId={surface.id} target={surface.params} isVisible={isVisible} />
+  );
 }
 
 function TerminalTranscriptSurface({
   surfaceId,
   surfaceTitle,
   target,
+  isVisible,
 }: {
   surfaceId: string;
   surfaceTitle: string;
   target: TerminalTranscriptTarget;
+  isVisible: boolean;
 }) {
   const { t } = useI18n();
   const controller = useRightWorkspace();
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const interruptRef = useRef<() => void>(() => {});
+  const synchronizeVisibilityRef = useRef<() => void>(() => {});
+  const visibleRef = useRef(isVisible);
+  visibleRef.current = isVisible;
   const fallbackSnapshotRef = useRef<{ command: string; output: string } | undefined>(undefined);
   const [connection, setConnection] = useState<ToolConnectionStatus>({ phase: "connecting" });
   const [interactionState, setInteractionState] = useState<TerminalInteractionState>("none");
@@ -232,8 +241,13 @@ function TerminalTranscriptSurface({
   const output = terminalResultLines(part?.result ?? part?.artifact).join("\n");
   const statusType = message?.status.type;
   const running = statusType === "running" && part?.result === undefined;
+  const userInputRequested = running && workbenchBashInputFromArgs(part?.args)?.source === "user";
   const failed =
     Boolean(part?.isError) || (statusType === "incomplete" && part?.result === undefined);
+  useEffect(() => {
+    synchronizeVisibilityRef.current();
+  }, [isVisible]);
+
   const statusLabel = !part
     ? t("extensions.terminal.transcript.unavailable")
     : failed
@@ -283,12 +297,46 @@ function TerminalTranscriptSurface({
       terminalWriter = writer;
       stopThemeSync = synchronizeTerminalTheme(container, terminal);
       terminalRef.current = terminal;
-      fitAddon.fit();
+      if (visibleRef.current) fitAddon.fit();
 
       const send = (frame: TerminalClientFrame): boolean => {
         if (!ready || socket?.readyState !== WebSocket.OPEN) return false;
         socket.send(JSON.stringify(frame));
         return true;
+      };
+      const scheduleResize = () => {
+        if (resizeFrame !== undefined) cancelAnimationFrame(resizeFrame);
+        resizeFrame = requestAnimationFrame(() => {
+          resizeFrame = undefined;
+          if (
+            disposed ||
+            !visibleRef.current ||
+            !terminal ||
+            container.clientWidth === 0 ||
+            container.clientHeight === 0
+          ) {
+            return;
+          }
+          fitAddon.fit();
+          if (processHandle) {
+            send({
+              type: "process/resize",
+              processHandle,
+              cols: terminal.cols,
+              rows: terminal.rows,
+            });
+          }
+        });
+      };
+      synchronizeVisibilityRef.current = () => {
+        if (!terminal) return;
+        terminal.options.cursorBlink = visibleRef.current && ready;
+        if (visibleRef.current) {
+          resizeObserver?.observe(container);
+          scheduleResize();
+        } else {
+          resizeObserver?.disconnect();
+        }
       };
       const showFallback = () => {
         if (disposed || !terminal) return;
@@ -337,15 +385,17 @@ function TerminalTranscriptSurface({
             attempts = 0;
             setInteractionState(frame.process.interactionState);
             terminal.options.disableStdin = false;
-            terminal.options.cursorBlink = true;
+            terminal.options.cursorBlink = visibleRef.current;
             setConnection({ phase: "connected" });
-            send({
-              type: "process/resize",
-              processHandle,
-              cols: terminal.cols,
-              rows: terminal.rows,
-            });
-            terminal.focus();
+            if (visibleRef.current) {
+              send({
+                type: "process/resize",
+                processHandle,
+                cols: terminal.cols,
+                rows: terminal.rows,
+              });
+              terminal.focus();
+            }
           } else if (frame.type === "process/exited") {
             writer.flush();
             exited = true;
@@ -362,6 +412,8 @@ function TerminalTranscriptSurface({
             writer.flush();
             exited = true;
             ready = false;
+            terminal.options.disableStdin = true;
+            terminal.options.cursorBlink = false;
             setConnection({ phase: "error" });
           }
         });
@@ -370,6 +422,7 @@ function TerminalTranscriptSurface({
           writer.flush();
           ready = false;
           terminal!.options.disableStdin = true;
+          terminal!.options.cursorBlink = false;
           if (event.code === 1008) {
             exited = true;
             showFallback();
@@ -384,29 +437,8 @@ function TerminalTranscriptSurface({
       dataSubscription = terminal.onData((data) =>
         processHandle ? send({ type: "process/write-stdin", processHandle, data }) : false,
       );
-      resizeObserver = new ResizeObserver(() => {
-        if (resizeFrame !== undefined) cancelAnimationFrame(resizeFrame);
-        resizeFrame = requestAnimationFrame(() => {
-          if (
-            disposed ||
-            !terminal ||
-            container.clientWidth === 0 ||
-            container.clientHeight === 0
-          ) {
-            return;
-          }
-          fitAddon.fit();
-          if (processHandle) {
-            send({
-              type: "process/resize",
-              processHandle,
-              cols: terminal.cols,
-              rows: terminal.rows,
-            });
-          }
-        });
-      });
-      resizeObserver.observe(container);
+      resizeObserver = new ResizeObserver(scheduleResize);
+      if (visibleRef.current) resizeObserver.observe(container);
       interruptRef.current = () => {
         if (!processHandle || !send({ type: "process/terminate", processHandle })) return;
         terminal!.options.disableStdin = true;
@@ -428,6 +460,7 @@ function TerminalTranscriptSurface({
       terminal?.dispose();
       terminalRef.current = null;
       interruptRef.current = () => {};
+      synchronizeVisibilityRef.current = () => {};
     };
   }, [piSessionId, toolCallId]);
 
@@ -458,17 +491,19 @@ function TerminalTranscriptSurface({
   const connectionLabel =
     interactionState === "active"
       ? t("extensions.terminal.transcript.interactionActive")
-      : interactionState === "possible"
-        ? t("extensions.terminal.transcript.interactionPossible")
-        : connection.phase === "connecting"
-          ? t("extensions.terminal.transcript.connecting")
-          : connection.phase === "disconnected"
-            ? t("extensions.terminal.transcript.reconnecting")
-            : connection.phase === "stopping"
-              ? t("extensions.terminal.transcript.stopping")
-              : connection.phase === "error"
-                ? t("extensions.terminal.transcript.connectionError")
-                : statusLabel;
+      : userInputRequested
+        ? t("extensions.terminal.transcript.userInputRequested")
+        : interactionState === "possible"
+          ? t("extensions.terminal.transcript.interactionPossible")
+          : connection.phase === "connecting"
+            ? t("extensions.terminal.transcript.connecting")
+            : connection.phase === "disconnected"
+              ? t("extensions.terminal.transcript.reconnecting")
+              : connection.phase === "stopping"
+                ? t("extensions.terminal.transcript.stopping")
+                : connection.phase === "error"
+                  ? t("extensions.terminal.transcript.connectionError")
+                  : statusLabel;
 
   return (
     <section
@@ -504,19 +539,28 @@ function TerminalTranscriptSurface({
 function PtyTerminalSurface({
   surfaceId,
   target,
+  isVisible,
 }: {
   surfaceId: string;
   target: TerminalPtyTarget;
+  isVisible: boolean;
 }) {
   const { t } = useI18n();
   const controller = useRightWorkspace();
   const containerRef = useRef<HTMLDivElement>(null);
+  const synchronizeVisibilityRef = useRef<() => void>(() => {});
+  const visibleRef = useRef(isVisible);
+  visibleRef.current = isVisible;
   const { sessionId, cwd } = target;
   const pendingInitialCommandRef = useRef<{
     command?: string;
     params: TerminalPtyTarget;
     sessionId: string;
   } | null>(null);
+
+  useEffect(() => {
+    synchronizeVisibilityRef.current();
+  }, [isVisible]);
 
   useEffect(() => {
     if (pendingInitialCommandRef.current?.sessionId === sessionId) return;
@@ -591,8 +635,9 @@ function PtyTerminalSurface({
       const writer = createTerminalFrameWriter(terminal);
       terminalWriter = writer;
       stopThemeSync = synchronizeTerminalTheme(container, terminal);
-      fitAddon.fit();
-      terminal.focus();
+      if (visibleRef.current) fitAddon.fit();
+      terminal.options.cursorBlink = visibleRef.current;
+      if (visibleRef.current) terminal.focus();
       titleSubscription = terminal.onTitleChange((title) => {
         const normalized = normalizeTerminalTabTitle(title);
         if (!normalized) return;
@@ -611,6 +656,40 @@ function PtyTerminalSurface({
       };
       const reportStatus = (next: ConnectionStatus) => {
         container.setAttribute("aria-label", statusText(next));
+      };
+      const scheduleResize = () => {
+        if (resizeFrame !== undefined) cancelAnimationFrame(resizeFrame);
+        resizeFrame = requestAnimationFrame(() => {
+          resizeFrame = undefined;
+          if (
+            disposed ||
+            !visibleRef.current ||
+            !terminal ||
+            container.clientWidth === 0 ||
+            container.clientHeight === 0
+          ) {
+            return;
+          }
+          fitAddon.fit();
+          if (processHandle) {
+            send({
+              type: "process/resize",
+              processHandle,
+              cols: terminal.cols,
+              rows: terminal.rows,
+            });
+          }
+        });
+      };
+      synchronizeVisibilityRef.current = () => {
+        if (!terminal) return;
+        terminal.options.cursorBlink = visibleRef.current && ready;
+        if (visibleRef.current) {
+          resizeObserver?.observe(container);
+          scheduleResize();
+        } else {
+          resizeObserver?.disconnect();
+        }
       };
       const scheduleReconnect = (ownGeneration: number) => {
         if (disposed || exited || ownGeneration !== generation) return;
@@ -650,18 +729,21 @@ function PtyTerminalSurface({
             processHandle = frame.process.processHandle;
             ready = true;
             attempts = 0;
+            terminal.options.cursorBlink = visibleRef.current;
             reportStatus({
               phase: "connected",
               process: frame.process.process,
               pid: frame.process.pid,
               cwd: frame.process.cwd,
             });
-            send({
-              type: "process/resize",
-              processHandle,
-              cols: terminal.cols,
-              rows: terminal.rows,
-            });
+            if (visibleRef.current) {
+              send({
+                type: "process/resize",
+                processHandle,
+                cols: terminal.cols,
+                rows: terminal.rows,
+              });
+            }
             const pendingLaunch = pendingInitialCommandRef.current;
             const pendingCommand = pendingLaunch?.command;
             if (
@@ -676,6 +758,7 @@ function PtyTerminalSurface({
             writer.flush();
             exited = true;
             ready = false;
+            terminal.options.cursorBlink = false;
             reportStatus({ phase: "exited", exitCode: frame.exit.exitCode });
             terminal.writeln(
               `\r\n${t("extensions.terminal.status.exited", { code: frame.exit.exitCode })}`,
@@ -684,6 +767,7 @@ function PtyTerminalSurface({
             writer.flush();
             exited = true;
             ready = false;
+            terminal.options.cursorBlink = false;
             reportStatus({ phase: "error", code: frame.code });
             terminal.writeln(`\r\n${t("extensions.terminal.status.error")}`);
           }
@@ -692,6 +776,7 @@ function PtyTerminalSurface({
           if (disposed || ownGeneration !== generation || exited) return;
           writer.flush();
           ready = false;
+          terminal!.options.cursorBlink = false;
           if (event.code === 1008) {
             exited = true;
             reportStatus({ phase: "error", code: "invalid-session" });
@@ -705,29 +790,8 @@ function PtyTerminalSurface({
       dataSubscription = terminal.onData((data) =>
         processHandle ? send({ type: "process/write-stdin", processHandle, data }) : false,
       );
-      resizeObserver = new ResizeObserver(() => {
-        if (resizeFrame !== undefined) cancelAnimationFrame(resizeFrame);
-        resizeFrame = requestAnimationFrame(() => {
-          if (
-            disposed ||
-            !terminal ||
-            container.clientWidth === 0 ||
-            container.clientHeight === 0
-          ) {
-            return;
-          }
-          fitAddon.fit();
-          if (processHandle) {
-            send({
-              type: "process/resize",
-              processHandle,
-              cols: terminal.cols,
-              rows: terminal.rows,
-            });
-          }
-        });
-      });
-      resizeObserver.observe(container);
+      resizeObserver = new ResizeObserver(scheduleResize);
+      if (visibleRef.current) resizeObserver.observe(container);
       connect();
     };
 
@@ -745,6 +809,7 @@ function PtyTerminalSurface({
       socket?.close(1000, "surface closed");
       terminalWriter?.dispose();
       terminal?.dispose();
+      synchronizeVisibilityRef.current = () => {};
     };
   }, [controller, cwd, sessionId, surfaceId, t]);
 

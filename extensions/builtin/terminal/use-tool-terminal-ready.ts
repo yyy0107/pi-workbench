@@ -2,23 +2,20 @@
 
 import { useEffect, useState } from "react";
 
-import {
-  parseTerminalServerFrame,
-  type TerminalInteractionState,
-} from "@/runtime/terminal/contracts";
+import { parseTerminalServerFrame } from "@/runtime/terminal/contracts";
 
 import { toolTerminalSocketUrl } from "./terminal-socket-url";
 
-export function useToolTerminalInteraction(
+export function useToolTerminalReady(
   piSessionId: string | undefined,
   toolCallId: string,
   enabled: boolean,
-): TerminalInteractionState {
-  const [state, setState] = useState<TerminalInteractionState>("none");
+): boolean {
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     if (!enabled || !piSessionId) {
-      setState("none");
+      setReady(false);
       return;
     }
 
@@ -45,17 +42,15 @@ export function useToolTerminalInteraction(
         const frame = parseTerminalServerFrame(value);
         if (frame?.type === "process/ready") {
           attempts = 0;
-          setState(frame.process.interactionState);
-        } else if (frame?.type === "process/state") {
-          setState(frame.interactionState);
+          setReady(true);
         } else if (frame?.type === "process/exited") {
           finished = true;
-          setState("none");
+          setReady(false);
         }
       });
       nextSocket.addEventListener("close", () => {
         if (disposed || finished || nextSocket !== socket) return;
-        setState("none");
+        setReady(false);
         attempts += 1;
         const delay = Math.min(2_000, 100 * 2 ** Math.min(attempts, 5));
         reconnectTimer = setTimeout(connect, delay);
@@ -66,9 +61,9 @@ export function useToolTerminalInteraction(
     return () => {
       disposed = true;
       if (reconnectTimer) clearTimeout(reconnectTimer);
-      socket?.close(1000, "tool interaction observer closed");
+      socket?.close(1000, "tool readiness observer closed");
     };
   }, [enabled, piSessionId, toolCallId]);
 
-  return state;
+  return ready;
 }

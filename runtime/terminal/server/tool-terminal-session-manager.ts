@@ -3,6 +3,7 @@ import { basename } from "node:path";
 import { spawn, type IPty } from "node-pty";
 
 import type { TerminalErrorCode, TerminalProcessExit, TerminalProcessSnapshot } from "../contracts";
+import { MAX_AGENT_BASH_INPUT_CHARACTERS } from "../bash-tool-input";
 import {
   TerminalSessionError,
   type AttachedTerminalSession,
@@ -36,6 +37,7 @@ export interface ToolTerminalExecutionOptions {
   timeout?: number;
   env?: NodeJS.ProcessEnv;
   shell?: string;
+  initialInput?: string;
 }
 
 export interface SpawnedToolTerminalProcess {
@@ -168,6 +170,12 @@ export class ToolTerminalSessionManager {
 
   spawn(options: ToolTerminalExecutionOptions): SpawnedToolTerminalProcess {
     if (options.signal?.aborted) throw new Error("aborted");
+    if (
+      options.initialInput !== undefined &&
+      options.initialInput.length > MAX_AGENT_BASH_INPUT_CHARACTERS
+    ) {
+      throw terminalError("invalid-message", "Initial tool input exceeds the allowed size.");
+    }
     const key = sessionKey(options.sessionId, options.toolCallId);
     const existing = this.#sessions.get(key);
     if (existing && !existing.exitEvent) {
@@ -252,6 +260,7 @@ export class ToolTerminalSessionManager {
       );
       session.timeoutHandle.unref?.();
     }
+    if (options.initialInput) terminal.write(options.initialInput);
 
     return { processHandle, pid: terminal.pid, completion };
   }

@@ -1,6 +1,14 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 
-import { createBashToolDefinition, defineTool } from "@earendil-works/pi-coding-agent";
+import {
+  createBashToolDefinition,
+  defineTool,
+  type BashToolDetails,
+  type ToolDefinition,
+} from "@earendil-works/pi-coding-agent";
+import { Type } from "typebox";
+
+import { MAX_AGENT_BASH_INPUT_CHARACTERS, type WorkbenchBashInput } from "../bash-tool-input";
 
 import {
   bashCommandPolicy,
@@ -13,6 +21,40 @@ import {
 } from "./tool-terminal-session-manager";
 
 type ToolTerminalExecutor = Pick<ToolTerminalSessionManager, "execute">;
+
+const bashInputSchema = Type.Optional(
+  Type.Union(
+    [
+      Type.Object(
+        {
+          source: Type.Literal("agent", {
+            description: "The agent can determine and safely provide the command's stdin.",
+          }),
+          data: Type.String({
+            minLength: 1,
+            maxLength: MAX_AGENT_BASH_INPUT_CHARACTERS,
+            description:
+              "Exact stdin to send after the PTY starts. Include every required newline or control character.",
+          }),
+        },
+        { additionalProperties: false },
+      ),
+      Type.Object(
+        {
+          source: Type.Literal("user", {
+            description:
+              "The user must provide input in the terminal because it is sensitive, preference-dependent, or cannot be predicted reliably.",
+          }),
+        },
+        { additionalProperties: false },
+      ),
+    ],
+    {
+      description:
+        "Declare this only when the command reads from stdin. Choose agent with exact data for safe, deterministic input; choose user to open the live terminal for manual input. Omit it when no stdin is required.",
+    },
+  ),
+);
 
 export interface InteractiveBashToolOptions {
   commandPrefix?: string;
@@ -54,7 +96,10 @@ export function createWorkbenchBashToolOverride(
   toolOptions: InteractiveBashToolOptions = {},
   terminals: ToolTerminalExecutor = getToolTerminalSessionManager(),
 ) {
-  const executionContext = new AsyncLocalStorage<{ toolCallId: string }>();
+  const executionContext = new AsyncLocalStorage<{
+    toolCallId: string;
+    input?: WorkbenchBashInput;
+  }>();
   const commandPolicy = toolOptions.commandPolicy ?? bashCommandPolicy;
   const base = createBashToolDefinition(cwd, {
     ...(toolOptions.commandPrefix ? { commandPrefix: toolOptions.commandPrefix } : {}),
@@ -76,16 +121,34 @@ export function createWorkbenchBashToolOverride(
             : { timeout: effectiveTimeout(executionOptions.timeout, plan.timeoutSeconds) }),
           ...(executionOptions.env ? { env: executionOptions.env } : {}),
           ...(toolOptions.shellPath ? { shell: toolOptions.shellPath } : {}),
+          ...(execution.input?.source === "agent" ? { initialInput: execution.input.data } : {}),
         });
       },
     },
   });
   const execute = base.execute.bind(base);
+  const parameters = Type.Object(
+    {
+      ...base.parameters.properties,
+      input: bashInputSchema,
+    },
+    { additionalProperties: false },
+  );
 
-  const interactive: typeof base = {
+  const interactive: ToolDefinition<typeof parameters, BashToolDetails | undefined> = {
     ...base,
+    description: `${base.description} Before running a command that reads stdin, inspect what it asks for and declare input ownership: provide safe deterministic input as agent data, or delegate sensitive, preference-dependent, or uncertain input to the user.`,
+    promptGuidelines: [
+      ...(base.promptGuidelines ?? []),
+      "Before calling bash, determine whether the command reads stdin. Omit input when it does not. Use input.source=agent with exact data only when the answer is safe and deterministic; include required newlines. Use input.source=user for secrets, choices, preferences, or prompts you cannot predict reliably, and do not invent that input.",
+    ],
+    parameters,
     execute(toolCallId, params, signal, onUpdate, context) {
-      return executionContext.run({ toolCallId }, () =>
+      const execution = {
+        toolCallId,
+        ...(params.input ? { input: params.input } : {}),
+      };
+      return executionContext.run(execution, () =>
         execute(toolCallId, params, signal, onUpdate, context),
       );
     },
