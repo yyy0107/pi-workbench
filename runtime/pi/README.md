@@ -69,12 +69,16 @@ Unary RPC 是 session、workspace 和 running 状态的权威快照；WebSocket 
 - LLM：`llm.providers`、`llm.providerConfig`、`llm.startProviderLogin`、
   `llm.providerLogin`、`llm.respondProviderLogin`、`llm.cancelProviderLogin`、`llm.configureProvider`、
   `llm.removeProvider`、`llm.modelContextWindow`、`llm.updateModelContextWindow`、
+  `llm.resetModelContextWindow`、
   `llm.models`、`llm.discoverModels`、`llm.testModelImageInput`；
 - Session：`session.list`、`session.search`、`session.create`、`session.history`、
+  `session.regenerate`、`session.resume`、`session.selectBranch`、
   `session.contextTrace.activations`、`session.contextTrace.list`、`session.contextTrace.read`、
-  `session.models`、`session.selectModel`、`session.rename`、`session.fork`、
+  `session.models`、`session.selectModel`、`session.contextPolicy`、
+  `session.updateContextPolicy`、`session.compactContext`、`session.rename`、`session.fork`、
   `session.delete`、`session.prompt`、`session.attachment`、`session.updateQueue`、
   `session.cancel`。
+- External session import：`sessionImport.scan`、`sessionImport.import`；
 
 另外还提供：
 
@@ -254,11 +258,18 @@ Pi `ModelRuntime` 是 provider、model 和凭证状态的权威来源：
   设置页编辑与保存时保留；
 - `llm.modelContextWindow` 读取单个模型的有效上下文窗口；`llm.updateModelContextWindow` 通过
   `models.json` 的 `modelOverrides` 只覆盖该模型的 `contextWindow`，并保留 provider 凭证、headers
-  及其他模型配置。这个值只供 Pi 做 token 容量统计、溢出判断和自动压缩，不会作为 API 的
+  及其他模型配置；`llm.resetModelContextWindow` 只删除该覆盖字段，恢复 Provider 目录值。这个值只供 Pi 做 token 容量统计、溢出判断和自动压缩，不会作为 API 的
   `max_tokens` 发送；`maxTokens` 是独立的最大输出元数据，由 provider 适配器映射到对应的输出参数；
 - `session.models` 在 catalog 之外还返回 session 当前选择和 `routable` 状态；
 - `session.selectModel` 与 prompt/queue mutation 串行执行，避免与正在提交的图片 prompt
-  发生竞态。
+  发生竞态；session context policy 也使用同一 mutation 队列，按 `inherit`、`auto`、`maximum`
+  或 `custom` 计算当前模型的有效预算。策略作为 branch-local custom entry 持久化，fork 会复制
+  当前有效 marker；`inherit` 写入 reset tombstone，只移除会话 override，不修改全局压缩默认值或
+  模型容量配置。`session.contextPolicy` 还返回当前模型输入的分项估算：系统提示词、Skills、上下文
+  文件/注入内容、内置/MCP/扩展工具 Schema、用户输入、助手历史、工具结果与其他输入；当 Pi 已有
+  当前上下文总量时，各分项按内容权重对齐该总量，否则使用约 4 字符/token 的本地估算。Pi 的
+  `ToolInfo` 暂无显式 MCP 类型，因此 MCP 分类只采用保守的 source/name 元数据识别，未确认项归入
+  扩展工具 Schema。
 
 `llm.discoverModels` 可以读取 OpenAI-compatible `GET <baseURL>/models`，也可以使用
 Anthropic `GET <baseURL>/v1/models`（当 base URL 已以 `/v1` 结尾时不会重复追加）及其游标分页，
@@ -423,7 +434,12 @@ Workbench 自身依赖的 Pi 生命周期适配器通过 `DefaultResourceLoader`
 `extensionFactories` 注入，只作用于 Workbench 创建的 session。它们不写入用户或项目扩展目录，
 不进入 `extension.list`、文件读取和启停/删除 RPC，也不会被同一 Pi agent 目录下的 TUI 或其他客户端
 自动加载。内部扩展初始化失败写入 Host 日志，不计入面向用户的扩展加载错误数量。当前消息终止原因
-归一化使用这一机制在 Pi 持久化 `message_end` 前写入版本化 diagnostic。
+归一化使用这一机制在 Pi 持久化 `message_end` 前写入版本化 diagnostic；Workbench 的 `ask_user`
+工具也由隐藏内联扩展注册，通过统一 Workbench settings 中的 `askUserEnabled` 开关同步到每个已加载
+session 的 active tools。开关关闭时工具不会进入后续模型请求，已经发出的待回答问题则由 Composer
+Overlay 取消，避免 session 在不可见状态下等待。`ask_user` 的结构化选项允许至多一个
+`recommended: true`，该语义通过 question stream 和历史 tool result 原样保留，由 Workbench 在具体
+选项后显示本地化推荐标记。
 
 `extension.setEnabled` 是 loopback-only mutation，并要求请求携带当前列表返回的完整扩展身份。
 它沿用 Pi Config Selector 的精确 `+path` / `-path` 规则：顶层扩展更新对应作用域的 `extensions`，
@@ -500,13 +516,79 @@ Project Trust。移除与安装共享同一个进程内串行队列，并且只�
 
 ## Session 生命周期和持久状态
 
+### 外部会话导入
+
+Workbench 内置的数据导入扩展通过两个 loopback-only RPC 读取本机 Codex、Claude Code 和 Cursor
+会话。`sessionImport.scan` 只从固定的应用数据目录返回可序列化预览，不接受浏览器提交文件路径；
+`sessionImport.import` 只接受扫描结果中的 `source + sourceSessionId` 身份，并在服务端重新解析权威
+来源。当前适配格式是 Codex session JSONL、Claude Code project JSONL，以及 Cursor
+`globalStorage/state.vscdb` 中的 `composerHeaders`、`composerData:*` 与 `bubbleId:*`。
+用户入口注册在 Workbench 设置的“数据 → 导入项目与会话”分区；该设置项直接承载扫描、选择和导入
+状态，不在侧边栏、移动端 Header 或对话区 Main View 注册第二个入口。
+
+导入器使用 Pi 公开的 `SessionManager.create()`、`appendModelChange()`、`appendMessage()`、
+`appendCustomEntry()` 和 `appendSessionInfo()` 生成原生 Pi JSONL；不会复制或手写 Pi 的文件格式。
+导入后的会话因此直接进入既有的 list、history、search、fork、rename、archive 和 export 流程。每个
+外部身份映射为由 SHA-256 派生的稳定 Pi session id，并写入
+`workbench.external-session-import.v1` provenance entry；重复执行会稳定跳过已经导入的记录。
+
+只迁移当前对话分支中的用户消息、助手文本、可用的 reasoning/thinking 摘要和配对的工具调用/结果。
+Codex world state、系统/开发者提示词、凭据、原始 Provider 加密 reasoning、Cursor 加密 blob 和应用
+专用编辑状态不会进入 Pi。Claude Code 图片目前以省略占位文本表示。来源项目目录必须仍然存在且为
+目录；缺失的旧路径会在预览中禁用，不会被自动重定向到其他 Workspace。成功写入后，导入器通过
+WorkspaceStore 创建或复用项目并绑定 session，同时向共享 host stream 发布既有的 session/workspace
+增量，不建立第二条事件连接。
+
 Pi `SessionManager` 管理 JSONL session。进程内的 session registry 为正在使用的 session
 创建 `HostedPiSession`，并允许多个 session 独立后台运行。空闲且没有暂停队列的 host 在
 10 分钟后释放；JSONL 历史不会因此丢失，下一次访问会 cold-open。
 
+`session.list` 和 `workspace.list` 的冷启动目录使用独立的
+`~/.pi/agent/workbench-session-index.v1.json` 持久索引。索引只保存 Pi `SessionInfo`、Workbench
+列表摘要、全文搜索文本和 JSONL 的 `size:mtimeMs` fingerprint，并以 mode-0600 原子替换；Pi JSONL
+仍是会话权威数据。服务进程重启后先读取索引并对目录执行轻量 stat，只用 `SessionManager.open()`
+重建新增或变化的文件；索引缺失、损坏或版本不匹配时才回退到 `SessionManager.listAll()`。列表和
+`session.search` 共享这一份目录数据，因此搜索不会再次全量扫描所有 JSONL。每轮冷恢复会输出
+`[workbench-pi] session catalog` 结构化耗时，包含索引命中、文件数、总字节、fingerprint、全量解析
+和索引写入时间。
+
 Workbench 在 Pi JSONL 中保存 canonical event journal。每个 `SessionEvent` 都包含稳定递增的
 `seq`、epoch-millisecond `time` 和原始 `data`，因此 cold history 和 live mux 使用同一事件
 序列。`session.history` 按完整消息组分页，避免把 `message_start` / `message_end` 组从中间切开。
+尾页还返回从 Pi session tree 投影出的可切换 branches；每个分支使用稳定 `leafId` 标识，
+`headLeafId` 指向当前活动分支。
+
+`session.regenerate({ sessionId, messageId })` 从已有用户消息的稳定 journal entry 重新执行回答。
+服务端把该用户消息所在位置激活为新的 branch，再调用 Pi agent continuation，因此不会追加一条重复的
+用户消息，原回答也继续保留为 sibling branch。`session.selectBranch({ sessionId, leafId })` 选择
+`session.history.branches` 返回的 leaf，重建 Pi model context 和 branch-local context policy，刷新
+canonical event watermark，并用 `workbench.branch-selection.v1` custom entry 持久化这次选择。
+两种 mutation 都与 prompt/queue mutation 串行执行；session 正在运行时返回 busy，客户端不得只在
+assistant-ui 本地切换分支而不提交权威 RPC。
+
+可恢复中止使用同一份 Pi JSONL，而不是浏览器临时状态。一次 run 到达 `agent_settled` 后，如果最后的
+assistant message 被归类为用户停止、进程中止、网络错误、限流、额度/鉴权或 Provider 错误，Hosted
+Session 会追加 `workbench.resume-checkpoint.v1` custom entry。checkpoint 保存 terminal message 的
+canonical entry id、恢复前的 context anchor、事件序号、模型与中止原因；`session.history` 尾页将当前
+branch 上仍有效的 checkpoint 投影到 `resume.checkpoint`。后续出现新的 user/assistant/tool-result
+context message 时，该 checkpoint 自动失效，不需要修改或删除旧 JSONL entry。
+
+`session.resume({ sessionId, checkpointId, expectedLeafId })` 是“继续当前任务”：服务端同时校验
+checkpoint identity 与当前 branch leaf，拒绝 stale 请求；再从持久化 context 中去掉末尾未完成的
+assistant error/aborted message，要求剩余上下文以 user 或 tool-result 结束，然后调用 Pi continuation。
+它不会截断历史，也不会创建 regenerate 的 sibling branch。续跑请求会追加
+`workbench.resume-attempt.v1` 审计 entry。若一次已开始的工具调用没有对应的持久化 tool-result，
+checkpoint 会标记为 `confirmation-required` 并拒绝自动继续，以免重复执行外部副作用。额度或鉴权失败
+在原模型上标记为 blocked；用户切换到其他可用模型后，同一个 checkpoint 会重新投影为 ready。UI 因此
+只在 checkpoint ready 时把停止卡片的动作显示为“继续”；“重试”仍对应 `session.regenerate`，两者语义
+保持独立。
+
+活动运行的计时由 Hosted Session 在服务端维护。`session.list`、`host/session-status`、
+`session/prompt-accepted` 和活动 `session/event` 都携带同一个 `runTiming`，其中 `startedAt` 是服务端
+记录的 epoch-millisecond 起点，`elapsedMs` 是该 payload 序列化时由服务端计算的已运行时间。连续的
+steer 保持当前起点；一个终态 assistant response 后立即消费 follow-up 时，下一次 `agent_start` 会按
+新的服务端事件时间重置起点。浏览器只用单调时钟在两次服务端快照之间做显示插值，不从本地墙上时钟、
+组件挂载时间或消息列表猜测运行起点；重连则重新以 unary/stream 的服务端快照校准。
 
 ### 上下文观测接口
 
@@ -518,6 +600,12 @@ Model Step 的完成边界；它同时记录当时的 model、thinking level 和
 非缓存输入、输出、缓存读取、缓存写入和总量；Provider 可用时还保留 reasoning（输出的子集）与一小时
 缓存写入拆分。工具执行发生在该边界之后，并以 `toolCallId` 与 output 中的 tool call 配对。观测坐标按
 下面的层次关联：
+
+`prompt-composition` 仍保存扩展处理后的完整 system prompt 作为审计真值，但 UI 的 `SYSTEM` 节点使用
+移除 Pi 格式化 Skills 块后的独立投影。System Prompt 的加载来源直接读取 Pi `ResourceLoader`：受信任
+项目的 `.pi/SYSTEM.md` 优先于用户目录 `~/.pi/agent/SYSTEM.md`，两者都不存在时标记为 Pi 内置默认；
+`.pi/APPEND_SYSTEM.md` 与用户目录 `APPEND_SYSTEM.md` 按同样优先级记录为追加层。Skills、AGENTS/context
+files 和工作目录仍是独立上下文，不伪装成 System Prompt 文件来源。
 
 ```text
 sessionId
@@ -760,6 +848,8 @@ runtime/pi/
 - `PI_WORKBENCH_IMAGE_UNDERSTANDING_STATE_FILE`：旧版图片理解独立状态文件兼容覆盖；
 - `PI_WORKBENCH_CONTEXT_TRACE_DIR`：独立的上下文审计 journal 根目录；默认是
   `~/.pi/agent/workbench-context-traces/v1`。
+- `PI_WORKBENCH_SESSION_INDEX_FILE`：会话目录持久索引文件；默认是
+  `~/.pi/agent/workbench-session-index.v1.json`，主要供隔离测试或特殊部署覆盖。
 
 ## 运行和验证
 
