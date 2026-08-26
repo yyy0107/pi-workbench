@@ -24,8 +24,10 @@ import type {
   SessionContextTraceEventSummary,
   SessionContextTraceJsonCapture,
   SessionContextTraceKind,
+  SessionContextTraceSystemPromptSource,
   SessionContextTraceTextCapture,
   SessionContextTraceTokenUsage,
+  SessionContextTraceTool,
 } from "@/runtime/pi/rpc-contracts";
 
 import {
@@ -35,6 +37,7 @@ import {
   listContextTraceOutputBlocks,
   type ContextTraceMessageRole,
 } from "./context-trace-messages";
+import { contextTraceSelectedRawValue } from "./context-trace-detail-selection";
 
 export type ContextTraceDetailState =
   | { status: "idle" }
@@ -43,7 +46,15 @@ export type ContextTraceDetailState =
   | { status: "evicted" }
   | { status: "error" };
 
-export type ContextTraceDetailView = "summary" | "preview" | "raw" | "source";
+export type ContextTraceDetailView =
+  | "summary"
+  | "preview"
+  | "raw"
+  | "source"
+  | "payload"
+  | "result"
+  | "schema"
+  | "timing";
 
 export type ContextTraceDetailFocus =
   | {
@@ -56,8 +67,13 @@ export type ContextTraceDetailFocus =
         | "tool-schema"
         | "attachments";
     }
+  | { type: "system-prompt-source"; index: number }
   | { type: "prompt-tool"; toolName: string }
-  | { type: "context-message"; sourceIndex: number }
+  | {
+      type: "context-message";
+      sourceIndex: number;
+      role?: ContextTraceMessageRole;
+    }
   | {
       type: "trace-node";
       node: "model-step" | "context" | "conversation" | "final-response";
@@ -69,6 +85,46 @@ export type ContextTraceDetailFocus =
       section: "overview" | "summary" | "messages-to-summarize" | "turn-prefix";
     }
   | { type: "message-role"; role: "user" | "assistant" | "tool" };
+
+export type ContextTraceDetailVariant = "event" | "user-message" | "tool-execution";
+
+export interface ContextTraceToolDetailContext {
+  start?: {
+    summary: SessionContextTraceEventSummary;
+    detail: ContextTraceDetailState;
+  };
+  end?: {
+    summary: SessionContextTraceEventSummary;
+    detail: ContextTraceDetailState;
+  };
+  schema?: SessionContextTraceTool;
+  schemaDetail?: ContextTraceDetailState;
+}
+
+export function contextTraceDetailVariant(
+  summary: SessionContextTraceEventSummary | undefined,
+  focus: ContextTraceDetailFocus | undefined,
+): ContextTraceDetailVariant {
+  if (summary?.kind === "tool-execution-start" || summary?.kind === "tool-execution-end") {
+    return "tool-execution";
+  }
+  if (
+    (focus?.type === "prompt-section" && focus.section === "user-prompt") ||
+    (focus?.type === "context-message" && focus.role === "user")
+  ) {
+    return "user-message";
+  }
+  return "event";
+}
+
+export function contextTraceDetailViews(
+  summary: SessionContextTraceEventSummary | undefined,
+  focus: ContextTraceDetailFocus | undefined,
+): readonly ContextTraceDetailView[] {
+  return contextTraceDetailVariant(summary, focus) === "tool-execution"
+    ? (["summary", "payload", "result", "schema", "timing"] as const)
+    : (["summary", "preview", "raw", "source"] as const);
+}
 
 export function contextTraceEventLabel(t: Translate, kind: SessionContextTraceKind): string {
   switch (kind) {
@@ -247,6 +303,385 @@ function JsonCaptureView({ capture }: { capture: SessionContextTraceJsonCapture 
   );
 }
 
+function SemanticKeyValueGrid({ items }: { items: readonly [string, ReactNode][] }) {
+  return (
+    <dl className="grid grid-cols-[minmax(7rem,auto)_minmax(0,1fr)] gap-x-3 gap-y-2 text-xs">
+      {items.map(([label, value]) => (
+        <div key={label} className="contents">
+          <dt className="text-muted-foreground">{label}</dt>
+          <dd className="min-w-0 break-words text-sm leading-5">{value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function DetailNavigationValue({
+  children,
+  onClick,
+}: {
+  children: ReactNode;
+  onClick?: () => void;
+}) {
+  if (!onClick) {
+    return (
+      <span className="inline-flex items-center gap-0.5">
+        {children}
+        <ChevronRightIcon aria-hidden="true" className="text-muted-foreground size-3.5" />
+      </span>
+    );
+  }
+  return (
+    <button
+      type="button"
+      className="hover:text-foreground focus-visible:ring-ring inline-flex items-center gap-0.5 rounded-sm outline-none focus-visible:ring-2"
+      onClick={onClick}
+    >
+      {children}
+      <ChevronRightIcon aria-hidden="true" className="text-muted-foreground size-3.5" />
+    </button>
+  );
+}
+
+function SemanticSection({
+  children,
+  onOpen,
+  title,
+}: {
+  children: ReactNode;
+  onOpen?: () => void;
+  title: string;
+}) {
+  return (
+    <section className="border-b px-3 py-3 last:border-b-0">
+      <h3 className="text-sm font-medium">
+        {onOpen ? (
+          <button
+            type="button"
+            className="hover:text-foreground focus-visible:ring-ring inline-flex items-center gap-0.5 rounded-sm outline-none focus-visible:ring-2"
+            onClick={onOpen}
+          >
+            {title}
+            <ChevronRightIcon aria-hidden="true" className="text-muted-foreground size-3.5" />
+          </button>
+        ) : (
+          <span className="inline-flex items-center gap-0.5">
+            {title}
+            <ChevronRightIcon aria-hidden="true" className="text-muted-foreground size-3.5" />
+          </span>
+        )}
+      </h3>
+      <div className="mt-2">{children}</div>
+    </section>
+  );
+}
+
+function DetailStateMessage({ state }: { state: ContextTraceDetailState | undefined }) {
+  const { t } = useI18n();
+  return (
+    <p className="text-muted-foreground text-xs">
+      {state?.status === "loading"
+        ? t("extensions.contextTrace.loadingDetail")
+        : state?.status === "evicted"
+          ? t("extensions.contextTrace.evictedDescription")
+          : state?.status === "error"
+            ? t("extensions.contextTrace.detailFailed")
+            : t("extensions.contextTrace.none")}
+    </p>
+  );
+}
+
+function UserMessagePreview({
+  event,
+  focus,
+}: {
+  event: SessionContextTraceEvent;
+  focus?: ContextTraceDetailFocus;
+}) {
+  const { t } = useI18n();
+  if (event.kind === "prompt-composition") {
+    return (
+      <>
+        <CaptureMetadata capture={event.detail.prompt} />
+        <p className="whitespace-pre-wrap break-words text-sm leading-6">
+          {event.detail.prompt.text || t("extensions.contextTrace.contextContentUnavailable")}
+        </p>
+      </>
+    );
+  }
+  if (event.kind === "context-snapshot" && focus?.type === "context-message") {
+    const entry = listContextTraceMessages(event.detail.messages.value).find(
+      (candidate) => candidate.sourceIndex === focus.sourceIndex,
+    );
+    return (
+      <p className="whitespace-pre-wrap break-words text-sm leading-6">
+        {entry?.text || t("extensions.contextTrace.contextContentUnavailable")}
+      </p>
+    );
+  }
+  return <DetailStateMessage state={{ status: "idle" }} />;
+}
+
+function UserMessageSummary({
+  event,
+  focus,
+  onViewChange,
+}: {
+  event: SessionContextTraceEvent;
+  focus?: ContextTraceDetailFocus;
+  onViewChange?: (view: ContextTraceDetailView) => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <div>
+      <div className="border-b px-3 py-4">
+        <SemanticKeyValueGrid
+          items={[
+            [
+              t("extensions.contextTrace.fields.source"),
+              <DetailNavigationValue
+                key="user-source"
+                onClick={onViewChange ? () => onViewChange("source") : undefined}
+              >
+                {t("extensions.contextTrace.userSource")}
+              </DetailNavigationValue>,
+            ],
+            [t("extensions.contextTrace.fields.status"), t("extensions.contextTrace.completed")],
+            [
+              t("extensions.contextTrace.fields.duration"),
+              t("extensions.contextTrace.duration", { value: 0 }),
+            ],
+          ]}
+        />
+      </div>
+      <SemanticSection
+        title={t("extensions.contextTrace.detailTabs.preview")}
+        onOpen={onViewChange ? () => onViewChange("preview") : undefined}
+      >
+        <UserMessagePreview event={event} focus={focus} />
+      </SemanticSection>
+    </div>
+  );
+}
+
+function UserMessageSourceDetail({ event }: { event: SessionContextTraceEvent }) {
+  const { date, t } = useI18n();
+  return (
+    <SemanticSection title={t("extensions.contextTrace.detailTabs.source")}>
+      <SemanticKeyValueGrid
+        items={[
+          [t("extensions.contextTrace.fields.source"), t("extensions.contextTrace.userSource")],
+          [
+            t("extensions.contextTrace.fields.time"),
+            date(event.time, { dateStyle: "medium", timeStyle: "medium" }),
+          ],
+        ]}
+      />
+    </SemanticSection>
+  );
+}
+
+type ToolExecutionStartEvent = Extract<SessionContextTraceEvent, { kind: "tool-execution-start" }>;
+type ToolExecutionEndEvent = Extract<SessionContextTraceEvent, { kind: "tool-execution-end" }>;
+
+function readyToolStart(
+  event: SessionContextTraceEvent,
+  context: ContextTraceToolDetailContext | undefined,
+): ToolExecutionStartEvent | undefined {
+  if (event.kind === "tool-execution-start") return event;
+  const related = context?.start?.detail;
+  return related?.status === "ready" && related.event.kind === "tool-execution-start"
+    ? related.event
+    : undefined;
+}
+
+function readyToolEnd(
+  event: SessionContextTraceEvent,
+  context: ContextTraceToolDetailContext | undefined,
+): ToolExecutionEndEvent | undefined {
+  if (event.kind === "tool-execution-end") return event;
+  const related = context?.end?.detail;
+  return related?.status === "ready" && related.event.kind === "tool-execution-end"
+    ? related.event
+    : undefined;
+}
+
+function ToolPayloadDetail({
+  context,
+  event,
+}: {
+  context?: ContextTraceToolDetailContext;
+  event: SessionContextTraceEvent;
+}) {
+  const start = readyToolStart(event, context);
+  return start ? (
+    <JsonCaptureView capture={start.detail.args} />
+  ) : (
+    <DetailStateMessage state={context?.start?.detail} />
+  );
+}
+
+function ToolResultDetail({
+  context,
+  event,
+}: {
+  context?: ContextTraceToolDetailContext;
+  event: SessionContextTraceEvent;
+}) {
+  const end = readyToolEnd(event, context);
+  return end ? (
+    <JsonCaptureView capture={end.detail.result} />
+  ) : (
+    <DetailStateMessage state={context?.end?.detail} />
+  );
+}
+
+function ToolExecutionSchemaDetail({
+  context,
+  showParameters,
+}: {
+  context?: ContextTraceToolDetailContext;
+  showParameters: boolean;
+}) {
+  const { t } = useI18n();
+  const tool = context?.schema;
+  if (!tool) return <DetailStateMessage state={context?.schemaDetail} />;
+  return (
+    <div className="space-y-2 text-sm leading-6">
+      <p className="font-semibold">{tool.name}</p>
+      <p className="text-muted-foreground">
+        {tool.description || t("extensions.contextTrace.none")}
+      </p>
+      {showParameters ? <JsonCaptureView capture={tool.parameters} /> : null}
+    </div>
+  );
+}
+
+function ToolTimingDetail({
+  context,
+  event,
+}: {
+  context?: ContextTraceToolDetailContext;
+  event: SessionContextTraceEvent;
+}) {
+  const { date, t } = useI18n();
+  const start =
+    context?.start?.summary ?? (event.kind === "tool-execution-start" ? event : undefined);
+  const end = context?.end?.summary ?? (event.kind === "tool-execution-end" ? event : undefined);
+  const duration = start && end ? Math.max(0, end.time - start.time) : undefined;
+  return (
+    <SemanticKeyValueGrid
+      items={[
+        [
+          t("extensions.contextTrace.fields.started"),
+          start ? date(start.time, { dateStyle: "medium", timeStyle: "medium" }) : "—",
+        ],
+        [
+          t("extensions.contextTrace.fields.duration"),
+          duration === undefined ? "—" : t("extensions.contextTrace.duration", { value: duration }),
+        ],
+      ]}
+    />
+  );
+}
+
+function ToolExecutionSummary({
+  context,
+  event,
+  onViewChange,
+}: {
+  context?: ContextTraceToolDetailContext;
+  event: SessionContextTraceEvent;
+  onViewChange?: (view: ContextTraceDetailView) => void;
+}) {
+  const { t } = useI18n();
+  const end = readyToolEnd(event, context);
+  const status = end?.detail.isError
+    ? t("extensions.contextTrace.failed")
+    : context?.end?.summary || event.kind === "tool-execution-end"
+      ? t("extensions.contextTrace.completed")
+      : t("extensions.contextTrace.running");
+  return (
+    <div>
+      <div className="border-b px-3 py-4">
+        <SemanticKeyValueGrid
+          items={[
+            [
+              t("extensions.contextTrace.fields.hierarchy"),
+              <DetailNavigationValue key="tool-hierarchy">
+                {t("extensions.contextTrace.assistantMessage")}
+              </DetailNavigationValue>,
+            ],
+            [t("extensions.contextTrace.fields.status"), status],
+          ]}
+        />
+      </div>
+      <SemanticSection
+        title={t("extensions.contextTrace.detailTabs.payload")}
+        onOpen={onViewChange ? () => onViewChange("payload") : undefined}
+      >
+        <ToolPayloadDetail event={event} context={context} />
+      </SemanticSection>
+      <SemanticSection
+        title={t("extensions.contextTrace.detailTabs.result")}
+        onOpen={onViewChange ? () => onViewChange("result") : undefined}
+      >
+        <ToolResultDetail event={event} context={context} />
+      </SemanticSection>
+      <SemanticSection
+        title={t("extensions.contextTrace.detailTabs.schema")}
+        onOpen={onViewChange ? () => onViewChange("schema") : undefined}
+      >
+        <ToolExecutionSchemaDetail context={context} showParameters={false} />
+      </SemanticSection>
+      <SemanticSection
+        title={t("extensions.contextTrace.detailTabs.timing")}
+        onOpen={onViewChange ? () => onViewChange("timing") : undefined}
+      >
+        <ToolTimingDetail event={event} context={context} />
+      </SemanticSection>
+    </div>
+  );
+}
+
+function ToolExecutionDetailView({
+  context,
+  event,
+  view,
+}: {
+  context?: ContextTraceToolDetailContext;
+  event: SessionContextTraceEvent;
+  view: Exclude<ContextTraceDetailView, "summary" | "preview" | "raw" | "source">;
+}) {
+  const { t } = useI18n();
+  switch (view) {
+    case "payload":
+      return (
+        <SemanticSection title={t("extensions.contextTrace.detailTabs.payload")}>
+          <ToolPayloadDetail event={event} context={context} />
+        </SemanticSection>
+      );
+    case "result":
+      return (
+        <SemanticSection title={t("extensions.contextTrace.detailTabs.result")}>
+          <ToolResultDetail event={event} context={context} />
+        </SemanticSection>
+      );
+    case "schema":
+      return (
+        <SemanticSection title={t("extensions.contextTrace.detailTabs.schema")}>
+          <ToolExecutionSchemaDetail context={context} showParameters />
+        </SemanticSection>
+      );
+    case "timing":
+      return (
+        <SemanticSection title={t("extensions.contextTrace.detailTabs.timing")}>
+          <ToolTimingDetail event={event} context={context} />
+        </SemanticSection>
+      );
+  }
+}
+
 function MessageList({
   capture,
   roles = CONTEXT_TRACE_MESSAGE_ROLES,
@@ -339,6 +774,62 @@ function MessageList({
 }
 
 type PromptCompositionEvent = Extract<SessionContextTraceEvent, { kind: "prompt-composition" }>;
+
+function visibleSystemPrompt(event: PromptCompositionEvent): SessionContextTraceTextCapture {
+  return event.detail.systemPromptWithoutSkills ?? event.detail.systemPrompt;
+}
+
+function systemPromptSourceKindLabel(
+  t: Translate,
+  kind: SessionContextTraceSystemPromptSource["kind"],
+): string {
+  return t(`extensions.contextTrace.systemPromptSourceKinds.${kind}`);
+}
+
+function systemPromptSourceScopeLabel(
+  t: Translate,
+  scope: SessionContextTraceSystemPromptSource["scope"],
+): string {
+  return t(`extensions.contextTrace.systemPromptSourceScopes.${scope}`);
+}
+
+function SystemPromptSourceView({
+  event,
+  index,
+}: {
+  event: PromptCompositionEvent;
+  index: number;
+}) {
+  const { t } = useI18n();
+  const source = event.detail.systemPromptSources?.[index];
+  if (!source) {
+    return <p className="text-muted-foreground p-3 text-xs">{t("extensions.contextTrace.none")}</p>;
+  }
+  return (
+    <div className="space-y-3">
+      <Section title={systemPromptSourceKindLabel(t, source.kind)}>
+        <KeyValueGrid
+          items={[
+            [
+              t("extensions.contextTrace.fields.scope"),
+              systemPromptSourceScopeLabel(t, source.scope),
+            ],
+            [t("extensions.contextTrace.fields.path"), source.path ?? "—"],
+          ]}
+        />
+      </Section>
+      <Section title={t("extensions.contextTrace.systemPromptSourceContent")}>
+        {source.content ? (
+          <TextCaptureView capture={source.content} />
+        ) : (
+          <p className="text-muted-foreground text-xs">
+            {t("extensions.contextTrace.piDefaultPromptDescription")}
+          </p>
+        )}
+      </Section>
+    </div>
+  );
+}
 
 function SkillsView({ event }: { event: PromptCompositionEvent }) {
   const { t } = useI18n();
@@ -458,8 +949,8 @@ function PromptCompositionDetail({ event }: { event: PromptCompositionEvent }) {
 
       {detail.contextUsage ? <ContextWindowUsageView usage={detail.contextUsage} /> : null}
 
-      <Section title={t("extensions.contextTrace.finalSystemPrompt")}>
-        <TextCaptureView capture={detail.systemPrompt} />
+      <Section title={t("extensions.contextTrace.systemPromptWithoutSkills")}>
+        <TextCaptureView capture={visibleSystemPrompt(event)} />
       </Section>
 
       <Section title={t("extensions.contextTrace.userPrompt")}>
@@ -872,8 +1363,8 @@ function FocusedContextDetail({
         );
       case "system-prompt":
         return (
-          <Section title={t("extensions.contextTrace.finalSystemPrompt")}>
-            <TextCaptureView capture={event.detail.systemPrompt} />
+          <Section title={t("extensions.contextTrace.systemPromptWithoutSkills")}>
+            <TextCaptureView capture={visibleSystemPrompt(event)} />
           </Section>
         );
       case "skills":
@@ -908,6 +1399,9 @@ function FocusedContextDetail({
           </Section>
         );
     }
+  }
+  if (focus.type === "system-prompt-source" && event.kind === "prompt-composition") {
+    return <SystemPromptSourceView event={event} index={focus.index} />;
   }
   if (focus.type === "prompt-tool" && event.kind === "prompt-composition") {
     return <ToolSchemaView event={event} toolName={focus.toolName} />;
@@ -965,7 +1459,37 @@ function FocusedContextDetail({
   if (focus.type === "compaction-section" && event.kind === "compaction") {
     return <CompactionDetail event={event} section={focus.section} />;
   }
-  return <EventSpecificDetail event={event} />;
+  if (focus.type === "trace-node") {
+    if (focus.node === "conversation" && event.kind === "context-snapshot") {
+      return (
+        <Section title={t("extensions.contextTrace.tree.conversation")}>
+          <MessageList capture={event.detail.messages} />
+        </Section>
+      );
+    }
+    if (
+      focus.node === "final-response" &&
+      (event.kind === "model-output" || event.kind === "turn-end")
+    ) {
+      return (
+        <Section title={t("extensions.contextTrace.tree.finalResponse")}>
+          <JsonCaptureView capture={event.detail.message} />
+        </Section>
+      );
+    }
+    return <EventSpecificDetail event={event} />;
+  }
+
+  const selectedValue = contextTraceSelectedRawValue(event, focus);
+  return (
+    <Section title={contextTraceEventLabel(t, event.kind)}>
+      <CodeBlock>
+        {typeof selectedValue === "string"
+          ? selectedValue
+          : (JSON.stringify(selectedValue, null, 2) ?? "")}
+      </CodeBlock>
+    </Section>
+  );
 }
 
 function EventOverview({ summary }: { summary: SessionContextTraceEventSummary }) {
@@ -1059,7 +1583,107 @@ function SourceList({ items }: { items: readonly { label: string; path?: string 
   );
 }
 
-function EventSourceDetail({ event }: { event: SessionContextTraceEvent }) {
+interface PromptSourceSelection {
+  resources: readonly { label: string; path?: string }[];
+  scoped: boolean;
+  title: string;
+}
+
+function selectPromptSources(
+  event: PromptCompositionEvent,
+  focus: ContextTraceDetailFocus | undefined,
+  t: Translate,
+): PromptSourceSelection {
+  const options = event.detail.systemPromptOptions;
+  const systemPromptSources = (event.detail.systemPromptSources ?? []).map((source) => ({
+    label: systemPromptSourceKindLabel(t, source.kind),
+    path: source.path,
+  }));
+  const contextFiles = options.contextFiles.map((file) => ({
+    label: file.path,
+    path: file.path,
+  }));
+  const skills = options.skills.map((skill) => ({
+    label: skill.name,
+    path: skill.filePath,
+  }));
+  const tools = event.detail.tools.map((tool) => ({
+    active: tool.active,
+    label: tool.name,
+    path: tool.source.path,
+  }));
+
+  if (focus?.type === "system-prompt-source") {
+    const source = systemPromptSources[focus.index];
+    return {
+      resources: source ? [source] : [],
+      scoped: true,
+      title: t("extensions.contextTrace.fields.source"),
+    };
+  }
+  if (focus?.type === "prompt-tool") {
+    const tool = tools.find((candidate) => candidate.label === focus.toolName);
+    return {
+      resources: tool ? [tool] : [],
+      scoped: true,
+      title: t("extensions.contextTrace.toolSchemas"),
+    };
+  }
+  if (focus?.type === "prompt-section") {
+    switch (focus.section) {
+      case "system-prompt":
+        return {
+          resources: systemPromptSources,
+          scoped: true,
+          title: t("extensions.contextTrace.fields.source"),
+        };
+      case "skills":
+        return {
+          resources: skills,
+          scoped: true,
+          title: t("extensions.contextTrace.skills"),
+        };
+      case "context-files":
+        return {
+          resources: contextFiles,
+          scoped: true,
+          title: t("extensions.contextTrace.contextFiles"),
+        };
+      case "tool-schema":
+        return {
+          resources: tools.filter((tool) => tool.active),
+          scoped: true,
+          title: t("extensions.contextTrace.toolSchemas"),
+        };
+      case "attachments":
+        return {
+          resources: [],
+          scoped: true,
+          title: t("extensions.contextTrace.images"),
+        };
+      case "user-prompt":
+        return {
+          resources: [],
+          scoped: true,
+          title: t("extensions.contextTrace.fields.source"),
+        };
+    }
+  }
+
+  return {
+    resources: [...systemPromptSources, ...contextFiles, ...skills, ...tools],
+    scoped: false,
+    title: t("extensions.contextTrace.sourceResources"),
+  };
+}
+
+function EventSourceDetail({
+  event,
+  focus,
+}: {
+  event: SessionContextTraceEvent;
+  focus?: ContextTraceDetailFocus;
+}) {
   const { t } = useI18n();
   if (event.kind !== "prompt-composition") {
     return (
@@ -1074,29 +1698,18 @@ function EventSourceDetail({ event }: { event: SessionContextTraceEvent }) {
   }
 
   const options = event.detail.systemPromptOptions;
-  const resources = [
-    ...options.contextFiles.map((file) => ({
-      label: file.path,
-      path: file.path,
-    })),
-    ...options.skills.map((skill) => ({
-      label: skill.name,
-      path: skill.filePath,
-    })),
-    ...event.detail.tools.map((tool) => ({
-      label: tool.name,
-      path: tool.source.path,
-    })),
-  ];
+  const selection = selectPromptSources(event, focus, t);
 
   return (
     <div>
-      <Section title={t("extensions.contextTrace.sourceEnvironment")}>
-        <KeyValueGrid items={[[t("extensions.contextTrace.fields.cwd"), options.cwd]]} />
-      </Section>
-      <Section title={t("extensions.contextTrace.sourceResources")}>
-        {resources.length > 0 ? (
-          <SourceList items={resources} />
+      {selection.scoped ? null : (
+        <Section title={t("extensions.contextTrace.sourceEnvironment")}>
+          <KeyValueGrid items={[[t("extensions.contextTrace.fields.cwd"), options.cwd]]} />
+        </Section>
+      )}
+      <Section title={selection.title}>
+        {selection.resources.length > 0 ? (
+          <SourceList items={selection.resources} />
         ) : (
           <p className="text-muted-foreground text-xs">{t("extensions.contextTrace.none")}</p>
         )}
@@ -1108,12 +1721,16 @@ function EventSourceDetail({ event }: { event: SessionContextTraceEvent }) {
 export function ContextTraceDetail({
   detail,
   focus,
+  onViewChange,
   summary,
+  toolContext,
   view = "preview",
 }: {
   detail: ContextTraceDetailState;
   focus?: ContextTraceDetailFocus;
+  onViewChange?: (view: ContextTraceDetailView) => void;
   summary?: SessionContextTraceEventSummary;
+  toolContext?: ContextTraceToolDetailContext;
   view?: ContextTraceDetailView;
 }) {
   const { t } = useI18n();
@@ -1156,21 +1773,55 @@ export function ContextTraceDetail({
     );
   }
 
-  if (view === "summary") return <EventOverview summary={summary} />;
+  const variant = contextTraceDetailVariant(summary, focus);
+  if (view === "summary") {
+    if (variant === "user-message") {
+      return <UserMessageSummary event={detail.event} focus={focus} onViewChange={onViewChange} />;
+    }
+    if (variant === "tool-execution") {
+      return (
+        <ToolExecutionSummary
+          context={toolContext}
+          event={detail.event}
+          onViewChange={onViewChange}
+        />
+      );
+    }
+    return <EventOverview summary={summary} />;
+  }
+  if (
+    variant === "tool-execution" &&
+    (view === "payload" || view === "result" || view === "schema" || view === "timing")
+  ) {
+    return <ToolExecutionDetailView context={toolContext} event={detail.event} view={view} />;
+  }
   if (view === "preview") {
+    if (variant === "user-message") {
+      return (
+        <SemanticSection title={t("extensions.contextTrace.detailTabs.preview")}>
+          <UserMessagePreview event={detail.event} focus={focus} />
+        </SemanticSection>
+      );
+    }
     return focus ? (
       <FocusedContextDetail event={detail.event} focus={focus} />
     ) : (
       <EventSpecificDetail event={detail.event} />
     );
   }
-  if (view === "source") return <EventSourceDetail event={detail.event} />;
+  if (view === "source") {
+    return variant === "user-message" ? (
+      <UserMessageSourceDetail event={detail.event} />
+    ) : (
+      <EventSourceDetail event={detail.event} focus={focus} />
+    );
+  }
 
   return (
     <WorkbenchCodeView
       ariaLabel={t("extensions.contextTrace.detailTabs.raw")}
       name="context-trace.json"
-      value={JSON.stringify(detail.event, null, 2)}
+      value={JSON.stringify(contextTraceSelectedRawValue(detail.event, focus), null, 2) ?? ""}
       className="min-h-full"
     />
   );

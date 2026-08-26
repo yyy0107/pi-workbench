@@ -42,7 +42,7 @@ export function ContextTraceTrigger() {
           />
         ) : null}
       </span>
-      <span>{t("extensions.contextTrace.shortTitle")}</span>
+      <span className="hidden sm:inline">{t("extensions.contextTrace.shortTitle")}</span>
     </Button>
   );
 }

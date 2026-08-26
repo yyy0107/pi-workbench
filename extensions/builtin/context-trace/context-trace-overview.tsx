@@ -1,20 +1,60 @@
 "use client";
 
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+  type PointerEvent,
+} from "react";
+
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useI18n } from "@/i18n";
-import { cn } from "@/lib/utils";
 import type { SessionContextTraceEventSummary } from "@/runtime/pi/rpc-contracts";
 
 import { contextTraceEventLabel } from "./context-trace-detail";
+import css from "./context-trace-overview.module.css";
+
+const MINIMUM_DRAG_PX = 3;
+const TIMELINE_TOOLTIP_DELAY_MS = 500;
+
+export interface ContextTraceTimeRange {
+  start: number;
+  end: number;
+}
 
 interface TraceOverviewProps {
   events: readonly SessionContextTraceEventSummary[];
+  matchingTraceIds?: ReadonlySet<string> | null;
+  range: ContextTraceTimeRange | null;
   selectedTraceId?: string;
+  onRangeChange(range: ContextTraceTimeRange | null): void;
   onSelect(event: SessionContextTraceEventSummary): void;
 }
 
-interface TraceSegment {
+interface TraceSpan extends ContextTraceTimeRange {
   event: SessionContextTraceEventSummary;
-  endTime: number;
+  lane: 0 | 1 | 2;
+  point: boolean;
+  tone: "input" | "context" | "model" | "tool" | "recovery";
+}
+
+interface FractionRange {
+  start: number;
+  end: number;
+}
+
+interface HoverPoint {
+  fraction: number;
+  traceId: string | null;
+}
+
+interface DragGesture {
+  anchorClientX: number;
+  anchorTime: number;
+  pointerId: number;
 }
 
 function matchingModelEnd(
@@ -63,94 +103,328 @@ function matchingToolEnd(
   );
 }
 
-export function ContextTraceOverview({ events, selectedTraceId, onSelect }: TraceOverviewProps) {
+function orderedRange(left: number, right: number): ContextTraceTimeRange {
+  return left <= right ? { start: left, end: right } : { start: right, end: left };
+}
+
+function clampFraction(value: number): number {
+  return Math.min(1, Math.max(0, value));
+}
+
+function rangeFraction(
+  value: ContextTraceTimeRange,
+  startTime: number,
+  duration: number,
+): FractionRange {
+  const bounded = orderedRange(
+    Math.min(startTime + duration, Math.max(startTime, value.start)),
+    Math.min(startTime + duration, Math.max(startTime, value.end)),
+  );
+  return {
+    start: (bounded.start - startTime) / duration,
+    end: (bounded.end - startTime) / duration,
+  };
+}
+
+function traceIdAt(target: EventTarget | null): string | null {
+  if (!(target instanceof HTMLElement)) return null;
+  return target.closest<HTMLElement>("[data-trace-id]")?.dataset.traceId ?? null;
+}
+
+export function ContextTraceOverview({
+  events,
+  matchingTraceIds = null,
+  range,
+  selectedTraceId,
+  onRangeChange,
+  onSelect,
+}: TraceOverviewProps) {
   const { t } = useI18n();
   const startTime = events[0]?.time ?? 0;
   const observedEndTime = events.at(-1)?.time ?? startTime;
   const endTime = Math.max(observedEndTime, startTime + 1);
-  const range = endTime - startTime;
-  const inputSegments: TraceSegment[] = events
-    .filter((event) => event.kind === "prompt-composition" || event.kind === "context-snapshot")
-    .map((event) => ({ event, endTime: event.time }));
-  const modelSegments: TraceSegment[] = events
-    .filter((event) => event.kind === "provider-request")
-    .map((event) => ({
-      event,
-      endTime: matchingModelEnd(events, event)?.time ?? endTime,
-    }));
-  const toolSegments: TraceSegment[] = events
-    .filter((event) => event.kind === "tool-execution-start")
-    .map((event) => ({
-      event,
-      endTime: matchingToolEnd(events, event)?.time ?? endTime,
-    }));
-  const lifecycleSegments: TraceSegment[] = events
-    .filter(
-      (event) => event.kind === "turn-end" || event.kind === "retry" || event.kind === "compaction",
-    )
-    .map((event) => ({ event, endTime: event.time }));
-  const lanes = [
-    {
-      key: "input",
-      label: t("extensions.contextTrace.overviewLanes.input"),
-      segments: inputSegments,
-      tone: "bg-sky-500 dark:bg-sky-400",
-      point: true,
-    },
-    {
-      key: "model",
-      label: t("extensions.contextTrace.overviewLanes.model"),
-      segments: modelSegments,
-      tone: "bg-violet-500/65 dark:bg-violet-400/70",
-      point: false,
-    },
-    {
-      key: "tool",
-      label: t("extensions.contextTrace.overviewLanes.tool"),
-      segments: toolSegments,
-      tone: "bg-orange-500/75 dark:bg-orange-400/80",
-      point: false,
-    },
-    {
-      key: "lifecycle",
-      label: t("extensions.contextTrace.overviewLanes.lifecycle"),
-      segments: lifecycleSegments,
-      tone: "bg-amber-500 dark:bg-amber-400",
-      point: true,
-    },
-  ] as const;
+  const duration = endTime - startTime;
+  const dragRef = useRef<DragGesture | null>(null);
+  const [draft, setDraft] = useState<ContextTraceTimeRange | null>(null);
+  const [hover, setHover] = useState<HoverPoint | null>(null);
+
+  const spans = useMemo<readonly TraceSpan[]>(() => {
+    const input = events
+      .filter((event) => event.kind === "prompt-composition" || event.kind === "context-snapshot")
+      .map((event): TraceSpan => ({
+        event,
+        start: event.time,
+        end: event.time,
+        lane: 0,
+        point: true,
+        tone: event.kind === "context-snapshot" ? "context" : "input",
+      }));
+    const model = events
+      .filter((event) => event.kind === "provider-request")
+      .map((event): TraceSpan => ({
+        event,
+        start: event.time,
+        end: matchingModelEnd(events, event)?.time ?? endTime,
+        lane: 1,
+        point: false,
+        tone: "model",
+      }));
+    const recovery = events
+      .filter((event) => event.kind === "retry" || event.kind === "compaction")
+      .map((event): TraceSpan => ({
+        event,
+        start: event.time,
+        end: event.time,
+        lane: 1,
+        point: true,
+        tone: "recovery",
+      }));
+    const tools = events
+      .filter((event) => event.kind === "tool-execution-start")
+      .map((event): TraceSpan => ({
+        event,
+        start: event.time,
+        end: matchingToolEnd(events, event)?.time ?? endTime,
+        lane: 2,
+        point: false,
+        tone: "tool",
+      }));
+    return [...input, ...model, ...recovery, ...tools].sort(
+      (left, right) => left.event.seq - right.event.seq,
+    );
+  }, [endTime, events]);
+
+  const turnBoundaries = events.filter(
+    (event) => event.kind === "turn-start" && event.time > startTime,
+  );
+  const activeRange = draft ?? range;
+  const visibleRange = activeRange ? rangeFraction(activeRange, startTime, duration) : null;
+
+  useEffect(() => {
+    if (range && (range.end < startTime || range.start > endTime)) onRangeChange(null);
+  }, [endTime, onRangeChange, range, startTime]);
+
+  const fractionAt = (event: PointerEvent<HTMLDivElement>): number => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return clampFraction((event.clientX - rect.left) / Math.max(1, rect.width));
+  };
+
+  const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0 || traceIdAt(event.target) !== null) return;
+    const fraction = fractionAt(event);
+    const anchorTime = startTime + fraction * duration;
+    dragRef.current = {
+      anchorClientX: event.clientX,
+      anchorTime,
+      pointerId: event.pointerId,
+    };
+    setDraft({ start: anchorTime, end: anchorTime });
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  };
+
+  const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    const fraction = fractionAt(event);
+    setHover({ fraction, traceId: traceIdAt(event.target) });
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    setDraft(orderedRange(drag.anchorTime, startTime + fraction * duration));
+  };
+
+  const onPointerEnd = (event: PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const fraction = fractionAt(event);
+    const pointTime = startTime + fraction * duration;
+    const nextRange = orderedRange(drag.anchorTime, pointTime);
+    const click = Math.abs(event.clientX - drag.anchorClientX) < MINIMUM_DRAG_PX;
+    dragRef.current = null;
+    setDraft(null);
+
+    if (click) {
+      onRangeChange(null);
+      const nearest = spans.reduce<TraceSpan | undefined>((candidate, span) => {
+        if (!candidate) return span;
+        const distanceTo = (value: TraceSpan) =>
+          pointTime < value.start
+            ? value.start - pointTime
+            : pointTime > value.end
+              ? pointTime - value.end
+              : 0;
+        const candidateDistance = distanceTo(candidate);
+        const spanDistance = distanceTo(span);
+        return spanDistance < candidateDistance ? span : candidate;
+      }, undefined);
+      if (nearest) onSelect(nearest.event);
+      return;
+    }
+
+    onRangeChange(nextRange);
+  };
+
+  const onPointerCancel = () => {
+    dragRef.current = null;
+    setDraft(null);
+    setHover(null);
+  };
+
+  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Escape" || range === null) return;
+    event.preventDefault();
+    onRangeChange(null);
+  };
 
   return (
-    <div className="bg-muted/8 shrink-0 border-b px-2 py-1.5">
-      {lanes.map((lane) => (
-        <div key={lane.key} className="flex h-5 items-center gap-2">
-          <span className="text-muted-foreground w-14 shrink-0 text-end text-[10px] whitespace-nowrap">
-            {lane.label}
-          </span>
-          <div className="bg-muted/45 relative h-2 min-w-0 flex-1 overflow-hidden rounded-[2px]">
-            {lane.segments.map(({ event, endTime: segmentEndTime }) => {
-              const left = Math.min(99.5, Math.max(0, ((event.time - startTime) / range) * 100));
-              const measuredWidth = ((segmentEndTime - event.time) / range) * 100;
-              const width = lane.point ? 0.35 : Math.max(0.65, measuredWidth);
-              return (
-                <button
-                  key={event.traceId}
-                  type="button"
-                  aria-label={contextTraceEventLabel(t, event.kind)}
-                  title={contextTraceEventLabel(t, event.kind)}
-                  className={cn(
-                    "absolute inset-y-0 min-w-px rounded-[1px] outline-none transition-opacity hover:opacity-80 focus-visible:ring-1 focus-visible:ring-ring",
-                    lane.tone,
-                    selectedTraceId === event.traceId && "ring-1 ring-foreground ring-offset-1",
-                  )}
-                  style={{ left: `${left}%`, width: `${Math.min(100 - left, width)}%` }}
-                  onClick={() => onSelect(event)}
+    <TooltipProvider delay={TIMELINE_TOOLTIP_DELAY_MS}>
+      <section className={css.root} aria-label={t("extensions.contextTrace.timeline.label")}>
+        <div className={css.plot}>
+          <div className={css.labels} aria-hidden="true">
+            <span>{t("extensions.contextTrace.overviewLanes.input")}</span>
+            <span>{t("extensions.contextTrace.overviewLanes.model")}</span>
+            <span>{t("extensions.contextTrace.overviewLanes.tool")}</span>
+          </div>
+          <div
+            className={css.track}
+            aria-label={t("extensions.contextTrace.timeline.instructions")}
+            tabIndex={0}
+            onKeyDown={onKeyDown}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerEnd}
+            onPointerCancel={onPointerCancel}
+            onPointerLeave={() => {
+              if (dragRef.current === null) setHover(null);
+            }}
+            onDoubleClick={(event) => {
+              event.preventDefault();
+              onRangeChange(null);
+            }}
+            onContextMenu={(event) => event.preventDefault()}
+          >
+            {hover && hover.traceId === null && draft === null ? (
+              <div
+                className={css.hoverLine}
+                aria-hidden="true"
+                style={{ "--trace-hover-left": `${hover.fraction * 100}%` } as CSSProperties}
+              />
+            ) : null}
+
+            {visibleRange ? (
+              <>
+                <div
+                  className={css.selection}
+                  data-dragging={draft ? "true" : undefined}
+                  aria-hidden="true"
+                  style={
+                    {
+                      "--trace-selection-left": `${visibleRange.start * 100}%`,
+                      "--trace-selection-width": `${(visibleRange.end - visibleRange.start) * 100}%`,
+                    } as CSSProperties
+                  }
                 />
-              );
-            })}
+                <div
+                  className={css.selectionEdges}
+                  data-dragging={draft ? "true" : undefined}
+                  aria-hidden="true"
+                  style={
+                    {
+                      "--trace-selection-left": `${visibleRange.start * 100}%`,
+                      "--trace-selection-width": `${(visibleRange.end - visibleRange.start) * 100}%`,
+                    } as CSSProperties
+                  }
+                />
+              </>
+            ) : null}
+
+            <div className={css.turnBoundaries} aria-hidden="true">
+              {turnBoundaries.map((event) => (
+                <span
+                  key={event.traceId}
+                  className={css.turnBoundary}
+                  style={
+                    {
+                      "--trace-turn-left": `${((event.time - startTime) / duration) * 100}%`,
+                    } as CSSProperties
+                  }
+                />
+              ))}
+            </div>
+
+            {spans.length === 0 ? (
+              <span className={css.empty}>{t("extensions.contextTrace.timeline.empty")}</span>
+            ) : (
+              <div className={css.lanes}>
+                {spans.map((span) => {
+                  const left = ((span.start - startTime) / duration) * 100;
+                  const width = Math.max(0, ((span.end - span.start) / duration) * 100);
+                  const label = contextTraceEventLabel(t, span.event.kind);
+                  const title = [
+                    span.event.toolName ? `${label} · ${span.event.toolName}` : label,
+                    t("extensions.contextTrace.relativeTime", {
+                      value: Math.max(0, span.start - startTime),
+                    }),
+                    span.point
+                      ? undefined
+                      : t("extensions.contextTrace.duration", {
+                          value: Math.max(0, span.end - span.start),
+                        }),
+                  ]
+                    .filter(Boolean)
+                    .join(" · ");
+                  const matchesRange =
+                    activeRange === null ||
+                    (span.start <= activeRange.end && span.end >= activeRange.start);
+                  return (
+                    <Tooltip key={span.event.traceId}>
+                      <TooltipTrigger
+                        render={
+                          <button
+                            type="button"
+                            className={css.span}
+                            data-trace-id={span.event.traceId}
+                            data-trace-tone={span.tone}
+                            data-trace-point={span.point ? "true" : undefined}
+                            data-current={
+                              selectedTraceId === span.event.traceId ? "true" : undefined
+                            }
+                            data-hovered={
+                              hover?.traceId === span.event.traceId ? "true" : undefined
+                            }
+                            data-range-match={matchesRange ? undefined : "false"}
+                            data-search-match={
+                              matchingTraceIds === null
+                                ? undefined
+                                : matchingTraceIds.has(span.event.traceId)
+                                  ? "true"
+                                  : "false"
+                            }
+                            aria-label={title}
+                            aria-pressed={selectedTraceId === span.event.traceId}
+                            style={
+                              {
+                                "--trace-span-left": `${left}%`,
+                                "--trace-span-width": `${width}%`,
+                                "--trace-span-gap": `min(${width * 0.08}%, 1px)`,
+                                "--trace-span-lane": span.lane,
+                              } as CSSProperties
+                            }
+                            onClick={() => {
+                              onRangeChange(null);
+                              onSelect(span.event);
+                            }}
+                          />
+                        }
+                      />
+                      <TooltipContent side="bottom" className="font-mono text-[11px]">
+                        {title}
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
-      ))}
-    </div>
+      </section>
+    </TooltipProvider>
   );
 }

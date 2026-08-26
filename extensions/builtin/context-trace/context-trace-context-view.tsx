@@ -41,6 +41,7 @@ import {
   type ContextTraceToolExecution,
   type ContextTraceTurn,
 } from "./context-trace-tree";
+import type { ContextTraceTimeRange } from "./context-trace-overview";
 
 interface TraceTreeNode {
   id: string;
@@ -144,6 +145,8 @@ export function contextTraceDetailFocusKey(focus: ContextTraceDetailFocus | unde
   switch (focus.type) {
     case "prompt-section":
       return `prompt:${focus.section}`;
+    case "system-prompt-source":
+      return `system-prompt-source:${focus.index}`;
     case "prompt-tool":
       return `prompt-tool:${focus.toolName}`;
     case "message-role":
@@ -159,6 +162,10 @@ export function contextTraceDetailFocusKey(focus: ContextTraceDetailFocus | unde
     case "compaction-section":
       return `compaction:${focus.section}`;
   }
+}
+
+function resourceFileName(resourcePath: string | undefined): string | undefined {
+  return resourcePath?.split(/[\\/]/).at(-1);
 }
 
 function filterTreeNodes(
@@ -179,8 +186,14 @@ function filterTreeNodes(
   });
 }
 
+function treeNodeMatchesRange(node: TraceTreeNode, range: ContextTraceTimeRange): boolean {
+  if (node.event && node.event.time >= range.start && node.event.time <= range.end) return true;
+  return node.children?.some((child) => treeNodeMatchesRange(child, range)) ?? false;
+}
+
 function TraceTree({
   expanded,
+  focusRange,
   forceExpanded,
   nodes,
   onLoadDetail,
@@ -190,6 +203,7 @@ function TraceTree({
   selectedTraceId,
 }: {
   expanded: ReadonlySet<string>;
+  focusRange: ContextTraceTimeRange | null;
   forceExpanded: boolean;
   nodes: readonly TraceTreeNode[];
   onLoadDetail(traceId: string): void;
@@ -205,14 +219,16 @@ function TraceTree({
     const selected =
       node.event?.traceId === selectedTraceId &&
       contextTraceDetailFocusKey(node.focus) === selectedFocusKey;
+    const matchesRange = focusRange === null || treeNodeMatchesRange(node, focusRange);
     return (
       <div key={node.id}>
         <button
           type="button"
           className={cn(
-            "hover:bg-muted/45 focus-visible:ring-ring relative flex min-h-7 w-full items-center gap-1.5 px-2 text-start text-xs outline-none focus-visible:ring-2",
+            "hover:bg-muted/45 focus-visible:ring-ring relative flex min-h-7 w-full items-center gap-1.5 px-2 text-start text-xs outline-none transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 motion-reduce:transition-none",
             node.rowTone,
             selected && "bg-blue-500/8",
+            !matchesRange && "opacity-20",
           )}
           aria-expanded={canExpand ? open : undefined}
           aria-pressed={node.event ? selected : undefined}
@@ -263,6 +279,7 @@ function TraceTree({
           <div className="border-border/60 ms-4 border-s ps-1">
             <TraceTree
               expanded={expanded}
+              focusRange={focusRange}
               forceExpanded={forceExpanded}
               nodes={node.children}
               onLoadDetail={onLoadDetail}
@@ -281,6 +298,7 @@ function TraceTree({
 export function ContextTraceContextView({
   detailByTraceId,
   events,
+  focusRange = null,
   onLoadDetail,
   onSelect,
   query,
@@ -290,6 +308,7 @@ export function ContextTraceContextView({
   detailByTraceId: ReadonlyMap<string, ContextTraceDetailState>;
   events: readonly SessionContextTraceEventSummary[];
   firstTime: number;
+  focusRange?: ContextTraceTimeRange | null;
   onLoadDetail(traceId: string): void;
   onSelect(event: SessionContextTraceEventSummary, focus?: ContextTraceDetailFocus): void;
   query: string;
@@ -454,6 +473,27 @@ export function ContextTraceContextView({
         )
       : undefined;
     const attachments = composition ? jsonArrayLength(composition.detail.images.value) : undefined;
+    const systemPromptSources = composition?.detail.systemPromptSources;
+    const systemPromptSourceChildren: TraceTreeNode[] = composition
+      ? (systemPromptSources ?? []).map((source, index) => ({
+          id: `instructions:${step.id}:system:${index}`,
+          label:
+            source.kind === "builtin"
+              ? t("extensions.contextTrace.tree.piDefault")
+              : (resourceFileName(source.path) ??
+                t(`extensions.contextTrace.systemPromptSourceKinds.${source.kind}`)),
+          icon: source.kind === "builtin" ? ShieldIcon : FileTextIcon,
+          tone: EVENT_TONES.instruction,
+          meta: t(`extensions.contextTrace.systemPromptSourceScopes.${source.scope}`),
+          title: source.path,
+          event: prompt,
+          focus: { type: "system-prompt-source" as const, index },
+          loadTraceIds: [prompt?.traceId].filter((value): value is string => Boolean(value)),
+        }))
+      : [loadingNode(`instructions:${step.id}:system:loading`)];
+    const activeSystemPromptSource = systemPromptSources?.find(
+      (source) => source.kind === "builtin" || source.kind === "replacement",
+    );
 
     const instructionChildren: TraceTreeNode[] = prompt
       ? [
@@ -462,8 +502,21 @@ export function ContextTraceContextView({
             label: t("extensions.contextTrace.tree.system"),
             icon: ShieldIcon,
             tone: EVENT_TONES.instruction,
+            meta: activeSystemPromptSource
+              ? t(
+                  `extensions.contextTrace.systemPromptSourceScopes.${activeSystemPromptSource.scope}`,
+                )
+              : undefined,
+            trailing:
+              systemPromptSources === undefined
+                ? composition
+                  ? undefined
+                  : t("extensions.contextTrace.contextCountPending")
+                : number(systemPromptSources.length),
             event: prompt,
             focus: { type: "prompt-section", section: "system-prompt" },
+            expandable: systemPromptSourceChildren.length > 0,
+            children: systemPromptSourceChildren,
             loadTraceIds: [prompt.traceId],
           },
           {
@@ -534,7 +587,11 @@ export function ContextTraceContextView({
             title: message.preview || undefined,
             trailing: estimatedTokenLabel(message.estimatedTokens),
             event: snapshot,
-            focus: { type: "context-message", sourceIndex: message.sourceIndex },
+            focus: {
+              type: "context-message",
+              sourceIndex: message.sourceIndex,
+              role: message.role,
+            },
             loadTraceIds: [snapshot.traceId],
           }))
         : [loadingNode(`conversation:${step.id}:loading`)]
@@ -866,6 +923,7 @@ export function ContextTraceContextView({
       <TraceTree
         nodes={visibleNodes}
         expanded={expanded}
+        focusRange={focusRange}
         forceExpanded={Boolean(normalizedQuery)}
         selectedTraceId={selectedTraceId}
         selectedFocusKey={contextTraceDetailFocusKey(selectedFocus)}

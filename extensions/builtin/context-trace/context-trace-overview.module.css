@@ -1,0 +1,256 @@
+.root {
+  position: relative;
+  z-index: 1;
+  isolation: isolate;
+  flex: none;
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+}
+
+.plot {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  height: 50px;
+  overflow: hidden;
+  background: color-mix(in oklab, var(--muted) 55%, var(--background));
+}
+
+.labels {
+  position: relative;
+  border-right: 1px solid var(--border);
+  color: var(--muted-foreground);
+  font-size: 10px;
+  line-height: 1;
+}
+
+.labels span {
+  position: absolute;
+  right: 3px;
+  display: flex;
+  height: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  white-space: nowrap;
+}
+
+.labels span:nth-child(1) {
+  top: 7px;
+}
+
+.labels span:nth-child(2) {
+  top: 21px;
+}
+
+.labels span:nth-child(3) {
+  top: 35px;
+}
+
+.track {
+  position: relative;
+  overflow: hidden;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.track:focus-visible {
+  outline: 1px solid var(--ring);
+  outline-offset: -1px;
+}
+
+.empty {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--muted-foreground);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.lanes {
+  position: absolute;
+  z-index: 2;
+  inset: 7px 0;
+}
+
+.turnBoundaries {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  pointer-events: none;
+}
+
+.turnBoundary {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--trace-turn-left);
+  width: 1px;
+  background: color-mix(in oklab, var(--border) 82%, var(--foreground));
+}
+
+.span {
+  position: absolute;
+  top: calc(var(--trace-span-lane) * 14px);
+  left: calc(var(--trace-span-left) + var(--trace-span-gap));
+  width: max(2px, calc(var(--trace-span-width) - var(--trace-span-gap) - var(--trace-span-gap)));
+  min-width: 2px;
+  height: 8px;
+  appearance: none;
+  box-sizing: border-box;
+  padding: 0;
+  border: 0;
+  border-radius: 1px;
+  background: var(--muted-foreground);
+  opacity: 0.78;
+  outline: none;
+  cursor: pointer;
+}
+
+.span::before {
+  position: absolute;
+  inset: -3px -2px;
+  content: "";
+}
+
+.span[data-trace-tone="input"] {
+  background: var(--color-sky-500);
+}
+
+.span[data-trace-tone="context"] {
+  background: var(--color-emerald-500);
+}
+
+.span[data-trace-tone="model"] {
+  background: var(--color-violet-500);
+  opacity: 1;
+}
+
+.span[data-trace-tone="tool"] {
+  background: var(--color-orange-500);
+  opacity: 1;
+}
+
+.span[data-trace-tone="recovery"] {
+  background: var(--color-amber-500);
+  opacity: 1;
+}
+
+.span[data-trace-point="true"] {
+  width: 2px;
+}
+
+.span[data-range-match="false"],
+.span[data-search-match="false"] {
+  opacity: 0.14;
+}
+
+.span:hover,
+.span[data-hovered="true"] {
+  z-index: 1;
+  opacity: 1;
+  box-shadow:
+    0 0 0 1px var(--background),
+    0 0 0 2px color-mix(in oklab, var(--color-sky-500) 82%, transparent);
+}
+
+.span:focus-visible,
+.span[data-current="true"] {
+  z-index: 2;
+  opacity: 1;
+  box-shadow:
+    0 0 0 1px var(--background),
+    0 0 0 2px var(--color-sky-500);
+}
+
+.selection {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  bottom: 0;
+  left: var(--trace-selection-left);
+  width: var(--trace-selection-width);
+  min-width: 1px;
+  background: color-mix(in oklab, var(--color-sky-500) 12%, transparent);
+  box-shadow:
+    -100vw 0 0 100vw color-mix(in oklab, var(--background) 58%, transparent),
+    100vw 0 0 100vw color-mix(in oklab, var(--background) 58%, transparent);
+  pointer-events: none;
+}
+
+.selectionEdges {
+  position: absolute;
+  z-index: 4;
+  top: 0;
+  bottom: 0;
+  left: var(--trace-selection-left);
+  width: var(--trace-selection-width);
+  min-width: 1px;
+  pointer-events: none;
+}
+
+.selectionEdges::before,
+.selectionEdges::after {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--color-sky-500);
+  content: "";
+}
+
+.selectionEdges::before {
+  left: 0;
+}
+
+.selectionEdges::after {
+  right: 0;
+}
+
+.selection[data-dragging="true"] {
+  background: color-mix(in oklab, var(--color-sky-500) 18%, transparent);
+}
+
+.selectionEdges[data-dragging="true"]::before,
+.selectionEdges[data-dragging="true"]::after {
+  width: 2px;
+}
+
+.hoverLine {
+  position: absolute;
+  z-index: 4;
+  top: 0;
+  bottom: 0;
+  left: clamp(0px, calc(var(--trace-hover-left) - 1px), calc(100% - 2px));
+  width: 2px;
+  background: var(--color-sky-500);
+  pointer-events: none;
+}
+
+:global(.dark) .span[data-trace-tone="input"] {
+  background: var(--color-sky-400);
+}
+
+:global(.dark) .span[data-trace-tone="context"] {
+  background: var(--color-emerald-400);
+}
+
+:global(.dark) .span[data-trace-tone="model"] {
+  background: var(--color-violet-400);
+}
+
+:global(.dark) .span[data-trace-tone="tool"] {
+  background: var(--color-orange-400);
+}
+
+:global(.dark) .span[data-trace-tone="recovery"] {
+  background: var(--color-amber-400);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .span {
+    transition:
+      opacity 100ms ease-out,
+      box-shadow 100ms ease-out;
+  }
+}

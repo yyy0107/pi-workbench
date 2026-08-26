@@ -31,14 +31,17 @@ import type {
 
 import {
   ContextTraceDetail,
+  contextTraceDetailVariant,
+  contextTraceDetailViews,
   contextTraceEventLabel,
   type ContextTraceDetailFocus,
-  type ContextTraceDetailView,
   type ContextTraceDetailState,
+  type ContextTraceDetailView,
+  type ContextTraceToolDetailContext,
 } from "./context-trace-detail";
 import { cacheContextTraceDetail } from "./context-trace-detail-cache";
 import { ContextTraceContextView } from "./context-trace-context-view";
-import { ContextTraceOverview } from "./context-trace-overview";
+import { ContextTraceOverview, type ContextTraceTimeRange } from "./context-trace-overview";
 import { projectContextTraceTurns } from "./context-trace-tree";
 import type { ContextTraceSurfaceParams } from "./context-trace-workspace";
 import { useContextTrace, useContextTraceTarget } from "./use-context-trace";
@@ -184,6 +187,14 @@ function detailViewLabel(t: ReturnType<typeof useI18n>["t"], view: ContextTraceD
       return t("extensions.contextTrace.detailTabs.raw");
     case "source":
       return t("extensions.contextTrace.detailTabs.source");
+    case "payload":
+      return t("extensions.contextTrace.detailTabs.payload");
+    case "result":
+      return t("extensions.contextTrace.detailTabs.result");
+    case "schema":
+      return t("extensions.contextTrace.detailTabs.schema");
+    case "timing":
+      return t("extensions.contextTrace.detailTabs.timing");
   }
 }
 
@@ -367,9 +378,10 @@ export function ContextTraceSurface({
   const detailByTraceIdRef = useRef<ReadonlyMap<string, ContextTraceDetailState>>(new Map());
   const detailGenerationRef = useRef(0);
   const [viewMode, setViewMode] = useState<TraceViewMode>("turns");
-  const [detailView, setDetailView] = useState<ContextTraceDetailView>("preview");
+  const [detailView, setDetailView] = useState<ContextTraceDetailView>("summary");
   const [query, setQuery] = useState("");
   const [followLive, setFollowLive] = useState(true);
+  const [timelineRange, setTimelineRange] = useState<ContextTraceTimeRange | null>(null);
   const { rootRef, wide } = useWideSurface();
   const timelineBottomRef = useRef<HTMLDivElement>(null);
   const lastReportedError = useRef<unknown>(undefined);
@@ -415,7 +427,9 @@ export function ContextTraceSurface({
     setDetailByTraceId(empty);
     setSelectedTraceId(undefined);
     setSelectedContextFocus(undefined);
+    setDetailView("summary");
     setFollowLive(true);
+    setTimelineRange(null);
   }, [trace.activationId, surface.params.sessionId]);
 
   useEffect(() => {
@@ -475,30 +489,114 @@ export function ContextTraceSurface({
   const selectedDetail = selectedTraceId
     ? (detailByTraceId.get(selectedTraceId) ?? { status: "loading" as const })
     : ({ status: "idle" } as const);
+  const selectedDetailFocus = viewMode === "turns" ? selectedContextFocus : undefined;
+  const selectedDetailVariant = contextTraceDetailVariant(selectedSummary, selectedDetailFocus);
+  const detailViews = useMemo(
+    () => contextTraceDetailViews(selectedSummary, selectedDetailFocus),
+    [selectedDetailFocus, selectedSummary],
+  );
+
+  useEffect(() => {
+    if (!detailViews.includes(detailView)) setDetailView("summary");
+  }, [detailView, detailViews]);
+
+  const selectedToolExecution = useMemo(() => {
+    if (selectedDetailVariant !== "tool-execution" || !selectedSummary?.toolCallId)
+      return undefined;
+    return selectedTreeLocation?.step?.toolExecutions.find(
+      (execution) => execution.toolCallId === selectedSummary.toolCallId,
+    );
+  }, [selectedDetailVariant, selectedSummary?.toolCallId, selectedTreeLocation?.step]);
+  const selectedToolStart =
+    selectedToolExecution?.start ??
+    (selectedSummary?.kind === "tool-execution-start" ? selectedSummary : undefined);
+  const selectedToolEnd =
+    selectedToolExecution?.end ??
+    (selectedSummary?.kind === "tool-execution-end" ? selectedSummary : undefined);
+  const selectedToolSchemaSummary =
+    selectedDetailVariant === "tool-execution" ? selectedTreeLocation?.turn.prompt : undefined;
+
+  useEffect(() => {
+    if (selectedDetailVariant !== "tool-execution") return;
+    for (const related of [selectedToolStart, selectedToolEnd, selectedToolSchemaSummary]) {
+      if (related) loadDetail(related.traceId);
+    }
+  }, [
+    loadDetail,
+    selectedDetailVariant,
+    selectedToolEnd,
+    selectedToolSchemaSummary,
+    selectedToolStart,
+  ]);
+
+  const selectedToolContext = useMemo<ContextTraceToolDetailContext | undefined>(() => {
+    if (selectedDetailVariant !== "tool-execution") return undefined;
+    const startDetail = selectedToolStart
+      ? (detailByTraceId.get(selectedToolStart.traceId) ?? { status: "loading" as const })
+      : undefined;
+    const endDetail = selectedToolEnd
+      ? (detailByTraceId.get(selectedToolEnd.traceId) ?? { status: "loading" as const })
+      : undefined;
+    const schemaDetail = selectedToolSchemaSummary
+      ? (detailByTraceId.get(selectedToolSchemaSummary.traceId) ?? { status: "loading" as const })
+      : undefined;
+    const schema =
+      schemaDetail?.status === "ready" && schemaDetail.event.kind === "prompt-composition"
+        ? schemaDetail.event.detail.tools.find(
+            (tool) => tool.name === (selectedSummary?.toolName ?? selectedToolExecution?.toolName),
+          )
+        : undefined;
+    return {
+      start: selectedToolStart ? { summary: selectedToolStart, detail: startDetail! } : undefined,
+      end: selectedToolEnd ? { summary: selectedToolEnd, detail: endDetail! } : undefined,
+      schema,
+      schemaDetail,
+    };
+  }, [
+    detailByTraceId,
+    selectedDetailVariant,
+    selectedSummary?.toolName,
+    selectedToolEnd,
+    selectedToolExecution?.toolName,
+    selectedToolSchemaSummary,
+    selectedToolStart,
+  ]);
   const normalizedQuery = query.trim().toLowerCase();
   const viewEvents = useMemo(
     () => trace.events.filter((event) => matchesView(event, viewMode)),
     [trace.events, viewMode],
   );
+  const matchingTraceIds = useMemo(() => {
+    if (!normalizedQuery) return null;
+    return new Set(
+      trace.events
+        .filter((event) =>
+          [
+            event.kind,
+            contextTraceEventLabel(t, event.kind),
+            eventCategoryLabel(t, eventCategory(event.kind)),
+            event.traceId,
+            event.roundId,
+            event.runId,
+            event.turnId,
+            event.requestId,
+            event.toolCallId,
+            event.toolName,
+            String(event.seq),
+          ].some((value) => value?.toLowerCase().includes(normalizedQuery)),
+        )
+        .map((event) => event.traceId),
+    );
+  }, [normalizedQuery, t, trace.events]);
   const filteredEvents = useMemo(
     () =>
       viewEvents.filter((event) => {
-        if (!normalizedQuery) return true;
-        return [
-          event.kind,
-          contextTraceEventLabel(t, event.kind),
-          eventCategoryLabel(t, eventCategory(event.kind)),
-          event.traceId,
-          event.roundId,
-          event.runId,
-          event.turnId,
-          event.requestId,
-          event.toolCallId,
-          event.toolName,
-          String(event.seq),
-        ].some((value) => value?.toLowerCase().includes(normalizedQuery));
+        if (timelineRange && (event.time < timelineRange.start || event.time > timelineRange.end)) {
+          return false;
+        }
+        return matchingTraceIds === null || matchingTraceIds.has(event.traceId);
       }),
-    [normalizedQuery, t, viewEvents],
+    [matchingTraceIds, timelineRange, viewEvents],
   );
   const unseenCount = selectedSummary
     ? trace.events.filter((event) => event.seq > selectedSummary.seq).length
@@ -508,8 +606,14 @@ export function ContextTraceSurface({
   const selectEvent = (event: SessionContextTraceEventSummary) => {
     setSelectedContextFocus(undefined);
     setSelectedTraceId(event.traceId);
+    setDetailView("summary");
     setFollowLive(false);
   };
+
+  const updateTimelineRange = useCallback((nextRange: ContextTraceTimeRange | null) => {
+    setTimelineRange(nextRange);
+    if (nextRange) setFollowLive(false);
+  }, []);
 
   const selectContextEvent = (
     event: SessionContextTraceEventSummary,
@@ -517,16 +621,19 @@ export function ContextTraceSurface({
   ) => {
     setSelectedContextFocus(focus);
     setSelectedTraceId(event.traceId);
+    setDetailView("summary");
     setFollowLive(false);
     loadDetail(event.traceId);
   };
 
   const resumeLive = () => {
     setFollowLive(true);
+    setTimelineRange(null);
     const latest = trace.events.at(-1);
     if (latest) {
       setSelectedContextFocus(undefined);
       setSelectedTraceId(latest.traceId);
+      setDetailView("summary");
     }
   };
 
@@ -577,6 +684,7 @@ export function ContextTraceSurface({
             <ContextTraceContextView
               events={trace.events}
               firstTime={trace.events[0]?.time ?? 0}
+              focusRange={timelineRange}
               query={query}
               selectedFocus={selectedContextFocus}
               selectedTraceId={selectedTraceId}
@@ -668,7 +776,7 @@ export function ContextTraceSurface({
         case "system-prompt":
           return {
             badge: t("extensions.contextTrace.contextRoles.system"),
-            title: t("extensions.contextTrace.finalSystemPrompt"),
+            title: t("extensions.contextTrace.systemPromptWithoutSkills"),
             tone: "bg-muted text-foreground",
           };
         case "skills":
@@ -696,6 +804,21 @@ export function ContextTraceSurface({
             tone: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
           };
       }
+    }
+    if (selectedContextFocus?.type === "system-prompt-source") {
+      const source =
+        selectedDetail.status === "ready" && selectedDetail.event.kind === "prompt-composition"
+          ? selectedDetail.event.detail.systemPromptSources?.[selectedContextFocus.index]
+          : undefined;
+      return {
+        badge: t("extensions.contextTrace.tree.system"),
+        title:
+          source?.path?.split(/[\\/]/).at(-1) ??
+          (source
+            ? t(`extensions.contextTrace.systemPromptSourceKinds.${source.kind}`)
+            : t("extensions.contextTrace.systemPromptLoading")),
+        tone: "bg-muted text-foreground",
+      };
     }
     if (selectedContextFocus?.type === "prompt-tool") {
       return {
@@ -794,6 +917,40 @@ export function ContextTraceSurface({
         .filter(Boolean)
         .join(" · ")
     : "";
+  const selectedSemanticCoordinate =
+    selectedDetailVariant === "user-message"
+      ? [
+          selectedTreeLocation
+            ? t("extensions.contextTrace.tree.turn", {
+                index: selectedTreeLocation.turn.index,
+              })
+            : undefined,
+          t("extensions.contextTrace.detailCoordinates.message"),
+        ]
+          .filter(Boolean)
+          .join(" · ")
+      : selectedDetailVariant === "tool-execution"
+        ? [
+            selectedTreeLocation
+              ? t("extensions.contextTrace.tree.turn", {
+                  index: selectedTreeLocation.turn.index,
+                })
+              : undefined,
+            selectedTreeLocation?.step
+              ? t("extensions.contextTrace.detailCoordinates.step", {
+                  index: selectedTreeLocation.step.index,
+                })
+              : undefined,
+          ]
+            .filter(Boolean)
+            .join(" · ")
+        : "";
+  const selectedHeaderTitle =
+    selectedSemanticCoordinate ||
+    selectedContextPresentation?.title ||
+    (selectedSummary ? contextTraceEventLabel(t, selectedSummary.kind) : "");
+  const selectedHeaderMeta =
+    selectedDetailVariant === "event" ? selectedCoordinate || selectedSummary?.traceId || "" : "";
   const closeDetail = () => {
     setSelectedTraceId(undefined);
     setSelectedContextFocus(undefined);
@@ -806,19 +963,31 @@ export function ContextTraceSurface({
           <span
             className={cn(
               "inline-flex shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide",
-              selectedContextPresentation?.tone ?? eventCategoryTone(selectedCategory),
+              selectedDetailVariant === "tool-execution"
+                ? "bg-orange-500/10 text-orange-700 dark:text-orange-300"
+                : (selectedContextPresentation?.tone ?? eventCategoryTone(selectedCategory)),
             )}
           >
-            {selectedContextPresentation?.badge ?? eventCategoryLabel(t, selectedCategory)}
+            {selectedDetailVariant === "tool-execution"
+              ? t("extensions.contextTrace.contextRoles.tool")
+              : (selectedContextPresentation?.badge ?? eventCategoryLabel(t, selectedCategory))}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-medium">
-              {selectedContextPresentation?.title ??
-                contextTraceEventLabel(t, selectedSummary.kind)}
+            <p
+              className={cn(
+                "truncate text-xs",
+                selectedDetailVariant === "event"
+                  ? "font-medium"
+                  : "text-muted-foreground font-mono",
+              )}
+            >
+              {selectedHeaderTitle}
             </p>
-            <p className="text-muted-foreground truncate font-mono text-[10px]">
-              {selectedCoordinate || selectedSummary.traceId}
-            </p>
+            {selectedHeaderMeta ? (
+              <p className="text-muted-foreground truncate font-mono text-[10px]">
+                {selectedHeaderMeta}
+              </p>
+            ) : null}
           </div>
           <Button
             type="button"
@@ -834,7 +1003,7 @@ export function ContextTraceSurface({
       ) : null}
       {selectedSummary ? (
         <div className="flex h-10 shrink-0 items-end gap-4 border-b px-3" role="tablist">
-          {(["summary", "preview", "raw", "source"] as const).map((view) => (
+          {detailViews.map((view) => (
             <button
               key={view}
               type="button"
@@ -859,7 +1028,9 @@ export function ContextTraceSurface({
           summary={selectedSummary}
           detail={selectedDetail}
           view={detailView}
-          focus={viewMode === "turns" ? selectedContextFocus : undefined}
+          focus={selectedDetailFocus}
+          toolContext={selectedToolContext}
+          onViewChange={setDetailView}
         />
       </div>
     </div>
@@ -918,10 +1089,13 @@ export function ContextTraceSurface({
         </div>
       ) : null}
 
-      {viewEvents.length > 0 ? (
+      {trace.events.length > 0 ? (
         <ContextTraceOverview
-          events={viewEvents}
+          events={trace.events}
+          matchingTraceIds={matchingTraceIds}
+          range={timelineRange}
           selectedTraceId={selectedTraceId}
+          onRangeChange={updateTimelineRange}
           onSelect={selectEvent}
         />
       ) : null}
