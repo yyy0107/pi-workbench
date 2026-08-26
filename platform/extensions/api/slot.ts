@@ -41,6 +41,7 @@ export const WORKBENCH_SLOTS = [
   "message.after", // 单条消息内容之后：补充信息、引用、反馈等
   "message.actions", // 单条消息操作区：复制、重试、编辑、点赞等
 
+  "composer.overlay", // 输入框覆盖层：需要暂时接管 Composer 的交互式请求等
   "composer.before", // 输入框之前：上下文提示、附件预览、状态提示等
   "composer.actions.left", // 输入框左侧操作：附件、@、/ 命令、工具等
   "composer.actions.right", // 输入框右侧操作：模型选择、语音、发送等
@@ -75,6 +76,17 @@ export interface ComposerSlotContext {
   isRunning: boolean;
   /** 当前 Composer 是否没有文本、附件或其他可发送内容。 */
   isEmpty: boolean;
+}
+
+/** `composer.overlay` Slot 用于接管 Composer 时收到的上下文。 */
+export interface ComposerOverlaySlotContext extends ComposerSlotContext {
+  /**
+   * 报告当前贡献是否正在覆盖 Composer。
+   *
+   * 贡献应在 layout effect 中报告 `true`，并在 cleanup 中报告 `false`。宿主会在至少一个贡献
+   * 可见时将底层 Composer 设为 inert，避免指针或键盘焦点穿透覆盖层。
+   */
+  setOverlayVisible(visible: boolean): void;
 }
 
 /**
@@ -158,6 +170,7 @@ export interface SlotPropsMap {
   "message.before": MessageSlotContext; // 单条消息内容之前
   "message.after": MessageSlotContext; // 单条消息内容之后
   "message.actions": MessageSlotContext; // 单条消息操作区域
+  "composer.overlay": ComposerOverlaySlotContext; // 暂时接管输入框交互的覆盖层
   "composer.before": ComposerSlotContext; // 输入框区域之前
   "composer.actions.left": ComposerSlotContext; // 输入框操作栏左侧
   "composer.actions.right": ComposerSlotContext; // 输入框操作栏右侧

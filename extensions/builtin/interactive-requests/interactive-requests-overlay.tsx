@@ -1,7 +1,7 @@
 "use client";
 
 import { LoaderCircleIcon, ShieldAlertIcon } from "lucide-react";
-import { useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -12,8 +12,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
 import { useI18n } from "@/i18n";
+import type { ComposerOverlaySlotContext } from "@/platform/extensions/authoring";
 import { usePiSessionManager } from "@/runtime/pi/client/runtime/context";
 import type {
   PiInteractionResponse,
@@ -21,19 +21,13 @@ import type {
   PiSessionManager,
 } from "@/runtime/pi/client/runtime/manager";
 import { PiApiError } from "@/runtime/pi/client/transport/api";
-import type { QuestionItem } from "@/runtime/pi/stream-contracts";
 
-import {
-  buildQuestionAnswers,
-  canSubmitQuestionAnswers,
-  createQuestionAnswerDrafts,
-  selectQuestionOption,
-  setQuestionCustomAnswer,
-} from "./interaction-form-state";
+import { AskUserPanel } from "./ask-user-panel";
+import type { AskUserQuestion } from "./interaction-form-state";
 
 type SubmitError = "bad-response" | "network" | "not-pending";
 
-function optionLabel(question: QuestionItem, label: string, yes: string, no: string): string {
+function optionLabel(question: AskUserQuestion, label: string, yes: string, no: string): string {
   if (question.id !== "confirmation") return label;
   if (label === "true") return yes;
   if (label === "false") return no;
@@ -116,173 +110,56 @@ function useInteractionSubmit(
   return { error, submitting, submit };
 }
 
-function QuestionField({
-  question,
-  questionIndex,
-  groupName,
-  disabled,
-  draft,
-  onOptionChange,
-  onCustomChange,
-}: {
-  question: QuestionItem;
-  questionIndex: number;
-  groupName: string;
-  disabled: boolean;
-  draft: ReturnType<typeof createQuestionAnswerDrafts>[number];
-  onOptionChange(label: string, checked: boolean): void;
-  onCustomChange(value: string): void;
-}) {
-  const { t } = useI18n();
-  const options = question.options ?? [];
-
-  return (
-    <fieldset className="space-y-3 rounded-xl border bg-background/60 p-3" disabled={disabled}>
-      <legend className="max-w-full space-y-1 px-1 text-foreground">
-        {question.header ? (
-          <span className="block text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            {question.header}
-          </span>
-        ) : null}
-        <span className="block text-sm font-medium">{question.question}</span>
-      </legend>
-      {question.detail ? <p className="text-sm text-muted-foreground">{question.detail}</p> : null}
-
-      {options.length > 0 ? (
-        <div className="space-y-2">
-          {options.map((option, optionIndex) => {
-            const checked = draft.selected.includes(option.label);
-            return (
-              <label
-                key={`${option.label}:${optionIndex}`}
-                className="flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2.5 transition-colors has-checked:border-primary/50 has-checked:bg-primary/5 has-disabled:cursor-not-allowed has-disabled:opacity-60"
-              >
-                <input
-                  type={question.multiSelect ? "checkbox" : "radio"}
-                  name={`${groupName}-${questionIndex}`}
-                  value={option.label}
-                  checked={checked}
-                  className="mt-0.5 size-4 shrink-0 accent-primary"
-                  onChange={(event) => onOptionChange(option.label, event.currentTarget.checked)}
-                />
-                <span className="min-w-0">
-                  <span className="block text-sm font-medium">
-                    {optionLabel(
-                      question,
-                      option.label,
-                      t("extensions.interactiveRequests.yes"),
-                      t("extensions.interactiveRequests.no"),
-                    )}
-                  </span>
-                  {option.description ? (
-                    <span className="mt-0.5 block text-xs text-muted-foreground">
-                      {option.description}
-                    </span>
-                  ) : null}
-                </span>
-              </label>
-            );
-          })}
-        </div>
-      ) : (
-        <Textarea
-          value={draft.custom}
-          aria-label={t("extensions.interactiveRequests.answerLabel", {
-            question: question.question,
-          })}
-          placeholder={t("extensions.interactiveRequests.answerPlaceholder")}
-          className="min-h-20 resize-y"
-          onChange={(event) => onCustomChange(event.currentTarget.value)}
-        />
-      )}
-    </fieldset>
-  );
-}
-
-function QuestionDialog({
+function QuestionComposerOverlay({
   interaction,
   manager,
-  pendingCount,
+  setOverlayVisible,
 }: {
   interaction: Extract<PiPendingInteraction, { kind: "question" }>;
   manager: PiSessionManager;
-  pendingCount: number;
+  setOverlayVisible(visible: boolean): void;
 }) {
   const { t } = useI18n();
-  const groupName = useId();
-  const [drafts, setDrafts] = useState(() => createQuestionAnswerDrafts(interaction.questions));
   const { error, submitting, submit } = useInteractionSubmit(manager, interaction.rpcId);
-  const canSubmit = canSubmitQuestionAnswers(interaction.questions, drafts);
 
-  const cancel = () => submit({ kind: "cancel" });
+  useLayoutEffect(() => {
+    setOverlayVisible(true);
+    return () => setOverlayVisible(false);
+  }, [setOverlayVisible]);
+
+  const errorMessage =
+    error === "bad-response"
+      ? t("extensions.interactiveRequests.errors.badResponse")
+      : error === "not-pending"
+        ? t("extensions.interactiveRequests.errors.notPending")
+        : error === "network"
+          ? t("extensions.interactiveRequests.errors.network")
+          : undefined;
 
   return (
-    <Dialog
-      open
-      onOpenChange={(open) => {
-        if (!open && !submitting) void cancel();
-      }}
-    >
-      <DialogContent
-        closeLabel={t("extensions.interactiveRequests.cancel")}
-        className="flex max-h-[min(42rem,calc(100dvh-2rem))] max-w-xl grid-rows-none flex-col gap-0 overflow-hidden p-0 sm:max-w-xl"
-        aria-busy={submitting}
-      >
-        <DialogHeader className="border-b px-5 py-4 pe-12">
-          <DialogTitle>{t("extensions.interactiveRequests.questionTitle")}</DialogTitle>
-          <DialogDescription>
-            {t("extensions.interactiveRequests.questionDescription")}
-          </DialogDescription>
-          <InteractionMetadata interaction={interaction} pendingCount={pendingCount} />
-        </DialogHeader>
-
-        <form
-          className="flex min-h-0 flex-1 flex-col"
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (!canSubmit || submitting) return;
-            void submit({
-              kind: "question",
-              answers: buildQuestionAnswers(interaction.questions, drafts),
-            });
-          }}
-        >
-          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
-            {interaction.questions.map((question, index) => (
-              <QuestionField
-                key={`${question.id}:${index}`}
-                question={question}
-                questionIndex={index}
-                groupName={groupName}
-                disabled={submitting}
-                draft={drafts[index]!}
-                onOptionChange={(label, checked) => {
-                  setDrafts((current) =>
-                    selectQuestionOption(current, interaction.questions, index, label, checked),
-                  );
-                }}
-                onCustomChange={(value) => {
-                  setDrafts((current) => setQuestionCustomAnswer(current, index, value));
-                }}
-              />
-            ))}
-            <SubmitErrorMessage error={error} />
-          </div>
-
-          <DialogFooter closeLabel={t("extensions.interactiveRequests.cancel")}>
-            <Button type="button" variant="outline" disabled={submitting} onClick={cancel}>
-              {t("extensions.interactiveRequests.cancel")}
-            </Button>
-            <Button type="submit" disabled={!canSubmit || submitting}>
-              {submitting ? <LoaderCircleIcon className="animate-spin" aria-hidden="true" /> : null}
-              {submitting
-                ? t("extensions.interactiveRequests.submitting")
-                : t("extensions.interactiveRequests.submit")}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <AskUserPanel
+      questions={interaction.questions}
+      disabled={submitting}
+      error={errorMessage}
+      formatOptionLabel={(question, label) =>
+        optionLabel(
+          question,
+          label,
+          t("extensions.interactiveRequests.yes"),
+          t("extensions.interactiveRequests.no"),
+        )
+      }
+      onCancel={() => void submit({ kind: "cancel" })}
+      onSubmit={(answers) =>
+        void submit({
+          kind: "question",
+          answers: answers.map((answer) => ({
+            ...answer,
+            selected: [...answer.selected],
+          })),
+        })
+      }
+    />
   );
 }
 
@@ -366,7 +243,7 @@ function ApprovalDialog({
   );
 }
 
-export function InteractiveRequestsOverlay() {
+function usePendingInteractions() {
   const manager = usePiSessionManager();
   const revision = useSyncExternalStore(
     manager.subscribe,
@@ -374,17 +251,34 @@ export function InteractiveRequestsOverlay() {
     manager.getSnapshot,
   );
   const pending = useMemo(() => manager.getPendingInteractions(), [manager, revision]);
-  const interaction = pending[0];
-  if (!interaction) return null;
+  return { manager, pending };
+}
 
-  return interaction.kind === "question" ? (
-    <QuestionDialog
+export function InteractiveQuestionComposerOverlay({
+  setOverlayVisible,
+}: ComposerOverlaySlotContext) {
+  const { manager, pending } = usePendingInteractions();
+  const interaction = pending[0];
+  if (!interaction || interaction.kind !== "question" || interaction.questions.length === 0) {
+    return null;
+  }
+
+  return (
+    <QuestionComposerOverlay
       key={interaction.rpcId}
       interaction={interaction}
       manager={manager}
-      pendingCount={pending.length}
+      setOverlayVisible={setOverlayVisible}
     />
-  ) : (
+  );
+}
+
+export function InteractiveRequestsOverlay() {
+  const { manager, pending } = usePendingInteractions();
+  const interaction = pending[0];
+  if (!interaction || interaction.kind !== "approval") return null;
+
+  return (
     <ApprovalDialog
       key={interaction.rpcId}
       interaction={interaction}

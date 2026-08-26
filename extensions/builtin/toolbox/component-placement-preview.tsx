@@ -557,7 +557,14 @@ function MiniConversation({ activeRegion }: { activeRegion: ProjectPreviewRegion
             {target("composer.drawer.right", "drawer.right", "h-2")}
           </div>
         ) : null}
-        <div className="rounded-xl border bg-background p-2 shadow-sm">
+        <div className="relative rounded-xl border bg-background p-2 shadow-sm">
+          {activeRegion === "composer.overlay"
+            ? target(
+                "composer.overlay",
+                "composer.overlay",
+                "absolute inset-0 z-10 rounded-xl bg-primary/10 ring-1 ring-primary/50",
+              )
+            : null}
           <div className="h-7 text-[6.5px] text-muted-foreground">
             {t("extensions.toolbox.details.projectPanorama.inputPlaceholder")}
           </div>

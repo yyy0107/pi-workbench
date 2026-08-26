@@ -1,5 +1,18 @@
-import type { QuestionAnswerItem } from "@/runtime/pi/rpc-contracts";
-import type { QuestionItem } from "@/runtime/pi/stream-contracts";
+export interface AskUserQuestion {
+  readonly id: string;
+  readonly question: string;
+  readonly header?: string;
+  readonly detail?: string;
+  readonly options?: readonly { readonly label: string; readonly description?: string }[];
+  readonly multiSelect?: boolean;
+  readonly required?: boolean;
+}
+
+export interface AskUserAnswer {
+  readonly id: string;
+  readonly selected: readonly string[];
+  readonly custom?: string;
+}
 
 export interface QuestionAnswerDraft {
   readonly selected: readonly string[];
@@ -7,7 +20,7 @@ export interface QuestionAnswerDraft {
 }
 
 export function createQuestionAnswerDrafts(
-  questions: readonly QuestionItem[],
+  questions: readonly AskUserQuestion[],
 ): QuestionAnswerDraft[] {
   return questions.map(() => ({ selected: [], custom: "" }));
 }
@@ -23,7 +36,7 @@ function replaceDraft(
 
 export function selectQuestionOption(
   drafts: readonly QuestionAnswerDraft[],
-  questions: readonly QuestionItem[],
+  questions: readonly AskUserQuestion[],
   index: number,
   label: string,
   checked: boolean,
@@ -57,27 +70,57 @@ export function setQuestionCustomAnswer(
 }
 
 export function canSubmitQuestionAnswers(
-  questions: readonly QuestionItem[],
+  questions: readonly AskUserQuestion[],
   drafts: readonly QuestionAnswerDraft[],
 ): boolean {
-  if (questions.length === 0 || drafts.length !== questions.length) return false;
+  return findFirstInvalidQuestionIndex(questions, drafts) === undefined;
+}
 
-  return questions.every((question, index) => {
-    const options = question.options ?? [];
-    const draft = drafts[index];
-    if (!draft) return false;
-    if (options.length === 0) return true;
+export function isQuestionAnswered(
+  question: AskUserQuestion,
+  draft: QuestionAnswerDraft | undefined,
+): boolean {
+  if (!draft) return false;
+  return (question.options?.length ?? 0) > 0
+    ? draft.selected.length > 0
+    : draft.custom.trim().length > 0;
+}
 
-    const optionLabels = new Set(options.map((option) => option.label));
-    if (draft.selected.some((label) => !optionLabels.has(label))) return false;
-    return question.multiSelect ? true : draft.selected.length === 1;
-  });
+function isQuestionValid(
+  question: AskUserQuestion,
+  draft: QuestionAnswerDraft | undefined,
+): boolean {
+  if (!draft) return false;
+
+  const options = question.options ?? [];
+  if (options.length === 0) {
+    return !question.required || draft.custom.trim().length > 0;
+  }
+
+  const optionLabels = new Set(options.map((option) => option.label));
+  if (draft.selected.some((label) => !optionLabels.has(label))) return false;
+  if (!question.multiSelect && draft.selected.length > 1) return false;
+
+  const required = question.required ?? !question.multiSelect;
+  return !required || draft.selected.length > 0;
+}
+
+export function findFirstInvalidQuestionIndex(
+  questions: readonly AskUserQuestion[],
+  drafts: readonly QuestionAnswerDraft[],
+): number | undefined {
+  if (questions.length === 0 || drafts.length !== questions.length) return 0;
+
+  const index = questions.findIndex((question, questionIndex) =>
+    isQuestionValid(question, drafts[questionIndex]) ? false : true,
+  );
+  return index >= 0 ? index : undefined;
 }
 
 export function buildQuestionAnswers(
-  questions: readonly QuestionItem[],
+  questions: readonly AskUserQuestion[],
   drafts: readonly QuestionAnswerDraft[],
-): QuestionAnswerItem[] {
+): AskUserAnswer[] {
   return questions.map((question, index) => {
     const draft = drafts[index] ?? { selected: [], custom: "" };
     return {

@@ -7,8 +7,10 @@ import {
   buildQuestionAnswers,
   canSubmitQuestionAnswers,
   createQuestionAnswerDrafts,
+  findFirstInvalidQuestionIndex,
   selectQuestionOption,
   setQuestionCustomAnswer,
+  type AskUserQuestion,
 } from "./interaction-form-state";
 
 const questions = [
@@ -66,4 +68,31 @@ test("requires a valid single selection while allowing intentional empty multi a
 
   const ignored = selectQuestionOption(selected, questions, 0, "Unknown", true);
   assert.deepEqual(ignored, selected);
+});
+
+test("finds the first unanswered required question", () => {
+  const requiredQuestions = [
+    { id: "scope", question: "Scope", options: [{ label: "Code" }] },
+    {
+      id: "features",
+      question: "Features",
+      options: [{ label: "Search" }],
+      multiSelect: true,
+      required: true,
+    },
+    { id: "note", question: "Note", required: true },
+  ] satisfies AskUserQuestion[];
+
+  let drafts = createQuestionAnswerDrafts(requiredQuestions);
+  assert.equal(findFirstInvalidQuestionIndex(requiredQuestions, drafts), 0);
+
+  drafts = selectQuestionOption(drafts, requiredQuestions, 0, "Code", true);
+  assert.equal(findFirstInvalidQuestionIndex(requiredQuestions, drafts), 1);
+
+  drafts = selectQuestionOption(drafts, requiredQuestions, 1, "Search", true);
+  assert.equal(findFirstInvalidQuestionIndex(requiredQuestions, drafts), 2);
+
+  drafts = setQuestionCustomAnswer(drafts, 2, "  Ready  ");
+  assert.equal(findFirstInvalidQuestionIndex(requiredQuestions, drafts), undefined);
+  assert.equal(canSubmitQuestionAnswers(requiredQuestions, drafts), true);
 });

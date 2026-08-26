@@ -56,17 +56,48 @@ export const extensionsEnUS = {
       `${number(count)} pending ${count === 1 ? "request" : "requests"}`,
     answerLabel: ({ question }: { question: string }) => `Answer for ${question}`,
     answerPlaceholder: "Type your answer",
+    required: "Required",
     yes: "Yes",
     no: "No",
     tool: "Tool",
     callId: "Call ID",
     reason: "Reason",
     submit: "Submit response",
+    submitAndContinue: "Submit and continue",
+    nextQuestion: "Next question",
     submitting: "Sending…",
     cancel: "Cancel request",
     close: "Close approval request",
     allowOnce: "Allow once",
     reject: "Reject",
+    selectedCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
+      count === 1 ? "1 selected" : `${number(count)} selected`,
+    navigator: {
+      title: "Questions",
+      position: (
+        { current, total }: { current: number; total: number },
+        { number }: MessageFormatters,
+      ) => `${number(current)} / ${number(total)}`,
+      index: ({ index }: { index: number }, { number }: MessageFormatters) => number(index),
+      open: (
+        { current, total }: { current: number; total: number },
+        { number }: MessageFormatters,
+      ) => `Open question list, question ${number(current)} of ${number(total)}`,
+      previous: "Previous question",
+      next: "Next question",
+      answered: "Answered",
+      unanswered: "Not answered",
+    },
+    validation: {
+      missingRequired: "Answer all required questions before submitting.",
+    },
+    settings: {
+      title: "Ask User",
+      description: "Control whether the agent may pause to request structured input.",
+      enable: "Allow Ask User",
+      enableDescription:
+        "Let the agent ask follow-up questions when it needs a decision or missing detail.",
+    },
     errors: {
       badResponse: "The host rejected this response. Review the fields and try again.",
       notPending: "This request is no longer pending.",
@@ -106,6 +137,50 @@ export const extensionsEnUS = {
     general: {
       title: "General",
       description: "Configure the language and other shared Workbench preferences.",
+    },
+  },
+  externalSessionImport: {
+    title: "Import projects and conversations",
+    description:
+      "Bring local Codex, Claude Code, and Cursor conversations into Pi as native sessions. Source files remain unchanged; system prompts, credentials, encrypted state, and application-only metadata are not copied.",
+    refresh: "Scan again",
+    selectAll: "Select all available",
+    clearSelection: "Clear selection",
+    selectedCount: ({ count }: { count: string }) => `${count} selected`,
+    importSelected: "Import selected",
+    importing: "Importing…",
+    empty: "No supported local Codex, Claude Code, or Cursor conversations were found.",
+    noSessions: "No conversations were found for this source.",
+    selectSession: ({ title }: { title: string }) => `Select ${title} for import`,
+    messageCount: ({ count }: { count: string }) => `${count} records`,
+    result: ({ imported, skipped }: { imported: string; skipped: string }) =>
+      `Imported ${imported}; skipped ${skipped}.`,
+    sources: {
+      codex: "Codex",
+      "claude-code": "Claude Code",
+      cursor: "Cursor",
+    },
+    sourceStatus: {
+      ready: "Ready",
+      "not-found": "Not installed or no local data",
+      error: "This source could not be read",
+    },
+    states: {
+      ready: "Ready",
+      imported: "Already imported",
+      subagent: "Subagent",
+      unknownProject: "Unknown project",
+    },
+    issues: {
+      "source-unavailable": "Source unavailable",
+      "source-unreadable": "Source unreadable",
+      "workspace-missing": "Project folder no longer exists",
+      "workspace-not-directory": "Project path is not a folder",
+      "conversation-empty": "No complete conversation",
+      "conversation-unsupported": "Unsupported conversation format",
+    },
+    errors: {
+      requestFailed: "The scan or import could not be completed. Try again.",
     },
   },
   archivedChats: {
@@ -168,9 +243,8 @@ export const extensionsEnUS = {
       useDefault: "Use default prompt",
     },
     context: {
-      title: "Context",
-      description:
-        "Set the default model's context window and control when Pi compacts long sessions.",
+      title: "Context defaults",
+      description: "Set the default compaction behavior inherited by sessions.",
       loading: "Loading context settings…",
       modelWindowTitle: "Model context window",
       modelWindowDescription:
@@ -250,6 +324,26 @@ export const extensionsEnUS = {
         spinner: "Spinner",
         pulse: "Pulsing dot",
         none: "Hidden",
+      },
+    },
+    piWorkingAnimation: {
+      title: "Pi Working animation",
+      description: "Choose the thinking orb shown while Pi is working in a conversation.",
+      style: "Thinking orb",
+      size: "Orb size",
+      sizeDescription: "Adjust the inline orb without changing the Pi Working row height.",
+      sizeValue: ({ size }: { size: number }, { number }: MessageFormatters) =>
+        `${number(size)} px`,
+      styles: {
+        working: "Working · Orbiting particles",
+        searching: "Searching · Scanning globe",
+        solving: "Solving · Scrambling bands",
+        listening: "Listening · Rolling waveform",
+        connecting: "Connecting · Wired constellation",
+        weaving: "Weaving · Braided strands",
+        composing: "Composing · Undulating bands",
+        breathing: "Breathing · Morphing ring",
+        shaping: "Shaping · Geometric outline",
       },
     },
     fontFamilies: {
@@ -421,6 +515,26 @@ export const extensionsEnUS = {
     loadingMore: "Loading more models",
     contextWindow: ({ count }: { count: number }, { number }: MessageFormatters) =>
       `${number(count, { notation: "compact", maximumFractionDigits: 1 })} context window`,
+    contextBudget: "Context budget",
+    contextBudgetValue: ({ mode, tokens }: { mode: string; tokens: string }) =>
+      `${mode} · ${tokens}`,
+    customContextBudget: "Custom context budget",
+    applyContextBudget: "Apply",
+    customContextBudgetInvalid: ({ tokens }: { tokens: string }) =>
+      `Enter a whole number no greater than this model's ${tokens}-token capacity.`,
+    contextBudgetSaveFailed: "Could not update the session context budget. Try again.",
+    contextBudgetModes: {
+      inherit: "Inherit",
+      auto: "Auto",
+      maximum: "Maximum",
+      custom: "Custom",
+    },
+    contextBudgetDescriptions: {
+      inherit: "Use the shared context and compaction defaults.",
+      auto: "Follow each model's capacity and keep automatic compaction on.",
+      maximum: "Use each selected model's full configured capacity.",
+      custom: "Pin a session budget, capped by the selected model's capacity.",
+    },
     off: "Off",
     minimal: "Minimal",
     low: "Low",
@@ -504,6 +618,14 @@ export const extensionsEnUS = {
     selectAvailableModel: "Select an available model",
     modelName: "Display name",
     contextWindow: "Context window",
+    runtimeContextWindows: "Runtime model context capacity",
+    runtimeContextWindowsDescription:
+      "Override capacity metadata for runtime and account-login models without replacing the provider's model catalog.",
+    contextWindowProviderDefault: "Provider default",
+    contextWindowLocalOverride: "Local override",
+    restoreProviderDefault: "Restore Provider default",
+    editContextWindow: ({ name }: { name: string }) =>
+      `Edit context capacity for ${name || "model"}`,
     maxOutputTokens: "Maximum output tokens",
     maxOutputTokensUnset: "Not set",
     editMaxOutputTokens: "Edit maximum output tokens",
@@ -634,6 +756,9 @@ export const extensionsEnUS = {
       modelRequired: "Add at least one model.",
       invalidModel: "Enter a model ID and valid positive capacities such as 128K or 1M.",
       duplicateModel: "Model IDs must be unique within a provider.",
+      invalidContextWindow: "Enter a whole number from 1 to 10,000,000.",
+      contextWindowSaveFailed: "Could not save the context-capacity override. Try again.",
+      contextWindowResetFailed: "Could not restore the Provider default. Try again.",
       saveFailed: "Could not save the model configuration. Try again.",
     },
   },
@@ -1955,6 +2080,7 @@ export const extensionsEnUS = {
       statusSuccess: "Success",
       interactionPossible: "May be waiting for input",
       interactionActive: "Terminal input active",
+      userInputRequested: "Waiting for your input",
       openTerminal: "Open terminal",
     },
     transcript: {
@@ -1970,6 +2096,7 @@ export const extensionsEnUS = {
       waiting: "Command is waiting for action",
       interactionPossible: "Command may be waiting for terminal input",
       interactionActive: "Terminal input is active",
+      userInputRequested: "The command delegated terminal input to you",
       unavailable: "This command output is not available in the current conversation",
       waitingOutput: "Waiting for output…",
       noOutput: "No output",
@@ -1989,7 +2116,31 @@ export const extensionsEnUS = {
     output: "output",
     tokenUnit: "tok",
     unavailable: "—",
+    detailsTitle: "Conversation statistics",
+    showDetails: "Show conversation statistics",
     description: "Aggregated statistics for the current conversation",
+    currentContextTitle: "Current context",
+    currentContextDescription:
+      "Current context occupancy is the next request's working set. It is different from cumulative session tokens billed across all turns.",
+    currentContextValue: ({ used, budget }: { used: string; budget: string }) =>
+      `${used} / ${budget}`,
+    nearingCompaction:
+      "Context is approaching the automatic compaction point. Pi will preserve recent work when it compacts.",
+    contextBudget: "Session context budget",
+    customContextBudget: "Custom session context budget",
+    applyContextBudget: "Apply",
+    customContextBudgetInvalid: ({ tokens }: { tokens: string }) =>
+      `Enter a whole number no greater than this model's ${tokens}-token capacity.`,
+    contextBudgetModes: {
+      inherit: "Inherit",
+      auto: "Auto",
+      maximum: "Maximum",
+      custom: "Custom",
+    },
+    compactNow: "Compact now",
+    viewContextTrace: "View Context Trace",
+    contextActionFailed: "The context action could not be completed. Try again.",
+    cumulativeTitle: "Cumulative session tokens and timing",
   },
   workspaceDirectory: {
     add: "Add workspace",

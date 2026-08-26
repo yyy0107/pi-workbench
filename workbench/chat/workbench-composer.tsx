@@ -479,6 +479,7 @@ export function WorkbenchComposer() {
   const rejectedQueueDraftActions = piRejectedQueueDraftActions(extras);
   const drawerId = useId();
   const composerRef = useRef<HTMLFormElement>(null);
+  const [composerOverlayCount, setComposerOverlayCount] = useState(0);
   const lexicalEditorRef = useRef<LexicalEditor | null>(null);
   const isRunning = useAuiState((state) => state.thread.isRunning);
   const isEmpty = useAuiState((state) => state.thread.composer.isEmpty);
@@ -493,7 +494,6 @@ export function WorkbenchComposer() {
   const composerDrafts = useRef(new Map<string, ComposerDraftSnapshot>());
   const composerDraftThreadId = useRef(mainThreadId);
   const [isDrawerOpen, setIsDrawerOpen] = useState(isNewThread);
-  const [isComposerSelected, setIsComposerSelected] = useState(false);
   const [isComposerFocused, setIsComposerFocused] = useState(false);
   const [isComposerComposing, setIsComposerComposing] = useState(false);
   const [composerCursorPosition, setComposerCursorPosition] = useState(0);
@@ -707,11 +707,18 @@ export function WorkbenchComposer() {
   );
   const hasDraftWorkspace = useWorkspaceSelection().draftWorkspace !== undefined;
   const canCompose = !isNewThread || hasDraftWorkspace;
-  const showWorkspacePrompt = !canCompose && isComposerSelected;
   const contextCount = useAuiState(
     (state) => state.thread.messages.length + state.thread.composer.attachments.length,
   );
   const context = { isRunning, isEmpty };
+  const setComposerOverlayVisible = useCallback((visible: boolean) => {
+    setComposerOverlayCount((count) => Math.max(0, count + (visible ? 1 : -1)));
+  }, []);
+  const composerOverlayContext = {
+    ...context,
+    setOverlayVisible: setComposerOverlayVisible,
+  };
+  const composerOverlayVisible = composerOverlayCount > 0;
   const drawerContext = {
     ...context,
     closeDrawer: () => setIsDrawerOpen(false),
@@ -719,7 +726,6 @@ export function WorkbenchComposer() {
 
   useEffect(() => {
     setIsDrawerOpen(isNewThread);
-    setIsComposerSelected(false);
   }, [hasDraftWorkspace, isNewThread, mainThreadId]);
 
   useEffect(() => {
@@ -745,19 +751,6 @@ export function WorkbenchComposer() {
       current && !commandKeys.has(current) ? undefined : current,
     );
   }, [composerValue, mainThreadId]);
-
-  useEffect(() => {
-    if (!showWorkspacePrompt) return;
-
-    const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target;
-      if (target instanceof Node && composerRef.current?.contains(target)) return;
-      setIsComposerSelected(false);
-    };
-
-    document.addEventListener("pointerdown", handlePointerDown);
-    return () => document.removeEventListener("pointerdown", handlePointerDown);
-  }, [showWorkspacePrompt]);
 
   useEffect(() => {
     setComposerCommandError(false);
@@ -916,7 +909,6 @@ export function WorkbenchComposer() {
         if (!dispatched) return;
         setComposerCommandError(false);
         setIsDrawerOpen(false);
-        setIsComposerSelected(false);
         clearCommandParameterValues();
       } catch (error) {
         reportComposerCommandError(error);
@@ -999,21 +991,32 @@ export function WorkbenchComposer() {
     [composerSuggestionsByKey, t],
   );
 
+  if (!canCompose) {
+    return (
+      <div className="flex w-full flex-col gap-2">
+        <SlotHost name="composer.before" context={context} className="flex flex-col gap-2" />
+        <SlotHost name="composer.after" context={context} className="flex flex-col gap-2" />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex w-full flex-col gap-2">
-      <SlotHost name="composer.before" context={context} className="flex flex-col gap-2" />
+    <div className="grid w-full grid-rows-[auto_auto_auto] gap-2">
+      <SlotHost
+        name="composer.before"
+        context={context}
+        className="col-start-1 row-start-1 flex flex-col gap-2"
+      />
 
       <ComposerPrimitive.Unstable_TriggerPopoverRoot>
         <ComposerPrimitive.Root
           ref={composerRef}
-          className="group/composer relative flex w-full flex-col"
-          data-selected={showWorkspacePrompt ? "true" : undefined}
-          onPointerDownCapture={() => {
-            if (!canCompose) setIsComposerSelected(true);
-          }}
+          inert={composerOverlayVisible}
+          aria-hidden={composerOverlayVisible || undefined}
+          className="group/composer relative col-start-1 row-start-2 flex w-full flex-col"
           onSubmit={(event) => {
             event.preventDefault();
-            dispatchComposer();
+            if (!composerOverlayVisible) dispatchComposer();
           }}
         >
           <ComposerPrimitive.Unstable_TriggerPopover
@@ -1054,19 +1057,9 @@ export function WorkbenchComposer() {
 
           <ComposerPrimitive.AttachmentDropzone
             data-slot="workbench-composer-card"
-            className={cn(
-              "bg-background data-[dragging=true]:bg-accent/50 flex w-full flex-col overflow-hidden rounded-[22px] border shadow-[0_1px_3px_rgba(0,0,0,0.08)] outline-none transition-[border-color,box-shadow,background-color] data-[dragging=true]:border-dashed",
-              showWorkspacePrompt &&
-                "border-dashed border-muted-foreground/40 dark:border-muted-foreground/50",
-            )}
+            className="bg-background data-[dragging=true]:bg-accent/50 flex w-full flex-col overflow-hidden rounded-[22px] border shadow-[0_1px_3px_rgba(0,0,0,0.08)] outline-none transition-[border-color,box-shadow,background-color] data-[dragging=true]:border-dashed"
           >
-            <fieldset
-              disabled={!canCompose}
-              className={cn(
-                "flex flex-col gap-3 pt-2.5 transition-opacity [&>.aui-composer-attachments]:px-3",
-                showWorkspacePrompt ? "opacity-60" : !canCompose && "[&_:disabled]:opacity-100",
-              )}
-            >
+            <fieldset className="flex flex-col gap-3 pt-2.5 transition-opacity [&>.aui-composer-attachments]:px-3">
               <ComposerWorkspaceFeedback />
               <ComposerAttachments />
               <div className="flex w-full min-w-0 items-start px-4 pt-1 pb-0">
@@ -1232,15 +1225,7 @@ export function WorkbenchComposer() {
                 />
                 <div className="ms-auto flex shrink-0 items-center gap-1.5">
                   <ComposerDrawerStats contextCount={contextCount} />
-                  <fieldset
-                    disabled={!canCompose}
-                    className={cn(
-                      "flex shrink-0 items-center transition-opacity",
-                      showWorkspacePrompt
-                        ? "opacity-60"
-                        : !canCompose && "[&_:disabled]:opacity-100",
-                    )}
-                  >
+                  <fieldset className="flex shrink-0 items-center transition-opacity">
                     <SlotHost
                       name="composer.drawer.right"
                       context={drawerContext}
@@ -1281,9 +1266,22 @@ export function WorkbenchComposer() {
             </div>
           ) : null}
         </ComposerPrimitive.Root>
+
+        <SlotHost
+          name="composer.overlay"
+          context={composerOverlayContext}
+          className={cn(
+            "relative z-10 col-start-1 row-start-2 min-w-0 empty:hidden",
+            !composerOverlayVisible && "pointer-events-none",
+          )}
+        />
       </ComposerPrimitive.Unstable_TriggerPopoverRoot>
 
-      <SlotHost name="composer.after" context={context} className="flex flex-col gap-2" />
+      <SlotHost
+        name="composer.after"
+        context={context}
+        className="col-start-1 row-start-3 flex flex-col gap-2"
+      />
     </div>
   );
 }
