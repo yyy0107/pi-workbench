@@ -40,9 +40,10 @@ export interface ComposerAttachment {
 
 export interface ComposerCommand {
   name: string;
+  label?: string;
   description: string;
+  meta?: string;
   argumentHint?: string;
-  icon: LucideIcon;
 }
 
 export interface ComposerPerson {
@@ -177,41 +178,60 @@ export function ComposerMenuItem({
 export function ComposerCommandItem({
   command,
   active,
+  className,
   ...props
 }: Omit<ComponentProps<"button">, "children"> & {
   command: ComposerCommand;
   active: boolean;
 }) {
   return (
-    <ComposerMenuItem active={active} {...props}>
-      <command.icon className="text-foreground/35 size-3.5 shrink-0" />
-      <span className="flex min-w-0 shrink-0 items-baseline gap-1">
-        <span className="font-medium">/{command.name}</span>
-        {command.argumentHint && (
-          <span className="text-foreground/35 truncate text-xs">{command.argumentHint}</span>
-        )}
-      </span>
-      <span className="text-foreground/45 flex-1 truncate text-end text-xs">
-        {command.description}
-      </span>
-      {active && (
-        <kbd className="bg-foreground/[0.06] text-foreground/45 rounded px-1 font-mono text-[10px]">
-          ↵
-        </kbd>
+    <ComposerMenuItem
+      active={active}
+      className={cn(
+        "min-h-9 gap-3 rounded-lg px-3 py-1.5 text-start",
+        active ? "bg-muted/80 dark:bg-muted/60" : "hover:bg-muted/50 dark:hover:bg-muted/35",
+        className,
       )}
+      {...props}
+    >
+      <span
+        className="max-w-[42%] shrink-0 truncate text-[13px]! leading-5 font-medium"
+        title={command.label ?? `/${command.name}`}
+      >
+        {command.label ?? `/${command.name}`}
+      </span>
+      {command.description !== command.label ? (
+        <span
+          className="text-foreground/45 min-w-0 flex-1 truncate text-end text-xs! leading-5"
+          title={command.description}
+        >
+          {command.description}
+        </span>
+      ) : (
+        <span aria-hidden="true" className="min-w-0 flex-1" />
+      )}
+      {command.meta ? (
+        <span
+          className="text-foreground/40 max-w-48 shrink-0 truncate text-end text-xs! leading-5"
+          title={command.meta}
+        >
+          {command.meta}
+        </span>
+      ) : null}
+      <span className="sr-only">
+        /{command.name} {command.argumentHint}
+      </span>
     </ComposerMenuItem>
   );
 }
 
 export function ComposerCommandToken({
   label,
-  icon: Icon,
   hint,
   className,
   ...props
 }: Omit<ComponentProps<"span">, "children"> & {
   label: string;
-  icon: LucideIcon;
   hint?: string;
 }) {
   return (
@@ -223,7 +243,6 @@ export function ComposerCommandToken({
       )}
       {...props}
     >
-      <Icon aria-hidden="true" className="me-1.5 inline-block size-4 align-[-0.125em]" />
       <span>{label}</span>
       {hint ? (
         <span

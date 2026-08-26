@@ -492,8 +492,25 @@ export function compileWorkbenchComposerPrompt(request: WorkbenchResolvedAgentRe
     );
   }
   if (request.instructions.length > 0) {
+    const explicitlySelectedSkillNames = [
+      ...new Set(
+        request.instructions.flatMap((instruction) =>
+          instruction.source.startsWith("skill:")
+            ? [instruction.source.slice("skill:".length)]
+            : [],
+        ),
+      ),
+    ];
     sections.push(
       "<workbench-trusted-instructions>",
+      ...(explicitlySelectedSkillNames.length > 0
+        ? [
+            "The user explicitly selected the following Skills for this turn.",
+            `Selected Skill names: ${JSON.stringify(explicitlySelectedSkillNames)}.`,
+            "Apply these Skill instructions to the current user request. Do not treat them as reference data or infer a different subject from earlier conversation.",
+            'When the user uses a deictic reference such as "this", "that", "it", "这个", or "它", interpret it as referring to the explicitly selected Skill unless the current request explicitly says otherwise.',
+          ]
+        : ["Apply the following trusted instructions to the current user request."]),
       JSON.stringify(request.instructions),
       "</workbench-trusted-instructions>",
       "",

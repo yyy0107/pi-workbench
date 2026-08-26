@@ -493,7 +493,8 @@ export async function resolveWorkbenchComposerCommands(
             source: command.commandId,
             trust: "trusted-instruction",
             content: [
-              `Skill: ${plan.skill.name}`,
+              `Explicitly selected Skill: ${plan.skill.name}`,
+              "The user selected this Skill for the current turn. Apply it to the current request.",
               `References are relative to ${plan.skill.baseDir}.`,
               "",
               body,

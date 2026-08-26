@@ -372,6 +372,8 @@ Extension command 和 prompt template 项还返回脱敏后的 package 来源、
 是独占的 `session-action`，普通 extension command 是独占的 `agent-turn`，prompt template 是
 `prompt-transform`，skill 是可组合的 `instruction`。独占命令不能和另一个 Token 混用，从而避免
 reload 后 preflight 快照失效，也避免 lifecycle action 与主 Agent turn 的顺序歧义。
+Skill 命令同样返回脱敏后的 source、scope 和 origin，供 Composer 区分用户级、项目级与 Package
+来源；catalog 仍不会暴露 Skill 文件路径。
 
 Workbench 已适配的带参命令还可由 catalog 返回声明式 `argsSchema` 和 `argsBinding`。`/compact`
 使用独占的 message-text binding：选择后在 Composer 上方打开结构化参数面板，参数写入

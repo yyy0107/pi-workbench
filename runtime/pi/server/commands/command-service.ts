@@ -33,6 +33,11 @@ interface LoadedSkill {
   name: string;
   description: string;
   disableModelInvocation: boolean;
+  sourceInfo: {
+    source: string;
+    scope: ExtensionSourceScope;
+    origin: ExtensionSourceOrigin;
+  };
 }
 
 export interface CommandSessionHost {
@@ -175,6 +180,9 @@ export class CommandService {
             exclusive: false,
             description: skill.description,
             modelInvocable: !skill.disableModelInvocation,
+            source: skill.sourceInfo.source,
+            scope: skill.sourceInfo.scope,
+            origin: skill.sourceInfo.origin,
           })),
         ],
       };

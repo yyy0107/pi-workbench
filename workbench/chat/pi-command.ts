@@ -9,6 +9,26 @@ export interface PiCommandTextMatch<TCommand extends PiCommandDescriptor = PiCom
   hasSeparator: boolean;
 }
 
+const PI_COMMAND_ACRONYMS = new Map(
+  [
+    "ai",
+    "api",
+    "cli",
+    "http",
+    "https",
+    "id",
+    "json",
+    "llm",
+    "mcp",
+    "ocr",
+    "rpc",
+    "sdk",
+    "ui",
+    "url",
+    "ux",
+  ].map((value) => [value, value.toUpperCase()]),
+);
+
 export function formatPiCommandLabel(name: string): string {
   const withoutCollisionSuffix = name.replace(/:\d+$/, "");
   const words = withoutCollisionSuffix
@@ -18,9 +38,11 @@ export function formatPiCommandLabel(name: string): string {
     .filter(Boolean);
 
   return words
-    .map((word) =>
-      /^[A-Z\d]+$/.test(word) ? word : `${word.charAt(0).toUpperCase()}${word.slice(1)}`,
-    )
+    .map((word) => {
+      const acronym = PI_COMMAND_ACRONYMS.get(word.toLowerCase());
+      if (acronym) return acronym;
+      return /^[A-Z\d]+$/.test(word) ? word : `${word.charAt(0).toUpperCase()}${word.slice(1)}`;
+    })
     .join(" ");
 }
 

@@ -1,8 +1,6 @@
 "use client";
 
-import { CuboidIcon } from "lucide-react";
 import { useAuiState } from "@assistant-ui/react";
-import { useCallback, useMemo, useSyncExternalStore } from "react";
 
 import { CompactMarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ComposerCommandToken } from "@/components/elements/composer";
@@ -31,19 +29,6 @@ export function WorkbenchComposerMessageText({ text }: { text: string }) {
     (state) => state.message.metadata.custom.workbenchComposerDocument,
   );
   const composerCommandRegistry = useComposerCommandRegistry();
-  const getComposerCommands = useCallback(
-    () => composerCommandRegistry.getAll(),
-    [composerCommandRegistry],
-  );
-  const composerCommands = useSyncExternalStore(
-    composerCommandRegistry.subscribe,
-    getComposerCommands,
-    getComposerCommands,
-  );
-  const composerCommandsById = useMemo(
-    () => new Map(composerCommands.map((command) => [command.id, command])),
-    [composerCommands],
-  );
   const composerDocument =
     parseWorkbenchComposerDocument(persistedDocument) ??
     parseComposerDocument(text, composerCommandRegistry, commands);
@@ -76,7 +61,6 @@ export function WorkbenchComposerMessageText({ text }: { text: string }) {
                   <ComposerCommandToken
                     key={node.id}
                     label={node.label}
-                    icon={composerCommandsById.get(node.commandId)?.icon ?? CuboidIcon}
                     className="mx-0.5 align-baseline"
                   />
                 );
@@ -100,7 +84,6 @@ export function WorkbenchComposerMessageText({ text }: { text: string }) {
         <p className="whitespace-pre-wrap">
           <ComposerCommandToken
             label={formatPiCommandLabel(commandText.command.name)}
-            icon={CuboidIcon}
             className="me-1 align-baseline"
           />
           <span

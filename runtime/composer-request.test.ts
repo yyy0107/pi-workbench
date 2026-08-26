@@ -196,3 +196,27 @@ test("adapts the resolved request by trust boundary without injecting command tr
   assert.doesNotMatch(prompt, /"commandId":"plan"/);
   assert.match(prompt, /<user-request>\ninspect concurrency\n<\/user-request>$/);
 });
+
+test("binds a deictic request to the Skill explicitly selected in Composer", () => {
+  const prompt = compileWorkbenchComposerPrompt({
+    version: 1,
+    userText: "怎么使用这个",
+    config: { metadata: {} },
+    instructions: [
+      {
+        source: "skill:mcp-scripting",
+        trust: "trusted-instruction",
+        content: "Explicitly selected Skill: mcp-scripting\nFollow the MCP scripting workflow.",
+      },
+    ],
+    trustedContext: [],
+    untrustedContext: [],
+    commandTrace: [],
+  });
+
+  assert.match(prompt, /explicitly selected the following Skills for this turn/);
+  assert.match(prompt, /Selected Skill names: \["mcp-scripting"\]/);
+  assert.match(prompt, /Do not treat them as reference data/);
+  assert.match(prompt, /"这个"/);
+  assert.match(prompt, /<user-request>\n怎么使用这个\n<\/user-request>$/);
+});

@@ -1095,6 +1095,9 @@ export interface PromptCommandView extends CommandViewBase {
 export interface SkillCommandView extends CommandViewBase {
   kind: "skill";
   modelInvocable: boolean;
+  source: string;
+  scope: ExtensionSourceScope;
+  origin: ExtensionSourceOrigin;
 }
 
 export type CommandView =

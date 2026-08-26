@@ -181,6 +181,9 @@ test("lists supported built-ins, extensions, prompt templates, and skills", asyn
         exclusive: false,
         description: "Create or update a skill.",
         modelInvocable: false,
+        source: "auto",
+        scope: "user",
+        origin: "top-level",
       },
     ],
   });

@@ -32,6 +32,12 @@ export const workbenchZhCN = {
         skill: "Skills",
         workbench: "Workbench",
       },
+      commandScopes: {
+        user: "用户级",
+        project: "项目级",
+        temporary: "临时",
+        manualOnly: "仅手动调用",
+      },
       builtinCommands: {
         compact: {
           label: "压缩上下文",

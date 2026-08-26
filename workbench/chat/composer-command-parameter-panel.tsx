@@ -1,6 +1,6 @@
 "use client";
 
-import { XIcon, type LucideIcon } from "lucide-react";
+import { XIcon } from "lucide-react";
 import { useId } from "react";
 
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
@@ -22,7 +22,6 @@ interface ComposerCommandParameterField {
 interface ComposerCommandParameterPanelProps {
   readonly command: {
     readonly label: string;
-    readonly icon: LucideIcon;
     readonly argsSchema: ComposerCommandArgsSchema;
     readonly argsBinding?: ComposerCommandArgsBinding;
   };
@@ -199,7 +198,6 @@ export function ComposerCommandParameterPanel({
 }: ComposerCommandParameterPanelProps) {
   const { t } = useI18n();
   const fields = composerCommandParameterFields(command.argsSchema, command.argsBinding);
-  const Icon = command.icon;
 
   return (
     <section
@@ -210,8 +208,7 @@ export function ComposerCommandParameterPanel({
       className="bg-background mb-2 grid w-full gap-4 rounded-[22px] border p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
     >
       <div className="flex min-w-0 items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2 text-sm font-medium text-blue-500 dark:text-blue-400">
-          <Icon aria-hidden="true" className="size-4 shrink-0" />
+        <div className="min-w-0 text-sm font-medium text-blue-500 dark:text-blue-400">
           <span className="truncate">{command.label}</span>
         </div>
         <TooltipIconButton

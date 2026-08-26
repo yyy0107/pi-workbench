@@ -25,15 +25,7 @@ import {
   KEY_ENTER_COMMAND,
   type LexicalEditor,
 } from "lexical";
-import {
-  AlertCircleIcon,
-  ArrowUpIcon,
-  CuboidIcon,
-  MicIcon,
-  PlusIcon,
-  SquareIcon,
-  XIcon,
-} from "lucide-react";
+import { AlertCircleIcon, ArrowUpIcon, MicIcon, PlusIcon, SquareIcon, XIcon } from "lucide-react";
 import {
   Fragment,
   useCallback,
@@ -191,6 +183,23 @@ function suggestionGroupLabel(
     case "workbench":
       return t("workbench.chat.composer.commandGroups.workbench");
   }
+}
+
+function commandSourceMeta(
+  command: CommandView,
+  t: ReturnType<typeof useI18n>["t"],
+): string | undefined {
+  if (command.kind === "builtin") return undefined;
+  const parts = [t(`workbench.chat.composer.commandScopes.${command.scope}`)];
+  if (command.origin === "package" && command.source !== "auto") {
+    parts.push(
+      command.source.startsWith("npm:") ? command.source.slice("npm:".length) : command.source,
+    );
+  }
+  if (command.kind === "skill" && !command.modelInvocable) {
+    parts.push(t("workbench.chat.composer.commandScopes.manualOnly"));
+  }
+  return parts.join(" · ");
 }
 
 function builtinCommandPresentation(
@@ -378,7 +387,10 @@ function WorkbenchComposerCommandMenu({
   let previousGroup: WorkbenchComposerSuggestion["group"] | undefined;
 
   return (
-    <ComposerMenu open={open && items.length > 0} className="max-h-72 w-full overflow-y-auto pt-0">
+    <ComposerMenu
+      open={open && items.length > 0}
+      className="max-h-[min(24rem,50vh)] w-full gap-2 overflow-y-auto p-1.5 pt-0 scroll-py-2"
+    >
       {items.map((item, index) => {
         const suggestion = suggestions.get(suggestionKey(item));
         if (!suggestion) return null;
@@ -389,7 +401,7 @@ function WorkbenchComposerCommandMenu({
             {showGroupLabel && (
               <div
                 role="presentation"
-                className="bg-popover/95 text-muted-foreground sticky top-0 z-10 px-2.5 py-1.5 text-[11px] font-medium backdrop-blur-sm"
+                className="bg-popover/95 text-muted-foreground sticky top-0 z-10 px-3 py-2 text-[11px] leading-4 font-medium backdrop-blur-sm"
               >
                 {suggestionGroupLabel(suggestion.group, t)}
               </div>
@@ -599,9 +611,10 @@ export function WorkbenchComposer() {
         item: { id: command.invocationName, type, label, description },
         command: {
           name: command.invocationName,
+          label,
           description,
+          meta: commandSourceMeta(command, t),
           ...(argumentHint ? { argumentHint } : {}),
-          icon: definition?.icon ?? CuboidIcon,
         },
         group: command.kind,
         exclusive: command.exclusive,
@@ -628,9 +641,9 @@ export function WorkbenchComposer() {
         },
         command: {
           name: definition.id,
+          label,
           description,
           ...(argumentHint ? { argumentHint } : {}),
-          icon: definition.icon ?? CuboidIcon,
         },
         group: "workbench",
         exclusive: definition.composer.exclusive ?? false,
@@ -958,7 +971,6 @@ export function WorkbenchComposer() {
       return (
         <ComposerCommandToken
           label={label}
-          icon={suggestion?.command.icon ?? CuboidIcon}
           role={parameterKey ? "button" : undefined}
           tabIndex={parameterKey ? 0 : undefined}
           title={editLabel}
@@ -1035,7 +1047,6 @@ export function WorkbenchComposer() {
             <ComposerCommandParameterPanel
               command={{
                 label: activeCommandParameterSuggestion.item.label,
-                icon: activeCommandParameterSuggestion.command.icon,
                 argsSchema: activeCommandParameterSuggestion.argsSchema,
                 ...(activeCommandParameterSuggestion.argsBinding
                   ? { argsBinding: activeCommandParameterSuggestion.argsBinding }

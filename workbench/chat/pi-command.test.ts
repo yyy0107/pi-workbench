@@ -13,6 +13,8 @@ const commands = [
 test("formats Pi command names as readable labels", () => {
   assert.equal(formatPiCommandLabel("create-subagent"), "Create Subagent");
   assert.equal(formatPiCommandLabel("openMCPServer"), "Open MCP Server");
+  assert.equal(formatPiCommandLabel("mcp-scripting"), "MCP Scripting");
+  assert.equal(formatPiCommandLabel("json-api"), "JSON API");
 });
 
 test("parses collision-safe Pi command invocations and preserves arguments", () => {

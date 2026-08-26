@@ -34,6 +34,12 @@ export const workbenchEnUS = {
         skill: "Skills",
         workbench: "Workbench",
       },
+      commandScopes: {
+        user: "User",
+        project: "Project",
+        temporary: "Temporary",
+        manualOnly: "Manual only",
+      },
       builtinCommands: {
         compact: {
           label: "Compact",

@@ -322,6 +322,10 @@ test("loads an existing Skill as trusted instructions without starting an interm
 
   assert.equal(promptCount, 0);
   assert.equal(resolved.agentTurn, false);
+  assert.match(
+    resolved.request.instructions[0]?.content ?? "",
+    /Explicitly selected Skill: create-skill/,
+  );
   assert.match(resolved.request.instructions[0]?.content ?? "", /Follow the skill workflow\./);
   assert.deepEqual(
     resolved.request.commandTrace.map(({ commandId, effect, status }) => ({
