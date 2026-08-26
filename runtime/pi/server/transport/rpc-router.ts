@@ -34,6 +34,7 @@ import {
 } from "../settings/workbench-settings-service";
 import { ImageUnderstandingSettingsStoreError } from "../image-understanding/settings-store";
 import { getImageUnderstandingSettingsStore } from "../image-understanding/registry";
+import { getExternalSessionImportService } from "../imports/external-session-import-service";
 import { handleInteractiveResponsePost } from "../sessions/interactive-response-registry";
 import {
   getAttachedSessionCount,
@@ -455,6 +456,16 @@ const sessionCreatePayload = rpcObject({
   sessionId: rpcOptional(nonEmptyString),
   agentPreset: rpcOptional(nonEmptyString),
 });
+const externalSessionSource = rpcEnum(["codex", "claude-code", "cursor"]);
+const externalSessionImportPayload = rpcObject({
+  sessions: rpcArray(
+    rpcObject({
+      source: externalSessionSource,
+      sourceSessionId: rpcString({ minLength: 1, maxLength: 512 }),
+    }),
+    { maxLength: 200 },
+  ),
+});
 const sessionHistoryPayload = rpcObject({
   sessionId: nonEmptyString,
   beforeSeq: rpcOptional(rpcInteger({ minimum: 0 })),
@@ -788,6 +799,20 @@ export async function handlePiRpcPost(request: Request, method: string): Promise
             throwDomainError(error);
           }
         },
+      });
+    case "sessionImport.scan":
+      return handleRpcPost(request, {
+        method,
+        payload: emptyPayload,
+        loopbackOnly: true,
+        handler: () => getExternalSessionImportService().scan(),
+      });
+    case "sessionImport.import":
+      return handleRpcPost(request, {
+        method,
+        payload: externalSessionImportPayload,
+        loopbackOnly: true,
+        handler: ({ sessions }) => getExternalSessionImportService().import(sessions),
       });
     case "session.history":
       return handleRpcPost(request, {

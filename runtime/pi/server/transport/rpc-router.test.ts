@@ -447,6 +447,17 @@ test("routes session validation failures through the shared error envelope", asy
   const issues = composerBody.result.error.details.issues as Array<{ path?: unknown }>;
   assert.deepEqual(issues[0]?.path, ["payload", "composer", "commands", 0, "source"]);
 
+  const externalImportResponse = await handlePiRpcPost(
+    rpcRequest("sessionImport.import", {
+      sessions: [{ source: "unknown", sourceSessionId: "session-1" }],
+    }),
+    "sessionImport.import",
+  );
+  const externalImportBody = (await externalImportResponse.json()) as ServerResponse<unknown>;
+  assert.equal(externalImportBody.result.ok, false);
+  if (externalImportBody.result.ok) assert.fail("Expected an external import validation error");
+  assert.equal(externalImportBody.result.error.code, "bad-request");
+
   const historicalArgumentResponse = await handlePiRpcPost(
     rpcRequest("session.prompt", {
       sessionId: "missing-session",

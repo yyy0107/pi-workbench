@@ -1140,6 +1140,65 @@ export interface SessionListValue {
   items: SessionListItem[];
 }
 
+export type ExternalSessionSource = "codex" | "claude-code" | "cursor";
+
+export type ExternalSessionImportIssue =
+  | "source-unavailable"
+  | "source-unreadable"
+  | "workspace-missing"
+  | "workspace-not-directory"
+  | "conversation-empty"
+  | "conversation-unsupported";
+
+export interface ExternalSessionImportView {
+  source: ExternalSessionSource;
+  sourceSessionId: string;
+  title: string;
+  cwd: string;
+  createdAt: number;
+  updatedAt: number;
+  messageCount?: number;
+  subagent?: boolean;
+  importable: boolean;
+  alreadyImported: boolean;
+  issue?: ExternalSessionImportIssue;
+}
+
+export interface ExternalSessionImportScanValue {
+  sources: Array<{
+    source: ExternalSessionSource;
+    status: "ready" | "not-found" | "error";
+    sessions: ExternalSessionImportView[];
+  }>;
+}
+
+export interface ExternalSessionImportPayload {
+  sessions: Array<{
+    source: ExternalSessionSource;
+    sourceSessionId: string;
+  }>;
+}
+
+export type ExternalSessionImportSkipReason =
+  | ExternalSessionImportIssue
+  | "already-imported"
+  | "source-session-not-found"
+  | "import-failed";
+
+export interface ExternalSessionImportValue {
+  imported: Array<{
+    source: ExternalSessionSource;
+    sourceSessionId: string;
+    sessionId: string;
+    workspaceId: string;
+  }>;
+  skipped: Array<{
+    source: ExternalSessionSource;
+    sourceSessionId: string;
+    reason: ExternalSessionImportSkipReason;
+  }>;
+}
+
 export interface SessionSearchPayload {
   query: string;
 }

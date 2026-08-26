@@ -8,6 +8,9 @@ import type {
   ConfigureModelProviderPayload,
   DiscoverModelsPayload,
   DiscoverModelsValue,
+  ExternalSessionImportPayload,
+  ExternalSessionImportScanValue,
+  ExternalSessionImportValue,
   ExtensionFileReadPayload,
   ExtensionFileSnapshotValue,
   ExtensionFilesListPayload,
@@ -734,6 +737,16 @@ export function searchPiRpcSessions(payload: SessionSearchPayload): Promise<Sess
 
 export function createPiRpcSession(payload: SessionCreatePayload): Promise<SessionCreateValue> {
   return callPiRpc("session.create", payload);
+}
+
+export function scanExternalSessions(): Promise<ExternalSessionImportScanValue> {
+  return callPiRpc("sessionImport.scan", {});
+}
+
+export function importExternalSessions(
+  payload: ExternalSessionImportPayload,
+): Promise<ExternalSessionImportValue> {
+  return callPiRpc("sessionImport.import", payload);
 }
 
 export function fetchPiRpcSessionHistory(
