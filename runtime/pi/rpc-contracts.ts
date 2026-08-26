@@ -5,6 +5,7 @@ import type {
   ComposerSubmission as WorkbenchComposerSubmission,
 } from "../../contracts/composer";
 import type { InlineDocumentMediaType, InlineImageMediaType } from "./attachment-contracts";
+import type { PiRunTiming } from "./contracts";
 import type { OcrAdapterPresetId } from "../image-understanding/ocr-adapter";
 
 export type RpcIssuePathSegment = string | number;
@@ -287,6 +288,7 @@ export interface ModelReasoningEffort {
 
 export type ModelCapabilityState = "supported" | "unsupported" | "unknown";
 export type ModelCapabilitySource = "provider-api" | "runtime" | "test" | "user";
+export type ModelContextWindowSource = "provider" | "override" | "custom";
 export type ModelThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 export type ModelThinkingLevelMap = Partial<Record<ModelThinkingLevel, string | null>>;
 
@@ -298,6 +300,9 @@ export interface ModelCatalogModel {
   /** Normalized server-side capability result; never inferred from the model ID. */
   imageInput: ModelCapabilityState;
   imageInputSource?: ModelCapabilitySource;
+  contextWindow?: number;
+  maxTokens?: number;
+  contextWindowSource?: ModelContextWindowSource;
   reasoning?: {
     efforts: ModelReasoningEffort[];
     defaultEffort?: string;
@@ -411,6 +416,8 @@ export interface ModelProviderModelConfiguration {
   id: string;
   name?: string;
   contextWindow?: number;
+  /** Workbench-owned provenance; never serialized into a custom provider model. */
+  contextWindowSource?: ModelContextWindowSource;
   maxTokens?: number;
   reasoning?: boolean;
   thinkingLevelMap?: ModelThinkingLevelMap;
@@ -449,6 +456,7 @@ export interface ModelContextWindowPayload {
 export interface ModelContextWindowValue extends ModelContextWindowPayload {
   name: string;
   contextWindow: number;
+  source: ModelContextWindowSource;
 }
 
 export interface UpdateModelContextWindowPayload extends ModelContextWindowPayload {
@@ -1115,6 +1123,7 @@ export interface SessionListItem {
   sessionId: string;
   updatedAt: number;
   running: boolean;
+  runTiming?: PiRunTiming;
   blank: boolean;
   cwd?: string;
   agentPreset?: string;
@@ -1180,6 +1189,7 @@ export interface SessionHistoryValue {
   hasMore: boolean;
   projections?: SessionProjections;
   branches?: SessionHistoryBranches;
+  resume?: SessionResumeState;
 }
 
 /** JSON-safe value captured by the transient context observer. */
@@ -1315,6 +1325,14 @@ export interface SessionContextTraceContextFile {
   content: SessionContextTraceTextCapture;
 }
 
+/** One Pi system-prompt layer, kept separate from Skills and other injected context. */
+export interface SessionContextTraceSystemPromptSource {
+  kind: "builtin" | "replacement" | "append";
+  scope: "builtin" | "user" | "project" | "temporary";
+  path?: string;
+  content?: SessionContextTraceTextCapture;
+}
+
 export interface SessionContextTraceSystemPromptOptions {
   cwd: string;
   customPrompt?: SessionContextTraceTextCapture;
@@ -1392,7 +1410,12 @@ export type SessionContextTraceDetail =
   | {
       type: "prompt-composition";
       prompt: SessionContextTraceTextCapture;
+      /** The exact effective prompt observed after every extension mutation. */
       systemPrompt: SessionContextTraceTextCapture;
+      /** UI projection of systemPrompt with Pi's formatted Skills block removed. */
+      systemPromptWithoutSkills?: SessionContextTraceTextCapture;
+      /** Pi ResourceLoader precedence and append layers used for this prompt. */
+      systemPromptSources?: SessionContextTraceSystemPromptSource[];
       systemPromptOptions: SessionContextTraceSystemPromptOptions;
       images: SessionContextTraceJsonCapture;
       model?: SessionContextTraceModel;
@@ -1581,6 +1604,47 @@ export interface SessionRegenerateValue {
   accepted: true;
 }
 
+export type SessionResumeReason =
+  | "user-cancelled"
+  | "process-interrupted"
+  | "rate-limited"
+  | "quota-exhausted"
+  | "authentication-required"
+  | "network-error"
+  | "provider-error";
+
+export type SessionResumeCapability = "ready" | "blocked" | "confirmation-required";
+
+export interface SessionResumeCheckpoint {
+  /** Durable Pi custom-entry id for this recovery point. */
+  checkpointId: string;
+  /** Canonical message event id used by assistant-ui as the stopped message id. */
+  terminalMessageId: string;
+  /** Current branch leaf. Clients echo it to prevent resuming a stale branch. */
+  branchLeafId: string;
+  sourceEventSeq: number;
+  reason: SessionResumeReason;
+  capability: SessionResumeCapability;
+  blockedBy?: "model" | "ambiguous-tools";
+  createdAt: number;
+  model?: { provider: string; model: string };
+  ambiguousTools?: Array<{ toolCallId: string; toolName?: string }>;
+}
+
+export interface SessionResumeState {
+  checkpoint?: SessionResumeCheckpoint;
+}
+
+export interface SessionResumePayload {
+  sessionId: string;
+  checkpointId: string;
+  expectedLeafId: string;
+}
+
+export interface SessionResumeValue {
+  accepted: true;
+}
+
 export interface SessionSelectBranchPayload {
   sessionId: string;
   leafId: string;
@@ -1599,6 +1663,80 @@ export interface SessionModelsValue {
   routable: boolean;
   groups: ModelProviderGroup[];
   failures: ModelCatalogFailure[];
+}
+
+export interface SessionContextPolicyCompaction {
+  enabled?: boolean;
+  reserveTokens?: number;
+  keepRecentTokens?: number;
+}
+
+export interface SessionContextPolicy {
+  mode: "inherit" | "auto" | "maximum" | "custom";
+  desiredContextTokens?: number;
+  compaction?: SessionContextPolicyCompaction;
+}
+
+export interface SessionContextPolicyPayload {
+  sessionId: string;
+}
+
+export interface SessionContextPolicyUpdatePayload extends SessionContextPolicyPayload {
+  policy: SessionContextPolicy;
+}
+
+export type SessionContextBreakdownCategory =
+  | "system-prompt"
+  | "skills"
+  | "context-files"
+  | "builtin-tools"
+  | "mcp-tools"
+  | "extension-tools"
+  | "user-input"
+  | "assistant-history"
+  | "tool-results"
+  | "other";
+
+export interface SessionContextBreakdownItem {
+  category: SessionContextBreakdownCategory;
+  tokens: number;
+  count: number;
+}
+
+export interface SessionContextBreakdown {
+  /** All item token counts are estimates; provider-reconciled values sum to current usage. */
+  basis: "provider-reconciled" | "heuristic";
+  totalTokens: number;
+  items: SessionContextBreakdownItem[];
+}
+
+export interface SessionContextPolicyValue {
+  policy: SessionContextPolicy;
+  overridden: boolean;
+  model?: {
+    provider: string;
+    model: string;
+    name: string;
+    capacity: number;
+    effectiveBudget: number;
+  };
+  compaction: {
+    enabled: boolean;
+    reserveTokens: number;
+    keepRecentTokens: number;
+    thresholdTokens?: number;
+  };
+  usage: {
+    tokens: number | null;
+    percent: number | null;
+  };
+  breakdown?: SessionContextBreakdown;
+  nearingCompaction: boolean;
+}
+
+export interface SessionCompactValue {
+  compacted: true;
+  context: SessionContextPolicyValue;
 }
 
 export interface SessionSelectModelPayload {

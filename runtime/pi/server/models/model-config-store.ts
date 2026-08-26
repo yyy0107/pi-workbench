@@ -29,6 +29,7 @@ export interface StoredModelProviderConfiguration {
   baseURL?: string;
   api?: string;
   models?: ModelProviderModelConfiguration[];
+  modelOverrides?: Record<string, { contextWindow?: number }>;
 }
 
 export interface ModelConfigMutation {
@@ -47,6 +48,10 @@ export interface ModelConfigStorage {
     model: string,
     contextWindow: number,
   ): Promise<ModelConfigMutation>;
+  resetModelContextWindow(
+    provider: string,
+    model: string,
+  ): Promise<ModelConfigMutation | undefined>;
   setProvider(
     provider: string,
     configuration: ModelProviderConfiguration,
@@ -156,11 +161,24 @@ function safeProvider(
         return parsed ? [parsed] : [];
       })
     : undefined;
+  const modelOverrides = isObject(value.modelOverrides)
+    ? Object.fromEntries(
+        Object.entries(value.modelOverrides).flatMap(([model, override]) =>
+          isObject(override) &&
+          typeof override.contextWindow === "number" &&
+          Number.isInteger(override.contextWindow) &&
+          override.contextWindow > 0
+            ? [[model, { contextWindow: override.contextWindow }]]
+            : [],
+        ),
+      )
+    : undefined;
   return {
     ...(typeof value.name === "string" && value.name ? { displayName: value.name } : {}),
     ...(typeof value.baseUrl === "string" && value.baseUrl ? { baseURL: value.baseUrl } : {}),
     ...(typeof value.api === "string" && value.api ? { api: value.api } : {}),
     ...(models ? { models } : {}),
+    ...(modelOverrides && Object.keys(modelOverrides).length > 0 ? { modelOverrides } : {}),
   };
 }
 
@@ -352,6 +370,35 @@ export class ModelConfigStore implements ModelConfigStorage {
           [model]: { ...currentOverride, contextWindow },
         },
       };
+      return this.writeMutation(previous, serialized({ ...state, providers }));
+    });
+  }
+
+  async resetModelContextWindow(
+    provider: string,
+    model: string,
+  ): Promise<ModelConfigMutation | undefined> {
+    return this.withLock(async () => {
+      const previous = await this.readContent();
+      if (previous === undefined) return undefined;
+      const state = parseModelsFile(previous);
+      const providers = { ...state.providers };
+      const currentProvider = isObject(providers[provider]) ? providers[provider] : undefined;
+      if (!currentProvider || !isObject(currentProvider.modelOverrides)) return undefined;
+      const currentOverride = isObject(currentProvider.modelOverrides[model])
+        ? currentProvider.modelOverrides[model]
+        : undefined;
+      if (!currentOverride || !("contextWindow" in currentOverride)) return undefined;
+
+      const nextOverride = { ...currentOverride };
+      delete nextOverride.contextWindow;
+      const nextOverrides = { ...currentProvider.modelOverrides };
+      if (Object.keys(nextOverride).length > 0) nextOverrides[model] = nextOverride;
+      else delete nextOverrides[model];
+      const nextProvider = { ...currentProvider };
+      if (Object.keys(nextOverrides).length > 0) nextProvider.modelOverrides = nextOverrides;
+      else delete nextProvider.modelOverrides;
+      providers[provider] = nextProvider;
       return this.writeMutation(previous, serialized({ ...state, providers }));
     });
   }

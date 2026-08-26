@@ -39,11 +39,18 @@ test("wraps canonical session events without changing their sequence data", () =
     data: { messageId: "message-1" },
   };
 
-  assert.deepEqual(createSessionEventPayload("session-1", event), {
-    type: "session/event",
-    sessionId: "session-1",
-    event,
-  });
+  assert.deepEqual(
+    createSessionEventPayload("session-1", event, {
+      startedAt: 1_724_999_999_000,
+      elapsedMs: 1_000,
+    }),
+    {
+      type: "session/event",
+      sessionId: "session-1",
+      event,
+      runTiming: { startedAt: 1_724_999_999_000, elapsedMs: 1_000 },
+    },
+  );
 });
 
 test("wraps compact message updates without cumulative content or a durable sequence", () => {

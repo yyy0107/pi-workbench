@@ -22,6 +22,7 @@ const { contextTraceExtension } = await import("./context-trace");
 const { activateSessionContextTrace, releaseSessionContextTrace } =
   await import("../sessions/session-context-trace");
 const { SessionContextTraceJournal } = await import("../sessions/session-context-trace-journal");
+const { formatSkillsForPrompt } = await import("@earendil-works/pi-coding-agent");
 
 test.after(() => moduleHooks.deregister());
 
@@ -70,6 +71,10 @@ test("observes final prompt resources, messages, tools, and provider payload wit
       origin: "top-level",
     },
   }));
+  const promptWithoutSkills = "effective system prompt\n\nCurrent working directory: /workspace";
+  const effectiveSystemPrompt =
+    `effective system prompt${formatSkillsForPrompt(skills as never)}` +
+    "\n\nCurrent working directory: /workspace";
   const pi = {
     on(event: string, handler: (event: never, context: never) => unknown) {
       handlers.set(event, handler);
@@ -98,7 +103,7 @@ test("observes final prompt resources, messages, tools, and provider payload wit
       type: "before_agent_start",
       prompt: "effective user prompt",
       images: [],
-      systemPrompt: "effective system prompt",
+      systemPrompt: effectiveSystemPrompt,
       systemPromptOptions: {
         cwd: "/workspace",
         selectedTools,
@@ -206,7 +211,9 @@ test("observes final prompt resources, messages, tools, and provider payload wit
   const composition = await trace.readAny(compositionSummary.traceId);
   assert.equal(composition?.detail.type, "prompt-composition");
   if (composition?.detail.type !== "prompt-composition") assert.fail("Missing composition detail");
-  assert.equal(composition.detail.systemPrompt.text, "effective system prompt");
+  assert.equal(composition.detail.systemPrompt.text, effectiveSystemPrompt);
+  assert.equal(composition.detail.systemPromptWithoutSkills?.text, promptWithoutSkills);
+  assert.deepEqual(composition.detail.systemPromptSources, [{ kind: "builtin", scope: "builtin" }]);
   assert.equal(composition.detail.systemPromptOptions.selectedTools?.length, selectedTools.length);
   assert.equal(
     Object.keys(composition.detail.systemPromptOptions.toolSnippets ?? {}).length,

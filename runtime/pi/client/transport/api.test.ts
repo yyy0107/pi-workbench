@@ -47,6 +47,7 @@ const {
   readPiExtensionFile,
   readPiWorkspaceFile,
   readPiSkillFile,
+  resetPiModelContextWindow,
   removePiExtension,
   removePiPackage,
   removePiSkill,
@@ -544,6 +545,7 @@ test("model context-window helpers use typed LLM RPC methods", async (t) => {
           model: "gpt-5",
           name: "GPT-5",
           contextWindow: request.method === "llm.updateModelContextWindow" ? 256_000 : 200_000,
+          source: request.method === "llm.updateModelContextWindow" ? "override" : "provider",
         },
       },
     });
@@ -568,6 +570,15 @@ test("model context-window helpers use typed LLM RPC methods", async (t) => {
     ).contextWindow,
     256_000,
   );
+  assert.equal(
+    (
+      await resetPiModelContextWindow({
+        provider: "openai",
+        model: "gpt-5",
+      })
+    ).contextWindow,
+    200_000,
+  );
   assert.deepEqual(requests, [
     {
       method: "llm.modelContextWindow",
@@ -576,6 +587,10 @@ test("model context-window helpers use typed LLM RPC methods", async (t) => {
     {
       method: "llm.updateModelContextWindow",
       payload: { provider: "openai", model: "gpt-5", contextWindow: 256_000 },
+    },
+    {
+      method: "llm.resetModelContextWindow",
+      payload: { provider: "openai", model: "gpt-5" },
     },
   ]);
 });

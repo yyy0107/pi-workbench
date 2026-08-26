@@ -120,6 +120,7 @@ function harness(overrides: Partial<SessionRpcDependencies> = {}) {
     getSessionEventBranches: async () => ({ headLeafId: null, items: [] }),
     getSessionEvents: async () => [],
     getSessionHistory: async () => history(),
+    getSessionResumeState: async () => ({}),
     listModels: async () => ({
       models: [],
       defaultModel: { provider: "openai", modelId: "gpt-reasoning" },
@@ -130,6 +131,9 @@ function harness(overrides: Partial<SessionRpcDependencies> = {}) {
     },
     regenerateSession: async (sessionId, messageId) => {
       calls.push({ name: "regenerate", value: [sessionId, messageId] });
+    },
+    resumeSession: async (sessionId, checkpointId, expectedLeafId) => {
+      calls.push({ name: "resume", value: [sessionId, checkpointId, expectedLeafId] });
     },
     selectSessionBranch: async (sessionId, leafId) => {
       calls.push({ name: "select-branch", value: [sessionId, leafId] });
@@ -147,6 +151,30 @@ function harness(overrides: Partial<SessionRpcDependencies> = {}) {
     selectSessionModel: async (sessionId, selection) => {
       calls.push({ name: "select-model", value: [sessionId, selection] });
     },
+    getSessionContextPolicy: async () => ({
+      policy: { mode: "inherit" },
+      overridden: false,
+      compaction: { enabled: true, reserveTokens: 16_384, keepRecentTokens: 20_000 },
+      usage: { tokens: null, percent: null },
+      nearingCompaction: false,
+    }),
+    updateSessionContextPolicy: async (_sessionId, policy) => ({
+      policy,
+      overridden: policy.mode !== "inherit",
+      compaction: { enabled: true, reserveTokens: 16_384, keepRecentTokens: 20_000 },
+      usage: { tokens: null, percent: null },
+      nearingCompaction: false,
+    }),
+    compactSessionContext: async () => ({
+      compacted: true,
+      context: {
+        policy: { mode: "inherit" },
+        overridden: false,
+        compaction: { enabled: true, reserveTokens: 16_384, keepRecentTokens: 20_000 },
+        usage: { tokens: null, percent: null },
+        nearingCompaction: false,
+      },
+    }),
     supportsRequestedSessionId: false,
     supportsAgentPreset: false,
     ...overrides,
@@ -464,6 +492,37 @@ test("projects branch history and forwards branch mutations", async () => {
   ]);
 });
 
+test("projects and resumes the active durable checkpoint", async () => {
+  const checkpoint = {
+    checkpointId: "checkpoint-1",
+    terminalMessageId: "terminal-1",
+    branchLeafId: "leaf-1",
+    sourceEventSeq: 7,
+    reason: "user-cancelled" as const,
+    capability: "ready" as const,
+    createdAt: 1_777_000_000_000,
+  };
+  const resumeHarness = harness({
+    getSessionResumeState: async () => ({ checkpoint }),
+  });
+
+  assert.deepEqual((await resumeHarness.service.history({ sessionId: "session-1" })).resume, {
+    checkpoint,
+  });
+  assert.deepEqual(
+    await resumeHarness.service.resume({
+      sessionId: "session-1",
+      checkpointId: "checkpoint-1",
+      expectedLeafId: "leaf-1",
+    }),
+    { accepted: true },
+  );
+  assert.deepEqual(resumeHarness.calls.at(-1), {
+    name: "resume",
+    value: ["session-1", "checkpoint-1", "leaf-1"],
+  });
+});
+
 test("paginates long streamed events by whole message groups", async () => {
   const events: SessionEvent[] = [
     { type: "turn_start", seq: 0, time: 1, data: { turnIndex: 0 } },
@@ -554,6 +613,58 @@ test("serves and selects session models with exact selections", async () => {
     }),
     { code: "model-unavailable", details: { provider: "openai", model: "missing" } },
   );
+});
+
+test("reads, updates, and compacts session-scoped context policy", async () => {
+  const policies: unknown[] = [];
+  const { service } = harness({
+    updateSessionContextPolicy: async (_sessionId, policy) => {
+      policies.push(policy);
+      return {
+        policy,
+        overridden: policy.mode !== "inherit",
+        model: {
+          provider: "openai",
+          model: "gpt-reasoning",
+          name: "GPT Reasoning",
+          capacity: 200_000,
+          effectiveBudget: policy.desiredContextTokens ?? 200_000,
+        },
+        compaction: { enabled: true, reserveTokens: 16_384, keepRecentTokens: 20_000 },
+        usage: { tokens: 50_000, percent: 25 },
+        nearingCompaction: false,
+      };
+    },
+  });
+  assert.equal((await service.contextPolicy({ sessionId: "session-1" })).policy.mode, "inherit");
+  const updated = await service.updateContextPolicy({
+    sessionId: "session-1",
+    policy: { mode: "custom", desiredContextTokens: 96_000 },
+  });
+  assert.equal(updated.model?.effectiveBudget, 96_000);
+  assert.deepEqual(policies, [{ mode: "custom", desiredContextTokens: 96_000 }]);
+  assert.equal((await service.compactContext({ sessionId: "session-1" })).compacted, true);
+});
+
+test("normalizes expected manual compaction failures into stable protocol reasons", async () => {
+  const cases = [
+    ["Nothing to compact (session too small)", "context-too-small"],
+    ["Already compacted", "already-compacted"],
+    ["Compaction cancelled", "cancelled"],
+  ] as const;
+
+  for (const [message, reason] of cases) {
+    const { service } = harness({
+      compactSessionContext: async () => {
+        throw new Error(message);
+      },
+    });
+
+    await assert.rejects(service.compactContext({ sessionId: "session-1" }), {
+      code: "compaction-unavailable",
+      details: { sessionId: "session-1", reason },
+    });
+  }
 });
 
 test("renames, prompts, queues, and cancels supported session operations", async () => {

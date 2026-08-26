@@ -1,7 +1,12 @@
 import { randomUUID } from "node:crypto";
+import path from "node:path";
 
 import type { AssistantMessage, Usage } from "@earendil-works/pi-ai";
-import { estimateTokens, type AgentSessionEvent } from "@earendil-works/pi-coding-agent";
+import {
+  estimateTokens,
+  type AgentSessionEvent,
+  type ResourceLoader,
+} from "@earendil-works/pi-coding-agent";
 
 import type {
   SessionContextTraceCapabilities,
@@ -17,6 +22,7 @@ import type {
   SessionContextTraceJsonValue,
   SessionContextTraceListValue,
   SessionContextTraceMessageTokenEstimates,
+  SessionContextTraceSystemPromptSource,
   SessionContextTraceTextCapture,
   SessionContextTraceTokenUsage,
 } from "../../rpc-contracts";
@@ -31,6 +37,7 @@ export const SESSION_CONTEXT_TRACE_MAX_EVENTS = 512;
 export const SESSION_CONTEXT_TRACE_MAX_BYTES = 16 * 1024 * 1024;
 
 type TracePublisher = (event: SessionContextTraceEventSummary) => void;
+type SystemPromptSourcesResolver = () => readonly SessionContextTraceSystemPromptSource[];
 
 interface PendingCompactionTrace {
   reason: "manual" | "threshold" | "overflow";
@@ -59,6 +66,58 @@ function jsonBytes(value: unknown): number {
   } catch {
     return 0;
   }
+}
+
+function systemPromptSourceScope(
+  sourcePath: string,
+  cwd: string,
+  agentDir: string,
+  fileName: "SYSTEM.md" | "APPEND_SYSTEM.md",
+): SessionContextTraceSystemPromptSource["scope"] {
+  const resolvedSource = path.resolve(sourcePath);
+  if (resolvedSource === path.resolve(cwd, ".pi", fileName)) return "project";
+  if (resolvedSource === path.resolve(agentDir, fileName)) return "user";
+  return "temporary";
+}
+
+/**
+ * Projects Pi's public ResourceLoader state into the exact prompt-file precedence users can
+ * reason about. A missing replacement means Pi's built-in prompt is the active base layer.
+ */
+export function sessionContextTraceSystemPromptSources(
+  resourceLoader: ResourceLoader,
+  cwd: string,
+  agentDir: string,
+): SessionContextTraceSystemPromptSource[] {
+  const customPrompt = resourceLoader.getSystemPrompt();
+  const customPromptPath = resourceLoader.getSystemPromptSource()?.path;
+  const sources: SessionContextTraceSystemPromptSource[] = customPrompt
+    ? [
+        {
+          kind: "replacement",
+          scope: customPromptPath
+            ? systemPromptSourceScope(customPromptPath, cwd, agentDir, "SYSTEM.md")
+            : "temporary",
+          ...(customPromptPath ? { path: customPromptPath } : {}),
+          content: captureSessionContextTraceText(customPrompt),
+        },
+      ]
+    : [{ kind: "builtin", scope: "builtin" }];
+
+  const appendPrompts = resourceLoader.getAppendSystemPrompt();
+  const appendSources = resourceLoader.getAppendSystemPromptSources();
+  appendPrompts.forEach((content, index) => {
+    const sourcePath = appendSources[index]?.path;
+    sources.push({
+      kind: "append",
+      scope: sourcePath
+        ? systemPromptSourceScope(sourcePath, cwd, agentDir, "APPEND_SYSTEM.md")
+        : "temporary",
+      ...(sourcePath ? { path: sourcePath } : {}),
+      content: captureSessionContextTraceText(content),
+    });
+  });
+  return sources;
 }
 
 function tokenUsageView(usage: Usage): SessionContextTraceTokenUsage {
@@ -236,6 +295,7 @@ export class SessionContextTrace {
   private readonly messageTokenEstimateCache = new WeakMap<object, number | null>();
   private agentAttempt: number | undefined;
   private pendingCompaction: PendingCompactionTrace | undefined;
+  private systemPromptSourcesResolver: SystemPromptSourcesResolver | undefined;
 
   constructor(sessionId: string, publisher?: TracePublisher, journal?: SessionContextTraceJournal) {
     this.sessionId = sessionId;
@@ -249,6 +309,19 @@ export class SessionContextTrace {
     return this.journal
       ? PERSISTED_SESSION_CONTEXT_TRACE_CAPABILITIES
       : SESSION_CONTEXT_TRACE_CAPABILITIES;
+  }
+
+  setSystemPromptSourcesResolver(resolver: SystemPromptSourcesResolver): void {
+    this.systemPromptSourcesResolver = resolver;
+  }
+
+  getSystemPromptSources(): readonly SessionContextTraceSystemPromptSource[] {
+    try {
+      return this.systemPromptSourcesResolver?.() ?? [];
+    } catch {
+      // Resource diagnostics must not interrupt a model call.
+      return [];
+    }
   }
 
   private coordinates(

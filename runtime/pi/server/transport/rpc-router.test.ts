@@ -610,6 +610,10 @@ test("validates session.delete at the shared RPC boundary", async () => {
 test("validates session branch mutations at the shared RPC boundary", async () => {
   for (const [method, payload] of [
     ["session.regenerate", { sessionId: "session-1", messageId: "" }],
+    [
+      "session.resume",
+      { sessionId: "session-1", checkpointId: "checkpoint-1", expectedLeafId: "" },
+    ],
     ["session.selectBranch", { sessionId: "session-1", leafId: "" }],
   ] as const) {
     const response = await handlePiRpcPost(rpcRequest(method, payload), method);
@@ -1051,6 +1055,20 @@ test("validates model context-window updates at the shared RPC boundary", async 
   const body = (await response.json()) as ServerResponse<unknown>;
   assert.equal(body.result.ok, false);
   if (body.result.ok) assert.fail("Expected a model context-window validation error");
+  assert.equal(body.result.error.code, "bad-request");
+});
+
+test("requires a positive desired budget for custom session context policies", async () => {
+  const response = await handlePiRpcPost(
+    rpcRequest("session.updateContextPolicy", {
+      sessionId: "session-1",
+      policy: { mode: "custom" },
+    }),
+    "session.updateContextPolicy",
+  );
+  const body = (await response.json()) as ServerResponse<unknown>;
+  assert.equal(body.result.ok, false);
+  if (body.result.ok) assert.fail("Expected a session context-policy validation error");
   assert.equal(body.result.error.code, "bad-request");
 });
 

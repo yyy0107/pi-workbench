@@ -38,7 +38,31 @@ function memoryModelConfigStore(
   let configurations = structuredClone(initial);
   return {
     providers: async () => structuredClone(configurations),
-    setModelContextWindow: async () => ({ rollback: async () => undefined }),
+    setModelContextWindow: async (provider, model, contextWindow) => {
+      const previous = structuredClone(configurations);
+      configurations[provider] = {
+        ...configurations[provider],
+        modelOverrides: {
+          ...configurations[provider]?.modelOverrides,
+          [model]: { contextWindow },
+        },
+      };
+      return { rollback: async () => void (configurations = previous) };
+    },
+    resetModelContextWindow: async (provider, model) => {
+      if (configurations[provider]?.modelOverrides?.[model]?.contextWindow === undefined) {
+        return undefined;
+      }
+      const previous = structuredClone(configurations);
+      const modelOverrides = { ...configurations[provider]?.modelOverrides };
+      delete modelOverrides[model];
+      const { modelOverrides: _removed, ...providerConfiguration } = configurations[provider] ?? {};
+      configurations[provider] = {
+        ...providerConfiguration,
+        ...(Object.keys(modelOverrides).length > 0 ? { modelOverrides } : {}),
+      };
+      return { rollback: async () => void (configurations = previous) };
+    },
     setProvider: async (provider, configuration) => {
       const previous = structuredClone(configurations);
       configurations[provider] = {
@@ -314,6 +338,7 @@ test("reads and updates a model context-window override", async () => {
       model: "gpt-reasoning",
       name: "GPT Reasoning",
       contextWindow: 200_000,
+      source: "provider",
     },
   );
   assert.deepEqual(
@@ -327,6 +352,7 @@ test("reads and updates a model context-window override", async () => {
       model: "gpt-reasoning",
       name: "GPT Reasoning",
       contextWindow: 256_000,
+      source: "override",
     },
   );
   assert.deepEqual(saved, {
@@ -343,6 +369,32 @@ test("reads and updates a model context-window override", async () => {
       assert.equal(error.code, "model-not-found");
       return true;
     },
+  );
+});
+
+test("marks account-runtime overrides and restores the provider source", async () => {
+  const store = memoryModelConfigStore({
+    openai: { modelOverrides: { "gpt-reasoning": { contextWindow: 128_000 } } },
+  });
+  const service = modelService({ modelConfigStore: store, runtime: runtime() });
+
+  const configured = await service.providerConfig({ provider: "openai" });
+  assert.equal(configured.modelsSource, "adapter");
+  assert.equal(configured.models[0]?.contextWindowSource, "override");
+
+  assert.deepEqual(
+    await service.resetModelContextWindow({ provider: "openai", model: "gpt-reasoning" }),
+    {
+      provider: "openai",
+      model: "gpt-reasoning",
+      name: "GPT Reasoning",
+      contextWindow: 200_000,
+      source: "provider",
+    },
+  );
+  assert.equal(
+    (await service.providerConfig({ provider: "openai" })).models[0]?.contextWindowSource,
+    "provider",
   );
 });
 
@@ -437,6 +489,9 @@ test("maps provider auth status without reading credential values", async () => 
     name: "Claude Fast",
     input: ["text"],
     imageInput: "unknown",
+    contextWindow: 100_000,
+    maxTokens: 8_000,
+    contextWindowSource: "provider",
   });
   assert.deepEqual(catalog.groups[1].models[0].reasoning, {
     efforts: [
@@ -825,6 +880,7 @@ test("persists a custom provider catalog, refreshes its route, and keeps credent
         id: "acme-large",
         name: "Acme Large",
         contextWindow: 1_000_000,
+        contextWindowSource: "custom",
         maxTokens: 256_000,
         reasoning: true,
         thinkingLevelMap: { minimal: "low", xhigh: null },
@@ -921,6 +977,7 @@ test("returns adapter defaults without turning them into a custom override", asy
         id: "gpt-reasoning",
         name: "GPT Reasoning",
         contextWindow: 200_000,
+        contextWindowSource: "provider",
         maxTokens: 32_000,
         reasoning: true,
         thinkingLevelMap: { minimal: null, max: null },
@@ -977,6 +1034,7 @@ test("restores an internal provider's adapter model catalog", async () => {
         id: "gpt-reasoning",
         name: "GPT Reasoning",
         contextWindow: 200_000,
+        contextWindowSource: "provider",
         maxTokens: 32_000,
         reasoning: true,
         thinkingLevelMap: { minimal: null, max: null },
@@ -997,6 +1055,7 @@ test("restores an internal provider's adapter model catalog", async () => {
         id: "gpt-reasoning",
         name: "GPT Reasoning",
         contextWindow: 200_000,
+        contextWindowSource: "provider",
         maxTokens: 32_000,
         reasoning: true,
         thinkingLevelMap: { minimal: null, max: null },
@@ -1221,6 +1280,9 @@ test("returns per-provider and runtime catalog failures without dropping healthy
             name: "Claude Fast",
             input: ["text"],
             imageInput: "unknown",
+            contextWindow: 100_000,
+            maxTokens: 8_000,
+            contextWindowSource: "provider",
           },
         ],
       },

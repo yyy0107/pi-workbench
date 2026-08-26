@@ -14,6 +14,15 @@ export interface PiSessionSummary {
   firstMessage: string;
   transient: boolean;
   running: boolean;
+  runTiming?: PiRunTiming;
+}
+
+/** Server-authoritative timing snapshot for the currently active Pi run. */
+export interface PiRunTiming {
+  /** Epoch milliseconds recorded by the Workbench host when the run became active. */
+  startedAt: number;
+  /** Elapsed milliseconds calculated by the host when this snapshot was serialized. */
+  elapsedMs: number;
 }
 
 export interface PiWorkspaceSummary {
@@ -224,6 +233,10 @@ export interface PiApiErrorBody {
 export interface PiEvent {
   type: string;
   sequence?: number;
+  /** Authoritative epoch milliseconds from the server's canonical session event. */
+  eventTime?: number;
+  /** Server-authoritative timing for the active run when this event was published. */
+  runTiming?: PiRunTiming;
   /** Browser-side raw JSON buffers for in-flight tool calls, keyed by content index. */
   rawToolArgsText?: Readonly<Record<string, string>>;
   [key: string]: unknown;

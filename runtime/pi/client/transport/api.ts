@@ -55,6 +55,10 @@ import type {
   SessionAttachmentValue,
   SessionCancelPayload,
   SessionCancelValue,
+  SessionCompactValue,
+  SessionContextPolicyPayload,
+  SessionContextPolicyUpdatePayload,
+  SessionContextPolicyValue,
   SessionContextTraceActivationsPayload,
   SessionContextTraceActivationsValue,
   SessionContextTraceListPayload,
@@ -77,6 +81,8 @@ import type {
   SessionPromptValue,
   SessionRegeneratePayload,
   SessionRegenerateValue,
+  SessionResumePayload,
+  SessionResumeValue,
   SessionRenamePayload,
   SessionRenameValue,
   SessionSearchPayload,
@@ -548,6 +554,17 @@ export async function updatePiModelContextWindow(
   return value;
 }
 
+export async function resetPiModelContextWindow(
+  payload: ModelContextWindowPayload,
+): Promise<ModelContextWindowValue> {
+  const value = await callPiRpc<ModelContextWindowPayload, ModelContextWindowValue>(
+    "llm.resetModelContextWindow",
+    payload,
+  );
+  invalidatePiModelCatalog();
+  return value;
+}
+
 export async function configurePiModelProvider(
   payload: ConfigureModelProviderPayload,
 ): Promise<ModelProvidersValue> {
@@ -749,6 +766,10 @@ export function regeneratePiRpcSession(
   return callPiRpc("session.regenerate", payload);
 }
 
+export function resumePiRpcSession(payload: SessionResumePayload): Promise<SessionResumeValue> {
+  return callPiRpc("session.resume", payload);
+}
+
 export function selectPiRpcSessionBranch(
   payload: SessionSelectBranchPayload,
 ): Promise<SessionSelectBranchValue> {
@@ -763,6 +784,24 @@ export function selectPiRpcSessionModel(
   payload: SessionSelectModelPayload,
 ): Promise<SessionSelectModelValue> {
   return callPiRpc("session.selectModel", payload);
+}
+
+export function getPiRpcSessionContextPolicy(
+  payload: SessionContextPolicyPayload,
+): Promise<SessionContextPolicyValue> {
+  return callPiRpc("session.contextPolicy", payload);
+}
+
+export function updatePiRpcSessionContextPolicy(
+  payload: SessionContextPolicyUpdatePayload,
+): Promise<SessionContextPolicyValue> {
+  return callPiRpc("session.updateContextPolicy", payload);
+}
+
+export function compactPiRpcSessionContext(
+  payload: SessionContextPolicyPayload,
+): Promise<SessionCompactValue> {
+  return callPiRpc("session.compactContext", payload);
 }
 
 export function renamePiRpcSession(payload: SessionRenamePayload): Promise<SessionRenameValue> {

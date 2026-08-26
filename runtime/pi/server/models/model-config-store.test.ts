@@ -280,6 +280,38 @@ test("writes one model context-window override while preserving provider configu
   assert.equal(await readFile(stateFile, "utf8"), original);
 });
 
+test("resets only one context-window override and preserves sibling override fields", async (t) => {
+  const directory = await mkdtemp(path.join(tmpdir(), "workbench-model-config-reset-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const stateFile = path.join(directory, "models.json");
+  await writeFile(
+    stateFile,
+    JSON.stringify({
+      providers: {
+        openai: {
+          apiKey: "keep-secret",
+          modelOverrides: {
+            "gpt-5": { contextWindow: 256_000, maxTokens: 32_000 },
+            keep: { contextWindow: 64_000 },
+          },
+        },
+      },
+    }),
+  );
+  const store = new ModelConfigStore({ stateFile });
+
+  assert.ok(await store.resetModelContextWindow("openai", "gpt-5"));
+  const saved = JSON.parse(await readFile(stateFile, "utf8")) as {
+    providers: Record<string, Record<string, unknown>>;
+  };
+  assert.equal(saved.providers.openai.apiKey, "keep-secret");
+  assert.deepEqual(saved.providers.openai.modelOverrides, {
+    "gpt-5": { maxTokens: 32_000 },
+    keep: { contextWindow: 64_000 },
+  });
+  assert.equal(await store.resetModelContextWindow("openai", "missing"), undefined);
+});
+
 test("removes one provider while preserving the rest of models.json", async (t) => {
   const directory = await mkdtemp(path.join(tmpdir(), "workbench-model-config-"));
   t.after(() => rm(directory, { recursive: true, force: true }));

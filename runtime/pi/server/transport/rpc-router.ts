@@ -477,6 +477,11 @@ const sessionRegeneratePayload = rpcObject({
   sessionId: nonEmptyString,
   messageId: nonEmptyString,
 });
+const sessionResumePayload = rpcObject({
+  sessionId: nonEmptyString,
+  checkpointId: nonEmptyString,
+  expectedLeafId: nonEmptyString,
+});
 const sessionSelectBranchPayload = rpcObject({
   sessionId: nonEmptyString,
   leafId: nonEmptyString,
@@ -487,6 +492,19 @@ const sessionSelectModelPayload = rpcObject({
   provider: nonEmptyString,
   model: nonEmptyString,
   reasoningEffort: rpcOptional(nonEmptyString),
+});
+const sessionContextPolicy = rpcRefine(
+  rpcObject({
+    mode: rpcEnum(["inherit", "auto", "maximum", "custom"]),
+    desiredContextTokens: rpcOptional(rpcInteger({ minimum: 1, maximum: 10_000_000 })),
+    compaction: rpcOptional(agentCompactionPatch),
+  }),
+  (policy) => policy.mode !== "custom" || policy.desiredContextTokens !== undefined,
+  { message: "Custom context policy requires desiredContextTokens." },
+);
+const sessionContextPolicyUpdatePayload = rpcObject({
+  sessionId: nonEmptyString,
+  policy: sessionContextPolicy,
 });
 const sessionRenamePayload = rpcObject({ sessionId: nonEmptyString, title: rpcString() });
 const sessionForkPayload = rpcObject({
@@ -855,6 +873,18 @@ export async function handlePiRpcPost(request: Request, method: string): Promise
           }
         },
       });
+    case "session.resume":
+      return handleRpcPost(request, {
+        method,
+        payload: sessionResumePayload,
+        handler: async (payload) => {
+          try {
+            return await sessionService().resume(payload);
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
+      });
     case "session.selectBranch":
       return handleRpcPost(request, {
         method,
@@ -886,6 +916,44 @@ export async function handlePiRpcPost(request: Request, method: string): Promise
         handler: async (payload) => {
           try {
             return await sessionService().selectModel(payload);
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
+      });
+    case "session.contextPolicy":
+      return handleRpcPost(request, {
+        method,
+        payload: sessionModelPayload,
+        handler: async (payload) => {
+          try {
+            return await sessionService().contextPolicy(payload);
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
+      });
+    case "session.updateContextPolicy":
+      return handleRpcPost(request, {
+        method,
+        payload: sessionContextPolicyUpdatePayload,
+        loopbackOnly: true,
+        handler: async (payload) => {
+          try {
+            return await sessionService().updateContextPolicy(payload);
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
+      });
+    case "session.compactContext":
+      return handleRpcPost(request, {
+        method,
+        payload: sessionModelPayload,
+        loopbackOnly: true,
+        handler: async (payload) => {
+          try {
+            return await sessionService().compactContext(payload);
           } catch (error) {
             throwDomainError(error);
           }
@@ -1719,6 +1787,31 @@ export async function handlePiRpcPost(request: Request, method: string): Promise
               throw rpcBusinessError(
                 "cancelled",
                 "Model context-window update was cancelled.",
+                {},
+                { cause: error },
+              );
+            }
+            throwDomainError(error);
+          }
+        },
+      });
+    case "llm.resetModelContextWindow":
+      return handleRpcPost(request, {
+        method,
+        payload: modelContextWindowPayload,
+        loopbackOnly: true,
+        handler: async (payload, context) => {
+          try {
+            const value = await modelService.resetModelContextWindow(payload, {
+              signal: context.signal,
+            });
+            notifyModelProviderConfigurationChanged(payload.provider);
+            return value;
+          } catch (error) {
+            if (isAborted(error, context.signal)) {
+              throw rpcBusinessError(
+                "cancelled",
+                "Model context-window reset was cancelled.",
                 {},
                 { cause: error },
               );

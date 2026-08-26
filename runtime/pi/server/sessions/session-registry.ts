@@ -26,6 +26,7 @@ import type {
   PiModelSelection,
   PiQueuedPrompt,
   PiQueueMode,
+  PiRunTiming,
   PiSessionHistory,
   PiSessionSummary,
   PiThinkingLevel,
@@ -52,7 +53,31 @@ import {
 } from "../../../composer-request";
 import { PI_MODEL_CHANGED_EVENT, PI_SESSION_FORKED_EVENT } from "../../contracts";
 import { PI_CANCEL_INTENT_CUSTOM_TYPE } from "../../message-termination";
-import type { SessionEvent, SessionHistoryBranches } from "../../rpc-contracts";
+import type {
+  SessionCompactValue,
+  SessionContextPolicy,
+  SessionContextPolicyValue,
+  SessionEvent,
+  SessionHistoryBranches,
+  SessionResumeState,
+} from "../../rpc-contracts";
+import {
+  missingSessionResumeCheckpointFromBranch,
+  parseStoredSessionResumeCheckpoint,
+  resumeReasonFromAssistantMessage,
+  SESSION_RESUME_ATTEMPT_CUSTOM_TYPE,
+  SESSION_RESUME_CHECKPOINT_CUSTOM_TYPE,
+  sessionResumeStateFromBranch,
+} from "../../session-resume";
+import {
+  effectiveSessionContextBudget,
+  latestSessionContextPolicyMarker,
+  normalizeSessionContextPolicy,
+  policyFromSessionEntries,
+  SESSION_CONTEXT_POLICY_CUSTOM_TYPE,
+  sessionContextPolicyMarker,
+} from "../../session-context-policy";
+import { deriveSessionDisplayTitle } from "../../session-display-title";
 import { applySessionMessageDelta, copyPiAssistantMessage } from "../../session-message-reducer";
 import {
   createSessionEventPayload,
@@ -74,8 +99,15 @@ import { PiServerError } from "../core/errors";
 import { ColdSessionEventCache } from "./cold-session-event-cache";
 import { getInteractiveResponseRegistry } from "./interactive-response-registry";
 import {
+  readSessionCatalogIndex,
+  type SessionCatalogIndexSnapshot,
+  writeSessionCatalogIndex,
+} from "./session-catalog-index";
+import { estimateSessionContextBreakdown } from "./session-context-breakdown";
+import {
   activateSessionContextTrace,
   releaseSessionContextTrace,
+  sessionContextTraceSystemPromptSources,
   type SessionContextTrace,
 } from "./session-context-trace";
 import {
@@ -664,20 +696,51 @@ function firstUserText(messages: readonly unknown[]): string {
     const message = candidate as { role?: unknown; content?: unknown };
     if (message.role !== "user") continue;
     if (typeof message.content === "string" && message.content.trim()) {
-      return message.content.trim();
+      const title = deriveSessionDisplayTitle(message.content);
+      if (title) return title;
     }
     if (!Array.isArray(message.content)) continue;
-    const text = message.content.find((part): part is { type: "text"; text: string } =>
-      Boolean(
-        part &&
-        typeof part === "object" &&
-        (part as { type?: unknown }).type === "text" &&
-        typeof (part as { text?: unknown }).text === "string",
-      ),
-    )?.text;
-    if (text?.trim()) return text.trim();
+    const text = message.content
+      .filter((part): part is { type: "text"; text: string } =>
+        Boolean(
+          part &&
+          typeof part === "object" &&
+          (part as { type?: unknown }).type === "text" &&
+          typeof (part as { text?: unknown }).text === "string",
+        ),
+      )
+      .map((part) => part.text)
+      .join("\n");
+    if (text?.trim()) {
+      const title = deriveSessionDisplayTitle(text);
+      if (title) return title;
+    }
   }
   return "";
+}
+
+function searchableMessageText(candidate: unknown): string {
+  if (!isRecord(candidate) || (candidate.role !== "user" && candidate.role !== "assistant")) {
+    return "";
+  }
+  if (typeof candidate.content === "string") return candidate.content;
+  if (!Array.isArray(candidate.content)) return "";
+  return candidate.content
+    .filter(
+      (part): part is { type: "text"; text: string } =>
+        isRecord(part) && part.type === "text" && typeof part.text === "string",
+    )
+    .map((part) => part.text)
+    .join(" ");
+}
+
+function sessionManagerSearchText(manager: SessionManager): string {
+  return manager
+    .getEntries()
+    .filter((entry) => entry.type === "message")
+    .map((entry) => searchableMessageText(entry.message))
+    .filter(Boolean)
+    .join(" ");
 }
 
 export class SerializedSessionMutations {
@@ -868,6 +931,7 @@ class HostedPiSession {
   private readonly unsubscribeAgent: () => void;
   private idleTimer: ReturnType<typeof setTimeout> | undefined;
   private promptTask: Promise<void> | undefined;
+  private submissionLeaseActive = false;
   private imageRecognitionTask: Promise<AttachmentUnderstandingRunResult> | undefined;
   private imageRecognitionAbort: AbortController | undefined;
   private imageRecognitionCompletion: Promise<void> | undefined;
@@ -875,6 +939,8 @@ class HostedPiSession {
   private activePromptHasImages = false;
   private sequence = -1;
   private activeAssistantStream: ActiveAssistantStream | undefined;
+  private runStartedAtValue: number | undefined;
+  private visibleResponseCompleted = false;
   private assistantMessageActive = false;
   private assistantFirstTokenAt: number | undefined;
   private readonly canonicalEventsValue: SessionEvent[];
@@ -892,17 +958,23 @@ class HostedPiSession {
     projection: WorkbenchComposerUserProjection;
   }> = [];
   private readonly cancelledQueueItemIds = new Set<string>();
+  private contextPolicy: SessionContextPolicy;
+  private readonly modelContextCapacities = new Map<string, number>();
+  private readonly contextualModelObjects = new WeakSet<object>();
 
   constructor(
     session: AgentSession,
     contextTrace: SessionContextTrace,
     onRunningChanged: () => void,
     onDestroyed: () => void,
+    contextPolicy: SessionContextPolicy,
   ) {
     this.session = session;
     this.contextTrace = contextTrace;
     this.onRunningChanged = onRunningChanged;
     this.onDestroyed = onDestroyed;
+    this.contextPolicy = contextPolicy;
+    this.applyContextPolicyToCurrentModel();
     const initializedJournal = initializeSessionEventJournal(
       session.sessionManager,
       legacySessionEventsFromManager(session.sessionManager),
@@ -951,7 +1023,7 @@ class HostedPiSession {
       } else if (event.type !== "queue_update") {
         this.publish(event as PiEvent, eventTime);
       }
-      if (!transientMessageUpdate) this.onRunningChanged();
+      if (!transientMessageUpdate) this.notifyRunningChanged(eventTime);
     });
     if (initializedJournal.error !== undefined) {
       this.reportJournalFailure(initializedJournal.error);
@@ -1030,11 +1102,31 @@ class HostedPiSession {
   }
 
   get isRunning(): boolean {
-    return this.imageRecognitionAbort !== undefined || this.hasActiveAgentRun;
+    return (
+      this.submissionLeaseActive ||
+      this.imageRecognitionAbort !== undefined ||
+      this.hasActiveAgentRun
+    );
+  }
+
+  get runTiming(): PiRunTiming | undefined {
+    if (!this.isRunning) return undefined;
+    const now = Date.now();
+    const startedAt = (this.runStartedAtValue ??= now);
+    return {
+      startedAt,
+      elapsedMs: Math.max(0, now - startedAt),
+    };
   }
 
   private get hasActiveAgentRun(): boolean {
     return this.promptTask !== undefined || this.session.isStreaming;
+  }
+
+  private notifyRunningChanged(time = Date.now()): void {
+    this.runStartedAtValue = this.isRunning ? (this.runStartedAtValue ?? time) : undefined;
+    if (!this.isRunning) this.visibleResponseCompleted = false;
+    this.onRunningChanged();
   }
 
   get streamingMessage(): unknown {
@@ -1275,6 +1367,15 @@ class HostedPiSession {
       this.projectComposerUserEvent(sourceEvent),
       time,
     );
+    const eventMessage = isRecord(event.message) ? event.message : undefined;
+    if (
+      this.visibleResponseCompleted &&
+      (event.type === "agent_start" ||
+        (event.type === "message_start" && eventMessage?.role === "user"))
+    ) {
+      this.runStartedAtValue = time;
+      this.visibleResponseCompleted = false;
+    }
     if (event.type === "message_update") {
       this.publishMessageUpdate(event, time);
       return;
@@ -1314,19 +1415,59 @@ class HostedPiSession {
     this.canonicalEventsValue.push(canonical);
     const canonicalData = isRecord(canonical.data) ? canonical.data : undefined;
     const canonicalMessage = canonicalData?.message;
-    if (canonical.type === "message_start" && assistantMessageMetadata(canonicalMessage)) {
+    const canonicalAssistantMetadata = assistantMessageMetadata(canonicalMessage);
+    if (canonical.type === "message_start" && canonicalAssistantMetadata) {
       this.beginAssistantMessageStream(canonicalMessage, canonical.seq, canonical.time);
     } else if (endsAssistantStream) {
       this.clearAssistantMessageStream();
     }
+    if (canonical.type === "message_end" && canonicalAssistantMetadata?.stopReason === "stop") {
+      this.visibleResponseCompleted = true;
+    } else if (canonical.type === "agent_settled") {
+      this.visibleResponseCompleted = false;
+    }
     this.notifyLegacyListeners(this.legacyEvent(canonical, true));
     try {
-      getStreamHub().publishMux(createSessionEventPayload(this.id, canonical));
+      getStreamHub().publishMux(createSessionEventPayload(this.id, canonical, this.runTiming));
     } catch {
       // The persisted event remains recoverable through unary history after reconnect.
     }
+    if (canonical.type === "agent_settled") this.persistResumeCheckpoint(canonical.time);
     if (canonical.type === "message_end" || canonical.type === "session_info_changed") {
       announceSessionChanged(this);
+    }
+  }
+
+  private currentResumeModel(): { provider: string; model: string } | undefined {
+    const model = this.session.sessionManager.buildSessionContext().model;
+    return model ? { provider: model.provider, model: model.modelId } : undefined;
+  }
+
+  private persistResumeCheckpoint(createdAt: number): void {
+    const manager = this.session.sessionManager;
+    const candidate = missingSessionResumeCheckpointFromBranch(
+      manager.getBranch(),
+      this.canonicalEventsValue,
+      this.currentResumeModel(),
+    );
+    if (!candidate) return;
+    // The lifecycle event's timestamp is authoritative. `createdAt` remains an explicit parameter
+    // so callers cannot accidentally invoke checkpoint persistence outside a settled boundary.
+    if (candidate.value.createdAt !== createdAt) return;
+    try {
+      manager.appendCustomEntry(SESSION_RESUME_CHECKPOINT_CUSTOM_TYPE, candidate.value);
+      announceSessionChanged(this);
+    } catch (error) {
+      try {
+        getStreamHub().publishHost({
+          type: "host/agent-error",
+          sessionId: this.id,
+          message:
+            error instanceof Error ? error.message : "The recovery checkpoint could not be saved.",
+        });
+      } catch {
+        // The original terminal message remains readable even when checkpoint persistence fails.
+      }
     }
   }
 
@@ -1361,6 +1502,155 @@ class HostedPiSession {
 
   private runQueueMutation<Value>(mutation: () => Promise<Value>): Promise<Value> {
     return this.mutations.run(mutation);
+  }
+
+  private modelContextKey(model: { provider: string; id: string }): string {
+    return `${model.provider}\u0000${model.id}`;
+  }
+
+  private contextualizeModel<Model extends { provider: string; id: string; contextWindow: number }>(
+    model: Model,
+  ): Model {
+    const key = this.modelContextKey(model);
+    if (!this.contextualModelObjects.has(model)) {
+      this.modelContextCapacities.set(key, model.contextWindow);
+    }
+    const capacity = this.modelContextCapacities.get(key) ?? model.contextWindow;
+    const contextWindow = effectiveSessionContextBudget(this.contextPolicy, capacity);
+    if (model.contextWindow === contextWindow) return model;
+    const contextualModel = { ...model, contextWindow };
+    this.contextualModelObjects.add(contextualModel);
+    return contextualModel;
+  }
+
+  private applyContextPolicyToCurrentModel(): void {
+    const current = this.session.model;
+    if (!current || !Number.isInteger(current.contextWindow) || current.contextWindow < 1) return;
+    const contextualModel = this.contextualizeModel(current);
+    if (contextualModel !== current) {
+      this.session.agent.state.model = contextualModel;
+    }
+  }
+
+  private applyContextCompactionOverrides(): void {
+    if (this.contextPolicy.mode === "inherit") return;
+    const compaction = {
+      ...(this.contextPolicy.mode === "auto" ? { enabled: true } : {}),
+      ...this.contextPolicy.compaction,
+    };
+    if (Object.keys(compaction).length > 0) {
+      this.session.settingsManager.applyOverrides({ compaction });
+    }
+  }
+
+  private async replaceContextPolicy(policy: SessionContextPolicy): Promise<void> {
+    const previousMode = this.contextPolicy.mode;
+    this.contextPolicy = policy;
+    if (policy.mode === "inherit" || previousMode !== "inherit") {
+      await this.session.settingsManager.reload();
+    }
+    this.applyContextCompactionOverrides();
+    this.applyContextPolicyToCurrentModel();
+  }
+
+  private async syncContextPolicyFromBranch(): Promise<void> {
+    await this.replaceContextPolicy(
+      policyFromSessionEntries(this.session.sessionManager.getBranch()),
+    );
+  }
+
+  contextPolicyValue(): SessionContextPolicyValue {
+    this.applyContextCompactionOverrides();
+    this.applyContextPolicyToCurrentModel();
+    const model = this.session.model;
+    const compaction = this.session.settingsManager.getCompactionSettings();
+    const usage = this.session.getContextUsage();
+    const key = model ? this.modelContextKey(model) : undefined;
+    const capacity = key ? this.modelContextCapacities.get(key) : undefined;
+    const effectiveBudget = model?.contextWindow;
+    const thresholdTokens =
+      effectiveBudget === undefined
+        ? undefined
+        : Math.max(0, effectiveBudget - compaction.reserveTokens);
+    const contextTokens = usage?.tokens ?? null;
+    return {
+      policy: structuredClone(this.contextPolicy),
+      overridden: this.contextPolicy.mode !== "inherit",
+      ...(model && capacity !== undefined && effectiveBudget !== undefined
+        ? {
+            model: {
+              provider: model.provider,
+              model: model.id,
+              name: model.name || model.id,
+              capacity,
+              effectiveBudget,
+            },
+          }
+        : {}),
+      compaction: {
+        ...compaction,
+        ...(thresholdTokens === undefined ? {} : { thresholdTokens }),
+      },
+      usage: {
+        tokens: contextTokens,
+        percent:
+          contextTokens === null || !effectiveBudget
+            ? null
+            : (contextTokens / effectiveBudget) * 100,
+      },
+      breakdown: estimateSessionContextBreakdown(this.session, contextTokens),
+      nearingCompaction:
+        compaction.enabled &&
+        contextTokens !== null &&
+        thresholdTokens !== undefined &&
+        contextTokens >= thresholdTokens * 0.9,
+    };
+  }
+
+  async refreshContextPolicyValue(): Promise<SessionContextPolicyValue> {
+    return this.runQueueMutation(async () => {
+      const current = this.session.model;
+      if (current && !this.isRunning) {
+        await this.refreshChangedModelProvider(current.provider);
+        const refreshedModel = this.session.modelRuntime
+          .getAvailableSnapshot()
+          .find(
+            (candidate) => candidate.provider === current.provider && candidate.id === current.id,
+          );
+        if (refreshedModel) {
+          this.session.agent.state.model = this.contextualizeModel(refreshedModel);
+        }
+      }
+      return this.contextPolicyValue();
+    });
+  }
+
+  updateContextPolicy(policy: SessionContextPolicy): Promise<SessionContextPolicyValue> {
+    return this.runQueueMutation(async () => {
+      if (this.isRunning) throw new PiServerError("pi_session_busy", 409);
+      const normalized = normalizeSessionContextPolicy(policy);
+      if (!normalized) throw new PiServerError("pi_invalid_context_policy", 400);
+      this.session.sessionManager.appendCustomEntry(
+        SESSION_CONTEXT_POLICY_CUSTOM_TYPE,
+        sessionContextPolicyMarker(normalized),
+      );
+      await this.replaceContextPolicy(normalized);
+      this.touch();
+      announceSessionChanged(this);
+      return this.contextPolicyValue();
+    });
+  }
+
+  compactContextNow(): Promise<SessionCompactValue> {
+    return this.runQueueMutation(async () => {
+      if (this.isRunning) throw new PiServerError("pi_session_busy", 409);
+      this.applyContextCompactionOverrides();
+      this.applyContextPolicyToCurrentModel();
+      await this.session.compact();
+      this.touch();
+      announceSessionChanged(this);
+      return { compacted: true, context: this.contextPolicyValue() };
+    });
   }
 
   private async refreshChangedModelProvider(provider: string): Promise<void> {
@@ -1415,6 +1705,7 @@ class HostedPiSession {
   ): Promise<boolean> {
     if (cancellationSignal?.aborted) return false;
     if (this.hasActiveAgentRun) throw new PiServerError("pi_session_busy", 409);
+    this.applyContextCompactionOverrides();
 
     if (selection) {
       await this.applyPromptSelection(selection);
@@ -1428,8 +1719,11 @@ class HostedPiSession {
             candidate.id === this.session.model.id,
         );
       if (!refreshedModel) throw new PiServerError("pi_model_not_available", 400);
-      this.requireModelImageCompatibility(refreshedModel, Boolean(images?.length));
-      if (refreshedModel !== this.session.model) await this.session.setModel(refreshedModel);
+      const contextualModel = this.contextualizeModel(refreshedModel);
+      this.requireModelImageCompatibility(contextualModel, Boolean(images?.length));
+      if (contextualModel !== this.session.model) {
+        this.session.agent.state.model = contextualModel;
+      }
     }
 
     this.requireModelImageCompatibility(this.session.model, Boolean(images?.length));
@@ -1449,7 +1743,7 @@ class HostedPiSession {
     this.promptTask = run;
     this.activePromptHasImages = Boolean(images?.length);
     this.touch();
-    this.onRunningChanged();
+    this.notifyRunningChanged();
 
     void run
       .then(() => this.publish({ type: "command_done" }))
@@ -1471,7 +1765,7 @@ class HostedPiSession {
           this.activePromptHasImages = false;
         }
         this.touch();
-        this.onRunningChanged();
+        this.notifyRunningChanged();
       });
 
     const accepted = await Promise.race([
@@ -1498,16 +1792,20 @@ class HostedPiSession {
           candidate.provider === selection.provider && candidate.id === selection.modelId,
       );
     if (!model) throw new PiServerError("pi_model_not_available", 400);
-    this.requireModelImageCompatibility(model);
-    if (this.session.model?.provider !== model.provider || this.session.model?.id !== model.id) {
+    const contextualModel = this.contextualizeModel(model);
+    this.requireModelImageCompatibility(contextualModel);
+    if (
+      this.session.model?.provider !== contextualModel.provider ||
+      this.session.model?.id !== contextualModel.id
+    ) {
       const previousModel = this.session.model;
       const hadConversation = this.session.sessionManager.buildSessionContext().messages.length > 0;
-      await this.session.setModel(model);
+      await this.session.setModel(contextualModel);
       if (hadConversation) {
         this.publish({
           type: PI_MODEL_CHANGED_EVENT,
-          provider: model.provider,
-          model: model.id,
+          provider: contextualModel.provider,
+          model: contextualModel.id,
           ...(previousModel
             ? {
                 previousProvider: previousModel.provider,
@@ -1516,9 +1814,64 @@ class HostedPiSession {
             : {}),
         });
       }
+    } else if (this.session.model !== contextualModel) {
+      this.session.agent.state.model = contextualModel;
     }
-    this.prepareModelContext(model);
+    this.prepareModelContext(contextualModel);
     if (selection.thinkingLevel) this.session.setThinkingLevel(selection.thinkingLevel);
+  }
+
+  private async prepareContinuationModel(): Promise<void> {
+    this.applyContextCompactionOverrides();
+    if (this.session.model) {
+      await this.refreshChangedModelProvider(this.session.model.provider);
+      const refreshedModel = this.session.modelRuntime
+        .getAvailableSnapshot()
+        .find(
+          (candidate) =>
+            candidate.provider === this.session.model?.provider &&
+            candidate.id === this.session.model.id,
+        );
+      if (!refreshedModel) throw new PiServerError("pi_model_not_available", 400);
+      const contextualModel = this.contextualizeModel(refreshedModel);
+      this.requireModelImageCompatibility(contextualModel);
+      if (contextualModel !== this.session.model) this.session.agent.state.model = contextualModel;
+    }
+    this.prepareModelContext(this.session.model);
+  }
+
+  private startAgentContinuation(): void {
+    const run = this.session.agent.continue();
+    this.promptTask = run;
+    this.activePromptHasImages = false;
+    this.touch();
+    this.notifyRunningChanged();
+    void run
+      .then(() => {
+        // Agent.continue() is the Pi core primitive and does not emit AgentSession's high-level
+        // settled event. Persist the same durable boundary used by ordinary prompt runs.
+        this.publish({ type: "agent_settled" });
+        this.publish({ type: "command_done" });
+      })
+      .catch((error: unknown) => {
+        this.publish({ type: "agent_settled" });
+        this.publish({ type: "command_error", code: "pi_prompt_failed" });
+        try {
+          getStreamHub().publishHost({
+            type: "host/agent-error",
+            sessionId: this.id,
+            message: error instanceof Error ? error.message : "The agent command failed.",
+          });
+        } catch {
+          // The durable command_error event remains available through history.
+        }
+      })
+      .finally(() => {
+        if (this.promptTask === run) this.promptTask = undefined;
+        this.touch();
+        this.notifyRunningChanged();
+        announceSessionChanged(this);
+      });
   }
 
   private activateBranch(leafId: string, persistSelection: boolean): void {
@@ -1554,6 +1907,7 @@ class HostedPiSession {
     return this.runQueueMutation(async () => {
       if (this.isRunning) throw new PiServerError("pi_session_busy", 409);
       this.activateBranch(leafId, true);
+      await this.syncContextPolicyFromBranch();
     });
   }
 
@@ -1614,31 +1968,77 @@ class HostedPiSession {
         branchLeafId = manager.getLeafId() ?? userEntry.id;
       }
       this.activateBranch(branchLeafId, false);
-      const run = this.session.agent.continue();
-      this.promptTask = run;
-      this.activePromptHasImages = false;
-      this.touch();
-      this.onRunningChanged();
-      void run
-        .then(() => this.publish({ type: "command_done" }))
-        .catch((error: unknown) => {
-          this.publish({ type: "command_error", code: "pi_prompt_failed" });
-          try {
-            getStreamHub().publishHost({
-              type: "host/agent-error",
-              sessionId: this.id,
-              message: error instanceof Error ? error.message : "The agent command failed.",
-            });
-          } catch {
-            // The durable command_error event remains available through history.
-          }
-        })
-        .finally(() => {
-          if (this.promptTask === run) this.promptTask = undefined;
-          this.touch();
-          this.onRunningChanged();
-          announceSessionChanged(this);
-        });
+      await this.syncContextPolicyFromBranch();
+      await this.prepareContinuationModel();
+      this.startAgentContinuation();
+    });
+  }
+
+  resume(checkpointId: string, expectedLeafId: string): Promise<void> {
+    return this.runQueueMutation(async () => {
+      if (this.isRunning) throw new PiServerError("pi_session_busy", 409);
+      const manager = this.session.sessionManager;
+      if (manager.getLeafId() !== expectedLeafId) {
+        throw new PiServerError("pi_resume_stale", 409);
+      }
+      const resumeState = sessionResumeStateFromBranch(
+        manager.getBranch(),
+        this.currentResumeModel(),
+      );
+      if (resumeState.checkpoint?.checkpointId !== checkpointId) {
+        throw new PiServerError("pi_resume_stale", 409);
+      }
+      if (resumeState.checkpoint.capability === "confirmation-required") {
+        throw new PiServerError("pi_resume_confirmation_required", 409);
+      }
+      if (resumeState.checkpoint.capability !== "ready") {
+        throw new PiServerError("pi_resume_unavailable", 409);
+      }
+
+      const checkpointEntry = manager.getEntry(checkpointId);
+      const storedCheckpoint =
+        checkpointEntry?.type === "custom" &&
+        checkpointEntry.customType === SESSION_RESUME_CHECKPOINT_CUSTOM_TYPE
+          ? parseStoredSessionResumeCheckpoint(checkpointEntry.data)
+          : undefined;
+      if (
+        !storedCheckpoint ||
+        !manager.getBranch().some((entry) => entry.id === storedCheckpoint.anchorEntryId)
+      ) {
+        throw new PiServerError("pi_resume_stale", 409);
+      }
+
+      await this.syncContextPolicyFromBranch();
+      await this.prepareContinuationModel();
+      let resumableMessages = [...this.session.agent.state.messages];
+      while (resumableMessages.length > 0) {
+        const tail = resumableMessages.at(-1);
+        if (
+          !isRecord(tail) ||
+          tail.role !== "assistant" ||
+          (resumeReasonFromAssistantMessage(tail as unknown as PiAssistantMessage) === undefined &&
+            tail.stopReason !== "error" &&
+            tail.stopReason !== "aborted")
+        ) {
+          break;
+        }
+        resumableMessages = resumableMessages.slice(0, -1);
+      }
+      const continuationRole = isRecord(resumableMessages.at(-1))
+        ? resumableMessages.at(-1)?.role
+        : undefined;
+      if (continuationRole !== "user" && continuationRole !== "toolResult") {
+        throw new PiServerError("pi_resume_unavailable", 409);
+      }
+      this.session.agent.state.messages = resumableMessages;
+      manager.appendCustomEntry(SESSION_RESUME_ATTEMPT_CUSTOM_TYPE, {
+        version: 1,
+        checkpointId,
+        terminalMessageId: storedCheckpoint.terminalMessageId,
+        expectedLeafId,
+        createdAt: Date.now(),
+      });
+      this.startAgentContinuation();
     });
   }
 
@@ -1857,7 +2257,7 @@ class HostedPiSession {
     })();
     this.imageRecognitionTask = task;
     this.touch();
-    this.onRunningChanged();
+    this.notifyRunningChanged();
     try {
       return await task;
     } finally {
@@ -1865,7 +2265,7 @@ class HostedPiSession {
         this.imageRecognitionTask = undefined;
       }
       this.touch();
-      this.onRunningChanged();
+      this.notifyRunningChanged();
       announceSessionChanged(this);
     }
   }
@@ -1878,7 +2278,7 @@ class HostedPiSession {
     this.imageRecognitionCompletion = undefined;
     complete?.();
     this.touch();
-    this.onRunningChanged();
+    this.notifyRunningChanged();
     announceSessionChanged(this);
   }
 
@@ -2135,6 +2535,7 @@ class HostedPiSession {
     }> = {},
   ): Promise<PromptSubmissionResult> {
     return this.runQueueMutation(async () => {
+      let submissionLeaseAcquired = false;
       try {
         if (options.requireIdle && this.isRunning) {
           throw new PiServerError("pi_session_busy", 409);
@@ -2145,6 +2546,9 @@ class HostedPiSession {
         if (provenance?.rpcId && this.cancelledQueueItemIds.delete(provenance.rpcId)) {
           return { queued: false };
         }
+        this.submissionLeaseActive = true;
+        submissionLeaseAcquired = true;
+        this.notifyRunningChanged();
         if (options.selection) await this.applyPromptSelection(options.selection);
         let admission: PromptSubmissionResult = { queued: false };
         const submittedComposer = provenance?.composer;
@@ -2244,12 +2648,14 @@ class HostedPiSession {
 
         if (provenance?.rpcId) {
           try {
+            const runTiming = this.runTiming;
             getStreamHub().publishMux(
               {
                 type: "session/prompt-accepted",
                 sessionId: this.id,
                 mode: mode === "followUp" ? "queue" : "steer",
                 running: this.isRunning,
+                ...(runTiming === undefined ? {} : { runTiming }),
               },
               { rpcId: provenance.rpcId },
             );
@@ -2262,6 +2668,10 @@ class HostedPiSession {
         return admission;
       } finally {
         this.releaseImageRecognitionLease();
+        if (submissionLeaseAcquired) {
+          this.submissionLeaseActive = false;
+          this.notifyRunningChanged();
+        }
       }
     });
   }
@@ -2280,17 +2690,21 @@ class HostedPiSession {
             candidate.provider === selection.provider && candidate.id === selection.model,
         );
       if (!model) throw new PiServerError("pi_model_not_available", 400);
-      this.requireModelImageCompatibility(model);
-      if (this.session.model?.provider !== model.provider || this.session.model?.id !== model.id) {
+      const contextualModel = this.contextualizeModel(model);
+      this.requireModelImageCompatibility(contextualModel);
+      if (
+        this.session.model?.provider !== contextualModel.provider ||
+        this.session.model?.id !== contextualModel.id
+      ) {
         const previousModel = this.session.model;
         const hadConversation =
           this.session.sessionManager.buildSessionContext().messages.length > 0;
-        await this.session.setModel(model);
+        await this.session.setModel(contextualModel);
         if (hadConversation) {
           this.publish({
             type: PI_MODEL_CHANGED_EVENT,
-            provider: model.provider,
-            model: model.id,
+            provider: contextualModel.provider,
+            model: contextualModel.id,
             ...(previousModel
               ? {
                   previousProvider: previousModel.provider,
@@ -2299,8 +2713,10 @@ class HostedPiSession {
               : {}),
           });
         }
+      } else if (this.session.model !== contextualModel) {
+        this.session.agent.state.model = contextualModel;
       }
-      this.prepareModelContext(model);
+      this.prepareModelContext(contextualModel);
       if (selection.reasoningEffort) {
         this.session.setThinkingLevel(selection.reasoningEffort as PiThinkingLevel);
       }
@@ -2393,7 +2809,8 @@ class HostedPiSession {
             candidate.provider === currentModel.provider && candidate.id === currentModel.id,
         );
       if (!refreshedModel) throw new PiServerError("pi_model_not_available", 400);
-      if (refreshedModel !== currentModel) await this.session.setModel(refreshedModel);
+      const contextualModel = this.contextualizeModel(refreshedModel);
+      if (contextualModel !== currentModel) this.session.agent.state.model = contextualModel;
     }
     if (!this.session.model?.input.includes("image")) throw imageUnsupported();
   }
@@ -2595,7 +3012,7 @@ class HostedPiSession {
   }
 
   summary(): PiSessionSummary {
-    return sessionManagerSummary(this.session.sessionManager, this.isRunning);
+    return sessionManagerSummary(this.session.sessionManager, this.isRunning, this.runTiming);
   }
 
   metadataSnapshot(): { summary: PiSessionSummary; info?: SessionInfo } {
@@ -2688,10 +3105,14 @@ function publishRunningSessions(): void {
   for (const sessionId of new Set([...previous, ...next])) {
     if (previous.has(sessionId) === next.has(sessionId)) continue;
     try {
+      const runTiming = next.has(sessionId)
+        ? registry.sessions.get(sessionId)?.runTiming
+        : undefined;
       getStreamHub().publishHost({
         type: "host/session-status",
         sessionId,
         running: next.has(sessionId),
+        ...(runTiming === undefined ? {} : { runTiming }),
       });
     } catch {
       // Running state remains authoritative through session.list.
@@ -2702,6 +3123,7 @@ function publishRunningSessions(): void {
 
 async function createHost(sessionManager: SessionManager): Promise<HostedPiSession> {
   const cwd = sessionManager.getCwd();
+  const initialContextPolicy = policyFromSessionEntries(sessionManager.getBranch());
   const services = await createAgentSessionServices({
     cwd,
     resourceLoaderOptions: {
@@ -2716,8 +3138,8 @@ async function createHost(sessionManager: SessionManager): Promise<HostedPiSessi
     services,
     sessionManager,
     customTools: [
-      // Pi applies custom tools after built-ins, so this same-name definition is the
-      // Workbench execution override while the model continues to see the standard `bash` tool.
+      // Pi applies custom tools after built-ins, so this same-name definition preserves the
+      // standard Bash behavior while adding Workbench PTY execution and explicit input ownership.
       createWorkbenchBashToolOverride(cwd, sessionManager.getSessionId(), {
         commandPrefix: services.settingsManager.getShellCommandPrefix(),
         shellPath: services.settingsManager.getShellPath(),
@@ -2732,19 +3154,28 @@ async function createHost(sessionManager: SessionManager): Promise<HostedPiSessi
       event,
     });
   });
+  contextTrace.setSystemPromptSourcesResolver(() =>
+    sessionContextTraceSystemPromptSources(session.resourceLoader, cwd, services.agentDir),
+  );
   let host: HostedPiSession;
   try {
     await session.bindExtensions({
       mode: "rpc",
       uiContext: interactiveResponses.createExtensionUIContext(session.sessionId),
     });
-    host = new HostedPiSession(session, contextTrace, publishRunningSessions, () => {
-      const registry = state();
-      cacheHostedSession(registry, host);
-      if (registry.sessions.get(host.id) === host) registry.sessions.delete(host.id);
-      interactiveResponses.clearSession(host.id);
-      publishRunningSessions();
-    });
+    host = new HostedPiSession(
+      session,
+      contextTrace,
+      publishRunningSessions,
+      () => {
+        const registry = state();
+        cacheHostedSession(registry, host);
+        if (registry.sessions.get(host.id) === host) registry.sessions.delete(host.id);
+        interactiveResponses.clearSession(host.id);
+        publishRunningSessions();
+      },
+      initialContextPolicy,
+    );
   } catch (error) {
     await releaseSessionContextTrace(session.sessionId, contextTrace);
     session.dispose();
@@ -2923,6 +3354,7 @@ function forkLeafForSequence(manager: SessionManager, atSeq?: number): SessionEn
 export function createDetachedSessionFork(sourcePath: string, atSeq?: number): SessionManager {
   const sourceBefore = statSync(sourcePath);
   const detached = SessionManager.open(sourcePath);
+  const contextPolicy = latestSessionContextPolicyMarker(detached.getBranch());
   const leaf = forkLeafForSequence(detached, atSeq);
   const sourceId = detached.getSessionId();
   const childPath = detached.createBranchedSession(leaf.id);
@@ -2932,6 +3364,9 @@ export function createDetachedSessionFork(sourcePath: string, atSeq?: number): S
     if (sourceAfter.size !== sourceBefore.size || sourceAfter.mtimeMs !== sourceBefore.mtimeMs) {
       removeFailedForkFile(sourcePath, detached);
       throw forkUnavailable();
+    }
+    if (contextPolicy) {
+      detached.appendCustomEntry(SESSION_CONTEXT_POLICY_CUSTOM_TYPE, contextPolicy);
     }
     const inheritedEvents = readSessionEventJournal(detached);
     const sourceEventSeq = inheritedEvents.at(-1)?.seq;
@@ -3163,27 +3598,28 @@ export async function forkSession(id: string, atSeq?: number): Promise<HostedPiS
 }
 
 function persistedSummary(info: SessionInfo, running: boolean): PiSessionSummary {
-  let modified = info.modified;
-  try {
-    modified = sessionModifiedAt(SessionManager.open(info.path));
-  } catch {
-    // A concurrently removed or malformed log can still use listAll's best-effort metadata.
-  }
   return {
     id: info.id,
     cwd: info.cwd,
     workspace: workspaceFromCwd(info.cwd),
     name: info.name,
     created: info.created.toISOString(),
-    modified: modified.toISOString(),
+    // listAll already derives the last user/assistant activity while streaming the file. Opening
+    // every JSONL again here doubles cold-index construction I/O; subsequent changed-file refreshes
+    // use SessionManager and therefore retain Workbench's richer branch-aware timestamp.
+    modified: info.modified.toISOString(),
     messageCount: info.messageCount,
-    firstMessage: info.firstMessage,
+    firstMessage: deriveSessionDisplayTitle(info.firstMessage),
     transient: false,
     running,
   };
 }
 
-function sessionManagerSummary(manager: SessionManager, running: boolean): PiSessionSummary {
+function sessionManagerSummary(
+  manager: SessionManager,
+  running: boolean,
+  runTiming?: PiRunTiming,
+): PiSessionSummary {
   const context = manager.buildSessionContext();
   const header = manager.getHeader();
   const file = manager.getSessionFile();
@@ -3199,6 +3635,7 @@ function sessionManagerSummary(manager: SessionManager, running: boolean): PiSes
     firstMessage: firstUserText(context.messages),
     transient: !file || !existsSync(file),
     running,
+    ...(runTiming === undefined ? {} : { runTiming }),
   };
 }
 
@@ -3219,7 +3656,7 @@ function sessionManagerInfo(
     modified: new Date(summary.modified),
     messageCount: summary.messageCount,
     firstMessage: summary.firstMessage,
-    allMessagesText: "",
+    allMessagesText: sessionManagerSearchText(manager),
   };
 }
 
@@ -3242,7 +3679,7 @@ function persistedMetadataFromManager(
     created: timestamp,
     modified: sessionModifiedAt(manager).toISOString(),
     messageCount: messages.length,
-    firstMessage: firstUserText(messages) || "(no messages)",
+    firstMessage: firstUserText(messages),
     transient: !file || !existsSync(file),
     running,
   };
@@ -3266,14 +3703,19 @@ function ensureSessionCacheScope(registry: RegistryState): string {
   return cacheKey;
 }
 
-async function scanSessionFingerprints(sessionRoot: string): Promise<Map<string, string>> {
+interface SessionFingerprintScan {
+  fingerprints: Map<string, string>;
+  totalBytes: number;
+}
+
+async function scanSessionFingerprints(sessionRoot: string): Promise<SessionFingerprintScan> {
   let directories: string[];
   try {
     directories = (await readdir(sessionRoot, { withFileTypes: true }))
       .filter((entry) => entry.isDirectory() || entry.isSymbolicLink())
       .map((entry) => path.join(sessionRoot, entry.name));
   } catch {
-    return new Map();
+    return { fingerprints: new Map(), totalBytes: 0 };
   }
 
   const fileGroups = await Promise.all(
@@ -3288,17 +3730,19 @@ async function scanSessionFingerprints(sessionRoot: string): Promise<Map<string,
     }),
   );
   const fingerprints = new Map<string, string>();
+  let totalBytes = 0;
   await Promise.all(
     fileGroups.flat().map(async (file) => {
       try {
         const metadata = await stat(file);
         fingerprints.set(file, `${metadata.size}:${metadata.mtimeMs}`);
+        totalBytes += metadata.size;
       } catch {
         // A concurrently removed session is absent from the authoritative scan.
       }
     }),
   );
-  return fingerprints;
+  return { fingerprints, totalBytes };
 }
 
 function fingerprintsMatch(left: ReadonlyMap<string, string>, right: ReadonlyMap<string, string>) {
@@ -3354,6 +3798,28 @@ function cachePersistedSessionManager(
   return summary;
 }
 
+/** Admit a fully populated, cold SessionManager created by a host-owned importer. */
+export function registerImportedSessionManager(manager: SessionManager): PiSessionSummary {
+  const registry = state();
+  const id = manager.getSessionId();
+  if (registry.sessions.get(id)?.isAlive || registry.persistedSessions.has(id)) {
+    throw new PiServerError("pi_session_conflict", 409);
+  }
+  const summary = cachePersistedSessionManager(registry, manager);
+  try {
+    getStreamHub().publishHost({
+      type: "host/session-added",
+      sessionId: id,
+      blank: summary.messageCount === 0,
+      summary,
+      cwd: summary.cwd,
+    });
+  } catch {
+    // session.list remains the authoritative recovery path.
+  }
+  return summary;
+}
+
 function removeCachedSessionFile(registry: RegistryState, file: string): void {
   coldSessionEventCache.invalidate(file);
   for (const [id, info] of registry.persistedSessions) {
@@ -3366,14 +3832,20 @@ function removeCachedSessionFile(registry: RegistryState, file: string): void {
 function refreshChangedSessionFiles(
   registry: RegistryState,
   fingerprints: ReadonlyMap<string, string>,
-): void {
+): { changedFiles: number; removedFiles: number; failedFiles: number } {
+  let changedFiles = 0;
+  let removedFiles = 0;
+  let failedFiles = 0;
   for (const file of registry.persistedSessionFingerprints.keys()) {
-    if (!fingerprints.has(file)) removeCachedSessionFile(registry, file);
+    if (fingerprints.has(file)) continue;
+    removeCachedSessionFile(registry, file);
+    removedFiles += 1;
   }
 
   const running = new Set(runningSessionIds());
   for (const [file, fingerprint] of fingerprints) {
     if (registry.persistedSessionFingerprints.get(file) === fingerprint) continue;
+    changedFiles += 1;
     removeCachedSessionFile(registry, file);
     try {
       const manager = SessionManager.open(file);
@@ -3385,6 +3857,7 @@ function refreshChangedSessionFiles(
       registry.persistedSessions.set(info.id, info);
       registry.persistedSessionSummaries.set(summary.id, summary);
     } catch {
+      failedFiles += 1;
       // A malformed or concurrently removed file is excluded until a later fingerprint change.
     }
   }
@@ -3392,6 +3865,44 @@ function refreshChangedSessionFiles(
   registry.persistedSessionFingerprints.clear();
   for (const [file, fingerprint] of fingerprints) {
     registry.persistedSessionFingerprints.set(file, fingerprint);
+  }
+  return { changedFiles, removedFiles, failedFiles };
+}
+
+function hydratePersistedSessionCache(
+  registry: RegistryState,
+  snapshot: SessionCatalogIndexSnapshot,
+): void {
+  registry.persistedSessions.clear();
+  for (const [id, info] of snapshot.sessions) registry.persistedSessions.set(id, info);
+  registry.persistedSessionSummaries.clear();
+  for (const [id, summary] of snapshot.summaries) {
+    registry.persistedSessionSummaries.set(id, {
+      ...summary,
+      workspace: workspaceFromCwd(summary.cwd),
+    });
+  }
+  registry.persistedSessionFingerprints.clear();
+  for (const [file, fingerprint] of snapshot.fingerprints) {
+    registry.persistedSessionFingerprints.set(file, fingerprint);
+  }
+  registry.persistedSessionCacheReady = true;
+}
+
+async function persistSessionCatalogIndex(
+  registry: RegistryState,
+  cacheKey: string,
+): Promise<{ bytes: number; entries: number } | undefined> {
+  try {
+    return await writeSessionCatalogIndex(
+      cacheKey,
+      registry.persistedSessions,
+      registry.persistedSessionSummaries,
+      registry.persistedSessionFingerprints,
+    );
+  } catch (error) {
+    console.error("[workbench-pi] session catalog index write failed", error);
+    return undefined;
   }
 }
 
@@ -3401,34 +3912,88 @@ function startPersistedSessionCacheRefresh(
 ): Promise<void> {
   if (registry.persistedSessionCacheTask) return registry.persistedSessionCacheTask;
   const task = (async () => {
-    const fingerprints = await scanSessionFingerprints(cacheKey);
+    const startedAt = Date.now();
+    let indexStatus: "memory" | "hit" | "missing" | "invalid" = registry.persistedSessionCacheReady
+      ? "memory"
+      : "missing";
+    let indexBytes = 0;
+    let indexLoadMs = 0;
+    if (!registry.persistedSessionCacheReady) {
+      const indexLoadStartedAt = Date.now();
+      const index = await readSessionCatalogIndex(cacheKey);
+      indexLoadMs = Date.now() - indexLoadStartedAt;
+      indexStatus = index.status;
+      indexBytes = index.status === "missing" ? 0 : (index.bytes ?? 0);
+      if (index.status === "hit") hydratePersistedSessionCache(registry, index.snapshot);
+      if (index.status === "invalid") {
+        console.warn(
+          `[workbench-pi] session catalog index ignored (${index.reason}, ${indexBytes} bytes)`,
+        );
+      }
+    }
+
+    const fingerprintStartedAt = Date.now();
+    const scan = await scanSessionFingerprints(cacheKey);
+    const fingerprintMs = Date.now() - fingerprintStartedAt;
+    const { fingerprints } = scan;
     if (registry.persistedSessionCacheKey !== cacheKey) return;
     for (const host of registry.sessions.values()) {
       if (host.isAlive) cacheHostedSession(registry, host, fingerprints);
     }
+    let changedFiles = 0;
+    let removedFiles = 0;
+    let failedFiles = 0;
+    let fullScanMs = 0;
+    let indexWriteMs = 0;
+    let indexWriteBytes = 0;
     if (
       registry.persistedSessionCacheReady &&
       fingerprintsMatch(registry.persistedSessionFingerprints, fingerprints)
     ) {
+      console.info(
+        `[workbench-pi] session catalog ${JSON.stringify({
+          indexStatus,
+          indexBytes,
+          indexLoadMs,
+          fingerprintMs,
+          fileCount: fingerprints.size,
+          totalBytes: scan.totalBytes,
+          changedFiles,
+          removedFiles,
+          failedFiles,
+          fullScanMs,
+          indexWriteMs,
+          indexWriteBytes,
+          totalMs: Date.now() - startedAt,
+        })}`,
+      );
       return;
     }
     if (registry.persistedSessionCacheReady) {
-      refreshChangedSessionFiles(registry, fingerprints);
-      return;
-    }
-
-    const persisted = await SessionManager.listAll();
-    if (registry.persistedSessionCacheKey !== cacheKey) return;
-    const running = new Set(runningSessionIds());
-    const nextSessions = new Map(persisted.map((session) => [session.id, session]));
-    const nextSummaries = new Map(
-      persisted.map((session) => [session.id, persistedSummary(session, running.has(session.id))]),
-    );
-    registry.persistedSessions.clear();
-    for (const [id, info] of nextSessions) registry.persistedSessions.set(id, info);
-    registry.persistedSessionSummaries.clear();
-    for (const [id, summary] of nextSummaries) {
-      registry.persistedSessionSummaries.set(id, summary);
+      ({ changedFiles, removedFiles, failedFiles } = refreshChangedSessionFiles(
+        registry,
+        fingerprints,
+      ));
+    } else {
+      const fullScanStartedAt = Date.now();
+      const persisted = await SessionManager.listAll();
+      fullScanMs = Date.now() - fullScanStartedAt;
+      if (registry.persistedSessionCacheKey !== cacheKey) return;
+      const running = new Set(runningSessionIds());
+      const nextSessions = new Map(persisted.map((session) => [session.id, session]));
+      const nextSummaries = new Map(
+        persisted.map((session) => [
+          session.id,
+          persistedSummary(session, running.has(session.id)),
+        ]),
+      );
+      registry.persistedSessions.clear();
+      for (const [id, info] of nextSessions) registry.persistedSessions.set(id, info);
+      registry.persistedSessionSummaries.clear();
+      for (const [id, summary] of nextSummaries) {
+        registry.persistedSessionSummaries.set(id, summary);
+      }
+      registry.persistedSessionCacheReady = true;
     }
     registry.persistedSessionFingerprints.clear();
     for (const [file, fingerprint] of fingerprints) {
@@ -3438,6 +4003,29 @@ function startPersistedSessionCacheRefresh(
       if (host.isAlive) cacheHostedSession(registry, host);
     }
     registry.persistedSessionCacheReady = true;
+    if (indexStatus !== "memory") {
+      const indexWriteStartedAt = Date.now();
+      const written = await persistSessionCatalogIndex(registry, cacheKey);
+      indexWriteMs = Date.now() - indexWriteStartedAt;
+      indexWriteBytes = written?.bytes ?? 0;
+    }
+    console.info(
+      `[workbench-pi] session catalog ${JSON.stringify({
+        indexStatus,
+        indexBytes,
+        indexLoadMs,
+        fingerprintMs,
+        fileCount: fingerprints.size,
+        totalBytes: scan.totalBytes,
+        changedFiles,
+        removedFiles,
+        failedFiles,
+        fullScanMs,
+        indexWriteMs,
+        indexWriteBytes,
+        totalMs: Date.now() - startedAt,
+      })}`,
+    );
   })().finally(() => {
     if (registry.persistedSessionCacheTask === task) {
       registry.persistedSessionCacheTask = undefined;
@@ -3484,6 +4072,16 @@ export async function listSessions(): Promise<{
     ),
     runningSessionIds: runningIds,
   };
+}
+
+export async function listSessionSearchText(): Promise<
+  Array<{ sessionId: string; allMessagesText: string }>
+> {
+  const registry = await ensurePersistedSessionCache();
+  return [...registry.persistedSessions.values()].map((session) => ({
+    sessionId: session.id,
+    allMessagesText: session.allMessagesText,
+  }));
 }
 
 export async function listModels(cwd: string): Promise<PiModelListResponse> {
@@ -3789,9 +4387,53 @@ export async function getSessionEventBranches(id: string): Promise<SessionHistor
   return sessionEventBranchesFromManager(manager);
 }
 
+function resumeStateFromManager(
+  manager: SessionManager,
+  events: readonly SessionEvent[],
+): SessionResumeState {
+  const model = manager.buildSessionContext().model;
+  const currentModel = model ? { provider: model.provider, model: model.modelId } : undefined;
+  let resumeState = sessionResumeStateFromBranch(manager.getBranch(), currentModel);
+  if (resumeState.checkpoint) return resumeState;
+  const candidate = missingSessionResumeCheckpointFromBranch(
+    manager.getBranch(),
+    events,
+    currentModel,
+  );
+  if (!candidate) return resumeState;
+  try {
+    manager.appendCustomEntry(SESSION_RESUME_CHECKPOINT_CUSTOM_TYPE, candidate.value);
+    resumeState = sessionResumeStateFromBranch(manager.getBranch(), currentModel);
+  } catch {
+    // History remains readable even if an old session cannot be repaired in place.
+  }
+  return resumeState;
+}
+
+export async function getSessionResumeState(id: string): Promise<SessionResumeState> {
+  const live = state().sessions.get(id);
+  if (live?.isAlive) {
+    if (live.isRunning) return {};
+    return resumeStateFromManager(live.session.sessionManager, live.canonicalEvents);
+  }
+  const info = await persistedSession(id);
+  if (!info) throw new PiServerError("pi_session_not_found", 404);
+  const manager = SessionManager.open(info.path);
+  return resumeStateFromManager(manager, readSessionEventJournal(manager));
+}
+
 export async function regenerateSession(id: string, messageId: string): Promise<void> {
   const host = await getOrStartSession(id);
   await host.regenerate(messageId);
+}
+
+export async function resumeSession(
+  id: string,
+  checkpointId: string,
+  expectedLeafId: string,
+): Promise<void> {
+  const host = await getOrStartSession(id);
+  await host.resume(checkpointId, expectedLeafId);
 }
 
 export async function selectSessionBranch(id: string, leafId: string): Promise<void> {
@@ -3880,6 +4522,24 @@ export async function selectSessionModel(
 ): Promise<void> {
   const host = await getOrStartSession(id);
   await host.selectModel(selection);
+}
+
+export async function getSessionContextPolicy(id: string): Promise<SessionContextPolicyValue> {
+  const host = await getOrStartSession(id);
+  return host.refreshContextPolicyValue();
+}
+
+export async function updateSessionContextPolicy(
+  id: string,
+  policy: SessionContextPolicy,
+): Promise<SessionContextPolicyValue> {
+  const host = await getOrStartSession(id);
+  return host.updateContextPolicy(policy);
+}
+
+export async function compactSessionContext(id: string): Promise<SessionCompactValue> {
+  const host = await getOrStartSession(id);
+  return host.compactContextNow();
 }
 
 export async function queuePrompt(

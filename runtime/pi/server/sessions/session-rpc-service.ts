@@ -1,5 +1,3 @@
-import { SessionManager } from "@earendil-works/pi-coding-agent";
-
 import {
   PI_THINKING_LEVELS,
   type PiAgentMessage,
@@ -19,6 +17,10 @@ import type {
   SessionAttachmentValue,
   SessionCancelPayload,
   SessionCancelValue,
+  SessionCompactValue,
+  SessionContextPolicyPayload,
+  SessionContextPolicyUpdatePayload,
+  SessionContextPolicyValue,
   SessionCreatePayload,
   SessionCreateValue,
   SessionDeletePayload,
@@ -37,6 +39,8 @@ import type {
   SessionPromptValue,
   SessionRegeneratePayload,
   SessionRegenerateValue,
+  SessionResumePayload,
+  SessionResumeValue,
   SessionRenamePayload,
   SessionRenameValue,
   SessionSearchPayload,
@@ -57,20 +61,26 @@ import {
 import { ModelService } from "../models/model-service";
 import {
   cancelSession,
+  compactSessionContext,
   createSession,
   deleteSession,
   forkSession,
   getSessionEventBranches,
   getSessionEvents,
   getSessionHistory,
+  getSessionResumeState,
+  getSessionContextPolicy,
   listModels,
+  listSessionSearchText,
   listSessions,
   type PromptSubmissionResult,
   renameSession,
   regenerateSession,
+  resumeSession,
   selectSessionBranch,
   selectSessionModel,
   submitPrompt,
+  updateSessionContextPolicy,
   updatePromptQueueItem,
 } from "./session-registry";
 import { admitInlineAttachments, InlineAttachmentAdmissionError } from "./inline-image-admission";
@@ -87,14 +97,19 @@ export type SessionRenameInput = SessionRenamePayload;
 export type SessionForkInput = SessionForkPayload;
 export type SessionPromptInput = SessionPromptPayload;
 export type SessionRegenerateInput = SessionRegeneratePayload;
+export type SessionResumeInput = SessionResumePayload;
 export type SessionSelectBranchInput = SessionSelectBranchPayload;
 export type SessionAttachmentInput = SessionAttachmentPayload;
 export type SessionUpdateQueueInput = SessionUpdateQueuePayload;
 export type SessionCancelInput = SessionCancelPayload;
+export type SessionContextPolicyInput = SessionContextPolicyPayload;
+export type SessionContextPolicyUpdateInput = SessionContextPolicyUpdatePayload;
 
 export type {
   SessionAttachmentValue,
   SessionCancelValue,
+  SessionCompactValue,
+  SessionContextPolicyValue,
   SessionCreateValue,
   SessionDeleteValue,
   SessionEvent,
@@ -105,6 +120,7 @@ export type {
   SessionPromptContent,
   SessionPromptValue,
   SessionRegenerateValue,
+  SessionResumeValue,
   SessionRenameValue,
   SessionSearchValue,
   SessionSelectModelValue,
@@ -130,6 +146,14 @@ export interface SessionRpcServiceErrorDetails {
   "title-invalid": { sessionId: string };
   "fork-unavailable": { sessionId: string };
   "branch-not-found": { sessionId: string };
+  "compaction-unavailable": {
+    sessionId: string;
+    reason: "already-compacted" | "cancelled" | "context-too-small";
+  };
+  "resume-unavailable": {
+    sessionId: string;
+    reason: "stale" | "blocked" | "confirmation-required";
+  };
   internal: Record<string, never>;
 }
 
@@ -189,9 +213,11 @@ export interface SessionRpcDependencies {
   getSessionEventBranches(sessionId: string): Promise<SessionHistoryValue["branches"]>;
   getSessionEvents(sessionId: string): Promise<SessionEvent[]>;
   getSessionHistory(sessionId: string): Promise<PiSessionHistory>;
+  getSessionResumeState(sessionId: string): Promise<SessionHistoryValue["resume"]>;
   listModels(cwd: string): Promise<PiModelListResponse>;
   renameSession(sessionId: string, title: string): Promise<number | void>;
   regenerateSession(sessionId: string, messageId: string): Promise<void>;
+  resumeSession(sessionId: string, checkpointId: string, expectedLeafId: string): Promise<void>;
   selectSessionBranch(sessionId: string, leafId: string): Promise<void>;
   submitPrompt(
     sessionId: string,
@@ -206,6 +232,12 @@ export interface SessionRpcDependencies {
   ): Promise<void>;
   cancelSession(sessionId: string): Promise<void>;
   selectSessionModel(sessionId: string, selection: ModelSelection): Promise<void>;
+  getSessionContextPolicy(sessionId: string): Promise<SessionContextPolicyValue>;
+  updateSessionContextPolicy(
+    sessionId: string,
+    policy: SessionContextPolicyUpdatePayload["policy"],
+  ): Promise<SessionContextPolicyValue>;
+  compactSessionContext(sessionId: string): Promise<SessionCompactValue>;
   supportsRequestedSessionId: boolean;
   supportsAgentPreset: boolean;
 }
@@ -227,6 +259,7 @@ interface ErrorContext {
   model?: string;
   cwd?: string;
   itemId?: string;
+  operation?: "compact";
 }
 
 const MAX_SEARCH_QUERY_CODE_POINTS = 500;
@@ -399,14 +432,24 @@ function errorExistingCwd(error: unknown): string | undefined {
   return typeof error.existingCwd === "string" ? error.existingCwd : undefined;
 }
 
+function manualCompactionUnavailableReason(
+  error: unknown,
+): SessionRpcServiceErrorDetails["compaction-unavailable"]["reason"] | undefined {
+  if (!(error instanceof Error)) return undefined;
+
+  // Pi 0.84 exposes these expected manual-compaction outcomes as plain Errors rather than a
+  // public typed error. Normalize them at the server adapter boundary so browser code never has
+  // to parse SDK-owned English messages.
+  if (error.name === "AbortError" || error.message === "Compaction cancelled") return "cancelled";
+  if (error.message === "Already compacted") return "already-compacted";
+  if (error.message === "Nothing to compact (session too small)") return "context-too-small";
+  return undefined;
+}
+
 function defaultDependencies(): SessionRpcDependencies {
   return {
     listSessions,
-    listSessionSearchText: async () =>
-      (await SessionManager.listAll()).map((session) => ({
-        sessionId: session.id,
-        allMessagesText: session.allMessagesText,
-      })),
+    listSessionSearchText,
     createSession: async ({ cwd, sessionId }) => {
       const hosted = await createSession(cwd, sessionId);
       return { id: hosted.id };
@@ -419,14 +462,19 @@ function defaultDependencies(): SessionRpcDependencies {
     getSessionEventBranches,
     getSessionEvents,
     getSessionHistory,
+    getSessionResumeState,
+    getSessionContextPolicy,
     listModels,
     renameSession,
     regenerateSession,
+    resumeSession,
     selectSessionBranch,
     submitPrompt,
     updateQueueItem: updatePromptQueueItem,
     cancelSession,
+    compactSessionContext,
     selectSessionModel,
+    updateSessionContextPolicy,
     supportsRequestedSessionId: true,
     supportsAgentPreset: false,
   };
@@ -450,6 +498,12 @@ export class SessionRpcService {
       // they opt into branch discovery explicitly.
       this.dependencies.getSessionEventBranches = async () => ({ headLeafId: null, items: [] });
     }
+    if (
+      options.dependencies?.getSessionEvents &&
+      options.dependencies.getSessionResumeState === undefined
+    ) {
+      this.dependencies.getSessionResumeState = async () => ({});
+    }
     this.modelServiceFactory = options.modelServiceFactory ?? ((cwd) => new ModelService({ cwd }));
     this.defaultCwd = options.defaultCwd ?? process.cwd();
   }
@@ -457,6 +511,22 @@ export class SessionRpcService {
   private translate(error: unknown, context: ErrorContext = {}): never {
     if (error instanceof SessionRpcServiceError) throw error;
     const code = errorCode(error);
+    const compactionUnavailableReason =
+      context.operation === "compact" ? manualCompactionUnavailableReason(error) : undefined;
+    if (compactionUnavailableReason && context.sessionId) {
+      const message =
+        compactionUnavailableReason === "context-too-small"
+          ? "The session does not contain enough older context to compact."
+          : compactionUnavailableReason === "already-compacted"
+            ? "The current session context has already been compacted."
+            : "The context compaction was cancelled.";
+      throw new SessionRpcServiceError(
+        "compaction-unavailable",
+        message,
+        { sessionId: context.sessionId, reason: compactionUnavailableReason },
+        { cause: error },
+      );
+    }
     if (code === "pi_session_not_found" && context.sessionId) {
       throw new SessionRpcServiceError(
         "session-not-found",
@@ -523,6 +593,30 @@ export class SessionRpcService {
         "branch-not-found",
         "The requested conversation branch does not exist.",
         { sessionId: context.sessionId },
+        { cause: error },
+      );
+    }
+    if (code === "pi_resume_stale" && context.sessionId) {
+      throw new SessionRpcServiceError(
+        "resume-unavailable",
+        "The recovery checkpoint is no longer on the selected branch.",
+        { sessionId: context.sessionId, reason: "stale" },
+        { cause: error },
+      );
+    }
+    if (code === "pi_resume_confirmation_required" && context.sessionId) {
+      throw new SessionRpcServiceError(
+        "resume-unavailable",
+        "The interrupted tool state requires confirmation before it can be resumed.",
+        { sessionId: context.sessionId, reason: "confirmation-required" },
+        { cause: error },
+      );
+    }
+    if (code === "pi_resume_unavailable" && context.sessionId) {
+      throw new SessionRpcServiceError(
+        "resume-unavailable",
+        "The recovery checkpoint cannot be resumed with the current model.",
+        { sessionId: context.sessionId, reason: "blocked" },
         { cause: error },
       );
     }
@@ -634,6 +728,7 @@ export class SessionRpcService {
         sessionId: session.id,
         updatedAt: milliseconds(session.modified),
         running: session.running,
+        ...(session.runTiming === undefined ? {} : { runTiming: session.runTiming }),
         blank: session.messageCount === 0,
         ...(session.cwd ? { cwd: session.cwd } : {}),
         projections: {
@@ -865,8 +960,12 @@ export class SessionRpcService {
     );
     const isTailPage = input.beforeSeq === undefined;
     let branches: SessionHistoryValue["branches"];
+    let resume: SessionHistoryValue["resume"];
     if (isTailPage) {
       try {
+        // Resume lookup may repair a legacy/HMR-retained session by appending a checkpoint.
+        // Project branches afterwards so both projections observe the same durable leaf.
+        resume = await this.dependencies.getSessionResumeState(input.sessionId);
         branches = await this.dependencies.getSessionEventBranches(input.sessionId);
       } catch (error) {
         this.translate(error, { sessionId: input.sessionId });
@@ -877,6 +976,7 @@ export class SessionRpcService {
       hasMore: page.hasMore,
       ...(isTailPage ? { projections: { asOfSeq: allEvents.at(-1)?.seq ?? -1, values: {} } } : {}),
       ...(branches?.items.length ? { branches } : {}),
+      ...(isTailPage && resume?.checkpoint ? { resume } : {}),
     };
   }
 
@@ -885,6 +985,22 @@ export class SessionRpcService {
     nonEmpty(input.messageId, "messageId");
     try {
       await this.dependencies.regenerateSession(input.sessionId, input.messageId);
+    } catch (error) {
+      this.translate(error, { sessionId: input.sessionId });
+    }
+    return { accepted: true };
+  }
+
+  async resume(input: SessionResumeInput): Promise<SessionResumeValue> {
+    nonEmpty(input.sessionId, "sessionId");
+    nonEmpty(input.checkpointId, "checkpointId");
+    nonEmpty(input.expectedLeafId, "expectedLeafId");
+    try {
+      await this.dependencies.resumeSession(
+        input.sessionId,
+        input.checkpointId,
+        input.expectedLeafId,
+      );
     } catch (error) {
       this.translate(error, { sessionId: input.sessionId });
     }
@@ -994,6 +1110,35 @@ export class SessionRpcService {
       });
     }
     return { selected };
+  }
+
+  async contextPolicy(input: SessionContextPolicyInput): Promise<SessionContextPolicyValue> {
+    await this.requireSession(input.sessionId);
+    try {
+      return await this.dependencies.getSessionContextPolicy(input.sessionId);
+    } catch (error) {
+      this.translate(error, { sessionId: input.sessionId });
+    }
+  }
+
+  async updateContextPolicy(
+    input: SessionContextPolicyUpdateInput,
+  ): Promise<SessionContextPolicyValue> {
+    await this.requireSession(input.sessionId);
+    try {
+      return await this.dependencies.updateSessionContextPolicy(input.sessionId, input.policy);
+    } catch (error) {
+      this.translate(error, { sessionId: input.sessionId });
+    }
+  }
+
+  async compactContext(input: SessionContextPolicyInput): Promise<SessionCompactValue> {
+    await this.requireSession(input.sessionId);
+    try {
+      return await this.dependencies.compactSessionContext(input.sessionId);
+    } catch (error) {
+      this.translate(error, { sessionId: input.sessionId, operation: "compact" });
+    }
   }
 
   async rename(input: SessionRenameInput): Promise<SessionRenameValue> {

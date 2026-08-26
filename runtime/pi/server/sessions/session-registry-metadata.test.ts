@@ -2389,12 +2389,18 @@ test("publishes prompt admission and retains the HTTP RPC id for queued follow-u
   );
   assert.ok(admission);
   assert.equal(admission.rpcId, "prompt-http-rpc");
-  assert.deepEqual(admission.payload, {
-    type: "session/prompt-accepted",
-    sessionId: host.id,
-    mode: "queue",
-    running: true,
-  });
+  if (admission.payload.type !== "session/prompt-accepted") {
+    assert.fail("Expected a session/prompt-accepted payload.");
+  }
+  assert.equal(admission.payload.sessionId, host.id);
+  assert.equal(admission.payload.mode, "queue");
+  assert.equal(admission.payload.running, true);
+  assert.equal(typeof admission.payload.runTiming?.startedAt, "number");
+  assert.equal(typeof admission.payload.runTiming?.elapsedMs, "number");
+  const runningSummary = (await listSessions()).sessions.find((session) => session.id === host.id);
+  assert.equal(runningSummary?.running, true);
+  assert.equal(runningSummary?.runTiming?.startedAt, admission.payload.runTiming?.startedAt);
+  assert.equal(typeof runningSummary?.runTiming?.elapsedMs, "number");
   const queueFrame = muxFrames.find(
     (frame) =>
       frame.payload.type === "session/queue" &&
@@ -2903,6 +2909,10 @@ test("creates detached omitted and anchored forks without replacing the source",
     data: { message: openTailUser },
   });
   source.appendMessage(openTailUser);
+  source.appendCustomEntry("workbench.session-context-policy.v1", {
+    version: 1,
+    policy: { mode: "custom", desiredContextTokens: 80_000 },
+  });
 
   const sourcePath = source.getSessionFile();
   assert.ok(sourcePath);
@@ -2914,6 +2924,17 @@ test("creates detached omitted and anchored forks without replacing the source",
   assert.equal(anchored.getCwd(), source.getCwd());
   assert.equal(anchored.getHeader()?.parentSession, sourcePath);
   assert.deepEqual(anchored.buildSessionContext().messages, [user, assistant]);
+  const inheritedContextPolicy = anchored
+    .getBranch()
+    .findLast(
+      (entry) =>
+        entry.type === "custom" && entry.customType === "workbench.session-context-policy.v1",
+    );
+  assert.equal(inheritedContextPolicy?.type, "custom");
+  assert.deepEqual(
+    inheritedContextPolicy?.type === "custom" ? inheritedContextPolicy.data : undefined,
+    { version: 1, policy: { mode: "custom", desiredContextTokens: 80_000 } },
+  );
   const anchoredTail = anchored.getLeafEntry();
   assert.equal(anchoredTail?.type, "custom");
   if (anchoredTail?.type === "custom") {

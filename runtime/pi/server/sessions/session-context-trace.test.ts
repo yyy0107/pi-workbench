@@ -19,6 +19,7 @@ const {
   captureSessionContextTraceJson,
   captureSessionContextTraceHeaders,
   captureSessionContextTraceText,
+  sessionContextTraceSystemPromptSources,
   SessionContextTrace,
   SESSION_CONTEXT_TRACE_MAX_EVENTS,
 } = (await import(
@@ -29,6 +30,55 @@ const { sessionContextTracePromptPreview } = (await import(
 )) as typeof import("./session-context-trace-summary");
 
 test.after(() => moduleHooks.deregister());
+
+test("projects Pi system prompt precedence without mixing in Skills", () => {
+  const sources = sessionContextTraceSystemPromptSources(
+    {
+      getSystemPrompt: () => "Project system prompt",
+      getSystemPromptSource: () => ({ path: "/workspace/.pi/SYSTEM.md" }),
+      getAppendSystemPrompt: () => ["User append prompt"],
+      getAppendSystemPromptSources: () => [{ path: "/agent/APPEND_SYSTEM.md" }],
+    } as never,
+    "/workspace",
+    "/agent",
+  );
+
+  assert.deepEqual(
+    sources.map(({ kind, scope, path: sourcePath, content }) => ({
+      kind,
+      scope,
+      path: sourcePath,
+      content: content?.text,
+    })),
+    [
+      {
+        kind: "replacement",
+        scope: "project",
+        path: "/workspace/.pi/SYSTEM.md",
+        content: "Project system prompt",
+      },
+      {
+        kind: "append",
+        scope: "user",
+        path: "/agent/APPEND_SYSTEM.md",
+        content: "User append prompt",
+      },
+    ],
+  );
+  assert.deepEqual(
+    sessionContextTraceSystemPromptSources(
+      {
+        getSystemPrompt: () => undefined,
+        getSystemPromptSource: () => undefined,
+        getAppendSystemPrompt: () => [],
+        getAppendSystemPromptSources: () => [],
+      } as never,
+      "/workspace",
+      "/agent",
+    ),
+    [{ kind: "builtin", scope: "builtin" }],
+  );
+});
 
 test("preserves complete serializable values, sensitive fields, binary bodies, and headers", () => {
   const longText = "x".repeat(140 * 1024);

@@ -609,6 +609,7 @@ export function toModelCatalogModel(
   imageInputSource: ModelCatalogModel["imageInputSource"] = model.input === undefined
     ? undefined
     : "runtime",
+  contextWindowSource: ModelCatalogModel["contextWindowSource"] = "provider",
 ): ModelCatalogModel {
   const reasoning = modelReasoning(model);
   return {
@@ -617,6 +618,13 @@ export function toModelCatalogModel(
     input: model.input ?? ["text"],
     imageInput,
     ...(imageInputSource ? { imageInputSource } : {}),
+    ...(Number.isInteger(model.contextWindow) && model.contextWindow > 0
+      ? { contextWindow: model.contextWindow }
+      : {}),
+    ...(Number.isInteger(model.maxTokens) && model.maxTokens > 0
+      ? { maxTokens: model.maxTokens }
+      : {}),
+    contextWindowSource,
     ...(reasoning ? { reasoning } : {}),
   };
 }
@@ -778,13 +786,17 @@ function providerConfiguration(
   };
 }
 
-function runtimeModelConfiguration(model: ModelRuntimeModel): ModelProviderModelConfiguration {
+function runtimeModelConfiguration(
+  model: ModelRuntimeModel,
+  contextWindowSource: ModelProviderModelConfiguration["contextWindowSource"] = "provider",
+): ModelProviderModelConfiguration {
   return {
     id: model.id,
     ...(model.name && model.name !== model.id ? { name: model.name } : {}),
     ...(Number.isInteger(model.contextWindow) && model.contextWindow > 0
       ? { contextWindow: model.contextWindow }
       : {}),
+    contextWindowSource,
     ...(Number.isInteger(model.maxTokens) && model.maxTokens > 0
       ? { maxTokens: model.maxTokens }
       : {}),
@@ -1212,7 +1224,16 @@ export class ModelService {
       ...(stored?.api || firstModel?.api ? { api: stored?.api || firstModel?.api } : {}),
       configurationDefined: stored !== undefined,
       modelsSource: stored?.models ? "custom" : "adapter",
-      models: stored?.models ?? runtimeModels.map(runtimeModelConfiguration),
+      models:
+        stored?.models?.map((model) => ({ ...model, contextWindowSource: "custom" as const })) ??
+        runtimeModels.map((model) =>
+          runtimeModelConfiguration(
+            model,
+            stored?.modelOverrides?.[model.id]?.contextWindow === undefined
+              ? "provider"
+              : "override",
+          ),
+        ),
     };
   }
 
@@ -1536,11 +1557,18 @@ export class ModelService {
     if (!model) {
       throw new ModelServiceError("model-not-found", "The model does not exist.", input);
     }
+    const stored = (await this.modelConfigStore.providers())[input.provider];
+    const source = stored?.models?.some(({ id }) => id === input.model)
+      ? "custom"
+      : stored?.modelOverrides?.[input.model]?.contextWindow === undefined
+        ? "provider"
+        : "override";
     return {
       provider: model.provider,
       model: model.id,
       name: model.name || model.id,
       contextWindow: model.contextWindow,
+      source,
     };
   }
 
@@ -1567,7 +1595,7 @@ export class ModelService {
         input.contextWindow,
       );
       await this.refreshProvider(runtime, input.provider, signal);
-      return { ...current, contextWindow: input.contextWindow };
+      return { ...current, contextWindow: input.contextWindow, source: "override" };
     } catch (error) {
       if (mutation) {
         await mutation.rollback().catch(() => undefined);
@@ -1578,6 +1606,35 @@ export class ModelService {
       throw new ModelServiceError(
         "model-provider-configuration-failed",
         "The model context window could not be saved.",
+        { provider: input.provider },
+        { cause: error },
+      );
+    }
+  }
+
+  async resetModelContextWindow(
+    input: ModelContextWindowPayload,
+    options: { signal?: AbortSignal } = {},
+  ): Promise<ModelContextWindowValue> {
+    const { signal } = options;
+    signal?.throwIfAborted();
+    await this.modelContextWindow(input);
+    const { runtime } = await this.load();
+    let mutation: ModelConfigMutation | undefined;
+    try {
+      mutation = await this.modelConfigStore.resetModelContextWindow(input.provider, input.model);
+      if (mutation) await this.refreshProvider(runtime, input.provider, signal);
+      return this.modelContextWindow(input);
+    } catch (error) {
+      if (mutation) {
+        await mutation.rollback().catch(() => undefined);
+        await this.refreshProvider(runtime, input.provider).catch(() => undefined);
+      }
+      if (signal?.aborted || (error instanceof Error && error.name === "AbortError")) throw error;
+      if (error instanceof ModelServiceError) throw error;
+      throw new ModelServiceError(
+        "model-provider-configuration-failed",
+        "The model context-window override could not be reset.",
         { provider: input.provider },
         { cause: error },
       );
@@ -1741,6 +1798,7 @@ export class ModelService {
           const storedModels = new Map(
             storedProviders[provider.id]?.models?.map((model) => [model.id, model] as const) ?? [],
           );
+          const modelOverrides = storedProviders[provider.id]?.modelOverrides;
           return {
             group: {
               id: provider.id,
@@ -1756,8 +1814,16 @@ export class ModelService {
                           ? imageInputCapability(storedModel.input)
                           : "unknown",
                         storedModel.imageInputSource,
+                        "custom",
                       )
-                    : toModelCatalogModel(model);
+                    : toModelCatalogModel(
+                        model,
+                        imageInputCapability(model.input),
+                        model.input === undefined ? undefined : "runtime",
+                        modelOverrides?.[model.id]?.contextWindow === undefined
+                          ? "provider"
+                          : "override",
+                      );
                 }),
             } satisfies ModelProviderGroup,
           };

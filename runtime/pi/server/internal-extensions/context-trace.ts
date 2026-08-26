@@ -1,13 +1,15 @@
-import type {
-  BuildSystemPromptOptions,
-  ExtensionFactory,
-  ToolInfo,
+import {
+  formatSkillsForPrompt,
+  type BuildSystemPromptOptions,
+  type ExtensionFactory,
+  type ToolInfo,
 } from "@earendil-works/pi-coding-agent";
 
 import type {
   SessionContextTraceCompactionPreparation,
   SessionContextTraceModel,
   SessionContextTraceSystemPromptOptions,
+  SessionContextTraceSystemPromptSource,
   SessionContextTraceTool,
 } from "../../rpc-contracts";
 import {
@@ -70,6 +72,36 @@ function promptOptionsView(
       disableModelInvocation: skill.disableModelInvocation,
     })),
   };
+}
+
+function systemPromptWithoutSkills(prompt: string, options: BuildSystemPromptOptions): string {
+  const skillsBlock = formatSkillsForPrompt(options.skills ?? []);
+  if (!skillsBlock) return prompt;
+  const skillsIndex = prompt.lastIndexOf(skillsBlock);
+  if (skillsIndex < 0) return prompt;
+  return prompt.slice(0, skillsIndex) + prompt.slice(skillsIndex + skillsBlock.length);
+}
+
+function fallbackSystemPromptSources(
+  options: BuildSystemPromptOptions,
+): SessionContextTraceSystemPromptSource[] {
+  const sources: SessionContextTraceSystemPromptSource[] = options.customPrompt
+    ? [
+        {
+          kind: "replacement",
+          scope: "temporary",
+          content: captureSessionContextTraceText(options.customPrompt),
+        },
+      ]
+    : [{ kind: "builtin", scope: "builtin" }];
+  if (options.appendSystemPrompt) {
+    sources.push({
+      kind: "append",
+      scope: "temporary",
+      content: captureSessionContextTraceText(options.appendSystemPrompt),
+    });
+  }
+  return sources;
 }
 
 function toolView(tool: ToolInfo, activeTools: ReadonlySet<string>): SessionContextTraceTool {
@@ -135,10 +167,18 @@ export const contextTraceExtension: ExtensionFactory = (pi) => {
     if (!trace) return;
     const activeTools = new Set(pi.getActiveTools());
     const contextUsage = context.getContextUsage();
+    const systemPromptSources = trace.getSystemPromptSources();
     trace.observePromptComposition({
       type: "prompt-composition",
       prompt: captureSessionContextTraceText(event.prompt),
       systemPrompt: captureSessionContextTraceText(event.systemPrompt),
+      systemPromptWithoutSkills: captureSessionContextTraceText(
+        systemPromptWithoutSkills(event.systemPrompt, event.systemPromptOptions),
+      ),
+      systemPromptSources:
+        systemPromptSources.length > 0
+          ? systemPromptSources.map((source) => ({ ...source }))
+          : fallbackSystemPromptSources(event.systemPromptOptions),
       systemPromptOptions: promptOptionsView(event.systemPromptOptions),
       images: captureSessionContextTraceJson(event.images ?? []),
       model: modelView(context.model),

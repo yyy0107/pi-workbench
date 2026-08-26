@@ -1,6 +1,6 @@
 import type { PiMessagesEvent } from "@earendil-works/pi-ai";
 
-import type { PiAssistantMessage, PiSessionSummary } from "./contracts";
+import type { PiAssistantMessage, PiRunTiming, PiSessionSummary } from "./contracts";
 import type {
   RpcError,
   SessionContextTraceEventSummary,
@@ -49,6 +49,7 @@ export interface SessionEventPayload {
   type: "session/event";
   sessionId: string;
   event: SessionEvent;
+  runTiming?: PiRunTiming;
   view?: ToolEventView;
 }
 
@@ -99,6 +100,7 @@ export interface SessionPromptAcceptedPayload {
   sessionId: string;
   mode: "queue" | "steer";
   running: boolean;
+  runTiming?: PiRunTiming;
 }
 
 export interface ApprovalRequestedPayload {
@@ -204,6 +206,7 @@ export interface HostSessionStatusPayload {
   type: "host/session-status";
   sessionId: string;
   running: boolean;
+  runTiming?: PiRunTiming;
 }
 
 export interface HostAgentErrorPayload {
@@ -303,12 +306,14 @@ export function createServerRequest<Payload extends { type: string }>(
 export function createSessionEventPayload(
   sessionId: string,
   event: SessionEvent,
+  runTiming?: PiRunTiming,
   view?: ToolEventView,
 ): SessionEventPayload {
   return {
     type: "session/event",
     sessionId,
     event,
+    ...(runTiming === undefined ? {} : { runTiming }),
     ...(view === undefined ? {} : { view }),
   };
 }
