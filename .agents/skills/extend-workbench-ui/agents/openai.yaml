@@ -1,4 +1,4 @@
 interface:
   display_name: "Extend Workbench UI"
-  short_description: "Build safe typed Workbench UI extensions"
-  default_prompt: "Use $extend-workbench-ui to add or modify a Workbench frontend extension while preserving the host and runtime boundaries."
+  short_description: "Build typed Workbench UI extensions"
+  default_prompt: "Use $extend-workbench-ui to add or modify a Workbench frontend extension while preserving host, assistant runtime, and Pi SDK boundaries."

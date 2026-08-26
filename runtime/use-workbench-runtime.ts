@@ -15,26 +15,24 @@ import { workbenchAttachmentAdapter } from "./adapters/attachments";
 import { workbenchFeedbackAdapter } from "./adapters/feedback";
 import { PiApiError } from "./pi/client/transport/api";
 import { PiSessionManager } from "./pi/client/runtime/manager";
+import { piRequestErrorKind } from "./pi/client/runtime/request-error";
 import { piComposerSendError, type PiComposerSendError } from "./pi/client/runtime/send-error";
 
 function localizedPiError(error: unknown, t: Translate): Error {
   if (!(error instanceof PiApiError))
     return error instanceof Error ? error : new Error(String(error));
-  switch (error.code) {
-    case "pi_session_busy":
+  switch (piRequestErrorKind(error)) {
+    case "session-busy":
       return new Error(t("workbench.chat.errors.sessionBusy"));
-    case "pi_empty_prompt":
+    case "empty-prompt":
       return new Error(t("workbench.chat.errors.emptyPrompt"));
-    case "pi_session_not_found":
+    case "session-not-found":
       return new Error(t("workbench.chat.errors.sessionNotFound"));
-    case "pi_invalid_working_directory":
+    case "invalid-working-directory":
       return new Error(t("workbench.chat.errors.invalidWorkingDirectory"));
-    case "pi_invalid_workspace":
-    case "pi_workspace_path_required":
-    case "pi_workspace_not_found":
-    case "pi_workspace_not_directory":
+    case "invalid-workspace":
       return new Error(t("workbench.chat.errors.invalidWorkspace"));
-    case "pi_model_not_available":
+    case "model-not-available":
       return new Error(t("workbench.chat.errors.modelNotAvailable"));
     default:
       return new Error(t("workbench.chat.errors.requestFailed"));

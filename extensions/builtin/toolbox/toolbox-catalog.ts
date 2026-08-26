@@ -3,8 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import { useI18n } from "@/i18n";
-import { usePiResourceCatalogTargets } from "@/runtime/pi/client/runtime/context";
-import type { PiResourceCatalogTarget } from "@/runtime/pi/client/runtime/manager";
+import { usePiWorkspaces } from "@/runtime/pi/client/runtime/context";
 import {
   getPiResourceCatalogRevision,
   invalidatePiResourceCatalog,
@@ -12,15 +11,17 @@ import {
 } from "@/runtime/pi/client/runtime/resource-catalog-revision";
 import {
   listInstalledPiPackages,
-  listPiCommands,
   listPiExtensions,
+  listPiPrompts,
   listPiSkills,
 } from "@/runtime/pi/client/transport/api";
 import type {
   ExtensionView,
   InstalledPackageView,
+  PiResourceCatalogTarget,
   PromptCommandView,
   SkillView,
+  WorkbenchToolboxScopePreference,
 } from "@/runtime/pi/rpc-contracts";
 
 import {
@@ -31,10 +32,22 @@ import {
   skillSurfaceParams,
   type ToolboxCapabilitySurfaceParams,
 } from "./toolbox-capability";
+import { toolboxScopeMatchesResource, toolboxScopeTarget } from "./toolbox-scope";
 
 export interface PiExtensionsCatalog {
   readonly extensions: readonly ExtensionView[];
   readonly loadErrorCount: number;
+}
+
+interface ToolboxProject {
+  readonly id: string;
+  readonly name: string;
+  readonly path: string;
+}
+
+interface ToolboxCatalogTarget {
+  readonly resource: PiResourceCatalogTarget;
+  readonly project?: ToolboxProject;
 }
 
 export interface ToolboxCapabilityItem {
@@ -43,7 +56,7 @@ export interface ToolboxCapabilityItem {
   readonly name: string;
   readonly description?: string;
   readonly status?: string;
-  readonly project?: PiResourceCatalogTarget["project"];
+  readonly project?: ToolboxProject;
   readonly searchText: string;
   readonly params: ToolboxCapabilitySurfaceParams;
 }
@@ -51,7 +64,7 @@ export interface ToolboxCapabilityItem {
 type ToolboxCatalogLoadState = "idle" | "loading" | "ready" | "failed";
 
 interface ToolboxCatalogEntry<T> {
-  readonly target: PiResourceCatalogTarget;
+  readonly target: ToolboxCatalogTarget;
   readonly value: T;
 }
 
@@ -79,56 +92,27 @@ export function notifyToolboxPackagesChanged(): void {
   invalidatePiResourceCatalog();
 }
 
-async function loadSkills(sessionId: string): Promise<readonly SkillView[]> {
-  return (await listPiSkills({ sessionId })).skills;
+async function loadSkills(target: PiResourceCatalogTarget): Promise<readonly SkillView[]> {
+  return (await listPiSkills({ target })).skills;
 }
 
-async function loadExtensions(sessionId: string): Promise<PiExtensionsCatalog> {
-  return listPiExtensions({ sessionId });
+async function loadExtensions(target: PiResourceCatalogTarget): Promise<PiExtensionsCatalog> {
+  return listPiExtensions({ target });
 }
 
-async function loadPrompts(sessionId: string): Promise<readonly PromptCommandView[]> {
-  return (await listPiCommands({ sessionId })).commands.filter(
-    (command): command is PromptCommandView => command.kind === "prompt",
-  );
+async function loadPrompts(target: PiResourceCatalogTarget): Promise<readonly PromptCommandView[]> {
+  return (await listPiPrompts({ target })).prompts;
 }
 
-async function loadPackages(sessionId: string): Promise<readonly InstalledPackageView[]> {
-  return (await listInstalledPiPackages({ sessionId })).packages;
-}
-
-async function loadCatalogEntries<T>(
-  targets: readonly PiResourceCatalogTarget[],
-  loader: (sessionId: string) => Promise<T>,
-): Promise<{ entries: readonly ToolboxCatalogEntry<T>[]; failureCount: number }> {
-  const entries = Array.from<ToolboxCatalogEntry<T> | undefined>({ length: targets.length });
-  let failureCount = 0;
-  let nextIndex = 0;
-  const workerCount = Math.min(4, targets.length);
-
-  const worker = async () => {
-    while (nextIndex < targets.length) {
-      const index = nextIndex++;
-      const target = targets[index];
-      if (!target) continue;
-      try {
-        entries[index] = { target, value: await loader(target.sessionId) };
-      } catch {
-        failureCount += 1;
-      }
-    }
-  };
-
-  await Promise.all(Array.from({ length: workerCount }, () => worker()));
-  return {
-    entries: entries.filter((entry): entry is ToolboxCatalogEntry<T> => entry !== undefined),
-    failureCount,
-  };
+async function loadPackages(
+  target: PiResourceCatalogTarget,
+): Promise<readonly InstalledPackageView[]> {
+  return (await listInstalledPiPackages({ target })).packages;
 }
 
 function useToolboxCatalog<T>(
-  targets: readonly PiResourceCatalogTarget[],
-  loader: (sessionId: string) => Promise<T>,
+  target: ToolboxCatalogTarget | undefined,
+  loader: (target: PiResourceCatalogTarget) => Promise<T>,
 ): ToolboxCatalog<T> {
   const [reloadRevision, setReloadRevision] = useState(0);
   const resourceCatalogRevision = useSyncExternalStore(
@@ -145,28 +129,31 @@ function useToolboxCatalog<T>(
 
   useEffect(() => {
     const requestId = ++requestGeneration.current;
-    if (targets.length === 0) {
+    if (!target) {
       setState({ entries: [], loadState: "idle" });
       return;
     }
 
     setState({ entries: [], loadState: "loading" });
-    void loadCatalogEntries(targets, loader).then(({ entries, failureCount }) => {
-      if (requestGeneration.current !== requestId) return;
-      setState({
-        entries,
-        loadState: entries.length === 0 && failureCount > 0 ? "failed" : "ready",
-      });
-    });
+    void loader(target.resource).then(
+      (value) => {
+        if (requestGeneration.current !== requestId) return;
+        setState({ entries: [{ target, value }], loadState: "ready" });
+      },
+      () => {
+        if (requestGeneration.current !== requestId) return;
+        setState({ entries: [], loadState: "failed" });
+      },
+    );
 
     return () => {
       requestGeneration.current += 1;
     };
-  }, [loader, reloadRevision, resourceCatalogRevision, targets]);
+  }, [loader, reloadRevision, resourceCatalogRevision, target]);
 
   return {
     ...state,
-    hasTargets: targets.length > 0,
+    hasTargets: target !== undefined,
     refresh,
   };
 }
@@ -181,149 +168,180 @@ function uniqueCapabilities(
   return [...unique.values()];
 }
 
-function projectSearchText(target: PiResourceCatalogTarget): string {
+function projectSearchText(target: ToolboxCatalogTarget): string {
   return target.project ? `${target.project.name} ${target.project.path}` : "";
 }
 
-export function useToolboxCatalogs() {
+export function useToolboxCatalogs(scope: WorkbenchToolboxScopePreference) {
   const { t } = useI18n();
-  const targets = usePiResourceCatalogTargets();
-  const skillsCatalog = useToolboxCatalog(targets, loadSkills);
-  const extensionsCatalog = useToolboxCatalog(targets, loadExtensions);
-  const promptsCatalog = useToolboxCatalog(targets, loadPrompts);
-  const packagesCatalog = useToolboxCatalog(targets, loadPackages);
+  const workspaces = usePiWorkspaces();
+  const target = useMemo<ToolboxCatalogTarget | undefined>(() => {
+    const resource = toolboxScopeTarget(scope);
+    if (scope.kind === "user") return { resource };
+    const workspace = workspaces.find((candidate) => candidate.id === scope.workspaceId);
+    return workspace
+      ? {
+          resource,
+          project: { id: workspace.id, name: workspace.name, path: workspace.cwd },
+        }
+      : undefined;
+  }, [scope, workspaces]);
+  const skillsCatalog = useToolboxCatalog(target, loadSkills);
+  const extensionsCatalog = useToolboxCatalog(target, loadExtensions);
+  const promptsCatalog = useToolboxCatalog(target, loadPrompts);
+  const packagesCatalog = useToolboxCatalog(target, loadPackages);
 
   const skillItems = useMemo<readonly ToolboxCapabilityItem[]>(
     () =>
       uniqueCapabilities(
-        skillsCatalog.entries.flatMap(({ target, value }) =>
-          value.map((skill) => {
-            const params = bindCapabilityToCatalogTarget(
-              skillSurfaceParams(skill),
-              skill.scope,
-              target,
-            );
-            return {
-              id: params.capabilityId,
-              kind: "skill" as const,
-              name: skill.name,
-              description: skill.description,
-              ...(params.projectId && target.project ? { project: target.project } : {}),
-              searchText: [
-                skill.name,
-                skill.description,
-                skill.whenToUse ?? "",
-                params.projectId ? projectSearchText(target) : "",
-              ].join(" "),
-              params,
-            };
-          }),
+        skillsCatalog.entries.flatMap(({ target: entryTarget, value }) =>
+          value
+            .filter((skill) => toolboxScopeMatchesResource(scope, skill.scope))
+            .map((skill) => {
+              const params = bindCapabilityToCatalogTarget(
+                skillSurfaceParams(skill),
+                skill.scope,
+                entryTarget.resource,
+                entryTarget.project,
+              );
+              return {
+                id: params.capabilityId,
+                kind: "skill" as const,
+                name: skill.name,
+                description: skill.description,
+                ...(params.projectId && entryTarget.project
+                  ? { project: entryTarget.project }
+                  : {}),
+                searchText: [
+                  skill.name,
+                  skill.description,
+                  skill.whenToUse ?? "",
+                  params.projectId ? projectSearchText(entryTarget) : "",
+                ].join(" "),
+                params,
+              };
+            }),
         ),
       ),
-    [skillsCatalog.entries],
+    [scope, skillsCatalog.entries],
   );
 
   const extensionItems = useMemo<readonly ToolboxCapabilityItem[]>(
     () =>
       uniqueCapabilities(
-        extensionsCatalog.entries.flatMap(({ target, value }) =>
-          value.extensions.map((extension) => {
-            const params = bindCapabilityToCatalogTarget(
-              extensionSurfaceParams(extension),
-              extension.scope,
-              target,
-            );
-            const description = t("extensions.toolbox.extensions.capabilitySummary", {
-              events: extension.eventNames.length,
-              tools: extension.toolNames.length,
-              commands: extension.commandNames.length,
-            });
-            return {
-              id: params.capabilityId,
-              kind: "extension" as const,
-              name: params.name,
-              description,
-              status: t(
-                extension.enabled
-                  ? "extensions.toolbox.extensions.loaded"
-                  : "extensions.toolbox.extensions.disabled",
-              ),
-              ...(params.projectId && target.project ? { project: target.project } : {}),
-              searchText: [
-                params.name,
-                extension.name,
-                description,
-                extension.source,
+        extensionsCatalog.entries.flatMap(({ target: entryTarget, value }) =>
+          value.extensions
+            .filter((extension) => toolboxScopeMatchesResource(scope, extension.scope))
+            .map((extension) => {
+              const params = bindCapabilityToCatalogTarget(
+                extensionSurfaceParams(extension),
                 extension.scope,
-                extension.origin,
-                ...extension.eventNames,
-                ...extension.toolNames,
-                ...extension.commandNames,
-                params.projectId ? projectSearchText(target) : "",
-              ].join(" "),
-              params,
-            };
-          }),
+                entryTarget.resource,
+                entryTarget.project,
+              );
+              const description = t("extensions.toolbox.extensions.capabilitySummary", {
+                events: extension.eventNames.length,
+                tools: extension.toolNames.length,
+                commands: extension.commandNames.length,
+              });
+              return {
+                id: params.capabilityId,
+                kind: "extension" as const,
+                name: params.name,
+                description,
+                status: t(
+                  extension.enabled
+                    ? "extensions.toolbox.extensions.loaded"
+                    : "extensions.toolbox.extensions.disabled",
+                ),
+                ...(params.projectId && entryTarget.project
+                  ? { project: entryTarget.project }
+                  : {}),
+                searchText: [
+                  params.name,
+                  extension.name,
+                  description,
+                  extension.source,
+                  extension.scope,
+                  extension.origin,
+                  ...extension.eventNames,
+                  ...extension.toolNames,
+                  ...extension.commandNames,
+                  params.projectId ? projectSearchText(entryTarget) : "",
+                ].join(" "),
+                params,
+              };
+            }),
         ),
       ),
-    [extensionsCatalog.entries, t],
+    [extensionsCatalog.entries, scope, t],
   );
 
   const promptItems = useMemo<readonly ToolboxCapabilityItem[]>(
     () =>
       uniqueCapabilities(
-        promptsCatalog.entries.flatMap(({ target, value }) =>
-          value.map((prompt) => {
-            const params = bindCapabilityToCatalogTarget(
-              promptSurfaceParams(prompt),
-              prompt.scope,
-              target,
-            );
-            return {
-              id: params.capabilityId,
-              kind: "prompt" as const,
-              name: prompt.name,
-              ...(prompt.description ? { description: prompt.description } : {}),
-              ...(params.projectId && target.project ? { project: target.project } : {}),
-              searchText: [
-                prompt.name,
-                prompt.invocationName,
-                prompt.description ?? "",
-                prompt.argumentHint ?? "",
-                params.projectId ? projectSearchText(target) : "",
-              ].join(" "),
-              params,
-            };
-          }),
+        promptsCatalog.entries.flatMap(({ target: entryTarget, value }) =>
+          value
+            .filter((prompt) => toolboxScopeMatchesResource(scope, prompt.scope))
+            .map((prompt) => {
+              const params = bindCapabilityToCatalogTarget(
+                promptSurfaceParams(prompt),
+                prompt.scope,
+                entryTarget.resource,
+                entryTarget.project,
+              );
+              return {
+                id: params.capabilityId,
+                kind: "prompt" as const,
+                name: prompt.name,
+                ...(prompt.description ? { description: prompt.description } : {}),
+                ...(params.projectId && entryTarget.project
+                  ? { project: entryTarget.project }
+                  : {}),
+                searchText: [
+                  prompt.name,
+                  prompt.invocationName,
+                  prompt.description ?? "",
+                  prompt.argumentHint ?? "",
+                  params.projectId ? projectSearchText(entryTarget) : "",
+                ].join(" "),
+                params,
+              };
+            }),
         ),
       ),
-    [promptsCatalog.entries],
+    [promptsCatalog.entries, scope],
   );
 
   const packageItems = useMemo<readonly ToolboxCapabilityItem[]>(
     () =>
       uniqueCapabilities(
-        packagesCatalog.entries.flatMap(({ target, value }) =>
-          value.map((item) => {
-            const params = bindCapabilityToCatalogTarget(
-              installedPackageSurfaceParams(item),
-              item.scope,
-              target,
-            );
-            return {
-              id: params.capabilityId,
-              kind: "package" as const,
-              name: item.source,
-              ...(params.projectId && target.project ? { project: target.project } : {}),
-              searchText: `${item.source} ${item.scope} ${
-                params.projectId ? projectSearchText(target) : ""
-              }`,
-              params,
-            };
-          }),
+        packagesCatalog.entries.flatMap(({ target: entryTarget, value }) =>
+          value
+            .filter((item) => toolboxScopeMatchesResource(scope, item.scope))
+            .map((item) => {
+              const params = bindCapabilityToCatalogTarget(
+                installedPackageSurfaceParams(item),
+                item.scope,
+                entryTarget.resource,
+                entryTarget.project,
+              );
+              return {
+                id: params.capabilityId,
+                kind: "package" as const,
+                name: item.source,
+                ...(params.projectId && entryTarget.project
+                  ? { project: entryTarget.project }
+                  : {}),
+                searchText: `${item.source} ${item.scope} ${
+                  params.projectId ? projectSearchText(entryTarget) : ""
+                }`,
+                params,
+              };
+            }),
         ),
       ),
-    [packagesCatalog.entries],
+    [packagesCatalog.entries, scope],
   );
 
   return {

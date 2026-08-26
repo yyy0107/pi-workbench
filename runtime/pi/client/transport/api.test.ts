@@ -35,6 +35,7 @@ const {
   listPiExtensionFiles,
   listPiExtensions,
   listInstalledPiPackages,
+  listPiPrompts,
   listPiSkills,
   listPiSkillFiles,
   listPiWorkspaceFiles,
@@ -844,7 +845,7 @@ test("deletePiRpcSession uses the typed session.delete RPC", async (t) => {
   assert.equal(method, "session.delete");
 });
 
-test("listPiSkills calls the session-scoped skill.list RPC", async (t) => {
+test("listPiSkills calls the standalone scoped skill.list RPC", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => {
     globalThis.fetch = originalFetch;
@@ -875,7 +876,7 @@ test("listPiSkills calls the session-scoped skill.list RPC", async (t) => {
     });
   };
 
-  assert.deepEqual(await listPiSkills({ sessionId: "session-1" }), {
+  assert.deepEqual(await listPiSkills({ target: { scope: "user" } }), {
     skills: [
       {
         name: "review",
@@ -889,10 +890,10 @@ test("listPiSkills calls the session-scoped skill.list RPC", async (t) => {
     ],
   });
   assert.equal(request?.method, "skill.list");
-  assert.deepEqual(request?.payload, { sessionId: "session-1" });
+  assert.deepEqual(request?.payload, { target: { scope: "user" } });
 });
 
-test("describePiSkill calls the session-scoped skill.describe RPC", async (t) => {
+test("describePiSkill calls the standalone scoped skill.describe RPC", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => {
     globalThis.fetch = originalFetch;
@@ -915,13 +916,13 @@ test("describePiSkill calls the session-scoped skill.describe RPC", async (t) =>
     });
   };
 
-  assert.deepEqual(await describePiSkill({ sessionId: "session-1", name: "review" }), {
+  assert.deepEqual(await describePiSkill({ target: { scope: "user" }, name: "review" }), {
     name: "review",
     content: "# Review",
     filePath: "/skills/review/SKILL.md",
   });
   assert.equal(request?.method, "skill.describe");
-  assert.deepEqual(request?.payload, { sessionId: "session-1", name: "review" });
+  assert.deepEqual(request?.payload, { target: { scope: "user" }, name: "review" });
 });
 
 test("readPiSkillFile calls the identity-scoped skill.files.read RPC", async (t) => {
@@ -958,7 +959,7 @@ test("readPiSkillFile calls the identity-scoped skill.files.read RPC", async (t)
   assert.equal(
     (
       await readPiSkillFile({
-        sessionId: "session-1",
+        target: { scope: "user" },
         name: "review",
         relativePath: "references/packages.md",
       })
@@ -967,7 +968,7 @@ test("readPiSkillFile calls the identity-scoped skill.files.read RPC", async (t)
   );
   assert.equal(request?.method, "skill.files.read");
   assert.deepEqual(request?.payload, {
-    sessionId: "session-1",
+    target: { scope: "user" },
     name: "review",
     relativePath: "references/packages.md",
   });
@@ -1007,12 +1008,12 @@ test("skill management helpers call their identity-scoped RPC methods", async (t
   };
 
   assert.deepEqual(
-    await setPiSkillEnabled({ sessionId: "session-1", name: "review", enabled: false }),
+    await setPiSkillEnabled({ target: { scope: "user" }, name: "review", enabled: false }),
     { name: "review", enabled: false },
   );
   assert.deepEqual(
     await listPiSkillFiles({
-      sessionId: "session-1",
+      target: { scope: "user" },
       name: "review",
       relativePath: "references",
     }),
@@ -1024,22 +1025,22 @@ test("skill management helpers call their identity-scoped RPC methods", async (t
       truncated: false,
     },
   );
-  assert.deepEqual(await removePiSkill({ sessionId: "session-1", name: "review" }), {
+  assert.deepEqual(await removePiSkill({ target: { scope: "user" }, name: "review" }), {
     name: "review",
     removed: true,
   });
   assert.deepEqual(requests, [
     {
       method: "skill.setEnabled",
-      payload: { sessionId: "session-1", name: "review", enabled: false },
+      payload: { target: { scope: "user" }, name: "review", enabled: false },
     },
     {
       method: "skill.files.list",
-      payload: { sessionId: "session-1", name: "review", relativePath: "references" },
+      payload: { target: { scope: "user" }, name: "review", relativePath: "references" },
     },
     {
       method: "skill.remove",
-      payload: { sessionId: "session-1", name: "review" },
+      payload: { target: { scope: "user" }, name: "review" },
     },
   ]);
 });
@@ -1096,7 +1097,53 @@ test("listPiCommands calls the session-scoped command.list RPC", async (t) => {
   assert.deepEqual(request?.payload, { sessionId: "session-1" });
 });
 
-test("listPiExtensions calls the session-scoped extension.list RPC", async (t) => {
+test("listPiPrompts calls the standalone scoped prompt.list RPC", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  let request: Record<string, unknown> | undefined;
+  globalThis.fetch = async (_input, init) => {
+    request = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: {
+        ok: true,
+        value: {
+          prompts: [
+            {
+              kind: "prompt",
+              name: "review",
+              invocationName: "review",
+              effect: "prompt-transform",
+              exclusive: false,
+              scope: "project",
+              origin: "top-level",
+              source: "auto",
+            },
+          ],
+        },
+      },
+    });
+  };
+
+  assert.equal(
+    (
+      await listPiPrompts({
+        target: { scope: "project", workspaceId: "project-1" },
+      })
+    ).prompts[0]?.name,
+    "review",
+  );
+  assert.equal(request?.method, "prompt.list");
+  assert.deepEqual(request?.payload, {
+    target: { scope: "project", workspaceId: "project-1" },
+  });
+});
+
+test("listPiExtensions calls the standalone scoped extension.list RPC", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => {
     globalThis.fetch = originalFetch;
@@ -1146,7 +1193,7 @@ test("listPiExtensions calls the session-scoped extension.list RPC", async (t) =
     });
   };
 
-  assert.deepEqual(await listPiExtensions({ sessionId: "session-1" }), {
+  assert.deepEqual(await listPiExtensions({ target: { scope: "user" } }), {
     extensions: [
       {
         name: "review",
@@ -1179,7 +1226,7 @@ test("listPiExtensions calls the session-scoped extension.list RPC", async (t) =
     loadErrorCount: 0,
   });
   assert.equal(request?.method, "extension.list");
-  assert.deepEqual(request?.payload, { sessionId: "session-1" });
+  assert.deepEqual(request?.payload, { target: { scope: "user" } });
 });
 
 test("readPiExtensionFile calls the identity-scoped extension.files.read RPC", async (t) => {
@@ -1213,7 +1260,7 @@ test("readPiExtensionFile calls the identity-scoped extension.files.read RPC", a
     });
   };
   const identity = {
-    sessionId: "session-1",
+    target: { scope: "user" as const },
     name: "review",
     filePath: "/home/test/.pi/agent/extensions/review.ts",
     source: "auto",
@@ -1258,7 +1305,7 @@ test("listPiExtensionFiles calls the identity-scoped extension.files.list RPC", 
     });
   };
   const payload = {
-    sessionId: "session-1",
+    target: { scope: "user" as const },
     name: "review",
     filePath: "/home/test/.pi/agent/extensions/review/index.ts",
     source: "auto",
@@ -1305,7 +1352,7 @@ test("extension management helpers call their exact identity-scoped RPC methods"
     });
   };
   const identity = {
-    sessionId: "session-1",
+    target: { scope: "user" as const },
     name: "review",
     filePath: "/home/test/.pi/agent/extensions/review.ts",
     source: "auto",
@@ -1332,7 +1379,7 @@ test("extension management helpers call their exact identity-scoped RPC methods"
   ]);
 });
 
-test("listInstalledPiPackages calls the session-scoped package.list RPC", async (t) => {
+test("listInstalledPiPackages calls the standalone scoped package.list RPC", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => {
     globalThis.fetch = originalFetch;
@@ -1356,14 +1403,14 @@ test("listInstalledPiPackages calls the session-scoped package.list RPC", async 
     });
   };
 
-  assert.deepEqual(await listInstalledPiPackages({ sessionId: "session-1" }), {
+  assert.deepEqual(await listInstalledPiPackages({ target: { scope: "user" } }), {
     packages: [
       { source: "npm:pi-review", scope: "user", filtered: false },
       { source: "git:github.com/example/pi-tools", scope: "project", filtered: true },
     ],
   });
   assert.equal(request?.method, "package.list");
-  assert.deepEqual(request?.payload, { sessionId: "session-1" });
+  assert.deepEqual(request?.payload, { target: { scope: "user" } });
 });
 
 test("installPiPackage calls the loopback package.install RPC", async (t) => {

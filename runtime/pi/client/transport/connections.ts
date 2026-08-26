@@ -48,6 +48,7 @@ const MUX_PAYLOAD_TYPES = new Set([
   "session/queue",
   "session/jobs",
   "session/projection",
+  "session/context-trace",
   "stream/error",
 ]);
 
@@ -316,6 +317,60 @@ function isJob(value: unknown): boolean {
   );
 }
 
+const CONTEXT_TRACE_KINDS = new Set([
+  "round-start",
+  "prompt-composition",
+  "run-start",
+  "turn-start",
+  "context-snapshot",
+  "provider-request",
+  "provider-response",
+  "model-output",
+  "tool-execution-start",
+  "tool-execution-end",
+  "turn-end",
+  "run-end",
+  "retry",
+  "compaction",
+  "round-settled",
+]);
+
+function isOptionalNonNegativeInteger(value: unknown): boolean {
+  return value === undefined || (Number.isInteger(value) && (value as number) >= 0);
+}
+
+function isOptionalNonEmptyString(value: unknown): boolean {
+  return value === undefined || isNonEmptyString(value);
+}
+
+function isSessionContextTraceSummary(value: unknown, sessionId: string): boolean {
+  return (
+    isRecord(value) &&
+    value.schemaVersion === 1 &&
+    value.sessionId === sessionId &&
+    isNonEmptyString(value.traceId) &&
+    isNonEmptyString(value.activationId) &&
+    Number.isInteger(value.seq) &&
+    (value.seq as number) >= 0 &&
+    typeof value.time === "number" &&
+    Number.isFinite(value.time) &&
+    typeof value.kind === "string" &&
+    CONTEXT_TRACE_KINDS.has(value.kind) &&
+    Number.isInteger(value.detailBytes) &&
+    (value.detailBytes as number) >= 0 &&
+    typeof value.truncated === "boolean" &&
+    typeof value.redacted === "boolean" &&
+    isOptionalNonEmptyString(value.roundId) &&
+    isOptionalNonEmptyString(value.runId) &&
+    isOptionalNonNegativeInteger(value.runIndex) &&
+    isOptionalNonEmptyString(value.turnId) &&
+    isOptionalNonNegativeInteger(value.turnIndex) &&
+    isOptionalNonEmptyString(value.requestId) &&
+    isOptionalNonNegativeInteger(value.requestIndex) &&
+    isOptionalNonNegativeInteger(value.agentAttempt)
+  );
+}
+
 function isMuxPayload(payload: ServerRequestFrame["payload"]): boolean {
   switch (payload.type) {
     case "session/event":
@@ -378,6 +433,11 @@ function isMuxPayload(payload: ServerRequestFrame["payload"]): boolean {
         Object.hasOwn(payload, "value") &&
         Number.isInteger(payload.seq) &&
         (payload.seq as number) >= 0
+      );
+    case "session/context-trace":
+      return (
+        isNonEmptyString(payload.sessionId) &&
+        isSessionContextTraceSummary(payload.event, payload.sessionId)
       );
     case "stream/error":
       return isRpcError(payload.error);

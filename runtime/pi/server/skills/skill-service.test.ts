@@ -103,6 +103,49 @@ test("lists the skills loaded by the target Pi session", async () => {
   assert.deepEqual(requestedSessionIds, ["session-1"]);
 });
 
+test("lists a Toolbox scope without resolving a Pi session", async () => {
+  const requestedTargets: unknown[] = [];
+  const service = new SkillService({
+    getSession: async () => {
+      throw new Error("Toolbox catalogs must not resolve sessions");
+    },
+    getScopedResourceHost: async (target) => {
+      requestedTargets.push(target);
+      return host([
+        {
+          name: "user-review",
+          description: "Review user changes.",
+          disableModelInvocation: false,
+          filePath: "/skills/user-review/SKILL.md",
+          sourceInfo: { source: "auto", scope: "user", origin: "top-level" },
+        },
+        {
+          name: "project-review",
+          description: "Review project changes.",
+          disableModelInvocation: false,
+          filePath: "/skills/project-review/SKILL.md",
+          sourceInfo: { source: "auto", scope: "project", origin: "top-level" },
+        },
+      ]);
+    },
+  });
+
+  const result = await service.list({ target: { scope: "user" } });
+  assert.deepEqual(
+    result.skills.map((skill) => skill.name),
+    ["user-review"],
+  );
+  assert.deepEqual(requestedTargets, [{ scope: "user" }]);
+
+  await assert.rejects(
+    service.describe({
+      target: { scope: "project", workspaceId: "project-1" },
+      name: "user-review",
+    }),
+    (error: unknown) => error instanceof SkillServiceError && error.code === "skill-not-found",
+  );
+});
+
 test("keeps disabled resolved skills in the catalog so they can be enabled again", async (t) => {
   const cwd = await mkdtemp(path.join(tmpdir(), "pi-workbench-disabled-skill-"));
   t.after(() => rm(cwd, { recursive: true, force: true }));

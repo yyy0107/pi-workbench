@@ -1,7 +1,13 @@
 import type { PiMessagesEvent } from "@earendil-works/pi-ai";
 
 import type { PiAssistantMessage, PiSessionSummary } from "./contracts";
-import type { RpcError, SessionEvent, ToolEventView, WorkspaceView } from "./rpc-contracts";
+import type {
+  RpcError,
+  SessionContextTraceEventSummary,
+  SessionEvent,
+  ToolEventView,
+  WorkspaceView,
+} from "./rpc-contracts";
 
 export type { SessionEvent, ToolEventView } from "./rpc-contracts";
 
@@ -144,6 +150,13 @@ export interface SessionProjectionPayload {
   seq: number;
 }
 
+/** Lightweight live notification; fetch the bounded detail with session.contextTrace.read. */
+export interface SessionContextTracePayload {
+  type: "session/context-trace";
+  sessionId: string;
+  event: SessionContextTraceEventSummary;
+}
+
 export interface StreamErrorPayload {
   type: "stream/error";
   error: RpcError;
@@ -162,6 +175,7 @@ export type MuxStreamPayload =
   | SessionQueuePayload
   | SessionJobsPayload
   | SessionProjectionPayload
+  | SessionContextTracePayload
   | StreamErrorPayload;
 
 export interface HostSessionAddedPayload {

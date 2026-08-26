@@ -506,6 +506,22 @@ test("routes session validation failures through the shared error envelope", asy
   assert.notEqual(historicalArgumentBody.result.error.code, "bad-request");
 });
 
+test("validates bounded context trace cursors before activating a session", async () => {
+  for (const [method, payload] of [
+    ["session.contextTrace.list", { sessionId: "session-1", limit: 501 }],
+    ["session.contextTrace.list", { sessionId: "session-1", afterSeq: -2 }],
+    ["session.contextTrace.activations", { sessionId: "" }],
+    ["session.contextTrace.read", { sessionId: "session-1", traceId: "" }],
+  ] as const) {
+    const response = await handlePiRpcPost(rpcRequest(method, payload), method);
+    assert.equal(response.status, 200);
+    const body = (await response.json()) as ServerResponse<unknown>;
+    assert.equal(body.result.ok, false);
+    if (body.result.ok) assert.fail(`Expected a ${method} validation error`);
+    assert.equal(body.result.error.code, "bad-request");
+  }
+});
+
 test("large domain payloads use endpoint-specific budgets above the ordinary RPC limit", async () => {
   const pdfBytes = Buffer.alloc(800 * 1024);
   pdfBytes.write("%PDF-1.7\n", 0, "ascii");
@@ -614,6 +630,31 @@ test("validates skill.list at the shared RPC boundary", async () => {
   assert.equal(body.result.error.code, "bad-request");
   const issues = body.result.error.details.issues as Array<{ path?: unknown }>;
   assert.deepEqual(issues[0]?.path, ["payload", "sessionId"]);
+});
+
+test("requires exactly one session or resource target for compatible catalog RPCs", async () => {
+  for (const method of ["skill.list", "extension.list", "package.list"] as const) {
+    for (const payload of [{}, { sessionId: "session-1", target: { scope: "user" } }]) {
+      const response = await handlePiRpcPost(rpcRequest(method, payload), method);
+      assert.equal(response.status, 200);
+      const body = (await response.json()) as ServerResponse<unknown>;
+      assert.equal(body.result.ok, false);
+      if (body.result.ok) assert.fail(`Expected a ${method} resource identity error`);
+      assert.equal(body.result.error.code, "bad-request");
+    }
+  }
+});
+
+test("validates the standalone prompt catalog target", async () => {
+  const response = await handlePiRpcPost(
+    rpcRequest("prompt.list", { target: { scope: "project", workspaceId: "" } }),
+    "prompt.list",
+  );
+  assert.equal(response.status, 200);
+  const body = (await response.json()) as ServerResponse<unknown>;
+  assert.equal(body.result.ok, false);
+  if (body.result.ok) assert.fail("Expected a prompt.list target validation error");
+  assert.equal(body.result.error.code, "bad-request");
 });
 
 test("validates skill.describe at the shared RPC boundary", async () => {
@@ -943,6 +984,7 @@ test("persists Workbench preferences through the shared RPC boundary", async (t)
             pinned: ["session-b", "session-a"],
           },
           toolboxPins: ["skills", "skills"],
+          toolboxScope: { kind: "project", workspaceId: "workspace-1" },
         },
       }),
       "workbenchSettings.update",
@@ -959,6 +1001,7 @@ test("persists Workbench preferences through the shared RPC boundary", async (t)
     sidebarThreadOrderByScope: { pinned: ["session-b", "session-a"] },
     sidebarThreadSortMode: "manual",
     toolboxPins: ["skills"],
+    toolboxScope: { kind: "project", workspaceId: "workspace-1" },
     sidebarOpen: false,
   });
 

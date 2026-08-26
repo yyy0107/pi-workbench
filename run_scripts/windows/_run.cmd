@@ -17,11 +17,9 @@ if errorlevel 1 (
   exit /b 1
 )
 
-if not exist "node_modules\" (
-  echo ^> Dependencies are missing; running pnpm install
-  call pnpm install
-  if errorlevel 1 exit /b !errorlevel!
-)
+echo ^> Synchronizing dependencies from pnpm-lock.yaml
+call pnpm install --frozen-lockfile --prod=false
+if errorlevel 1 exit /b !errorlevel!
 
 if /i "%~1"=="web-dev" (
   echo ^> Starting Web development server

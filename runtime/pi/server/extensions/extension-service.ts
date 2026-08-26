@@ -23,6 +23,8 @@ import type {
   ExtensionRegisteredToolView,
   ExtensionRemovePayload,
   ExtensionRemoveValue,
+  PiResourceCatalogTarget,
+  PiResourceRequest,
   ExtensionSetEnabledPayload,
   ExtensionSetEnabledValue,
   ExtensionSourceOrigin,
@@ -38,13 +40,16 @@ import {
   PiResourceMutationBusyError,
   PiResourceMutationSessionUnavailableError,
   type PiResourceMutationCoordinator,
+  type PiResourceMutationResult,
   type PiResourceMutationScope,
 } from "../resources/pi-resource-mutation-coordinator";
+import { getScopedResourceContextService } from "../resources/scoped-resource-context";
 import {
   readResourceTextFile,
   ResourceTextFileTooLargeError,
   ResourceTextFileUnsupportedEncodingError,
 } from "../resources/resource-text-file";
+import { isWorkbenchInternalPiExtensionPath } from "../internal-extensions/index";
 import { getOrStartSession } from "../sessions/session-registry";
 
 export const MAX_EXTENSION_FILE_BYTES = 5 * 1024 * 1024;
@@ -110,14 +115,19 @@ export interface ExtensionSessionHost {
 
 export interface ExtensionServiceDependencies {
   getSession(sessionId: string): Promise<ExtensionSessionHost>;
+  getScopedResourceHost(target: PiResourceCatalogTarget): Promise<ExtensionSessionHost>;
   removeExtensionPath(targetPath: string): Promise<void>;
   mutationCoordinator: PiResourceMutationCoordinator;
 }
 
+type ExtensionResourceIdentityDetails =
+  | { sessionId: string; target?: never }
+  | { target: PiResourceCatalogTarget; sessionId?: never };
+
 export interface ExtensionServiceErrorDetails {
   "session-not-found": { sessionId: string };
   "session-busy": { sessionId: string };
-  "extension-not-found": { sessionId: string; name: string };
+  "extension-not-found": ExtensionResourceIdentityDetails & { name: string };
   "extension-read-only": { name: string };
   "extension-package-managed": { name: string; source: string };
   "extension-source-unavailable": { name: string };
@@ -281,10 +291,64 @@ export class ExtensionService {
   constructor(dependencies: Partial<ExtensionServiceDependencies> = {}) {
     this.dependencies = {
       getSession: getOrStartSession,
+      getScopedResourceHost: async (target) => {
+        const context = await getScopedResourceContextService().get(target);
+        return {
+          isRunning: false,
+          session: {
+            resourceLoader: context.resourceLoader,
+            settingsManager: context.settingsManager,
+            sessionManager: { getCwd: () => context.cwd },
+            reload: () => context.reload(),
+          },
+        };
+      },
       removeExtensionPath: (targetPath) => rm(targetPath, { recursive: true }),
       mutationCoordinator: getPiResourceMutationCoordinator(),
       ...dependencies,
     };
+  }
+
+  private async getResourceHost(request: PiResourceRequest): Promise<ExtensionSessionHost> {
+    return "target" in request && request.target
+      ? this.dependencies.getScopedResourceHost(request.target)
+      : this.getSessionHost(request.sessionId);
+  }
+
+  private resourceIdentityDetails(request: PiResourceRequest): ExtensionResourceIdentityDetails {
+    return "target" in request && request.target
+      ? { target: request.target }
+      : { sessionId: request.sessionId };
+  }
+
+  private async mutateResourceHost<Value>(
+    request: PiResourceRequest,
+    scope: PiResourceMutationScope,
+    operation: (host: ExtensionSessionHost) => Promise<PiResourceMutationResult<Value>>,
+  ): Promise<Value> {
+    if (!("target" in request) || !request.target) {
+      return this.dependencies.mutationCoordinator.mutateForSession(
+        {
+          scope,
+          sessionId: request.sessionId,
+          getSession: () => this.getSessionHost(request.sessionId),
+        },
+        operation,
+      );
+    }
+
+    return this.dependencies.mutationCoordinator.mutate(scope, async () => {
+      const host = await this.dependencies.getScopedResourceHost(request.target);
+      const result = await operation(host);
+      if (!result.reload) return result;
+      return {
+        ...result,
+        afterReload: async () => {
+          await result.afterReload?.();
+          await host.session.reload?.();
+        },
+      };
+    });
   }
 
   private async getSessionHost(sessionId: string): Promise<ExtensionSessionHost> {
@@ -301,7 +365,7 @@ export class ExtensionService {
       }
       throw new ExtensionServiceError(
         "internal",
-        "The session extensions could not be loaded.",
+        "The extension resource catalog could not be loaded.",
         {},
         { cause: error },
       );
@@ -383,21 +447,29 @@ export class ExtensionService {
       });
     }
 
-    return { records, loadErrorCount: result.errors.length };
+    const loadErrorCount = result.errors.filter((error) => {
+      if (typeof error !== "object" || error === null || !("path" in error)) return true;
+      return !isWorkbenchInternalPiExtensionPath(error.path);
+    }).length;
+
+    return { records, loadErrorCount };
   }
 
   private async findExtension(
     host: ExtensionSessionHost,
     identity: ExtensionIdentityPayload,
   ): Promise<ExtensionRecord> {
+    const requestedScope = "target" in identity ? identity.target?.scope : undefined;
     const extension = (await this.records(host)).records.find((candidate) =>
-      sameExtensionIdentity(candidate, identity),
+      requestedScope !== undefined && identity.scope !== requestedScope
+        ? false
+        : sameExtensionIdentity(candidate, identity),
     );
     if (extension) return extension;
     throw new ExtensionServiceError(
       "extension-not-found",
-      "The extension is unavailable in this session.",
-      { sessionId: identity.sessionId, name: identity.name },
+      "The extension is unavailable in this resource scope.",
+      { ...this.resourceIdentityDetails(identity), name: identity.name },
     );
   }
 
@@ -553,80 +625,76 @@ export class ExtensionService {
     if (settingsError) throw settingsError.error;
   }
 
-  async list({ sessionId }: ExtensionListPayload): Promise<ExtensionListValue> {
-    const host = await this.getSessionHost(sessionId);
+  async list(request: ExtensionListPayload): Promise<ExtensionListValue> {
+    const host = await this.getResourceHost(request);
     try {
       const snapshot = await this.records(host);
       return {
-        extensions: snapshot.records.map((extension) => ({
-          name: extension.name,
-          filePath: extension.filePath,
-          source: extension.sourceInfo.source,
-          scope: extension.sourceInfo.scope,
-          origin: extension.sourceInfo.origin,
-          enabled: extension.enabled,
-          eventNames: sortedNames(extension.handlers),
-          toolNames: sortedNames(extension.tools),
-          commandNames: sortedNames(extension.commands),
-          eventDetails: sortedEntries(extension.handlers).map(([name, handlers]) => ({
-            name,
-            handlerCount: handlers.length,
+        extensions: snapshot.records
+          .filter(
+            (extension) =>
+              !("target" in request) ||
+              !request.target ||
+              extension.sourceInfo.scope === request.target.scope,
+          )
+          .map((extension) => ({
+            name: extension.name,
+            filePath: extension.filePath,
+            source: extension.sourceInfo.source,
+            scope: extension.sourceInfo.scope,
+            origin: extension.sourceInfo.origin,
+            enabled: extension.enabled,
+            eventNames: sortedNames(extension.handlers),
+            toolNames: sortedNames(extension.tools),
+            commandNames: sortedNames(extension.commands),
+            eventDetails: sortedEntries(extension.handlers).map(([name, handlers]) => ({
+              name,
+              handlerCount: handlers.length,
+            })),
+            toolDetails: sortedEntries(extension.tools).map(([name, tool]) =>
+              extensionToolView(name, tool),
+            ),
+            commandDetails: sortedEntries(extension.commands).map(([name, command]) =>
+              extensionCommandView(name, command),
+            ),
           })),
-          toolDetails: sortedEntries(extension.tools).map(([name, tool]) =>
-            extensionToolView(name, tool),
-          ),
-          commandDetails: sortedEntries(extension.commands).map(([name, command]) =>
-            extensionCommandView(name, command),
-          ),
-        })),
         loadErrorCount: snapshot.loadErrorCount,
       };
     } catch (error) {
       if (error instanceof ExtensionServiceError) throw error;
       throw new ExtensionServiceError(
         "internal",
-        "The session extensions could not be loaded.",
+        "The extension resource catalog could not be loaded.",
         {},
         { cause: error },
       );
     }
   }
 
-  async setEnabled({
-    sessionId,
-    enabled,
-    ...identity
-  }: ExtensionSetEnabledPayload): Promise<ExtensionSetEnabledValue> {
-    const initialHost = await this.getSessionHost(sessionId);
-    const request = { sessionId, ...identity };
+  async setEnabled(request: ExtensionSetEnabledPayload): Promise<ExtensionSetEnabledValue> {
+    const { enabled, ...identity } = request;
+    const initialHost = await this.getResourceHost(request);
     try {
-      const initialExtension = await this.findExtension(initialHost, request);
+      const initialExtension = await this.findExtension(initialHost, identity);
       const scope = this.mutationScope(
         initialHost,
         initialExtension.sourceInfo.scope,
         identity.name,
       );
-      return await this.dependencies.mutationCoordinator.mutateForSession(
-        {
-          scope,
-          sessionId,
-          getSession: () => this.getSessionHost(sessionId),
-        },
-        async (host) => {
-          const extension = await this.findExtension(host, request);
-          if (extension.enabled === enabled) {
-            return {
-              value: { name: extension.name, filePath: extension.filePath, enabled },
-              reload: false,
-            };
-          }
-          await this.persistExtensionEnabled(host, extension, enabled);
+      return await this.mutateResourceHost(request, scope, async (host) => {
+        const extension = await this.findExtension(host, identity);
+        if (extension.enabled === enabled) {
           return {
             value: { name: extension.name, filePath: extension.filePath, enabled },
-            reload: true,
+            reload: false,
           };
-        },
-      );
+        }
+        await this.persistExtensionEnabled(host, extension, enabled);
+        return {
+          value: { name: extension.name, filePath: extension.filePath, enabled },
+          reload: true,
+        };
+      });
     } catch (error) {
       if (error instanceof ExtensionServiceError) throw error;
       if (error instanceof PiResourceMutationBusyError) {
@@ -658,7 +726,7 @@ export class ExtensionService {
     relativePath = "",
     ...identity
   }: ExtensionFilesListPayload): Promise<ExtensionFilesListValue> {
-    const host = await this.getSessionHost(identity.sessionId);
+    const host = await this.getResourceHost(identity);
     const extension = await this.findExtension(host, identity);
 
     try {
@@ -744,7 +812,7 @@ export class ExtensionService {
     relativePath: requestedRelativePath,
     ...identity
   }: ExtensionFileReadPayload): Promise<ExtensionFileSnapshotValue> {
-    const host = await this.getSessionHost(identity.sessionId);
+    const host = await this.getResourceHost(identity);
     const extension = await this.findExtension(host, identity);
 
     try {
@@ -817,82 +885,74 @@ export class ExtensionService {
     }
   }
 
-  async remove({ sessionId, ...identity }: ExtensionRemovePayload): Promise<ExtensionRemoveValue> {
-    const initialHost = await this.getSessionHost(sessionId);
-    const request = { sessionId, ...identity };
+  async remove(request: ExtensionRemovePayload): Promise<ExtensionRemoveValue> {
+    const initialHost = await this.getResourceHost(request);
     try {
       const initialExtension = await this.findExtension(initialHost, request);
       const scope = this.mutationScope(
         initialHost,
         initialExtension.sourceInfo.scope,
-        identity.name,
+        request.name,
       );
-      return await this.dependencies.mutationCoordinator.mutateForSession(
-        {
-          scope,
-          sessionId,
-          getSession: () => this.getSessionHost(sessionId),
-        },
-        async (host) => {
-          const extension = await this.findExtension(host, request);
-          if (extension.sourceInfo.origin === "package") {
-            throw new ExtensionServiceError(
-              "extension-package-managed",
-              "Package-provided extensions must be removed through the package manager.",
-              { name: extension.name, source: extension.sourceInfo.source },
-            );
-          }
-          if (
-            extension.sourceInfo.scope === "temporary" ||
-            extension.sourceInfo.source !== "auto" ||
-            !extension.sourceInfo.baseDir
-          ) {
-            throw new ExtensionServiceError(
-              "extension-read-only",
-              "This extension source is read-only.",
-              { name: extension.name },
-            );
-          }
+      return await this.mutateResourceHost(request, scope, async (host) => {
+        const extension = await this.findExtension(host, request);
+        if (extension.sourceInfo.origin === "package") {
+          throw new ExtensionServiceError(
+            "extension-package-managed",
+            "Package-provided extensions must be removed through the package manager.",
+            { name: extension.name, source: extension.sourceInfo.source },
+          );
+        }
+        if (
+          extension.sourceInfo.scope === "temporary" ||
+          extension.sourceInfo.source !== "auto" ||
+          !extension.sourceInfo.baseDir
+        ) {
+          throw new ExtensionServiceError(
+            "extension-read-only",
+            "This extension source is read-only.",
+            { name: extension.name },
+          );
+        }
 
-          const [canonicalRoot, canonicalFile] = await Promise.all([
-            realpath(path.join(extension.sourceInfo.baseDir, "extensions")),
-            realpath(extension.filePath),
-          ]);
-          if (canonicalRoot === canonicalFile || !pathWithin(canonicalRoot, canonicalFile)) {
-            throw new ExtensionServiceError(
-              "extension-source-unavailable",
-              "The extension deletion target is outside its source root.",
-              { name: extension.name },
-            );
-          }
-          const relativeFile = path.relative(canonicalRoot, canonicalFile);
-          const firstSegment = relativeFile.split(path.sep)[0];
-          if (!firstSegment) {
-            throw new ExtensionServiceError(
-              "extension-source-unavailable",
-              "The extension deletion target is unavailable.",
-              { name: extension.name },
-            );
-          }
-          const targetPath = relativeFile.includes(path.sep)
-            ? path.join(canonicalRoot, firstSegment)
-            : canonicalFile;
-          const canonicalTarget = await realpath(targetPath);
-          if (canonicalRoot === canonicalTarget || !pathWithin(canonicalRoot, canonicalTarget)) {
-            throw new ExtensionServiceError(
-              "extension-source-unavailable",
-              "The extension deletion target is outside its source root.",
-              { name: extension.name },
-            );
-          }
+        const [canonicalRoot, canonicalFile] = await Promise.all([
+          realpath(path.join(extension.sourceInfo.baseDir, "extensions")),
+          realpath(extension.filePath),
+        ]);
+        if (canonicalRoot === canonicalFile || !pathWithin(canonicalRoot, canonicalFile)) {
+          throw new ExtensionServiceError(
+            "extension-source-unavailable",
+            "The extension deletion target is outside its source root.",
+            { name: extension.name },
+          );
+        }
+        const relativeFile = path.relative(canonicalRoot, canonicalFile);
+        const firstSegment = relativeFile.split(path.sep)[0];
+        if (!firstSegment) {
+          throw new ExtensionServiceError(
+            "extension-source-unavailable",
+            "The extension deletion target is unavailable.",
+            { name: extension.name },
+          );
+        }
+        const targetPath = relativeFile.includes(path.sep)
+          ? path.join(canonicalRoot, firstSegment)
+          : canonicalFile;
+        const canonicalTarget = await realpath(targetPath);
+        if (canonicalRoot === canonicalTarget || !pathWithin(canonicalRoot, canonicalTarget)) {
+          throw new ExtensionServiceError(
+            "extension-source-unavailable",
+            "The extension deletion target is outside its source root.",
+            { name: extension.name },
+          );
+        }
 
-          await this.dependencies.removeExtensionPath(canonicalTarget);
-          return {
-            value: { name: extension.name, filePath: extension.filePath, removed: true },
-            reload: true,
-          };
-        },
-      );
+        await this.dependencies.removeExtensionPath(canonicalTarget);
+        return {
+          value: { name: extension.name, filePath: extension.filePath, removed: true },
+          reload: true,
+        };
+      });
     } catch (error) {
       if (error instanceof ExtensionServiceError) throw error;
       if (error instanceof PiResourceMutationBusyError) {
@@ -914,7 +974,7 @@ export class ExtensionService {
       throw new ExtensionServiceError(
         "extension-remove-failed",
         "The extension could not be removed.",
-        { name: identity.name },
+        { name: request.name },
         { cause: error },
       );
     }

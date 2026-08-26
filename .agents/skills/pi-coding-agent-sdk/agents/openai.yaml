@@ -1,0 +1,4 @@
+interface:
+  display_name: "Pi Coding Agent SDK"
+  short_description: "Use Pi coding-agent SDK and extension APIs"
+  default_prompt: "Use $pi-coding-agent-sdk to implement a Pi coding-agent SDK integration for this Workbench."

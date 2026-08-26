@@ -57,17 +57,19 @@ test("preserves a disabled Skill when opening its Toolbox details", () => {
 });
 
 test("gives project capabilities a project-specific identity and label context", () => {
-  const params = bindCapabilityToCatalogTarget(capability("skill"), "project", {
-    sessionId: "session-1",
-    project: {
+  const params = bindCapabilityToCatalogTarget(
+    capability("skill"),
+    "project",
+    { scope: "project", workspaceId: "project-1" },
+    {
       id: "project-1",
       name: "Workbench UI",
       path: "/projects/workbench-ui",
     },
-  });
+  );
 
   assert.equal(params.capabilityId, "test:skill:project:project-1");
-  assert.equal(params.catalogSessionId, "session-1");
+  assert.deepEqual(params.catalogTarget, { scope: "project", workspaceId: "project-1" });
   assert.equal(params.projectId, "project-1");
   assert.equal(params.projectName, "Workbench UI");
   assert.equal(params.projectPath, "/projects/workbench-ui");
@@ -132,12 +134,12 @@ test("uses the npm package name to display package-provided Pi extensions", () =
 });
 
 test("describes a selected Skill directory without waiting for a default file", () => {
-  assert.deepEqual(toolboxDirectoryResource(capability("skill"), "session-1"), {
+  assert.deepEqual(toolboxDirectoryResource(capability("skill"), { scope: "user" }), {
     scheme: "skill-directory",
     path: "skill",
     label: "skill",
     metadata: {
-      sessionId: "session-1",
+      resourceTarget: { scope: "user" },
       skillName: "skill",
     },
   });
@@ -156,14 +158,14 @@ test("keeps the complete extension identity in its directory resource", () => {
         scope: "user",
         origin: "package",
       },
-      "session-1",
+      { scope: "user" },
     ),
     {
       scheme: "extension-directory",
       path: "/extensions/review.ts",
       label: "review",
       metadata: {
-        sessionId: "session-1",
+        resourceTarget: { scope: "user" },
         extensionName: "review",
         extensionFilePath: "/extensions/review.ts",
         extensionSource: "npm:pi-review",
@@ -175,22 +177,15 @@ test("keeps the complete extension identity in its directory resource", () => {
 });
 
 test("does not invent directory resources for capabilities without an authorized root", () => {
-  assert.equal(toolboxDirectoryResource(capability("prompt"), "session-1"), undefined);
+  assert.equal(toolboxDirectoryResource(capability("prompt"), { scope: "user" }), undefined);
   assert.equal(toolboxDirectoryResource(capability("skill"), undefined), undefined);
 });
 
-test("deduplicates user capabilities independently from the representative project session", () => {
-  const params = bindCapabilityToCatalogTarget(capability("skill"), "user", {
-    sessionId: "session-1",
-    project: {
-      id: "project-1",
-      name: "Workbench UI",
-      path: "/projects/workbench-ui",
-    },
-  });
+test("binds user capabilities directly to the user resource catalog", () => {
+  const params = bindCapabilityToCatalogTarget(capability("skill"), "user", { scope: "user" });
 
   assert.equal(params.capabilityId, "test:skill");
-  assert.equal(params.catalogSessionId, "session-1");
+  assert.deepEqual(params.catalogTarget, { scope: "user" });
   assert.equal(params.projectId, undefined);
   assert.equal(params.projectName, undefined);
 });

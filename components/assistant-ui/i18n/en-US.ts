@@ -28,6 +28,8 @@ export const assistantEnUS = {
   actions: {
     edit: "Edit",
     copy: "Copy",
+    copied: "Copied",
+    copyFailed: "Couldn't copy",
     refresh: "Refresh",
   },
   codeBlock: {

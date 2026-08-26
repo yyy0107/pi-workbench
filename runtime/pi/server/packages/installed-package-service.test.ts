@@ -36,6 +36,31 @@ test("lists user and project Pi packages configured for the target session", asy
   assert.deepEqual(requestedSessionIds, ["session-1"]);
 });
 
+test("lists only the requested Toolbox package scope without resolving a session", async () => {
+  const requestedTargets: unknown[] = [];
+  const service = new InstalledPackageService({
+    getSession: async () => {
+      throw new Error("Toolbox catalogs must not resolve sessions");
+    },
+    getScopedResourceHost: async (target) => {
+      requestedTargets.push(target);
+      return {
+        session: {
+          settingsManager: {
+            getGlobalSettings: () => ({ packages: ["npm:user-tools"] }),
+            getProjectSettings: () => ({ packages: ["npm:project-tools"] }),
+          },
+        },
+      };
+    },
+  });
+
+  assert.deepEqual(await service.list({ target: { scope: "user" } }), {
+    packages: [{ source: "npm:user-tools", scope: "user", filtered: false }],
+  });
+  assert.deepEqual(requestedTargets, [{ scope: "user" }]);
+});
+
 test("translates missing sessions without exposing Pi internals", async () => {
   const service = new InstalledPackageService({
     getSession: async () => {
@@ -74,8 +99,8 @@ test("maps settings failures to a stable internal error", async () => {
   });
 });
 
-test("installs an official catalog package into the user Pi configuration", async () => {
-  const installations: Array<{ sessionId: string; source: string }> = [];
+test("installs a user package without resolving a Pi session", async () => {
+  const installations: Array<{ sessionId: string | undefined; source: string }> = [];
   const service = new InstalledPackageService({
     installUserPackage: async (sessionId, source) => {
       installations.push({ sessionId, source });
@@ -85,7 +110,7 @@ test("installs an official catalog package into the user Pi configuration", asyn
   assert.deepEqual(
     await service.install({
       name: "@example/pi-tools",
-      target: { scope: "user", sessionId: "session-1" },
+      target: { scope: "user" },
     }),
     {
       source: "npm:@example/pi-tools",
@@ -93,7 +118,7 @@ test("installs an official catalog package into the user Pi configuration", asyn
       reloadRequired: false,
     },
   );
-  assert.deepEqual(installations, [{ sessionId: "session-1", source: "npm:@example/pi-tools" }]);
+  assert.deepEqual(installations, [{ sessionId: undefined, source: "npm:@example/pi-tools" }]);
 });
 
 test("reloads affected sessions after installing a user Pi package", async () => {
@@ -150,8 +175,8 @@ test("installs an official catalog package into an imported project", async () =
   ]);
 });
 
-test("removes a configured package from the user Pi configuration", async () => {
-  const removals: Array<{ sessionId: string; source: string }> = [];
+test("removes a user package without resolving a Pi session", async () => {
+  const removals: Array<{ sessionId: string | undefined; source: string }> = [];
   const service = new InstalledPackageService({
     prepareUserPackageRemoval: async (sessionId, source) => async () => {
       removals.push({ sessionId, source });
@@ -161,7 +186,7 @@ test("removes a configured package from the user Pi configuration", async () => 
   assert.deepEqual(
     await service.remove({
       source: "npm:@example/pi-tools",
-      target: { scope: "user", sessionId: "session-1" },
+      target: { scope: "user" },
     }),
     {
       source: "npm:@example/pi-tools",
@@ -169,7 +194,7 @@ test("removes a configured package from the user Pi configuration", async () => 
       reloadRequired: false,
     },
   );
-  assert.deepEqual(removals, [{ sessionId: "session-1", source: "npm:@example/pi-tools" }]);
+  assert.deepEqual(removals, [{ sessionId: undefined, source: "npm:@example/pi-tools" }]);
 });
 
 test("reloads every loaded session before deleting a user Pi package", async () => {

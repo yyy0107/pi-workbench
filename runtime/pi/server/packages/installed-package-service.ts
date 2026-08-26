@@ -14,6 +14,7 @@ import type {
   PiPackageInstallValue,
   PiPackageRemovePayload,
   PiPackageRemoveValue,
+  PiResourceCatalogTarget,
 } from "../../rpc-contracts";
 import {
   getPiResourceMutationCoordinator,
@@ -24,6 +25,10 @@ import {
 import { getLoadedSessions, getOrStartSession } from "../sessions/session-registry";
 import { getProjectTrustService } from "../trust/project-trust-service";
 import { getWorkspaceStore } from "../workspaces/workspace-registry";
+import {
+  getScopedResourceContextService,
+  ScopedResourceContextError,
+} from "../resources/scoped-resource-context";
 
 interface PackageSettingsSnapshot {
   packages?: readonly PackageSource[];
@@ -51,13 +56,14 @@ export interface LoadedPackageSessionHost extends LoadedPiResourceMutationSessio
 
 export interface InstalledPackageServiceDependencies {
   getSession(sessionId: string): Promise<InstalledPackageSessionHost>;
+  getScopedResourceHost(target: PiResourceCatalogTarget): Promise<InstalledPackageSessionHost>;
   getWorkspace(workspaceId: string): Promise<{ path: string } | undefined>;
   getLoadedSessions(): readonly LoadedPackageSessionHost[];
   isProjectTrusted(workspacePath: string): boolean | Promise<boolean>;
-  installUserPackage(sessionId: string, source: string): Promise<void>;
+  installUserPackage(sessionId: string | undefined, source: string): Promise<void>;
   installProjectPackage(workspacePath: string, source: string): Promise<void>;
   prepareUserPackageRemoval(
-    sessionId: string,
+    sessionId: string | undefined,
     source: string,
   ): Promise<PackageRemovalCleanup | undefined>;
   prepareProjectPackageRemoval(
@@ -65,6 +71,7 @@ export interface InstalledPackageServiceDependencies {
     source: string,
   ): Promise<PackageRemovalCleanup | undefined>;
   mutationCoordinator: PiResourceMutationCoordinator;
+  reloadScopedResources(target: PiResourceCatalogTarget): Promise<void>;
 }
 
 export type PackageRemovalCleanup = () => Promise<void>;
@@ -122,17 +129,34 @@ function packageView(
   };
 }
 
-async function installUserPackage(sessionId: string, source: string): Promise<void> {
-  const host = await getOrStartSession(sessionId);
-  const session = host.session;
+async function userPackageSettings(sessionId?: string): Promise<{
+  cwd: string;
+  settingsManager: SettingsManager;
+}> {
+  if (sessionId) {
+    const host = await getOrStartSession(sessionId);
+    return {
+      cwd: host.session.sessionManager.getCwd(),
+      settingsManager: host.session.settingsManager,
+    };
+  }
+  const cwd = process.cwd();
+  return {
+    cwd,
+    settingsManager: SettingsManager.create(cwd, getAgentDir(), { projectTrusted: false }),
+  };
+}
+
+async function installUserPackage(sessionId: string | undefined, source: string): Promise<void> {
+  const { cwd, settingsManager } = await userPackageSettings(sessionId);
   const packageManager = new DefaultPackageManager({
-    cwd: session.sessionManager.getCwd(),
+    cwd,
     agentDir: getAgentDir(),
-    settingsManager: session.settingsManager,
+    settingsManager,
   });
   await packageManager.installAndPersist(source);
-  await session.settingsManager.flush();
-  const settingsError = session.settingsManager.drainErrors()[0];
+  await settingsManager.flush();
+  const settingsError = settingsManager.drainErrors()[0];
   if (settingsError) throw settingsError.error;
 }
 
@@ -188,18 +212,17 @@ async function preparePackageRemoval(
 }
 
 async function prepareUserPackageRemoval(
-  sessionId: string,
+  sessionId: string | undefined,
   source: string,
 ): Promise<PackageRemovalCleanup | undefined> {
-  const host = await getOrStartSession(sessionId);
-  const session = host.session;
-  if (!hasConfiguredSource(session.settingsManager.getGlobalSettings(), source)) return undefined;
+  const { cwd, settingsManager } = await userPackageSettings(sessionId);
+  if (!hasConfiguredSource(settingsManager.getGlobalSettings(), source)) return undefined;
   const packageManager = new DefaultPackageManager({
-    cwd: session.sessionManager.getCwd(),
+    cwd,
     agentDir: getAgentDir(),
-    settingsManager: session.settingsManager,
+    settingsManager,
   });
-  return preparePackageRemoval(packageManager, session.settingsManager, source);
+  return preparePackageRemoval(packageManager, settingsManager, source);
 }
 
 async function prepareProjectPackageRemoval(
@@ -232,6 +255,10 @@ export class InstalledPackageService {
         : getPiResourceMutationCoordinator());
     this.dependencies = {
       getSession: getOrStartSession,
+      getScopedResourceHost: async (target) => {
+        const context = await getScopedResourceContextService().get(target);
+        return { session: { settingsManager: context.settingsManager } };
+      },
       getWorkspace,
       getLoadedSessions,
       isProjectTrusted: (workspacePath) => getProjectTrustService().isTrusted(workspacePath),
@@ -239,21 +266,26 @@ export class InstalledPackageService {
       installProjectPackage,
       prepareUserPackageRemoval,
       prepareProjectPackageRemoval,
+      reloadScopedResources: (target) => getScopedResourceContextService().reloadIfPresent(target),
       ...dependencies,
       mutationCoordinator,
     };
   }
 
-  async list({ sessionId }: InstalledPackageListPayload): Promise<InstalledPackageListValue> {
+  async list(request: InstalledPackageListPayload): Promise<InstalledPackageListValue> {
     let host: InstalledPackageSessionHost;
     try {
-      host = await this.dependencies.getSession(sessionId);
+      host =
+        "target" in request && request.target
+          ? await this.dependencies.getScopedResourceHost(request.target)
+          : await this.dependencies.getSession(request.sessionId);
     } catch (error) {
-      if (errorCode(error) === "pi_session_not_found") {
+      if (error instanceof ScopedResourceContextError) throw error;
+      if (!("target" in request) && errorCode(error) === "pi_session_not_found") {
         throw new InstalledPackageServiceError(
           "session-not-found",
           "The session does not exist.",
-          { sessionId },
+          { sessionId: request.sessionId },
           { cause: error },
         );
       }
@@ -267,14 +299,19 @@ export class InstalledPackageService {
 
     try {
       const settings = host.session.settingsManager;
+      const requestedScope = "target" in request ? request.target?.scope : undefined;
       return {
         packages: [
-          ...(settings.getGlobalSettings().packages ?? []).map((source) =>
-            packageView(source, "user"),
-          ),
-          ...(settings.getProjectSettings().packages ?? []).map((source) =>
-            packageView(source, "project"),
-          ),
+          ...(requestedScope === "project"
+            ? []
+            : (settings.getGlobalSettings().packages ?? []).map((source) =>
+                packageView(source, "user"),
+              )),
+          ...(requestedScope === "user"
+            ? []
+            : (settings.getProjectSettings().packages ?? []).map((source) =>
+                packageView(source, "project"),
+              )),
         ],
       };
     } catch (error) {
@@ -321,7 +358,15 @@ export class InstalledPackageService {
           { scope: "project", cwd: workspace.path },
           async () => {
             await this.dependencies.installProjectPackage(workspace.path, source);
-            return { value: undefined, reload: true };
+            return {
+              value: undefined,
+              reload: true,
+              afterReload: () =>
+                this.dependencies.reloadScopedResources({
+                  scope: "project",
+                  workspaceId: target.workspaceId,
+                }),
+            };
           },
         );
         return {
@@ -352,7 +397,11 @@ export class InstalledPackageService {
     try {
       await this.dependencies.mutationCoordinator.mutate({ scope: "user" }, async () => {
         await this.dependencies.installUserPackage(target.sessionId, source);
-        return { value: undefined, reload: true };
+        return {
+          value: undefined,
+          reload: true,
+          afterReload: () => this.dependencies.reloadScopedResources({ scope: "user" }),
+        };
       });
       return { source, scope: "user", reloadRequired: false };
     } catch (error) {
@@ -365,7 +414,7 @@ export class InstalledPackageService {
           { cause: error },
         );
       }
-      if (errorCode(error) === "pi_session_not_found") {
+      if (target.sessionId && errorCode(error) === "pi_session_not_found") {
         throw new InstalledPackageServiceError(
           "session-not-found",
           "The session does not exist.",
@@ -425,7 +474,17 @@ export class InstalledPackageService {
                 { source, scope: "project" },
               );
             }
-            return { value: undefined, reload: true, afterReload: cleanup };
+            return {
+              value: undefined,
+              reload: true,
+              afterReload: async () => {
+                await cleanup();
+                await this.dependencies.reloadScopedResources({
+                  scope: "project",
+                  workspaceId: target.workspaceId,
+                });
+              },
+            };
           },
         );
         return {
@@ -463,7 +522,14 @@ export class InstalledPackageService {
             { source, scope: "user" },
           );
         }
-        return { value: undefined, reload: true, afterReload: cleanup };
+        return {
+          value: undefined,
+          reload: true,
+          afterReload: async () => {
+            await cleanup();
+            await this.dependencies.reloadScopedResources({ scope: "user" });
+          },
+        };
       });
       return { source, scope: "user", reloadRequired: false };
     } catch (error) {
@@ -476,7 +542,7 @@ export class InstalledPackageService {
           { cause: error },
         );
       }
-      if (errorCode(error) === "pi_session_not_found") {
+      if (target.sessionId && errorCode(error) === "pi_session_not_found") {
         throw new InstalledPackageServiceError(
           "session-not-found",
           "The session does not exist.",

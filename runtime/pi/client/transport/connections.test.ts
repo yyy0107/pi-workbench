@@ -315,6 +315,43 @@ test("routes canonical mux session frames to only the matching legacy listener",
       jobs: [{ id: "bad", kind: "tool", label: "Bad", status: "unknown", startedAt: 1 }],
     }),
   );
+  mux.message(
+    serverFrame({
+      type: "session/context-trace",
+      sessionId: "session-1",
+      event: {
+        schemaVersion: 1,
+        traceId: "activation-1:0",
+        sessionId: "session-1",
+        activationId: "activation-1",
+        seq: 0,
+        time: 1_725_000_000_002,
+        kind: "round-start",
+        detailBytes: 48,
+        truncated: false,
+        redacted: false,
+        roundId: "round-1",
+      },
+    }),
+  );
+  mux.message(
+    serverFrame({
+      type: "session/context-trace",
+      sessionId: "session-1",
+      event: {
+        schemaVersion: 1,
+        traceId: "activation-1:1",
+        sessionId: "spoofed-session",
+        activationId: "activation-1",
+        seq: 1,
+        time: 1_725_000_000_003,
+        kind: "run-start",
+        detailBytes: 20,
+        truncated: false,
+        redacted: false,
+      },
+    }),
+  );
 
   assert.deepEqual(events, [
     {
@@ -342,9 +379,13 @@ test("routes canonical mux session frames to only the matching legacy listener",
       "session/subscribed",
       "session/queue",
       "session/prompt-accepted",
+      "session/context-trace",
     ],
   );
-  assert.equal(muxFrames.at(-1)?.rpcId, "prompt-http-rpc");
+  assert.equal(
+    muxFrames.find((frame) => frame.payload.type === "session/prompt-accepted")?.rpcId,
+    "prompt-http-rpc",
+  );
   assert.equal(mux.sendCalls.length, 0);
   assert.equal(host.sendCalls.length, 0);
 

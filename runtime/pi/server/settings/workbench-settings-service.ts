@@ -150,6 +150,19 @@ function parsePreferences(value: unknown): WorkbenchSettingsPreferences {
   if (value.toolboxPins !== undefined) {
     preferences.toolboxPins = stringList(value.toolboxPins, "toolboxPins");
   }
+  if (value.toolboxScope !== undefined) {
+    if (!isRecord(value.toolboxScope)) throw new TypeError("toolboxScope must be an object");
+    if (value.toolboxScope.kind === "user") {
+      preferences.toolboxScope = { kind: "user" };
+    } else if (value.toolboxScope.kind === "project") {
+      preferences.toolboxScope = {
+        kind: "project",
+        workspaceId: shortString(value.toolboxScope.workspaceId, "toolboxScope.workspaceId", 512),
+      };
+    } else {
+      throw new TypeError("toolboxScope.kind is invalid");
+    }
+  }
   if (value.rightWorkspace !== undefined) {
     preferences.rightWorkspace = jsonRecord(
       value.rightWorkspace,

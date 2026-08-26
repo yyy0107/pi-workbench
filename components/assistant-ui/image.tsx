@@ -3,6 +3,8 @@
 import { memo, useState, useEffect, useRef, type PropsWithChildren } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import {
+  CheckIcon,
+  CircleXIcon,
   CopyIcon,
   DownloadIcon,
   ImageIcon,
@@ -13,6 +15,7 @@ import {
 } from "lucide-react";
 import type { ImageMessagePart, ImageMessagePartComponent } from "@assistant-ui/react";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useCopyFeedback } from "@/hooks/use-clipboard-copy";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 
@@ -66,19 +69,53 @@ const downloadImagePart = (part: Pick<ImageMessagePart, "image" | "filename">): 
   if (objectUrl) setTimeout(() => URL.revokeObjectURL(objectUrl), 40_000);
 };
 
-const copyImagePart = async (part: Pick<ImageMessagePart, "image">): Promise<void> => {
+const imageBlob = (image: string): Promise<Blob> => {
+  if (/^data:/i.test(image)) return Promise.resolve(dataUriToBlob(image));
+
+  return fetch(image).then((response) => {
+    if (!response.ok) throw new Error(`Could not load image: ${response.status}`);
+    return response.blob();
+  });
+};
+
+const imageBlobAsPng = async (blob: Blob): Promise<Blob> => {
+  if (blob.type === "image/png") return blob;
+  if (typeof createImageBitmap !== "function" || typeof document === "undefined") {
+    throw new Error("PNG conversion is not available in this environment.");
+  }
+
+  const bitmap = await createImageBitmap(blob);
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Could not create an image conversion context.");
+    context.drawImage(bitmap, 0, 0);
+
+    return await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob(
+        (png) => (png ? resolve(png) : reject(new Error("Could not convert image to PNG."))),
+        "image/png",
+      );
+    });
+  } finally {
+    bitmap.close();
+  }
+};
+
+const copyImagePart = (part: Pick<ImageMessagePart, "image">): Promise<void> => {
   if (
     typeof navigator === "undefined" ||
     !navigator.clipboard ||
+    typeof navigator.clipboard.write !== "function" ||
     typeof ClipboardItem === "undefined"
   ) {
-    throw new Error("Clipboard API is not available in this environment.");
+    return Promise.reject(new Error("Clipboard API is not available in this environment."));
   }
-  const blob = /^data:/i.test(part.image)
-    ? dataUriToBlob(part.image)
-    : await fetch(part.image).then((r) => r.blob());
-  const mime = mimeFromImage(part.image) ?? blob.type ?? "image/png";
-  await navigator.clipboard.write([new ClipboardItem({ [mime]: blob })]);
+
+  const png = imageBlob(part.image).then(imageBlobAsPng);
+  return navigator.clipboard.write([new ClipboardItem({ "image/png": png })]);
 };
 
 const imageVariants = cva("aui-image-root relative overflow-hidden rounded-lg", {
@@ -301,6 +338,14 @@ function RegenerateButton({ onRegenerate }: { onRegenerate: () => void | Promise
 
 function ImageActions({ part, onRegenerate, className }: ImageActionsProps) {
   const { t } = useI18n();
+  const { isCopied, runCopy, status } = useCopyFeedback();
+  const copyLabel = t(
+    status === "copied"
+      ? "assistant.actions.copied"
+      : status === "failed"
+        ? "assistant.actions.copyFailed"
+        : "assistant.image.copy",
+  );
 
   return (
     <div data-slot="image-actions" className={cn("flex items-center gap-1 p-1", className)}>
@@ -315,14 +360,19 @@ function ImageActions({ part, onRegenerate, className }: ImageActionsProps) {
       </button>
       <button
         type="button"
-        onClick={() => {
-          copyImagePart(part).catch(() => {});
-        }}
+        onClick={() => void runCopy(() => copyImagePart(part).then(() => true))}
         data-slot="image-copy"
-        aria-label={t("assistant.image.copy")}
+        aria-label={copyLabel}
+        title={copyLabel}
         className="hover:bg-muted inline-flex size-7 items-center justify-center rounded"
       >
-        <CopyIcon className="size-4" />
+        {isCopied ? (
+          <CheckIcon className="size-4" />
+        ) : status === "failed" ? (
+          <CircleXIcon className="text-destructive size-4" />
+        ) : (
+          <CopyIcon className="size-4" />
+        )}
       </button>
       {onRegenerate && <RegenerateButton onRegenerate={onRegenerate} />}
     </div>

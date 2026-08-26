@@ -58,7 +58,7 @@ Unary RPC 是 session、workspace 和 running 状态的权威快照；WebSocket 
   `workspace.files.write`，以及 `GET/HEAD /api/workspace.files.content`；
 - Skills：`skill.list`、`skill.describe`、`skill.setEnabled`、`skill.files.list`、`skill.files.read`、
   `skill.remove`；
-- Commands：`command.list`；
+- Commands / Prompts：会话命令目录 `command.list`，以及独立资源目录 `prompt.list`；
 - Extensions：`extension.list`、`extension.files.list`、`extension.files.read`、
   `extension.setEnabled`、`extension.remove`；
 - Pi Packages：`package.list`、`package.install`、`package.remove`、`packageCatalog.search`、
@@ -71,6 +71,7 @@ Unary RPC 是 session、workspace 和 running 状态的权威快照；WebSocket 
   `llm.removeProvider`、`llm.modelContextWindow`、`llm.updateModelContextWindow`、
   `llm.models`、`llm.discoverModels`、`llm.testModelImageInput`；
 - Session：`session.list`、`session.search`、`session.create`、`session.history`、
+  `session.contextTrace.activations`、`session.contextTrace.list`、`session.contextTrace.read`、
   `session.models`、`session.selectModel`、`session.rename`、`session.fork`、
   `session.delete`、`session.prompt`、`session.attachment`、`session.updateQueue`、
   `session.cancel`。
@@ -299,7 +300,14 @@ Workbench 进程全部信任的显式覆盖。升级到 Project Trust 的首次�
 
 ## Skills
 
-`skill.list` 按 `sessionId` 合并该 Pi session 的 `ResourceLoader` 已加载技能与 Pi
+Skills、Extensions 与已安装 Package 的兼容 RPC 接受两种互斥资源身份：会话内设置界面可继续提交
+`{ sessionId }`；Toolbox 必须提交 `{ target: { scope: "user" } }` 或
+`{ target: { scope: "project", workspaceId } }`。服务端将 target 解析为缓存的
+`DefaultResourceLoader` + `SettingsManager` 资源上下文，项目路径只能来自 `WorkspaceStore`，并继续遵守
+Project Trust。这个上下文不会创建 `AgentSession`、不会创建聊天记录，也不依赖当前或任意代表性会话。
+`prompt.list` 只提供 target 形式；Composer 使用的 `command.list` 则仍然是会话能力目录。
+
+`skill.list` 合并目标资源上下文的 `ResourceLoader` 已加载技能与 Pi
 `DefaultPackageManager.resolve()` 解析出的技能资源，因此已禁用的技能仍会留在工具箱目录中，并以
 `enabled: false` 返回，便于重新启用。响应只暴露协议定义的名称、描述、启用状态、模型是否可调用，
 以及脱敏后的 package 来源、作用域和来源类型，不向浏览器返回技能文件路径。工具箱可据此把 npm
@@ -307,7 +315,7 @@ package 提供的技能关联到同一个官方 Package 详情，同时保留技
 `disable-model-invocation: true` 的技能会返回 `modelInvocable: false`，但仍可通过显式 skill 命令
 调用。
 
-`skill.describe` 按 `sessionId` 和技能名称读取详情页所需的 `SKILL.md` 正文。服务端只会在该 session
+`skill.describe` 按资源 target 和技能名称读取详情页所需的 `SKILL.md` 正文。服务端只会在该 target
 已解析的技能集合中精确匹配名称，并使用 Pi 提供的权威文件路径读取正文；请求不接受文件路径，因此
 不能用作任意文件读取接口。响应会随正文返回这个已匹配技能的权威 `filePath`，
 供工具箱在作用域后显示实际 Skill 位置；不会返回其他候选技能或任意请求路径。正文按需读取且最大为
@@ -315,17 +323,17 @@ package 提供的技能关联到同一个官方 Package 详情，同时保留技
 
 `skill.setEnabled` 是 loopback-only mutation。它使用 Pi 官方 Config Selector 相同的精确 `+path` /
 `-path` 资源过滤规则：顶层 Skill 写入对应作用域的 `skills`，package Skill 把字符串 PackageSource
-按需转换为对象并更新其中的 `skills` filter。仅允许空闲 session 修改；持久化成功后 reload 该
-session，使开关状态与模型实际可见资源一致。
+按需转换为对象并更新其中的 `skills` filter。修改前会确认所有受影响的已加载 session 都处于空闲
+状态；持久化成功后 reload 这些 session 和对应的独立资源上下文，使 Toolbox 与模型实际可见资源一致。
 
-`skill.files.list` 只接受 `sessionId`、Skill 名称和相对目录。服务端先从该 session 精确解析 Skill，
+`skill.files.list` 只接受资源 target、Skill 名称和相对目录。服务端先从该 target 精确解析 Skill，
 再把 `SKILL.md` 所在目录作为授权根目录；真实路径、路径穿越和符号链接都必须留在这个根内。响应只
 返回目录项元数据，不返回文件正文，且每个目录最多返回 2,000 项。工具箱打开的是以 Skill 根目录为
 身份的文件工作区，默认不选择或读取 `SKILL.md`；右侧编辑区保持空状态并显示辅助 Explorer，只有用户
 点击树节点后才通过 `skill.files.read` 创建对应的只读文件标签。目录会话统一拥有面包屑、文件树开关、
 本地编辑器菜单和 Explorer 生命周期，因此用户级 Skill 不需要伪装成已导入项目文件。
 
-`skill.files.read` 使用相同的 session、Skill 身份与目录根，只接受文件树返回的规范相对路径。读取的
+`skill.files.read` 使用相同的 target、Skill 身份与目录根，只接受文件树返回的规范相对路径。读取的
 真实路径和符号链接仍必须位于 Skill 根目录内；当前返回最大 5 MiB 的 UTF-8 普通文件正文、内容版本
 和文件元数据，供同一个只读 File Surface 打开 `references/` 等目录中的 Markdown 或源码文件。它不
 提供写入能力，也不接受浏览器提交任意绝对路径。
@@ -401,7 +409,7 @@ Workbench 等价语义的内置命令才会被暴露，避免把 UI action 错�
 
 ## Extensions
 
-`extension.list` 按 `sessionId` 合并该 Pi session 的 `ResourceLoader` 已加载扩展与
+`extension.list` 按资源 target 合并独立 `ResourceLoader` 已加载扩展与
 `DefaultPackageManager.resolve()` 解析出的扩展资源，因此已禁用扩展仍留在工具箱中并以
 `enabled: false` 返回，便于重新启用。响应包含面向展示的扩展名称、权威入口文件路径、来源范围、
 来源类型，以及已加载扩展注册的事件、工具和命令名称。扩展点还带有可安全展示的声明性元数据：事件
@@ -411,16 +419,23 @@ Workbench 等价语义的内置命令才会被暴露，避免把 UI action 错�
 也不会返回浏览器，只返回加载失败数量。尚未加载的已禁用或加载失败资源不执行模块，因此扩展点列表
 为空。
 
+Workbench 自身依赖的 Pi 生命周期适配器通过 `DefaultResourceLoader` 的隐藏内联
+`extensionFactories` 注入，只作用于 Workbench 创建的 session。它们不写入用户或项目扩展目录，
+不进入 `extension.list`、文件读取和启停/删除 RPC，也不会被同一 Pi agent 目录下的 TUI 或其他客户端
+自动加载。内部扩展初始化失败写入 Host 日志，不计入面向用户的扩展加载错误数量。当前消息终止原因
+归一化使用这一机制在 Pi 持久化 `message_end` 前写入版本化 diagnostic。
+
 `extension.setEnabled` 是 loopback-only mutation，并要求请求携带当前列表返回的完整扩展身份。
 它沿用 Pi Config Selector 的精确 `+path` / `-path` 规则：顶层扩展更新对应作用域的 `extensions`，
-Package 扩展更新匹配 PackageSource 的 `extensions` filter。仅允许空闲 session 修改；持久化成功后
-reload 该 session。停用 Package 扩展时还会按同一个 package source 将当前启用的 Skill、Prompt 和
+Package 扩展更新匹配 PackageSource 的 `extensions` filter。修改前会确认受影响的已加载 session 均
+为空闲；持久化成功后 reload 这些 session 和对应 target 的资源上下文。停用 Package 扩展时还会按
+同一个 package source 将当前启用的 Skill、Prompt 和
 Theme 写入各自的精确停用 filter；该扩展注册的 event、tool 和 command 则随 reload 一并卸载。重新启用
 扩展不会擅自重新启用这些独立资源，避免覆盖用户原有的逐项选择。资源 mutation 完成后，浏览器通过
 共享 catalog revision 同时刷新 Toolbox 与 Composer command catalog，不能继续展示已失效的 Skill、
 Prompt 或 Extension command。
 
-`extension.files.list` 和 `extension.files.read` 使用与 mutation 相同的完整扩展身份，在目标 session
+`extension.files.list` 和 `extension.files.read` 使用与 mutation 相同的完整扩展身份，在目标 target
 的已解析资源中精确匹配权威入口文件。以 `index.*` 为入口的目录型扩展可以列出并读取其扩展根目录内
 的文件；直接以单个文件为入口的扩展只暴露该入口文件，不会顺带暴露同一 `extensions` 目录中的其他
 扩展。所有目录与文件读取都经过真实路径边界检查，文本读取上限为 5 MiB 且只接受 UTF-8，因此这些
@@ -429,7 +444,7 @@ Prompt 或 Extension command。
 Handler 创建对应的只读 File Surface。目录会话统一拥有面包屑、文件树开关、本地编辑器菜单和
 Explorer 生命周期，资源去重、聚焦和恢复仍由 RightWorkspace 管理。
 
-`extension.remove` 同样只允许 loopback 请求和空闲 session。它只删除 Pi 自动发现、非临时、独立
+`extension.remove` 同样只允许 loopback 请求，并要求受影响的已加载 session 为空闲。它只删除 Pi 自动发现、非临时、独立
 安装且真实路径仍位于对应 `extensions` 根目录内的扩展；直接入口文件只删除该文件，子目录入口删除
 扩展根目录。Package 提供的扩展不直接删除 `node_modules` 文件，工具箱改走精确作用域的
 `package.remove`，并在确认框中提示同包其他能力也会一起移除。
@@ -439,7 +454,8 @@ Project Trust 决策控制；查询设置页不会提升项目资源信任。
 
 ## Pi Package Catalog
 
-`package.list` 按 `sessionId` 返回当前 Pi session 用户级与项目级 settings 中已配置的 Packages。
+`package.list` 按资源 target 返回该用户级或项目级 settings 中已配置的 Packages；Toolbox 不需要先有
+任何 session。
 响应只包含 package source、作用域，以及是否采用资源筛选配置；不会向浏览器返回 settings 文件路径
 或具体资源路径。这个列表用于工具箱的“已安装”视图，并遵循当前 session 已生效的项目信任边界。
 
@@ -461,8 +477,9 @@ Pi 官方当前未公开目录 JSON API，服务端适配器因此只解析官�
 且把响应限制在 2 MiB；目录 URL 固定，不能由客户端传入，避免把该 RPC 变成任意 URL 代理。官方
 将来提供稳定 API 时，只需替换该 domain adapter，不改变前端 contract。
 
-`package.install` 只接受通过 npm 包名规则校验的官方目录名称，以及用户级 session 目标或项目级
-`workspaceId` 目标。项目目标由服务端通过 `WorkspaceStore` 解析为已导入项目的权威路径，浏览器不能
+`package.install` 只接受通过 npm 包名规则校验的官方目录名称，以及用户级 target 或项目级
+`workspaceId` target；Toolbox 的用户级请求不携带 `sessionId`。项目目标由服务端通过 `WorkspaceStore`
+解析为已导入项目的权威路径，浏览器不能
 提交任意安装目录；项目安装仍要求该权威路径具有有效的 Pi Project Trust 信任决定。服务端固定构造
 `npm:<package>` source，并通过 Pi 导出的 `DefaultPackageManager.installAndPersist()` 写入对应作用域。
 该方法仅允许 loopback 请求，安装任务在进程内串行执行，避免多个 npm 进程同时修改 Package 目录或
@@ -471,7 +488,7 @@ settings。调用 `package.install` 的前端只提交包名和目标，不提�
 项目级变更只同步 cwd 属于目标 Workspace 的 session；因此响应返回 `reloadRequired: false`，新资源
 可以立即进入 Toolbox 和 Composer catalog。Pi Package 具有完整系统访问权限，安装前仍需审查来源。
 
-`package.remove` 接受已配置 Package 的精确 source，以及与安装相同的用户级 session 或项目级
+`package.remove` 接受已配置 Package 的精确 source，以及与安装相同的用户级或项目级
 `workspaceId` 目标。服务端先确认 source 确实存在于目标作用域的 Pi settings 中，通过 Pi 导出的
 `DefaultPackageManager.removeSourceFromSettings()` 持久化移除配置，再 reload 全部受影响 session；
 只有等旧 Extension 完成 `session_shutdown` 并退出活动 runtime 后，才在同一 mutation 锁内调用
@@ -490,6 +507,80 @@ Pi `SessionManager` 管理 JSONL session。进程内的 session registry 为正�
 Workbench 在 Pi JSONL 中保存 canonical event journal。每个 `SessionEvent` 都包含稳定递增的
 `seq`、epoch-millisecond `time` 和原始 `data`，因此 cold history 和 live mux 使用同一事件
 序列。`session.history` 按完整消息组分页，避免把 `message_start` / `message_end` 组从中间切开。
+
+### 上下文观测接口
+
+Workbench 通过最后加载的隐藏内联扩展与 Hosted Session 的权威事件订阅读取 Pi 已完成上游扩展
+转换后的有效值，覆盖完整 system prompt、system prompt 的 context-file/skill/tool 来源、当前 tools、
+送入 agent 的 messages、最终 provider payload、最终 AssistantMessage、工具执行开始/结束，以及
+agent/turn/retry/compaction 生命周期。`message_end` 产生独立的 `model-output` 审计事件，作为一次真实
+Model Step 的完成边界；它同时记录当时的 model、thinking level 和 provider 归一化 token usage：
+非缓存输入、输出、缓存读取、缓存写入和总量；Provider 可用时还保留 reasoning（输出的子集）与一小时
+缓存写入拆分。工具执行发生在该边界之后，并以 `toolCallId` 与 output 中的 tool call 配对。观测坐标按
+下面的层次关联：
+
+```text
+sessionId
+└── activationId            # 一次 HostedPiSession 内存激活
+    └── roundId             # prompt/continuation 到 agent_settled
+        └── runId/runIndex  # 初次 agent run 或自动重试 run
+            └── turnId/turnIndex
+                ├── requestId/requestIndex
+                └── toolCallId/toolName
+```
+
+前端使用三个 loopback-only unary RPC 和一个 mux 增量：
+
+- `session.contextTrace.activations({ sessionId })` 按开始时间倒序返回当前与历史 activation、事件数、
+  持久化字节数和完成状态，供审计界面选择一次具体的 Host 激活；
+- `session.contextTrace.list({ sessionId, activationId?, afterSeq?, limit? })` 返回当前或指定历史
+  activation 的轻量
+  `SessionContextTraceEventSummary[]`、`nextSeq`、`retainedFromSeq` 和能力声明；`seq` 只在对应
+  `activationId` 内递增，分页沿用最后一条 event 的 `seq`，`nextSeq` 是当前 activation 的排他高水位
+  而不是受 limit 影响的下一页 cursor；`model-output` 摘要直接携带 model、thinking level 和 token
+  usage，时间线无需加载多 MiB 详情即可展示输入、输出和缓存分项；旧 journal 的 `turn-end` usage 仍被
+  保留用于兼容回退。当前 activation 的内存环缺少请求区间，或热更新前的 prompt 摘要尚未携带预览时，
+  同一个 list 请求会从持久 journal 批量重建该页摘要；客户端不需要按 Turn 逐条 read 详情。客户端发现
+  activation 改变时应丢弃旧 cursor。历史读取还返回
+  `source: "disk"` 和 `integrity: "verified"`，表示读取期间已校验完整日志哈希链；
+- `session.contextTrace.read({ sessionId, traceId })` 按需读取一条完整的判别联合
+  `SessionContextTraceEvent`；详情已被容量淘汰时返回 `context-trace-not-found`；
+- mux 的 `session/context-trace` 只推与 list 相同的摘要。前端先把摘要插入时间线，用户展开节点时
+  再调用 read，避免每次完整上下文快照都在 WebSocket 中广播。
+
+浏览器侧对应的 typed helpers 是 `listPiRpcSessionContextTraceActivations()`、
+`listPiRpcSessionContextTrace()`、`readPiRpcSessionContextTrace()` 和
+`PiSessionManager.subscribeSessionContextTrace()`。推荐先注册 live listener，再读取当前 activation 的
+list 基线，并按 `activationId + seq` 去重；这样 list 与订阅建立之间发生的事件也不会丢失。读取历史
+activation 时不订阅 live 增量，并使用 `hasMore` 分页。
+
+审计 UI 不把 Pi 的内部 `turnIndex` 直接解释成用户 Turn。它按 `roundId` 投影为
+`Turn → Model Step → Context / Output`：一个 `roundId` 是一次用户交互；同一 round 中每个唯一
+`turnId` 是一次实际模型调用；`Context` 再按 Instructions、Tools、Conversation、Runtime 展开。
+自动重试会重置 Pi `turnIndex`，但不会重置 UI 中同一用户 Turn 内的 Model Step 编号。
+
+内存中只保留最多 512 条/16 MiB 的轻量摘要 hot ring 以支持低延迟实时时间线；完整 system prompt、
+messages、tools 和 provider payload 不进入该 ring，而是完整转换为可序列化数据后同步追加到独立的磁盘审计
+journal。只有磁盘 journal 初始化失败时，服务端才保留受限的完整事件内存降级缓存，并通过能力声明和
+界面错误明确提示。journal 不是 Pi canonical session JSONL 或 Workbench settings。默认根目录
+是 `~/.pi/agent/workbench-context-traces/v1`，也可用 `PI_WORKBENCH_CONTEXT_TRACE_DIR` 覆盖；session 目录名
+是 session ID 的 SHA-256，目录权限强制为 `0700`，journal 与元数据文件为 `0600`。一次 activation 使用
+append-only JSONL，每条记录包含前一条 hash 并形成 SHA-256 链；追加后执行 `fsync`，元数据通过临时文件
+`fsync` 后原子替换。正常释放会写 activation footer；进程异常退出时，已经同步的前缀仍可读取和校验。
+创建新 activation 时，默认按 100 次或约 1 GiB 的目标滚动清理已完成的最旧历史；当前或异常未完成的
+activation 不会被自动删除。
+
+Context Trace 不对字符串、数组、对象深度、资源数量或单条事件大小做截断，也不按字段名脱敏；图片、
+文件 body、provider payload 和 Pi 生命周期事件公开的完整 response headers 都会写入 journal。循环引用
+和 `bigint`、函数、`undefined` 等非 JSON 值仍会转换成可持久化标记。审计 journal 因而可能包含 API Key、
+Cookie、System Prompt、用户消息、附件内容、宿主路径和工具参数；RPC 必须保持 loopback-only，journal
+不应被同步到普通远程协作存储。
+
+Pi 目前的 `before_provider_request` 是“逻辑 provider 请求”钩子：底层 HTTP transport 在同一 payload
+和 headers 上重试时不会再次触发。因此协议明确返回
+`providerTransportAttempts: "logical-request-only"` 和 `transportAttemptsObserved: false`，不要把
+`requestId` 误画成每次网络尝试。当前 scope 是 `agent-turn`；compaction/branch summary 或附件 OCR
+内部自行发起的辅助模型请求，并不保证经过这个 provider payload 钩子。
 
 token 级 `message_update` 是例外：它通过 `session/message-update` 作为无 durable `seq` 的
 transient compact delta 实时发送，不写 JSONL、不进入 canonical event cache，也不推进 reconnect
@@ -532,6 +623,7 @@ approval 的上行回答必须通过 `POST /api/respond`。
   RPC 相同，并携带接纳后的运行态，但不重复传输 prompt 内容；
 - 权威 queue snapshot；
 - question/approval requested 与 resolved；
+- transient `session/context-trace` 上下文时间线摘要；
 - stream error；
 - contracts 还保留 jobs 和 projection payload，以便后续 producer 接入。
 
@@ -624,6 +716,8 @@ runtime/pi/
     │   └── command-service.ts
     ├── extensions/
     │   └── extension-service.ts
+    ├── internal-extensions/
+    │   └── message-termination.ts
     ├── skills/
     │   └── skill-service.ts
     ├── workspaces/
@@ -663,7 +757,9 @@ runtime/pi/
 - `PI_WORKBENCH_STATE_DIR`：旧版 Workspace/OCR 独立状态目录兼容覆盖；设置后继续使用旧版独立文件，
   供测试和已有部署逐步迁移；
 - `PI_WORKBENCH_WORKSPACE_STATE_FILE`：旧版 Workspace 独立状态文件兼容覆盖；
-- `PI_WORKBENCH_IMAGE_UNDERSTANDING_STATE_FILE`：旧版图片理解独立状态文件兼容覆盖。
+- `PI_WORKBENCH_IMAGE_UNDERSTANDING_STATE_FILE`：旧版图片理解独立状态文件兼容覆盖；
+- `PI_WORKBENCH_CONTEXT_TRACE_DIR`：独立的上下文审计 journal 根目录；默认是
+  `~/.pi/agent/workbench-context-traces/v1`。
 
 ## 运行和验证
 
@@ -775,13 +871,13 @@ output rule 使用受限 dot path，并以 `[]` 展平数组，例如
   状态消息。旧版 GLM/Paddle 配置在读取时映射为对应适配器，原凭据保持 write-only 且不会被覆盖。
 - 当前 queue edit 只接受 text content；附件 queue item 可以保留、删除或 steer，但不能通过该
   RPC 改写为新的附件内容。
-- Skills 当前实现 session-scoped 目录与详情、官方资源过滤规则的启停、身份授权的目录浏览和只读
+- Skills 当前实现与会话解耦的用户/项目 target 目录与详情、官方资源过滤规则的启停、身份授权的目录浏览和只读
   文件查看，以及独立 Skill 删除；Package Skill 删除复用 `package.remove`。编辑 Skill 文件与独立
   Skill 安装尚未加入 Workbench 协议。
-- Extensions 当前实现 session-scoped 目录、禁用资源保留、官方资源过滤规则的启停、按完整身份浏览
+- Extensions 当前实现与会话解耦的用户/项目 target 目录、禁用资源保留、官方资源过滤规则的启停、按完整身份浏览
   授权目录与读取只读源码，以及独立扩展的边界校验删除；Package 扩展删除复用 `package.remove`。
   编辑和独立安装尚未加入 Workbench 协议。
-- Pi Packages 当前实现 session-scoped 已配置列表、官方目录搜索/详情，以及 loopback-only 的用户级和
+- Pi Packages 当前实现与会话解耦的已配置列表、官方目录搜索/详情，以及 loopback-only 的用户级和
   已导入项目级 npm Package 安装与精确作用域移除；安装和移除会在确认相关 session 空闲后自动 reload
   所有受影响的已加载 session。
 - Commands 已聚合受支持的 Pi built-ins、session-scoped extension commands、prompt templates 和

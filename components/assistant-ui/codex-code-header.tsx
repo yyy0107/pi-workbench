@@ -1,11 +1,10 @@
 "use client";
 
-import { CheckIcon, CopyIcon } from "lucide-react";
-import { useState } from "react";
+import { CheckIcon, CircleXIcon, CopyIcon } from "lucide-react";
 
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { useClipboardCopy } from "@/hooks/use-clipboard-copy";
 import { useI18n } from "@/i18n";
-import { writeClipboardText } from "@/lib/clipboard";
 import { cn } from "@/lib/utils";
 
 export interface CodexCodeHeaderProps {
@@ -16,19 +15,24 @@ export interface CodexCodeHeaderProps {
 
 export function CodexCodeHeader({ code, language, className }: CodexCodeHeaderProps) {
   const { t } = useI18n();
-  const { isCopied, copyToClipboard } = useCopyToClipboard();
+  const { copy, isCopied, status } = useClipboardCopy();
   const displayedLanguage = displayCodeLanguage(language, t("assistant.codeBlock.plainText"));
+  const copyLabel = t(
+    status === "copied"
+      ? "assistant.actions.copied"
+      : status === "failed"
+        ? "assistant.actions.copyFailed"
+        : "assistant.actions.copy",
+  );
 
   return (
     <div className={cn("aui-codex-code-header", className)}>
       <span className="aui-codex-code-language">{displayedLanguage}</span>
-      <TooltipIconButton
-        tooltip={t("assistant.actions.copy")}
-        disabled={!code}
-        onClick={() => copyToClipboard(code)}
-      >
+      <TooltipIconButton tooltip={copyLabel} disabled={!code} onClick={() => void copy(code)}>
         {isCopied ? (
           <CheckIcon className="animate-in zoom-in-50 fade-in duration-200 ease-out" />
+        ) : status === "failed" ? (
+          <CircleXIcon className="text-destructive animate-in zoom-in-50 fade-in duration-200 ease-out" />
         ) : (
           <CopyIcon className="animate-in zoom-in-75 fade-in duration-150" />
         )}
@@ -47,21 +51,4 @@ export function displayCodeLanguage(language: string | undefined, plainTextLabel
   if (normalized === "tsx") return "TSX";
 
   return normalized.charAt(0).toUpperCase() + normalized.slice(1);
-}
-
-function useCopyToClipboard({ copiedDuration = 3000 }: { copiedDuration?: number } = {}) {
-  const [isCopied, setIsCopied] = useState(false);
-
-  const copyToClipboard = (value: string) => {
-    if (!value || isCopied) return;
-
-    void writeClipboardText(value).then((copied) => {
-      if (copied) {
-        setIsCopied(true);
-        window.setTimeout(() => setIsCopied(false), copiedDuration);
-      }
-    });
-  };
-
-  return { isCopied, copyToClipboard };
 }

@@ -342,7 +342,7 @@ test("resource directory openers create a file workspace without selecting a fil
         scheme: "skill-directory",
         path: "/home/user/.pi/agent/skills/review",
         label: "review",
-        metadata: { sessionId: "session-1", skillName: "review" },
+        metadata: { resourceTarget: { scope: "user" }, skillName: "review" },
       },
       context,
     },
@@ -355,7 +355,7 @@ test("resource directory openers create a file workspace without selecting a fil
         path: "/home/user/.pi/agent/extensions/review/index.ts",
         label: "review",
         metadata: {
-          sessionId: "session-1",
+          resourceTarget: { scope: "user" },
           extensionName: "review",
           extensionFilePath: "/home/user/.pi/agent/extensions/review/index.ts",
           extensionSource: "auto",
@@ -372,13 +372,13 @@ test("resource directory openers create a file workspace without selecting a fil
   assert.deepEqual(revealed[0]?.params, {
     source: "skill",
     rootPath: "/home/user/.pi/agent/skills/review",
-    sessionId: "session-1",
+    resourceTarget: { scope: "user" },
     skillName: "review",
   });
   assert.deepEqual(revealed[1]?.params, {
     source: "extension",
     rootPath: "/home/user/.pi/agent/extensions/review",
-    sessionId: "session-1",
+    resourceTarget: { scope: "user" },
     extensionName: "review",
     extensionFilePath: "/home/user/.pi/agent/extensions/review/index.ts",
     extensionSource: "auto",

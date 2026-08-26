@@ -2978,3 +2978,69 @@ test("applies the correlated prompt admission from events.mux", async (t) => {
   assert.equal(manager.isRunning(created.id), true);
   assert.equal(session.getSnapshot().isRunning, true);
 });
+
+test("exposes context trace summaries to visualization subscribers", (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const internals = manager as unknown as {
+    handleMuxFrame(frame: ServerRequest<MuxStreamPayload>, generation: number): void;
+  };
+  const received: Array<{ kind: string; seq: number }> = [];
+  const unsubscribe = manager.subscribeSessionContextTrace((event) => {
+    received.push({ kind: event.kind, seq: event.seq });
+    event.seq = 99;
+  });
+
+  internals.handleMuxFrame(
+    {
+      type: "server-request",
+      rpcId: "trace-rpc",
+      method: "session/context-trace",
+      payload: {
+        type: "session/context-trace",
+        sessionId: "session-1",
+        event: {
+          schemaVersion: 1,
+          traceId: "activation-1:0",
+          sessionId: "session-1",
+          activationId: "activation-1",
+          seq: 0,
+          time: 1_725_000_000_000,
+          kind: "round-start",
+          detailBytes: 48,
+          truncated: false,
+          redacted: false,
+          roundId: "round-1",
+        },
+      },
+    },
+    1,
+  );
+  unsubscribe();
+  internals.handleMuxFrame(
+    {
+      type: "server-request",
+      rpcId: "trace-rpc-2",
+      method: "session/context-trace",
+      payload: {
+        type: "session/context-trace",
+        sessionId: "session-1",
+        event: {
+          schemaVersion: 1,
+          traceId: "activation-1:1",
+          sessionId: "session-1",
+          activationId: "activation-1",
+          seq: 1,
+          time: 1_725_000_000_001,
+          kind: "run-start",
+          detailBytes: 20,
+          truncated: false,
+          redacted: false,
+        },
+      },
+    },
+    1,
+  );
+
+  assert.deepEqual(received, [{ kind: "round-start", seq: 0 }]);
+});

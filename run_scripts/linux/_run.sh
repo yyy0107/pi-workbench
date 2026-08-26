@@ -19,10 +19,8 @@ if ! command -v pnpm >/dev/null 2>&1; then
   exit 1
 fi
 
-if [[ ! -d node_modules ]]; then
-  echo "> Dependencies are missing; running pnpm install"
-  pnpm install
-fi
+echo "> Synchronizing dependencies from pnpm-lock.yaml"
+pnpm install --frozen-lockfile --prod=false
 
 listener_pids() {
   local port="$1"

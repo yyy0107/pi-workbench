@@ -4,6 +4,7 @@ import { agentConfigurationExtension } from "./builtin/agent-configuration";
 import { archivedChatsExtension } from "./builtin/archived-chats";
 import { appearanceExtension } from "./builtin/appearance";
 import { connectionStatusExtension } from "./builtin/connection-status";
+import { contextTraceExtension } from "./builtin/context-trace";
 import { attachmentUnderstandingExtension } from "./builtin/image-understanding";
 import { interactiveRequestsExtension } from "./builtin/interactive-requests";
 import { localeSelectorExtension } from "./builtin/locale-selector";
@@ -48,6 +49,7 @@ export const builtinExtensions = [
   archivedChatsExtension,
   modelSelectorExtension,
   connectionStatusExtension,
+  contextTraceExtension,
   tokenUsageExtension,
   workspaceFileExtension,
   workspaceExplorerExtension,

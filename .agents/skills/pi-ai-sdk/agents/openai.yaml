@@ -1,0 +1,4 @@
+interface:
+  display_name: "Pi AI SDK"
+  short_description: "Use Pi AI models, providers, streams, and auth"
+  default_prompt: "Use $pi-ai-sdk to implement a version-correct Pi AI integration for this Workbench."

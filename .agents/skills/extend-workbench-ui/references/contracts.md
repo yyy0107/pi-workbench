@@ -6,14 +6,15 @@ Use this reference to verify the current first-version public API before impleme
 
 - [Public boundary](#public-boundary)
 - [Extension lifecycle](#extension-lifecycle)
+- [Toolbox catalog metadata](#toolbox-catalog-metadata)
 - [Slot contract](#slot-contract)
 - [Panel contract](#panel-contract)
 - [Command contract](#command-contract)
-- [Opener contract](#opener-contract)
 - [Composer Command contract](#composer-command-contract)
 - [Settings contract](#settings-contract)
 - [Main View contract](#main-view-contract)
 - [Renderer contract](#renderer-contract)
+- [Opener contract](#opener-contract)
 - [RightWorkspace boundary](#rightworkspace-boundary)
 - [Pi runtime boundary](#pi-runtime-boundary)
 - [Services available to components](#services-available-to-components)
@@ -65,6 +66,7 @@ interface ExtensionContext {
   readonly panels: PanelRegistry;
   readonly commands: CommandRegistry;
   readonly openers: OpenerRegistry;
+  readonly composerCommands: ComposerCommandRegistry;
   readonly renderers: RendererRegistry;
   readonly settings: SettingsRegistry;
   readonly mainViews: MainViewRegistry;
@@ -77,6 +79,7 @@ interface WorkbenchExtension {
   id: string;
   name: string;
   version: string;
+  toolbox?: ExtensionToolboxCapability;
   setup(context: ExtensionContext): ExtensionSetupResult;
 }
 ```
@@ -97,6 +100,56 @@ JavaScript loading.
 
 Define extension objects at module scope. ExtensionProvider compares object identity when synchronizing the static array.
 
+## Toolbox catalog metadata
+
+`WorkbenchExtension.toolbox` is optional discovery metadata for real React component contributions.
+It lets the Toolbox list, locate, preview, and—when the static catalog allows it—install a component
+extension. It does not register or activate a contribution; `setup()` must still register the same
+component against its actual public Registry.
+
+```ts
+interface ExtensionToolboxCapability {
+  kind: "component-extension";
+  distribution: "builtin" | "installable";
+  name: LocalizableText;
+  description?: LocalizableText;
+  entryFile: string;
+  contributions: readonly [ComponentExtensionContribution, ...ComponentExtensionContribution[]];
+}
+
+type ComponentExtensionContributionKind =
+  | "slot"
+  | "panel"
+  | "message-renderer"
+  | "message-part-renderer"
+  | "tool-renderer"
+  | "data-renderer"
+  | "settings-section"
+  | "settings-item"
+  | "main-view"
+  | "workspace-surface";
+
+interface ComponentExtensionContributionBase {
+  id: string;
+  surface: LocalizableText;
+  host?: string;
+  description?: LocalizableText;
+  preview: ComponentType;
+  sourceFiles: readonly [string, ...string[]];
+}
+```
+
+For `kind: "slot"`, `target` must be a real `WorkbenchSlot`; for `kind: "panel"`, it must be a
+`PanelLocation`; other kinds use their actual Registry key or host path. Keep `id`, `target`,
+`entryFile`, and `sourceFiles` aligned with the implementation. The preview is a no-props component
+that uses the real design system and renders representative states without invoking privileged
+runtime behavior. Use typed `defineMessage(...)` descriptors for user-visible metadata.
+
+An uninstallable entry belongs under `extensions/installable/<feature>/`, declares
+`distribution: "installable"`, and is listed in `installableComponentExtensions`. Fixed product
+features remain under `extensions/builtin/` and enter `builtinExtensions`; adding Toolbox metadata
+does not change that ownership boundary.
+
 ## Slot contract
 
 Available slots:
@@ -110,6 +163,7 @@ shell.overlay
 sidebar.brand
 sidebar.header
 sidebar.navigation
+sidebar.toolbox
 sidebar.workspace.actions
 sidebar.top
 sidebar.bottom
@@ -117,6 +171,7 @@ sidebar.footer
 panel.right.add-menu
 panel.right.actions
 workspace.actions
+workspace.empty.actions
 thread.left
 thread.header
 thread.before
@@ -153,6 +208,10 @@ interface ComposerDrawerSlotContext extends ComposerSlotContext {
   closeDrawer(): void;
 }
 
+interface SidebarToolboxSlotContext {
+  searchQuery: string;
+}
+
 interface RightPanelAddMenuSlotContext {
   activePanelId: string;
   closeMenu(): void;
@@ -167,12 +226,18 @@ interface WorkspaceActionsSlotContext {
   isOpen: boolean;
 }
 
+interface WorkspaceEmptyActionsSlotContext {
+  isOpen: boolean;
+}
+
 interface SlotPropsMap {
   "shell.background": Record<never, never>;
   "shell.overlay": Record<never, never>;
+  "sidebar.toolbox": SidebarToolboxSlotContext;
   "panel.right.add-menu": RightPanelAddMenuSlotContext;
   "panel.right.actions": RightPanelActionsSlotContext;
   "workspace.actions": WorkspaceActionsSlotContext;
+  "workspace.empty.actions": WorkspaceEmptyActionsSlotContext;
   "thread.left": { threadId?: string };
   "thread.header": { threadId?: string };
   "thread.before": { threadId?: string };
@@ -187,7 +252,7 @@ interface SlotPropsMap {
   "composer.drawer.left": ComposerDrawerSlotContext;
   "composer.drawer.right": ComposerDrawerSlotContext;
   "composer.after": ComposerSlotContext;
-  // Header, shell, Sidebar, and Statusbar slots use Record<never, never>.
+  // Other Header, Sidebar, and Statusbar slots use Record<never, never>.
 }
 ```
 
@@ -221,6 +286,7 @@ Sidebar positions are semantic:
 - `sidebar.brand`: replaceable product identity at the top of the sidebar;
 - `sidebar.header`: optional compact controls below the brand;
 - `sidebar.navigation`: optional navigation directly after the core section switcher;
+- `sidebar.toolbox`: the Toolbox section body, filtered with the host-owned `searchQuery`;
 - `sidebar.workspace.actions`: compact controls on the right side of the Workspace heading;
 - `sidebar.top`: contextual content above the core thread list;
 - `sidebar.bottom`: contextual content below the core thread list;
@@ -238,8 +304,10 @@ entry point.
 `panel.right.add-menu` and `panel.right.actions` remain declared for the legacy right PanelDock, but
 the current shell does not mount a right Panel host. Do not use them for new entry points. The
 current inspector toolbar mounts `workspace.actions`; contributions receive
-`{ activeSurfaceId?, isOpen }` and should render one compact, accessible control. Inspector
-capabilities are registered separately through `context.workspace.register(...)`.
+`{ activeSurfaceId?, isOpen }` and should render one compact, accessible control.
+`workspace.empty.actions` receives `{ isOpen }` and contributes a launch action only while the
+Inspector has no Surface. Inspector capabilities are registered separately through
+`context.workspace.register(...)`.
 
 ## Panel contract
 
@@ -358,6 +426,10 @@ interface SettingsSectionDefinition {
   description?: LocalizableText;
   icon?: LucideIcon;
   headerAction?: ComponentType<SettingsSectionHeaderActionComponentProps>;
+  group?: {
+    id: string;
+    title: LocalizableText;
+  };
   order?: number;
 }
 
@@ -386,8 +458,10 @@ interface SettingsRegistry {
 }
 ```
 
-Section ids are globally unique. Item ids are unique within one section. `headerAction` renders a
-feature-owned control beside the section content heading and receives the stable section id; the
+Section ids are globally unique. Item ids are unique within one section. Sections that share a
+`group.id` render beneath one localizable navigation heading; use the same title descriptor for
+every occurrence of that group id. `headerAction` renders a feature-owned control beside the section
+content heading and receives the stable section id; the
 Settings Host owns its placement and error isolation. Sections and items sort by
 ascending `order`, preserving registration order for ties. An item may register before its target
 section so static extension activation order does not create a dependency. The settings Host owns
@@ -442,15 +516,26 @@ type ToolRendererComponent = ToolCallMessagePartComponent;
 type DataRendererComponent = DataMessagePartComponent;
 
 context.renderers.message.register({ id, component: MessageRenderer });
+context.renderers.parts.register({ id, canRender, component: MessagePartRenderer });
 context.renderers.tools.register(toolName, ToolRenderer);
 context.renderers.data.register(dataName, DataRenderer);
+context.renderers.toolPresentations.register(toolName, toolPresentation);
+context.renderers.dataPresentations.register(dataName, dataPresentation);
 ```
 
 The Message Renderer is a singleton contribution that owns `MessagePrimitive.Parts` or
 `MessagePrimitive.GroupedParts`, including reasoning/tool/data grouping and presentation. Only one
 can be active; without one, Workbench renders its minimal fallback. Tool and Data renderers compose
 under it through `RendererHost` and retain exact, case-sensitive name matching in separate
-uniqueness scopes. Renderer APIs have no `order` or `priority` field.
+uniqueness scopes. Predicate-matched Message Part renderers are tried in registration order; the
+first match wins, and the active Message Renderer decides where to mount `MessagePartRendererHost`
+with its existing fallback. Renderer APIs have no numeric `order` or `priority` field.
+
+Tool/Data presentation registries add timeline metadata without replacing the corresponding Part
+renderer. Tool presentations provide localizable active/completed labels, an icon, an optional pure
+stream-safe summary, and an optional disclosure controller. Data presentations can opt a named Data
+Part into the timeline and provide pure visibility/activity predicates. Names are exact,
+case-sensitive, and independently unique from the Tool/Data renderer registries.
 
 Resolution order:
 
@@ -528,6 +613,9 @@ const surface = context.workspace.register({
   kind: "example",
   icon: ExampleIcon,
   cachePolicy: "keep-alive",
+  persistence: "persistent",
+  defaultPlacement: "primary",
+  allowDuplicateResources: false,
   getResourceKey: (params, workspaceContext) =>
     `example:${workspaceContext.projectId}:${params.id}`,
   getDefaultScope: (_params, workspaceContext) => ({
@@ -544,6 +632,11 @@ const surface = context.workspace.register({
 `kind` is globally unique. `menuItem` is rendered in the core add-surface menu and `runtime` is
 mounted once inside AssistantRuntimeProvider. Both are optional and owned by the extension.
 Registration is tracked and removed on rollback/deactivation.
+
+`cachePolicy` controls whether inactive content stays mounted. `persistence: "session"` excludes an
+instance from reload restoration; omission behaves as persistent. `defaultPlacement` defaults to
+`"primary"`. Unless `allowDuplicateResources` is true, opening the same `resourceKey` reveals or
+moves the existing instance instead of creating another one.
 
 `header` is optional active-primary chrome. The core mounts it once above both the primary and
 auxiliary panes, so feature-owned breadcrumbs or resource actions can span the complete inspector
@@ -588,6 +681,13 @@ example the current queue-pause compatibility command). If a required method is 
 wire contracts, validation/router, domain service, client helper, and tests before wiring the UI.
 Do not infer unimplemented Harness APIs or bypass the trust boundary from a component.
 
+When the change reaches server-side SDK code, switch references instead of treating the browser
+runtime as the package API: use `$pi-coding-agent-sdk` for AgentSession, coding-agent extensions,
+resource loading, and `@earendil-works/pi-coding-agent`; use `$pi-ai-sdk` for model/provider/auth,
+message/tool schemas, image requests, streaming events, and direct `@earendil-works/pi-ai` work.
+Browser extensions should consume those capabilities through the maintained Workbench Pi contracts
+and shared connection.
+
 ## Services available to components
 
 Use hooks inside client components:
@@ -624,13 +724,17 @@ Extension id          global within ExtensionManager
 Slot contribution id unique within one Slot
 Panel id              global within PanelRegistry
 Command id            global within CommandRegistry
+Composer command id   global within ComposerCommandRegistry
 Open handler id       global within OpenerRegistry
 Settings section id   global within SettingsRegistry
 Main view kind         global within MainViewRegistry
 Settings item id      unique within one settings section
 Message renderer      one active within Message RendererRegistry
+Message part renderer id global within MessagePartRendererRegistry
 Tool renderer name    unique within Tool RendererRegistry
 Data renderer name    unique within Data RendererRegistry
+Tool presentation name unique within ToolPresentationRegistry
+Data presentation name unique within DataPresentationRegistry
 Workspace surface kind global within WorkspaceSurfaceRegistry
 ```
 
@@ -639,10 +743,14 @@ Slots and Settings sections/items have numeric ordering. The combined active ext
 activation order, same-order ties across extension registrations, conflicting shortcut selection,
 and command display order within a category.
 
-Slot, Panel, Command, Open Handler, Settings, Main View, and Workspace Surface definitions are copied and shallow-frozen at registration. Dispose and register a replacement instead of mutating registered data.
+Slot, Panel, Command, Composer Command, Open Handler, Renderer/presentation, Settings, Main View, and
+Workspace Surface definitions are copied and shallow-frozen at registration. Dispose and register a
+replacement instead of mutating registered data.
 
 ## Error isolation
 
-Slot, Panel, Settings item, Main View, Renderer, and Workspace Surface contributions receive separate React Error Boundaries. Setup failures are reported and rolled back. Palette/keyboard Command execution reports rejected Promises.
+Slot, Panel, Settings item, Main View, Renderer, and Workspace Surface contributions receive separate
+React Error Boundaries. Setup failures are reported and rolled back. Palette/keyboard Command
+execution reports rejected Promises.
 
 React Error Boundaries do not catch event-handler errors or arbitrary asynchronous failures. Handle those locally or route them through the extension environment.

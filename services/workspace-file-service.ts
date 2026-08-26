@@ -17,6 +17,8 @@ import type {
   ExtensionFilesListValue,
   ExtensionSourceOrigin,
   ExtensionSourceScope,
+  PiResourceCatalogTarget,
+  PiResourceRequest,
   SkillFileReadPayload,
   SkillFileSnapshotValue,
   SkillFilesListPayload,
@@ -36,23 +38,25 @@ export interface WorkspaceFileSession {
   workspaceId: string;
 }
 
-export interface SkillFileSession {
+type ResourceCatalogIdentity =
+  | { resourceTarget: PiResourceCatalogTarget; sessionId?: never }
+  | { sessionId: string; resourceTarget?: never };
+
+export type SkillFileSession = ResourceCatalogIdentity & {
   source: "skill";
   rootPath: string;
-  sessionId: string;
   skillName: string;
-}
+};
 
-export interface ExtensionFileSession {
+export type ExtensionFileSession = ResourceCatalogIdentity & {
   source: "extension";
   rootPath: string;
-  sessionId: string;
   extensionName: string;
   extensionFilePath: string;
   extensionSource: string;
   extensionScope: ExtensionSourceScope;
   extensionOrigin: ExtensionSourceOrigin;
-}
+};
 
 export type ResourceFileSession = SkillFileSession | ExtensionFileSession;
 export type FileWorkspaceSession = WorkspaceFileSession | ResourceFileSession;
@@ -171,6 +175,18 @@ function normalizedAbsolutePath(path: string): string {
   return normalized.replace(/\/+$/, "");
 }
 
+function normalizedPathKey(path: string): string {
+  const normalized = normalizedAbsolutePath(path);
+  return /^[a-zA-Z]:\//.test(normalized) || normalized.startsWith("//")
+    ? normalized.toLowerCase()
+    : normalized;
+}
+
+function isDescendantPath(parentKey: string, candidateKey: string): boolean {
+  if (parentKey === "/") return candidateKey.startsWith("/") && candidateKey !== parentKey;
+  return candidateKey.startsWith(`${parentKey}/`);
+}
+
 export function workspaceRelativePath(rootPath: string | undefined, path: string): string {
   if (!isAbsoluteWorkspacePath(path)) return normalizeRelativePath(path);
   if (!rootPath) throw new Error(`Workspace root is unavailable for ${path}`);
@@ -201,6 +217,39 @@ function nonEmptyString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value : undefined;
 }
 
+function resourceCatalogTarget(value: unknown): PiResourceCatalogTarget | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const candidate = value as Readonly<Record<string, unknown>>;
+  if (candidate.scope === "user") return { scope: "user" };
+  const workspaceId = nonEmptyString(candidate.workspaceId);
+  return candidate.scope === "project" && workspaceId
+    ? { scope: "project", workspaceId }
+    : undefined;
+}
+
+function resourceCatalogIdentity(
+  params: Readonly<Record<string, unknown>>,
+): ResourceCatalogIdentity | undefined {
+  const target = resourceCatalogTarget(params.resourceTarget);
+  if (target) return { resourceTarget: target };
+  const sessionId = nonEmptyString(params.sessionId);
+  return sessionId ? { sessionId } : undefined;
+}
+
+function resourceRequest(session: ResourceCatalogIdentity): PiResourceRequest {
+  return session.resourceTarget
+    ? { target: session.resourceTarget }
+    : { sessionId: session.sessionId };
+}
+
+function resourceMetadata(
+  session: ResourceCatalogIdentity,
+): { resourceTarget: PiResourceCatalogTarget } | { sessionId: string } {
+  return session.resourceTarget
+    ? { resourceTarget: session.resourceTarget }
+    : { sessionId: session.sessionId };
+}
+
 /**
  * Resolves the complete identity shared by File Surface chrome, breadcrumbs, Explorer, and file
  * reads. An incomplete resource identity deliberately resolves to undefined so those capabilities
@@ -220,16 +269,16 @@ export function resolveFileWorkspaceSession(
 
   if (params.source === "skill") {
     const rootPath = nonEmptyString(params.rootPath);
-    const sessionId = nonEmptyString(params.sessionId);
+    const identity = resourceCatalogIdentity(params);
     const skillName = nonEmptyString(params.skillName);
-    return rootPath && sessionId && skillName
-      ? { source: "skill", rootPath, sessionId, skillName }
+    return rootPath && identity && skillName
+      ? { source: "skill", rootPath, ...identity, skillName }
       : undefined;
   }
 
   if (params.source === "extension") {
     const rootPath = nonEmptyString(params.rootPath);
-    const sessionId = nonEmptyString(params.sessionId);
+    const identity = resourceCatalogIdentity(params);
     const extensionName = nonEmptyString(params.extensionName);
     const extensionFilePath = nonEmptyString(params.extensionFilePath);
     const extensionSource = nonEmptyString(params.extensionSource);
@@ -244,7 +293,7 @@ export function resolveFileWorkspaceSession(
         ? params.extensionOrigin
         : undefined;
     return rootPath &&
-      sessionId &&
+      identity &&
       extensionName &&
       extensionFilePath &&
       extensionSource &&
@@ -253,7 +302,7 @@ export function resolveFileWorkspaceSession(
       ? {
           source: "extension",
           rootPath,
-          sessionId,
+          ...identity,
           extensionName,
           extensionFilePath,
           extensionSource,
@@ -291,11 +340,11 @@ export function fileWorkspaceSessionKey(session: FileWorkspaceSession): string {
     return JSON.stringify(["workspace", session.workspaceId, session.rootPath]);
   }
   if (session.source === "skill") {
-    return JSON.stringify(["skill", session.sessionId, session.skillName, session.rootPath]);
+    return JSON.stringify(["skill", resourceRequest(session), session.skillName, session.rootPath]);
   }
   return JSON.stringify([
     "extension",
-    session.sessionId,
+    resourceRequest(session),
     session.extensionName,
     session.extensionFilePath,
     session.extensionSource,
@@ -404,7 +453,7 @@ export function fileWorkspaceOpenableResource(
       path: file.path,
       label: file.name,
       metadata: {
-        sessionId: session.sessionId,
+        ...resourceMetadata(session),
         skillName: session.skillName,
         relativePath: file.relativePath,
       },
@@ -416,7 +465,7 @@ export function fileWorkspaceOpenableResource(
       path: file.path,
       label: file.name,
       metadata: {
-        sessionId: session.sessionId,
+        ...resourceMetadata(session),
         extensionName: session.extensionName,
         extensionFilePath: session.extensionFilePath,
         extensionSource: session.extensionSource,
@@ -448,7 +497,7 @@ export class BufferedFileWorkspaceService implements FileWorkspaceService {
         throw new Error("The Skill file backend is unavailable");
       }
       const listing = await this.#backend.listSkillDirectory({
-        sessionId: context.session.sessionId,
+        ...resourceRequest(context.session),
         name: context.session.skillName,
         relativePath: workspaceRelativePath(context.rootPath, path),
       });
@@ -459,7 +508,7 @@ export class BufferedFileWorkspaceService implements FileWorkspaceService {
         throw new Error("The extension file backend is unavailable");
       }
       const listing = await this.#backend.listExtensionDirectory({
-        sessionId: context.session.sessionId,
+        ...resourceRequest(context.session),
         name: context.session.extensionName,
         filePath: context.session.extensionFilePath,
         source: context.session.extensionSource,
@@ -543,7 +592,7 @@ export class BufferedFileWorkspaceService implements FileWorkspaceService {
     if (context.session?.source === "skill") {
       if (!this.#backend?.readSkillFile) throw new Error("The Skill file backend is unavailable");
       resource = await this.#backend.readSkillFile({
-        sessionId: context.session.sessionId,
+        ...resourceRequest(context.session),
         name: context.session.skillName,
         relativePath: workspaceRelativePath(context.rootPath, path),
       });
@@ -552,7 +601,7 @@ export class BufferedFileWorkspaceService implements FileWorkspaceService {
         throw new Error("The extension file backend is unavailable");
       }
       resource = await this.#backend.readExtensionFile({
-        sessionId: context.session.sessionId,
+        ...resourceRequest(context.session),
         name: context.session.extensionName,
         filePath: context.session.extensionFilePath,
         source: context.session.extensionSource,
@@ -563,8 +612,7 @@ export class BufferedFileWorkspaceService implements FileWorkspaceService {
     }
     if (resource) {
       const snapshot = resourceSnapshot(resource);
-      this.filesFor(context.scope).set(snapshot.path, snapshot);
-      this.notify(context.scope, snapshot.path);
+      this.storeSnapshot(context.scope, snapshot);
       return { ...snapshot };
     }
     if (context.workspaceId && this.#backend) {
@@ -573,8 +621,7 @@ export class BufferedFileWorkspaceService implements FileWorkspaceService {
         relativePath: workspaceRelativePath(context.rootPath, path),
       });
       const snapshot = snapshotFromRemote(remote);
-      this.filesFor(context.scope).set(snapshot.path, snapshot);
-      this.notify(context.scope, snapshot.path);
+      this.storeSnapshot(context.scope, snapshot);
       return { ...snapshot };
     }
 
@@ -600,8 +647,7 @@ export class BufferedFileWorkspaceService implements FileWorkspaceService {
         expectedVersion: version,
       });
       const snapshot = snapshotFromRemote(remote);
-      this.filesFor(context.scope).set(snapshot.path, snapshot);
-      this.notify(context.scope, snapshot.path);
+      this.storeSnapshot(context.scope, snapshot);
       return { ...snapshot };
     }
 
@@ -620,22 +666,21 @@ export class BufferedFileWorkspaceService implements FileWorkspaceService {
       modifiedAt: Date.now(),
       size: new TextEncoder().encode(content).byteLength,
     };
-    this.filesFor(context.scope).set(absolutePath, snapshot);
-    this.notify(context.scope, absolutePath);
+    this.storeSnapshot(context.scope, snapshot);
     return { ...snapshot };
   }
 
   watchPath(context: WorkspaceFileContext, path: string, listener: () => void): Unsubscribe {
-    const absolutePath = workspaceAbsolutePath(context.rootPath, path);
+    const pathKey = normalizedPathKey(workspaceAbsolutePath(context.rootPath, path));
     const scopeKey = this.scopeKey(context.scope);
     const scopeListeners = this.#listeners.get(scopeKey) ?? new Map();
-    const listeners = scopeListeners.get(absolutePath) ?? new Set();
+    const listeners = scopeListeners.get(pathKey) ?? new Set();
     listeners.add(listener);
-    scopeListeners.set(absolutePath, listeners);
+    scopeListeners.set(pathKey, listeners);
     this.#listeners.set(scopeKey, scopeListeners);
     return () => {
       listeners.delete(listener);
-      if (listeners.size === 0) scopeListeners.delete(absolutePath);
+      if (listeners.size === 0) scopeListeners.delete(pathKey);
       if (scopeListeners.size === 0) this.#listeners.delete(scopeKey);
     };
   }
@@ -648,9 +693,10 @@ export class BufferedFileWorkspaceService implements FileWorkspaceService {
     const relativePath = (file as File & { webkitRelativePath?: string }).webkitRelativePath;
     const pathParts = (relativePath || file.name).split("/").filter(Boolean);
     const path = [rootPath.replace(/[\\/]$/, ""), ...pathParts].filter(Boolean).join("/");
+    const absolutePath = workspaceAbsolutePath(context.rootPath, path);
     const content = await file.text();
     const snapshot: FileSnapshot = {
-      path,
+      path: absolutePath,
       source: "memory",
       name: file.name,
       content,
@@ -659,8 +705,7 @@ export class BufferedFileWorkspaceService implements FileWorkspaceService {
       modifiedAt: file.lastModified || Date.now(),
       size: file.size,
     };
-    this.filesFor(context.scope).set(path, snapshot);
-    this.notify(context.scope, path);
+    this.storeSnapshot(context.scope, snapshot);
     return { ...snapshot };
   }
 
@@ -684,8 +729,7 @@ export class BufferedFileWorkspaceService implements FileWorkspaceService {
       modifiedAt: Date.now(),
       size: new TextEncoder().encode(content).byteLength,
     };
-    this.filesFor(context.scope).set(absolutePath, snapshot);
-    this.notify(context.scope, absolutePath);
+    this.storeSnapshot(context.scope, snapshot);
     return { ...snapshot };
   }
 
@@ -693,19 +737,19 @@ export class BufferedFileWorkspaceService implements FileWorkspaceService {
     const absolutePath = workspaceAbsolutePath(context.rootPath, path);
     const current = this.getSnapshot(context, absolutePath);
     if (!current) return;
-    this.filesFor(context.scope).set(absolutePath, {
+    const snapshot = {
       ...current,
       content,
       modifiedAt: Date.now(),
       size: new TextEncoder().encode(content).byteLength,
-    });
-    this.notify(context.scope, absolutePath);
+    };
+    this.storeSnapshot(context.scope, snapshot);
   }
 
   getSnapshot(context: WorkspaceFileContext, path: string): FileSnapshot | undefined {
     return this.#files
       .get(this.scopeKey(context.scope))
-      ?.get(workspaceAbsolutePath(context.rootPath, path));
+      ?.get(normalizedPathKey(workspaceAbsolutePath(context.rootPath, path)));
   }
 
   private scopeKey(scope: WorkspaceScope): string {
@@ -719,11 +763,17 @@ export class BufferedFileWorkspaceService implements FileWorkspaceService {
     return files;
   }
 
+  private storeSnapshot(scope: WorkspaceScope, snapshot: FileSnapshot): void {
+    this.filesFor(scope).set(normalizedPathKey(snapshot.path), snapshot);
+    this.notify(scope, snapshot.path);
+  }
+
   private notify(scope: WorkspaceScope, path: string): void {
+    const pathKey = normalizedPathKey(path);
     const scopeListeners = this.#listeners.get(this.scopeKey(scope));
-    for (const listener of scopeListeners?.get(path) ?? []) listener();
-    for (const [watchedPath, listeners] of scopeListeners ?? []) {
-      if (watchedPath === path || !path.startsWith(`${watchedPath}/`)) continue;
+    for (const listener of scopeListeners?.get(pathKey) ?? []) listener();
+    for (const [watchedPathKey, listeners] of scopeListeners ?? []) {
+      if (watchedPathKey === pathKey || !isDescendantPath(watchedPathKey, pathKey)) continue;
       for (const listener of listeners) listener();
     }
   }

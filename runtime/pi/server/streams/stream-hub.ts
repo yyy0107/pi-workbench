@@ -117,6 +117,7 @@ const MUX_TYPES = new Set<string>([
   "session/queue",
   "session/jobs",
   "session/projection",
+  "session/context-trace",
   "stream/error",
 ]);
 

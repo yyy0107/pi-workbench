@@ -33,6 +33,9 @@ import {
   type ToolboxMainViewParams,
 } from "./toolbox-capability";
 import { ToolboxCapabilityDetails } from "./toolbox-capability-surface";
+import { toolboxScopeMatchesCapability } from "./toolbox-scope";
+import { ToolboxScopeSelect } from "./toolbox-scope-select";
+import { useToolboxScope } from "./toolbox-scope-store";
 import { usePiPackageCatalog } from "./use-pi-package-catalog";
 
 type PackageTypeFilter = "all" | PiPackageCatalogFilterType;
@@ -218,8 +221,9 @@ function DetailPane({ selected }: { selected?: ToolboxCapabilitySurfaceParams })
   );
 }
 
-export function ToolboxMainView({ view }: MainViewProps<ToolboxMainViewParams>) {
+export function ToolboxMainView({ close, view }: MainViewProps<ToolboxMainViewParams>) {
   const { number, t } = useI18n();
+  const scope = useToolboxScope();
   const detailOnly = view.params.detailOnly === true;
   const [selected, setSelected] = useState<ToolboxCapabilitySurfaceParams | undefined>(
     view.params.selected,
@@ -243,6 +247,16 @@ export function ToolboxMainView({ view }: MainViewProps<ToolboxMainViewParams>) 
   }, [view.revision, view.params]);
 
   useEffect(() => setPackagePage(1), [packageSort, packageType, query]);
+
+  useEffect(() => {
+    if (
+      detailOnly &&
+      view.params.selected &&
+      !toolboxScopeMatchesCapability(scope, view.params.selected)
+    ) {
+      close();
+    }
+  }, [close, detailOnly, scope, view.params.selected]);
 
   if (detailOnly) {
     return (
@@ -301,6 +315,12 @@ export function ToolboxMainView({ view }: MainViewProps<ToolboxMainViewParams>) 
     <section aria-label={t("extensions.toolbox.title")} className="flex h-full min-h-0 flex-col">
       <div className="flex min-h-0 flex-1 flex-col px-12">
         <div className="flex min-h-14 shrink-0 flex-wrap items-center gap-2 border-b px-4 py-2">
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground text-xs">
+              {t("extensions.toolbox.scope.title")}
+            </span>
+            <ToolboxScopeSelect compact />
+          </div>
           <SearchField query={query} setQuery={setQuery} />
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground text-xs">

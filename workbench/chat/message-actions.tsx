@@ -1,9 +1,10 @@
 "use client";
 
-import { ActionBarPrimitive, AuiIf, useAuiState } from "@assistant-ui/react";
-import { CheckIcon, CopyIcon } from "lucide-react";
+import { ActionBarPrimitive, useAui, useAuiState } from "@assistant-ui/react";
+import { CheckIcon, CircleXIcon, CopyIcon } from "lucide-react";
 
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { useClipboardCopy } from "@/hooks/use-clipboard-copy";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { SlotHost } from "@/platform/extensions/hosts/slot-host";
@@ -22,28 +23,34 @@ const messageActionStyles = [
 ].join(" ");
 
 function CopyAction({ role }: Readonly<{ role: "user" | "assistant" }>) {
+  const aui = useAui();
   const { t } = useI18n();
-  const tooltip =
-    role === "user"
-      ? t("workbench.chat.actions.copyMessage")
-      : t("workbench.chat.actions.copyResponse");
+  const { copy, isCopied, status } = useClipboardCopy();
+  const tooltip = t(
+    status === "copied"
+      ? "assistant.actions.copied"
+      : status === "failed"
+        ? "assistant.actions.copyFailed"
+        : role === "user"
+          ? "workbench.chat.actions.copyMessage"
+          : "workbench.chat.actions.copyResponse",
+  );
 
   return (
     <ActionBarPrimitive.Root autohide="never" className="flex items-center gap-0.5">
-      <ActionBarPrimitive.Copy render={<TooltipIconButton tooltip={tooltip} />}>
-        {role === "assistant" ? (
-          <>
-            <AuiIf condition={(state) => state.message.isCopied}>
-              <CheckIcon className="size-3.5" />
-            </AuiIf>
-            <AuiIf condition={(state) => !state.message.isCopied}>
-              <CopyIcon className="size-3.5" />
-            </AuiIf>
-          </>
+      <TooltipIconButton
+        type="button"
+        tooltip={tooltip}
+        onClick={() => void copy(aui.message.getCopyText())}
+      >
+        {isCopied ? (
+          <CheckIcon className="size-3.5" />
+        ) : status === "failed" ? (
+          <CircleXIcon className="text-destructive size-3.5" />
         ) : (
           <CopyIcon className="size-3.5" />
         )}
-      </ActionBarPrimitive.Copy>
+      </TooltipIconButton>
     </ActionBarPrimitive.Root>
   );
 }

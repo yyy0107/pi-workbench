@@ -5,7 +5,6 @@ import { useAui, useAuiState } from "@assistant-ui/react";
 import { ChevronDownIcon, SearchIcon } from "lucide-react";
 import {
   DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
@@ -15,6 +14,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import {
+  SelectorDropdownContent,
+  useAnimatedSelectorDropdown,
+} from "@/components/ui/selector-dropdown";
 import { useI18n } from "@/i18n";
 import type { ComposerSlotContext } from "@/platform/extensions";
 import {
@@ -56,42 +59,6 @@ type LoadedCatalog =
 interface OptimisticSelection {
   scopeKey: string;
   value: ModelSelection;
-}
-
-interface TriggerSize {
-  width: number;
-  maxWidth: number;
-}
-
-const MENU_REVEAL_ANIMATION_MS = 200;
-
-function modelSelectorOpenWidth(): number {
-  const parsedRootFontSize = Number.parseFloat(
-    window.getComputedStyle(document.documentElement).fontSize,
-  );
-  const rootFontSize = Number.isFinite(parsedRootFontSize) ? parsedRootFontSize : 16;
-  return Math.max(0, Math.min(18 * rootFontSize, window.innerWidth - 8 * rootFontSize));
-}
-
-function cssTimeMilliseconds(value: string): number {
-  const normalized = value.trim();
-  if (normalized.endsWith("ms")) return Number.parseFloat(normalized) || 0;
-  if (normalized.endsWith("s")) return (Number.parseFloat(normalized) || 0) * 1000;
-  return 0;
-}
-
-function widthTransitionMilliseconds(element: HTMLElement): number {
-  const styles = window.getComputedStyle(element);
-  const properties = styles.transitionProperty.split(",").map((value) => value.trim());
-  const durations = styles.transitionDuration.split(",").map(cssTimeMilliseconds);
-  const delays = styles.transitionDelay.split(",").map(cssTimeMilliseconds);
-
-  return properties.reduce((longest, property, index) => {
-    if (property !== "all" && property !== "width") return longest;
-    const duration = durations[index % durations.length] ?? 0;
-    const delay = delays[index % delays.length] ?? 0;
-    return Math.max(longest, duration + delay);
-  }, 0);
 }
 
 function ModelContextBridge({
@@ -289,19 +256,12 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
   const [failedScope, setFailedScope] = useState<string>();
   const [optimisticSelection, setOptimisticSelection] = useState<OptimisticSelection>();
   const [selectionFailedScope, setSelectionFailedScope] = useState<string>();
-  const [triggerSize, setTriggerSize] = useState<TriggerSize>();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [menuRevealed, setMenuRevealed] = useState(false);
+  const selectorDropdown = useAnimatedSelectorDropdown();
   const scopeKey = remoteId
     ? `session:${remoteId}`
     : `draft:${localThreadId}:${draftWorkspace?.id ?? "none"}`;
   const currentScopeRef = useRef(scopeKey);
   const catalogRequestRef = useRef(0);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const closedTriggerWidthRef = useRef<number | undefined>(undefined);
-  const triggerAnimationFrameRef = useRef<number | undefined>(undefined);
-  const menuRevealTimeoutRef = useRef<number | undefined>(undefined);
-  const menuOpenRef = useRef(false);
   const providerGroupRefs = useRef(new Map<string, HTMLDivElement>());
   currentScopeRef.current = scopeKey;
   const catalogRevision = useSyncExternalStore(
@@ -319,25 +279,6 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
     setOptimisticSelection(undefined);
     setSelectionFailedScope(undefined);
   }, [scopeKey]);
-
-  useEffect(() => {
-    const handleResize = () => {
-      if (!menuOpenRef.current) return;
-      const width = modelSelectorOpenWidth();
-      setTriggerSize({ width, maxWidth: width });
-    };
-
-    window.addEventListener("resize", handleResize);
-    return () => {
-      window.removeEventListener("resize", handleResize);
-      if (triggerAnimationFrameRef.current !== undefined) {
-        window.cancelAnimationFrame(triggerAnimationFrameRef.current);
-      }
-      if (menuRevealTimeoutRef.current !== undefined) {
-        window.clearTimeout(menuRevealTimeoutRef.current);
-      }
-    };
-  }, []);
 
   const loadCatalog = useCallback(() => {
     const request = ++catalogRequestRef.current;
@@ -536,59 +477,6 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
   const loading = !catalog && !loadFailed;
   const selectionLocked = isRunning || savingSelection || loading;
 
-  const animateTrigger = (open: boolean) => {
-    if (triggerAnimationFrameRef.current !== undefined) {
-      window.cancelAnimationFrame(triggerAnimationFrameRef.current);
-      triggerAnimationFrameRef.current = undefined;
-    }
-    if (menuRevealTimeoutRef.current !== undefined) {
-      window.clearTimeout(menuRevealTimeoutRef.current);
-      menuRevealTimeoutRef.current = undefined;
-    }
-
-    const trigger = triggerRef.current;
-    menuOpenRef.current = open;
-    setMenuOpen(open);
-    if (open) setMenuRevealed(false);
-    if (!trigger) return;
-
-    if (open) {
-      const closedWidth = trigger.getBoundingClientRect().width;
-      const openWidth = modelSelectorOpenWidth();
-      closedTriggerWidthRef.current = closedWidth;
-      setTriggerSize({ width: closedWidth, maxWidth: Math.max(closedWidth, openWidth) });
-      triggerAnimationFrameRef.current = window.requestAnimationFrame(() => {
-        if (!menuOpenRef.current) return;
-        triggerAnimationFrameRef.current = window.requestAnimationFrame(() => {
-          triggerAnimationFrameRef.current = undefined;
-          if (!menuOpenRef.current) return;
-          setTriggerSize({ width: openWidth, maxWidth: openWidth });
-
-          const revealAfter = Math.max(
-            0,
-            widthTransitionMilliseconds(trigger) - MENU_REVEAL_ANIMATION_MS,
-          );
-          menuRevealTimeoutRef.current = window.setTimeout(() => {
-            menuRevealTimeoutRef.current = undefined;
-            if (!menuOpenRef.current) return;
-            setMenuRevealed(true);
-          }, revealAfter);
-        });
-      });
-      return;
-    }
-
-    const closedWidth = closedTriggerWidthRef.current;
-    if (closedWidth === undefined) {
-      setTriggerSize(undefined);
-      return;
-    }
-    setTriggerSize({
-      width: closedWidth,
-      maxWidth: Math.max(trigger.getBoundingClientRect().width, closedWidth),
-    });
-  };
-
   return (
     <fieldset
       className="min-w-0 shrink-0 disabled:pointer-events-none disabled:opacity-50"
@@ -610,29 +498,18 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
       )}
       <DropdownMenu
         onOpenChange={(open) => {
-          animateTrigger(open);
+          selectorDropdown.onOpenChange(open);
           if (open) loadCatalog();
           else setModelQuery("");
         }}
       >
         <DropdownMenuTrigger
-          ref={triggerRef}
+          ref={selectorDropdown.triggerRef}
           disabled={selectionLocked}
           aria-label={t("assistant.model.select")}
-          style={{
-            ...triggerSize,
-            transitionDuration: menuOpen ? "400ms, 200ms, 200ms" : "240ms, 200ms, 200ms",
-          }}
+          style={selectorDropdown.triggerStyle}
           className="group hover:bg-muted data-popup-open:bg-muted relative flex h-[34px] w-fit max-w-32 items-center justify-center rounded-md bg-transparent px-2 py-0 text-base outline-none transition-[width,background-color,color] [transition-duration:400ms,200ms,200ms] ease-out focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed max-[360px]:max-w-24 sm:max-w-48"
-          onTransitionEnd={(event) => {
-            if (
-              event.currentTarget === event.target &&
-              event.propertyName === "width" &&
-              !menuOpenRef.current
-            ) {
-              setTriggerSize(undefined);
-            }
-          }}
+          onTransitionEnd={selectorDropdown.onTriggerTransitionEnd}
         >
           <span
             className="group-hover:pe-6 group-focus-visible:pe-6 group-data-popup-open:pe-6 block max-w-full min-w-0 truncate text-end font-mono font-medium transition-[padding] duration-200 ease-out"
@@ -643,18 +520,11 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
           <ChevronDownIcon className="absolute end-2 size-3.5 shrink-0 opacity-0 transition-[opacity,transform] group-hover:opacity-50 group-focus-visible:opacity-50 group-data-popup-open:rotate-180 group-data-popup-open:opacity-50" />
         </DropdownMenuTrigger>
 
-        <DropdownMenuContent
+        <SelectorDropdownContent
           align="end"
           side="bottom"
           sideOffset={4}
-          style={{
-            animationDuration: menuOpen ? `${MENU_REVEAL_ANIMATION_MS}ms` : "200ms",
-            animationDelay: "0ms",
-            animationTimingFunction: "cubic-bezier(0, 0, 0.2, 1)",
-            animationFillMode: "both",
-            animationPlayState: !menuOpen || menuRevealed ? "running" : "paused",
-          }}
-          className="w-72 min-w-0 max-w-[calc(100vw-8rem)] data-open:zoom-in-100 data-closed:zoom-out-100"
+          style={selectorDropdown.contentStyle}
         >
           {(selectionFailed || currentUnavailable) && (
             <MenuStatus alert={selectionFailed}>
@@ -751,7 +621,7 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
               </DropdownMenuRadioGroup>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
-        </DropdownMenuContent>
+        </SelectorDropdownContent>
       </DropdownMenu>
     </fieldset>
   );

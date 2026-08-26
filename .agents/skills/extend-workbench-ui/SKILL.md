@@ -1,6 +1,6 @@
 ---
 name: extend-workbench-ui
-description: Builds, modifies, and reviews Pi Workbench frontend extensions using this repository's static Slot, Panel, Command, Opener, Renderer, Settings, and Workspace Surface platform, including its boundaries with the Inspector RightWorkspace and Pi runtime. Use when adding Workbench UI features, extension components, composer/header/sidebar/statusbar/workspace contributions, inspector surfaces, resource open handlers, panels, settings sections or items, command-palette actions or shortcuts, assistant-ui tool/data renderers, builtinExtensions or installableComponentExtensions entries, or when deciding whether a frontend change belongs in an extension versus app, workbench, RightWorkspace, runtime, or backend core.
+description: Builds, modifies, and reviews Pi Workbench frontend extensions using this repository's static Slot, Panel, Command, Composer Command, Opener, Renderer, Settings, Main View, Workspace Surface, and Toolbox metadata platform. Use when adding Workbench UI features, extension components, composer/header/sidebar/statusbar/workspace contributions, inspector surfaces, resource open handlers, panels, settings, command-palette actions or shortcuts, assistant-ui message/part/tool/data renderers or timeline presentations, builtinExtensions or installableComponentExtensions entries, or when deciding whether a change belongs in an extension versus app, workbench, RightWorkspace, assistant runtime, Pi runtime, or backend core.
 ---
 
 # Extend Workbench UI
@@ -11,13 +11,15 @@ Implement frontend features through the repository's typed, statically bundled e
 
 1. Read the repository `AGENTS.md` and preserve unrelated worktree changes.
 2. Read [references/contracts.md](references/contracts.md) before editing extension code.
-3. Read [references/recipes.md](references/recipes.md) when implementing a Slot, Panel, Command, Opener, Renderer, Settings contribution, RightWorkspace integration, or new host Slot.
-4. If the feature reads or mutates Pi host/session/workspace/model state, read [`runtime/pi/README.md`](../../../runtime/pi/README.md) completely before choosing an API. Then inspect the named contract and client files; do not infer the protocol from legacy routes or a generic Harness reference.
-5. Read `docs/extensions.md` only when the task asks for public documentation or a detailed tutorial.
-6. Use the project `runtime` skill when changing assistant-ui `useAui`, thread, composer, or Runtime state usage.
-7. Use the project `primitives` skill when changing assistant-ui message, composer, or thread composition.
-8. Use the project `tools` skill when defining or executing an assistant-ui tool. A Renderer registration alone does not define a tool.
-9. If the task touches Next.js app code, read the relevant local guide in `node_modules/next/dist/docs/` before editing.
+3. Read [references/recipes.md](references/recipes.md) when implementing a Slot, Panel, Command, Composer Command, Opener, Renderer, Settings, Main View, RightWorkspace integration, Toolbox entry, or new host Slot.
+4. If frontend UI reads or mutates Pi host/session/workspace/model state, read [`runtime/pi/README.md`](../../../runtime/pi/README.md) completely before choosing an API. Then inspect the named contract and client files; do not infer the protocol from legacy routes or a generic Harness reference.
+5. Use `$pi-coding-agent-sdk` when work reaches the server-side AgentSession, coding-agent extension, resource-loader, or `@earendil-works/pi-coding-agent` layer. Keep that SDK behind the Workbench Pi server boundary rather than importing it into browser components.
+6. Use `$pi-ai-sdk` when work directly uses `@earendil-works/pi-ai` models, providers, authentication, messages, tool schemas, image requests, or streaming events. Use both Pi SDK skills only when the task genuinely crosses both layers.
+7. Read `docs/extensions.md` only when the task asks for public documentation or a detailed tutorial.
+8. Use the project `runtime` skill when changing assistant-ui `useAui`, thread, composer, or Runtime state usage.
+9. Use the project `primitives` skill when changing assistant-ui message, composer, or thread composition.
+10. Use the project `tools` skill when defining or executing an assistant-ui tool. A Renderer registration alone does not define a tool.
+11. If the task touches Next.js app code, read the relevant local guide in `node_modules/next/dist/docs/` before editing.
 
 ## Decide the ownership boundary
 
@@ -26,16 +28,20 @@ Implement the feature as an extension when it can be independently enabled or re
 - Use a **Slot** for a small button, badge, control, or status indicator.
 - Use a **Panel** for a host-managed left or bottom surface. The current shell does not mount a right Panel host.
 - Use a **Command** for an action shared by the command palette, a shortcut, or UI controls.
+- Use a **Composer Command** for a structured command token that changes request compilation; it is separate from a global Command.
 - Use an **Opener** when one contribution needs to open a resource owned by another without importing its surface kind, component, or store.
-- Use a **Renderer** for a complete assistant-ui message presentation or an existing tool-call/data message part.
+- Use a **Renderer** for a complete assistant-ui message presentation, a predicate-matched message Part, an exact-name Tool/Data Part, or its timeline presentation metadata.
 - Use **Settings** for a navigation section or a feature-owned preference inside the shared floating settings surface.
+- Use a **Main View** for a transient feature page that replaces the central conversation without adding URL identity or persistent inspector state.
 - Use a **Workspace Surface** contribution for persistent inspector capabilities such as review, explorer, file, browser, and artifact views. RightWorkspace core owns only tabs, layout, scope restoration, persistence, status, and feedback chrome. `workspace.actions` remains its compact toolbar Slot for actions outside a Surface lifecycle.
+- Add **Toolbox metadata** only when a real component contribution should be discoverable and previewable in the component-extension catalog. Metadata describes a registered contribution; it does not activate one.
 - Combine contribution types inside one extension when they represent one feature.
 
 Keep the sidebar's New Conversation control and thread list in core. Register replaceable product
 identity in `sidebar.brand`, optional primary navigation in `sidebar.navigation`, workspace heading
-controls in `sidebar.workspace.actions`, and persistent bottom utilities in `sidebar.footer`; use
-`sidebar.header`, `sidebar.top`, or `sidebar.bottom` only when their documented positions fit.
+controls in `sidebar.workspace.actions`, the Toolbox section body in `sidebar.toolbox`, and persistent
+bottom utilities in `sidebar.footer`; use `sidebar.header`, `sidebar.top`, or `sidebar.bottom` only
+when their documented positions fit.
 
 Modify core layers instead when the task changes:
 
@@ -66,7 +72,10 @@ When no existing Slot fits, add a typed host Slot first, then register the featu
   - `workspace-file`: Workspace Surface plus a `file` Open Handler;
   - `settings`: sidebar/header triggers, `shell.overlay`, Command, and extensible settings sections/items;
   - `appearance`: Settings section/item plus `shell.background` contribution;
-  - `model-selector`: assistant-ui ModelContext plus default-model Settings integration.
+  - `model-selector`: assistant-ui ModelContext plus default-model Settings integration;
+  - `toolbox`: `sidebar.toolbox` plus a Main View;
+  - `generative-ui`: installable Toolbox metadata plus a predicate-matched Message Part Renderer;
+  - `message-presentation`, `terminal`, and `image-understanding`: Message Renderer, Tool/Data Renderer, and timeline presentation patterns.
 - Check whether the requested id, shortcut, tool name, or data name already exists.
 - Search project-wide global `keydown` listeners before assigning a shortcut. Non-Command listeners may accept extra modifiers and still collide with an otherwise exact Command shortcut.
 
@@ -153,9 +162,10 @@ When changing Pi transport or session behavior, also run the Pi tests documented
 - Keep Toolbox component placement previews as a faithful, proportionally scaled reproduction of the current Workbench panorama (sidebar, header, conversation, composer, RightWorkspace, status bar, panels, and global overlays). Reuse the same design tokens and surface hierarchy, and highlight the exact typed target as a non-layout overlay instead of falling back to an abstract empty-box diagram.
 - In message placement previews, render concrete system, user, and assistant examples plus representative visible Part states (text, reasoning, tool, data, source, attachment, audio, generative UI, and error). Give `message.before`, `message.actions`, and `message.after` labeled role-specific examples while active so a valid message Slot never collapses into an invisible strip.
 - Never deep-import a sibling `extensions/builtin/<feature>`; collaborate through a public Registry, Renderer, Command, Opener, or promoted Service.
+- Localize every new or changed user-visible string, including accessibility text, in co-located `en-US` and `zh-CN` dictionaries. Register `LocalizableText` with `defineMessage(...)` and resolve component copy through the shared i18n API.
 - Register component types, not pre-created React nodes.
 - Never call `register()` during React render.
-- Keep Extension, Panel, Command, Slot contribution, Renderer, Settings section, and Settings item identifiers within their documented uniqueness scopes.
+- Keep Extension, Panel, Command, Composer Command, Slot contribution, Message Part Renderer, exact-name Renderer/presentation, Settings section/item, Main View, Open Handler, and Workspace Surface identifiers within their documented uniqueness scopes.
 - Audit both registered Commands and standalone global keyboard listeners before choosing a shortcut.
 - Use `order` only for Slot and Settings contributions. Panel, Command, and Renderer APIs have no numeric priority.
 - Treat tool arguments as partial while streaming; guard missing fields and all status variants.
@@ -167,7 +177,7 @@ When changing Pi transport or session behavior, also run the Pi tests documented
 - Register cross-feature resource handlers through `context.openers.register(...)`; callers use `useOpenerService()` and handle Promise rejection.
 - Do not add feature-specific kind branches, icons, services, or Agent tool mappings back to `components/right-workspace/`.
 - Do not assume registering a Renderer exposes or executes a model tool.
-- Do not call raw Pi endpoints, open another event stream, or copy RPC payload types into an extension. Follow `runtime/pi/README.md`, reuse `runtime/pi/client/transport/api.ts` or the manager hooks, and treat `/api/pi/**` as compatibility-only unless the README names an exception.
+- Do not call raw Pi endpoints, open another event stream, or copy RPC payload types into an extension. Follow `runtime/pi/README.md`, reuse `runtime/pi/client/transport/api.ts` or the manager hooks, and treat `/api/pi/**` as compatibility-only unless the README names an exception. Route server-side coding-agent work through `$pi-coding-agent-sdk` and direct Pi model/provider/stream work through `$pi-ai-sdk`.
 - Handle rejected Promises in event handlers; React Error Boundaries do not catch event or arbitrary async errors.
 - Keep API keys, secrets, and privileged execution out of frontend extensions.
 

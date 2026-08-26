@@ -51,6 +51,7 @@ test("persists sidebar conversation sorting preferences across service instances
         pinned: ["session-b", "session-a"],
         "workspace:workspace-1": ["session-c", "session-d"],
       },
+      toolboxScope: { kind: "project", workspaceId: "workspace-1" },
     },
   });
 
@@ -61,6 +62,7 @@ test("persists sidebar conversation sorting preferences across service instances
       pinned: ["session-b", "session-a"],
       "workspace:workspace-1": ["session-c", "session-d"],
     },
+    toolboxScope: { kind: "project", workspaceId: "workspace-1" },
   });
 });
 

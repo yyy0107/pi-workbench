@@ -74,6 +74,11 @@ import { PiServerError } from "../core/errors";
 import { ColdSessionEventCache } from "./cold-session-event-cache";
 import { getInteractiveResponseRegistry } from "./interactive-response-registry";
 import {
+  activateSessionContextTrace,
+  releaseSessionContextTrace,
+  type SessionContextTrace,
+} from "./session-context-trace";
+import {
   appendSessionEventJournal,
   createCanonicalSessionEvent,
   initializeSessionEventJournal,
@@ -106,6 +111,10 @@ import {
 import { AttachmentRecognitionLifecycle } from "../image-understanding/lifecycle";
 import { recognizeWithMultimodalModel } from "../image-understanding/multimodal";
 import { getImageUnderstandingSettingsStore } from "../image-understanding/registry";
+import {
+  reportWorkbenchInternalPiExtensionErrors,
+  workbenchInternalPiExtensions,
+} from "../internal-extensions/index";
 import { getProjectTrustService } from "../trust/project-trust-service";
 
 export { PiServerError } from "../core/errors";
@@ -855,6 +864,7 @@ class HostedPiSession {
   private readonly listeners = new Set<SessionEventListener>();
   private readonly onRunningChanged: () => void;
   private readonly onDestroyed: () => void;
+  private readonly contextTrace: SessionContextTrace;
   private readonly unsubscribeAgent: () => void;
   private idleTimer: ReturnType<typeof setTimeout> | undefined;
   private promptTask: Promise<void> | undefined;
@@ -883,8 +893,14 @@ class HostedPiSession {
   }> = [];
   private readonly cancelledQueueItemIds = new Set<string>();
 
-  constructor(session: AgentSession, onRunningChanged: () => void, onDestroyed: () => void) {
+  constructor(
+    session: AgentSession,
+    contextTrace: SessionContextTrace,
+    onRunningChanged: () => void,
+    onDestroyed: () => void,
+  ) {
     this.session = session;
+    this.contextTrace = contextTrace;
     this.onRunningChanged = onRunningChanged;
     this.onDestroyed = onDestroyed;
     const initializedJournal = initializeSessionEventJournal(
@@ -897,6 +913,7 @@ class HostedPiSession {
     this.reconcileQueueProjection();
     this.unsubscribeAgent = session.subscribe((event) => {
       const eventTime = Date.now();
+      this.contextTrace.observeAgentEvent(event);
       const transientMessageUpdate = event.type === "message_update";
       if (!transientMessageUpdate) this.touch();
       if (event.type === "tool_execution_start") {
@@ -2604,6 +2621,7 @@ class HostedPiSession {
     this.unsubscribeAgent();
     this.listeners.clear();
     this.session.dispose();
+    await releaseSessionContextTrace(this.id, this.contextTrace);
     this.onDestroyed();
   }
 }
@@ -2686,6 +2704,10 @@ async function createHost(sessionManager: SessionManager): Promise<HostedPiSessi
   const cwd = sessionManager.getCwd();
   const services = await createAgentSessionServices({
     cwd,
+    resourceLoaderOptions: {
+      extensionFactories: workbenchInternalPiExtensions,
+      extensionsOverride: reportWorkbenchInternalPiExtensionErrors,
+    },
     resourceLoaderReloadOptions: {
       resolveProjectTrust: async () => getProjectTrustService().isTrusted(cwd),
     },
@@ -2703,19 +2725,31 @@ async function createHost(sessionManager: SessionManager): Promise<HostedPiSessi
     ],
   });
   const interactiveResponses = getInteractiveResponseRegistry();
-  await session.bindExtensions({
-    mode: "rpc",
-    uiContext: interactiveResponses.createExtensionUIContext(session.sessionId),
+  const contextTrace = await activateSessionContextTrace(session.sessionId, (event) => {
+    getStreamHub().publishMux({
+      type: "session/context-trace",
+      sessionId: session.sessionId,
+      event,
+    });
   });
-
   let host: HostedPiSession;
-  host = new HostedPiSession(session, publishRunningSessions, () => {
-    const registry = state();
-    cacheHostedSession(registry, host);
-    if (registry.sessions.get(host.id) === host) registry.sessions.delete(host.id);
-    interactiveResponses.clearSession(host.id);
-    publishRunningSessions();
-  });
+  try {
+    await session.bindExtensions({
+      mode: "rpc",
+      uiContext: interactiveResponses.createExtensionUIContext(session.sessionId),
+    });
+    host = new HostedPiSession(session, contextTrace, publishRunningSessions, () => {
+      const registry = state();
+      cacheHostedSession(registry, host);
+      if (registry.sessions.get(host.id) === host) registry.sessions.delete(host.id);
+      interactiveResponses.clearSession(host.id);
+      publishRunningSessions();
+    });
+  } catch (error) {
+    await releaseSessionContextTrace(session.sessionId, contextTrace);
+    session.dispose();
+    throw error;
+  }
   state().sessions.set(host.id, host);
   cacheHostedSession(state(), host);
   try {

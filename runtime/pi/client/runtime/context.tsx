@@ -7,7 +7,6 @@ import type { HostDescription } from "../../rpc-contracts";
 
 import {
   PiSessionManager,
-  type PiResourceCatalogTarget,
   type PiThreadListItemSnapshot,
   type PiThreadMetadataSnapshot,
   type PiThreadStateSnapshot,
@@ -127,19 +126,6 @@ export function usePiWorkspaces(): readonly PiWorkspaceSummary[] {
     manager.getSnapshot,
   );
   return useMemo(() => manager.getWorkspaces(), [manager, revision]);
-}
-
-export function usePiResourceCatalogTargets(): readonly PiResourceCatalogTarget[] {
-  const manager = usePiSessionManager();
-  useSyncExternalStore(manager.subscribe, manager.getSnapshot, manager.getSnapshot);
-  const nextTargets = manager.getResourceCatalogTargets();
-  const signature = nextTargets
-    .map(
-      ({ project, sessionId }) =>
-        `${sessionId}\u0000${project?.id ?? ""}\u0000${project?.name ?? ""}\u0000${project?.path ?? ""}`,
-    )
-    .join("\u0001");
-  return useMemo(() => manager.getResourceCatalogTargets(), [manager, signature]);
 }
 
 export function usePiActiveSessionId(): string | undefined {

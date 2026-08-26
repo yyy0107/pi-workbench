@@ -367,32 +367,7 @@ export function parseAppearancePreferences(serialized: string | null): Appearanc
 }
 
 export function isDefaultAppearancePreferences(preferences: AppearancePreferences): boolean {
-  return (
-    preferences.colorMode === DEFAULT_APPEARANCE_PREFERENCES.colorMode &&
-    preferences.customBackground === DEFAULT_APPEARANCE_PREFERENCES.customBackground &&
-    preferences.backgroundColor === DEFAULT_APPEARANCE_PREFERENCES.backgroundColor &&
-    preferences.backgroundBlur === DEFAULT_APPEARANCE_PREFERENCES.backgroundBlur &&
-    preferences.syncSurfaceColors === DEFAULT_APPEARANCE_PREFERENCES.syncSurfaceColors &&
-    preferences.surfaceOpacity === DEFAULT_APPEARANCE_PREFERENCES.surfaceOpacity &&
-    preferences.glassBlur === DEFAULT_APPEARANCE_PREFERENCES.glassBlur &&
-    preferences.borderStyle === DEFAULT_APPEARANCE_PREFERENCES.borderStyle &&
-    preferences.customBorderColor === DEFAULT_APPEARANCE_PREFERENCES.customBorderColor &&
-    preferences.borderColor === DEFAULT_APPEARANCE_PREFERENCES.borderColor &&
-    preferences.cornerRadius === DEFAULT_APPEARANCE_PREFERENCES.cornerRadius &&
-    preferences.lightAccentColor === DEFAULT_APPEARANCE_PREFERENCES.lightAccentColor &&
-    preferences.lightBackgroundColor === DEFAULT_APPEARANCE_PREFERENCES.lightBackgroundColor &&
-    preferences.lightForegroundColor === DEFAULT_APPEARANCE_PREFERENCES.lightForegroundColor &&
-    preferences.lightContrast === DEFAULT_APPEARANCE_PREFERENCES.lightContrast &&
-    preferences.darkAccentColor === DEFAULT_APPEARANCE_PREFERENCES.darkAccentColor &&
-    preferences.darkBackgroundColor === DEFAULT_APPEARANCE_PREFERENCES.darkBackgroundColor &&
-    preferences.darkForegroundColor === DEFAULT_APPEARANCE_PREFERENCES.darkForegroundColor &&
-    preferences.darkContrast === DEFAULT_APPEARANCE_PREFERENCES.darkContrast &&
-    preferences.uiFont === DEFAULT_APPEARANCE_PREFERENCES.uiFont &&
-    preferences.runningIndicatorId === DEFAULT_APPEARANCE_PREFERENCES.runningIndicatorId &&
-    preferences.codeFont === DEFAULT_APPEARANCE_PREFERENCES.codeFont &&
-    preferences.uiFontSize === DEFAULT_APPEARANCE_PREFERENCES.uiFontSize &&
-    preferences.codeFontSize === DEFAULT_APPEARANCE_PREFERENCES.codeFontSize &&
-    preferences.codeTheme === DEFAULT_APPEARANCE_PREFERENCES.codeTheme &&
-    preferences.showDiffMarkers === DEFAULT_APPEARANCE_PREFERENCES.showDiffMarkers
+  return (Object.keys(DEFAULT_APPEARANCE_PREFERENCES) as (keyof AppearancePreferences)[]).every(
+    (key) => preferences[key] === DEFAULT_APPEARANCE_PREFERENCES[key],
   );
 }

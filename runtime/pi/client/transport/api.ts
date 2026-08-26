@@ -46,6 +46,8 @@ import type {
   ProjectTrustDescribePayload,
   ProjectTrustDescribeValue,
   ProjectTrustUpdatePayload,
+  PromptListPayload,
+  PromptListValue,
   RemoveModelProviderPayload,
   RespondModelProviderLoginPayload,
   RpcReceipt,
@@ -53,6 +55,12 @@ import type {
   SessionAttachmentValue,
   SessionCancelPayload,
   SessionCancelValue,
+  SessionContextTraceActivationsPayload,
+  SessionContextTraceActivationsValue,
+  SessionContextTraceListPayload,
+  SessionContextTraceListValue,
+  SessionContextTraceReadPayload,
+  SessionContextTraceReadValue,
   SessionCreatePayload,
   SessionCreateValue,
   SessionDeletePayload,
@@ -604,6 +612,10 @@ export function listPiCommands(payload: CommandListPayload): Promise<CommandList
   return callPiRpc("command.list", payload);
 }
 
+export function listPiPrompts(payload: PromptListPayload): Promise<PromptListValue> {
+  return callPiRpc("prompt.list", payload);
+}
+
 export function listPiExtensions(payload: ExtensionListPayload): Promise<ExtensionListValue> {
   return callPiRpc("extension.list", payload);
 }
@@ -711,6 +723,24 @@ export function fetchPiRpcSessionHistory(
   payload: SessionHistoryPayload,
 ): Promise<SessionHistoryValue> {
   return callPiRpc("session.history", payload);
+}
+
+export function listPiRpcSessionContextTrace(
+  payload: SessionContextTraceListPayload,
+): Promise<SessionContextTraceListValue> {
+  return callPiRpc("session.contextTrace.list", payload);
+}
+
+export function listPiRpcSessionContextTraceActivations(
+  payload: SessionContextTraceActivationsPayload,
+): Promise<SessionContextTraceActivationsValue> {
+  return callPiRpc("session.contextTrace.activations", payload);
+}
+
+export function readPiRpcSessionContextTrace(
+  payload: SessionContextTraceReadPayload,
+): Promise<SessionContextTraceReadValue> {
+  return callPiRpc("session.contextTrace.read", payload);
 }
 
 export function regeneratePiRpcSession(

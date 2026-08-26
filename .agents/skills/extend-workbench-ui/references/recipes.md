@@ -1,12 +1,17 @@
 # Workbench Extension Recipes
 
-Use these patterns as starting points. Adapt ids, labels, styling, and behavior to the requested feature instead of copying blindly.
+Use these patterns as starting points. Adapt ids, labels, styling, and behavior to the requested
+feature instead of copying blindly. Example translation keys assume the feature first adds matching
+co-located `en-US` and `zh-CN` dictionaries; use `defineMessage(...)` for registered metadata and
+`useI18n()` for component and accessibility copy.
 
 ## Contents
 
 - [Slot-only feature](#slot-only-feature)
 - [Slot, Panel, and Command feature](#slot-panel-and-command-feature)
+- [Composer Command](#composer-command)
 - [Settings contribution](#settings-contribution)
+- [Installable Toolbox entry](#installable-toolbox-entry)
 - [RightWorkspace integration](#rightworkspace-integration)
 - [Pi-backed extension](#pi-backed-extension)
 - [Message Renderer](#message-renderer)
@@ -24,10 +29,17 @@ Use these patterns as starting points. Adapt ids, labels, styling, and behavior 
 
 import { useAuiState } from "@assistant-ui/react";
 
+import { useI18n } from "@/i18n";
+
 export function SessionBadge() {
+  const { t } = useI18n();
   const messageCount = useAuiState((state) => state.thread.messages.length);
 
-  return <span aria-label={`${messageCount} messages`}>{messageCount}</span>;
+  return (
+    <span aria-label={t("extensions.sessionBadge.messageCount", { count: messageCount })}>
+      {messageCount}
+    </span>
+  );
 }
 ```
 
@@ -60,10 +72,12 @@ Use `connection-status` and `token-usage` as the in-repository references.
 // notes-trigger.tsx
 "use client";
 
+import { useI18n } from "@/i18n";
 import { useCommandService } from "@/platform/extensions";
 import type { ComposerSlotContext } from "@/platform/extensions/authoring";
 
 export function NotesTrigger({ isRunning }: ComposerSlotContext) {
+  const { t } = useI18n();
   const commands = useCommandService();
 
   return (
@@ -76,7 +90,7 @@ export function NotesTrigger({ isRunning }: ComposerSlotContext) {
         });
       }}
     >
-      Notes
+      {t("extensions.notes.open")}
     </button>
   );
 }
@@ -88,21 +102,23 @@ export function NotesTrigger({ isRunning }: ComposerSlotContext) {
 
 import { useState } from "react";
 
+import { useI18n } from "@/i18n";
 import type { PanelComponentProps } from "@/platform/extensions/authoring";
 
 export function NotesPanel({ panelId, close }: PanelComponentProps) {
+  const { t } = useI18n();
   const [value, setValue] = useState("");
 
   return (
     <section data-panel-id={panelId} className="flex h-full min-h-0 flex-col gap-3 p-3">
       <textarea
-        aria-label="Thread notes"
+        aria-label={t("extensions.notes.inputLabel")}
         value={value}
         onChange={(event) => setValue(event.currentTarget.value)}
         className="min-h-0 flex-1 resize-none rounded-lg border p-3"
       />
       <button type="button" onClick={close}>
-        Done
+        {t("extensions.notes.done")}
       </button>
     </section>
   );
@@ -184,6 +200,33 @@ run(context) {
 }
 ```
 
+## Composer Command
+
+Register a structured Composer token through `context.composerCommands`; do not confuse it with a
+global palette/shortcut Command:
+
+```ts
+const reviewCommand = context.composerCommands.register({
+  id: "review",
+  label: defineMessage("extensions.review.command.label"),
+  description: defineMessage("extensions.review.command.description"),
+  composer: {
+    behavior: "context",
+    effect: "context-provider",
+    scope: "message",
+    apply(draft) {
+      draft.context.push({ type: "review", value: true });
+    },
+  },
+});
+```
+
+`apply()` is synchronous and runs against a request-scoped draft. Use `behavior`, `effect`,
+`exclusive`, `group`, and `scope` to describe composition instead of inspecting editor DOM state.
+For a structured parameter panel, add an `argsSchema` plus `argsBinding: { kind: "message-text",
+field, consumeText }`; bound commands must be message-scoped and exclusive. Command ids are global
+within `ComposerCommandRegistry`.
+
 ## Settings contribution
 
 Let the shared settings extension own its floating surface, navigation, headings, and separators. A feature
@@ -193,6 +236,10 @@ registers only the section it owns or an item inside an existing section:
 const section = context.settings.registerSection({
   id: "general",
   title: defineMessage("extensions.settings.general.title"),
+  group: {
+    id: "basics",
+    title: defineMessage("extensions.settings.groups.basics"),
+  },
   headerAction: GeneralSettingsAction,
   order: 0,
 });
@@ -210,12 +257,61 @@ return [section, item];
 Use `headerAction` for a compact feature-owned control that belongs beside the section heading, such
 as resetting the current section. The Host owns its placement and error isolation; the component
 receives `{ sectionId }` and may use Hooks. Settings items may also use Hooks and browser APIs in
-their client component. Keep preference state and
-persistence with the feature that owns the item. Do not register during render or import the
-concrete Settings registry implementation. Items may register before their section appears.
+their client component. Sections with the same stable `group.id` share one localizable navigation
+heading. Keep preference state and persistence with the feature that owns the item. Do not register
+during render or import the concrete Settings registry implementation. Items may register before
+their section appears.
 
 Use `extensions/builtin/settings` for the shell and
 `extensions/builtin/locale-selector` for an independently owned item.
+
+## Installable Toolbox entry
+
+Toolbox metadata describes an actual registered component contribution. For an uninstallable,
+statically trusted bundle, keep the feature under `extensions/installable/`, align metadata with the
+real registration, and list the stable extension object in `installableComponentExtensions`:
+
+```ts
+export const generativeUiExtension = defineExtension({
+  id: "workbench.generative-ui",
+  name: "Generative UI",
+  version: "1.0.0",
+  toolbox: {
+    kind: "component-extension",
+    distribution: "installable",
+    name: defineMessage("extensions.generativeUi.name"),
+    description: defineMessage("extensions.generativeUi.description"),
+    entryFile: "extensions/installable/generative-ui/extension.ts",
+    contributions: [
+      {
+        id: "workbench.generative-ui.message-part",
+        kind: "message-part-renderer",
+        surface: defineMessage("extensions.generativeUi.placement.surface"),
+        target: "context.renderers.parts",
+        host: "MessagePrimitive.Parts → MessagePartRendererHost",
+        description: defineMessage("extensions.generativeUi.placement.description"),
+        preview: GenerativeUIPreview,
+        sourceFiles: [
+          "extensions/installable/generative-ui/generative-ui-renderer.tsx",
+          "extensions/installable/generative-ui/generative-ui-spec.ts",
+        ],
+      },
+    ],
+  },
+  setup(context) {
+    return context.renderers.parts.register({
+      id: "workbench.generative-ui.message-part",
+      canRender: canRenderGenerativeUIPart,
+      component: GenerativeUIRenderer,
+    });
+  },
+});
+```
+
+The preview is a no-props component that uses the real design system and representative safe state;
+it must not execute tools, call privileged APIs, or depend on an active Runtime scope. Use the
+project-relative implementation paths for `entryFile` and `sourceFiles`. Builtin features may expose
+the same metadata with `distribution: "builtin"`, but remain in `builtinExtensions`.
 
 ## RightWorkspace integration
 
@@ -235,6 +331,9 @@ const notesSurface = {
   kind: "notes",
   icon: FileTextIcon,
   cachePolicy: "keep-alive",
+  persistence: "persistent",
+  defaultPlacement: "primary",
+  allowDuplicateResources: false,
   getResourceKey: (params, context) => `notes:${context.threadId}:${params.id}`,
   getDefaultScope: (_params, context) => ({
     type: context.threadId ? "thread" : "application",
@@ -258,7 +357,8 @@ export const notesExtension = defineExtension({
 The extension owns its typed params, renderer, menu item, Runtime mapping, domain service, and i18n.
 The core host supplies tabs, resource-key deduplication, cache-policy mounting, scope restoration,
 persistence, status, and feedback chrome. Use `workspace.actions` only for compact actions outside a
-Surface lifecycle.
+Surface lifecycle. Use `workspace.empty.actions` only for a compact launch action shown when the
+Inspector has no Surface; it receives `{ isOpen }` and does not replace Surface registration.
 
 When another contribution needs to open this Surface's resource, let the owner register an Open
 Handler and keep its `kind` private to the owning feature:
@@ -297,6 +397,18 @@ connection, or copy payload shapes into the extension. The shared manager alread
 WebSocket generations and revalidation. Legacy routes are compatibility-only unless the runtime
 README explicitly documents a remaining exception. If no helper or method exists, extend contracts,
 server validation/domain handling, client helper, and tests before adding UI.
+
+If implementing the missing capability requires direct server-side SDK work, use the matching
+specialist skill and keep the result behind the Workbench transport boundary:
+
+- use `$pi-coding-agent-sdk` for AgentSession, coding-agent extensions, resource loading, tools,
+  commands, and `@earendil-works/pi-coding-agent` public types;
+- use `$pi-ai-sdk` for model/provider/auth collections, Pi AI messages, tool schemas, image requests,
+  streaming events, or direct `@earendil-works/pi-ai` imports.
+
+Use both only when a coding-agent feature also changes its lower-level Pi AI behavior. Browser
+components continue to use the typed Workbench manager/contracts/client helpers rather than either
+server package directly.
 
 ## Message Renderer
 
@@ -349,6 +461,8 @@ Workspace Surface, Command, and `bash` renderer together so all terminal UI disp
 
 import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
 
+import { useI18n } from "@/i18n";
+
 interface WeatherArgs {
   city?: string;
 }
@@ -365,25 +479,27 @@ export const WeatherRenderer: ToolCallMessagePartComponent<WeatherArgs, WeatherR
   status,
   isError,
 }) => {
+  const { t } = useI18n();
+
   if (status.type === "running") {
-    return <div>Reading arguments: {argsText || "…"}</div>;
+    return <div>{t("extensions.weather.readingArguments", { args: argsText || "…" })}</div>;
   }
   if (status.type === "requires-action") {
-    return <div>Waiting for user action.</div>;
+    return <div>{t("extensions.weather.waitingForAction")}</div>;
   }
   if (isError || status.type === "incomplete") {
-    return <div role="alert">Weather lookup did not complete.</div>;
+    return <div role="alert">{t("extensions.weather.incomplete")}</div>;
   }
 
   return (
     <section className="rounded-lg border p-3">
-      <p>{args.city ?? "Unknown city"}</p>
+      <p>{args.city ?? t("extensions.weather.unknownCity")}</p>
       {result ? (
         <p>
           {result.temperatureC}°C · {result.summary}
         </p>
       ) : (
-        <p>No result returned.</p>
+        <p>{t("extensions.weather.noResult")}</p>
       )}
     </section>
   );
@@ -509,12 +625,14 @@ Do not add a feature-specific Slot such as `notes.button`. Add a semantic host l
 - [ ] Keep unrelated dirty worktree changes intact.
 - [ ] Import only the extension public surface.
 - [ ] Keep the extension object and enabled array stable.
-- [ ] Use unique ids and exact Renderer names.
+- [ ] Localize component copy and accessibility text in co-located `en-US` and `zh-CN` dictionaries.
+- [ ] Use unique ids and exact Renderer/presentation names within their documented scopes.
 - [ ] Keep Settings section ids global and item ids unique within their section.
+- [ ] Keep Toolbox metadata aligned with the actual contribution, preview, and source paths.
 - [ ] Register inspector kinds through `context.workspace`; keep feature branches and services out of RightWorkspace core.
 - [ ] Register cross-feature resource routing through `context.openers`; do not deep-import sibling builtin features.
-- [ ] Use `workspace.actions` only for compact controls outside a Surface lifecycle.
-- [ ] Read `runtime/pi/README.md` before Pi-backed work and reuse the shared manager/contracts/client helpers.
+- [ ] Use `workspace.actions`/`workspace.empty.actions` only for compact controls outside a Surface lifecycle.
+- [ ] Read `runtime/pi/README.md` before Pi-backed UI and route server SDK work through `$pi-coding-agent-sdk` or `$pi-ai-sdk`.
 - [ ] Audit registered shortcuts and standalone global `keydown` listeners.
 - [ ] Return Disposables for external resources.
 - [ ] Avoid duplicate Panel chrome.

@@ -87,7 +87,13 @@ test("lists visible extensions loaded by the target Pi session", async () => {
                 }),
                 extension("<inline:internal>", { hidden: true }),
               ],
-              errors: [{ path: "/private/broken.ts", error: "private details" }],
+              errors: [
+                { path: "/private/broken.ts", error: "private details" },
+                {
+                  path: "<inline:workbench.message-termination>",
+                  error: "internal details",
+                },
+              ],
             }),
           },
         },
@@ -156,6 +162,40 @@ test("lists visible extensions loaded by the target Pi session", async () => {
     loadErrorCount: 1,
   });
   assert.deepEqual(requestedSessionIds, ["session-1"]);
+});
+
+test("lists a Toolbox extension scope without resolving a Pi session", async () => {
+  const requestedTargets: unknown[] = [];
+  const service = new ExtensionService({
+    getSession: async () => {
+      throw new Error("Toolbox catalogs must not resolve sessions");
+    },
+    getScopedResourceHost: async (target) => {
+      requestedTargets.push(target);
+      return {
+        session: {
+          resourceLoader: {
+            getExtensions: () => ({
+              extensions: [
+                extension("/user/review.ts", { scope: "user" }),
+                extension("/project/review.ts", { scope: "project" }),
+              ],
+              errors: [],
+            }),
+          },
+        },
+      };
+    },
+  });
+
+  const result = await service.list({
+    target: { scope: "project", workspaceId: "project-1" },
+  });
+  assert.deepEqual(
+    result.extensions.map((item) => item.filePath),
+    ["/project/review.ts"],
+  );
+  assert.deepEqual(requestedTargets, [{ scope: "project", workspaceId: "project-1" }]);
 });
 
 test("reads the entry file matched by the complete extension identity", async (t) => {

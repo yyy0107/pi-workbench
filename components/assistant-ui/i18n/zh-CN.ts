@@ -28,6 +28,8 @@ export const assistantZhCN = {
   actions: {
     edit: "编辑",
     copy: "复制",
+    copied: "已复制",
+    copyFailed: "复制失败",
     refresh: "重新生成",
   },
   codeBlock: {

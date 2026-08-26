@@ -615,6 +615,10 @@ export interface WorkbenchModelSelectorPreference {
 
 export type WorkbenchSidebarThreadSortMode = "priority" | "recent" | "manual";
 
+export type WorkbenchToolboxScopePreference =
+  | { kind: "user" }
+  | { kind: "project"; workspaceId: string };
+
 export interface WorkbenchSettingsPreferences {
   appearance?: Record<string, WorkbenchSettingsJsonValue>;
   backgroundImage?: WorkbenchBackgroundImagePreference;
@@ -623,6 +627,7 @@ export interface WorkbenchSettingsPreferences {
   sidebarThreadOrderByScope?: Record<string, string[]>;
   sidebarThreadSortMode?: WorkbenchSidebarThreadSortMode;
   toolboxPins?: string[];
+  toolboxScope?: WorkbenchToolboxScopePreference;
   rightWorkspace?: Record<string, WorkbenchSettingsJsonValue>;
   sidebarOpen?: boolean;
 }
@@ -747,9 +752,17 @@ export interface PiAgentSettingsUpdatePayload {
   expectedRevision?: number;
 }
 
-export interface SkillListPayload {
-  sessionId: string;
-}
+export type PiResourceCatalogTarget = { scope: "user" } | { scope: "project"; workspaceId: string };
+
+/**
+ * Session-backed callers keep the legacy shape, while application-level resource catalogs use a
+ * scope target and never need to know about a Pi conversation.
+ */
+export type PiResourceRequest =
+  | { sessionId: string; target?: never }
+  | { target: PiResourceCatalogTarget; sessionId?: never };
+
+export type SkillListPayload = PiResourceRequest;
 
 export interface SkillView {
   name: string;
@@ -766,10 +779,7 @@ export interface SkillListValue {
   skills: SkillView[];
 }
 
-export interface SkillDescribePayload {
-  sessionId: string;
-  name: string;
-}
+export type SkillDescribePayload = PiResourceRequest & { name: string };
 
 export interface SkillDescribeValue {
   name: string;
@@ -777,9 +787,7 @@ export interface SkillDescribeValue {
   filePath: string;
 }
 
-export interface SkillSetEnabledPayload extends SkillDescribePayload {
-  enabled: boolean;
-}
+export type SkillSetEnabledPayload = SkillDescribePayload & { enabled: boolean };
 
 export interface SkillSetEnabledValue {
   name: string;
@@ -793,9 +801,7 @@ export interface SkillRemoveValue {
   removed: true;
 }
 
-export interface SkillFilesListPayload extends SkillDescribePayload {
-  relativePath?: string;
-}
+export type SkillFilesListPayload = SkillDescribePayload & { relativePath?: string };
 
 export interface SkillFileEntry {
   name: string;
@@ -813,9 +819,7 @@ export interface SkillFilesListValue {
   truncated: boolean;
 }
 
-export interface SkillFileReadPayload extends SkillDescribePayload {
-  relativePath: string;
-}
+export type SkillFileReadPayload = SkillDescribePayload & { relativePath: string };
 
 export interface SkillFileSnapshotValue {
   skillName: string;
@@ -831,9 +835,7 @@ export interface SkillFileSnapshotValue {
   modifiedAt: number;
 }
 
-export interface ExtensionListPayload {
-  sessionId: string;
-}
+export type ExtensionListPayload = PiResourceRequest;
 
 export type ExtensionSourceScope = "user" | "project" | "temporary";
 
@@ -877,17 +879,15 @@ export interface ExtensionListValue {
   loadErrorCount: number;
 }
 
-export interface ExtensionIdentityPayload extends ExtensionListPayload {
+export type ExtensionIdentityPayload = PiResourceRequest & {
   name: string;
   filePath: string;
   source: string;
   scope: ExtensionSourceScope;
   origin: ExtensionSourceOrigin;
-}
+};
 
-export interface ExtensionSetEnabledPayload extends ExtensionIdentityPayload {
-  enabled: boolean;
-}
+export type ExtensionSetEnabledPayload = ExtensionIdentityPayload & { enabled: boolean };
 
 export interface ExtensionSetEnabledValue {
   name: string;
@@ -903,9 +903,7 @@ export interface ExtensionRemoveValue {
   removed: true;
 }
 
-export interface ExtensionFilesListPayload extends ExtensionIdentityPayload {
-  relativePath?: string;
-}
+export type ExtensionFilesListPayload = ExtensionIdentityPayload & { relativePath?: string };
 
 export interface ExtensionFileEntry {
   name: string;
@@ -923,9 +921,7 @@ export interface ExtensionFilesListValue {
   truncated: boolean;
 }
 
-export interface ExtensionFileReadPayload extends ExtensionIdentityPayload {
-  relativePath?: string;
-}
+export type ExtensionFileReadPayload = ExtensionIdentityPayload & { relativePath?: string };
 
 export interface ExtensionFileSnapshotValue {
   extensionName: string;
@@ -941,9 +937,7 @@ export interface ExtensionFileSnapshotValue {
   modifiedAt: number;
 }
 
-export interface InstalledPackageListPayload {
-  sessionId: string;
-}
+export type InstalledPackageListPayload = PiResourceRequest;
 
 export interface InstalledPackageView {
   source: string;
@@ -956,7 +950,7 @@ export interface InstalledPackageListValue {
 }
 
 export type PiPackageMutationTarget =
-  | { scope: "user"; sessionId: string }
+  | { scope: "user"; sessionId?: string }
   | { scope: "project"; workspaceId: string };
 
 export type PiPackageInstallTarget = PiPackageMutationTarget;
@@ -1104,6 +1098,14 @@ export interface CommandListValue {
   commands: CommandView[];
 }
 
+export interface PromptListPayload {
+  target: PiResourceCatalogTarget;
+}
+
+export interface PromptListValue {
+  prompts: PromptCommandView[];
+}
+
 export interface SessionProjections {
   asOfSeq: number;
   values: Record<string, unknown>;
@@ -1178,6 +1180,384 @@ export interface SessionHistoryValue {
   hasMore: boolean;
   projections?: SessionProjections;
   branches?: SessionHistoryBranches;
+}
+
+/** JSON-safe value captured by the transient context observer. */
+export type SessionContextTraceJsonValue =
+  | null
+  | boolean
+  | number
+  | string
+  | SessionContextTraceJsonValue[]
+  | { [key: string]: SessionContextTraceJsonValue };
+
+export interface SessionContextTraceCaptureMetadata {
+  originalBytes: number;
+  capturedBytes: number;
+  /** Legacy journals may be true; new trace captures preserve the complete serializable value. */
+  truncated: boolean;
+  /** Legacy journals may contain paths redacted by older Workbench versions. */
+  redactedPaths: string[];
+}
+
+export interface SessionContextTraceJsonCapture {
+  value: SessionContextTraceJsonValue;
+  capture: SessionContextTraceCaptureMetadata;
+}
+
+export interface SessionContextTraceTextCapture extends SessionContextTraceCaptureMetadata {
+  text: string;
+  originalCharacters: number;
+}
+
+export interface SessionContextTraceModel {
+  provider: string;
+  model: string;
+  api?: string;
+  contextWindow?: number;
+  maxTokens?: number;
+}
+
+/** Provider-normalized token usage from Pi's finalized assistant message. */
+export interface SessionContextTraceTokenUsage {
+  /** Non-cached prompt tokens. */
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+  /** Subset of cacheWrite retained for one hour, when reported by the provider. */
+  cacheWrite1h?: number;
+  /** Subset of output used for reasoning, when reported by the provider. */
+  reasoning?: number;
+  totalTokens: number;
+}
+
+/** Estimated model-context occupancy at the point Pi builds a model call. */
+export interface SessionContextTraceContextUsage {
+  tokens: number | null;
+  contextWindow: number;
+  /** Percentage in the 0-100 range, or null when Pi cannot estimate current tokens. */
+  percent: number | null;
+}
+
+/** Per-message estimates aligned by source index with a captured context message array. */
+export interface SessionContextTraceMessageTokenEstimates {
+  method: "pi-estimate-tokens-v1";
+  tokens: Array<number | null>;
+}
+
+export interface SessionContextTraceCompactionPreparation {
+  firstKeptEntryId: string;
+  tokensBefore: number;
+  summarizedMessageCount: number;
+  turnPrefixMessageCount: number;
+  branchEntryCount: number;
+  isSplitTurn: boolean;
+  reserveTokens: number;
+  keepRecentTokens: number;
+  previousSummary?: SessionContextTraceTextCapture;
+  customInstructions?: SessionContextTraceTextCapture;
+  messagesToSummarize: SessionContextTraceJsonCapture;
+  turnPrefixMessages: SessionContextTraceJsonCapture;
+  fileOperations: SessionContextTraceJsonCapture;
+}
+
+export interface SessionContextTraceCompactionResult {
+  summary: SessionContextTraceTextCapture;
+  firstKeptEntryId: string;
+  tokensBefore: number;
+  estimatedTokensAfter?: number;
+  usage?: SessionContextTraceTokenUsage;
+  details?: SessionContextTraceJsonCapture;
+  compactionEntryId?: string;
+  fromExtension?: boolean;
+}
+
+/** Bounded projection copied onto list summaries so the trace tree needs no detail N+1. */
+export interface SessionContextTraceCompactionSummary {
+  phase: "start" | "end";
+  reason: "manual" | "threshold" | "overflow";
+  tokensBefore?: number;
+  estimatedTokensAfter?: number;
+  summarizedMessageCount?: number;
+  turnPrefixMessageCount?: number;
+  firstKeptEntryId?: string;
+  aborted?: boolean;
+  willRetry?: boolean;
+}
+
+export interface SessionContextTraceResourceSource {
+  path: string;
+  source: string;
+  scope: "user" | "project" | "temporary";
+  origin: "package" | "top-level";
+  baseDir?: string;
+}
+
+export interface SessionContextTraceTool {
+  name: string;
+  description: string;
+  active: boolean;
+  source: SessionContextTraceResourceSource;
+  parameters: SessionContextTraceJsonCapture;
+  promptGuidelines?: string[];
+}
+
+export interface SessionContextTraceSkill {
+  name: string;
+  description?: string;
+  filePath?: string;
+  disableModelInvocation?: boolean;
+}
+
+export interface SessionContextTraceContextFile {
+  path: string;
+  content: SessionContextTraceTextCapture;
+}
+
+export interface SessionContextTraceSystemPromptOptions {
+  cwd: string;
+  customPrompt?: SessionContextTraceTextCapture;
+  appendSystemPrompt?: SessionContextTraceTextCapture;
+  selectedTools?: string[];
+  toolSnippets?: Record<string, string>;
+  promptGuidelines?: string[];
+  contextFiles: SessionContextTraceContextFile[];
+  skills: SessionContextTraceSkill[];
+}
+
+export type SessionContextTraceKind =
+  | "round-start"
+  | "prompt-composition"
+  | "run-start"
+  | "turn-start"
+  | "context-snapshot"
+  | "provider-request"
+  | "provider-response"
+  | "model-output"
+  | "tool-execution-start"
+  | "tool-execution-end"
+  | "turn-end"
+  | "run-end"
+  | "retry"
+  | "compaction"
+  | "round-settled";
+
+/** Correlation coordinates for a context trace event. Missing levels have not started yet. */
+export interface SessionContextTraceCoordinates {
+  roundId?: string;
+  runId?: string;
+  runIndex?: number;
+  turnId?: string;
+  /** Pi's zero-based turn index, reset for every agent run. */
+  turnIndex?: number;
+  requestId?: string;
+  requestIndex?: number;
+  toolCallId?: string;
+  toolName?: string;
+  /** One-based automatic agent retry number when applicable. */
+  agentAttempt?: number;
+}
+
+export interface SessionContextTraceEventSummary extends SessionContextTraceCoordinates {
+  schemaVersion: 1;
+  traceId: string;
+  sessionId: string;
+  activationId: string;
+  /** Monotonic only within activationId. */
+  seq: number;
+  time: number;
+  kind: SessionContextTraceKind;
+  detailBytes: number;
+  truncated: boolean;
+  redacted: boolean;
+  /** Present on completed model turns so list/live consumers need not load the full detail. */
+  usage?: SessionContextTraceTokenUsage;
+  /** Present on finalized model output summaries. */
+  model?: SessionContextTraceModel;
+  thinkingLevel?: string;
+  /** Bounded user-prompt excerpt present only on prompt-composition summaries. */
+  promptPreview?: string;
+  /** Present on prompt composition and per-call context snapshots when Pi can estimate it. */
+  contextUsage?: SessionContextTraceContextUsage;
+  /** Present on compaction events so list consumers can render the before/after transition. */
+  compaction?: SessionContextTraceCompactionSummary;
+}
+
+export type SessionContextTraceDetail =
+  | {
+      type: "round-start";
+      trigger: "prompt" | "continuation" | "unknown";
+    }
+  | {
+      type: "prompt-composition";
+      prompt: SessionContextTraceTextCapture;
+      systemPrompt: SessionContextTraceTextCapture;
+      systemPromptOptions: SessionContextTraceSystemPromptOptions;
+      images: SessionContextTraceJsonCapture;
+      model?: SessionContextTraceModel;
+      thinkingLevel?: string;
+      contextUsage?: SessionContextTraceContextUsage;
+      tools: SessionContextTraceTool[];
+    }
+  | { type: "run-start" }
+  | { type: "turn-start"; timestamp?: number }
+  | {
+      type: "context-snapshot";
+      messageCount: number;
+      messages: SessionContextTraceJsonCapture;
+      contextUsage?: SessionContextTraceContextUsage;
+      messageTokenEstimates?: SessionContextTraceMessageTokenEstimates;
+    }
+  | {
+      type: "provider-request";
+      payload: SessionContextTraceJsonCapture;
+      /** Pi currently exposes one hook per logical request, not one hook per HTTP retry. */
+      transportAttemptsObserved: false;
+    }
+  | {
+      type: "provider-response";
+      status: number;
+      /** Complete response headers exposed by the Pi lifecycle event. */
+      headers: Record<string, string>;
+    }
+  | {
+      type: "model-output";
+      message: SessionContextTraceJsonCapture;
+      usage: SessionContextTraceTokenUsage;
+      model?: SessionContextTraceModel;
+      thinkingLevel?: string;
+    }
+  | {
+      type: "tool-execution-start";
+      toolCallId: string;
+      toolName: string;
+      args: SessionContextTraceJsonCapture;
+    }
+  | {
+      type: "tool-execution-end";
+      toolCallId: string;
+      toolName: string;
+      result: SessionContextTraceJsonCapture;
+      isError: boolean;
+    }
+  | {
+      type: "turn-end";
+      message: SessionContextTraceJsonCapture;
+      toolResultCount: number;
+      toolResults: SessionContextTraceJsonCapture;
+      usage?: SessionContextTraceTokenUsage;
+    }
+  | { type: "run-end"; messageCount: number; willRetry: boolean }
+  | {
+      type: "retry";
+      phase: "scheduled" | "finished" | "summarization-scheduled" | "summarization-finished";
+      attempt?: number;
+      maxAttempts?: number;
+      delayMs?: number;
+      success?: boolean;
+      source?: "agent" | "compaction" | "branch-summary";
+      error?: SessionContextTraceTextCapture;
+    }
+  | {
+      type: "compaction";
+      phase: "start" | "end";
+      reason: "manual" | "threshold" | "overflow";
+      aborted?: boolean;
+      willRetry?: boolean;
+      preparation?: SessionContextTraceCompactionPreparation;
+      result?: SessionContextTraceCompactionResult;
+      error?: SessionContextTraceTextCapture;
+    }
+  | { type: "round-settled" };
+
+/** A detail record whose `kind` and `detail.type` discriminants always agree. */
+export type SessionContextTraceEvent = {
+  [Kind in SessionContextTraceKind]: Omit<SessionContextTraceEventSummary, "kind"> & {
+    kind: Kind;
+    detail: Extract<SessionContextTraceDetail, { type: Kind }>;
+  };
+}[SessionContextTraceKind];
+
+export interface SessionContextTraceCapabilities {
+  schemaVersion: 1;
+  storage: "persistent-journal" | "bounded-memory";
+  durable: boolean;
+  scope: "agent-turn";
+  captures: readonly [
+    "system-prompt",
+    "resource-sources",
+    "tools",
+    "messages",
+    "provider-payload",
+    "model-output",
+    "tool-execution",
+    "token-usage",
+    "lifecycle",
+  ];
+  providerTransportAttempts: "logical-request-only";
+  sensitiveValues: "captured";
+  maxEvents: number;
+  maxBytes: number;
+  persistence?: {
+    format: "hash-chained-jsonl";
+    maxActivations: number;
+    maxBytesPerSession: number;
+  };
+}
+
+export interface SessionContextTraceActivationSummary {
+  schemaVersion: 1;
+  sessionId: string;
+  activationId: string;
+  startedAt: number;
+  updatedAt: number;
+  eventCount: number;
+  persistedBytes: number;
+  active: boolean;
+  complete: boolean;
+}
+
+export interface SessionContextTraceActivationsPayload {
+  sessionId: string;
+}
+
+export interface SessionContextTraceActivationsValue {
+  activations: SessionContextTraceActivationSummary[];
+  currentActivationId?: string;
+  capabilities: SessionContextTraceCapabilities;
+}
+
+export interface SessionContextTraceListPayload {
+  sessionId: string;
+  /** Omit to read the current activation; durable traces may replay a page from journal. */
+  activationId?: string;
+  /** Exclusive sequence cursor within the current activation. */
+  afterSeq?: number;
+  limit?: number;
+}
+
+export interface SessionContextTraceListValue {
+  activationId: string;
+  events: SessionContextTraceEventSummary[];
+  /** True when another page exists after the final returned event. */
+  hasMore: boolean;
+  /** Exclusive high watermark for the activation, not the cursor of a limited page. */
+  nextSeq: number;
+  /** Oldest retained sequence, or nextSeq when the trace is empty. */
+  retainedFromSeq: number;
+  capabilities: SessionContextTraceCapabilities;
+  source: "memory" | "disk";
+  integrity: "memory" | "verified";
+}
+
+export interface SessionContextTraceReadPayload {
+  sessionId: string;
+  traceId: string;
+}
+
+export interface SessionContextTraceReadValue {
+  event: SessionContextTraceEvent;
 }
 
 export interface SessionHistoryBranch {

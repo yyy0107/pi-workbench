@@ -1,12 +1,12 @@
 "use client";
 
 import { useId, useMemo, type ComponentProps, type ReactNode } from "react";
-import { CopyIcon } from "lucide-react";
+import { CheckIcon, CircleXIcon, CopyIcon } from "lucide-react";
 
 import { languageForFilename, useWorkbenchHighlightedCode } from "@/components/code-highlighting";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { useClipboardCopy } from "@/hooks/use-clipboard-copy";
 import { useI18n } from "@/i18n";
-import { writeClipboardText } from "@/lib/clipboard";
 import { cn } from "@/lib/utils";
 
 import { mono } from "./surfaces";
@@ -102,11 +102,14 @@ export function CodeDiff({
   const highlighted = useWorkbenchHighlightedCode(code, language);
   const rootSelector = `[data-code-diff-id="${diffId}"]`;
   const lineStyles = useMemo(() => diffLineStyles(rootSelector, lines), [lines, rootSelector]);
-
-  const copyCode = () => {
-    if (!code) return;
-    void writeClipboardText(code);
-  };
+  const { copy, isCopied, status } = useClipboardCopy();
+  const copyLabel = t(
+    status === "copied"
+      ? "assistant.actions.copied"
+      : status === "failed"
+        ? "assistant.actions.copyFailed"
+        : "assistant.actions.copy",
+  );
 
   return (
     <div
@@ -183,12 +186,19 @@ export function CodeDiff({
 
       <DiffHeader filename={filename} additions={additions} deletions={deletions}>
         <TooltipIconButton
-          tooltip={t("assistant.actions.copy")}
-          aria-label={t("assistant.actions.copy")}
+          tooltip={copyLabel}
+          aria-label={copyLabel}
           className="text-muted-foreground hover:text-foreground -me-1 size-7 shrink-0"
-          onClick={copyCode}
+          disabled={!code}
+          onClick={() => void copy(code)}
         >
-          <CopyIcon className="size-4" />
+          {isCopied ? (
+            <CheckIcon className="size-4" />
+          ) : status === "failed" ? (
+            <CircleXIcon className="text-destructive size-4" />
+          ) : (
+            <CopyIcon className="size-4" />
+          )}
         </TooltipIconButton>
       </DiffHeader>
 

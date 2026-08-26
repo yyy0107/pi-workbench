@@ -5,6 +5,7 @@ import {
   CheckIcon,
   ChevronDownIcon,
   ChevronRightIcon,
+  CircleXIcon,
   ClipboardIcon,
   Code2Icon,
   ComponentIcon,
@@ -53,17 +54,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
+import { useClipboardCopy } from "@/hooks/use-clipboard-copy";
 import { useI18n } from "@/i18n";
-import { writeClipboardText } from "@/lib/clipboard";
 import { useExtensionErrorReporter, type ExtensionErrorSource } from "@/platform/extensions";
 import type { ComponentExtensionContributionKind } from "@/platform/extensions/authoring";
 import { ExtensionErrorBoundary } from "@/platform/extensions/hosts/extension-error-boundary";
-import {
-  usePiActiveSessionId,
-  usePiHostDescription,
-  usePiThreadListItemState,
-  usePiWorkspaces,
-} from "@/runtime/pi/client/runtime/context";
+import { usePiHostDescription, usePiWorkspaces } from "@/runtime/pi/client/runtime/context";
 import {
   installPiPackage,
   listInstalledPiPackages,
@@ -87,6 +83,8 @@ import {
   notifyToolboxPackagesChanged,
   notifyToolboxSkillsChanged,
 } from "./toolbox-catalog";
+import { toolboxScopeTarget } from "./toolbox-scope";
+import { useToolboxScope } from "./toolbox-scope-store";
 import { usePiPackageDetails } from "./use-pi-package-details";
 import { usePiSkillDetails } from "./use-pi-skill-details";
 
@@ -170,7 +168,7 @@ function parentDirectoryPath(filePath: string): string {
 
 function CopyableSourcePath({ path }: { path: string }) {
   const { t } = useI18n();
-  const [copyState, setCopyState] = useState<"copied" | "failed" | "idle">("idle");
+  const { copy, status: copyState } = useClipboardCopy();
   const copyLabel = t(
     copyState === "copied"
       ? "extensions.toolbox.details.sourcePathCopied"
@@ -180,7 +178,7 @@ function CopyableSourcePath({ path }: { path: string }) {
   );
 
   const copyPath = () => {
-    void writeClipboardText(path).then((copied) => setCopyState(copied ? "copied" : "failed"));
+    void copy(path);
   };
 
   return (
@@ -199,6 +197,8 @@ function CopyableSourcePath({ path }: { path: string }) {
       >
         {copyState === "copied" ? (
           <CheckIcon aria-hidden="true" />
+        ) : copyState === "failed" ? (
+          <CircleXIcon aria-hidden="true" className="text-destructive" />
         ) : (
           <ClipboardIcon aria-hidden="true" />
         )}
@@ -693,12 +693,34 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
   const { date, number, t } = useI18n();
   const opener = useOpenerService();
   const workspaceContext = useWorkspaceContext();
-  const activeSessionId = usePiActiveSessionId();
-  const sessionId = params.catalogSessionId ?? activeSessionId;
-  const catalogSessionState = usePiThreadListItemState(sessionId ?? "");
-  const sessionRunning = catalogSessionState.metadata.running;
+  const toolboxScope = useToolboxScope();
   const userPackageDir = usePiHostDescription()?.userPackageDir;
   const workspaces = usePiWorkspaces();
+  const selectedScopeWorkspace =
+    toolboxScope.kind === "project"
+      ? workspaces.find((workspace) => workspace.id === toolboxScope.workspaceId)
+      : undefined;
+  const catalogTarget = useMemo(
+    () =>
+      params.catalogTarget ??
+      (toolboxScope.kind === "user" || selectedScopeWorkspace
+        ? toolboxScopeTarget(toolboxScope)
+        : undefined),
+    [params.catalogTarget, selectedScopeWorkspace, toolboxScope],
+  );
+  const defaultInstallTarget = useMemo<PackageInstallChoice | null>(
+    () =>
+      toolboxScope.kind === "user"
+        ? { scope: "user" }
+        : selectedScopeWorkspace
+          ? {
+              scope: "project",
+              workspaceId: selectedScopeWorkspace.id,
+              workspaceName: selectedScopeWorkspace.name,
+            }
+          : null,
+    [selectedScopeWorkspace, toolboxScope.kind],
+  );
   const isSkill = params.capabilityKind === "skill";
   const isPrompt = params.capabilityKind === "prompt";
   const isPackage = params.capabilityKind === "package";
@@ -719,11 +741,7 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
   const showPackageOverview = hasPackageOverview && !isSkill;
   const isPromptPackage = isCatalogPackage && params.packageTypes?.includes("prompt");
   const packageDetails = usePiPackageDetails(associatedPackageName ?? "", showPackageOverview);
-  const skillDetails = usePiSkillDetails(
-    sessionId ?? "",
-    params.name,
-    isSkill && Boolean(sessionId),
-  );
+  const skillDetails = usePiSkillDetails(catalogTarget, params.name, isSkill);
   const displayedSkillFilePath = skillDetails.value?.filePath
     ? abbreviateUserHomePath(skillDetails.value.filePath)
     : undefined;
@@ -763,12 +781,17 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
           : isComponentExtension
             ? ComponentIcon
             : BoxesIcon;
-  const [copied, setCopied] = useState(false);
+  const {
+    copy: copyInstallCommandText,
+    isCopied: installCommandCopied,
+    reset: resetInstallCommandCopy,
+    status: installCommandCopyStatus,
+  } = useClipboardCopy({ duration: 1_500 });
   const [installFeedback, setInstallFeedback] = useState<PackageInstallFeedback>({
     status: "idle",
   });
   const [selectedInstallTarget, setSelectedInstallTarget] = useState<PackageInstallChoice | null>(
-    null,
+    defaultInstallTarget,
   );
   const [installedTargets, setInstalledTargets] = useState(() => new Set<string>());
   const [terminalLaunchFailed, setTerminalLaunchFailed] = useState(false);
@@ -789,8 +812,8 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
     () =>
       (isSkill && skillRemoved) || (isExtension && extensionRemoved)
         ? undefined
-        : toolboxDirectoryResource(params, sessionId),
-    [extensionRemoved, isExtension, isSkill, params, sessionId, skillRemoved],
+        : toolboxDirectoryResource(params, catalogTarget),
+    [catalogTarget, extensionRemoved, isExtension, isSkill, params, skillRemoved],
   );
   const capabilityUninstalled =
     installedPackageRemoved ||
@@ -798,16 +821,18 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
   const capabilityInactive =
     capabilityUninstalled || (isExtension && (!extensionEnabled || extensionRemoved));
   const activeWorkspaceId =
-    params.projectId ?? catalogSessionState.metadata.workspace?.id ?? workspaceContext.projectId;
+    params.projectId ??
+    (toolboxScope.kind === "project" ? toolboxScope.workspaceId : undefined) ??
+    workspaceContext.projectId;
   const skillPackageRemovalTarget =
-    params.origin === "package" && params.scope === "user" && sessionId
-      ? { scope: "user" as const, sessionId }
+    params.origin === "package" && params.scope === "user"
+      ? { scope: "user" as const }
       : params.origin === "package" && params.scope === "project" && activeWorkspaceId
         ? { scope: "project" as const, workspaceId: activeWorkspaceId }
         : undefined;
   const extensionPackageRemovalTarget =
-    params.origin === "package" && params.scope === "user" && sessionId
-      ? { scope: "user" as const, sessionId }
+    params.origin === "package" && params.scope === "user"
+      ? { scope: "user" as const }
       : params.origin === "package" && params.scope === "project" && activeWorkspaceId
         ? { scope: "project" as const, workspaceId: activeWorkspaceId }
         : undefined;
@@ -815,16 +840,14 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
     skillMutationState === "updating" || skillMutationState === "removing";
   const canToggleSkill =
     isSkill &&
-    Boolean(sessionId) &&
-    !sessionRunning &&
+    Boolean(catalogTarget) &&
     !skillRemoved &&
     !skillMutationPending &&
     params.scope !== "temporary" &&
     (params.origin !== "package" || Boolean(params.source));
   const canDeleteSkill =
     isSkill &&
-    Boolean(sessionId) &&
-    !sessionRunning &&
+    Boolean(catalogTarget) &&
     !skillRemoved &&
     !skillMutationPending &&
     ((params.origin === "package" &&
@@ -838,14 +861,14 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
     extensionMutationState === "updating" || extensionMutationState === "removing";
   const extensionIdentity =
     isExtension &&
-    sessionId &&
+    catalogTarget &&
     params.extensionName &&
     params.filePath &&
     params.source &&
     params.scope &&
     params.origin
       ? {
-          sessionId,
+          target: catalogTarget,
           name: params.extensionName,
           filePath: params.filePath,
           source: params.source,
@@ -855,13 +878,11 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
       : undefined;
   const canToggleExtension =
     Boolean(extensionIdentity) &&
-    !sessionRunning &&
     !extensionRemoved &&
     !extensionMutationPending &&
     params.scope !== "temporary";
   const canDeleteExtension =
     Boolean(extensionIdentity) &&
-    !sessionRunning &&
     !extensionRemoved &&
     !extensionMutationPending &&
     ((params.origin === "package" &&
@@ -899,15 +920,22 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
   }, [params.capabilityId, params.enabled]);
 
   useEffect(() => {
+    if (!isCatalogPackage) return;
+    setSelectedInstallTarget(defaultInstallTarget);
+    setInstallFeedback({ status: "idle" });
+    setRemoveFeedback({ status: "idle" });
+  }, [defaultInstallTarget, isCatalogPackage]);
+
+  useEffect(() => {
     if (!directoryResource) return;
     return fileWorkspaceTargetService.activate(directoryResource);
   }, [directoryResource]);
 
   useEffect(() => {
-    if (!isCatalogPackage || !sessionId) return;
+    if (!isCatalogPackage || !catalogTarget) return;
     let active = true;
     const source = `npm:${params.name}`;
-    void listInstalledPiPackages({ sessionId }).then(
+    void listInstalledPiPackages({ target: catalogTarget }).then(
       ({ packages }) => {
         if (!active) return;
         const discovered = new Set<string>();
@@ -924,7 +952,7 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
     return () => {
       active = false;
     };
-  }, [activeWorkspaceId, isCatalogPackage, params.name, sessionId]);
+  }, [activeWorkspaceId, catalogTarget, isCatalogPackage, params.name]);
   const detailsPlaceholder = packageDetails.loadState === "loading" ? "…" : "—";
   const publishedAt = params.publishedAt ?? officialDetails?.publishedAt;
   const monthlyDownloads = officialDetails?.monthlyDownloads ?? params.monthlyDownloads;
@@ -969,32 +997,21 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
 
   const copyInstallCommand = () => {
     if (!selectedInstallCommand) return;
-    void writeClipboardText(selectedInstallCommand).then((copySucceeded) => {
-      if (copySucceeded) {
-        setCopied(true);
-        window.setTimeout(() => setCopied(false), 1500);
-      } else {
-        setCopied(false);
-      }
-    });
+    void copyInstallCommandText(selectedInstallCommand);
   };
 
   const installPackage = (target: PackageInstallChoice) => {
     if (
       installFeedback.status === "installing" ||
       removeFeedback.status === "removing" ||
-      installedTargets.has(installChoiceKey(target)) ||
-      (target.scope === "user" && !sessionId)
+      installedTargets.has(installChoiceKey(target))
     ) {
       return;
     }
     const rpcTarget =
       target.scope === "user"
-        ? sessionId
-          ? { scope: "user" as const, sessionId }
-          : undefined
+        ? { scope: "user" as const }
         : { scope: "project" as const, workspaceId: target.workspaceId };
-    if (!rpcTarget) return;
     setRemoveFeedback({ status: "idle" });
     setInstallFeedback({ status: "installing", target });
     void installPiPackage({
@@ -1039,7 +1056,6 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
             workspaceName:
               params.projectName ??
               activeWorkspace?.name ??
-              catalogSessionState.metadata.workspace?.name ??
               t("extensions.toolbox.packages.installLocationProjects"),
           }
         : null;
@@ -1059,7 +1075,7 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
     setInstallFeedback({ status: "idle" });
     setRemoveFeedback({ status: "idle" });
     setTerminalLaunchFailed(false);
-    setCopied(false);
+    resetInstallCommandCopy();
   };
   const installInTerminal = () => {
     if (!selectedInstallTarget || !params.installCommand) return;
@@ -1106,11 +1122,8 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
     }
     const rpcTarget =
       uninstallTarget.scope === "user"
-        ? sessionId
-          ? { scope: "user" as const, sessionId }
-          : undefined
+        ? { scope: "user" as const }
         : { scope: "project" as const, workspaceId: uninstallTarget.workspaceId };
-    if (!rpcTarget) return;
 
     setRemoveFeedback({ status: "removing", target: uninstallTarget });
     void removePiPackage({ source: uninstallSource, target: rpcTarget }).then(
@@ -1134,9 +1147,9 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
     );
   };
   const updateSkillEnabled = (enabled: boolean) => {
-    if (!sessionId || !canToggleSkill || enabled === skillEnabled) return;
+    if (!catalogTarget || !canToggleSkill || enabled === skillEnabled) return;
     setSkillMutationState("updating");
-    void setPiSkillEnabled({ sessionId, name: params.name, enabled }).then(
+    void setPiSkillEnabled({ target: catalogTarget, name: params.name, enabled }).then(
       (value) => {
         setSkillEnabled(value.enabled);
         setSkillMutationState("idle");
@@ -1158,12 +1171,12 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
       });
   };
   const deleteSkill = () => {
-    if (!sessionId || !canDeleteSkill) return;
+    if (!catalogTarget || !canDeleteSkill) return;
     setSkillMutationState("removing");
     const operation =
       params.origin === "package" && params.source && skillPackageRemovalTarget
         ? removePiPackage({ source: params.source, target: skillPackageRemovalTarget })
-        : removePiSkill({ sessionId, name: params.name });
+        : removePiSkill({ target: catalogTarget, name: params.name });
     void operation.then(
       () => {
         setSkillEnabled(false);
@@ -1386,11 +1399,9 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
                   )}
                   aria-busy={extensionMutationState === "updating"}
                   title={t(
-                    sessionRunning
-                      ? "extensions.toolbox.extensions.sessionBusy"
-                      : extensionEnabled
-                        ? "extensions.toolbox.extensions.disableExtension"
-                        : "extensions.toolbox.extensions.enableExtension",
+                    extensionEnabled
+                      ? "extensions.toolbox.extensions.disableExtension"
+                      : "extensions.toolbox.extensions.enableExtension",
                     { name: params.name },
                   )}
                   onCheckedChange={updateExtensionEnabled}
@@ -1637,11 +1648,9 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
                   )}
                   aria-busy={skillMutationState === "updating"}
                   title={t(
-                    sessionRunning
-                      ? "extensions.toolbox.skills.sessionBusy"
-                      : skillEnabled
-                        ? "extensions.toolbox.skills.disableSkill"
-                        : "extensions.toolbox.skills.enableSkill",
+                    skillEnabled
+                      ? "extensions.toolbox.skills.disableSkill"
+                      : "extensions.toolbox.skills.enableSkill",
                     { name: params.name },
                   )}
                   onCheckedChange={updateSkillEnabled}
@@ -1734,9 +1743,9 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
                 ) : null}
               </div>
             </div>
-            {!sessionId ? (
+            {!catalogTarget ? (
               <p className="text-muted-foreground text-xs leading-5">
-                {t("extensions.toolbox.details.skillDocumentSessionRequired")}
+                {t("extensions.toolbox.scopeUnavailable")}
               </p>
             ) : skillDetails.loadState === "loading" ? (
               <p
@@ -1818,7 +1827,6 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
                       {t("extensions.toolbox.packages.installLocation")}
                     </DropdownMenuLabel>
                     <DropdownMenuItem
-                      disabled={!sessionId}
                       className="items-start py-2"
                       onClick={() => selectInstallTarget({ scope: "user" })}
                     >
@@ -1833,11 +1841,6 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
                         >
                           {userPackageDir ?? "…"}
                         </span>
-                        {!sessionId ? (
-                          <span className="text-muted-foreground mt-0.5 block text-xs leading-4 whitespace-normal">
-                            {t("extensions.toolbox.packages.installSessionRequired")}
-                          </span>
-                        ) : null}
                       </span>
                       {installedTargets.has("user") || selectedInstallKey === "user" ? (
                         <CheckIcon
@@ -1936,12 +1939,7 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
                 <div className="flex flex-wrap items-center gap-2" aria-live="polite">
                   <Button
                     type="button"
-                    disabled={
-                      !selectedInstallTarget ||
-                      mutating ||
-                      selectedTargetInstalled ||
-                      (selectedInstallTarget.scope === "user" && !sessionId)
-                    }
+                    disabled={!selectedInstallTarget || mutating || selectedTargetInstalled}
                     className="active:translate-y-0!"
                     onClick={() => {
                       if (selectedInstallTarget) installPackage(selectedInstallTarget);
@@ -2029,15 +2027,19 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
                     className="shrink-0 active:translate-y-0!"
                     onClick={copyInstallCommand}
                   >
-                    {copied ? (
+                    {installCommandCopied ? (
                       <CheckIcon aria-hidden="true" />
+                    ) : installCommandCopyStatus === "failed" ? (
+                      <CircleXIcon aria-hidden="true" className="text-destructive" />
                     ) : (
                       <ClipboardIcon aria-hidden="true" />
                     )}
                     {t(
-                      copied
+                      installCommandCopyStatus === "copied"
                         ? "extensions.toolbox.packages.copied"
-                        : "extensions.toolbox.packages.copyCommand",
+                        : installCommandCopyStatus === "failed"
+                          ? "extensions.toolbox.packages.copyFailed"
+                          : "extensions.toolbox.packages.copyCommand",
                     )}
                   </Button>
                 </div>

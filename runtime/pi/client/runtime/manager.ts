@@ -76,6 +76,7 @@ import type {
   HostDescription,
   QuestionAnswerItem,
   RpcReceipt,
+  SessionContextTraceEventSummary,
   SessionHistoryValue,
   SessionPromptValue,
   SessionQueueAction,
@@ -255,20 +256,6 @@ interface PiThreadStateBucket {
   snapshot: PiThreadStateSnapshot;
 }
 
-/**
- * One stable, representative Pi session for each resource scope known to Workbench.
- * Session-scoped catalog RPCs can query these targets to build an application-wide view without
- * following the currently active conversation.
- */
-export interface PiResourceCatalogTarget {
-  sessionId: string;
-  project?: {
-    id: string;
-    name: string;
-    path: string;
-  };
-}
-
 export interface PiForkSessionResult {
   readonly sessionId: string;
   readonly title: string;
@@ -297,6 +284,8 @@ export type PiInteractionResponse =
   | { kind: "question"; answers: readonly QuestionAnswerItem[] }
   | { kind: "approval"; outcome: "allowed-once" | "rejected" }
   | { kind: "cancel"; message?: string };
+
+export type PiSessionContextTraceListener = (event: SessionContextTraceEventSummary) => void;
 
 interface StoredPendingInteraction {
   readonly interaction: PiPendingInteraction;
@@ -1959,6 +1948,7 @@ export class PiSessionManager {
   private readonly listeners = new Set<Listener>();
   private readonly threadListListeners = new Set<Listener>();
   private readonly activeSessionListeners = new Set<Listener>();
+  private readonly contextTraceListeners = new Set<PiSessionContextTraceListener>();
   private readonly threadStateBuckets = new Map<string, PiThreadStateBucket>();
   private readonly summaries = new Map<string, PiSessionSummary>();
   private readonly workspaces = new Map<string, WorkspaceView>();
@@ -2031,35 +2021,6 @@ export class PiSessionManager {
       cwd: workspace.path,
       pinned: this.pinnedWorkspaces.has(workspace.workspaceId),
     }));
-  }
-
-  getResourceCatalogTargets(): readonly PiResourceCatalogTarget[] {
-    const targets: PiResourceCatalogTarget[] = [];
-    const representedProjects = new Set<string>();
-    let hasApplicationTarget = false;
-
-    for (const summary of this.orderedSummaries()) {
-      const workspace = this.workspaceForSession(summary.id);
-      if (workspace) {
-        if (representedProjects.has(workspace.workspaceId)) continue;
-        representedProjects.add(workspace.workspaceId);
-        targets.push({
-          sessionId: summary.id,
-          project: {
-            id: workspace.workspaceId,
-            name: workspace.title,
-            path: workspace.path,
-          },
-        });
-        continue;
-      }
-
-      if (hasApplicationTarget) continue;
-      hasApplicationTarget = true;
-      targets.push({ sessionId: summary.id });
-    }
-
-    return targets;
   }
 
   getPendingInteractions(sessionId?: string): readonly PiPendingInteraction[] {
@@ -2342,6 +2303,13 @@ export class PiSessionManager {
     return () => this.threadListListeners.delete(listener);
   };
 
+  /** Subscribe to lightweight live summaries; use the context-trace unary RPCs for baseline/detail. */
+  subscribeSessionContextTrace = (listener: PiSessionContextTraceListener): (() => void) => {
+    if (this.disposed) return () => undefined;
+    this.contextTraceListeners.add(listener);
+    return () => this.contextTraceListeners.delete(listener);
+  };
+
   start(): Promise<void> {
     if (this.disposed) return Promise.resolve();
     this.startTask ??= this.loadInitialMetadata();
@@ -2402,6 +2370,7 @@ export class PiSessionManager {
     this.listeners.clear();
     this.threadListListeners.clear();
     this.activeSessionListeners.clear();
+    this.contextTraceListeners.clear();
     this.threadStateBuckets.clear();
   }
 
@@ -2460,6 +2429,10 @@ export class PiSessionManager {
       const items = payload.items.map((item) => structuredClone(item));
       this.pendingQueues.set(payload.sessionId, items);
       this.sessions.get(payload.sessionId)?.applyQueueSnapshot(items);
+      return;
+    }
+    if (payload.type === "session/context-trace") {
+      for (const listener of this.contextTraceListeners) listener(structuredClone(payload.event));
       return;
     }
     if (payload.type === "question/requested") {

@@ -4,11 +4,11 @@ import type {
   ExtensionRegisteredToolView,
   ExtensionView,
   InstalledPackageView,
+  PiResourceCatalogTarget,
   PiPackageCatalogItemView,
   PromptCommandView,
   SkillView,
 } from "@/runtime/pi/rpc-contracts";
-import type { PiResourceCatalogTarget } from "@/runtime/pi/client/runtime/manager";
 import type { ComponentType } from "react";
 import type { ComponentExtensionContributionKind, OpenableResource } from "@/platform/extensions";
 
@@ -74,7 +74,7 @@ export interface ToolboxCapabilitySurfaceParams extends Record<string, unknown> 
   installed?: boolean;
   packageScope?: InstalledPackageView["scope"];
   packageFiltered?: boolean;
-  catalogSessionId?: string;
+  catalogTarget?: PiResourceCatalogTarget;
   projectId?: string;
   projectName?: string;
   projectPath?: string;
@@ -84,19 +84,20 @@ export function bindCapabilityToCatalogTarget(
   params: ToolboxCapabilitySurfaceParams,
   scope: ExtensionView["scope"] | InstalledPackageView["scope"],
   target: PiResourceCatalogTarget,
+  project?: { id: string; name: string; path: string },
 ): ToolboxCapabilitySurfaceParams {
-  const project = scope === "project" ? target.project : undefined;
+  const scopedProject = scope === "project" ? project : undefined;
   return {
     ...params,
-    capabilityId: project
-      ? `${params.capabilityId}:project:${encodeURIComponent(project.id)}`
+    capabilityId: scopedProject
+      ? `${params.capabilityId}:project:${encodeURIComponent(scopedProject.id)}`
       : params.capabilityId,
-    catalogSessionId: target.sessionId,
-    ...(project
+    catalogTarget: target,
+    ...(scopedProject
       ? {
-          projectId: project.id,
-          projectName: project.name,
-          projectPath: project.path,
+          projectId: scopedProject.id,
+          projectName: scopedProject.name,
+          projectPath: scopedProject.path,
         }
       : {}),
   };
@@ -115,9 +116,9 @@ export interface ToolboxMainViewParams extends Record<string, unknown> {
 
 export function toolboxDirectoryResource(
   params: ToolboxCapabilitySurfaceParams,
-  sessionId: string | undefined,
+  target: PiResourceCatalogTarget | undefined,
 ): OpenableResource | undefined {
-  if (!sessionId) return undefined;
+  if (!target) return undefined;
 
   if (params.capabilityKind === "skill") {
     return {
@@ -125,7 +126,7 @@ export function toolboxDirectoryResource(
       path: params.name,
       label: params.name,
       metadata: {
-        sessionId,
+        resourceTarget: target,
         skillName: params.name,
       },
     };
@@ -147,7 +148,7 @@ export function toolboxDirectoryResource(
     path: params.filePath,
     label: params.extensionName,
     metadata: {
-      sessionId,
+      resourceTarget: target,
       extensionName: params.extensionName,
       extensionFilePath: params.filePath,
       extensionSource: params.source,

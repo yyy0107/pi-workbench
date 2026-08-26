@@ -22,6 +22,8 @@ import type {
   SkillFilesListValue,
   SkillListPayload,
   SkillListValue,
+  PiResourceCatalogTarget,
+  PiResourceRequest,
   SkillRemovePayload,
   SkillRemoveValue,
   SkillSetEnabledPayload,
@@ -37,8 +39,10 @@ import {
   PiResourceMutationBusyError,
   PiResourceMutationSessionUnavailableError,
   type PiResourceMutationCoordinator,
+  type PiResourceMutationResult,
   type PiResourceMutationScope,
 } from "../resources/pi-resource-mutation-coordinator";
+import { getScopedResourceContextService } from "../resources/scoped-resource-context";
 import {
   readResourceTextFile,
   ResourceTextFileTooLargeError,
@@ -118,15 +122,20 @@ export interface SkillSessionHost {
 
 export interface SkillServiceDependencies {
   getSession(sessionId: string): Promise<SkillSessionHost>;
+  getScopedResourceHost(target: PiResourceCatalogTarget): Promise<SkillSessionHost>;
   readSkillDocument(filePath: string): Promise<string>;
   removeSkillPath(targetPath: string): Promise<void>;
   mutationCoordinator: PiResourceMutationCoordinator;
 }
 
+type SkillResourceIdentityDetails =
+  | { sessionId: string; target?: never }
+  | { target: PiResourceCatalogTarget; sessionId?: never };
+
 export interface SkillServiceErrorDetails {
   "session-not-found": { sessionId: string };
   "session-busy": { sessionId: string };
-  "skill-not-found": { sessionId: string; name: string };
+  "skill-not-found": SkillResourceIdentityDetails & { name: string };
   "skill-document-too-large": { name: string; maxBytes: number };
   "skill-file-unreadable": { name: string; relativePath: string };
   "skill-file-too-large": { name: string; relativePath: string; maxBytes: number };
@@ -203,11 +212,65 @@ export class SkillService {
   constructor(dependencies: Partial<SkillServiceDependencies> = {}) {
     this.dependencies = {
       getSession: getOrStartSession,
+      getScopedResourceHost: async (target) => {
+        const context = await getScopedResourceContextService().get(target);
+        return {
+          isRunning: false,
+          session: {
+            resourceLoader: context.resourceLoader,
+            settingsManager: context.settingsManager,
+            sessionManager: { getCwd: () => context.cwd },
+            reload: () => context.reload(),
+          },
+        };
+      },
       readSkillDocument,
       removeSkillPath: (targetPath) => rm(targetPath, { recursive: true }),
       mutationCoordinator: getPiResourceMutationCoordinator(),
       ...dependencies,
     };
+  }
+
+  private async getResourceHost(request: PiResourceRequest): Promise<SkillSessionHost> {
+    return "target" in request && request.target
+      ? this.dependencies.getScopedResourceHost(request.target)
+      : this.getSessionHost(request.sessionId);
+  }
+
+  private resourceIdentityDetails(request: PiResourceRequest): SkillResourceIdentityDetails {
+    return "target" in request && request.target
+      ? { target: request.target }
+      : { sessionId: request.sessionId };
+  }
+
+  private async mutateResourceHost<Value>(
+    request: PiResourceRequest,
+    scope: PiResourceMutationScope,
+    operation: (host: SkillSessionHost) => Promise<PiResourceMutationResult<Value>>,
+  ): Promise<Value> {
+    if (!("target" in request) || !request.target) {
+      return this.dependencies.mutationCoordinator.mutateForSession(
+        {
+          scope,
+          sessionId: request.sessionId,
+          getSession: () => this.getSessionHost(request.sessionId),
+        },
+        operation,
+      );
+    }
+
+    return this.dependencies.mutationCoordinator.mutate(scope, async () => {
+      const host = await this.dependencies.getScopedResourceHost(request.target);
+      const result = await operation(host);
+      if (!result.reload) return result;
+      return {
+        ...result,
+        afterReload: async () => {
+          await result.afterReload?.();
+          await host.session.reload?.();
+        },
+      };
+    });
   }
 
   private async getSessionHost(sessionId: string): Promise<SkillSessionHost> {
@@ -297,15 +360,24 @@ export class SkillService {
 
   private async findSkill(
     host: SkillSessionHost,
-    sessionId: string,
+    request: PiResourceRequest,
     name: string,
   ): Promise<SkillRecord> {
-    const skill = (await this.records(host)).find((candidate) => candidate.name === name);
+    const requestedScope = "target" in request ? request.target?.scope : undefined;
+    const skill = (await this.records(host)).find(
+      (candidate) =>
+        candidate.name === name &&
+        (requestedScope === undefined || candidate.sourceInfo.scope === requestedScope),
+    );
     if (skill) return skill;
-    throw new SkillServiceError("skill-not-found", "The skill is unavailable in this session.", {
-      sessionId,
-      name,
-    });
+    throw new SkillServiceError(
+      "skill-not-found",
+      "The skill is unavailable in this resource scope.",
+      {
+        ...this.resourceIdentityDetails(request),
+        name,
+      },
+    );
   }
 
   private mutationScope(
@@ -398,34 +470,43 @@ export class SkillService {
     if (settingsError) throw settingsError.error;
   }
 
-  async list({ sessionId }: SkillListPayload): Promise<SkillListValue> {
-    const host = await this.getSessionHost(sessionId);
+  async list(request: SkillListPayload): Promise<SkillListValue> {
+    const host = await this.getResourceHost(request);
     try {
+      const records = await this.records(host);
       return {
-        skills: (await this.records(host)).map((skill) => ({
-          name: skill.name,
-          description: skill.description,
-          enabled: skill.enabled,
-          modelInvocable: !skill.disableModelInvocation,
-          source: skill.sourceInfo.source,
-          scope: skill.sourceInfo.scope,
-          origin: skill.sourceInfo.origin,
-        })),
+        skills: records
+          .filter(
+            (skill) =>
+              !("target" in request) ||
+              !request.target ||
+              skill.sourceInfo.scope === request.target.scope,
+          )
+          .map((skill) => ({
+            name: skill.name,
+            description: skill.description,
+            enabled: skill.enabled,
+            modelInvocable: !skill.disableModelInvocation,
+            source: skill.sourceInfo.source,
+            scope: skill.sourceInfo.scope,
+            origin: skill.sourceInfo.origin,
+          })),
       };
     } catch (error) {
       if (error instanceof SkillServiceError) throw error;
       throw new SkillServiceError(
         "internal",
-        "The session skills could not be loaded.",
+        "The Skill resource catalog could not be loaded.",
         {},
         { cause: error },
       );
     }
   }
 
-  async describe({ sessionId, name }: SkillDescribePayload): Promise<SkillDescribeValue> {
-    const host = await this.getSessionHost(sessionId);
-    const skill = await this.findSkill(host, sessionId, name);
+  async describe(request: SkillDescribePayload): Promise<SkillDescribeValue> {
+    const { name } = request;
+    const host = await this.getResourceHost(request);
+    const skill = await this.findSkill(host, request, name);
 
     try {
       const content = await this.dependencies.readSkillDocument(skill.filePath);
@@ -444,44 +525,34 @@ export class SkillService {
       }
       throw new SkillServiceError(
         "internal",
-        "The session skill document could not be loaded.",
+        "The Skill document could not be loaded.",
         {},
         { cause: error },
       );
     }
   }
 
-  async setEnabled({
-    sessionId,
-    name,
-    enabled,
-  }: SkillSetEnabledPayload): Promise<SkillSetEnabledValue> {
-    const initialHost = await this.getSessionHost(sessionId);
+  async setEnabled(request: SkillSetEnabledPayload): Promise<SkillSetEnabledValue> {
+    const { name, enabled } = request;
+    const initialHost = await this.getResourceHost(request);
 
     try {
-      const skill = await this.findSkill(initialHost, sessionId, name);
+      const skill = await this.findSkill(initialHost, request, name);
       const scope = this.mutationScope(initialHost, skill.sourceInfo.scope, name);
-      return await this.dependencies.mutationCoordinator.mutateForSession(
-        {
-          scope,
-          sessionId,
-          getSession: () => this.getSessionHost(sessionId),
-        },
-        async (host) => {
-          const currentSkill = await this.findSkill(host, sessionId, name);
-          if (!sameSkillMutationIdentity(currentSkill, skill)) {
-            throw new SkillServiceError("skill-not-found", "The skill identity changed.", {
-              sessionId,
-              name,
-            });
-          }
-          if (currentSkill.enabled === enabled) {
-            return { value: { name, enabled }, reload: false };
-          }
-          await this.persistSkillEnabled(host, currentSkill, enabled);
-          return { value: { name, enabled }, reload: true };
-        },
-      );
+      return await this.mutateResourceHost(request, scope, async (host) => {
+        const currentSkill = await this.findSkill(host, request, name);
+        if (!sameSkillMutationIdentity(currentSkill, skill)) {
+          throw new SkillServiceError("skill-not-found", "The skill identity changed.", {
+            ...this.resourceIdentityDetails(request),
+            name,
+          });
+        }
+        if (currentSkill.enabled === enabled) {
+          return { value: { name, enabled }, reload: false };
+        }
+        await this.persistSkillEnabled(host, currentSkill, enabled);
+        return { value: { name, enabled }, reload: true };
+      });
     } catch (error) {
       if (error instanceof SkillServiceError) throw error;
       if (error instanceof PiResourceMutationBusyError) {
@@ -509,61 +580,55 @@ export class SkillService {
     }
   }
 
-  async remove({ sessionId, name }: SkillRemovePayload): Promise<SkillRemoveValue> {
-    const initialHost = await this.getSessionHost(sessionId);
+  async remove(request: SkillRemovePayload): Promise<SkillRemoveValue> {
+    const { name } = request;
+    const initialHost = await this.getResourceHost(request);
 
     try {
-      const skill = await this.findSkill(initialHost, sessionId, name);
+      const skill = await this.findSkill(initialHost, request, name);
       const scope = this.mutationScope(initialHost, skill.sourceInfo.scope, name);
-      return await this.dependencies.mutationCoordinator.mutateForSession(
-        {
-          scope,
-          sessionId,
-          getSession: () => this.getSessionHost(sessionId),
-        },
-        async (host) => {
-          const currentSkill = await this.findSkill(host, sessionId, name);
-          if (!sameSkillMutationIdentity(currentSkill, skill)) {
-            throw new SkillServiceError("skill-not-found", "The skill identity changed.", {
-              sessionId,
-              name,
-            });
-          }
-          if (currentSkill.sourceInfo.origin === "package") {
-            throw new SkillServiceError(
-              "skill-package-managed",
-              "Package-provided skills must be removed through the package manager.",
-              { name, source: currentSkill.sourceInfo.source },
-            );
-          }
-          if (
-            currentSkill.sourceInfo.scope === "temporary" ||
-            currentSkill.sourceInfo.source !== "auto" ||
-            !currentSkill.sourceInfo.baseDir
-          ) {
-            throw new SkillServiceError("skill-read-only", "This skill source is read-only.", {
-              name,
-            });
-          }
-          const targetPath =
-            path.basename(currentSkill.filePath).toLowerCase() === "skill.md"
-              ? path.dirname(currentSkill.filePath)
-              : currentSkill.filePath;
-          const [canonicalBase, canonicalTarget] = await Promise.all([
-            realpath(currentSkill.sourceInfo.baseDir),
-            realpath(targetPath),
-          ]);
-          if (canonicalBase === canonicalTarget || !pathWithin(canonicalBase, canonicalTarget)) {
-            throw new SkillServiceError(
-              "skill-source-unavailable",
-              "The skill deletion target is outside its source root.",
-              { name },
-            );
-          }
-          await this.dependencies.removeSkillPath(canonicalTarget);
-          return { value: { name, removed: true }, reload: true };
-        },
-      );
+      return await this.mutateResourceHost(request, scope, async (host) => {
+        const currentSkill = await this.findSkill(host, request, name);
+        if (!sameSkillMutationIdentity(currentSkill, skill)) {
+          throw new SkillServiceError("skill-not-found", "The skill identity changed.", {
+            ...this.resourceIdentityDetails(request),
+            name,
+          });
+        }
+        if (currentSkill.sourceInfo.origin === "package") {
+          throw new SkillServiceError(
+            "skill-package-managed",
+            "Package-provided skills must be removed through the package manager.",
+            { name, source: currentSkill.sourceInfo.source },
+          );
+        }
+        if (
+          currentSkill.sourceInfo.scope === "temporary" ||
+          currentSkill.sourceInfo.source !== "auto" ||
+          !currentSkill.sourceInfo.baseDir
+        ) {
+          throw new SkillServiceError("skill-read-only", "This skill source is read-only.", {
+            name,
+          });
+        }
+        const targetPath =
+          path.basename(currentSkill.filePath).toLowerCase() === "skill.md"
+            ? path.dirname(currentSkill.filePath)
+            : currentSkill.filePath;
+        const [canonicalBase, canonicalTarget] = await Promise.all([
+          realpath(currentSkill.sourceInfo.baseDir),
+          realpath(targetPath),
+        ]);
+        if (canonicalBase === canonicalTarget || !pathWithin(canonicalBase, canonicalTarget)) {
+          throw new SkillServiceError(
+            "skill-source-unavailable",
+            "The skill deletion target is outside its source root.",
+            { name },
+          );
+        }
+        await this.dependencies.removeSkillPath(canonicalTarget);
+        return { value: { name, removed: true }, reload: true };
+      });
     } catch (error) {
       if (error instanceof SkillServiceError) throw error;
       if (error instanceof PiResourceMutationBusyError) {
@@ -591,13 +656,10 @@ export class SkillService {
     }
   }
 
-  async listFiles({
-    sessionId,
-    name,
-    relativePath = "",
-  }: SkillFilesListPayload): Promise<SkillFilesListValue> {
-    const host = await this.getSessionHost(sessionId);
-    const skill = await this.findSkill(host, sessionId, name);
+  async listFiles(request: SkillFilesListPayload): Promise<SkillFilesListValue> {
+    const { name, relativePath = "" } = request;
+    const host = await this.getResourceHost(request);
+    const skill = await this.findSkill(host, request, name);
 
     try {
       const rootPath = await realpath(path.dirname(skill.filePath));
@@ -654,13 +716,10 @@ export class SkillService {
     }
   }
 
-  async readFile({
-    sessionId,
-    name,
-    relativePath: requestedRelativePath,
-  }: SkillFileReadPayload): Promise<SkillFileSnapshotValue> {
-    const host = await this.getSessionHost(sessionId);
-    const skill = await this.findSkill(host, sessionId, name);
+  async readFile(request: SkillFileReadPayload): Promise<SkillFileSnapshotValue> {
+    const { name, relativePath: requestedRelativePath } = request;
+    const host = await this.getResourceHost(request);
+    const skill = await this.findSkill(host, request, name);
     const relativePath = normalizeSkillRelativePath(name, requestedRelativePath);
 
     try {

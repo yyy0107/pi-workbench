@@ -9,7 +9,7 @@ import {
   type WorkbenchRequestHandler,
   type WorkbenchWebSocketGateway,
 } from "./runtime/pi/server/transport/custom-server";
-import { ensureWorkbenchMessageTerminationExtension } from "./runtime/pi/server/user-extensions/message-termination-extension";
+import { migrateLegacyWorkbenchMessageTerminationExtension } from "./runtime/pi/server/internal-extensions/legacy-message-termination";
 import {
   createTerminalGateway,
   type TerminalSessionManagerLike,
@@ -96,18 +96,12 @@ async function main(): Promise<void> {
   const port = configuredPort();
 
   try {
-    const extension = await ensureWorkbenchMessageTerminationExtension();
-    if (extension.status === "conflict") {
-      console.warn(
-        `Workbench did not overwrite the existing Pi user extension at ${extension.path}.`,
-      );
-    } else if (extension.status === "managed-version-mismatch") {
-      console.warn(
-        `Workbench found a different managed Pi message-termination extension at ${extension.path}; it was left unchanged.`,
-      );
+    const migration = await migrateLegacyWorkbenchMessageTerminationExtension();
+    if (migration.status === "preserved") {
+      console.warn(`Workbench preserved the user-modified Pi extension at ${migration.path}.`);
     }
   } catch (error) {
-    console.warn("Workbench could not install the Pi user message-termination extension.", error);
+    console.warn("Workbench could not migrate the legacy Pi message-termination extension.", error);
   }
 
   // Next installs its own upgrade listener here. This relay never listens on a

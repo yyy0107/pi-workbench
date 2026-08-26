@@ -9,6 +9,8 @@ import type {
   ExtensionFileReadPayload,
   ExtensionSourceOrigin,
   ExtensionSourceScope,
+  PiResourceCatalogTarget,
+  PiResourceRequest,
 } from "@/runtime/pi/rpc-contracts";
 import { fileWorkspaceContext, fileWorkspaceService } from "@/services/workspace-file-service";
 
@@ -30,7 +32,7 @@ function metadataString(
 function extensionFileIdentity(
   metadata: Readonly<Record<string, unknown>> | undefined,
 ): ExtensionFileReadPayload | undefined {
-  const sessionId = metadataString(metadata, "sessionId");
+  const request = resourceRequest(metadata);
   const name = metadataString(metadata, "extensionName");
   const filePath = metadataString(metadata, "extensionFilePath");
   const source = metadataString(metadata, "extensionSource");
@@ -38,7 +40,7 @@ function extensionFileIdentity(
   const origin = metadataString(metadata, "extensionOrigin") as ExtensionSourceOrigin | undefined;
   const relativePath = metadataString(metadata, "relativePath");
   if (
-    !sessionId ||
+    !request ||
     !name ||
     !filePath ||
     !source ||
@@ -50,7 +52,7 @@ function extensionFileIdentity(
     return undefined;
   }
   return {
-    sessionId,
+    ...request,
     name,
     filePath,
     source,
@@ -58,6 +60,34 @@ function extensionFileIdentity(
     origin,
     ...(relativePath ? { relativePath } : {}),
   };
+}
+
+function resourceCatalogTarget(value: unknown): PiResourceCatalogTarget | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const candidate = value as Readonly<Record<string, unknown>>;
+  if (candidate.scope === "user") return { scope: "user" };
+  const workspaceId =
+    typeof candidate.workspaceId === "string" && candidate.workspaceId.trim()
+      ? candidate.workspaceId
+      : undefined;
+  return candidate.scope === "project" && workspaceId
+    ? { scope: "project", workspaceId }
+    : undefined;
+}
+
+function resourceRequest(
+  metadata: Readonly<Record<string, unknown>> | undefined,
+): PiResourceRequest | undefined {
+  const target = resourceCatalogTarget(metadata?.resourceTarget);
+  if (target) return { target };
+  const sessionId = metadataString(metadata, "sessionId");
+  return sessionId ? { sessionId } : undefined;
+}
+
+function resourceSessionIdentity(
+  request: PiResourceRequest,
+): { resourceTarget: PiResourceCatalogTarget } | { sessionId: string } {
+  return request.target ? { resourceTarget: request.target } : { sessionId: request.sessionId };
 }
 
 export const fileOpenHandler = {
@@ -111,17 +141,17 @@ export const skillFileOpenHandler = {
   canOpen: ({ resource }) =>
     resource.scheme === "skill-file" &&
     resource.path.trim() &&
-    metadataString(resource.metadata, "sessionId") &&
+    resourceRequest(resource.metadata) &&
     metadataString(resource.metadata, "skillName") &&
     metadataString(resource.metadata, "relativePath")
       ? 100
       : 0,
   open: async ({ resource, context, scope, policy }, { surfaces }) => {
-    const sessionId = metadataString(resource.metadata, "sessionId");
+    const request = resourceRequest(resource.metadata);
     const skillName = metadataString(resource.metadata, "skillName");
     const relativePath = metadataString(resource.metadata, "relativePath");
-    if (!sessionId || !skillName || !relativePath) {
-      throw new Error("A Skill file requires a session id, Skill name, and relative path");
+    if (!request || !skillName || !relativePath) {
+      throw new Error("A Skill file requires a resource scope, Skill name, and relative path");
     }
 
     const targetScope =
@@ -129,11 +159,11 @@ export const skillFileOpenHandler = {
       (context.threadId
         ? { type: "thread" as const, key: context.threadId }
         : { type: "application" as const, key: context.applicationId });
-    const skillFile = await readPiSkillFile({ sessionId, name: skillName, relativePath });
+    const skillFile = await readPiSkillFile({ ...request, name: skillName, relativePath });
     const fileSession = {
       source: "skill" as const,
       rootPath: skillFile.rootPath,
-      sessionId,
+      ...resourceSessionIdentity(request),
       skillName,
     };
     const snapshot = fileWorkspaceService.attachFile(
@@ -172,17 +202,17 @@ export const skillDirectoryOpenHandler = {
   canOpen: ({ resource }) =>
     resource.scheme === "skill-directory" &&
     resource.path.trim() &&
-    metadataString(resource.metadata, "sessionId") &&
+    resourceRequest(resource.metadata) &&
     metadataString(resource.metadata, "skillName")
       ? 100
       : 0,
   open: async ({ resource, context, scope, policy }, { surfaces }) => {
-    const sessionId = metadataString(resource.metadata, "sessionId");
+    const request = resourceRequest(resource.metadata);
     const skillName = metadataString(resource.metadata, "skillName");
-    if (!sessionId || !skillName) {
-      throw new Error("A Skill directory requires a session id and Skill name");
+    if (!request || !skillName) {
+      throw new Error("A Skill directory requires a resource scope and Skill name");
     }
-    const listing = await listPiSkillFiles({ sessionId, name: skillName });
+    const listing = await listPiSkillFiles({ ...request, name: skillName });
     const targetScope =
       scope ??
       (context.threadId
@@ -194,7 +224,7 @@ export const skillDirectoryOpenHandler = {
       params: {
         source: "skill",
         rootPath: listing.rootPath,
-        sessionId,
+        ...resourceSessionIdentity(request),
         skillName,
       },
       context,
@@ -233,7 +263,7 @@ export const extensionFileOpenHandler = {
     const fileSession = {
       source: "extension" as const,
       rootPath: extensionFile.rootPath,
-      sessionId: identity.sessionId,
+      ...resourceSessionIdentity(identity),
       extensionName: identity.name,
       extensionFilePath: identity.filePath,
       extensionSource: identity.source,
@@ -294,7 +324,7 @@ export const extensionDirectoryOpenHandler = {
       params: {
         source: "extension",
         rootPath: listing.rootPath,
-        sessionId: identity.sessionId,
+        ...resourceSessionIdentity(identity),
         extensionName: identity.name,
         extensionFilePath: identity.filePath,
         extensionSource: identity.source,

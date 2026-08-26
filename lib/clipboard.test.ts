@@ -15,6 +15,29 @@ test("reports successful clipboard text writes", async () => {
   assert.deepEqual(values, ["copied"]);
 });
 
+test("falls back when the Clipboard API is unavailable or rejects the write", async () => {
+  const values: string[] = [];
+  const fallback = (value: string) => {
+    values.push(value);
+    return true;
+  };
+
+  assert.equal(await writeClipboardText("unavailable", undefined, fallback), true);
+  assert.equal(
+    await writeClipboardText(
+      "denied",
+      {
+        writeText() {
+          return Promise.reject(new DOMException("Write permission denied", "NotAllowedError"));
+        },
+      },
+      fallback,
+    ),
+    true,
+  );
+  assert.deepEqual(values, ["unavailable", "denied"]);
+});
+
 test("contains unavailable, synchronously denied, and asynchronously denied clipboard writes", async () => {
   assert.equal(await writeClipboardText("unavailable", undefined), false);
   assert.equal(
@@ -39,4 +62,13 @@ test("contains unavailable, synchronously denied, and asynchronously denied clip
     },
   }) as ClipboardTextWriter;
   assert.equal(await writeClipboardText("inaccessible", inaccessibleClipboard), false);
+});
+
+test("contains fallback failures", async () => {
+  assert.equal(
+    await writeClipboardText("failed", undefined, () => {
+      throw new Error("Fallback failed");
+    }),
+    false,
+  );
 });

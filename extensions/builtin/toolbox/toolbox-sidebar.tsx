@@ -31,6 +31,8 @@ import {
 import { useToolboxCatalogs, type ToolboxCapabilityItem } from "./toolbox-catalog";
 import { toggleToolboxPin, useToolboxPins } from "./toolbox-pins";
 import { usePiPackageCatalog } from "./use-pi-package-catalog";
+import { ToolboxScopeSelect } from "./toolbox-scope-select";
+import { useToolboxScope } from "./toolbox-scope-store";
 
 const TOOLBOX_SECTION_TITLES = {
   skills: defineMessage("extensions.toolbox.skills.title"),
@@ -273,6 +275,7 @@ export function ToolboxSidebar({ searchQuery }: SlotPropsMap["sidebar.toolbox"])
   const { locale, number, t } = useI18n();
   const mainViews = useMainViewService();
   const pins = useToolboxPins();
+  const scope = useToolboxScope();
   const [expandedSections, setExpandedSections] = useState<ReadonlySet<ToolboxMainSection>>(
     () => new Set(),
   );
@@ -285,7 +288,7 @@ export function ToolboxSidebar({ searchQuery }: SlotPropsMap["sidebar.toolbox"])
     promptsCatalog,
     skillItems,
     skillsCatalog,
-  } = useToolboxCatalogs();
+  } = useToolboxCatalogs(scope);
   const normalizedQuery = searchQuery.trim().toLocaleLowerCase(locale);
   const packageCatalog = usePiPackageCatalog({
     enabled: Boolean(normalizedQuery),
@@ -343,7 +346,7 @@ export function ToolboxSidebar({ searchQuery }: SlotPropsMap["sidebar.toolbox"])
     empty: string,
   ) => {
     if (!catalog.hasTargets) {
-      return <EmptyNote>{t("extensions.toolbox.noSession")}</EmptyNote>;
+      return <EmptyNote>{t("extensions.toolbox.scopeUnavailable")}</EmptyNote>;
     }
     if (catalog.loadState === "loading") {
       return <CatalogSkeleton />;
@@ -358,6 +361,14 @@ export function ToolboxSidebar({ searchQuery }: SlotPropsMap["sidebar.toolbox"])
   return (
     <section aria-label={t("extensions.toolbox.title")} className="flex h-full min-h-0 flex-col">
       <div className="min-h-0 flex-1 overflow-y-auto py-1 ps-3 pe-[2px] [scrollbar-gutter:stable]">
+        <section className="mb-1 flex h-10 items-center gap-2 px-2">
+          <span className="text-muted-foreground shrink-0 text-sm font-medium">
+            {t("extensions.toolbox.scope.label")}
+          </span>
+          <div className="min-w-0 flex-1">
+            <ToolboxScopeSelect className="h-7" />
+          </div>
+        </section>
         {normalizedQuery ? (
           <section className="flex flex-col gap-[2px]">
             <SectionLabel>{t("extensions.toolbox.searchResults")}</SectionLabel>

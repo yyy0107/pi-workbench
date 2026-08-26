@@ -1,0 +1,41 @@
+import type { PromptListPayload, PromptListValue } from "../../rpc-contracts";
+import {
+  getScopedResourceContextService,
+  type ScopedResourceContextService,
+} from "../resources/scoped-resource-context";
+
+export interface PromptServiceDependencies {
+  scopedResources: Pick<ScopedResourceContextService, "get">;
+}
+
+export class PromptService {
+  private readonly dependencies: PromptServiceDependencies;
+
+  constructor(dependencies: Partial<PromptServiceDependencies> = {}) {
+    this.dependencies = {
+      scopedResources: getScopedResourceContextService(),
+      ...dependencies,
+    };
+  }
+
+  async list({ target }: PromptListPayload): Promise<PromptListValue> {
+    const context = await this.dependencies.scopedResources.get(target);
+    return {
+      prompts: context.resourceLoader
+        .getPrompts()
+        .prompts.filter((prompt) => prompt.sourceInfo.scope === target.scope)
+        .map((prompt) => ({
+          kind: "prompt" as const,
+          name: prompt.name,
+          invocationName: prompt.name,
+          effect: "prompt-transform" as const,
+          exclusive: false,
+          ...(prompt.description ? { description: prompt.description } : {}),
+          ...(prompt.argumentHint ? { argumentHint: prompt.argumentHint } : {}),
+          source: prompt.sourceInfo.source,
+          scope: prompt.sourceInfo.scope,
+          origin: prompt.sourceInfo.origin,
+        })),
+    };
+  }
+}

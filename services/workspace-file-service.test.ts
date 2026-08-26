@@ -52,6 +52,42 @@ test("file buffers and notifications are isolated by workspace scope", async () 
   unsubscribe();
 });
 
+test("file notifications normalize Windows paths and include parent watchers", () => {
+  const files = new MemoryFileWorkspaceService();
+  const context = { scope: firstScope, rootPath: "C:\\work" };
+  let directoryNotifications = 0;
+  let fileNotifications = 0;
+  const unsubscribeDirectory = files.watchPath(context, "c:/WORK/src", () => {
+    directoryNotifications += 1;
+  });
+  const unsubscribeFile = files.watchPath(context, "C:\\work\\src\\app.ts", () => {
+    fileNotifications += 1;
+  });
+
+  files.attachFile(context, "C:/work/src/app.ts", "source");
+
+  assert.equal(directoryNotifications, 1);
+  assert.equal(fileNotifications, 1);
+  assert.equal(files.getSnapshot(context, "c:\\WORK\\src\\app.ts")?.content, "source");
+
+  unsubscribeDirectory();
+  unsubscribeFile();
+});
+
+test("workspace root watchers receive descendant notifications", () => {
+  const files = new MemoryFileWorkspaceService();
+  const context = { scope: firstScope, rootPath: "/" };
+  let notifications = 0;
+  const unsubscribe = files.watchPath(context, "/", () => {
+    notifications += 1;
+  });
+
+  files.attachFile(context, "/src/app.ts", "source");
+
+  assert.equal(notifications, 1);
+  unsubscribe();
+});
+
 test("memory listings synthesize direct directories instead of flattening descendants", async () => {
   const files = new MemoryFileWorkspaceService();
   files.attachFile(firstContext, "/workspace/src/nested/app.ts", "source");
@@ -212,7 +248,7 @@ test("resource file sessions share directory, read, and opener behavior", async 
   const params = {
     source: "extension" as const,
     rootPath,
-    sessionId: "session-1",
+    resourceTarget: { scope: "user" as const },
     extensionName: "review",
     extensionFilePath: `${rootPath}/index.ts`,
     extensionSource: "auto",
@@ -232,7 +268,7 @@ test("resource file sessions share directory, read, and opener behavior", async 
     path: `${rootPath}/lib/prompt.ts`,
     label: "prompt.ts",
     metadata: {
-      sessionId: "session-1",
+      resourceTarget: { scope: "user" },
       extensionName: "review",
       extensionFilePath: `${rootPath}/index.ts`,
       extensionSource: "auto",
@@ -245,7 +281,7 @@ test("resource file sessions share directory, read, and opener behavior", async 
     {
       method: "list",
       payload: {
-        sessionId: "session-1",
+        target: { scope: "user" },
         name: "review",
         filePath: `${rootPath}/index.ts`,
         source: "auto",
@@ -257,7 +293,7 @@ test("resource file sessions share directory, read, and opener behavior", async 
     {
       method: "read",
       payload: {
-        sessionId: "session-1",
+        target: { scope: "user" },
         name: "review",
         filePath: `${rootPath}/index.ts`,
         source: "auto",
@@ -269,7 +305,7 @@ test("resource file sessions share directory, read, and opener behavior", async 
   ]);
 });
 
-test("resource directory capabilities require one complete shared session identity", () => {
+test("resource directory capabilities require one complete shared catalog identity", () => {
   assert.equal(
     resolveFileWorkspaceSession({
       source: "extension",
@@ -286,13 +322,13 @@ test("resource directory capabilities require one complete shared session identi
     resolveFileWorkspaceSession({
       source: "skill",
       rootPath: "/home/user/.pi/agent/skills/review",
-      sessionId: "session-1",
+      resourceTarget: { scope: "project", workspaceId: "project-1" },
       skillName: "review",
     }),
     {
       source: "skill",
       rootPath: "/home/user/.pi/agent/skills/review",
-      sessionId: "session-1",
+      resourceTarget: { scope: "project", workspaceId: "project-1" },
       skillName: "review",
     },
   );
