@@ -16,6 +16,29 @@ export interface BrowserSurfaceParams extends Record<string, unknown> {
 }
 
 const BROWSER_NAVIGATE_FAILED = defineMessage("extensions.workspaceBrowser.navigateFailed");
+const BROWSER_ADDRESS_DRAFT_PREFIX = "pi-workbench:browser-address-draft:v1";
+
+function browserAddressDraftKey(sessionId: string): string {
+  return `${BROWSER_ADDRESS_DRAFT_PREFIX}:${sessionId}`;
+}
+
+function readBrowserAddressDraft(sessionId: string): string | undefined {
+  try {
+    return window.sessionStorage.getItem(browserAddressDraftKey(sessionId)) ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function writeBrowserAddressDraft(sessionId: string, address: string | undefined): void {
+  try {
+    const key = browserAddressDraftKey(sessionId);
+    if (address) window.sessionStorage.setItem(key, address);
+    else window.sessionStorage.removeItem(key);
+  } catch {
+    // Draft persistence is best effort; the in-memory address remains usable.
+  }
+}
 
 export function BrowserSurface({
   surface,
@@ -29,8 +52,10 @@ export function BrowserSurface({
   const [address, setAddress] = useState(session?.url ?? surface.params.url ?? "about:blank");
 
   useEffect(() => {
-    if (session?.url) setAddress(session.url);
-  }, [session?.url]);
+    setAddress(
+      readBrowserAddressDraft(surface.params.browserSessionId) ?? session?.url ?? "about:blank",
+    );
+  }, [session?.url, surface.params.browserSessionId]);
 
   const navigate = () => {
     if (!session) return;
@@ -38,6 +63,7 @@ export function BrowserSurface({
     void browser
       .navigate(session.id, address)
       .then(() => {
+        writeBrowserAddressDraft(session.id, undefined);
         const nextTitle = browser.getSession(session.id)?.title;
         controller.update(surface.id, {
           status: "ready",
@@ -113,7 +139,11 @@ export function BrowserSurface({
           <input
             value={address}
             className="bg-muted/45 h-8 w-full rounded-lg border border-transparent pr-2 pl-8 text-xs outline-none focus:border-ring"
-            onChange={(event) => setAddress(event.currentTarget.value)}
+            onChange={(event) => {
+              const nextAddress = event.currentTarget.value;
+              setAddress(nextAddress);
+              writeBrowserAddressDraft(surface.params.browserSessionId, nextAddress);
+            }}
           />
         </label>
       </form>
