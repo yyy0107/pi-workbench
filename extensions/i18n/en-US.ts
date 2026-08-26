@@ -2180,8 +2180,34 @@ export const extensionsEnUS = {
       "Current context occupancy is the next request's working set. It is different from cumulative session tokens billed across all turns.",
     currentContextValue: ({ used, budget }: { used: string; budget: string }) =>
       `${used} / ${budget}`,
+    contextUsed: "Context used",
+    estimatedContextValue: ({ used, budget }: { used: string; budget: string }) =>
+      `~${used} / ${budget}`,
+    estimatedTokenValue: ({ tokens }: { tokens: string }) => `~${tokens}`,
     nearingCompaction:
       "Context is approaching the automatic compaction point. Pi will preserve recent work when it compacts.",
+    modelInputBreakdown: "Model input composition",
+    breakdownProviderReconciled:
+      "Each part is content-estimated and reconciled to current context usage. Provider tokenization can differ slightly.",
+    breakdownHeuristic:
+      "Provider usage is not available yet. Parts and total use an estimate of about 4 characters per token.",
+    breakdownGroups: {
+      instructions: "Instructions and context",
+      tools: "Tool schemas",
+      conversation: "Conversation content",
+    },
+    breakdownCategories: {
+      "system-prompt": "System prompt",
+      skills: "Skills",
+      "context-files": "Context files and injected content",
+      "builtin-tools": "Built-in tool schemas",
+      "mcp-tools": "MCP tool schemas",
+      "extension-tools": "Extension tool schemas",
+      "user-input": "User input",
+      "assistant-history": "Assistant history",
+      "tool-results": "Tool results",
+      other: "Other model input",
+    },
     contextBudget: "Session context budget",
     customContextBudget: "Custom session context budget",
     applyContextBudget: "Apply",
@@ -2195,6 +2221,12 @@ export const extensionsEnUS = {
     },
     compactNow: "Compact now",
     viewContextTrace: "View Context Trace",
+    contextTooSmall:
+      "The current context is too short to compact. Continue the conversation and try again.",
+    contextAlreadyCompacted:
+      "The current context has already been compacted. Add more conversation before trying again.",
+    contextCompactionCancelled: "Context compaction was cancelled.",
+    contextActionBusy: "The conversation is running. Wait for the current operation and try again.",
     contextActionFailed: "The context action could not be completed. Try again.",
     cumulativeTitle: "Cumulative session tokens and timing",
   },

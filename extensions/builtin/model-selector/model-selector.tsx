@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   SelectorDropdownContent,
   useAnimatedSelectorDropdown,
@@ -35,6 +36,8 @@ import type {
   SessionModelsValue,
 } from "@/runtime/pi/rpc-contracts";
 import { usePiSessionManager } from "@/runtime/pi/client/runtime/context";
+import { useSessionContextPolicy } from "@/runtime/pi/client/context-policy/use-session-context-policy";
+import type { SessionContextPolicy } from "@/runtime/pi/rpc-contracts";
 import { useWorkspaceSelection } from "@/services/workspace-selection-service";
 
 import {
@@ -232,11 +235,155 @@ function MenuCurrentValue({ children }: { children: React.ReactNode }) {
   return <span className="text-muted-foreground ms-auto max-w-32 truncate">{children}</span>;
 }
 
-export function ModelSelector({ isRunning }: ComposerSlotContext) {
+function ContextBudgetMenu({
+  sessionId,
+  disabled,
+  number,
+}: {
+  sessionId?: string;
+  disabled: boolean;
+  number(value: number): string;
+}) {
   const { t } = useI18n();
+  const context = useSessionContextPolicy(sessionId);
+  const [customDraft, setCustomDraft] = useState("");
+  const [customSelected, setCustomSelected] = useState(false);
+  const [error, setError] = useState(false);
+  const value = context.value;
+  const capacity = value?.model?.capacity;
+  const mode = value?.policy.mode ?? "inherit";
+  const parsed = Number(customDraft);
+  const customInvalid =
+    !Number.isInteger(parsed) || parsed < 1 || capacity === undefined || parsed > capacity;
+  const saving = context.status === "saving";
+  const modeLabel = t(`extensions.modelSelector.contextBudgetModes.${mode}`);
+
+  useEffect(() => {
+    setCustomDraft(
+      String(value?.policy.desiredContextTokens ?? value?.model?.effectiveBudget ?? capacity ?? ""),
+    );
+    setCustomSelected(false);
+    setError(false);
+  }, [capacity, value?.model?.effectiveBudget, value?.policy.desiredContextTokens]);
+
+  const update = (policy: SessionContextPolicy) => {
+    setError(false);
+    void context.update(policy).catch(() => setError(true));
+  };
+
+  const changeMode = (nextMode: string) => {
+    if (nextMode === "custom") {
+      setCustomSelected(true);
+      return;
+    }
+    if (nextMode !== "inherit" && nextMode !== "auto" && nextMode !== "maximum") return;
+    update({
+      mode: nextMode,
+      ...(nextMode === "inherit" || !value?.policy.compaction
+        ? {}
+        : { compaction: value.policy.compaction }),
+    });
+  };
+
+  return (
+    <DropdownMenuSub>
+      <DropdownMenuSubTrigger
+        disabled={disabled || !sessionId || !value?.model}
+        className="min-h-9 gap-3 px-2 py-1.5 [&>svg]:ml-1.5"
+      >
+        <span>{t("extensions.modelSelector.contextBudget")}</span>
+        <MenuCurrentValue>
+          {value?.model
+            ? t("extensions.modelSelector.contextBudgetValue", {
+                mode: modeLabel,
+                tokens: number(value.model.effectiveBudget),
+              })
+            : "—"}
+        </MenuCurrentValue>
+      </DropdownMenuSubTrigger>
+      <DropdownMenuSubContent className="w-72" sideOffset={4}>
+        <DropdownMenuRadioGroup value={customSelected ? "custom" : mode} onValueChange={changeMode}>
+          {(["inherit", "auto", "maximum", "custom"] as const).map((candidate) => (
+            <DropdownMenuRadioItem
+              key={candidate}
+              value={candidate}
+              closeOnClick={false}
+              disabled={disabled || saving}
+              className="min-h-8 px-2 pe-8"
+            >
+              <span className="min-w-0 flex-1">
+                <span className="block">
+                  {t(`extensions.modelSelector.contextBudgetModes.${candidate}`)}
+                </span>
+                <span className="text-muted-foreground block text-xs font-normal">
+                  {t(`extensions.modelSelector.contextBudgetDescriptions.${candidate}`)}
+                </span>
+              </span>
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+        {(mode === "custom" || customSelected) && capacity ? (
+          <div className="border-t p-2">
+            <div className="flex gap-2">
+              <Input
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={customDraft}
+                disabled={disabled || saving}
+                aria-label={t("extensions.modelSelector.customContextBudget")}
+                aria-invalid={customInvalid}
+                aria-describedby={customInvalid ? "composer-context-budget-validation" : undefined}
+                className="h-8 tabular-nums"
+                onChange={(event) => {
+                  setCustomDraft(event.currentTarget.value.replace(/\D+/gu, ""));
+                  setCustomSelected(true);
+                  setError(false);
+                }}
+                onKeyDown={(event) => event.stopPropagation()}
+              />
+              <Button
+                type="button"
+                size="sm"
+                className="h-8 rounded-full"
+                disabled={disabled || saving || customInvalid}
+                onClick={() =>
+                  update({
+                    mode: "custom",
+                    desiredContextTokens: parsed,
+                    ...(value?.policy.compaction ? { compaction: value.policy.compaction } : {}),
+                  })
+                }
+              >
+                {t("extensions.modelSelector.applyContextBudget")}
+              </Button>
+            </div>
+            {customInvalid ? (
+              <p
+                id="composer-context-budget-validation"
+                className="text-destructive mt-1 text-xs"
+                role="alert"
+              >
+                {t("extensions.modelSelector.customContextBudgetInvalid", {
+                  tokens: number(capacity),
+                })}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+        {error || context.status === "failed" ? (
+          <MenuStatus alert>{t("extensions.modelSelector.contextBudgetSaveFailed")}</MenuStatus>
+        ) : null}
+      </DropdownMenuSubContent>
+    </DropdownMenuSub>
+  );
+}
+
+export function ModelSelector({ isRunning }: ComposerSlotContext) {
+  const { number, t } = useI18n();
   const sessionManager = usePiSessionManager();
   const localThreadId = useAuiState((state) => state.threadListItem.id);
   const remoteId = useAuiState((state) => state.threadListItem.remoteId);
+  const contextPolicy = useSessionContextPolicy(remoteId);
   const draftModelId = useModelSelectorStore(
     (state) => state.draftSelections[localThreadId]?.modelId,
   );
@@ -398,6 +545,7 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
             .catch((error) =>
               console.error("[workbench-pi] model change timeline refresh failed", error),
             );
+          void contextPolicy.refresh();
         },
         () => {
           if (currentScopeRef.current !== requestScope) return;
@@ -408,7 +556,7 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
         },
       );
     },
-    [localThreadId, rememberSelection, remoteId, scopeKey, sessionManager],
+    [contextPolicy, localThreadId, rememberSelection, remoteId, scopeKey, sessionManager],
   );
 
   const changeModel = useCallback(
@@ -475,7 +623,8 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
   }, []);
   const currentUnavailable = catalog?.kind === "session" && !catalog.value.routable;
   const loading = !catalog && !loadFailed;
-  const selectionLocked = isRunning || savingSelection || loading;
+  const selectionLocked =
+    isRunning || savingSelection || contextPolicy.status === "saving" || loading;
 
   return (
     <fieldset
@@ -621,6 +770,12 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
               </DropdownMenuRadioGroup>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
+
+          <ContextBudgetMenu
+            sessionId={remoteId}
+            disabled={selectionLocked}
+            number={(value) => number(value)}
+          />
         </SelectorDropdownContent>
       </DropdownMenu>
     </fieldset>

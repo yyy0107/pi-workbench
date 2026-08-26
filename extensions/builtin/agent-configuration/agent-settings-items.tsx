@@ -10,16 +10,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { useI18n } from "@/i18n";
 import type { SettingsItemComponentProps } from "@/platform/extensions";
 import {
-  describePiHost,
   describePiSettings,
-  getPiModelContextWindow,
   PiApiError,
   updatePiAgentSettings,
-  updatePiModelContextWindow,
 } from "@/runtime/pi/client/transport/api";
 import {
   PI_AGENT_SETTINGS_NAMESPACE,
-  type ModelContextWindowValue,
   type PiAgentSettingsNamespaceView,
 } from "@/runtime/pi/rpc-contracts";
 
@@ -367,146 +363,6 @@ function compactionSignature(
   return JSON.stringify([enabled, String(reserveTokens), String(keepRecentTokens)]);
 }
 
-function DefaultModelContextWindowGroup() {
-  const { t } = useI18n();
-  const [view, setView] = useState<ModelContextWindowValue>();
-  const [loadState, setLoadState] = useState<LoadState>("loading");
-  const [draft, setDraft] = useState("");
-  const [baseline, setBaseline] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [saveError, setSaveError] = useState<string>();
-  const [editing, setEditing] = useState(false);
-  const requestRef = useRef(0);
-
-  const load = useCallback(() => {
-    const request = ++requestRef.current;
-    setLoadState("loading");
-    setSaveError(undefined);
-    void describePiHost()
-      .then(async ({ provider, model }) => {
-        if (!provider || !model) throw new Error("The default model is unavailable.");
-        return getPiModelContextWindow({ provider, model });
-      })
-      .then(
-        (value) => {
-          if (request !== requestRef.current) return;
-          const contextWindow = String(value.contextWindow);
-          setView(value);
-          setDraft(contextWindow);
-          setBaseline(contextWindow);
-          setEditing(false);
-          setLoadState("ready");
-        },
-        () => {
-          if (request !== requestRef.current) return;
-          setLoadState("failed");
-        },
-      );
-  }, []);
-
-  useEffect(() => {
-    load();
-    return () => {
-      requestRef.current += 1;
-    };
-  }, [load]);
-
-  const parsedContextWindow = parseTokenCount(draft);
-  const dirty = draft !== baseline;
-
-  const save = useCallback(async () => {
-    if (!view || parsedContextWindow === undefined || !dirty || saving) return;
-    setSaving(true);
-    setSaved(false);
-    setSaveError(undefined);
-    try {
-      const updated = await updatePiModelContextWindow({
-        provider: view.provider,
-        model: view.model,
-        contextWindow: parsedContextWindow,
-      });
-      const contextWindow = String(updated.contextWindow);
-      setView(updated);
-      setDraft(contextWindow);
-      setBaseline(contextWindow);
-      setEditing(false);
-      setSaved(true);
-    } catch {
-      setSaveError(t("extensions.agentConfiguration.context.modelWindowSaveFailed"));
-    } finally {
-      setSaving(false);
-    }
-  }, [dirty, parsedContextWindow, saving, t, view]);
-
-  return (
-    <SettingGroup
-      title={t("extensions.agentConfiguration.context.modelWindowTitle")}
-      description={t("extensions.agentConfiguration.context.modelWindowDescription")}
-    >
-      {loadState === "loading" ? (
-        <p className="text-muted-foreground py-5 text-sm" role="status">
-          {t("extensions.agentConfiguration.context.modelWindowLoading")}
-        </p>
-      ) : loadState === "failed" || !view ? (
-        <div className="py-4">
-          <p className="text-destructive text-sm" role="alert">
-            {t("extensions.agentConfiguration.context.modelWindowUnavailable")}
-          </p>
-          <Button type="button" variant="outline" className="mt-3 rounded-full" onClick={load}>
-            {t("extensions.agentConfiguration.retry")}
-          </Button>
-        </div>
-      ) : (
-        <>
-          <SettingRow
-            label={t("extensions.agentConfiguration.context.modelWindowSize")}
-            description={t("extensions.agentConfiguration.context.modelWindowTarget", {
-              provider: view.provider,
-              model: view.name || view.model,
-            })}
-          >
-            <InlineNumberEditor
-              value={draft}
-              label={t("extensions.agentConfiguration.context.modelWindowSize")}
-              editing={editing}
-              disabled={saving}
-              invalid={parsedContextWindow === undefined}
-              onEditingChange={setEditing}
-              onChange={(value) => {
-                setDraft(value);
-                setSaved(false);
-                setSaveError(undefined);
-              }}
-            />
-          </SettingRow>
-          <div className="flex flex-wrap items-center justify-between gap-3 py-3">
-            <div>
-              {parsedContextWindow === undefined ? (
-                <p className="text-destructive text-sm" role="alert">
-                  {t("extensions.agentConfiguration.context.invalidTokens")}
-                </p>
-              ) : (
-                <SaveFeedback saved={saved} error={saveError} />
-              )}
-            </div>
-            <Button
-              type="button"
-              className="ms-auto rounded-full"
-              disabled={saving || !dirty || parsedContextWindow === undefined}
-              onClick={() => void save()}
-            >
-              {saving
-                ? t("extensions.agentConfiguration.saving")
-                : t("extensions.agentConfiguration.save")}
-            </Button>
-          </div>
-        </>
-      )}
-    </SettingGroup>
-  );
-}
-
 export function ContextManagementSettingsItem({ sectionId, itemId }: SettingsItemComponentProps) {
   const { t } = useI18n();
   const { view, setView, loadState, load } = useAgentSettingsNamespace();
@@ -606,7 +462,6 @@ export function ContextManagementSettingsItem({ sectionId, itemId }: SettingsIte
 
   return (
     <div data-settings-section={sectionId} data-settings-item={itemId} className="py-4">
-      <DefaultModelContextWindowGroup />
       <SettingGroup
         title={t("extensions.agentConfiguration.context.compactionTitle")}
         description={t("extensions.agentConfiguration.context.compactionDescription")}
