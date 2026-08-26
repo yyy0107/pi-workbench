@@ -21,7 +21,7 @@ const ContextTraceSurface = createLazyWorkspaceSurface(async () => {
 export const contextTraceSurfaceDefinition = {
   kind: CONTEXT_TRACE_SURFACE_KIND,
   icon: ScanSearchIcon,
-  cachePolicy: "keep-alive",
+  cachePolicy: "unmount",
   persistence: "session",
   defaultPlacement: "primary",
   allowDuplicateResources: false,

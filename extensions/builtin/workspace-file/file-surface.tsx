@@ -96,7 +96,11 @@ function UnavailableFile({ title, description }: { title: string; description: s
   );
 }
 
-export function FileSurface({ surface, retryToken = 0 }: WorkspaceSurfaceProps<FileSurfaceParams>) {
+export function FileSurface({
+  surface,
+  isVisible,
+  retryToken = 0,
+}: WorkspaceSurfaceProps<FileSurfaceParams>) {
   const { t } = useI18n();
   const controller = useRightWorkspace();
   const reportError = useExtensionErrorReporter();
@@ -159,7 +163,7 @@ export function FileSurface({ surface, retryToken = 0 }: WorkspaceSurfaceProps<F
       version: descriptor.version,
     };
   }, [canStreamLargeText, descriptor, largeTextMode, snapshot]);
-  const progressiveText = useProgressiveTextDocument(progressiveTextSource);
+  const progressiveText = useProgressiveTextDocument(progressiveTextSource, isVisible);
   const needsTextSnapshot = needsTextContent && !canStreamLargeText;
 
   useEffect(() => {

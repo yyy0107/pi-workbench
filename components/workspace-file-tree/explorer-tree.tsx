@@ -49,6 +49,8 @@ export interface ExplorerTreeLabels {
 
 export interface ExplorerTreeProps {
   rootPath: string;
+  /** Pauses layout observation while a keep-alive tree is outside the visible pane. */
+  active?: boolean;
   rootNode?: ExplorerTreeNode;
   nodes: readonly ExplorerTreeNode[];
   /** Revalidates every expanded directory while preserving the current tree UI state. */
@@ -334,17 +336,17 @@ function StickyScroll({ ancestors }: { ancestors: readonly StickyExplorerAncesto
   );
 }
 
-function useElementHeight(element: HTMLElement | null): number {
+function useElementHeight(element: HTMLElement | null, active: boolean): number {
   const [height, setHeight] = useState(0);
 
   useLayoutEffect(() => {
-    if (!element) return;
+    if (!active || !element) return;
     const update = () => setHeight(Math.max(0, Math.floor(element.getBoundingClientRect().height)));
     update();
     const observer = new ResizeObserver(update);
     observer.observe(element);
     return () => observer.disconnect();
-  }, [element]);
+  }, [active, element]);
 
   return height;
 }
@@ -355,6 +357,7 @@ function arboristSearchMatch(node: NodeApi<ExplorerTreeItem>, filter: string): b
 
 export function ExplorerTree({
   rootPath,
+  active = true,
   rootNode,
   nodes,
   refreshToken,
@@ -377,7 +380,7 @@ export function ExplorerTree({
   const [internalSelectedPath, setInternalSelectedPath] = useState<string>();
   const [stickyAncestors, setStickyAncestors] = useState<readonly StickyExplorerAncestor[]>([]);
   const [viewportElement, setViewportElement] = useState<HTMLDivElement | null>(null);
-  const viewportHeight = useElementHeight(viewportElement);
+  const viewportHeight = useElementHeight(viewportElement, active);
   const directoriesRef = useRef(directories);
   const requests = useRef(new Map<string, AbortController>());
   const rootGeneration = useRef(0);
@@ -526,7 +529,7 @@ export function ExplorerTree({
     let cancelled = false;
     let frame: number | undefined;
     const selected = activeSelectedPath;
-    if (!selected || !explorerPathIsDescendant(rootPath, selected)) return;
+    if (!active || !selected || !explorerPathIsDescendant(rootPath, selected)) return;
 
     void (async () => {
       let candidates = topLevelNodes;
@@ -554,7 +557,7 @@ export function ExplorerTree({
       cancelled = true;
       if (frame !== undefined) cancelAnimationFrame(frame);
     };
-  }, [activeSelectedPath, loadChildren, rootPath, topLevelNodes]);
+  }, [active, activeSelectedPath, loadChildren, rootPath, topLevelNodes]);
 
   const handleActivate = useCallback(
     (node: NodeApi<ExplorerTreeItem>) => {

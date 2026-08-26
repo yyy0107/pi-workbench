@@ -39,6 +39,11 @@ test("all built-in workspace capabilities are extension contributions", () => {
   assert.equal(typeof manager.workspace.get("explorer")?.runtime, "function");
   assert.equal(typeof manager.workspace.get("file")?.header, "function");
   assert.equal(typeof manager.workspace.get("file")?.menuItem, "function");
+  assert.equal(
+    manager.workspace.get("file")?.runtime,
+    undefined,
+    "Agent file tools must not navigate the user-owned workspace",
+  );
   assert.equal(manager.workspace.get("browser")?.menuItem, undefined);
   assert.equal(manager.workspace.get("artifact")?.menuItem, undefined);
   assert.equal(manager.workspace.get("browser")?.persistence, "session");

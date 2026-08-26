@@ -1,5 +1,6 @@
 import { createDisposable } from "../api/disposable";
 import {
+  WORKSPACE_SURFACE_CACHE_POLICIES,
   WORKSPACE_SURFACE_PLACEMENTS,
   type AnyWorkspaceSurfaceDefinition,
   type WorkspaceSurfaceDefinition,
@@ -8,7 +9,7 @@ import {
 import { assertNonEmptyId, emitRegistryChange } from "./registry-utils";
 
 const EMPTY_SURFACES = Object.freeze([]) as readonly AnyWorkspaceSurfaceDefinition[];
-const CACHE_POLICIES = new Set(["unmount", "keep-alive"]);
+const CACHE_POLICIES = new Set(WORKSPACE_SURFACE_CACHE_POLICIES);
 const SURFACE_PLACEMENTS = new Set(WORKSPACE_SURFACE_PLACEMENTS);
 
 export class WorkspaceSurfaceRegistryImpl implements WorkspaceSurfaceRegistry {

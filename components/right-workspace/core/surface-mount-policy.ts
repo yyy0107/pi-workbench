@@ -3,14 +3,18 @@ import type { WorkspaceSurfaceCachePolicy } from "./surface-types";
 export function shouldMountWorkspaceSurface({
   available,
   cachePolicy,
+  dirty,
   hasActivated,
-  isActive,
+  isVisible,
 }: Readonly<{
   available: boolean;
   cachePolicy?: WorkspaceSurfaceCachePolicy;
+  dirty: boolean;
   hasActivated: boolean;
-  isActive: boolean;
+  isVisible: boolean;
 }>): boolean {
-  if (isActive) return true;
-  return available && cachePolicy === "keep-alive" && hasActivated;
+  if (isVisible) return true;
+  if (!available) return false;
+  if (cachePolicy === "preserve-dirty" && dirty) return true;
+  return cachePolicy === "keep-alive" && hasActivated;
 }

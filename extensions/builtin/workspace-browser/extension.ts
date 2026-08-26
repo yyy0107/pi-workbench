@@ -17,7 +17,7 @@ const BrowserSurface = createLazyWorkspaceSurface(async () => {
 export const browserSurfaceDefinition = {
   kind: "browser",
   icon: Globe2Icon,
-  cachePolicy: "keep-alive",
+  cachePolicy: "unmount",
   persistence: "session",
   allowDuplicateResources: false,
   getResourceKey: (params, context) =>

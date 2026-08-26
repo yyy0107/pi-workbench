@@ -115,10 +115,13 @@ export function RightWorkspace() {
           } as CSSProperties
         }
       >
-        <WorkspaceHeader />
-        <div className="relative min-h-0 flex-1 overflow-hidden">
+        {open ? <WorkspaceHeader /> : null}
+        <div
+          className="relative min-h-0 flex-1 overflow-hidden"
+          style={{ contentVisibility: open ? "visible" : "hidden" }}
+        >
           <SurfaceHost />
-          <WorkspaceFeedbackLayer />
+          {open ? <WorkspaceFeedbackLayer /> : null}
         </div>
         {presentation === "panel" ? (
           <WorkspaceResizeHandle

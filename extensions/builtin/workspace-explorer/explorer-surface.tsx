@@ -17,11 +17,7 @@ import {
   type FileWorkspaceSession,
 } from "@/services/workspace-file-service";
 
-import {
-  useActiveWorkspaceSurface,
-  useOpenerService,
-  useRightWorkspaceState,
-} from "@/components/right-workspace";
+import { useActiveWorkspaceSurface, useOpenerService } from "@/components/right-workspace";
 
 const DIRECTORY_REFRESH_INTERVAL_MS = 2_000;
 
@@ -47,13 +43,11 @@ function updateTruncatedPath(
 export function ExplorerSurface({
   surface,
   context,
+  isVisible,
 }: WorkspaceSurfaceProps<ExplorerSurfaceParams>) {
   const { t } = useI18n();
   const openers = useOpenerService();
   const activeSurface = useActiveWorkspaceSurface();
-  const isExplorerVisible = useRightWorkspaceState(
-    (state) => state.open && state.auxiliaryOpen && state.activeAuxiliarySurfaceId === surface.id,
-  );
   const rootRequest = useRef(0);
   const [filter, setFilter] = useState("");
   const [openError, setOpenError] = useState<string>();
@@ -116,7 +110,7 @@ export function ExplorerSurface({
   }, [loadRoot, surface.params.rootPath]);
 
   useEffect(() => {
-    if (!isExplorerVisible) return;
+    if (!isVisible) return;
 
     let cancelled = false;
     let paused = document.visibilityState !== "visible";
@@ -147,7 +141,7 @@ export function ExplorerSurface({
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       if (timer !== undefined) window.clearTimeout(timer);
     };
-  }, [isExplorerVisible, loadRoot]);
+  }, [isVisible, loadRoot]);
 
   const loadDirectory = useCallback(
     async (node: FileNode, signal: AbortSignal) => {
@@ -246,6 +240,7 @@ export function ExplorerSurface({
           <ExplorerTree
             key={rootState.rootPath}
             rootPath={rootState.rootPath}
+            active={isVisible}
             nodes={rootState.nodes}
             refreshToken={treeRefreshToken}
             filter={filter}

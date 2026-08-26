@@ -38,7 +38,7 @@ export function SurfaceHeaderHost({
             </div>
           }
         >
-          <Header surface={active} context={context} />
+          <Header surface={active} context={context} isVisible />
         </Suspense>
       </WorkspaceSurfaceBoundary>
     </div>

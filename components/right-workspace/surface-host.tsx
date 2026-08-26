@@ -39,6 +39,7 @@ interface SurfacePaneProps {
   context: WorkspaceContext;
   definitionByKind: ReadonlyMap<string, AnyWorkspaceSurfaceDefinition>;
   empty?: ReactNode;
+  paneVisible: boolean;
   surfaces: readonly WorkspaceSurfaceInstance[];
   tabbed?: boolean;
 }
@@ -49,6 +50,7 @@ function SurfacePane({
   context,
   definitionByKind,
   empty,
+  paneVisible,
   surfaces,
   tabbed = false,
 }: SurfacePaneProps) {
@@ -63,12 +65,14 @@ function SurfacePane({
       {surfaces.map((surface) => {
         const definition = definitionByKind.get(surface.kind);
         const isActive = surface.id === active.id;
+        const isVisible = paneVisible && isActive;
         if (
           !shouldMountWorkspaceSurface({
             available: Boolean(definition),
             cachePolicy: definition?.cachePolicy,
+            dirty: surface.dirty === true,
             hasActivated: activatedSurfaceIds.has(surface.id),
-            isActive,
+            isVisible,
           })
         ) {
           return null;
@@ -100,12 +104,12 @@ function SurfacePane({
             data-surface-id={surface.id}
             data-surface-kind={surface.kind}
             data-surface-placement={surface.placement}
-            data-state={isActive ? "active" : "inactive"}
+            data-state={isVisible ? "active" : "inactive"}
             role={tabbed ? "tabpanel" : undefined}
             id={tabbed ? workspaceTabPanelId(surface.id) : undefined}
             aria-labelledby={tabbed ? workspaceTabId(surface.id) : undefined}
-            hidden={!isActive}
-            inert={!isActive ? true : undefined}
+            hidden={!isVisible}
+            inert={!isVisible ? true : undefined}
             className="size-full"
           >
             <WorkspaceSurfaceBoundary surfaceId={surface.id}>
@@ -122,6 +126,7 @@ function SurfacePane({
                 <Surface
                   surface={surface}
                   context={context}
+                  isVisible={isVisible}
                   retryToken={retryTokens[surface.id] ?? 0}
                 />
               </Suspense>
@@ -149,6 +154,7 @@ export function SurfaceHost() {
   const context = useWorkspaceContext();
   const surfaceOrder = useRightWorkspaceState((state) => state.surfaceOrder);
   const surfacesById = useRightWorkspaceState((state) => state.surfaces);
+  const workspaceOpen = useRightWorkspaceState((state) => state.open);
   const activeSurfaceId = useRightWorkspaceState((state) => state.activeSurfaceId);
   const activeAuxiliarySurfaceId = useRightWorkspaceState(
     (state) => state.activeAuxiliarySurfaceId,
@@ -206,6 +212,7 @@ export function SurfaceHost() {
   );
 
   useEffect(() => {
+    if (!workspaceOpen) return;
     const element = containerRef.current;
     if (!element) return;
     let measureFrame: number | undefined;
@@ -225,17 +232,21 @@ export function SurfaceHost() {
       observer.disconnect();
       if (measureFrame !== undefined) window.cancelAnimationFrame(measureFrame);
     };
-  }, []);
+  }, [workspaceOpen]);
 
   useEffect(() => {
-    const visibleIds = [active?.id, activeAuxiliary?.id].filter((id): id is string => Boolean(id));
+    const visibleIds = workspaceOpen
+      ? [active?.id, auxiliaryOpen ? activeAuxiliary?.id : undefined].filter((id): id is string =>
+          Boolean(id),
+        )
+      : [];
     if (visibleIds.every((id) => activatedSurfaceIds.has(id))) return;
     setActivatedSurfaceIds((current) => {
       const next = new Set(current);
       for (const id of visibleIds) next.add(id);
       return next;
     });
-  }, [active, activeAuxiliary, activatedSurfaceIds]);
+  }, [active, activeAuxiliary, activatedSurfaceIds, auxiliaryOpen, workspaceOpen]);
 
   return (
     <div
@@ -243,11 +254,13 @@ export function SurfaceHost() {
       data-split-mode={auxiliaryOpen ? split.mode : "single"}
       className="flex size-full min-h-0 min-w-0 flex-col overflow-hidden"
     >
-      <SurfaceHeaderHost
-        active={active}
-        context={context}
-        definition={active ? definitionByKind.get(active.kind) : undefined}
-      />
+      {workspaceOpen ? (
+        <SurfaceHeaderHost
+          active={active}
+          context={context}
+          definition={active ? definitionByKind.get(active.kind) : undefined}
+        />
+      ) : null}
       <div
         key="surface-panes"
         className={
@@ -265,7 +278,8 @@ export function SurfaceHost() {
             activatedSurfaceIds={activatedSurfaceIds}
             context={context}
             definitionByKind={definitionByKind}
-            empty={<WorkspaceEmptyState />}
+            empty={workspaceOpen ? <WorkspaceEmptyState /> : null}
+            paneVisible={workspaceOpen}
             surfaces={primarySurfaces}
             tabbed
           />
@@ -314,6 +328,7 @@ export function SurfaceHost() {
                 activatedSurfaceIds={activatedSurfaceIds}
                 context={context}
                 definitionByKind={definitionByKind}
+                paneVisible={workspaceOpen && auxiliaryOpen}
                 surfaces={auxiliarySurfaces}
               />
             </aside>

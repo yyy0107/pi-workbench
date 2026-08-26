@@ -44,6 +44,7 @@ function scheduleIdle(callback: (deadline?: IdleDeadline) => void): () => void {
 
 export function useProgressiveTextDocument(
   source: ProgressiveTextSource | undefined,
+  enabled = true,
 ): ProgressiveTextState {
   const [attempt, setAttempt] = useState(0);
   const sourceAvailable = source !== undefined;
@@ -54,7 +55,15 @@ export function useProgressiveTextDocument(
   const streamWorkspaceId = source?.stream?.workspaceId;
   const document = useMemo(
     () => new ProgressiveTextDocument(sourceTotalBytes),
-    [attempt, sourceText, sourceTotalBytes, sourceVersion, streamRelativePath, streamWorkspaceId],
+    [
+      enabled,
+      attempt,
+      sourceText,
+      sourceTotalBytes,
+      sourceVersion,
+      streamRelativePath,
+      streamWorkspaceId,
+    ],
   );
   const initialState = useMemo<InternalProgressiveTextState>(
     () => ({
@@ -67,7 +76,7 @@ export function useProgressiveTextDocument(
   const [state, setState] = useState(initialState);
 
   useEffect(() => {
-    if (!sourceAvailable || sourceTotalBytes === undefined) return;
+    if (!enabled || !sourceAvailable || sourceTotalBytes === undefined) return;
 
     const abortController = new AbortController();
     let cancelIdle: (() => void) | undefined;
@@ -149,6 +158,7 @@ export function useProgressiveTextDocument(
     };
   }, [
     document,
+    enabled,
     initialState,
     sourceAvailable,
     sourceText,

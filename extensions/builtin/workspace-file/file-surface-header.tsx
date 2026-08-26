@@ -119,7 +119,11 @@ function FileKindIcon({ kind }: { kind: LocalAppFileKind }) {
   return <FileIcon className="size-4 shrink-0" />;
 }
 
-export function FileSurfaceHeader({ surface, context }: WorkspaceSurfaceProps<FileSurfaceParams>) {
+export function FileSurfaceHeader({
+  surface,
+  context,
+  isVisible,
+}: WorkspaceSurfaceProps<FileSurfaceParams>) {
   const { t } = useI18n();
   const controller = useRightWorkspace();
   const reportError = useExtensionErrorReporter();
@@ -239,7 +243,7 @@ export function FileSurfaceHeader({ surface, context }: WorkspaceSurfaceProps<Fi
 
   return (
     <div className="flex size-full min-w-0 items-center gap-3 px-3">
-      <FileBreadcrumbTree surface={surface} context={context} />
+      <FileBreadcrumbTree surface={surface} context={context} isVisible={isVisible} />
 
       {fileSession?.source === "workspace" && surface.dirty && path ? (
         <Button

@@ -17,7 +17,7 @@ const ArtifactSurface = createLazyWorkspaceSurface(async () => {
 export const artifactSurfaceDefinition = {
   kind: "artifact",
   icon: FileOutputIcon,
-  cachePolicy: "keep-alive",
+  cachePolicy: "unmount",
   persistence: "session",
   allowDuplicateResources: false,
   getResourceKey: (params, context) =>

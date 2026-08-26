@@ -11,7 +11,6 @@ import {
 } from "@/services/workspace-file-service";
 
 import { FileMenuItem } from "./file-menu-item";
-import { FileRuntimeBridge } from "./file-runtime-bridge";
 import {
   extensionDirectoryOpenHandler,
   extensionFileOpenHandler,
@@ -30,7 +29,7 @@ const FileSurface = createLazyWorkspaceSurface(async () => {
 export const fileSurfaceDefinition = {
   kind: "file",
   icon: FileCode2Icon,
-  cachePolicy: "keep-alive",
+  cachePolicy: "preserve-dirty",
   allowDuplicateResources: false,
   getResourceKey: (params, context) => {
     const contextKey = encodeURIComponent(context.threadId ?? "application");
@@ -49,7 +48,6 @@ export const fileSurfaceDefinition = {
   header: FileSurfaceHeader,
   render: FileSurface,
   menuItem: FileMenuItem,
-  runtime: FileRuntimeBridge,
 } satisfies WorkspaceSurfaceDefinition<FileSurfaceParams>;
 
 export const workspaceFileExtension = defineExtension({

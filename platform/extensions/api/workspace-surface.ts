@@ -62,6 +62,8 @@ export interface WorkspaceSurfaceProps<
 > {
   surface: WorkspaceSurfaceInstance<P>;
   context: WorkspaceContext;
+  /** True only while this instance is the visible Surface in an open host pane. */
+  isVisible: boolean;
   /** Increments when the host asks an error state to retry its last resource operation. */
   retryToken?: number;
 }
@@ -70,7 +72,13 @@ export interface WorkspaceSurfaceMenuItemProps {
   closeMenu(): void;
 }
 
-export type WorkspaceSurfaceCachePolicy = "unmount" | "keep-alive";
+export const WORKSPACE_SURFACE_CACHE_POLICIES = [
+  "unmount",
+  "keep-alive",
+  "preserve-dirty",
+] as const;
+
+export type WorkspaceSurfaceCachePolicy = (typeof WORKSPACE_SURFACE_CACHE_POLICIES)[number];
 export type WorkspaceSurfacePersistence = "persistent" | "session";
 
 export type WorkspaceSurfaceRenderer<P extends Record<string, unknown> = Record<string, unknown>> =

@@ -17,7 +17,7 @@ const ReviewSurface = createLazyWorkspaceSurface(async () => {
 export const reviewSurfaceDefinition = {
   kind: "review",
   icon: FileDiffIcon,
-  cachePolicy: "keep-alive",
+  cachePolicy: "unmount",
   allowDuplicateResources: false,
   getResourceKey: (params, context) =>
     [
