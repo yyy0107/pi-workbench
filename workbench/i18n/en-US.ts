@@ -151,12 +151,22 @@ export const workbenchEnUS = {
         "This command combination cannot be sent. Remove conflicting or unavailable command tokens and try again.",
       retry: "Retry",
       retrying: "Retrying",
+      continue: "Continue",
+      continuing: "Continuing",
       generationStopped: "Generation stopped",
       generationInterrupted: "Generation interrupted",
       connectionFailed: "Connection failed",
       requestFailedTitle: "Request failed",
       stoppedByUser: "The response was stopped by the user.",
       interrupted: "The response ended before it could be completed.",
+      stoppedCanContinue: "The response was stopped. Continue resumes the current task.",
+      interruptedCanContinue:
+        "The interruption was saved. Continue resumes the current task from its last safe point.",
+      continueFailed: "The task could not be continued. Refresh the conversation and try again.",
+      resumeRequiresConfirmation:
+        "A tool may have changed external state before the interruption. Automatic continuation is disabled until that result can be confirmed.",
+      resumeRequiresModelChange:
+        "This checkpoint is saved. Switch to a model or provider with available access, then continue.",
       outputLimit: ({ tokens }: { tokens?: number }, { number }: MessageFormatters) =>
         tokens === undefined
           ? "The model reached its output limit."

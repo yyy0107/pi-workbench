@@ -19,6 +19,7 @@ import { parsePiConversationEvent } from "@/runtime/pi/client/messages/conversat
 import { readPiUsage } from "@/runtime/pi/client/messages/pi-usage";
 import { parseWorkbenchComposerCommandResponseDetails } from "@/runtime/composer-request";
 import { parsePiMessageTermination } from "@/runtime/pi/message-termination";
+import type { SessionResumeCheckpoint } from "@/runtime/pi/rpc-contracts";
 
 import { WorkbenchComposerCommandResponse } from "./composer-command-response";
 import { WorkbenchMessageActions } from "./message-actions";
@@ -54,11 +55,37 @@ function readableErrorDetail(value: unknown): string | undefined {
   }
 }
 
+interface PiRunRecoveryExtras {
+  resumeCheckpoint?: SessionResumeCheckpoint;
+  resume?: (checkpointId: string, expectedLeafId: string) => Promise<void>;
+  resumeLatest?: (terminalMessageId: string) => Promise<void>;
+}
+
+function piRunRecoveryExtras(value: unknown): PiRunRecoveryExtras {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return {};
+  const piRun = (value as Record<string, unknown>).piRun;
+  if (typeof piRun !== "object" || piRun === null || Array.isArray(piRun)) return {};
+  const candidate = piRun as Record<string, unknown>;
+  return {
+    ...(typeof candidate.resume === "function"
+      ? { resume: candidate.resume as PiRunRecoveryExtras["resume"] }
+      : {}),
+    ...(typeof candidate.resumeLatest === "function"
+      ? { resumeLatest: candidate.resumeLatest as PiRunRecoveryExtras["resumeLatest"] }
+      : {}),
+    ...(typeof candidate.resumeCheckpoint === "object" && candidate.resumeCheckpoint !== null
+      ? { resumeCheckpoint: candidate.resumeCheckpoint as SessionResumeCheckpoint }
+      : {}),
+  };
+}
+
 function WorkbenchMessageError() {
   const { t } = useI18n();
   const aui = useAui();
   const status = useAuiState((state) => state.message.status);
+  const messageId = useAuiState((state) => state.message.id);
   const isRunning = useAuiState((state) => state.thread.isRunning);
+  const recovery = piRunRecoveryExtras(useAuiState((state) => state.thread.extras));
   const isInLatestTurn = useAuiState((state) =>
     isMessageInLatestTurn(state.thread.messages, state.message.index),
   );
@@ -69,6 +96,7 @@ function WorkbenchMessageError() {
     useAuiState((state) => state.message.metadata.custom.piUsage),
   )?.output;
   const [retryPhase, setRetryPhase] = useState<"idle" | "requested" | "running">("idle");
+  const [continuationFailed, setContinuationFailed] = useState(false);
 
   useEffect(() => {
     if (retryPhase === "requested" && isRunning) setRetryPhase("running");
@@ -119,16 +147,62 @@ function WorkbenchMessageError() {
       break;
   }
 
+  const resumeCheckpoint =
+    recovery.resumeCheckpoint?.terminalMessageId === messageId
+      ? recovery.resumeCheckpoint
+      : undefined;
+  const canContinueCheckpoint =
+    resumeCheckpoint?.capability === "ready" && recovery.resume !== undefined;
+  const canRepairAndContinue =
+    resumeCheckpoint === undefined &&
+    isInLatestTurn &&
+    (kind === "cancelled" || kind === "aborted") &&
+    recovery.resumeLatest !== undefined;
+  const canContinue = canContinueCheckpoint || canRepairAndContinue;
+  if (resumeCheckpoint?.capability === "confirmation-required") {
+    detail = t("workbench.chat.errors.resumeRequiresConfirmation");
+  } else if (resumeCheckpoint?.capability === "blocked") {
+    detail = t("workbench.chat.errors.resumeRequiresModelChange");
+  } else if (canContinue && continuationFailed) {
+    detail = t("workbench.chat.errors.continueFailed");
+  } else if (canContinue) {
+    detail =
+      kind === "cancelled"
+        ? t("workbench.chat.errors.stoppedCanContinue")
+        : (rawDetail ?? t("workbench.chat.errors.interruptedCanContinue"));
+  }
+
+  const stoppedWithoutCheckpoint =
+    (kind === "cancelled" || kind === "aborted") && resumeCheckpoint === undefined;
+  const showRetry = !resumeCheckpoint && !stoppedWithoutCheckpoint;
+  const showAction = canContinue || showRetry;
+
   const retry = () => {
     if (isRunning) return;
+    setContinuationFailed(false);
     setRetryPhase("requested");
     try {
-      void Promise.resolve(aui.message.reload()).then(
+      const action = canContinue
+        ? canContinueCheckpoint
+          ? recovery.resume?.(resumeCheckpoint.checkpointId, resumeCheckpoint.branchLeafId)
+          : recovery.resumeLatest?.(messageId)
+        : aui.message.reload();
+      void Promise.resolve(action).then(
         () => setRetryPhase((current) => (current === "requested" ? "running" : current)),
-        () => setRetryPhase("idle"),
+        (error) => {
+          setRetryPhase("idle");
+          if (canContinue) {
+            console.warn("[workbench-pi] task continuation failed", error);
+            setContinuationFailed(true);
+          }
+        },
       );
-    } catch {
+    } catch (error) {
       setRetryPhase("idle");
+      if (canContinue) {
+        console.warn("[workbench-pi] task continuation failed", error);
+        setContinuationFailed(true);
+      }
     }
   };
 
@@ -139,9 +213,14 @@ function WorkbenchMessageError() {
       detail={detail}
       retrying={retryPhase !== "idle"}
       retryDisabled={isRunning}
-      retryLabel={t("workbench.chat.errors.retry")}
-      retryingLabel={t("workbench.chat.errors.retrying")}
+      retryLabel={t(canContinue ? "workbench.chat.errors.continue" : "workbench.chat.errors.retry")}
+      retryingLabel={t(
+        canContinue ? "workbench.chat.errors.continuing" : "workbench.chat.errors.retrying",
+      )}
       onRetry={retry}
+      tone={kind === "cancelled" || kind === "aborted" ? "stopped" : "error"}
+      actionKind={canContinue ? "continue" : "retry"}
+      showAction={showAction}
     />
   );
 }

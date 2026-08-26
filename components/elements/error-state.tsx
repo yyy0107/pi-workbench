@@ -1,7 +1,7 @@
 "use client";
 
 import type { ComponentProps } from "react";
-import { CircleAlertIcon, RefreshCwIcon } from "lucide-react";
+import { CircleAlertIcon, CircleStopIcon, PlayIcon, RefreshCwIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -15,6 +15,9 @@ export interface ErrorStateProps extends Omit<ComponentProps<"div">, "children" 
   retryLabel: string;
   retryingLabel: string;
   onRetry: () => void;
+  tone?: "error" | "stopped";
+  actionKind?: "retry" | "continue";
+  showAction?: boolean;
 }
 
 export function ErrorState({
@@ -25,6 +28,9 @@ export function ErrorState({
   retryLabel,
   retryingLabel,
   onRetry,
+  tone = "error",
+  actionKind = "retry",
+  showAction = true,
   className,
   ...props
 }: ErrorStateProps) {
@@ -54,27 +60,55 @@ export function ErrorState({
       key="error"
       role="alert"
       className={cn(
-        "fade-in animate-in flex w-full max-w-sm items-start gap-2.5 rounded-2xl bg-red-500/[0.06] px-4 py-3 text-sm duration-300 motion-reduce:animate-none dark:bg-red-500/10",
+        "fade-in animate-in flex w-full max-w-sm items-start gap-2.5 rounded-2xl px-4 py-3 text-sm duration-300 motion-reduce:animate-none",
+        tone === "error" ? "bg-red-500/[0.06] dark:bg-red-500/10" : "bg-muted/60",
         className,
       )}
       {...props}
     >
-      <CircleAlertIcon className="mt-0.5 size-4 shrink-0 text-red-500/80" />
+      {tone === "error" ? (
+        <CircleAlertIcon className="mt-0.5 size-4 shrink-0 text-red-500/80" />
+      ) : (
+        <CircleStopIcon className="text-muted-foreground mt-0.5 size-4 shrink-0" />
+      )}
       <div className="min-w-0 flex-1">
-        <p className="font-medium text-red-600 dark:text-red-400">{title}</p>
-        <p className="mt-0.5 text-[13px] leading-snug break-words whitespace-pre-wrap text-red-600/60 dark:text-red-400/60">
+        <p
+          className={cn(
+            "font-medium",
+            tone === "error" ? "text-red-600 dark:text-red-400" : "text-foreground/75",
+          )}
+        >
+          {title}
+        </p>
+        <p
+          className={cn(
+            "mt-0.5 text-[13px] leading-snug break-words whitespace-pre-wrap",
+            tone === "error" ? "text-red-600/60 dark:text-red-400/60" : "text-muted-foreground",
+          )}
+        >
           {detail}
         </p>
       </div>
-      <button
-        type="button"
-        disabled={retryDisabled}
-        onClick={onRetry}
-        className="ms-auto flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium text-red-600 transition-colors hover:bg-red-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/30 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent dark:text-red-400"
-      >
-        <RefreshCwIcon className="size-3" />
-        {retryLabel}
-      </button>
+      {showAction ? (
+        <button
+          type="button"
+          disabled={retryDisabled}
+          onClick={onRetry}
+          className={cn(
+            "ms-auto flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent",
+            tone === "error"
+              ? "text-red-600 hover:bg-red-500/10 focus-visible:ring-red-500/30 dark:text-red-400"
+              : "text-foreground/70 hover:bg-foreground/5 focus-visible:ring-ring",
+          )}
+        >
+          {actionKind === "continue" ? (
+            <PlayIcon className="size-3 fill-current" />
+          ) : (
+            <RefreshCwIcon className="size-3" />
+          )}
+          {retryLabel}
+        </button>
+      ) : null}
     </div>
   );
 }

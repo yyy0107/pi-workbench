@@ -142,12 +142,20 @@ export const workbenchZhCN = {
       commandCompileFailed: "无法发送当前命令组合。请删除冲突或已不可用的命令 Token 后重试。",
       retry: "重试",
       retrying: "正在重试",
+      continue: "继续",
+      continuing: "正在继续",
       generationStopped: "生成已停止",
       generationInterrupted: "生成已中止",
       connectionFailed: "连接失败",
       requestFailedTitle: "请求失败",
       stoppedByUser: "用户已手动停止本次回答。",
       interrupted: "回答在完成前意外中止。",
+      stoppedCanContinue: "本次回答已停止。继续将接着完成当前任务。",
+      interruptedCanContinue: "中止点已保存。继续将从最近的安全位置接着完成当前任务。",
+      continueFailed: "未能继续当前任务。请刷新会话后再试。",
+      resumeRequiresConfirmation:
+        "中止前有工具可能已改变外部状态。在确认工具结果前，无法自动继续。",
+      resumeRequiresModelChange: "中止点已保存。请切换到有可用额度或权限的模型或 Provider 后继续。",
       outputLimit: ({ tokens }: { tokens?: number }, { number }: MessageFormatters) =>
         tokens === undefined
           ? "模型已达到输出长度上限。"
