@@ -6,6 +6,8 @@ export const workbenchEnUS = {
       question: "What will you make in Pi Workbench?",
       description:
         "Ask a question, attach context, or open a workbench panel when the conversation needs more room.",
+      workspaceQuestion: "Select a workspace to get started",
+      workspaceDescription: "Pi needs a workspace to read and modify your project files.",
       planProject: "Help me plan a small project",
       explainConcept: "Explain a difficult concept simply",
       reviewIdea: "Review an idea and find its risks",

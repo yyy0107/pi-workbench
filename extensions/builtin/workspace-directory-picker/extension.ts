@@ -1,6 +1,7 @@
 import { defineExtension } from "@/platform/extensions/authoring";
 
 import { DirectoryPickerButton } from "./directory-picker-button";
+import { InitialWorkspacePicker } from "./initial-workspace-picker";
 import { NewThreadWorkspaceItem } from "./new-thread-workspace-item";
 import { WorkspaceDirectorySummary } from "./workspace-directory-summary";
 
@@ -20,12 +21,17 @@ export const workspaceDirectoryPickerExtension = defineExtension({
       order: 10,
       component: DirectoryPickerButton,
     });
+    const initialWorkspacePicker = context.slots.register("composer.before", {
+      id: "workbench.workspace-directory-picker.initial-workspace",
+      order: -100,
+      component: InitialWorkspacePicker,
+    });
     const composerSummary = context.slots.register("composer.drawer.left", {
       id: "workbench.workspace-directory-picker.composer-drawer",
       order: 10,
       component: WorkspaceDirectorySummary,
     });
 
-    return [newThread, picker, composerSummary];
+    return [newThread, picker, initialWorkspacePicker, composerSummary];
   },
 });

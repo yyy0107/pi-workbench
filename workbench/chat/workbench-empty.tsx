@@ -30,14 +30,20 @@ export function WorkbenchEmpty({ children }: Readonly<{ children: ReactNode }>) 
       />
 
       <div className="relative z-10 mb-6 flex flex-col items-center text-center">
-        <h1 className="from-foreground via-muted-foreground to-foreground bg-linear-to-r bg-clip-text text-[clamp(1.25rem,4vw,2.75rem)] leading-none font-normal tracking-[-0.045em] whitespace-nowrap text-transparent drop-shadow-[0_1px_0_rgb(0_0_0_/_0.08)]">
-          {t("workbench.chat.empty.question")}
+        <h1 className="from-foreground via-muted-foreground to-foreground bg-linear-to-r bg-clip-text text-balance text-[clamp(1.25rem,4vw,2.75rem)] leading-tight font-normal tracking-[-0.035em] text-transparent drop-shadow-[0_1px_0_rgb(0_0_0_/_0.08)]">
+          {t(
+            needsWorkspace
+              ? "workbench.chat.empty.workspaceQuestion"
+              : "workbench.chat.empty.question",
+          )}
         </h1>
-        {!needsWorkspace ? (
-          <p className="text-muted-foreground mt-2 max-w-lg text-sm leading-relaxed">
-            {t("workbench.chat.empty.description")}
-          </p>
-        ) : null}
+        <p className="text-muted-foreground mt-2 max-w-lg text-sm leading-relaxed">
+          {t(
+            needsWorkspace
+              ? "workbench.chat.empty.workspaceDescription"
+              : "workbench.chat.empty.description",
+          )}
+        </p>
       </div>
 
       <div className="relative z-10">{children}</div>
