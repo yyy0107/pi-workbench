@@ -51,7 +51,7 @@ function LocaleSelector({ compact = false }: { compact?: boolean }) {
       title={switchLabel}
       className={cn(
         "text-muted-foreground hover:text-foreground",
-        compact ? "md:hidden" : "w-auto justify-start gap-2 px-2.5",
+        compact ? "hidden sm:inline-flex md:hidden" : "w-auto justify-start gap-2 px-2.5",
       )}
       onClick={() => selectLocale(nextLocale)}
     >

@@ -185,8 +185,8 @@ export function WorkbenchShell({ children }: Readonly<{ children: ReactNode }>) 
           className={cn(
             "absolute z-30",
             workspaceOpen
-              ? "[inset-block-start:calc(env(titlebar-area-height,0px)_+_0.25rem)] [inset-inline-end:var(--right-workspace-toggle-open-inset-end)]"
-              : "top-1 [inset-inline-end:var(--right-workspace-toggle-closed-inset-end)]",
+              ? "[inset-block-start:env(titlebar-area-height,0px)] [inset-inline-end:var(--right-workspace-toggle-open-inset-end)]"
+              : "top-0 [inset-inline-end:var(--right-workspace-toggle-closed-inset-end)]",
           )}
         />
       </div>

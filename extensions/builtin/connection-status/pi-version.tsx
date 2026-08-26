@@ -13,7 +13,7 @@ export function PiVersion() {
     : t("extensions.connectionStatus.piVersionLoading");
 
   return (
-    <div className="inline-flex h-6 min-w-[16ch] items-center justify-start gap-1.5 rounded-md pr-1.5 pl-0.5 text-[11px] font-medium tabular-nums text-muted-foreground">
+    <div className="@min-[480px]/statusbar:min-w-[16ch] inline-flex h-6 min-w-0 items-center justify-start gap-1.5 rounded-md pr-1.5 pl-0.5 text-[11px] font-medium tabular-nums text-muted-foreground">
       <div
         aria-label={description}
         aria-live="polite"
@@ -27,7 +27,7 @@ export function PiVersion() {
           draggable={false}
           className="size-4 shrink-0 dark:invert"
         />
-        <span>Pi v{version ?? "—"}</span>
+        <span className="@max-[340px]/statusbar:hidden">Pi v{version ?? "—"}</span>
       </div>
       <ConnectionStatus />
     </div>

@@ -91,6 +91,11 @@
 
 :root {
   --radius: 0.625rem;
+  --control-hit-compact: 24px;
+  --control-hit-default: 32px;
+  --control-hit-touch: 44px;
+  --icon-sm: 14px;
+  --icon-md: 16px;
   --scrollbar-size: 6px;
   --scrollbar-track: transparent;
   --scrollbar-thumb: color-mix(in oklab, var(--foreground) 14%, transparent);
