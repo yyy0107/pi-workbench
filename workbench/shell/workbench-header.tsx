@@ -7,6 +7,7 @@ import { useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useI18n } from "@/i18n";
+import { cn } from "@/lib/utils";
 import { useMainViewService } from "@/platform/extensions";
 import { SlotHost } from "@/platform/extensions/hosts/slot-host";
 import { useWorkbenchAgentThreadSnapshot } from "@/runtime/assistant-ui/agent-runtime-context";
@@ -22,17 +23,17 @@ function truncateConversationTitle(title: string): string {
 
 function SidebarOpenButton() {
   const { t } = useI18n();
-  const { isMobile, state, toggleSidebar } = useSidebar();
+  const { isMobile, toggleSidebar } = useSidebar();
 
-  if (!isMobile && state === "expanded") return null;
+  if (!isMobile) return null;
 
   return (
     <Button
       type="button"
       variant="ghost"
       size="icon"
-      aria-label={isMobile ? t("workbench.sidebar.openMobile") : t("workbench.sidebar.expand")}
-      title={isMobile ? t("workbench.sidebar.openMobile") : t("workbench.sidebar.expand")}
+      aria-label={t("workbench.sidebar.openMobile")}
+      title={t("workbench.sidebar.openMobile")}
       onClick={toggleSidebar}
     >
       <PanelLeftOpenIcon className="size-4" />
@@ -42,6 +43,7 @@ function SidebarOpenButton() {
 
 export function WorkbenchHeader() {
   const { t, text } = useI18n();
+  const { isMobile, state: sidebarState } = useSidebar();
   const mainViews = useMainViewService();
   const activeMainView = useSyncExternalStore(
     mainViews.subscribe,
@@ -59,13 +61,19 @@ export function WorkbenchHeader() {
     ? text(activeMainView.title)
     : currentThreadTitle || t("workbench.sidebar.newThread");
   const visibleTitle = activeMainView ? title : truncateConversationTitle(title);
+  const desktopSidebarCollapsed = !isMobile && sidebarState === "collapsed";
 
   return (
     <header
       data-workbench-surface="header"
       className="bg-background grid h-10 shrink-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-1 border-b ps-2 [padding-inline-end:calc(var(--right-workspace-toggle-inset-end)_+_var(--right-workspace-toggle-reserved-width))] [app-region:drag] select-none sm:grid-cols-[1fr_auto_1fr] sm:gap-0 sm:ps-3 [&_a]:[app-region:no-drag] [&_[data-slot=button]]:[app-region:no-drag]"
     >
-      <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
+      <div
+        className={cn(
+          "relative flex h-full min-w-0 items-center gap-1.5 sm:gap-2",
+          desktopSidebarCollapsed && "ps-[46px] sm:ps-11",
+        )}
+      >
         <SidebarOpenButton />
         <span
           className="min-w-0 shrink truncate text-sm font-semibold"

@@ -104,12 +104,11 @@ export function WorkbenchSidebarContent({
   return (
     <div className="flex h-full min-h-0 flex-col">
       {!mobile ? (
-        <div className="flex h-10 shrink-0 items-center gap-3 ps-5 pe-2">
+        <div className="relative flex h-10 shrink-0 items-center ps-5 pe-2">
           <SlotHost
             name="sidebar.brand"
             className="flex min-w-0 flex-1 items-center empty:hidden"
           />
-          <SidebarCollapseButton />
         </div>
       ) : (
         <MobileSidebarHeader />
@@ -375,25 +374,6 @@ function MobileSidebarHeader() {
         <PanelLeftCloseIcon className="size-4" />
       </Button>
     </div>
-  );
-}
-
-function SidebarCollapseButton() {
-  const { t } = useI18n();
-  const { setOpen } = useSidebar();
-
-  return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon"
-      aria-label={t("workbench.sidebar.collapse")}
-      title={t("workbench.sidebar.collapse")}
-      onClick={() => setOpen(false)}
-      className="text-muted-foreground hover:text-foreground"
-    >
-      <PanelLeftCloseIcon className="size-4" />
-    </Button>
   );
 }
 

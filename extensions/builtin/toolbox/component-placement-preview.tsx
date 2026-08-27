@@ -131,23 +131,28 @@ function MiniSidebar({
   );
   return (
     <aside className="bg-sidebar text-sidebar-foreground flex min-h-0 flex-col border-r">
-      {target(
-        "sidebar.brand",
-        t("extensions.toolbox.details.projectRegions.sidebarBrand"),
-        "flex h-5 shrink-0 items-center gap-1.5 ps-2.5 pe-1",
-        <>
+      <div className="flex h-5 shrink-0 items-center gap-1.5 ps-2.5 pe-1">
+        <span className="group/brand-toggle relative -start-[7px] size-3.5 shrink-0">
           <img
             src="/pi-logo-on-light.svg"
             alt=""
             aria-hidden="true"
-            className="size-3.5 shrink-0 dark:invert"
+            className="size-3.5 group-hover/brand-toggle:opacity-0 dark:invert"
           />
+          <PanelLeftCloseIcon
+            aria-hidden="true"
+            className="bg-sidebar text-muted-foreground absolute inset-0 size-3.5 opacity-0 group-hover/brand-toggle:opacity-100"
+          />
+        </span>
+        {target(
+          "sidebar.brand",
+          t("extensions.toolbox.details.projectRegions.sidebarBrand"),
+          "relative -start-[7px] min-w-0 flex-1",
           <span className="min-w-0 flex-1 truncate text-[8px] font-semibold tracking-tight">
-            Pi-Workbench
-          </span>
-          <PanelLeftCloseIcon className="text-muted-foreground size-2" />
-        </>,
-      )}
+            Pi Workbench
+          </span>,
+        )}
+      </div>
 
       {activeRegion === "sidebar.header"
         ? target(
