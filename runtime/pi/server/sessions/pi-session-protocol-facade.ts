@@ -1,7 +1,8 @@
 import type { AgentCommandCatalogPort } from "@/runtime/server/agent-command-catalog-port";
 import type { WorkbenchAgentServerAdapter } from "@/runtime/server/agent-runtime-adapter";
+import { createInstalledWorkbenchAgentServerAdapter } from "@/runtime/server/agent-runtime-installation";
 
-import { createPiAgentServerAdapter } from "../agent-runtime/pi-agent-server-adapter";
+import { createPiAgentServerInstallation } from "../agent-runtime/pi-agent-server-installation";
 import { getWorkspaceStore } from "../workspaces/workspace-registry";
 import {
   createPiSessionHistoryService,
@@ -73,8 +74,10 @@ export function createPiSessionProtocolFacade(
 ): PiSessionProtocolFacade {
   const agent =
     options.agent ??
-    createPiAgentServerAdapter(
-      options.commands === undefined ? {} : { commands: options.commands },
+    createInstalledWorkbenchAgentServerAdapter(
+      createPiAgentServerInstallation(
+        options.commands === undefined ? {} : { commands: options.commands },
+      ),
     );
 
   return new SessionRpcService({

@@ -4,6 +4,7 @@ import { homedir, release } from "node:os";
 import path from "node:path";
 
 import type { DirectoryEntry, HostDirectoryListing } from "@/runtime/pi/contracts/rpc";
+import { RpcDomainError } from "../core/rpc-domain-error";
 import {
   NativeWorkspacePickerUnavailableError,
   pickNativeWorkspaceDirectory,
@@ -20,7 +21,10 @@ export type HostDirectoryErrorCode =
 
 export type HostDirectoryErrorDetails = { path: string } | { capability: string };
 
-export class HostDirectoryError extends Error {
+export class HostDirectoryError extends RpcDomainError<
+  HostDirectoryErrorCode,
+  HostDirectoryErrorDetails
+> {
   readonly code: HostDirectoryErrorCode;
   readonly details: HostDirectoryErrorDetails;
 

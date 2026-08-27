@@ -10,6 +10,7 @@ import type {
   ProjectTrustDescribeValue,
   ProjectTrustUpdatePayload,
 } from "@/runtime/pi/contracts/rpc";
+import { RpcDomainError } from "../core/rpc-domain-error";
 import { validateWorkspace } from "../workspaces/workspace-paths";
 
 export interface ProjectTrustServiceErrorDetails {
@@ -22,7 +23,7 @@ export type ProjectTrustServiceErrorCode = keyof ProjectTrustServiceErrorDetails
 
 export class ProjectTrustServiceError<
   Code extends ProjectTrustServiceErrorCode = ProjectTrustServiceErrorCode,
-> extends Error {
+> extends RpcDomainError<Code, ProjectTrustServiceErrorDetails[Code]> {
   readonly code: Code;
   readonly details: ProjectTrustServiceErrorDetails[Code];
 
@@ -44,7 +45,13 @@ export interface ProjectTrustServiceOptions {
   trustOverride?: () => boolean;
 }
 
-export class ProjectTrustService {
+/** Project-trust decision capabilities exposed to transport. */
+export interface ProjectTrustProtocol {
+  describe(payload: ProjectTrustDescribePayload): ProjectTrustDescribeValue;
+  update(payload: ProjectTrustUpdatePayload): ProjectTrustDescribeValue;
+}
+
+export class ProjectTrustService implements ProjectTrustProtocol {
   private readonly agentDir: string;
   private readonly trustStore: ProjectTrustStore;
   private readonly trustOverride: () => boolean;

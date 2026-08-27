@@ -6,6 +6,7 @@ import type {
   PiPackageCatalogSearchValue,
   PiPackageResourceType,
 } from "@/runtime/pi/contracts/rpc";
+import { RpcDomainError } from "../core/rpc-domain-error";
 
 const PI_PACKAGE_CATALOG_URL = "https://pi.dev/packages";
 const PI_PACKAGE_CATALOG_PAGE_SIZE = 50;
@@ -78,7 +79,7 @@ export type PiPackageCatalogServiceErrorCode = keyof PiPackageCatalogServiceErro
 
 export class PiPackageCatalogServiceError<
   Code extends PiPackageCatalogServiceErrorCode = PiPackageCatalogServiceErrorCode,
-> extends Error {
+> extends RpcDomainError<Code, PiPackageCatalogServiceErrorDetails[Code]> {
   readonly code: Code;
   readonly details: PiPackageCatalogServiceErrorDetails[Code];
 

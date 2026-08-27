@@ -19,6 +19,7 @@ const GENERIC_AGENT_COMMAND_CONSUMERS = [
   "workbench/chat/composer-message-text.tsx",
   "workbench/chat/workbench-composer.tsx",
 ] as const;
+const APPLICATION_RUNTIME_PROVIDER = "workbench/providers/assistant-runtime-provider.tsx";
 
 async function productionSources(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -67,4 +68,11 @@ test("Workbench Composer consumers do not import the Pi implementation", async (
   }
 
   assert.deepEqual(violations, []);
+});
+
+test("the application Runtime provider selects through the explicit installation module", async () => {
+  const source = await readFile(path.resolve(process.cwd(), APPLICATION_RUNTIME_PROVIDER), "utf8");
+
+  assert.equal(CONCRETE_RUNTIME_IMPORT.test(source), false);
+  assert.match(source, /from\s+["']\.\/installed-agent-runtime["']/);
 });

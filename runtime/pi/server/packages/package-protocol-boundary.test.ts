@@ -13,7 +13,7 @@ const PACKAGE_CATALOG_ROUTES = new URL(
   import.meta.url,
 );
 const PACKAGE_VALIDATORS = new URL("../transport/package-rpc-validators.ts", import.meta.url);
-const RPC_ROUTER = new URL("../transport/rpc-router.ts", import.meta.url);
+const RPC_ROUTE_COMPOSITION = new URL("../transport/rpc-route-composition.ts", import.meta.url);
 
 const INSTALLED_PACKAGE_METHODS = [
   "package.list",
@@ -104,17 +104,17 @@ test("Package services implement narrow protocols while retaining implementation
   assert.doesNotMatch(catalog, /package-catalog-rpc-routes|rpc-transport/);
 });
 
-test("the RPC router composes both Package route groups without retaining their details", async () => {
-  const source = await readFile(RPC_ROUTER, "utf8");
+test("the route composition creates both Package groups without retaining their details", async () => {
+  const source = await readFile(RPC_ROUTE_COMPOSITION, "utf8");
 
-  assert.match(source, /import \{ createInstalledPackageRpcRoutes \}/);
-  assert.match(source, /import \{ createPackageCatalogRpcRoutes \}/);
-  assert.match(source, /const installedPackageRpcRoutes = createInstalledPackageRpcRoutes\(/);
-  assert.match(source, /const packageCatalogRpcRoutes = createPackageCatalogRpcRoutes\(/);
-  assert.match(source, /\n\s+installedPackageRpcRoutes,/);
-  assert.match(source, /\n\s+packageCatalogRpcRoutes,/);
-  assert.match(source, /error instanceof InstalledPackageServiceError/);
-  assert.match(source, /error instanceof PiPackageCatalogServiceError/);
+  assert.match(source, /createInstalledPackageRpcRoutes\(dependencies\.installedPackage\)/);
+  assert.match(source, /createPackageCatalogRpcRoutes\(dependencies\.packageCatalog\)/);
+  assert.match(
+    source,
+    /installedPackage: \{ service: installedPackageService, \.\.\.domainErrors \}/,
+  );
+  assert.match(source, /packageCatalog: \{ service: packageCatalogService, \.\.\.domainErrors \}/);
+  assert.match(source, /projectRpcDomainError/);
   for (const method of [...INSTALLED_PACKAGE_METHODS, ...PACKAGE_CATALOG_METHODS]) {
     assert.ok(!source.includes(`case "${method}":`), `Router still owns Package route: ${method}`);
   }

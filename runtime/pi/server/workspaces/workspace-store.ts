@@ -10,6 +10,7 @@ import type {
   WorkspaceView,
 } from "@/runtime/pi/contracts/rpc";
 import { atomicReplaceFile, withCrossProcessFileLock } from "../core/file-persistence";
+import { RpcDomainError } from "../core/rpc-domain-error";
 import {
   nextWorkbenchSettingsDocument,
   readWorkbenchSettingsDocument,
@@ -58,7 +59,7 @@ export type WorkspaceStoreErrorCode = keyof WorkspaceStoreErrorDetails;
 
 export class WorkspaceStoreError<
   Code extends WorkspaceStoreErrorCode = WorkspaceStoreErrorCode,
-> extends Error {
+> extends RpcDomainError<Code, WorkspaceStoreErrorDetails[Code]> {
   readonly code: Code;
   readonly details: WorkspaceStoreErrorDetails[Code];
 

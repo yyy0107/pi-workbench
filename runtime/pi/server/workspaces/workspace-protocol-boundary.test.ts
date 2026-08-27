@@ -14,7 +14,7 @@ const WORKSPACE_FILE_RPC_ROUTES = new URL(
 );
 const WORKSPACE_FILES = new URL("./workspace-files.ts", import.meta.url);
 const WORKSPACE_FILE_CONTENT = new URL("./workspace-file-content.ts", import.meta.url);
-const RPC_ROUTER = new URL("../transport/rpc-router.ts", import.meta.url);
+const RPC_ROUTE_COMPOSITION = new URL("../transport/rpc-route-composition.ts", import.meta.url);
 
 const WORKSPACE_ORGANIZATION_RPC_METHODS = [
   "workspace.list",
@@ -97,16 +97,14 @@ test("Workspace file service exposes one protocol and a shared late-bound factor
   assert.doesNotMatch(source, /rpc-transport/);
 });
 
-test("the RPC router composes both Workspace route groups without handling either domain", async () => {
-  const source = await readFile(RPC_ROUTER, "utf8");
+test("the route composition creates both Workspace groups without handling either domain", async () => {
+  const source = await readFile(RPC_ROUTE_COMPOSITION, "utf8");
 
   assert.match(source, /const workspaceProtocolService = createWorkspaceProtocolService\(\)/);
-  assert.match(source, /const workspaceRpcRoutes = createWorkspaceRpcRoutes\(/);
+  assert.match(source, /createWorkspaceRpcRoutes\(dependencies\.workspace\)/);
   assert.match(source, /const workspaceFileService = createWorkspaceFileService\(\)/);
-  assert.match(source, /const workspaceFileRpcRoutes = createWorkspaceFileRpcRoutes\(/);
-  assert.match(source, /\n\s+workspaceRpcRoutes,/);
-  assert.match(source, /\n\s+workspaceFileRpcRoutes,/);
-  assert.match(source, /error instanceof WorkspaceProtocolServiceError/);
+  assert.match(source, /createWorkspaceFileRpcRoutes\(dependencies\.workspaceFile\)/);
+  assert.match(source, /projectRpcDomainError/);
   for (const method of WORKSPACE_ORGANIZATION_RPC_METHODS) {
     assert.ok(!source.includes(`case "${method}":`), `Router still owns route: ${method}`);
   }

@@ -29,6 +29,7 @@ import type {
   SkillSetEnabledPayload,
   SkillSetEnabledValue,
 } from "@/runtime/pi/contracts/rpc";
+import { RpcDomainError } from "../core/rpc-domain-error";
 import {
   clonePackageSource,
   pathWithin,
@@ -162,7 +163,7 @@ export type SkillServiceErrorCode = keyof SkillServiceErrorDetails;
 
 export class SkillServiceError<
   Code extends SkillServiceErrorCode = SkillServiceErrorCode,
-> extends Error {
+> extends RpcDomainError<Code, SkillServiceErrorDetails[Code]> {
   readonly code: Code;
   readonly details: SkillServiceErrorDetails[Code];
 

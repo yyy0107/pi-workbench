@@ -55,6 +55,7 @@ import {
   type AgentThreadStorePort,
   type AgentThreadSummary,
 } from "@/runtime/server/agent-thread-store-port";
+import { RpcDomainError } from "../core/rpc-domain-error";
 import {
   PiSessionHistoryServiceError,
   type PiSessionHistoryService,
@@ -141,7 +142,7 @@ export type SessionRpcServiceErrorCode = keyof SessionRpcServiceErrorDetails;
 
 export class SessionRpcServiceError<
   Code extends SessionRpcServiceErrorCode = SessionRpcServiceErrorCode,
-> extends Error {
+> extends RpcDomainError<Code, SessionRpcServiceErrorDetails[Code]> {
   readonly code: Code;
   readonly details: SessionRpcServiceErrorDetails[Code];
 

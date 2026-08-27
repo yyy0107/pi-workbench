@@ -1,13 +1,12 @@
 "use client";
 
 import type { WorkbenchAgentRuntimeAdapter } from "@/runtime/assistant-ui/agent-runtime-adapter";
+import { PI_AGENT_RUNTIME_DESCRIPTOR } from "@/runtime/pi/descriptor";
 
 import type { PiSessionManager } from "../runtime/manager";
 import { usePiAgentCommandCatalog } from "./command-catalog";
 import { createPiAgentThreadStore } from "./thread-store";
 import { usePiThreadRuntime } from "./thread-runtime";
-
-export const PI_AGENT_RUNTIME_ADAPTER_ID = "pi";
 
 /** Create the only currently installed Workbench Agent Runtime implementation. */
 export function createPiAgentRuntimeAdapter(
@@ -24,7 +23,7 @@ export function createPiAgentRuntimeAdapter(
   }
 
   return {
-    id: PI_AGENT_RUNTIME_ADAPTER_ID,
+    id: PI_AGENT_RUNTIME_DESCRIPTOR.id,
     threadListAdapter: manager.createThreadListAdapter(),
     useThreadRuntime,
     useCommandCatalog,

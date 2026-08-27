@@ -2,6 +2,7 @@ import { realpath, stat } from "node:fs/promises";
 import path from "node:path";
 
 import type { LocalAppOpenValue, LocalAppsListValue } from "@/runtime/pi/contracts/rpc";
+import { RpcDomainError } from "../core/rpc-domain-error";
 import { detectInstalledApps } from "./detectors/index";
 import { launchLocalApp } from "./launchers/index";
 import type {
@@ -16,7 +17,10 @@ export type LocalAppServiceErrorCode =
   | "local-app-target-unreadable"
   | "local-app-launch-failed";
 
-export class LocalAppServiceError extends Error {
+export class LocalAppServiceError extends RpcDomainError<
+  LocalAppServiceErrorCode,
+  Record<string, string>
+> {
   readonly code: LocalAppServiceErrorCode;
   readonly details: Record<string, string>;
 
@@ -31,6 +35,13 @@ export class LocalAppServiceError extends Error {
 export interface LocalAppServiceInternals {
   detect?: LocalAppDetector;
   launch?: LocalAppLauncherFunction;
+}
+
+/** Renderer-safe Local App capabilities exposed to transport. */
+export interface LocalAppProtocol {
+  list(signal?: AbortSignal): Promise<LocalAppsListValue>;
+  refresh(signal?: AbortSignal): Promise<LocalAppsListValue>;
+  open(appId: string, requestedTarget: string, signal?: AbortSignal): Promise<LocalAppOpenValue>;
 }
 
 async function canonicalLaunchTarget(
@@ -68,7 +79,7 @@ function view(app: DetectedLocalApp) {
   };
 }
 
-export class LocalAppService {
+export class LocalAppService implements LocalAppProtocol {
   private apps: DetectedLocalApp[] | undefined;
   private detection: Promise<DetectedLocalApp[]> | undefined;
   private readonly detect: LocalAppDetector;

@@ -30,6 +30,7 @@ import type {
   ExtensionSourceOrigin,
   ExtensionSourceScope,
 } from "@/runtime/pi/contracts/rpc";
+import { RpcDomainError } from "../core/rpc-domain-error";
 import {
   clonePackageSource,
   pathWithin,
@@ -152,7 +153,7 @@ export type ExtensionServiceErrorCode = keyof ExtensionServiceErrorDetails;
 
 export class ExtensionServiceError<
   Code extends ExtensionServiceErrorCode = ExtensionServiceErrorCode,
-> extends Error {
+> extends RpcDomainError<Code, ExtensionServiceErrorDetails[Code]> {
   readonly code: Code;
   readonly details: ExtensionServiceErrorDetails[Code];
 

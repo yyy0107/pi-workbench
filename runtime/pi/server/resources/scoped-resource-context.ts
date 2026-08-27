@@ -6,6 +6,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 
 import type { PiResourceCatalogTarget } from "@/runtime/pi/contracts/rpc";
+import { RpcDomainError } from "../core/rpc-domain-error";
 import { getProjectTrustService } from "../trust/project-trust-service";
 import { getWorkspaceStore } from "../workspaces/workspace-registry";
 
@@ -18,7 +19,7 @@ export type ScopedResourceContextErrorCode = keyof ScopedResourceContextErrorDet
 
 export class ScopedResourceContextError<
   Code extends ScopedResourceContextErrorCode = ScopedResourceContextErrorCode,
-> extends Error {
+> extends RpcDomainError<Code, ScopedResourceContextErrorDetails[Code]> {
   readonly code: Code;
   readonly details: ScopedResourceContextErrorDetails[Code];
 

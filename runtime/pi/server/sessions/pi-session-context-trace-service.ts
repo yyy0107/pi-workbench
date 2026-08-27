@@ -9,6 +9,7 @@ import type {
   SessionContextTraceReadPayload,
   SessionContextTraceReadValue,
 } from "@/runtime/pi/contracts/rpc";
+import { RpcDomainError } from "../core/rpc-domain-error";
 
 import {
   getSessionContextTrace,
@@ -54,7 +55,10 @@ export interface PiSessionContextTraceServiceErrorDetails {
   traceId?: string;
 }
 
-export class PiSessionContextTraceServiceError extends Error {
+export class PiSessionContextTraceServiceError extends RpcDomainError<
+  PiSessionContextTraceServiceErrorCode,
+  PiSessionContextTraceServiceErrorDetails
+> {
   readonly code: PiSessionContextTraceServiceErrorCode;
   readonly details: PiSessionContextTraceServiceErrorDetails;
 

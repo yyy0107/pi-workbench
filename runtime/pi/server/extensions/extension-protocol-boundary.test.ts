@@ -8,7 +8,7 @@ const EXTENSION_RPC_ROUTES = new URL(
   import.meta.url,
 );
 const RESOURCE_RPC_VALIDATORS = new URL("../transport/resource-rpc-validators.ts", import.meta.url);
-const RPC_ROUTER = new URL("../transport/rpc-router.ts", import.meta.url);
+const RPC_ROUTE_COMPOSITION = new URL("../transport/rpc-route-composition.ts", import.meta.url);
 
 const EXTENSION_RPC_METHODS = [
   "extension.list",
@@ -74,19 +74,19 @@ test("shared Resource validators remain independent of the Extension domain", as
   assert.doesNotMatch(source, /@earendil-works\/pi-coding-agent/);
 });
 
-test("the RPC router composes Extensions without retaining Extension transport details", async () => {
-  const source = await readFile(RPC_ROUTER, "utf8");
+test("the route composition creates Extensions without retaining transport details", async () => {
+  const source = await readFile(RPC_ROUTE_COMPOSITION, "utf8");
 
-  assert.match(source, /import \{ createExtensionRpcRoutes \}/);
+  assert.match(source, /createExtensionRpcRoutes/);
   assert.match(source, /const extensionService = new ExtensionService/);
-  assert.match(source, /const extensionRpcRoutes = createExtensionRpcRoutes\(/);
-  assert.match(source, /\n\s+extensionRpcRoutes,/);
-  assert.match(source, /from "\.\/resource-rpc-validators"/);
-  assert.match(source, /error instanceof ExtensionServiceError/);
+  assert.match(source, /createExtensionRpcRoutes\(dependencies\.extension\)/);
+  assert.match(source, /extension: \{ service: extensionService, \.\.\.domainErrors \}/);
+  assert.doesNotMatch(source, /resource-rpc-validators/);
+  assert.match(source, /projectRpcDomainError/);
   for (const method of EXTENSION_RPC_METHODS) {
     assert.ok(
       !source.includes(`case "${method}":`),
-      `Router still owns Extension route: ${method}`,
+      `Composition still owns Extension route details: ${method}`,
     );
   }
   assert.doesNotMatch(source, /const extensionIdentityPayload/);

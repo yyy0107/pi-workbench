@@ -11,6 +11,7 @@ import {
   type AgentCommandCatalogPort,
   type AgentCommandCatalogTarget,
 } from "@/runtime/server/agent-command-catalog-port";
+import { RpcDomainError } from "../core/rpc-domain-error";
 import { getScopedResourceContextService } from "../resources/scoped-resource-context";
 import { getOrStartSession } from "../sessions/session-registry";
 import { PI_COMPOSER_BUILTIN_COMMANDS } from "./pi-composer-command-catalog";
@@ -65,6 +66,11 @@ export interface CommandServiceDependencies {
   getScopedResourceHost(target: PiResourceCatalogTarget): Promise<CommandSessionHost>;
 }
 
+/** Pi command-catalog capability exposed to the wire transport. */
+export interface CommandCatalogProtocol {
+  list(request: CommandListPayload): Promise<CommandListValue>;
+}
+
 export interface CommandServiceErrorDetails {
   "session-not-found": { sessionId: string };
   internal: Record<string, never>;
@@ -74,7 +80,7 @@ export type CommandServiceErrorCode = keyof CommandServiceErrorDetails;
 
 export class CommandServiceError<
   Code extends CommandServiceErrorCode = CommandServiceErrorCode,
-> extends Error {
+> extends RpcDomainError<Code, CommandServiceErrorDetails[Code]> {
   readonly code: Code;
   readonly details: CommandServiceErrorDetails[Code];
 
@@ -96,7 +102,7 @@ function errorCode(error: unknown): string | undefined {
   return typeof error.code === "string" ? error.code : undefined;
 }
 
-export class CommandService implements AgentCommandCatalogPort {
+export class CommandService implements AgentCommandCatalogPort, CommandCatalogProtocol {
   private readonly dependencies: CommandServiceDependencies;
 
   constructor(dependencies: Partial<CommandServiceDependencies> = {}) {

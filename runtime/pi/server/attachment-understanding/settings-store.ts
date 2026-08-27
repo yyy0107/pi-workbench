@@ -15,6 +15,7 @@ import {
   DEFAULT_PADDLE_AI_STUDIO_ASYNC_MODEL,
   PADDLE_AI_STUDIO_ASYNC_ENDPOINT,
 } from "../../../shared/attachment-understanding/paddleocr-models";
+import { RpcDomainError } from "../core/rpc-domain-error";
 import {
   getOcrAdapterPreset,
   inferOcrAdapterPreset,
@@ -92,14 +93,23 @@ export type ImageUnderstandingSettingsStoreErrorCode =
   | "image-settings-invalid"
   | "image-settings-io";
 
-export class ImageUnderstandingSettingsStoreError extends Error {
+export interface ImageUnderstandingSettingsStoreErrorDetails {
+  expectedRevision?: number;
+  actualRevision?: number;
+}
+
+export class ImageUnderstandingSettingsStoreError extends RpcDomainError<
+  ImageUnderstandingSettingsStoreErrorCode,
+  ImageUnderstandingSettingsStoreErrorDetails
+> {
   readonly code: ImageUnderstandingSettingsStoreErrorCode;
+  readonly details: ImageUnderstandingSettingsStoreErrorDetails;
   readonly expectedRevision?: number;
   readonly actualRevision?: number;
 
   constructor(
     code: ImageUnderstandingSettingsStoreErrorCode,
-    options: { expectedRevision?: number; actualRevision?: number } = {},
+    options: ImageUnderstandingSettingsStoreErrorDetails = {},
   ) {
     const message =
       code === "image-settings-conflict"
@@ -110,6 +120,12 @@ export class ImageUnderstandingSettingsStoreError extends Error {
     super(message);
     this.name = "ImageUnderstandingSettingsStoreError";
     this.code = code;
+    this.details = {
+      ...(options.expectedRevision === undefined
+        ? {}
+        : { expectedRevision: options.expectedRevision }),
+      ...(options.actualRevision === undefined ? {} : { actualRevision: options.actualRevision }),
+    };
     this.expectedRevision = options.expectedRevision;
     this.actualRevision = options.actualRevision;
   }

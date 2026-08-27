@@ -8,6 +8,7 @@ import type {
   WorkbenchSettingsUpdateValue,
 } from "@/runtime/pi/contracts/rpc";
 import { withCrossProcessFileLock } from "../core/file-persistence";
+import { RpcDomainError } from "../core/rpc-domain-error";
 import {
   configuredWorkbenchSettingsFile,
   nextWorkbenchSettingsDocument,
@@ -203,7 +204,10 @@ export type WorkbenchSettingsServiceErrorCode =
   | "workbench-settings-invalid"
   | "workbench-settings-io";
 
-export class WorkbenchSettingsServiceError extends Error {
+export class WorkbenchSettingsServiceError extends RpcDomainError<
+  WorkbenchSettingsServiceErrorCode,
+  Record<string, never>
+> {
   readonly code: WorkbenchSettingsServiceErrorCode;
   readonly details: Record<string, never> = {};
 

@@ -10,9 +10,11 @@ runtime/
 │   ├── README.md
 │   ├── adapters/
 │   ├── agent-runtime-adapter.ts
+│   ├── agent-runtime-installation.tsx
 │   ├── agent-runtime-context.tsx
 │   ├── agent-runtime-extras.ts
 │   ├── agent-runtime-host.tsx
+│   ├── testing/
 │   ├── tool-events.ts
 │   └── use-workbench-runtime.ts
 ├── server/                          # 后端无关的 Agent 宿主端口
@@ -20,8 +22,12 @@ runtime/
 │   ├── agent-command-catalog-port.ts
 │   ├── agent-execution-port.ts
 │   ├── agent-thread-store-port.ts
+│   ├── agent-runtime-installation.ts
+│   ├── testing/
 │   └── agent-runtime-adapter.ts
 ├── shared/                          # 跨 runtime、client/server 的纯领域逻辑
+│   ├── agent-runtime/
+│   │   └── descriptor.ts
 │   ├── agent-command/
 │   │   └── catalog.ts
 │   ├── composer/
@@ -55,6 +61,9 @@ runtime/
   JSON-safe，不拥有网络、文件系统、凭据、React 状态或宿主 Runtime 对象。
 - `shared/agent-command` 拥有 Composer 消费的通用 Agent 命令语义；assistant-ui Host、Pi client 和
   server command capability 都直接依赖这个拥有者，不通过 UI 目录转发。
+- `shared/agent-runtime/descriptor.ts` 只定义一个可序列化的稳定 Runtime 身份。它不包含 Provider、
+  transport、SDK capability、工厂列表或选择策略；同一个具体实现的 client/server adapter 必须复用
+  同一 descriptor。
 - `shared/composer` 拥有 Composer canonical 请求、持久化投影和兼容读取规则；不要在 UI 或 RPC
   handler 中复制这些语义。面向具体 Agent SDK 的最终 Prompt 编码属于对应实现层。
 - `shared/attachment-understanding` 拥有图片/PDF 附件理解的声明、解析模型和跨端状态机；具体 OCR
@@ -96,11 +105,17 @@ Workbench Composer 只调用
 Composer wire 写入 `agent-command` 与 `source: "agent"`；`pi-command` 与 `source: "pi"` 只由
 版本化兼容读取器接受，不代表 UI 可以反向依赖 Pi。
 
-当前组合根只选择
-[`PiAgentRuntimeProvider`](./pi/client/assistant-ui/pi-runtime-provider.tsx)，由它创建 Pi manager 和 adapter，
-再交给通用 `WorkbenchAgentRuntimeHost`。以后接入 Codex 或 Claude Code 时，应分别新增自己的
-client/transport、assistant-ui adapter 与实现 Provider，再在组合根选择实现。
-在第二个实现出现前不增加 registry、配置 UI 或空壳实现，避免提前固化尚未验证的共同能力。
+浏览器安装边界位于
+[`assistant-ui/agent-runtime-installation.tsx`](./assistant-ui/agent-runtime-installation.tsx)。它只把应用
+已经选择好的完整实现挂载到 React tree，不创建 manager、transport 或 adapter，也不发现实现。
+[`workbench/providers/installed-agent-runtime.tsx`](../workbench/providers/installed-agent-runtime.tsx) 是当前
+唯一允许选择具体实现的应用组合点；它以 singular factory 安装 Pi，未维护数组、Map、动态 import、
+配置枚举或 fallback。Pi 的 installation 再由 `PiAgentRuntimeProvider` 创建 manager 和 adapter，最后交给
+通用 `WorkbenchAgentRuntimeHost`。
+
+以后接入 Codex 或 Claude Code 时，应分别新增自己的 descriptor、client/transport、assistant-ui adapter、
+完整实现 Provider 和 server installation，再修改这个显式应用组合点。在第二个生产实现真正出现前不
+增加 registry、配置 UI 或空壳实现，避免提前固化尚未验证的共同能力。
 
 服务端对应边界位于 [`server/agent-runtime-adapter.ts`](./server/agent-runtime-adapter.ts)、
 [`server/agent-execution-port.ts`](./server/agent-execution-port.ts)、
@@ -116,11 +131,21 @@ Pi canonical history、branch/resume 和 session model/context policy 继续属�
 `SessionRpcService` 编排。它们刻意没有提升到顶层 `runtime/server`：这些语义尚未被第二个 Agent
 Runtime 验证，提前通用化会把 Pi event 与 context policy 伪装成跨 Runtime 标准。
 
-当前服务端同样只安装 Pi 实现，不增加实现 registry。Pi 的 `CommandService` 保留原生 wire 输出，同时
-实现通用 command capability；线程 CRUD 经 `PiAgentThreadStoreAdapter` 接入。canonical session
-history/event 仍由 Pi protocol 拥有：在 Codex 或 Claude Code 的真实协议出现前，把它们抽成所谓
-“通用消息/事件模型”只会制造第二套未经验证的抽象。后续实现先接入现有三个端口，再用两个实现共同
-验证出的语义扩展 `WorkbenchAgentServerAdapter`。
+服务端的 [`server/agent-runtime-installation.ts`](./server/agent-runtime-installation.ts) 同样只实例化一个
+已选择的 adapter，并强制其 `id` 与共享 descriptor 一致。Pi session facade 显式调用
+`createPiAgentServerInstallation()`，默认端口图仍由原 Pi adapter 创建；这里没有全局容器或实现
+registry。
+Pi 的 `CommandService` 保留原生 wire 输出，同时实现通用 command capability；线程 CRUD 经
+`PiAgentThreadStoreAdapter` 接入。canonical session history/event 仍由 Pi protocol 拥有：在 Codex 或
+Claude Code 的真实协议出现前，把它们抽成所谓“通用消息/事件模型”只会制造第二套未经验证的抽象。
+后续实现先接入现有三个端口，再用两个实现共同验证出的语义扩展 `WorkbenchAgentServerAdapter`。
+
+浏览器和服务端分别提供可复用的 conformance suite：
+`assistant-ui/testing/agent-runtime-adapter-contract.tsx` 从真实 `WorkbenchAgentRuntimeHost` 观察 Runtime、
+命令、thread presentation、revision/subscription 和 assistant-ui capabilities；
+`server/testing/agent-server-adapter-contract.ts` 观察三个服务端端口的成功值与稳定错误。两套 suite 都先
+由不依赖 Pi 的 fixture 验证，再由 Pi 实现调用。未来实现应复用这些测试，而不是复制 Pi 测试、模拟 Pi
+协议，或为了通过测试提前引入 registry。
 
 `assistant-ui` 位于 `runtime` 而不是组件目录，是因为这里保存的是状态机与宿主 Runtime 的适配和
 生命周期组合，不是聊天界面的视觉组件；真正的 UI 仍位于 `components/`、`workbench/` 和

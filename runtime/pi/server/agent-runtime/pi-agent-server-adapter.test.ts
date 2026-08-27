@@ -1,15 +1,136 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import type { PiSessionSummary } from "@/runtime/pi/contracts/pi";
+import { PI_AGENT_RUNTIME_DESCRIPTOR } from "@/runtime/pi/descriptor";
+import {
+  AgentCommandCatalogError,
+  type AgentCommandCatalogTarget,
+} from "@/runtime/server/agent-command-catalog-port";
+import { defineWorkbenchAgentServerAdapterContract } from "@/runtime/server/testing/agent-server-adapter-contract";
 
-import { createPiAgentServerAdapter, PI_AGENT_SERVER_ADAPTER_ID } from "./pi-agent-server-adapter";
+import { createPiAgentExecutionAdapter } from "./pi-agent-execution-adapter";
+import { createPiAgentServerAdapter } from "./pi-agent-server-adapter";
+import { createPiAgentThreadStoreAdapter } from "./pi-agent-thread-store-adapter";
 
-test("assembles Pi behind the Workbench Agent server boundary", () => {
-  const adapter = createPiAgentServerAdapter();
+const commandCases = (
+  [
+    { kind: "thread", threadId: "contract-thread" },
+    { kind: "user" },
+    { kind: "project", workspaceId: "contract-workspace" },
+  ] satisfies AgentCommandCatalogTarget[]
+).map((target) => ({
+  target,
+  commands: [
+    {
+      kind: "builtin" as const,
+      name: `pi-${target.kind}`,
+      invocationName: `pi-${target.kind}`,
+      effect: "agent-turn" as const,
+      exclusive: false,
+    },
+  ],
+}));
 
-  assert.equal(adapter.id, PI_AGENT_SERVER_ADAPTER_ID);
-  assert.equal(typeof adapter.commands.getCatalog, "function");
-  assert.equal(typeof adapter.execution.submit, "function");
-  assert.equal(typeof adapter.execution.cancel, "function");
-  assert.equal(typeof adapter.threads.list, "function");
-  assert.equal(typeof adapter.threads.create, "function");
+const summary: PiSessionSummary = {
+  id: "pi-thread",
+  cwd: "/pi-workspace",
+  workspace: { id: "pi-workspace", name: "Pi Workspace", cwd: "/pi-workspace" },
+  name: "Pi contract thread",
+  created: "2026-01-01T00:00:00.000Z",
+  modified: "2026-01-02T00:00:00.000Z",
+  messageCount: 2,
+  firstMessage: "Pi contract message",
+  transient: false,
+  running: true,
+  waitingForUserInput: true,
+  runTiming: { startedAt: 1_000, elapsedMs: 250 },
+};
+
+defineWorkbenchAgentServerAdapterContract({
+  name: "Pi",
+  createHarness() {
+    const commands = {
+      getCatalog: async (target: AgentCommandCatalogTarget) => [
+        {
+          kind: "builtin" as const,
+          name: `pi-${target.kind}`,
+          invocationName: `pi-${target.kind}`,
+          effect: "agent-turn" as const,
+          exclusive: false,
+        },
+      ],
+    };
+    const execution = createPiAgentExecutionAdapter({
+      submitPrompt: async () => ({ queued: true, queueItemId: "pi-queue" }),
+      regenerateSession: async () => undefined,
+      resumeSession: async () => undefined,
+      selectSessionBranch: async () => undefined,
+      updateQueueItem: async () => undefined,
+      cancelSession: async () => undefined,
+    });
+    const threads = createPiAgentThreadStoreAdapter({
+      listSessions: async () => ({ sessions: [summary], runningSessionIds: [summary.id] }),
+      listSessionSearchText: async () => [
+        { sessionId: summary.id, allMessagesText: "Pi searchable content" },
+      ],
+      createSession: async (_cwd, sessionId) => ({ id: sessionId ?? "pi-created" }),
+      renameSession: async () => 9,
+      forkSession: async () => ({ id: "pi-forked" }),
+      deleteSession: async () => undefined,
+    });
+    return {
+      adapter: createPiAgentServerAdapter({ commands, execution, threads }),
+      expectedPorts: { commands, execution, threads },
+    };
+  },
+  expected: {
+    id: PI_AGENT_RUNTIME_DESCRIPTOR.id,
+    commands: commandCases,
+    admission: { kind: "queued", queueItemId: "pi-queue" },
+    threadCapabilities: { requestedThreadId: true, preset: false },
+    threads: [
+      {
+        threadId: "pi-thread",
+        rootPath: "/pi-workspace",
+        title: "Pi contract thread",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-02T00:00:00.000Z",
+        messageCount: 2,
+        firstMessage: "Pi contract message",
+        transient: false,
+        running: true,
+        waitingForUserInput: true,
+        runTiming: { startedAt: 1_000, elapsedMs: 250 },
+      },
+    ],
+    searchDocuments: [{ threadId: "pi-thread", text: "Pi searchable content" }],
+    created: { threadId: "contract-created" },
+    renamed: { revision: 9 },
+    forked: { threadId: "pi-forked" },
+  },
+  failures: {
+    createHarness() {
+      const piMissingError = () =>
+        Object.assign(new Error("Pi session is missing."), { code: "pi_session_not_found" });
+      const commands = {
+        getCatalog: async () => {
+          throw new AgentCommandCatalogError("thread-not-found", "Pi thread is missing.");
+        },
+      };
+      const execution = createPiAgentExecutionAdapter({
+        cancelSession: async () => {
+          throw piMissingError();
+        },
+      });
+      const threads = createPiAgentThreadStoreAdapter({
+        deleteSession: async () => {
+          throw piMissingError();
+        },
+      });
+      return {
+        adapter: createPiAgentServerAdapter({ commands, execution, threads }),
+      };
+    },
+    commandCode: "thread-not-found",
+    executionCode: "thread-not-found",
+    threadCode: "thread-not-found",
+  },
 });

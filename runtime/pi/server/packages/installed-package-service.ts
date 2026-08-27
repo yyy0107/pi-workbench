@@ -26,6 +26,7 @@ import type {
   PiPackageResourceType,
   PiResourceCatalogTarget,
 } from "@/runtime/pi/contracts/rpc";
+import { RpcDomainError } from "../core/rpc-domain-error";
 import {
   getPiResourceMutationCoordinator,
   PiResourceMutationBusyError,
@@ -119,7 +120,7 @@ export type InstalledPackageServiceErrorCode = keyof InstalledPackageServiceErro
 
 export class InstalledPackageServiceError<
   Code extends InstalledPackageServiceErrorCode = InstalledPackageServiceErrorCode,
-> extends Error {
+> extends RpcDomainError<Code, InstalledPackageServiceErrorDetails[Code]> {
   readonly code: Code;
   readonly details: InstalledPackageServiceErrorDetails[Code];
 

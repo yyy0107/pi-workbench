@@ -8,7 +8,12 @@ export interface PromptServiceDependencies {
   scopedResources: Pick<ScopedResourceContextService, "get">;
 }
 
-export class PromptService {
+/** Session-independent Pi prompt-catalog capability exposed to transport. */
+export interface PromptCatalogProtocol {
+  list(payload: PromptListPayload): Promise<PromptListValue>;
+}
+
+export class PromptService implements PromptCatalogProtocol {
   private readonly dependencies: PromptServiceDependencies;
 
   constructor(dependencies: Partial<PromptServiceDependencies> = {}) {

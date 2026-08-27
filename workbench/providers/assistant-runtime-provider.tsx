@@ -19,7 +19,7 @@ import {
 import { useRightWorkspaceState } from "@/components/right-workspace/workspace-context";
 import { useMainViewService } from "@/platform/extensions";
 import { readAgentThreadWorkspace } from "@/runtime/assistant-ui/agent-runtime-extras";
-import { PiAgentRuntimeProvider } from "@/runtime/pi/client/assistant-ui/pi-runtime-provider";
+import { WorkbenchAgentRuntimeInstallationHost } from "@/runtime/assistant-ui/agent-runtime-installation";
 import { useWorkspaceCapabilities } from "@/services/workspace-selection-service";
 import { shouldCloseRightWorkspaceForNewThread } from "@/workbench/workspaces/new-thread-policy";
 
@@ -28,6 +28,7 @@ import {
   mainViewWorkspaceContext,
   shouldPromoteThreadSurfaceScope,
 } from "./active-workspace-context";
+import { createInstalledAgentRuntime } from "./installed-agent-runtime";
 
 function NewThreadWorkspaceVisibilityTracker() {
   const controller = useRightWorkspace();
@@ -147,17 +148,18 @@ function ActiveWorkspaceContextTracker() {
   return null;
 }
 
-/** Application composition root: select Pi today while keeping Workbench bridges backend-neutral. */
+/** Mount the explicitly installed Agent Runtime while keeping Workbench bridges backend-neutral. */
 export function WorkbenchAssistantRuntimeProvider({ children }: Readonly<{ children: ReactNode }>) {
   const promptFeedback = useWorkspaceFeedbackStore();
+  const installation = useMemo(() => createInstalledAgentRuntime(promptFeedback), [promptFeedback]);
 
   return (
-    <PiAgentRuntimeProvider promptFeedback={promptFeedback}>
+    <WorkbenchAgentRuntimeInstallationHost installation={installation}>
       <NewThreadWorkspaceVisibilityTracker />
       <ActiveWorkspaceContextTracker />
       {/* Surface runtimes follow the active Main View context as well as conversations. */}
       <WorkspaceSurfaceRuntimeHost />
       {children}
-    </PiAgentRuntimeProvider>
+    </WorkbenchAgentRuntimeInstallationHost>
   );
 }

@@ -6,6 +6,7 @@ import type {
   WorkspaceSessionPinValue,
   WorkspaceView,
 } from "@/runtime/pi/contracts/rpc";
+import { RpcDomainError } from "../core/rpc-domain-error";
 import { getScopedResourceContextService } from "../resources/scoped-resource-context";
 import { listSessions as listPiSessions } from "../sessions/session-registry";
 import { getProjectTrustService } from "../trust/project-trust-service";
@@ -86,7 +87,7 @@ export type WorkspaceProtocolServiceErrorCode = keyof WorkspaceProtocolServiceEr
 
 export class WorkspaceProtocolServiceError<
   Code extends WorkspaceProtocolServiceErrorCode = WorkspaceProtocolServiceErrorCode,
-> extends Error {
+> extends RpcDomainError<Code, WorkspaceProtocolServiceErrorDetails[Code]> {
   readonly code: Code;
   readonly details: WorkspaceProtocolServiceErrorDetails[Code];
 

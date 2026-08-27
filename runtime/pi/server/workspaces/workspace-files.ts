@@ -15,6 +15,7 @@ import {
   type WorkspaceFilesListValue,
   type WorkspaceFileWritePayload,
 } from "@/runtime/pi/contracts/rpc";
+import { RpcDomainError } from "../core/rpc-domain-error";
 import { getWorkspaceStore } from "./workspace-registry";
 import type { WorkspaceStore } from "./workspace-store";
 
@@ -87,7 +88,7 @@ export type WorkspaceFileErrorCode = keyof WorkspaceFileErrorDetails;
 
 export class WorkspaceFileError<
   Code extends WorkspaceFileErrorCode = WorkspaceFileErrorCode,
-> extends Error {
+> extends RpcDomainError<Code, WorkspaceFileErrorDetails[Code]> {
   readonly code: Code;
   readonly details: WorkspaceFileErrorDetails[Code];
 

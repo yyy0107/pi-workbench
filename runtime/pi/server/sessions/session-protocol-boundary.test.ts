@@ -14,6 +14,7 @@ const EXTERNAL_SESSION_IMPORT_SERVICE = new URL(
 );
 const EXTERNAL_SESSION_TYPES = new URL("../imports/external-session-types.ts", import.meta.url);
 const RPC_ROUTER = new URL("../transport/rpc-router.ts", import.meta.url);
+const RPC_ROUTE_COMPOSITION = new URL("../transport/rpc-route-composition.ts", import.meta.url);
 const RPC_ROUTE_GROUP = new URL("../transport/routes/rpc-route-group.ts", import.meta.url);
 const SESSION_RPC_ROUTES = new URL("../transport/routes/session-rpc-routes.ts", import.meta.url);
 const SESSION_CONTEXT_TRACE_RPC_ROUTES = new URL(
@@ -65,10 +66,12 @@ test("the session RPC facade depends on Pi protocol collaborators instead of the
   assert.match(source, /from\s+["']\.\/pi-session-model-context-service["']/);
 });
 
-test("the Pi composition root owns concrete session collaborators and late-bound workspaces", async () => {
+test("the Pi composition root installs concrete session collaborators and late-bound workspaces", async () => {
   const source = await readFile(SESSION_PROTOCOL_FACADE, "utf8");
 
-  assert.match(source, /createPiAgentServerAdapter/);
+  assert.match(source, /createPiAgentServerInstallation/);
+  assert.match(source, /createInstalledWorkbenchAgentServerAdapter/);
+  assert.doesNotMatch(source, /createPiAgentServerAdapter/);
   assert.match(source, /createPiSessionHistoryService/);
   assert.match(source, /createPiSessionModelContextService/);
   assert.match(source, /new SessionRpcService/);
@@ -87,17 +90,16 @@ test("core session transport routes depend on the protocol facade without reachi
   }
 });
 
-test("the RPC router delegates core session methods without assembling or handling them", async () => {
-  const source = await readFile(RPC_ROUTER, "utf8");
+test("the route composition injects core session dependencies without handling methods", async () => {
+  const source = await readFile(RPC_ROUTE_COMPOSITION, "utf8");
 
   assert.match(
     source,
     /const sessionProtocolFacade = createPiSessionProtocolFacade\(\{ commands: commandService \}\)/,
   );
-  assert.match(source, /const sessionRpcRoutes = createSessionRpcRoutes\(/);
-  assert.match(source, /const rpcRouteGroups: readonly RpcRouteGroup\[\] = \[/);
-  assert.match(source, /dispatchRpcRouteGroups\(request, method, rpcRouteGroups\)/);
-  assert.match(source, /\n\s+sessionRpcRoutes,/);
+  assert.match(source, /createSessionRpcRoutes\(dependencies\.session\)/);
+  assert.match(source, /session: \{ protocol: sessionProtocolFacade, \.\.\.domainErrors \}/);
+  assert.match(source, /projectRpcDomainError/);
   assert.doesNotMatch(source, /new SessionRpcService/);
   assert.doesNotMatch(source, /function sessionService\(/);
   assert.doesNotMatch(source, /createPiSessionHistoryService/);
@@ -105,6 +107,15 @@ test("the RPC router delegates core session methods without assembling or handli
   for (const method of CORE_SESSION_RPC_METHODS) {
     assert.ok(!source.includes(`case "${method}":`), `Router still owns route: ${method}`);
   }
+});
+
+test("the RPC router dispatches injected route groups without owning Pi services", async () => {
+  const source = await readFile(RPC_ROUTER, "utf8");
+
+  assert.match(source, /createDefaultPiRpcRouteGroups\(\)/);
+  assert.match(source, /dispatchRpcRouteGroups\(request, method, routeGroups\)/);
+  assert.doesNotMatch(source, /createPiSessionProtocolFacade|createSessionRpcRoutes/);
+  assert.doesNotMatch(source, /SessionRpcService|session-registry|ModelService/);
 });
 
 test("the Pi Context Trace service owns live-session and journal coordination", async () => {
@@ -131,14 +142,17 @@ test("Context Trace transport routes depend on the narrow service without reachi
   }
 });
 
-test("the RPC router composes and delegates Context Trace without handling its state", async () => {
-  const source = await readFile(RPC_ROUTER, "utf8");
+test("the route composition injects Context Trace without handling its state", async () => {
+  const source = await readFile(RPC_ROUTE_COMPOSITION, "utf8");
 
   assert.match(source, /const sessionContextTraceService = createPiSessionContextTraceService\(\)/);
-  assert.match(source, /const sessionContextTraceRpcRoutes = createSessionContextTraceRpcRoutes\(/);
-  assert.match(source, /\n\s+sessionContextTraceRpcRoutes,/);
-  assert.match(source, /dispatchRpcRouteGroups\(request, method, rpcRouteGroups\)/);
-  assert.match(source, /error instanceof PiSessionContextTraceServiceError/);
+  assert.match(source, /createSessionContextTraceRpcRoutes\(dependencies\.sessionContextTrace\)/);
+  assert.match(
+    source,
+    /sessionContextTrace: \{ service: sessionContextTraceService, \.\.\.domainErrors \}/,
+  );
+  assert.match(source, /projectRpcDomainError/);
+  assert.doesNotMatch(source, /instanceof PiSessionContextTraceServiceError/);
   assert.doesNotMatch(source, /function requireSessionContextTrace\(/);
   assert.doesNotMatch(source, /from\s+["']\.\.\/sessions\/session-context-trace["']/);
   assert.doesNotMatch(source, /from\s+["']\.\.\/sessions\/session-context-trace-journal["']/);
@@ -184,26 +198,34 @@ test("external import transport routes depend only on the narrow import protocol
   }
 });
 
-test("the RPC router delegates all extracted domains through one route-group dispatcher", async () => {
-  const [routerSource, routeGroupSource] = await Promise.all([
+test("the composition and thin router delegate imports through one route-group dispatcher", async () => {
+  const [compositionSource, routerSource, routeGroupSource] = await Promise.all([
+    readFile(RPC_ROUTE_COMPOSITION, "utf8"),
     readFile(RPC_ROUTER, "utf8"),
     readFile(RPC_ROUTE_GROUP, "utf8"),
   ]);
 
   assert.match(
-    routerSource,
+    compositionSource,
     /const externalSessionImportService = getExternalSessionImportService\(\)/,
   );
   assert.match(
-    routerSource,
-    /const externalSessionImportRpcRoutes = createExternalSessionImportRpcRoutes\(/,
+    compositionSource,
+    /createExternalSessionImportRpcRoutes\(dependencies\.externalSessionImport\)/,
   );
-  assert.match(routerSource, /\n\s+externalSessionImportRpcRoutes,/);
-  assert.match(routerSource, /dispatchRpcRouteGroups\(request, method, rpcRouteGroups\)/);
-  assert.doesNotMatch(routerSource, /const externalSessionSource =/);
-  assert.doesNotMatch(routerSource, /const externalSessionImportPayload =/);
+  assert.match(
+    compositionSource,
+    /externalSessionImport: \{ service: externalSessionImportService \}/,
+  );
+  assert.match(routerSource, /dispatchRpcRouteGroups\(request, method, routeGroups\)/);
+  assert.doesNotMatch(compositionSource, /const externalSessionSource =/);
+  assert.doesNotMatch(compositionSource, /const externalSessionImportPayload =/);
   for (const method of EXTERNAL_SESSION_IMPORT_RPC_METHODS) {
-    assert.ok(!routerSource.includes(`case "${method}":`), `Router still owns route: ${method}`);
+    assert.ok(
+      !compositionSource.includes(`case "${method}":`) &&
+        !routerSource.includes(`case "${method}":`),
+      `Composition or Router still owns route: ${method}`,
+    );
   }
 
   assert.match(routeGroupSource, /for \(const group of groups\)/);

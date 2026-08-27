@@ -15,6 +15,7 @@ import {
   type SettingsDescribeValue,
 } from "@/runtime/pi/contracts/rpc";
 import { atomicReplaceFile, withCrossProcessFileLock } from "../core/file-persistence";
+import { RpcDomainError } from "../core/rpc-domain-error";
 
 type JsonObject = Record<string, unknown>;
 
@@ -28,7 +29,7 @@ export type AgentSettingsServiceErrorCode = keyof AgentSettingsServiceErrorDetai
 
 export class AgentSettingsServiceError<
   Code extends AgentSettingsServiceErrorCode = AgentSettingsServiceErrorCode,
-> extends Error {
+> extends RpcDomainError<Code, AgentSettingsServiceErrorDetails[Code]> {
   readonly code: Code;
   readonly details: AgentSettingsServiceErrorDetails[Code];
 

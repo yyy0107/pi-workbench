@@ -15,6 +15,7 @@ import {
   imageInputCapability,
   type ModelInputModality,
 } from "@/runtime/pi/shared/models/capabilities";
+import { RpcDomainError } from "../core/rpc-domain-error";
 import type {
   ConfigurableProviderView,
   ConfigureModelProviderPayload,
@@ -30,11 +31,13 @@ import type {
   ModelDiscoveryFailureDetails,
   ModelDiscoveryFailureReason,
   ModelProviderGroup,
+  ModelProviderConfigPayload,
   ModelProviderConfigValue,
   ModelProviderLoginPayload,
   ModelProviderLoginValue,
   ModelProviderModelConfiguration,
   ModelProvidersValue,
+  RemoveModelProviderPayload,
   RespondModelProviderLoginPayload,
   StartModelProviderLoginPayload,
   TestModelImageInputPayload,
@@ -62,6 +65,46 @@ export type ModelProvidersResult = ModelProvidersValue;
 export type ModelCatalogResult = ModelCatalogValue;
 export type DiscoverModelsInput = DiscoverModelsPayload;
 export type DiscoverModelsResult = DiscoverModelsValue;
+
+/** Stable transport-facing provider, authentication, catalog, and discovery operations. */
+export interface ModelProviderProtocol {
+  providers(): Promise<ModelProvidersResult>;
+  providerConfig(input: ModelProviderConfigPayload): Promise<ModelProviderConfigValue>;
+  startProviderLogin(input: StartModelProviderLoginPayload): Promise<ModelProviderLoginValue>;
+  providerLogin(input: ModelProviderLoginPayload): ModelProviderLoginValue;
+  respondProviderLogin(input: RespondModelProviderLoginPayload): ModelProviderLoginValue;
+  cancelProviderLogin(input: ModelProviderLoginPayload): ModelProviderLoginValue;
+  configureProvider(
+    input: ConfigureModelProviderPayload,
+    options?: { signal?: AbortSignal },
+  ): Promise<ModelProvidersResult>;
+  removeProvider(
+    input: RemoveModelProviderPayload,
+    options?: { signal?: AbortSignal },
+  ): Promise<ModelProvidersResult>;
+  models(): Promise<ModelCatalogResult>;
+  discoverModels(
+    input: DiscoverModelsInput,
+    options?: { signal?: AbortSignal },
+  ): Promise<DiscoverModelsResult>;
+  testModelImageInput(
+    input: TestModelImageInputPayload,
+    options?: { signal?: AbortSignal },
+  ): Promise<TestModelImageInputValue>;
+}
+
+/** Stable transport-facing model-capacity overrides; Pi runtime ownership stays in this service. */
+export interface ModelContextWindowProtocol {
+  modelContextWindow(input: ModelContextWindowPayload): Promise<ModelContextWindowValue>;
+  updateModelContextWindow(
+    input: UpdateModelContextWindowPayload,
+    options?: { signal?: AbortSignal },
+  ): Promise<ModelContextWindowValue>;
+  resetModelContextWindow(
+    input: ModelContextWindowPayload,
+    options?: { signal?: AbortSignal },
+  ): Promise<ModelContextWindowValue>;
+}
 
 export interface ModelServiceErrorDetails {
   "model-discovery-failed": ModelDiscoveryFailureDetails;
@@ -99,7 +142,7 @@ export type ModelServiceErrorCode = keyof ModelServiceErrorDetails;
 
 export class ModelServiceError<
   Code extends ModelServiceErrorCode = ModelServiceErrorCode,
-> extends Error {
+> extends RpcDomainError<Code, ModelServiceErrorDetails[Code]> {
   readonly code: Code;
   readonly details: ModelServiceErrorDetails[Code];
 
@@ -1086,7 +1129,7 @@ function discoveredModel(model: ModelRuntimeModel): DiscoveredModel {
   };
 }
 
-export class ModelService {
+export class ModelService implements ModelProviderProtocol, ModelContextWindowProtocol {
   private readonly cwd: string;
   private readonly serviceFactory: ModelServiceFactory;
   private readonly injectedRuntime?: ModelRuntimeLike;

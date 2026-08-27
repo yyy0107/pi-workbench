@@ -20,7 +20,7 @@ const IMAGE_SETTINGS_ROUTES = new URL(
   "../transport/routes/image-understanding-settings-rpc-routes.ts",
   import.meta.url,
 );
-const RPC_ROUTER = new URL("../transport/rpc-router.ts", import.meta.url);
+const RPC_ROUTE_COMPOSITION = new URL("../transport/rpc-route-composition.ts", import.meta.url);
 
 const AGENT_SETTINGS_METHODS = [
   "settings.describe",
@@ -114,24 +114,19 @@ test("Settings services implement narrow protocols while retaining persistence o
   assert.doesNotMatch(image, /image-understanding-settings-rpc-routes|rpc-transport/);
 });
 
-test("the RPC router composes Settings groups without retaining their transport details", async () => {
-  const source = await readFile(RPC_ROUTER, "utf8");
+test("the route composition creates Settings groups without retaining transport details", async () => {
+  const source = await readFile(RPC_ROUTE_COMPOSITION, "utf8");
 
-  assert.match(source, /import \{ createAgentSettingsRpcRoutes \}/);
-  assert.match(source, /import \{ createWorkbenchSettingsRpcRoutes \}/);
-  assert.match(source, /import \{ createImageUnderstandingSettingsRpcRoutes \}/);
-  assert.match(source, /const agentSettingsRpcRoutes = createAgentSettingsRpcRoutes\(/);
-  assert.match(source, /const workbenchSettingsRpcRoutes = createWorkbenchSettingsRpcRoutes\(/);
+  assert.match(source, /createAgentSettingsRpcRoutes\(dependencies\.agentSettings\)/);
+  assert.match(source, /createWorkbenchSettingsRpcRoutes\(dependencies\.workbenchSettings\)/);
   assert.match(
     source,
-    /const imageUnderstandingSettingsRpcRoutes = createImageUnderstandingSettingsRpcRoutes\(/,
+    /createImageUnderstandingSettingsRpcRoutes\(dependencies\.imageUnderstandingSettings\)/,
   );
-  assert.match(source, /\n\s+agentSettingsRpcRoutes,/);
-  assert.match(source, /\n\s+workbenchSettingsRpcRoutes,/);
-  assert.match(source, /\n\s+imageUnderstandingSettingsRpcRoutes,/);
-  assert.match(source, /error instanceof AgentSettingsServiceError/);
-  assert.match(source, /error instanceof WorkbenchSettingsServiceError/);
-  assert.match(source, /error instanceof ImageUnderstandingSettingsStoreError/);
+  assert.match(source, /const agentSettingsService = new AgentSettingsService\(\)/);
+  assert.match(source, /getService: \(\) => new WorkbenchSettingsService\(\)/);
+  assert.match(source, /getStore: getImageUnderstandingSettingsStore/);
+  assert.match(source, /projectRpcDomainError/);
   for (const method of [
     ...AGENT_SETTINGS_METHODS,
     ...WORKBENCH_SETTINGS_METHODS,

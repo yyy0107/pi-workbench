@@ -26,6 +26,9 @@ Pi adapter ──> PiSessionManager ──> Pi HTTP/WebSocket transport
 - [`agent-runtime-adapter.ts`](./agent-runtime-adapter.ts) 定义稳定的实现端口，以及 Workbench 会消费的
   command catalog Hook、可选 thread presentation store 与 thread extras。这里不得出现 Pi、Codex
   或 Claude Code 的 SDK/协议类型。
+- [`agent-runtime-installation.tsx`](./agent-runtime-installation.tsx) 挂载应用已经显式选择的完整实现。
+  installation 只包含共享 descriptor 和一个 render 边界；manager、transport、adapter 与清理生命周期
+  仍由具体 Provider 拥有。这里不保存实现列表，也不负责发现或选择 Runtime。
 - [`../shared/agent-command/catalog.ts`](../shared/agent-command/catalog.ts) 定义 Composer 实际需要的
   后端无关命令 DTO：调用名、效果、互斥性、参数 schema/binding，以及 extension、prompt、skill 的
   可选资源来源。它属于共享领域层，不由 React Host 目录拥有。
@@ -40,7 +43,11 @@ Pi adapter ──> PiSessionManager ──> Pi HTTP/WebSocket transport
 - [`thread-list-reload-coordinator.ts`](./thread-list-reload-coordinator.ts) 合并同一轮通知，保证 reload
   单飞；请求进行中收到的任意数量通知最多再追加一次 reload。
 - `adapters/` 保存可跨 Agent Runtime 复用的 assistant-ui 附件、反馈、语音输入和历史适配。
-- `testing/` 提供不依赖 Pi 的 fixture，用于锁定 Host、Strict Effects 和 adapter replacement 契约。
+- `testing/` 提供不依赖 Pi 的 fixture，以及可被每个具体实现复用的
+  `defineWorkbenchAgentRuntimeAdapterContract()`。套件验证稳定 Runtime ID、完整
+  `RemoteThreadListAdapter`、通用 Host 挂载、command/thread presentation 投影、assistant-ui Runtime
+  capabilities，以及实现能够提供变更触发器时的 thread-list/per-thread 单调 revision。fixture 用来验证
+  套件自身没有隐含 Pi 前提；Pi 实现从自己的测试文件调用同一套件，并保留 Pi transport/消息投影专项测试。
 - [`dependency-boundary.test.ts`](./dependency-boundary.test.ts) 阻止通用生产模块反向导入 Pi。
 - Pi 的具体实现位于 [`../pi/client/assistant-ui`](../pi/client/assistant-ui)。
 
@@ -118,10 +125,11 @@ session tree 完成；升级 assistant-ui 时必须通过 capability 契约测�
 附件、反馈和浏览器语音输入由 `useWorkbenchRuntimeAdapters()` 统一安装。具体 Agent Runtime 只添加
 自己拥有的执行、消息、分支、队列与恢复 callback，不重复创建这些 Workbench 浏览器能力。
 
-应用组合根不创建实现层 manager。当前由 `PiAgentRuntimeProvider` 完整拥有 Pi manager、Fast Refresh
-兼容生命周期、workspace selection、active/draft tracker 和 adapter 创建；命令目录由 adapter 的
-`useCommandCatalog()` 安装。`WorkbenchAssistantRuntimeProvider` 只选择该实现，并安装后端无关的
-Workspace Surface 桥接。
+应用组合根不创建实现层 manager。`workbench/providers/installed-agent-runtime.tsx` 是具体实现的唯一
+静态选择点，当前通过 singular factory 返回 Pi installation；`WorkbenchAssistantRuntimeProvider` 只
+挂载这一个 installation，并安装后端无关的 Workspace Surface 桥接。`PiAgentRuntimeProvider` 继续完整
+拥有 Pi manager、Fast Refresh 兼容生命周期、workspace selection、active/draft tracker 和 adapter
+创建；命令目录由 adapter 的 `useCommandCatalog()` 安装。
 
 ## 新增实现
 
@@ -132,9 +140,11 @@ Workspace Surface 桥接。
 3. 把该 Runtime 的动态命令目录投影成 `WorkbenchAgentCommand`，没有命令时返回稳定空数组；
 4. 用结构 revision 驱动 thread-list reload，并为初始 list 与本地 draft promotion 建立基线；
 5. 只投影 Workbench 实际需要的 thread presentation 和通用 extras，不照搬 Pi manager API；
-6. 复用共享 browser adapters，并用 capability 测试锁定实际 callback 组合；
-7. 在应用组合根实例化并选择 adapter；
-8. 只有两个以上实现确实需要动态选择时，再引入 registry 与配置 UI。
+6. 复用共享 browser adapters，并运行 `defineWorkbenchAgentRuntimeAdapterContract()` 锁定 Host、订阅、
+   通用投影和实际 callback 推导出的 assistant-ui capabilities；
+7. 定义一个 client installation，在内部挂载拥有完整生命周期的实现 Provider；
+8. 在唯一的 `installed-agent-runtime.tsx` 应用组合点选择该 installation；
+9. 只有两个以上生产实现确实需要动态选择时，再引入 registry 与配置 UI。
 
 Pi 专属的模型目录、Skills、Extensions、Context Trace 等能力不属于核心端口。未来实现可以通过独立、
 可选的 capability/extension 接入，而不把所有 Agent SDK 强行压成一个巨型接口。

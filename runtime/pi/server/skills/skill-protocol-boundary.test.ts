@@ -5,7 +5,7 @@ import test from "node:test";
 const SKILL_SERVICE = new URL("./skill-service.ts", import.meta.url);
 const SKILL_RPC_ROUTES = new URL("../transport/routes/skill-rpc-routes.ts", import.meta.url);
 const RESOURCE_RPC_VALIDATORS = new URL("../transport/resource-rpc-validators.ts", import.meta.url);
-const RPC_ROUTER = new URL("../transport/rpc-router.ts", import.meta.url);
+const RPC_ROUTE_COMPOSITION = new URL("../transport/rpc-route-composition.ts", import.meta.url);
 
 const SKILL_RPC_METHODS = [
   "skill.list",
@@ -60,15 +60,15 @@ test("shared Resource validators own catalog identities without importing a doma
   assert.doesNotMatch(source, /WorkspaceStore|session-registry|scoped-resource-context/);
 });
 
-test("the RPC router composes Skills without retaining Skill transport details", async () => {
-  const source = await readFile(RPC_ROUTER, "utf8");
+test("the route composition creates Skills without retaining transport details", async () => {
+  const source = await readFile(RPC_ROUTE_COMPOSITION, "utf8");
 
-  assert.match(source, /import \{ createSkillRpcRoutes \}/);
+  assert.match(source, /createSkillRpcRoutes/);
   assert.match(source, /const skillService = new SkillService/);
-  assert.match(source, /const skillRpcRoutes = createSkillRpcRoutes\(/);
-  assert.match(source, /\n\s+skillRpcRoutes,/);
-  assert.match(source, /from "\.\/resource-rpc-validators"/);
-  assert.match(source, /error instanceof SkillServiceError/);
+  assert.match(source, /createSkillRpcRoutes\(dependencies\.skill\)/);
+  assert.match(source, /skill: \{ service: skillService, \.\.\.domainErrors \}/);
+  assert.doesNotMatch(source, /resource-rpc-validators/);
+  assert.match(source, /projectRpcDomainError/);
   for (const method of SKILL_RPC_METHODS) {
     assert.ok(!source.includes(`case "${method}":`), `Router still owns Skill route: ${method}`);
   }
