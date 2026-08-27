@@ -211,6 +211,9 @@ function createMainWindow(workbenchUrl) {
   void window.loadURL(workbenchUrl).catch((error) => {
     console.error("Could not load Workbench.", error);
   });
+  if (process.env.WORKBENCH_OPEN_DEVTOOLS === "1") {
+    window.webContents.openDevTools();
+  }
 
   return window;
 }

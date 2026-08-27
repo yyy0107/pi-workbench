@@ -90,6 +90,7 @@ case "${1:-}" in
     echo "> Synchronizing Electron development assets"
     pnpm predev
     echo "> Starting Electron development application"
+    export WORKBENCH_OPEN_DEVTOOLS=1
     exec pnpm electron:dev
     ;;
   electron-build)

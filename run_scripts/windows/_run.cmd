@@ -45,6 +45,7 @@ if /i "%~1"=="electron-dev" (
   call pnpm predev
   if errorlevel 1 exit /b !errorlevel!
   echo ^> Starting Electron development application
+  set "WORKBENCH_OPEN_DEVTOOLS=1"
   call pnpm electron:dev
   exit /b !errorlevel!
 )
