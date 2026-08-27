@@ -226,6 +226,30 @@ test("Claude Code parsing follows the selected UUID branch and preserves tool re
   assert.equal(toolResult.toolName, "Read");
 });
 
+test("Claude Code subagents have identities distinct from their parent and siblings", () => {
+  const record = {
+    type: "user",
+    uuid: "user-root",
+    parentUuid: null,
+    sessionId: "claude-parent",
+    cwd: "/project",
+    timestamp: "2026-01-02T00:00:00.000Z",
+    message: { role: "user", content: "Inspect this" },
+  };
+  const parent = parseClaudeCodeRecords([record], "claude-parent", 0);
+  const first = parseClaudeCodeRecords([{ ...record, agentId: "one" }], "agent-one", 0);
+  const second = parseClaudeCodeRecords([{ ...record, agentId: "two" }], "agent-two", 0);
+
+  assert.equal(parent.descriptor.sourceSessionId, "claude-parent");
+  assert.equal(first.descriptor.sourceSessionId, "claude-parent:agent:one");
+  assert.equal(second.descriptor.sourceSessionId, "claude-parent:agent:two");
+  assert.notEqual(parent.descriptor.sourceSessionId, first.descriptor.sourceSessionId);
+  assert.notEqual(first.descriptor.sourceSessionId, second.descriptor.sourceSessionId);
+  assert.equal(parent.descriptor.subagent, undefined);
+  assert.equal(first.descriptor.subagent, true);
+  assert.equal(second.descriptor.subagent, true);
+});
+
 test("Cursor bubbles map user text, assistant text, and completed tool data", () => {
   const parsed = parseCursorConversation({
     composerId: "cursor-1",

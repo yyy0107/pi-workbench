@@ -98,8 +98,17 @@ export function parseClaudeCodeRecords(
 ): LoadedExternalSession {
   const branch = sourceMessages(records);
   const first = branch[0] ?? records[0];
+  const fallbackSourceSessionId = path.basename(fallbackId, ".jsonl");
+  const parentSessionId = records.find((record) => typeof record.sessionId === "string")?.sessionId;
+  const subagent = fallbackSourceSessionId.startsWith("agent-");
+  const agentId = subagent
+    ? (records.find((record) => typeof record.agentId === "string")?.agentId ??
+      fallbackSourceSessionId.slice("agent-".length))
+    : undefined;
   const sourceSessionId =
-    records.find((record) => typeof record.sessionId === "string")?.sessionId ?? fallbackId;
+    subagent && parentSessionId
+      ? `${parentSessionId}:agent:${String(agentId)}`
+      : (parentSessionId ?? fallbackSourceSessionId);
   const cwd =
     branch.find((record) => typeof record.cwd === "string")?.cwd ??
     records.find((record) => typeof record.cwd === "string")?.cwd ??
@@ -199,7 +208,7 @@ export function parseClaudeCodeRecords(
       createdAt,
       updatedAt: Math.max(createdAt, ...messages.map((message) => message.timestamp)),
       messageCount: messages.length,
-      subagent: path.basename(fallbackId).startsWith("agent-"),
+      ...(subagent ? { subagent: true } : {}),
     },
     messages,
     model: { provider: "anthropic", modelId: model },
@@ -265,6 +274,6 @@ export class ClaudeCodeSessionAdapter implements ExternalSessionSourceAdapter {
         records.push(record);
       }
     });
-    return parseClaudeCodeRecords(records, sourceSessionId, times.createdAt);
+    return parseClaudeCodeRecords(records, path.basename(filePath, ".jsonl"), times.createdAt);
   }
 }
