@@ -390,10 +390,7 @@ function WorkspaceDirectorySection({
         onActivate();
         if (open !== expanded) toggleExpanded();
       }}
-      className={cn(
-        "relative flex flex-col gap-0.5 transition-opacity",
-        drag.dragging && "opacity-40",
-      )}
+      className="relative flex flex-col gap-0.5"
     >
       {drag.dropPosition ? (
         <span
@@ -412,6 +409,7 @@ function WorkspaceDirectorySection({
         className={cn(
           "group/workspace hover:bg-sidebar-accent focus-within:bg-sidebar-accent relative flex h-[var(--control-hit-touch)] w-full items-center rounded-lg px-1.5 transition-colors md:h-9",
           drag.enabled && "cursor-grab active:cursor-grabbing",
+          drag.dragging && "cursor-grabbing",
         )}
         onPointerDown={drag.onPointerDown}
       >

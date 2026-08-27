@@ -122,9 +122,9 @@ export function WorkbenchThreadListItem({
       ref={registerDragElement}
       style={sortOrder === undefined ? undefined : { order: sortOrder }}
       className={cn(
-        "group/thread text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground focus-within:bg-sidebar-accent focus-within:text-sidebar-foreground data-active:text-sidebar-foreground relative -ms-6 flex min-h-[var(--control-hit-touch)] items-center rounded-lg transition-[color,background-color,opacity] md:min-h-9",
+        "group/thread text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground focus-within:bg-sidebar-accent focus-within:text-sidebar-foreground data-active:text-sidebar-foreground relative -ms-6 flex min-h-[var(--control-hit-touch)] items-center rounded-lg transition-[color,background-color] md:min-h-9",
         dragEnabled && "cursor-grab active:cursor-grabbing",
-        dragging && "opacity-40",
+        dragging && "cursor-grabbing",
       )}
       onPointerDown={onPointerDown}
     >

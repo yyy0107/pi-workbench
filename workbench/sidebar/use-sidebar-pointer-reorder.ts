@@ -6,6 +6,7 @@ import type { SidebarDropPosition } from "./sidebar-reorder";
 
 const SIDEBAR_DRAG_ACTIVATION_DISTANCE_PX = 5;
 const SIDEBAR_DRAG_CLICK_SUPPRESSION_MS = 350;
+const SIDEBAR_DRAG_OVERLAY_SCALE = 0.98;
 let sidebarDragClickSuppressionUntil = 0;
 
 function isSidebarDragClickSuppressed(now: number): boolean {
@@ -16,6 +17,8 @@ function isSidebarDragClickSuppressed(now: number): boolean {
 
 interface SidebarPointerDragCandidate {
   readonly element: HTMLElement;
+  readonly grabOffsetX: number;
+  readonly grabOffsetY: number;
   readonly pointerId: number;
   readonly startX: number;
   readonly startY: number;
@@ -43,6 +46,8 @@ export function useSidebarPointerReorder({
   const dragCandidateRef = useRef<SidebarPointerDragCandidate | undefined>(undefined);
   const draggingIdRef = useRef<string | undefined>(undefined);
   const dropTargetRef = useRef<SidebarDropTarget | undefined>(undefined);
+  const dragOverlayRef = useRef<HTMLElement | undefined>(undefined);
+  const dragShieldRef = useRef<HTMLElement | undefined>(undefined);
   const itemElementsRef = useRef(new Map<string, HTMLElement>());
   const orderedIdsRef = useRef(orderedIds);
   const onMoveRef = useRef(onMove);
@@ -51,11 +56,76 @@ export function useSidebarPointerReorder({
   onMoveRef.current = onMove;
 
   useEffect(() => {
+    const clearDragOverlay = () => {
+      dragOverlayRef.current?.remove();
+      dragShieldRef.current?.remove();
+      dragOverlayRef.current = undefined;
+      dragShieldRef.current = undefined;
+    };
+    const positionDragOverlay = (clientX: number, clientY: number) => {
+      const candidate = dragCandidateRef.current;
+      const overlay = dragOverlayRef.current;
+      if (!candidate || !overlay) return;
+
+      overlay.style.transform = `translate3d(${clientX - candidate.grabOffsetX}px, ${clientY - candidate.grabOffsetY}px, 0) scale(${SIDEBAR_DRAG_OVERLAY_SCALE})`;
+    };
+    const createDragOverlay = (
+      candidate: SidebarPointerDragCandidate,
+      clientX: number,
+      clientY: number,
+    ) => {
+      clearDragOverlay();
+      const bounds = candidate.element.getBoundingClientRect();
+      const overlay = candidate.element.cloneNode(true) as HTMLElement;
+      const shield = document.createElement("div");
+
+      overlay.removeAttribute("id");
+      for (const element of overlay.querySelectorAll("[id]")) element.removeAttribute("id");
+      overlay.setAttribute("aria-hidden", "true");
+      overlay.setAttribute("data-sidebar-drag-overlay", "true");
+      overlay.inert = true;
+      Object.assign(overlay.style, {
+        background: "var(--sidebar-accent)",
+        boxShadow:
+          "0 16px 36px rgb(0 0 0 / 20%), 0 4px 12px rgb(0 0 0 / 12%), inset 0 0 0 1px var(--sidebar-border)",
+        color: "var(--sidebar-accent-foreground)",
+        contain: "layout paint style",
+        cursor: "grabbing",
+        height: `${bounds.height}px`,
+        inset: "0 auto auto 0",
+        margin: "0",
+        opacity: "0.9",
+        overflow: "hidden",
+        pointerEvents: "none",
+        position: "fixed",
+        transformOrigin: `${candidate.grabOffsetX}px ${candidate.grabOffsetY}px`,
+        transition: "none",
+        userSelect: "none",
+        width: `${bounds.width}px`,
+        willChange: "transform",
+        zIndex: "2147483647",
+      });
+
+      shield.setAttribute("aria-hidden", "true");
+      shield.setAttribute("data-sidebar-drag-shield", "true");
+      Object.assign(shield.style, {
+        cursor: "grabbing",
+        inset: "0",
+        position: "fixed",
+        zIndex: "2147483646",
+      });
+
+      document.body.append(shield, overlay);
+      dragOverlayRef.current = overlay;
+      dragShieldRef.current = shield;
+      positionDragOverlay(clientX, clientY);
+    };
     const finishDragging = () => {
       const candidate = dragCandidateRef.current;
       if (candidate?.element.hasPointerCapture(candidate.pointerId)) {
         candidate.element.releasePointerCapture(candidate.pointerId);
       }
+      clearDragOverlay();
       dragCandidateRef.current = undefined;
       draggingIdRef.current = undefined;
       dropTargetRef.current = undefined;
@@ -115,10 +185,12 @@ export function useSidebarPointerReorder({
         candidate.element.setPointerCapture(candidate.pointerId);
         draggingIdRef.current = candidate.itemId;
         setDraggingId(candidate.itemId);
+        createDragOverlay(candidate, event.clientX, event.clientY);
       }
 
       if (event.cancelable) event.preventDefault();
       window.getSelection()?.removeAllRanges();
+      positionDragOverlay(event.clientX, event.clientY);
       updateDropTargetAt(event.clientY);
     };
     const handlePointerUp = (event: globalThis.PointerEvent) => {
@@ -168,6 +240,7 @@ export function useSidebarPointerReorder({
       dragCandidateRef.current = undefined;
       draggingIdRef.current = undefined;
       dropTargetRef.current = undefined;
+      clearDragOverlay();
       window.removeEventListener("pointermove", handlePointerMove, true);
       window.removeEventListener("pointerup", handlePointerUp, true);
       window.removeEventListener("pointercancel", handlePointerCancel, true);
@@ -190,8 +263,11 @@ export function useSidebarPointerReorder({
         return;
       }
 
+      const bounds = event.currentTarget.getBoundingClientRect();
       dragCandidateRef.current = {
         element: event.currentTarget,
+        grabOffsetX: event.clientX - bounds.left,
+        grabOffsetY: event.clientY - bounds.top,
         pointerId: event.pointerId,
         startX: event.clientX,
         startY: event.clientY,
