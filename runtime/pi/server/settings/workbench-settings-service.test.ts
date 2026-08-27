@@ -5,6 +5,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import { SUPPORTED_LOCALES, type Locale } from "@/contracts/locale";
+
 const moduleHooks = registerHooks({
   resolve(specifier, context, nextResolve) {
     if (
@@ -39,6 +41,26 @@ test("describes empty preferences without mutating the agent directory", async (
 
   assert.deepEqual(await service.describe(), { revision: 0, preferences: {} });
   await assert.rejects(readFile(stateFile, "utf8"), { code: "ENOENT" });
+});
+
+test("persists every shared locale and rejects unsupported locale values", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-settings-locales-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const service = new WorkbenchSettingsService(path.join(root, "agent", "workbench-settings.json"));
+
+  for (const locale of SUPPORTED_LOCALES) {
+    await service.update({ patch: { locale } });
+    assert.equal((await service.describe()).preferences.locale, locale);
+  }
+
+  await assert.rejects(service.update({ patch: { locale: "en" as Locale } }), {
+    name: "WorkbenchSettingsServiceError",
+    code: "workbench-settings-invalid",
+  });
+  assert.equal(
+    (await service.describe()).preferences.locale,
+    SUPPORTED_LOCALES[SUPPORTED_LOCALES.length - 1],
+  );
 });
 
 test("persists sidebar conversation sorting preferences across service instances", async (t) => {

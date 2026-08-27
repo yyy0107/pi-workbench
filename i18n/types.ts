@@ -5,6 +5,7 @@ export type MessageVariables = Record<string, unknown>;
 export interface MessageFormatters {
   date(value: Date | number, options?: Intl.DateTimeFormatOptions): string;
   number(value: number, options?: Intl.NumberFormatOptions): string;
+  plural(value: number, options?: Intl.PluralRulesOptions): Intl.LDMLPluralRule;
   relativeTime(value: number, unit: Intl.RelativeTimeFormatUnit): string;
 }
 

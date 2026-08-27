@@ -121,11 +121,6 @@ export const extensionsZhCN = {
     },
   },
   localeSelector: {
-    label: "语言",
-    current: ({ language }: { language: string }) => `语言：${language}`,
-    switchTo: ({ language }: { language: string }) => `切换语言为${language}`,
-    english: "English",
-    chinese: "简体中文",
     languageTitle: "语言",
     languageDescription: "选择工作台控件和菜单使用的语言。",
     selectLanguage: "选择界面语言",

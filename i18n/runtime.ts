@@ -70,6 +70,7 @@ function createFormatters(locale: Locale): MessageFormatters {
   return {
     date: (value, options) => new Intl.DateTimeFormat(locale, options).format(value),
     number: (value, options) => new Intl.NumberFormat(locale, options).format(value),
+    plural: (value, options) => new Intl.PluralRules(locale, options).select(value),
     relativeTime: (value, unit) =>
       new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(value, unit),
   };

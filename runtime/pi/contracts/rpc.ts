@@ -4,6 +4,7 @@ import type {
   ComposerCommandEffect as WorkbenchComposerCommandEffect,
   ComposerSubmission as WorkbenchComposerSubmission,
 } from "@/contracts/composer";
+import type { Locale } from "@/contracts/locale";
 import type { OcrAdapterPresetId } from "@/runtime/shared/attachment-understanding/ocr-adapter";
 
 import type { InlineDocumentMediaType, InlineImageMediaType } from "./attachments";
@@ -639,7 +640,7 @@ export interface WorkbenchSettingsPreferences {
   appearance?: Record<string, WorkbenchSettingsJsonValue>;
   askUserEnabled?: boolean;
   backgroundImage?: WorkbenchBackgroundImagePreference;
-  locale?: "en-US" | "zh-CN";
+  locale?: Locale;
   modelSelector?: WorkbenchModelSelectorPreference;
   sidebarThreadOrderByScope?: Record<string, string[]>;
   sidebarThreadSortMode?: WorkbenchSidebarThreadSortMode;

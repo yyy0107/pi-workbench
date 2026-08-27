@@ -1,19 +1,27 @@
 "use client";
 
 import { CheckIcon, ChevronDownIcon, LanguagesIcon } from "lucide-react";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 
-import { Button } from "@/components/ui/button";
-import { DropdownMenu } from "@/components/ui/dropdown-menu";
+import { buttonVariants } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   SettingsDropdownContent,
   SettingsDropdownItem,
   SettingsDropdownTrigger,
 } from "@/components/ui/settings-control";
-import { SUPPORTED_LOCALES, useI18n, type Locale } from "@/i18n";
+import { SUPPORTED_LOCALES, isLocale, useI18n, type Locale } from "@/i18n";
 import { cn } from "@/lib/utils";
 import type { SettingsItemComponentProps } from "@/platform/extensions";
+
+import { createLocaleDisplayName } from "./locale-display-name";
 
 function useSelectLocale() {
   const router = useRouter();
@@ -31,33 +39,52 @@ function useSelectLocale() {
 function LocaleSelector({ compact = false }: { compact?: boolean }) {
   const { locale, t } = useI18n();
   const selectLocale = useSelectLocale();
-  const nextLocale: Locale = locale === "en-US" ? "zh-CN" : "en-US";
-  const currentLanguage =
-    locale === "en-US"
-      ? t("extensions.localeSelector.english")
-      : t("extensions.localeSelector.chinese");
-  const nextLanguage =
-    nextLocale === "en-US"
-      ? t("extensions.localeSelector.english")
-      : t("extensions.localeSelector.chinese");
-  const switchLabel = t("extensions.localeSelector.switchTo", { language: nextLanguage });
+  const localeLabel = useMemo(() => createLocaleDisplayName(locale), [locale]);
+  const selectLanguageLabel = t("extensions.localeSelector.selectLanguage");
 
   return (
-    <Button
-      type="button"
-      variant="ghost"
-      size={compact ? "icon" : "lg"}
-      aria-label={switchLabel}
-      title={switchLabel}
-      className={cn(
-        "text-muted-foreground hover:text-foreground",
-        compact ? "hidden sm:inline-flex md:hidden" : "w-auto justify-start gap-2 px-2.5",
-      )}
-      onClick={() => selectLocale(nextLocale)}
-    >
-      <LanguagesIcon className="size-4" />
-      {!compact ? <span>{currentLanguage}</span> : null}
-    </Button>
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        type="button"
+        aria-label={selectLanguageLabel}
+        title={selectLanguageLabel}
+        className={cn(
+          buttonVariants({ variant: "ghost", size: compact ? "icon" : "lg" }),
+          "text-muted-foreground hover:text-foreground",
+          compact ? "hidden sm:inline-flex md:hidden" : "w-auto justify-start gap-2 px-2.5",
+        )}
+      >
+        <LanguagesIcon aria-hidden="true" className="size-4" />
+        {!compact ? (
+          <>
+            <span>{localeLabel(locale)}</span>
+            <ChevronDownIcon
+              aria-hidden="true"
+              className="text-muted-foreground ms-auto size-3.5"
+            />
+          </>
+        ) : null}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align={compact ? "end" : "start"}
+        side={compact ? "bottom" : "top"}
+        className="w-48"
+      >
+        <DropdownMenuRadioGroup
+          value={locale}
+          aria-label={selectLanguageLabel}
+          onValueChange={(value) => {
+            if (isLocale(value)) selectLocale(value);
+          }}
+        >
+          {SUPPORTED_LOCALES.map((option) => (
+            <DropdownMenuRadioItem key={option} value={option} className="min-h-8 px-2.5 py-1.5">
+              {localeLabel(option)}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -72,10 +99,7 @@ export function MobileLocaleSelector() {
 export function LocaleSettingsItem({ sectionId, itemId }: SettingsItemComponentProps) {
   const { locale, t } = useI18n();
   const selectLocale = useSelectLocale();
-  const localeLabel = (value: Locale) =>
-    value === "en-US"
-      ? t("extensions.localeSelector.english")
-      : t("extensions.localeSelector.chinese");
+  const localeLabel = useMemo(() => createLocaleDisplayName(locale), [locale]);
 
   return (
     <div

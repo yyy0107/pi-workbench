@@ -1,5 +1,9 @@
 <a name="readme-top"></a>
 
+<p align="center">
+  English | <a href="./README.zh-CN.md">简体中文</a>
+</p>
+
 <div align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="./public/pi-logo-on-dark.svg">
@@ -8,10 +12,10 @@
   </picture>
   <h1 align="center">Pi Workbench</h1>
   <p align="center">
-    <strong>本地优先、以工作区为中心的 AI 编程工作台。</strong>
+    <strong>A local-first AI coding workbench built around projects and persistent agent sessions.</strong>
   </p>
   <p align="center">
-    在同一个 Web / Electron 应用中运行 Pi Coding Agent、持久会话、工作区文件与真实终端。
+    Use Pi Coding Agent, workspace files, model configuration, and real terminals from one Web or Electron interface.
   </p>
 </div>
 
@@ -19,50 +23,84 @@
   <img src="https://img.shields.io/badge/status-early_development-blue?style=for-the-badge" alt="Project status: early development">
   <img src="https://img.shields.io/badge/runtime-local--first-18181b?style=for-the-badge" alt="Local-first runtime">
   <img src="https://img.shields.io/badge/interface-Web_%2B_Electron-47848f?style=for-the-badge&logo=electron&logoColor=white" alt="Web and Electron">
-  <a href="#更多文档"><img src="https://img.shields.io/badge/Documentation-000?style=for-the-badge&logo=googledocs&logoColor=FFE165" alt="Documentation"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-22c55e?style=for-the-badge" alt="MIT License"></a>
 </div>
 
 <div align="center">
-  <a href="#快速开始">快速开始</a> |
-  <a href="#架构">架构</a> |
-  <a href="./docs/extensions.md">扩展开发</a> |
-  <a href="./runtime/pi/README.md">Pi Runtime</a> |
-  <a href="./runtime/terminal/README.md">Terminal</a>
+  <a href="#product-preview">Preview</a> |
+  <a href="#what-works-today">Features</a> |
+  <a href="#quick-start">Quick start</a> |
+  <a href="#architecture">Architecture</a> |
+  <a href="#development">Development</a> |
+  <a href="./docs/i18n.md">Internationalization</a>
 </div>
 
 <hr>
 
-Pi Workbench 在浏览器或 Electron renderer 中运行
-[assistant-ui](https://github.com/assistant-ui/assistant-ui) Workbench Client，并将
-`@earendil-works/pi-coding-agent` 嵌入由 [`server.ts`](./server.ts) 启动的本地 Next.js 服务。
-运行时、会话和工作区访问默认留在本机；模型请求仍会发送到你配置的模型提供方。
+Pi Workbench runs an [assistant-ui](https://github.com/assistant-ui/assistant-ui) client in the
+browser or Electron renderer and connects it to a local service started by
+[`server.ts`](./server.ts). The current build selects
+[`@earendil-works/pi-coding-agent`](https://github.com/earendil-works/pi) as its production Agent
+Runtime through Workbench's client and server adapter boundaries.
 
-它面向需要长期会话、真实项目上下文和本机工具的编码工作流：从一个工作区开始，在同一界面中管理
-模型、命令、消息队列、文件、Diff、终端和可恢复的 Inspector Surface。
+Sessions, Workbench settings, resource configuration, and workspace access stay on the local
+machine. Requests sent to a configured model still leave the machine and are governed by that model
+provider's terms and privacy policy.
 
-|                                                                         |                                                                      |
-| ----------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| [**持久化 Pi 会话**](./runtime/pi/README.md#session-生命周期和持久状态) | 按工作区组织会话、模型、队列、归档、分叉和交互请求                   |
-| [**自带模型配置**](./runtime/pi/README.md#模型)                         | 通过账号登录、API 密钥或自定义 Provider 接入模型                     |
-| [**工作区文件能力**](./runtime/pi/README.md#workspace-和-host-目录)     | 浏览、预览和编辑代码、Markdown、图片、PDF、媒体与 Office 文档        |
-| [**真实交互终端**](./runtime/terminal/README.md)                        | 在工作区目录中运行 PTY，并继续操作 Agent 发起的交互式命令            |
-| [**Web 与桌面共用实现**](./electron/)                                   | 浏览器与 Electron 共享 Next.js、Pi RPC/WebSocket 和 Terminal 服务    |
-| [**可组合的扩展平台**](./docs/extensions.md)                            | 使用 Slot、Command、Renderer、Settings 和 Workspace Surface 组合界面 |
+## Product preview
 
-> [!NOTE]
-> Pi 会话、Explorer、File 和 Terminal 已连接真实后端；Review、Browser 和 Artifact 当前主要提供
-> 扩展宿主与界面。Workbench 尚无稳定的第三方插件 ABI 或权限隔离。
+<p align="center">
+  <img src="./docs/assets/首页.png" alt="Pi Workbench project home and new-conversation composer" width="100%">
+</p>
 
-## 快速开始
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="./docs/assets/对话.png" alt="Pi Workbench conversation with the workspace file explorer">
+      <br>
+      <sub>Persistent conversation with the project file workspace</sub>
+    </td>
+    <td width="50%" valign="top">
+      <img src="./docs/assets/pi拓展市场.png" alt="Pi Workbench Toolbox package catalog">
+      <br>
+      <sub>Toolbox package discovery and project-scoped installation</sub>
+    </td>
+  </tr>
+</table>
 
-Pi Workbench 默认在当前机器上运行，并直接访问你选择的工作区。
+## What works today
+
+| Area                            | Current behavior                                                                                                          |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| **Pi conversations**            | Persistent sessions, search, rename, pin, archive, fork, regenerate, cancel, steer, and queued follow-up                  |
+| **Models and providers**        | Pi account sign-in, API keys, model discovery, capability checks, and custom providers                                    |
+| **Projects and files**          | Import trusted workspaces; browse, preview, edit, and save text files; preview Markdown, media, PDF, and Office documents |
+| **Terminal**                    | Real `node-pty` sessions rooted in a workspace, including interactive commands started by the agent                       |
+| **Toolbox and Pi resources**    | Inspect and manage Skills, prompts, Pi extensions, packages, and bundled Component Extensions                             |
+| **Local conversation import**   | Import compatible Codex, Claude Code, and Cursor conversations without modifying their source files                       |
+| **Attachments and inspection**  | Image/PDF understanding, token usage, context trace, tool timelines, and interactive approval requests                    |
+| **Internationalized interface** | Runtime locale switching with complete `en-US` and `zh-CN` base catalogs                                                  |
+
+> [!IMPORTANT]
+> Pi sessions, model configuration, the file workspace, external-session import, and Terminal use
+> real local backends. Review currently tracks file mutations in memory rather than reading Git;
+> Browser is a session/navigation surface and does not render a live webpage yet; Artifact previews
+> are populated from tool-provided data. These surfaces are still experimental.
+
+## Quick start
 
 > [!WARNING]
-> 本地服务和 Terminal 以当前用户权限访问文件系统与真实 shell；Terminal **不是沙箱**。
+> Pi Workbench directly accesses workspaces selected by the user. The local service and Terminal run
+> with the current operating-system user's permissions, and Terminal is **not a sandbox**.
 
-**前置条件**：Node.js `22.12+`、pnpm 和 Git。项目不支持 npm 或 Yarn。
+Prerequisites:
 
-### 方式一：Web 开发
+- Node.js `22.19+`
+- pnpm
+- Git
+- A native C/C++ toolchain only when `node-pty` has no prebuilt binary for the current platform
+
+The repository uses pnpm. Do not install dependencies with npm or Yarn.
 
 ```bash
 git clone https://github.com/yyy0107/pi-workbench.git
@@ -71,15 +109,15 @@ pnpm install
 pnpm dev
 ```
 
-打开 [http://127.0.0.1:3000](http://127.0.0.1:3000)，添加一个工作区，在“设置 → 模型”中配置
-Provider，再从 Composer 选择模型并开始会话。
+`pnpm dev` synchronizes the required static assets and starts the local Workbench service with
+reload support. Open [http://127.0.0.1:3000](http://127.0.0.1:3000), add a project directory, then
+open Settings → Models to sign in to a provider or add an API-key/custom-provider configuration.
+Select a model in the Composer to start a conversation.
 
-基础启动不要求 `.env.local`。Pi 也可以沿用 Provider 支持的环境认证，但模型与凭据应优先通过应用
-设置管理。如果 `node-pty` 没有当前平台的预编译产物，安装依赖时还需要本机 C/C++ 构建工具链。
+### Electron development
 
-### 方式二：Electron 桌面开发
-
-全新 clone 如果尚未运行过 `pnpm dev` 或 `pnpm build`，先同步被 Git 忽略的静态资源：
+`electron:dev` does not run the Web `predev` hook. In a fresh checkout, synchronize the generated
+static assets once before starting Electron:
 
 ```bash
 pnpm icons:sync
@@ -87,87 +125,128 @@ pnpm file-viewer:sync
 pnpm electron:dev
 ```
 
-Electron 会自行启动带热更新的 Workbench 服务；如果 `127.0.0.1:3000` 已运行本项目，Electron
-会直接连接它。
+In development, Electron uses `127.0.0.1:3000`. It connects to an existing Pi Workbench service on
+that address when one is available; otherwise it starts and watches its own local service.
 
-### 方式三：生产构建
+### Production builds
+
+Run the production Web service:
 
 ```bash
 pnpm build
 pnpm start
-
-pnpm electron:pack # 生成当前平台可运行目录
-pnpm electron:dist # 生成当前平台安装包
 ```
 
-Electron 产物写入 `dist-electron/`。当前目标为 macOS DMG/ZIP、Windows NSIS 和 Linux AppImage，
-通常应在对应目标平台构建。
-
----
-
-## 架构
-
-浏览器或 Electron renderer 运行 assistant-ui Workbench Client；本地 [`server.ts`](./server.ts)
-统一分发 Next.js HTTP/RPC、Pi 事件流和 Terminal WebSocket。开发与生产都应使用项目脚本，
-不要直接运行 `next dev` 或 `next start`。
-
-<p align="center">
-  <a href="./docs/assets/pi-workbench-architecture.png">
-    <img src="./docs/assets/pi-workbench-architecture.png" alt="Pi Workbench 架构图：Browser 和 Electron 运行同一套 Workbench UI，并通过本地 server.ts 访问 Next.js、嵌入式 Pi Runtime 和 Terminal Gateway；服务使用本地工作区、状态和 shell，模型请求发送到用户配置的提供方。" width="100%">
-  </a>
-</p>
-
-<p align="center">
-  <sub><a href="./docs/assets/pi-workbench-architecture.excalidraw">可编辑的 Excalidraw 源文件</a>（下载后使用 Excalidraw 打开）</sub>
-</p>
-
-### 两种 Extension
-
-- **Workbench extensions** 位于 [`extensions/builtin/`](./extensions/builtin/)，是随应用静态编译、
-  同进程运行的 UI Contribution Bundles。
-- **Pi agent extensions** 由 Pi ResourceLoader 加载，可注册 Agent tools、events 和 commands；
-  设置页展示的是这一类扩展。
-
-两者不是同一套扩展系统。当前不加载远程 JavaScript，也没有独立 Extension Host。开发 UI 扩展时
-从 [`@/platform/extensions`](./platform/extensions/index.ts) 导入公共 API。
-
-### 仓库边界
-
-| 目录                                                                           | 职责                                         |
-| ------------------------------------------------------------------------------ | -------------------------------------------- |
-| [`app/`](./app/)、[`workbench/`](./workbench/)、[`components/`](./components/) | Next.js 路由、Workbench Shell、聊天与共享 UI |
-| [`platform/extensions/`](./platform/extensions/)                               | UI 扩展的公共契约、Registry、Host 与生命周期 |
-| [`extensions/builtin/`](./extensions/builtin/)                                 | 随应用静态编译的内置 Contribution Bundles    |
-| [`runtime/pi/`](./runtime/pi/)                                                 | Pi RPC、会话、模型、Workspace、命令与实时流  |
-| [`runtime/terminal/`](./runtime/terminal/)                                     | PTY、Tool Terminal 与 Terminal WebSocket     |
-| [`electron/`](./electron/)                                                     | 桌面启动、本地服务进程与打包                 |
-
-## 安全边界
-
-`PI_WORKBENCH_TRUSTED_HOSTS` 只放宽请求来源校验，不提供认证或 TLS；跨机器访问必须由外层可信代理
-提供身份认证和 TLS。项目资源信任由工作区导入时的确认与 `~/.pi/agent/trust.json` 管理；仅在明确
-需要对本次进程信任所有项目时才使用 `PI_WORKBENCH_TRUST_PROJECT=1` 覆盖。
-
-完整说明见 [Pi Runtime 请求信任边界](./runtime/pi/README.md#请求信任边界) 和
-[Terminal Runtime](./runtime/terminal/README.md)。
-
-## 开发
-
-提交改动前运行：
+Build the desktop application:
 
 ```bash
-pnpm check # lint + typecheck + test
+pnpm electron:pack # unpacked application for the current platform
+pnpm electron:dist # installer or distributable for the current platform
+```
+
+Both Electron commands run the production build automatically. Desktop output is written to
+`dist-electron/`. Configured targets are macOS DMG/ZIP, Windows NSIS, and Linux AppImage; build on
+the target operating system for the corresponding artifact.
+
+## Architecture
+
+The browser and Electron renderer use the same Next.js and assistant-ui application. A single local
+custom server owns Next.js HTTP/RPC dispatch, the Pi event WebSocket, and the Terminal WebSocket.
+Electron starts that same service as a child process instead of maintaining a second backend.
+
+```mermaid
+flowchart LR
+  client["Browser or Electron renderer<br/>Next.js + assistant-ui"]
+  server["server.ts<br/>single local HTTP/WebSocket server"]
+  next["Next.js routes and RPC"]
+  pi["Pi Agent Runtime<br/>sessions, models, tools, resources"]
+  terminal["Terminal Gateway<br/>node-pty"]
+  local["Local workspaces and ~/.pi state"]
+  providers["Configured model providers"]
+
+  client <-->|"HTTP / RPC / WebSocket"| server
+  server --> next
+  server --> pi
+  server --> terminal
+  pi <--> local
+  terminal <--> local
+  pi --> providers
+```
+
+The server listens on `127.0.0.1:3000` by default. `PORT` changes the port, and `WORKBENCH_HOST`
+changes the bind address. Exposing the service beyond loopback requires an external authentication
+and TLS boundary.
+
+### Extension model
+
+Pi Workbench currently has three extension categories:
+
+- **Built-in Workbench extensions** are statically compiled UI contribution bundles in
+  [`extensions/builtin/`](./extensions/builtin/) and are always active.
+- **Installable Component Extensions** are trusted UI bundles shipped in the application catalog.
+  They can be installed or removed at runtime, but their code is still included at build time. The
+  current catalog contains Generative UI.
+- **Pi extensions and resources** are loaded by Pi's ResourceLoader and can contribute agent tools,
+  commands, prompts, and Skills. Toolbox exposes their user and project scopes.
+
+Workbench does not download or execute arbitrary remote UI JavaScript and does not have a separate
+Extension Host or stable third-party UI plugin ABI. UI extension code should import the public
+authoring API from [`@/platform/extensions`](./platform/extensions/index.ts).
+
+## Security boundary
+
+The Electron renderer uses browser isolation, but Pi tools and terminal processes execute through
+the local backend with the user's real permissions. Import only projects you trust and review tool
+requests before approving them.
+
+`PI_WORKBENCH_TRUSTED_HOSTS` only adds allowed request authorities; it does not provide
+authentication or TLS. Project resource trust is stored per directory through Pi. Set
+`PI_WORKBENCH_TRUST_PROJECT=1` only when the current process should trust every imported project.
+
+See the [Pi Runtime trust boundary](./runtime/pi/README.md) and
+[Terminal Runtime](./runtime/terminal/README.md) for implementation details.
+
+## Repository map
+
+| Directory                                                                                  | Responsibility                                                        |
+| ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
+| [`app/`](./app/), [`workbench/`](./workbench/), [`components/`](./components/)             | Next.js routes, application shell, chat, workspace UI, and shared UI  |
+| [`platform/extensions/`](./platform/extensions/)                                           | Workbench extension contracts, registries, hosts, and lifecycle       |
+| [`extensions/`](./extensions/)                                                             | Built-in and app-bundled installable Workbench extensions             |
+| [`runtime/assistant-ui/`](./runtime/assistant-ui/), [`runtime/server/`](./runtime/server/) | Backend-neutral browser and server Agent Runtime adapter boundaries   |
+| [`runtime/pi/`](./runtime/pi/)                                                             | Concrete Pi client/server adapters, sessions, models, tools, and RPC  |
+| [`runtime/terminal/`](./runtime/terminal/)                                                 | PTY sessions, tool terminals, and Terminal WebSocket gateway          |
+| [`electron/`](./electron/)                                                                 | Desktop lifecycle, local service process, packaging, and distribution |
+
+## Development
+
+Primary checks and build commands:
+
+```bash
+pnpm lint
+pnpm typecheck
+pnpm test
 pnpm build
 ```
 
-开发前请阅读 [`AGENTS.md`](./AGENTS.md) 以及待修改文件附近最近的嵌套 `AGENTS.md`。只使用 pnpm；
-用户可见文案同时维护 `en-US` 和 `zh-CN`；修改 Next.js 代码前查阅仓库安装版本的
-`node_modules/next/dist/docs/`。
+Use checks proportional to the change. User-visible copy must update both `en-US` and `zh-CN` in the
+same change. Locale identifiers, fallback behavior, component-owned dictionaries, and the process
+for adding another language are documented in the
+[internationalization guide](./docs/i18n.md).
 
-## 更多文档
+## Documentation
 
-- [Workbench 扩展组件开发指南](./docs/extensions.md)
-- [RightWorkspace 扩展架构](./docs/right-workspace.md)
-- [Pi Runtime 架构、协议与配置](./runtime/pi/README.md)
-- [Terminal Runtime 与安全边界](./runtime/terminal/README.md)
-- [DeepSeek Harness HTTP / WebSocket 接口参考](./docs/deepseekharness-api-design.md)（Workbench 仅实现当前子集）
+- [Internationalization](./docs/i18n.md)
+- [Workbench extension platform](./docs/extensions.md)
+- [RightWorkspace architecture](./docs/right-workspace.md)
+- [Browser Agent Runtime adapter](./runtime/assistant-ui/README.md)
+- [Server Agent Runtime ports](./runtime/server/README.md)
+- [Pi Runtime architecture and protocols](./runtime/pi/README.md)
+- [Terminal Runtime](./runtime/terminal/README.md)
+
+Detailed subsystem documentation is currently mostly written in Simplified Chinese.
+
+## License
+
+Pi Workbench is released under the [MIT License](./LICENSE). Third-party dependencies and bundled
+assets remain subject to their respective licenses.

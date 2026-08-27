@@ -123,11 +123,6 @@ export const extensionsEnUS = {
     },
   },
   localeSelector: {
-    label: "Language",
-    current: ({ language }: { language: string }) => `Language: ${language}`,
-    switchTo: ({ language }: { language: string }) => `Switch language to ${language}`,
-    english: "English",
-    chinese: "Simplified Chinese",
     languageTitle: "Language",
     languageDescription: "Choose the language used by Workbench controls and menus.",
     selectLanguage: "Select interface language",

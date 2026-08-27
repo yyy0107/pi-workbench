@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { SUPPORTED_LOCALES, type Locale } from "@/contracts/locale";
 import type { ServerResponse } from "@/runtime/pi/contracts/rpc";
 import type { WorkbenchSettingsProtocol } from "../../settings/workbench-settings-service";
 import { rpcBusinessError } from "../rpc-transport";
@@ -129,6 +130,32 @@ test("resolves a Workbench Settings service per call and sanitizes preference pa
       },
     },
   ]);
+});
+
+test("accepts every locale from the shared contract", async () => {
+  const received: Locale[] = [];
+  const routes = createWorkbenchSettingsRpcRoutes({
+    getService: () =>
+      protocol({
+        async update(payload) {
+          const locale = payload.patch.locale;
+          if (locale) received.push(locale);
+          return { revision: received.length };
+        },
+      }),
+    projectDomainError: unexpectedDomainError,
+  });
+
+  for (const locale of SUPPORTED_LOCALES) {
+    const response = routes.handle(
+      rpcRequest("workbenchSettings.update", { patch: { locale } }),
+      "workbenchSettings.update",
+    );
+    assert.ok(response);
+    await successValue(await response);
+  }
+
+  assert.deepEqual(received, [...SUPPORTED_LOCALES]);
 });
 
 test("validates Workbench Settings patches before resolving a service", async () => {

@@ -1,3 +1,4 @@
+import { isLocale } from "@/contracts/locale";
 import type {
   WorkbenchBackgroundImagePreference,
   WorkbenchSettingsDescribeValue,
@@ -123,9 +124,7 @@ function parsePreferences(value: unknown): WorkbenchSettingsPreferences {
     preferences.backgroundImage = backgroundImage(value.backgroundImage);
   }
   if (value.locale !== undefined) {
-    if (value.locale !== "en-US" && value.locale !== "zh-CN") {
-      throw new TypeError("locale is invalid");
-    }
+    if (!isLocale(value.locale)) throw new TypeError("locale is invalid");
     preferences.locale = value.locale;
   }
   if (value.modelSelector !== undefined) {

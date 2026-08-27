@@ -1,3 +1,4 @@
+import { SUPPORTED_LOCALES } from "@/contracts/locale";
 import type { WorkbenchSettingsUpdatePayload } from "@/runtime/pi/contracts/rpc";
 import type { WorkbenchSettingsProtocol } from "../../settings/workbench-settings-service";
 import {
@@ -36,7 +37,7 @@ const workbenchSettingsUpdatePayload = rpcObject({
         }),
       ),
     ),
-    locale: rpcOptional(rpcNullable(rpcEnum(["en-US", "zh-CN"]))),
+    locale: rpcOptional(rpcNullable(rpcEnum(SUPPORTED_LOCALES))),
     modelSelector: rpcOptional(
       rpcNullable(
         rpcObject({
