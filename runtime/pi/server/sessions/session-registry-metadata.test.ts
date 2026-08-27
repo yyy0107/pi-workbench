@@ -1680,13 +1680,15 @@ test("keeps cancellation authoritative during the recognition-to-prompt handoff"
     },
   );
   await resolutionReached;
-  assert.equal(host.isRunning, true);
+  assert.equal(host.isRunning, false, "attachment preparation is not a Pi agent run");
+  assert.equal(host.isBusy, true, "the Workbench host still owns the in-flight submission");
   const cancellation = cancelSession(host.id);
   releaseResolution();
   await Promise.all([cancellation, submission]);
 
   assert.equal(promptCalled, false);
   assert.equal(host.isRunning, false);
+  assert.equal(host.isBusy, false);
   const events = await getSessionEvents(host.id);
   assert.equal(events.at(-1)?.type, "command_error");
 });
@@ -2341,6 +2343,7 @@ test("publishes prompt admission and retains the HTTP RPC id for queued follow-u
   const host = await createSession(cwd, "prompt-admission");
   let releaseRun!: () => void;
   const fakeAgent = host.session as unknown as {
+    readonly isStreaming: boolean;
     model?: unknown;
     modelRuntime: { getAvailableSnapshot(): unknown[] };
     prompt(
@@ -2350,17 +2353,32 @@ test("publishes prompt admission and retains the HTTP RPC id for queued follow-u
   };
   const originalPrompt = fakeAgent.prompt;
   const originalAvailableSnapshot = fakeAgent.modelRuntime.getAvailableSnapshot;
+  const originalIsStreaming = Object.getOwnPropertyDescriptor(fakeAgent, "isStreaming");
+  let piStreaming = false;
+  Object.defineProperty(fakeAgent, "isStreaming", {
+    configurable: true,
+    get: () => piStreaming,
+  });
   fakeAgent.modelRuntime.getAvailableSnapshot = () =>
     fakeAgent.model === undefined ? [] : [fakeAgent.model];
   fakeAgent.prompt = async (_message, options) => {
+    piStreaming = true;
     options.preflightResult?.(true);
     await new Promise<void>((resolve) => {
-      releaseRun = resolve;
+      releaseRun = () => {
+        piStreaming = false;
+        resolve();
+      };
     });
   };
   t.after(() => {
     fakeAgent.prompt = originalPrompt;
     fakeAgent.modelRuntime.getAvailableSnapshot = originalAvailableSnapshot;
+    if (originalIsStreaming) {
+      Object.defineProperty(fakeAgent, "isStreaming", originalIsStreaming);
+    } else {
+      delete (fakeAgent as { isStreaming?: boolean }).isStreaming;
+    }
     releaseRun?.();
     return host.shutdown();
   });
@@ -2419,6 +2437,79 @@ test("publishes prompt admission and retains the HTTP RPC id for queued follow-u
   );
   assert.ok(queueFrame);
   releaseRun();
+});
+
+test("projects Pi running state without waiting for Workbench prompt cleanup", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-pi-authoritative-running-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+  process.env.PI_CODING_AGENT_DIR = path.join(root, "agent");
+  t.after(() => {
+    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+  });
+
+  const hub = createStreamHub({ createRpcId: () => "pi-authoritative-running-rpc" });
+  const globals = globalThis as unknown as Record<PropertyKey, unknown>;
+  const previousHub = globals[STREAM_HUB_SYMBOL];
+  globals[STREAM_HUB_SYMBOL] = hub;
+  t.after(() => {
+    if (previousHub === undefined) delete globals[STREAM_HUB_SYMBOL];
+    else globals[STREAM_HUB_SYMBOL] = previousHub;
+  });
+  const hostFrames: ServerRequest<HostStreamPayload>[] = [];
+  const subscription = hub.subscribe("host", {
+    onFrame: (frame) => hostFrames.push(frame),
+    onError: (error) => assert.fail(error.message),
+  });
+  t.after(() => subscription.close());
+  await subscription.ready;
+
+  const cwd = path.join(root, "project");
+  await mkdir(cwd, { recursive: true });
+  const host = await createSession(cwd, "pi-authoritative-running");
+  const fakeAgent = host.session as unknown as {
+    readonly isStreaming: boolean;
+    _emit(event: { type: "agent_start" | "agent_settled" }): void;
+  };
+  const hostInternals = host as unknown as { promptTask?: Promise<void> };
+  const originalIsStreaming = Object.getOwnPropertyDescriptor(fakeAgent, "isStreaming");
+  let piStreaming = true;
+  Object.defineProperty(fakeAgent, "isStreaming", {
+    configurable: true,
+    get: () => piStreaming,
+  });
+  hostInternals.promptTask = new Promise<void>(() => undefined);
+  t.after(() => {
+    hostInternals.promptTask = undefined;
+    if (originalIsStreaming) {
+      Object.defineProperty(fakeAgent, "isStreaming", originalIsStreaming);
+    } else {
+      delete (fakeAgent as { isStreaming?: boolean }).isStreaming;
+    }
+    return host.shutdown();
+  });
+
+  fakeAgent._emit({ type: "agent_start" });
+  assert.equal(host.isRunning, true);
+  assert.equal(host.isBusy, true);
+
+  piStreaming = false;
+  fakeAgent._emit({ type: "agent_settled" });
+
+  assert.equal(host.isRunning, false);
+  assert.equal(host.isBusy, true, "Workbench cleanup remains pending after Pi has settled");
+  const listed = (await listSessions()).sessions.find((session) => session.id === host.id);
+  assert.equal(listed?.running, false);
+  assert.equal(listed?.runTiming, undefined);
+  assert.deepEqual(
+    hostFrames.flatMap((frame) =>
+      frame.payload.type === "host/session-status" && frame.payload.sessionId === host.id
+        ? [frame.payload.running]
+        : [],
+    ),
+    [true, false],
+  );
 });
 
 test("cold rename publishes its canonical event and retains the same lastSeq", async (t) => {

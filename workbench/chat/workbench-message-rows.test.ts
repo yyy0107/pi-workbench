@@ -23,7 +23,24 @@ test("keeps a conversation pair mounted while assistant output is attached", () 
   assert.equal(conversationPairKey(withSettledAssistant[0]!), "user-1");
 });
 
-test("keeps working visible from run start through the complete assistant response", () => {
+test("shows working only while the authoritative thread runtime is active", () => {
+  assert.equal(
+    shouldShowWorkingStatus({
+      isLastPair: true,
+      threadIsRunning: true,
+    }),
+    true,
+  );
+  const staleStreamingMessage = {
+    isLastPair: true,
+    threadIsRunning: false,
+    assistantStatus: "running",
+  };
+  assert.equal(
+    shouldShowWorkingStatus(staleStreamingMessage),
+    false,
+    "a stale message status must not keep Pi Working visible after the thread settles",
+  );
   assert.equal(
     shouldShowWorkingStatus({
       isLastPair: true,
@@ -35,23 +52,13 @@ test("keeps working visible from run start through the complete assistant respon
     shouldShowWorkingStatus({
       isLastPair: true,
       threadIsRunning: false,
-      assistantStatus: "running",
     }),
-    true,
+    false,
   );
   assert.equal(
     shouldShowWorkingStatus({
-      isLastPair: true,
+      isLastPair: false,
       threadIsRunning: true,
-      assistantStatus: "complete",
-    }),
-    true,
-  );
-  assert.equal(
-    shouldShowWorkingStatus({
-      isLastPair: true,
-      threadIsRunning: false,
-      assistantStatus: "complete",
     }),
     false,
   );

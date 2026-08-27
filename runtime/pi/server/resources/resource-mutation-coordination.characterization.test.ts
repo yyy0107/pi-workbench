@@ -10,7 +10,10 @@ import {
   InstalledPackageServiceError,
 } from "../packages/installed-package-service";
 import { SkillService, SkillServiceError } from "../skills/skill-service";
-import { PiResourceMutationCoordinator } from "./pi-resource-mutation-coordinator";
+import {
+  PiResourceMutationBusyError,
+  PiResourceMutationCoordinator,
+} from "./pi-resource-mutation-coordinator";
 
 function resourceSettingsManager(): SettingsManager {
   return SettingsManager.inMemory({}, { projectTrusted: true });
@@ -360,6 +363,33 @@ test("a queued mutation rechecks busy sessions before changing settings", async 
   releaseFirst();
   await Promise.all([first, secondRejected]);
   assert.deepEqual(installations, ["npm:first-package"]);
+});
+
+test("Workbench busy state blocks mutation after Pi running has settled", async () => {
+  const loadedHost = {
+    id: "session-cleanup",
+    isRunning: false,
+    isBusy: true,
+    session: {
+      sessionManager: { getCwd: () => "/workspace/target" },
+      reload: async () => undefined,
+    },
+  };
+  const mutationCoordinator = new PiResourceMutationCoordinator({
+    getLoadedSessions: () => [loadedHost],
+  });
+
+  await assert.rejects(
+    mutationCoordinator.mutate({ scope: "user" }, async () => ({
+      value: undefined,
+      reload: false,
+    })),
+    (error: unknown) => {
+      assert.ok(error instanceof PiResourceMutationBusyError);
+      assert.equal(error.sessionId, loadedHost.id);
+      return true;
+    },
+  );
 });
 
 test("an already-matching Extension state does not reload sessions", async () => {

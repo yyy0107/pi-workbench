@@ -6,7 +6,6 @@ interface MessageRoleRow {
 interface WorkingStatusState {
   isLastPair: boolean;
   threadIsRunning: boolean;
-  assistantStatus?: string;
 }
 
 /** A conversational turn keeps the identity of its first message as assistant output arrives. */
@@ -22,11 +21,10 @@ export function isLastConversationPair(
   return messages.slice(pairMessageIndex + 1).every((candidate) => candidate.role === "system");
 }
 
-/** Keep the working row mounted from run start until both runtime signals report completion. */
+/** The assistant runtime is the authoritative lifecycle signal for the working row. */
 export function shouldShowWorkingStatus({
   isLastPair,
   threadIsRunning,
-  assistantStatus,
 }: WorkingStatusState): boolean {
-  return isLastPair && (threadIsRunning || assistantStatus === "running");
+  return isLastPair && threadIsRunning;
 }

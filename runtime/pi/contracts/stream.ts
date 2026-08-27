@@ -207,6 +207,7 @@ export interface HostSessionRemovedPayload {
 export interface HostSessionStatusPayload {
   type: "host/session-status";
   sessionId: string;
+  /** Pi-authoritative agent run state projected from AgentSession.isStreaming. */
   running: boolean;
   runTiming?: PiRunTiming;
 }

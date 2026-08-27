@@ -7,6 +7,7 @@ export type PiResourceMutationScope =
 
 export interface PiResourceMutationSessionHost {
   readonly isAlive?: boolean;
+  readonly isBusy?: boolean;
   readonly isRunning?: boolean;
   readonly session: {
     readonly sessionManager?: {
@@ -256,7 +257,7 @@ export class PiResourceMutationCoordinator {
   }
 
   private assertSessionsIdle(sessions: readonly SessionReference[]): void {
-    const busy = sessions.find(({ host }) => host.isRunning);
+    const busy = sessions.find(({ host }) => host.isBusy ?? host.isRunning);
     if (busy) throw new PiResourceMutationBusyError(busy.id);
   }
 

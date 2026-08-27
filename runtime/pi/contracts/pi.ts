@@ -13,6 +13,7 @@ export interface PiSessionSummary {
   messageCount: number;
   firstMessage: string;
   transient: boolean;
+  /** Pi-authoritative agent run state projected from AgentSession.isStreaming. */
   running: boolean;
   waitingForUserInput?: boolean;
   runTiming?: PiRunTiming;

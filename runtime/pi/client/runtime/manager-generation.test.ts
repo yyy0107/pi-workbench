@@ -1895,6 +1895,40 @@ test("keeps the optimistic assistant after agent start until the run settles", (
   assert.equal(session.getSnapshot().isRunning, false);
 });
 
+test("uses an authoritative idle rebaseline to release a stale local run lease", (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("local-session", "remote-session");
+  const sessionInternals = session as unknown as {
+    localRunLeaseActive: boolean;
+    promptRequestPending: boolean;
+    publishMessagesAndSetRunning(running: boolean): void;
+    reload(): Promise<void>;
+  };
+  const managerInternals = manager as unknown as {
+    applyRunningSnapshot(sessionIds: string[], authoritativeBaseline?: boolean): void;
+  };
+  sessionInternals.reload = async () => {};
+  sessionInternals.localRunLeaseActive = true;
+  sessionInternals.promptRequestPending = true;
+  sessionInternals.publishMessagesAndSetRunning(true);
+
+  managerInternals.applyRunningSnapshot([], true);
+  assert.equal(
+    session.getSnapshot().isRunning,
+    true,
+    "an in-flight prompt still owns its local admission lease",
+  );
+  assert.equal(sessionInternals.localRunLeaseActive, true);
+
+  sessionInternals.promptRequestPending = false;
+  managerInternals.applyRunningSnapshot([], true);
+
+  assert.equal(sessionInternals.localRunLeaseActive, false);
+  assert.equal(session.getSnapshot().isRunning, false);
+  assert.equal(manager.isRunning("remote-session"), false);
+});
+
 test("ends the visible run at a terminal response while host cleanup remains active", (t) => {
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());

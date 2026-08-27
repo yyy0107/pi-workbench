@@ -48,7 +48,6 @@ interface MessageRow {
   id: string;
   role: "user" | "assistant" | "system";
   createdAt: number;
-  status: string;
 }
 
 interface ThreadScrollPosition {
@@ -201,8 +200,7 @@ function useThreadMessageRows(): readonly MessageRow[] {
         (row, index) =>
           row.id === messages[index]?.id &&
           row.role === messages[index]?.role &&
-          row.createdAt === messages[index]?.createdAt.getTime() &&
-          row.status === (messages[index]?.status?.type ?? "complete"),
+          row.createdAt === messages[index]?.createdAt.getTime(),
       )
     ) {
       return previous;
@@ -212,7 +210,6 @@ function useThreadMessageRows(): readonly MessageRow[] {
       id: message.id,
       role: message.role,
       createdAt: message.createdAt.getTime(),
-      status: message.status?.type ?? "complete",
     }));
     previousRows.current = next;
     return next;
@@ -376,15 +373,10 @@ function WorkbenchMessages({ isRunning }: Readonly<{ isRunning: boolean }>) {
         ? index + 1
         : undefined;
     const hasAssistantMessage = message.role === "assistant" || assistantIndex !== undefined;
-    const assistantMessage =
-      hasAssistantMessage && messages[assistantIndex ?? index]?.role === "assistant"
-        ? messages[assistantIndex ?? index]
-        : undefined;
     const pairMessageIndex = assistantIndex ?? index;
     const showWorkingStatus = shouldShowWorkingStatus({
       isLastPair: isLastConversationPair(messages, pairMessageIndex),
       threadIsRunning: isRunning,
-      assistantStatus: assistantMessage?.status,
     });
     const hasAssistantTurn = hasAssistantMessage || showWorkingStatus;
 
@@ -725,15 +717,32 @@ export function WorkbenchThread() {
   }, [rememberCurrentScrollPosition, stopScrollRestoration]);
 
   useLayoutEffect(() => {
-    const runStarted = !previousIsRunning.current && isRunning;
+    const wasRunning = previousIsRunning.current;
+    const runStarted = !wasRunning && isRunning;
+    const runFinishedAtBottom = wasRunning && !isRunning && wasAtBottom.current;
     previousIsRunning.current = isRunning;
-    if (!runStarted) return;
 
-    // ThreadPrimitive schedules its run-start scroll for the next frame. Cancel any progressive
-    // history restoration before then so that assistant-ui remains the only writer for this run.
-    stopScrollRestoration();
+    if (runStarted) {
+      // ThreadPrimitive schedules its run-start scroll for the next frame. Cancel any progressive
+      // history restoration before then so that assistant-ui remains the only writer for this run.
+      stopScrollRestoration();
+      wasAtBottom.current = true;
+      return;
+    }
+
+    if (!runFinishedAtBottom) return;
+
+    // The final content update and the running -> complete transition can share one React commit.
+    // autoScroll is disabled for that completed render, so preserve an existing bottom-follow
+    // intent across the final Markdown reflow and action-bar layout without reclaiming users who
+    // deliberately scrolled up during the run.
+    scrollToBottom();
     wasAtBottom.current = true;
-  }, [isRunning, stopScrollRestoration]);
+    const frame = window.requestAnimationFrame(() => {
+      if (wasAtBottom.current) scrollToBottom();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [isRunning, scrollToBottom, stopScrollRestoration]);
 
   return (
     <ThreadPrimitive.Root

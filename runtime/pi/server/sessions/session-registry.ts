@@ -1106,7 +1106,13 @@ class HostedPiSession {
     return this.alive;
   }
 
+  /** Pi-authoritative run state; do not fold Workbench-owned cleanup or preprocessing into it. */
   get isRunning(): boolean {
+    return this.session.isStreaming;
+  }
+
+  /** Workbench-owned activity that must finish before mutating or releasing this host. */
+  get isBusy(): boolean {
     return (
       this.submissionLeaseActive ||
       this.imageRecognitionAbort !== undefined ||
@@ -1615,7 +1621,7 @@ class HostedPiSession {
   async refreshContextPolicyValue(): Promise<SessionContextPolicyValue> {
     return this.runQueueMutation(async () => {
       const current = this.session.model;
-      if (current && !this.isRunning) {
+      if (current && !this.isBusy) {
         await this.refreshChangedModelProvider(current.provider);
         const refreshedModel = this.session.modelRuntime
           .getAvailableSnapshot()
@@ -1632,7 +1638,7 @@ class HostedPiSession {
 
   updateContextPolicy(policy: SessionContextPolicy): Promise<SessionContextPolicyValue> {
     return this.runQueueMutation(async () => {
-      if (this.isRunning) throw new PiServerError("pi_session_busy", 409);
+      if (this.isBusy) throw new PiServerError("pi_session_busy", 409);
       const normalized = normalizeSessionContextPolicy(policy);
       if (!normalized) throw new PiServerError("pi_invalid_context_policy", 400);
       this.session.sessionManager.appendCustomEntry(
@@ -1648,7 +1654,7 @@ class HostedPiSession {
 
   compactContextNow(): Promise<SessionCompactValue> {
     return this.runQueueMutation(async () => {
-      if (this.isRunning) throw new PiServerError("pi_session_busy", 409);
+      if (this.isBusy) throw new PiServerError("pi_session_busy", 409);
       this.applyContextCompactionOverrides();
       this.applyContextPolicyToCurrentModel();
       await this.session.compact();
@@ -1672,7 +1678,7 @@ class HostedPiSession {
         this.pausedQueue &&
         (this.pausedQueue.steering.length > 0 || this.pausedQueue.followUp.length > 0),
       );
-      if (this.isRunning || hasPausedPrompts) {
+      if (this.isBusy || hasPausedPrompts) {
         this.touch();
         return;
       }
@@ -1910,7 +1916,7 @@ class HostedPiSession {
 
   selectBranch(leafId: string): Promise<void> {
     return this.runQueueMutation(async () => {
-      if (this.isRunning) throw new PiServerError("pi_session_busy", 409);
+      if (this.isBusy) throw new PiServerError("pi_session_busy", 409);
       this.activateBranch(leafId, true);
       await this.syncContextPolicyFromBranch();
     });
@@ -1918,7 +1924,7 @@ class HostedPiSession {
 
   regenerate(messageId: string): Promise<void> {
     return this.runQueueMutation(async () => {
-      if (this.isRunning) throw new PiServerError("pi_session_busy", 409);
+      if (this.isBusy) throw new PiServerError("pi_session_busy", 409);
       const manager = this.session.sessionManager;
       const selectedEntry = manager.getEntry(messageId);
       const event = selectedEntry ? storedCanonicalEvent(selectedEntry) : undefined;
@@ -1981,7 +1987,7 @@ class HostedPiSession {
 
   resume(checkpointId: string, expectedLeafId: string): Promise<void> {
     return this.runQueueMutation(async () => {
-      if (this.isRunning) throw new PiServerError("pi_session_busy", 409);
+      if (this.isBusy) throw new PiServerError("pi_session_busy", 409);
       const manager = this.session.sessionManager;
       if (manager.getLeafId() !== expectedLeafId) {
         throw new PiServerError("pi_resume_stale", 409);
@@ -2543,10 +2549,10 @@ class HostedPiSession {
     return this.runQueueMutation(async () => {
       let submissionLeaseAcquired = false;
       try {
-        if (options.requireIdle && this.isRunning) {
+        if (options.requireIdle && this.isBusy) {
           throw new PiServerError("pi_session_busy", 409);
         }
-        if (options.requireRunning && !this.isRunning) {
+        if (options.requireRunning && !this.hasActiveAgentRun) {
           throw new PiServerError("pi_session_not_running", 409);
         }
         if (provenance?.rpcId && this.cancelledQueueItemIds.delete(provenance.rpcId)) {
@@ -2731,7 +2737,7 @@ class HostedPiSession {
   }
 
   async cancel(): Promise<void> {
-    if (this.isRunning) {
+    if (this.isBusy) {
       this.session.sessionManager.appendCustomEntry(PI_CANCEL_INTENT_CUSTOM_TYPE, {
         requestedAt: Date.now(),
         source: "workbench",
@@ -2757,7 +2763,7 @@ class HostedPiSession {
     prompt: PiQueuedPrompt,
     requestedId?: string,
   ): Promise<string> {
-    if (!this.isRunning) throw new PiServerError("pi_session_not_running", 409);
+    if (!this.hasActiveAgentRun) throw new PiServerError("pi_session_not_running", 409);
     if (prompt.documents?.length) throw documentPreprocessingRequired();
     if (prompt.images?.length && !this.session.model?.input.includes("image")) {
       throw imageUnsupported();
@@ -2788,7 +2794,7 @@ class HostedPiSession {
     this.session.clearQueue();
     const firstSteering = queue.steering[0];
     const firstFollowUp = queue.followUp[0];
-    if (!this.isRunning && (firstSteering || firstFollowUp)) {
+    if (!this.hasActiveAgentRun && (firstSteering || firstFollowUp)) {
       const first = firstSteering ?? firstFollowUp!;
       await this.promptNow(first.message, first.images);
       if (firstSteering) queue.steering.shift();
@@ -2893,7 +2899,7 @@ class HostedPiSession {
     this.suppressQueueUpdates += 1;
     try {
       this.session.clearQueue();
-      if (this.isRunning) await this.session.steer(prompt.message, prompt.images);
+      if (this.hasActiveAgentRun) await this.session.steer(prompt.message, prompt.images);
       else await this.promptNow(prompt.message, prompt.images);
       for (const queued of remaining.steering) {
         await this.session.steer(queued.message, queued.images);
@@ -2972,7 +2978,7 @@ class HostedPiSession {
       }
       throw new PiServerError("pi_queue_item_not_found", 404);
     }
-    if (mutation.kind === "steer" && (item.lane !== "followUp" || !this.isRunning)) {
+    if (mutation.kind === "steer" && (item.lane !== "followUp" || !this.hasActiveAgentRun)) {
       throw new PiServerError("pi_steer_unavailable", 409);
     }
 
@@ -3038,7 +3044,7 @@ class HostedPiSession {
     const recognitionCompletion = this.imageRecognitionCompletion;
     this.imageRecognitionAbort?.abort();
     try {
-      if (this.isRunning) await this.session.abort();
+      if (this.isBusy) await this.session.abort();
       await recognitionCompletion?.catch(() => undefined);
     } catch {
       // Disposal below remains authoritative.
@@ -3546,7 +3552,7 @@ export async function forkSession(id: string, atSeq?: number): Promise<HostedPiS
     const starting = registry.startLocks.get(id);
     if (starting) live = await starting;
   }
-  if (live?.isAlive && live.isRunning && atSeq === undefined) throw forkUnavailable();
+  if (live?.isAlive && live.isBusy && atSeq === undefined) throw forkUnavailable();
 
   let sourcePath = live?.session.sessionManager.getSessionFile() ?? undefined;
   if (!sourcePath || !existsSync(/* turbopackIgnore: true */ sourcePath)) {
@@ -3562,14 +3568,14 @@ export async function forkSession(id: string, atSeq?: number): Promise<HostedPiS
   return serializeForkCreation(async () => {
     if (
       !existsSync(/* turbopackIgnore: true */ resolvedSourcePath) ||
-      (atSeq === undefined && registry.sessions.get(id)?.isRunning)
+      (atSeq === undefined && registry.sessions.get(id)?.isBusy)
     ) {
       throw forkUnavailable();
     }
     const occupiedIds = new Set((await SessionManager.listAll()).map((session) => session.id));
     if (
       !existsSync(/* turbopackIgnore: true */ resolvedSourcePath) ||
-      (atSeq === undefined && registry.sessions.get(id)?.isRunning)
+      (atSeq === undefined && registry.sessions.get(id)?.isBusy)
     ) {
       throw forkUnavailable();
     }
@@ -4426,7 +4432,7 @@ function resumeStateFromManager(
 export async function getSessionResumeState(id: string): Promise<SessionResumeState> {
   const live = state().sessions.get(id);
   if (live?.isAlive) {
-    if (live.isRunning) return {};
+    if (live.isBusy) return {};
     return resumeStateFromManager(live.session.sessionManager, live.canonicalEvents);
   }
   const info = await persistedSession(id);

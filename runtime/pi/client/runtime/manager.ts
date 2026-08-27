@@ -1234,10 +1234,21 @@ export class PiClientSession {
     void this.manager.connections.ensureSessionEvents(this.remoteIdValue, this.handleEvent);
   }
 
-  setRunningFromManager(running: boolean, runTiming?: PiRunTiming): void {
+  setRunningFromManager(
+    running: boolean,
+    runTiming?: PiRunTiming,
+    authoritativeBaseline = false,
+  ): void {
     if (this.disposed) return;
     if (running && this.terminalResponseReceived) return;
-    if (!running && this.localRunLeaseActive) return;
+    if (!running && this.localRunLeaseActive) {
+      // Live host and mux frames can cross on their independent sockets, so an idle host frame
+      // cannot end a locally submitted run before its durable terminal event arrives. A unary
+      // rebaseline after reconnect is different: once prompt admission has completed it is the
+      // authoritative recovery path when message_end/agent_settled was missed.
+      if (!authoritativeBaseline || this.promptRequestPending) return;
+      this.clearLocalRunLease();
+    }
     const wasRunning = this.snapshotValue.isRunning;
     if (!running && this.discardEmptyOptimisticAssistant()) {
       const messages = this.currentMessages();
@@ -3147,7 +3158,7 @@ export class PiSessionManager {
           [...next.values()].filter((summary) => summary.running).map((summary) => summary.id),
         );
         this.connections.replaceRunningBaseline([...nextRunning]);
-        this.applyRunningSnapshot([...nextRunning]);
+        this.applyRunningSnapshot([...nextRunning], true);
         this.notify();
         this.notifyThreadListIfStructureChanged();
       })
@@ -3565,10 +3576,20 @@ export class PiSessionManager {
     this.acknowledgeThreadListStructure();
   }
 
-  private readonly applyRunningSnapshot = (sessionIds: string[]): void => {
+  private readonly applyRunningSnapshot = (
+    sessionIds: string[],
+    authoritativeBaseline = false,
+  ): void => {
     if (this.disposed) return;
     const next = new Set(sessionIds);
     const all = new Set([...this.running, ...next]);
+    // A live host idle frame may have already removed the manager-level running bit while the
+    // session correctly retained its local lease awaiting the ordered mux terminal boundary.
+    // Include those locally-running sessions so a later unary rebaseline can repair the split.
+    for (const session of this.sessions.values()) {
+      const remoteId = session.remoteId;
+      if (remoteId && session.getSnapshot().isRunning) all.add(remoteId);
+    }
     for (const id of all) {
       const running = next.has(id);
       this.updateRunning(
@@ -3576,6 +3597,7 @@ export class PiSessionManager {
         running,
         undefined,
         running ? this.summaries.get(id)?.runTiming : undefined,
+        authoritativeBaseline,
       );
     }
   };
@@ -3585,6 +3607,7 @@ export class PiSessionManager {
     running: boolean,
     source?: PiClientSession,
     runTiming?: PiRunTiming,
+    authoritativeBaseline = false,
   ): void {
     if (this.disposed) return;
     if (running && runTiming !== undefined) this.observeRunTiming(remoteId, runTiming);
@@ -3612,7 +3635,9 @@ export class PiSessionManager {
     }
 
     const session = this.sessions.get(remoteId);
-    if (session && session !== source) session.setRunningFromManager(running, runTiming);
+    if (session && session !== source) {
+      session.setRunningFromManager(running, runTiming, authoritativeBaseline);
+    }
     if (wasRunning && !running && this.activeRemoteId !== remoteId) this.completed.add(remoteId);
     if (running) this.completed.delete(remoteId);
     if (wasRunning !== running) this.notify();
