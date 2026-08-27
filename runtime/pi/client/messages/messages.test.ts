@@ -26,6 +26,8 @@ import {
 import { WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME } from "@/runtime/pi/client/context-trace/data-part";
 import type { SessionContextTraceEventSummary } from "@/runtime/pi/contracts/rpc";
 import {
+  LEGACY_STRUCTURED_WORKBENCH_COMPOSER_USER_CUSTOM_TYPE,
+  LEGACY_WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE,
   WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE,
   WORKBENCH_COMPOSER_RESOLUTION_CUSTOM_TYPE,
   WORKBENCH_COMPOSER_RUN_CONFIG_KEY,
@@ -341,7 +343,7 @@ test("folds attachment recognition into the assistant message and preserves imag
       messages: [
         {
           role: "custom",
-          customType: WORKBENCH_COMPOSER_USER_CUSTOM_TYPE,
+          customType: LEGACY_STRUCTURED_WORKBENCH_COMPOSER_USER_CUSTOM_TYPE,
           content: "",
           display: false,
           details: {
@@ -410,7 +412,7 @@ test("folds attachment recognition into the assistant message and preserves imag
           role: "user",
           content: "<workbench-untrusted-context>recognized</workbench-untrusted-context>",
           workbenchComposer: {
-            version: 1,
+            version: 2,
             submissionId: "submission-images",
             sourceText: "Read this image",
             document: [{ type: "text", text: "Read this image" }],
@@ -487,7 +489,7 @@ test("keeps a failed recognition on its unresolved originating turn when newer t
       messages: [
         {
           role: "custom",
-          customType: WORKBENCH_COMPOSER_USER_CUSTOM_TYPE,
+          customType: LEGACY_STRUCTURED_WORKBENCH_COMPOSER_USER_CUSTOM_TYPE,
           content: "",
           display: false,
           details: {
@@ -594,7 +596,7 @@ test("renders token-only Composer source text in its optimistic user bubble", ()
 
   assert.deepEqual(optimistic.content, [{ type: "text", text: sourceText }]);
   assert.deepEqual(optimistic.metadata.custom.workbenchComposerDocument, [
-    { type: "command", ...command },
+    { type: "command", ...command, source: "agent" },
     { type: "text", text: " " },
   ]);
 });
@@ -622,13 +624,13 @@ test("uses the compiled Workbench composer text only at the Pi prompt boundary",
 });
 
 test("keeps panel arguments separate from ordinary text at the Pi prompt boundary", () => {
-  const sourceText = ":pi-command[compact|Compact] Continue reviewing tests";
+  const sourceText = ":agent-command[compact|Compact] Continue reviewing tests";
   const command = {
-    id: "command:pi:compact:0",
+    id: "command:agent:compact:0",
     commandId: "compact",
     label: "Compact",
     scope: "message" as const,
-    source: "pi" as const,
+    source: "agent" as const,
     args: { customInstructions: "Focus on concurrency changes" },
   };
   const prompt = appendMessageToPiPrompt({
@@ -637,7 +639,7 @@ test("keeps panel arguments separate from ordinary text at the Pi prompt boundar
     runConfig: {
       custom: {
         [WORKBENCH_COMPOSER_RUN_CONFIG_KEY]: {
-          version: 1,
+          version: 2,
           document: [
             { type: "command", ...command },
             { type: "text", text: " Continue reviewing tests" },
@@ -660,7 +662,7 @@ test("keeps panel arguments separate from ordinary text at the Pi prompt boundar
 });
 
 test("restores the canonical Composer document, resolution trace, and one projected user bubble", () => {
-  const sourceText = ":pi-command[plan|Plan] inspect this";
+  const sourceText = ":agent-command[plan|Plan] inspect this";
   const history: PiSessionHistory = {
     sessionId: "session",
     context: {
@@ -674,28 +676,28 @@ test("restores the canonical Composer document, resolution trace, and one projec
           content: "",
           display: false,
           details: {
-            version: 2,
+            version: 3,
             submissionId: "submission-1",
             sourceText,
             text: "inspect this",
             document: [
               {
                 type: "command",
-                id: "command:pi:plan:0",
+                id: "command:agent:plan:0",
                 commandId: "plan",
                 label: "Plan",
                 scope: "message",
-                source: "pi",
+                source: "agent",
               },
               { type: "text", text: " inspect this" },
             ],
             commands: [
               {
-                id: "command:pi:plan:0",
+                id: "command:agent:plan:0",
                 commandId: "plan",
                 label: "Plan",
                 scope: "message",
-                source: "pi",
+                source: "agent",
               },
             ],
             status: "accepted",
@@ -708,12 +710,12 @@ test("restores the canonical Composer document, resolution trace, and one projec
           content: "",
           display: false,
           details: {
-            version: 1,
+            version: 2,
             submissionId: "submission-1",
             status: "resolved",
             commandTrace: [
               {
-                source: "pi",
+                source: "agent",
                 commandId: "plan",
                 label: "Plan",
                 scope: "message",
@@ -735,7 +737,7 @@ test("restores the canonical Composer document, resolution trace, and one projec
           ],
           timestamp: 12,
           workbenchComposer: {
-            version: 1,
+            version: 2,
             submissionId: "submission-1",
             sourceText,
             hidden: true,
@@ -762,7 +764,7 @@ test("restores the canonical Composer document, resolution trace, and one projec
   assert.equal(user.metadata.custom.workbenchComposerStatus, "resolved");
   assert.deepEqual(user.metadata.custom.workbenchComposerCommandTrace, [
     {
-      source: "pi",
+      source: "agent",
       commandId: "plan",
       label: "Plan",
       scope: "message",
@@ -773,11 +775,11 @@ test("restores the canonical Composer document, resolution trace, and one projec
   assert.deepEqual(user.metadata.custom.workbenchComposerDocument, [
     {
       type: "command",
-      id: "command:pi:plan:0",
+      id: "command:agent:plan:0",
       commandId: "plan",
       label: "Plan",
       scope: "message",
-      source: "pi",
+      source: "agent",
     },
     { type: "text", text: " inspect this" },
   ]);
@@ -806,7 +808,7 @@ test("places a resolved follow-up Composer message after the assistant turn it w
           content: "",
           display: false,
           details: {
-            version: 2,
+            version: 3,
             submissionId: "submission-follow-up",
             sourceText: "你",
             text: "你",
@@ -822,7 +824,7 @@ test("places a resolved follow-up Composer message after the assistant turn it w
           content: "",
           display: false,
           details: {
-            version: 1,
+            version: 2,
             submissionId: "submission-follow-up",
             status: "resolved",
             commandTrace: [],
@@ -839,7 +841,7 @@ test("places a resolved follow-up Composer message after the assistant turn it w
           content: "你",
           timestamp: 40,
           workbenchComposer: {
-            version: 1,
+            version: 2,
             submissionId: "submission-follow-up",
             sourceText: "你",
             document: [{ type: "text", text: "你" }],
@@ -875,21 +877,21 @@ test("places a resolved follow-up Composer message after the assistant turn it w
 });
 
 test("uses the projected token source when a partial history page omits the Composer marker", () => {
-  const sourceText = ":pi-command[compact|Compact] keep decisions continue";
+  const sourceText = ":agent-command[compact|Compact] keep decisions continue";
   const document = [
     {
       type: "command" as const,
-      id: "command:pi:compact:0",
+      id: "command:agent:compact:0",
       commandId: "compact",
       label: "Compact",
       scope: "message" as const,
-      source: "pi" as const,
+      source: "agent" as const,
       args: { customInstructions: "keep decisions" },
     },
     {
       type: "command-argument" as const,
-      id: "argument:command:pi:compact:0:customInstructions",
-      commandNodeId: "command:pi:compact:0",
+      id: "argument:command:agent:compact:0:customInstructions",
+      commandNodeId: "command:agent:compact:0",
       field: "customInstructions",
       text: " keep decisions",
     },
@@ -906,7 +908,7 @@ test("uses the projected token source when a partial history page omits the Comp
           role: "user",
           content: "<workbench-composer-context>resolved</workbench-composer-context>",
           workbenchComposer: {
-            version: 1,
+            version: 2,
             submissionId: "submission-2",
             sourceText,
             document,
@@ -1714,7 +1716,7 @@ test("preserves conversation event metadata on system messages", () => {
   });
 });
 
-test("projects a persisted built-in command outcome as a system response", () => {
+test("normalizes a persisted Pi built-in command outcome as an Agent response", () => {
   const history: PiSessionHistory = {
     sessionId: "session",
     context: {
@@ -1725,7 +1727,7 @@ test("projects a persisted built-in command outcome as a system response", () =>
       messages: [
         {
           role: "custom",
-          customType: WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE,
+          customType: LEGACY_WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE,
           content: "",
           display: true,
           details: {
@@ -1745,9 +1747,9 @@ test("projects a persisted built-in command outcome as a system response", () =>
   assert.equal(message?.role, "system");
   assert.equal(message?.createdAt.getTime(), 6_000);
   assert.deepEqual(message?.metadata.custom.workbenchComposerCommandResponse, {
-    version: 1,
+    version: 2,
     submissionId: "submission-1",
-    source: "pi",
+    source: "agent",
     commandId: "reload",
     label: "Reload",
     status: "success",
@@ -1775,9 +1777,9 @@ test("merges a successful compact response into its existing compaction event", 
           content: "",
           display: true,
           details: {
-            version: 1,
+            version: 2,
             submissionId: "submission-compact",
-            source: "pi",
+            source: "agent",
             commandId: "compact",
             label: "Compact",
             status: "success",
@@ -1790,9 +1792,9 @@ test("merges a successful compact response into its existing compaction event", 
   const messages = piHistoryToThreadMessages(history);
   assert.equal(messages.length, 1);
   assert.deepEqual(messages[0]?.metadata.custom.workbenchComposerCommandResponse, {
-    version: 1,
+    version: 2,
     submissionId: "submission-compact",
-    source: "pi",
+    source: "agent",
     commandId: "compact",
     label: "Compact",
     status: "success",
@@ -1814,9 +1816,9 @@ test("reduces the compact command lifecycle to one final system message", () => 
           content: "",
           display: true,
           details: {
-            version: 1,
+            version: 2,
             submissionId: "submission-state-machine",
-            source: "pi",
+            source: "agent",
             commandId: "compact",
             label: "Compact",
             status: "running",
@@ -1835,9 +1837,9 @@ test("reduces the compact command lifecycle to one final system message", () => 
           content: "",
           display: true,
           details: {
-            version: 1,
+            version: 2,
             submissionId: "submission-state-machine",
-            source: "pi",
+            source: "agent",
             commandId: "compact",
             label: "Compact",
             status: "success",
@@ -1864,9 +1866,9 @@ test("reduces the compact command lifecycle to one final system message", () => 
 
 test("reduces a failed command lifecycle to one final error message", () => {
   const base = {
-    version: 1 as const,
+    version: 2 as const,
     submissionId: "submission-error",
-    source: "pi" as const,
+    source: "agent" as const,
     commandId: "compact",
     label: "Compact",
   };

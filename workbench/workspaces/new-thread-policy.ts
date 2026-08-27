@@ -67,31 +67,6 @@ export function resolvePromotedThreadRouteId({
   return remoteId ?? externalId;
 }
 
-export function resolvePendingThreadPromotionId({
-  pendingThreadId,
-  mainThreadId,
-  status,
-  remoteId,
-  hasMessages,
-}: {
-  pendingThreadId: string | undefined;
-  mainThreadId: string | undefined;
-  status: string | undefined;
-  remoteId: string | undefined;
-  hasMessages: boolean;
-}): string | undefined {
-  if (!mainThreadId || status !== "regular") return undefined;
-  if (pendingThreadId && pendingThreadId !== mainThreadId) pendingThreadId = undefined;
-
-  // assistant-ui initializes the remote thread before invoking `onNew`. A thread-list
-  // reload in that gap replaces the promoted draft generation and silently drops its
-  // first message. Remember that promotion until the optimistic user message proves
-  // `onNew` has started; an already-persisted empty remote thread never enters this path.
-  if (!remoteId) return mainThreadId;
-  if (pendingThreadId === mainThreadId && !hasMessages) return mainThreadId;
-  return undefined;
-}
-
 export function resolveSidebarThreadWorkspaceId({
   customWorkspaceId,
   managedWorkspaceId,

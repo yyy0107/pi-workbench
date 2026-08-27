@@ -35,7 +35,13 @@ export const COMPOSER_COMMAND_EFFECTS = [
 
 export type ComposerCommandEffect = (typeof COMPOSER_COMMAND_EFFECTS)[number];
 export type ComposerCommandScope = "message" | "segment";
-export type ComposerCommandSource = "workbench" | "pi";
+/**
+ * The owner of a Composer command at the product boundary.
+ *
+ * Runtime implementations (Pi, Codex, Claude Code, and others) are deliberately represented by
+ * `agent`. Their implementation identity must not leak into drafts, RPC requests, or history.
+ */
+export type ComposerCommandSource = "workbench" | "agent";
 
 export interface ComposerCommandSubmission {
   readonly id: string;
@@ -97,7 +103,7 @@ export interface ComposerContextSubmission {
 
 /** Current canonical request emitted by the Composer compiler. */
 export interface CanonicalComposerRequest {
-  readonly version: 1;
+  readonly version: 2;
   readonly document: ComposerDocument;
   readonly sourceText: string;
   readonly text: string;
@@ -108,14 +114,14 @@ export interface CanonicalComposerRequest {
   readonly commands: readonly ComposerCommandSubmission[];
 }
 
-/** Wire-compatible request. `document` is optional only for pre-document v1 clients. */
+/** Normalized request. `document` remains optional only after reading a pre-document v1 request. */
 export type ComposerSubmission = Omit<CanonicalComposerRequest, "document"> & {
   readonly document?: ComposerDocument;
 };
 
 /** Hidden structural marker persisted alongside the visible user message. */
 export interface ComposerUserProjection {
-  readonly version: 1;
+  readonly version: 2;
   readonly submissionId: string;
   readonly sourceText: string;
   readonly document?: ComposerDocument;

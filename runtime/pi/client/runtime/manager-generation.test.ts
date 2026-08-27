@@ -3049,6 +3049,9 @@ test("publishes thread-list invalidation after applying an archive host delta", 
     },
     1,
   );
+  const adapter = manager.createThreadListAdapter();
+  await adapter.list();
+  assert.equal(manager.getThreadListRevision(), 0);
 
   let invalidations = 0;
   const unsubscribe = manager.subscribeThreadList(() => {
@@ -3066,8 +3069,169 @@ test("publishes thread-list invalidation after applying an archive host delta", 
   );
 
   assert.equal(invalidations, 1);
-  const listed = await manager.createThreadListAdapter().list();
+  assert.equal(manager.getThreadListRevision(), 1);
+  const listed = await adapter.list();
   assert.equal(listed.threads[0]?.status, "archived");
+});
+
+test("publishes only structural thread-list host deltas", async (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const internals = manager as unknown as {
+    start(): Promise<void>;
+    handleHostFrame(payload: HostStreamPayload, generation: number): void;
+  };
+  internals.start = async () => {};
+  const adapter = manager.createThreadListAdapter();
+  await adapter.list();
+
+  let invalidations = 0;
+  const unsubscribe = manager.subscribeThreadList(() => {
+    invalidations += 1;
+  });
+  t.after(unsubscribe);
+
+  const created = summary();
+  internals.handleHostFrame(
+    {
+      type: "host/session-added",
+      sessionId: created.id,
+      blank: false,
+      summary: created,
+      cwd: created.cwd,
+    },
+    1,
+  );
+  assert.equal(manager.getThreadListRevision(), 1);
+  assert.equal(invalidations, 1);
+
+  internals.handleHostFrame(
+    {
+      type: "host/session-changed",
+      sessionId: created.id,
+      summary: { ...created, name: "Metadata-only rename" },
+    },
+    1,
+  );
+  internals.handleHostFrame(
+    { type: "host/session-status", sessionId: created.id, running: true },
+    1,
+  );
+  assert.equal(manager.getThreadListRevision(), 1);
+  assert.equal(invalidations, 1);
+
+  internals.handleHostFrame({ type: "host/session-removed", sessionId: created.id }, 1);
+  assert.equal(manager.getThreadListRevision(), 2);
+  assert.equal(invalidations, 2);
+  assert.deepEqual((await adapter.list()).threads, []);
+});
+
+test("publishes thread-list invalidation when pinning changes order", async (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const internals = manager as unknown as {
+    start(): Promise<void>;
+    handleHostFrame(payload: HostStreamPayload, generation: number): void;
+  };
+  internals.start = async () => {};
+
+  for (const created of [summary({ id: "thread-a" }), summary({ id: "thread-b" })]) {
+    internals.handleHostFrame(
+      {
+        type: "host/session-added",
+        sessionId: created.id,
+        blank: false,
+        summary: created,
+        cwd: created.cwd,
+      },
+      1,
+    );
+  }
+  const adapter = manager.createThreadListAdapter();
+  await adapter.list();
+
+  let invalidations = 0;
+  const unsubscribe = manager.subscribeThreadList(() => {
+    invalidations += 1;
+  });
+  t.after(unsubscribe);
+
+  internals.handleHostFrame(
+    { type: "host/session-pinned-changed", sessionId: "thread-b", pinned: true },
+    1,
+  );
+  assert.equal(manager.getThreadListRevision(), 1);
+  assert.equal(invalidations, 1);
+  assert.deepEqual(
+    (await adapter.list()).threads.map((thread) => thread.remoteId),
+    ["thread-b", "thread-a"],
+  );
+});
+
+test("publishes thread-list invalidation when workspace order changes thread order", async (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const internals = manager as unknown as {
+    start(): Promise<void>;
+    handleHostFrame(payload: HostStreamPayload, generation: number): void;
+  };
+  internals.start = async () => {};
+
+  for (const created of [summary({ id: "thread-a" }), summary({ id: "thread-b" })]) {
+    internals.handleHostFrame(
+      {
+        type: "host/session-added",
+        sessionId: created.id,
+        blank: false,
+        summary: created,
+        cwd: created.cwd,
+      },
+      1,
+    );
+  }
+  const workspace = (workspaceId: string, sessionId: string) => ({
+    workspaceId,
+    path: `/workspace/${workspaceId}`,
+    title: workspaceId,
+    sessionIds: [sessionId],
+    createdAt: "2026-08-20T00:00:00.000Z",
+    updatedAt: "2026-08-20T00:00:01.000Z",
+  });
+  internals.handleHostFrame(
+    { type: "host/workspace-changed", workspace: workspace("workspace-a", "thread-a") },
+    1,
+  );
+  internals.handleHostFrame(
+    { type: "host/workspace-changed", workspace: workspace("workspace-b", "thread-b") },
+    1,
+  );
+
+  const adapter = manager.createThreadListAdapter();
+  assert.deepEqual(
+    (await adapter.list()).threads.map((thread) => thread.remoteId),
+    ["thread-a", "thread-b"],
+  );
+
+  let invalidations = 0;
+  const unsubscribe = manager.subscribeThreadList(() => {
+    invalidations += 1;
+  });
+  t.after(unsubscribe);
+
+  internals.handleHostFrame(
+    {
+      type: "host/workspace-order-changed",
+      workspaceIds: ["workspace-b", "workspace-a"],
+    },
+    1,
+  );
+
+  assert.equal(manager.getThreadListRevision(), 1);
+  assert.equal(invalidations, 1);
+  assert.deepEqual(
+    (await adapter.list()).threads.map((thread) => thread.remoteId),
+    ["thread-b", "thread-a"],
+  );
 });
 
 test("does not expose a remote duplicate while the same browser promotes its draft", async (t) => {

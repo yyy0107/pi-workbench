@@ -201,6 +201,12 @@ export interface LocalAppOpenValue {
   opened: true;
 }
 
+/** Maximum length of a normalized workspace-relative path accepted by the file protocol. */
+export const WORKSPACE_FILE_RELATIVE_PATH_LENGTH_LIMIT = 16_384;
+
+/** Maximum UTF-8 text content accepted by editable Workspace file snapshots. */
+export const WORKSPACE_FILE_EDITABLE_SIZE_LIMIT = 5 * 1024 * 1024;
+
 export interface WorkspaceFileEntry {
   name: string;
   relativePath: string;
@@ -1183,7 +1189,9 @@ export interface SessionListValue {
   items: SessionListItem[];
 }
 
-export type ExternalSessionSource = "codex" | "claude-code" | "cursor";
+export const EXTERNAL_SESSION_SOURCES = ["codex", "claude-code", "cursor"] as const;
+
+export type ExternalSessionSource = (typeof EXTERNAL_SESSION_SOURCES)[number];
 
 export type ExternalSessionImportIssue =
   | "source-unavailable"

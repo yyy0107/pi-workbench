@@ -5,13 +5,13 @@ import type { ComposerCommandDefinition, ComposerCommandRegistry } from "@/platf
 
 import {
   applyComposerCommandArguments,
+  AGENT_COMMAND_DIRECTIVE_TYPE,
+  AGENT_PROJECT_SKILL_DIRECTIVE_TYPE,
+  AGENT_USER_SKILL_DIRECTIVE_TYPE,
   compileComposerDocument,
   composerCommandArgumentKey,
   composerDocumentText,
   parseComposerDocument,
-  PI_COMMAND_DIRECTIVE_TYPE,
-  PI_PROJECT_SKILL_DIRECTIVE_TYPE,
-  PI_USER_SKILL_DIRECTIVE_TYPE,
   WORKBENCH_COMMAND_DIRECTIVE_TYPE,
   workbenchComposerDirectiveFormatter,
 } from "./composer-document";
@@ -42,18 +42,18 @@ function definition(
   };
 }
 
-test("formatter round-trips Workbench and Pi directives without parsing ordinary text", () => {
+test("formatter round-trips Workbench and Agent directives without parsing ordinary text", () => {
   const workbench = workbenchComposerDirectiveFormatter.serialize({
     id: "review:1",
     type: WORKBENCH_COMMAND_DIRECTIVE_TYPE,
     label: "Review ] safely",
   });
-  const pi = workbenchComposerDirectiveFormatter.serialize({
+  const agent = workbenchComposerDirectiveFormatter.serialize({
     id: "create-skill",
-    type: PI_COMMAND_DIRECTIVE_TYPE,
+    type: AGENT_COMMAND_DIRECTIVE_TYPE,
     label: "Create Skill",
   });
-  const text = `before ${workbench} middle ${pi} after :other[value]`;
+  const text = `before ${workbench} middle ${agent} after :other[value]`;
 
   assert.deepEqual(workbenchComposerDirectiveFormatter.parse(text), [
     { kind: "text", text: "before " },
@@ -66,7 +66,7 @@ test("formatter round-trips Workbench and Pi directives without parsing ordinary
     { kind: "text", text: " middle " },
     {
       kind: "mention",
-      type: PI_COMMAND_DIRECTIVE_TYPE,
+      type: AGENT_COMMAND_DIRECTIVE_TYPE,
       id: "create-skill",
       label: "Create Skill",
     },
@@ -74,30 +74,30 @@ test("formatter round-trips Workbench and Pi directives without parsing ordinary
   ]);
 });
 
-test("parser decodes the persisted localized Pi command label used by user bubbles", () => {
+test("parser decodes and normalizes a persisted localized Pi command", () => {
   const [command] = parseComposerDocument(
     ":pi-command[compact|%E5%8E%8B%E7%BC%A9%E4%B8%8A%E4%B8%8B%E6%96%87]",
   );
 
   assert.deepEqual(command, {
     type: "command",
-    id: "command:pi:compact:0",
+    id: "command:agent:compact:0",
     commandId: "compact",
     label: "压缩上下文",
     scope: "message",
-    source: "pi",
+    source: "agent",
   });
 });
 
 test("formatter persists explicitly selected Skills as canonical skill links", () => {
   const projectSkill = workbenchComposerDirectiveFormatter.serialize({
     id: "skill:mcp-scripting",
-    type: PI_PROJECT_SKILL_DIRECTIVE_TYPE,
+    type: AGENT_PROJECT_SKILL_DIRECTIVE_TYPE,
     label: "Mcp Scripting",
   });
   const userSkill = workbenchComposerDirectiveFormatter.serialize({
     id: "skill:personal-notes",
-    type: PI_USER_SKILL_DIRECTIVE_TYPE,
+    type: AGENT_USER_SKILL_DIRECTIVE_TYPE,
     label: "Personal Notes",
   });
 
@@ -106,14 +106,14 @@ test("formatter persists explicitly selected Skills as canonical skill links", (
   assert.deepEqual(workbenchComposerDirectiveFormatter.parse(`${projectSkill} ${userSkill}`), [
     {
       kind: "mention",
-      type: PI_PROJECT_SKILL_DIRECTIVE_TYPE,
+      type: AGENT_PROJECT_SKILL_DIRECTIVE_TYPE,
       id: "skill:mcp-scripting",
       label: "Mcp Scripting",
     },
     { kind: "text", text: " " },
     {
       kind: "mention",
-      type: PI_USER_SKILL_DIRECTIVE_TYPE,
+      type: AGENT_USER_SKILL_DIRECTIVE_TYPE,
       id: "skill:personal-notes",
       label: "Personal Notes",
     },
@@ -130,7 +130,7 @@ test("compiler upgrades legacy Skill directives to canonical skill links", () =>
     {
       invocationName: "skill:mcp-scripting",
       kind: "skill",
-      scope: "project",
+      source: { scope: "project" },
       exclusive: false,
     },
   ]);
@@ -270,21 +270,21 @@ test("compiler accumulates context commands and preserves transform order", () =
   ]);
 });
 
-test("Pi commands remain structured and do not rewrite the user request text", () => {
-  const pi = workbenchComposerDirectiveFormatter.serialize({
+test("Agent commands remain structured and do not rewrite the user request text", () => {
+  const agent = workbenchComposerDirectiveFormatter.serialize({
     id: "create-skill",
-    type: PI_COMMAND_DIRECTIVE_TYPE,
+    type: AGENT_COMMAND_DIRECTIVE_TYPE,
     label: "Create Skill",
   });
   const emptyRegistry = registry([]);
 
   const result = compileComposerDocument(
-    parseComposerDocument(`${pi} describe the skill`, emptyRegistry),
+    parseComposerDocument(`${agent} describe the skill`, emptyRegistry),
     emptyRegistry,
   );
 
   assert.equal(result.text, "describe the skill");
-  assert.equal(result.sourceText, `${pi} describe the skill`);
+  assert.equal(result.sourceText, `${agent} describe the skill`);
   assert.deepEqual(
     result.commands.map((command) => command.commandId),
     ["create-skill"],
@@ -294,7 +294,7 @@ test("Pi commands remain structured and do not rewrite the user request text", (
 test("compiled requests round-trip through the runtime parser without contract translation", () => {
   const command = workbenchComposerDirectiveFormatter.serialize({
     id: "create-skill",
-    type: PI_COMMAND_DIRECTIVE_TYPE,
+    type: AGENT_COMMAND_DIRECTIVE_TYPE,
     label: "Create Skill",
   });
   const emptyRegistry = registry([]);
@@ -309,7 +309,7 @@ test("compiled requests round-trip through the runtime parser without contract t
 test("parameter-panel arguments stay structured while following text remains the prompt", () => {
   const compact = workbenchComposerDirectiveFormatter.serialize({
     id: "compact",
-    type: PI_COMMAND_DIRECTIVE_TYPE,
+    type: AGENT_COMMAND_DIRECTIVE_TYPE,
     label: "压缩上下文",
   });
   const emptyRegistry = registry([]);
@@ -327,7 +327,7 @@ test("parameter-panel arguments stay structured while following text remains the
   ];
   const parsed = parseComposerDocument(`${compact} 继续检查测试`, emptyRegistry, commandCatalog);
   const document = applyComposerCommandArguments(parsed, {
-    [composerCommandArgumentKey("pi", "compact")]: {
+    [composerCommandArgumentKey("agent", "compact")]: {
       customInstructions: "帮我压缩这段文本",
     },
   });
@@ -355,7 +355,7 @@ test("parameter-panel arguments stay structured while following text remains the
 test("an explicit empty parameter object keeps all following text as the prompt", () => {
   const compact = workbenchComposerDirectiveFormatter.serialize({
     id: "compact",
-    type: PI_COMMAND_DIRECTIVE_TYPE,
+    type: AGENT_COMMAND_DIRECTIVE_TYPE,
     label: "Compact",
   });
   const emptyRegistry = registry([]);
@@ -373,7 +373,7 @@ test("an explicit empty parameter object keeps all following text as the prompt"
 
   const document = applyComposerCommandArguments(
     parseComposerDocument(`${compact} continue reviewing tests`, emptyRegistry, commandCatalog),
-    { [composerCommandArgumentKey("pi", "compact")]: {} },
+    { [composerCommandArgumentKey("agent", "compact")]: {} },
   );
   const result = compileComposerDocument(document, emptyRegistry, commandCatalog);
 
@@ -385,7 +385,7 @@ test("an explicit empty parameter object keeps all following text as the prompt"
 test("legacy submissions without explicit args still bind message text for compatibility", () => {
   const compact = workbenchComposerDirectiveFormatter.serialize({
     id: "compact",
-    type: PI_COMMAND_DIRECTIVE_TYPE,
+    type: AGENT_COMMAND_DIRECTIVE_TYPE,
     label: "Compact",
   });
   const emptyRegistry = registry([]);
@@ -414,7 +414,7 @@ test("legacy submissions without explicit args still bind message text for compa
 test("compiler rejects ambiguous message-text argument ownership", () => {
   const compact = workbenchComposerDirectiveFormatter.serialize({
     id: "compact",
-    type: PI_COMMAND_DIRECTIVE_TYPE,
+    type: AGENT_COMMAND_DIRECTIVE_TYPE,
     label: "Compact",
   });
   const emptyRegistry = registry([]);
@@ -440,15 +440,15 @@ test("compiler rejects ambiguous message-text argument ownership", () => {
   );
 });
 
-test("compiler preserves multiple Pi commands in document order", () => {
+test("compiler preserves multiple Agent commands in document order", () => {
   const first = workbenchComposerDirectiveFormatter.serialize({
     id: "plan",
-    type: PI_COMMAND_DIRECTIVE_TYPE,
+    type: AGENT_COMMAND_DIRECTIVE_TYPE,
     label: "Plan",
   });
   const second = workbenchComposerDirectiveFormatter.serialize({
     id: "review",
-    type: PI_COMMAND_DIRECTIVE_TYPE,
+    type: AGENT_COMMAND_DIRECTIVE_TYPE,
     label: "Review",
   });
   const emptyRegistry = registry([]);
@@ -465,10 +465,10 @@ test("compiler preserves multiple Pi commands in document order", () => {
   );
 });
 
-test("Pi command companion semantics apply without changing the command source", () => {
-  const pi = workbenchComposerDirectiveFormatter.serialize({
+test("Agent command companion semantics apply without changing the command source", () => {
+  const agent = workbenchComposerDirectiveFormatter.serialize({
     id: "plan",
-    type: PI_COMMAND_DIRECTIVE_TYPE,
+    type: AGENT_COMMAND_DIRECTIVE_TYPE,
     label: "Plan",
   });
   const commands = [
@@ -478,12 +478,12 @@ test("Pi command companion semantics apply without changing the command source",
   ];
 
   const result = compileComposerDocument(
-    parseComposerDocument(`${pi} inspect`, registry(commands)),
+    parseComposerDocument(`${agent} inspect`, registry(commands)),
     registry(commands),
   );
 
   assert.equal(result.mode, "plan");
-  assert.equal(result.commands[0]?.source, "pi");
+  assert.equal(result.commands[0]?.source, "agent");
   assert.equal(result.commands[0]?.commandId, "plan");
 });
 

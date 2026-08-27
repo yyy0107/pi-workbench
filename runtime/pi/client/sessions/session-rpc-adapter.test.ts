@@ -224,7 +224,7 @@ test("carries the Workbench Composer projection beside the unchanged Pi user mes
       content: "resolved prompt",
       timestamp: 5,
       workbenchComposer: {
-        version: 1,
+        version: 2,
         submissionId: "submission-1",
         sourceText: ":pi-command[plan|Plan] inspect",
         hidden: true,

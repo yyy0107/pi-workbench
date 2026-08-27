@@ -1,17 +1,6 @@
-import {
-  PI_THINKING_LEVELS,
-  type PiAgentMessage,
-  type PiModelListResponse,
-  type PiQueuedPrompt,
-  type PiSessionHistory,
-  type PiSessionSummary,
-  type PiThinkingLevel,
-} from "@/runtime/pi/contracts/pi";
+import type { PiSessionSummary } from "@/runtime/pi/contracts/pi";
 import type { SessionAttachmentErrorReason } from "@/runtime/pi/contracts/attachments";
 import type {
-  ModelCatalogFailure,
-  ModelProviderGroup,
-  ModelSelection,
   RpcIssue,
   SessionAttachmentPayload,
   SessionAttachmentValue,
@@ -25,7 +14,6 @@ import type {
   SessionCreateValue,
   SessionDeletePayload,
   SessionDeleteValue,
-  SessionEvent,
   SessionForkPayload,
   SessionForkValue,
   SessionHistoryPayload,
@@ -56,33 +44,25 @@ import type {
 import {
   composerDocumentMatchesCommands,
   hasWorkbenchComposerSemantics,
-  type WorkbenchComposerSubmission,
 } from "@/runtime/shared/composer/request";
-import { ModelService } from "../models/model-service";
 import {
-  cancelSession,
-  compactSessionContext,
-  createSession,
-  deleteSession,
-  forkSession,
-  getSessionEventBranches,
-  getSessionEvents,
-  getSessionHistory,
-  getSessionResumeState,
-  getSessionContextPolicy,
-  listModels,
-  listSessionSearchText,
-  listSessions,
-  type PromptSubmissionResult,
-  renameSession,
-  regenerateSession,
-  resumeSession,
-  selectSessionBranch,
-  selectSessionModel,
-  submitPrompt,
-  updateSessionContextPolicy,
-  updatePromptQueueItem,
-} from "./session-registry";
+  AgentExecutionError,
+  type AgentExecutionPort,
+  type AgentQueueMutation,
+} from "@/runtime/server/agent-execution-port";
+import {
+  AgentThreadStoreError,
+  type AgentThreadStorePort,
+  type AgentThreadSummary,
+} from "@/runtime/server/agent-thread-store-port";
+import {
+  PiSessionHistoryServiceError,
+  type PiSessionHistoryService,
+} from "./pi-session-history-service";
+import {
+  PiSessionModelContextServiceError,
+  type PiSessionModelContextService,
+} from "./pi-session-model-context-service";
 import { admitInlineAttachments, InlineAttachmentAdmissionError } from "./inline-image-admission";
 import { workspaceFromCwd } from "../workspaces/workspace-paths";
 
@@ -187,79 +167,19 @@ export interface SessionRpcWorkspaceStore {
   ): Promise<{ items: WorkspaceView[] }>;
 }
 
-export interface SessionEngineCreateInput {
-  cwd: string;
-  sessionId?: string;
-  agentPreset?: string;
-}
-
-export interface SessionEngineCreateResult {
-  id: string;
-  agentPreset?: string;
-}
-
-export interface SessionPromptProvenance {
-  rpcId?: string;
-  clientTimeZone?: string;
-  composer?: WorkbenchComposerSubmission;
-}
-
-export interface SessionRpcDependencies {
-  listSessions(): Promise<{ sessions: PiSessionSummary[]; runningSessionIds: string[] }>;
-  listSessionSearchText(): Promise<Array<{ sessionId: string; allMessagesText: string }>>;
-  createSession(input: SessionEngineCreateInput): Promise<SessionEngineCreateResult>;
-  deleteSession(sessionId: string): Promise<void>;
-  forkSession(sessionId: string, atSeq?: number): Promise<{ id: string }>;
-  getSessionEventBranches(sessionId: string): Promise<SessionHistoryValue["branches"]>;
-  getSessionEvents(sessionId: string): Promise<SessionEvent[]>;
-  getSessionHistory(sessionId: string): Promise<PiSessionHistory>;
-  getSessionResumeState(sessionId: string): Promise<SessionHistoryValue["resume"]>;
-  listModels(cwd: string): Promise<PiModelListResponse>;
-  renameSession(sessionId: string, title: string): Promise<number | void>;
-  regenerateSession(sessionId: string, messageId: string): Promise<void>;
-  resumeSession(sessionId: string, checkpointId: string, expectedLeafId: string): Promise<void>;
-  selectSessionBranch(sessionId: string, leafId: string): Promise<void>;
-  submitPrompt(
-    sessionId: string,
-    mode: "steer" | "followUp",
-    prompt: PiQueuedPrompt,
-    provenance?: SessionPromptProvenance,
-  ): Promise<PromptSubmissionResult>;
-  updateQueueItem(
-    sessionId: string,
-    itemId: string,
-    mutation: { kind: "edit"; prompt: PiQueuedPrompt } | { kind: "remove" } | { kind: "steer" },
-  ): Promise<void>;
-  cancelSession(sessionId: string): Promise<void>;
-  selectSessionModel(sessionId: string, selection: ModelSelection): Promise<void>;
-  getSessionContextPolicy(sessionId: string): Promise<SessionContextPolicyValue>;
-  updateSessionContextPolicy(
-    sessionId: string,
-    policy: SessionContextPolicyUpdatePayload["policy"],
-  ): Promise<SessionContextPolicyValue>;
-  compactSessionContext(sessionId: string): Promise<SessionCompactValue>;
-  supportsRequestedSessionId: boolean;
-  supportsAgentPreset: boolean;
-}
-
-export interface SessionModelCatalogService {
-  models(): Promise<{ groups: ModelProviderGroup[]; failures: ModelCatalogFailure[] }>;
-}
-
 export interface SessionRpcServiceOptions {
   workspaceStore: SessionRpcWorkspaceStore;
-  dependencies?: Partial<SessionRpcDependencies>;
-  modelServiceFactory?: (cwd: string) => SessionModelCatalogService;
+  execution: AgentExecutionPort;
+  threads: AgentThreadStorePort;
+  history: PiSessionHistoryService;
+  modelContext: PiSessionModelContextService;
   defaultCwd?: string;
 }
 
 interface ErrorContext {
   sessionId?: string;
-  provider?: string;
-  model?: string;
   cwd?: string;
   itemId?: string;
-  operation?: "compact";
 }
 
 const MAX_SEARCH_QUERY_CODE_POINTS = 500;
@@ -305,18 +225,6 @@ function codePointLength(value: string): number {
   return [...value].length;
 }
 
-function textContent(message: PiAgentMessage): string {
-  if (message.role !== "user" && message.role !== "assistant") return "";
-  if (typeof message.content === "string") return message.content;
-  return message.content
-    .flatMap((part) => (part.type === "text" && typeof part.text === "string" ? [part.text] : []))
-    .join("\n");
-}
-
-function historySearchText(history: PiSessionHistory): string {
-  return history.context.messages.map(textContent).filter(Boolean).join(" ");
-}
-
 interface TextMatch {
   start: number;
   end: number;
@@ -352,65 +260,28 @@ function snippetAroundMatch(source: string, match: TextMatch): string {
   return points.slice(start, start + MAX_SEARCH_SNIPPET_CODE_POINTS).join("");
 }
 
-function paginateSessionEvents(
-  events: readonly SessionEvent[],
-  beforeSeq: number | undefined,
-  maxMessages: number,
-): { events: SessionEvent[]; hasMore: boolean } {
-  const window =
-    beforeSeq === undefined ? [...events] : events.filter((event) => event.seq < beforeSeq);
-  let messageCount = 0;
-  let unmatchedMessageEnds = 0;
-  let targetEndDepth: number | undefined;
-  let cut = 0;
-
-  for (let index = window.length - 1; index >= 0; index -= 1) {
-    const event = window[index]!;
-    if (event.type === "message") {
-      messageCount += 1;
-      if (messageCount >= maxMessages) {
-        cut = index;
-        break;
-      }
-      continue;
-    }
-    if (event.type === "message_end") {
-      unmatchedMessageEnds += 1;
-      messageCount += 1;
-      if (messageCount >= maxMessages && targetEndDepth === undefined) {
-        targetEndDepth = unmatchedMessageEnds;
-      }
-      continue;
-    }
-    if (event.type !== "message_start") continue;
-    if (unmatchedMessageEnds > 0) {
-      if (targetEndDepth === unmatchedMessageEnds) {
-        cut = index;
-        break;
-      }
-      unmatchedMessageEnds -= 1;
-      continue;
-    }
-
-    // The tail of an in-progress group, or an explicit beforeSeq inside a group,
-    // has no message_end in this window. Its message_start still owns the group.
-    messageCount += 1;
-    if (messageCount >= maxMessages) {
-      cut = index;
-      break;
-    }
-  }
-
-  return { events: window.slice(cut), hasMore: cut > 0 };
-}
-
 function milliseconds(value: string): number {
   const parsed = Date.parse(value);
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function isThinkingLevel(value: string): value is PiThinkingLevel {
-  return (PI_THINKING_LEVELS as readonly string[]).includes(value);
+function piSessionSummary(thread: AgentThreadSummary): PiSessionSummary {
+  return {
+    id: thread.threadId,
+    cwd: thread.rootPath,
+    workspace: workspaceFromCwd(thread.rootPath),
+    ...(thread.title === undefined ? {} : { name: thread.title }),
+    created: thread.createdAt,
+    modified: thread.updatedAt,
+    messageCount: thread.messageCount,
+    firstMessage: thread.firstMessage,
+    transient: thread.transient,
+    running: thread.running,
+    ...(thread.waitingForUserInput === undefined
+      ? {}
+      : { waitingForUserInput: thread.waitingForUserInput }),
+    ...(thread.runTiming === undefined ? {} : { runTiming: thread.runTiming }),
+  };
 }
 
 function canonicalTimeZone(value: string): string | undefined {
@@ -422,112 +293,161 @@ function canonicalTimeZone(value: string): string | undefined {
   }
 }
 
-function errorCode(error: unknown): string | undefined {
-  if (!error || typeof error !== "object" || !("code" in error)) return undefined;
-  return typeof error.code === "string" ? error.code : undefined;
-}
-
-function errorExistingCwd(error: unknown): string | undefined {
-  if (!error || typeof error !== "object" || !("existingCwd" in error)) return undefined;
-  return typeof error.existingCwd === "string" ? error.existingCwd : undefined;
-}
-
-function manualCompactionUnavailableReason(
-  error: unknown,
-): SessionRpcServiceErrorDetails["compaction-unavailable"]["reason"] | undefined {
-  if (!(error instanceof Error)) return undefined;
-
-  // Pi 0.84 exposes these expected manual-compaction outcomes as plain Errors rather than a
-  // public typed error. Normalize them at the server adapter boundary so browser code never has
-  // to parse SDK-owned English messages.
-  if (error.name === "AbortError" || error.message === "Compaction cancelled") return "cancelled";
-  if (error.message === "Already compacted") return "already-compacted";
-  if (error.message === "Nothing to compact (session too small)") return "context-too-small";
-  return undefined;
-}
-
-function defaultDependencies(): SessionRpcDependencies {
-  return {
-    listSessions,
-    listSessionSearchText,
-    createSession: async ({ cwd, sessionId }) => {
-      const hosted = await createSession(cwd, sessionId);
-      return { id: hosted.id };
-    },
-    deleteSession,
-    forkSession: async (sessionId, atSeq) => {
-      const hosted = await forkSession(sessionId, atSeq);
-      return { id: hosted.id };
-    },
-    getSessionEventBranches,
-    getSessionEvents,
-    getSessionHistory,
-    getSessionResumeState,
-    getSessionContextPolicy,
-    listModels,
-    renameSession,
-    regenerateSession,
-    resumeSession,
-    selectSessionBranch,
-    submitPrompt,
-    updateQueueItem: updatePromptQueueItem,
-    cancelSession,
-    compactSessionContext,
-    selectSessionModel,
-    updateSessionContextPolicy,
-    supportsRequestedSessionId: true,
-    supportsAgentPreset: false,
-  };
-}
-
 export class SessionRpcService {
   private readonly workspaceStore: SessionRpcWorkspaceStore;
-  private readonly dependencies: SessionRpcDependencies;
-  private readonly modelServiceFactory: (cwd: string) => SessionModelCatalogService;
+  private readonly execution: AgentExecutionPort;
+  private readonly threads: AgentThreadStorePort;
+  private readonly historyService: PiSessionHistoryService;
+  private readonly modelContextService: PiSessionModelContextService;
   private readonly defaultCwd: string;
   private readonly sessionCreateTails = new Map<string, Promise<void>>();
 
   constructor(options: SessionRpcServiceOptions) {
     this.workspaceStore = options.workspaceStore;
-    this.dependencies = { ...defaultDependencies(), ...options.dependencies };
-    if (
-      options.dependencies?.getSessionEvents &&
-      options.dependencies.getSessionEventBranches === undefined
-    ) {
-      // Tests and alternate engines that replace the linear event source remain compatible until
-      // they opt into branch discovery explicitly.
-      this.dependencies.getSessionEventBranches = async () => ({ headLeafId: null, items: [] });
-    }
-    if (
-      options.dependencies?.getSessionEvents &&
-      options.dependencies.getSessionResumeState === undefined
-    ) {
-      this.dependencies.getSessionResumeState = async () => ({});
-    }
-    this.modelServiceFactory = options.modelServiceFactory ?? ((cwd) => new ModelService({ cwd }));
+    this.execution = options.execution;
+    this.threads = options.threads;
+    this.historyService = options.history;
+    this.modelContextService = options.modelContext;
     this.defaultCwd = options.defaultCwd ?? process.cwd();
   }
 
   private translate(error: unknown, context: ErrorContext = {}): never {
     if (error instanceof SessionRpcServiceError) throw error;
-    const code = errorCode(error);
-    const compactionUnavailableReason =
-      context.operation === "compact" ? manualCompactionUnavailableReason(error) : undefined;
-    if (compactionUnavailableReason && context.sessionId) {
-      const message =
-        compactionUnavailableReason === "context-too-small"
-          ? "The session does not contain enough older context to compact."
-          : compactionUnavailableReason === "already-compacted"
-            ? "The current session context has already been compacted."
-            : "The context compaction was cancelled.";
-      throw new SessionRpcServiceError(
-        "compaction-unavailable",
-        message,
-        { sessionId: context.sessionId, reason: compactionUnavailableReason },
-        { cause: error },
-      );
+    if (error instanceof AgentThreadStoreError) {
+      if (error.code === "thread-not-found" && context.sessionId) {
+        throw new SessionRpcServiceError(
+          "session-not-found",
+          "The session does not exist.",
+          { sessionId: context.sessionId },
+          { cause: error },
+        );
+      }
+      if (error.code === "thread-id-conflict" && context.sessionId && context.cwd !== undefined) {
+        throw new SessionRpcServiceError(
+          "session-conflict",
+          "The requested session identifier already belongs to another working directory.",
+          {
+            sessionId: context.sessionId,
+            requestedCwd: context.cwd,
+            ...(error.details.existingRootPath === undefined
+              ? {}
+              : { existingCwd: error.details.existingRootPath }),
+          },
+          { cause: error },
+        );
+      }
+      if (error.code === "invalid-root" && context.cwd !== undefined) {
+        throw new SessionRpcServiceError(
+          "workspace-invalid-path",
+          "The workspace path is invalid.",
+          { path: context.cwd },
+          { cause: error },
+        );
+      }
+      if (error.code === "busy") {
+        throw new SessionRpcServiceError(
+          "agent-busy",
+          "The session agent is busy.",
+          { reason: "The active agent cannot accept this operation." },
+          { cause: error },
+        );
+      }
+      if (error.code === "fork-unavailable" && context.sessionId) {
+        throw new SessionRpcServiceError(
+          "fork-unavailable",
+          "The session cannot be forked at the requested protocol boundary.",
+          { sessionId: context.sessionId },
+          { cause: error },
+        );
+      }
     }
-    if (code === "pi_session_not_found" && context.sessionId) {
+    if (error instanceof AgentExecutionError) {
+      if (error.code === "thread-not-found" && context.sessionId) {
+        throw new SessionRpcServiceError(
+          "session-not-found",
+          "The session does not exist.",
+          { sessionId: context.sessionId },
+          { cause: error },
+        );
+      }
+      if (error.code === "busy") {
+        throw new SessionRpcServiceError(
+          "agent-busy",
+          "The session agent is busy.",
+          { reason: "The active agent cannot accept this prompt." },
+          { cause: error },
+        );
+      }
+      if (error.code === "branch-not-found" && context.sessionId) {
+        throw new SessionRpcServiceError(
+          "branch-not-found",
+          "The requested conversation branch does not exist.",
+          { sessionId: context.sessionId },
+          { cause: error },
+        );
+      }
+      if (error.code === "resume-stale" && context.sessionId) {
+        throw new SessionRpcServiceError(
+          "resume-unavailable",
+          "The recovery checkpoint is no longer on the selected branch.",
+          { sessionId: context.sessionId, reason: "stale" },
+          { cause: error },
+        );
+      }
+      if (error.code === "resume-confirmation-required" && context.sessionId) {
+        throw new SessionRpcServiceError(
+          "resume-unavailable",
+          "The interrupted tool state requires confirmation before it can be resumed.",
+          { sessionId: context.sessionId, reason: "confirmation-required" },
+          { cause: error },
+        );
+      }
+      if (error.code === "resume-blocked" && context.sessionId) {
+        throw new SessionRpcServiceError(
+          "resume-unavailable",
+          "The recovery checkpoint cannot be resumed with the current model.",
+          { sessionId: context.sessionId, reason: "blocked" },
+          { cause: error },
+        );
+      }
+      if (error.code === "queue-item-not-found" && context.itemId) {
+        throw new SessionRpcServiceError(
+          "queue-item-not-found",
+          "The queued item is no longer pending.",
+          { itemId: context.itemId },
+          { cause: error },
+        );
+      }
+      if (error.code === "steer-unavailable" && context.itemId) {
+        throw new SessionRpcServiceError(
+          "steer-unavailable",
+          "The current turn no longer accepts this queued item as steering.",
+          { itemId: context.itemId },
+          { cause: error },
+        );
+      }
+      if (error.code === "prompt-rejected") {
+        throw new SessionRpcServiceError(
+          "command-error",
+          "The prompt command was rejected.",
+          {},
+          { cause: error },
+        );
+      }
+      if (error.code === "image-input-unsupported") {
+        throw new SessionRpcServiceError(
+          "attachment-error",
+          "The current model does not support image input.",
+          { reason: "MODEL_DOES_NOT_SUPPORT_IMAGES" },
+          { cause: error },
+        );
+      }
+    }
+    if (
+      error instanceof PiSessionHistoryServiceError &&
+      error.code === "session-not-found" &&
+      context.sessionId
+    ) {
       throw new SessionRpcServiceError(
         "session-not-found",
         "The session does not exist.",
@@ -535,142 +455,45 @@ export class SessionRpcService {
         { cause: error },
       );
     }
-    if (code === "pi_model_not_available" && context.provider && context.model) {
-      throw new SessionRpcServiceError(
-        "model-unavailable",
-        "The requested model is unavailable.",
-        { provider: context.provider, model: context.model },
-        { cause: error },
-      );
-    }
-    if (code === "pi_model_image_unsupported") {
-      if (context.provider && context.model) {
+    if (error instanceof PiSessionModelContextServiceError) {
+      if (error.code === "session-not-found" && context.sessionId) {
         throw new SessionRpcServiceError(
-          "model-unavailable",
-          "The requested model cannot represent images already attached to this session.",
-          { provider: context.provider, model: context.model },
+          "session-not-found",
+          "The session does not exist.",
+          { sessionId: context.sessionId },
           { cause: error },
         );
       }
-      throw new SessionRpcServiceError(
-        "attachment-error",
-        "The current model does not support image input.",
-        { reason: "MODEL_DOES_NOT_SUPPORT_IMAGES" },
-        { cause: error },
-      );
-    }
-    if (code === "pi_session_conflict" && context.sessionId && context.cwd !== undefined) {
-      const existingCwd = errorExistingCwd(error);
-      throw new SessionRpcServiceError(
-        "session-conflict",
-        "The requested session identifier already belongs to another working directory.",
-        {
-          sessionId: context.sessionId,
-          requestedCwd: context.cwd,
-          ...(existingCwd === undefined ? {} : { existingCwd }),
-        },
-        { cause: error },
-      );
-    }
-    if (code === "pi_session_busy") {
-      throw new SessionRpcServiceError(
-        "agent-busy",
-        "The session agent is busy.",
-        { reason: "The active agent cannot accept this prompt." },
-        { cause: error },
-      );
-    }
-    if (code === "pi_fork_unavailable" && context.sessionId) {
-      throw new SessionRpcServiceError(
-        "fork-unavailable",
-        "The session cannot be forked at the requested protocol boundary.",
-        { sessionId: context.sessionId },
-        { cause: error },
-      );
-    }
-    if (code === "pi_branch_not_found" && context.sessionId) {
-      throw new SessionRpcServiceError(
-        "branch-not-found",
-        "The requested conversation branch does not exist.",
-        { sessionId: context.sessionId },
-        { cause: error },
-      );
-    }
-    if (code === "pi_resume_stale" && context.sessionId) {
-      throw new SessionRpcServiceError(
-        "resume-unavailable",
-        "The recovery checkpoint is no longer on the selected branch.",
-        { sessionId: context.sessionId, reason: "stale" },
-        { cause: error },
-      );
-    }
-    if (code === "pi_resume_confirmation_required" && context.sessionId) {
-      throw new SessionRpcServiceError(
-        "resume-unavailable",
-        "The interrupted tool state requires confirmation before it can be resumed.",
-        { sessionId: context.sessionId, reason: "confirmation-required" },
-        { cause: error },
-      );
-    }
-    if (code === "pi_resume_unavailable" && context.sessionId) {
-      throw new SessionRpcServiceError(
-        "resume-unavailable",
-        "The recovery checkpoint cannot be resumed with the current model.",
-        { sessionId: context.sessionId, reason: "blocked" },
-        { cause: error },
-      );
-    }
-    if (code === "pi_session_not_running" && context.itemId) {
-      throw new SessionRpcServiceError(
-        "steer-unavailable",
-        "The queued item cannot steer an inactive session.",
-        { itemId: context.itemId },
-        { cause: error },
-      );
-    }
-    if (code === "pi_queue_item_not_found" && context.itemId) {
-      throw new SessionRpcServiceError(
-        "queue-item-not-found",
-        "The queued item is no longer pending.",
-        { itemId: context.itemId },
-        { cause: error },
-      );
-    }
-    if (code === "pi_steer_unavailable" && context.itemId) {
-      throw new SessionRpcServiceError(
-        "steer-unavailable",
-        "The current turn no longer accepts this queued item as steering.",
-        { itemId: context.itemId },
-        { cause: error },
-      );
-    }
-    if (
-      code === "pi_empty_prompt" ||
-      code === "pi_prompt_rejected" ||
-      code === "pi_command_not_found" ||
-      code === "pi_composer_command_conflict" ||
-      code === "pi_composer_command_args_invalid" ||
-      code === "pi_skill_read_tool_unavailable"
-    ) {
-      throw new SessionRpcServiceError(
-        "command-error",
-        "The prompt command was rejected.",
-        {},
-        { cause: error },
-      );
-    }
-    if (
-      (code === "pi_workspace_path_required" ||
-        code === "pi_workspace_not_directory" ||
-        code === "pi_workspace_not_found") &&
-      context.cwd !== undefined
-    ) {
-      throw new SessionRpcServiceError(
-        "workspace-invalid-path",
-        "The workspace path is invalid.",
-        { path: context.cwd },
-        { cause: error },
-      );
+      if (error.code === "model-unavailable") {
+        throw new SessionRpcServiceError(
+          "model-unavailable",
+          "The requested model or reasoning effort is unavailable.",
+          error.details,
+          { cause: error },
+        );
+      }
+      if (error.code === "busy") {
+        throw new SessionRpcServiceError(
+          "agent-busy",
+          "The session agent is busy.",
+          { reason: "The active agent cannot accept this operation." },
+          { cause: error },
+        );
+      }
+      if (error.code === "compaction-unavailable" && context.sessionId) {
+        const message =
+          error.details.reason === "context-too-small"
+            ? "The session does not contain enough older context to compact."
+            : error.details.reason === "already-compacted"
+              ? "The current session context has already been compacted."
+              : "The context compaction was cancelled.";
+        throw new SessionRpcServiceError(
+          "compaction-unavailable",
+          message,
+          { sessionId: context.sessionId, reason: error.details.reason },
+          { cause: error },
+        );
+      }
     }
     throw new SessionRpcServiceError(
       "internal",
@@ -682,17 +505,17 @@ export class SessionRpcService {
     );
   }
 
-  private async allSessions(): Promise<PiSessionSummary[]> {
+  private async allThreads(): Promise<readonly AgentThreadSummary[]> {
     try {
-      return (await this.dependencies.listSessions()).sessions;
+      return await this.threads.list();
     } catch (error) {
       this.translate(error);
     }
   }
 
-  private async requireSession(sessionId: string): Promise<PiSessionSummary> {
+  private async requireSession(sessionId: string): Promise<AgentThreadSummary> {
     nonEmpty(sessionId, "sessionId");
-    const summary = (await this.allSessions()).find((item) => item.id === sessionId);
+    const summary = (await this.allThreads()).find((item) => item.threadId === sessionId);
     if (!summary) {
       throw new SessionRpcServiceError("session-not-found", "The session does not exist.", {
         sessionId,
@@ -723,19 +546,19 @@ export class SessionRpcService {
   }
 
   async list(_input: SessionListInput = {}): Promise<SessionListValue> {
-    const sessions = await this.allSessions();
+    const threads = await this.allThreads();
     return {
-      items: sessions.map((session) => ({
-        sessionId: session.id,
-        updatedAt: milliseconds(session.modified),
-        running: session.running,
-        waitingForUserInput: session.waitingForUserInput === true,
-        ...(session.runTiming === undefined ? {} : { runTiming: session.runTiming }),
-        blank: session.messageCount === 0,
-        ...(session.cwd ? { cwd: session.cwd } : {}),
+      items: threads.map((thread) => ({
+        sessionId: thread.threadId,
+        updatedAt: milliseconds(thread.updatedAt),
+        running: thread.running,
+        waitingForUserInput: thread.waitingForUserInput === true,
+        ...(thread.runTiming === undefined ? {} : { runTiming: thread.runTiming }),
+        blank: thread.messageCount === 0,
+        ...(thread.rootPath ? { cwd: thread.rootPath } : {}),
         projections: {
           asOfSeq: -1,
-          values: { [WORKBENCH_SESSION_SUMMARY_PROJECTION]: session },
+          values: { [WORKBENCH_SESSION_SUMMARY_PROJECTION]: piSessionSummary(thread) },
         },
       })),
     };
@@ -757,34 +580,34 @@ export class SessionRpcService {
     }
 
     const foldedQuery = query.toLocaleLowerCase("en-US");
-    let persistedSearchText: Array<{ sessionId: string; allMessagesText: string }>;
+    let persistedSearchText: ReadonlyArray<{ threadId: string; text: string }>;
     try {
-      persistedSearchText = await this.dependencies.listSessionSearchText();
+      persistedSearchText = await this.threads.listSearchDocuments();
     } catch (error) {
       this.translate(error);
     }
     const searchTextBySessionId = new Map(
-      persistedSearchText.map(({ sessionId, allMessagesText }) => [sessionId, allMessagesText]),
+      persistedSearchText.map(({ threadId, text }) => [threadId, text]),
     );
     const matches: SessionSearchValue["items"] = [];
-    for (const session of await this.allSessions()) {
-      let allMessagesText = searchTextBySessionId.get(session.id);
+    for (const thread of await this.allThreads()) {
+      let allMessagesText = searchTextBySessionId.get(thread.threadId);
       if (allMessagesText === undefined) {
         try {
-          allMessagesText = historySearchText(
-            await this.dependencies.getSessionHistory(session.id),
-          );
+          allMessagesText = await this.historyService.searchText(thread.threadId);
         } catch (error) {
-          if (errorCode(error) === "pi_session_not_found") continue;
-          this.translate(error, { sessionId: session.id });
+          if (error instanceof PiSessionHistoryServiceError && error.code === "session-not-found") {
+            continue;
+          }
+          this.translate(error, { sessionId: thread.threadId });
         }
       }
       const candidates = [
         allMessagesText,
-        session.name,
-        session.firstMessage,
-        session.cwd,
-        session.id,
+        thread.title,
+        thread.firstMessage,
+        thread.rootPath,
+        thread.threadId,
       ].filter((value): value is string => Boolean(value));
       let snippet: string | undefined;
       for (const candidate of candidates) {
@@ -794,7 +617,7 @@ export class SessionRpcService {
         break;
       }
       if (snippet === undefined) continue;
-      matches.push({ sessionId: session.id, snippet });
+      matches.push({ sessionId: thread.threadId, snippet });
       if (matches.length > MAX_SEARCH_RESULTS) break;
     }
     return {
@@ -838,20 +661,20 @@ export class SessionRpcService {
     }
 
     const existing = input.sessionId
-      ? (await this.allSessions()).find((item) => item.id === input.sessionId)
+      ? (await this.allThreads()).find((item) => item.threadId === input.sessionId)
       : undefined;
-    if (input.sessionId !== undefined && !this.dependencies.supportsRequestedSessionId) {
+    if (input.sessionId !== undefined && !this.threads.capabilities.requestedThreadId) {
       throw new SessionRpcServiceError(
         "session-conflict",
         "The requested session identifier cannot be allocated.",
         {
           sessionId: input.sessionId,
           requestedCwd: cwd,
-          ...(existing?.cwd ? { existingCwd: existing.cwd } : {}),
+          ...(existing?.rootPath ? { existingCwd: existing.rootPath } : {}),
         },
       );
     }
-    if (input.agentPreset !== undefined && !this.dependencies.supportsAgentPreset) {
+    if (input.agentPreset !== undefined && !this.threads.capabilities.preset) {
       throw new SessionRpcServiceError(
         "agent-preset-invalid",
         "This host does not support selecting an agent preset at session creation time.",
@@ -864,7 +687,7 @@ export class SessionRpcService {
 
     if (existing && input.sessionId !== undefined) {
       const requestedCwd = workspaceFromCwd(cwd).cwd;
-      const existingCwd = existing.cwd ? workspaceFromCwd(existing.cwd).cwd : undefined;
+      const existingCwd = existing.rootPath ? workspaceFromCwd(existing.rootPath).cwd : undefined;
       if (existingCwd !== requestedCwd) {
         throw new SessionRpcServiceError(
           "session-conflict",
@@ -877,23 +700,25 @@ export class SessionRpcService {
         );
       }
       if (input.workspaceId !== undefined) {
-        await this.attachToWorkspace(input.workspaceId, existing.id);
+        await this.attachToWorkspace(input.workspaceId, existing.threadId);
       }
-      return { sessionId: existing.id };
+      return { sessionId: existing.threadId };
     }
 
-    let created: SessionEngineCreateResult;
+    let created: Awaited<ReturnType<AgentThreadStorePort["create"]>>;
     try {
-      created = await this.dependencies.createSession({
-        cwd,
-        ...(input.sessionId ? { sessionId: input.sessionId } : {}),
-        ...(input.agentPreset !== undefined ? { agentPreset: input.agentPreset } : {}),
+      created = await this.threads.create({
+        rootPath: cwd,
+        ...(input.sessionId ? { requestedThreadId: input.sessionId } : {}),
+        ...(input.agentPreset !== undefined ? { preset: input.agentPreset } : {}),
       });
     } catch (error) {
       this.translate(error, { cwd, sessionId: input.sessionId });
     }
-    if (!created.id.trim()) this.translate(new Error("The session engine returned an empty id."));
-    if (input.sessionId && created.id !== input.sessionId) {
+    if (!created.threadId.trim()) {
+      this.translate(new Error("The session engine returned an empty id."));
+    }
+    if (input.sessionId && created.threadId !== input.sessionId) {
       throw new SessionRpcServiceError(
         "session-conflict",
         "The requested session identifier was not allocated.",
@@ -902,12 +727,12 @@ export class SessionRpcService {
     }
 
     if (input.workspaceId !== undefined) {
-      await this.attachToWorkspace(input.workspaceId, created.id);
+      await this.attachToWorkspace(input.workspaceId, created.threadId);
     }
 
     return {
-      sessionId: created.id,
-      ...(created.agentPreset !== undefined ? { agentPreset: created.agentPreset } : {}),
+      sessionId: created.threadId,
+      ...(created.preset !== undefined ? { agentPreset: created.preset } : {}),
     };
   }
 
@@ -949,44 +774,25 @@ export class SessionRpcService {
       throw badRequest([issue(["maxMessages"], "maxMessages must be a positive integer.")]);
     }
 
-    let allEvents: SessionEvent[];
     try {
-      allEvents = await this.dependencies.getSessionEvents(input.sessionId);
+      return await this.historyService.page({
+        sessionId: input.sessionId,
+        ...(input.beforeSeq === undefined ? {} : { beforeSeq: input.beforeSeq }),
+        maxMessages: input.maxMessages ?? DEFAULT_HISTORY_MESSAGES,
+      });
     } catch (error) {
       this.translate(error, { sessionId: input.sessionId });
     }
-    const page = paginateSessionEvents(
-      allEvents,
-      input.beforeSeq,
-      input.maxMessages ?? DEFAULT_HISTORY_MESSAGES,
-    );
-    const isTailPage = input.beforeSeq === undefined;
-    let branches: SessionHistoryValue["branches"];
-    let resume: SessionHistoryValue["resume"];
-    if (isTailPage) {
-      try {
-        // Resume lookup may repair a legacy/HMR-retained session by appending a checkpoint.
-        // Project branches afterwards so both projections observe the same durable leaf.
-        resume = await this.dependencies.getSessionResumeState(input.sessionId);
-        branches = await this.dependencies.getSessionEventBranches(input.sessionId);
-      } catch (error) {
-        this.translate(error, { sessionId: input.sessionId });
-      }
-    }
-    return {
-      events: page.events.map((event) => ({ event })),
-      hasMore: page.hasMore,
-      ...(isTailPage ? { projections: { asOfSeq: allEvents.at(-1)?.seq ?? -1, values: {} } } : {}),
-      ...(branches?.items.length ? { branches } : {}),
-      ...(isTailPage && resume?.checkpoint ? { resume } : {}),
-    };
   }
 
   async regenerate(input: SessionRegenerateInput): Promise<SessionRegenerateValue> {
     nonEmpty(input.sessionId, "sessionId");
     nonEmpty(input.messageId, "messageId");
     try {
-      await this.dependencies.regenerateSession(input.sessionId, input.messageId);
+      await this.execution.regenerate({
+        threadId: input.sessionId,
+        userMessageId: input.messageId,
+      });
     } catch (error) {
       this.translate(error, { sessionId: input.sessionId });
     }
@@ -998,11 +804,11 @@ export class SessionRpcService {
     nonEmpty(input.checkpointId, "checkpointId");
     nonEmpty(input.expectedLeafId, "expectedLeafId");
     try {
-      await this.dependencies.resumeSession(
-        input.sessionId,
-        input.checkpointId,
-        input.expectedLeafId,
-      );
+      await this.execution.resume({
+        threadId: input.sessionId,
+        checkpointId: input.checkpointId,
+        expectedLeafId: input.expectedLeafId,
+      });
     } catch (error) {
       this.translate(error, { sessionId: input.sessionId });
     }
@@ -1013,7 +819,7 @@ export class SessionRpcService {
     nonEmpty(input.sessionId, "sessionId");
     nonEmpty(input.leafId, "leafId");
     try {
-      await this.dependencies.selectSessionBranch(input.sessionId, input.leafId);
+      await this.execution.selectBranch({ threadId: input.sessionId, leafId: input.leafId });
     } catch (error) {
       this.translate(error, { sessionId: input.sessionId });
     }
@@ -1022,51 +828,14 @@ export class SessionRpcService {
 
   async models(input: SessionModelsInput): Promise<SessionModelsValue> {
     const summary = await this.requireSession(input.sessionId);
-    let history: PiSessionHistory;
     try {
-      history = await this.dependencies.getSessionHistory(input.sessionId);
+      return await this.modelContextService.models({
+        sessionId: input.sessionId,
+        cwd: summary.rootPath,
+      });
     } catch (error) {
       this.translate(error, { sessionId: input.sessionId });
     }
-    let catalog: { groups: ModelProviderGroup[]; failures: ModelCatalogFailure[] };
-    try {
-      catalog = await this.modelServiceFactory(summary.cwd).models();
-    } catch (error) {
-      this.translate(error, { sessionId: input.sessionId });
-    }
-
-    let current: ModelSelection | undefined = history.context.model
-      ? {
-          provider: history.context.model.provider,
-          model: history.context.model.modelId,
-          ...(history.context.thinkingLevel
-            ? { reasoningEffort: history.context.thinkingLevel }
-            : {}),
-        }
-      : undefined;
-    if (!current) {
-      try {
-        const defaults = await this.dependencies.listModels(summary.cwd);
-        if (defaults.defaultModel) {
-          current = {
-            provider: defaults.defaultModel.provider,
-            model: defaults.defaultModel.modelId,
-          };
-        }
-      } catch (error) {
-        this.translate(error, { sessionId: input.sessionId, cwd: summary.cwd });
-      }
-    }
-    const firstModel = catalog.groups.flatMap((group) =>
-      group.models.map((model) => ({ provider: group.id, model: model.id })),
-    )[0];
-    current ??= firstModel;
-    if (!current) this.translate(new Error("The session has no selectable model."));
-    const routable = catalog.groups.some(
-      (group) =>
-        group.id === current.provider && group.models.some((model) => model.id === current.model),
-    );
-    return { current, routable, groups: catalog.groups, failures: catalog.failures };
   }
 
   async selectModel(input: SessionSelectModelInput): Promise<SessionSelectModelValue> {
@@ -1074,42 +843,19 @@ export class SessionRpcService {
     nonEmpty(input.model, "model");
     if (input.reasoningEffort !== undefined) nonEmpty(input.reasoningEffort, "reasoningEffort");
     const summary = await this.requireSession(input.sessionId);
-    let catalog: { groups: ModelProviderGroup[]; failures: ModelCatalogFailure[] };
+    let selected: SessionSelectModelValue["selected"];
     try {
-      catalog = await this.modelServiceFactory(summary.cwd).models();
+      selected = await this.modelContextService.selectModel({
+        sessionId: input.sessionId,
+        cwd: summary.rootPath,
+        selection: {
+          provider: input.provider,
+          model: input.model,
+          ...(input.reasoningEffort ? { reasoningEffort: input.reasoningEffort } : {}),
+        },
+      });
     } catch (error) {
       this.translate(error, { sessionId: input.sessionId });
-    }
-    const model = catalog.groups
-      .find((group) => group.id === input.provider)
-      ?.models.find((candidate) => candidate.id === input.model);
-    const effortAvailable =
-      input.reasoningEffort === undefined ||
-      model?.reasoning?.efforts.some((effort) => effort.id === input.reasoningEffort);
-    if (
-      !model ||
-      !effortAvailable ||
-      (input.reasoningEffort && !isThinkingLevel(input.reasoningEffort))
-    ) {
-      throw new SessionRpcServiceError(
-        "model-unavailable",
-        "The requested model or reasoning effort is unavailable.",
-        { provider: input.provider, model: input.model },
-      );
-    }
-    const selected: ModelSelection = {
-      provider: input.provider,
-      model: input.model,
-      ...(input.reasoningEffort ? { reasoningEffort: input.reasoningEffort } : {}),
-    };
-    try {
-      await this.dependencies.selectSessionModel(input.sessionId, selected);
-    } catch (error) {
-      this.translate(error, {
-        sessionId: input.sessionId,
-        provider: input.provider,
-        model: input.model,
-      });
     }
     return { selected };
   }
@@ -1117,7 +863,7 @@ export class SessionRpcService {
   async contextPolicy(input: SessionContextPolicyInput): Promise<SessionContextPolicyValue> {
     await this.requireSession(input.sessionId);
     try {
-      return await this.dependencies.getSessionContextPolicy(input.sessionId);
+      return await this.modelContextService.contextPolicy(input.sessionId);
     } catch (error) {
       this.translate(error, { sessionId: input.sessionId });
     }
@@ -1128,7 +874,7 @@ export class SessionRpcService {
   ): Promise<SessionContextPolicyValue> {
     await this.requireSession(input.sessionId);
     try {
-      return await this.dependencies.updateSessionContextPolicy(input.sessionId, input.policy);
+      return await this.modelContextService.updateContextPolicy(input.sessionId, input.policy);
     } catch (error) {
       this.translate(error, { sessionId: input.sessionId });
     }
@@ -1137,9 +883,9 @@ export class SessionRpcService {
   async compactContext(input: SessionContextPolicyInput): Promise<SessionCompactValue> {
     await this.requireSession(input.sessionId);
     try {
-      return await this.dependencies.compactSessionContext(input.sessionId);
+      return await this.modelContextService.compactContext(input.sessionId);
     } catch (error) {
-      this.translate(error, { sessionId: input.sessionId, operation: "compact" });
+      this.translate(error, { sessionId: input.sessionId });
     }
   }
 
@@ -1151,20 +897,18 @@ export class SessionRpcService {
         sessionId: input.sessionId,
       });
     }
-    let seq: number | void;
+    let seq: number | undefined;
     try {
-      seq = await this.dependencies.renameSession(input.sessionId, title);
+      seq = (await this.threads.rename({ threadId: input.sessionId, title })).revision;
     } catch (error) {
       this.translate(error, { sessionId: input.sessionId });
     }
     if (!Number.isInteger(seq) || (seq ?? -1) < 0) {
-      let events: SessionEvent[];
       try {
-        events = await this.dependencies.getSessionEvents(input.sessionId);
+        seq = await this.historyService.latestEventRevision(input.sessionId);
       } catch (error) {
         this.translate(error, { sessionId: input.sessionId });
       }
-      seq = events.at(-1)?.seq;
     }
     if (!Number.isInteger(seq) || (seq ?? -1) < 0) {
       this.translate(new Error("The rename operation did not produce a canonical session event."), {
@@ -1177,7 +921,7 @@ export class SessionRpcService {
   async delete(input: SessionDeleteInput): Promise<SessionDeleteValue> {
     await this.requireSession(input.sessionId);
     try {
-      await this.dependencies.deleteSession(input.sessionId);
+      await this.threads.delete({ threadId: input.sessionId });
     } catch (error) {
       this.translate(error, { sessionId: input.sessionId });
     }
@@ -1192,27 +936,30 @@ export class SessionRpcService {
     let sourceWorkspace: WorkspaceView | undefined;
     try {
       sourceWorkspace = (await this.workspaceStore.list()).items.find((workspace) =>
-        workspace.sessionIds.includes(source.id),
+        workspace.sessionIds.includes(source.threadId),
       );
     } catch (error) {
       this.translate(error, { sessionId: input.sessionId });
     }
 
-    let forked: { id: string };
+    let forked: { threadId: string };
     try {
-      forked = await this.dependencies.forkSession(input.sessionId, input.atSeq);
+      forked = await this.threads.fork({
+        threadId: input.sessionId,
+        ...(input.atSeq === undefined ? {} : { atEventRevision: input.atSeq }),
+      });
     } catch (error) {
       this.translate(error, { sessionId: input.sessionId });
     }
-    if (!forked.id.trim() || forked.id === input.sessionId) {
+    if (!forked.threadId.trim() || forked.threadId === input.sessionId) {
       this.translate(new Error("The session engine did not return an independent fork."), {
         sessionId: input.sessionId,
       });
     }
     if (sourceWorkspace) {
-      await this.attachToWorkspace(sourceWorkspace.workspaceId, forked.id);
+      await this.attachToWorkspace(sourceWorkspace.workspaceId, forked.threadId);
     }
-    return { sessionId: forked.id };
+    return { sessionId: forked.threadId };
   }
 
   async prompt(
@@ -1257,27 +1004,45 @@ export class SessionRpcService {
     ) {
       throw new SessionRpcServiceError("command-error", "The prompt has no content.", {});
     }
-    const prompt: PiQueuedPrompt = {
-      message,
-      ...(attachments.images.length ? { images: attachments.images } : {}),
-      ...(attachments.documents.length ? { documents: attachments.documents } : {}),
-    };
-    let admission: PromptSubmissionResult;
+    const executionAttachments = [
+      ...attachments.images.map((image) => ({
+        kind: "image" as const,
+        data: image.data,
+        mediaType: image.mimeType,
+        ...(image.name === undefined ? {} : { name: image.name }),
+      })),
+      ...attachments.documents.map((document) => ({
+        kind: "document" as const,
+        data: document.data,
+        mediaType: document.mimeType,
+        ...(document.name === undefined ? {} : { name: document.name }),
+      })),
+    ];
+    let admission: Awaited<ReturnType<AgentExecutionPort["submit"]>>;
     try {
-      admission = await this.dependencies.submitPrompt(
-        input.sessionId,
-        input.mode === "steer" ? "steer" : "followUp",
-        prompt,
-        {
-          ...(context.rpcId === undefined ? {} : { rpcId: context.rpcId }),
-          ...(clientTimeZone === undefined ? {} : { clientTimeZone }),
+      admission = await this.execution.submit({
+        threadId: input.sessionId,
+        mode: input.mode === "steer" ? "steer" : "follow-up",
+        prompt: {
+          text: message,
+          attachments: executionAttachments,
           ...(input.composer === undefined ? {} : { composer: input.composer }),
         },
-      );
+        provenance: {
+          ...(context.rpcId === undefined ? {} : { requestId: context.rpcId }),
+          ...(clientTimeZone === undefined ? {} : { clientTimeZone }),
+        },
+      });
     } catch (error) {
       this.translate(error, { sessionId: input.sessionId });
     }
-    return { accepted: true, ...admission };
+    return {
+      accepted: true,
+      queued: admission.kind === "queued",
+      ...(admission.kind === "queued" && admission.queueItemId !== undefined
+        ? { queueItemId: admission.queueItemId }
+        : {}),
+    };
   }
 
   async attachment(input: SessionAttachmentInput): Promise<SessionAttachmentValue> {
@@ -1293,7 +1058,7 @@ export class SessionRpcService {
   async updateQueue(input: SessionUpdateQueueInput): Promise<SessionUpdateQueueValue> {
     nonEmpty(input.itemId, "itemId");
     await this.requireSession(input.sessionId);
-    let mutation: { kind: "edit"; prompt: PiQueuedPrompt } | { kind: "remove" } | { kind: "steer" };
+    let mutation: AgentQueueMutation;
     if (input.action.kind === "edit") {
       if (
         input.action.content.some((part) => part.type !== "text" || typeof part.text !== "string")
@@ -1306,17 +1071,19 @@ export class SessionRpcService {
       }
       mutation = {
         kind: "edit",
-        prompt: {
-          message: input.action.content
-            .map((part) => (typeof part.text === "string" ? part.text : ""))
-            .join(""),
-        },
+        text: input.action.content
+          .map((part) => (typeof part.text === "string" ? part.text : ""))
+          .join(""),
       };
     } else {
       mutation = input.action;
     }
     try {
-      await this.dependencies.updateQueueItem(input.sessionId, input.itemId, mutation);
+      await this.execution.updateQueue({
+        threadId: input.sessionId,
+        itemId: input.itemId,
+        mutation,
+      });
     } catch (error) {
       this.translate(error, { sessionId: input.sessionId, itemId: input.itemId });
     }
@@ -1326,7 +1093,7 @@ export class SessionRpcService {
   async cancel(input: SessionCancelInput): Promise<SessionCancelValue> {
     await this.requireSession(input.sessionId);
     try {
-      await this.dependencies.cancelSession(input.sessionId);
+      await this.execution.cancel({ threadId: input.sessionId });
     } catch (error) {
       this.translate(error, { sessionId: input.sessionId });
     }

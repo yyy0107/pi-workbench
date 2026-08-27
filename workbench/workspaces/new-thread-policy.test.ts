@@ -4,7 +4,6 @@ import test from "node:test";
 import {
   conversationThreadIdFromPathname,
   preferredNewThreadWorkspaceId,
-  resolvePendingThreadPromotionId,
   resolvePromotedThreadRouteId,
   resolveSidebarThreadWorkspaceId,
   shouldCloseRightWorkspaceForNewThread,
@@ -197,50 +196,5 @@ test("a promoted draft routes once its first message and durable id are both ava
     }),
     undefined,
     "remote initialization alone must not navigate before onNew starts",
-  );
-});
-
-test("thread-list reload stays deferred from remote initialization until onNew starts", () => {
-  const localThreadId = resolvePendingThreadPromotionId({
-    pendingThreadId: undefined,
-    mainThreadId: "local-thread",
-    status: "regular",
-    remoteId: undefined,
-    hasMessages: false,
-  });
-  assert.equal(localThreadId, "local-thread");
-
-  assert.equal(
-    resolvePendingThreadPromotionId({
-      pendingThreadId: localThreadId,
-      mainThreadId: "local-thread",
-      status: "regular",
-      remoteId: "remote-thread",
-      hasMessages: false,
-    }),
-    "local-thread",
-    "receiving the remote id is not proof that onNew has started",
-  );
-  assert.equal(
-    resolvePendingThreadPromotionId({
-      pendingThreadId: localThreadId,
-      mainThreadId: "local-thread",
-      status: "regular",
-      remoteId: "remote-thread",
-      hasMessages: true,
-    }),
-    undefined,
-    "the first optimistic message makes a reload safe",
-  );
-  assert.equal(
-    resolvePendingThreadPromotionId({
-      pendingThreadId: undefined,
-      mainThreadId: "persisted-empty-thread",
-      status: "regular",
-      remoteId: "persisted-empty-thread",
-      hasMessages: false,
-    }),
-    undefined,
-    "an existing empty remote thread must not defer reloads forever",
   );
 });

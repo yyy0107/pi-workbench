@@ -5,6 +5,60 @@ import type {
   RemoteThreadListAdapter,
 } from "@assistant-ui/react";
 
+import type { WorkbenchAgentCommand } from "@/runtime/shared/agent-command/catalog";
+
+/** Workbench-owned workspace identity projected by an Agent Runtime implementation. */
+export interface WorkbenchAgentWorkspace {
+  readonly id: string;
+  readonly name?: string;
+  readonly rootPath?: string;
+  readonly pinned?: boolean;
+}
+
+/**
+ * Live presentation state that assistant-ui's mounted thread-list item cannot represent alone.
+ *
+ * This is intentionally not a second message or conversation model. It only covers backend-owned
+ * metadata needed by Workbench chrome, including activity for background threads.
+ */
+export interface WorkbenchAgentThreadSnapshot {
+  readonly title?: string;
+  readonly lastMessageAt?: Date;
+  /** ISO-8601 timestamp used as the stable fallback for manual sidebar ordering. */
+  readonly createdAt?: string;
+  readonly isRunning: boolean;
+  readonly isWaitingForInput: boolean;
+  /** Whether a background completion still needs to be acknowledged by opening the thread. */
+  readonly hasUnreadCompletion: boolean;
+  readonly isPinned: boolean;
+  readonly workspace?: WorkbenchAgentWorkspace;
+}
+
+export interface WorkbenchAgentThreadMove {
+  readonly workspaceId: string;
+  readonly threadId: string;
+  readonly beforeThreadId?: string;
+}
+
+/** Optional mutations supported by a concrete Agent Runtime's thread catalog. */
+export interface WorkbenchAgentThreadActions {
+  readonly setPinned?: (threadId: string, pinned: boolean) => Promise<void>;
+  readonly moveWithinWorkspace?: (request: WorkbenchAgentThreadMove) => Promise<void>;
+}
+
+/**
+ * Observable projection for backend-owned thread metadata.
+ *
+ * Revisions are subscribed through `useSyncExternalStore`; `getSnapshot()` may therefore project a
+ * fresh immutable object without becoming React's subscription identity.
+ */
+export interface WorkbenchAgentThreadStore {
+  getRevision(threadId: string | undefined): number;
+  getSnapshot(threadId: string | undefined): WorkbenchAgentThreadSnapshot;
+  subscribe(threadId: string | undefined, listener: () => void): () => void;
+  readonly actions?: WorkbenchAgentThreadActions;
+}
+
 /**
  * Stable Workbench seam between assistant-ui and an agent runtime implementation.
  *
@@ -18,7 +72,13 @@ export interface WorkbenchAgentRuntimeAdapter {
   readonly threadListAdapter: RemoteThreadListAdapter;
   /** Backend-owned hook that exposes the active conversation as an assistant-ui Runtime. */
   readonly useThreadRuntime: () => AssistantRuntime;
-  /** Notify the shared thread-list runtime when backend membership or ordering changes. */
+  /** Backend-owned hook that projects commands available to the active conversation or draft. */
+  readonly useCommandCatalog: () => readonly WorkbenchAgentCommand[];
+  /** Optional live metadata and mutations consumed by Workbench thread chrome. */
+  readonly threadStore?: WorkbenchAgentThreadStore;
+  /** Monotonic revision for backend-owned membership, archive status, or ordering changes. */
+  getThreadListRevision(): number;
+  /** Subscribe to changes of `getThreadListRevision()`. */
   subscribeThreadList(listener: () => void): () => void;
 }
 
@@ -82,8 +142,13 @@ export interface WorkbenchAgentComposerExtras {
   clearError(): void;
 }
 
+export interface WorkbenchAgentThreadExtras {
+  readonly workspace?: WorkbenchAgentWorkspace;
+}
+
 /** Optional implementation capabilities projected through assistant-ui thread extras. */
 export interface WorkbenchAgentRuntimeExtras {
+  readonly agentThread?: WorkbenchAgentThreadExtras;
   readonly agentQueue?: WorkbenchAgentQueueExtras;
   readonly agentRun?: WorkbenchAgentRunExtras;
   readonly agentComposer?: WorkbenchAgentComposerExtras;

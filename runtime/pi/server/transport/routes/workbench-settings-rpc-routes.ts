@@ -1,0 +1,110 @@
+import type { WorkbenchSettingsUpdatePayload } from "@/runtime/pi/contracts/rpc";
+import type { WorkbenchSettingsProtocol } from "../../settings/workbench-settings-service";
+import {
+  handleRpcPost,
+  RPC_REQUEST_BODY_LIMITS,
+  rpcArray,
+  rpcBoolean,
+  rpcEnum,
+  rpcLiteral,
+  rpcNullable,
+  rpcObject,
+  rpcOptional,
+  rpcRecord,
+  rpcString,
+  rpcUnion,
+  rpcUnknown,
+  type RpcValidator,
+} from "../rpc-transport";
+import type { RpcRouteGroup } from "./rpc-route-group";
+
+export interface WorkbenchSettingsRpcRoutesDependencies {
+  readonly getService: () => WorkbenchSettingsProtocol;
+  readonly projectDomainError: (error: unknown) => never;
+}
+
+const emptyPayload = rpcObject({});
+const workbenchSettingsUpdatePayload = rpcObject({
+  patch: rpcObject({
+    appearance: rpcOptional(rpcNullable(rpcRecord(rpcUnknown))),
+    backgroundImage: rpcOptional(
+      rpcNullable(
+        rpcObject({
+          name: rpcString({ minLength: 1, maxLength: 1_024 }),
+          mimeType: rpcString({ minLength: 1, maxLength: 256 }),
+          data: rpcString({ minLength: 1, maxLength: 16 * 1024 * 1024 }),
+        }),
+      ),
+    ),
+    locale: rpcOptional(rpcNullable(rpcEnum(["en-US", "zh-CN"]))),
+    modelSelector: rpcOptional(
+      rpcNullable(
+        rpcObject({
+          modelId: rpcString({ minLength: 1, maxLength: 512 }),
+          reasoningEffort: rpcOptional(rpcString({ minLength: 1, maxLength: 128 })),
+        }),
+      ),
+    ),
+    sidebarThreadOrderByScope: rpcOptional(
+      rpcNullable(
+        rpcRecord(rpcArray(rpcString({ minLength: 1, maxLength: 512 }), { maxLength: 10_000 })),
+      ),
+    ),
+    sidebarThreadSortMode: rpcOptional(rpcNullable(rpcEnum(["priority", "recent", "manual"]))),
+    toolboxPins: rpcOptional(
+      rpcNullable(rpcArray(rpcString({ minLength: 1, maxLength: 512 }), { maxLength: 1_000 })),
+    ),
+    toolboxScope: rpcOptional(
+      rpcNullable(
+        rpcUnion([
+          rpcObject({ kind: rpcLiteral("user") }),
+          rpcObject({
+            kind: rpcLiteral("project"),
+            workspaceId: rpcString({ minLength: 1, maxLength: 512 }),
+          }),
+        ]),
+      ),
+    ),
+    rightWorkspace: rpcOptional(rpcNullable(rpcRecord(rpcUnknown))),
+    sidebarOpen: rpcOptional(rpcNullable(rpcBoolean)),
+  }),
+}) as RpcValidator<WorkbenchSettingsUpdatePayload>;
+
+async function invokeService<Value>(
+  operation: () => Promise<Value>,
+  projectDomainError: WorkbenchSettingsRpcRoutesDependencies["projectDomainError"],
+): Promise<Value> {
+  try {
+    return await operation();
+  } catch (error) {
+    projectDomainError(error);
+  }
+}
+
+export function createWorkbenchSettingsRpcRoutes({
+  getService,
+  projectDomainError,
+}: WorkbenchSettingsRpcRoutesDependencies): RpcRouteGroup {
+  return {
+    handle(request, method) {
+      switch (method) {
+        case "workbenchSettings.describe":
+          return handleRpcPost(request, {
+            method,
+            payload: emptyPayload,
+            handler: () => invokeService(() => getService().describe(), projectDomainError),
+          });
+        case "workbenchSettings.update":
+          return handleRpcPost(request, {
+            method,
+            payload: workbenchSettingsUpdatePayload,
+            maxRequestBodyBytes: RPC_REQUEST_BODY_LIMITS.workbenchSettingsUpdate,
+            handler: (payload) =>
+              invokeService(() => getService().update(payload), projectDomainError),
+          });
+        default:
+          return undefined;
+      }
+    },
+  };
+}

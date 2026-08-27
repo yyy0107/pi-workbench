@@ -1,9 +1,12 @@
 import { SessionManager } from "@earendil-works/pi-coding-agent";
 
 import type {
-  ExternalSessionImportIssue,
-  ExternalSessionScanSnapshot,
+  ExternalSessionImportPayload,
+  ExternalSessionImportValue,
   ExternalSessionSource,
+} from "@/runtime/pi/contracts/rpc";
+import type {
+  ExternalSessionScanSnapshot,
   ExternalSessionSourceAdapter,
   ExternalSessionSourceSnapshot,
 } from "./external-session-types";
@@ -14,30 +17,12 @@ import { hasAssistantMessage, importedSessionId, workspaceIssue } from "./source
 import { registerImportedSessionManager } from "../sessions/session-registry";
 import { getWorkspaceStore } from "../workspaces/workspace-registry";
 
-export interface ExternalSessionImportSelection {
-  source: ExternalSessionSource;
-  sourceSessionId: string;
-}
+export type ExternalSessionImportSelection = ExternalSessionImportPayload["sessions"][number];
 
 export type ExternalSessionImportSkipReason =
-  | ExternalSessionImportIssue
-  | "already-imported"
-  | "source-session-not-found"
-  | "import-failed";
+  ExternalSessionImportValue["skipped"][number]["reason"];
 
-export interface ExternalSessionImportResult {
-  imported: Array<{
-    source: ExternalSessionSource;
-    sourceSessionId: string;
-    sessionId: string;
-    workspaceId: string;
-  }>;
-  skipped: Array<{
-    source: ExternalSessionSource;
-    sourceSessionId: string;
-    reason: ExternalSessionImportSkipReason;
-  }>;
-}
+export type ExternalSessionImportResult = ExternalSessionImportValue;
 
 const MAX_IMPORT_SELECTIONS = 200;
 
@@ -185,6 +170,8 @@ export class ExternalSessionImportService {
     return { imported, skipped };
   }
 }
+
+export type ExternalSessionImportProtocol = Pick<ExternalSessionImportService, "scan" | "import">;
 
 let service: ExternalSessionImportService | undefined;
 

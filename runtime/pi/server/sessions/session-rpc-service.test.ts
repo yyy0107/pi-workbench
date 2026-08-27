@@ -2,6 +2,17 @@ import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
 import test from "node:test";
 
+import { AgentExecutionError } from "@/runtime/server/agent-execution-port";
+import {
+  AgentThreadStoreError,
+  type AgentThreadCreateInput,
+  type AgentThreadStoreCapabilities,
+  type AgentThreadStorePort,
+  type AgentThreadSummary,
+} from "@/runtime/server/agent-thread-store-port";
+
+import { workspaceFromCwd } from "../workspaces/workspace-paths";
+
 const moduleHooks = registerHooks({
   resolve(specifier, context, nextResolve) {
     if (
@@ -14,17 +25,31 @@ const moduleHooks = registerHooks({
     return nextResolve(specifier, context);
   },
 });
-const { SessionRpcService, SessionRpcServiceError } = (await import(
-  new URL("./session-rpc-service.ts", import.meta.url).href
-)) as typeof import("./session-rpc-service");
+const [sessionRpcModule, sessionHistoryModule, sessionModelContextModule] = await Promise.all([
+  import(new URL("./session-rpc-service.ts", import.meta.url).href) as Promise<
+    typeof import("./session-rpc-service")
+  >,
+  import(new URL("./pi-session-history-service.ts", import.meta.url).href) as Promise<
+    typeof import("./pi-session-history-service")
+  >,
+  import(new URL("./pi-session-model-context-service.ts", import.meta.url).href) as Promise<
+    typeof import("./pi-session-model-context-service")
+  >,
+]);
 moduleHooks.deregister();
+const { SessionRpcService, SessionRpcServiceError } = sessionRpcModule;
+const { createPiSessionHistoryService } = sessionHistoryModule;
+const { createPiSessionModelContextService } = sessionModelContextModule;
 
 type PiSessionHistory = import("@/runtime/pi/contracts/pi").PiSessionHistory;
-type PiSessionSummary = import("@/runtime/pi/contracts/pi").PiSessionSummary;
 type ModelProviderGroup = import("@/runtime/pi/contracts/rpc").ModelProviderGroup;
 type SessionEvent = import("@/runtime/pi/contracts/rpc").SessionEvent;
 type WorkspaceView = import("@/runtime/pi/contracts/rpc").WorkspaceView;
-type SessionRpcDependencies = import("./session-rpc-service").SessionRpcDependencies;
+type AgentExecutionPort = import("@/runtime/server/agent-execution-port").AgentExecutionPort;
+type PiSessionHistoryServiceDependencies =
+  import("./pi-session-history-service").PiSessionHistoryServiceDependencies;
+type PiSessionModelContextServiceDependencies =
+  import("./pi-session-model-context-service").PiSessionModelContextServiceDependencies;
 type SessionRpcWorkspaceStore = import("./session-rpc-service").SessionRpcWorkspaceStore;
 
 const PNG_BASE64 = "iVBORw0KGgo=";
@@ -39,19 +64,37 @@ const workspace: WorkspaceView = {
   updatedAt: "2026-01-01T00:00:00.000Z",
 };
 
-function summary(overrides: Partial<PiSessionSummary> = {}): PiSessionSummary {
+function summary(overrides: Partial<AgentThreadSummary> = {}): AgentThreadSummary {
   return {
-    id: "session-1",
-    cwd: "/workspace",
-    workspace: { id: "workspace-1", name: "Workspace", cwd: "/workspace" },
-    name: "Protocol work",
-    created: "2026-01-01T00:00:00.000Z",
-    modified: "2026-01-02T03:04:05.000Z",
+    threadId: "session-1",
+    rootPath: "/workspace",
+    title: "Protocol work",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-02T03:04:05.000Z",
     messageCount: 2,
     firstMessage: "Design the session protocol",
     transient: false,
     running: false,
     ...overrides,
+  };
+}
+
+function piSummary(thread: AgentThreadSummary) {
+  return {
+    id: thread.threadId,
+    cwd: thread.rootPath,
+    workspace: workspaceFromCwd(thread.rootPath),
+    ...(thread.title === undefined ? {} : { name: thread.title }),
+    created: thread.createdAt,
+    modified: thread.updatedAt,
+    messageCount: thread.messageCount,
+    firstMessage: thread.firstMessage,
+    transient: thread.transient,
+    running: thread.running,
+    ...(thread.waitingForUserInput === undefined
+      ? {}
+      : { waitingForUserInput: thread.waitingForUserInput }),
+    ...(thread.runTiming === undefined ? {} : { runTiming: thread.runTiming }),
   };
 }
 
@@ -100,54 +143,37 @@ function modelGroups(): ModelProviderGroup[] {
   ];
 }
 
-function harness(overrides: Partial<SessionRpcDependencies> = {}) {
+type ThreadStoreOverrides = Omit<Partial<AgentThreadStorePort>, "capabilities"> & {
+  capabilities?: Partial<AgentThreadStoreCapabilities>;
+};
+
+type HarnessOverrides = Partial<
+  PiSessionHistoryServiceDependencies & PiSessionModelContextServiceDependencies
+> & {
+  execution?: Partial<AgentExecutionPort>;
+  threads?: ThreadStoreOverrides;
+};
+
+function harness(overrides: HarnessOverrides = {}) {
+  const {
+    execution: executionOverrides = {},
+    threads: threadOverrides = {},
+    ...dependencyOverrides
+  } = overrides;
+  const { capabilities: capabilityOverrides = {}, ...threadMethodOverrides } = threadOverrides;
   let workspaces = [structuredClone(workspace)];
   const calls: Array<{ name: string; value?: unknown }> = [];
-  const dependencies: SessionRpcDependencies = {
-    listSessions: async () => ({ sessions: [summary()], runningSessionIds: [] }),
-    listSessionSearchText: async () => [],
-    createSession: async (input) => {
-      calls.push({ name: "create", value: input });
-      return { id: "session-created" };
-    },
-    deleteSession: async (sessionId) => {
-      calls.push({ name: "delete", value: sessionId });
-    },
-    forkSession: async (sessionId, atSeq) => {
-      calls.push({ name: "fork", value: [sessionId, atSeq] });
-      return { id: "session-forked" };
-    },
+  const dependencies: PiSessionHistoryServiceDependencies &
+    PiSessionModelContextServiceDependencies = {
     getSessionEventBranches: async () => ({ headLeafId: null, items: [] }),
     getSessionEvents: async () => [],
     getSessionHistory: async () => history(),
     getSessionResumeState: async () => ({}),
+    getModelCatalog: async () => ({ groups: modelGroups(), failures: [] }),
     listModels: async () => ({
       models: [],
       defaultModel: { provider: "openai", modelId: "gpt-reasoning" },
     }),
-    renameSession: async (sessionId, title) => {
-      calls.push({ name: "rename", value: [sessionId, title] });
-      return 7;
-    },
-    regenerateSession: async (sessionId, messageId) => {
-      calls.push({ name: "regenerate", value: [sessionId, messageId] });
-    },
-    resumeSession: async (sessionId, checkpointId, expectedLeafId) => {
-      calls.push({ name: "resume", value: [sessionId, checkpointId, expectedLeafId] });
-    },
-    selectSessionBranch: async (sessionId, leafId) => {
-      calls.push({ name: "select-branch", value: [sessionId, leafId] });
-    },
-    submitPrompt: async (sessionId, mode, prompt, provenance) => {
-      calls.push({ name: "submit-prompt", value: [sessionId, mode, prompt, provenance] });
-      return { queued: false };
-    },
-    updateQueueItem: async (sessionId, itemId, mutation) => {
-      calls.push({ name: "update-queue", value: [sessionId, itemId, mutation] });
-    },
-    cancelSession: async (sessionId) => {
-      calls.push({ name: "cancel", value: sessionId });
-    },
     selectSessionModel: async (sessionId, selection) => {
       calls.push({ name: "select-model", value: [sessionId, selection] });
     },
@@ -175,9 +201,54 @@ function harness(overrides: Partial<SessionRpcDependencies> = {}) {
         nearingCompaction: false,
       },
     }),
-    supportsRequestedSessionId: false,
-    supportsAgentPreset: false,
-    ...overrides,
+    ...dependencyOverrides,
+  };
+  const threads: AgentThreadStorePort = {
+    capabilities: {
+      requestedThreadId: false,
+      preset: false,
+      ...capabilityOverrides,
+    },
+    list: async () => [summary()],
+    listSearchDocuments: async () => [],
+    create: async (input) => {
+      calls.push({ name: "create", value: input });
+      return { threadId: "session-created" };
+    },
+    delete: async ({ threadId }) => {
+      calls.push({ name: "delete", value: threadId });
+    },
+    fork: async ({ threadId, atEventRevision }) => {
+      calls.push({ name: "fork", value: [threadId, atEventRevision] });
+      return { threadId: "session-forked" };
+    },
+    rename: async ({ threadId, title }) => {
+      calls.push({ name: "rename", value: [threadId, title] });
+      return { revision: 7 };
+    },
+    ...threadMethodOverrides,
+  };
+  const execution: AgentExecutionPort = {
+    regenerate: async (input) => {
+      calls.push({ name: "regenerate", value: input });
+    },
+    resume: async (input) => {
+      calls.push({ name: "resume", value: input });
+    },
+    selectBranch: async (input) => {
+      calls.push({ name: "select-branch", value: input });
+    },
+    submit: async (input) => {
+      calls.push({ name: "submit-prompt", value: input });
+      return { kind: "started" };
+    },
+    updateQueue: async (input) => {
+      calls.push({ name: "update-queue", value: input });
+    },
+    cancel: async (input) => {
+      calls.push({ name: "cancel", value: input });
+    },
+    ...executionOverrides,
   };
   const workspaceStore: SessionRpcWorkspaceStore = {
     list: async () => ({ items: structuredClone(workspaces) }),
@@ -204,11 +275,11 @@ function harness(overrides: Partial<SessionRpcDependencies> = {}) {
   };
   const service = new SessionRpcService({
     workspaceStore,
-    dependencies,
+    execution,
+    threads,
+    history: createPiSessionHistoryService(dependencies),
+    modelContext: createPiSessionModelContextService(dependencies),
     defaultCwd: "/default",
-    modelServiceFactory: () => ({
-      models: async () => ({ groups: modelGroups(), failures: [] }),
-    }),
   });
   return { service, calls, workspaceStore };
 }
@@ -217,15 +288,15 @@ test("lists legacy summaries and searches with protocol bounds", async () => {
   const longSnippet = `${"😀".repeat(250)} needle`;
   const sessions = Array.from({ length: 21 }, (_, index) =>
     summary({
-      id: `session-${index}`,
-      name: index === 0 ? longSnippet : `needle ${index}`,
+      threadId: `session-${index}`,
+      title: index === 0 ? longSnippet : `needle ${index}`,
       messageCount: index === 0 ? 0 : 2,
       running: index === 1,
       waitingForUserInput: index === 0,
     }),
   );
   const { service } = harness({
-    listSessions: async () => ({ sessions, runningSessionIds: ["session-1"] }),
+    threads: { list: async () => sessions },
   });
 
   const listed = await service.list({ cursor: "reserved" });
@@ -241,7 +312,10 @@ test("lists legacy summaries and searches with protocol bounds", async () => {
       projections: undefined,
     },
   );
-  assert.deepEqual(listed.items[0]?.projections?.values["workbench.piSessionSummary"], sessions[0]);
+  assert.deepEqual(
+    listed.items[0]?.projections?.values["workbench.piSessionSummary"],
+    piSummary(sessions[0]!),
+  );
   const searched = await service.search({ query: "  needle  " });
   assert.equal(searched.items.length, 20);
   assert.equal(searched.hasMore, true);
@@ -262,7 +336,7 @@ test("deletes an existing session through the session service", async () => {
   assert.deepEqual(calls.at(-1), { name: "delete", value: "session-1" });
 
   const missing = harness({
-    listSessions: async () => ({ sessions: [], runningSessionIds: [] }),
+    threads: { list: async () => [] },
   });
   await assert.rejects(missing.service.delete({ sessionId: "missing" }), (error: unknown) => {
     assert.ok(error instanceof SessionRpcServiceError);
@@ -275,7 +349,9 @@ test("deletes an existing session through the session service", async () => {
 test("searches complete persisted and live user/assistant text around the actual match", async () => {
   const persistedBody = `${"前".repeat(180)} Deep Hidden Needle ${"后".repeat(180)}`;
   const persisted = harness({
-    listSessionSearchText: async () => [{ sessionId: "session-1", allMessagesText: persistedBody }],
+    threads: {
+      listSearchDocuments: async () => [{ threadId: "session-1", text: persistedBody }],
+    },
   });
   const persistedResult = await persisted.service.search({ query: "deep hidden needle" });
   assert.equal(persistedResult.items.length, 1);
@@ -318,7 +394,7 @@ test("creates a session in a workspace, attaches it, and rejects unsupported cre
     sessionId: "session-created",
   });
   assert.deepEqual(calls, [
-    { name: "create", value: { cwd: "/workspace" } },
+    { name: "create", value: { rootPath: "/workspace" } },
     { name: "attach", value: ["workspace-1", "session-created"] },
   ]);
 
@@ -326,7 +402,7 @@ test("creates a session in a workspace, attaches it, and rejects unsupported cre
   assert.deepEqual(await cwdOnly.service.create({ cwd: "/workspace" }), {
     sessionId: "session-created",
   });
-  assert.deepEqual(cwdOnly.calls, [{ name: "create", value: { cwd: "/workspace" } }]);
+  assert.deepEqual(cwdOnly.calls, [{ name: "create", value: { rootPath: "/workspace" } }]);
 
   await assert.rejects(
     service.create({ workspaceId: "workspace-1", cwd: "/other" }),
@@ -350,10 +426,12 @@ test("creates a session in a workspace, attaches it, and rejects unsupported cre
 });
 
 test("adopts requested ids idempotently, attaches matching sessions, and rejects cwd conflicts", async () => {
-  const existing = summary({ id: "chosen", cwd: "/workspace" });
+  const existing = summary({ threadId: "chosen", rootPath: "/workspace" });
   const adopted = harness({
-    supportsRequestedSessionId: true,
-    listSessions: async () => ({ sessions: [summary(), existing], runningSessionIds: [] }),
+    threads: {
+      capabilities: { requestedThreadId: true },
+      list: async () => [summary(), existing],
+    },
   });
 
   assert.deepEqual(
@@ -366,11 +444,10 @@ test("adopts requested ids idempotently, attaches matching sessions, and rejects
   assert.deepEqual(adopted.calls, [{ name: "attach", value: ["workspace-1", "chosen"] }]);
 
   const canonicalAlias = harness({
-    supportsRequestedSessionId: true,
-    listSessions: async () => ({
-      sessions: [summary(), summary({ id: "alias", cwd: "/workspace" })],
-      runningSessionIds: [],
-    }),
+    threads: {
+      capabilities: { requestedThreadId: true },
+      list: async () => [summary(), summary({ threadId: "alias", rootPath: "/workspace" })],
+    },
   });
   assert.deepEqual(
     await canonicalAlias.service.create({ cwd: "/workspace/../workspace", sessionId: "alias" }),
@@ -391,16 +468,18 @@ test("adopts requested ids idempotently, attaches matching sessions, and rejects
 test("forwards requested ids and serializes concurrent creates for the same id", async () => {
   const sessions = [summary()];
   let createCalls = 0;
-  let createdInput: Parameters<SessionRpcDependencies["createSession"]>[0] | undefined;
+  let createdInput: AgentThreadCreateInput | undefined;
   const concurrent = harness({
-    supportsRequestedSessionId: true,
-    listSessions: async () => ({ sessions: structuredClone(sessions), runningSessionIds: [] }),
-    createSession: async (input) => {
-      createCalls += 1;
-      createdInput = input;
-      await Promise.resolve();
-      sessions.push(summary({ id: input.sessionId, cwd: input.cwd }));
-      return { id: input.sessionId! };
+    threads: {
+      capabilities: { requestedThreadId: true },
+      list: async () => structuredClone(sessions),
+      create: async (input) => {
+        createCalls += 1;
+        createdInput = input;
+        await Promise.resolve();
+        sessions.push(summary({ threadId: input.requestedThreadId, rootPath: input.rootPath }));
+        return { threadId: input.requestedThreadId! };
+      },
     },
   });
 
@@ -412,15 +491,19 @@ test("forwards requested ids and serializes concurrent creates for the same id",
     [{ sessionId: "concurrent" }, { sessionId: "concurrent" }],
   );
   assert.equal(createCalls, 1);
-  assert.deepEqual(createdInput, { cwd: "/workspace", sessionId: "concurrent" });
+  assert.deepEqual(createdInput, {
+    rootPath: "/workspace",
+    requestedThreadId: "concurrent",
+  });
 
   const registryConflict = harness({
-    supportsRequestedSessionId: true,
-    createSession: async () => {
-      throw Object.assign(new Error("already allocated"), {
-        code: "pi_session_conflict",
-        existingCwd: "/other",
-      });
+    threads: {
+      capabilities: { requestedThreadId: true },
+      create: async () => {
+        throw new AgentThreadStoreError("thread-id-conflict", "already allocated", {
+          existingRootPath: "/other",
+        });
+      },
     },
   });
   await assert.rejects(registryConflict.service.create({ cwd: "/workspace", sessionId: "raced" }), {
@@ -489,8 +572,11 @@ test("projects branch history and forwards branch mutations", async () => {
     { selected: true },
   );
   assert.deepEqual(branchHarness.calls.slice(-2), [
-    { name: "regenerate", value: ["session-1", "message-1"] },
-    { name: "select-branch", value: ["session-1", "leaf-1"] },
+    {
+      name: "regenerate",
+      value: { threadId: "session-1", userMessageId: "message-1" },
+    },
+    { name: "select-branch", value: { threadId: "session-1", leafId: "leaf-1" } },
   ]);
 });
 
@@ -521,7 +607,11 @@ test("projects and resumes the active durable checkpoint", async () => {
   );
   assert.deepEqual(resumeHarness.calls.at(-1), {
     name: "resume",
-    value: ["session-1", "checkpoint-1", "leaf-1"],
+    value: {
+      threadId: "session-1",
+      checkpointId: "checkpoint-1",
+      expectedLeafId: "leaf-1",
+    },
   });
 });
 
@@ -703,29 +793,31 @@ test("renames, prompts, queues, and cancels supported session operations", async
     idle.calls.map(({ name }) => name),
     ["rename", "submit-prompt", "cancel"],
   );
-  assert.deepEqual(idle.calls[1]?.value, [
-    "session-1",
-    "followUp",
-    {
-      message: "hello",
-      images: [{ type: "image", data: PNG_BASE64, mimeType: "image/png", name: "screen.png" }],
-      documents: [
+  assert.deepEqual(idle.calls[1]?.value, {
+    threadId: "session-1",
+    mode: "follow-up",
+    prompt: {
+      text: "hello",
+      attachments: [
         {
-          type: "file",
+          kind: "image",
+          data: PNG_BASE64,
+          mediaType: "image/png",
+          name: "screen.png",
+        },
+        {
+          kind: "document",
           data: PDF_BASE64,
-          mimeType: "application/pdf",
+          mediaType: "application/pdf",
           name: "notes.pdf",
         },
       ],
     },
-    { rpcId: "rpc-prompt", clientTimeZone: "America/Los_Angeles" },
-  ]);
+    provenance: { requestId: "rpc-prompt", clientTimeZone: "America/Los_Angeles" },
+  });
 
   const running = harness({
-    listSessions: async () => ({
-      sessions: [summary({ running: true })],
-      runningSessionIds: ["session-1"],
-    }),
+    threads: { list: async () => [summary({ running: true })] },
   });
   await running.service.prompt({
     sessionId: "session-1",
@@ -734,13 +826,20 @@ test("renames, prompts, queues, and cancels supported session operations", async
   });
   assert.deepEqual(running.calls.at(-1), {
     name: "submit-prompt",
-    value: ["session-1", "steer", { message: "adjust" }, {}],
+    value: {
+      threadId: "session-1",
+      mode: "steer",
+      prompt: { text: "adjust", attachments: [] },
+      provenance: {},
+    },
   });
   const queued = harness({
-    submitPrompt: async (_sessionId, _mode, _prompt, provenance) => ({
-      queued: true,
-      queueItemId: provenance?.rpcId,
-    }),
+    execution: {
+      submit: async ({ provenance }) => ({
+        kind: "queued",
+        queueItemId: provenance?.requestId,
+      }),
+    },
   });
   assert.deepEqual(
     await queued.service.prompt(
@@ -776,29 +875,29 @@ test("renames, prompts, queues, and cancels supported session operations", async
 test("admits a token-only Composer transaction and forwards its structured semantics", async () => {
   const { service, calls } = harness();
   const composer = {
-    version: 1 as const,
+    version: 2 as const,
     document: [
       {
         type: "command" as const,
-        id: "command:pi:plan:0",
+        id: "command:agent:plan:0",
         commandId: "plan",
         label: "Plan",
         scope: "message" as const,
-        source: "pi" as const,
+        source: "agent" as const,
       },
       { type: "text" as const, text: " " },
     ],
-    sourceText: ":pi-command[plan|Plan] ",
+    sourceText: ":agent-command[plan|Plan] ",
     text: "",
     context: [],
     metadata: {},
     commands: [
       {
-        id: "command:pi:plan:0",
+        id: "command:agent:plan:0",
         commandId: "plan",
         label: "Plan",
         scope: "message" as const,
-        source: "pi" as const,
+        source: "agent" as const,
       },
     ],
   };
@@ -814,7 +913,12 @@ test("admits a token-only Composer transaction and forwards its structured seman
   );
   assert.deepEqual(calls.at(-1), {
     name: "submit-prompt",
-    value: ["session-1", "followUp", { message: "" }, { composer }],
+    value: {
+      threadId: "session-1",
+      mode: "follow-up",
+      prompt: { text: "", attachments: [], composer },
+      provenance: {},
+    },
   });
 
   await assert.rejects(
@@ -881,22 +985,22 @@ test("strictly admits PDF base64, signatures, media types, and mixed attachment 
   });
   assert.deepEqual(calls.at(-1), {
     name: "submit-prompt",
-    value: [
-      "session-1",
-      "followUp",
-      {
-        message: "",
-        documents: [
+    value: {
+      threadId: "session-1",
+      mode: "follow-up",
+      prompt: {
+        text: "",
+        attachments: [
           {
-            type: "file",
-            mimeType: "application/pdf",
+            kind: "document",
+            mediaType: "application/pdf",
             data: PDF_BASE64,
             name: "invoice.pdf",
           },
         ],
       },
-      {},
-    ],
+      provenance: {},
+    },
   });
 
   await assert.rejects(
@@ -929,10 +1033,10 @@ test("strictly admits PDF base64, signatures, media types, and mixed attachment 
 
 test("maps image modality admission failures to the protocol operation", async () => {
   const promptHarness = harness({
-    submitPrompt: async () => {
-      throw Object.assign(new Error("image unsupported"), {
-        code: "pi_model_image_unsupported",
-      });
+    execution: {
+      submit: async () => {
+        throw new AgentExecutionError("image-input-unsupported", "image unsupported");
+      },
     },
   });
   await assert.rejects(
@@ -994,8 +1098,10 @@ test("reports stable fork validation, missing, and unavailable errors", async ()
   });
 
   const unavailable = harness({
-    forkSession: async () => {
-      throw Object.assign(new Error("busy or unmappable"), { code: "pi_fork_unavailable" });
+    threads: {
+      fork: async () => {
+        throw new AgentThreadStoreError("fork-unavailable", "busy or unmappable");
+      },
     },
   }).service;
   await assert.rejects(unavailable.fork({ sessionId: "session-1", atSeq: 4 }), {
@@ -1004,7 +1110,7 @@ test("reports stable fork validation, missing, and unavailable errors", async ()
   });
 
   const missing = harness({
-    listSessions: async () => ({ sessions: [], runningSessionIds: [] }),
+    threads: { list: async () => [] },
   }).service;
   await assert.rejects(missing.fork({ sessionId: "missing" }), {
     code: "session-not-found",
@@ -1037,7 +1143,11 @@ test("edits, removes, and steers stable queue ids and translates queue races", a
   );
   assert.deepEqual(calls.at(-1), {
     name: "update-queue",
-    value: ["session-1", "queue-1", { kind: "edit", prompt: { message: "edited" } }],
+    value: {
+      threadId: "session-1",
+      itemId: "queue-1",
+      mutation: { kind: "edit", text: "edited" },
+    },
   });
   await service.updateQueue({
     sessionId: "session-1",
@@ -1060,8 +1170,10 @@ test("edits, removes, and steers stable queue ids and translates queue races", a
   );
 
   const missing = harness({
-    updateQueueItem: async () => {
-      throw Object.assign(new Error("gone"), { code: "pi_queue_item_not_found" });
+    execution: {
+      updateQueue: async () => {
+        throw new AgentExecutionError("queue-item-not-found", "gone");
+      },
     },
   });
   await assert.rejects(
@@ -1074,8 +1186,10 @@ test("edits, removes, and steers stable queue ids and translates queue races", a
   );
 
   const unavailable = harness({
-    updateQueueItem: async () => {
-      throw Object.assign(new Error("settled"), { code: "pi_steer_unavailable" });
+    execution: {
+      updateQueue: async () => {
+        throw new AgentExecutionError("steer-unavailable", "settled");
+      },
     },
   });
   await assert.rejects(

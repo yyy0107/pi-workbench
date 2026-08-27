@@ -21,14 +21,14 @@ import {
 } from "../../../shared/attachment-understanding/state-machine";
 
 import {
-  LEGACY_WORKBENCH_COMPOSER_USER_CUSTOM_TYPE,
+  isWorkbenchComposerCommandResponseCustomType,
+  isWorkbenchComposerResolutionCustomType,
+  isWorkbenchComposerUserCustomType,
   parseWorkbenchComposerCommandResponseDetails,
   parseWorkbenchComposerResolutionDetails,
   parseWorkbenchComposerUserDetails,
   workbenchComposerSubmissionFromRunConfig,
   WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE,
-  WORKBENCH_COMPOSER_RESOLUTION_CUSTOM_TYPE,
-  WORKBENCH_COMPOSER_USER_CUSTOM_TYPE,
 } from "@/runtime/shared/composer/request";
 import type {
   WorkbenchComposerCommandResponseDetails,
@@ -1282,10 +1282,7 @@ export function piHistoryToThreadMessages(
         applyToolResult(messages, message);
         break;
       case "custom":
-        if (
-          message.customType === WORKBENCH_COMPOSER_USER_CUSTOM_TYPE ||
-          message.customType === LEGACY_WORKBENCH_COMPOSER_USER_CUSTOM_TYPE
-        ) {
+        if (isWorkbenchComposerUserCustomType(message.customType)) {
           const details = parseWorkbenchComposerUserDetails(message.details);
           if (details) {
             const messageIndex = messages.length;
@@ -1363,7 +1360,7 @@ export function piHistoryToThreadMessages(
               };
             }
           }
-        } else if (message.customType === WORKBENCH_COMPOSER_RESOLUTION_CUSTOM_TYPE) {
+        } else if (isWorkbenchComposerResolutionCustomType(message.customType)) {
           const details = parseWorkbenchComposerResolutionDetails(message.details);
           const messageIndex = details ? composerUserIndexes.get(details.submissionId) : undefined;
           if (details && messageIndex !== undefined) {
@@ -1382,7 +1379,7 @@ export function piHistoryToThreadMessages(
               };
             }
           }
-        } else if (message.customType === WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE) {
+        } else if (isWorkbenchComposerCommandResponseCustomType(message.customType)) {
           const details = parseWorkbenchComposerCommandResponseDetails(message.details);
           if (details) {
             const responseId = workbenchComposerCommandResponseId(details);

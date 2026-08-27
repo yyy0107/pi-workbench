@@ -9,8 +9,12 @@ import { SessionManager, sessionEntryToContextMessages } from "@earendil-works/p
 import type { SessionEvent } from "@/runtime/pi/contracts/rpc";
 import { fetchProgressiveSessionHistory } from "@/runtime/pi/shared/sessions/history-pagination";
 
+import { createPiAgentExecutionAdapter } from "../agent-runtime/pi-agent-execution-adapter";
+import { createPiAgentThreadStoreAdapter } from "../agent-runtime/pi-agent-thread-store-adapter";
 import { ColdSessionEventCache } from "./cold-session-event-cache";
 import { initializeSessionEventJournal } from "./session-event-journal";
+import { createPiSessionHistoryService } from "./pi-session-history-service";
+import { createPiSessionModelContextService } from "./pi-session-model-context-service";
 import { SessionRpcService, type SessionRpcWorkspaceStore } from "./session-rpc-service";
 
 const HISTORY_SIZES = [1_000, 10_000] as const;
@@ -113,7 +117,9 @@ async function runScenario(
   };
   const service = new SessionRpcService({
     workspaceStore,
-    dependencies: {
+    execution: createPiAgentExecutionAdapter(),
+    threads: createPiAgentThreadStoreAdapter(),
+    history: createPiSessionHistoryService({
       getSessionEvents: async () => {
         let events: SessionEvent[];
         if (coldSessionFile) {
@@ -128,7 +134,8 @@ async function runScenario(
         sampleHeap();
         return events;
       },
-    },
+    }),
+    modelContext: createPiSessionModelContextService(),
   });
   const startedAt = performance.now();
   const history = await fetchProgressiveSessionHistory("history-benchmark", async (payload) => {

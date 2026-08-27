@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  type AppendMessage,
   ComposerPrimitive,
   type Attachment,
   type CreateAttachment,
@@ -62,20 +61,24 @@ import {
 import { SlotHost } from "@/platform/extensions/hosts/slot-host";
 import { useExtensionManager } from "@/platform/extensions/internal";
 import type { WorkbenchAgentComposerSendError } from "@/runtime/assistant-ui/agent-runtime-adapter";
-import { usePiCommands } from "@/runtime/pi/client/runtime/command-context";
-import type { CommandView } from "@/runtime/pi/contracts/rpc";
+import type { WorkbenchAgentCommand } from "@/runtime/shared/agent-command/catalog";
+import {
+  readAgentComposerExtras,
+  readAgentRejectedQueueDraft,
+} from "@/runtime/assistant-ui/agent-runtime-extras";
+import { useWorkbenchAgentCommands } from "@/runtime/assistant-ui/agent-runtime-context";
 import { useWorkspaceSelection } from "@/services/workspace-selection-service";
 
 import {
   applyComposerCommandArguments,
   applyImmediateComposerCommand,
+  AGENT_COMMAND_DIRECTIVE_TYPE,
+  agentSkillDirectiveType,
   COMMAND_ARGUMENT_END_DIRECTIVE_TYPE,
   compileComposerDocument,
   composerCommandArgumentKey,
-  isPiComposerDirectiveType,
+  isAgentComposerDirectiveType,
   parseComposerDocument,
-  PI_COMMAND_DIRECTIVE_TYPE,
-  piSkillDirectiveType,
   WORKBENCH_COMMAND_DIRECTIVE_TYPE,
   workbenchComposerDirectiveFormatter,
 } from "./composer-document";
@@ -85,7 +88,7 @@ import { addComposerImagesFromPaste } from "./composer-image-paste";
 import { MarkdownComposerInput } from "./markdown-composer-input";
 import { submitWorkbenchComposer } from "./composer-submit";
 import { ComposerTriggerEngine, excludeSlashPathOrCode } from "./composer-trigger-engine";
-import { formatPiCommandLabel } from "./pi-command";
+import { formatAgentCommandLabel } from "./agent-command";
 
 const COMPOSER_PRIMARY_ACTION_CLASS_NAME =
   "rounded-full [&:hover:not(:active)]:bg-primary! dark:[&:hover:not(:active)]:bg-primary!";
@@ -106,46 +109,10 @@ function restorableComposerAttachment(attachment: Attachment): File | CreateAtta
   };
 }
 
-interface AgentComposerActions {
-  error?: WorkbenchAgentComposerSendError;
-  clearError(): void;
-}
-
-interface AgentRejectedQueueDraftActions {
-  rejectedDraft: {
-    revision: number;
-    message: AppendMessage;
-  };
-  clearRejectedDraft(revision: number): void;
-}
-
-function agentRejectedQueueDraftActions(
-  extras: unknown,
-): AgentRejectedQueueDraftActions | undefined {
-  if (
-    !extras ||
-    typeof extras !== "object" ||
-    !("agentQueue" in extras) ||
-    !extras.agentQueue ||
-    typeof extras.agentQueue !== "object" ||
-    !("rejectedDraft" in extras.agentQueue) ||
-    !extras.agentQueue.rejectedDraft ||
-    typeof extras.agentQueue.rejectedDraft !== "object" ||
-    !("revision" in extras.agentQueue.rejectedDraft) ||
-    typeof extras.agentQueue.rejectedDraft.revision !== "number" ||
-    !("message" in extras.agentQueue.rejectedDraft) ||
-    !("clearRejectedDraft" in extras.agentQueue) ||
-    typeof extras.agentQueue.clearRejectedDraft !== "function"
-  ) {
-    return undefined;
-  }
-  return extras.agentQueue as unknown as AgentRejectedQueueDraftActions;
-}
-
 interface WorkbenchComposerSuggestion {
   readonly item: Unstable_TriggerItem;
   readonly command: ComposerCommand;
-  readonly group: CommandView["kind"] | "workbench";
+  readonly group: WorkbenchAgentCommand["kind"] | "workbench";
   readonly exclusive: boolean;
   readonly argsSchema?: ComposerCommandArgsSchema;
   readonly argsBinding?: ComposerCommandArgsBinding;
@@ -166,7 +133,7 @@ function suggestionKey(item: Pick<Unstable_TriggerItem, "id" | "type">): string 
 
 function suggestionParameterKey(item: Pick<Unstable_TriggerItem, "id" | "type">): string {
   return composerCommandArgumentKey(
-    isPiComposerDirectiveType(item.type) ? "pi" : "workbench",
+    isAgentComposerDirectiveType(item.type) ? "agent" : "workbench",
     item.id,
   );
 }
@@ -190,16 +157,12 @@ function suggestionGroupLabel(
 }
 
 function commandSourceMeta(
-  command: CommandView,
+  command: WorkbenchAgentCommand,
   t: ReturnType<typeof useI18n>["t"],
 ): string | undefined {
   if (command.kind === "builtin") return undefined;
-  const parts = [t(`workbench.chat.composer.commandScopes.${command.scope}`)];
-  if (command.origin === "package" && command.source !== "auto") {
-    parts.push(
-      command.source.startsWith("npm:") ? command.source.slice("npm:".length) : command.source,
-    );
-  }
+  const parts = [t(`workbench.chat.composer.commandScopes.${command.source.scope}`)];
+  if (command.source.label) parts.push(command.source.label);
   if (command.kind === "skill" && !command.modelInvocable) {
     parts.push(t("workbench.chat.composer.commandScopes.manualOnly"));
   }
@@ -207,7 +170,7 @@ function commandSourceMeta(
 }
 
 function builtinCommandPresentation(
-  command: CommandView,
+  command: WorkbenchAgentCommand,
   t: ReturnType<typeof useI18n>["t"],
 ): { label: string; description: string; argumentHint?: string } | undefined {
   if (command.kind !== "builtin") return undefined;
@@ -231,7 +194,7 @@ function directiveGroup(
   item: Pick<Unstable_TriggerItem, "id" | "type">,
   registry: Pick<ComposerCommandRegistry, "get">,
 ): string | undefined {
-  if (item.type !== WORKBENCH_COMMAND_DIRECTIVE_TYPE && !isPiComposerDirectiveType(item.type)) {
+  if (item.type !== WORKBENCH_COMMAND_DIRECTIVE_TYPE && !isAgentComposerDirectiveType(item.type)) {
     return undefined;
   }
   const definition = registry.get(item.id);
@@ -423,21 +386,6 @@ function WorkbenchComposerCommandMenu({
   );
 }
 
-function agentComposerActions(extras: unknown): AgentComposerActions | undefined {
-  if (
-    !extras ||
-    typeof extras !== "object" ||
-    !("agentComposer" in extras) ||
-    !extras.agentComposer ||
-    typeof extras.agentComposer !== "object" ||
-    !("clearError" in extras.agentComposer) ||
-    typeof extras.agentComposer.clearError !== "function"
-  ) {
-    return undefined;
-  }
-  return extras.agentComposer as AgentComposerActions;
-}
-
 function composerErrorMessage(
   error: WorkbenchAgentComposerSendError,
   t: ReturnType<typeof useI18n>["t"],
@@ -494,8 +442,8 @@ export function WorkbenchComposer() {
     () => EMPTY_COMPOSER_COMMANDS,
   );
   const extras = useAuiState((state) => state.thread.extras);
-  const composerActions = agentComposerActions(extras);
-  const rejectedQueueDraftActions = agentRejectedQueueDraftActions(extras);
+  const composerActions = readAgentComposerExtras(extras);
+  const rejectedQueueDraftActions = readAgentRejectedQueueDraft(extras);
   const drawerId = useId();
   const composerRef = useRef<HTMLFormElement>(null);
   const [composerOverlayCount, setComposerOverlayCount] = useState(0);
@@ -523,7 +471,7 @@ export function WorkbenchComposer() {
   const [commandParametersByKey, setCommandParametersByKey] =
     useState<ComposerCommandParametersByKey>({});
   const [activeCommandParameterKey, setActiveCommandParameterKey] = useState<string>();
-  const piCommands = usePiCommands();
+  const agentCommands = useWorkbenchAgentCommands();
   const handledRejectedQueueDraft = useRef("");
 
   useAuiEvent("composer.send", ({ threadId, messageId }) => {
@@ -593,16 +541,16 @@ export function WorkbenchComposer() {
     const definitions = new Map(
       registeredComposerCommands.map((definition) => [definition.id, definition]),
     );
-    const piIds = new Set<string>();
+    const agentCommandIds = new Set<string>();
     const suggestions: WorkbenchComposerSuggestion[] = [];
 
-    for (const command of piCommands) {
-      piIds.add(command.invocationName);
+    for (const command of agentCommands) {
+      agentCommandIds.add(command.invocationName);
       const definition = definitions.get(command.invocationName);
       const builtin = builtinCommandPresentation(command, t);
       const label = definition
         ? localize(definition.label)
-        : (builtin?.label ?? formatPiCommandLabel(command.name));
+        : (builtin?.label ?? formatAgentCommandLabel(command.name));
       const description = definition?.description
         ? localize(definition.description)
         : (builtin?.description ?? command.description ?? command.name);
@@ -615,8 +563,8 @@ export function WorkbenchComposer() {
       });
       const type =
         command.kind === "skill"
-          ? (piSkillDirectiveType(command.scope) ?? PI_COMMAND_DIRECTIVE_TYPE)
-          : PI_COMMAND_DIRECTIVE_TYPE;
+          ? (agentSkillDirectiveType(command.source.scope) ?? AGENT_COMMAND_DIRECTIVE_TYPE)
+          : AGENT_COMMAND_DIRECTIVE_TYPE;
       suggestions.push({
         item: { id: command.invocationName, type, label, description },
         command: {
@@ -635,7 +583,7 @@ export function WorkbenchComposer() {
     }
 
     for (const definition of registeredComposerCommands) {
-      if (piIds.has(definition.id)) continue;
+      if (agentCommandIds.has(definition.id)) continue;
       const label = localize(definition.label);
       const description = definition.description ? localize(definition.description) : label;
       const argumentHint = composerCommandArgumentHint({
@@ -666,7 +614,7 @@ export function WorkbenchComposer() {
     }
 
     return suggestions;
-  }, [localize, piCommands, registeredComposerCommands, t]);
+  }, [agentCommands, localize, registeredComposerCommands, t]);
   const composerSuggestionsByKey = useMemo(
     () =>
       new Map(
@@ -679,7 +627,7 @@ export function WorkbenchComposer() {
       new Map(
         composerSuggestions.map((suggestion) => [
           composerCommandArgumentKey(
-            isPiComposerDirectiveType(suggestion.item.type) ? "pi" : "workbench",
+            isAgentComposerDirectiveType(suggestion.item.type) ? "agent" : "workbench",
             suggestion.item.id,
           ),
           suggestion,
@@ -865,7 +813,7 @@ export function WorkbenchComposer() {
             const document = parseComposerDocument(
               $getRoot().getTextContent(),
               composerCommandRegistry,
-              piCommands,
+              agentCommands,
             );
             const index = document.findLastIndex(
               (node) => node.type === "command" && node.commandId === item.id,
@@ -904,7 +852,7 @@ export function WorkbenchComposer() {
       commandParametersByKey,
       composerCommandRegistry,
       composerSuggestionsByKey,
-      piCommands,
+      agentCommands,
       reportComposerCommandError,
       updateCommandParameterValues,
     ],
@@ -919,7 +867,7 @@ export function WorkbenchComposer() {
 
       try {
         const document = applyComposerCommandArguments(
-          parseComposerDocument(composerState.text, composerCommandRegistry, piCommands),
+          parseComposerDocument(composerState.text, composerCommandRegistry, agentCommands),
           commandParametersByKey,
         );
         const commandNodes = document.filter((node) => node.type === "command");
@@ -934,7 +882,7 @@ export function WorkbenchComposer() {
         ) {
           throw new Error("Exclusive Composer commands must be submitted separately");
         }
-        const request = compileComposerDocument(document, composerCommandRegistry, piCommands);
+        const request = compileComposerDocument(document, composerCommandRegistry, agentCommands);
         const dispatched = submitWorkbenchComposer(aui.thread, undefined, request, { steer });
         if (!dispatched) return;
         setComposerCommandError(false);
@@ -951,7 +899,7 @@ export function WorkbenchComposer() {
       commandParametersByKey,
       composerCommandRegistry,
       composerSuggestionsByCommandKey,
-      piCommands,
+      agentCommands,
       reportComposerCommandError,
     ],
   );

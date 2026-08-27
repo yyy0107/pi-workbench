@@ -38,14 +38,14 @@ function command(commandId: string, args?: WorkbenchComposerCommandSubmission["a
     commandId,
     label: commandId,
     scope: "message" as const,
-    source: "pi" as const,
+    source: "agent" as const,
     ...(args === undefined ? {} : { args }),
   };
 }
 
 function submission(commands: ReturnType<typeof command>[], text = "request") {
   return {
-    version: 1 as const,
+    version: 2 as const,
     sourceText: "tokens",
     text,
     context: [],

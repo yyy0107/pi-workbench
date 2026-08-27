@@ -25,16 +25,63 @@ flowchart TD
 
   HTTP --> CS["Custom Workbench HTTP server"]
   WS --> CS
-  CS --> ROUTER["RPC router / WebSocket gateway"]
+  CS --> ROUTER["RPC router / route-group dispatcher / WebSocket gateway"]
+  CS --> FILE_CONTENT["Workspace file content endpoint"]
 
-  ROUTER --> WORKSPACE["WorkspaceStore"]
+  ROUTER --> WORKSPACE_ROUTES["Workspace RPC routes"]
+  ROUTER --> WORKSPACE_FILE_ROUTES["Workspace File RPC routes"]
   ROUTER --> MODEL["ModelService"]
-  ROUTER --> SETTINGS["AgentSettingsService"]
-  ROUTER --> SESSION["SessionRpcService"]
+  ROUTER --> AGENT_SETTINGS_ROUTES["Agent Settings RPC routes"]
+  ROUTER --> WORKBENCH_SETTINGS_ROUTES["Workbench Settings RPC routes"]
+  ROUTER --> IMAGE_SETTINGS_ROUTES["Image Understanding Settings RPC routes"]
+  ROUTER --> SESSION_ROUTES["Session RPC routes"]
+  ROUTER --> TRACE_ROUTES["Context Trace RPC routes"]
+  ROUTER --> IMPORT_ROUTES["External Import RPC routes"]
+  ROUTER --> SKILL_ROUTES["Skill RPC routes"]
+  ROUTER --> EXTENSION_ROUTES["Extension RPC routes"]
+  ROUTER --> COMMAND["CommandService"]
   ROUTER --> HUB["StreamHub"]
 
-  SESSION --> REGISTRY["Session registry / HostedPiSession"]
+  SESSION_ROUTES --> SESSION_FACADE["PiSessionProtocolFacade"]
+  TRACE_ROUTES --> TRACE_SERVICE["PiSessionContextTraceService"]
+  IMPORT_ROUTES --> IMPORT_SERVICE["ExternalSessionImportService"]
+  WORKSPACE_ROUTES --> WORKSPACE_PROTOCOL["WorkspaceProtocolService"]
+  WORKSPACE_PROTOCOL --> WORKSPACE["WorkspaceStore"]
+  WORKSPACE_PROTOCOL -->|"session catalog"| REGISTRY
+  WORKSPACE_PROTOCOL --> TRUST["Project Trust service"]
+  WORKSPACE_FILE_ROUTES --> WORKSPACE_FILES["WorkspaceFileProtocol / Service"]
+  FILE_CONTENT --> WORKSPACE_FILES
+  WORKSPACE_FILES --> WORKSPACE
+  SKILL_ROUTES --> SKILL_SERVICE["SkillProtocol / SkillService"]
+  SKILL_SERVICE -->|"session target"| REGISTRY
+  SKILL_SERVICE -->|"catalog target"| RESOURCE_CONTEXT["Scoped Resource Context"]
+  EXTENSION_ROUTES --> EXTENSION_SERVICE["ExtensionProtocol / ExtensionService"]
+  EXTENSION_SERVICE -->|"session target"| REGISTRY
+  EXTENSION_SERVICE -->|"catalog target"| RESOURCE_CONTEXT
+  AGENT_SETTINGS_ROUTES --> SETTINGS["AgentSettingsProtocol / Service"]
+  WORKBENCH_SETTINGS_ROUTES --> WORKBENCH_SETTINGS["WorkbenchSettingsProtocol / Service"]
+  IMAGE_SETTINGS_ROUTES --> IMAGE_SETTINGS["ImageUnderstandingSettingsProtocol / Store"]
+  SESSION_FACADE -->|"owns lifecycle"| SESSION["SessionRpcService"]
+  SESSION_FACADE -.->|"late-bound"| WORKSPACE
+  SESSION --> EXEC_PORT["AgentExecutionPort"]
+  SESSION --> THREAD_PORT["AgentThreadStorePort"]
+  SESSION --> HISTORY["PiSessionHistoryService"]
+  SESSION --> MODEL_CONTEXT["PiSessionModelContextService"]
+  COMMAND -.->|"implements"| COMMAND_PORT["AgentCommandCatalogPort"]
+  EXEC_PORT --> PI_SERVER["Pi server adapter"]
+  THREAD_PORT --> PI_SERVER
+  PI_SERVER --> REGISTRY["Session registry / HostedPiSession"]
+  HISTORY --> REGISTRY
+  MODEL_CONTEXT --> REGISTRY
+  MODEL_CONTEXT --> MODEL
+  COMMAND --> REGISTRY
+  TRACE_SERVICE -->|"activates live queries"| REGISTRY
+  TRACE_SERVICE --> TRACE["Context Trace / journal"]
+  IMPORT_SERVICE --> IMPORT_ADAPTERS["Codex / Claude Code / Cursor adapters"]
+  IMPORT_SERVICE --> WORKSPACE
   REGISTRY --> PI["Pi AgentSession + SessionManager"]
+  IMPORT_SERVICE --> PI
+  REGISTRY --> TRACE
   PI --> JSONL["Persistent session JSONL"]
   REGISTRY --> HUB
   WORKSPACE --> HUB
@@ -103,6 +150,16 @@ Pi agent 目录下的 `SYSTEM.md`；上下文压缩参数写入同目录的 `set
 其他 Pi 配置。更新使用 revision 进行冲突检测，并在新 session 或已有 session 执行 `/reload`
 后生效。`settings.openDocument` 会在文件不存在时创建最小的 `settings.json`，再交给本地主机的
 默认应用打开。
+
+三个设置子域分别由 `transport/routes/agent-settings-rpc-routes.ts`、
+`workbench-settings-rpc-routes.ts` 和 `image-understanding-settings-rpc-routes.ts` 拥有，避免把 Pi
+原生设置、Workbench preferences 与附件识别凭据合并成一个泛化服务。Agent Settings route 只依赖
+`AgentSettingsProtocol` 和组合根注入的文档打开函数，三个方法全部保持 loopback-only，并独占 4 MiB
+更新载体预算与打开取消映射；Workbench Settings route 通过 late-bound `WorkbenchSettingsProtocol`
+保留环境覆盖和 HMR 语义，两个方法允许显式 trusted host，并独占 24 MiB 更新载体预算；Image
+Understanding route 通过 late-bound `ImageUnderstandingSettingsProtocol` 保留 registry 和旧文件迁移，
+两个方法保持 loopback-only。三个 route 统一复用顶层错误投影，但不会取得文件锁、状态文件、凭据或
+Pi agent 目录。
 
 Workbench 自有的持久配置统一写入 Pi agent 目录下的 `workbench-settings.json`。文档使用
 `version`、全局 `revision`、`preferences`、`workspaces` 和 `imageUnderstanding` 顶层字段；三类
@@ -199,6 +256,19 @@ Cookie session 或 Bearer Token；如需跨机器暴露，必须在外层增加�
 `WorkspaceStore` 维护 canonical path、显示名称、workspace 顺序、每个 workspace 的 session
 顺序、archived session 集合，以及 workspace/session 的置顶状态。新 workspace 使用持久随机 UUID；不要使用 legacy
 `PiWorkspaceSummary` 的 cwd hash 推导新 `workspaceId`。
+
+11 个 Workspace 组织与归档方法的 payload validator 和 transport 映射由独立的
+`transport/routes/workspace-rpc-routes.ts` 拥有；route 只依赖 `WorkspaceProtocolService`，不直接读取
+Session Registry、WorkspaceStore、Project Trust 或资源目录缓存。服务通过窄的 Session catalog 端口只接收
+`{ id, cwd }` 快照，在 `workspace.list` 前完成会话对账，在 create/list/unarchive 的兼容路径中协调历史
+Project Trust 迁移，并在删除 Workspace 后失效对应的 project resource context。可热更新的
+WorkspaceStore 仍按调用延迟解析；Store 自己继续拥有持久化和 `events.host` 发布。四个
+`workspace.files.*` unary 方法不属于这个 route group；它们的 validator、写入载体预算、取消错误映射和
+handler 由 `transport/routes/workspace-file-rpc-routes.ts` 独立拥有。该 route 只依赖窄的
+`WorkspaceFileProtocol`，实际路径、真实路径、软链接、文件容量和并发版本检查仍由
+`WorkspaceFileService` 执行。默认工厂为 unary route 与流式 content 端点提供同一套延迟
+WorkspaceStore 组装；5 MiB 是可编辑 UTF-8 文件内容上限，20 MiB 是包含 JSON envelope 和多字节转义的
+RPC 载体预算，两者语义不同。
 
 对外返回的 `WorkspaceView.sessionIds` 只包含当前未归档的 session；底层仍保留完整顺序，取消归档
 后会恢复到原位置。`workspace.list` 只返回可见工作区快照，归档集合的权威基线由独立的
@@ -325,6 +395,14 @@ Project Trust。这个上下文不会创建 `AgentSession`、不会创建聊天�
 `prompt.list` 只提供 target 形式；Composer 使用的 `command.list` 既接受已有会话，也接受新会话的
 target。target 形式不会创建 `AgentSession` 或空聊天记录。
 
+六个 `skill.*` 方法的 payload validator、只读/变更信任边界与 handler 映射由独立的
+`transport/routes/skill-rpc-routes.ts` 拥有；`skill.setEnabled` 和 `skill.remove` 继续保持
+loopback-only，其余目录与读取方法允许通过显式配置的 trusted host 调用。route 只依赖窄的
+`SkillProtocol`，Pi `DefaultResourceLoader`、SettingsManager、session host、文件路径和资源 mutation
+协调仍由 `SkillService` 独占。`transport/resource-rpc-validators.ts` 集中维护 Skills、Extensions、
+Commands 与 Packages 共享的 session/target 二选一规则、user/project target，以及通用资源名称和
+相对路径边界，避免后续领域 route 各自复制同一 wire 约束。
+
 `skill.list` 合并目标资源上下文的 `ResourceLoader` 已加载技能与 Pi
 `DefaultPackageManager.resolve()` 解析出的技能资源，因此已禁用的技能仍会留在工具箱目录中，并以
 `enabled: false` 返回，便于重新启用。响应只暴露协议定义的名称、描述、启用状态、模型是否可调用，
@@ -379,6 +457,14 @@ templates 在会话建立后由完整运行时目录补齐，避免在扩展实�
 Extension command 和 prompt template 项还返回脱敏后的 package 来源、作用域和来源类型；不会返回
 具体文件路径。工具箱使用这些字段把 package 提供的 Prompt 关联到官方 Package 详情。
 
+浏览器侧不会把这个 Pi RPC DTO 直接暴露给 Workbench。`client/assistant-ui/command-catalog.tsx` 根据
+活动 session 或 draft workspace 选择请求目标并订阅资源 catalog revision；纯投影位于
+`shared/commands/command-projection.ts`，由浏览器和服务端 `AgentCommandCatalogPort` 共同复用，把每项
+转换为通用 `WorkbenchAgentCommand`。Pi 的扁平 `source/scope/origin` 在实现层收敛为通用的 `source`
+metadata。
+其中 package 来源只作为可选展示 label 暴露，不把 Pi 的 `origin` 枚举固化进通用端口。Workbench
+Composer 因此不导入 `runtime/pi`。服务端 `command.list`、冲突解析和命令执行路径保持 Pi 原生实现。
+
 扩展项还包含 description 和脱敏后的来源标签、scope、origin，不会把 handler、参数补全函数或
 扩展文件绝对路径返回浏览器。catalog 也返回命令的 `effect` 和 `exclusive`：`/compact`、`/reload`
 是独占的 `session-action`，普通 extension command 是独占的 `agent-turn`，prompt template 是
@@ -395,7 +481,9 @@ Workbench 已适配的带参命令还可由 catalog 返回声明式 `argsSchema`
 停止后续请求。旧客户端发送的字符串 args 或无 args 的正文 fallback 仍兼容，对象不会整体 JSON
 序列化后传给 Pi。
 
-结构化 Composer 提交先对 catalog 中的全部 Token 做 preflight resolve；未知、冲突或已失效的命令会
+结构化 Composer 提交使用后端无关的 `version: 2` wire，Agent 命令统一标记为 `source: "agent"`；Pi
+RPC 边界同时读取旧 `version: 1` / `source: "pi"` 请求并在进入执行层前归一化。提交随后对 catalog
+中的全部 Token 做 preflight resolve；未知、冲突或已失效的命令会
 在任何副作用发生前拒绝。执行阶段不再把所有命令统一实现成“先调用一次模型，再收集回答”：skill
 通过 Pi 已加载资源公开的 `filePath`/`baseDir` 记录为可信的显式用户选择，string adapter 只提示模型
 必须先使用现有 `read` 工具完整按需读取对应 `SKILL.md`，不会把 Skill 正文预先拼入请求；prompt template
@@ -408,24 +496,27 @@ extension command 仍通过 `AgentSession.prompt()` 的公开命令入口执行�
 
 服务端先形成 canonical `ResolvedAgentRequest`，分别保存 user text、request config、显式选择的
 Skill 引用、trusted instructions、trusted/untrusted context 和仅供历史/诊断使用的 command trace。
-trace 不会整体注入模型；Pi string adapter 只在最后边界把 config、Skill 选择及其强制按需读取提示、
+trace 不会整体注入模型；`server/commands/pi-composer-prompt.ts` 的 Pi string adapter 只在最后边界把
+config、Skill 选择及其强制按需读取提示、
 instructions、按 trust 标记的 context 和 user request 编译给 `AgentSession.prompt()`。这仍是 Pi 只接受
 字符串 prompt 时的 adapter fallback，而不是内部 canonical request。
 
-UI 原文和 canonical Composer document 以隐藏的 `workbench.composer-user.v2` custom message
+UI 原文和 canonical Composer document 以隐藏的 `workbench.composer-user.v3` custom message
 持久化；`sourceText` 只作为编辑器 serialization/fallback。解析状态和 command trace 另存为
-`workbench.composer-resolution.v1`，历史投影恢复为一条标准 user message，并让用户气泡继续按与
-Composer 相同的 Token renderer 显示。旧 `workbench.composer-user.v1` marker 仍可读取。纯
+`workbench.composer-resolution.v2`，历史投影恢复为一条标准 user message，并让用户气泡继续按与
+Composer 相同的 Token renderer 显示。旧 `workbench.composer-user.v1/v2` 和
+`workbench.composer-resolution.v1` marker 仍可读取，内部 Pi source 会归一化为 Agent source。纯
 session-action 或 agent-turn 完成后不会额外启动空 LLM turn；空 `content` 只要带有结构化 Composer
 语义仍可进入 admission。单个执行失败记录为 `execution-failed` trace，不回滚已接纳的用户消息；
 纯命令事务发布 `command_done` 或 `command_error`。这类预期的命令结果不会发布全局
 `host/agent-error`，该通道只保留给 session host、journal 和 transport 等基础设施故障。
 
 Pi 内置 session-action 还会在用户 Token 气泡后运行可见的
-`workbench.composer-command-response.v1` 状态机：调用 Pi API 前发布 `running`，完成后原位更新为
+`workbench.composer-command-response.v2` 状态机：调用 Pi API 前发布 `running`，完成后原位更新为
 `success` 或 `execution-failed`。canonical message event 会实时传输并持久化每次状态转换，终态另外写入
 不参与 LLM context 的 Session custom entry；响应只保存稳定的 command id、label、status 和 submission
-id，不保存内部异常文本，UI 再按当前 locale 渲染。因此 `/compact` 会先显示“正在压缩上下文…”，再
+id，并统一标记 `source: "agent"`，不保存内部异常文本，UI 再按当前 locale 渲染。旧 v1/Pi 响应仍会
+在历史读取时归一化。因此 `/compact` 会先显示“正在压缩上下文…”，再
 更新为“会话上下文已压缩”或可见错误；`/reload` 使用同一生命周期。命令状态活跃时，同一次 Pi
 compaction conversation event 不再额外渲染 separator，避免一个动作出现两条结果消息；历史恢复也按
 `submissionId + commandId` 折叠为一个最终系统响应。
@@ -435,6 +526,14 @@ Workbench 等价语义的内置命令才会被暴露，避免把 UI action 错�
 `registerCommand()` 契约保持不变。
 
 ## Extensions
+
+五个 `extension.*` 方法的完整扩展身份、payload validator、只读/变更信任边界与 handler 映射由
+`transport/routes/extension-rpc-routes.ts` 独立拥有。`extension.setEnabled` 和 `extension.remove`
+保持 loopback-only，目录和源码读取允许通过显式配置的 trusted host 调用；单文件扩展的
+`extension.files.read` 仍可省略相对路径并读取权威入口文件。route 只依赖窄的 `ExtensionProtocol`，
+Pi `DefaultResourceLoader`、SettingsManager、已加载 event/tool/command runtime、session/scoped resource
+host、文件系统边界和 mutation coordinator 仍由 `ExtensionService` 独占。完整身份字段只在这个 route
+定义一次，session/target、名称和相对路径边界继续复用跨资源领域的 validator。
 
 `extension.list` 按资源 target 合并独立 `ResourceLoader` 已加载扩展与
 `DefaultPackageManager.resolve()` 解析出的扩展资源，因此已禁用扩展仍留在工具箱中并以
@@ -563,6 +662,11 @@ Workbench 内置的数据导入扩展通过两个 loopback-only RPC 读取本机
 `sessionImport.import` 只接受扫描结果中的 `source + sourceSessionId` 身份，并在服务端重新解析权威
 来源。当前适配格式是 Codex session JSONL、Claude Code project JSONL，以及 Cursor
 `globalStorage/state.vscdb` 中的 `composerHeaders`、`composerData:*` 与 `bubbleId:*`。
+两个方法的 payload validator、200 项批量上限和 loopback-only 限制由独立的
+`transport/routes/external-session-import-rpc-routes.ts` 拥有；route 只依赖
+`ExternalSessionImportProtocol`，不导入来源适配器、Pi `SessionManager`、Session Registry 或
+WorkspaceStore。来源枚举与扫描/导入 DTO 只在 `contracts/rpc.ts` 定义一次，服务端领域类型直接复用
+该 contract，避免 transport、client 与导入器各自维护同形联合。
 用户入口注册在 Workbench 设置的“数据 → 导入项目与会话”分区；该设置项直接承载扫描、选择和导入
 状态，不在侧边栏、移动端 Header 或对话区 Main View 注册第二个入口。
 
@@ -833,7 +937,14 @@ runtime/pi/
 ├── README.md
 ├── client/
 │   ├── assistant-ui/
-│   │   └── adapter.ts
+│   │   ├── adapter.ts
+│   │   ├── command-catalog.tsx
+│   │   ├── extras.ts
+│   │   ├── thread-store.ts
+│   │   ├── thread-runtime.tsx
+│   │   ├── pi-runtime-provider.tsx
+│   │   ├── trackers.tsx
+│   │   └── workspace-selection-provider.tsx
 │   ├── context-trace/
 │   │   └── data-part.ts
 │   ├── transport/
@@ -856,6 +967,8 @@ runtime/pi/
 │   ├── rpc.ts
 │   └── stream.ts
 ├── shared/
+│   ├── commands/
+│   │   └── command-projection.ts
 │   ├── messages/
 │   │   ├── reducer.ts
 │   │   └── termination.ts
@@ -865,6 +978,10 @@ runtime/pi/
 │       ├── display-title.ts
 │       └── history-pagination.ts
 └── server/
+    ├── agent-runtime/
+    │   ├── pi-agent-execution-adapter.ts
+    │   ├── pi-agent-thread-store-adapter.ts
+    │   └── pi-agent-server-adapter.ts
     ├── core/
     │   └── errors.ts
     ├── attachment-understanding/
@@ -872,11 +989,35 @@ runtime/pi/
     │   ├── coordinator.ts
     │   ├── lifecycle.ts
     │   └── settings-store.ts
+    ├── imports/
+    │   ├── claude-code-session-adapter.ts
+    │   ├── codex-session-adapter.ts
+    │   ├── cursor-session-adapter.ts
+    │   ├── external-session-import-service.ts
+    │   ├── external-session-types.ts
+    │   └── source-utils.ts
     ├── transport/
     │   ├── api-request-guard.ts
+    │   ├── compaction-rpc-validator.ts
     │   ├── custom-server.ts
     │   ├── local-api-request-trust.ts
+    │   ├── package-rpc-validators.ts
+    │   ├── resource-rpc-validators.ts
     │   ├── responses.ts
+    │   ├── routes/
+    │   │   ├── agent-settings-rpc-routes.ts
+    │   │   ├── extension-rpc-routes.ts
+    │   │   ├── external-session-import-rpc-routes.ts
+    │   │   ├── image-understanding-settings-rpc-routes.ts
+    │   │   ├── installed-package-rpc-routes.ts
+    │   │   ├── package-catalog-rpc-routes.ts
+    │   │   ├── rpc-route-group.ts
+    │   │   ├── session-context-trace-rpc-routes.ts
+    │   │   ├── session-rpc-routes.ts
+    │   │   ├── skill-rpc-routes.ts
+    │   │   ├── workbench-settings-rpc-routes.ts
+    │   │   ├── workspace-file-rpc-routes.ts
+    │   │   └── workspace-rpc-routes.ts
     │   ├── rpc-router.ts
     │   └── rpc-transport.ts
     ├── host/
@@ -884,8 +1025,16 @@ runtime/pi/
     │   └── native-workspace-picker.ts
     ├── models/
     │   └── model-service.ts
+    ├── packages/
+    │   ├── installed-package-service.ts
+    │   └── package-catalog-service.ts
+    ├── settings/
+    │   ├── agent-settings-service.ts
+    │   ├── workbench-settings-file.ts
+    │   └── workbench-settings-service.ts
     ├── commands/
-    │   └── command-service.ts
+    │   ├── command-service.ts
+    │   └── pi-composer-prompt.ts
     ├── extensions/
     │   └── extension-service.ts
     ├── internal-extensions/
@@ -893,11 +1042,21 @@ runtime/pi/
     ├── skills/
     │   └── skill-service.ts
     ├── workspaces/
+    │   ├── workspace-file-content.ts
+    │   ├── workspace-files.ts
+    │   ├── workspace-protocol-service.ts
     │   ├── workspace-registry.ts
     │   ├── workspace-store.ts
     │   └── workspace-paths.ts
     ├── sessions/
     │   ├── interactive-response-registry.ts
+    │   ├── pi-session-context-trace-service.ts
+    │   ├── pi-session-history-service.ts
+    │   ├── pi-session-model-context-service.ts
+    │   ├── pi-session-protocol-facade.ts
+    │   ├── session-context-trace-journal.ts
+    │   ├── session-context-trace-summary.ts
+    │   ├── session-context-trace.ts
     │   ├── session-context-policy.ts
     │   ├── session-event-journal.ts
     │   ├── session-export.ts
@@ -920,14 +1079,87 @@ runtime/pi/
   `pi/shared` 建立转发层；
 - `client` 可以依赖 `contracts` 和 `shared`，不得导入 `server`；
 - `client/assistant-ui` 是 Pi 对通用 `WorkbenchAgentRuntimeAdapter` 的具体实现。它拥有 Pi session 到
-  assistant-ui Runtime 的投影；通用 `runtime/assistant-ui` 不得反向导入 Pi；
+  assistant-ui Runtime 的投影、后台 thread presentation、通用 extras 和 callback 映射，以及 Pi
+  manager、命令目录、workspace selection 与 active/draft tracker 的浏览器侧安装生命周期；通用
+  `runtime/assistant-ui` 不得反向导入 Pi。`thread-store.ts` 直接包装 manager 已有逐线程订阅并将
+  `cwd` 映射为通用 `rootPath`，不建立第二份缓存；`command-catalog.tsx` 负责选择 session/workspace
+  target 与订阅资源 revision，纯 `CommandView` 投影复用 `pi/shared/commands`。
+  `workbench/providers/assistant-runtime-provider.tsx` 只选择 Pi 实现并安装后端无关 Surface 桥接；
+- `client/runtime` 的 `PiSessionManager` 维护独立的 thread-list 结构 revision。只有会话成员、归档状态
+  或排序变化才通知通用 Runtime；初始 list 和同一浏览器的 draft promotion 只更新结构基线，避免宽泛
+  manager 状态触发重复 reload 或重复 remote item；
 - `server` 可以依赖 `contracts` 和 `shared`，不得导入 `client`。Node/Pi Runtime、凭据、信任和
   文件系统逻辑只留在这里；
+- `server/agent-runtime` 实现顶层 `runtime/server` 的后端无关执行与线程存储端口，把 `threadId`、
+  `rootPath`、结构化 Prompt、目录摘要、搜索文档、CRUD/队列 mutation 和稳定 Agent 错误映射到 Pi
+  `sessionId`、`cwd`、`PiQueuedPrompt`、Hosted Session/registry 操作和 Pi 错误码；`SessionRpcService`
+  不再直接调用这些 Pi 执行或线程存储函数。`CommandService` 保留 Pi wire DTO，同时实现通用
+  `AgentCommandCatalogPort`；
+- `server/sessions/pi-session-protocol-facade.ts` 是 Pi session protocol 的组合根：每个 server module
+  generation 只组装一个长寿命 `SessionRpcService`，因此 requested session ID 的创建协调能覆盖多个
+  独立 HTTP 请求；可被 HMR 替换的 `WorkspaceStore` 通过延迟解析端口按调用取得当前实现，Facade
+  无需退化成请求级对象图；
+- `server/sessions/pi-session-history-service.ts` 拥有 Pi canonical event 的完整消息组分页、历史搜索
+  回退文本、branch/resume 尾页投影和最新 event revision；
+  `pi-session-model-context-service.ts` 拥有 session 当前模型解析、可选模型校验、模型选择、context
+  policy 与手动 compaction，并在 Pi SDK 边界归一化预期错误。两者是 Pi protocol collaborator，
+  不是顶层通用 Agent 端口；`SessionRpcService` 只做请求校验、会话存在性检查、调用编排和 wire error
+  投影，不直接导入 `session-registry` 或 `ModelService`；
 - `server/attachment-understanding` 拥有 OCR 网络调用、设置凭据、Pi 多模态执行和附件识别生命周期，
   纯声明与跨端状态机复用顶层 `runtime/shared/attachment-understanding`；对外
   `imageUnderstanding.*` RPC 名称保持兼容；
-- `server/transport` 只处理 carrier、信任、校验、路由和 upgrade；
-- `server/sessions`、`workspaces`、`models`、`host` 包含业务规则和 Pi/文件系统适配；
+- `server/imports` 拥有本机 Codex、Claude Code、Cursor 数据发现与解析、Pi `SessionManager` 原生
+  JSONL 写入、幂等 provenance、Workspace 创建/绑定和既有 Host 事件发布。它直接复用
+  `contracts/rpc.ts` 的来源枚举及扫描/导入 DTO，只额外保留不跨浏览器边界的已加载 Pi Message 类型；
+- `server/transport` 只处理 carrier、信任、校验、路由和 upgrade。`routes/session-rpc-routes.ts`
+  拥有由 `PiSessionProtocolFacade` 支撑的 19 个核心 `session.*` payload validator、请求预算与 handler
+  映射；它通过注入的错误投影回调保持统一 RPC envelope，不导入 registry、`ModelService` 或 Pi SDK。
+  `routes/session-context-trace-rpc-routes.ts` 独立拥有 4 个 `session.contextTrace.*` validator、
+  loopback-only 约束与 handler 映射，并只依赖窄的 `PiSessionContextTraceService`；两类 route 都由
+  `rpc-router.ts` 组装和委托。`routes/external-session-import-rpc-routes.ts` 同样独立拥有两个
+  `sessionImport.*` validator、批量边界和 loopback-only 约束，只依赖窄的
+  `ExternalSessionImportProtocol`。`routes/workspace-rpc-routes.ts` 拥有 11 个 Workspace 组织/归档
+  validator 与 handler 映射，只依赖 `WorkspaceProtocolService`；
+  `routes/workspace-file-rpc-routes.ts` 独立拥有四个 `workspace.files.*` unary validator、20 MiB 写入载体
+  预算、取消映射和 handler，并只依赖 `WorkspaceFileProtocol`。Range/ETag 流式 content 端点继续与
+  POST route 分离。`routes/skill-rpc-routes.ts` 拥有六个 `skill.*` validator、两个 loopback-only
+  mutation 约束和 handler，并只依赖 `SkillProtocol`；`routes/extension-rpc-routes.ts` 拥有五个
+  `extension.*` validator、完整扩展身份、两个 loopback-only mutation 约束和 handler，并只依赖
+  `ExtensionProtocol`。`routes/installed-package-rpc-routes.ts` 拥有六个本地 Package 查询/变更
+  validator、三个 loopback-only mutation 约束和 handler，并只依赖 `InstalledPackageProtocol`；
+  `routes/package-catalog-rpc-routes.ts` 独立拥有两个外部 Catalog 查询 validator 和 handler，只依赖
+  `PackageCatalogProtocol`，并把请求 `AbortSignal` 原样交给服务层。npm 名称、已配置 Package source、
+  mutation target 和 Catalog 查询边界集中在 `package-rpc-validators.ts`；跨资源领域复用的
+  session/target 身份、target scope、名称和相对路径校验集中在 `resource-rpc-validators.ts`。
+  `routes/agent-settings-rpc-routes.ts`、`workbench-settings-rpc-routes.ts` 和
+  `image-understanding-settings-rpc-routes.ts` 分别拥有 3/2/2 个设置方法的 validator、载体预算、信任边界
+  和 handler，只依赖对应窄协议；Agent Settings 文档打开函数由组合根注入，Workbench 与 Image
+  Understanding service/store 按调用延迟解析。十二个领域 route 通过
+  `rpc-route-group.ts` 的 first-claim dispatcher
+  统一委托，未知方法再回到顶层 Router 的其他领域 switch。`pi-session-context-trace-service.ts` 才负责确认会话存在、按需激活 live
+  Host、解析当前 trace，并把 journal 失败归一化为稳定领域错误；`promptParts` 保持直接重放当前 trace
+  或磁盘 journal，不会为了聊天历史水合启动空闲 Host。全局设置和 session context policy 共用
+  `compaction-rpc-validator.ts`，避免两套 compaction patch 边界漂移；
+- `server/workspaces/workspace-protocol-service.ts` 通过窄 Session catalog、Trust migration、resource
+  context 和延迟 Store 端口编排 Workspace 组织协议；`WorkspaceStore` 继续独占状态持久化与 Host stream
+  事件，`WorkspaceFileService` 通过 `WorkspaceFileProtocol` 独占 workspace-bound 文件授权，并由共享
+  默认工厂同时服务 unary route 与流式 content 端点。`server/sessions`、`workspaces`、`models`、`host`
+  包含其余业务规则和 Pi/文件系统适配；
+- `server/skills/skill-service.ts` 实现窄的 `SkillProtocol`，并继续独占 Pi ResourceLoader、SettingsManager、
+  session/scoped resource host、启停与删除协调，以及 Skill 授权目录和文件读取；transport 不直接取得
+  Pi runtime、资源路径或 mutation coordinator；
+- `server/extensions/extension-service.ts` 实现窄的 `ExtensionProtocol`，并继续独占 Pi ResourceLoader、
+  SettingsManager、已加载扩展 runtime 映射、session/scoped resource host、启停与删除协调，以及扩展
+  授权目录和文件读取；transport 只接收稳定、可序列化的协议输入与输出；
+- `server/packages/installed-package-service.ts` 实现窄的 `InstalledPackageProtocol`，继续独占 Pi
+  PackageManager、SettingsManager、项目 Trust、安装路径、mutation coordinator 和 session reload；
+  `package-catalog-service.ts` 实现独立的 `PackageCatalogProtocol`，继续独占 `pi.dev` 网络访问、缓存、
+  后台刷新和取消策略。transport 不直接取得两类服务的 Pi 或网络依赖；
+- `server/settings/agent-settings-service.ts` 实现 `AgentSettingsProtocol`，继续独占 Pi agent 目录、
+  `SYSTEM.md`、`settings.json`、revision 和跨进程文件锁；`workbench-settings-service.ts` 实现
+  `WorkbenchSettingsProtocol`，继续独占 preferences 解析、统一文档和进程内 listener。附件识别的
+  `settings-store.ts` 实现 `ImageUnderstandingSettingsProtocol`，但 runtime-only credential 读取不进入
+  该 transport 协议；
 - `server/streams` 负责实时分发与 legacy SSE，不拥有业务状态；
 - `client/transport` 不拥有 assistant-ui 状态，状态协调集中在 `client/runtime`；
 - 跨层导入直接指向拥有者模块，不通过聚合 barrel 隐藏依赖方向。

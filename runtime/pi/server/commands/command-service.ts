@@ -5,6 +5,12 @@ import type {
   ExtensionSourceScope,
   PiResourceCatalogTarget,
 } from "@/runtime/pi/contracts/rpc";
+import { projectPiAgentCommands } from "@/runtime/pi/shared/commands/command-projection";
+import {
+  AgentCommandCatalogError,
+  type AgentCommandCatalogPort,
+  type AgentCommandCatalogTarget,
+} from "@/runtime/server/agent-command-catalog-port";
 import { getScopedResourceContextService } from "../resources/scoped-resource-context";
 import { getOrStartSession } from "../sessions/session-registry";
 import { PI_COMPOSER_BUILTIN_COMMANDS } from "./pi-composer-command-catalog";
@@ -90,7 +96,7 @@ function errorCode(error: unknown): string | undefined {
   return typeof error.code === "string" ? error.code : undefined;
 }
 
-export class CommandService {
+export class CommandService implements AgentCommandCatalogPort {
   private readonly dependencies: CommandServiceDependencies;
 
   constructor(dependencies: Partial<CommandServiceDependencies> = {}) {
@@ -219,6 +225,30 @@ export class CommandService {
         "internal",
         "The Composer commands could not be loaded.",
         {},
+        { cause: error },
+      );
+    }
+  }
+
+  async getCatalog(target: AgentCommandCatalogTarget) {
+    const request: CommandListPayload =
+      target.kind === "thread"
+        ? { sessionId: target.threadId }
+        : target.kind === "project"
+          ? { target: { scope: "project", workspaceId: target.workspaceId } }
+          : { target: { scope: "user" } };
+    try {
+      return projectPiAgentCommands((await this.list(request)).commands);
+    } catch (error) {
+      if (error instanceof AgentCommandCatalogError) throw error;
+      if (error instanceof CommandServiceError && error.code === "session-not-found") {
+        throw new AgentCommandCatalogError("thread-not-found", "The Agent thread does not exist.", {
+          cause: error,
+        });
+      }
+      throw new AgentCommandCatalogError(
+        "internal",
+        "The Agent command catalog could not be loaded.",
         { cause: error },
       );
     }

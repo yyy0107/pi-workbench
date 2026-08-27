@@ -218,7 +218,13 @@ export class WorkbenchSettingsServiceError extends Error {
   }
 }
 
-export class WorkbenchSettingsService {
+/** Stable transport-facing preferences operations; persistence and listeners stay in the service. */
+export interface WorkbenchSettingsProtocol {
+  describe(): Promise<WorkbenchSettingsDescribeValue>;
+  update(payload: WorkbenchSettingsUpdatePayload): Promise<WorkbenchSettingsUpdateValue>;
+}
+
+export class WorkbenchSettingsService implements WorkbenchSettingsProtocol {
   readonly stateFile: string;
 
   constructor(stateFile = configuredWorkbenchSettingsFile()) {

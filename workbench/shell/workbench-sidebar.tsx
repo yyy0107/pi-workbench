@@ -21,7 +21,7 @@ import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { useMainViewService } from "@/platform/extensions";
 import { SlotHost } from "@/platform/extensions/hosts/slot-host";
-import { usePiThreadStates } from "@/runtime/pi/client/runtime/context";
+import { useWorkbenchAgentThreadSnapshots } from "@/runtime/assistant-ui/agent-runtime-context";
 import { useWorkspaceSelection } from "@/services/workspace-selection-service";
 import {
   SidebarPrimaryNavigation,
@@ -45,9 +45,9 @@ export function WorkbenchSidebarContent({
   const mainViews = useMainViewService();
   const threadIds = useAuiState((state) => state.threads.threadIds);
   const threadItems = useAuiState((state) => state.threads.threadItems);
-  const piThreadStates = usePiThreadStates(threadIds);
+  const threadStates = useWorkbenchAgentThreadSnapshots(threadIds);
   const hasPinnedThreads = threadIds.some(
-    (threadId) => piThreadStates.get(threadId)?.metadata.pinned === true,
+    (threadId) => threadStates.get(threadId)?.isPinned === true,
   );
   const hasPinnedDirectories = useWorkspaceSelection().workspaces.some(
     (workspace) => workspace.pinned === true,
@@ -61,7 +61,7 @@ export function WorkbenchSidebarContent({
   const hasSearchResults =
     !normalizedSearchQuery ||
     threadItems.some((thread) =>
-      (piThreadStates.get(thread.id)?.thread?.title ?? thread.title)
+      (threadStates.get(thread.id)?.title ?? thread.title)
         ?.toLocaleLowerCase()
         .includes(normalizedSearchQuery),
     );

@@ -1,15 +1,17 @@
-export interface PiCommandDescriptor {
-  name: string;
-  invocationName: string;
+export interface AgentCommandDescriptor {
+  readonly name: string;
+  readonly invocationName: string;
 }
 
-export interface PiCommandTextMatch<TCommand extends PiCommandDescriptor = PiCommandDescriptor> {
-  command: TCommand;
-  argumentsText: string;
-  hasSeparator: boolean;
+export interface AgentCommandTextMatch<
+  TCommand extends AgentCommandDescriptor = AgentCommandDescriptor,
+> {
+  readonly command: TCommand;
+  readonly argumentsText: string;
+  readonly hasSeparator: boolean;
 }
 
-const PI_COMMAND_ACRONYMS = new Map(
+const AGENT_COMMAND_ACRONYMS = new Map(
   [
     "ai",
     "api",
@@ -29,7 +31,7 @@ const PI_COMMAND_ACRONYMS = new Map(
   ].map((value) => [value, value.toUpperCase()]),
 );
 
-export function formatPiCommandLabel(name: string): string {
+export function formatAgentCommandLabel(name: string): string {
   const withoutCollisionSuffix = name.replace(/:\d+$/, "");
   const words = withoutCollisionSuffix
     .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
@@ -39,17 +41,17 @@ export function formatPiCommandLabel(name: string): string {
 
   return words
     .map((word) => {
-      const acronym = PI_COMMAND_ACRONYMS.get(word.toLowerCase());
+      const acronym = AGENT_COMMAND_ACRONYMS.get(word.toLowerCase());
       if (acronym) return acronym;
       return /^[A-Z\d]+$/.test(word) ? word : `${word.charAt(0).toUpperCase()}${word.slice(1)}`;
     })
     .join(" ");
 }
 
-export function parsePiCommandText<TCommand extends PiCommandDescriptor>(
+export function parseAgentCommandText<TCommand extends AgentCommandDescriptor>(
   text: string,
   commands: readonly TCommand[],
-): PiCommandTextMatch<TCommand> | undefined {
+): AgentCommandTextMatch<TCommand> | undefined {
   const match = /^\/(\S+)(?:(\s)([\s\S]*))?$/.exec(text);
   if (!match) return undefined;
 
@@ -63,6 +65,6 @@ export function parsePiCommandText<TCommand extends PiCommandDescriptor>(
   };
 }
 
-export function removePiCommandBuffer(argumentsText: string): string {
+export function removeAgentCommandBuffer(argumentsText: string): string {
   return argumentsText.startsWith(" ") ? argumentsText.slice(1) : argumentsText;
 }

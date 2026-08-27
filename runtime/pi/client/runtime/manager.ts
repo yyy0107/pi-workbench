@@ -18,9 +18,9 @@ import {
 } from "@/runtime/assistant-ui/adapters/history";
 import { deriveSessionDisplayTitle } from "@/runtime/pi/shared/sessions/display-title";
 import {
+  isWorkbenchComposerCommandResponseCustomType,
   parseWorkbenchComposerUserProjection,
   parseWorkbenchComposerCommandResponseDetails,
-  WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE,
 } from "@/runtime/shared/composer/request";
 import {
   parseAttachmentRecognitionSnapshot,
@@ -1284,7 +1284,7 @@ export class PiClientSession {
     if (
       event.type === "message" &&
       event.role === "custom" &&
-      event.customType === WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE
+      isWorkbenchComposerCommandResponseCustomType(event.customType)
     ) {
       const response = parseWorkbenchComposerCommandResponseDetails(event.details);
       if (response) {
@@ -2224,6 +2224,9 @@ export class PiSessionManager {
   private realtimeRefreshTask?: Promise<void>;
   private forkTaskTail: Promise<void> = Promise.resolve();
   private revision = 0;
+  private threadListRevision = 0;
+  private threadListStructureKey = "[]";
+  private threadListBaselineReady = false;
   private disposed = false;
   private readonly promptFeedback?: PromptFeedbackPort;
   private titleFallbacks?: PiSessionTitleFallbacks;
@@ -2239,6 +2242,8 @@ export class PiSessionManager {
   }
 
   getSnapshot = (): number => this.revision;
+
+  getThreadListRevision = (): number => this.threadListRevision;
 
   setTitleFallbacks(fallbacks: PiSessionTitleFallbacks): void {
     this.titleFallbacks = fallbacks;
@@ -2374,6 +2379,31 @@ export class PiSessionManager {
       lastMessageAt: new Date(summary.modified),
       custom: this.getThreadCustom(summary.id),
     }));
+  }
+
+  private createThreadListStructureKey(
+    items: readonly PiThreadListItemSnapshot[] = this.getThreadListSnapshot(),
+  ): string {
+    return JSON.stringify(items.map(({ remoteId, status }) => [remoteId, status]));
+  }
+
+  private acknowledgeThreadListStructure(
+    items: readonly PiThreadListItemSnapshot[] = this.getThreadListSnapshot(),
+  ): void {
+    this.threadListStructureKey = this.createThreadListStructureKey(items);
+  }
+
+  private notifyThreadListIfStructureChanged(): void {
+    if (this.disposed) return;
+    const nextKey = this.createThreadListStructureKey();
+    if (!this.threadListBaselineReady) {
+      this.threadListStructureKey = nextKey;
+      return;
+    }
+    if (nextKey === this.threadListStructureKey) return;
+    this.threadListStructureKey = nextKey;
+    this.threadListRevision += 1;
+    for (const listener of this.threadListListeners) listener();
   }
 
   getThreadListItemSnapshot(threadId: string | undefined): PiThreadListItemSnapshot | undefined {
@@ -2762,6 +2792,7 @@ export class PiSessionManager {
       this.workspaceGeneration += 1;
       this.workspaces.set(payload.workspace.workspaceId, payload.workspace);
       this.notify();
+      this.notifyThreadListIfStructureChanged();
       return;
     }
     if (payload.type === "host/workspace-removed") {
@@ -2769,6 +2800,7 @@ export class PiSessionManager {
       this.workspaces.delete(payload.workspaceId);
       this.pinnedWorkspaces.delete(payload.workspaceId);
       this.notify();
+      this.notifyThreadListIfStructureChanged();
       return;
     }
     if (payload.type === "host/workspace-order-changed") {
@@ -2786,6 +2818,7 @@ export class PiSessionManager {
         this.workspaces.set(workspaceId, workspace);
       }
       this.notify();
+      this.notifyThreadListIfStructureChanged();
       return;
     }
     if (payload.type === "host/workspace-pinned-changed") {
@@ -2812,7 +2845,7 @@ export class PiSessionManager {
         changed = true;
       }
       if (changed) this.notify();
-      this.notifyThreadList();
+      this.notifyThreadListIfStructureChanged();
       return;
     }
     if (payload.type === "host/session-pinned-changed") {
@@ -2822,7 +2855,10 @@ export class PiSessionManager {
         : this.pinned.has(payload.sessionId);
       if (payload.pinned) this.pinned.add(payload.sessionId);
       else this.pinned.delete(payload.sessionId);
-      if (changed) this.notify();
+      if (changed) {
+        this.notify();
+        this.notifyThreadListIfStructureChanged();
+      }
       return;
     }
     if (payload.type === "host/session-added") {
@@ -2851,6 +2887,7 @@ export class PiSessionManager {
       const summaryChanged = this.setSummary(payload.summary);
       if (workspaceChanged || runningChanged || waitingForUserInputChanged || summaryChanged) {
         this.notify();
+        this.notifyThreadListIfStructureChanged();
       }
       return;
     }
@@ -2859,12 +2896,16 @@ export class PiSessionManager {
       const runningChanged = this.applySummaryRunning(payload.summary);
       const waitingForUserInputChanged = this.applySummaryWaitingForUserInput(payload.summary);
       const summaryChanged = this.setSummary(payload.summary);
-      if (runningChanged || waitingForUserInputChanged || summaryChanged) this.notify();
+      if (runningChanged || waitingForUserInputChanged || summaryChanged) {
+        this.notify();
+        this.notifyThreadListIfStructureChanged();
+      }
       return;
     }
     if (payload.type === "host/session-removed") {
       this.removeSessionMetadata(payload.sessionId);
       this.notify();
+      this.notifyThreadListIfStructureChanged();
       return;
     }
     if (payload.type === "host/agent-error") {
@@ -3082,6 +3123,7 @@ export class PiSessionManager {
         this.connections.replaceRunningBaseline([...nextRunning]);
         this.applyRunningSnapshot([...nextRunning]);
         this.notify();
+        this.notifyThreadListIfStructureChanged();
       })
       .finally(() => {
         if (this.metadataRefreshTask === task) this.metadataRefreshTask = undefined;
@@ -3111,6 +3153,7 @@ export class PiSessionManager {
     }
     this.applyWorkspaceSnapshot(response, archivedResponse);
     this.notify();
+    this.notifyThreadListIfStructureChanged();
   }
 
   private applyWorkspaceSnapshot(
@@ -3226,6 +3269,7 @@ export class PiSessionManager {
       });
     }
     this.notify();
+    this.notifyThreadListIfStructureChanged();
     void this.refreshMetadata().catch((error) =>
       console.error("[workbench-pi] fork metadata refresh failed", error),
     );
@@ -3239,6 +3283,7 @@ export class PiSessionManager {
     this.workspaces.delete(workspaceId);
     this.pinnedWorkspaces.delete(workspaceId);
     this.notify();
+    this.notifyThreadListIfStructureChanged();
   }
 
   async moveWorkspaceBefore(workspaceId: string, beforeWorkspaceId?: string): Promise<void> {
@@ -3261,6 +3306,7 @@ export class PiSessionManager {
       this.workspaces.set(reorderedWorkspaceId, workspace);
     }
     this.notify();
+    this.notifyThreadListIfStructureChanged();
   }
 
   async moveWorkspaceSessionBefore(
@@ -3279,6 +3325,7 @@ export class PiSessionManager {
     if (workspaceViewsEqual(current, result.workspace)) return;
     this.workspaces.set(workspaceId, result.workspace);
     this.notify();
+    this.notifyThreadListIfStructureChanged();
   }
 
   async setWorkspacePinned(workspaceId: string, pinned: boolean): Promise<void> {
@@ -3303,7 +3350,10 @@ export class PiSessionManager {
       : this.pinned.has(result.sessionId);
     if (result.pinned) this.pinned.add(result.sessionId);
     else this.pinned.delete(result.sessionId);
-    if (changed) this.notify();
+    if (changed) {
+      this.notify();
+      this.notifyThreadListIfStructureChanged();
+    }
   }
 
   private async archiveSessionMetadata(sessionId: string): Promise<void> {
@@ -3319,8 +3369,11 @@ export class PiSessionManager {
     return {
       list: async () => {
         await this.start();
+        const threads = this.getThreadListSnapshot();
+        this.acknowledgeThreadListStructure(threads);
+        this.threadListBaselineReady = true;
         return {
-          threads: this.getThreadListSnapshot().map((thread) => ({
+          threads: threads.map((thread) => ({
             ...thread,
             externalId: thread.remoteId,
           })),
@@ -3368,6 +3421,7 @@ export class PiSessionManager {
         await deletePiRpcSession({ sessionId: remoteId });
         this.removeSessionMetadata(remoteId);
         this.notify();
+        this.notifyThreadListIfStructureChanged();
       },
       generateTitle: async (remoteId, messages) => {
         const summary = this.summaries.get(remoteId);
@@ -3480,6 +3534,9 @@ export class PiSessionManager {
     const queue = this.pendingQueues.get(summary.id);
     if (queue) session.applyQueueSnapshot(queue);
     this.notify();
+    // RemoteThreadListAdapter.initialize() owns the local-to-remote promotion. Record the
+    // resulting structure without pulling it back into the list as a duplicate remote item.
+    this.acknowledgeThreadListStructure();
   }
 
   private readonly applyRunningSnapshot = (sessionIds: string[]): void => {
@@ -3759,10 +3816,5 @@ export class PiSessionManager {
     this.revision++;
     this.refreshSubscribedThreadStates();
     for (const listener of this.listeners) listener();
-  }
-
-  private notifyThreadList(): void {
-    if (this.disposed) return;
-    for (const listener of this.threadListListeners) listener();
   }
 }

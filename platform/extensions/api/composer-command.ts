@@ -85,9 +85,9 @@ export interface ComposerCommandOptions {
   ) => void;
 }
 
-/** A Workbench-owned companion definition; Pi's `registerCommand()` remains untouched. */
+/** A Workbench-owned companion definition; the active Agent runtime's registry remains untouched. */
 export interface ComposerCommandDefinition {
-  /** Stable id. Use the Pi invocation name when this definition describes a Pi command. */
+  /** Stable id. Use the Agent invocation name when this definition describes an Agent command. */
   readonly id: string;
   readonly label: LocalizableText;
   readonly description?: LocalizableText;

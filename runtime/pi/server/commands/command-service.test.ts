@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
 import test from "node:test";
 
+import { AgentCommandCatalogError } from "@/runtime/server/agent-command-catalog-port";
+
 const moduleHooks = registerHooks({
   resolve(specifier, context, nextResolve) {
     if (
@@ -293,6 +295,54 @@ test("translates missing sessions without exposing Pi internals", async () => {
     assert.equal(error.message.includes("private storage path"), false);
     return true;
   });
+  await assert.rejects(
+    service.getCatalog({ kind: "thread", threadId: "missing" }),
+    (error: unknown) => {
+      assert.ok(error instanceof AgentCommandCatalogError);
+      assert.equal(error.code, "thread-not-found");
+      assert.equal(error.message.includes("private storage path"), false);
+      return true;
+    },
+  );
+});
+
+test("projects the Pi wire catalog through the neutral Agent command capability", async () => {
+  const service = new CommandService({
+    getScopedResourceHost: async () => ({
+      session: {
+        resourceLoader: {
+          getSkills: () => ({
+            skills: [
+              {
+                name: "review-skill",
+                description: "Review the active changes.",
+                disableModelInvocation: false,
+                sourceInfo: {
+                  source: "npm:@acme/review",
+                  scope: "project" as const,
+                  origin: "package" as const,
+                },
+              },
+            ],
+          }),
+        },
+      },
+    }),
+  });
+
+  const catalog = await service.getCatalog({ kind: "project", workspaceId: "workspace-1" });
+  assert.deepEqual(catalog.at(-1), {
+    kind: "skill",
+    name: "review-skill",
+    invocationName: "skill:review-skill",
+    effect: "instruction",
+    exclusive: false,
+    description: "Review the active changes.",
+    modelInvocable: true,
+    source: { scope: "project", label: "@acme/review" },
+  });
+  assert.equal(Object.isFrozen(catalog), true);
+  assert.equal(Object.isFrozen(catalog.at(-1)), true);
 });
 
 test("maps extension runner failures to a stable internal error", async () => {

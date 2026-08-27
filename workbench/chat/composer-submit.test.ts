@@ -54,7 +54,7 @@ test("synchronizes the final textarea value before checking whether the composer
 test("stores a compiled composer request in runConfig before sending", () => {
   const { getRunConfig, sends, thread } = submitHarness({ canSend: true });
   const request = {
-    version: 1 as const,
+    version: 2 as const,
     document: [],
     sourceText: "compiled",
     text: "compiled",

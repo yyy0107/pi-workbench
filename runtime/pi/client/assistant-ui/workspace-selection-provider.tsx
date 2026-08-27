@@ -2,7 +2,6 @@
 
 import { useLayoutEffect, useMemo, useRef, type ReactNode } from "react";
 
-import { usePiSessionManager, usePiWorkspaces } from "@/runtime/pi/client/runtime/context";
 import {
   acceptCreatedWorkspaceAndBeginThread,
   addedWorkspaceIdsForReconciliation,
@@ -12,9 +11,10 @@ import {
 } from "@/services/workspace-selection-service";
 import { useWorkspaceDirectoryStore } from "@/workbench/workspaces/workspace-directory-store";
 
-export function WorkbenchWorkspaceSelectionProvider({
-  children,
-}: Readonly<{ children: ReactNode }>) {
+import { usePiSessionManager, usePiWorkspaces } from "../runtime/context";
+
+/** Pi implementation of the Workbench workspace-selection capability. */
+export function PiWorkspaceSelectionProvider({ children }: Readonly<{ children: ReactNode }>) {
   const manager = usePiSessionManager();
   const workspaces = usePiWorkspaces();
   const activeWorkspaceId = useWorkspaceDirectoryStore((state) => state.activeDirectoryId);

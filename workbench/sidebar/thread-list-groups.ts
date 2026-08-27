@@ -1,4 +1,4 @@
-import type { PiThreadStateSnapshot } from "@/runtime/pi/client/runtime/manager";
+import type { WorkbenchAgentThreadSnapshot } from "@/runtime/assistant-ui/agent-runtime-adapter";
 import { resolveSidebarThreadWorkspaceId } from "@/workbench/workspaces/new-thread-policy";
 
 export interface SidebarThreadGroups {
@@ -15,7 +15,7 @@ export function groupSidebarThreads({
   draftWorkspaceId,
 }: {
   readonly threadIds: readonly string[];
-  readonly states: ReadonlyMap<string, PiThreadStateSnapshot>;
+  readonly states: ReadonlyMap<string, WorkbenchAgentThreadSnapshot>;
   readonly mainThreadId?: string;
   readonly draftWorkspaceId?: string;
 }): SidebarThreadGroups {
@@ -25,16 +25,16 @@ export function groupSidebarThreads({
   const runningWorkspaceIds = new Set<string>();
 
   for (const threadId of threadIds) {
-    const metadata = states.get(threadId)?.metadata;
+    const state = states.get(threadId);
     const workspaceId = resolveSidebarThreadWorkspaceId({
       customWorkspaceId: undefined,
-      managedWorkspaceId: metadata?.workspace?.id,
+      managedWorkspaceId: state?.workspace?.id,
       isMainThread: threadId === mainThreadId,
       draftWorkspaceId,
     });
-    if (metadata?.running && workspaceId) runningWorkspaceIds.add(workspaceId);
+    if (state?.isRunning && workspaceId) runningWorkspaceIds.add(workspaceId);
 
-    if (metadata?.pinned) {
+    if (state?.isPinned) {
       pinnedThreadIds.push(threadId);
       continue;
     }

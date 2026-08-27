@@ -6,7 +6,10 @@ import { ThreadListPrimitive, useAuiState } from "@assistant-ui/react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useI18n } from "@/i18n";
-import { usePiSessionManager, usePiThreadStates } from "@/runtime/pi/client/runtime/context";
+import {
+  useWorkbenchAgentThreadActions,
+  useWorkbenchAgentThreadSnapshots,
+} from "@/runtime/assistant-ui/agent-runtime-context";
 import { useWorkspaceSelection } from "@/services/workspace-selection-service";
 import { resolveSidebarThreadWorkspaceId } from "@/workbench/workspaces/new-thread-policy";
 
@@ -89,17 +92,15 @@ export function WorkbenchThreadList({
   searchQuery?: string;
 }) {
   const { t } = useI18n();
-  const manager = usePiSessionManager();
+  const threadActions = useWorkbenchAgentThreadActions();
   const mainThreadId = useAuiState((state) => state.threads.mainThreadId);
   const threadIds = useAuiState((state) => state.threads.threadIds);
   const threadItems = useAuiState((state) => state.threads.threadItems);
   const scopedCandidateThreadIds = candidateThreadIds ?? threadIds;
-  const piThreadStates = usePiThreadStates(scopedCandidateThreadIds);
+  const threadStates = useWorkbenchAgentThreadSnapshots(scopedCandidateThreadIds);
   const { draftWorkspaceId } = useWorkspaceSelection();
   const workspaceFallbackThreadId =
-    mainThreadId && !piThreadStates.get(mainThreadId)?.metadata.workspace?.id
-      ? mainThreadId
-      : undefined;
+    mainThreadId && !threadStates.get(mainThreadId)?.workspace?.id ? mainThreadId : undefined;
   const isLoading = useAuiState((state) => state.threads.isLoading);
   const threadCount = useAuiState(
     (state) => state.threads.threadIds.length + state.threads.archivedThreadIds.length,
@@ -112,15 +113,15 @@ export function WorkbenchThreadList({
     return scopedCandidateThreadIds.filter((threadId) => {
       const thread = itemsById.get(threadId);
       if (!thread) return false;
-      const metadata = piThreadStates.get(threadId)?.metadata;
-      const isPinned = metadata?.pinned === true;
+      const threadState = threadStates.get(threadId);
+      const isPinned = threadState?.isPinned === true;
       if (pinnedOnly ? !isPinned : isPinned) return false;
 
       return (
         ignoreWorkspace ||
         resolveSidebarThreadWorkspaceId({
           customWorkspaceId: undefined,
-          managedWorkspaceId: metadata?.workspace?.id,
+          managedWorkspaceId: threadState?.workspace?.id,
           isMainThread: thread.id === workspaceFallbackThreadId,
           draftWorkspaceId,
         }) === workspaceId
@@ -129,7 +130,7 @@ export function WorkbenchThreadList({
   }, [
     draftWorkspaceId,
     ignoreWorkspace,
-    piThreadStates,
+    threadStates,
     pinnedOnly,
     scopedCandidateThreadIds,
     threadItems,
@@ -140,10 +141,10 @@ export function WorkbenchThreadList({
     if (!normalizedSearchQuery) return scopeThreadIds;
     const itemsById = new Map(threadItems.map((thread) => [thread.id, thread]));
     return scopeThreadIds.filter((threadId) => {
-      const title = piThreadStates.get(threadId)?.thread?.title ?? itemsById.get(threadId)?.title;
+      const title = threadStates.get(threadId)?.title ?? itemsById.get(threadId)?.title;
       return title?.toLocaleLowerCase().includes(normalizedSearchQuery);
     });
-  }, [normalizedSearchQuery, piThreadStates, scopeThreadIds, threadItems]);
+  }, [normalizedSearchQuery, scopeThreadIds, threadItems, threadStates]);
   const hasThreads = visibleThreadIds.length > 0;
   const hasMore = useAuiState((state) => state.threads.hasMore);
   const orderScope = pinnedOnly ? "pinned" : workspaceId ? `workspace:${workspaceId}` : "ungrouped";
@@ -153,13 +154,8 @@ export function WorkbenchThreadList({
   const setManualOrder = useThreadOrderStore((state) => state.setManualOrder);
   const createdAtByThreadId = useMemo(
     () =>
-      new Map(
-        scopeThreadIds.map((threadId) => [
-          threadId,
-          piThreadStates.get(threadId)?.metadata.createdAt,
-        ]),
-      ),
-    [piThreadStates, scopeThreadIds],
+      new Map(scopeThreadIds.map((threadId) => [threadId, threadStates.get(threadId)?.createdAt])),
+    [scopeThreadIds, threadStates],
   );
   const resolvedScopeThreadIds = useMemo(
     () => resolveThreadOrder(scopeThreadIds, createdAtByThreadId, storedManualOrder),
@@ -181,13 +177,13 @@ export function WorkbenchThreadList({
           threadId,
           resolveSidebarThreadWorkspaceId({
             customWorkspaceId: undefined,
-            managedWorkspaceId: piThreadStates.get(threadId)?.metadata.workspace?.id,
+            managedWorkspaceId: threadStates.get(threadId)?.workspace?.id,
             isMainThread: threadId === workspaceFallbackThreadId,
             draftWorkspaceId,
           }),
         ]),
       ),
-    [draftWorkspaceId, piThreadStates, sortedThreadIds, workspaceFallbackThreadId],
+    [draftWorkspaceId, sortedThreadIds, threadStates, workspaceFallbackThreadId],
   );
   const dragOrderContextRef = useRef({ orderScope, resolvedScopeThreadIds });
   const dragEnabled = sortedThreadIds.length > 1;
@@ -212,15 +208,19 @@ export function WorkbenchThreadList({
       );
       setManualOrder(currentScope, nextOrder);
 
-      if (!workspaceId || pinnedOnly) return;
+      if (!workspaceId || pinnedOnly || !threadActions.moveWithinWorkspace) return;
       const beforeSessionId = sidebarItemIdAfterMove(
         resolvedScopeThreadIds,
         sourceThreadId,
         targetThreadId,
         position,
       );
-      void manager
-        .moveWorkspaceSessionBefore(workspaceId, sourceThreadId, beforeSessionId)
+      void threadActions
+        .moveWithinWorkspace({
+          workspaceId,
+          threadId: sourceThreadId,
+          ...(beforeSessionId === undefined ? {} : { beforeThreadId: beforeSessionId }),
+        })
         .catch((error) => {
           setManualOrder(currentScope, resolvedScopeThreadIds);
           console.error("[workbench] failed to persist conversation order", error);

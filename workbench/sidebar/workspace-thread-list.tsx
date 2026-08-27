@@ -19,7 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Skeleton } from "@/components/ui/skeleton";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
-import { usePiThreadStates } from "@/runtime/pi/client/runtime/context";
+import { useWorkbenchAgentThreadSnapshots } from "@/runtime/assistant-ui/agent-runtime-context";
 import {
   useWorkspaceCapabilities,
   useWorkspaceSelection,
@@ -111,11 +111,9 @@ export function WorkbenchPinnedThreadList({
   const pathname = usePathname();
   const threadIds = useAuiState((state) => state.threads.threadIds);
   const mainThreadId = useAuiState((state) => state.threads.mainThreadId);
-  const piThreadStates = usePiThreadStates(threadIds);
+  const threadStates = useWorkbenchAgentThreadSnapshots(threadIds);
   const workspaceFallbackThreadId =
-    mainThreadId && !piThreadStates.get(mainThreadId)?.metadata.workspace?.id
-      ? mainThreadId
-      : undefined;
+    mainThreadId && !threadStates.get(mainThreadId)?.workspace?.id ? mainThreadId : undefined;
   const hasEmptyDraftNewThread = useAuiState(
     (state) =>
       state.threads.newThreadId !== undefined &&
@@ -131,11 +129,11 @@ export function WorkbenchPinnedThreadList({
     () =>
       groupSidebarThreads({
         threadIds,
-        states: piThreadStates,
+        states: threadStates,
         mainThreadId: workspaceFallbackThreadId,
         draftWorkspaceId: draftDirectoryId,
       }),
-    [draftDirectoryId, piThreadStates, threadIds, workspaceFallbackThreadId],
+    [draftDirectoryId, threadIds, threadStates, workspaceFallbackThreadId],
   );
   const hasPinnedThreads = threadGroups.pinnedThreadIds.length > 0;
   const { activateWorkspace: activateDirectory } = useWorkspaceCapabilities();
@@ -195,11 +193,9 @@ export function WorkbenchWorkspaceThreadList({
   const isLoading = useAuiState((state) => state.threads.isLoading);
   const threadIds = useAuiState((state) => state.threads.threadIds);
   const mainThreadId = useAuiState((state) => state.threads.mainThreadId);
-  const piThreadStates = usePiThreadStates(threadIds);
+  const threadStates = useWorkbenchAgentThreadSnapshots(threadIds);
   const workspaceFallbackThreadId =
-    mainThreadId && !piThreadStates.get(mainThreadId)?.metadata.workspace?.id
-      ? mainThreadId
-      : undefined;
+    mainThreadId && !threadStates.get(mainThreadId)?.workspace?.id ? mainThreadId : undefined;
   const hasEmptyDraftNewThread = useAuiState(
     (state) =>
       state.threads.newThreadId !== undefined &&
@@ -217,11 +213,11 @@ export function WorkbenchWorkspaceThreadList({
     () =>
       groupSidebarThreads({
         threadIds,
-        states: piThreadStates,
+        states: threadStates,
         mainThreadId: workspaceFallbackThreadId,
         draftWorkspaceId: draftDirectoryId,
       }),
-    [draftDirectoryId, piThreadStates, threadIds, workspaceFallbackThreadId],
+    [draftDirectoryId, threadIds, threadStates, workspaceFallbackThreadId],
   );
   const hasUngroupedThreads = threadGroups.ungroupedThreadIds.length > 0;
   const [visibleWorkspaceCount, setVisibleWorkspaceCount] = useState(WORKSPACE_PAGE_SIZE);

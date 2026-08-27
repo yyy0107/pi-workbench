@@ -1,40 +1,19 @@
 import type { Message } from "@earendil-works/pi-ai";
 
-export const EXTERNAL_SESSION_SOURCES = ["codex", "claude-code", "cursor"] as const;
+import type {
+  ExternalSessionImportIssue,
+  ExternalSessionImportScanValue,
+  ExternalSessionImportView,
+  ExternalSessionSource,
+} from "@/runtime/pi/contracts/rpc";
 
-export type ExternalSessionSource = (typeof EXTERNAL_SESSION_SOURCES)[number];
+export type { ExternalSessionImportIssue, ExternalSessionSource };
 
-export type ExternalSessionImportIssue =
-  | "source-unavailable"
-  | "source-unreadable"
-  | "workspace-missing"
-  | "workspace-not-directory"
-  | "conversation-empty"
-  | "conversation-unsupported";
+export type ExternalSessionDescriptor = ExternalSessionImportView;
 
-export interface ExternalSessionDescriptor {
-  source: ExternalSessionSource;
-  sourceSessionId: string;
-  title: string;
-  cwd: string;
-  createdAt: number;
-  updatedAt: number;
-  messageCount?: number;
-  subagent?: boolean;
-  importable: boolean;
-  alreadyImported: boolean;
-  issue?: ExternalSessionImportIssue;
-}
+export type ExternalSessionSourceSnapshot = ExternalSessionImportScanValue["sources"][number];
 
-export interface ExternalSessionSourceSnapshot {
-  source: ExternalSessionSource;
-  status: "ready" | "not-found" | "error";
-  sessions: ExternalSessionDescriptor[];
-}
-
-export interface ExternalSessionScanSnapshot {
-  sources: ExternalSessionSourceSnapshot[];
-}
+export type ExternalSessionScanSnapshot = ExternalSessionImportScanValue;
 
 export interface LoadedExternalSession {
   descriptor: Omit<ExternalSessionDescriptor, "alreadyImported" | "importable" | "issue">;

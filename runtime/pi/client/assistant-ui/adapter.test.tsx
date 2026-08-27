@@ -15,13 +15,19 @@ test("mounts Pi through the Workbench Agent Runtime adapter boundary", () => {
   const manager = new PiSessionManager();
   const adapter = createPiAgentRuntimeAdapter(manager);
   let capturedRuntime: AssistantRuntime | undefined;
+  let capturedPiThreadRuntime: AssistantRuntime | undefined;
+
+  function PiThreadRuntimeProbe() {
+    capturedPiThreadRuntime = adapter.useThreadRuntime();
+    return createElement("span", null, "mounted");
+  }
 
   function Harness() {
     capturedRuntime = useWorkbenchRuntime(adapter);
     return createElement(
       AssistantRuntimeProvider,
       { runtime: capturedRuntime },
-      createElement("span", null, "mounted"),
+      createElement(PiThreadRuntimeProbe),
     );
   }
 
@@ -37,6 +43,23 @@ test("mounts Pi through the Workbench Agent Runtime adapter boundary", () => {
     assert.equal(threadList.mainThreadId, threadList.newThreadId);
     assert.deepEqual(threadList.threadIds, []);
     assert.equal(threadList.threadItems[threadList.mainThreadId]?.status, "new");
+
+    assert.ok(capturedPiThreadRuntime);
+    const capabilities = capturedPiThreadRuntime.thread.getState().capabilities;
+    assert.equal(capabilities.switchToBranch, true);
+    assert.equal(capabilities.switchBranchDuringRun, false);
+    assert.equal(capabilities.edit, false);
+    // assistant-ui currently derives both branch switching and message deletion from
+    // setMessages. Pi supplies it as a branch-switching bridge and owns the durable
+    // mutation through unstable_onBranchChange.
+    assert.equal(capabilities.delete, true);
+    assert.equal(capabilities.reload, true);
+    assert.equal(capabilities.refetchThread, true);
+    assert.equal(capabilities.cancel, true);
+    assert.equal(capabilities.attachments, true);
+    assert.equal(capabilities.dictation, true);
+    assert.equal(capabilities.feedback, true);
+    assert.equal(capabilities.queue, false);
   } finally {
     manager.dispose();
   }

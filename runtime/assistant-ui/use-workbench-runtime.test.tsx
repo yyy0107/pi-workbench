@@ -19,7 +19,9 @@ test("mounts an agent adapter without depending on a concrete backend", () => {
   const adapter: WorkbenchAgentRuntimeAdapter = {
     id: "test-agent",
     threadListAdapter: new InMemoryThreadListAdapter(),
+    getThreadListRevision: () => 0,
     subscribeThreadList: () => () => undefined,
+    useCommandCatalog: () => [],
     useThreadRuntime() {
       const messages: readonly ThreadMessage[] = [];
       return useExternalStoreRuntime({

@@ -515,6 +515,76 @@ test("routes session validation failures through the shared error envelope", asy
   assert.equal(historicalArgumentBody.result.ok, false);
   if (historicalArgumentBody.result.ok) assert.fail("Expected the missing session error");
   assert.notEqual(historicalArgumentBody.result.error.code, "bad-request");
+
+  const agentComposerResponse = await handlePiRpcPost(
+    rpcRequest("session.prompt", {
+      sessionId: "missing-session",
+      mode: "queue",
+      content: [],
+      composer: {
+        version: 2,
+        document: [
+          {
+            type: "command",
+            id: "command:agent:plan:0",
+            commandId: "plan",
+            label: "Plan",
+            scope: "message",
+            source: "agent",
+          },
+        ],
+        sourceText: ":agent-command[plan|Plan]",
+        text: "",
+        context: [],
+        metadata: {},
+        commands: [
+          {
+            id: "command:agent:plan:0",
+            commandId: "plan",
+            label: "Plan",
+            scope: "message",
+            source: "agent",
+          },
+        ],
+      },
+    }),
+    "session.prompt",
+  );
+  const agentComposerBody = (await agentComposerResponse.json()) as ServerResponse<unknown>;
+  assert.equal(agentComposerBody.result.ok, false);
+  if (agentComposerBody.result.ok) assert.fail("Expected the missing session error");
+  assert.notEqual(agentComposerBody.result.error.code, "bad-request");
+
+  const mixedComposerResponse = await handlePiRpcPost(
+    rpcRequest("session.prompt", {
+      sessionId: "session-1",
+      mode: "queue",
+      content: [],
+      composer: {
+        version: 2,
+        sourceText: ":pi-command[plan|Plan]",
+        text: "",
+        context: [],
+        metadata: {},
+        commands: [
+          {
+            id: "command:pi:plan:0",
+            commandId: "plan",
+            label: "Plan",
+            scope: "message",
+            source: "pi",
+          },
+        ],
+      },
+    }),
+    "session.prompt",
+  );
+  const mixedComposerBody = (await mixedComposerResponse.json()) as ServerResponse<unknown>;
+  assert.equal(mixedComposerBody.result.ok, false);
+  if (mixedComposerBody.result.ok) assert.fail("Expected a Composer generation mismatch");
+  assert.equal(mixedComposerBody.result.error.code, "bad-request");
+  const mixedIssues = mixedComposerBody.result.error.details.issues as Array<{ path?: unknown }>;
+  assert.deepEqual(mixedIssues[0]?.path, ["payload", "composer", "commands", 0, "source"]);
 });
 
 test("validates bounded context trace cursors before activating a session", async () => {

@@ -1,21 +1,23 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { PiThreadStateSnapshot } from "@/runtime/pi/client/runtime/manager";
+import type { WorkbenchAgentThreadSnapshot } from "@/runtime/assistant-ui/agent-runtime-adapter";
 
 import { groupSidebarThreads } from "./thread-list-groups";
 
-function state(workspaceId?: string, pinned = false, running = false): PiThreadStateSnapshot {
+function state(
+  workspaceId?: string,
+  isPinned = false,
+  isRunning = false,
+): WorkbenchAgentThreadSnapshot {
   return {
-    metadata: {
-      running,
-      waitingForUserInput: false,
-      completed: false,
-      pinned,
-      ...(workspaceId
-        ? { workspace: { id: workspaceId, name: workspaceId, cwd: `/${workspaceId}` } }
-        : {}),
-    },
+    isRunning,
+    isWaitingForInput: false,
+    hasUnreadCompletion: false,
+    isPinned,
+    ...(workspaceId
+      ? { workspace: { id: workspaceId, name: workspaceId, rootPath: `/${workspaceId}` } }
+      : {}),
   };
 }
 

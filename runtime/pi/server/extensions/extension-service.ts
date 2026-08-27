@@ -56,6 +56,14 @@ export const MAX_EXTENSION_FILE_BYTES = 5 * 1024 * 1024;
 const EXTENSION_DIRECTORY_ENTRY_LIMIT = 2_000;
 const WINDOWS_ABSOLUTE_PATH = /^[a-zA-Z]:[\\/]/;
 
+export interface ExtensionProtocol {
+  list(request: ExtensionListPayload): Promise<ExtensionListValue>;
+  setEnabled(request: ExtensionSetEnabledPayload): Promise<ExtensionSetEnabledValue>;
+  listFiles(request: ExtensionFilesListPayload): Promise<ExtensionFilesListValue>;
+  readFile(request: ExtensionFileReadPayload): Promise<ExtensionFileSnapshotValue>;
+  remove(request: ExtensionRemovePayload): Promise<ExtensionRemoveValue>;
+}
+
 interface LoadedTool {
   definition?: {
     label?: unknown;
@@ -285,7 +293,7 @@ function sameExtensionIdentity(
   );
 }
 
-export class ExtensionService {
+export class ExtensionService implements ExtensionProtocol {
   private readonly dependencies: ExtensionServiceDependencies;
 
   constructor(dependencies: Partial<ExtensionServiceDependencies> = {}) {

@@ -37,6 +37,18 @@ export interface PiPackageCatalogServiceOptions {
   refreshIntervalMs?: number;
 }
 
+/** Stable transport-facing catalog operations; network and cache policy stay in this service. */
+export interface PackageCatalogProtocol {
+  search(
+    payload: PiPackageCatalogSearchPayload,
+    signal?: AbortSignal,
+  ): Promise<PiPackageCatalogSearchValue>;
+  describe(
+    payload: PiPackageCatalogDescribePayload,
+    signal?: AbortSignal,
+  ): Promise<PiPackageCatalogDetailsView>;
+}
+
 interface ParsedPackageCard {
   item: PiPackageCatalogItemView;
   searchText: string;
@@ -377,7 +389,7 @@ export function parsePiPackageCatalogHtml(html: string, page = 1): PiPackageCata
   return parsePiPackageCatalogPageHtml(html, page).value;
 }
 
-export class PiPackageCatalogService {
+export class PiPackageCatalogService implements PackageCatalogProtocol {
   private readonly dependencies: PiPackageCatalogServiceDependencies;
   private readonly backgroundRefresh: boolean;
   private readonly refreshConcurrency: number;

@@ -239,7 +239,7 @@ test("treats an extension command as one explicit agent turn without a second re
     prompt: async (text: string) => void prompts.push(text),
   } as unknown as Parameters<typeof resolveWorkbenchComposerCommands>[0];
   const submission = {
-    version: 1 as const,
+    version: 2 as const,
     sourceText: "tokens",
     text: "inspect concurrency",
     context: [],
@@ -250,7 +250,7 @@ test("treats an extension command as one explicit agent turn without a second re
         commandId: "review",
         label: "Review",
         scope: "message" as const,
-        source: "pi" as const,
+        source: "agent" as const,
         args: "concurrency only",
       },
     ],
@@ -262,7 +262,7 @@ test("treats an extension command as one explicit agent turn without a second re
   assert.equal(resolved.agentTurn, true);
   assert.deepEqual(resolved.request.commandTrace, [
     {
-      source: "pi",
+      source: "agent",
       commandId: "review",
       label: "Review",
       scope: "message",
@@ -304,7 +304,7 @@ test("records an explicit Skill selection without reading its file or starting a
   } as unknown as Parameters<typeof resolveWorkbenchComposerCommands>[0];
 
   const resolved = await resolveWorkbenchComposerCommands(session, {
-    version: 1,
+    version: 2,
     sourceText: "tokens",
     text: "build a reusable workflow",
     context: [],
@@ -315,7 +315,7 @@ test("records an explicit Skill selection without reading its file or starting a
         commandId: "skill:create-skill",
         label: "Create Skill",
         scope: "message",
-        source: "pi",
+        source: "agent",
       },
     ],
   });
@@ -365,7 +365,7 @@ test("expands a prompt template into the single main request without an intermed
   } as unknown as Parameters<typeof resolveWorkbenchComposerCommands>[0];
 
   const resolved = await resolveWorkbenchComposerCommands(session, {
-    version: 1,
+    version: 2,
     sourceText: "tokens",
     text: "inspect concurrency",
     context: [],
@@ -376,7 +376,7 @@ test("expands a prompt template into the single main request without an intermed
         commandId: "review",
         label: "Review",
         scope: "message",
-        source: "pi",
+        source: "agent",
       },
     ],
   });
@@ -404,8 +404,8 @@ test("records a successful built-in command as a visible response outcome", asyn
   const resolved = await resolveWorkbenchComposerCommands(
     session,
     {
-      version: 1,
-      sourceText: ":pi-command[reload|Reload] ",
+      version: 2,
+      sourceText: ":agent-command[reload|Reload] ",
       text: "",
       context: [],
       metadata: {},
@@ -415,7 +415,7 @@ test("records a successful built-in command as a visible response outcome", asyn
           commandId: "reload",
           label: "Reload",
           scope: "message",
-          source: "pi",
+          source: "agent",
         },
       ],
     },
@@ -428,7 +428,7 @@ test("records a successful built-in command as a visible response outcome", asyn
   assert.deepEqual(responseStatuses, ["running", "success"]);
   assert.deepEqual(resolved.commandResponses, [
     {
-      source: "pi",
+      source: "agent",
       commandId: "reload",
       label: "Reload",
       status: "success",
@@ -454,8 +454,8 @@ test("passes canonical compact custom instructions without starting a normal pro
   } as unknown as Parameters<typeof resolveWorkbenchComposerCommands>[0];
 
   const resolved = await resolveWorkbenchComposerCommands(session, {
-    version: 1,
-    sourceText: ":pi-command[compact|Compact] Focus on concurrency changes",
+    version: 2,
+    sourceText: ":agent-command[compact|Compact] Focus on concurrency changes",
     text: "",
     context: [],
     metadata: {},
@@ -465,7 +465,7 @@ test("passes canonical compact custom instructions without starting a normal pro
         commandId: "compact",
         label: "Compact",
         scope: "message",
-        source: "pi",
+        source: "agent",
         args: { customInstructions: "Focus on concurrency changes" },
       },
     ],
@@ -494,8 +494,8 @@ test("keeps ordinary prompt text separate from canonical compact arguments", asy
   } as unknown as Parameters<typeof resolveWorkbenchComposerCommands>[0];
 
   const resolved = await resolveWorkbenchComposerCommands(session, {
-    version: 1,
-    sourceText: ":pi-command[compact|Compact] keep decisions continue reviewing tests",
+    version: 2,
+    sourceText: ":agent-command[compact|Compact] keep decisions continue reviewing tests",
     text: "continue reviewing tests",
     context: [],
     metadata: {},
@@ -505,7 +505,7 @@ test("keeps ordinary prompt text separate from canonical compact arguments", asy
         commandId: "compact",
         label: "Compact",
         scope: "message",
-        source: "pi",
+        source: "agent",
         args: { customInstructions: "keep decisions" },
       },
     ],
@@ -531,8 +531,8 @@ test("keeps an ordinary prompt after an explicitly empty compact argument range"
   } as unknown as Parameters<typeof resolveWorkbenchComposerCommands>[0];
 
   const resolved = await resolveWorkbenchComposerCommands(session, {
-    version: 1,
-    sourceText: ":pi-command[compact|Compact] continue reviewing tests",
+    version: 2,
+    sourceText: ":agent-command[compact|Compact] continue reviewing tests",
     text: "continue reviewing tests",
     context: [],
     metadata: {},
@@ -542,7 +542,7 @@ test("keeps an ordinary prompt after an explicitly empty compact argument range"
         commandId: "compact",
         label: "Compact",
         scope: "message",
-        source: "pi",
+        source: "agent",
         args: {},
       },
     ],
@@ -571,8 +571,8 @@ test("records command execution failures as resolved outcomes instead of rejecti
   const resolved = await resolveWorkbenchComposerCommands(
     session,
     {
-      version: 1,
-      sourceText: ":pi-command[compact|Compact] ",
+      version: 2,
+      sourceText: ":agent-command[compact|Compact] ",
       text: "",
       context: [],
       metadata: {},
@@ -582,7 +582,7 @@ test("records command execution failures as resolved outcomes instead of rejecti
           commandId: "compact",
           label: "Compact",
           scope: "message",
-          source: "pi",
+          source: "agent",
         },
       ],
     },
@@ -594,7 +594,7 @@ test("records command execution failures as resolved outcomes instead of rejecti
 
   assert.deepEqual(resolved.request.commandTrace, [
     {
-      source: "pi",
+      source: "agent",
       commandId: "compact",
       label: "Compact",
       scope: "message",
@@ -604,7 +604,7 @@ test("records command execution failures as resolved outcomes instead of rejecti
   ]);
   assert.deepEqual(resolved.commandResponses, [
     {
-      source: "pi",
+      source: "agent",
       commandId: "compact",
       label: "Compact",
       status: "execution-failed",
@@ -655,7 +655,7 @@ test("keeps a durable token-only user message when its built-in command fails", 
     return host.shutdown();
   });
 
-  const sourceText = ":pi-command[compact|Compact] ";
+  const sourceText = ":agent-command[compact|Compact] ";
   await submitPrompt(
     host.id,
     "followUp",
@@ -663,15 +663,15 @@ test("keeps a durable token-only user message when its built-in command fails", 
     {
       rpcId: "compact-command-rpc",
       composer: {
-        version: 1,
+        version: 2,
         document: [
           {
             type: "command",
-            id: "command:pi:compact:0",
+            id: "command:agent:compact:0",
             commandId: "compact",
             label: "Compact",
             scope: "message",
-            source: "pi",
+            source: "agent",
           },
           { type: "text", text: " " },
         ],
@@ -681,11 +681,11 @@ test("keeps a durable token-only user message when its built-in command fails", 
         metadata: {},
         commands: [
           {
-            id: "command:pi:compact:0",
+            id: "command:agent:compact:0",
             commandId: "compact",
             label: "Compact",
             scope: "message",
-            source: "pi",
+            source: "agent",
           },
         ],
       },
@@ -694,45 +694,45 @@ test("keeps a durable token-only user message when its built-in command fails", 
 
   const history = await getSessionHistory(host.id);
   const marker = history.context.messages.find(
-    (message) => message.role === "custom" && message.customType === "workbench.composer-user.v2",
+    (message) => message.role === "custom" && message.customType === "workbench.composer-user.v3",
   );
   assert.ok(marker);
   if (marker.role !== "custom") assert.fail("Expected a custom Composer marker");
   assert.deepEqual(marker.details, {
-    version: 2,
+    version: 3,
     submissionId: (marker.details as { submissionId: string }).submissionId,
     sourceText,
     text: "",
     document: [
       {
         type: "command",
-        id: "command:pi:compact:0",
+        id: "command:agent:compact:0",
         commandId: "compact",
         label: "Compact",
         scope: "message",
-        source: "pi",
+        source: "agent",
       },
       { type: "text", text: " " },
     ],
     commands: [
       {
-        id: "command:pi:compact:0",
+        id: "command:agent:compact:0",
         commandId: "compact",
         label: "Compact",
         scope: "message",
-        source: "pi",
+        source: "agent",
       },
     ],
     composer: {
-      version: 1,
+      version: 2,
       document: [
         {
           type: "command",
-          id: "command:pi:compact:0",
+          id: "command:agent:compact:0",
           commandId: "compact",
           label: "Compact",
           scope: "message",
-          source: "pi",
+          source: "agent",
         },
         { type: "text", text: " " },
       ],
@@ -742,11 +742,11 @@ test("keeps a durable token-only user message when its built-in command fails", 
       metadata: {},
       commands: [
         {
-          id: "command:pi:compact:0",
+          id: "command:agent:compact:0",
           commandId: "compact",
           label: "Compact",
           scope: "message",
-          source: "pi",
+          source: "agent",
         },
       ],
     },
@@ -754,15 +754,15 @@ test("keeps a durable token-only user message when its built-in command fails", 
   });
   const response = history.context.messages.find(
     (message) =>
-      message.role === "custom" && message.customType === "workbench.composer-command-response.v1",
+      message.role === "custom" && message.customType === "workbench.composer-command-response.v2",
   );
   assert.ok(response);
   if (response.role !== "custom") assert.fail("Expected a custom command response");
   assert.equal(response.display, true);
   assert.deepEqual(response.details, {
-    version: 1,
+    version: 2,
     submissionId: (marker.details as { submissionId: string }).submissionId,
-    source: "pi",
+    source: "agent",
     commandId: "compact",
     label: "Compact",
     status: "execution-failed",
@@ -773,7 +773,7 @@ test("keeps a durable token-only user message when its built-in command fails", 
       .messages.some(
         (message) =>
           message.role === "custom" &&
-          message.customType === "workbench.composer-command-response.v1",
+          message.customType === "workbench.composer-command-response.v2",
       ),
     false,
     "a visible command response must not become later model context",
@@ -783,7 +783,7 @@ test("keeps a durable token-only user message when its built-in command fails", 
     events.flatMap((event) => {
       const data = event.data as { customType?: string; details?: { status?: string } };
       return event.type === "message" &&
-        data.customType === "workbench.composer-command-response.v1" &&
+        data.customType === "workbench.composer-command-response.v2" &&
         data.details?.status
         ? [data.details.status]
         : [];
@@ -867,7 +867,7 @@ test("keeps the model turn alive when attachment preprocessing fails", async (t)
 
   const history = await getSessionHistory(host.id);
   const marker = history.context.messages.find(
-    (message) => message.role === "custom" && message.customType === "workbench.composer-user.v2",
+    (message) => message.role === "custom" && message.customType === "workbench.composer-user.v3",
   );
   assert.ok(marker && marker.role === "custom");
   assert.deepEqual((marker.details as { attachments?: unknown }).attachments, [
@@ -1000,7 +1000,7 @@ test("gives native image inputs the same one-based references used by the UI", a
     {
       rpcId: "native-image-reference-rpc",
       composer: {
-        version: 1,
+        version: 2,
         document: [{ type: "text", text: "Compare image one with image two" }],
         sourceText: "Compare image one with image two",
         text: "Compare image one with image two",
@@ -1121,7 +1121,7 @@ test("injects image and PDF OCR as isolated context without forwarding attachmen
     {
       rpcId: "image-recognition-success-rpc",
       composer: {
-        version: 1,
+        version: 2,
         document: [{ type: "text", text: "Read the invoice" }],
         sourceText: "Read the invoice",
         text: "Read the invoice",
@@ -1561,7 +1561,7 @@ test("cancels in-flight image recognition without starting a model turn", async 
     {
       rpcId: "image-recognition-cancel-rpc",
       composer: {
-        version: 1,
+        version: 2,
         document: [{ type: "text", text: "Read the image" }],
         sourceText: "Read the image",
         text: "Read the image",
@@ -1646,7 +1646,7 @@ test("keeps cancellation authoritative during the recognition-to-prompt handoff"
     promptCalled = true;
   };
   fakeAgent.sendCustomMessage = async (message, options) => {
-    if (message.customType === "workbench.composer-resolution.v1") {
+    if (message.customType === "workbench.composer-resolution.v2") {
       reportResolutionReached();
       await resolutionGate;
     }
@@ -1669,7 +1669,7 @@ test("keeps cancellation authoritative during the recognition-to-prompt handoff"
     {
       rpcId: "image-handoff-cancel-rpc",
       composer: {
-        version: 1,
+        version: 2,
         document: [{ type: "text", text: "Read the image" }],
         sourceText: "Read the image",
         text: "Read the image",
@@ -1707,7 +1707,7 @@ test("validates every Pi command before executing any Composer command", async (
 
   await assert.rejects(
     resolveWorkbenchComposerCommands(session, {
-      version: 1,
+      version: 2,
       sourceText: "tokens",
       text: "inspect",
       context: [],
@@ -1718,14 +1718,14 @@ test("validates every Pi command before executing any Composer command", async (
           commandId: "plan",
           label: "Plan",
           scope: "message",
-          source: "pi",
+          source: "agent",
         },
         {
           id: "missing",
           commandId: "missing",
           label: "Missing",
           scope: "message",
-          source: "pi",
+          source: "agent",
         },
       ],
     }),
@@ -1979,7 +1979,7 @@ test("keeps Composer correlation when branch history falls back to Pi context en
   };
   assert.equal(projected.content, compiledPrompt);
   assert.deepEqual(projected.workbenchComposer, {
-    version: 1,
+    version: 2,
     submissionId: "submission-context-branch",
     sourceText: "Read the image",
     document: [{ type: "text", text: "Read the image" }],
@@ -2071,14 +2071,14 @@ test("reconciles an interrupted image-recognition operation when a session reope
       details?: { submissionId?: string; status?: string; commandTrace?: unknown[] };
     };
     return event.type === "message" &&
-      data.customType === "workbench.composer-resolution.v1" &&
+      data.customType === "workbench.composer-resolution.v2" &&
       data.details?.submissionId === "interrupted-submission"
       ? [data.details]
       : [];
   });
   assert.deepEqual(resolutions, [
     {
-      version: 1,
+      version: 2,
       submissionId: "interrupted-submission",
       status: "command_error",
       commandTrace: [],
@@ -2125,7 +2125,7 @@ test("reconciles an interrupted image-recognition operation when a session reope
       }
     | undefined;
   assert.deepEqual(projectedNextUser?.workbenchComposer, {
-    version: 1,
+    version: 2,
     submissionId: "next-command-submission",
     sourceText: "New command request",
     document: [{ type: "text", text: "New command request" }],
@@ -2228,7 +2228,9 @@ test("coalesces the initial scan and incrementally refreshes changed files", asy
   manager.appendMessage(assistantMessage("changed", now + 2));
   let changed = await listSessions();
   for (let attempt = 0; attempt < 20 && changed.sessions[0]?.messageCount !== 3; attempt += 1) {
-    await new Promise<void>((resolve) => setImmediate(resolve));
+    // listSessions deliberately refreshes cold files in the background. Give the filesystem scan
+    // real wall-clock progress even when the full test runner is saturating the event loop.
+    await new Promise<void>((resolve) => setTimeout(resolve, 5));
     changed = await listSessions();
   }
   assert.equal(changed.sessions[0]?.messageCount, 3);

@@ -4,90 +4,14 @@ import test from "node:test";
 import { act, createElement, StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
+import {
+  flushReactMicrotasks,
+  installMinimalReactDomEnvironment,
+} from "@/test-utils/react-dom-environment";
+
 import type { WorkbenchExtension } from "./api/extension";
 import { useMainViewService } from "./extension-context";
 import { ExtensionProvider } from "./extension-provider";
-
-interface ReactDomGlobals {
-  document?: unknown;
-  HTMLElement?: unknown;
-  HTMLIFrameElement?: unknown;
-  IS_REACT_ACT_ENVIRONMENT?: unknown;
-  window?: unknown;
-}
-
-function installMinimalReactDomEnvironment(): {
-  container: Element;
-  restore(): void;
-} {
-  const globalObject = globalThis as typeof globalThis & ReactDomGlobals;
-  const keys = [
-    "document",
-    "HTMLElement",
-    "HTMLIFrameElement",
-    "IS_REACT_ACT_ENVIRONMENT",
-    "window",
-  ] as const;
-  const previousDescriptors = new Map(
-    keys.map((key) => [key, Object.getOwnPropertyDescriptor(globalObject, key)]),
-  );
-  const noop = () => undefined;
-  class FakeElement {}
-  class FakeIFrameElement extends FakeElement {}
-  const windowFixture: Record<string, unknown> = {
-    event: undefined,
-    HTMLElement: FakeElement,
-    HTMLIFrameElement: FakeIFrameElement,
-  };
-  const documentFixture: Record<string, unknown> = {
-    activeElement: null,
-    addEventListener: noop,
-    body: null,
-    defaultView: windowFixture,
-    documentElement: { namespaceURI: "http://www.w3.org/1999/xhtml" },
-    nodeType: 9,
-    removeEventListener: noop,
-  };
-  windowFixture.document = documentFixture;
-  const container = Object.assign(new FakeElement(), {
-    addEventListener: noop,
-    appendChild: noop,
-    insertBefore: noop,
-    namespaceURI: "http://www.w3.org/1999/xhtml",
-    nodeName: "DIV",
-    nodeType: 1,
-    ownerDocument: documentFixture,
-    parentNode: null,
-    removeChild: noop,
-    removeEventListener: noop,
-    tagName: "DIV",
-    textContent: "",
-  });
-  documentFixture.body = container;
-
-  Object.defineProperties(globalObject, {
-    document: { configurable: true, value: documentFixture, writable: true },
-    HTMLElement: { configurable: true, value: FakeElement, writable: true },
-    HTMLIFrameElement: { configurable: true, value: FakeIFrameElement, writable: true },
-    IS_REACT_ACT_ENVIRONMENT: { configurable: true, value: true, writable: true },
-    window: { configurable: true, value: windowFixture, writable: true },
-  });
-
-  return {
-    container: container as unknown as Element,
-    restore() {
-      for (const key of keys) {
-        const descriptor = previousDescriptors.get(key);
-        if (descriptor) Object.defineProperty(globalObject, key, descriptor);
-        else Reflect.deleteProperty(globalObject, key);
-      }
-    },
-  };
-}
-
-function flushMicrotasks(): Promise<void> {
-  return new Promise((resolve) => queueMicrotask(resolve));
-}
 
 test("changing the active extension list only starts and stops changed extensions", async () => {
   const environment = installMinimalReactDomEnvironment();
@@ -130,7 +54,7 @@ test("changing the active extension list only starts and stops changed extension
 
     await act(async () => {
       root.unmount();
-      await flushMicrotasks();
+      await flushReactMicrotasks();
     });
     mounted = false;
     assert.deepEqual(lifecycle, ["stable:setup", "added:setup", "added:dispose", "stable:dispose"]);
@@ -138,7 +62,7 @@ test("changing the active extension list only starts and stops changed extension
     if (mounted) {
       await act(async () => {
         root.unmount();
-        await flushMicrotasks();
+        await flushReactMicrotasks();
       });
     }
     environment.restore();
@@ -186,7 +110,7 @@ test("Strict Effects do not dispose and restart the owned extension manager", as
           }),
         ),
       );
-      await flushMicrotasks();
+      await flushReactMicrotasks();
     });
     assert.deepEqual(lifecycle, ["setup"]);
     assert.ok(mainViews);
@@ -211,7 +135,7 @@ test("Strict Effects do not dispose and restart the owned extension manager", as
 
     await act(async () => {
       root.unmount();
-      await flushMicrotasks();
+      await flushReactMicrotasks();
     });
     mounted = false;
     assert.deepEqual(lifecycle, ["setup", "dispose"]);
@@ -219,7 +143,7 @@ test("Strict Effects do not dispose and restart the owned extension manager", as
     if (mounted) {
       await act(async () => {
         root.unmount();
-        await flushMicrotasks();
+        await flushReactMicrotasks();
       });
     }
     environment.restore();

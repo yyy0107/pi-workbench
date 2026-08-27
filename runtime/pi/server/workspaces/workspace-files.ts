@@ -4,19 +4,22 @@ import path from "node:path";
 
 import mime from "mime";
 
-import type {
-  WorkspaceFileEntry,
-  WorkspaceFileDescriptorValue,
-  WorkspaceFileSnapshotValue,
-  WorkspaceFilesListPayload,
-  WorkspaceFilesListValue,
-  WorkspaceFileWritePayload,
+import {
+  WORKSPACE_FILE_EDITABLE_SIZE_LIMIT,
+  WORKSPACE_FILE_RELATIVE_PATH_LENGTH_LIMIT,
+  type WorkspaceFileDescriptorValue,
+  type WorkspaceFileEntry,
+  type WorkspaceFileReadPayload,
+  type WorkspaceFileSnapshotValue,
+  type WorkspaceFilesListPayload,
+  type WorkspaceFilesListValue,
+  type WorkspaceFileWritePayload,
 } from "@/runtime/pi/contracts/rpc";
+import { getWorkspaceStore } from "./workspace-registry";
 import type { WorkspaceStore } from "./workspace-store";
 
 const DIRECTORY_ENTRY_LIMIT = 2_000;
-export const WORKSPACE_FILE_SIZE_LIMIT = 5 * 1024 * 1024;
-const MAX_RELATIVE_PATH_LENGTH = 16_384;
+export const WORKSPACE_FILE_SIZE_LIMIT = WORKSPACE_FILE_EDITABLE_SIZE_LIMIT;
 const ENCODING_SAMPLE_SIZE = 64 * 1024;
 const WINDOWS_ABSOLUTE_PATH = /^[a-zA-Z]:[\\/]/;
 const SOURCE_TEXT_EXTENSIONS = new Set([
@@ -101,6 +104,25 @@ export interface WorkspaceFileServiceOptions {
   fileSizeLimit?: number;
 }
 
+export interface WorkspaceFileProtocol {
+  listDirectory(
+    input: WorkspaceFilesListPayload,
+    signal?: AbortSignal,
+  ): Promise<WorkspaceFilesListValue>;
+  describeFile(
+    input: WorkspaceFileReadPayload,
+    signal?: AbortSignal,
+  ): Promise<WorkspaceFileDescriptorValue>;
+  readFile(
+    input: WorkspaceFileReadPayload,
+    signal?: AbortSignal,
+  ): Promise<WorkspaceFileSnapshotValue>;
+  writeFile(
+    input: WorkspaceFileWritePayload,
+    signal?: AbortSignal,
+  ): Promise<WorkspaceFileSnapshotValue>;
+}
+
 interface ResolvedWorkspacePath {
   workspaceId: string;
   relativePath: string;
@@ -141,7 +163,7 @@ function normalizeRelativePath(
 ): string {
   const relativePath = input ?? "";
   const invalid =
-    relativePath.length > MAX_RELATIVE_PATH_LENGTH ||
+    relativePath.length > WORKSPACE_FILE_RELATIVE_PATH_LENGTH_LIMIT ||
     relativePath.includes("\0") ||
     path.isAbsolute(relativePath) ||
     WINDOWS_ABSOLUTE_PATH.test(relativePath) ||
@@ -258,7 +280,7 @@ function compareEntries(left: WorkspaceFileEntry, right: WorkspaceFileEntry): nu
   return left.name.localeCompare(right.name, "en-US", { numeric: true, sensitivity: "base" });
 }
 
-export class WorkspaceFileService {
+export class WorkspaceFileService implements WorkspaceFileProtocol {
   readonly #workspaceStore: WorkspaceFileServiceOptions["workspaceStore"];
   readonly #fileSizeLimit: number;
   readonly #writeTails = new Map<string, Promise<void>>();
@@ -336,7 +358,7 @@ export class WorkspaceFileService {
   }
 
   async readFile(
-    input: { workspaceId: string; relativePath: string },
+    input: WorkspaceFileReadPayload,
     signal?: AbortSignal,
   ): Promise<WorkspaceFileSnapshotValue> {
     const relativePath = normalizeRelativePath(input.workspaceId, input.relativePath, false);
@@ -345,7 +367,7 @@ export class WorkspaceFileService {
   }
 
   async describeFile(
-    input: { workspaceId: string; relativePath: string },
+    input: WorkspaceFileReadPayload,
     signal?: AbortSignal,
   ): Promise<WorkspaceFileDescriptorValue> {
     const relativePath = normalizeRelativePath(input.workspaceId, input.relativePath, false);
@@ -354,7 +376,7 @@ export class WorkspaceFileService {
   }
 
   async resolveFileContent(
-    input: { workspaceId: string; relativePath: string },
+    input: WorkspaceFileReadPayload,
     signal?: AbortSignal,
   ): Promise<ResolvedWorkspaceFileContent> {
     const relativePath = normalizeRelativePath(input.workspaceId, input.relativePath, false);
@@ -615,4 +637,10 @@ export class WorkspaceFileService {
       if (this.#writeTails.get(key) === tail) this.#writeTails.delete(key);
     }
   }
+}
+
+export function createWorkspaceFileService(
+  overrides: Partial<WorkspaceFileServiceOptions> = {},
+): WorkspaceFileService {
+  return new WorkspaceFileService({ workspaceStore: getWorkspaceStore, ...overrides });
 }

@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
+import { readAgentQueueExtras } from "@/runtime/assistant-ui/agent-runtime-extras";
 
 function queueItemText(queueItem: QueueItemState): string {
   return queueItem.parts
@@ -42,35 +43,6 @@ type DropPosition = "before" | "after";
 function dropPosition(event: DragEvent<HTMLElement>): DropPosition {
   const bounds = event.currentTarget.getBoundingClientRect();
   return event.clientY < bounds.top + bounds.height / 2 ? "before" : "after";
-}
-
-interface AgentQueueActions {
-  paused: boolean;
-  steeringIds: readonly string[];
-  beginEdit(id: string): QueueItemState | undefined;
-  setPaused(paused: boolean): void;
-}
-
-function agentQueueActions(extras: unknown): AgentQueueActions | undefined {
-  if (
-    !extras ||
-    typeof extras !== "object" ||
-    !("agentQueue" in extras) ||
-    !extras.agentQueue ||
-    typeof extras.agentQueue !== "object" ||
-    !("paused" in extras.agentQueue) ||
-    typeof extras.agentQueue.paused !== "boolean" ||
-    !("steeringIds" in extras.agentQueue) ||
-    !Array.isArray(extras.agentQueue.steeringIds) ||
-    !extras.agentQueue.steeringIds.every((id) => typeof id === "string") ||
-    !("beginEdit" in extras.agentQueue) ||
-    typeof extras.agentQueue.beginEdit !== "function" ||
-    !("setPaused" in extras.agentQueue) ||
-    typeof extras.agentQueue.setPaused !== "function"
-  ) {
-    return undefined;
-  }
-  return extras.agentQueue as AgentQueueActions;
 }
 
 interface ComposerQueueItemProps {
@@ -209,7 +181,7 @@ export function ComposerMessageQueue() {
   const aui = useAui();
   const queue = useAuiState((state) => state.thread.composer.queue);
   const extras = useAuiState((state) => state.thread.extras);
-  const queueActions = agentQueueActions(extras);
+  const queueActions = readAgentQueueExtras(extras);
   const steeringIds = new Set(queueActions?.steeringIds ?? []);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{

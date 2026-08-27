@@ -32,9 +32,11 @@ import type {
   PiToolCallTiming,
 } from "@/runtime/pi/contracts/pi";
 import {
-  compileWorkbenchComposerPrompt,
   hasWorkbenchComposerDocument,
   hasWorkbenchComposerSemantics,
+  isWorkbenchComposerCommandResponseCustomType,
+  isWorkbenchComposerResolutionCustomType,
+  isWorkbenchComposerUserCustomType,
   LEGACY_WORKBENCH_COMPOSER_USER_CUSTOM_TYPE,
   WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE,
   WORKBENCH_COMPOSER_RESOLUTION_CUSTOM_TYPE,
@@ -50,6 +52,7 @@ import {
   type WorkbenchComposerUserProjection,
   type WorkbenchResolvedAgentRequest,
 } from "@/runtime/shared/composer/request";
+import { compilePiComposerPrompt } from "../commands/pi-composer-prompt";
 import { PI_MODEL_CHANGED_EVENT, PI_SESSION_FORKED_EVENT } from "@/runtime/pi/contracts/pi";
 import { PI_CANCEL_INTENT_CUSTOM_TYPE } from "@/runtime/pi/shared/messages/termination";
 import type {
@@ -430,7 +433,7 @@ function commandTrace(
 
 export interface ResolvedWorkbenchComposerRequest {
   request: WorkbenchResolvedAgentRequest;
-  /** Durable, user-visible outcomes produced only by Pi built-in session actions. */
+  /** Durable, user-visible outcomes produced by the active Agent's built-in session actions. */
   commandResponses: WorkbenchComposerCommandResponse[];
   /** A Pi extension command owns this turn, so no second main turn may be started. */
   agentTurn: boolean;
@@ -478,7 +481,7 @@ export async function resolveWorkbenchComposerCommands(
     const command = plan.command;
     if (plan.kind === "builtin") {
       notifyCommandResponse(options, {
-        source: "pi",
+        source: "agent",
         commandId: command.commandId,
         label: command.label,
         status: "running",
@@ -526,7 +529,7 @@ export async function resolveWorkbenchComposerCommands(
       request.commandTrace.push(commandTrace(plan, "success"));
       if (plan.kind === "builtin") {
         const response: WorkbenchComposerCommandResponse = {
-          source: "pi",
+          source: "agent",
           commandId: command.commandId,
           label: command.label,
           status: "success",
@@ -543,7 +546,7 @@ export async function resolveWorkbenchComposerCommands(
       request.commandTrace.push(commandTrace(plan, "execution-failed"));
       if (plan.kind === "builtin") {
         const response: WorkbenchComposerCommandResponse = {
-          source: "pi",
+          source: "agent",
           commandId: command.commandId,
           label: command.label,
           status: "execution-failed",
@@ -913,10 +916,9 @@ function persistedComposerResolutionSubmissionIds(entries: readonly SessionEntry
   const submissionIds = new Set<string>();
   for (const entry of entries) {
     const details =
-      entry.type === "custom_message" &&
-      entry.customType === WORKBENCH_COMPOSER_RESOLUTION_CUSTOM_TYPE
+      entry.type === "custom_message" && isWorkbenchComposerResolutionCustomType(entry.customType)
         ? entry.details
-        : entry.type === "custom" && entry.customType === WORKBENCH_COMPOSER_RESOLUTION_CUSTOM_TYPE
+        : entry.type === "custom" && isWorkbenchComposerResolutionCustomType(entry.customType)
           ? entry.data
           : undefined;
     const resolution = parseWorkbenchComposerResolutionDetails(details);
@@ -1066,7 +1068,7 @@ class HostedPiSession {
         );
         if (!resolvedComposerSubmissions.has(terminal.submissionId)) {
           const resolution: WorkbenchComposerResolutionDetails = {
-            version: 1,
+            version: 2,
             submissionId: terminal.submissionId,
             status: "command_error",
             commandTrace: [],
@@ -2294,7 +2296,7 @@ class HostedPiSession {
     const submissionId = randomUUID();
     const canonicalDetails = submission.document
       ? {
-          version: 2 as const,
+          version: 3 as const,
           submissionId,
           sourceText: submission.sourceText,
           text: submission.text,
@@ -2332,7 +2334,7 @@ class HostedPiSession {
     );
 
     const projection = {
-      version: 1 as const,
+      version: 2 as const,
       submissionId,
       sourceText: submission.sourceText,
       ...(submission.document === undefined ? {} : { document: submission.document }),
@@ -2340,7 +2342,7 @@ class HostedPiSession {
     };
     const publishCommandResponse = (response: WorkbenchComposerCommandResponse) => {
       const responseDetails: WorkbenchComposerCommandResponseDetails = {
-        version: 1,
+        version: 2,
         submissionId,
         ...response,
       };
@@ -2471,7 +2473,7 @@ class HostedPiSession {
         resolution.request.trustedContext.length > 0 ||
         resolution.request.untrustedContext.length > 0);
     const resolutionDetails: WorkbenchComposerResolutionDetails = {
-      version: 1,
+      version: 2,
       submissionId,
       status:
         needsMainTurn || (!commandFailed && attachmentUnderstandingFatalError === undefined)
@@ -2492,7 +2494,7 @@ class HostedPiSession {
     );
     for (const response of resolution.commandResponses) {
       const responseDetails: WorkbenchComposerCommandResponseDetails = {
-        version: 1,
+        version: 2,
         submissionId,
         ...response,
       };
@@ -2519,7 +2521,7 @@ class HostedPiSession {
       hasWorkbenchComposerSemantics(submission) ||
       usedAttachmentPreprocessing ||
       usedAttachmentReferences
-        ? compileWorkbenchComposerPrompt(resolution.request)
+        ? compilePiComposerPrompt(resolution.request)
         : resolution.request.userText;
     this.queueComposerUserProjection(projection, resolvedPrompt);
     return {
@@ -2570,7 +2572,7 @@ class HostedPiSession {
             : submittedComposer
           : hasRecognizableAttachments
             ? {
-                version: 1 as const,
+                version: 2 as const,
                 document: [{ type: "text" as const, text: prompt.message }],
                 sourceText: prompt.message,
                 text: prompt.message,
@@ -4126,7 +4128,7 @@ export async function listModels(cwd: string): Promise<PiModelListResponse> {
 
 function isWorkbenchDisplayOnlyCustomType(customType: string): boolean {
   return (
-    customType === WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE ||
+    isWorkbenchComposerCommandResponseCustomType(customType) ||
     customType === WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE
   );
 }
@@ -4261,14 +4263,11 @@ function contextBranchEvents(entries: readonly SessionEntry[]): Array<{ event: S
 
   return entries.flatMap((entry) => {
     const custom = entryCustomMessage(entry);
-    if (
-      custom?.customType === WORKBENCH_COMPOSER_USER_CUSTOM_TYPE ||
-      custom?.customType === LEGACY_WORKBENCH_COMPOSER_USER_CUSTOM_TYPE
-    ) {
+    if (isWorkbenchComposerUserCustomType(custom?.customType)) {
       const details = parseWorkbenchComposerUserDetails(custom.details);
       if (details) {
         projections.set(details.submissionId, {
-          version: 1,
+          version: 2,
           submissionId: details.submissionId,
           sourceText: details.sourceText,
           ...(details.document === undefined ? {} : { document: details.document }),
@@ -4278,7 +4277,7 @@ function contextBranchEvents(entries: readonly SessionEntry[]): Array<{ event: S
           projectionOrder.push(details.submissionId);
         }
       }
-    } else if (custom?.customType === WORKBENCH_COMPOSER_RESOLUTION_CUSTOM_TYPE) {
+    } else if (isWorkbenchComposerResolutionCustomType(custom?.customType)) {
       const resolution = parseWorkbenchComposerResolutionDetails(custom.details);
       if (resolution?.status === "resolved" && projections.has(resolution.submissionId)) {
         readyProjections.add(resolution.submissionId);

@@ -5,11 +5,15 @@ import { useAuiState } from "@assistant-ui/react";
 import { CompactMarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ComposerCommandToken } from "@/components/elements/composer";
 import { useComposerCommandRegistry } from "@/platform/extensions";
-import { usePiCommands } from "@/runtime/pi/client/runtime/command-context";
+import { useWorkbenchAgentCommands } from "@/runtime/assistant-ui/agent-runtime-context";
 import { parseWorkbenchComposerDocument } from "@/runtime/shared/composer/request";
 
+import {
+  formatAgentCommandLabel,
+  parseAgentCommandText,
+  removeAgentCommandBuffer,
+} from "./agent-command";
 import { parseComposerDocument } from "./composer-document";
-import { formatPiCommandLabel, parsePiCommandText, removePiCommandBuffer } from "./pi-command";
 
 function UserMessageTextBubble({ children }: { children: React.ReactNode }) {
   return (
@@ -24,7 +28,7 @@ function UserMessageTextBubble({ children }: { children: React.ReactNode }) {
 
 /** Renders the serialized Composer document in a sent user message using the same Token UI. */
 export function WorkbenchComposerMessageText({ text }: { text: string }) {
-  const commands = usePiCommands();
+  const commands = useWorkbenchAgentCommands();
   const persistedDocument = useAuiState(
     (state) => state.message.metadata.custom.workbenchComposerDocument,
   );
@@ -75,15 +79,15 @@ export function WorkbenchComposerMessageText({ text }: { text: string }) {
     );
   }
 
-  const commandText = parsePiCommandText(text, commands);
+  const commandText = parseAgentCommandText(text, commands);
   if (commandText) {
-    const argumentsText = removePiCommandBuffer(commandText.argumentsText);
+    const argumentsText = removeAgentCommandBuffer(commandText.argumentsText);
     const commandOwnsArguments = commandText.command.argsBinding?.kind === "message-text";
     return (
       <UserMessageTextBubble>
         <p className="whitespace-pre-wrap">
           <ComposerCommandToken
-            label={formatPiCommandLabel(commandText.command.name)}
+            label={formatAgentCommandLabel(commandText.command.name)}
             className="me-1 align-baseline"
           />
           <span

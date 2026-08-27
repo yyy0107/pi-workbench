@@ -49,6 +49,17 @@ export interface AgentSettingsServiceOptions {
   agentDir?: string;
 }
 
+export type AgentSettingsUpdateRequest = Omit<PiAgentSettingsUpdatePayload, "ns"> & {
+  ns: string;
+};
+
+/** Stable transport-facing operations; Pi agent-directory ownership stays in this service. */
+export interface AgentSettingsProtocol {
+  describe(): Promise<SettingsDescribeValue>;
+  prepareDocument(): Promise<string>;
+  update(payload: AgentSettingsUpdateRequest): Promise<PiAgentSettingsNamespaceView>;
+}
+
 interface AgentSettingsSnapshot {
   settingsContent?: string;
   systemPromptContent?: string;
@@ -151,7 +162,7 @@ function serializedSettings(settings: JsonObject): string {
   return `${JSON.stringify(settings, undefined, 2)}\n`;
 }
 
-export class AgentSettingsService {
+export class AgentSettingsService implements AgentSettingsProtocol {
   readonly agentDir: string;
   readonly settingsFile: string;
   readonly systemPromptFile: string;
@@ -259,9 +270,7 @@ export class AgentSettingsService {
     }
   }
 
-  async update(
-    payload: Omit<PiAgentSettingsUpdatePayload, "ns"> & { ns: string },
-  ): Promise<PiAgentSettingsNamespaceView> {
+  async update(payload: AgentSettingsUpdateRequest): Promise<PiAgentSettingsNamespaceView> {
     if (payload.ns !== PI_AGENT_SETTINGS_NAMESPACE) {
       throw new AgentSettingsServiceError(
         "settings-not-exposed",

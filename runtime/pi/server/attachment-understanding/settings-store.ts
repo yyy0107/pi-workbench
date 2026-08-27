@@ -81,6 +81,12 @@ export interface ImageUnderstandingRuntimeSettings extends ImageUnderstandingDes
   credential?: string;
 }
 
+/** Stable transport-facing settings operations; runtime credentials stay outside this protocol. */
+export interface ImageUnderstandingSettingsProtocol {
+  describe(): Promise<ImageUnderstandingDescribeValue>;
+  update(payload: ImageUnderstandingUpdatePayload): Promise<ImageUnderstandingDescribeValue>;
+}
+
 export type ImageUnderstandingSettingsStoreErrorCode =
   | "image-settings-conflict"
   | "image-settings-invalid"
@@ -428,7 +434,7 @@ function applySecretPatch(
   secrets[provider] = nonEmptyString(value, `${provider} credential`, 16_384);
 }
 
-export class ImageUnderstandingSettingsStore {
+export class ImageUnderstandingSettingsStore implements ImageUnderstandingSettingsProtocol {
   readonly stateFile: string;
   private readonly documentSection?: "imageUnderstanding";
   private readonly legacyStateFile?: string;

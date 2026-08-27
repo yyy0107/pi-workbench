@@ -11,8 +11,7 @@ import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { useMainViewService } from "@/platform/extensions";
 import { SlotHost } from "@/platform/extensions/hosts/slot-host";
-import { usePiThreadListItemSnapshot } from "@/runtime/pi/client/runtime/context";
-import { deriveSessionDisplayTitle } from "@/runtime/pi/shared/sessions/display-title";
+import { useWorkbenchAgentThreadSnapshot } from "@/runtime/assistant-ui/agent-runtime-context";
 
 const MAX_CONVERSATION_TITLE_CHARACTERS = 12;
 
@@ -55,12 +54,10 @@ export function WorkbenchHeader() {
   const currentThread = useAuiState((state) =>
     state.threads.threadItems.find((thread) => thread.id === state.threads.mainThreadId),
   );
-  const managedThread = usePiThreadListItemSnapshot(
+  const managedThread = useWorkbenchAgentThreadSnapshot(
     currentThread?.remoteId ?? currentThread?.externalId ?? currentThread?.id,
   );
-  const currentThreadTitle = deriveSessionDisplayTitle(
-    managedThread?.title ?? currentThread?.title,
-  );
+  const currentThreadTitle = managedThread.title ?? currentThread?.title;
   const title = activeMainView
     ? text(activeMainView.title)
     : currentThreadTitle || t("workbench.sidebar.newThread");

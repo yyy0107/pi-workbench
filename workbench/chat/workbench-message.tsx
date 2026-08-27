@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { SlotHost } from "@/platform/extensions/hosts/slot-host";
-import type { WorkbenchAgentResumeCheckpoint } from "@/runtime/assistant-ui/agent-runtime-adapter";
+import { readAgentRunRecovery } from "@/runtime/assistant-ui/agent-runtime-extras";
 import { parsePiConversationEvent } from "@/runtime/pi/client/messages/conversation-events";
 import { readPiUsage } from "@/runtime/pi/client/messages/pi-usage";
 import { parseWorkbenchComposerCommandResponseDetails } from "@/runtime/shared/composer/request";
@@ -55,37 +55,13 @@ function readableErrorDetail(value: unknown): string | undefined {
   }
 }
 
-interface AgentRunRecoveryExtras {
-  resumeCheckpoint?: WorkbenchAgentResumeCheckpoint;
-  resume?: (checkpointId: string, expectedStateId: string) => Promise<void>;
-  resumeLatest?: (terminalMessageId: string) => Promise<void>;
-}
-
-function agentRunRecoveryExtras(value: unknown): AgentRunRecoveryExtras {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return {};
-  const agentRun = (value as Record<string, unknown>).agentRun;
-  if (typeof agentRun !== "object" || agentRun === null || Array.isArray(agentRun)) return {};
-  const candidate = agentRun as Record<string, unknown>;
-  return {
-    ...(typeof candidate.resume === "function"
-      ? { resume: candidate.resume as AgentRunRecoveryExtras["resume"] }
-      : {}),
-    ...(typeof candidate.resumeLatest === "function"
-      ? { resumeLatest: candidate.resumeLatest as AgentRunRecoveryExtras["resumeLatest"] }
-      : {}),
-    ...(typeof candidate.resumeCheckpoint === "object" && candidate.resumeCheckpoint !== null
-      ? { resumeCheckpoint: candidate.resumeCheckpoint as WorkbenchAgentResumeCheckpoint }
-      : {}),
-  };
-}
-
 function WorkbenchMessageError() {
   const { t } = useI18n();
   const aui = useAui();
   const status = useAuiState((state) => state.message.status);
   const messageId = useAuiState((state) => state.message.id);
   const isRunning = useAuiState((state) => state.thread.isRunning);
-  const recovery = agentRunRecoveryExtras(useAuiState((state) => state.thread.extras));
+  const recovery = readAgentRunRecovery(useAuiState((state) => state.thread.extras));
   const isInLatestTurn = useAuiState((state) =>
     isMessageInLatestTurn(state.thread.messages, state.message.index),
   );

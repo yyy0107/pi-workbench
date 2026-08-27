@@ -18,34 +18,47 @@ import type {
 } from "@/platform/extensions";
 
 export const WORKBENCH_COMMAND_DIRECTIVE_TYPE = "workbench-command";
+export const AGENT_COMMAND_DIRECTIVE_TYPE = "agent-command";
+export const AGENT_PROJECT_SKILL_DIRECTIVE_TYPE = "agent-project-skill";
+export const AGENT_USER_SKILL_DIRECTIVE_TYPE = "agent-user-skill";
+/** @deprecated Read-only compatibility for drafts persisted before the Agent boundary. */
 export const PI_COMMAND_DIRECTIVE_TYPE = "pi-command";
+/** @deprecated Read-only compatibility for drafts persisted before the Agent boundary. */
 export const PI_PROJECT_SKILL_DIRECTIVE_TYPE = "pi-project-skill";
+/** @deprecated Read-only compatibility for drafts persisted before the Agent boundary. */
 export const PI_USER_SKILL_DIRECTIVE_TYPE = "pi-user-skill";
 export const COMMAND_ARGUMENT_END_DIRECTIVE_TYPE = "workbench-command-argument-end";
 
 const COMMAND_DIRECTIVE_RE =
-  /:(workbench-command|pi-command|workbench-command-argument-end)\[([^|\]\n]{1,2048})\|([^\]\n]{1,4096})\]/gu;
+  /:(workbench-command|agent-command|pi-command|workbench-command-argument-end)\[([^|\]\n]{1,2048})\|([^\]\n]{1,4096})\]/gu;
 const SKILL_LINK_RE =
   /\[\$((?:\\.|[^\]\\\n]){1,4096})\]\(skill:\/\/(user|project)\/([^\s)\n]{1,2048})\)/gu;
 
 type PersistedSkillScope = "project" | "user";
 
 function persistedSkillScopeFromDirectiveType(type: string): PersistedSkillScope | undefined {
-  if (type === PI_PROJECT_SKILL_DIRECTIVE_TYPE) return "project";
-  if (type === PI_USER_SKILL_DIRECTIVE_TYPE) return "user";
+  if (type === AGENT_PROJECT_SKILL_DIRECTIVE_TYPE || type === PI_PROJECT_SKILL_DIRECTIVE_TYPE) {
+    return "project";
+  }
+  if (type === AGENT_USER_SKILL_DIRECTIVE_TYPE || type === PI_USER_SKILL_DIRECTIVE_TYPE) {
+    return "user";
+  }
   return undefined;
 }
 
-export function piSkillDirectiveType(
+export function agentSkillDirectiveType(
   scope: "project" | "temporary" | "user",
-): typeof PI_PROJECT_SKILL_DIRECTIVE_TYPE | typeof PI_USER_SKILL_DIRECTIVE_TYPE | undefined {
-  if (scope === "project") return PI_PROJECT_SKILL_DIRECTIVE_TYPE;
-  if (scope === "user") return PI_USER_SKILL_DIRECTIVE_TYPE;
+): typeof AGENT_PROJECT_SKILL_DIRECTIVE_TYPE | typeof AGENT_USER_SKILL_DIRECTIVE_TYPE | undefined {
+  if (scope === "project") return AGENT_PROJECT_SKILL_DIRECTIVE_TYPE;
+  if (scope === "user") return AGENT_USER_SKILL_DIRECTIVE_TYPE;
   return undefined;
 }
 
-export function isPiComposerDirectiveType(type: string): boolean {
+export function isAgentComposerDirectiveType(type: string): boolean {
   return (
+    type === AGENT_COMMAND_DIRECTIVE_TYPE ||
+    type === AGENT_PROJECT_SKILL_DIRECTIVE_TYPE ||
+    type === AGENT_USER_SKILL_DIRECTIVE_TYPE ||
     type === PI_COMMAND_DIRECTIVE_TYPE ||
     type === PI_PROJECT_SKILL_DIRECTIVE_TYPE ||
     type === PI_USER_SKILL_DIRECTIVE_TYPE
@@ -104,7 +117,10 @@ function parsedDirectiveMatches(text: string): readonly ParsedDirectiveMatch[] {
       end: match.index + match[0].length,
       segment: {
         kind: "mention",
-        type: scope === "project" ? PI_PROJECT_SKILL_DIRECTIVE_TYPE : PI_USER_SKILL_DIRECTIVE_TYPE,
+        type:
+          scope === "project"
+            ? AGENT_PROJECT_SKILL_DIRECTIVE_TYPE
+            : AGENT_USER_SKILL_DIRECTIVE_TYPE,
         id: `skill:${name}`,
         label,
       },
@@ -126,6 +142,7 @@ export const workbenchComposerDirectiveFormatter: Unstable_DirectiveFormatter = 
     }
     if (
       item.type !== WORKBENCH_COMMAND_DIRECTIVE_TYPE &&
+      item.type !== AGENT_COMMAND_DIRECTIVE_TYPE &&
       item.type !== PI_COMMAND_DIRECTIVE_TYPE &&
       item.type !== COMMAND_ARGUMENT_END_DIRECTIVE_TYPE
     ) {
@@ -156,27 +173,33 @@ export const workbenchComposerDirectiveFormatter: Unstable_DirectiveFormatter = 
 
 type RegistryReader = Pick<ComposerCommandRegistry, "get">;
 
-/** Serializable Pi command semantics supplied by the session-scoped command catalog. */
+/** Serializable Agent command semantics supplied by the active Runtime's command catalog. */
 export interface ComposerCommandCompilationDescriptor {
   readonly invocationName: string;
   readonly exclusive: boolean;
   readonly argsBinding?: ComposerCommandArgsBinding;
   readonly kind?: "builtin" | "extension" | "prompt" | "skill";
-  readonly scope?: "project" | "temporary" | "user";
+  readonly source?: { readonly scope: "project" | "temporary" | "user" };
+}
+
+function commandResourceScope(
+  command: ComposerCommandCompilationDescriptor,
+): "project" | "temporary" | "user" | undefined {
+  return command.source?.scope;
 }
 
 function commandArgumentDescriptor(
-  source: "workbench" | "pi",
+  source: ComposerCommandNode["source"],
   commandId: string,
   registry: RegistryReader | undefined,
-  piCommands: ReadonlyMap<string, ComposerCommandCompilationDescriptor>,
+  agentCommands: ReadonlyMap<string, ComposerCommandCompilationDescriptor>,
 ): { binding?: ComposerCommandArgsBinding; exclusive: boolean; scope: "message" | "segment" } {
   const definition = registry?.get(commandId);
-  const piCommand = source === "pi" ? piCommands.get(commandId) : undefined;
-  const binding = definition?.composer.argsBinding ?? piCommand?.argsBinding;
+  const agentCommand = source === "agent" ? agentCommands.get(commandId) : undefined;
+  const binding = definition?.composer.argsBinding ?? agentCommand?.argsBinding;
   return {
     ...(binding ? { binding } : {}),
-    exclusive: definition?.composer.exclusive ?? piCommand?.exclusive ?? false,
+    exclusive: definition?.composer.exclusive ?? agentCommand?.exclusive ?? false,
     scope: definition?.composer.scope ?? "message",
   };
 }
@@ -208,7 +231,7 @@ export function parseComposerDocument(
       continue;
     }
 
-    const source = isPiComposerDirectiveType(segment.type) ? "pi" : "workbench";
+    const source = isAgentComposerDirectiveType(segment.type) ? "agent" : "workbench";
     const commandNode: ComposerCommandNode = {
       type: "command",
       id: `command:${source}:${segment.id}:${commandIndex++}`,
@@ -282,23 +305,27 @@ export function composerDocumentSourceText(
   document: ComposerDocument,
   commandCatalog: readonly ComposerCommandCompilationDescriptor[] = [],
 ): string {
-  const piCommands = new Map(commandCatalog.map((command) => [command.invocationName, command]));
+  const agentCommands = new Map(commandCatalog.map((command) => [command.invocationName, command]));
   return document
     .map((node) => {
       switch (node.type) {
         case "text":
           return node.text;
         case "command": {
-          const piCommand = node.source === "pi" ? piCommands.get(node.commandId) : undefined;
+          const agentCommand =
+            node.source === "agent" ? agentCommands.get(node.commandId) : undefined;
+          const resourceScope = agentCommand ? commandResourceScope(agentCommand) : undefined;
           const skillType =
-            piCommand?.kind === "skill" && piCommand.scope
-              ? piSkillDirectiveType(piCommand.scope)
+            agentCommand?.kind === "skill" && resourceScope
+              ? agentSkillDirectiveType(resourceScope)
               : undefined;
           return workbenchComposerDirectiveFormatter.serialize({
             id: node.commandId,
             type:
               skillType ??
-              (node.source === "pi" ? PI_COMMAND_DIRECTIVE_TYPE : WORKBENCH_COMMAND_DIRECTIVE_TYPE),
+              (node.source === "agent"
+                ? AGENT_COMMAND_DIRECTIVE_TYPE
+                : WORKBENCH_COMMAND_DIRECTIVE_TYPE),
             label: node.label,
           });
         }
@@ -398,9 +425,14 @@ function activeCommandIndexes(
 function commandArgumentSemantics(
   node: ComposerCommandNode,
   registry: RegistryReader,
-  piCommands: ReadonlyMap<string, ComposerCommandCompilationDescriptor>,
+  agentCommands: ReadonlyMap<string, ComposerCommandCompilationDescriptor>,
 ): { binding?: ComposerCommandArgsBinding; exclusive: boolean } {
-  const descriptor = commandArgumentDescriptor(node.source, node.commandId, registry, piCommands);
+  const descriptor = commandArgumentDescriptor(
+    node.source,
+    node.commandId,
+    registry,
+    agentCommands,
+  );
   return {
     ...(descriptor.binding ? { binding: descriptor.binding } : {}),
     exclusive: descriptor.exclusive,
@@ -411,7 +443,7 @@ function bindMessageTextArguments(
   document: ComposerDocument,
   activeIndexes: ReadonlySet<number>,
   registry: RegistryReader,
-  piCommands: ReadonlyMap<string, ComposerCommandCompilationDescriptor>,
+  agentCommands: ReadonlyMap<string, ComposerCommandCompilationDescriptor>,
 ): { document: ComposerDocument; consumeText: boolean } {
   let owner:
     | { index: number; node: ComposerCommandNode; binding: ComposerCommandArgsBinding }
@@ -420,7 +452,7 @@ function bindMessageTextArguments(
   for (const index of activeIndexes) {
     const node = document[index];
     if (node?.type !== "command") continue;
-    const semantics = commandArgumentSemantics(node, registry, piCommands);
+    const semantics = commandArgumentSemantics(node, registry, agentCommands);
     if (!semantics.binding) continue;
     if (!semantics.exclusive || node.scope !== "message") {
       throw new Error(
@@ -481,8 +513,8 @@ export function compileComposerDocument(
   commandCatalog: readonly ComposerCommandCompilationDescriptor[] = [],
 ): CompiledComposerRequest {
   const activeIndexes = activeCommandIndexes(document, registry);
-  const piCommands = new Map(commandCatalog.map((command) => [command.invocationName, command]));
-  const bound = bindMessageTextArguments(document, activeIndexes, registry, piCommands);
+  const agentCommands = new Map(commandCatalog.map((command) => [command.invocationName, command]));
+  const bound = bindMessageTextArguments(document, activeIndexes, registry, agentCommands);
   const compiledDocument = markInactiveCommands(bound.document, activeIndexes);
   const draft = createDraft(compiledDocument);
   if (bound.consumeText) draft.text = "";
@@ -493,7 +525,7 @@ export function compileComposerDocument(
     if (node?.type !== "command") continue;
 
     const definition = registry.get(node.commandId);
-    if (!definition && node.source === "pi") {
+    if (!definition && node.source === "agent") {
       commands.push(commandSubmission(node));
       continue;
     }
@@ -514,7 +546,7 @@ export function compileComposerDocument(
   }
 
   return Object.freeze({
-    version: 1,
+    version: 2,
     document: Object.freeze(compiledDocument.map((node) => Object.freeze({ ...node }))),
     sourceText: composerDocumentSourceText(compiledDocument, commandCatalog),
     text: draft.text,

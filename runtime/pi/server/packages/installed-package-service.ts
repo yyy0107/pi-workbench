@@ -90,6 +90,16 @@ export interface InstalledPackageServiceDependencies {
   reloadScopedResources(target: PiResourceCatalogTarget): Promise<void>;
 }
 
+/** Stable transport-facing Package operations; Pi SDK ownership stays in this service. */
+export interface InstalledPackageProtocol {
+  list(request: InstalledPackageListPayload): Promise<InstalledPackageListValue>;
+  describe(request: InstalledPackageDescribePayload): Promise<InstalledPackageDetailsView>;
+  updates(request: PiPackageUpdatesPayload): Promise<PiPackageUpdatesValue>;
+  install(request: PiPackageInstallPayload): Promise<PiPackageInstallValue>;
+  update(request: PiPackageUpdatePayload): Promise<PiPackageUpdateValue>;
+  remove(request: PiPackageRemovePayload): Promise<PiPackageRemoveValue>;
+}
+
 export type PackageRemovalCleanup = () => Promise<void>;
 
 export interface InstalledPackageServiceErrorDetails {
@@ -487,7 +497,7 @@ async function prepareProjectPackageRemoval(
   return preparePackageRemoval(packageManager, settingsManager, source, { local: true });
 }
 
-export class InstalledPackageService {
+export class InstalledPackageService implements InstalledPackageProtocol {
   private readonly dependencies: InstalledPackageServiceDependencies;
 
   constructor(dependencies: Partial<InstalledPackageServiceDependencies> = {}) {

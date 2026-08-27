@@ -56,6 +56,15 @@ const SKILL_DOCUMENT_READ_CHUNK_BYTES = 64 * 1024;
 const SKILL_DIRECTORY_ENTRY_LIMIT = 2_000;
 const WINDOWS_ABSOLUTE_PATH = /^[a-zA-Z]:[\\/]/;
 
+export interface SkillProtocol {
+  list(request: SkillListPayload): Promise<SkillListValue>;
+  describe(request: SkillDescribePayload): Promise<SkillDescribeValue>;
+  setEnabled(request: SkillSetEnabledPayload): Promise<SkillSetEnabledValue>;
+  remove(request: SkillRemovePayload): Promise<SkillRemoveValue>;
+  listFiles(request: SkillFilesListPayload): Promise<SkillFilesListValue>;
+  readFile(request: SkillFileReadPayload): Promise<SkillFileSnapshotValue>;
+}
+
 class SkillDocumentTooLargeError extends Error {}
 async function readSkillDocument(filePath: string): Promise<string> {
   const file = await open(filePath, "r");
@@ -206,7 +215,7 @@ function compareDirectoryEntries(
   return left.name.localeCompare(right.name, "en-US", { numeric: true, sensitivity: "base" });
 }
 
-export class SkillService {
+export class SkillService implements SkillProtocol {
   private readonly dependencies: SkillServiceDependencies;
 
   constructor(dependencies: Partial<SkillServiceDependencies> = {}) {

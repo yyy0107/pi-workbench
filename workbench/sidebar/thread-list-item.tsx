@@ -13,8 +13,10 @@ import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
-import { usePiSessionManager, usePiThreadListItemState } from "@/runtime/pi/client/runtime/context";
-import { deriveSessionDisplayTitle } from "@/runtime/pi/shared/sessions/display-title";
+import {
+  useWorkbenchAgentThreadActions,
+  useWorkbenchAgentThreadSnapshot,
+} from "@/runtime/assistant-ui/agent-runtime-context";
 import { useAppearancePreferences } from "@/services/appearance/appearance-store";
 import { useWorkspaceCapabilities } from "@/services/workspace-selection-service";
 import { conversationThreadIdFromPathname } from "@/workbench/workspaces/new-thread-policy";
@@ -46,7 +48,7 @@ export function WorkbenchThreadListItem({
   const { date: formatDate, relativeTime, t } = useI18n();
   const { runningIndicatorId } = useAppearancePreferences();
   const aui = useAui();
-  const manager = usePiSessionManager();
+  const threadActions = useWorkbenchAgentThreadActions();
   const pathname = usePathname();
   const runtimeIsRunning = useAuiState((state) => state.threadListItem.isRunning);
   const runtimeTitle = useAuiState((state) => state.threadListItem.title);
@@ -56,18 +58,18 @@ export function WorkbenchThreadListItem({
     (state) =>
       state.threadListItem.remoteId ?? state.threadListItem.externalId ?? state.threadListItem.id,
   );
-  const piState = usePiThreadListItemState(routeThreadId);
+  const threadState = useWorkbenchAgentThreadSnapshot(routeThreadId);
   const hasEmptyNewThread = useAuiState(
     (state) =>
       state.threads.mainThreadId === state.threads.newThreadId &&
       state.thread.messages.length === 0,
   );
   const { activateWorkspace, deactivateWorkspace, destroyNewThread } = useWorkspaceCapabilities();
-  const isPinned = piState.metadata.pinned;
-  const isRunning = runtimeIsRunning || piState.metadata.running;
-  const waitingForUserInput = !isActive && piState.metadata.waitingForUserInput;
-  const title = deriveSessionDisplayTitle(piState.thread?.title ?? runtimeTitle);
-  const lastMessageAt = piState.thread?.lastMessageAt ?? runtimeLastMessageAt;
+  const isPinned = threadState.isPinned;
+  const isRunning = runtimeIsRunning || threadState.isRunning;
+  const waitingForUserInput = !isActive && threadState.isWaitingForInput;
+  const title = threadState.title ?? runtimeTitle;
+  const lastMessageAt = threadState.lastMessageAt ?? runtimeLastMessageAt;
   const openThreadRoute = () => {
     destroyNewThread();
     if (hasEmptyNewThread) {
@@ -89,8 +91,9 @@ export function WorkbenchThreadListItem({
     }
   };
   const togglePinned = async () => {
+    if (!threadActions.setPinned) return;
     try {
-      await manager.setThreadPinned(routeThreadId, !isPinned);
+      await threadActions.setPinned(routeThreadId, !isPinned);
     } catch (error) {
       console.error("[workbench] failed to update pinned conversation", error);
     }
@@ -168,7 +171,7 @@ export function WorkbenchThreadListItem({
           >
             {t("workbench.sidebar.waitingForUserInput")}
           </span>
-        ) : !isRunning && piState.metadata.completed ? (
+        ) : !isRunning && threadState.hasUnreadCompletion ? (
           <>
             <span
               aria-hidden="true"
@@ -209,13 +212,15 @@ export function WorkbenchThreadListItem({
             sideOffset={4}
             className="bg-popover/95 text-popover-foreground data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:animate-out data-[side=bottom]:slide-in-from-top-2 z-50 min-w-44 overflow-hidden rounded-xl border p-1.5 shadow-lg backdrop-blur-sm motion-reduce:animate-none"
           >
-            <ThreadListItemMorePrimitive.Item
-              className="hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground flex min-h-[var(--control-hit-touch)] cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-sm outline-none select-none"
-              onSelect={() => void togglePinned()}
-            >
-              {isPinned ? <PinOffIcon className="size-4" /> : <PinIcon className="size-4" />}
-              {t(isPinned ? "workbench.sidebar.unpin" : "workbench.sidebar.pin")}
-            </ThreadListItemMorePrimitive.Item>
+            {threadActions.setPinned ? (
+              <ThreadListItemMorePrimitive.Item
+                className="hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground flex min-h-[var(--control-hit-touch)] cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-sm outline-none select-none"
+                onSelect={() => void togglePinned()}
+              >
+                {isPinned ? <PinOffIcon className="size-4" /> : <PinIcon className="size-4" />}
+                {t(isPinned ? "workbench.sidebar.unpin" : "workbench.sidebar.pin")}
+              </ThreadListItemMorePrimitive.Item>
+            ) : null}
             <ThreadListItemPrimitive.Archive
               onClick={leaveRemovedThreadRoute}
               render={
@@ -233,21 +238,23 @@ export function WorkbenchThreadListItem({
         data-thread-item-actions=""
         className="pointer-events-none absolute end-0 hidden items-center opacity-0 transition-opacity md:flex md:group-hover/thread:pointer-events-auto md:group-hover/thread:opacity-100 md:group-has-[:focus-visible]/thread:pointer-events-auto md:group-has-[:focus-visible]/thread:opacity-100"
       >
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          aria-label={t(isPinned ? "workbench.sidebar.unpin" : "workbench.sidebar.pin")}
-          aria-pressed={isPinned}
-          title={t(isPinned ? "workbench.sidebar.unpin" : "workbench.sidebar.pin")}
-          className={cn(
-            "text-muted-foreground hover:text-foreground size-8! active:scale-90",
-            isPinned && "text-foreground",
-          )}
-          onClick={() => void togglePinned()}
-        >
-          {isPinned ? <PinOffIcon className="size-4" /> : <PinIcon className="size-4" />}
-        </Button>
+        {threadActions.setPinned ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label={t(isPinned ? "workbench.sidebar.unpin" : "workbench.sidebar.pin")}
+            aria-pressed={isPinned}
+            title={t(isPinned ? "workbench.sidebar.unpin" : "workbench.sidebar.pin")}
+            className={cn(
+              "text-muted-foreground hover:text-foreground size-8! active:scale-90",
+              isPinned && "text-foreground",
+            )}
+            onClick={() => void togglePinned()}
+          >
+            {isPinned ? <PinOffIcon className="size-4" /> : <PinIcon className="size-4" />}
+          </Button>
+        ) : null}
         <ThreadListItemPrimitive.Archive
           onClick={leaveRemovedThreadRoute}
           render={

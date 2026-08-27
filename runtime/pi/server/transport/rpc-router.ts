@@ -3,10 +3,6 @@ import path from "node:path";
 import { getAgentDir, VERSION as PI_VERSION } from "@earendil-works/pi-coding-agent";
 
 import {
-  INLINE_DOCUMENT_MEDIA_TYPES,
-  INLINE_IMAGE_MEDIA_TYPES,
-} from "@/runtime/pi/contracts/attachments";
-import {
   canOpenHostPath,
   createHostDirectory,
   HostDirectoryError,
@@ -41,16 +37,13 @@ import { getExternalSessionImportService } from "../imports/external-session-imp
 import { handleInteractiveResponsePost } from "../sessions/interactive-response-registry";
 import {
   getAttachedSessionCount,
-  getOrStartSession,
   listModels,
-  listSessions,
   notifyModelProviderConfigurationChanged,
 } from "../sessions/session-registry";
 import {
-  getSessionContextTrace,
-  readSessionContextTracePromptParts,
-} from "../sessions/session-context-trace";
-import { SessionContextTraceJournalError } from "../sessions/session-context-trace-journal";
+  createPiSessionContextTraceService,
+  PiSessionContextTraceServiceError,
+} from "../sessions/pi-session-context-trace-service";
 import { SkillService, SkillServiceError } from "../skills/skill-service";
 import { PromptService } from "../prompts/prompt-service";
 import {
@@ -69,32 +62,31 @@ import {
   rpcNullable,
   rpcObject,
   rpcOptional,
-  rpcRecord,
-  rpcRefine,
   rpcString,
-  rpcUnion,
-  rpcUnknown,
-  type RpcOptionalValidator,
   type RpcValidator,
 } from "./rpc-transport";
-import type { WorkbenchComposerJsonValue } from "@/runtime/shared/composer/request";
-import type {
-  ExtensionFileReadPayload,
-  ExtensionFilesListPayload,
-  ExtensionIdentityPayload,
-  ExtensionSetEnabledPayload,
-  InstalledPackageDescribePayload,
-  PiResourceRequest,
-  PromptListPayload,
-  SkillDescribePayload,
-  SkillFileReadPayload,
-  SkillFilesListPayload,
-  SkillSetEnabledPayload,
-  WorkbenchSettingsUpdatePayload,
-} from "@/runtime/pi/contracts/rpc";
-import { SessionRpcService, SessionRpcServiceError } from "../sessions/session-rpc-service";
-import { getWorkspaceStore } from "../workspaces/workspace-registry";
-import { WorkspaceFileError, WorkspaceFileService } from "../workspaces/workspace-files";
+import type { PromptListPayload } from "@/runtime/pi/contracts/rpc";
+import { createPiSessionProtocolFacade } from "../sessions/pi-session-protocol-facade";
+import { SessionRpcServiceError } from "../sessions/session-rpc-service";
+import { createAgentSettingsRpcRoutes } from "./routes/agent-settings-rpc-routes";
+import { createExtensionRpcRoutes } from "./routes/extension-rpc-routes";
+import { createExternalSessionImportRpcRoutes } from "./routes/external-session-import-rpc-routes";
+import { createImageUnderstandingSettingsRpcRoutes } from "./routes/image-understanding-settings-rpc-routes";
+import { createInstalledPackageRpcRoutes } from "./routes/installed-package-rpc-routes";
+import { createPackageCatalogRpcRoutes } from "./routes/package-catalog-rpc-routes";
+import { dispatchRpcRouteGroups, type RpcRouteGroup } from "./routes/rpc-route-group";
+import { createSessionContextTraceRpcRoutes } from "./routes/session-context-trace-rpc-routes";
+import { createSessionRpcRoutes } from "./routes/session-rpc-routes";
+import { createSkillRpcRoutes } from "./routes/skill-rpc-routes";
+import { createWorkbenchSettingsRpcRoutes } from "./routes/workbench-settings-rpc-routes";
+import { createWorkspaceFileRpcRoutes } from "./routes/workspace-file-rpc-routes";
+import { createWorkspaceRpcRoutes } from "./routes/workspace-rpc-routes";
+import { resourceCatalogTarget, resourceListPayload } from "./resource-rpc-validators";
+import { createWorkspaceFileService, WorkspaceFileError } from "../workspaces/workspace-files";
+import {
+  createWorkspaceProtocolService,
+  WorkspaceProtocolServiceError,
+} from "../workspaces/workspace-protocol-service";
 import { WorkspaceStoreError } from "../workspaces/workspace-store";
 import { getProjectTrustService, ProjectTrustServiceError } from "../trust/project-trust-service";
 
@@ -115,154 +107,9 @@ const localAppOpenPayload = rpcObject({
   appId: rpcString({ minLength: 1, maxLength: 256 }),
   target: rpcString({ minLength: 1, maxLength: 32_768 }),
 });
-const workspaceFilesListPayload = rpcObject({
-  workspaceId: nonEmptyString,
-  relativePath: rpcOptional(rpcString({ maxLength: 16_384 })),
-});
-const workspaceFileReadPayload = rpcObject({
-  workspaceId: nonEmptyString,
-  relativePath: rpcString({ minLength: 1, maxLength: 16_384 }),
-});
-const workspaceFileWritePayload = rpcObject({
-  workspaceId: nonEmptyString,
-  relativePath: rpcString({ minLength: 1, maxLength: 16_384 }),
-  content: rpcString({ maxLength: 5 * 1024 * 1024 }),
-  expectedVersion: nonEmptyString,
-});
-const createWorkspacePayload = rpcObject({ path: rpcString() });
-const renameWorkspacePayload = rpcObject({
-  workspaceId: nonEmptyString,
-  title: rpcString({ minLength: 1, trim: true }),
-});
-const workspaceIdPayload = rpcObject({ workspaceId: nonEmptyString });
-const insertWorkspacePayload = rpcObject({
-  workspaceId: nonEmptyString,
-  beforeWorkspaceId: rpcOptional(nonEmptyString),
-});
-const insertSessionPayload = rpcObject({
-  workspaceId: nonEmptyString,
-  sessionId: nonEmptyString,
-  beforeSessionId: rpcOptional(nonEmptyString),
-});
-const setWorkspacePinnedPayload = rpcObject({
-  workspaceId: nonEmptyString,
-  pinned: rpcBoolean,
-});
-const sessionIdPayload = rpcObject({ sessionId: nonEmptyString });
-const resourceCatalogTarget = rpcUnion([
-  rpcObject({ scope: rpcLiteral("user") }),
-  rpcObject({ scope: rpcLiteral("project"), workspaceId: nonEmptyString }),
-]);
-const resourceRequestFields = {
-  sessionId: rpcOptional(nonEmptyString),
-  target: rpcOptional(resourceCatalogTarget),
-};
-function resourceRequestPayload<Value extends PiResourceRequest>(
-  shape: Record<string, RpcValidator<unknown> | RpcOptionalValidator<unknown>>,
-): RpcValidator<Value> {
-  const validator = rpcObject({ ...resourceRequestFields, ...shape });
-  return rpcRefine(
-    validator,
-    (value) =>
-      Boolean((value as { sessionId?: string }).sessionId) !==
-      Boolean((value as { target?: unknown }).target),
-    { message: "Expected exactly one of sessionId or target." },
-  ) as RpcValidator<Value>;
-}
-const resourceListPayload = resourceRequestPayload<PiResourceRequest>({});
-const skillDescribePayload = resourceRequestPayload<SkillDescribePayload>({
-  name: rpcString({ minLength: 1, maxLength: 512, trim: true }),
-});
-const skillSetEnabledPayload = resourceRequestPayload<SkillSetEnabledPayload>({
-  name: rpcString({ minLength: 1, maxLength: 512, trim: true }),
-  enabled: rpcBoolean,
-});
-const skillFilesListPayload = resourceRequestPayload<SkillFilesListPayload>({
-  name: rpcString({ minLength: 1, maxLength: 512, trim: true }),
-  relativePath: rpcOptional(rpcString({ maxLength: 16_384 })),
-});
-const skillFileReadPayload = resourceRequestPayload<SkillFileReadPayload>({
-  name: rpcString({ minLength: 1, maxLength: 512, trim: true }),
-  relativePath: rpcString({ minLength: 1, maxLength: 16_384 }),
-});
-const extensionIdentityPayload = resourceRequestPayload<ExtensionIdentityPayload>({
-  name: rpcString({ minLength: 1, maxLength: 512, trim: true }),
-  filePath: rpcString({ minLength: 1, maxLength: 32_768 }),
-  source: rpcString({ minLength: 1, maxLength: 2_048 }),
-  scope: rpcEnum(["user", "project", "temporary"]),
-  origin: rpcEnum(["package", "top-level"]),
-});
-const extensionFilesListPayload = resourceRequestPayload<ExtensionFilesListPayload>({
-  name: rpcString({ minLength: 1, maxLength: 512, trim: true }),
-  filePath: rpcString({ minLength: 1, maxLength: 32_768 }),
-  source: rpcString({ minLength: 1, maxLength: 2_048 }),
-  scope: rpcEnum(["user", "project", "temporary"]),
-  origin: rpcEnum(["package", "top-level"]),
-  relativePath: rpcOptional(rpcString({ maxLength: 16_384 })),
-});
-const extensionFileReadPayload = resourceRequestPayload<ExtensionFileReadPayload>({
-  name: rpcString({ minLength: 1, maxLength: 512, trim: true }),
-  filePath: rpcString({ minLength: 1, maxLength: 32_768 }),
-  source: rpcString({ minLength: 1, maxLength: 2_048 }),
-  scope: rpcEnum(["user", "project", "temporary"]),
-  origin: rpcEnum(["package", "top-level"]),
-  relativePath: rpcOptional(rpcString({ minLength: 1, maxLength: 16_384 })),
-});
-const extensionSetEnabledPayload = resourceRequestPayload<ExtensionSetEnabledPayload>({
-  name: rpcString({ minLength: 1, maxLength: 512, trim: true }),
-  filePath: rpcString({ minLength: 1, maxLength: 32_768 }),
-  source: rpcString({ minLength: 1, maxLength: 2_048 }),
-  scope: rpcEnum(["user", "project", "temporary"]),
-  origin: rpcEnum(["package", "top-level"]),
-  enabled: rpcBoolean,
-});
 const promptListPayload = rpcObject({
   target: resourceCatalogTarget,
 }) as RpcValidator<PromptListPayload>;
-const packageCatalogSearchPayload = rpcObject({
-  query: rpcOptional(rpcString({ maxLength: 200, trim: true })),
-  type: rpcOptional(rpcEnum(["extension", "skill", "prompt", "theme"])),
-  sort: rpcOptional(rpcEnum(["downloads", "recent", "name"])),
-  page: rpcOptional(rpcInteger({ minimum: 1, maximum: 10_000 })),
-});
-const packageCatalogName = rpcRefine(
-  rpcString({ minLength: 1, maxLength: 214, trim: true }),
-  (name) => /^(?:@[a-z0-9][a-z0-9._~-]*\/)?[a-z0-9][a-z0-9._~-]*$/.test(name),
-  { message: "Expected a valid npm package name." },
-);
-const packageCatalogDescribePayload = rpcObject({ name: packageCatalogName });
-const packageMutationTarget = rpcUnion([
-  rpcObject({ scope: rpcLiteral("user"), sessionId: rpcOptional(nonEmptyString) }),
-  rpcObject({
-    scope: rpcLiteral("project"),
-    workspaceId: nonEmptyString,
-  }),
-]);
-const packageInstallPayload = rpcObject({
-  name: packageCatalogName,
-  target: packageMutationTarget,
-});
-const packageSource = rpcRefine(
-  rpcString({ minLength: 1, maxLength: 2_048, trim: true }),
-  (source) =>
-    [...source].every((character) => {
-      const codePoint = character.codePointAt(0) ?? 0;
-      return codePoint > 31 && codePoint !== 127;
-    }),
-  { message: "Package sources cannot contain control characters." },
-);
-const packageDescribePayload = rpcObject({
-  source: packageSource,
-  target: resourceCatalogTarget,
-}) as RpcValidator<InstalledPackageDescribePayload>;
-const packageSourceMutationPayload = rpcObject({
-  source: packageSource,
-  target: packageMutationTarget,
-});
-const setSessionPinnedPayload = rpcObject({
-  sessionId: nonEmptyString,
-  pinned: rpcBoolean,
-});
 const discoverModelsPayload = rpcObject({
   settingsNs: nonEmptyString,
   provider: rpcOptional(nonEmptyString),
@@ -333,113 +180,12 @@ const updateModelContextWindowPayload = rpcObject({
   model: nonEmptyString,
   contextWindow: rpcInteger({ minimum: 1, maximum: 10_000_000 }),
 });
-const agentCompactionPatch = rpcObject({
-  enabled: rpcOptional(rpcBoolean),
-  reserveTokens: rpcOptional(rpcInteger({ minimum: 1, maximum: 10_000_000 })),
-  keepRecentTokens: rpcOptional(rpcInteger({ minimum: 1, maximum: 10_000_000 })),
-});
-const agentSettingsPatch = rpcObject({
-  systemPrompt: rpcOptional(rpcString({ maxLength: 500_000 })),
-  compaction: rpcOptional(agentCompactionPatch),
-});
-const settingsUpdatePayload = rpcObject({
-  ns: nonEmptyString,
-  patch: agentSettingsPatch,
-  expectedRevision: rpcOptional(rpcInteger({ minimum: 0 })),
-});
-const workbenchSettingsUpdatePayload = rpcObject({
-  patch: rpcObject({
-    appearance: rpcOptional(rpcNullable(rpcRecord(rpcUnknown))),
-    backgroundImage: rpcOptional(
-      rpcNullable(
-        rpcObject({
-          name: rpcString({ minLength: 1, maxLength: 1_024 }),
-          mimeType: rpcString({ minLength: 1, maxLength: 256 }),
-          data: rpcString({ minLength: 1, maxLength: 16 * 1024 * 1024 }),
-        }),
-      ),
-    ),
-    locale: rpcOptional(rpcNullable(rpcEnum(["en-US", "zh-CN"]))),
-    modelSelector: rpcOptional(
-      rpcNullable(
-        rpcObject({
-          modelId: rpcString({ minLength: 1, maxLength: 512 }),
-          reasoningEffort: rpcOptional(rpcString({ minLength: 1, maxLength: 128 })),
-        }),
-      ),
-    ),
-    sidebarThreadOrderByScope: rpcOptional(
-      rpcNullable(
-        rpcRecord(rpcArray(rpcString({ minLength: 1, maxLength: 512 }), { maxLength: 10_000 })),
-      ),
-    ),
-    sidebarThreadSortMode: rpcOptional(rpcNullable(rpcEnum(["priority", "recent", "manual"]))),
-    toolboxPins: rpcOptional(
-      rpcNullable(rpcArray(rpcString({ minLength: 1, maxLength: 512 }), { maxLength: 1_000 })),
-    ),
-    toolboxScope: rpcOptional(
-      rpcNullable(
-        rpcUnion([
-          rpcObject({ kind: rpcLiteral("user") }),
-          rpcObject({
-            kind: rpcLiteral("project"),
-            workspaceId: rpcString({ minLength: 1, maxLength: 512 }),
-          }),
-        ]),
-      ),
-    ),
-    rightWorkspace: rpcOptional(rpcNullable(rpcRecord(rpcUnknown))),
-    sidebarOpen: rpcOptional(rpcNullable(rpcBoolean)),
-  }),
-});
-const imageUnderstandingCredential = rpcOptional(
-  rpcUnion([rpcString({ maxLength: 16_384 }), rpcLiteral(null)]),
-);
-const imageUnderstandingUpdatePayload = rpcObject({
-  expectedRevision: rpcOptional(rpcInteger({ minimum: 0 })),
-  patch: rpcObject({
-    routing: rpcOptional(rpcEnum(["auto", "always-preprocess", "native-only", "disabled"])),
-    engine: rpcOptional(rpcEnum(["ocr", "multimodal"])),
-    ocrProvider: rpcOptional(rpcEnum(["glm-ocr", "paddleocr"])),
-    glm: rpcOptional(
-      rpcObject({
-        endpoint: rpcOptional(rpcString({ maxLength: 2_048 })),
-        model: rpcOptional(rpcString({ maxLength: 256 })),
-        apiKey: imageUnderstandingCredential,
-      }),
-    ),
-    paddle: rpcOptional(
-      rpcObject({
-        endpoint: rpcOptional(rpcString({ maxLength: 2_048 })),
-        model: rpcOptional(rpcString({ maxLength: 256 })),
-        apiKey: imageUnderstandingCredential,
-        pollIntervalMs: rpcOptional(rpcInteger({ minimum: 100, maximum: 60_000 })),
-        pollTimeoutMs: rpcOptional(rpcInteger({ minimum: 1_000, maximum: 3_600_000 })),
-      }),
-    ),
-    ocrAdapter: rpcOptional(
-      rpcObject({
-        preset: rpcOptional(
-          rpcEnum(["glm-ocr", "paddleocr-vl-1.6", "pp-ocrv6", "pp-structure-v3", "custom"]),
-        ),
-        source: rpcOptional(rpcString({ maxLength: 100_000 })),
-        endpoint: rpcOptional(rpcString({ maxLength: 2_048 })),
-        model: rpcOptional(rpcString({ maxLength: 256 })),
-        apiKey: imageUnderstandingCredential,
-        pollIntervalMs: rpcOptional(rpcInteger({ minimum: 100, maximum: 60_000 })),
-        pollTimeoutMs: rpcOptional(rpcInteger({ minimum: 1_000, maximum: 3_600_000 })),
-      }),
-    ),
-    multimodal: rpcOptional(
-      rpcObject({
-        provider: rpcOptional(rpcString({ maxLength: 256 })),
-        model: rpcOptional(rpcString({ maxLength: 256 })),
-      }),
-    ),
-  }),
-});
 const resourceMutationCoordinator = getPiResourceMutationCoordinator();
 const commandService = new CommandService();
+const sessionProtocolFacade = createPiSessionProtocolFacade({ commands: commandService });
+const sessionContextTraceService = createPiSessionContextTraceService();
+const externalSessionImportService = getExternalSessionImportService();
+const workspaceProtocolService = createWorkspaceProtocolService();
 const promptService = new PromptService();
 const modelService = new ModelService();
 const extensionService = new ExtensionService({ mutationCoordinator: resourceMutationCoordinator });
@@ -449,211 +195,11 @@ const installedPackageService = new InstalledPackageService({
 });
 const packageCatalogService = getPiPackageCatalogService();
 const agentSettingsService = new AgentSettingsService();
-const workspaceFileService = new WorkspaceFileService({ workspaceStore: getWorkspaceStore });
+const workspaceFileService = createWorkspaceFileService();
 
 function workbenchSettingsService(): WorkbenchSettingsService {
   return new WorkbenchSettingsService();
 }
-
-function sessionService(): SessionRpcService {
-  return new SessionRpcService({ workspaceStore: getWorkspaceStore() });
-}
-
-const sessionListPayload = rpcObject({ cursor: rpcOptional(rpcString()) });
-const sessionSearchPayload = rpcObject({ query: rpcString() });
-const sessionCreatePayload = rpcObject({
-  workspaceId: rpcOptional(nonEmptyString),
-  cwd: rpcOptional(rpcString()),
-  sessionId: rpcOptional(nonEmptyString),
-  agentPreset: rpcOptional(nonEmptyString),
-});
-const externalSessionSource = rpcEnum(["codex", "claude-code", "cursor"]);
-const externalSessionImportPayload = rpcObject({
-  sessions: rpcArray(
-    rpcObject({
-      source: externalSessionSource,
-      sourceSessionId: rpcString({ minLength: 1, maxLength: 512 }),
-    }),
-    { maxLength: 200 },
-  ),
-});
-const sessionHistoryPayload = rpcObject({
-  sessionId: nonEmptyString,
-  beforeSeq: rpcOptional(rpcInteger({ minimum: 0 })),
-  maxMessages: rpcOptional(rpcInteger({ minimum: 1 })),
-});
-const sessionContextTraceListPayload = rpcObject({
-  sessionId: nonEmptyString,
-  activationId: rpcOptional(rpcString({ minLength: 1, maxLength: 128 })),
-  afterSeq: rpcOptional(rpcInteger({ minimum: -1 })),
-  limit: rpcOptional(rpcInteger({ minimum: 1, maximum: 500 })),
-});
-const sessionContextTraceActivationsPayload = rpcObject({
-  sessionId: nonEmptyString,
-});
-const sessionContextTracePromptPartsPayload = rpcObject({
-  sessionId: nonEmptyString,
-});
-const sessionContextTraceReadPayload = rpcObject({
-  sessionId: nonEmptyString,
-  traceId: rpcString({ minLength: 1, maxLength: 256 }),
-});
-const sessionRegeneratePayload = rpcObject({
-  sessionId: nonEmptyString,
-  messageId: nonEmptyString,
-});
-const sessionResumePayload = rpcObject({
-  sessionId: nonEmptyString,
-  checkpointId: nonEmptyString,
-  expectedLeafId: nonEmptyString,
-});
-const sessionSelectBranchPayload = rpcObject({
-  sessionId: nonEmptyString,
-  leafId: nonEmptyString,
-});
-const sessionModelPayload = rpcObject({ sessionId: nonEmptyString });
-const sessionSelectModelPayload = rpcObject({
-  sessionId: nonEmptyString,
-  provider: nonEmptyString,
-  model: nonEmptyString,
-  reasoningEffort: rpcOptional(nonEmptyString),
-});
-const sessionContextPolicy = rpcRefine(
-  rpcObject({
-    mode: rpcEnum(["inherit", "auto", "maximum", "custom"]),
-    desiredContextTokens: rpcOptional(rpcInteger({ minimum: 1, maximum: 10_000_000 })),
-    compaction: rpcOptional(agentCompactionPatch),
-  }),
-  (policy) => policy.mode !== "custom" || policy.desiredContextTokens !== undefined,
-  { message: "Custom context policy requires desiredContextTokens." },
-);
-const sessionContextPolicyUpdatePayload = rpcObject({
-  sessionId: nonEmptyString,
-  policy: sessionContextPolicy,
-});
-const sessionRenamePayload = rpcObject({ sessionId: nonEmptyString, title: rpcString() });
-const sessionForkPayload = rpcObject({
-  sessionId: nonEmptyString,
-  atSeq: rpcOptional(rpcInteger({ minimum: 0 })),
-});
-const promptTextContent = rpcObject({ type: rpcLiteral("text"), text: rpcString() });
-const promptImageContent = rpcObject({
-  type: rpcLiteral("image"),
-  mediaType: rpcEnum(INLINE_IMAGE_MEDIA_TYPES),
-  data: rpcString(),
-  name: rpcOptional(rpcString()),
-});
-const promptDocumentContent = rpcObject({
-  type: rpcLiteral("file"),
-  mediaType: rpcEnum(INLINE_DOCUMENT_MEDIA_TYPES),
-  data: rpcString(),
-  name: rpcOptional(rpcString()),
-});
-function isComposerJsonValue(value: unknown, depth = 0): value is WorkbenchComposerJsonValue {
-  if (depth > 32) return false;
-  if (
-    value === null ||
-    typeof value === "string" ||
-    typeof value === "boolean" ||
-    (typeof value === "number" && Number.isFinite(value))
-  ) {
-    return true;
-  }
-  if (Array.isArray(value)) return value.every((item) => isComposerJsonValue(item, depth + 1));
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    Object.values(value).every((item) => isComposerJsonValue(item, depth + 1))
-  );
-}
-const composerJsonValue = rpcRefine(rpcUnknown, isComposerJsonValue, {
-  message: "Composer values must be finite JSON values with at most 32 levels.",
-}) as RpcValidator<WorkbenchComposerJsonValue>;
-const composerCommand = rpcObject({
-  id: rpcString({ minLength: 1, maxLength: 4096 }),
-  commandId: rpcString({ minLength: 1, maxLength: 2048 }),
-  label: rpcString({ maxLength: 4096 }),
-  scope: rpcEnum(["message", "segment"]),
-  source: rpcEnum(["workbench", "pi"]),
-  args: rpcOptional(composerJsonValue),
-});
-const composerDocumentNode = rpcUnion([
-  rpcObject({
-    type: rpcLiteral("text"),
-    text: rpcString({ maxLength: 200_000 }),
-  }),
-  rpcObject({
-    type: rpcLiteral("command"),
-    id: rpcString({ minLength: 1, maxLength: 4096 }),
-    commandId: rpcString({ minLength: 1, maxLength: 2048 }),
-    label: rpcString({ maxLength: 4096 }),
-    scope: rpcEnum(["message", "segment"]),
-    source: rpcEnum(["workbench", "pi"]),
-    args: rpcOptional(composerJsonValue),
-    inactive: rpcOptional(rpcLiteral(true)),
-  }),
-  rpcObject({
-    type: rpcLiteral("command-argument"),
-    id: rpcString({ minLength: 1, maxLength: 4096 }),
-    commandNodeId: rpcString({ minLength: 1, maxLength: 4096 }),
-    field: rpcString({ minLength: 1, maxLength: 2048 }),
-    text: rpcString({ maxLength: 200_000 }),
-  }),
-  rpcObject({
-    type: rpcLiteral("mention"),
-    id: rpcString({ minLength: 1, maxLength: 4096 }),
-    mentionType: rpcString({ minLength: 1, maxLength: 2048 }),
-    value: rpcString({ maxLength: 200_000 }),
-    label: rpcString({ maxLength: 4096 }),
-  }),
-  rpcObject({
-    type: rpcLiteral("attachment"),
-    id: rpcString({ minLength: 1, maxLength: 4096 }),
-    attachmentType: rpcString({ minLength: 1, maxLength: 2048 }),
-    value: rpcString({ maxLength: 200_000 }),
-    label: rpcString({ maxLength: 4096 }),
-  }),
-]);
-const composerContext = rpcObject({
-  type: rpcString({ minLength: 1, maxLength: 2048 }),
-  value: composerJsonValue,
-});
-const composerSubmission = rpcObject({
-  version: rpcLiteral(1),
-  document: rpcOptional(rpcArray(composerDocumentNode, { maxLength: 512 })),
-  sourceText: rpcString({ maxLength: 200_000 }),
-  text: rpcString({ maxLength: 200_000 }),
-  mode: rpcOptional(rpcString({ maxLength: 2048 })),
-  model: rpcOptional(rpcString({ maxLength: 2048 })),
-  context: rpcArray(composerContext, { maxLength: 64 }),
-  metadata: rpcRecord(composerJsonValue),
-  commands: rpcArray(composerCommand, { maxLength: 64 }),
-});
-const sessionPromptPayload = rpcObject({
-  sessionId: nonEmptyString,
-  mode: rpcEnum(["queue", "steer"]),
-  content: rpcArray(rpcUnion([promptTextContent, promptImageContent, promptDocumentContent])),
-  clientTimeZone: rpcOptional(rpcString()),
-  composer: rpcOptional(composerSubmission),
-});
-const sessionAttachmentPayload = rpcObject({
-  sessionId: nonEmptyString,
-  attachmentId: nonEmptyString,
-});
-const contentBlock = rpcRefine(rpcRecord(rpcUnknown), (value) => typeof value.type === "string", {
-  message: "Content blocks must contain a string type.",
-  path: ["type"],
-}) as RpcValidator<{ type: string; [key: string]: unknown }>;
-const queueAction = rpcUnion([
-  rpcObject({ kind: rpcLiteral("edit"), content: rpcArray(contentBlock) }),
-  rpcObject({ kind: rpcLiteral("remove") }),
-  rpcObject({ kind: rpcLiteral("steer") }),
-]);
-const sessionUpdateQueuePayload = rpcObject({
-  sessionId: nonEmptyString,
-  itemId: nonEmptyString,
-  action: queueAction,
-});
 
 function throwDomainError(error: unknown): never {
   if (error instanceof ImageUnderstandingSettingsStoreError) {
@@ -677,6 +223,8 @@ function throwDomainError(error: unknown): never {
     error instanceof CommandServiceError ||
     error instanceof ModelServiceError ||
     error instanceof SessionRpcServiceError ||
+    error instanceof PiSessionContextTraceServiceError ||
+    error instanceof WorkspaceProtocolServiceError ||
     error instanceof ExtensionServiceError ||
     error instanceof SkillServiceError ||
     error instanceof InstalledPackageServiceError ||
@@ -691,74 +239,71 @@ function throwDomainError(error: unknown): never {
   throw error;
 }
 
+const sessionRpcRoutes = createSessionRpcRoutes({
+  protocol: sessionProtocolFacade,
+  projectDomainError: throwDomainError,
+});
+const sessionContextTraceRpcRoutes = createSessionContextTraceRpcRoutes({
+  service: sessionContextTraceService,
+  projectDomainError: throwDomainError,
+});
+const externalSessionImportRpcRoutes = createExternalSessionImportRpcRoutes({
+  service: externalSessionImportService,
+});
+const workspaceRpcRoutes = createWorkspaceRpcRoutes({
+  service: workspaceProtocolService,
+  projectDomainError: throwDomainError,
+});
+const workspaceFileRpcRoutes = createWorkspaceFileRpcRoutes({
+  service: workspaceFileService,
+  projectDomainError: throwDomainError,
+});
+const skillRpcRoutes = createSkillRpcRoutes({
+  service: skillService,
+  projectDomainError: throwDomainError,
+});
+const extensionRpcRoutes = createExtensionRpcRoutes({
+  service: extensionService,
+  projectDomainError: throwDomainError,
+});
+const installedPackageRpcRoutes = createInstalledPackageRpcRoutes({
+  service: installedPackageService,
+  projectDomainError: throwDomainError,
+});
+const packageCatalogRpcRoutes = createPackageCatalogRpcRoutes({
+  service: packageCatalogService,
+  projectDomainError: throwDomainError,
+});
+const agentSettingsRpcRoutes = createAgentSettingsRpcRoutes({
+  service: agentSettingsService,
+  openDocument: (settingsFile, signal) => openHostPath(settingsFile, { signal }),
+  projectDomainError: throwDomainError,
+});
+const workbenchSettingsRpcRoutes = createWorkbenchSettingsRpcRoutes({
+  getService: workbenchSettingsService,
+  projectDomainError: throwDomainError,
+});
+const imageUnderstandingSettingsRpcRoutes = createImageUnderstandingSettingsRpcRoutes({
+  getStore: getImageUnderstandingSettingsStore,
+  projectDomainError: throwDomainError,
+});
+const rpcRouteGroups: readonly RpcRouteGroup[] = [
+  sessionRpcRoutes,
+  sessionContextTraceRpcRoutes,
+  externalSessionImportRpcRoutes,
+  workspaceRpcRoutes,
+  workspaceFileRpcRoutes,
+  skillRpcRoutes,
+  extensionRpcRoutes,
+  installedPackageRpcRoutes,
+  packageCatalogRpcRoutes,
+  agentSettingsRpcRoutes,
+  workbenchSettingsRpcRoutes,
+  imageUnderstandingSettingsRpcRoutes,
+];
+
 function isAborted(error: unknown, signal: AbortSignal): boolean {
   return signal.aborted || (error instanceof Error && error.name === "AbortError");
-}
-
-async function workspaceList() {
-  const { sessions } = await listSessions();
-  const workspaceStore = getWorkspaceStore();
-  await workspaceStore.reconcileSessions(
-    sessions.map((session) => ({ id: session.id, cwd: session.cwd })),
-  );
-  const { items, pinnedWorkspaceIds, pinnedSessionIds } =
-    await migrateExistingWorkspaceTrust(workspaceStore);
-  return { items, pinnedWorkspaceIds, pinnedSessionIds };
-}
-
-async function migrateExistingWorkspaceTrust(workspaceStore = getWorkspaceStore()) {
-  return workspaceStore.migrateExistingProjectTrust((workspacePaths) => {
-    getProjectTrustService().trustExistingProjects(workspacePaths);
-  });
-}
-
-async function workspaceArchivedSessionsList() {
-  const { archivedSessionIds } = await getWorkspaceStore().list();
-  return { sessionIds: archivedSessionIds };
-}
-
-async function archiveWorkspaceSession(sessionId: string) {
-  const { sessions } = await listSessions();
-  if (!sessions.some((session) => session.id === sessionId)) {
-    throw rpcBusinessError("session-not-found", "The session does not exist.", { sessionId });
-  }
-  return getWorkspaceStore().archiveSession({ sessionId });
-}
-
-async function unarchiveWorkspaceSession(sessionId: string) {
-  const { sessions } = await listSessions();
-  const session = sessions.find((candidate) => candidate.id === sessionId);
-  if (!session) {
-    throw rpcBusinessError("session-not-found", "The session does not exist.", { sessionId });
-  }
-  const workspaceStore = getWorkspaceStore();
-  await migrateExistingWorkspaceTrust(workspaceStore);
-  return workspaceStore.unarchiveSession({ id: session.id, cwd: session.cwd });
-}
-
-async function setWorkspaceSessionPinned(sessionId: string, pinned: boolean) {
-  const { sessions } = await listSessions();
-  if (!sessions.some((session) => session.id === sessionId)) {
-    throw rpcBusinessError("session-not-found", "The session does not exist.", { sessionId });
-  }
-  return getWorkspaceStore().setSessionPinned({ sessionId, pinned });
-}
-
-async function requireSessionContextTrace(sessionId: string) {
-  const { sessions } = await listSessions();
-  if (!sessions.some((session) => session.id === sessionId)) {
-    throw rpcBusinessError("session-not-found", "The session does not exist.", { sessionId });
-  }
-  await getOrStartSession(sessionId);
-  const trace = getSessionContextTrace(sessionId);
-  if (!trace) {
-    throw rpcBusinessError(
-      "context-trace-unavailable",
-      "The session context trace is not available.",
-      { sessionId },
-    );
-  }
-  return trace;
 }
 
 async function hostDescription() {
@@ -781,324 +326,12 @@ async function hostDescription() {
 }
 
 export async function handlePiRpcPost(request: Request, method: string): Promise<Response> {
+  const domainResponse = dispatchRpcRouteGroups(request, method, rpcRouteGroups);
+  if (domainResponse) return domainResponse;
+
   switch (method) {
     case "respond":
       return handleInteractiveResponsePost(request);
-    case "session.list":
-      return handleRpcPost(request, {
-        method,
-        payload: sessionListPayload,
-        handler: (payload) => sessionService().list(payload),
-      });
-    case "session.search":
-      return handleRpcPost(request, {
-        method,
-        payload: sessionSearchPayload,
-        handler: async (payload) => {
-          try {
-            return await sessionService().search(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "session.create":
-      return handleRpcPost(request, {
-        method,
-        payload: sessionCreatePayload,
-        handler: async (payload) => {
-          try {
-            return await sessionService().create(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "sessionImport.scan":
-      return handleRpcPost(request, {
-        method,
-        payload: emptyPayload,
-        loopbackOnly: true,
-        handler: () => getExternalSessionImportService().scan(),
-      });
-    case "sessionImport.import":
-      return handleRpcPost(request, {
-        method,
-        payload: externalSessionImportPayload,
-        loopbackOnly: true,
-        handler: ({ sessions }) => getExternalSessionImportService().import(sessions),
-      });
-    case "session.history":
-      return handleRpcPost(request, {
-        method,
-        payload: sessionHistoryPayload,
-        handler: async (payload) => {
-          try {
-            return await sessionService().history(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "session.contextTrace.list":
-      return handleRpcPost(request, {
-        method,
-        payload: sessionContextTraceListPayload,
-        loopbackOnly: true,
-        handler: async ({ sessionId, activationId, afterSeq, limit }) => {
-          const trace = await requireSessionContextTrace(sessionId);
-          try {
-            return await trace.listActivation(activationId, afterSeq, limit);
-          } catch (error) {
-            if (error instanceof SessionContextTraceJournalError) {
-              throw rpcBusinessError(error.code, error.message, { sessionId, activationId });
-            }
-            throw error;
-          }
-        },
-      });
-    case "session.contextTrace.activations":
-      return handleRpcPost(request, {
-        method,
-        payload: sessionContextTraceActivationsPayload,
-        loopbackOnly: true,
-        handler: async ({ sessionId }) => {
-          const trace = await requireSessionContextTrace(sessionId);
-          try {
-            return await trace.activations();
-          } catch (error) {
-            if (error instanceof SessionContextTraceJournalError) {
-              throw rpcBusinessError(error.code, error.message, { sessionId });
-            }
-            throw error;
-          }
-        },
-      });
-    case "session.contextTrace.promptParts":
-      return handleRpcPost(request, {
-        method,
-        payload: sessionContextTracePromptPartsPayload,
-        loopbackOnly: true,
-        handler: async ({ sessionId }) => {
-          try {
-            return await readSessionContextTracePromptParts(sessionId);
-          } catch (error) {
-            if (error instanceof SessionContextTraceJournalError) {
-              throw rpcBusinessError(error.code, error.message, { sessionId });
-            }
-            throw error;
-          }
-        },
-      });
-    case "session.contextTrace.read":
-      return handleRpcPost(request, {
-        method,
-        payload: sessionContextTraceReadPayload,
-        loopbackOnly: true,
-        handler: async ({ sessionId, traceId }) => {
-          const trace = await requireSessionContextTrace(sessionId);
-          let event;
-          try {
-            event = await trace.readAny(traceId);
-          } catch (error) {
-            if (error instanceof SessionContextTraceJournalError) {
-              throw rpcBusinessError(error.code, error.message, { sessionId, traceId });
-            }
-            throw error;
-          }
-          if (!event) {
-            throw rpcBusinessError(
-              "context-trace-not-found",
-              "The requested context trace detail is no longer retained.",
-              { sessionId, traceId, activationId: trace.activationId },
-            );
-          }
-          return { event };
-        },
-      });
-    case "session.regenerate":
-      return handleRpcPost(request, {
-        method,
-        payload: sessionRegeneratePayload,
-        handler: async (payload) => {
-          try {
-            return await sessionService().regenerate(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "session.resume":
-      return handleRpcPost(request, {
-        method,
-        payload: sessionResumePayload,
-        handler: async (payload) => {
-          try {
-            return await sessionService().resume(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "session.selectBranch":
-      return handleRpcPost(request, {
-        method,
-        payload: sessionSelectBranchPayload,
-        handler: async (payload) => {
-          try {
-            return await sessionService().selectBranch(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "session.models":
-      return handleRpcPost(request, {
-        method,
-        payload: sessionModelPayload,
-        handler: async (payload) => {
-          try {
-            return await sessionService().models(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "session.selectModel":
-      return handleRpcPost(request, {
-        method,
-        payload: sessionSelectModelPayload,
-        handler: async (payload) => {
-          try {
-            return await sessionService().selectModel(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "session.contextPolicy":
-      return handleRpcPost(request, {
-        method,
-        payload: sessionModelPayload,
-        handler: async (payload) => {
-          try {
-            return await sessionService().contextPolicy(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "session.updateContextPolicy":
-      return handleRpcPost(request, {
-        method,
-        payload: sessionContextPolicyUpdatePayload,
-        loopbackOnly: true,
-        handler: async (payload) => {
-          try {
-            return await sessionService().updateContextPolicy(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "session.compactContext":
-      return handleRpcPost(request, {
-        method,
-        payload: sessionModelPayload,
-        loopbackOnly: true,
-        handler: async (payload) => {
-          try {
-            return await sessionService().compactContext(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "session.rename":
-      return handleRpcPost(request, {
-        method,
-        payload: sessionRenamePayload,
-        handler: async (payload) => {
-          try {
-            return await sessionService().rename(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "session.delete":
-      return handleRpcPost(request, {
-        method,
-        payload: sessionIdPayload,
-        handler: async (payload) => {
-          try {
-            return await sessionService().delete(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "session.fork":
-      return handleRpcPost(request, {
-        method,
-        payload: sessionForkPayload,
-        handler: async (payload) => {
-          try {
-            return await sessionService().fork(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "session.prompt":
-      return handleRpcPost(request, {
-        method,
-        payload: sessionPromptPayload,
-        maxRequestBodyBytes: RPC_REQUEST_BODY_LIMITS.inlineAttachment,
-        handler: async (payload, context) => {
-          try {
-            return await sessionService().prompt(payload, { rpcId: context.rpcId });
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "session.attachment":
-      return handleRpcPost(request, {
-        method,
-        payload: sessionAttachmentPayload,
-        handler: async (payload) => {
-          try {
-            return await sessionService().attachment(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "session.updateQueue":
-      return handleRpcPost(request, {
-        method,
-        payload: sessionUpdateQueuePayload,
-        handler: async (payload) => {
-          try {
-            return await sessionService().updateQueue(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "session.cancel":
-      return handleRpcPost(request, {
-        method,
-        payload: sessionIdPayload,
-        handler: async (payload) => {
-          try {
-            return await sessionService().cancel(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
     case "host.describe":
       return handleRpcPost(request, {
         method,
@@ -1238,250 +471,6 @@ export async function handlePiRpcPost(request: Request, method: string): Promise
           }
         },
       });
-    case "workspace.files.list":
-      return handleRpcPost(request, {
-        method,
-        payload: workspaceFilesListPayload,
-        handler: async (payload, context) => {
-          try {
-            return await workspaceFileService.listDirectory(payload, context.signal);
-          } catch (error) {
-            if (isAborted(error, context.signal)) {
-              throw rpcBusinessError("cancelled", "Directory listing was cancelled.", {});
-            }
-            throwDomainError(error);
-          }
-        },
-      });
-    case "workspace.files.describe":
-      return handleRpcPost(request, {
-        method,
-        payload: workspaceFileReadPayload,
-        handler: async (payload, context) => {
-          try {
-            return await workspaceFileService.describeFile(payload, context.signal);
-          } catch (error) {
-            if (isAborted(error, context.signal)) {
-              throw rpcBusinessError("cancelled", "File inspection was cancelled.", {});
-            }
-            throwDomainError(error);
-          }
-        },
-      });
-    case "workspace.files.read":
-      return handleRpcPost(request, {
-        method,
-        payload: workspaceFileReadPayload,
-        handler: async (payload, context) => {
-          try {
-            return await workspaceFileService.readFile(payload, context.signal);
-          } catch (error) {
-            if (isAborted(error, context.signal)) {
-              throw rpcBusinessError("cancelled", "File reading was cancelled.", {});
-            }
-            throwDomainError(error);
-          }
-        },
-      });
-    case "workspace.files.write":
-      return handleRpcPost(request, {
-        method,
-        payload: workspaceFileWritePayload,
-        maxRequestBodyBytes: RPC_REQUEST_BODY_LIMITS.workspaceFileWrite,
-        handler: async (payload, context) => {
-          try {
-            return await workspaceFileService.writeFile(payload, context.signal);
-          } catch (error) {
-            if (isAborted(error, context.signal)) {
-              throw rpcBusinessError("cancelled", "File writing was cancelled.", {});
-            }
-            throwDomainError(error);
-          }
-        },
-      });
-    case "workspace.list":
-      return handleRpcPost(request, {
-        method,
-        payload: emptyPayload,
-        handler: workspaceList,
-      });
-    case "workspace.listArchivedSessions":
-      return handleRpcPost(request, {
-        method,
-        payload: emptyPayload,
-        handler: workspaceArchivedSessionsList,
-      });
-    case "workspace.create":
-      return handleRpcPost(request, {
-        method,
-        payload: createWorkspacePayload,
-        handler: async ({ path }) => {
-          try {
-            const workspaceStore = getWorkspaceStore();
-            await migrateExistingWorkspaceTrust(workspaceStore);
-            return await workspaceStore.create({ path });
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "workspace.rename":
-      return handleRpcPost(request, {
-        method,
-        payload: renameWorkspacePayload,
-        handler: async (payload) => {
-          try {
-            return await getWorkspaceStore().rename(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "workspace.delete":
-      return handleRpcPost(request, {
-        method,
-        payload: workspaceIdPayload,
-        handler: async (payload) => {
-          try {
-            const result = await getWorkspaceStore().delete(payload);
-            getScopedResourceContextService().invalidate({
-              scope: "project",
-              workspaceId: payload.workspaceId,
-            });
-            return result;
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "workspace.insertBefore":
-      return handleRpcPost(request, {
-        method,
-        payload: insertWorkspacePayload,
-        handler: async (payload) => {
-          try {
-            return await getWorkspaceStore().insertBefore(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "workspace.insertSessionBefore":
-      return handleRpcPost(request, {
-        method,
-        payload: insertSessionPayload,
-        handler: async (payload) => {
-          try {
-            return await getWorkspaceStore().insertSessionBefore(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "workspace.setPinned":
-      return handleRpcPost(request, {
-        method,
-        payload: setWorkspacePinnedPayload,
-        handler: async (payload) => {
-          try {
-            return await getWorkspaceStore().setPinned(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "workspace.setSessionPinned":
-      return handleRpcPost(request, {
-        method,
-        payload: setSessionPinnedPayload,
-        handler: ({ sessionId, pinned }) => setWorkspaceSessionPinned(sessionId, pinned),
-      });
-    case "workspace.archiveSession":
-      return handleRpcPost(request, {
-        method,
-        payload: sessionIdPayload,
-        handler: ({ sessionId }) => archiveWorkspaceSession(sessionId),
-      });
-    case "workspace.unarchiveSession":
-      return handleRpcPost(request, {
-        method,
-        payload: sessionIdPayload,
-        handler: ({ sessionId }) => unarchiveWorkspaceSession(sessionId),
-      });
-    case "skill.list":
-      return handleRpcPost(request, {
-        method,
-        payload: resourceListPayload,
-        handler: async (payload) => {
-          try {
-            return await skillService.list(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "skill.describe":
-      return handleRpcPost(request, {
-        method,
-        payload: skillDescribePayload,
-        handler: async (payload) => {
-          try {
-            return await skillService.describe(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "skill.setEnabled":
-      return handleRpcPost(request, {
-        method,
-        payload: skillSetEnabledPayload,
-        loopbackOnly: true,
-        handler: async (payload) => {
-          try {
-            return await skillService.setEnabled(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "skill.remove":
-      return handleRpcPost(request, {
-        method,
-        payload: skillDescribePayload,
-        loopbackOnly: true,
-        handler: async (payload) => {
-          try {
-            return await skillService.remove(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "skill.files.list":
-      return handleRpcPost(request, {
-        method,
-        payload: skillFilesListPayload,
-        handler: async (payload) => {
-          try {
-            return await skillService.listFiles(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "skill.files.read":
-      return handleRpcPost(request, {
-        method,
-        payload: skillFileReadPayload,
-        handler: async (payload) => {
-          try {
-            return await skillService.readFile(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
     case "command.list":
       return handleRpcPost(request, {
         method,
@@ -1501,270 +490,6 @@ export async function handlePiRpcPost(request: Request, method: string): Promise
         handler: async (payload) => {
           try {
             return await promptService.list(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "extension.list":
-      return handleRpcPost(request, {
-        method,
-        payload: resourceListPayload,
-        handler: async (payload) => {
-          try {
-            return await extensionService.list(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "extension.files.read":
-      return handleRpcPost(request, {
-        method,
-        payload: extensionFileReadPayload,
-        handler: async (payload) => {
-          try {
-            return await extensionService.readFile(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "extension.files.list":
-      return handleRpcPost(request, {
-        method,
-        payload: extensionFilesListPayload,
-        handler: async (payload) => {
-          try {
-            return await extensionService.listFiles(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "extension.setEnabled":
-      return handleRpcPost(request, {
-        method,
-        payload: extensionSetEnabledPayload,
-        loopbackOnly: true,
-        handler: async (payload) => {
-          try {
-            return await extensionService.setEnabled(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "extension.remove":
-      return handleRpcPost(request, {
-        method,
-        payload: extensionIdentityPayload,
-        loopbackOnly: true,
-        handler: async (payload) => {
-          try {
-            return await extensionService.remove(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "package.list":
-      return handleRpcPost(request, {
-        method,
-        payload: resourceListPayload,
-        handler: async (payload) => {
-          try {
-            return await installedPackageService.list(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "package.describe":
-      return handleRpcPost(request, {
-        method,
-        payload: packageDescribePayload,
-        handler: async (payload) => {
-          try {
-            return await installedPackageService.describe(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "package.updates":
-      return handleRpcPost(request, {
-        method,
-        payload: resourceListPayload,
-        handler: async (payload) => {
-          try {
-            return await installedPackageService.updates(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "package.install":
-      return handleRpcPost(request, {
-        method,
-        payload: packageInstallPayload,
-        loopbackOnly: true,
-        handler: async (payload) => {
-          try {
-            return await installedPackageService.install(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "package.update":
-      return handleRpcPost(request, {
-        method,
-        payload: packageSourceMutationPayload,
-        loopbackOnly: true,
-        handler: async (payload) => {
-          try {
-            return await installedPackageService.update(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "package.remove":
-      return handleRpcPost(request, {
-        method,
-        payload: packageSourceMutationPayload,
-        loopbackOnly: true,
-        handler: async (payload) => {
-          try {
-            return await installedPackageService.remove(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "packageCatalog.search":
-      return handleRpcPost(request, {
-        method,
-        payload: packageCatalogSearchPayload,
-        handler: async (payload, context) => {
-          try {
-            return await packageCatalogService.search(payload, context.signal);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "packageCatalog.describe":
-      return handleRpcPost(request, {
-        method,
-        payload: packageCatalogDescribePayload,
-        handler: async (payload, context) => {
-          try {
-            return await packageCatalogService.describe(payload, context.signal);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "settings.describe":
-      return handleRpcPost(request, {
-        method,
-        payload: emptyPayload,
-        loopbackOnly: true,
-        handler: async () => {
-          try {
-            return await agentSettingsService.describe();
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "settings.openDocument":
-      return handleRpcPost(request, {
-        method,
-        payload: emptyPayload,
-        loopbackOnly: true,
-        handler: async (_payload, context) => {
-          try {
-            const settingsFile = await agentSettingsService.prepareDocument();
-            return await openHostPath(settingsFile, { signal: context.signal });
-          } catch (error) {
-            if (isAborted(error, context.signal)) {
-              throw rpcBusinessError("cancelled", "Opening settings was cancelled.", {});
-            }
-            if (error instanceof AgentSettingsServiceError) throwDomainError(error);
-            throw rpcBusinessError(
-              "internal",
-              "The host could not open the settings document.",
-              {},
-              { cause: error },
-            );
-          }
-        },
-      });
-    case "settings.update":
-      return handleRpcPost(request, {
-        method,
-        payload: settingsUpdatePayload,
-        maxRequestBodyBytes: RPC_REQUEST_BODY_LIMITS.agentSettingsUpdate,
-        loopbackOnly: true,
-        handler: async (payload) => {
-          try {
-            return await agentSettingsService.update(payload);
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "workbenchSettings.describe":
-      return handleRpcPost(request, {
-        method,
-        payload: emptyPayload,
-        handler: async () => {
-          try {
-            return await workbenchSettingsService().describe();
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "workbenchSettings.update":
-      return handleRpcPost(request, {
-        method,
-        payload: workbenchSettingsUpdatePayload,
-        maxRequestBodyBytes: RPC_REQUEST_BODY_LIMITS.workbenchSettingsUpdate,
-        handler: async (payload) => {
-          try {
-            return await workbenchSettingsService().update(
-              payload as unknown as WorkbenchSettingsUpdatePayload,
-            );
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "imageUnderstanding.describe":
-      return handleRpcPost(request, {
-        method,
-        payload: emptyPayload,
-        loopbackOnly: true,
-        handler: async () => {
-          try {
-            return await getImageUnderstandingSettingsStore().describe();
-          } catch (error) {
-            throwDomainError(error);
-          }
-        },
-      });
-    case "imageUnderstanding.update":
-      return handleRpcPost(request, {
-        method,
-        payload: imageUnderstandingUpdatePayload,
-        loopbackOnly: true,
-        handler: async (payload) => {
-          try {
-            return await getImageUnderstandingSettingsStore().update(payload);
           } catch (error) {
             throwDomainError(error);
           }

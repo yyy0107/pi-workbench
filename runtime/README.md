@@ -10,9 +10,20 @@ runtime/
 │   ├── README.md
 │   ├── adapters/
 │   ├── agent-runtime-adapter.ts
+│   ├── agent-runtime-context.tsx
+│   ├── agent-runtime-extras.ts
+│   ├── agent-runtime-host.tsx
 │   ├── tool-events.ts
 │   └── use-workbench-runtime.ts
+├── server/                          # 后端无关的 Agent 宿主端口
+│   ├── README.md
+│   ├── agent-command-catalog-port.ts
+│   ├── agent-execution-port.ts
+│   ├── agent-thread-store-port.ts
+│   └── agent-runtime-adapter.ts
 ├── shared/                          # 跨 runtime、client/server 的纯领域逻辑
+│   ├── agent-command/
+│   │   └── catalog.ts
 │   ├── composer/
 │   │   ├── request.ts
 │   │   └── request.test.ts
@@ -34,12 +45,18 @@ runtime/
 
 - `assistant-ui` 是后端无关的浏览器 Runtime 组合层；它可以依赖 assistant-ui 和顶层 `shared`，但
   不得导入 `pi`。具体 Agent Runtime 反向实现这里的 `WorkbenchAgentRuntimeAdapter`。
+- `server` 是后端无关、仅在宿主进程使用的 Agent 端口层；它不得导入 `pi` 或其他具体 Runtime。
+  当前抽象已验证的执行生命周期、线程目录/存储与 Composer 命令目录，不复制 Pi 的消息、history、
+  canonical event 或传输协议。
 - `pi/client/assistant-ui` 是当前唯一的 Agent Runtime 实现层，负责把 Pi session、队列、恢复、错误
-  和附件能力投影为 assistant-ui Runtime；Pi 的 HTTP/WebSocket 协议不会进入通用接口。
+  和 workspace 能力投影为 assistant-ui Runtime，并完整拥有 Pi manager 的浏览器侧安装与生命周期；
+  Pi 的 HTTP/WebSocket 协议不会进入通用接口。
 - 顶层 `shared` 保存可被多个 runtime 或 client/server 共同使用的纯领域逻辑。这里的模块必须可测试、
   JSON-safe，不拥有网络、文件系统、凭据、React 状态或宿主 Runtime 对象。
-- `shared/composer` 拥有 Composer 请求、持久化投影和编译规则；不要在 UI 或 RPC handler 中复制
-  这些语义。
+- `shared/agent-command` 拥有 Composer 消费的通用 Agent 命令语义；assistant-ui Host、Pi client 和
+  server command capability 都直接依赖这个拥有者，不通过 UI 目录转发。
+- `shared/composer` 拥有 Composer canonical 请求、持久化投影和兼容读取规则；不要在 UI 或 RPC
+  handler 中复制这些语义。面向具体 Agent SDK 的最终 Prompt 编码属于对应实现层。
 - `shared/attachment-understanding` 拥有图片/PDF 附件理解的声明、解析模型和跨端状态机；具体 OCR
   网络调用、凭据与 Pi 模型执行属于 `pi/server/attachment-understanding`。
 - `pi/contracts` 是 Pi client/server 之间的稳定协议层；`pi/shared` 只放 Pi client/server 复用的
@@ -60,16 +77,50 @@ Runtime 之间的最小接入端口。端口复用 assistant-ui 已有抽象，�
 - 一个稳定的实现 ID；
 - assistant-ui 的 `RemoteThreadListAdapter`；
 - 将当前会话暴露为 `AssistantRuntime` 的 React hook；
-- 外部会话列表发生结构变化时的订阅；
-- 通过 thread extras 暴露的少量可选通用能力，例如队列、运行计时、恢复和 Composer 错误。
+- 将当前会话或新会话资源目标的动态命令投影为 `WorkbenchAgentCommand` 的 React hook；
+- 可选的后台 thread presentation store，提供逐会话 revision/snapshot/subscription，以及 pin、
+  workspace 内排序等可选操作；
+- 外部会话列表结构 revision 及其订阅；
+- 通过 thread extras 暴露的少量可选通用能力，例如 workspace、队列、运行计时、恢复和 Composer
+  错误。
 
-它不定义第二套消息模型、流协议、工具协议或 Agent SDK。消息、事件和错误如何转换，由具体实现层
-负责；通用 Workbench 只消费 assistant-ui Runtime 和明确声明的通用 extras。
+它不定义第二套消息模型、流协议、工具协议或 Agent SDK。thread presentation 只补充 assistant-ui
+无法从未挂载后台会话提供的展示 metadata，不复制消息或 Composer 状态。消息、事件和错误如何转换，
+由具体实现层负责；通用 Workbench 只消费 assistant-ui Runtime、命令目录、thread presentation 和
+明确声明的通用 extras。
 
-当前组合根只安装
-[`pi/client/assistant-ui/adapter.ts`](./pi/client/assistant-ui/adapter.ts)。以后接入 Codex 或 Claude Code
-时，应分别新增自己的 client/transport 和 assistant-ui adapter，实现同一端口，再在组合根选择实现。
+命令端口只描述 Composer 需要的稳定语义，不复制具体 Runtime 的 RPC DTO。Pi 的 `CommandView` 在
+`pi/shared/commands/command-projection.ts` 内投影，浏览器 catalog 与服务端 capability 共同复用；
+Workbench Composer 只调用
+`useWorkbenchAgentCommands()`；扩展侧本地 `ComposerCommandRegistry` 仍是另一项独立能力。当前
+Composer wire 写入 `agent-command` 与 `source: "agent"`；`pi-command` 与 `source: "pi"` 只由
+版本化兼容读取器接受，不代表 UI 可以反向依赖 Pi。
+
+当前组合根只选择
+[`PiAgentRuntimeProvider`](./pi/client/assistant-ui/pi-runtime-provider.tsx)，由它创建 Pi manager 和 adapter，
+再交给通用 `WorkbenchAgentRuntimeHost`。以后接入 Codex 或 Claude Code 时，应分别新增自己的
+client/transport、assistant-ui adapter 与实现 Provider，再在组合根选择实现。
 在第二个实现出现前不增加 registry、配置 UI 或空壳实现，避免提前固化尚未验证的共同能力。
+
+服务端对应边界位于 [`server/agent-runtime-adapter.ts`](./server/agent-runtime-adapter.ts)、
+[`server/agent-execution-port.ts`](./server/agent-execution-port.ts)、
+[`server/agent-thread-store-port.ts`](./server/agent-thread-store-port.ts) 和
+[`server/agent-command-catalog-port.ts`](./server/agent-command-catalog-port.ts)。`SessionRpcService` 先把
+Pi wire 请求规范化为 `threadId`、`rootPath`、结构化 Prompt、附件和 mutation，再通过组合根安装的
+Pi adapter 调用既有 registry/host；adapter 把 Pi summary 与错误码归一化，service 再投影回现有 wire。
+Pi 的 `AgentSession`、`PiQueuedPrompt`、`CommandView`、字符串 Prompt 编译和错误码不会进入通用端口。
+
+Pi canonical history、branch/resume 和 session model/context policy 继续属于 Pi protocol，分别由
+`pi/server/sessions/pi-session-history-service.ts` 与
+`pi/server/sessions/pi-session-model-context-service.ts` 封装 registry/SDK 细节，再由
+`SessionRpcService` 编排。它们刻意没有提升到顶层 `runtime/server`：这些语义尚未被第二个 Agent
+Runtime 验证，提前通用化会把 Pi event 与 context policy 伪装成跨 Runtime 标准。
+
+当前服务端同样只安装 Pi 实现，不增加实现 registry。Pi 的 `CommandService` 保留原生 wire 输出，同时
+实现通用 command capability；线程 CRUD 经 `PiAgentThreadStoreAdapter` 接入。canonical session
+history/event 仍由 Pi protocol 拥有：在 Codex 或 Claude Code 的真实协议出现前，把它们抽成所谓
+“通用消息/事件模型”只会制造第二套未经验证的抽象。后续实现先接入现有三个端口，再用两个实现共同
+验证出的语义扩展 `WorkbenchAgentServerAdapter`。
 
 `assistant-ui` 位于 `runtime` 而不是组件目录，是因为这里保存的是状态机与宿主 Runtime 的适配和
 生命周期组合，不是聊天界面的视觉组件；真正的 UI 仍位于 `components/`、`workbench/` 和

@@ -3,10 +3,9 @@ import { Readable } from "node:stream";
 
 import { WORKSPACE_FILE_BUFFERED_PREVIEW_SIZE_LIMIT } from "@/runtime/pi/contracts/rpc";
 import { rejectUntrustedApiRequest } from "../transport/api-request-guard";
-import { getWorkspaceStore } from "./workspace-registry";
 import {
+  createWorkspaceFileService,
   WorkspaceFileError,
-  WorkspaceFileService,
   type ResolvedWorkspaceFileContent,
 } from "./workspace-files";
 
@@ -32,7 +31,7 @@ export interface WorkspaceFileContentDependencies {
   ): ReadableStream<Uint8Array>;
 }
 
-const workspaceFileService = new WorkspaceFileService({ workspaceStore: getWorkspaceStore });
+const workspaceFileService = createWorkspaceFileService();
 
 const defaultDependencies: WorkspaceFileContentDependencies = {
   resolveFile: (input, signal) => workspaceFileService.resolveFileContent(input, signal),
