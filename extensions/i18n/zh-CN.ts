@@ -1598,6 +1598,7 @@ export const extensionsZhCN = {
     title: "上下文检查器",
     shortTitle: "上下文",
     open: "打开上下文检查器",
+    close: "关闭上下文检查器",
     views: {
       duration: "耗时",
       turns: "上下文",

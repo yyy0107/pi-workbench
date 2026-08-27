@@ -1683,6 +1683,7 @@ export const extensionsEnUS = {
     title: "Context Inspector",
     shortTitle: "Context",
     open: "Open context inspector",
+    close: "Close context inspector",
     views: {
       duration: "Duration",
       turns: "Context",
