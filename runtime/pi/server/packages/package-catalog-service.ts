@@ -1,3 +1,5 @@
+import { setTimeout as wait } from "node:timers/promises";
+
 import type {
   PiPackageCatalogDescribePayload,
   PiPackageCatalogDetailsView,
@@ -12,9 +14,12 @@ const PI_PACKAGE_CATALOG_URL = "https://pi.dev/packages";
 const PI_PACKAGE_CATALOG_PAGE_SIZE = 50;
 const MAX_CATALOG_RESPONSE_BYTES = 2 * 1024 * 1024;
 const CATALOG_REQUEST_TIMEOUT_MS = 15_000;
+const CATALOG_REQUEST_MAX_ATTEMPTS = 3;
+const CATALOG_RETRY_BASE_DELAY_MS = 250;
+const CATALOG_RETRY_MAX_DELAY_MS = 2_000;
 const DEFAULT_CATALOG_REFRESH_INTERVAL_MS = 30 * 60 * 1000;
 const DEFAULT_DETAIL_REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000;
-const DEFAULT_CATALOG_REFRESH_CONCURRENCY = 6;
+const DEFAULT_CATALOG_REFRESH_CONCURRENCY = 3;
 const MAX_FALLBACK_SEARCH_CACHE_ENTRIES = 128;
 const MAX_DETAIL_CACHE_ENTRIES = 256;
 const PACKAGE_TYPES = new Set<PiPackageResourceType>([
@@ -24,10 +29,12 @@ const PACKAGE_TYPES = new Set<PiPackageResourceType>([
   "theme",
   "package",
 ]);
+const RETRYABLE_CATALOG_RESPONSE_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504]);
 
 export interface PiPackageCatalogServiceDependencies {
   fetch(input: string | URL, init?: RequestInit): Promise<Response>;
   now(): number;
+  sleep(delayMs: number, signal?: AbortSignal): Promise<void>;
   scheduleInterval(task: () => void, intervalMs: number): () => void;
   onBackgroundError(error: unknown): void;
 }
@@ -94,6 +101,47 @@ export class PiPackageCatalogServiceError<
     this.code = code;
     this.details = details;
   }
+}
+
+function catalogUnavailable(options: { cause?: unknown; status?: number } = {}) {
+  return new PiPackageCatalogServiceError(
+    "catalog-unavailable",
+    "The official Pi package catalog is unavailable.",
+    options.status === undefined ? {} : { status: options.status },
+    options.cause === undefined ? undefined : { cause: options.cause },
+  );
+}
+
+function nestedErrorCode(error: unknown): string | undefined {
+  let current = error;
+  for (let depth = 0; depth < 5 && typeof current === "object" && current !== null; depth += 1) {
+    const code = Reflect.get(current, "code");
+    if (typeof code === "string" && code.length > 0) return code;
+    current = Reflect.get(current, "cause");
+  }
+  return undefined;
+}
+
+function reportBackgroundCatalogError(error: unknown): void {
+  if (error instanceof PiPackageCatalogServiceError && error.code === "catalog-unavailable") {
+    const status = "status" in error.details ? error.details.status : undefined;
+    const reason = status ? `HTTP ${status}` : nestedErrorCode(error.cause);
+    console.warn(
+      `[workbench-pi] Pi package catalog background refresh deferred${reason ? ` (${reason})` : ""}; it will retry automatically.`,
+    );
+    return;
+  }
+  console.warn("Pi package catalog background refresh failed.", error);
+}
+
+function retryAfterDelayMs(response: Response, now: number): number | undefined {
+  const value = response.headers.get("Retry-After")?.trim();
+  if (!value) return undefined;
+
+  const seconds = Number(value);
+  const delayMs = Number.isFinite(seconds) ? seconds * 1_000 : Date.parse(value) - now;
+  if (!Number.isFinite(delayMs)) return undefined;
+  return Math.min(Math.max(0, delayMs), CATALOG_RETRY_MAX_DELAY_MS);
 }
 
 function decodeHtml(value: string): string {
@@ -418,8 +466,10 @@ export class PiPackageCatalogService implements PackageCatalogProtocol {
     this.dependencies = {
       fetch: globalThis.fetch,
       now: Date.now,
-      onBackgroundError: (error) =>
-        console.warn("Pi package catalog background refresh failed.", error),
+      onBackgroundError: reportBackgroundCatalogError,
+      sleep: async (delayMs, signal) => {
+        await wait(delayMs, undefined, { signal });
+      },
       scheduleInterval: (task, intervalMs) => {
         const timer = setInterval(task, intervalMs);
         timer.unref?.();
@@ -464,54 +514,88 @@ export class PiPackageCatalogService implements PackageCatalogProtocol {
     return cached;
   }
 
-  private async fetchHtml(url: URL, signal?: AbortSignal): Promise<string> {
-    let response: Response;
-    try {
-      response = await this.dependencies.fetch(url, {
-        headers: { Accept: "text/html", "User-Agent": "Pi-Workbench/0.1" },
-        redirect: "follow",
-        signal: signal
-          ? AbortSignal.any([signal, AbortSignal.timeout(CATALOG_REQUEST_TIMEOUT_MS)])
-          : AbortSignal.timeout(CATALOG_REQUEST_TIMEOUT_MS),
-      });
-    } catch (error) {
-      throw new PiPackageCatalogServiceError(
-        "catalog-unavailable",
-        "The official Pi package catalog is unavailable.",
-        {},
-        { cause: error },
-      );
-    }
-    if (!response.ok) {
-      throw new PiPackageCatalogServiceError(
-        "catalog-unavailable",
-        "The official Pi package catalog is unavailable.",
-        { status: response.status },
-      );
-    }
+  private async fetchHtml(url: URL, signal?: AbortSignal, maxAttempts = 1): Promise<string> {
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      let response: Response;
+      try {
+        response = await this.dependencies.fetch(url, {
+          headers: { Accept: "text/html", "User-Agent": "Pi-Workbench/0.1" },
+          redirect: "follow",
+          signal: signal
+            ? AbortSignal.any([signal, AbortSignal.timeout(CATALOG_REQUEST_TIMEOUT_MS)])
+            : AbortSignal.timeout(CATALOG_REQUEST_TIMEOUT_MS),
+        });
+      } catch (error) {
+        if (signal?.aborted || attempt === maxAttempts) {
+          throw catalogUnavailable({ cause: error });
+        }
+        await this.waitBeforeRetry(attempt, signal);
+        continue;
+      }
 
-    const html = await response.text();
-    if (Buffer.byteLength(html, "utf8") > MAX_CATALOG_RESPONSE_BYTES) {
-      throw new PiPackageCatalogServiceError(
-        "catalog-invalid-response",
-        "The Pi package catalog response was unexpectedly large.",
-        {},
-      );
+      if (!response.ok) {
+        if (!RETRYABLE_CATALOG_RESPONSE_STATUSES.has(response.status) || attempt === maxAttempts) {
+          throw catalogUnavailable({ status: response.status });
+        }
+        await response.body?.cancel().catch(() => {});
+        await this.waitBeforeRetry(attempt, signal, response);
+        continue;
+      }
+
+      let html: string;
+      try {
+        html = await response.text();
+      } catch (error) {
+        if (signal?.aborted || attempt === maxAttempts) {
+          throw catalogUnavailable({ cause: error });
+        }
+        await this.waitBeforeRetry(attempt, signal);
+        continue;
+      }
+
+      if (Buffer.byteLength(html, "utf8") > MAX_CATALOG_RESPONSE_BYTES) {
+        throw new PiPackageCatalogServiceError(
+          "catalog-invalid-response",
+          "The Pi package catalog response was unexpectedly large.",
+          {},
+        );
+      }
+      return html;
     }
-    return html;
+    throw new Error("The package catalog retry loop ended unexpectedly.");
+  }
+
+  private async waitBeforeRetry(
+    attempt: number,
+    signal?: AbortSignal,
+    response?: Response,
+  ): Promise<void> {
+    const delayMs =
+      (response && retryAfterDelayMs(response, this.dependencies.now())) ??
+      Math.min(CATALOG_RETRY_BASE_DELAY_MS * 2 ** (attempt - 1), CATALOG_RETRY_MAX_DELAY_MS);
+    try {
+      await this.dependencies.sleep(delayMs, signal);
+    } catch (error) {
+      throw catalogUnavailable({ cause: error });
+    }
   }
 
   private async fetchCatalogPage(
     payload: PiPackageCatalogSearchPayload,
     signal?: AbortSignal,
+    maxAttempts?: number,
   ): Promise<ParsedPackageCatalogPage> {
-    const html = await this.fetchHtml(buildPiPackageCatalogUrl(payload), signal);
+    const html = await this.fetchHtml(buildPiPackageCatalogUrl(payload), signal, maxAttempts);
     return parsePiPackageCatalogPageHtml(html, payload.page ?? 1);
   }
 
   private async loadCompleteSnapshot(): Promise<PackageCatalogSnapshot> {
     const controller = new AbortController();
-    const firstPage = await this.fetchCatalogPage({ sort: "name", page: 1 }, controller.signal);
+    const firstPage = await this.fetchCatalogPage(
+      { sort: "name", page: 1 },
+      controller.signal,
+      CATALOG_REQUEST_MAX_ATTEMPTS,
+    );
     if (firstPage.value.filteredTotal !== firstPage.value.total) {
       throw new PiPackageCatalogServiceError(
         "catalog-invalid-response",
@@ -530,7 +614,11 @@ export class PiPackageCatalogService implements PackageCatalogProtocol {
         const page = nextPage;
         nextPage += 1;
         if (page > firstPage.value.pageCount) return;
-        pages[page - 1] = await this.fetchCatalogPage({ sort: "name", page }, controller.signal);
+        pages[page - 1] = await this.fetchCatalogPage(
+          { sort: "name", page },
+          controller.signal,
+          CATALOG_REQUEST_MAX_ATTEMPTS,
+        );
       }
     };
     try {

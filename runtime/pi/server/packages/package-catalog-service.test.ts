@@ -265,6 +265,7 @@ test("keeps serving the previous complete snapshot when a scheduled refresh fail
       fail
         ? new Response("unavailable", { status: 503 })
         : new Response(completeCatalogHtml, { status: 200 }),
+    sleep: async () => {},
   });
 
   await service.refreshCatalog();
@@ -277,6 +278,94 @@ test("keeps serving the previous complete snapshot when a scheduled refresh fail
     cached.packages.map(({ name }) => name),
     ["@example/pi-tools", "pi-theme"],
   );
+});
+
+test("retries a transient catalog socket failure before discarding a refresh", async () => {
+  let requestCount = 0;
+  const retryDelays: number[] = [];
+  const socketError = Object.assign(new Error("other side closed"), { code: "UND_ERR_SOCKET" });
+  const service = new PiPackageCatalogService({
+    fetch: async () => {
+      requestCount += 1;
+      if (requestCount === 1) {
+        throw new TypeError("fetch failed", { cause: socketError });
+      }
+      return new Response(completeCatalogHtml, { status: 200 });
+    },
+    sleep: async (delayMs) => {
+      retryDelays.push(delayMs);
+    },
+  });
+
+  await service.refreshCatalog();
+
+  assert.equal(requestCount, 2);
+  assert.deepEqual(retryDelays, [250]);
+  assert.equal((await service.search({})).total, 2);
+});
+
+test("bounds retries when the package catalog keeps closing the connection", async () => {
+  let requestCount = 0;
+  const retryDelays: number[] = [];
+  const socketError = Object.assign(new Error("other side closed"), { code: "UND_ERR_SOCKET" });
+  const service = new PiPackageCatalogService({
+    fetch: async () => {
+      requestCount += 1;
+      throw new TypeError("fetch failed", { cause: socketError });
+    },
+    sleep: async (delayMs) => {
+      retryDelays.push(delayMs);
+    },
+  });
+
+  await assert.rejects(service.refreshCatalog(), {
+    name: "PiPackageCatalogServiceError",
+    code: "catalog-unavailable",
+  });
+  assert.equal(requestCount, 3);
+  assert.deepEqual(retryDelays, [250, 500]);
+});
+
+test("does not extend a cold on-demand search with background retry delays", async () => {
+  let requestCount = 0;
+  const retryDelays: number[] = [];
+  const service = new PiPackageCatalogService({
+    fetch: async () => {
+      requestCount += 1;
+      throw new TypeError("fetch failed");
+    },
+    sleep: async (delayMs) => {
+      retryDelays.push(delayMs);
+    },
+  });
+
+  await assert.rejects(service.search({}), {
+    name: "PiPackageCatalogServiceError",
+    code: "catalog-unavailable",
+  });
+  assert.equal(requestCount, 1);
+  assert.deepEqual(retryDelays, []);
+});
+
+test("honors a bounded Retry-After delay for a retryable catalog response", async () => {
+  let requestCount = 0;
+  const retryDelays: number[] = [];
+  const service = new PiPackageCatalogService({
+    fetch: async () => {
+      requestCount += 1;
+      return requestCount === 1
+        ? new Response("busy", { status: 503, headers: { "Retry-After": "10" } })
+        : new Response(completeCatalogHtml, { status: 200 });
+    },
+    sleep: async (delayMs) => {
+      retryDelays.push(delayMs);
+    },
+  });
+
+  await service.refreshCatalog();
+
+  assert.equal(requestCount, 2);
+  assert.deepEqual(retryDelays, [2_000]);
 });
 
 test("crawls every official page once and paginates the cached snapshot locally", async () => {
