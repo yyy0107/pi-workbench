@@ -83,11 +83,7 @@ export function DirectoryPickerButton() {
           error && "text-destructive hover:text-destructive",
         )}
       >
-        {picking ? (
-          <LoaderCircleIcon className="size-4 animate-spin" />
-        ) : (
-          <PlusIcon className="size-4" />
-        )}
+        {picking ? <LoaderCircleIcon className="animate-spin" /> : <PlusIcon />}
       </Button>
       <RemoteDirectoryPickerDialog
         open={remotePickerOpen}

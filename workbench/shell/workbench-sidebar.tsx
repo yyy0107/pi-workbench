@@ -310,16 +310,19 @@ function SidebarSectionHeading({
       >
         {label}
       </h2>
-      <div className="pointer-events-none flex size-7 shrink-0 items-center justify-center">
+      <div className="pointer-events-none flex size-[var(--icon-frame-size-default)] shrink-0 items-center justify-center">
         <ChevronRightIcon
           className={cn(
-            "size-4 opacity-100 transition-[transform,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none md:opacity-0 md:group-hover/sidebar-section:opacity-100 md:group-focus-within/sidebar-section:opacity-100",
+            "size-[var(--icon-size-md)] opacity-100 transition-[transform,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none md:opacity-0 md:group-hover/sidebar-section:opacity-100 md:group-focus-within/sidebar-section:opacity-100",
             expanded && "rotate-90",
           )}
         />
       </div>
       {actions ? (
-        <div className="relative z-10 ms-auto flex shrink-0 items-center opacity-100 transition-opacity duration-150 ease-out motion-reduce:transition-none md:pointer-events-none md:opacity-0 md:group-hover/sidebar-section:pointer-events-auto md:group-hover/sidebar-section:opacity-100 md:group-focus-within/sidebar-section:pointer-events-auto md:group-focus-within/sidebar-section:opacity-100">
+        <div
+          data-sidebar-actions=""
+          className="relative z-10 ms-auto flex shrink-0 opacity-100 transition-opacity duration-150 ease-out motion-reduce:transition-none md:pointer-events-none md:opacity-0 md:group-hover/sidebar-section:pointer-events-auto md:group-hover/sidebar-section:opacity-100 md:group-focus-within/sidebar-section:pointer-events-auto md:group-focus-within/sidebar-section:opacity-100"
+        >
           {actions}
         </div>
       ) : null}

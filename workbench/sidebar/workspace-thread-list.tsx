@@ -426,16 +426,16 @@ function WorkspaceDirectorySection({
           }}
         />
 
-        <div className="pointer-events-none relative size-7 shrink-0">
+        <div className="pointer-events-none relative size-[var(--sidebar-action-frame-size)] shrink-0">
           <FolderIcon
             className={cn(
-              "absolute left-1/2 top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 transition-opacity max-md:opacity-0 md:group-hover/workspace:opacity-0 md:group-has-[:focus-visible]/workspace:opacity-0",
+              "absolute left-1/2 top-1/2 size-[var(--icon-size-md)] -translate-x-1/2 -translate-y-1/2 transition-opacity max-md:opacity-0 md:group-hover/workspace:opacity-0 md:group-has-[:focus-visible]/workspace:opacity-0",
               active && "text-blue-500",
             )}
           />
           <ChevronRightIcon
             className={cn(
-              "absolute left-1/2 top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 opacity-100 transition-[transform,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none md:opacity-0 md:group-hover/workspace:opacity-100 md:group-has-[:focus-visible]/workspace:opacity-100",
+              "absolute left-1/2 top-1/2 size-[var(--icon-size-md)] -translate-x-1/2 -translate-y-1/2 opacity-100 transition-[transform,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none md:opacity-0 md:group-hover/workspace:opacity-100 md:group-has-[:focus-visible]/workspace:opacity-100",
               expanded && "rotate-90",
             )}
           />
@@ -443,7 +443,7 @@ function WorkspaceDirectorySection({
 
         <div
           id={workspaceLabelId}
-          className="pointer-events-none min-w-0 flex-1 truncate py-0 ps-1 pe-14 text-start text-sm font-medium"
+          className="pointer-events-none min-w-0 flex-1 truncate py-0 ps-1 pe-[var(--sidebar-action-touch-reserved-space)] text-start text-sm font-medium md:pe-[var(--sidebar-action-pair-reserved-space)]"
         >
           {directory.name}
         </div>
@@ -467,9 +467,11 @@ function WorkspaceDirectorySection({
         ) : null}
 
         <div
+          data-sidebar-actions=""
+          data-sidebar-actions-mobile-touch=""
           data-workspace-item-actions=""
           className={cn(
-            "absolute end-0 z-10 flex items-center opacity-100 transition-opacity duration-150 ease-out motion-reduce:transition-none md:pointer-events-none md:opacity-0 md:group-hover/workspace:pointer-events-auto md:group-hover/workspace:opacity-100 md:group-focus-within/workspace:pointer-events-auto md:group-focus-within/workspace:opacity-100",
+            "absolute end-0 z-10 flex opacity-100 transition-opacity duration-150 ease-out motion-reduce:transition-none md:pointer-events-none md:opacity-0 md:group-hover/workspace:pointer-events-auto md:group-hover/workspace:opacity-100 md:group-focus-within/workspace:pointer-events-auto md:group-focus-within/workspace:opacity-100",
             menuOpen && "md:pointer-events-auto md:opacity-100",
           )}
         >
@@ -481,9 +483,9 @@ function WorkspaceDirectorySection({
                   variant="ghost"
                   size="icon-sm"
                   aria-label={t("workbench.sidebar.workspaceOptions")}
-                  className="text-muted-foreground hover:text-foreground focus-visible:text-foreground aria-expanded:text-foreground size-[var(--control-hit-touch)]! transition-colors duration-150 md:size-[var(--control-hit-compact)]!"
+                  className="text-muted-foreground hover:text-foreground focus-visible:text-foreground aria-expanded:text-foreground transition-colors duration-150"
                 >
-                  <MoreHorizontalIcon className="size-4" />
+                  <MoreHorizontalIcon />
                 </Button>
               }
             />
@@ -512,7 +514,11 @@ function WorkspaceDirectorySection({
                   );
                 }}
               >
-                {pinned ? <PinOffIcon className="size-4" /> : <PinIcon className="size-4" />}
+                {pinned ? (
+                  <PinOffIcon className="size-[var(--icon-size-md)]" />
+                ) : (
+                  <PinIcon className="size-[var(--icon-size-md)]" />
+                )}
                 {t(pinned ? "workbench.sidebar.unpinWorkspace" : "workbench.sidebar.pinWorkspace")}
               </button>
               <button
@@ -523,7 +529,7 @@ function WorkspaceDirectorySection({
                   onRemove();
                 }}
               >
-                <FolderMinusIcon className="size-4" />
+                <FolderMinusIcon className="size-[var(--icon-size-md)]" />
                 {t("workbench.sidebar.removeWorkspace")}
               </button>
             </PopoverContent>

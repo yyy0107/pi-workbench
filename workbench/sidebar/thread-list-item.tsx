@@ -158,8 +158,8 @@ export function WorkbenchThreadListItem({
       >
         <span
           className={cn(
-            "min-w-0 flex-1 truncate md:group-hover/thread:pe-14 md:group-has-[:focus-visible]/thread:pe-14",
-            !waitingForUserInput && "pe-10 md:pe-0",
+            "min-w-0 flex-1 truncate md:group-hover/thread:pe-[var(--sidebar-action-pair-reserved-space)] md:group-has-[:focus-visible]/thread:pe-[var(--sidebar-action-pair-reserved-space)]",
+            !waitingForUserInput && "pe-[var(--sidebar-action-touch-reserved-space)] md:pe-0",
           )}
         >
           {title || t("workbench.sidebar.newThread")}
@@ -167,7 +167,7 @@ export function WorkbenchThreadListItem({
         {waitingForUserInput ? (
           <span
             aria-hidden="true"
-            className="ms-2 me-10 shrink-0 text-[11px] text-amber-700 md:me-0 md:group-hover/thread:hidden md:group-has-[:focus-visible]/thread:hidden dark:text-amber-300"
+            className="ms-2 me-[var(--sidebar-action-touch-reserved-space)] shrink-0 text-[11px] text-amber-700 md:me-0 md:group-hover/thread:hidden md:group-has-[:focus-visible]/thread:hidden dark:text-amber-300"
           >
             {t("workbench.sidebar.waitingForUserInput")}
           </span>
@@ -191,20 +191,25 @@ export function WorkbenchThreadListItem({
         ) : null}
       </ThreadListItemPrimitive.Trigger>
 
-      <div data-thread-item-actions="" className="absolute end-0 flex items-center md:hidden">
+      <div
+        data-sidebar-actions=""
+        data-sidebar-actions-mobile-touch=""
+        data-thread-item-actions=""
+        className="absolute end-0 flex md:hidden"
+      >
         <ThreadListItemMorePrimitive.Root sharedFocusGroup>
           <ThreadListItemMorePrimitive.Trigger
             render={
               <Button
                 type="button"
                 variant="ghost"
-                size="icon"
+                size="icon-sm"
                 aria-label={t("workbench.sidebar.conversationOptions")}
-                className="text-muted-foreground hover:text-foreground size-[var(--control-hit-touch)]! rounded-lg data-[state=open]:[background:var(--button-background-selected)] data-[state=open]:[color:var(--button-foreground-selected)]"
+                className="text-muted-foreground hover:text-foreground rounded-lg data-[state=open]:[background:var(--button-background-selected)] data-[state=open]:[color:var(--button-foreground-selected)]"
               />
             }
           >
-            <MoreHorizontalIcon className="size-4" />
+            <MoreHorizontalIcon />
           </ThreadListItemMorePrimitive.Trigger>
           <ThreadListItemMorePrimitive.Content
             side="bottom"
@@ -217,7 +222,11 @@ export function WorkbenchThreadListItem({
                 className="hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground flex min-h-[var(--control-hit-touch)] cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-sm outline-none select-none"
                 onSelect={() => void togglePinned()}
               >
-                {isPinned ? <PinOffIcon className="size-4" /> : <PinIcon className="size-4" />}
+                {isPinned ? (
+                  <PinOffIcon className="size-[var(--icon-size-md)]" />
+                ) : (
+                  <PinIcon className="size-[var(--icon-size-md)]" />
+                )}
                 {t(isPinned ? "workbench.sidebar.unpin" : "workbench.sidebar.pin")}
               </ThreadListItemMorePrimitive.Item>
             ) : null}
@@ -227,7 +236,7 @@ export function WorkbenchThreadListItem({
                 <ThreadListItemMorePrimitive.Item className="hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground flex min-h-[var(--control-hit-touch)] cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-sm outline-none select-none" />
               }
             >
-              <ArchiveIcon className="size-4" />
+              <ArchiveIcon className="size-[var(--icon-size-md)]" />
               {t("workbench.sidebar.archive")}
             </ThreadListItemPrimitive.Archive>
           </ThreadListItemMorePrimitive.Content>
@@ -235,14 +244,15 @@ export function WorkbenchThreadListItem({
       </div>
 
       <div
+        data-sidebar-actions=""
         data-thread-item-actions=""
-        className="pointer-events-none absolute end-0 hidden items-center opacity-0 transition-opacity md:flex md:group-hover/thread:pointer-events-auto md:group-hover/thread:opacity-100 md:group-has-[:focus-visible]/thread:pointer-events-auto md:group-has-[:focus-visible]/thread:opacity-100"
+        className="pointer-events-none absolute end-0 hidden opacity-0 transition-opacity md:flex md:group-hover/thread:pointer-events-auto md:group-hover/thread:opacity-100 md:group-has-[:focus-visible]/thread:pointer-events-auto md:group-has-[:focus-visible]/thread:opacity-100"
       >
         {threadActions.setPinned ? (
           <Button
             type="button"
             variant="ghost"
-            size="icon"
+            size="icon-sm"
             aria-label={t(isPinned ? "workbench.sidebar.unpin" : "workbench.sidebar.pin")}
             aria-pressed={isPinned}
             title={t(isPinned ? "workbench.sidebar.unpin" : "workbench.sidebar.pin")}
@@ -252,7 +262,7 @@ export function WorkbenchThreadListItem({
             )}
             onClick={() => void togglePinned()}
           >
-            {isPinned ? <PinOffIcon className="size-4" /> : <PinIcon className="size-4" />}
+            {isPinned ? <PinOffIcon /> : <PinIcon />}
           </Button>
         ) : null}
         <ThreadListItemPrimitive.Archive
@@ -261,14 +271,14 @@ export function WorkbenchThreadListItem({
             <Button
               type="button"
               variant="ghost"
-              size="icon"
+              size="icon-sm"
               aria-label={t("workbench.sidebar.archive")}
               title={t("workbench.sidebar.archive")}
               className="text-muted-foreground hover:text-foreground active:scale-90"
             />
           }
         >
-          <ArchiveIcon className="size-4" />
+          <ArchiveIcon />
         </ThreadListItemPrimitive.Archive>
       </div>
     </ThreadListItemPrimitive.Root>

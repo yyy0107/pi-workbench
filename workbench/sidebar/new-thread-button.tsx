@@ -40,7 +40,7 @@ export function NewThreadButton({
           className,
         )}
       >
-        <PlusIcon className="size-4" />
+        <PlusIcon />
       </button>
     ) : (
       <button
@@ -58,7 +58,7 @@ export function NewThreadButton({
         )}
         aria-current={variant === "row" && active ? "page" : undefined}
       >
-        {variant === "menu" ? <PlusIcon className="size-4" /> : null}
+        {variant === "menu" ? <PlusIcon className="size-[var(--icon-size-md)]" /> : null}
         {t("workbench.sidebar.newThread")}
       </button>
     );

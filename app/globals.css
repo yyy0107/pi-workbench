@@ -94,7 +94,7 @@
 
   /* Control density */
   --control-hit-compact: 24px;
-  --control-hit-default: 28px;
+  --control-hit-default: 26px;
   --control-hit-touch: 44px;
 
   /* Shared interaction states */
@@ -128,6 +128,19 @@
   /* Backward-compatible aliases for extension styles. */
   --icon-sm: var(--icon-size-sm);
   --icon-md: var(--icon-size-md);
+
+  /* Sidebar action groups */
+  --sidebar-action-frame-size: var(--icon-frame-size-compact);
+  --sidebar-action-touch-frame-size: var(--control-hit-touch);
+  --sidebar-action-icon-size: var(--icon-size-md);
+  --sidebar-action-edge-offset: 4px;
+  --sidebar-action-pair-reserved-space: calc(
+    var(--sidebar-action-frame-size) + var(--sidebar-action-frame-size) +
+      var(--sidebar-action-edge-offset)
+  );
+  --sidebar-action-touch-reserved-space: calc(
+    var(--sidebar-action-touch-frame-size) + var(--sidebar-action-edge-offset)
+  );
 
   /* Inputs */
   --input-control-height: var(--control-hit-default);
@@ -309,6 +322,36 @@
 
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  :where([data-sidebar-actions]) {
+    margin-inline-end: var(--sidebar-action-edge-offset);
+    align-items: center;
+  }
+
+  :where([data-sidebar-actions]) :where(.aui-button-icon svg) {
+    width: var(--sidebar-action-icon-size) !important;
+    height: var(--sidebar-action-icon-size) !important;
+  }
+
+  @media (max-width: 47.999rem) {
+    :where([data-sidebar-actions][data-sidebar-actions-mobile-touch]) :where(.aui-button-icon) {
+      width: var(--sidebar-action-touch-frame-size) !important;
+      min-width: var(--sidebar-action-touch-frame-size) !important;
+      height: var(--sidebar-action-touch-frame-size) !important;
+      min-height: var(--sidebar-action-touch-frame-size) !important;
+    }
+  }
+
+  @media (min-width: 48rem) {
+    :where([data-sidebar-actions]) :where(.aui-button-icon) {
+      width: var(--sidebar-action-frame-size) !important;
+      min-width: var(--sidebar-action-frame-size) !important;
+      height: var(--sidebar-action-frame-size) !important;
+      min-height: var(--sidebar-action-frame-size) !important;
+    }
   }
 }
 
