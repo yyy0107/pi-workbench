@@ -29,6 +29,7 @@
 <div align="center">
   <a href="#产品预览">预览</a> |
   <a href="#当前可用能力">功能</a> |
+  <a href="#版本与发布规则">版本规则</a> |
   <a href="#快速开始">快速开始</a> |
   <a href="#架构">架构</a> |
   <a href="#开发">开发</a> |
@@ -83,6 +84,21 @@ Pi Workbench 在浏览器或 Electron renderer 中运行
 > Pi 会话、模型配置、文件工作区、外部会话导入和 Terminal 使用真实本地后端。Review 目前只在内存中
 > 跟踪工具写入的文件，并不读取 Git；Browser 是会话和导航 Surface，尚不渲染真实网页；Artifact 预览
 > 由工具提供的数据填充。这些 Surface 仍处于实验阶段。
+
+## 版本与发布规则
+
+Pi Workbench 遵循[语义化版本](https://semver.org/lang/zh-CN/)，并使用 `vMAJOR.MINOR.PATCH` 格式的
+附注 Git Tag。项目处于早期 `0.x` 阶段时：
+
+- `0.MINOR.0` 用于重要新能力，或对尚未稳定的 Extension、Runtime、RPC、持久化状态契约进行有意的
+  Breaking Change。
+- `0.MINOR.PATCH` 用于向后兼容的修复、文档、性能优化和内部重构。
+- 预发布版本使用 `v0.2.0-alpha.1`、`v0.2.0-beta.1` 或 `v0.2.0-rc.1` 等标识。
+- `v1.0.0` 表示项目首次明确支持公共契约和迁移预期。
+
+[`package.json`](./package.json) 是版本号的唯一事实来源。Release Tag 必须与该版本一致，指向 `main`
+上的 Commit，并且不得移动或复用；修正通过新的 Patch 版本发布。GitHub Release Notes 同时维护英文和
+简体中文。
 
 ## 快速开始
 

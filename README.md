@@ -29,6 +29,7 @@
 <div align="center">
   <a href="#product-preview">Preview</a> |
   <a href="#what-works-today">Features</a> |
+  <a href="#versioning-and-releases">Versioning</a> |
   <a href="#quick-start">Quick start</a> |
   <a href="#architecture">Architecture</a> |
   <a href="#development">Development</a> |
@@ -86,6 +87,23 @@ provider's terms and privacy policy.
 > real local backends. Review currently tracks file mutations in memory rather than reading Git;
 > Browser is a session/navigation surface and does not render a live webpage yet; Artifact previews
 > are populated from tool-provided data. These surfaces are still experimental.
+
+## Versioning and releases
+
+Pi Workbench follows [Semantic Versioning](https://semver.org/) and publishes annotated Git tags in
+the form `vMAJOR.MINOR.PATCH`. While the project remains in early `0.x` development:
+
+- `0.MINOR.0` introduces a substantial capability or an intentional breaking change to an unstable
+  extension, runtime, RPC, or persisted-state contract.
+- `0.MINOR.PATCH` contains backward-compatible fixes, documentation, performance work, and internal
+  refactors.
+- Prereleases use identifiers such as `v0.2.0-alpha.1`, `v0.2.0-beta.1`, or `v0.2.0-rc.1`.
+- `v1.0.0` will mark the first release with explicitly supported public contracts and migration
+  expectations.
+
+[`package.json`](./package.json) is the canonical version source. A release tag must match that
+version, point to a commit on `main`, and never be moved or reused; corrections are published as a
+new Patch release. GitHub Release notes are maintained in both English and Simplified Chinese.
 
 ## Quick start
 
