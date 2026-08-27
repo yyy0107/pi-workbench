@@ -17,6 +17,10 @@ import type { SessionContextTraceEventSummary } from "@/runtime/pi/contracts/rpc
 import { contextTraceEventLabel } from "./context-trace-detail";
 import css from "./context-trace-overview.module.css";
 import {
+  projectContextTraceOverviewSpans,
+  type ContextTraceOverviewSpan,
+} from "./context-trace-overview-spans";
+import {
   createContextTraceTimelineScale,
   type ContextTraceTimelineScale,
 } from "./context-trace-timeline-scale";
@@ -38,13 +42,6 @@ interface TraceOverviewProps {
   onSelect(event: SessionContextTraceEventSummary): void;
 }
 
-interface TraceSpan extends ContextTraceTimeRange {
-  event: SessionContextTraceEventSummary;
-  lane: 0 | 1 | 2;
-  point: boolean;
-  tone: "input" | "context" | "model" | "tool" | "recovery";
-}
-
 interface FractionRange {
   start: number;
   end: number;
@@ -59,52 +56,6 @@ interface DragGesture {
   anchorClientX: number;
   anchorTime: number;
   pointerId: number;
-}
-
-function matchingModelEnd(
-  events: readonly SessionContextTraceEventSummary[],
-  request: SessionContextTraceEventSummary,
-): SessionContextTraceEventSummary | undefined {
-  return (
-    events.find(
-      (candidate) =>
-        candidate.seq > request.seq &&
-        candidate.kind === "model-output" &&
-        candidate.turnId === request.turnId,
-    ) ??
-    events.find(
-      (candidate) =>
-        candidate.seq > request.seq &&
-        candidate.kind === "provider-response" &&
-        candidate.requestId === request.requestId,
-    ) ??
-    events.find(
-      (candidate) =>
-        candidate.seq > request.seq &&
-        candidate.kind === "turn-end" &&
-        candidate.turnId === request.turnId,
-    )
-  );
-}
-
-function matchingToolEnd(
-  events: readonly SessionContextTraceEventSummary[],
-  start: SessionContextTraceEventSummary,
-): SessionContextTraceEventSummary | undefined {
-  return (
-    events.find(
-      (candidate) =>
-        candidate.seq > start.seq &&
-        candidate.kind === "tool-execution-end" &&
-        candidate.toolCallId === start.toolCallId,
-    ) ??
-    events.find(
-      (candidate) =>
-        candidate.seq > start.seq &&
-        candidate.kind === "turn-end" &&
-        candidate.turnId === start.turnId,
-    )
-  );
 }
 
 function orderedRange(left: number, right: number): ContextTraceTimeRange {
@@ -152,51 +103,7 @@ export function ContextTraceOverview({
   const [draft, setDraft] = useState<ContextTraceTimeRange | null>(null);
   const [hover, setHover] = useState<HoverPoint | null>(null);
 
-  const spans = useMemo<readonly TraceSpan[]>(() => {
-    const input = events
-      .filter((event) => event.kind === "prompt-composition" || event.kind === "context-snapshot")
-      .map((event): TraceSpan => ({
-        event,
-        start: event.time,
-        end: event.time,
-        lane: 0,
-        point: true,
-        tone: event.kind === "context-snapshot" ? "context" : "input",
-      }));
-    const model = events
-      .filter((event) => event.kind === "provider-request")
-      .map((event): TraceSpan => ({
-        event,
-        start: event.time,
-        end: matchingModelEnd(events, event)?.time ?? endTime,
-        lane: 1,
-        point: false,
-        tone: "model",
-      }));
-    const recovery = events
-      .filter((event) => event.kind === "retry" || event.kind === "compaction")
-      .map((event): TraceSpan => ({
-        event,
-        start: event.time,
-        end: event.time,
-        lane: 1,
-        point: true,
-        tone: "recovery",
-      }));
-    const tools = events
-      .filter((event) => event.kind === "tool-execution-start")
-      .map((event): TraceSpan => ({
-        event,
-        start: event.time,
-        end: matchingToolEnd(events, event)?.time ?? endTime,
-        lane: 2,
-        point: false,
-        tone: "tool",
-      }));
-    return [...input, ...model, ...recovery, ...tools].sort(
-      (left, right) => left.event.seq - right.event.seq,
-    );
-  }, [endTime, events]);
+  const spans = useMemo(() => projectContextTraceOverviewSpans(events, endTime), [endTime, events]);
 
   const turnBoundaries = events.filter(
     (event) => event.kind === "turn-start" && event.time > startTime,
@@ -246,9 +153,9 @@ export function ContextTraceOverview({
 
     if (click) {
       onRangeChange(null);
-      const nearest = spans.reduce<TraceSpan | undefined>((candidate, span) => {
+      const nearest = spans.reduce<ContextTraceOverviewSpan | undefined>((candidate, span) => {
         if (!candidate) return span;
-        const distanceTo = (value: TraceSpan) =>
+        const distanceTo = (value: ContextTraceOverviewSpan) =>
           pointTime < value.start
             ? value.start - pointTime
             : pointTime > value.end
@@ -357,7 +264,14 @@ export function ContextTraceOverview({
               <span className={css.empty}>{t("extensions.contextTrace.timeline.empty")}</span>
             ) : (
               <div className={css.lanes}>
-                {spans.map((span) => {
+                {spans.map((span, index) => {
+                  const previousSpan = spans[index - 1];
+                  const hasLaneDivider =
+                    previousSpan !== undefined &&
+                    previousSpan.lane === span.lane &&
+                    previousSpan.end === span.start &&
+                    previousSpan.event.activationId === span.event.activationId &&
+                    previousSpan.event.roundId === span.event.roundId;
                   const left = timelineScale.fractionAt(span.start) * 100;
                   const width = Math.max(
                     0,
@@ -368,13 +282,11 @@ export function ContextTraceOverview({
                   const title = [
                     span.event.toolName ? `${label} · ${span.event.toolName}` : label,
                     t("extensions.contextTrace.relativeTime", {
-                      value: Math.max(0, span.start - startTime),
+                      value: Math.max(0, span.event.time - startTime),
                     }),
-                    span.point
+                    span.duration === undefined
                       ? undefined
-                      : t("extensions.contextTrace.duration", {
-                          value: Math.max(0, span.end - span.start),
-                        }),
+                      : t("extensions.contextTrace.duration", { value: span.duration }),
                   ]
                     .filter(Boolean)
                     .join(" · ");
@@ -390,7 +302,7 @@ export function ContextTraceOverview({
                             className={css.span}
                             data-trace-id={span.event.traceId}
                             data-trace-tone={span.tone}
-                            data-trace-point={span.point ? "true" : undefined}
+                            data-trace-divider={hasLaneDivider ? "true" : undefined}
                             data-current={
                               selectedTraceId === span.event.traceId ? "true" : undefined
                             }

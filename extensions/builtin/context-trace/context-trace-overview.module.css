@@ -71,6 +71,11 @@
   position: absolute;
   z-index: 2;
   inset: 7px 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    color-mix(in oklab, var(--muted-foreground) 12%, transparent) 0 8px,
+    transparent 8px 14px
+  );
 }
 
 .turnBoundaries {
@@ -113,6 +118,18 @@
   content: "";
 }
 
+.span[data-trace-divider="true"]::after {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 1px;
+  background: var(--background);
+  box-shadow: 1px 0 color-mix(in oklab, var(--foreground) 18%, transparent);
+  pointer-events: none;
+  content: "";
+}
+
 .span[data-trace-tone="input"] {
   background: var(--color-sky-500);
 }
@@ -134,10 +151,6 @@
 .span[data-trace-tone="recovery"] {
   background: var(--color-amber-500);
   opacity: 1;
-}
-
-.span[data-trace-point="true"] {
-  width: 2px;
 }
 
 .span[data-range-match="false"],
