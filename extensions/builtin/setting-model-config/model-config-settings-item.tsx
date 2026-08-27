@@ -1,6 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  startTransition,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   ChevronDownIcon,
   ChevronRightIcon,
@@ -208,7 +216,6 @@ function MaxOutputTokensEditor({
       disabled={disabled}
       editingClassName="max-w-64"
       cancelButtonVariant="default"
-      cancelButtonClassName="rounded-full"
       onEdit={() => {
         editStartValueRef.current = value;
         setEditing(true);
@@ -337,7 +344,6 @@ function RuntimeContextWindowRow({
           disabled={disabled || saving}
           editingClassName="max-w-72"
           cancelButtonVariant="default"
-          cancelButtonClassName="rounded-full"
           onEdit={() => {
             setDraft(String(model.contextWindow ?? ""));
             setError(undefined);
@@ -365,13 +371,7 @@ function RuntimeContextWindowRow({
               }
             }}
           />
-          <Button
-            type="button"
-            size="sm"
-            className="rounded-full"
-            disabled={saving || invalid}
-            onClick={() => void save()}
-          >
+          <Button type="button" size="sm" disabled={saving || invalid} onClick={() => void save()}>
             {saving ? t("extensions.modelConfig.saving") : t("extensions.modelConfig.save")}
           </Button>
         </SettingsInlineEditor>
@@ -380,7 +380,7 @@ function RuntimeContextWindowRow({
             type="button"
             size="sm"
             variant="ghost"
-            className="shrink-0 rounded-full"
+            className="shrink-0"
             disabled={disabled || saving}
             onClick={() => void reset()}
           >
@@ -440,7 +440,7 @@ function RuntimeContextWindowOverrides({
   );
 }
 
-function AnimatedProviderEditor({
+function ProviderEditorSection({
   open,
   summary,
   children,
@@ -449,21 +449,11 @@ function AnimatedProviderEditor({
   summary: ReactNode;
   children: ReactNode;
 }) {
-  const retainedContentRef = useRef<ReactNode>(null);
-
-  useEffect(() => {
-    if (open) retainedContentRef.current = children;
-  }, [children, open]);
-
   return (
-    <Collapsible open={open}>
+    <div>
       {summary}
-      <CollapsibleContent
-        className={`${collapsePanel} data-[ending-style]:pointer-events-none outline-none`}
-      >
-        <div className="pt-1.5">{open ? children : retainedContentRef.current}</div>
-      </CollapsibleContent>
-    </Collapsible>
+      {open ? <div className="pt-1.5">{children}</div> : null}
+    </div>
   );
 }
 
@@ -635,13 +625,15 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
       try {
         const configuration = await getPiModelProviderConfig({ provider: provider.provider });
         if (request !== configRequest.current) return;
-        setDraft(toProviderDraft(provider, configuration));
+        startTransition(() => {
+          setDraft(toProviderDraft(provider, configuration));
+          setConfigLoading(false);
+        });
       } catch {
         if (request === configRequest.current) {
           setError(t("extensions.modelConfig.errors.loadDetailsFailed"));
+          setConfigLoading(false);
         }
-      } finally {
-        if (request === configRequest.current) setConfigLoading(false);
       }
     },
     [t],
@@ -1304,6 +1296,21 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
   }, [draft.models, selectedModelIds]);
 
   const providerEditor = (mode: Editor["mode"]) => {
+    if (mode === "edit" && configLoading) {
+      return (
+        <div className="rounded-xl border p-3 sm:p-4" aria-busy="true">
+          <div aria-hidden="true" className="space-y-3">
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-3/4" />
+            <Skeleton className="h-20 w-full" />
+          </div>
+          <span className="sr-only" role="status">
+            {t("extensions.modelConfig.loadingDetails")}
+          </span>
+        </div>
+      );
+    }
+
     const selectedProvider = providers.find(({ provider }) => provider === draft.provider);
     const addMode = mode === "add-provider";
     const customProviderMode =
@@ -1522,7 +1529,6 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
             <Button
               type="button"
               variant="outline"
-              className="rounded-full"
               disabled={busy || configLoading || loginStarting}
               onClick={() => void startAccountLogin()}
             >
@@ -1665,7 +1671,6 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                         <Button
                           type="button"
                           variant="ghost"
-                          className="rounded-full"
                           disabled={busy}
                           onClick={() =>
                             setDraft((current) => ({
@@ -1681,7 +1686,6 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                       <Button
                         type="button"
                         variant="ghost"
-                        className="rounded-full"
                         disabled={busy || modelPickerLoading}
                         onClick={() => void openModelPicker()}
                       >
@@ -1697,7 +1701,12 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                       {t("extensions.modelConfig.adapterCatalogEmpty")}
                     </div>
                   ) : (
-                    <div className="mt-3 space-y-2">
+                    <div
+                      role="region"
+                      aria-label={t("extensions.modelConfig.modelCatalog")}
+                      tabIndex={0}
+                      className="bg-muted/20 focus-visible:ring-ring/50 mt-3 max-h-[min(34rem,60dvh)] space-y-2 overflow-y-auto overscroll-contain rounded-xl border p-1.5 outline-none focus-visible:ring-3 [scrollbar-gutter:stable]"
+                    >
                       {draft.models.map((model, index) => (
                         <div key={model.key}>
                           <Collapsible
@@ -1717,8 +1726,9 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                                   }
                                 }}
                               >
-                                <InputGroup>
+                                <InputGroup className="h-[var(--dropdown-control-height)]">
                                   <InputGroupInput
+                                    className="h-full"
                                     value={model.id}
                                     disabled={busy}
                                     aria-label={t("extensions.modelConfig.modelId")}
@@ -1844,7 +1854,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                               <CollapsibleTrigger
                                 type="button"
                                 disabled={busy}
-                                className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-transparent p-1.5 outline-none transition-colors focus-visible:ring-3 disabled:pointer-events-none disabled:opacity-50"
+                                className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 inline-flex size-7 shrink-0 items-center justify-center rounded-[var(--button-radius)] bg-transparent p-1.5 outline-none transition-colors focus-visible:ring-3 disabled:pointer-events-none disabled:opacity-50"
                                 aria-label={
                                   model.expanded
                                     ? t("extensions.modelConfig.collapseModel", {
@@ -1869,7 +1879,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                                 aria-label={t("extensions.modelConfig.removeModel", {
                                   name: model.name || model.id,
                                 })}
-                                className="text-muted-foreground rounded-full hover:text-destructive"
+                                className="text-muted-foreground hover:text-destructive"
                                 onClick={() =>
                                   setDraft((current) => {
                                     const models = current.models.filter(
@@ -2001,7 +2011,6 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                                       type="button"
                                       size="sm"
                                       variant="outline"
-                                      className="rounded-full"
                                       disabled={
                                         busy ||
                                         testingModelKey !== undefined ||
@@ -2070,7 +2079,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                   <Button
                     type="button"
                     variant="outline"
-                    className="mt-3 rounded-full"
+                    className="mt-3"
                     disabled={busy}
                     onClick={() =>
                       setDraft((current) => ({
@@ -2115,19 +2124,12 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
         ) : null}
 
         <div className="mt-4 flex justify-end gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            className="rounded-full"
-            disabled={busy}
-            onClick={closeEditor}
-          >
+          <Button type="button" variant="outline" disabled={busy} onClick={closeEditor}>
             {t("extensions.modelConfig.cancel")}
           </Button>
           <Button
             type="button"
             variant="outline"
-            className="rounded-full"
             disabled={busy || configLoading || testingProvider || testingModelKey !== undefined}
             onClick={() => void testCurrentProvider()}
           >
@@ -2137,7 +2139,6 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
           </Button>
           <Button
             type="button"
-            className="rounded-full"
             disabled={
               busy ||
               configLoading ||
@@ -2173,7 +2174,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
         <p className="text-destructive text-sm" role="alert">
           {t("extensions.modelConfig.loadFailed")}
         </p>
-        <Button type="button" variant="outline" className="mt-3 rounded-full" onClick={load}>
+        <Button type="button" variant="outline" className="mt-3" onClick={load}>
           {t("extensions.modelConfig.retry")}
         </Button>
       </div>
@@ -2191,7 +2192,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
         {configured.map((provider) => {
           const open = editor?.mode === "edit" && editor.provider === provider.provider;
           return (
-            <AnimatedProviderEditor
+            <ProviderEditorSection
               key={provider.provider}
               open={open}
               summary={
@@ -2217,7 +2218,6 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                   <Button
                     type="button"
                     variant="outline"
-                    className="rounded-full"
                     aria-expanded={open}
                     disabled={busy}
                     onClick={() => editProvider(provider)}
@@ -2228,7 +2228,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                     <Button
                       type="button"
                       variant="ghost"
-                      className="text-destructive rounded-full hover:text-destructive"
+                      className="text-destructive hover:text-destructive"
                       disabled={busy}
                       onClick={() => void remove(provider.provider)}
                     >
@@ -2249,7 +2249,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
               }
             >
               {open ? providerEditor("edit") : null}
-            </AnimatedProviderEditor>
+            </ProviderEditorSection>
           );
         })}
         {editor?.mode === "add-provider" ? providerEditor("add-provider") : null}
@@ -2324,7 +2324,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                         href={url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="border-border bg-background hover:bg-muted inline-flex h-8 items-center justify-center gap-1.5 rounded-full border px-2.5 text-sm font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                        className="border-border bg-background hover:bg-muted inline-flex h-8 items-center justify-center gap-1.5 rounded-[var(--button-radius)] border px-2.5 text-sm font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
                       >
                         <ExternalLinkIcon className="size-4" />
                         {t("extensions.modelConfig.openLoginPage")}
@@ -2432,11 +2432,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                       autoFocus
                       onChange={(event) => setLoginPromptValue(event.currentTarget.value)}
                     />
-                    <Button
-                      type="submit"
-                      className="rounded-full"
-                      disabled={loginResponding || !loginPromptValue}
-                    >
+                    <Button type="submit" disabled={loginResponding || !loginPromptValue}>
                       {loginResponding
                         ? t("extensions.modelConfig.continuingLogin")
                         : t("extensions.modelConfig.continueLogin")}
@@ -2471,12 +2467,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
           </div>
 
           <div className="flex justify-end gap-2 border-t pt-3">
-            <Button
-              type="button"
-              variant="outline"
-              className="rounded-full"
-              onClick={closeProviderLogin}
-            >
+            <Button type="button" variant="outline" onClick={closeProviderLogin}>
               {providerLogin?.status === "running"
                 ? t("extensions.modelConfig.cancelLogin")
                 : t("extensions.modelConfig.done")}
@@ -2513,7 +2504,6 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
             <Button
               type="button"
               variant="outline"
-              className="rounded-full"
               disabled={modelPickerLoading || !modelDiscoveryPayload.baseURL}
               onClick={() => void refreshLatestAvailableModels()}
             >
@@ -2590,18 +2580,12 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
           </div>
 
           <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              className="rounded-full"
-              onClick={() => setModelPickerOpen(false)}
-            >
+            <Button type="button" variant="outline" onClick={() => setModelPickerOpen(false)}>
               {t("extensions.modelConfig.cancel")}
             </Button>
             <Button
               type="button"
               variant="outline"
-              className="rounded-full"
               disabled={modelPickerLoading || selectedModelIds.size === 0}
               onClick={addSelectedModels}
             >
