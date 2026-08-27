@@ -9,6 +9,8 @@ import { take } from "./range";
 
 const OUTPUT_EDGE_MASK =
   "linear-gradient(to bottom, transparent 0, black 1.25rem, black calc(100% - 2rem), transparent 100%)";
+const OUTPUT_BOTTOM_EDGE_MASK =
+  "linear-gradient(to bottom, black 0, black calc(100% - 2rem), transparent 100%)";
 
 export type TerminalBlockProps = Omit<
   ComponentProps<"div">,
@@ -44,6 +46,7 @@ export function TerminalBlock({
   const commandTextRef = useRef<HTMLSpanElement>(null);
   const [commandExpanded, setCommandExpanded] = useState(false);
   const [commandOverflowing, setCommandOverflowing] = useState(false);
+  const [showOutputTopFade, setShowOutputTopFade] = useState(false);
 
   useLayoutEffect(() => {
     const commandText = commandTextRef.current;
@@ -115,7 +118,11 @@ export function TerminalBlock({
       <div
         data-slot="terminal-block-scroll-area"
         className="relative mt-1 min-h-12 max-h-[240px] overflow-auto"
-        style={{ maskImage: OUTPUT_EDGE_MASK, WebkitMaskImage: OUTPUT_EDGE_MASK }}
+        onScroll={(event) => setShowOutputTopFade(event.currentTarget.scrollTop > 0)}
+        style={{
+          maskImage: showOutputTopFade ? OUTPUT_EDGE_MASK : OUTPUT_BOTTOM_EDGE_MASK,
+          WebkitMaskImage: showOutputTopFade ? OUTPUT_EDGE_MASK : OUTPUT_BOTTOM_EDGE_MASK,
+        }}
       >
         <div className="min-w-max px-3 pt-1 pb-10">
           <div data-slot="terminal-block-output" className="whitespace-pre text-foreground/60">
