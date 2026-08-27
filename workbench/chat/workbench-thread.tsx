@@ -750,7 +750,7 @@ export function WorkbenchThread() {
           scrollToBottomOnRunStart
           scrollToBottomOnThreadSwitch={false}
           className={cn(
-            "relative flex min-h-0 flex-1 scroll-smooth flex-col overflow-x-hidden overflow-y-auto motion-reduce:scroll-auto [overflow-anchor:none] [padding-inline:var(--thread-viewport-inline-padding)]",
+            "relative flex min-h-0 flex-1 scroll-smooth flex-col overflow-x-hidden overflow-y-auto motion-reduce:scroll-auto [overflow-anchor:none] [padding-inline:var(--thread-viewport-inline-padding)] [scrollbar-gutter:stable]",
             isEmpty
               ? "pt-4"
               : "[margin-bottom:var(--composer-dock-content-top-inset)] [padding-top:var(--thread-header-fade-size)] [padding-bottom:var(--composer-dock-corner-radius)]",
