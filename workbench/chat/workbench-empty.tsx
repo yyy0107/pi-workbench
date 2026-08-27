@@ -12,20 +12,12 @@ export function WorkbenchEmpty({ children }: Readonly<{ children: ReactNode }>) 
     (state) => state.threads.mainThreadId === state.threads.newThreadId,
   );
   const hasDraftWorkspace = useWorkspaceSelection().draftWorkspace !== undefined;
-  const needsWorkspace = isNewThread && !hasDraftWorkspace;
+  const canAutoSendSuggestion = !isNewThread || hasDraftWorkspace;
   const starterPrompts = [
     t("workbench.chat.empty.planProject"),
     t("workbench.chat.empty.explainConcept"),
     t("workbench.chat.empty.reviewIdea"),
   ];
-
-  if (needsWorkspace) {
-    return (
-      <div className="mx-auto flex w-[var(--thread-max-width)] flex-1 flex-col justify-center py-12">
-        {children}
-      </div>
-    );
-  }
 
   return (
     <div className="relative mx-auto flex w-[var(--thread-max-width)] flex-1 flex-col justify-center py-12">
@@ -54,7 +46,7 @@ export function WorkbenchEmpty({ children }: Readonly<{ children: ReactNode }>) 
             key={prompt}
             prompt={prompt}
             method="replace"
-            autoSend
+            autoSend={canAutoSendSuggestion}
             className="hover:bg-muted focus-visible:ring-ring rounded-full border px-4 py-2 text-sm transition-colors outline-none focus-visible:ring-2"
           >
             {prompt}
