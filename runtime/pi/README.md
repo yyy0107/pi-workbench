@@ -58,7 +58,8 @@ Unary RPC 是 session、workspace 和 running 状态的权威快照；WebSocket 
   `workspace.files.write`，以及 `GET/HEAD /api/workspace.files.content`；
 - Skills：`skill.list`、`skill.describe`、`skill.setEnabled`、`skill.files.list`、`skill.files.read`、
   `skill.remove`；
-- Commands / Prompts：会话命令目录 `command.list`，以及独立资源目录 `prompt.list`；
+- Commands / Prompts：会话或新会话资源目标的命令目录 `command.list`，以及独立资源目录
+  `prompt.list`；
 - Extensions：`extension.list`、`extension.files.list`、`extension.files.read`、
   `extension.setEnabled`、`extension.remove`；
 - Pi Packages：`package.list`、`package.install`、`package.remove`、`packageCatalog.search`、
@@ -316,7 +317,8 @@ Skills、Extensions 与已安装 Package 的兼容 RPC 接受两种互斥资源�
 `{ target: { scope: "project", workspaceId } }`。服务端将 target 解析为缓存的
 `DefaultResourceLoader` + `SettingsManager` 资源上下文，项目路径只能来自 `WorkspaceStore`，并继续遵守
 Project Trust。这个上下文不会创建 `AgentSession`、不会创建聊天记录，也不依赖当前或任意代表性会话。
-`prompt.list` 只提供 target 形式；Composer 使用的 `command.list` 则仍然是会话能力目录。
+`prompt.list` 只提供 target 形式；Composer 使用的 `command.list` 既接受已有会话，也接受新会话的
+target。target 形式不会创建 `AgentSession` 或空聊天记录。
 
 `skill.list` 合并目标资源上下文的 `ResourceLoader` 已加载技能与 Pi
 `DefaultPackageManager.resolve()` 解析出的技能资源，因此已禁用的技能仍会留在工具箱目录中，并以
@@ -359,10 +361,15 @@ Project Trust 决策控制；未信任时不会因为打开设置页而绕过资
 
 ## Commands
 
-`command.list` 按 `sessionId` 返回统一的 Composer command catalog。每项带有可用于分组的
-`kind`，当前聚合 Workbench 已适配的 Pi 内置命令、`extensionRunner.getRegisteredCommands()`、
-prompt templates，以及 `ResourceLoader` 已加载的 skills。扩展项同时包含注册时的 `name` 和解决
-重名后的 `invocationName`；只有 `invocationName` 能保证作为 `/command` 输入时准确命中目标命令。
+`command.list` 返回统一的 Composer command catalog。已有会话按 `sessionId` 聚合 Workbench 已适配的
+Pi 内置命令、`extensionRunner.getRegisteredCommands()`、prompt templates，以及 `ResourceLoader`
+已加载的 skills。新会话按 user/project target 返回无需运行时 session 即可准确发现的 Pi 内置命令
+和已加载 skills：user target 只返回用户级 Skill，project target 同时返回用户级与当前项目级 Skill。
+它不会为了打开 `/` 菜单而创建空聊天记录。Extension 注册命令和 prompt
+templates 在会话建立后由完整运行时目录补齐，避免在扩展实际运行前猜测命令名与冲突解析。
+
+每项带有可用于分组的 `kind`。扩展项同时包含注册时的 `name` 和解决重名后的
+`invocationName`；只有 `invocationName` 能保证作为 `/command` 输入时准确命中目标命令。
 
 Extension command 和 prompt template 项还返回脱敏后的 package 来源、作用域和来源类型；不会返回
 具体文件路径。工具箱使用这些字段把 package 提供的 Prompt 关联到官方 Package 详情。
@@ -385,18 +392,20 @@ Workbench 已适配的带参命令还可由 catalog 返回声明式 `argsSchema`
 
 结构化 Composer 提交先对 catalog 中的全部 Token 做 preflight resolve；未知、冲突或已失效的命令会
 在任何副作用发生前拒绝。执行阶段不再把所有命令统一实现成“先调用一次模型，再收集回答”：skill
-通过 Pi 已加载资源公开的 `filePath`/`baseDir` 确定性读取为 trusted instruction，prompt template 按
-Pi 公开的参数替换语义确定性转换 user text，两者都只进入一次最终主模型调用。extension command
-仍通过 `AgentSession.prompt()` 的公开命令入口执行，但明确作为拥有该 turn 的 `agent-turn`，完成后
-不会再启动第二个主请求。`/compact` 和 `/reload` 分别使用 `AgentSession.compact()` 与
+通过 Pi 已加载资源公开的 `filePath`/`baseDir` 记录为可信的显式用户选择，string adapter 只提示模型
+必须先使用现有 `read` 工具完整按需读取对应 `SKILL.md`，不会把 Skill 正文预先拼入请求；prompt template
+按 Pi 公开的参数替换语义确定性转换 user text，两者都只进入一次最终主模型调用。显式 Skill 提交时若
+`read` 不在当前 active tools 中，preflight 会在执行任何命令前拒绝请求，避免模型只根据名称或描述猜测。
+extension command 仍通过 `AgentSession.prompt()` 的公开命令入口执行，但明确作为拥有该 turn 的
+`agent-turn`，完成后不会再启动第二个主请求。`/compact` 和 `/reload` 分别使用 `AgentSession.compact()` 与
 `AgentSession.reload()`；Workbench 不调用或复制 extension handler，Pi 包源码和 `registerCommand()`
 契约保持不变。
 
-服务端先形成 canonical `ResolvedAgentRequest`，分别保存 user text、request config、trusted
-instructions、trusted/untrusted context 和仅供历史/诊断使用的 command trace。trace 不会整体注入
-模型；Pi string adapter 只在最后边界把 config、instructions、按 trust 标记的 context 和 user request
-编译给 `AgentSession.prompt()`。这仍是 Pi 只接受字符串 prompt 时的 adapter fallback，而不是内部
-canonical request。
+服务端先形成 canonical `ResolvedAgentRequest`，分别保存 user text、request config、显式选择的
+Skill 引用、trusted instructions、trusted/untrusted context 和仅供历史/诊断使用的 command trace。
+trace 不会整体注入模型；Pi string adapter 只在最后边界把 config、Skill 选择及其强制按需读取提示、
+instructions、按 trust 标记的 context 和 user request 编译给 `AgentSession.prompt()`。这仍是 Pi 只接受
+字符串 prompt 时的 adapter fallback，而不是内部 canonical request。
 
 UI 原文和 canonical Composer document 以隐藏的 `workbench.composer-user.v2` custom message
 持久化；`sourceText` 只作为编辑器 serialization/fallback。解析状态和 command trace 另存为
@@ -441,7 +450,9 @@ Workbench 自身依赖的 Pi 生命周期适配器通过 `DefaultResourceLoader`
 session 的 active tools。开关关闭时工具不会进入后续模型请求，已经发出的待回答问题则由 Composer
 Overlay 取消，避免 session 在不可见状态下等待。`ask_user` 的结构化选项允许至多一个
 `recommended: true`，该语义通过 question stream 和历史 tool result 原样保留，由 Workbench 在具体
-选项后显示本地化推荐标记。
+选项后显示本地化推荐标记。普通选择题至少提供两个选项；候选项可能不完整时可设置
+`allowCustom: true`，Workbench 会在选项后显示“其他答案”输入框，并允许必填问题由选择或自定义回答
+任一方式满足。单个选项只有在同时允许自定义回答时才有效，避免出现没有实际选择空间的问题。
 
 `extension.setEnabled` 是 loopback-only mutation，并要求请求携带当前列表返回的完整扩展身份。
 它沿用 Pi Config Selector 的精确 `+path` / `-path` 规则：顶层扩展更新对应作用域的 `extensions`，
@@ -619,7 +630,7 @@ sessionId
                 └── toolCallId/toolName
 ```
 
-前端使用三个 loopback-only unary RPC 和一个 mux 增量：
+前端使用四个 loopback-only unary RPC 和一个 mux 增量：
 
 - `session.contextTrace.activations({ sessionId })` 按开始时间倒序返回当前与历史 activation、事件数、
   持久化字节数和完成状态，供审计界面选择一次具体的 Host 激活；
@@ -635,11 +646,28 @@ sessionId
   `source: "disk"` 和 `integrity: "verified"`，表示读取期间已校验完整日志哈希链；
 - `session.contextTrace.read({ sessionId, traceId })` 按需读取一条完整的判别联合
   `SessionContextTraceEvent`；详情已被容量淘汰时返回 `context-trace-not-found`；
+- `session.contextTrace.promptParts({ sessionId })` 不启动空闲 Pi Host，直接从当前 trace 或持久
+  journal 读取并校验所有保留 activation，只返回 `prompt-composition` 摘要及其所属
+  AssistantMessage timestamp，供聊天消息冷启动水合；
 - mux 的 `session/context-trace` 只推与 list 相同的摘要。前端先把摘要插入时间线，用户展开节点时
   再调用 read，避免每次完整上下文快照都在 WebSocket 中广播。
 
+只有 `prompt-composition` mux 摘要会由 `PiClientSession` 投影为名为
+`workbench.pi-context-trace-event` 的 assistant-ui `data` Part，与 `reasoning` 和 `tool-call`
+进入同一个 Assistant 消息工作时间线；Round、Run、Turn、Provider、模型输出、工具执行等 trace
+事件只留在审计界面，不进入聊天 Parts。Pi 的累计式 `message_update` 每次重建原生 Parts 时，客户端按
+事件被观测时的原生 Part 边界重新插入 Prompt Data Part。冷启动时，客户端把 `session.history` 与
+`session.contextTrace.promptParts` 并行加载，再以持久摘要关联的 AssistantMessage timestamp 把 Prompt
+Part 插到对应原生消息内容之前；分页回填、分支切换和运行结束后的 rebaseline 都复用同一个投影。
+`prompt-composition` 摘要携带每一层 System Prompt 的注入类型、作用域和文件路径，以及最终 Skill、
+Extension、context-file 路径和 active-tool 清单及计数，供 Data Renderer 直接展示。来源可以区分 Pi
+内置默认提示词、用户目录或项目目录的 `SYSTEM.md`、追加提示词及临时覆盖；完整 system prompt、工具
+Schema、context-file 正文、provider payload 和其它 trace 详情仍只存在审计 journal，不会复制进
+assistant-ui 消息状态。
+
 浏览器侧对应的 typed helpers 是 `listPiRpcSessionContextTraceActivations()`、
-`listPiRpcSessionContextTrace()`、`readPiRpcSessionContextTrace()` 和
+`listPiRpcSessionContextTrace()`、`fetchPiRpcSessionContextTracePromptParts()`、
+`readPiRpcSessionContextTrace()` 和
 `PiSessionManager.subscribeSessionContextTrace()`。推荐先注册 live listener，再读取当前 activation 的
 list 基线，并按 `activationId + seq` 去重；这样 list 与订阅建立之间发生的事件也不会丢失。读取历史
 activation 时不订阅 live 增量，并使用 `hasMore` 分页。
@@ -693,8 +721,10 @@ token 到达前连接的客户端也能建立正确 stream。最终 durable `mes
 - prompt 的 `rpcId` 和规范化 IANA client timezone 会作为 provenance 写入 JSONL；
 - inline 图片和 PDF 会在进入 session 前校验 base64、文件签名、媒体类型及大小；附件路由会在
   文本模型运行前决定原生视觉或 OCR 预处理；
-- fork 只在可证明已持久化的完整 turn boundary 建立独立 child，不替换或修改 source session；
-- create、rename、fork、cold rename、running 状态、归档状态和 workspace 变更都会发布对应实时增量；
+- 带 `atSeq` 的 fork 可从可证明已持久化的 `message_end` 精确建立独立 child，即使 source turn
+  仍在继续；省略 `atSeq` 时仍使用最后一个完整 `turn_end`。两种形式都不替换或修改 source session；
+- create、rename、fork、cold rename、running 状态、AskUser 等待输入状态、归档状态和 workspace
+  变更都会发布对应实时增量；
 - export 直接流式打包原始 JSONL，不先把整个 ZIP 或 session 读入内存。
 
 ## mux 和 host WebSocket
@@ -717,9 +747,11 @@ approval 的上行回答必须通过 `POST /api/respond`。
 - stream error；
 - contracts 还保留 jobs 和 projection payload，以便后续 producer 接入。
 
-`/api/events.host` 当前承载带完整摘要的 session added/changed、session removed/status、agent
-error、workspace changed/removed/order、archived session 变化和兼容的 remote event。连接中的浏览器
-可以直接应用会话创建、标题/消息元数据、运行与归档增量；`session.list` 只负责首屏和断线重建基线。
+`/api/events.host` 当前承载带完整摘要的 session added/changed、session removed/status、
+`host/session-interaction-status`、agent error、workspace changed/removed/order、archived session
+变化和兼容的 remote event。AskUser 开始或结束等待时，interaction status 按 session 发布
+`waitingForUserInput` 增量；`session.list` 同时返回该字段作为首屏和断线重建基线。连接中的浏览器可以
+直接应用会话创建、标题/消息元数据、运行、等待输入与归档增量。
 
 每个 active assistant stream 在 Hub 中只保留一份物化快照。Hub 在订阅调用栈内同步捕获 snapshot
 cut，随后按 `session/subscribed → session/message-snapshot → queue/interaction → cut 后 live delta`
