@@ -27,6 +27,7 @@ import { WorkbenchComposerMessageText } from "@/workbench/chat/composer-message-
 
 import {
   completedWorkBoundary,
+  formatCompletedAt,
   formatCompletedDuration,
   partBelongsToCompletedWork,
 } from "./completed-turn-model";
@@ -64,7 +65,7 @@ const MessageDataFallback: DataMessagePartComponent = ({ name, data }) => (
 );
 
 export function WorkbenchMessagePresentation() {
-  const { t, date, locale } = useI18n();
+  const { t, date, locale, relativeTime } = useI18n();
   const timing = useMessageTiming();
   const messageCreatedAt = useAuiState((state) => state.message.createdAt);
   const messageRole = useAuiState((state) => state.message.role);
@@ -90,11 +91,7 @@ export function WorkbenchMessagePresentation() {
       : timing.streamStartTime + timing.totalStreamTime);
   const turnDuration = resolvePiTurnDuration(storedTurnTiming, timing?.totalStreamTime);
   const completedLabel = t("extensions.messagePresentation.completedTurn", {
-    completedAt: date(completionTimestamp, {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    }),
+    completedAt: formatCompletedAt(completionTimestamp, Date.now(), { date, relativeTime }),
     duration: formatCompletedDuration(turnDuration, locale),
     kind: termination?.kind ?? "completed",
   });

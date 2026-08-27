@@ -1,5 +1,7 @@
 import { formatCompactDuration } from "@/lib/format-duration";
 
+import type { MessageFormatters } from "@/i18n/types";
+
 interface MessagePartLike {
   readonly type: string;
 }
@@ -31,4 +33,33 @@ export function partBelongsToCompletedWork(
 
 export function formatCompletedDuration(milliseconds: number | undefined, locale: string): string {
   return formatCompactDuration(milliseconds, locale);
+}
+
+const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1_000;
+
+function localCalendarDay(date: Date): number {
+  return Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / MILLISECONDS_PER_DAY;
+}
+
+export function formatCompletedAt(
+  timestamp: Date | number,
+  now: number,
+  { date, relativeTime }: Pick<MessageFormatters, "date" | "relativeTime">,
+): string {
+  const completedAt = timestamp instanceof Date ? timestamp : new Date(timestamp);
+  const dayOffset = localCalendarDay(completedAt) - localCalendarDay(new Date(now));
+
+  if (dayOffset === 0) {
+    return date(completedAt, {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  }
+
+  if (dayOffset === -1 || dayOffset === -2) {
+    return relativeTime(dayOffset, "day");
+  }
+
+  return date(completedAt, { month: "long", day: "numeric" });
 }
