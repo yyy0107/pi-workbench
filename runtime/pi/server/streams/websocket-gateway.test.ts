@@ -15,13 +15,31 @@ const { createStreamHub } = (await import(
 class FakeWebSocket implements DownlinkWebSocket {
   readyState = 1;
   bufferedAmount = 0;
+  autoCompleteSends = true;
   readonly sent: string[] = [];
   readonly closes: Array<{ code?: number; reason?: string }> = [];
+  private readonly sendCallbacks: Array<{
+    byteLength: number;
+    callback?: (error?: Error) => void;
+  }> = [];
   private readonly listeners = new Map<string, Array<(...args: unknown[]) => void>>();
 
   send(data: string, callback?: (error?: Error) => void): void {
     this.sent.push(data);
-    callback?.();
+    if (this.autoCompleteSends) {
+      callback?.();
+      return;
+    }
+    const dataBytes = Buffer.byteLength(data, "utf8");
+    this.bufferedAmount += dataBytes;
+    this.sendCallbacks.push({ byteLength: dataBytes, callback });
+  }
+
+  completeNextSend(error?: Error): void {
+    const pending = this.sendCallbacks.shift();
+    assert.ok(pending, "expected an in-flight WebSocket send");
+    this.bufferedAmount -= pending.byteLength;
+    pending.callback?.(error);
   }
 
   close(code?: number, reason?: string): void {
@@ -96,10 +114,9 @@ test("sends stream/error best-effort and closes 1011 when a source fails", async
   assert.deepEqual(socket.closes.at(-1), { code: 1011, reason: "stream error" });
 });
 
-test("closes a slow client without adding more data to an overfull socket", async () => {
+test("allows a healthy socket to send a frame larger than the backlog budget", async () => {
   const hub = createStreamHub({ createRpcId: () => "rpc-slow" });
   const socket = new FakeWebSocket();
-  socket.bufferedAmount = 64;
   const connection = acceptDownlinkWebSocket("host", socket, {
     hub,
     maxBufferedBytes: 64,
@@ -107,8 +124,55 @@ test("closes a slow client without adding more data to an overfull socket", asyn
   await connection.ready;
 
   hub.publishHost({ type: "host/session-removed", sessionId: "session-1" });
-  assert.equal(socket.sent.length, 0);
+  assert.equal(socket.sent.length, 1);
+  assert.equal(Buffer.byteLength(socket.sent[0] ?? "", "utf8") > 64, true);
+  assert.equal(socket.closes.length, 0);
+});
+
+test("serializes writes and closes a client whose pending frame backlog stays over budget", async () => {
+  const hub = createStreamHub({ createRpcId: () => "rpc-slow" });
+  const socket = new FakeWebSocket();
+  socket.autoCompleteSends = false;
+  const connection = acceptDownlinkWebSocket("host", socket, {
+    hub,
+    maxBufferedBytes: 160,
+  });
+  await connection.ready;
+
+  hub.publishHost({ type: "host/session-removed", sessionId: "session-1" });
+  hub.publishHost({ type: "host/session-removed", sessionId: "session-2" });
+  assert.equal(socket.sent.length, 1);
+
+  hub.publishHost({ type: "host/session-removed", sessionId: "session-3" });
+  assert.equal(socket.sent.length, 1);
   assert.deepEqual(socket.closes.at(-1), { code: 1011, reason: "stream error" });
+});
+
+test("drains queued frames in publication order after each write completes", async () => {
+  let nextId = 0;
+  const hub = createStreamHub({ createRpcId: () => `rpc-${++nextId}` });
+  const socket = new FakeWebSocket();
+  socket.autoCompleteSends = false;
+  const connection = acceptDownlinkWebSocket("host", socket, {
+    hub,
+    maxBufferedBytes: 1024,
+  });
+  await connection.ready;
+
+  hub.publishHost({ type: "host/session-removed", sessionId: "session-1" });
+  hub.publishHost({ type: "host/session-removed", sessionId: "session-2" });
+  assert.equal(socket.sent.length, 1);
+
+  socket.completeNextSend();
+  assert.equal(socket.sent.length, 2);
+  assert.deepEqual(
+    socket.sent.map((data) => (JSON.parse(data) as ServerRequest).payload),
+    [
+      { type: "host/session-removed", sessionId: "session-1" },
+      { type: "host/session-removed", sessionId: "session-2" },
+    ],
+  );
+  assert.equal(socket.closes.length, 0);
 });
 
 test("maps only the two exact websocket paths", () => {

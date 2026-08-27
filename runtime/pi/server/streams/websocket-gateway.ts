@@ -46,6 +46,12 @@ export interface AcceptDownlinkOptions<Stream extends StreamName> {
   createRpcId?: () => string;
 }
 
+interface PendingWebSocketFrame {
+  readonly data: string;
+  readonly byteLength: number;
+  readonly oversized: boolean;
+}
+
 function byteLength(value: string): number {
   return new TextEncoder().encode(value).byteLength;
 }
@@ -74,16 +80,32 @@ export function acceptDownlinkWebSocket<Stream extends StreamName>(
   const createRpcId = options.createRpcId ?? randomUUID;
   let terminal = false;
   let subscription: StreamSubscription | undefined;
+  let sendInFlight = false;
+  let pendingBytes = 0;
+  let pendingOversizedFrames = 0;
+  let pendingFrameHead = 0;
+  let pendingFrameTail = 0;
+  const pendingFrames = new Map<number, PendingWebSocketFrame>();
+
+  const clearPendingFrames = () => {
+    pendingFrames.clear();
+    pendingFrameHead = 0;
+    pendingFrameTail = 0;
+    pendingBytes = 0;
+    pendingOversizedFrames = 0;
+  };
 
   const cleanup = () => {
     if (terminal) return;
     terminal = true;
+    clearPendingFrames();
     subscription?.close();
   };
 
   const closeSocket = (code: number, reason: string) => {
     if (terminal) return;
     terminal = true;
+    clearPendingFrames();
     subscription?.close();
     try {
       socket.close(code, reason);
@@ -95,6 +117,7 @@ export function acceptDownlinkWebSocket<Stream extends StreamName>(
   const closeWithStreamError = (error: unknown) => {
     if (terminal) return;
     terminal = true;
+    clearPendingFrames();
     subscription?.close();
 
     if (socket.readyState === WEB_SOCKET_OPEN && socket.bufferedAmount <= maxBufferedBytes) {
@@ -114,6 +137,60 @@ export function acceptDownlinkWebSocket<Stream extends StreamName>(
     }
   };
 
+  const drainPendingFrames = () => {
+    if (terminal || sendInFlight || socket.readyState !== WEB_SOCKET_OPEN) return;
+    const next = pendingFrames.get(pendingFrameHead);
+    if (!next) return;
+    pendingFrames.delete(pendingFrameHead++);
+    if (pendingFrames.size === 0) {
+      pendingFrameHead = 0;
+      pendingFrameTail = 0;
+    }
+
+    if (next.oversized) pendingOversizedFrames -= 1;
+    else pendingBytes -= next.byteLength;
+
+    sendInFlight = true;
+    try {
+      socket.send(next.data, (error) => {
+        sendInFlight = false;
+        if (error) {
+          closeWithStreamError(error);
+          return;
+        }
+        drainPendingFrames();
+      });
+    } catch (error) {
+      sendInFlight = false;
+      closeWithStreamError(error);
+    }
+  };
+
+  const enqueueFrame = (serialized: string) => {
+    const serializedBytes = byteLength(serialized);
+    const oversized = serializedBytes > maxBufferedBytes;
+
+    // A single protocol frame can legitimately exceed the backlog budget (for example a
+    // canonical message containing an inline attachment). Keep at most one such indivisible
+    // frame waiting, while applying the byte budget to all normally-sized queued frames.
+    if (
+      (oversized && pendingOversizedFrames > 0) ||
+      (!oversized && pendingBytes + serializedBytes > maxBufferedBytes)
+    ) {
+      closeWithStreamError(new Error("WebSocket client is not consuming stream frames."));
+      return;
+    }
+
+    pendingFrames.set(pendingFrameTail++, {
+      data: serialized,
+      byteLength: serializedBytes,
+      oversized,
+    });
+    if (oversized) pendingOversizedFrames += 1;
+    else pendingBytes += serializedBytes;
+    drainPendingFrames();
+  };
+
   const sendFrame = (frame: ServerRequest<StreamPayloadMap[Stream]>) => {
     if (terminal || socket.readyState !== WEB_SOCKET_OPEN) return;
 
@@ -126,18 +203,7 @@ export function acceptDownlinkWebSocket<Stream extends StreamName>(
       return;
     }
 
-    if (socket.bufferedAmount + byteLength(serialized) > maxBufferedBytes) {
-      closeWithStreamError(new Error("WebSocket client is not consuming stream frames."));
-      return;
-    }
-
-    try {
-      socket.send(serialized, (error) => {
-        if (error) closeWithStreamError(error);
-      });
-    } catch (error) {
-      closeWithStreamError(error);
-    }
+    enqueueFrame(serialized);
   };
 
   socket.on("message", () => closeSocket(1008, "downlink only"));
