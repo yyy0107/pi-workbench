@@ -10,7 +10,7 @@ import { createWorkbenchSettingsRpcRoutes } from "./workbench-settings-rpc-route
 function rpcRequest(
   method: string,
   payload: unknown,
-  options: { host?: string; origin?: string; rpcId?: string } = {},
+  options: { host?: string; origin?: string; rpcId?: string; signal?: AbortSignal } = {},
 ): Request {
   const host = options.host ?? "127.0.0.1:3000";
   return new Request(`http://${host}/api/${method}`, {
@@ -26,6 +26,7 @@ function rpcRequest(
       method,
       payload,
     }),
+    ...(options.signal === undefined ? {} : { signal: options.signal }),
   });
 }
 
@@ -51,10 +52,12 @@ async function successValue<Value>(response: Response): Promise<Value> {
 const unexpectedDomainError = (error: unknown): never => {
   throw error;
 };
+const openDocument = async () => ({ opened: true as const });
 
 test("claims only the Workbench Settings RPC subdomain", async () => {
   const routes = createWorkbenchSettingsRpcRoutes({
     getService: () => protocol({ describe: async () => ({ revision: 0, preferences: {} }) }),
+    openDocument,
     projectDomainError: unexpectedDomainError,
   });
   const claimed = routes.handle(
@@ -91,6 +94,7 @@ test("resolves a Workbench Settings service per call and sanitizes preference pa
       resolutions += 1;
       return service;
     },
+    openDocument,
     projectDomainError: unexpectedDomainError,
   });
   const describe = routes.handle(
@@ -132,6 +136,38 @@ test("resolves a Workbench Settings service per call and sanitizes preference pa
   ]);
 });
 
+test("prepares and opens the Workbench settings document with the request signal", async () => {
+  const calls: unknown[] = [];
+  let openedSignal: AbortSignal | undefined;
+  const controller = new AbortController();
+  const routes = createWorkbenchSettingsRpcRoutes({
+    getService: () =>
+      protocol({
+        async prepareDocument() {
+          calls.push("prepareDocument");
+          return "/tmp/workbench-settings.json";
+        },
+      }),
+    async openDocument(path, signal) {
+      calls.push({ path });
+      openedSignal = signal;
+      return { opened: true };
+    },
+    projectDomainError: unexpectedDomainError,
+  });
+  const response = routes.handle(
+    rpcRequest("workbenchSettings.openDocument", { ignored: true }, { signal: controller.signal }),
+    "workbenchSettings.openDocument",
+  );
+
+  assert.ok(response);
+  assert.deepEqual(await successValue(await response), { opened: true });
+  assert.deepEqual(calls, ["prepareDocument", { path: "/tmp/workbench-settings.json" }]);
+  assert.equal(openedSignal?.aborted, false);
+  controller.abort();
+  assert.equal(openedSignal?.aborted, true);
+});
+
 test("accepts every locale from the shared contract", async () => {
   const received: Locale[] = [];
   const routes = createWorkbenchSettingsRpcRoutes({
@@ -143,6 +179,7 @@ test("accepts every locale from the shared contract", async () => {
           return { revision: received.length };
         },
       }),
+    openDocument,
     projectDomainError: unexpectedDomainError,
   });
 
@@ -165,6 +202,7 @@ test("validates Workbench Settings patches before resolving a service", async ()
       resolutions += 1;
       return protocol({});
     },
+    openDocument,
     projectDomainError: unexpectedDomainError,
   });
 
@@ -199,6 +237,7 @@ test("preserves the large Workbench Settings carrier budget", async () => {
           return { revision: 1 };
         },
       }),
+    openDocument,
     projectDomainError: unexpectedDomainError,
   });
   const data = "A".repeat(1024 * 1024);
@@ -236,6 +275,7 @@ test("allows Workbench Settings RPCs from configured trusted hosts", async (t) =
   });
   const routes = createWorkbenchSettingsRpcRoutes({
     getService: () => service,
+    openDocument,
     projectDomainError: unexpectedDomainError,
   });
   const options = {
@@ -251,6 +291,12 @@ test("allows Workbench Settings RPCs from configured trusted hosts", async (t) =
     assert.ok(response);
     await successValue(await response);
   }
+  const openResponse = routes.handle(
+    rpcRequest("workbenchSettings.openDocument", {}, options),
+    "workbenchSettings.openDocument",
+  );
+  assert.ok(openResponse);
+  assert.equal((await openResponse).status, 403);
   assert.deepEqual(calls, ["describe", "update"]);
 });
 
@@ -263,6 +309,7 @@ test("delegates Workbench Settings failures to the shared error projector", asyn
           throw failure;
         },
       }),
+    openDocument,
     projectDomainError(error): never {
       assert.equal(error, failure);
       throw rpcBusinessError("preferences-failed", "Preferences failed.", {});

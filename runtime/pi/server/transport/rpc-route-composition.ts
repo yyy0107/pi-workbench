@@ -186,6 +186,7 @@ export function createDefaultPiRpcRouteGroups(): readonly RpcRouteGroup[] {
     },
     workbenchSettings: {
       getService: () => new WorkbenchSettingsService(),
+      openDocument: (settingsFile, signal) => hostService.openPath(settingsFile, signal),
       ...domainErrors,
     },
     imageUnderstandingSettings: {

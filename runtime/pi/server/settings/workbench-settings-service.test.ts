@@ -43,6 +43,20 @@ test("describes empty preferences without mutating the agent directory", async (
   await assert.rejects(readFile(stateFile, "utf8"), { code: "ENOENT" });
 });
 
+test("prepares a minimal Workbench settings document without overwriting an existing one", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-settings-document-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const stateFile = path.join(root, "agent", "workbench-settings.json");
+  const service = new WorkbenchSettingsService(stateFile);
+
+  assert.equal(await service.prepareDocument(), stateFile);
+  assert.deepEqual(JSON.parse(await readFile(stateFile, "utf8")), { version: 1, revision: 0 });
+
+  await writeFile(stateFile, "{ invalid json");
+  assert.equal(await service.prepareDocument(), stateFile);
+  assert.equal(await readFile(stateFile, "utf8"), "{ invalid json");
+});
+
 test("persists every shared locale and rejects unsupported locale values", async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), "workbench-settings-locales-"));
   t.after(() => rm(root, { recursive: true, force: true }));

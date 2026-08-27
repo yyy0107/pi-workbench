@@ -135,6 +135,8 @@ export const extensionsEnUS = {
     openDescription: "Open Workbench settings",
     close: "Close settings",
     viewConfigurationFile: "View configuration file",
+    piConfigurationFile: "Pi settings",
+    workbenchConfigurationFile: "Workbench settings",
     openingConfigurationFile: "Opening…",
     openConfigurationFileFailed: "The configuration file could not be opened.",
     sections: "Settings sections",

@@ -133,6 +133,8 @@ export const extensionsZhCN = {
     openDescription: "打开工作台设置",
     close: "关闭设置",
     viewConfigurationFile: "查看配置文件",
+    piConfigurationFile: "Pi 配置",
+    workbenchConfigurationFile: "Workbench 配置",
     openingConfigurationFile: "正在打开…",
     openConfigurationFileFailed: "无法打开配置文件。",
     sections: "设置分区",

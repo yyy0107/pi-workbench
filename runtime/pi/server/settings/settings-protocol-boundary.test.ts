@@ -29,6 +29,7 @@ const AGENT_SETTINGS_METHODS = [
 ] as const;
 const WORKBENCH_SETTINGS_METHODS = [
   "workbenchSettings.describe",
+  "workbenchSettings.openDocument",
   "workbenchSettings.update",
 ] as const;
 const IMAGE_SETTINGS_METHODS = [
@@ -69,9 +70,11 @@ test("Settings routes preserve their distinct trust, budget, and lifecycle bound
   assert.match(agent, /openDocument\(settingsFile, signal\)/);
   assert.match(agent, /Opening settings was cancelled/);
 
-  assert.doesNotMatch(workbench, /loopbackOnly: true/);
+  assert.equal(workbench.match(/loopbackOnly: true/g)?.length, 1);
   assert.match(workbench, /RPC_REQUEST_BODY_LIMITS\.workbenchSettingsUpdate/);
   assert.match(workbench, /getService\(\)\.describe\(\)/);
+  assert.match(workbench, /service\.prepareDocument\(\)/);
+  assert.match(workbench, /openDocument\(settingsFile, signal\)/);
   assert.match(workbench, /getService\(\)\.update\(payload\)/);
 
   assert.equal(image.match(/loopbackOnly: true/g)?.length, 2);
@@ -125,6 +128,7 @@ test("the route composition creates Settings groups without retaining transport 
   );
   assert.match(source, /const agentSettingsService = new AgentSettingsService\(\)/);
   assert.match(source, /getService: \(\) => new WorkbenchSettingsService\(\)/);
+  assert.equal(source.match(/hostService\.openPath\(settingsFile, signal\)/g)?.length, 2);
   assert.match(source, /getStore: getImageUnderstandingSettingsStore/);
   assert.match(source, /projectRpcDomainError/);
   for (const method of [

@@ -733,6 +733,10 @@ export function describeWorkbenchSettings(): Promise<WorkbenchSettingsDescribeVa
   return callPiRpc("workbenchSettings.describe", {});
 }
 
+export function openWorkbenchSettingsDocument(): Promise<SettingsOpenDocumentValue> {
+  return callPiRpc("workbenchSettings.openDocument", {});
+}
+
 export function updateWorkbenchSettings(
   payload: WorkbenchSettingsUpdatePayload,
 ): Promise<WorkbenchSettingsUpdateValue> {

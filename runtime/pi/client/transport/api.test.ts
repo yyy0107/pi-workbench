@@ -42,6 +42,7 @@ const {
   listPiWorkspaceFiles,
   listPiWorkspaces,
   openPiSettingsDocument,
+  openWorkbenchSettingsDocument,
   piWorkspaceFileContentUrl,
   PiApiError,
   pickPiHostDirectory,
@@ -578,17 +579,21 @@ test("Workbench settings helpers use the shared Workbench Settings RPC methods",
         value:
           request.method === "workbenchSettings.describe"
             ? { revision: 4, preferences: { locale: "zh-CN" } }
-            : { revision: 5 },
+            : request.method === "workbenchSettings.openDocument"
+              ? { opened: true }
+              : { revision: 5 },
       },
     });
   };
 
   assert.equal((await describeWorkbenchSettings()).preferences.locale, "zh-CN");
+  assert.deepEqual(await openWorkbenchSettingsDocument(), { opened: true });
   assert.deepEqual(await updateWorkbenchSettings({ patch: { sidebarOpen: false } }), {
     revision: 5,
   });
   assert.deepEqual(requests, [
     { method: "workbenchSettings.describe", payload: {} },
+    { method: "workbenchSettings.openDocument", payload: {} },
     { method: "workbenchSettings.update", payload: { patch: { sidebarOpen: false } } },
   ]);
 });

@@ -1,3 +1,5 @@
+import { stat } from "node:fs/promises";
+
 import { isLocale } from "@/contracts/locale";
 import type {
   WorkbenchBackgroundImagePreference,
@@ -12,6 +14,7 @@ import { withCrossProcessFileLock } from "../core/file-persistence";
 import { RpcDomainError } from "../core/rpc-domain-error";
 import {
   configuredWorkbenchSettingsFile,
+  emptyWorkbenchSettingsDocument,
   nextWorkbenchSettingsDocument,
   readWorkbenchSettingsDocument,
   writeWorkbenchSettingsDocument,
@@ -224,6 +227,7 @@ export class WorkbenchSettingsServiceError extends RpcDomainError<
 /** Stable transport-facing preferences operations; persistence and listeners stay in the service. */
 export interface WorkbenchSettingsProtocol {
   describe(): Promise<WorkbenchSettingsDescribeValue>;
+  prepareDocument(): Promise<string>;
   update(payload: WorkbenchSettingsUpdatePayload): Promise<WorkbenchSettingsUpdateValue>;
 }
 
@@ -244,6 +248,27 @@ export class WorkbenchSettingsService implements WorkbenchSettingsProtocol {
         const document = await readWorkbenchSettingsDocument(this.stateFile);
         const preferences = parsePreferences(document.preferences);
         return { revision: document.revision, preferences };
+      });
+    } catch (error) {
+      throw new WorkbenchSettingsServiceError(
+        error instanceof TypeError || error instanceof SyntaxError
+          ? "workbench-settings-invalid"
+          : "workbench-settings-io",
+      );
+    }
+  }
+
+  async prepareDocument(): Promise<string> {
+    try {
+      return await this.withLock(async () => {
+        try {
+          const file = await stat(this.stateFile);
+          if (!file.isFile()) throw new TypeError("workbench settings path must be a file");
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+          await writeWorkbenchSettingsDocument(this.stateFile, emptyWorkbenchSettingsDocument());
+        }
+        return this.stateFile;
       });
     } catch (error) {
       throw new WorkbenchSettingsServiceError(

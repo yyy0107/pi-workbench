@@ -1,9 +1,13 @@
 import { SUPPORTED_LOCALES } from "@/contracts/locale";
-import type { WorkbenchSettingsUpdatePayload } from "@/runtime/pi/contracts/rpc";
+import type {
+  SettingsOpenDocumentValue,
+  WorkbenchSettingsUpdatePayload,
+} from "@/runtime/pi/contracts/rpc";
 import type { WorkbenchSettingsProtocol } from "../../settings/workbench-settings-service";
 import {
   handleRpcPost,
   RPC_REQUEST_BODY_LIMITS,
+  rpcBusinessError,
   rpcArray,
   rpcBoolean,
   rpcEnum,
@@ -21,6 +25,10 @@ import type { RpcRouteGroup } from "./rpc-route-group";
 
 export interface WorkbenchSettingsRpcRoutesDependencies {
   readonly getService: () => WorkbenchSettingsProtocol;
+  readonly openDocument: (
+    settingsFile: string,
+    signal: AbortSignal,
+  ) => Promise<SettingsOpenDocumentValue>;
   readonly projectDomainError: (error: unknown) => never;
 }
 
@@ -82,8 +90,35 @@ async function invokeService<Value>(
   }
 }
 
+function isAborted(error: unknown, signal: AbortSignal): boolean {
+  return signal.aborted || (error instanceof Error && error.name === "AbortError");
+}
+
+async function openSettingsDocument(
+  service: WorkbenchSettingsProtocol,
+  openDocument: WorkbenchSettingsRpcRoutesDependencies["openDocument"],
+  signal: AbortSignal,
+  projectDomainError: WorkbenchSettingsRpcRoutesDependencies["projectDomainError"],
+): Promise<SettingsOpenDocumentValue> {
+  const settingsFile = await invokeService(() => service.prepareDocument(), projectDomainError);
+  try {
+    return await openDocument(settingsFile, signal);
+  } catch (error) {
+    if (isAborted(error, signal)) {
+      throw rpcBusinessError("cancelled", "Opening Workbench settings was cancelled.", {});
+    }
+    throw rpcBusinessError(
+      "internal",
+      "The host could not open the Workbench settings document.",
+      {},
+      { cause: error },
+    );
+  }
+}
+
 export function createWorkbenchSettingsRpcRoutes({
   getService,
+  openDocument,
   projectDomainError,
 }: WorkbenchSettingsRpcRoutesDependencies): RpcRouteGroup {
   return {
@@ -94,6 +129,14 @@ export function createWorkbenchSettingsRpcRoutes({
             method,
             payload: emptyPayload,
             handler: () => invokeService(() => getService().describe(), projectDomainError),
+          });
+        case "workbenchSettings.openDocument":
+          return handleRpcPost(request, {
+            method,
+            payload: emptyPayload,
+            loopbackOnly: true,
+            handler: (_payload, context) =>
+              openSettingsDocument(getService(), openDocument, context.signal, projectDomainError),
           });
         case "workbenchSettings.update":
           return handleRpcPost(request, {

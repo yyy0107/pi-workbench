@@ -119,7 +119,8 @@ Unary RPC 是 session、workspace 和 running 状态的权威快照；WebSocket 
 - Pi Packages：`package.list`、`package.describe`、`package.updates`、`package.install`、
   `package.update`、`package.remove`、`packageCatalog.search`、`packageCatalog.describe`；
 - Settings：Pi 原生设置 `settings.describe`、`settings.openDocument`、`settings.update`，Workbench
-  设置 `workbenchSettings.describe`、`workbenchSettings.update`，以及附件识别配置
+  设置 `workbenchSettings.describe`、`workbenchSettings.openDocument`、
+  `workbenchSettings.update`，以及附件识别配置
   `imageUnderstanding.describe`、`imageUnderstanding.update`；
 - LLM：`llm.providers`、`llm.providerConfig`、`llm.startProviderLogin`、
   `llm.providerLogin`、`llm.respondProviderLogin`、`llm.cancelProviderLogin`、`llm.configureProvider`、
@@ -161,7 +162,8 @@ Pi agent 目录下的 `SYSTEM.md`；上下文压缩参数写入同目录的 `set
 原生设置、Workbench preferences 与附件识别凭据合并成一个泛化服务。Agent Settings route 只依赖
 `AgentSettingsProtocol` 和组合根注入的文档打开函数，三个方法全部保持 loopback-only，并独占 4 MiB
 更新载体预算与打开取消映射；Workbench Settings route 通过 late-bound `WorkbenchSettingsProtocol`
-保留环境覆盖和 HMR 语义，两个方法允许显式 trusted host，并独占 24 MiB 更新载体预算；Image
+保留环境覆盖和 HMR 语义，describe/update 允许显式 trusted host，文档打开保持 loopback-only，
+并独占 24 MiB 更新载体预算与打开取消映射；Image
 Understanding route 通过 late-bound `ImageUnderstandingSettingsProtocol` 保留 registry 和旧文件迁移，
 两个方法保持 loopback-only。三个 route 统一复用顶层错误投影，但不会取得文件锁、状态文件、凭据或
 Pi agent 目录。
@@ -172,6 +174,8 @@ Workbench 自有的持久配置统一写入 Pi agent 目录下的 `workbench-set
 记忆、Toolbox 置顶、RightWorkspace 布局和侧栏开关。浏览器中的旧 localStorage、Cookie 与
 IndexedDB 值在对应功能首次 hydrate 时导入，成功后删除。滚动位置和未保存文件草稿仍是
 sessionStorage 临时状态，不属于跨窗口的用户配置。
+`workbenchSettings.openDocument` 会在文档不存在时写入最小的 `version`/`revision` 结构，再交给本地
+Host 的默认应用打开；已经存在的文档不会因打开动作被解析、改写或覆盖。
 
 旧 `~/.pi/workbench/workspaces.json` 与
 `~/.pi/agent/workbench/image-understanding.json` 会在服务端首次读取时原子导入对应 section，成功
@@ -1183,9 +1187,9 @@ runtime/pi/
   mutation target 和 Catalog 查询边界集中在 `package-rpc-validators.ts`；跨资源领域复用的
   session/target 身份、target scope、名称和相对路径校验集中在 `resource-rpc-validators.ts`。
   `routes/agent-settings-rpc-routes.ts`、`workbench-settings-rpc-routes.ts` 和
-  `image-understanding-settings-rpc-routes.ts` 分别拥有 3/2/2 个设置方法的 validator、载体预算、信任边界
-  和 handler，只依赖对应窄协议；Agent Settings 文档打开函数由组合根注入，Workbench 与 Image
-  Understanding service/store 按调用延迟解析。`routes/model-provider-rpc-routes.ts` 拥有 11 个
+  `image-understanding-settings-rpc-routes.ts` 分别拥有 3/3/2 个设置方法的 validator、载体预算、信任边界
+  和 handler，只依赖对应窄协议；Agent 与 Workbench Settings 文档打开函数由组合根注入，Workbench
+  Settings service 与 Image Understanding store 按调用延迟解析。`routes/model-provider-rpc-routes.ts` 拥有 11 个
   Provider/auth/catalog/discovery 方法及其配置载体预算、取消和 refresh 通知，只依赖
   `ModelProviderProtocol`；`model-context-window-rpc-routes.ts` 独立拥有三个容量读取/覆盖方法，只依赖
   `ModelContextWindowProtocol`。`host-rpc-routes.ts` 拥有五个 Host 描述、目录选择/浏览/创建和路径打开
