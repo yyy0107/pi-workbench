@@ -212,20 +212,20 @@ test("falls back to the existing summary when an extension summary is unavailabl
   assert.equal(step?.presentation, presentation);
 });
 
-test("uses the beginning of reasoning for the collapsed preview", () => {
+test("keeps the complete reasoning text for responsive collapsed previews", () => {
   assert.equal(
     reasoningPreview("First thought\n\nNewest   reasoning detail"),
     "First thought Newest reasoning detail",
   );
-  assert.equal(reasoningPreview("123456789", 6), "12345…");
+  assert.equal(reasoningPreview("123456789"), "123456789");
 });
 
-test("uses the latest reasoning text for the live collapsed preview", () => {
+test("keeps the complete live reasoning text for end-anchored previews", () => {
   assert.equal(
     liveReasoningPreview("First thought\n\nNewest   reasoning detail"),
     "First thought Newest reasoning detail",
   );
-  assert.equal(liveReasoningPreview("123456789", 6), "…56789");
+  assert.equal(liveReasoningPreview("123456789"), "123456789");
 });
 
 test("restores reasoning timing from stable provider metadata", () => {

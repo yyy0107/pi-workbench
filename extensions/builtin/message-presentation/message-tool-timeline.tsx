@@ -177,6 +177,7 @@ function TimelineReasoning({
         />
       }
       collapsedPreview={collapsedPreview}
+      collapsedPreviewEdge={running ? "end" : "start"}
       elapsed={
         elapsedSeconds === undefined
           ? undefined

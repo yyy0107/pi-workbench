@@ -25,6 +25,7 @@ export interface ReasoningPanelProps {
   icon?: LucideIcon;
   activeIcon?: ReactNode;
   collapsedPreview?: ReactNode;
+  collapsedPreviewEdge?: "start" | "end";
   elapsed?: string;
   className?: string;
 }
@@ -40,6 +41,7 @@ export function ReasoningPanel({
   icon: Icon,
   activeIcon,
   collapsedPreview,
+  collapsedPreviewEdge = "start",
   elapsed,
   className,
 }: ReasoningPanelProps) {
@@ -70,7 +72,12 @@ export function ReasoningPanel({
             className="text-foreground/45 size-3.5 shrink-0"
           />
         ) : null}
-        <span className="flex min-w-0 items-center">
+        <span
+          className={cn(
+            "flex min-w-0 items-center",
+            !open && collapsedPreview !== undefined && "flex-1",
+          )}
+        >
           <SwapLabel active={streaming ? 0 : 1} className="shrink-0 text-start">
             <ShimmerLabel active={streaming} className="relative inline-block leading-none">
               {activeLabel}
@@ -85,15 +92,22 @@ export function ReasoningPanel({
               data-slot="reasoning-panel-preview"
               title={typeof collapsedPreview === "string" ? collapsedPreview : undefined}
               className={cn(
-                "text-foreground/45 min-w-0 truncate text-start leading-none",
+                "text-foreground/45 min-w-0 flex-1 text-start leading-none",
+                collapsedPreviewEdge === "end"
+                  ? "flex flex-row-reverse overflow-hidden whitespace-nowrap"
+                  : "truncate",
                 elapsed === undefined && "ms-1",
               )}
             >
-              {collapsedPreview}
+              {collapsedPreviewEdge === "end" ? (
+                <span className="w-max min-w-full shrink-0 text-start">{collapsedPreview}</span>
+              ) : (
+                collapsedPreview
+              )}
             </span>
           )}
         </span>
-        <ChevronRightIcon className="size-3.5 shrink-0 opacity-0 transition-[transform,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover/trigger:opacity-60 group-focus-visible/trigger:opacity-60 group-data-open/trigger:rotate-90 group-data-open/trigger:opacity-60 group-data-panel-open/trigger:rotate-90 group-data-panel-open/trigger:opacity-60 motion-reduce:transition-none" />
+        <ChevronRightIcon className="size-3.5 shrink-0 opacity-0 transition-[transform,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover/trigger:opacity-60 group-focus-visible/trigger:opacity-60 group-data-open/trigger:rotate-90 group-data-panel-open/trigger:rotate-90 motion-reduce:transition-none" />
       </CollapsibleTrigger>
       <CollapsibleContent className={cn(collapsePanel, "w-full outline-none")}>
         <ol className="flex w-full flex-col gap-0 pb-1">

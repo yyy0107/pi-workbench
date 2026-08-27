@@ -82,14 +82,12 @@ function compact(value: string, maxLength = 68): string {
   return `${normalized.slice(0, maxLength - 1).trimEnd()}…`;
 }
 
-export function reasoningPreview(value: string, maxLength = 68): string {
-  return compact(value, maxLength);
+export function reasoningPreview(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
 }
 
-export function liveReasoningPreview(value: string, maxLength = 68): string {
-  const normalized = value.replace(/\s+/g, " ").trim();
-  if (normalized.length <= maxLength) return normalized;
-  return `…${normalized.slice(-(maxLength - 1)).trimStart()}`;
+export function liveReasoningPreview(value: string): string {
+  return reasoningPreview(value);
 }
 
 export function reasoningPartTiming(
