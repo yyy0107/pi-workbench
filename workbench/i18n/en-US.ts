@@ -259,6 +259,7 @@ export const workbenchEnUS = {
   },
   shell: {
     workspace: "Workspace",
+    currentWorkspace: ({ name }: { name: string }) => `Current workspace: ${name}`,
     workbench: "Workbench",
   },
 } as const;

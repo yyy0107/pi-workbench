@@ -247,6 +247,7 @@ export const workbenchZhCN = {
   },
   shell: {
     workspace: "工作区",
+    currentWorkspace: ({ name }: { name: string }) => `当前工作区：${name}`,
     workbench: "Workbench",
   },
 } as const;

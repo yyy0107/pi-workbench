@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuiState } from "@assistant-ui/react";
-import { PanelLeftOpenIcon } from "lucide-react";
+import { FolderIcon, PanelLeftOpenIcon } from "lucide-react";
 import { useSyncExternalStore } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -57,6 +57,9 @@ export function WorkbenchHeader() {
     currentThread?.remoteId ?? currentThread?.externalId ?? currentThread?.id,
   );
   const currentThreadTitle = managedThread.title ?? currentThread?.title;
+  const currentWorkspace = managedThread.workspace;
+  const currentWorkspaceName =
+    currentWorkspace?.name ?? currentWorkspace?.rootPath ?? currentWorkspace?.id;
   const title = activeMainView
     ? text(activeMainView.title)
     : currentThreadTitle || t("workbench.sidebar.newThread");
@@ -82,6 +85,19 @@ export function WorkbenchHeader() {
         >
           {visibleTitle}
         </span>
+        {currentWorkspaceName ? (
+          <span
+            data-slot="current-workspace"
+            aria-label={t("workbench.shell.currentWorkspace", { name: currentWorkspaceName })}
+            title={t("workbench.shell.currentWorkspace", {
+              name: currentWorkspace?.rootPath ?? currentWorkspaceName,
+            })}
+            className="border-border/60 bg-muted/70 text-muted-foreground inline-flex h-[var(--button-height-default)] min-w-0 max-w-36 shrink items-center gap-1 overflow-hidden rounded-md border px-2 text-sm font-medium whitespace-nowrap sm:max-w-48"
+          >
+            <FolderIcon aria-hidden="true" className="size-3 shrink-0" />
+            <span className="min-w-0 truncate">{currentWorkspaceName}</span>
+          </span>
+        ) : null}
         <SlotHost name="header.left" className="flex shrink-0 items-center gap-1 sm:gap-2" />
       </div>
 
