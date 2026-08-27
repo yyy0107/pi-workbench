@@ -330,6 +330,79 @@ test("reloads and repairs a missing checkpoint before continuing an existing sto
   assert.equal(session.getSnapshot().isRunning, true);
 });
 
+test("continues a checkpoint from the coalesced visible assistant id", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  const requests: Array<{ method: string; payload: unknown }> = [];
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as {
+      rpcId: string;
+      method: string;
+      payload: unknown;
+    };
+    requests.push({ method: request.method, payload: request.payload });
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: { ok: true, value: { accepted: true } },
+    });
+  };
+
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("remote-session", "remote-session");
+  const visibleAssistant = {
+    id: "visible-assistant-turn",
+    role: "assistant",
+    content: [{ type: "text", text: "Stopped", status: { type: "complete" } }],
+    status: { type: "incomplete", reason: "cancelled" },
+    createdAt: new Date(2_000),
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      steps: [],
+      custom: { piEventSeq: 12 },
+    },
+  } satisfies ThreadMessage;
+  const internals = session as unknown as {
+    snapshotValue: ReturnType<typeof session.getSnapshot>;
+  };
+  internals.snapshotValue = {
+    ...internals.snapshotValue,
+    messages: [visibleAssistant],
+    resumeCheckpoint: {
+      checkpointId: "checkpoint-1",
+      terminalMessageId: "terminal-message-end-entry",
+      branchLeafId: "leaf-1",
+      sourceEventSeq: 12,
+      reason: "user-cancelled",
+      capability: "ready",
+      createdAt: 1_777_000_000_000,
+    },
+  };
+  const connectionInternals = manager.connections as unknown as {
+    ensureSessionEvents(): Promise<void>;
+  };
+  connectionInternals.ensureSessionEvents = async () => undefined;
+
+  await session.resumeLatest(visibleAssistant.id);
+
+  assert.deepEqual(requests, [
+    {
+      method: "session.resume",
+      payload: {
+        sessionId: "remote-session",
+        checkpointId: "checkpoint-1",
+        expectedLeafId: "leaf-1",
+      },
+    },
+  ]);
+  assert.equal(session.getSnapshot().isRunning, true);
+});
+
 test("retains a live-only user as the parent when regenerating before history reloads", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => {

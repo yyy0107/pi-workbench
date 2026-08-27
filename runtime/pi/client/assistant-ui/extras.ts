@@ -4,7 +4,11 @@ import type {
 } from "@/runtime/assistant-ui/agent-runtime-adapter";
 
 import type { PiWorkspaceSummary } from "../../contracts/pi";
-import type { PiClientSession, PiSessionSnapshot } from "../runtime/manager";
+import {
+  visibleResumeCheckpointTerminalMessageId,
+  type PiClientSession,
+  type PiSessionSnapshot,
+} from "../runtime/manager";
 
 /** Project Pi-native state into the small backend-neutral surface consumed by Workbench UI. */
 export function projectPiAgentRuntimeExtras({
@@ -48,7 +52,9 @@ export function projectPiAgentRuntimeExtras({
       resumeCheckpoint: snapshot.resumeCheckpoint
         ? {
             checkpointId: snapshot.resumeCheckpoint.checkpointId,
-            terminalMessageId: snapshot.resumeCheckpoint.terminalMessageId,
+            terminalMessageId:
+              visibleResumeCheckpointTerminalMessageId(snapshot) ??
+              snapshot.resumeCheckpoint.terminalMessageId,
             expectedStateId: snapshot.resumeCheckpoint.branchLeafId,
             capability: snapshot.resumeCheckpoint.capability,
           }

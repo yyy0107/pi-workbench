@@ -265,6 +265,22 @@ export interface PiSessionSnapshot {
   };
 }
 
+/** Resolve a durable Pi checkpoint to the assistant-ui row that currently renders its terminal event. */
+export function visibleResumeCheckpointTerminalMessageId(
+  snapshot: Pick<PiSessionSnapshot, "messages" | "resumeCheckpoint">,
+): string | undefined {
+  const checkpoint = snapshot.resumeCheckpoint;
+  if (!checkpoint) return undefined;
+
+  return (
+    snapshot.messages.findLast(
+      (message) =>
+        message.role === "assistant" &&
+        message.metadata.custom.piEventSeq === checkpoint.sourceEventSeq,
+    )?.id ?? checkpoint.terminalMessageId
+  );
+}
+
 export interface PiThreadListItemSnapshot {
   readonly remoteId: string;
   readonly status: "regular" | "archived";
@@ -1039,11 +1055,21 @@ export class PiClientSession {
   async resumeLatest(terminalMessageId: string): Promise<void> {
     if (this.disposed) return;
     let checkpoint = this.snapshotValue.resumeCheckpoint;
-    if (checkpoint?.terminalMessageId !== terminalMessageId || checkpoint.capability !== "ready") {
+    let visibleTerminalMessageId = visibleResumeCheckpointTerminalMessageId(this.snapshotValue);
+    if (
+      (checkpoint?.terminalMessageId !== terminalMessageId &&
+        visibleTerminalMessageId !== terminalMessageId) ||
+      checkpoint?.capability !== "ready"
+    ) {
       await this.reload();
       checkpoint = this.snapshotValue.resumeCheckpoint;
+      visibleTerminalMessageId = visibleResumeCheckpointTerminalMessageId(this.snapshotValue);
     }
-    if (checkpoint?.terminalMessageId !== terminalMessageId) {
+    if (
+      !checkpoint ||
+      (checkpoint.terminalMessageId !== terminalMessageId &&
+        visibleTerminalMessageId !== terminalMessageId)
+    ) {
       throw new PiApiError("pi_resume_stale", 409);
     }
     if (checkpoint.capability !== "ready") {

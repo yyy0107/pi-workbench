@@ -84,6 +84,7 @@ export function usePiThreadRuntime(manager: PiSessionManager) {
       composerError,
       session,
       snapshot.autoRetry,
+      snapshot.messages,
       snapshot.queuePaused,
       snapshot.rejectedQueueDraft,
       snapshot.resumeCheckpoint,
