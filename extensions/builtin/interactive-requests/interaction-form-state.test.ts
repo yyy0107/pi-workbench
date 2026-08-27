@@ -18,6 +18,7 @@ const questions = [
     id: "target",
     question: "Target",
     options: [{ label: "Code" }, { label: "Docs" }],
+    allowCustom: true,
   },
   {
     id: "features",
@@ -34,11 +35,16 @@ test("builds ordered wire answers for single, multiple, and free-text questions"
   drafts = selectQuestionOption(drafts, questions, 0, "Docs", true);
   drafts = selectQuestionOption(drafts, questions, 1, "Search", true);
   drafts = selectQuestionOption(drafts, questions, 1, "Export", true);
+  drafts = setQuestionCustomAnswer(drafts, 0, "Keep generated files out of scope");
   drafts = setQuestionCustomAnswer(drafts, 2, "Ship it");
 
   assert.equal(canSubmitQuestionAnswers(questions, drafts), true);
   assert.deepEqual(buildQuestionAnswers(questions, drafts), [
-    { id: "target", selected: ["Docs"] },
+    {
+      id: "target",
+      selected: ["Docs"],
+      custom: "Keep generated files out of scope",
+    },
     { id: "features", selected: ["Search", "Export"] },
     { id: "note", selected: [], custom: "Ship it" },
   ]);
@@ -54,29 +60,33 @@ test("toggles multi-select values without mutating earlier drafts", () => {
   assert.deepEqual(cleared[1]?.selected, []);
 });
 
-test("requires a valid single selection while allowing intentional empty multi and text answers", () => {
+test("allows a custom answer to satisfy a required choice question", () => {
   const drafts = createQuestionAnswerDrafts(questions);
   assert.equal(canSubmitQuestionAnswers(questions, drafts), false);
 
-  const selected = selectQuestionOption(drafts, questions, 0, "Docs", true);
-  assert.equal(canSubmitQuestionAnswers(questions, selected), true);
-  assert.deepEqual(buildQuestionAnswers(questions, selected), [
-    { id: "target", selected: ["Docs"] },
+  const custom = setQuestionCustomAnswer(drafts, 0, "Tests only");
+  assert.equal(canSubmitQuestionAnswers(questions, custom), true);
+  assert.deepEqual(buildQuestionAnswers(questions, custom), [
+    { id: "target", selected: [], custom: "Tests only" },
     { id: "features", selected: [] },
     { id: "note", selected: [], custom: "" },
   ]);
 
-  const ignored = selectQuestionOption(selected, questions, 0, "Unknown", true);
-  assert.deepEqual(ignored, selected);
+  const ignored = selectQuestionOption(custom, questions, 0, "Unknown", true);
+  assert.deepEqual(ignored, custom);
 });
 
 test("finds the first unanswered required question", () => {
   const requiredQuestions = [
-    { id: "scope", question: "Scope", options: [{ label: "Code" }] },
+    {
+      id: "scope",
+      question: "Scope",
+      options: [{ label: "Code" }, { label: "Docs" }],
+    },
     {
       id: "features",
       question: "Features",
-      options: [{ label: "Search" }],
+      options: [{ label: "Search" }, { label: "Export" }],
       multiSelect: true,
       required: true,
     },

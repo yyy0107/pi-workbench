@@ -199,7 +199,8 @@ function validAskUserQuestions(questions: readonly QuestionItem[]): boolean {
       question.id.length === 0 ||
       questionIds.has(question.id) ||
       typeof question.question !== "string" ||
-      question.question.length === 0
+      question.question.length === 0 ||
+      (question.allowCustom !== undefined && typeof question.allowCustom !== "boolean")
     ) {
       return false;
     }
@@ -207,6 +208,8 @@ function validAskUserQuestions(questions: readonly QuestionItem[]): boolean {
 
     const options = question.options ?? [];
     if (question.multiSelect && options.length === 0) return false;
+    if (question.allowCustom && options.length === 0) return false;
+    if (options.length === 1 && !question.allowCustom) return false;
     const optionLabels = new Set<string>();
     let recommendedOptions = 0;
     for (const option of options) {
@@ -250,7 +253,7 @@ function parseAskUserAnswers(
       }
       if (question.required && answer.custom.trim().length === 0) return { ok: false };
     } else {
-      if (answer.custom !== undefined) return { ok: false };
+      if (!question.allowCustom && answer.custom !== undefined) return { ok: false };
       const optionLabels = new Set(options.map((option) => option.label));
       const uniqueSelections = new Set(answer.selected);
       if (
@@ -261,7 +264,9 @@ function parseAskUserAnswers(
         return { ok: false };
       }
       const required = question.required ?? !question.multiSelect;
-      if (required && answer.selected.length === 0) return { ok: false };
+      const hasCustomAnswer =
+        question.allowCustom === true && (answer.custom?.trim().length ?? 0) > 0;
+      if (required && answer.selected.length === 0 && !hasCustomAnswer) return { ok: false };
     }
 
     answersById.set(answer.id, {
@@ -289,6 +294,12 @@ export class InteractiveResponseRegistry {
 
   get pendingCount(): number {
     return this.pending.size;
+  }
+
+  isSessionWaitingForUserInput(sessionId: string): boolean {
+    return [...this.pending.values()].some(
+      (entry) => entry.kind === "question" && entry.sessionId === sessionId,
+    );
   }
 
   private nextRpcId(): string {
@@ -327,6 +338,18 @@ export class InteractiveResponseRegistry {
     }
   }
 
+  private publishWaitingForUserInput(sessionId: string, waitingForUserInput: boolean): void {
+    try {
+      this.hub.publishHost({
+        type: "host/session-interaction-status",
+        sessionId,
+        waitingForUserInput,
+      });
+    } catch {
+      // session.list remains the authoritative recovery path.
+    }
+  }
+
   /** Delete before resolving so duplicate or concurrent callers observe `not-pending`. */
   private claimQuestion<Value>(
     entry: PendingQuestion<Value>,
@@ -334,7 +357,11 @@ export class InteractiveResponseRegistry {
     outcome: "answered" | "cancelled",
   ): boolean {
     if (this.pending.get(entry.rpcId) !== entry) return false;
+    const wasWaitingForUserInput = this.isSessionWaitingForUserInput(entry.sessionId);
     this.pending.delete(entry.rpcId);
+    if (wasWaitingForUserInput && !this.isSessionWaitingForUserInput(entry.sessionId)) {
+      this.publishWaitingForUserInput(entry.sessionId, false);
+    }
     this.cleanup(entry);
     this.publishResolved(entry, outcome);
     entry.resolve(value);
@@ -361,6 +388,7 @@ export class InteractiveResponseRegistry {
 
     const rpcId = this.nextRpcId();
     return new Promise<Value>((resolve) => {
+      const wasWaitingForUserInput = this.isSessionWaitingForUserInput(sessionId);
       const entry: PendingQuestion<Value> = {
         kind: "question",
         rpcId,
@@ -374,6 +402,7 @@ export class InteractiveResponseRegistry {
       const onAbort = () => this.claimQuestion(entry, defaultValue, "cancelled");
       entry.onAbort = onAbort;
       this.pending.set(rpcId, entry as PendingInteraction);
+      if (!wasWaitingForUserInput) this.publishWaitingForUserInput(sessionId, true);
       options?.signal?.addEventListener("abort", onAbort, { once: true });
       if (validTimeout(options?.timeout)) {
         entry.timeout = setTimeout(onAbort, options.timeout);

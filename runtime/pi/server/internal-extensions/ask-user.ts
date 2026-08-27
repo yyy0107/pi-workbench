@@ -61,7 +61,14 @@ const QuestionSchema = Type.Object(
       Type.Array(OptionSchema, {
         minItems: 1,
         maxItems: 12,
-        description: "Choices. Omit this field to request a free-text answer.",
+        description:
+          "Choices. Provide at least two unless allowCustom is true. Omit this field to request only a free-text answer.",
+      }),
+    ),
+    allowCustom: Type.Optional(
+      Type.Boolean({
+        description:
+          "Show an additional free-text answer beside the choices. Use when the listed choices may not cover the user's answer.",
       }),
     ),
     multiSelect: Type.Optional(
@@ -128,6 +135,18 @@ function normalizeQuestions(questions: QuestionItem[]): QuestionItem[] {
 
     if (recommendedOptions > 1) {
       throw new Error(`Ask User question ${question.id} cannot recommend more than one option`);
+    }
+
+    if (question.allowCustom && !question.options?.length) {
+      throw new Error(
+        `Ask User question ${question.id} cannot use allowCustom without choice options`,
+      );
+    }
+
+    if (question.options?.length === 1 && !question.allowCustom) {
+      throw new Error(
+        `Ask User question ${question.id} must provide at least two options or allow a custom answer`,
+      );
     }
 
     if (question.multiSelect && !question.options?.length) {
@@ -206,6 +225,7 @@ export function createAskUserExtension(
       promptGuidelines: [
         "Use ask_user only for decisions or missing information that cannot be resolved safely from available context.",
         "Keep ask_user questions concise and use stable unique ids.",
+        "For a choice question, provide at least two distinct options. If the choices may not cover the user's answer, set allowCustom: true so they can type another answer; a single option is valid only with allowCustom.",
         "When one choice is preferable, put it first and set recommended: true on that option; never mark more than one option per question.",
         "Group related ask_user questions into one tool call so the user can answer them in a single paginated card.",
       ],

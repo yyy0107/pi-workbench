@@ -14,6 +14,7 @@ const args = {
       header: "Scope",
       question: "Which scope should be used?",
       options: [{ label: "Current task", description: "Only this task", recommended: true }],
+      allowCustom: true,
     },
     {
       id: "note",
@@ -29,6 +30,14 @@ test("reads questions from streaming ask_user arguments", () => {
   assert.equal(askUserQuestionCount(args), 2);
   assert.equal(areAskUserQuestionsReady(args), true);
   assert.equal(areAskUserQuestionsReady(args, undefined, '{"questions":['), false);
+  assert.equal(
+    areAskUserQuestionsReady({
+      questions: [
+        { id: "invalid-choice", question: "Choose?", options: [{ label: "Only choice" }] },
+      ],
+    }),
+    false,
+  );
   assert.deepEqual(record.questions, args.questions);
   assert.equal(record.answers.size, 0);
   assert.equal(record.cancelled, false);

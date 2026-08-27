@@ -47,6 +47,7 @@ function parseQuestion(value: unknown, index: number): AskUserQuestion | undefin
     ...(header ? { header } : {}),
     ...(detail ? { detail } : {}),
     ...(options?.length ? { options } : {}),
+    ...(typeof candidate.allowCustom === "boolean" ? { allowCustom: candidate.allowCustom } : {}),
     ...(typeof candidate.multiSelect === "boolean" ? { multiSelect: candidate.multiSelect } : {}),
     ...(typeof candidate.required === "boolean" ? { required: candidate.required } : {}),
   };
@@ -66,8 +67,12 @@ function questionsAreComplete(value: unknown): boolean {
   return value.every((question) => {
     const candidate = asRecord(question);
     if (!candidate || !asString(candidate.id) || !asString(candidate.question)) return false;
-    if (candidate.options === undefined) return true;
+    if (candidate.allowCustom !== undefined && typeof candidate.allowCustom !== "boolean") {
+      return false;
+    }
+    if (candidate.options === undefined) return candidate.allowCustom !== true;
     if (!Array.isArray(candidate.options) || candidate.options.length === 0) return false;
+    if (candidate.options.length === 1 && candidate.allowCustom !== true) return false;
 
     return candidate.options.every((value) => {
       const option = asRecord(value);

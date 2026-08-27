@@ -1130,6 +1130,7 @@ export interface SessionListItem {
   sessionId: string;
   updatedAt: number;
   running: boolean;
+  waitingForUserInput?: boolean;
   runTiming?: PiRunTiming;
   blank: boolean;
   cwd?: string;

@@ -8,6 +8,7 @@ export interface AskUserQuestion {
     readonly description?: string;
     readonly recommended?: boolean;
   }[];
+  readonly allowCustom?: boolean;
   readonly multiSelect?: boolean;
   readonly required?: boolean;
 }
@@ -86,7 +87,7 @@ export function isQuestionAnswered(
 ): boolean {
   if (!draft) return false;
   return (question.options?.length ?? 0) > 0
-    ? draft.selected.length > 0
+    ? draft.selected.length > 0 || (question.allowCustom === true && draft.custom.trim().length > 0)
     : draft.custom.trim().length > 0;
 }
 
@@ -106,7 +107,8 @@ function isQuestionValid(
   if (!question.multiSelect && draft.selected.length > 1) return false;
 
   const required = question.required ?? !question.multiSelect;
-  return !required || draft.selected.length > 0;
+  const hasCustomAnswer = question.allowCustom === true && draft.custom.trim().length > 0;
+  return !required || draft.selected.length > 0 || hasCustomAnswer;
 }
 
 export function findFirstInvalidQuestionIndex(
@@ -130,7 +132,9 @@ export function buildQuestionAnswers(
     return {
       id: question.id,
       selected: [...draft.selected],
-      ...((question.options?.length ?? 0) === 0 ? { custom: draft.custom } : {}),
+      ...((question.options?.length ?? 0) === 0 || question.allowCustom
+        ? { custom: draft.custom }
+        : {}),
     };
   });
 }

@@ -9,6 +9,7 @@ function state(workspaceId?: string, pinned = false, running = false): PiThreadS
   return {
     metadata: {
       running,
+      waitingForUserInput: false,
       completed: false,
       pinned,
       ...(workspaceId

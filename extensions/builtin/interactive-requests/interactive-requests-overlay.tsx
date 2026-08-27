@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuiState } from "@assistant-ui/react";
 import { LoaderCircleIcon, ShieldAlertIcon } from "lucide-react";
 import {
   useCallback,
@@ -270,12 +271,20 @@ function ApprovalDialog({
 
 function usePendingInteractions() {
   const manager = usePiSessionManager();
+  const activeSessionId = useAuiState((state) => {
+    const mainThreadId = state.threads.mainThreadId;
+    const mainThread = state.threads.threadItems.find((thread) => thread.id === mainThreadId);
+    return mainThread?.remoteId ?? mainThread?.externalId ?? mainThreadId;
+  });
   const revision = useSyncExternalStore(
     manager.subscribe,
     manager.getSnapshot,
     manager.getSnapshot,
   );
-  const pending = useMemo(() => manager.getPendingInteractions(), [manager, revision]);
+  const pending = useMemo(
+    () => (activeSessionId ? manager.getPendingInteractions(activeSessionId) : []),
+    [activeSessionId, manager, revision],
+  );
   return { manager, pending };
 }
 

@@ -55,6 +55,8 @@ export const extensionsZhCN = {
       `${number(count)} 个待处理请求`,
     answerLabel: ({ question }: { question: string }) => `${question}的回答`,
     answerPlaceholder: "请输入回答",
+    customAnswerLabel: "其他答案",
+    customAnswerPlaceholder: "输入其他答案或补充说明",
     required: "必填",
     yes: "是",
     no: "否",

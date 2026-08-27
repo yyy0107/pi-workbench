@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { usePiSessionManager, usePiThreadListItemState } from "@/runtime/pi/client/runtime/context";
+import { deriveSessionDisplayTitle } from "@/runtime/pi/session-display-title";
 import { useAppearancePreferences } from "@/services/appearance/appearance-store";
 import { useWorkspaceCapabilities } from "@/services/workspace-selection-service";
 import { conversationThreadIdFromPathname } from "@/workbench/workspaces/new-thread-policy";
@@ -64,7 +65,8 @@ export function WorkbenchThreadListItem({
   const { activateWorkspace, deactivateWorkspace, destroyNewThread } = useWorkspaceCapabilities();
   const isPinned = piState.metadata.pinned;
   const isRunning = runtimeIsRunning || piState.metadata.running;
-  const title = piState.thread?.title ?? runtimeTitle;
+  const waitingForUserInput = !isActive && piState.metadata.waitingForUserInput;
+  const title = deriveSessionDisplayTitle(piState.thread?.title ?? runtimeTitle);
   const lastMessageAt = piState.thread?.lastMessageAt ?? runtimeLastMessageAt;
   const openThreadRoute = () => {
     destroyNewThread();
@@ -151,10 +153,22 @@ export function WorkbenchThreadListItem({
           openThreadRoute();
         }}
       >
-        <span className="min-w-0 flex-1 truncate pe-10 md:pe-0 md:group-hover/thread:pe-14 md:group-has-[:focus-visible]/thread:pe-14">
+        <span
+          className={cn(
+            "min-w-0 flex-1 truncate md:group-hover/thread:pe-14 md:group-has-[:focus-visible]/thread:pe-14",
+            !waitingForUserInput && "pe-10 md:pe-0",
+          )}
+        >
           {title || t("workbench.sidebar.newThread")}
         </span>
-        {!isRunning && piState.metadata.completed ? (
+        {waitingForUserInput ? (
+          <span
+            aria-hidden="true"
+            className="ms-2 me-10 shrink-0 text-[11px] text-amber-700 md:me-0 md:group-hover/thread:hidden md:group-has-[:focus-visible]/thread:hidden dark:text-amber-300"
+          >
+            {t("workbench.sidebar.waitingForUserInput")}
+          </span>
+        ) : !isRunning && piState.metadata.completed ? (
           <>
             <span
               aria-hidden="true"
@@ -167,7 +181,11 @@ export function WorkbenchThreadListItem({
             {formattedTime}
           </span>
         ) : null}
-        {isRunning ? <span className="sr-only">{t("workbench.sidebar.generating")}</span> : null}
+        {waitingForUserInput ? (
+          <span className="sr-only">{t("workbench.sidebar.waitingForUserInput")}</span>
+        ) : isRunning ? (
+          <span className="sr-only">{t("workbench.sidebar.generating")}</span>
+        ) : null}
       </ThreadListItemPrimitive.Trigger>
 
       <div data-thread-item-actions="" className="absolute end-0 flex items-center md:hidden">

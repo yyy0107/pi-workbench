@@ -14,6 +14,7 @@ export interface PiSessionSummary {
   firstMessage: string;
   transient: boolean;
   running: boolean;
+  waitingForUserInput?: boolean;
   runTiming?: PiRunTiming;
 }
 

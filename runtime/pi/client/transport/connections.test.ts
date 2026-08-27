@@ -582,6 +582,13 @@ test("aggregates host session status while forwarding every valid host payload",
   );
   host.message(
     serverFrame({
+      type: "host/session-interaction-status",
+      sessionId: "session-b",
+      waitingForUserInput: true,
+    }),
+  );
+  host.message(
+    serverFrame({
       type: "host/workspace-changed",
       workspace: {
         workspaceId: "workspace-1",
@@ -642,6 +649,7 @@ test("aggregates host session status while forwarding every valid host payload",
     "host/session-status",
     "host/session-status",
     "host/session-status",
+    "host/session-interaction-status",
     "host/workspace-changed",
     "host/session-changed",
     "host/session-archive-changed",

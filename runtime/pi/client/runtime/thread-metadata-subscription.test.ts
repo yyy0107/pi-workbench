@@ -102,6 +102,72 @@ test("notifies only the subscribed thread whose metadata changed", (t) => {
   assert.equal(manager.getThreadStateSnapshot("thread-b").thread?.title, "Renamed B");
 });
 
+test("tracks waiting-for-input status from the host stream per conversation", (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  hostFrame(manager, {
+    type: "host/session-added",
+    sessionId: "thread-a",
+    blank: false,
+    summary: summary("thread-a"),
+  });
+  hostFrame(manager, {
+    type: "host/session-added",
+    sessionId: "thread-b",
+    blank: false,
+    summary: summary("thread-b"),
+  });
+
+  let aNotifications = 0;
+  let bNotifications = 0;
+  const unsubscribeA = manager.subscribeThread("thread-a", () => {
+    aNotifications += 1;
+  });
+  const unsubscribeB = manager.subscribeThread("thread-b", () => {
+    bNotifications += 1;
+  });
+  t.after(unsubscribeA);
+  t.after(unsubscribeB);
+
+  hostFrame(manager, {
+    type: "host/session-interaction-status",
+    sessionId: "thread-b",
+    waitingForUserInput: true,
+  });
+
+  assert.equal(aNotifications, 0);
+  assert.equal(bNotifications, 1);
+  assert.equal(manager.getThreadStateSnapshot("thread-a").metadata.waitingForUserInput, false);
+  assert.equal(manager.getThreadStateSnapshot("thread-b").metadata.waitingForUserInput, true);
+
+  hostFrame(manager, {
+    type: "host/session-interaction-status",
+    sessionId: "thread-b",
+    waitingForUserInput: false,
+  });
+
+  assert.equal(bNotifications, 2);
+  assert.equal(manager.getThreadStateSnapshot("thread-b").metadata.waitingForUserInput, false);
+});
+
+test("keeps legacy Composer protocols out of cached thread-list snapshots", (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  hostFrame(manager, {
+    type: "host/session-added",
+    sessionId: "thread-skill",
+    blank: false,
+    summary: summary("thread-skill", {
+      name: ":pi-command[skill%3Aapple-design|Apple%20Design] 这是什么",
+    }),
+  });
+
+  assert.equal(
+    manager.getThreadStateSnapshot("thread-skill").thread?.title,
+    "Apple Design 这是什么",
+  );
+});
+
 test("publishes draft workspace changes without retaining unsubscribed buckets", (t) => {
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
@@ -248,6 +314,7 @@ test("replays live session changes over a stale running response", async (t) => 
                   sessionId: "changed-thread",
                   updatedAt: Date.parse("2026-08-20T00:00:01.000Z"),
                   running: true,
+                  waitingForUserInput: true,
                   blank: false,
                   cwd: "/workspace/changed-thread",
                 },
@@ -294,6 +361,11 @@ test("replays live session changes over a stale running response", async (t) => 
     sessionId: "changed-thread",
     summary: summary("changed-thread", { running: true }),
   });
+  hostFrame(manager, {
+    type: "host/session-interaction-status",
+    sessionId: "changed-thread",
+    waitingForUserInput: true,
+  });
   assert.equal(manager.isRunning("removed-thread"), false);
   assert.equal(manager.isRunning("changed-thread"), true);
 
@@ -316,6 +388,7 @@ test("replays live session changes over a stale running response", async (t) => 
               sessionId: "changed-thread",
               updatedAt: Date.parse("2026-08-20T00:00:01.000Z"),
               running: false,
+              waitingForUserInput: false,
               blank: false,
               cwd: "/workspace/changed-thread",
             },
@@ -331,4 +404,5 @@ test("replays live session changes over a stale running response", async (t) => 
   assert.equal(manager.getThreadStateSnapshot("removed-thread").thread, undefined);
   assert.equal(manager.isRunning("changed-thread"), true);
   assert.equal(manager.getThreadStateSnapshot("changed-thread").metadata.running, true);
+  assert.equal(manager.getThreadStateSnapshot("changed-thread").metadata.waitingForUserInput, true);
 });

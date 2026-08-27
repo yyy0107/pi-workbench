@@ -20,6 +20,7 @@ export interface QuestionItem {
   header?: string;
   detail?: string;
   options?: Array<{ label: string; description?: string; recommended?: boolean }>;
+  allowCustom?: boolean;
   multiSelect?: boolean;
   required?: boolean;
   intent?: { kind: "plan-review"; approve: string };
@@ -210,6 +211,12 @@ export interface HostSessionStatusPayload {
   runTiming?: PiRunTiming;
 }
 
+export interface HostSessionInteractionStatusPayload {
+  type: "host/session-interaction-status";
+  sessionId: string;
+  waitingForUserInput: boolean;
+}
+
 export interface HostAgentErrorPayload {
   type: "host/agent-error";
   sessionId: string;
@@ -261,6 +268,7 @@ export type HostStreamPayload =
   | HostSessionChangedPayload
   | HostSessionRemovedPayload
   | HostSessionStatusPayload
+  | HostSessionInteractionStatusPayload
   | HostAgentErrorPayload
   | HostWorkspaceChangedPayload
   | HostWorkspaceRemovedPayload

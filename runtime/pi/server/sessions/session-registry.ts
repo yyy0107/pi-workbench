@@ -3013,7 +3013,10 @@ class HostedPiSession {
   }
 
   summary(): PiSessionSummary {
-    return sessionManagerSummary(this.session.sessionManager, this.isRunning, this.runTiming);
+    return {
+      ...sessionManagerSummary(this.session.sessionManager, this.isRunning, this.runTiming),
+      waitingForUserInput: getInteractiveResponseRegistry().isSessionWaitingForUserInput(this.id),
+    };
   }
 
   metadataSnapshot(): { summary: PiSessionSummary; info?: SessionInfo } {
@@ -4057,6 +4060,7 @@ export async function listSessions(): Promise<{
   runningSessionIds: string[];
 }> {
   const registry = await ensurePersistedSessionCache();
+  const interactiveResponses = getInteractiveResponseRegistry();
   const runningIds = runningSessionIds();
   const running = new Set(runningIds);
   const summaries = new Map(
@@ -4069,9 +4073,12 @@ export async function listSessions(): Promise<{
     if (host.isAlive) summaries.set(host.id, host.summary());
   }
   return {
-    sessions: [...summaries.values()].sort((left, right) =>
-      right.created.localeCompare(left.created),
-    ),
+    sessions: [...summaries.values()]
+      .map((summary) => ({
+        ...summary,
+        waitingForUserInput: interactiveResponses.isSessionWaitingForUserInput(summary.id),
+      }))
+      .sort((left, right) => right.created.localeCompare(left.created)),
     runningSessionIds: runningIds,
   };
 }

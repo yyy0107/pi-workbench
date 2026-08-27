@@ -16,6 +16,7 @@ test("adapts session list metadata carried in protocol projections", () => {
     sessionId: "s-1",
     updatedAt: 2_000,
     running: true,
+    waitingForUserInput: true,
     runTiming: { startedAt: 1_500, elapsedMs: 500 },
     blank: false,
     cwd: "/work",
@@ -42,6 +43,7 @@ test("adapts session list metadata carried in protocol projections", () => {
   assert.equal(summary.name, "Protocol migration");
   assert.equal(summary.modified, "1970-01-01T00:00:02.000Z");
   assert.equal(summary.running, true);
+  assert.equal(summary.waitingForUserInput, true);
   assert.deepEqual(summary.runTiming, { startedAt: 1_500, elapsedMs: 500 });
   assert.deepEqual(summary.workspace, { id: "w-1", name: "Work", cwd: "/work" });
 });

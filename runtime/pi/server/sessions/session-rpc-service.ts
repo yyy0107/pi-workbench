@@ -729,6 +729,7 @@ export class SessionRpcService {
         sessionId: session.id,
         updatedAt: milliseconds(session.modified),
         running: session.running,
+        waitingForUserInput: session.waitingForUserInput === true,
         ...(session.runTiming === undefined ? {} : { runTiming: session.runTiming }),
         blank: session.messageCount === 0,
         ...(session.cwd ? { cwd: session.cwd } : {}),

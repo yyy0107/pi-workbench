@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { ClientResponse, RpcReceipt } from "../../rpc-contracts";
-import type { MuxStreamPayload, ServerRequest } from "../../stream-contracts";
+import type { HostStreamPayload, MuxStreamPayload, ServerRequest } from "../../stream-contracts";
 
 const { createStreamHub } = (await import(
   new URL("../streams/stream-hub.ts", import.meta.url).href
@@ -21,11 +21,22 @@ function createHarness() {
     createRpcId: () => `interactive-${++interactiveId}`,
   });
   const frames: ServerRequest<MuxStreamPayload>[] = [];
-  const subscription = hub.subscribe("mux", {
+  const hostFrames: ServerRequest<HostStreamPayload>[] = [];
+  const muxSubscription = hub.subscribe("mux", {
     onFrame: (frame) => frames.push(frame),
     onError: (error) => assert.fail(error.message),
   });
-  return { hub, registry, frames, ready: subscription.ready };
+  const hostSubscription = hub.subscribe("host", {
+    onFrame: (frame) => hostFrames.push(frame),
+    onError: (error) => assert.fail(error.message),
+  });
+  return {
+    hub,
+    registry,
+    frames,
+    hostFrames,
+    ready: Promise.all([muxSubscription.ready, hostSubscription.ready]),
+  };
 }
 
 function answerQuestion(
@@ -108,7 +119,7 @@ test("maps extension select to a stable mux question and accepts only the first 
 });
 
 test("maps Workbench Ask User question groups to one paginated interaction", async () => {
-  const { registry, frames, ready } = createHarness();
+  const { registry, frames, hostFrames, ready } = createHarness();
   await ready;
   const ui = registry.createExtensionUIContext("session-ask-user");
   await assert.rejects(ui.workbenchAskUser([]), /Invalid Workbench Ask User question group/);
@@ -121,6 +132,7 @@ test("maps Workbench Ask User question groups to one paginated interaction", asy
         { label: "Chat", recommended: true },
         { label: "Workspace", description: "Workspace surfaces" },
       ],
+      allowCustom: true,
       multiSelect: true,
       required: true,
     },
@@ -144,8 +156,25 @@ test("maps Workbench Ask User question groups to one paginated interaction", asy
     ]),
     /Invalid Workbench Ask User question group/,
   );
+  await assert.rejects(
+    ui.workbenchAskUser([
+      {
+        id: "invalid-single-choice",
+        question: "Which concept?",
+        options: [{ label: "Agent Harness" }],
+      },
+    ]),
+    /Invalid Workbench Ask User question group/,
+  );
   const answers = ui.workbenchAskUser(questions);
   const requested = requestedFrame(frames, "question/requested");
+
+  assert.equal(registry.isSessionWaitingForUserInput("session-ask-user"), true);
+  assert.deepEqual(hostFrames.at(-1)?.payload, {
+    type: "host/session-interaction-status",
+    sessionId: "session-ask-user",
+    waitingForUserInput: true,
+  });
 
   assert.equal(requested.rpcId, "interactive-1");
   assert.deepEqual(requested.payload, {
@@ -185,7 +214,11 @@ test("maps Workbench Ask User question groups to one paginated interaction", asy
           answer: {
             answers: [
               { id: "component-name", selected: [], custom: "AskUserPanel" },
-              { id: "scope", selected: ["Chat", "Workspace"] },
+              {
+                id: "scope",
+                selected: ["Chat", "Workspace"],
+                custom: "Keep the Composer overlay",
+              },
             ],
           },
         },
@@ -194,9 +227,52 @@ test("maps Workbench Ask User question groups to one paginated interaction", asy
     { accepted: true },
   );
   assert.deepEqual(await answers, [
-    { id: "scope", selected: ["Chat", "Workspace"] },
+    {
+      id: "scope",
+      selected: ["Chat", "Workspace"],
+      custom: "Keep the Composer overlay",
+    },
     { id: "component-name", selected: [], custom: "AskUserPanel" },
   ]);
+  assert.equal(registry.isSessionWaitingForUserInput("session-ask-user"), false);
+  assert.deepEqual(
+    hostFrames.map((frame) => frame.payload),
+    [
+      {
+        type: "host/session-interaction-status",
+        sessionId: "session-ask-user",
+        waitingForUserInput: true,
+      },
+      {
+        type: "host/session-interaction-status",
+        sessionId: "session-ask-user",
+        waitingForUserInput: false,
+      },
+    ],
+  );
+});
+
+test("accepts one suggested choice when the question also allows a custom answer", async () => {
+  const { registry, frames, ready } = createHarness();
+  await ready;
+  const answers = registry.createExtensionUIContext("session-custom-choice").workbenchAskUser([
+    {
+      id: "concept",
+      question: "Which concept should be explained?",
+      options: [{ label: "Agent Harness" }],
+      allowCustom: true,
+      required: true,
+    },
+  ]);
+  const requested = requestedFrame(frames, "question/requested");
+
+  assert.deepEqual(
+    registry.respond(
+      answerQuestion(requested.rpcId, "session-custom-choice", "concept", [], "Context windows"),
+    ),
+    { accepted: true },
+  );
+  assert.deepEqual(await answers, [{ id: "concept", selected: [], custom: "Context windows" }]);
 });
 
 test("maps confirm and input answers and settles cancellation, abort, and timeout", async () => {

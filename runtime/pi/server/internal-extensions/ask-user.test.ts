@@ -108,6 +108,7 @@ test("routes grouped questions through the Workbench UI and returns normalized a
           header: "Scope",
           question: "Which area should change?",
           options: [{ label: "Composer", description: "The message composer", recommended: true }],
+          allowCustom: true,
         },
         {
           id: "name",
@@ -124,7 +125,7 @@ test("routes grouped questions through the Workbench UI and returns normalized a
         async workbenchAskUser(questions: unknown[]) {
           receivedQuestions.push(...questions);
           return [
-            { id: "scope", selected: ["Composer"] },
+            { id: "scope", selected: ["Composer"], custom: "Keep the change local" },
             { id: "name", selected: [], custom: "Ask User" },
           ];
         },
@@ -138,6 +139,7 @@ test("routes grouped questions through the Workbench UI and returns normalized a
       header: "Scope",
       question: "Which area should change?",
       options: [{ label: "Composer", description: "The message composer", recommended: true }],
+      allowCustom: true,
       multiSelect: false,
       required: true,
     },
@@ -152,13 +154,13 @@ test("routes grouped questions through the Workbench UI and returns normalized a
     content: [
       {
         type: "text",
-        text: 'The user submitted these answers:\n[\n  {\n    "id": "scope",\n    "selected": [\n      "Composer"\n    ]\n  },\n  {\n    "id": "name",\n    "selected": [],\n    "custom": "Ask User"\n  }\n]',
+        text: 'The user submitted these answers:\n[\n  {\n    "id": "scope",\n    "selected": [\n      "Composer"\n    ],\n    "custom": "Keep the change local"\n  },\n  {\n    "id": "name",\n    "selected": [],\n    "custom": "Ask User"\n  }\n]',
       },
     ],
     details: {
       questions: receivedQuestions,
       answers: [
-        { id: "scope", selected: ["Composer"] },
+        { id: "scope", selected: ["Composer"], custom: "Keep the change local" },
         { id: "name", selected: [], custom: "Ask User" },
       ],
       cancelled: false,
@@ -189,6 +191,29 @@ test("rejects more than one recommended option in a question", async () => {
       { hasUI: true, ui: {} },
     ),
     /cannot recommend more than one option/,
+  );
+});
+
+test("rejects a single choice unless the user can provide a custom answer", async () => {
+  const harness = createHarness(true);
+
+  await assert.rejects(
+    harness.tool.execute(
+      "tool-call-single-choice",
+      {
+        questions: [
+          {
+            id: "concept",
+            question: "Which concept should be explained?",
+            options: [{ label: "Agent Harness" }],
+          },
+        ],
+      },
+      new AbortController().signal,
+      () => undefined,
+      { hasUI: true, ui: {} },
+    ),
+    /must provide at least two options or allow a custom answer/,
   );
 });
 

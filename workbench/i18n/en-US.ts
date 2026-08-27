@@ -224,6 +224,7 @@ export const workbenchEnUS = {
     ungrouped: "Ungrouped conversations",
     loadMore: "Show more",
     generating: "Generating",
+    waitingForUserInput: "Waiting for user input",
     completed: "Completed in the background",
     pin: "Pin conversation",
     unpin: "Unpin conversation",

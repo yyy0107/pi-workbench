@@ -126,6 +126,7 @@ const HOST_TYPES = new Set<string>([
   "host/session-changed",
   "host/session-removed",
   "host/session-status",
+  "host/session-interaction-status",
   "host/agent-error",
   "host/workspace-changed",
   "host/workspace-removed",

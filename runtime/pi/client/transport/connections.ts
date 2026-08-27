@@ -57,6 +57,7 @@ const HOST_PAYLOAD_TYPES = new Set([
   "host/session-changed",
   "host/session-removed",
   "host/session-status",
+  "host/session-interaction-status",
   "host/agent-error",
   "host/workspace-changed",
   "host/workspace-removed",
@@ -207,6 +208,7 @@ function isPiSessionSummary(value: unknown): boolean {
     typeof value.firstMessage === "string" &&
     typeof value.transient === "boolean" &&
     typeof value.running === "boolean" &&
+    (value.waitingForUserInput === undefined || typeof value.waitingForUserInput === "boolean") &&
     isOptionalPiRunTiming(value.runTiming)
   );
 }
@@ -484,6 +486,10 @@ function isHostPayload(payload: ServerRequestFrame["payload"]): boolean {
         isNonEmptyString(payload.sessionId) &&
         typeof payload.running === "boolean" &&
         isOptionalPiRunTiming(payload.runTiming)
+      );
+    case "host/session-interaction-status":
+      return (
+        isNonEmptyString(payload.sessionId) && typeof payload.waitingForUserInput === "boolean"
       );
     case "host/agent-error":
       return isNonEmptyString(payload.sessionId) && typeof payload.message === "string";

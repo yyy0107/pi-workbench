@@ -56,6 +56,8 @@ export const extensionsEnUS = {
       `${number(count)} pending ${count === 1 ? "request" : "requests"}`,
     answerLabel: ({ question }: { question: string }) => `Answer for ${question}`,
     answerPlaceholder: "Type your answer",
+    customAnswerLabel: "Other answer",
+    customAnswerPlaceholder: "Type another answer or add context",
     required: "Required",
     yes: "Yes",
     no: "No",

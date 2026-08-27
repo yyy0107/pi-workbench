@@ -94,6 +94,8 @@ export function piSummaryFromSessionListItem(item: SessionListItem): PiSessionSu
     firstMessage: deriveSessionDisplayTitle(stringValue(projected?.firstMessage)),
     transient: booleanValue(projected?.transient) ?? false,
     running: item.running,
+    waitingForUserInput:
+      item.waitingForUserInput ?? booleanValue(projected?.waitingForUserInput) ?? false,
     ...(item.running && runTiming !== undefined ? { runTiming } : {}),
   };
 }

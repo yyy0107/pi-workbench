@@ -212,6 +212,7 @@ export const workbenchZhCN = {
     ungrouped: "未分组会话",
     loadMore: "显示更多",
     generating: "正在生成",
+    waitingForUserInput: "等待用户输入",
     completed: "已在后台完成",
     pin: "置顶会话",
     unpin: "取消置顶会话",

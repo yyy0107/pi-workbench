@@ -221,6 +221,7 @@ test("lists legacy summaries and searches with protocol bounds", async () => {
       name: index === 0 ? longSnippet : `needle ${index}`,
       messageCount: index === 0 ? 0 : 2,
       running: index === 1,
+      waitingForUserInput: index === 0,
     }),
   );
   const { service } = harness({
@@ -234,6 +235,7 @@ test("lists legacy summaries and searches with protocol bounds", async () => {
       sessionId: "session-0",
       updatedAt: Date.parse("2026-01-02T03:04:05.000Z"),
       running: false,
+      waitingForUserInput: true,
       blank: true,
       cwd: "/workspace",
       projections: undefined,

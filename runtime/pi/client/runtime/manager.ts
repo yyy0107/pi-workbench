@@ -272,6 +272,7 @@ export interface PiThreadListItemSnapshot {
 
 export interface PiThreadMetadataSnapshot {
   readonly running: boolean;
+  readonly waitingForUserInput: boolean;
   readonly completed: boolean;
   readonly pinned: boolean;
   readonly createdAt?: string;
@@ -332,6 +333,7 @@ type Listener = () => void;
 const EMPTY_THREAD_STATE_SNAPSHOT: PiThreadStateSnapshot = {
   metadata: {
     running: false,
+    waitingForUserInput: false,
     completed: false,
     pinned: false,
   },
@@ -386,6 +388,7 @@ function summariesEqual(left: PiSessionSummary | undefined, right: PiSessionSumm
     left.firstMessage === right.firstMessage &&
     left.transient === right.transient &&
     left.running === right.running &&
+    left.waitingForUserInput === right.waitingForUserInput &&
     left.runTiming?.startedAt === right.runTiming?.startedAt
   );
 }
@@ -2197,6 +2200,7 @@ export class PiSessionManager {
   private readonly draftWorkspaces = new Map<string, PiWorkspaceSummary>();
   private readonly pendingQueues = new Map<string, readonly QueueItem[]>();
   private readonly pendingInteractions = new Map<string, StoredPendingInteraction>();
+  private readonly waitingForUserInput = new Set<string>();
   private readonly archived = new Set<string>();
   private readonly pinned = new Set<string>();
   private readonly pinnedWorkspaces = new Set<string>();
@@ -2214,6 +2218,7 @@ export class PiSessionManager {
     string,
     { readonly running: boolean; readonly runTiming?: PiRunTiming }
   >;
+  private metadataWaitingForUserInputMutations?: Map<string, boolean>;
   private workspaceGeneration = 0;
   private connectionGeneration = 0;
   private realtimeRefreshRequested = false;
@@ -2464,6 +2469,7 @@ export class PiSessionManager {
         ? {
             metadata: {
               running: false,
+              waitingForUserInput: false,
               completed: false,
               pinned: false,
               workspace: { ...workspace },
@@ -2488,6 +2494,7 @@ export class PiSessionManager {
       thread: this.getThreadListItemSnapshot(remoteId),
       metadata: {
         running: this.running.has(remoteId),
+        waitingForUserInput: this.waitingForUserInput.has(remoteId),
         completed: this.completed.has(remoteId),
         pinned: this.pinned.has(remoteId),
         createdAt: summary.created,
@@ -2505,6 +2512,7 @@ export class PiSessionManager {
       thread?.lastMessageAt.toISOString() ?? null,
       thread?.custom ?? null,
       metadata.running,
+      metadata.waitingForUserInput,
       metadata.completed,
       metadata.pinned,
       metadata.createdAt ?? null,
@@ -2603,6 +2611,7 @@ export class PiSessionManager {
     this.draftWorkspaces.clear();
     this.pendingQueues.clear();
     this.pendingInteractions.clear();
+    this.waitingForUserInput.clear();
     this.summaries.clear();
     this.workspaces.clear();
     this.archived.clear();
@@ -2619,6 +2628,7 @@ export class PiSessionManager {
     this.metadataRefreshTask = undefined;
     this.metadataMutations = undefined;
     this.metadataRunningMutations = undefined;
+    this.metadataWaitingForUserInputMutations = undefined;
     this.realtimeRefreshRequested = false;
     this.realtimeRefreshTask = undefined;
     this.listeners.clear();
@@ -2742,6 +2752,10 @@ export class PiSessionManager {
       this.updateRunning(payload.sessionId, payload.running, undefined, payload.runTiming);
       return;
     }
+    if (payload.type === "host/session-interaction-status") {
+      this.updateWaitingForUserInput(payload.sessionId, payload.waitingForUserInput);
+      return;
+    }
 
     if (payload.type === "host/workspace-changed") {
       this.workspaceGeneration += 1;
@@ -2832,15 +2846,19 @@ export class PiSessionManager {
         workspaceChanged = true;
       }
       const runningChanged = this.applySummaryRunning(payload.summary);
+      const waitingForUserInputChanged = this.applySummaryWaitingForUserInput(payload.summary);
       const summaryChanged = this.setSummary(payload.summary);
-      if (workspaceChanged || runningChanged || summaryChanged) this.notify();
+      if (workspaceChanged || runningChanged || waitingForUserInputChanged || summaryChanged) {
+        this.notify();
+      }
       return;
     }
     if (payload.type === "host/session-changed") {
       if (payload.summary.id !== payload.sessionId) return;
       const runningChanged = this.applySummaryRunning(payload.summary);
+      const waitingForUserInputChanged = this.applySummaryWaitingForUserInput(payload.summary);
       const summaryChanged = this.setSummary(payload.summary);
-      if (runningChanged || summaryChanged) this.notify();
+      if (runningChanged || waitingForUserInputChanged || summaryChanged) this.notify();
       return;
     }
     if (payload.type === "host/session-removed") {
@@ -2988,8 +3006,10 @@ export class PiSessionManager {
       string,
       { readonly running: boolean; readonly runTiming?: PiRunTiming }
     >();
+    const waitingForUserInputMutations = new Map<string, boolean>();
     this.metadataMutations = mutations;
     this.metadataRunningMutations = runningMutations;
+    this.metadataWaitingForUserInputMutations = waitingForUserInputMutations;
     const workspaceGeneration = ++this.workspaceGeneration;
     const task = Promise.all([
       listPiRpcSessions(),
@@ -3013,11 +3033,16 @@ export class PiSessionManager {
             runTiming: mutation.running ? (mutation.runTiming ?? summary.runTiming) : undefined,
           });
         }
+        for (const [id, waitingForUserInput] of waitingForUserInputMutations) {
+          const summary = next.get(id);
+          if (summary) next.set(id, { ...summary, waitingForUserInput });
+        }
         for (const existingId of this.summaries.keys()) {
           if (next.has(existingId)) continue;
           this.disposeCachedSession(existingId);
           this.running.delete(existingId);
           this.runTimings.delete(existingId);
+          this.waitingForUserInput.delete(existingId);
           this.completed.delete(existingId);
           this.archived.delete(existingId);
           this.pinned.delete(existingId);
@@ -3030,6 +3055,10 @@ export class PiSessionManager {
           } else if (!summary.running) {
             this.runTimings.delete(summary.id);
           }
+        }
+        this.waitingForUserInput.clear();
+        for (const summary of next.values()) {
+          if (summary.waitingForUserInput) this.waitingForUserInput.add(summary.id);
         }
         for (const sessionId of this.pendingQueues.keys()) {
           if (next.has(sessionId)) continue;
@@ -3058,6 +3087,9 @@ export class PiSessionManager {
         if (this.metadataMutations === mutations) this.metadataMutations = undefined;
         if (this.metadataRunningMutations === runningMutations) {
           this.metadataRunningMutations = undefined;
+        }
+        if (this.metadataWaitingForUserInputMutations === waitingForUserInputMutations) {
+          this.metadataWaitingForUserInputMutations = undefined;
         }
       });
     this.metadataRefreshTask = task;
@@ -3392,6 +3424,10 @@ export class PiSessionManager {
     return this.running.has(this.aliases.get(threadId) ?? threadId);
   }
 
+  isWaitingForUserInput(threadId: string): boolean {
+    return this.waitingForUserInput.has(this.aliases.get(threadId) ?? threadId);
+  }
+
   notePrompt(remoteId: string, text: string): void {
     const summary = this.summaries.get(remoteId);
     if (!summary) return;
@@ -3430,6 +3466,7 @@ export class PiSessionManager {
       for (const listener of this.activeSessionListeners) listener();
     }
     this.setSummary(summary);
+    this.applySummaryWaitingForUserInput(summary);
     const workspace = workspaceId ? this.workspaces.get(workspaceId) : undefined;
     if (workspaceId && workspace && !workspace.sessionIds.includes(summary.id)) {
       this.workspaceGeneration += 1;
@@ -3497,6 +3534,20 @@ export class PiSessionManager {
     if (wasRunning !== running) this.notify();
   }
 
+  private updateWaitingForUserInput(remoteId: string, waitingForUserInput: boolean): void {
+    if (this.disposed) return;
+    this.metadataWaitingForUserInputMutations?.set(remoteId, waitingForUserInput);
+    const wasWaitingForUserInput = this.waitingForUserInput.has(remoteId);
+    if (waitingForUserInput) this.waitingForUserInput.add(remoteId);
+    else this.waitingForUserInput.delete(remoteId);
+
+    const summary = this.summaries.get(remoteId);
+    if (summary && summary.waitingForUserInput !== waitingForUserInput) {
+      this.setSummary({ ...summary, waitingForUserInput });
+    }
+    if (wasWaitingForUserInput !== waitingForUserInput) this.notify();
+  }
+
   private titleFromMessages(messages: readonly ThreadMessage[]): string {
     const firstUser = messages.find((message) => message.role === "user");
     if (!firstUser) return "";
@@ -3539,6 +3590,13 @@ export class PiSessionManager {
     return wasRunning !== summary.running;
   }
 
+  private applySummaryWaitingForUserInput(summary: PiSessionSummary): boolean {
+    const wasWaitingForUserInput = this.waitingForUserInput.has(summary.id);
+    if (summary.waitingForUserInput) this.waitingForUserInput.add(summary.id);
+    else this.waitingForUserInput.delete(summary.id);
+    return wasWaitingForUserInput !== this.waitingForUserInput.has(summary.id);
+  }
+
   private observeRunTiming(remoteId: string, timing: PiRunTiming): PiClientRunTiming {
     const observed = clientRunTiming(timing, this.runTimings.get(remoteId));
     this.runTimings.set(remoteId, observed);
@@ -3570,6 +3628,7 @@ export class PiSessionManager {
   private deleteSummary(remoteId: string): void {
     this.summaries.delete(remoteId);
     this.runTimings.delete(remoteId);
+    this.waitingForUserInput.delete(remoteId);
     this.metadataMutations?.set(remoteId, null);
   }
 
@@ -3627,6 +3686,7 @@ export class PiSessionManager {
     this.disposeCachedSession(sessionId);
     this.deleteSummary(sessionId);
     this.running.delete(sessionId);
+    this.waitingForUserInput.delete(sessionId);
     this.completed.delete(sessionId);
     this.archived.delete(sessionId);
     this.pinned.delete(sessionId);
