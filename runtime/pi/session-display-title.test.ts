@@ -56,3 +56,17 @@ test("truncates by Unicode characters rather than UTF-16 code units", () => {
   assert.equal(Array.from(title).length, 60);
   assert.equal(title.endsWith("…"), true);
 });
+
+test("renders canonical Skill links as readable conversation chrome", () => {
+  assert.equal(
+    deriveSessionDisplayTitle("[$Apple Design](skill://project/apple-design) 这是什么"),
+    "Apple Design 这是什么",
+  );
+});
+
+test("keeps legacy Composer directives out of conversation chrome", () => {
+  assert.equal(
+    deriveSessionDisplayTitle(":pi-command[skill%3Aapple-design|Apple%20Design] 这是什么"),
+    "Apple Design 这是什么",
+  );
+});

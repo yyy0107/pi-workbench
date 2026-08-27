@@ -3442,8 +3442,11 @@ export class PiSessionManager {
 
   private setSummary(summary: PiSessionSummary): boolean {
     if (this.disposed) return false;
+    const { name: _name, ...summaryWithoutName } = summary;
+    const name = deriveSessionDisplayTitle(summary.name);
     const sanitized = {
-      ...summary,
+      ...summaryWithoutName,
+      ...(name ? { name } : {}),
       firstMessage: deriveSessionDisplayTitle(summary.firstMessage),
     };
     const changed = !summariesEqual(this.summaries.get(summary.id), sanitized);

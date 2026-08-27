@@ -46,6 +46,26 @@ test("adapts session list metadata carried in protocol projections", () => {
   assert.deepEqual(summary.workspace, { id: "w-1", name: "Work", cwd: "/work" });
 });
 
+test("normalizes legacy Composer protocols before session titles enter the thread list", () => {
+  const summary = piSummaryFromSessionListItem({
+    sessionId: "s-legacy-title",
+    updatedAt: 2_000,
+    running: false,
+    blank: false,
+    cwd: "/work",
+    projections: {
+      asOfSeq: 1,
+      values: {
+        [WORKBENCH_SESSION_SUMMARY_PROJECTION]: {
+          name: ":pi-command[skill%3Aapple-design|Apple%20Design] 这是什么",
+        },
+      },
+    },
+  });
+
+  assert.equal(summary.name, "Apple Design 这是什么");
+});
+
 test("adapts canonical message groups and durable tool timing", () => {
   const history = piHistoryFromSessionEvents("s-1", {
     events: [

@@ -81,12 +81,13 @@ export function piSummaryFromSessionListItem(item: SessionListItem): PiSessionSu
   const created = stringValue(projected?.created) ?? updatedAt;
   const messageCount = numberValue(projected?.messageCount) ?? (item.blank ? 0 : 1);
   const runTiming = item.runTiming ?? projectedRunTiming(projected?.runTiming);
+  const name = deriveSessionDisplayTitle(stringValue(projected?.name));
 
   return {
     id: item.sessionId,
     cwd,
     workspace: projectedWorkspace(projected?.workspace, cwd),
-    ...(stringValue(projected?.name) === undefined ? {} : { name: stringValue(projected?.name) }),
+    ...(name ? { name } : {}),
     created,
     modified: updatedAt,
     messageCount,

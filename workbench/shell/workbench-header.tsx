@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { useMainViewService } from "@/platform/extensions";
 import { SlotHost } from "@/platform/extensions/hosts/slot-host";
 import { usePiThreadListItemSnapshot } from "@/runtime/pi/client/runtime/context";
+import { deriveSessionDisplayTitle } from "@/runtime/pi/session-display-title";
 
 const MAX_CONVERSATION_TITLE_CHARACTERS = 12;
 
@@ -57,7 +58,9 @@ export function WorkbenchHeader() {
   const managedThread = usePiThreadListItemSnapshot(
     currentThread?.remoteId ?? currentThread?.externalId ?? currentThread?.id,
   );
-  const currentThreadTitle = managedThread?.title ?? currentThread?.title;
+  const currentThreadTitle = deriveSessionDisplayTitle(
+    managedThread?.title ?? currentThread?.title,
+  );
   const title = activeMainView
     ? text(activeMainView.title)
     : currentThreadTitle || t("workbench.sidebar.newThread");
