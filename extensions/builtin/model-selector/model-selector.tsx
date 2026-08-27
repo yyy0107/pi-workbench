@@ -27,7 +27,9 @@ import {
 } from "@/runtime/pi/client/transport/api";
 import {
   getPiModelCatalogRevision,
+  getPiSessionModelSelectionRevision,
   subscribePiModelCatalogInvalidation,
+  subscribePiSessionModelSelectionInvalidation,
 } from "@/runtime/pi/client/models/model-catalog-invalidation";
 import type {
   ModelCatalogValue,
@@ -272,6 +274,20 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
     getPiModelCatalogRevision,
     getPiModelCatalogRevision,
   );
+  const subscribeSessionSelection = useCallback(
+    (listener: () => void) =>
+      remoteId ? subscribePiSessionModelSelectionInvalidation(remoteId, listener) : () => undefined,
+    [remoteId],
+  );
+  const getSessionSelectionRevision = useCallback(
+    () => (remoteId ? getPiSessionModelSelectionRevision(remoteId) : 0),
+    [remoteId],
+  );
+  const sessionSelectionRevision = useSyncExternalStore(
+    subscribeSessionSelection,
+    getSessionSelectionRevision,
+    () => 0,
+  );
 
   const catalog = loadedCatalog?.scopeKey === scopeKey ? loadedCatalog : undefined;
   const loadFailed = failedScope === scopeKey;
@@ -312,7 +328,7 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
     return () => {
       catalogRequestRef.current += 1;
     };
-  }, [catalogRevision, loadCatalog]);
+  }, [catalogRevision, loadCatalog, sessionSelectionRevision]);
 
   useEffect(() => {
     if (remoteId) clearDraftSelection(localThreadId);

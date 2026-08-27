@@ -139,7 +139,10 @@ import type {
   WorkbenchSettingsUpdatePayload,
   WorkbenchSettingsUpdateValue,
 } from "@/runtime/pi/contracts/rpc";
-import { invalidatePiModelCatalog } from "../models/model-catalog-invalidation";
+import {
+  invalidatePiModelCatalog,
+  invalidatePiSessionModelSelection,
+} from "../models/model-catalog-invalidation";
 
 const API_ROOT = "/api/pi";
 
@@ -823,10 +826,15 @@ export function listPiRpcSessionModels(payload: SessionModelsPayload): Promise<S
   return callPiRpc("session.models", payload);
 }
 
-export function selectPiRpcSessionModel(
+export async function selectPiRpcSessionModel(
   payload: SessionSelectModelPayload,
 ): Promise<SessionSelectModelValue> {
-  return callPiRpc("session.selectModel", payload);
+  const value = await callPiRpc<SessionSelectModelPayload, SessionSelectModelValue>(
+    "session.selectModel",
+    payload,
+  );
+  invalidatePiSessionModelSelection(payload.sessionId);
+  return value;
 }
 
 export function getPiRpcSessionContextPolicy(

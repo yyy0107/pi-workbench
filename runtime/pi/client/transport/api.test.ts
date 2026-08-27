@@ -56,6 +56,7 @@ const {
   respondPiModelProviderLogin,
   respondPiRpc,
   searchPiPackageCatalog,
+  selectPiRpcSessionModel,
   startPiModelProviderLogin,
   streamPiWorkspaceFileText,
   testPiModelImageInput,
@@ -69,7 +70,12 @@ const {
   unarchivePiWorkspaceSession,
   writePiWorkspaceFile,
 } = (await import(new URL("./api.ts", import.meta.url).href)) as typeof import("./api");
-const { getPiModelCatalogRevision, subscribePiModelCatalogInvalidation } = (await import(
+const {
+  getPiModelCatalogRevision,
+  getPiSessionModelSelectionRevision,
+  subscribePiModelCatalogInvalidation,
+  subscribePiSessionModelSelectionInvalidation,
+} = (await import(
   new URL("../models/model-catalog-invalidation.ts", import.meta.url).href
 )) as typeof import("../models/model-catalog-invalidation");
 moduleHooks.deregister();
@@ -337,6 +343,70 @@ test("successful provider mutations invalidate the shared model catalog", async 
   await assert.rejects(configurePiModelProvider({ provider: "acme", apiKey: "private-key" }));
   assert.equal(getPiModelCatalogRevision(), initialRevision + 2);
   assert.equal(notifications, 2);
+});
+
+test("successful model selection invalidates only that session selection", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  let selectedSessionNotifications = 0;
+  let unrelatedSessionNotifications = 0;
+  const unsubscribeSelected = subscribePiSessionModelSelectionInvalidation("session-1", () => {
+    selectedSessionNotifications += 1;
+  });
+  const unsubscribeUnrelated = subscribePiSessionModelSelectionInvalidation("session-2", () => {
+    unrelatedSessionNotifications += 1;
+  });
+  t.after(unsubscribeSelected);
+  t.after(unsubscribeUnrelated);
+  const initialSelectedRevision = getPiSessionModelSelectionRevision("session-1");
+  const initialUnrelatedRevision = getPiSessionModelSelectionRevision("session-2");
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as { rpcId: string };
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: {
+        ok: true,
+        value: {
+          selected: { provider: "openai", model: "gpt-5", reasoningEffort: "high" },
+        },
+      },
+    });
+  };
+
+  assert.deepEqual(
+    await selectPiRpcSessionModel({
+      sessionId: "session-1",
+      provider: "openai",
+      model: "gpt-5",
+      reasoningEffort: "high",
+    }),
+    { selected: { provider: "openai", model: "gpt-5", reasoningEffort: "high" } },
+  );
+  assert.equal(getPiSessionModelSelectionRevision("session-1"), initialSelectedRevision + 1);
+  assert.equal(getPiSessionModelSelectionRevision("session-2"), initialUnrelatedRevision);
+  assert.equal(selectedSessionNotifications, 1);
+  assert.equal(unrelatedSessionNotifications, 0);
+
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as { rpcId: string };
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: {
+        ok: false,
+        error: { code: "select-failed", message: "Select failed", details: {} },
+      },
+    });
+  };
+  await assert.rejects(
+    selectPiRpcSessionModel({ sessionId: "session-1", provider: "openai", model: "gpt-5" }),
+  );
+  assert.equal(getPiSessionModelSelectionRevision("session-1"), initialSelectedRevision + 1);
+  assert.equal(selectedSessionNotifications, 1);
 });
 
 test("image-input test helper uses the typed model capability RPC", async (t) => {
