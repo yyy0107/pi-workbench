@@ -32,6 +32,14 @@ export const attachmentUnderstandingExtension = defineExtension({
     const item = context.settings.registerItem({
       sectionId: "image-understanding",
       id: "providers",
+      title: defineMessage("extensions.imageUnderstanding.title"),
+      description: defineMessage("extensions.imageUnderstanding.description"),
+      keywords: [
+        defineMessage("extensions.imageUnderstanding.settings.routing.label"),
+        defineMessage("extensions.imageUnderstanding.settings.engine.label"),
+        defineMessage("extensions.imageUnderstanding.settings.ocrProvider.label"),
+        defineMessage("extensions.imageUnderstanding.settings.ocrAdapter.label"),
+      ],
       component: AttachmentUnderstandingSettingsItem,
     });
     const renderer = context.renderers.data.register(

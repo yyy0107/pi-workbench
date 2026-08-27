@@ -247,6 +247,8 @@ const section = context.settings.registerSection({
 const item = context.settings.registerItem({
   sectionId: "general",
   id: "language",
+  title: defineMessage("extensions.localeSelector.languageTitle"),
+  description: defineMessage("extensions.localeSelector.languageDescription"),
   component: LocaleSettingsItem,
   order: 10,
 });
@@ -258,7 +260,10 @@ Use `headerAction` for a compact feature-owned control that belongs beside the s
 as resetting the current section. The Host owns its placement and error isolation; the component
 receives `{ sectionId }` and may use Hooks. Settings items may also use Hooks and browser APIs in
 their client component. Sections with the same stable `group.id` share one localizable navigation
-heading. Keep preference state and persistence with the feature that owns the item. Do not register
+heading. Give every item a localizable `title`; add a `description` and aliases in `keywords` when
+the component represents controls users may search for under different names. The shared Host uses
+this metadata to render project-level search results and focus the selected item. Keep preference
+state and persistence with the feature that owns the item. Do not register
 during render or import the concrete Settings registry implementation. Items may register before
 their section appears.
 

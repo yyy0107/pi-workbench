@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 
 import type { LocalizableText } from "@/i18n";
+import type { OpenMainViewRequest } from "./main-view";
 import type { PanelLocation } from "./panel";
 
 import type { Disposable } from "./disposable";
@@ -30,6 +31,13 @@ export interface CommandExecutionContext {
     newThread(): void;
     /** 打开指定会话；`threadId` 必须是非空稳定 id。 */
     openThread(threadId: string): void;
+  };
+  /** Transient pages rendered in the shared Workbench shell. */
+  mainViews: {
+    /** Open a registered Main View while preserving the Workbench header and Sidebar. */
+    open<P extends Record<string, unknown>>(request: OpenMainViewRequest<P>): void;
+    /** Return the central workspace to its default conversation. */
+    close(): void;
   };
 }
 

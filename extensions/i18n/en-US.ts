@@ -134,6 +134,10 @@ export const extensionsEnUS = {
     open: "Open settings",
     openDescription: "Open Workbench settings",
     close: "Close settings",
+    backToApp: "Back to app",
+    searchLabel: "Search settings",
+    searchPlaceholder: "Search settings…",
+    noSearchResults: "No matching settings. Try another keyword.",
     viewConfigurationFile: "View configuration file",
     piConfigurationFile: "Pi settings",
     workbenchConfigurationFile: "Workbench settings",
@@ -155,7 +159,7 @@ export const extensionsEnUS = {
     },
   },
   externalSessionImport: {
-    title: "Import projects and conversations",
+    title: "Import",
     description:
       "Bring local Codex, Claude Code, and Cursor conversations into Pi as native sessions. Source files remain unchanged; system prompts, credentials, encrypted state, and application-only metadata are not copied.",
     refresh: "Scan again",
@@ -258,7 +262,7 @@ export const extensionsEnUS = {
       useDefault: "Use default prompt",
     },
     context: {
-      title: "Context defaults",
+      title: "Context",
       description: "Set the default compaction behavior inherited by sessions.",
       loading: "Loading context settings…",
       modelWindowTitle: "Model context window",

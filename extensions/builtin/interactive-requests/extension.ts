@@ -33,6 +33,8 @@ export const interactiveRequestsExtension = defineExtension({
     const settings = context.settings.registerItem({
       sectionId: "ask-user",
       id: "capability",
+      title: defineMessage("extensions.interactiveRequests.settings.enable"),
+      description: defineMessage("extensions.interactiveRequests.settings.enableDescription"),
       component: AskUserSettingsItem,
     });
     const question = context.slots.register("composer.overlay", {

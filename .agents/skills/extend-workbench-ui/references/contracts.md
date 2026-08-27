@@ -441,6 +441,9 @@ interface SettingsItemComponentProps {
 interface SettingsItemDefinition {
   sectionId: string;
   id: string;
+  title: LocalizableText;
+  description?: LocalizableText;
+  keywords?: readonly LocalizableText[];
   component: ComponentType<SettingsItemComponentProps>;
   order?: number;
 }
@@ -460,7 +463,10 @@ every occurrence of that group id. `headerAction` renders a feature-owned contro
 content heading and receives the stable section id; the
 Settings Host owns its placement and error isolation. Sections and items sort by
 ascending `order`, preserving registration order for ties. An item may register before its target
-section so static extension activation order does not create a dependency. The settings Host owns
+section so static extension activation order does not create a dependency. Item `title`, optional
+`description`, and optional `keywords` are resolved in the current locale and indexed by the shared
+settings search. A matching keyword is rendered as the precise result label; selecting a result
+opens its section and focuses the registered item. The settings Host owns
 navigation, headings, scrolling, separators, and error isolation; item components own their
 preference UI, state, and persistence.
 

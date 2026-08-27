@@ -8,11 +8,26 @@ function ExampleMainView() {
   return null;
 }
 
+function ExampleMainViewSidebar() {
+  return null;
+}
+
 test("main view definitions are registered as frozen snapshots", () => {
   const registry = new MainViewRegistryImpl();
-  const disposable = registry.register({ kind: "example", component: ExampleMainView });
+  const disposable = registry.register({
+    kind: "example",
+    component: ExampleMainView,
+    sidebar: ExampleMainViewSidebar,
+    chrome: { productIcon: "hidden", rightWorkspace: "hidden" },
+  });
 
   assert.equal(registry.get("example")?.component, ExampleMainView);
+  assert.equal(registry.get("example")?.sidebar, ExampleMainViewSidebar);
+  assert.deepEqual(registry.get("example")?.chrome, {
+    productIcon: "hidden",
+    rightWorkspace: "hidden",
+  });
+  assert.equal(Object.isFrozen(registry.get("example")?.chrome), true);
   assert.equal(Object.isFrozen(registry.get("example")), true);
   assert.deepEqual(
     registry.getAll().map(({ kind }) => kind),

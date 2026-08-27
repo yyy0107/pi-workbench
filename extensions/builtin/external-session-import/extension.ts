@@ -25,6 +25,13 @@ export const externalSessionImportExtension = defineExtension({
     const item = context.settings.registerItem({
       sectionId: "external-session-import",
       id: "sources",
+      title: defineMessage("extensions.externalSessionImport.title"),
+      description: defineMessage("extensions.externalSessionImport.description"),
+      keywords: [
+        defineMessage("extensions.externalSessionImport.sources.codex"),
+        defineMessage("extensions.externalSessionImport.sources.claude-code"),
+        defineMessage("extensions.externalSessionImport.sources.cursor"),
+      ],
       component: ExternalSessionImportSettingsItem,
     });
 

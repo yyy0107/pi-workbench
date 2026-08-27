@@ -29,6 +29,16 @@ export const appearanceExtension = defineExtension({
     const appearanceSettings = context.settings.registerItem({
       sectionId: "appearance",
       id: "global-style",
+      title: defineMessage("extensions.appearance.theme.title"),
+      description: defineMessage("extensions.appearance.theme.description"),
+      keywords: [
+        defineMessage("extensions.appearance.theme.mode"),
+        defineMessage("extensions.appearance.palette.title"),
+        defineMessage("extensions.appearance.themeSettings.accent"),
+        defineMessage("extensions.appearance.themeSettings.background"),
+        defineMessage("extensions.appearance.themeSettings.foreground"),
+        defineMessage("extensions.appearance.themeSettings.contrast"),
+      ],
       component: AppearanceSettingsItem,
     });
     const interfaceSection = context.settings.registerSection({
@@ -43,6 +53,17 @@ export const appearanceExtension = defineExtension({
     const interfaceSettings = context.settings.registerItem({
       sectionId: "interface",
       id: "interface-style",
+      title: defineMessage("extensions.appearance.interface.sectionTitle"),
+      description: defineMessage("extensions.appearance.interface.description"),
+      keywords: [
+        defineMessage("extensions.appearance.typography.title"),
+        defineMessage("extensions.appearance.runningIndicator.title"),
+        defineMessage("extensions.appearance.piWorkingAnimation.title"),
+        defineMessage("extensions.appearance.controls.title"),
+        defineMessage("extensions.appearance.surfaces.title"),
+        defineMessage("extensions.appearance.borders.title"),
+        defineMessage("extensions.appearance.corners.title"),
+      ],
       component: AppearanceSettingsItem,
     });
     const backgroundSection = context.settings.registerSection({
@@ -57,6 +78,13 @@ export const appearanceExtension = defineExtension({
     const backgroundSettings = context.settings.registerItem({
       sectionId: "background",
       id: "background-style",
+      title: defineMessage("extensions.appearance.background.title"),
+      description: defineMessage("extensions.appearance.background.description"),
+      keywords: [
+        defineMessage("extensions.appearance.background.colorTitle"),
+        defineMessage("extensions.appearance.background.imageTitle"),
+        defineMessage("extensions.appearance.background.blur"),
+      ],
       component: AppearanceSettingsItem,
     });
     const codeSection = context.settings.registerSection({
@@ -71,6 +99,14 @@ export const appearanceExtension = defineExtension({
     const codeSettings = context.settings.registerItem({
       sectionId: "code",
       id: "code-style",
+      title: defineMessage("extensions.appearance.code.title"),
+      description: defineMessage("extensions.appearance.code.description"),
+      keywords: [
+        defineMessage("extensions.appearance.code.font"),
+        defineMessage("extensions.appearance.preferences.codeFontSize"),
+        defineMessage("extensions.appearance.preferences.codeTheme"),
+        defineMessage("extensions.appearance.preferences.diffMarkers"),
+      ],
       component: AppearanceSettingsItem,
     });
     const background = context.slots.register("shell.background", {

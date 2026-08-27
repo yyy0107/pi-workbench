@@ -51,6 +51,12 @@ export interface SettingsItemDefinition {
   sectionId: string;
   /** Stable id, unique within the target section. */
   id: string;
+  /** Localizable item title used by settings search and accessibility navigation. */
+  title: LocalizableText;
+  /** Optional localizable explanation indexed by settings search. */
+  description?: LocalizableText;
+  /** Optional localizable aliases for controls represented by this item. */
+  keywords?: readonly LocalizableText[];
   /** Item content. The settings host owns navigation, headings, and separators. */
   component: ComponentType<SettingsItemComponentProps>;
   /** Lower values appear first; registration order breaks ties. */

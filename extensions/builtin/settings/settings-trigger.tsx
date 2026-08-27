@@ -18,11 +18,10 @@ function SettingsTrigger({ compact = false }: { compact?: boolean }) {
       variant="ghost"
       size={compact ? "icon" : "lg"}
       aria-label={label}
-      aria-haspopup="dialog"
       title={label}
       className={cn(
         "text-muted-foreground hover:text-foreground",
-        compact ? "md:hidden" : "min-w-0 flex-1 justify-start gap-2",
+        compact ? "md:hidden" : "min-w-max flex-none justify-start gap-2",
       )}
       onClick={() => {
         void commands.execute("settings.open").catch((error) => {
@@ -30,7 +29,7 @@ function SettingsTrigger({ compact = false }: { compact?: boolean }) {
         });
       }}
     >
-      <SettingsIcon className="size-4" />
+      <SettingsIcon aria-hidden="true" className="size-4" />
       {!compact ? <span className="truncate">{t("extensions.settings.trigger")}</span> : null}
     </Button>
   );

@@ -25,6 +25,13 @@ export const piExtensionsExtension = defineExtension({
     const item = context.settings.registerItem({
       sectionId: "pi-extensions",
       id: "loaded",
+      title: defineMessage("extensions.piExtensions.title"),
+      description: defineMessage("extensions.piExtensions.description"),
+      keywords: [
+        defineMessage("extensions.piExtensions.registeredEvents"),
+        defineMessage("extensions.piExtensions.registeredTools"),
+        defineMessage("extensions.piExtensions.registeredCommands"),
+      ],
       component: PiExtensionsSettingsItem,
     });
 

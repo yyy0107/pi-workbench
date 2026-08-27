@@ -5,10 +5,12 @@ import type {
 } from "@/platform/extensions/api/command";
 import type { PanelService } from "@/services/panel-service";
 import type { NavigationService } from "@/services/navigation-service";
+import type { MainViewService } from "@/services/main-view-service";
 
 export interface CommandServiceDependencies {
   panels: Pick<PanelService, "open" | "close" | "toggle" | "move">;
   navigation: Pick<NavigationService, "newThread" | "openThread">;
+  mainViews: Pick<MainViewService, "open" | "close">;
 }
 
 export class CommandService {
@@ -27,6 +29,10 @@ export class CommandService {
       navigation: {
         newThread: dependencies.navigation.newThread,
         openThread: dependencies.navigation.openThread,
+      },
+      mainViews: {
+        open: dependencies.mainViews.open,
+        close: dependencies.mainViews.close,
       },
     });
   }

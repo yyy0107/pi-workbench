@@ -132,6 +132,10 @@ export const extensionsZhCN = {
     open: "打开设置",
     openDescription: "打开工作台设置",
     close: "关闭设置",
+    backToApp: "返回应用",
+    searchLabel: "搜索设置",
+    searchPlaceholder: "搜索设置…",
+    noSearchResults: "没有匹配的设置，请尝试其他关键词。",
     viewConfigurationFile: "查看配置文件",
     piConfigurationFile: "Pi 配置",
     workbenchConfigurationFile: "Workbench 配置",
@@ -153,7 +157,7 @@ export const extensionsZhCN = {
     },
   },
   externalSessionImport: {
-    title: "导入项目与会话",
+    title: "导入",
     description:
       "把本机 Codex、Claude Code 和 Cursor 会话转换为 Pi 原生会话。来源文件不会被修改；系统提示词、凭据、加密状态及应用专用元数据不会被复制。",
     refresh: "重新扫描",
@@ -255,7 +259,7 @@ export const extensionsZhCN = {
       useDefault: "使用默认提示词",
     },
     context: {
-      title: "上下文默认值",
+      title: "上下文",
       description: "设置会话默认继承的上下文压缩行为。",
       loading: "正在加载上下文设置…",
       modelWindowTitle: "模型上下文窗口",

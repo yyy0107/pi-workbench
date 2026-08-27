@@ -26,7 +26,8 @@ export class MainViewService {
     if (kind.trim().length === 0) {
       throw new Error("Main view kind must be a non-empty string");
     }
-    if (!this.#registry.get(kind)) {
+    const definition = this.#registry.get(kind);
+    if (!definition) {
       throw new Error(`Unknown main view "${kind}"`);
     }
     if (typeof title === "string" && title.trim().length === 0) {
@@ -36,6 +37,7 @@ export class MainViewService {
     this.#active = Object.freeze({
       kind,
       params: Object.freeze({ ...params }),
+      ...(definition.chrome ? { chrome: Object.freeze({ ...definition.chrome }) } : {}),
       revision: ++this.#revision,
       title,
     });

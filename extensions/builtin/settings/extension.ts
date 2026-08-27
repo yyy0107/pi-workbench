@@ -4,9 +4,11 @@ import { defineMessage } from "@/i18n";
 import { defineExtension } from "@/platform/extensions/authoring";
 
 import { openSettingsCommand } from "./settings-command";
-import { SettingsOverlay } from "./settings-overlay";
-import { settingsOverlayStore } from "./settings-overlay-store";
-import { MobileSettingsTrigger, SidebarSettingsTrigger } from "./settings-trigger";
+import { SettingsHeaderAction } from "./settings-header-action";
+import { SETTINGS_MAIN_VIEW_KIND } from "./settings-main-view";
+import { SettingsMainViewContent } from "./settings-main-view-content";
+import { SettingsSidebar } from "./settings-sidebar";
+import { SidebarSettingsTrigger } from "./settings-trigger";
 
 export const settingsExtension = defineExtension({
   id: "workbench.settings",
@@ -25,9 +27,15 @@ export const settingsExtension = defineExtension({
       },
       order: 0,
     });
-    const overlay = context.slots.register("shell.overlay", {
-      id: "workbench.settings.overlay",
-      component: SettingsOverlay,
+    const mainView = context.mainViews.register({
+      kind: SETTINGS_MAIN_VIEW_KIND,
+      component: SettingsMainViewContent,
+      sidebar: SettingsSidebar,
+      chrome: {
+        productIcon: "hidden",
+        headerLeft: "hidden",
+        rightWorkspace: "hidden",
+      },
     });
     const command = context.commands.register(openSettingsCommand);
     const sidebar = context.slots.register("sidebar.footer", {
@@ -38,9 +46,9 @@ export const settingsExtension = defineExtension({
     const mobile = context.slots.register("header.right", {
       id: "workbench.settings.mobile",
       order: 80,
-      component: MobileSettingsTrigger,
+      component: SettingsHeaderAction,
     });
 
-    return [section, overlay, command, sidebar, mobile, { dispose: settingsOverlayStore.close }];
+    return [section, mainView, command, sidebar, mobile];
   },
 });

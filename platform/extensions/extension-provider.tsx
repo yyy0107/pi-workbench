@@ -88,8 +88,8 @@ export function ExtensionProvider({
   const mainViews = useMemo(() => new MainViewService(manager.mainViews), [manager]);
   const panels = useMemo(() => new PanelService(manager.panels, panelStore), [manager, panelStore]);
   const commands = useMemo(
-    () => new CommandService(manager.commands, { panels, navigation }),
-    [manager, navigation, panels],
+    () => new CommandService(manager.commands, { mainViews, panels, navigation }),
+    [mainViews, manager, navigation, panels],
   );
 
   const reportError = useCallback<ExtensionErrorHandler>(

@@ -7,6 +7,10 @@ function AppearanceHeaderAction() {
   return null;
 }
 
+function LanguageSettingsItem() {
+  return null;
+}
+
 test("settings sections preserve navigation groups and global order", () => {
   const registry = new SettingsRegistryImpl();
   registry.registerSection({
@@ -54,5 +58,50 @@ test("settings section groups require stable ids and titles", () => {
         group: { id: "basics", title: " " },
       }),
     /empty title/,
+  );
+});
+
+test("settings items preserve frozen searchable metadata", () => {
+  const registry = new SettingsRegistryImpl();
+  registry.registerItem({
+    sectionId: "general",
+    id: "language",
+    title: "Language",
+    description: "Choose the interface language.",
+    keywords: ["Locale", "Translation"],
+    component: LanguageSettingsItem,
+  });
+
+  const item = registry.getItems()[0];
+  assert.equal(item?.title, "Language");
+  assert.equal(item?.description, "Choose the interface language.");
+  assert.deepEqual(item?.keywords, ["Locale", "Translation"]);
+  assert.equal(Object.isFrozen(item?.keywords), true);
+  assert.equal(Object.isFrozen(item), true);
+});
+
+test("settings items require non-empty searchable metadata", () => {
+  const registry = new SettingsRegistryImpl();
+
+  assert.throws(
+    () =>
+      registry.registerItem({
+        sectionId: "general",
+        id: "language",
+        title: " ",
+        component: LanguageSettingsItem,
+      }),
+    /empty title/,
+  );
+  assert.throws(
+    () =>
+      registry.registerItem({
+        sectionId: "general",
+        id: "language",
+        title: "Language",
+        keywords: [""],
+        component: LanguageSettingsItem,
+      }),
+    /empty keyword/,
   );
 });

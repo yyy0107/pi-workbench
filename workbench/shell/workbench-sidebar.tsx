@@ -20,6 +20,7 @@ import { Sidebar, useSidebar } from "@/components/ui/sidebar";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { useMainViewService } from "@/platform/extensions";
+import { MainViewSidebarHost } from "@/platform/extensions/hosts/main-view-sidebar-host";
 import { SlotHost } from "@/platform/extensions/hosts/slot-host";
 import { useWorkbenchAgentThreadSnapshots } from "@/runtime/assistant-ui/agent-runtime-context";
 import { useWorkspaceSelection } from "@/services/workspace-selection-service";
@@ -414,10 +415,15 @@ export function WorkbenchSidebar({
       collapsible="offcanvas"
     >
       <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
-        <WorkbenchSidebarContent
+        <MainViewSidebarHost
           mobile={isMobile}
           onNavigate={isMobile ? () => setOpenMobile(false) : undefined}
-        />
+        >
+          <WorkbenchSidebarContent
+            mobile={isMobile}
+            onNavigate={isMobile ? () => setOpenMobile(false) : undefined}
+          />
+        </MainViewSidebarHost>
       </div>
       {!isMobile ? (
         <SidebarResizeHandle

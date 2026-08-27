@@ -11,7 +11,11 @@ function ExampleMainView() {
 
 test("main view service opens registered views and returns to the conversation", () => {
   const registry = new MainViewRegistryImpl();
-  registry.register({ kind: "example", component: ExampleMainView });
+  registry.register({
+    kind: "example",
+    component: ExampleMainView,
+    chrome: { headerLeft: "hidden" },
+  });
   const service = new MainViewService(registry);
   let changes = 0;
   service.subscribe(() => changes++);
@@ -22,6 +26,8 @@ test("main view service opens registered views and returns to the conversation",
   assert.equal(active?.kind, "example");
   assert.equal(active?.title, "Skills");
   assert.deepEqual(active?.params, { section: "skills" });
+  assert.deepEqual(active?.chrome, { headerLeft: "hidden" });
+  assert.equal(Object.isFrozen(active?.chrome), true);
   assert.equal(Object.isFrozen(active?.params), true);
   assert.equal(changes, 1);
 

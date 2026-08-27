@@ -59,12 +59,23 @@ export class SettingsRegistryImpl implements SettingsRegistry {
   registerItem(item: SettingsItemDefinition) {
     assertNonEmptyId(item.sectionId, "Settings item section id");
     assertNonEmptyId(item.id, "Settings item id");
+    if (typeof item.title === "string" && item.title.trim().length === 0) {
+      throw new Error(`Settings item "${item.id}" has an empty title`);
+    }
+    for (const keyword of item.keywords ?? []) {
+      if (typeof keyword === "string" && keyword.trim().length === 0) {
+        throw new Error(`Settings item "${item.id}" has an empty keyword`);
+      }
+    }
     const key = `${item.sectionId}\u0000${item.id}`;
     if (this.#items.has(key)) {
       throw new Error(`Settings item "${item.id}" is already registered in "${item.sectionId}"`);
     }
 
-    const stored = Object.freeze({ ...item });
+    const stored = Object.freeze({
+      ...item,
+      keywords: item.keywords ? Object.freeze([...item.keywords]) : undefined,
+    });
     const entry = Object.freeze({ sequence: this.#sequence++, value: stored });
     this.#items.set(key, entry);
     this.#updateSnapshots();

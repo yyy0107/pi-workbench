@@ -25,6 +25,8 @@ export const skillsExtension = defineExtension({
     const item = context.settings.registerItem({
       sectionId: "skills",
       id: "catalog",
+      title: defineMessage("extensions.skills.title"),
+      description: defineMessage("extensions.skills.description"),
       component: SkillsSettingsItem,
     });
 

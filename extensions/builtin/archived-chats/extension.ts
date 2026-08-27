@@ -25,6 +25,12 @@ export const archivedChatsExtension = defineExtension({
     const item = context.settings.registerItem({
       sectionId: "archived-chats",
       id: "chat-list",
+      title: defineMessage("extensions.archivedChats.title"),
+      description: defineMessage("extensions.archivedChats.description"),
+      keywords: [
+        defineMessage("extensions.archivedChats.unarchive"),
+        defineMessage("extensions.archivedChats.deleteAll"),
+      ],
       component: ArchivedChatsSettingsItem,
     });
 

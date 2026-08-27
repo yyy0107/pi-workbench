@@ -25,6 +25,18 @@ export const settingModelConfigExtension = defineExtension({
     const item = context.settings.registerItem({
       sectionId: "model-config",
       id: "providers",
+      title: defineMessage("extensions.modelConfig.title"),
+      description: defineMessage("extensions.modelConfig.description"),
+      keywords: [
+        defineMessage("extensions.modelConfig.provider"),
+        defineMessage("extensions.modelConfig.accountLogin"),
+        defineMessage("extensions.modelConfig.apiKey"),
+        defineMessage("extensions.modelConfig.apiAddress"),
+        defineMessage("extensions.modelConfig.modelCatalog"),
+        defineMessage("extensions.modelConfig.contextWindow"),
+        defineMessage("extensions.modelConfig.maxOutputTokens"),
+        defineMessage("extensions.modelConfig.reasoningLevels"),
+      ],
       component: ModelConfigSettingsItem,
     });
 

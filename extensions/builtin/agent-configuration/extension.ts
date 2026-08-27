@@ -14,6 +14,12 @@ export const agentConfigurationExtension = defineExtension({
     const systemPrompt = context.settings.registerItem({
       sectionId: "general",
       id: "system-prompt",
+      title: defineMessage("extensions.agentConfiguration.systemPrompt.title"),
+      description: defineMessage("extensions.agentConfiguration.systemPrompt.description"),
+      keywords: [
+        defineMessage("extensions.agentConfiguration.systemPrompt.editorLabel"),
+        defineMessage("extensions.agentConfiguration.systemPrompt.useDefault"),
+      ],
       component: SystemPromptSettingsItem,
       order: 20,
     });
@@ -31,6 +37,14 @@ export const agentConfigurationExtension = defineExtension({
     const contextSettings = context.settings.registerItem({
       sectionId: "context-management",
       id: "compaction",
+      title: defineMessage("extensions.agentConfiguration.context.compactionTitle"),
+      description: defineMessage("extensions.agentConfiguration.context.compactionDescription"),
+      keywords: [
+        defineMessage("extensions.agentConfiguration.context.modelWindowTitle"),
+        defineMessage("extensions.agentConfiguration.context.autoCompaction"),
+        defineMessage("extensions.agentConfiguration.context.reserveTokens"),
+        defineMessage("extensions.agentConfiguration.context.keepRecentTokens"),
+      ],
       component: ContextManagementSettingsItem,
     });
 

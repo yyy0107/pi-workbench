@@ -1,3 +1,4 @@
+import { defineMessage } from "@/i18n";
 import { defineExtension } from "@/platform/extensions/authoring";
 
 import { LocaleSettingsItem, MobileLocaleSelector, SidebarLocaleSelector } from "./locale-selector";
@@ -21,6 +22,8 @@ export const localeSelectorExtension = defineExtension({
     const settingsItem = context.settings.registerItem({
       sectionId: "general",
       id: "language",
+      title: defineMessage("extensions.localeSelector.languageTitle"),
+      description: defineMessage("extensions.localeSelector.languageDescription"),
       order: 10,
       component: LocaleSettingsItem,
     });

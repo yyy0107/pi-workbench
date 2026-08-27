@@ -693,7 +693,7 @@ Workbench 内置的数据导入扩展通过两个 loopback-only RPC 读取本机
 `ExternalSessionImportProtocol`，不导入来源适配器、Pi `SessionManager`、Session Registry 或
 WorkspaceStore。来源枚举与扫描/导入 DTO 只在 `contracts/rpc.ts` 定义一次，服务端领域类型直接复用
 该 contract，避免 transport、client 与导入器各自维护同形联合。
-用户入口注册在 Workbench 设置的“数据 → 导入项目与会话”分区；该设置项直接承载扫描、选择和导入
+用户入口注册在 Workbench 设置的“数据 → 导入”分区；该设置项直接承载扫描、选择和导入
 状态，不在侧边栏、移动端 Header 或对话区 Main View 注册第二个入口。
 
 导入器使用 Pi 公开的 `SessionManager.create()`、`appendModelChange()`、`appendMessage()`、

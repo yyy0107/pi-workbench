@@ -6,6 +6,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  useSyncExternalStore,
   type CSSProperties,
   type ReactNode,
 } from "react";
@@ -20,6 +21,7 @@ import {
   useRightWorkspaceState,
 } from "@/components/right-workspace";
 import { cn } from "@/lib/utils";
+import { useMainViewService } from "@/platform/extensions";
 import { SlotHost } from "@/platform/extensions/hosts/slot-host";
 import {
   loadWorkbenchSettingsPreferences,
@@ -62,13 +64,19 @@ export function WorkbenchShell({ children }: Readonly<{ children: ReactNode }>) 
   const shellRef = useRef<HTMLDivElement>(null);
   const workspaceHostRef = useRef<HTMLDivElement>(null);
   const previousWorkspaceHostWidthRef = useRef<number | undefined>(undefined);
+  const mainViews = useMainViewService();
+  const activeMainView = useSyncExternalStore(
+    mainViews.subscribe,
+    mainViews.getSnapshot,
+    mainViews.getInitialSnapshot,
+  );
+  const rightWorkspaceVisible = activeMainView?.chrome?.rightWorkspace !== "hidden";
   const workspaceController = useRightWorkspace();
   const workspaceOpen = useRightWorkspaceState((state) => state.open);
   const workspaceMaximized = useRightWorkspaceState((state) => state.maximized);
-  const workspacePresentation = resolveRightWorkspacePresentation(
-    workspaceOpen,
-    workspaceMaximized,
-  );
+  const workspacePresentation = rightWorkspaceVisible
+    ? resolveRightWorkspacePresentation(workspaceOpen, workspaceMaximized)
+    : "closed";
   const conversationHidden = workspacePresentation === "maximized";
 
   useEffect(() => {
@@ -146,7 +154,9 @@ export function WorkbenchShell({ children }: Readonly<{ children: ReactNode }>) 
             "calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw))",
           "--right-workspace-toggle-inset-end":
             "calc(0.75rem + var(--desktop-window-controls-inset-end))",
-          "--right-workspace-toggle-reserved-width": "calc(var(--control-hit-default) + 0.125rem)",
+          "--right-workspace-toggle-reserved-width": rightWorkspaceVisible
+            ? "calc(var(--control-hit-default) + 0.125rem)"
+            : "0px",
         } as CSSProperties
       }
     >
@@ -179,9 +189,11 @@ export function WorkbenchShell({ children }: Readonly<{ children: ReactNode }>) 
             </PanelLayout>
             <WorkbenchStatusbar />
           </div>
-          <RightWorkspace />
+          {rightWorkspaceVisible ? <RightWorkspace /> : null}
         </div>
-        <RightWorkspaceToggleButton className="absolute top-[calc((2.5rem-var(--control-hit-default))/2)] z-30 [inset-inline-end:var(--right-workspace-toggle-inset-end)]" />
+        {rightWorkspaceVisible ? (
+          <RightWorkspaceToggleButton className="absolute top-[calc((2.5rem-var(--control-hit-default))/2)] z-30 [inset-inline-end:var(--right-workspace-toggle-inset-end)]" />
+        ) : null}
       </div>
 
       <WorkbenchGlobalLayer />

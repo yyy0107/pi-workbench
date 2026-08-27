@@ -15,7 +15,10 @@ export class MainViewRegistryImpl implements MainViewRegistry {
       throw new Error(`Main view "${definition.kind}" is already registered`);
     }
 
-    const stored = Object.freeze({ ...definition }) as unknown as AnyMainViewDefinition;
+    const stored = Object.freeze({
+      ...definition,
+      ...(definition.chrome ? { chrome: Object.freeze({ ...definition.chrome }) } : {}),
+    }) as unknown as AnyMainViewDefinition;
     this.#definitions.set(definition.kind, stored);
     this.#updateSnapshot();
 
