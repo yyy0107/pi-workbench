@@ -35,12 +35,14 @@ function DialogOverlay({ className, ...props }: DialogPrimitive.Backdrop.Props) 
 function DialogContent({
   className,
   children,
+  closeButtonFrame = "default",
   closeLabel,
   keepMounted = false,
   overlayClassName,
   showCloseButton = true,
   ...props
 }: DialogPrimitive.Popup.Props & {
+  closeButtonFrame?: "default" | "none";
   closeLabel: string;
   keepMounted?: boolean;
   overlayClassName?: string;
@@ -61,7 +63,14 @@ function DialogContent({
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"
-            render={<Button variant="ghost" className="absolute top-2 right-2" size="icon-sm" />}
+            render={
+              <Button
+                variant="ghost"
+                className="absolute top-2 right-2"
+                size="icon-sm"
+                data-frame={closeButtonFrame === "none" ? "none" : undefined}
+              />
+            }
           >
             <XIcon />
             <span className="sr-only">{closeLabel}</span>

@@ -51,7 +51,7 @@ function LocaleSelector({ compact = false }: { compact?: boolean }) {
         className={cn(
           buttonVariants({ variant: "ghost", size: compact ? "icon" : "lg" }),
           "text-muted-foreground hover:text-foreground",
-          compact ? "hidden sm:inline-flex md:hidden" : "w-auto justify-start gap-2 px-2.5",
+          compact ? "hidden sm:inline-flex md:hidden" : "group w-auto justify-start gap-2 px-2.5",
         )}
       >
         <LanguagesIcon aria-hidden="true" className="size-4" />
@@ -60,7 +60,7 @@ function LocaleSelector({ compact = false }: { compact?: boolean }) {
             <span>{localeLabel(locale)}</span>
             <ChevronDownIcon
               aria-hidden="true"
-              className="text-muted-foreground ms-auto size-3.5"
+              className="text-muted-foreground ms-auto size-3.5 opacity-0 transition-[opacity,transform] group-hover:opacity-50 group-focus-visible:opacity-50 group-data-popup-open:rotate-180 group-data-popup-open:opacity-50"
             />
           </>
         ) : null}

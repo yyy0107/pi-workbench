@@ -547,6 +547,7 @@ function TerminalTranscriptSurface({
           type="button"
           variant="ghost"
           size="icon-sm"
+          data-frame="none"
           className="bg-background/85 text-muted-foreground hover:bg-muted hover:text-foreground absolute end-2 top-2 z-10 opacity-100 shadow-sm backdrop-blur-sm transition-opacity md:pointer-events-none md:opacity-0 md:group-hover/terminal:pointer-events-auto md:group-hover/terminal:opacity-100 md:group-focus-within/terminal:pointer-events-auto md:group-focus-within/terminal:opacity-100"
           aria-label={t("extensions.terminal.transcript.stop")}
           title={t("extensions.terminal.transcript.stop")}

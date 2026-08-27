@@ -82,6 +82,7 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
       />
       <DialogContent
         closeLabel={t("assistant.common.close")}
+        closeButtonFrame="none"
         className="aui-attachment-preview-dialog-content [&>button]:bg-foreground/60 [&>button]:hover:bg-foreground/80 [&_svg]:text-background p-2 sm:max-w-3xl [&>button]:rounded-full [&>button]:p-1 [&>button]:opacity-100 [&>button]:ring-0!"
       >
         <DialogTitle className="aui-sr-only sr-only">
@@ -222,6 +223,7 @@ const AttachmentRemove: FC = () => {
       render={
         <TooltipIconButton
           tooltip={t("assistant.composer.removeFile")}
+          data-frame="none"
           className="aui-attachment-tile-remove absolute end-0.5 top-0.5 size-5! min-h-0! min-w-0! rounded-full bg-black/50! p-1! text-white backdrop-blur-sm after:absolute after:-inset-1 [&_svg]:size-3! hover:bg-black/70! hover:text-white! active:scale-[0.96] motion-reduce:transition-none"
           side="top"
         />
@@ -251,6 +253,7 @@ export const ComposerAddAttachment: FC = () => {
           side="bottom"
           variant="ghost"
           size="icon"
+          data-frame="none"
           className="aui-composer-add-attachment text-muted-foreground hover:text-foreground hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30 size-8 rounded-full active:scale-[0.96] motion-reduce:transition-none"
           aria-label={t("assistant.composer.addAttachment")}
         />

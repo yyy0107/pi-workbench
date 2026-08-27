@@ -61,6 +61,7 @@ export function RightPanelTabs() {
         type="button"
         variant="ghost"
         size="icon"
+        data-frame="none"
         aria-label={t("workbench.panels.collapseRight")}
         title={t("workbench.panels.collapseRight")}
         className="text-muted-foreground hover:bg-muted hover:text-foreground ml-1 shrink-0 rounded-xl"

@@ -255,6 +255,7 @@ function ImageZoom({ src, alt, children }: ImageZoomProps) {
       </DialogTrigger>
       <DialogContent
         closeLabel={t("assistant.image.closeZoom")}
+        closeButtonFrame="none"
         overlayClassName="bg-black/80 supports-backdrop-filter:backdrop-blur-sm"
         className="aui-image-zoom-dialog max-h-[calc(100dvh-2rem)] w-auto max-w-[calc(100vw-2rem)] bg-transparent p-0 shadow-none ring-0 sm:max-w-[calc(100vw-2rem)] [&>button]:bg-black/65 [&>button]:text-white [&>button]:hover:bg-black/85"
       >

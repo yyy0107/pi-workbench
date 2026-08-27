@@ -33,6 +33,7 @@ export function FileMarkdownPreview({
       <TooltipIconButton
         tooltip={copyLabel}
         aria-label={copyLabel}
+        data-frame="none"
         className="text-muted-foreground hover:text-foreground absolute top-3 end-3 z-10 size-7 bg-transparent hover:bg-transparent dark:hover:bg-transparent"
         onClick={() => void copy(content)}
       >

@@ -66,6 +66,7 @@ export function RightPanelTab({ definition, isActive, onClose, onSelect }: Right
         type="button"
         variant="ghost"
         size="icon-sm"
+        data-frame="none"
         aria-label={t("workbench.panels.closeTab", { label })}
         title={t("workbench.panels.closeTab", { label })}
         data-panel-tab-part="close-button"

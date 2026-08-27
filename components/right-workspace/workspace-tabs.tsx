@@ -724,6 +724,7 @@ export function WorkspaceTabs() {
                     size="icon-sm"
                     aria-label={t("rightWorkspace.closeTab", { title })}
                     title={t("rightWorkspace.closeTab", { title })}
+                    data-frame="none"
                     data-workspace-tab-close="true"
                     tabIndex={active ? 0 : -1}
                     className="group/tab-close text-foreground/65 hover:bg-transparent hover:text-foreground pointer-events-none absolute end-[2px] top-1/2 z-10 -translate-y-1/2 scale-90 rounded-md opacity-0 transition-[color,opacity,scale] duration-150 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover/tab:pointer-events-auto group-hover/tab:scale-100 group-hover/tab:opacity-100 group-focus-within/tab:pointer-events-auto group-focus-within/tab:scale-100 group-focus-within/tab:opacity-100 group-data-[state=active]/tab:pointer-events-auto group-data-[state=active]/tab:scale-100 group-data-[state=active]/tab:opacity-100 focus-visible:scale-100 focus-visible:bg-transparent focus-visible:text-foreground focus-visible:opacity-100 active:-translate-y-1/2! motion-reduce:transition-none dark:hover:bg-transparent dark:focus-visible:bg-transparent"
