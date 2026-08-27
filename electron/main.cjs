@@ -176,7 +176,7 @@ function createMainWindow(workbenchUrl) {
     height: 960,
     minWidth: 960,
     minHeight: 640,
-    icon: path.join(app.getAppPath(), "electron", "assets", "icon.png"),
+    icon: path.join(app.getAppPath(), "public", "icon.png"),
     show: false,
     backgroundColor: "#09090b",
     autoHideMenuBar: process.platform !== "darwin",

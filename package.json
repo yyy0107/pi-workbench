@@ -112,27 +112,27 @@
       "tsconfig.json"
     ],
     "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "icon": "public/icon.png",
     "mac": {
       "category": "public.app-category.developer-tools",
-      "icon": "electron/assets/icon.png",
       "target": [
         "dmg",
         "zip"
       ]
     },
     "win": {
-      "icon": "electron/assets/icon.png",
       "target": [
         "nsis"
       ]
     },
     "linux": {
       "category": "Development",
-      "icon": "electron/assets/icon.png",
+      "syncDesktopName": true,
       "target": [
         "AppImage"
       ]
     }
   },
+  "desktopName": "com.piworkbench.PiWorkbench.desktop",
   "productName": "Pi Workbench"
 }

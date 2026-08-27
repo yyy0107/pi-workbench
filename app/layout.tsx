@@ -24,6 +24,22 @@ export async function generateMetadata(): Promise<Metadata> {
       template: "%s · Pi Workbench",
     },
     description: t("app.metadata.description"),
+    icons: {
+      icon: [
+        { url: "/icon.png", type: "image/png", sizes: "1024x1024" },
+        {
+          url: "/pi-logo-on-light.svg",
+          type: "image/svg+xml",
+          media: "(prefers-color-scheme: light)",
+        },
+        {
+          url: "/pi-logo-on-dark.svg",
+          type: "image/svg+xml",
+          media: "(prefers-color-scheme: dark)",
+        },
+      ],
+      apple: [{ url: "/icon.png", type: "image/png", sizes: "1024x1024" }],
+    },
   };
 }
 
