@@ -65,7 +65,10 @@ function SettingsInlineEditor({
     <div
       data-slot="settings-inline-editor"
       data-state="display"
-      className={cn("flex min-h-8 items-center justify-end gap-1", className)}
+      className={cn(
+        "flex min-h-[var(--input-control-height)] items-center justify-end gap-1",
+        className,
+      )}
     >
       {display}
       <Button
@@ -91,7 +94,7 @@ function SettingsDropdownTrigger({
     <DropdownMenuTrigger
       data-slot="settings-dropdown-trigger"
       className={cn(
-        "border border-input bg-transparent hover:bg-muted/80 inline-flex h-8 w-fit max-w-full items-center justify-center gap-2 rounded-full px-3 text-sm outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 data-popup-open:bg-muted/80 disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex h-[var(--input-control-height)] w-fit max-w-full items-center justify-center gap-2 rounded-full border [border-color:var(--input-control-border)] [background:var(--input-control-background)] px-3 text-sm outline-none transition-colors hover:[background:var(--button-background-hover)] focus-visible:ring-3 focus-visible:ring-ring/50 data-popup-open:[background:var(--button-background-selected)] data-popup-open:[color:var(--button-foreground-selected)] disabled:pointer-events-none disabled:opacity-50",
         className,
       )}
       {...props}
@@ -122,7 +125,7 @@ function SettingsDropdownItem({
   return (
     <DropdownMenuItem
       data-slot="settings-dropdown-item"
-      className={cn("min-h-8 gap-2 px-2.5 py-1.5", className)}
+      className={cn("min-h-[var(--button-height-default)] gap-2 px-2.5 py-1.5", className)}
       {...props}
     />
   );
@@ -135,7 +138,7 @@ function SettingsDropdownRadioItem({
   return (
     <DropdownMenuRadioItem
       data-slot="settings-dropdown-radio-item"
-      className={cn("min-h-8 gap-2 py-1.5 pr-8 pl-2.5", className)}
+      className={cn("min-h-[var(--button-height-default)] gap-2 py-1.5 pr-8 pl-2.5", className)}
       {...props}
     />
   );
@@ -148,7 +151,7 @@ function SettingsDropdownCheckboxItem({
   return (
     <DropdownMenuCheckboxItem
       data-slot="settings-dropdown-checkbox-item"
-      className={cn("min-h-8 gap-2 py-1.5 pr-8 pl-2.5", className)}
+      className={cn("min-h-[var(--button-height-default)] gap-2 py-1.5 pr-8 pl-2.5", className)}
       {...props}
     />
   );

@@ -21,20 +21,22 @@ export function WorkbenchBrandToggle() {
       type="button"
       variant="ghost"
       size="icon"
+      data-frame="none"
+      data-selection="none"
       aria-expanded={expanded}
       aria-label={label}
       title={label}
       onClick={toggleSidebar}
-      className="absolute start-[6px] top-[calc(1.25rem-14px)] z-30 size-[28px]! min-h-[28px]! min-w-[28px]! p-0! aria-expanded:bg-transparent! [app-region:no-drag]"
+      className="absolute start-[6px] top-[calc((2.5rem-var(--icon-frame-size-default))/2)] z-30 p-0! [app-region:no-drag]"
     >
       <span
         aria-hidden="true"
-        className="relative flex size-[28px] shrink-0 items-center justify-center"
+        className="relative flex size-full shrink-0 items-center justify-center"
       >
         <img
           src="/pi-logo-on-light.svg"
           alt=""
-          className="absolute inset-0 size-[28px] group-hover/button:opacity-0 group-focus-visible/button:opacity-0 dark:invert"
+          className="absolute inset-0 size-full group-hover/button:opacity-0 group-focus-visible/button:opacity-0 dark:invert"
         />
         <ToggleIcon className="absolute opacity-0 group-hover/button:opacity-100 group-focus-visible/button:opacity-100" />
       </span>

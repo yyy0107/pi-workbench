@@ -121,7 +121,7 @@ function CommandParameterFieldEditor({
             id={inputId}
             autoFocus={autoFocus}
             value={value === undefined ? "" : String(value)}
-            className="border-input bg-background focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-lg border px-2.5 text-sm outline-none focus-visible:ring-3"
+            className="h-[var(--input-control-height)] w-full rounded-[var(--input-control-radius)] border [border-color:var(--input-control-border)] [background:var(--input-control-background)] px-2.5 text-sm outline-none focus-visible:[border-color:var(--input-control-border-focus)] focus-visible:ring-3 focus-visible:ring-ring/50"
             onChange={(event) => {
               const selected = enumValues.find((option) => String(option) === event.target.value);
               onChange(selected);
@@ -135,7 +135,7 @@ function CommandParameterFieldEditor({
             ))}
           </select>
         ) : schemaType === "boolean" ? (
-          <label className="border-input bg-background flex min-h-9 items-center gap-2 rounded-lg border px-2.5 text-sm">
+          <label className="flex min-h-[var(--input-control-height)] items-center gap-2 rounded-[var(--input-control-radius)] border [border-color:var(--input-control-border)] [background:var(--input-control-background)] px-2.5 text-sm">
             <input
               id={inputId}
               type="checkbox"
@@ -170,7 +170,7 @@ function CommandParameterFieldEditor({
             max={numberValue(field.schema.maximum)}
             maxLength={numberValue(field.schema.maxLength)}
             placeholder={placeholder}
-            className="h-9"
+            className="h-[var(--input-control-height)]"
             onKeyDown={(event) => {
               if (event.key === "Enter") event.preventDefault();
             }}

@@ -1569,9 +1569,9 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
             <div className="flex items-center gap-1">
               <div className="bg-muted/30 dark:bg-foreground/8 flex h-7 items-center gap-1 rounded-lg px-1.5">
                 <Switch
+                  size="compact"
                   checked={extensionEnabled && !extensionRemoved}
                   disabled={!canToggleExtension}
-                  className="h-4! w-7! [&_[data-slot=switch-thumb]]:size-3! [&_[data-slot=switch-thumb]]:data-checked:translate-x-3!"
                   aria-label={t(
                     extensionEnabled
                       ? "extensions.toolbox.extensions.disableExtension"
@@ -1841,9 +1841,9 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
             <div className="mb-4 flex shrink-0 items-center gap-1">
               <div className="bg-muted/30 dark:bg-foreground/8 flex h-7 items-center gap-1 rounded-lg px-1.5">
                 <Switch
+                  size="compact"
                   checked={skillEnabled && !skillRemoved}
                   disabled={!canToggleSkill}
-                  className="h-4! w-7! [&_[data-slot=switch-thumb]]:size-3! [&_[data-slot=switch-thumb]]:data-checked:translate-x-3!"
                   aria-label={t(
                     skillEnabled
                       ? "extensions.toolbox.skills.disableSkill"

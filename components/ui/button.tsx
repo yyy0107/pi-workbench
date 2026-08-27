@@ -4,45 +4,75 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const iconButtonInteractionStyles = [
-  "[&:hover:not(:active)]:bg-muted/30!",
-  "[&:focus-visible:not(:active)]:bg-muted/30!",
-  "[&:active]:bg-muted!",
-  "dark:[&:hover:not(:active)]:bg-foreground/8!",
-  "dark:[&:focus-visible:not(:active)]:bg-foreground/8!",
-  "dark:[&:active]:bg-foreground/12!",
+  "[&:not([data-frame=none]):hover:not(:active)]:[background:var(--icon-frame-background-hover)]!",
+  "[&:not([data-frame=none]):focus-visible:not(:active)]:[background:var(--icon-frame-background-hover)]!",
+  "[&:not([data-frame=none]):active]:[background:var(--icon-frame-background-active)]!",
+  "[&:not([data-selection=none])]:aria-expanded:[background:var(--icon-frame-background-selected)]!",
+  "[&:not([data-selection=none])]:aria-expanded:[color:var(--icon-frame-foreground-selected)]!",
+  "[&:not([data-selection=none])]:aria-pressed:[background:var(--icon-frame-background-selected)]!",
+  "[&:not([data-selection=none])]:aria-pressed:[color:var(--icon-frame-foreground-selected)]!",
+  "[&:not([data-selection=none])]:data-[state=open]:[background:var(--icon-frame-background-selected)]!",
+  "[&:not([data-selection=none])]:data-[state=open]:[color:var(--icon-frame-foreground-selected)]!",
+  "[&:not([data-selection=none])]:data-[state=on]:[background:var(--icon-frame-background-selected)]!",
+  "[&:not([data-selection=none])]:data-[state=on]:[color:var(--icon-frame-foreground-selected)]!",
+  "[&:not([data-selection=none])]:data-popup-open:[background:var(--icon-frame-background-selected)]!",
+  "[&:not([data-selection=none])]:data-popup-open:[color:var(--icon-frame-foreground-selected)]!",
 ].join(" ");
 
 const iconButtonStyles = cn(
-  "aui-button-icon size-[var(--control-hit-default)]! min-h-[var(--control-hit-default)] min-w-[var(--control-hit-default)] p-2! [&_svg]:size-[var(--icon-md)]! [&_svg.lucide]:[stroke-width:1.5]!",
+  "aui-button-icon size-[var(--icon-frame-size-default)]! min-h-[var(--icon-frame-size-default)] min-w-[var(--icon-frame-size-default)] p-0! [&_svg]:size-[var(--icon-size-md)]! [&_svg.lucide]:[stroke-width:1.5]!",
   iconButtonInteractionStyles,
 );
 const compactIconButtonStyles = cn(
-  "aui-button-icon size-[var(--control-hit-compact)]! min-h-[var(--control-hit-compact)] min-w-[var(--control-hit-compact)] p-1! [&_svg]:size-[var(--icon-md)]! [&_svg.lucide]:[stroke-width:1.5]!",
+  "aui-button-icon size-[var(--icon-frame-size-compact)]! min-h-[var(--icon-frame-size-compact)] min-w-[var(--icon-frame-size-compact)] p-0! [&_svg]:size-[var(--icon-size-md)]! [&_svg.lucide]:[stroke-width:1.5]!",
   iconButtonInteractionStyles,
 );
 
+const selectableButtonStateStyles = [
+  "[&:not([data-selection=none])]:aria-expanded:[background:var(--button-background-selected)]",
+  "[&:not([data-selection=none])]:aria-expanded:[color:var(--button-foreground-selected)]",
+  "[&:not([data-selection=none])]:aria-pressed:[background:var(--button-background-selected)]",
+  "[&:not([data-selection=none])]:aria-pressed:[color:var(--button-foreground-selected)]",
+  "[&:not([data-selection=none])]:aria-[current=page]:[background:var(--button-background-selected)]",
+  "[&:not([data-selection=none])]:aria-[current=page]:[color:var(--button-foreground-selected)]",
+  "[&:not([data-selection=none])]:data-[state=open]:[background:var(--button-background-selected)]",
+  "[&:not([data-selection=none])]:data-[state=open]:[color:var(--button-foreground-selected)]",
+  "[&:not([data-selection=none])]:data-[state=on]:[background:var(--button-background-selected)]",
+  "[&:not([data-selection=none])]:data-[state=on]:[color:var(--button-foreground-selected)]",
+  "[&:not([data-selection=none])]:data-popup-open:[background:var(--button-background-selected)]",
+  "[&:not([data-selection=none])]:data-popup-open:[color:var(--button-foreground-selected)]",
+].join(" ");
+
+const neutralButtonInteractionStyles = [
+  "[&:not([data-frame=none])]:hover:[background:var(--button-background-hover)]",
+  "[&:not([data-frame=none])]:active:[background:var(--button-background-active)]",
+].join(" ");
+
 const buttonVariants = cva(
-  "group/button inline-flex min-h-[var(--control-hit-compact)] min-w-[var(--control-hit-compact)] shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg.lucide]:[stroke-width:1.5]! [&_svg:not([class*='size-'])]:size-4",
+  cn(
+    "group/button inline-flex min-h-[var(--button-height-compact)] min-w-[var(--button-height-compact)] shrink-0 items-center justify-center rounded-[var(--button-radius)] border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg.lucide]:[stroke-width:1.5]! [&_svg:not([class*='size-'])]:size-[var(--icon-size-md)]",
+    selectableButtonStateStyles,
+  ),
   {
     variants: {
       variant: {
         default: "bg-primary text-primary-foreground hover:bg-primary/80",
-        outline:
-          "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
-        secondary:
-          "bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
-        ghost:
-          "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
+        outline: cn(
+          "border-border bg-background hover:text-foreground dark:border-input dark:[background:var(--input-control-background)]",
+          neutralButtonInteractionStyles,
+        ),
+        secondary: cn("bg-secondary text-secondary-foreground", neutralButtonInteractionStyles),
+        ghost: cn("hover:text-foreground", neutralButtonInteractionStyles),
         destructive:
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
         default:
-          "h-[var(--control-hit-default)] min-w-[var(--control-hit-compact)] gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
-        xs: "h-6 min-h-[var(--control-hit-compact)] min-w-[var(--control-hit-compact)] gap-1 rounded-[min(var(--radius-md),10px)] px-2 text-xs in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-[var(--icon-sm)]",
-        sm: "h-7 min-h-[var(--control-hit-compact)] min-w-[var(--control-hit-compact)] gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-[var(--icon-sm)]",
-        lg: "h-9 min-h-[var(--control-hit-default)] min-w-[var(--control-hit-compact)] gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
+          "h-[var(--button-height-default)] min-w-[var(--button-height-compact)] gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
+        xs: "h-[var(--button-height-compact)] min-h-[var(--button-height-compact)] min-w-[var(--button-height-compact)] gap-1 rounded-[min(var(--radius-md),10px)] px-2 text-xs in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-[var(--icon-size-sm)]",
+        sm: "h-[var(--button-height-default)] min-h-[var(--button-height-default)] min-w-[var(--button-height-compact)] gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-[var(--icon-size-sm)]",
+        lg: "h-[var(--button-height-large)] min-h-[var(--button-height-default)] min-w-[var(--button-height-compact)] gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
         icon: iconButtonStyles,
         "icon-sm": compactIconButtonStyles,
       },

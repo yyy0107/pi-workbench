@@ -639,12 +639,12 @@ export function ContextTraceSurface({
 
   const searchControl = (
     <div className="relative min-w-0 flex-1">
-      <SearchIcon className="text-muted-foreground pointer-events-none absolute start-2.5 top-1/2 size-3.5 -translate-y-1/2" />
+      <SearchIcon className="text-muted-foreground pointer-events-none absolute start-2.5 top-1/2 size-[var(--input-control-icon-size)] -translate-y-1/2" />
       <Input
         value={query}
         aria-label={t("extensions.contextTrace.search")}
         placeholder={t("extensions.contextTrace.searchPlaceholder")}
-        className="h-8 ps-8 text-xs"
+        className="ps-8 text-xs"
         onChange={(event) => setQuery(event.currentTarget.value)}
       />
     </div>

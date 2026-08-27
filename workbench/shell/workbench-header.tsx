@@ -71,7 +71,7 @@ export function WorkbenchHeader() {
       <div
         className={cn(
           "relative flex h-full min-w-0 items-center gap-1.5 sm:gap-2",
-          desktopSidebarCollapsed && "ps-[46px] sm:ps-11",
+          desktopSidebarCollapsed && "ps-[36px] sm:ps-8",
         )}
       >
         <SidebarOpenButton />

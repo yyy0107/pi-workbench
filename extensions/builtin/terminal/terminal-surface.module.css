@@ -14,11 +14,14 @@
   right: 0 !important;
   left: auto !important;
   width: var(--scrollbar-size) !important;
-  border-radius: 9999px;
+  border-radius: var(--scrollbar-radius);
   background: var(--scrollbar-thumb) !important;
 }
 
-.scrollbarTheme :global(.xterm-scrollable-element > .scrollbar > .slider:hover),
-.scrollbarTheme :global(.xterm-scrollable-element > .scrollbar > .slider.active) {
+.scrollbarTheme :global(.xterm-scrollable-element > .scrollbar > .slider:hover) {
   background: var(--scrollbar-thumb-hover) !important;
+}
+
+.scrollbarTheme :global(.xterm-scrollable-element > .scrollbar > .slider.active) {
+  background: var(--scrollbar-thumb-active) !important;
 }

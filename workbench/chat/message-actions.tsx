@@ -16,10 +16,10 @@ import {
 } from "./message-action-visibility";
 
 const messageActionStyles = [
-  "[&_button.aui-button-icon]:size-8!",
-  "[&_button.aui-button-icon]:p-2!",
+  "[&_button.aui-button-icon]:size-[var(--icon-frame-size-default)]!",
+  "[&_button.aui-button-icon]:p-0!",
   "[&_button.aui-button-icon]:active:scale-100",
-  "[&_button_svg.lucide]:size-4!",
+  "[&_button_svg.lucide]:size-[var(--icon-size-md)]!",
 ].join(" ");
 
 function CopyAction({ role }: Readonly<{ role: "user" | "assistant" }>) {

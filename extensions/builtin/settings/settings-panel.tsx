@@ -110,10 +110,10 @@ export function SettingsPanel() {
                       data-workbench-selection-surface=""
                       aria-current={active ? "page" : undefined}
                       className={cn(
-                        "flex h-9 w-auto shrink-0 items-center gap-2 rounded-xl px-2.5 text-left text-sm transition-colors sm:w-full",
+                        "flex h-[var(--button-height-default)] w-auto shrink-0 items-center gap-2 rounded-[var(--button-radius)] px-2.5 text-left text-sm transition-colors sm:w-full",
                         active
-                          ? "bg-background font-medium text-foreground shadow-sm ring-1 ring-foreground/5"
-                          : "text-muted-foreground hover:bg-background/70 hover:text-foreground",
+                          ? "font-medium [background:var(--button-background-selected)] [color:var(--button-foreground-selected)] shadow-sm ring-1 [--tw-ring-color:var(--control-state-border-selected)]"
+                          : "text-muted-foreground hover:[background:var(--button-background-hover)] hover:text-foreground",
                       )}
                       onClick={() => {
                         setActivatedSectionIds((current) => {
@@ -123,7 +123,7 @@ export function SettingsPanel() {
                         setActiveSectionId(section.id);
                       }}
                     >
-                      {Icon ? <Icon className="size-4 shrink-0" /> : null}
+                      {Icon ? <Icon className="size-[var(--icon-size-md)] shrink-0" /> : null}
                       <span className="min-w-0 flex-1 truncate">{text(section.title)}</span>
                     </button>
                   );

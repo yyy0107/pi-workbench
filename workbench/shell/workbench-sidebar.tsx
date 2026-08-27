@@ -104,12 +104,10 @@ export function WorkbenchSidebarContent({
   return (
     <div className="flex h-full min-h-0 flex-col">
       {!mobile ? (
-        <div className="relative flex h-10 shrink-0 items-center ps-5 pe-2">
-          <SlotHost
-            name="sidebar.brand"
-            className="flex min-w-0 flex-1 items-center empty:hidden"
-          />
-        </div>
+        <SlotHost
+          name="sidebar.brand"
+          className="flex h-10 shrink-0 items-center ps-5 pe-2 empty:hidden"
+        />
       ) : (
         <MobileSidebarHeader />
       )}
@@ -137,7 +135,7 @@ export function WorkbenchSidebarContent({
         <div className="relative mx-3 mb-2 shrink-0">
           <SearchIcon
             aria-hidden="true"
-            className="text-muted-foreground pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2"
+            className="text-muted-foreground pointer-events-none absolute start-3 top-1/2 size-[var(--input-control-icon-size)] -translate-y-1/2"
           />
           <Input
             type="search"
@@ -147,7 +145,7 @@ export function WorkbenchSidebarContent({
             value={searchQuery}
             aria-label={searchLabel}
             placeholder={searchPlaceholder}
-            className="border-border/80 bg-background h-9 rounded-xl ps-9 pe-9 shadow-none [&::-webkit-search-cancel-button]:hidden"
+            className="ps-9 pe-8 shadow-none [&::-webkit-search-cancel-button]:hidden"
             onChange={(event) => setSearchQuery(event.currentTarget.value)}
             onKeyDown={(event) => {
               if (event.key !== "Escape") return;
@@ -164,13 +162,13 @@ export function WorkbenchSidebarContent({
             title={t(
               searchQuery ? "workbench.sidebar.clearSearch" : "workbench.sidebar.closeSearch",
             )}
-            className="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring absolute end-1 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-lg outline-none focus-visible:ring-2"
+            className="text-muted-foreground hover:text-foreground focus-visible:ring-ring absolute end-1 top-1/2 flex size-[var(--icon-frame-size-compact)] -translate-y-1/2 items-center justify-center rounded-[var(--button-radius)] outline-none hover:[background:var(--icon-frame-background-hover)] focus-visible:ring-2"
             onClick={() => {
               if (searchQuery) setSearchQuery("");
               else setSearchOpen(false);
             }}
           >
-            <XIcon aria-hidden="true" className="size-3.5" />
+            <XIcon aria-hidden="true" className="size-[var(--icon-size-sm)]" />
           </button>
         </div>
       ) : null}

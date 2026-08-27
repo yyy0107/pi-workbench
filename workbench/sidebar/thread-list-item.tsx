@@ -200,7 +200,7 @@ export function WorkbenchThreadListItem({
                 variant="ghost"
                 size="icon"
                 aria-label={t("workbench.sidebar.conversationOptions")}
-                className="text-muted-foreground hover:text-foreground size-[var(--control-hit-touch)]! rounded-lg data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-foreground"
+                className="text-muted-foreground hover:text-foreground size-[var(--control-hit-touch)]! rounded-lg data-[state=open]:[background:var(--button-background-selected)] data-[state=open]:[color:var(--button-foreground-selected)]"
               />
             }
           >
@@ -242,12 +242,12 @@ export function WorkbenchThreadListItem({
           <Button
             type="button"
             variant="ghost"
-            size="icon-sm"
+            size="icon"
             aria-label={t(isPinned ? "workbench.sidebar.unpin" : "workbench.sidebar.pin")}
             aria-pressed={isPinned}
             title={t(isPinned ? "workbench.sidebar.unpin" : "workbench.sidebar.pin")}
             className={cn(
-              "text-muted-foreground hover:text-foreground size-8! active:scale-90",
+              "text-muted-foreground hover:text-foreground active:scale-90",
               isPinned && "text-foreground",
             )}
             onClick={() => void togglePinned()}
@@ -261,10 +261,10 @@ export function WorkbenchThreadListItem({
             <Button
               type="button"
               variant="ghost"
-              size="icon-sm"
+              size="icon"
               aria-label={t("workbench.sidebar.archive")}
               title={t("workbench.sidebar.archive")}
-              className="text-muted-foreground hover:text-foreground size-8! active:scale-90"
+              className="text-muted-foreground hover:text-foreground active:scale-90"
             />
           }
         >

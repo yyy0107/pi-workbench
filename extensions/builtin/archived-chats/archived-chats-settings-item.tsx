@@ -298,12 +298,12 @@ export function ArchivedChatsSettingsItem({ sectionId, itemId }: SettingsItemCom
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <label className="relative min-w-52 flex-1">
             <span className="sr-only">{t("extensions.archivedChats.searchLabel")}</span>
-            <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+            <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-[var(--input-control-icon-size)] -translate-y-1/2" />
             <Input
               type="search"
               value={query}
               placeholder={t("extensions.archivedChats.searchPlaceholder")}
-              className="h-9 rounded-full pl-9"
+              className="rounded-full pl-9"
               onChange={(event) => {
                 setQuery(event.currentTarget.value);
                 resetVisibleChats();
@@ -313,7 +313,7 @@ export function ArchivedChatsSettingsItem({ sectionId, itemId }: SettingsItemCom
 
           <DropdownMenu>
             <SettingsDropdownTrigger
-              className="h-9 min-w-36 justify-between rounded-xl border border-input"
+              className="min-w-36 justify-between"
               aria-label={t("extensions.archivedChats.sortLabel")}
             >
               <ArrowDownAZIcon className="text-muted-foreground size-4" />
@@ -346,7 +346,7 @@ export function ArchivedChatsSettingsItem({ sectionId, itemId }: SettingsItemCom
 
           <DropdownMenu>
             <SettingsDropdownTrigger
-              className="h-9 min-w-40 justify-between rounded-xl border border-input"
+              className="min-w-40 justify-between"
               aria-label={t("extensions.archivedChats.projectFilterLabel")}
             >
               <FolderIcon className="text-muted-foreground size-4" />

@@ -179,7 +179,7 @@ export function ExplorerSurface({
         <div className="relative min-w-0 flex-1">
           <SearchIcon
             aria-hidden="true"
-            className="text-muted-foreground pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2"
+            className="text-muted-foreground pointer-events-none absolute top-1/2 left-3.5 size-[var(--input-control-icon-size)] -translate-y-1/2"
           />
           <Input
             value={filter}
@@ -188,7 +188,7 @@ export function ExplorerSurface({
             spellCheck={false}
             aria-label={t("extensions.workspaceExplorer.filterLabel")}
             placeholder={t("extensions.workspaceExplorer.filterPlaceholder")}
-            className="border-border/80 h-8 rounded-xl bg-background pr-9 pl-10 text-[15px] shadow-none placeholder:text-muted-foreground/75 md:text-[15px] [&::-webkit-search-cancel-button]:hidden"
+            className="pr-8 pl-10 text-[15px] shadow-none placeholder:text-muted-foreground/75 md:text-[15px] [&::-webkit-search-cancel-button]:hidden"
             onChange={(event) => setFilter(event.currentTarget.value)}
             onKeyDown={(event) => {
               if (event.key !== "Escape" || !filter) return;
@@ -201,10 +201,10 @@ export function ExplorerSurface({
               type="button"
               aria-label={t("extensions.workspaceExplorer.clearFilter")}
               title={t("extensions.workspaceExplorer.clearFilter")}
-              className="text-muted-foreground hover:bg-muted hover:text-foreground absolute top-1/2 right-1.5 flex size-7 -translate-y-1/2 items-center justify-center rounded-lg outline-none focus-visible:ring-2"
+              className="text-muted-foreground hover:text-foreground absolute top-1/2 right-1 flex size-[var(--icon-frame-size-compact)] -translate-y-1/2 items-center justify-center rounded-[var(--button-radius)] outline-none hover:[background:var(--icon-frame-background-hover)] focus-visible:ring-2"
               onClick={() => setFilter("")}
             >
-              <XIcon aria-hidden="true" className="size-3.5" />
+              <XIcon aria-hidden="true" className="size-[var(--icon-size-sm)]" />
             </button>
           ) : null}
         </div>

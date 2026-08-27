@@ -111,9 +111,9 @@ function ComposerQueueItem({
         title={t("extensions.messageQueue.drag")}
         onDragStart={(event) => onDragStart(event, queueItem.id)}
         onDragEnd={onDragEnd}
-        className="me-1 flex size-7 shrink-0 cursor-grab items-center justify-center rounded-md text-muted-foreground/50 hover:bg-muted hover:text-foreground active:cursor-grabbing"
+        className="me-1 flex size-[var(--icon-frame-size-default)] shrink-0 cursor-grab items-center justify-center rounded-[var(--button-radius)] text-muted-foreground/50 hover:[background:var(--icon-frame-background-hover)] hover:text-foreground active:cursor-grabbing"
       >
-        <ListRestartIcon className="size-3" />
+        <ListRestartIcon className="size-[var(--icon-size-sm)]" />
       </button>
 
       <QueueItemPrimitive.Text className="min-w-0 flex-1 truncate text-[13px] text-foreground/90">
@@ -126,23 +126,23 @@ function ComposerQueueItem({
             event.preventDefault();
             flushSync(() => onSteer(queueItem.id));
           }}
-          className="flex h-7 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground/65 transition-colors hover:bg-muted hover:text-foreground"
+          className="flex h-[var(--button-height-default)] items-center gap-1 rounded-[var(--button-radius)] px-2 text-xs text-muted-foreground/65 transition-colors hover:[background:var(--button-background-hover)] hover:text-foreground"
         >
           <CornerDownLeftIcon className="size-3" />
           <span>{t("extensions.messageQueue.steer")}</span>
         </QueueItemPrimitive.Steer>
         <QueueItemPrimitive.Remove
           aria-label={t("extensions.messageQueue.remove")}
-          className="flex size-7 items-center justify-center rounded-md text-muted-foreground/50 transition-colors hover:bg-muted hover:text-foreground"
+          className="flex size-[var(--icon-frame-size-default)] items-center justify-center rounded-[var(--button-radius)] text-muted-foreground/50 transition-colors hover:[background:var(--icon-frame-background-hover)] hover:text-foreground"
         >
           <Trash2Icon className="size-3" />
         </QueueItemPrimitive.Remove>
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-label={t("extensions.messageQueue.more")}
-            className="flex size-7 items-center justify-center rounded-md text-muted-foreground/50 transition-colors hover:bg-muted hover:text-foreground data-popup-open:bg-muted data-popup-open:text-foreground"
+            className="flex size-[var(--icon-frame-size-default)] items-center justify-center rounded-md text-muted-foreground/50 transition-colors hover:[background:var(--icon-frame-background-hover)] hover:text-foreground data-popup-open:[background:var(--icon-frame-background-selected)] data-popup-open:[color:var(--icon-frame-foreground-selected)]"
           >
-            <MoreHorizontalIcon className="size-3.5" />
+            <MoreHorizontalIcon className="size-[var(--icon-size-sm)]" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" side="bottom" sideOffset={4} className="min-w-36">
             <DropdownMenuItem onClick={() => onEdit(queueItem)} className="gap-2">

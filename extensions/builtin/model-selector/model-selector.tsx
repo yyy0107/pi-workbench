@@ -159,7 +159,7 @@ function ModelMenuGroup({
       <DropdownMenuSub open={providerMenuOpen} onOpenChange={setProviderMenuOpen}>
         <DropdownMenuSubTrigger
           openOnHover={false}
-          className="bg-popover sticky top-0 z-10 h-7 w-full cursor-pointer rounded-none px-2 py-0 text-xs font-medium text-muted-foreground focus:bg-accent data-popup-open:bg-accent [&>svg:last-child]:hidden"
+          className="bg-popover sticky top-0 z-10 h-[var(--button-height-default)] w-full cursor-pointer rounded-none px-2 py-0 text-xs font-medium text-muted-foreground focus:[background:var(--button-background-selected)] data-popup-open:[background:var(--button-background-selected)] data-popup-open:[color:var(--button-foreground-selected)] [&>svg:last-child]:hidden"
         >
           <span className="min-w-0 flex-1 truncate text-start">{providerName}</span>
           <ChevronDownIcon className="size-3.5 shrink-0 opacity-50" />
@@ -210,13 +210,13 @@ function ModelSearch({
   return (
     <div className="bg-popover flex h-10 items-center px-1">
       <div className="relative w-full">
-        <SearchIcon className="text-muted-foreground pointer-events-none absolute start-2.5 top-1/2 size-3.5 -translate-y-1/2" />
+        <SearchIcon className="text-muted-foreground pointer-events-none absolute start-2.5 top-1/2 size-[var(--input-control-icon-size)] -translate-y-1/2" />
         <Input
           type="search"
           value={value}
           aria-label={label}
           placeholder={placeholder}
-          className="bg-background h-8 rounded-md ps-8 shadow-none"
+          className="ps-8 shadow-none"
           onChange={(event) => {
             const nextValue = event.currentTarget.value;
             onChange(nextValue);
@@ -513,7 +513,7 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
           disabled={selectionLocked}
           aria-label={t("assistant.model.select")}
           style={selectorDropdown.triggerStyle}
-          className="group hover:bg-muted data-popup-open:bg-muted relative flex h-[34px] w-fit max-w-32 items-center justify-center rounded-md bg-transparent px-2 py-0 text-base outline-none transition-[width,background-color,color] [transition-duration:400ms,200ms,200ms] ease-out focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed max-[360px]:max-w-24 sm:max-w-48"
+          className="group relative flex h-[34px] w-fit max-w-32 items-center justify-center rounded-md bg-transparent px-2 py-0 text-base outline-none transition-[width,background-color,color] [transition-duration:400ms,200ms,200ms] ease-out hover:[background:var(--button-background-hover)] focus-visible:ring-2 focus-visible:ring-ring/50 data-popup-open:[background:var(--button-background-selected)] data-popup-open:[color:var(--button-foreground-selected)] disabled:cursor-not-allowed max-[360px]:max-w-24 sm:max-w-48"
           onTransitionEnd={selectorDropdown.onTriggerTransitionEnd}
         >
           <span

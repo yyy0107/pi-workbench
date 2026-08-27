@@ -146,7 +146,7 @@ export function WorkbenchShell({ children }: Readonly<{ children: ReactNode }>) 
             "calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw))",
           "--right-workspace-toggle-inset-end":
             "calc(0.75rem + var(--desktop-window-controls-inset-end))",
-          "--right-workspace-toggle-reserved-width": "2.375rem",
+          "--right-workspace-toggle-reserved-width": "calc(var(--control-hit-default) + 0.125rem)",
         } as CSSProperties
       }
     >
@@ -181,7 +181,7 @@ export function WorkbenchShell({ children }: Readonly<{ children: ReactNode }>) 
           </div>
           <RightWorkspace />
         </div>
-        <RightWorkspaceToggleButton className="absolute top-0 z-30 [inset-inline-end:var(--right-workspace-toggle-inset-end)]" />
+        <RightWorkspaceToggleButton className="absolute top-[calc((2.5rem-var(--control-hit-default))/2)] z-30 [inset-inline-end:var(--right-workspace-toggle-inset-end)]" />
       </div>
 
       <WorkbenchGlobalLayer />

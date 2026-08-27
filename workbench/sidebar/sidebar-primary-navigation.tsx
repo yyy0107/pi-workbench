@@ -54,13 +54,13 @@ export function SidebarPrimaryNavigation({
   );
   const navigationGridClass =
     activeSection === "workspace"
-      ? "grid-cols-[7rem_2.25rem_2.25rem]"
+      ? "grid-cols-[7rem_var(--icon-frame-size-default)_var(--icon-frame-size-default)]"
       : activeSection === "toolbox"
-        ? "grid-cols-[2.25rem_7rem_2.25rem]"
-        : "grid-cols-[2.25rem_2.25rem_7rem]";
+        ? "grid-cols-[var(--icon-frame-size-default)_7rem_var(--icon-frame-size-default)]"
+        : "grid-cols-[var(--icon-frame-size-default)_var(--icon-frame-size-default)_7rem]";
 
   return (
-    <div className="flex h-11 shrink-0 items-center gap-1 ps-4 pe-0.5">
+    <div className="flex h-11 shrink-0 items-center gap-1 ps-4 pe-0.5 md:h-10 md:ps-[calc(var(--icon-frame-size-default)+14px)]">
       <nav
         aria-label={t("workbench.sidebar.mainNavigation")}
         className={cn(
@@ -80,21 +80,22 @@ export function SidebarPrimaryNavigation({
               aria-label={label}
               title={label}
               className={cn(
-                "relative h-9! w-full justify-start! gap-0! overflow-hidden! rounded-xl p-0! text-sm font-semibold transition-[background-color,color]! duration-150 ease-out motion-reduce:transition-none! active:translate-y-0!",
+                "relative w-full justify-start! gap-0! overflow-hidden! rounded-xl p-0! text-sm font-semibold transition-[background-color,color]! duration-150 ease-out motion-reduce:transition-none! active:translate-y-0!",
                 styles.navigationButton,
-                active
-                  ? "bg-sidebar-accent hover:bg-sidebar-accent"
-                  : "text-muted-foreground hover:text-foreground",
+                !active && "text-muted-foreground hover:text-foreground",
               )}
               onClick={() => onSectionChange(id)}
             >
-              <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center">
-                <Icon className={cn("size-[18px]!", styles.icon)} />
+              <span
+                aria-hidden="true"
+                className="flex size-[var(--icon-frame-size-default)] shrink-0 items-center justify-center"
+              >
+                <Icon className={cn("size-[var(--icon-size-lg)]!", styles.icon)} />
               </span>
               <span
                 aria-hidden={!active}
                 className={cn(
-                  "pointer-events-none absolute start-9 top-1/2 w-[4.25rem] -translate-y-1/2 truncate opacity-0 transition-opacity duration-150 ease-out motion-reduce:transition-none",
+                  "pointer-events-none absolute start-[var(--icon-frame-size-default)] top-1/2 w-[4.25rem] -translate-y-1/2 truncate opacity-0 transition-opacity duration-150 ease-out motion-reduce:transition-none",
                   active ? "opacity-100 delay-75" : "delay-0",
                 )}
               >
@@ -112,13 +113,10 @@ export function SidebarPrimaryNavigation({
         aria-label={searchLabel}
         title={searchLabel}
         aria-expanded={searchOpen}
-        className={cn(
-          "text-muted-foreground hover:text-foreground ms-auto size-9! rounded-xl transition-none! active:translate-y-0!",
-          searchOpen && "bg-sidebar-accent text-sidebar-foreground",
-        )}
+        className="text-muted-foreground hover:text-foreground ms-auto rounded-xl p-0! transition-none! active:translate-y-0!"
         onClick={onSearchToggle}
       >
-        <SearchIcon aria-hidden="true" className="size-[18px]!" />
+        <SearchIcon aria-hidden="true" className="size-[var(--icon-size-lg)]!" />
       </Button>
     </div>
   );

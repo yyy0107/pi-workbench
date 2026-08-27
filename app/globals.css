@@ -91,15 +91,76 @@
 
 :root {
   --radius: 0.625rem;
+
+  /* Control density */
   --control-hit-compact: 24px;
-  --control-hit-default: 32px;
+  --control-hit-default: 28px;
   --control-hit-touch: 44px;
-  --icon-sm: 14px;
-  --icon-md: 16px;
+
+  /* Shared interaction states */
+  --control-state-background-hover: color-mix(in oklab, var(--foreground) 6%, transparent);
+  --control-state-background-active: color-mix(in oklab, var(--foreground) 10%, transparent);
+  --control-state-background-selected: var(--accent);
+  --control-state-foreground-selected: var(--accent-foreground);
+  --control-state-border-selected: color-mix(in oklab, var(--foreground) 10%, transparent);
+  --control-focus-ring: var(--ring);
+
+  /* Buttons */
+  --button-height-compact: var(--control-hit-compact);
+  --button-height-default: var(--control-hit-default);
+  --button-height-large: 36px;
+  --button-radius: var(--radius);
+  --button-background-hover: var(--control-state-background-hover);
+  --button-background-active: var(--control-state-background-active);
+  --button-background-selected: var(--control-state-background-selected);
+  --button-foreground-selected: var(--control-state-foreground-selected);
+
+  /* Icons and icon frames */
+  --icon-size-sm: 14px;
+  --icon-size-md: 16px;
+  --icon-size-lg: 18px;
+  --icon-frame-size-compact: var(--control-hit-compact);
+  --icon-frame-size-default: var(--control-hit-default);
+  --icon-frame-background-hover: var(--control-state-background-hover);
+  --icon-frame-background-active: var(--control-state-background-active);
+  --icon-frame-background-selected: var(--control-state-background-selected);
+  --icon-frame-foreground-selected: var(--control-state-foreground-selected);
+  /* Backward-compatible aliases for extension styles. */
+  --icon-sm: var(--icon-size-sm);
+  --icon-md: var(--icon-size-md);
+
+  /* Inputs */
+  --input-control-height: var(--control-hit-default);
+  --input-control-radius: var(--radius);
+  --input-control-background: transparent;
+  --input-control-background-disabled: color-mix(in oklab, var(--input) 50%, transparent);
+  --input-control-border: var(--input);
+  --input-control-border-focus: var(--foreground);
+  --input-control-icon-size: var(--icon-size-sm);
+
+  /* Switches */
+  --switch-track-width: 40px;
+  --switch-track-height: 24px;
+  --switch-track-padding: 2px;
+  --switch-track-background: var(--input);
+  --switch-track-background-checked: var(--primary);
+  --switch-thumb-size: 20px;
+  --switch-thumb-background: var(--background);
+  --switch-thumb-translate: 16px;
+  --switch-compact-track-width: 28px;
+  --switch-compact-track-height: 16px;
+  --switch-compact-thumb-size: 12px;
+  --switch-compact-thumb-translate: 12px;
+
+  /* Scrollbars */
   --scrollbar-size: 6px;
+  --scrollbar-width: thin;
+  --scrollbar-radius: 9999px;
   --scrollbar-track: transparent;
   --scrollbar-thumb: color-mix(in oklab, var(--foreground) 14%, transparent);
   --scrollbar-thumb-hover: color-mix(in oklab, var(--foreground) 20%, transparent);
+  --scrollbar-thumb-active: color-mix(in oklab, var(--foreground) 28%, transparent);
+
   --background: oklch(1 0 0);
   --foreground: oklch(0.141 0.005 285.823);
   --card: oklch(1 0 0);
@@ -145,6 +206,8 @@
 }
 
 .dark {
+  --input-control-background: color-mix(in oklab, var(--input) 30%, transparent);
+  --input-control-background-disabled: color-mix(in oklab, var(--input) 80%, transparent);
   --background: oklch(0.141 0.005 285.823);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.21 0.006 285.885);
@@ -197,7 +260,7 @@
   @supports not selector(::-webkit-scrollbar) {
     * {
       scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
-      scrollbar-width: thin;
+      scrollbar-width: var(--scrollbar-width);
     }
   }
 
@@ -224,12 +287,16 @@
   }
 
   *::-webkit-scrollbar-thumb {
-    border-radius: 9999px;
+    border-radius: var(--scrollbar-radius);
     background: var(--scrollbar-thumb);
   }
 
   *::-webkit-scrollbar-thumb:hover {
     background: var(--scrollbar-thumb-hover);
+  }
+
+  *::-webkit-scrollbar-thumb:active {
+    background: var(--scrollbar-thumb-active);
   }
 
   :root {

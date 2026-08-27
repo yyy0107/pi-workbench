@@ -130,29 +130,30 @@ function MiniSidebar({
     </PanoramaTarget>
   );
   return (
-    <aside className="bg-sidebar text-sidebar-foreground flex min-h-0 flex-col border-r">
-      <div className="flex h-5 shrink-0 items-center gap-1.5 ps-2.5 pe-1">
-        <span className="group/brand-toggle relative -start-[7px] size-3.5 shrink-0">
-          <img
-            src="/pi-logo-on-light.svg"
-            alt=""
-            aria-hidden="true"
-            className="size-3.5 group-hover/brand-toggle:opacity-0 dark:invert"
-          />
-          <PanelLeftCloseIcon
-            aria-hidden="true"
-            className="bg-sidebar text-muted-foreground absolute inset-0 size-3.5 opacity-0 group-hover/brand-toggle:opacity-100"
-          />
-        </span>
-        {target(
-          "sidebar.brand",
-          t("extensions.toolbox.details.projectRegions.sidebarBrand"),
-          "relative -start-[7px] min-w-0 flex-1",
-          <span className="min-w-0 flex-1 truncate text-[8px] font-semibold tracking-tight">
-            Pi Workbench
-          </span>,
-        )}
-      </div>
+    <aside className="bg-sidebar text-sidebar-foreground relative flex min-h-0 flex-col border-r">
+      <span className="group/brand-toggle absolute start-[3px] top-[1.75px] z-10 size-[14px] shrink-0">
+        <img
+          src="/pi-logo-on-light.svg"
+          alt=""
+          aria-hidden="true"
+          className="size-[14px] group-hover/brand-toggle:opacity-0 dark:invert"
+        />
+        <PanelLeftCloseIcon
+          aria-hidden="true"
+          className="bg-sidebar text-muted-foreground absolute inset-0 size-[14px] opacity-0 group-hover/brand-toggle:opacity-100"
+        />
+      </span>
+
+      {activeRegion === "sidebar.brand"
+        ? target(
+            "sidebar.brand",
+            t("extensions.toolbox.details.projectRegions.sidebarBrand"),
+            "flex h-5 shrink-0 items-center ps-[21px] pe-1",
+            <span className="text-muted-foreground truncate text-[6px] font-medium">
+              {t("extensions.toolbox.details.projectRegions.sidebarBrand")}
+            </span>,
+          )
+        : null}
 
       {activeRegion === "sidebar.header"
         ? target(
@@ -168,11 +169,11 @@ function MiniSidebar({
           )
         : null}
 
-      <div className="flex h-[1.375rem] shrink-0 items-center gap-0.5 px-0.5">
+      <div className="flex h-5 shrink-0 items-center gap-0.5 ps-[21px] pe-0.5">
         <span
           className={cn(
-            "flex h-[1.125rem] items-center overflow-hidden rounded-md px-1 text-[6px] font-semibold",
-            !toolboxMode ? "bg-sidebar-accent w-14" : "text-muted-foreground w-[1.125rem]",
+            "flex h-[14px] items-center overflow-hidden rounded-md px-1 text-[6px] font-semibold",
+            !toolboxMode ? "bg-sidebar-accent w-14" : "text-muted-foreground w-[14px]",
           )}
         >
           <HouseIcon className="size-2.5 shrink-0" />
@@ -184,8 +185,8 @@ function MiniSidebar({
         </span>
         <span
           className={cn(
-            "flex h-[1.125rem] items-center overflow-hidden rounded-md px-1 text-[6px] font-semibold",
-            toolboxMode ? "bg-sidebar-accent w-14" : "text-muted-foreground w-[1.125rem]",
+            "flex h-[14px] items-center overflow-hidden rounded-md px-1 text-[6px] font-semibold",
+            toolboxMode ? "bg-sidebar-accent w-14" : "text-muted-foreground w-[14px]",
           )}
         >
           <ToolboxIcon className="size-2.5 shrink-0" />
@@ -195,10 +196,10 @@ function MiniSidebar({
             </span>
           ) : null}
         </span>
-        <span className="text-muted-foreground flex size-[1.125rem] items-center justify-center rounded-md">
+        <span className="text-muted-foreground flex size-[14px] items-center justify-center rounded-md">
           <WorkflowIcon className="size-2.5" />
         </span>
-        <span className="text-muted-foreground ms-auto flex size-[1.125rem] items-center justify-center rounded-md">
+        <span className="text-muted-foreground ms-auto flex size-[14px] items-center justify-center rounded-md">
           <SearchIcon className="size-2.5" />
         </span>
       </div>
