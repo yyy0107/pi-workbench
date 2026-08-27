@@ -151,6 +151,30 @@ pnpm start
 Production mode does not watch source files or apply Fast Refresh. After changing source code, run
 `pnpm build` again and restart `pnpm start`.
 
+The repository also provides convenience production launchers:
+
+```powershell
+# Windows
+.\run_scripts\windows\web-build.cmd
+```
+
+```bash
+# Linux
+./run_scripts/linux/web-build.sh
+```
+
+The corresponding packaged Electron launchers are
+[`run_scripts/windows/electron-build.cmd`](./run_scripts/windows/electron-build.cmd) and
+[`run_scripts/linux/electron-build.sh`](./run_scripts/linux/electron-build.sh).
+
+> [!WARNING]
+> The `web-build` and `electron-build` launchers first terminate every process listening on
+> `PORT`, which defaults to `3000`. They do not verify that a listener belongs to Pi Workbench:
+> Windows force-stops it immediately; Linux sends `TERM` and then `KILL` if the port is still busy
+> after about three seconds. Stop or move any unrelated service before using these launchers, or
+> set `PORT` to a different value. The recommended direct `pnpm build` and `pnpm start` commands
+> above do **not** automatically terminate a port owner.
+
 Only when Next.js Fast Refresh is still required, disable just the outer `tsx watch` process with:
 
 ```bash

@@ -145,6 +145,29 @@ pnpm start
 生产模式不会监听源码文件，也不会执行 Fast Refresh。修改源码后，需要重新运行 `pnpm build`，然后
 重启 `pnpm start`。
 
+仓库还提供了便捷的生产启动脚本：
+
+```powershell
+# Windows
+.\run_scripts\windows\web-build.cmd
+```
+
+```bash
+# Linux
+./run_scripts/linux/web-build.sh
+```
+
+对应的 Electron 打包启动脚本是
+[`run_scripts/windows/electron-build.cmd`](./run_scripts/windows/electron-build.cmd) 和
+[`run_scripts/linux/electron-build.sh`](./run_scripts/linux/electron-build.sh)。
+
+> [!WARNING]
+> `web-build` 和 `electron-build` 启动脚本会先终止所有正在监听 `PORT` 的进程；`PORT` 默认是
+> `3000`。脚本不会确认监听进程是否属于 Pi Workbench：Windows 会立即强制结束进程；Linux 会先发送
+> `TERM`，约 3 秒后端口仍被占用则发送 `KILL`。使用这些脚本前，请先停止或迁移该端口上的其他服务，
+> 也可以通过 `PORT` 指定其他端口。上面主推的 `pnpm build` 和 `pnpm start` 直接命令**不会**自动
+> 终止端口占用进程。
+
 只有仍然需要 Next.js Fast Refresh 时，才建议仅关闭外层 `tsx watch` 进程：
 
 ```bash
