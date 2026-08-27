@@ -25,6 +25,7 @@ export interface WorkspaceCapabilities {
   beginNewThreadWithCreatedWorkspace(workspace: WorkspaceSummary): void;
   destroyNewThread(): void;
   refreshWorkspaces(): Promise<void>;
+  openWorkspaceFolder(workspaceId: string): Promise<void>;
   removeWorkspace(workspaceId: string): Promise<void>;
   moveWorkspaceBefore(workspaceId: string, beforeWorkspaceId?: string): Promise<void>;
   setWorkspacePinned(workspaceId: string, pinned: boolean): Promise<void>;

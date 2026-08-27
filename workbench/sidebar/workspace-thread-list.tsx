@@ -6,6 +6,7 @@ import {
   ChevronRightIcon,
   FolderIcon,
   FolderMinusIcon,
+  FolderOpenIcon,
   MoreHorizontalIcon,
   PinIcon,
   PinOffIcon,
@@ -366,7 +367,8 @@ function WorkspaceDirectorySection({
   const workspaceStatusId = useId();
   const [menuOpen, setMenuOpen] = useState(false);
   const { collapsedWorkspaceIds } = useWorkspaceSelection();
-  const { setWorkspacePinned, toggleWorkspaceCollapsed } = useWorkspaceCapabilities();
+  const { openWorkspaceFolder, setWorkspacePinned, toggleWorkspaceCollapsed } =
+    useWorkspaceCapabilities();
   const pinned = directory.pinned === true;
   const collapsed = collapsedWorkspaceIds.includes(directory.id);
   const expanded = !collapsed;
@@ -502,6 +504,19 @@ function WorkspaceDirectorySection({
                   onNavigate?.();
                 }}
               />
+              <button
+                type="button"
+                className="hover:bg-accent focus-visible:bg-accent flex h-8 min-h-[var(--control-hit-touch)] w-full items-center gap-2 rounded-md px-2 text-start text-sm outline-none md:min-h-8"
+                onClick={() => {
+                  setMenuOpen(false);
+                  void openWorkspaceFolder(directory.id).catch((error) =>
+                    console.error("[workbench] failed to open workspace folder", error),
+                  );
+                }}
+              >
+                <FolderOpenIcon className="size-[var(--icon-size-md)]" />
+                {t("workbench.sidebar.openWorkspaceFolder")}
+              </button>
               <button
                 type="button"
                 className="hover:bg-accent focus-visible:bg-accent flex h-8 min-h-[var(--control-hit-touch)] w-full items-center gap-2 rounded-md px-2 text-start text-sm outline-none md:min-h-8"

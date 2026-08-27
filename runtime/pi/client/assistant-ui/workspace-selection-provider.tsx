@@ -11,6 +11,7 @@ import {
 } from "@/services/workspace-selection-service";
 import { useWorkspaceDirectoryStore } from "@/workbench/workspaces/workspace-directory-store";
 
+import { openPiHostPath } from "../transport/api";
 import { usePiSessionManager, usePiWorkspaces } from "../runtime/context";
 
 /** Pi implementation of the Workbench workspace-selection capability. */
@@ -69,6 +70,11 @@ export function PiWorkspaceSelectionProvider({ children }: Readonly<{ children: 
         }),
       destroyNewThread,
       refreshWorkspaces: () => manager.refreshWorkspaceMetadata(),
+      openWorkspaceFolder: async (workspaceId) => {
+        const workspace = workspaces.find((candidate) => candidate.id === workspaceId);
+        if (!workspace) throw new Error(`Workspace not found: ${workspaceId}`);
+        await openPiHostPath(workspace.cwd);
+      },
       removeWorkspace: async (workspaceId) => {
         await manager.deleteWorkspace(workspaceId);
         discardWorkspace(workspaceId);
@@ -87,6 +93,7 @@ export function PiWorkspaceSelectionProvider({ children }: Readonly<{ children: 
       revealWorkspace,
       setWorkspaceCollapsed,
       toggleWorkspaceCollapsed,
+      workspaces,
     ],
   );
 

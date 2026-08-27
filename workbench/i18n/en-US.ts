@@ -198,6 +198,7 @@ export const workbenchEnUS = {
     workflowsEmpty: "Workflow content will appear here.",
     workspaceOptions: "Workspace options",
     conversationOptions: "Conversation options",
+    openWorkspaceFolder: "Open containing folder",
     removeWorkspace: "Remove workspace",
     expandWorkspace: "Expand workspace",
     collapseWorkspace: "Collapse workspace",
