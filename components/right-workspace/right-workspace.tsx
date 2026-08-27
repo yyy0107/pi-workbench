@@ -105,7 +105,7 @@ export function RightWorkspace() {
             width:
               presentation === "maximized"
                 ? "100%"
-                : "min(var(--right-workspace-content-width), var(--right-workspace-layout-width), 100vw)",
+                : "min(var(--right-workspace-content-width), 100vw)",
             maxWidth: "100vw",
             transform: open
               ? maximized
