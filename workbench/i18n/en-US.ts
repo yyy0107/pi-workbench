@@ -71,8 +71,10 @@ export const workbenchEnUS = {
     },
     sourceFallback: "Source",
     generating: "Generating response…",
+    loadingHistory: "Loading conversation history…",
     working: "Pi Working...",
     workingElapsed: ({ duration }: { duration: string }) => `Pi Working... · ${duration}`,
+    workingWordmarkElapsed: ({ duration }: { duration: string }) => `· ${duration}`,
     connectionInterruptedRetrying: ({
       attempt,
       maxAttempts,

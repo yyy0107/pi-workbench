@@ -5,6 +5,7 @@ import {
   APPEARANCE_STORAGE_KEY,
   CODE_THEMES,
   CODE_THEME_PAIRS,
+  CORNER_RADIUS_STYLES,
   DEFAULT_APPEARANCE_PREFERENCES,
   PI_WORKING_ORB_STATES,
   isDefaultAppearancePreferences,
@@ -169,6 +170,15 @@ test("accepts every bundled Pi Working orb state", () => {
     assert.equal(
       parseAppearancePreferences(JSON.stringify({ piWorkingOrbState })).piWorkingOrbState,
       piWorkingOrbState,
+    );
+  }
+});
+
+test("accepts every corner radius step", () => {
+  for (const cornerRadius of CORNER_RADIUS_STYLES) {
+    assert.equal(
+      parseAppearancePreferences(JSON.stringify({ cornerRadius })).cornerRadius,
+      cornerRadius,
     );
   }
 });

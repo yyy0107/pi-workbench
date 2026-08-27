@@ -8,7 +8,11 @@ import { usePathname } from "next/navigation";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { DaySeparator } from "@/components/elements/conversation-separator";
 import { MessagePair } from "@/components/elements/message-pair";
-import { PiWorkingOrb } from "@/components/elements/pi-working-orb";
+import {
+  isPiWorkingWordmarkState,
+  PI_WORKING_WORDMARK_ASPECT_RATIO,
+  PiWorkingOrb,
+} from "@/components/elements/pi-working-orb";
 import { TypingIndicator } from "@/components/elements/typing-indicator";
 import { useI18n } from "@/i18n";
 import { formatCompactDuration } from "@/lib/format-duration";
@@ -218,6 +222,7 @@ function useThreadMessageRows(): readonly MessageRow[] {
 function PiWorkingStatus() {
   const { locale, t } = useI18n();
   const { piWorkingOrbSize, piWorkingOrbState } = useAppearancePreferences();
+  const usesWordmark = isPiWorkingWordmarkState(piWorkingOrbState);
   const runTiming = useAuiState((state) => agentRunTiming(state.thread.extras));
   const autoRetry = useAuiState((state) => agentAutoRetryStatus(state.thread.extras));
   const [elapsedMs, setElapsedMs] = useState<number | undefined>(runTiming?.elapsedMs);
@@ -260,6 +265,12 @@ function PiWorkingStatus() {
         maxAttempts: autoRetry.maxAttempts,
       })
     : t("workbench.chat.working");
+  const displayLabel =
+    usesWordmark && !autoRetry
+      ? duration
+        ? t("workbench.chat.workingWordmarkElapsed", { duration })
+        : undefined
+      : visualLabel;
 
   return (
     <div
@@ -273,16 +284,42 @@ function PiWorkingStatus() {
         data-slot="pi-working-icon"
         aria-hidden="true"
         className="flex shrink-0 items-center justify-center"
-        style={{ width: piWorkingOrbSize, height: piWorkingOrbSize }}
+        style={{
+          width: piWorkingOrbSize * (usesWordmark ? PI_WORKING_WORDMARK_ASPECT_RATIO : 1),
+          height: piWorkingOrbSize,
+        }}
       >
         <PiWorkingOrb state={piWorkingOrbState} />
       </span>
-      <span
-        data-slot="pi-working-label"
-        aria-hidden="true"
-        className="shimmer [--shimmer-color:black] [--shimmer-repeat-delay:900] [--shimmer-speed:180] [--shimmer-spread:52px] motion-reduce:animate-none"
-      >
-        {visualLabel}
+      {displayLabel ? (
+        <span
+          data-slot="pi-working-label"
+          aria-hidden="true"
+          className="shimmer [--shimmer-color:black] [--shimmer-repeat-delay:900] [--shimmer-speed:180] [--shimmer-spread:52px] motion-reduce:animate-none"
+        >
+          {displayLabel}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function ThreadHistoryLoading() {
+  const { t } = useI18n();
+
+  return (
+    <div
+      data-slot="thread-history-loading"
+      role="status"
+      aria-live="polite"
+      className="flex min-h-0 w-full flex-1 items-center justify-center [overflow-anchor:none]"
+    >
+      <span className="sr-only">{t("workbench.chat.loadingHistory")}</span>
+      <span aria-hidden="true" className="size-16 dark:hidden">
+        <PiWorkingOrb state="pi-logo-shine" />
+      </span>
+      <span aria-hidden="true" className="hidden size-16 dark:block">
+        <PiWorkingOrb state="pi-logo-shine-inverted" />
       </span>
     </div>
   );
@@ -523,7 +560,10 @@ export function WorkbenchThread() {
   const threadId = conversationThreadIdFromPathname(pathname);
   const activeThreadId = useAuiState((state) => state.threads.mainThreadId);
   const isEmpty = useAuiState((state) => state.thread.isEmpty);
+  const isThreadLoading = useAuiState((state) => state.thread.isLoading);
   const isRunning = useAuiState((state) => state.thread.isRunning);
+  const isHistoryLoading = Boolean(threadId) && isThreadLoading;
+  const hasDockedComposer = !isEmpty || isHistoryLoading;
   const viewportRef = useRef<HTMLDivElement>(null);
   const threadFrameRef = useRef<HTMLDivElement>(null);
   const composerDockRef = useRef<HTMLDivElement>(null);
@@ -559,7 +599,7 @@ export function WorkbenchThread() {
   }, []);
 
   useLayoutEffect(() => {
-    if (isEmpty) return;
+    if (!hasDockedComposer) return;
 
     const threadFrame = threadFrameRef.current;
     const composerDock = composerDockRef.current;
@@ -589,7 +629,7 @@ export function WorkbenchThread() {
     const resizeObserver = new ResizeObserver(syncComposerDockInset);
     resizeObserver.observe(composerDock);
     return () => resizeObserver.disconnect();
-  }, [activeThreadId, isEmpty, scrollToBottom]);
+  }, [activeThreadId, hasDockedComposer, scrollToBottom]);
 
   useLayoutEffect(() => {
     stopScrollRestoration();
@@ -701,8 +741,7 @@ export function WorkbenchThread() {
       className="bg-background relative flex h-full min-h-0 min-w-0 text-base"
       style={
         {
-          "--thread-max-width":
-            "min(clamp(46rem, 74cqw, 876px), calc(100cqw - 2rem))",
+          "--thread-max-width": "min(clamp(46rem, 74cqw, 876px), calc(100cqw - 2rem))",
           // Reserve the active optimistic turn's scaffold to prevent a vertical snap. Completed
           // turns return to their natural height so compact status rows do not create large gaps.
           "--assistant-turn-min-height": "5.25rem",
@@ -751,14 +790,13 @@ export function WorkbenchThread() {
           scrollToBottomOnThreadSwitch={false}
           className={cn(
             "relative flex min-h-0 flex-1 scroll-smooth flex-col overflow-x-hidden overflow-y-auto motion-reduce:scroll-auto [overflow-anchor:none] [padding-inline:var(--thread-viewport-inline-padding)] [scrollbar-gutter:stable]",
-            isEmpty
-              ? "pt-4"
-              : "[margin-bottom:var(--composer-dock-content-top-inset)] [padding-top:var(--thread-header-fade-size)] [padding-bottom:var(--composer-dock-corner-radius)]",
+            hasDockedComposer
+              ? "[margin-bottom:var(--composer-dock-content-top-inset)] [padding-top:var(--thread-header-fade-size)] [padding-bottom:var(--composer-dock-corner-radius)]"
+              : "pt-4",
           )}
           style={
-            isEmpty
-              ? undefined
-              : {
+            hasDockedComposer
+              ? {
                   scrollbarColor: "var(--scrollbar-thumb) transparent",
                   WebkitMaskImage: THREAD_VIEWPORT_MASK_IMAGE,
                   maskImage: THREAD_VIEWPORT_MASK_IMAGE,
@@ -769,6 +807,7 @@ export function WorkbenchThread() {
                   WebkitMaskSize: THREAD_VIEWPORT_MASK_SIZE,
                   maskSize: THREAD_VIEWPORT_MASK_SIZE,
                 }
+              : undefined
           }
         >
           <SlotHost
@@ -777,13 +816,19 @@ export function WorkbenchThread() {
             className="mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-2 [overflow-anchor:none]"
           />
 
-          <ThreadPrimitive.Empty>
-            <WorkbenchEmpty>
-              <WorkbenchComposer />
-            </WorkbenchEmpty>
-          </ThreadPrimitive.Empty>
+          {isHistoryLoading ? (
+            <ThreadHistoryLoading />
+          ) : (
+            <>
+              <ThreadPrimitive.Empty>
+                <WorkbenchEmpty>
+                  <WorkbenchComposer />
+                </WorkbenchEmpty>
+              </ThreadPrimitive.Empty>
 
-          <WorkbenchMessages isRunning={isRunning} />
+              <WorkbenchMessages isRunning={isRunning} />
+            </>
+          )}
 
           <SlotHost
             name="thread.after"
@@ -817,7 +862,7 @@ export function WorkbenchThread() {
           </ThreadPrimitive.ScrollToBottom>
         ) : null}
 
-        {!isEmpty ? (
+        {hasDockedComposer ? (
           <div
             ref={composerDockRef}
             data-workbench-composer-dock=""

@@ -343,10 +343,10 @@ export const extensionsEnUS = {
     },
     piWorkingAnimation: {
       title: "Pi Working animation",
-      description: "Choose the thinking orb shown while Pi is working in a conversation.",
-      style: "Thinking orb",
-      size: "Orb size",
-      sizeDescription: "Adjust the inline orb without changing the Pi Working row height.",
+      description: "Choose the animation shown while Pi is working in a conversation.",
+      style: "Animation style",
+      size: "Animation size",
+      sizeDescription: "Adjust the inline animation without changing the Pi Working row height.",
       sizeValue: ({ size }: { size: number }, { number }: MessageFormatters) =>
         `${number(size)} px`,
       styles: {
@@ -359,6 +359,10 @@ export const extensionsEnUS = {
         composing: "Composing · Undulating bands",
         breathing: "Breathing · Morphing ring",
         shaping: "Shaping · Geometric outline",
+        "pi-logo-shine": "Pi logo · Light sweep",
+        "pi-logo-shine-inverted": "Pi logo · Inverted light sweep",
+        "pi-wordmark-on-light": "Pixel wordmark · Light theme",
+        "pi-wordmark-on-dark": "Pixel wordmark · Dark theme",
       },
     },
     fontFamilies: {
@@ -482,8 +486,11 @@ export const extensionsEnUS = {
     cornerRadiusStyles: {
       default: "Theme default",
       square: "Square",
+      subtle: "Subtle",
       compact: "Compact",
+      soft: "Soft",
       rounded: "Rounded",
+      "extra-rounded": "Extra rounded",
     },
     code: {
       sectionTitle: "Code",

@@ -19,7 +19,15 @@ export type GlassBlur = (typeof GLASS_BLURS)[number];
 export const BORDER_STYLES = ["default", "solid", "dashed", "dotted", "none"] as const;
 export type BorderStyle = (typeof BORDER_STYLES)[number];
 
-export const CORNER_RADIUS_STYLES = ["default", "square", "compact", "rounded"] as const;
+export const CORNER_RADIUS_STYLES = [
+  "square",
+  "subtle",
+  "compact",
+  "default",
+  "soft",
+  "rounded",
+  "extra-rounded",
+] as const;
 export type CornerRadiusStyle = (typeof CORNER_RADIUS_STYLES)[number];
 
 export const UI_FONT_FAMILIES = ["system", "geist", "serif", "rounded"] as const;
@@ -28,7 +36,7 @@ export type UiFontFamily = (typeof UI_FONT_FAMILIES)[number];
 export const RUNNING_INDICATOR_IDS = ["orb", "spinner", "pulse", "none"] as const;
 export type RunningIndicatorId = (typeof RUNNING_INDICATOR_IDS)[number];
 
-export const PI_WORKING_ORB_STATES = [
+const THINKING_ORB_STATES = [
   "working",
   "searching",
   "solving",
@@ -39,6 +47,14 @@ export const PI_WORKING_ORB_STATES = [
   "breathing",
   "shaping",
 ] as const satisfies readonly OrbState[];
+
+export const PI_WORKING_ORB_STATES = [
+  ...THINKING_ORB_STATES,
+  "pi-logo-shine",
+  "pi-logo-shine-inverted",
+  "pi-wordmark-on-light",
+  "pi-wordmark-on-dark",
+] as const;
 export type PiWorkingOrbState = (typeof PI_WORKING_ORB_STATES)[number];
 
 export const MIN_PI_WORKING_ORB_SIZE = 12;

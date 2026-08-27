@@ -69,8 +69,10 @@ export const workbenchZhCN = {
     },
     sourceFallback: "来源",
     generating: "正在生成回答…",
+    loadingHistory: "正在加载会话历史…",
     working: "Pi Working...",
     workingElapsed: ({ duration }: { duration: string }) => `Pi Working... · ${duration}`,
+    workingWordmarkElapsed: ({ duration }: { duration: string }) => `· ${duration}`,
     connectionInterruptedRetrying: ({
       attempt,
       maxAttempts,

@@ -4,7 +4,11 @@ import { CheckIcon, ChevronDownIcon, ImagePlusIcon, Trash2Icon } from "lucide-re
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { CodeThemePreview } from "@/components/assistant-ui/shiki-highlighter";
-import { PiWorkingOrb } from "@/components/elements/pi-working-orb";
+import {
+  isPiWorkingWordmarkState,
+  PI_WORKING_WORDMARK_ASPECT_RATIO,
+  PiWorkingOrb,
+} from "@/components/elements/pi-working-orb";
 import { RunningThreadIndicator } from "@/components/elements/running-thread-indicator";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuRadioGroup } from "@/components/ui/dropdown-menu";
@@ -16,6 +20,7 @@ import {
 } from "@/components/ui/settings-control";
 import { Switch } from "@/components/ui/switch";
 import { useI18n } from "@/i18n";
+import { cn } from "@/lib/utils";
 import type { SettingsItemComponentProps } from "@/platform/extensions";
 
 import {
@@ -421,6 +426,9 @@ function AnimatedPreviewSelect<Value extends string>({
   options,
   optionLabel,
   renderPreview,
+  previewAspectRatio,
+  previewOnly,
+  previewClassName,
   onChange,
 }: {
   label: string;
@@ -428,17 +436,39 @@ function AnimatedPreviewSelect<Value extends string>({
   options: readonly Value[];
   optionLabel(value: Value): string;
   renderPreview(value: Value, animated: boolean): ReactNode;
+  previewAspectRatio?(value: Value): number | undefined;
+  previewOnly?(value: Value): boolean;
+  previewClassName?(value: Value): string | undefined;
   onChange(value: Value): void;
 }) {
   const [previewValue, setPreviewValue] = useState<Value | null>(null);
+  const renderContainedPreview = (option: Value, animated: boolean) => {
+    const aspectRatio = previewAspectRatio?.(option);
+    const isPreviewOnly = previewOnly?.(option) ?? false;
+    return (
+      <span
+        aria-hidden="true"
+        className={cn(
+          "flex shrink-0 items-center justify-center",
+          isPreviewOnly ? "h-8 w-44 px-2" : "h-5",
+          previewClassName?.(option),
+        )}
+        style={
+          isPreviewOnly ? undefined : { width: aspectRatio ? Math.min(96, 20 * aspectRatio) : 20 }
+        }
+      >
+        {renderPreview(option, animated)}
+      </span>
+    );
+  };
 
   return (
     <DropdownMenu onOpenChange={(open) => setPreviewValue(open ? value : null)}>
       <SettingsDropdownTrigger aria-label={label}>
-        <span aria-hidden="true" className="flex size-5 shrink-0 items-center justify-center">
-          {renderPreview(value, true)}
-        </span>
-        <span className="min-w-0 truncate">{optionLabel(value)}</span>
+        {renderContainedPreview(value, true)}
+        {previewOnly?.(value) ? null : (
+          <span className="min-w-0 truncate">{optionLabel(value)}</span>
+        )}
         <ChevronDownIcon className="text-muted-foreground size-3.5 shrink-0" />
       </SettingsDropdownTrigger>
       <SettingsDropdownContent align="end" side="bottom" className="min-w-64">
@@ -454,13 +484,15 @@ function AnimatedPreviewSelect<Value extends string>({
             <SettingsDropdownRadioItem
               key={option}
               value={option}
+              aria-label={optionLabel(option)}
+              className={previewOnly?.(option) ? "justify-center" : undefined}
               onFocus={() => setPreviewValue(option)}
               onPointerEnter={() => setPreviewValue(option)}
             >
-              <span aria-hidden="true" className="flex size-5 shrink-0 items-center justify-center">
-                {renderPreview(option, option === (previewValue ?? value))}
-              </span>
-              <span className="min-w-0 flex-1">{optionLabel(option)}</span>
+              {renderContainedPreview(option, option === (previewValue ?? value))}
+              {previewOnly?.(option) ? null : (
+                <span className="min-w-0 flex-1">{optionLabel(option)}</span>
+              )}
             </SettingsDropdownRadioItem>
           ))}
         </DropdownMenuRadioGroup>
@@ -709,6 +741,9 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
     t(`extensions.appearance.borderStyles.${value}`);
   const cornerRadiusLabel = (value: CornerRadiusStyle): string =>
     t(`extensions.appearance.cornerRadiusStyles.${value}`);
+  const cornerRadiusIndex = CORNER_RADIUS_STYLES.indexOf(preferences.cornerRadius);
+  const cornerRadiusIndexLabel = (value: number): string =>
+    cornerRadiusLabel(CORNER_RADIUS_STYLES[value] ?? preferences.cornerRadius);
   const uiFontLabel = (value: UiFontFamily): string =>
     t(`extensions.appearance.fontFamilies.ui.${value}`);
   const runningIndicatorLabel = (value: RunningIndicatorId): string =>
@@ -900,8 +935,27 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
                   options={PI_WORKING_ORB_STATES}
                   optionLabel={piWorkingOrbLabel}
                   renderPreview={(piWorkingOrbState, animated) => (
-                    <PiWorkingOrb state={piWorkingOrbState} paused={!animated} />
+                    <PiWorkingOrb
+                      state={piWorkingOrbState}
+                      paused={!animated}
+                      className="size-full"
+                    />
                   )}
+                  previewAspectRatio={(piWorkingOrbState) =>
+                    isPiWorkingWordmarkState(piWorkingOrbState)
+                      ? PI_WORKING_WORDMARK_ASPECT_RATIO
+                      : undefined
+                  }
+                  previewOnly={isPiWorkingWordmarkState}
+                  previewClassName={(piWorkingOrbState) => {
+                    if (piWorkingOrbState === "pi-wordmark-on-light") {
+                      return "rounded-md border border-black/10 bg-white";
+                    }
+                    if (piWorkingOrbState === "pi-wordmark-on-dark") {
+                      return "rounded-md border border-white/10 bg-zinc-950";
+                    }
+                    return undefined;
+                  }}
                   onChange={(piWorkingOrbState) => appearanceStore.update({ piWorkingOrbState })}
                 />
               </SettingRow>
@@ -982,12 +1036,16 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
 
               <SettingSubgroup title={t("extensions.appearance.corners.title")}>
                 <SettingRow label={t("extensions.appearance.corners.radius")}>
-                  <SelectControl
+                  <RangeControl
                     label={t("extensions.appearance.corners.radius")}
-                    value={preferences.cornerRadius}
-                    options={CORNER_RADIUS_STYLES}
-                    optionLabel={cornerRadiusLabel}
-                    onChange={(cornerRadius) => appearanceStore.update({ cornerRadius })}
+                    value={cornerRadiusIndex}
+                    formatValue={cornerRadiusIndexLabel}
+                    minimum={0}
+                    maximum={CORNER_RADIUS_STYLES.length - 1}
+                    onChange={(index) => {
+                      const cornerRadius = CORNER_RADIUS_STYLES[index];
+                      if (cornerRadius) appearanceStore.update({ cornerRadius });
+                    }}
                   />
                 </SettingRow>
               </SettingSubgroup>

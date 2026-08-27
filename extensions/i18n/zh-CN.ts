@@ -335,10 +335,10 @@ export const extensionsZhCN = {
     },
     piWorkingAnimation: {
       title: "Pi Working 动画",
-      description: "选择 Pi 在会话中工作时显示的思考球动画。",
-      style: "思考球",
-      size: "思考球大小",
-      sizeDescription: "调整行内思考球大小，不改变 Pi Working 状态行的高度。",
+      description: "选择 Pi 在会话中工作时显示的动画。",
+      style: "动画样式",
+      size: "动画大小",
+      sizeDescription: "调整行内动画大小，不改变 Pi Working 状态行的高度。",
       sizeValue: ({ size }: { size: number }, { number }: MessageFormatters) =>
         `${number(size)} 像素`,
       styles: {
@@ -351,6 +351,10 @@ export const extensionsZhCN = {
         composing: "组织 · 起伏环带",
         breathing: "呼吸 · 渐变圆环",
         shaping: "塑形 · 几何轮廓",
+        "pi-logo-shine": "Pi 标志 · 高光扫过",
+        "pi-logo-shine-inverted": "Pi 标志 · 反色高光扫过",
+        "pi-wordmark-on-light": "像素字标 · 浅色主题",
+        "pi-wordmark-on-dark": "像素字标 · 深色主题",
       },
     },
     fontFamilies: {
@@ -473,8 +477,11 @@ export const extensionsZhCN = {
     cornerRadiusStyles: {
       default: "主题默认",
       square: "直角",
+      subtle: "微圆",
       compact: "紧凑",
+      soft: "柔和",
       rounded: "圆润",
+      "extra-rounded": "大圆角",
     },
     code: {
       sectionTitle: "代码",
