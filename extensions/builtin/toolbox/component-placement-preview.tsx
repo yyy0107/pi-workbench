@@ -1005,21 +1005,29 @@ export function ComponentPlacementPreview({
             shellActive && "bg-sky-500/5",
           )}
         >
-          <div className="grid size-full grid-cols-[8.375rem_minmax(22rem,1fr)_13.125rem]">
+          <div className="grid size-full grid-cols-[8.375rem_minmax(0,1fr)]">
             <MiniSidebar activeRegion={activeRegion} toolboxMode={toolboxMode} />
             <div className="flex min-h-0 min-w-0 flex-col">
               <MiniHeader activeRegion={activeRegion} toolboxMode={toolboxMode} />
-              <PanoramaTarget
-                activeRegion={activeRegion}
-                region="main-view"
-                label={t("extensions.toolbox.details.projectRegions.main")}
-                className="min-h-0 flex-1 overflow-hidden"
-              >
-                {toolboxMode ? <MiniMainView /> : <MiniConversation activeRegion={activeRegion} />}
-              </PanoramaTarget>
-              <MiniStatusbar activeRegion={activeRegion} />
+              <div className="grid min-h-0 flex-1 grid-cols-[minmax(22rem,1fr)_13.125rem]">
+                <div className="flex min-h-0 min-w-0 flex-col">
+                  <PanoramaTarget
+                    activeRegion={activeRegion}
+                    region="main-view"
+                    label={t("extensions.toolbox.details.projectRegions.main")}
+                    className="min-h-0 flex-1 overflow-hidden"
+                  >
+                    {toolboxMode ? (
+                      <MiniMainView />
+                    ) : (
+                      <MiniConversation activeRegion={activeRegion} />
+                    )}
+                  </PanoramaTarget>
+                  <MiniStatusbar activeRegion={activeRegion} />
+                </div>
+                <MiniWorkspace activeRegion={activeRegion} />
+              </div>
             </div>
-            <MiniWorkspace activeRegion={activeRegion} />
           </div>
 
           <MiniPanel activeRegion={activeRegion} region="panel.left" />

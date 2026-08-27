@@ -144,10 +144,8 @@ export function WorkbenchShell({ children }: Readonly<{ children: ReactNode }>) 
           "--sidebar-resize-translate-x": "0px",
           "--desktop-window-controls-inset-end":
             "calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw))",
-          "--right-workspace-toggle-closed-inset-end":
+          "--right-workspace-toggle-inset-end":
             "calc(0.75rem + var(--desktop-window-controls-inset-end))",
-          "--right-workspace-toggle-open-inset-end":
-            "calc(0.75rem + min(var(--desktop-window-controls-inset-end), max(0px, calc(2.25rem - env(titlebar-area-height, 0px)))))",
           "--right-workspace-toggle-reserved-width": "2.375rem",
         } as CSSProperties
       }
@@ -165,30 +163,25 @@ export function WorkbenchShell({ children }: Readonly<{ children: ReactNode }>) 
         onResize={resizeSidebar}
       />
 
-      <div ref={workspaceHostRef} className="relative flex min-w-0 flex-1 overflow-hidden">
-        <div
-          aria-hidden={conversationHidden ? true : undefined}
-          inert={conversationHidden ? true : undefined}
-          className={cn(
-            "flex min-w-0 flex-1 flex-col overflow-hidden",
-            conversationHidden && "invisible",
-          )}
-        >
-          <WorkbenchHeader />
-          <PanelLayout>
-            <WorkbenchMain>{children}</WorkbenchMain>
-          </PanelLayout>
-          <WorkbenchStatusbar />
+      <div ref={workspaceHostRef} className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+        <WorkbenchHeader />
+        <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+          <div
+            aria-hidden={conversationHidden ? true : undefined}
+            inert={conversationHidden ? true : undefined}
+            className={cn(
+              "flex min-w-0 flex-1 flex-col overflow-hidden",
+              conversationHidden && "invisible",
+            )}
+          >
+            <PanelLayout>
+              <WorkbenchMain>{children}</WorkbenchMain>
+            </PanelLayout>
+            <WorkbenchStatusbar />
+          </div>
+          <RightWorkspace />
         </div>
-        <RightWorkspace />
-        <RightWorkspaceToggleButton
-          className={cn(
-            "absolute z-30",
-            workspaceOpen
-              ? "[inset-block-start:env(titlebar-area-height,0px)] [inset-inline-end:var(--right-workspace-toggle-open-inset-end)]"
-              : "top-0 [inset-inline-end:var(--right-workspace-toggle-closed-inset-end)]",
-          )}
-        />
+        <RightWorkspaceToggleButton className="absolute top-0 z-30 [inset-inline-end:var(--right-workspace-toggle-inset-end)]" />
       </div>
 
       <WorkbenchGlobalLayer />

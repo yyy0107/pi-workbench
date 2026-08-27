@@ -28,17 +28,10 @@ export function WorkspaceHeader() {
   );
 
   return (
-    <header className="relative shrink-0 [padding-top:env(titlebar-area-height,0px)]">
-      <div
-        aria-hidden="true"
-        data-workbench-surface="right-workspace-titlebar"
-        className="absolute inset-x-0 top-0 h-[env(titlebar-area-height,0px)] [app-region:drag]"
-      />
-      {/* The persistent shell toggle stays mounted during workspace motion;
-          reserve its 2rem hit target and the 0.375rem control gap here. */}
+    <header className="shrink-0">
       <div
         data-workbench-surface="right-workspace-header"
-        className="flex h-10 items-center gap-1.5 ps-2 [padding-inline-end:calc(var(--right-workspace-toggle-open-inset-end)_+_var(--right-workspace-toggle-reserved-width))]"
+        className="flex h-10 items-center gap-1.5 ps-2 pe-2"
       >
         <div className="flex min-w-0 flex-1 items-center gap-1">
           {hasSurfaces ? (

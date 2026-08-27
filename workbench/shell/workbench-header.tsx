@@ -5,10 +5,8 @@ import { PanelLeftOpenIcon } from "lucide-react";
 import { useSyncExternalStore } from "react";
 
 import { Button } from "@/components/ui/button";
-import { useRightWorkspaceState } from "@/components/right-workspace";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useI18n } from "@/i18n";
-import { cn } from "@/lib/utils";
 import { useMainViewService } from "@/platform/extensions";
 import { SlotHost } from "@/platform/extensions/hosts/slot-host";
 import { useWorkbenchAgentThreadSnapshot } from "@/runtime/assistant-ui/agent-runtime-context";
@@ -50,7 +48,6 @@ export function WorkbenchHeader() {
     mainViews.getSnapshot,
     mainViews.getInitialSnapshot,
   );
-  const workspaceOpen = useRightWorkspaceState((state) => state.open);
   const currentThread = useAuiState((state) =>
     state.threads.threadItems.find((thread) => thread.id === state.threads.mainThreadId),
   );
@@ -66,12 +63,7 @@ export function WorkbenchHeader() {
   return (
     <header
       data-workbench-surface="header"
-      className={cn(
-        "bg-background grid h-10 shrink-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-1 border-b ps-2 [app-region:drag] select-none sm:grid-cols-[1fr_auto_1fr] sm:gap-0 sm:ps-3 [&_a]:[app-region:no-drag] [&_[data-slot=button]]:[app-region:no-drag]",
-        workspaceOpen
-          ? "pe-3"
-          : "[padding-inline-end:calc(var(--right-workspace-toggle-closed-inset-end)_+_var(--right-workspace-toggle-reserved-width))]",
-      )}
+      className="bg-background grid h-10 shrink-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-1 border-b ps-2 [padding-inline-end:calc(var(--right-workspace-toggle-inset-end)_+_var(--right-workspace-toggle-reserved-width))] [app-region:drag] select-none sm:grid-cols-[1fr_auto_1fr] sm:gap-0 sm:ps-3 [&_a]:[app-region:no-drag] [&_[data-slot=button]]:[app-region:no-drag]"
     >
       <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
         <SidebarOpenButton />
