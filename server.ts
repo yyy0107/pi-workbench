@@ -9,6 +9,10 @@ import {
   type WorkbenchRequestHandler,
   type WorkbenchWebSocketGateway,
 } from "./runtime/pi/server/transport/custom-server";
+import {
+  configuredApiTrustedHosts,
+  inspectApiRequestTrust,
+} from "./runtime/pi/server/transport/local-api-request-trust";
 import { migrateLegacyWorkbenchMessageTerminationExtension } from "./runtime/pi/server/internal-extensions/legacy-message-termination";
 import {
   createTerminalGateway,
@@ -145,6 +149,8 @@ async function main(): Promise<void> {
   const terminalGateway = createTerminalGateway({
     webSocketServer: terminalWebSocketServer,
     sessions: gatewayTerminalSessions,
+    trustedHosts: configuredApiTrustedHosts(),
+    inspectTrust: inspectApiRequestTrust,
     onUnexpectedError: (error) => console.error("Workbench terminal failed.", error),
   });
   const webSocketGatewayForPi = piWebSocketGateway.handleUpgrade.bind(piWebSocketGateway);

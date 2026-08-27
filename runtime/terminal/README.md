@@ -13,10 +13,11 @@ React Workspace Surface
   -> bash / zsh / fish / claude / codex
 ```
 
-`TerminalGateway` shares the custom Workbench HTTP server and the same Host/Origin/cross-site
-trust fence as the Pi RPC and stream endpoints. It validates bounded JSON frames before forwarding
-input, resize, or interrupt messages to the PTY. Ordinary HTTP access to the path
-returns `426 Upgrade Required`.
+`TerminalGateway` shares the custom Workbench HTTP server and receives the common
+Host/Origin/cross-site trust inspector from the top-level server composition root. Terminal remains
+independent of Pi server modules while applying the same trust fence as the Pi RPC and stream
+endpoints. It validates bounded JSON frames before forwarding input, resize, or interrupt messages
+to the PTY. Ordinary HTTP access to the path returns `426 Upgrade Required`.
 
 The wire contract treats a terminal as a first-class process rather than a one-shot shell response.
 Every connection begins with a complete `process/ready` snapshot containing a stable

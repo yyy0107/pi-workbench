@@ -1,10 +1,4 @@
 import {
-  configuredApiTrustedHosts,
-  inspectApiRequestTrust,
-  type ApiRequestTrustOptions,
-  type ApiRequestTrustResult,
-} from "../../pi/server/transport/local-api-request-trust";
-import {
   parseTerminalClientFrame,
   TERMINAL_WEBSOCKET_PATH,
   type TerminalErrorCode,
@@ -63,10 +57,19 @@ export interface TerminalSessionManagerLike {
   }): Promise<AttachedTerminalSession>;
 }
 
+export interface TerminalUpgradeTrustOptions {
+  trustedHosts?: readonly string[];
+}
+
+export interface TerminalUpgradeTrustResult {
+  trusted: boolean;
+  loopback: boolean;
+}
+
 export type InspectTerminalUpgradeTrust = (
   request: { headers: Headers },
-  options?: ApiRequestTrustOptions,
-) => ApiRequestTrustResult;
+  options?: TerminalUpgradeTrustOptions,
+) => TerminalUpgradeTrustResult;
 
 export interface TerminalGatewayOptions<
   Request extends TerminalUpgradeRequest,
@@ -76,7 +79,7 @@ export interface TerminalGatewayOptions<
   webSocketServer: NoServerTerminalWebSocketServer<Request, Socket, Head>;
   sessions: TerminalSessionManager | TerminalSessionManagerLike;
   trustedHosts?: readonly string[];
-  inspectTrust?: InspectTerminalUpgradeTrust;
+  inspectTrust: InspectTerminalUpgradeTrust;
   maxBufferedBytes?: number;
   onUnexpectedError?: (error: unknown) => void;
 }
@@ -348,7 +351,6 @@ export function createTerminalGateway<
   Socket extends TerminalUpgradeSocket,
   Head,
 >(options: TerminalGatewayOptions<Request, Socket, Head>): TerminalGateway<Request, Socket, Head> {
-  const inspectTrust = options.inspectTrust ?? inspectApiRequestTrust;
   const maxBufferedBytes = options.maxBufferedBytes ?? DEFAULT_MAX_BUFFERED_BYTES;
   if (!Number.isInteger(maxBufferedBytes) || maxBufferedBytes < 1) {
     throw new RangeError("maxBufferedBytes must be a positive integer.");
@@ -363,9 +365,9 @@ export function createTerminalGateway<
         return true;
       }
 
-      const trust = inspectTrust(
+      const trust = options.inspectTrust(
         { headers: requestHeaders(request.headers) },
-        { trustedHosts: options.trustedHosts ?? configuredApiTrustedHosts() },
+        { trustedHosts: options.trustedHosts ?? [] },
       );
       if (!trust.trusted) {
         rejectUpgrade(socket, 403);
