@@ -38,7 +38,6 @@ import {
 } from "./toolbox-capability";
 import { ToolboxCapabilityDetails } from "./toolbox-capability-surface";
 import { toolboxScopeMatchesCapability, toolboxScopeTarget } from "./toolbox-scope";
-import { ToolboxScopeSelect } from "./toolbox-scope-select";
 import { useToolboxScope } from "./toolbox-scope-store";
 import { usePiPackageCatalog } from "./use-pi-package-catalog";
 import { usePiPackageUpdates } from "./use-pi-package-updates";
@@ -489,12 +488,6 @@ export function ToolboxMainView({ close, view }: MainViewProps<ToolboxMainViewPa
     <section aria-label={t("extensions.toolbox.title")} className="flex h-full min-h-0 flex-col">
       <div className="flex min-h-0 flex-1 flex-col px-12">
         <div className="flex min-h-14 shrink-0 flex-wrap items-center gap-2 border-b px-4 py-2">
-          <div className="flex items-center gap-2">
-            <span className="text-muted-foreground text-xs">
-              {t("extensions.toolbox.scope.title")}
-            </span>
-            <ToolboxScopeSelect compact />
-          </div>
           <SearchField query={query} setQuery={setQuery} />
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground text-xs">
