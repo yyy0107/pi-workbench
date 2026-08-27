@@ -32,6 +32,10 @@ function preparePackage() {
     },
   );
 
+  // pnpm deploy follows the package file list, which excludes generated public assets ignored by
+  // Git. Merge the prebuild-synchronized assets into the staged app before electron-builder runs.
+  cpSync(path.join(projectRoot, "public"), path.join(appDirectory, "public"), { recursive: true });
+
   cpSync(nextBuildDirectory, path.join(appDirectory, ".next"), { recursive: true });
 
   const packagePath = path.join(appDirectory, "package.json");
