@@ -3280,38 +3280,35 @@ function customMessageMatchesEntry(
   );
 }
 
-/**
- * `AgentSession` emits `message_end` before it persists the message. A fork cut is only safe when
- * the journal event is immediately followed by the exact context entry produced for that event.
- */
-function hasPersistedMessageForEvent(
-  event: SessionEvent,
-  journalBranchIndex: number,
+/** Resolve the durable Pi entry represented by a canonical message_end event. */
+function persistedMessageForkLeaf(
+  journalEntry: CanonicalJournalEntry,
   branch: readonly SessionEntry[],
-): boolean {
-  if (!isRecord(event.data) || !isRecord(event.data.message)) return false;
+): SessionEntry | undefined {
+  const { branchIndex: journalBranchIndex, entry: eventEntry, event } = journalEntry;
+  if (!isRecord(event.data) || !isRecord(event.data.message)) return undefined;
   const message = event.data.message;
   const next = branch[journalBranchIndex + 1];
-  if (!next || typeof message.role !== "string") return false;
+  if (typeof message.role !== "string") return undefined;
 
   if (message.role === "user" || message.role === "assistant" || message.role === "toolResult") {
-    return next.type === "message" && jsonEqual(next.message, message);
+    return next?.type === "message" && jsonEqual(next.message, message) ? next : undefined;
   }
-  if (message.role !== "custom") return false;
-  if (customMessageMatchesEntry(message, next)) return true;
+  if (message.role !== "custom") return undefined;
+  if (customMessageMatchesEntry(message, next)) return next;
 
   // Workbench custom messages are persisted before AgentSession emits their lifecycle events:
-  // custom_message -> message_start journal -> message_end journal. Accept only that exact,
-  // content-matching sequence so the fork still has a provably durable leaf.
+  // custom_message -> message_start journal -> message_end journal. The message_end event entry is
+  // the correct fork leaf because its parent chain already contains the matching context message.
   const startEntry = branch[journalBranchIndex - 1];
   const persistedEntry = branch[journalBranchIndex - 2];
   const startEvent = startEntry ? storedCanonicalEvent(startEntry) : undefined;
   const startMessage = isRecord(startEvent?.data) ? startEvent.data.message : undefined;
-  return (
-    startEvent?.type === "message_start" &&
+  return startEvent?.type === "message_start" &&
     jsonEqual(startMessage, message) &&
     customMessageMatchesEntry(message, persistedEntry)
-  );
+    ? eventEntry
+    : undefined;
 }
 
 function forkUnavailable(): PiServerError {
@@ -3326,6 +3323,11 @@ function forkLeafForSequence(manager: SessionManager, atSeq?: number): SessionEn
   // Legacy migration records one synthetic `message` event per context message but does not retain
   // the original Pi entry id. A later turn boundary cannot make that historical anchor unambiguous.
   if (anchor?.event.type === "message") throw forkUnavailable();
+  if (anchor?.event.type === "message_end") {
+    const messageLeaf = persistedMessageForkLeaf(anchor, branch);
+    if (!messageLeaf) throw forkUnavailable();
+    return messageLeaf;
+  }
   const boundary =
     atSeq === undefined
       ? journal.findLast(({ event }) => event.type === "turn_end")
@@ -3340,7 +3342,7 @@ function forkLeafForSequence(manager: SessionManager, atSeq?: number): SessionEn
       if (turnOpen) throw forkUnavailable();
       turnOpen = true;
     } else if (candidate.event.type === "message_end") {
-      if (!hasPersistedMessageForEvent(candidate.event, candidate.branchIndex, branch)) {
+      if (!persistedMessageForkLeaf(candidate, branch)) {
         throw forkUnavailable();
       }
     } else if (candidate.event.type === "turn_end") {
@@ -3539,7 +3541,7 @@ export async function forkSession(id: string, atSeq?: number): Promise<HostedPiS
     const starting = registry.startLocks.get(id);
     if (starting) live = await starting;
   }
-  if (live?.isAlive && live.isRunning) throw forkUnavailable();
+  if (live?.isAlive && live.isRunning && atSeq === undefined) throw forkUnavailable();
 
   let sourcePath = live?.session.sessionManager.getSessionFile() ?? undefined;
   if (!sourcePath || !existsSync(/* turbopackIgnore: true */ sourcePath)) {
@@ -3555,14 +3557,14 @@ export async function forkSession(id: string, atSeq?: number): Promise<HostedPiS
   return serializeForkCreation(async () => {
     if (
       !existsSync(/* turbopackIgnore: true */ resolvedSourcePath) ||
-      registry.sessions.get(id)?.isRunning
+      (atSeq === undefined && registry.sessions.get(id)?.isRunning)
     ) {
       throw forkUnavailable();
     }
     const occupiedIds = new Set((await SessionManager.listAll()).map((session) => session.id));
     if (
       !existsSync(/* turbopackIgnore: true */ resolvedSourcePath) ||
-      registry.sessions.get(id)?.isRunning
+      (atSeq === undefined && registry.sessions.get(id)?.isRunning)
     ) {
       throw forkUnavailable();
     }

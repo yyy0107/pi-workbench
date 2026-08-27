@@ -11,6 +11,8 @@ export function shouldHideMessageActionBar(
   message: MessageActionVisibilityMessage,
   isThreadRunning: boolean,
 ): boolean {
+  // A persisted Pi assistant step can be complete while the enclosing tool-driven turn continues.
+  // Keep the active response's actions hidden until the thread run itself has ended.
   return (
     message.role === "assistant" &&
     (message.status?.type === "running" || (isThreadRunning && message.isLast === true))

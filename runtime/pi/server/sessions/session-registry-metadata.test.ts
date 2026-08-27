@@ -2914,6 +2914,32 @@ test("creates detached omitted and anchored forks without replacing the source",
     data: { message: openTailUser },
   });
   source.appendMessage(openTailUser);
+  const openTailAssistant = {
+    ...assistantMessage("starting a tool", 4),
+    content: [
+      { type: "text" as const, text: "starting a tool" },
+      {
+        type: "toolCall" as const,
+        id: "unfinished-tool",
+        name: "read",
+        arguments: { path: "unfinished.ts" },
+      },
+    ],
+    stopReason: "toolUse" as const,
+  };
+  appendSessionEventJournal(source, {
+    type: "message_start",
+    seq: 9,
+    time: 10,
+    data: { message: openTailAssistant },
+  });
+  appendSessionEventJournal(source, {
+    type: "message_end",
+    seq: 10,
+    time: 11,
+    data: { message: openTailAssistant },
+  });
+  source.appendMessage(openTailAssistant);
   source.appendCustomEntry("workbench.session-context-policy.v1", {
     version: 1,
     policy: { mode: "custom", desiredContextTokens: 80_000 },
@@ -2960,9 +2986,22 @@ test("creates detached omitted and anchored forks without replacing the source",
     assert.equal(typeof event?.time, "number");
     assert.deepEqual(event?.data, { sourceSessionId: "fork-source", sourceEventSeq: 5 });
   }
-  assert.throws(() => createDetachedSessionFork(sourcePath, 8), {
-    code: "pi_fork_unavailable",
-  });
+
+  const messageAnchored = createDetachedSessionFork(sourcePath, 10);
+  assert.deepEqual(messageAnchored.buildSessionContext().messages, [
+    user,
+    assistant,
+    openTailUser,
+    openTailAssistant,
+  ]);
+  const messageAnchoredTail = messageAnchored.getLeafEntry();
+  assert.equal(messageAnchoredTail?.type, "custom");
+  if (messageAnchoredTail?.type === "custom") {
+    const event = (messageAnchoredTail.data as { event?: Record<string, unknown> }).event;
+    assert.equal(event?.type, "session_forked");
+    assert.equal(event?.seq, 11);
+    assert.deepEqual(event?.data, { sourceSessionId: "fork-source", sourceEventSeq: 10 });
+  }
 
   assert.equal(source.getSessionId(), "fork-source");
   assert.equal(source.getSessionFile(), sourcePath);
@@ -3045,14 +3084,14 @@ test("forks sessions whose durable custom messages precede their lifecycle event
   if (tail?.type !== "custom") return;
   const event = (tail.data as { event?: Record<string, unknown> }).event;
   assert.equal(event?.type, "session_forked");
-  assert.equal(event?.seq, 8);
+  assert.equal(event?.seq, 7);
   assert.deepEqual(event?.data, {
     sourceSessionId: "fork-custom-source",
-    sourceEventSeq: 7,
+    sourceEventSeq: 6,
   });
 });
 
-test("rejects in-log anchors without a completed and reliably persisted turn", async (t) => {
+test("rejects in-log anchors without a reliably persisted message boundary", async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), "workbench-session-fork-invalid-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const cwd = path.join(root, "project");

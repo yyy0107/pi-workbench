@@ -67,6 +67,18 @@ test("hides a completed-status branched response until its retry run finishes", 
   assert.equal(shouldHideMessageActionBar(historicalBranch, true), false);
 });
 
+test("hides actions for a persisted message while its turn continues", () => {
+  const completedToolStep = {
+    ...assistant("assistant-tool-step", "text", "tool-call"),
+    isLast: true,
+    status: { type: "complete" },
+    metadata: { custom: { piEventSeq: 7 } },
+  };
+
+  assert.equal(shouldHideMessageActionBar(completedToolStep, true), true);
+  assert.equal(shouldHideMessageActionBar(completedToolStep, false), false);
+});
+
 test("hides actions for tool-call steps", () => {
   const messages = [
     user("user-1"),

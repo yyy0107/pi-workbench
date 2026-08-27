@@ -36,6 +36,7 @@ import {
 } from "@/runtime/pi/client/runtime/context";
 import { readPiUsage } from "@/runtime/pi/client/messages/pi-usage";
 
+import { assistantForkEventSequence, isExpectedForkUnavailableError } from "./fork-availability";
 import { shouldShowMessagePerformance } from "./message-performance-visibility";
 
 function MessagePerformance() {
@@ -177,15 +178,11 @@ function AssistantActions({ canReload }: Readonly<{ canReload: boolean }>) {
   const sessionId = usePiActiveSessionId();
   const session = usePiThreadListItemSnapshot(sessionId);
   const reportError = useExtensionErrorReporter();
-  const isRunning = useAuiState((state) => state.thread.isRunning);
   const rawEventSeq = useAuiState((state) => state.message.metadata.custom.piEventSeq);
-  const eventSeq =
-    typeof rawEventSeq === "number" && Number.isSafeInteger(rawEventSeq) && rawEventSeq >= 0
-      ? rawEventSeq
-      : undefined;
+  const eventSeq = assistantForkEventSequence(rawEventSeq);
   const [forkState, setForkState] = useState<"idle" | "pending" | "failed">("idle");
   const forkConversation = useCallback(async () => {
-    if (isRunning || !sessionId || eventSeq === undefined || forkState === "pending") return;
+    if (!sessionId || eventSeq === undefined || forkState === "pending") return;
     setForkState("pending");
     try {
       const forked = await manager.forkSessionAt({
@@ -197,12 +194,14 @@ function AssistantActions({ canReload }: Readonly<{ canReload: boolean }>) {
       window.history.pushState(null, "", `/c/${encodeURIComponent(forked.sessionId)}`);
     } catch (error) {
       setForkState("failed");
-      reportError(error, {
-        source: "slot",
-        contributionId: "message-actions.fork-conversation",
-      });
+      if (!isExpectedForkUnavailableError(error)) {
+        reportError(error, {
+          source: "slot",
+          contributionId: "message-actions.fork-conversation",
+        });
+      }
     }
-  }, [aui, eventSeq, forkState, isRunning, manager, reportError, session?.title, sessionId, t]);
+  }, [aui, eventSeq, forkState, manager, reportError, session?.title, sessionId, t]);
   const forkTooltip =
     forkState === "pending"
       ? t("extensions.messageActions.forkConversationPending")
@@ -216,7 +215,7 @@ function AssistantActions({ canReload }: Readonly<{ canReload: boolean }>) {
         <TooltipIconButton
           tooltip={forkTooltip}
           type="button"
-          disabled={isRunning || forkState === "pending"}
+          disabled={forkState === "pending"}
           onClick={forkConversation}
         >
           <SplitIcon className="size-3.5 rotate-90" />
