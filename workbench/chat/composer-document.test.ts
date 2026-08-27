@@ -10,6 +10,8 @@ import {
   composerDocumentText,
   parseComposerDocument,
   PI_COMMAND_DIRECTIVE_TYPE,
+  PI_PROJECT_SKILL_DIRECTIVE_TYPE,
+  PI_USER_SKILL_DIRECTIVE_TYPE,
   WORKBENCH_COMMAND_DIRECTIVE_TYPE,
   workbenchComposerDirectiveFormatter,
 } from "./composer-document";
@@ -85,6 +87,60 @@ test("parser decodes the persisted localized Pi command label used by user bubbl
     scope: "message",
     source: "pi",
   });
+});
+
+test("formatter persists explicitly selected Skills as canonical skill links", () => {
+  const projectSkill = workbenchComposerDirectiveFormatter.serialize({
+    id: "skill:mcp-scripting",
+    type: PI_PROJECT_SKILL_DIRECTIVE_TYPE,
+    label: "Mcp Scripting",
+  });
+  const userSkill = workbenchComposerDirectiveFormatter.serialize({
+    id: "skill:personal-notes",
+    type: PI_USER_SKILL_DIRECTIVE_TYPE,
+    label: "Personal Notes",
+  });
+
+  assert.equal(projectSkill, "[$Mcp Scripting](skill://project/mcp-scripting)");
+  assert.equal(userSkill, "[$Personal Notes](skill://user/personal-notes)");
+  assert.deepEqual(workbenchComposerDirectiveFormatter.parse(`${projectSkill} ${userSkill}`), [
+    {
+      kind: "mention",
+      type: PI_PROJECT_SKILL_DIRECTIVE_TYPE,
+      id: "skill:mcp-scripting",
+      label: "Mcp Scripting",
+    },
+    { kind: "text", text: " " },
+    {
+      kind: "mention",
+      type: PI_USER_SKILL_DIRECTIVE_TYPE,
+      id: "skill:personal-notes",
+      label: "Personal Notes",
+    },
+  ]);
+});
+
+test("compiler upgrades legacy Skill directives to canonical skill links", () => {
+  const emptyRegistry = registry([]);
+  const document = parseComposerDocument(
+    ":pi-command[skill%3Amcp-scripting|Mcp%20Scripting] 怎么使用",
+    emptyRegistry,
+  );
+  const result = compileComposerDocument(document, emptyRegistry, [
+    {
+      invocationName: "skill:mcp-scripting",
+      kind: "skill",
+      scope: "project",
+      exclusive: false,
+    },
+  ]);
+
+  assert.equal(result.sourceText, "[$Mcp Scripting](skill://project/mcp-scripting) 怎么使用");
+  assert.equal(result.text, "怎么使用");
+  assert.deepEqual(
+    result.commands.map((command) => command.commandId),
+    ["skill:mcp-scripting"],
+  );
 });
 
 test("parser creates structural nodes and strips one token buffer from request text", () => {

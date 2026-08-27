@@ -734,6 +734,18 @@ test("validates command.list at the shared RPC boundary", async () => {
   assert.equal(body.result.error.code, "bad-request");
   const issues = body.result.error.details.issues as Array<{ path?: unknown }>;
   assert.deepEqual(issues[0]?.path, ["payload", "sessionId"]);
+
+  const ambiguousResponse = await handlePiRpcPost(
+    rpcRequest("command.list", {
+      sessionId: "session-1",
+      target: { scope: "project", workspaceId: "workspace-1" },
+    }),
+    "command.list",
+  );
+  const ambiguousBody = (await ambiguousResponse.json()) as ServerResponse<unknown>;
+  assert.equal(ambiguousBody.result.ok, false);
+  if (ambiguousBody.result.ok) assert.fail("Expected mutually exclusive command identities");
+  assert.equal(ambiguousBody.result.error.code, "bad-request");
 });
 
 test("validates extension.list at the shared RPC boundary", async () => {

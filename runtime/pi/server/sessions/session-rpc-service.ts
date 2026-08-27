@@ -649,7 +649,8 @@ export class SessionRpcService {
       code === "pi_prompt_rejected" ||
       code === "pi_command_not_found" ||
       code === "pi_composer_command_conflict" ||
-      code === "pi_composer_command_args_invalid"
+      code === "pi_composer_command_args_invalid" ||
+      code === "pi_skill_read_tool_unavailable"
     ) {
       throw new SessionRpcServiceError(
         "command-error",

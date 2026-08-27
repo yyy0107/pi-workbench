@@ -1060,15 +1060,16 @@ test("skill management helpers call their identity-scoped RPC methods", async (t
   ]);
 });
 
-test("listPiCommands calls the session-scoped command.list RPC", async (t) => {
+test("listPiCommands forwards the command catalog resource identity", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => {
     globalThis.fetch = originalFetch;
   });
 
-  let request: Record<string, unknown> | undefined;
+  const requests: Record<string, unknown>[] = [];
   globalThis.fetch = async (_input, init) => {
-    request = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    const request = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    requests.push(request);
     return Response.json({
       type: "server-response",
       rpcId: request.rpcId,
@@ -1108,8 +1109,34 @@ test("listPiCommands calls the session-scoped command.list RPC", async (t) => {
       },
     ],
   });
-  assert.equal(request?.method, "command.list");
-  assert.deepEqual(request?.payload, { sessionId: "session-1" });
+  assert.deepEqual(
+    await listPiCommands({ target: { scope: "project", workspaceId: "workspace-1" } }),
+    {
+      commands: [
+        {
+          kind: "extension",
+          name: "review",
+          invocationName: "review",
+          effect: "agent-turn",
+          exclusive: true,
+          description: "Review the current changes.",
+          source: "auto",
+          scope: "user",
+          origin: "top-level",
+        },
+      ],
+    },
+  );
+  assert.deepEqual(
+    requests.map(({ method, payload }) => ({ method, payload })),
+    [
+      { method: "command.list", payload: { sessionId: "session-1" } },
+      {
+        method: "command.list",
+        payload: { target: { scope: "project", workspaceId: "workspace-1" } },
+      },
+    ],
+  );
 });
 
 test("listPiPrompts calls the standalone scoped prompt.list RPC", async (t) => {

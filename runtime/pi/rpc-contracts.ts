@@ -1056,9 +1056,12 @@ export interface PiPackageCatalogSearchValue {
   packages: PiPackageCatalogItemView[];
 }
 
-export interface CommandListPayload {
-  sessionId: string;
-}
+/**
+ * Existing conversations expose their complete runtime command catalog through a session. Draft
+ * conversations use a resource target so Composer can discover session-independent commands
+ * without creating an empty chat record.
+ */
+export type CommandListPayload = PiResourceRequest;
 
 interface CommandViewBase {
   name: string;

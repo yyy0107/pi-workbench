@@ -3,7 +3,9 @@ import type {
   CommandListValue,
   ExtensionSourceOrigin,
   ExtensionSourceScope,
+  PiResourceCatalogTarget,
 } from "../../rpc-contracts";
+import { getScopedResourceContextService } from "../resources/scoped-resource-context";
 import { getOrStartSession } from "../sessions/session-registry";
 import { PI_COMPOSER_BUILTIN_COMMANDS } from "./pi-composer-command-catalog";
 
@@ -42,10 +44,10 @@ interface LoadedSkill {
 
 export interface CommandSessionHost {
   session: {
-    extensionRunner: {
+    extensionRunner?: {
       getRegisteredCommands(): readonly RegisteredExtensionCommand[];
     };
-    promptTemplates: readonly LoadedPromptTemplate[];
+    promptTemplates?: readonly LoadedPromptTemplate[];
     resourceLoader: {
       getSkills(): { skills: readonly LoadedSkill[] };
     };
@@ -54,6 +56,7 @@ export interface CommandSessionHost {
 
 export interface CommandServiceDependencies {
   getSession(sessionId: string): Promise<CommandSessionHost>;
+  getScopedResourceHost(target: PiResourceCatalogTarget): Promise<CommandSessionHost>;
 }
 
 export interface CommandServiceErrorDetails {
@@ -93,44 +96,69 @@ export class CommandService {
   constructor(dependencies: Partial<CommandServiceDependencies> = {}) {
     this.dependencies = {
       getSession: getOrStartSession,
+      getScopedResourceHost: async (target) => {
+        const context = await getScopedResourceContextService().get(target);
+        return {
+          session: {
+            resourceLoader: context.resourceLoader,
+          },
+        };
+      },
       ...dependencies,
     };
   }
 
-  async list({ sessionId }: CommandListPayload): Promise<CommandListValue> {
+  async list(request: CommandListPayload): Promise<CommandListValue> {
     let host: CommandSessionHost;
-    try {
-      host = await this.dependencies.getSession(sessionId);
-    } catch (error) {
-      if (errorCode(error) === "pi_session_not_found") {
+    const resourceTarget = "target" in request ? request.target : undefined;
+    if (resourceTarget) {
+      host = await this.dependencies.getScopedResourceHost(resourceTarget);
+    } else {
+      const sessionId = "sessionId" in request ? request.sessionId : undefined;
+      if (!sessionId) {
+        throw new CommandServiceError("internal", "The command catalog identity is missing.", {});
+      }
+      try {
+        host = await this.dependencies.getSession(sessionId);
+      } catch (error) {
+        if (errorCode(error) === "pi_session_not_found") {
+          throw new CommandServiceError(
+            "session-not-found",
+            "The session does not exist.",
+            { sessionId },
+            { cause: error },
+          );
+        }
         throw new CommandServiceError(
-          "session-not-found",
-          "The session does not exist.",
-          { sessionId },
+          "internal",
+          "The session commands could not be loaded.",
+          {},
           { cause: error },
         );
       }
-      throw new CommandServiceError(
-        "internal",
-        "The session commands could not be loaded.",
-        {},
-        { cause: error },
-      );
     }
 
     try {
       const builtinNames = new Set<string>(
         PI_COMPOSER_BUILTIN_COMMANDS.map((command) => command.name),
       );
-      const extensionCommands = host.session.extensionRunner
-        .getRegisteredCommands()
-        .filter(
-          (command) => !builtinNames.has(command.name) || command.invocationName !== command.name,
-        );
+      const extensionCommands = (
+        host.session.extensionRunner?.getRegisteredCommands() ?? []
+      ).filter(
+        (command) => !builtinNames.has(command.name) || command.invocationName !== command.name,
+      );
       const reservedPromptNames = new Set([
         ...builtinNames,
         ...extensionCommands.map((command) => command.invocationName),
       ]);
+      const skills = host.session.resourceLoader
+        .getSkills()
+        .skills.filter(
+          (skill) =>
+            !resourceTarget ||
+            skill.sourceInfo.scope === "user" ||
+            (resourceTarget.scope === "project" && skill.sourceInfo.scope === "project"),
+        );
 
       return {
         commands: [
@@ -156,7 +184,7 @@ export class CommandService {
             scope: command.sourceInfo.scope,
             origin: command.sourceInfo.origin,
           })),
-          ...host.session.promptTemplates
+          ...(host.session.promptTemplates ?? [])
             .filter((template) => !reservedPromptNames.has(template.name))
             .map((template) => ({
               kind: "prompt" as const,
@@ -172,7 +200,7 @@ export class CommandService {
               scope: template.sourceInfo.scope,
               origin: template.sourceInfo.origin,
             })),
-          ...host.session.resourceLoader.getSkills().skills.map((skill) => ({
+          ...skills.map((skill) => ({
             kind: "skill" as const,
             name: skill.name,
             invocationName: `skill:${skill.name}`,
@@ -189,7 +217,7 @@ export class CommandService {
     } catch (error) {
       throw new CommandServiceError(
         "internal",
-        "The session commands could not be loaded.",
+        "The Composer commands could not be loaded.",
         {},
         { cause: error },
       );

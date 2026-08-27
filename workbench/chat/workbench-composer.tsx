@@ -72,8 +72,10 @@ import {
   COMMAND_ARGUMENT_END_DIRECTIVE_TYPE,
   compileComposerDocument,
   composerCommandArgumentKey,
+  isPiComposerDirectiveType,
   parseComposerDocument,
   PI_COMMAND_DIRECTIVE_TYPE,
+  piSkillDirectiveType,
   WORKBENCH_COMMAND_DIRECTIVE_TYPE,
   workbenchComposerDirectiveFormatter,
 } from "./composer-document";
@@ -162,7 +164,7 @@ function suggestionKey(item: Pick<Unstable_TriggerItem, "id" | "type">): string 
 
 function suggestionParameterKey(item: Pick<Unstable_TriggerItem, "id" | "type">): string {
   return composerCommandArgumentKey(
-    item.type === PI_COMMAND_DIRECTIVE_TYPE ? "pi" : "workbench",
+    isPiComposerDirectiveType(item.type) ? "pi" : "workbench",
     item.id,
   );
 }
@@ -227,7 +229,7 @@ function directiveGroup(
   item: Pick<Unstable_TriggerItem, "id" | "type">,
   registry: Pick<ComposerCommandRegistry, "get">,
 ): string | undefined {
-  if (item.type !== WORKBENCH_COMMAND_DIRECTIVE_TYPE && item.type !== PI_COMMAND_DIRECTIVE_TYPE) {
+  if (item.type !== WORKBENCH_COMMAND_DIRECTIVE_TYPE && !isPiComposerDirectiveType(item.type)) {
     return undefined;
   }
   const definition = registry.get(item.id);
@@ -606,7 +608,10 @@ export function WorkbenchComposer() {
         argsSchema,
         argsBinding,
       });
-      const type = PI_COMMAND_DIRECTIVE_TYPE;
+      const type =
+        command.kind === "skill"
+          ? (piSkillDirectiveType(command.scope) ?? PI_COMMAND_DIRECTIVE_TYPE)
+          : PI_COMMAND_DIRECTIVE_TYPE;
       suggestions.push({
         item: { id: command.invocationName, type, label, description },
         command: {
@@ -661,6 +666,19 @@ export function WorkbenchComposer() {
     () =>
       new Map(
         composerSuggestions.map((suggestion) => [suggestionKey(suggestion.item), suggestion]),
+      ),
+    [composerSuggestions],
+  );
+  const composerSuggestionsByCommandKey = useMemo(
+    () =>
+      new Map(
+        composerSuggestions.map((suggestion) => [
+          composerCommandArgumentKey(
+            isPiComposerDirectiveType(suggestion.item.type) ? "pi" : "workbench",
+            suggestion.item.id,
+          ),
+          suggestion,
+        ]),
       ),
     [composerSuggestions],
   );
@@ -904,14 +922,8 @@ export function WorkbenchComposer() {
           commandNodes.length > 1 &&
           commandNodes.some(
             (node) =>
-              composerSuggestionsByKey.get(
-                suggestionKey({
-                  id: node.commandId,
-                  type:
-                    node.source === "pi"
-                      ? PI_COMMAND_DIRECTIVE_TYPE
-                      : WORKBENCH_COMMAND_DIRECTIVE_TYPE,
-                }),
+              composerSuggestionsByCommandKey.get(
+                composerCommandArgumentKey(node.source, node.commandId),
               )?.exclusive,
           )
         ) {
@@ -933,7 +945,7 @@ export function WorkbenchComposer() {
       clearCommandParameterValues,
       commandParametersByKey,
       composerCommandRegistry,
-      composerSuggestionsByKey,
+      composerSuggestionsByCommandKey,
       piCommands,
       reportComposerCommandError,
     ],

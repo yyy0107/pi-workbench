@@ -171,8 +171,9 @@ test("adapts the resolved request by trust boundary without injecting command tr
     version: 1,
     userText: "inspect concurrency",
     config: { mode: "plan", metadata: { review: true } },
+    selectedSkills: [],
     instructions: [
-      { source: "skill:review", trust: "trusted-instruction", content: "Review carefully" },
+      { source: "workbench:review", trust: "trusted-instruction", content: "Review carefully" },
     ],
     trustedContext: [],
     untrustedContext: [{ source: "file", trust: "untrusted-context", value: "src/app.tsx" }],
@@ -202,21 +203,30 @@ test("binds a deictic request to the Skill explicitly selected in Composer", () 
     version: 1,
     userText: "怎么使用这个",
     config: { metadata: {} },
-    instructions: [
+    selectedSkills: [
       {
-        source: "skill:mcp-scripting",
-        trust: "trusted-instruction",
-        content: "Explicitly selected Skill: mcp-scripting\nFollow the MCP scripting workflow.",
+        invocationName: "skill:mcp-scripting",
+        name: "mcp-scripting",
+        location: "/skills/mcp-scripting/SKILL.md",
+        baseDir: "/skills/mcp-scripting",
+        selectedBy: "user",
       },
     ],
+    instructions: [],
     trustedContext: [],
     untrustedContext: [],
     commandTrace: [],
   });
 
-  assert.match(prompt, /explicitly selected the following Skills for this turn/);
-  assert.match(prompt, /Selected Skill names: \["mcp-scripting"\]/);
-  assert.match(prompt, /Do not treat them as reference data/);
+  assert.match(prompt, /<workbench-explicit-skill-selection>/);
+  assert.match(
+    prompt,
+    /explicitly selected the following Skills through the Workbench Skill picker/,
+  );
+  assert.match(prompt, /"location":"\/skills\/mcp-scripting\/SKILL.md"/);
+  assert.match(prompt, /Use the read tool to read every selected Skill file completely/);
+  assert.match(prompt, /Do not answer from a Skill name or description alone/);
   assert.match(prompt, /"这个"/);
+  assert.doesNotMatch(prompt, /<workbench-trusted-instructions>/);
   assert.match(prompt, /<user-request>\n怎么使用这个\n<\/user-request>$/);
 });

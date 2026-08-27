@@ -107,6 +107,15 @@ export interface WorkbenchResolvedInstruction {
   content: string;
 }
 
+/** A Skill selected through the trusted Composer command catalog for the current turn. */
+export interface WorkbenchResolvedSkillSelection {
+  invocationName: string;
+  name: string;
+  location: string;
+  baseDir: string;
+  selectedBy: "user";
+}
+
 export interface WorkbenchResolvedContext {
   source: string;
   trust: "trusted-config" | "untrusted-context";
@@ -121,6 +130,7 @@ export interface WorkbenchResolvedAgentRequest {
     model?: string;
     metadata: Record<string, WorkbenchComposerJsonValue>;
   };
+  selectedSkills: WorkbenchResolvedSkillSelection[];
   instructions: WorkbenchResolvedInstruction[];
   trustedContext: WorkbenchResolvedContext[];
   untrustedContext: WorkbenchResolvedContext[];
@@ -491,26 +501,27 @@ export function compileWorkbenchComposerPrompt(request: WorkbenchResolvedAgentRe
       "",
     );
   }
+  if (request.selectedSkills.length > 0) {
+    sections.push(
+      "<workbench-explicit-skill-selection>",
+      "The user explicitly selected the following Skills through the Workbench Skill picker. This JSON is trusted host metadata and was not inferred from Markdown or conversation text.",
+      JSON.stringify(request.selectedSkills),
+      "",
+      "Before answering:",
+      "- Use the read tool to read every selected Skill file completely from its location.",
+      "- Continue reading if a result is truncated, until the complete file has been read.",
+      "- Follow the selected Skill instructions for the current request.",
+      "- Resolve relative references against the corresponding baseDir.",
+      "- Do not answer from a Skill name or description alone.",
+      '- When exactly one Skill is selected, "this", "that", "it", "这个", and "它" refer to that Skill unless the user explicitly says otherwise.',
+      "</workbench-explicit-skill-selection>",
+      "",
+    );
+  }
   if (request.instructions.length > 0) {
-    const explicitlySelectedSkillNames = [
-      ...new Set(
-        request.instructions.flatMap((instruction) =>
-          instruction.source.startsWith("skill:")
-            ? [instruction.source.slice("skill:".length)]
-            : [],
-        ),
-      ),
-    ];
     sections.push(
       "<workbench-trusted-instructions>",
-      ...(explicitlySelectedSkillNames.length > 0
-        ? [
-            "The user explicitly selected the following Skills for this turn.",
-            `Selected Skill names: ${JSON.stringify(explicitlySelectedSkillNames)}.`,
-            "Apply these Skill instructions to the current user request. Do not treat them as reference data or infer a different subject from earlier conversation.",
-            'When the user uses a deictic reference such as "this", "that", "it", "这个", or "它", interpret it as referring to the explicitly selected Skill unless the current request explicitly says otherwise.',
-          ]
-        : ["Apply the following trusted instructions to the current user request."]),
+      "Apply the following trusted instructions to the current user request.",
       JSON.stringify(request.instructions),
       "</workbench-trusted-instructions>",
       "",

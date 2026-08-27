@@ -19,10 +19,38 @@ import type {
 
 export const WORKBENCH_COMMAND_DIRECTIVE_TYPE = "workbench-command";
 export const PI_COMMAND_DIRECTIVE_TYPE = "pi-command";
+export const PI_PROJECT_SKILL_DIRECTIVE_TYPE = "pi-project-skill";
+export const PI_USER_SKILL_DIRECTIVE_TYPE = "pi-user-skill";
 export const COMMAND_ARGUMENT_END_DIRECTIVE_TYPE = "workbench-command-argument-end";
 
 const COMMAND_DIRECTIVE_RE =
   /:(workbench-command|pi-command|workbench-command-argument-end)\[([^|\]\n]{1,2048})\|([^\]\n]{1,4096})\]/gu;
+const SKILL_LINK_RE =
+  /\[\$((?:\\.|[^\]\\\n]){1,4096})\]\(skill:\/\/(user|project)\/([^\s)\n]{1,2048})\)/gu;
+
+type PersistedSkillScope = "project" | "user";
+
+function persistedSkillScopeFromDirectiveType(type: string): PersistedSkillScope | undefined {
+  if (type === PI_PROJECT_SKILL_DIRECTIVE_TYPE) return "project";
+  if (type === PI_USER_SKILL_DIRECTIVE_TYPE) return "user";
+  return undefined;
+}
+
+export function piSkillDirectiveType(
+  scope: "project" | "temporary" | "user",
+): typeof PI_PROJECT_SKILL_DIRECTIVE_TYPE | typeof PI_USER_SKILL_DIRECTIVE_TYPE | undefined {
+  if (scope === "project") return PI_PROJECT_SKILL_DIRECTIVE_TYPE;
+  if (scope === "user") return PI_USER_SKILL_DIRECTIVE_TYPE;
+  return undefined;
+}
+
+export function isPiComposerDirectiveType(type: string): boolean {
+  return (
+    type === PI_COMMAND_DIRECTIVE_TYPE ||
+    type === PI_PROJECT_SKILL_DIRECTIVE_TYPE ||
+    type === PI_USER_SKILL_DIRECTIVE_TYPE
+  );
+}
 
 function decodeDirectiveValue(value: string): string | undefined {
   try {
@@ -32,8 +60,70 @@ function decodeDirectiveValue(value: string): string | undefined {
   }
 }
 
+function escapeSkillLinkLabel(value: string): string {
+  return value.replaceAll("\\", "\\\\").replaceAll("]", "\\]");
+}
+
+function unescapeSkillLinkLabel(value: string): string {
+  return value.replace(/\\([\\\]])/gu, "$1");
+}
+
+function skillNameFromInvocationName(invocationName: string): string | undefined {
+  if (!invocationName.startsWith("skill:")) return undefined;
+  const name = invocationName.slice("skill:".length);
+  return name || undefined;
+}
+
+interface ParsedDirectiveMatch {
+  readonly index: number;
+  readonly end: number;
+  readonly segment: Exclude<Unstable_DirectiveSegment, { readonly kind: "text" }>;
+}
+
+function parsedDirectiveMatches(text: string): readonly ParsedDirectiveMatch[] {
+  const matches: ParsedDirectiveMatch[] = [];
+
+  for (const match of text.matchAll(COMMAND_DIRECTIVE_RE)) {
+    const id = decodeDirectiveValue(match[2]!);
+    const label = decodeDirectiveValue(match[3]!);
+    if (!id || !label) continue;
+    matches.push({
+      index: match.index,
+      end: match.index + match[0].length,
+      segment: { kind: "mention", type: match[1]!, id, label },
+    });
+  }
+
+  for (const match of text.matchAll(SKILL_LINK_RE)) {
+    const label = unescapeSkillLinkLabel(match[1]!);
+    const scope = match[2] as PersistedSkillScope;
+    const name = decodeDirectiveValue(match[3]!);
+    if (!label || !name) continue;
+    matches.push({
+      index: match.index,
+      end: match.index + match[0].length,
+      segment: {
+        kind: "mention",
+        type: scope === "project" ? PI_PROJECT_SKILL_DIRECTIVE_TYPE : PI_USER_SKILL_DIRECTIVE_TYPE,
+        id: `skill:${name}`,
+        label,
+      },
+    });
+  }
+
+  return matches.toSorted((left, right) => left.index - right.index);
+}
+
 export const workbenchComposerDirectiveFormatter: Unstable_DirectiveFormatter = {
   serialize(item: Unstable_TriggerItem): string {
+    const skillScope = persistedSkillScopeFromDirectiveType(item.type);
+    if (skillScope) {
+      const skillName = skillNameFromInvocationName(item.id);
+      if (!skillName) {
+        throw new Error(`Invalid Skill invocation name "${item.id}"`);
+      }
+      return `[$${escapeSkillLinkLabel(item.label)}](skill://${skillScope}/${encodeURIComponent(skillName)})`;
+    }
     if (
       item.type !== WORKBENCH_COMMAND_DIRECTIVE_TYPE &&
       item.type !== PI_COMMAND_DIRECTIVE_TYPE &&
@@ -48,19 +138,13 @@ export const workbenchComposerDirectiveFormatter: Unstable_DirectiveFormatter = 
     const segments: Unstable_DirectiveSegment[] = [];
     let lastIndex = 0;
 
-    for (const match of text.matchAll(COMMAND_DIRECTIVE_RE)) {
+    for (const match of parsedDirectiveMatches(text)) {
+      if (match.index < lastIndex) continue;
       if (match.index > lastIndex) {
         segments.push({ kind: "text", text: text.slice(lastIndex, match.index) });
       }
-
-      const id = decodeDirectiveValue(match[2]!);
-      const label = decodeDirectiveValue(match[3]!);
-      if (id && label) {
-        segments.push({ kind: "mention", type: match[1]!, id, label });
-      } else {
-        segments.push({ kind: "text", text: match[0] });
-      }
-      lastIndex = match.index + match[0].length;
+      segments.push(match.segment);
+      lastIndex = match.end;
     }
 
     if (lastIndex < text.length) {
@@ -77,6 +161,8 @@ export interface ComposerCommandCompilationDescriptor {
   readonly invocationName: string;
   readonly exclusive: boolean;
   readonly argsBinding?: ComposerCommandArgsBinding;
+  readonly kind?: "builtin" | "extension" | "prompt" | "skill";
+  readonly scope?: "project" | "temporary" | "user";
 }
 
 function commandArgumentDescriptor(
@@ -122,7 +208,7 @@ export function parseComposerDocument(
       continue;
     }
 
-    const source = segment.type === PI_COMMAND_DIRECTIVE_TYPE ? "pi" : "workbench";
+    const source = isPiComposerDirectiveType(segment.type) ? "pi" : "workbench";
     const commandNode: ComposerCommandNode = {
       type: "command",
       id: `command:${source}:${segment.id}:${commandIndex++}`,
@@ -192,19 +278,30 @@ export function composerDocumentText(document: ComposerDocument): string {
 }
 
 /** Serializes the structural document without flattening command entities into slash text. */
-export function composerDocumentSourceText(document: ComposerDocument): string {
+export function composerDocumentSourceText(
+  document: ComposerDocument,
+  commandCatalog: readonly ComposerCommandCompilationDescriptor[] = [],
+): string {
+  const piCommands = new Map(commandCatalog.map((command) => [command.invocationName, command]));
   return document
     .map((node) => {
       switch (node.type) {
         case "text":
           return node.text;
-        case "command":
+        case "command": {
+          const piCommand = node.source === "pi" ? piCommands.get(node.commandId) : undefined;
+          const skillType =
+            piCommand?.kind === "skill" && piCommand.scope
+              ? piSkillDirectiveType(piCommand.scope)
+              : undefined;
           return workbenchComposerDirectiveFormatter.serialize({
             id: node.commandId,
             type:
-              node.source === "pi" ? PI_COMMAND_DIRECTIVE_TYPE : WORKBENCH_COMMAND_DIRECTIVE_TYPE,
+              skillType ??
+              (node.source === "pi" ? PI_COMMAND_DIRECTIVE_TYPE : WORKBENCH_COMMAND_DIRECTIVE_TYPE),
             label: node.label,
           });
+        }
         case "command-argument":
           return node.text;
         case "mention":
@@ -419,7 +516,7 @@ export function compileComposerDocument(
   return Object.freeze({
     version: 1,
     document: Object.freeze(compiledDocument.map((node) => Object.freeze({ ...node }))),
-    sourceText: composerDocumentSourceText(compiledDocument),
+    sourceText: composerDocumentSourceText(compiledDocument, commandCatalog),
     text: draft.text,
     ...(draft.mode === undefined ? {} : { mode: draft.mode }),
     ...(draft.model === undefined ? {} : { model: draft.model }),

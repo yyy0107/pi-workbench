@@ -1,6 +1,6 @@
 import { existsSync, statSync, unlinkSync } from "node:fs";
 import { randomUUID } from "node:crypto";
-import { readFile, readdir, stat } from "node:fs/promises";
+import { readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import {
   type AgentSession,
@@ -9,7 +9,6 @@ import {
   createAgentSessionFromServices,
   createAgentSessionServices,
   getAgentDir,
-  stripFrontmatter,
   sessionEntryToContextMessages,
   type SessionInfo,
   type SessionEntry,
@@ -375,7 +374,10 @@ function commandArgumentText(
 
 /** Resolve the whole catalog before any command with side effects is allowed to execute. */
 export function validateWorkbenchComposerCommands(
-  session: Pick<AgentSession, "extensionRunner" | "promptTemplates" | "resourceLoader">,
+  session: Pick<
+    AgentSession,
+    "extensionRunner" | "getActiveToolNames" | "promptTemplates" | "resourceLoader"
+  >,
   submission: WorkbenchComposerSubmission,
 ): void {
   preflightPlanWorkbenchComposerCommands(session, submission);
@@ -435,6 +437,7 @@ export async function resolveWorkbenchComposerCommands(
     AgentSession,
     | "compact"
     | "extensionRunner"
+    | "getActiveToolNames"
     | "prompt"
     | "promptTemplates"
     | "reload"
@@ -454,6 +457,7 @@ export async function resolveWorkbenchComposerCommands(
       ...(submission.model === undefined ? {} : { model: submission.model }),
       metadata: { ...submission.metadata },
     },
+    selectedSkills: [],
     instructions: [],
     trustedContext: [],
     untrustedContext: submission.context.map((context) => ({
@@ -487,18 +491,12 @@ export async function resolveWorkbenchComposerCommands(
           } else await session.reload();
           break;
         case "skill": {
-          const content = await readFile(plan.skill.filePath, "utf8");
-          const body = stripFrontmatter(content).trim();
-          request.instructions.push({
-            source: command.commandId,
-            trust: "trusted-instruction",
-            content: [
-              `Explicitly selected Skill: ${plan.skill.name}`,
-              "The user selected this Skill for the current turn. Apply it to the current request.",
-              `References are relative to ${plan.skill.baseDir}.`,
-              "",
-              body,
-            ].join("\n"),
+          request.selectedSkills.push({
+            invocationName: command.commandId,
+            name: plan.skill.name,
+            location: plan.skill.filePath,
+            baseDir: plan.skill.baseDir,
+            selectedBy: "user",
           });
           break;
         }
@@ -2464,6 +2462,7 @@ class HostedPiSession {
       attachmentUnderstandingFatalError === undefined &&
       (Boolean(resolvedImages?.length) ||
         Boolean(resolution.request.userText.trim()) ||
+        resolution.request.selectedSkills.length > 0 ||
         resolution.request.instructions.length > 0 ||
         resolution.request.trustedContext.length > 0 ||
         resolution.request.untrustedContext.length > 0);

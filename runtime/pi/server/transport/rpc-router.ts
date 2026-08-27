@@ -1455,7 +1455,7 @@ export async function handlePiRpcPost(request: Request, method: string): Promise
     case "command.list":
       return handleRpcPost(request, {
         method,
-        payload: sessionIdPayload,
+        payload: resourceListPayload,
         handler: async (payload) => {
           try {
             return await commandService.list(payload);

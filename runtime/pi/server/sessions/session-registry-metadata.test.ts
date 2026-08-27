@@ -269,16 +269,12 @@ test("treats an extension command as one explicit agent turn without a second re
   ]);
 });
 
-test("loads an existing Skill as trusted instructions without starting an intermediate turn", async (t) => {
-  const root = await mkdtemp(path.join(tmpdir(), "workbench-composer-skill-"));
-  t.after(() => rm(root, { recursive: true, force: true }));
-  const skillFile = path.join(root, "SKILL.md");
-  await writeFile(
-    skillFile,
-    "---\nname: create-skill\ndescription: Create skills\n---\nFollow the skill workflow.",
-  );
+test("records an explicit Skill selection without reading its file or starting an intermediate turn", async () => {
+  const root = "/skills/create-skill";
+  const skillFile = `${root}/SKILL.md`;
   let promptCount = 0;
   const session = {
+    getActiveToolNames: () => ["read", "bash"],
     extensionRunner: { getRegisteredCommands: () => [] },
     promptTemplates: [],
     resourceLoader: {
@@ -322,11 +318,16 @@ test("loads an existing Skill as trusted instructions without starting an interm
 
   assert.equal(promptCount, 0);
   assert.equal(resolved.agentTurn, false);
-  assert.match(
-    resolved.request.instructions[0]?.content ?? "",
-    /Explicitly selected Skill: create-skill/,
-  );
-  assert.match(resolved.request.instructions[0]?.content ?? "", /Follow the skill workflow\./);
+  assert.deepEqual(resolved.request.selectedSkills, [
+    {
+      invocationName: "skill:create-skill",
+      name: "create-skill",
+      location: skillFile,
+      baseDir: root,
+      selectedBy: "user",
+    },
+  ]);
+  assert.deepEqual(resolved.request.instructions, []);
   assert.deepEqual(
     resolved.request.commandTrace.map(({ commandId, effect, status }) => ({
       commandId,

@@ -9,7 +9,9 @@ import {
   type ReactNode,
 } from "react";
 
-import type { CommandView } from "../../rpc-contracts";
+import { useWorkspaceSelection } from "@/services/workspace-selection-service";
+
+import type { CommandListPayload, CommandView } from "../../rpc-contracts";
 import { listPiCommands } from "../transport/api";
 import { usePiActiveSessionId } from "./context";
 import {
@@ -20,38 +22,53 @@ import {
 const EMPTY_COMMANDS: readonly CommandView[] = [];
 const PiCommandsContext = createContext<readonly CommandView[] | null>(null);
 
+export function resolvePiCommandListPayload(
+  sessionId: string | undefined,
+  workspaceId: string | undefined,
+): CommandListPayload {
+  if (sessionId) return { sessionId };
+  if (workspaceId) return { target: { scope: "project", workspaceId } };
+  return { target: { scope: "user" } };
+}
+
 export function PiCommandsProvider({ children }: Readonly<{ children: ReactNode }>) {
   const sessionId = usePiActiveSessionId();
+  const { activeWorkspaceId, draftWorkspaceId } = useWorkspaceSelection();
+  const workspaceId = draftWorkspaceId ?? activeWorkspaceId;
+  const requestKey = sessionId
+    ? `session:${sessionId}`
+    : workspaceId
+      ? `project:${workspaceId}`
+      : "user";
   const resourceCatalogRevision = useSyncExternalStore(
     subscribePiResourceCatalog,
     getPiResourceCatalogRevision,
     () => 0,
   );
   const [commandState, setCommandState] = useState<{
-    sessionId: string;
+    requestKey: string;
     commands: readonly CommandView[];
   }>();
 
   useEffect(() => {
-    if (!sessionId) return;
     let cancelled = false;
     setCommandState(undefined);
+    const request = resolvePiCommandListPayload(sessionId, workspaceId);
 
-    void listPiCommands({ sessionId })
+    void listPiCommands(request)
       .then(({ commands }) => {
-        if (!cancelled) setCommandState({ sessionId, commands });
+        if (!cancelled) setCommandState({ requestKey, commands });
       })
       .catch((error) => {
-        if (!cancelled) console.error("[workbench-pi] failed to load session commands", error);
+        if (!cancelled) console.error("[workbench-pi] failed to load composer commands", error);
       });
 
     return () => {
       cancelled = true;
     };
-  }, [resourceCatalogRevision, sessionId]);
+  }, [requestKey, resourceCatalogRevision, sessionId, workspaceId]);
 
-  const commands =
-    commandState && commandState.sessionId === sessionId ? commandState.commands : EMPTY_COMMANDS;
+  const commands = commandState?.requestKey === requestKey ? commandState.commands : EMPTY_COMMANDS;
 
   return <PiCommandsContext.Provider value={commands}>{children}</PiCommandsContext.Provider>;
 }

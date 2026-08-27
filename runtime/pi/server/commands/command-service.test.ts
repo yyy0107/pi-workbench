@@ -190,6 +190,95 @@ test("lists supported built-ins, extensions, prompt templates, and skills", asyn
   assert.deepEqual(requestedSessionIds, ["session-1"]);
 });
 
+test("lists built-ins and scoped skills for a draft conversation without creating a session", async () => {
+  const requestedTargets: unknown[] = [];
+  let requestedSession = false;
+  const service = new CommandService({
+    getSession: async () => {
+      requestedSession = true;
+      throw new Error("Draft command discovery must not create or load a session.");
+    },
+    getScopedResourceHost: async (target) => {
+      requestedTargets.push(target);
+      return {
+        session: {
+          resourceLoader: {
+            getSkills: () => ({
+              skills: [
+                {
+                  name: "user-skill",
+                  description: "A user-level skill.",
+                  disableModelInvocation: false,
+                  sourceInfo: {
+                    source: "auto",
+                    scope: "user" as const,
+                    origin: "top-level" as const,
+                  },
+                },
+                {
+                  name: "project-skill",
+                  description: "A project-level skill.",
+                  disableModelInvocation: true,
+                  sourceInfo: {
+                    source: "auto",
+                    scope: "project" as const,
+                    origin: "top-level" as const,
+                  },
+                },
+              ],
+            }),
+          },
+        },
+      };
+    },
+  });
+
+  const { commands } = await service.list({
+    target: { scope: "project", workspaceId: "workspace-1" },
+  });
+  const { commands: userCommands } = await service.list({ target: { scope: "user" } });
+
+  assert.equal(requestedSession, false);
+  assert.deepEqual(requestedTargets, [
+    { scope: "project", workspaceId: "workspace-1" },
+    { scope: "user" },
+  ]);
+  assert.deepEqual(
+    commands.map((command) => ({
+      kind: command.kind,
+      name: command.name,
+      invocationName: command.invocationName,
+      ...(command.kind === "skill"
+        ? { scope: command.scope, modelInvocable: command.modelInvocable }
+        : {}),
+    })),
+    [
+      { kind: "builtin", name: "compact", invocationName: "compact" },
+      { kind: "builtin", name: "reload", invocationName: "reload" },
+      {
+        kind: "skill",
+        name: "user-skill",
+        invocationName: "skill:user-skill",
+        scope: "user",
+        modelInvocable: true,
+      },
+      {
+        kind: "skill",
+        name: "project-skill",
+        invocationName: "skill:project-skill",
+        scope: "project",
+        modelInvocable: false,
+      },
+    ],
+  );
+  assert.deepEqual(
+    userCommands
+      .filter((command) => command.kind === "skill")
+      .map((command) => command.invocationName),
+    ["skill:user-skill"],
+  );
+});
+
 test("translates missing sessions without exposing Pi internals", async () => {
   const service = new CommandService({
     getSession: async () => {
