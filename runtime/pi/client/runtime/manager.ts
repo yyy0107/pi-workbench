@@ -2696,7 +2696,9 @@ export class PiSessionManager {
       return;
     }
     if (payload.type === "session/context-trace") {
-      for (const listener of this.contextTraceListeners) listener(structuredClone(payload.event));
+      const event = structuredClone(payload.event);
+      this.sessions.get(payload.sessionId)?.applyContextTraceEvent(event);
+      for (const listener of this.contextTraceListeners) listener(structuredClone(event));
       return;
     }
     if (payload.type === "question/requested") {
