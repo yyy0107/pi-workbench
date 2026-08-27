@@ -192,11 +192,11 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
-    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
   }
 
   @supports not selector(::-webkit-scrollbar) {
     * {
+      scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
       scrollbar-width: thin;
     }
   }

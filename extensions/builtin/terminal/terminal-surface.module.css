@@ -1,0 +1,24 @@
+.scrollbarTheme :global(.xterm-scrollable-element > .scrollbar) {
+  background: var(--scrollbar-track) !important;
+}
+
+/* Xterm also uses overviewRuler.width as its scrollbar width. The option mounts an otherwise
+ * unused canvas whose built-in foreground border appears as a white line in dark themes. */
+.scrollbarTheme :global(.xterm-decoration-overview-ruler) {
+  display: none;
+}
+
+/* Xterm injects slider geometry and colors at runtime. Override the visual thumb while retaining
+ * the larger track hit area when an already-open terminal still has Xterm's default track width. */
+.scrollbarTheme :global(.xterm-scrollable-element > .scrollbar > .slider) {
+  right: 0 !important;
+  left: auto !important;
+  width: var(--scrollbar-size) !important;
+  border-radius: 9999px;
+  background: var(--scrollbar-thumb) !important;
+}
+
+.scrollbarTheme :global(.xterm-scrollable-element > .scrollbar > .slider:hover),
+.scrollbarTheme :global(.xterm-scrollable-element > .scrollbar > .slider.active) {
+  background: var(--scrollbar-thumb-hover) !important;
+}

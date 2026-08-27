@@ -41,6 +41,7 @@ import {
 } from "./terminal-tool-transcript";
 import { createTerminalFrameWriter, type TerminalFrameWriter } from "./terminal-frame-writer";
 import { ptyTerminalSocketUrl, toolTerminalSocketUrl } from "./terminal-socket-url";
+import styles from "./terminal-surface.module.css";
 
 type ConnectionStatus =
   | { phase: "connecting" }
@@ -60,6 +61,8 @@ type ToolConnectionStatus =
 
 const TERMINAL_MONOSPACE_FALLBACK =
   'ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
+const TERMINAL_SCROLLBAR_FALLBACK_SIZE = 6;
+const TERMINAL_VIEWPORT_CLASS_NAME = `${styles.scrollbarTheme} min-h-0 flex-1 overflow-hidden py-2 ps-2 [&_.xterm]:h-full [&_.xterm-viewport]:!bg-transparent [&_.xterm-viewport]:!overflow-y-auto`;
 
 function resolveTerminalFontFamily(container: HTMLElement): string {
   const geistMono = getComputedStyle(container).getPropertyValue("--font-geist-mono").trim();
@@ -114,6 +117,20 @@ function resolveThemeColor(container: HTMLElement, property: string, fallback: s
   return color || fallback;
 }
 
+function resolveThemeLength(container: HTMLElement, property: string, fallback: number): number {
+  const probe = container.ownerDocument.createElement("span");
+  probe.style.display = "block";
+  probe.style.position = "absolute";
+  probe.style.visibility = "hidden";
+  probe.style.width = `var(${property}, ${fallback}px)`;
+  container.append(probe);
+  const width = Number.parseFloat(
+    container.ownerDocument.defaultView?.getComputedStyle(probe).width ?? "",
+  );
+  probe.remove();
+  return Number.isFinite(width) && width > 0 ? width : fallback;
+}
+
 function resolveTerminalTheme(container: HTMLElement): ITheme {
   const root = container.ownerDocument.documentElement;
   const themeBackground = resolveThemeColor(container, "--background", "#ffffff");
@@ -141,6 +158,9 @@ function synchronizeTerminalTheme(container: HTMLElement, terminal: Terminal): (
     updateFrame = requestAnimationFrame(() => {
       updateFrame = undefined;
       terminal.options.theme = resolveTerminalTheme(container);
+      terminal.options.overviewRuler = {
+        width: resolveThemeLength(container, "--scrollbar-size", TERMINAL_SCROLLBAR_FALLBACK_SIZE),
+      };
     });
   };
   const observer = new MutationObserver(update);
@@ -176,6 +196,9 @@ function xtermOptions(
     minimumContrastRatio: 4.5,
     screenReaderMode: true,
     scrollback: 10_000,
+    overviewRuler: {
+      width: resolveThemeLength(container, "--scrollbar-size", TERMINAL_SCROLLBAR_FALLBACK_SIZE),
+    },
     theme: resolveTerminalTheme(container),
   };
 }
@@ -532,10 +555,7 @@ function TerminalTranscriptSurface({
           <SquareIcon className="size-4" fill="currentColor" />
         </Button>
       ) : null}
-      <div
-        ref={containerRef}
-        className="min-h-0 flex-1 overflow-hidden p-2 [&_.xterm]:h-full [&_.xterm-viewport]:!bg-transparent [&_.xterm-viewport]:!overflow-y-auto"
-      />
+      <div ref={containerRef} className={TERMINAL_VIEWPORT_CLASS_NAME} />
     </section>
   );
 }
@@ -821,10 +841,7 @@ function PtyTerminalSurface({
       style={{ backgroundColor: "var(--workbench-canvas-background, var(--background))" }}
       aria-label={t("extensions.terminal.output")}
     >
-      <div
-        ref={containerRef}
-        className="min-h-0 flex-1 overflow-hidden p-2 [&_.xterm]:h-full [&_.xterm-viewport]:!bg-transparent [&_.xterm-viewport]:!overflow-y-auto"
-      />
+      <div ref={containerRef} className={TERMINAL_VIEWPORT_CLASS_NAME} />
     </section>
   );
 }
