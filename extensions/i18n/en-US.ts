@@ -2274,7 +2274,7 @@ export const extensionsEnUS = {
     selectError: "Unable to select this workspace.",
     trustQuestion: "Trust this project folder?",
     trustDescription:
-      "Trusting allows Pi to load project settings and resources, install missing project packages, and execute project extensions. If you do not trust it, the workspace is still added but those resources stay disabled.",
+      "Trusting allows Pi to load project settings and resources, install missing project packages, and execute project extensions. Only trusted folders are opened in Workbench; choosing not to trust cancels this operation without adding or switching workspaces.",
     trustSecurityDecision: "Project trust",
     trustAccept: "Trust folder",
     trustDecline: "Do not trust",

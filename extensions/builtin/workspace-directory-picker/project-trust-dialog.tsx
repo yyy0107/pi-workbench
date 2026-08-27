@@ -20,18 +20,21 @@ export function ProjectTrustDialog({
   error,
   open,
   path,
-  saving,
+  savingDecision,
   onCancel,
-  onDecision,
+  onConfirm,
+  onDecline,
 }: {
   error?: ProjectTrustDialogError;
   open: boolean;
   path: string;
-  saving: boolean;
+  savingDecision?: "trust" | "decline";
   onCancel(): void;
-  onDecision(trusted: boolean): void | Promise<void>;
+  onConfirm(): void | Promise<void>;
+  onDecline(): void | Promise<void>;
 }) {
   const { t } = useI18n();
+  const saving = savingDecision !== undefined;
 
   return (
     <Dialog
@@ -43,26 +46,29 @@ export function ProjectTrustDialog({
       <DialogContent
         closeLabel={t("extensions.workspaceDirectory.trustCancel")}
         showCloseButton={!saving}
-        className={cn(paper, "max-w-sm gap-3 rounded-[20px] p-4")}
+        className={cn(
+          paper,
+          "gap-5 rounded-3xl p-6 sm:max-w-lg [&>[data-slot=dialog-close]]:top-4 [&>[data-slot=dialog-close]]:right-4",
+        )}
       >
-        <DialogHeader className="gap-2 pe-7">
-          <DialogTitle className="text-sm font-medium">
+        <DialogHeader className="gap-3 pe-10">
+          <DialogTitle className="text-xl leading-7 font-semibold tracking-tight">
             {t("extensions.workspaceDirectory.trustQuestion")}
           </DialogTitle>
-          <DialogDescription className="text-foreground/55 text-[13px] leading-relaxed">
+          <DialogDescription className="text-muted-foreground text-[15px] leading-7">
             {t("extensions.workspaceDirectory.trustDescription")}
           </DialogDescription>
         </DialogHeader>
 
         <code
-          className="bg-foreground/[0.06] text-foreground/70 block max-h-16 overflow-auto rounded-md px-2 py-1.5 font-mono text-[11px] leading-4 break-all"
+          className="bg-foreground/[0.05] text-foreground/80 block max-h-24 overflow-auto rounded-xl border border-foreground/8 px-3 py-2.5 font-mono text-sm leading-5 [overflow-wrap:anywhere]"
           title={path}
         >
           {path}
         </code>
 
         {error ? (
-          <p role="alert" className="text-destructive text-xs leading-4">
+          <p role="alert" className="text-destructive text-sm leading-5">
             {t(
               error === "save"
                 ? "extensions.workspaceDirectory.trustSaveError"
@@ -71,35 +77,54 @@ export function ProjectTrustDialog({
           </p>
         ) : null}
 
-        <div className="flex min-h-8 flex-wrap items-center justify-end gap-2">
-          <span className="text-foreground/45 me-auto inline-flex items-center gap-1.5 text-[11px]">
-            <ShieldCheckIcon aria-hidden="true" className="size-3.5 text-emerald-500" />
+        <div className="flex flex-col gap-4 border-t border-foreground/8 pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <span className="text-muted-foreground inline-flex items-center gap-2 text-xs font-medium">
+            <ShieldCheckIcon aria-hidden="true" className="size-4 text-emerald-500" />
             {t("extensions.workspaceDirectory.trustSecurityDecision")}
           </span>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            disabled={saving}
-            className="rounded-full px-3.5 transition-colors active:translate-y-0!"
-            onClick={() => void onDecision(false)}
-          >
-            {t("extensions.workspaceDirectory.trustDecline")}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            disabled={saving}
-            className="rounded-full px-3.5 transition-colors active:translate-y-0!"
-            onClick={() => void onDecision(true)}
-          >
-            {saving ? <LoaderCircleIcon aria-hidden="true" className="animate-spin" /> : null}
-            {t(
-              saving
-                ? "extensions.workspaceDirectory.trustSaving"
-                : "extensions.workspaceDirectory.trustAccept",
-            )}
-          </Button>
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              disabled={saving}
+              aria-busy={savingDecision === "decline"}
+              className="rounded-xl px-4 transition-colors active:translate-y-0!"
+              onClick={() => void onDecline()}
+            >
+              {savingDecision === "decline" ? (
+                <LoaderCircleIcon
+                  aria-hidden="true"
+                  className="animate-spin motion-reduce:animate-none"
+                />
+              ) : null}
+              {t(
+                savingDecision === "decline"
+                  ? "extensions.workspaceDirectory.trustSaving"
+                  : "extensions.workspaceDirectory.trustDecline",
+              )}
+            </Button>
+            <Button
+              type="button"
+              size="lg"
+              disabled={saving}
+              aria-busy={savingDecision === "trust"}
+              className="rounded-xl px-5 transition-colors active:translate-y-0!"
+              onClick={() => void onConfirm()}
+            >
+              {savingDecision === "trust" ? (
+                <LoaderCircleIcon
+                  aria-hidden="true"
+                  className="animate-spin motion-reduce:animate-none"
+                />
+              ) : null}
+              {t(
+                savingDecision === "trust"
+                  ? "extensions.workspaceDirectory.trustSaving"
+                  : "extensions.workspaceDirectory.trustAccept",
+              )}
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

@@ -73,20 +73,11 @@ export class ProjectTrustService {
     const canonicalPath = this.canonicalPath(path);
 
     try {
+      const requiresTrust = hasTrustRequiringProjectResources(canonicalPath);
       if (this.trustOverride()) {
         return {
           path: canonicalPath,
-          requiresTrust: hasTrustRequiringProjectResources(canonicalPath),
-          trusted: true,
-          promptRequired: false,
-        };
-      }
-
-      const requiresTrust = hasTrustRequiringProjectResources(canonicalPath);
-      if (!requiresTrust) {
-        return {
-          path: canonicalPath,
-          requiresTrust: false,
+          requiresTrust,
           trusted: true,
           promptRequired: false,
         };
@@ -96,7 +87,7 @@ export class ProjectTrustService {
       if (saved) {
         return {
           path: canonicalPath,
-          requiresTrust: true,
+          requiresTrust,
           trusted: saved.decision,
           promptRequired: false,
           decisionPath: saved.path,
@@ -110,7 +101,7 @@ export class ProjectTrustService {
         defaultProjectTrust === "always" ? true : defaultProjectTrust === "never" ? false : null;
       return {
         path: canonicalPath,
-        requiresTrust: true,
+        requiresTrust,
         trusted,
         promptRequired: trusted === null,
       };

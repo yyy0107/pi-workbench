@@ -2179,7 +2179,7 @@ export const extensionsZhCN = {
     selectError: "无法选择此工作区。",
     trustQuestion: "是否信任此项目文件夹？",
     trustDescription:
-      "信任后，Pi 可以加载项目设置和资源、安装缺失的项目包并执行项目扩展。如果选择不信任，工作区仍会添加，但这些资源将保持禁用。",
+      "信任后，Pi 可以加载项目设置和资源、安装缺失的项目包并执行项目扩展。只有受信任的文件夹才会在 Workbench 中打开；选择不信任将取消本次操作，不会添加或切换工作区。",
     trustSecurityDecision: "项目信任",
     trustAccept: "信任文件夹",
     trustDecline: "不信任",

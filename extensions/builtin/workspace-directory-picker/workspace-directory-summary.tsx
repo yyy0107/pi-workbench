@@ -108,10 +108,11 @@ export function WorkspaceDirectorySummary(_context: ComposerDrawerSlotContext) {
       <ProjectTrustDialog
         open={admission.pendingPath !== undefined}
         path={admission.pendingPath ?? ""}
-        saving={admission.savingDecision}
+        savingDecision={admission.savingDecision}
         error={admission.dialogError}
         onCancel={admission.cancelTrust}
-        onDecision={admission.decideTrust}
+        onConfirm={admission.confirmTrust}
+        onDecline={admission.declineTrust}
       />
     </>
   );

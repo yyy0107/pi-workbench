@@ -15,14 +15,25 @@ async function fixture(t: test.TestContext) {
   return { agentDir, projectDir, service: new ProjectTrustService({ agentDir }) };
 }
 
-test("does not prompt for a folder without trust-requiring project resources", async (t) => {
-  const { projectDir, service } = await fixture(t);
+test("asks before admitting a new workspace even before it has project resources", async (t) => {
+  const { agentDir, projectDir, service } = await fixture(t);
 
   assert.deepEqual(service.describe({ path: projectDir }), {
     path: projectDir,
     requiresTrust: false,
-    trusted: true,
+    trusted: null,
+    promptRequired: true,
+  });
+
+  assert.deepEqual(service.update({ path: projectDir, trusted: false }), {
+    path: projectDir,
+    requiresTrust: false,
+    trusted: false,
     promptRequired: false,
+    decisionPath: projectDir,
+  });
+  assert.deepEqual(JSON.parse(await readFile(path.join(agentDir, "trust.json"), "utf8")), {
+    [projectDir]: false,
   });
 });
 
@@ -102,7 +113,6 @@ test("defaults existing projects to trusted without overriding saved decisions",
 
 test("honors global defaultProjectTrust when no saved decision exists", async (t) => {
   const { agentDir, projectDir } = await fixture(t);
-  await mkdir(path.join(projectDir, ".pi", "prompts"), { recursive: true });
   await mkdir(agentDir, { recursive: true });
   await writeFile(path.join(agentDir, "settings.json"), '{"defaultProjectTrust":"always"}\n');
 
