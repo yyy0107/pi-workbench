@@ -35,6 +35,7 @@ import {
   useState,
   useSyncExternalStore,
   type ComponentProps,
+  type CSSProperties,
 } from "react";
 
 import { ComposerAddAttachment, ComposerAttachments } from "@/components/assistant-ui/attachment";
@@ -89,7 +90,15 @@ import { ComposerTriggerEngine, excludeSlashPathOrCode } from "./composer-trigge
 import { formatAgentCommandLabel } from "./agent-command";
 
 const COMPOSER_PRIMARY_ACTION_CLASS_NAME =
-  "rounded-[var(--button-radius)] [&:hover:not(:active)]:bg-primary! dark:[&:hover:not(:active)]:bg-primary!";
+  "aui-composer-primary-action rounded-[var(--button-radius)] [&:hover:not(:active)]:bg-primary! dark:[&:hover:not(:active)]:bg-primary!";
+const COMPOSER_VOICE_ACTION_STYLE = {
+  "--icon-frame-size-default": "var(--composer-voice-action-size)",
+  "--icon-size-md": "var(--composer-voice-icon-size)",
+} as CSSProperties;
+const COMPOSER_PRIMARY_ACTION_STYLE = {
+  "--icon-frame-size-default": "var(--composer-primary-action-size)",
+  "--icon-size-md": "var(--composer-primary-icon-size)",
+} as CSSProperties;
 
 interface ComposerDraftSnapshot {
   text: string;
@@ -1013,8 +1022,8 @@ export function WorkbenchComposer() {
                 isNewThread && "relative z-10 -mt-px",
               )}
             >
-              <fieldset disabled={!canCompose} className="contents">
-                <div className="flex min-h-[var(--composer-height)] flex-1 flex-col gap-2 pt-2 [--composer-action-inset:0.5rem] [padding-bottom:var(--composer-action-inset)] transition-opacity max-[360px]:[--composer-action-inset:0.375rem] [&>.aui-composer-attachments]:px-3">
+              <div className="flex min-h-[var(--composer-height)] flex-1 flex-col gap-2 pt-2 [--composer-action-inset:0.5rem] [padding-bottom:var(--composer-action-inset)] transition-opacity max-[360px]:[--composer-action-inset:0.375rem] [&_.aui-composer-attachments]:px-3">
+                <fieldset disabled={!canCompose} className="contents">
                   <ComposerWorkspaceFeedback />
                   <ComposerAttachments />
                   <div className="flex min-h-0 w-full min-w-0 flex-1 items-stretch px-4 pt-0.5 pb-0">
@@ -1064,8 +1073,19 @@ export function WorkbenchComposer() {
                       <ComposerEnterPlugin onSubmit={dispatchComposer} />
                     </MarkdownComposerInput>
                   </div>
+                </fieldset>
 
-                  <div className="flex h-[var(--icon-frame-size-default)] shrink-0 items-center justify-between gap-2 [padding-inline:var(--composer-action-inset)] max-[360px]:gap-1">
+                <div
+                  className={cn(
+                    "flex h-[var(--composer-action-row-size)] shrink-0 items-center justify-between gap-2 [padding-inline:var(--composer-action-inset)] max-[360px]:gap-1",
+                    "[--composer-action-row-size:32px] [--composer-attachment-action-size:32px] [--composer-attachment-icon-size:16px]",
+                    "[--composer-voice-action-size:32px] [--composer-voice-icon-size:16px]",
+                    "[--composer-primary-action-size:32px] [--composer-primary-icon-size:16px] [--composer-stop-icon-size:12px]",
+                    "[&_.aui-composer-add-attachment]:size-[var(--composer-attachment-action-size)]! [&_.aui-attachment-add-icon]:size-[var(--composer-attachment-icon-size)]!",
+                    "[&_.aui-composer-stop-icon]:size-[var(--composer-stop-icon-size)]!",
+                  )}
+                >
+                  <fieldset disabled={!canCompose} className="contents">
                     <div className="flex h-full min-w-0 flex-1 items-center gap-2">
                       <SlotHost
                         name="composer.actions.left"
@@ -1074,13 +1094,15 @@ export function WorkbenchComposer() {
                       />
                       <ComposerAddAttachment />
                     </div>
+                  </fieldset>
 
-                    <div className="flex h-full min-w-0 shrink-0 items-center justify-end gap-2 max-[360px]:gap-1">
-                      <SlotHost
-                        name="composer.actions.right"
-                        context={context}
-                        className="flex min-w-0 items-center justify-end gap-2 empty:hidden"
-                      />
+                  <div className="flex h-full min-w-0 shrink-0 items-center justify-end gap-2 max-[360px]:gap-1">
+                    <SlotHost
+                      name="composer.actions.right"
+                      context={context}
+                      className="flex min-w-0 items-center justify-end gap-2 empty:hidden"
+                    />
+                    <fieldset disabled={!canCompose} className="contents">
                       {isDictating ? (
                         <ComposerPrimitive.StopDictation
                           render={
@@ -1089,11 +1111,12 @@ export function WorkbenchComposer() {
                               type="button"
                               size="icon"
                               variant="ghost"
-                              className="text-muted-foreground hover:text-foreground size-8 rounded-[var(--button-radius)] max-[360px]:hidden"
+                              className="aui-composer-voice-action text-muted-foreground hover:text-foreground rounded-[var(--button-radius)] max-[360px]:hidden"
+                              style={COMPOSER_VOICE_ACTION_STYLE}
                             />
                           }
                         >
-                          <SquareIcon className="size-4 fill-current" />
+                          <SquareIcon className="aui-composer-voice-icon fill-current" />
                         </ComposerPrimitive.StopDictation>
                       ) : (
                         <ComposerPrimitive.Dictate
@@ -1103,11 +1126,12 @@ export function WorkbenchComposer() {
                               type="button"
                               size="icon"
                               variant="ghost"
-                              className="text-muted-foreground hover:text-foreground size-8 rounded-[var(--button-radius)] max-[360px]:hidden"
+                              className="aui-composer-voice-action text-muted-foreground hover:text-foreground rounded-[var(--button-radius)] max-[360px]:hidden"
+                              style={COMPOSER_VOICE_ACTION_STYLE}
                             />
                           }
                         >
-                          <MicIcon className="size-4" />
+                          <MicIcon className="aui-composer-voice-icon" />
                         </ComposerPrimitive.Dictate>
                       )}
                       {isRunning ? (
@@ -1118,11 +1142,12 @@ export function WorkbenchComposer() {
                               type="button"
                               size="icon"
                               variant="default"
-                              className={cn(COMPOSER_PRIMARY_ACTION_CLASS_NAME, "[&_svg]:size-3!")}
+                              className={COMPOSER_PRIMARY_ACTION_CLASS_NAME}
+                              style={COMPOSER_PRIMARY_ACTION_STYLE}
                             />
                           }
                         >
-                          <SquareIcon className="size-3 fill-current" />
+                          <SquareIcon className="aui-composer-stop-icon fill-current" />
                         </ComposerPrimitive.Cancel>
                       ) : (
                         <TooltipIconButton
@@ -1135,15 +1160,16 @@ export function WorkbenchComposer() {
                             COMPOSER_PRIMARY_ACTION_CLASS_NAME,
                             "disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100",
                           )}
+                          style={COMPOSER_PRIMARY_ACTION_STYLE}
                           onClick={() => dispatchComposer()}
                         >
-                          <ArrowUpIcon className="size-4" />
+                          <ArrowUpIcon className="aui-composer-primary-icon" />
                         </TooltipIconButton>
                       )}
-                    </div>
+                    </fieldset>
                   </div>
                 </div>
-              </fieldset>
+              </div>
             </ComposerPrimitive.AttachmentDropzone>
           </div>
 

@@ -19,7 +19,6 @@ import {
   useAnimatedSelectorDropdown,
 } from "@/components/ui/selector-dropdown";
 import { useI18n } from "@/i18n";
-import type { ComposerSlotContext } from "@/platform/extensions";
 import {
   listPiModelCatalog,
   listPiRpcSessionModels,
@@ -236,7 +235,7 @@ function MenuCurrentValue({ children }: { children: React.ReactNode }) {
   return <span className="text-muted-foreground ms-auto max-w-32 truncate">{children}</span>;
 }
 
-export function ModelSelector({ isRunning }: ComposerSlotContext) {
+export function ModelSelector() {
   const { t } = useI18n();
   const sessionManager = usePiSessionManager();
   const localThreadId = useAuiState((state) => state.threadListItem.id);
@@ -318,10 +317,10 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
         (value) => complete({ scopeKey, kind: "session", value }),
         fail,
       );
-    } else if (draftWorkspace) {
+    } else {
       void listPiModelCatalog().then((value) => complete({ scopeKey, kind: "draft", value }), fail);
     }
-  }, [draftWorkspace, remoteId, scopeKey]);
+  }, [remoteId, scopeKey]);
 
   useEffect(() => {
     loadCatalog();
@@ -494,21 +493,13 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
     providerGroupRefs.current.get(providerId)?.scrollIntoView({ block: "start" });
   }, []);
   const currentUnavailable = catalog?.kind === "session" && !catalog.value.routable;
-  const loading = !catalog && !loadFailed;
-  const selectionLocked =
-    isRunning || savingSelection || contextPolicy.status === "saving" || loading;
+  const selectionLocked = savingSelection || contextPolicy.status === "saving";
 
   return (
     <fieldset
       className="min-w-0 shrink-0 disabled:pointer-events-none disabled:opacity-50"
       disabled={selectionLocked}
-      title={
-        isRunning
-          ? t("extensions.modelSelector.locked")
-          : savingSelection
-            ? t("extensions.modelSelector.saving")
-            : undefined
-      }
+      title={savingSelection ? t("extensions.modelSelector.saving") : undefined}
     >
       {selectedModel && (
         <ModelContextBridge
@@ -529,7 +520,7 @@ export function ModelSelector({ isRunning }: ComposerSlotContext) {
           disabled={selectionLocked}
           aria-label={t("assistant.model.select")}
           style={selectorDropdown.triggerStyle}
-          className="group relative flex h-[34px] w-fit max-w-32 items-center justify-center rounded-md bg-transparent px-2 py-0 text-base outline-none transition-[width,background-color,color] [transition-duration:400ms,200ms,200ms] ease-out hover:[background:var(--button-background-hover)] focus-visible:ring-2 focus-visible:ring-ring/50 data-popup-open:[background:var(--button-background-selected)] data-popup-open:[color:var(--button-foreground-selected)] disabled:cursor-not-allowed max-[360px]:max-w-24 sm:max-w-48"
+          className="group relative flex h-[var(--button-height-default)] w-fit max-w-32 items-center justify-center rounded-md bg-transparent px-2 py-0 text-base outline-none transition-[width,background-color,color] [transition-duration:400ms,200ms,200ms] ease-out hover:[background:var(--button-background-hover)] focus-visible:ring-2 focus-visible:ring-ring/50 data-popup-open:[background:var(--button-background-selected)] data-popup-open:[color:var(--button-foreground-selected)] disabled:cursor-not-allowed max-[360px]:max-w-24 sm:max-w-48"
           onTransitionEnd={selectorDropdown.onTriggerTransitionEnd}
         >
           <span
