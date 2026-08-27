@@ -6,9 +6,9 @@ import type {
   TextMessagePart,
 } from "@assistant-ui/react";
 
-import type { PiQueuedPrompt, PiQueueMode } from "../../contracts";
-import type { SessionQueueAction } from "../../rpc-contracts";
-import type { QueueItem } from "../../stream-contracts";
+import type { PiQueuedPrompt, PiQueueMode } from "@/runtime/pi/contracts/pi";
+import type { SessionQueueAction } from "@/runtime/pi/contracts/rpc";
+import type { QueueItem } from "@/runtime/pi/contracts/stream";
 import { stripWorkspaceFeedbackContext } from "@/services/workspace-feedback-service";
 import { appendMessageToPiPrompt } from "./messages";
 

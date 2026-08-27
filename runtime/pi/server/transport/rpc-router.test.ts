@@ -13,7 +13,7 @@ import type {
   ServerResponse,
   WorkbenchSettingsDescribeValue,
   WorkspaceView,
-} from "../../rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 
 const moduleHooks = registerHooks({
   resolve(specifier, context, nextResolve) {

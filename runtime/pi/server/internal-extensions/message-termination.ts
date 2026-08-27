@@ -4,7 +4,7 @@ import {
   PI_CANCEL_INTENT_CUSTOM_TYPE,
   PI_MESSAGE_TERMINATION_DIAGNOSTIC_TYPE,
   type PiMessageTerminationKind,
-} from "../../message-termination";
+} from "@/runtime/pi/shared/messages/termination";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);

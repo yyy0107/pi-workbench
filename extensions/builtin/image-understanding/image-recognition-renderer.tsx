@@ -10,7 +10,7 @@ import { useI18n } from "@/i18n";
 import type {
   AttachmentRecognitionFailurePhase,
   AttachmentRecognitionResultSource,
-} from "@/runtime/image-understanding/state-machine";
+} from "@/runtime/shared/attachment-understanding/state-machine";
 
 import {
   imageRecognitionLiveRegion,

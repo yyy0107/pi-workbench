@@ -27,7 +27,7 @@ import { PiApiError, readPiRpcSessionContextTrace } from "@/runtime/pi/client/tr
 import type {
   SessionContextTraceEventSummary,
   SessionContextTraceKind,
-} from "@/runtime/pi/rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 
 import {
   ContextTraceDetail,

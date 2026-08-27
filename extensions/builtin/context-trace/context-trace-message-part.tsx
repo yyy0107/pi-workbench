@@ -7,12 +7,12 @@ import { ScanSearchIcon } from "lucide-react";
 import { field, mono } from "@/components/elements/surfaces";
 import { ToolCall } from "@/components/elements/tool-call";
 import { useI18n } from "@/i18n";
-import { parsePiContextTraceData } from "@/runtime/pi/context-trace-data-part";
+import { parsePiContextTraceData } from "@/runtime/pi/client/context-trace/data-part";
 import type {
   SessionContextTraceEventSummary,
   SessionContextTracePromptResources,
   SessionContextTraceSystemPromptSourceSummary,
-} from "@/runtime/pi/rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 
 import { contextTraceEventLabel } from "./context-trace-event-label";
 

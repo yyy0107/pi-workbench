@@ -8,7 +8,7 @@ import {
 import {
   parsePiContextTraceData,
   WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME,
-} from "@/runtime/pi/context-trace-data-part";
+} from "@/runtime/pi/client/context-trace/data-part";
 
 import { ContextTraceMessagePart } from "./context-trace-message-part";
 import { ContextTraceMenuItem } from "./context-trace-menu-item";

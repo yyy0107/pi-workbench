@@ -6,7 +6,7 @@ import type { AppendMessage } from "@assistant-ui/react";
 
 import { appendWorkspaceFeedbackContext } from "@/services/workspace-feedback-service";
 
-import type { QueueItem } from "../../stream-contracts";
+import type { QueueItem } from "@/runtime/pi/contracts/stream";
 
 const moduleHooks = registerHooks({
   resolve(specifier, context, nextResolve) {

@@ -1,4 +1,4 @@
-import type { SessionContextTraceActivationSummary } from "@/runtime/pi/rpc-contracts";
+import type { SessionContextTraceActivationSummary } from "@/runtime/pi/contracts/rpc";
 
 /**
  * Keep the current activation implicit when it has events so the live subscription stays active.

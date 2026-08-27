@@ -1,10 +1,16 @@
 import type {
   SessionContextTraceEvent,
   SessionContextTraceEventSummary,
-} from "../../rpc-contracts";
-import { sessionContextTracePromptPreview } from "../../context-trace-preview";
+} from "@/runtime/pi/contracts/rpc";
+import { deriveSessionDisplayTitle } from "@/runtime/pi/shared/sessions/display-title";
 
-export { sessionContextTracePromptPreview } from "../../context-trace-preview";
+const PROMPT_PREVIEW_CHARACTERS = 32;
+
+export function sessionContextTracePromptPreview(prompt: string): string | undefined {
+  return (
+    deriveSessionDisplayTitle(prompt, { maxCharacters: PROMPT_PREVIEW_CHARACTERS + 1 }) || undefined
+  );
+}
 
 function capturedMessageTimestamp(event: SessionContextTraceEvent): number | undefined {
   if (event.detail.type !== "model-output" && event.detail.type !== "turn-end") return undefined;

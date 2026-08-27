@@ -5,7 +5,7 @@ import type {
   SessionContextTraceCaptureMetadata,
   SessionContextTraceEvent,
   SessionContextTraceJsonValue,
-} from "@/runtime/pi/rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 
 import { contextTraceSelectedRawValue } from "./context-trace-detail-selection";
 

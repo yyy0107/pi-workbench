@@ -22,7 +22,7 @@ import type {
   PromptCommandView,
   SkillView,
   WorkbenchToolboxScopePreference,
-} from "@/runtime/pi/rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 
 import {
   bindCapabilityToCatalogTarget,

@@ -4,7 +4,7 @@ import type {
   WorkbenchSettingsJsonValue,
   WorkbenchSettingsPreferences,
   WorkbenchSettingsPreferencesPatch,
-} from "../../rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 import { describeWorkbenchSettings, updateWorkbenchSettings } from "../transport/api";
 
 let snapshot: WorkbenchSettingsPreferences | undefined;

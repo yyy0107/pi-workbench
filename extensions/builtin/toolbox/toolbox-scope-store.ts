@@ -6,7 +6,7 @@ import {
   loadWorkbenchSettingsPreferences,
   updateWorkbenchSettingsPreferences,
 } from "@/runtime/pi/client/settings/workbench-settings-client";
-import type { WorkbenchToolboxScopePreference } from "@/runtime/pi/rpc-contracts";
+import type { WorkbenchToolboxScopePreference } from "@/runtime/pi/contracts/rpc";
 
 import { USER_TOOLBOX_SCOPE } from "./toolbox-scope";
 

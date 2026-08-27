@@ -29,7 +29,7 @@ import type {
   ExtensionSetEnabledValue,
   ExtensionSourceOrigin,
   ExtensionSourceScope,
-} from "../../rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 import {
   clonePackageSource,
   pathWithin,

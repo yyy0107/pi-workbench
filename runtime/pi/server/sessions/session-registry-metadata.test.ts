@@ -7,7 +7,11 @@ import test from "node:test";
 
 import { SessionManager } from "@earendil-works/pi-coding-agent";
 
-import type { HostStreamPayload, MuxStreamPayload, ServerRequest } from "../../stream-contracts";
+import type {
+  HostStreamPayload,
+  MuxStreamPayload,
+  ServerRequest,
+} from "@/runtime/pi/contracts/stream";
 
 const moduleHooks = registerHooks({
   resolve(specifier, context, nextResolve) {
@@ -55,8 +59,8 @@ const { createStreamHub, STREAM_HUB_SYMBOL } = (await import(
   new URL("../streams/stream-hub.ts", import.meta.url).href
 )) as typeof import("../streams/stream-hub");
 const { getImageUnderstandingSettingsStore } = (await import(
-  new URL("../image-understanding/registry.ts", import.meta.url).href
-)) as typeof import("../image-understanding/registry");
+  new URL("../attachment-understanding/registry.ts", import.meta.url).href
+)) as typeof import("../attachment-understanding/registry");
 moduleHooks.deregister();
 
 test("detects image content across durable session message roles", () => {

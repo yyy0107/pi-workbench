@@ -61,9 +61,9 @@ import {
 } from "@/platform/extensions";
 import { SlotHost } from "@/platform/extensions/hosts/slot-host";
 import { useExtensionManager } from "@/platform/extensions/internal";
+import type { WorkbenchAgentComposerSendError } from "@/runtime/assistant-ui/agent-runtime-adapter";
 import { usePiCommands } from "@/runtime/pi/client/runtime/command-context";
-import type { CommandView } from "@/runtime/pi/rpc-contracts";
-import type { PiComposerSendError } from "@/runtime/pi/client/runtime/send-error";
+import type { CommandView } from "@/runtime/pi/contracts/rpc";
 import { useWorkspaceSelection } from "@/services/workspace-selection-service";
 
 import {
@@ -106,12 +106,12 @@ function restorableComposerAttachment(attachment: Attachment): File | CreateAtta
   };
 }
 
-interface PiComposerActions {
-  error?: PiComposerSendError;
+interface AgentComposerActions {
+  error?: WorkbenchAgentComposerSendError;
   clearError(): void;
 }
 
-interface PiRejectedQueueDraftActions {
+interface AgentRejectedQueueDraftActions {
   rejectedDraft: {
     revision: number;
     message: AppendMessage;
@@ -119,25 +119,27 @@ interface PiRejectedQueueDraftActions {
   clearRejectedDraft(revision: number): void;
 }
 
-function piRejectedQueueDraftActions(extras: unknown): PiRejectedQueueDraftActions | undefined {
+function agentRejectedQueueDraftActions(
+  extras: unknown,
+): AgentRejectedQueueDraftActions | undefined {
   if (
     !extras ||
     typeof extras !== "object" ||
-    !("piQueue" in extras) ||
-    !extras.piQueue ||
-    typeof extras.piQueue !== "object" ||
-    !("rejectedDraft" in extras.piQueue) ||
-    !extras.piQueue.rejectedDraft ||
-    typeof extras.piQueue.rejectedDraft !== "object" ||
-    !("revision" in extras.piQueue.rejectedDraft) ||
-    typeof extras.piQueue.rejectedDraft.revision !== "number" ||
-    !("message" in extras.piQueue.rejectedDraft) ||
-    !("clearRejectedDraft" in extras.piQueue) ||
-    typeof extras.piQueue.clearRejectedDraft !== "function"
+    !("agentQueue" in extras) ||
+    !extras.agentQueue ||
+    typeof extras.agentQueue !== "object" ||
+    !("rejectedDraft" in extras.agentQueue) ||
+    !extras.agentQueue.rejectedDraft ||
+    typeof extras.agentQueue.rejectedDraft !== "object" ||
+    !("revision" in extras.agentQueue.rejectedDraft) ||
+    typeof extras.agentQueue.rejectedDraft.revision !== "number" ||
+    !("message" in extras.agentQueue.rejectedDraft) ||
+    !("clearRejectedDraft" in extras.agentQueue) ||
+    typeof extras.agentQueue.clearRejectedDraft !== "function"
   ) {
     return undefined;
   }
-  return extras.piQueue as unknown as PiRejectedQueueDraftActions;
+  return extras.agentQueue as unknown as AgentRejectedQueueDraftActions;
 }
 
 interface WorkbenchComposerSuggestion {
@@ -421,22 +423,25 @@ function WorkbenchComposerCommandMenu({
   );
 }
 
-function piComposerActions(extras: unknown): PiComposerActions | undefined {
+function agentComposerActions(extras: unknown): AgentComposerActions | undefined {
   if (
     !extras ||
     typeof extras !== "object" ||
-    !("piComposer" in extras) ||
-    !extras.piComposer ||
-    typeof extras.piComposer !== "object" ||
-    !("clearError" in extras.piComposer) ||
-    typeof extras.piComposer.clearError !== "function"
+    !("agentComposer" in extras) ||
+    !extras.agentComposer ||
+    typeof extras.agentComposer !== "object" ||
+    !("clearError" in extras.agentComposer) ||
+    typeof extras.agentComposer.clearError !== "function"
   ) {
     return undefined;
   }
-  return extras.piComposer as PiComposerActions;
+  return extras.agentComposer as AgentComposerActions;
 }
 
-function composerErrorMessage(error: PiComposerSendError, t: ReturnType<typeof useI18n>["t"]) {
+function composerErrorMessage(
+  error: WorkbenchAgentComposerSendError,
+  t: ReturnType<typeof useI18n>["t"],
+) {
   switch (error) {
     case "model-attachment-unsupported":
       return t("workbench.chat.errors.modelDoesNotSupportAttachments");
@@ -489,8 +494,8 @@ export function WorkbenchComposer() {
     () => EMPTY_COMPOSER_COMMANDS,
   );
   const extras = useAuiState((state) => state.thread.extras);
-  const composerActions = piComposerActions(extras);
-  const rejectedQueueDraftActions = piRejectedQueueDraftActions(extras);
+  const composerActions = agentComposerActions(extras);
+  const rejectedQueueDraftActions = agentRejectedQueueDraftActions(extras);
   const drawerId = useId();
   const composerRef = useRef<HTMLFormElement>(null);
   const [composerOverlayCount, setComposerOverlayCount] = useState(0);

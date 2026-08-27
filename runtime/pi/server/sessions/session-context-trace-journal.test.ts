@@ -5,7 +5,7 @@ import path from "node:path";
 import { registerHooks } from "node:module";
 import test from "node:test";
 
-import type { SessionContextTraceEvent } from "../../rpc-contracts";
+import type { SessionContextTraceEvent } from "@/runtime/pi/contracts/rpc";
 
 const moduleHooks = registerHooks({
   resolve(specifier, context, nextResolve) {

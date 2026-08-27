@@ -7,7 +7,7 @@ import test from "node:test";
 
 import { SessionManager, type SessionInfo } from "@earendil-works/pi-coding-agent";
 
-import type { PiSessionSummary } from "../../contracts";
+import type { PiSessionSummary } from "@/runtime/pi/contracts/pi";
 
 const moduleHooks = registerHooks({
   resolve(specifier, context, nextResolve) {

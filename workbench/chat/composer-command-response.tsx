@@ -4,7 +4,7 @@ import { CircleCheckIcon, CircleXIcon, LoaderCircleIcon } from "lucide-react";
 
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
-import type { WorkbenchComposerCommandResponseDetails } from "@/runtime/composer-request";
+import type { WorkbenchComposerCommandResponseDetails } from "@/runtime/shared/composer/request";
 
 export function WorkbenchComposerCommandResponse({
   response,

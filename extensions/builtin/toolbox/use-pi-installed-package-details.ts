@@ -6,7 +6,7 @@ import { describeInstalledPiPackage } from "@/runtime/pi/client/transport/api";
 import type {
   InstalledPackageDetailsView,
   PiResourceCatalogTarget,
-} from "@/runtime/pi/rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 
 type InstalledPackageDetailsLoadState = "idle" | "loading" | "ready" | "failed";
 

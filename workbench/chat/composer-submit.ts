@@ -1,5 +1,5 @@
 import type { CompiledComposerRequest } from "@/platform/extensions";
-import { WORKBENCH_COMPOSER_RUN_CONFIG_KEY } from "@/runtime/composer-request";
+import { WORKBENCH_COMPOSER_RUN_CONFIG_KEY } from "@/runtime/shared/composer/request";
 
 interface ComposerSubmitTarget {
   getState(): {

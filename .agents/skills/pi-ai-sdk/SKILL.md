@@ -46,7 +46,7 @@ Use Pi AI as the provider-neutral model, message, streaming, tool-schema, authen
 ### 4. Preserve the Workbench boundary
 
 - Keep provider credentials, OAuth, Bedrock, dynamic catalog refreshes, and real model requests on the server.
-- It is acceptable for shared/client code to import canonical types or browser-safe pure utilities such as `parseStreamingJson` when the current bundle supports them, as `runtime/pi/session-message-reducer.ts` does.
+- It is acceptable for shared/client code to import canonical types or browser-safe pure utilities such as `parseStreamingJson` when the current bundle supports them, as `runtime/pi/shared/messages/reducer.ts` does.
 - Expose only validated, JSON-compatible subsets through Workbench RPC/stream contracts. Do not send `Models`, `Provider`, credential stores, event-stream instances, callbacks, or secrets to the browser.
 - Reuse the existing compact `PiMessagesEvent` delta protocol and durable `message_end` correction instead of creating a second token stream.
 - Keep `@earendil-works/pi-ai` in `next.config.ts` server externals unless a deliberate bundling change is required and verified.

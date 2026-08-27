@@ -6,7 +6,7 @@ import { CompactMarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ComposerCommandToken } from "@/components/elements/composer";
 import { useComposerCommandRegistry } from "@/platform/extensions";
 import { usePiCommands } from "@/runtime/pi/client/runtime/command-context";
-import { parseWorkbenchComposerDocument } from "@/runtime/composer-request";
+import { parseWorkbenchComposerDocument } from "@/runtime/shared/composer/request";
 
 import { parseComposerDocument } from "./composer-document";
 import { formatPiCommandLabel, parsePiCommandText, removePiCommandBuffer } from "./pi-command";

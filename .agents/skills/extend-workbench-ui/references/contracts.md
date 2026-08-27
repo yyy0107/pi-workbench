@@ -667,8 +667,8 @@ importing or naming the contribution currently rendered in that pane.
 Read `runtime/pi/README.md` completely before adding Pi-backed UI. It is the maintained architecture
 and capability reference. Verify exact shapes against:
 
-- `runtime/pi/rpc-contracts.ts` for unary RPC envelopes and payload/value types;
-- `runtime/pi/stream-contracts.ts` for mux/host WebSocket frames;
+- `runtime/pi/contracts/rpc.ts` for unary RPC envelopes and payload/value types;
+- `runtime/pi/contracts/stream.ts` for mux/host WebSocket frames;
 - `runtime/pi/client/transport/api.ts` for existing browser-side RPC helpers;
 - `runtime/pi/client/runtime/context.tsx` and `manager.ts` for session-manager state and actions.
 

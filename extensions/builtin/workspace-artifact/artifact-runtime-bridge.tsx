@@ -3,7 +3,11 @@
 import { useCallback } from "react";
 
 import { useRightWorkspace, useWorkspaceContext } from "@/components/right-workspace";
-import { toolResultText, toolStringArg, useCompletedToolCalls } from "@/runtime/tool-events";
+import {
+  toolResultText,
+  toolStringArg,
+  useCompletedToolCalls,
+} from "@/runtime/assistant-ui/tool-events";
 import { artifactPreviewService } from "./artifact-preview-service";
 
 export function ArtifactRuntimeBridge() {

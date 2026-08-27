@@ -26,7 +26,7 @@ import type {
   SessionContextTraceJsonValue,
   SessionContextTraceContextUsage,
   SessionContextTraceTokenUsage,
-} from "@/runtime/pi/rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 
 import type { ContextTraceDetailFocus, ContextTraceDetailState } from "./context-trace-detail";
 import {

@@ -1,7 +1,7 @@
 import type { AppendMessage } from "@assistant-ui/react";
 
-import { PI_THINKING_LEVELS } from "../../contracts";
-import type { SessionSelectModelPayload } from "../../rpc-contracts";
+import { PI_THINKING_LEVELS } from "@/runtime/pi/contracts/pi";
+import type { SessionSelectModelPayload } from "@/runtime/pi/contracts/rpc";
 
 export type DraftSessionModelSelection = Omit<SessionSelectModelPayload, "sessionId">;
 

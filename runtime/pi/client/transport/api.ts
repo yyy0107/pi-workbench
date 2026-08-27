@@ -1,4 +1,4 @@
-import type { PiApiErrorBody, PiQueuedPrompt } from "../../contracts";
+import type { PiApiErrorBody, PiQueuedPrompt } from "@/runtime/pi/contracts/pi";
 import type {
   ClientResponse,
   CommandListPayload,
@@ -138,7 +138,7 @@ import type {
   WorkbenchSettingsDescribeValue,
   WorkbenchSettingsUpdatePayload,
   WorkbenchSettingsUpdateValue,
-} from "../../rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 import { invalidatePiModelCatalog } from "../models/model-catalog-invalidation";
 
 const API_ROOT = "/api/pi";

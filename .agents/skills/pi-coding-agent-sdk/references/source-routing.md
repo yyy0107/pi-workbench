@@ -58,9 +58,11 @@ Inspect these repository paths before adding a new abstraction:
 | Host-owned inline extensions               | `runtime/pi/server/internal-extensions/`         |
 | User extension listing/mutation            | `runtime/pi/server/extensions/`                  |
 | Installed Pi package management            | `runtime/pi/server/packages/`                    |
-| Browser-facing unary types                 | `runtime/pi/rpc-contracts.ts`                    |
-| Browser-facing stream types                | `runtime/pi/stream-contracts.ts`                 |
-| Pi-to-Workbench adapter contracts          | `runtime/pi/contracts.ts`                        |
+| Browser-facing unary types                 | `runtime/pi/contracts/rpc.ts`                    |
+| Browser-facing stream types                | `runtime/pi/contracts/stream.ts`                 |
+| Pi-to-Workbench adapter contracts          | `runtime/pi/contracts/pi.ts`                     |
+| Workbench Agent Runtime port               | `runtime/assistant-ui/agent-runtime-adapter.ts`  |
+| Pi assistant-ui adapter implementation     | `runtime/pi/client/assistant-ui/adapter.ts`      |
 | Terminal-owned Pi bash tool definitions    | `runtime/terminal/server/`                       |
 
 Search before editing:

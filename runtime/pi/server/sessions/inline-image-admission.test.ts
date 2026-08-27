@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { INLINE_IMAGE_LIMITS } from "../../attachment-contracts";
+import { INLINE_IMAGE_LIMITS } from "@/runtime/pi/contracts/attachments";
 import {
   admitInlineAttachments,
   admitInlineImages,

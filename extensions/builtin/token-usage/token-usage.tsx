@@ -37,7 +37,7 @@ import { PiApiError } from "@/runtime/pi/client/transport/api";
 import type {
   SessionContextBreakdownCategory,
   SessionContextPolicy,
-} from "@/runtime/pi/rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 import {
   aggregatePiSessionStatistics,
   mergeMonotonicPiSessionStatistics,

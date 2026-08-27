@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { AppendMessage } from "@assistant-ui/react";
 
-import type { PiQueuedPrompt, PiSessionSummary } from "../../contracts";
-import type { SessionPromptValue } from "../../rpc-contracts";
+import type { PiQueuedPrompt, PiSessionSummary } from "@/runtime/pi/contracts/pi";
+import type { SessionPromptValue } from "@/runtime/pi/contracts/rpc";
 import type {
   PromptFeedbackClaim,
   PromptFeedbackPort,

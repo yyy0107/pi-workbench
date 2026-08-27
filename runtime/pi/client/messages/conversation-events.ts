@@ -9,7 +9,7 @@ import {
   type PiCustomMessage,
   type PiForkConversationEvent,
   type PiModelChangeConversationEvent,
-} from "../../contracts";
+} from "@/runtime/pi/contracts/pi";
 
 function record(value: unknown): Record<string, unknown> | undefined {
   return typeof value === "object" && value !== null && !Array.isArray(value)

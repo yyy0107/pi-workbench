@@ -51,12 +51,12 @@ Do not edit `src/models.generated.ts` directly. Upstream catalog work changes th
 | Next server externalization             | `next.config.ts`                                             |
 | Product model/provider/auth adapter     | `runtime/pi/server/models/model-service.ts`                  |
 | Coding-agent model runtime construction | `runtime/pi/server/sessions/session-registry.ts`             |
-| Browser-facing model RPC types          | `runtime/pi/rpc-contracts.ts`                                |
-| Compact streamed-message wire types     | `runtime/pi/stream-contracts.ts`                             |
-| Immutable message delta reducer         | `runtime/pi/session-message-reducer.ts`                      |
+| Browser-facing model RPC types          | `runtime/pi/contracts/rpc.ts`                                |
+| Compact streamed-message wire types     | `runtime/pi/contracts/stream.ts`                             |
+| Immutable message delta reducer         | `runtime/pi/shared/messages/reducer.ts`                      |
 | Server stream compaction/snapshots      | `runtime/pi/server/sessions/session-registry.ts`             |
 | Client stream accumulation              | `runtime/pi/client/transport/session-message-accumulator.ts` |
-| Multimodal model selection              | `runtime/pi/server/image-understanding/multimodal.ts`        |
+| Multimodal model selection              | `runtime/pi/server/attachment-understanding/multimodal.ts`   |
 
 Search before adding an abstraction:
 

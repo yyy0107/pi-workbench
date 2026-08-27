@@ -8,15 +8,18 @@ import type {
   PiSessionHistory,
   PiSessionSummary,
   PiWorkspaceSummary,
-} from "../../contracts";
-import { isInlineDocumentMediaType, isInlineImageMediaType } from "../../attachment-contracts";
-import { parseWorkbenchComposerUserProjection } from "../../../composer-request";
-import { deriveSessionDisplayTitle } from "../../session-display-title";
+} from "@/runtime/pi/contracts/pi";
+import {
+  isInlineDocumentMediaType,
+  isInlineImageMediaType,
+} from "@/runtime/pi/contracts/attachments";
+import { parseWorkbenchComposerUserProjection } from "@/runtime/shared/composer/request";
+import { deriveSessionDisplayTitle } from "@/runtime/pi/shared/sessions/display-title";
 import type {
   SessionHistoryValue,
   SessionListItem,
   SessionPromptContent,
-} from "../../rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 import {
   conversationEventFromSessionEvent,
   modelChangeConversationEvent,

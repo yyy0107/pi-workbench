@@ -38,13 +38,13 @@ import type {
   AttachmentUnderstandingEngine,
   AttachmentUnderstandingRouting,
   AttachmentUnderstandingSettingsValue,
-} from "@/runtime/pi/rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 import {
   getOcrAdapterPreset,
   OCR_ADAPTER_PRESETS,
   parseOcrAdapterSource,
   type OcrAdapterPresetId,
-} from "@/runtime/image-understanding/ocr-adapter";
+} from "@/runtime/shared/attachment-understanding/ocr-adapter";
 
 import {
   configuredMultimodalModelOptions,

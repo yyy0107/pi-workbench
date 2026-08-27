@@ -7,7 +7,7 @@ import {
   describePiProjectTrust,
   updatePiProjectTrust,
 } from "@/runtime/pi/client/transport/api";
-import type { PiWorkspaceSummary } from "@/runtime/pi/contracts";
+import type { PiWorkspaceSummary } from "@/runtime/pi/contracts/pi";
 
 import type { ProjectTrustDialogError } from "./project-trust-dialog";
 

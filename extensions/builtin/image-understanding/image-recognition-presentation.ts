@@ -13,7 +13,7 @@ import {
   type AttachmentRecognitionStage as SharedAttachmentRecognitionStage,
   type AttachmentRecognitionStatus as SharedAttachmentRecognitionStatus,
   type AttachmentReferenceKind,
-} from "@/runtime/image-understanding/state-machine";
+} from "@/runtime/shared/attachment-understanding/state-machine";
 
 export const ATTACHMENT_RECOGNITION_DATA_PART_NAME = WORKBENCH_ATTACHMENT_RECOGNITION_DATA_NAME;
 export const LEGACY_IMAGE_RECOGNITION_DATA_PART_NAME = WORKBENCH_IMAGE_RECOGNITION_DATA_NAME;

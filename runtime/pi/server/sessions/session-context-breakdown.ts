@@ -11,7 +11,7 @@ import type {
   SessionContextBreakdown,
   SessionContextBreakdownCategory,
   SessionContextBreakdownItem,
-} from "../../rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 
 const IMAGE_CHARACTER_WEIGHT = 4_800;
 const CHARACTERS_PER_TOKEN = 4;

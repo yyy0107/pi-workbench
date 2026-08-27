@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { PI_CONVERSATION_EVENT_CUSTOM_TYPE } from "../../contracts";
+import { PI_CONVERSATION_EVENT_CUSTOM_TYPE } from "@/runtime/pi/contracts/pi";
 import { piHistoryToThreadMessages } from "../messages/messages";
 
 import {

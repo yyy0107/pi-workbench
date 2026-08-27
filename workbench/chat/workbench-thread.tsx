@@ -34,7 +34,11 @@ import {
   WorkbenchSystemMessage,
   WorkbenchUserMessage,
 } from "./workbench-message";
-import { displayedPiRunElapsedMs, piAutoRetryStatus, piRunTiming } from "./workbench-thread-timing";
+import {
+  agentAutoRetryStatus,
+  agentRunTiming,
+  displayedAgentRunElapsedMs,
+} from "./workbench-thread-timing";
 
 interface MessageRow {
   id: string;
@@ -210,8 +214,8 @@ function useThreadMessageRows(): readonly MessageRow[] {
 function PiWorkingStatus() {
   const { locale, t } = useI18n();
   const { piWorkingOrbSize, piWorkingOrbState } = useAppearancePreferences();
-  const runTiming = useAuiState((state) => piRunTiming(state.thread.extras));
-  const autoRetry = useAuiState((state) => piAutoRetryStatus(state.thread.extras));
+  const runTiming = useAuiState((state) => agentRunTiming(state.thread.extras));
+  const autoRetry = useAuiState((state) => agentAutoRetryStatus(state.thread.extras));
   const [elapsedMs, setElapsedMs] = useState<number | undefined>(runTiming?.elapsedMs);
 
   useEffect(() => {
@@ -220,7 +224,7 @@ function PiWorkingStatus() {
       return;
     }
     const updateElapsed = () => {
-      setElapsedMs(displayedPiRunElapsedMs(runTiming, performance.now()));
+      setElapsedMs(displayedAgentRunElapsedMs(runTiming, performance.now()));
     };
 
     updateElapsed();

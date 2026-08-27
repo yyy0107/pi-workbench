@@ -8,7 +8,7 @@ import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import type { ComposerDrawerSlotContext } from "@/platform/extensions";
 import { PiApiError, pickPiHostDirectory } from "@/runtime/pi/client/transport/api";
-import type { PiWorkspaceSummary } from "@/runtime/pi/contracts";
+import type { PiWorkspaceSummary } from "@/runtime/pi/contracts/pi";
 import {
   useWorkspaceCapabilities,
   useWorkspaceSelection,

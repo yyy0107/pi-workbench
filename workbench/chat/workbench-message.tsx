@@ -15,11 +15,11 @@ import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { SlotHost } from "@/platform/extensions/hosts/slot-host";
+import type { WorkbenchAgentResumeCheckpoint } from "@/runtime/assistant-ui/agent-runtime-adapter";
 import { parsePiConversationEvent } from "@/runtime/pi/client/messages/conversation-events";
 import { readPiUsage } from "@/runtime/pi/client/messages/pi-usage";
-import { parseWorkbenchComposerCommandResponseDetails } from "@/runtime/composer-request";
-import { parsePiMessageTermination } from "@/runtime/pi/message-termination";
-import type { SessionResumeCheckpoint } from "@/runtime/pi/rpc-contracts";
+import { parseWorkbenchComposerCommandResponseDetails } from "@/runtime/shared/composer/request";
+import { parsePiMessageTermination } from "@/runtime/pi/shared/messages/termination";
 
 import { WorkbenchComposerCommandResponse } from "./composer-command-response";
 import { WorkbenchMessageActions } from "./message-actions";
@@ -55,26 +55,26 @@ function readableErrorDetail(value: unknown): string | undefined {
   }
 }
 
-interface PiRunRecoveryExtras {
-  resumeCheckpoint?: SessionResumeCheckpoint;
-  resume?: (checkpointId: string, expectedLeafId: string) => Promise<void>;
+interface AgentRunRecoveryExtras {
+  resumeCheckpoint?: WorkbenchAgentResumeCheckpoint;
+  resume?: (checkpointId: string, expectedStateId: string) => Promise<void>;
   resumeLatest?: (terminalMessageId: string) => Promise<void>;
 }
 
-function piRunRecoveryExtras(value: unknown): PiRunRecoveryExtras {
+function agentRunRecoveryExtras(value: unknown): AgentRunRecoveryExtras {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return {};
-  const piRun = (value as Record<string, unknown>).piRun;
-  if (typeof piRun !== "object" || piRun === null || Array.isArray(piRun)) return {};
-  const candidate = piRun as Record<string, unknown>;
+  const agentRun = (value as Record<string, unknown>).agentRun;
+  if (typeof agentRun !== "object" || agentRun === null || Array.isArray(agentRun)) return {};
+  const candidate = agentRun as Record<string, unknown>;
   return {
     ...(typeof candidate.resume === "function"
-      ? { resume: candidate.resume as PiRunRecoveryExtras["resume"] }
+      ? { resume: candidate.resume as AgentRunRecoveryExtras["resume"] }
       : {}),
     ...(typeof candidate.resumeLatest === "function"
-      ? { resumeLatest: candidate.resumeLatest as PiRunRecoveryExtras["resumeLatest"] }
+      ? { resumeLatest: candidate.resumeLatest as AgentRunRecoveryExtras["resumeLatest"] }
       : {}),
     ...(typeof candidate.resumeCheckpoint === "object" && candidate.resumeCheckpoint !== null
-      ? { resumeCheckpoint: candidate.resumeCheckpoint as SessionResumeCheckpoint }
+      ? { resumeCheckpoint: candidate.resumeCheckpoint as WorkbenchAgentResumeCheckpoint }
       : {}),
   };
 }
@@ -85,7 +85,7 @@ function WorkbenchMessageError() {
   const status = useAuiState((state) => state.message.status);
   const messageId = useAuiState((state) => state.message.id);
   const isRunning = useAuiState((state) => state.thread.isRunning);
-  const recovery = piRunRecoveryExtras(useAuiState((state) => state.thread.extras));
+  const recovery = agentRunRecoveryExtras(useAuiState((state) => state.thread.extras));
   const isInLatestTurn = useAuiState((state) =>
     isMessageInLatestTurn(state.thread.messages, state.message.index),
   );
@@ -184,7 +184,7 @@ function WorkbenchMessageError() {
     try {
       const action = canContinue
         ? canContinueCheckpoint
-          ? recovery.resume?.(resumeCheckpoint.checkpointId, resumeCheckpoint.branchLeafId)
+          ? recovery.resume?.(resumeCheckpoint.checkpointId, resumeCheckpoint.expectedStateId)
           : recovery.resumeLatest?.(messageId)
         : aui.message.reload();
       void Promise.resolve(action).then(

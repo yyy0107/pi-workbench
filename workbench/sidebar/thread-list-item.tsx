@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { usePiSessionManager, usePiThreadListItemState } from "@/runtime/pi/client/runtime/context";
-import { deriveSessionDisplayTitle } from "@/runtime/pi/session-display-title";
+import { deriveSessionDisplayTitle } from "@/runtime/pi/shared/sessions/display-title";
 import { useAppearancePreferences } from "@/services/appearance/appearance-store";
 import { useWorkspaceCapabilities } from "@/services/workspace-selection-service";
 import { conversationThreadIdFromPathname } from "@/workbench/workspaces/new-thread-policy";

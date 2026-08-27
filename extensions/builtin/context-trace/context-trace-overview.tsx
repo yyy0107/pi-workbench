@@ -12,7 +12,7 @@ import {
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useI18n } from "@/i18n";
-import type { SessionContextTraceEventSummary } from "@/runtime/pi/rpc-contracts";
+import type { SessionContextTraceEventSummary } from "@/runtime/pi/contracts/rpc";
 
 import { contextTraceEventLabel } from "./context-trace-detail";
 import css from "./context-trace-overview.module.css";

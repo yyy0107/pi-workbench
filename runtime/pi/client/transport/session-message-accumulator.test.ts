@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { PiAssistantMessage, PiEvent } from "../../contracts";
+import type { PiAssistantMessage, PiEvent } from "@/runtime/pi/contracts/pi";
 import type {
   SessionMessageSnapshotPayload,
   SessionMessageUpdatePayload,
-} from "../../stream-contracts";
+} from "@/runtime/pi/contracts/stream";
 import { piAssistantToThreadMessage } from "../messages/messages";
 
 const { SessionMessageAccumulator } = (await import(

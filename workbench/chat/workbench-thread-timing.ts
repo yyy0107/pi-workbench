@@ -1,20 +1,14 @@
-export interface PiAutoRetryStatus {
-  readonly attempt: number;
-  readonly maxAttempts: number;
-}
-
-export interface PiRunTimingStatus {
-  readonly startedAt: number;
-  readonly elapsedMs: number;
-  readonly observedAt: number;
-}
+import type {
+  WorkbenchAgentAutoRetry,
+  WorkbenchAgentRunTiming,
+} from "@/runtime/assistant-ui/agent-runtime-adapter";
 
 /** Read the server-authoritative active-run timing snapshot from assistant-ui thread extras. */
-export function piRunTiming(extras: unknown): PiRunTimingStatus | undefined {
-  if (!extras || typeof extras !== "object" || !("piRun" in extras)) return undefined;
-  const piRun = extras.piRun;
-  if (!piRun || typeof piRun !== "object" || !("timing" in piRun)) return undefined;
-  const timing = piRun.timing;
+export function agentRunTiming(extras: unknown): WorkbenchAgentRunTiming | undefined {
+  if (!extras || typeof extras !== "object" || !("agentRun" in extras)) return undefined;
+  const agentRun = extras.agentRun;
+  if (!agentRun || typeof agentRun !== "object" || !("timing" in agentRun)) return undefined;
+  const timing = agentRun.timing;
   if (!timing || typeof timing !== "object") return undefined;
   if (!("startedAt" in timing) || !("elapsedMs" in timing) || !("observedAt" in timing)) {
     return undefined;
@@ -33,20 +27,20 @@ export function piRunTiming(extras: unknown): PiRunTimingStatus | undefined {
   ) {
     return undefined;
   }
-  return timing as PiRunTimingStatus;
+  return timing as WorkbenchAgentRunTiming;
 }
 
 /** Advance a server elapsed-time baseline with a monotonic browser clock for smooth display. */
-export function displayedPiRunElapsedMs(timing: PiRunTimingStatus, now: number): number {
+export function displayedAgentRunElapsedMs(timing: WorkbenchAgentRunTiming, now: number): number {
   return timing.elapsedMs + Math.max(0, now - timing.observedAt);
 }
 
 /** Read the active automatic-retry attempt from assistant-ui thread extras. */
-export function piAutoRetryStatus(extras: unknown): PiAutoRetryStatus | undefined {
-  if (!extras || typeof extras !== "object" || !("piRun" in extras)) return undefined;
-  const piRun = extras.piRun;
-  if (!piRun || typeof piRun !== "object" || !("autoRetry" in piRun)) return undefined;
-  const autoRetry = piRun.autoRetry;
+export function agentAutoRetryStatus(extras: unknown): WorkbenchAgentAutoRetry | undefined {
+  if (!extras || typeof extras !== "object" || !("agentRun" in extras)) return undefined;
+  const agentRun = extras.agentRun;
+  if (!agentRun || typeof agentRun !== "object" || !("autoRetry" in agentRun)) return undefined;
+  const autoRetry = agentRun.autoRetry;
   if (!autoRetry || typeof autoRetry !== "object") return undefined;
   if (!("attempt" in autoRetry) || !("maxAttempts" in autoRetry)) return undefined;
   const { attempt, maxAttempts } = autoRetry;
@@ -60,5 +54,5 @@ export function piAutoRetryStatus(extras: unknown): PiAutoRetryStatus | undefine
   ) {
     return undefined;
   }
-  return autoRetry as PiAutoRetryStatus;
+  return autoRetry as WorkbenchAgentAutoRetry;
 }

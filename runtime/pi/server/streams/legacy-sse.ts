@@ -1,4 +1,4 @@
-import type { PiEvent } from "../../contracts";
+import type { PiEvent } from "@/runtime/pi/contracts/pi";
 import {
   getOrStartSession,
   getRunningSessionIds,

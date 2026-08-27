@@ -18,8 +18,8 @@ const moduleHooks = registerHooks({
   },
 });
 const { PI_AGENT_SETTINGS_NAMESPACE } = (await import(
-  new URL("../../rpc-contracts.ts", import.meta.url).href
-)) as typeof import("../../rpc-contracts");
+  new URL("../../contracts/rpc.ts", import.meta.url).href
+)) as typeof import("@/runtime/pi/contracts/rpc");
 const { AgentSettingsService, AgentSettingsServiceError } = (await import(
   new URL("./agent-settings-service.ts", import.meta.url).href
 )) as typeof import("./agent-settings-service");

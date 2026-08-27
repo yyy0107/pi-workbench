@@ -1,4 +1,4 @@
-import type { SessionContextTraceJsonValue } from "@/runtime/pi/rpc-contracts";
+import type { SessionContextTraceJsonValue } from "@/runtime/pi/contracts/rpc";
 
 export type ContextTraceMessageRole = "system" | "compaction" | "user" | "assistant" | "tool";
 

@@ -20,7 +20,7 @@ import {
   composerDocumentMatchesCommands,
   parseWorkbenchComposerSubmission,
   WORKBENCH_COMPOSER_RUN_CONFIG_KEY,
-} from "@/runtime/composer-request";
+} from "@/runtime/shared/composer/request";
 
 function registry(
   definitions: readonly ComposerCommandDefinition[],

@@ -1,4 +1,4 @@
-import type { PromptListPayload, PromptListValue } from "../../rpc-contracts";
+import type { PromptListPayload, PromptListValue } from "@/runtime/pi/contracts/rpc";
 import {
   getScopedResourceContextService,
   type ScopedResourceContextService,

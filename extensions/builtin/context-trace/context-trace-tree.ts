@@ -1,7 +1,7 @@
 import type {
   SessionContextTraceEventSummary,
   SessionContextTraceTokenUsage,
-} from "@/runtime/pi/rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 
 export interface ContextTraceToolExecution {
   id: string;

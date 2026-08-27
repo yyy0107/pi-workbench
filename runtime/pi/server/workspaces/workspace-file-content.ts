@@ -1,7 +1,7 @@
 import { createReadStream } from "node:fs";
 import { Readable } from "node:stream";
 
-import { WORKSPACE_FILE_BUFFERED_PREVIEW_SIZE_LIMIT } from "../../rpc-contracts";
+import { WORKSPACE_FILE_BUFFERED_PREVIEW_SIZE_LIMIT } from "@/runtime/pi/contracts/rpc";
 import { rejectUntrustedApiRequest } from "../transport/api-request-guard";
 import { getWorkspaceStore } from "./workspace-registry";
 import {

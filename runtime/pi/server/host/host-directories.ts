@@ -3,14 +3,14 @@ import { mkdir, readdir, realpath, stat } from "node:fs/promises";
 import { homedir, release } from "node:os";
 import path from "node:path";
 
-import type { DirectoryEntry, HostDirectoryListing } from "../../rpc-contracts";
+import type { DirectoryEntry, HostDirectoryListing } from "@/runtime/pi/contracts/rpc";
 import {
   NativeWorkspacePickerUnavailableError,
   pickNativeWorkspaceDirectory,
   type NativeWorkspacePickerInternals,
 } from "./native-workspace-picker";
 
-export type { DirectoryEntry, HostDirectoryListing } from "../../rpc-contracts";
+export type { DirectoryEntry, HostDirectoryListing } from "@/runtime/pi/contracts/rpc";
 
 export type HostDirectoryErrorCode =
   | "directory-unreadable"

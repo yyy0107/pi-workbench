@@ -8,8 +8,8 @@ import test from "node:test";
 const moduleHooks = registerHooks({
   resolve(specifier, context, nextResolve) {
     return nextResolve(
-      specifier.endsWith("/contracts") ||
-        specifier.endsWith("/rpc-contracts") ||
+      specifier.endsWith("/contracts/pi") ||
+        specifier.endsWith("/contracts/rpc") ||
         specifier === "./model-config-store"
         ? `${specifier}.ts`
         : specifier,

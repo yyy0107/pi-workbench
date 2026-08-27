@@ -10,7 +10,7 @@ import type {
   SessionContextTraceActivationSummary,
   SessionContextTraceEvent,
   SessionContextTraceEventSummary,
-} from "../../rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 import { atomicReplaceFile } from "../core/file-persistence";
 import { summarizeSessionContextTraceEvent } from "./session-context-trace-summary";
 

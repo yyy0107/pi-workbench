@@ -7,7 +7,7 @@ import type {
   PiPackageCatalogFilterType,
   PiPackageCatalogSearchValue,
   PiPackageCatalogSort,
-} from "@/runtime/pi/rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 
 const EMPTY_CATALOG: PiPackageCatalogSearchValue = {
   sourceUrl: "https://pi.dev/packages",

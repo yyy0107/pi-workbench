@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { RpcError } from "../../rpc-contracts";
-import type { HostStreamPayload, MuxStreamPayload, ServerRequest } from "../../stream-contracts";
+import type { RpcError } from "@/runtime/pi/contracts/rpc";
+import type {
+  HostStreamPayload,
+  MuxStreamPayload,
+  ServerRequest,
+} from "@/runtime/pi/contracts/stream";
 
 const { createStreamHub, getStreamHub, STREAM_HUB_SYMBOL } = (await import(
   new URL("./stream-hub.ts", import.meta.url).href

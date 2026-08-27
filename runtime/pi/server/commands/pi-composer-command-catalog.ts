@@ -1,7 +1,7 @@
 import type {
   WorkbenchComposerCommandArgsBinding,
   WorkbenchComposerCommandArgsSchema,
-} from "../../../composer-request";
+} from "@/runtime/shared/composer/request";
 import { PI_COMPACT_CUSTOM_INSTRUCTIONS_MAX_LENGTH } from "./pi-composer-command-arguments";
 
 /**

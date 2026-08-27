@@ -5,7 +5,7 @@ import {
   handleWorkspaceFileContentRequest,
   type WorkspaceFileContentDependencies,
 } from "./workspace-file-content";
-import { WORKSPACE_FILE_BUFFERED_PREVIEW_SIZE_LIMIT } from "../../rpc-contracts";
+import { WORKSPACE_FILE_BUFFERED_PREVIEW_SIZE_LIMIT } from "@/runtime/pi/contracts/rpc";
 
 const bytes = new TextEncoder().encode("0123456789");
 

@@ -9,7 +9,7 @@ import type {
   ProjectTrustDescribePayload,
   ProjectTrustDescribeValue,
   ProjectTrustUpdatePayload,
-} from "../../rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 import { validateWorkspace } from "../workspaces/workspace-paths";
 
 export interface ProjectTrustServiceErrorDetails {

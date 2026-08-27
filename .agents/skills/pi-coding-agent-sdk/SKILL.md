@@ -55,7 +55,7 @@ Use Pi coding-agent's public SDK as the backend capability layer for Workbench. 
 ### 5. Preserve the boundary
 
 - Keep `@earendil-works/pi-coding-agent` imports in server/runtime modules. Never serialize `AgentSession`, `ExtensionAPI`, `ExtensionRuntime`, registries, callbacks, Maps, or tool definitions to the browser.
-- Promote only stable JSON-compatible request/response/event fields into `runtime/pi/rpc-contracts.ts`, `stream-contracts.ts`, or the existing adapter contracts when a frontend needs them.
+- Promote only stable JSON-compatible request/response/event fields into `runtime/pi/contracts/rpc.ts`, `runtime/pi/contracts/stream.ts`, or the existing adapter contracts when a frontend needs them.
 - Do not copy raw Pi RPC types into Workbench or call legacy `/api/pi/**` routes from a new feature. Follow the transport named by `runtime/pi/README.md`.
 - Keep project-trust checks and filesystem/provider credentials on the server side.
 

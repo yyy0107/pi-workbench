@@ -2,7 +2,7 @@ import type {
   ModelCatalogValue,
   ModelSelection,
   SessionModelsValue,
-} from "../../../runtime/pi/rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 
 export interface SelectorEffort {
   id: string;

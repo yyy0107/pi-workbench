@@ -1,5 +1,5 @@
-import type { PiEvent } from "../../contracts";
-import type { SessionHistoryValue } from "../../rpc-contracts";
+import type { PiEvent } from "@/runtime/pi/contracts/pi";
+import type { SessionHistoryValue } from "@/runtime/pi/contracts/rpc";
 
 export interface PiAutoRetrySnapshot {
   readonly attempt: number;

@@ -12,13 +12,16 @@ import type {
 } from "@assistant-ui/react";
 import { createAssistantStream } from "assistant-stream";
 
-import { workbenchBrowserStorage, WORKBENCH_STORAGE_PREFIX } from "@/runtime/adapters/history";
-import { deriveSessionDisplayTitle } from "@/runtime/pi/session-display-title";
+import {
+  workbenchBrowserStorage,
+  WORKBENCH_STORAGE_PREFIX,
+} from "@/runtime/assistant-ui/adapters/history";
+import { deriveSessionDisplayTitle } from "@/runtime/pi/shared/sessions/display-title";
 import {
   parseWorkbenchComposerUserProjection,
   parseWorkbenchComposerCommandResponseDetails,
   WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE,
-} from "@/runtime/composer-request";
+} from "@/runtime/shared/composer/request";
 import {
   parseAttachmentRecognitionSnapshot,
   reconcileAttachmentRecognitionSnapshot,
@@ -28,7 +31,7 @@ import {
   WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE,
   WORKBENCH_IMAGE_RECOGNITION_DATA_NAME,
   type AttachmentRecognitionSnapshot,
-} from "@/runtime/image-understanding/state-machine";
+} from "@/runtime/shared/attachment-understanding/state-machine";
 import {
   appendWorkspaceFeedbackContext,
   type PromptFeedbackClaim,
@@ -44,8 +47,8 @@ import {
   type PiSessionSummary,
   type PiUserMessage,
   type PiWorkspaceSummary,
-} from "../../contracts";
-import { WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME } from "../../context-trace-data-part";
+} from "@/runtime/pi/contracts/pi";
+import { WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME } from "@/runtime/pi/client/context-trace/data-part";
 import {
   archivePiWorkspaceSession,
   cancelPiRpcSession,
@@ -88,14 +91,14 @@ import type {
   SessionQueueAction,
   SessionResumeCheckpoint,
   WorkspaceView,
-} from "../../rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 import type {
   HostStreamPayload,
   MuxStreamPayload,
   QueueItem,
   QuestionItem,
   ServerRequest,
-} from "../../stream-contracts";
+} from "@/runtime/pi/contracts/stream";
 import { PiConnectionController } from "../transport/connections";
 import {
   conversationEventFromSessionEvent,
@@ -138,7 +141,7 @@ import { nextForkTitle } from "./fork-title";
 import {
   fetchProgressiveSessionHistory,
   SessionHistoryPaginationError,
-} from "../sessions/session-history-loader";
+} from "@/runtime/pi/shared/sessions/history-pagination";
 import {
   piHistoryFromSessionEvents,
   piPromptContent,

@@ -3,9 +3,13 @@ import { registerHooks } from "node:module";
 import test, { before } from "node:test";
 import { INTERNAL, type AppendMessage, type ThreadMessage } from "@assistant-ui/react";
 
-import type { PiEvent, PiSessionSummary } from "../../contracts";
-import type { SessionHistoryValue } from "../../rpc-contracts";
-import type { HostStreamPayload, MuxStreamPayload, ServerRequest } from "../../stream-contracts";
+import type { PiEvent, PiSessionSummary } from "@/runtime/pi/contracts/pi";
+import type { SessionHistoryValue } from "@/runtime/pi/contracts/rpc";
+import type {
+  HostStreamPayload,
+  MuxStreamPayload,
+  ServerRequest,
+} from "@/runtime/pi/contracts/stream";
 
 let PiSessionManager: typeof import("./manager").PiSessionManager;
 

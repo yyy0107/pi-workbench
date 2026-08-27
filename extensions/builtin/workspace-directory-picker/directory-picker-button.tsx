@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { PiApiError, pickPiHostDirectory } from "@/runtime/pi/client/transport/api";
-import type { PiWorkspaceSummary } from "@/runtime/pi/contracts";
+import type { PiWorkspaceSummary } from "@/runtime/pi/contracts/pi";
 import { useWorkspaceCapabilities } from "@/services/workspace-selection-service";
 
 import {

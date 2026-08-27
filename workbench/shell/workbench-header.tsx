@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { useMainViewService } from "@/platform/extensions";
 import { SlotHost } from "@/platform/extensions/hosts/slot-host";
 import { usePiThreadListItemSnapshot } from "@/runtime/pi/client/runtime/context";
-import { deriveSessionDisplayTitle } from "@/runtime/pi/session-display-title";
+import { deriveSessionDisplayTitle } from "@/runtime/pi/shared/sessions/display-title";
 
 const MAX_CONVERSATION_TITLE_CHARACTERS = 12;
 

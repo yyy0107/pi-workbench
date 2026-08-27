@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createI18n } from "@/i18n";
-import { PI_THINKING_LEVELS, type PiThinkingLevel } from "@/runtime/pi/contracts";
+import { PI_THINKING_LEVELS, type PiThinkingLevel } from "@/runtime/pi/contracts/pi";
 
 import { reasoningEffortLabel } from "./reasoning-effort-label";
 

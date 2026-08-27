@@ -25,7 +25,7 @@ import type {
   PiPackageUpdatesValue,
   PiPackageResourceType,
   PiResourceCatalogTarget,
-} from "../../rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 import {
   getPiResourceMutationCoordinator,
   PiResourceMutationBusyError,

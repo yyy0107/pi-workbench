@@ -3,7 +3,7 @@ import path from "node:path";
 
 import type { SessionInfo } from "@earendil-works/pi-coding-agent";
 
-import type { PiSessionSummary } from "../../contracts";
+import type { PiSessionSummary } from "@/runtime/pi/contracts/pi";
 import { atomicReplaceFile, withCrossProcessFileLock } from "../core/file-persistence";
 
 const SESSION_CATALOG_INDEX_VERSION = 1 as const;

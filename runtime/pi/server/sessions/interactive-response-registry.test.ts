@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ClientResponse, RpcReceipt } from "../../rpc-contracts";
-import type { HostStreamPayload, MuxStreamPayload, ServerRequest } from "../../stream-contracts";
+import type { ClientResponse, RpcReceipt } from "@/runtime/pi/contracts/rpc";
+import type {
+  HostStreamPayload,
+  MuxStreamPayload,
+  ServerRequest,
+} from "@/runtime/pi/contracts/stream";
 
 const { createStreamHub } = (await import(
   new URL("../streams/stream-hub.ts", import.meta.url).href

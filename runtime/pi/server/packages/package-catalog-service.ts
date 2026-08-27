@@ -5,7 +5,7 @@ import type {
   PiPackageCatalogSearchPayload,
   PiPackageCatalogSearchValue,
   PiPackageResourceType,
-} from "../../rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 
 const PI_PACKAGE_CATALOG_URL = "https://pi.dev/packages";
 const PI_PACKAGE_CATALOG_PAGE_SIZE = 50;

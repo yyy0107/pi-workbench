@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import type { RpcError } from "../../rpc-contracts";
+import type { RpcError } from "@/runtime/pi/contracts/rpc";
 import type {
   HostStreamPayload,
   MuxStreamPayload,
@@ -8,10 +8,8 @@ import type {
   SessionMessageSnapshotPayload,
   StreamName,
   StreamPayloadMap,
-} from "../../stream-contracts";
-// Node's native TypeScript test runner requires explicit extensions for runtime imports.
-// @ts-expect-error TS5097 -- application sources are bundled without emitting this specifier.
-import { createServerRequest } from "../../stream-contracts.ts";
+} from "@/runtime/pi/contracts/stream";
+import { createServerRequest } from "@/runtime/pi/contracts/stream";
 
 export const STREAM_HUB_SYMBOL = Symbol.for("workbench-ui.pi.stream-hub.v1");
 export const DEFAULT_MAX_BOOTSTRAP_BUFFER_FRAMES = 10_000;

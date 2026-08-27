@@ -1,4 +1,4 @@
-import type { PiDocumentContent, PiImageContent } from "../../contracts";
+import type { PiDocumentContent, PiImageContent } from "@/runtime/pi/contracts/pi";
 import {
   INLINE_ATTACHMENT_LIMITS,
   INLINE_IMAGE_LIMITS,
@@ -7,7 +7,7 @@ import {
   type InlineAttachmentAdmissionErrorReason,
   type InlineImageAdmissionErrorReason,
   type InlineImageMediaType,
-} from "../../attachment-contracts";
+} from "@/runtime/pi/contracts/attachments";
 
 const MAX_INLINE_IMAGE_BASE64_LENGTH =
   Math.ceil(INLINE_IMAGE_LIMITS.maxDecodedBytesPerImage / 3) * 4;

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ServerRequest } from "../../stream-contracts";
+import type { ServerRequest } from "@/runtime/pi/contracts/stream";
 import type { DownlinkWebSocket, UpgradeRequestLike, UpgradeSocketLike } from "./websocket-gateway";
 
 const { acceptDownlinkWebSocket, createNoServerWebSocketGateway, streamNameForUpgradeUrl } =

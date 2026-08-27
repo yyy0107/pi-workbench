@@ -30,7 +30,7 @@ import type {
   PiSessionSummary,
   PiThinkingLevel,
   PiToolCallTiming,
-} from "../../contracts";
+} from "@/runtime/pi/contracts/pi";
 import {
   compileWorkbenchComposerPrompt,
   hasWorkbenchComposerDocument,
@@ -49,9 +49,9 @@ import {
   type WorkbenchComposerSubmission,
   type WorkbenchComposerUserProjection,
   type WorkbenchResolvedAgentRequest,
-} from "../../../composer-request";
-import { PI_MODEL_CHANGED_EVENT, PI_SESSION_FORKED_EVENT } from "../../contracts";
-import { PI_CANCEL_INTENT_CUSTOM_TYPE } from "../../message-termination";
+} from "@/runtime/shared/composer/request";
+import { PI_MODEL_CHANGED_EVENT, PI_SESSION_FORKED_EVENT } from "@/runtime/pi/contracts/pi";
+import { PI_CANCEL_INTENT_CUSTOM_TYPE } from "@/runtime/pi/shared/messages/termination";
 import type {
   SessionCompactValue,
   SessionContextPolicy,
@@ -59,7 +59,7 @@ import type {
   SessionEvent,
   SessionHistoryBranches,
   SessionResumeState,
-} from "../../rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 import {
   missingSessionResumeCheckpointFromBranch,
   parseStoredSessionResumeCheckpoint,
@@ -67,7 +67,7 @@ import {
   SESSION_RESUME_ATTEMPT_CUSTOM_TYPE,
   SESSION_RESUME_CHECKPOINT_CUSTOM_TYPE,
   sessionResumeStateFromBranch,
-} from "../../session-resume";
+} from "./session-resume";
 import {
   effectiveSessionContextBudget,
   latestSessionContextPolicyMarker,
@@ -75,16 +75,19 @@ import {
   policyFromSessionEntries,
   SESSION_CONTEXT_POLICY_CUSTOM_TYPE,
   sessionContextPolicyMarker,
-} from "../../session-context-policy";
-import { deriveSessionDisplayTitle } from "../../session-display-title";
-import { applySessionMessageDelta, copyPiAssistantMessage } from "../../session-message-reducer";
+} from "./session-context-policy";
+import { deriveSessionDisplayTitle } from "@/runtime/pi/shared/sessions/display-title";
+import {
+  applySessionMessageDelta,
+  copyPiAssistantMessage,
+} from "@/runtime/pi/shared/messages/reducer";
 import {
   createSessionEventPayload,
   createSessionMessageSnapshotPayload,
   createSessionMessageUpdatePayload,
   type SessionMessageDelta,
   type SessionMessageMetadata,
-} from "../../stream-contracts";
+} from "@/runtime/pi/contracts/stream";
 import {
   preflightPlanWorkbenchComposerCommands,
   type PlannedWorkbenchComposerCommand,
@@ -131,7 +134,7 @@ import {
   WORKBENCH_ATTACHMENT_RECOGNITION_CUSTOM_TYPE,
   WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE,
   type AttachmentRecognitionSnapshot,
-} from "../../../image-understanding/state-machine";
+} from "../../../shared/attachment-understanding/state-machine";
 import {
   decideAttachmentUnderstandingRoute,
   ImageUnderstandingProviderError,
@@ -139,10 +142,10 @@ import {
   projectAttachmentRecognitionResults,
   type AttachmentUnderstandingObservation,
   type RecognizableAttachment,
-} from "../image-understanding/index";
-import { AttachmentRecognitionLifecycle } from "../image-understanding/lifecycle";
-import { recognizeWithMultimodalModel } from "../image-understanding/multimodal";
-import { getImageUnderstandingSettingsStore } from "../image-understanding/registry";
+} from "../attachment-understanding/index";
+import { AttachmentRecognitionLifecycle } from "../attachment-understanding/lifecycle";
+import { recognizeWithMultimodalModel } from "../attachment-understanding/multimodal";
+import { getImageUnderstandingSettingsStore } from "../attachment-understanding/registry";
 import {
   reportWorkbenchInternalPiExtensionErrors,
   workbenchInternalPiExtensions,

@@ -2,7 +2,10 @@ import path from "node:path";
 
 import { getAgentDir, VERSION as PI_VERSION } from "@earendil-works/pi-coding-agent";
 
-import { INLINE_DOCUMENT_MEDIA_TYPES, INLINE_IMAGE_MEDIA_TYPES } from "../../attachment-contracts";
+import {
+  INLINE_DOCUMENT_MEDIA_TYPES,
+  INLINE_IMAGE_MEDIA_TYPES,
+} from "@/runtime/pi/contracts/attachments";
 import {
   canOpenHostPath,
   createHostDirectory,
@@ -32,8 +35,8 @@ import {
   WorkbenchSettingsService,
   WorkbenchSettingsServiceError,
 } from "../settings/workbench-settings-service";
-import { ImageUnderstandingSettingsStoreError } from "../image-understanding/settings-store";
-import { getImageUnderstandingSettingsStore } from "../image-understanding/registry";
+import { ImageUnderstandingSettingsStoreError } from "../attachment-understanding/settings-store";
+import { getImageUnderstandingSettingsStore } from "../attachment-understanding/registry";
 import { getExternalSessionImportService } from "../imports/external-session-import-service";
 import { handleInteractiveResponsePost } from "../sessions/interactive-response-registry";
 import {
@@ -74,7 +77,7 @@ import {
   type RpcOptionalValidator,
   type RpcValidator,
 } from "./rpc-transport";
-import type { WorkbenchComposerJsonValue } from "../../../composer-request";
+import type { WorkbenchComposerJsonValue } from "@/runtime/shared/composer/request";
 import type {
   ExtensionFileReadPayload,
   ExtensionFilesListPayload,
@@ -88,7 +91,7 @@ import type {
   SkillFilesListPayload,
   SkillSetEnabledPayload,
   WorkbenchSettingsUpdatePayload,
-} from "../../rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 import { SessionRpcService, SessionRpcServiceError } from "../sessions/session-rpc-service";
 import { getWorkspaceStore } from "../workspaces/workspace-registry";
 import { WorkspaceFileError, WorkspaceFileService } from "../workspaces/workspace-files";

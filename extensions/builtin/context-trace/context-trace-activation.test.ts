@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { SessionContextTraceActivationSummary } from "@/runtime/pi/rpc-contracts";
+import type { SessionContextTraceActivationSummary } from "@/runtime/pi/contracts/rpc";
 
 import { selectContextTraceActivation } from "./context-trace-activation";
 

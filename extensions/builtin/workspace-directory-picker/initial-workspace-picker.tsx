@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import type { ComposerSlotContext } from "@/platform/extensions/authoring";
 import { PiApiError, pickPiHostDirectory } from "@/runtime/pi/client/transport/api";
-import type { PiWorkspaceSummary } from "@/runtime/pi/contracts";
+import type { PiWorkspaceSummary } from "@/runtime/pi/contracts/pi";
 import {
   useWorkspaceCapabilities,
   useWorkspaceSelection,

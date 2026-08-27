@@ -1,7 +1,7 @@
 import type {
   PiResourceCatalogTarget,
   WorkbenchToolboxScopePreference,
-} from "@/runtime/pi/rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 
 import type { ToolboxCapabilitySurfaceParams } from "./toolbox-capability";
 

@@ -390,7 +390,7 @@ it names. Prefer:
 - `usePiSessionManager()`, `usePiThreadActivity()`, or `usePiWorkspaces()` from
   `runtime/pi/client/runtime/context.tsx` for subscribed manager state;
 - an existing helper from `runtime/pi/client/transport/api.ts` for unary RPC;
-- shared types from `runtime/pi/rpc-contracts.ts` or `runtime/pi/stream-contracts.ts`.
+- shared types from `runtime/pi/contracts/rpc.ts` or `runtime/pi/contracts/stream.ts`.
 
 Do not write raw `/api/pi/**` or `/api/<method>` fetches in a component, open a second WebSocket/SSE
 connection, or copy payload shapes into the extension. The shared manager already owns mux/host

@@ -4,7 +4,7 @@ import type {
   ExtensionSourceOrigin,
   ExtensionSourceScope,
   PiResourceCatalogTarget,
-} from "../../rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 import { getScopedResourceContextService } from "../resources/scoped-resource-context";
 import { getOrStartSession } from "../sessions/session-registry";
 import { PI_COMPOSER_BUILTIN_COMMANDS } from "./pi-composer-command-catalog";

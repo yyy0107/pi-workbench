@@ -10,7 +10,7 @@ import { useI18n } from "@/i18n";
 import type { SettingsItemComponentProps } from "@/platform/extensions";
 import { usePiSessionCatalog } from "@/runtime/pi/client/runtime/session-catalog";
 import { listPiExtensions } from "@/runtime/pi/client/transport/api";
-import type { ExtensionView } from "@/runtime/pi/rpc-contracts";
+import type { ExtensionView } from "@/runtime/pi/contracts/rpc";
 
 interface PiExtensionsCatalog {
   readonly extensions: readonly ExtensionView[];

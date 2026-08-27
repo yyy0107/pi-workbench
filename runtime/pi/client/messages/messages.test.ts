@@ -7,7 +7,7 @@ import {
   PI_CONVERSATION_EVENT_CUSTOM_TYPE,
   type PiAssistantMessage,
   type PiSessionHistory,
-} from "../../contracts";
+} from "@/runtime/pi/contracts/pi";
 import {
   applyToolExecutionUpdate,
   appendPiContextTraceAssistantPart,
@@ -23,14 +23,14 @@ import {
   reconcileLiveMessagesAfterHistory,
   reconcilePiContextTraceAssistantParts,
 } from "./messages";
-import { WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME } from "../../context-trace-data-part";
-import type { SessionContextTraceEventSummary } from "../../rpc-contracts";
+import { WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME } from "@/runtime/pi/client/context-trace/data-part";
+import type { SessionContextTraceEventSummary } from "@/runtime/pi/contracts/rpc";
 import {
   WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE,
   WORKBENCH_COMPOSER_RESOLUTION_CUSTOM_TYPE,
   WORKBENCH_COMPOSER_RUN_CONFIG_KEY,
   WORKBENCH_COMPOSER_USER_CUSTOM_TYPE,
-} from "../../../composer-request";
+} from "@/runtime/shared/composer/request";
 import { conversationEventThreadMessage } from "./conversation-events";
 import {
   aggregatePiSessionStatistics,
@@ -39,7 +39,7 @@ import {
 import {
   WORKBENCH_ATTACHMENT_RECOGNITION_CUSTOM_TYPE,
   WORKBENCH_ATTACHMENT_RECOGNITION_DATA_NAME,
-} from "../../../image-understanding/state-machine";
+} from "../../../shared/attachment-understanding/state-machine";
 
 const assistantMessage: PiAssistantMessage = {
   role: "assistant",

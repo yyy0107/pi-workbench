@@ -1,9 +1,12 @@
-import type { PiAssistantMessage, PiEvent } from "../../contracts";
-import { applySessionMessageDelta, copyPiAssistantMessage } from "../../session-message-reducer";
+import type { PiAssistantMessage, PiEvent } from "@/runtime/pi/contracts/pi";
+import {
+  applySessionMessageDelta,
+  copyPiAssistantMessage,
+} from "@/runtime/pi/shared/messages/reducer";
 import type {
   SessionMessageSnapshotPayload,
   SessionMessageUpdatePayload,
-} from "../../stream-contracts";
+} from "@/runtime/pi/contracts/stream";
 
 export type SessionMessageApplyResult =
   | { kind: "event"; event: PiEvent }

@@ -2,8 +2,8 @@
 
 import { createContext, useContext, useMemo, useSyncExternalStore, type ReactNode } from "react";
 
-import type { PiWorkspaceSummary } from "../../contracts";
-import type { HostDescription } from "../../rpc-contracts";
+import type { PiWorkspaceSummary } from "@/runtime/pi/contracts/pi";
+import type { HostDescription } from "@/runtime/pi/contracts/rpc";
 
 import {
   PiSessionManager,

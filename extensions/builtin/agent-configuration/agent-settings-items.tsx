@@ -17,7 +17,7 @@ import {
 import {
   PI_AGENT_SETTINGS_NAMESPACE,
   type PiAgentSettingsNamespaceView,
-} from "@/runtime/pi/rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 
 type LoadState = "loading" | "ready" | "failed";
 

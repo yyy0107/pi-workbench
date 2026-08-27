@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { WorkbenchComposerCommandSubmission } from "../../../composer-request";
+import type { WorkbenchComposerCommandSubmission } from "@/runtime/shared/composer/request";
 import { preflightPlanWorkbenchComposerCommands } from "./composer-command-planner";
 
 const session = {

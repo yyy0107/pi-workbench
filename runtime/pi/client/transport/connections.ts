@@ -1,5 +1,5 @@
-import type { PiAssistantMessage, PiEvent, PiRunTiming } from "../../contracts";
-import { isSessionMessageDelta } from "../../stream-contracts";
+import type { PiAssistantMessage, PiEvent, PiRunTiming } from "@/runtime/pi/contracts/pi";
+import { isSessionMessageDelta } from "@/runtime/pi/contracts/stream";
 import type {
   HostStreamPayload,
   MuxStreamPayload,
@@ -7,7 +7,7 @@ import type {
   SessionMessageSnapshotPayload,
   SessionMessageUpdatePayload,
   StreamName,
-} from "../../stream-contracts";
+} from "@/runtime/pi/contracts/stream";
 import { SessionMessageAccumulator } from "./session-message-accumulator";
 
 const IDLE_CLOSE_DELAY_MS = 30_000;

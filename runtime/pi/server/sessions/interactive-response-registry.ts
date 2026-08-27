@@ -7,12 +7,12 @@ import type {
   QuestionAnswerItem,
   QuestionResponseValue,
   RpcReceipt,
-} from "../../rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 import type {
   ApprovalRequestedPayload,
   ApprovalResolvedPayload,
   QuestionItem,
-} from "../../stream-contracts";
+} from "@/runtime/pi/contracts/stream";
 import type { StreamHub } from "../streams/stream-hub";
 // Node's native TypeScript test runner requires explicit extensions for runtime imports.
 // @ts-expect-error TS5097 -- application sources are bundled without emitting this specifier.

@@ -22,7 +22,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useI18n } from "@/i18n";
 import { createPiHostDirectory, listPiHostDirectory } from "@/runtime/pi/client/transport/api";
-import type { HostDirectoryListing } from "@/runtime/pi/rpc-contracts";
+import type { HostDirectoryListing } from "@/runtime/pi/contracts/rpc";
 
 type PickerError = "browse" | "create" | "select";
 

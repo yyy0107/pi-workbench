@@ -2,7 +2,7 @@ import { realpathSync } from "node:fs";
 import { realpath, stat } from "node:fs/promises";
 import path from "node:path";
 
-import type { SessionEvent } from "../../rpc-contracts";
+import type { SessionEvent } from "@/runtime/pi/contracts/rpc";
 
 const DEFAULT_MAX_COMPLETED_ENTRIES = 8;
 const DEFAULT_MAX_COMPLETED_SOURCE_BYTES = 32 * 1024 * 1024;

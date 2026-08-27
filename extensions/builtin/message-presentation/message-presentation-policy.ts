@@ -1,4 +1,4 @@
-import type { AttachmentReference } from "@/runtime/image-understanding/state-machine";
+import type { AttachmentReference } from "@/runtime/shared/attachment-understanding/state-machine";
 
 export type MessagePresentationDisclosure =
   | "completed-turn"

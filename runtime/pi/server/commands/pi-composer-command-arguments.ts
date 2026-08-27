@@ -1,4 +1,4 @@
-import type { WorkbenchComposerCommandSubmission } from "../../../composer-request";
+import type { WorkbenchComposerCommandSubmission } from "@/runtime/shared/composer/request";
 import { PiServerError } from "../core/errors";
 
 export const PI_COMPACT_CUSTOM_INSTRUCTIONS_MAX_LENGTH = 32_768;

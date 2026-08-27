@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { describePiPackageCatalog } from "@/runtime/pi/client/transport/api";
-import type { PiPackageCatalogDetailsView } from "@/runtime/pi/rpc-contracts";
+import type { PiPackageCatalogDetailsView } from "@/runtime/pi/contracts/rpc";
 
 type PackageDetailsLoadState = "idle" | "loading" | "ready" | "failed";
 

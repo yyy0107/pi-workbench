@@ -28,7 +28,7 @@ import type {
   SessionContextTraceSystemPromptSource,
   SessionContextTraceTextCapture,
   SessionContextTraceTokenUsage,
-} from "../../rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 import {
   SESSION_CONTEXT_TRACE_MAX_PERSISTED_ACTIVATIONS,
   SESSION_CONTEXT_TRACE_MAX_PERSISTED_BYTES,

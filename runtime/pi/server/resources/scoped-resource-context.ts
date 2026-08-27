@@ -5,7 +5,7 @@ import {
   type ResourceLoader,
 } from "@earendil-works/pi-coding-agent";
 
-import type { PiResourceCatalogTarget } from "../../rpc-contracts";
+import type { PiResourceCatalogTarget } from "@/runtime/pi/contracts/rpc";
 import { getProjectTrustService } from "../trust/project-trust-service";
 import { getWorkspaceStore } from "../workspaces/workspace-registry";
 

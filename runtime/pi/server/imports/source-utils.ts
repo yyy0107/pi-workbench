@@ -13,7 +13,7 @@ import type {
   Usage,
 } from "@earendil-works/pi-ai";
 
-import { deriveSessionDisplayTitle } from "../../session-display-title";
+import { deriveSessionDisplayTitle } from "@/runtime/pi/shared/sessions/display-title";
 
 const MAX_DISCOVERED_FILES = 5_000;
 const MAX_JSONL_LINE_BYTES = 32 * 1024 * 1024;

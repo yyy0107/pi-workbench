@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import type { SessionEvent } from "../../rpc-contracts";
+import type { SessionEvent } from "@/runtime/pi/contracts/rpc";
 
 import { ColdSessionEventCache } from "./cold-session-event-cache";
 

@@ -11,7 +11,7 @@ import {
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import type { PiAssistantMessage } from "../../contracts";
+import type { PiAssistantMessage } from "@/runtime/pi/contracts/pi";
 import { piAssistantToThreadMessage } from "../messages/messages";
 
 function AssistantMessageProbe() {

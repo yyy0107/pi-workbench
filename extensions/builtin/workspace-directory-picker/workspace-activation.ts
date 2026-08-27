@@ -1,4 +1,4 @@
-import type { PiWorkspaceSummary } from "@/runtime/pi/contracts";
+import type { PiWorkspaceSummary } from "@/runtime/pi/contracts/pi";
 
 interface CreatedWorkspaceActivationActions {
   beginNewThreadWithCreatedWorkspace(workspace: PiWorkspaceSummary): void;

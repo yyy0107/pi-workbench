@@ -13,7 +13,7 @@ import type {
   ExternalSessionImportScanValue,
   ExternalSessionImportView,
   ExternalSessionSource,
-} from "@/runtime/pi/rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 
 const IMPORT_BATCH_SIZE = 200;
 

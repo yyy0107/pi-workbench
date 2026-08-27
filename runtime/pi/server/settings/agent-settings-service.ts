@@ -13,7 +13,7 @@ import {
   type PiAgentSettingsValue,
   type PiCompactionSettingsValue,
   type SettingsDescribeValue,
-} from "../../rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 import { atomicReplaceFile, withCrossProcessFileLock } from "../core/file-persistence";
 
 type JsonObject = Record<string, unknown>;

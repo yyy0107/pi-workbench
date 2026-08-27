@@ -1,14 +1,12 @@
 import {
   isSessionAttachmentErrorReason,
   type SessionAttachmentErrorReason,
-} from "../../attachment-contracts";
+} from "@/runtime/pi/contracts/attachments";
+import type { WorkbenchAgentComposerSendError } from "@/runtime/assistant-ui/agent-runtime-adapter";
 import { PiApiError } from "../transport/api";
 
-export type PiComposerSendError =
-  | "model-attachment-unsupported"
-  | "attachment-invalid"
-  | "attachment-too-large"
-  | "too-many-attachments";
+/** @deprecated Import WorkbenchAgentComposerSendError from the assistant-ui adapter contract. */
+export type PiComposerSendError = WorkbenchAgentComposerSendError;
 
 const SEND_ERROR_BY_ATTACHMENT_REASON = {
   MODEL_DOES_NOT_SUPPORT_IMAGES: "model-attachment-unsupported",

@@ -7,7 +7,7 @@ import {
   subscribePiResourceCatalog,
 } from "@/runtime/pi/client/runtime/resource-catalog-revision";
 import { listAvailablePiPackageUpdates } from "@/runtime/pi/client/transport/api";
-import type { PiPackageUpdatesValue, PiResourceCatalogTarget } from "@/runtime/pi/rpc-contracts";
+import type { PiPackageUpdatesValue, PiResourceCatalogTarget } from "@/runtime/pi/contracts/rpc";
 
 const EMPTY_UPDATES: PiPackageUpdatesValue = { updates: [] };
 

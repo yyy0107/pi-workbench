@@ -1,5 +1,5 @@
 import type { StaticMessageKey, Translate } from "@/i18n";
-import { PI_THINKING_LEVELS, type PiThinkingLevel } from "@/runtime/pi/contracts";
+import { PI_THINKING_LEVELS, type PiThinkingLevel } from "@/runtime/pi/contracts/pi";
 
 import type { SelectorEffort } from "./model-selector-state";
 

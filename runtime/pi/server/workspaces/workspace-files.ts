@@ -11,7 +11,7 @@ import type {
   WorkspaceFilesListPayload,
   WorkspaceFilesListValue,
   WorkspaceFileWritePayload,
-} from "../../rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 import type { WorkspaceStore } from "./workspace-store";
 
 const DIRECTORY_ENTRY_LIMIT = 2_000;

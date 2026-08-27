@@ -10,8 +10,11 @@ import type {
 } from "@earendil-works/pi-ai";
 import { builtinProviders } from "@earendil-works/pi-ai/providers/all";
 
-import { PI_THINKING_LEVELS, type PiThinkingLevel } from "../../contracts";
-import { imageInputCapability, type ModelInputModality } from "../../model-capabilities";
+import { PI_THINKING_LEVELS, type PiThinkingLevel } from "@/runtime/pi/contracts/pi";
+import {
+  imageInputCapability,
+  type ModelInputModality,
+} from "@/runtime/pi/shared/models/capabilities";
 import type {
   ConfigurableProviderView,
   ConfigureModelProviderPayload,
@@ -37,7 +40,7 @@ import type {
   TestModelImageInputPayload,
   TestModelImageInputValue,
   UpdateModelContextWindowPayload,
-} from "../../rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 import {
   ModelConfigStore,
   type ModelConfigMutation,
@@ -53,7 +56,7 @@ export type {
   ModelCatalogModel,
   ModelProviderGroup,
   ModelSelection,
-} from "../../rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 
 export type ModelProvidersResult = ModelProvidersValue;
 export type ModelCatalogResult = ModelCatalogValue;

@@ -33,7 +33,7 @@ import type {
   ModelCatalogValue,
   ModelSelection,
   SessionModelsValue,
-} from "@/runtime/pi/rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 import { usePiSessionManager } from "@/runtime/pi/client/runtime/context";
 import { useSessionContextPolicy } from "@/runtime/pi/client/context-policy/use-session-context-policy";
 import { useWorkspaceSelection } from "@/services/workspace-selection-service";

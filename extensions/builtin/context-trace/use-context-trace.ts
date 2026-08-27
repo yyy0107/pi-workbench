@@ -10,7 +10,7 @@ import {
 import type {
   SessionContextTraceCapabilities,
   SessionContextTraceEventSummary,
-} from "@/runtime/pi/rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 
 import { selectContextTraceActivation } from "./context-trace-activation";
 

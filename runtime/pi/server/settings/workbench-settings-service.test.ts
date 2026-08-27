@@ -18,8 +18,8 @@ const moduleHooks = registerHooks({
   },
 });
 const { ImageUnderstandingSettingsStore } = (await import(
-  new URL("../image-understanding/settings-store.ts", import.meta.url).href
-)) as typeof import("../image-understanding/settings-store");
+  new URL("../attachment-understanding/settings-store.ts", import.meta.url).href
+)) as typeof import("../attachment-understanding/settings-store");
 const { WorkspaceStore } = (await import(
   new URL("../workspaces/workspace-store.ts", import.meta.url).href
 )) as typeof import("../workspaces/workspace-store");

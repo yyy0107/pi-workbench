@@ -1,4 +1,4 @@
-import type { SessionEvent } from "../../rpc-contracts";
+import type { SessionEvent } from "@/runtime/pi/contracts/rpc";
 
 export const SESSION_EVENT_CUSTOM_TYPE = "workbench.session-event.v1";
 export const SESSION_EVENT_JOURNAL_CUSTOM_TYPE = "workbench.session-event-journal.v1";

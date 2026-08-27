@@ -6,8 +6,8 @@ import { performance } from "node:perf_hooks";
 
 import { SessionManager, sessionEntryToContextMessages } from "@earendil-works/pi-coding-agent";
 
-import { fetchProgressiveSessionHistory } from "../../client/sessions/session-history-loader";
-import type { SessionEvent } from "../../rpc-contracts";
+import type { SessionEvent } from "@/runtime/pi/contracts/rpc";
+import { fetchProgressiveSessionHistory } from "@/runtime/pi/shared/sessions/history-pagination";
 
 import { ColdSessionEventCache } from "./cold-session-event-cache";
 import { initializeSessionEventJournal } from "./session-event-journal";

@@ -9,7 +9,7 @@ import type {
   ModelProviderConfiguration,
   ModelProviderModelConfiguration,
   ModelThinkingLevelMap,
-} from "../../rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 import { atomicReplaceFile, withCrossProcessFileLock } from "../core/file-persistence";
 
 interface JsonObject {

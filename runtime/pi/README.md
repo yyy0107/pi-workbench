@@ -8,16 +8,18 @@ Workbench Pi Runtime 将 `@earendil-works/pi-coding-agent` 直接嵌入 Workbenc
 [DeepSeek Harness HTTP / WebSocket 接口参考](../../docs/deepseekharness-api-design.md)中的当前
 Workbench 子集，而不是参考文档全部 59 个接口。线协议的类型来源是：
 
-- [`rpc-contracts.ts`](./rpc-contracts.ts)：RPC envelope，以及 Host、Workspace、LLM、Settings、
+- [`contracts/rpc.ts`](./contracts/rpc.ts)：RPC envelope，以及 Host、Workspace、LLM、Settings、
   Session 的请求和响应类型；
-- [`stream-contracts.ts`](./stream-contracts.ts)：mux/host WebSocket frame 和 payload 联合；
-- [`contracts.ts`](./contracts.ts)：Workbench UI 适配层与 legacy `/api/pi/**` 使用的 Pi 类型。
+- [`contracts/stream.ts`](./contracts/stream.ts)：mux/host WebSocket frame 和 payload 联合；
+- [`contracts/pi.ts`](./contracts/pi.ts)：Workbench UI 适配层与 legacy `/api/pi/**` 使用的 Pi 类型。
 
 ## 架构
 
 ```mermaid
 flowchart TD
-  UI["Browser / assistant-ui"] --> CM["PiSessionManager / PiClientSession"]
+  UI["Browser / assistant-ui"] --> PORT["WorkbenchAgentRuntimeAdapter"]
+  PORT --> ADAPTER["Pi assistant-ui adapter"]
+  ADAPTER --> CM["PiSessionManager / PiClientSession"]
   CM -->|"POST /api/<method>"| HTTP["Unary RPC"]
   CM -->|"events.mux + events.host"| WS["Paired WebSocket generation"]
 
@@ -302,10 +304,13 @@ provider、凭据和模型配置发送一张内置的小型 PNG，要求模型
 安全过滤和提供方不可用归一化为稳定 reason，并识别 OpenRouter 的“没有支持图片输入的 endpoint”等
 明确拒绝；它属于可能计费的推理请求，因此 UI 必须在按钮附近明确提示。
 
-Project-local settings、extensions 和 resources 默认不可信。Workbench 在导入包含这些资源且
-没有当前目录或父目录决策的工作区时询问用户，并通过 Pi 官方 `ProjectTrustStore` 将决定写入
-`~/.pi/agent/trust.json`。已有决定优先；否则遵循全局 `defaultProjectTrust`。只有有效决定为信任时，
-session 和模型服务才允许 Pi 加载这些项目资源。`PI_WORKBENCH_TRUST_PROJECT=1` 保留为本次
+Project-local settings、extensions 和 resources 默认不可信。Workbench 在首次导入没有当前目录或
+父目录决策的新工作区时询问用户，即使目录尚未包含受信任边界保护的资源也会先保存决定，避免之后
+新增 `.pi` 配置、Skill 或 Extension 时静默改变有效信任状态。决定通过 Pi 官方
+`ProjectTrustStore` 写入 `~/.pi/agent/trust.json`；已有决定优先，否则遵循全局
+`defaultProjectTrust`。`projectTrust.describe.requiresTrust` 只表示目录当前是否已包含受保护资源，
+不控制是否需要首次导入确认。只有有效决定为信任时，session 和模型服务才允许 Pi 加载这些项目资源。
+`PI_WORKBENCH_TRUST_PROJECT=1` 保留为本次
 Workbench 进程全部信任的显式覆盖。升级到 Project Trust 的首次工作区对账会为此前已经导入、
 且没有当前目录或父目录保存决定的有效项目补写 `true`；显式 `false` 不会被覆盖。迁移完成标记
 保存在 Workspace 状态中，因此之后新导入的项目不会被兼容迁移自动信任。
@@ -820,13 +825,17 @@ Terminal 的 PTY 生命周期和双向 frame 协议属于独立的
 
 实现按传输层和业务域分组，测试与源文件共置：
 
+本节的 `shared/` 是 Pi client/server 之间的内部纯逻辑；可被 Pi 之外模块复用的 Composer 与附件
+理解领域逻辑位于上一级 [`runtime/shared`](../shared)，两者不要混用。
+
 ```text
 runtime/pi/
 ├── README.md
-├── contracts.ts
-├── rpc-contracts.ts
-├── stream-contracts.ts
 ├── client/
+│   ├── assistant-ui/
+│   │   └── adapter.ts
+│   ├── context-trace/
+│   │   └── data-part.ts
 │   ├── transport/
 │   │   ├── api.ts
 │   │   └── connections.ts
@@ -841,9 +850,28 @@ runtime/pi/
 │   └── sessions/
 │       ├── session-create-intent.ts
 │       └── session-rpc-adapter.ts
+├── contracts/
+│   ├── attachments.ts
+│   ├── pi.ts
+│   ├── rpc.ts
+│   └── stream.ts
+├── shared/
+│   ├── messages/
+│   │   ├── reducer.ts
+│   │   └── termination.ts
+│   ├── models/
+│   │   └── capabilities.ts
+│   └── sessions/
+│       ├── display-title.ts
+│       └── history-pagination.ts
 └── server/
     ├── core/
     │   └── errors.ts
+    ├── attachment-understanding/
+    │   ├── providers/
+    │   ├── coordinator.ts
+    │   ├── lifecycle.ts
+    │   └── settings-store.ts
     ├── transport/
     │   ├── api-request-guard.ts
     │   ├── custom-server.ts
@@ -870,10 +898,12 @@ runtime/pi/
     │   └── workspace-paths.ts
     ├── sessions/
     │   ├── interactive-response-registry.ts
+    │   ├── session-context-policy.ts
     │   ├── session-event-journal.ts
     │   ├── session-export.ts
     │   ├── session-queue.ts
     │   ├── session-registry.ts
+    │   ├── session-resume.ts
     │   └── session-rpc-service.ts
     └── streams/
         ├── legacy-sse.ts
@@ -883,11 +913,24 @@ runtime/pi/
 
 职责约定：
 
-- `transport` 只处理 carrier、信任、校验、路由和 upgrade；
-- `sessions`、`workspaces`、`models`、`host` 包含业务规则和 Pi/文件系统适配；
-- `streams` 负责实时分发与 legacy SSE，不拥有业务状态；
+- `contracts` 只包含稳定、可序列化的跨端协议与兼容 DTO，不导入 `client`、`server` 或宿主对象；
+- `pi/shared` 只包含 Pi client/server 可复用的纯逻辑，可以依赖 `contracts`，但不拥有网络、文件系统或
+  assistant-ui 状态；
+- 顶层 `runtime/shared` 包含 Pi 之外也会复用的领域语义；Pi 模块直接导入具体拥有者，不在
+  `pi/shared` 建立转发层；
+- `client` 可以依赖 `contracts` 和 `shared`，不得导入 `server`；
+- `client/assistant-ui` 是 Pi 对通用 `WorkbenchAgentRuntimeAdapter` 的具体实现。它拥有 Pi session 到
+  assistant-ui Runtime 的投影；通用 `runtime/assistant-ui` 不得反向导入 Pi；
+- `server` 可以依赖 `contracts` 和 `shared`，不得导入 `client`。Node/Pi Runtime、凭据、信任和
+  文件系统逻辑只留在这里；
+- `server/attachment-understanding` 拥有 OCR 网络调用、设置凭据、Pi 多模态执行和附件识别生命周期，
+  纯声明与跨端状态机复用顶层 `runtime/shared/attachment-understanding`；对外
+  `imageUnderstanding.*` RPC 名称保持兼容；
+- `server/transport` 只处理 carrier、信任、校验、路由和 upgrade；
+- `server/sessions`、`workspaces`、`models`、`host` 包含业务规则和 Pi/文件系统适配；
+- `server/streams` 负责实时分发与 legacy SSE，不拥有业务状态；
 - `client/transport` 不拥有 assistant-ui 状态，状态协调集中在 `client/runtime`；
-- `*-contracts.ts` 不导入 server/client 实现，保持线协议可独立复用。
+- 跨层导入直接指向拥有者模块，不通过聚合 barrel 隐藏依赖方向。
 
 ## 配置
 
@@ -945,7 +988,9 @@ downlink 发送消息后的 `1008` close。
 
 ## OCR 适配器规范
 
-OCR 设置中的源码是以下形式的有效 TypeScript，但运行时不会把它交给 TypeScript/JavaScript 引擎：
+OCR 的纯声明解析位于 `runtime/shared/attachment-understanding`，服务端执行适配位于
+`runtime/pi/server/attachment-understanding`。OCR 设置中的源码是以下形式的有效 TypeScript，但
+运行时不会把它交给 TypeScript/JavaScript 引擎：
 
 ```ts
 export default defineOcrAdapter({

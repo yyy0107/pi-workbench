@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { SessionEvent } from "../../rpc-contracts";
+import type { SessionEvent } from "@/runtime/pi/contracts/rpc";
 const journalModule = (await import(
   new URL("./session-event-journal.ts", import.meta.url).href
 )) as typeof import("./session-event-journal");

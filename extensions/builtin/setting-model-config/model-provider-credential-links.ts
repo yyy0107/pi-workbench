@@ -1,4 +1,4 @@
-import type { ConfigurableProviderView } from "@/runtime/pi/rpc-contracts";
+import type { ConfigurableProviderView } from "@/runtime/pi/contracts/rpc";
 
 const MODEL_PROVIDER_CREDENTIAL_WEBSITES = {
   "amazon-bedrock": "https://console.aws.amazon.com/bedrock/home",

@@ -18,7 +18,7 @@ import {
   WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE,
   WORKBENCH_IMAGE_RECOGNITION_DATA_NAME,
   type AttachmentRecognitionSnapshot,
-} from "../../../image-understanding/state-machine";
+} from "../../../shared/attachment-understanding/state-machine";
 
 import {
   LEGACY_WORKBENCH_COMPOSER_USER_CUSTOM_TYPE,
@@ -29,11 +29,11 @@ import {
   WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE,
   WORKBENCH_COMPOSER_RESOLUTION_CUSTOM_TYPE,
   WORKBENCH_COMPOSER_USER_CUSTOM_TYPE,
-} from "../../../composer-request";
+} from "@/runtime/shared/composer/request";
 import type {
   WorkbenchComposerCommandResponseDetails,
   WorkbenchComposerSubmission,
-} from "../../../composer-request";
+} from "@/runtime/shared/composer/request";
 
 import type {
   PiAgentMessage,
@@ -44,19 +44,19 @@ import type {
   PiSessionHistory,
   PiToolResultMessage,
   PiUserMessage,
-} from "../../contracts";
+} from "@/runtime/pi/contracts/pi";
 import { stripWorkspaceFeedbackContext } from "@/services/workspace-feedback-service";
-import { PI_CONVERSATION_EVENT_CUSTOM_TYPE } from "../../contracts";
+import { PI_CONVERSATION_EVENT_CUSTOM_TYPE } from "@/runtime/pi/contracts/pi";
 import {
   parsePiContextTraceData,
   piContextTraceData,
   WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME,
-} from "../../context-trace-data-part";
+} from "@/runtime/pi/client/context-trace/data-part";
 import type {
   SessionContextTraceEventSummary,
   SessionContextTracePromptPart,
-} from "../../rpc-contracts";
-import { terminationFromAssistantMessage } from "../../message-termination";
+} from "@/runtime/pi/contracts/rpc";
+import { terminationFromAssistantMessage } from "@/runtime/pi/shared/messages/termination";
 
 import { parsePiConversationEvent } from "./conversation-events";
 import type { PiUsageMetadata } from "./pi-usage";

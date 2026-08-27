@@ -6,8 +6,8 @@ import {
   type PiSessionHistory,
   type PiSessionSummary,
   type PiThinkingLevel,
-} from "../../contracts";
-import type { SessionAttachmentErrorReason } from "../../attachment-contracts";
+} from "@/runtime/pi/contracts/pi";
+import type { SessionAttachmentErrorReason } from "@/runtime/pi/contracts/attachments";
 import type {
   ModelCatalogFailure,
   ModelProviderGroup,
@@ -52,12 +52,12 @@ import type {
   SessionUpdateQueuePayload,
   SessionUpdateQueueValue,
   WorkspaceView,
-} from "../../rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 import {
   composerDocumentMatchesCommands,
   hasWorkbenchComposerSemantics,
   type WorkbenchComposerSubmission,
-} from "../../../composer-request";
+} from "@/runtime/shared/composer/request";
 import { ModelService } from "../models/model-service";
 import {
   cancelSession,
@@ -126,7 +126,7 @@ export type {
   SessionSelectModelValue,
   SessionSelectBranchValue,
   SessionUpdateQueueValue,
-} from "../../rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 
 export interface SessionRpcServiceErrorDetails {
   "bad-request": { issues: RpcIssue[] };

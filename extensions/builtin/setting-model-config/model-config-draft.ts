@@ -4,7 +4,7 @@ import type {
   ModelProviderConfiguration,
   ModelProviderConfigValue,
   ModelProviderModelConfiguration,
-} from "@/runtime/pi/rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 
 export const MODEL_PROVIDER_APIS = [
   "openai-completions",

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 
-import type { PiQueuedPrompt } from "../../contracts";
-import type { QueueItem } from "../../stream-contracts";
+import type { PiQueuedPrompt } from "@/runtime/pi/contracts/pi";
+import type { QueueItem } from "@/runtime/pi/contracts/stream";
 
 export type SessionQueueLane = "steering" | "followUp";
 

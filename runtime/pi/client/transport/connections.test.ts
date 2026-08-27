@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { PiEvent } from "../../contracts";
-import type { HostStreamPayload, MuxStreamPayload, ServerRequest } from "../../stream-contracts";
+import type { PiEvent } from "@/runtime/pi/contracts/pi";
+import type {
+  HostStreamPayload,
+  MuxStreamPayload,
+  ServerRequest,
+} from "@/runtime/pi/contracts/stream";
 import type { PiConnectionTimers, PiWebSocket, PiWebSocketMessageEvent } from "./connections";
 
 const { PiConnectionController } = (await import(

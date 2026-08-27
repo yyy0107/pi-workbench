@@ -11,7 +11,7 @@ import type {
   SessionContextTraceSystemPromptOptions,
   SessionContextTraceSystemPromptSource,
   SessionContextTraceTool,
-} from "../../rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 import {
   captureSessionContextTraceJson,
   captureSessionContextTraceText,

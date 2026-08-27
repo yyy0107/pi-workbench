@@ -3,7 +3,7 @@ import {
   type PiImageContent,
   type PiModelSelection,
   type PiQueuedPrompt,
-} from "@/runtime/pi/contracts";
+} from "@/runtime/pi/contracts/pi";
 import {
   cancelSession,
   PiServerError,

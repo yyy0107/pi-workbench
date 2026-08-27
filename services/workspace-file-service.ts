@@ -30,7 +30,7 @@ import type {
   WorkspaceFilesListPayload,
   WorkspaceFilesListValue,
   WorkspaceFileWritePayload,
-} from "@/runtime/pi/rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 
 export interface WorkspaceFileSession {
   source: "workspace";

@@ -19,11 +19,11 @@ const { SessionRpcService, SessionRpcServiceError } = (await import(
 )) as typeof import("./session-rpc-service");
 moduleHooks.deregister();
 
-type PiSessionHistory = import("../../contracts").PiSessionHistory;
-type PiSessionSummary = import("../../contracts").PiSessionSummary;
-type ModelProviderGroup = import("../../rpc-contracts").ModelProviderGroup;
-type SessionEvent = import("../../rpc-contracts").SessionEvent;
-type WorkspaceView = import("../../rpc-contracts").WorkspaceView;
+type PiSessionHistory = import("@/runtime/pi/contracts/pi").PiSessionHistory;
+type PiSessionSummary = import("@/runtime/pi/contracts/pi").PiSessionSummary;
+type ModelProviderGroup = import("@/runtime/pi/contracts/rpc").ModelProviderGroup;
+type SessionEvent = import("@/runtime/pi/contracts/rpc").SessionEvent;
+type WorkspaceView = import("@/runtime/pi/contracts/rpc").WorkspaceView;
 type SessionRpcDependencies = import("./session-rpc-service").SessionRpcDependencies;
 type SessionRpcWorkspaceStore = import("./session-rpc-service").SessionRpcWorkspaceStore;
 

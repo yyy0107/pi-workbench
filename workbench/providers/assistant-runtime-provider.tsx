@@ -29,8 +29,9 @@ import {
   PI_CLIENT_RUNTIME_IMPLEMENTATION_TOKEN,
   PiSessionManager,
 } from "@/runtime/pi/client/runtime/manager";
+import { createPiAgentRuntimeAdapter } from "@/runtime/pi/client/assistant-ui/adapter";
 import { piThreadListStructureMatches } from "@/runtime/pi/client/runtime/thread-list-sync";
-import { useWorkbenchRuntime } from "@/runtime/use-workbench-runtime";
+import { useWorkbenchRuntime } from "@/runtime/assistant-ui/use-workbench-runtime";
 import {
   useWorkspaceCapabilities,
   useWorkspaceSelection,
@@ -331,7 +332,8 @@ export function WorkbenchAssistantRuntimeProvider({ children }: Readonly<{ child
     managerRef.current = new PiSessionManager({ promptFeedback, titleFallbacks });
   }
   const manager = managerRef.current;
-  const runtime = useWorkbenchRuntime(manager);
+  const agentRuntimeAdapter = useMemo(() => createPiAgentRuntimeAdapter(manager), [manager]);
+  const runtime = useWorkbenchRuntime(agentRuntimeAdapter);
 
   useEffect(() => manager.setTitleFallbacks(titleFallbacks), [manager, titleFallbacks]);
 

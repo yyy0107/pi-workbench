@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
 import test, { before } from "node:test";
 
-import type { PiSessionSummary } from "../../contracts";
-import type { HostStreamPayload } from "../../stream-contracts";
+import type { PiSessionSummary } from "@/runtime/pi/contracts/pi";
+import type { HostStreamPayload } from "@/runtime/pi/contracts/stream";
 import type { PiClientSession } from "./manager";
 
 let PiSessionManager: typeof import("./manager").PiSessionManager;

@@ -15,9 +15,8 @@ import type {
   StreamErrorPayload,
   StreamName,
   StreamPayloadMap,
-} from "../../stream-contracts";
-// @ts-expect-error TS5097 -- application sources are bundled without emitting this specifier.
-import { createServerRequest, STREAM_PATHS } from "../../stream-contracts.ts";
+} from "@/runtime/pi/contracts/stream";
+import { createServerRequest, STREAM_PATHS } from "@/runtime/pi/contracts/stream";
 
 const { configuredApiTrustedHosts, inspectApiRequestTrust } = apiRequestTrust;
 

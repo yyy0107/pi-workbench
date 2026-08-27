@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ConfigurableProviderView } from "@/runtime/pi/rpc-contracts";
+import type { ConfigurableProviderView } from "@/runtime/pi/contracts/rpc";
 
 import {
   DEFAULT_MODEL_CONTEXT_WINDOW,

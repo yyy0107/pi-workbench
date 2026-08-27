@@ -1,7 +1,7 @@
 import {
   getOcrAdapterPreset,
   type OcrAdapterPresetId,
-} from "@/runtime/image-understanding/ocr-adapter";
+} from "@/runtime/shared/attachment-understanding/ocr-adapter";
 
 export interface OcrCredentialWebsite {
   readonly href: string;

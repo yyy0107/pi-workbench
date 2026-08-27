@@ -40,7 +40,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { useI18n, type StaticMessageKey } from "@/i18n";
 import type { SettingsItemComponentProps } from "@/platform/extensions";
-import { verifiedImageInputCapability } from "@/runtime/pi/model-capabilities";
+import { verifiedImageInputCapability } from "@/runtime/pi/shared/models/capabilities";
 import {
   cancelPiModelProviderLogin,
   configurePiModelProvider,
@@ -63,7 +63,7 @@ import type {
   ModelProviderModelConfiguration,
   ModelProvidersValue,
   TestModelImageInputValue,
-} from "@/runtime/pi/rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 
 import {
   DEFAULT_MODEL_CONTEXT_WINDOW,

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 
-import type { SessionContextPolicy, SessionContextPolicyValue } from "../../rpc-contracts";
+import type { SessionContextPolicy, SessionContextPolicyValue } from "@/runtime/pi/contracts/rpc";
 import {
   compactPiRpcSessionContext,
   getPiRpcSessionContextPolicy,

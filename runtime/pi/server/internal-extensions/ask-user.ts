@@ -1,8 +1,8 @@
 import type { ExtensionFactory, ExtensionUIContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 
-import type { QuestionAnswerItem } from "../../rpc-contracts";
-import type { QuestionItem } from "../../stream-contracts";
+import type { QuestionAnswerItem } from "@/runtime/pi/contracts/rpc";
+import type { QuestionItem } from "@/runtime/pi/contracts/stream";
 import {
   subscribeWorkbenchSettingsPreferences,
   WorkbenchSettingsService,

@@ -11,7 +11,7 @@ import type {
   ExtensionSourceScope,
   PiResourceCatalogTarget,
   PiResourceRequest,
-} from "@/runtime/pi/rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 import { fileWorkspaceContext, fileWorkspaceService } from "@/services/workspace-file-service";
 
 import { fileDiffService, parseFileDiffMetadata } from "./file-diff-service";

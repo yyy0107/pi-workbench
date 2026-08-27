@@ -10,7 +10,7 @@ import { useI18n } from "@/i18n";
 import type { SettingsItemComponentProps } from "@/platform/extensions";
 import { usePiSessionCatalog } from "@/runtime/pi/client/runtime/session-catalog";
 import { listPiSkills } from "@/runtime/pi/client/transport/api";
-import type { SkillView } from "@/runtime/pi/rpc-contracts";
+import type { SkillView } from "@/runtime/pi/contracts/rpc";
 
 const EMPTY_SKILLS: readonly SkillView[] = [];
 

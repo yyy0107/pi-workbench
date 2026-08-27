@@ -4,7 +4,7 @@ import type {
   RpcIssue,
   RpcIssuePathSegment,
   ServerResponse,
-} from "../../rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 // Node's native TypeScript test runner requires an explicit extension here;
 // the project intentionally keeps allowImportingTsExtensions disabled.
 // @ts-expect-error TS5097 -- this source is bundled without emitting TypeScript imports.

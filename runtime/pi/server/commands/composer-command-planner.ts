@@ -4,7 +4,7 @@ import type {
   WorkbenchComposerCommandEffect,
   WorkbenchComposerCommandSubmission,
   WorkbenchComposerSubmission,
-} from "../../../composer-request";
+} from "@/runtime/shared/composer/request";
 import { PiServerError } from "../core/errors";
 import { validatePiCompactCommandArguments } from "./pi-composer-command-arguments";
 import {

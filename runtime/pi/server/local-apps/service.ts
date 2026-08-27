@@ -1,7 +1,7 @@
 import { realpath, stat } from "node:fs/promises";
 import path from "node:path";
 
-import type { LocalAppOpenValue, LocalAppsListValue } from "../../rpc-contracts";
+import type { LocalAppOpenValue, LocalAppsListValue } from "@/runtime/pi/contracts/rpc";
 import { detectInstalledApps } from "./detectors/index";
 import { launchLocalApp } from "./launchers/index";
 import type {

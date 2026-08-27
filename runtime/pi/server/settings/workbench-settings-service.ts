@@ -6,7 +6,7 @@ import type {
   WorkbenchSettingsPreferencesPatch,
   WorkbenchSettingsUpdatePayload,
   WorkbenchSettingsUpdateValue,
-} from "../../rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 import { withCrossProcessFileLock } from "../core/file-persistence";
 import {
   configuredWorkbenchSettingsFile,

@@ -3,7 +3,7 @@ import { realpathSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 
-import type { PiWorkspaceSummary } from "../../contracts";
+import type { PiWorkspaceSummary } from "@/runtime/pi/contracts/pi";
 import { PiServerError } from "../core/errors";
 import {
   NativeWorkspacePickerUnavailableError,

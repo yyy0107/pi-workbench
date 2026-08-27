@@ -11,7 +11,7 @@ import {
 
 import { useWorkspaceSelection } from "@/services/workspace-selection-service";
 
-import type { CommandListPayload, CommandView } from "../../rpc-contracts";
+import type { CommandListPayload, CommandView } from "@/runtime/pi/contracts/rpc";
 import { listPiCommands } from "../transport/api";
 import { usePiActiveSessionId } from "./context";
 import {

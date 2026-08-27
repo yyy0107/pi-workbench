@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { describePiSkill } from "@/runtime/pi/client/transport/api";
-import type { PiResourceCatalogTarget, SkillDescribeValue } from "@/runtime/pi/rpc-contracts";
+import type { PiResourceCatalogTarget, SkillDescribeValue } from "@/runtime/pi/contracts/rpc";
 
 type SkillDetailsLoadState = "idle" | "loading" | "ready" | "failed";
 

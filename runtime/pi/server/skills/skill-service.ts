@@ -28,7 +28,7 @@ import type {
   SkillRemoveValue,
   SkillSetEnabledPayload,
   SkillSetEnabledValue,
-} from "../../rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 import {
   clonePackageSource,
   pathWithin,

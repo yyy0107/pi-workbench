@@ -9,7 +9,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { Type } from "@earendil-works/pi-ai";
 
-import type { SessionContextBreakdownCategory } from "../../rpc-contracts";
+import type { SessionContextBreakdownCategory } from "@/runtime/pi/contracts/rpc";
 import { estimateContextBreakdown } from "./session-context-breakdown";
 
 function item(

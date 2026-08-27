@@ -3,7 +3,7 @@ import type {
   LocalAppKind,
   LocalAppPlatform,
   LocalAppView,
-} from "../../rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 
 export type LocalAppTargetMode = "path" | "directory";
 

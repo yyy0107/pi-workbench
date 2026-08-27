@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
 
 import { useI18n } from "@/i18n";
-import { WORKSPACE_FILE_BUFFERED_PREVIEW_SIZE_LIMIT } from "@/runtime/pi/rpc-contracts";
+import { WORKSPACE_FILE_BUFFERED_PREVIEW_SIZE_LIMIT } from "@/runtime/pi/contracts/rpc";
 
 import { FileImagePreview } from "./file-image-preview";
 import { FileMediaPreview } from "./file-media-preview";

@@ -8,7 +8,7 @@ import type {
   WorkspaceSessionArchiveValue,
   WorkspaceSessionPinValue,
   WorkspaceView,
-} from "../../rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 import { atomicReplaceFile, withCrossProcessFileLock } from "../core/file-persistence";
 import {
   nextWorkbenchSettingsDocument,
@@ -17,7 +17,7 @@ import {
 } from "../settings/workbench-settings-file";
 import { getStreamHub } from "../streams/stream-hub";
 
-export type { WorkspaceView } from "../../rpc-contracts";
+export type { WorkspaceView } from "@/runtime/pi/contracts/rpc";
 
 export interface WorkspaceState {
   schemaVersion: 1;

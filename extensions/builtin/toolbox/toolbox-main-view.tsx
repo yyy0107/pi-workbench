@@ -27,7 +27,7 @@ import type {
   PiPackageCatalogItemView,
   PiPackageCatalogSort,
   PiPackageUpdateView,
-} from "@/runtime/pi/rpc-contracts";
+} from "@/runtime/pi/contracts/rpc";
 
 import {
   bindCapabilityToCatalogTarget,
