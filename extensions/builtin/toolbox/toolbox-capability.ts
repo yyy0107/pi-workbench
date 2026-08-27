@@ -34,7 +34,8 @@ export type ToolboxMainSection =
   | "component-extensions"
   | "extensions"
   | "prompts"
-  | "packages";
+  | "packages"
+  | "updates";
 
 export interface ToolboxCapabilitySurfaceParams extends Record<string, unknown> {
   capabilityId: string;
@@ -72,6 +73,7 @@ export interface ToolboxCapabilitySurfaceParams extends Record<string, unknown> 
   installCommand?: string;
   packageName?: string;
   installed?: boolean;
+  packageUpdateAvailable?: boolean;
   packageScope?: InstalledPackageView["scope"];
   packageFiltered?: boolean;
   catalogTarget?: PiResourceCatalogTarget;

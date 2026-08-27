@@ -958,6 +958,41 @@ export interface InstalledPackageListValue {
   packages: InstalledPackageView[];
 }
 
+export interface InstalledPackageDescribePayload {
+  source: string;
+  target: PiResourceCatalogTarget;
+}
+
+/**
+ * Safe metadata read from the package.json in the package's actual installed directory.
+ * Catalog-only values such as publish time, downloads, and registry package size are
+ * intentionally absent so installed details cannot silently drift to the latest release.
+ */
+export interface InstalledPackageDetailsView {
+  source: string;
+  scope: "user" | "project";
+  name?: string;
+  version?: string;
+  description?: string;
+  author?: string;
+  license?: string;
+  types: PiPackageResourceType[];
+  dependencyCount: number;
+  peerDependencyCount: number;
+  manifestJson?: string;
+}
+
+export type PiPackageUpdatesPayload = InstalledPackageListPayload;
+
+export interface PiPackageUpdateView extends InstalledPackageView {
+  displayName: string;
+  type: "npm" | "git";
+}
+
+export interface PiPackageUpdatesValue {
+  updates: PiPackageUpdateView[];
+}
+
 export type PiPackageMutationTarget =
   | { scope: "user"; sessionId?: string }
   | { scope: "project"; workspaceId: string };
@@ -970,6 +1005,24 @@ export interface PiPackageInstallPayload {
 }
 
 export type PiPackageInstallValue =
+  | {
+      source: string;
+      scope: "user";
+      reloadRequired: false;
+    }
+  | {
+      source: string;
+      scope: "project";
+      workspaceId: string;
+      reloadRequired: false;
+    };
+
+export interface PiPackageUpdatePayload {
+  source: string;
+  target: PiPackageMutationTarget;
+}
+
+export type PiPackageUpdateValue =
   | {
       source: string;
       scope: "user";

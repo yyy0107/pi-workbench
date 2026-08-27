@@ -18,6 +18,7 @@ import {
   MessageSquareTextIcon,
   PackageIcon,
   PackagePlusIcon,
+  RefreshCwIcon,
   SparklesIcon,
   SquareTerminalIcon,
   Trash2Icon,
@@ -69,6 +70,7 @@ import {
   removePiSkill,
   setPiExtensionEnabled,
   setPiSkillEnabled,
+  updatePiPackage,
 } from "@/runtime/pi/client/transport/api";
 import { fileWorkspaceTargetService } from "@/services/file-workspace-target-service";
 
@@ -85,7 +87,9 @@ import {
 } from "./toolbox-catalog";
 import { toolboxScopeTarget } from "./toolbox-scope";
 import { useToolboxScope } from "./toolbox-scope-store";
+import { usePiInstalledPackageDetails } from "./use-pi-installed-package-details";
 import { usePiPackageDetails } from "./use-pi-package-details";
+import { usePiPackageUpdates } from "./use-pi-package-updates";
 import { usePiSkillDetails } from "./use-pi-skill-details";
 
 type PackageInstallChoice =
@@ -102,6 +106,12 @@ type PackageRemoveFeedback =
   | { status: "idle" }
   | { status: "removing"; target: PackageInstallChoice }
   | { status: "removed"; target: PackageInstallChoice }
+  | { status: "failed"; target: PackageInstallChoice; errorCode?: string };
+
+type PackageUpdateFeedback =
+  | { status: "idle" }
+  | { status: "updating"; target: PackageInstallChoice }
+  | { status: "updated"; target: PackageInstallChoice }
   | { status: "failed"; target: PackageInstallChoice; errorCode?: string };
 
 type SkillMutationState = "idle" | "updating" | "removing" | "failed" | "removed";
@@ -737,10 +747,23 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
   const isInstalledPackage = isPackage && params.installed === true;
   const isCatalogPackage = isPackage && !isInstalledPackage;
   const associatedPackageName = params.packageName;
-  const hasPackageOverview = Boolean(associatedPackageName);
+  const hasPackageOverview =
+    Boolean(associatedPackageName) || (isInstalledPackage && Boolean(params.source));
   const showPackageOverview = hasPackageOverview && !isSkill;
   const isPromptPackage = isCatalogPackage && params.packageTypes?.includes("prompt");
-  const packageDetails = usePiPackageDetails(associatedPackageName ?? "", showPackageOverview);
+  const packageDetails = usePiPackageDetails(
+    associatedPackageName ?? "",
+    showPackageOverview && !isInstalledPackage,
+  );
+  const installedPackageDetails = usePiInstalledPackageDetails(
+    catalogTarget,
+    params.source ?? "",
+    isInstalledPackage,
+  );
+  const installedPackageUpdates = usePiPackageUpdates(
+    catalogTarget,
+    isInstalledPackage && params.packageUpdateAvailable !== true,
+  );
   const skillDetails = usePiSkillDetails(catalogTarget, params.name, isSkill);
   const displayedSkillFilePath = skillDetails.value?.filePath
     ? abbreviateUserHomePath(skillDetails.value.filePath)
@@ -771,6 +794,9 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
         : t("extensions.toolbox.details.notExposed")
     : undefined;
   const officialDetails = packageDetails.value;
+  const displayedPackageDetails = isInstalledPackage
+    ? installedPackageDetails.value
+    : officialDetails;
   const Icon =
     isPrompt || isPromptPackage
       ? MessageSquareTextIcon
@@ -796,6 +822,7 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
   const [installedTargets, setInstalledTargets] = useState(() => new Set<string>());
   const [terminalLaunchFailed, setTerminalLaunchFailed] = useState(false);
   const [removeFeedback, setRemoveFeedback] = useState<PackageRemoveFeedback>({ status: "idle" });
+  const [updateFeedback, setUpdateFeedback] = useState<PackageUpdateFeedback>({ status: "idle" });
   const [installedPackageRemoved, setInstalledPackageRemoved] = useState(false);
   const [skillEnabled, setSkillEnabled] = useState(params.enabled !== false);
   const [skillMutationState, setSkillMutationState] = useState<SkillMutationState>("idle");
@@ -927,6 +954,13 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
   }, [defaultInstallTarget, isCatalogPackage]);
 
   useEffect(() => {
+    if (!isInstalledPackage) return;
+    setUpdateFeedback({ status: "idle" });
+    setRemoveFeedback({ status: "idle" });
+    setInstalledPackageRemoved(false);
+  }, [isInstalledPackage, params.capabilityId, params.packageUpdateAvailable]);
+
+  useEffect(() => {
     if (!directoryResource) return;
     return fileWorkspaceTargetService.activate(directoryResource);
   }, [directoryResource]);
@@ -953,11 +987,21 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
       active = false;
     };
   }, [activeWorkspaceId, catalogTarget, isCatalogPackage, params.name]);
-  const detailsPlaceholder = packageDetails.loadState === "loading" ? "…" : "—";
-  const publishedAt = params.publishedAt ?? officialDetails?.publishedAt;
-  const monthlyDownloads = officialDetails?.monthlyDownloads ?? params.monthlyDownloads;
-  const weeklyDownloads = officialDetails?.weeklyDownloads;
-  const packageTypes = officialDetails?.types ?? params.packageTypes ?? [];
+  const packageDetailsLoadState = isInstalledPackage
+    ? installedPackageDetails.loadState
+    : packageDetails.loadState;
+  const refreshPackageDetails = isInstalledPackage
+    ? installedPackageDetails.refresh
+    : packageDetails.refresh;
+  const detailsPlaceholder = packageDetailsLoadState === "loading" ? "…" : "—";
+  const publishedAt = isInstalledPackage
+    ? undefined
+    : (params.publishedAt ?? officialDetails?.publishedAt);
+  const monthlyDownloads = isInstalledPackage
+    ? undefined
+    : (officialDetails?.monthlyDownloads ?? params.monthlyDownloads);
+  const weeklyDownloads = isInstalledPackage ? undefined : officialDetails?.weeklyDownloads;
+  const packageTypes = displayedPackageDetails?.types ?? params.packageTypes ?? [];
   const catalogDetailUrl = (() => {
     if (!associatedPackageName) return undefined;
     try {
@@ -976,7 +1020,7 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
   const npmUrl =
     params.npmUrl ??
     (associatedPackageName ? officialPackageUrl(associatedPackageName, "npm") : undefined);
-  const packageSizeBytes = officialDetails?.packageSizeBytes;
+  const packageSizeBytes = isInstalledPackage ? undefined : officialDetails?.packageSizeBytes;
   const packageSize =
     packageSizeBytes === undefined
       ? undefined
@@ -985,15 +1029,19 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
         : packageSizeBytes >= 1_000
           ? `${number(packageSizeBytes / 1_000, { maximumFractionDigits: 1 })} KB`
           : `${number(packageSizeBytes)} B`;
-  const displayedDescription =
-    params.description ||
-    (isExtension
-      ? t("extensions.toolbox.extensions.capabilitySummary", {
-          events: params.eventNames?.length ?? 0,
-          tools: params.toolNames?.length ?? 0,
-          commands: params.commandNames?.length ?? 0,
-        })
-      : t("extensions.toolbox.details.descriptionUnavailable"));
+  const displayedDescription = isInstalledPackage
+    ? installedPackageDetails.value?.description ||
+      (installedPackageDetails.loadState === "loading"
+        ? "…"
+        : t("extensions.toolbox.packages.installedDescriptionUnavailable"))
+    : params.description ||
+      (isExtension
+        ? t("extensions.toolbox.extensions.capabilitySummary", {
+            events: params.eventNames?.length ?? 0,
+            tools: params.toolNames?.length ?? 0,
+            commands: params.commandNames?.length ?? 0,
+          })
+        : t("extensions.toolbox.details.descriptionUnavailable"));
 
   const copyInstallCommand = () => {
     if (!selectedInstallCommand) return;
@@ -1063,13 +1111,50 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
   const installationPresent = installedPackagePresent || selectedTargetInstalled;
   const uninstallTarget = isInstalledPackage ? installedPackageTarget : selectedInstallTarget;
   const uninstallSource = params.source ?? (isCatalogPackage ? `npm:${params.name}` : undefined);
+  const checkedPackageUpdateAvailable = installedPackageUpdates.value.updates.some(
+    (update) => update.source === params.source && update.scope === params.packageScope,
+  );
+  const packageUpdateAvailable =
+    isInstalledPackage &&
+    !installedPackageRemoved &&
+    (params.packageUpdateAvailable === true || checkedPackageUpdateAvailable) &&
+    updateFeedback.status !== "updated";
   const removing = removeFeedback.status === "removing";
-  const mutating = installing || removing;
+  const updating = updateFeedback.status === "updating";
+  const mutating = installing || removing || updating;
   const showUninstallRow = installationPresent || removeFeedback.status !== "idle";
   const installTargetLabel = (target: PackageInstallChoice): string =>
     target.scope === "user"
       ? t("extensions.toolbox.packages.installLocationUser")
       : target.workspaceName;
+  const updatePackage = () => {
+    if (!packageUpdateAvailable || !installedPackageTarget || !params.source || mutating) {
+      return;
+    }
+    const rpcTarget =
+      installedPackageTarget.scope === "user"
+        ? { scope: "user" as const }
+        : {
+            scope: "project" as const,
+            workspaceId: installedPackageTarget.workspaceId,
+          };
+
+    setRemoveFeedback({ status: "idle" });
+    setUpdateFeedback({ status: "updating", target: installedPackageTarget });
+    void updatePiPackage({ source: params.source, target: rpcTarget }).then(
+      () => {
+        setUpdateFeedback({ status: "updated", target: installedPackageTarget });
+        refreshPackageDetails();
+        notifyToolboxPackagesChanged();
+      },
+      (error: unknown) =>
+        setUpdateFeedback({
+          status: "failed",
+          target: installedPackageTarget,
+          ...(error instanceof PiApiError ? { errorCode: error.code } : {}),
+        }),
+    );
+  };
   const selectInstallTarget = (target: PackageInstallChoice) => {
     setSelectedInstallTarget(target);
     setInstallFeedback({ status: "idle" });
@@ -1116,7 +1201,7 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
       });
   };
   const uninstallPackage = () => {
-    if (!installationPresent || !uninstallTarget || !uninstallSource || installing || removing) {
+    if (!installationPresent || !uninstallTarget || !uninstallSource || mutating) {
       return;
     }
     const rpcTarget =
@@ -1134,6 +1219,7 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
         });
         if (isInstalledPackage) setInstalledPackageRemoved(true);
         setInstallFeedback({ status: "idle" });
+        setUpdateFeedback({ status: "idle" });
         setRemoveFeedback({ status: "removed", target: uninstallTarget });
         notifyToolboxPackagesChanged();
       },
@@ -1255,6 +1341,37 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
     }
     return t("extensions.toolbox.packages.installFailed");
   })();
+  const updateStatusMessage = (() => {
+    if (updateFeedback.status === "idle") return "";
+    if (updateFeedback.status === "updating") {
+      return t("extensions.toolbox.packages.updatingAt", {
+        target: installTargetLabel(updateFeedback.target),
+      });
+    }
+    if (updateFeedback.status === "updated") {
+      return updateFeedback.target.scope === "user"
+        ? t("extensions.toolbox.packages.updateSuccess")
+        : t("extensions.toolbox.packages.updateProjectSuccess", {
+            project: updateFeedback.target.workspaceName,
+          });
+    }
+    if (updateFeedback.errorCode === "project-untrusted") {
+      return t("extensions.toolbox.packages.updateProjectUntrusted");
+    }
+    if (updateFeedback.errorCode === "workspace-not-found") {
+      return t("extensions.toolbox.packages.updateWorkspaceMissing");
+    }
+    if (updateFeedback.errorCode === "package-not-installed") {
+      return t("extensions.toolbox.packages.updateAlreadyMissing");
+    }
+    if (updateFeedback.errorCode === "session-not-found") {
+      return t("extensions.toolbox.packages.updateSessionMissing");
+    }
+    if (updateFeedback.errorCode === "session-busy") {
+      return t("extensions.toolbox.packages.mutationSessionBusy");
+    }
+    return t("extensions.toolbox.packages.updateFailed");
+  })();
   const removeStatusMessage = (() => {
     if (removeFeedback.status === "idle") return "";
     if (removeFeedback.status === "removing") {
@@ -1299,7 +1416,7 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
         }
       >
         <header className="flex shrink-0 items-start gap-2.5">
-          {!isSkill && !isExtension ? (
+          {!isSkill && !isExtension && !isPackage ? (
             <span className="bg-muted flex size-10 shrink-0 items-center justify-center rounded-xl">
               <Icon aria-hidden="true" className="size-4" />
             </span>
@@ -1330,7 +1447,7 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
             ) : (
               <h1
                 className={
-                  isExtension
+                  isExtension || isPackage
                     ? "font-mono text-2xl leading-8 font-semibold break-all"
                     : "mt-0.5 font-mono text-lg font-semibold break-all"
                 }
@@ -1348,39 +1465,104 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
             ) : null}
           </div>
           {!isSkill ? (
-            <span
-              className={
-                capabilityInactive
-                  ? "bg-muted text-muted-foreground rounded-full border px-2.5 py-1 text-[11px] font-medium"
-                  : "rounded-full border border-emerald-500/15 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-300"
-              }
-            >
-              {t(
-                isExtension
-                  ? extensionEnabled && !extensionRemoved
-                    ? "extensions.toolbox.extensions.loaded"
-                    : "extensions.toolbox.extensions.disabled"
-                  : isComponentExtension && componentExtensionCanUninstall
-                    ? componentExtensionInstalled
-                      ? "extensions.toolbox.status.installed"
-                      : "extensions.toolbox.status.uninstalled"
-                    : isCatalogPackage
-                      ? "extensions.toolbox.status.officialCatalog"
-                      : isInstalledPackage
-                        ? installedPackageRemoved
-                          ? "extensions.toolbox.status.uninstalled"
-                          : "extensions.toolbox.status.installed"
-                        : isPrompt
-                          ? "extensions.toolbox.status.available"
-                          : "extensions.toolbox.status.loaded",
-              )}
-            </span>
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+              <span
+                className={
+                  capabilityInactive
+                    ? "bg-muted text-muted-foreground rounded-full border px-2.5 py-1 text-[11px] font-medium"
+                    : packageUpdateAvailable
+                      ? "rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium text-amber-700 dark:text-amber-300"
+                      : "rounded-full border border-emerald-500/15 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-300"
+                }
+              >
+                {t(
+                  isExtension
+                    ? extensionEnabled && !extensionRemoved
+                      ? "extensions.toolbox.extensions.loaded"
+                      : "extensions.toolbox.extensions.disabled"
+                    : isComponentExtension && componentExtensionCanUninstall
+                      ? componentExtensionInstalled
+                        ? "extensions.toolbox.status.installed"
+                        : "extensions.toolbox.status.uninstalled"
+                      : isCatalogPackage
+                        ? "extensions.toolbox.status.officialCatalog"
+                        : isInstalledPackage
+                          ? installedPackageRemoved
+                            ? "extensions.toolbox.status.uninstalled"
+                            : packageUpdateAvailable
+                              ? "extensions.toolbox.status.updateAvailable"
+                              : "extensions.toolbox.status.installed"
+                          : isPrompt
+                            ? "extensions.toolbox.status.available"
+                            : "extensions.toolbox.status.loaded",
+                )}
+              </span>
+              {isInstalledPackage && packageUpdateAvailable ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={!installedPackageTarget || !params.source || mutating}
+                  aria-busy={updating}
+                  className="active:translate-y-0!"
+                  onClick={updatePackage}
+                >
+                  {updating ? (
+                    <LoaderCircleIcon
+                      aria-hidden="true"
+                      className="animate-spin motion-reduce:animate-none"
+                    />
+                  ) : (
+                    <RefreshCwIcon aria-hidden="true" />
+                  )}
+                  {t(
+                    updating
+                      ? "extensions.toolbox.packages.updating"
+                      : "extensions.toolbox.packages.update",
+                  )}
+                </Button>
+              ) : null}
+            </div>
           ) : null}
         </header>
 
         <p className="text-muted-foreground mt-3 shrink-0 text-sm leading-5">
           {displayedDescription}
         </p>
+
+        {isInstalledPackage &&
+        (updateFeedback.status !== "idle" ||
+          (packageUpdateAvailable && (!installedPackageTarget || !params.source))) ? (
+          <div className="mt-4 flex flex-wrap items-center gap-2 border-t pt-4" aria-live="polite">
+            {updateFeedback.status !== "idle" ? (
+              <p
+                className={
+                  updateFeedback.status === "failed"
+                    ? "text-destructive text-xs"
+                    : updateFeedback.status === "updated"
+                      ? "text-emerald-700 text-xs dark:text-emerald-300"
+                      : "text-muted-foreground text-xs"
+                }
+                role={updateFeedback.status === "failed" ? "alert" : "status"}
+              >
+                {updateStatusMessage}
+              </p>
+            ) : null}
+            {packageUpdateAvailable && (!installedPackageTarget || !params.source) ? (
+              <p className="text-destructive text-xs" role="alert">
+                {t("extensions.toolbox.packages.updateTargetUnavailable")}
+              </p>
+            ) : null}
+            {updating ? (
+              <Progress
+                value={null}
+                aria-label={t("extensions.toolbox.packages.updating")}
+                aria-valuetext={updateStatusMessage}
+                className="basis-full pt-1"
+                trackClassName="max-w-md"
+              />
+            ) : null}
+          </div>
+        ) : null}
 
         {isExtension ? (
           <div className="mt-4 shrink-0 border-t pt-4">
@@ -1509,42 +1691,57 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
               {showPackageOverview ? (
                 <>
                   <PackageDetailRow label={t("extensions.toolbox.packages.packageName")}>
-                    <code className="text-xs break-all">{associatedPackageName}</code>
+                    <code className="text-xs break-all">
+                      {displayedPackageDetails?.name ??
+                        associatedPackageName ??
+                        params.source ??
+                        params.name}
+                    </code>
                   </PackageDetailRow>
                   <PackageDetailRow label={t("extensions.toolbox.packages.version")}>
                     <code className="text-xs">
-                      {officialDetails?.version ?? params.version ?? detailsPlaceholder}
+                      {displayedPackageDetails?.version ??
+                        (isInstalledPackage ? undefined : params.version) ??
+                        detailsPlaceholder}
                     </code>
                   </PackageDetailRow>
-                  <PackageDetailRow label={t("extensions.toolbox.packages.published")}>
-                    {publishedAt ? date(publishedAt, { dateStyle: "medium" }) : detailsPlaceholder}
-                  </PackageDetailRow>
-                  <PackageDetailRow label={t("extensions.toolbox.packages.downloads")}>
-                    {monthlyDownloads === undefined
-                      ? detailsPlaceholder
-                      : weeklyDownloads === undefined
-                        ? t("extensions.toolbox.packages.downloadsPerMonth", {
-                            count: number(monthlyDownloads, {
-                              notation: "compact",
-                              maximumFractionDigits: 1,
-                            }),
-                          })
-                        : t("extensions.toolbox.packages.downloadsByPeriod", {
-                            monthly: number(monthlyDownloads, {
-                              notation: "compact",
-                              maximumFractionDigits: 1,
-                            }),
-                            weekly: number(weeklyDownloads, {
-                              notation: "compact",
-                              maximumFractionDigits: 1,
-                            }),
-                          })}
-                  </PackageDetailRow>
+                  {!isInstalledPackage ? (
+                    <>
+                      <PackageDetailRow label={t("extensions.toolbox.packages.published")}>
+                        {publishedAt
+                          ? date(publishedAt, { dateStyle: "medium" })
+                          : detailsPlaceholder}
+                      </PackageDetailRow>
+                      <PackageDetailRow label={t("extensions.toolbox.packages.downloads")}>
+                        {monthlyDownloads === undefined
+                          ? detailsPlaceholder
+                          : weeklyDownloads === undefined
+                            ? t("extensions.toolbox.packages.downloadsPerMonth", {
+                                count: number(monthlyDownloads, {
+                                  notation: "compact",
+                                  maximumFractionDigits: 1,
+                                }),
+                              })
+                            : t("extensions.toolbox.packages.downloadsByPeriod", {
+                                monthly: number(monthlyDownloads, {
+                                  notation: "compact",
+                                  maximumFractionDigits: 1,
+                                }),
+                                weekly: number(weeklyDownloads, {
+                                  notation: "compact",
+                                  maximumFractionDigits: 1,
+                                }),
+                              })}
+                      </PackageDetailRow>
+                    </>
+                  ) : null}
                   <PackageDetailRow label={t("extensions.toolbox.packages.author")}>
-                    {officialDetails?.author || params.author || detailsPlaceholder}
+                    {displayedPackageDetails?.author ||
+                      (isInstalledPackage ? undefined : params.author) ||
+                      detailsPlaceholder}
                   </PackageDetailRow>
                   <PackageDetailRow label={t("extensions.toolbox.packages.license")}>
-                    {officialDetails?.license || detailsPlaceholder}
+                    {displayedPackageDetails?.license || detailsPlaceholder}
                   </PackageDetailRow>
                   <PackageDetailRow label={t("extensions.toolbox.packages.resourceTypes")}>
                     <CapabilityNames
@@ -1554,19 +1751,21 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
                       empty={t("extensions.toolbox.details.none")}
                     />
                   </PackageDetailRow>
-                  <PackageDetailRow label={t("extensions.toolbox.packages.size")}>
-                    {packageSize ?? detailsPlaceholder}
-                  </PackageDetailRow>
+                  {!isInstalledPackage ? (
+                    <PackageDetailRow label={t("extensions.toolbox.packages.size")}>
+                      {packageSize ?? detailsPlaceholder}
+                    </PackageDetailRow>
+                  ) : null}
                   <PackageDetailRow label={t("extensions.toolbox.packages.dependencies")}>
-                    {officialDetails?.dependencyCount === undefined ||
-                    officialDetails.peerDependencyCount === undefined
+                    {displayedPackageDetails?.dependencyCount === undefined ||
+                    displayedPackageDetails.peerDependencyCount === undefined
                       ? detailsPlaceholder
                       : t("extensions.toolbox.packages.dependenciesSummary", {
-                          dependencies: officialDetails.dependencyCount,
-                          peers: officialDetails.peerDependencyCount,
+                          dependencies: displayedPackageDetails.dependencyCount,
+                          peers: displayedPackageDetails.peerDependencyCount,
                         })}
                   </PackageDetailRow>
-                  {officialDetails?.manifestJson ? (
+                  {displayedPackageDetails?.manifestJson ? (
                     <PackageDetailRow label={t("extensions.toolbox.packages.manifest")}>
                       <details className="group">
                         <summary className="hover:bg-muted/70 focus-visible:ring-ring inline-flex h-6 cursor-pointer list-none items-center gap-1.5 rounded-md px-1.5 text-xs font-medium outline-none focus-visible:ring-2">
@@ -1577,7 +1776,7 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
                           {t("extensions.toolbox.packages.manifestShow")}
                         </summary>
                         <pre className="bg-muted/45 mt-1 max-h-40 overflow-auto rounded-lg px-2 py-1.5 font-mono text-[11px] leading-4">
-                          {officialDetails.manifestJson}
+                          {displayedPackageDetails.manifestJson}
                         </pre>
                       </details>
                     </PackageDetailRow>
@@ -1587,15 +1786,21 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
                 <CapabilityMetadataFields params={params} />
               )}
             </dl>
-            {packageDetails.loadState === "failed" ? (
+            {packageDetailsLoadState === "failed" ? (
               <div className="text-muted-foreground mt-3 flex items-center gap-2 text-xs">
-                <span>{t("extensions.toolbox.packages.detailsLoadFailed")}</span>
+                <span>
+                  {t(
+                    isInstalledPackage
+                      ? "extensions.toolbox.packages.installedDetailsLoadFailed"
+                      : "extensions.toolbox.packages.detailsLoadFailed",
+                  )}
+                </span>
                 <Button
                   type="button"
                   variant="ghost"
                   size="xs"
                   className="active:translate-y-0!"
-                  onClick={packageDetails.refresh}
+                  onClick={refreshPackageDetails}
                 >
                   {t("extensions.toolbox.packages.retry")}
                 </Button>

@@ -62,8 +62,8 @@ Unary RPC 是 session、workspace 和 running 状态的权威快照；WebSocket 
   `prompt.list`；
 - Extensions：`extension.list`、`extension.files.list`、`extension.files.read`、
   `extension.setEnabled`、`extension.remove`；
-- Pi Packages：`package.list`、`package.install`、`package.remove`、`packageCatalog.search`、
-  `packageCatalog.describe`；
+- Pi Packages：`package.list`、`package.describe`、`package.updates`、`package.install`、
+  `package.update`、`package.remove`、`packageCatalog.search`、`packageCatalog.describe`；
 - Settings：Pi 原生设置 `settings.describe`、`settings.openDocument`、`settings.update`，Workbench
   设置 `workbenchSettings.describe`、`workbenchSettings.update`，以及附件识别配置
   `imageUnderstanding.describe`、`imageUnderstanding.update`；
@@ -488,6 +488,20 @@ Project Trust 决策控制；查询设置页不会提升项目资源信任。
 响应只包含 package source、作用域，以及是否采用资源筛选配置；不会向浏览器返回 settings 文件路径
 或具体资源路径。这个列表用于工具箱的“已安装”视图，并遵循当前 session 已生效的项目信任边界。
 
+`package.describe` 只在打开一个已安装 Package 详情时按需读取本地快照。请求使用完整的
+`source + target` 身份；服务端先确认该 source 仍配置在目标作用域，再通过 Pi
+`DefaultPackageManager.listConfiguredPackages()` 取得实际安装目录，并只读取其中最大 1 MiB 的
+`package.json`。响应对白名单字段进行投影，包含安装时版本、说明、作者、许可证、资源类型、依赖数量
+和 Pi manifest，不返回安装路径、scripts 或其他任意 manifest 字段。发布时间、下载量和 registry 包体积
+不属于本地快照，因此已安装详情不会通过 `packageCatalog.describe` 借用最新版数值；官方目录详情仍由
+独立的 catalog RPC 提供。
+
+`package.updates` 使用相同的 session/target 身份，但只在用户打开工具箱“可用更新”时按需检查。
+服务端复用 Pi `DefaultPackageManager.checkForAvailableUpdates()`：npm Package 从实际下载目录的
+`package.json` 读取当前版本，并与其配置范围内的远端目标版本比较；Git Package 比较当前 checkout 与
+远端 revision。固定版本、本地来源、缺失下载目录和离线模式不会被误报为可用更新。响应只返回有更新
+的 package source、显示名、类型、作用域和资源筛选状态，不向浏览器暴露下载路径或命令输出。
+
 `packageCatalog.search` 的外部来源固定为 `https://pi.dev/packages`。服务启动时会通过内部 RPC
 预热第一页，并在后台以有限并发按名称顺序抓取全部分页，保留官网 card 的搜索索引后原子替换完整
 进程内快照；之后浏览器提交的 `name`、`type`、`sort` 和 `page` 查询只在该快照上执行，不再为每次
@@ -516,6 +530,14 @@ settings。调用 `package.install` 的前端只提交包名和目标，不提�
 受影响的已加载 session 均为空闲，并在安装成功后自动 reload：用户级变更同步全部已加载 session，
 项目级变更只同步 cwd 属于目标 Workspace 的 session；因此响应返回 `reloadRequired: false`，新资源
 可以立即进入 Toolbox 和 Composer catalog。Pi Package 具有完整系统访问权限，安装前仍需审查来源。
+
+`package.update` 接受“可用更新”检查返回的精确 Package source，以及与详情页绑定的用户级或项目级
+`workspaceId` target。服务端再次确认 source 仍配置在该作用域后，调用 Pi
+`DefaultPackageManager.install()` 就地更新对应的 npm 安装或 Git checkout；配置中的资源筛选保持不变。
+这里不直接调用 Pi 的 `update(source)`，因为该 API 会按 Package identity 同时匹配用户和项目 settings，
+而 Workbench 的按钮必须只更新用户明确打开的那一个作用域。项目目标仍要求已导入且受信任；更新与安装、
+移除共享 mutation 锁，只允许 loopback 请求，并在成功后 reload 受影响 session 和无会话 Toolbox 目录。
+详情页随后重新读取安装目录中的 `package.json` 快照，“可用更新”列表也会重新校验并移除已完成项。
 
 `package.remove` 接受已配置 Package 的精确 source，以及与安装相同的用户级或项目级
 `workspaceId` 目标。服务端先确认 source 确实存在于目标作用域的 Pi settings 中，通过 Pi 导出的
@@ -1001,9 +1023,10 @@ output rule 使用受限 dot path，并以 `[]` 展平数组，例如
 - Extensions 当前实现与会话解耦的用户/项目 target 目录、禁用资源保留、官方资源过滤规则的启停、按完整身份浏览
   授权目录与读取只读源码，以及独立扩展的边界校验删除；Package 扩展删除复用 `package.remove`。
   编辑和独立安装尚未加入 Workbench 协议。
-- Pi Packages 当前实现与会话解耦的已配置列表、官方目录搜索/详情，以及 loopback-only 的用户级和
-  已导入项目级 npm Package 安装与精确作用域移除；安装和移除会在确认相关 session 空闲后自动 reload
-  所有受影响的已加载 session。
+- Pi Packages 当前实现与会话解耦的已配置列表、按实际安装目录读取的详情快照、按实际下载版本执行的
+  可用更新检查、官方目录搜索/详情，以及 loopback-only 的用户级和已导入项目级 npm Package 安装、
+  npm/Git 精确作用域更新与移除；安装、更新和移除会在确认相关 session 空闲后自动 reload 所有受影响的
+  已加载 session。
 - Commands 已聚合受支持的 Pi built-ins、session-scoped extension commands、prompt templates 和
   skills。终端专用的 interactive TUI commands 仍不会暴露；新增内置项时必须先提供 Workbench
   等价语义，并继续使用 Pi 的公开 API。

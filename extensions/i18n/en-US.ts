@@ -899,6 +899,7 @@ export const extensionsEnUS = {
       manualOnly: "Manual only",
       installed: "Installed",
       uninstalled: "Uninstalled",
+      updateAvailable: "Update available",
       officialCatalog: "Official catalog",
     },
     scopes: {
@@ -1018,8 +1019,36 @@ export const extensionsEnUS = {
       retry: "Retry",
       loadFailed: "The official Pi package catalog could not be loaded.",
       detailsLoadFailed: "The complete official package details could not be loaded.",
+      installedDetailsLoadFailed: "The installed package snapshot could not be loaded.",
+      installedDescriptionUnavailable:
+        "The installed package snapshot does not provide a description.",
       empty: "No installed Pi Packages were found.",
       browseEmpty: "No Pi packages match this search and filter.",
+      checkUpdates: "Check downloaded packages for updates",
+      checkingUpdates: "Checking downloaded package versions…",
+      updateCheckDescription:
+        "Compare downloaded Pi packages with their latest npm version or Git revision.",
+      updateCheckFailed:
+        "Downloaded package versions could not be checked. Check your network and try again.",
+      upToDate: "All downloaded Pi packages in this scope are up to date.",
+      updateAvailable: "Update available",
+      update: "Update",
+      updating: "Updating…",
+      updatingAt: ({ target }: { target: string }) => `Updating in ${target}…`,
+      updateSuccess: "Updated and loaded into the affected sessions.",
+      updateProjectSuccess: ({ project }: { project: string }) =>
+        `Updated in ${project} and loaded into the affected project sessions.`,
+      updateProjectUntrusted:
+        "This workspace is not trusted, so the project-level Pi Package cannot be updated.",
+      updateWorkspaceMissing: "That project is no longer imported, so it cannot be updated.",
+      updateAlreadyMissing: "This Pi Package is no longer installed in that location.",
+      updateSessionMissing:
+        "The current session is unavailable, so the user package cannot be updated.",
+      updateFailed: "Update failed. Check your network and Pi Package configuration, then retry.",
+      updateTargetUnavailable:
+        "The imported workspace for this project could not be determined, so it cannot be updated yet.",
+      availableUpdatesCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
+        count === 1 ? "1 update" : `${number(count)} updates`,
       filteredResources: "Selected resources",
       allResources: "All package resources",
       typeFilter: "Type",

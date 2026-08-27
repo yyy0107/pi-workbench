@@ -38,6 +38,7 @@ const TOOLBOX_SECTION_TITLES = {
   extensions: defineMessage("extensions.toolbox.extensions.title"),
   prompts: defineMessage("extensions.toolbox.prompts.title"),
   packages: defineMessage("extensions.toolbox.packages.title"),
+  updates: defineMessage("extensions.toolbox.updates"),
 } satisfies Readonly<Record<ToolboxMainSection, LocalizableText>>;
 
 function SectionLabel({ children }: { children: ReactNode }) {
@@ -422,10 +423,9 @@ export function ToolboxSidebar({ searchQuery }: SlotPropsMap["sidebar.toolbox"])
                 onClick={() => openMainView("packages")}
               />
               <ManagementRow
-                disabled
                 icon={DownloadIcon}
                 label={t("extensions.toolbox.updates")}
-                title={t("extensions.toolbox.managementUnavailable")}
+                onClick={() => openMainView("updates")}
               />
               <ManagementRow
                 disabled

@@ -80,6 +80,7 @@ import type {
   ExtensionFilesListPayload,
   ExtensionIdentityPayload,
   ExtensionSetEnabledPayload,
+  InstalledPackageDescribePayload,
   PiResourceRequest,
   PromptListPayload,
   SkillDescribePayload,
@@ -247,7 +248,11 @@ const packageSource = rpcRefine(
     }),
   { message: "Package sources cannot contain control characters." },
 );
-const packageRemovePayload = rpcObject({
+const packageDescribePayload = rpcObject({
+  source: packageSource,
+  target: resourceCatalogTarget,
+}) as RpcValidator<InstalledPackageDescribePayload>;
+const packageSourceMutationPayload = rpcObject({
   source: packageSource,
   target: packageMutationTarget,
 });
@@ -1572,6 +1577,30 @@ export async function handlePiRpcPost(request: Request, method: string): Promise
           }
         },
       });
+    case "package.describe":
+      return handleRpcPost(request, {
+        method,
+        payload: packageDescribePayload,
+        handler: async (payload) => {
+          try {
+            return await installedPackageService.describe(payload);
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
+      });
+    case "package.updates":
+      return handleRpcPost(request, {
+        method,
+        payload: resourceListPayload,
+        handler: async (payload) => {
+          try {
+            return await installedPackageService.updates(payload);
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
+      });
     case "package.install":
       return handleRpcPost(request, {
         method,
@@ -1585,10 +1614,23 @@ export async function handlePiRpcPost(request: Request, method: string): Promise
           }
         },
       });
+    case "package.update":
+      return handleRpcPost(request, {
+        method,
+        payload: packageSourceMutationPayload,
+        loopbackOnly: true,
+        handler: async (payload) => {
+          try {
+            return await installedPackageService.update(payload);
+          } catch (error) {
+            throwDomainError(error);
+          }
+        },
+      });
     case "package.remove":
       return handleRpcPost(request, {
         method,
-        payload: packageRemovePayload,
+        payload: packageSourceMutationPayload,
         loopbackOnly: true,
         handler: async (payload) => {
           try {

@@ -23,6 +23,8 @@ import type {
   ExtensionSetEnabledValue,
   HostDescription,
   HostDirectoryListing,
+  InstalledPackageDescribePayload,
+  InstalledPackageDetailsView,
   InstalledPackageListPayload,
   InstalledPackageListValue,
   LocalAppOpenPayload,
@@ -46,6 +48,10 @@ import type {
   PiPackageInstallValue,
   PiPackageRemovePayload,
   PiPackageRemoveValue,
+  PiPackageUpdatePayload,
+  PiPackageUpdateValue,
+  PiPackageUpdatesPayload,
+  PiPackageUpdatesValue,
   ProjectTrustDescribePayload,
   ProjectTrustDescribeValue,
   ProjectTrustUpdatePayload,
@@ -670,8 +676,24 @@ export function listInstalledPiPackages(
   return callPiRpc("package.list", payload);
 }
 
+export function describeInstalledPiPackage(
+  payload: InstalledPackageDescribePayload,
+): Promise<InstalledPackageDetailsView> {
+  return callPiRpc("package.describe", payload);
+}
+
+export function listAvailablePiPackageUpdates(
+  payload: PiPackageUpdatesPayload,
+): Promise<PiPackageUpdatesValue> {
+  return callPiRpc("package.updates", payload);
+}
+
 export function installPiPackage(payload: PiPackageInstallPayload): Promise<PiPackageInstallValue> {
   return callPiRpc("package.install", payload);
+}
+
+export function updatePiPackage(payload: PiPackageUpdatePayload): Promise<PiPackageUpdateValue> {
+  return callPiRpc("package.update", payload);
 }
 
 export function removePiPackage(payload: PiPackageRemovePayload): Promise<PiPackageRemoveValue> {

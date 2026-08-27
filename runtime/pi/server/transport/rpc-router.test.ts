@@ -649,7 +649,12 @@ test("validates skill.list at the shared RPC boundary", async () => {
 });
 
 test("requires exactly one session or resource target for compatible catalog RPCs", async () => {
-  for (const method of ["skill.list", "extension.list", "package.list"] as const) {
+  for (const method of [
+    "skill.list",
+    "extension.list",
+    "package.list",
+    "package.updates",
+  ] as const) {
     for (const payload of [{}, { sessionId: "session-1", target: { scope: "user" } }]) {
       const response = await handlePiRpcPost(rpcRequest(method, payload), method);
       assert.equal(response.status, 200);
@@ -812,18 +817,40 @@ test("validates extension management methods at the shared RPC boundary", async 
   }
 });
 
-test("validates package.list at the shared RPC boundary", async () => {
+test("validates package reads at the shared RPC boundary", async () => {
+  for (const method of ["package.list", "package.updates"] as const) {
+    const response = await handlePiRpcPost(rpcRequest(method, { sessionId: "" }), method);
+    assert.equal(response.status, 200);
+    const body = (await response.json()) as ServerResponse<unknown>;
+    assert.equal(body.result.ok, false);
+    if (body.result.ok) assert.fail(`Expected a ${method} validation error`);
+    assert.equal(body.result.error.code, "bad-request");
+    const issues = body.result.error.details.issues as Array<{ path?: unknown }>;
+    assert.deepEqual(issues[0]?.path, ["payload", "sessionId"]);
+  }
+});
+
+test("validates installed package snapshot identity at the shared RPC boundary", async () => {
   const response = await handlePiRpcPost(
-    rpcRequest("package.list", { sessionId: "" }),
-    "package.list",
+    rpcRequest("package.describe", {
+      source: "npm:pi-tools\ninvalid",
+      target: { scope: "project", workspaceId: "" },
+    }),
+    "package.describe",
   );
   assert.equal(response.status, 200);
   const body = (await response.json()) as ServerResponse<unknown>;
   assert.equal(body.result.ok, false);
-  if (body.result.ok) assert.fail("Expected a package.list validation error");
+  if (body.result.ok) assert.fail("Expected a package.describe validation error");
   assert.equal(body.result.error.code, "bad-request");
   const issues = body.result.error.details.issues as Array<{ path?: unknown }>;
-  assert.deepEqual(issues[0]?.path, ["payload", "sessionId"]);
+  assert.deepEqual(
+    issues.map((issue) => issue.path),
+    [
+      ["payload", "source"],
+      ["payload", "target"],
+    ],
+  );
 });
 
 test("validates package.install targets and official npm package names", async () => {
@@ -849,27 +876,29 @@ test("validates package.install targets and official npm package names", async (
   );
 });
 
-test("validates package.remove targets and configured package sources", async () => {
-  const response = await handlePiRpcPost(
-    rpcRequest("package.remove", {
-      source: "npm:pi-tools\nrm -rf /",
-      target: { scope: "project", workspaceId: "" },
-    }),
-    "package.remove",
-  );
-  assert.equal(response.status, 200);
-  const body = (await response.json()) as ServerResponse<unknown>;
-  assert.equal(body.result.ok, false);
-  if (body.result.ok) assert.fail("Expected a package.remove validation error");
-  assert.equal(body.result.error.code, "bad-request");
-  const issues = body.result.error.details.issues as Array<{ path?: unknown }>;
-  assert.deepEqual(
-    issues.map((issue) => issue.path),
-    [
-      ["payload", "source"],
-      ["payload", "target"],
-    ],
-  );
+test("validates package update/remove targets and configured package sources", async () => {
+  for (const method of ["package.update", "package.remove"] as const) {
+    const response = await handlePiRpcPost(
+      rpcRequest(method, {
+        source: "npm:pi-tools\nrm -rf /",
+        target: { scope: "project", workspaceId: "" },
+      }),
+      method,
+    );
+    assert.equal(response.status, 200);
+    const body = (await response.json()) as ServerResponse<unknown>;
+    assert.equal(body.result.ok, false);
+    if (body.result.ok) assert.fail(`Expected a ${method} validation error`);
+    assert.equal(body.result.error.code, "bad-request");
+    const issues = body.result.error.details.issues as Array<{ path?: unknown }>;
+    assert.deepEqual(
+      issues.map((issue) => issue.path),
+      [
+        ["payload", "source"],
+        ["payload", "target"],
+      ],
+    );
+  }
 });
 
 test("validates packageCatalog.search at the shared RPC boundary", async () => {

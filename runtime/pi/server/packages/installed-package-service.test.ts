@@ -1,7 +1,56 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InstalledPackageService, InstalledPackageServiceError } from "./installed-package-service";
+import {
+  InstalledPackageService,
+  InstalledPackageServiceError,
+  parseInstalledPackageDetails,
+} from "./installed-package-service";
+
+test("parses installed package details from the downloaded package.json snapshot", () => {
+  const details = parseInstalledPackageDetails(
+    JSON.stringify({
+      name: "pi-mcp-adapter",
+      version: "2.28.0",
+      description: "MCP adapter for Pi",
+      author: { name: "Nico Bailon", email: "private@example.com" },
+      license: "MIT",
+      pi: {
+        extensions: ["./index.ts"],
+        skills: ["./skills"],
+        video: "https://example.com/demo.mp4",
+      },
+      dependencies: { first: "1.0.0", second: "2.0.0" },
+      peerDependencies: { pi: "^0.84.0" },
+      scripts: { postinstall: "private command" },
+    }),
+    { source: "npm:pi-mcp-adapter", scope: "project" },
+  );
+
+  assert.deepEqual(details, {
+    source: "npm:pi-mcp-adapter",
+    scope: "project",
+    name: "pi-mcp-adapter",
+    version: "2.28.0",
+    description: "MCP adapter for Pi",
+    author: "Nico Bailon",
+    license: "MIT",
+    types: ["extension", "skill"],
+    dependencyCount: 2,
+    peerDependencyCount: 1,
+    manifestJson: JSON.stringify(
+      {
+        extensions: ["./index.ts"],
+        skills: ["./skills"],
+        video: "https://example.com/demo.mp4",
+      },
+      null,
+      2,
+    ),
+  });
+  assert.equal(details.manifestJson?.includes("postinstall"), false);
+  assert.equal(details.author?.includes("private@example.com"), false);
+});
 
 test("lists user and project Pi packages configured for the target session", async () => {
   const requestedSessionIds: string[] = [];
@@ -59,6 +108,72 @@ test("lists only the requested Toolbox package scope without resolving a session
     packages: [{ source: "npm:user-tools", scope: "user", filtered: false }],
   });
   assert.deepEqual(requestedTargets, [{ scope: "user" }]);
+});
+
+test("describes the installed package snapshot for the exact Toolbox source and scope", async () => {
+  const requests: unknown[] = [];
+  const service = new InstalledPackageService({
+    describeInstalledPackage: async (request) => {
+      requests.push(request);
+      return {
+        source: request.source,
+        scope: request.target.scope,
+        name: "pi-mcp-adapter",
+        version: "2.28.0",
+        types: ["extension", "skill"],
+        dependencyCount: 14,
+        peerDependencyCount: 4,
+      };
+    },
+  });
+
+  const request = {
+    source: "npm:pi-mcp-adapter",
+    target: { scope: "project" as const, workspaceId: "workspace-1" },
+  };
+  assert.deepEqual(await service.describe(request), {
+    source: "npm:pi-mcp-adapter",
+    scope: "project",
+    name: "pi-mcp-adapter",
+    version: "2.28.0",
+    types: ["extension", "skill"],
+    dependencyCount: 14,
+    peerDependencyCount: 4,
+  });
+  assert.deepEqual(requests, [request]);
+});
+
+test("checks the downloaded packages in the requested Toolbox scope for available updates", async () => {
+  const requests: unknown[] = [];
+  const service = new InstalledPackageService({
+    checkAvailablePackageUpdates: async (request) => {
+      requests.push(request);
+      return {
+        updates: [
+          {
+            source: "npm:pi-review",
+            displayName: "pi-review",
+            type: "npm",
+            scope: "user",
+            filtered: false,
+          },
+        ],
+      };
+    },
+  });
+
+  assert.deepEqual(await service.updates({ target: { scope: "user" } }), {
+    updates: [
+      {
+        source: "npm:pi-review",
+        displayName: "pi-review",
+        type: "npm",
+        scope: "user",
+        filtered: false,
+      },
+    ],
+  });
+  assert.deepEqual(requests, [{ target: { scope: "user" } }]);
 });
 
 test("translates missing sessions without exposing Pi internals", async () => {
@@ -173,6 +288,167 @@ test("installs an official catalog package into an imported project", async () =
   assert.deepEqual(installations, [
     { workspacePath: "/projects/example", source: "npm:@example/pi-tools" },
   ]);
+});
+
+test("updates a configured user package and reloads every affected session", async () => {
+  const lifecycle: string[] = [];
+  const service = new InstalledPackageService({
+    getLoadedSessions: () => [
+      {
+        id: "session-1",
+        isRunning: false,
+        session: {
+          sessionManager: { getCwd: () => "/projects/example" },
+          reload: async () => {
+            lifecycle.push("reload:session-1");
+          },
+        },
+      },
+      {
+        id: "session-2",
+        isRunning: false,
+        session: {
+          sessionManager: { getCwd: () => "/projects/other" },
+          reload: async () => {
+            lifecycle.push("reload:session-2");
+          },
+        },
+      },
+    ],
+    updateUserPackage: async (sessionId, source) => {
+      lifecycle.push(`update:${sessionId ?? "none"}:${source}`);
+      return true;
+    },
+    reloadScopedResources: async (target) => {
+      lifecycle.push(`catalog:${target.scope}`);
+    },
+  });
+
+  assert.deepEqual(
+    await service.update({
+      source: "npm:@example/pi-tools",
+      target: { scope: "user" },
+    }),
+    {
+      source: "npm:@example/pi-tools",
+      scope: "user",
+      reloadRequired: false,
+    },
+  );
+  assert.deepEqual(lifecycle, [
+    "update:none:npm:@example/pi-tools",
+    "reload:session-1",
+    "reload:session-2",
+    "catalog:user",
+  ]);
+});
+
+test("updates only the selected imported project package scope", async () => {
+  const lifecycle: string[] = [];
+  const service = new InstalledPackageService({
+    getWorkspace: async () => ({ path: "/projects/example" }),
+    isProjectTrusted: () => true,
+    getLoadedSessions: () => [
+      {
+        id: "project-session",
+        isRunning: false,
+        session: {
+          sessionManager: { getCwd: () => "/projects/example" },
+          reload: async () => {
+            lifecycle.push("reload:project-session");
+          },
+        },
+      },
+      {
+        id: "other-session",
+        isRunning: false,
+        session: {
+          sessionManager: { getCwd: () => "/projects/other" },
+          reload: async () => {
+            lifecycle.push("reload:other-session");
+          },
+        },
+      },
+    ],
+    updateProjectPackage: async (workspacePath, source) => {
+      lifecycle.push(`update:${workspacePath}:${source}`);
+      return true;
+    },
+    reloadScopedResources: async (target) => {
+      lifecycle.push(target.scope === "project" ? `catalog:${target.workspaceId}` : "catalog:user");
+    },
+  });
+
+  assert.deepEqual(
+    await service.update({
+      source: "git:github.com/example/pi-tools",
+      target: { scope: "project", workspaceId: "workspace-1" },
+    }),
+    {
+      source: "git:github.com/example/pi-tools",
+      scope: "project",
+      workspaceId: "workspace-1",
+      reloadRequired: false,
+    },
+  );
+  assert.deepEqual(lifecycle, [
+    "update:/projects/example:git:github.com/example/pi-tools",
+    "reload:project-session",
+    "catalog:workspace-1",
+  ]);
+});
+
+test("reports a stable error when an update target is no longer configured", async () => {
+  const service = new InstalledPackageService({
+    updateUserPackage: async () => false,
+  });
+
+  await assert.rejects(
+    service.update({
+      source: "npm:pi-tools",
+      target: { scope: "user" },
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof InstalledPackageServiceError);
+      assert.equal(error.code, "package-not-installed");
+      assert.deepEqual(error.details, { source: "npm:pi-tools", scope: "user" });
+      return true;
+    },
+  );
+});
+
+test("rejects package updates before writing when an affected session is running", async () => {
+  let updateAttempted = false;
+  const service = new InstalledPackageService({
+    getLoadedSessions: () => [
+      {
+        id: "session-busy",
+        isRunning: true,
+        session: {
+          sessionManager: { getCwd: () => "/projects/example" },
+          reload: async () => undefined,
+        },
+      },
+    ],
+    updateUserPackage: async () => {
+      updateAttempted = true;
+      return true;
+    },
+  });
+
+  await assert.rejects(
+    service.update({
+      source: "npm:pi-tools",
+      target: { scope: "user" },
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof InstalledPackageServiceError);
+      assert.equal(error.code, "session-busy");
+      assert.deepEqual(error.details, { sessionId: "session-busy" });
+      return true;
+    },
+  );
+  assert.equal(updateAttempted, false);
 });
 
 test("removes a user package without resolving a Pi session", async () => {

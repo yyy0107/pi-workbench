@@ -19,6 +19,7 @@ const {
   cancelPiModelProviderLogin,
   configurePiModelProvider,
   deletePiRpcSession,
+  describeInstalledPiPackage,
   describePiPackageCatalog,
   describePiProjectTrust,
   describePiSkill,
@@ -61,6 +62,7 @@ const {
   setPiExtensionEnabled,
   setPiSkillEnabled,
   updatePiAgentSettings,
+  updatePiPackage,
   updatePiProjectTrust,
   updateWorkbenchSettings,
   updatePiModelContextWindow,
@@ -1455,6 +1457,57 @@ test("listInstalledPiPackages calls the standalone scoped package.list RPC", asy
   assert.deepEqual(request?.payload, { target: { scope: "user" } });
 });
 
+test("describeInstalledPiPackage calls the scoped installed-snapshot RPC", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  let request: Record<string, unknown> | undefined;
+  globalThis.fetch = async (_input, init) => {
+    request = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: {
+        ok: true,
+        value: {
+          source: "npm:pi-mcp-adapter",
+          scope: "project",
+          name: "pi-mcp-adapter",
+          version: "2.28.0",
+          types: ["extension", "skill"],
+          dependencyCount: 14,
+          peerDependencyCount: 4,
+          manifestJson: "{}",
+        },
+      },
+    });
+  };
+
+  assert.deepEqual(
+    await describeInstalledPiPackage({
+      source: "npm:pi-mcp-adapter",
+      target: { scope: "project", workspaceId: "workspace-1" },
+    }),
+    {
+      source: "npm:pi-mcp-adapter",
+      scope: "project",
+      name: "pi-mcp-adapter",
+      version: "2.28.0",
+      types: ["extension", "skill"],
+      dependencyCount: 14,
+      peerDependencyCount: 4,
+      manifestJson: "{}",
+    },
+  );
+  assert.equal(request?.method, "package.describe");
+  assert.deepEqual(request?.payload, {
+    source: "npm:pi-mcp-adapter",
+    target: { scope: "project", workspaceId: "workspace-1" },
+  });
+});
+
 test("installPiPackage calls the loopback package.install RPC", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => {
@@ -1494,6 +1547,49 @@ test("installPiPackage calls the loopback package.install RPC", async (t) => {
   assert.equal(request?.method, "package.install");
   assert.deepEqual(request?.payload, {
     name: "@example/pi-tools",
+    target: { scope: "project", workspaceId: "workspace-1" },
+  });
+});
+
+test("updatePiPackage calls the loopback package.update RPC", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  let request: Record<string, unknown> | undefined;
+  globalThis.fetch = async (_input, init) => {
+    request = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: {
+        ok: true,
+        value: {
+          source: "npm:@example/pi-tools",
+          scope: "project",
+          workspaceId: "workspace-1",
+          reloadRequired: false,
+        },
+      },
+    });
+  };
+
+  assert.deepEqual(
+    await updatePiPackage({
+      source: "npm:@example/pi-tools",
+      target: { scope: "project", workspaceId: "workspace-1" },
+    }),
+    {
+      source: "npm:@example/pi-tools",
+      scope: "project",
+      workspaceId: "workspace-1",
+      reloadRequired: false,
+    },
+  );
+  assert.equal(request?.method, "package.update");
+  assert.deepEqual(request?.payload, {
+    source: "npm:@example/pi-tools",
     target: { scope: "project", workspaceId: "workspace-1" },
   });
 });
