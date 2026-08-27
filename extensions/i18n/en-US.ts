@@ -332,7 +332,7 @@ export const extensionsEnUS = {
     interface: {
       sectionTitle: "Interface",
       description:
-        "Adjust interface typography, running indicators, component surfaces, borders, and corners.",
+        "Adjust interface typography, control sizing, running indicators, component surfaces, borders, and corners.",
     },
     runningIndicator: {
       title: "Running conversations",
@@ -367,6 +367,31 @@ export const extensionsEnUS = {
         "pi-logo-shine-inverted": "Pi logo · Inverted light sweep",
         "pi-wordmark-on-light": "Pixel wordmark · Light theme",
         "pi-wordmark-on-dark": "Pixel wordmark · Dark theme",
+      },
+    },
+    controls: {
+      title: "Control heights",
+      inputHeight: "Input height",
+      inputHeightDescription: "Set the height of shared text and number fields.",
+      dropdownHeight: "Dropdown height",
+      dropdownHeightDescription: "Set the height of shared dropdown selectors.",
+      buttonHeight: "Button height",
+      buttonHeightDescription: "Set the height of shared text buttons and their size variants.",
+      switchHeight: "Switch height",
+      switchHeightDescription: "Resize standard and compact switches proportionally.",
+      heightValue: ({ height }: { height: number }, { number }: MessageFormatters) =>
+        `${number(height)} px`,
+      preview: {
+        title: "Live preview",
+        inputLabel: "Input",
+        inputPlaceholder: "Type something…",
+        dropdownLabel: "Dropdown",
+        dropdownPrimary: "Comfortable",
+        dropdownSecondary: "Compact",
+        buttonLabel: "Button",
+        buttonValue: "Continue",
+        switchLabel: "Switch",
+        switchValue: "Enabled",
       },
     },
     fontFamilies: {
@@ -528,7 +553,6 @@ export const extensionsEnUS = {
     piVersionLoading: "Loading the Pi version",
   },
   modelSelector: {
-    locked: "Model selection is locked while streaming",
     saving: "Saving the model for this session",
     noModels: "No Pi models found.",
     searchLabel: "Search models",

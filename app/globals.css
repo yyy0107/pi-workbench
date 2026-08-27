@@ -144,6 +144,7 @@
 
   /* Inputs */
   --input-control-height: var(--control-hit-default);
+  --dropdown-control-height: var(--control-hit-default);
   --input-control-radius: var(--radius);
   --input-control-background: transparent;
   --input-control-background-disabled: color-mix(in oklab, var(--input) 50%, transparent);
@@ -154,16 +155,22 @@
   /* Switches */
   --switch-track-width: 40px;
   --switch-track-height: 24px;
+  --switch-track-radius: 9999px;
   --switch-track-padding: 2px;
   --switch-track-background: var(--input);
   --switch-track-background-checked: var(--primary);
   --switch-thumb-size: 20px;
+  --switch-thumb-radius: 9999px;
   --switch-thumb-background: var(--background);
   --switch-thumb-translate: 16px;
   --switch-compact-track-width: 28px;
   --switch-compact-track-height: 16px;
   --switch-compact-thumb-size: 12px;
   --switch-compact-thumb-translate: 12px;
+
+  /* Composer */
+  --composer-radius: 1.5rem;
+  --composer-inner-radius: max(0px, calc(var(--composer-radius) - 2px));
 
   /* Scrollbars */
   --scrollbar-size: 6px;

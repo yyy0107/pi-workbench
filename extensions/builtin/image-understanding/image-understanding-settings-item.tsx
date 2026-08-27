@@ -564,7 +564,7 @@ export function AttachmentUnderstandingSettingsItem({
         <p className="text-destructive text-sm" role="alert">
           {t("extensions.imageUnderstanding.settings.errors.loadFailed")}
         </p>
-        <Button type="button" variant="outline" className="mt-3 rounded-full" onClick={load}>
+        <Button type="button" variant="outline" className="mt-3" onClick={load}>
           {t("extensions.imageUnderstanding.settings.retry")}
         </Button>
       </div>
@@ -922,7 +922,7 @@ export function AttachmentUnderstandingSettingsItem({
         </div>
         <Button
           type="button"
-          className="ms-auto rounded-full"
+          className="ms-auto"
           disabled={
             saving ||
             !dirty ||

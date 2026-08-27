@@ -169,7 +169,7 @@ const AttachmentUI: FC = () => {
               render={
                 <div
                   className={cn(
-                    "aui-attachment-tile bg-muted relative size-14 overflow-hidden rounded-[calc(var(--composer-radius,1.5rem)-var(--composer-padding,8px))] outline-none after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:ring-1 after:ring-black/10 after:ring-inset dark:after:ring-white/10",
+                    "aui-attachment-tile bg-muted relative size-14 overflow-hidden rounded-[max(0px,calc(var(--composer-radius,1.5rem)-var(--composer-padding,8px)))] outline-none after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:ring-1 after:ring-black/10 after:ring-inset dark:after:ring-white/10",
                     isImage &&
                       "hover:after:bg-foreground/10 focus-visible:ring-ring/50 cursor-pointer transition-transform after:transition-colors focus-visible:ring-3 active:scale-[0.96] motion-reduce:transition-none",
                     isError && "after:ring-destructive/60 dark:after:ring-destructive/60",
@@ -254,7 +254,7 @@ export const ComposerAddAttachment: FC = () => {
           variant="ghost"
           size="icon"
           data-frame="none"
-          className="aui-composer-add-attachment text-muted-foreground hover:text-foreground hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30 size-8 rounded-full active:scale-[0.96] motion-reduce:transition-none"
+          className="aui-composer-add-attachment text-muted-foreground hover:text-foreground hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30 size-8 rounded-[var(--button-radius)] active:scale-[0.96] motion-reduce:transition-none"
           aria-label={t("assistant.composer.addAttachment")}
         />
       }

@@ -26,7 +26,6 @@ export function AppearanceResetAction({ sectionId }: SettingsSectionHeaderAction
       type="button"
       variant="ghost"
       size="sm"
-      className="rounded-full"
       disabled={
         isDefaultAppearanceSettingsPage(preferences, page) &&
         (page !== "background" || isBackgroundImageDefault)

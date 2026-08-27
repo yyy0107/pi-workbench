@@ -205,7 +205,7 @@ export function ComposerCommandParameterPanel({
       aria-label={t("workbench.chat.composer.commandParameters.edit", {
         command: command.label,
       })}
-      className="bg-background mb-2 grid w-full gap-4 rounded-[22px] border p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
+      className="bg-background mb-2 grid w-full gap-4 rounded-[var(--composer-inner-radius)] border p-4 shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
     >
       <div className="flex min-w-0 items-center justify-between gap-3">
         <div className="min-w-0 text-sm font-medium text-blue-500 dark:text-blue-400">
@@ -215,7 +215,7 @@ export function ComposerCommandParameterPanel({
           type="button"
           tooltip={t("workbench.chat.composer.commandParameters.close")}
           aria-label={t("workbench.chat.composer.commandParameters.close")}
-          className="text-muted-foreground hover:text-foreground size-7 rounded-full"
+          className="text-muted-foreground hover:text-foreground size-7 rounded-[var(--button-radius)]"
           onClick={onClose}
         >
           <XIcon className="size-4" />

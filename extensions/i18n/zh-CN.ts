@@ -324,7 +324,7 @@ export const extensionsZhCN = {
     },
     interface: {
       sectionTitle: "界面",
-      description: "调整界面字体、运行状态指示器、组件表面、边框和圆角。",
+      description: "调整界面字体、控件尺寸、运行状态指示器、组件表面、边框和圆角。",
     },
     runningIndicator: {
       title: "运行中的会话",
@@ -359,6 +359,31 @@ export const extensionsZhCN = {
         "pi-logo-shine-inverted": "Pi 标志 · 反色高光扫过",
         "pi-wordmark-on-light": "像素字标 · 浅色主题",
         "pi-wordmark-on-dark": "像素字标 · 深色主题",
+      },
+    },
+    controls: {
+      title: "控件高度",
+      inputHeight: "输入框高度",
+      inputHeightDescription: "设置共享文本框和数字输入框的高度。",
+      dropdownHeight: "下拉框高度",
+      dropdownHeightDescription: "设置共享下拉选择框的高度。",
+      buttonHeight: "按钮高度",
+      buttonHeightDescription: "设置共享文字按钮及其尺寸变体的高度。",
+      switchHeight: "开关高度",
+      switchHeightDescription: "按比例调整标准和紧凑开关的尺寸。",
+      heightValue: ({ height }: { height: number }, { number }: MessageFormatters) =>
+        `${number(height)} 像素`,
+      preview: {
+        title: "实时预览",
+        inputLabel: "输入框",
+        inputPlaceholder: "输入一些内容…",
+        dropdownLabel: "下拉框",
+        dropdownPrimary: "舒适",
+        dropdownSecondary: "紧凑",
+        buttonLabel: "按钮",
+        buttonValue: "继续",
+        switchLabel: "开关",
+        switchValue: "已启用",
       },
     },
     fontFamilies: {
@@ -518,7 +543,6 @@ export const extensionsZhCN = {
     piVersionLoading: "正在加载 Pi 版本",
   },
   modelSelector: {
-    locked: "生成过程中无法切换模型",
     saving: "正在保存此会话的模型",
     noModels: "没有找到可用的 Pi 模型。",
     searchLabel: "搜索模型",

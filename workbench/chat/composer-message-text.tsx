@@ -19,7 +19,7 @@ function UserMessageTextBubble({ children }: { children: React.ReactNode }) {
   return (
     <div
       data-slot="user-message-bubble"
-      className="w-fit max-w-full min-w-0 self-end rounded-[12px] bg-muted/50 px-4 py-2.5 text-start text-base leading-6 text-foreground whitespace-pre-wrap [overflow-wrap:anywhere]"
+      className="w-fit max-w-full min-w-0 self-end rounded-[var(--radius-xl)] bg-muted/50 px-4 py-2.5 text-start text-base leading-6 text-foreground whitespace-pre-wrap [overflow-wrap:anywhere]"
     >
       {children}
     </div>

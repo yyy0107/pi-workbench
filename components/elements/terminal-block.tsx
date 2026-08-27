@@ -85,7 +85,7 @@ export function TerminalBlock({
       data-slot="terminal-block"
       aria-busy={!done}
       className={cn(
-        "relative w-full overflow-hidden rounded-[14px] border border-border/70 bg-muted/20 font-mono text-[13px]",
+        "relative w-full overflow-hidden rounded-[var(--radius-xl)] border border-border/70 bg-muted/20 font-mono text-[13px]",
         className,
       )}
       {...props}

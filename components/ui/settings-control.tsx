@@ -94,7 +94,7 @@ function SettingsDropdownTrigger({
     <DropdownMenuTrigger
       data-slot="settings-dropdown-trigger"
       className={cn(
-        "inline-flex h-[var(--input-control-height)] w-fit max-w-full items-center justify-center gap-2 rounded-full border [border-color:var(--input-control-border)] [background:var(--input-control-background)] px-3 text-sm outline-none transition-colors hover:[background:var(--button-background-hover)] focus-visible:ring-3 focus-visible:ring-ring/50 data-popup-open:[background:var(--button-background-selected)] data-popup-open:[color:var(--button-foreground-selected)] disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex h-[var(--dropdown-control-height)] w-fit max-w-full items-center justify-center gap-2 rounded-[var(--input-control-radius)] border [border-color:var(--input-control-border)] [background:var(--input-control-background)] px-3 text-sm outline-none transition-colors hover:[background:var(--button-background-hover)] focus-visible:ring-3 focus-visible:ring-ring/50 data-popup-open:[background:var(--button-background-selected)] data-popup-open:[color:var(--button-foreground-selected)] disabled:pointer-events-none disabled:opacity-50",
         className,
       )}
       {...props}

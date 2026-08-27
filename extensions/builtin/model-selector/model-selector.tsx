@@ -520,7 +520,7 @@ export function ModelSelector() {
           disabled={selectionLocked}
           aria-label={t("assistant.model.select")}
           style={selectorDropdown.triggerStyle}
-          className="group relative flex h-[var(--button-height-default)] w-fit max-w-32 items-center justify-center rounded-md bg-transparent px-2 py-0 text-base outline-none transition-[width,background-color,color] [transition-duration:400ms,200ms,200ms] ease-out hover:[background:var(--button-background-hover)] focus-visible:ring-2 focus-visible:ring-ring/50 data-popup-open:[background:var(--button-background-selected)] data-popup-open:[color:var(--button-foreground-selected)] disabled:cursor-not-allowed max-[360px]:max-w-24 sm:max-w-48"
+          className="group relative flex h-[var(--dropdown-control-height)] w-fit max-w-32 items-center justify-center rounded-md bg-transparent px-2 py-0 text-base outline-none transition-[width,background-color,color] [transition-duration:400ms,200ms,200ms] ease-out hover:[background:var(--button-background-hover)] focus-visible:ring-2 focus-visible:ring-ring/50 data-popup-open:[background:var(--button-background-selected)] data-popup-open:[color:var(--button-foreground-selected)] disabled:cursor-not-allowed max-[360px]:max-w-24 sm:max-w-48"
           onTransitionEnd={selectorDropdown.onTriggerTransitionEnd}
         >
           <span

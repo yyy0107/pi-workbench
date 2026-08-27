@@ -72,7 +72,7 @@ function LoadFailure({ onRetry }: { onRetry(): void }) {
       <p className="text-destructive text-sm" role="alert">
         {t("extensions.agentConfiguration.errors.loadFailed")}
       </p>
-      <Button type="button" variant="outline" className="mt-3 rounded-full" onClick={onRetry}>
+      <Button type="button" variant="outline" className="mt-3" onClick={onRetry}>
         {t("extensions.agentConfiguration.retry")}
       </Button>
     </div>
@@ -192,7 +192,6 @@ export function SystemPromptSettingsItem({ sectionId, itemId }: SettingsItemComp
             <Button
               type="button"
               variant="outline"
-              className="rounded-full"
               disabled={saving || draft.length === 0}
               onClick={() => {
                 setDraft("");
@@ -202,12 +201,7 @@ export function SystemPromptSettingsItem({ sectionId, itemId }: SettingsItemComp
             >
               {t("extensions.agentConfiguration.systemPrompt.useDefault")}
             </Button>
-            <Button
-              type="button"
-              className="rounded-full"
-              disabled={saving || !dirty}
-              onClick={() => void save()}
-            >
+            <Button type="button" disabled={saving || !dirty} onClick={() => void save()}>
               {saving
                 ? t("extensions.agentConfiguration.saving")
                 : t("extensions.agentConfiguration.save")}
@@ -316,7 +310,6 @@ function InlineNumberEditor({
       cancelLabel={t("extensions.agentConfiguration.cancel")}
       disabled={disabled}
       cancelButtonVariant="default"
-      cancelButtonClassName="rounded-full"
       onEdit={() => {
         editStartValueRef.current = value;
         onEditingChange(true);
@@ -531,7 +524,6 @@ export function ContextManagementSettingsItem({ sectionId, itemId }: SettingsIte
           <Button
             type="button"
             variant="outline"
-            className="rounded-full"
             disabled={saving}
             onClick={() => {
               setEnabled(true);
@@ -545,12 +537,7 @@ export function ContextManagementSettingsItem({ sectionId, itemId }: SettingsIte
           >
             {t("extensions.agentConfiguration.context.restoreDefaults")}
           </Button>
-          <Button
-            type="button"
-            className="rounded-full"
-            disabled={saving || !dirty || invalid}
-            onClick={() => void save()}
-          >
+          <Button type="button" disabled={saving || !dirty || invalid} onClick={() => void save()}>
             {saving
               ? t("extensions.agentConfiguration.saving")
               : t("extensions.agentConfiguration.save")}

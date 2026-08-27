@@ -303,7 +303,7 @@ export function ArchivedChatsSettingsItem({ sectionId, itemId }: SettingsItemCom
               type="search"
               value={query}
               placeholder={t("extensions.archivedChats.searchPlaceholder")}
-              className="rounded-full pl-9"
+              className="pl-9"
               onChange={(event) => {
                 setQuery(event.currentTarget.value);
                 resetVisibleChats();
