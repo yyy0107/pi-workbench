@@ -19,8 +19,10 @@ const SIDEBAR_KEYBOARD_SHORTCUT = "b";
 
 type SidebarContextProps = {
   state: "expanded" | "collapsed";
+  collapsePreview: boolean;
   open: boolean;
   setOpen: (open: boolean) => void;
+  setCollapsePreview: (collapsePreview: boolean) => void;
   openMobile: boolean;
   setOpenMobile: (open: boolean) => void;
   isMobile: boolean;
@@ -53,6 +55,7 @@ function SidebarProvider({
 }) {
   const isMobile = useIsMobile();
   const [openMobile, setOpenMobile] = React.useState(false);
+  const [collapsePreview, setCollapsePreview] = React.useState(false);
 
   // This is the internal state of the sidebar.
   // We use openProp and setOpenProp for control from outside the component.
@@ -73,6 +76,7 @@ function SidebarProvider({
 
   // Helper to toggle the sidebar.
   const toggleSidebar = React.useCallback(() => {
+    setCollapsePreview(false);
     return isMobile ? setOpenMobile((open) => !open) : setOpen((open) => !open);
   }, [isMobile, setOpen, setOpenMobile]);
 
@@ -96,14 +100,16 @@ function SidebarProvider({
   const contextValue = React.useMemo<SidebarContextProps>(
     () => ({
       state,
+      collapsePreview,
       open,
       setOpen,
+      setCollapsePreview,
       isMobile,
       openMobile,
       setOpenMobile,
       toggleSidebar,
     }),
-    [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar],
+    [state, collapsePreview, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar],
   );
 
   return (

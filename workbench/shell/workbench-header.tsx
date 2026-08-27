@@ -43,7 +43,7 @@ function SidebarOpenButton() {
 
 export function WorkbenchHeader() {
   const { t, text } = useI18n();
-  const { isMobile, state: sidebarState } = useSidebar();
+  const { collapsePreview, isMobile, state: sidebarState } = useSidebar();
   const mainViews = useMainViewService();
   const activeMainView = useSyncExternalStore(
     mainViews.subscribe,
@@ -64,6 +64,7 @@ export function WorkbenchHeader() {
     ? text(activeMainView.title)
     : currentThreadTitle || t("workbench.sidebar.newThread");
   const visibleTitle = activeMainView ? title : truncateConversationTitle(title);
+  const desktopSidebarCollapsePreview = !isMobile && collapsePreview;
   const desktopSidebarCollapsed = !isMobile && sidebarState === "collapsed";
 
   return (
@@ -73,8 +74,10 @@ export function WorkbenchHeader() {
     >
       <div
         className={cn(
-          "relative flex h-full min-w-0 items-center gap-1.5 sm:gap-2",
-          desktopSidebarCollapsed && "ps-[36px] sm:ps-8",
+          "relative flex h-full min-w-0 items-center gap-1.5 transition-[padding-inline-start] duration-[240ms] ease-[cubic-bezier(0.45,0,0.8,0.7)] in-data-[resizing=true]:transition-none motion-reduce:transition-none sm:gap-2",
+          desktopSidebarCollapsePreview &&
+            "ps-[max(0px,calc(28px-var(--sidebar-width)))] sm:ps-[max(0px,calc(24px-var(--sidebar-width)))]",
+          desktopSidebarCollapsed && "ps-7 sm:ps-6",
         )}
       >
         <SidebarOpenButton />

@@ -54,17 +54,17 @@ export function SidebarPrimaryNavigation({
   );
   const navigationGridClass =
     activeSection === "workspace"
-      ? "grid-cols-[7rem_var(--icon-frame-size-default)_var(--icon-frame-size-default)]"
+      ? "grid-cols-[minmax(var(--icon-frame-size-default),7rem)_var(--icon-frame-size-default)_var(--icon-frame-size-default)]"
       : activeSection === "toolbox"
-        ? "grid-cols-[var(--icon-frame-size-default)_7rem_var(--icon-frame-size-default)]"
-        : "grid-cols-[var(--icon-frame-size-default)_var(--icon-frame-size-default)_7rem]";
+        ? "grid-cols-[var(--icon-frame-size-default)_minmax(var(--icon-frame-size-default),7rem)_var(--icon-frame-size-default)]"
+        : "grid-cols-[var(--icon-frame-size-default)_var(--icon-frame-size-default)_minmax(var(--icon-frame-size-default),7rem)]";
 
   return (
     <div className="flex h-11 shrink-0 items-center gap-1 ps-4 pe-0.5 md:h-10 md:ps-[calc(var(--icon-frame-size-default)+14px)]">
       <nav
         aria-label={t("workbench.sidebar.mainNavigation")}
         className={cn(
-          "grid min-w-0 items-center gap-1 transition-[grid-template-columns] duration-[240ms] ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
+          "grid min-w-0 flex-1 items-center gap-1 transition-[grid-template-columns] duration-[240ms] ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
           navigationGridClass,
         )}
       >

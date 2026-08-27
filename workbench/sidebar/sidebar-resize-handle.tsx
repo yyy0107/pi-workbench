@@ -1,6 +1,6 @@
 "use client";
 
-import type { RefObject } from "react";
+import { useRef, type RefObject } from "react";
 
 import { useSidebar } from "@/components/ui/sidebar";
 import {
@@ -28,7 +28,13 @@ export function SidebarResizeHandle({
   onResize,
 }: SidebarResizeHandleProps) {
   const { t } = useI18n();
-  const { setOpen } = useSidebar();
+  const { setCollapsePreview, setOpen } = useSidebar();
+  const collapsePreviewRef = useRef(false);
+  const updateCollapsePreview = (collapsePreview: boolean) => {
+    if (collapsePreviewRef.current === collapsePreview) return;
+    collapsePreviewRef.current = collapsePreview;
+    setCollapsePreview(collapsePreview);
+  };
   const resize = useCollapsibleResize({
     width,
     minimumWidth: minWidth,
@@ -49,12 +55,16 @@ export function SidebarResizeHandle({
         "--sidebar-resize-translate-x",
         `${preview.translateX}px`,
       );
+      updateCollapsePreview(preview.layoutWidth < minWidth);
     },
     onCommit: onResize,
     onOpenChange: setOpen,
     onResizingChange: (resizing) => {
       if (resizing) shellRef.current?.setAttribute("data-resizing", "true");
-      else shellRef.current?.removeAttribute("data-resizing");
+      else {
+        shellRef.current?.removeAttribute("data-resizing");
+        updateCollapsePreview(false);
+      }
     },
   });
 
