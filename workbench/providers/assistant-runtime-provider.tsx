@@ -30,7 +30,7 @@ import {
 } from "./active-workspace-context";
 import { createInstalledAgentRuntime } from "./installed-agent-runtime";
 
-function NewThreadWorkspaceVisibilityTracker() {
+function NewThreadWorkspaceLayoutTracker() {
   const controller = useRightWorkspace();
   const hydrated = useRightWorkspaceState((state) => state.hydrated);
   const mainThreadId = useAuiState((state) => state.threads.mainThreadId);
@@ -52,7 +52,7 @@ function NewThreadWorkspaceVisibilityTracker() {
     }
 
     handledNewThreadIds.current.add(mainThreadId);
-    controller.setWorkspaceOpen(false);
+    controller.resetLayout();
   }, [controller, hydrated, mainThreadId, newThreadId]);
 
   return null;
@@ -155,7 +155,7 @@ export function WorkbenchAssistantRuntimeProvider({ children }: Readonly<{ child
 
   return (
     <WorkbenchAgentRuntimeInstallationHost installation={installation}>
-      <NewThreadWorkspaceVisibilityTracker />
+      <NewThreadWorkspaceLayoutTracker />
       <ActiveWorkspaceContextTracker />
       {/* Surface runtimes follow the active Main View context as well as conversations. */}
       <WorkspaceSurfaceRuntimeHost />

@@ -12,7 +12,7 @@ import {
   type WorkspaceStorage,
 } from "./workspace-controller";
 import { selectActiveSurface, selectContextSurfaces } from "./workspace-selectors";
-import { createRightWorkspaceStore } from "./workspace-store";
+import { MIN_RIGHT_WORKSPACE_WIDTH, createRightWorkspaceStore } from "./workspace-store";
 
 class MemoryStorage implements WorkspaceStorage {
   readonly values = new Map<string, string>();
@@ -127,6 +127,37 @@ test("reveal deduplicates a file resource and closing the workspace preserves it
   assert.equal(store.getState().open, false);
   assert.ok(store.getState().surfaces[first]);
   assert.equal(store.getState().activeSurfaceId, first);
+});
+
+test("closing and reopening the workspace remembers its last width", () => {
+  const store = createRightWorkspaceStore();
+  const controller = new DefaultRightWorkspaceController(store, createRegistry());
+
+  controller.setWidth(612);
+  controller.setWorkspaceOpen(false);
+  controller.setWorkspaceOpen(true);
+  assert.equal(store.getState().open, true);
+  assert.equal(store.getState().width, 612);
+});
+
+test("resetting the workspace layout restores the new-conversation defaults", () => {
+  const store = createRightWorkspaceStore();
+  const controller = new DefaultRightWorkspaceController(store, createRegistry());
+
+  const surfaceId = controller.open({
+    kind: "file",
+    title: "app.ts",
+    params: { absolutePath: "/workspace/app.ts" },
+    context,
+  });
+  controller.setWidth(612);
+  controller.setMaximized(true);
+  controller.resetLayout();
+
+  assert.equal(store.getState().open, false);
+  assert.equal(store.getState().width, MIN_RIGHT_WORKSPACE_WIDTH);
+  assert.equal(store.getState().maximized, false);
+  assert.ok(store.getState().surfaces[surfaceId]);
 });
 
 test("conversation content is isolated while workspace width stays shared", () => {

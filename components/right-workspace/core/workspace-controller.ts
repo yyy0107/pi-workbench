@@ -41,6 +41,7 @@ export interface RightWorkspaceController {
   closeOthers(surfaceId: string, context?: WorkspaceContext): void;
   closeAll(): void;
   update(surfaceId: string, patch: Partial<WorkspaceSurfaceInstance>): void;
+  resetLayout(): void;
   setWorkspaceOpen(open: boolean): void;
   setWidth(width: number): void;
   setAuxiliaryOpen(open: boolean): void;
@@ -479,6 +480,14 @@ export class DefaultRightWorkspaceController implements RightWorkspaceController
           resourceKey: state.surfaces[surfaceId].resourceKey,
         },
       },
+    }));
+  };
+
+  resetLayout = (): void => {
+    this.setState(() => ({
+      open: false,
+      width: DEFAULT_RIGHT_WORKSPACE_WIDTH,
+      maximized: false,
     }));
   };
 
