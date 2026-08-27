@@ -11,6 +11,7 @@ import {
 } from "@/components/right-workspace";
 
 import { isTerminalTranscriptTarget, useTerminalLaunchContext } from "./terminal-target";
+import { loadTerminalSurface } from "./terminal-surface-loader";
 import { terminalWorkspaceService, TERMINAL_SURFACE_TITLE } from "./terminal-workspace-service";
 
 export function TerminalRuntimeBridge() {
@@ -36,6 +37,10 @@ export function TerminalRuntimeBridge() {
   const activeSurface = useActiveWorkspaceSurface();
   const activeTerminal =
     activeSurface?.kind === "terminal" && !isTerminalTranscriptTarget(activeSurface.params);
+
+  useEffect(() => {
+    void loadTerminalSurface().catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     if (launch.threadId === "application") return;

@@ -13,13 +13,11 @@ import { BashToolRenderer } from "./bash-tool-renderer";
 import { TerminalMenuItem } from "./terminal-menu-item";
 import { terminalCommandOpenHandler } from "./terminal-command-opener";
 import { TerminalRuntimeBridge } from "./terminal-runtime-bridge";
+import { loadTerminalSurface } from "./terminal-surface-loader";
 import { isTerminalTranscriptTarget, type TerminalTarget } from "./terminal-target";
 import { TerminalTrigger } from "./terminal-trigger";
 
-const TerminalSurface = createLazyWorkspaceSurface(async () => {
-  const module = await import("./terminal-surface");
-  return { default: module.TerminalSurface };
-});
+const TerminalSurface = createLazyWorkspaceSurface(loadTerminalSurface);
 
 export const terminalSurfaceDefinition = {
   kind: "terminal",

@@ -3,9 +3,15 @@
 import "@xterm/xterm/css/xterm.css";
 
 import { useAuiState } from "@assistant-ui/react";
+import { FitAddon } from "@xterm/addon-fit";
+import {
+  Terminal,
+  type ITerminalInitOnlyOptions,
+  type ITerminalOptions,
+  type ITheme,
+} from "@xterm/xterm";
 import { SquareIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import type { ITerminalInitOnlyOptions, ITerminalOptions, ITheme, Terminal } from "@xterm/xterm";
 
 import { useRightWorkspace } from "@/components/right-workspace";
 import { Button } from "@/components/ui/button";
@@ -281,16 +287,9 @@ function TerminalTranscriptSurface({
     let terminalWriter: TerminalFrameWriter | undefined;
     let stopThemeSync: (() => void) | undefined;
 
-    const start = async () => {
-      const [{ Terminal: XtermTerminal }, { FitAddon }] = await Promise.all([
-        import("@xterm/xterm"),
-        import("@xterm/addon-fit"),
-        document.fonts.ready,
-      ]);
-      if (disposed) return;
-
+    const start = () => {
       const fitAddon = new FitAddon();
-      terminal = new XtermTerminal(xtermOptions(container, true));
+      terminal = new Terminal(xtermOptions(container, true));
       terminal.loadAddon(fitAddon);
       terminal.open(container);
       const writer = createTerminalFrameWriter(terminal);
@@ -439,6 +438,11 @@ function TerminalTranscriptSurface({
       );
       resizeObserver = new ResizeObserver(scheduleResize);
       if (visibleRef.current) resizeObserver.observe(container);
+      void document.fonts.ready.then(() => {
+        if (disposed || !terminal) return;
+        terminal.options.fontFamily = resolveTerminalFontFamily(container);
+        scheduleResize();
+      });
       interruptRef.current = () => {
         if (!processHandle || !send({ type: "process/terminate", processHandle })) return;
         terminal!.options.disableStdin = true;
@@ -447,7 +451,7 @@ function TerminalTranscriptSurface({
       connect();
     };
 
-    void start();
+    start();
     return () => {
       disposed = true;
       if (reconnectTimer) clearTimeout(reconnectTimer);
@@ -620,16 +624,9 @@ function PtyTerminalSurface({
       socket.send(JSON.stringify(frame));
       return true;
     };
-    const start = async () => {
-      const [{ Terminal: XtermTerminal }, { FitAddon }] = await Promise.all([
-        import("@xterm/xterm"),
-        import("@xterm/addon-fit"),
-        document.fonts.ready,
-      ]);
-      if (disposed) return;
-
+    const start = () => {
       const fitAddon = new FitAddon();
-      terminal = new XtermTerminal(xtermOptions(container));
+      terminal = new Terminal(xtermOptions(container));
       terminal.loadAddon(fitAddon);
       terminal.open(container);
       const writer = createTerminalFrameWriter(terminal);
@@ -792,10 +789,15 @@ function PtyTerminalSurface({
       );
       resizeObserver = new ResizeObserver(scheduleResize);
       if (visibleRef.current) resizeObserver.observe(container);
+      void document.fonts.ready.then(() => {
+        if (disposed || !terminal) return;
+        terminal.options.fontFamily = resolveTerminalFontFamily(container);
+        scheduleResize();
+      });
       connect();
     };
 
-    void start();
+    start();
     return () => {
       disposed = true;
       generation += 1;
