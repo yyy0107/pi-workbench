@@ -121,7 +121,7 @@ function CommandParameterFieldEditor({
             id={inputId}
             autoFocus={autoFocus}
             value={value === undefined ? "" : String(value)}
-            className="h-[var(--input-control-height)] w-full rounded-[var(--input-control-radius)] border [border-color:var(--input-control-border)] [background:var(--input-control-background)] px-2.5 text-sm outline-none focus-visible:[border-color:var(--input-control-border-focus)] focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="h-[var(--input-control-height)] w-full rounded-[var(--input-control-radius)] border [border-color:var(--input-control-border)] [background:var(--input-control-background)] px-2.5 text-sm outline-none"
             onChange={(event) => {
               const selected = enumValues.find((option) => String(option) === event.target.value);
               onChange(selected);

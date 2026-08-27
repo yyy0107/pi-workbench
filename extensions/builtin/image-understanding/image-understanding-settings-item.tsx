@@ -788,7 +788,7 @@ export function AttachmentUnderstandingSettingsItem({
                   name="ocr-adapter.ts"
                   value={draft.ocrAdapterSource}
                   disabled={ocrAdapterDisabled}
-                  className="bg-background focus-within:border-ring h-96 min-h-64 max-h-[36rem] resize-y rounded-lg border"
+                  className="bg-background h-96 min-h-64 max-h-[36rem] resize-y rounded-lg border"
                   onSave={save}
                   onChange={(source) => {
                     const matchingPreset = OCR_ADAPTER_PRESETS.find(

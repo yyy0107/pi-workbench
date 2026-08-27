@@ -138,7 +138,7 @@ export function BrowserSurface({
           <Globe2Icon className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-[var(--input-control-icon-size)] -translate-y-1/2" />
           <input
             value={address}
-            className="h-[var(--input-control-height)] w-full rounded-[var(--input-control-radius)] border border-transparent [background:var(--input-control-background)] pr-2 pl-8 text-xs outline-none focus:[border-color:var(--input-control-border-focus)]"
+            className="h-[var(--input-control-height)] w-full rounded-[var(--input-control-radius)] border border-transparent [background:var(--input-control-background)] pr-2 pl-8 text-xs outline-none"
             onChange={(event) => {
               const nextAddress = event.currentTarget.value;
               setAddress(nextAddress);

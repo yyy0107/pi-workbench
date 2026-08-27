@@ -270,6 +270,23 @@
     @apply border-border outline-ring/50;
   }
 
+  :where(
+    :focus,
+    :focus-visible,
+    :focus-within,
+    [data-focused]:not([data-focused="false"]),
+    [data-focus-visible]:not([data-focus-visible="false"])
+  ) {
+    outline: none !important;
+    --tw-ring-offset-shadow: 0 0 #0000 !important;
+    --tw-ring-shadow: 0 0 #0000 !important;
+  }
+
+  :where(.peer:focus, .peer:focus-visible) ~ * {
+    --tw-ring-offset-shadow: 0 0 #0000 !important;
+    --tw-ring-shadow: 0 0 #0000 !important;
+  }
+
   @supports not selector(::-webkit-scrollbar) {
     * {
       scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);

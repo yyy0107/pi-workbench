@@ -43,7 +43,7 @@
   --file-viewer-floating-button-height: 28px;
   --file-viewer-floating-icon-button-size: 28px;
   --file-viewer-floating-zoom-meter-min-width: 40px;
-  --file-viewer-focus-ring: color-mix(in srgb, var(--ring) 40%, transparent);
+  --file-viewer-focus-ring: transparent;
   --file-viewer-input-bg: var(--background);
   --file-viewer-input-color: var(--foreground);
 }

@@ -114,7 +114,7 @@ export function InlineFeedbackForm({
         value={text}
         aria-label={t("rightWorkspace.feedback.placeholder")}
         placeholder={t("rightWorkspace.feedback.placeholder")}
-        className="bg-muted/35 min-h-20 w-full resize-none rounded-lg border px-2.5 py-2 text-xs outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+        className="bg-muted/35 min-h-20 w-full resize-none rounded-lg border px-2.5 py-2 text-xs outline-none"
         onChange={(event) => updateText(event.currentTarget.value)}
       />
       <div className="mt-2 flex justify-end gap-2">
