@@ -30,9 +30,9 @@ export function RightWorkspaceToggleButton({ className }: Readonly<{ className?:
       )}
       onClick={() => controller.setWorkspaceOpen(!open)}
     >
-      <span aria-hidden="true" className="relative size-4">
-        <PanelRightOpenIcon className={cn("absolute inset-0 size-4", open && "opacity-0")} />
-        <PanelRightCloseIcon className={cn("absolute inset-0 size-4", !open && "opacity-0")} />
+      <span aria-hidden="true" className="relative size-[var(--icon-md)] shrink-0">
+        <PanelRightOpenIcon className={cn("absolute inset-0", open && "opacity-0")} />
+        <PanelRightCloseIcon className={cn("absolute inset-0", !open && "opacity-0")} />
       </span>
     </Button>
   );

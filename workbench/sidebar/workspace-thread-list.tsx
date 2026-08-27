@@ -374,6 +374,7 @@ function WorkspaceDirectorySection({
   const pinned = directory.pinned === true;
   const collapsed = collapsedWorkspaceIds.includes(directory.id);
   const expanded = !collapsed;
+  const showRunningIndicator = collapsed && hasRunningThread;
   const expansionLabel = t(
     expanded ? "workbench.sidebar.collapseWorkspace" : "workbench.sidebar.expandWorkspace",
   );
@@ -420,7 +421,7 @@ function WorkspaceDirectorySection({
       >
         <CollapsibleTrigger
           type="button"
-          aria-labelledby={`${workspaceLabelId} ${workspaceActionId}${hasRunningThread ? ` ${workspaceStatusId}` : ""}`}
+          aria-labelledby={`${workspaceLabelId} ${workspaceActionId}${showRunningIndicator ? ` ${workspaceStatusId}` : ""}`}
           className="focus-visible:ring-sidebar-ring absolute inset-0 rounded-lg outline-none focus-visible:ring-2"
           onClick={(event) => {
             if (!drag.shouldSuppressClick()) return;
@@ -453,13 +454,13 @@ function WorkspaceDirectorySection({
         <span id={workspaceActionId} className="sr-only">
           {expansionLabel}
         </span>
-        {hasRunningThread ? (
+        {showRunningIndicator ? (
           <span id={workspaceStatusId} className="sr-only">
             {t("workbench.sidebar.generating")}
           </span>
         ) : null}
 
-        {hasRunningThread ? (
+        {showRunningIndicator ? (
           <RunningThreadIndicator
             id={runningIndicatorId}
             className={cn(

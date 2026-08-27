@@ -464,10 +464,10 @@ function ComposerDrawerStats({ contextCount }: Readonly<{ contextCount: number }
 
   return (
     <div className="flex shrink-0 items-center gap-1">
-      <span className="bg-muted/55 text-muted-foreground inline-flex h-6 items-center rounded-lg px-2 text-[11px] whitespace-nowrap">
+      <span className="bg-muted/55 text-muted-foreground inline-flex h-6 items-center rounded-md px-2 text-[11px] leading-none whitespace-nowrap tabular-nums">
         {t("workbench.chat.composer.contextCount", { count: contextCount })}
       </span>
-      <span className="bg-muted/55 text-muted-foreground inline-flex h-6 items-center rounded-lg px-2 text-[11px] whitespace-nowrap">
+      <span className="bg-muted/55 text-muted-foreground inline-flex h-6 items-center rounded-md px-2 text-[11px] leading-none whitespace-nowrap tabular-nums">
         {t("workbench.chat.composer.extensionsCount", { count: extensionCount })}
       </span>
     </div>
@@ -1239,22 +1239,20 @@ export function WorkbenchComposer() {
                 role="region"
                 aria-label={t("workbench.chat.composer.drawer")}
                 data-slot="workbench-composer-drawer"
-                className="animate-in fade-in slide-in-from-top-1 flex min-h-7 items-center justify-between gap-2 overflow-x-auto px-4 py-0.5 duration-150"
+                className="animate-in fade-in slide-in-from-top-1 grid min-h-8 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 overflow-x-auto px-2 pb-2 duration-150"
               >
                 <SlotHost
                   name="composer.drawer.left"
                   context={drawerContext}
-                  className="flex min-w-0 flex-1 items-center gap-1.5 empty:hidden"
+                  className="flex min-w-0 items-center gap-2 empty:hidden"
                 />
-                <div className="ms-auto flex shrink-0 items-center gap-1.5">
+                <div className="flex shrink-0 items-center justify-end gap-2">
                   <ComposerDrawerStats contextCount={contextCount} />
-                  <fieldset className="flex shrink-0 items-center transition-opacity">
-                    <SlotHost
-                      name="composer.drawer.right"
-                      context={drawerContext}
-                      className="flex shrink-0 items-center gap-1.5 empty:hidden"
-                    />
-                  </fieldset>
+                  <SlotHost
+                    name="composer.drawer.right"
+                    context={drawerContext}
+                    className="flex shrink-0 items-center gap-2 empty:hidden"
+                  />
                 </div>
               </div>
             ) : null}

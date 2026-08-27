@@ -228,7 +228,7 @@ const AttachmentRemove: FC = () => {
       render={
         <TooltipIconButton
           tooltip={t("assistant.composer.removeFile")}
-          className="aui-attachment-tile-remove absolute end-0.5 top-0.5 size-5! rounded-full bg-black/50! p-1! text-white backdrop-blur-sm after:absolute after:-inset-1 [&_svg]:size-3! hover:bg-black/70! hover:text-white! active:scale-[0.96] motion-reduce:transition-none"
+          className="aui-attachment-tile-remove absolute end-0.5 top-0.5 size-5! min-h-0! min-w-0! rounded-full bg-black/50! p-1! text-white backdrop-blur-sm after:absolute after:-inset-1 [&_svg]:size-3! hover:bg-black/70! hover:text-white! active:scale-[0.96] motion-reduce:transition-none"
           side="top"
         />
       }

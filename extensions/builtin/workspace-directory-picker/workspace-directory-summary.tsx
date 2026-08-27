@@ -66,7 +66,7 @@ export function WorkspaceDirectorySummary(_context: ComposerDrawerSlotContext) {
 
   return (
     <>
-      <div className="flex min-w-0 items-center gap-2 text-[11px]">
+      <div className="flex h-6 min-w-0 items-center gap-2 text-[11px] leading-none">
         <button
           type="button"
           disabled={!isNewThread || picking}
@@ -83,9 +83,9 @@ export function WorkspaceDirectorySummary(_context: ComposerDrawerSlotContext) {
           )}
         >
           {picking ? (
-            <LoaderCircleIcon className="size-3 shrink-0 animate-spin" />
+            <LoaderCircleIcon aria-hidden="true" className="size-3 shrink-0 animate-spin" />
           ) : (
-            <FolderIcon className="size-3 shrink-0" />
+            <FolderIcon aria-hidden="true" className="size-3 shrink-0" />
           )}
           <span className="max-w-44 truncate">
             {picking
@@ -95,8 +95,8 @@ export function WorkspaceDirectorySummary(_context: ComposerDrawerSlotContext) {
                 : (selectedDirectory?.name ?? t("extensions.workspaceDirectory.defaultName"))}
           </span>
         </button>
-        <span className="inline-flex shrink-0 items-center gap-1.5 text-orange-600 dark:text-orange-400">
-          <ShieldCheckIcon className="size-3" />
+        <span className="inline-flex h-6 shrink-0 items-center gap-1.5 text-orange-600 dark:text-orange-400">
+          <ShieldCheckIcon aria-hidden="true" className="size-3" />
           {t("extensions.workspaceDirectory.localPi")}
         </span>
       </div>
