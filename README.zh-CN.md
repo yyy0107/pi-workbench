@@ -126,6 +126,36 @@ pnpm dev
 [http://127.0.0.1:3000](http://127.0.0.1:3000)，添加一个项目目录，然后进入“设置 → 模型”，
 登录 Provider 账号，或添加 API Key/自定义 Provider 配置。从 Composer 选择模型后即可开始会话。
 
+### 关闭热编译与热更新
+
+`pnpm dev` 会启用两层热更新：`tsx watch` 在服务端文件变化时重启整个 custom server；Next.js
+开发模式则为应用代码和样式提供 Fast Refresh/HMR。
+
+> [!TIP]
+> **推荐方案：** 不需要热编译时，优先使用生产构建和生产服务。这是关闭全部文件监听、Fast Refresh
+> 和 HMR 最简单、行为最可预期的方式。
+
+先构建一次，再运行生产服务：
+
+```bash
+pnpm build
+pnpm start
+```
+
+生产模式不会监听源码文件，也不会执行 Fast Refresh。修改源码后，需要重新运行 `pnpm build`，然后
+重启 `pnpm start`。
+
+只有仍然需要 Next.js Fast Refresh 时，才建议仅关闭外层 `tsx watch` 进程：
+
+```bash
+pnpm predev
+pnpm exec tsx server.ts --dev
+```
+
+这种方式仍会为页面、组件和样式保留 Next.js Fast Refresh，但修改 `server.ts` 或其他 custom server
+代码后必须手动重启。当前安装的 Next.js 开发服务器没有提供受支持的开关，可在保留其他开发模式能力
+的同时关闭 Fast Refresh；如需关闭全部热编译，请使用上面的生产模式命令。
+
 ### Electron 开发
 
 `electron:dev` 不会执行 Web 的 `predev` Hook。全新检出的仓库需要先同步一次生成的静态资源：

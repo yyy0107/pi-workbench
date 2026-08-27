@@ -132,6 +132,37 @@ reload support. Open [http://127.0.0.1:3000](http://127.0.0.1:3000), add a proje
 open Settings → Models to sign in to a provider or add an API-key/custom-provider configuration.
 Select a model in the Composer to start a conversation.
 
+### Running without hot reload
+
+`pnpm dev` enables two reload layers: `tsx watch` restarts the custom server when server-side files
+change, while Next.js development mode provides Fast Refresh/HMR for application code and styles.
+
+> [!TIP]
+> **Recommended:** when hot compilation is not required, use the production build and server. This
+> is the simplest and most predictable way to disable all file watching, Fast Refresh, and HMR.
+
+Build once and run the production server:
+
+```bash
+pnpm build
+pnpm start
+```
+
+Production mode does not watch source files or apply Fast Refresh. After changing source code, run
+`pnpm build` again and restart `pnpm start`.
+
+Only when Next.js Fast Refresh is still required, disable just the outer `tsx watch` process with:
+
+```bash
+pnpm predev
+pnpm exec tsx server.ts --dev
+```
+
+This still provides Next.js Fast Refresh for pages, components, and styles, but changes to
+`server.ts` or other custom-server code require a manual restart. The installed Next.js development
+server does not provide a supported switch for disabling Fast Refresh while otherwise retaining
+development mode; use the production commands above when all hot compilation must be disabled.
+
 ### Electron development
 
 `electron:dev` does not run the Web `predev` hook. In a fresh checkout, synchronize the generated
