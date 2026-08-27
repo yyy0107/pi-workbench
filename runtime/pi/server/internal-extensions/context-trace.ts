@@ -185,6 +185,10 @@ export const contextTraceExtension: ExtensionFactory = (pi) => {
       ...(context.thinkingLevel ? { thinkingLevel: context.thinkingLevel } : {}),
       ...(contextUsage ? { contextUsage } : {}),
       tools: pi.getAllTools().map((tool) => toolView(tool, activeTools)),
+      extensions: trace.getExtensions().map((extension) => ({
+        ...extension,
+        source: { ...extension.source },
+      })),
     });
   });
 

@@ -45,6 +45,7 @@ import {
   type PiUserMessage,
   type PiWorkspaceSummary,
 } from "../../contracts";
+import { WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME } from "../../context-trace-data-part";
 import {
   archivePiWorkspaceSession,
   cancelPiRpcSession,
@@ -54,6 +55,7 @@ import {
   deletePiRpcSession,
   deletePiWorkspace,
   fetchPiRpcSessionHistory,
+  fetchPiRpcSessionContextTracePromptParts,
   forkPiRpcSession,
   insertPiSessionBefore,
   insertPiWorkspaceBefore,
@@ -80,6 +82,7 @@ import type {
   QuestionAnswerItem,
   RpcReceipt,
   SessionContextTraceEventSummary,
+  SessionContextTracePromptPart,
   SessionHistoryValue,
   SessionPromptValue,
   SessionQueueAction,
@@ -100,6 +103,7 @@ import {
 } from "../messages/conversation-events";
 import {
   applyToolExecutionUpdate,
+  appendPiContextTraceAssistantPart,
   appendMessageToPiPrompt,
   attachmentRecognitionSnapshotFromMessage,
   attachmentRecognitionSubmissionIdFromMessage,
@@ -107,12 +111,15 @@ import {
   eventMessage,
   hasRunningWorkbenchCompactCommandResponse,
   isAttachmentRecognitionOnlyAssistant,
+  isPiContextTraceOnlyAssistant,
+  mergePiContextTracePartsFromMessages,
   optimisticUserMessage,
   piAssistantToThreadMessage,
   piHistoryToThreadMessages,
   piUserMessageContent,
   reconcileAttachmentRecognitionAssistantPart,
   reconcileAttachmentRecognitionInMessages,
+  reconcilePiContextTraceAssistantParts,
   reconcileLiveMessagesAfterHistory,
   sameUserPrompt,
   upsertAttachmentRecognitionAssistantPart,
@@ -442,6 +449,9 @@ export class PiClientSession {
   private readonly messageTimingByTimestamp = new Map<number, MessageTiming>();
   private readonly toolTimingById = new Map<string, ToolCallTiming>();
   private readonly steeringMessageIds = new Map<string, string>();
+  private readonly contextTraceIds = new Set<string>();
+  private readonly contextTracePromptParts = new Map<string, SessionContextTracePromptPart>();
+  private pendingContextTraceEvents: SessionContextTraceEventSummary[] = [];
   private readonly messageQueue: PiMessageQueue;
 
   private messageRepositoryFromHistory(
@@ -506,6 +516,7 @@ export class PiClientSession {
               branchHistory,
               this.messageTimingByTimestamp,
               this.toolTimingById,
+              [...this.contextTracePromptParts.values()],
             );
       const branchMessages = projectedBranchMessages.map((message) => {
         const alias = this.authoritativeMessageIdAliases.get(message.id);
@@ -652,6 +663,9 @@ export class PiClientSession {
     this.messageTimingByTimestamp.clear();
     this.toolTimingById.clear();
     this.steeringMessageIds.clear();
+    this.contextTraceIds.clear();
+    this.contextTracePromptParts.clear();
+    this.pendingContextTraceEvents = [];
     this.snapshotValue = {
       messages: [],
       messageRepository: this.baseMessageRepository,
@@ -679,17 +693,17 @@ export class PiClientSession {
       return Promise.resolve();
     }
 
-    // History is enough to render an idle conversation. Opening an event stream
-    // starts the full Pi runtime on the server, so only running sessions connect
-    // (via connectIfRunning) and that connection must never block history paint.
+    // History plus the journal-backed Prompt Part projection can render an idle conversation.
+    // Opening an event stream starts the full Pi runtime on the server, so only running sessions
+    // connect (via connectIfRunning) and that connection must never block history paint.
     this.connectIfRunning();
-    this.openTask = this.reload().finally(() => {
+    this.openTask = this.reload(true).finally(() => {
       this.replaceSnapshot({ isLoading: false });
     });
     return this.openTask;
   }
 
-  async reload(): Promise<void> {
+  async reload(hydrateContextTracePromptParts = false): Promise<void> {
     if (this.disposed) return;
     if (!this.remoteIdValue) return;
     if (this.reloadTask) return this.reloadTask;
@@ -702,15 +716,24 @@ export class PiClientSession {
       this.snapshotValue.isRunning || this.localRunLeaseActive;
     const streamingMessageAtStart = this.streamingMessage;
     const hasPublishedBaseHistory = this.baseMessages.length > 0;
-    let initialPage: SessionHistoryValue | undefined;
     const applyHistory = (value: SessionHistoryValue) => {
       if (this.disposed || this.remoteIdValue !== remoteId) return;
       const history = piHistoryFromSessionEvents(remoteId, value);
-      const projectedBaseMessages = this.stabilizeAuthoritativeMessageIds(
-        this.mergeAttachmentRecognitionHistory(
-          piHistoryToThreadMessages(history, this.messageTimingByTimestamp, this.toolTimingById),
+      const previousMessages = [
+        ...this.baseMessages,
+        ...this.liveMessages,
+        ...(this.streamingMessage ? [this.streamingMessage] : []),
+      ];
+      const projectedBaseMessages = mergePiContextTracePartsFromMessages(
+        this.stabilizeAuthoritativeMessageIds(
+          this.mergeAttachmentRecognitionHistory(
+            piHistoryToThreadMessages(history, this.messageTimingByTimestamp, this.toolTimingById, [
+              ...this.contextTracePromptParts.values(),
+            ]),
+          ),
+          baseMessageIdsAtStart,
         ),
-        baseMessageIdsAtStart,
+        previousMessages,
       );
       const branchState = this.messageRepositoryFromHistory(remoteId, value, projectedBaseMessages);
       const baseMessages = branchState.activeMessages;
@@ -738,10 +761,29 @@ export class PiClientSession {
           : this.snapshotValue.autoRetry;
       this.publishMessages({ autoRetry, resumeCheckpoint: value.resume?.checkpoint });
     };
-    this.reloadTask = fetchProgressiveSessionHistory(remoteId, fetchPiRpcSessionHistory, {
+    const promptPartsTask = hydrateContextTracePromptParts
+      ? fetchPiRpcSessionContextTracePromptParts({ sessionId: remoteId })
+          .then((value) => {
+            if (this.disposed || this.remoteIdValue !== remoteId) return;
+            for (const part of value.parts) {
+              if (part.event.sessionId !== remoteId || part.event.kind !== "prompt-composition") {
+                continue;
+              }
+              this.contextTracePromptParts.set(part.event.traceId, part);
+              if (part.assistantMessageTimestamp === undefined) {
+                this.applyContextTraceEvent(part.event);
+              } else {
+                this.contextTraceIds.add(part.event.traceId);
+              }
+            }
+          })
+          .catch((error: unknown) => {
+            console.error("[workbench-pi] context trace prompt hydration failed", error);
+          })
+      : Promise.resolve();
+    const historyTask = fetchProgressiveSessionHistory(remoteId, fetchPiRpcSessionHistory, {
       onInitialPage: (history) => {
         if (this.disposed) return;
-        initialPage = history;
         // A paginated first page is only a tail of the conversation. It is useful for the
         // initial paint, but replacing an already-published history with that tail briefly
         // removes every older row and collapses the scroll range until backfill completes.
@@ -750,9 +792,12 @@ export class PiClientSession {
         if (!hasPublishedBaseHistory || !history.hasMore) applyHistory(history);
         if (this.snapshotValue.isLoading) this.replaceSnapshot({ isLoading: false });
       },
-    })
-      .then((history) => {
-        if (history !== initialPage) applyHistory(history);
+    });
+    this.reloadTask = Promise.all([historyTask, promptPartsTask])
+      .then(([history]) => {
+        // The initial page paints without waiting for journal replay. Reapply the final history
+        // once prompt summaries are ready so only durable prompt-composition Parts are hydrated.
+        applyHistory(history);
       })
       .catch((error) => {
         if (error instanceof SessionHistoryPaginationError) {
@@ -1111,6 +1156,41 @@ export class PiClientSession {
     this.messageQueue.replaceAuthoritative(items);
   }
 
+  applyContextTraceEvent(event: SessionContextTraceEventSummary): void {
+    if (event.kind !== "prompt-composition") return;
+    if (
+      this.disposed ||
+      event.sessionId !== this.remoteIdValue ||
+      this.contextTraceIds.has(event.traceId)
+    ) {
+      return;
+    }
+    this.contextTraceIds.add(event.traceId);
+
+    if (this.streamingMessage?.role === "assistant") {
+      this.streamingMessage = appendPiContextTraceAssistantPart(this.streamingMessage, event);
+      this.scheduleMessagesPublish();
+      return;
+    }
+
+    const applyToLatestAssistant = (messages: ThreadMessage[]): boolean => {
+      for (let index = messages.length - 1; index >= 0; index -= 1) {
+        const message = messages[index];
+        if (message?.role !== "assistant") continue;
+        messages[index] = appendPiContextTraceAssistantPart(message, event);
+        return true;
+      }
+      return false;
+    };
+    if (applyToLatestAssistant(this.liveMessages) || applyToLatestAssistant(this.baseMessages)) {
+      this.scheduleMessagesPublish();
+      return;
+    }
+
+    // A resumed run can publish mux diagnostics before its canonical assistant message arrives.
+    this.pendingContextTraceEvents.push(event);
+  }
+
   acknowledgePrompt(rpcId: string): void {
     if (this.disposed) return;
     // Admission only confirms that the host accepted the RPC. Its running summary can still
@@ -1445,27 +1525,38 @@ export class PiClientSession {
   }
 
   private preserveActiveAssistantRecognition(message: ThreadMessage): ThreadMessage {
-    if (message.role !== "assistant" || this.streamingMessage?.role !== "assistant") return message;
+    if (message.role !== "assistant") return message;
 
-    const previous = this.streamingMessage;
-    const promptRpcId = previous.metadata.custom.workbenchPromptRpcId;
-    const submissionId = attachmentRecognitionSubmissionIdFromMessage(previous);
-    let projected: ThreadAssistantMessage = {
-      ...message,
-      metadata: {
-        ...message.metadata,
-        custom: {
-          ...message.metadata.custom,
-          ...(typeof promptRpcId === "string" ? { workbenchPromptRpcId: promptRpcId } : {}),
-          ...(typeof submissionId === "string"
-            ? { workbenchAttachmentRecognitionSubmissionId: submissionId }
-            : {}),
+    const previous =
+      this.streamingMessage?.role === "assistant" ? this.streamingMessage : undefined;
+    let projected: ThreadAssistantMessage = message;
+    if (previous) {
+      const promptRpcId = previous.metadata.custom.workbenchPromptRpcId;
+      const submissionId = attachmentRecognitionSubmissionIdFromMessage(previous);
+      projected = {
+        ...message,
+        metadata: {
+          ...message.metadata,
+          custom: {
+            ...message.metadata.custom,
+            ...(typeof promptRpcId === "string" ? { workbenchPromptRpcId: promptRpcId } : {}),
+            ...(typeof submissionId === "string"
+              ? { workbenchAttachmentRecognitionSubmissionId: submissionId }
+              : {}),
+          },
         },
-      },
-    };
-    const recognition = attachmentRecognitionSnapshotFromMessage(previous);
-    if (recognition) {
-      projected = upsertAttachmentRecognitionAssistantPart(projected, recognition);
+      };
+      projected = reconcilePiContextTraceAssistantParts(projected, previous);
+      const recognition = attachmentRecognitionSnapshotFromMessage(previous);
+      if (recognition) {
+        projected = upsertAttachmentRecognitionAssistantPart(projected, recognition);
+      }
+    }
+    if (this.pendingContextTraceEvents.length > 0) {
+      for (const event of this.pendingContextTraceEvents) {
+        projected = appendPiContextTraceAssistantPart(projected, event);
+      }
+      this.pendingContextTraceEvents = [];
     }
     return projected;
   }
@@ -1841,6 +1932,20 @@ export class PiClientSession {
             workbenchAttachmentRecognitionOnly: true,
           },
         },
+      });
+      this.streamingMessage = undefined;
+      if (this.activeAssistantMessageId === message.id) {
+        this.activeAssistantMessageId = undefined;
+      }
+      return true;
+    }
+    if (message?.role === "assistant" && isPiContextTraceOnlyAssistant(message)) {
+      this.insertCompletedAssistantMessage({
+        ...message,
+        content: message.content.filter(
+          (part) => part.type === "data" && part.name === WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME,
+        ),
+        status: { type: "complete", reason: "unknown" },
       });
       this.streamingMessage = undefined;
       if (this.activeAssistantMessageId === message.id) {

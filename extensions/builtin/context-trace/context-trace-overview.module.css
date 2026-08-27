@@ -92,8 +92,8 @@
 .span {
   position: absolute;
   top: calc(var(--trace-span-lane) * 14px);
-  left: calc(var(--trace-span-left) + var(--trace-span-gap));
-  width: max(2px, calc(var(--trace-span-width) - var(--trace-span-gap) - var(--trace-span-gap)));
+  left: var(--trace-span-left);
+  width: max(2px, var(--trace-span-width));
   min-width: 2px;
   height: 8px;
   appearance: none;

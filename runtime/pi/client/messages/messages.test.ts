@@ -10,16 +10,21 @@ import {
 } from "../../contracts";
 import {
   applyToolExecutionUpdate,
+  appendPiContextTraceAssistantPart,
   appendMessageToPiPrompt,
   attachmentRecognitionAssistantMessage,
   coalesceConsecutiveAssistantMessages,
   isAttachmentRecognitionOnlyAssistant,
+  mergePiContextTracePartsFromMessages,
   optimisticUserMessage,
   piAssistantToThreadMessage,
   piHistoryToThreadMessages,
   piUserMessageContent,
   reconcileLiveMessagesAfterHistory,
+  reconcilePiContextTraceAssistantParts,
 } from "./messages";
+import { WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME } from "../../context-trace-data-part";
+import type { SessionContextTraceEventSummary } from "../../rpc-contracts";
 import {
   WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE,
   WORKBENCH_COMPOSER_RESOLUTION_CUSTOM_TYPE,
@@ -41,6 +46,21 @@ const assistantMessage: PiAssistantMessage = {
   content: [{ type: "text", text: "Hello" }],
 };
 
+function contextTraceEvent(traceId: string, seq: number): SessionContextTraceEventSummary {
+  return {
+    schemaVersion: 1,
+    traceId,
+    sessionId: "session",
+    activationId: "activation",
+    seq,
+    time: seq,
+    kind: "prompt-composition",
+    detailBytes: 1,
+    truncated: false,
+    redacted: false,
+  };
+}
+
 test("marks temporary assistant messages as optimistic", () => {
   const streaming = piAssistantToThreadMessage(assistantMessage, "stream", {
     optimistic: true,
@@ -54,6 +74,78 @@ test("marks temporary assistant messages as optimistic", () => {
   assert.equal(streaming.metadata.isOptimistic, true);
   assert.equal(completed.metadata.isOptimistic, true);
   assert.equal(persisted.metadata.isOptimistic, undefined);
+});
+
+test("inserts trace Data Parts before the empty optimistic placeholder", () => {
+  const placeholder = piAssistantToThreadMessage({ role: "assistant", content: [] }, "assistant", {
+    optimistic: true,
+    streaming: true,
+  });
+  const projected = appendPiContextTraceAssistantPart(
+    placeholder,
+    contextTraceEvent("activation:1", 1),
+  );
+
+  assert.deepEqual(
+    projected.content.map((part) =>
+      part.type === "data" ? `${part.type}:${part.name}` : part.type,
+    ),
+    [`data:${WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME}`, "text"],
+  );
+});
+
+test("keeps trace Data Parts at their native-part boundary across cumulative updates", () => {
+  const previous = appendPiContextTraceAssistantPart(
+    piAssistantToThreadMessage(
+      { role: "assistant", content: [{ type: "thinking", thinking: "Plan" }] },
+      "assistant",
+      { streaming: true },
+    ),
+    contextTraceEvent("activation:2", 2),
+  );
+  const next = piAssistantToThreadMessage(
+    {
+      role: "assistant",
+      content: [
+        { type: "thinking", thinking: "Updated plan" },
+        { type: "toolCall", id: "tool", name: "read", arguments: {} },
+      ],
+    },
+    "assistant",
+    { streaming: true },
+  );
+
+  const projected = reconcilePiContextTraceAssistantParts(next, previous);
+  assert.deepEqual(
+    projected.content.map((part) =>
+      part.type === "data" ? `${part.type}:${part.name}` : part.type,
+    ),
+    ["reasoning", `data:${WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME}`, "tool-call"],
+  );
+});
+
+test("retains live trace Data Parts when authoritative history replaces an assistant message", () => {
+  const previous = appendPiContextTraceAssistantPart(
+    piAssistantToThreadMessage(
+      { role: "assistant", content: [{ type: "text", text: "Done" }], timestamp: 42 },
+      "optimistic-assistant",
+    ),
+    contextTraceEvent("activation:3", 3),
+  );
+  const authoritative = piAssistantToThreadMessage(
+    { role: "assistant", content: [{ type: "text", text: "Done" }], timestamp: 42 },
+    "history-assistant",
+  );
+
+  const [projected] = mergePiContextTracePartsFromMessages([authoritative], [previous]);
+  assert.equal(projected?.role, "assistant");
+  if (projected?.role !== "assistant") return;
+  assert.deepEqual(
+    projected.content.map((part) =>
+      part.type === "data" ? `${part.type}:${part.name}` : part.type,
+    ),
+    ["text", `data:${WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME}`],
+  );
 });
 
 test("preserves the canonical event sequence used for conversation forks", () => {

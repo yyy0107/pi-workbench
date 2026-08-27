@@ -16,6 +16,10 @@ import type { SessionContextTraceEventSummary } from "@/runtime/pi/rpc-contracts
 
 import { contextTraceEventLabel } from "./context-trace-detail";
 import css from "./context-trace-overview.module.css";
+import {
+  createContextTraceTimelineScale,
+  type ContextTraceTimelineScale,
+} from "./context-trace-timeline-scale";
 
 const MINIMUM_DRAG_PX = 3;
 const TIMELINE_TOOLTIP_DELAY_MS = 500;
@@ -113,16 +117,15 @@ function clampFraction(value: number): number {
 
 function rangeFraction(
   value: ContextTraceTimeRange,
-  startTime: number,
-  duration: number,
+  scale: ContextTraceTimelineScale,
 ): FractionRange {
   const bounded = orderedRange(
-    Math.min(startTime + duration, Math.max(startTime, value.start)),
-    Math.min(startTime + duration, Math.max(startTime, value.end)),
+    Math.min(scale.endTime, Math.max(scale.startTime, value.start)),
+    Math.min(scale.endTime, Math.max(scale.startTime, value.end)),
   );
   return {
-    start: (bounded.start - startTime) / duration,
-    end: (bounded.end - startTime) / duration,
+    start: scale.fractionAt(bounded.start),
+    end: scale.fractionAt(bounded.end),
   };
 }
 
@@ -140,10 +143,11 @@ export function ContextTraceOverview({
   onSelect,
 }: TraceOverviewProps) {
   const { t } = useI18n();
-  const startTime = events[0]?.time ?? 0;
-  const observedEndTime = events.at(-1)?.time ?? startTime;
-  const endTime = Math.max(observedEndTime, startTime + 1);
-  const duration = endTime - startTime;
+  const timelineScale = useMemo(
+    () => createContextTraceTimelineScale(events.map((event) => event.time)),
+    [events],
+  );
+  const { startTime, endTime } = timelineScale;
   const dragRef = useRef<DragGesture | null>(null);
   const [draft, setDraft] = useState<ContextTraceTimeRange | null>(null);
   const [hover, setHover] = useState<HoverPoint | null>(null);
@@ -198,7 +202,7 @@ export function ContextTraceOverview({
     (event) => event.kind === "turn-start" && event.time > startTime,
   );
   const activeRange = draft ?? range;
-  const visibleRange = activeRange ? rangeFraction(activeRange, startTime, duration) : null;
+  const visibleRange = activeRange ? rangeFraction(activeRange, timelineScale) : null;
 
   useEffect(() => {
     if (range && (range.end < startTime || range.start > endTime)) onRangeChange(null);
@@ -212,7 +216,7 @@ export function ContextTraceOverview({
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0 || traceIdAt(event.target) !== null) return;
     const fraction = fractionAt(event);
-    const anchorTime = startTime + fraction * duration;
+    const anchorTime = timelineScale.timeAt(fraction);
     dragRef.current = {
       anchorClientX: event.clientX,
       anchorTime,
@@ -227,14 +231,14 @@ export function ContextTraceOverview({
     setHover({ fraction, traceId: traceIdAt(event.target) });
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
-    setDraft(orderedRange(drag.anchorTime, startTime + fraction * duration));
+    setDraft(orderedRange(drag.anchorTime, timelineScale.timeAt(fraction)));
   };
 
   const onPointerEnd = (event: PointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     const fraction = fractionAt(event);
-    const pointTime = startTime + fraction * duration;
+    const pointTime = timelineScale.timeAt(fraction);
     const nextRange = orderedRange(drag.anchorTime, pointTime);
     const click = Math.abs(event.clientX - drag.anchorClientX) < MINIMUM_DRAG_PX;
     dragRef.current = null;
@@ -342,7 +346,7 @@ export function ContextTraceOverview({
                   className={css.turnBoundary}
                   style={
                     {
-                      "--trace-turn-left": `${((event.time - startTime) / duration) * 100}%`,
+                      "--trace-turn-left": `${timelineScale.fractionAt(event.time) * 100}%`,
                     } as CSSProperties
                   }
                 />
@@ -354,8 +358,12 @@ export function ContextTraceOverview({
             ) : (
               <div className={css.lanes}>
                 {spans.map((span) => {
-                  const left = ((span.start - startTime) / duration) * 100;
-                  const width = Math.max(0, ((span.end - span.start) / duration) * 100);
+                  const left = timelineScale.fractionAt(span.start) * 100;
+                  const width = Math.max(
+                    0,
+                    (timelineScale.fractionAt(span.end) - timelineScale.fractionAt(span.start)) *
+                      100,
+                  );
                   const label = contextTraceEventLabel(t, span.event.kind);
                   const title = [
                     span.event.toolName ? `${label} · ${span.event.toolName}` : label,
@@ -403,7 +411,6 @@ export function ContextTraceOverview({
                               {
                                 "--trace-span-left": `${left}%`,
                                 "--trace-span-width": `${width}%`,
-                                "--trace-span-gap": `min(${width * 0.08}%, 1px)`,
                                 "--trace-span-lane": span.lane,
                               } as CSSProperties
                             }

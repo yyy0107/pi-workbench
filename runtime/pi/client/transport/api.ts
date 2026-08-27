@@ -66,6 +66,8 @@ import type {
   SessionContextTraceActivationsValue,
   SessionContextTraceListPayload,
   SessionContextTraceListValue,
+  SessionContextTracePromptPartsPayload,
+  SessionContextTracePromptPartsValue,
   SessionContextTraceReadPayload,
   SessionContextTraceReadValue,
   SessionCreatePayload,
@@ -765,6 +767,12 @@ export function listPiRpcSessionContextTraceActivations(
   payload: SessionContextTraceActivationsPayload,
 ): Promise<SessionContextTraceActivationsValue> {
   return callPiRpc("session.contextTrace.activations", payload);
+}
+
+export function fetchPiRpcSessionContextTracePromptParts(
+  payload: SessionContextTracePromptPartsPayload,
+): Promise<SessionContextTracePromptPartsValue> {
+  return callPiRpc("session.contextTrace.promptParts", payload);
 }
 
 export function readPiRpcSessionContextTrace(

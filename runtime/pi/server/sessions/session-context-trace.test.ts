@@ -19,6 +19,7 @@ const {
   captureSessionContextTraceJson,
   captureSessionContextTraceHeaders,
   captureSessionContextTraceText,
+  sessionContextTraceExtensions,
   sessionContextTraceSystemPromptSources,
   SessionContextTrace,
   SESSION_CONTEXT_TRACE_MAX_EVENTS,
@@ -78,6 +79,140 @@ test("projects Pi system prompt precedence without mixing in Skills", () => {
     ),
     [{ kind: "builtin", scope: "builtin" }],
   );
+});
+
+test("projects the final Pi extension inventory without retaining runtime handlers", () => {
+  const extensions = sessionContextTraceExtensions({
+    getExtensions: () => ({
+      extensions: [
+        {
+          path: "<inline:workbench.context-trace>",
+          resolvedPath: "<inline:workbench.context-trace>",
+          hidden: true,
+          sourceInfo: {
+            path: "<inline:workbench.context-trace>",
+            source: "inline",
+            scope: "temporary",
+            origin: "top-level",
+          },
+          handlers: new Map(),
+          tools: new Map(),
+          messageRenderers: new Map(),
+          commands: new Map(),
+          flags: new Map(),
+          shortcuts: new Map(),
+        },
+        {
+          path: "/workspace/.pi/extensions/audit.ts",
+          resolvedPath: "/workspace/.pi/extensions/audit.ts",
+          sourceInfo: {
+            path: "/workspace/.pi/extensions/audit.ts",
+            source: "project",
+            scope: "project",
+            origin: "top-level",
+          },
+          handlers: new Map(),
+          tools: new Map(),
+          messageRenderers: new Map(),
+          commands: new Map(),
+          flags: new Map(),
+          shortcuts: new Map(),
+        },
+      ],
+      errors: [],
+      runtime: {},
+    }),
+  } as never);
+
+  assert.deepEqual(
+    extensions.map(({ name, hidden, source }) => ({ name, hidden, scope: source.scope })),
+    [
+      { name: "workbench.context-trace", hidden: true, scope: "temporary" },
+      { name: "audit", hidden: false, scope: "project" },
+    ],
+  );
+});
+
+test("copies the final prompt resource inventory onto the live event summary", () => {
+  const trace = new SessionContextTrace("session-resources");
+  trace.observePromptComposition({
+    type: "prompt-composition",
+    prompt: captureSessionContextTraceText("hello"),
+    systemPrompt: captureSessionContextTraceText("system prompt"),
+    systemPromptSources: [
+      {
+        kind: "replacement",
+        scope: "user",
+        path: "/agent/SYSTEM.md",
+        content: captureSessionContextTraceText("user system prompt"),
+      },
+      {
+        kind: "append",
+        scope: "project",
+        path: "/workspace/.pi/APPEND_SYSTEM.md",
+        content: captureSessionContextTraceText("project append prompt"),
+      },
+    ],
+    systemPromptOptions: {
+      cwd: "/workspace",
+      contextFiles: [{ path: "AGENTS.md", content: captureSessionContextTraceText("rules") }],
+      skills: [
+        {
+          name: "review",
+          filePath: "/workspace/.pi/skills/review/SKILL.md",
+          disableModelInvocation: false,
+        },
+      ],
+    },
+    images: captureSessionContextTraceJson([]),
+    tools: [
+      {
+        name: "read",
+        description: "Read a file",
+        active: true,
+        source: {
+          path: "<builtin:read>",
+          source: "builtin",
+          scope: "temporary",
+          origin: "top-level",
+        },
+        parameters: captureSessionContextTraceJson({}),
+      },
+    ],
+    extensions: [
+      {
+        name: "audit",
+        path: "/workspace/.pi/extensions/audit.ts",
+        resolvedPath: "/workspace/.pi/extensions/audit.ts",
+        hidden: false,
+        source: {
+          path: "/workspace/.pi/extensions/audit.ts",
+          source: "project",
+          scope: "project",
+          origin: "top-level",
+        },
+      },
+    ],
+  });
+
+  const summary = trace.list(-1, 10).events.find((event) => event.kind === "prompt-composition");
+  assert.deepEqual(summary?.promptResources, {
+    systemPromptCharacters: 13,
+    systemPromptSourceCount: 2,
+    systemPromptSources: [
+      { kind: "replacement", scope: "user", path: "/agent/SYSTEM.md" },
+      {
+        kind: "append",
+        scope: "project",
+        path: "/workspace/.pi/APPEND_SYSTEM.md",
+      },
+    ],
+    contextFileCount: 1,
+    contextFiles: ["AGENTS.md"],
+    skills: [{ name: "review", disableModelInvocation: false }],
+    extensions: [{ name: "audit", hidden: false }],
+    tools: { active: ["read"], total: 1 },
+  });
 });
 
 test("preserves complete serializable values, sensitive fields, binary bodies, and headers", () => {

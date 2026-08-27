@@ -3238,3 +3238,189 @@ test("exposes context trace summaries to visualization subscribers", (t) => {
 
   assert.deepEqual(received, [{ kind: "round-start", seq: 0 }]);
 });
+
+test("projects context trace mux events into the active assistant message as Data Parts", async (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("session-parts", "session-parts");
+  const sessionInternals = session as unknown as {
+    streamingMessage: ThreadMessage;
+  };
+  sessionInternals.streamingMessage = {
+    id: "assistant",
+    role: "assistant",
+    content: [{ type: "text", text: "", status: { type: "running" } }],
+    status: { type: "running" },
+    createdAt: new Date(0),
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      steps: [],
+      custom: {},
+    },
+  };
+  const internals = manager as unknown as {
+    handleMuxFrame(frame: ServerRequest<MuxStreamPayload>, generation: number): void;
+  };
+
+  internals.handleMuxFrame(
+    {
+      type: "server-request",
+      rpcId: "trace-part-rpc",
+      method: "session/context-trace",
+      payload: {
+        type: "session/context-trace",
+        sessionId: "session-parts",
+        event: {
+          schemaVersion: 1,
+          traceId: "activation-parts:0",
+          sessionId: "session-parts",
+          activationId: "activation-parts",
+          seq: 0,
+          time: 1_725_000_000_000,
+          kind: "prompt-composition",
+          detailBytes: 48,
+          truncated: false,
+          redacted: false,
+          roundId: "round-parts",
+        },
+      },
+    },
+    1,
+  );
+  internals.handleMuxFrame(
+    {
+      type: "server-request",
+      rpcId: "trace-part-provider-rpc",
+      method: "session/context-trace",
+      payload: {
+        type: "session/context-trace",
+        sessionId: "session-parts",
+        event: {
+          schemaVersion: 1,
+          traceId: "activation-parts:1",
+          sessionId: "session-parts",
+          activationId: "activation-parts",
+          seq: 1,
+          time: 1_725_000_000_001,
+          kind: "provider-request",
+          detailBytes: 48,
+          truncated: false,
+          redacted: false,
+          roundId: "round-parts",
+        },
+      },
+    },
+    1,
+  );
+  await new Promise<void>((resolve) => setImmediate(resolve));
+
+  const assistant = session.getSnapshot().messages.find((message) => message.role === "assistant");
+  assert.equal(assistant?.role, "assistant");
+  if (assistant?.role !== "assistant") return;
+  const dataPart = assistant.content.find(
+    (part) => part.type === "data" && part.name === "workbench.pi-context-trace-event",
+  );
+  assert.equal(dataPart?.type, "data");
+  assert.equal(
+    dataPart?.type === "data" &&
+      typeof dataPart.data === "object" &&
+      dataPart.data !== null &&
+      "event" in dataPart.data &&
+      typeof dataPart.data.event === "object" &&
+      dataPart.data.event !== null &&
+      "traceId" in dataPart.data.event
+      ? dataPart.data.event.traceId
+      : undefined,
+    "activation-parts:0",
+  );
+  assert.equal(
+    assistant.content.filter(
+      (part) => part.type === "data" && part.name === "workbench.pi-context-trace-event",
+    ).length,
+    1,
+  );
+});
+
+test("hydrates only persisted prompt-composition Parts when an idle session opens", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  const methods: string[] = [];
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as { rpcId: string; method: string };
+    methods.push(request.method);
+    const value =
+      request.method === "session.contextTrace.promptParts"
+        ? {
+            parts: [
+              {
+                event: {
+                  schemaVersion: 1,
+                  traceId: "persisted-activation:1",
+                  sessionId: "persisted-session",
+                  activationId: "persisted-activation",
+                  seq: 1,
+                  time: 1_500,
+                  kind: "prompt-composition",
+                  detailBytes: 128,
+                  truncated: false,
+                  redacted: false,
+                  roundId: "persisted-round",
+                  promptPreview: "Explain persistence",
+                },
+                assistantMessageTimestamp: 2_000,
+              },
+            ],
+          }
+        : {
+            events: [
+              {
+                event: {
+                  type: "message",
+                  seq: 0,
+                  time: 1_000,
+                  entryId: "persisted-user",
+                  data: { role: "user", content: "Explain persistence", timestamp: 1_000 },
+                },
+              },
+              {
+                event: {
+                  type: "message",
+                  seq: 1,
+                  time: 2_000,
+                  entryId: "persisted-assistant",
+                  data: {
+                    role: "assistant",
+                    content: [{ type: "text", text: "It persists." }],
+                    timestamp: 2_000,
+                  },
+                },
+              },
+            ],
+            hasMore: false,
+          };
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: { ok: true, value },
+    });
+  };
+
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("persisted-session", "persisted-session");
+
+  await session.open();
+
+  assert.deepEqual(methods.sort(), ["session.contextTrace.promptParts", "session.history"]);
+  const assistant = session.getSnapshot().messages.find((message) => message.role === "assistant");
+  assert.equal(assistant?.role, "assistant");
+  if (assistant?.role !== "assistant") return;
+  assert.deepEqual(
+    assistant.content.map((part) => (part.type === "data" ? `data:${part.name}` : part.type)),
+    ["data:workbench.pi-context-trace-event", "text"],
+  );
+});

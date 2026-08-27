@@ -6,10 +6,19 @@ import { sessionContextTracePromptPreview } from "../../context-trace-preview";
 
 export { sessionContextTracePromptPreview } from "../../context-trace-preview";
 
+function capturedMessageTimestamp(event: SessionContextTraceEvent): number | undefined {
+  if (event.detail.type !== "model-output" && event.detail.type !== "turn-end") return undefined;
+  const value = event.detail.message.value;
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
+  const timestamp = value.timestamp;
+  return typeof timestamp === "number" && Number.isFinite(timestamp) ? timestamp : undefined;
+}
+
 export function summarizeSessionContextTraceEvent(
   event: SessionContextTraceEvent,
 ): SessionContextTraceEventSummary {
   const { detail, ...summary } = event;
+  const messageTimestamp = capturedMessageTimestamp(event);
   const promptPreview =
     detail.type === "prompt-composition"
       ? sessionContextTracePromptPreview(detail.prompt.text)
@@ -17,6 +26,32 @@ export function summarizeSessionContextTraceEvent(
   const contextUsage =
     detail.type === "prompt-composition" || detail.type === "context-snapshot"
       ? detail.contextUsage
+      : undefined;
+  const promptResources =
+    detail.type === "prompt-composition"
+      ? {
+          systemPromptCharacters: detail.systemPrompt.originalCharacters,
+          systemPromptSourceCount: detail.systemPromptSources?.length ?? 0,
+          systemPromptSources: (detail.systemPromptSources ?? []).map((source) => ({
+            kind: source.kind,
+            scope: source.scope,
+            ...(source.path ? { path: source.path } : {}),
+          })),
+          contextFileCount: detail.systemPromptOptions.contextFiles.length,
+          contextFiles: detail.systemPromptOptions.contextFiles.map((file) => file.path),
+          skills: detail.systemPromptOptions.skills.map((skill) => ({
+            name: skill.name,
+            disableModelInvocation: skill.disableModelInvocation === true,
+          })),
+          extensions: (detail.extensions ?? []).map((extension) => ({
+            name: extension.name,
+            hidden: extension.hidden,
+          })),
+          tools: {
+            active: detail.tools.filter((tool) => tool.active).map((tool) => tool.name),
+            total: detail.tools.length,
+          },
+        }
       : undefined;
   const compaction =
     detail.type === "compaction"
@@ -49,7 +84,9 @@ export function summarizeSessionContextTraceEvent(
       : undefined;
   return {
     ...summary,
+    ...(messageTimestamp === undefined ? {} : { messageTimestamp }),
     ...(promptPreview ? { promptPreview } : {}),
+    ...(promptResources ? { promptResources } : {}),
     ...(contextUsage ? { contextUsage } : {}),
     ...(compaction ? { compaction } : {}),
     ...(detail.type === "model-output"

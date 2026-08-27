@@ -18,10 +18,13 @@ import type {
   SessionContextTraceDetail,
   SessionContextTraceEvent,
   SessionContextTraceEventSummary,
+  SessionContextTraceExtension,
   SessionContextTraceJsonCapture,
   SessionContextTraceJsonValue,
   SessionContextTraceListValue,
   SessionContextTraceMessageTokenEstimates,
+  SessionContextTracePromptPart,
+  SessionContextTracePromptPartsValue,
   SessionContextTraceSystemPromptSource,
   SessionContextTraceTextCapture,
   SessionContextTraceTokenUsage,
@@ -38,6 +41,7 @@ export const SESSION_CONTEXT_TRACE_MAX_BYTES = 16 * 1024 * 1024;
 
 type TracePublisher = (event: SessionContextTraceEventSummary) => void;
 type SystemPromptSourcesResolver = () => readonly SessionContextTraceSystemPromptSource[];
+type ExtensionsResolver = () => readonly SessionContextTraceExtension[];
 
 interface PendingCompactionTrace {
   reason: "manual" | "threshold" | "overflow";
@@ -118,6 +122,33 @@ export function sessionContextTraceSystemPromptSources(
     });
   });
   return sources;
+}
+
+function extensionDisplayName(extensionPath: string): string {
+  const inline = /^<inline:(.+)>$/u.exec(extensionPath)?.[1];
+  if (inline) return inline;
+  const base = path.basename(extensionPath);
+  const extension = path.extname(base);
+  return extension ? base.slice(0, -extension.length) : base;
+}
+
+/** Projects Pi's final loaded extension inventory without retaining handler/runtime objects. */
+export function sessionContextTraceExtensions(
+  resourceLoader: ResourceLoader,
+): SessionContextTraceExtension[] {
+  return resourceLoader.getExtensions().extensions.map((extension) => ({
+    name: extensionDisplayName(extension.path),
+    path: extension.path,
+    resolvedPath: extension.resolvedPath,
+    hidden: extension.hidden === true,
+    source: {
+      path: extension.sourceInfo.path,
+      source: extension.sourceInfo.source,
+      scope: extension.sourceInfo.scope,
+      origin: extension.sourceInfo.origin,
+      ...(extension.sourceInfo.baseDir ? { baseDir: extension.sourceInfo.baseDir } : {}),
+    },
+  }));
 }
 
 function tokenUsageView(usage: Usage): SessionContextTraceTokenUsage {
@@ -296,6 +327,7 @@ export class SessionContextTrace {
   private agentAttempt: number | undefined;
   private pendingCompaction: PendingCompactionTrace | undefined;
   private systemPromptSourcesResolver: SystemPromptSourcesResolver | undefined;
+  private extensionsResolver: ExtensionsResolver | undefined;
 
   constructor(sessionId: string, publisher?: TracePublisher, journal?: SessionContextTraceJournal) {
     this.sessionId = sessionId;
@@ -318,6 +350,19 @@ export class SessionContextTrace {
   getSystemPromptSources(): readonly SessionContextTraceSystemPromptSource[] {
     try {
       return this.systemPromptSourcesResolver?.() ?? [];
+    } catch {
+      // Resource diagnostics must not interrupt a model call.
+      return [];
+    }
+  }
+
+  setExtensionsResolver(resolver: ExtensionsResolver): void {
+    this.extensionsResolver = resolver;
+  }
+
+  getExtensions(): readonly SessionContextTraceExtension[] {
+    try {
+      return this.extensionsResolver?.() ?? [];
     } catch {
       // Resource diagnostics must not interrupt a model call.
       return [];
@@ -802,6 +847,80 @@ export async function activateSessionContextTrace(
 
 export function getSessionContextTrace(sessionId: string): SessionContextTrace | undefined {
   return registry().traces.get(sessionId);
+}
+
+function promptPartsFromSummaries(
+  summaries: readonly SessionContextTraceEventSummary[],
+): SessionContextTracePromptPart[] {
+  const modelOutputsByRound = new Map<string, Array<{ order: number; messageTimestamp: number }>>();
+  summaries.forEach((event, order) => {
+    if (event.kind !== "model-output" || !event.roundId || event.messageTimestamp === undefined) {
+      return;
+    }
+    const outputs = modelOutputsByRound.get(event.roundId) ?? [];
+    outputs.push({ order, messageTimestamp: event.messageTimestamp });
+    modelOutputsByRound.set(event.roundId, outputs);
+  });
+
+  const parts: SessionContextTracePromptPart[] = [];
+  summaries.forEach((event, order) => {
+    if (event.kind !== "prompt-composition") return;
+    const output = event.roundId
+      ? modelOutputsByRound.get(event.roundId)?.find((candidate) => candidate.order > order)
+      : undefined;
+    parts.push({
+      event,
+      ...(output ? { assistantMessageTimestamp: output.messageTimestamp } : {}),
+    });
+  });
+  return parts;
+}
+
+/**
+ * Replays the durable journal without starting an idle Pi host. Only the prompt-composition
+ * projection crosses the chat-runtime boundary; all other trace details remain journal-only.
+ */
+export async function readSessionContextTracePromptParts(
+  sessionId: string,
+): Promise<SessionContextTracePromptPartsValue> {
+  const activeTrace = getSessionContextTrace(sessionId);
+  const activationValue = activeTrace
+    ? await activeTrace.activations()
+    : {
+        activations: await SessionContextTraceJournal.listActivations(sessionId),
+        capabilities: PERSISTED_SESSION_CONTEXT_TRACE_CAPABILITIES,
+      };
+  const activations = [...activationValue.activations].sort(
+    (left, right) => left.startedAt - right.startedAt,
+  );
+  const summaries: SessionContextTraceEventSummary[] = [];
+  let source: "memory" | "disk" = "disk";
+  let integrity: "memory" | "verified" = "verified";
+
+  for (const activation of activations) {
+    const limit = Math.max(1, activation.eventCount);
+    if (activeTrace) {
+      const page = await activeTrace.listActivation(activation.activationId, -1, limit);
+      summaries.push(...page.events);
+      if (page.source === "memory") source = "memory";
+      if (page.integrity === "memory") integrity = "memory";
+      continue;
+    }
+    const page = await SessionContextTraceJournal.readActivation(
+      sessionId,
+      activation.activationId,
+      -1,
+      limit,
+    );
+    summaries.push(...page.events);
+  }
+
+  return {
+    parts: promptPartsFromSummaries(summaries),
+    capabilities: activationValue.capabilities,
+    source,
+    integrity,
+  };
 }
 
 export async function releaseSessionContextTrace(

@@ -1656,6 +1656,12 @@ export const extensionsEnUS = {
       skills: "SKILLS",
       toolSchema: "TOOL SCHEMA",
     },
+    messagePart: {
+      extensions: "Extensions",
+      systemPromptSources: "System prompt injection sources",
+      activeTools: "Active tools",
+      systemPromptCharacters: "System prompt characters",
+    },
     tree: {
       turn: ({ index }: { index: number }, { number }: MessageFormatters) =>
         `Turn ${number(index)}`,

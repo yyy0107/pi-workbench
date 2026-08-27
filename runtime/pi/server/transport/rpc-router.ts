@@ -43,7 +43,10 @@ import {
   listSessions,
   notifyModelProviderConfigurationChanged,
 } from "../sessions/session-registry";
-import { getSessionContextTrace } from "../sessions/session-context-trace";
+import {
+  getSessionContextTrace,
+  readSessionContextTracePromptParts,
+} from "../sessions/session-context-trace";
 import { SessionContextTraceJournalError } from "../sessions/session-context-trace-journal";
 import { SkillService, SkillServiceError } from "../skills/skill-service";
 import { PromptService } from "../prompts/prompt-service";
@@ -480,6 +483,9 @@ const sessionContextTraceListPayload = rpcObject({
 const sessionContextTraceActivationsPayload = rpcObject({
   sessionId: nonEmptyString,
 });
+const sessionContextTracePromptPartsPayload = rpcObject({
+  sessionId: nonEmptyString,
+});
 const sessionContextTraceReadPayload = rpcObject({
   sessionId: nonEmptyString,
   traceId: rpcString({ minLength: 1, maxLength: 256 }),
@@ -852,6 +858,22 @@ export async function handlePiRpcPost(request: Request, method: string): Promise
           const trace = await requireSessionContextTrace(sessionId);
           try {
             return await trace.activations();
+          } catch (error) {
+            if (error instanceof SessionContextTraceJournalError) {
+              throw rpcBusinessError(error.code, error.message, { sessionId });
+            }
+            throw error;
+          }
+        },
+      });
+    case "session.contextTrace.promptParts":
+      return handleRpcPost(request, {
+        method,
+        payload: sessionContextTracePromptPartsPayload,
+        loopbackOnly: true,
+        handler: async ({ sessionId }) => {
+          try {
+            return await readSessionContextTracePromptParts(sessionId);
           } catch (error) {
             if (error instanceof SessionContextTraceJournalError) {
               throw rpcBusinessError(error.code, error.message, { sessionId });

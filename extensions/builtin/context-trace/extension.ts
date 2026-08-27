@@ -5,7 +5,12 @@ import {
   defineExtension,
   type WorkspaceSurfaceDefinition,
 } from "@/platform/extensions/authoring";
+import {
+  parsePiContextTraceData,
+  WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME,
+} from "@/runtime/pi/context-trace-data-part";
 
+import { ContextTraceMessagePart } from "./context-trace-message-part";
 import { ContextTraceMenuItem } from "./context-trace-menu-item";
 import { ContextTraceTrigger } from "./context-trace-trigger";
 import {
@@ -40,6 +45,18 @@ export const contextTraceExtension = defineExtension({
   name: "Context Trace",
   version: "1.0.0",
   setup(context) {
+    const dataRenderer = context.renderers.data.register(
+      WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME,
+      ContextTraceMessagePart,
+    );
+    const dataPresentation = context.renderers.dataPresentations.register(
+      WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME,
+      {
+        display: "timeline",
+        isVisible: (part) =>
+          parsePiContextTraceData(part.data)?.event.kind === "prompt-composition",
+      },
+    );
     const surface = context.workspace.register(contextTraceSurfaceDefinition);
     const opener = context.openers.register({
       id: "workbench.context-trace.open",
@@ -65,6 +82,6 @@ export const contextTraceExtension = defineExtension({
       order: 80,
       component: ContextTraceTrigger,
     });
-    return [surface, opener, trigger];
+    return [dataRenderer, dataPresentation, surface, opener, trigger];
   },
 });

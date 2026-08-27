@@ -106,6 +106,7 @@ import { estimateSessionContextBreakdown } from "./session-context-breakdown";
 import {
   activateSessionContextTrace,
   releaseSessionContextTrace,
+  sessionContextTraceExtensions,
   sessionContextTraceSystemPromptSources,
   type SessionContextTrace,
 } from "./session-context-trace";
@@ -3157,6 +3158,7 @@ async function createHost(sessionManager: SessionManager): Promise<HostedPiSessi
   contextTrace.setSystemPromptSourcesResolver(() =>
     sessionContextTraceSystemPromptSources(session.resourceLoader, cwd, services.agentDir),
   );
+  contextTrace.setExtensionsResolver(() => sessionContextTraceExtensions(session.resourceLoader));
   let host: HostedPiSession;
   try {
     await session.bindExtensions({

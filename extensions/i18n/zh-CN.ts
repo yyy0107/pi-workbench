@@ -1577,6 +1577,12 @@ export const extensionsZhCN = {
       skills: "SKILLS",
       toolSchema: "TOOL SCHEMA",
     },
+    messagePart: {
+      extensions: "Extensions",
+      systemPromptSources: "System Prompt 注入来源",
+      activeTools: "已启用工具",
+      systemPromptCharacters: "System Prompt 字符数",
+    },
     tree: {
       turn: ({ index }: { index: number }, { number }: MessageFormatters) =>
         `Turn ${number(index)}`,

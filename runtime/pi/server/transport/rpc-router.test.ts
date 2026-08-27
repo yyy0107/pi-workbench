@@ -522,6 +522,7 @@ test("validates bounded context trace cursors before activating a session", asyn
     ["session.contextTrace.list", { sessionId: "session-1", limit: 501 }],
     ["session.contextTrace.list", { sessionId: "session-1", afterSeq: -2 }],
     ["session.contextTrace.activations", { sessionId: "" }],
+    ["session.contextTrace.promptParts", { sessionId: "" }],
     ["session.contextTrace.read", { sessionId: "session-1", traceId: "" }],
   ] as const) {
     const response = await handlePiRpcPost(rpcRequest(method, payload), method);

@@ -1386,16 +1386,50 @@ export interface SessionContextTraceSkill {
   disableModelInvocation?: boolean;
 }
 
+export interface SessionContextTraceExtension {
+  /** Stable display name derived from Pi's loaded extension path. */
+  name: string;
+  path: string;
+  resolvedPath: string;
+  hidden: boolean;
+  source: SessionContextTraceResourceSource;
+}
+
+/** Serializable identity of one System Prompt layer, without copying its content into a Part. */
+export interface SessionContextTraceSystemPromptSourceSummary {
+  kind: "builtin" | "replacement" | "append";
+  scope: "builtin" | "user" | "project" | "temporary";
+  path?: string;
+}
+
+/** Bounded, non-payload projection copied onto prompt-composition summaries and message Parts. */
+export interface SessionContextTracePromptResources {
+  systemPromptCharacters: number;
+  systemPromptSourceCount: number;
+  systemPromptSources: SessionContextTraceSystemPromptSourceSummary[];
+  contextFileCount: number;
+  contextFiles: string[];
+  skills: Array<{
+    name: string;
+    disableModelInvocation: boolean;
+  }>;
+  extensions: Array<{
+    name: string;
+    hidden: boolean;
+  }>;
+  tools: {
+    active: string[];
+    total: number;
+  };
+}
+
 export interface SessionContextTraceContextFile {
   path: string;
   content: SessionContextTraceTextCapture;
 }
 
 /** One Pi system-prompt layer, kept separate from Skills and other injected context. */
-export interface SessionContextTraceSystemPromptSource {
-  kind: "builtin" | "replacement" | "append";
-  scope: "builtin" | "user" | "project" | "temporary";
-  path?: string;
+export interface SessionContextTraceSystemPromptSource extends SessionContextTraceSystemPromptSourceSummary {
   content?: SessionContextTraceTextCapture;
 }
 
@@ -1460,8 +1494,12 @@ export interface SessionContextTraceEventSummary extends SessionContextTraceCoor
   /** Present on finalized model output summaries. */
   model?: SessionContextTraceModel;
   thinkingLevel?: string;
+  /** Pi assistant-message timestamp used only to correlate durable trace summaries with history. */
+  messageTimestamp?: number;
   /** Bounded user-prompt excerpt present only on prompt-composition summaries. */
   promptPreview?: string;
+  /** Final resource inventory used to compose this prompt, without prompt/tool payload bodies. */
+  promptResources?: SessionContextTracePromptResources;
   /** Present on prompt composition and per-call context snapshots when Pi can estimate it. */
   contextUsage?: SessionContextTraceContextUsage;
   /** Present on compaction events so list consumers can render the before/after transition. */
@@ -1488,6 +1526,8 @@ export type SessionContextTraceDetail =
       thinkingLevel?: string;
       contextUsage?: SessionContextTraceContextUsage;
       tools: SessionContextTraceTool[];
+      /** Final Pi extension inventory at the same observation boundary. */
+      extensions?: SessionContextTraceExtension[];
     }
   | { type: "run-start" }
   | { type: "turn-start"; timestamp?: number }
@@ -1647,6 +1687,23 @@ export interface SessionContextTraceReadPayload {
 
 export interface SessionContextTraceReadValue {
   event: SessionContextTraceEvent;
+}
+
+/** Durable prompt-composition summary projected onto its owning Pi assistant message. */
+export interface SessionContextTracePromptPart {
+  event: SessionContextTraceEventSummary;
+  assistantMessageTimestamp?: number;
+}
+
+export interface SessionContextTracePromptPartsPayload {
+  sessionId: string;
+}
+
+export interface SessionContextTracePromptPartsValue {
+  parts: SessionContextTracePromptPart[];
+  capabilities: SessionContextTraceCapabilities;
+  source: "memory" | "disk";
+  integrity: "memory" | "verified";
 }
 
 export interface SessionHistoryBranch {

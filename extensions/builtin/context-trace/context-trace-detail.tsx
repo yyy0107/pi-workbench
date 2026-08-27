@@ -23,7 +23,6 @@ import type {
   SessionContextTraceEvent,
   SessionContextTraceEventSummary,
   SessionContextTraceJsonCapture,
-  SessionContextTraceKind,
   SessionContextTraceSystemPromptSource,
   SessionContextTraceTextCapture,
   SessionContextTraceTokenUsage,
@@ -38,6 +37,9 @@ import {
   type ContextTraceMessageRole,
 } from "./context-trace-messages";
 import { contextTraceSelectedRawValue } from "./context-trace-detail-selection";
+import { contextTraceEventLabel } from "./context-trace-event-label";
+
+export { contextTraceEventLabel } from "./context-trace-event-label";
 
 export type ContextTraceDetailState =
   | { status: "idle" }
@@ -124,41 +126,6 @@ export function contextTraceDetailViews(
   return contextTraceDetailVariant(summary, focus) === "tool-execution"
     ? (["summary", "payload", "result", "schema", "timing"] as const)
     : (["summary", "preview", "raw", "source"] as const);
-}
-
-export function contextTraceEventLabel(t: Translate, kind: SessionContextTraceKind): string {
-  switch (kind) {
-    case "round-start":
-      return t("extensions.contextTrace.events.roundStart");
-    case "prompt-composition":
-      return t("extensions.contextTrace.events.promptComposition");
-    case "run-start":
-      return t("extensions.contextTrace.events.runStart");
-    case "turn-start":
-      return t("extensions.contextTrace.events.turnStart");
-    case "context-snapshot":
-      return t("extensions.contextTrace.events.contextSnapshot");
-    case "provider-request":
-      return t("extensions.contextTrace.events.providerRequest");
-    case "provider-response":
-      return t("extensions.contextTrace.events.providerResponse");
-    case "model-output":
-      return t("extensions.contextTrace.events.modelOutput");
-    case "tool-execution-start":
-      return t("extensions.contextTrace.events.toolExecutionStart");
-    case "tool-execution-end":
-      return t("extensions.contextTrace.events.toolExecutionEnd");
-    case "turn-end":
-      return t("extensions.contextTrace.events.turnEnd");
-    case "run-end":
-      return t("extensions.contextTrace.events.runEnd");
-    case "retry":
-      return t("extensions.contextTrace.events.retry");
-    case "compaction":
-      return t("extensions.contextTrace.events.compaction");
-    case "round-settled":
-      return t("extensions.contextTrace.events.roundSettled");
-  }
 }
 
 function formatPrimitive(value: string | number | boolean | null | undefined): string {

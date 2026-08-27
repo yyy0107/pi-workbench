@@ -47,6 +47,15 @@ import type {
 } from "../../contracts";
 import { stripWorkspaceFeedbackContext } from "@/services/workspace-feedback-service";
 import { PI_CONVERSATION_EVENT_CUSTOM_TYPE } from "../../contracts";
+import {
+  parsePiContextTraceData,
+  piContextTraceData,
+  WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME,
+} from "../../context-trace-data-part";
+import type {
+  SessionContextTraceEventSummary,
+  SessionContextTracePromptPart,
+} from "../../rpc-contracts";
 import { terminationFromAssistantMessage } from "../../message-termination";
 
 import { parsePiConversationEvent } from "./conversation-events";
@@ -65,6 +74,192 @@ function isRecognitionDataName(name: string): boolean {
   return (
     name === WORKBENCH_ATTACHMENT_RECOGNITION_DATA_NAME ||
     name === WORKBENCH_IMAGE_RECOGNITION_DATA_NAME
+  );
+}
+
+function isPiContextTracePart(part: ThreadAssistantMessage["content"][number]): boolean {
+  return part.type === "data" && part.name === WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME;
+}
+
+function piContextTraceId(part: ThreadAssistantMessage["content"][number]): string | undefined {
+  if (!isPiContextTracePart(part) || part.type !== "data") return undefined;
+  return parsePiContextTraceData(part.data)?.event.traceId;
+}
+
+function isPiContextTracePromptPart(part: ThreadAssistantMessage["content"][number]): boolean {
+  if (!isPiContextTracePart(part) || part.type !== "data") return false;
+  return parsePiContextTraceData(part.data)?.event.kind === "prompt-composition";
+}
+
+export function appendPiContextTraceAssistantPart(
+  message: ThreadAssistantMessage,
+  event: SessionContextTraceEventSummary,
+): ThreadAssistantMessage {
+  if (event.kind !== "prompt-composition") return message;
+  if (message.content.some((part) => piContextTraceId(part) === event.traceId)) return message;
+  const part = {
+    type: "data" as const,
+    name: WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME,
+    data: piContextTraceData(event),
+  };
+  const emptyStreamingPlaceholder =
+    message.status.type === "running" &&
+    message.content.length === 1 &&
+    message.content[0]?.type === "text" &&
+    message.content[0].text === "";
+  return {
+    ...message,
+    content: emptyStreamingPlaceholder ? [part, ...message.content] : [...message.content, part],
+  };
+}
+
+/**
+ * Pi streams cumulative assistant messages. Rebuilding the message must update Pi-native parts
+ * while retaining trace Data Parts at the native-part boundary where each event was observed.
+ */
+export function reconcilePiContextTraceAssistantParts(
+  message: ThreadAssistantMessage,
+  previous: ThreadAssistantMessage,
+): ThreadAssistantMessage {
+  const anchored: Array<{
+    anchor: number;
+    part: ThreadAssistantMessage["content"][number];
+  }> = [];
+  const seen = new Set<string>();
+  let nativePartCount = 0;
+  for (const part of previous.content) {
+    const traceId = piContextTraceId(part);
+    if (traceId) {
+      if (isPiContextTracePromptPart(part) && !seen.has(traceId)) {
+        anchored.push({ anchor: nativePartCount, part });
+      }
+      seen.add(traceId);
+      continue;
+    }
+    if (part.type === "data" && isRecognitionDataName(part.name)) continue;
+    if (part.type === "text" && part.text === "" && previous.status.type === "running") continue;
+    nativePartCount += 1;
+  }
+  if (anchored.length === 0) return message;
+
+  const nativeContent = message.content.filter((part) => !isPiContextTracePart(part));
+  const content: ThreadAssistantMessage["content"][number][] = [];
+  let nativeIndex = 0;
+  let anchoredIndex = 0;
+  const appendAnchored = () => {
+    while (anchored[anchoredIndex]?.anchor === nativeIndex) {
+      const item = anchored[anchoredIndex];
+      if (item) content.push(item.part);
+      anchoredIndex += 1;
+    }
+  };
+
+  for (const part of nativeContent) {
+    if (part.type === "data" && isRecognitionDataName(part.name)) {
+      content.push(part);
+      continue;
+    }
+    appendAnchored();
+    content.push(part);
+    if (!(part.type === "text" && part.text === "" && message.status.type === "running")) {
+      nativeIndex += 1;
+    }
+  }
+  appendAnchored();
+  while (anchoredIndex < anchored.length) {
+    const item = anchored[anchoredIndex];
+    if (item) content.push(item.part);
+    anchoredIndex += 1;
+  }
+  return { ...message, content };
+}
+
+function assistantMessageTimestamp(message: ThreadAssistantMessage): number | undefined {
+  const value = message.metadata.custom.piMessageTimestamp;
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+/** Retains live trace Parts when an authoritative Pi history refresh replaces the same message. */
+export function mergePiContextTracePartsFromMessages(
+  messages: readonly ThreadMessage[],
+  previousMessages: readonly ThreadMessage[],
+): ThreadMessage[] {
+  const previousByTimestamp = new Map<number, ThreadAssistantMessage>();
+  for (const candidate of previousMessages) {
+    if (candidate.role !== "assistant" || !candidate.content.some(isPiContextTracePromptPart)) {
+      continue;
+    }
+    const timestamp = assistantMessageTimestamp(candidate);
+    if (timestamp !== undefined) previousByTimestamp.set(timestamp, candidate);
+  }
+  if (previousByTimestamp.size === 0) return messages as ThreadMessage[];
+
+  let changed = false;
+  const projected = messages.map((message) => {
+    if (message.role !== "assistant") return message;
+    const timestamp = assistantMessageTimestamp(message);
+    const previous = timestamp === undefined ? undefined : previousByTimestamp.get(timestamp);
+    if (!previous) return message;
+    changed = true;
+    return reconcilePiContextTraceAssistantParts(message, previous);
+  });
+  return changed ? projected : (messages as ThreadMessage[]);
+}
+
+/** Rehydrates durable prompt-composition summaries before their owning Pi message content. */
+export function projectPiContextTracePromptParts(
+  messages: readonly ThreadMessage[],
+  promptParts: readonly SessionContextTracePromptPart[],
+): ThreadMessage[] {
+  const eventsByTimestamp = new Map<number, SessionContextTraceEventSummary[]>();
+  for (const part of promptParts) {
+    if (part.event.kind !== "prompt-composition" || part.assistantMessageTimestamp === undefined) {
+      continue;
+    }
+    const events = eventsByTimestamp.get(part.assistantMessageTimestamp) ?? [];
+    events.push(part.event);
+    eventsByTimestamp.set(part.assistantMessageTimestamp, events);
+  }
+  if (eventsByTimestamp.size === 0) return messages as ThreadMessage[];
+
+  let changed = false;
+  const projected = messages.map((message) => {
+    if (message.role !== "assistant") return message;
+    const timestamp = assistantMessageTimestamp(message);
+    const events = timestamp === undefined ? undefined : eventsByTimestamp.get(timestamp);
+    if (!events?.length) return message;
+
+    const existingTraceIds = new Set(
+      message.content.flatMap((part) => {
+        const traceId = piContextTraceId(part);
+        return traceId ? [traceId] : [];
+      }),
+    );
+    const traceContent = events.flatMap((event) =>
+      existingTraceIds.has(event.traceId)
+        ? []
+        : [
+            {
+              type: "data" as const,
+              name: WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME,
+              data: piContextTraceData(event),
+            },
+          ],
+    );
+    if (traceContent.length === 0) return message;
+    changed = true;
+    return { ...message, content: [...traceContent, ...message.content] };
+  });
+  return changed ? projected : (messages as ThreadMessage[]);
+}
+
+export function isPiContextTraceOnlyAssistant(message: ThreadMessage): boolean {
+  return (
+    message.role === "assistant" &&
+    message.content.some(isPiContextTracePart) &&
+    message.content.every(
+      (part) => isPiContextTracePart(part) || (part.type === "text" && part.text === ""),
+    )
   );
 }
 
@@ -939,6 +1134,7 @@ export function piHistoryToThreadMessages(
   history: PiSessionHistory,
   timingByTimestamp?: ReadonlyMap<number, MessageTiming>,
   toolTimingById?: ReadonlyMap<string, ToolCallTiming>,
+  contextTracePromptParts: readonly SessionContextTracePromptPart[] = [],
 ): ThreadMessage[] {
   const messages: ThreadMessage[] = [];
   const entryIdCounts = new Map<string, number>();
@@ -1292,7 +1488,9 @@ export function piHistoryToThreadMessages(
       snapshot,
     );
   }
-  return coalesceConsecutiveAssistantMessages(chronologicallyProjectedMessages);
+  return coalesceConsecutiveAssistantMessages(
+    projectPiContextTracePromptParts(chronologicallyProjectedMessages, contextTracePromptParts),
+  );
 }
 
 export function sameUserPrompt(left: ThreadUserMessage, right: ThreadUserMessage): boolean {

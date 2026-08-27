@@ -26,6 +26,7 @@ const { SessionContextTraceJournal, SessionContextTraceJournalError } = (await i
 const {
   captureSessionContextTraceJson,
   captureSessionContextTraceText,
+  readSessionContextTracePromptParts,
   SessionContextTrace,
   SESSION_CONTEXT_TRACE_MAX_EVENTS,
 } = (await import(
@@ -82,6 +83,87 @@ function turnEndEvent(): SessionContextTraceEvent {
         cacheRead: 800,
         cacheWrite: 75,
         totalTokens: 1_000,
+      },
+    },
+  };
+}
+
+function promptCompositionEvent(
+  sessionId: string,
+  activationId: string,
+  roundId: string,
+): SessionContextTraceEvent {
+  return {
+    schemaVersion: 1,
+    traceId: `${activationId}:0`,
+    sessionId,
+    activationId,
+    seq: 0,
+    time: 1_000,
+    kind: "prompt-composition",
+    detailBytes: 128,
+    truncated: false,
+    redacted: false,
+    roundId,
+    detail: {
+      type: "prompt-composition",
+      prompt: captureSessionContextTraceText("Persist this prompt composition"),
+      systemPrompt: captureSessionContextTraceText("system"),
+      systemPromptSources: [
+        {
+          kind: "replacement",
+          scope: "user",
+          path: "/agent/SYSTEM.md",
+          content: captureSessionContextTraceText("user system prompt"),
+        },
+      ],
+      systemPromptOptions: {
+        cwd: "/workspace",
+        contextFiles: [
+          {
+            path: "/workspace/AGENTS.md",
+            content: captureSessionContextTraceText("project instructions"),
+          },
+        ],
+        skills: [],
+      },
+      images: captureSessionContextTraceJson([]),
+      tools: [],
+    },
+  };
+}
+
+function modelOutputEvent(
+  sessionId: string,
+  activationId: string,
+  roundId: string,
+  timestamp: number,
+): SessionContextTraceEvent {
+  return {
+    schemaVersion: 1,
+    traceId: `${activationId}:1`,
+    sessionId,
+    activationId,
+    seq: 1,
+    time: 2_000,
+    kind: "model-output",
+    detailBytes: 128,
+    truncated: false,
+    redacted: false,
+    roundId,
+    detail: {
+      type: "model-output",
+      message: captureSessionContextTraceJson({
+        role: "assistant",
+        content: [{ type: "text", text: "Done" }],
+        timestamp,
+      }),
+      usage: {
+        input: 1,
+        output: 1,
+        cacheRead: 0,
+        cacheWrite: 0,
+        totalTokens: 2,
       },
     },
   };
@@ -171,6 +253,38 @@ test("reports a stable not-found code for a missing activation", async (t) => {
     (error: unknown) =>
       error instanceof SessionContextTraceJournalError && error.code === "context-trace-not-found",
   );
+});
+
+test("replays only durable prompt-composition Parts without starting a live trace", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-context-trace-prompt-parts-"));
+  const previousRoot = process.env.PI_WORKBENCH_CONTEXT_TRACE_DIR;
+  process.env.PI_WORKBENCH_CONTEXT_TRACE_DIR = root;
+  t.after(async () => {
+    if (previousRoot === undefined) delete process.env.PI_WORKBENCH_CONTEXT_TRACE_DIR;
+    else process.env.PI_WORKBENCH_CONTEXT_TRACE_DIR = previousRoot;
+    await rm(root, { recursive: true, force: true });
+  });
+
+  const sessionId = "session-prompt-parts";
+  const activationId = "activation-prompt-parts";
+  const roundId = "round-prompt-parts";
+  const journal = await SessionContextTraceJournal.create(sessionId, activationId);
+  journal.append(promptCompositionEvent(sessionId, activationId, roundId));
+  journal.append(modelOutputEvent(sessionId, activationId, roundId, 42_000));
+  await journal.close();
+
+  const value = await readSessionContextTracePromptParts(sessionId);
+
+  assert.equal(value.source, "disk");
+  assert.equal(value.integrity, "verified");
+  assert.equal(value.parts.length, 1);
+  assert.equal(value.parts[0]?.event.kind, "prompt-composition");
+  assert.equal(value.parts[0]?.event.promptPreview, "Persist this prompt composition");
+  assert.deepEqual(value.parts[0]?.event.promptResources?.systemPromptSources, [
+    { kind: "replacement", scope: "user", path: "/agent/SYSTEM.md" },
+  ]);
+  assert.deepEqual(value.parts[0]?.event.promptResources?.contextFiles, ["/workspace/AGENTS.md"]);
+  assert.equal(value.parts[0]?.assistantMessageTimestamp, 42_000);
 });
 
 test("rebuilds current activation prompt previews from one journal list page", async (t) => {
