@@ -523,26 +523,6 @@ export const extensionsZhCN = {
     loadingMore: "正在加载更多模型",
     contextWindow: ({ count }: { count: number }, { number }: MessageFormatters) =>
       `${number(count, { notation: "compact", maximumFractionDigits: 1 })} 上下文窗口`,
-    contextBudget: "上下文预算",
-    contextBudgetValue: ({ mode, tokens }: { mode: string; tokens: string }) =>
-      `${mode} · ${tokens}`,
-    customContextBudget: "自定义上下文预算",
-    applyContextBudget: "应用",
-    customContextBudgetInvalid: ({ tokens }: { tokens: string }) =>
-      `请输入不超过当前模型 ${tokens} token 容量的整数。`,
-    contextBudgetSaveFailed: "无法更新会话上下文预算，请重试。",
-    contextBudgetModes: {
-      inherit: "继承",
-      auto: "自动",
-      maximum: "最大",
-      custom: "自定义",
-    },
-    contextBudgetDescriptions: {
-      inherit: "使用共享的上下文与压缩默认值。",
-      auto: "跟随各模型容量，并保持自动压缩开启。",
-      maximum: "使用当前所选模型已配置的完整容量。",
-      custom: "固定会话预算，但不会超过所选模型容量。",
-    },
     off: "关闭",
     minimal: "最低",
     low: "低",
@@ -2108,9 +2088,6 @@ export const extensionsZhCN = {
     estimatedTokenValue: ({ tokens }: { tokens: string }) => `~${tokens}`,
     nearingCompaction: "上下文已接近自动压缩点；压缩时 Pi 会尽量保留近期工作内容。",
     modelInputBreakdown: "模型输入构成",
-    breakdownProviderReconciled:
-      "各分项按内容估算，并已对齐当前上下文总占用；Provider 的实际分词可能略有差异。",
-    breakdownHeuristic: "Provider 尚未返回可用占用，各分项和总量均按约 4 字符/token 估算。",
     breakdownGroups: {
       instructions: "指令与上下文",
       tools: "工具 Schema",
@@ -2129,6 +2106,8 @@ export const extensionsZhCN = {
       other: "其他模型输入",
     },
     contextBudget: "会话上下文预算",
+    contextBudgetControlLabel: ({ mode, tokens }: { mode: string; tokens: string }) =>
+      `会话上下文预算：${mode}，${tokens}`,
     customContextBudget: "自定义会话上下文预算",
     applyContextBudget: "应用",
     customContextBudgetInvalid: ({ tokens }: { tokens: string }) =>

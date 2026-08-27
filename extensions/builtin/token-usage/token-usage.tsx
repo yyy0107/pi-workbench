@@ -1,10 +1,18 @@
 "use client";
 
 import { useAuiState } from "@assistant-ui/react";
-import { GaugeIcon, ScanSearchIcon, TriangleAlertIcon } from "lucide-react";
+import {
+  ChevronDownIcon,
+  ChevronRightIcon,
+  GaugeIcon,
+  ScanSearchIcon,
+  TriangleAlertIcon,
+} from "lucide-react";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
+import { ScrollCompensatedDetails } from "@/components/elements/scroll-compensated-details";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuRadioGroup } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { useOpenerService, useWorkspaceContext } from "@/components/right-workspace";
 import {
@@ -15,6 +23,11 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  SettingsDropdownContent,
+  SettingsDropdownRadioItem,
+  SettingsDropdownTrigger,
+} from "@/components/ui/settings-control";
 import { useI18n } from "@/i18n";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { formatAdaptiveDuration, formatCompactDuration } from "@/lib/format-duration";
@@ -60,6 +73,13 @@ const CONTEXT_BREAKDOWN_GROUPS = [
   categories: readonly SessionContextBreakdownCategory[];
   colorClassName: string;
 }>;
+
+const CONTEXT_BUDGET_MODES = [
+  "inherit",
+  "auto",
+  "maximum",
+  "custom",
+] as const satisfies readonly SessionContextPolicy["mode"][];
 
 type ContextActionErrorMessageKey =
   | "extensions.tokenUsage.contextActionBusy"
@@ -204,6 +224,7 @@ function ThreadTokenUsage() {
   const workspaceContext = useWorkspaceContext();
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [customBudget, setCustomBudget] = useState("");
+  const [customBudgetEditing, setCustomBudgetEditing] = useState(false);
   const [contextActionError, setContextActionError] = useState<unknown>(null);
   const currentTime = useLiveStatisticsTime(isRunning);
   const currentStatistics = useMemo(
@@ -239,6 +260,8 @@ function ThreadTokenUsage() {
   const unavailable = t("extensions.tokenUsage.unavailable");
   const description = t("extensions.tokenUsage.description");
   const context = contextPolicy.value;
+  const contextBudgetMode = context?.policy.mode ?? "inherit";
+  const selectedContextBudgetMode = customBudgetEditing ? "custom" : contextBudgetMode;
   const modelCapacity = context?.model?.capacity;
   const parsedCustomBudget = Number(customBudget);
   const invalidCustomBudget =
@@ -248,6 +271,13 @@ function ThreadTokenUsage() {
     parsedCustomBudget > modelCapacity;
   const contextTokens = context?.usage.tokens;
   const contextBudget = context?.model?.effectiveBudget;
+  const displayedContextBudget =
+    customBudgetEditing && !invalidCustomBudget ? parsedCustomBudget : contextBudget;
+  const selectedContextBudgetModeLabel = t(
+    `extensions.tokenUsage.contextBudgetModes.${selectedContextBudgetMode}`,
+  );
+  const displayedContextBudgetLabel =
+    displayedContextBudget === undefined ? unavailable : compactTokens(displayedContextBudget);
   const contextPercent = context?.usage.percent;
   const contextBreakdown = context?.breakdown;
   const contextBreakdownItems = new Map(
@@ -307,6 +337,7 @@ function ThreadTokenUsage() {
           "",
       ),
     );
+    setCustomBudgetEditing(false);
     setContextActionError(null);
   }, [
     context?.model?.capacity,
@@ -321,6 +352,21 @@ function ThreadTokenUsage() {
   const updateContextPolicy = (policy: SessionContextPolicy) => {
     setContextActionError(null);
     void contextPolicy.update(policy).catch((error: unknown) => setContextActionError(error));
+  };
+
+  const selectContextBudgetMode = (mode: SessionContextPolicy["mode"]) => {
+    if (mode === "custom") {
+      setCustomBudgetEditing(true);
+      setContextActionError(null);
+      return;
+    }
+    setCustomBudgetEditing(false);
+    updateContextPolicy({
+      mode,
+      ...(mode === "inherit" || !context?.policy.compaction
+        ? {}
+        : { compaction: context.policy.compaction }),
+    });
   };
 
   const contextActionFailure =
@@ -435,16 +481,20 @@ function ThreadTokenUsage() {
 
           {contextBreakdown ? (
             <div
-              className="space-y-3"
+              className="space-y-1"
               role="list"
               aria-label={t("extensions.tokenUsage.modelInputBreakdown")}
             >
               {contextBreakdownGroups.map((group) => (
-                <section key={group.id} role="listitem">
-                  <div className="flex items-center gap-2.5 text-sm">
+                <ScrollCompensatedDetails key={group.id} role="listitem" className="group">
+                  <summary className="hover:bg-muted/60 focus-visible:ring-ring -mx-1 flex min-h-7 cursor-pointer list-none items-center gap-1.5 rounded-md px-1 text-xs outline-none focus-visible:ring-2 [&::-webkit-details-marker]:hidden">
+                    <ChevronRightIcon
+                      aria-hidden="true"
+                      className="text-muted-foreground size-3 shrink-0 transition-transform group-open:rotate-90"
+                    />
                     <span
                       aria-hidden="true"
-                      className={`size-3 shrink-0 rounded-[3px] ${group.colorClassName}`}
+                      className={`size-2.5 shrink-0 rounded-[3px] ${group.colorClassName}`}
                     />
                     <span className="min-w-0 flex-1">
                       {t(`extensions.tokenUsage.breakdownGroups.${group.id}`)}
@@ -454,8 +504,8 @@ function ThreadTokenUsage() {
                         tokens: compactTokens(group.tokens),
                       })}
                     </span>
-                  </div>
-                  <div className="text-muted-foreground mt-1.5 ml-5.5 grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 text-[11px] leading-4">
+                  </summary>
+                  <div className="text-muted-foreground mt-0.5 ml-7 grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-0.5 text-[11px] leading-4">
                     {group.categories.map((category) => {
                       const tokens = contextBreakdownItems.get(category)?.tokens ?? 0;
                       return (
@@ -470,106 +520,113 @@ function ThreadTokenUsage() {
                       );
                     })}
                   </div>
-                </section>
+                </ScrollCompensatedDetails>
               ))}
-              <p className="text-muted-foreground text-[11px] leading-4">
-                {contextBreakdown.basis === "provider-reconciled"
-                  ? t("extensions.tokenUsage.breakdownProviderReconciled")
-                  : t("extensions.tokenUsage.breakdownHeuristic")}
-              </p>
             </div>
           ) : null}
 
-          <div className="border-t pt-3">
-            <p className="text-xs font-medium">{t("extensions.tokenUsage.contextBudget")}</p>
-            <div className="mt-2 grid grid-cols-4 gap-1" role="radiogroup">
-              {(["inherit", "auto", "maximum", "custom"] as const).map((mode) => (
-                <Button
-                  key={mode}
-                  type="button"
-                  size="sm"
-                  variant={context?.policy.mode === mode ? "default" : "outline"}
-                  role="radio"
-                  aria-checked={context?.policy.mode === mode}
-                  className="h-7 rounded-full px-2 text-xs"
+          <div className="border-t pt-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-medium">{t("extensions.tokenUsage.contextBudget")}</p>
+              <DropdownMenu>
+                <SettingsDropdownTrigger
+                  aria-label={t("extensions.tokenUsage.contextBudgetControlLabel", {
+                    mode: selectedContextBudgetModeLabel,
+                    tokens: displayedContextBudgetLabel,
+                  })}
+                  className="h-7 min-w-28 justify-between gap-1.5 px-2.5 text-xs"
                   disabled={
-                    isRunning ||
-                    contextPolicy.status === "saving" ||
-                    !remoteId ||
-                    (mode === "custom" && invalidCustomBudget)
+                    isRunning || contextPolicy.status === "saving" || !remoteId || !context?.model
                   }
-                  onClick={() => {
-                    if (mode === "custom") {
-                      if (!invalidCustomBudget) {
-                        updateContextPolicy({
-                          mode,
-                          desiredContextTokens: parsedCustomBudget,
-                          ...(context?.policy.compaction
-                            ? { compaction: context.policy.compaction }
-                            : {}),
-                        });
-                      }
-                      return;
-                    }
-                    updateContextPolicy({
-                      mode,
-                      ...(mode === "inherit" || !context?.policy.compaction
-                        ? {}
-                        : { compaction: context.policy.compaction }),
-                    });
-                  }}
                 >
-                  {t(`extensions.tokenUsage.contextBudgetModes.${mode}`)}
-                </Button>
-              ))}
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    <span>{selectedContextBudgetModeLabel}</span>
+                    <span className="text-muted-foreground tabular-nums">
+                      {displayedContextBudgetLabel}
+                    </span>
+                  </span>
+                  <ChevronDownIcon
+                    aria-hidden="true"
+                    className="text-muted-foreground size-3 shrink-0"
+                  />
+                </SettingsDropdownTrigger>
+                <SettingsDropdownContent align="end" side="bottom">
+                  <DropdownMenuRadioGroup
+                    value={selectedContextBudgetMode}
+                    aria-label={t("extensions.tokenUsage.contextBudget")}
+                    onValueChange={(nextMode) => {
+                      const mode = CONTEXT_BUDGET_MODES.find((candidate) => candidate === nextMode);
+                      if (mode) selectContextBudgetMode(mode);
+                    }}
+                  >
+                    {CONTEXT_BUDGET_MODES.map((mode) => (
+                      <SettingsDropdownRadioItem
+                        key={mode}
+                        value={mode}
+                        className="min-h-7 py-1 text-xs"
+                        disabled={isRunning || contextPolicy.status === "saving" || !remoteId}
+                      >
+                        {t(`extensions.tokenUsage.contextBudgetModes.${mode}`)}
+                      </SettingsDropdownRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </SettingsDropdownContent>
+              </DropdownMenu>
             </div>
-            <div className="mt-2 flex gap-2">
-              <Input
-                inputMode="numeric"
-                pattern="[0-9]*"
-                value={customBudget}
-                disabled={isRunning || contextPolicy.status === "saving" || !modelCapacity}
-                aria-label={t("extensions.tokenUsage.customContextBudget")}
-                aria-invalid={invalidCustomBudget}
-                aria-describedby={
-                  invalidCustomBudget ? "statusbar-context-budget-validation" : undefined
-                }
-                className="h-8 tabular-nums"
-                onChange={(event) => {
-                  setCustomBudget(event.currentTarget.value.replace(/\D+/gu, ""));
-                  setContextActionError(null);
-                }}
-              />
-              <Button
-                type="button"
-                size="sm"
-                className="h-8 rounded-full"
-                disabled={
-                  isRunning || contextPolicy.status === "saving" || invalidCustomBudget || !remoteId
-                }
-                onClick={() =>
-                  updateContextPolicy({
-                    mode: "custom",
-                    desiredContextTokens: parsedCustomBudget,
-                    ...(context?.policy.compaction
-                      ? { compaction: context.policy.compaction }
-                      : {}),
-                  })
-                }
-              >
-                {t("extensions.tokenUsage.applyContextBudget")}
-              </Button>
-            </div>
-            {invalidCustomBudget && modelCapacity ? (
-              <p
-                id="statusbar-context-budget-validation"
-                className="text-destructive mt-1 text-xs"
-                role="alert"
-              >
-                {t("extensions.tokenUsage.customContextBudgetInvalid", {
-                  tokens: number(modelCapacity),
-                })}
-              </p>
+            {selectedContextBudgetMode === "custom" && modelCapacity ? (
+              <div className="mt-1.5">
+                <div className="flex gap-2">
+                  <Input
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={customBudget}
+                    disabled={isRunning || contextPolicy.status === "saving"}
+                    aria-label={t("extensions.tokenUsage.customContextBudget")}
+                    aria-invalid={invalidCustomBudget}
+                    aria-describedby={
+                      invalidCustomBudget ? "statusbar-context-budget-validation" : undefined
+                    }
+                    className="h-7 text-xs tabular-nums"
+                    onChange={(event) => {
+                      setCustomBudget(event.currentTarget.value.replace(/\D+/gu, ""));
+                      setContextActionError(null);
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="rounded-full"
+                    disabled={
+                      isRunning ||
+                      contextPolicy.status === "saving" ||
+                      invalidCustomBudget ||
+                      !remoteId
+                    }
+                    onClick={() =>
+                      updateContextPolicy({
+                        mode: "custom",
+                        desiredContextTokens: parsedCustomBudget,
+                        ...(context?.policy.compaction
+                          ? { compaction: context.policy.compaction }
+                          : {}),
+                      })
+                    }
+                  >
+                    {t("extensions.tokenUsage.applyContextBudget")}
+                  </Button>
+                </div>
+                {invalidCustomBudget ? (
+                  <p
+                    id="statusbar-context-budget-validation"
+                    className="text-destructive mt-1 text-[11px] leading-4"
+                    role="alert"
+                  >
+                    {t("extensions.tokenUsage.customContextBudgetInvalid", {
+                      tokens: number(modelCapacity),
+                    })}
+                  </p>
+                ) : null}
+              </div>
             ) : null}
           </div>
 

@@ -533,26 +533,6 @@ export const extensionsEnUS = {
     loadingMore: "Loading more models",
     contextWindow: ({ count }: { count: number }, { number }: MessageFormatters) =>
       `${number(count, { notation: "compact", maximumFractionDigits: 1 })} context window`,
-    contextBudget: "Context budget",
-    contextBudgetValue: ({ mode, tokens }: { mode: string; tokens: string }) =>
-      `${mode} · ${tokens}`,
-    customContextBudget: "Custom context budget",
-    applyContextBudget: "Apply",
-    customContextBudgetInvalid: ({ tokens }: { tokens: string }) =>
-      `Enter a whole number no greater than this model's ${tokens}-token capacity.`,
-    contextBudgetSaveFailed: "Could not update the session context budget. Try again.",
-    contextBudgetModes: {
-      inherit: "Inherit",
-      auto: "Auto",
-      maximum: "Maximum",
-      custom: "Custom",
-    },
-    contextBudgetDescriptions: {
-      inherit: "Use the shared context and compaction defaults.",
-      auto: "Follow each model's capacity and keep automatic compaction on.",
-      maximum: "Use each selected model's full configured capacity.",
-      custom: "Pin a session budget, capped by the selected model's capacity.",
-    },
     off: "Off",
     minimal: "Minimal",
     low: "Low",
@@ -2195,10 +2175,6 @@ export const extensionsEnUS = {
     nearingCompaction:
       "Context is approaching the automatic compaction point. Pi will preserve recent work when it compacts.",
     modelInputBreakdown: "Model input composition",
-    breakdownProviderReconciled:
-      "Each part is content-estimated and reconciled to current context usage. Provider tokenization can differ slightly.",
-    breakdownHeuristic:
-      "Provider usage is not available yet. Parts and total use an estimate of about 4 characters per token.",
     breakdownGroups: {
       instructions: "Instructions and context",
       tools: "Tool schemas",
@@ -2217,6 +2193,8 @@ export const extensionsEnUS = {
       other: "Other model input",
     },
     contextBudget: "Session context budget",
+    contextBudgetControlLabel: ({ mode, tokens }: { mode: string; tokens: string }) =>
+      `Session context budget: ${mode}, ${tokens}`,
     customContextBudget: "Custom session context budget",
     applyContextBudget: "Apply",
     customContextBudgetInvalid: ({ tokens }: { tokens: string }) =>
