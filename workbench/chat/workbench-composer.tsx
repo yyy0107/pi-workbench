@@ -1013,135 +1013,134 @@ export function WorkbenchComposer() {
                 isNewThread && "relative z-10 -mt-px",
               )}
             >
-              <fieldset
-                disabled={!canCompose}
-                className="flex min-h-[var(--composer-height)] flex-1 flex-col gap-2 pt-2 transition-opacity [&>.aui-composer-attachments]:px-3"
-              >
-                <ComposerWorkspaceFeedback />
-                <ComposerAttachments />
-                <div className="flex min-h-0 w-full min-w-0 flex-1 items-stretch px-4 pt-0.5 pb-0">
-                  <MarkdownComposerInput
-                    submitMode="none"
-                    formatter={workbenchComposerDirectiveFormatter}
-                    value={composerValue}
-                    onChange={updateComposerMarkdown}
-                    directiveChip={renderDirectiveChip}
-                    directivePluginProps={{ onDirectiveSelect: handleDirectiveSelect }}
-                    onCursorPositionChange={setComposerCursorPosition}
-                    placeholder={t(
-                      isRunning && canQueue
-                        ? "workbench.chat.composer.runningPlaceholder"
-                        : "workbench.chat.composer.placeholder",
-                    )}
-                    className={cn(
-                      "relative max-h-[336px] min-w-0 flex-1 overflow-y-auto bg-transparent text-base leading-6 outline-none",
-                      "[&_.aui-lexical-input]:min-h-7 [&_.aui-lexical-input]:whitespace-pre-wrap [&_.aui-lexical-input]:break-words [&_.aui-lexical-input]:outline-none",
-                      "[&_.aui-lexical-placeholder]:text-muted-foreground/85 [&_.aui-lexical-placeholder]:pointer-events-none [&_.aui-lexical-placeholder]:absolute [&_.aui-lexical-placeholder]:start-0 [&_.aui-lexical-placeholder]:top-0",
-                      !canCompose && "cursor-not-allowed text-muted-foreground",
-                      isNewThread && "min-h-10 [&_.aui-lexical-input]:min-h-10",
-                    )}
-                    onFocusCapture={() => setIsComposerFocused(true)}
-                    onBlurCapture={(event) => {
-                      if (!event.currentTarget.contains(event.relatedTarget)) {
-                        setIsComposerFocused(false);
-                      }
-                    }}
-                    onCompositionStartCapture={() => setIsComposerComposing(true)}
-                    onCompositionEndCapture={() => setIsComposerComposing(false)}
-                    onPasteCapture={(event) => {
-                      if (!canCompose) return;
-                      const composer = aui.thread.composer();
-                      void addComposerImagesFromPaste(event, {
-                        attachmentsEnabled: aui.thread.getState().capabilities.attachments,
-                        addAttachment: (file) => composer.addAttachment(file),
-                      });
-                    }}
-                  >
-                    <CaptureLexicalEditor onChange={captureLexicalEditor} />
-                    <ComposerEditableGuard enabled={canCompose} />
-                    <ComposerAccessibilityPlugin
-                      enabled={canCompose}
-                      label={t("workbench.chat.composer.messageInput")}
-                    />
-                    <ComposerEnterPlugin onSubmit={dispatchComposer} />
-                  </MarkdownComposerInput>
-                </div>
-
-                <div className="flex min-h-10 shrink-0 items-center justify-between gap-2 px-2 py-0.5 max-[360px]:gap-1 max-[360px]:px-1.5">
-                  <div className="flex h-[34px] min-w-0 flex-1 items-center gap-2">
-                    <SlotHost
-                      name="composer.actions.left"
-                      context={context}
-                      className="flex min-w-0 items-center gap-2 empty:hidden"
-                    />
-                    <ComposerAddAttachment />
+              <fieldset disabled={!canCompose} className="contents">
+                <div className="flex min-h-[var(--composer-height)] flex-1 flex-col gap-2 pt-2 [--composer-action-inset:0.5rem] [padding-bottom:var(--composer-action-inset)] transition-opacity max-[360px]:[--composer-action-inset:0.375rem] [&>.aui-composer-attachments]:px-3">
+                  <ComposerWorkspaceFeedback />
+                  <ComposerAttachments />
+                  <div className="flex min-h-0 w-full min-w-0 flex-1 items-stretch px-4 pt-0.5 pb-0">
+                    <MarkdownComposerInput
+                      submitMode="none"
+                      formatter={workbenchComposerDirectiveFormatter}
+                      value={composerValue}
+                      onChange={updateComposerMarkdown}
+                      directiveChip={renderDirectiveChip}
+                      directivePluginProps={{ onDirectiveSelect: handleDirectiveSelect }}
+                      onCursorPositionChange={setComposerCursorPosition}
+                      placeholder={t(
+                        isRunning && canQueue
+                          ? "workbench.chat.composer.runningPlaceholder"
+                          : "workbench.chat.composer.placeholder",
+                      )}
+                      className={cn(
+                        "relative max-h-[336px] min-w-0 flex-1 overflow-y-auto bg-transparent text-base leading-6 outline-none",
+                        "[&_.aui-lexical-input]:min-h-7 [&_.aui-lexical-input]:whitespace-pre-wrap [&_.aui-lexical-input]:break-words [&_.aui-lexical-input]:outline-none",
+                        "[&_.aui-lexical-placeholder]:text-muted-foreground/85 [&_.aui-lexical-placeholder]:pointer-events-none [&_.aui-lexical-placeholder]:absolute [&_.aui-lexical-placeholder]:start-0 [&_.aui-lexical-placeholder]:top-0",
+                        !canCompose && "cursor-not-allowed text-muted-foreground",
+                        isNewThread && "min-h-10 [&_.aui-lexical-input]:min-h-10",
+                      )}
+                      onFocusCapture={() => setIsComposerFocused(true)}
+                      onBlurCapture={(event) => {
+                        if (!event.currentTarget.contains(event.relatedTarget)) {
+                          setIsComposerFocused(false);
+                        }
+                      }}
+                      onCompositionStartCapture={() => setIsComposerComposing(true)}
+                      onCompositionEndCapture={() => setIsComposerComposing(false)}
+                      onPasteCapture={(event) => {
+                        if (!canCompose) return;
+                        const composer = aui.thread.composer();
+                        void addComposerImagesFromPaste(event, {
+                          attachmentsEnabled: aui.thread.getState().capabilities.attachments,
+                          addAttachment: (file) => composer.addAttachment(file),
+                        });
+                      }}
+                    >
+                      <CaptureLexicalEditor onChange={captureLexicalEditor} />
+                      <ComposerEditableGuard enabled={canCompose} />
+                      <ComposerAccessibilityPlugin
+                        enabled={canCompose}
+                        label={t("workbench.chat.composer.messageInput")}
+                      />
+                      <ComposerEnterPlugin onSubmit={dispatchComposer} />
+                    </MarkdownComposerInput>
                   </div>
 
-                  <div className="flex h-[34px] min-w-0 shrink-0 items-center justify-end gap-2 max-[360px]:gap-1">
-                    <SlotHost
-                      name="composer.actions.right"
-                      context={context}
-                      className="flex min-w-0 items-center justify-end gap-2 empty:hidden"
-                    />
-                    {isDictating ? (
-                      <ComposerPrimitive.StopDictation
-                        render={
-                          <TooltipIconButton
-                            tooltip={t("workbench.chat.composer.stopVoiceInput")}
-                            type="button"
-                            size="icon"
-                            variant="ghost"
-                            className="text-muted-foreground hover:text-foreground size-8 rounded-[var(--button-radius)] max-[360px]:hidden"
-                          />
-                        }
-                      >
-                        <SquareIcon className="size-4 fill-current" />
-                      </ComposerPrimitive.StopDictation>
-                    ) : (
-                      <ComposerPrimitive.Dictate
-                        render={
-                          <TooltipIconButton
-                            tooltip={t("workbench.chat.composer.voiceInput")}
-                            type="button"
-                            size="icon"
-                            variant="ghost"
-                            className="text-muted-foreground hover:text-foreground size-8 rounded-[var(--button-radius)] max-[360px]:hidden"
-                          />
-                        }
-                      >
-                        <MicIcon className="size-4" />
-                      </ComposerPrimitive.Dictate>
-                    )}
-                    {isRunning ? (
-                      <ComposerPrimitive.Cancel
-                        render={
-                          <TooltipIconButton
-                            tooltip={t("workbench.chat.composer.stopGenerating")}
-                            type="button"
-                            size="icon"
-                            variant="default"
-                            className={cn(COMPOSER_PRIMARY_ACTION_CLASS_NAME, "[&_svg]:size-3!")}
-                          />
-                        }
-                      >
-                        <SquareIcon className="size-3 fill-current" />
-                      </ComposerPrimitive.Cancel>
-                    ) : (
-                      <TooltipIconButton
-                        tooltip={t("workbench.chat.composer.sendMessage")}
-                        type="button"
-                        size="icon"
-                        disabled={!canCompose || !canSend}
-                        variant="default"
-                        className={cn(
-                          COMPOSER_PRIMARY_ACTION_CLASS_NAME,
-                          "disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100",
-                        )}
-                        onClick={() => dispatchComposer()}
-                      >
-                        <ArrowUpIcon className="size-4" />
-                      </TooltipIconButton>
-                    )}
+                  <div className="flex h-[var(--icon-frame-size-default)] shrink-0 items-center justify-between gap-2 [padding-inline:var(--composer-action-inset)] max-[360px]:gap-1">
+                    <div className="flex h-full min-w-0 flex-1 items-center gap-2">
+                      <SlotHost
+                        name="composer.actions.left"
+                        context={context}
+                        className="flex min-w-0 items-center gap-2 empty:hidden"
+                      />
+                      <ComposerAddAttachment />
+                    </div>
+
+                    <div className="flex h-full min-w-0 shrink-0 items-center justify-end gap-2 max-[360px]:gap-1">
+                      <SlotHost
+                        name="composer.actions.right"
+                        context={context}
+                        className="flex min-w-0 items-center justify-end gap-2 empty:hidden"
+                      />
+                      {isDictating ? (
+                        <ComposerPrimitive.StopDictation
+                          render={
+                            <TooltipIconButton
+                              tooltip={t("workbench.chat.composer.stopVoiceInput")}
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              className="text-muted-foreground hover:text-foreground size-8 rounded-[var(--button-radius)] max-[360px]:hidden"
+                            />
+                          }
+                        >
+                          <SquareIcon className="size-4 fill-current" />
+                        </ComposerPrimitive.StopDictation>
+                      ) : (
+                        <ComposerPrimitive.Dictate
+                          render={
+                            <TooltipIconButton
+                              tooltip={t("workbench.chat.composer.voiceInput")}
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              className="text-muted-foreground hover:text-foreground size-8 rounded-[var(--button-radius)] max-[360px]:hidden"
+                            />
+                          }
+                        >
+                          <MicIcon className="size-4" />
+                        </ComposerPrimitive.Dictate>
+                      )}
+                      {isRunning ? (
+                        <ComposerPrimitive.Cancel
+                          render={
+                            <TooltipIconButton
+                              tooltip={t("workbench.chat.composer.stopGenerating")}
+                              type="button"
+                              size="icon"
+                              variant="default"
+                              className={cn(COMPOSER_PRIMARY_ACTION_CLASS_NAME, "[&_svg]:size-3!")}
+                            />
+                          }
+                        >
+                          <SquareIcon className="size-3 fill-current" />
+                        </ComposerPrimitive.Cancel>
+                      ) : (
+                        <TooltipIconButton
+                          tooltip={t("workbench.chat.composer.sendMessage")}
+                          type="button"
+                          size="icon"
+                          disabled={!canCompose || !canSend}
+                          variant="default"
+                          className={cn(
+                            COMPOSER_PRIMARY_ACTION_CLASS_NAME,
+                            "disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100",
+                          )}
+                          onClick={() => dispatchComposer()}
+                        >
+                          <ArrowUpIcon className="size-4" />
+                        </TooltipIconButton>
+                      )}
+                    </div>
                   </div>
                 </div>
               </fieldset>

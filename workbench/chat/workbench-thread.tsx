@@ -57,9 +57,9 @@ const MAX_SAVED_THREAD_SCROLL_POSITIONS = 50;
 const BOTTOM_DISTANCE_THRESHOLD = 2;
 const DEFAULT_COMPOSER_DOCK_INSET_PX = 138;
 const THREAD_VIEWPORT_MASK_IMAGE =
-  "linear-gradient(to bottom, transparent 0, #000 var(--thread-header-fade-size), #000 calc(100% - var(--composer-dock-fade-start-offset)), transparent calc(100% - var(--composer-dock-fade-end-offset)), transparent 100%)";
-const THREAD_VIEWPORT_CLIP_PATH =
-  "polygon(0 0, 100% 0, 100% calc(100% - var(--composer-dock-fade-start-offset)), calc(100% - var(--scrollbar-size)) calc(100% - var(--composer-dock-fade-start-offset)), calc(100% - var(--scrollbar-size)) calc(100% - var(--composer-dock-fade-end-offset)), 0 calc(100% - var(--composer-dock-fade-end-offset)))";
+  "linear-gradient(to bottom, transparent 0, #000 var(--thread-header-fade-size), #000 calc(100% - var(--composer-dock-corner-radius)), transparent 100%), linear-gradient(#000 0 0)";
+const THREAD_VIEWPORT_MASK_SIZE =
+  "calc(100% - var(--thread-viewport-inline-padding)) 100%, var(--thread-viewport-inline-padding) 100%";
 const threadScrollPositions = new Map<string, ThreadScrollPosition>();
 let threadScrollPositionsLoaded = false;
 let threadScrollPersistenceFrame: number | null = null;
@@ -391,7 +391,7 @@ function WorkbenchMessages({ isRunning }: Readonly<{ isRunning: boolean }>) {
   return (
     <div
       data-slot="conversation-flow"
-      className="mx-auto flex w-full max-w-[var(--thread-max-width)] shrink-0 flex-col gap-4 pb-4 [overflow-anchor:none]"
+      className="mx-auto flex w-[var(--thread-max-width)] shrink-0 flex-col gap-4 pb-4 [overflow-anchor:none]"
     >
       {items}
     </div>
@@ -701,7 +701,8 @@ export function WorkbenchThread() {
       className="bg-background relative flex h-full min-h-0 min-w-0 text-base"
       style={
         {
-          "--thread-max-width": "48rem",
+          "--thread-max-width":
+            "min(clamp(46rem, 74cqw, 876px), calc(100cqw - 2rem))",
           // Reserve the active optimistic turn's scaffold to prevent a vertical snap. Completed
           // turns return to their natural height so compact status rows do not create large gaps.
           "--assistant-turn-min-height": "5.25rem",
@@ -717,17 +718,17 @@ export function WorkbenchThread() {
 
       <div
         ref={threadFrameRef}
-        className="relative flex min-h-0 min-w-0 flex-1 flex-col"
+        className="relative flex min-h-0 min-w-0 flex-1 flex-col [container-type:inline-size]"
         style={
           {
             "--composer-dock-inset": `${composerDockInset}px`,
-            "--composer-dock-bottom-gap": "0px",
+            "--composer-dock-bottom-gap": "1rem",
+            "--composer-dock-top-gap": "0.5rem",
+            "--composer-dock-content-top-inset":
+              "calc(var(--composer-dock-inset) - var(--composer-dock-top-gap))",
             "--composer-dock-corner-radius": "var(--composer-inner-radius, 1.375rem)",
-            "--composer-dock-fade-end-offset":
-              "calc(var(--composer-dock-bottom-gap) + var(--composer-dock-corner-radius))",
-            "--composer-dock-fade-start-offset":
-              "calc(var(--composer-dock-fade-end-offset) + var(--composer-dock-corner-radius))",
             "--thread-header-fade-size": "1.375rem",
+            "--thread-viewport-inline-padding": "1rem",
           } as React.CSSProperties
         }
       >
@@ -749,19 +750,24 @@ export function WorkbenchThread() {
           scrollToBottomOnRunStart
           scrollToBottomOnThreadSwitch={false}
           className={cn(
-            "relative flex min-h-0 flex-1 scroll-smooth flex-col overflow-x-hidden overflow-y-auto px-4 motion-reduce:scroll-auto [overflow-anchor:none]",
+            "relative flex min-h-0 flex-1 scroll-smooth flex-col overflow-x-hidden overflow-y-auto motion-reduce:scroll-auto [overflow-anchor:none] [padding-inline:var(--thread-viewport-inline-padding)]",
             isEmpty
               ? "pt-4"
-              : "[padding-top:var(--thread-header-fade-size)] [padding-bottom:var(--composer-dock-inset)]",
+              : "[margin-bottom:var(--composer-dock-content-top-inset)] [padding-top:var(--thread-header-fade-size)] [padding-bottom:var(--composer-dock-corner-radius)]",
           )}
           style={
             isEmpty
               ? undefined
               : {
+                  scrollbarColor: "var(--scrollbar-thumb) transparent",
                   WebkitMaskImage: THREAD_VIEWPORT_MASK_IMAGE,
                   maskImage: THREAD_VIEWPORT_MASK_IMAGE,
-                  WebkitClipPath: THREAD_VIEWPORT_CLIP_PATH,
-                  clipPath: THREAD_VIEWPORT_CLIP_PATH,
+                  WebkitMaskPosition: "left top, right top",
+                  maskPosition: "left top, right top",
+                  WebkitMaskRepeat: "no-repeat",
+                  maskRepeat: "no-repeat",
+                  WebkitMaskSize: THREAD_VIEWPORT_MASK_SIZE,
+                  maskSize: THREAD_VIEWPORT_MASK_SIZE,
                 }
           }
         >
@@ -815,7 +821,7 @@ export function WorkbenchThread() {
           <div
             ref={composerDockRef}
             data-workbench-composer-dock=""
-            className="absolute right-4 bottom-0 left-4 z-20 mx-auto flex max-w-[var(--thread-max-width)] flex-col bg-transparent pt-2 pb-[var(--composer-dock-bottom-gap)] [overflow-anchor:none]"
+            className="absolute right-4 bottom-0 left-4 z-20 mx-auto flex w-[var(--thread-max-width)] flex-col bg-transparent pt-[var(--composer-dock-top-gap)] pb-[var(--composer-dock-bottom-gap)] [overflow-anchor:none]"
           >
             <WorkbenchComposer />
           </div>

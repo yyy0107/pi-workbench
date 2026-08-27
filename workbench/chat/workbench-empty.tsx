@@ -21,14 +21,14 @@ export function WorkbenchEmpty({ children }: Readonly<{ children: ReactNode }>) 
 
   if (needsWorkspace) {
     return (
-      <div className="mx-auto flex w-full max-w-[var(--thread-max-width)] flex-1 flex-col justify-center px-4 py-12">
+      <div className="mx-auto flex w-[var(--thread-max-width)] flex-1 flex-col justify-center py-12">
         {children}
       </div>
     );
   }
 
   return (
-    <div className="relative mx-auto flex w-full max-w-[var(--thread-max-width)] flex-1 flex-col justify-center px-4 py-12">
+    <div className="relative mx-auto flex w-[var(--thread-max-width)] flex-1 flex-col justify-center py-12">
       <img
         src="/pi-logo-on-light.svg"
         alt=""
