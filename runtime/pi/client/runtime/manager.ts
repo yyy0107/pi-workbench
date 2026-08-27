@@ -393,10 +393,6 @@ function summariesEqual(left: PiSessionSummary | undefined, right: PiSessionSumm
   );
 }
 
-function stringSetsEqual(left: ReadonlySet<string>, right: readonly string[]): boolean {
-  return left.size === right.length && right.every((value) => left.has(value));
-}
-
 function workspaceViewsEqual(left: WorkspaceView | undefined, right: WorkspaceView): boolean {
   return (
     left !== undefined &&
@@ -3618,13 +3614,6 @@ export class PiSessionManager {
     this.summaries.set(summary.id, sanitized);
     this.metadataMutations?.set(summary.id, sanitized);
     return changed;
-  }
-
-  private replaceArchived(sessionIds: readonly string[]): boolean {
-    if (stringSetsEqual(this.archived, sessionIds)) return false;
-    this.archived.clear();
-    for (const sessionId of sessionIds) this.archived.add(sessionId);
-    return true;
   }
 
   private deleteSummary(remoteId: string): void {

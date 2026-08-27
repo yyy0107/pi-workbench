@@ -4,7 +4,6 @@ import {
   type ComposerCommandArgsSchema,
   type ComposerCommandEffect,
   type ComposerCommandSubmission,
-  type ComposerContextSubmission,
   type ComposerDocument,
   type ComposerDocumentNode,
   type ComposerJsonValue,
@@ -32,14 +31,8 @@ export type WorkbenchComposerCommandArgsBinding = ComposerCommandArgsBinding;
 
 export type WorkbenchComposerCommandEffect = ComposerCommandEffect;
 
-export type WorkbenchComposerResultTrust =
-  | "trusted-instruction"
-  | "trusted-config"
-  | "untrusted-context";
-
 export type WorkbenchComposerCommandSubmission = ComposerCommandSubmission;
 export type WorkbenchComposerDocumentNode = ComposerDocumentNode;
-export type WorkbenchComposerContextSubmission = ComposerContextSubmission;
 
 export type WorkbenchComposerSubmission = ComposerSubmission;
 

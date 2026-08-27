@@ -52,8 +52,6 @@ export const PI_COMPOSER_BUILTIN_COMMANDS: readonly PiComposerBuiltinCommand[] =
   },
 ] as const);
 
-export type PiComposerBuiltinCommandName = (typeof PI_COMPOSER_BUILTIN_COMMANDS)[number]["name"];
-
 export function piComposerBuiltinCommand(name: string) {
   return PI_COMPOSER_BUILTIN_COMMANDS.find((command) => command.name === name);
 }

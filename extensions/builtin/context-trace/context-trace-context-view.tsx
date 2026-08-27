@@ -379,7 +379,6 @@ export function ContextTraceContextView({
   });
 
   const executionNode = (
-    step: ContextTraceModelStep,
     execution: ContextTraceToolExecution | undefined,
     parentId: string,
   ): TraceTreeNode | undefined => {
@@ -412,7 +411,7 @@ export function ContextTraceContextView({
         const execution = step.toolExecutions.find(
           (candidate) => candidate.toolCallId === block.toolCallId,
         );
-        const executionChild = executionNode(step, execution, id);
+        const executionChild = executionNode(execution, id);
         return {
           id,
           label: t("extensions.contextTrace.tree.toolCall", { name: block.toolName ?? "—" }),

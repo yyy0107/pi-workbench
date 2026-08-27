@@ -9,7 +9,6 @@ export type InlineImageMediaType = (typeof INLINE_IMAGE_MEDIA_TYPES)[number];
 
 export const INLINE_DOCUMENT_MEDIA_TYPES = ["application/pdf"] as const;
 export type InlineDocumentMediaType = (typeof INLINE_DOCUMENT_MEDIA_TYPES)[number];
-export type InlineRecognizableMediaType = InlineImageMediaType | InlineDocumentMediaType;
 
 export function isInlineImageMediaType(value: unknown): value is InlineImageMediaType {
   return (

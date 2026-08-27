@@ -2,13 +2,7 @@
 
 import { type PropsWithChildren, useEffect, useState, type FC, isValidElement } from "react";
 import { XIcon, PaperclipIcon, FileText, Loader2Icon, AlertCircleIcon } from "lucide-react";
-import {
-  AttachmentPrimitive,
-  ComposerPrimitive,
-  MessagePrimitive,
-  useAuiState,
-  useAui,
-} from "@assistant-ui/react";
+import { AttachmentPrimitive, ComposerPrimitive, useAuiState, useAui } from "@assistant-ui/react";
 import { useShallow } from "zustand/shallow";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogTitle, DialogContent, DialogTrigger } from "@/components/ui/dialog";
@@ -235,14 +229,6 @@ const AttachmentRemove: FC = () => {
     >
       <XIcon className="aui-attachment-remove-icon size-3 stroke-[2.5]" />
     </AttachmentPrimitive.Remove>
-  );
-};
-
-export const UserMessageAttachments: FC = () => {
-  return (
-    <div className="aui-user-message-attachments-end col-span-full col-start-1 row-start-1 flex w-full flex-row justify-end gap-2">
-      <MessagePrimitive.Attachments>{() => <AttachmentUI />}</MessagePrimitive.Attachments>
-    </div>
   );
 };
 

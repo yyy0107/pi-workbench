@@ -42,20 +42,4 @@ function ContextMenuItem({ className, ...props }: ContextMenuPrimitive.Item.Prop
   );
 }
 
-function ContextMenuSeparator({ className, ...props }: ContextMenuPrimitive.Separator.Props) {
-  return (
-    <ContextMenuPrimitive.Separator
-      data-slot="context-menu-separator"
-      className={cn("-mx-1 my-1 h-px bg-border", className)}
-      {...props}
-    />
-  );
-}
-
-export {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuTrigger,
-};
+export { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger };

@@ -56,9 +56,3 @@ export function updateWorkbenchSettingsPreferences(
   mutationTail = result.catch(() => undefined);
   return result;
 }
-
-export function resetWorkbenchSettingsClientForTests(): void {
-  snapshot = undefined;
-  loadPromise = undefined;
-  mutationTail = Promise.resolve();
-}

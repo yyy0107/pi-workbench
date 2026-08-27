@@ -1,6 +1,5 @@
 "use client";
 
-import { useStore } from "zustand";
 import { createStore, type StoreApi } from "zustand/vanilla";
 
 import type { PanelLocation } from "@/platform/extensions/api/panel";
@@ -265,7 +264,3 @@ export function createPanelStore(initialData: Partial<PanelStoreData> = {}): Pan
 }
 
 export const panelStore = createPanelStore(DEFAULT_PANEL_DATA);
-
-export function usePanelStore<T>(selector: (state: PanelStoreState) => T): T {
-  return useStore(panelStore, selector);
-}

@@ -142,7 +142,3 @@ export function useAskUserPreferences(): AskUserPreferenceSnapshot {
   }, []);
   return current;
 }
-
-export function useAskUserEnabled(): boolean {
-  return useAskUserPreferences().enabled;
-}

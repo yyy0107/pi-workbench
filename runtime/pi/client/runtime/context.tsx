@@ -38,17 +38,6 @@ export function usePiHostDescription(): HostDescription | undefined {
   );
 }
 
-export function usePiThreadActivity(threadId: string): {
-  running: boolean;
-  completed: boolean;
-} {
-  const { metadata } = usePiThreadStateSnapshot(threadId);
-  return {
-    running: metadata.running,
-    completed: metadata.completed,
-  };
-}
-
 export function usePiThreadStateSnapshot(threadId: string | undefined): PiThreadStateSnapshot {
   const manager = usePiSessionManager();
   const subscribe = useMemo(

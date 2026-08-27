@@ -8,11 +8,6 @@ export interface MessageFormatters {
   relativeTime(value: number, unit: Intl.RelativeTimeFormatUnit): string;
 }
 
-export type MessageFunction<TValues extends MessageVariables = MessageVariables> = (
-  values: TValues,
-  formatters: MessageFormatters,
-) => string;
-
 export type CatalogShape<T> = T extends string
   ? string
   : T extends (...args: infer TArgs) => string

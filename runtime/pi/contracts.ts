@@ -61,8 +61,6 @@ export interface PiDocumentContent {
   name?: string;
 }
 
-export type PiRecognizableAttachment = PiImageContent | PiDocumentContent;
-
 export interface PiToolCallContent {
   type: "toolCall";
   id: string;
@@ -205,11 +203,6 @@ export interface PiSessionHistory {
   };
 }
 
-export interface PiSessionListResponse {
-  sessions: PiSessionSummary[];
-  runningSessionIds: string[];
-}
-
 export interface PiModelSummary {
   provider: string;
   providerName: string;
@@ -304,11 +297,3 @@ export interface PiSteerQueuedCommand {
 export interface PiCancelCommand {
   type: "cancel";
 }
-
-export type PiSessionCommand =
-  | PiPromptCommand
-  | PiQueueCommand
-  | PiReplaceQueueCommand
-  | PiSetQueuePausedCommand
-  | PiSteerQueuedCommand
-  | PiCancelCommand;
