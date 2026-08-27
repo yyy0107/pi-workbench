@@ -24,12 +24,11 @@ import {
   KEY_ENTER_COMMAND,
   type LexicalEditor,
 } from "lexical";
-import { AlertCircleIcon, ArrowUpIcon, MicIcon, PlusIcon, SquareIcon, XIcon } from "lucide-react";
+import { AlertCircleIcon, ArrowUpIcon, MicIcon, SquareIcon, XIcon } from "lucide-react";
 import {
   Fragment,
   useCallback,
   useEffect,
-  useId,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -59,7 +58,6 @@ import {
   useExtensionErrorReporter,
 } from "@/platform/extensions";
 import { SlotHost } from "@/platform/extensions/hosts/slot-host";
-import { useExtensionManager } from "@/platform/extensions/internal";
 import type { WorkbenchAgentComposerSendError } from "@/runtime/assistant-ui/agent-runtime-adapter";
 import type { WorkbenchAgentCommand } from "@/runtime/shared/agent-command/catalog";
 import {
@@ -91,7 +89,7 @@ import { ComposerTriggerEngine, excludeSlashPathOrCode } from "./composer-trigge
 import { formatAgentCommandLabel } from "./agent-command";
 
 const COMPOSER_PRIMARY_ACTION_CLASS_NAME =
-  "rounded-full [&:hover:not(:active)]:bg-primary! dark:[&:hover:not(:active)]:bg-primary!";
+  "rounded-[var(--button-radius)] [&:hover:not(:active)]:bg-primary! dark:[&:hover:not(:active)]:bg-primary!";
 
 interface ComposerDraftSnapshot {
   text: string;
@@ -402,31 +400,6 @@ function composerErrorMessage(
   }
 }
 
-function ComposerDrawerStats({ contextCount }: Readonly<{ contextCount: number }>) {
-  const { t } = useI18n();
-  const extensionManager = useExtensionManager();
-  const getExtensionCount = useCallback(
-    () => extensionManager.getExtensions().length,
-    [extensionManager],
-  );
-  const extensionCount = useSyncExternalStore(
-    extensionManager.subscribe,
-    getExtensionCount,
-    () => 0,
-  );
-
-  return (
-    <div className="flex shrink-0 items-center gap-1">
-      <span className="bg-muted/55 text-muted-foreground inline-flex h-6 items-center rounded-md px-2 text-[11px] leading-none whitespace-nowrap tabular-nums">
-        {t("workbench.chat.composer.contextCount", { count: contextCount })}
-      </span>
-      <span className="bg-muted/55 text-muted-foreground inline-flex h-6 items-center rounded-md px-2 text-[11px] leading-none whitespace-nowrap tabular-nums">
-        {t("workbench.chat.composer.extensionsCount", { count: extensionCount })}
-      </span>
-    </div>
-  );
-}
-
 export function WorkbenchComposer() {
   const { t, text: localize } = useI18n();
   const aui = useAui();
@@ -444,7 +417,6 @@ export function WorkbenchComposer() {
   const extras = useAuiState((state) => state.thread.extras);
   const composerActions = readAgentComposerExtras(extras);
   const rejectedQueueDraftActions = readAgentRejectedQueueDraft(extras);
-  const drawerId = useId();
   const composerRef = useRef<HTMLFormElement>(null);
   const [composerOverlayCount, setComposerOverlayCount] = useState(0);
   const lexicalEditorRef = useRef<LexicalEditor | null>(null);
@@ -460,7 +432,6 @@ export function WorkbenchComposer() {
   const isNewThread = mainThreadId === newThreadId;
   const composerDrafts = useRef(new Map<string, ComposerDraftSnapshot>());
   const composerDraftThreadId = useRef(mainThreadId);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(isNewThread);
   const [isComposerFocused, setIsComposerFocused] = useState(false);
   const [isComposerComposing, setIsComposerComposing] = useState(false);
   const [composerCursorPosition, setComposerCursorPosition] = useState(0);
@@ -691,9 +662,6 @@ export function WorkbenchComposer() {
   );
   const hasDraftWorkspace = useWorkspaceSelection().draftWorkspace !== undefined;
   const canCompose = !isNewThread || hasDraftWorkspace;
-  const contextCount = useAuiState(
-    (state) => state.thread.messages.length + state.thread.composer.attachments.length,
-  );
   const context = { isRunning, isEmpty };
   const setComposerOverlayVisible = useCallback((visible: boolean) => {
     setComposerOverlayCount((count) => Math.max(0, count + (visible ? 1 : -1)));
@@ -703,15 +671,6 @@ export function WorkbenchComposer() {
     setOverlayVisible: setComposerOverlayVisible,
   };
   const composerOverlayVisible = composerOverlayCount > 0;
-  const drawerContext = {
-    ...context,
-    closeDrawer: () => setIsDrawerOpen(false),
-  };
-
-  useEffect(() => {
-    setIsDrawerOpen(isNewThread);
-  }, [hasDraftWorkspace, isNewThread, mainThreadId]);
-
   useEffect(() => {
     setCommandParametersByKey(commandParametersByThreadRef.current.get(mainThreadId) ?? {});
     setActiveCommandParameterKey(undefined);
@@ -886,7 +845,6 @@ export function WorkbenchComposer() {
         const dispatched = submitWorkbenchComposer(aui.thread, undefined, request, { steer });
         if (!dispatched) return;
         setComposerCommandError(false);
-        setIsDrawerOpen(false);
         clearCommandParameterValues();
       } catch (error) {
         reportComposerCommandError(error);
@@ -968,21 +926,12 @@ export function WorkbenchComposer() {
     [composerSuggestionsByKey, t],
   );
 
-  if (!canCompose) {
-    return (
-      <div className="flex w-full flex-col gap-2">
-        <SlotHost name="composer.before" context={context} className="flex flex-col gap-2" />
-        <SlotHost name="composer.after" context={context} className="flex flex-col gap-2" />
-      </div>
-    );
-  }
-
   return (
-    <div className="grid w-full grid-rows-[auto_auto_auto] gap-2">
+    <div className="grid w-full grid-rows-[auto_auto_auto]">
       <SlotHost
         name="composer.before"
         context={context}
-        className="col-start-1 row-start-1 flex flex-col gap-2"
+        className="col-start-1 row-start-1 flex flex-col gap-2 empty:hidden [&:not(:empty)]:mb-2"
       />
 
       <ComposerPrimitive.Unstable_TriggerPopoverRoot>
@@ -1031,185 +980,173 @@ export function WorkbenchComposer() {
             />
           ) : null}
 
-          <ComposerPrimitive.AttachmentDropzone
-            data-slot="workbench-composer-card"
-            className="bg-background data-[dragging=true]:bg-accent/50 flex w-full flex-col overflow-hidden rounded-[22px] border shadow-[0_1px_3px_rgba(0,0,0,0.08)] outline-none transition-[border-color,box-shadow,background-color] data-[dragging=true]:border-dashed"
+          <div
+            data-slot="workbench-composer-shell"
+            className={cn(
+              "relative isolate flex w-full flex-col [--composer-height:104px]",
+              isNewThread &&
+                "bg-muted/45 overflow-hidden rounded-[var(--composer-radius,1.5rem)] border border-border/70 shadow-[0_2px_8px_rgba(0,0,0,0.06)] [--protruding-height:40px]",
+            )}
           >
-            <fieldset className="flex flex-col gap-3 pt-2.5 transition-opacity [&>.aui-composer-attachments]:px-3">
-              <ComposerWorkspaceFeedback />
-              <ComposerAttachments />
-              <div className="flex w-full min-w-0 items-start px-4 pt-1 pb-0">
-                <MarkdownComposerInput
-                  submitMode="none"
-                  formatter={workbenchComposerDirectiveFormatter}
-                  value={composerValue}
-                  onChange={updateComposerMarkdown}
-                  directiveChip={renderDirectiveChip}
-                  directivePluginProps={{ onDirectiveSelect: handleDirectiveSelect }}
-                  onCursorPositionChange={setComposerCursorPosition}
-                  placeholder={t(
-                    isRunning && canQueue
-                      ? "workbench.chat.composer.runningPlaceholder"
-                      : "workbench.chat.composer.placeholder",
-                  )}
-                  className={cn(
-                    "relative max-h-[336px] min-w-0 flex-1 overflow-y-auto bg-transparent text-base leading-6 outline-none",
-                    "[&_.aui-lexical-input]:min-h-7 [&_.aui-lexical-input]:whitespace-pre-wrap [&_.aui-lexical-input]:break-words [&_.aui-lexical-input]:outline-none",
-                    "[&_.aui-lexical-placeholder]:text-muted-foreground/85 [&_.aui-lexical-placeholder]:pointer-events-none [&_.aui-lexical-placeholder]:absolute [&_.aui-lexical-placeholder]:start-0 [&_.aui-lexical-placeholder]:top-0",
-                    !canCompose && "cursor-not-allowed text-muted-foreground",
-                    isNewThread && "min-h-[52px] [&_.aui-lexical-input]:min-h-[52px]",
-                  )}
-                  onFocusCapture={() => setIsComposerFocused(true)}
-                  onBlurCapture={(event) => {
-                    if (!event.currentTarget.contains(event.relatedTarget)) {
-                      setIsComposerFocused(false);
-                    }
-                  }}
-                  onCompositionStartCapture={() => setIsComposerComposing(true)}
-                  onCompositionEndCapture={() => setIsComposerComposing(false)}
-                  onPasteCapture={(event) => {
-                    if (!canCompose) return;
-                    const composer = aui.thread.composer();
-                    void addComposerImagesFromPaste(event, {
-                      attachmentsEnabled: aui.thread.getState().capabilities.attachments,
-                      addAttachment: (file) => composer.addAttachment(file),
-                    });
-                  }}
-                >
-                  <CaptureLexicalEditor onChange={captureLexicalEditor} />
-                  <ComposerEditableGuard enabled={canCompose} />
-                  <ComposerAccessibilityPlugin
-                    enabled={canCompose}
-                    label={t("workbench.chat.composer.messageInput")}
-                  />
-                  <ComposerEnterPlugin onSubmit={dispatchComposer} />
-                </MarkdownComposerInput>
-              </div>
-
-              <div className="flex min-h-[42px] items-center justify-between gap-2 px-2 py-1 max-[360px]:gap-1 max-[360px]:px-1.5">
-                <div className="flex h-[34px] min-w-0 flex-1 items-center gap-2">
-                  <TooltipIconButton
-                    type="button"
-                    size="icon"
-                    tooltip={
-                      isDrawerOpen
-                        ? t("workbench.chat.composer.closeDrawer")
-                        : t("workbench.chat.composer.openDrawer")
-                    }
-                    aria-label={
-                      isDrawerOpen
-                        ? t("workbench.chat.composer.closeDrawer")
-                        : t("workbench.chat.composer.openDrawer")
-                    }
-                    aria-expanded={isDrawerOpen}
-                    aria-controls={drawerId}
-                    variant="ghost"
-                    className="text-muted-foreground hover:text-foreground size-8 rounded-full"
-                    onClick={() => setIsDrawerOpen((open) => !open)}
-                  >
-                    {isDrawerOpen ? <XIcon className="size-4" /> : <PlusIcon className="size-4" />}
-                  </TooltipIconButton>
-                  <SlotHost
-                    name="composer.actions.left"
-                    context={context}
-                    className="flex min-w-0 items-center gap-2 empty:hidden"
-                  />
-                  <ComposerAddAttachment />
-                </div>
-
-                <div className="flex h-[34px] min-w-0 shrink-0 items-center justify-end gap-2 max-[360px]:gap-1">
-                  <SlotHost
-                    name="composer.actions.right"
-                    context={context}
-                    className="flex min-w-0 items-center justify-end gap-2 empty:hidden"
-                  />
-                  {isDictating ? (
-                    <ComposerPrimitive.StopDictation
-                      render={
-                        <TooltipIconButton
-                          tooltip={t("workbench.chat.composer.stopVoiceInput")}
-                          type="button"
-                          size="icon"
-                          variant="ghost"
-                          className="text-muted-foreground hover:text-foreground size-8 rounded-full max-[360px]:hidden"
-                        />
-                      }
-                    >
-                      <SquareIcon className="size-4 fill-current" />
-                    </ComposerPrimitive.StopDictation>
-                  ) : (
-                    <ComposerPrimitive.Dictate
-                      render={
-                        <TooltipIconButton
-                          tooltip={t("workbench.chat.composer.voiceInput")}
-                          type="button"
-                          size="icon"
-                          variant="ghost"
-                          className="text-muted-foreground hover:text-foreground size-8 rounded-full max-[360px]:hidden"
-                        />
-                      }
-                    >
-                      <MicIcon className="size-4" />
-                    </ComposerPrimitive.Dictate>
-                  )}
-                  {isRunning ? (
-                    <ComposerPrimitive.Cancel
-                      render={
-                        <TooltipIconButton
-                          tooltip={t("workbench.chat.composer.stopGenerating")}
-                          type="button"
-                          size="icon"
-                          variant="default"
-                          className={cn(COMPOSER_PRIMARY_ACTION_CLASS_NAME, "[&_svg]:size-3!")}
-                        />
-                      }
-                    >
-                      <SquareIcon className="size-3 fill-current" />
-                    </ComposerPrimitive.Cancel>
-                  ) : (
-                    <TooltipIconButton
-                      tooltip={t("workbench.chat.composer.sendMessage")}
-                      type="button"
-                      size="icon"
-                      disabled={!canCompose || !canSend}
-                      variant="default"
-                      className={cn(
-                        COMPOSER_PRIMARY_ACTION_CLASS_NAME,
-                        "disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100",
-                      )}
-                      onClick={() => dispatchComposer()}
-                    >
-                      <ArrowUpIcon className="size-4" />
-                    </TooltipIconButton>
-                  )}
-                </div>
-              </div>
-            </fieldset>
-
-            {isDrawerOpen ? (
+            {isNewThread ? (
               <div
-                id={drawerId}
-                role="region"
-                aria-label={t("workbench.chat.composer.drawer")}
-                data-slot="workbench-composer-drawer"
-                className="animate-in fade-in slide-in-from-top-1 grid min-h-8 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 overflow-x-auto px-2 pb-2 duration-150"
+                data-slot="workbench-composer-header"
+                className="flex h-[var(--protruding-height)] min-w-0 shrink-0 items-center justify-between gap-2 px-3 py-1.5"
               >
                 <SlotHost
-                  name="composer.drawer.left"
-                  context={drawerContext}
-                  className="flex min-w-0 items-center gap-2 empty:hidden"
+                  name="composer.header.left"
+                  context={context}
+                  className="flex min-w-0 flex-1 items-center gap-2 empty:hidden"
                 />
-                <div className="flex shrink-0 items-center justify-end gap-2">
-                  <ComposerDrawerStats contextCount={contextCount} />
-                  <SlotHost
-                    name="composer.drawer.right"
-                    context={drawerContext}
-                    className="flex shrink-0 items-center gap-2 empty:hidden"
-                  />
-                </div>
+                <SlotHost
+                  name="composer.header.right"
+                  context={context}
+                  className="flex min-w-0 shrink-0 items-center justify-end gap-2 empty:hidden"
+                />
               </div>
             ) : null}
-          </ComposerPrimitive.AttachmentDropzone>
+
+            <ComposerPrimitive.AttachmentDropzone
+              data-slot="workbench-composer-card"
+              className={cn(
+                "bg-background data-[dragging=true]:bg-accent/50 flex min-h-[var(--composer-height)] flex-col overflow-hidden rounded-[var(--composer-inner-radius,1.375rem)] border shadow-[0_1px_3px_rgba(0,0,0,0.08)] outline-none transition-[border-color,box-shadow,background-color] data-[dragging=true]:border-dashed",
+                isNewThread && "relative z-10 -mt-px",
+              )}
+            >
+              <fieldset
+                disabled={!canCompose}
+                className="flex min-h-[var(--composer-height)] flex-1 flex-col gap-2 pt-2 transition-opacity [&>.aui-composer-attachments]:px-3"
+              >
+                <ComposerWorkspaceFeedback />
+                <ComposerAttachments />
+                <div className="flex min-h-0 w-full min-w-0 flex-1 items-stretch px-4 pt-0.5 pb-0">
+                  <MarkdownComposerInput
+                    submitMode="none"
+                    formatter={workbenchComposerDirectiveFormatter}
+                    value={composerValue}
+                    onChange={updateComposerMarkdown}
+                    directiveChip={renderDirectiveChip}
+                    directivePluginProps={{ onDirectiveSelect: handleDirectiveSelect }}
+                    onCursorPositionChange={setComposerCursorPosition}
+                    placeholder={t(
+                      isRunning && canQueue
+                        ? "workbench.chat.composer.runningPlaceholder"
+                        : "workbench.chat.composer.placeholder",
+                    )}
+                    className={cn(
+                      "relative max-h-[336px] min-w-0 flex-1 overflow-y-auto bg-transparent text-base leading-6 outline-none",
+                      "[&_.aui-lexical-input]:min-h-7 [&_.aui-lexical-input]:whitespace-pre-wrap [&_.aui-lexical-input]:break-words [&_.aui-lexical-input]:outline-none",
+                      "[&_.aui-lexical-placeholder]:text-muted-foreground/85 [&_.aui-lexical-placeholder]:pointer-events-none [&_.aui-lexical-placeholder]:absolute [&_.aui-lexical-placeholder]:start-0 [&_.aui-lexical-placeholder]:top-0",
+                      !canCompose && "cursor-not-allowed text-muted-foreground",
+                      isNewThread && "min-h-10 [&_.aui-lexical-input]:min-h-10",
+                    )}
+                    onFocusCapture={() => setIsComposerFocused(true)}
+                    onBlurCapture={(event) => {
+                      if (!event.currentTarget.contains(event.relatedTarget)) {
+                        setIsComposerFocused(false);
+                      }
+                    }}
+                    onCompositionStartCapture={() => setIsComposerComposing(true)}
+                    onCompositionEndCapture={() => setIsComposerComposing(false)}
+                    onPasteCapture={(event) => {
+                      if (!canCompose) return;
+                      const composer = aui.thread.composer();
+                      void addComposerImagesFromPaste(event, {
+                        attachmentsEnabled: aui.thread.getState().capabilities.attachments,
+                        addAttachment: (file) => composer.addAttachment(file),
+                      });
+                    }}
+                  >
+                    <CaptureLexicalEditor onChange={captureLexicalEditor} />
+                    <ComposerEditableGuard enabled={canCompose} />
+                    <ComposerAccessibilityPlugin
+                      enabled={canCompose}
+                      label={t("workbench.chat.composer.messageInput")}
+                    />
+                    <ComposerEnterPlugin onSubmit={dispatchComposer} />
+                  </MarkdownComposerInput>
+                </div>
+
+                <div className="flex min-h-10 shrink-0 items-center justify-between gap-2 px-2 py-0.5 max-[360px]:gap-1 max-[360px]:px-1.5">
+                  <div className="flex h-[34px] min-w-0 flex-1 items-center gap-2">
+                    <SlotHost
+                      name="composer.actions.left"
+                      context={context}
+                      className="flex min-w-0 items-center gap-2 empty:hidden"
+                    />
+                    <ComposerAddAttachment />
+                  </div>
+
+                  <div className="flex h-[34px] min-w-0 shrink-0 items-center justify-end gap-2 max-[360px]:gap-1">
+                    <SlotHost
+                      name="composer.actions.right"
+                      context={context}
+                      className="flex min-w-0 items-center justify-end gap-2 empty:hidden"
+                    />
+                    {isDictating ? (
+                      <ComposerPrimitive.StopDictation
+                        render={
+                          <TooltipIconButton
+                            tooltip={t("workbench.chat.composer.stopVoiceInput")}
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="text-muted-foreground hover:text-foreground size-8 rounded-[var(--button-radius)] max-[360px]:hidden"
+                          />
+                        }
+                      >
+                        <SquareIcon className="size-4 fill-current" />
+                      </ComposerPrimitive.StopDictation>
+                    ) : (
+                      <ComposerPrimitive.Dictate
+                        render={
+                          <TooltipIconButton
+                            tooltip={t("workbench.chat.composer.voiceInput")}
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="text-muted-foreground hover:text-foreground size-8 rounded-[var(--button-radius)] max-[360px]:hidden"
+                          />
+                        }
+                      >
+                        <MicIcon className="size-4" />
+                      </ComposerPrimitive.Dictate>
+                    )}
+                    {isRunning ? (
+                      <ComposerPrimitive.Cancel
+                        render={
+                          <TooltipIconButton
+                            tooltip={t("workbench.chat.composer.stopGenerating")}
+                            type="button"
+                            size="icon"
+                            variant="default"
+                            className={cn(COMPOSER_PRIMARY_ACTION_CLASS_NAME, "[&_svg]:size-3!")}
+                          />
+                        }
+                      >
+                        <SquareIcon className="size-3 fill-current" />
+                      </ComposerPrimitive.Cancel>
+                    ) : (
+                      <TooltipIconButton
+                        tooltip={t("workbench.chat.composer.sendMessage")}
+                        type="button"
+                        size="icon"
+                        disabled={!canCompose || !canSend}
+                        variant="default"
+                        className={cn(
+                          COMPOSER_PRIMARY_ACTION_CLASS_NAME,
+                          "disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100",
+                        )}
+                        onClick={() => dispatchComposer()}
+                      >
+                        <ArrowUpIcon className="size-4" />
+                      </TooltipIconButton>
+                    )}
+                  </div>
+                </div>
+              </fieldset>
+            </ComposerPrimitive.AttachmentDropzone>
+          </div>
 
           {composerActions?.error || composerCommandError || queueRestoreError ? (
             <div
@@ -1254,7 +1191,7 @@ export function WorkbenchComposer() {
       <SlotHost
         name="composer.after"
         context={context}
-        className="col-start-1 row-start-3 flex flex-col gap-2"
+        className="col-start-1 row-start-3 flex flex-col gap-2 empty:hidden [&:not(:empty)]:mt-2"
       />
     </div>
   );

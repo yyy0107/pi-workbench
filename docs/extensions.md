@@ -406,11 +406,11 @@ Composer Slot：
 
 - `composer.before`、`composer.actions.left`、`composer.actions.right`、`composer.after`；
 - 参数为 `{ isRunning, isEmpty }`。
+- `composer.header.left`、`composer.header.right` 位于复合 Composer 的顶部上下文栏两侧；
+- 参数同样为 `{ isRunning, isEmpty }`，适合项目、工作区、分支和紧凑状态信息。
 - `composer.overlay` 与 Composer 卡片共享布局区域，适合需要暂时接管输入区的交互组件；
 - 参数为 `{ isRunning, isEmpty, setOverlayVisible(visible) }`。贡献可见时应在 layout effect 中报告
   `true`，并在 cleanup 中报告 `false`，使宿主将底层 Composer 设为 inert。
-- `composer.drawer.left`、`composer.drawer.right` 位于加号展开的单行抽屉两侧；
-- 参数为 `{ isRunning, isEmpty, closeDrawer() }`，适合工作区摘要、能力计数和紧凑入口。
 
 完整类型定义见 [`platform/extensions/api/slot.ts`](../platform/extensions/api/slot.ts)。
 

@@ -6,8 +6,6 @@ export const workbenchEnUS = {
       question: "What will you make in Pi Workbench?",
       description:
         "Ask a question, attach context, or open a workbench panel when the conversation needs more room.",
-      workspaceQuestion: "Select a workspace to get started",
-      workspaceDescription: "Pi needs a workspace to read and modify your project files.",
       planProject: "Help me plan a small project",
       explainConcept: "Explain a difficult concept simply",
       reviewIdea: "Review an idea and find its risks",
@@ -57,13 +55,6 @@ export const workbenchEnUS = {
       sendMessage: "Send message",
       queueFollowUp: "Add to follow-up queue",
       dismissError: "Dismiss message",
-      openDrawer: "Show composer options",
-      closeDrawer: "Hide composer options",
-      drawer: "Composer options",
-      contextCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
-        `Context ${number(count)}`,
-      extensionsCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
-        `Extensions ${number(count)}`,
     },
     titles: {
       attachmentAnalysis: "Attachment analysis",

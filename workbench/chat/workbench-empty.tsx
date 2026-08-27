@@ -19,6 +19,14 @@ export function WorkbenchEmpty({ children }: Readonly<{ children: ReactNode }>) 
     t("workbench.chat.empty.reviewIdea"),
   ];
 
+  if (needsWorkspace) {
+    return (
+      <div className="mx-auto flex w-full max-w-[var(--thread-max-width)] flex-1 flex-col justify-center px-4 py-12">
+        {children}
+      </div>
+    );
+  }
+
   return (
     <div className="relative mx-auto flex w-full max-w-[var(--thread-max-width)] flex-1 flex-col justify-center px-4 py-12">
       <img
@@ -31,38 +39,28 @@ export function WorkbenchEmpty({ children }: Readonly<{ children: ReactNode }>) 
 
       <div className="relative z-10 mb-6 flex flex-col items-center text-center">
         <h1 className="from-foreground via-muted-foreground to-foreground bg-linear-to-r bg-clip-text text-balance text-[clamp(1.25rem,4vw,2.75rem)] leading-tight font-normal tracking-[-0.035em] text-transparent drop-shadow-[0_1px_0_rgb(0_0_0_/_0.08)]">
-          {t(
-            needsWorkspace
-              ? "workbench.chat.empty.workspaceQuestion"
-              : "workbench.chat.empty.question",
-          )}
+          {t("workbench.chat.empty.question")}
         </h1>
         <p className="text-muted-foreground mt-2 max-w-lg text-sm leading-relaxed">
-          {t(
-            needsWorkspace
-              ? "workbench.chat.empty.workspaceDescription"
-              : "workbench.chat.empty.description",
-          )}
+          {t("workbench.chat.empty.description")}
         </p>
       </div>
 
       <div className="relative z-10">{children}</div>
 
-      {!needsWorkspace ? (
-        <div className="relative z-10 mt-5 flex flex-wrap justify-center gap-2">
-          {starterPrompts.map((prompt) => (
-            <ThreadPrimitive.Suggestion
-              key={prompt}
-              prompt={prompt}
-              method="replace"
-              autoSend
-              className="hover:bg-muted focus-visible:ring-ring rounded-full border px-4 py-2 text-sm transition-colors outline-none focus-visible:ring-2"
-            >
-              {prompt}
-            </ThreadPrimitive.Suggestion>
-          ))}
-        </div>
-      ) : null}
+      <div className="relative z-10 mt-5 flex flex-wrap justify-center gap-2">
+        {starterPrompts.map((prompt) => (
+          <ThreadPrimitive.Suggestion
+            key={prompt}
+            prompt={prompt}
+            method="replace"
+            autoSend
+            className="hover:bg-muted focus-visible:ring-ring rounded-full border px-4 py-2 text-sm transition-colors outline-none focus-visible:ring-2"
+          >
+            {prompt}
+          </ThreadPrimitive.Suggestion>
+        ))}
+      </div>
     </div>
   );
 }

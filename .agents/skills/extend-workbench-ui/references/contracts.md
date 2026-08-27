@@ -181,10 +181,10 @@ message.before
 message.after
 message.actions
 composer.before
+composer.header.left
+composer.header.right
 composer.actions.left
 composer.actions.right
-composer.drawer.left
-composer.drawer.right
 composer.after
 statusbar.left
 statusbar.right
@@ -202,10 +202,6 @@ interface MessageSlotContext {
 interface ComposerSlotContext {
   isRunning: boolean;
   isEmpty: boolean;
-}
-
-interface ComposerDrawerSlotContext extends ComposerSlotContext {
-  closeDrawer(): void;
 }
 
 interface SidebarToolboxSlotContext {
@@ -247,10 +243,10 @@ interface SlotPropsMap {
   "message.after": MessageSlotContext;
   "message.actions": MessageSlotContext;
   "composer.before": ComposerSlotContext;
+  "composer.header.left": ComposerSlotContext;
+  "composer.header.right": ComposerSlotContext;
   "composer.actions.left": ComposerSlotContext;
   "composer.actions.right": ComposerSlotContext;
-  "composer.drawer.left": ComposerDrawerSlotContext;
-  "composer.drawer.right": ComposerDrawerSlotContext;
   "composer.after": ComposerSlotContext;
   // Other Header, Sidebar, and Statusbar slots use Record<never, never>.
 }

@@ -557,55 +557,70 @@ function MiniConversation({ activeRegion }: { activeRegion: ProjectPreviewRegion
         {activeRegion === "composer.before"
           ? target("composer.before", "composer.before", "h-2")
           : null}
-        {activeRegion === "composer.drawer.left" || activeRegion === "composer.drawer.right" ? (
-          <div className="mb-1 grid grid-cols-2 gap-1 rounded-lg border px-2 py-1">
-            {target("composer.drawer.left", "drawer.left", "h-2")}
-            {target("composer.drawer.right", "drawer.right", "h-2")}
-          </div>
-        ) : null}
-        <div className="relative rounded-xl border bg-background p-2 shadow-sm">
-          {activeRegion === "composer.overlay"
-            ? target(
-                "composer.overlay",
-                "composer.overlay",
-                "absolute inset-0 z-10 rounded-xl bg-primary/10 ring-1 ring-primary/50",
-              )
-            : null}
-          <div className="h-7 text-[6.5px] text-muted-foreground">
-            {t("extensions.toolbox.details.projectPanorama.inputPlaceholder")}
-          </div>
-          <div className="flex items-center gap-1">
-            <MiniIconButton>
-              <PlusIcon className="size-2.5" />
-            </MiniIconButton>
+        <div className="relative overflow-hidden rounded-[0.9rem] border bg-muted/45 p-px shadow-sm [--composer-preview-height:4.0625rem] [--protruding-preview-height:1.5625rem]">
+          <div className="flex h-[var(--protruding-preview-height)] min-w-0 items-center justify-between gap-1 px-2">
             {target(
-              "composer.actions.left",
-              "composer.actions.left",
-              "flex items-center gap-0.5",
-              <span className="rounded-full border px-1.5 py-0.5 text-[5.5px] text-muted-foreground">
-                GPT-5
-              </span>,
+              "composer.header.left",
+              "composer.header.left",
+              "flex min-w-0 items-center gap-1 text-[5.5px] text-muted-foreground",
+              <>
+                <FolderIcon className="size-2.5 shrink-0" />
+                <span className="truncate">
+                  {t("extensions.toolbox.details.projectPanorama.activeProject")}
+                </span>
+              </>,
             )}
-            <MiniIconButton>
-              <PaperclipIcon className="size-2.5" />
-            </MiniIconButton>
-            <span className="flex-1" />
-            {activeRegion === "composer.actions.right"
+            {target(
+              "composer.header.right",
+              "composer.header.right",
+              "flex shrink-0 items-center gap-1 text-[5.5px] text-muted-foreground",
+              <>
+                <GitPullRequestIcon className="size-2.5" />
+                <span>main</span>
+              </>,
+            )}
+          </div>
+          <div className="relative z-10 min-h-[var(--composer-preview-height)] -mt-px rounded-[0.8rem] border bg-background p-2 shadow-sm">
+            {activeRegion === "composer.overlay"
               ? target(
-                  "composer.actions.right",
-                  "composer.actions.right",
-                  "flex items-center",
-                  <MiniIconButton>
-                    <MoreHorizontalIcon className="size-2.5" />
-                  </MiniIconButton>,
+                  "composer.overlay",
+                  "composer.overlay",
+                  "absolute inset-0 z-10 rounded-[0.8rem] bg-primary/10 ring-1 ring-primary/50",
                 )
               : null}
-            <MiniIconButton>
-              <MicIcon className="size-2.5" />
-            </MiniIconButton>
-            <span className="bg-foreground text-background flex size-5 items-center justify-center rounded-full">
-              <ArrowUpIcon className="size-2.5" />
-            </span>
+            <div className="h-7 text-[6.5px] text-muted-foreground">
+              {t("extensions.toolbox.details.projectPanorama.inputPlaceholder")}
+            </div>
+            <div className="flex items-center gap-1">
+              {target(
+                "composer.actions.left",
+                "composer.actions.left",
+                "flex items-center gap-0.5",
+                <span className="rounded-full border px-1.5 py-0.5 text-[5.5px] text-muted-foreground">
+                  GPT-5
+                </span>,
+              )}
+              <MiniIconButton>
+                <PaperclipIcon className="size-2.5" />
+              </MiniIconButton>
+              <span className="flex-1" />
+              {activeRegion === "composer.actions.right"
+                ? target(
+                    "composer.actions.right",
+                    "composer.actions.right",
+                    "flex items-center",
+                    <MiniIconButton>
+                      <MoreHorizontalIcon className="size-2.5" />
+                    </MiniIconButton>,
+                  )
+                : null}
+              <MiniIconButton>
+                <MicIcon className="size-2.5" />
+              </MiniIconButton>
+              <span className="bg-foreground text-background flex size-5 items-center justify-center rounded-full">
+                <ArrowUpIcon className="size-2.5" />
+              </span>
+            </div>
           </div>
         </div>
         {activeRegion === "composer.after"

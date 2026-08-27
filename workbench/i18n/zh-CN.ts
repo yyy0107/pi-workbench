@@ -5,8 +5,6 @@ export const workbenchZhCN = {
     empty: {
       question: "要在 Pi Workbench 完成什么？",
       description: "提出问题、附加上下文，或在对话需要更多空间时打开工作台面板。",
-      workspaceQuestion: "选择一个工作区开始",
-      workspaceDescription: "Pi 需要工作区来读取和修改项目文件。",
       planProject: "帮我规划一个小项目",
       explainConcept: "用简单方式解释一个复杂概念",
       reviewIdea: "评审一个想法并找出其中的风险",
@@ -55,13 +53,6 @@ export const workbenchZhCN = {
       sendMessage: "发送消息",
       queueFollowUp: "加入后续队列",
       dismissError: "关闭提示",
-      openDrawer: "显示输入选项",
-      closeDrawer: "隐藏输入选项",
-      drawer: "输入选项",
-      contextCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
-        `上下文 ${number(count)}`,
-      extensionsCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
-        `扩展 ${number(count)}`,
     },
     titles: {
       attachmentAnalysis: "附件分析",

@@ -43,10 +43,10 @@ export const WORKBENCH_SLOTS = [
 
   "composer.overlay", // 输入框覆盖层：需要暂时接管 Composer 的交互式请求等
   "composer.before", // 输入框之前：上下文提示、附件预览、状态提示等
+  "composer.header.left", // Composer 复合容器头部左侧：项目、工作区、分支等上下文
+  "composer.header.right", // Composer 复合容器头部右侧：上下文状态与紧凑操作
   "composer.actions.left", // 输入框左侧操作：附件、@、/ 命令、工具等
   "composer.actions.right", // 输入框右侧操作：模型选择、语音、发送等
-  "composer.drawer.left", // Composer 左侧抽屉：附件、工具、Skill 等扩展面板
-  "composer.drawer.right", // Composer 右侧抽屉：模型、参数、上下文等扩展面板
   "composer.after", // 输入框之后：免责声明、快捷提示、Token 信息等
 
   "statusbar.left", // 底部状态栏左侧：连接状态、Agent 状态、分支等
@@ -87,16 +87,6 @@ export interface ComposerOverlaySlotContext extends ComposerSlotContext {
    * 可见时将底层 Composer 设为 inert，避免指针或键盘焦点穿透覆盖层。
    */
   setOverlayVisible(visible: boolean): void;
-}
-
-/**
- * Composer 抽屉 Slot 的上下文。
- *
- * 抽屉贡献完成选择或导航后应调用 `closeDrawer()`，不要直接依赖抽屉内部 Store。
- */
-export interface ComposerDrawerSlotContext extends ComposerSlotContext {
-  /** 关闭当前 Composer 扩展抽屉。 */
-  closeDrawer(): void;
 }
 
 /** 工具箱主体贡献收到的宿主搜索状态。 */
@@ -172,10 +162,10 @@ export interface SlotPropsMap {
   "message.actions": MessageSlotContext; // 单条消息操作区域
   "composer.overlay": ComposerOverlaySlotContext; // 暂时接管输入框交互的覆盖层
   "composer.before": ComposerSlotContext; // 输入框区域之前
+  "composer.header.left": ComposerSlotContext; // Composer 复合容器头部左侧
+  "composer.header.right": ComposerSlotContext; // Composer 复合容器头部右侧
   "composer.actions.left": ComposerSlotContext; // 输入框操作栏左侧
   "composer.actions.right": ComposerSlotContext; // 输入框操作栏右侧
-  "composer.drawer.left": ComposerDrawerSlotContext; // Composer 展开抽屉左侧
-  "composer.drawer.right": ComposerDrawerSlotContext; // Composer 展开抽屉右侧
   "composer.after": ComposerSlotContext; // 输入框区域之后
   "statusbar.left": Record<never, never>; // 状态栏左侧区域
   "statusbar.right": Record<never, never>; // 状态栏右侧区域

@@ -56,6 +56,10 @@ const THREAD_SCROLL_STORAGE_KEY = "workbench.thread-scroll-positions.v1";
 const MAX_SAVED_THREAD_SCROLL_POSITIONS = 50;
 const BOTTOM_DISTANCE_THRESHOLD = 2;
 const DEFAULT_COMPOSER_DOCK_INSET_PX = 138;
+const THREAD_VIEWPORT_MASK_IMAGE =
+  "linear-gradient(to bottom, transparent 0, #000 var(--thread-header-fade-size), #000 calc(100% - var(--composer-dock-fade-start-offset)), transparent calc(100% - var(--composer-dock-fade-end-offset)), transparent 100%)";
+const THREAD_VIEWPORT_CLIP_PATH =
+  "polygon(0 0, 100% 0, 100% calc(100% - var(--composer-dock-fade-start-offset)), calc(100% - var(--scrollbar-size)) calc(100% - var(--composer-dock-fade-start-offset)), calc(100% - var(--scrollbar-size)) calc(100% - var(--composer-dock-fade-end-offset)), 0 calc(100% - var(--composer-dock-fade-end-offset)))";
 const threadScrollPositions = new Map<string, ThreadScrollPosition>();
 let threadScrollPositionsLoaded = false;
 let threadScrollPersistenceFrame: number | null = null;
@@ -717,8 +721,8 @@ export function WorkbenchThread() {
         style={
           {
             "--composer-dock-inset": `${composerDockInset}px`,
-            "--composer-dock-bottom-gap": "1rem",
-            "--composer-dock-corner-radius": "1.375rem",
+            "--composer-dock-bottom-gap": "0px",
+            "--composer-dock-corner-radius": "var(--composer-inner-radius, 1.375rem)",
             "--composer-dock-fade-end-offset":
               "calc(var(--composer-dock-bottom-gap) + var(--composer-dock-corner-radius))",
             "--composer-dock-fade-start-offset":
@@ -754,12 +758,10 @@ export function WorkbenchThread() {
             isEmpty
               ? undefined
               : {
-                  WebkitMaskImage:
-                    "linear-gradient(to bottom, transparent 0, #000 var(--thread-header-fade-size), #000 calc(100% - var(--composer-dock-fade-start-offset)), transparent calc(100% - var(--composer-dock-fade-end-offset)), transparent 100%)",
-                  maskImage:
-                    "linear-gradient(to bottom, transparent 0, #000 var(--thread-header-fade-size), #000 calc(100% - var(--composer-dock-fade-start-offset)), transparent calc(100% - var(--composer-dock-fade-end-offset)), transparent 100%)",
-                  WebkitClipPath: "inset(0 0 var(--composer-dock-fade-end-offset) 0)",
-                  clipPath: "inset(0 0 var(--composer-dock-fade-end-offset) 0)",
+                  WebkitMaskImage: THREAD_VIEWPORT_MASK_IMAGE,
+                  maskImage: THREAD_VIEWPORT_MASK_IMAGE,
+                  WebkitClipPath: THREAD_VIEWPORT_CLIP_PATH,
+                  clipPath: THREAD_VIEWPORT_CLIP_PATH,
                 }
           }
         >
