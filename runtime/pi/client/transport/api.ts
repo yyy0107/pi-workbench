@@ -132,6 +132,7 @@ import type {
   WorkspaceFileWritePayload,
   WorkspaceGitCreateBranchPayload,
   WorkspaceGitDescribePayload,
+  WorkspaceGitLogValue,
   WorkspaceGitStatus,
   WorkspaceGitSwitchBranchPayload,
   WorkspaceListValue,
@@ -439,6 +440,13 @@ export function describePiWorkspaceGit(
   options?: PiRpcCallOptions,
 ): Promise<WorkspaceGitStatus> {
   return callPiRpc("workspace.git.describe", payload, options);
+}
+
+export function readPiWorkspaceGitLog(
+  payload: WorkspaceGitDescribePayload,
+  options?: PiRpcCallOptions,
+): Promise<WorkspaceGitLogValue> {
+  return callPiRpc("workspace.git.log", payload, options);
 }
 
 export function switchPiWorkspaceGitBranch(

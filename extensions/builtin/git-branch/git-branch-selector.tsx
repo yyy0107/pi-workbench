@@ -6,6 +6,7 @@ import {
   ArrowRightIcon,
   ChevronDownIcon,
   GitBranchIcon,
+  GitForkIcon,
   LoaderCircleIcon,
   PlusIcon,
   SearchIcon,
@@ -46,6 +47,8 @@ import {
 import type { WorkspaceGitStatus } from "@/runtime/pi/contracts/rpc";
 import { useWorkspaceSelection } from "@/services/workspace-selection-service";
 
+import { GitGraphDialog } from "./git-graph-dialog";
+
 type BranchActionError = "session-busy" | "invalid" | "exists" | "switch" | "create";
 type GitBranchSelectorPlacement = "composer" | "header";
 type GitBranchStatusListener = (workspaceId: string, status: WorkspaceGitStatus) => void;
@@ -84,6 +87,7 @@ function GitBranchSelector({
   const [pendingBranch, setPendingBranch] = useState<string>();
   const [switchError, setSwitchError] = useState<BranchActionError>();
   const [createOpen, setCreateOpen] = useState(false);
+  const [graphOpen, setGraphOpen] = useState(false);
   const [branchName, setBranchName] = useState("");
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<BranchActionError>();
@@ -123,6 +127,7 @@ function GitBranchSelector({
     setLoadError(false);
     setPendingBranch(undefined);
     setSwitchError(undefined);
+    setGraphOpen(false);
     setMenuOpen(false);
     setQuery("");
     if (!workspaceId) {
@@ -412,6 +417,17 @@ function GitBranchSelector({
                 <PlusIcon aria-hidden="true" className="size-4 text-muted-foreground" />
                 {t("extensions.gitBranch.createAction")}
               </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={busy}
+                className="min-h-9 gap-2.5 rounded-lg px-2.5 text-sm"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setGraphOpen(true);
+                }}
+              >
+                <GitForkIcon aria-hidden="true" className="size-4 text-muted-foreground" />
+                {t("extensions.gitBranch.graph.action")}
+              </DropdownMenuItem>
             </div>
           </div>
         </DropdownMenuContent>
@@ -618,6 +634,8 @@ function GitBranchSelector({
           </form>
         </DialogContent>
       </Dialog>
+
+      <GitGraphDialog open={graphOpen} workspaceId={workspaceId} onOpenChange={setGraphOpen} />
     </>
   );
 }

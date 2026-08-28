@@ -75,6 +75,17 @@ export function createWorkspaceGitRpcRoutes({
                 projectDomainError,
               ),
           });
+        case "workspace.git.log":
+          return handleRpcPost(request, {
+            method,
+            payload: describePayload,
+            handler: (payload, context) =>
+              invokeService(
+                () => service.log(payload, context.signal),
+                context.signal,
+                projectDomainError,
+              ),
+          });
         case "workspace.git.switchBranch":
           return handleRpcPost(request, {
             method,

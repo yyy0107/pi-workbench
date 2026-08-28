@@ -3,14 +3,18 @@ import { realpath } from "node:fs/promises";
 import path from "node:path";
 
 import type {
+  WorkspaceGitCommit,
+  WorkspaceGitCommitRef,
   WorkspaceGitChangedFile,
   WorkspaceGitChangeKind,
   WorkspaceGitCreateBranchPayload,
   WorkspaceGitDescribePayload,
+  WorkspaceGitLogValue,
   WorkspaceGitStatus,
   WorkspaceGitSwitchBranchPayload,
   WorkspaceView,
 } from "@/runtime/pi/contracts/rpc";
+import { WORKSPACE_GIT_LOG_COMMIT_LIMIT } from "@/runtime/pi/contracts/rpc";
 
 import { RpcDomainError } from "../core/rpc-domain-error";
 import {
@@ -56,6 +60,7 @@ export interface WorkspaceGitServiceDependencies {
 
 export interface WorkspaceGitProtocol {
   describe(input: WorkspaceGitDescribePayload, signal: AbortSignal): Promise<WorkspaceGitStatus>;
+  log(input: WorkspaceGitDescribePayload, signal: AbortSignal): Promise<WorkspaceGitLogValue>;
   switchBranch(
     input: WorkspaceGitSwitchBranchPayload,
     signal: AbortSignal,
@@ -71,6 +76,7 @@ export interface WorkspaceGitServiceErrorDetails {
   "git-unavailable": Record<string, never>;
   "git-not-repository": { workspaceId: string };
   "git-status-failed": { workspaceId: string };
+  "git-log-failed": { workspaceId: string };
   "git-branch-invalid": { branch: string };
   "git-branch-not-found": { workspaceId: string; branch: string };
   "git-branch-exists": { workspaceId: string; branch: string };
@@ -242,6 +248,73 @@ export function describeGitChangedFiles(
   }));
 }
 
+function parseGitCommitRef(value: string): WorkspaceGitCommitRef | undefined {
+  const symbolicSeparator = value.indexOf(" -> ");
+  const ref = (symbolicSeparator < 0 ? value : value.slice(0, symbolicSeparator)).trim();
+  if (!ref) return undefined;
+  if (ref === "HEAD") return { name: "HEAD", kind: "head" };
+  if (ref.startsWith("tag: refs/tags/")) {
+    return { name: ref.slice("tag: refs/tags/".length), kind: "tag" };
+  }
+  if (ref.startsWith("refs/tags/")) {
+    return { name: ref.slice("refs/tags/".length), kind: "tag" };
+  }
+  if (ref.startsWith("refs/heads/")) {
+    return { name: ref.slice("refs/heads/".length), kind: "local" };
+  }
+  if (ref.startsWith("refs/remotes/")) {
+    return { name: ref.slice("refs/remotes/".length), kind: "remote" };
+  }
+  return { name: ref.startsWith("refs/") ? ref.slice("refs/".length) : ref, kind: "other" };
+}
+
+function parseGitCommitRefs(value: string): WorkspaceGitCommitRef[] {
+  const refs: WorkspaceGitCommitRef[] = [];
+  const seen = new Set<string>();
+  const append = (ref: WorkspaceGitCommitRef | undefined) => {
+    if (!ref) return;
+    const key = `${ref.kind}:${ref.name}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    refs.push(ref);
+  };
+
+  for (const decoration of value.split(", ")) {
+    const trimmed = decoration.trim();
+    if (!trimmed) continue;
+    if (trimmed.startsWith("HEAD -> ")) {
+      append({ name: "HEAD", kind: "head" });
+      append(parseGitCommitRef(trimmed.slice("HEAD -> ".length)));
+      continue;
+    }
+    append(parseGitCommitRef(trimmed));
+  }
+  return refs;
+}
+
+/** Parses the fixed-width NUL-delimited records emitted by the workspace Git log command. */
+export function parseWorkspaceGitLog(output: string): WorkspaceGitCommit[] {
+  const fields = output.split("\0");
+  if (fields.at(-1) === "") fields.pop();
+
+  const commits: WorkspaceGitCommit[] = [];
+  for (let index = 0; index + 6 < fields.length; index += 7) {
+    const hash = fields[index] ?? "";
+    const shortHash = fields[index + 1] ?? "";
+    if (!hash || !shortHash) continue;
+    commits.push({
+      hash,
+      shortHash,
+      parentHashes: (fields[index + 2] ?? "").split(" ").filter(Boolean),
+      authorName: fields[index + 3] ?? "",
+      authoredAt: fields[index + 4] ?? "",
+      subject: fields[index + 5] ?? "",
+      refs: parseGitCommitRefs(fields[index + 6] ?? ""),
+    });
+  }
+  return commits;
+}
+
 function compareBranches(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
 }
@@ -272,6 +345,39 @@ class DefaultWorkspaceGitService implements WorkspaceGitProtocol {
   ): Promise<WorkspaceGitStatus> {
     const workspace = await this.requireWorkspace(input.workspaceId);
     return this.readStatus(workspace, signal);
+  }
+
+  async log(
+    input: WorkspaceGitDescribePayload,
+    signal: AbortSignal,
+  ): Promise<WorkspaceGitLogValue> {
+    const workspace = await this.requireWorkspace(input.workspaceId);
+    await this.requireRepository(workspace, signal);
+    const result = await this.runCommand(
+      [
+        "log",
+        "-z",
+        "--all",
+        "--topo-order",
+        "--decorate=full",
+        `--max-count=${WORKSPACE_GIT_LOG_COMMIT_LIMIT + 1}`,
+        "--format=%H%x00%h%x00%P%x00%an%x00%aI%x00%s%x00%D",
+      ],
+      workspace,
+      signal,
+      "git-log-failed",
+      { workspaceId: input.workspaceId },
+    );
+    if (result.exitCode !== 0) {
+      throw new WorkspaceGitServiceError("git-log-failed", "The Git history could not be read.", {
+        workspaceId: input.workspaceId,
+      });
+    }
+    const commits = parseWorkspaceGitLog(result.stdout);
+    return {
+      commits: commits.slice(0, WORKSPACE_GIT_LOG_COMMIT_LIMIT),
+      truncated: commits.length > WORKSPACE_GIT_LOG_COMMIT_LIMIT,
+    };
   }
 
   async switchBranch(
@@ -529,7 +635,7 @@ class DefaultWorkspaceGitService implements WorkspaceGitProtocol {
   }
 
   private async runCommand<
-    Code extends "git-status-failed" | "git-switch-failed" | "git-create-failed",
+    Code extends "git-status-failed" | "git-log-failed" | "git-switch-failed" | "git-create-failed",
   >(
     args: readonly string[],
     workspace: WorkspaceView,
@@ -551,6 +657,7 @@ class DefaultWorkspaceGitService implements WorkspaceGitProtocol {
       }
       const messages = {
         "git-status-failed": "The Git repository status could not be read.",
+        "git-log-failed": "The Git history could not be read.",
         "git-switch-failed": "The Git branch could not be switched.",
         "git-create-failed": "The Git branch could not be created.",
       } as const;

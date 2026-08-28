@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { WorkspaceView } from "@/runtime/pi/contracts/rpc";
+import { WORKSPACE_GIT_LOG_COMMIT_LIMIT, type WorkspaceView } from "@/runtime/pi/contracts/rpc";
 
 import { PiResourceMutationBusyError } from "../resources/pi-resource-mutation-coordinator";
 import {
   countGitStatusEntries,
   createWorkspaceGitService,
   describeGitChangedFiles,
+  parseWorkspaceGitLog,
   WorkspaceGitServiceError,
   type WorkspaceGitCommandResult,
   type WorkspaceGitServiceDependencies,
@@ -26,6 +27,24 @@ const signal = new AbortController().signal;
 
 function result(stdout = "", exitCode = 0): WorkspaceGitCommandResult {
   return { exitCode, stdout, stderr: "" };
+}
+
+function logRecord({
+  author = "Ada",
+  date = "2026-08-28T10:00:00-07:00",
+  decorations = "",
+  hash,
+  parents = "",
+  subject,
+}: {
+  author?: string;
+  date?: string;
+  decorations?: string;
+  hash: string;
+  parents?: string;
+  subject: string;
+}): string {
+  return [hash, hash.slice(0, 8), parents, author, date, subject, decorations].join("\0") + "\0";
 }
 
 function harness(overrides: Partial<WorkspaceGitServiceDependencies> = {}) {
@@ -69,6 +88,51 @@ test("describes changed files with rename-safe line statistics", () => {
         deletions: 0,
       },
       { path: "note.txt", kind: "untracked" },
+    ],
+  );
+});
+
+test("parses NUL-delimited Git history records and decorated refs", () => {
+  const first = "1".repeat(40);
+  const second = "2".repeat(40);
+  assert.deepEqual(
+    parseWorkspaceGitLog(
+      logRecord({
+        hash: first,
+        parents: `${second} ${"3".repeat(40)}`,
+        subject: "Merge feature",
+        decorations: "HEAD -> refs/heads/main, refs/remotes/origin/main, tag: refs/tags/v1.0.0",
+      }) +
+        logRecord({
+          hash: second,
+          subject: "Initial commit",
+          decorations: "refs/remotes/origin/HEAD -> refs/remotes/origin/main",
+        }),
+    ),
+    [
+      {
+        hash: first,
+        shortHash: first.slice(0, 8),
+        parentHashes: [second, "3".repeat(40)],
+        authorName: "Ada",
+        authoredAt: "2026-08-28T10:00:00-07:00",
+        subject: "Merge feature",
+        refs: [
+          { name: "HEAD", kind: "head" },
+          { name: "main", kind: "local" },
+          { name: "origin/main", kind: "remote" },
+          { name: "v1.0.0", kind: "tag" },
+        ],
+      },
+      {
+        hash: second,
+        shortHash: second.slice(0, 8),
+        parentHashes: [],
+        authorName: "Ada",
+        authoredAt: "2026-08-28T10:00:00-07:00",
+        subject: "Initial commit",
+        refs: [{ name: "origin/HEAD", kind: "remote" }],
+      },
     ],
   );
 });
@@ -145,6 +209,48 @@ test("returns detached HEAD metadata and preserves local branch ordering", async
     changedFiles: [],
     changedFilesTruncated: false,
   });
+});
+
+test("returns a bounded topological Git log for the imported repository", async () => {
+  const commands: string[][] = [];
+  const history = Array.from({ length: WORKSPACE_GIT_LOG_COMMIT_LIMIT + 1 }, (_, index) => {
+    const hash = index.toString(16).padStart(40, "0");
+    const parent = (index + 1).toString(16).padStart(40, "0");
+    return logRecord({
+      hash,
+      parents: index === WORKSPACE_GIT_LOG_COMMIT_LIMIT ? "" : parent,
+      subject: `Commit ${index}`,
+      decorations: index === 0 ? "HEAD -> refs/heads/main" : "",
+    });
+  }).join("");
+  const { service } = harness({
+    runGit: async (args) => {
+      commands.push([...args]);
+      if (args[0] === "rev-parse") return result("/projects/one\n");
+      if (args[0] === "symbolic-ref") return result("main\n");
+      if (args[0] === "for-each-ref") return result("main\n");
+      if (args[0] === "status" || args[0] === "diff") return result();
+      if (args[0] === "log") return result(history);
+      throw new Error(`Unexpected git command: ${args.join(" ")}`);
+    },
+  });
+
+  const value = await service.log({ workspaceId: workspace.workspaceId }, signal);
+  assert.equal(value.commits.length, WORKSPACE_GIT_LOG_COMMIT_LIMIT);
+  assert.equal(value.truncated, true);
+  assert.deepEqual(value.commits[0]?.refs, [
+    { name: "HEAD", kind: "head" },
+    { name: "main", kind: "local" },
+  ]);
+  assert.ok(
+    commands.some(
+      (args) =>
+        args[0] === "log" &&
+        args.includes("--all") &&
+        args.includes("--topo-order") &&
+        args.includes(`--max-count=${WORKSPACE_GIT_LOG_COMMIT_LIMIT + 1}`),
+    ),
+  );
 });
 
 test("switches and creates local branches inside the serialized project mutation", async () => {

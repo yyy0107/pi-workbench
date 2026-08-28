@@ -121,8 +121,8 @@ Unary RPC 是 session、workspace 和 running 状态的权威快照；WebSocket 
   `workspace.unarchiveSession`；
 - Workspace files：`workspace.files.list`、`workspace.files.describe`、`workspace.files.read`、
   `workspace.files.write`，以及 `GET/HEAD /api/workspace.files.content`；
-- Workspace Git：`workspace.git.describe`、`workspace.git.switchBranch`、
-  `workspace.git.createBranch`；
+- Workspace Git：`workspace.git.describe`、`workspace.git.log`、
+  `workspace.git.switchBranch`、`workspace.git.createBranch`；
 - Skills：`skill.list`、`skill.describe`、`skill.setEnabled`、`skill.files.list`、`skill.files.read`、
   `skill.remove`；
 - Commands / Prompts：会话或新会话资源目标的命令目录 `command.list`，以及独立资源目录
@@ -340,7 +340,9 @@ PDF、Office 等缓冲型查看器一次性占用过多内存。端点复用相�
 Workspace Git 同样只接受 `workspaceId`，并从 `WorkspaceStore` 解析权威目录；浏览器不能提交宿主
 路径或 Git 命令。`workspace.git.describe` 只在 Workspace 自身就是仓库根目录时返回当前本地分支、
 本地分支列表、未提交文件数，以及最多 200 个用于切换确认的相对文件路径和增删行统计，避免从子目录
-越过已导入 Workspace 边界操作父目录仓库。切换与创建
+越过已导入 Workspace 边界操作父目录仓库。`workspace.git.log` 以拓扑顺序返回所有 refs 可达的最近
+500 个提交、父提交、作者、日期和装饰引用，并通过 `truncated` 标识还有更早历史；它与状态读取一样
+允许显式 trusted host 调用，但仍不接受路径、revision 或任意 Git 参数。切换与创建
 分支使用参数数组调用 `git`、禁用交互式凭据提示且不经过 shell；两项 mutation 只允许 loopback 请求，
 按项目与 Pi 资源 mutation 串行化，并在相关已加载 session 运行时返回 `session-busy`。成功改变分支后
 会 reload 同项目的空闲 session，使 branch-local `.pi` 资源与新的工作树保持一致。
@@ -1231,7 +1233,7 @@ runtime/pi/
   `sessionImport.*` validator、批量边界和 loopback-only 约束，只依赖窄的
   `ExternalSessionImportProtocol`。`routes/workspace-rpc-routes.ts` 拥有 11 个 Workspace 组织/归档
   validator 与 handler 映射，只依赖 `WorkspaceProtocolService`；
-  `routes/workspace-git-rpc-routes.ts` 独立拥有三个 Workspace Git validator、两个 loopback-only
+  `routes/workspace-git-rpc-routes.ts` 独立拥有四个 Workspace Git validator、两个 loopback-only
   mutation 约束、取消映射和 handler，只依赖 `WorkspaceGitProtocol`；
   `routes/workspace-file-rpc-routes.ts` 独立拥有四个 `workspace.files.*` unary validator、20 MiB 写入载体
   预算、取消映射和 handler，并只依赖 `WorkspaceFileProtocol`。Range/ETag 流式 content 端点继续与

@@ -131,6 +131,7 @@ export interface WorkspaceSessionPinValue {
 }
 
 export const WORKSPACE_GIT_BRANCH_NAME_LENGTH_LIMIT = 255;
+export const WORKSPACE_GIT_LOG_COMMIT_LIMIT = 500;
 
 export interface WorkspaceGitDescribePayload {
   workspaceId: string;
@@ -173,6 +174,28 @@ export interface WorkspaceGitSwitchBranchPayload extends WorkspaceGitDescribePay
 
 export interface WorkspaceGitCreateBranchPayload extends WorkspaceGitDescribePayload {
   branch: string;
+}
+
+export type WorkspaceGitRefKind = "head" | "local" | "remote" | "tag" | "other";
+
+export interface WorkspaceGitCommitRef {
+  name: string;
+  kind: WorkspaceGitRefKind;
+}
+
+export interface WorkspaceGitCommit {
+  hash: string;
+  shortHash: string;
+  parentHashes: string[];
+  authorName: string;
+  authoredAt: string;
+  subject: string;
+  refs: WorkspaceGitCommitRef[];
+}
+
+export interface WorkspaceGitLogValue {
+  commits: WorkspaceGitCommit[];
+  truncated: boolean;
 }
 
 export interface DirectoryEntry {

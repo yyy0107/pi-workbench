@@ -64,6 +64,12 @@ test("claims only the Workspace Git subdomain and forwards sanitized payloads", 
       expected: { workspaceId: "workspace-1" },
     },
     {
+      method: "workspace.git.log",
+      payload: { workspaceId: "workspace-1", ignored: true },
+      operation: "log",
+      expected: { workspaceId: "workspace-1" },
+    },
+    {
       method: "workspace.git.switchBranch",
       payload: { workspaceId: "workspace-1", branch: "  feature/a  ", ignored: true },
       operation: "switchBranch",
@@ -111,6 +117,7 @@ test("validates bounded Workspace Git identities before invoking the service", a
   });
   const cases = [
     ["workspace.git.describe", { workspaceId: "" }],
+    ["workspace.git.log", { workspaceId: "" }],
     ["workspace.git.switchBranch", { workspaceId: "workspace-1", branch: "   " }],
     [
       "workspace.git.createBranch",
@@ -141,6 +148,7 @@ test("keeps Git reads available to trusted hosts but restricts mutations to loop
   });
   const service = {
     describe: async () => ({ repository: false as const }),
+    log: async () => ({ commits: [], truncated: false }),
     switchBranch: async () => ({ repository: false as const }),
     createBranch: async () => ({ repository: false as const }),
   } satisfies WorkspaceGitProtocol;
@@ -156,6 +164,10 @@ test("keeps Git reads available to trusted hosts but restricts mutations to loop
     rpcRequest("workspace.git.describe", { workspaceId: "workspace-1" }, remote),
     "workspace.git.describe",
   );
+  const log = routes.handle(
+    rpcRequest("workspace.git.log", { workspaceId: "workspace-1" }, remote),
+    "workspace.git.log",
+  );
   const mutation = routes.handle(
     rpcRequest(
       "workspace.git.switchBranch",
@@ -166,8 +178,10 @@ test("keeps Git reads available to trusted hosts but restricts mutations to loop
   );
 
   assert.ok(describe);
+  assert.ok(log);
   assert.ok(mutation);
   assert.equal((await describe).status, 200);
+  assert.equal((await log).status, 200);
   assert.equal((await mutation).status, 403);
 });
 
@@ -176,6 +190,9 @@ test("delegates Workspace Git domain failures to the shared projector", async ()
   const service = {
     async describe() {
       throw failure;
+    },
+    async log() {
+      throw new Error("Unexpected log call");
     },
     async switchBranch() {
       throw new Error("Unexpected switchBranch call");
