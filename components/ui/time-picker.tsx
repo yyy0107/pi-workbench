@@ -80,7 +80,7 @@ const TimePicker = React.forwardRef<HTMLButtonElement, TimePickerProps>(function
             aria-invalid={invalid}
             aria-describedby={describedBy}
             className={cn(
-              "h-[var(--input-control-height)] w-28 justify-between rounded-[var(--input-control-radius)] px-2.5 font-normal tabular-nums",
+              "h-[var(--dropdown-control-height)]! min-h-[var(--dropdown-control-height)]! w-28 justify-between rounded-[var(--input-control-radius)] px-2.5 font-normal tabular-nums",
               className,
             )}
           >

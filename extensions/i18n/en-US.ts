@@ -944,6 +944,8 @@ export const extensionsEnUS = {
       earliestSlot: "Earliest available slot",
       weekdayMorning: "Weekdays at 09:00",
       dailyMorning: "Daily at 10:00",
+      fridayAfternoon: "Fridays at 16:00",
+      wednesdayAfternoon: "Wednesdays at 15:00",
       enabled: "Enabled",
       disabled: "Disabled",
       runStatus: {

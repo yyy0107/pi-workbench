@@ -899,6 +899,8 @@ export const extensionsZhCN = {
       earliestSlot: "最早可用时段",
       weekdayMorning: "每工作日 09:00",
       dailyMorning: "每天 10:00",
+      fridayAfternoon: "每周五 16:00",
+      wednesdayAfternoon: "每周三 15:00",
       enabled: "已启用",
       disabled: "已停用",
       runStatus: {

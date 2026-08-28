@@ -60,6 +60,7 @@ import {
   MIN_SCHEDULE_RUN_DURATION_SECONDS,
 } from "@/runtime/shared/execution";
 
+import { findAutomationTaskPreset } from "./automation-task-presets";
 import { workflowMainViewRequest, type WorkflowMainViewParams } from "./workflow-main-view";
 import { useWorkflowRunHistory } from "./use-workflow-run-history";
 import { useWorkflowCatalogStore } from "./workflow-state";
@@ -224,33 +225,25 @@ export function AutomationTaskForm({ params }: { params: AutomationTaskParams })
     refresh: refreshTaskRuns,
   } = useWorkflowRunHistory(editingWorkflowId);
   const presetName = params.page === "automation-create" ? params.preset : undefined;
+  const presetDefinition = presetName ? findAutomationTaskPreset(presetName) : undefined;
   const preset = useMemo(() => {
-    if (presetName === "morning-briefing") {
-      return {
-        title: t("extensions.workflows.automationHome.templates.morningBriefing.name"),
-        prompt: t("extensions.workflows.automationHome.templates.morningBriefing.prompt"),
-        time: "09:00",
-        frequency: "weekdays" as const,
-      };
-    }
-    if (presetName === "risk-scan") {
-      return {
-        title: t("extensions.workflows.automationHome.templates.riskScan.name"),
-        prompt: t("extensions.workflows.automationHome.templates.riskScan.prompt"),
-        time: "10:00",
-        frequency: "daily" as const,
-      };
-    }
-    return undefined;
-  }, [presetName, t]);
+    if (!presetDefinition) return undefined;
+    return {
+      title: t(presetDefinition.nameKey),
+      prompt: t(presetDefinition.promptKey),
+      time: presetDefinition.time,
+      frequency: presetDefinition.frequency,
+      customCron: "customCron" in presetDefinition ? presetDefinition.customCron : "",
+    };
+  }, [presetDefinition, t]);
   const localTimezone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
   const [title, setTitle] = useState(
     preset?.title ?? t("extensions.workflows.automationTask.untitledTask"),
   );
   const [prompt, setPrompt] = useState(preset?.prompt ?? "");
   const [frequency, setFrequency] = useState<ScheduleFrequency>(preset?.frequency ?? "weekdays");
-  const [time, setTime] = useState(preset?.time ?? "09:00");
-  const [customCron, setCustomCron] = useState("");
+  const [time, setTime] = useState<string>(preset?.time ?? "09:00");
+  const [customCron, setCustomCron] = useState(preset?.customCron ?? "");
   const [hasSchedule, setHasSchedule] = useState(Boolean(preset));
   const [timezone, setTimezone] = useState(localTimezone);
   const [maxRunDurationMinutes, setMaxRunDurationMinutes] = useState("");
@@ -978,7 +971,12 @@ export function AutomationTaskForm({ params }: { params: AutomationTaskParams })
                     <DropdownMenu>
                       <DropdownMenuTrigger
                         render={
-                          <Button type="button" size="sm" variant="secondary">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            className="h-[var(--dropdown-control-height)]! min-h-[var(--dropdown-control-height)]!"
+                          >
                             {frequencyLabel}
                             <ChevronDownIcon aria-hidden="true" data-icon="inline-end" />
                           </Button>
@@ -1181,7 +1179,7 @@ export function AutomationTaskForm({ params }: { params: AutomationTaskParams })
                   aria-invalid={promptInvalid}
                   aria-describedby={promptInvalid ? "automation-task-prompt-error" : undefined}
                   placeholder={t("extensions.workflows.automationTask.instructionsPlaceholder")}
-                  className="min-h-40 resize-y rounded-none border-0 bg-transparent px-4 py-3 shadow-none focus-visible:ring-0"
+                  className="min-h-24 resize-y rounded-none border-0 bg-transparent px-4 py-3 shadow-none focus-visible:ring-0"
                   onChange={(event) => {
                     setNotice(undefined);
                     setPrompt(event.currentTarget.value);

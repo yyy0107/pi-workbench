@@ -2,6 +2,8 @@ import { defineMessage } from "@/i18n";
 import type { MainViewBreadcrumbs, OpenMainViewRequest } from "@/platform/extensions/authoring";
 import type { WorkflowKind, WorkflowScope } from "@/runtime/shared/execution";
 
+import type { AutomationTaskPreset } from "./automation-task-presets";
+
 export const WORKFLOW_MAIN_VIEW_KIND = "workflows";
 export const WORKFLOW_MAIN_VIEW_TITLE = defineMessage("extensions.workflows.title");
 const AUTOMATION_MAIN_VIEW_TITLE = defineMessage("extensions.workflows.automationHome.title");
@@ -10,8 +12,6 @@ const CREATE_WORKFLOW_TITLE = defineMessage("extensions.workflows.create.title")
 const EDIT_WORKFLOW_TITLE = defineMessage("extensions.workflows.breadcrumb.editor");
 const WORKFLOW_RUNS_TITLE = defineMessage("extensions.workflows.runs.title");
 const WORKFLOW_TEMPLATES_TITLE = defineMessage("extensions.workflows.templates.title");
-
-export type AutomationTaskPreset = "morning-briefing" | "risk-scan";
 
 export type WorkflowMainViewParams =
   | { page: "automations" }

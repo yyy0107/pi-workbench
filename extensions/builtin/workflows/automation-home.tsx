@@ -2,17 +2,22 @@
 
 import { useMemo, useState } from "react";
 import {
+  ActivityIcon,
   CirclePauseIcon,
   CirclePlayIcon,
   Clock3Icon,
+  FileCheck2Icon,
+  GitCommitHorizontalIcon,
   InfoIcon,
   MoreHorizontalIcon,
   PencilIcon,
   PlayIcon,
   PlusIcon,
   RefreshCwIcon,
+  SunMediumIcon,
   Trash2Icon,
   ZapIcon,
+  type LucideIcon,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -35,8 +40,16 @@ import type {
   WorkflowTriggerState,
 } from "@/runtime/shared/execution";
 
+import { AUTOMATION_TASK_PRESETS, type AutomationTaskPreset } from "./automation-task-presets";
 import { workflowMainViewRequest } from "./workflow-main-view";
 import { useWorkflowCatalogStore } from "./workflow-state";
+
+const AUTOMATION_TEMPLATE_ICONS = {
+  "morning-briefing": SunMediumIcon,
+  "risk-scan": ActivityIcon,
+  "git-standup": GitCommitHorizontalIcon,
+  "docs-sync": FileCheck2Icon,
+} as const satisfies Record<AutomationTaskPreset, LucideIcon>;
 
 const ACTIVE_RUN_STATUSES: readonly WorkflowRunStatus[] = [
   "queued",
@@ -81,7 +94,13 @@ export function AutomationHome() {
     () => items.filter(({ kind, archivedAt }) => kind === "automation" && archivedAt === undefined),
     [items],
   );
-  const openCreate = () => mainViews.open(workflowMainViewRequest({ page: "automation-create" }));
+  const openCreate = (preset?: AutomationTaskPreset) =>
+    mainViews.open(
+      workflowMainViewRequest({
+        page: "automation-create",
+        ...(preset ? { preset } : {}),
+      }),
+    );
   const openAutomation = (workflowId: string) =>
     mainViews.open(workflowMainViewRequest({ page: "automation-edit", workflowId }));
 
@@ -234,15 +253,35 @@ export function AutomationHome() {
               {t("extensions.workflows.automationHome.description")}
             </p>
           </div>
-          <Button type="button" onClick={openCreate}>
+          <Button type="button" onClick={() => openCreate()}>
             <PlusIcon aria-hidden="true" />
             {t("extensions.workflows.automationHome.newAutomation")}
           </Button>
         </header>
 
+        <div className="bg-muted/60 mt-6 flex min-h-12 items-center gap-3 rounded-[var(--radius-lg)] px-4 py-2">
+          <InfoIcon aria-hidden="true" className="text-muted-foreground size-5 shrink-0" />
+          <div id="workflow-automation-wake-lock-description" className="min-w-0 flex-1">
+            <p className="text-muted-foreground text-sm">
+              {t("extensions.workflows.automationHome.keepAwake")}
+            </p>
+            {wakeLockState === "unsupported" || wakeLockState === "error" ? (
+              <p className="text-destructive mt-0.5 text-xs" role="status">
+                {t("extensions.workflows.automationHome.wakeLockUnavailable")}
+              </p>
+            ) : null}
+          </div>
+          <Switch
+            checked={keepAwake}
+            aria-label={t("extensions.workflows.automationHome.keepAwake")}
+            aria-describedby="workflow-automation-wake-lock-description"
+            onCheckedChange={setKeepAwake}
+          />
+        </div>
+
         <section
           aria-label={t("extensions.workflows.automationHome.tasksLabel")}
-          className="border-border mt-9 flex min-h-72 flex-col rounded-[var(--radius-xl)] border"
+          className="mt-5 flex flex-col"
         >
           {loadState === "loading" || loadState === "idle" ? (
             <div className="text-muted-foreground flex min-h-72 items-center justify-center gap-2 text-sm">
@@ -270,8 +309,8 @@ export function AutomationHome() {
               </p>
             </div>
           ) : (
-            <div className="flex min-h-72 flex-col">
-              <div className="border-border flex min-h-12 items-center border-b px-4 py-3">
+            <div className="flex flex-col">
+              <div className="flex items-center pt-3">
                 <h2 className="text-sm font-medium">
                   {t("extensions.workflows.automationHome.myAutomations")}
                 </h2>
@@ -302,25 +341,44 @@ export function AutomationHome() {
           </p>
         ) : null}
 
-        <div className="bg-muted/60 mt-5 flex min-h-14 items-center gap-3 rounded-[var(--radius-lg)] px-4 py-3">
-          <InfoIcon aria-hidden="true" className="text-muted-foreground size-5 shrink-0" />
-          <div id="workflow-automation-wake-lock-description" className="min-w-0 flex-1">
-            <p className="text-muted-foreground text-sm">
-              {t("extensions.workflows.automationHome.keepAwake")}
-            </p>
-            {wakeLockState === "unsupported" || wakeLockState === "error" ? (
-              <p className="text-destructive mt-0.5 text-xs" role="status">
-                {t("extensions.workflows.automationHome.wakeLockUnavailable")}
-              </p>
-            ) : null}
+        <section
+          aria-labelledby="workflow-automation-templates-title"
+          className="border-border mt-10 border-t pt-8"
+        >
+          <h2
+            id="workflow-automation-templates-title"
+            className="text-muted-foreground text-sm font-medium"
+          >
+            {t("extensions.workflows.automationHome.scheduledTemplates")}
+          </h2>
+          <div className="mt-4 grid gap-3 lg:grid-cols-2">
+            {AUTOMATION_TASK_PRESETS.map((preset) => {
+              const Icon = AUTOMATION_TEMPLATE_ICONS[preset.id];
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  className="border-border focus-visible:ring-ring group/template flex min-h-32 w-full flex-col rounded-[var(--radius-lg)] border p-4 text-start outline-none transition-colors hover:[background:var(--button-background-hover)] focus-visible:ring-2 active:[background:var(--button-background-active)]"
+                  onClick={() => openCreate(preset.id)}
+                >
+                  <span className="flex items-center gap-2 text-sm font-semibold">
+                    <Icon
+                      aria-hidden="true"
+                      className="text-muted-foreground size-[var(--icon-size-md)] shrink-0 transition-colors group-hover/template:text-foreground"
+                    />
+                    {t(preset.nameKey)}
+                  </span>
+                  <span className="text-muted-foreground mt-2 line-clamp-2 text-sm leading-5">
+                    {t(preset.descriptionKey)}
+                  </span>
+                  <span className="text-muted-foreground mt-auto pt-3 text-xs">
+                    {t(preset.scheduleLabelKey)}
+                  </span>
+                </button>
+              );
+            })}
           </div>
-          <Switch
-            checked={keepAwake}
-            aria-label={t("extensions.workflows.automationHome.keepAwake")}
-            aria-describedby="workflow-automation-wake-lock-description"
-            onCheckedChange={setKeepAwake}
-          />
-        </div>
+        </section>
       </div>
     </section>
   );
@@ -346,7 +404,7 @@ function AutomationList({
   onArchive(automation: WorkflowSummary): Promise<void>;
 }) {
   return (
-    <div className="grid gap-3 p-3 sm:p-4 lg:grid-cols-2">
+    <div className="grid gap-3 py-3 sm:py-4 lg:grid-cols-2">
       {automations.map((automation) => (
         <AutomationCard
           key={automation.id}
@@ -418,12 +476,14 @@ function AutomationCard({
     <article className="group/card border-border relative min-h-36 overflow-visible rounded-[var(--radius-lg)] border">
       <button
         type="button"
-        className="focus-visible:ring-ring flex min-h-36 w-full flex-col rounded-[var(--radius-lg)] px-4 py-3.5 pe-12 text-start outline-none transition-colors hover:[background:var(--button-background-hover)] focus-visible:ring-2"
+        className="focus-visible:ring-ring flex min-h-36 w-full flex-col rounded-[var(--radius-lg)] px-4 py-3.5 text-start outline-none transition-colors hover:[background:var(--button-background-hover)] focus-visible:ring-2"
         onClick={onOpen}
       >
-        <span className="min-w-0 max-w-full truncate text-sm font-semibold">{automation.name}</span>
+        <span className="min-w-0 max-w-full truncate pe-8 text-sm font-semibold">
+          {automation.name}
+        </span>
         {automation.description ? (
-          <span className="text-muted-foreground mt-2 line-clamp-2 text-sm leading-5">
+          <span className="text-muted-foreground mt-2 line-clamp-2 pe-8 text-sm leading-5">
             {automation.description}
           </span>
         ) : null}
@@ -441,7 +501,7 @@ function AutomationCard({
             <Clock3Icon aria-hidden="true" className="size-4 shrink-0" />
             <span className="truncate">{scheduleLabel}</span>
           </span>
-          <span className="bg-muted text-muted-foreground shrink-0 rounded-lg px-2 py-1">
+          <span className="bg-muted text-muted-foreground -me-2 shrink-0 rounded-lg px-2 py-1 sm:-me-1.5">
             {t("extensions.workflows.automationHome.runCount", { count: runs.length })}
           </span>
         </span>

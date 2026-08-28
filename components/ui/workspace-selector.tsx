@@ -79,7 +79,7 @@ export function WorkspaceSelector({
       <div
         title={error ? labels.selectError : (selectedWorkspace?.cwd ?? labels.select)}
         className={cn(
-          "group/workspace inline-flex h-8 min-w-0 max-w-56 items-center rounded-full bg-transparent text-base font-normal text-foreground transition-colors hover:bg-muted focus-within:bg-muted",
+          "group/workspace inline-flex h-[var(--dropdown-control-height)] min-w-0 max-w-56 items-center rounded-full bg-transparent text-base font-normal text-foreground transition-colors hover:bg-muted focus-within:bg-muted",
           menuOpen && "bg-muted",
           error && "text-destructive",
         )}
@@ -89,7 +89,7 @@ export function WorkspaceSelector({
             type="button"
             aria-label={labels.clear}
             title={labels.clear}
-            className="group/clear relative grid size-8 shrink-0 cursor-pointer place-items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            className="group/clear relative grid size-[var(--dropdown-control-height)] shrink-0 cursor-pointer place-items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
             onClick={() => {
               setMenuOpen(false);
               setWorkspaceQuery("");
@@ -113,7 +113,7 @@ export function WorkspaceSelector({
           disabled={disabled || picking}
           aria-label={labels.select}
           className={cn(
-            "inline-flex h-8 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-full pe-2 text-base font-normal outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:pointer-events-none disabled:cursor-default disabled:opacity-100",
+            "inline-flex h-[var(--dropdown-control-height)] min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-full pe-2 text-base font-normal outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:pointer-events-none disabled:cursor-default disabled:opacity-100",
             clearable ? "ps-0" : "ps-2",
           )}
         >
