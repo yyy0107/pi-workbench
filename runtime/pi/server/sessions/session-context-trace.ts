@@ -43,6 +43,12 @@ type TracePublisher = (event: SessionContextTraceEventSummary) => void;
 type SystemPromptSourcesResolver = () => readonly SessionContextTraceSystemPromptSource[];
 type ExtensionsResolver = () => readonly SessionContextTraceExtension[];
 
+interface PendingSystemPromptHookMutation {
+  source: SessionContextTraceSystemPromptSource;
+  before: string;
+  after: string;
+}
+
 interface PendingCompactionTrace {
   reason: "manual" | "threshold" | "overflow";
   preparation?: SessionContextTraceCompactionPreparation;
@@ -326,6 +332,7 @@ export class SessionContextTrace {
   private readonly messageTokenEstimateCache = new WeakMap<object, number | null>();
   private agentAttempt: number | undefined;
   private pendingCompaction: PendingCompactionTrace | undefined;
+  private readonly pendingSystemPromptHookMutations: PendingSystemPromptHookMutation[] = [];
   private systemPromptSourcesResolver: SystemPromptSourcesResolver | undefined;
   private extensionsResolver: ExtensionsResolver | undefined;
 
@@ -354,6 +361,48 @@ export class SessionContextTrace {
       // Resource diagnostics must not interrupt a model call.
       return [];
     }
+  }
+
+  observeSystemPromptHookMutation(input: {
+    path: string;
+    scope: Exclude<SessionContextTraceSystemPromptSource["scope"], "builtin">;
+    handlerIndex: number;
+    before: string;
+    after: string;
+  }): void {
+    if (input.before === input.after) return;
+    this.pendingSystemPromptHookMutations.push({
+      before: input.before,
+      after: input.after,
+      source: {
+        kind: "extension",
+        scope: input.scope,
+        path: input.path,
+        hook: "before_agent_start",
+        handlerIndex: input.handlerIndex,
+        content: captureSessionContextTraceText(input.after),
+      },
+    });
+  }
+
+  consumeSystemPromptHookSources(
+    finalSystemPrompt: string,
+  ): SessionContextTraceSystemPromptSource[] {
+    const pending = this.pendingSystemPromptHookMutations.splice(0);
+    const sources: SessionContextTraceSystemPromptSource[] = [];
+    let expectedAfter = finalSystemPrompt;
+
+    for (let index = pending.length - 1; index >= 0; index -= 1) {
+      const mutation = pending[index];
+      if (!mutation || mutation.after !== expectedAfter) {
+        if (sources.length > 0) break;
+        continue;
+      }
+      sources.unshift(mutation.source);
+      expectedAfter = mutation.before;
+    }
+
+    return sources;
   }
 
   setExtensionsResolver(resolver: ExtensionsResolver): void {

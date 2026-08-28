@@ -168,6 +168,7 @@ export const contextTraceExtension: ExtensionFactory = (pi) => {
     const activeTools = new Set(pi.getActiveTools());
     const contextUsage = context.getContextUsage();
     const systemPromptSources = trace.getSystemPromptSources();
+    const systemPromptHookSources = trace.consumeSystemPromptHookSources(event.systemPrompt);
     trace.observePromptComposition({
       type: "prompt-composition",
       prompt: captureSessionContextTraceText(event.prompt),
@@ -177,8 +178,8 @@ export const contextTraceExtension: ExtensionFactory = (pi) => {
       ),
       systemPromptSources:
         systemPromptSources.length > 0
-          ? systemPromptSources.map((source) => ({ ...source }))
-          : fallbackSystemPromptSources(event.systemPromptOptions),
+          ? [...systemPromptSources.map((source) => ({ ...source })), ...systemPromptHookSources]
+          : [...fallbackSystemPromptSources(event.systemPromptOptions), ...systemPromptHookSources],
       systemPromptOptions: promptOptionsView(event.systemPromptOptions),
       images: captureSessionContextTraceJson(event.images ?? []),
       model: modelView(context.model),

@@ -42,6 +42,8 @@ export function summarizeSessionContextTraceEvent(
             kind: source.kind,
             scope: source.scope,
             ...(source.path ? { path: source.path } : {}),
+            ...(source.hook ? { hook: source.hook } : {}),
+            ...(source.handlerIndex === undefined ? {} : { handlerIndex: source.handlerIndex }),
           })),
           contextFileCount: detail.systemPromptOptions.contextFiles.length,
           contextFiles: detail.systemPromptOptions.contextFiles.map((file) => file.path),

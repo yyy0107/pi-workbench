@@ -1449,9 +1449,13 @@ export interface SessionContextTraceExtension {
 
 /** Serializable identity of one System Prompt layer, without copying its content into a Part. */
 export interface SessionContextTraceSystemPromptSourceSummary {
-  kind: "builtin" | "replacement" | "append";
+  kind: "builtin" | "replacement" | "append" | "extension";
   scope: "builtin" | "user" | "project" | "temporary";
   path?: string;
+  /** Pi lifecycle hook that produced this prompt layer. Present for extension mutations. */
+  hook?: "before_agent_start";
+  /** Zero-based registration order when one extension registered the hook more than once. */
+  handlerIndex?: number;
 }
 
 /** Bounded, non-payload projection copied onto prompt-composition summaries and message Parts. */

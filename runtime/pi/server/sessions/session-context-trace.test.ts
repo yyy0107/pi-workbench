@@ -152,6 +152,14 @@ test("copies the final prompt resource inventory onto the live event summary", (
         path: "/workspace/.pi/APPEND_SYSTEM.md",
         content: captureSessionContextTraceText("project append prompt"),
       },
+      {
+        kind: "extension",
+        scope: "project",
+        path: "/workspace/.pi/extensions/audit.ts",
+        hook: "before_agent_start",
+        handlerIndex: 1,
+        content: captureSessionContextTraceText("system prompt after extension hook"),
+      },
     ],
     systemPromptOptions: {
       cwd: "/workspace",
@@ -198,13 +206,20 @@ test("copies the final prompt resource inventory onto the live event summary", (
   const summary = trace.list(-1, 10).events.find((event) => event.kind === "prompt-composition");
   assert.deepEqual(summary?.promptResources, {
     systemPromptCharacters: 13,
-    systemPromptSourceCount: 2,
+    systemPromptSourceCount: 3,
     systemPromptSources: [
       { kind: "replacement", scope: "user", path: "/agent/SYSTEM.md" },
       {
         kind: "append",
         scope: "project",
         path: "/workspace/.pi/APPEND_SYSTEM.md",
+      },
+      {
+        kind: "extension",
+        scope: "project",
+        path: "/workspace/.pi/extensions/audit.ts",
+        hook: "before_agent_start",
+        handlerIndex: 1,
       },
     ],
     contextFileCount: 1,

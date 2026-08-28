@@ -158,7 +158,7 @@ import { AttachmentRecognitionLifecycle } from "../attachment-understanding/life
 import { recognizeWithMultimodalModel } from "../attachment-understanding/multimodal";
 import { getImageUnderstandingSettingsStore } from "../attachment-understanding/registry";
 import {
-  reportWorkbenchInternalPiExtensionErrors,
+  prepareWorkbenchPiExtensions,
   workbenchInternalPiExtensions,
 } from "../internal-extensions/index";
 import { getProjectTrustService } from "../trust/project-trust-service";
@@ -3416,7 +3416,7 @@ async function createHost(
     cwd,
     resourceLoaderOptions: {
       extensionFactories: workbenchInternalPiExtensions,
-      extensionsOverride: reportWorkbenchInternalPiExtensionErrors,
+      extensionsOverride: prepareWorkbenchPiExtensions,
     },
     resourceLoaderReloadOptions: {
       resolveProjectTrust: async () => getProjectTrustService().isTrusted(cwd),

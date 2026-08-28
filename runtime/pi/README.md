@@ -803,8 +803,11 @@ Model Step 的完成边界；它同时记录当时的 model、thinking level 和
 `prompt-composition` 仍保存扩展处理后的完整 system prompt 作为审计真值，但 UI 的 `SYSTEM` 节点使用
 移除 Pi 格式化 Skills 块后的独立投影。System Prompt 的加载来源直接读取 Pi `ResourceLoader`：受信任
 项目的 `.pi/SYSTEM.md` 优先于用户目录 `~/.pi/agent/SYSTEM.md`，两者都不存在时标记为 Pi 内置默认；
-`.pi/APPEND_SYSTEM.md` 与用户目录 `APPEND_SYSTEM.md` 按同样优先级记录为追加层。Skills、AGENTS/context
-files 和工作目录仍是独立上下文，不伪装成 System Prompt 文件来源。
+`.pi/APPEND_SYSTEM.md` 与用户目录 `APPEND_SYSTEM.md` 按同样优先级记录为追加层。Pi 扩展通过
+`before_agent_start` 返回值实际改变 system prompt 时，每个发生变更的 handler 还会按执行顺序记录为
+独立扩展层，包含扩展路径、作用域、hook、handler 序号和该次变更后的完整提示词；返回相同提示词或只
+注入 custom message 的 handler 不会被误报。Skills、AGENTS/context files 和工作目录仍是独立上下文，
+不伪装成 System Prompt 文件来源。
 
 ```text
 sessionId

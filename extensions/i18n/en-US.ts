@@ -2292,6 +2292,7 @@ export const extensionsEnUS = {
       builtin: "Pi built-in default prompt",
       replacement: "Replacement system prompt",
       append: "Appended system prompt",
+      extension: "Pi extension hook",
     },
     systemPromptSourceScopes: {
       builtin: "Pi built-in",
@@ -2411,6 +2412,8 @@ export const extensionsEnUS = {
       cwd: "Working directory",
       scope: "Scope",
       path: "Path",
+      hook: "Pi hook",
+      handler: "Handler",
       status: "Status",
       headers: "Allowlisted headers",
       messageCount: "Message count",

@@ -772,18 +772,20 @@ function SystemPromptSourceView({
   if (!source) {
     return <p className="text-muted-foreground p-3 text-xs">{t("extensions.contextTrace.none")}</p>;
   }
+  const sourceDetails: [string, ReactNode][] = [
+    [t("extensions.contextTrace.fields.scope"), systemPromptSourceScopeLabel(t, source.scope)],
+    [t("extensions.contextTrace.fields.path"), source.path ?? "—"],
+  ];
+  if (source.hook) {
+    sourceDetails.push(
+      [t("extensions.contextTrace.fields.hook"), source.hook],
+      [t("extensions.contextTrace.fields.handler"), String((source.handlerIndex ?? 0) + 1)],
+    );
+  }
   return (
     <div className="space-y-3">
       <Section title={systemPromptSourceKindLabel(t, source.kind)}>
-        <KeyValueGrid
-          items={[
-            [
-              t("extensions.contextTrace.fields.scope"),
-              systemPromptSourceScopeLabel(t, source.scope),
-            ],
-            [t("extensions.contextTrace.fields.path"), source.path ?? "—"],
-          ]}
-        />
+        <KeyValueGrid items={sourceDetails} />
       </Section>
       <Section title={t("extensions.contextTrace.systemPromptSourceContent")}>
         {source.content ? (

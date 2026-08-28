@@ -3,6 +3,7 @@ import type { InlineExtension, LoadExtensionsResult } from "@earendil-works/pi-c
 import { askUserExtension } from "./ask-user";
 import { contextTraceExtension } from "./context-trace";
 import { messageTerminationExtension } from "./message-termination";
+import { instrumentSystemPromptHookTracing } from "./system-prompt-hook-trace";
 
 export const WORKBENCH_INTERNAL_PI_EXTENSION_PATH_PREFIX = "<inline:workbench.";
 
@@ -37,4 +38,9 @@ export function reportWorkbenchInternalPiExtensionErrors(
     console.error(`[workbench-pi] internal extension ${error.path} failed to load.`, error.error);
   }
   return result;
+}
+
+export function prepareWorkbenchPiExtensions(result: LoadExtensionsResult): LoadExtensionsResult {
+  reportWorkbenchInternalPiExtensionErrors(result);
+  return instrumentSystemPromptHookTracing(result);
 }

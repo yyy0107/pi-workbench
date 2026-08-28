@@ -2195,6 +2195,7 @@ export const extensionsZhCN = {
       builtin: "Pi 内置默认提示词",
       replacement: "替换 System Prompt",
       append: "追加 System Prompt",
+      extension: "Pi 扩展 Hook",
     },
     systemPromptSourceScopes: {
       builtin: "Pi 内置",
@@ -2314,6 +2315,8 @@ export const extensionsZhCN = {
       cwd: "工作目录",
       scope: "作用域",
       path: "路径",
+      hook: "Pi Hook",
+      handler: "处理器",
       status: "状态",
       headers: "允许展示的响应头",
       messageCount: "消息数",

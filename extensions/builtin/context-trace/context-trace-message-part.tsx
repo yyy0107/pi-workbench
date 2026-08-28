@@ -16,7 +16,7 @@ import type {
 
 import { contextTraceEventLabel } from "./context-trace-event-label";
 
-const SYSTEM_PROMPT_SOURCE_KINDS = new Set(["builtin", "replacement", "append"]);
+const SYSTEM_PROMPT_SOURCE_KINDS = new Set(["builtin", "replacement", "append", "extension"]);
 const SYSTEM_PROMPT_SOURCE_SCOPES = new Set(["builtin", "user", "project", "temporary"]);
 
 function isSystemPromptSource(
@@ -29,7 +29,12 @@ function isSystemPromptSource(
     SYSTEM_PROMPT_SOURCE_KINDS.has(source.kind) &&
     typeof source.scope === "string" &&
     SYSTEM_PROMPT_SOURCE_SCOPES.has(source.scope) &&
-    (source.path === undefined || typeof source.path === "string")
+    (source.path === undefined || typeof source.path === "string") &&
+    (source.hook === undefined || source.hook === "before_agent_start") &&
+    (source.handlerIndex === undefined ||
+      (typeof source.handlerIndex === "number" &&
+        Number.isInteger(source.handlerIndex) &&
+        source.handlerIndex >= 0))
   );
 }
 
