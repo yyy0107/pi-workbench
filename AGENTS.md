@@ -23,6 +23,13 @@
 - 不翻译稳定 ID、路由、文件路径、命令输入、代码、日志、用户内容、模型输出或工具原始结果；品牌名和第三方专有名词仅在产品明确提供译名时翻译。
 - 每个 locale 的键和插值参数必须保持一致；缺失翻译在开发/测试中应失败或明确告警，生产环境按请求语言 → `en-US` 回退，不能直接显示键名。
 
+## UI 全局样式复用
+
+- 新建或修改 UI 组件前，必须先检查 `components/ui/` 中的共享组件和 `app/globals.css` 中的全局语义 token；复用优先级为：共享组件及其 variant → Tailwind 语义类 → 现有 CSS token → 新增局部样式。不得在业务组件中复制已有基础组件或交互状态样式。
+- 新组件必须接入全局外观系统。颜色使用 `bg-background`、`bg-muted`、`text-foreground`、`text-muted-foreground`、`border-border` 等语义类；控件高度、圆角、图标、输入框、下拉框、开关和交互状态使用 `--button-*`、`--control-*`、`--icon-*`、`--input-control-*`、`--dropdown-control-*`、`--switch-*` 等现有 token。若已有对应 token，禁止改用固定的 `px`、任意 Tailwind 尺寸、十六进制/RGB 颜色或独立圆角值覆盖它。
+- 只有确属功能私有、不会随主题、暗色模式、密度或圆角设置变化的布局值才允许保留局部常量。若某种视觉语义会跨组件复用或需要响应外观设置，应先扩展 `app/globals.css` 的语义 token 或 `components/ui/` 的共享 variant，再在业务组件中引用，不得创建第二套设计变量。
+- 实现完成后必须静态检查新增 class/style，确认组件能随浅色/深色主题、全局颜色、控件密度和圆角配置变化；无具体渲染不确定性时按验证策略仅做代码检查，不为此机械启动 Browser 或完整测试。
+
 ## 常用命令
 
 ```bash

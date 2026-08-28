@@ -33,6 +33,8 @@ const selectableButtonStateStyles = [
   "[&:not([data-selection=none])]:aria-expanded:[color:var(--button-foreground-selected)]",
   "[&:not([data-selection=none])]:aria-pressed:[background:var(--button-background-selected)]",
   "[&:not([data-selection=none])]:aria-pressed:[color:var(--button-foreground-selected)]",
+  "[&:not([data-selection=none])]:aria-selected:[background:var(--button-background-selected)]",
+  "[&:not([data-selection=none])]:aria-selected:[color:var(--button-foreground-selected)]",
   "[&:not([data-selection=none])]:aria-[current=page]:[background:var(--button-background-selected)]",
   "[&:not([data-selection=none])]:aria-[current=page]:[color:var(--button-foreground-selected)]",
   "[&:not([data-selection=none])]:data-[state=open]:[background:var(--button-background-selected)]",
