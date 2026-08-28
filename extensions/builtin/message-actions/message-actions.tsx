@@ -19,13 +19,7 @@ import { useCallback, useMemo, useState } from "react";
 
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverHeader,
-  PopoverTitle,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import { useI18n } from "@/i18n";
 import { formatAdaptiveDuration } from "@/lib/format-duration";
 import { type MessageSlotContext, useExtensionErrorReporter } from "@/platform/extensions";
@@ -35,8 +29,11 @@ import {
   usePiThreadListItemSnapshot,
 } from "@/runtime/pi/client/runtime/context";
 import { readPiUsage } from "@/runtime/pi/client/messages/pi-usage";
+import { readPiTurnStatistics } from "@/runtime/pi/client/messages/session-statistics";
+import { parseAttachmentRecognitionSnapshot } from "@/runtime/shared/attachment-understanding/state-machine";
 
 import { assistantForkEventSequence, isExpectedForkUnavailableError } from "./fork-availability";
+import { messageCacheHitRate, messageTokensPerSecond } from "./message-performance-statistics";
 import { shouldShowMessagePerformance } from "./message-performance-visibility";
 
 function MessagePerformance() {
@@ -44,7 +41,14 @@ function MessagePerformance() {
   const rawUsage = useAuiState((state) =>
     state.message.role === "assistant" ? state.message.metadata.custom.piUsage : undefined,
   );
+  const rawTurnStatistics = useAuiState((state) =>
+    state.message.role === "assistant" ? state.message.metadata.custom.piTurnStatistics : undefined,
+  );
   const usage = useMemo(() => readPiUsage(rawUsage), [rawUsage]);
+  const turnStatistics = useMemo(
+    () => readPiTurnStatistics(rawTurnStatistics),
+    [rawTurnStatistics],
+  );
   const { locale, number, t } = useI18n();
   const stats: { label: string; value: string }[] = [];
   const formatTokens = (tokens: number) =>
@@ -68,23 +72,25 @@ function MessagePerformance() {
       },
     );
   }
-  if (timing?.tokensPerSecond !== undefined) {
+  const tokensPerSecond = messageTokensPerSecond({
+    turnStatistics,
+    timingTokensPerSecond: timing?.tokensPerSecond,
+  });
+  if (tokensPerSecond !== undefined) {
     stats.push({
       label: t("extensions.messageActions.timing.tokensPerSecond"),
-      value: number(timing.tokensPerSecond, { maximumFractionDigits: 1 }),
+      value: number(tokensPerSecond, { maximumFractionDigits: 1 }),
     });
   }
-  if (usage) {
-    const promptTokens = usage.input + usage.cacheRead + usage.cacheWrite;
-    if (promptTokens > 0) {
-      stats.push({
-        label: t("extensions.messageActions.timing.cacheHitRate"),
-        value: number(usage.cacheRead / promptTokens, {
-          style: "percent",
-          maximumFractionDigits: 1,
-        }),
-      });
-    }
+  const cacheHitRate = messageCacheHitRate({ turnStatistics, usage });
+  if (cacheHitRate !== undefined) {
+    stats.push({
+      label: t("extensions.messageActions.timing.cacheHitRate"),
+      value: number(cacheHitRate, {
+        style: "percent",
+        maximumFractionDigits: 1,
+      }),
+    });
   }
 
   if (stats.length === 0) return null;
@@ -110,10 +116,8 @@ function MessagePerformance() {
         >
           <GaugeIcon className="size-3.5" />
         </PopoverTrigger>
-        <PopoverContent side="right" align="center" sideOffset={6} className="w-52 gap-3 p-3">
-          <PopoverHeader>
-            <PopoverTitle>{label}</PopoverTitle>
-          </PopoverHeader>
+        <PopoverContent side="right" align="center" sideOffset={6} className="w-52 p-3">
+          <PopoverTitle className="sr-only">{label}</PopoverTitle>
           <dl className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2">
             {stats.map((stat) => (
               <div key={stat.label} className="contents">
@@ -180,6 +184,14 @@ function AssistantActions({ canReload }: Readonly<{ canReload: boolean }>) {
   const reportError = useExtensionErrorReporter();
   const rawEventSeq = useAuiState((state) => state.message.metadata.custom.piEventSeq);
   const eventSeq = assistantForkEventSequence(rawEventSeq);
+  const retriesCancelledAttachment = useAuiState((state) => {
+    if (state.message.metadata.custom.workbenchAttachmentRecognitionOnly !== true) return false;
+    return (
+      parseAttachmentRecognitionSnapshot(
+        state.message.metadata.custom.workbenchAttachmentRecognition,
+      )?.status === "cancelled"
+    );
+  });
   const [forkState, setForkState] = useState<"idle" | "pending" | "failed">("idle");
   const forkConversation = useCallback(async () => {
     if (!sessionId || eventSeq === undefined || forkState === "pending") return;
@@ -223,7 +235,15 @@ function AssistantActions({ canReload }: Readonly<{ canReload: boolean }>) {
       ) : null}
       {canReload ? (
         <ActionBarPrimitive.Reload
-          render={<TooltipIconButton tooltip={t("extensions.messageActions.regenerateResponse")} />}
+          render={
+            <TooltipIconButton
+              tooltip={t(
+                retriesCancelledAttachment
+                  ? "extensions.messageActions.retryAttachmentRequest"
+                  : "extensions.messageActions.regenerateResponse",
+              )}
+            />
+          }
         >
           <RefreshCwIcon className="size-3.5" />
         </ActionBarPrimitive.Reload>
