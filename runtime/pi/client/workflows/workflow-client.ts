@@ -9,6 +9,8 @@ import type {
   WorkflowResolveApprovalPayload,
   WorkflowRunAdmission,
   WorkflowRunCancelPayload,
+  WorkflowRunDeletePayload,
+  WorkflowRunDeleteValue,
   WorkflowRunListPayload,
   WorkflowRunListValue,
   WorkflowRunReadPayload,
@@ -24,14 +26,23 @@ import type {
   WorkflowValidationResult,
   WorkflowRunSummary,
 } from "@/runtime/shared/execution";
-import { callPiRpc } from "../transport/api";
+import { callPiRpc, type PiRpcCallOptions } from "../transport/api";
+
+const WORKFLOW_QUERY_TIMEOUT_MS = 15_000;
+
+function callWorkflowQuery<Payload, Value>(method: string, payload: Payload): Promise<Value> {
+  const options: PiRpcCallOptions = {
+    signal: AbortSignal.timeout(WORKFLOW_QUERY_TIMEOUT_MS),
+  };
+  return callPiRpc(method, payload, options);
+}
 
 export const workflowClient = {
   list(payload: WorkflowListPayload = {}): Promise<WorkflowListValue> {
-    return callPiRpc("workflow.list", payload);
+    return callWorkflowQuery("workflow.list", payload);
   },
   read(payload: WorkflowReadPayload): Promise<WorkflowReadValue> {
-    return callPiRpc("workflow.read", payload);
+    return callWorkflowQuery("workflow.read", payload);
   },
   create(payload: WorkflowCreatePayload): Promise<WorkflowReadValue> {
     return callPiRpc("workflow.create", payload);
@@ -40,7 +51,7 @@ export const workflowClient = {
     return callPiRpc("workflow.saveDraft", payload);
   },
   validate(payload: WorkflowReadPayload): Promise<WorkflowValidationResult> {
-    return callPiRpc("workflow.validate", payload);
+    return callWorkflowQuery("workflow.validate", payload);
   },
   publish(payload: WorkflowPublishPayload): Promise<WorkflowReadValue> {
     return callPiRpc("workflow.publish", payload);
@@ -54,17 +65,20 @@ export const workflowClient = {
   cancelRun(payload: WorkflowRunCancelPayload): Promise<WorkflowRunSummary> {
     return callPiRpc("workflow.run.cancel", payload);
   },
+  deleteRun(payload: WorkflowRunDeletePayload): Promise<WorkflowRunDeleteValue> {
+    return callPiRpc("workflow.run.delete", payload);
+  },
   listRuns(payload: WorkflowRunListPayload = {}): Promise<WorkflowRunListValue> {
-    return callPiRpc("workflow.run.list", payload);
+    return callWorkflowQuery("workflow.run.list", payload);
   },
   readRun(payload: WorkflowRunReadPayload): Promise<WorkflowRunReadValue> {
-    return callPiRpc("workflow.run.read", payload);
+    return callWorkflowQuery("workflow.run.read", payload);
   },
   resolveApproval(payload: WorkflowResolveApprovalPayload): Promise<WorkflowRunSummary> {
     return callPiRpc("workflow.run.resolveApproval", payload);
   },
   listTriggers(payload: WorkflowTriggerListPayload): Promise<WorkflowTriggerListValue> {
-    return callPiRpc("workflow.trigger.list", payload);
+    return callWorkflowQuery("workflow.trigger.list", payload);
   },
   upsertTrigger(payload: WorkflowTriggerUpsertPayload): Promise<WorkflowReadValue> {
     return callPiRpc("workflow.trigger.upsert", payload);

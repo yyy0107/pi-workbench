@@ -93,10 +93,13 @@ test("core session transport routes depend on the protocol facade without reachi
 test("the route composition injects core session dependencies without handling methods", async () => {
   const source = await readFile(RPC_ROUTE_COMPOSITION, "utf8");
 
+  assert.match(source, /createInstalledWorkbenchAgentServerAdapter/);
+  assert.match(source, /createPiAgentServerInstallation/);
   assert.match(
     source,
-    /const sessionProtocolFacade = createPiSessionProtocolFacade\(\{ commands: commandService \}\)/,
+    /const sessionProtocolFacade = createPiSessionProtocolFacade\(\{ agent \}\)/,
   );
+  assert.match(source, /getExecutionService\(\{ execution: agent\.execution \}\)/);
   assert.match(source, /createSessionRpcRoutes\(dependencies\.session\)/);
   assert.match(source, /session: \{ protocol: sessionProtocolFacade, \.\.\.domainErrors \}/);
   assert.match(source, /projectRpcDomainError/);

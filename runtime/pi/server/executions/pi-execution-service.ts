@@ -3,6 +3,7 @@ import path from "node:path";
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
 
 import { WorkbenchCommandExecutionNodeExecutor } from "@/runtime/server/executions/execution-command-node-executor";
+import type { AgentExecutionPort } from "@/runtime/server/agent-execution-port";
 import { ExecutionNodeExecutorRegistry } from "@/runtime/server/executions/execution-node-executor";
 import { ExecutionRepository } from "@/runtime/server/executions/execution-repository";
 import { ExecutionService } from "@/runtime/server/executions/execution-service";
@@ -20,7 +21,13 @@ function executionRootDirectory(): string {
   );
 }
 
-export function createPiExecutionService(): ExecutionService {
+export interface PiExecutionServiceOptions {
+  execution?: AgentExecutionPort;
+}
+
+export function createPiExecutionService(
+  options: PiExecutionServiceOptions = {},
+): ExecutionService {
   const workspaceStore = getWorkspaceStore();
   const isWorkspaceTrusted = (workspacePath: string): boolean =>
     getProjectTrustService().isTrusted(workspacePath);
@@ -31,7 +38,7 @@ export function createPiExecutionService(): ExecutionService {
   return new ExecutionService({
     repository,
     executors: new ExecutionNodeExecutorRegistry({
-      agent: new PiAgentExecutionNodeExecutor(),
+      agent: new PiAgentExecutionNodeExecutor({ execution: options.execution }),
       command: new WorkbenchCommandExecutionNodeExecutor({ isWorkspaceTrusted }),
     }),
     isWorkspaceTrusted,
@@ -48,6 +55,9 @@ export function createPiExecutionService(): ExecutionService {
     onRunChanged: (run) => {
       getStreamHub().publishHost({ type: "host/workflow-run-changed", run });
     },
+    onRunRemoved: ({ runId, workflowId }) => {
+      getStreamHub().publishHost({ type: "host/workflow-run-removed", runId, workflowId });
+    },
     onTriggerChanged: (state) => {
       getStreamHub().publishHost({ type: "host/workflow-trigger-changed", state });
     },
@@ -60,7 +70,7 @@ interface ExecutionRegistryGlobal {
 
 const executionRegistry = globalThis as typeof globalThis & ExecutionRegistryGlobal;
 
-export function getExecutionService(): ExecutionService {
-  executionRegistry.__workbenchExecutionService ??= createPiExecutionService();
+export function getExecutionService(options: PiExecutionServiceOptions = {}): ExecutionService {
+  executionRegistry.__workbenchExecutionService ??= createPiExecutionService(options);
   return executionRegistry.__workbenchExecutionService;
 }

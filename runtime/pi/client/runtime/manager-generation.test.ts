@@ -3885,7 +3885,7 @@ test("projects context trace mux events into the active assistant message as Dat
   sessionInternals.streamingMessage = {
     id: "assistant",
     role: "assistant",
-    content: [{ type: "text", text: "", status: { type: "running" } }],
+    content: [{ type: "text", text: "The response arrived first.", status: { type: "running" } }],
     status: { type: "running" },
     createdAt: new Date(0),
     metadata: {
@@ -3976,6 +3976,10 @@ test("projects context trace mux events into the active assistant message as Dat
       (part) => part.type === "data" && part.name === "workbench.pi-context-trace-event",
     ).length,
     1,
+  );
+  assert.deepEqual(
+    assistant.content.map((part) => (part.type === "data" ? `data:${part.name}` : part.type)),
+    ["data:workbench.pi-context-trace-event", "text"],
   );
 });
 

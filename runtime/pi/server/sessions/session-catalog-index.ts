@@ -4,6 +4,10 @@ import path from "node:path";
 import type { SessionInfo } from "@earendil-works/pi-coding-agent";
 
 import type { PiSessionSummary } from "@/runtime/pi/contracts/pi";
+import {
+  parseExecutionSessionOrigin,
+  type ExecutionSessionOrigin,
+} from "@/runtime/shared/execution";
 import { atomicReplaceFile, withCrossProcessFileLock } from "../core/file-persistence";
 
 const SESSION_CATALOG_INDEX_VERSION = 1 as const;
@@ -25,6 +29,7 @@ interface SessionCatalogIndexEntryV1 {
   firstMessage: string;
   summaryFirstMessage: string;
   allMessagesText: string;
+  executionOrigin?: ExecutionSessionOrigin;
 }
 
 interface SessionCatalogIndexDocumentV1 {
@@ -116,6 +121,11 @@ function parseDocument(
     }
     const name = optionalString(candidate.name);
     const parentSessionPath = optionalString(candidate.parentSessionPath);
+    const executionOrigin =
+      candidate.executionOrigin === undefined
+        ? undefined
+        : parseExecutionSessionOrigin(candidate.executionOrigin);
+    if (candidate.executionOrigin !== undefined && executionOrigin === undefined) return undefined;
     const info: SessionInfo = {
       path: file,
       id: candidate.id,
@@ -139,6 +149,7 @@ function parseDocument(
       firstMessage: candidate.summaryFirstMessage,
       transient: false,
       running: false,
+      ...(executionOrigin === undefined ? {} : { executionOrigin }),
     });
     fingerprints.set(file, candidate.fingerprint);
   }
@@ -206,6 +217,9 @@ export async function writeSessionCatalogIndex(
       firstMessage: info.firstMessage,
       summaryFirstMessage: summary.firstMessage,
       allMessagesText: info.allMessagesText,
+      ...(summary.executionOrigin === undefined
+        ? {}
+        : { executionOrigin: summary.executionOrigin }),
     });
   }
   entries.sort((left, right) => left.relativePath.localeCompare(right.relativePath));

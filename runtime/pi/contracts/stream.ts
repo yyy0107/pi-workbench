@@ -12,6 +12,7 @@ import type {
   WorkflowChangedHostPayload,
   WorkflowRemovedHostPayload,
   WorkflowRunChangedHostPayload,
+  WorkflowRunRemovedHostPayload,
   WorkflowTriggerChangedHostPayload,
 } from "@/runtime/shared/execution";
 
@@ -287,6 +288,7 @@ export type HostStreamPayload =
   | WorkflowChangedHostPayload
   | WorkflowRemovedHostPayload
   | WorkflowRunChangedHostPayload
+  | WorkflowRunRemovedHostPayload
   | WorkflowTriggerChangedHostPayload
   | StreamErrorPayload;
 

@@ -299,6 +299,7 @@ export const workbenchEnUS = {
     generating: "Generating",
     waitingForUserInput: "Waiting for user input",
     completed: "Completed in the background",
+    automationTask: "Automation task",
     pin: "Pin conversation",
     unpin: "Unpin conversation",
     pinWorkspace: "Pin project",

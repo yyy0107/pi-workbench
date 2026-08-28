@@ -107,76 +107,36 @@ export function appendPiContextTraceAssistantPart(
     name: WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME,
     data: piContextTraceData(event),
   };
-  const emptyStreamingPlaceholder =
-    message.status.type === "running" &&
-    message.content.length === 1 &&
-    message.content[0]?.type === "text" &&
-    message.content[0].text === "";
   return {
     ...message,
-    content: emptyStreamingPlaceholder ? [part, ...message.content] : [...message.content, part],
+    content: [part, ...message.content],
   };
 }
 
 /**
- * Pi streams cumulative assistant messages. Rebuilding the message must update Pi-native parts
- * while retaining trace Data Parts at the native-part boundary where each event was observed.
+ * Prompt composition describes the input to the assistant turn, so it always precedes Pi-native
+ * response parts. Network arrival order must not move this semantic prelude below response text.
  */
 export function reconcilePiContextTraceAssistantParts(
   message: ThreadAssistantMessage,
   previous: ThreadAssistantMessage,
 ): ThreadAssistantMessage {
-  const anchored: Array<{
-    anchor: number;
-    part: ThreadAssistantMessage["content"][number];
-  }> = [];
+  const promptParts: ThreadAssistantMessage["content"][number][] = [];
   const seen = new Set<string>();
-  let nativePartCount = 0;
-  for (const part of previous.content) {
+  for (const part of [...previous.content, ...message.content]) {
     const traceId = piContextTraceId(part);
     if (traceId) {
       if (isPiContextTracePromptPart(part) && !seen.has(traceId)) {
-        anchored.push({ anchor: nativePartCount, part });
+        promptParts.push(part);
       }
       seen.add(traceId);
-      continue;
     }
-    if (part.type === "data" && isRecognitionDataName(part.name)) continue;
-    if (part.type === "text" && part.text === "" && previous.status.type === "running") continue;
-    nativePartCount += 1;
   }
-  if (anchored.length === 0) return message;
-
-  const nativeContent = message.content.filter((part) => !isPiContextTracePart(part));
-  const content: ThreadAssistantMessage["content"][number][] = [];
-  let nativeIndex = 0;
-  let anchoredIndex = 0;
-  const appendAnchored = () => {
-    while (anchored[anchoredIndex]?.anchor === nativeIndex) {
-      const item = anchored[anchoredIndex];
-      if (item) content.push(item.part);
-      anchoredIndex += 1;
-    }
+  if (promptParts.length === 0) return message;
+  return {
+    ...message,
+    content: [...promptParts, ...message.content.filter((part) => !isPiContextTracePart(part))],
   };
-
-  for (const part of nativeContent) {
-    if (part.type === "data" && isRecognitionDataName(part.name)) {
-      content.push(part);
-      continue;
-    }
-    appendAnchored();
-    content.push(part);
-    if (!(part.type === "text" && part.text === "" && message.status.type === "running")) {
-      nativeIndex += 1;
-    }
-  }
-  appendAnchored();
-  while (anchoredIndex < anchored.length) {
-    const item = anchored[anchoredIndex];
-    if (item) content.push(item.part);
-    anchoredIndex += 1;
-  }
-  return { ...message, content };
 }
 
 function assistantMessageTimestamp(message: ThreadAssistantMessage): number | undefined {

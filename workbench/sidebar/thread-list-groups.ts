@@ -49,5 +49,10 @@ export function groupSidebarThreads({
     else threadIdsByWorkspace.set(workspaceId, [threadId]);
   }
 
-  return { pinnedThreadIds, ungroupedThreadIds, threadIdsByWorkspace, runningWorkspaceIds };
+  return {
+    pinnedThreadIds,
+    ungroupedThreadIds,
+    threadIdsByWorkspace,
+    runningWorkspaceIds,
+  };
 }

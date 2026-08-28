@@ -14,6 +14,8 @@ import type {
   WorkflowResolveApprovalPayload,
   WorkflowRunAdmission,
   WorkflowRunCancelPayload,
+  WorkflowRunDeletePayload,
+  WorkflowRunDeleteValue,
   WorkflowRunListPayload,
   WorkflowRunListValue,
   WorkflowRunReadPayload,
@@ -51,6 +53,7 @@ export interface ExecutionServiceOptions {
   subscribeWorkspaceEvents?: (listener: (event: unknown) => void) => void;
   onDefinitionChanged?: (workflow: WorkflowSummary) => void;
   onRunChanged?: (run: WorkflowRunReadValue["run"]) => void;
+  onRunRemoved?: (run: WorkflowRunDeleteValue) => void;
   onTriggerChanged?: (state: WorkflowTriggerState) => void;
 }
 
@@ -80,6 +83,12 @@ function hasWorkspaceNode(document: WorkflowDocument | FlowRevision): boolean {
   return document.graph.nodes.some(({ type }) => type === "agent" || type === "command");
 }
 
+function normalizeAutomationConcurrency(document: WorkflowDocument): WorkflowDocument {
+  return document.kind === "automation" && document.concurrency.mode !== "independent"
+    ? { ...document, concurrency: { mode: "independent" } }
+    : document;
+}
+
 export class ExecutionService implements ExecutionProtocol {
   readonly repository: ExecutionRepository;
   readonly engine: ExecutionEngine;
@@ -96,6 +105,7 @@ export class ExecutionService implements ExecutionProtocol {
     ExecutionServiceOptions["subscribeWorkspaceEvents"]
   >;
   private readonly onDefinitionChanged: NonNullable<ExecutionServiceOptions["onDefinitionChanged"]>;
+  private readonly onRunRemoved: NonNullable<ExecutionServiceOptions["onRunRemoved"]>;
   private initialized = false;
   private runningSessionIds = new Set<string>();
 
@@ -107,6 +117,7 @@ export class ExecutionService implements ExecutionProtocol {
     this.subscribeRunningSessions = options.subscribeRunningSessions ?? (() => undefined);
     this.subscribeWorkspaceEvents = options.subscribeWorkspaceEvents ?? (() => undefined);
     this.onDefinitionChanged = options.onDefinitionChanged ?? (() => undefined);
+    this.onRunRemoved = options.onRunRemoved ?? (() => undefined);
     this.engine = new ExecutionEngine({
       repository: this.repository,
       ...(options.executors ? { executors: options.executors } : {}),
@@ -249,7 +260,7 @@ export class ExecutionService implements ExecutionProtocol {
       scope: payload.scope,
       name: payload.name.trim(),
       graph: defaultGraph(payload.kind),
-      concurrency: { mode: "queue" },
+      concurrency: payload.kind === "automation" ? { mode: "independent" } : { mode: "queue" },
       triggers: [],
       draftRevision: 0,
       createdAt: time,
@@ -262,7 +273,7 @@ export class ExecutionService implements ExecutionProtocol {
 
   async saveDraft(payload: WorkflowSaveDraftPayload): Promise<WorkflowReadValue> {
     await this.ready();
-    const parsed = parseExecutionDocument(payload.draft);
+    const parsed = normalizeAutomationConcurrency(parseExecutionDocument(payload.draft));
     if (parsed.id !== payload.workflowId) throw new TypeError("Workflow ID mismatch.");
     const saved = await this.repository.saveDraft(parsed, payload.baseDraftRevision);
     await this.changed(saved);
@@ -373,6 +384,21 @@ export class ExecutionService implements ExecutionProtocol {
   async cancelRun(payload: WorkflowRunCancelPayload) {
     await this.ready();
     return this.engine.cancel(payload.runId);
+  }
+
+  async deleteRun(payload: WorkflowRunDeletePayload): Promise<WorkflowRunDeleteValue> {
+    await this.ready();
+    const run = await this.repository.readRunSummary(payload.runId);
+    if (["queued", "running", "waiting-for-approval"].includes(run.status)) {
+      throw new ExecutionError("run-active", "An active workflow run cannot be deleted.", {
+        runId: run.id,
+        status: run.status,
+      });
+    }
+    await this.repository.deleteRun(run.id);
+    const deleted = { deleted: true, runId: run.id, workflowId: run.workflowId } as const;
+    this.onRunRemoved(deleted);
+    return deleted;
   }
 
   async listRuns(payload: WorkflowRunListPayload): Promise<WorkflowRunListValue> {

@@ -10,6 +10,7 @@ import type {
   WorkflowTriggerState,
 } from "@/runtime/shared/execution";
 import { workflowClient } from "@/runtime/pi/client/workflows/workflow-client";
+import { mergeWorkflowRuns } from "./workflow-run-merge";
 
 type LoadState = "idle" | "loading" | "ready" | "error";
 export type WorkflowWakeLockState = "idle" | "active" | "unsupported" | "error";
@@ -17,6 +18,7 @@ export type WorkflowWakeLockState = "idle" | "active" | "unsupported" | "error";
 interface WorkflowCatalogState {
   items: WorkflowSummary[];
   runs: WorkflowRunSummary[];
+  removedRunIds: ReadonlySet<string>;
   triggerStates: WorkflowTriggerState[];
   loadState: LoadState;
   keepAwake: boolean;
@@ -35,6 +37,7 @@ function byUpdatedAt<Value extends { updatedAt: number }>(left: Value, right: Va
 export const useWorkflowCatalogStore = create<WorkflowCatalogState>((set) => ({
   items: [],
   runs: [],
+  removedRunIds: new Set(),
   triggerStates: [],
   loadState: "idle",
   keepAwake: false,
@@ -51,12 +54,17 @@ export const useWorkflowCatalogStore = create<WorkflowCatalogState>((set) => ({
           .filter(({ kind, triggerCount }) => kind === "automation" && triggerCount > 0)
           .map(({ id }) => workflowClient.listTriggers({ workflowId: id })),
       );
-      set({
+      set((state) => ({
         items: workflows.items,
-        runs: runs.items,
+        // Host deltas may arrive while the refresh RPC is in flight. Merge by durable sequence so
+        // that a delayed list response cannot roll a run back to queued/running.
+        runs: mergeWorkflowRuns(
+          runs.items.filter(({ id }) => !state.removedRunIds.has(id)),
+          state.runs,
+        ),
         triggerStates: triggerSnapshots.flatMap(({ states }) => states),
         loadState: "ready",
-      });
+      }));
     } catch (error) {
       set({
         loadState: "error",
@@ -84,10 +92,16 @@ export const useWorkflowCatalogStore = create<WorkflowCatalogState>((set) => ({
         }));
         break;
       case "host/workflow-run-changed":
+        set((state) =>
+          state.removedRunIds.has(payload.run.id)
+            ? state
+            : { runs: mergeWorkflowRuns(state.runs, [payload.run]) },
+        );
+        break;
+      case "host/workflow-run-removed":
         set((state) => ({
-          runs: [payload.run, ...state.runs.filter(({ id }) => id !== payload.run.id)].sort(
-            byUpdatedAt,
-          ),
+          runs: state.runs.filter(({ id }) => id !== payload.runId),
+          removedRunIds: new Set(state.removedRunIds).add(payload.runId),
         }));
         break;
       case "host/workflow-trigger-changed":

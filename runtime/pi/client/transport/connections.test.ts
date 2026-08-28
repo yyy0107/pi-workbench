@@ -114,6 +114,17 @@ function sessionSummary(id: string) {
     firstMessage: "Realtime session",
     transient: false,
     running: false,
+    executionOrigin: {
+      version: 1,
+      origin: "execution",
+      workflowId: "workflow-1",
+      workflowName: "Daily review",
+      workflowKind: "automation",
+      runId: "run-1",
+      nodeId: "agent-1",
+      attempt: 1,
+      source: "schedule",
+    },
   };
 }
 

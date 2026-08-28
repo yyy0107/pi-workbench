@@ -31,6 +31,11 @@ export interface ExecutionRpcRoutesDependencies {
 }
 
 const id = rpcString({ minLength: 1, maxLength: 200 });
+const runId = rpcString({
+  minLength: 1,
+  maxLength: 200,
+  pattern: /^[A-Za-z0-9][A-Za-z0-9._-]*$/u,
+});
 const kind = rpcEnum(["workflow", "sop", "automation"]);
 const runStatus = rpcEnum([
   "queued",
@@ -112,14 +117,14 @@ const runStartPayload = rpcObject({
   input: rpcOptional(jsonValue),
   source: rpcOptional(rpcEnum(["manual", "replay"])),
 });
-const runIdPayload = rpcObject({ runId: id });
+const runIdPayload = rpcObject({ runId });
 const runListPayload = rpcObject({
   workflowId: rpcOptional(id),
   status: rpcOptional(runStatus),
   limit: rpcOptional(rpcInteger({ minimum: 1, maximum: 1_000 })),
 });
 const runReadPayload = rpcObject({
-  runId: id,
+  runId,
   afterSeq: rpcOptional(rpcInteger({ minimum: 0 })),
   limit: rpcOptional(rpcInteger({ minimum: 1, maximum: 1_000 })),
 });
@@ -217,6 +222,12 @@ export function createExecutionRpcRoutes({
             method,
             payload: runIdPayload,
             handler: (payload) => invoke(() => service.cancelRun(payload), projectDomainError),
+          });
+        case "workflow.run.delete":
+          return handleRpcPost(request, {
+            method,
+            payload: runIdPayload,
+            handler: (payload) => invoke(() => service.deleteRun(payload), projectDomainError),
           });
         case "workflow.run.list":
           return handleRpcPost(request, {

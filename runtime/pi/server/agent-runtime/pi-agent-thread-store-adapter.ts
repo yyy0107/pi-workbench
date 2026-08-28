@@ -85,6 +85,7 @@ function projectSummary(summary: PiSessionSummary): AgentThreadSummary {
       ? {}
       : { waitingForUserInput: summary.waitingForUserInput }),
     ...(summary.runTiming === undefined ? {} : { runTiming: summary.runTiming }),
+    ...(summary.executionOrigin === undefined ? {} : { executionOrigin: summary.executionOrigin }),
   };
 }
 

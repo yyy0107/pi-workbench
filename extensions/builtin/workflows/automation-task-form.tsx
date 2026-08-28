@@ -6,6 +6,7 @@ import {
   ChevronDownIcon,
   CirclePauseIcon,
   CirclePlayIcon,
+  MessageSquareIcon,
   MoreHorizontalIcon,
   PlayIcon,
   PlusIcon,
@@ -14,6 +15,14 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { ModelSelector as ModelSelectorControl } from "@/components/ui/model-selector";
 import type { ModelSelectorOption } from "@/components/ui/model-selector-models";
 import {
@@ -26,10 +35,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { InputGroup, InputGroupAddon } from "@/components/ui/input-group";
 import { Textarea } from "@/components/ui/textarea";
+import { TimePicker } from "@/components/ui/time-picker";
 import { WorkspaceSelector } from "@/components/ui/workspace-selector";
 import { useI18n } from "@/i18n";
+import { formatCompactDuration } from "@/lib/format-duration";
 import { cn } from "@/lib/utils";
-import { useMainViewService } from "@/platform/extensions";
+import { useMainViewService, useNavigationService } from "@/platform/extensions";
 import { usePiHostDescription, usePiWorkspaces } from "@/runtime/pi/client/runtime/context";
 import { listPiModelCatalog } from "@/runtime/pi/client/transport/api";
 import { workflowClient } from "@/runtime/pi/client/workflows/workflow-client";
@@ -39,7 +50,9 @@ import type {
   AgentNode,
   ScheduleTriggerSpec,
   WorkflowDocument,
+  WorkflowRunSource,
   WorkflowRunStatus,
+  WorkflowRunSummary,
   WorkflowTriggerState,
 } from "@/runtime/shared/execution";
 
@@ -62,6 +75,13 @@ const SCHEDULE_FREQUENCIES = [
 type ScheduleFrequency = (typeof SCHEDULE_FREQUENCIES)[number];
 type AutomationTaskTab = "settings" | "history";
 type PendingTaskAction = "save" | "run" | "toggle" | "archive";
+type RunDeleteState = "idle" | "deleting" | "error";
+
+const ACTIVE_RUN_STATUSES: readonly WorkflowRunStatus[] = [
+  "queued",
+  "running",
+  "waiting-for-approval",
+];
 
 const RUN_STATUS_KEYS = {
   queued: "queued",
@@ -72,6 +92,17 @@ const RUN_STATUS_KEYS = {
   cancelled: "cancelled",
   interrupted: "interrupted",
 } as const satisfies Record<WorkflowRunStatus, string>;
+
+const RUN_SOURCE_KEYS = {
+  manual: "manual",
+  schedule: "schedule",
+  event: "event",
+  replay: "replay",
+} as const satisfies Record<WorkflowRunSource, string>;
+
+function runSessionId(run: WorkflowRunSummary): string | undefined {
+  return run.attempts.findLast(({ sessionId }) => sessionId !== undefined)?.sessionId;
+}
 
 function modelKey(provider: string, modelId: string): string {
   return JSON.stringify([provider, modelId]);
@@ -175,6 +206,7 @@ function timezoneOffset(timezone: string, locale: string): string {
 export function AutomationTaskForm({ params }: { params: AutomationTaskParams }) {
   const { locale, t } = useI18n();
   const mainViews = useMainViewService();
+  const navigation = useNavigationService();
   const workspaces = usePiWorkspaces();
   const host = usePiHostDescription();
   const catalogRuns = useWorkflowCatalogStore((state) => state.runs);
@@ -222,10 +254,12 @@ export function AutomationTaskForm({ params }: { params: AutomationTaskParams })
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [validationRequested, setValidationRequested] = useState(false);
   const [pendingAction, setPendingAction] = useState<PendingTaskAction>();
+  const [runToDelete, setRunToDelete] = useState<WorkflowRunSummary>();
+  const [runDeleteState, setRunDeleteState] = useState<RunDeleteState>("idle");
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState<string>();
   const titleInputRef = useRef<HTMLInputElement>(null);
-  const timeInputRef = useRef<HTMLInputElement>(null);
+  const timePickerRef = useRef<HTMLButtonElement>(null);
   const customCronInputRef = useRef<HTMLInputElement>(null);
   const promptInputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -355,7 +389,15 @@ export function AutomationTaskForm({ params }: { params: AutomationTaskParams })
     [catalogRuns, editingWorkflowId],
   );
   const dateTimeFormatter = useMemo(
-    () => new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }),
+    () =>
+      new Intl.DateTimeFormat(locale, {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+      }),
     [locale],
   );
   const scheduleEnabled = triggerStates.some(({ enabled }) => enabled);
@@ -405,7 +447,7 @@ export function AutomationTaskForm({ params }: { params: AutomationTaskParams })
         if (!title.trim()) titleInputRef.current?.focus();
         else if (!hasSchedule) document.getElementById("automation-task-add-schedule")?.focus();
         else if (frequency === "custom" && !customCronValid) customCronInputRef.current?.focus();
-        else if (scheduleUsesTime && !timeValid) timeInputRef.current?.focus();
+        else if (scheduleUsesTime && !timeValid) timePickerRef.current?.focus();
         else if (!prompt.trim()) promptInputRef.current?.focus();
         else if (!workspaceId)
           document.getElementById("automation-task-workspace-trigger")?.focus();
@@ -634,6 +676,23 @@ export function AutomationTaskForm({ params }: { params: AutomationTaskParams })
       );
     } finally {
       setPendingAction(undefined);
+    }
+  };
+
+  const deleteRun = async () => {
+    if (!runToDelete || ACTIVE_RUN_STATUSES.includes(runToDelete.status)) return;
+    setRunDeleteState("deleting");
+    try {
+      const deleted = await workflowClient.deleteRun({ runId: runToDelete.id });
+      useWorkflowCatalogStore.getState().applyHostPayload({
+        type: "host/workflow-run-removed",
+        runId: deleted.runId,
+        workflowId: deleted.workflowId,
+      });
+      setRunToDelete(undefined);
+      setRunDeleteState("idle");
+    } catch {
+      setRunDeleteState("error");
     }
   };
 
@@ -945,22 +1004,24 @@ export function AutomationTaskForm({ params }: { params: AutomationTaskParams })
                         <span className="text-muted-foreground text-sm">
                           {t("extensions.workflows.automationTask.at")}
                         </span>
-                        <Input
-                          type="time"
-                          ref={timeInputRef}
+                        <TimePicker
+                          ref={timePickerRef}
                           value={time}
-                          aria-required="true"
-                          aria-invalid={validationRequested && !timeValid}
-                          aria-describedby={
+                          required
+                          invalid={validationRequested && !timeValid}
+                          describedBy={
                             validationRequested && !timeValid
                               ? "automation-task-time-error"
                               : undefined
                           }
-                          aria-label={t("extensions.workflows.automationTask.time")}
-                          className="w-28"
-                          onChange={(event) => {
+                          labels={{
+                            time: t("extensions.workflows.automationTask.timeLabel", { time }),
+                            hour: t("extensions.workflows.automationTask.hour"),
+                            minute: t("extensions.workflows.automationTask.minute"),
+                          }}
+                          onValueChange={(value) => {
                             setNotice(undefined);
-                            setTime(event.currentTarget.value);
+                            setTime(value);
                           }}
                         />
                       </>
@@ -1134,39 +1195,208 @@ export function AutomationTaskForm({ params }: { params: AutomationTaskParams })
                 {t("extensions.workflows.automationTask.historyEmpty")}
               </div>
             ) : (
-              <ul className="border-border divide-border overflow-hidden rounded-[var(--radius-lg)] border divide-y">
-                {taskRuns.map((run) => {
-                  const status = RUN_STATUS_KEYS[run.status];
-                  return (
-                    <li key={run.id} className="flex items-center gap-3 px-4 py-3">
-                      <span
-                        aria-hidden="true"
-                        className={cn(
-                          "size-2 shrink-0 rounded-full",
-                          run.status === "succeeded"
-                            ? "bg-emerald-500"
-                            : run.status === "failed" ||
-                                run.status === "cancelled" ||
-                                run.status === "interrupted"
-                              ? "bg-destructive"
-                              : "bg-muted-foreground",
-                        )}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-foreground text-sm font-medium">
-                          {t(`extensions.workflows.automationHome.runStatus.${status}`)}
-                        </p>
-                        <p className="text-muted-foreground mt-0.5 text-xs">
-                          {dateTimeFormatter.format(new Date(run.createdAt))}
-                        </p>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
+              <div className="overflow-x-auto rounded-[var(--radius-lg)]">
+                <table className="w-full min-w-[40rem] table-fixed text-sm">
+                  <colgroup>
+                    <col className="w-2/5" />
+                    <col className="w-1/6" />
+                    <col className="w-1/5" />
+                    <col className="w-1/6" />
+                    <col className="w-[var(--icon-frame-size-default)]" />
+                  </colgroup>
+                  <thead className="bg-muted/60 text-muted-foreground">
+                    <tr className="border-border h-10 border-b">
+                      <th scope="col" className="px-4 text-start font-normal">
+                        {t("extensions.workflows.automationTask.historyColumns.triggeredAt")}
+                      </th>
+                      <th scope="col" className="px-4 text-start font-normal">
+                        {t("extensions.workflows.automationTask.historyColumns.source")}
+                      </th>
+                      <th scope="col" className="px-4 text-start font-normal">
+                        {t("extensions.workflows.automationTask.historyColumns.status")}
+                      </th>
+                      <th scope="col" className="px-4 text-start font-normal">
+                        {t("extensions.workflows.automationTask.historyColumns.duration")}
+                      </th>
+                      <th scope="col">
+                        <span className="sr-only">
+                          {t("extensions.workflows.automationTask.historyColumns.actions")}
+                        </span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {taskRuns.map((run) => {
+                      const status = RUN_STATUS_KEYS[run.status];
+                      const source = RUN_SOURCE_KEYS[run.source];
+                      const triggeredAt = dateTimeFormatter.format(new Date(run.createdAt));
+                      const sessionId = runSessionId(run);
+                      const active = ACTIVE_RUN_STATUSES.includes(run.status);
+                      const duration =
+                        run.startedAt !== undefined && run.completedAt !== undefined
+                          ? Math.max(0, run.completedAt - run.startedAt)
+                          : undefined;
+                      const failed =
+                        run.status === "failed" ||
+                        run.status === "cancelled" ||
+                        run.status === "interrupted";
+
+                      return (
+                        <tr key={run.id} className="text-muted-foreground h-16">
+                          <td className="px-4 tabular-nums">{triggeredAt}</td>
+                          <td className="px-4">
+                            {t(`extensions.workflows.automationTask.runSource.${source}`)}
+                          </td>
+                          <td className="px-4">
+                            <span
+                              className={cn(
+                                "inline-flex items-center gap-2",
+                                run.status === "succeeded"
+                                  ? "text-emerald-600 dark:text-emerald-400"
+                                  : failed
+                                    ? "text-destructive"
+                                    : run.status === "queued"
+                                      ? "text-muted-foreground"
+                                      : "text-primary",
+                              )}
+                            >
+                              <span
+                                aria-hidden="true"
+                                className={cn(
+                                  "size-2 shrink-0 rounded-full",
+                                  run.status === "succeeded"
+                                    ? "bg-emerald-500"
+                                    : failed
+                                      ? "bg-destructive"
+                                      : run.status === "queued"
+                                        ? "bg-muted-foreground"
+                                        : "bg-primary",
+                                )}
+                              />
+                              {t(`extensions.workflows.automationHome.runStatus.${status}`)}
+                            </span>
+                          </td>
+                          <td className="px-4 tabular-nums">
+                            {duration === undefined
+                              ? "—"
+                              : formatCompactDuration(duration, locale, { includeZero: true })}
+                          </td>
+                          <td className="pe-1 text-end">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger
+                                render={
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-muted-foreground"
+                                    aria-label={t(
+                                      "extensions.workflows.automationTask.runActions",
+                                      { time: triggeredAt },
+                                    )}
+                                  >
+                                    <MoreHorizontalIcon aria-hidden="true" />
+                                  </Button>
+                                }
+                              />
+                              <DropdownMenuContent align="end" className="min-w-40 p-1.5">
+                                <DropdownMenuItem
+                                  className="min-h-9 gap-2 px-2.5"
+                                  disabled={!sessionId}
+                                  onClick={() => {
+                                    if (sessionId) navigation.openThread(sessionId);
+                                  }}
+                                >
+                                  <MessageSquareIcon aria-hidden="true" />
+                                  {t("extensions.workflows.automationTask.goToConversation")}
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  variant="destructive"
+                                  className="min-h-9 gap-2 px-2.5"
+                                  disabled={active}
+                                  title={
+                                    active
+                                      ? t(
+                                          "extensions.workflows.automationTask.deleteActiveRunUnavailable",
+                                        )
+                                      : undefined
+                                  }
+                                  onClick={() => {
+                                    setRunDeleteState("idle");
+                                    setRunToDelete(run);
+                                  }}
+                                >
+                                  <Trash2Icon aria-hidden="true" />
+                                  {t("extensions.workflows.automationTask.deleteRun")}
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
           </section>
         )}
+
+        <Dialog
+          open={runToDelete !== undefined}
+          onOpenChange={(open) => {
+            if (runDeleteState === "deleting") return;
+            if (!open) setRunToDelete(undefined);
+          }}
+        >
+          <DialogContent
+            closeLabel={t("extensions.workflows.automationTask.cancelDeleteRun")}
+            showCloseButton={false}
+          >
+            <DialogHeader>
+              <DialogTitle>{t("extensions.workflows.automationTask.deleteRunTitle")}</DialogTitle>
+              <DialogDescription>
+                {t("extensions.workflows.automationTask.deleteRunDescription")}
+              </DialogDescription>
+            </DialogHeader>
+            {runDeleteState === "error" ? (
+              <p className="text-destructive text-xs leading-5" role="alert">
+                {t("extensions.workflows.automationTask.deleteRunFailed")}
+              </p>
+            ) : null}
+            <DialogFooter
+              closeLabel={t("extensions.workflows.automationTask.cancelDeleteRun")}
+              className="m-0"
+            >
+              <Button
+                type="button"
+                variant="outline"
+                disabled={runDeleteState === "deleting"}
+                onClick={() => setRunToDelete(undefined)}
+              >
+                {t("extensions.workflows.automationTask.cancelDeleteRun")}
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={!runToDelete || runDeleteState === "deleting"}
+                onClick={() => void deleteRun()}
+              >
+                {runDeleteState === "deleting" ? (
+                  <RefreshCwIcon aria-hidden="true" className="animate-spin" />
+                ) : (
+                  <Trash2Icon aria-hidden="true" />
+                )}
+                {t(
+                  runDeleteState === "deleting"
+                    ? "extensions.workflows.automationTask.deletingRun"
+                    : "extensions.workflows.automationTask.confirmDeleteRun",
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {error ? (
           <p

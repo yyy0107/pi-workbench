@@ -14,6 +14,7 @@ export type WorkflowScope = { type: "personal" } | { type: "project"; workspaceI
 export type WorkflowConcurrency =
   | { mode: "queue" }
   | { mode: "skip" }
+  | { mode: "independent" }
   | { mode: "parallel"; maxActiveRuns: number };
 
 export type WorkflowJsonPrimitive = null | boolean | number | string;
@@ -216,6 +217,22 @@ export type WorkflowRunStatus =
 
 export type WorkflowRunSource = "manual" | "schedule" | "event" | "replay";
 
+export const EXECUTION_SESSION_ORIGIN_CUSTOM_TYPE = "workbench.execution.origin";
+
+/** Durable provenance linking a normal project conversation back to its Execution run. */
+export interface ExecutionSessionOrigin {
+  version: 1;
+  origin: "execution";
+  workflowId: string;
+  workflowName: string;
+  workflowKind: WorkflowKind;
+  runId: string;
+  nodeId: string;
+  attempt: number;
+  source: WorkflowRunSource;
+  triggerId?: string;
+}
+
 export type WorkflowNodeRunStatus =
   | "pending"
   | "running"
@@ -320,6 +337,12 @@ export interface WorkflowRunChangedHostPayload {
   run: WorkflowRunSummary;
 }
 
+export interface WorkflowRunRemovedHostPayload {
+  type: "host/workflow-run-removed";
+  runId: string;
+  workflowId: string;
+}
+
 export interface WorkflowTriggerChangedHostPayload {
   type: "host/workflow-trigger-changed";
   state: WorkflowTriggerState;
@@ -329,6 +352,7 @@ export type WorkflowHostPayload =
   | WorkflowChangedHostPayload
   | WorkflowRemovedHostPayload
   | WorkflowRunChangedHostPayload
+  | WorkflowRunRemovedHostPayload
   | WorkflowTriggerChangedHostPayload;
 
 export interface WorkflowListPayload {
@@ -385,6 +409,16 @@ export interface WorkflowRunStartPayload {
 
 export interface WorkflowRunCancelPayload {
   runId: string;
+}
+
+export interface WorkflowRunDeletePayload {
+  runId: string;
+}
+
+export interface WorkflowRunDeleteValue {
+  deleted: true;
+  runId: string;
+  workflowId: string;
 }
 
 export interface WorkflowRunListPayload {
@@ -447,6 +481,7 @@ export interface ExecutionProtocol {
   archive(payload: WorkflowArchivePayload): Promise<WorkflowReadValue>;
   startRun(payload: WorkflowRunStartPayload): Promise<WorkflowRunAdmission>;
   cancelRun(payload: WorkflowRunCancelPayload): Promise<WorkflowRunSummary>;
+  deleteRun(payload: WorkflowRunDeletePayload): Promise<WorkflowRunDeleteValue>;
   listRuns(payload: WorkflowRunListPayload): Promise<WorkflowRunListValue>;
   readRun(payload: WorkflowRunReadPayload): Promise<WorkflowRunReadValue>;
   resolveApproval(payload: WorkflowResolveApprovalPayload): Promise<WorkflowRunSummary>;
@@ -463,6 +498,30 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+export function parseExecutionSessionOrigin(value: unknown): ExecutionSessionOrigin | undefined {
+  if (!isRecord(value)) return undefined;
+  if (
+    value.version !== 1 ||
+    value.origin !== "execution" ||
+    typeof value.workflowId !== "string" ||
+    !value.workflowId ||
+    typeof value.workflowName !== "string" ||
+    !value.workflowName ||
+    !["workflow", "sop", "automation"].includes(value.workflowKind as string) ||
+    typeof value.runId !== "string" ||
+    !value.runId ||
+    typeof value.nodeId !== "string" ||
+    !value.nodeId ||
+    !Number.isInteger(value.attempt) ||
+    (value.attempt as number) < 1 ||
+    !["manual", "schedule", "event", "replay"].includes(value.source as string) ||
+    (value.triggerId !== undefined && (typeof value.triggerId !== "string" || !value.triggerId))
+  ) {
+    return undefined;
+  }
+  return value as unknown as ExecutionSessionOrigin;
+}
+
 export function isWorkflowHostPayload(value: unknown): value is WorkflowHostPayload {
   if (!isRecord(value) || typeof value.type !== "string") return false;
   switch (value.type) {
@@ -472,6 +531,8 @@ export function isWorkflowHostPayload(value: unknown): value is WorkflowHostPayl
       return typeof value.workflowId === "string";
     case "host/workflow-run-changed":
       return isRecord(value.run) && typeof value.run.id === "string";
+    case "host/workflow-run-removed":
+      return typeof value.runId === "string" && typeof value.workflowId === "string";
     case "host/workflow-trigger-changed":
       return (
         isRecord(value.state) &&

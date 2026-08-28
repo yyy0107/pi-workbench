@@ -1,49 +1,48 @@
-import { randomUUID } from "node:crypto";
-
-import {
-  createAgentSessionFromServices,
-  createAgentSessionServices,
-  SessionManager,
-} from "@earendil-works/pi-coding-agent";
-
 import type { AgentNode, WorkflowJsonValue } from "@/runtime/shared/execution";
+import { EXECUTION_SESSION_ORIGIN_CUSTOM_TYPE } from "@/runtime/shared/execution";
+import type { AgentExecutionPort } from "@/runtime/server/agent-execution-port";
 import { ExecutionError } from "@/runtime/server/executions/execution-errors";
 import {
   type ExecutionNodeContext,
   type ExecutionNodeExecutor,
   type ExecutionNodeResult,
 } from "@/runtime/server/executions/execution-node-executor";
-import { createWorkbenchBashToolOverride } from "@/runtime/terminal/server/interactive-bash-tool";
-import {
-  reportWorkbenchInternalPiExtensionErrors,
-  workbenchInternalPiExtensions,
-} from "../internal-extensions";
+import { createPiAgentExecutionAdapter } from "../agent-runtime/pi-agent-execution-adapter";
+import { createSession } from "../sessions/session-registry";
 import { getProjectTrustService } from "../trust/project-trust-service";
+import { getWorkspaceStore } from "../workspaces/workspace-registry";
 
-export function resolveAgentModelSelection<T extends { provider: string; id: string }>(
-  node: AgentNode,
-  availableModels: readonly T[],
-): { model?: T; thinkingLevel?: NonNullable<AgentNode["config"]["model"]>["thinkingLevel"] } {
-  const selection = node.config.model;
-  if (!selection) return {};
-  const model = availableModels.find(
-    (candidate) => candidate.provider === selection.provider && candidate.id === selection.modelId,
-  );
-  if (!model) {
-    const error = new Error(
-      `The configured execution model ${selection.provider}/${selection.modelId} is unavailable.`,
-    );
-    Object.assign(error, { code: "agent-model-unavailable" });
-    throw error;
-  }
-  return {
-    model,
-    ...(selection.thinkingLevel ? { thinkingLevel: selection.thinkingLevel } : {}),
+export interface ExecutionSessionHost {
+  readonly id: string;
+  rename(name: string): number;
+  waitForCurrentPrompt(): Promise<void>;
+  readonly session: {
+    readonly sessionManager: {
+      appendCustomEntry(customType: string, data: unknown): unknown;
+    };
+    readonly messages: readonly unknown[];
+    getActiveToolNames(): string[];
+    setActiveToolsByName(toolNames: string[]): void;
   };
 }
 
-function assertTrustedWorkspace(workspaceId: string, workspacePath: string): void {
-  if (!getProjectTrustService().isTrusted(workspacePath)) {
+export interface PiAgentExecutionNodeExecutorOptions {
+  execution?: Pick<AgentExecutionPort, "submit" | "cancel">;
+  isWorkspaceTrusted?: (workspacePath: string) => boolean;
+  createSession?: (
+    workspacePath: string,
+    sessionId: string | undefined,
+    model: AgentNode["config"]["model"],
+  ) => Promise<ExecutionSessionHost>;
+  attachSession?: (workspaceId: string, sessionId: string) => Promise<unknown>;
+}
+
+function assertTrustedWorkspace(
+  workspaceId: string,
+  workspacePath: string,
+  isWorkspaceTrusted: (workspacePath: string) => boolean,
+): void {
+  if (!isWorkspaceTrusted(workspacePath)) {
     throw new ExecutionError(
       "workspace-not-trusted",
       "The execution target workspace is not trusted.",
@@ -76,60 +75,78 @@ function assistantText(messages: readonly unknown[]): string {
 }
 
 export class PiAgentExecutionNodeExecutor implements ExecutionNodeExecutor {
+  private readonly agentExecution: Pick<AgentExecutionPort, "submit" | "cancel">;
+  private readonly isWorkspaceTrusted: (workspacePath: string) => boolean;
+  private readonly createProjectSession: NonNullable<
+    PiAgentExecutionNodeExecutorOptions["createSession"]
+  >;
+  private readonly attachProjectSession: NonNullable<
+    PiAgentExecutionNodeExecutorOptions["attachSession"]
+  >;
+
+  constructor(options: PiAgentExecutionNodeExecutorOptions = {}) {
+    this.agentExecution = options.execution ?? createPiAgentExecutionAdapter();
+    this.isWorkspaceTrusted =
+      options.isWorkspaceTrusted ??
+      ((workspacePath) => getProjectTrustService().isTrusted(workspacePath));
+    this.createProjectSession = options.createSession ?? createSession;
+    this.attachProjectSession =
+      options.attachSession ??
+      ((workspaceId, sessionId) => getWorkspaceStore().attachSession(workspaceId, sessionId));
+  }
+
   async execute(context: ExecutionNodeContext): Promise<ExecutionNodeResult> {
     const node = context.node as AgentNode;
-    assertTrustedWorkspace(context.workspaceId, context.workspacePath);
-    const sessionId = randomUUID();
-    const sessionManager = SessionManager.create(context.workspacePath, context.sessionDirectory, {
-      id: sessionId,
-    });
-    sessionManager.appendCustomEntry("workbench.execution.origin", {
-      origin: "execution",
-      runId: context.runId,
-      nodeId: node.id,
-      attempt: context.attempt,
-    });
-    const services = await createAgentSessionServices({
-      cwd: context.workspacePath,
-      resourceLoaderOptions: {
-        extensionFactories: workbenchInternalPiExtensions,
-        extensionsOverride: reportWorkbenchInternalPiExtensionErrors,
-      },
-      resourceLoaderReloadOptions: {
-        resolveProjectTrust: async () => getProjectTrustService().isTrusted(context.workspacePath),
-      },
-    });
-    const modelSelection = resolveAgentModelSelection(
-      node,
-      services.modelRuntime.getAvailableSnapshot(),
+    assertTrustedWorkspace(context.workspaceId, context.workspacePath, this.isWorkspaceTrusted);
+
+    // Use the ordinary project session path so an automation run is a real, durable Workbench
+    // task. The execution-origin marker lets every projection identify both the task and project
+    // as automation-owned without maintaining a second relationship store.
+    const host = await this.createProjectSession(
+      context.workspacePath,
+      undefined,
+      node.config.model,
     );
-    const { session } = await createAgentSessionFromServices({
-      services,
-      sessionManager,
-      ...modelSelection,
-      customTools: [
-        createWorkbenchBashToolOverride(context.workspacePath, sessionId, {
-          commandPrefix: services.settingsManager.getShellCommandPrefix(),
-          shellPath: services.settingsManager.getShellPath(),
-        }),
-      ],
-    });
-    const abort = (): void => void session.abort();
+    host.session.sessionManager.appendCustomEntry(
+      EXECUTION_SESSION_ORIGIN_CUSTOM_TYPE,
+      context.executionOrigin,
+    );
+    host.rename(context.executionOrigin.workflowName);
+    host.session.setActiveToolsByName(
+      host.session.getActiveToolNames().filter((toolName) => toolName !== "ask_user"),
+    );
+    await this.attachProjectSession(context.workspaceId, host.id);
+
+    if (context.signal.aborted) {
+      await this.agentExecution.cancel({ threadId: host.id });
+      throw new DOMException("Run cancelled", "AbortError");
+    }
+    const abort = (): void => void this.agentExecution.cancel({ threadId: host.id });
     context.signal.addEventListener("abort", abort, { once: true });
     try {
-      await session.bindExtensions({ mode: "rpc" });
-      session.setActiveToolsByName(
-        session.getActiveToolNames().filter((toolName) => toolName !== "ask_user"),
-      );
-      await session.prompt(promptWithInput(node, context.input));
+      const admission = await this.agentExecution.submit({
+        threadId: host.id,
+        mode: "follow-up",
+        prompt: {
+          text: promptWithInput(node, context.input),
+          attachments: [],
+        },
+        provenance: {
+          requestId: `execution.prompt:${context.runId}:${node.id}:${context.attempt}`,
+        },
+      });
+      if (admission.kind !== "started") {
+        throw new Error("A newly created automation task unexpectedly queued its first prompt.");
+      }
+      await host.waitForCurrentPrompt();
       if (context.signal.aborted) throw new DOMException("Run cancelled", "AbortError");
       return {
-        sessionId,
-        output: { text: assistantText(session.messages), sessionId },
+        sessionId: host.id,
+        output: { text: assistantText(host.session.messages), sessionId: host.id },
       };
     } finally {
       context.signal.removeEventListener("abort", abort);
-      session.dispose();
+      // Deliberately keep the hosted session alive: it is now a normal task in the target project.
     }
   }
 }

@@ -108,12 +108,15 @@ test("callPiRpc sends and verifies the shared RPC envelope", async (t) => {
     });
   };
 
-  assert.deepEqual(await callPiRpc("workspace.test", { extra: 1 }, { rpcId: "caller-owned-rpc" }), {
-    accepted: true,
-  });
+  const signal = AbortSignal.timeout(1_000);
+  assert.deepEqual(
+    await callPiRpc("workspace.test", { extra: 1 }, { rpcId: "caller-owned-rpc", signal }),
+    { accepted: true },
+  );
   assert.equal(calls.length, 1);
   assert.equal(calls[0]?.input, "/api/workspace.test");
   assert.equal(calls[0]?.init?.method, "POST");
+  assert.equal(calls[0]?.init?.signal, signal);
   assert.deepEqual(requestBody(calls[0]!), {
     type: "client-request",
     rpcId: "caller-owned-rpc",

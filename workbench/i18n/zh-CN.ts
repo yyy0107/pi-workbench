@@ -274,6 +274,7 @@ export const workbenchZhCN = {
     generating: "正在生成",
     waitingForUserInput: "等待用户输入",
     completed: "已在后台完成",
+    automationTask: "自动化任务",
     pin: "置顶会话",
     unpin: "取消置顶会话",
     pinWorkspace: "置顶项目",

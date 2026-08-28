@@ -1,7 +1,13 @@
-import type { FlowNode, WorkflowJsonValue, WorkflowRunEvent } from "@/runtime/shared/execution";
+import type {
+  ExecutionSessionOrigin,
+  FlowNode,
+  WorkflowJsonValue,
+  WorkflowRunEvent,
+} from "@/runtime/shared/execution";
 
 export interface ExecutionNodeContext {
   runId: string;
+  executionOrigin: ExecutionSessionOrigin;
   node: FlowNode;
   attempt: number;
   workspaceId: string;

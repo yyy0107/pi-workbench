@@ -1,6 +1,6 @@
 import { existsSync, statSync, unlinkSync } from "node:fs";
 import { randomUUID } from "node:crypto";
-import { readdir, stat } from "node:fs/promises";
+import { open, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import {
   type AgentSession,
@@ -31,6 +31,11 @@ import type {
   PiThinkingLevel,
   PiToolCallTiming,
 } from "@/runtime/pi/contracts/pi";
+import {
+  EXECUTION_SESSION_ORIGIN_CUSTOM_TYPE,
+  parseExecutionSessionOrigin,
+  type ExecutionSessionOrigin,
+} from "@/runtime/shared/execution";
 import {
   hasWorkbenchComposerDocument,
   hasWorkbenchComposerSemantics,
@@ -158,6 +163,7 @@ import {
 } from "../internal-extensions/index";
 import { getProjectTrustService } from "../trust/project-trust-service";
 import { registerWorkbenchShutdownHook } from "../../../server/shutdown-hooks";
+import { resolveInitialSessionModel } from "./session-initial-model";
 
 export { PiServerError } from "../core/errors";
 
@@ -591,6 +597,51 @@ function meaningfulEntryTime(entry: SessionTimestampEntry): Date | undefined {
     }
   }
   return parsedDate(entry.timestamp);
+}
+
+function executionSessionOriginFromEntries(
+  entries: readonly SessionEntry[],
+): ExecutionSessionOrigin | undefined {
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const entry = entries[index];
+    if (entry?.type !== "custom" || entry.customType !== EXECUTION_SESSION_ORIGIN_CUSTOM_TYPE) {
+      continue;
+    }
+    const origin = parseExecutionSessionOrigin(entry.data);
+    if (origin) return origin;
+  }
+  return undefined;
+}
+
+const EXECUTION_ORIGIN_SCAN_BYTES = 64 * 1024;
+
+async function readExecutionSessionOrigin(
+  file: string,
+): Promise<ExecutionSessionOrigin | undefined> {
+  let handle: Awaited<ReturnType<typeof open>> | undefined;
+  try {
+    handle = await open(file, "r");
+    const buffer = Buffer.allocUnsafe(EXECUTION_ORIGIN_SCAN_BYTES);
+    const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0);
+    for (const line of buffer.subarray(0, bytesRead).toString("utf8").split("\n")) {
+      if (!line.includes(EXECUTION_SESSION_ORIGIN_CUSTOM_TYPE)) continue;
+      const entry = JSON.parse(line) as unknown;
+      if (
+        !isRecord(entry) ||
+        entry.type !== "custom" ||
+        entry.customType !== EXECUTION_SESSION_ORIGIN_CUSTOM_TYPE
+      ) {
+        continue;
+      }
+      const origin = parseExecutionSessionOrigin(entry.data);
+      if (origin) return origin;
+    }
+  } catch {
+    // Missing, malformed, or concurrently replaced files remain ordinary conversations.
+  } finally {
+    await handle?.close().catch(() => undefined);
+  }
+  return undefined;
 }
 
 /** Derive ordering from durable activity without counting journal storage writes as activity. */
@@ -2241,6 +2292,12 @@ class HostedPiSession {
     });
   }
 
+  /** Wait for the prompt admitted through AgentExecutionPort without creating another send path. */
+  async waitForCurrentPrompt(): Promise<void> {
+    const admittedRun = this.promptTask;
+    if (admittedRun) await admittedRun;
+  }
+
   private async understandAttachments(
     images: PiImageContent[],
     documents: PiDocumentContent[],
@@ -3349,7 +3406,10 @@ function publishRunningSessions(): void {
   for (const listener of registry.runningListeners) listener(ids);
 }
 
-async function createHost(sessionManager: SessionManager): Promise<HostedPiSession> {
+async function createHost(
+  sessionManager: SessionManager,
+  initialModel?: PiModelSelection,
+): Promise<HostedPiSession> {
   const cwd = sessionManager.getCwd();
   const initialContextPolicy = policyFromSessionEntries(sessionManager.getBranch());
   const services = await createAgentSessionServices({
@@ -3362,9 +3422,14 @@ async function createHost(sessionManager: SessionManager): Promise<HostedPiSessi
       resolveProjectTrust: async () => getProjectTrustService().isTrusted(cwd),
     },
   });
+  const modelSelection = resolveInitialSessionModel(
+    initialModel,
+    services.modelRuntime.getAvailableSnapshot(),
+  );
   const { session } = await createAgentSessionFromServices({
     services,
     sessionManager,
+    ...modelSelection,
     customTools: [
       // Pi applies custom tools after built-ins, so this same-name definition preserves the
       // standard Bash behavior while adding Workbench PTY execution and explicit input ownership.
@@ -3688,7 +3753,11 @@ export async function getOrStartSession(id: string): Promise<HostedPiSession> {
   return start;
 }
 
-export async function createSession(cwd: string, sessionId?: string): Promise<HostedPiSession> {
+export async function createSession(
+  cwd: string,
+  sessionId?: string,
+  initialModel?: PiModelSelection,
+): Promise<HostedPiSession> {
   const workspace = validateWorkspace(cwd);
   const registry = state();
   if (sessionId !== undefined) {
@@ -3713,6 +3782,7 @@ export async function createSession(cwd: string, sessionId?: string): Promise<Ho
       }
       const host = await createHost(
         SessionManager.create(workspace.cwd, undefined, { id: sessionId }),
+        initialModel,
       );
       announceSessionAdded(host);
       return host;
@@ -3722,7 +3792,7 @@ export async function createSession(cwd: string, sessionId?: string): Promise<Ho
   }
 
   const key = `new:${randomUUID()}`;
-  const start = createHost(SessionManager.create(workspace.cwd))
+  const start = createHost(SessionManager.create(workspace.cwd), initialModel)
     .then((host) => {
       announceSessionAdded(host);
       return host;
@@ -3828,7 +3898,11 @@ export async function forkSession(id: string, atSeq?: number): Promise<HostedPiS
   });
 }
 
-function persistedSummary(info: SessionInfo, running: boolean): PiSessionSummary {
+function persistedSummary(
+  info: SessionInfo,
+  running: boolean,
+  executionOrigin?: ExecutionSessionOrigin,
+): PiSessionSummary {
   return {
     id: info.id,
     cwd: info.cwd,
@@ -3843,6 +3917,7 @@ function persistedSummary(info: SessionInfo, running: boolean): PiSessionSummary
     firstMessage: deriveSessionDisplayTitle(info.firstMessage),
     transient: false,
     running,
+    ...(executionOrigin === undefined ? {} : { executionOrigin }),
   };
 }
 
@@ -3855,6 +3930,7 @@ function sessionManagerSummary(
   const header = manager.getHeader();
   const file = manager.getSessionFile();
   const timestamp = header?.timestamp ?? new Date().toISOString();
+  const executionOrigin = executionSessionOriginFromEntries(manager.getEntries());
   return {
     id: manager.getSessionId(),
     cwd: manager.getCwd(),
@@ -3867,6 +3943,7 @@ function sessionManagerSummary(
     transient: !file || !existsSync(file),
     running,
     ...(runTiming === undefined ? {} : { runTiming }),
+    ...(executionOrigin === undefined ? {} : { executionOrigin }),
   };
 }
 
@@ -3902,6 +3979,7 @@ function persistedMetadataFromManager(
   const header = manager.getHeader();
   const file = manager.getSessionFile();
   const timestamp = header?.timestamp ?? new Date().toISOString();
+  const executionOrigin = executionSessionOriginFromEntries(manager.getEntries());
   const summary: PiSessionSummary = {
     id: manager.getSessionId(),
     cwd: manager.getCwd(),
@@ -3913,6 +3991,7 @@ function persistedMetadataFromManager(
     firstMessage: firstUserText(messages),
     transient: !file || !existsSync(file),
     running,
+    ...(executionOrigin === undefined ? {} : { executionOrigin }),
   };
   return { summary, info: sessionManagerInfo(manager, summary) };
 }
@@ -4212,10 +4291,13 @@ function startPersistedSessionCacheRefresh(
       if (registry.persistedSessionCacheKey !== cacheKey) return;
       const running = new Set(runningSessionIds());
       const nextSessions = new Map(persisted.map((session) => [session.id, session]));
+      const executionOrigins = await Promise.all(
+        persisted.map((session) => readExecutionSessionOrigin(session.path)),
+      );
       const nextSummaries = new Map(
-        persisted.map((session) => [
+        persisted.map((session, index) => [
           session.id,
-          persistedSummary(session, running.has(session.id)),
+          persistedSummary(session, running.has(session.id), executionOrigins[index]),
         ]),
       );
       registry.persistedSessions.clear();

@@ -6,6 +6,7 @@ import type {
 } from "@assistant-ui/react";
 
 import type { WorkbenchAgentCommand } from "@/runtime/shared/agent-command/catalog";
+import type { ExecutionSessionOrigin } from "@/runtime/shared/execution";
 
 /** Workbench-owned workspace identity projected by an Agent Runtime implementation. */
 export interface WorkbenchAgentWorkspace {
@@ -26,6 +27,8 @@ export interface WorkbenchAgentThreadSnapshot {
   readonly lastMessageAt?: Date;
   /** ISO-8601 timestamp used as the stable fallback for manual sidebar ordering. */
   readonly createdAt?: string;
+  /** Durable workflow provenance for tasks created by automation or other execution runs. */
+  readonly executionOrigin?: ExecutionSessionOrigin;
   readonly isRunning: boolean;
   readonly isWaitingForInput: boolean;
   /** Whether a background completion still needs to be acknowledged by opening the thread. */

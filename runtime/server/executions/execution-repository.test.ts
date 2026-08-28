@@ -94,6 +94,40 @@ test("pages append-only run events by monotonic sequence", async () => {
   }
 });
 
+test("deletes a completed run directory without accepting path traversal", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-workflow-run-delete-"));
+  try {
+    const repository = new ExecutionRepository({
+      rootDirectory: root,
+      listWorkspaces: async () => [],
+    });
+    const run = await repository.createRun({
+      schemaVersion: 1,
+      id: "run-delete-1",
+      workflowId: "flow-1",
+      workflowName: "Flow",
+      workflowKind: "workflow",
+      revisionId: "revision-1",
+      source: "manual",
+      status: "succeeded",
+      createdAt: 1,
+      completedAt: 2,
+      updatedAt: 2,
+      lastSeq: 0,
+      attempts: [],
+    });
+
+    assert.equal((await repository.deleteRun(run.id)).id, run.id);
+    await assert.rejects(
+      repository.readRunSummary(run.id),
+      (error) => error instanceof ExecutionError && error.code === "run-not-found",
+    );
+    await assert.rejects(repository.deleteRun("../definitions"), TypeError);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("rejects project publish after external content changes", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "workbench-workflow-project-"));
   const workspace = path.join(root, "workspace");

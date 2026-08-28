@@ -82,6 +82,15 @@ function parallelDocument(): WorkflowDocument {
   };
 }
 
+function legacyQueuedAutomationDocument(): WorkflowDocument {
+  return {
+    ...approvalDocument(),
+    id: "legacy-queued-automation",
+    kind: "automation",
+    name: "Legacy queued automation",
+  };
+}
+
 async function waitForStatus(
   repository: ExecutionRepository,
   runId: string,
@@ -124,6 +133,86 @@ test("pauses an Approval node and resumes the same run after resolution", async 
     await waitForStatus(repository, admission.run.id, "succeeded");
     const run = await repository.readRunSummary(admission.run.id);
     assert.equal(run.attempts.find(({ nodeId }) => nodeId === "approval")?.status, "succeeded");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("reports running only after an execution slot is acquired and queued only when blocked", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-flow-engine-admission-"));
+  try {
+    const repository = new ExecutionRepository({
+      rootDirectory: root,
+      listWorkspaces: async () => [],
+    });
+    const inert: ExecutionNodeExecutor = {
+      async execute() {
+        return {};
+      },
+    };
+    const changedStatuses: WorkflowRunStatus[] = [];
+    const engine = new ExecutionEngine({
+      repository,
+      executors: new ExecutionNodeExecutorRegistry({ agent: inert, command: inert }),
+      onRunChanged: (run) => changedStatuses.push(run.status),
+    });
+    const revision = compileExecutionDocument(approvalDocument(), 10).revision;
+
+    const started = await engine.start({ revision, source: "manual" });
+    assert.equal(started.kind, "started");
+    if (started.kind !== "started") return;
+    assert.equal(started.run.status, "running");
+    assert.equal(typeof started.run.startedAt, "number");
+    assert.equal(changedStatuses[0], "running");
+
+    const queued = await engine.start({ revision, source: "manual" });
+    assert.equal(queued.kind, "queued");
+    assert.equal(queued.run.status, "queued");
+    assert.equal(queued.run.startedAt, undefined);
+    assert.equal(changedStatuses.at(-1), "queued");
+
+    await engine.cancel(queued.run.id);
+    await engine.cancel(started.run.id);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("starts every automation trigger independently, including legacy queued revisions", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-automation-engine-admission-"));
+  try {
+    const repository = new ExecutionRepository({
+      rootDirectory: root,
+      listWorkspaces: async () => [],
+    });
+    const inert: ExecutionNodeExecutor = {
+      async execute() {
+        return {};
+      },
+    };
+    const engine = new ExecutionEngine({
+      repository,
+      executors: new ExecutionNodeExecutorRegistry({ agent: inert, command: inert }),
+    });
+    const revision = compileExecutionDocument(legacyQueuedAutomationDocument(), 10).revision;
+    const admissions = [];
+
+    // This exceeds the generic engine pool limit and proves automations do not
+    // enter either a per-task queue or the generic workflow execution queue.
+    for (let index = 0; index < 9; index += 1) {
+      admissions.push(await engine.start({ revision, source: "schedule" }));
+    }
+
+    assert.deepEqual(
+      admissions.map(({ kind }) => kind),
+      Array.from({ length: 9 }, () => "started"),
+    );
+    for (const admission of admissions) {
+      assert.equal(admission.kind, "started");
+      if (admission.kind !== "started") continue;
+      assert.equal(admission.run.status, "running");
+      await engine.cancel(admission.run.id);
+    }
   } finally {
     await rm(root, { recursive: true, force: true });
   }

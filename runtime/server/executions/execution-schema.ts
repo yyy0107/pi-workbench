@@ -201,6 +201,7 @@ export const ExecutionDocumentSchema = Type.Object(
     concurrency: Type.Union([
       Type.Object({ mode: Type.Literal("queue") }, { additionalProperties: false }),
       Type.Object({ mode: Type.Literal("skip") }, { additionalProperties: false }),
+      Type.Object({ mode: Type.Literal("independent") }, { additionalProperties: false }),
       Type.Object(
         {
           mode: Type.Literal("parallel"),

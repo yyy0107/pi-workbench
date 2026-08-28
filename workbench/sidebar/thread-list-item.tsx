@@ -7,7 +7,7 @@ import {
   useAui,
   useAuiState,
 } from "@assistant-ui/react";
-import { ArchiveIcon, MoreHorizontalIcon, PinIcon, PinOffIcon } from "lucide-react";
+import { ArchiveIcon, MoreHorizontalIcon, PinIcon, PinOffIcon, ZapIcon } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -156,6 +156,15 @@ export function WorkbenchThreadListItem({
           openThreadRoute();
         }}
       >
+        {threadState.executionOrigin?.workflowKind === "automation" ? (
+          <span
+            className="text-primary me-1.5 inline-flex shrink-0"
+            title={t("workbench.sidebar.automationTask")}
+          >
+            <ZapIcon aria-hidden="true" className="size-[var(--icon-size-sm)]" />
+            <span className="sr-only">{t("workbench.sidebar.automationTask")}</span>
+          </span>
+        ) : null}
         <span
           className={cn(
             "min-w-0 flex-1 truncate md:group-hover/thread:pe-[var(--sidebar-action-pair-reserved-space)] md:group-has-[:focus-visible]/thread:pe-[var(--sidebar-action-pair-reserved-space)]",

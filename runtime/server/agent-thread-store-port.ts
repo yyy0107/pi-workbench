@@ -1,3 +1,5 @@
+import type { ExecutionSessionOrigin } from "@/runtime/shared/execution";
+
 export interface AgentThreadRunTiming {
   readonly startedAt: number;
   readonly elapsedMs: number;
@@ -16,6 +18,7 @@ export interface AgentThreadSummary {
   readonly running: boolean;
   readonly waitingForUserInput?: boolean;
   readonly runTiming?: AgentThreadRunTiming;
+  readonly executionOrigin?: ExecutionSessionOrigin;
 }
 
 export interface AgentThreadSearchDocument {

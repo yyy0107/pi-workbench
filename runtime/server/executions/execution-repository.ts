@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { appendFile, mkdir, readdir, readFile, rename, stat } from "node:fs/promises";
+import { appendFile, mkdir, readdir, readFile, rename, rm, stat } from "node:fs/promises";
 import path from "node:path";
 
 import type {
@@ -91,6 +91,9 @@ export class ExecutionRepository {
   }
 
   private runDirectory(runId: string): string {
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$/u.test(runId)) {
+      throw new TypeError("A workflow run ID must be a safe path segment.");
+    }
     return path.join(this.rootDirectory, "runs", runId);
   }
 
@@ -429,6 +432,15 @@ export class ExecutionRepository {
       events,
       ...(last !== undefined && all.length > events.length ? { nextSeq: last } : {}),
     };
+  }
+
+  async deleteRun(runId: string): Promise<WorkflowRunSummary> {
+    const directory = this.runDirectory(runId);
+    return withCrossProcessFileLock({ lockDirectory: `${directory}.delete.lock` }, async () => {
+      const run = await this.readRunSummary(runId);
+      await rm(directory, { recursive: true });
+      return run;
+    });
   }
 
   async markInterruptedRuns(): Promise<WorkflowRunSummary[]> {

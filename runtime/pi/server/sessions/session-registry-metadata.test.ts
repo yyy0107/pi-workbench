@@ -2688,6 +2688,135 @@ test("publishes prompt admission and retains the HTTP RPC id for queued follow-u
   releaseRun();
 });
 
+test("publishes a background prompt user message over mux and waits for its assistant turn", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-background-prompt-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+  process.env.PI_CODING_AGENT_DIR = path.join(root, "agent");
+  t.after(() => {
+    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+  });
+
+  const cwd = path.join(root, "project");
+  await mkdir(cwd, { recursive: true });
+  const hub = createStreamHub({ createRpcId: () => "background-prompt-rpc" });
+  const globals = globalThis as unknown as Record<PropertyKey, unknown>;
+  const previousHub = globals[STREAM_HUB_SYMBOL];
+  globals[STREAM_HUB_SYMBOL] = hub;
+  t.after(() => {
+    if (previousHub === undefined) delete globals[STREAM_HUB_SYMBOL];
+    else globals[STREAM_HUB_SYMBOL] = previousHub;
+  });
+
+  const muxFrames: ServerRequest<MuxStreamPayload>[] = [];
+  const subscription = hub.subscribe("mux", {
+    onFrame: (frame) => muxFrames.push(frame),
+    onError: (error) => assert.fail(error.message),
+  });
+  t.after(() => subscription.close());
+  await subscription.ready;
+
+  const host = await createSession(cwd, "background-prompt");
+  const fakeAgent = host.session as unknown as {
+    model?: unknown;
+    modelRuntime: { getAvailableSnapshot(): unknown[] };
+    prompt(
+      message: string,
+      options: { preflightResult?: (accepted: boolean) => void },
+    ): Promise<void>;
+    _handleAgentEvent(event: Record<string, unknown>): Promise<void>;
+  };
+  const originalPrompt = fakeAgent.prompt;
+  const originalAvailableSnapshot = fakeAgent.modelRuntime.getAvailableSnapshot;
+  fakeAgent.modelRuntime.getAvailableSnapshot = () =>
+    fakeAgent.model === undefined ? [] : [fakeAgent.model];
+
+  let userPublished!: () => void;
+  const userWasPublished = new Promise<void>((resolve) => {
+    userPublished = resolve;
+  });
+  let releaseRun!: () => void;
+  const runCanFinish = new Promise<void>((resolve) => {
+    releaseRun = resolve;
+  });
+  fakeAgent.prompt = async (message, options) => {
+    options.preflightResult?.(true);
+    const timestamp = Date.now();
+    const userMessage = {
+      role: "user",
+      content: [{ type: "text", text: message }],
+      timestamp,
+    };
+    await fakeAgent._handleAgentEvent({ type: "agent_start" });
+    await fakeAgent._handleAgentEvent({ type: "message_start", message: userMessage });
+    await fakeAgent._handleAgentEvent({ type: "message_end", message: userMessage });
+    userPublished();
+    await runCanFinish;
+    const assistant = assistantMessage("Automation complete", timestamp + 1);
+    await fakeAgent._handleAgentEvent({ type: "message_start", message: assistant });
+    await fakeAgent._handleAgentEvent({ type: "message_end", message: assistant });
+    await fakeAgent._handleAgentEvent({ type: "agent_end", messages: [assistant] });
+    await fakeAgent._handleAgentEvent({ type: "agent_settled" });
+  };
+  t.after(() => {
+    fakeAgent.prompt = originalPrompt;
+    fakeAgent.modelRuntime.getAvailableSnapshot = originalAvailableSnapshot;
+    releaseRun?.();
+    return host.shutdown();
+  });
+
+  let completed = false;
+  const run = submitPrompt(
+    host.id,
+    "followUp",
+    { message: "Automation user prompt" },
+    { rpcId: "automation-prompt-rpc" },
+  )
+    .then(() => host.waitForCurrentPrompt())
+    .then(() => {
+      completed = true;
+    });
+  await userWasPublished;
+
+  assert.equal(completed, false, "the background caller must still wait for the assistant turn");
+  const userEvents = muxFrames.flatMap((frame) => {
+    if (frame.payload.type !== "session/event") return [];
+    const data = frame.payload.event.data as { message?: { role?: string; content?: unknown } };
+    return data.message?.role === "user"
+      ? [{ type: frame.payload.event.type, message: data.message }]
+      : [];
+  });
+  assert.deepEqual(
+    userEvents.map((event) => event.type),
+    ["message_start", "message_end"],
+  );
+  assert.deepEqual(userEvents.at(-1)?.message.content, [
+    { type: "text", text: "Automation user prompt" },
+  ]);
+  assert.equal(
+    muxFrames.some(
+      (frame) =>
+        frame.rpcId === "automation-prompt-rpc" && frame.payload.type === "session/prompt-accepted",
+    ),
+    true,
+    "the automation submission must publish the standard prompt acknowledgement",
+  );
+
+  releaseRun();
+  await run;
+  assert.equal(completed, true);
+  assert.equal(
+    muxFrames.some((frame) => {
+      if (frame.payload.type !== "session/event") return false;
+      const data = frame.payload.event.data as { message?: { role?: string } };
+      return frame.payload.event.type === "message_end" && data.message?.role === "assistant";
+    }),
+    true,
+    "the assistant completion must use the same canonical mux stream",
+  );
+});
+
 test("projects Pi running state without waiting for Workbench prompt cleanup", async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), "workbench-pi-authoritative-running-"));
   t.after(() => rm(root, { recursive: true, force: true }));

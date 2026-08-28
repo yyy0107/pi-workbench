@@ -98,7 +98,7 @@ test("inserts trace Data Parts before the empty optimistic placeholder", () => {
   );
 });
 
-test("keeps trace Data Parts at their native-part boundary across cumulative updates", () => {
+test("keeps prompt trace Data Parts before native response parts across cumulative updates", () => {
   const previous = appendPiContextTraceAssistantPart(
     piAssistantToThreadMessage(
       { role: "assistant", content: [{ type: "thinking", thinking: "Plan" }] },
@@ -124,7 +124,7 @@ test("keeps trace Data Parts at their native-part boundary across cumulative upd
     projected.content.map((part) =>
       part.type === "data" ? `${part.type}:${part.name}` : part.type,
     ),
-    ["reasoning", `data:${WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME}`, "tool-call"],
+    [`data:${WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME}`, "reasoning", "tool-call"],
   );
 });
 
@@ -148,7 +148,7 @@ test("retains live trace Data Parts when authoritative history replaces an assis
     projected.content.map((part) =>
       part.type === "data" ? `${part.type}:${part.name}` : part.type,
     ),
-    ["text", `data:${WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME}`],
+    [`data:${WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME}`, "text"],
   );
 });
 

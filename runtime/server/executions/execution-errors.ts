@@ -1,4 +1,5 @@
 import { RpcDomainError } from "@/runtime/server/rpc-domain-error";
+import type { WorkflowRunStatus } from "@/runtime/shared/execution";
 
 export interface ExecutionErrorDetails {
   "workflow-not-found": { workflowId: string };
@@ -7,6 +8,7 @@ export interface ExecutionErrorDetails {
   "workflow-invalid": { workflowId: string; issues: unknown[] };
   "revision-not-found": { workflowId: string; revisionId: string };
   "run-not-found": { runId: string };
+  "run-active": { runId: string; status: WorkflowRunStatus };
   "approval-not-found": { runId: string; nodeId: string };
   "workspace-required": { workflowId: string };
   "workspace-not-found": { workspaceId: string };

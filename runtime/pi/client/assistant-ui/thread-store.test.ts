@@ -14,6 +14,17 @@ type ThreadStoreManager = Pick<
 >;
 
 const lastMessageAt = new Date("2026-08-25T23:45:00.000Z");
+const executionOrigin = {
+  version: 1,
+  origin: "execution",
+  workflowId: "workflow-1",
+  workflowName: "Daily review",
+  workflowKind: "automation",
+  runId: "run-1",
+  nodeId: "agent-1",
+  attempt: 1,
+  source: "schedule",
+} as const;
 
 function nativeSnapshot(): PiThreadStateSnapshot {
   return {
@@ -35,6 +46,7 @@ function nativeSnapshot(): PiThreadStateSnapshot {
         cwd: "/workspace/project",
         pinned: false,
       },
+      executionOrigin,
     },
   };
 }
@@ -44,6 +56,7 @@ test("projects Pi thread metadata into the backend-neutral presentation contract
     title: "Projected title",
     lastMessageAt,
     createdAt: "2026-08-25T23:00:00.000Z",
+    executionOrigin,
     isRunning: true,
     isWaitingForInput: true,
     hasUnreadCompletion: true,

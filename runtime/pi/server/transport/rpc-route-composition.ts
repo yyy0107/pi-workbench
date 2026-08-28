@@ -1,3 +1,6 @@
+import { createInstalledWorkbenchAgentServerAdapter } from "@/runtime/server/agent-runtime-installation";
+
+import { createPiAgentServerInstallation } from "../agent-runtime/pi-agent-server-installation";
 import { getImageUnderstandingSettingsStore } from "../attachment-understanding/registry";
 import { CommandService } from "../commands/command-service";
 import { ExtensionService } from "../extensions/extension-service";
@@ -147,7 +150,10 @@ export function createPiRpcRouteGroups(
 export function createDefaultPiRpcRouteGroups(): readonly RpcRouteGroup[] {
   const resourceMutationCoordinator = getPiResourceMutationCoordinator();
   const commandService = new CommandService();
-  const sessionProtocolFacade = createPiSessionProtocolFacade({ commands: commandService });
+  const agent = createInstalledWorkbenchAgentServerAdapter(
+    createPiAgentServerInstallation({ commands: commandService }),
+  );
+  const sessionProtocolFacade = createPiSessionProtocolFacade({ agent });
   const sessionContextTraceService = createPiSessionContextTraceService();
   const externalSessionImportService = getExternalSessionImportService();
   const workspaceProtocolService = createWorkspaceProtocolService();
@@ -172,7 +178,7 @@ export function createDefaultPiRpcRouteGroups(): readonly RpcRouteGroup[] {
     externalSessionImport: { service: externalSessionImportService },
     workspace: { service: workspaceProtocolService, ...domainErrors },
     workspaceFile: { service: workspaceFileService, ...domainErrors },
-    execution: { service: getExecutionService(), ...domainErrors },
+    execution: { service: getExecutionService({ execution: agent.execution }), ...domainErrors },
     skill: { service: skillService, ...domainErrors },
     extension: { service: extensionService, ...domainErrors },
     installedPackage: { service: installedPackageService, ...domainErrors },

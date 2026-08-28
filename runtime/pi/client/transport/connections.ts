@@ -1,6 +1,6 @@
 import type { PiAssistantMessage, PiEvent, PiRunTiming } from "@/runtime/pi/contracts/pi";
 import { isSessionMessageDelta } from "@/runtime/pi/contracts/stream";
-import { isWorkflowHostPayload } from "@/runtime/shared/execution";
+import { isWorkflowHostPayload, parseExecutionSessionOrigin } from "@/runtime/shared/execution";
 import type {
   HostStreamPayload,
   MuxStreamPayload,
@@ -210,6 +210,8 @@ function isPiSessionSummary(value: unknown): boolean {
     typeof value.transient === "boolean" &&
     typeof value.running === "boolean" &&
     (value.waitingForUserInput === undefined || typeof value.waitingForUserInput === "boolean") &&
+    (value.executionOrigin === undefined ||
+      parseExecutionSessionOrigin(value.executionOrigin) !== undefined) &&
     isOptionalPiRunTiming(value.runTiming)
   );
 }
@@ -515,6 +517,7 @@ function isHostPayload(payload: ServerRequestFrame["payload"]): boolean {
     case "host/workflow-changed":
     case "host/workflow-removed":
     case "host/workflow-run-changed":
+    case "host/workflow-run-removed":
     case "host/workflow-trigger-changed":
       return isWorkflowHostPayload(payload);
     case "stream/error":

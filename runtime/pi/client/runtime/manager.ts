@@ -34,6 +34,7 @@ import {
   WORKBENCH_IMAGE_RECOGNITION_DATA_NAME,
   type AttachmentRecognitionSnapshot,
 } from "@/runtime/shared/attachment-understanding/state-machine";
+import type { ExecutionSessionOrigin } from "@/runtime/shared/execution";
 import {
   appendWorkspaceFeedbackContext,
   type PromptFeedbackClaim,
@@ -301,6 +302,7 @@ export interface PiThreadMetadataSnapshot {
   readonly pinned: boolean;
   readonly createdAt?: string;
   readonly workspace?: PiWorkspaceSummary;
+  readonly executionOrigin?: ExecutionSessionOrigin;
 }
 
 export interface PiThreadStateSnapshot {
@@ -398,6 +400,27 @@ function browserTimeZone(): string | undefined {
   }
 }
 
+function executionOriginsEqual(
+  left: ExecutionSessionOrigin | undefined,
+  right: ExecutionSessionOrigin | undefined,
+): boolean {
+  return (
+    left === right ||
+    (left !== undefined &&
+      right !== undefined &&
+      left.version === right.version &&
+      left.origin === right.origin &&
+      left.workflowId === right.workflowId &&
+      left.workflowName === right.workflowName &&
+      left.workflowKind === right.workflowKind &&
+      left.runId === right.runId &&
+      left.nodeId === right.nodeId &&
+      left.attempt === right.attempt &&
+      left.source === right.source &&
+      left.triggerId === right.triggerId)
+  );
+}
+
 function summariesEqual(left: PiSessionSummary | undefined, right: PiSessionSummary): boolean {
   return (
     left !== undefined &&
@@ -414,6 +437,7 @@ function summariesEqual(left: PiSessionSummary | undefined, right: PiSessionSumm
     left.transient === right.transient &&
     left.running === right.running &&
     left.waitingForUserInput === right.waitingForUserInput &&
+    executionOriginsEqual(left.executionOrigin, right.executionOrigin) &&
     left.runTiming?.startedAt === right.runTiming?.startedAt
   );
 }
@@ -2702,6 +2726,9 @@ export class PiSessionManager {
         pinned: this.pinned.has(remoteId),
         createdAt: summary.created,
         workspace,
+        ...(summary.executionOrigin === undefined
+          ? {}
+          : { executionOrigin: summary.executionOrigin }),
       },
     };
   }
@@ -2723,6 +2750,7 @@ export class PiSessionManager {
       metadata.workspace?.name ?? null,
       metadata.workspace?.cwd ?? null,
       metadata.workspace?.pinned ?? null,
+      metadata.executionOrigin ?? null,
     ]);
   }
 

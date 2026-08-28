@@ -192,6 +192,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 export interface PiRpcCallOptions {
   /** Allows a caller to correlate the HTTP response with a matching events.mux frame. */
   rpcId?: string;
+  /** Cancels the underlying HTTP request when the caller no longer needs the response. */
+  signal?: AbortSignal;
 }
 
 export async function callPiRpc<Payload, Value>(
@@ -204,6 +206,7 @@ export async function callPiRpc<Payload, Value>(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ type: "client-request", rpcId, method, payload }),
+    signal: options.signal,
   });
 
   if (!response.ok) {

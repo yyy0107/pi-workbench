@@ -159,25 +159,27 @@ export function WorkbenchPinnedThreadList({
           />
         </div>
       ) : null}
-      {pinnedDirectories.map((directory) => (
-        <WorkspaceDirectorySection
-          key={directory.id}
-          directory={directory}
-          active={directory.id === activeDirectoryId}
-          hasNewThread={
-            directory.id === draftDirectoryId && hasEmptyDraftNewThread && pathname === "/"
-          }
-          onActivate={() => activateDirectory(directory.id)}
-          onRemove={() => void removeWorkspace(directory.id, directory.id === activeDirectoryId)}
-          searchQuery={searchQuery}
-          candidateThreadIds={
-            threadGroups.threadIdsByWorkspace.get(directory.id) ?? EMPTY_THREAD_IDS
-          }
-          hasRunningThread={threadGroups.runningWorkspaceIds.has(directory.id)}
-          drag={directoryReorder.item(directory.id)}
-          onNavigate={onNavigate}
-        />
-      ))}
+      {pinnedDirectories.map((directory) => {
+        const candidateThreadIds =
+          threadGroups.threadIdsByWorkspace.get(directory.id) ?? EMPTY_THREAD_IDS;
+        return (
+          <WorkspaceDirectorySection
+            key={directory.id}
+            directory={directory}
+            active={directory.id === activeDirectoryId}
+            hasNewThread={
+              directory.id === draftDirectoryId && hasEmptyDraftNewThread && pathname === "/"
+            }
+            onActivate={() => activateDirectory(directory.id)}
+            onRemove={() => void removeWorkspace(directory.id, directory.id === activeDirectoryId)}
+            searchQuery={searchQuery}
+            candidateThreadIds={candidateThreadIds}
+            hasRunningThread={threadGroups.runningWorkspaceIds.has(directory.id)}
+            drag={directoryReorder.item(directory.id)}
+            onNavigate={onNavigate}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -286,6 +288,8 @@ export function WorkbenchWorkspaceThreadList({
   return (
     <div className="flex flex-col gap-1">
       {visibleDirectories.slice(0, visibleWorkspaceCount).map((directory) => {
+        const candidateThreadIds =
+          threadGroups.threadIdsByWorkspace.get(directory.id) ?? EMPTY_THREAD_IDS;
         return (
           <WorkspaceDirectorySection
             key={directory.id}
@@ -297,9 +301,7 @@ export function WorkbenchWorkspaceThreadList({
             onActivate={() => activateDirectory(directory.id)}
             onRemove={() => void removeWorkspace(directory.id, directory.id === activeDirectoryId)}
             searchQuery={searchQuery}
-            candidateThreadIds={
-              threadGroups.threadIdsByWorkspace.get(directory.id) ?? EMPTY_THREAD_IDS
-            }
+            candidateThreadIds={candidateThreadIds}
             hasRunningThread={threadGroups.runningWorkspaceIds.has(directory.id)}
             drag={directoryReorder.item(directory.id)}
             onNavigate={onNavigate}
@@ -443,9 +445,9 @@ function WorkspaceDirectorySection({
 
         <div
           id={workspaceLabelId}
-          className="pointer-events-none min-w-0 flex-1 truncate py-0 ps-1 pe-[var(--sidebar-action-touch-reserved-space)] text-start text-sm font-medium md:pe-[var(--sidebar-action-pair-reserved-space)]"
+          className="pointer-events-none flex min-w-0 flex-1 items-center py-0 ps-1 pe-[var(--sidebar-action-touch-reserved-space)] text-start text-sm font-medium md:pe-[var(--sidebar-action-pair-reserved-space)]"
         >
-          {directory.name}
+          <span className="truncate">{directory.name}</span>
         </div>
         <span id={workspaceActionId} className="sr-only">
           {expansionLabel}

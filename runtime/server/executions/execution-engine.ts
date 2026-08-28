@@ -4,6 +4,7 @@ import type {
   FlowRevision,
   ValueBinding,
   WorkflowJsonValue,
+  WorkflowConcurrency,
   WorkflowNodeAttemptSummary,
   WorkflowNodeRunStatus,
   WorkflowResolveApprovalPayload,
@@ -160,6 +161,13 @@ function replaceAttempt(
   return [...attempts.filter((attempt) => attempt !== attemptFor(attempts, next.nodeId)), next];
 }
 
+function effectiveConcurrency(revision: FlowRevision): WorkflowConcurrency {
+  // Automations create a fresh project session for every trigger. Older persisted
+  // revisions may still carry the generic workflow queue/skip policy, so the
+  // execution boundary enforces the automation invariant as well.
+  return revision.kind === "automation" ? { mode: "independent" } : revision.concurrency;
+}
+
 export class ExecutionEngine {
   private readonly repository: ExecutionRepository;
   private readonly executors: ExecutionNodeExecutorRegistry;
@@ -193,11 +201,11 @@ export class ExecutionEngine {
   async start(input: StartExecutionInput): Promise<WorkflowRunAdmission> {
     const plan = compileExecutionRevision(input.revision);
     const activeRuns = this.workflowActiveRuns(input.revision.workflowId);
-    if (input.revision.concurrency.mode === "skip" && activeRuns.size > 0) {
+    const concurrency = effectiveConcurrency(input.revision);
+    if (concurrency.mode === "skip" && activeRuns.size > 0) {
       return { kind: "skipped", activeRunId: activeRuns.values().next().value! };
     }
-    const limit =
-      input.revision.concurrency.mode === "parallel" ? input.revision.concurrency.maxActiveRuns : 1;
+    const limit = concurrency.mode === "parallel" ? concurrency.maxActiveRuns : 1;
     const createdAt = this.now();
     const run: WorkflowRunSummary = {
       schemaVersion: 1,
@@ -220,22 +228,26 @@ export class ExecutionEngine {
       attempts: [],
     };
     const persisted = await this.repository.createRun(run);
-    this.onRunChanged(persisted);
     const queued = { run: persisted, plan, workspacePath: input.workspacePath };
-    if (activeRuns.size >= limit || this.active.size >= MAX_ACTIVE_EXECUTION_RUNS) {
+    if (
+      concurrency.mode !== "independent" &&
+      (activeRuns.size >= limit || this.active.size >= MAX_ACTIVE_EXECUTION_RUNS)
+    ) {
       const items = this.queuedByWorkflow.get(run.workflowId) ?? [];
       items.push(queued);
       this.queuedByWorkflow.set(run.workflowId, items);
+      this.onRunChanged(persisted);
       return { kind: "queued", run: persisted };
     }
-    this.launch(queued);
-    return { kind: "started", run: persisted };
+    return { kind: "started", run: await this.launch(queued) };
   }
 
-  private launch(item: QueuedRun): void {
+  private launch(item: QueuedRun): Promise<WorkflowRunSummary> {
     const controller = new AbortController();
     this.workflowActiveRuns(item.run.workflowId).add(item.run.id);
-    const done = this.execute(item, controller.signal)
+    const started = this.persistRunStatus(item.run, "running", { startedAt: this.now() });
+    const done = started
+      .then((run) => this.execute({ ...item, run }, controller.signal))
       .catch(() => undefined)
       .finally(() => {
         this.active.delete(item.run.id);
@@ -243,22 +255,25 @@ export class ExecutionEngine {
         this.drainQueues();
       });
     this.active.set(item.run.id, { controller, done });
+    return started;
   }
 
   private drainQueues(): void {
-    while (this.active.size < MAX_ACTIVE_EXECUTION_RUNS) {
+    while (true) {
       const candidate = [...this.queuedByWorkflow.entries()]
         .filter(([workflowId, queue]) => {
           const next = queue[0];
           if (!next) return false;
-          const concurrency = next.plan.revision.concurrency;
+          const concurrency = effectiveConcurrency(next.plan.revision);
+          if (concurrency.mode === "independent") return true;
+          if (this.active.size >= MAX_ACTIVE_EXECUTION_RUNS) return false;
           const limit = concurrency.mode === "parallel" ? concurrency.maxActiveRuns : 1;
           return this.workflowActiveRuns(workflowId).size < limit;
         })
         .sort((left, right) => left[1][0]!.run.createdAt - right[1][0]!.run.createdAt)[0];
       if (!candidate) return;
       const [workflowId, queue] = candidate;
-      this.launch(queue.shift()!);
+      void this.launch(queue.shift()!);
       if (queue.length === 0) this.queuedByWorkflow.delete(workflowId);
     }
   }
@@ -383,6 +398,18 @@ export class ExecutionEngine {
     if (!executor) throw new Error(`No executor registered for ${node.type}.`);
     return executor.execute({
       runId: item.run.id,
+      executionOrigin: {
+        version: 1,
+        origin: "execution",
+        workflowId: item.run.workflowId,
+        workflowName: item.run.workflowName,
+        workflowKind: item.run.workflowKind,
+        runId: item.run.id,
+        nodeId: node.id,
+        attempt: 1,
+        source: item.run.source,
+        ...(item.run.triggerId === undefined ? {} : { triggerId: item.run.triggerId }),
+      },
       node,
       attempt: 1,
       workspaceId: item.run.targetWorkspaceId ?? "",
@@ -403,7 +430,7 @@ export class ExecutionEngine {
   }
 
   private async execute(item: QueuedRun, signal: AbortSignal): Promise<void> {
-    let run = await this.persistRunStatus(item.run, "running", { startedAt: this.now() });
+    let run = item.run;
     const statuses = new Map<string, WorkflowNodeRunStatus>(
       item.plan.topologicalOrder.map((nodeId) => [nodeId, "pending"]),
     );
