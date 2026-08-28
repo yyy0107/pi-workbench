@@ -1,10 +1,17 @@
 import assert from "node:assert/strict";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
+
+import type { PiPackageUpdatesValue } from "@/runtime/pi/contracts/rpc";
 
 import {
   InstalledPackageService,
   InstalledPackageServiceError,
+  packageUpdateInstallSource,
   parseInstalledPackageDetails,
+  updateConfiguredPackage,
 } from "./installed-package-service";
 
 test("parses installed package details from the downloaded package.json snapshot", () => {
@@ -50,6 +57,99 @@ test("parses installed package details from the downloaded package.json snapshot
   });
   assert.equal(details.manifestJson?.includes("postinstall"), false);
   assert.equal(details.author?.includes("private@example.com"), false);
+});
+
+test("installs the exact server-resolved npm target version", () => {
+  const target = { type: "npm" as const, version: "0.26.0" };
+  assert.equal(packageUpdateInstallSource("npm:pi-web-access", target), "npm:pi-web-access@0.26.0");
+  assert.equal(
+    packageUpdateInstallSource("npm:@example/pi-tools", target),
+    "npm:@example/pi-tools@0.26.0",
+  );
+  assert.equal(packageUpdateInstallSource("npm:pi-tools@^2", target), "npm:pi-tools@0.26.0");
+  assert.equal(
+    packageUpdateInstallSource("npm:@example/pi-tools@next", target),
+    "npm:@example/pi-tools@0.26.0",
+  );
+  assert.equal(
+    packageUpdateInstallSource("git:github.com/example/pi-tools", {
+      type: "git",
+      revision: "1".repeat(40),
+    }),
+    "git:github.com/example/pi-tools",
+  );
+});
+
+test("installs and verifies the exact npm version resolved by the server", async (t) => {
+  const installedPath = await mkdtemp(join(tmpdir(), "workbench-package-update-install-"));
+  t.after(() => rm(installedPath, { recursive: true, force: true }));
+  const packageJsonPath = join(installedPath, "package.json");
+  await writeFile(packageJsonPath, JSON.stringify({ version: "0.25.0" }));
+  const installations: Array<{ source: string; local?: boolean }> = [];
+
+  const updated = await updateConfiguredPackage(
+    {
+      getInstalledPath: () => installedPath,
+      install: async (source, options) => {
+        installations.push({ source, ...options });
+        await writeFile(packageJsonPath, JSON.stringify({ version: "0.26.0" }));
+      },
+    },
+    { packages: [{ source: "npm:pi-web-access", extensions: ["index.ts"] }] },
+    "npm:pi-web-access",
+    "project",
+    { type: "npm", version: "0.26.0" },
+    { local: true },
+  );
+
+  assert.equal(updated, true);
+  assert.deepEqual(installations, [{ source: "npm:pi-web-access@0.26.0", local: true }]);
+  assert.deepEqual(JSON.parse(await readFile(packageJsonPath, "utf8")), { version: "0.26.0" });
+});
+
+test("rejects an npm update when the installed version does not match the target", async (t) => {
+  const installedPath = await mkdtemp(join(tmpdir(), "workbench-package-update-unchanged-"));
+  t.after(() => rm(installedPath, { recursive: true, force: true }));
+  await writeFile(join(installedPath, "package.json"), JSON.stringify({ version: "0.25.0" }));
+
+  await assert.rejects(
+    updateConfiguredPackage(
+      {
+        getInstalledPath: () => installedPath,
+        install: async () => undefined,
+      },
+      { packages: ["npm:pi-web-access"] },
+      "npm:pi-web-access",
+      "project",
+      { type: "npm", version: "0.26.0" },
+      { local: true },
+    ),
+    /does not match the requested update target/,
+  );
+});
+
+test("rejects an update that installs a different version than the requested target", async (t) => {
+  const installedPath = await mkdtemp(join(tmpdir(), "workbench-package-update-pending-"));
+  t.after(() => rm(installedPath, { recursive: true, force: true }));
+  const packageJsonPath = join(installedPath, "package.json");
+  await writeFile(packageJsonPath, JSON.stringify({ version: "0.25.0" }));
+
+  await assert.rejects(
+    updateConfiguredPackage(
+      {
+        getInstalledPath: () => installedPath,
+        install: async () => {
+          await writeFile(packageJsonPath, JSON.stringify({ version: "0.25.1" }));
+        },
+      },
+      { packages: ["npm:pi-web-access"] },
+      "npm:pi-web-access",
+      "project",
+      { type: "npm", version: "0.26.0" },
+      { local: true },
+    ),
+    /does not match the requested update target/,
+  );
 });
 
 test("lists user and project Pi packages configured for the target session", async () => {
@@ -174,6 +274,27 @@ test("checks the downloaded packages in the requested Toolbox scope for availabl
     ],
   });
   assert.deepEqual(requests, [{ target: { scope: "user" } }]);
+});
+
+test("coalesces concurrent update checks for the same Toolbox scope", async () => {
+  let resolveUpdates!: (value: PiPackageUpdatesValue) => void;
+  const pendingUpdates = new Promise<PiPackageUpdatesValue>((resolve) => {
+    resolveUpdates = resolve;
+  });
+  let checks = 0;
+  const service = new InstalledPackageService({
+    checkAvailablePackageUpdates: async () => {
+      checks += 1;
+      return pendingUpdates;
+    },
+  });
+
+  const first = service.updates({ target: { scope: "project", workspaceId: "workspace-1" } });
+  const second = service.updates({ target: { scope: "project", workspaceId: "workspace-1" } });
+
+  assert.equal(checks, 1);
+  resolveUpdates({ updates: [] });
+  assert.deepEqual(await Promise.all([first, second]), [{ updates: [] }, { updates: [] }]);
 });
 
 test("translates missing sessions without exposing Pi internals", async () => {
@@ -412,6 +533,28 @@ test("reports a stable error when an update target is no longer configured", asy
       assert.ok(error instanceof InstalledPackageServiceError);
       assert.equal(error.code, "package-not-installed");
       assert.deepEqual(error.details, { source: "npm:pi-tools", scope: "user" });
+      return true;
+    },
+  );
+});
+
+test("reports update-failed when the package manager cannot prove the update was applied", async () => {
+  const service = new InstalledPackageService({
+    updateUserPackage: async () => {
+      throw new Error("The installed package does not match the requested update target.");
+    },
+  });
+
+  await assert.rejects(
+    service.update({
+      source: "npm:pi-web-access",
+      target: { scope: "user" },
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof InstalledPackageServiceError);
+      assert.equal(error.code, "update-failed");
+      assert.deepEqual(error.details, { source: "npm:pi-web-access", scope: "user" });
+      assert.equal(error.message.includes("requested update target"), false);
       return true;
     },
   );

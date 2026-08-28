@@ -32,6 +32,7 @@ import {
   skillSurfaceParams,
   type ToolboxCapabilitySurfaceParams,
 } from "./toolbox-capability";
+import { invalidatePiPackageUpdates } from "./pi-package-updates-query";
 import { toolboxScopeMatchesResource, toolboxScopeTarget } from "./toolbox-scope";
 
 export interface PiExtensionsCatalog {
@@ -88,8 +89,9 @@ export function notifyToolboxExtensionsChanged(): void {
   invalidatePiResourceCatalog();
 }
 
-export function notifyToolboxPackagesChanged(): void {
+export function notifyToolboxPackagesChanged(target?: PiResourceCatalogTarget): void {
   invalidatePiResourceCatalog();
+  invalidatePiPackageUpdates(target);
 }
 
 async function loadSkills(target: PiResourceCatalogTarget): Promise<readonly SkillView[]> {

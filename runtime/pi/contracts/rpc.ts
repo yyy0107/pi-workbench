@@ -996,6 +996,10 @@ export type PiPackageUpdatesPayload = InstalledPackageListPayload;
 export interface PiPackageUpdateView extends InstalledPackageView {
   displayName: string;
   type: "npm" | "git";
+  currentVersion?: string;
+  targetVersion?: string;
+  currentRevision?: string;
+  targetRevision?: string;
 }
 
 export interface PiPackageUpdatesValue {

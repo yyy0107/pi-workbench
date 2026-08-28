@@ -187,6 +187,17 @@ function PackageUpdateRow({
   onOpen(item: PiPackageUpdateView): void;
 }) {
   const { t } = useI18n();
+  const currentReference =
+    item.type === "npm" ? item.currentVersion : item.currentRevision?.slice(0, 12);
+  const targetReference =
+    item.type === "npm" ? item.targetVersion : item.targetRevision?.slice(0, 12);
+  const updateSummary =
+    currentReference && targetReference
+      ? t("extensions.toolbox.packages.versionChange", {
+          current: currentReference,
+          target: targetReference,
+        })
+      : t("extensions.toolbox.packages.updateAvailable");
 
   return (
     <button
@@ -203,8 +214,11 @@ function PackageUpdateRow({
         <span className="block truncate font-mono text-sm font-medium">{item.displayName}</span>
         <span className="text-muted-foreground mt-1 block truncate text-xs">{item.source}</span>
       </span>
-      <span className="shrink-0 text-[11px] font-medium text-amber-700 dark:text-amber-300">
-        {t("extensions.toolbox.packages.updateAvailable")}
+      <span
+        className="shrink-0 font-mono text-[11px] font-medium text-emerald-700 dark:text-emerald-300"
+        title={updateSummary}
+      >
+        {updateSummary}
       </span>
       <ChevronRightIcon aria-hidden="true" className="text-muted-foreground size-4 shrink-0" />
     </button>
@@ -281,6 +295,10 @@ function PackageUpdatesView() {
       ...installedPackageSurfaceParams(item),
       name: item.displayName,
       packageUpdateAvailable: true,
+      ...(item.currentVersion ? { currentVersion: item.currentVersion } : {}),
+      ...(item.targetVersion ? { targetVersion: item.targetVersion } : {}),
+      ...(item.currentRevision ? { currentRevision: item.currentRevision } : {}),
+      ...(item.targetRevision ? { targetRevision: item.targetRevision } : {}),
     };
     return target
       ? bindCapabilityToCatalogTarget(
@@ -358,7 +376,7 @@ function PackageUpdatesView() {
             type="button"
             variant="ghost"
             size="icon-sm"
-            disabled={packageUpdates.loadState === "loading"}
+            disabled={packageUpdates.loadState === "loading" || packageUpdates.isRefreshing}
             aria-label={t("extensions.toolbox.packages.checkUpdates")}
             title={t("extensions.toolbox.packages.checkUpdates")}
             className="active:translate-y-0!"
@@ -369,9 +387,17 @@ function PackageUpdatesView() {
           >
             <RefreshCwIcon
               aria-hidden="true"
-              className={cn(packageUpdates.loadState === "loading" && "animate-spin")}
+              className={cn(
+                (packageUpdates.loadState === "loading" || packageUpdates.isRefreshing) &&
+                  "animate-spin",
+              )}
             />
           </Button>
+          {packageUpdates.isRefreshing ? (
+            <span className="sr-only" role="status">
+              {t("extensions.toolbox.packages.checkingUpdates")}
+            </span>
+          ) : null}
           {packageUpdates.loadState === "ready" ? (
             <span className="text-muted-foreground text-xs tabular-nums">
               {t("extensions.toolbox.packages.availableUpdatesCount", {

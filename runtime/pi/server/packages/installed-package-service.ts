@@ -40,6 +40,11 @@ import {
   getScopedResourceContextService,
   ScopedResourceContextError,
 } from "../resources/scoped-resource-context";
+import {
+  resolveInstalledPackageUpdateState,
+  resolvePackageUpdateMetadata,
+  type InstalledPackageUpdateState,
+} from "./package-update-metadata";
 
 interface PackageSettingsSnapshot {
   packages?: readonly PackageSource[];
@@ -316,6 +321,13 @@ function packageUpdateKey(scope: "user" | "project", source: string): string {
   return `${scope}\0${source}`;
 }
 
+function packageUpdatesRequestKey(request: PiPackageUpdatesPayload): string {
+  if (!("target" in request) || !request.target) return `session:${request.sessionId}`;
+  return request.target.scope === "user"
+    ? "target:user"
+    : `target:project:${request.target.workspaceId}`;
+}
+
 async function checkAvailablePackageUpdates(
   request: PiPackageUpdatesPayload,
 ): Promise<PiPackageUpdatesValue> {
@@ -350,16 +362,20 @@ async function checkAvailablePackageUpdates(
   );
   const requestedScope = "target" in request && request.target ? request.target.scope : undefined;
 
+  const requestedUpdates = availableUpdates.filter(
+    (update) => requestedScope === undefined || update.scope === requestedScope,
+  );
   return {
-    updates: availableUpdates
-      .filter((update) => requestedScope === undefined || update.scope === requestedScope)
-      .map((update) => ({
+    updates: await Promise.all(
+      requestedUpdates.map(async (update) => ({
         source: update.source,
         displayName: update.displayName,
         type: update.type,
         scope: update.scope,
         filtered: filteredByPackage.get(packageUpdateKey(update.scope, update.source)) ?? false,
+        ...(await resolvePackageUpdateMetadata(update, packageManager, settingsManager, cwd)),
       })),
+    ),
   };
 }
 
@@ -403,29 +419,123 @@ function hasConfiguredSource(settings: PackageSettingsSnapshot, source: string):
   );
 }
 
-async function updateConfiguredPackage(
-  packageManager: Pick<PackageManager, "install">,
+const EXACT_NPM_VERSION_PATTERN =
+  /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
+
+function npmPackageName(spec: string): string {
+  if (!spec.startsWith("@")) {
+    const versionSeparator = spec.indexOf("@");
+    return versionSeparator < 0 ? spec : spec.slice(0, versionSeparator);
+  }
+
+  const scopeSeparator = spec.indexOf("/");
+  if (scopeSeparator < 0) return "";
+  const versionSeparator = spec.indexOf("@", scopeSeparator + 1);
+  return versionSeparator < 0 ? spec : spec.slice(0, versionSeparator);
+}
+
+/** Installs the server-resolved target without widening the selected settings scope. */
+export function packageUpdateInstallSource(
+  source: string,
+  target: InstalledPackageUpdateState,
+): string {
+  if (!source.startsWith("npm:")) return source;
+  const spec = source.slice("npm:".length).trim();
+  const name = npmPackageName(spec);
+  if (target.type !== "npm" || !name || !EXACT_NPM_VERSION_PATTERN.test(target.version)) {
+    throw new Error("The npm package update target is unavailable or invalid.");
+  }
+  return `npm:${name}@${target.version}`;
+}
+
+function packageUpdateType(source: string): "npm" | "git" {
+  return source.startsWith("npm:") ? "npm" : "git";
+}
+
+function packageUpdateStateIdentity(state: InstalledPackageUpdateState | undefined): string | null {
+  if (!state) return null;
+  return state.type === "npm" ? `npm:${state.version}` : `git:${state.revision}`;
+}
+
+async function installedPackageUpdateState(
+  packageManager: Pick<PackageManager, "getInstalledPath">,
+  source: string,
+  scope: "user" | "project",
+): Promise<InstalledPackageUpdateState | undefined> {
+  const installedPath = packageManager.getInstalledPath(source, scope);
+  return installedPath
+    ? resolveInstalledPackageUpdateState(packageUpdateType(source), installedPath)
+    : undefined;
+}
+
+async function configuredPackageUpdateTarget(
+  packageManager: Pick<PackageManager, "getInstalledPath">,
+  settingsManager: Pick<SettingsManager, "getNpmCommand">,
+  cwd: string,
+  source: string,
+  scope: "user" | "project",
+): Promise<InstalledPackageUpdateState> {
+  const type = packageUpdateType(source);
+  const metadata = await resolvePackageUpdateMetadata(
+    { source, scope, type },
+    packageManager,
+    settingsManager,
+    cwd,
+  );
+  if (
+    type === "npm" &&
+    metadata.targetVersion &&
+    EXACT_NPM_VERSION_PATTERN.test(metadata.targetVersion)
+  ) {
+    return { type, version: metadata.targetVersion };
+  }
+  if (type === "git" && metadata.targetRevision) {
+    return { type, revision: metadata.targetRevision };
+  }
+  throw new Error("The package update target could not be resolved.");
+}
+
+export async function updateConfiguredPackage(
+  packageManager: Pick<PackageManager, "getInstalledPath" | "install">,
   settings: PackageSettingsSnapshot,
   source: string,
+  scope: "user" | "project",
+  target: InstalledPackageUpdateState,
   options?: { local?: boolean },
 ): Promise<boolean> {
   if (!hasConfiguredSource(settings, source)) return false;
 
   // PackageManager.update(source) expands a matching package identity across
-  // both settings scopes. Reinstalling an already-configured source preserves
-  // its filters while updating only the explicitly selected install root.
-  await packageManager.install(source, options);
+  // both settings scopes. Install the exact server-resolved target in only the
+  // selected root, preserving the original settings entry and resource filters.
+  await packageManager.install(packageUpdateInstallSource(source, target), options);
+
+  const afterIdentity = packageUpdateStateIdentity(
+    await installedPackageUpdateState(packageManager, source, scope),
+  );
+  if (afterIdentity !== packageUpdateStateIdentity(target)) {
+    throw new Error("The installed package does not match the requested update target.");
+  }
   return true;
 }
 
 async function updateUserPackage(sessionId: string | undefined, source: string): Promise<boolean> {
   const { cwd, settingsManager } = await userPackageSettings(sessionId);
+  const settings = settingsManager.getGlobalSettings();
+  if (!hasConfiguredSource(settings, source)) return false;
   const packageManager = new DefaultPackageManager({
     cwd,
     agentDir: getAgentDir(),
     settingsManager,
   });
-  return updateConfiguredPackage(packageManager, settingsManager.getGlobalSettings(), source);
+  const target = await configuredPackageUpdateTarget(
+    packageManager,
+    settingsManager,
+    cwd,
+    source,
+    "user",
+  );
+  return updateConfiguredPackage(packageManager, settings, source, "user", target);
 }
 
 async function updateProjectPackage(workspacePath: string, source: string): Promise<boolean> {
@@ -433,12 +543,21 @@ async function updateProjectPackage(workspacePath: string, source: string): Prom
   const settingsManager = SettingsManager.create(workspacePath, agentDir, {
     projectTrusted: true,
   });
+  const settings = settingsManager.getProjectSettings();
+  if (!hasConfiguredSource(settings, source)) return false;
   const packageManager = new DefaultPackageManager({
     cwd: workspacePath,
     agentDir,
     settingsManager,
   });
-  return updateConfiguredPackage(packageManager, settingsManager.getProjectSettings(), source, {
+  const target = await configuredPackageUpdateTarget(
+    packageManager,
+    settingsManager,
+    workspacePath,
+    source,
+    "project",
+  );
+  return updateConfiguredPackage(packageManager, settings, source, "project", target, {
     local: true,
   });
 }
@@ -500,6 +619,7 @@ async function prepareProjectPackageRemoval(
 
 export class InstalledPackageService implements InstalledPackageProtocol {
   private readonly dependencies: InstalledPackageServiceDependencies;
+  private readonly availableUpdateRequests = new Map<string, Promise<PiPackageUpdatesValue>>();
 
   constructor(dependencies: Partial<InstalledPackageServiceDependencies> = {}) {
     const mutationCoordinator =
@@ -585,24 +705,38 @@ export class InstalledPackageService implements InstalledPackageProtocol {
   }
 
   async updates(request: PiPackageUpdatesPayload): Promise<PiPackageUpdatesValue> {
-    try {
-      return await this.dependencies.checkAvailablePackageUpdates(request);
-    } catch (error) {
-      if (error instanceof ScopedResourceContextError) throw error;
-      if (!("target" in request) && errorCode(error) === "pi_session_not_found") {
+    const requestKey = packageUpdatesRequestKey(request);
+    const existing = this.availableUpdateRequests.get(requestKey);
+    if (existing) return existing;
+
+    const operation = (async () => {
+      try {
+        return await this.dependencies.checkAvailablePackageUpdates(request);
+      } catch (error) {
+        if (error instanceof ScopedResourceContextError) throw error;
+        if (!("target" in request) && errorCode(error) === "pi_session_not_found") {
+          throw new InstalledPackageServiceError(
+            "session-not-found",
+            "The session does not exist.",
+            { sessionId: request.sessionId },
+            { cause: error },
+          );
+        }
         throw new InstalledPackageServiceError(
-          "session-not-found",
-          "The session does not exist.",
-          { sessionId: request.sessionId },
+          "internal",
+          "Available Pi package updates could not be checked.",
+          {},
           { cause: error },
         );
       }
-      throw new InstalledPackageServiceError(
-        "internal",
-        "Available Pi package updates could not be checked.",
-        {},
-        { cause: error },
-      );
+    })();
+    this.availableUpdateRequests.set(requestKey, operation);
+    try {
+      return await operation;
+    } finally {
+      if (this.availableUpdateRequests.get(requestKey) === operation) {
+        this.availableUpdateRequests.delete(requestKey);
+      }
     }
   }
 

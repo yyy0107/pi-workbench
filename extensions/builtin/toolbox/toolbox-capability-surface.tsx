@@ -1073,7 +1073,7 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
           return next;
         });
         setInstallFeedback({ status: "installed", target });
-        notifyToolboxPackagesChanged();
+        notifyToolboxPackagesChanged(rpcTarget);
       },
       (error: unknown) =>
         setInstallFeedback({
@@ -1111,9 +1111,10 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
   const installationPresent = installedPackagePresent || selectedTargetInstalled;
   const uninstallTarget = isInstalledPackage ? installedPackageTarget : selectedInstallTarget;
   const uninstallSource = params.source ?? (isCatalogPackage ? `npm:${params.name}` : undefined);
-  const checkedPackageUpdateAvailable = installedPackageUpdates.value.updates.some(
+  const checkedPackageUpdate = installedPackageUpdates.value.updates.find(
     (update) => update.source === params.source && update.scope === params.packageScope,
   );
+  const checkedPackageUpdateAvailable = checkedPackageUpdate !== undefined;
   const packageUpdateAvailable =
     isInstalledPackage &&
     !installedPackageRemoved &&
@@ -1145,7 +1146,7 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
       () => {
         setUpdateFeedback({ status: "updated", target: installedPackageTarget });
         refreshPackageDetails();
-        notifyToolboxPackagesChanged();
+        notifyToolboxPackagesChanged(rpcTarget);
       },
       (error: unknown) =>
         setUpdateFeedback({
@@ -1221,7 +1222,7 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
         setInstallFeedback({ status: "idle" });
         setUpdateFeedback({ status: "idle" });
         setRemoveFeedback({ status: "removed", target: uninstallTarget });
-        notifyToolboxPackagesChanged();
+        notifyToolboxPackagesChanged(rpcTarget);
       },
       (error: unknown) =>
         setRemoveFeedback({
@@ -1269,7 +1270,9 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
         setSkillMutationState("removed");
         setSkillDeleteDialogOpen(false);
         notifyToolboxSkillsChanged();
-        if (params.origin === "package") notifyToolboxPackagesChanged();
+        if (params.origin === "package") {
+          notifyToolboxPackagesChanged(skillPackageRemovalTarget);
+        }
       },
       () => setSkillMutationState("failed"),
     );
@@ -1311,7 +1314,9 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
         setExtensionMutationState("removed");
         setExtensionDeleteDialogOpen(false);
         notifyToolboxExtensionsChanged();
-        if (params.origin === "package") notifyToolboxPackagesChanged();
+        if (params.origin === "package") {
+          notifyToolboxPackagesChanged(extensionPackageRemovalTarget);
+        }
       },
       () => setExtensionMutationState("failed"),
     );
@@ -1471,7 +1476,7 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
                   capabilityInactive
                     ? "bg-muted text-muted-foreground rounded-full border px-2.5 py-1 text-[11px] font-medium"
                     : packageUpdateAvailable
-                      ? "rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium text-amber-700 dark:text-amber-300"
+                      ? "rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-300"
                       : "rounded-full border border-emerald-500/15 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-300"
                 }
               >
@@ -1698,13 +1703,46 @@ export function ToolboxCapabilityDetails({ params }: { params: ToolboxCapability
                         params.name}
                     </code>
                   </PackageDetailRow>
-                  <PackageDetailRow label={t("extensions.toolbox.packages.version")}>
+                  <PackageDetailRow
+                    label={t(
+                      isInstalledPackage
+                        ? "extensions.toolbox.packages.installedVersion"
+                        : "extensions.toolbox.packages.version",
+                    )}
+                  >
                     <code className="text-xs">
                       {displayedPackageDetails?.version ??
-                        (isInstalledPackage ? undefined : params.version) ??
+                        (isInstalledPackage
+                          ? (params.currentVersion ?? checkedPackageUpdate?.currentVersion)
+                          : params.version) ??
                         detailsPlaceholder}
                     </code>
                   </PackageDetailRow>
+                  {isInstalledPackage && packageUpdateAvailable ? (
+                    <>
+                      {(params.targetVersion ?? checkedPackageUpdate?.targetVersion) ? (
+                        <PackageDetailRow label={t("extensions.toolbox.packages.availableVersion")}>
+                          <code className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                            {params.targetVersion ?? checkedPackageUpdate?.targetVersion}
+                          </code>
+                        </PackageDetailRow>
+                      ) : null}
+                      {(params.currentRevision ?? checkedPackageUpdate?.currentRevision) ? (
+                        <PackageDetailRow label={t("extensions.toolbox.packages.localRevision")}>
+                          <code className="text-xs break-all">
+                            {params.currentRevision ?? checkedPackageUpdate?.currentRevision}
+                          </code>
+                        </PackageDetailRow>
+                      ) : null}
+                      {(params.targetRevision ?? checkedPackageUpdate?.targetRevision) ? (
+                        <PackageDetailRow label={t("extensions.toolbox.packages.remoteRevision")}>
+                          <code className="text-xs font-medium break-all text-emerald-700 dark:text-emerald-300">
+                            {params.targetRevision ?? checkedPackageUpdate?.targetRevision}
+                          </code>
+                        </PackageDetailRow>
+                      ) : null}
+                    </>
+                  ) : null}
                   {!isInstalledPackage ? (
                     <>
                       <PackageDetailRow label={t("extensions.toolbox.packages.published")}>

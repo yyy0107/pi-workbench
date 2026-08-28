@@ -1,56 +1,48 @@
 "use client";
 
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 
-import {
-  getPiResourceCatalogRevision,
-  subscribePiResourceCatalog,
-} from "@/runtime/pi/client/runtime/resource-catalog-revision";
-import { listAvailablePiPackageUpdates } from "@/runtime/pi/client/transport/api";
-import type { PiPackageUpdatesValue, PiResourceCatalogTarget } from "@/runtime/pi/contracts/rpc";
+import type { PiResourceCatalogTarget } from "@/runtime/pi/contracts/rpc";
 
-const EMPTY_UPDATES: PiPackageUpdatesValue = { updates: [] };
-
-type PackageUpdatesLoadState = "idle" | "loading" | "ready" | "failed";
+import { IDLE_PACKAGE_UPDATES_SNAPSHOT, piPackageUpdatesQuery } from "./pi-package-updates-query";
 
 export function usePiPackageUpdates(target: PiResourceCatalogTarget | undefined, enabled = true) {
-  const [value, setValue] = useState<PiPackageUpdatesValue>(EMPTY_UPDATES);
-  const [loadState, setLoadState] = useState<PackageUpdatesLoadState>("idle");
-  const [reloadRevision, setReloadRevision] = useState(0);
-  const resourceCatalogRevision = useSyncExternalStore(
-    subscribePiResourceCatalog,
-    getPiResourceCatalogRevision,
-    () => 0,
+  const scope = target?.scope;
+  const workspaceId = target?.scope === "project" ? target.workspaceId : undefined;
+  const requestTarget = useMemo<PiResourceCatalogTarget | undefined>(
+    () =>
+      scope === "user"
+        ? { scope: "user" }
+        : scope === "project" && workspaceId
+          ? { scope: "project", workspaceId }
+          : undefined,
+    [scope, workspaceId],
   );
-  const refresh = useCallback(() => setReloadRevision((revision) => revision + 1), []);
+  const activeTarget = enabled ? requestTarget : undefined;
+  const subscribe = useCallback(
+    (listener: () => void) =>
+      activeTarget ? piPackageUpdatesQuery.subscribe(activeTarget, listener) : () => undefined,
+    [activeTarget],
+  );
+  const getSnapshot = useCallback(
+    () =>
+      activeTarget
+        ? piPackageUpdatesQuery.getSnapshot(activeTarget)
+        : IDLE_PACKAGE_UPDATES_SNAPSHOT,
+    [activeTarget],
+  );
+  const snapshot = useSyncExternalStore(
+    subscribe,
+    getSnapshot,
+    () => IDLE_PACKAGE_UPDATES_SNAPSHOT,
+  );
+  const refresh = useCallback(() => {
+    if (activeTarget) void piPackageUpdatesQuery.refresh(activeTarget);
+  }, [activeTarget]);
 
   useEffect(() => {
-    let active = true;
-    if (!enabled || !target) {
-      setValue(EMPTY_UPDATES);
-      setLoadState("idle");
-      return;
-    }
+    if (activeTarget) void piPackageUpdatesQuery.ensure(activeTarget);
+  }, [activeTarget]);
 
-    setValue(EMPTY_UPDATES);
-    setLoadState("loading");
-    void listAvailablePiPackageUpdates({ target }).then(
-      (nextValue) => {
-        if (!active) return;
-        setValue(nextValue);
-        setLoadState("ready");
-      },
-      () => {
-        if (!active) return;
-        setValue(EMPTY_UPDATES);
-        setLoadState("failed");
-      },
-    );
-
-    return () => {
-      active = false;
-    };
-  }, [enabled, reloadRevision, resourceCatalogRevision, target]);
-
-  return { loadState, refresh, value } as const;
+  return { ...snapshot, refresh } as const;
 }

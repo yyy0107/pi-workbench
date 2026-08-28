@@ -11,7 +11,7 @@ import {
   WandSparklesIcon,
   type LucideIcon,
 } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 
 import { collapsePanel } from "@/components/elements/surfaces";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -29,6 +29,8 @@ import {
 } from "./toolbox-capability";
 import { useToolboxCatalogs, type ToolboxCapabilityItem } from "./toolbox-catalog";
 import { usePiPackageCatalog } from "./use-pi-package-catalog";
+import { usePiPackageUpdates } from "./use-pi-package-updates";
+import { toolboxScopeTarget } from "./toolbox-scope";
 import { ToolboxScopeSelect } from "./toolbox-scope-select";
 import { useToolboxScope } from "./toolbox-scope-store";
 
@@ -202,13 +204,19 @@ function PackageRow({
 }
 
 function ManagementRow({
+  count,
+  countLabel,
   disabled = false,
+  emphasized = false,
   icon: Icon,
   label,
   onClick,
   title,
 }: {
+  count?: string;
+  countLabel?: string;
   disabled?: boolean;
+  emphasized?: boolean;
   icon: LucideIcon;
   label: string;
   onClick?: () => void;
@@ -234,13 +242,31 @@ function ManagementRow({
     <button
       type="button"
       data-workbench-selection-surface=""
-      className="hover:bg-sidebar-accent focus-visible:ring-sidebar-ring flex h-9 w-full items-center gap-1 rounded-lg px-1.5 text-left outline-none transition-colors focus-visible:ring-2 active:translate-y-0!"
+      className={cn(
+        "hover:bg-sidebar-accent focus-visible:ring-sidebar-ring flex h-9 w-full items-center gap-1 rounded-lg px-1.5 text-left outline-none transition-colors focus-visible:ring-2 active:translate-y-0!",
+        emphasized && "hover:bg-emerald-500/10",
+      )}
       onClick={onClick}
     >
       <span className="flex size-7 shrink-0 items-center justify-center">
-        <Icon aria-hidden="true" className="size-4" />
+        <Icon
+          aria-hidden="true"
+          className={cn("size-4", emphasized && "text-emerald-600 dark:text-emerald-400")}
+        />
       </span>
       <span className="min-w-0 flex-1 truncate text-sm">{label}</span>
+      {count ? (
+        <span
+          aria-label={countLabel}
+          className={cn(
+            "text-muted-foreground shrink-0 text-xs tabular-nums",
+            emphasized &&
+              "inline-flex min-w-5 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10 px-1.5 py-0.5 text-[11px] leading-4 font-semibold text-emerald-700 dark:text-emerald-300",
+          )}
+        >
+          {count}
+        </span>
+      ) : null}
       <ChevronRightIcon aria-hidden="true" className="text-muted-foreground size-4" />
     </button>
   );
@@ -268,6 +294,28 @@ export function ToolboxSidebar({ searchQuery }: SlotPropsMap["sidebar.toolbox"])
     enabled: Boolean(normalizedQuery),
     query: searchQuery,
   });
+  const packageUpdateTarget = useMemo(
+    () => (packagesCatalog.hasTargets ? toolboxScopeTarget(scope) : undefined),
+    [packagesCatalog.hasTargets, scope],
+  );
+  const packageUpdates = usePiPackageUpdates(packageUpdateTarget);
+  const availableUpdateCount = packageUpdates.value.updates.length;
+  const packageUpdateCount =
+    packageUpdates.loadState === "ready"
+      ? number(availableUpdateCount)
+      : packageUpdates.loadState === "loading"
+        ? "…"
+        : "—";
+  const packageUpdateCountLabel =
+    packageUpdates.loadState === "ready"
+      ? t("extensions.toolbox.packages.availableUpdatesCount", {
+          count: availableUpdateCount,
+        })
+      : packageUpdates.loadState === "loading"
+        ? t("extensions.toolbox.packages.checkingUpdates")
+        : packageUpdates.loadState === "failed"
+          ? t("extensions.toolbox.packages.updateCheckFailed")
+          : t("extensions.toolbox.scopeUnavailable");
   const allItems = [...skillItems, ...extensionItems, ...promptItems, ...packageItems];
   const visibleItems = normalizedQuery
     ? allItems.filter((item) => item.searchText.toLocaleLowerCase(locale).includes(normalizedQuery))
@@ -423,6 +471,9 @@ export function ToolboxSidebar({ searchQuery }: SlotPropsMap["sidebar.toolbox"])
                 onClick={() => openMainView("packages")}
               />
               <ManagementRow
+                count={packageUpdateCount}
+                countLabel={packageUpdateCountLabel}
+                emphasized={packageUpdates.loadState === "ready" && availableUpdateCount > 0}
                 icon={DownloadIcon}
                 label={t("extensions.toolbox.updates")}
                 onClick={() => openMainView("updates")}

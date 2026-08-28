@@ -74,6 +74,10 @@ export interface ToolboxCapabilitySurfaceParams extends Record<string, unknown> 
   packageName?: string;
   installed?: boolean;
   packageUpdateAvailable?: boolean;
+  currentVersion?: string;
+  targetVersion?: string;
+  currentRevision?: string;
+  targetRevision?: string;
   packageScope?: InstalledPackageView["scope"];
   packageFiltered?: boolean;
   catalogTarget?: PiResourceCatalogTarget;
