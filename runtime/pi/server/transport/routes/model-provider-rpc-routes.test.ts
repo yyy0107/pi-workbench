@@ -164,7 +164,7 @@ test("maps provider operations to sanitized inputs, preserves signals, and publi
       provider: "openai",
       baseURL: "https://api.openai.test/v1",
       api: "openai-responses",
-      source: "endpoint",
+      source: "provider",
       ignored: true,
     }),
     rpcRequest("llm.testModelImageInput", {
@@ -221,7 +221,7 @@ test("maps provider operations to sanitized inputs, preserves signals, and publi
           provider: "openai",
           baseURL: "https://api.openai.test/v1",
           api: "openai-responses",
-          source: "endpoint",
+          source: "provider",
         },
       },
       {

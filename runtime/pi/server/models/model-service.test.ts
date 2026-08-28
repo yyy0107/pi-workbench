@@ -562,6 +562,7 @@ test("refreshes externally changed Pi account authentication before listing prov
 
 test("runs provider-owned account login prompts and keeps answers out of snapshots", async () => {
   let configured = false;
+  let refreshOptions: Parameters<ModelRuntimeLike["refresh"]>[0];
   const oauthProviders: ModelRuntimeProvider[] = [
     {
       id: "openai-codex",
@@ -585,6 +586,13 @@ test("runs provider-owned account login prompts and keeps answers out of snapsho
       getProviderAuthStatus: () =>
         configured ? { configured: true, source: "stored" } : { configured: false },
       isUsingOAuth: () => configured,
+      refresh: async (options) => {
+        refreshOptions = options;
+        return {
+          aborted: false,
+          errors: new Map([["openai-codex", new Error("catalog unavailable")]]),
+        };
+      },
       login: async (provider, type, interaction) => {
         assert.equal(provider, "openai-codex");
         assert.equal(type, "oauth");
@@ -653,6 +661,9 @@ test("runs provider-owned account login prompts and keeps answers out of snapsho
   assert.equal(completed.status, "complete");
   assert.equal(completed.prompt, undefined);
   assert.equal(JSON.stringify(completed).includes("private-oauth-code"), false);
+  assert.equal(refreshOptions?.allowNetwork, true);
+  assert.deepEqual(refreshOptions?.providers, ["openai-codex"]);
+  assert.ok(refreshOptions?.signal);
 });
 
 test("cancels a pending provider account login", async () => {
@@ -1379,6 +1390,75 @@ test("answers a known provider from the installed catalog without using the endp
     ],
   });
   assert.deepEqual(runtimeCalls, ["models:openai"]);
+});
+
+test("refreshes an account provider through provider-owned auth without an API-key endpoint", async () => {
+  const controller = new AbortController();
+  const accountModel: ModelRuntimeModel = {
+    ...models[0]!,
+    provider: "openai-codex",
+    id: "gpt-5.3-codex",
+    name: "GPT-5.3 Codex",
+  };
+  let refreshOptions: Parameters<ModelRuntimeLike["refresh"]>[0];
+  const authSignals: Array<AbortSignal | undefined> = [];
+  const availableProviders: Array<string | undefined> = [];
+  const service = modelService({
+    runtime: runtime({
+      getProviders: () => [
+        {
+          id: "openai-codex",
+          name: "OpenAI Codex",
+          auth: { oauth: { name: "ChatGPT", login() {} } },
+        },
+      ],
+      getModels: () => [],
+      getProviderAuthStatus: () => ({ configured: true, source: "stored" }),
+      getAuth: async (provider, options) => {
+        assert.equal(provider, "openai-codex");
+        authSignals.push(options?.signal);
+        return { auth: { apiKey: "private-account-access-token" } };
+      },
+      refresh: async (options) => {
+        refreshOptions = options;
+        return { aborted: false, errors: new Map() };
+      },
+      getAvailable: async (provider) => {
+        availableProviders.push(provider);
+        return provider === "openai-codex" ? [accountModel] : [];
+      },
+    }),
+    fetcher: async () => assert.fail("account discovery must not call an API-key endpoint"),
+  });
+
+  const result = await service.discoverModels(
+    {
+      settingsNs: "openai-codex",
+      provider: "openai-codex",
+      source: "provider",
+    },
+    { signal: controller.signal },
+  );
+
+  assert.deepEqual(result, {
+    models: [
+      {
+        id: "gpt-5.3-codex",
+        name: "GPT-5.3 Codex",
+        contextWindow: 200_000,
+        maxTokens: 32_000,
+        reasoning: true,
+        thinkingLevelMap: { minimal: null, max: null },
+        imageInput: "unknown",
+      },
+    ],
+  });
+  assert.equal(JSON.stringify(result).includes("private-account-access-token"), false);
+  assert.equal(refreshOptions?.allowNetwork, true);
+  assert.deepEqual(refreshOptions?.providers, ["openai-codex"]);
+  assert.equal(refreshOptions?.signal, controller.signal);
+  assert.deepEqual(authSignals, [controller.signal]);
+  assert.deepEqual(availableProviders, ["openai-codex"]);
 });
 
 test("bypasses a custom provider's self-declared runtime input when endpoint discovery is required", async () => {

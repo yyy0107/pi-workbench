@@ -326,6 +326,7 @@ const RUNTIME_FAILURE_NAME = "Model runtime";
 const MODEL_LISTING_RESPONSE_LIMIT = 4 * 1024 * 1024;
 const MODEL_LISTING_PAGE_LIMIT = 1000;
 const MODEL_LISTING_MAX_PAGES = 100;
+const MODEL_PROVIDER_CATALOG_REFRESH_TIMEOUT_MS = 15_000;
 const MODEL_IMAGE_INPUT_TEST_TIMEOUT_MS = 90_000;
 const MODEL_IMAGE_INPUT_TEST_CODE = "K7P3";
 const MODEL_IMAGE_INPUT_TEST_PNG =
@@ -734,6 +735,23 @@ function modelListingHttpFailureReason(status: number): ModelDiscoveryFailureRea
   if (status === 429) return "rate-limited";
   if (status >= 500) return "provider-unavailable";
   return "http-error";
+}
+
+function providerCatalogFailureReason(error: unknown): ModelDiscoveryFailureReason {
+  switch (modelImageInputFailure(errorMessage(error)).reason) {
+    case "authentication":
+      return "authentication";
+    case "network":
+      return "network";
+    case "provider-unavailable":
+    case "quota-exceeded":
+    case "timeout":
+      return "provider-unavailable";
+    case "rate-limited":
+      return "rate-limited";
+    default:
+      return "runtime";
+  }
 }
 
 class ApiKeyInteractionError extends Error {
@@ -1393,6 +1411,21 @@ export class ModelService implements ModelProviderProtocol, ModelContextWindowPr
         prompt: (prompt) => this.promptProviderLogin(session, prompt),
         notify: (event) => this.notifyProviderLogin(session, event),
       });
+      // Account login and model discovery are separate Pi operations. Refresh the
+      // provider-owned dynamic catalog now so the settings page can use the runtime
+      // snapshot immediately; a catalog failure must not roll back valid credentials.
+      const catalogSignal = AbortSignal.any([
+        session.controller.signal,
+        AbortSignal.timeout(MODEL_PROVIDER_CATALOG_REFRESH_TIMEOUT_MS),
+      ]);
+      await runtime
+        .refresh({
+          allowNetwork: true,
+          providers: [session.value.provider],
+          signal: catalogSignal,
+        })
+        .catch(() => undefined);
+      session.controller.signal.throwIfAborted();
       await runtime.getAvailable(session.value.provider).catch(() => undefined);
       this.finishProviderLogin(session, "complete");
     } catch (error) {
@@ -1931,6 +1964,70 @@ export class ModelService implements ModelProviderProtocol, ModelContextWindowPr
     }
 
     const provider = runtime ? this.discoveryProvider(input, runtime) : undefined;
+    if (input.source === "provider") {
+      if (!runtime || !provider) {
+        throw discoveryError(
+          input,
+          new EndpointDiscoveryError(
+            "runtime",
+            "The provider-owned model catalog is not available.",
+          ),
+        );
+      }
+
+      try {
+        if (runtime.getProviderAuthStatus?.(provider).configured === false) {
+          throw new EndpointDiscoveryError(
+            "authentication",
+            "The provider account is not configured.",
+          );
+        }
+        if (runtime.getAuth && !(await runtime.getAuth(provider, { signal }))) {
+          throw new EndpointDiscoveryError(
+            "authentication",
+            "The provider account could not be resolved.",
+          );
+        }
+        signal?.throwIfAborted();
+        const refresh = await runtime.refresh({
+          allowNetwork: true,
+          providers: [provider],
+          ...(signal ? { signal } : {}),
+        });
+        signal?.throwIfAborted();
+        if (refresh.aborted) {
+          throw new DOMException("Provider model refresh was aborted.", "AbortError");
+        }
+        const refreshError = refresh.errors.get(provider);
+        if (refreshError) {
+          throw new EndpointDiscoveryError(
+            providerCatalogFailureReason(refreshError),
+            "The provider-owned model catalog could not be refreshed.",
+            { cause: refreshError },
+          );
+        }
+        const catalog = await runtime.getAvailable(provider);
+        signal?.throwIfAborted();
+        return {
+          models: [...catalog]
+            .sort((left, right) => compareText(left.id, right.id))
+            .map(discoveredModel),
+        };
+      } catch (error) {
+        if (signal?.aborted || (error instanceof Error && error.name === "AbortError")) throw error;
+        throw discoveryError(
+          input,
+          error instanceof EndpointDiscoveryError
+            ? error
+            : new EndpointDiscoveryError(
+                providerCatalogFailureReason(error),
+                "The provider-owned model catalog could not be loaded.",
+                { cause: error },
+              ),
+        );
+      }
+    }
+
     if (provider && input.source !== "endpoint") {
       const catalog = runtime?.getModels(provider) ?? [];
       if (catalog.length > 0) {

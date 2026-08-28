@@ -87,6 +87,8 @@ import {
   parseCapacity,
   prepareProviderConfiguration,
   preferredAuthType,
+  providerModelsForTest,
+  providerTestDiscoverySource,
   toModelDraft,
   toProviderDraft,
   type ModelDraft,
@@ -408,7 +410,7 @@ function RuntimeContextWindowRow({
   );
 }
 
-function RuntimeContextWindowOverrides({
+function AdapterModelCatalog({
   provider,
   models,
   disabled,
@@ -420,14 +422,25 @@ function RuntimeContextWindowOverrides({
   onUpdated(model: ModelProviderModelConfiguration): void;
 }) {
   const { t } = useI18n();
-  if (!models.length) return null;
+  if (!models.length) {
+    return (
+      <div className="text-muted-foreground mt-3 rounded-lg border border-dashed px-3 py-3 text-center text-sm">
+        {t("extensions.modelConfig.adapterCatalogEmpty")}
+      </div>
+    );
+  }
+
   return (
-    <section className="mt-3 border-t pt-3">
-      <h4 className="text-sm font-medium">{t("extensions.modelConfig.runtimeContextWindows")}</h4>
-      <p className="text-muted-foreground mt-1 text-xs leading-5">
-        {t("extensions.modelConfig.runtimeContextWindowsDescription")}
+    <div className="mt-3">
+      <p className="text-muted-foreground text-xs leading-5">
+        {t("extensions.modelConfig.adapterCatalogDescription", { count: models.length })}
       </p>
-      <div className="mt-2 max-h-72 overflow-y-auto rounded-lg border px-3">
+      <div
+        role="region"
+        aria-label={t("extensions.modelConfig.modelCatalog")}
+        tabIndex={0}
+        className="focus-visible:ring-ring/50 mt-2 max-h-72 overflow-y-auto rounded-lg border px-3 outline-none focus-visible:ring-3 [scrollbar-gutter:stable]"
+      >
         {models.map((model) => (
           <RuntimeContextWindowRow
             key={model.id}
@@ -438,7 +451,7 @@ function RuntimeContextWindowOverrides({
           />
         ))}
       </div>
-    </section>
+    </div>
   );
 }
 
@@ -544,6 +557,12 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
   useEffect(load, [load]);
 
   const providers = value?.providers ?? [];
+  const selectedProvider = providers.find(({ provider }) => provider === draft.provider);
+  const customProviderMode =
+    editor?.mode === "add-custom" ||
+    (editor?.mode === "edit" && selectedProvider?.kind === "custom");
+  const providerTestSource = providerTestDiscoverySource(draft.authType);
+  const accountAuthentication = providerTestSource === "provider";
   const configured = useMemo(() => visibleProviders(value), [value]);
   const addableProviders = useMemo(
     () =>
@@ -559,10 +578,8 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
   const busy = saving || removingProviderId !== undefined;
 
   const modelDiscoveryPayload = useMemo(() => {
-    const selectedProvider = providers.find(({ provider }) => provider === draft.provider);
     const baseURL = draft.baseURL.trim() || draft.defaultBaseURL.trim();
-    const source =
-      editor?.mode === "add-custom" || selectedProvider?.kind === "custom" ? "endpoint" : "catalog";
+    const source = customProviderMode ? "endpoint" : "catalog";
     return {
       settingsNs:
         draft.modelsSource === "adapter" && selectedProvider?.settingsNs
@@ -574,7 +591,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
       source,
       ...(draft.apiKey.trim() ? { apiKey: draft.apiKey.trim() } : {}),
     } as const;
-  }, [draft, editor?.mode, providers]);
+  }, [customProviderMode, draft, selectedProvider]);
   const modelImageTestIdentity = draft.models
     .map(({ key, id }) => `${key}:${id.trim()}`)
     .join("\0");
@@ -715,9 +732,13 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
   );
 
   const providerTestErrorLabel = useCallback(
-    (failure: unknown) => {
+    (failure: unknown, usesAccountAuthentication: boolean) => {
       if (!(failure instanceof PiApiError)) {
-        return t("extensions.modelConfig.errors.testProviderFailed");
+        return t(
+          usesAccountAuthentication
+            ? "extensions.modelConfig.errors.testAccountProviderFailed"
+            : "extensions.modelConfig.errors.testProviderFailed",
+        );
       }
       if (failure.code === "pi_rpc_transport_failed") {
         return t("extensions.modelConfig.errors.testProviderServiceUnavailable");
@@ -726,12 +747,20 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
         return t("extensions.modelConfig.errors.testProviderInvalidResponse");
       }
       if (failure.code !== "model-discovery-failed") {
-        return t("extensions.modelConfig.errors.testProviderFailed");
+        return t(
+          usesAccountAuthentication
+            ? "extensions.modelConfig.errors.testAccountProviderFailed"
+            : "extensions.modelConfig.errors.testProviderFailed",
+        );
       }
 
       switch (failure.details.reason) {
         case "authentication":
-          return t("extensions.modelConfig.errors.testProviderAuthenticationFailed");
+          return t(
+            usesAccountAuthentication
+              ? "extensions.modelConfig.errors.testAccountProviderAuthenticationFailed"
+              : "extensions.modelConfig.errors.testProviderAuthenticationFailed",
+          );
         case "endpoint-not-found":
           return t("extensions.modelConfig.errors.testProviderEndpointNotFound");
         case "rate-limited":
@@ -757,7 +786,11 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
         case "unsupported-protocol":
           return t("extensions.modelConfig.errors.testProviderUnsupportedProtocol");
         default:
-          return t("extensions.modelConfig.errors.testProviderFailed");
+          return t(
+            usesAccountAuthentication
+              ? "extensions.modelConfig.errors.testAccountProviderFailed"
+              : "extensions.modelConfig.errors.testProviderFailed",
+          );
       }
     },
     [t],
@@ -1174,7 +1207,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
   );
 
   const refreshAvailableModels = useCallback(
-    async (source?: "endpoint") => {
+    async (source?: "provider" | "endpoint") => {
       const request = ++modelCatalogRequest.current;
       setModelPickerLoading(true);
       setModelPickerError(undefined);
@@ -1209,15 +1242,22 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
 
   const openModelPicker = useCallback(async () => {
     setModelPickerOpen(true);
+    setModelPickerError(undefined);
+    if (draft.availableModels.length > 0) {
+      updateSelectedModelIds(draft.availableModels);
+      return;
+    }
     const availableModels = await refreshAvailableModels();
     if (!availableModels) return;
     updateSelectedModelIds(availableModels);
-  }, [refreshAvailableModels, updateSelectedModelIds]);
+  }, [draft.availableModels, refreshAvailableModels, updateSelectedModelIds]);
 
   const refreshLatestAvailableModels = useCallback(async () => {
-    const availableModels = await refreshAvailableModels("endpoint");
+    const availableModels = await refreshAvailableModels(
+      accountAuthentication ? "provider" : "endpoint",
+    );
     if (availableModels) updateSelectedModelIds(availableModels);
-  }, [refreshAvailableModels, updateSelectedModelIds]);
+  }, [accountAuthentication, refreshAvailableModels, updateSelectedModelIds]);
 
   const testCurrentProvider = useCallback(async () => {
     if (busy || configLoading || testingProvider) return;
@@ -1228,7 +1268,17 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
       });
       return;
     }
-    if (!modelDiscoveryPayload.baseURL) {
+    if (
+      accountAuthentication &&
+      (!selectedProvider?.configured || selectedProvider.authType === "api_key")
+    ) {
+      setProviderTestResult({
+        kind: "error",
+        message: t("extensions.modelConfig.errors.loginRequired"),
+      });
+      return;
+    }
+    if (!accountAuthentication && !modelDiscoveryPayload.baseURL) {
       setProviderTestResult({
         kind: "error",
         message: t("extensions.modelConfig.errors.apiAddressRequired"),
@@ -1240,37 +1290,50 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
     setTestingProvider(true);
     setProviderTestResult(undefined);
     try {
-      const result = await discoverPiModels({ ...modelDiscoveryPayload, source: "endpoint" });
+      const result = await discoverPiModels({
+        ...modelDiscoveryPayload,
+        source: providerTestSource,
+      });
       if (request !== providerTestRequest.current) return;
       const { configuredModelIds, unavailableModelIds } = evaluateProviderModelAvailability(
-        draft.models,
+        providerModelsForTest(draft),
         result.models,
       );
       if (configuredModelIds.length === 0) {
         setProviderTestResult({
           kind: "warning",
-          message: t("extensions.modelConfig.testProviderNoConfiguredModels"),
+          message: t(
+            accountAuthentication
+              ? "extensions.modelConfig.testAccountProviderNoConfiguredModels"
+              : "extensions.modelConfig.testProviderNoConfiguredModels",
+          ),
         });
       } else if (unavailableModelIds.length > 0) {
         setProviderTestResult({
           kind: "error",
-          message: t("extensions.modelConfig.testProviderModelsUnavailable", {
-            modelIds: unavailableModelIds.join(", "),
-          }),
+          message: t(
+            accountAuthentication
+              ? "extensions.modelConfig.testAccountProviderModelsUnavailable"
+              : "extensions.modelConfig.testProviderModelsUnavailable",
+            { modelIds: unavailableModelIds.join(", ") },
+          ),
         });
       } else {
         setProviderTestResult({
           kind: "success",
-          message: t("extensions.modelConfig.testProviderSucceeded", {
-            count: configuredModelIds.length,
-          }),
+          message: t(
+            accountAuthentication
+              ? "extensions.modelConfig.testAccountProviderSucceeded"
+              : "extensions.modelConfig.testProviderSucceeded",
+            { count: configuredModelIds.length },
+          ),
         });
       }
     } catch (failure) {
       if (request !== providerTestRequest.current) return;
       setProviderTestResult({
         kind: "error",
-        message: providerTestErrorLabel(failure),
+        message: providerTestErrorLabel(failure, accountAuthentication),
       });
     } finally {
       if (request === providerTestRequest.current) setTestingProvider(false);
@@ -1278,10 +1341,12 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
   }, [
     busy,
     configLoading,
-    draft.models,
-    draft.provider,
+    accountAuthentication,
+    draft,
     modelDiscoveryPayload,
     providerTestErrorLabel,
+    providerTestSource,
+    selectedProvider,
     t,
     testingProvider,
   ]);
@@ -1319,10 +1384,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
   }, [draft.models, selectedModelIds]);
 
   const providerEditor = (mode: Editor["mode"]) => {
-    const selectedProvider = providers.find(({ provider }) => provider === draft.provider);
     const addMode = mode === "add-provider";
-    const customProviderMode =
-      mode === "add-custom" || (mode === "edit" && selectedProvider?.kind === "custom");
     const credentialWebsite = modelProviderCredentialWebsite(selectedProvider);
     const oauthMethod = selectedProvider?.authMethods?.find(({ type }) => type === "oauth");
     const configurableAuthMethods =
@@ -1596,22 +1658,6 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
           </div>
         )}
 
-        {!customProviderMode && draft.modelsSource === "adapter" && !configLoading ? (
-          <RuntimeContextWindowOverrides
-            provider={draft.provider}
-            models={draft.availableModels}
-            disabled={busy}
-            onUpdated={(updated) =>
-              setDraft((current) => ({
-                ...current,
-                availableModels: current.availableModels.map((model) =>
-                  model.id === updated.id ? updated : model,
-                ),
-              }))
-            }
-          />
-        ) : null}
-
         <Collapsible
           open={customProviderMode || draft.customOpen}
           onOpenChange={(open) => {
@@ -1699,15 +1745,25 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                       >
                         {modelPickerLoading
                           ? t("extensions.modelConfig.fetchingAvailableModels")
-                          : t("extensions.modelConfig.fetchAvailableModels")}
+                          : t("extensions.modelConfig.customizeModels")}
                       </Button>
                     </div>
                   </div>
 
                   {draft.modelsSource === "adapter" ? (
-                    <div className="text-muted-foreground mt-3 rounded-lg border border-dashed px-3 py-3 text-center text-sm">
-                      {t("extensions.modelConfig.adapterCatalogEmpty")}
-                    </div>
+                    <AdapterModelCatalog
+                      provider={draft.provider}
+                      models={draft.availableModels}
+                      disabled={busy}
+                      onUpdated={(updated) =>
+                        setDraft((current) => ({
+                          ...current,
+                          availableModels: current.availableModels.map((model) =>
+                            model.id === updated.id ? updated : model,
+                          ),
+                        }))
+                      }
+                    />
                   ) : (
                     <div
                       role="region"
@@ -2113,7 +2169,11 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
         ) : null}
 
         <p className="text-muted-foreground mt-3 text-xs">
-          {t("extensions.modelConfig.testProviderHint")}
+          {t(
+            accountAuthentication
+              ? "extensions.modelConfig.testAccountProviderHint"
+              : "extensions.modelConfig.testProviderHint",
+          )}
         </p>
 
         {providerTestResult ? (

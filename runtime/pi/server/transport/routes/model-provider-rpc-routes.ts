@@ -43,7 +43,7 @@ const discoverModelsPayload = rpcObject({
   baseURL: rpcOptional(nonEmptyString),
   api: rpcOptional(nonEmptyString),
   apiKey: rpcOptional(nonEmptyString),
-  source: rpcOptional(rpcEnum(["catalog", "endpoint"])),
+  source: rpcOptional(rpcEnum(["catalog", "provider", "endpoint"])),
 }) as RpcValidator<DiscoverModelsPayload>;
 const testModelImageInputPayload = rpcObject({
   provider: nonEmptyString,

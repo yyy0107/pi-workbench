@@ -15,6 +15,8 @@ import {
   parseCapacity,
   prepareProviderConfiguration,
   preferredAuthType,
+  providerModelsForTest,
+  providerTestDiscoverySource,
   toModelDraft,
   toProviderDraft,
   type ProviderDraft,
@@ -167,6 +169,24 @@ test("prefers a supported current auth type and otherwise falls back determinist
     "oauth",
   );
   assert.equal(preferredAuthType({ ...provider, authType: undefined, authMethods: [] }), "api_key");
+});
+
+test("routes account tests through provider-owned auth and validates adapter models", () => {
+  assert.equal(providerTestDiscoverySource("oauth"), "provider");
+  assert.equal(providerTestDiscoverySource("api_key"), "endpoint");
+
+  const draft = {
+    ...emptyDraft("openai-codex", "oauth"),
+    availableModels: [{ id: "gpt-5.3-codex" }, { id: "gpt-5.2-codex" }],
+  };
+  assert.deepEqual(providerModelsForTest(draft), draft.availableModels);
+  assert.deepEqual(
+    evaluateProviderModelAvailability(providerModelsForTest(draft), draft.availableModels),
+    {
+      configuredModelIds: ["gpt-5.3-codex", "gpt-5.2-codex"],
+      unavailableModelIds: [],
+    },
+  );
 });
 
 test("checks every unique configured model ID against the provider model listing", () => {

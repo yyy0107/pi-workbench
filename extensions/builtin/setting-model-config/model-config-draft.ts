@@ -51,6 +51,8 @@ export interface ProviderModelAvailability {
   unavailableModelIds: string[];
 }
 
+export type ProviderTestDiscoverySource = "provider" | "endpoint";
+
 export interface DiscoveredImageInputConfiguration {
   input: Array<"text" | "image">;
   imageInputSource: NonNullable<ModelProviderModelConfiguration["imageInputSource"]>;
@@ -168,6 +170,18 @@ export function evaluateProviderModelAvailability(
   }
 
   return { configuredModelIds, unavailableModelIds };
+}
+
+export function providerTestDiscoverySource(
+  authType: ProviderDraft["authType"],
+): ProviderTestDiscoverySource {
+  return authType === "oauth" ? "provider" : "endpoint";
+}
+
+export function providerModelsForTest(
+  draft: Pick<ProviderDraft, "availableModels" | "models" | "modelsSource">,
+): readonly Pick<ModelProviderModelConfiguration, "id">[] {
+  return draft.modelsSource === "adapter" ? draft.availableModels : draft.models;
 }
 
 export function discoveredImageInputConfiguration(
