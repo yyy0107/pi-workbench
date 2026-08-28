@@ -17,6 +17,7 @@ import { AgentSettingsService } from "../settings/agent-settings-service";
 import { WorkbenchSettingsService } from "../settings/workbench-settings-service";
 import { SkillService } from "../skills/skill-service";
 import { getProjectTrustService } from "../trust/project-trust-service";
+import { getExecutionService } from "../executions/pi-execution-service";
 import { createWorkspaceFileService } from "../workspaces/workspace-files";
 import { createWorkspaceProtocolService } from "../workspaces/workspace-protocol-service";
 import {
@@ -86,6 +87,10 @@ import {
   createWorkspaceRpcRoutes,
   type WorkspaceRpcRoutesDependencies,
 } from "./routes/workspace-rpc-routes";
+import {
+  createExecutionRpcRoutes,
+  type ExecutionRpcRoutesDependencies,
+} from "./routes/execution-rpc-routes";
 import { projectRpcDomainError } from "./rpc-domain-error-projector";
 
 /** Injectable dependencies for the ordered Pi RPC route-group composition. */
@@ -108,6 +113,7 @@ export interface PiRpcRouteGroupsDependencies {
   readonly localApp: LocalAppRpcRoutesDependencies;
   readonly projectTrust: ProjectTrustRpcRoutesDependencies;
   readonly resourceCatalog: ResourceCatalogRpcRoutesDependencies;
+  readonly execution?: ExecutionRpcRoutesDependencies;
 }
 
 /** Creates the ordered first-claim route groups from explicitly supplied domain dependencies. */
@@ -120,6 +126,7 @@ export function createPiRpcRouteGroups(
     createExternalSessionImportRpcRoutes(dependencies.externalSessionImport),
     createWorkspaceRpcRoutes(dependencies.workspace),
     createWorkspaceFileRpcRoutes(dependencies.workspaceFile),
+    ...(dependencies.execution ? [createExecutionRpcRoutes(dependencies.execution)] : []),
     createSkillRpcRoutes(dependencies.skill),
     createExtensionRpcRoutes(dependencies.extension),
     createInstalledPackageRpcRoutes(dependencies.installedPackage),
@@ -165,6 +172,7 @@ export function createDefaultPiRpcRouteGroups(): readonly RpcRouteGroup[] {
     externalSessionImport: { service: externalSessionImportService },
     workspace: { service: workspaceProtocolService, ...domainErrors },
     workspaceFile: { service: workspaceFileService, ...domainErrors },
+    execution: { service: getExecutionService(), ...domainErrors },
     skill: { service: skillService, ...domainErrors },
     extension: { service: extensionService, ...domainErrors },
     installedPackage: { service: installedPackageService, ...domainErrors },

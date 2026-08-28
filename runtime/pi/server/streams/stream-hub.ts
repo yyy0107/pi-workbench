@@ -133,6 +133,10 @@ const HOST_TYPES = new Set<string>([
   "host/session-archive-changed",
   "host/session-pinned-changed",
   "host/remote-event",
+  "host/workflow-changed",
+  "host/workflow-removed",
+  "host/workflow-run-changed",
+  "host/workflow-trigger-changed",
   "stream/error",
 ]);
 

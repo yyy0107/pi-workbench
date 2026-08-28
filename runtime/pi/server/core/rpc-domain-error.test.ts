@@ -40,3 +40,13 @@ test("rejects ordinary errors even when they imitate the public error shape", ()
     false,
   );
 });
+
+test("recognizes errors branded by the legacy Pi-owned implementation", () => {
+  const error = Object.assign(new Error("legacy"), {
+    code: "example-failed",
+    details: { resourceId: "resource-1" },
+  });
+  Object.defineProperty(error, Symbol.for("workbench.pi.rpc-domain-error.v1"), { value: true });
+
+  assert.equal(isRpcDomainError(error), true);
+});

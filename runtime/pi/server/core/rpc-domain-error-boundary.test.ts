@@ -10,6 +10,7 @@ const RPC_DOMAIN_ERROR_PROJECTOR = new URL(
 );
 
 const EXPOSED_DOMAIN_ERRORS = [
+  ["../../../server/executions/execution-errors.ts", "ExecutionError"],
   ["../attachment-understanding/settings-store.ts", "ImageUnderstandingSettingsStoreError"],
   ["../commands/command-service.ts", "CommandServiceError"],
   ["../extensions/extension-service.ts", "ExtensionServiceError"],

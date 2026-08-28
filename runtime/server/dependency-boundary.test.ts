@@ -22,7 +22,7 @@ async function productionSources(directory: string): Promise<string[]> {
   return nested.flat();
 }
 
-test("the generic Agent server ports do not import a concrete Runtime", async () => {
+test("Workbench server capabilities do not import a concrete Runtime", async () => {
   const violations: string[] = [];
   for (const file of await productionSources(SOURCE_ROOT)) {
     if (CONCRETE_RUNTIME_IMPORT.test(await readFile(file, "utf8"))) {

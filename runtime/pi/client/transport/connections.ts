@@ -1,5 +1,6 @@
 import type { PiAssistantMessage, PiEvent, PiRunTiming } from "@/runtime/pi/contracts/pi";
 import { isSessionMessageDelta } from "@/runtime/pi/contracts/stream";
+import { isWorkflowHostPayload } from "@/runtime/shared/execution";
 import type {
   HostStreamPayload,
   MuxStreamPayload,
@@ -511,6 +512,11 @@ function isHostPayload(payload: ServerRequestFrame["payload"]): boolean {
       return isNonEmptyString(payload.sessionId) && typeof payload.pinned === "boolean";
     case "host/remote-event":
       return isNonEmptyString(payload.event) && Array.isArray(payload.args);
+    case "host/workflow-changed":
+    case "host/workflow-removed":
+    case "host/workflow-run-changed":
+    case "host/workflow-trigger-changed":
+      return isWorkflowHostPayload(payload);
     case "stream/error":
       return isRpcError(payload.error);
     default:

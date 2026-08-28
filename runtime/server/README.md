@@ -1,9 +1,24 @@
-# Workbench Agent Server Ports
+# Workbench Server Runtime
 
-`runtime/server` 保存后端无关、但只在宿主服务端使用的 Agent Runtime 端口。这里不放浏览器协议、
-React 状态、具体 Agent SDK 对象或实现专属事件模型。
+`runtime/server` 保存 Workbench 自己拥有、只在宿主服务端运行的能力，以及后端无关的 Agent Runtime
+端口。这里不放 React 状态、具体 Agent SDK 对象或实现专属事件模型。
 
-当前边界只包含三个已经由现有 Workbench 行为验证的能力：
+## Execution
+
+`executions/` 是 Workbench 的执行能力。它负责定义校验与编译、运行准入与并发、节点调度、审批、
+触发器、运行事件和持久化。`workflow`、`sop`、`automation` 是 Execution 可以执行的三种定义类型，
+不是某个 Agent Runtime 的能力。
+
+Execution 核心通过 `ExecutionNodeExecutorRegistry` 接收节点执行器，不导入 Pi；Workbench 的 Command
+节点执行器也在本目录。当前 Pi 集成只在 `runtime/pi/server/executions` 提供 Agent 节点适配、工作区/
+会话事件接线及 RPC 组合。
+共享 DTO 位于 `runtime/shared/execution.ts`。为兼容已有客户端与本地数据，本次迁移继续读取
+`workflow.*` RPC、`workbench-workflows/v1` 以及项目 `.pi/workflows`；新的根目录覆盖变量为
+`WORKBENCH_EXECUTION_DIR`，旧 `PI_WORKBENCH_WORKFLOW_DIR` 仍可使用。
+
+## Agent Runtime 端口
+
+当前端口边界包含三个已经由现有 Workbench 行为验证的能力：
 
 - `AgentExecutionPort`：提交、队列、取消、重新生成、恢复和分支选择；
 - `AgentThreadStorePort`：线程摘要、全文搜索文档、创建、重命名、fork 和删除；
