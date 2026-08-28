@@ -207,6 +207,9 @@ export const workbenchEnUS = {
       generationInterrupted: "Generation interrupted",
       connectionFailed: "Connection failed",
       requestFailedTitle: "Request failed",
+      imageInputUnsupportedTitle: "This model does not support images",
+      imageInputUnsupported:
+        "This message was saved. Switch to a model that supports image input, then retry this turn.",
       stoppedByUser: "The response was stopped by the user.",
       interrupted: "The response ended before it could be completed.",
       stoppedCanContinue: "The response was stopped. Continue resumes the current task.",
@@ -233,7 +236,7 @@ export const workbenchEnUS = {
   sidebar: {
     newThread: "New conversation",
     toolbox: "Toolbox",
-    workflows: "Workflows",
+    workflows: "Execution",
     search: "Search conversations",
     searchPlaceholder: "Search conversations…",
     searchToolbox: "Search Toolbox",
@@ -330,6 +333,7 @@ export const workbenchEnUS = {
   shell: {
     workspace: "Workspace",
     currentWorkspace: ({ name }: { name: string }) => `Current workspace: ${name}`,
+    mainViewBreadcrumbs: "Current page",
     workbench: "Workbench",
   },
 } as const;

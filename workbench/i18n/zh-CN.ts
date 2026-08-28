@@ -186,6 +186,8 @@ export const workbenchZhCN = {
       generationInterrupted: "生成已中止",
       connectionFailed: "连接失败",
       requestFailedTitle: "请求失败",
+      imageInputUnsupportedTitle: "当前模型不支持图片",
+      imageInputUnsupported: "此消息已保留。请切换到支持图片输入的模型，然后重试本轮请求。",
       stoppedByUser: "用户已手动停止本次回答。",
       interrupted: "回答在完成前意外中止。",
       stoppedCanContinue: "本次回答已停止。继续将接着完成当前任务。",
@@ -209,7 +211,7 @@ export const workbenchZhCN = {
   sidebar: {
     newThread: "新建会话",
     toolbox: "工具箱",
-    workflows: "流程",
+    workflows: "执行",
     search: "搜索会话",
     searchPlaceholder: "搜索会话…",
     searchToolbox: "搜索工具箱",
@@ -306,6 +308,7 @@ export const workbenchZhCN = {
   shell: {
     workspace: "工作区",
     currentWorkspace: ({ name }: { name: string }) => `当前工作区：${name}`,
+    mainViewBreadcrumbs: "当前页面",
     workbench: "Workbench",
   },
 } as const;
