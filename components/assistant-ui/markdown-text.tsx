@@ -2,12 +2,15 @@
 
 import { TextMessagePartProvider } from "@assistant-ui/react";
 import {
+  escapeCurrencyDollars,
+  normalizeMathDelimiters,
   StreamdownTextPrimitive,
   type StreamdownTextComponents,
   type StreamdownTextPrimitiveProps,
   type SyntaxHighlighterProps,
 } from "@assistant-ui/react-streamdown";
 import { createCodePlugin } from "@streamdown/code";
+import { createMathPlugin } from "@streamdown/math";
 import {
   Children,
   createContext,
@@ -41,6 +44,18 @@ interface InlineCitationContextValue {
 }
 
 const InlineCitationContext = createContext<InlineCitationContextValue | null>(null);
+const mathPlugin = createMathPlugin({ singleDollarTextMath: true });
+const LATEX_DISPLAY_MATH = /\\{1,2}\[([\s\S]+?)\\{1,2}\]/g;
+
+function normalizeStreamdownMathDelimiters(text: string): string {
+  // The upstream normalizer trims bracket-delimited bodies. Preserve their
+  // whitespace so multiline formulas keep `$$` on separate Markdown lines.
+  const displayMathWithPreservedWhitespace = text.replace(
+    LATEX_DISPLAY_MATH,
+    (_, body: string) => `$$${body}$$`,
+  );
+  return normalizeMathDelimiters(displayMathWithPreservedWhitespace);
+}
 
 export type MarkdownTextProps = Omit<
   StreamdownTextPrimitiveProps,
@@ -59,6 +74,7 @@ const MarkdownTextImpl = ({
   inheritLineHeight = false,
   mode = "streaming",
   preserveWhitespace = false,
+  preprocess,
   resetParagraphMargins = false,
   ...props
 }: MarkdownTextProps) => {
@@ -72,7 +88,14 @@ const MarkdownTextImpl = ({
       }),
     [dark, light],
   );
-  const plugins = useMemo(() => ({ code: codePlugin }), [codePlugin]);
+  const plugins = useMemo(() => ({ code: codePlugin, math: mathPlugin }), [codePlugin]);
+  const preprocessMarkdown = useCallback(
+    (text: string) => {
+      const normalizedText = escapeCurrencyDollars(normalizeStreamdownMathDelimiters(text));
+      return preprocess?.(normalizedText) ?? normalizedText;
+    },
+    [preprocess],
+  );
 
   return (
     <StreamdownTextPrimitive
@@ -91,6 +114,7 @@ const MarkdownTextImpl = ({
       lineNumbers={false}
       mode={mode}
       plugins={plugins}
+      preprocess={preprocessMarkdown}
     />
   );
 };
