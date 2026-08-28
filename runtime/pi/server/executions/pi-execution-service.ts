@@ -23,24 +23,34 @@ function executionRootDirectory(): string {
 
 export interface PiExecutionServiceOptions {
   execution?: AgentExecutionPort;
+  nodeExecutors?: ExecutionNodeExecutorRegistry;
+}
+
+function bindCurrentNodeExecutors(
+  executors: ExecutionNodeExecutorRegistry,
+  options: PiExecutionServiceOptions,
+): void {
+  const isWorkspaceTrusted = (workspacePath: string): boolean =>
+    getProjectTrustService().isTrusted(workspacePath);
+  executors.register("agent", new PiAgentExecutionNodeExecutor({ execution: options.execution }));
+  executors.register("command", new WorkbenchCommandExecutionNodeExecutor({ isWorkspaceTrusted }));
 }
 
 export function createPiExecutionService(
   options: PiExecutionServiceOptions = {},
 ): ExecutionService {
   const workspaceStore = getWorkspaceStore();
+  const nodeExecutors = options.nodeExecutors ?? new ExecutionNodeExecutorRegistry();
   const isWorkspaceTrusted = (workspacePath: string): boolean =>
     getProjectTrustService().isTrusted(workspacePath);
+  bindCurrentNodeExecutors(nodeExecutors, options);
   const repository = new ExecutionRepository({
     rootDirectory: executionRootDirectory(),
     listWorkspaces: async () => (await workspaceStore.list()).items,
   });
   return new ExecutionService({
     repository,
-    executors: new ExecutionNodeExecutorRegistry({
-      agent: new PiAgentExecutionNodeExecutor({ execution: options.execution }),
-      command: new WorkbenchCommandExecutionNodeExecutor({ isWorkspaceTrusted }),
-    }),
+    executors: nodeExecutors,
     isWorkspaceTrusted,
     getRunningSessionIds,
     subscribeRunningSessions: (listener) => {
@@ -66,11 +76,20 @@ export function createPiExecutionService(
 
 interface ExecutionRegistryGlobal {
   __workbenchExecutionService?: ExecutionService;
+  __workbenchExecutionNodeExecutors?: ExecutionNodeExecutorRegistry;
 }
 
 const executionRegistry = globalThis as typeof globalThis & ExecutionRegistryGlobal;
 
 export function getExecutionService(options: PiExecutionServiceOptions = {}): ExecutionService {
-  executionRegistry.__workbenchExecutionService ??= createPiExecutionService(options);
+  const nodeExecutors = (executionRegistry.__workbenchExecutionNodeExecutors ??=
+    options.nodeExecutors ?? new ExecutionNodeExecutorRegistry());
+  // The service owns long-lived schedules and subscriptions, but the implementations behind its
+  // stable registry must follow the current server module graph after a development hot reload.
+  bindCurrentNodeExecutors(nodeExecutors, options);
+  executionRegistry.__workbenchExecutionService ??= createPiExecutionService({
+    ...options,
+    nodeExecutors,
+  });
   return executionRegistry.__workbenchExecutionService;
 }
