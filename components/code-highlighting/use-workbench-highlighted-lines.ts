@@ -10,7 +10,7 @@ import {
 import { useAppearancePreferences } from "@/services/appearance/appearance-store";
 
 import { normalizeShikiLanguage, type WorkbenchShikiLanguage } from "./shiki-catalog";
-import { highlightWorkbenchCodeTokens, type WorkbenchHighlightedTokens } from "./shiki-highlighter";
+import type { WorkbenchHighlightedTokens } from "./shiki-highlighter";
 
 const HIGHLIGHT_DELAY_MS = 40;
 
@@ -50,7 +50,10 @@ export function useWorkbenchHighlightedLines(
 
     let active = true;
     const highlight = () => {
-      void highlightWorkbenchCodeTokens(code, normalizedLanguage, light, dark, grammarContextCode)
+      void import("./shiki-highlighter")
+        .then(({ highlightWorkbenchCodeTokens }) =>
+          highlightWorkbenchCodeTokens(code, normalizedLanguage, light, dark, grammarContextCode),
+        )
         .then((tokens) => {
           if (!active) return;
           setHighlighted({

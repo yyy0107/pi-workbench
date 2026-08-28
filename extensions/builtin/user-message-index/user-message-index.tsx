@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuiState } from "@assistant-ui/react";
 
-import { MarkdownTextContent } from "@/components/assistant-ui/markdown-text";
+import { MarkdownTextContent } from "@/components/assistant-ui/lazy-markdown-text";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useI18n } from "@/i18n";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";

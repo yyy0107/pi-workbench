@@ -2,7 +2,7 @@
 
 import { CheckIcon, CircleXIcon, CopyIcon } from "lucide-react";
 
-import { MarkdownTextContent } from "@/components/assistant-ui/markdown-text";
+import { MarkdownTextContent } from "@/components/assistant-ui/lazy-markdown-text";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { useClipboardCopy } from "@/hooks/use-clipboard-copy";
 import { useI18n } from "@/i18n";

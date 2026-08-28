@@ -5,10 +5,8 @@ import { AlertCircleIcon, LoaderCircleIcon } from "lucide-react";
 import { useMemo, useRef, type CSSProperties } from "react";
 import type { ThemedToken } from "shiki/core";
 
-import {
-  type WorkbenchShikiLanguage,
-  useWorkbenchHighlightedLines,
-} from "@/components/code-highlighting";
+import type { WorkbenchShikiLanguage } from "@/components/code-highlighting/shiki-catalog";
+import { useWorkbenchHighlightedLines } from "@/components/code-highlighting/use-workbench-highlighted-lines";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 

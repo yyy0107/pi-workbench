@@ -2,7 +2,7 @@
 
 import { useAuiState } from "@assistant-ui/react";
 
-import { CompactMarkdownText } from "@/components/assistant-ui/markdown-text";
+import { CompactMarkdownText } from "@/components/assistant-ui/lazy-markdown-text";
 import { ComposerCommandToken } from "@/components/elements/composer";
 import { useI18n } from "@/i18n";
 import { useComposerCommandRegistry } from "@/platform/extensions";

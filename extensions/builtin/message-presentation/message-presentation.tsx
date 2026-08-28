@@ -12,7 +12,10 @@ import { useCallback, useMemo } from "react";
 
 import { File } from "@/components/assistant-ui/file";
 import { Image } from "@/components/assistant-ui/image";
-import { MarkdownText, MarkdownTextWithCitations } from "@/components/assistant-ui/markdown-text";
+import {
+  MarkdownText,
+  MarkdownTextWithCitations,
+} from "@/components/assistant-ui/lazy-markdown-text";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { ScrollCompensatedDetails } from "@/components/elements/scroll-compensated-details";
 import { useI18n } from "@/i18n";

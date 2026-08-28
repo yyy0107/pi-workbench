@@ -16,7 +16,6 @@ import {
   TerminalIcon,
   VideoIcon,
 } from "lucide-react";
-import Image, { type StaticImageData } from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
@@ -68,7 +67,7 @@ import {
 } from "./file-view-mode";
 import { isLargeTextFile } from "./progressive-text-document";
 
-const LOCAL_APP_ICON_SOURCES: Readonly<Record<string, StaticImageData>> = {
+const LOCAL_APP_ICON_SOURCES: Readonly<Record<string, { readonly src: string }>> = {
   cursor: cursorIcon,
   datagrip: datagripIcon,
   idea: ideaIcon,
@@ -86,13 +85,12 @@ function LocalAppIcon({ app }: { app?: LocalAppView }) {
   const [failedSource, setFailedSource] = useState<string>();
   if (source && failedSource !== source.src) {
     return (
-      <Image
+      <img
         aria-hidden="true"
-        src={source}
+        src={source.src}
         alt=""
         width={16}
         height={16}
-        unoptimized
         className={cn(
           "size-4 shrink-0 object-contain",
           app?.icon === "qoder" && "rounded-[3px] bg-[#101114] p-px",

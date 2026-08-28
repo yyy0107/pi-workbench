@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
-import { MarkdownTextContent } from "@/components/assistant-ui/markdown-text";
+import { MarkdownTextContent } from "@/components/assistant-ui/lazy-markdown-text";
 import { useOpenerService, useWorkspaceContext } from "@/components/right-workspace";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {

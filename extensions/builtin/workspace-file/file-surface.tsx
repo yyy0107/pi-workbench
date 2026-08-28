@@ -4,7 +4,8 @@ import { FileWarningIcon, FolderOpenIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import { useRightWorkspace } from "@/components/right-workspace";
-import { languageForFilename, shouldHighlightWorkbenchCode } from "@/components/code-highlighting";
+import { shouldHighlightWorkbenchCode } from "@/components/code-highlighting/code-highlight-policy";
+import { languageForFilename } from "@/components/code-highlighting/shiki-catalog";
 import { useI18n } from "@/i18n";
 import { useExtensionErrorReporter, type WorkspaceSurfaceProps } from "@/platform/extensions";
 import {

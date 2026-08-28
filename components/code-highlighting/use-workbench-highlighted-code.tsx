@@ -13,7 +13,6 @@ import { useAppearancePreferences } from "@/services/appearance/appearance-store
 
 import { normalizeShikiLanguage } from "./shiki-catalog";
 import { shouldHighlightWorkbenchCode } from "./code-highlight-policy";
-import { highlightWorkbenchCode } from "./shiki-highlighter";
 
 const HIGHLIGHT_DELAY_MS = 60;
 
@@ -42,7 +41,10 @@ export function useWorkbenchHighlightedCode(
 
     let active = true;
     const highlight = () => {
-      void highlightWorkbenchCode(code, normalizedLanguage, light, dark)
+      void import("./shiki-highlighter")
+        .then(({ highlightWorkbenchCode }) =>
+          highlightWorkbenchCode(code, normalizedLanguage, light, dark),
+        )
         .then((tree) => {
           if (!active) return;
           setHighlightedCode({

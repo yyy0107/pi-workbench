@@ -3,7 +3,8 @@
 import { useId, useMemo, type ComponentProps, type ReactNode } from "react";
 import { CheckIcon, XIcon } from "lucide-react";
 
-import { languageForFilename, useWorkbenchHighlightedCode } from "@/components/code-highlighting";
+import { languageForFilename } from "@/components/code-highlighting/shiki-catalog";
+import { useWorkbenchHighlightedCode } from "@/components/code-highlighting/use-workbench-highlighted-code";
 import { cn } from "@/lib/utils";
 
 import { DiffHeader, type DiffLine } from "./code-diff";

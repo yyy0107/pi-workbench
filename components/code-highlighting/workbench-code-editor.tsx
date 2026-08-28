@@ -2,7 +2,7 @@
 
 import { useId, useMemo, useRef, type KeyboardEvent, type ReactNode } from "react";
 
-import { MarkdownCodeBlockContent } from "@/components/assistant-ui/markdown-text";
+import { MarkdownCodeBlockContent } from "@/components/assistant-ui/lazy-markdown-text";
 import { cn } from "@/lib/utils";
 
 import { shouldHighlightWorkbenchCode } from "./code-highlight-policy";

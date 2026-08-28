@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { WorkbenchCodeView } from "@/components/code-highlighting";
+import { WorkbenchCodeView } from "@/components/code-highlighting/workbench-code-editor";
 import { useI18n, type Translate } from "@/i18n";
 import type {
   SessionContextTraceCaptureMetadata,

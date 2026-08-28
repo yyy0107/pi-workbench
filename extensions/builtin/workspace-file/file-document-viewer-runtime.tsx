@@ -11,7 +11,13 @@ import type { Locale } from "@/i18n";
 import styles from "./file-document-viewer-runtime.module.css";
 import { isFileViewerVideoType, resolveFileViewerType } from "./file-viewer-source";
 
-setDefaultFileViewerAssetBaseUrl("/file-viewer/");
+const FILE_VIEWER_ASSET_BASE_URL = "/file-viewer/";
+
+function fileViewerAssetUrl(relativePath: string) {
+  return `${FILE_VIEWER_ASSET_BASE_URL}${relativePath}`;
+}
+
+setDefaultFileViewerAssetBaseUrl(FILE_VIEWER_ASSET_BASE_URL);
 
 export interface FileDocumentViewerRuntimeProps {
   url?: string;
@@ -60,8 +66,18 @@ export function FileDocumentViewerRuntime({
         theme: false,
       },
       pdf: {
-        assetBaseUrl: "/file-viewer/",
+        assetBaseUrl: FILE_VIEWER_ASSET_BASE_URL,
         streaming: "same-origin" as const,
+      },
+      // The File Viewer packages also publish bundler-friendly fallback imports. This desktop
+      // build serves one canonical runtime copy from public/file-viewer instead, so make every
+      // presentation asset explicit and let packaging discard byte-identical emitted fallbacks.
+      presentation: {
+        workerUrl: fileViewerAssetUrl("vendor/pptx/pptx.worker.js"),
+        pptModuleUrl: fileViewerAssetUrl("vendor/ppt/index.mjs"),
+        pptWorkerUrl: fileViewerAssetUrl("vendor/ppt/worker.mjs"),
+        pptWasmUrl: fileViewerAssetUrl("vendor/ppt/ppt-native.wasm"),
+        pptFontUrl: fileViewerAssetUrl("vendor/ppt/ppt-font-cjk.otf"),
       },
     }),
     [isVideo, locale],

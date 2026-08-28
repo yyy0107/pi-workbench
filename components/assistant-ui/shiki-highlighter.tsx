@@ -1,6 +1,6 @@
 "use client";
 
-import { MarkdownCodeBlockContent } from "@/components/assistant-ui/markdown-text";
+import { MarkdownCodeBlockContent } from "@/components/assistant-ui/lazy-markdown-text";
 import type { CodeTheme } from "@/services/appearance/appearance-preferences";
 
 export interface CodeThemePreviewProps {

@@ -5,8 +5,8 @@ import type { ComponentType } from "react";
 import {
   MarkdownCodeBlockContent,
   MarkdownTextContent,
-} from "@/components/assistant-ui/markdown-text";
-import { languageForFilename } from "@/components/code-highlighting";
+} from "@/components/assistant-ui/lazy-markdown-text";
+import { languageForFilename } from "@/components/code-highlighting/shiki-catalog";
 
 import type { ArtifactDescriptor, ArtifactRendererKind } from "./artifact-preview-service";
 
