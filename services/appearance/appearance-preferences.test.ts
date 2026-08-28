@@ -44,9 +44,7 @@ test("parses persisted appearance preferences", () => {
       piWorkingOrbSize: 26,
       codeFont: "jetBrainsMono",
       uiFontSize: 18,
-      buttonControlHeight: 40,
-      inputControlHeight: 34,
-      dropdownControlHeight: 36,
+      controlHeight: 40,
       switchControlHeight: 28,
       codeFontSize: 15,
       codeTheme: "dracula",
@@ -80,9 +78,7 @@ test("parses persisted appearance preferences", () => {
     piWorkingOrbSize: 26,
     codeFont: "jetBrainsMono",
     uiFontSize: 18,
-    buttonControlHeight: 40,
-    inputControlHeight: 34,
-    dropdownControlHeight: 36,
+    controlHeight: 40,
     switchControlHeight: 28,
     codeFontSize: 15,
     codeTheme: "dracula",
@@ -111,9 +107,7 @@ test("falls back field by field when persisted values are invalid", () => {
       piWorkingOrbSize: 64,
       codeFont: "proportional",
       uiFontSize: 99,
-      buttonControlHeight: 12,
-      inputControlHeight: 12,
-      dropdownControlHeight: 64,
+      controlHeight: 64,
       switchControlHeight: 8,
       codeFontSize: 1,
       codeTheme: "rainbow",
@@ -152,6 +146,21 @@ test("migrates fonts from split light and dark preferences", () => {
   assert.equal("darkUiFont" in preferences, false);
   assert.equal("lightCodeFont" in preferences, false);
   assert.equal("darkCodeFont" in preferences, false);
+});
+
+test("migrates split legacy control heights to one aligned height", () => {
+  const preferences = parseAppearancePreferences(
+    JSON.stringify({
+      buttonControlHeight: 40,
+      inputControlHeight: 34,
+      dropdownControlHeight: 36,
+    }),
+  );
+
+  assert.equal(preferences.controlHeight, 40);
+  assert.equal("buttonControlHeight" in preferences, false);
+  assert.equal("inputControlHeight" in preferences, false);
+  assert.equal("dropdownControlHeight" in preferences, false);
 });
 
 test("migrates the previous paired code styles to Shiki themes", () => {

@@ -33,19 +33,15 @@ import {
   CORNER_RADIUS_STYLES,
   DEFAULT_APPEARANCE_PREFERENCES,
   GLASS_BLURS,
-  MAX_BUTTON_CONTROL_HEIGHT,
   MAX_CODE_FONT_SIZE,
-  MAX_DROPDOWN_CONTROL_HEIGHT,
-  MAX_INPUT_CONTROL_HEIGHT,
+  MAX_CONTROL_HEIGHT,
   MAX_PI_WORKING_ORB_SIZE,
   MAX_SURFACE_OPACITY,
   MAX_SWITCH_CONTROL_HEIGHT,
   MAX_THEME_CONTRAST,
   MAX_UI_FONT_SIZE,
-  MIN_BUTTON_CONTROL_HEIGHT,
   MIN_CODE_FONT_SIZE,
-  MIN_DROPDOWN_CONTROL_HEIGHT,
-  MIN_INPUT_CONTROL_HEIGHT,
+  MIN_CONTROL_HEIGHT,
   MIN_PI_WORKING_ORB_SIZE,
   MIN_SURFACE_OPACITY,
   MIN_SWITCH_CONTROL_HEIGHT,
@@ -888,9 +884,7 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
   const controlHeightLabel = (value: number): string =>
     t("extensions.appearance.controls.heightValue", { height: value });
   const controlHeightsAreDefault =
-    preferences.buttonControlHeight === DEFAULT_APPEARANCE_PREFERENCES.buttonControlHeight &&
-    preferences.inputControlHeight === DEFAULT_APPEARANCE_PREFERENCES.inputControlHeight &&
-    preferences.dropdownControlHeight === DEFAULT_APPEARANCE_PREFERENCES.dropdownControlHeight &&
+    preferences.controlHeight === DEFAULT_APPEARANCE_PREFERENCES.controlHeight &&
     preferences.switchControlHeight === DEFAULT_APPEARANCE_PREFERENCES.switchControlHeight;
   return (
     <div data-settings-section={sectionId} data-settings-item={itemId} className="py-4">
@@ -1126,9 +1120,7 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
                     disabled={controlHeightsAreDefault}
                     onClick={() => {
                       appearanceStore.update({
-                        buttonControlHeight: DEFAULT_APPEARANCE_PREFERENCES.buttonControlHeight,
-                        inputControlHeight: DEFAULT_APPEARANCE_PREFERENCES.inputControlHeight,
-                        dropdownControlHeight: DEFAULT_APPEARANCE_PREFERENCES.dropdownControlHeight,
+                        controlHeight: DEFAULT_APPEARANCE_PREFERENCES.controlHeight,
                         switchControlHeight: DEFAULT_APPEARANCE_PREFERENCES.switchControlHeight,
                       });
                     }}
@@ -1140,48 +1132,16 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
               >
                 <ControlHeightPreview />
                 <SettingRow
-                  label={t("extensions.appearance.controls.inputHeight")}
-                  description={t("extensions.appearance.controls.inputHeightDescription")}
+                  label={t("extensions.appearance.controls.controlHeight")}
+                  description={t("extensions.appearance.controls.controlHeightDescription")}
                 >
                   <RangeControl
-                    label={t("extensions.appearance.controls.inputHeight")}
-                    value={preferences.inputControlHeight}
+                    label={t("extensions.appearance.controls.controlHeight")}
+                    value={preferences.controlHeight}
                     formatValue={controlHeightLabel}
-                    minimum={MIN_INPUT_CONTROL_HEIGHT}
-                    maximum={MAX_INPUT_CONTROL_HEIGHT}
-                    onChange={(inputControlHeight) =>
-                      appearanceStore.update({ inputControlHeight })
-                    }
-                  />
-                </SettingRow>
-                <SettingRow
-                  label={t("extensions.appearance.controls.dropdownHeight")}
-                  description={t("extensions.appearance.controls.dropdownHeightDescription")}
-                >
-                  <RangeControl
-                    label={t("extensions.appearance.controls.dropdownHeight")}
-                    value={preferences.dropdownControlHeight}
-                    formatValue={controlHeightLabel}
-                    minimum={MIN_DROPDOWN_CONTROL_HEIGHT}
-                    maximum={MAX_DROPDOWN_CONTROL_HEIGHT}
-                    onChange={(dropdownControlHeight) =>
-                      appearanceStore.update({ dropdownControlHeight })
-                    }
-                  />
-                </SettingRow>
-                <SettingRow
-                  label={t("extensions.appearance.controls.buttonHeight")}
-                  description={t("extensions.appearance.controls.buttonHeightDescription")}
-                >
-                  <RangeControl
-                    label={t("extensions.appearance.controls.buttonHeight")}
-                    value={preferences.buttonControlHeight}
-                    formatValue={controlHeightLabel}
-                    minimum={MIN_BUTTON_CONTROL_HEIGHT}
-                    maximum={MAX_BUTTON_CONTROL_HEIGHT}
-                    onChange={(buttonControlHeight) =>
-                      appearanceStore.update({ buttonControlHeight })
-                    }
+                    minimum={MIN_CONTROL_HEIGHT}
+                    maximum={MAX_CONTROL_HEIGHT}
+                    onChange={(controlHeight) => appearanceStore.update({ controlHeight })}
                   />
                 </SettingRow>
                 <SettingRow

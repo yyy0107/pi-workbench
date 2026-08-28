@@ -314,10 +314,10 @@ function blendWithCustomBackground(themeColor: string, backgroundColor: string):
   return `color-mix(in srgb, ${themeColor} ${THEME_SURFACE_COLOR_WEIGHT}%, ${backgroundColor})`;
 }
 
-function getButtonSizeProperties(height: number): Record<string, string> {
+function getControlSizeProperties(height: number): Record<string, string> {
   return {
+    "--form-control-height": `${height}px`,
     "--button-height-compact": `${Math.max(20, height - 2)}px`,
-    "--button-height-default": `${height}px`,
     "--button-height-large": `${height + 10}px`,
   };
 }
@@ -388,9 +388,7 @@ export function AppearanceBackground() {
       "--workbench-dark-contrast": `${preferences.darkContrast}%`,
       "--workbench-ui-font-size": `${preferences.uiFontSize}px`,
       "--workbench-code-font-size": `${preferences.codeFontSize}px`,
-      ...getButtonSizeProperties(preferences.buttonControlHeight),
-      "--input-control-height": `${preferences.inputControlHeight}px`,
-      "--dropdown-control-height": `${preferences.dropdownControlHeight}px`,
+      ...getControlSizeProperties(preferences.controlHeight),
       ...getSwitchSizeProperties(preferences.switchControlHeight),
     } as const;
 

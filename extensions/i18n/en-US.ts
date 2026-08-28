@@ -371,12 +371,8 @@ export const extensionsEnUS = {
     },
     controls: {
       title: "Control heights",
-      inputHeight: "Input height",
-      inputHeightDescription: "Set the height of shared text and number fields.",
-      dropdownHeight: "Dropdown height",
-      dropdownHeightDescription: "Set the height of shared dropdown selectors.",
-      buttonHeight: "Button height",
-      buttonHeightDescription: "Set the height of shared text buttons and their size variants.",
+      controlHeight: "Form control height",
+      controlHeightDescription: "Keep shared inputs, dropdowns, and buttons at one aligned height.",
       switchHeight: "Switch height",
       switchHeightDescription: "Resize standard and compact switches proportionally.",
       heightValue: ({ height }: { height: number }, { number }: MessageFormatters) =>

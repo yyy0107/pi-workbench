@@ -99,6 +99,7 @@
   --control-hit-compact: 24px;
   --control-hit-default: 26px;
   --control-hit-touch: 44px;
+  --form-control-height: var(--control-hit-default);
 
   /* Shared interaction states */
   --control-state-background-hover: color-mix(in oklab, var(--foreground) 6%, transparent);
@@ -110,7 +111,7 @@
 
   /* Buttons */
   --button-height-compact: var(--control-hit-compact);
-  --button-height-default: var(--control-hit-default);
+  --button-height-default: var(--form-control-height);
   --button-height-large: 36px;
   --button-radius: var(--radius);
   --button-background-hover: var(--control-state-background-hover);
@@ -146,8 +147,8 @@
   );
 
   /* Inputs */
-  --input-control-height: var(--control-hit-default);
-  --dropdown-control-height: var(--control-hit-default);
+  --input-control-height: var(--form-control-height);
+  --dropdown-control-height: var(--form-control-height);
   --input-control-radius: var(--radius);
   --input-control-background: transparent;
   --input-control-background-disabled: color-mix(in oklab, var(--input) 50%, transparent);

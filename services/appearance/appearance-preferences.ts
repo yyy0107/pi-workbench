@@ -200,17 +200,9 @@ export const MIN_UI_FONT_SIZE = 12;
 export const MAX_UI_FONT_SIZE = 20;
 export type UiFontSize = number;
 
-export const MIN_BUTTON_CONTROL_HEIGHT = 24;
-export const MAX_BUTTON_CONTROL_HEIGHT = 48;
-export type ButtonControlHeight = number;
-
-export const MIN_INPUT_CONTROL_HEIGHT = 24;
-export const MAX_INPUT_CONTROL_HEIGHT = 48;
-export type InputControlHeight = number;
-
-export const MIN_DROPDOWN_CONTROL_HEIGHT = 24;
-export const MAX_DROPDOWN_CONTROL_HEIGHT = 48;
-export type DropdownControlHeight = number;
+export const MIN_CONTROL_HEIGHT = 24;
+export const MAX_CONTROL_HEIGHT = 48;
+export type ControlHeight = number;
 
 export const MIN_SWITCH_CONTROL_HEIGHT = 20;
 export const MAX_SWITCH_CONTROL_HEIGHT = 36;
@@ -246,9 +238,7 @@ export interface AppearancePreferences {
   piWorkingOrbSize: number;
   codeFont: CodeFontFamily;
   uiFontSize: UiFontSize;
-  buttonControlHeight: ButtonControlHeight;
-  inputControlHeight: InputControlHeight;
-  dropdownControlHeight: DropdownControlHeight;
+  controlHeight: ControlHeight;
   switchControlHeight: SwitchControlHeight;
   codeFontSize: CodeFontSize;
   codeTheme: CodeTheme;
@@ -281,9 +271,7 @@ export const DEFAULT_APPEARANCE_PREFERENCES = Object.freeze({
   piWorkingOrbSize: 14,
   codeFont: "geistMono",
   uiFontSize: 16,
-  buttonControlHeight: 26,
-  inputControlHeight: 26,
-  dropdownControlHeight: 26,
+  controlHeight: 26,
   switchControlHeight: 24,
   codeFontSize: 13,
   codeTheme: "dark-plus",
@@ -315,6 +303,24 @@ function isIntegerInRange(value: unknown, minimum: number, maximum: number): val
   return (
     typeof value === "number" && Number.isInteger(value) && value >= minimum && value <= maximum
   );
+}
+
+function parseControlHeight(value: Record<string, unknown>): ControlHeight {
+  if (isIntegerInRange(value.controlHeight, MIN_CONTROL_HEIGHT, MAX_CONTROL_HEIGHT)) {
+    return value.controlHeight;
+  }
+
+  const legacyHeights = [
+    value.buttonControlHeight,
+    value.inputControlHeight,
+    value.dropdownControlHeight,
+  ].filter((height): height is number =>
+    isIntegerInRange(height, MIN_CONTROL_HEIGHT, MAX_CONTROL_HEIGHT),
+  );
+
+  return legacyHeights.length > 0
+    ? Math.max(...legacyHeights)
+    : DEFAULT_APPEARANCE_PREFERENCES.controlHeight;
 }
 
 export function parseAppearancePreferences(serialized: string | null): AppearancePreferences {
@@ -420,27 +426,7 @@ export function parseAppearancePreferences(serialized: string | null): Appearanc
     uiFontSize: isIntegerInRange(value.uiFontSize, MIN_UI_FONT_SIZE, MAX_UI_FONT_SIZE)
       ? value.uiFontSize
       : DEFAULT_APPEARANCE_PREFERENCES.uiFontSize,
-    buttonControlHeight: isIntegerInRange(
-      value.buttonControlHeight,
-      MIN_BUTTON_CONTROL_HEIGHT,
-      MAX_BUTTON_CONTROL_HEIGHT,
-    )
-      ? value.buttonControlHeight
-      : DEFAULT_APPEARANCE_PREFERENCES.buttonControlHeight,
-    inputControlHeight: isIntegerInRange(
-      value.inputControlHeight,
-      MIN_INPUT_CONTROL_HEIGHT,
-      MAX_INPUT_CONTROL_HEIGHT,
-    )
-      ? value.inputControlHeight
-      : DEFAULT_APPEARANCE_PREFERENCES.inputControlHeight,
-    dropdownControlHeight: isIntegerInRange(
-      value.dropdownControlHeight,
-      MIN_DROPDOWN_CONTROL_HEIGHT,
-      MAX_DROPDOWN_CONTROL_HEIGHT,
-    )
-      ? value.dropdownControlHeight
-      : DEFAULT_APPEARANCE_PREFERENCES.dropdownControlHeight,
+    controlHeight: parseControlHeight(value),
     switchControlHeight: isIntegerInRange(
       value.switchControlHeight,
       MIN_SWITCH_CONTROL_HEIGHT,

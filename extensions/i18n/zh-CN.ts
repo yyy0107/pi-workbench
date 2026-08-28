@@ -363,12 +363,8 @@ export const extensionsZhCN = {
     },
     controls: {
       title: "控件高度",
-      inputHeight: "输入框高度",
-      inputHeightDescription: "设置共享文本框和数字输入框的高度。",
-      dropdownHeight: "下拉框高度",
-      dropdownHeightDescription: "设置共享下拉选择框的高度。",
-      buttonHeight: "按钮高度",
-      buttonHeightDescription: "设置共享文字按钮及其尺寸变体的高度。",
+      controlHeight: "表单控件高度",
+      controlHeightDescription: "统一设置共享输入框、下拉框和按钮的高度，保持同行对齐。",
       switchHeight: "开关高度",
       switchHeightDescription: "按比例调整标准和紧凑开关的尺寸。",
       heightValue: ({ height }: { height: number }, { number }: MessageFormatters) =>
