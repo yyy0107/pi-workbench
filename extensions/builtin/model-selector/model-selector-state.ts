@@ -3,43 +3,20 @@ import type {
   ModelSelection,
   SessionModelsValue,
 } from "@/runtime/pi/contracts/rpc";
+import {
+  filterModelSelectorOptions,
+  type ModelSelectorEffort,
+  type ModelSelectorOption,
+} from "@/components/ui/model-selector-models";
 
-export interface SelectorEffort {
-  id: string;
-  name: string;
-  description?: string;
-}
-
-export interface SelectorModel {
-  id: string;
-  provider: string;
-  providerName: string;
-  model: string;
-  name: string;
-  description?: string;
-  efforts?: readonly SelectorEffort[];
-  defaultEffort?: string;
-  unavailable?: boolean;
-}
+export type SelectorEffort = ModelSelectorEffort;
+export type SelectorModel = ModelSelectorOption;
 
 export function modelSelectorId(provider: string, model: string): string {
   return `${encodeURIComponent(provider)}/${encodeURIComponent(model)}`;
 }
 
-export function filterSelectorModels(
-  models: readonly SelectorModel[],
-  query: string,
-): readonly SelectorModel[] {
-  const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  if (!terms.length) return models;
-
-  return models.filter((model) => {
-    const searchableText = [model.name, model.model, model.providerName, model.provider]
-      .join("\n")
-      .toLowerCase();
-    return terms.every((term) => searchableText.includes(term));
-  });
-}
+export const filterSelectorModels = filterModelSelectorOptions;
 
 export function sessionSelectorModels(catalog: SessionModelsValue): SelectorModel[] {
   const models = catalog.groups.flatMap((group) =>

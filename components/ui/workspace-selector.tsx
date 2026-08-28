@@ -1,0 +1,194 @@
+"use client";
+
+import { ChevronDownIcon, FolderIcon, LoaderCircleIcon, SearchIcon, XIcon } from "lucide-react";
+import { useMemo, useState, type ReactNode } from "react";
+
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
+
+export interface WorkspaceSelectorOption {
+  id: string;
+  name: string;
+  cwd: string;
+}
+
+export interface WorkspaceSelectorLabels {
+  select: string;
+  clear: string;
+  selecting: string;
+  selectError: string;
+  empty: string;
+  search: string;
+  searchPlaceholder: string;
+  noSearchResults: string;
+}
+
+export function WorkspaceSelector({
+  canClear = false,
+  disabled = false,
+  error = false,
+  footer,
+  labels,
+  picking = false,
+  selectedWorkspace,
+  triggerId,
+  workspaces,
+  onClear,
+  onValueChange,
+}: {
+  canClear?: boolean;
+  disabled?: boolean;
+  error?: boolean;
+  footer?: ReactNode;
+  labels: WorkspaceSelectorLabels;
+  picking?: boolean;
+  selectedWorkspace?: WorkspaceSelectorOption;
+  triggerId?: string;
+  workspaces: readonly WorkspaceSelectorOption[];
+  onClear?(): void;
+  onValueChange(workspaceId: string): void;
+}) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [workspaceQuery, setWorkspaceQuery] = useState("");
+  const clearable = canClear && selectedWorkspace !== undefined && !picking;
+  const filteredWorkspaces = useMemo(() => {
+    const normalizedQuery = workspaceQuery.trim().toLocaleLowerCase();
+    if (!normalizedQuery) return workspaces;
+    return workspaces.filter(
+      (workspace) =>
+        workspace.name.toLocaleLowerCase().includes(normalizedQuery) ||
+        workspace.cwd.toLocaleLowerCase().includes(normalizedQuery),
+    );
+  }, [workspaceQuery, workspaces]);
+
+  return (
+    <DropdownMenu
+      open={menuOpen}
+      onOpenChange={(open) => {
+        setMenuOpen(open);
+        if (!open) setWorkspaceQuery("");
+      }}
+    >
+      <div
+        title={error ? labels.selectError : (selectedWorkspace?.cwd ?? labels.select)}
+        className={cn(
+          "group/workspace inline-flex h-8 min-w-0 max-w-56 items-center rounded-full bg-transparent text-base font-normal text-foreground transition-colors hover:bg-muted focus-within:bg-muted",
+          menuOpen && "bg-muted",
+          error && "text-destructive",
+        )}
+      >
+        {clearable ? (
+          <button
+            type="button"
+            aria-label={labels.clear}
+            title={labels.clear}
+            className="group/clear relative grid size-8 shrink-0 cursor-pointer place-items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            onClick={() => {
+              setMenuOpen(false);
+              setWorkspaceQuery("");
+              onClear?.();
+            }}
+          >
+            <FolderIcon
+              aria-hidden="true"
+              className="size-4 group-hover/workspace:hidden group-focus-visible/clear:hidden"
+            />
+            <XIcon
+              aria-hidden="true"
+              className="absolute hidden size-4 group-hover/workspace:block group-focus-visible/clear:block"
+            />
+          </button>
+        ) : null}
+
+        <DropdownMenuTrigger
+          id={triggerId}
+          type="button"
+          disabled={disabled || picking}
+          aria-label={labels.select}
+          className={cn(
+            "inline-flex h-8 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-full pe-2 text-base font-normal outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:pointer-events-none disabled:cursor-default disabled:opacity-100",
+            clearable ? "ps-0" : "ps-2",
+          )}
+        >
+          {!clearable ? (
+            picking ? (
+              <LoaderCircleIcon aria-hidden="true" className="size-4 shrink-0 animate-spin" />
+            ) : (
+              <FolderIcon aria-hidden="true" className="size-4 shrink-0" />
+            )
+          ) : null}
+          <span className="min-w-0 flex-1 truncate text-start">
+            {picking
+              ? labels.selecting
+              : error
+                ? labels.selectError
+                : (selectedWorkspace?.name ?? labels.empty)}
+          </span>
+          <ChevronDownIcon aria-hidden="true" className="size-3.5 shrink-0 opacity-60" />
+        </DropdownMenuTrigger>
+      </div>
+
+      <DropdownMenuContent
+        align="start"
+        alignOffset={clearable ? -32 : 0}
+        side="bottom"
+        sideOffset={6}
+        className="grid max-h-[min(336px,var(--available-height))] w-80 max-w-[calc(100vw-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-2xl p-0 shadow-xl ring-1 ring-foreground/15"
+      >
+        <div className="flex h-11 items-center gap-2 border-b px-3">
+          <SearchIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+          <input
+            autoFocus
+            value={workspaceQuery}
+            type="search"
+            aria-label={labels.search}
+            placeholder={labels.searchPlaceholder}
+            autoComplete="off"
+            spellCheck={false}
+            className="h-full min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+            onChange={(event) => setWorkspaceQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key.length === 1 || event.key === "Backspace" || event.key === "Delete") {
+                event.stopPropagation();
+              }
+            }}
+          />
+        </div>
+
+        <div className="min-h-0 overflow-y-auto p-1">
+          {filteredWorkspaces.length ? (
+            <DropdownMenuRadioGroup
+              value={selectedWorkspace?.id ?? ""}
+              onValueChange={onValueChange}
+            >
+              {filteredWorkspaces.map((workspace) => (
+                <DropdownMenuRadioItem
+                  key={workspace.id}
+                  value={workspace.id}
+                  className="min-h-9 gap-2.5 rounded-lg px-2.5 pe-9 text-sm"
+                  title={workspace.cwd}
+                >
+                  <FolderIcon aria-hidden="true" className="size-4 text-muted-foreground" />
+                  <span className="min-w-0 flex-1 truncate">{workspace.name}</span>
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          ) : (
+            <DropdownMenuItem disabled className="min-h-9 px-2.5 text-sm">
+              {labels.noSearchResults}
+            </DropdownMenuItem>
+          )}
+        </div>
+
+        {footer}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
