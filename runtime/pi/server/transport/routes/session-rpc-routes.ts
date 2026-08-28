@@ -52,6 +52,7 @@ const sessionHistoryPayload = rpcObject({
 const sessionRegeneratePayload = rpcObject({
   sessionId: nonEmptyString,
   messageId: nonEmptyString,
+  requestId: rpcOptional(nonEmptyString),
 });
 const sessionResumePayload = rpcObject({
   sessionId: nonEmptyString,

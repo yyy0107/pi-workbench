@@ -76,7 +76,9 @@ export class AgentExecutionError extends Error {
  */
 export interface AgentExecutionPort {
   submit(input: AgentPromptSubmission): Promise<AgentPromptAdmission>;
-  regenerate(input: Readonly<{ threadId: string; userMessageId: string }>): Promise<void>;
+  regenerate(
+    input: Readonly<{ threadId: string; userMessageId: string; requestId?: string }>,
+  ): Promise<void>;
   resume(
     input: Readonly<{
       threadId: string;

@@ -73,7 +73,7 @@ test("preprocesses text-only auto models and every always-preprocess model", () 
   );
 });
 
-test("keeps disabled and native-only policies explicit for text-only models", () => {
+test("keeps disabled explicit and sends native-only images directly to the selected model", () => {
   assert.deepEqual(
     decideImageUnderstandingRoute({
       settings: { ...settings, routing: "disabled" },
@@ -88,7 +88,7 @@ test("keeps disabled and native-only policies explicit for text-only models", ()
       hasImages: true,
       modelSupportsImages: false,
     }),
-    { kind: "unsupported", reason: "native-model-required" },
+    { kind: "native", method: "native", reason: "native-only" },
   );
 });
 

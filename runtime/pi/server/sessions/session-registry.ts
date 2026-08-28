@@ -41,12 +41,14 @@ import {
   WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE,
   WORKBENCH_COMPOSER_RESOLUTION_CUSTOM_TYPE,
   WORKBENCH_COMPOSER_USER_CUSTOM_TYPE,
+  WORKBENCH_PROMPT_FAILURE_CUSTOM_TYPE,
   parseWorkbenchComposerResolutionDetails,
   parseWorkbenchComposerUserDetails,
   type WorkbenchComposerCommandResponse,
   type WorkbenchComposerCommandResponseDetails,
   type WorkbenchComposerCommandTrace,
   type WorkbenchComposerCommandSubmission,
+  type WorkbenchPromptFailureDetails,
   type WorkbenchComposerResolutionDetails,
   type WorkbenchComposerSubmission,
   type WorkbenchComposerUserProjection,
@@ -155,6 +157,7 @@ import {
   workbenchInternalPiExtensions,
 } from "../internal-extensions/index";
 import { getProjectTrustService } from "../trust/project-trust-service";
+import { registerWorkbenchShutdownHook } from "../../../server/shutdown-hooks";
 
 export { PiServerError } from "../core/errors";
 
@@ -935,6 +938,11 @@ function persistedComposerResolutionSubmissionIds(entries: readonly SessionEntry
   return submissionIds;
 }
 
+interface ComposerSubmissionReplay {
+  /** Reuse the durable Composer marker so a retry creates an answer branch, not a user branch. */
+  submissionId: string;
+}
+
 class HostedPiSession {
   readonly session: AgentSession;
   private readonly listeners = new Set<SessionEventListener>();
@@ -1251,6 +1259,40 @@ class HostedPiSession {
       const index = this.pendingComposerUserProjections.indexOf(candidate);
       if (index >= 0) this.pendingComposerUserProjections.splice(index, 1);
     };
+  }
+
+  private composerUserEntryId(submissionId: string): string | undefined {
+    return this.session.sessionManager.getBranch().findLast((entry) => {
+      if (entry.type !== "custom_message" || !isWorkbenchComposerUserCustomType(entry.customType)) {
+        return false;
+      }
+      return parseWorkbenchComposerUserDetails(entry.details)?.submissionId === submissionId;
+    })?.id;
+  }
+
+  private async persistImageUnsupportedPromptFailure(
+    submissionId: string,
+    rpcId?: string,
+  ): Promise<boolean> {
+    const userEntryId = this.composerUserEntryId(submissionId);
+    if (!userEntryId) return false;
+    const failure: WorkbenchPromptFailureDetails = {
+      version: 1,
+      submissionId,
+      code: "image-input-unsupported",
+      ...(rpcId === undefined ? {} : { rpcId }),
+      userEntryId,
+    };
+    await this.session.sendCustomMessage(
+      {
+        customType: WORKBENCH_PROMPT_FAILURE_CUSTOM_TYPE,
+        content: "",
+        display: false,
+        details: failure,
+      },
+      { triggerTurn: false },
+    );
+    return true;
   }
 
   private projectAssistantMessageTiming(event: PiEvent, time: number): PiEvent {
@@ -1893,11 +1935,15 @@ class HostedPiSession {
       });
   }
 
-  private activateBranch(leafId: string, persistSelection: boolean): void {
+  private activateBranch(leafId: string | null, persistSelection: boolean): void {
     const manager = this.session.sessionManager;
-    if (!manager.getEntry(leafId)) throw new PiServerError("pi_branch_not_found", 404);
-    manager.branch(leafId);
+    if (leafId === null) manager.resetLeaf();
+    else {
+      if (!manager.getEntry(leafId)) throw new PiServerError("pi_branch_not_found", 404);
+      manager.branch(leafId);
+    }
     if (persistSelection) {
+      if (leafId === null) throw new PiServerError("pi_branch_not_found", 404);
       manager.appendCustomEntry(BRANCH_SELECTION_CUSTOM_TYPE, { selectedLeafId: leafId });
     }
     this.session.agent.state.messages = manager.buildSessionContext().messages;
@@ -1930,11 +1976,134 @@ class HostedPiSession {
     });
   }
 
-  regenerate(messageId: string): Promise<void> {
+  private async retryComposerSubmission(
+    userEntryId: string,
+    submissionId: string,
+    prompt: PiQueuedPrompt,
+    composer: WorkbenchComposerSubmission,
+    rpcId: string,
+  ): Promise<void> {
+    const retryModel = this.session.model
+      ? { provider: this.session.model.provider, modelId: this.session.model.id }
+      : undefined;
+    const retryThinkingLevel = this.session.thinkingLevel;
+
+    this.activateBranch(userEntryId, false);
+    await this.syncContextPolicyFromBranch();
+
+    // Model selection is branch-local in Pi. The selector has already updated the live AgentSession,
+    // but branching back to the failed user marker would otherwise discard its durable model marker.
+    const branchContext = this.session.sessionManager.buildSessionContext();
+    if (
+      retryModel &&
+      (branchContext.model?.provider !== retryModel.provider ||
+        branchContext.model.modelId !== retryModel.modelId)
+    ) {
+      this.session.sessionManager.appendModelChange(retryModel.provider, retryModel.modelId);
+    }
+    if (branchContext.thinkingLevel !== retryThinkingLevel) {
+      this.session.sessionManager.appendThinkingLevelChange(retryThinkingLevel);
+    }
+
+    this.submissionLeaseActive = true;
+    this.notifyRunningChanged();
+    try {
+      let resolvedPrompt = await this.resolveComposerSubmission(prompt, composer, rpcId, {
+        submissionId,
+      });
+      const recognitionSignal = this.imageRecognitionAbort?.signal;
+      if (resolvedPrompt && recognitionSignal?.aborted) {
+        resolvedPrompt = undefined;
+        this.publish({ type: "command_error", code: "pi_attachment_recognition_cancelled" });
+      }
+      if (resolvedPrompt) {
+        try {
+          const started = await this.promptNow(
+            resolvedPrompt.message,
+            resolvedPrompt.images,
+            undefined,
+            recognitionSignal,
+          );
+          if (!started) {
+            this.publish({ type: "command_error", code: "pi_attachment_recognition_cancelled" });
+          }
+        } catch (error) {
+          const projection = this.pendingComposerUserProjections.at(-1);
+          if (projection?.promptText === resolvedPrompt.message) {
+            this.pendingComposerUserProjections.pop();
+          }
+          if (
+            !(error instanceof PiServerError) ||
+            error.code !== "pi_model_image_unsupported" ||
+            !(await this.persistImageUnsupportedPromptFailure(submissionId, rpcId))
+          ) {
+            throw error;
+          }
+        }
+      }
+      this.session.sessionManager.appendCustomEntry(PROMPT_SOURCE_CUSTOM_TYPE, {
+        version: 1,
+        mode: "followUp",
+        source: { kind: "rpc", rpcId },
+      });
+    } finally {
+      this.releaseImageRecognitionLease();
+      this.submissionLeaseActive = false;
+      this.notifyRunningChanged();
+    }
+  }
+
+  regenerate(messageId: string, requestId?: string): Promise<void> {
     return this.runQueueMutation(async () => {
       if (this.isBusy) throw new PiServerError("pi_session_busy", 409);
       const manager = this.session.sessionManager;
       const selectedEntry = manager.getEntry(messageId);
+      const composerDetails =
+        selectedEntry?.type === "custom_message" &&
+        isWorkbenchComposerUserCustomType(selectedEntry.customType)
+          ? parseWorkbenchComposerUserDetails(selectedEntry.details)
+          : undefined;
+      if (composerDetails?.composer) {
+        const attachments = composerDetails.attachments ?? composerDetails.images ?? [];
+        const images: PiImageContent[] = attachments.flatMap((attachment) =>
+          attachment.mimeType.startsWith("image/")
+            ? [
+                {
+                  type: "image" as const,
+                  data: attachment.data,
+                  mimeType: attachment.mimeType,
+                  ...(attachment.name === undefined ? {} : { name: attachment.name }),
+                },
+              ]
+            : [],
+        );
+        const documents: PiDocumentContent[] = attachments.flatMap((attachment) =>
+          attachment.mimeType === "application/pdf"
+            ? [
+                {
+                  type: "file" as const,
+                  data: attachment.data,
+                  mimeType: "application/pdf" as const,
+                  ...(attachment.name === undefined ? {} : { name: attachment.name }),
+                },
+              ]
+            : [],
+        );
+        if (images.length + documents.length > 0) {
+          await this.retryComposerSubmission(
+            messageId,
+            composerDetails.submissionId,
+            {
+              message: composerDetails.composer.text,
+              ...(images.length === 0 ? {} : { images }),
+              ...(documents.length === 0 ? {} : { documents }),
+            },
+            composerDetails.composer,
+            requestId ?? randomUUID(),
+          );
+          return;
+        }
+      }
       const event = selectedEntry ? storedCanonicalEvent(selectedEntry) : undefined;
       const eventData = isRecord(event?.data) ? event.data : undefined;
       const eventMessage = event?.type === "message" ? eventData : eventData?.message;
@@ -2079,6 +2248,16 @@ class HostedPiSession {
     submissionId: string,
     rpcId?: string,
   ): Promise<AttachmentUnderstandingRunResult> {
+    const settingsStore = getImageUnderstandingSettingsStore();
+    const settingsResult = await settingsStore.resolveRuntimeSettings().then(
+      (value) => ({ ok: true as const, value }),
+      (error: unknown) => ({ ok: false as const, error }),
+    );
+    if (settingsResult.ok && settingsResult.value.value.routing === "native-only") {
+      if (documents.length > 0) throw documentPreprocessingRequired();
+      return { kind: "native", images };
+    }
+
     if (this.imageRecognitionTask || this.imageRecognitionAbort) {
       throw new PiServerError("pi_session_busy", 409);
     }
@@ -2088,11 +2267,8 @@ class HostedPiSession {
       this.completeImageRecognition = resolve;
     });
     const task = (async (): Promise<AttachmentUnderstandingRunResult> => {
-      const settingsStore = getImageUnderstandingSettingsStore();
-      let runtimeSettings;
-      try {
-        runtimeSettings = await settingsStore.resolveRuntimeSettings();
-      } catch (error) {
+      if (!settingsResult.ok) {
+        const { error } = settingsResult;
         const lifecycle = new AttachmentRecognitionLifecycle({
           operationId: randomUUID(),
           submissionId,
@@ -2135,6 +2311,7 @@ class HostedPiSession {
               errorCode: lifecycle.current.errorCode ?? "image-settings-invalid",
             };
       }
+      const runtimeSettings = settingsResult.value;
 
       const selectedModel = this.session.model;
       if (selectedModel?.provider) await this.refreshChangedModelProvider(selectedModel.provider);
@@ -2193,6 +2370,11 @@ class HostedPiSession {
         if (route.kind === "unsupported") {
           await lifecycle.failed(route.reason);
           return { kind: "failed", errorCode: route.reason };
+        }
+        if (route.method === "multimodal") {
+          // Attachment settings may point at a provider other than the session model. Reload that
+          // provider too so retries use its current credentials and model configuration.
+          await this.refreshChangedModelProvider(route.providerId);
         }
 
         const inputs = attachments;
@@ -2305,9 +2487,10 @@ class HostedPiSession {
     prompt: PiQueuedPrompt,
     submission: WorkbenchComposerSubmission,
     rpcId?: string,
+    replay?: ComposerSubmissionReplay,
   ): Promise<PiQueuedPrompt | undefined> {
     const plannedCommands = preflightPlanWorkbenchComposerCommands(this.session, submission);
-    const submissionId = randomUUID();
+    const submissionId = replay?.submissionId ?? randomUUID();
     const canonicalDetails = submission.document
       ? {
           version: 3 as const,
@@ -2335,17 +2518,19 @@ class HostedPiSession {
           submissionId,
           sourceText: submission.sourceText,
         };
-    await this.session.sendCustomMessage(
-      {
-        customType: submission.document
-          ? WORKBENCH_COMPOSER_USER_CUSTOM_TYPE
-          : LEGACY_WORKBENCH_COMPOSER_USER_CUSTOM_TYPE,
-        content: "",
-        display: false,
-        details: canonicalDetails,
-      },
-      { triggerTurn: false },
-    );
+    if (!replay) {
+      await this.session.sendCustomMessage(
+        {
+          customType: submission.document
+            ? WORKBENCH_COMPOSER_USER_CUSTOM_TYPE
+            : LEGACY_WORKBENCH_COMPOSER_USER_CUSTOM_TYPE,
+          content: "",
+          display: false,
+          details: canonicalDetails,
+        },
+        { triggerTurn: false },
+      );
+    }
 
     const projection = {
       version: 2 as const,
@@ -2606,8 +2791,9 @@ class HostedPiSession {
           this.publish({ type: "command_error", code: "pi_attachment_recognition_cancelled" });
         }
         if (resolvedPrompt) {
+          const queuedIntoActiveRun = this.hasActiveAgentRun;
           try {
-            if (this.hasActiveAgentRun) {
+            if (queuedIntoActiveRun) {
               admission = {
                 queued: true,
                 queueItemId: await this.queueNow(mode, resolvedPrompt, provenance?.rpcId),
@@ -2627,13 +2813,32 @@ class HostedPiSession {
               }
             }
           } catch (error) {
+            let pendingProjection:
+              | { promptText?: string; projection: WorkbenchComposerUserProjection }
+              | undefined;
             if (resolvedPrompt !== prompt) {
-              const projection = this.pendingComposerUserProjections.at(-1);
-              if (projection?.promptText === resolvedPrompt.message) {
+              pendingProjection = this.pendingComposerUserProjections.at(-1);
+              if (pendingProjection?.promptText === resolvedPrompt.message) {
                 this.pendingComposerUserProjections.pop();
               }
             }
-            throw error;
+            if (
+              !queuedIntoActiveRun &&
+              error instanceof PiServerError &&
+              error.code === "pi_model_image_unsupported"
+            ) {
+              if (!pendingProjection) throw error;
+              if (
+                !(await this.persistImageUnsupportedPromptFailure(
+                  pendingProjection.projection.submissionId,
+                  provenance?.rpcId,
+                ))
+              ) {
+                throw error;
+              }
+            } else {
+              throw error;
+            }
           }
         }
 
@@ -4449,9 +4654,13 @@ export async function getSessionResumeState(id: string): Promise<SessionResumeSt
   return resumeStateFromManager(manager, readSessionEventJournal(manager));
 }
 
-export async function regenerateSession(id: string, messageId: string): Promise<void> {
+export async function regenerateSession(
+  id: string,
+  messageId: string,
+  requestId?: string,
+): Promise<void> {
   const host = await getOrStartSession(id);
-  await host.regenerate(messageId);
+  await host.regenerate(messageId, requestId);
 }
 
 export async function resumeSession(
@@ -4661,3 +4870,15 @@ export function subscribeRunningSessions(listener: RunningListener): () => void 
 }
 
 export type HostedSession = HostedPiSession;
+
+registerWorkbenchShutdownHook("pi-sessions", async () => {
+  const results = await Promise.allSettled(
+    getLoadedSessions().map((session) => session.shutdown()),
+  );
+  const failures = results.flatMap((result) =>
+    result.status === "rejected" ? [result.reason] : [],
+  );
+  if (failures.length > 0) {
+    throw new AggregateError(failures, "One or more Pi sessions failed to shut down.");
+  }
+});

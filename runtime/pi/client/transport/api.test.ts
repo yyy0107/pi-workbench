@@ -58,6 +58,7 @@ const {
   respondPiRpc,
   searchPiPackageCatalog,
   selectPiRpcSessionModel,
+  waitForPendingPiRpcSessionModelSelection,
   startPiModelProviderLogin,
   streamPiWorkspaceFileText,
   testPiModelImageInput,
@@ -408,6 +409,46 @@ test("successful model selection invalidates only that session selection", async
   );
   assert.equal(getPiSessionModelSelectionRevision("session-1"), initialSelectedRevision + 1);
   assert.equal(selectedSessionNotifications, 1);
+});
+
+test("model-sensitive actions can wait for an optimistic session selection to commit", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  let completeSelection: (() => void) | undefined;
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as { rpcId: string };
+    await new Promise<void>((resolve) => {
+      completeSelection = resolve;
+    });
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: {
+        ok: true,
+        value: { selected: { provider: "openai", model: "gpt-vision" } },
+      },
+    });
+  };
+
+  const selection = selectPiRpcSessionModel({
+    sessionId: "session-model-race",
+    provider: "openai",
+    model: "gpt-vision",
+  });
+  let retryUnblocked = false;
+  const retryGate = waitForPendingPiRpcSessionModelSelection("session-model-race").then(() => {
+    retryUnblocked = true;
+  });
+
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(retryUnblocked, false);
+  assert.ok(completeSelection);
+  completeSelection();
+  await Promise.all([selection, retryGate]);
+  assert.equal(retryUnblocked, true);
 });
 
 test("image-input test helper uses the typed model capability RPC", async (t) => {

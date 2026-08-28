@@ -487,8 +487,11 @@ export interface DiscoverModelsPayload {
   baseURL?: string;
   api?: string;
   apiKey?: string;
-  /** Custom providers must bypass their self-declared runtime catalog for capability discovery. */
-  source?: "catalog" | "endpoint";
+  /**
+   * `provider` refreshes through Pi's provider-owned auth/catalog path;
+   * `endpoint` explicitly bypasses self-declared runtime metadata.
+   */
+  source?: "catalog" | "provider" | "endpoint";
 }
 
 export type ModelDiscoveryFailureReason =
@@ -1770,6 +1773,8 @@ export interface SessionRegeneratePayload {
   sessionId: string;
   /** Stable journal entry id of the user message to regenerate from. */
   messageId: string;
+  /** Fresh correlation id used when retrying attachment preprocessing from a Composer marker. */
+  requestId?: string;
 }
 
 export interface SessionRegenerateValue {

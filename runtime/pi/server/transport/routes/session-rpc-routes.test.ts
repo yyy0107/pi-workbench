@@ -97,7 +97,11 @@ test("maps every extracted RPC method to the matching protocol operation", async
     {
       method: "session.regenerate",
       operation: "regenerate",
-      payload: { sessionId: "session-1", messageId: "message-1" },
+      payload: {
+        sessionId: "session-1",
+        messageId: "message-1",
+        requestId: "attachment-retry-1",
+      },
     },
     {
       method: "session.resume",

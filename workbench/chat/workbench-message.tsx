@@ -19,6 +19,7 @@ import { readAgentRunRecovery } from "@/runtime/assistant-ui/agent-runtime-extra
 import { parsePiConversationEvent } from "@/runtime/pi/client/messages/conversation-events";
 import { readPiUsage } from "@/runtime/pi/client/messages/pi-usage";
 import { parseWorkbenchComposerCommandResponseDetails } from "@/runtime/shared/composer/request";
+import { parseWorkbenchPromptFailureDetails } from "@/runtime/shared/composer/request";
 import { parsePiMessageTermination } from "@/runtime/pi/shared/messages/termination";
 
 import { WorkbenchComposerCommandResponse } from "./composer-command-response";
@@ -67,6 +68,9 @@ function WorkbenchMessageError() {
   );
   const termination = parsePiMessageTermination(
     useAuiState((state) => state.message.metadata.custom.piTermination),
+  );
+  const promptFailure = parseWorkbenchPromptFailureDetails(
+    useAuiState((state) => state.message.metadata.custom.workbenchPromptFailure),
   );
   const outputTokens = readPiUsage(
     useAuiState((state) => state.message.metadata.custom.piUsage),
@@ -121,6 +125,10 @@ function WorkbenchMessageError() {
     case "provider-error":
       detail = rawDetail ?? t("workbench.chat.errors.providerFailure");
       break;
+  }
+  if (promptFailure?.code === "image-input-unsupported") {
+    title = t("workbench.chat.errors.imageInputUnsupportedTitle");
+    detail = t("workbench.chat.errors.imageInputUnsupported");
   }
 
   const resumeCheckpoint =

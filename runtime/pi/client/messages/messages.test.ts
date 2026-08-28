@@ -15,6 +15,7 @@ import {
   attachmentRecognitionAssistantMessage,
   coalesceConsecutiveAssistantMessages,
   isAttachmentRecognitionOnlyAssistant,
+  isAttachmentRecognitionRetrySource,
   mergePiContextTracePartsFromMessages,
   optimisticUserMessage,
   piAssistantToThreadMessage,
@@ -32,6 +33,7 @@ import {
   WORKBENCH_COMPOSER_RESOLUTION_CUSTOM_TYPE,
   WORKBENCH_COMPOSER_RUN_CONFIG_KEY,
   WORKBENCH_COMPOSER_USER_CUSTOM_TYPE,
+  WORKBENCH_PROMPT_FAILURE_CUSTOM_TYPE,
 } from "@/runtime/shared/composer/request";
 import { conversationEventThreadMessage } from "./conversation-events";
 import {
@@ -556,6 +558,72 @@ test("keeps a failed recognition on its unresolved originating turn when newer t
   );
 });
 
+test("projects cancelled attachment recognition as an interrupted retryable turn", () => {
+  const cancelled = attachmentRecognitionAssistantMessage({
+    version: 1,
+    operationId: "cancelled-operation",
+    submissionId: "cancelled-submission",
+    rpcId: "cancelled-rpc",
+    revision: 2,
+    status: "cancelled",
+    method: "ocr",
+    providerId: "paddleocr",
+    attachmentCount: 1,
+    completedCount: 0,
+    timestamps: { createdAt: 1_000, updatedAt: 1_250, completedAt: 1_250 },
+  });
+
+  assert.deepEqual(cancelled.status, { type: "incomplete", reason: "cancelled" });
+  assert.deepEqual(cancelled.metadata.custom.piTermination, {
+    schemaVersion: 1,
+    kind: "cancelled",
+    stopReason: "aborted",
+    source: "workbench",
+  });
+  assert.deepEqual(cancelled.metadata.custom.piTurnTiming, {
+    startedAt: 1_000,
+    completedAt: 1_250,
+  });
+
+  const source: Extract<ThreadMessage, { role: "user" }> = {
+    id: "composer-marker",
+    role: "user",
+    content: [
+      { type: "text", text: "Read this image" },
+      { type: "image", image: "data:image/png;base64,aW1hZ2U=" },
+    ],
+    attachments: [],
+    createdAt: new Date(1_000),
+    metadata: {
+      custom: {
+        workbenchAttachmentRecognition: {
+          version: 1,
+          operationId: "cancelled-operation",
+          submissionId: "cancelled-submission",
+          rpcId: "cancelled-rpc",
+          revision: 2,
+          status: "cancelled",
+          method: "ocr",
+          providerId: "paddleocr",
+          attachmentCount: 1,
+          completedCount: 0,
+          timestamps: { createdAt: 1_000, updatedAt: 1_250, completedAt: 1_250 },
+        },
+        workbenchComposerSubmission: {
+          version: 2,
+          document: [{ type: "text", text: "Read this image" }],
+          sourceText: "Read this image",
+          text: "Read this image",
+          context: [],
+          metadata: {},
+          commands: [],
+        },
+      },
+    },
+  };
+  assert.equal(isAttachmentRecognitionRetrySource(source), true);
+});
+
 test("renders token-only Composer source text in its optimistic user bubble", () => {
   const sourceText = ":pi-command[compact|Compact] ";
   const command = {
@@ -784,6 +852,83 @@ test("restores the canonical Composer document, resolution trace, and one projec
     { type: "text", text: " inspect this" },
   ]);
   assert.equal(user.metadata.custom.piResolvedEntryId, "resolved");
+});
+
+test("projects a durable prompt failure as an assistant error after its accepted user message", () => {
+  const history: PiSessionHistory = {
+    sessionId: "session",
+    context: {
+      entryIds: ["composer-entry", "failure-entry"],
+      thinkingLevel: "off",
+      model: null,
+      messages: [
+        {
+          role: "custom",
+          customType: WORKBENCH_COMPOSER_USER_CUSTOM_TYPE,
+          content: "",
+          display: false,
+          details: {
+            version: 3,
+            submissionId: "image-submission",
+            sourceText: "Describe this image",
+            text: "Describe this image",
+            document: [{ type: "text", text: "Describe this image" }],
+            commands: [],
+            composer: {
+              version: 2,
+              document: [{ type: "text", text: "Describe this image" }],
+              sourceText: "Describe this image",
+              text: "Describe this image",
+              context: [],
+              metadata: {},
+              commands: [],
+            },
+            attachments: [{ data: "iVBORw0KGgo=", mimeType: "image/png", name: "image.png" }],
+            status: "accepted",
+          },
+          timestamp: 10,
+        },
+        {
+          role: "custom",
+          customType: WORKBENCH_PROMPT_FAILURE_CUSTOM_TYPE,
+          content: "",
+          display: false,
+          details: {
+            version: 1,
+            submissionId: "image-submission",
+            code: "image-input-unsupported",
+            rpcId: "session.prompt:image",
+          },
+          timestamp: 11,
+        },
+      ],
+    },
+  };
+
+  const converted = piHistoryToThreadMessages(history);
+
+  assert.deepEqual(
+    converted.map((message) => message.role),
+    ["user", "assistant"],
+  );
+  assert.equal(
+    converted[0]?.content.some((part) => part.type === "image"),
+    true,
+  );
+  const failure = converted[1];
+  assert.equal(failure?.role, "assistant");
+  if (failure?.role !== "assistant") return;
+  assert.deepEqual(failure.status, {
+    type: "incomplete",
+    reason: "error",
+    error: "image-input-unsupported",
+  });
+  assert.deepEqual(failure.metadata.custom.workbenchPromptFailure, {
+    version: 1,
+    submissionId: "image-submission",
+    code: "image-input-unsupported",
+    rpcId: "session.prompt:image",
+  });
 });
 
 test("places a resolved follow-up Composer message after the assistant turn it waited for", () => {

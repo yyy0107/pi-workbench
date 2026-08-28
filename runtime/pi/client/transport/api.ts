@@ -830,15 +830,37 @@ export function listPiRpcSessionModels(payload: SessionModelsPayload): Promise<S
   return callPiRpc("session.models", payload);
 }
 
+const pendingSessionModelSelections = new Map<string, Promise<SessionSelectModelValue>>();
+
+/**
+ * Wait until the selector's optimistic session model has been committed by the server. Retry and
+ * other model-sensitive actions use this to avoid racing the request that produced the visible UI.
+ */
+export async function waitForPendingPiRpcSessionModelSelection(sessionId: string): Promise<void> {
+  while (true) {
+    const pending = pendingSessionModelSelections.get(sessionId);
+    if (!pending) return;
+    await pending;
+  }
+}
+
 export async function selectPiRpcSessionModel(
   payload: SessionSelectModelPayload,
 ): Promise<SessionSelectModelValue> {
-  const value = await callPiRpc<SessionSelectModelPayload, SessionSelectModelValue>(
+  const request = callPiRpc<SessionSelectModelPayload, SessionSelectModelValue>(
     "session.selectModel",
     payload,
   );
-  invalidatePiSessionModelSelection(payload.sessionId);
-  return value;
+  pendingSessionModelSelections.set(payload.sessionId, request);
+  try {
+    const value = await request;
+    invalidatePiSessionModelSelection(payload.sessionId);
+    return value;
+  } finally {
+    if (pendingSessionModelSelections.get(payload.sessionId) === request) {
+      pendingSessionModelSelections.delete(payload.sessionId);
+    }
+  }
 }
 
 export function getPiRpcSessionContextPolicy(

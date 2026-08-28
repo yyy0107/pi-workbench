@@ -19,8 +19,10 @@ import {
 import { deriveSessionDisplayTitle } from "@/runtime/pi/shared/sessions/display-title";
 import {
   isWorkbenchComposerCommandResponseCustomType,
-  parseWorkbenchComposerUserProjection,
   parseWorkbenchComposerCommandResponseDetails,
+  parseWorkbenchComposerUserProjection,
+  parseWorkbenchPromptFailureDetails,
+  WORKBENCH_PROMPT_FAILURE_CUSTOM_TYPE,
 } from "@/runtime/shared/composer/request";
 import {
   parseAttachmentRecognitionSnapshot,
@@ -79,6 +81,7 @@ import {
   setPiWorkspaceSessionPinned,
   unarchivePiWorkspaceSession,
   updatePiRpcSessionQueue,
+  waitForPendingPiRpcSessionModelSelection,
 } from "../transport/api";
 import type {
   HostDescription,
@@ -114,6 +117,7 @@ import {
   eventMessage,
   hasRunningWorkbenchCompactCommandResponse,
   isAttachmentRecognitionOnlyAssistant,
+  isAttachmentRecognitionRetrySource,
   isPiContextTraceOnlyAssistant,
   mergePiContextTracePartsFromMessages,
   optimisticUserMessage,
@@ -128,6 +132,7 @@ import {
   upsertAttachmentRecognitionAssistantPart,
   upsertAttachmentRecognitionInMessages,
   upsertWorkbenchComposerCommandResponse,
+  upsertWorkbenchPromptFailure,
   withoutAttachmentRecognitionUserParts,
   workbenchComposerCommandResponseId,
 } from "../messages/messages";
@@ -341,6 +346,7 @@ export type PiInteractionResponse =
   | { kind: "cancel"; message?: string };
 
 export type PiSessionContextTraceListener = (event: SessionContextTraceEventSummary) => void;
+export type PiHostEventListener = (event: HostStreamPayload) => void;
 
 interface StoredPendingInteraction {
   readonly interaction: PiPendingInteraction;
@@ -423,6 +429,17 @@ function workspaceViewsEqual(left: WorkspaceView | undefined, right: WorkspaceVi
     left.sessionIds.length === right.sessionIds.length &&
     left.sessionIds.every((sessionId, index) => sessionId === right.sessionIds[index])
   );
+}
+
+function sameComposerRetryUser(left: ThreadMessage, right: ThreadMessage): boolean {
+  if (left.role !== "user" || right.role !== "user") return false;
+  if (
+    typeof left.metadata.custom.workbenchComposerSubmissionId !== "string" ||
+    typeof right.metadata.custom.workbenchComposerSubmissionId !== "string"
+  ) {
+    return false;
+  }
+  return sameUserPrompt(left, right);
 }
 
 export class PiClientSession {
@@ -542,8 +559,14 @@ export class PiClientSession {
       });
       let effectiveParentId: string | null = null;
       for (const message of branchMessages) {
-        const canonical = repositoryItems.get(message.id);
         let effectiveId = message.id;
+        const equivalentComposerRetry = [...repositoryItems.values()].find(
+          (item) =>
+            item.parentId === effectiveParentId && sameComposerRetryUser(item.message, message),
+        );
+        if (equivalentComposerRetry) effectiveId = equivalentComposerRetry.message.id;
+
+        const canonical = repositoryItems.get(effectiveId);
         if (canonical && canonical.parentId !== effectiveParentId) {
           if (branch === activeBranch) return fallback;
           effectiveId = scopedMessageId(branch.leafId, message.id);
@@ -918,7 +941,7 @@ export class PiClientSession {
         return;
       }
       this.manager.commitPromptFeedback(workspaceFeedbackClaim);
-      this.manager.notePrompt(submittedRemoteId, prompt.text);
+      this.manager.notePrompt(submittedRemoteId, prompt.text, this.snapshotValue.isRunning);
       if (this.promptRequestPending) {
         this.promptStartTimer = setTimeout(() => {
           this.promptRequestPending = false;
@@ -966,6 +989,11 @@ export class PiClientSession {
     if (!source) throw new PiApiError("pi_empty_prompt", 400);
 
     if (!this.remoteIdValue) throw new PiApiError("pi_session_not_found", 404);
+    await waitForPendingPiRpcSessionModelSelection(this.remoteIdValue);
+    if (this.disposed) return;
+    const attachmentRetryRpcId = isAttachmentRecognitionRetrySource(source)
+      ? createPiRpcId("session.regenerate-attachment")
+      : undefined;
     const resolvedEntryId = source.metadata.custom.piResolvedEntryId;
     const sourceEntryId = typeof resolvedEntryId === "string" ? resolvedEntryId : source.id;
     const sourceSequence = source.metadata.custom.piEventSeq;
@@ -992,6 +1020,18 @@ export class PiClientSession {
       optimisticAssistantId,
       { optimistic: true, streaming: true, createdAt: Date.now() },
     );
+    if (attachmentRetryRpcId) {
+      this.streamingMessage = {
+        ...this.streamingMessage,
+        metadata: {
+          ...this.streamingMessage.metadata,
+          custom: {
+            ...this.streamingMessage.metadata.custom,
+            workbenchPromptRpcId: attachmentRetryRpcId,
+          },
+        },
+      };
+    }
     if (typeof sourceSequence === "number") this.lastSequence = sourceSequence;
     this.promptRequestPending = true;
     this.localRunLeaseActive = true;
@@ -1001,7 +1041,11 @@ export class PiClientSession {
     try {
       await this.manager.connections.ensureSessionEvents(this.remoteIdValue, this.handleEvent);
       if (this.disposed) return;
-      await regeneratePiRpcSession({ sessionId: this.remoteIdValue, messageId: sourceEntryId });
+      await regeneratePiRpcSession({
+        sessionId: this.remoteIdValue,
+        messageId: sourceEntryId,
+        ...(attachmentRetryRpcId === undefined ? {} : { requestId: attachmentRetryRpcId }),
+      });
     } catch (error) {
       if (this.streamingMessage?.id === optimisticAssistantId) this.streamingMessage = undefined;
       if (this.activeAssistantMessageId === optimisticAssistantId) {
@@ -1318,18 +1362,24 @@ export class PiClientSession {
       return;
     }
 
+    const customMessage =
+      event.type === "message" && event.role === "custom"
+        ? event
+        : event.type === "message_end" && eventMessage(event)?.role === "custom"
+          ? eventMessage(event)
+          : undefined;
+
     if (
-      event.type === "message" &&
-      event.role === "custom" &&
-      isWorkbenchComposerCommandResponseCustomType(event.customType)
+      customMessage?.role === "custom" &&
+      isWorkbenchComposerCommandResponseCustomType(customMessage.customType)
     ) {
-      const response = parseWorkbenchComposerCommandResponseDetails(event.details);
+      const response = parseWorkbenchComposerCommandResponseDetails(customMessage.details);
       if (response) {
         if (response.status === "running") this.markPromptStarted();
         this.applyComposerCommandResponse(
           response,
-          typeof event.timestamp === "number" && Number.isFinite(event.timestamp)
-            ? event.timestamp
+          typeof customMessage.timestamp === "number" && Number.isFinite(customMessage.timestamp)
+            ? customMessage.timestamp
             : Date.now(),
         );
       }
@@ -1337,12 +1387,28 @@ export class PiClientSession {
     }
 
     if (
-      event.type === "message" &&
-      event.role === "custom" &&
-      (event.customType === WORKBENCH_ATTACHMENT_RECOGNITION_CUSTOM_TYPE ||
-        event.customType === WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE)
+      customMessage?.role === "custom" &&
+      customMessage.customType === WORKBENCH_PROMPT_FAILURE_CUSTOM_TYPE
     ) {
-      const snapshot = parseAttachmentRecognitionSnapshot(event.details);
+      const failure = parseWorkbenchPromptFailureDetails(customMessage.details);
+      if (failure) {
+        this.markPromptStarted();
+        this.applyPromptFailure(
+          failure,
+          typeof customMessage.timestamp === "number" && Number.isFinite(customMessage.timestamp)
+            ? customMessage.timestamp
+            : Date.now(),
+        );
+      }
+      return;
+    }
+
+    if (
+      customMessage?.role === "custom" &&
+      (customMessage.customType === WORKBENCH_ATTACHMENT_RECOGNITION_CUSTOM_TYPE ||
+        customMessage.customType === WORKBENCH_IMAGE_RECOGNITION_CUSTOM_TYPE)
+    ) {
+      const snapshot = parseAttachmentRecognitionSnapshot(customMessage.details);
       if (snapshot) {
         this.markPromptStarted();
         this.applyAttachmentRecognitionSnapshot(snapshot);
@@ -1719,6 +1785,75 @@ export class PiClientSession {
       );
     }
     this.publishMessages();
+  }
+
+  private applyPromptFailure(
+    failure: NonNullable<ReturnType<typeof parseWorkbenchPromptFailureDetails>>,
+    timestamp: number,
+  ): void {
+    this.bindPromptFailureUserEntry(failure);
+    const preferredId =
+      failure.rpcId !== undefined &&
+      this.streamingMessage?.metadata.custom.workbenchPromptRpcId === failure.rpcId
+        ? this.streamingMessage.id
+        : undefined;
+    const hasPersistedFailure = this.baseMessages.some(
+      (message) =>
+        parseWorkbenchPromptFailureDetails(message.metadata.custom.workbenchPromptFailure)
+          ?.submissionId === failure.submissionId,
+    );
+    if (hasPersistedFailure) {
+      this.baseMessages = upsertWorkbenchPromptFailure(
+        this.baseMessages,
+        failure,
+        timestamp,
+        preferredId,
+      );
+    } else {
+      this.liveMessages = upsertWorkbenchPromptFailure(
+        this.liveMessages,
+        failure,
+        timestamp,
+        preferredId,
+      );
+    }
+    this.activeMessageTiming = undefined;
+    this.activeAssistantMessageId = undefined;
+    this.streamingMessage = undefined;
+    this.terminalResponseReceived = true;
+    this.clearLocalRunLease();
+    this.publishMessagesAndSetRunning(false);
+    if (this.remoteIdValue) this.manager.connections.scheduleSessionClose(this.remoteIdValue);
+  }
+
+  private bindPromptFailureUserEntry(
+    failure: NonNullable<ReturnType<typeof parseWorkbenchPromptFailureDetails>>,
+  ): void {
+    if (failure.rpcId === undefined || failure.userEntryId === undefined) return;
+    const bind = (messages: ThreadMessage[]) => {
+      const index = messages.findLastIndex(
+        (message) =>
+          message.role === "user" && message.metadata.custom.workbenchPromptRpcId === failure.rpcId,
+      );
+      if (index < 0) return false;
+      const current = messages[index];
+      if (!current || current.role !== "user") return false;
+      const updated = [...messages];
+      updated[index] = {
+        ...current,
+        metadata: {
+          ...current.metadata,
+          custom: {
+            ...current.metadata.custom,
+            piResolvedEntryId: failure.userEntryId,
+          },
+        },
+      };
+      if (messages === this.liveMessages) this.liveMessages = updated;
+      else this.baseMessages = updated;
+      return true;
+    };
+    if (!bind(this.liveMessages)) bind(this.baseMessages);
   }
 
   private applyAttachmentRecognitionSnapshot(incoming: AttachmentRecognitionSnapshot): void {
@@ -2226,6 +2361,8 @@ export class PiSessionManager {
   private readonly threadListListeners = new Set<Listener>();
   private readonly activeSessionListeners = new Set<Listener>();
   private readonly contextTraceListeners = new Set<PiSessionContextTraceListener>();
+  private readonly hostEventListeners = new Set<PiHostEventListener>();
+  private readonly connectionReadyListeners = new Set<Listener>();
   private readonly threadStateBuckets = new Map<string, PiThreadStateBucket>();
   private readonly summaries = new Map<string, PiSessionSummary>();
   private readonly workspaces = new Map<string, WorkspaceView>();
@@ -2632,6 +2769,20 @@ export class PiSessionManager {
     return () => this.contextTraceListeners.delete(listener);
   };
 
+  /** Subscribe to validated lightweight host deltas owned by feature-scoped clients. */
+  subscribeHostEvents = (listener: PiHostEventListener): (() => void) => {
+    if (this.disposed) return () => undefined;
+    this.hostEventListeners.add(listener);
+    return () => this.hostEventListeners.delete(listener);
+  };
+
+  /** Re-fetch feature baselines after each paired host/mux reconnect generation becomes ready. */
+  subscribeConnectionReady = (listener: Listener): (() => void) => {
+    if (this.disposed) return () => undefined;
+    this.connectionReadyListeners.add(listener);
+    return () => this.connectionReadyListeners.delete(listener);
+  };
+
   start(): Promise<void> {
     if (this.disposed) return Promise.resolve();
     // Realtime transport is independent from the unary catalog. Starting it first lets the host
@@ -2701,6 +2852,8 @@ export class PiSessionManager {
     this.threadListListeners.clear();
     this.activeSessionListeners.clear();
     this.contextTraceListeners.clear();
+    this.hostEventListeners.clear();
+    this.connectionReadyListeners.clear();
     this.threadStateBuckets.clear();
   }
 
@@ -2708,6 +2861,7 @@ export class PiSessionManager {
     if (this.disposed) return;
     if (generation < this.connectionGeneration) return;
     this.connectionGeneration = generation;
+    for (const listener of this.connectionReadyListeners) listener();
     let pendingChanged = false;
     for (const [key, pending] of this.pendingInteractions) {
       if (pending.generation >= generation) continue;
@@ -2815,6 +2969,13 @@ export class PiSessionManager {
     if (this.disposed) return;
     if (generation < this.connectionGeneration) return;
     this.connectionGeneration = generation;
+    for (const listener of this.hostEventListeners) {
+      try {
+        listener(payload);
+      } catch {
+        // Feature listeners are isolated from the shared transport reducer.
+      }
+    }
 
     if (payload.type === "host/session-status") {
       this.updateRunning(payload.sessionId, payload.running, undefined, payload.runTiming);
@@ -3520,14 +3681,14 @@ export class PiSessionManager {
     return this.waitingForUserInput.has(this.aliases.get(threadId) ?? threadId);
   }
 
-  notePrompt(remoteId: string, text: string): void {
+  notePrompt(remoteId: string, text: string, running = true): void {
     const summary = this.summaries.get(remoteId);
     if (!summary) return;
     const changed = this.setSummary({
       ...summary,
       firstMessage: summary.firstMessage || deriveSessionDisplayTitle(text),
       modified: new Date().toISOString(),
-      running: true,
+      running,
     });
     if (changed) this.notify();
   }

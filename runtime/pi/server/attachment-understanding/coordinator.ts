@@ -81,9 +81,7 @@ export function decideAttachmentUnderstandingRoute(
   }
   if (input.settings.routing === "native-only") {
     if (hasDocuments) return { kind: "unsupported", reason: "document-ocr-required" };
-    return input.modelSupportsImages
-      ? { kind: "native", method: "native", reason: "native-only" }
-      : { kind: "unsupported", reason: "native-model-required" };
+    return { kind: "native", method: "native", reason: "native-only" };
   }
   if (hasDocuments && input.settings.engine !== "ocr") {
     return { kind: "unsupported", reason: "document-ocr-required" };

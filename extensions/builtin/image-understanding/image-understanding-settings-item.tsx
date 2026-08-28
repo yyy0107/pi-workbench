@@ -11,7 +11,7 @@ import {
 } from "react";
 import { ChevronDownIcon, ExternalLinkIcon } from "lucide-react";
 
-import { WorkbenchCodeEditor } from "@/components/code-highlighting";
+import { WorkbenchCodeEditor } from "@/components/code-highlighting/workbench-code-editor";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuRadioGroup } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -85,8 +85,8 @@ interface ChoiceOption<TValue extends string> {
 function draftFromValue(value: AttachmentUnderstandingSettingsValue): SettingsDraft {
   const adapter = ocrAdapterSettingsFromValue(value);
   return {
-    // Keep accepting historical `auto` values from the wire, but only expose explicit choices.
-    routing: value.routing === "auto" ? "always-preprocess" : value.routing,
+    // Treat the historical `auto` default as the current model-native default in settings.
+    routing: value.routing === "auto" ? "native-only" : value.routing,
     engine: value.engine,
     ocrAdapterPreset: adapter.preset,
     ocrAdapterSource: adapter.source,
@@ -383,16 +383,12 @@ export function AttachmentUnderstandingSettingsItem({
   const routingOptions = useMemo<readonly ChoiceOption<AttachmentUnderstandingRoutingChoice>[]>(
     () => [
       {
-        value: "always-preprocess",
-        label: t("extensions.imageUnderstanding.settings.routing.options.alwaysPreprocess"),
-      },
-      {
         value: "native-only",
         label: t("extensions.imageUnderstanding.settings.routing.options.nativeOnly"),
       },
       {
-        value: "disabled",
-        label: t("extensions.imageUnderstanding.settings.routing.options.disabled"),
+        value: "always-preprocess",
+        label: t("extensions.imageUnderstanding.settings.routing.options.alwaysPreprocess"),
       },
     ],
     [t],

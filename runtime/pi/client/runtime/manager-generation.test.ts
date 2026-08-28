@@ -221,6 +221,122 @@ test("regenerates from the existing user node without appending a duplicate user
   );
 });
 
+test("retries a cancelled attachment Composer marker with a fresh correlation id", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  const requests: Array<{ method: string; payload: unknown }> = [];
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as {
+      rpcId: string;
+      method: string;
+      payload: unknown;
+    };
+    requests.push({ method: request.method, payload: request.payload });
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: { ok: true, value: { accepted: true } },
+    });
+  };
+
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("remote-session", "remote-session");
+  const user: ThreadMessage = {
+    id: "composer-marker-1",
+    role: "user",
+    content: [
+      { type: "text", text: "Read this image" },
+      { type: "image", image: "data:image/png;base64,aW1hZ2U=" },
+    ],
+    attachments: [],
+    createdAt: new Date(1_000),
+    metadata: {
+      custom: {
+        workbenchAttachmentRecognition: {
+          version: 1,
+          operationId: "cancelled-operation",
+          submissionId: "cancelled-submission",
+          rpcId: "original-prompt-rpc",
+          revision: 2,
+          status: "cancelled",
+          method: "ocr",
+          providerId: "paddleocr",
+          attachmentCount: 1,
+          completedCount: 0,
+          timestamps: { createdAt: 1_000, updatedAt: 1_100, completedAt: 1_100 },
+        },
+        workbenchComposerSubmission: {
+          version: 2,
+          document: [{ type: "text", text: "Read this image" }],
+          sourceText: "Read this image",
+          text: "Read this image",
+          context: [],
+          metadata: {},
+          commands: [],
+        },
+      },
+    },
+  };
+  const cancelledAssistant: ThreadMessage = {
+    id: "cancelled-assistant",
+    role: "assistant",
+    content: [],
+    status: { type: "incomplete", reason: "cancelled" },
+    createdAt: new Date(1_100),
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      steps: [],
+      custom: {},
+    },
+  };
+  const internals = session as unknown as {
+    baseMessages: ThreadMessage[];
+    baseMessageRepository: {
+      headId: string | null;
+      messages: Array<{ message: ThreadMessage; parentId: string | null }>;
+    };
+    snapshotValue: ReturnType<typeof session.getSnapshot>;
+  };
+  internals.baseMessages = [user, cancelledAssistant];
+  internals.baseMessageRepository = {
+    headId: cancelledAssistant.id,
+    messages: [
+      { message: user, parentId: null },
+      { message: cancelledAssistant, parentId: user.id },
+    ],
+  };
+  internals.snapshotValue = {
+    ...internals.snapshotValue,
+    messages: [user, cancelledAssistant],
+    messageRepository: internals.baseMessageRepository,
+    isLoading: false,
+  };
+  const connectionInternals = manager.connections as unknown as {
+    ensureSessionEvents(): Promise<void>;
+  };
+  connectionInternals.ensureSessionEvents = async () => undefined;
+
+  await session.retry(user.id, undefined);
+
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0]?.method, "session.regenerate");
+  const payload = requests[0]?.payload as
+    | { sessionId?: string; messageId?: string; requestId?: string }
+    | undefined;
+  assert.equal(payload?.sessionId, "remote-session");
+  assert.equal(payload?.messageId, "composer-marker-1");
+  assert.equal(typeof payload?.requestId, "string");
+  assert.notEqual(payload?.requestId, "original-prompt-rpc");
+  const activeAssistant = session.getSnapshot().messages.at(-1);
+  assert.equal(activeAssistant?.role, "assistant");
+  assert.equal(activeAssistant?.metadata.custom.workbenchPromptRpcId, payload?.requestId);
+});
+
 test("continues a matching checkpoint without regenerating or truncating messages", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => {
@@ -642,6 +758,142 @@ test("maps regenerated assistant answers to sibling repository branches", (t) =>
   assert.equal(state.repository.headId, "journal-assistant-2");
   assert.equal(state.leafByHeadMessageId.get("journal-assistant-1"), "leaf-1");
   assert.equal(state.leafByHeadMessageId.get("journal-assistant-2"), "leaf-2");
+});
+
+test("collapses legacy duplicate Composer users into answer branches", (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("remote-session", "remote-session");
+  const composer: SessionHistoryValue["events"][number] = {
+    event: {
+      type: "message",
+      seq: 0,
+      time: 1_000,
+      entryId: "composer-user",
+      data: {
+        role: "custom",
+        customType: "workbench.composer-user.v3",
+        content: "",
+        display: false,
+        details: {
+          version: 3,
+          submissionId: "image-submission",
+          sourceText: "Describe this image",
+          text: "Describe this image",
+          document: [{ type: "text", text: "Describe this image" }],
+          commands: [],
+          composer: {
+            version: 2,
+            document: [{ type: "text", text: "Describe this image" }],
+            sourceText: "Describe this image",
+            text: "Describe this image",
+            context: [],
+            metadata: {},
+            commands: [],
+          },
+          attachments: [{ data: "aW1hZ2U=", mimeType: "image/png" }],
+          status: "accepted",
+        },
+        timestamp: 1_000,
+      },
+    },
+  };
+  const failure: SessionHistoryValue["events"][number] = {
+    event: {
+      type: "message",
+      seq: 1,
+      time: 2_000,
+      entryId: "attachment-failure",
+      data: {
+        role: "custom",
+        customType: "workbench.prompt-failure.v1",
+        content: "",
+        display: false,
+        details: {
+          version: 1,
+          submissionId: "image-submission",
+          code: "image-input-unsupported",
+          userEntryId: "composer-user",
+        },
+        timestamp: 2_000,
+      },
+    },
+  };
+  const retriedComposer = structuredClone(composer);
+  retriedComposer.event.entryId = "composer-retry-user";
+  (retriedComposer.event.data as { details: { submissionId: string } }).details.submissionId =
+    "image-retry-submission";
+  const resolvedUser: SessionHistoryValue["events"][number] = {
+    event: {
+      type: "message",
+      seq: 1,
+      time: 3_000,
+      entryId: "resolved-user",
+      data: {
+        role: "user",
+        content: [
+          { type: "text", text: "compiled prompt" },
+          { type: "image", mimeType: "image/png", data: "aW1hZ2U=" },
+        ],
+        timestamp: 3_000,
+        workbenchComposer: {
+          version: 2,
+          submissionId: "image-retry-submission",
+          sourceText: "Describe this image",
+          document: [{ type: "text", text: "Describe this image" }],
+          hidden: true,
+        },
+      },
+    },
+  };
+  const answer: SessionHistoryValue["events"][number] = {
+    event: {
+      type: "message",
+      seq: 2,
+      time: 4_000,
+      entryId: "retried-answer",
+      data: {
+        role: "assistant",
+        content: [{ type: "text", text: "It is a screenshot." }],
+        timestamp: 4_000,
+      },
+    },
+  };
+  const history: SessionHistoryValue = {
+    events: [composer, resolvedUser, answer],
+    hasMore: false,
+    branches: {
+      headLeafId: "answer-leaf",
+      items: [
+        { leafId: "failure-leaf", events: [composer, failure] },
+        { leafId: "answer-leaf", events: [retriedComposer, resolvedUser, answer] },
+      ],
+    },
+  };
+  const internals = session as unknown as {
+    messageRepositoryFromHistory(
+      sessionId: string,
+      value: SessionHistoryValue,
+      activeMessages: readonly ThreadMessage[],
+    ): {
+      repository: {
+        headId: string | null;
+        messages: Array<{ message: ThreadMessage; parentId: string | null }>;
+      };
+    };
+  };
+
+  const state = internals.messageRepositoryFromHistory("remote-session", history, []);
+  const users = state.repository.messages.filter(({ message }) => message.role === "user");
+  const byId = new Map(state.repository.messages.map((item) => [item.message.id, item]));
+
+  assert.deepEqual(
+    users.map(({ message }) => message.id),
+    ["composer-retry-user"],
+  );
+  assert.equal(byId.get("attachment-failure")?.parentId, "composer-retry-user");
+  assert.equal(byId.get("retried-answer")?.parentId, "composer-retry-user");
+  assert.equal(state.repository.headId, "retried-answer");
 });
 
 test("reloads the authoritative branch after a branch selection is rejected", async (t) => {
@@ -2193,6 +2445,115 @@ test("does not leave an empty assistant message when native vision skips preproc
     ["user"],
   );
   assert.equal(internals.activeAssistantMessageId, undefined);
+});
+
+test("replaces the optimistic assistant with a durable prompt failure inside the conversation", (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const managerInternals = manager as unknown as { refreshMetadata(): Promise<void> };
+  managerInternals.refreshMetadata = async () => {};
+  const session = manager.getSession("local-session", "remote-session");
+  const internals = session as unknown as {
+    activeAssistantMessageId?: string;
+    liveMessages: ThreadMessage[];
+    streamingMessage?: ThreadMessage;
+    handleEvent(event: PiEvent): void;
+    publishMessagesAndSetRunning(running: boolean): void;
+  };
+  const assistantId = "prompt-failure-assistant";
+  internals.liveMessages = [
+    {
+      id: "prompt-failure-user",
+      role: "user",
+      content: [{ type: "text", text: "Describe this image" }],
+      attachments: [],
+      createdAt: new Date(1_000),
+      metadata: {
+        custom: {
+          piOptimistic: true,
+          workbenchPromptRpcId: "session.prompt:image",
+        },
+        isOptimistic: true,
+      },
+    },
+  ];
+  internals.activeAssistantMessageId = assistantId;
+  internals.streamingMessage = {
+    id: assistantId,
+    role: "assistant",
+    content: [{ type: "text", text: "", status: { type: "running" } }],
+    status: { type: "running" },
+    createdAt: new Date(1_000),
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      steps: [],
+      custom: { workbenchPromptRpcId: "session.prompt:image" },
+      isOptimistic: true,
+    },
+  };
+  internals.publishMessagesAndSetRunning(true);
+
+  internals.handleEvent({
+    type: "message_end",
+    sequence: 0,
+    message: {
+      role: "custom",
+      customType: "workbench.prompt-failure.v1",
+      content: "",
+      display: false,
+      details: {
+        version: 1,
+        submissionId: "image-submission",
+        code: "image-input-unsupported",
+        rpcId: "session.prompt:image",
+        userEntryId: "persisted-image-user",
+      },
+      timestamp: 1_100,
+    },
+  });
+
+  const snapshot = session.getSnapshot();
+  assert.equal(snapshot.isRunning, false);
+  assert.deepEqual(
+    snapshot.messages.map((message) => message.role),
+    ["user", "assistant"],
+  );
+  const failure = snapshot.messages[1];
+  assert.equal(failure?.id, assistantId);
+  assert.equal(failure?.role, "assistant");
+  if (failure?.role === "assistant") {
+    assert.deepEqual(failure.status, {
+      type: "incomplete",
+      reason: "error",
+      error: "image-input-unsupported",
+    });
+    assert.deepEqual(failure.metadata.custom.workbenchPromptFailure, {
+      version: 1,
+      submissionId: "image-submission",
+      code: "image-input-unsupported",
+      rpcId: "session.prompt:image",
+      userEntryId: "persisted-image-user",
+    });
+  }
+  assert.equal(snapshot.messages[0]?.metadata.custom.piResolvedEntryId, "persisted-image-user");
+  assert.equal(internals.streamingMessage, undefined);
+  assert.equal(internals.activeAssistantMessageId, undefined);
+});
+
+test("records a terminal accepted prompt without leaving the thread list running", (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const internals = manager as unknown as {
+    setSummary(value: PiSessionSummary): boolean;
+  };
+  internals.setSummary(summary({ firstMessage: "", running: true }));
+
+  manager.notePrompt("remote-session", "Describe this image", false);
+
+  assert.equal(manager.getThreadCustom("remote-session")?.piRunning, false);
+  assert.equal(manager.getThreadListItemSnapshot("remote-session")?.title, "Describe this image");
 });
 
 test("keeps a late attachment-recognition event on its original turn", (t) => {

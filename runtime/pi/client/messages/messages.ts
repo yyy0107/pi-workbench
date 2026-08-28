@@ -24,14 +24,18 @@ import {
   isWorkbenchComposerCommandResponseCustomType,
   isWorkbenchComposerResolutionCustomType,
   isWorkbenchComposerUserCustomType,
+  parseWorkbenchPromptFailureDetails,
+  parseWorkbenchComposerSubmission,
   parseWorkbenchComposerCommandResponseDetails,
   parseWorkbenchComposerResolutionDetails,
   parseWorkbenchComposerUserDetails,
   workbenchComposerSubmissionFromRunConfig,
   WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE,
+  WORKBENCH_PROMPT_FAILURE_CUSTOM_TYPE,
 } from "@/runtime/shared/composer/request";
 import type {
   WorkbenchComposerCommandResponseDetails,
+  WorkbenchPromptFailureDetails,
   WorkbenchComposerSubmission,
 } from "@/runtime/shared/composer/request";
 
@@ -57,6 +61,7 @@ import type {
   SessionContextTracePromptPart,
 } from "@/runtime/pi/contracts/rpc";
 import { terminationFromAssistantMessage } from "@/runtime/pi/shared/messages/termination";
+import type { PiMessageTermination } from "@/runtime/pi/shared/messages/termination";
 
 import { parsePiConversationEvent } from "./conversation-events";
 import type { PiUsageMetadata } from "./pi-usage";
@@ -292,9 +297,64 @@ export function attachmentRecognitionSnapshotFromMessage(
 function attachmentRecognitionMessageStatus(
   snapshot: AttachmentRecognitionSnapshot,
 ): ThreadAssistantMessage["status"] {
-  return snapshot.status === "pending" || snapshot.status === "running"
-    ? { type: "running" }
-    : { type: "complete", reason: "unknown" };
+  switch (snapshot.status) {
+    case "pending":
+    case "running":
+      return { type: "running" };
+    case "cancelled":
+      return { type: "incomplete", reason: "cancelled" };
+    case "failed":
+      return { type: "incomplete", reason: "error", error: snapshot.errorCode };
+    case "succeeded":
+    case "skipped":
+      return { type: "complete", reason: "unknown" };
+  }
+}
+
+function attachmentRecognitionTermination(
+  snapshot: AttachmentRecognitionSnapshot,
+): PiMessageTermination | undefined {
+  if (snapshot.status === "cancelled") {
+    return {
+      schemaVersion: 1,
+      kind: "cancelled",
+      stopReason: "aborted",
+      source: "workbench",
+    };
+  }
+  if (snapshot.status === "failed") {
+    return {
+      schemaVersion: 1,
+      kind: "provider-error",
+      stopReason: "error",
+      errorMessage: snapshot.errorCode,
+      source: "workbench",
+    };
+  }
+  return undefined;
+}
+
+function attachmentRecognitionTurnTiming(
+  snapshot: AttachmentRecognitionSnapshot,
+): { startedAt: number; completedAt: number } | undefined {
+  const startedAt = snapshot.timestamps?.createdAt;
+  const completedAt = snapshot.timestamps?.completedAt;
+  return startedAt !== undefined &&
+    completedAt !== undefined &&
+    Number.isFinite(startedAt) &&
+    Number.isFinite(completedAt) &&
+    completedAt >= startedAt
+    ? { startedAt, completedAt }
+    : undefined;
+}
+
+function attachmentRecognitionLifecycleMetadata(snapshot: AttachmentRecognitionSnapshot) {
+  const termination = attachmentRecognitionTermination(snapshot);
+  const turnTiming = attachmentRecognitionTurnTiming(snapshot);
+  return {
+    ...(termination === undefined ? {} : { piTermination: termination }),
+    ...(turnTiming === undefined ? {} : { piTurnTiming: turnTiming }),
+  };
 }
 
 export function attachmentRecognitionAssistantMessage(
@@ -316,9 +376,22 @@ export function attachmentRecognitionAssistantMessage(
         workbenchAttachmentRecognitionOnly: true,
         workbenchAttachmentRecognitionSubmissionId: snapshot.submissionId,
         ...(snapshot.rpcId === undefined ? {} : { workbenchPromptRpcId: snapshot.rpcId }),
+        ...attachmentRecognitionLifecycleMetadata(snapshot),
       },
     },
   };
+}
+
+/**
+ * Recognition can be cancelled before Pi has a canonical user message to regenerate from. In
+ * that case the durable Composer marker is the retry source understood by the server.
+ */
+export function isAttachmentRecognitionRetrySource(message: ThreadUserMessage): boolean {
+  return (
+    attachmentRecognitionSnapshotFromMessage(message)?.status === "cancelled" &&
+    parseWorkbenchComposerSubmission(message.metadata.custom.workbenchComposerSubmission) !==
+      undefined
+  );
 }
 
 export function isAttachmentRecognitionOnlyAssistant(message: ThreadMessage): boolean {
@@ -355,22 +428,27 @@ function updateAttachmentRecognitionAssistantPart(
   const content = message.content.filter(
     (part) => part.type !== "data" || !isRecognitionDataName(part.name),
   );
+  const recognitionOnly = isAttachmentRecognitionOnlyAssistant(message);
+  const {
+    piTermination: _previousTermination,
+    piTurnTiming: _previousTurnTiming,
+    ...customWithoutLifecycle
+  } = message.metadata.custom;
   return {
     ...message,
     content: [
       { type: "data", name: WORKBENCH_ATTACHMENT_RECOGNITION_DATA_NAME, data: next },
       ...content,
     ],
-    ...(isAttachmentRecognitionOnlyAssistant(message)
-      ? { status: attachmentRecognitionMessageStatus(next) }
-      : {}),
+    ...(recognitionOnly ? { status: attachmentRecognitionMessageStatus(next) } : {}),
     metadata: {
       ...message.metadata,
       custom: {
-        ...message.metadata.custom,
+        ...(recognitionOnly ? customWithoutLifecycle : message.metadata.custom),
         workbenchAttachmentRecognition: next,
         workbenchAttachmentRecognitionSubmissionId: next.submissionId,
         ...(next.rpcId === undefined ? {} : { workbenchPromptRpcId: next.rpcId }),
+        ...(recognitionOnly ? attachmentRecognitionLifecycleMetadata(next) : {}),
       },
     },
   };
@@ -576,6 +654,70 @@ export function upsertWorkbenchComposerCommandResponse(
   const next = workbenchComposerCommandResponseThreadMessage(response, timestamp);
   if (index < 0) return [...messages, next];
   const current = messages[index];
+  const updated = [...messages];
+  updated[index] = current ? { ...next, createdAt: current.createdAt } : next;
+  return updated;
+}
+
+export function workbenchPromptFailureId(
+  failure: Pick<WorkbenchPromptFailureDetails, "submissionId">,
+): string {
+  return `workbench-prompt-failure:${failure.submissionId}`;
+}
+
+export function workbenchPromptFailureThreadMessage(
+  failure: WorkbenchPromptFailureDetails,
+  timestamp: number,
+  id = workbenchPromptFailureId(failure),
+): ThreadAssistantMessage {
+  const termination: PiMessageTermination = {
+    schemaVersion: 1,
+    kind: "provider-error",
+    stopReason: "error",
+    errorMessage: failure.code,
+    source: "workbench",
+  };
+  return {
+    id,
+    role: "assistant",
+    content: [],
+    status: { type: "incomplete", reason: "error", error: failure.code },
+    createdAt: new Date(timestamp),
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      steps: [],
+      custom: {
+        piCustomType: WORKBENCH_PROMPT_FAILURE_CUSTOM_TYPE,
+        piTermination: termination,
+        workbenchPromptFailure: failure,
+        ...(failure.rpcId === undefined ? {} : { workbenchPromptRpcId: failure.rpcId }),
+      },
+    },
+  };
+}
+
+export function upsertWorkbenchPromptFailure(
+  messages: readonly ThreadMessage[],
+  failure: WorkbenchPromptFailureDetails,
+  timestamp: number,
+  preferredId?: string,
+): ThreadMessage[] {
+  const stableId = workbenchPromptFailureId(failure);
+  const index = messages.findIndex(
+    (message) =>
+      message.id === stableId ||
+      parseWorkbenchPromptFailureDetails(message.metadata.custom.workbenchPromptFailure)
+        ?.submissionId === failure.submissionId,
+  );
+  const current = index < 0 ? undefined : messages[index];
+  const next = workbenchPromptFailureThreadMessage(
+    failure,
+    timestamp,
+    current?.id ?? preferredId ?? stableId,
+  );
+  if (index < 0) return [...messages, next];
   const updated = [...messages];
   updated[index] = current ? { ...next, createdAt: current.createdAt } : next;
   return updated;
@@ -1433,6 +1575,17 @@ export function piHistoryToThreadMessages(
               composerCommandResponseIndexes.set(responseId, messages.length - 1);
             }
           }
+        } else if (message.customType === WORKBENCH_PROMPT_FAILURE_CUSTOM_TYPE) {
+          const details = parseWorkbenchPromptFailureDetails(message.details);
+          if (details) {
+            messages.push(
+              workbenchPromptFailureThreadMessage(
+                details,
+                message.timestamp ?? history.context.entryCompletedAts?.[index] ?? index,
+                id,
+              ),
+            );
+          }
         } else if (message.display) {
           const conversationEvent =
             message.customType === PI_CONVERSATION_EVENT_CUSTOM_TYPE
@@ -1528,8 +1681,22 @@ export function reconcileLiveMessagesAfterHistory(
     (message): message is ThreadUserMessage =>
       message.role === "user" && !options.baseMessageIdsAtStart.has(message.id),
   );
+  const authoritativeEventSequences = new Set(
+    authoritativeMessages.flatMap((message) => {
+      const sequence = message.metadata.custom.piEventSeq;
+      return typeof sequence === "number" && Number.isFinite(sequence) ? [sequence] : [];
+    }),
+  );
 
   return liveMessages.filter((message) => {
+    const eventSequence = message.metadata.custom.piEventSeq;
+    if (
+      typeof eventSequence === "number" &&
+      Number.isFinite(eventSequence) &&
+      authoritativeEventSequences.has(eventSequence)
+    ) {
+      return false;
+    }
     if (!options.liveMessageIdsAtStart.has(message.id)) return true;
     if (
       !options.preserveUnpersistedOptimisticUsers ||

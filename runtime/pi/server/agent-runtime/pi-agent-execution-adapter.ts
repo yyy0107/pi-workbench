@@ -31,7 +31,7 @@ export interface PiAgentExecutionDependencies {
     prompt: PiQueuedPrompt,
     provenance?: PromptSubmissionProvenance,
   ): Promise<PromptSubmissionResult>;
-  regenerateSession(sessionId: string, messageId: string): Promise<void>;
+  regenerateSession(sessionId: string, messageId: string, requestId?: string): Promise<void>;
   resumeSession(sessionId: string, checkpointId: string, expectedLeafId: string): Promise<void>;
   selectSessionBranch(sessionId: string, leafId: string): Promise<void>;
   updateQueueItem(sessionId: string, itemId: string, mutation: PromptQueueMutation): Promise<void>;
@@ -158,9 +158,9 @@ export function createPiAgentExecutionAdapter(
       }
     },
 
-    async regenerate({ threadId, userMessageId }) {
+    async regenerate({ threadId, userMessageId, requestId }) {
       try {
-        await implementation.regenerateSession(threadId, userMessageId);
+        await implementation.regenerateSession(threadId, userMessageId, requestId);
       } catch (error) {
         translatePiExecutionError(error);
       }

@@ -132,7 +132,7 @@ export class ImageUnderstandingSettingsStoreError extends RpcDomainError<
 }
 
 export const DEFAULT_IMAGE_UNDERSTANDING_SETTINGS = Object.freeze({
-  routing: "auto",
+  routing: "native-only",
   engine: "ocr",
   ocrProvider: "glm-ocr",
   glm: {

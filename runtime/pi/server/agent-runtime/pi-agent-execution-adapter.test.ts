@@ -15,8 +15,8 @@ function harness(overrides: Partial<PiAgentExecutionDependencies> = {}) {
       calls.push({ name: "submit", value: { sessionId, mode, prompt, provenance } });
       return { queued: true, queueItemId: "queue-1" };
     },
-    regenerateSession: async (sessionId, messageId) => {
-      calls.push({ name: "regenerate", value: { sessionId, messageId } });
+    regenerateSession: async (sessionId, messageId, requestId) => {
+      calls.push({ name: "regenerate", value: { sessionId, messageId, requestId } });
     },
     resumeSession: async (sessionId, checkpointId, expectedLeafId) => {
       calls.push({ name: "resume", value: { sessionId, checkpointId, expectedLeafId } });
@@ -93,7 +93,11 @@ test("maps the neutral prompt and provenance to Pi without leaking Pi into the p
 test("maps lifecycle and queue operations to the existing Pi session host", async () => {
   const { adapter, calls } = harness();
 
-  await adapter.regenerate({ threadId: "thread-1", userMessageId: "message-1" });
+  await adapter.regenerate({
+    threadId: "thread-1",
+    userMessageId: "message-1",
+    requestId: "attachment-retry-1",
+  });
   await adapter.resume({
     threadId: "thread-1",
     checkpointId: "checkpoint-1",
@@ -115,7 +119,11 @@ test("maps lifecycle and queue operations to the existing Pi session host", asyn
   assert.deepEqual(calls, [
     {
       name: "regenerate",
-      value: { sessionId: "thread-1", messageId: "message-1" },
+      value: {
+        sessionId: "thread-1",
+        messageId: "message-1",
+        requestId: "attachment-retry-1",
+      },
     },
     {
       name: "resume",

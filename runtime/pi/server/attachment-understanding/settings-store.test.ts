@@ -38,6 +38,7 @@ test("describes version-one defaults without creating a settings document", asyn
   const described = await store.describe();
 
   assert.equal(described.revision, 0);
+  assert.equal(DEFAULT_IMAGE_UNDERSTANDING_SETTINGS.routing, "native-only");
   assert.equal(DEFAULT_IMAGE_UNDERSTANDING_SETTINGS.paddle.model, "PaddleOCR-VL-1.6");
   assert.deepEqual(described.value, {
     ...DEFAULT_IMAGE_UNDERSTANDING_SETTINGS,

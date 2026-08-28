@@ -37,6 +37,7 @@ const {
   listSessions,
   messagesHaveImages,
   queuePrompt,
+  regenerateSession,
   renameSession,
   replacePromptQueue,
   resolveWorkbenchComposerCommands,
@@ -944,7 +945,7 @@ test("keeps the model turn alive when attachment preprocessing fails", async (t)
   );
 });
 
-test("gives native image inputs the same one-based references used by the UI", async (t) => {
+test("bypasses attachment understanding for model-native image inputs", async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), "workbench-native-image-references-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
@@ -958,7 +959,7 @@ test("gives native image inputs the same one-based references used by the UI", a
     else process.env.PI_WORKBENCH_STATE_DIR = previousStateDir;
   });
 
-  await getImageUnderstandingSettingsStore().update({ patch: { routing: "auto" } });
+  await getImageUnderstandingSettingsStore().update({ patch: { routing: "native-only" } });
   const cwd = path.join(root, "project");
   await mkdir(cwd, { recursive: true });
   const host = await createSession(cwd, "native-image-references");
@@ -1020,6 +1021,197 @@ test("gives native image inputs the same one-based references used by the UI", a
   assert.equal(forwardedImages?.length, 2);
   assert.match(forwardedPrompt, /"attachmentId":"image-1","kind":"image","sequence":1/);
   assert.match(forwardedPrompt, /"attachmentId":"image-2","kind":"image","sequence":2/);
+  const recognitionStates = (await getSessionEvents(host.id)).flatMap((event) => {
+    const data = event.data as { customType?: string; details?: { status?: string } };
+    return event.type === "message" &&
+      data.customType === "workbench.attachment-recognition.v1" &&
+      data.details?.status
+      ? [data.details.status]
+      : [];
+  });
+  assert.deepEqual(recognitionStates, []);
+});
+
+test("records a durable in-thread failure when a text-only model receives a native image", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-native-image-unsupported-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+  const previousStateDir = process.env.PI_WORKBENCH_STATE_DIR;
+  process.env.PI_CODING_AGENT_DIR = path.join(root, "agent");
+  process.env.PI_WORKBENCH_STATE_DIR = path.join(root, "state");
+  t.after(() => {
+    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+    if (previousStateDir === undefined) delete process.env.PI_WORKBENCH_STATE_DIR;
+    else process.env.PI_WORKBENCH_STATE_DIR = previousStateDir;
+  });
+
+  await getImageUnderstandingSettingsStore().update({ patch: { routing: "native-only" } });
+  const cwd = path.join(root, "project");
+  await mkdir(cwd, { recursive: true });
+  const host = await createSession(cwd, "native-image-unsupported");
+  const fakeAgent = host.session as unknown as {
+    model?: { provider: string; id: string; input: readonly string[] } & Record<string, unknown>;
+    modelRuntime: { getAvailableSnapshot(): unknown[] };
+    prompt(
+      message?: string,
+      options?: { images?: unknown[]; preflightResult?: (accepted: boolean) => void },
+    ): Promise<void>;
+  };
+  const originalPrompt = fakeAgent.prompt;
+  const originalAvailableSnapshot = fakeAgent.modelRuntime.getAvailableSnapshot;
+  assert.ok(fakeAgent.model);
+  const textModel = { ...fakeAgent.model, input: ["text"] };
+  Object.defineProperty(fakeAgent, "model", { configurable: true, value: textModel });
+  fakeAgent.modelRuntime.getAvailableSnapshot = () => [textModel];
+  let providerCalled = false;
+  fakeAgent.prompt = async () => {
+    providerCalled = true;
+  };
+  t.after(async () => {
+    Reflect.deleteProperty(fakeAgent, "model");
+    fakeAgent.prompt = originalPrompt;
+    fakeAgent.modelRuntime.getAvailableSnapshot = originalAvailableSnapshot;
+    await host.shutdown();
+  });
+
+  const admission = await submitPrompt(
+    host.id,
+    "followUp",
+    {
+      message: "Read the image natively",
+      images: [{ type: "image", mimeType: "image/png", data: "iVBORw0KGgo=" }],
+    },
+    {
+      rpcId: "native-image-unsupported-rpc",
+      composer: {
+        version: 2,
+        document: [{ type: "text", text: "Read the image natively" }],
+        sourceText: "Read the image natively",
+        text: "Read the image natively",
+        context: [],
+        metadata: {},
+        commands: [],
+      },
+    },
+  );
+
+  assert.deepEqual(admission, { queued: false });
+  assert.equal(providerCalled, false, "an unsupported native image must not reach Pi");
+
+  const history = await getSessionHistory(host.id);
+  const composerUser = history.context.messages.find(
+    (message) => message.role === "custom" && message.customType === "workbench.composer-user.v3",
+  );
+  const promptFailure = history.context.messages.find(
+    (message) => message.role === "custom" && message.customType === "workbench.prompt-failure.v1",
+  );
+  assert.equal(composerUser?.role, "custom");
+  assert.equal(promptFailure?.role, "custom");
+  let persistedUserEntryId: string | undefined;
+  if (composerUser?.role === "custom" && promptFailure?.role === "custom") {
+    const composerDetails = composerUser.details as { submissionId?: unknown };
+    const failureDetails = promptFailure.details as {
+      version?: unknown;
+      submissionId?: unknown;
+      code?: unknown;
+      rpcId?: unknown;
+      userEntryId?: unknown;
+    };
+    assert.equal(failureDetails.version, 1);
+    assert.equal(failureDetails.submissionId, composerDetails.submissionId);
+    assert.equal(typeof failureDetails.submissionId, "string");
+    assert.equal(failureDetails.code, "image-input-unsupported");
+    assert.equal(failureDetails.rpcId, "native-image-unsupported-rpc");
+    const composerIndex = history.context.messages.indexOf(composerUser);
+    assert.equal(failureDetails.userEntryId, history.context.entryIds?.[composerIndex]);
+    if (typeof failureDetails.userEntryId === "string") {
+      persistedUserEntryId = failureDetails.userEntryId;
+    }
+  }
+
+  const events = await getSessionEvents(host.id);
+  const recognitionStates = events.flatMap((event) => {
+    const data = event.data as { customType?: string; details?: { status?: string } };
+    return event.type === "message" &&
+      data.customType === "workbench.attachment-recognition.v1" &&
+      data.details?.status
+      ? [data.details.status]
+      : [];
+  });
+  assert.deepEqual(recognitionStates, []);
+  assert.equal(
+    events.some((event) => {
+      const data = event.data as {
+        customType?: string;
+        message?: { role?: string; customType?: string };
+      };
+      return (
+        (event.type === "message" && data.customType === "workbench.prompt-failure.v1") ||
+        (event.type === "message_end" &&
+          data.message?.role === "custom" &&
+          data.message.customType === "workbench.prompt-failure.v1")
+      );
+    }),
+    true,
+  );
+
+  assert.ok(persistedUserEntryId);
+  await regenerateSession(host.id, persistedUserEntryId, "native-image-still-unsupported-rpc");
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(providerCalled, false);
+  assert.equal(
+    host.session.sessionManager
+      .getEntries()
+      .filter(
+        (entry) =>
+          entry.type === "custom_message" && entry.customType === "workbench.composer-user.v3",
+      ).length,
+    1,
+  );
+  const retryFailures = host.session.sessionManager
+    .getEntries()
+    .filter(
+      (entry) =>
+        entry.type === "custom_message" && entry.customType === "workbench.prompt-failure.v1",
+    );
+  assert.equal(retryFailures.length, 2);
+  assert.equal(
+    retryFailures.every(
+      (entry) =>
+        entry.type === "custom_message" &&
+        (entry.details as { userEntryId?: unknown }).userEntryId === persistedUserEntryId,
+    ),
+    true,
+  );
+
+  const visionModel = { ...textModel, input: ["text", "image"] };
+  Object.defineProperty(fakeAgent, "model", { configurable: true, value: visionModel });
+  fakeAgent.modelRuntime.getAvailableSnapshot = () => [visionModel];
+  let retriedImages: unknown[] | undefined;
+  fakeAgent.prompt = async (_message, options) => {
+    providerCalled = true;
+    retriedImages = options?.images;
+    options?.preflightResult?.(true);
+  };
+
+  await regenerateSession(host.id, persistedUserEntryId, "native-image-unsupported-retry-rpc");
+  await new Promise<void>((resolve) => setImmediate(resolve));
+
+  assert.equal(providerCalled, true);
+  assert.equal(retriedImages?.length, 1);
+  const persistedComposerUsers = host.session.sessionManager
+    .getEntries()
+    .filter(
+      (entry) =>
+        entry.type === "custom_message" && entry.customType === "workbench.composer-user.v3",
+    );
+  assert.equal(
+    persistedComposerUsers.length,
+    1,
+    "retry must reuse the original user node so only assistant answers branch",
+  );
+  assert.equal(persistedComposerUsers[0]?.id, persistedUserEntryId);
 });
 
 test("injects image and PDF OCR as isolated context without forwarding attachments to the text model", async (t) => {
@@ -1502,7 +1694,7 @@ test("continues text-only prompts while retaining native image history for the U
   assert.match(JSON.stringify(promptContexts[2]), /iVBORw0KGgo=/);
 });
 
-test("cancels in-flight image recognition without starting a model turn", async (t) => {
+test("cancels in-flight recognition and retries it with freshly loaded routing", async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), "workbench-image-understanding-cancel-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
@@ -1546,12 +1738,23 @@ test("cancels in-flight image recognition without starting a model turn", async 
   await mkdir(cwd, { recursive: true });
   const host = await createSession(cwd, "image-understanding-cancel");
   const fakeAgent = host.session as unknown as {
-    prompt(): Promise<void>;
+    agent: { state: { model?: { provider: string; id: string; input: string[] } } };
+    model?: { provider: string; id: string; input: string[] };
+    modelRuntime: { getAvailableSnapshot(): unknown[] };
+    prompt(
+      message: string,
+      options: {
+        images?: unknown[];
+        preflightResult?: (accepted: boolean) => void;
+      },
+    ): Promise<void>;
   };
   const originalPrompt = fakeAgent.prompt;
+  const originalAvailableSnapshot = fakeAgent.modelRuntime.getAvailableSnapshot;
   fakeAgent.prompt = async () => assert.fail("cancelled recognition must not start the model");
   t.after(() => {
     fakeAgent.prompt = originalPrompt;
+    fakeAgent.modelRuntime.getAvailableSnapshot = originalAvailableSnapshot;
     return host.shutdown();
   });
 
@@ -1595,6 +1798,48 @@ test("cancels in-flight image recognition without starting a model turn", async 
   assert.equal(recognitionStates.at(-1)?.rpcId, "image-recognition-cancel-rpc");
   assert.equal(events.at(-1)?.type, "command_error");
   assert.equal(host.isRunning, false);
+
+  const cancelledMarker = host.session.sessionManager
+    .getBranch()
+    .find(
+      (entry) =>
+        entry.type === "custom_message" && entry.customType === "workbench.composer-user.v3",
+    );
+  assert.ok(cancelledMarker);
+  assert.ok(fakeAgent.model);
+  const visionModel = { ...fakeAgent.model, input: ["text", "image"] };
+  fakeAgent.modelRuntime.getAvailableSnapshot = () => [visionModel];
+  fakeAgent.agent.state.model = visionModel;
+  await getImageUnderstandingSettingsStore().update({ patch: { routing: "native-only" } });
+
+  let retriedImages: unknown[] | undefined;
+  fakeAgent.prompt = async (_message, options) => {
+    retriedImages = options.images;
+    options.preflightResult?.(true);
+  };
+  let retriedOcr = false;
+  globalThis.fetch = async () => {
+    retriedOcr = true;
+    throw new Error("native retry must not call the old OCR provider");
+  };
+
+  await regenerateSession(host.id, cancelledMarker.id, "attachment-native-retry-rpc");
+  await new Promise<void>((resolve) => setImmediate(resolve));
+
+  assert.equal(retriedOcr, false);
+  assert.equal(retriedImages?.length, 1);
+  const retriedRecognitionStates = (await getSessionEvents(host.id)).flatMap((event) => {
+    const data = event.data as {
+      customType?: string;
+      details?: { status?: string; method?: string; rpcId?: string };
+    };
+    return event.type === "message" &&
+      data.customType === "workbench.attachment-recognition.v1" &&
+      data.details?.rpcId === "attachment-native-retry-rpc"
+      ? [data.details]
+      : [];
+  });
+  assert.deepEqual(retriedRecognitionStates, []);
 });
 
 test("keeps cancellation authoritative during the recognition-to-prompt handoff", async (t) => {

@@ -22,6 +22,19 @@ export const LEGACY_WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE =
   "workbench.composer-command-response.v1";
 export const WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE =
   "workbench.composer-command-response.v2";
+export const WORKBENCH_PROMPT_FAILURE_CUSTOM_TYPE = "workbench.prompt-failure.v1";
+
+export const WORKBENCH_PROMPT_FAILURE_CODES = ["image-input-unsupported"] as const;
+export type WorkbenchPromptFailureCode = (typeof WORKBENCH_PROMPT_FAILURE_CODES)[number];
+
+/** A safe, durable terminal outcome for a prompt accepted by Workbench but not sent to a model. */
+export interface WorkbenchPromptFailureDetails {
+  version: 1;
+  submissionId: string;
+  code: WorkbenchPromptFailureCode;
+  rpcId?: string;
+  userEntryId?: string;
+}
 
 export function isWorkbenchComposerUserCustomType(value: unknown): value is string {
   return (
@@ -235,6 +248,30 @@ export function composerDocumentMatchesCommands(submission: WorkbenchComposerSub
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export function parseWorkbenchPromptFailureDetails(
+  value: unknown,
+): WorkbenchPromptFailureDetails | undefined {
+  if (
+    !isRecord(value) ||
+    value.version !== 1 ||
+    typeof value.submissionId !== "string" ||
+    !value.submissionId ||
+    !WORKBENCH_PROMPT_FAILURE_CODES.some((code) => code === value.code) ||
+    (value.rpcId !== undefined && (typeof value.rpcId !== "string" || !value.rpcId)) ||
+    (value.userEntryId !== undefined &&
+      (typeof value.userEntryId !== "string" || !value.userEntryId))
+  ) {
+    return undefined;
+  }
+  return {
+    version: 1,
+    submissionId: value.submissionId,
+    code: value.code as WorkbenchPromptFailureCode,
+    ...(value.rpcId === undefined ? {} : { rpcId: value.rpcId as string }),
+    ...(value.userEntryId === undefined ? {} : { userEntryId: value.userEntryId as string }),
+  };
 }
 
 type ComposerWireGeneration = "legacy-pi" | "agent" | "either";

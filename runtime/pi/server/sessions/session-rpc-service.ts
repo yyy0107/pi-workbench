@@ -793,6 +793,7 @@ export class SessionRpcService {
       await this.execution.regenerate({
         threadId: input.sessionId,
         userMessageId: input.messageId,
+        ...(input.requestId === undefined ? {} : { requestId: input.requestId }),
       });
     } catch (error) {
       this.translate(error, { sessionId: input.sessionId });

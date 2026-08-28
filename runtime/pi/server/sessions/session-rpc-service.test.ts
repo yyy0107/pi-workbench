@@ -564,7 +564,11 @@ test("projects branch history and forwards branch mutations", async () => {
   const historyValue = await branchHarness.service.history({ sessionId: "session-1" });
   assert.deepEqual(historyValue.branches, branch);
   assert.deepEqual(
-    await branchHarness.service.regenerate({ sessionId: "session-1", messageId: "message-1" }),
+    await branchHarness.service.regenerate({
+      sessionId: "session-1",
+      messageId: "message-1",
+      requestId: "attachment-retry-1",
+    }),
     { accepted: true },
   );
   assert.deepEqual(
@@ -574,7 +578,11 @@ test("projects branch history and forwards branch mutations", async () => {
   assert.deepEqual(branchHarness.calls.slice(-2), [
     {
       name: "regenerate",
-      value: { threadId: "session-1", userMessageId: "message-1" },
+      value: {
+        threadId: "session-1",
+        userMessageId: "message-1",
+        requestId: "attachment-retry-1",
+      },
     },
     { name: "select-branch", value: { threadId: "session-1", leafId: "leaf-1" } },
   ]);
