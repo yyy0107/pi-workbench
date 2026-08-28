@@ -1024,6 +1024,12 @@ export const extensionsZhCN = {
       removeSchedule: "移除调度",
       addSchedule: "添加计划",
       scheduleRequired: "定时任务至少需要一个调度。",
+      maxRunDuration: "最长运行时间",
+      maxRunDurationPlaceholder: "无限制",
+      minutes: "分钟",
+      maxRunDurationHint: "留空时不限制任务的运行时间。",
+      maxRunDurationInvalid: ({ max }: { max: number }, { number }: MessageFormatters) =>
+        `请输入 1 到 ${number(max)} 之间的整数，或将此项留空。`,
       scheduleSummary: ({
         timezone,
         recurrence,

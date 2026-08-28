@@ -1,6 +1,7 @@
 import type {
   FlowNode,
   FlowRevision,
+  ScheduleTriggerSpec,
   WorkflowArchivePayload,
   WorkflowCreatePayload,
   WorkflowDocument,
@@ -370,6 +371,12 @@ export class ExecutionService implements ExecutionProtocol {
       ).find((run) => run.dedupeKey === payload.dedupeKey);
       if (duplicate) return { kind: "started", run: duplicate };
     }
+    const scheduleTrigger = payload.triggerId
+      ? revision.triggers.find(
+          (trigger): trigger is ScheduleTriggerSpec =>
+            trigger.id === payload.triggerId && trigger.type === "schedule",
+        )
+      : undefined;
     return this.engine.start({
       revision,
       source: payload.source ?? "manual",
@@ -378,6 +385,9 @@ export class ExecutionService implements ExecutionProtocol {
       ...(payload.triggerId === undefined ? {} : { triggerId: payload.triggerId }),
       ...(payload.dedupeKey === undefined ? {} : { dedupeKey: payload.dedupeKey }),
       ...(payload.input === undefined ? {} : { input: payload.input }),
+      ...(scheduleTrigger?.maxRunDurationSeconds === undefined
+        ? {}
+        : { maxRunDurationSeconds: scheduleTrigger.maxRunDurationSeconds }),
     });
   }
 

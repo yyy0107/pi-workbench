@@ -33,7 +33,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { InputGroup, InputGroupAddon } from "@/components/ui/input-group";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Textarea } from "@/components/ui/textarea";
 import { TimePicker } from "@/components/ui/time-picker";
 import { WorkspaceSelector } from "@/components/ui/workspace-selector";
@@ -54,6 +54,10 @@ import type {
   WorkflowRunStatus,
   WorkflowRunSummary,
   WorkflowTriggerState,
+} from "@/runtime/shared/execution";
+import {
+  MAX_SCHEDULE_RUN_DURATION_SECONDS,
+  MIN_SCHEDULE_RUN_DURATION_SECONDS,
 } from "@/runtime/shared/execution";
 
 import { workflowMainViewRequest, type WorkflowMainViewParams } from "./workflow-main-view";
@@ -100,6 +104,9 @@ const RUN_SOURCE_KEYS = {
   event: "event",
   replay: "replay",
 } as const satisfies Record<WorkflowRunSource, string>;
+
+const MIN_SCHEDULE_RUN_DURATION_MINUTES = MIN_SCHEDULE_RUN_DURATION_SECONDS / 60;
+const MAX_SCHEDULE_RUN_DURATION_MINUTES = MAX_SCHEDULE_RUN_DURATION_SECONDS / 60;
 
 function runSessionId(run: WorkflowRunSummary): string | undefined {
   return run.attempts.findLast(({ sessionId }) => sessionId !== undefined)?.sessionId;
@@ -246,6 +253,7 @@ export function AutomationTaskForm({ params }: { params: AutomationTaskParams })
   const [customCron, setCustomCron] = useState("");
   const [hasSchedule, setHasSchedule] = useState(Boolean(preset));
   const [timezone, setTimezone] = useState(localTimezone);
+  const [maxRunDurationMinutes, setMaxRunDurationMinutes] = useState("");
   const [workspaceId, setWorkspaceId] = useState(workspaces[0]?.id ?? "");
   const [models, setModels] = useState<ModelSelectorOption[]>([]);
   const [fallbackModel, setFallbackModel] = useState<ModelSelectorOption>();
@@ -311,6 +319,11 @@ export function AutomationTaskForm({ params }: { params: AutomationTaskParams })
         setCustomCron(parsedSchedule.customCron);
         setHasSchedule(Boolean(schedule));
         setTimezone(schedule?.timezone ?? localTimezone);
+        setMaxRunDurationMinutes(
+          schedule?.maxRunDurationSeconds === undefined
+            ? ""
+            : String(schedule.maxRunDurationSeconds / 60),
+        );
         setWorkspaceId(
           schedule?.targetWorkspaceId ??
             (document.scope.type === "project" ? document.scope.workspaceId : ""),
@@ -411,9 +424,17 @@ export function AutomationTaskForm({ params }: { params: AutomationTaskParams })
   const workspace = workspaces.find(({ id }) => id === workspaceId);
   const timeValid = /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(time);
   const customCronValid = Boolean(customCron.trim());
+  const parsedMaxRunDurationMinutes = Number(maxRunDurationMinutes);
+  const maxRunDurationValid =
+    maxRunDurationMinutes.trim() === "" ||
+    (Number.isInteger(parsedMaxRunDurationMinutes) &&
+      parsedMaxRunDurationMinutes >= MIN_SCHEDULE_RUN_DURATION_MINUTES &&
+      parsedMaxRunDurationMinutes <= MAX_SCHEDULE_RUN_DURATION_MINUTES);
   const scheduleUsesTime = frequency !== "hourly" && frequency !== "custom";
   const scheduleValid =
-    hasSchedule && (frequency === "custom" ? customCronValid : !scheduleUsesTime || timeValid);
+    hasSchedule &&
+    maxRunDurationValid &&
+    (frequency === "custom" ? customCronValid : !scheduleUsesTime || timeValid);
   const frequencyLabel = t(`extensions.workflows.automationTask.frequency.${frequency}`);
   const recurrence = t(`extensions.workflows.automationTask.frequencySummary.${frequency}`);
   const timezoneLabel = timezoneOffset(timezone, locale);
@@ -451,6 +472,8 @@ export function AutomationTaskForm({ params }: { params: AutomationTaskParams })
         else if (!hasSchedule) document.getElementById("automation-task-add-schedule")?.focus();
         else if (frequency === "custom" && !customCronValid) customCronInputRef.current?.focus();
         else if (scheduleUsesTime && !timeValid) timePickerRef.current?.focus();
+        else if (!maxRunDurationValid)
+          document.getElementById("automation-task-max-run-duration")?.focus();
         else if (!prompt.trim()) promptInputRef.current?.focus();
         else if (!workspaceId)
           document.getElementById("automation-task-workspace-trigger")?.focus();
@@ -512,6 +535,9 @@ export function AutomationTaskForm({ params }: { params: AutomationTaskParams })
         }),
         cron: scheduleCron(frequency, time, customCron),
         timezone,
+        ...(maxRunDurationMinutes.trim() === ""
+          ? {}
+          : { maxRunDurationSeconds: parsedMaxRunDurationMinutes * 60 }),
         targetWorkspaceId: workspaceId,
       };
       const previousTriggerStates = new Map(
@@ -1034,6 +1060,48 @@ export function AutomationTaskForm({ params }: { params: AutomationTaskParams })
                         {scheduleSummary}
                       </span>
                     ) : null}
+                    <div className="flex h-[var(--dropdown-control-height)] shrink-0 items-center gap-2">
+                      <label
+                        htmlFor="automation-task-max-run-duration"
+                        className="text-muted-foreground leading-none whitespace-nowrap text-sm"
+                      >
+                        {t("extensions.workflows.automationTask.maxRunDuration")}
+                      </label>
+                      <InputGroup className="w-40 shrink-0">
+                        <InputGroupInput
+                          id="automation-task-max-run-duration"
+                          type="number"
+                          inputMode="numeric"
+                          min={MIN_SCHEDULE_RUN_DURATION_MINUTES}
+                          max={MAX_SCHEDULE_RUN_DURATION_MINUTES}
+                          step={1}
+                          value={maxRunDurationMinutes}
+                          aria-invalid={validationRequested && !maxRunDurationValid}
+                          aria-describedby={
+                            validationRequested && !maxRunDurationValid
+                              ? "automation-task-max-run-duration-hint automation-task-max-run-duration-error"
+                              : "automation-task-max-run-duration-hint"
+                          }
+                          placeholder={t(
+                            "extensions.workflows.automationTask.maxRunDurationPlaceholder",
+                          )}
+                          className="tabular-nums"
+                          onChange={(event) => {
+                            setNotice(undefined);
+                            setMaxRunDurationMinutes(event.currentTarget.value);
+                          }}
+                        />
+                        <InputGroupAddon
+                          align="inline-end"
+                          className="font-normal whitespace-nowrap"
+                        >
+                          {t("extensions.workflows.automationTask.minutes")}
+                        </InputGroupAddon>
+                      </InputGroup>
+                      <span id="automation-task-max-run-duration-hint" className="sr-only">
+                        {t("extensions.workflows.automationTask.maxRunDurationHint")}
+                      </span>
+                    </div>
                     <Button
                       type="button"
                       variant="ghost"
@@ -1085,6 +1153,17 @@ export function AutomationTaskForm({ params }: { params: AutomationTaskParams })
                   role="alert"
                 >
                   {t("extensions.workflows.automationTask.customCronRequired")}
+                </p>
+              ) : null}
+              {validationRequested && hasSchedule && !maxRunDurationValid ? (
+                <p
+                  id="automation-task-max-run-duration-error"
+                  className="text-destructive text-xs"
+                  role="alert"
+                >
+                  {t("extensions.workflows.automationTask.maxRunDurationInvalid", {
+                    max: MAX_SCHEDULE_RUN_DURATION_MINUTES,
+                  })}
                 </p>
               ) : null}
             </div>

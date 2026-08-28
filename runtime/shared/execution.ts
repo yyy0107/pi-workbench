@@ -23,6 +23,9 @@ export type WorkflowJsonValue =
   | WorkflowJsonValue[]
   | { [key: string]: WorkflowJsonValue };
 
+export const MIN_SCHEDULE_RUN_DURATION_SECONDS = 60;
+export const MAX_SCHEDULE_RUN_DURATION_SECONDS = 31_536_000;
+
 export interface ValueBinding {
   source: "run-input" | "node-output";
   nodeId?: string;
@@ -111,6 +114,8 @@ export interface ScheduleTriggerSpec {
   name: string;
   cron: string;
   timezone: string;
+  /** Omitted when scheduled runs do not have a time limit. */
+  maxRunDurationSeconds?: number;
   targetWorkspaceId?: string;
 }
 

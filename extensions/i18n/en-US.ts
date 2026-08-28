@@ -1072,6 +1072,12 @@ export const extensionsEnUS = {
       removeSchedule: "Remove schedule",
       addSchedule: "Add plan",
       scheduleRequired: "A scheduled task needs at least one schedule.",
+      maxRunDuration: "Maximum run time",
+      maxRunDurationPlaceholder: "Unlimited",
+      minutes: "minutes",
+      maxRunDurationHint: "Leave blank to allow the task to run without a time limit.",
+      maxRunDurationInvalid: ({ max }: { max: number }, { number }: MessageFormatters) =>
+        `Enter a whole number from 1 to ${number(max)}, or leave the field blank.`,
       scheduleSummary: ({
         timezone,
         recurrence,

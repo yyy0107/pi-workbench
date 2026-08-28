@@ -1,7 +1,13 @@
 import { Type, type Static, type TSchema } from "typebox";
 import { Value } from "typebox/value";
 
-import type { TriggerSpec, WorkflowDocument, WorkflowJsonValue } from "@/runtime/shared/execution";
+import {
+  MAX_SCHEDULE_RUN_DURATION_SECONDS,
+  MIN_SCHEDULE_RUN_DURATION_SECONDS,
+  type TriggerSpec,
+  type WorkflowDocument,
+  type WorkflowJsonValue,
+} from "@/runtime/shared/execution";
 
 const Id = Type.String({ minLength: 1, maxLength: 200 });
 // Drafts intentionally allow temporarily incomplete text fields. Publish-time
@@ -133,6 +139,13 @@ export const TriggerSpecSchema = Type.Union([
       name: Name,
       cron: Type.String({ maxLength: 1_024 }),
       timezone: Type.String({ maxLength: 200 }),
+      maxRunDurationSeconds: Type.Optional(
+        Type.Integer({
+          minimum: MIN_SCHEDULE_RUN_DURATION_SECONDS,
+          maximum: MAX_SCHEDULE_RUN_DURATION_SECONDS,
+          multipleOf: 60,
+        }),
+      ),
       targetWorkspaceId: Type.Optional(Id),
     },
     { additionalProperties: false },

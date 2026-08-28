@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { FlowNode, WorkflowDocument } from "@/runtime/shared/execution";
+import {
+  MIN_SCHEDULE_RUN_DURATION_SECONDS,
+  type FlowNode,
+  type WorkflowDocument,
+} from "@/runtime/shared/execution";
 import { compileExecutionDocument, validateExecutionDocument } from "./execution-compiler";
 import { parseExecutionDocument } from "./execution-schema";
 
@@ -108,4 +112,32 @@ test("accepts a stable Agent model and thinking selection", () => {
   const parsedAgent = parsed.graph.nodes.find(({ type }) => type === "agent");
   assert.ok(parsedAgent?.type === "agent");
   assert.deepEqual(parsedAgent.config.model, agent.config.model);
+});
+
+test("accepts an optional scheduled-run duration and rejects values below the minimum", () => {
+  const value = document("automation");
+  value.triggers = [
+    {
+      id: "schedule",
+      type: "schedule",
+      name: "Schedule",
+      cron: "0 9 * * *",
+      timezone: "UTC",
+      maxRunDurationSeconds: MIN_SCHEDULE_RUN_DURATION_SECONDS,
+    },
+  ];
+  const parsedTrigger = parseExecutionDocument(value).triggers[0];
+  assert.ok(parsedTrigger?.type === "schedule");
+  assert.equal(parsedTrigger.maxRunDurationSeconds, MIN_SCHEDULE_RUN_DURATION_SECONDS);
+
+  const invalid = structuredClone(value);
+  const trigger = invalid.triggers[0];
+  assert.ok(trigger?.type === "schedule");
+  trigger.maxRunDurationSeconds = MIN_SCHEDULE_RUN_DURATION_SECONDS - 1;
+  assert.throws(() => parseExecutionDocument(invalid));
+
+  const validTrigger = value.triggers[0];
+  assert.ok(validTrigger?.type === "schedule");
+  delete validTrigger.maxRunDurationSeconds;
+  assert.doesNotThrow(() => parseExecutionDocument(value));
 });
