@@ -20,13 +20,18 @@ import {
 } from "./runtime/terminal/server/terminal-gateway";
 import { TerminalSessionManager } from "./runtime/terminal/server/terminal-session-manager";
 import { getToolTerminalSessionManager } from "./runtime/terminal/server/tool-terminal-session-manager";
+import { createWorkbenchServerShutdown } from "./runtime/server/workbench-server-shutdown";
+
+const WORKBENCH_SHUTDOWN_MESSAGE_TYPE = "workbench:shutdown";
+const WORKBENCH_READY_MESSAGE_TYPE = "workbench:ready";
+const WORKBENCH_READY_MESSAGE_VERSION = 1;
 
 function configuredPort(): number {
   const raw = process.env.PORT?.trim() || "3000";
   const port = Number(raw);
-  if (!Number.isInteger(port) || port < 1 || port > 65_535) {
+  if (!Number.isInteger(port) || port < 0 || port > 65_535) {
     throw new RangeError(
-      `PORT must be an integer from 1 to 65535; received ${JSON.stringify(raw)}.`,
+      `PORT must be an integer from 0 to 65535; received ${JSON.stringify(raw)}.`,
     );
   }
   return port;
@@ -41,10 +46,9 @@ async function callWarmupRpcViaRoute(
   method: "packageCatalog.search" | "session.list",
   signal?: AbortSignal,
 ): Promise<void> {
-  // The Pi registry is ESM-only while this launcher enters through tsx's CommonJS path.
-  // Warming through Next's bundled route keeps that boundary intact and shares the module graph
-  // that will serve later requests. Local session metadata calls this before the public listener;
-  // the optional external catalog calls it only after the listener reports ready.
+  // Warming through Next's bundled route shares the same ESM module graph that serves later
+  // requests. Local session metadata calls this before the public listener; the optional external
+  // catalog calls it only after the listener reports ready.
   const warmupServer = createServer(requestHandler);
   await new Promise<void>((resolve, reject) => {
     const onError = (error: Error) => reject(error);
@@ -167,24 +171,71 @@ async function main(): Promise<void> {
       console.error(`No Next.js upgrade handler accepted ${request.url ?? "the request"}.`),
   });
   const packageCatalogWarmupController = new AbortController();
-  publicServer.on("close", () => {
+  let runtimeDisposed = false;
+  const disposeRuntime = () => {
+    if (runtimeDisposed) return;
+    runtimeDisposed = true;
     packageCatalogWarmupController.abort();
     terminalSessions.dispose();
     toolTerminalSessions.dispose();
+  };
+  publicServer.on("close", disposeRuntime);
+
+  const shutdown = createWorkbenchServerShutdown({
+    httpServer: publicServer,
+    webSocketServers: [piWebSocketServer, terminalWebSocketServer],
+    disposeRuntime,
+    closeApplication: () => app.close(),
+  });
+  const requestShutdown = (source: "ipc" | NodeJS.Signals) => {
+    void shutdown()
+      .then((result) => {
+        if (result.forced)
+          console.warn(`[workbench] Forced remaining connections closed (${source}).`);
+        for (const error of result.errors)
+          console.error("[workbench] Shutdown cleanup failed.", error);
+      })
+      .catch((error: unknown) => {
+        console.error("[workbench] Graceful shutdown failed.", error);
+      })
+      .finally(() => process.exit(0));
+  };
+  process.once("SIGINT", () => requestShutdown("SIGINT"));
+  process.once("SIGTERM", () => requestShutdown("SIGTERM"));
+  process.on("message", (message: unknown) => {
+    if (isRecord(message) && message.type === WORKBENCH_SHUTDOWN_MESSAGE_TYPE) {
+      requestShutdown("ipc");
+    }
   });
 
-  publicServer.listen(port, hostname, () => {
-    console.log(`> Workbench ready at http://${hostname}:${port}`);
-    void callWarmupRpcViaRoute(
-      requestHandler,
-      "packageCatalog.search",
-      packageCatalogWarmupController.signal,
-    ).catch(() => {
-      if (packageCatalogWarmupController.signal.aborted) return;
-      console.warn(
-        "[workbench-pi] Pi package catalog warmup deferred; it will retry automatically.",
-      );
+  await new Promise<void>((resolve, reject) => {
+    const onError = (error: Error) => reject(error);
+    publicServer.once("error", onError);
+    publicServer.listen(port, hostname, () => {
+      publicServer.off("error", onError);
+      resolve();
     });
+  });
+  const address = publicServer.address();
+  if (!address || typeof address === "string") {
+    throw new Error("Workbench public server did not bind a TCP port.");
+  }
+  const readyUrl = `http://${hostname}:${address.port}`;
+  console.log(`> Workbench ready at ${readyUrl}`);
+  process.send?.({
+    type: WORKBENCH_READY_MESSAGE_TYPE,
+    version: WORKBENCH_READY_MESSAGE_VERSION,
+    host: hostname,
+    port: address.port,
+    pid: process.pid,
+  });
+  void callWarmupRpcViaRoute(
+    requestHandler,
+    "packageCatalog.search",
+    packageCatalogWarmupController.signal,
+  ).catch(() => {
+    if (packageCatalogWarmupController.signal.aborted) return;
+    console.warn("[workbench-pi] Pi package catalog warmup deferred; it will retry automatically.");
   });
 }
 

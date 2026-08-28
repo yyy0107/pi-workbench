@@ -12,10 +12,11 @@
     "electron:dev": "electron .",
     "electron:pack": "pnpm build && node electron/build-package.cjs --dir",
     "electron:dist": "pnpm build && node electron/build-package.cjs",
+    "electron:budget": "node electron/check-runtime-budget.cjs",
     "bench:pi-history": "node --no-warnings=ExperimentalWarning --import ./scripts/register-typescript-test-loader.mjs runtime/pi/server/sessions/session-history.benchmark.ts",
     "prebuild": "pnpm icons:sync && pnpm file-viewer:sync",
-    "build": "next build",
-    "start": "tsx server.ts",
+    "build": "next build && node electron/build-desktop-server.cjs",
+    "start": "node electron/desktop-server-launcher.cjs .desktop-build/server.mjs",
     "test": "node --no-warnings=ExperimentalWarning --import ./scripts/register-typescript-test-loader.mjs --test",
     "typecheck": "tsc --noEmit --incremental false",
     "check": "pnpm lint && pnpm typecheck && pnpm test",
@@ -102,21 +103,24 @@
     "productName": "Pi Workbench",
     "asar": false,
     "npmRebuild": false,
+    "electronLanguages": [
+      "en-US",
+      "zh-CN"
+    ],
     "directories": {
       "app": ".electron-build/app",
       "output": "dist-electron"
     },
     "files": [
-      ".next/**/*",
-      "!.next/cache/**/*",
-      "!.next/dev/**/*",
-      "electron/**/*",
-      "public/**/*",
-      "runtime/**/*",
-      "!runtime/**/*.test.ts",
-      "server.ts",
-      "next.config.ts",
-      "tsconfig.json"
+      "package.json",
+      "electron/main.cjs",
+      "electron/preload.cjs",
+      "electron/server-probe.cjs",
+      "electron/server-process-lifecycle.cjs",
+      "electron/server-startup-handshake.cjs",
+      "desktop-runtime/**/*",
+      "public/icon.png",
+      "!node_modules/**/*"
     ],
     "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
     "icon": "public/icon.png",

@@ -2,6 +2,8 @@ import { execFile, spawn } from "node:child_process";
 import { access } from "node:fs/promises";
 import path from "node:path";
 
+import { childProcessEnvironment } from "../../../server/child-process-environment";
+
 export interface LocalAppCommandResult {
   stdout: string;
   stderr: string;
@@ -58,9 +60,7 @@ export async function localAppPathExists(candidate: string): Promise<boolean> {
 export function localAppSpawnEnvironment(
   env: Readonly<NodeJS.ProcessEnv> = process.env,
 ): NodeJS.ProcessEnv {
-  const sanitized = { ...env };
-  delete sanitized.ELECTRON_RUN_AS_NODE;
-  return sanitized;
+  return childProcessEnvironment(env) as NodeJS.ProcessEnv;
 }
 
 export function spawnLocalAppDetached(

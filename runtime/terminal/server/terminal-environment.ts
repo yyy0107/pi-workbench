@@ -1,3 +1,5 @@
+import { childProcessEnvironment } from "../../server/child-process-environment";
+
 const UTF8_LOCALE_PATTERN = /utf-?8/i;
 const PORTABLE_LOCALE_PATTERN = /^(?:c|posix)(?:[._-]?utf-?8)?$/i;
 
@@ -17,7 +19,7 @@ function isNamedUtf8Locale(value: string | undefined): value is string {
 export function terminalEnvironment(
   source: Readonly<Record<string, string | undefined>>,
 ): Record<string, string | undefined> {
-  const environment = { ...source };
+  const environment = childProcessEnvironment(source);
   const lcAll = localeValue(source.LC_ALL);
   const lcCtype = localeValue(source.LC_CTYPE);
   const lang = localeValue(source.LANG);

@@ -1,12 +1,14 @@
 const { spawn } = require("node:child_process");
-const net = require("node:net");
 const path = require("node:path");
 
 const { app, BrowserWindow, dialog, ipcMain, nativeTheme, session, shell } = require("electron");
+const { stopServerProcess } = require("./server-process-lifecycle.cjs");
 const { isWorkbenchServer, waitForWorkbenchServer } = require("./server-probe.cjs");
+const { waitForWorkbenchServerReady } = require("./server-startup-handshake.cjs");
 
 const LOOPBACK_HOST = "127.0.0.1";
 const STARTUP_TIMEOUT_MS = 120_000;
+const IDENTITY_TIMEOUT_MS = 10_000;
 const TITLE_BAR_OVERLAY_CHANNEL = "workbench:title-bar-overlay";
 const OPAQUE_HEX_COLOR_PATTERN = /^#[\da-f]{6}$/i;
 
@@ -16,6 +18,9 @@ let mainWindow;
 let serverProcess;
 let serverProcessError;
 let serverReady = false;
+let serverStopPromise;
+let serverStopComplete = false;
+let quitPreparation;
 let rendererTitleBarOverlayOptions;
 
 function titleBarOverlayOptions() {
@@ -61,39 +66,16 @@ function parseConfiguredPort() {
   return port;
 }
 
-function findAvailablePort() {
-  return new Promise((resolve, reject) => {
-    const probe = net.createServer();
-    probe.once("error", reject);
-    probe.listen(0, LOOPBACK_HOST, () => {
-      const address = probe.address();
-      if (!address || typeof address === "string") {
-        probe.close();
-        reject(new Error("Could not allocate a local port for Workbench."));
-        return;
-      }
-
-      const { port } = address;
-      probe.close((error) => (error ? reject(error) : resolve(port)));
-    });
-  });
-}
-
-async function resolveServerPort() {
-  const configuredPort = parseConfiguredPort();
-  if (configuredPort) return configuredPort;
-  return app.isPackaged ? findAvailablePort() : 3000;
-}
-
 function startWorkbenchServer(port) {
   const appRoot = app.getAppPath();
   const development = !app.isPackaged;
+  const runtimeRoot = development ? appRoot : path.join(appRoot, "desktop-runtime");
   const command = development
     ? process.env.WORKBENCH_NODE_BINARY?.trim() || "node"
     : process.execPath;
   const args = development
     ? [require.resolve("tsx/cli"), "watch", path.join(appRoot, "server.ts"), "--dev"]
-    : [path.join(appRoot, "electron", "server-runner.cjs")];
+    : [path.join(runtimeRoot, "desktop-server-launcher.cjs")];
   const environment = {
     ...process.env,
     NODE_ENV: development ? "development" : "production",
@@ -104,9 +86,10 @@ function startWorkbenchServer(port) {
   if (!development) environment.ELECTRON_RUN_AS_NODE = "1";
 
   serverProcess = spawn(command, args, {
-    cwd: appRoot,
+    cwd: runtimeRoot,
+    detached: process.platform !== "win32",
     env: environment,
-    stdio: "inherit",
+    stdio: development ? "inherit" : ["inherit", "inherit", "inherit", "ipc"],
     windowsHide: true,
   });
   serverProcess.once("error", (error) => {
@@ -122,19 +105,32 @@ function startWorkbenchServer(port) {
     );
     app.quit();
   });
+  return serverProcess;
 }
 
 function stopWorkbenchServer() {
   serverReady = false;
-  if (serverProcess && serverProcess.exitCode === null && !serverProcess.killed) {
-    serverProcess.kill("SIGTERM");
-  }
-  serverProcess = undefined;
+  if (serverStopPromise) return serverStopPromise;
+
+  const processToStop = serverProcess;
+  if (!processToStop) return Promise.resolve();
+  serverStopPromise = stopServerProcess(processToStop)
+    .then((result) => {
+      if (!result.exited) {
+        console.error("Workbench server did not exit after its process tree was terminated.");
+      } else if (result.forced) {
+        console.warn("Workbench server required forced process-tree cleanup.");
+      }
+    })
+    .finally(() => {
+      if (serverProcess === processToStop) serverProcess = undefined;
+    });
+  return serverStopPromise;
 }
 
-async function waitForServer(url) {
+async function waitForServer(url, timeoutMs = STARTUP_TIMEOUT_MS) {
   const ready = await waitForWorkbenchServer(url, {
-    timeoutMs: STARTUP_TIMEOUT_MS,
+    timeoutMs,
     beforeAttempt: () => {
       if (serverProcessError) throw serverProcessError;
       if (!serverProcess || serverProcess.exitCode !== null) {
@@ -146,7 +142,7 @@ async function waitForServer(url) {
   });
   if (ready) return;
 
-  throw new Error(`Workbench server did not become ready within ${STARTUP_TIMEOUT_MS / 1_000}s.`);
+  throw new Error(`Workbench server did not become ready within ${timeoutMs / 1_000}s.`);
 }
 
 function isExternalWebUrl(rawUrl, workbenchOrigin) {
@@ -223,19 +219,31 @@ async function bootstrap() {
     callback(false);
   });
 
-  const port = await resolveServerPort();
-  const workbenchUrl = `http://${LOOPBACK_HOST}:${port}`;
-  currentWorkbenchUrl = workbenchUrl;
+  let workbenchUrl;
+  if (!app.isPackaged) {
+    const port = parseConfiguredPort() ?? 3000;
+    workbenchUrl = `http://${LOOPBACK_HOST}:${port}`;
+    if (await isWorkbenchServer(workbenchUrl)) {
+      console.log(`> Electron connected to the existing Workbench at ${workbenchUrl}`);
+      currentWorkbenchUrl = workbenchUrl;
+      serverReady = true;
+      mainWindow = createMainWindow(workbenchUrl);
+      return;
+    }
 
-  if (!app.isPackaged && (await isWorkbenchServer(workbenchUrl))) {
-    console.log(`> Electron connected to the existing Workbench at ${workbenchUrl}`);
-    serverReady = true;
-    mainWindow = createMainWindow(workbenchUrl);
-    return;
+    startWorkbenchServer(port);
+    await waitForServer(workbenchUrl);
+  } else {
+    const child = startWorkbenchServer(0);
+    const ready = await waitForWorkbenchServerReady(child, {
+      expectedHost: LOOPBACK_HOST,
+      timeoutMs: STARTUP_TIMEOUT_MS,
+    });
+    workbenchUrl = ready.url;
+    await waitForServer(workbenchUrl, IDENTITY_TIMEOUT_MS);
   }
 
-  startWorkbenchServer(port);
-  await waitForServer(workbenchUrl);
+  currentWorkbenchUrl = workbenchUrl;
   serverReady = true;
   mainWindow = createMainWindow(workbenchUrl);
 }
@@ -267,16 +275,25 @@ if (!hasSingleInstanceLock) {
       mainWindow.setTitleBarOverlay(titleBarOverlayOptions());
     }
   });
-  app.on("before-quit", () => {
+  app.on("before-quit", (event) => {
     isQuitting = true;
-    stopWorkbenchServer();
+    if (serverStopComplete) return;
+
+    event.preventDefault();
+    quitPreparation ??= stopWorkbenchServer()
+      .catch((error) => {
+        console.error("Could not stop the Workbench server cleanly.", error);
+      })
+      .finally(() => {
+        serverStopComplete = true;
+        app.quit();
+      });
   });
 
   app
     .whenReady()
     .then(bootstrap)
     .catch((error) => {
-      stopWorkbenchServer();
       const detail = error instanceof Error ? error.message : String(error);
       dialog.showErrorBox(
         "Pi Workbench",

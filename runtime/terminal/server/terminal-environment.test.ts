@@ -36,3 +36,14 @@ test("preserves an explicit named locale and a portable-only environment", () =>
     LC_ALL: "C.UTF-8",
   });
 });
+
+test("does not leak Electron's run-as-Node mode into terminal processes", () => {
+  assert.deepEqual(
+    terminalEnvironment({
+      ELECTRON_RUN_AS_NODE: "1",
+      NODE_ENV: "production",
+      PATH: "/usr/bin",
+    }),
+    { NODE_ENV: "production", PATH: "/usr/bin" },
+  );
+});
