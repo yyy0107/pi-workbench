@@ -974,8 +974,8 @@ export function AutomationTaskForm({ params }: { params: AutomationTaskParams })
                           <Button
                             type="button"
                             size="sm"
-                            variant="secondary"
-                            className="h-[var(--dropdown-control-height)]! min-h-[var(--dropdown-control-height)]!"
+                            variant="outline"
+                            className="h-[var(--dropdown-control-height)]! min-h-[var(--dropdown-control-height)]! rounded-[var(--input-control-radius)] font-normal"
                           >
                             {frequencyLabel}
                             <ChevronDownIcon aria-hidden="true" data-icon="inline-end" />
