@@ -1192,6 +1192,7 @@ export function AutomationTaskForm({ params }: { params: AutomationTaskParams })
                   <div className="flex min-w-0 flex-wrap items-center gap-1">
                     <WorkspaceSelector
                       triggerId="automation-task-workspace-trigger"
+                      variant="outline"
                       labels={{
                         select: t("extensions.workspaceDirectory.selectTitle"),
                         clear: t("extensions.workspaceDirectory.clearWorkspace"),

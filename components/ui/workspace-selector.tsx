@@ -39,6 +39,7 @@ export function WorkspaceSelector({
   picking = false,
   selectedWorkspace,
   triggerId,
+  variant = "ghost",
   workspaces,
   onClear,
   onValueChange,
@@ -51,6 +52,7 @@ export function WorkspaceSelector({
   picking?: boolean;
   selectedWorkspace?: WorkspaceSelectorOption;
   triggerId?: string;
+  variant?: "ghost" | "outline";
   workspaces: readonly WorkspaceSelectorOption[];
   onClear?(): void;
   onValueChange(workspaceId: string): void;
@@ -79,8 +81,14 @@ export function WorkspaceSelector({
       <div
         title={error ? labels.selectError : (selectedWorkspace?.cwd ?? labels.select)}
         className={cn(
-          "group/workspace inline-flex h-[var(--dropdown-control-height)] min-w-0 max-w-56 items-center rounded-full bg-transparent text-base font-normal text-foreground transition-colors hover:bg-muted focus-within:bg-muted",
-          menuOpen && "bg-muted",
+          "group/workspace inline-flex h-[var(--dropdown-control-height)] min-w-0 max-w-56 items-center text-base font-normal text-foreground transition-colors",
+          variant === "outline"
+            ? "rounded-[var(--input-control-radius)] border [border-color:var(--input-control-border)] [background:var(--input-control-background)] hover:[background:var(--button-background-hover)] focus-within:[background:var(--button-background-hover)]"
+            : "rounded-full bg-transparent hover:bg-muted focus-within:bg-muted",
+          menuOpen &&
+            (variant === "outline"
+              ? "[background:var(--button-background-selected)] [color:var(--button-foreground-selected)]"
+              : "bg-muted"),
           error && "text-destructive",
         )}
       >
@@ -89,7 +97,10 @@ export function WorkspaceSelector({
             type="button"
             aria-label={labels.clear}
             title={labels.clear}
-            className="group/clear relative grid size-[var(--dropdown-control-height)] shrink-0 cursor-pointer place-items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+            className={cn(
+              "group/clear relative grid size-[var(--dropdown-control-height)] shrink-0 cursor-pointer place-items-center outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+              variant === "outline" ? "rounded-[var(--input-control-radius)]" : "rounded-full",
+            )}
             onClick={() => {
               setMenuOpen(false);
               setWorkspaceQuery("");
@@ -113,7 +124,8 @@ export function WorkspaceSelector({
           disabled={disabled || picking}
           aria-label={labels.select}
           className={cn(
-            "inline-flex h-[var(--dropdown-control-height)] min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-full pe-2 text-base font-normal outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:pointer-events-none disabled:cursor-default disabled:opacity-100",
+            "inline-flex h-[var(--dropdown-control-height)] min-w-0 flex-1 cursor-pointer items-center gap-2 pe-2 text-base font-normal outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:pointer-events-none disabled:cursor-default disabled:opacity-100",
+            variant === "outline" ? "rounded-[var(--input-control-radius)]" : "rounded-full",
             clearable ? "ps-0" : "ps-2",
           )}
         >
