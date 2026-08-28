@@ -1,6 +1,6 @@
-import manifestData from "material-icon-theme/dist/material-icons.json" with { type: "json" };
 import type { Manifest } from "material-icon-theme";
 import { Link2Icon } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -11,13 +11,55 @@ import {
   type MaterialIconIds,
 } from "./material-icon-theme";
 
-const manifest = manifestData as Manifest;
+const MANIFEST_URL = "/vendor/material-icon-theme/material-icons.json";
+const fallbackManifest = {
+  file: "file",
+  folder: "folder",
+  folderExpanded: "folder-open",
+  iconDefinitions: {},
+} as Manifest;
+
+let cachedManifest: Manifest = fallbackManifest;
+let manifestRequest: Promise<Manifest> | undefined;
+
+function loadManifest() {
+  manifestRequest ??= fetch(MANIFEST_URL)
+    .then((response) => {
+      if (!response.ok) throw new Error(`Material icon manifest returned ${response.status}.`);
+      return response.json() as Promise<Manifest>;
+    })
+    .then((manifest) => {
+      cachedManifest = manifest;
+      return manifest;
+    })
+    .catch((error: unknown) => {
+      console.error("[material-icon-theme] manifest load failed", error);
+      return fallbackManifest;
+    });
+  return manifestRequest;
+}
+
+function useMaterialIconManifest() {
+  const [manifest, setManifest] = useState(cachedManifest);
+  useEffect(() => {
+    let active = true;
+    void loadManifest().then((loaded) => {
+      if (active) setManifest(loaded);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+  return manifest;
+}
 
 function MaterialThemeIcon({
+  manifest,
   icons,
   symbolicLink,
   className,
 }: Readonly<{
+  manifest: Manifest;
   icons: MaterialIconIds;
   symbolicLink: boolean;
   className?: string;
@@ -61,8 +103,10 @@ export function FileTypeIcon({
   symbolicLink?: boolean;
   className?: string;
 }>) {
+  const manifest = useMaterialIconManifest();
   return (
     <MaterialThemeIcon
+      manifest={manifest}
       icons={materialFileIconIds(manifest, path)}
       symbolicLink={symbolicLink}
       className={className}
@@ -81,8 +125,10 @@ export function FolderTypeIcon({
   symbolicLink?: boolean;
   className?: string;
 }>) {
+  const manifest = useMaterialIconManifest();
   return (
     <MaterialThemeIcon
+      manifest={manifest}
       icons={materialFolderIconIds(manifest, name, expanded)}
       symbolicLink={symbolicLink}
       className={className}
