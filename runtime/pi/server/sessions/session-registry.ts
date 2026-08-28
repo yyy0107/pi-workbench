@@ -96,6 +96,7 @@ import {
   type PlannedWorkbenchComposerCommand,
 } from "../commands/composer-command-planner";
 import { expandPromptTemplateContent } from "../commands/prompt-template-expander";
+import { composerCommandFailureReason } from "../commands/composer-command-failure";
 import {
   piCompactUsesLegacyArguments,
   resolvePiCompactCustomInstructions,
@@ -418,6 +419,7 @@ function notifyCommandResponse(
 function commandTrace(
   plan: PlannedWorkbenchComposerCommand,
   status: WorkbenchComposerCommandTrace["status"],
+  failureReason?: WorkbenchComposerCommandTrace["failureReason"],
 ): WorkbenchComposerCommandTrace {
   const command = plan.command;
   return {
@@ -428,6 +430,7 @@ function commandTrace(
     effect: plan.effect,
     status,
     ...(command.args === undefined ? {} : { args: command.args }),
+    ...(failureReason === undefined ? {} : { failureReason }),
   };
 }
 
@@ -485,6 +488,7 @@ export async function resolveWorkbenchComposerCommands(
         commandId: command.commandId,
         label: command.label,
         status: "running",
+        ...(command.args === undefined ? {} : { args: command.args }),
       });
     }
     try {
@@ -533,23 +537,27 @@ export async function resolveWorkbenchComposerCommands(
           commandId: command.commandId,
           label: command.label,
           status: "success",
+          ...(command.args === undefined ? {} : { args: command.args }),
         };
         commandResponses.push(response);
         notifyCommandResponse(options, response);
       }
     } catch (error) {
+      const failureReason = composerCommandFailureReason(command, error);
       try {
         options.onCommandError?.(command, error);
       } catch {
         // Error reporting is observational and must not reject an admitted Composer transaction.
       }
-      request.commandTrace.push(commandTrace(plan, "execution-failed"));
+      request.commandTrace.push(commandTrace(plan, "execution-failed", failureReason));
       if (plan.kind === "builtin") {
         const response: WorkbenchComposerCommandResponse = {
           source: "agent",
           commandId: command.commandId,
           label: command.label,
           status: "execution-failed",
+          ...(command.args === undefined ? {} : { args: command.args }),
+          failureReason,
         };
         commandResponses.push(response);
         notifyCommandResponse(options, response);

@@ -64,6 +64,15 @@ test("renders canonical Skill links as readable conversation chrome", () => {
   );
 });
 
+test("renders canonical command links as readable conversation chrome", () => {
+  assert.equal(
+    deriveSessionDisplayTitle(
+      "[$Compact](command://agent/compact?args=%7B%22customInstructions%22%3A%22Keep%20decisions%22%7D) 继续检查",
+    ),
+    "Compact 继续检查",
+  );
+});
+
 test("keeps legacy Composer directives out of conversation chrome", () => {
   assert.equal(
     deriveSessionDisplayTitle(":pi-command[skill%3Aapple-design|Apple%20Design] 这是什么"),

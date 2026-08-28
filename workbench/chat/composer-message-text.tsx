@@ -4,6 +4,7 @@ import { useAuiState } from "@assistant-ui/react";
 
 import { CompactMarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ComposerCommandToken } from "@/components/elements/composer";
+import { useI18n } from "@/i18n";
 import { useComposerCommandRegistry } from "@/platform/extensions";
 import { useWorkbenchAgentCommands } from "@/runtime/assistant-ui/agent-runtime-context";
 import { parseWorkbenchComposerDocument } from "@/runtime/shared/composer/request";
@@ -13,6 +14,7 @@ import {
   parseAgentCommandText,
   removeAgentCommandBuffer,
 } from "./agent-command";
+import { ComposerCommandArguments } from "./composer-command-arguments";
 import { parseComposerDocument } from "./composer-document";
 
 function UserMessageTextBubble({ children }: { children: React.ReactNode }) {
@@ -28,6 +30,7 @@ function UserMessageTextBubble({ children }: { children: React.ReactNode }) {
 
 /** Renders the serialized Composer document in a sent user message using the same Token UI. */
 export function WorkbenchComposerMessageText({ text }: { text: string }) {
+  const { t } = useI18n();
   const commands = useWorkbenchAgentCommands();
   const persistedDocument = useAuiState(
     (state) => state.message.metadata.custom.workbenchComposerDocument,
@@ -39,6 +42,13 @@ export function WorkbenchComposerMessageText({ text }: { text: string }) {
   const hasTextPresentation = composerDocument.some(
     (node) => node.type !== "attachment" && (node.type !== "text" || node.text.length > 0),
   );
+  const projectedArgumentFields = new Map<string, Set<string>>();
+  for (const node of composerDocument) {
+    if (node.type !== "command-argument") continue;
+    const fields = projectedArgumentFields.get(node.commandNodeId) ?? new Set<string>();
+    fields.add(node.field);
+    projectedArgumentFields.set(node.commandNodeId, fields);
+  }
 
   if (!hasTextPresentation) return null;
 
@@ -62,11 +72,26 @@ export function WorkbenchComposerMessageText({ text }: { text: string }) {
                 );
               case "command":
                 return (
-                  <ComposerCommandToken
+                  <span
                     key={node.id}
-                    label={node.label}
-                    className="mx-0.5 align-baseline"
-                  />
+                    className="inline-flex max-w-full flex-wrap items-center gap-1.5 align-middle"
+                  >
+                    <ComposerCommandToken label={node.label} className="align-baseline" />
+                    <ComposerCommandArguments
+                      args={node.args}
+                      omittedFields={projectedArgumentFields.get(node.id)}
+                      fieldLabels={
+                        node.commandId === "compact"
+                          ? {
+                              customInstructions: t(
+                                "workbench.chat.commandArguments.customInstructions",
+                              ),
+                            }
+                          : undefined
+                      }
+                      className="me-0.5 text-sm text-foreground/80"
+                    />
+                  </span>
                 );
               case "mention":
                 return <span key={node.id}>{node.label}</span>;

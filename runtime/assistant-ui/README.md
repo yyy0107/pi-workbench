@@ -96,10 +96,11 @@ Composer 不得导入具体 Runtime。Pi 当前在
 [`../pi/client/assistant-ui/command-catalog.tsx`](../pi/client/assistant-ui/command-catalog.tsx) 中订阅活动
 session、workspace target 和资源 catalog revision，然后投影 `command.list`。
 
-Composer document 的当前 wire 是 `version: 2`，统一写入 `agent-command`、
-`agent-project-skill`、`agent-user-skill` 和 `source: "agent"`。具体 Runtime 名称不会进入草稿、RPC
-或历史。兼容解析仍读取旧 `version: 1` 的 `pi-command`、`pi-project-skill`、`pi-user-skill` 与
-`source: "pi"`，并在边界立即归一化为 Agent 语义；兼容标记不得用于新的写入。
+Composer document 的当前 wire 是 `version: 2`；结构化节点统一写入 `source: "agent"`，可读
+`sourceText` 使用 `[$label](command://<agent|workbench>/<id>?args=<encoded-json>)` 和
+`[$label](skill://<scope>/<name>)` 资源链接。具体 Runtime 名称不会进入草稿、RPC 或历史。兼容解析仍
+读取旧 `agent-command`、`pi-command`、`pi-project-skill`、`pi-user-skill` 与 `source: "pi"`，并在
+边界立即归一化为 Agent 语义；冒号标记不得用于新的写入。
 
 ## 实现约束
 

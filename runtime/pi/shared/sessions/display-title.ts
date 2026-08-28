@@ -9,8 +9,8 @@ const MARKDOWN_FENCE_PATTERN = /^```[^\n]*\n([\s\S]*?)(?:\n```\s*)?$/u;
 const PATH_PATTERN = /^(?:[a-z]:[\\/]|~?[\\/]|\.\.?[\\/])\S+$/iu;
 const COMPOSER_COMMAND_DIRECTIVE_PATTERN =
   /:(?:workbench-command|agent-command|pi-command|workbench-command-argument-end)\[[^|\]\n]{1,2048}\|([^\]\n]{1,4096})\]/gu;
-const COMPOSER_SKILL_LINK_PATTERN =
-  /\[\$((?:\\.|[^\]\\\n]){1,4096})\]\(skill:\/\/(?:user|project)\/[^\s)\n]{1,2048}\)/gu;
+const COMPOSER_RESOURCE_LINK_PATTERN =
+  /\[\$((?:\\.|[^\]\\\n]){1,4096})\]\((?:(?:skill:\/\/(?:user|project)|command:\/\/(?:agent|workbench))\/[^\s)\n]{1,196608})\)/gu;
 
 export interface SessionDisplayTitleOptions {
   fallback?: string;
@@ -50,7 +50,7 @@ function decodeComposerLabel(value: string): string {
 
 function stripComposerProtocol(value: string): string {
   return value
-    .replace(COMPOSER_SKILL_LINK_PATTERN, (_match, label: string) =>
+    .replace(COMPOSER_RESOURCE_LINK_PATTERN, (_match, label: string) =>
       label.replace(/\\([\\\]])/gu, "$1"),
     )
     .replace(COMPOSER_COMMAND_DIRECTIVE_PATTERN, (_match, label: string) =>

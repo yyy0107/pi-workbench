@@ -19,11 +19,27 @@ export const workbenchEnUS = {
       commandSuggestions: "Command suggestions",
       commandParameters: {
         close: "Close command parameters",
+        disabled: "Disabled",
+        done: "Done",
         edit: ({ command }: { command: string }) => `Edit parameters for ${command}`,
         enabled: "Enabled",
+        notSet: "Not set",
         optional: "Optional",
         required: "Required",
+        reset: "Reset",
+        selectPlaceholder: "Select a value",
+        title: "Command parameters",
         valuePlaceholder: ({ parameter }: { parameter: string }) => `Enter ${parameter}`,
+        errors: {
+          integer: "Enter a whole number.",
+          invalidChoice: "Select a valid value.",
+          invalidNumber: "Enter a valid number.",
+          maximum: ({ limit }: { limit: string }) => `Enter ${limit} or less.`,
+          maxLength: ({ limit }: { limit: string }) => `Use no more than ${limit} characters.`,
+          minimum: ({ limit }: { limit: string }) => `Enter ${limit} or more.`,
+          minLength: ({ limit }: { limit: string }) => `Use at least ${limit} characters.`,
+          required: "Enter a value.",
+        },
       },
       commandGroups: {
         builtin: "Pi built-ins",
@@ -72,6 +88,9 @@ export const workbenchEnUS = {
     sourceFallback: "Source",
     generating: "Generating response…",
     loadingHistory: "Loading conversation history…",
+    commandArguments: {
+      customInstructions: "Custom instructions",
+    },
     working: "Pi Working...",
     workingElapsed: ({ duration }: { duration: string }) => `Pi Working... · ${duration}`,
     workingWordmarkElapsed: ({ duration }: { duration: string }) => `· ${duration}`,
@@ -101,6 +120,36 @@ export const workbenchEnUS = {
       commandRunning: ({ command }: { command: string }) => `${command} is running…`,
       commandSucceeded: ({ command }: { command: string }) => `${command} completed.`,
       commandFailed: ({ command }: { command: string }) => `${command} could not be completed.`,
+      failureReasons: {
+        contextTooSmall:
+          "The current context is too short to compact. Continue the conversation and try again.",
+        alreadyCompacted:
+          "Reason: The current context is already compacted and has no new content to process. Continue the conversation, then try again.",
+        cancelled:
+          "Reason: The operation was cancelled before it finished. Make sure no other session action is interrupting it, then try again.",
+        modelUnavailable:
+          "Reason: This conversation has no available model. Select and configure a model, then try again.",
+        authenticationFailed:
+          "Reason: Authentication for the selected model failed. Sign in again or check its API key, then retry.",
+        quotaExhausted:
+          "Reason: The model provider has no available quota or billing capacity. Check the account quota, then retry.",
+        rateLimited:
+          "Reason: The model provider is rate-limiting requests. Wait a moment, then try again.",
+        networkError:
+          "Reason: Workbench could not reach the model provider. Check the network and provider endpoint, then retry.",
+        timeout:
+          "Reason: The model provider did not respond in time. Wait a moment, then try again.",
+        providerUnavailable:
+          "Reason: The model provider is currently unavailable. Try again later or switch to another model.",
+        sessionDataInvalid:
+          "Reason: This conversation history cannot be compacted safely. Start a new conversation or repair the persisted session data.",
+        summaryGenerationFailed:
+          "Reason: The model could not generate a valid context summary. Check the model configuration or switch models, then retry.",
+        reloadFailed:
+          "Reason: An extension, Skill, prompt, or context file failed to load. Check recently changed resources, then retry.",
+        unknown:
+          "Reason: The command encountered an unclassified runtime error. Try again; if it continues, check the server log.",
+      },
     },
     separators: {
       continuedFromChat: "Continued from chat",

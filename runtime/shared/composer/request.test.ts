@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   composerDocumentMatchesCommands,
   parseWorkbenchComposerCommandResponseDetails,
+  parseWorkbenchComposerResolutionDetails,
   parseWorkbenchComposerSubmission,
   workbenchComposerSubmissionFromRunConfig,
   WORKBENCH_COMPOSER_RUN_CONFIG_KEY,
@@ -204,6 +205,7 @@ test("parses a safe built-in command response without accepting raw error fields
     commandId: "compact",
     label: "Compact",
     status: "execution-failed",
+    args: { customInstructions: "Keep the command arguments" },
   } as const;
 
   assert.deepEqual(parseWorkbenchComposerCommandResponseDetails(response), {
@@ -215,11 +217,103 @@ test("parses a safe built-in command response without accepting raw error fields
     parseWorkbenchComposerCommandResponseDetails({ ...response, status: "running" }),
     { ...response, version: 2, source: "agent", status: "running" },
   );
+  assert.deepEqual(
+    parseWorkbenchComposerCommandResponseDetails({
+      ...response,
+      version: 2,
+      source: "agent",
+      failureReason: "context-too-small",
+    }),
+    {
+      ...response,
+      version: 2,
+      source: "agent",
+      failureReason: "context-too-small",
+    },
+  );
+  assert.deepEqual(
+    parseWorkbenchComposerCommandResponseDetails({
+      ...response,
+      failureReason: "nothing-to-compact",
+    }),
+    {
+      ...response,
+      version: 2,
+      source: "agent",
+      failureReason: "context-too-small",
+    },
+  );
+  assert.equal(
+    parseWorkbenchComposerCommandResponseDetails({
+      ...response,
+      status: "running",
+      failureReason: "context-too-small",
+    }),
+    undefined,
+  );
+  assert.equal(
+    parseWorkbenchComposerCommandResponseDetails({
+      ...response,
+      failureReason: "raw-provider-message",
+    }),
+    undefined,
+  );
   assert.equal(
     parseWorkbenchComposerCommandResponseDetails({
       ...response,
       status: "failed",
       error: "Nothing to compact",
+    }),
+    undefined,
+  );
+  assert.equal(
+    parseWorkbenchComposerCommandResponseDetails({
+      ...response,
+      args: { customInstructions: Number.NaN },
+    }),
+    undefined,
+  );
+});
+
+test("retains only stable failure reasons in durable command traces", () => {
+  const details = {
+    version: 2,
+    submissionId: "submission-1",
+    status: "command_error",
+    commandTrace: [
+      {
+        source: "agent",
+        commandId: "compact",
+        label: "Compact",
+        scope: "message",
+        effect: "session-action",
+        status: "execution-failed",
+        failureReason: "context-too-small",
+      },
+    ],
+  } as const;
+
+  assert.deepEqual(parseWorkbenchComposerResolutionDetails(details), details);
+  assert.deepEqual(
+    parseWorkbenchComposerResolutionDetails({
+      ...details,
+      commandTrace: [{ ...details.commandTrace[0], failureReason: "nothing-to-compact" }],
+    }),
+    details,
+  );
+  assert.equal(
+    parseWorkbenchComposerResolutionDetails({
+      ...details,
+      commandTrace: [{ ...details.commandTrace[0], failureReason: "raw-provider-message" }],
+    }),
+    undefined,
+  );
+  assert.equal(
+    parseWorkbenchComposerResolutionDetails({
+      ...details,
+      commandTrace: [
+        { ...details.commandTrace[0], status: "success", failureReason: "context-too-small" },
+      ],
     }),
     undefined,
   );

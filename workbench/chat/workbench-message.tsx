@@ -253,6 +253,32 @@ export function WorkbenchSystemMessage() {
   const commandResponse = parseWorkbenchComposerCommandResponseDetails(
     useAuiState((state) => state.message.metadata.custom.workbenchComposerCommandResponse),
   );
+  const compactionDetail =
+    conversationEvent?.kind === "compaction" &&
+    conversationEvent.tokensBefore !== undefined &&
+    conversationEvent.estimatedTokensAfter !== undefined
+      ? t("workbench.chat.separators.contextCompactedTokens", {
+          before: conversationEvent.tokensBefore,
+          after: conversationEvent.estimatedTokensAfter,
+        })
+      : conversationEvent?.kind === "compaction" && conversationEvent.tokensBefore !== undefined
+        ? t("workbench.chat.separators.contextCompactedBefore", {
+            before: conversationEvent.tokensBefore,
+          })
+        : undefined;
+
+  if (commandResponse?.commandId === "compact") {
+    return (
+      <MessagePrimitive.Root className="w-full py-0.5">
+        <MessageSlot name="message.before" />
+        <WorkbenchComposerCommandResponse
+          response={commandResponse}
+          compactionDetail={compactionDetail}
+        />
+        <MessageSlot name="message.after" />
+      </MessagePrimitive.Root>
+    );
+  }
 
   if (conversationEvent) {
     const modelLabel =
@@ -265,20 +291,6 @@ export function WorkbenchSystemMessage() {
             .filter(Boolean)
             .join("/")
         : undefined;
-    const compactionDetail =
-      conversationEvent.kind === "compaction" &&
-      conversationEvent.tokensBefore !== undefined &&
-      conversationEvent.estimatedTokensAfter !== undefined
-        ? t("workbench.chat.separators.contextCompactedTokens", {
-            before: conversationEvent.tokensBefore,
-            after: conversationEvent.estimatedTokensAfter,
-          })
-        : conversationEvent.kind === "compaction" && conversationEvent.tokensBefore !== undefined
-          ? t("workbench.chat.separators.contextCompactedBefore", {
-              before: conversationEvent.tokensBefore,
-            })
-          : undefined;
-
     return (
       <MessagePrimitive.Root className="w-full py-0.5">
         <MessageSlot name="message.before" />

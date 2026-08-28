@@ -1,5 +1,6 @@
 import {
   COMPOSER_COMMAND_EFFECTS,
+  isComposerJsonValue,
   type ComposerCommandArgsBinding,
   type ComposerCommandArgsSchema,
   type ComposerCommandEffect,
@@ -96,6 +97,7 @@ export interface WorkbenchComposerCommandTrace {
   effect: WorkbenchComposerCommandEffect;
   status: "success" | "execution-failed";
   args?: WorkbenchComposerJsonValue;
+  failureReason?: WorkbenchComposerCommandFailureReason;
 }
 
 export interface WorkbenchComposerResolutionDetails {
@@ -107,12 +109,45 @@ export interface WorkbenchComposerResolutionDetails {
 
 export type WorkbenchComposerCommandResponseStatus = "running" | "success" | "execution-failed";
 
+export const WORKBENCH_COMPOSER_COMMAND_FAILURE_REASONS = [
+  "context-too-small",
+  "already-compacted",
+  "cancelled",
+  "model-unavailable",
+  "authentication-failed",
+  "quota-exhausted",
+  "rate-limited",
+  "network-error",
+  "timeout",
+  "provider-unavailable",
+  "session-data-invalid",
+  "summary-generation-failed",
+  "reload-failed",
+  "unknown",
+] as const;
+
+export type WorkbenchComposerCommandFailureReason =
+  (typeof WORKBENCH_COMPOSER_COMMAND_FAILURE_REASONS)[number];
+
+function normalizeWorkbenchComposerCommandFailureReason(
+  value: unknown,
+): WorkbenchComposerCommandFailureReason | undefined {
+  // Normalize the short-lived pre-canonical name at the persistence boundary. Internally, manual
+  // compaction uses the same `context-too-small` reason as the Context Policy RPC.
+  if (value === "nothing-to-compact") return "context-too-small";
+  return WORKBENCH_COMPOSER_COMMAND_FAILURE_REASONS.find((reason) => reason === value);
+}
+
 /** A user-visible outcome for an Agent built-in command. It intentionally excludes raw errors. */
 export interface WorkbenchComposerCommandResponse {
   source: "agent";
   commandId: string;
   label: string;
   status: WorkbenchComposerCommandResponseStatus;
+  /** Safe structured arguments retained for visible status and durable audit projections. */
+  args?: WorkbenchComposerJsonValue;
+  /** Stable, redacted failure classification. Raw runtime/provider errors never cross this wire. */
+  failureReason?: WorkbenchComposerCommandFailureReason;
 }
 
 export interface WorkbenchComposerCommandResponseDetails extends WorkbenchComposerCommandResponse {
@@ -202,20 +237,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function isJsonValue(value: unknown, depth = 0): value is WorkbenchComposerJsonValue {
-  if (depth > 32) return false;
-  if (
-    value === null ||
-    typeof value === "string" ||
-    typeof value === "boolean" ||
-    (typeof value === "number" && Number.isFinite(value))
-  ) {
-    return true;
-  }
-  if (Array.isArray(value)) return value.every((item) => isJsonValue(item, depth + 1));
-  return isRecord(value) && Object.values(value).every((item) => isJsonValue(item, depth + 1));
-}
-
 type ComposerWireGeneration = "legacy-pi" | "agent" | "either";
 
 function normalizeComposerCommandSource(
@@ -241,7 +262,7 @@ function composerCommand(
     typeof label !== "string" ||
     (scope !== "message" && scope !== "segment") ||
     normalizedSource === undefined ||
-    (args !== undefined && !isJsonValue(args))
+    (args !== undefined && !isComposerJsonValue(args))
   ) {
     return undefined;
   }
@@ -339,7 +360,9 @@ export function parseWorkbenchComposerSubmission(
   const document =
     value.document === undefined ? undefined : parseComposerDocument(value.document, generation);
   const context = value.context.flatMap((item) => {
-    if (!isRecord(item) || typeof item.type !== "string" || !isJsonValue(item.value)) return [];
+    if (!isRecord(item) || typeof item.type !== "string" || !isComposerJsonValue(item.value)) {
+      return [];
+    }
     return [{ type: item.type, value: item.value }];
   });
   const commands = value.commands.map((command) => composerCommand(command, generation));
@@ -347,7 +370,7 @@ export function parseWorkbenchComposerSubmission(
     (value.document !== undefined && document === undefined) ||
     context.length !== value.context.length ||
     commands.some((command) => command === undefined) ||
-    !Object.values(value.metadata).every(isJsonValue)
+    !Object.values(value.metadata).every(isComposerJsonValue)
   ) {
     return undefined;
   }
@@ -473,8 +496,9 @@ function commandTraceEntry(
   generation: ComposerWireGeneration,
 ): WorkbenchComposerCommandTrace | undefined {
   if (!isRecord(value)) return undefined;
-  const { source, commandId, label, scope, effect, status, args } = value;
+  const { source, commandId, label, scope, effect, status, args, failureReason } = value;
   const normalizedSource = normalizeComposerCommandSource(source, generation);
+  const normalizedFailureReason = normalizeWorkbenchComposerCommandFailureReason(failureReason);
   if (
     normalizedSource === undefined ||
     typeof commandId !== "string" ||
@@ -482,7 +506,9 @@ function commandTraceEntry(
     (scope !== "message" && scope !== "segment") ||
     !COMPOSER_COMMAND_EFFECTS.some((candidate) => candidate === effect) ||
     (status !== "success" && status !== "execution-failed") ||
-    (args !== undefined && !isJsonValue(args))
+    (args !== undefined && !isComposerJsonValue(args)) ||
+    (failureReason !== undefined &&
+      (status !== "execution-failed" || normalizedFailureReason === undefined))
   ) {
     return undefined;
   }
@@ -494,6 +520,7 @@ function commandTraceEntry(
     effect: effect as WorkbenchComposerCommandEffect,
     status,
     ...(args === undefined ? {} : { args }),
+    ...(normalizedFailureReason === undefined ? {} : { failureReason: normalizedFailureReason }),
   };
 }
 
@@ -525,6 +552,9 @@ export function parseWorkbenchComposerResolutionDetails(
 export function parseWorkbenchComposerCommandResponseDetails(
   value: unknown,
 ): WorkbenchComposerCommandResponseDetails | undefined {
+  const normalizedFailureReason = isRecord(value)
+    ? normalizeWorkbenchComposerCommandFailureReason(value.failureReason)
+    : undefined;
   if (
     !isRecord(value) ||
     (value.version !== 1 && value.version !== 2) ||
@@ -534,7 +564,10 @@ export function parseWorkbenchComposerCommandResponseDetails(
     typeof value.label !== "string" ||
     (value.status !== "running" &&
       value.status !== "success" &&
-      value.status !== "execution-failed")
+      value.status !== "execution-failed") ||
+    (value.args !== undefined && !isComposerJsonValue(value.args)) ||
+    (value.failureReason !== undefined &&
+      (value.status !== "execution-failed" || normalizedFailureReason === undefined))
   ) {
     return undefined;
   }
@@ -545,5 +578,7 @@ export function parseWorkbenchComposerCommandResponseDetails(
     commandId: value.commandId,
     label: value.label,
     status: value.status,
+    ...(value.args === undefined ? {} : { args: value.args }),
+    ...(normalizedFailureReason === undefined ? {} : { failureReason: normalizedFailureReason }),
   };
 }

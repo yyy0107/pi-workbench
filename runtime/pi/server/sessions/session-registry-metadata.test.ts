@@ -438,6 +438,7 @@ test("records a successful built-in command as a visible response outcome", asyn
 
 test("passes canonical compact custom instructions without starting a normal prompt", async () => {
   const compactInstructions: Array<string | undefined> = [];
+  const publishedResponses: unknown[] = [];
   let promptCount = 0;
   const session = {
     extensionRunner: { getRegisteredCommands: () => [] },
@@ -453,23 +454,27 @@ test("passes canonical compact custom instructions without starting a normal pro
     },
   } as unknown as Parameters<typeof resolveWorkbenchComposerCommands>[0];
 
-  const resolved = await resolveWorkbenchComposerCommands(session, {
-    version: 2,
-    sourceText: ":agent-command[compact|Compact] Focus on concurrency changes",
-    text: "",
-    context: [],
-    metadata: {},
-    commands: [
-      {
-        id: "compact",
-        commandId: "compact",
-        label: "Compact",
-        scope: "message",
-        source: "agent",
-        args: { customInstructions: "Focus on concurrency changes" },
-      },
-    ],
-  });
+  const resolved = await resolveWorkbenchComposerCommands(
+    session,
+    {
+      version: 2,
+      sourceText: ":agent-command[compact|Compact] Focus on concurrency changes",
+      text: "",
+      context: [],
+      metadata: {},
+      commands: [
+        {
+          id: "compact",
+          commandId: "compact",
+          label: "Compact",
+          scope: "message",
+          source: "agent",
+          args: { customInstructions: "Focus on concurrency changes" },
+        },
+      ],
+    },
+    { onCommandResponse: (response) => publishedResponses.push(response) },
+  );
 
   assert.deepEqual(compactInstructions, ["Focus on concurrency changes"]);
   assert.equal(promptCount, 0);
@@ -477,6 +482,23 @@ test("passes canonical compact custom instructions without starting a normal pro
   assert.deepEqual(resolved.request.commandTrace[0]?.args, {
     customInstructions: "Focus on concurrency changes",
   });
+  assert.deepEqual(publishedResponses, [
+    {
+      source: "agent",
+      commandId: "compact",
+      label: "Compact",
+      status: "running",
+      args: { customInstructions: "Focus on concurrency changes" },
+    },
+    {
+      source: "agent",
+      commandId: "compact",
+      label: "Compact",
+      status: "success",
+      args: { customInstructions: "Focus on concurrency changes" },
+    },
+  ]);
+  assert.deepEqual(resolved.commandResponses, [publishedResponses[1]]);
 });
 
 test("keeps ordinary prompt text separate from canonical compact arguments", async () => {
@@ -600,6 +622,7 @@ test("records command execution failures as resolved outcomes instead of rejecti
       scope: "message",
       effect: "session-action",
       status: "execution-failed",
+      failureReason: "context-too-small",
     },
   ]);
   assert.deepEqual(resolved.commandResponses, [
@@ -608,6 +631,7 @@ test("records command execution failures as resolved outcomes instead of rejecti
       commandId: "compact",
       label: "Compact",
       status: "execution-failed",
+      failureReason: "context-too-small",
     },
   ]);
   assert.deepEqual(reported, [["compact", failure]]);
@@ -656,6 +680,18 @@ test("keeps a durable token-only user message when its built-in command fails", 
   });
 
   const sourceText = ":agent-command[compact|Compact] ";
+  const command = {
+    id: "command:agent:compact:0",
+    commandId: "compact",
+    label: "Compact",
+    scope: "message",
+    source: "agent",
+    args: { customInstructions: "Keep the command arguments" },
+  } as const;
+  const document = [
+    { type: "command", ...command },
+    { type: "text", text: " " },
+  ] as const;
   await submitPrompt(
     host.id,
     "followUp",
@@ -664,30 +700,12 @@ test("keeps a durable token-only user message when its built-in command fails", 
       rpcId: "compact-command-rpc",
       composer: {
         version: 2,
-        document: [
-          {
-            type: "command",
-            id: "command:agent:compact:0",
-            commandId: "compact",
-            label: "Compact",
-            scope: "message",
-            source: "agent",
-          },
-          { type: "text", text: " " },
-        ],
+        document,
         sourceText,
         text: "",
         context: [],
         metadata: {},
-        commands: [
-          {
-            id: "command:agent:compact:0",
-            commandId: "compact",
-            label: "Compact",
-            scope: "message",
-            source: "agent",
-          },
-        ],
+        commands: [command],
       },
     },
   );
@@ -703,52 +721,16 @@ test("keeps a durable token-only user message when its built-in command fails", 
     submissionId: (marker.details as { submissionId: string }).submissionId,
     sourceText,
     text: "",
-    document: [
-      {
-        type: "command",
-        id: "command:agent:compact:0",
-        commandId: "compact",
-        label: "Compact",
-        scope: "message",
-        source: "agent",
-      },
-      { type: "text", text: " " },
-    ],
-    commands: [
-      {
-        id: "command:agent:compact:0",
-        commandId: "compact",
-        label: "Compact",
-        scope: "message",
-        source: "agent",
-      },
-    ],
+    document,
+    commands: [command],
     composer: {
       version: 2,
-      document: [
-        {
-          type: "command",
-          id: "command:agent:compact:0",
-          commandId: "compact",
-          label: "Compact",
-          scope: "message",
-          source: "agent",
-        },
-        { type: "text", text: " " },
-      ],
+      document,
       sourceText,
       text: "",
       context: [],
       metadata: {},
-      commands: [
-        {
-          id: "command:agent:compact:0",
-          commandId: "compact",
-          label: "Compact",
-          scope: "message",
-          source: "agent",
-        },
-      ],
+      commands: [command],
     },
     status: "accepted",
   });
@@ -766,6 +748,8 @@ test("keeps a durable token-only user message when its built-in command fails", 
     commandId: "compact",
     label: "Compact",
     status: "execution-failed",
+    args: { customInstructions: "Keep the command arguments" },
+    failureReason: "context-too-small",
   });
   assert.equal(
     host.session.sessionManager
@@ -781,14 +765,34 @@ test("keeps a durable token-only user message when its built-in command fails", 
   const events = await getSessionEvents(host.id);
   assert.deepEqual(
     events.flatMap((event) => {
-      const data = event.data as { customType?: string; details?: { status?: string } };
+      const data = event.data as {
+        customType?: string;
+        details?: { status?: string; args?: unknown; failureReason?: string };
+      };
       return event.type === "message" &&
         data.customType === "workbench.composer-command-response.v2" &&
         data.details?.status
-        ? [data.details.status]
+        ? [
+            {
+              status: data.details.status,
+              args: data.details.args,
+              failureReason: data.details.failureReason,
+            },
+          ]
         : [];
     }),
-    ["running", "execution-failed"],
+    [
+      {
+        status: "running",
+        args: { customInstructions: "Keep the command arguments" },
+        failureReason: undefined,
+      },
+      {
+        status: "execution-failed",
+        args: { customInstructions: "Keep the command arguments" },
+        failureReason: "context-too-small",
+      },
+    ],
   );
   assert.equal(
     events.at(-1)?.type,

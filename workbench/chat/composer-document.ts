@@ -4,6 +4,7 @@ import type {
   Unstable_TriggerItem,
 } from "@assistant-ui/react";
 
+import { isComposerJsonValue } from "@/contracts/composer";
 import type {
   CompiledComposerRequest,
   ComposerCommandArgsBinding,
@@ -29,8 +30,10 @@ export const PI_PROJECT_SKILL_DIRECTIVE_TYPE = "pi-project-skill";
 export const PI_USER_SKILL_DIRECTIVE_TYPE = "pi-user-skill";
 export const COMMAND_ARGUMENT_END_DIRECTIVE_TYPE = "workbench-command-argument-end";
 
-const COMMAND_DIRECTIVE_RE =
+const LEGACY_COMMAND_DIRECTIVE_RE =
   /:(workbench-command|agent-command|pi-command|workbench-command-argument-end)\[([^|\]\n]{1,2048})\|([^\]\n]{1,4096})\]/gu;
+const COMMAND_LINK_RE =
+  /\[\$((?:\\.|[^\]\\\n]){1,4096})\]\(command:\/\/(agent|workbench)\/([^\s?)#\n]{1,2048})(?:\?args=([^\s)#\n]{1,196608}))?\)/gu;
 const SKILL_LINK_RE =
   /\[\$((?:\\.|[^\]\\\n]){1,4096})\]\(skill:\/\/(user|project)\/([^\s)\n]{1,2048})\)/gu;
 
@@ -73,12 +76,19 @@ function decodeDirectiveValue(value: string): string | undefined {
   }
 }
 
-function escapeSkillLinkLabel(value: string): string {
+function escapeResourceLinkLabel(value: string): string {
   return value.replaceAll("\\", "\\\\").replaceAll("]", "\\]");
 }
 
-function unescapeSkillLinkLabel(value: string): string {
+function unescapeResourceLinkLabel(value: string): string {
   return value.replace(/\\([\\\]])/gu, "$1");
+}
+
+function encodeResourceLinkComponent(value: string): string {
+  return encodeURIComponent(value).replace(
+    /[!'()*]/gu,
+    (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
 }
 
 function skillNameFromInvocationName(invocationName: string): string | undefined {
@@ -90,13 +100,48 @@ function skillNameFromInvocationName(invocationName: string): string | undefined
 interface ParsedDirectiveMatch {
   readonly index: number;
   readonly end: number;
-  readonly segment: Exclude<Unstable_DirectiveSegment, { readonly kind: "text" }>;
+  readonly segment: Exclude<Unstable_DirectiveSegment, { readonly kind: "text" }> & {
+    readonly args?: ComposerJsonValue;
+  };
+}
+
+function commandLinkArgs(
+  encoded: string | undefined,
+): { readonly valid: true; readonly args?: ComposerJsonValue } | { readonly valid: false } {
+  if (encoded === undefined) return { valid: true };
+  const decoded = decodeDirectiveValue(encoded);
+  if (decoded === undefined) return { valid: false };
+  try {
+    const args: unknown = JSON.parse(decoded);
+    return isComposerJsonValue(args) ? { valid: true, args } : { valid: false };
+  } catch {
+    return { valid: false };
+  }
+}
+
+function serializeCommandLink({
+  id,
+  label,
+  source,
+  args,
+}: Readonly<{
+  id: string;
+  label: string;
+  source: ComposerCommandNode["source"];
+  args?: ComposerJsonValue;
+}>): string {
+  const target = `command://${source}/${encodeResourceLinkComponent(id)}`;
+  const serializedArgs =
+    args === undefined
+      ? ""
+      : `?args=${encodeResourceLinkComponent(JSON.stringify(args) ?? "null")}`;
+  return `[$${escapeResourceLinkLabel(label)}](${target}${serializedArgs})`;
 }
 
 function parsedDirectiveMatches(text: string): readonly ParsedDirectiveMatch[] {
   const matches: ParsedDirectiveMatch[] = [];
 
-  for (const match of text.matchAll(COMMAND_DIRECTIVE_RE)) {
+  for (const match of text.matchAll(LEGACY_COMMAND_DIRECTIVE_RE)) {
     const id = decodeDirectiveValue(match[2]!);
     const label = decodeDirectiveValue(match[3]!);
     if (!id || !label) continue;
@@ -107,8 +152,27 @@ function parsedDirectiveMatches(text: string): readonly ParsedDirectiveMatch[] {
     });
   }
 
+  for (const match of text.matchAll(COMMAND_LINK_RE)) {
+    const label = unescapeResourceLinkLabel(match[1]!);
+    const source = match[2] as ComposerCommandNode["source"];
+    const id = decodeDirectiveValue(match[3]!);
+    const parsedArgs = commandLinkArgs(match[4]);
+    if (!label || !id || !parsedArgs.valid) continue;
+    matches.push({
+      index: match.index,
+      end: match.index + match[0].length,
+      segment: {
+        kind: "mention",
+        type: source === "agent" ? AGENT_COMMAND_DIRECTIVE_TYPE : WORKBENCH_COMMAND_DIRECTIVE_TYPE,
+        id,
+        label,
+        ...(parsedArgs.args === undefined ? {} : { args: parsedArgs.args }),
+      },
+    });
+  }
+
   for (const match of text.matchAll(SKILL_LINK_RE)) {
-    const label = unescapeSkillLinkLabel(match[1]!);
+    const label = unescapeResourceLinkLabel(match[1]!);
     const scope = match[2] as PersistedSkillScope;
     const name = decodeDirectiveValue(match[3]!);
     if (!label || !name) continue;
@@ -138,17 +202,21 @@ export const workbenchComposerDirectiveFormatter: Unstable_DirectiveFormatter = 
       if (!skillName) {
         throw new Error(`Invalid Skill invocation name "${item.id}"`);
       }
-      return `[$${escapeSkillLinkLabel(item.label)}](skill://${skillScope}/${encodeURIComponent(skillName)})`;
+      return `[$${escapeResourceLinkLabel(item.label)}](skill://${skillScope}/${encodeResourceLinkComponent(skillName)})`;
     }
-    if (
-      item.type !== WORKBENCH_COMMAND_DIRECTIVE_TYPE &&
-      item.type !== AGENT_COMMAND_DIRECTIVE_TYPE &&
-      item.type !== PI_COMMAND_DIRECTIVE_TYPE &&
-      item.type !== COMMAND_ARGUMENT_END_DIRECTIVE_TYPE
-    ) {
+    if (item.type === COMMAND_ARGUMENT_END_DIRECTIVE_TYPE) {
+      return `:${item.type}[${encodeURIComponent(item.id)}|${encodeURIComponent(item.label)}]`;
+    }
+    const source =
+      item.type === WORKBENCH_COMMAND_DIRECTIVE_TYPE
+        ? "workbench"
+        : item.type === AGENT_COMMAND_DIRECTIVE_TYPE || item.type === PI_COMMAND_DIRECTIVE_TYPE
+          ? "agent"
+          : undefined;
+    if (!source) {
       throw new Error(`Unsupported Workbench directive type "${item.type}"`);
     }
-    return `:${item.type}[${encodeURIComponent(item.id)}|${encodeURIComponent(item.label)}]`;
+    return serializeCommandLink({ id: item.id, label: item.label, source });
   },
 
   parse(text: string): readonly Unstable_DirectiveSegment[] {
@@ -232,6 +300,7 @@ export function parseComposerDocument(
     }
 
     const source = isAgentComposerDirectiveType(segment.type) ? "agent" : "workbench";
+    const args = (segment as typeof segment & { readonly args?: ComposerJsonValue }).args;
     const commandNode: ComposerCommandNode = {
       type: "command",
       id: `command:${source}:${segment.id}:${commandIndex++}`,
@@ -239,6 +308,7 @@ export function parseComposerDocument(
       label: segment.label,
       scope: registry?.get(segment.id)?.composer.scope ?? "message",
       source,
+      ...(args === undefined ? {} : { args }),
     };
     nodes.push(commandNode);
   }
@@ -319,15 +389,18 @@ export function composerDocumentSourceText(
             agentCommand?.kind === "skill" && resourceScope
               ? agentSkillDirectiveType(resourceScope)
               : undefined;
-          return workbenchComposerDirectiveFormatter.serialize({
-            id: node.commandId,
-            type:
-              skillType ??
-              (node.source === "agent"
-                ? AGENT_COMMAND_DIRECTIVE_TYPE
-                : WORKBENCH_COMMAND_DIRECTIVE_TYPE),
-            label: node.label,
-          });
+          return skillType
+            ? workbenchComposerDirectiveFormatter.serialize({
+                id: node.commandId,
+                type: skillType,
+                label: node.label,
+              })
+            : serializeCommandLink({
+                id: node.commandId,
+                label: node.label,
+                source: node.source,
+                ...(node.args === undefined ? {} : { args: node.args }),
+              });
         }
         case "command-argument":
           return node.text;

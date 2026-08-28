@@ -1891,7 +1891,11 @@ test("reduces a failed command lifecycle to one final error message", () => {
           customType: WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE,
           content: "",
           display: true,
-          details: { ...base, status: "execution-failed" },
+          details: {
+            ...base,
+            status: "execution-failed",
+            failureReason: "context-too-small",
+          },
         },
       ],
     },
@@ -1901,10 +1905,96 @@ test("reduces a failed command lifecycle to one final error message", () => {
   assert.equal(
     (
       messages[0]?.metadata.custom.workbenchComposerCommandResponse as
-        | { status?: string }
+        | { status?: string; failureReason?: string }
         | undefined
     )?.status,
     "execution-failed",
+  );
+  assert.equal(
+    (
+      messages[0]?.metadata.custom.workbenchComposerCommandResponse as
+        | { failureReason?: string }
+        | undefined
+    )?.failureReason,
+    "context-too-small",
+  );
+});
+
+test("keeps multiple command responses from one Composer submission distinct", () => {
+  const messages = piHistoryToThreadMessages({
+    sessionId: "session",
+    context: {
+      entryIds: ["compact-failed", "reload-failed"],
+      thinkingLevel: "off",
+      model: null,
+      messages: [
+        {
+          role: "custom",
+          customType: WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE,
+          content: "",
+          display: true,
+          details: {
+            version: 2,
+            submissionId: "submission-multiple-commands",
+            source: "agent",
+            commandId: "compact",
+            label: "Compact",
+            status: "execution-failed",
+            args: { customInstructions: "Keep decisions" },
+            failureReason: "context-too-small",
+          },
+        },
+        {
+          role: "custom",
+          customType: WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE,
+          content: "",
+          display: true,
+          details: {
+            version: 2,
+            submissionId: "submission-multiple-commands",
+            source: "agent",
+            commandId: "reload",
+            label: "Reload",
+            status: "execution-failed",
+            failureReason: "reload-failed",
+          },
+        },
+      ],
+    },
+  });
+
+  assert.deepEqual(
+    messages.map((message) => ({
+      id: message.id,
+      response: message.metadata.custom.workbenchComposerCommandResponse,
+    })),
+    [
+      {
+        id: "workbench-command-response:submission-multiple-commands:compact",
+        response: {
+          version: 2,
+          submissionId: "submission-multiple-commands",
+          source: "agent",
+          commandId: "compact",
+          label: "Compact",
+          status: "execution-failed",
+          args: { customInstructions: "Keep decisions" },
+          failureReason: "context-too-small",
+        },
+      },
+      {
+        id: "workbench-command-response:submission-multiple-commands:reload",
+        response: {
+          version: 2,
+          submissionId: "submission-multiple-commands",
+          source: "agent",
+          commandId: "reload",
+          label: "Reload",
+          status: "execution-failed",
+          failureReason: "reload-failed",
+        },
+      },
+    ],
   );
 });
 

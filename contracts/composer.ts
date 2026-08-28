@@ -11,6 +11,25 @@ export type ComposerJsonValue =
   | readonly ComposerJsonValue[]
   | { readonly [key: string]: ComposerJsonValue };
 
+/** Validates values crossing the serializable Composer boundary. */
+export function isComposerJsonValue(value: unknown, depth = 0): value is ComposerJsonValue {
+  if (depth > 32) return false;
+  if (
+    value === null ||
+    typeof value === "string" ||
+    typeof value === "boolean" ||
+    (typeof value === "number" && Number.isFinite(value))
+  ) {
+    return true;
+  }
+  if (Array.isArray(value)) return value.every((item) => isComposerJsonValue(item, depth + 1));
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    Object.values(value).every((item) => isComposerJsonValue(item, depth + 1))
+  );
+}
+
 /** JSON-Schema-compatible command argument description. */
 export type ComposerCommandArgsSchema = Readonly<Record<string, ComposerJsonValue>>;
 
@@ -105,6 +124,7 @@ export interface ComposerContextSubmission {
 export interface CanonicalComposerRequest {
   readonly version: 2;
   readonly document: ComposerDocument;
+  /** Canonical resource-link serialization used for durable logs and cross-runtime recovery. */
   readonly sourceText: string;
   readonly text: string;
   readonly mode?: string;

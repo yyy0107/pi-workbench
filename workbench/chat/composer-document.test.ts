@@ -10,6 +10,7 @@ import {
   AGENT_USER_SKILL_DIRECTIVE_TYPE,
   compileComposerDocument,
   composerCommandArgumentKey,
+  composerDocumentSourceText,
   composerDocumentText,
   parseComposerDocument,
   WORKBENCH_COMMAND_DIRECTIVE_TYPE,
@@ -42,6 +43,13 @@ function definition(
   };
 }
 
+function encodeResourceLinkComponent(value: string): string {
+  return encodeURIComponent(value).replace(
+    /[!'()*]/gu,
+    (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
+}
+
 test("formatter round-trips Workbench and Agent directives without parsing ordinary text", () => {
   const workbench = workbenchComposerDirectiveFormatter.serialize({
     id: "review:1",
@@ -54,6 +62,9 @@ test("formatter round-trips Workbench and Agent directives without parsing ordin
     label: "Create Skill",
   });
   const text = `before ${workbench} middle ${agent} after :other[value]`;
+
+  assert.equal(workbench, "[$Review \\] safely](command://workbench/review%3A1)");
+  assert.equal(agent, "[$Create Skill](command://agent/create-skill)");
 
   assert.deepEqual(workbenchComposerDirectiveFormatter.parse(text), [
     { kind: "text", text: "before " },
@@ -74,10 +85,11 @@ test("formatter round-trips Workbench and Agent directives without parsing ordin
   ]);
 });
 
-test("parser decodes and normalizes a persisted localized Pi command", () => {
-  const [command] = parseComposerDocument(
+test("parser decodes and normalizes a legacy persisted localized Pi command", () => {
+  const document = parseComposerDocument(
     ":pi-command[compact|%E5%8E%8B%E7%BC%A9%E4%B8%8A%E4%B8%8B%E6%96%87]",
   );
+  const [command] = document;
 
   assert.deepEqual(command, {
     type: "command",
@@ -87,6 +99,34 @@ test("parser decodes and normalizes a persisted localized Pi command", () => {
     scope: "message",
     source: "agent",
   });
+  assert.equal(composerDocumentSourceText(document), "[$压缩上下文](command://agent/compact)");
+});
+
+test("canonical command links round-trip safe structured arguments", () => {
+  const args = {
+    customInstructions: "Keep decisions (including constraints)",
+    retries: 2,
+  };
+  const encodedArgs = encodeResourceLinkComponent(JSON.stringify(args));
+  const sourceText = `[$Compact](command://agent/compact?args=${encodedArgs}) continue`;
+
+  const document = parseComposerDocument(sourceText);
+  assert.deepEqual(document, [
+    {
+      type: "command",
+      id: "command:agent:compact:0",
+      commandId: "compact",
+      label: "Compact",
+      scope: "message",
+      source: "agent",
+      args,
+    },
+    { type: "text", text: " continue" },
+  ]);
+  assert.equal(composerDocumentSourceText(document), sourceText);
+  assert.deepEqual(parseComposerDocument("[$Compact](command://agent/compact?args=%7Bbad)"), [
+    { type: "text", text: "[$Compact](command://agent/compact?args=%7Bbad)" },
+  ]);
 });
 
 test("formatter persists explicitly selected Skills as canonical skill links", () => {
@@ -338,7 +378,12 @@ test("parameter-panel arguments stay structured while following text remains the
     ["command", "text"],
   );
   assert.equal(result.text, "继续检查测试");
-  assert.equal(result.sourceText, `${compact} 继续检查测试`);
+  assert.equal(
+    result.sourceText,
+    `[$压缩上下文](command://agent/compact?args=${encodeResourceLinkComponent(
+      JSON.stringify({ customInstructions: "帮我压缩这段文本" }),
+    )}) 继续检查测试`,
+  );
   assert.deepEqual(result.commands[0]?.args, {
     customInstructions: "帮我压缩这段文本",
   });
@@ -378,7 +423,10 @@ test("an explicit empty parameter object keeps all following text as the prompt"
   const result = compileComposerDocument(document, emptyRegistry, commandCatalog);
 
   assert.equal(result.text, "continue reviewing tests");
-  assert.equal(result.sourceText, `${compact} continue reviewing tests`);
+  assert.equal(
+    result.sourceText,
+    "[$Compact](command://agent/compact?args=%7B%7D) continue reviewing tests",
+  );
   assert.deepEqual(result.commands[0]?.args, {});
 });
 

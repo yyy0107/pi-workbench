@@ -102,8 +102,10 @@ Runtime 之间的最小接入端口。端口复用 assistant-ui 已有抽象，�
 `pi/shared/commands/command-projection.ts` 内投影，浏览器 catalog 与服务端 capability 共同复用；
 Workbench Composer 只调用
 `useWorkbenchAgentCommands()`；扩展侧本地 `ComposerCommandRegistry` 仍是另一项独立能力。当前
-Composer wire 写入 `agent-command` 与 `source: "agent"`；`pi-command` 与 `source: "pi"` 只由
-版本化兼容读取器接受，不代表 UI 可以反向依赖 Pi。
+Composer wire 的结构化节点写入 `source: "agent"`，`sourceText` 使用
+`[$label](command://<agent|workbench>/<id>?args=<encoded-json>)` 资源链接；Skill 使用同形的
+`[$label](skill://<scope>/<name>)`。`agent-command`、`pi-command` 与 `source: "pi"` 只由版本化兼容
+读取器接受，不代表 UI 可以反向依赖 Pi。
 
 浏览器安装边界位于
 [`assistant-ui/agent-runtime-installation.tsx`](./assistant-ui/agent-runtime-installation.tsx)。它只把应用

@@ -83,6 +83,11 @@ import {
 } from "./composer-document";
 import { composerCommandArgumentHint } from "./composer-command-argument-hint";
 import { ComposerCommandParameterPanel } from "./composer-command-parameter-panel";
+import {
+  composerCommandParameterFields,
+  composerCommandParameterIssues,
+  withComposerCommandParameterDefaults,
+} from "./composer-command-parameters";
 import { addComposerImagesFromPaste } from "./composer-image-paste";
 import { MarkdownComposerInput } from "./markdown-composer-input";
 import { submitWorkbenchComposer } from "./composer-submit";
@@ -142,6 +147,15 @@ function suggestionParameterKey(item: Pick<Unstable_TriggerItem, "id" | "type">)
   return composerCommandArgumentKey(
     isAgentComposerDirectiveType(item.type) ? "agent" : "workbench",
     item.id,
+  );
+}
+
+function suggestionHasParameterFields(
+  suggestion: WorkbenchComposerSuggestion | undefined,
+): boolean {
+  return Boolean(
+    suggestion?.argsSchema &&
+    composerCommandParameterFields(suggestion.argsSchema, suggestion.argsBinding).length > 0,
   );
 }
 
@@ -451,6 +465,7 @@ export function WorkbenchComposer() {
   const [commandParametersByKey, setCommandParametersByKey] =
     useState<ComposerCommandParametersByKey>({});
   const [activeCommandParameterKey, setActiveCommandParameterKey] = useState<string>();
+  const [commandParameterValidationKey, setCommandParameterValidationKey] = useState<string>();
   const agentCommands = useWorkbenchAgentCommands();
   const handledRejectedQueueDraft = useRef("");
 
@@ -621,7 +636,7 @@ export function WorkbenchComposer() {
         ? undefined
         : composerSuggestions.find(
             (suggestion) =>
-              suggestion.argsSchema &&
+              suggestionHasParameterFields(suggestion) &&
               suggestionParameterKey(suggestion.item) === activeCommandParameterKey,
           ),
     [activeCommandParameterKey, composerSuggestions],
@@ -683,6 +698,7 @@ export function WorkbenchComposer() {
   useEffect(() => {
     setCommandParametersByKey(commandParametersByThreadRef.current.get(mainThreadId) ?? {});
     setActiveCommandParameterKey(undefined);
+    setCommandParameterValidationKey(undefined);
   }, [mainThreadId]);
 
   useEffect(() => {
@@ -700,6 +716,9 @@ export function WorkbenchComposer() {
       return next;
     });
     setActiveCommandParameterKey((current) =>
+      current && !commandKeys.has(current) ? undefined : current,
+    );
+    setCommandParameterValidationKey((current) =>
       current && !commandKeys.has(current) ? undefined : current,
     );
   }, [composerValue, mainThreadId]);
@@ -734,6 +753,7 @@ export function WorkbenchComposer() {
     commandParametersByThreadRef.current.delete(mainThreadId);
     setCommandParametersByKey({});
     setActiveCommandParameterKey(undefined);
+    setCommandParameterValidationKey(undefined);
   }, [mainThreadId]);
 
   const handleDirectiveSelect = useCallback(
@@ -741,12 +761,17 @@ export function WorkbenchComposer() {
       const editor = lexicalEditorRef.current;
       if (!editor) return;
       const selectedSuggestion = composerSuggestionsByKey.get(suggestionKey(item));
-      const parameterSelection = selectedSuggestion?.argsSchema
-        ? {
-            key: suggestionParameterKey(item),
-            values: commandParametersByKey[suggestionParameterKey(item)] ?? {},
-          }
-        : undefined;
+      const parameterSelection =
+        selectedSuggestion?.argsSchema && suggestionHasParameterFields(selectedSuggestion)
+          ? {
+              key: suggestionParameterKey(item),
+              values: withComposerCommandParameterDefaults(
+                selectedSuggestion.argsSchema,
+                selectedSuggestion.argsBinding,
+                commandParametersByKey[suggestionParameterKey(item)],
+              ),
+            }
+          : undefined;
       let immediateSelection:
         | { document: ReturnType<typeof parseComposerDocument>; index: number }
         | undefined;
@@ -811,6 +836,7 @@ export function WorkbenchComposer() {
 
             if (!parameterSelection) return;
             updateCommandParameterValues(parameterSelection.key, parameterSelection.values);
+            setCommandParameterValidationKey(undefined);
             setActiveCommandParameterKey(parameterSelection.key);
           },
         },
@@ -834,10 +860,37 @@ export function WorkbenchComposer() {
       if (threadState.isRunning && !threadState.capabilities.queue) return;
 
       try {
-        const document = applyComposerCommandArguments(
-          parseComposerDocument(composerState.text, composerCommandRegistry, agentCommands),
-          commandParametersByKey,
+        const parsedDocument = parseComposerDocument(
+          composerState.text,
+          composerCommandRegistry,
+          agentCommands,
         );
+        let normalizedParameters = commandParametersByKey;
+        for (const node of parsedDocument) {
+          if (node.type !== "command") continue;
+          const parameterKey = composerCommandArgumentKey(node.source, node.commandId);
+          const suggestion = composerSuggestionsByCommandKey.get(parameterKey);
+          if (!suggestion?.argsSchema || !suggestionHasParameterFields(suggestion)) continue;
+          const values = withComposerCommandParameterDefaults(
+            suggestion.argsSchema,
+            suggestion.argsBinding,
+            commandParametersByKey[parameterKey],
+          );
+          const issues = composerCommandParameterIssues(
+            suggestion.argsSchema,
+            suggestion.argsBinding,
+            values,
+          );
+          if (Object.keys(issues).length > 0) {
+            updateCommandParameterValues(parameterKey, values);
+            setCommandParameterValidationKey(parameterKey);
+            setActiveCommandParameterKey(parameterKey);
+            setComposerCommandError(false);
+            return;
+          }
+          normalizedParameters = { ...normalizedParameters, [parameterKey]: values };
+        }
+        const document = applyComposerCommandArguments(parsedDocument, normalizedParameters);
         const commandNodes = document.filter((node) => node.type === "command");
         if (
           commandNodes.length > 1 &&
@@ -868,6 +921,7 @@ export function WorkbenchComposer() {
       composerSuggestionsByCommandKey,
       agentCommands,
       reportComposerCommandError,
+      updateCommandParameterValues,
     ],
   );
 
@@ -894,7 +948,7 @@ export function WorkbenchComposer() {
       const suggestion = composerSuggestionsByKey.get(
         suggestionKey({ id: directiveId, type: directiveType }),
       );
-      const parameterKey = suggestion?.argsSchema
+      const parameterKey = suggestionHasParameterFields(suggestion)
         ? suggestionParameterKey({ id: directiveId, type: directiveType })
         : undefined;
       const editLabel = parameterKey
@@ -916,6 +970,7 @@ export function WorkbenchComposer() {
             parameterKey
               ? (event) => {
                   event.preventDefault();
+                  setCommandParameterValidationKey(undefined);
                   setActiveCommandParameterKey(parameterKey);
                 }
               : undefined
@@ -925,6 +980,7 @@ export function WorkbenchComposer() {
               ? (event) => {
                   if (event.key !== "Enter" && event.key !== " ") return;
                   event.preventDefault();
+                  setCommandParameterValidationKey(undefined);
                   setActiveCommandParameterKey(parameterKey);
                 }
               : undefined
@@ -968,6 +1024,7 @@ export function WorkbenchComposer() {
 
           {activeCommandParameterSuggestion?.argsSchema ? (
             <ComposerCommandParameterPanel
+              key={activeCommandParameterKey}
               command={{
                 label: activeCommandParameterSuggestion.item.label,
                 argsSchema: activeCommandParameterSuggestion.argsSchema,
@@ -980,6 +1037,7 @@ export function WorkbenchComposer() {
                   ? (commandParametersByKey[activeCommandParameterKey] ?? {})
                   : {}
               }
+              revealValidation={commandParameterValidationKey === activeCommandParameterKey}
               onChange={(values) => {
                 if (activeCommandParameterKey) {
                   updateCommandParameterValues(activeCommandParameterKey, values);

@@ -525,7 +525,10 @@ instructions、按 trust 标记的 context 和 user request 编译给 `AgentSess
 字符串 prompt 时的 adapter fallback，而不是内部 canonical request。
 
 UI 原文和 canonical Composer document 以隐藏的 `workbench.composer-user.v3` custom message
-持久化；`sourceText` 只作为编辑器 serialization/fallback。解析状态和 command trace 另存为
+持久化；`sourceText` 只作为编辑器 serialization/fallback，并统一使用
+`[$label](command://<agent|workbench>/<id>?args=<encoded-json>)` 与
+`[$label](skill://<scope>/<name>)` 资源链接。
+旧式 `:agent-command[...]` / `:pi-command[...]` 只读兼容，不再用于新写入。解析状态和 command trace 另存为
 `workbench.composer-resolution.v2`，历史投影恢复为一条标准 user message，并让用户气泡继续按与
 Composer 相同的 Token renderer 显示。旧 `workbench.composer-user.v1/v2` 和
 `workbench.composer-resolution.v1` marker 仍可读取，内部 Pi source 会归一化为 Agent source。纯
@@ -538,10 +541,12 @@ Pi 内置 session-action 还会在用户 Token 气泡后运行可见的
 `workbench.composer-command-response.v2` 状态机：调用 Pi API 前发布 `running`，完成后原位更新为
 `success` 或 `execution-failed`。canonical message event 会实时传输并持久化每次状态转换，终态另外写入
 不参与 LLM context 的 Session custom entry；响应只保存稳定的 command id、label、status 和 submission
-id，并统一标记 `source: "agent"`，不保存内部异常文本，UI 再按当前 locale 渲染。旧 v1/Pi 响应仍会
-在历史读取时归一化。因此 `/compact` 会先显示“正在压缩上下文…”，再
-更新为“会话上下文已压缩”或可见错误；`/reload` 使用同一生命周期。命令状态活跃时，同一次 Pi
-compaction conversation event 不再额外渲染 separator，避免一个动作出现两条结果消息；历史恢复也按
+id、命令原有的安全结构化参数，以及失败时由服务端归一化的稳定 `failureReason`，并统一标记
+`source: "agent"`。原始异常、Provider 响应和堆栈不会进入浏览器协议；UI 按当前 locale 将原因和恢复
+建议一起渲染。旧 v1/Pi 响应和没有参数、没有失败原因的历史记录仍会
+在历史读取时归一化。因此 `$compact` 会先通过生命周期分割线显示“正在压缩上下文…”，再
+原位更新为“会话上下文已压缩”或包含具体原因的错误分割线；`$reload` 仍使用普通命令结果卡片。
+命令状态活跃时，同一次 Pi compaction conversation event 会折叠进这条生命周期分割线，避免一个动作出现两条结果消息；历史恢复也按
 `submissionId + commandId` 折叠为一个最终系统响应。
 
 Pi TUI 中仅对终端有意义的命令（例如 `/quit`、`/copy`）不会出现在 Workbench catalog；只有具备

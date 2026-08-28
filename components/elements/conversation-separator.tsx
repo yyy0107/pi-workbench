@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 import { mono } from "./surfaces";
 
-export type ConversationSeparatorTone = "neutral" | "info" | "accent";
+export type ConversationSeparatorTone = "neutral" | "info" | "accent" | "danger";
 
 export interface ConversationSeparatorProps extends Omit<ComponentProps<"div">, "children"> {
   /** Stable event kind exposed to renderers and extensions through the DOM. */
@@ -20,6 +20,7 @@ const toneClasses: Record<ConversationSeparatorTone, string> = {
   neutral: "text-foreground/38",
   info: "text-blue-600/70 dark:text-blue-300/65",
   accent: "text-foreground/55",
+  danger: "text-destructive/80",
 };
 
 /**
@@ -123,14 +124,20 @@ export function ModelChangeSeparator({
   );
 }
 
-export type CompactionSeparatorProps = Omit<ConversationSeparatorProps, "icon" | "kind" | "tone">;
+export type CompactionSeparatorProps = Omit<ConversationSeparatorProps, "kind">;
 
-export function CompactionSeparator({ label, detail, ...props }: CompactionSeparatorProps) {
+export function CompactionSeparator({
+  label,
+  detail,
+  icon = <Minimize2Icon aria-hidden="true" />,
+  tone = "accent",
+  ...props
+}: CompactionSeparatorProps) {
   return (
     <ConversationSeparator
       kind="compaction"
-      tone="accent"
-      icon={<Minimize2Icon aria-hidden="true" />}
+      tone={tone}
+      icon={icon}
       label={label}
       detail={detail}
       {...props}

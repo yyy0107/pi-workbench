@@ -70,28 +70,25 @@ export function ComposerCommandItem({
     <ComposerMenuItem
       active={active}
       className={cn(
-        "min-h-9 gap-3 rounded-lg px-3 py-1.5 text-start",
+        "grid min-h-12 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 rounded-lg px-3 py-2 text-start",
         active ? "bg-muted/80 dark:bg-muted/60" : "hover:bg-muted/50 dark:hover:bg-muted/35",
         className,
       )}
       {...props}
     >
-      <span
-        className="max-w-[42%] shrink-0 truncate text-[13px]! leading-5 font-medium"
-        title={command.label ?? `/${command.name}`}
-      >
-        {command.label ?? `/${command.name}`}
+      <span className="flex min-w-0 items-baseline gap-2 leading-5">
+        <code className="text-blue-600 dark:text-blue-400 shrink-0 text-[13px] font-medium">
+          /{command.name}
+        </code>
+        {command.argumentHint ? (
+          <code
+            className="text-muted-foreground min-w-0 truncate text-xs font-normal"
+            title={command.argumentHint}
+          >
+            {command.argumentHint}
+          </code>
+        ) : null}
       </span>
-      {command.description !== command.label ? (
-        <span
-          className="text-foreground/45 min-w-0 flex-1 truncate text-end text-xs! leading-5"
-          title={command.description}
-        >
-          {command.description}
-        </span>
-      ) : (
-        <span aria-hidden="true" className="min-w-0 flex-1" />
-      )}
       {command.meta ? (
         <span
           className="text-foreground/40 max-w-48 shrink-0 truncate text-end text-xs! leading-5"
@@ -100,8 +97,21 @@ export function ComposerCommandItem({
           {command.meta}
         </span>
       ) : null}
-      <span className="sr-only">
-        /{command.name} {command.argumentHint}
+      <span className="col-span-2 flex min-w-0 items-baseline gap-1.5 leading-5">
+        <span
+          className="shrink-0 truncate text-xs! font-medium"
+          title={command.label ?? `/${command.name}`}
+        >
+          {command.label ?? `/${command.name}`}
+        </span>
+        {command.description !== command.label ? (
+          <span
+            className="text-foreground/45 min-w-0 flex-1 truncate text-xs!"
+            title={command.description}
+          >
+            {command.description}
+          </span>
+        ) : null}
       </span>
     </ComposerMenuItem>
   );
