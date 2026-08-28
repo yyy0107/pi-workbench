@@ -6,6 +6,17 @@ import type { Disposable } from "./disposable";
 
 export type MainViewKind = string;
 
+export interface MainViewBreadcrumbItem<
+  P extends Record<string, unknown> = Record<string, unknown>,
+> {
+  label: LocalizableText;
+  /** Target state for an ancestor item. Omit for the current page or a display-only ancestor. */
+  params?: P;
+}
+
+export type MainViewBreadcrumbs<P extends Record<string, unknown> = Record<string, unknown>> =
+  readonly [Readonly<MainViewBreadcrumbItem<P>>, ...Readonly<MainViewBreadcrumbItem<P>>[]];
+
 export interface MainViewChromeOptions {
   /** Product identity rendered by the shared Sidebar toggle. */
   productIcon?: "visible" | "hidden";
@@ -20,6 +31,8 @@ export interface MainViewInstance<P extends Record<string, unknown> = Record<str
   kind: MainViewKind;
   /** Localizable title rendered by the Workbench header while this view is active. */
   title: LocalizableText;
+  /** Optional location path rendered by the Workbench header from parent to current page. */
+  breadcrumbs?: MainViewBreadcrumbs<P>;
   /** Feature-owned transient navigation state. */
   params: P;
   /** Feature-owned visibility choices for shared Workbench chrome. */
@@ -73,5 +86,7 @@ export interface OpenMainViewRequest<P extends Record<string, unknown> = Record<
   kind: MainViewKind;
   /** Header title for this navigation state. */
   title: LocalizableText;
+  /** Optional location path rendered by the shared Workbench header. */
+  breadcrumbs?: MainViewBreadcrumbs<P>;
   params: P;
 }

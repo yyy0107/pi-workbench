@@ -7,6 +7,7 @@ import {
   PanelLeftCloseIcon,
   SearchIcon,
   ToolboxIcon,
+  WorkflowIcon,
   XIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -29,7 +30,6 @@ import {
 } from "@/workbench/sidebar/sidebar-primary-navigation";
 import { SidebarResizeHandle } from "@/workbench/sidebar/sidebar-resize-handle";
 import { hydrateThreadOrderStore } from "@/workbench/sidebar/thread-order-store";
-import { WorkflowSidebar } from "@/workbench/sidebar/workflow-sidebar";
 import {
   WorkbenchPinnedThreadList,
   WorkbenchWorkspaceThreadList,
@@ -72,6 +72,17 @@ export function WorkbenchSidebarContent({
       console.error("[workbench] failed to restore sidebar conversation order", error),
     );
   }, []);
+
+  useEffect(() => {
+    const syncActiveSection = () => {
+      const active = mainViews.getSnapshot();
+      if (active?.kind === "workflows") setActiveSection("workflows");
+      else if (active?.kind === "toolbox") setActiveSection("toolbox");
+      else setActiveSection("workspace");
+    };
+    syncActiveSection();
+    return mainViews.subscribe(syncActiveSection);
+  }, [mainViews]);
 
   const changeSection = (section: SidebarSection) => {
     if (section === "workspace") mainViews.close();
@@ -258,7 +269,18 @@ export function WorkbenchSidebarContent({
           }
         />
       ) : (
-        <WorkflowSidebar searchQuery={searchQuery} />
+        <SlotHost
+          name="sidebar.workflows"
+          context={{ searchQuery }}
+          className="min-h-0 flex-1"
+          emptyFallback={
+            <SidebarSectionEmptyState
+              section="workflows"
+              icon={WorkflowIcon}
+              label={t("workbench.sidebar.workflowsEmpty")}
+            />
+          }
+        />
       )}
 
       {!mobile && activeSection !== "toolbox" ? (

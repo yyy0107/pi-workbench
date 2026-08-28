@@ -1,8 +1,22 @@
 import type {
+  MainViewBreadcrumbs,
   MainViewInstance,
   MainViewRegistry,
   OpenMainViewRequest,
 } from "@/platform/extensions/api/main-view";
+
+function freezeBreadcrumbs<P extends Record<string, unknown>>(
+  breadcrumbs: MainViewBreadcrumbs<P>,
+): MainViewBreadcrumbs<P> {
+  return Object.freeze(
+    breadcrumbs.map((item) =>
+      Object.freeze({
+        label: item.label,
+        ...(item.params !== undefined ? { params: Object.freeze({ ...item.params }) as P } : {}),
+      }),
+    ),
+  ) as unknown as MainViewBreadcrumbs<P>;
+}
 
 export class MainViewService {
   readonly #registry: MainViewRegistry;
@@ -22,6 +36,7 @@ export class MainViewService {
     kind,
     params,
     title,
+    breadcrumbs,
   }: OpenMainViewRequest<P>): void => {
     if (kind.trim().length === 0) {
       throw new Error("Main view kind must be a non-empty string");
@@ -33,11 +48,18 @@ export class MainViewService {
     if (typeof title === "string" && title.trim().length === 0) {
       throw new Error("Main view title must be a non-empty string");
     }
+    if (breadcrumbs && breadcrumbs.length === 0) {
+      throw new Error("Main view breadcrumbs must contain at least one label");
+    }
+    if (breadcrumbs?.some(({ label }) => typeof label === "string" && label.trim().length === 0)) {
+      throw new Error("Main view breadcrumb labels must be non-empty strings");
+    }
 
     this.#active = Object.freeze({
       kind,
       params: Object.freeze({ ...params }),
       ...(definition.chrome ? { chrome: Object.freeze({ ...definition.chrome }) } : {}),
+      ...(breadcrumbs ? { breadcrumbs: freezeBreadcrumbs(breadcrumbs) } : {}),
       revision: ++this.#revision,
       title,
     });
@@ -48,6 +70,34 @@ export class MainViewService {
     if (!this.#active) return;
     this.#active = null;
     this.#emit();
+  };
+
+  readonly openBreadcrumb = (index: number): void => {
+    const active = this.#active;
+    const breadcrumbs = active?.breadcrumbs;
+    if (
+      !active ||
+      !breadcrumbs ||
+      !Number.isInteger(index) ||
+      index < 0 ||
+      index >= breadcrumbs.length - 1
+    ) {
+      return;
+    }
+    const destination = breadcrumbs[index];
+    if (destination.params === undefined) return;
+
+    const destinationBreadcrumbs = breadcrumbs
+      .slice(0, index + 1)
+      .map((item, itemIndex) =>
+        itemIndex === index ? { label: item.label } : item,
+      ) as unknown as MainViewBreadcrumbs;
+    this.open({
+      kind: active.kind,
+      title: destination.label,
+      breadcrumbs: destinationBreadcrumbs,
+      params: destination.params,
+    });
   };
 
   readonly getSnapshot = (): MainViewInstance | null => this.#active;

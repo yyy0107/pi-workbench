@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuiState } from "@assistant-ui/react";
-import { FolderIcon, PanelLeftOpenIcon } from "lucide-react";
+import { ChevronRightIcon, FolderIcon, PanelLeftOpenIcon } from "lucide-react";
 import { useSyncExternalStore } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,63 @@ function SidebarOpenButton() {
   );
 }
 
+interface ResolvedMainViewBreadcrumb {
+  label: string;
+  navigable: boolean;
+}
+
+function MainViewBreadcrumbs({
+  items,
+  label,
+  onNavigate,
+}: {
+  items: readonly ResolvedMainViewBreadcrumb[];
+  label: string;
+  onNavigate(index: number): void;
+}) {
+  return (
+    <nav className="min-w-0" aria-label={label} title={items.map((item) => item.label).join(" / ")}>
+      <ol className="flex min-w-0 items-center gap-1 text-sm">
+        {items.map((item, index) => {
+          const current = index === items.length - 1;
+          return (
+            <li
+              key={`${index}-${item.label}`}
+              className={cn("flex min-w-0 items-center gap-1", !current && "shrink-0")}
+            >
+              {index > 0 ? (
+                <ChevronRightIcon
+                  aria-hidden="true"
+                  className="text-muted-foreground/70 size-3.5 shrink-0"
+                />
+              ) : null}
+              {current ? (
+                <span className="text-foreground truncate font-semibold" aria-current="page">
+                  {item.label}
+                </span>
+              ) : item.navigable ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="xs"
+                  className="text-muted-foreground focus-visible:ring-ring -mx-1 max-w-32 min-w-0 px-1.5 font-medium focus-visible:ring-2"
+                  onClick={() => onNavigate(index)}
+                >
+                  <span className="truncate">{item.label}</span>
+                </Button>
+              ) : (
+                <span className="text-muted-foreground max-w-32 truncate font-medium">
+                  {item.label}
+                </span>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
+  );
+}
+
 export function WorkbenchHeader() {
   const { t, text } = useI18n();
   const { collapsePreview, isMobile, state: sidebarState } = useSidebar();
@@ -63,6 +120,10 @@ export function WorkbenchHeader() {
   const title = activeMainView
     ? text(activeMainView.title)
     : currentThreadTitle || t("workbench.sidebar.newThread");
+  const breadcrumbs = activeMainView?.breadcrumbs?.map((item) => ({
+    label: text(item.label),
+    navigable: item.params !== undefined,
+  }));
   const visibleTitle = activeMainView ? title : truncateConversationTitle(title);
   const desktopSidebarCollapsePreview = !isMobile && collapsePreview;
   const desktopSidebarCollapsed = !isMobile && sidebarState === "collapsed";
@@ -81,13 +142,21 @@ export function WorkbenchHeader() {
         )}
       >
         <SidebarOpenButton />
-        <span
-          className="min-w-0 shrink truncate text-sm font-semibold"
-          aria-label={title}
-          title={title}
-        >
-          {visibleTitle}
-        </span>
+        {breadcrumbs ? (
+          <MainViewBreadcrumbs
+            items={breadcrumbs}
+            label={t("workbench.shell.mainViewBreadcrumbs")}
+            onNavigate={mainViews.openBreadcrumb}
+          />
+        ) : (
+          <span
+            className="min-w-0 shrink truncate text-sm font-semibold"
+            aria-label={title}
+            title={title}
+          >
+            {visibleTitle}
+          </span>
+        )}
         {!activeMainView && currentWorkspaceName ? (
           <span
             data-slot="current-workspace"
