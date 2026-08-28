@@ -1017,6 +1017,7 @@ export const extensionsEnUS = {
       settings: "Settings",
       history: "History",
       historyEmpty: "Run history will appear here after the task is created.",
+      historyLoadFailed: "The run history could not be loaded.",
       historyColumns: {
         triggeredAt: "Trigger time",
         source: "Source",
@@ -1055,6 +1056,7 @@ export const extensionsEnUS = {
       loading: "Loading task…",
       loadFailed: "The task could not be loaded.",
       taskTitle: "Task title",
+      untitledTask: "Untitled task",
       taskTitlePlaceholder: "For example: Morning briefing",
       taskTitleRequired: "Enter a task title.",
       schedule: "Schedule",

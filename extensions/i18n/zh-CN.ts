@@ -970,6 +970,7 @@ export const extensionsZhCN = {
       settings: "设置",
       history: "历史",
       historyEmpty: "创建任务后可在这里查看运行历史。",
+      historyLoadFailed: "无法加载运行历史。",
       historyColumns: {
         triggeredAt: "触发时间",
         source: "来源",
@@ -1007,6 +1008,7 @@ export const extensionsZhCN = {
       loading: "正在加载任务…",
       loadFailed: "无法加载任务。",
       taskTitle: "任务标题",
+      untitledTask: "未命名任务",
       taskTitlePlaceholder: "例如：晨会动态",
       taskTitleRequired: "请输入任务标题。",
       schedule: "调度",

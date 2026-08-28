@@ -57,6 +57,7 @@ import type {
 } from "@/runtime/shared/execution";
 
 import { workflowMainViewRequest, type WorkflowMainViewParams } from "./workflow-main-view";
+import { useWorkflowRunHistory } from "./use-workflow-run-history";
 import { useWorkflowCatalogStore } from "./workflow-state";
 import { createLinearWorkflowGraph } from "./workflow-template-utils";
 
@@ -209,8 +210,12 @@ export function AutomationTaskForm({ params }: { params: AutomationTaskParams })
   const navigation = useNavigationService();
   const workspaces = usePiWorkspaces();
   const host = usePiHostDescription();
-  const catalogRuns = useWorkflowCatalogStore((state) => state.runs);
   const editingWorkflowId = params.page === "automation-edit" ? params.workflowId : undefined;
+  const {
+    runs: taskRuns,
+    loadState: taskRunsLoadState,
+    refresh: refreshTaskRuns,
+  } = useWorkflowRunHistory(editingWorkflowId);
   const presetName = params.page === "automation-create" ? params.preset : undefined;
   const preset = useMemo(() => {
     if (presetName === "morning-briefing") {
@@ -232,7 +237,9 @@ export function AutomationTaskForm({ params }: { params: AutomationTaskParams })
     return undefined;
   }, [presetName, t]);
   const localTimezone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
-  const [title, setTitle] = useState(preset?.title ?? "");
+  const [title, setTitle] = useState(
+    preset?.title ?? t("extensions.workflows.automationTask.untitledTask"),
+  );
   const [prompt, setPrompt] = useState(preset?.prompt ?? "");
   const [frequency, setFrequency] = useState<ScheduleFrequency>(preset?.frequency ?? "weekdays");
   const [time, setTime] = useState(preset?.time ?? "09:00");
@@ -381,13 +388,9 @@ export function AutomationTaskForm({ params }: { params: AutomationTaskParams })
     });
   }, [selectableModels.length, selectedModel]);
 
-  const taskRuns = useMemo(
-    () =>
-      editingWorkflowId
-        ? catalogRuns.filter(({ workflowId }) => workflowId === editingWorkflowId)
-        : [],
-    [catalogRuns, editingWorkflowId],
-  );
+  useEffect(() => {
+    if (activeTab === "history") void refreshTaskRuns();
+  }, [activeTab, refreshTaskRuns]);
   const dateTimeFormatter = useMemo(
     () =>
       new Intl.DateTimeFormat(locale, {
@@ -1050,7 +1053,7 @@ export function AutomationTaskForm({ params }: { params: AutomationTaskParams })
                     id="automation-task-add-schedule"
                     type="button"
                     variant="ghost"
-                    className="text-muted-foreground w-full justify-start"
+                    className="text-muted-foreground w-fit"
                     onClick={() => {
                       setNotice(undefined);
                       setHasSchedule(true);
@@ -1190,7 +1193,29 @@ export function AutomationTaskForm({ params }: { params: AutomationTaskParams })
             aria-labelledby="automation-task-history-tab"
             className="mt-8"
           >
-            {taskRuns.length === 0 ? (
+            {taskRuns.length === 0 && taskRunsLoadState === "loading" ? (
+              <div
+                className="border-border text-muted-foreground flex min-h-48 items-center justify-center rounded-[var(--radius-lg)] border p-6 text-center text-sm"
+                role="status"
+              >
+                {t("extensions.workflows.runs.loading")}
+              </div>
+            ) : taskRuns.length === 0 && taskRunsLoadState === "error" ? (
+              <div className="border-border flex min-h-48 flex-col items-center justify-center gap-3 rounded-[var(--radius-lg)] border p-6 text-center">
+                <p className="text-muted-foreground text-sm">
+                  {t("extensions.workflows.automationTask.historyLoadFailed")}
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void refreshTaskRuns()}
+                >
+                  <RefreshCwIcon aria-hidden="true" />
+                  {t("extensions.workflows.sidebar.retry")}
+                </Button>
+              </div>
+            ) : taskRuns.length === 0 ? (
               <div className="border-border text-muted-foreground flex min-h-48 items-center justify-center rounded-[var(--radius-lg)] border p-6 text-center text-sm">
                 {t("extensions.workflows.automationTask.historyEmpty")}
               </div>
