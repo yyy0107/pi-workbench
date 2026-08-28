@@ -485,7 +485,16 @@ interface MainViewDefinition<P extends Record<string, unknown>> {
 }
 
 interface MainViewProps<P extends Record<string, unknown>> {
-  view: { kind: string; title: LocalizableText; params: P; revision: number };
+  view: {
+    kind: string;
+    title: LocalizableText;
+    breadcrumbs?: readonly [
+      { label: LocalizableText; params?: P },
+      ...{ label: LocalizableText; params?: P }[],
+    ];
+    params: P;
+    revision: number;
+  };
   close(): void;
 }
 
@@ -493,6 +502,13 @@ context.mainViews.register({ kind: "example", component: ExampleMainView });
 mainViews.open({
   kind: "example",
   title: defineMessage("extensions.toolbox.packages.title"),
+  breadcrumbs: [
+    {
+      label: defineMessage("extensions.toolbox.title"),
+      params: { section: "catalog" },
+    },
+    { label: defineMessage("extensions.toolbox.packages.title") },
+  ],
   params: { section: "catalog" },
 });
 ```
@@ -503,9 +519,14 @@ requests for the active kind. `close()` restores the conversation; switching the
 Workspace, changing the conversation URL, or unregistering the definition also closes the active
 Main View.
 
-Every open request also supplies a `LocalizableText` title. The Workbench header resolves it at
-render time, so built-in extensions should pass a `defineMessage(...)` descriptor instead of a
-translated string. A Main View title replaces the conversation title only while that view is active.
+Every open request also supplies a `LocalizableText` title and may supply a non-empty `breadcrumbs`
+path ordered from parent to current page. The Workbench header resolves both at render time, so
+built-in extensions should pass `defineMessage(...)` descriptors instead of translated strings.
+An ancestor breadcrumb with `params` is rendered as a keyboard-accessible navigation button; omit
+`params` for the current page or a display-only ancestor. Selecting an ancestor reopens the same
+Main View kind with its target params and the shortened breadcrumb path. When breadcrumbs are
+present, the shared header treats `title` as the current page label for metadata and fallback
+behavior. A Main View title replaces the conversation title only while that view is active.
 
 Main Views own their internal navigation, layout, and i18n. They do not provide URL routing,
 resource keys, persistent tabs, scopes, or keep-alive behavior. Use a Next.js route for URL identity

@@ -13,6 +13,10 @@ Workbench 子集，而不是参考文档全部 59 个接口。线协议的类型
 - [`contracts/stream.ts`](./contracts/stream.ts)：mux/host WebSocket frame 和 payload 联合；
 - [`contracts/pi.ts`](./contracts/pi.ts)：Workbench UI 适配层与 legacy `/api/pi/**` 使用的 Pi 类型。
 
+工作流、SOP 和自动化的定义、编译、调度、触发和持久化属于 Workbench Execution，实现在
+[`runtime/server/executions`](../server/executions)；本目录只保留 Pi Agent 节点执行器、Workbench
+事件/RPC 接线等适配代码。共享执行契约位于 [`runtime/shared/execution.ts`](../shared/execution.ts)。
+
 ## 架构
 
 ```mermaid
@@ -38,6 +42,7 @@ flowchart TD
   COMPOSITION --> WORKBENCH_SETTINGS_ROUTES["Workbench Settings RPC routes"]
   COMPOSITION --> IMAGE_SETTINGS_ROUTES["Image Understanding Settings RPC routes"]
   COMPOSITION --> SESSION_ROUTES["Session RPC routes"]
+  COMPOSITION --> EXECUTION_ROUTES["Execution RPC routes"]
   COMPOSITION --> TRACE_ROUTES["Context Trace RPC routes"]
   COMPOSITION --> IMPORT_ROUTES["External Import RPC routes"]
   COMPOSITION --> SKILL_ROUTES["Skill RPC routes"]
@@ -72,6 +77,8 @@ flowchart TD
   SESSION --> THREAD_PORT["AgentThreadStorePort"]
   SESSION --> HISTORY["PiSessionHistoryService"]
   SESSION --> MODEL_CONTEXT["PiSessionModelContextService"]
+  EXECUTION_ROUTES --> EXECUTION["Workbench Execution service"]
+  EXECUTION --> PI_EXECUTOR["Pi Agent node adapter"]
   COMMAND -.->|"implements"| COMMAND_PORT["AgentCommandCatalogPort"]
   EXEC_PORT --> PI_SERVER["Pi server adapter"]
   THREAD_PORT --> PI_SERVER
@@ -85,6 +92,7 @@ flowchart TD
   IMPORT_SERVICE --> IMPORT_ADAPTERS["Codex / Claude Code / Cursor adapters"]
   IMPORT_SERVICE --> WORKSPACE
   REGISTRY --> PI["Pi AgentSession + SessionManager"]
+  PI_EXECUTOR --> PI
   IMPORT_SERVICE --> PI
   REGISTRY --> TRACE
   PI --> JSONL["Persistent session JSONL"]
@@ -335,7 +343,9 @@ Pi `ModelRuntime` 是 provider、model 和凭证状态的权威来源：
   `startProviderLogin` 启动后台认证会话，页面轮询 `providerLogin`，并用
   `respondProviderLogin` 回答 Pi 发出的 `text`、`secret`、`select` 或 `manual_code` prompt；
   `auth_url`、`device_code`、`info` 和 `progress` 事件直接驱动浏览器登录 UI。认证答案只用于
-  当前 prompt，不进入状态快照、日志或 provider 配置，凭据仍由 Pi credential store 持久化；
+  当前 prompt，不进入状态快照、日志或 provider 配置，凭据仍由 Pi credential store 持久化。登录成功
+  后会对该 provider 执行一次最多 15 秒的显式网络目录刷新；目录刷新失败不会回滚有效凭据，设置页继续
+  使用最后已知目录。适配器目录会直接显示在自定义设置中，只有用户选择自定义模型时才写入本地目录快照；
 - `llm.configureProvider` 将自定义连接与模型目录写入 Pi `models.json`，API key 则通过 Pi
   credential store 单独持久化；`llm.removeProvider` 移除由 Workbench 管理的内置 provider
   配置与凭据，对于自定义 provider 则删除其定义；
@@ -371,6 +381,11 @@ Pi credential store、`models.json`、Provider auth、动态刷新和真实模�
 Anthropic `GET <baseURL>/v1/models`（当 base URL 已以 `/v1` 结尾时不会重复追加）及其游标分页，
 还支持 Google Generative AI `GET <baseURL>/models` 的 `pageToken` 分页与
 `x-goog-api-key` 认证。
+账号登录提供方使用 `source: "provider"`：服务端先通过 Pi `ModelRuntime.getAuth()` 解析或刷新账号
+凭据，再调用 provider-owned `refresh({ allowNetwork: true })` 和 `getAvailable()` 返回模型目录，不把
+OAuth access token 或认证头交给浏览器，也不退回要求 API Key 的通用 endpoint 请求。设置页的提供方
+“测试”和账号目录刷新都走这条路径；API Key 测试及需要直接探测草稿地址的自定义提供方仍使用
+`source: "endpoint"`。
 显式传入的 `apiKey` 优先，否则已确定 provider 时会尝试 Pi 中已保存的凭证；请求级 key 不会
 持久化、回传或写入日志。图片输入能力归一化为 `supported`、`unsupported` 或 `unknown`：
 OpenRouter 风格响应读取 `architecture.input_modalities`，Anthropic 响应读取
@@ -628,11 +643,15 @@ Project Trust 决策控制；查询设置页不会提升项目资源信任。
 不属于本地快照，因此已安装详情不会通过 `packageCatalog.describe` 借用最新版数值；官方目录详情仍由
 独立的 catalog RPC 提供。
 
-`package.updates` 使用相同的 session/target 身份，但只在用户打开工具箱“可用更新”时按需检查。
+`package.updates` 使用相同的 session/target 身份；工具箱侧栏会在当前范围可用时按需检查，以显示
+“可用更新”的数量。浏览器按 user/project target 共享短期结果并合并进行中的相同请求，进入更新详情
+会立即复用侧栏结果；结果过期、手动刷新或对应作用域的 Package 变更时在保留旧列表的同时后台重查。
+服务端也会合并同一作用域正在进行的检查，避免多个窗口重复启动相同的 npm/Git 网络操作。
 服务端复用 Pi `DefaultPackageManager.checkForAvailableUpdates()`：npm Package 从实际下载目录的
 `package.json` 读取当前版本，并与其配置范围内的远端目标版本比较；Git Package 比较当前 checkout 与
-远端 revision。固定版本、本地来源、缺失下载目录和离线模式不会被误报为可用更新。响应只返回有更新
-的 package source、显示名、类型、作用域和资源筛选状态，不向浏览器暴露下载路径或命令输出。
+远端 revision。固定版本、本地来源、缺失下载目录和离线模式不会被误报为可用更新。Workbench 在
+SDK 的布尔更新结果之后，通过公开安装目录和相同的 npm 命令补充当前/目标版本，Git 包则补充本地/远端
+revision；补充信息读取失败不会隐藏权威更新结果。响应不会向浏览器暴露下载路径或命令输出。
 
 `packageCatalog.search` 的外部来源固定为 `https://pi.dev/packages`。外部目录不参与 Workbench
 启动门槛；public listener 报告 ready 后才通过不被启动流程等待的内部 RPC 异步预热官网第一页，并在
@@ -668,11 +687,16 @@ settings。调用 `package.install` 的前端只提交包名和目标，不提�
 
 `package.update` 接受“可用更新”检查返回的精确 Package source，以及与详情页绑定的用户级或项目级
 `workspaceId` target。服务端再次确认 source 仍配置在该作用域后，调用 Pi
-`DefaultPackageManager.install()` 就地更新对应的 npm 安装或 Git checkout；配置中的资源筛选保持不变。
+`DefaultPackageManager.install()` 就地更新对应的 npm 安装或 Git checkout；npm 更新会由服务端重新
+解析本次检查的目标版本，并以 `<name>@<exact-version>` 安装，避免 `@latest` 在检查与安装之间发生漂移；
+settings 中的原始 source、版本范围或 tag 语义与资源筛选保持不变。
 这里不直接调用 Pi 的 `update(source)`，因为该 API 会按 Package identity 同时匹配用户和项目 settings，
 而 Workbench 的按钮必须只更新用户明确打开的那一个作用域。项目目标仍要求已导入且受信任；更新与安装、
 移除共享 mutation 锁，只允许 loopback 请求，并在成功后 reload 受影响 session 和无会话 Toolbox 目录。
-详情页随后重新读取安装目录中的 `package.json` 快照，“可用更新”列表也会重新校验并移除已完成项。
+服务端会在 reload 前确认本地 npm 版本或 Git revision 与服务端解析出的精确目标一致；只有目标确实
+落盘才返回成功。详情页随后重新读取安装目录中的 `package.json` 快照，“可用更新”列表也会重新检查；
+包管理命令正常退出但实际版本不匹配时则返回稳定的 `update-failed`，不会显示假成功。若检查后恰好发布
+了更新版本，本次精确目标仍视为成功，刷新后的列表会继续展示下一次更新。
 
 `package.remove` 接受已配置 Package 的精确 source，以及与安装相同的用户级或项目级
 `workspaceId` 目标。服务端先确认 source 确实存在于目标作用域的 Pi settings 中，通过 Pi 导出的
@@ -881,8 +905,12 @@ token 到达前连接的客户端也能建立正确 stream。最终 durable `mes
   精确回滚；
 - queue item 有稳定 ID，可执行 edit、remove、follow-up 重排或将 follow-up 提升为 steer；
 - prompt 的 `rpcId` 和规范化 IANA client timezone 会作为 provenance 写入 JSONL；
-- inline 图片和 PDF 会在进入 session 前校验 base64、文件签名、媒体类型及大小；附件路由会在
-  文本模型运行前决定原生视觉或 OCR 预处理；
+- inline 图片和 PDF 会在进入 session 前校验 base64、文件签名、媒体类型及大小；“模型原生”模式把
+  图片直接交给 Pi 的普通模型输入校验与请求路径，不创建附件理解任务或状态；只有开启附件理解时才会
+  使用配置的 OCR 或多模态引擎预处理，PDF 仍要求已开启且兼容的 OCR；
+- Composer 用户消息已经持久化、但模型原生图片在 Provider 调用前被当前模型的输入能力校验拒绝时，
+  服务端写入 `workbench.prompt-failure.v1` 并将该提交作为已接纳的终态返回；客户端完成新会话提升，
+  在对应用户消息后展示可重试的会话内错误，而不把消息恢复到 Composer；
 - 带 `atSeq` 的 fork 可从可证明已持久化的 `message_end` 精确建立独立 child，即使 source turn
   仍在继续；省略 `atSeq` 时仍使用最后一个完整 `turn_end`。两种形式都不替换或修改 source session；
 - create、rename、fork、cold rename、running 状态、AskUser 等待输入状态、归档状态和 workspace
@@ -955,6 +983,11 @@ Terminal 的 PTY 生命周期和双向 frame 协议属于独立的
 用户级 Pi agent 目录和各 Workspace 的 `.pi` 目录。Pi Package 安装、移除或 session reload 因而只
 更新运行时资源，不会因为扩展文件增删而让外层监听器重启整个 Web server；Workbench 源码依赖仍按
 原有规则参与开发重载。
+
+生产命令不会运行 `tsx`。`pnpm build` 先生成 Next standalone output，再用 esbuild 将 `server.ts` 及其
+本地服务端依赖预编译为 `.desktop-build/server.mjs`；桌面打包只合并 Next 与 custom server 的文件追踪
+白名单。生产 launcher 在导入该 ESM 入口前从 `.next/required-server-files.json` 恢复 Next 的 standalone
+配置，因此发行包不需要 `server.ts`、Next 配置源码或 TypeScript loader。
 
 ## 目录布局
 
@@ -1252,7 +1285,8 @@ runtime/pi/
 
 ## 配置
 
-- `PORT`：对外监听端口，默认为 `3000`，必须为 `1..65535` 的整数；
+- `PORT`：对外监听端口，默认为 `3000`，必须为 `0..65535` 的整数；`0` 让 Node 直接申请临时端口，
+  Electron 生产宿主会通过版本化 IPC ready 握手取得实际端口；
 - `WORKBENCH_HOST`：对外监听 hostname，默认为 `127.0.0.1`；
 - `PI_WORKBENCH_TRUSTED_HOSTS`：额外允许的逗号分隔 `host[:port]` authority，默认没有；
 - `PI_WORKBENCH_TRUST_PROJECT`：只有精确值 `1` 才对本次 Workbench 进程覆盖按目录保存的决定并信任
@@ -1363,10 +1397,11 @@ output rule 使用受限 dot path，并以 `[]` 展平数组，例如
 - Inline 附件最多 20 个。图片仅接受 PNG、JPEG、WebP 和 GIF，单张解码后最多 10 MiB；PDF
   仅接受 `application/pdf`，单文件最多 50 MiB；混合附件解码后总计最多 50 MiB。媒体类型必须与
   文件签名一致。
-- 附件预处理使用 `workbench.attachment-recognition.v1` 状态机，并以
+- 开启附件理解后的预处理使用 `workbench.attachment-recognition.v1` 状态机，并以
   `workbench.attachment-recognition` data part 合并到 AI 消息工作时间线；状态从 pending、running
   进入 succeeded/failed/cancelled/skipped 终态，成功结果可展开。历史
-  `workbench.image-recognition.v1` 事件仍可读取，但新事件不再使用图片专属字段名。
+  `workbench.image-recognition.v1` 事件仍可读取，但新事件不再使用图片专属字段名。“模型原生”图片不
+  进入该状态机，也不产生对应的时间线 Part。
 - 图片与 PDF 使用种类内独立、从 1 开始的稳定引用（`image-1`、`image-2`、`pdf-1` 等）。同一引用
   同时用于展开结果和隔离的模型上下文，因此用户说“图一 / 图二”时不会依赖 Provider 返回顺序；
   旧历史中的通用附件 ID 会按结果顺序回退显示为“附件 N”。
