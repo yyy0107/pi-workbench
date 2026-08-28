@@ -245,6 +245,33 @@ export const workbenchEnUS = {
     noSearchResults: "No matching conversations found.",
     toolboxEmpty: "Toolbox content will appear here.",
     workflowsEmpty: "Workflow content will appear here.",
+    workflow: {
+      region: "Workflow navigation",
+      newWorkflow: "New workflow",
+      categories: "Workflow categories",
+      allWorkflows: "All workflows",
+      kind: {
+        workflow: "Workflow",
+        sop: "SOP",
+        automation: "Automation",
+      },
+      myWorkflows: "My workflows",
+      items: {
+        dailyWorkSummary: "Daily work summary",
+        prReview: "PR Review",
+        releaseChecklist: "Release checklist",
+      },
+      schedule: {
+        dailyAtNine: "Every day at 09:00",
+      },
+      stepCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
+        `${number(count)} ${count === 1 ? "step" : "steps"}`,
+      itemMetadata: ({ kind, detail }: { kind: string; detail: string }) => `${kind} · ${detail}`,
+      noResults: "No matching workflows found.",
+      resources: "Workflow resources",
+      runHistory: "Run history",
+      templates: "Templates",
+    },
     workspaceOptions: "Workspace options",
     conversationOptions: "Conversation options",
     openWorkspaceFolder: "Open containing folder",

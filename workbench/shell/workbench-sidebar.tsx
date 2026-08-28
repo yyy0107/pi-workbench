@@ -7,7 +7,6 @@ import {
   PanelLeftCloseIcon,
   SearchIcon,
   ToolboxIcon,
-  WorkflowIcon,
   XIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -30,6 +29,7 @@ import {
 } from "@/workbench/sidebar/sidebar-primary-navigation";
 import { SidebarResizeHandle } from "@/workbench/sidebar/sidebar-resize-handle";
 import { hydrateThreadOrderStore } from "@/workbench/sidebar/thread-order-store";
+import { WorkflowSidebar } from "@/workbench/sidebar/workflow-sidebar";
 import {
   WorkbenchPinnedThreadList,
   WorkbenchWorkspaceThreadList,
@@ -258,11 +258,7 @@ export function WorkbenchSidebarContent({
           }
         />
       ) : (
-        <SidebarSectionEmptyState
-          section={activeSection}
-          icon={WorkflowIcon}
-          label={t("workbench.sidebar.workflowsEmpty")}
-        />
+        <WorkflowSidebar searchQuery={searchQuery} />
       )}
 
       {!mobile && activeSection !== "toolbox" ? (

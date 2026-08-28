@@ -221,6 +221,33 @@ export const workbenchZhCN = {
     noSearchResults: "没有找到匹配的会话。",
     toolboxEmpty: "工具箱内容将在这里显示。",
     workflowsEmpty: "流程内容将在这里显示。",
+    workflow: {
+      region: "流程导航",
+      newWorkflow: "新建流程",
+      categories: "流程分类",
+      allWorkflows: "全部流程",
+      kind: {
+        workflow: "工作流",
+        sop: "SOP",
+        automation: "自动化",
+      },
+      myWorkflows: "我的流程",
+      items: {
+        dailyWorkSummary: "每日工作汇总",
+        prReview: "PR Review",
+        releaseChecklist: "发布检查",
+      },
+      schedule: {
+        dailyAtNine: "每天 09:00",
+      },
+      stepCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
+        `${number(count)} 步`,
+      itemMetadata: ({ kind, detail }: { kind: string; detail: string }) => `${kind} · ${detail}`,
+      noResults: "没有找到匹配的流程。",
+      resources: "流程资源",
+      runHistory: "运行记录",
+      templates: "模板",
+    },
     workspaceOptions: "工作区选项",
     conversationOptions: "会话选项",
     openWorkspaceFolder: "打开所在文件夹",
