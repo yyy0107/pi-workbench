@@ -4,6 +4,7 @@ import {
   startTransition,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -13,6 +14,7 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
   ExternalLinkIcon,
+  LoaderCircleIcon,
   PlusIcon,
   Trash2Icon,
 } from "lucide-react";
@@ -449,11 +451,32 @@ function ProviderEditorSection({
   summary: ReactNode;
   children: ReactNode;
 }) {
+  const retainedChildren = useRef<ReactNode>(null);
+
+  useLayoutEffect(() => {
+    if (open) retainedChildren.current = children;
+  }, [children, open]);
+
+  useEffect(() => {
+    if (!open && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      retainedChildren.current = null;
+    }
+  }, [open]);
+
   return (
-    <div>
+    <Collapsible open={open}>
       {summary}
-      {open ? <div className="pt-1.5">{children}</div> : null}
-    </div>
+      <CollapsibleContent
+        className={`${collapsePanel} outline-none`}
+        onTransitionEnd={(event) => {
+          if (!open && event.target === event.currentTarget && event.propertyName === "height") {
+            retainedChildren.current = null;
+          }
+        }}
+      >
+        <div className="pt-1.5">{open ? children : retainedChildren.current}</div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
@@ -1296,21 +1319,6 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
   }, [draft.models, selectedModelIds]);
 
   const providerEditor = (mode: Editor["mode"]) => {
-    if (mode === "edit" && configLoading) {
-      return (
-        <div className="rounded-xl border p-3 sm:p-4" aria-busy="true">
-          <div aria-hidden="true" className="space-y-3">
-            <Skeleton className="h-9 w-full" />
-            <Skeleton className="h-9 w-3/4" />
-            <Skeleton className="h-20 w-full" />
-          </div>
-          <span className="sr-only" role="status">
-            {t("extensions.modelConfig.loadingDetails")}
-          </span>
-        </div>
-      );
-    }
-
     const selectedProvider = providers.find(({ provider }) => provider === draft.provider);
     const addMode = mode === "add-provider";
     const customProviderMode =
@@ -2190,7 +2198,8 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
           </div>
         ) : null}
         {configured.map((provider) => {
-          const open = editor?.mode === "edit" && editor.provider === provider.provider;
+          const editing = editor?.mode === "edit" && editor.provider === provider.provider;
+          const open = editing && !configLoading;
           return (
             <ProviderEditorSection
               key={provider.provider}
@@ -2219,9 +2228,16 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                     type="button"
                     variant="outline"
                     aria-expanded={open}
+                    aria-busy={editing && configLoading}
                     disabled={busy}
                     onClick={() => editProvider(provider)}
                   >
+                    {editing && configLoading ? (
+                      <LoaderCircleIcon
+                        aria-hidden="true"
+                        className="animate-spin motion-reduce:animate-none"
+                      />
+                    ) : null}
                     {t("extensions.modelConfig.edit")}
                   </Button>
                   {provider.removable ? (
