@@ -35,6 +35,7 @@ flowchart TD
 
   ROUTER --> COMPOSITION["Injected ordered route groups"]
   COMPOSITION --> WORKSPACE_ROUTES["Workspace RPC routes"]
+  COMPOSITION --> WORKSPACE_GIT_ROUTES["Workspace Git RPC routes"]
   COMPOSITION --> WORKSPACE_FILE_ROUTES["Workspace File RPC routes"]
   COMPOSITION --> MODEL_PROVIDER_ROUTES["Model Provider RPC routes"]
   COMPOSITION --> MODEL_CONTEXT_WINDOW_ROUTES["Model Context Window RPC routes"]
@@ -57,6 +58,8 @@ flowchart TD
   WORKSPACE_PROTOCOL --> WORKSPACE["WorkspaceStore"]
   WORKSPACE_PROTOCOL -->|"session catalog"| REGISTRY
   WORKSPACE_PROTOCOL --> TRUST["Project Trust service"]
+  WORKSPACE_GIT_ROUTES --> WORKSPACE_GIT["Workspace Git service"]
+  WORKSPACE_GIT --> WORKSPACE
   WORKSPACE_FILE_ROUTES --> WORKSPACE_FILES["WorkspaceFileProtocol / Service"]
   FILE_CONTENT --> WORKSPACE_FILES
   WORKSPACE_FILES --> WORKSPACE
@@ -118,6 +121,8 @@ Unary RPC 是 session、workspace 和 running 状态的权威快照；WebSocket 
   `workspace.unarchiveSession`；
 - Workspace files：`workspace.files.list`、`workspace.files.describe`、`workspace.files.read`、
   `workspace.files.write`，以及 `GET/HEAD /api/workspace.files.content`；
+- Workspace Git：`workspace.git.describe`、`workspace.git.switchBranch`、
+  `workspace.git.createBranch`；
 - Skills：`skill.list`、`skill.describe`、`skill.setEnabled`、`skill.files.list`、`skill.files.read`、
   `skill.remove`；
 - Commands / Prompts：会话或新会话资源目标的命令目录 `command.list`，以及独立资源目录
@@ -331,6 +336,14 @@ RPC 只返回稳定的 `id`、`name`、`kind`、`icon` 和 `supportedFileKinds`�
 文件仅允许元数据、分段读取及浏览器原生音视频流，其他无 Range 的整文件预览仍返回 `413`，避免
 PDF、Office 等缓冲型查看器一次性占用过多内存。端点复用相同的 workspace/realpath 授权规则，
 不向浏览器暴露主机文件路径。
+
+Workspace Git 同样只接受 `workspaceId`，并从 `WorkspaceStore` 解析权威目录；浏览器不能提交宿主
+路径或 Git 命令。`workspace.git.describe` 只在 Workspace 自身就是仓库根目录时返回当前本地分支、
+本地分支列表、未提交文件数，以及最多 200 个用于切换确认的相对文件路径和增删行统计，避免从子目录
+越过已导入 Workspace 边界操作父目录仓库。切换与创建
+分支使用参数数组调用 `git`、禁用交互式凭据提示且不经过 shell；两项 mutation 只允许 loopback 请求，
+按项目与 Pi 资源 mutation 串行化，并在相关已加载 session 运行时返回 `session-busy`。成功改变分支后
+会 reload 同项目的空闲 session，使 branch-local `.pi` 资源与新的工作树保持一致。
 
 ## 模型
 
@@ -1093,6 +1106,7 @@ runtime/pi/
     │   │   ├── session-rpc-routes.ts
     │   │   ├── skill-rpc-routes.ts
     │   │   ├── workbench-settings-rpc-routes.ts
+    │   │   ├── workspace-git-rpc-routes.ts
     │   │   ├── workspace-file-rpc-routes.ts
     │   │   └── workspace-rpc-routes.ts
     │   ├── rpc-domain-error-projector.ts
@@ -1128,6 +1142,7 @@ runtime/pi/
     ├── skills/
     │   └── skill-service.ts
     ├── workspaces/
+    │   ├── workspace-git.ts
     │   ├── workspace-file-content.ts
     │   ├── workspace-files.ts
     │   ├── workspace-protocol-service.ts
@@ -1216,6 +1231,8 @@ runtime/pi/
   `sessionImport.*` validator、批量边界和 loopback-only 约束，只依赖窄的
   `ExternalSessionImportProtocol`。`routes/workspace-rpc-routes.ts` 拥有 11 个 Workspace 组织/归档
   validator 与 handler 映射，只依赖 `WorkspaceProtocolService`；
+  `routes/workspace-git-rpc-routes.ts` 独立拥有三个 Workspace Git validator、两个 loopback-only
+  mutation 约束、取消映射和 handler，只依赖 `WorkspaceGitProtocol`；
   `routes/workspace-file-rpc-routes.ts` 独立拥有四个 `workspace.files.*` unary validator、20 MiB 写入载体
   预算、取消映射和 handler，并只依赖 `WorkspaceFileProtocol`。Range/ETag 流式 content 端点继续与
   POST route 分离。`routes/skill-rpc-routes.ts` 拥有六个 `skill.*` validator、两个 loopback-only
@@ -1238,7 +1255,7 @@ runtime/pi/
   `local-app-rpc-routes.ts` 拥有三个应用发现、刷新和打开方法，只依赖 `LocalAppProtocol` 且全部保持
   loopback-only。`project-trust-rpc-routes.ts` 通过延迟解析的 `ProjectTrustProtocol` 读写决定，并只在
   成功更新后调用组合根注入的资源失效回调；`resource-catalog-rpc-routes.ts` 复用共享资源身份校验，
-  分别通过 `CommandCatalogProtocol` 与 `PromptCatalogProtocol` 提供两个只读目录。十八个领域 route 由
+  分别通过 `CommandCatalogProtocol` 与 `PromptCatalogProtocol` 提供两个只读目录。十九个领域 route 由
   `createPiRpcRouteGroups(dependencies)` 从显式依赖创建，并通过 `rpc-route-group.ts` 的 first-claim
   dispatcher 统一委托；`createDefaultPiRpcRouteGroups()` 只负责当前 server module generation 的一份
   长寿命默认服务图，共享 resource mutation coordinator、CommandService、ModelService 和 HostService，
@@ -1252,9 +1269,10 @@ runtime/pi/
   `compaction-rpc-validator.ts`，避免两套 compaction patch 边界漂移；
 - `server/workspaces/workspace-protocol-service.ts` 通过窄 Session catalog、Trust migration、resource
   context 和延迟 Store 端口编排 Workspace 组织协议；`WorkspaceStore` 继续独占状态持久化与 Host stream
-  事件，`WorkspaceFileService` 通过 `WorkspaceFileProtocol` 独占 workspace-bound 文件授权，并由共享
-  默认工厂同时服务 unary route 与流式 content 端点。`server/sessions`、`workspaces`、`models`、`host`
-  包含其余业务规则和 Pi/文件系统适配；
+  事件，`WorkspaceGitProtocol` 独占 workspace-bound Git 状态与本地分支 mutation，
+  `WorkspaceFileService` 通过 `WorkspaceFileProtocol` 独占 workspace-bound 文件授权，并由共享默认工厂
+  同时服务 unary route 与流式 content 端点。`server/sessions`、`workspaces`、`models`、`host` 包含其余
+  业务规则和 Pi/文件系统适配；
 - `server/skills/skill-service.ts` 实现窄的 `SkillProtocol`，并继续独占 Pi ResourceLoader、SettingsManager、
   session/scoped resource host、启停与删除协调，以及 Skill 授权目录和文件读取；transport 不直接取得
   Pi runtime、资源路径或 mutation coordinator；

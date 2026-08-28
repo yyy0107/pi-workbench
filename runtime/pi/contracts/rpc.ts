@@ -130,6 +130,51 @@ export interface WorkspaceSessionPinValue {
   pinned: boolean;
 }
 
+export const WORKSPACE_GIT_BRANCH_NAME_LENGTH_LIMIT = 255;
+
+export interface WorkspaceGitDescribePayload {
+  workspaceId: string;
+}
+
+export type WorkspaceGitChangeKind =
+  | "added"
+  | "modified"
+  | "deleted"
+  | "renamed"
+  | "copied"
+  | "untracked"
+  | "conflicted";
+
+export interface WorkspaceGitChangedFile {
+  path: string;
+  previousPath?: string;
+  kind: WorkspaceGitChangeKind;
+  additions?: number;
+  deletions?: number;
+}
+
+export interface WorkspaceGitRepositoryStatus {
+  repository: true;
+  /** Present while HEAD points to a named local branch, including an unborn branch. */
+  branch?: string;
+  /** Short commit id used only when HEAD is detached. */
+  detachedHead?: string;
+  branches: string[];
+  changedFileCount: number;
+  changedFiles: WorkspaceGitChangedFile[];
+  changedFilesTruncated: boolean;
+}
+
+export type WorkspaceGitStatus = { repository: false } | WorkspaceGitRepositoryStatus;
+
+export interface WorkspaceGitSwitchBranchPayload extends WorkspaceGitDescribePayload {
+  branch: string;
+}
+
+export interface WorkspaceGitCreateBranchPayload extends WorkspaceGitDescribePayload {
+  branch: string;
+}
+
 export interface DirectoryEntry {
   name: string;
   path: string;

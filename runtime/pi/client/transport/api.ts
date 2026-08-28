@@ -130,6 +130,10 @@ import type {
   WorkspaceFilesListPayload,
   WorkspaceFilesListValue,
   WorkspaceFileWritePayload,
+  WorkspaceGitCreateBranchPayload,
+  WorkspaceGitDescribePayload,
+  WorkspaceGitStatus,
+  WorkspaceGitSwitchBranchPayload,
   WorkspaceListValue,
   WorkspacePinValue,
   WorkspaceSessionArchiveValue,
@@ -428,6 +432,25 @@ export function writePiWorkspaceFile(
   payload: WorkspaceFileWritePayload,
 ): Promise<WorkspaceFileSnapshotValue> {
   return callPiRpc("workspace.files.write", payload);
+}
+
+export function describePiWorkspaceGit(
+  payload: WorkspaceGitDescribePayload,
+  options?: PiRpcCallOptions,
+): Promise<WorkspaceGitStatus> {
+  return callPiRpc("workspace.git.describe", payload, options);
+}
+
+export function switchPiWorkspaceGitBranch(
+  payload: WorkspaceGitSwitchBranchPayload,
+): Promise<WorkspaceGitStatus> {
+  return callPiRpc("workspace.git.switchBranch", payload);
+}
+
+export function createPiWorkspaceGitBranch(
+  payload: WorkspaceGitCreateBranchPayload,
+): Promise<WorkspaceGitStatus> {
+  return callPiRpc("workspace.git.createBranch", payload);
 }
 
 export function listPiWorkspaces(): Promise<WorkspaceListValue> {

@@ -8,6 +8,7 @@ const ROUTE_METHODS = [
   "session.contextTrace.list",
   "sessionImport.scan",
   "workspace.list",
+  "workspace.git.describe",
   "workspace.files.list",
   "skill.list",
   "extension.list",
@@ -31,6 +32,7 @@ function unusedDependencies(): PiRpcRouteGroupsDependencies {
     sessionContextTrace: empty,
     externalSessionImport: empty,
     workspace: empty,
+    workspaceGit: empty,
     workspaceFile: empty,
     skill: empty,
     extension: empty,
@@ -48,7 +50,7 @@ function unusedDependencies(): PiRpcRouteGroupsDependencies {
   };
 }
 
-test("creates all eighteen route groups in stable first-claim order", async () => {
+test("creates all nineteen route groups in stable first-claim order", async () => {
   const groups = createPiRpcRouteGroups(unusedDependencies());
 
   assert.equal(groups.length, ROUTE_METHODS.length);

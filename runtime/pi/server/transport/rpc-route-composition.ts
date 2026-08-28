@@ -22,6 +22,7 @@ import { SkillService } from "../skills/skill-service";
 import { getProjectTrustService } from "../trust/project-trust-service";
 import { getExecutionService } from "../executions/pi-execution-service";
 import { createWorkspaceFileService } from "../workspaces/workspace-files";
+import { createWorkspaceGitService } from "../workspaces/workspace-git";
 import { createWorkspaceProtocolService } from "../workspaces/workspace-protocol-service";
 import {
   createAgentSettingsRpcRoutes,
@@ -87,6 +88,10 @@ import {
   type WorkspaceFileRpcRoutesDependencies,
 } from "./routes/workspace-file-rpc-routes";
 import {
+  createWorkspaceGitRpcRoutes,
+  type WorkspaceGitRpcRoutesDependencies,
+} from "./routes/workspace-git-rpc-routes";
+import {
   createWorkspaceRpcRoutes,
   type WorkspaceRpcRoutesDependencies,
 } from "./routes/workspace-rpc-routes";
@@ -102,6 +107,7 @@ export interface PiRpcRouteGroupsDependencies {
   readonly sessionContextTrace: SessionContextTraceRpcRoutesDependencies;
   readonly externalSessionImport: ExternalSessionImportRpcRoutesDependencies;
   readonly workspace: WorkspaceRpcRoutesDependencies;
+  readonly workspaceGit: WorkspaceGitRpcRoutesDependencies;
   readonly workspaceFile: WorkspaceFileRpcRoutesDependencies;
   readonly skill: SkillRpcRoutesDependencies;
   readonly extension: ExtensionRpcRoutesDependencies;
@@ -128,6 +134,7 @@ export function createPiRpcRouteGroups(
     createSessionContextTraceRpcRoutes(dependencies.sessionContextTrace),
     createExternalSessionImportRpcRoutes(dependencies.externalSessionImport),
     createWorkspaceRpcRoutes(dependencies.workspace),
+    createWorkspaceGitRpcRoutes(dependencies.workspaceGit),
     createWorkspaceFileRpcRoutes(dependencies.workspaceFile),
     ...(dependencies.execution ? [createExecutionRpcRoutes(dependencies.execution)] : []),
     createSkillRpcRoutes(dependencies.skill),
@@ -157,6 +164,13 @@ export function createDefaultPiRpcRouteGroups(): readonly RpcRouteGroup[] {
   const sessionContextTraceService = createPiSessionContextTraceService();
   const externalSessionImportService = getExternalSessionImportService();
   const workspaceProtocolService = createWorkspaceProtocolService();
+  const workspaceGitService = createWorkspaceGitService({
+    mutation: {
+      mutate(cwd, operation) {
+        return resourceMutationCoordinator.mutate({ scope: "project", cwd }, operation);
+      },
+    },
+  });
   const workspaceFileService = createWorkspaceFileService();
   const promptService = new PromptService();
   const modelService = new ModelService();
@@ -177,6 +191,7 @@ export function createDefaultPiRpcRouteGroups(): readonly RpcRouteGroup[] {
     sessionContextTrace: { service: sessionContextTraceService, ...domainErrors },
     externalSessionImport: { service: externalSessionImportService },
     workspace: { service: workspaceProtocolService, ...domainErrors },
+    workspaceGit: { service: workspaceGitService, ...domainErrors },
     workspaceFile: { service: workspaceFileService, ...domainErrors },
     execution: { service: getExecutionService({ execution: agent.execution }), ...domainErrors },
     skill: { service: skillService, ...domainErrors },

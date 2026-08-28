@@ -1,0 +1,1 @@
+export { gitBranchExtension } from "./extension";

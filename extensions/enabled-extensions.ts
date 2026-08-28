@@ -6,6 +6,7 @@ import { appearanceExtension } from "./builtin/appearance";
 import { connectionStatusExtension } from "./builtin/connection-status";
 import { contextTraceExtension } from "./builtin/context-trace";
 import { externalSessionImportExtension } from "./builtin/external-session-import";
+import { gitBranchExtension } from "./builtin/git-branch";
 import { attachmentUnderstandingExtension } from "./builtin/image-understanding";
 import { interactiveRequestsExtension } from "./builtin/interactive-requests";
 import { localeSelectorExtension } from "./builtin/locale-selector";
@@ -34,6 +35,7 @@ import { workflowsExtension } from "./builtin/workflows";
 export const builtinExtensions = [
   workbenchBrandExtension,
   workspaceDirectoryPickerExtension,
+  gitBranchExtension,
   settingsExtension,
   agentConfigurationExtension,
   interactiveRequestsExtension,
