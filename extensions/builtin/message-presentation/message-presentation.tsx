@@ -12,7 +12,7 @@ import { useCallback, useMemo } from "react";
 
 import { File } from "@/components/assistant-ui/file";
 import { Image } from "@/components/assistant-ui/image";
-import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { MarkdownText, MarkdownTextWithCitations } from "@/components/assistant-ui/markdown-text";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { ScrollCompensatedDetails } from "@/components/elements/scroll-compensated-details";
 import { useI18n } from "@/i18n";
@@ -32,6 +32,7 @@ import {
   partBelongsToCompletedWork,
 } from "./completed-turn-model";
 import { CompletedTurnPanel } from "./completed-turn-panel";
+import { messageCitationLayout } from "./message-citations";
 import { MessageDisclosureProvider } from "./message-disclosure-context";
 import { messageAttachmentReference, messageTextPresentation } from "./message-presentation-policy";
 import { MessageToolTimeline } from "./message-tool-timeline";
@@ -84,6 +85,7 @@ export function WorkbenchMessagePresentation() {
     () => new Map(messageParts.map((part, index) => [part, index])),
     [messageParts],
   );
+  const citationLayout = useMemo(() => messageCitationLayout(messageParts), [messageParts]);
   const completionTimestamp =
     turnTiming?.completedAt ??
     (timing?.totalStreamTime === undefined
@@ -183,7 +185,13 @@ export function WorkbenchMessagePresentation() {
               if (messageTextPresentation(messageRole) === "composer") {
                 return <WorkbenchComposerMessageText text={part.text} />;
               }
-              const fallback = <MarkdownText />;
+              const citationSources =
+                index === undefined ? undefined : citationLayout.byTextPart.get(index);
+              const fallback = citationSources ? (
+                <MarkdownTextWithCitations sources={citationSources} />
+              ) : (
+                <MarkdownText />
+              );
               return messageRole === "assistant" ? (
                 <MessagePartRendererHost part={part} fallback={fallback} />
               ) : (
@@ -218,6 +226,10 @@ export function WorkbenchMessagePresentation() {
                 <File {...part} />
               );
             case "source": {
+              if (index !== undefined && citationLayout.inlineSourcePartIndices.has(index)) {
+                return null;
+              }
+
               const label =
                 part.title || part.url || t("extensions.messagePresentation.sourceFallback");
               const isSafeUrl = part.sourceType === "url" && /^https?:\/\//i.test(part.url);
