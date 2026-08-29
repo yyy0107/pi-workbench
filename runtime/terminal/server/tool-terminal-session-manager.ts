@@ -1,4 +1,4 @@
-import { basename } from "node:path";
+import { basename, win32 } from "node:path";
 
 import { spawn, type IPty } from "node-pty";
 
@@ -26,6 +26,19 @@ const DEFAULT_ROWS = 30;
 const DEFAULT_HISTORY_BYTES = 1024 * 1024;
 const DEFAULT_RETENTION_MS = 10 * 60 * 1000;
 const DEFAULT_MAX_SESSIONS = 128;
+const MAX_TIMEOUT_MS = 2_147_483_647;
+const MAX_TIMEOUT_SECONDS = MAX_TIMEOUT_MS / 1000;
+const POSIX_SHELL_EXECUTABLES = new Set([
+  "ash",
+  "bash",
+  "dash",
+  "fish",
+  "ksh",
+  "mksh",
+  "sh",
+  "yash",
+  "zsh",
+]);
 
 export interface ToolTerminalExecutionOptions {
   sessionId: string;
@@ -124,8 +137,32 @@ function configuredShell(
   return platform === "win32" ? "powershell.exe" : "/bin/bash";
 }
 
-function shellArguments(platform: NodeJS.Platform, command: string): string[] {
+function shellExecutableName(shell: string, platform: NodeJS.Platform): string {
+  const name = platform === "win32" ? win32.basename(shell) : basename(shell);
+  return name.toLowerCase().replace(/\.exe$/, "");
+}
+
+function shellArguments(shell: string, platform: NodeJS.Platform, command: string): string[] {
+  const executable = shellExecutableName(shell, platform);
+  if (executable === "powershell" || executable === "pwsh") {
+    return ["-NoLogo", "-NoProfile", "-Command", command];
+  }
+  if (executable === "cmd") return ["/d", "/s", "/c", command];
+  if (POSIX_SHELL_EXECUTABLES.has(executable)) return ["-lc", command];
+
   return platform === "win32" ? ["-NoLogo", "-NoProfile", "-Command", command] : ["-lc", command];
+}
+
+function resolveTimeoutMs(timeout: number | undefined): number | undefined {
+  if (timeout === undefined) return undefined;
+  if (!Number.isFinite(timeout) || timeout <= 0) {
+    throw new Error("Invalid timeout: must be a finite number of seconds");
+  }
+  const timeoutMs = timeout * 1000;
+  if (timeoutMs > MAX_TIMEOUT_MS) {
+    throw new Error(`Invalid timeout: maximum is ${MAX_TIMEOUT_SECONDS} seconds`);
+  }
+  return timeoutMs;
 }
 
 function boundedDimension(value: number | undefined, fallback: number, min: number, max: number) {
@@ -169,6 +206,7 @@ export class ToolTerminalSessionManager {
   }
 
   spawn(options: ToolTerminalExecutionOptions): SpawnedToolTerminalProcess {
+    const timeoutMs = resolveTimeoutMs(options.timeout);
     if (options.signal?.aborted) throw new Error("aborted");
     if (
       options.initialInput !== undefined &&
@@ -194,7 +232,7 @@ export class ToolTerminalSessionManager {
       TERM_PROGRAM: "Pi Workbench",
     };
     const shell = options.shell?.trim() || this.#shell;
-    const terminal = this.#spawnPty(shell, shellArguments(this.#platform, options.command), {
+    const terminal = this.#spawnPty(shell, shellArguments(shell, this.#platform, options.command), {
       cwd: options.cwd,
       cols: DEFAULT_COLS,
       rows: DEFAULT_ROWS,
@@ -252,12 +290,9 @@ export class ToolTerminalSessionManager {
       options.signal.addEventListener("abort", onAbort, { once: true });
       session.removeAbortListener = () => options.signal?.removeEventListener("abort", onAbort);
     }
-    if (options.timeout !== undefined) {
+    if (timeoutMs !== undefined) {
       session.timeoutSeconds = options.timeout;
-      session.timeoutHandle = setTimeout(
-        () => this.#stop(session, "timeout"),
-        Math.max(1, options.timeout * 1000),
-      );
+      session.timeoutHandle = setTimeout(() => this.#stop(session, "timeout"), timeoutMs);
       session.timeoutHandle.unref?.();
     }
     if (options.initialInput) terminal.write(options.initialInput);

@@ -98,7 +98,10 @@ read-only.
 
 The default program is `$WORKBENCH_TERMINAL_SHELL`, then `$SHELL`, then the platform default
 (`/bin/bash` or `powershell.exe`). Interactive programs such as `claude` and `codex` run inside the
-same PTY when launched from that shell.
+same PTY when launched from that shell. Tool commands choose their invocation arguments from the
+resolved executable: POSIX shells use login-command mode, PowerShell uses its command flags, and
+`cmd.exe` uses `/d /s /c`. Unknown executables retain the platform default argument behavior. Bash
+tool timeouts use Pi's finite, positive, Node-timer-bounded validation before a PTY is allocated.
 
 This is a privileged local terminal, not a sandbox. The server is loopback-only by default. If the
 Workbench is exposed through `PI_WORKBENCH_TRUSTED_HOSTS`, the outer deployment must provide

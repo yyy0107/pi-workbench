@@ -103,6 +103,89 @@ test("writes agent-owned initial input into the PTY without waiting for UI attac
   manager.dispose();
 });
 
+test("rejects invalid timeouts with Pi-compatible validation before spawning a PTY", () => {
+  let spawnCount = 0;
+  const manager = new ToolTerminalSessionManager({
+    spawnPty: () => {
+      spawnCount += 1;
+      return new FakePty();
+    },
+  });
+  const options: ToolTerminalExecutionOptions = {
+    sessionId: "session-1",
+    toolCallId: "call-timeout",
+    command: "sleep 1",
+    cwd: "/workspace",
+    onData: () => {},
+  };
+
+  for (const timeout of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+    assert.throws(
+      () => manager.spawn({ ...options, timeout }),
+      /Invalid timeout: must be a finite number of seconds/,
+    );
+  }
+  assert.throws(
+    () => manager.spawn({ ...options, timeout: 2_147_483.648 }),
+    /Invalid timeout: maximum is 2147483\.647 seconds/,
+  );
+  assert.equal(spawnCount, 0);
+  manager.dispose();
+});
+
+test("chooses command arguments from the actual shell executable", async () => {
+  const command = "printf ready";
+  const cases: Array<{
+    shell: string;
+    platform: NodeJS.Platform;
+    expected: string[];
+  }> = [
+    {
+      shell: String.raw`C:\Program Files\Git\bin\bash.exe`,
+      platform: "win32",
+      expected: ["-lc", command],
+    },
+    {
+      shell: "/usr/bin/pwsh",
+      platform: "linux",
+      expected: ["-NoLogo", "-NoProfile", "-Command", command],
+    },
+    {
+      shell: String.raw`C:\Windows\System32\cmd.exe`,
+      platform: "win32",
+      expected: ["/d", "/s", "/c", command],
+    },
+  ];
+
+  for (const [index, item] of cases.entries()) {
+    const terminal = new FakePty();
+    let spawned: { file: string; args: readonly string[] } | undefined;
+    const manager = new ToolTerminalSessionManager({
+      shell: item.shell,
+      platform: item.platform,
+      retentionMs: 60_000,
+      spawnPty: (file, args) => {
+        spawned = { file, args };
+        return terminal;
+      },
+      terminatePty: (target) => target.kill(),
+    });
+    const running = manager.execute({
+      sessionId: "session-1",
+      toolCallId: `call-shell-${index}`,
+      command,
+      cwd: "/workspace",
+      onData: () => {},
+    });
+
+    assert.equal(spawned?.file, item.shell);
+    assert.deepEqual(spawned?.args, item.expected);
+    terminal.emitExit({ exitCode: 0 });
+    assert.deepEqual(await running, { exitCode: 0 });
+    manager.dispose();
+  }
+});
+
 test("shares tool PTY output, input, resize, and interruption with attached clients", async () => {
   const terminals: FakePty[] = [];
   const manager = new ToolTerminalSessionManager({
