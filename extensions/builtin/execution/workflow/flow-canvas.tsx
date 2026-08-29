@@ -53,6 +53,7 @@ import {
   type NodeLabels,
 } from "./workflow-canvas-elements";
 import { useWorkflowEditorStore } from "../execution-state";
+import { nextWorkflowNodeName } from "../workflow-node-name";
 
 const LARGE_GRAPH_ELEMENT_THRESHOLD = 100;
 const ADDABLE_NODE_TYPES = ["agent", "command", "condition", "approval"] as const;
@@ -331,7 +332,14 @@ export function FlowCanvasCore({
 
   const addNode = useCallback(
     (type: AddableNodeType, position?: XYPosition) => {
-      const node = newNode(type, nodeLabels[type], document.graph.nodes.length, position);
+      const currentDocument = useWorkflowEditorStore.getState().document;
+      if (!currentDocument || currentDocument.id !== document.id) return;
+      const node = newNode(
+        type,
+        nextWorkflowNodeName(currentDocument.graph.nodes, type, nodeLabels[type]),
+        currentDocument.graph.nodes.length,
+        position,
+      );
       updateDocument((current) => ({
         ...current,
         agents:
@@ -343,7 +351,7 @@ export function FlowCanvasCore({
       setSelection({ type: "node", id: node.id });
       onNodeSelect();
     },
-    [document.graph.nodes.length, nodeLabels, onNodeSelect, setSelection, updateDocument],
+    [document.id, nodeLabels, onNodeSelect, setSelection, updateDocument],
   );
 
   const activatePaletteNode = useCallback(
