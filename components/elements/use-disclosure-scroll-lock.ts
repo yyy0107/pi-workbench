@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef } from "react";
 
 import { useDisclosureScrollsUpward } from "./disclosure-scroll-direction";
 import {
+  preservesBothScrollbarGutters,
   shouldCompensateDisclosureOpening,
   upwardDisclosureScrollDelta,
 } from "./disclosure-scroll-policy";
@@ -38,21 +39,27 @@ function lockDisclosureTransition(
   let stopped = false;
 
   const computed = getComputedStyle(scrollContainer);
+  const hasSymmetricScrollbarGutter = preservesBothScrollbarGutters(
+    computed.getPropertyValue("scrollbar-gutter"),
+  );
   const paddingSide = computed.direction === "rtl" ? "paddingLeft" : "paddingRight";
   const previousPadding = scrollContainer.style[paddingSide];
   const previousScrollBehavior = scrollContainer.style.scrollBehavior;
   const previousScrollbarWidth = scrollContainer.style.scrollbarWidth;
-  const scrollbarSize =
-    scrollContainer.offsetWidth -
-    scrollContainer.clientWidth -
-    Number.parseFloat(computed.borderLeftWidth) -
-    Number.parseFloat(computed.borderRightWidth);
 
   scrollContainer.style.scrollBehavior = "auto";
-  scrollContainer.style.scrollbarWidth = "none";
-  if (scrollbarSize > 0) {
-    scrollContainer.style[paddingSide] =
-      `${Number.parseFloat(computed[paddingSide]) + scrollbarSize}px`;
+  if (!hasSymmetricScrollbarGutter) {
+    const scrollbarSize =
+      scrollContainer.offsetWidth -
+      scrollContainer.clientWidth -
+      Number.parseFloat(computed.borderLeftWidth) -
+      Number.parseFloat(computed.borderRightWidth);
+
+    scrollContainer.style.scrollbarWidth = "none";
+    if (scrollbarSize > 0) {
+      scrollContainer.style[paddingSide] =
+        `${Number.parseFloat(computed[paddingSide]) + scrollbarSize}px`;
+    }
   }
 
   const applyPosition = () => {
@@ -73,8 +80,10 @@ function lockDisclosureTransition(
   const handleScroll = () => applyPosition();
   const restoreStyles = () => {
     scrollContainer.style.scrollBehavior = previousScrollBehavior;
-    scrollContainer.style.scrollbarWidth = previousScrollbarWidth;
-    scrollContainer.style[paddingSide] = previousPadding;
+    if (!hasSymmetricScrollbarGutter) {
+      scrollContainer.style.scrollbarWidth = previousScrollbarWidth;
+      scrollContainer.style[paddingSide] = previousPadding;
+    }
   };
   const stop = () => {
     if (stopped) return;

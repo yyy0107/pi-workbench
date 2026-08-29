@@ -8,3 +8,7 @@ export function shouldCompensateDisclosureOpening(
 ): boolean {
   return opening && preferUpward;
 }
+
+export function preservesBothScrollbarGutters(scrollbarGutter: string): boolean {
+  return scrollbarGutter.split(/\s+/).includes("both-edges");
+}
