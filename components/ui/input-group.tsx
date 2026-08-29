@@ -26,9 +26,9 @@ const inputGroupAddonVariants = cva(
     variants: {
       align: {
         "inline-start":
-          "order-first h-full py-0 pl-2 has-[>button]:ml-[-0.3rem] has-[>kbd]:ml-[-0.15rem]",
+          "order-first h-full translate-y-[var(--control-text-offset-y)] py-0 pl-2 leading-[var(--control-text-line-height)] has-[>button]:ml-[-0.3rem] has-[>kbd]:ml-[-0.15rem]",
         "inline-end":
-          "order-last h-full py-0 pr-2 has-[>button]:mr-[-0.3rem] has-[>kbd]:mr-[-0.15rem]",
+          "order-last h-full translate-y-[var(--control-text-offset-y)] py-0 pr-2 leading-[var(--control-text-line-height)] has-[>button]:mr-[-0.3rem] has-[>kbd]:mr-[-0.15rem]",
         "block-start":
           "order-first h-auto w-full justify-start px-2.5 py-1.5 pt-2 group-has-[>input]/input-group:pt-2 [.border-b]:pb-2",
         "block-end":

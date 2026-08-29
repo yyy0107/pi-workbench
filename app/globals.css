@@ -100,6 +100,8 @@
   --control-hit-default: 26px;
   --control-hit-touch: 44px;
   --form-control-height: var(--control-hit-default);
+  --control-text-line-height: 1.25;
+  --control-text-offset-y: 0.5px;
 
   /* Shared interaction states */
   --control-state-background-hover: color-mix(in oklab, var(--foreground) 6%, transparent);
@@ -113,6 +115,10 @@
   --button-height-compact: var(--control-hit-compact);
   --button-height-default: var(--form-control-height);
   --button-height-large: 36px;
+  --button-content-padding-block-start: calc(
+    var(--control-text-offset-y) + var(--control-text-offset-y)
+  );
+  --button-content-padding-block-end: 0px;
   --button-radius: var(--radius);
   --button-background-hover: var(--control-state-background-hover);
   --button-background-active: var(--control-state-background-active);
@@ -149,6 +155,13 @@
   /* Inputs */
   --input-control-height: var(--form-control-height);
   --dropdown-control-height: var(--form-control-height);
+  --input-control-padding-block: 0.25rem;
+  --input-control-padding-block-start: calc(
+    var(--input-control-padding-block) + var(--control-text-offset-y)
+  );
+  --input-control-padding-block-end: calc(
+    var(--input-control-padding-block) - var(--control-text-offset-y)
+  );
   --input-control-radius: var(--radius);
   --input-control-background: transparent;
   --input-control-background-disabled: color-mix(in oklab, var(--input) 50%, transparent);
