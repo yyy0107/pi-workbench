@@ -24,7 +24,11 @@ export function SideChatHeader({ surface }: WorkspaceSurfaceProps<SideChatSurfac
   return (
     <div className="flex size-full items-center gap-2 px-2 text-xs">
       <MessagesSquareIcon className="text-muted-foreground size-[var(--icon-size-sm)] shrink-0" />
-      <span className="min-w-0 flex-1 truncate font-medium">{t("extensions.sideChat.title")}</span>
+      <span className="min-w-0 flex-1 truncate font-medium">
+        {Number.isSafeInteger(surface.params.sequence)
+          ? t("extensions.sideChat.indexedTitle", { sequence: surface.params.sequence })
+          : t("extensions.sideChat.title")}
+      </span>
       <Button
         type="button"
         variant="ghost"

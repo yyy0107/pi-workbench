@@ -20,6 +20,7 @@ import { SlotHost } from "@/platform/extensions/hosts/slot-host";
 import { useAppearancePreferences } from "@/services/appearance/appearance-store";
 
 import { WorkbenchEmpty } from "./workbench-empty";
+import { WorkbenchConversationViewportScope } from "./workbench-conversation-viewport-scope";
 import {
   conversationPairKey,
   isLastConversationPair,
@@ -392,115 +393,117 @@ export function WorkbenchConversation({
         className="flex h-full min-h-0 shrink-0 flex-col empty:hidden"
       />
 
-      <div
-        ref={frameRef}
-        className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-x-clip [container-type:inline-size]"
-        style={
-          {
-            "--composer-dock-inset": `${composerDockInset}px`,
-            "--composer-dock-bottom-gap": "1rem",
-            "--composer-dock-top-gap": "0.5rem",
-            "--composer-dock-content-top-inset":
-              "calc(var(--composer-dock-inset) - var(--composer-dock-top-gap))",
-            "--composer-dock-corner-radius": "var(--composer-inner-radius, 1.375rem)",
-            "--thread-header-fade-size": "1.375rem",
-            "--thread-viewport-inline-padding": `${THREAD_CONTENT_COMPACT_GUTTER_PX}px`,
-          } as CSSProperties
-        }
-      >
-        <SlotHost
-          name="thread.header"
-          context={slotContext}
-          className="flex shrink-0 items-center gap-2 border-b px-4 empty:hidden"
-        />
-
-        <ThreadPrimitive.Viewport
-          ref={viewportRef}
-          turnAnchor="bottom"
-          autoScroll={autoScroll ?? isRunning}
-          scrollToBottomOnInitialize={scrollToBottomOnInitialize}
-          scrollToBottomOnRunStart
-          scrollToBottomOnThreadSwitch={scrollToBottomOnThreadSwitch}
-          className={cn(
-            "relative flex min-h-0 flex-1 scroll-smooth flex-col overflow-x-hidden overflow-y-auto motion-reduce:scroll-auto [overflow-anchor:none] [padding-inline:var(--thread-viewport-inline-padding)] [scrollbar-gutter:stable_both-edges]",
-            hasDockedComposer
-              ? "[margin-bottom:var(--composer-dock-content-top-inset)] [padding-top:var(--thread-header-fade-size)] [padding-bottom:var(--composer-dock-corner-radius)]"
-              : "pt-4",
-          )}
+      <WorkbenchConversationViewportScope>
+        <div
+          ref={frameRef}
+          className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-x-clip [container-type:inline-size]"
           style={
-            hasDockedComposer
-              ? {
-                  scrollbarColor: "var(--scrollbar-thumb) transparent",
-                  WebkitMaskImage: THREAD_VIEWPORT_MASK_IMAGE,
-                  maskImage: THREAD_VIEWPORT_MASK_IMAGE,
-                  WebkitMaskPosition: "left top, right top",
-                  maskPosition: "left top, right top",
-                  WebkitMaskRepeat: "no-repeat",
-                  maskRepeat: "no-repeat",
-                  WebkitMaskSize: THREAD_VIEWPORT_MASK_SIZE,
-                  maskSize: THREAD_VIEWPORT_MASK_SIZE,
-                }
-              : undefined
+            {
+              "--composer-dock-inset": `${composerDockInset}px`,
+              "--composer-dock-bottom-gap": "1rem",
+              "--composer-dock-top-gap": "0.5rem",
+              "--composer-dock-content-top-inset":
+                "calc(var(--composer-dock-inset) - var(--composer-dock-top-gap))",
+              "--composer-dock-corner-radius": "var(--composer-inner-radius, 1.375rem)",
+              "--thread-header-fade-size": "1.375rem",
+              "--thread-viewport-inline-padding": `${THREAD_CONTENT_COMPACT_GUTTER_PX}px`,
+            } as CSSProperties
           }
         >
           <SlotHost
-            name="thread.before"
+            name="thread.header"
             context={slotContext}
-            className={cn(
-              THREAD_VIEWPORT_CONTENT_WIDTH_CLASS_NAME,
-              "mx-auto flex flex-col gap-2 [overflow-anchor:none]",
-            )}
+            className="flex shrink-0 items-center gap-2 border-b px-4 empty:hidden"
           />
 
-          {isHistoryLoading ? (
-            <ThreadHistoryLoading />
-          ) : (
-            <>
-              <ThreadPrimitive.Empty>
-                <WorkbenchEmpty>{emptyComposer}</WorkbenchEmpty>
-              </ThreadPrimitive.Empty>
-
-              <WorkbenchMessages isRunning={isRunning} />
-            </>
-          )}
-
-          <SlotHost
-            name="thread.after"
-            context={slotContext}
+          <ThreadPrimitive.Viewport
+            ref={viewportRef}
+            turnAnchor="bottom"
+            autoScroll={autoScroll ?? isRunning}
+            scrollToBottomOnInitialize={scrollToBottomOnInitialize}
+            scrollToBottomOnRunStart
+            scrollToBottomOnThreadSwitch={scrollToBottomOnThreadSwitch}
             className={cn(
-              THREAD_VIEWPORT_CONTENT_WIDTH_CLASS_NAME,
-              "mx-auto flex flex-col gap-2 [overflow-anchor:none]",
+              "relative flex min-h-0 flex-1 scroll-smooth flex-col overflow-x-hidden overflow-y-auto motion-reduce:scroll-auto [overflow-anchor:none] [padding-inline:var(--thread-viewport-inline-padding)] [scrollbar-gutter:stable_both-edges]",
+              hasDockedComposer
+                ? "[margin-bottom:var(--composer-dock-content-top-inset)] [padding-top:var(--thread-header-fade-size)] [padding-bottom:var(--composer-dock-corner-radius)]"
+                : "pt-4",
             )}
-          />
-        </ThreadPrimitive.Viewport>
-
-        {!isEmpty ? (
-          <ThreadPrimitive.ScrollToBottom
-            behavior="smooth"
-            render={
-              <TooltipIconButton
-                tooltip={t("workbench.chat.scrollLatest")}
-                variant="outline"
-                size="icon"
-                className="bg-background absolute bottom-[calc(var(--composer-dock-inset)+0.5rem)] left-1/2 z-30 size-8 -translate-x-1/2 rounded-full shadow-sm disabled:invisible"
-              />
+            style={
+              hasDockedComposer
+                ? {
+                    scrollbarColor: "var(--scrollbar-thumb) transparent",
+                    WebkitMaskImage: THREAD_VIEWPORT_MASK_IMAGE,
+                    maskImage: THREAD_VIEWPORT_MASK_IMAGE,
+                    WebkitMaskPosition: "left top, right top",
+                    maskPosition: "left top, right top",
+                    WebkitMaskRepeat: "no-repeat",
+                    maskRepeat: "no-repeat",
+                    WebkitMaskSize: THREAD_VIEWPORT_MASK_SIZE,
+                    maskSize: THREAD_VIEWPORT_MASK_SIZE,
+                  }
+                : undefined
             }
           >
-            {isRunning ? (
-              <TypingIndicator
-                label={t("workbench.chat.scrollLatest")}
-                variant="bare"
-                aria-hidden="true"
-                className="scale-75"
-              />
-            ) : (
-              <ArrowDownIcon className="size-4" />
-            )}
-          </ThreadPrimitive.ScrollToBottom>
-        ) : null}
+            <SlotHost
+              name="thread.before"
+              context={slotContext}
+              className={cn(
+                THREAD_VIEWPORT_CONTENT_WIDTH_CLASS_NAME,
+                "mx-auto flex flex-col gap-2 [overflow-anchor:none]",
+              )}
+            />
 
-        {hasDockedComposer ? composerDock : null}
-      </div>
+            {isHistoryLoading ? (
+              <ThreadHistoryLoading />
+            ) : (
+              <>
+                <ThreadPrimitive.Empty>
+                  <WorkbenchEmpty>{emptyComposer}</WorkbenchEmpty>
+                </ThreadPrimitive.Empty>
+
+                <WorkbenchMessages isRunning={isRunning} />
+              </>
+            )}
+
+            <SlotHost
+              name="thread.after"
+              context={slotContext}
+              className={cn(
+                THREAD_VIEWPORT_CONTENT_WIDTH_CLASS_NAME,
+                "mx-auto flex flex-col gap-2 [overflow-anchor:none]",
+              )}
+            />
+          </ThreadPrimitive.Viewport>
+
+          {!isEmpty ? (
+            <ThreadPrimitive.ScrollToBottom
+              behavior="smooth"
+              render={
+                <TooltipIconButton
+                  tooltip={t("workbench.chat.scrollLatest")}
+                  variant="outline"
+                  size="icon"
+                  className="bg-background absolute bottom-[calc(var(--composer-dock-inset)+0.5rem)] left-1/2 z-30 size-8 -translate-x-1/2 rounded-full shadow-sm disabled:invisible"
+                />
+              }
+            >
+              {isRunning ? (
+                <TypingIndicator
+                  label={t("workbench.chat.scrollLatest")}
+                  variant="bare"
+                  aria-hidden="true"
+                  className="scale-75"
+                />
+              ) : (
+                <ArrowDownIcon className="size-4" />
+              )}
+            </ThreadPrimitive.ScrollToBottom>
+          ) : null}
+
+          {hasDockedComposer ? composerDock : null}
+        </div>
+      </WorkbenchConversationViewportScope>
 
       <SlotHost
         name="thread.right"

@@ -14,7 +14,11 @@ import { useExtensionErrorReporter } from "@/platform/extensions";
 import type { ThreadMenuSlotContext } from "@/platform/extensions/authoring";
 import { usePiSessionManager } from "@/runtime/pi/client/runtime/context";
 
-import { revealSideChat, SIDE_CHAT_SURFACE_KIND } from "./side-chat-workspace";
+import {
+  nextSideChatSequence,
+  revealSideChat,
+  SIDE_CHAT_SURFACE_KIND,
+} from "./side-chat-workspace";
 
 function useSideChatLauncher({
   sourceSessionId,
@@ -27,21 +31,14 @@ function useSideChatLauncher({
 }) {
   const controller = useRightWorkspace();
   const context = useWorkspaceContext();
-  const existingSideChats = useWorkspaceSurfaces(SIDE_CHAT_SURFACE_KIND);
+  const sideChats = useWorkspaceSurfaces(SIDE_CHAT_SURFACE_KIND);
   const manager = usePiSessionManager();
   const reportError = useExtensionErrorReporter();
   const [pending, setPending] = useState(false);
 
   const openSideChat = () => {
     if (!sourceSessionId || pending) return;
-    const existing = existingSideChats.find(
-      (surface) => surface.scope.type === "thread" && surface.scope.key === sourceSessionId,
-    );
-    if (existing) {
-      controller.focus(existing.id);
-      closeMenu();
-      return;
-    }
+    const sequence = nextSideChatSequence(sideChats, sourceSessionId);
     setPending(true);
     void manager
       .createScratchSession({ sourceSessionId })
@@ -53,6 +50,7 @@ function useSideChatLauncher({
             scratchSessionId: scratch.sessionId,
             sourceSessionId: scratch.sourceSessionId,
             expiresAt: scratch.expiresAt,
+            sequence,
           },
         });
         closeMenu();

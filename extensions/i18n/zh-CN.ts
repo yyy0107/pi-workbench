@@ -122,6 +122,8 @@ export const extensionsZhCN = {
   },
   sideChat: {
     title: "临时侧聊",
+    indexedTitle: ({ sequence }: { sequence: number }, { number }: MessageFormatters) =>
+      `临时侧聊 (${number(sequence)})`,
     open: "打开临时侧聊",
     creating: "正在创建临时侧聊…",
     promote: "保留为会话",

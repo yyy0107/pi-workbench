@@ -124,6 +124,8 @@ export const extensionsEnUS = {
   },
   sideChat: {
     title: "Temporary chat",
+    indexedTitle: ({ sequence }: { sequence: number }, { number }: MessageFormatters) =>
+      `Temporary chat (${number(sequence)})`,
     open: "Open temporary chat",
     creating: "Creating temporary chat…",
     promote: "Keep as conversation",

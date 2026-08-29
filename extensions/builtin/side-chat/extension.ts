@@ -6,7 +6,11 @@ import { SideChatHeader } from "./side-chat-header";
 import { SideChatThreadMenuItem } from "./side-chat-menu-item";
 import { SideChatRuntimeBridge } from "./side-chat-runtime-bridge";
 import { SideChatSurface } from "./side-chat-surface";
-import { SIDE_CHAT_SURFACE_KIND, type SideChatSurfaceParams } from "./side-chat-workspace";
+import {
+  sideChatResourceKey,
+  SIDE_CHAT_SURFACE_KIND,
+  type SideChatSurfaceParams,
+} from "./side-chat-workspace";
 
 export const sideChatSurfaceDefinition = {
   kind: SIDE_CHAT_SURFACE_KIND,
@@ -15,7 +19,7 @@ export const sideChatSurfaceDefinition = {
   persistence: "session",
   defaultPlacement: "primary",
   allowDuplicateResources: false,
-  getResourceKey: (params) => `side-chat:${encodeURIComponent(params.sourceSessionId)}`,
+  getResourceKey: sideChatResourceKey,
   getDefaultScope: (params) => ({ type: "thread", key: params.sourceSessionId }),
   header: SideChatHeader,
   render: SideChatSurface,

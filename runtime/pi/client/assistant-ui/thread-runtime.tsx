@@ -14,6 +14,7 @@ import type { PiSessionManager } from "../runtime/manager";
 import { piRequestErrorKind } from "../runtime/request-error";
 import { piComposerSendError } from "../runtime/send-error";
 import { PiApiError } from "../transport/api";
+import { createBoundPiThreadListAdapter } from "./bound-thread-identity";
 import { projectPiAgentRuntimeExtras } from "./extras";
 
 function localizedPiError(error: unknown, t: Translate): Error {
@@ -78,6 +79,14 @@ export function useBoundPiThreadRuntime(
   const [committedSession, setCommittedSession] = useState<typeof session>();
   const isPublishedRunning = committedSession === session && snapshot.isRunning;
   const adapters = useWorkbenchRuntimeAdapters();
+  const threadListAdapter = useMemo(
+    () => createBoundPiThreadListAdapter(localId, remoteId),
+    [localId, remoteId],
+  );
+  const runtimeAdapters = useMemo(
+    () => ({ ...adapters, threadList: threadListAdapter }),
+    [adapters, threadListAdapter],
+  );
   const [composerErrorState, setComposerErrorState] = useState<{
     session: typeof session;
     code: WorkbenchAgentComposerSendError;
@@ -183,7 +192,7 @@ export function useBoundPiThreadRuntime(
       }
     },
     onRefetchThread: () => session.reload(),
-    adapters,
+    adapters: runtimeAdapters,
   });
 }
 

@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import {
   type AgentSession,
+  AgentSessionRuntime,
   type AgentSessionServices,
   buildContextEntries,
   createAgentSessionFromServices,
@@ -1003,6 +1004,7 @@ interface ComposerSubmissionReplay {
 
 class HostedPiSession {
   readonly session: AgentSession;
+  private readonly sessionRuntime: AgentSessionRuntime;
   private readonly listeners = new Set<SessionEventListener>();
   private readonly onRunningChanged: () => void;
   private readonly onDestroyed: () => void;
@@ -1042,13 +1044,15 @@ class HostedPiSession {
   private readonly contextualModelObjects = new WeakSet<object>();
 
   constructor(
-    session: AgentSession,
+    sessionRuntime: AgentSessionRuntime,
     contextTrace: SessionContextTrace,
     onRunningChanged: () => void,
     onDestroyed: () => void,
     contextPolicy: SessionContextPolicy,
   ) {
-    this.session = session;
+    this.sessionRuntime = sessionRuntime;
+    this.session = sessionRuntime.session;
+    const session = this.session;
     this.contextTrace = contextTrace;
     this.onRunningChanged = onRunningChanged;
     this.onDestroyed = onDestroyed;
@@ -3339,7 +3343,7 @@ class HostedPiSession {
     this.clearAssistantMessageStream();
     this.unsubscribeAgent();
     this.listeners.clear();
-    this.session.dispose();
+    await this.sessionRuntime.dispose();
     await releaseSessionContextTrace(this.id, this.contextTrace);
     this.onDestroyed();
   }
@@ -3473,6 +3477,11 @@ async function createHost(
       ...(options.customTools ?? []),
     ],
   });
+  // Workbench creates and replaces sessions through its registry, but still retains Pi's
+  // high-level runtime owner so disposal emits session_shutdown before invalidating extension ctx.
+  const sessionRuntime = new AgentSessionRuntime(session, services, async () => {
+    throw new Error("Workbench does not replace a hosted Pi session in place");
+  });
   const interactiveResponses = getInteractiveResponseRegistry();
   const contextTrace = await activateSessionContextTrace(session.sessionId, (event) => {
     getStreamHub().publishMux({
@@ -3492,7 +3501,7 @@ async function createHost(
       uiContext: interactiveResponses.createExtensionUIContext(session.sessionId),
     });
     host = new HostedPiSession(
-      session,
+      sessionRuntime,
       contextTrace,
       publishRunningSessions,
       () => {
@@ -3505,8 +3514,8 @@ async function createHost(
       initialContextPolicy,
     );
   } catch (error) {
+    await sessionRuntime.dispose();
     await releaseSessionContextTrace(session.sessionId, contextTrace);
-    session.dispose();
     throw error;
   }
   state().sessions.set(host.id, host);
