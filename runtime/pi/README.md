@@ -13,9 +13,40 @@ Workbench 子集，而不是参考文档全部 59 个接口。线协议的类型
 - [`contracts/stream.ts`](./contracts/stream.ts)：mux/host WebSocket frame 和 payload 联合；
 - [`contracts/pi.ts`](./contracts/pi.ts)：Workbench UI 适配层与 legacy `/api/pi/**` 使用的 Pi 类型。
 
-工作流、SOP 和自动化的定义、编译、调度、触发和持久化属于 Workbench Execution，实现在
-[`runtime/server/executions`](../server/executions)；本目录只保留 Pi Agent 节点执行器、Workbench
-事件/RPC 接线等适配代码。共享执行契约位于 [`runtime/shared/execution.ts`](../shared/execution.ts)。
+Workbench Execution 负责 Workflow/SOP 的定义存储、编译、调度、触发和 Run 记录，实现在
+[`runtime/server/executions`](../server/executions)，共享契约位于
+[`runtime/shared/execution.ts`](../shared/execution.ts)。Automation 是独立领域，定义、存储和调度位于
+[`runtime/server/automations`](../server/automations)，共享契约位于
+[`runtime/shared/automation.ts`](../shared/automation.ts)。Automation 不创建执行图或 Workflow Run；
+触发时只在目标工作区创建一个普通、可见的会话，再通过标准 Agent 执行端口提交用户配置的提示词。
+本目录保留 Workflow Agent 节点适配器、Automation 普通会话启动适配器，以及 Workbench 事件/RPC
+接线。前端仅在 `extensions/builtin/execution/{workflow,automation,sop}` 页面外壳层复用布局。
+
+### Workflow Multi-Agent v2
+
+Workflow v2 将稳定 Agent 与图节点分开：`agents[]` 定义 `workflowId + agentId` 身份，Agent Node
+只引用 `agentId`、Pi prompt template、输入 binding 和输出 JSON Schema。持久目录为：
+
+```text
+<execution-root>/workflows/<workflowId>/
+├── workflow.json
+├── agents/<agentId>/.pi/
+│   ├── APPEND_SYSTEM.md
+│   ├── settings.json
+│   └── prompts/*.md
+└── runs/<runId>/
+    ├── summary.json
+    ├── events.jsonl
+    ├── sessions/<agentId>/*.jsonl
+    └── artifacts/
+```
+
+Agent cwd 固定为 `agents/<agentId>`，因此模型、Thinking、Prompt、Skill 和 Extension 都直接使用
+Pi 的项目级资源加载与全局继承，不存在第二套 Agent 配置格式。执行器以 `runId + agentId` 解析
+会话：同一 Run 的同一 Agent 使用 follow-up 串行复用，不同 Agent 可并行，新 Run 使用新的会话。
+每个 Workflow Agent 会话额外注册 `submit_workflow_output`；工具按当前 Node 的 JSON Schema 校验
+结果，Prompt 结束而未提交时以 `structured-output-missing` 失败。加载 Agent 本地 `.pi` 资源前仍
+必须通过 Project Trust；该目录隔离只用于组织工作区，不是文件系统安全沙箱。
 
 ## 架构
 
@@ -44,6 +75,7 @@ flowchart TD
   COMPOSITION --> IMAGE_SETTINGS_ROUTES["Image Understanding Settings RPC routes"]
   COMPOSITION --> SESSION_ROUTES["Session RPC routes"]
   COMPOSITION --> EXECUTION_ROUTES["Execution RPC routes"]
+  COMPOSITION --> AUTOMATION_ROUTES["Automation RPC routes"]
   COMPOSITION --> TRACE_ROUTES["Context Trace RPC routes"]
   COMPOSITION --> IMPORT_ROUTES["External Import RPC routes"]
   COMPOSITION --> SKILL_ROUTES["Skill RPC routes"]
@@ -81,7 +113,9 @@ flowchart TD
   SESSION --> HISTORY["PiSessionHistoryService"]
   SESSION --> MODEL_CONTEXT["PiSessionModelContextService"]
   EXECUTION_ROUTES --> EXECUTION["Workbench Execution service"]
-  EXECUTION --> PI_EXECUTOR["Pi Agent node adapter"]
+  AUTOMATION_ROUTES --> AUTOMATION["Automation service"]
+  EXECUTION --> WORKFLOW_EXECUTOR["Workflow Agent node adapter"]
+  AUTOMATION --> AUTOMATION_EXECUTOR["Ordinary session launch adapter"]
   COMMAND -.->|"implements"| COMMAND_PORT["AgentCommandCatalogPort"]
   EXEC_PORT --> PI_SERVER["Pi server adapter"]
   THREAD_PORT --> PI_SERVER
@@ -95,7 +129,8 @@ flowchart TD
   IMPORT_SERVICE --> IMPORT_ADAPTERS["Codex / Claude Code / Cursor adapters"]
   IMPORT_SERVICE --> WORKSPACE
   REGISTRY --> PI["Pi AgentSession + SessionManager"]
-  PI_EXECUTOR --> PI
+  WORKFLOW_EXECUTOR --> PI
+  AUTOMATION_EXECUTOR --> PI
   IMPORT_SERVICE --> PI
   REGISTRY --> TRACE
   PI --> JSONL["Persistent session JSONL"]
@@ -119,8 +154,8 @@ Unary RPC 是 session、workspace 和 running 状态的权威快照；WebSocket 
   `workspace.delete`、`workspace.insertBefore`、`workspace.insertSessionBefore`、
   `workspace.setPinned`、`workspace.setSessionPinned`、`workspace.archiveSession`、
   `workspace.unarchiveSession`；
-- Workspace files：`workspace.files.list`、`workspace.files.describe`、`workspace.files.read`、
-  `workspace.files.write`，以及 `GET/HEAD /api/workspace.files.content`；
+- Workspace files：`workspace.files.list`、`workspace.files.search`、`workspace.files.describe`、
+  `workspace.files.read`、`workspace.files.write`，以及 `GET/HEAD /api/workspace.files.content`；
 - Workspace Git：`workspace.git.describe`、`workspace.git.log`、
   `workspace.git.switchBranch`、`workspace.git.createBranch`；
 - Skills：`skill.list`、`skill.describe`、`skill.setEnabled`、`skill.files.list`、`skill.files.read`、
@@ -327,7 +362,9 @@ RPC 只返回稳定的 `id`、`name`、`kind`、`icon` 和 `supportedFileKinds`�
 资源管理器使用独立的 workspace-bound 文件接口，不复用目录选择器协议。请求携带
 `workspaceId` 和规范的 `/` 分隔相对路径；服务端从 `WorkspaceStore` 读取权威根目录，同时执行
 词法与 `realpath` 边界检查，拒绝 `..`、绝对路径和逃逸工作区的软链接。目录按需列出直接子项，
-目录优先且单次最多 2,000 项。`workspace.files.describe` 只读取元数据和最多 64 KiB 的编码样本，
+目录优先且单次最多 2,000 项。`workspace.files.search` 为 Composer 等文件选择器提供有界路径搜索，
+最多扫描 20,000 个目录项、返回 100 个结果，并跳过 `.git`、`node_modules`、构建产物和常见缓存目录。
+`workspace.files.describe` 只读取元数据和最多 64 KiB 的编码样本，
 用于在不加载完整文件的前提下区分 UTF-8 文本与二进制文件。可编辑文本缓冲的读取和写入仍仅支持
 最大 5 MiB 的 UTF-8 普通文件；写入必须携带读取时的 SHA-256 version，磁盘内容已变化时返回冲突，
 避免静默覆盖。大文本源码与图片、PDF、音视频和 Office 文档通过同源
