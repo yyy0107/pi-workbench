@@ -1201,6 +1201,7 @@ export const extensionsEnUS = {
       running: "Starting…",
       addNode: "Add node",
       addStep: "Add step",
+      delete: "Delete",
       remove: "Remove",
       moveUp: "Move up",
       moveDown: "Move down",

@@ -1151,6 +1151,7 @@ export const extensionsZhCN = {
       running: "正在启动…",
       addNode: "添加节点",
       addStep: "添加步骤",
+      delete: "删除",
       remove: "移除",
       moveUp: "上移",
       moveDown: "下移",

@@ -29,12 +29,19 @@ function ContextMenuContent({ className, ...props }: ContextMenuPrimitive.Popup.
   );
 }
 
-function ContextMenuItem({ className, ...props }: ContextMenuPrimitive.Item.Props) {
+function ContextMenuItem({
+  className,
+  variant = "default",
+  ...props
+}: ContextMenuPrimitive.Item.Props & {
+  variant?: "default" | "destructive";
+}) {
   return (
     <ContextMenuPrimitive.Item
       data-slot="context-menu-item"
+      data-variant={variant}
       className={cn(
-        "relative flex cursor-default items-center gap-1.5 rounded-md px-1.5 pt-[var(--control-content-padding-block-compact-start)] pb-[var(--control-content-padding-block-compact-end)] text-sm leading-[var(--control-text-line-height)]! outline-hidden select-none focus:[background:var(--control-state-background-selected)] focus:[color:var(--control-state-foreground-selected)] focus:**:[color:var(--control-state-foreground-selected)] data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-[var(--icon-size-md)]",
+        "relative flex cursor-default items-center gap-1.5 rounded-md px-1.5 pt-[var(--control-content-padding-block-compact-start)] pb-[var(--control-content-padding-block-compact-end)] text-sm leading-[var(--control-text-line-height)]! outline-hidden select-none focus:[background:var(--control-state-background-selected)] focus:[color:var(--control-state-foreground-selected)] not-data-[variant=destructive]:focus:**:[color:var(--control-state-foreground-selected)] data-[variant=destructive]:text-destructive data-[variant=destructive]:focus:bg-destructive/10 data-[variant=destructive]:focus:text-destructive dark:data-[variant=destructive]:focus:bg-destructive/20 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-[var(--icon-size-md)] data-[variant=destructive]:*:[svg]:text-destructive",
         className,
       )}
       {...props}
@@ -42,4 +49,20 @@ function ContextMenuItem({ className, ...props }: ContextMenuPrimitive.Item.Prop
   );
 }
 
-export { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger };
+function ContextMenuSeparator({ className, ...props }: ContextMenuPrimitive.Separator.Props) {
+  return (
+    <ContextMenuPrimitive.Separator
+      data-slot="context-menu-separator"
+      className={cn("-mx-1 my-1 h-px bg-border", className)}
+      {...props}
+    />
+  );
+}
+
+export {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+};
