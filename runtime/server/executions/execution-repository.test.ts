@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -11,11 +11,12 @@ import { ExecutionRepository } from "./execution-repository";
 
 function document(): WorkflowDocument {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id: "flow-1",
     kind: "workflow",
     scope: { type: "personal" },
     name: "Flow",
+    agents: [],
     graph: {
       nodes: [
         { id: "start", type: "start", name: "Start", position: { x: 0, y: 0 }, config: {} },
@@ -53,6 +54,147 @@ test("persists drafts atomically and rejects stale draft revisions", async () =>
   }
 });
 
+test("migrates v1 Agent nodes into stable Pi-native Agent workspaces", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-workflow-migration-"));
+  try {
+    const legacy = {
+      schemaVersion: 1,
+      id: "legacy-flow",
+      kind: "workflow",
+      scope: { type: "personal" },
+      name: "Legacy flow",
+      graph: {
+        nodes: [
+          { id: "start", type: "start", name: "Start", position: { x: 0, y: 0 }, config: {} },
+          {
+            id: "review",
+            type: "agent",
+            name: "Reviewer",
+            position: { x: 100, y: 0 },
+            config: {
+              prompt: "Review changes",
+              model: { provider: "openai", modelId: "gpt-5", thinkingLevel: "high" },
+            },
+          },
+          { id: "end", type: "end", name: "End", position: { x: 200, y: 0 }, config: {} },
+        ],
+        edges: [
+          { id: "a", source: "start", target: "review" },
+          { id: "b", source: "review", target: "end" },
+        ],
+        editor: {},
+      },
+      concurrency: { mode: "queue" },
+      triggers: [],
+      draftRevision: 0,
+      createdAt: 1,
+      updatedAt: 1,
+    };
+    await mkdir(path.join(root, "drafts"), { recursive: true });
+    await writeFile(path.join(root, "drafts", "legacy-flow.json"), JSON.stringify(legacy));
+    const repository = new ExecutionRepository({ rootDirectory: root });
+
+    const migrated = await repository.readDocument("legacy-flow");
+    assert.equal(migrated.schemaVersion, 2);
+    assert.deepEqual(migrated.agents, [{ id: "review-1", name: "Reviewer" }]);
+    const migratedAgent = migrated.graph.nodes.find(({ type }) => type === "agent");
+    assert.ok(migratedAgent?.type === "agent");
+    assert.equal(migratedAgent.config.agentId, "review-1");
+    assert.equal(
+      await readFile(
+        path.join(
+          root,
+          "workflows",
+          "legacy-flow",
+          "agents",
+          "review-1",
+          ".pi",
+          "prompts",
+          "default.md",
+        ),
+        "utf8",
+      ),
+      "Review changes\n",
+    );
+    assert.deepEqual(
+      JSON.parse(
+        await readFile(
+          path.join(root, "workflows", "legacy-flow", "agents", "review-1", ".pi", "settings.json"),
+          "utf8",
+        ),
+      ),
+      { defaultProvider: "openai", defaultModel: "gpt-5", defaultThinkingLevel: "high" },
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("reads and updates Agent prompts and model settings as Pi-native resources", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-workflow-agent-resources-"));
+  try {
+    const repository = new ExecutionRepository({ rootDirectory: root });
+    await repository.createDocument({
+      ...document(),
+      agents: [{ id: "reviewer", name: "Reviewer" }],
+      graph: {
+        nodes: [
+          { id: "start", type: "start", name: "Start", position: { x: 0, y: 0 }, config: {} },
+          {
+            id: "review",
+            type: "agent",
+            name: "Review",
+            position: { x: 100, y: 0 },
+            config: {
+              agentId: "reviewer",
+              promptTemplate: "default",
+              output: { schema: { type: "object" } },
+            },
+          },
+          { id: "end", type: "end", name: "End", position: { x: 200, y: 0 }, config: {} },
+        ],
+        edges: [
+          { id: "a", source: "start", target: "review" },
+          { id: "b", source: "review", target: "end" },
+        ],
+        editor: {},
+      },
+    });
+    const settingsFile = path.join(
+      root,
+      "workflows",
+      "flow-1",
+      "agents",
+      "reviewer",
+      ".pi",
+      "settings.json",
+    );
+    await writeFile(settingsFile, JSON.stringify({ theme: "dark" }));
+    const updated = await repository.updateAgentResources({
+      workflowId: "flow-1",
+      agentId: "reviewer",
+      promptTemplate: "default",
+      prompt: "Check correctness and risks.",
+      model: { provider: "openai", modelId: "gpt-5", thinkingLevel: "high" },
+    });
+
+    assert.equal(updated.prompt, "Check correctness and risks.\n");
+    assert.deepEqual(updated.model, {
+      provider: "openai",
+      modelId: "gpt-5",
+      thinkingLevel: "high",
+    });
+    assert.deepEqual(JSON.parse(await readFile(settingsFile, "utf8")), {
+      theme: "dark",
+      defaultProvider: "openai",
+      defaultModel: "gpt-5",
+      defaultThinkingLevel: "high",
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("pages append-only run events by monotonic sequence", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "workbench-workflow-run-"));
   try {
@@ -74,6 +216,15 @@ test("pages append-only run events by monotonic sequence", async () => {
       lastSeq: 0,
       attempts: [],
     });
+    assert.equal(
+      JSON.parse(
+        await readFile(
+          path.join(root, "workflows", "flow-1", "runs", "run-1", "summary.json"),
+          "utf8",
+        ),
+      ).id,
+      "run-1",
+    );
     await repository.updateRun(
       { ...run, status: "running" },
       { type: "run-status-changed", status: "running" },

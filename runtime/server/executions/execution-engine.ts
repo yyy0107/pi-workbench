@@ -214,6 +214,17 @@ export class ExecutionEngine {
     this.onRunChanged = options.onRunChanged ?? (() => undefined);
   }
 
+  /**
+   * Returns the stable registry owned by this engine.
+   *
+   * The Pi server keeps the engine alive across development module reloads so active and queued
+   * runs are not discarded. Its adapters must therefore be rebound through this exact registry,
+   * rather than through a newly allocated registry that the cached engine never reads.
+   */
+  nodeExecutorRegistry(): ExecutionNodeExecutorRegistry {
+    return this.executors;
+  }
+
   async initialize(): Promise<void> {
     for (const run of await this.repository.markInterruptedRuns()) this.onRunChanged(run);
   }
@@ -450,6 +461,7 @@ export class ExecutionEngine {
       attempt: 1,
       workspaceId: item.run.targetWorkspaceId ?? "",
       workspacePath: item.workspacePath ?? "",
+      workflowDirectory: this.repository.workflowDirectory(item.run.workflowId),
       input: resolveBinding(nodeInputBinding(node), item.run.input, outputs),
       signal,
       sessionDirectory: this.repository.executionSessionDirectory(item.run.id),
@@ -514,8 +526,11 @@ export class ExecutionEngine {
           run = await this.persistNodeStatus(run, approvalNode.id, "waiting-for-approval", {
             startedAt: this.now(),
           });
+          // Register the resolver before publishing the run-level waiting state. Consumers use
+          // that durable state as the signal that resolveApproval is ready to accept input.
+          const approvalResolution = this.awaitApproval(run, approvalNode, signal);
           run = await this.persistRunStatus(run, "waiting-for-approval");
-          const resolution = await this.awaitApproval(run, approvalNode, signal);
+          const resolution = await approvalResolution;
           if (resolution.cancelled) {
             const timedOut = runTimedOut(signal);
             const status = timedOut ? "failed" : "cancelled";

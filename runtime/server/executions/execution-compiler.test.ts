@@ -17,7 +17,11 @@ function node(id: string, type: FlowNode["type"]): FlowNode {
     case "end":
       return { ...base, type, config: {} };
     case "agent":
-      return { ...base, type, config: { prompt: "Review" } };
+      return {
+        ...base,
+        type,
+        config: { agentId: `agent-${id}`, promptTemplate: "default", output: { schema: {} } },
+      };
     case "command":
       return { ...base, type, config: { command: "true" } };
     case "condition":
@@ -33,11 +37,12 @@ function node(id: string, type: FlowNode["type"]): FlowNode {
 
 function document(kind: WorkflowDocument["kind"] = "workflow"): WorkflowDocument {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id: "flow-1",
     kind,
     scope: { type: "personal" },
     name: "Flow",
+    agents: [{ id: "agent-left", name: "Reviewer" }],
     graph: {
       nodes: [
         node("start", "start"),
@@ -90,28 +95,35 @@ test("rejects branching and Condition nodes in SOP documents", () => {
 
 test("persists incomplete drafts but rejects them at publish validation", () => {
   const value = document();
-  const agent = value.graph.nodes.find(({ type }) => type === "agent");
-  assert.ok(agent?.type === "agent");
-  agent.config.prompt = "";
+  value.agents[0]!.name = "";
   assert.doesNotThrow(() => parseExecutionDocument(value));
   const result = validateExecutionDocument(value);
   assert.equal(result.valid, false);
   assert.ok(result.issues.some(({ code }) => code === "invalid-node-config"));
 });
 
-test("accepts a stable Agent model and thinking selection", () => {
+test("accepts stable Agent references and output contracts", () => {
   const value = document();
   const agent = value.graph.nodes.find(({ type }) => type === "agent");
   assert.ok(agent?.type === "agent");
-  agent.config.model = {
-    provider: "openai",
-    modelId: "gpt-5",
-    thinkingLevel: "high",
+  agent.config.output.schema = {
+    type: "object",
+    properties: { verdict: { type: "string" } },
+    required: ["verdict"],
   };
   const parsed = parseExecutionDocument(value);
   const parsedAgent = parsed.graph.nodes.find(({ type }) => type === "agent");
   assert.ok(parsedAgent?.type === "agent");
-  assert.deepEqual(parsedAgent.config.model, agent.config.model);
+  assert.equal(parsedAgent.config.agentId, "agent-left");
+  assert.deepEqual(parsedAgent.config.output.schema, agent.config.output.schema);
+});
+
+test("rejects an Agent node that references a missing workflow Agent", () => {
+  const value = document();
+  value.agents = [];
+  const result = validateExecutionDocument(value);
+  assert.equal(result.valid, false);
+  assert.ok(result.issues.some(({ code }) => code === "invalid-node-config"));
 });
 
 test("accepts an optional scheduled-run duration and rejects values below the minimum", () => {

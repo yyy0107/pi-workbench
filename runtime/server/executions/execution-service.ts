@@ -2,6 +2,9 @@ import type {
   FlowNode,
   FlowRevision,
   ScheduleTriggerSpec,
+  WorkflowAgentResourcesPayload,
+  WorkflowAgentResourcesUpdatePayload,
+  WorkflowAgentResourcesValue,
   WorkflowArchivePayload,
   WorkflowCreatePayload,
   WorkflowDocument,
@@ -80,8 +83,8 @@ function defaultGraph(kind: WorkflowCreatePayload["kind"]): WorkflowDocument["gr
   };
 }
 
-function hasWorkspaceNode(document: WorkflowDocument | FlowRevision): boolean {
-  return document.graph.nodes.some(({ type }) => type === "agent" || type === "command");
+function needsTargetWorkspace(document: WorkflowDocument | FlowRevision): boolean {
+  return document.graph.nodes.some(({ type }) => type === "command");
 }
 
 function assertValidExecutionDocument(document: WorkflowDocument, message: string): void {
@@ -230,6 +233,7 @@ export class ExecutionService implements ExecutionProtocol {
   private async readValue(document: WorkflowDocument): Promise<WorkflowReadValue> {
     return {
       document,
+      workflowDirectory: this.repository.workflowDirectory(document.id),
       triggerStates: await this.repository.listTriggerStates(document.id),
     };
   }
@@ -252,17 +256,32 @@ export class ExecutionService implements ExecutionProtocol {
     );
   }
 
+  async readAgentResources(
+    payload: WorkflowAgentResourcesPayload,
+  ): Promise<WorkflowAgentResourcesValue> {
+    await this.ready();
+    return this.repository.readAgentResources(payload);
+  }
+
+  async updateAgentResources(
+    payload: WorkflowAgentResourcesUpdatePayload,
+  ): Promise<WorkflowAgentResourcesValue> {
+    await this.ready();
+    return this.repository.updateAgentResources(payload);
+  }
+
   async create(payload: WorkflowCreatePayload): Promise<WorkflowReadValue> {
     await this.ready();
     if (payload.scope.type === "project")
       await this.repository.workspacePath(payload.scope.workspaceId);
     const time = this.now();
     const document: WorkflowDocument = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       id: this.repository.createId(),
       kind: payload.kind,
       scope: payload.scope,
       name: payload.name.trim(),
+      agents: [],
       graph: defaultGraph(payload.kind),
       concurrency: { mode: "queue" },
       triggers: [],
@@ -344,14 +363,26 @@ export class ExecutionService implements ExecutionProtocol {
       await this.repository.saveRevision(revision);
     }
     compileExecutionRevision(revision);
+    const untrustedAgentNode = revision.graph.nodes.find(
+      (node) =>
+        node.type === "agent" &&
+        !this.isWorkspaceTrusted(
+          this.repository.agentWorkspaceDirectory(document.id, node.config.agentId),
+        ),
+    );
+    if (untrustedAgentNode?.type === "agent") {
+      throw new ExecutionError(
+        "agent-workspace-not-trusted",
+        "Trust the workflow before loading Agent-local Pi resources.",
+        { agentId: untrustedAgentNode.config.agentId },
+      );
+    }
     const targetWorkspaceId =
       revision.scope.type === "project" ? revision.scope.workspaceId : payload.targetWorkspaceId;
-    if (hasWorkspaceNode(revision) && !targetWorkspaceId) {
-      throw new ExecutionError(
-        "workspace-required",
-        "Agent and Command nodes need a target workspace.",
-        { workflowId: document.id },
-      );
+    if (needsTargetWorkspace(revision) && !targetWorkspaceId) {
+      throw new ExecutionError("workspace-required", "This execution needs a target workspace.", {
+        workflowId: document.id,
+      });
     }
     const workspacePath = targetWorkspaceId
       ? await this.repository.workspacePath(targetWorkspaceId)
@@ -359,7 +390,7 @@ export class ExecutionService implements ExecutionProtocol {
     if (workspacePath && !this.isWorkspaceTrusted(workspacePath)) {
       throw new ExecutionError(
         "workspace-not-trusted",
-        "The workflow target workspace is not trusted.",
+        "The execution target workspace is not trusted.",
         { workspaceId: targetWorkspaceId! },
       );
     }
@@ -458,6 +489,23 @@ export class ExecutionService implements ExecutionProtocol {
     payload: WorkflowTriggerSetEnabledPayload,
   ): Promise<WorkflowTriggerState> {
     await this.ready();
+    if (payload.enabled) {
+      const document = await this.repository.readDocument(payload.workflowId);
+      const untrustedAgentNode = document.graph.nodes.find(
+        (node) =>
+          node.type === "agent" &&
+          !this.isWorkspaceTrusted(
+            this.repository.agentWorkspaceDirectory(document.id, node.config.agentId),
+          ),
+      );
+      if (untrustedAgentNode?.type === "agent") {
+        throw new ExecutionError(
+          "agent-workspace-not-trusted",
+          "Trust the workflow before enabling scheduled Agent triggers.",
+          { agentId: untrustedAgentNode.config.agentId },
+        );
+      }
+    }
     return this.triggers.setEnabled(payload.workflowId, payload.triggerId, payload.enabled);
   }
 }

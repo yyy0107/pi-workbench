@@ -142,6 +142,17 @@ export function validateExecutionDocument(value: unknown): WorkflowValidationRes
   if (!document.name.trim()) {
     issues.push(issue("invalid-schema", "Workflow name cannot be empty.", "/name"));
   }
+  const agents = new Map<string, (typeof document.agents)[number]>();
+  for (const agent of document.agents) {
+    if (!agent.name.trim()) {
+      issues.push(issue("invalid-node-config", "Agent name cannot be empty.", "/agents"));
+    }
+    if (agents.has(agent.id)) {
+      issues.push(issue("invalid-schema", "Agent IDs must be unique.", "/agents"));
+    } else {
+      agents.set(agent.id, agent);
+    }
+  }
   const nodes = new Map<string, FlowNode>();
   for (const node of document.graph.nodes) {
     if (!node.name.trim()) {
@@ -152,14 +163,16 @@ export function validateExecutionDocument(value: unknown): WorkflowValidationRes
       );
     }
     if (
-      (node.type === "agent" && !node.config.prompt.trim()) ||
+      (node.type === "agent" && !agents.has(node.config.agentId)) ||
       (node.type === "command" && !node.config.command.trim()) ||
       (node.type === "approval" && !node.config.message.trim())
     ) {
       issues.push(
         issue(
           "invalid-node-config",
-          `${node.type} configuration cannot be empty.`,
+          node.type === "agent"
+            ? "Agent node must reference an existing workflow agent."
+            : `${node.type} configuration cannot be empty.`,
           "/graph/nodes",
           { nodeId: node.id },
         ),
@@ -339,6 +352,7 @@ export function executionRevisionIdForDocument(document: WorkflowDocument): stri
     scope: document.scope,
     name: document.name,
     description: document.description,
+    agents: document.agents,
     graph: executableGraph(document),
     concurrency: document.concurrency,
     triggers: document.triggers,
@@ -359,13 +373,14 @@ export function compileExecutionDocument(
   const document = parseExecutionDocument(value);
   const revisionId = executionRevisionIdForDocument(document);
   const revision: FlowRevision = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     revisionId,
     workflowId: document.id,
     kind: document.kind,
     scope: document.scope,
     name: document.name,
     ...(document.description === undefined ? {} : { description: document.description }),
+    agents: document.agents,
     graph: executableGraph(document),
     concurrency: document.concurrency,
     triggers: document.triggers,
@@ -404,12 +419,13 @@ export function compileExecutionDocument(
 export function compileExecutionRevision(revision: FlowRevision): CompiledExecutionPlan {
   return compileExecutionDocument(
     {
-      schemaVersion: 1,
+      schemaVersion: 2,
       id: revision.workflowId,
       kind: revision.kind,
       scope: revision.scope,
       name: revision.name,
       ...(revision.description === undefined ? {} : { description: revision.description }),
+      agents: revision.agents,
       graph: revision.graph,
       concurrency: revision.concurrency,
       triggers: revision.triggers,

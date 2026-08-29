@@ -39,6 +39,12 @@ export interface FlowNodeBase {
   position: { x: number; y: number };
 }
 
+export interface WorkflowAgentDefinition {
+  /** Stable path-safe identity. The workspace is derived from workflowId + agentId. */
+  id: string;
+  name: string;
+}
+
 export interface StartNode extends FlowNodeBase {
   type: "start";
   config: Record<string, never>;
@@ -52,12 +58,13 @@ export interface EndNode extends FlowNodeBase {
 export interface AgentNode extends FlowNodeBase {
   type: "agent";
   config: {
-    prompt: string;
+    agentId: string;
+    /** Name of a Pi prompt template in agents/<agentId>/.pi/prompts. */
+    promptTemplate?: string;
     input?: ValueBinding;
-    model?: {
-      provider: string;
-      modelId: string;
-      thinkingLevel?: ExecutionThinkingLevel;
+    output: {
+      /** JSON Schema used by submit_workflow_output for this invocation. */
+      schema: WorkflowJsonValue;
     };
   };
 }
@@ -135,12 +142,13 @@ export interface InternalEventTriggerSpec {
 export type TriggerSpec = ScheduleTriggerSpec | InternalEventTriggerSpec;
 
 export interface WorkflowDocument {
-  schemaVersion: 1;
+  schemaVersion: 2;
   id: string;
   kind: WorkflowKind;
   scope: WorkflowScope;
   name: string;
   description?: string;
+  agents: WorkflowAgentDefinition[];
   graph: FlowGraph;
   concurrency: WorkflowConcurrency;
   triggers: TriggerSpec[];
@@ -152,13 +160,14 @@ export interface WorkflowDocument {
 }
 
 export interface FlowRevision {
-  schemaVersion: 1;
+  schemaVersion: 2;
   revisionId: string;
   workflowId: string;
   kind: WorkflowKind;
   scope: WorkflowScope;
   name: string;
   description?: string;
+  agents: WorkflowAgentDefinition[];
   graph: FlowGraph;
   concurrency: WorkflowConcurrency;
   triggers: TriggerSpec[];
@@ -377,7 +386,33 @@ export interface WorkflowReadPayload {
 
 export interface WorkflowReadValue {
   document: WorkflowDocument;
+  /** Canonical host path used as the Project Trust boundary for Agent workspaces. */
+  workflowDirectory: string;
   triggerStates: WorkflowTriggerState[];
+}
+
+export interface WorkflowAgentModelSettings {
+  provider: string;
+  modelId: string;
+  thinkingLevel?: ExecutionThinkingLevel;
+}
+
+export interface WorkflowAgentResourcesPayload {
+  workflowId: string;
+  agentId: string;
+  promptTemplate: string;
+}
+
+export interface WorkflowAgentResourcesValue {
+  agentId: string;
+  promptTemplate: string;
+  prompt: string;
+  model?: WorkflowAgentModelSettings;
+}
+
+export interface WorkflowAgentResourcesUpdatePayload extends WorkflowAgentResourcesPayload {
+  prompt: string;
+  model?: WorkflowAgentModelSettings;
 }
 
 export interface WorkflowCreatePayload {
@@ -479,6 +514,10 @@ export interface WorkflowTriggerSetEnabledPayload {
 export interface ExecutionProtocol {
   list(payload: WorkflowListPayload): Promise<WorkflowListValue>;
   read(payload: WorkflowReadPayload): Promise<WorkflowReadValue>;
+  readAgentResources(payload: WorkflowAgentResourcesPayload): Promise<WorkflowAgentResourcesValue>;
+  updateAgentResources(
+    payload: WorkflowAgentResourcesUpdatePayload,
+  ): Promise<WorkflowAgentResourcesValue>;
   create(payload: WorkflowCreatePayload): Promise<WorkflowReadValue>;
   saveDraft(payload: WorkflowSaveDraftPayload): Promise<WorkflowReadValue>;
   validate(payload: WorkflowReadPayload): Promise<WorkflowValidationResult>;

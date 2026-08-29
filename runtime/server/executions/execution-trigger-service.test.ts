@@ -32,11 +32,12 @@ test("deduplicates internal-event workflow runs", async () => {
       listWorkspaces: async () => [],
     });
     const document: WorkflowDocument = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       id: "workflow-1",
       kind: "workflow",
       scope: { type: "personal" },
       name: "Workflow",
+      agents: [],
       graph: {
         nodes: [
           { id: "start", type: "start", name: "Start", position: { x: 0, y: 0 }, config: {} },
@@ -69,11 +70,11 @@ test("deduplicates internal-event workflow runs", async () => {
     const service = new ExecutionTriggerService({
       repository,
       readWorkflow: async () => document,
-      isWorkspaceTrusted: async () => true,
       startRun: async ({ dedupeKey }) => {
         admissions.push(dedupeKey);
         return { kind: "skipped", activeRunId: `run-${admissions.length}` };
       },
+      isWorkspaceTrusted: async () => true,
     });
 
     await service.handleInternalEvent("workbench.session.completed", "event-1", {});

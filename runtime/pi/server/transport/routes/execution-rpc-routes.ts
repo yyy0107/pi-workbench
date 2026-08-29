@@ -1,6 +1,7 @@
 import type {
   TriggerSpec,
   ExecutionProtocol,
+  ExecutionThinkingLevel,
   WorkflowDocument,
   WorkflowJsonValue,
   WorkflowScope,
@@ -31,6 +32,11 @@ export interface ExecutionRpcRoutesDependencies {
 }
 
 const id = rpcString({ minLength: 1, maxLength: 200 });
+const pathSegmentId = rpcString({
+  minLength: 1,
+  maxLength: 200,
+  pattern: /^[A-Za-z0-9][A-Za-z0-9._-]*$/u,
+});
 const runId = rpcString({
   minLength: 1,
   maxLength: 200,
@@ -93,6 +99,33 @@ const listPayload = rpcObject({
   includeArchived: rpcOptional(rpcBoolean),
 });
 const readPayload = rpcObject({ workflowId: id, workspaceId: rpcOptional(id) });
+const agentResourcesPayload = rpcObject({
+  workflowId: id,
+  agentId: pathSegmentId,
+  promptTemplate: pathSegmentId,
+});
+const thinkingLevel = rpcEnum([
+  "off",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+]) as RpcValidator<ExecutionThinkingLevel>;
+const agentResourcesUpdatePayload = rpcObject({
+  workflowId: id,
+  agentId: pathSegmentId,
+  promptTemplate: pathSegmentId,
+  prompt: rpcString({ maxLength: 100_000 }),
+  model: rpcOptional(
+    rpcObject({
+      provider: id,
+      modelId: id,
+      thinkingLevel: rpcOptional(thinkingLevel),
+    }),
+  ),
+});
 const createPayload = rpcObject({
   kind,
   scope: workflowScope,
@@ -180,6 +213,20 @@ export function createExecutionRpcRoutes({
             method,
             payload: readPayload,
             handler: (payload) => invoke(() => service.read(payload), projectDomainError),
+          });
+        case "workflow.agent.resources.read":
+          return handleRpcPost(request, {
+            method,
+            payload: agentResourcesPayload,
+            handler: (payload) =>
+              invoke(() => service.readAgentResources(payload), projectDomainError),
+          });
+        case "workflow.agent.resources.update":
+          return handleRpcPost(request, {
+            method,
+            payload: agentResourcesUpdatePayload,
+            handler: (payload) =>
+              invoke(() => service.updateAgentResources(payload), projectDomainError),
           });
         case "workflow.create":
           return handleRpcPost(request, {

@@ -1,5 +1,8 @@
 import type {
   WorkflowArchivePayload,
+  WorkflowAgentResourcesPayload,
+  WorkflowAgentResourcesUpdatePayload,
+  WorkflowAgentResourcesValue,
   WorkflowCreatePayload,
   WorkflowListPayload,
   WorkflowListValue,
@@ -28,7 +31,10 @@ import type {
 } from "@/runtime/shared/execution";
 import { callPiRpc, type PiRpcCallOptions } from "../transport/api";
 
-const WORKFLOW_QUERY_TIMEOUT_MS = 15_000;
+// The first execution query can include a cold server-module compile in development. Keep a
+// bounded timeout, but leave enough room for that one-time startup work instead of turning it into
+// a catalog-wide load failure.
+const WORKFLOW_QUERY_TIMEOUT_MS = 30_000;
 
 function callWorkflowQuery<Payload, Value>(method: string, payload: Payload): Promise<Value> {
   const options: PiRpcCallOptions = {
@@ -43,6 +49,14 @@ export const workflowClient = {
   },
   read(payload: WorkflowReadPayload): Promise<WorkflowReadValue> {
     return callWorkflowQuery("workflow.read", payload);
+  },
+  readAgentResources(payload: WorkflowAgentResourcesPayload): Promise<WorkflowAgentResourcesValue> {
+    return callWorkflowQuery("workflow.agent.resources.read", payload);
+  },
+  updateAgentResources(
+    payload: WorkflowAgentResourcesUpdatePayload,
+  ): Promise<WorkflowAgentResourcesValue> {
+    return callPiRpc("workflow.agent.resources.update", payload);
   },
   create(payload: WorkflowCreatePayload): Promise<WorkflowReadValue> {
     return callPiRpc("workflow.create", payload);

@@ -4,12 +4,18 @@ import { Value } from "typebox/value";
 import {
   MAX_SCHEDULE_RUN_DURATION_SECONDS,
   MIN_SCHEDULE_RUN_DURATION_SECONDS,
+  type ExecutionThinkingLevel,
   type TriggerSpec,
   type WorkflowDocument,
   type WorkflowJsonValue,
 } from "@/runtime/shared/execution";
 
 const Id = Type.String({ minLength: 1, maxLength: 200 });
+const PathSegmentId = Type.String({
+  minLength: 1,
+  maxLength: 200,
+  pattern: "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+});
 // Drafts intentionally allow temporarily incomplete text fields. Publish-time
 // semantic validation in FlowCompiler rejects empty names and executor config.
 const Name = Type.String({ maxLength: 240 });
@@ -30,8 +36,17 @@ const NodeBase = {
   name: Name,
   position: Position,
 };
+const ThinkingLevel = Type.Union([
+  Type.Literal("off"),
+  Type.Literal("minimal"),
+  Type.Literal("low"),
+  Type.Literal("medium"),
+  Type.Literal("high"),
+  Type.Literal("xhigh"),
+  Type.Literal("max"),
+]);
 
-export const FlowNodeSchema = Type.Union([
+const CommonNodeSchemas = [
   Type.Object(
     { ...NodeBase, type: Type.Literal("start"), config: Type.Object({}) },
     { additionalProperties: false },
@@ -41,40 +56,6 @@ export const FlowNodeSchema = Type.Union([
       ...NodeBase,
       type: Type.Literal("end"),
       config: Type.Object({ output: Type.Optional(Binding) }, { additionalProperties: false }),
-    },
-    { additionalProperties: false },
-  ),
-  Type.Object(
-    {
-      ...NodeBase,
-      type: Type.Literal("agent"),
-      config: Type.Object(
-        {
-          prompt: Type.String({ maxLength: 100_000 }),
-          input: Type.Optional(Binding),
-          model: Type.Optional(
-            Type.Object(
-              {
-                provider: Id,
-                modelId: Id,
-                thinkingLevel: Type.Optional(
-                  Type.Union([
-                    Type.Literal("off"),
-                    Type.Literal("minimal"),
-                    Type.Literal("low"),
-                    Type.Literal("medium"),
-                    Type.Literal("high"),
-                    Type.Literal("xhigh"),
-                    Type.Literal("max"),
-                  ]),
-                ),
-              },
-              { additionalProperties: false },
-            ),
-          ),
-        },
-        { additionalProperties: false },
-      ),
     },
     { additionalProperties: false },
   ),
@@ -129,7 +110,52 @@ export const FlowNodeSchema = Type.Union([
     },
     { additionalProperties: false },
   ),
-]);
+] as const;
+
+const AgentNodeSchema = Type.Object(
+  {
+    ...NodeBase,
+    type: Type.Literal("agent"),
+    config: Type.Object(
+      {
+        agentId: PathSegmentId,
+        promptTemplate: Type.Optional(PathSegmentId),
+        input: Type.Optional(Binding),
+        output: Type.Object({ schema: Type.Unknown() }, { additionalProperties: false }),
+      },
+      { additionalProperties: false },
+    ),
+  },
+  { additionalProperties: false },
+);
+
+const LegacyAgentNodeSchema = Type.Object(
+  {
+    ...NodeBase,
+    type: Type.Literal("agent"),
+    config: Type.Object(
+      {
+        prompt: Type.String({ maxLength: 100_000 }),
+        input: Type.Optional(Binding),
+        model: Type.Optional(
+          Type.Object(
+            {
+              provider: Id,
+              modelId: Id,
+              thinkingLevel: Type.Optional(ThinkingLevel),
+            },
+            { additionalProperties: false },
+          ),
+        ),
+      },
+      { additionalProperties: false },
+    ),
+  },
+  { additionalProperties: false },
+);
+
+export const FlowNodeSchema = Type.Union([AgentNodeSchema, ...CommonNodeSchemas]);
+const LegacyFlowNodeSchema = Type.Union([LegacyAgentNodeSchema, ...CommonNodeSchemas]);
 
 export const TriggerSpecSchema = Type.Union([
   Type.Object(
@@ -166,74 +192,108 @@ export const TriggerSpecSchema = Type.Union([
   ),
 ]);
 
-export const ExecutionDocumentSchema = Type.Object(
-  {
-    schemaVersion: Type.Literal(1),
-    id: Id,
-    kind: Type.Union([Type.Literal("workflow"), Type.Literal("sop")]),
-    scope: Type.Union([
-      Type.Object({ type: Type.Literal("personal") }, { additionalProperties: false }),
-      Type.Object(
-        { type: Type.Literal("project"), workspaceId: Id },
-        { additionalProperties: false },
-      ),
-    ]),
-    name: Name,
-    description: Type.Optional(Type.String({ maxLength: 20_000 })),
-    graph: Type.Object(
-      {
-        nodes: Type.Array(FlowNodeSchema, { maxItems: 2_000 }),
-        edges: Type.Array(
-          Type.Object(
-            {
-              id: Id,
-              source: Id,
-              target: Id,
-              sourceHandle: Type.Optional(
-                Type.Union([Type.Literal("true"), Type.Literal("false")]),
-              ),
-            },
-            { additionalProperties: false },
-          ),
-          { maxItems: 10_000 },
-        ),
-        editor: Type.Object(
+function graphSchema(nodeSchema: TSchema) {
+  return Type.Object(
+    {
+      nodes: Type.Array(nodeSchema, { maxItems: 2_000 }),
+      edges: Type.Array(
+        Type.Object(
           {
-            viewport: Type.Optional(
-              Type.Object(
-                { x: Type.Number(), y: Type.Number(), zoom: Type.Number({ minimum: 0.01 }) },
-                { additionalProperties: false },
-              ),
-            ),
+            id: Id,
+            source: Id,
+            target: Id,
+            sourceHandle: Type.Optional(Type.Union([Type.Literal("true"), Type.Literal("false")])),
           },
           { additionalProperties: false },
         ),
-      },
-      { additionalProperties: false },
-    ),
-    concurrency: Type.Union([
-      Type.Object({ mode: Type.Literal("queue") }, { additionalProperties: false }),
-      Type.Object({ mode: Type.Literal("skip") }, { additionalProperties: false }),
-      Type.Object({ mode: Type.Literal("independent") }, { additionalProperties: false }),
-      Type.Object(
+        { maxItems: 10_000 },
+      ),
+      editor: Type.Object(
         {
-          mode: Type.Literal("parallel"),
-          maxActiveRuns: Type.Integer({ minimum: 1, maximum: 8 }),
+          viewport: Type.Optional(
+            Type.Object(
+              { x: Type.Number(), y: Type.Number(), zoom: Type.Number({ minimum: 0.01 }) },
+              { additionalProperties: false },
+            ),
+          ),
         },
         { additionalProperties: false },
       ),
-    ]),
-    triggers: Type.Array(TriggerSpecSchema, { maxItems: 100 }),
-    draftRevision: Type.Integer({ minimum: 0 }),
-    publishedRevisionId: Type.Optional(Id),
-    createdAt: Type.Number({ minimum: 0 }),
-    updatedAt: Type.Number({ minimum: 0 }),
-    archivedAt: Type.Optional(Type.Number({ minimum: 0 })),
+    },
+    { additionalProperties: false },
+  );
+}
+
+const Scope = Type.Union([
+  Type.Object({ type: Type.Literal("personal") }, { additionalProperties: false }),
+  Type.Object({ type: Type.Literal("project"), workspaceId: Id }, { additionalProperties: false }),
+]);
+const Concurrency = Type.Union([
+  Type.Object({ mode: Type.Literal("queue") }, { additionalProperties: false }),
+  Type.Object({ mode: Type.Literal("skip") }, { additionalProperties: false }),
+  Type.Object({ mode: Type.Literal("independent") }, { additionalProperties: false }),
+  Type.Object(
+    {
+      mode: Type.Literal("parallel"),
+      maxActiveRuns: Type.Integer({ minimum: 1, maximum: 8 }),
+    },
+    { additionalProperties: false },
+  ),
+]);
+const DocumentBase = {
+  id: Id,
+  kind: Type.Union([Type.Literal("workflow"), Type.Literal("sop")]),
+  scope: Scope,
+  name: Name,
+  description: Type.Optional(Type.String({ maxLength: 20_000 })),
+  concurrency: Concurrency,
+  triggers: Type.Array(TriggerSpecSchema, { maxItems: 100 }),
+  draftRevision: Type.Integer({ minimum: 0 }),
+  publishedRevisionId: Type.Optional(Id),
+  createdAt: Type.Number({ minimum: 0 }),
+  updatedAt: Type.Number({ minimum: 0 }),
+  archivedAt: Type.Optional(Type.Number({ minimum: 0 })),
+};
+
+export const ExecutionDocumentSchema = Type.Object(
+  {
+    schemaVersion: Type.Literal(2),
+    ...DocumentBase,
+    agents: Type.Array(
+      Type.Object({ id: PathSegmentId, name: Name }, { additionalProperties: false }),
+      { maxItems: 200 },
+    ),
+    graph: graphSchema(FlowNodeSchema),
+  },
+  { additionalProperties: false },
+);
+
+const LegacyExecutionDocumentSchema = Type.Object(
+  {
+    schemaVersion: Type.Literal(1),
+    ...DocumentBase,
+    graph: graphSchema(LegacyFlowNodeSchema),
   },
   { additionalProperties: false },
 );
 
 type SchemaWorkflowDocument = Static<typeof ExecutionDocumentSchema>;
+type LegacyWorkflowDocument = Static<typeof LegacyExecutionDocumentSchema>;
+
+export interface LegacyWorkflowAgentResource {
+  agentId: string;
+  prompt: string;
+  model?: {
+    provider: string;
+    modelId: string;
+    thinkingLevel?: ExecutionThinkingLevel;
+  };
+}
+
+export interface ExecutionDocumentParseResult {
+  document: WorkflowDocument;
+  legacyAgentResources: LegacyWorkflowAgentResource[];
+}
 
 function isJsonValue(value: unknown, seen: Set<unknown> = new Set()): value is WorkflowJsonValue {
   if (
@@ -259,21 +319,81 @@ function schemaError(schema: TSchema, value: unknown): TypeError {
   return new TypeError(first ? `${first.instancePath || "/"}: ${first.message}` : "Invalid value.");
 }
 
-export function parseExecutionDocument(value: unknown): WorkflowDocument {
-  if (!Value.Check(ExecutionDocumentSchema, value)) {
-    throw schemaError(ExecutionDocumentSchema, value);
-  }
-  const document = value as SchemaWorkflowDocument as WorkflowDocument;
-  for (const node of document.graph.nodes) {
-    if (
-      node.type === "condition" &&
-      node.config.value !== undefined &&
-      !isJsonValue(node.config.value)
-    ) {
-      throw new TypeError(`/graph/nodes/${node.id}/config/value: Expected JSON-serializable data.`);
+function legacyAgentId(nodeId: string, index: number): string {
+  const safe = nodeId
+    .normalize("NFKD")
+    .replace(/[^A-Za-z0-9._-]+/gu, "-")
+    .replace(/^[^A-Za-z0-9]+/u, "")
+    .slice(0, 150);
+  return `${safe || "agent"}-${index + 1}`;
+}
+
+function migrateLegacyDocument(value: LegacyWorkflowDocument): ExecutionDocumentParseResult {
+  const resources: LegacyWorkflowAgentResource[] = [];
+  const agents: WorkflowDocument["agents"] = [];
+  let agentIndex = 0;
+  const nodes = (value.graph.nodes as Static<typeof LegacyFlowNodeSchema>[]).map((node) => {
+    if (node.type !== "agent") return node;
+    const agentId = legacyAgentId(node.id, agentIndex);
+    agentIndex += 1;
+    agents.push({ id: agentId, name: node.name || agentId });
+    resources.push({
+      agentId,
+      prompt: node.config.prompt,
+      ...(node.config.model ? { model: node.config.model } : {}),
+    });
+    return {
+      id: node.id,
+      type: node.type,
+      name: node.name,
+      position: node.position,
+      config: {
+        agentId,
+        promptTemplate: "default",
+        ...(node.config.input ? { input: node.config.input } : {}),
+        output: {
+          schema: {
+            type: "object",
+            properties: { text: { type: "string" } },
+            required: ["text"],
+            additionalProperties: false,
+          },
+        },
+      },
+    };
+  });
+  return {
+    document: structuredClone({
+      ...value,
+      schemaVersion: 2,
+      agents,
+      graph: { ...value.graph, nodes },
+    } as WorkflowDocument),
+    legacyAgentResources: resources,
+  };
+}
+
+export function parseExecutionDocumentWithMigration(value: unknown): ExecutionDocumentParseResult {
+  if (Value.Check(ExecutionDocumentSchema, value)) {
+    const document = value as SchemaWorkflowDocument as WorkflowDocument;
+    for (const node of document.graph.nodes) {
+      if (
+        ((node.type === "condition" && node.config.value !== undefined) || node.type === "agent") &&
+        !isJsonValue(node.type === "condition" ? node.config.value : node.config.output.schema)
+      ) {
+        throw new TypeError(`/graph/nodes/${node.id}/config: Expected JSON-serializable data.`);
+      }
     }
+    return { document: structuredClone(document), legacyAgentResources: [] };
   }
-  return structuredClone(document);
+  if (Value.Check(LegacyExecutionDocumentSchema, value)) {
+    return migrateLegacyDocument(value as LegacyWorkflowDocument);
+  }
+  throw schemaError(ExecutionDocumentSchema, value);
+}
+
+export function parseExecutionDocument(value: unknown): WorkflowDocument {
+  return parseExecutionDocumentWithMigration(value).document;
 }
 
 export function parseTriggerSpec(value: unknown): TriggerSpec {

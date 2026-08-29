@@ -15,11 +15,12 @@ import { ExecutionRepository } from "./execution-repository";
 
 function approvalDocument(): WorkflowDocument {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id: "approval-flow",
     kind: "sop",
     scope: { type: "personal" },
     name: "Approval flow",
+    agents: [],
     graph: {
       nodes: [
         { id: "start", type: "start", name: "Start", position: { x: 0, y: 0 }, config: {} },
@@ -52,6 +53,10 @@ function parallelDocument(): WorkflowDocument {
     id: "parallel-flow",
     kind: "workflow",
     name: "Parallel flow",
+    agents: [
+      { id: "left-agent", name: "Left" },
+      { id: "right-agent", name: "Right" },
+    ],
     graph: {
       nodes: [
         { id: "start", type: "start", name: "Start", position: { x: 0, y: 0 }, config: {} },
@@ -60,14 +65,14 @@ function parallelDocument(): WorkflowDocument {
           type: "agent",
           name: "Left",
           position: { x: 100, y: 0 },
-          config: { prompt: "Left" },
+          config: { agentId: "left-agent", promptTemplate: "default", output: { schema: {} } },
         },
         {
           id: "right",
           type: "agent",
           name: "Right",
           position: { x: 100, y: 100 },
-          config: { prompt: "Right" },
+          config: { agentId: "right-agent", promptTemplate: "default", output: { schema: {} } },
         },
         { id: "end", type: "end", name: "End", position: { x: 200, y: 0 }, config: {} },
       ],

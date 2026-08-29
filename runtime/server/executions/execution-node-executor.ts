@@ -12,6 +12,8 @@ export interface ExecutionNodeContext {
   attempt: number;
   workspaceId: string;
   workspacePath: string;
+  /** Persistent workflow directory containing agents/, runs/, and workflow.json. */
+  workflowDirectory: string;
   input?: WorkflowJsonValue;
   signal: AbortSignal;
   sessionDirectory: string;

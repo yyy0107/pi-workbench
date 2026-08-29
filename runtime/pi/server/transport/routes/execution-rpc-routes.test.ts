@@ -66,16 +66,20 @@ test("returns a workflow-invalid envelope instead of HTTP 500 for an invalid dra
       baseDraftRevision: created.document.draftRevision,
       draft: {
         ...created.document,
+        agents: [{ id: "unreachable-agent", name: "Unreachable Agent" }],
         graph: {
           ...created.document.graph,
           nodes: [
             ...created.document.graph.nodes,
             {
               id: "unreachable",
-              type: "command",
-              name: "Unreachable Command",
+              type: "agent",
+              name: "Unreachable Agent",
               position: { x: 300, y: 400 },
-              config: { command: "echo unreachable" },
+              config: {
+                agentId: "unreachable-agent",
+                output: { schema: {} },
+              },
             },
           ],
         },
