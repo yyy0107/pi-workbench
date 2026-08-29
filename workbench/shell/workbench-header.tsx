@@ -12,14 +12,7 @@ import { useMainViewService } from "@/platform/extensions";
 import { SlotHost } from "@/platform/extensions/hosts/slot-host";
 import { useWorkbenchAgentThreadSnapshot } from "@/runtime/assistant-ui/agent-runtime-context";
 
-const MAX_CONVERSATION_TITLE_CHARACTERS = 12;
-
-function truncateConversationTitle(title: string): string {
-  const characters = Array.from(title);
-  return characters.length > MAX_CONVERSATION_TITLE_CHARACTERS
-    ? `${characters.slice(0, MAX_CONVERSATION_TITLE_CHARACTERS).join("")}...`
-    : title;
-}
+import { truncateConversationTitle } from "./conversation-title";
 
 function SidebarOpenButton() {
   const { t } = useI18n();

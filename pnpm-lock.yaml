@@ -98,6 +98,9 @@ importers:
       cron-parser:
         specifier: ^5.10.0
         version: 5.10.0
+      get-east-asian-width:
+        specifier: 1.6.0
+        version: 1.6.0
       hast-util-to-jsx-runtime:
         specifier: 2.3.6
         version: 2.3.6(supports-color@7.2.0)
