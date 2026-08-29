@@ -20,6 +20,7 @@ import { AgentSettingsService } from "../settings/agent-settings-service";
 import { WorkbenchSettingsService } from "../settings/workbench-settings-service";
 import { SkillService } from "../skills/skill-service";
 import { getProjectTrustService } from "../trust/project-trust-service";
+import { getAutomationService } from "../automations/pi-automation-service";
 import { getExecutionService } from "../executions/pi-execution-service";
 import { createWorkspaceFileService } from "../workspaces/workspace-files";
 import { createWorkspaceGitService } from "../workspaces/workspace-git";
@@ -96,6 +97,10 @@ import {
   type WorkspaceRpcRoutesDependencies,
 } from "./routes/workspace-rpc-routes";
 import {
+  createAutomationRpcRoutes,
+  type AutomationRpcRoutesDependencies,
+} from "./routes/automation-rpc-routes";
+import {
   createExecutionRpcRoutes,
   type ExecutionRpcRoutesDependencies,
 } from "./routes/execution-rpc-routes";
@@ -122,6 +127,7 @@ export interface PiRpcRouteGroupsDependencies {
   readonly localApp: LocalAppRpcRoutesDependencies;
   readonly projectTrust: ProjectTrustRpcRoutesDependencies;
   readonly resourceCatalog: ResourceCatalogRpcRoutesDependencies;
+  readonly automation?: AutomationRpcRoutesDependencies;
   readonly execution?: ExecutionRpcRoutesDependencies;
 }
 
@@ -136,6 +142,7 @@ export function createPiRpcRouteGroups(
     createWorkspaceRpcRoutes(dependencies.workspace),
     createWorkspaceGitRpcRoutes(dependencies.workspaceGit),
     createWorkspaceFileRpcRoutes(dependencies.workspaceFile),
+    ...(dependencies.automation ? [createAutomationRpcRoutes(dependencies.automation)] : []),
     ...(dependencies.execution ? [createExecutionRpcRoutes(dependencies.execution)] : []),
     createSkillRpcRoutes(dependencies.skill),
     createExtensionRpcRoutes(dependencies.extension),
@@ -193,6 +200,10 @@ export function createDefaultPiRpcRouteGroups(): readonly RpcRouteGroup[] {
     workspace: { service: workspaceProtocolService, ...domainErrors },
     workspaceGit: { service: workspaceGitService, ...domainErrors },
     workspaceFile: { service: workspaceFileService, ...domainErrors },
+    automation: {
+      service: getAutomationService({ agentExecution: agent.execution }),
+      ...domainErrors,
+    },
     execution: { service: getExecutionService({ execution: agent.execution }), ...domainErrors },
     skill: { service: skillService, ...domainErrors },
     extension: { service: extensionService, ...domainErrors },
