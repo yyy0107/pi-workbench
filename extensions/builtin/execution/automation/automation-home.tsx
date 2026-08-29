@@ -35,7 +35,11 @@ import { automationClient } from "@/runtime/pi/client/automations/automation-cli
 import { usePiWorkspaces } from "@/runtime/pi/client/runtime/context";
 import type { AutomationSummary } from "@/runtime/shared/automation";
 
-import { formatRelativeTimeUntil, parseScheduleCron } from "./automation-schedule";
+import {
+  describeScheduleCron,
+  formatRelativeTimeUntil,
+  parseScheduleCron,
+} from "./automation-schedule";
 import { AUTOMATION_TASK_PRESETS, type AutomationTaskPreset } from "./automation-task-presets";
 import { workflowMainViewRequest } from "../execution-main-view";
 import { useExecutionTrustAdmission } from "../use-execution-trust-admission";
@@ -338,16 +342,21 @@ function AutomationCard({
   onSetEnabled(enabled: boolean): Promise<void>;
   onArchive(): Promise<void>;
 }) {
-  const { relativeTime, t } = useI18n();
+  const { locale, relativeTime, t } = useI18n();
   const parsedSchedule = parseScheduleCron(automation.schedule.cron);
   const recurrence = t(
     `extensions.workflows.automationTask.frequencySummary.${parsedSchedule.frequency}`,
   );
+  const customScheduleDescription =
+    parsedSchedule.frequency === "custom"
+      ? describeScheduleCron(parsedSchedule.customCron, locale)
+      : undefined;
   const scheduleLabel =
     parsedSchedule.frequency === "custom"
-      ? t("extensions.workflows.automationHome.customSchedule", {
+      ? (customScheduleDescription ??
+        t("extensions.workflows.automationHome.customSchedule", {
           cron: parsedSchedule.customCron,
-        })
+        }))
       : parsedSchedule.frequency === "hourly"
         ? recurrence
         : t("extensions.workflows.automationHome.scheduleAt", {
