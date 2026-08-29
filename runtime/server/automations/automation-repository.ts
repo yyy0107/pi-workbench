@@ -166,6 +166,26 @@ export class AutomationRepository {
     });
   }
 
+  async removeSession(
+    automationId: string,
+    sessionId: string,
+  ): Promise<{ automation: AutomationDefinition; removed: boolean }> {
+    let removed = false;
+    const automation = await this.updateRuntime(automationId, (current) => {
+      const sessions = current.sessions.filter((reference) => reference.sessionId !== sessionId);
+      if (sessions.length === current.sessions.length) return current;
+      removed = true;
+      const { lastSessionId: _lastSessionId, lastTriggeredAt: _lastTriggeredAt, ...rest } = current;
+      const latest = sessions[0];
+      return {
+        ...rest,
+        sessions,
+        ...(latest ? { lastSessionId: latest.sessionId, lastTriggeredAt: latest.triggeredAt } : {}),
+      };
+    });
+    return { automation, removed };
+  }
+
   async recordError(automationId: string, reason: string): Promise<AutomationDefinition> {
     return this.updateRuntime(automationId, (current) => ({
       ...current,

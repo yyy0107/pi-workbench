@@ -7,6 +7,7 @@ export interface AutomationErrorDetails {
   "automation-workspace-not-found": { workspaceId: string };
   "automation-workspace-not-trusted": { workspaceId: string };
   "automation-launch-failed": { automationId: string; reason: string };
+  "automation-session-active": { automationId: string; sessionId: string };
 }
 
 export type AutomationErrorCode = keyof AutomationErrorDetails;

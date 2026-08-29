@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { ServerResponse } from "@/runtime/pi/contracts/rpc";
-import type { AutomationProtocol, AutomationRunNowPayload } from "@/runtime/shared/automation";
+import type {
+  AutomationProtocol,
+  AutomationRemoveSessionPayload,
+  AutomationRunNowPayload,
+} from "@/runtime/shared/automation";
 import { createAutomationRpcRoutes } from "./automation-rpc-routes";
 
 function request(method: string, payload: unknown): Request {
@@ -115,4 +119,40 @@ test("automation.save accepts the shared Composer model selection shape", async 
   const body = (await (await response).json()) as ServerResponse<unknown>;
   assert.equal(body.result.ok, true);
   assert.deepEqual(calls, [payload]);
+});
+
+test("automation.removeSession removes only the requested history reference", async () => {
+  const calls: unknown[] = [];
+  const service = {
+    async removeSession(payload: AutomationRemoveSessionPayload) {
+      calls.push(payload);
+      return { ...payload, removed: true };
+    },
+  } as unknown as AutomationProtocol;
+  const routes = createAutomationRpcRoutes({
+    service,
+    projectDomainError(error): never {
+      throw error;
+    },
+  });
+  const response = routes.handle(
+    request("automation.removeSession", {
+      automationId: "automation-1",
+      sessionId: "session-1",
+      ignored: true,
+    }),
+    "automation.removeSession",
+  );
+  assert.ok(response);
+  const body = (await (await response).json()) as ServerResponse<unknown>;
+  assert.equal(body.result.ok, true);
+  assert.deepEqual(calls, [{ automationId: "automation-1", sessionId: "session-1" }]);
+  assert.deepEqual(body, {
+    type: "server-response",
+    rpcId: "automation-rpc",
+    result: {
+      ok: true,
+      value: { automationId: "automation-1", sessionId: "session-1", removed: true },
+    },
+  });
 });

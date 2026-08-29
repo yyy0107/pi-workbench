@@ -5,6 +5,8 @@ import type {
   AutomationListValue,
   AutomationReadPayload,
   AutomationReadValue,
+  AutomationRemoveSessionPayload,
+  AutomationRemoveSessionValue,
   AutomationRunNowPayload,
   AutomationSavePayload,
   AutomationSessionsPayload,
@@ -44,5 +46,8 @@ export const automationClient = {
   },
   sessions(payload: AutomationSessionsPayload): Promise<AutomationSessionsValue> {
     return query("automation.sessions", payload);
+  },
+  removeSession(payload: AutomationRemoveSessionPayload): Promise<AutomationRemoveSessionValue> {
+    return callPiRpc("automation.removeSession", payload);
   },
 };

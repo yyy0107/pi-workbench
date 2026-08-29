@@ -124,6 +124,17 @@ export interface AutomationSessionsValue {
   items: AutomationSessionReference[];
 }
 
+export interface AutomationRemoveSessionPayload {
+  automationId: string;
+  sessionId: string;
+}
+
+export interface AutomationRemoveSessionValue {
+  automationId: string;
+  sessionId: string;
+  removed: boolean;
+}
+
 export interface AutomationProtocol {
   list(payload: AutomationListPayload): Promise<AutomationListValue>;
   read(payload: AutomationReadPayload): Promise<AutomationReadValue>;
@@ -132,6 +143,7 @@ export interface AutomationProtocol {
   setEnabled(payload: AutomationSetEnabledPayload): Promise<AutomationReadValue>;
   runNow(payload: AutomationRunNowPayload): Promise<AutomationLaunchValue>;
   sessions(payload: AutomationSessionsPayload): Promise<AutomationSessionsValue>;
+  removeSession(payload: AutomationRemoveSessionPayload): Promise<AutomationRemoveSessionValue>;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

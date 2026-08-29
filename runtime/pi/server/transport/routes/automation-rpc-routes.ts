@@ -48,6 +48,7 @@ const sessionsPayload = rpcObject({
   automationId: id,
   limit: rpcOptional(rpcInteger({ minimum: 1, maximum: 200 })),
 });
+const removeSessionPayload = rpcObject({ automationId: id, sessionId: id });
 
 async function invoke<Value>(
   operation: () => Promise<Value>,
@@ -108,6 +109,12 @@ export function createAutomationRpcRoutes({
             method,
             payload: sessionsPayload,
             handler: (payload) => invoke(() => service.sessions(payload), projectDomainError),
+          });
+        case "automation.removeSession":
+          return handleRpcPost(request, {
+            method,
+            payload: removeSessionPayload,
+            handler: (payload) => invoke(() => service.removeSession(payload), projectDomainError),
           });
         default:
           return undefined;

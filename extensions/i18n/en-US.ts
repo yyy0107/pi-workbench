@@ -1105,6 +1105,11 @@ export const extensionsEnUS = {
         event: "Event",
         replay: "Replay",
       },
+      runStatus: {
+        running: "Running",
+        succeeded: "Succeeded",
+        unavailable: "Unavailable",
+      },
       runActions: ({ time }: { time: string }) => `Actions for the run triggered at ${time}`,
       goToConversation: "Go to conversation",
       deleteRun: "Delete",
@@ -1116,6 +1121,8 @@ export const extensionsEnUS = {
       confirmDeleteRun: "Delete",
       deletingRun: "Deleting…",
       deleteRunFailed: "The run could not be deleted. Try again.",
+      deleteRunSucceeded: ({ time }: { time: string }) =>
+        `The run triggered at ${time} was removed from history.`,
       status: "Status",
       statusRunning: "Running",
       statusPaused: "Paused",

@@ -10,6 +10,8 @@ import type {
   AutomationProtocol,
   AutomationReadPayload,
   AutomationReadValue,
+  AutomationRemoveSessionPayload,
+  AutomationRemoveSessionValue,
   AutomationRunNowPayload,
   AutomationSavePayload,
   AutomationSessionsPayload,
@@ -42,6 +44,7 @@ export interface AutomationServiceOptions {
     triggeredAt: number,
   ): Promise<string>;
   cancel?(sessionId: string): Promise<void>;
+  isSessionRunning?(sessionId: string): boolean | Promise<boolean>;
   now?: () => number;
   onChanged?: (automation: AutomationSummary) => void;
 }
@@ -123,6 +126,7 @@ export class AutomationService implements AutomationProtocol {
   private isWorkspaceTrusted: AutomationServiceOptions["isWorkspaceTrusted"];
   private launchSession: AutomationServiceOptions["launch"];
   private cancelSession: NonNullable<AutomationServiceOptions["cancel"]>;
+  private isSessionRunning: NonNullable<AutomationServiceOptions["isSessionRunning"]>;
   private readonly now: () => number;
   private readonly onChanged: NonNullable<AutomationServiceOptions["onChanged"]>;
   private readonly timers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -135,6 +139,7 @@ export class AutomationService implements AutomationProtocol {
     this.isWorkspaceTrusted = options.isWorkspaceTrusted;
     this.launchSession = options.launch;
     this.cancelSession = options.cancel ?? (async () => undefined);
+    this.isSessionRunning = options.isSessionRunning ?? (() => false);
     this.now = options.now ?? Date.now;
     this.onChanged = options.onChanged ?? (() => undefined);
   }
@@ -142,13 +147,14 @@ export class AutomationService implements AutomationProtocol {
   rebindRuntime(
     options: Pick<
       AutomationServiceOptions,
-      "cancel" | "isWorkspaceTrusted" | "launch" | "resolveWorkspace"
+      "cancel" | "isSessionRunning" | "isWorkspaceTrusted" | "launch" | "resolveWorkspace"
     >,
   ): void {
     this.resolveWorkspace = options.resolveWorkspace;
     this.isWorkspaceTrusted = options.isWorkspaceTrusted;
     this.launchSession = options.launch;
     this.cancelSession = options.cancel ?? (async () => undefined);
+    this.isSessionRunning = options.isSessionRunning ?? (() => false);
   }
 
   async initialize(): Promise<void> {
@@ -412,5 +418,30 @@ export class AutomationService implements AutomationProtocol {
     await this.ready();
     const automation = await this.repository.read(payload.automationId);
     return { items: automation.sessions.slice(0, payload.limit ?? 100) };
+  }
+
+  async removeSession(
+    payload: AutomationRemoveSessionPayload,
+  ): Promise<AutomationRemoveSessionValue> {
+    await this.ready();
+    const automation = await this.repository.read(payload.automationId);
+    if (!automation.sessions.some(({ sessionId }) => sessionId === payload.sessionId)) {
+      return { ...payload, removed: false };
+    }
+    if (await this.isSessionRunning(payload.sessionId)) {
+      throw new AutomationError(
+        "automation-session-active",
+        "An active automation session cannot be removed from its history.",
+        payload,
+      );
+    }
+    const result = await this.repository.removeSession(payload.automationId, payload.sessionId);
+    if (result.removed) {
+      const deadline = this.sessionDeadlineTimers.get(payload.sessionId);
+      if (deadline) clearTimeout(deadline);
+      this.sessionDeadlineTimers.delete(payload.sessionId);
+      this.onChanged(summary(result.automation));
+    }
+    return { ...payload, removed: result.removed };
   }
 }

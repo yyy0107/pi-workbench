@@ -12,7 +12,7 @@ import { isPiThinkingLevel, type PiModelSelection } from "@/runtime/pi/contracts
 import { AUTOMATION_SESSION_ORIGIN_CUSTOM_TYPE } from "@/runtime/shared/automation";
 import type { ModelSelection } from "@/runtime/shared/model-selection";
 import { createPiAgentExecutionAdapter } from "../agent-runtime/pi-agent-execution-adapter";
-import { createSession } from "../sessions/session-registry";
+import { createSession, getRunningSessionIds } from "../sessions/session-registry";
 import { getProjectTrustService } from "../trust/project-trust-service";
 import { getWorkspaceStore } from "../workspaces/workspace-registry";
 
@@ -53,7 +53,10 @@ function initialModelSelection(
 
 function piAutomationRuntime(
   agentExecution: Pick<AgentExecutionPort, "cancel" | "submit">,
-): Pick<AutomationServiceOptions, "cancel" | "isWorkspaceTrusted" | "launch" | "resolveWorkspace"> {
+): Pick<
+  AutomationServiceOptions,
+  "cancel" | "isSessionRunning" | "isWorkspaceTrusted" | "launch" | "resolveWorkspace"
+> {
   const workspaceStore = getWorkspaceStore();
   return {
     async resolveWorkspace(workspaceId) {
@@ -63,6 +66,7 @@ function piAutomationRuntime(
       return workspace ? { workspaceId: workspace.workspaceId, path: workspace.path } : undefined;
     },
     isWorkspaceTrusted: (workspacePath) => getProjectTrustService().isTrusted(workspacePath),
+    isSessionRunning: (sessionId) => getRunningSessionIds().includes(sessionId),
     cancel: (sessionId) => agentExecution.cancel({ threadId: sessionId }),
     async launch(automation, workspace, source, triggeredAt) {
       const host = await createSession(
