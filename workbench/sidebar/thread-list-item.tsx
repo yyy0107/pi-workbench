@@ -7,7 +7,7 @@ import {
   useAui,
   useAuiState,
 } from "@assistant-ui/react";
-import { ArchiveIcon, MoreHorizontalIcon, PinIcon, PinOffIcon } from "lucide-react";
+import { ArchiveIcon, Clock3Icon, MoreHorizontalIcon, PinIcon, PinOffIcon } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -67,6 +67,7 @@ export function WorkbenchThreadListItem({
   const { activateWorkspace, deactivateWorkspace, destroyNewThread } = useWorkspaceCapabilities();
   const isPinned = threadState.isPinned;
   const isRunning = runtimeIsRunning || threadState.isRunning;
+  const isAutomationTask = threadState.automationOrigin !== undefined;
   const waitingForUserInput = !isActive && threadState.isWaitingForInput;
   const title = threadState.title ?? runtimeTitle;
   const lastMessageAt = threadState.lastMessageAt ?? runtimeLastMessageAt;
@@ -158,11 +159,20 @@ export function WorkbenchThreadListItem({
       >
         <span
           className={cn(
-            "min-w-0 flex-1 translate-y-[var(--control-text-offset-y)] truncate leading-[var(--control-text-line-height)] md:group-hover/thread:pe-[var(--sidebar-action-pair-reserved-space)] md:group-has-[:focus-visible]/thread:pe-[var(--sidebar-action-pair-reserved-space)]",
+            "min-w-0 flex flex-1 translate-y-[var(--control-text-offset-y)] items-center leading-[var(--control-text-line-height)] md:group-hover/thread:pe-[var(--sidebar-action-pair-reserved-space)] md:group-has-[:focus-visible]/thread:pe-[var(--sidebar-action-pair-reserved-space)]",
             !waitingForUserInput && "pe-[var(--sidebar-action-touch-reserved-space)] md:pe-0",
           )}
         >
-          {title || t("workbench.sidebar.newThread")}
+          <span className="min-w-0 truncate">{title || t("workbench.sidebar.newThread")}</span>
+          {isAutomationTask ? (
+            <span
+              title={t("workbench.sidebar.automationTask")}
+              className="text-muted-foreground ms-1.5 inline-flex shrink-0"
+            >
+              <Clock3Icon aria-hidden="true" className="size-[var(--icon-size-sm)]" />
+              <span className="sr-only">{t("workbench.sidebar.automationTask")}</span>
+            </span>
+          ) : null}
         </span>
         {waitingForUserInput ? (
           <span

@@ -1,5 +1,6 @@
 import type { PiAssistantMessage, PiEvent, PiRunTiming } from "@/runtime/pi/contracts/pi";
 import { isSessionMessageDelta } from "@/runtime/pi/contracts/stream";
+import { parseAutomationSessionOrigin } from "@/runtime/shared/automation";
 import { isWorkflowHostPayload, parseExecutionSessionOrigin } from "@/runtime/shared/execution";
 import type {
   HostStreamPayload,
@@ -210,6 +211,8 @@ function isPiSessionSummary(value: unknown): boolean {
     typeof value.transient === "boolean" &&
     typeof value.running === "boolean" &&
     (value.waitingForUserInput === undefined || typeof value.waitingForUserInput === "boolean") &&
+    (value.automationOrigin === undefined ||
+      parseAutomationSessionOrigin(value.automationOrigin) !== undefined) &&
     (value.executionOrigin === undefined ||
       parseExecutionSessionOrigin(value.executionOrigin) !== undefined) &&
     isOptionalPiRunTiming(value.runTiming)

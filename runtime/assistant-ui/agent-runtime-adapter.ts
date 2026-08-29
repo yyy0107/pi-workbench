@@ -6,6 +6,7 @@ import type {
 } from "@assistant-ui/react";
 
 import type { WorkbenchAgentCommand } from "@/runtime/shared/agent-command/catalog";
+import type { AutomationSessionOrigin } from "@/runtime/shared/automation";
 import type { ExecutionSessionOrigin } from "@/runtime/shared/execution";
 
 /** Workbench-owned workspace identity projected by an Agent Runtime implementation. */
@@ -27,7 +28,9 @@ export interface WorkbenchAgentThreadSnapshot {
   readonly lastMessageAt?: Date;
   /** ISO-8601 timestamp used as the stable fallback for manual sidebar ordering. */
   readonly createdAt?: string;
-  /** Durable workflow provenance for tasks created by automation or other execution runs. */
+  /** Durable provenance for conversations created by an Automation task. */
+  readonly automationOrigin?: AutomationSessionOrigin;
+  /** Durable workflow provenance for conversations created by an Execution run. */
   readonly executionOrigin?: ExecutionSessionOrigin;
   readonly isRunning: boolean;
   readonly isWaitingForInput: boolean;

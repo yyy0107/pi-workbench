@@ -34,6 +34,14 @@ test("adapts session list metadata carried in protocol projections", () => {
           firstMessage: "hello",
           transient: false,
           running: false,
+          automationOrigin: {
+            version: 1,
+            origin: "automation",
+            automationId: "automation-1",
+            automationName: "Morning briefing",
+            source: "schedule",
+            triggeredAt: 1_777_000_000_000,
+          },
           executionOrigin: {
             version: 1,
             origin: "execution",
@@ -57,6 +65,8 @@ test("adapts session list metadata carried in protocol projections", () => {
   assert.equal(summary.waitingForUserInput, true);
   assert.deepEqual(summary.runTiming, { startedAt: 1_500, elapsedMs: 500 });
   assert.deepEqual(summary.workspace, { id: "w-1", name: "Work", cwd: "/work" });
+  assert.equal(summary.automationOrigin?.automationName, "Morning briefing");
+  assert.equal(summary.automationOrigin?.source, "schedule");
   assert.equal(summary.executionOrigin?.workflowKind, "workflow");
   assert.equal(summary.executionOrigin?.runId, "run-1");
 });

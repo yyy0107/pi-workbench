@@ -35,6 +35,11 @@ import type {
   PiToolCallTiming,
 } from "@/runtime/pi/contracts/pi";
 import {
+  AUTOMATION_SESSION_ORIGIN_CUSTOM_TYPE,
+  parseAutomationSessionOrigin,
+  type AutomationSessionOrigin,
+} from "@/runtime/shared/automation";
+import {
   EXECUTION_SESSION_ORIGIN_CUSTOM_TYPE,
   parseExecutionSessionOrigin,
   type ExecutionSessionOrigin,
@@ -607,49 +612,66 @@ function meaningfulEntryTime(entry: SessionTimestampEntry): Date | undefined {
   return parsedDate(entry.timestamp);
 }
 
-function executionSessionOriginFromEntries(
-  entries: readonly SessionEntry[],
-): ExecutionSessionOrigin | undefined {
-  for (let index = entries.length - 1; index >= 0; index -= 1) {
-    const entry = entries[index];
-    if (entry?.type !== "custom" || entry.customType !== EXECUTION_SESSION_ORIGIN_CUSTOM_TYPE) {
-      continue;
-    }
-    const origin = parseExecutionSessionOrigin(entry.data);
-    if (origin) return origin;
-  }
-  return undefined;
+interface SessionOrigins {
+  readonly automationOrigin?: AutomationSessionOrigin;
+  readonly executionOrigin?: ExecutionSessionOrigin;
 }
 
-const EXECUTION_ORIGIN_SCAN_BYTES = 64 * 1024;
+function sessionOriginsFromEntries(entries: readonly SessionEntry[]): SessionOrigins {
+  let automationOrigin: AutomationSessionOrigin | undefined;
+  let executionOrigin: ExecutionSessionOrigin | undefined;
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const entry = entries[index];
+    if (entry?.type !== "custom") continue;
+    if (!automationOrigin && entry.customType === AUTOMATION_SESSION_ORIGIN_CUSTOM_TYPE) {
+      automationOrigin = parseAutomationSessionOrigin(entry.data);
+    } else if (!executionOrigin && entry.customType === EXECUTION_SESSION_ORIGIN_CUSTOM_TYPE) {
+      executionOrigin = parseExecutionSessionOrigin(entry.data);
+    }
+    if (automationOrigin && executionOrigin) break;
+  }
+  return {
+    ...(automationOrigin === undefined ? {} : { automationOrigin }),
+    ...(executionOrigin === undefined ? {} : { executionOrigin }),
+  };
+}
 
-async function readExecutionSessionOrigin(
-  file: string,
-): Promise<ExecutionSessionOrigin | undefined> {
+const SESSION_ORIGIN_SCAN_BYTES = 64 * 1024;
+
+async function readSessionOrigins(file: string): Promise<SessionOrigins> {
   let handle: Awaited<ReturnType<typeof open>> | undefined;
   try {
     handle = await open(file, "r");
-    const buffer = Buffer.allocUnsafe(EXECUTION_ORIGIN_SCAN_BYTES);
+    const buffer = Buffer.allocUnsafe(SESSION_ORIGIN_SCAN_BYTES);
     const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0);
+    let automationOrigin: AutomationSessionOrigin | undefined;
+    let executionOrigin: ExecutionSessionOrigin | undefined;
     for (const line of buffer.subarray(0, bytesRead).toString("utf8").split("\n")) {
-      if (!line.includes(EXECUTION_SESSION_ORIGIN_CUSTOM_TYPE)) continue;
-      const entry = JSON.parse(line) as unknown;
       if (
-        !isRecord(entry) ||
-        entry.type !== "custom" ||
-        entry.customType !== EXECUTION_SESSION_ORIGIN_CUSTOM_TYPE
+        !line.includes(AUTOMATION_SESSION_ORIGIN_CUSTOM_TYPE) &&
+        !line.includes(EXECUTION_SESSION_ORIGIN_CUSTOM_TYPE)
       ) {
         continue;
       }
-      const origin = parseExecutionSessionOrigin(entry.data);
-      if (origin) return origin;
+      const entry = JSON.parse(line) as unknown;
+      if (!isRecord(entry) || entry.type !== "custom") continue;
+      if (!automationOrigin && entry.customType === AUTOMATION_SESSION_ORIGIN_CUSTOM_TYPE) {
+        automationOrigin = parseAutomationSessionOrigin(entry.data);
+      } else if (!executionOrigin && entry.customType === EXECUTION_SESSION_ORIGIN_CUSTOM_TYPE) {
+        executionOrigin = parseExecutionSessionOrigin(entry.data);
+      }
+      if (automationOrigin && executionOrigin) break;
     }
+    return {
+      ...(automationOrigin === undefined ? {} : { automationOrigin }),
+      ...(executionOrigin === undefined ? {} : { executionOrigin }),
+    };
   } catch {
     // Missing, malformed, or concurrently replaced files remain ordinary conversations.
   } finally {
     await handle?.close().catch(() => undefined);
   }
-  return undefined;
+  return {};
 }
 
 /** Derive ordering from durable activity without counting journal storage writes as activity. */
@@ -4167,8 +4189,9 @@ export async function forkSession(id: string, atSeq?: number): Promise<HostedPiS
 function persistedSummary(
   info: SessionInfo,
   running: boolean,
-  executionOrigin?: ExecutionSessionOrigin,
+  origins: SessionOrigins = {},
 ): PiSessionSummary {
+  const { automationOrigin, executionOrigin } = origins;
   return {
     id: info.id,
     cwd: info.cwd,
@@ -4183,6 +4206,7 @@ function persistedSummary(
     firstMessage: deriveSessionDisplayTitle(info.firstMessage),
     transient: false,
     running,
+    ...(automationOrigin === undefined ? {} : { automationOrigin }),
     ...(executionOrigin === undefined ? {} : { executionOrigin }),
   };
 }
@@ -4196,7 +4220,7 @@ function sessionManagerSummary(
   const header = manager.getHeader();
   const file = manager.getSessionFile();
   const timestamp = header?.timestamp ?? new Date().toISOString();
-  const executionOrigin = executionSessionOriginFromEntries(manager.getEntries());
+  const { automationOrigin, executionOrigin } = sessionOriginsFromEntries(manager.getEntries());
   return {
     id: manager.getSessionId(),
     cwd: manager.getCwd(),
@@ -4209,6 +4233,7 @@ function sessionManagerSummary(
     transient: !file || !existsSync(file),
     running,
     ...(runTiming === undefined ? {} : { runTiming }),
+    ...(automationOrigin === undefined ? {} : { automationOrigin }),
     ...(executionOrigin === undefined ? {} : { executionOrigin }),
   };
 }
@@ -4245,7 +4270,7 @@ function persistedMetadataFromManager(
   const header = manager.getHeader();
   const file = manager.getSessionFile();
   const timestamp = header?.timestamp ?? new Date().toISOString();
-  const executionOrigin = executionSessionOriginFromEntries(manager.getEntries());
+  const { automationOrigin, executionOrigin } = sessionOriginsFromEntries(manager.getEntries());
   const summary: PiSessionSummary = {
     id: manager.getSessionId(),
     cwd: manager.getCwd(),
@@ -4257,6 +4282,7 @@ function persistedMetadataFromManager(
     firstMessage: firstUserText(messages),
     transient: !file || !existsSync(file),
     running,
+    ...(automationOrigin === undefined ? {} : { automationOrigin }),
     ...(executionOrigin === undefined ? {} : { executionOrigin }),
   };
   return { summary, info: sessionManagerInfo(manager, summary) };
@@ -4567,13 +4593,13 @@ function startPersistedSessionCacheRefresh(
       if (registry.persistedSessionCacheKey !== cacheKey) return;
       const running = new Set(runningSessionIds());
       const nextSessions = new Map(persisted.map((session) => [session.id, session]));
-      const executionOrigins = await Promise.all(
-        persisted.map((session) => readExecutionSessionOrigin(session.path)),
+      const sessionOrigins = await Promise.all(
+        persisted.map((session) => readSessionOrigins(session.path)),
       );
       const nextSummaries = new Map(
         persisted.map((session, index) => [
           session.id,
-          persistedSummary(session, running.has(session.id), executionOrigins[index]),
+          persistedSummary(session, running.has(session.id), sessionOrigins[index]),
         ]),
       );
       registry.persistedSessions.clear();

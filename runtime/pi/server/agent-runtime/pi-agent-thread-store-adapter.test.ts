@@ -23,6 +23,14 @@ function summary(overrides: Partial<PiSessionSummary> = {}): PiSessionSummary {
     running: true,
     waitingForUserInput: true,
     runTiming: { startedAt: 1_000, elapsedMs: 250 },
+    automationOrigin: {
+      version: 1,
+      origin: "automation",
+      automationId: "automation-1",
+      automationName: "Morning briefing",
+      source: "schedule",
+      triggeredAt: 1_777_000_000_000,
+    },
     ...overrides,
   };
 }
@@ -70,6 +78,14 @@ test("projects the Pi session catalog and search index to neutral thread records
       running: true,
       waitingForUserInput: true,
       runTiming: { startedAt: 1_000, elapsedMs: 250 },
+      automationOrigin: {
+        version: 1,
+        origin: "automation",
+        automationId: "automation-1",
+        automationName: "Morning briefing",
+        source: "schedule",
+        triggeredAt: 1_777_000_000_000,
+      },
     },
   ]);
   assert.deepEqual(await adapter.listSearchDocuments(), [

@@ -1,3 +1,4 @@
+import type { AutomationSessionOrigin } from "@/runtime/shared/automation";
 import type { ExecutionSessionOrigin } from "@/runtime/shared/execution";
 
 export interface AgentThreadRunTiming {
@@ -18,6 +19,7 @@ export interface AgentThreadSummary {
   readonly running: boolean;
   readonly waitingForUserInput?: boolean;
   readonly runTiming?: AgentThreadRunTiming;
+  readonly automationOrigin?: AutomationSessionOrigin;
   readonly executionOrigin?: ExecutionSessionOrigin;
 }
 

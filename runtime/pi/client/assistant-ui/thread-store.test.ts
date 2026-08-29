@@ -26,6 +26,15 @@ const executionOrigin = {
   source: "schedule",
 } as const;
 
+const automationOrigin = {
+  version: 1,
+  origin: "automation",
+  automationId: "automation-1",
+  automationName: "Morning briefing",
+  source: "schedule",
+  triggeredAt: 1_777_000_000_000,
+} as const;
+
 function nativeSnapshot(): PiThreadStateSnapshot {
   return {
     thread: {
@@ -46,6 +55,7 @@ function nativeSnapshot(): PiThreadStateSnapshot {
         cwd: "/workspace/project",
         pinned: false,
       },
+      automationOrigin,
       executionOrigin,
     },
   };
@@ -56,6 +66,7 @@ test("projects Pi thread metadata into the backend-neutral presentation contract
     title: "Projected title",
     lastMessageAt,
     createdAt: "2026-08-25T23:00:00.000Z",
+    automationOrigin,
     executionOrigin,
     isRunning: true,
     isWaitingForInput: true,

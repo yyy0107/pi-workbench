@@ -25,6 +25,9 @@ export function projectPiAgentThreadSnapshot(
     ...(thread?.title === undefined ? {} : { title: thread.title }),
     ...(thread?.lastMessageAt === undefined ? {} : { lastMessageAt: thread.lastMessageAt }),
     ...(metadata.createdAt === undefined ? {} : { createdAt: metadata.createdAt }),
+    ...(metadata.automationOrigin === undefined
+      ? {}
+      : { automationOrigin: metadata.automationOrigin }),
     ...(metadata.executionOrigin === undefined
       ? {}
       : { executionOrigin: metadata.executionOrigin }),

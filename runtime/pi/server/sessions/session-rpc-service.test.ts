@@ -96,6 +96,8 @@ function piSummary(thread: AgentThreadSummary) {
       ? {}
       : { waitingForUserInput: thread.waitingForUserInput }),
     ...(thread.runTiming === undefined ? {} : { runTiming: thread.runTiming }),
+    ...(thread.automationOrigin === undefined ? {} : { automationOrigin: thread.automationOrigin }),
+    ...(thread.executionOrigin === undefined ? {} : { executionOrigin: thread.executionOrigin }),
   };
 }
 
@@ -297,6 +299,18 @@ test("lists legacy summaries and searches with protocol bounds", async () => {
       messageCount: index === 0 ? 0 : 2,
       running: index === 1,
       waitingForUserInput: index === 0,
+      ...(index === 0
+        ? {
+            automationOrigin: {
+              version: 1,
+              origin: "automation",
+              automationId: "automation-1",
+              automationName: "Morning briefing",
+              source: "schedule",
+              triggeredAt: 1_777_000_000_000,
+            } as const,
+          }
+        : {}),
     }),
   );
   const { service } = harness({

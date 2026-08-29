@@ -2,6 +2,7 @@ import type {
   ComposerSubmission as WorkbenchComposerSubmission,
   ComposerUserProjection as WorkbenchComposerUserProjection,
 } from "@/contracts/composer";
+import type { AutomationSessionOrigin } from "@/runtime/shared/automation";
 import type { ExecutionSessionOrigin } from "@/runtime/shared/execution";
 
 export interface PiSessionSummary {
@@ -18,6 +19,7 @@ export interface PiSessionSummary {
   running: boolean;
   waitingForUserInput?: boolean;
   runTiming?: PiRunTiming;
+  automationOrigin?: AutomationSessionOrigin;
   executionOrigin?: ExecutionSessionOrigin;
 }
 

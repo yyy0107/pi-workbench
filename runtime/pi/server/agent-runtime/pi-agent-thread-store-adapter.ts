@@ -85,6 +85,9 @@ export function projectPiSessionSummary(summary: PiSessionSummary): AgentThreadS
       ? {}
       : { waitingForUserInput: summary.waitingForUserInput }),
     ...(summary.runTiming === undefined ? {} : { runTiming: summary.runTiming }),
+    ...(summary.automationOrigin === undefined
+      ? {}
+      : { automationOrigin: summary.automationOrigin }),
     ...(summary.executionOrigin === undefined ? {} : { executionOrigin: summary.executionOrigin }),
   };
 }

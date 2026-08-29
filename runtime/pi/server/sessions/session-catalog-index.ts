@@ -5,6 +5,10 @@ import type { SessionInfo } from "@earendil-works/pi-coding-agent";
 
 import type { PiSessionSummary } from "@/runtime/pi/contracts/pi";
 import {
+  parseAutomationSessionOrigin,
+  type AutomationSessionOrigin,
+} from "@/runtime/shared/automation";
+import {
   parseExecutionSessionOrigin,
   type ExecutionSessionOrigin,
 } from "@/runtime/shared/execution";
@@ -29,6 +33,7 @@ interface SessionCatalogIndexEntryV1 {
   firstMessage: string;
   summaryFirstMessage: string;
   allMessagesText: string;
+  automationOrigin?: AutomationSessionOrigin;
   executionOrigin?: ExecutionSessionOrigin;
 }
 
@@ -121,6 +126,12 @@ function parseDocument(
     }
     const name = optionalString(candidate.name);
     const parentSessionPath = optionalString(candidate.parentSessionPath);
+    const automationOrigin =
+      candidate.automationOrigin === undefined
+        ? undefined
+        : parseAutomationSessionOrigin(candidate.automationOrigin);
+    if (candidate.automationOrigin !== undefined && automationOrigin === undefined)
+      return undefined;
     const executionOrigin =
       candidate.executionOrigin === undefined
         ? undefined
@@ -149,6 +160,7 @@ function parseDocument(
       firstMessage: candidate.summaryFirstMessage,
       transient: false,
       running: false,
+      ...(automationOrigin === undefined ? {} : { automationOrigin }),
       ...(executionOrigin === undefined ? {} : { executionOrigin }),
     });
     fingerprints.set(file, candidate.fingerprint);
@@ -217,6 +229,9 @@ export async function writeSessionCatalogIndex(
       firstMessage: info.firstMessage,
       summaryFirstMessage: summary.firstMessage,
       allMessagesText: info.allMessagesText,
+      ...(summary.automationOrigin === undefined
+        ? {}
+        : { automationOrigin: summary.automationOrigin }),
       ...(summary.executionOrigin === undefined
         ? {}
         : { executionOrigin: summary.executionOrigin }),

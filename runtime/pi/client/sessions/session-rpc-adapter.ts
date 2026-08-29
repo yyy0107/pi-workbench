@@ -13,6 +13,7 @@ import {
   isInlineDocumentMediaType,
   isInlineImageMediaType,
 } from "@/runtime/pi/contracts/attachments";
+import { parseAutomationSessionOrigin } from "@/runtime/shared/automation";
 import { parseWorkbenchComposerUserProjection } from "@/runtime/shared/composer/request";
 import { parseExecutionSessionOrigin } from "@/runtime/shared/execution";
 import { deriveSessionDisplayTitle } from "@/runtime/pi/shared/sessions/display-title";
@@ -85,6 +86,7 @@ export function piSummaryFromSessionListItem(item: SessionListItem): PiSessionSu
   const created = stringValue(projected?.created) ?? updatedAt;
   const messageCount = numberValue(projected?.messageCount) ?? (item.blank ? 0 : 1);
   const runTiming = item.runTiming ?? projectedRunTiming(projected?.runTiming);
+  const automationOrigin = parseAutomationSessionOrigin(projected?.automationOrigin);
   const executionOrigin = parseExecutionSessionOrigin(projected?.executionOrigin);
   const name = deriveSessionDisplayTitle(stringValue(projected?.name));
 
@@ -102,6 +104,7 @@ export function piSummaryFromSessionListItem(item: SessionListItem): PiSessionSu
     waitingForUserInput:
       item.waitingForUserInput ?? booleanValue(projected?.waitingForUserInput) ?? false,
     ...(item.running && runTiming !== undefined ? { runTiming } : {}),
+    ...(automationOrigin === undefined ? {} : { automationOrigin }),
     ...(executionOrigin === undefined ? {} : { executionOrigin }),
   };
 }

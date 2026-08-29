@@ -8,6 +8,7 @@ import test from "node:test";
 import { SessionManager, type SessionInfo } from "@earendil-works/pi-coding-agent";
 
 import type { PiSessionSummary } from "@/runtime/pi/contracts/pi";
+import { AUTOMATION_SESSION_ORIGIN_CUSTOM_TYPE } from "@/runtime/shared/automation";
 import { EXECUTION_SESSION_ORIGIN_CUSTOM_TYPE } from "@/runtime/shared/execution";
 
 const moduleHooks = registerHooks({
@@ -62,6 +63,14 @@ async function fixture(t: test.TestContext) {
     firstMessage: "Display first message",
     transient: false,
     running: false,
+    automationOrigin: {
+      version: 1,
+      origin: "automation",
+      automationId: "automation-1",
+      automationName: "Morning briefing",
+      source: "schedule",
+      triggeredAt: 1_777_000_000_000,
+    },
     executionOrigin: {
       version: 1,
       origin: "execution",
@@ -112,6 +121,7 @@ test("round-trips session summaries and search text through a mode-0600 index", 
     firstMessage: summary.firstMessage,
     transient: false,
     running: false,
+    automationOrigin: summary.automationOrigin,
     executionOrigin: summary.executionOrigin,
   });
 });
@@ -154,6 +164,14 @@ test("restores the session catalog without a full scan after process state is lo
   const cwd = path.join(root, "project");
   await mkdir(cwd, { recursive: true });
   const manager = SessionManager.create(cwd, undefined, { id: "persistent-metadata-cache" });
+  manager.appendCustomEntry(AUTOMATION_SESSION_ORIGIN_CUSTOM_TYPE, {
+    version: 1,
+    origin: "automation",
+    automationId: "automation-1",
+    automationName: "Morning briefing",
+    source: "schedule",
+    triggeredAt: 1_777_000_000_000,
+  });
   manager.appendCustomEntry(EXECUTION_SESSION_ORIGIN_CUSTOM_TYPE, {
     version: 1,
     origin: "execution",
@@ -205,6 +223,7 @@ test("restores the session catalog without a full scan after process state is lo
 
   const first = await listSessions();
   assert.equal(first.sessions[0]?.id, manager.getSessionId());
+  assert.equal(first.sessions[0]?.automationOrigin?.automationName, "Morning briefing");
   assert.equal(first.sessions[0]?.executionOrigin?.workflowKind, "workflow");
   assert.equal(fullScanCount, 1);
   assert.match((await listSessionSearchText())[0]?.allMessagesText ?? "", /persist me persisted/u);

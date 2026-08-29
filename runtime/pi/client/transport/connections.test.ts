@@ -114,6 +114,14 @@ function sessionSummary(id: string) {
     firstMessage: "Realtime session",
     transient: false,
     running: false,
+    automationOrigin: {
+      version: 1,
+      origin: "automation",
+      automationId: "automation-1",
+      automationName: "Morning briefing",
+      source: "schedule",
+      triggeredAt: 1_777_000_000_000,
+    },
     executionOrigin: {
       version: 1,
       origin: "execution",
