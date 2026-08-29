@@ -5,9 +5,9 @@
 
 ## Execution
 
-`executions/` 是 Workbench 的执行能力。它负责定义校验与编译、运行准入与并发、节点调度、审批、
-触发器、运行事件和持久化。`workflow`、`sop`、`automation` 是 Execution 可以执行的三种定义类型，
-不是某个 Agent Runtime 的能力。
+`executions/` 是 Workbench 的执行能力。它负责 Workflow 定义校验与编译、运行准入与并发、节点调度、
+审批、运行事件和持久化。Automation 是独立的定义、存储与调度领域；两者都不是某个 Agent Runtime
+的能力。
 
 Execution 核心通过 `ExecutionNodeExecutorRegistry` 接收节点执行器，不导入 Pi；Workbench 的 Command
 节点执行器也在本目录。当前 Pi 集成只在 `runtime/pi/server/executions` 提供 Agent 节点适配、工作区/

@@ -245,14 +245,12 @@ export const workbenchZhCN = {
       allWorkflows: "全部流程",
       kind: {
         workflow: "工作流",
-        sop: "SOP",
         automation: "自动化",
       },
       myWorkflows: "我的流程",
       items: {
         dailyWorkSummary: "每日工作汇总",
         prReview: "PR Review",
-        releaseChecklist: "发布检查",
       },
       schedule: {
         dailyAtNine: "每天 09:00",

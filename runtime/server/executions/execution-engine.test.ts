@@ -17,7 +17,7 @@ function approvalDocument(): WorkflowDocument {
   return {
     schemaVersion: 3,
     id: "approval-flow",
-    kind: "sop",
+    kind: "workflow",
     scope: { type: "personal" },
     name: "Approval flow",
     agents: [],

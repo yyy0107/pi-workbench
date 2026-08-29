@@ -48,7 +48,7 @@ export interface ExecutionServiceOptions {
   onRunRemoved?: (run: WorkflowRunDeleteValue) => void;
 }
 
-function defaultGraph(kind: WorkflowCreatePayload["kind"]): WorkflowDocument["graph"] {
+function defaultGraph(): WorkflowDocument["graph"] {
   const start: FlowNode = {
     id: "start",
     type: "start",
@@ -60,7 +60,7 @@ function defaultGraph(kind: WorkflowCreatePayload["kind"]): WorkflowDocument["gr
     id: "end",
     type: "end",
     name: "end",
-    position: { x: kind === "sop" ? 80 : 520, y: kind === "sop" ? 420 : 180 },
+    position: { x: 520, y: 180 },
     config: {},
   };
   return {
@@ -188,7 +188,7 @@ export class ExecutionService implements ExecutionProtocol {
       scope: payload.scope,
       name: payload.name.trim(),
       agents: [],
-      graph: defaultGraph(payload.kind),
+      graph: defaultGraph(),
       concurrency: { mode: "queue" },
       draftRevision: 0,
       createdAt: time,

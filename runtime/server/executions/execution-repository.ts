@@ -244,11 +244,7 @@ export class ExecutionRepository {
   private async readDocumentFile(file: string): Promise<WorkflowDocument | undefined> {
     const value = await readJson(file);
     if (value === undefined) return undefined;
-    if (
-      isPlainRecord(value) &&
-      typeof value.kind === "string" &&
-      !["workflow", "sop"].includes(value.kind)
-    ) {
+    if (isPlainRecord(value) && typeof value.kind === "string" && value.kind !== "workflow") {
       return undefined;
     }
     let parsed: ReturnType<typeof parseExecutionDocumentWithMigration>;

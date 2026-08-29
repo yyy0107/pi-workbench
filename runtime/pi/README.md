@@ -13,14 +13,14 @@ Workbench 子集，而不是参考文档全部 59 个接口。线协议的类型
 - [`contracts/stream.ts`](./contracts/stream.ts)：mux/host WebSocket frame 和 payload 联合；
 - [`contracts/pi.ts`](./contracts/pi.ts)：Workbench UI 适配层与 legacy `/api/pi/**` 使用的 Pi 类型。
 
-Workbench Execution 负责 Workflow/SOP 的定义存储、编译、手动执行和 Run 记录，实现在
+Workbench Execution 负责 Workflow 的定义存储、编译、手动执行和 Run 记录，实现在
 [`runtime/server/executions`](../server/executions)，共享契约位于
 [`runtime/shared/execution.ts`](../shared/execution.ts)。Automation 是独立领域，定义、存储和调度位于
 [`runtime/server/automations`](../server/automations)，共享契约位于
 [`runtime/shared/automation.ts`](../shared/automation.ts)。Automation 不创建执行图或 Workflow Run；
 触发时只在目标工作区创建一个普通、可见的会话，再通过标准 Agent 执行端口提交用户配置的提示词。
 本目录保留 Workflow Agent 节点适配器、Automation 普通会话启动适配器，以及 Workbench 事件/RPC
-接线。前端仅在 `extensions/builtin/execution/{workflow,automation,sop}` 页面外壳层复用布局。
+接线。前端在 `extensions/builtin/execution/{workflow,automation}` 页面外壳层复用布局。
 
 ### Workflow Multi-Agent v2
 

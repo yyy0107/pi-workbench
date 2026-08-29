@@ -204,7 +204,7 @@ const Concurrency = Type.Union([
 ]);
 const DocumentBase = {
   id: Id,
-  kind: Type.Union([Type.Literal("workflow"), Type.Literal("sop")]),
+  kind: Type.Literal("workflow"),
   scope: Scope,
   name: Name,
   description: Type.Optional(Type.String({ maxLength: 20_000 })),

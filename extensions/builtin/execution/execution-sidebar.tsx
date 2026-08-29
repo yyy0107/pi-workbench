@@ -5,7 +5,6 @@ import {
   GitBranchIcon,
   HistoryIcon,
   LayoutTemplateIcon,
-  ListChecksIcon,
   ZapIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -23,7 +22,6 @@ type ExecutionCategory = WorkflowKind | "automation";
 
 const KIND_ICONS: Record<ExecutionCategory, LucideIcon> = {
   workflow: GitBranchIcon,
-  sop: ListChecksIcon,
   automation: ZapIcon,
 };
 
@@ -62,7 +60,6 @@ export function WorkflowSidebar({ searchQuery }: SlotPropsMap["sidebar.workflows
             : (selectedWorkflowKind ?? category);
   const kindLabels: Record<ExecutionCategory, string> = {
     workflow: t("extensions.workflows.kind.workflow"),
-    sop: t("extensions.workflows.kind.sop"),
     automation: t("extensions.workflows.kind.automation"),
   };
   const normalized = searchQuery.trim().toLocaleLowerCase(locale);
@@ -79,13 +76,7 @@ export function WorkflowSidebar({ searchQuery }: SlotPropsMap["sidebar.workflows
   const open = (next: WorkflowMainViewParams) => mainViews.open(workflowMainViewRequest(next));
   const selectCategory = (next: ExecutionCategory) => {
     setCategory(next);
-    if (next === "workflow") {
-      open({ page: "workflows" });
-    } else if (next === "automation") {
-      open({ page: "automations" });
-    } else if (activeView?.kind === "workflows") {
-      mainViews.close();
-    }
+    open(next === "workflow" ? { page: "workflows" } : { page: "automations" });
   };
 
   return (

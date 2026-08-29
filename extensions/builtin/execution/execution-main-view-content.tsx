@@ -9,7 +9,6 @@ import {
   GitBranchIcon,
   HistoryIcon,
   LayoutTemplateIcon,
-  ListChecksIcon,
   PlayIcon,
   RefreshCwIcon,
   SaveIcon,
@@ -51,7 +50,6 @@ import { useExecutionTrustAdmission } from "./use-execution-trust-admission";
 
 const KIND_ICONS: Record<WorkflowKind, LucideIcon> = {
   workflow: GitBranchIcon,
-  sop: ListChecksIcon,
 };
 
 export function ExecutionMainView({ view }: MainViewProps<WorkflowMainViewParams>) {
@@ -959,8 +957,8 @@ function RunDetail({ run, events }: { run: WorkflowRunSummary; events: WorkflowR
 interface WorkflowTemplate {
   id: string;
   kind: WorkflowKind;
-  nameKey: "dailySummary" | "prReview" | "releaseChecklist";
-  descriptionKey: "dailySummaryDescription" | "prReviewDescription" | "releaseChecklistDescription";
+  nameKey: "prReview";
+  descriptionKey: "prReviewDescription";
   apply(document: WorkflowDocument, labels: Record<FlowNode["type"], string>): WorkflowDocument;
 }
 
@@ -998,50 +996,6 @@ const TEMPLATES: WorkflowTemplate[] = [
           config: { message: "Approve the review summary?" },
         },
       ]);
-    },
-  },
-  {
-    id: "release-checklist",
-    kind: "sop",
-    nameKey: "releaseChecklist",
-    descriptionKey: "releaseChecklistDescription",
-    apply(document) {
-      return createLinearWorkflowGraph(
-        document,
-        [
-          "Build",
-          "Test",
-          "Review changelog",
-          "Verify migrations",
-          "Check rollback",
-          "Stage release",
-          "Approve release",
-          "Publish",
-        ].map((name, index): FlowNode =>
-          index === 6
-            ? {
-                id: globalThis.crypto.randomUUID(),
-                type: "approval",
-                name,
-                position: { x: 0, y: 0 },
-                config: { message: "Approve production release?" },
-              }
-            : ({
-                id: globalThis.crypto.randomUUID(),
-                type: index === 2 || index === 4 ? "agent" : "command",
-                name,
-                position: { x: 0, y: 0 },
-                config:
-                  index === 2 || index === 4
-                    ? {
-                        agentId: `release-agent-${index}`,
-                        promptTemplate: "default",
-                        output: { schema: {} },
-                      }
-                    : { command: index === 0 ? "pnpm build" : index === 1 ? "pnpm test" : "true" },
-              } as FlowNode),
-        ),
-      );
     },
   },
 ];

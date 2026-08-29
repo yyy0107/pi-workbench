@@ -886,7 +886,6 @@ export const extensionsEnUS = {
     },
     kind: {
       workflow: "Workflow",
-      sop: "SOP",
       automation: "Automation",
     },
     trust: {
@@ -1311,8 +1310,6 @@ export const extensionsEnUS = {
       dailySummaryDescription: "Automation with a weekday schedule and an Agent summary step.",
       prReview: "PR Review",
       prReviewDescription: "Workflow for inspecting changes, running checks, and summarizing risk.",
-      releaseChecklist: "Release checklist",
-      releaseChecklistDescription: "Linear SOP with build, verification, and approval steps.",
     },
   },
   toolbox: {

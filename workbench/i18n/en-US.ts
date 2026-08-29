@@ -270,14 +270,12 @@ export const workbenchEnUS = {
       allWorkflows: "All workflows",
       kind: {
         workflow: "Workflow",
-        sop: "SOP",
         automation: "Automation",
       },
       myWorkflows: "My workflows",
       items: {
         dailyWorkSummary: "Daily work summary",
         prReview: "PR Review",
-        releaseChecklist: "Release checklist",
       },
       schedule: {
         dailyAtNine: "Every day at 09:00",

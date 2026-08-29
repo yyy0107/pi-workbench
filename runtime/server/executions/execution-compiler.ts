@@ -253,36 +253,6 @@ export function validateExecutionDocument(value: unknown): WorkflowValidationRes
     }
   }
 
-  if (document.kind === "sop") {
-    for (const node of nodes.values()) {
-      if (!["start", "end", "agent", "command", "approval"].includes(node.type)) {
-        issues.push(
-          issue(
-            "invalid-sop",
-            "SOP only supports Agent, Command, and Approval steps.",
-            "/graph/nodes",
-            {
-              nodeId: node.id,
-            },
-          ),
-        );
-      }
-      const inCount = incoming.get(node.id)?.length ?? 0;
-      const outCount = outgoing.get(node.id)?.length ?? 0;
-      if (
-        (node.type === "start" && (inCount !== 0 || outCount !== 1)) ||
-        (node.type === "end" && (inCount !== 1 || outCount !== 0)) ||
-        (node.type !== "start" && node.type !== "end" && (inCount !== 1 || outCount !== 1))
-      ) {
-        issues.push(
-          issue("invalid-sop", "SOP steps must form one linear path.", "/graph/edges", {
-            nodeId: node.id,
-          }),
-        );
-      }
-    }
-  }
-
   return { valid: issues.length === 0, issues };
 }
 

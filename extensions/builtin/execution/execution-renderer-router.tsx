@@ -4,8 +4,6 @@ import dynamic from "next/dynamic";
 
 import type { WorkflowDocument } from "@/runtime/shared/execution";
 
-import { SopStepListRenderer } from "./sop/sop-step-list";
-
 interface WorkflowRendererProps {
   document: WorkflowDocument;
   onNodeSelect(): void;
@@ -20,9 +18,5 @@ const FlowCanvasCore = dynamic<WorkflowRendererProps>(
 );
 
 export function WorkflowRendererRouter({ document, onNodeSelect }: WorkflowRendererProps) {
-  return document.kind === "sop" ? (
-    <SopStepListRenderer document={document} onNodeSelect={onNodeSelect} />
-  ) : (
-    <FlowCanvasCore key={document.id} document={document} onNodeSelect={onNodeSelect} />
-  );
+  return <FlowCanvasCore key={document.id} document={document} onNodeSelect={onNodeSelect} />;
 }

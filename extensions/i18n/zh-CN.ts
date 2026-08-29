@@ -845,7 +845,6 @@ export const extensionsZhCN = {
     },
     kind: {
       workflow: "工作流",
-      sop: "SOP",
       automation: "自动化",
     },
     trust: {
@@ -1261,8 +1260,6 @@ export const extensionsZhCN = {
       dailySummaryDescription: "包含工作日定时与 Agent 汇总步骤的自动化。",
       prReview: "PR Review",
       prReviewDescription: "用于检查变更、运行验证并汇总风险的工作流。",
-      releaseChecklist: "发布检查",
-      releaseChecklistDescription: "包含构建、验证和审批步骤的线性 SOP。",
     },
   },
   toolbox: {

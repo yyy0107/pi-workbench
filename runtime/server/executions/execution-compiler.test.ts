@@ -31,11 +31,11 @@ function node(id: string, type: FlowNode["type"]): FlowNode {
   }
 }
 
-function document(kind: WorkflowDocument["kind"] = "workflow"): WorkflowDocument {
+function document(): WorkflowDocument {
   return {
     schemaVersion: 3,
     id: "flow-1",
-    kind,
+    kind: "workflow",
     scope: { type: "personal" },
     name: "Flow",
     agents: [{ id: "agent-left", name: "Reviewer" }],
@@ -79,13 +79,6 @@ test("rejects cycles and dangling edges", () => {
   assert.equal(result.valid, false);
   assert.ok(result.issues.some(({ code }) => code === "cycle"));
   assert.ok(result.issues.some(({ code }) => code === "dangling-edge"));
-});
-
-test("rejects branching and Condition nodes in SOP documents", () => {
-  const value = document("sop");
-  const result = validateExecutionDocument(value);
-  assert.equal(result.valid, false);
-  assert.ok(result.issues.some(({ code }) => code === "invalid-sop"));
 });
 
 test("persists incomplete drafts but rejects them at publish validation", () => {

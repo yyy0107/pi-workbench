@@ -7,7 +7,7 @@ export type ExecutionThinkingLevel =
   | "xhigh"
   | "max";
 
-export type WorkflowKind = "workflow" | "sop";
+export type WorkflowKind = "workflow";
 
 export type WorkflowScope = { type: "personal" } | { type: "project"; workspaceId: string };
 
@@ -155,7 +155,6 @@ export type WorkflowValidationCode =
   | "invalid-edge-port"
   | "cycle"
   | "unreachable-node"
-  | "invalid-sop"
   | "invalid-binding"
   | "invalid-node-config";
 
@@ -474,7 +473,7 @@ export function parseExecutionSessionOrigin(value: unknown): ExecutionSessionOri
     !value.workflowId ||
     typeof value.workflowName !== "string" ||
     !value.workflowName ||
-    !["workflow", "sop"].includes(value.workflowKind as string) ||
+    value.workflowKind !== "workflow" ||
     typeof value.runId !== "string" ||
     !value.runId ||
     typeof value.nodeId !== "string" ||
