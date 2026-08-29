@@ -19,7 +19,7 @@ import {
   RemoteDirectoryPickerDialog,
   shouldUseNativeDirectoryPicker,
 } from "./remote-directory-picker-dialog";
-import { ProjectTrustDialog } from "./project-trust-dialog";
+import { ProjectTrustDialog } from "@/components/ui/project-trust-dialog";
 import { useWorkspaceDirectoryAdmission } from "./use-workspace-directory-admission";
 
 export function WorkspaceDirectorySummary(_context: ComposerSlotContext) {

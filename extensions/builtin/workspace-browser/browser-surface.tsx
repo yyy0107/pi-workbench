@@ -7,6 +7,8 @@ import { defineMessage, useI18n } from "@/i18n";
 import { useExtensionErrorReporter, type WorkspaceSurfaceProps } from "@/platform/extensions";
 
 import { useRightWorkspace } from "@/components/right-workspace";
+import { Button } from "@/components/ui/button";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { browserSessionService as browser } from "./browser-session-service";
 import { BrowserAnnotationLayer } from "./browser-annotation-layer";
 
@@ -98,53 +100,60 @@ export function BrowserSurface({
   return (
     <section className="flex h-full min-h-0 flex-col">
       <form
-        className="flex h-11 shrink-0 items-center gap-1.5 border-b px-2"
+        className="flex min-h-11 shrink-0 items-center gap-1.5 border-b px-2"
         onSubmit={(event) => {
           event.preventDefault();
           navigate();
         }}
       >
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon"
           disabled={!session.canGoBack}
           aria-label={t("extensions.workspaceBrowser.back")}
           title={t("extensions.workspaceBrowser.back")}
-          className="inline-flex size-[var(--icon-frame-size-default)] items-center justify-center rounded-[var(--button-radius)] hover:[background:var(--icon-frame-background-hover)] disabled:opacity-35"
           onClick={() => void browser.goBack(session.id)}
         >
-          <ArrowLeftIcon className="size-[var(--icon-size-sm)]" />
-        </button>
-        <button
+          <ArrowLeftIcon />
+        </Button>
+        <Button
           type="button"
+          variant="ghost"
+          size="icon"
           disabled={!session.canGoForward}
           aria-label={t("extensions.workspaceBrowser.forward")}
           title={t("extensions.workspaceBrowser.forward")}
-          className="inline-flex size-[var(--icon-frame-size-default)] items-center justify-center rounded-[var(--button-radius)] hover:[background:var(--icon-frame-background-hover)] disabled:opacity-35"
           onClick={() => void browser.goForward(session.id)}
         >
-          <ArrowRightIcon className="size-[var(--icon-size-sm)]" />
-        </button>
-        <button
+          <ArrowRightIcon />
+        </Button>
+        <Button
           type="button"
+          variant="ghost"
+          size="icon"
           aria-label={t("extensions.workspaceBrowser.reload")}
           title={t("extensions.workspaceBrowser.reload")}
-          className="inline-flex size-[var(--icon-frame-size-default)] items-center justify-center rounded-[var(--button-radius)] hover:[background:var(--icon-frame-background-hover)]"
           onClick={() => void browser.reload(session.id)}
         >
-          <RefreshCwIcon className="size-[var(--icon-size-sm)]" />
-        </button>
-        <label className="relative min-w-0 flex-1">
+          <RefreshCwIcon />
+        </Button>
+        <label className="min-w-0 flex-1">
           <span className="sr-only">{t("extensions.workspaceBrowser.address")}</span>
-          <Globe2Icon className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-[var(--input-control-icon-size)] -translate-y-1/2" />
-          <input
-            value={address}
-            className="h-[var(--input-control-height)] w-full rounded-[var(--input-control-radius)] border border-transparent [background:var(--input-control-background)] pr-2 pl-8 text-xs outline-none"
-            onChange={(event) => {
-              const nextAddress = event.currentTarget.value;
-              setAddress(nextAddress);
-              writeBrowserAddressDraft(surface.params.browserSessionId, nextAddress);
-            }}
-          />
+          <InputGroup>
+            <InputGroupAddon>
+              <Globe2Icon />
+            </InputGroupAddon>
+            <InputGroupInput
+              value={address}
+              className="text-xs"
+              onChange={(event) => {
+                const nextAddress = event.currentTarget.value;
+                setAddress(nextAddress);
+                writeBrowserAddressDraft(surface.params.browserSessionId, nextAddress);
+              }}
+            />
+          </InputGroup>
         </label>
       </form>
       <div className="relative min-h-0 flex-1 overflow-hidden p-3">

@@ -7,6 +7,7 @@ import { defineMessage, useI18n } from "@/i18n";
 import { useExtensionErrorReporter, type WorkspaceSurfaceProps } from "@/platform/extensions";
 
 import { InlineFeedbackForm, useRightWorkspace } from "@/components/right-workspace";
+import { Button } from "@/components/ui/button";
 import { gitReviewService as git, type GitDiff } from "./git-review-service";
 
 export interface ReviewSurfaceParams extends Record<string, unknown> {
@@ -56,20 +57,22 @@ export function ReviewSurface({
 
   return (
     <section className="flex h-full min-h-0 flex-col">
-      <div className="flex h-10 shrink-0 items-center gap-2 border-b px-3 text-xs">
+      <div className="flex min-h-10 shrink-0 items-center gap-2 border-b px-3 text-xs">
         <FileDiffIcon className="text-muted-foreground size-4" />
         <span className="min-w-0 flex-1 truncate font-medium">
           {surface.params.repositoryId} · {surface.params.reviewScope}
         </span>
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon"
           aria-label={t("extensions.workspaceReview.refresh")}
           title={t("extensions.workspaceReview.refresh")}
-          className="text-muted-foreground hover:bg-muted hover:text-foreground inline-flex size-7 items-center justify-center rounded-md"
+          className="text-muted-foreground hover:text-foreground"
           onClick={refresh}
         >
-          <RefreshCwIcon className="size-3.5" />
-        </button>
+          <RefreshCwIcon />
+        </Button>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
         {diff?.files.length ? (

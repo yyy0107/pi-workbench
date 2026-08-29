@@ -64,6 +64,7 @@ import {
   COMPOSER_CONVERSATION_MENTION_TYPE,
   COMPOSER_WORKSPACE_FILE_MENTION_TYPE,
 } from "@/contracts/composer";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -1623,18 +1624,20 @@ export function WorkbenchComposer({
                     ? t("workbench.chat.errors.queueSendFailedRestored")
                     : t("workbench.chat.errors.commandCompileFailed")}
               </span>
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="icon-sm"
                 aria-label={t("workbench.chat.composer.dismissError")}
-                className="hover:bg-destructive/10 -m-1 rounded-md p-1"
+                className="text-destructive -m-1 shrink-0 hover:bg-destructive/10 hover:text-destructive"
                 onClick={() => {
                   composerActions?.clearError();
                   setComposerCommandError(false);
                   setQueueRestoreErrorThreadId(undefined);
                 }}
               >
-                <XIcon aria-hidden="true" className="size-3.5" />
-              </button>
+                <XIcon aria-hidden="true" />
+              </Button>
             </div>
           ) : null}
         </ComposerPrimitive.Root>

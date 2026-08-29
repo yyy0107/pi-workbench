@@ -197,15 +197,17 @@ export function ExplorerSurface({
             }}
           />
           {filter ? (
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="icon-sm"
               aria-label={t("extensions.workspaceExplorer.clearFilter")}
               title={t("extensions.workspaceExplorer.clearFilter")}
-              className="text-muted-foreground hover:text-foreground absolute top-1/2 right-1 flex size-[var(--icon-frame-size-compact)] -translate-y-1/2 items-center justify-center rounded-[var(--button-radius)] outline-none hover:[background:var(--icon-frame-background-hover)] focus-visible:ring-2"
+              className="text-muted-foreground absolute top-1/2 end-1 -translate-y-1/2 hover:text-foreground active:-translate-y-1/2!"
               onClick={() => setFilter("")}
             >
-              <XIcon aria-hidden="true" className="size-[var(--icon-size-sm)]" />
-            </button>
+              <XIcon aria-hidden="true" />
+            </Button>
           ) : null}
         </div>
       </div>

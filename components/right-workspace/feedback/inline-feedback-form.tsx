@@ -3,6 +3,8 @@
 import { MessageSquarePlusIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { useI18n } from "@/i18n";
 
 import type { WorkspaceSurfaceInstance } from "../core/surface-types";
@@ -77,15 +79,17 @@ export function InlineFeedbackForm({
 
   if (!open) {
     return (
-      <button
+      <Button
         type="button"
+        variant="ghost"
+        size="icon"
         aria-label={label}
         title={label}
-        className="text-muted-foreground hover:bg-muted hover:text-foreground inline-flex size-7 shrink-0 items-center justify-center rounded-md transition-colors"
+        className="text-muted-foreground shrink-0 hover:text-foreground"
         onClick={() => setOpen(true)}
       >
-        <MessageSquarePlusIcon className="size-3.5" />
-      </button>
+        <MessageSquarePlusIcon />
+      </Button>
     );
   }
 
@@ -108,33 +112,31 @@ export function InlineFeedbackForm({
         setOpen(false);
       }}
     >
-      <textarea
+      <Textarea
         autoFocus
         rows={3}
         value={text}
         aria-label={t("rightWorkspace.feedback.placeholder")}
         placeholder={t("rightWorkspace.feedback.placeholder")}
-        className="bg-muted/35 min-h-20 w-full resize-none rounded-lg border px-2.5 py-2 text-xs outline-none"
+        className="min-h-20 resize-none text-xs"
         onChange={(event) => updateText(event.currentTarget.value)}
       />
       <div className="mt-2 flex justify-end gap-2">
-        <button
+        <Button
           type="button"
-          className="hover:bg-muted h-7 rounded-lg px-2.5 text-xs"
+          variant="ghost"
+          size="sm"
+          className="text-xs"
           onClick={() => {
             setOpen(false);
             clearDraft();
           }}
         >
           {t("rightWorkspace.feedback.cancel")}
-        </button>
-        <button
-          type="submit"
-          disabled={!text.trim()}
-          className="bg-primary text-primary-foreground h-7 rounded-lg px-2.5 text-xs disabled:opacity-50"
-        >
+        </Button>
+        <Button type="submit" size="sm" disabled={!text.trim()} className="text-xs">
           {t("rightWorkspace.feedback.save")}
-        </button>
+        </Button>
       </div>
     </form>
   );

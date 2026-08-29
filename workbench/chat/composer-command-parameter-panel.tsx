@@ -6,6 +6,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useI18n } from "@/i18n";
 import type {
@@ -140,13 +141,12 @@ function CommandParameterFieldEditor({
 
       <div className="grid min-w-0 gap-1.5">
         {enumValues.length > 0 || schemaType === "boolean" ? (
-          <select
+          <Select
             id={inputId}
             autoFocus={autoFocus}
             value={value === undefined ? "" : selectedIndex < 0 ? "" : String(selectedIndex + 1)}
             aria-invalid={visibleIssue ? true : undefined}
             aria-describedby={describedBy || undefined}
-            className="h-[var(--input-control-height)] w-full rounded-[var(--input-control-radius)] border [border-color:var(--input-control-border)] [background:var(--input-control-background)] px-2.5 text-sm outline-none aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40"
             onBlur={onBlur}
             onChange={(event) => {
               const selectedIndex = Number(event.target.value) - 1;
@@ -175,7 +175,7 @@ function CommandParameterFieldEditor({
                 <option value="2">{t("workbench.chat.composer.commandParameters.disabled")}</option>
               </>
             ) : null}
-          </select>
+          </Select>
         ) : binding?.field === field.id ? (
           <Textarea
             id={inputId}
@@ -294,7 +294,7 @@ export function ComposerCommandParameterPanel({
             type="button"
             variant="ghost"
             size="sm"
-            className="h-8 px-2.5"
+            className="px-2.5"
             disabled={!canReset}
             onClick={() => {
               setTouchedFields(new Set());
@@ -303,20 +303,15 @@ export function ComposerCommandParameterPanel({
           >
             {t("workbench.chat.composer.commandParameters.reset")}
           </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            className="h-8 px-2.5"
-            onClick={onClose}
-          >
+          <Button type="button" variant="secondary" size="sm" className="px-2.5" onClick={onClose}>
             {t("workbench.chat.composer.commandParameters.done")}
           </Button>
           <TooltipIconButton
             type="button"
+            size="icon"
             tooltip={t("workbench.chat.composer.commandParameters.close")}
             aria-label={t("workbench.chat.composer.commandParameters.close")}
-            className="text-muted-foreground hover:text-foreground size-8 rounded-[var(--button-radius)]"
+            className="text-muted-foreground hover:text-foreground"
             onClick={onClose}
           >
             <XIcon className="size-4" />

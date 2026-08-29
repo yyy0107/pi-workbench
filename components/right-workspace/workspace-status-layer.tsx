@@ -8,6 +8,7 @@ import {
   WifiOffIcon,
 } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 
 import type { WorkspaceSurfaceInstance } from "./core/surface-types";
@@ -71,13 +72,9 @@ export function WorkspaceStatusLayer({
         </p>
       ) : null}
       {surface.status !== "loading" ? (
-        <button
-          type="button"
-          className="hover:bg-muted h-7 rounded-lg border px-2.5 text-xs"
-          onClick={onRetry}
-        >
+        <Button type="button" variant="outline" size="sm" className="text-xs" onClick={onRetry}>
           {t("rightWorkspace.status.retry")}
-        </button>
+        </Button>
       ) : null}
     </div>
   );

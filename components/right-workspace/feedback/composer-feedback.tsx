@@ -2,6 +2,7 @@
 
 import { MessageSquareTextIcon, XIcon } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 
 import {
@@ -26,19 +27,21 @@ export function ComposerWorkspaceFeedback() {
       {feedback.map((item) => (
         <span
           key={item.id}
-          className="bg-muted text-muted-foreground inline-flex h-7 max-w-full items-center gap-1.5 rounded-lg px-2 text-[11px]"
+          className="bg-muted text-muted-foreground inline-flex min-h-[var(--button-height-default)] max-w-full items-center gap-1.5 rounded-lg px-2 text-[11px]"
         >
           <MessageSquareTextIcon className="size-3 shrink-0" />
           <span className="max-w-56 truncate">{item.text}</span>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-sm"
             aria-label={t("rightWorkspace.feedback.remove")}
             title={t("rightWorkspace.feedback.remove")}
-            className="hover:text-foreground -me-0.5 rounded p-0.5"
+            className="-me-1 hover:text-foreground"
             onClick={() => store.remove(item.id)}
           >
-            <XIcon className="size-3" />
-          </button>
+            <XIcon />
+          </Button>
         </span>
       ))}
     </div>

@@ -7,6 +7,7 @@ import type { ThemedToken } from "shiki/core";
 
 import type { WorkbenchShikiLanguage } from "@/components/code-highlighting/shiki-catalog";
 import { useWorkbenchHighlightedLines } from "@/components/code-highlighting/use-workbench-highlighted-lines";
+import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 
@@ -137,13 +138,9 @@ export function VirtualizedTextViewer({
             <>
               <AlertCircleIcon aria-hidden="true" className="size-4 text-red-500" />
               <span>{t("extensions.workspaceFile.largeTextLoadFailed")}</span>
-              <button
-                type="button"
-                className="hover:bg-muted rounded-md px-2 py-1"
-                onClick={onRetry}
-              >
+              <Button type="button" variant="ghost" size="xs" className="text-xs" onClick={onRetry}>
                 {t("extensions.workspaceFile.retryLargeText")}
-              </button>
+              </Button>
             </>
           ) : (
             <>

@@ -190,7 +190,7 @@ export function SettingsSidebar({
             value={searchQuery}
             aria-label={t("extensions.settings.searchLabel")}
             placeholder={t("extensions.settings.searchPlaceholder")}
-            className="h-9 ps-9 shadow-none"
+            className="ps-9 shadow-none"
             onChange={(event) => setSearchQuery(event.currentTarget.value)}
           />
         </div>

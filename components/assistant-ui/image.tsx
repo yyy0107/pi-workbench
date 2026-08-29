@@ -14,6 +14,7 @@ import {
   ShieldAlertIcon,
 } from "lucide-react";
 import type { ImageMessagePart, ImageMessagePartComponent } from "@assistant-ui/react";
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useCopyFeedback } from "@/hooks/use-clipboard-copy";
 import { useI18n } from "@/i18n";
@@ -317,8 +318,10 @@ function RegenerateButton({ onRegenerate }: { onRegenerate: () => void | Promise
   const { t } = useI18n();
   const [isRegenerating, setIsRegenerating] = useState(false);
   return (
-    <button
+    <Button
       type="button"
+      variant="ghost"
+      size="icon"
       onClick={async () => {
         setIsRegenerating(true);
         try {
@@ -330,10 +333,9 @@ function RegenerateButton({ onRegenerate }: { onRegenerate: () => void | Promise
       disabled={isRegenerating}
       data-slot="image-regenerate"
       aria-label={t("assistant.image.regenerate")}
-      className="hover:bg-muted inline-flex size-7 items-center justify-center rounded disabled:opacity-50"
     >
-      <RefreshCwIcon className={cn("size-4", isRegenerating && "animate-spin")} />
-    </button>
+      <RefreshCwIcon className={cn(isRegenerating && "animate-spin")} />
+    </Button>
   );
 }
 
@@ -350,31 +352,33 @@ function ImageActions({ part, onRegenerate, className }: ImageActionsProps) {
 
   return (
     <div data-slot="image-actions" className={cn("flex items-center gap-1 p-1", className)}>
-      <button
+      <Button
         type="button"
+        variant="ghost"
+        size="icon"
         onClick={() => downloadImagePart(part)}
         data-slot="image-download"
         aria-label={t("assistant.image.download")}
-        className="hover:bg-muted inline-flex size-7 items-center justify-center rounded"
       >
-        <DownloadIcon className="size-4" />
-      </button>
-      <button
+        <DownloadIcon />
+      </Button>
+      <Button
         type="button"
+        variant="ghost"
+        size="icon"
         onClick={() => void runCopy(() => copyImagePart(part).then(() => true))}
         data-slot="image-copy"
         aria-label={copyLabel}
         title={copyLabel}
-        className="hover:bg-muted inline-flex size-7 items-center justify-center rounded"
       >
         {isCopied ? (
-          <CheckIcon className="size-4" />
+          <CheckIcon />
         ) : status === "failed" ? (
-          <CircleXIcon className="text-destructive size-4" />
+          <CircleXIcon className="text-destructive" />
         ) : (
-          <CopyIcon className="size-4" />
+          <CopyIcon />
         )}
-      </button>
+      </Button>
       {onRegenerate && <RegenerateButton onRegenerate={onRegenerate} />}
     </div>
   );

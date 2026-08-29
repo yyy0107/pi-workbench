@@ -3,6 +3,7 @@
 import type { ComponentProps } from "react";
 import { CircleAlertIcon, CircleStopIcon, PlayIcon, RefreshCwIcon } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 import { ShimmerLabel } from "./surfaces";
@@ -90,12 +91,14 @@ export function ErrorState({
         </p>
       </div>
       {showAction ? (
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="xs"
           disabled={retryDisabled}
           onClick={onRetry}
           className={cn(
-            "ms-auto flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent",
+            "ms-auto shrink-0 rounded-full px-3 text-xs",
             tone === "error"
               ? "text-red-600 hover:bg-red-500/10 focus-visible:ring-red-500/30 dark:text-red-400"
               : "text-foreground/70 hover:bg-foreground/5 focus-visible:ring-ring",
@@ -107,7 +110,7 @@ export function ErrorState({
             <RefreshCwIcon className="size-3" />
           )}
           {retryLabel}
-        </button>
+        </Button>
       ) : null}
     </div>
   );

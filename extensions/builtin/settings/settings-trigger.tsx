@@ -29,7 +29,7 @@ function SettingsTrigger({ compact = false }: { compact?: boolean }) {
         });
       }}
     >
-      <SettingsIcon aria-hidden="true" className="size-4" />
+      <SettingsIcon aria-hidden="true" />
       {!compact ? <span className="truncate">{t("extensions.settings.trigger")}</span> : null}
     </Button>
   );

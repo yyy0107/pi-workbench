@@ -534,7 +534,7 @@ function ThreadTokenUsage() {
                     mode: selectedContextBudgetModeLabel,
                     tokens: displayedContextBudgetLabel,
                   })}
-                  className="h-7 min-w-28 justify-between gap-1.5 px-2.5 text-xs"
+                  className="min-w-28 justify-between gap-1.5 px-2.5 text-xs"
                   disabled={
                     isRunning || contextPolicy.status === "saving" || !remoteId || !context?.model
                   }
@@ -563,7 +563,7 @@ function ThreadTokenUsage() {
                       <SettingsDropdownRadioItem
                         key={mode}
                         value={mode}
-                        className="min-h-7 py-1 text-xs"
+                        className="py-1 text-xs"
                         disabled={isRunning || contextPolicy.status === "saving" || !remoteId}
                       >
                         {t(`extensions.tokenUsage.contextBudgetModes.${mode}`)}
@@ -586,7 +586,7 @@ function ThreadTokenUsage() {
                     aria-describedby={
                       invalidCustomBudget ? "statusbar-context-budget-validation" : undefined
                     }
-                    className="h-7 text-xs tabular-nums"
+                    className="text-xs tabular-nums"
                     onChange={(event) => {
                       setCustomBudget(event.currentTarget.value.replace(/\D+/gu, ""));
                       setContextActionError(null);

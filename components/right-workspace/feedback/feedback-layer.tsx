@@ -3,6 +3,7 @@
 import { MessageSquareTextIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 
 import {
@@ -49,15 +50,17 @@ export function WorkspaceFeedbackLayer() {
               className="bg-muted/35 flex items-start gap-2 rounded-lg p-2 text-xs"
             >
               <p className="min-w-0 flex-1 whitespace-pre-wrap">{item.text}</p>
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="icon-sm"
                 aria-label={t("rightWorkspace.feedback.remove")}
                 title={t("rightWorkspace.feedback.remove")}
-                className="text-muted-foreground hover:text-foreground shrink-0 rounded p-0.5"
+                className="text-muted-foreground shrink-0 hover:text-foreground"
                 onClick={() => feedbackStore.remove(item.id)}
               >
-                <XIcon className="size-3.5" />
-              </button>
+                <XIcon />
+              </Button>
             </div>
           ))}
         </div>

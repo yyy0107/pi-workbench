@@ -2,6 +2,7 @@
 
 import { Component, type ErrorInfo, type ReactNode } from "react";
 
+import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import { useExtensionErrorReporter } from "@/platform/extensions";
 
@@ -42,13 +43,9 @@ export function WorkspaceSurfaceBoundary({
       fallback={(retry) => (
         <div className="text-muted-foreground flex size-full flex-col items-center justify-center gap-3 p-8 text-center text-sm">
           <p>{t("rightWorkspace.status.error")}</p>
-          <button
-            type="button"
-            className="text-foreground hover:bg-muted h-8 rounded-lg border px-3 text-xs"
-            onClick={retry}
-          >
+          <Button type="button" variant="outline" size="sm" className="text-xs" onClick={retry}>
             {t("rightWorkspace.status.retry")}
-          </button>
+          </Button>
         </div>
       )}
     >
