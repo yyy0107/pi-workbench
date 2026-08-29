@@ -350,18 +350,48 @@ export interface WorkflowAgentModelSettings {
   thinkingLevel?: ExecutionThinkingLevel;
 }
 
+export type WorkflowAgentResourceScope = "user" | "project" | "temporary";
+
+export type WorkflowAgentResourceOrigin = "package" | "top-level";
+
+export interface WorkflowAgentSkillResource {
+  name: string;
+  description: string;
+  modelInvocable: boolean;
+  source: string;
+  scope: WorkflowAgentResourceScope;
+  origin: WorkflowAgentResourceOrigin;
+}
+
+export interface WorkflowAgentExtensionResource {
+  name: string;
+  source: string;
+  scope: WorkflowAgentResourceScope;
+  origin: WorkflowAgentResourceOrigin;
+}
+
+export interface WorkflowAgentResourceCatalog {
+  skills: WorkflowAgentSkillResource[];
+  extensions: WorkflowAgentExtensionResource[];
+  catalogAvailable: boolean;
+  projectResourcesTrusted: boolean;
+}
+
 export interface WorkflowAgentResourcesPayload {
   workflowId: string;
   agentId: string;
   promptTemplate: string;
 }
 
-export interface WorkflowAgentResourcesValue {
+export interface WorkflowAgentStoredResourcesValue {
   agentId: string;
   promptTemplate: string;
   prompt: string;
   model?: WorkflowAgentModelSettings;
 }
+
+export interface WorkflowAgentResourcesValue
+  extends WorkflowAgentStoredResourcesValue, WorkflowAgentResourceCatalog {}
 
 export interface WorkflowAgentResourcesUpdatePayload extends WorkflowAgentResourcesPayload {
   prompt: string;

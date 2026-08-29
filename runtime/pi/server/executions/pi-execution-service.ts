@@ -12,6 +12,7 @@ import { getStreamHub } from "../streams/stream-hub";
 import { getProjectTrustService } from "../trust/project-trust-service";
 import { getWorkspaceStore } from "../workspaces/workspace-registry";
 import { PiAgentExecutionNodeExecutor } from "./pi-execution-node-executors";
+import { PiWorkflowAgentResourceCatalog } from "./workflow-agent-resource-catalog";
 
 function executionRootDirectory(): string {
   return (
@@ -36,6 +37,14 @@ function bindCurrentNodeExecutors(
   executors.register("command", new WorkbenchCommandExecutionNodeExecutor({ isWorkspaceTrusted }));
 }
 
+function bindCurrentAgentResourceCatalog(
+  service: ExecutionService,
+  isWorkspaceTrusted: (workspacePath: string) => boolean,
+): void {
+  const catalog = new PiWorkflowAgentResourceCatalog({ isWorkspaceTrusted });
+  service.bindAgentResourceCatalog((input) => catalog.read(input));
+}
+
 export function createPiExecutionService(
   options: PiExecutionServiceOptions = {},
 ): ExecutionService {
@@ -48,7 +57,7 @@ export function createPiExecutionService(
     rootDirectory: executionRootDirectory(),
     listWorkspaces: async () => (await workspaceStore.list()).items,
   });
-  return new ExecutionService({
+  const service = new ExecutionService({
     repository,
     executors: nodeExecutors,
     isWorkspaceTrusted,
@@ -62,6 +71,8 @@ export function createPiExecutionService(
       getStreamHub().publishHost({ type: "host/workflow-run-removed", runId, workflowId });
     },
   });
+  bindCurrentAgentResourceCatalog(service, isWorkspaceTrusted);
+  return service;
 }
 
 interface ExecutionRegistryGlobal {
@@ -116,6 +127,9 @@ export function getExecutionService(options: PiExecutionServiceOptions = {}): Ex
     const nodeExecutors = bindCurrentExecutionImplementation(current);
     executionRegistry.__workbenchExecutionNodeExecutors = nodeExecutors;
     bindCurrentNodeExecutors(nodeExecutors, options);
+    bindCurrentAgentResourceCatalog(current, (workspacePath) =>
+      getProjectTrustService().isTrusted(workspacePath),
+    );
     return current;
   }
 

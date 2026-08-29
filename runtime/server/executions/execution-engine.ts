@@ -226,7 +226,10 @@ export class ExecutionEngine {
       lastSeq: 0,
       attempts: [],
     };
-    const persisted = await this.repository.createRun(run);
+    const persisted = await this.repository.createRun(run, {
+      id: input.revision.workflowId,
+      scope: input.revision.scope,
+    });
     const queued = {
       run: persisted,
       plan,
@@ -416,7 +419,10 @@ export class ExecutionEngine {
       attempt: 1,
       workspaceId: item.run.targetWorkspaceId ?? "",
       workspacePath: item.workspacePath ?? "",
-      workflowDirectory: this.repository.workflowDirectory(item.run.workflowId),
+      workflowDirectory: await this.repository.workflowDirectory({
+        id: item.run.workflowId,
+        scope: item.plan.revision.scope,
+      }),
       input: resolveBinding(nodeInputBinding(node), item.run.input, outputs),
       signal,
       sessionDirectory: this.repository.executionSessionDirectory(item.run.id),

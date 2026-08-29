@@ -16,6 +16,10 @@ Execution 核心通过 `ExecutionNodeExecutorRegistry` 接收节点执行器，�
 `workflow.*` RPC、`workbench-workflows/v1` 以及项目 `.pi/workflows`；新的根目录覆盖变量为
 `WORKBENCH_EXECUTION_DIR`，旧 `PI_WORKBENCH_WORKFLOW_DIR` 仍可使用。
 
+个人 Workflow 的草稿、Agent 工作目录、修订和 Run 保存在 `workbench-workflows/v1/workflows/<id>`；
+项目 Workflow 的同一组数据保存在所选项目 `.pi/workflows/<id>`。项目中相邻的 `<id>.json` 只承载
+已发布定义。Repository 会把旧版本错放在用户根目录的项目 Workflow 整体迁移到项目目录。
+
 ## Agent Runtime 端口
 
 当前端口边界包含三个已经由现有 Workbench 行为验证的能力：

@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { workflowClient } from "@/runtime/pi/client/workflows/workflow-client";
-import type { WorkflowSummary } from "@/runtime/shared/execution";
+import type { WorkflowReadValue, WorkflowSummary } from "@/runtime/shared/execution";
 
-import { useWorkflowCatalogStore } from "./execution-state";
+import { useWorkflowCatalogStore, useWorkflowEditorStore } from "./execution-state";
 
 const workflow = {
   id: "workflow-1",
@@ -77,4 +77,34 @@ test("publishes the catalog before supplementary snapshots finish", async () => 
     workflowClient.list = originalList;
     workflowClient.listRuns = originalListRuns;
   }
+});
+
+test("retains the canonical workflow directory for Agent workspace presentation", () => {
+  const value = {
+    workflowDirectory: "/workbench/workflows/workflow-1",
+    document: {
+      schemaVersion: 3,
+      id: "workflow-1",
+      kind: "workflow",
+      scope: { type: "personal" },
+      name: "Daily workflow",
+      agents: [],
+      graph: {
+        nodes: [
+          { id: "start", type: "start", name: "Start", position: { x: 0, y: 0 }, config: {} },
+          { id: "end", type: "end", name: "End", position: { x: 200, y: 0 }, config: {} },
+        ],
+        edges: [{ id: "start-end", source: "start", target: "end" }],
+        editor: {},
+      },
+      concurrency: { mode: "queue" },
+      draftRevision: 0,
+      createdAt: 1,
+      updatedAt: 1,
+    },
+  } satisfies WorkflowReadValue;
+
+  useWorkflowEditorStore.getState().load(value);
+  assert.equal(useWorkflowEditorStore.getState().workflowDirectory, value.workflowDirectory);
+  useWorkflowEditorStore.getState().reset();
 });

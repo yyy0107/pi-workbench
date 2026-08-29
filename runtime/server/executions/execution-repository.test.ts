@@ -325,6 +325,159 @@ test("rejects project publish after external content changes", async () => {
   }
 });
 
+test("stores project workflow drafts, Agent resources, revisions, and runs in the project", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-workflow-project-storage-"));
+  const data = path.join(root, "data");
+  const workspace = path.join(root, "workspace");
+  try {
+    const repository = new ExecutionRepository({
+      rootDirectory: data,
+      listWorkspaces: async () => [{ workspaceId: "workspace-1", path: workspace }],
+    });
+    const created = await repository.createDocument({
+      ...document(),
+      scope: { type: "project", workspaceId: "workspace-1" },
+      agents: [{ id: "reviewer", name: "Reviewer" }],
+    });
+    const workflowDirectory = path.join(workspace, ".pi", "workflows", created.id);
+
+    assert.equal(await repository.workflowDirectory(created), workflowDirectory);
+    assert.equal(
+      await repository.agentWorkspaceDirectory(created, "reviewer"),
+      path.join(workflowDirectory, "agents", "reviewer"),
+    );
+    assert.equal(
+      JSON.parse(await readFile(path.join(workflowDirectory, "workflow.json"), "utf8")).id,
+      created.id,
+    );
+    assert.equal(
+      await readFile(
+        path.join(workflowDirectory, "agents", "reviewer", ".pi", "prompts", "default.md"),
+        "utf8",
+      ),
+      "Complete the supplied workflow step and submit its structured result.\n",
+    );
+    await assert.rejects(
+      readFile(path.join(data, "workflows", created.id, "workflow.json"), "utf8"),
+      (error) =>
+        typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT",
+    );
+
+    const revision = compileExecutionDocument(created, 2).revision;
+    await repository.publish(created, revision, created.draftRevision);
+    assert.equal(
+      JSON.parse(
+        await readFile(
+          path.join(workflowDirectory, "revisions", `${revision.revisionId}.json`),
+          "utf8",
+        ),
+      ).revisionId,
+      revision.revisionId,
+    );
+    assert.equal(
+      JSON.parse(
+        await readFile(path.join(workspace, ".pi", "workflows", `${created.id}.json`), "utf8"),
+      ).id,
+      created.id,
+    );
+
+    const run = await repository.createRun({
+      schemaVersion: 1,
+      id: "project-run-1",
+      workflowId: created.id,
+      workflowName: created.name,
+      workflowKind: created.kind,
+      revisionId: revision.revisionId,
+      source: "manual",
+      status: "queued",
+      createdAt: 2,
+      updatedAt: 2,
+      lastSeq: 0,
+      attempts: [],
+    });
+    assert.equal(
+      JSON.parse(
+        await readFile(path.join(workflowDirectory, "runs", run.id, "summary.json"), "utf8"),
+      ).id,
+      run.id,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("migrates an existing project workflow out of the user execution directory", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-workflow-project-migration-"));
+  const data = path.join(root, "data");
+  const workspace = path.join(root, "workspace");
+  const source = path.join(data, "workflows", "flow-1");
+  const destination = path.join(workspace, ".pi", "workflows", "flow-1");
+  try {
+    const projectDocument: WorkflowDocument = {
+      ...document(),
+      scope: { type: "project", workspaceId: "workspace-1" },
+      agents: [{ id: "reviewer", name: "Reviewer" }],
+    };
+    await mkdir(path.join(source, "agents", "reviewer", ".pi", "prompts"), {
+      recursive: true,
+    });
+    await mkdir(path.join(source, "revisions"), { recursive: true });
+    await mkdir(path.join(source, "runs", "run-1", "sessions", "reviewer"), {
+      recursive: true,
+    });
+    await mkdir(path.join(source, "runs", "run-1", "artifacts"), { recursive: true });
+    await writeFile(path.join(source, "workflow.json"), JSON.stringify(projectDocument));
+    await writeFile(
+      path.join(source, "agents", "reviewer", ".pi", "prompts", "default.md"),
+      "Keep this customized prompt.\n",
+    );
+    await writeFile(path.join(source, "revisions", "revision-1.json"), '{"preserved":true}\n');
+    await writeFile(
+      path.join(source, "runs", "run-1", "sessions", "reviewer", "session.jsonl"),
+      '{"preserved":true}\n',
+    );
+    await writeFile(path.join(source, "runs", "run-1", "artifacts", "result.txt"), "preserved\n");
+
+    const repository = new ExecutionRepository({
+      rootDirectory: data,
+      listWorkspaces: async () => [{ workspaceId: "workspace-1", path: workspace }],
+    });
+    const migrated = await repository.readDocument(projectDocument.id);
+
+    assert.equal(migrated.scope.type, "project");
+    assert.equal(await repository.workflowDirectory(migrated), destination);
+    assert.equal(
+      await readFile(
+        path.join(destination, "agents", "reviewer", ".pi", "prompts", "default.md"),
+        "utf8",
+      ),
+      "Keep this customized prompt.\n",
+    );
+    assert.equal(
+      await readFile(path.join(destination, "revisions", "revision-1.json"), "utf8"),
+      '{"preserved":true}\n',
+    );
+    assert.equal(
+      await readFile(
+        path.join(destination, "runs", "run-1", "sessions", "reviewer", "session.jsonl"),
+        "utf8",
+      ),
+      '{"preserved":true}\n',
+    );
+    assert.equal(
+      await readFile(path.join(destination, "runs", "run-1", "artifacts", "result.txt"), "utf8"),
+      "preserved\n",
+    );
+    await assert.rejects(
+      readFile(path.join(source, "workflow.json"), "utf8"),
+      (error) =>
+        typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT",
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("publishes a migrated v2 project definition without reporting a false conflict", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "workbench-workflow-v2-project-"));
   const data = path.join(root, "data");
@@ -355,7 +508,7 @@ test("publishes a migrated v2 project definition without reporting a false confl
       publishedRevisionId: legacyRevisionId,
     };
     const definitionFile = path.join(workspace, ".pi", "workflows", `${created.id}.json`);
-    const draftFile = path.join(data, "workflows", created.id, "workflow.json");
+    const draftFile = path.join(workspace, ".pi", "workflows", created.id, "workflow.json");
     await mkdir(path.dirname(definitionFile), { recursive: true });
     await writeFile(definitionFile, JSON.stringify(legacyDocument));
     await writeFile(draftFile, JSON.stringify(legacyDocument));

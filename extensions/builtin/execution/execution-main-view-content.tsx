@@ -410,6 +410,7 @@ function WorkflowEditorPage({ workflowId }: { workflowId: string }) {
   const workspaceApplicationId = workspaceContext.applicationId;
   const inspectorSurfaceIdRef = useRef<string | undefined>(undefined);
   const document = useWorkflowEditorStore((state) => state.document);
+  const selection = useWorkflowEditorStore((state) => state.selection);
   const saveState = useWorkflowEditorStore((state) => state.saveState);
   const error = useWorkflowEditorStore((state) => state.error);
   const editVersion = useWorkflowEditorStore((state) => state.editVersion);
@@ -420,18 +421,27 @@ function WorkflowEditorPage({ workflowId }: { workflowId: string }) {
   const trustAdmission = useExecutionTrustAdmission((nextError) => {
     setNotice(nextError instanceof Error ? nextError.message : "workflow-run-failed");
   });
+  const selectedNodeName =
+    selection?.type === "node"
+      ? document?.graph.nodes.find(({ id }) => id === selection.id)?.name
+      : undefined;
 
   useEffect(() => {
     if (!targetWorkspaceId && workspaces[0]) setTargetWorkspaceId(workspaces[0].id);
   }, [targetWorkspaceId, workspaces]);
 
   const revealInspector = useCallback(() => {
-    const currentDocument = useWorkflowEditorStore.getState().document;
+    const state = useWorkflowEditorStore.getState();
+    const currentDocument = state.document;
     if (!currentDocument || currentDocument.id !== workflowId) return;
+    const selectedNode =
+      state.selection?.type === "node"
+        ? currentDocument.graph.nodes.find(({ id }) => id === state.selection?.id)
+        : undefined;
 
     inspectorSurfaceIdRef.current = rightWorkspace.reveal({
       kind: "workflow-inspector",
-      title: currentDocument.name,
+      title: selectedNode?.name.trim() ? selectedNode.name : currentDocument.name,
       params: { workflowId } satisfies WorkflowInspectorParams,
       context: { applicationId: workspaceApplicationId },
       scope: { type: "application", key: workspaceApplicationId },
@@ -447,7 +457,7 @@ function WorkflowEditorPage({ workflowId }: { workflowId: string }) {
       .read({ workflowId })
       .then((value) => {
         if (cancelled) return;
-        useWorkflowEditorStore.getState().load(value.document);
+        useWorkflowEditorStore.getState().load(value);
         setLoadState("ready");
       })
       .catch(() => !cancelled && setLoadState("error"));
@@ -461,7 +471,7 @@ function WorkflowEditorPage({ workflowId }: { workflowId: string }) {
   useEffect(() => {
     if (!document || document.id !== workflowId) return;
     revealInspector();
-  }, [document?.id, document?.name, revealInspector, workflowId]);
+  }, [document?.id, document?.name, revealInspector, selectedNodeName, workflowId]);
 
   useEffect(
     () => () => {
@@ -529,7 +539,7 @@ function WorkflowEditorPage({ workflowId }: { workflowId: string }) {
         workflowId: saved.id,
         baseDraftRevision: saved.draftRevision,
       });
-      useWorkflowEditorStore.getState().load(result.document);
+      useWorkflowEditorStore.getState().load(result);
       setNotice(t("extensions.workflows.editor.publishSucceeded"));
       await useWorkflowCatalogStore.getState().refresh();
     } catch (nextError) {
@@ -697,7 +707,7 @@ function WorkflowEditorPage({ workflowId }: { workflowId: string }) {
                   onClick={() => {
                     setLoadState("loading");
                     void workflowClient.read({ workflowId }).then((value) => {
-                      useWorkflowEditorStore.getState().load(value.document);
+                      useWorkflowEditorStore.getState().load(value);
                       setLoadState("ready");
                     });
                   }}

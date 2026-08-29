@@ -5,6 +5,7 @@ import { create } from "zustand";
 import type {
   WorkflowDocument,
   WorkflowHostPayload,
+  WorkflowReadValue,
   WorkflowRunSummary,
   WorkflowSummary,
 } from "@/runtime/shared/execution";
@@ -118,11 +119,12 @@ export type WorkflowSaveState = "idle" | "dirty" | "saving" | "saved" | "conflic
 
 interface WorkflowEditorState {
   document?: WorkflowDocument;
+  workflowDirectory?: string;
   selection: WorkflowEditorSelection;
   saveState: WorkflowSaveState;
   error?: string;
   editVersion: number;
-  load(document: WorkflowDocument): void;
+  load(value: WorkflowReadValue): void;
   reset(): void;
   updateDocument(update: (document: WorkflowDocument) => WorkflowDocument): void;
   setSelection(selection: WorkflowEditorSelection): void;
@@ -135,9 +137,10 @@ export const useWorkflowEditorStore = create<WorkflowEditorState>((set, get) => 
   selection: undefined,
   saveState: "idle",
   editVersion: 0,
-  load(document) {
+  load(value) {
     set({
-      document,
+      document: value.document,
+      workflowDirectory: value.workflowDirectory,
       selection: undefined,
       saveState: "idle",
       error: undefined,
@@ -147,6 +150,7 @@ export const useWorkflowEditorStore = create<WorkflowEditorState>((set, get) => 
   reset() {
     set({
       document: undefined,
+      workflowDirectory: undefined,
       selection: undefined,
       saveState: "idle",
       error: undefined,

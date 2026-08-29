@@ -25,7 +25,7 @@ Workbench Execution 负责 Workflow 的定义存储、编译、手动执行和 R
 ### Workflow Multi-Agent v2
 
 Workflow v2 将稳定 Agent 与图节点分开：`agents[]` 定义 `workflowId + agentId` 身份，Agent Node
-只引用 `agentId`、Pi prompt template、输入 binding 和输出 JSON Schema。持久目录为：
+只引用 `agentId`、Pi prompt template、输入 binding 和输出 JSON Schema。个人工作流的持久目录为：
 
 ```text
 <execution-root>/workflows/<workflowId>/
@@ -40,6 +40,16 @@ Workflow v2 将稳定 Agent 与图节点分开：`agents[]` 定义 `workflowId +
     ├── sessions/<agentId>/*.jsonl
     └── artifacts/
 ```
+
+项目工作流使用同一内部布局，但完整目录位于所选项目中：
+
+```text
+<project>/.pi/workflows/<workflowId>/
+```
+
+已发布的项目定义继续写入相邻的 `<project>/.pi/workflows/<workflowId>.json`，供外部编辑和发布冲突
+检测使用。旧版本误写在用户级 `<execution-root>/workflows/<workflowId>/` 的项目工作流会在首次读取时
+整体迁移到项目目录，保留 Agent 资源、修订、Run、会话和产物。
 
 Agent cwd 固定为 `agents/<agentId>`，因此模型、Thinking、Prompt、Skill 和 Extension 都直接使用
 Pi 的项目级资源加载与全局继承，不存在第二套 Agent 配置格式。执行器以 `runId + agentId` 解析

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { appendFile, mkdir, readdir, readFile, rename, rm, stat } from "node:fs/promises";
+import { appendFile, cp, mkdir, readdir, readFile, rename, rm, stat } from "node:fs/promises";
 import path from "node:path";
 
 import type {
@@ -7,7 +7,7 @@ import type {
   FlowRevision,
   WorkflowAgentResourcesPayload,
   WorkflowAgentResourcesUpdatePayload,
-  WorkflowAgentResourcesValue,
+  WorkflowAgentStoredResourcesValue,
   WorkflowDocument,
   WorkflowRunEvent,
   WorkflowRunReadValue,
@@ -90,6 +90,17 @@ async function workflowDocumentFiles(directory: string): Promise<string[]> {
   }
 }
 
+async function childDirectories(directory: string): Promise<string[]> {
+  try {
+    return (await readdir(directory, { withFileTypes: true }))
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => path.join(directory, entry.name));
+  } catch (error) {
+    if (nodeErrorCode(error) === "ENOENT") return [];
+    throw error;
+  }
+}
+
 function scopeMatches(scope: WorkflowScope, workspaceId?: string): boolean {
   return !workspaceId || (scope.type === "project" && scope.workspaceId === workspaceId);
 }
@@ -123,8 +134,52 @@ export class ExecutionRepository {
     this.listWorkspaces = options.listWorkspaces ?? (async () => []);
   }
 
-  private draftFile(workflowId: string): string {
-    return path.join(this.workflowDirectory(workflowId), "workflow.json");
+  private personalWorkflowDirectory(workflowId: string): string {
+    return path.join(this.rootDirectory, "workflows", safePathSegment(workflowId, "A workflow ID"));
+  }
+
+  private async workflowDirectoryForDocument(
+    document: Pick<WorkflowDocument, "id" | "scope">,
+    resolvedWorkspace?: ExecutionWorkspace,
+  ): Promise<string> {
+    const workflowId = safePathSegment(document.id, "A workflow ID");
+    if (document.scope.type === "personal") return this.personalWorkflowDirectory(workflowId);
+    const workspace =
+      resolvedWorkspace?.workspaceId === document.scope.workspaceId
+        ? resolvedWorkspace
+        : await this.resolveWorkspace(document.scope.workspaceId);
+    return path.join(workspace.path, ".pi", "workflows", workflowId);
+  }
+
+  async workflowDirectory(
+    workflow: Pick<WorkflowDocument, "id" | "scope"> | string,
+  ): Promise<string> {
+    if (typeof workflow !== "string") return this.workflowDirectoryForDocument(workflow);
+    try {
+      return await this.workflowDirectoryForDocument(await this.readDocument(workflow));
+    } catch (error) {
+      if (error instanceof ExecutionError && error.code === "workflow-not-found") {
+        return this.personalWorkflowDirectory(workflow);
+      }
+      throw error;
+    }
+  }
+
+  async agentWorkspaceDirectory(
+    workflow: Pick<WorkflowDocument, "id" | "scope"> | string,
+    agentId: string,
+  ): Promise<string> {
+    return path.join(
+      await this.workflowDirectory(workflow),
+      "agents",
+      safePathSegment(agentId, "An agent ID"),
+    );
+  }
+
+  private async draftFileForDocument(
+    document: Pick<WorkflowDocument, "id" | "scope">,
+  ): Promise<string> {
+    return path.join(await this.workflowDirectoryForDocument(document), "workflow.json");
   }
 
   private legacyDraftFile(workflowId: string): string {
@@ -135,36 +190,27 @@ export class ExecutionRepository {
     return path.join(this.rootDirectory, "definitions", `${workflowId}.json`);
   }
 
-  private revisionFile(workflowId: string, revisionId: string): string {
-    return path.join(this.workflowDirectory(workflowId), "revisions", `${revisionId}.json`);
+  private async revisionFileForDocument(
+    document: Pick<WorkflowDocument, "id" | "scope">,
+    revisionId: string,
+  ): Promise<string> {
+    return path.join(
+      await this.workflowDirectoryForDocument(document),
+      "revisions",
+      `${safePathSegment(revisionId, "A workflow revision ID")}.json`,
+    );
   }
 
   private legacyRevisionFile(workflowId: string, revisionId: string): string {
     return path.join(this.rootDirectory, "revisions", workflowId, `${revisionId}.json`);
   }
 
-  workflowDirectory(workflowId: string): string {
-    return path.join(this.rootDirectory, "workflows", safePathSegment(workflowId, "A workflow ID"));
-  }
-
-  agentWorkspaceDirectory(workflowId: string, agentId: string): string {
-    return path.join(
-      this.workflowDirectory(workflowId),
-      "agents",
-      safePathSegment(agentId, "An agent ID"),
-    );
-  }
-
   private legacyRunDirectory(runId: string): string {
     return path.join(this.rootDirectory, "runs", safePathSegment(runId, "A workflow run ID"));
   }
 
-  private workflowRunDirectory(workflowId: string, runId: string): string {
-    return path.join(
-      this.workflowDirectory(workflowId),
-      "runs",
-      safePathSegment(runId, "A workflow run ID"),
-    );
+  private workflowRunDirectory(workflowDirectory: string, runId: string): string {
+    return path.join(workflowDirectory, "runs", safePathSegment(runId, "A workflow run ID"));
   }
 
   private runDirectory(runId: string): string {
@@ -187,26 +233,22 @@ export class ExecutionRepository {
       this.runDirectories.set(runId, legacy);
       return legacy;
     }
-    let workflows: string[] = [];
-    try {
-      workflows = (
-        await readdir(path.join(this.rootDirectory, "workflows"), {
-          withFileTypes: true,
-        })
-      )
-        .filter((entry) => entry.isDirectory())
-        .map((entry) => entry.name);
-    } catch (error) {
-      if (nodeErrorCode(error) !== "ENOENT") throw error;
-    }
-    for (const workflowId of workflows) {
-      const candidate = this.workflowRunDirectory(workflowId, runId);
+    for (const workflowDirectory of await this.workflowDirectories()) {
+      const candidate = this.workflowRunDirectory(workflowDirectory, runId);
       if (await textFileExists(this.runSummaryFile(candidate))) {
         this.runDirectories.set(runId, candidate);
         return candidate;
       }
     }
     return legacy;
+  }
+
+  private async workflowDirectories(): Promise<string[]> {
+    const directories = await childDirectories(path.join(this.rootDirectory, "workflows"));
+    for (const workspace of await this.listWorkspaces()) {
+      directories.push(...(await childDirectories(path.join(workspace.path, ".pi", "workflows"))));
+    }
+    return [...new Set(directories)];
   }
 
   executionSessionDirectory(runId: string): string {
@@ -241,7 +283,79 @@ export class ExecutionRepository {
     return path.join(workspace.path, ".pi", "workflows", `${workflowId}.json`);
   }
 
-  private async readDocumentFile(file: string): Promise<WorkflowDocument | undefined> {
+  private migrationLockDirectory(workflowId: string): string {
+    return path.join(
+      this.rootDirectory,
+      "workflow-migrations",
+      `${safePathSegment(workflowId, "A workflow ID")}.lock`,
+    );
+  }
+
+  private rebaseRunDirectories(source: string, destination: string): void {
+    for (const [runId, directory] of this.runDirectories) {
+      const relative = path.relative(source, directory);
+      if (relative === "" || relative.startsWith("..") || path.isAbsolute(relative)) continue;
+      this.runDirectories.set(runId, path.join(destination, relative));
+    }
+  }
+
+  private async migrateProjectWorkflowDirectory(document: WorkflowDocument): Promise<void> {
+    if (document.scope.type !== "project") return;
+    const workspaceId = document.scope.workspaceId;
+    const source = this.personalWorkflowDirectory(document.id);
+    const sourceDraft = path.join(source, "workflow.json");
+    const destination = await this.workflowDirectoryForDocument(document);
+    const destinationDraft = path.join(destination, "workflow.json");
+    if (source === destination || !(await textFileExists(sourceDraft))) return;
+
+    await withCrossProcessFileLock(
+      { lockDirectory: this.migrationLockDirectory(document.id) },
+      async () => {
+        if (!(await textFileExists(sourceDraft))) return;
+        if (await textFileExists(destinationDraft)) return;
+        await mkdir(path.dirname(destination), { recursive: true, mode: 0o700 });
+        try {
+          await rename(source, destination);
+        } catch (error) {
+          if (["EEXIST", "ENOTEMPTY"].includes(nodeErrorCode(error) ?? "")) {
+            if (await textFileExists(destinationDraft)) return;
+            throw new ExecutionError(
+              "workflow-conflict",
+              "The project workflow directory already exists and cannot be migrated safely.",
+              { workflowId: document.id, currentDraftRevision: document.draftRevision },
+            );
+          }
+          if (nodeErrorCode(error) !== "EXDEV") throw error;
+          const staging = `${destination}.migrating.${process.pid}.${randomUUID()}`;
+          try {
+            await cp(source, staging, { recursive: true, force: false, errorOnExist: true });
+            const stagedValue = await readJson(path.join(staging, "workflow.json"));
+            if (stagedValue === undefined) {
+              throw new TypeError("The migrated project workflow is missing workflow.json.");
+            }
+            const staged = parseExecutionDocumentWithMigration(stagedValue).document;
+            if (
+              staged.id !== document.id ||
+              staged.scope.type !== "project" ||
+              staged.scope.workspaceId !== workspaceId
+            ) {
+              throw new TypeError("The migrated project workflow identity does not match.");
+            }
+            await rename(staging, destination);
+            await rm(source, { recursive: true });
+          } finally {
+            await rm(staging, { recursive: true, force: true });
+          }
+        }
+        this.rebaseRunDirectories(source, destination);
+      },
+    );
+  }
+
+  private async readDocumentFile(
+    file: string,
+    resolvedWorkspace?: ExecutionWorkspace,
+  ): Promise<WorkflowDocument | undefined> {
     const value = await readJson(file);
     if (value === undefined) return undefined;
     if (isPlainRecord(value) && typeof value.kind === "string" && value.kind !== "workflow") {
@@ -255,18 +369,35 @@ export class ExecutionRepository {
       await rename(file, quarantine).catch(() => undefined);
       throw error;
     }
-    await this.ensureAgentWorkspaces(parsed.document, parsed.legacyAgentResources);
+    if (
+      parsed.document.scope.type === "project" &&
+      path.resolve(file) ===
+        path.resolve(path.join(this.personalWorkflowDirectory(parsed.document.id), "workflow.json"))
+    ) {
+      await this.migrateProjectWorkflowDirectory(parsed.document);
+    }
+    await this.ensureAgentWorkspaces(
+      parsed.document,
+      parsed.legacyAgentResources,
+      resolvedWorkspace,
+    );
     return parsed.document;
   }
 
   private async ensureAgentWorkspaces(
     document: WorkflowDocument,
     legacyResources: readonly LegacyWorkflowAgentResource[] = [],
+    resolvedWorkspace?: ExecutionWorkspace,
   ): Promise<void> {
     const resources = new Map(legacyResources.map((resource) => [resource.agentId, resource]));
+    const workflowDirectory = await this.workflowDirectoryForDocument(document, resolvedWorkspace);
     await Promise.all(
       document.agents.map(async (agent) => {
-        const workspace = this.agentWorkspaceDirectory(document.id, agent.id);
+        const workspace = path.join(
+          workflowDirectory,
+          "agents",
+          safePathSegment(agent.id, "An agent ID"),
+        );
         const piDirectory = path.join(workspace, ".pi");
         const promptsDirectory = path.join(piDirectory, "prompts");
         await mkdir(promptsDirectory, { recursive: true, mode: 0o700 });
@@ -309,9 +440,13 @@ export class ExecutionRepository {
     );
   }
 
-  private promptTemplateFile(workflowId: string, agentId: string, promptTemplate: string): string {
+  private async promptTemplateFile(
+    document: WorkflowDocument,
+    agentId: string,
+    promptTemplate: string,
+  ): Promise<string> {
     return path.join(
-      this.agentWorkspaceDirectory(workflowId, agentId),
+      await this.agentWorkspaceDirectory(document, agentId),
       ".pi",
       "prompts",
       `${safePathSegment(promptTemplate, "A prompt template name")}.md`,
@@ -334,10 +469,10 @@ export class ExecutionRepository {
 
   async readAgentResources(
     payload: WorkflowAgentResourcesPayload,
-  ): Promise<WorkflowAgentResourcesValue> {
-    await this.assertWorkflowAgent(payload.workflowId, payload.agentId);
-    const promptFile = this.promptTemplateFile(
-      payload.workflowId,
+  ): Promise<WorkflowAgentStoredResourcesValue> {
+    const document = await this.assertWorkflowAgent(payload.workflowId, payload.agentId);
+    const promptFile = await this.promptTemplateFile(
+      document,
       payload.agentId,
       payload.promptTemplate,
     );
@@ -352,13 +487,8 @@ export class ExecutionRepository {
         { agentId: payload.agentId, promptTemplate: payload.promptTemplate },
       );
     }
-    const settings = await readJson(
-      path.join(
-        this.agentWorkspaceDirectory(payload.workflowId, payload.agentId),
-        ".pi",
-        "settings.json",
-      ),
-    );
+    const workspace = await this.agentWorkspaceDirectory(document, payload.agentId);
+    const settings = await readJson(path.join(workspace, ".pi", "settings.json"));
     const record = isPlainRecord(settings) ? settings : {};
     const provider =
       typeof record.defaultProvider === "string" ? record.defaultProvider : undefined;
@@ -384,18 +514,18 @@ export class ExecutionRepository {
 
   async updateAgentResources(
     payload: WorkflowAgentResourcesUpdatePayload,
-  ): Promise<WorkflowAgentResourcesValue> {
+  ): Promise<WorkflowAgentStoredResourcesValue> {
     const document = await this.assertWorkflowAgent(payload.workflowId, payload.agentId);
     await this.ensureAgentWorkspaces(document);
-    const promptFile = this.promptTemplateFile(
-      payload.workflowId,
+    const promptFile = await this.promptTemplateFile(
+      document,
       payload.agentId,
       payload.promptTemplate,
     );
     await atomicReplaceFile(promptFile, `${payload.prompt.trim()}\n`, { fileMode: 0o600 });
     if (payload.model) {
       const settingsFile = path.join(
-        this.agentWorkspaceDirectory(payload.workflowId, payload.agentId),
+        await this.agentWorkspaceDirectory(document, payload.agentId),
         ".pi",
         "settings.json",
       );
@@ -421,7 +551,25 @@ export class ExecutionRepository {
   async listDocuments(workspaceId?: string): Promise<WorkflowDocument[]> {
     const documents = new Map<string, WorkflowDocument>();
     const canonicalIds = new Set<string>();
+    const workspaces = await this.listWorkspaces();
+    for (const workspace of workspaces) {
+      if (workspaceId && workspace.workspaceId !== workspaceId) continue;
+      const directory = path.join(workspace.path, ".pi", "workflows");
+      for (const file of await workflowDocumentFiles(directory)) {
+        const document = await this.readDocumentFile(file, workspace);
+        if (!document) continue;
+        canonicalIds.add(document.id);
+        if (
+          document.scope.type === "project" &&
+          document.scope.workspaceId === workspace.workspaceId
+        ) {
+          documents.set(document.id, document);
+        }
+      }
+    }
     for (const file of await workflowDocumentFiles(path.join(this.rootDirectory, "workflows"))) {
+      const workflowId = path.basename(path.dirname(file));
+      if (canonicalIds.has(workflowId)) continue;
       const document = await this.readDocumentFile(file);
       if (!document) continue;
       canonicalIds.add(document.id);
@@ -432,12 +580,11 @@ export class ExecutionRepository {
       if (document && !canonicalIds.has(document.id) && scopeMatches(document.scope, workspaceId))
         documents.set(document.id, document);
     }
-    const workspaces = await this.listWorkspaces();
     for (const workspace of workspaces) {
       if (workspaceId && workspace.workspaceId !== workspaceId) continue;
       const directory = path.join(workspace.path, ".pi", "workflows");
       for (const file of await regularJsonFiles(directory)) {
-        const document = await this.readDocumentFile(file);
+        const document = await this.readDocumentFile(file, workspace);
         if (
           document &&
           !canonicalIds.has(document.id) &&
@@ -457,16 +604,34 @@ export class ExecutionRepository {
   }
 
   async readDocument(workflowId: string, workspaceId?: string): Promise<WorkflowDocument> {
-    const draft = await this.readDocumentFile(this.draftFile(workflowId));
-    if (draft && scopeMatches(draft.scope, workspaceId)) return draft;
-    const legacyDraft = await this.readDocumentFile(this.legacyDraftFile(workflowId));
-    if (legacyDraft && scopeMatches(legacyDraft.scope, workspaceId)) return legacyDraft;
-    const personal = await this.readDocumentFile(this.personalDefinitionFile(workflowId));
-    if (personal && scopeMatches(personal.scope, workspaceId)) return personal;
-    for (const workspace of await this.listWorkspaces()) {
+    const safeWorkflowId = safePathSegment(workflowId, "A workflow ID");
+    const workspaces = await this.listWorkspaces();
+    for (const workspace of workspaces) {
       if (workspaceId && workspace.workspaceId !== workspaceId) continue;
       const document = await this.readDocumentFile(
-        path.join(workspace.path, ".pi", "workflows", `${workflowId}.json`),
+        path.join(workspace.path, ".pi", "workflows", safeWorkflowId, "workflow.json"),
+        workspace,
+      );
+      if (
+        document?.scope.type === "project" &&
+        document.scope.workspaceId === workspace.workspaceId
+      ) {
+        return document;
+      }
+    }
+    const draft = await this.readDocumentFile(
+      path.join(this.personalWorkflowDirectory(safeWorkflowId), "workflow.json"),
+    );
+    if (draft && scopeMatches(draft.scope, workspaceId)) return draft;
+    const legacyDraft = await this.readDocumentFile(this.legacyDraftFile(safeWorkflowId));
+    if (legacyDraft && scopeMatches(legacyDraft.scope, workspaceId)) return legacyDraft;
+    const personal = await this.readDocumentFile(this.personalDefinitionFile(safeWorkflowId));
+    if (personal && scopeMatches(personal.scope, workspaceId)) return personal;
+    for (const workspace of workspaces) {
+      if (workspaceId && workspace.workspaceId !== workspaceId) continue;
+      const document = await this.readDocumentFile(
+        path.join(workspace.path, ".pi", "workflows", `${safeWorkflowId}.json`),
+        workspace,
       );
       if (document) return document;
     }
@@ -474,11 +639,15 @@ export class ExecutionRepository {
   }
 
   async createDocument(document: WorkflowDocument): Promise<WorkflowDocument> {
-    const file = this.draftFile(document.id);
+    const file = await this.draftFileForDocument(document);
     return withCrossProcessFileLock({ lockDirectory: `${file}.lock` }, async () => {
       if (
         (await readJson(file)) !== undefined ||
-        (await readJson(this.legacyDraftFile(document.id))) !== undefined
+        (await readJson(this.legacyDraftFile(document.id))) !== undefined ||
+        (document.scope.type === "project" &&
+          (await readJson(
+            path.join(this.personalWorkflowDirectory(document.id), "workflow.json"),
+          )) !== undefined)
       ) {
         throw new ExecutionError("workflow-conflict", "The workflow already exists.", {
           workflowId: document.id,
@@ -495,11 +664,12 @@ export class ExecutionRepository {
     requested: WorkflowDocument,
     baseDraftRevision: number,
   ): Promise<WorkflowDocument> {
-    const file = this.draftFile(requested.id);
+    const located = await this.readDocument(requested.id);
+    const file = await this.draftFileForDocument(located);
     return withCrossProcessFileLock({ lockDirectory: `${file}.lock` }, async () => {
       const current = await this.readDocumentFile(file);
       const effectiveCurrent =
-        current ?? (await this.readDocumentFile(this.legacyDraftFile(requested.id)));
+        current ?? (await this.readDocumentFile(this.legacyDraftFile(requested.id))) ?? located;
       if (!effectiveCurrent) {
         throw new ExecutionError("workflow-not-found", "The workflow does not exist.", {
           workflowId: requested.id,
@@ -536,11 +706,12 @@ export class ExecutionRepository {
     revision: FlowRevision,
     baseDraftRevision: number,
   ): Promise<WorkflowDocument> {
-    const draftFile = this.draftFile(requested.id);
+    const located = await this.readDocument(requested.id);
+    const draftFile = await this.draftFileForDocument(located);
     return withCrossProcessFileLock({ lockDirectory: `${draftFile}.lock` }, async () => {
       const current = await this.readDocumentFile(draftFile);
       const effectiveCurrent =
-        current ?? (await this.readDocumentFile(this.legacyDraftFile(requested.id)));
+        current ?? (await this.readDocumentFile(this.legacyDraftFile(requested.id))) ?? located;
       if (!effectiveCurrent) {
         throw new ExecutionError("workflow-not-found", "The workflow does not exist.", {
           workflowId: requested.id,
@@ -595,7 +766,7 @@ export class ExecutionRepository {
       });
       await this.ensureAgentWorkspaces(next);
       await atomicReplaceFile(
-        this.revisionFile(effectiveCurrent.id, revision.revisionId),
+        await this.revisionFileForDocument(effectiveCurrent, revision.revisionId),
         json(revision),
       );
       await atomicReplaceFile(definitionFile, json(next), {
@@ -607,8 +778,9 @@ export class ExecutionRepository {
   }
 
   async readRevision(workflowId: string, revisionId: string): Promise<FlowRevision> {
+    const document = await this.readDocument(workflowId);
     const value =
-      (await readJson(this.revisionFile(workflowId, revisionId))) ??
+      (await readJson(await this.revisionFileForDocument(document, revisionId))) ??
       (await readJson(this.legacyRevisionFile(workflowId, revisionId)));
     if (!value) {
       throw new ExecutionError("revision-not-found", "The workflow revision does not exist.", {
@@ -668,13 +840,22 @@ export class ExecutionRepository {
       updatedAt: revision.publishedAt,
     });
     await atomicReplaceFile(
-      this.revisionFile(revision.workflowId, revision.revisionId),
+      await this.revisionFileForDocument(
+        { id: revision.workflowId, scope: revision.scope },
+        revision.revisionId,
+      ),
       json(revision),
     );
   }
 
-  async createRun(run: WorkflowRunSummary): Promise<WorkflowRunSummary> {
-    const directory = this.workflowRunDirectory(run.workflowId, run.id);
+  async createRun(
+    run: WorkflowRunSummary,
+    workflow?: Pick<WorkflowDocument, "id" | "scope">,
+  ): Promise<WorkflowRunSummary> {
+    const directory = this.workflowRunDirectory(
+      await this.workflowDirectory(workflow ?? run.workflowId),
+      run.id,
+    );
     this.runDirectories.set(run.id, directory);
     await mkdir(directory, { recursive: true, mode: 0o700 });
     await atomicReplaceFile(this.runSummaryFile(directory), json(run));
@@ -742,25 +923,16 @@ export class ExecutionRepository {
     } catch (error) {
       if (nodeErrorCode(error) !== "ENOENT") throw error;
     }
-    let workflowIds: string[];
+    let workflowDirectories: string[];
     if (options.workflowId) {
-      workflowIds = [safePathSegment(options.workflowId, "A workflow ID")];
+      workflowDirectories = [
+        await this.workflowDirectory(safePathSegment(options.workflowId, "A workflow ID")),
+      ];
     } else {
-      try {
-        workflowIds = (
-          await readdir(path.join(this.rootDirectory, "workflows"), {
-            withFileTypes: true,
-          })
-        )
-          .filter((entry) => entry.isDirectory())
-          .map((entry) => entry.name);
-      } catch (error) {
-        if (nodeErrorCode(error) !== "ENOENT") throw error;
-        workflowIds = [];
-      }
+      workflowDirectories = await this.workflowDirectories();
     }
-    for (const workflowId of workflowIds) {
-      const directory = path.join(this.workflowDirectory(workflowId), "runs");
+    for (const workflowDirectory of workflowDirectories) {
+      const directory = path.join(workflowDirectory, "runs");
       try {
         directories.push(
           ...(await readdir(directory, { withFileTypes: true }))

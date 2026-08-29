@@ -1,6 +1,7 @@
 import type {
   FlowNode,
   FlowRevision,
+  WorkflowAgentResourceCatalog,
   WorkflowAgentResourcesPayload,
   WorkflowAgentResourcesUpdatePayload,
   WorkflowAgentResourcesValue,
@@ -46,6 +47,11 @@ export interface ExecutionServiceOptions {
   onDefinitionChanged?: (workflow: WorkflowSummary) => void;
   onRunChanged?: (run: WorkflowRunReadValue["run"]) => void;
   onRunRemoved?: (run: WorkflowRunDeleteValue) => void;
+  readAgentResourceCatalog?: (input: {
+    workflowId: string;
+    agentId: string;
+    workspacePath: string;
+  }) => Promise<WorkflowAgentResourceCatalog>;
 }
 
 function defaultGraph(): WorkflowDocument["graph"] {
@@ -90,6 +96,9 @@ export class ExecutionService implements ExecutionProtocol {
   private readonly isWorkspaceTrusted: ExecutionServiceOptions["isWorkspaceTrusted"];
   private readonly onDefinitionChanged: NonNullable<ExecutionServiceOptions["onDefinitionChanged"]>;
   private readonly onRunRemoved: NonNullable<ExecutionServiceOptions["onRunRemoved"]>;
+  private readAgentResourceCatalog: NonNullable<
+    ExecutionServiceOptions["readAgentResourceCatalog"]
+  >;
   private initialized = false;
 
   constructor(options: ExecutionServiceOptions) {
@@ -98,12 +107,26 @@ export class ExecutionService implements ExecutionProtocol {
     this.isWorkspaceTrusted = options.isWorkspaceTrusted;
     this.onDefinitionChanged = options.onDefinitionChanged ?? (() => undefined);
     this.onRunRemoved = options.onRunRemoved ?? (() => undefined);
+    this.readAgentResourceCatalog =
+      options.readAgentResourceCatalog ??
+      (async ({ workspacePath }) => ({
+        skills: [],
+        extensions: [],
+        catalogAvailable: true,
+        projectResourcesTrusted: await this.isWorkspaceTrusted(workspacePath),
+      }));
     this.engine = new ExecutionEngine({
       repository: this.repository,
       ...(options.executors ? { executors: options.executors } : {}),
       now: this.now,
       onRunChanged: options.onRunChanged,
     });
+  }
+
+  bindAgentResourceCatalog(
+    reader: NonNullable<ExecutionServiceOptions["readAgentResourceCatalog"]>,
+  ): void {
+    this.readAgentResourceCatalog = reader;
   }
 
   async initialize(): Promise<void> {
@@ -137,10 +160,10 @@ export class ExecutionService implements ExecutionProtocol {
     this.onDefinitionChanged(this.summary(document));
   }
 
-  private readValue(document: WorkflowDocument): WorkflowReadValue {
+  private async readValue(document: WorkflowDocument): Promise<WorkflowReadValue> {
     return {
       document,
-      workflowDirectory: this.repository.workflowDirectory(document.id),
+      workflowDirectory: await this.repository.workflowDirectory(document),
     };
   }
 
@@ -166,14 +189,24 @@ export class ExecutionService implements ExecutionProtocol {
     payload: WorkflowAgentResourcesPayload,
   ): Promise<WorkflowAgentResourcesValue> {
     await this.ready();
-    return this.repository.readAgentResources(payload);
+    const stored = await this.repository.readAgentResources(payload);
+    const catalog = await this.readAgentResourceCatalog({
+      workflowId: payload.workflowId,
+      agentId: payload.agentId,
+      workspacePath: await this.repository.agentWorkspaceDirectory(
+        payload.workflowId,
+        payload.agentId,
+      ),
+    });
+    return { ...stored, ...catalog };
   }
 
   async updateAgentResources(
     payload: WorkflowAgentResourcesUpdatePayload,
   ): Promise<WorkflowAgentResourcesValue> {
     await this.ready();
-    return this.repository.updateAgentResources(payload);
+    await this.repository.updateAgentResources(payload);
+    return this.readAgentResources(payload);
   }
 
   async create(payload: WorkflowCreatePayload): Promise<WorkflowReadValue> {
@@ -266,13 +299,18 @@ export class ExecutionService implements ExecutionProtocol {
       await this.repository.saveRevision(revision);
     }
     compileExecutionRevision(revision);
-    const untrustedAgentNode = revision.graph.nodes.find(
-      (node) =>
+    let untrustedAgentNode: Extract<FlowNode, { type: "agent" }> | undefined;
+    for (const node of revision.graph.nodes) {
+      if (
         node.type === "agent" &&
         !this.isWorkspaceTrusted(
-          this.repository.agentWorkspaceDirectory(document.id, node.config.agentId),
-        ),
-    );
+          await this.repository.agentWorkspaceDirectory(document, node.config.agentId),
+        )
+      ) {
+        untrustedAgentNode = node;
+        break;
+      }
+    }
     if (untrustedAgentNode?.type === "agent") {
       throw new ExecutionError(
         "agent-workspace-not-trusted",
