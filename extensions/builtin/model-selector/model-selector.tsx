@@ -32,9 +32,9 @@ import {
   resolveDraftSelectorModel,
   sessionSelectorModels,
   type SelectorModel,
-} from "./model-selector-state";
+} from "@/extensions/shared/model-selector/model-selector-state";
 import { useModelSelectorStore } from "./model-selector-store";
-import { reasoningEffortLabel } from "./reasoning-effort-label";
+import { reasoningEffortLabel } from "@/extensions/shared/model-selector/reasoning-effort-label";
 
 type AppModel = SelectorModel;
 

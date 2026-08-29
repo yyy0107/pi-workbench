@@ -1,6 +1,6 @@
 import type { AppendMessage } from "@assistant-ui/react";
 
-import { PI_THINKING_LEVELS } from "@/runtime/pi/contracts/pi";
+import { isPiThinkingLevel } from "@/runtime/pi/contracts/pi";
 import type { SessionSelectModelPayload } from "@/runtime/pi/contracts/rpc";
 
 export type DraftSessionModelSelection = Omit<SessionSelectModelPayload, "sessionId">;
@@ -21,7 +21,9 @@ export function draftSessionModelSelection(
   if (typeof selection.provider !== "string" || typeof selection.modelId !== "string") {
     return undefined;
   }
-  const reasoningEffort = PI_THINKING_LEVELS.find((level) => level === selection.thinkingLevel);
+  const reasoningEffort = isPiThinkingLevel(selection.thinkingLevel)
+    ? selection.thinkingLevel
+    : undefined;
   return {
     provider: selection.provider,
     model: selection.modelId,

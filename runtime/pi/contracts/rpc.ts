@@ -6,6 +6,9 @@ import type {
 } from "@/contracts/composer";
 import type { Locale } from "@/contracts/locale";
 import type { OcrAdapterPresetId } from "@/runtime/shared/attachment-understanding/ocr-adapter";
+import type { ModelSelection } from "@/runtime/shared/model-selection";
+
+export type { ModelSelection } from "@/runtime/shared/model-selection";
 
 import type { InlineDocumentMediaType, InlineImageMediaType } from "./attachments";
 import type { PiRunTiming } from "./pi";
@@ -365,12 +368,6 @@ export interface HostDescription {
   model?: string;
   attachedSessions: number;
   canOpenPath: boolean;
-}
-
-export interface ModelSelection {
-  provider: string;
-  model: string;
-  reasoningEffort?: string;
 }
 
 export interface ModelReasoningEffort {

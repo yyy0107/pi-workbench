@@ -251,6 +251,12 @@ export const PI_THINKING_LEVELS = [
 
 export type PiThinkingLevel = (typeof PI_THINKING_LEVELS)[number];
 
+export function isPiThinkingLevel(value: unknown): value is PiThinkingLevel {
+  return (
+    typeof value === "string" && PI_THINKING_LEVELS.some((thinkingLevel) => thinkingLevel === value)
+  );
+}
+
 export interface PiModelSelection {
   provider: string;
   modelId: string;
