@@ -39,12 +39,19 @@ export function WorkflowSidebar({ searchQuery }: SlotPropsMap["sidebar.workflows
     activeView?.kind === "workflows" ? (activeView.params as WorkflowMainViewParams) : undefined;
   const selectedWorkflowId =
     params?.page === "editor" || params?.page === "automation-edit" ? params.workflowId : undefined;
+  const selectedWorkflowKind = items.find(({ id }) => id === selectedWorkflowId)?.kind;
   const effectiveCategory: WorkflowKind =
-    params?.page === "automations" ||
-    params?.page === "automation-create" ||
-    params?.page === "automation-edit"
-      ? "automation"
-      : category;
+    params?.page === "workflows"
+      ? "workflow"
+      : params?.page === "automations" ||
+          params?.page === "automation-create" ||
+          params?.page === "automation-edit"
+        ? "automation"
+        : params?.page === "create" && params.kind
+          ? params.kind
+          : params?.page === "templates" && params.kind
+            ? params.kind
+            : (selectedWorkflowKind ?? category);
   const kindLabels: Record<WorkflowKind, string> = {
     workflow: t("extensions.workflows.kind.workflow"),
     sop: t("extensions.workflows.kind.sop"),
@@ -54,6 +61,7 @@ export function WorkflowSidebar({ searchQuery }: SlotPropsMap["sidebar.workflows
   const visible = items.filter(
     (workflow) =>
       workflow.archivedAt === undefined &&
+      workflow.kind === effectiveCategory &&
       (!normalized ||
         `${workflow.name} ${workflow.description ?? ""} ${kindLabels[workflow.kind]}`
           .toLocaleLowerCase(locale)
@@ -62,13 +70,11 @@ export function WorkflowSidebar({ searchQuery }: SlotPropsMap["sidebar.workflows
   const open = (next: WorkflowMainViewParams) => mainViews.open(workflowMainViewRequest(next));
   const selectCategory = (next: WorkflowKind) => {
     setCategory(next);
-    if (next === "automation") {
+    if (next === "workflow") {
+      open({ page: "workflows" });
+    } else if (next === "automation") {
       open({ page: "automations" });
-    } else if (
-      params?.page === "automations" ||
-      params?.page === "automation-create" ||
-      params?.page === "automation-edit"
-    ) {
+    } else if (activeView?.kind === "workflows") {
       mainViews.close();
     }
   };
@@ -124,12 +130,13 @@ export function WorkflowSidebar({ searchQuery }: SlotPropsMap["sidebar.workflows
                 workflow={workflow}
                 kindLabel={kindLabels[workflow.kind]}
                 active={selectedWorkflowId === workflow.id}
-                onClick={() =>
-                  open({
-                    page: workflow.kind === "automation" ? "automation-edit" : "editor",
-                    workflowId: workflow.id,
-                  })
-                }
+                onClick={() => {
+                  if (workflow.kind === "automation") {
+                    open({ page: "automation-edit", workflowId: workflow.id });
+                  } else {
+                    open({ page: "editor", workflowId: workflow.id, kind: workflow.kind });
+                  }
+                }}
               />
             ))}
           </div>
@@ -148,13 +155,13 @@ export function WorkflowSidebar({ searchQuery }: SlotPropsMap["sidebar.workflows
             icon={HistoryIcon}
             label={t("extensions.workflows.sidebar.runHistory")}
             active={params?.page === "runs"}
-            onClick={() => open({ page: "runs" })}
+            onClick={() => open({ page: "runs", kind: effectiveCategory })}
           />
           <DestinationButton
             icon={LayoutTemplateIcon}
             label={t("extensions.workflows.sidebar.templates")}
             active={params?.page === "templates"}
-            onClick={() => open({ page: "templates" })}
+            onClick={() => open({ page: "templates", kind: effectiveCategory })}
           />
         </nav>
       </div>

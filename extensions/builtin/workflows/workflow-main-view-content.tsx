@@ -42,6 +42,7 @@ import { type WorkflowInspectorParams } from "./workflow-inspector";
 import { workflowMainViewRequest, type WorkflowMainViewParams } from "./workflow-main-view";
 import { useWorkflowCatalogStore, useWorkflowEditorStore } from "./workflow-state";
 import { WorkflowRendererRouter } from "./workflow-renderer-router";
+import { WorkflowHome } from "./workflow-home";
 import { createLinearWorkflowGraph } from "./workflow-template-utils";
 
 const KIND_ICONS: Record<WorkflowKind, LucideIcon> = {
@@ -52,6 +53,8 @@ const KIND_ICONS: Record<WorkflowKind, LucideIcon> = {
 
 export function WorkflowMainView({ view }: MainViewProps<WorkflowMainViewParams>) {
   switch (view.params.page) {
+    case "workflows":
+      return <WorkflowHome />;
     case "automations":
       return <AutomationHome />;
     case "automation-create":
@@ -146,10 +149,11 @@ function CreateWorkflowPage({
       });
       await useWorkflowCatalogStore.getState().refresh();
       mainViews.open(
-        workflowMainViewRequest({
-          page: kind === "automation" ? "automation-edit" : "editor",
-          workflowId: document.id,
-        }),
+        workflowMainViewRequest(
+          kind === "automation"
+            ? { page: "automation-edit", workflowId: document.id }
+            : { page: "editor", workflowId: document.id, kind },
+        ),
       );
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "workflow-create-failed");
@@ -457,10 +461,15 @@ function WorkflowEditorPage({ workflowId }: { workflowId: string }) {
       });
       await useWorkflowCatalogStore.getState().refresh();
       mainViews.open(
-        workflowMainViewRequest({
-          page: copied.document.kind === "automation" ? "automation-edit" : "editor",
-          workflowId: copied.document.id,
-        }),
+        workflowMainViewRequest(
+          copied.document.kind === "automation"
+            ? { page: "automation-edit", workflowId: copied.document.id }
+            : {
+                page: "editor",
+                workflowId: copied.document.id,
+                kind: copied.document.kind,
+              },
+        ),
       );
     } catch (nextError) {
       setNotice(nextError instanceof Error ? nextError.message : "workflow-copy-failed");
@@ -595,22 +604,32 @@ function RunsPage({ params }: { params: Extract<WorkflowMainViewParams, { page: 
   const { t } = useI18n();
   const mainViews = useMainViewService();
   const catalogRuns = useWorkflowCatalogStore((state) => state.runs);
-  const [runs, setRuns] = useState(catalogRuns);
+  const [runs, setRuns] = useState(() =>
+    params.kind
+      ? catalogRuns.filter(({ workflowKind }) => workflowKind === params.kind)
+      : catalogRuns,
+  );
   const [events, setEvents] = useState<WorkflowRunEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const selected = runs.find(({ id }) => id === params.runId);
   useEffect(() => {
-    setRuns(catalogRuns);
-  }, [catalogRuns]);
+    setRuns(
+      params.kind
+        ? catalogRuns.filter(({ workflowKind }) => workflowKind === params.kind)
+        : catalogRuns,
+    );
+  }, [catalogRuns, params.kind]);
   useEffect(() => {
     setLoading(true);
     void workflowClient
       .listRuns({ workflowId: params.workflowId, limit: 200 })
       .then(({ items }) => {
-        setRuns(items);
+        setRuns(
+          params.kind ? items.filter(({ workflowKind }) => workflowKind === params.kind) : items,
+        );
         setLoading(false);
       });
-  }, [params.workflowId]);
+  }, [params.kind, params.workflowId]);
   useEffect(() => {
     if (!params.runId) {
       setEvents([]);
@@ -649,6 +668,7 @@ function RunsPage({ params }: { params: Extract<WorkflowMainViewParams, { page: 
                       page: "runs",
                       workflowId: params.workflowId,
                       runId: run.id,
+                      ...(params.kind ? { kind: params.kind } : {}),
                     }),
                   )
                 }

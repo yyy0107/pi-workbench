@@ -33,6 +33,33 @@ test("automation editing keeps automation as the clickable breadcrumb parent", (
   ]);
 });
 
+test("workflow home is a root main view destination", () => {
+  const request = workflowMainViewRequest({ page: "workflows" });
+
+  assert.deepEqual(request.title, {
+    key: "extensions.workflows.workflowHome.title",
+  });
+  assert.deepEqual(request.breadcrumbs, [
+    { label: { key: "extensions.workflows.workflowHome.title" } },
+  ]);
+});
+
+test("workflow child pages return to the workflow home", () => {
+  const requests = [
+    workflowMainViewRequest({ page: "create", kind: "workflow" }),
+    workflowMainViewRequest({ page: "editor", workflowId: "workflow-1", kind: "workflow" }),
+    workflowMainViewRequest({ page: "runs", kind: "workflow" }),
+    workflowMainViewRequest({ page: "templates", kind: "workflow" }),
+  ];
+
+  for (const request of requests) {
+    assert.deepEqual(request.breadcrumbs?.[0], {
+      label: { key: "extensions.workflows.workflowHome.title" },
+      params: { page: "workflows" },
+    });
+  }
+});
+
 test("every workflow page makes the execution parent breadcrumb navigable", () => {
   const requests = [
     workflowMainViewRequest({ page: "create" }),
