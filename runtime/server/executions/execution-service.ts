@@ -84,10 +84,13 @@ function hasWorkspaceNode(document: WorkflowDocument | FlowRevision): boolean {
   return document.graph.nodes.some(({ type }) => type === "agent" || type === "command");
 }
 
-function normalizeAutomationConcurrency(document: WorkflowDocument): WorkflowDocument {
-  return document.kind === "automation" && document.concurrency.mode !== "independent"
-    ? { ...document, concurrency: { mode: "independent" } }
-    : document;
+function assertValidExecutionDocument(document: WorkflowDocument, message: string): void {
+  const validation = validateExecutionDocument(document);
+  if (validation.valid) return;
+  throw new ExecutionError("workflow-invalid", message, {
+    workflowId: document.id,
+    issues: validation.issues,
+  });
 }
 
 export class ExecutionService implements ExecutionProtocol {
@@ -261,7 +264,7 @@ export class ExecutionService implements ExecutionProtocol {
       scope: payload.scope,
       name: payload.name.trim(),
       graph: defaultGraph(payload.kind),
-      concurrency: payload.kind === "automation" ? { mode: "independent" } : { mode: "queue" },
+      concurrency: { mode: "queue" },
       triggers: [],
       draftRevision: 0,
       createdAt: time,
@@ -274,7 +277,7 @@ export class ExecutionService implements ExecutionProtocol {
 
   async saveDraft(payload: WorkflowSaveDraftPayload): Promise<WorkflowReadValue> {
     await this.ready();
-    const parsed = normalizeAutomationConcurrency(parseExecutionDocument(payload.draft));
+    const parsed = parseExecutionDocument(payload.draft);
     if (parsed.id !== payload.workflowId) throw new TypeError("Workflow ID mismatch.");
     const saved = await this.repository.saveDraft(parsed, payload.baseDraftRevision);
     await this.changed(saved);
@@ -301,13 +304,7 @@ export class ExecutionService implements ExecutionProtocol {
         );
       }
     }
-    const validation = validateExecutionDocument(document);
-    if (!validation.valid) {
-      throw new ExecutionError("workflow-invalid", "The workflow cannot be published.", {
-        workflowId: document.id,
-        issues: validation.issues,
-      });
-    }
+    assertValidExecutionDocument(document, "The workflow cannot be published.");
     const plan = compileExecutionDocument(document, this.now());
     const saved = await this.repository.publish(document, plan.revision, payload.baseDraftRevision);
     await this.changed(saved);
@@ -342,6 +339,7 @@ export class ExecutionService implements ExecutionProtocol {
       }
       revision = await this.repository.readRevision(document.id, document.publishedRevisionId);
     } else {
+      assertValidExecutionDocument(document, "The workflow cannot be run.");
       revision = compileExecutionDocument(document, this.now()).revision;
       await this.repository.saveRevision(revision);
     }

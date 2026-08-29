@@ -4,7 +4,6 @@ import type {
   FlowRevision,
   ValueBinding,
   WorkflowJsonValue,
-  WorkflowConcurrency,
   WorkflowNodeAttemptSummary,
   WorkflowNodeRunStatus,
   WorkflowResolveApprovalPayload,
@@ -198,13 +197,6 @@ function replaceAttempt(
   return [...attempts.filter((attempt) => attempt !== attemptFor(attempts, next.nodeId)), next];
 }
 
-function effectiveConcurrency(revision: FlowRevision): WorkflowConcurrency {
-  // Automations create a fresh project session for every trigger. Older persisted
-  // revisions may still carry the generic workflow queue/skip policy, so the
-  // execution boundary enforces the automation invariant as well.
-  return revision.kind === "automation" ? { mode: "independent" } : revision.concurrency;
-}
-
 export class ExecutionEngine {
   private readonly repository: ExecutionRepository;
   private readonly executors: ExecutionNodeExecutorRegistry;
@@ -238,7 +230,7 @@ export class ExecutionEngine {
   async start(input: StartExecutionInput): Promise<WorkflowRunAdmission> {
     const plan = compileExecutionRevision(input.revision);
     const activeRuns = this.workflowActiveRuns(input.revision.workflowId);
-    const concurrency = effectiveConcurrency(input.revision);
+    const concurrency = input.revision.concurrency;
     if (concurrency.mode === "skip" && activeRuns.size > 0) {
       return { kind: "skipped", activeRunId: activeRuns.values().next().value! };
     }
@@ -308,7 +300,7 @@ export class ExecutionEngine {
         .filter(([workflowId, queue]) => {
           const next = queue[0];
           if (!next) return false;
-          const concurrency = effectiveConcurrency(next.plan.revision);
+          const concurrency = next.plan.revision.concurrency;
           if (concurrency.mode === "independent") return true;
           if (this.active.size >= MAX_ACTIVE_EXECUTION_RUNS) return false;
           const limit = concurrency.mode === "parallel" ? concurrency.maxActiveRuns : 1;

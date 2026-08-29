@@ -170,7 +170,7 @@ export const ExecutionDocumentSchema = Type.Object(
   {
     schemaVersion: Type.Literal(1),
     id: Id,
-    kind: Type.Union([Type.Literal("workflow"), Type.Literal("sop"), Type.Literal("automation")]),
+    kind: Type.Union([Type.Literal("workflow"), Type.Literal("sop")]),
     scope: Type.Union([
       Type.Object({ type: Type.Literal("personal") }, { additionalProperties: false }),
       Type.Object(

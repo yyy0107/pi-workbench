@@ -24,7 +24,7 @@ test("computes future cron occurrences using the configured timezone across DST"
   assert.ok(next > beforeDst);
 });
 
-test("deduplicates repeated internal event IDs", async () => {
+test("deduplicates internal-event workflow runs", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "workbench-workflow-trigger-"));
   try {
     const repository = new ExecutionRepository({
@@ -33,10 +33,10 @@ test("deduplicates repeated internal event IDs", async () => {
     });
     const document: WorkflowDocument = {
       schemaVersion: 1,
-      id: "automation-1",
-      kind: "automation",
+      id: "workflow-1",
+      kind: "workflow",
       scope: { type: "personal" },
-      name: "Automation",
+      name: "Workflow",
       graph: {
         nodes: [
           { id: "start", type: "start", name: "Start", position: { x: 0, y: 0 }, config: {} },

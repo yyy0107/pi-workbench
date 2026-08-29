@@ -7,7 +7,7 @@ export type ExecutionThinkingLevel =
   | "xhigh"
   | "max";
 
-export type WorkflowKind = "workflow" | "sop" | "automation";
+export type WorkflowKind = "workflow" | "sop";
 
 export type WorkflowScope = { type: "personal" } | { type: "project"; workspaceId: string };
 
@@ -512,7 +512,7 @@ export function parseExecutionSessionOrigin(value: unknown): ExecutionSessionOri
     !value.workflowId ||
     typeof value.workflowName !== "string" ||
     !value.workflowName ||
-    !["workflow", "sop", "automation"].includes(value.workflowKind as string) ||
+    !["workflow", "sop"].includes(value.workflowKind as string) ||
     typeof value.runId !== "string" ||
     !value.runId ||
     typeof value.nodeId !== "string" ||

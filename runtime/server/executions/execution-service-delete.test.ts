@@ -15,7 +15,7 @@ function run(id: string, status: WorkflowRunSummary["status"]): WorkflowRunSumma
     id,
     workflowId: "flow-1",
     workflowName: "Flow",
-    workflowKind: "automation",
+    workflowKind: "workflow",
     revisionId: "revision-1",
     source: "manual",
     status,

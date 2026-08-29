@@ -67,7 +67,7 @@ async function fixture(t: test.TestContext) {
       origin: "execution",
       workflowId: "workflow-1",
       workflowName: "Daily review",
-      workflowKind: "automation",
+      workflowKind: "workflow",
       runId: "run-1",
       nodeId: "agent-1",
       attempt: 1,
@@ -159,7 +159,7 @@ test("restores the session catalog without a full scan after process state is lo
     origin: "execution",
     workflowId: "workflow-1",
     workflowName: "Daily review",
-    workflowKind: "automation",
+    workflowKind: "workflow",
     runId: "run-1",
     nodeId: "agent-1",
     attempt: 1,
@@ -205,7 +205,7 @@ test("restores the session catalog without a full scan after process state is lo
 
   const first = await listSessions();
   assert.equal(first.sessions[0]?.id, manager.getSessionId());
-  assert.equal(first.sessions[0]?.executionOrigin?.workflowKind, "automation");
+  assert.equal(first.sessions[0]?.executionOrigin?.workflowKind, "workflow");
   assert.equal(fullScanCount, 1);
   assert.match((await listSessionSearchText())[0]?.allMessagesText ?? "", /persist me persisted/u);
 

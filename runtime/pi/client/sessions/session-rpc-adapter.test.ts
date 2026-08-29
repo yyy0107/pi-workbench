@@ -39,7 +39,7 @@ test("adapts session list metadata carried in protocol projections", () => {
             origin: "execution",
             workflowId: "workflow-1",
             workflowName: "Daily review",
-            workflowKind: "automation",
+            workflowKind: "workflow",
             runId: "run-1",
             nodeId: "agent-1",
             attempt: 1,
@@ -57,7 +57,7 @@ test("adapts session list metadata carried in protocol projections", () => {
   assert.equal(summary.waitingForUserInput, true);
   assert.deepEqual(summary.runTiming, { startedAt: 1_500, elapsedMs: 500 });
   assert.deepEqual(summary.workspace, { id: "w-1", name: "Work", cwd: "/work" });
-  assert.equal(summary.executionOrigin?.workflowKind, "automation");
+  assert.equal(summary.executionOrigin?.workflowKind, "workflow");
   assert.equal(summary.executionOrigin?.runId, "run-1");
 });
 

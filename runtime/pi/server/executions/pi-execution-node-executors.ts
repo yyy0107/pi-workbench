@@ -99,9 +99,9 @@ export class PiAgentExecutionNodeExecutor implements ExecutionNodeExecutor {
     const node = context.node as AgentNode;
     assertTrustedWorkspace(context.workspaceId, context.workspacePath, this.isWorkspaceTrusted);
 
-    // Use the ordinary project session path so an automation run is a real, durable Workbench
+    // Use the ordinary project session path so an Agent node is a real, durable Workbench
     // task. The execution-origin marker lets every projection identify both the task and project
-    // as automation-owned without maintaining a second relationship store.
+    // as workflow-owned without maintaining a second relationship store.
     const host = await this.createProjectSession(
       context.workspacePath,
       undefined,
@@ -136,7 +136,7 @@ export class PiAgentExecutionNodeExecutor implements ExecutionNodeExecutor {
         },
       });
       if (admission.kind !== "started") {
-        throw new Error("A newly created automation task unexpectedly queued its first prompt.");
+        throw new Error("A newly created workflow task unexpectedly queued its first prompt.");
       }
       await host.waitForCurrentPrompt();
       if (context.signal.aborted) throw new DOMException("Run cancelled", "AbortError");

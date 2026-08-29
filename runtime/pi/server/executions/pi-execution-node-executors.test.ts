@@ -51,7 +51,7 @@ test("submits an automation turn through the shared frontend execution port", as
     origin: "execution",
     workflowId: "workflow-1",
     workflowName: "Daily review",
-    workflowKind: "automation",
+    workflowKind: "workflow",
     runId: "run-1",
     nodeId: "agent",
     attempt: 1,

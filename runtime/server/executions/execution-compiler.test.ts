@@ -115,7 +115,7 @@ test("accepts a stable Agent model and thinking selection", () => {
 });
 
 test("accepts an optional scheduled-run duration and rejects values below the minimum", () => {
-  const value = document("automation");
+  const value = document();
   value.triggers = [
     {
       id: "schedule",

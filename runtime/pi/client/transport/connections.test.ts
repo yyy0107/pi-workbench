@@ -119,7 +119,7 @@ function sessionSummary(id: string) {
       origin: "execution",
       workflowId: "workflow-1",
       workflowName: "Daily review",
-      workflowKind: "automation",
+      workflowKind: "workflow",
       runId: "run-1",
       nodeId: "agent-1",
       attempt: 1,

@@ -69,10 +69,11 @@ export class ExecutionTriggerService {
       try {
         const document = await this.readWorkflow(state.workflowId);
         const trigger = document.triggers.find(({ id }) => id === state.triggerId);
-        if (!trigger || document.kind !== "automation" || !document.publishedRevisionId) {
+        if (!trigger || !document.publishedRevisionId) {
           await this.persist({ ...state, enabled: false, disabledReason: "definition-changed" });
           continue;
         }
+        await this.assertCanEnable(document, trigger);
         if (trigger.type === "schedule") await this.schedule(document, trigger, state);
       } catch {
         await this.persist({ ...state, enabled: false, disabledReason: "definition-unavailable" });
@@ -103,12 +104,10 @@ export class ExecutionTriggerService {
   }
 
   private async assertCanEnable(document: WorkflowDocument, trigger: TriggerSpec): Promise<void> {
-    if (document.kind !== "automation" || !document.publishedRevisionId) {
-      throw new ExecutionError(
-        "workflow-not-published",
-        "Publish the automation before enabling a trigger.",
-        { workflowId: document.id },
-      );
+    if (!document.publishedRevisionId) {
+      throw new ExecutionError("workflow-not-published", "Publish the workflow first.", {
+        workflowId: document.id,
+      });
     }
     if (trigger.type === "schedule") {
       try {
@@ -129,17 +128,18 @@ export class ExecutionTriggerService {
       }
     }
     const workspaceId = this.workspaceId(document, trigger);
-    if (!workspaceId) {
+    const needsTargetWorkspace = document.graph.nodes.some(({ type }) => type === "command");
+    if (needsTargetWorkspace && !workspaceId) {
       throw new ExecutionError(
         "workspace-required",
-        "Personal automation triggers need a target workspace.",
+        "Personal workflow triggers with Command nodes need a target workspace.",
         { workflowId: document.id },
       );
     }
-    if (!(await this.isWorkspaceTrusted(workspaceId))) {
+    if (workspaceId && !(await this.isWorkspaceTrusted(workspaceId))) {
       throw new ExecutionError(
         "workspace-not-trusted",
-        "The automation target workspace is not trusted.",
+        "The workflow target workspace is not trusted.",
         { workspaceId },
       );
     }
