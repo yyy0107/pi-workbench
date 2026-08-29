@@ -63,11 +63,14 @@ export function SidebarPrimaryNavigation({
     <div className="flex h-11 shrink-0 items-center gap-1 ps-4 pe-0.5 md:h-10 md:ps-[calc(var(--icon-frame-size-default)+14px)]">
       <nav
         aria-label={t("workbench.sidebar.mainNavigation")}
+        data-active-section={activeSection}
         className={cn(
-          "grid min-w-0 flex-1 items-center gap-1 transition-[grid-template-columns] duration-[240ms] ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
+          "relative isolate grid min-w-0 flex-1 items-center gap-1 transition-[grid-template-columns] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
           navigationGridClass,
         )}
       >
+        <span aria-hidden="true" className={styles.selectionIndicator} />
+
         {items.map(({ id, icon: Icon, label }) => {
           const active = id === activeSection;
 
@@ -79,10 +82,13 @@ export function SidebarPrimaryNavigation({
               aria-current={active ? "page" : undefined}
               aria-label={label}
               title={label}
+              data-selection="none"
               className={cn(
-                "relative w-full justify-start! gap-0! overflow-hidden! rounded-xl p-0! text-sm font-semibold transition-[background-color,color]! duration-150 ease-out motion-reduce:transition-none! active:translate-y-0!",
+                "relative z-10 w-full justify-start! gap-0! overflow-hidden! rounded-xl bg-transparent! p-0! text-sm font-semibold transition-[background-color,color]! duration-150 ease-out motion-reduce:transition-none! active:translate-y-0!",
                 styles.navigationButton,
-                !active && "text-muted-foreground hover:text-foreground",
+                active
+                  ? "[color:var(--button-foreground-selected)] hover:bg-transparent!"
+                  : "text-muted-foreground hover:text-foreground",
               )}
               onClick={() => onSectionChange(id)}
             >
@@ -95,8 +101,10 @@ export function SidebarPrimaryNavigation({
               <span
                 aria-hidden={!active}
                 className={cn(
-                  "pointer-events-none absolute start-[var(--icon-frame-size-default)] top-1/2 w-[4.25rem] -translate-y-1/2 truncate opacity-0 transition-opacity duration-150 ease-out motion-reduce:transition-none",
-                  active ? "opacity-100 delay-75" : "delay-0",
+                  "pointer-events-none absolute start-[var(--icon-frame-size-default)] top-1/2 w-[4.25rem] -translate-x-1 -translate-y-1/2 truncate opacity-0 transition-[opacity,transform] ease-out motion-reduce:transition-none",
+                  active
+                    ? "translate-x-0 opacity-100 delay-60 duration-140"
+                    : "delay-0 duration-80",
                 )}
               >
                 {label}

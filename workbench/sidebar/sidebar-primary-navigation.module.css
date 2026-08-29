@@ -1,31 +1,68 @@
+.selectionIndicator {
+  --selection-gap: 0.25rem;
+  --selection-offset: 0px;
+
+  position: absolute;
+  z-index: 0;
+  inset-block-start: 50%;
+  inset-inline-start: 0;
+  width: clamp(
+    var(--icon-frame-size-default),
+    calc(
+      100% - var(--icon-frame-size-default) - var(--icon-frame-size-default) -
+        var(--selection-gap) - var(--selection-gap)
+    ),
+    7rem
+  );
+  height: var(--button-height-default);
+  border-radius: var(--button-radius);
+  background: var(--button-background-selected);
+  transform: translate3d(var(--selection-offset), -50%, 0);
+  transition:
+    width 200ms cubic-bezier(0.32, 0.72, 0, 1),
+    transform 200ms cubic-bezier(0.32, 0.72, 0, 1);
+  will-change: transform;
+}
+
+nav[data-active-section="toolbox"] .selectionIndicator {
+  --selection-offset: calc(var(--icon-frame-size-default) + var(--selection-gap));
+}
+
+nav[data-active-section="workflows"] .selectionIndicator {
+  --selection-offset: calc(
+    var(--icon-frame-size-default) + var(--icon-frame-size-default) + var(--selection-gap) +
+      var(--selection-gap)
+  );
+}
+
 .navigationButton:is(:hover, :focus-visible)
   .icon
   :where(path, circle, rect, line, polyline, polygon, ellipse) {
-  animation: draw-icon-stroke 800ms linear both;
+  animation: draw-icon-stroke 520ms linear both;
 }
 
 .navigationButton:is(:hover, :focus-visible)
   .icon
   :where(path, circle, rect, line, polyline, polygon, ellipse):nth-child(2) {
-  animation-delay: 80ms;
+  animation-delay: 45ms;
 }
 
 .navigationButton:is(:hover, :focus-visible)
   .icon
   :where(path, circle, rect, line, polyline, polygon, ellipse):nth-child(3) {
-  animation-delay: 160ms;
+  animation-delay: 90ms;
 }
 
 .navigationButton:is(:hover, :focus-visible)
   .icon
   :where(path, circle, rect, line, polyline, polygon, ellipse):nth-child(4) {
-  animation-delay: 240ms;
+  animation-delay: 135ms;
 }
 
 .navigationButton:is(:hover, :focus-visible)
   .icon
   :where(path, circle, rect, line, polyline, polygon, ellipse):nth-child(n + 5) {
-  animation-delay: 320ms;
+  animation-delay: 180ms;
 }
 
 @keyframes draw-icon-stroke {
@@ -41,6 +78,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .selectionIndicator {
+    transition: none;
+  }
+
   .navigationButton:is(:hover, :focus-visible)
     .icon
     :where(path, circle, rect, line, polyline, polygon, ellipse) {
