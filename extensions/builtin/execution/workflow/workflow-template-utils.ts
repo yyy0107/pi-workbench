@@ -10,9 +10,16 @@ export function createLinearWorkflowGraph(
     ...node,
     position: { x: 80 + index * 220, y: 160 },
   }));
+  const agents = new Map(document.agents.map((agent) => [agent.id, agent]));
+  for (const node of steps) {
+    if (node.type === "agent" && !agents.has(node.config.agentId)) {
+      agents.set(node.config.agentId, { id: node.config.agentId, name: node.name });
+    }
+  }
 
   return {
     ...document,
+    agents: [...agents.values()],
     graph: {
       nodes,
       edges: nodes.slice(0, -1).map((node, index) => ({

@@ -1,10 +1,25 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarClockIcon, GitBranchIcon, PlusIcon, Trash2Icon, ZapIcon } from "lucide-react";
+import {
+  BotIcon,
+  CalendarClockIcon,
+  ChevronDownIcon,
+  GitBranchIcon,
+  PlusIcon,
+  Trash2Icon,
+  ZapIcon,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuRadioGroup } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import {
+  SettingsDropdownContent,
+  SettingsDropdownRadioItem,
+  SettingsDropdownTrigger,
+} from "@/components/ui/settings-control";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useI18n } from "@/i18n";
@@ -18,7 +33,7 @@ import type {
 } from "@/runtime/shared/execution";
 import type { WorkspaceSurfaceProps } from "@/platform/extensions/authoring";
 
-import { useWorkflowEditorStore } from "./workflow-state";
+import { useWorkflowEditorStore } from "../execution-state";
 
 export interface WorkflowInspectorParams extends Record<string, unknown> {
   workflowId: string;
@@ -31,7 +46,22 @@ function patchNode(node: FlowNode, field: string, value: unknown): FlowNode {
   if (field === "name") return { ...node, name: String(value) };
   switch (node.type) {
     case "agent":
-      return { ...node, config: { ...node.config, prompt: String(value) } };
+      if (field === "agentId") {
+        return { ...node, config: { ...node.config, agentId: String(value) } };
+      }
+      if (field === "promptTemplate") {
+        return {
+          ...node,
+          config: { ...node.config, promptTemplate: String(value) || undefined },
+        };
+      }
+      return {
+        ...node,
+        config: {
+          ...node.config,
+          output: { schema: value as WorkflowJsonValue },
+        },
+      };
     case "command":
       if (field === "relativeCwd") {
         return {
@@ -87,34 +117,28 @@ export function WorkflowInspectorSurface({
   }
   return (
     <div className="flex h-full min-h-0 flex-col">
-      {document.kind === "automation" ? (
-        <div className="border-border flex shrink-0 gap-1 border-b p-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            aria-pressed={inspectorTab === "node"}
-            onClick={() => setInspectorTab("node")}
-          >
-            <GitBranchIcon />
-            {t("extensions.workflows.inspector.nodeTab")}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            aria-pressed={inspectorTab === "trigger"}
-            onClick={() => setInspectorTab("trigger")}
-          >
-            <ZapIcon />
-            {t("extensions.workflows.inspector.triggerTab")}
-          </Button>
-        </div>
-      ) : null}
+      <div className="border-border flex shrink-0 gap-1 border-b p-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-pressed={inspectorTab === "node"}
+          onClick={() => setInspectorTab("node")}
+        >
+          <GitBranchIcon />
+          {t("extensions.workflows.inspector.nodeTab")}
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-pressed={inspectorTab === "trigger"}
+          onClick={() => setInspectorTab("trigger")}
+        >
+          <ZapIcon />
+          {t("extensions.workflows.inspector.triggerTab")}
+        </Button>
+      </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
-        {document.kind === "automation" && inspectorTab === "trigger" ? (
-          <TriggerInspector />
-        ) : (
-          <NodeInspector />
-        )}
+        {inspectorTab === "trigger" ? <TriggerInspector /> : <NodeInspector />}
       </div>
     </div>
   );
@@ -138,6 +162,10 @@ function NodeInspector() {
       </div>
     );
   }
+  const selectedAgent =
+    node.type === "agent"
+      ? document.agents.find((agent) => agent.id === node.config.agentId)
+      : undefined;
   const update = (field: string, value: unknown) =>
     updateDocument((current) => ({
       ...current,
@@ -173,15 +201,65 @@ function NodeInspector() {
         />
       </div>
       {node.type === "agent" ? (
-        <div className={fieldClass}>
-          <label htmlFor="workflow-node-prompt">{t("extensions.workflows.inspector.prompt")}</label>
-          <Textarea
-            id="workflow-node-prompt"
-            rows={8}
-            value={node.config.prompt}
-            onChange={(event) => update("prompt", event.currentTarget.value)}
-          />
-        </div>
+        <>
+          <div className={fieldClass}>
+            <label htmlFor="workflow-node-agent">{t("extensions.workflows.inspector.agent")}</label>
+            <DropdownMenu>
+              <SettingsDropdownTrigger
+                id="workflow-node-agent"
+                type="button"
+                className="w-full justify-start"
+              >
+                <BotIcon aria-hidden="true" />
+                <span className="min-w-0 flex-1 truncate text-start">
+                  {selectedAgent?.name ?? node.config.agentId}
+                </span>
+                <ChevronDownIcon aria-hidden="true" className="text-muted-foreground" />
+              </SettingsDropdownTrigger>
+              <SettingsDropdownContent align="start" className="w-(--anchor-width)">
+                <DropdownMenuRadioGroup
+                  value={node.config.agentId}
+                  onValueChange={(agentId) => update("agentId", agentId)}
+                >
+                  {document.agents.map((agent) => (
+                    <SettingsDropdownRadioItem key={agent.id} value={agent.id}>
+                      <BotIcon aria-hidden="true" />
+                      <span className="min-w-0 flex-1 truncate">{agent.name}</span>
+                    </SettingsDropdownRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </SettingsDropdownContent>
+            </DropdownMenu>
+          </div>
+          <div className={fieldClass}>
+            <label htmlFor="workflow-node-prompt-template">
+              {t("extensions.workflows.inspector.promptTemplate")}
+            </label>
+            <Input
+              id="workflow-node-prompt-template"
+              value={node.config.promptTemplate ?? ""}
+              onChange={(event) => update("promptTemplate", event.currentTarget.value)}
+            />
+          </div>
+          <div className={fieldClass}>
+            <label htmlFor="workflow-node-output-schema">
+              {t("extensions.workflows.inspector.outputSchema")}
+            </label>
+            <Textarea
+              key={`${node.id}:${JSON.stringify(node.config.output.schema)}`}
+              id="workflow-node-output-schema"
+              rows={8}
+              defaultValue={JSON.stringify(node.config.output.schema, null, 2)}
+              onBlur={(event) => {
+                try {
+                  update("outputSchema", JSON.parse(event.currentTarget.value));
+                } catch {
+                  event.currentTarget.value = JSON.stringify(node.config.output.schema, null, 2);
+                }
+              }}
+            />
+          </div>
+        </>
       ) : null}
       {node.type === "command" ? (
         <>
@@ -237,9 +315,8 @@ function NodeInspector() {
             <label htmlFor="workflow-node-operator">
               {t("extensions.workflows.inspector.operator")}
             </label>
-            <select
+            <Select
               id="workflow-node-operator"
-              className="h-[var(--input-control-height)] rounded-[var(--input-control-radius)] border bg-background px-2 text-sm"
               value={node.config.operator}
               onChange={(event) => update("operator", event.currentTarget.value)}
             >
@@ -250,7 +327,7 @@ function NodeInspector() {
                   </option>
                 ),
               )}
-            </select>
+            </Select>
           </div>
           <div className={fieldClass}>
             <label htmlFor="workflow-node-value">
@@ -444,9 +521,8 @@ function TriggerInspector() {
                   <label htmlFor={`trigger-event-${trigger.id}`}>
                     {t("extensions.workflows.triggers.eventName")}
                   </label>
-                  <select
+                  <Select
                     id={`trigger-event-${trigger.id}`}
-                    className="h-[var(--input-control-height)] rounded-[var(--input-control-radius)] border bg-background px-2 text-sm"
                     value={trigger.event}
                     onChange={(event) =>
                       update(trigger.id, {
@@ -462,7 +538,7 @@ function TriggerInspector() {
                     </option>
                     <option value="workbench.session.completed">workbench.session.completed</option>
                     <option value="workbench.workspace.updated">workbench.workspace.updated</option>
-                  </select>
+                  </Select>
                 </div>
               )}
               {document.scope.type === "personal" ? (
@@ -470,9 +546,8 @@ function TriggerInspector() {
                   <label htmlFor={`trigger-workspace-${trigger.id}`}>
                     {t("extensions.workflows.triggers.targetWorkspace")}
                   </label>
-                  <select
+                  <Select
                     id={`trigger-workspace-${trigger.id}`}
-                    className="h-[var(--input-control-height)] rounded-[var(--input-control-radius)] border bg-background px-2 text-sm"
                     value={trigger.targetWorkspaceId ?? ""}
                     onChange={(event) =>
                       update(trigger.id, {
@@ -486,7 +561,7 @@ function TriggerInspector() {
                         {workspace.name}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
               ) : null}
               <Button

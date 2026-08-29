@@ -48,8 +48,8 @@ import type {
 } from "@/runtime/shared/execution";
 
 import { WorkflowGraphThumbnail } from "./workflow-graph-thumbnail";
-import { workflowMainViewRequest } from "./workflow-main-view";
-import { useWorkflowCatalogStore } from "./workflow-state";
+import { workflowMainViewRequest } from "../execution-main-view";
+import { useWorkflowCatalogStore } from "../execution-state";
 
 const RUN_STATUS_KEYS = {
   queued: "queued",

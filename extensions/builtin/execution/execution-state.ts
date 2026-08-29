@@ -10,7 +10,7 @@ import type {
   WorkflowTriggerState,
 } from "@/runtime/shared/execution";
 import { workflowClient } from "@/runtime/pi/client/workflows/workflow-client";
-import { mergeWorkflowRuns } from "./workflow-run-merge";
+import { mergeWorkflowRuns } from "./execution-run-merge";
 
 type LoadState = "idle" | "loading" | "ready" | "error";
 export type WorkflowWakeLockState = "idle" | "active" | "unsupported" | "error";
@@ -45,26 +45,27 @@ export const useWorkflowCatalogStore = create<WorkflowCatalogState>((set) => ({
   async refresh() {
     set({ loadState: "loading", error: undefined });
     try {
-      const [workflows, runs] = await Promise.all([
-        workflowClient.list({}),
-        workflowClient.listRuns({ limit: 200 }),
-      ]);
-      const triggerSnapshots = await Promise.all(
-        workflows.items
-          .filter(({ kind, triggerCount }) => kind === "automation" && triggerCount > 0)
-          .map(({ id }) => workflowClient.listTriggers({ workflowId: id })),
-      );
-      set((state) => ({
+      const workflows = await workflowClient.list({});
+      set({
         items: workflows.items,
-        // Host deltas may arrive while the refresh RPC is in flight. Merge by durable sequence so
-        // that a delayed list response cannot roll a run back to queued/running.
-        runs: mergeWorkflowRuns(
-          runs.items.filter(({ id }) => !state.removedRunIds.has(id)),
-          state.runs,
-        ),
-        triggerStates: triggerSnapshots.flatMap(({ states }) => states),
         loadState: "ready",
-      }));
+        error: undefined,
+      });
+
+      const runs = await workflowClient.listRuns({ limit: 200 }).then(
+        (value) => ({ status: "fulfilled" as const, value }),
+        () => ({ status: "rejected" as const }),
+      );
+      if (runs.status === "fulfilled") {
+        set((state) => ({
+          // Host deltas may arrive while the refresh RPC is in flight. Merge by durable sequence so
+          // that a delayed list response cannot roll a run back to queued/running.
+          runs: mergeWorkflowRuns(
+            runs.value.items.filter(({ id }) => !state.removedRunIds.has(id)),
+            state.runs,
+          ),
+        }));
+      }
     } catch (error) {
       set({
         loadState: "error",
@@ -172,7 +173,7 @@ export const useWorkflowEditorStore = create<WorkflowEditorState>((set, get) => 
       document,
       triggerStates,
       selection: undefined,
-      inspectorTab: document.kind === "automation" ? "trigger" : "node",
+      inspectorTab: "node",
       saveState: "idle",
       error: undefined,
       editVersion: 0,

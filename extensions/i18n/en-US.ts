@@ -889,6 +889,17 @@ export const extensionsEnUS = {
       sop: "SOP",
       automation: "Automation",
     },
+    trust: {
+      question: "Trust this workflow folder?",
+      description:
+        "Trusting allows Pi to load this workflow's Agent settings, prompts, skills, and extensions. Only trust workflows you created or reviewed.",
+      securityDecision: "Workflow trust",
+      accept: "Trust workflow",
+      decline: "Do not trust",
+      saving: "Saving…",
+      cancel: "Cancel workflow trust",
+      saveError: "Unable to save the workflow trust decision.",
+    },
     workflowHome: {
       title: "Workflows",
       description:
@@ -968,6 +979,13 @@ export const extensionsEnUS = {
       moreActions: ({ name }: { name: string }) => `More actions for ${name}`,
       noNextRun: "No upcoming run",
       nextRun: ({ time }: { time: string }) => `Next run: ${time}`,
+      nextRunRelative: ({ time }: { time: string }) => `Next run ${time}`,
+      scheduleAt: ({ recurrence, time }: { recurrence: string; time: string }) =>
+        `${recurrence} at ${time}`,
+      customSchedule: ({ cron }: { cron: string }) => `Cron: ${cron}`,
+      scheduleWithNextRun: ({ schedule, nextRun }: { schedule: string; nextRun: string }) =>
+        `${schedule} · ${nextRun}`,
+      paused: "Paused",
       runCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
         `${number(count)} ${count === 1 ? "run" : "runs"}`,
       neverRun: "Never run",
@@ -979,7 +997,7 @@ export const extensionsEnUS = {
       alreadyRunning: ({ name }: { name: string }) => `${name} is already running.`,
       runFailed: ({ name }: { name: string }) => `${name} could not be started.`,
       enabledFeedback: ({ name }: { name: string }) => `${name} is enabled.`,
-      disabledFeedback: ({ name }: { name: string }) => `${name} is disabled.`,
+      disabledFeedback: ({ name }: { name: string }) => `${name} is paused.`,
       toggleFailed: ({ name }: { name: string }) => `${name} could not be updated.`,
       deletedFeedback: ({ name }: { name: string }) => `${name} was deleted.`,
       deleteFailed: ({ name }: { name: string }) => `${name} could not be deleted.`,
@@ -1149,7 +1167,14 @@ export const extensionsEnUS = {
         timezone: string;
         recurrence: string;
       }) => `${timezone} · ${recurrence}`,
-      customScheduleSummary: ({ timezone, cron }: { timezone: string; cron: string }) =>
+      customScheduleSummary: ({
+        timezone,
+        description,
+      }: {
+        timezone: string;
+        description: string;
+      }) => `${timezone} · ${description}`,
+      customScheduleFallback: ({ timezone, cron }: { timezone: string; cron: string }) =>
         `${timezone} · Cron: ${cron}`,
       frequency: {
         hourly: "Every hour",
@@ -1254,6 +1279,9 @@ export const extensionsEnUS = {
       noSelection: "Select a node or step to edit its configuration.",
       name: "Name",
       prompt: "Prompt",
+      agent: "Agent workspace",
+      promptTemplate: "Prompt template",
+      outputSchema: "Output JSON Schema",
       command: "Command",
       relativeCwd: "Relative working directory",
       timeout: "Timeout (seconds)",

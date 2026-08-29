@@ -21,6 +21,7 @@ export function ProjectTrustDialog({
   open,
   path,
   savingDecision,
+  variant = "project",
   onCancel,
   onConfirm,
   onDecline,
@@ -29,12 +30,35 @@ export function ProjectTrustDialog({
   open: boolean;
   path: string;
   savingDecision?: "trust" | "decline";
+  variant?: "project" | "workflow";
   onCancel(): void;
   onConfirm(): void | Promise<void>;
   onDecline(): void | Promise<void>;
 }) {
   const { t } = useI18n();
   const saving = savingDecision !== undefined;
+  const copy =
+    variant === "workflow"
+      ? {
+          question: t("extensions.workflows.trust.question"),
+          description: t("extensions.workflows.trust.description"),
+          securityDecision: t("extensions.workflows.trust.securityDecision"),
+          accept: t("extensions.workflows.trust.accept"),
+          decline: t("extensions.workflows.trust.decline"),
+          saving: t("extensions.workflows.trust.saving"),
+          cancel: t("extensions.workflows.trust.cancel"),
+          saveError: t("extensions.workflows.trust.saveError"),
+        }
+      : {
+          question: t("extensions.workspaceDirectory.trustQuestion"),
+          description: t("extensions.workspaceDirectory.trustDescription"),
+          securityDecision: t("extensions.workspaceDirectory.trustSecurityDecision"),
+          accept: t("extensions.workspaceDirectory.trustAccept"),
+          decline: t("extensions.workspaceDirectory.trustDecline"),
+          saving: t("extensions.workspaceDirectory.trustSaving"),
+          cancel: t("extensions.workspaceDirectory.trustCancel"),
+          saveError: t("extensions.workspaceDirectory.trustSaveError"),
+        };
 
   return (
     <Dialog
@@ -44,7 +68,7 @@ export function ProjectTrustDialog({
       }}
     >
       <DialogContent
-        closeLabel={t("extensions.workspaceDirectory.trustCancel")}
+        closeLabel={copy.cancel}
         showCloseButton={!saving}
         className={cn(
           paper,
@@ -53,10 +77,10 @@ export function ProjectTrustDialog({
       >
         <DialogHeader className="gap-3 pe-10">
           <DialogTitle className="text-xl leading-7 font-semibold tracking-tight">
-            {t("extensions.workspaceDirectory.trustQuestion")}
+            {copy.question}
           </DialogTitle>
           <DialogDescription className="text-muted-foreground text-[15px] leading-7">
-            {t("extensions.workspaceDirectory.trustDescription")}
+            {copy.description}
           </DialogDescription>
         </DialogHeader>
 
@@ -69,18 +93,14 @@ export function ProjectTrustDialog({
 
         {error ? (
           <p role="alert" className="text-destructive text-sm leading-5">
-            {t(
-              error === "save"
-                ? "extensions.workspaceDirectory.trustSaveError"
-                : "extensions.workspaceDirectory.selectError",
-            )}
+            {error === "save" ? copy.saveError : t("extensions.workspaceDirectory.selectError")}
           </p>
         ) : null}
 
         <div className="flex flex-col gap-4 border-t border-foreground/8 pt-4 sm:flex-row sm:items-center sm:justify-between">
           <span className="text-muted-foreground inline-flex items-center gap-2 text-xs font-medium">
             <ShieldCheckIcon aria-hidden="true" className="size-4 text-emerald-500" />
-            {t("extensions.workspaceDirectory.trustSecurityDecision")}
+            {copy.securityDecision}
           </span>
           <div className="flex items-center justify-end gap-2">
             <Button
@@ -98,11 +118,7 @@ export function ProjectTrustDialog({
                   className="animate-spin motion-reduce:animate-none"
                 />
               ) : null}
-              {t(
-                savingDecision === "decline"
-                  ? "extensions.workspaceDirectory.trustSaving"
-                  : "extensions.workspaceDirectory.trustDecline",
-              )}
+              {savingDecision === "decline" ? copy.saving : copy.decline}
             </Button>
             <Button
               type="button"
@@ -118,11 +134,7 @@ export function ProjectTrustDialog({
                   className="animate-spin motion-reduce:animate-none"
                 />
               ) : null}
-              {t(
-                savingDecision === "trust"
-                  ? "extensions.workspaceDirectory.trustSaving"
-                  : "extensions.workspaceDirectory.trustAccept",
-              )}
+              {savingDecision === "trust" ? copy.saving : copy.accept}
             </Button>
           </div>
         </div>

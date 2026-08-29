@@ -2,7 +2,7 @@ import { defineMessage } from "@/i18n";
 import type { MainViewBreadcrumbs, OpenMainViewRequest } from "@/platform/extensions/authoring";
 import type { WorkflowKind, WorkflowScope } from "@/runtime/shared/execution";
 
-import type { AutomationTaskPreset } from "./automation-task-presets";
+import type { AutomationTaskPreset } from "./automation/automation-task-presets";
 
 export const WORKFLOW_MAIN_VIEW_KIND = "workflows";
 export const WORKFLOW_MAIN_VIEW_TITLE = defineMessage("extensions.workflows.title");
@@ -18,8 +18,8 @@ export type WorkflowMainViewParams =
   | { page: "workflows" }
   | { page: "automations" }
   | { page: "automation-create"; preset?: AutomationTaskPreset }
-  | { page: "automation-edit"; workflowId: string }
-  | { page: "editor"; workflowId: string; kind?: Exclude<WorkflowKind, "automation"> }
+  | { page: "automation-edit"; automationId: string }
+  | { page: "editor"; workflowId: string; kind?: WorkflowKind }
   | { page: "create"; kind?: WorkflowKind; scope?: WorkflowScope }
   | { page: "runs"; workflowId?: string; runId?: string; kind?: WorkflowKind }
   | { page: "templates"; kind?: WorkflowKind };
@@ -28,9 +28,6 @@ function collectionBreadcrumb(
   kind: WorkflowKind | undefined,
 ): MainViewBreadcrumbs<WorkflowMainViewParams>[number] {
   if (kind === "workflow") return { label: WORKFLOW_HOME_TITLE, params: { page: "workflows" } };
-  if (kind === "automation") {
-    return { label: AUTOMATION_MAIN_VIEW_TITLE, params: { page: "automations" } };
-  }
   return { label: WORKFLOW_MAIN_VIEW_TITLE, closeView: true };
 }
 

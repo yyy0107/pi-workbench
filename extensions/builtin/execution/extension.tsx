@@ -6,17 +6,20 @@ import dynamic from "next/dynamic";
 import { defineMessage } from "@/i18n";
 import { defineExtension, type WorkspaceSurfaceDefinition } from "@/platform/extensions/authoring";
 
-import { WorkflowInspectorSurface, type WorkflowInspectorParams } from "./workflow-inspector";
+import {
+  WorkflowInspectorSurface,
+  type WorkflowInspectorParams,
+} from "./workflow/workflow-inspector";
 import {
   WORKFLOW_MAIN_VIEW_KIND,
   workflowMainViewRequest,
   type WorkflowMainViewParams,
-} from "./workflow-main-view";
-import { WorkflowRuntimeBridge } from "./workflow-runtime-bridge";
-import { WorkflowSidebar } from "./workflow-sidebar";
+} from "./execution-main-view";
+import { WorkflowRuntimeBridge } from "./execution-runtime-bridge";
+import { WorkflowSidebar } from "./execution-sidebar";
 
-const WorkflowMainView = dynamic(
-  () => import("./workflow-main-view-content").then((module) => module.WorkflowMainView),
+const ExecutionMainView = dynamic(
+  () => import("./execution-main-view-content").then((module) => module.ExecutionMainView),
   {
     ssr: false,
     loading: () => <div className="bg-background size-full" aria-busy="true" />,
@@ -38,7 +41,7 @@ export const workflowInspectorSurfaceDefinition = {
   runtime: WorkflowRuntimeBridge,
 } satisfies WorkspaceSurfaceDefinition<WorkflowInspectorParams>;
 
-export const workflowsExtension = defineExtension({
+export const executionExtension = defineExtension({
   id: "workbench.workflows",
   name: "Workflows",
   version: "1.0.0",
@@ -49,7 +52,7 @@ export const workflowsExtension = defineExtension({
     });
     const mainView = context.mainViews.register<WorkflowMainViewParams>({
       kind: WORKFLOW_MAIN_VIEW_KIND,
-      component: WorkflowMainView,
+      component: ExecutionMainView,
       chrome: {
         headerLeft: "hidden",
         rightWorkspace: "visible",

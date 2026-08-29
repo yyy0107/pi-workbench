@@ -5,9 +5,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { workflowClient } from "@/runtime/pi/client/workflows/workflow-client";
 import type { WorkflowRunSummary } from "@/runtime/shared/execution";
 
-import { reconcileWorkflowRunBaseline } from "./workflow-run-baseline";
-import { mergeWorkflowRuns } from "./workflow-run-merge";
-import { useWorkflowCatalogStore } from "./workflow-state";
+import { reconcileWorkflowRunBaseline } from "./execution-run-baseline";
+import { mergeWorkflowRuns } from "./execution-run-merge";
+import { useWorkflowCatalogStore } from "./execution-state";
 
 export type WorkflowRunHistoryLoadState = "loading" | "ready" | "error";
 

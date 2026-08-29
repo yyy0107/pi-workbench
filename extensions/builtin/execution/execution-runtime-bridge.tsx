@@ -5,7 +5,7 @@ import { useEffect } from "react";
 import { isWorkflowHostPayload } from "@/runtime/shared/execution";
 import { usePiSessionManager } from "@/runtime/pi/client/runtime/context";
 
-import { useWorkflowCatalogStore, useWorkflowEditorStore } from "./workflow-state";
+import { useWorkflowCatalogStore, useWorkflowEditorStore } from "./execution-state";
 
 export function WorkflowRuntimeBridge() {
   const manager = usePiSessionManager();
@@ -13,7 +13,7 @@ export function WorkflowRuntimeBridge() {
 
   useEffect(() => {
     const refresh = () => void useWorkflowCatalogStore.getState().refresh();
-    refresh();
+    if (useWorkflowCatalogStore.getState().loadState === "idle") refresh();
     const unsubscribeHost = manager.subscribeHostEvents((payload) => {
       if (!isWorkflowHostPayload(payload)) return;
       useWorkflowCatalogStore.getState().applyHostPayload(payload);

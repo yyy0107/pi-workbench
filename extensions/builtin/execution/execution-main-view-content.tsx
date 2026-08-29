@@ -15,13 +15,13 @@ import {
   SaveIcon,
   UploadIcon,
   UserRoundIcon,
-  ZapIcon,
   type LucideIcon,
 } from "lucide-react";
 
 import { useRightWorkspace, useWorkspaceContext } from "@/components/right-workspace";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { WorkspaceSelector } from "@/components/ui/workspace-selector";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
@@ -31,7 +31,6 @@ import { workflowClient } from "@/runtime/pi/client/workflows/workflow-client";
 import { PiApiError } from "@/runtime/pi/client/transport/api";
 import type {
   FlowNode,
-  TriggerSpec,
   WorkflowDocument,
   WorkflowKind,
   WorkflowRunEvent,
@@ -39,22 +38,23 @@ import type {
   WorkflowScope,
 } from "@/runtime/shared/execution";
 
-import { AutomationHome } from "./automation-home";
-import { AutomationTaskForm } from "./automation-task-form";
-import { type WorkflowInspectorParams } from "./workflow-inspector";
-import { workflowMainViewRequest, type WorkflowMainViewParams } from "./workflow-main-view";
-import { useWorkflowCatalogStore, useWorkflowEditorStore } from "./workflow-state";
-import { WorkflowRendererRouter } from "./workflow-renderer-router";
-import { WorkflowHome } from "./workflow-home";
-import { createLinearWorkflowGraph } from "./workflow-template-utils";
+import { AutomationHome } from "./automation/automation-home";
+import { AutomationTaskForm } from "./automation/automation-task-form";
+import { ProjectTrustDialog } from "@/components/ui/project-trust-dialog";
+import { type WorkflowInspectorParams } from "./workflow/workflow-inspector";
+import { workflowMainViewRequest, type WorkflowMainViewParams } from "./execution-main-view";
+import { useWorkflowCatalogStore, useWorkflowEditorStore } from "./execution-state";
+import { WorkflowRendererRouter } from "./execution-renderer-router";
+import { WorkflowHome } from "./workflow/workflow-home";
+import { createLinearWorkflowGraph } from "./workflow/workflow-template-utils";
+import { useExecutionTrustAdmission } from "./use-execution-trust-admission";
 
 const KIND_ICONS: Record<WorkflowKind, LucideIcon> = {
   workflow: GitBranchIcon,
   sop: ListChecksIcon,
-  automation: ZapIcon,
 };
 
-export function WorkflowMainView({ view }: MainViewProps<WorkflowMainViewParams>) {
+export function ExecutionMainView({ view }: MainViewProps<WorkflowMainViewParams>) {
   switch (view.params.page) {
     case "workflows":
       return <WorkflowHome />;
@@ -63,7 +63,7 @@ export function WorkflowMainView({ view }: MainViewProps<WorkflowMainViewParams>
     case "automation-create":
       return <AutomationTaskForm key={view.params.preset ?? "blank"} params={view.params} />;
     case "automation-edit":
-      return <AutomationTaskForm key={view.params.workflowId} params={view.params} />;
+      return <AutomationTaskForm key={view.params.automationId} params={view.params} />;
     case "create":
       return <CreateWorkflowPage params={view.params} />;
     case "runs":
@@ -136,8 +136,6 @@ function CreateWorkflowPage({
   const cancel = () => {
     if (kind === "workflow") {
       mainViews.open(workflowMainViewRequest({ page: "workflows" }));
-    } else if (kind === "automation") {
-      mainViews.open(workflowMainViewRequest({ page: "automations" }));
     } else {
       mainViews.close();
     }
@@ -159,11 +157,7 @@ function CreateWorkflowPage({
       });
       await useWorkflowCatalogStore.getState().refresh();
       mainViews.open(
-        workflowMainViewRequest(
-          kind === "automation"
-            ? { page: "automation-edit", workflowId: created.document.id }
-            : { page: "editor", workflowId: created.document.id, kind },
-        ),
+        workflowMainViewRequest({ page: "editor", workflowId: created.document.id, kind }),
       );
     } catch {
       setError(t("extensions.workflows.create.createFailed"));
@@ -425,6 +419,9 @@ function WorkflowEditorPage({ workflowId }: { workflowId: string }) {
   const [action, setAction] = useState<"copy" | "publish" | "run">();
   const [notice, setNotice] = useState<string>();
   const [targetWorkspaceId, setTargetWorkspaceId] = useState(workspaces[0]?.id ?? "");
+  const trustAdmission = useExecutionTrustAdmission((nextError) => {
+    setNotice(nextError instanceof Error ? nextError.message : "workflow-run-failed");
+  });
 
   useEffect(() => {
     if (!targetWorkspaceId && workspaces[0]) setTargetWorkspaceId(workspaces[0].id);
@@ -496,9 +493,7 @@ function WorkflowEditorPage({ workflowId }: { workflowId: string }) {
       />
     );
   }
-  const needsWorkspace = document.graph.nodes.some(
-    ({ type }) => type === "agent" || type === "command",
-  );
+  const needsWorkspace = document.graph.nodes.some(({ type }) => type === "command");
   const run = async () => {
     setAction("run");
     setNotice(undefined);
@@ -508,12 +503,15 @@ function WorkflowEditorPage({ workflowId }: { workflowId: string }) {
       return;
     }
     try {
-      await workflowClient.startRun({
-        workflowId: saved.id,
-        revisionSource: "draft",
-        ...(saved.scope.type === "personal" && targetWorkspaceId ? { targetWorkspaceId } : {}),
+      const { workflowDirectory } = await workflowClient.read({ workflowId: saved.id });
+      await trustAdmission.admit(workflowDirectory, async () => {
+        await workflowClient.startRun({
+          workflowId: saved.id,
+          revisionSource: "draft",
+          ...(saved.scope.type === "personal" && targetWorkspaceId ? { targetWorkspaceId } : {}),
+        });
+        setNotice(t("extensions.workflows.editor.runStarted"));
       });
-      setNotice(t("extensions.workflows.editor.runStarted"));
     } catch (nextError) {
       setNotice(nextError instanceof Error ? nextError.message : "workflow-run-failed");
     } finally {
@@ -561,22 +559,51 @@ function WorkflowEditorPage({ workflowId }: { workflowId: string }) {
         draft: {
           ...created.document,
           ...(document.description === undefined ? {} : { description: document.description }),
+          agents: document.agents,
           graph: document.graph,
           concurrency: document.concurrency,
           triggers: document.triggers,
         },
       });
+      const resourceReferences = new Map(
+        [
+          ...document.agents.map((agent) => ({
+            agentId: agent.id,
+            promptTemplate: "default",
+          })),
+          ...document.graph.nodes.flatMap((node) =>
+            node.type === "agent"
+              ? [
+                  {
+                    agentId: node.config.agentId,
+                    promptTemplate: node.config.promptTemplate ?? "default",
+                  },
+                ]
+              : [],
+          ),
+        ].map((reference) => [`${reference.agentId}\0${reference.promptTemplate}`, reference]),
+      );
+      await Promise.all(
+        [...resourceReferences.values()].map(async (reference) => {
+          const resources = await workflowClient.readAgentResources({
+            workflowId: document.id,
+            ...reference,
+          });
+          await workflowClient.updateAgentResources({
+            workflowId: copied.document.id,
+            ...reference,
+            prompt: resources.prompt,
+            ...(resources.model ? { model: resources.model } : {}),
+          });
+        }),
+      );
       await useWorkflowCatalogStore.getState().refresh();
       mainViews.open(
-        workflowMainViewRequest(
-          copied.document.kind === "automation"
-            ? { page: "automation-edit", workflowId: copied.document.id }
-            : {
-                page: "editor",
-                workflowId: copied.document.id,
-                kind: copied.document.kind,
-              },
-        ),
+        workflowMainViewRequest({
+          page: "editor",
+          workflowId: copied.document.id,
+          kind: copied.document.kind,
+        }),
       );
     } catch (nextError) {
       setNotice(nextError instanceof Error ? nextError.message : "workflow-copy-failed");
@@ -586,107 +613,110 @@ function WorkflowEditorPage({ workflowId }: { workflowId: string }) {
   };
 
   return (
-    <PageFrame>
-      <PageHeader
-        icon={KIND_ICONS[document.kind]}
-        title={document.name}
-        description={`${t(`extensions.workflows.kind.${document.kind}`)} · ${t(`extensions.workflows.save.${saveState}`)}`}
-        actions={
-          <>
-            {document.scope.type === "personal" && needsWorkspace ? (
-              <select
-                aria-label={t("extensions.workflows.create.workspace")}
-                className="hidden h-[var(--input-control-height)] max-w-40 rounded-[var(--input-control-radius)] border bg-background px-2 text-xs sm:block"
-                value={targetWorkspaceId}
-                onChange={(event) => setTargetWorkspaceId(event.currentTarget.value)}
+    <>
+      <PageFrame>
+        <PageHeader
+          icon={KIND_ICONS[document.kind]}
+          title={document.name}
+          description={`${t(`extensions.workflows.kind.${document.kind}`)} · ${t(`extensions.workflows.save.${saveState}`)}`}
+          actions={
+            <>
+              {document.scope.type === "personal" && needsWorkspace ? (
+                <Select
+                  aria-label={t("extensions.workflows.create.workspace")}
+                  className="hidden w-auto max-w-40 text-xs sm:block"
+                  value={targetWorkspaceId}
+                  onChange={(event) => setTargetWorkspaceId(event.currentTarget.value)}
+                >
+                  <option value="">—</option>
+                  {workspaces.map((workspace) => (
+                    <option key={workspace.id} value={workspace.id}>
+                      {workspace.name}
+                    </option>
+                  ))}
+                </Select>
+              ) : null}
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={
+                  Boolean(action) ||
+                  (document.scope.type === "personal" && needsWorkspace && !targetWorkspaceId)
+                }
+                onClick={() => void run()}
               >
-                <option value="">—</option>
-                {workspaces.map((workspace) => (
-                  <option key={workspace.id} value={workspace.id}>
-                    {workspace.name}
-                  </option>
-                ))}
-              </select>
-            ) : null}
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={
-                Boolean(action) ||
-                (document.scope.type === "personal" && needsWorkspace && !targetWorkspaceId)
-              }
-              onClick={() => void run()}
-            >
-              {action === "run" ? <RefreshCwIcon className="animate-spin" /> : <PlayIcon />}
-              <span className="hidden sm:inline">
-                {t(
-                  action === "run"
-                    ? "extensions.workflows.actions.running"
-                    : "extensions.workflows.actions.run",
-                )}
-              </span>
-            </Button>
-            <Button
-              size="sm"
-              disabled={Boolean(action) || saveState === "conflict"}
-              onClick={() => void publish()}
-            >
-              {action === "publish" ? <RefreshCwIcon className="animate-spin" /> : <UploadIcon />}
-              <span className="hidden sm:inline">
-                {t(
-                  action === "publish"
-                    ? "extensions.workflows.actions.publishing"
-                    : "extensions.workflows.actions.publish",
-                )}
-              </span>
-            </Button>
-          </>
-        }
-      />
-      {saveState === "conflict" || saveState === "error" || notice ? (
-        <div
-          role="status"
-          className={cn(
-            "border-border flex shrink-0 items-center gap-2 border-b px-4 py-2 text-xs",
-            saveState === "conflict" || saveState === "error"
-              ? "text-destructive"
-              : "text-muted-foreground",
-          )}
-        >
-          {saveState === "conflict" ? (
-            <AlertTriangleIcon className="size-4" />
-          ) : (
-            <SaveIcon className="size-4" />
-          )}
-          <span className="min-w-0 flex-1 truncate">{error ?? notice}</span>
-          {saveState === "conflict" ? (
-            <div className="flex shrink-0 gap-1">
-              <Button size="xs" variant="outline" disabled={Boolean(action)} onClick={saveAsCopy}>
-                {action === "copy" ? <RefreshCwIcon className="animate-spin" /> : null}
-                {t("extensions.workflows.actions.copy")}
+                {action === "run" ? <RefreshCwIcon className="animate-spin" /> : <PlayIcon />}
+                <span className="hidden sm:inline">
+                  {t(
+                    action === "run"
+                      ? "extensions.workflows.actions.running"
+                      : "extensions.workflows.actions.run",
+                  )}
+                </span>
               </Button>
               <Button
-                size="xs"
-                variant="outline"
-                disabled={Boolean(action)}
-                onClick={() => {
-                  setLoadState("loading");
-                  void workflowClient.read({ workflowId }).then((value) => {
-                    useWorkflowEditorStore.getState().load(value.document, value.triggerStates);
-                    setLoadState("ready");
-                  });
-                }}
+                size="sm"
+                disabled={Boolean(action) || saveState === "conflict"}
+                onClick={() => void publish()}
               >
-                {t("extensions.workflows.actions.reload")}
+                {action === "publish" ? <RefreshCwIcon className="animate-spin" /> : <UploadIcon />}
+                <span className="hidden sm:inline">
+                  {t(
+                    action === "publish"
+                      ? "extensions.workflows.actions.publishing"
+                      : "extensions.workflows.actions.publish",
+                  )}
+                </span>
               </Button>
-            </div>
-          ) : null}
+            </>
+          }
+        />
+        {saveState === "conflict" || saveState === "error" || notice ? (
+          <div
+            role="status"
+            className={cn(
+              "border-border flex shrink-0 items-center gap-2 border-b px-4 py-2 text-xs",
+              saveState === "conflict" || saveState === "error"
+                ? "text-destructive"
+                : "text-muted-foreground",
+            )}
+          >
+            {saveState === "conflict" ? (
+              <AlertTriangleIcon className="size-4" />
+            ) : (
+              <SaveIcon className="size-4" />
+            )}
+            <span className="min-w-0 flex-1 truncate">{error ?? notice}</span>
+            {saveState === "conflict" ? (
+              <div className="flex shrink-0 gap-1">
+                <Button size="xs" variant="outline" disabled={Boolean(action)} onClick={saveAsCopy}>
+                  {action === "copy" ? <RefreshCwIcon className="animate-spin" /> : null}
+                  {t("extensions.workflows.actions.copy")}
+                </Button>
+                <Button
+                  size="xs"
+                  variant="outline"
+                  disabled={Boolean(action)}
+                  onClick={() => {
+                    setLoadState("loading");
+                    void workflowClient.read({ workflowId }).then((value) => {
+                      useWorkflowEditorStore.getState().load(value.document, value.triggerStates);
+                      setLoadState("ready");
+                    });
+                  }}
+                >
+                  {t("extensions.workflows.actions.reload")}
+                </Button>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+        <div className="min-h-0 flex-1">
+          <WorkflowRendererRouter document={document} onNodeSelect={revealInspector} />
         </div>
-      ) : null}
-      <div className="min-h-0 flex-1">
-        <WorkflowRendererRouter document={document} onNodeSelect={revealInspector} />
-      </div>
-    </PageFrame>
+      </PageFrame>
+      <ProjectTrustDialog variant="workflow" {...trustAdmission.dialog} />
+    </>
   );
 }
 
@@ -937,31 +967,6 @@ interface WorkflowTemplate {
 
 const TEMPLATES: WorkflowTemplate[] = [
   {
-    id: "daily-summary",
-    kind: "automation",
-    nameKey: "dailySummary",
-    descriptionKey: "dailySummaryDescription",
-    apply(document, labels) {
-      const agent: FlowNode = {
-        id: globalThis.crypto.randomUUID(),
-        type: "agent",
-        name: labels.agent,
-        position: { x: 280, y: 160 },
-        config: {
-          prompt: "Summarize today's workspace activity, decisions, risks, and next actions.",
-        },
-      };
-      const trigger: TriggerSpec = {
-        id: globalThis.crypto.randomUUID(),
-        type: "schedule",
-        name: "Weekday morning",
-        cron: "0 9 * * 1-5",
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      };
-      return { ...createLinearWorkflowGraph(document, [agent]), triggers: [trigger] };
-    },
-  },
-  {
     id: "pr-review",
     kind: "workflow",
     nameKey: "prReview",
@@ -981,8 +986,9 @@ const TEMPLATES: WorkflowTemplate[] = [
           name: labels.agent,
           position: { x: 0, y: 0 },
           config: {
-            prompt:
-              "Review the current changes for correctness, regressions, security issues, and missing tests.",
+            agentId: "reviewer",
+            promptTemplate: "default",
+            output: { schema: {} },
           },
         },
         {
@@ -1028,7 +1034,11 @@ const TEMPLATES: WorkflowTemplate[] = [
                 position: { x: 0, y: 0 },
                 config:
                   index === 2 || index === 4
-                    ? { prompt: `Complete the ${name} step and report findings.` }
+                    ? {
+                        agentId: `release-agent-${index}`,
+                        promptTemplate: "default",
+                        output: { schema: {} },
+                      }
                     : { command: index === 0 ? "pnpm build" : index === 1 ? "pnpm test" : "true" },
               } as FlowNode),
         ),
@@ -1036,6 +1046,20 @@ const TEMPLATES: WorkflowTemplate[] = [
     },
   },
 ];
+
+function templateAgentPrompt(
+  templateId: string,
+  node: Extract<FlowNode, { type: "agent" }>,
+): string {
+  switch (templateId) {
+    case "daily-summary":
+      return "Summarize today's workspace activity, decisions, risks, and next actions.";
+    case "pr-review":
+      return "Review the current changes for correctness, regressions, security issues, and missing tests.";
+    default:
+      return `Complete the ${node.name} step and report findings.`;
+  }
+}
 
 function TemplatesPage({
   params,
@@ -1067,13 +1091,22 @@ function TemplatesPage({
         baseDraftRevision: created.document.draftRevision,
         draft: template.apply(created.document, labels),
       });
-      await useWorkflowCatalogStore.getState().refresh();
-      mainViews.open(
-        workflowMainViewRequest({
-          page: saved.document.kind === "automation" ? "automation-edit" : "editor",
-          workflowId: saved.document.id,
-        }),
+      await Promise.all(
+        saved.document.graph.nodes.flatMap((node) =>
+          node.type === "agent"
+            ? [
+                workflowClient.updateAgentResources({
+                  workflowId: saved.document.id,
+                  agentId: node.config.agentId,
+                  promptTemplate: node.config.promptTemplate ?? "default",
+                  prompt: templateAgentPrompt(template.id, node),
+                }),
+              ]
+            : [],
+        ),
       );
+      await useWorkflowCatalogStore.getState().refresh();
+      mainViews.open(workflowMainViewRequest({ page: "editor", workflowId: saved.document.id }));
     } finally {
       setCreating(undefined);
     }

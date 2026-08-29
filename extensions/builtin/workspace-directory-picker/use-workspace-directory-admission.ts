@@ -8,8 +8,8 @@ import {
   updatePiProjectTrust,
 } from "@/runtime/pi/client/transport/api";
 import type { PiWorkspaceSummary } from "@/runtime/pi/contracts/pi";
+import type { ProjectTrustDialogError } from "@/components/ui/project-trust-dialog";
 
-import type { ProjectTrustDialogError } from "./project-trust-dialog";
 import { admitTrustedWorkspace } from "./workspace-admission";
 
 function workspaceSummary(workspace: {

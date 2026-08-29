@@ -52,7 +52,7 @@ import {
   type CanvasNodeData,
   type NodeLabels,
 } from "./workflow-canvas-elements";
-import { useWorkflowEditorStore } from "./workflow-state";
+import { useWorkflowEditorStore } from "../execution-state";
 
 const LARGE_GRAPH_ELEMENT_THRESHOLD = 100;
 const ADDABLE_NODE_TYPES = ["agent", "command", "condition", "approval"] as const;
@@ -160,7 +160,11 @@ function newNode(
   };
   switch (type) {
     case "agent":
-      return { ...base, type, config: { prompt: "" } };
+      return {
+        ...base,
+        type,
+        config: { agentId: id, promptTemplate: "default", output: { schema: {} } },
+      };
     case "command":
       return { ...base, type, config: { command: "" } };
     case "condition":
@@ -330,6 +334,10 @@ export function FlowCanvasCore({
       const node = newNode(type, nodeLabels[type], document.graph.nodes.length, position);
       updateDocument((current) => ({
         ...current,
+        agents:
+          node.type === "agent"
+            ? [...current.agents, { id: node.config.agentId, name: node.name }]
+            : current.agents,
         graph: { ...current.graph, nodes: [...current.graph.nodes, node] },
       }));
       setSelection({ type: "node", id: node.id });

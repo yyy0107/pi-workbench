@@ -22,7 +22,7 @@ import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import type { FlowEdge, FlowNode, WorkflowDocument } from "@/runtime/shared/execution";
 
-import { useWorkflowEditorStore } from "./workflow-state";
+import { useWorkflowEditorStore } from "../execution-state";
 
 type SopStep = Extract<FlowNode, { type: "agent" | "command" | "approval" }>;
 
@@ -60,6 +60,16 @@ function rebuild(document: WorkflowDocument, steps: readonly SopStep[]): Workflo
   }));
   return {
     ...document,
+    agents: [
+      ...new Map(
+        [
+          ...document.agents,
+          ...steps.flatMap((step) =>
+            step.type === "agent" ? [{ id: step.config.agentId, name: step.name }] : [],
+          ),
+        ].map((agent) => [agent.id, agent]),
+      ).values(),
+    ],
     graph: {
       ...document.graph,
       nodes: [start, ...steps, end].map((node, index) => ({
@@ -73,7 +83,13 @@ function rebuild(document: WorkflowDocument, steps: readonly SopStep[]): Workflo
 
 function createStep(type: SopStep["type"], name: string): SopStep {
   const base = { id: globalThis.crypto.randomUUID(), name, position: { x: 80, y: 80 } };
-  if (type === "agent") return { ...base, type, config: { prompt: "" } };
+  if (type === "agent") {
+    return {
+      ...base,
+      type,
+      config: { agentId: base.id, promptTemplate: "default", output: { schema: {} } },
+    };
+  }
   if (type === "command") return { ...base, type, config: { command: "" } };
   return { ...base, type, config: { message: "Please approve this step." } };
 }

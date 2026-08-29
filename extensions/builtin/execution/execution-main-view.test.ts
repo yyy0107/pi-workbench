@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { workflowMainViewRequest } from "./workflow-main-view";
+import { workflowMainViewRequest } from "./execution-main-view";
 
 test("automation creation uses the automation task breadcrumb", () => {
   const request = workflowMainViewRequest({ page: "automation-create" });
@@ -19,7 +19,10 @@ test("automation creation uses the automation task breadcrumb", () => {
 });
 
 test("automation editing keeps automation as the clickable breadcrumb parent", () => {
-  const request = workflowMainViewRequest({ page: "automation-edit", workflowId: "automation-1" });
+  const request = workflowMainViewRequest({
+    page: "automation-edit",
+    automationId: "automation-1",
+  });
 
   assert.deepEqual(request.title, {
     key: "extensions.workflows.breadcrumb.editor",

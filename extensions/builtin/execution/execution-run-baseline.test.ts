@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { WorkflowRunSummary } from "@/runtime/shared/execution";
 
-import { reconcileWorkflowRunBaseline } from "./workflow-run-baseline";
+import { reconcileWorkflowRunBaseline } from "./execution-run-baseline";
 
 function run(
   id: string,
@@ -16,7 +16,7 @@ function run(
     id,
     workflowId: "workflow-1",
     workflowName: "Daily review",
-    workflowKind: "automation",
+    workflowKind: "workflow",
     revisionId: "revision-1",
     source: "schedule",
     status,

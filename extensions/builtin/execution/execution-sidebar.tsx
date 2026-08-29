@@ -16,10 +16,12 @@ import { cn } from "@/lib/utils";
 import { useMainViewService, type SlotPropsMap } from "@/platform/extensions";
 import type { WorkflowKind, WorkflowSummary } from "@/runtime/shared/execution";
 
-import { workflowMainViewRequest, type WorkflowMainViewParams } from "./workflow-main-view";
-import { useWorkflowCatalogStore } from "./workflow-state";
+import { workflowMainViewRequest, type WorkflowMainViewParams } from "./execution-main-view";
+import { useWorkflowCatalogStore } from "./execution-state";
 
-const KIND_ICONS: Record<WorkflowKind, LucideIcon> = {
+type ExecutionCategory = WorkflowKind | "automation";
+
+const KIND_ICONS: Record<ExecutionCategory, LucideIcon> = {
   workflow: GitBranchIcon,
   sop: ListChecksIcon,
   automation: ZapIcon,
@@ -28,6 +30,7 @@ const KIND_ICONS: Record<WorkflowKind, LucideIcon> = {
 export function WorkflowSidebar({ searchQuery }: SlotPropsMap["sidebar.workflows"]) {
   const { locale, t } = useI18n();
   const mainViews = useMainViewService();
+  const { items, loadState, refresh } = useWorkflowCatalogStore();
   const activeView = useSyncExternalStore(
     mainViews.subscribe,
     mainViews.getSnapshot,
@@ -37,14 +40,15 @@ export function WorkflowSidebar({ searchQuery }: SlotPropsMap["sidebar.workflows
     if (mainViews.getSnapshot()?.kind === "workflows") return;
     mainViews.open(workflowMainViewRequest({ page: "workflows" }));
   }, [mainViews]);
-  const { items, loadState, refresh } = useWorkflowCatalogStore();
-  const [category, setCategory] = useState<WorkflowKind>("workflow");
+  useEffect(() => {
+    if (useWorkflowCatalogStore.getState().loadState === "idle") void refresh();
+  }, [refresh]);
+  const [category, setCategory] = useState<ExecutionCategory>("workflow");
   const params =
     activeView?.kind === "workflows" ? (activeView.params as WorkflowMainViewParams) : undefined;
-  const selectedWorkflowId =
-    params?.page === "editor" || params?.page === "automation-edit" ? params.workflowId : undefined;
+  const selectedWorkflowId = params?.page === "editor" ? params.workflowId : undefined;
   const selectedWorkflowKind = items.find(({ id }) => id === selectedWorkflowId)?.kind;
-  const effectiveCategory: WorkflowKind =
+  const effectiveCategory: ExecutionCategory =
     params?.page === "workflows"
       ? "workflow"
       : params?.page === "automations" ||
@@ -56,7 +60,7 @@ export function WorkflowSidebar({ searchQuery }: SlotPropsMap["sidebar.workflows
           : params?.page === "templates" && params.kind
             ? params.kind
             : (selectedWorkflowKind ?? category);
-  const kindLabels: Record<WorkflowKind, string> = {
+  const kindLabels: Record<ExecutionCategory, string> = {
     workflow: t("extensions.workflows.kind.workflow"),
     sop: t("extensions.workflows.kind.sop"),
     automation: t("extensions.workflows.kind.automation"),
@@ -64,6 +68,7 @@ export function WorkflowSidebar({ searchQuery }: SlotPropsMap["sidebar.workflows
   const normalized = searchQuery.trim().toLocaleLowerCase(locale);
   const visible = items.filter(
     (workflow) =>
+      effectiveCategory !== "automation" &&
       workflow.archivedAt === undefined &&
       workflow.kind === effectiveCategory &&
       (!normalized ||
@@ -72,7 +77,7 @@ export function WorkflowSidebar({ searchQuery }: SlotPropsMap["sidebar.workflows
           .includes(normalized)),
   );
   const open = (next: WorkflowMainViewParams) => mainViews.open(workflowMainViewRequest(next));
-  const selectCategory = (next: WorkflowKind) => {
+  const selectCategory = (next: ExecutionCategory) => {
     setCategory(next);
     if (next === "workflow") {
       open({ page: "workflows" });
@@ -95,7 +100,7 @@ export function WorkflowSidebar({ searchQuery }: SlotPropsMap["sidebar.workflows
           aria-label={t("extensions.workflows.sidebar.categories")}
           className="flex flex-col gap-0.5"
         >
-          {(Object.keys(KIND_ICONS) as WorkflowKind[]).map((kind) => (
+          {(Object.keys(KIND_ICONS) as ExecutionCategory[]).map((kind) => (
             <NavigationButton
               key={kind}
               icon={KIND_ICONS[kind]}
@@ -134,13 +139,9 @@ export function WorkflowSidebar({ searchQuery }: SlotPropsMap["sidebar.workflows
                 workflow={workflow}
                 kindLabel={kindLabels[workflow.kind]}
                 active={selectedWorkflowId === workflow.id}
-                onClick={() => {
-                  if (workflow.kind === "automation") {
-                    open({ page: "automation-edit", workflowId: workflow.id });
-                  } else {
-                    open({ page: "editor", workflowId: workflow.id, kind: workflow.kind });
-                  }
-                }}
+                onClick={() =>
+                  open({ page: "editor", workflowId: workflow.id, kind: workflow.kind })
+                }
               />
             ))}
           </div>
@@ -150,24 +151,28 @@ export function WorkflowSidebar({ searchQuery }: SlotPropsMap["sidebar.workflows
           </p>
         )}
 
-        <div className="bg-sidebar-border mx-2 my-3 h-px" />
-        <nav
-          aria-label={t("extensions.workflows.sidebar.resources")}
-          className="flex flex-col gap-0.5"
-        >
-          <DestinationButton
-            icon={HistoryIcon}
-            label={t("extensions.workflows.sidebar.runHistory")}
-            active={params?.page === "runs"}
-            onClick={() => open({ page: "runs", kind: effectiveCategory })}
-          />
-          <DestinationButton
-            icon={LayoutTemplateIcon}
-            label={t("extensions.workflows.sidebar.templates")}
-            active={params?.page === "templates"}
-            onClick={() => open({ page: "templates", kind: effectiveCategory })}
-          />
-        </nav>
+        {effectiveCategory === "automation" ? null : (
+          <>
+            <div className="bg-sidebar-border mx-2 my-3 h-px" />
+            <nav
+              aria-label={t("extensions.workflows.sidebar.resources")}
+              className="flex flex-col gap-0.5"
+            >
+              <DestinationButton
+                icon={HistoryIcon}
+                label={t("extensions.workflows.sidebar.runHistory")}
+                active={params?.page === "runs"}
+                onClick={() => open({ page: "runs", kind: effectiveCategory })}
+              />
+              <DestinationButton
+                icon={LayoutTemplateIcon}
+                label={t("extensions.workflows.sidebar.templates")}
+                active={params?.page === "templates"}
+                onClick={() => open({ page: "templates", kind: effectiveCategory })}
+              />
+            </nav>
+          </>
+        )}
       </div>
     </section>
   );

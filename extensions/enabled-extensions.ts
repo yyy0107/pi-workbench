@@ -31,7 +31,7 @@ import { workspaceBrowserExtension } from "./builtin/workspace-browser";
 import { workspaceExplorerExtension } from "./builtin/workspace-explorer";
 import { workspaceFileExtension } from "./builtin/workspace-file";
 import { workspaceReviewExtension } from "./builtin/workspace-review";
-import { workflowsExtension } from "./builtin/workflows";
+import { executionExtension } from "./builtin/execution";
 
 /** 随 Workbench 固定启用、不可由用户卸载的内建扩展。 */
 export const builtinExtensions = [
@@ -54,7 +54,7 @@ export const builtinExtensions = [
   skillsExtension,
   piExtensionsExtension,
   toolboxExtension,
-  workflowsExtension,
+  executionExtension,
   archivedChatsExtension,
   modelSelectorExtension,
   connectionStatusExtension,

@@ -848,6 +848,17 @@ export const extensionsZhCN = {
       sop: "SOP",
       automation: "自动化",
     },
+    trust: {
+      question: "是否信任此工作流文件夹？",
+      description:
+        "信任后，Pi 可以加载此工作流的 Agent 设置、提示词、Skill 和 Extension。请只信任由你创建或已检查过的工作流。",
+      securityDecision: "工作流信任",
+      accept: "信任工作流",
+      decline: "不信任",
+      saving: "正在保存…",
+      cancel: "取消工作流信任",
+      saveError: "无法保存工作流信任决定。",
+    },
     workflowHome: {
       title: "工作流",
       description: "将 Agent、命令、条件判断和人工审批组合成可重复执行的流程。",
@@ -922,6 +933,13 @@ export const extensionsZhCN = {
       moreActions: ({ name }: { name: string }) => `${name} 的更多操作`,
       noNextRun: "暂无下次运行",
       nextRun: ({ time }: { time: string }) => `下次运行：${time}`,
+      nextRunRelative: ({ time }: { time: string }) => `下次运行 ${time}`,
+      scheduleAt: ({ recurrence, time }: { recurrence: string; time: string }) =>
+        `${recurrence} ${time}`,
+      customSchedule: ({ cron }: { cron: string }) => `Cron：${cron}`,
+      scheduleWithNextRun: ({ schedule, nextRun }: { schedule: string; nextRun: string }) =>
+        `${schedule} · ${nextRun}`,
+      paused: "已暂停",
       runCount: ({ count }: { count: number }, { number }: MessageFormatters) =>
         `已运行 ${number(count)} 次`,
       neverRun: "从未运行",
@@ -933,7 +951,7 @@ export const extensionsZhCN = {
       alreadyRunning: ({ name }: { name: string }) => `${name} 已在运行中。`,
       runFailed: ({ name }: { name: string }) => `无法启动 ${name}。`,
       enabledFeedback: ({ name }: { name: string }) => `${name} 已启用。`,
-      disabledFeedback: ({ name }: { name: string }) => `${name} 已停用。`,
+      disabledFeedback: ({ name }: { name: string }) => `${name} 已暂停。`,
       toggleFailed: ({ name }: { name: string }) => `无法更新 ${name}。`,
       deletedFeedback: ({ name }: { name: string }) => `${name} 已删除。`,
       deleteFailed: ({ name }: { name: string }) => `无法删除 ${name}。`,
@@ -1100,8 +1118,15 @@ export const extensionsZhCN = {
         timezone: string;
         recurrence: string;
       }) => `${timezone} ${recurrence}`,
-      customScheduleSummary: ({ timezone, cron }: { timezone: string; cron: string }) =>
-        `${timezone} Cron：${cron}`,
+      customScheduleSummary: ({
+        timezone,
+        description,
+      }: {
+        timezone: string;
+        description: string;
+      }) => `${timezone} · ${description}`,
+      customScheduleFallback: ({ timezone, cron }: { timezone: string; cron: string }) =>
+        `${timezone} · Cron：${cron}`,
       frequency: {
         hourly: "每小时",
         daily: "每天",
@@ -1204,6 +1229,9 @@ export const extensionsZhCN = {
       noSelection: "选择一个节点或步骤以编辑配置。",
       name: "名称",
       prompt: "提示词",
+      agent: "Agent 工作区",
+      promptTemplate: "提示词模板",
+      outputSchema: "输出 JSON Schema",
       command: "命令",
       relativeCwd: "相对工作目录",
       timeout: "超时（秒）",

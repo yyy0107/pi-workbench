@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { WorkflowRunSummary } from "@/runtime/shared/execution";
-import { mergeWorkflowRuns } from "./workflow-run-merge";
+import { mergeWorkflowRuns } from "./execution-run-merge";
 
 function run(
   status: WorkflowRunSummary["status"],
@@ -14,7 +14,7 @@ function run(
     id: "run-1",
     workflowId: "workflow-1",
     workflowName: "Daily review",
-    workflowKind: "automation",
+    workflowKind: "workflow",
     revisionId: "revision-1",
     source: "manual",
     status,

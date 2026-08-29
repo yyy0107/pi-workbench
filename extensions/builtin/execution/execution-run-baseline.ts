@@ -1,6 +1,6 @@
 import type { WorkflowRunSummary } from "@/runtime/shared/execution";
 
-import { mergeWorkflowRuns } from "./workflow-run-merge";
+import { mergeWorkflowRuns } from "./execution-run-merge";
 
 interface ReconcileWorkflowRunBaselineOptions {
   baseline: readonly WorkflowRunSummary[];

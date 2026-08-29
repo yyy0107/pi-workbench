@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 
 import type { WorkflowDocument } from "@/runtime/shared/execution";
 
-import { SopStepListRenderer } from "./sop-step-list";
+import { SopStepListRenderer } from "./sop/sop-step-list";
 
 interface WorkflowRendererProps {
   document: WorkflowDocument;
@@ -12,7 +12,7 @@ interface WorkflowRendererProps {
 }
 
 const FlowCanvasCore = dynamic<WorkflowRendererProps>(
-  () => import("./flow-canvas").then((module) => module.FlowCanvasCore),
+  () => import("./workflow/flow-canvas").then((module) => module.FlowCanvasCore),
   {
     ssr: false,
     loading: () => <div className="bg-muted/20 size-full" aria-busy="true" />,
