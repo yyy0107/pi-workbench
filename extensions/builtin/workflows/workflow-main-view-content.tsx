@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import {
   AlertTriangleIcon,
   CheckCircle2Icon,
   CircleStopIcon,
+  FolderKanbanIcon,
   GitBranchIcon,
   HistoryIcon,
   LayoutTemplateIcon,
@@ -13,6 +14,7 @@ import {
   RefreshCwIcon,
   SaveIcon,
   UploadIcon,
+  UserRoundIcon,
   ZapIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -20,6 +22,7 @@ import {
 import { useRightWorkspace, useWorkspaceContext } from "@/components/right-workspace";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { WorkspaceSelector } from "@/components/ui/workspace-selector";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { useMainViewService, type MainViewProps } from "@/platform/extensions";
@@ -113,7 +116,7 @@ function CreateWorkflowPage({
   const { t } = useI18n();
   const mainViews = useMainViewService();
   const workspaces = usePiWorkspaces();
-  const [kind, setKind] = useState<WorkflowKind>(params.kind ?? "workflow");
+  const kind = params.kind ?? "workflow";
   const [scopeType, setScopeType] = useState<WorkflowScope["type"]>(
     params.scope?.type ?? "personal",
   );
@@ -121,28 +124,35 @@ function CreateWorkflowPage({
     params.scope?.type === "project" ? params.scope.workspaceId : (workspaces[0]?.id ?? ""),
   );
   useEffect(() => {
-    if (!workspaceId && workspaces[0]) setWorkspaceId(workspaces[0].id);
+    if (workspaces[0] && !workspaces.some(({ id }) => id === workspaceId)) {
+      setWorkspaceId(workspaces[0].id);
+    }
   }, [workspaceId, workspaces]);
   const [name, setName] = useState("");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string>();
-  const kindLabels: Record<WorkflowKind, string> = {
-    workflow: t("extensions.workflows.kind.workflow"),
-    sop: t("extensions.workflows.kind.sop"),
-    automation: t("extensions.workflows.kind.automation"),
+  const selectedWorkspace = workspaces.find(({ id }) => id === workspaceId);
+
+  const cancel = () => {
+    if (kind === "workflow") {
+      mainViews.open(workflowMainViewRequest({ page: "workflows" }));
+    } else if (kind === "automation") {
+      mainViews.open(workflowMainViewRequest({ page: "automations" }));
+    } else {
+      mainViews.close();
+    }
   };
-  const kindDescriptions: Record<WorkflowKind, string> = {
-    workflow: t("extensions.workflows.create.workflowDescription"),
-    sop: t("extensions.workflows.create.sopDescription"),
-    automation: t("extensions.workflows.create.automationDescription"),
-  };
-  const submit = async () => {
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (creating || (scopeType === "project" && !selectedWorkspace)) return;
     const scope: WorkflowScope =
-      scopeType === "project" ? { type: "project", workspaceId } : { type: "personal" };
+      scopeType === "project"
+        ? { type: "project", workspaceId: selectedWorkspace!.id }
+        : { type: "personal" };
     setCreating(true);
     setError(undefined);
     try {
-      const { document } = await workflowClient.create({
+      const created = await workflowClient.create({
         kind,
         scope,
         name: name.trim() || t("extensions.workflows.create.namePlaceholder"),
@@ -151,56 +161,42 @@ function CreateWorkflowPage({
       mainViews.open(
         workflowMainViewRequest(
           kind === "automation"
-            ? { page: "automation-edit", workflowId: document.id }
-            : { page: "editor", workflowId: document.id, kind },
+            ? { page: "automation-edit", workflowId: created.document.id }
+            : { page: "editor", workflowId: created.document.id, kind },
         ),
       );
-    } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : "workflow-create-failed");
+    } catch {
+      setError(t("extensions.workflows.create.createFailed"));
     } finally {
       setCreating(false);
     }
   };
   return (
-    <PageFrame>
-      <PageHeader
-        icon={GitBranchIcon}
-        title={t("extensions.workflows.create.title")}
-        description={t("extensions.workflows.create.description")}
-      />
-      <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-8">
-        <div className="mx-auto flex max-w-3xl flex-col gap-6">
-          <fieldset>
-            <legend className="mb-2 text-sm font-medium">
-              {t("extensions.workflows.sidebar.categories")}
-            </legend>
-            <div className="grid gap-2 sm:grid-cols-3">
-              {(Object.keys(KIND_ICONS) as WorkflowKind[]).map((candidate) => {
-                const Icon = KIND_ICONS[candidate];
-                return (
-                  <button
-                    key={candidate}
-                    type="button"
-                    aria-pressed={kind === candidate}
-                    className={cn(
-                      "focus-visible:ring-ring rounded-[var(--radius-lg)] border p-4 text-start outline-none focus-visible:ring-2",
-                      kind === candidate
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:bg-muted/50",
-                    )}
-                    onClick={() => setKind(candidate)}
-                  >
-                    <Icon aria-hidden="true" className="mb-3 size-5" />
-                    <span className="block text-sm font-medium">{kindLabels[candidate]}</span>
-                    <span className="text-muted-foreground mt-1 block text-xs leading-relaxed">
-                      {kindDescriptions[candidate]}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </fieldset>
-          <div className="flex flex-col gap-1.5">
+    <section
+      aria-labelledby="workflow-create-title"
+      className="bg-background h-full min-h-0 overflow-y-auto"
+    >
+      <form
+        className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-8 sm:py-10"
+        onSubmit={(event) => void submit(event)}
+      >
+        <header>
+          <h1
+            id="workflow-create-title"
+            className="text-foreground text-2xl font-semibold tracking-tight"
+          >
+            {t("extensions.workflows.create.title")}
+          </h1>
+          <p className="text-muted-foreground mt-2 text-sm leading-6">
+            {t("extensions.workflows.create.description")}
+          </p>
+        </header>
+
+        <section aria-labelledby="new-workflow-details-title" className="mt-8">
+          <h2 id="new-workflow-details-title" className="text-base font-semibold">
+            {t("extensions.workflows.create.details")}
+          </h2>
+          <div className="mt-4 flex flex-col gap-1.5">
             <label htmlFor="new-workflow-name" className="text-sm font-medium">
               {t("extensions.workflows.create.name")}
             </label>
@@ -212,84 +208,179 @@ function CreateWorkflowPage({
               onChange={(event) => setName(event.currentTarget.value)}
             />
           </div>
-          <fieldset>
-            <legend className="mb-2 text-sm font-medium">
+
+          <fieldset className="mt-5">
+            <legend className="text-sm font-medium">
               {t("extensions.workflows.create.scope")}
             </legend>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {(["personal", "project"] as const).map((candidate) => (
-                <button
-                  key={candidate}
-                  type="button"
-                  aria-pressed={scopeType === candidate}
-                  className={cn(
-                    "focus-visible:ring-ring rounded-[var(--radius-lg)] border p-3 text-start outline-none focus-visible:ring-2",
-                    scopeType === candidate
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:bg-muted/50",
-                  )}
-                  onClick={() => setScopeType(candidate)}
-                >
-                  <span className="block text-sm font-medium">
-                    {t(
-                      candidate === "personal"
-                        ? "extensions.workflows.create.personal"
-                        : "extensions.workflows.create.project",
-                    )}
-                  </span>
-                  <span className="text-muted-foreground mt-1 block text-xs">
-                    {t(
-                      candidate === "personal"
-                        ? "extensions.workflows.create.personalDescription"
-                        : "extensions.workflows.create.projectDescription",
-                    )}
-                  </span>
-                </button>
-              ))}
+            <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+              <WorkflowScopeOption
+                value="personal"
+                selected={scopeType === "personal"}
+                icon={UserRoundIcon}
+                title={t("extensions.workflows.create.personal")}
+                description={t("extensions.workflows.create.personalDescription")}
+                onSelect={() => {
+                  setScopeType("personal");
+                  setError(undefined);
+                }}
+              />
+              <WorkflowScopeOption
+                value="project"
+                selected={scopeType === "project"}
+                disabled={workspaces.length === 0}
+                icon={FolderKanbanIcon}
+                title={t("extensions.workflows.create.project")}
+                description={t(
+                  workspaces.length === 0
+                    ? "extensions.workflows.create.noWorkspace"
+                    : "extensions.workflows.create.projectDescription",
+                )}
+                onSelect={() => {
+                  setScopeType("project");
+                  setError(undefined);
+                }}
+              />
             </div>
           </fieldset>
+
           {scopeType === "project" ? (
-            <div className="flex flex-col gap-1.5">
+            <div className="mt-4 flex flex-col gap-1.5">
               <label htmlFor="new-workflow-workspace" className="text-sm font-medium">
                 {t("extensions.workflows.create.workspace")}
               </label>
-              <select
-                id="new-workflow-workspace"
-                className="h-[var(--input-control-height)] rounded-[var(--input-control-radius)] border bg-background px-2.5 text-sm"
-                value={workspaceId}
-                onChange={(event) => setWorkspaceId(event.currentTarget.value)}
-              >
-                {workspaces.length === 0 ? (
-                  <option value="">{t("extensions.workflows.create.noWorkspace")}</option>
-                ) : null}
-                {workspaces.map((workspace) => (
-                  <option key={workspace.id} value={workspace.id}>
-                    {workspace.name}
-                  </option>
-                ))}
-              </select>
+              <WorkspaceSelector
+                triggerId="new-workflow-workspace"
+                variant="outline"
+                disabled={workspaces.length === 0}
+                error={!selectedWorkspace}
+                labels={{
+                  select: t("extensions.workspaceDirectory.selectTitle"),
+                  clear: t("extensions.workspaceDirectory.clearWorkspace"),
+                  selecting: t("extensions.workspaceDirectory.selecting"),
+                  selectError: t("extensions.workspaceDirectory.selectError"),
+                  empty: t("extensions.workflows.create.noWorkspace"),
+                  search: t("extensions.workspaceDirectory.searchLabel"),
+                  searchPlaceholder: t("extensions.workspaceDirectory.searchPlaceholder"),
+                  noSearchResults: t("extensions.workspaceDirectory.noSearchResults"),
+                }}
+                selectedWorkspace={selectedWorkspace}
+                workspaces={workspaces}
+                onValueChange={(value) => {
+                  setWorkspaceId(value);
+                  setError(undefined);
+                }}
+              />
+              {!selectedWorkspace ? (
+                <p className="text-destructive text-xs" role="alert">
+                  {t("extensions.workflows.create.noWorkspace")}
+                </p>
+              ) : null}
             </div>
           ) : null}
-          {error ? (
-            <p role="alert" className="text-destructive text-sm">
-              {error}
-            </p>
-          ) : null}
-          <Button
-            className="self-start"
-            disabled={creating || (scopeType === "project" && !workspaceId)}
-            onClick={() => void submit()}
-          >
-            {creating ? <RefreshCwIcon className="animate-spin" /> : <GitBranchIcon />}
-            {t(
-              creating
-                ? "extensions.workflows.create.creating"
-                : "extensions.workflows.create.submit",
+
+          <div className="bg-muted/60 text-muted-foreground mt-5 flex items-start gap-2 rounded-[var(--button-radius)] p-3 text-xs leading-5">
+            {scopeType === "project" ? (
+              <FolderKanbanIcon
+                aria-hidden="true"
+                className="mt-0.5 size-[var(--icon-size-sm)] shrink-0"
+              />
+            ) : (
+              <UserRoundIcon
+                aria-hidden="true"
+                className="mt-0.5 size-[var(--icon-size-sm)] shrink-0"
+              />
             )}
-          </Button>
-        </div>
-      </div>
-    </PageFrame>
+            <span>
+              {scopeType === "project"
+                ? selectedWorkspace
+                  ? t("extensions.workflows.create.projectSummary", {
+                      project: selectedWorkspace.name,
+                    })
+                  : t("extensions.workflows.create.noWorkspace")
+                : t("extensions.workflows.create.personalSummary")}
+            </span>
+          </div>
+
+          <div className="min-h-5 pt-3">
+            {error ? (
+              <p role="alert" className="text-destructive text-sm">
+                {error}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="border-border mt-3 flex flex-wrap justify-end gap-2 border-t pt-4">
+            <Button type="button" variant="outline" disabled={creating} onClick={cancel}>
+              {t("extensions.workflows.create.cancel")}
+            </Button>
+            <Button
+              type="submit"
+              disabled={creating || (scopeType === "project" && !selectedWorkspace)}
+            >
+              {creating ? (
+                <RefreshCwIcon aria-hidden="true" className="animate-spin" />
+              ) : (
+                <GitBranchIcon aria-hidden="true" />
+              )}
+              {t(
+                creating
+                  ? "extensions.workflows.create.creating"
+                  : "extensions.workflows.create.submit",
+              )}
+            </Button>
+          </div>
+        </section>
+      </form>
+    </section>
+  );
+}
+
+function WorkflowScopeOption({
+  value,
+  selected,
+  disabled = false,
+  icon: Icon,
+  title,
+  description,
+  onSelect,
+}: {
+  value: WorkflowScope["type"];
+  selected: boolean;
+  disabled?: boolean;
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  onSelect(): void;
+}) {
+  return (
+    <label className={cn("min-w-0", disabled ? "cursor-not-allowed" : "cursor-pointer")}>
+      <input
+        type="radio"
+        name="workflow-scope"
+        value={value}
+        checked={selected}
+        disabled={disabled}
+        className="peer sr-only"
+        onChange={onSelect}
+      />
+      <span
+        className={cn(
+          "border-border flex min-h-[var(--control-hit-touch)] items-start gap-2 rounded-[var(--button-radius)] border p-2.5 transition-colors peer-focus-visible:ring-ring peer-focus-visible:ring-2",
+          !disabled && "hover:bg-muted/50",
+          selected && "border-primary bg-primary/5",
+          disabled && "opacity-50",
+        )}
+      >
+        <Icon aria-hidden="true" className="mt-0.5 size-[var(--icon-size-md)] shrink-0" />
+        <span className="min-w-0">
+          <span className="block text-sm font-medium">{title}</span>
+          <span className="text-muted-foreground mt-0.5 block text-xs leading-4">
+            {description}
+          </span>
+        </span>
+      </span>
+    </label>
   );
 }
 
