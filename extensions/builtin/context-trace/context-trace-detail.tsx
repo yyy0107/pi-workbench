@@ -134,6 +134,10 @@ function formatPrimitive(value: string | number | boolean | null | undefined): s
   return String(value);
 }
 
+function formatCoordinate(id: string, index: number | undefined): string {
+  return index === undefined ? id : `${id} · #${index}`;
+}
+
 function Section({ children, title }: { children: ReactNode; title: string }) {
   return (
     <section className="overflow-hidden border-b last:border-b-0">
@@ -760,6 +764,27 @@ function systemPromptSourceScopeLabel(
   return t(`extensions.contextTrace.systemPromptSourceScopes.${scope}`);
 }
 
+function SystemPromptSourceMetadata({ source }: { source: SessionContextTraceSystemPromptSource }) {
+  const { t } = useI18n();
+  const items: [string, ReactNode][] = [
+    [t("extensions.contextTrace.fields.scope"), systemPromptSourceScopeLabel(t, source.scope)],
+  ];
+  if (source.path) {
+    items.push([t("extensions.contextTrace.fields.path"), source.path]);
+  }
+  if (source.hook) {
+    items.push(
+      [t("extensions.contextTrace.fields.hook"), source.hook],
+      [t("extensions.contextTrace.fields.handler"), String((source.handlerIndex ?? 0) + 1)],
+    );
+  }
+  return (
+    <Section title={systemPromptSourceKindLabel(t, source.kind)}>
+      <KeyValueGrid items={items} />
+    </Section>
+  );
+}
+
 function SystemPromptSourceView({
   event,
   index,
@@ -772,21 +797,9 @@ function SystemPromptSourceView({
   if (!source) {
     return <p className="text-muted-foreground p-3 text-xs">{t("extensions.contextTrace.none")}</p>;
   }
-  const sourceDetails: [string, ReactNode][] = [
-    [t("extensions.contextTrace.fields.scope"), systemPromptSourceScopeLabel(t, source.scope)],
-    [t("extensions.contextTrace.fields.path"), source.path ?? "—"],
-  ];
-  if (source.hook) {
-    sourceDetails.push(
-      [t("extensions.contextTrace.fields.hook"), source.hook],
-      [t("extensions.contextTrace.fields.handler"), String((source.handlerIndex ?? 0) + 1)],
-    );
-  }
   return (
     <div className="space-y-3">
-      <Section title={systemPromptSourceKindLabel(t, source.kind)}>
-        <KeyValueGrid items={sourceDetails} />
-      </Section>
+      <SystemPromptSourceMetadata source={source} />
       <Section title={t("extensions.contextTrace.systemPromptSourceContent")}>
         {source.content ? (
           <TextCaptureView capture={source.content} />
@@ -1461,76 +1474,194 @@ function FocusedContextDetail({
   );
 }
 
-function EventOverview({ summary }: { summary: SessionContextTraceEventSummary }) {
+function EventOverview({
+  event,
+  summary,
+}: {
+  event: SessionContextTraceEvent;
+  summary: SessionContextTraceEventSummary;
+}) {
   const { date, number, t } = useI18n();
+  const model =
+    event.kind === "prompt-composition" || event.kind === "model-output"
+      ? event.detail.model
+      : summary.model;
+  const thinkingLevel =
+    event.kind === "prompt-composition" || event.kind === "model-output"
+      ? event.detail.thinkingLevel
+      : summary.thinkingLevel;
+  const contextUsage =
+    event.kind === "prompt-composition" || event.kind === "context-snapshot"
+      ? event.detail.contextUsage
+      : summary.contextUsage;
+  const usage =
+    event.kind === "model-output" || event.kind === "turn-end" ? event.detail.usage : summary.usage;
   const flags = [
     summary.truncated ? t("extensions.contextTrace.flagTruncated") : undefined,
     summary.redacted ? t("extensions.contextTrace.flagRedacted") : undefined,
   ].filter(Boolean);
-  const usageItems: [string, ReactNode][] = summary.usage
-    ? [
-        [t("extensions.contextTrace.fields.inputTokens"), number(summary.usage.input)],
-        [t("extensions.contextTrace.fields.outputTokens"), number(summary.usage.output)],
-        [t("extensions.contextTrace.fields.cacheReadTokens"), number(summary.usage.cacheRead)],
-        [t("extensions.contextTrace.fields.cacheWriteTokens"), number(summary.usage.cacheWrite)],
-      ]
-    : [];
+  const items: [string, ReactNode][] = [];
+
+  if (summary.roundId) {
+    items.push([t("extensions.contextTrace.fields.round"), summary.roundId]);
+  }
+  if (summary.runId) {
+    items.push([
+      t("extensions.contextTrace.fields.run"),
+      formatCoordinate(summary.runId, summary.runIndex),
+    ]);
+  }
+  if (summary.turnId) {
+    items.push([
+      t("extensions.contextTrace.fields.turn"),
+      formatCoordinate(summary.turnId, summary.turnIndex),
+    ]);
+  }
+  if (summary.requestId) {
+    items.push([
+      t("extensions.contextTrace.fields.request"),
+      formatCoordinate(summary.requestId, summary.requestIndex),
+    ]);
+  }
+  if (model) {
+    items.push(
+      [t("extensions.contextTrace.fields.provider"), model.provider],
+      [t("extensions.contextTrace.fields.model"), model.model],
+    );
+  }
+  if (thinkingLevel) {
+    items.push([t("extensions.contextTrace.fields.thinkingLevel"), thinkingLevel]);
+  }
+  if (contextUsage) {
+    if (contextUsage.tokens !== null) {
+      items.push([t("extensions.contextTrace.fields.contextTokens"), number(contextUsage.tokens)]);
+    }
+    items.push([
+      t("extensions.contextTrace.fields.contextWindow"),
+      number(contextUsage.contextWindow),
+    ]);
+    if (contextUsage.percent !== null) {
+      items.push([
+        t("extensions.contextTrace.fields.contextPercent"),
+        `${number(contextUsage.percent, { maximumFractionDigits: 2 })}%`,
+      ]);
+    }
+  }
+  if (summary.agentAttempt !== undefined) {
+    items.push([t("extensions.contextTrace.fields.agentAttempt"), number(summary.agentAttempt)]);
+  }
+
+  switch (event.kind) {
+    case "round-start":
+      items.push([t("extensions.contextTrace.fields.trigger"), event.detail.trigger]);
+      break;
+    case "prompt-composition":
+      items.push([t("extensions.contextTrace.fields.cwd"), event.detail.systemPromptOptions.cwd]);
+      break;
+    case "turn-start":
+      if (event.detail.timestamp !== undefined) {
+        items.push([
+          t("extensions.contextTrace.fields.timestamp"),
+          date(event.detail.timestamp, { dateStyle: "medium", timeStyle: "medium" }),
+        ]);
+      }
+      break;
+    case "context-snapshot":
+      items.push([
+        t("extensions.contextTrace.fields.messageCount"),
+        number(event.detail.messageCount),
+      ]);
+      break;
+    case "provider-response":
+      items.push([t("extensions.contextTrace.fields.status"), number(event.detail.status)]);
+      break;
+    case "run-end":
+      items.push(
+        [t("extensions.contextTrace.fields.messageCount"), number(event.detail.messageCount)],
+        [
+          t("extensions.contextTrace.fields.willRetry"),
+          event.detail.willRetry
+            ? t("extensions.contextTrace.yes")
+            : t("extensions.contextTrace.no"),
+        ],
+      );
+      break;
+    case "retry":
+      items.push([t("extensions.contextTrace.fields.phase"), event.detail.phase]);
+      if (event.detail.attempt !== undefined) {
+        items.push([t("extensions.contextTrace.fields.attempt"), number(event.detail.attempt)]);
+      }
+      if (event.detail.maxAttempts !== undefined) {
+        items.push([
+          t("extensions.contextTrace.fields.maxAttempts"),
+          number(event.detail.maxAttempts),
+        ]);
+      }
+      if (event.detail.delayMs !== undefined) {
+        items.push([t("extensions.contextTrace.fields.delay"), number(event.detail.delayMs)]);
+      }
+      if (event.detail.source) {
+        items.push([t("extensions.contextTrace.fields.source"), event.detail.source]);
+      }
+      if (event.detail.success !== undefined) {
+        items.push([
+          t("extensions.contextTrace.fields.success"),
+          event.detail.success ? t("extensions.contextTrace.yes") : t("extensions.contextTrace.no"),
+        ]);
+      }
+      break;
+    case "compaction":
+      items.push(
+        [t("extensions.contextTrace.fields.phase"), event.detail.phase],
+        [
+          t("extensions.contextTrace.fields.reason"),
+          t(`extensions.contextTrace.compactionReasons.${event.detail.reason}`),
+        ],
+      );
+      if (event.detail.aborted !== undefined) {
+        items.push([
+          t("extensions.contextTrace.fields.aborted"),
+          event.detail.aborted ? t("extensions.contextTrace.yes") : t("extensions.contextTrace.no"),
+        ]);
+      }
+      if (event.detail.willRetry !== undefined) {
+        items.push([
+          t("extensions.contextTrace.fields.willRetry"),
+          event.detail.willRetry
+            ? t("extensions.contextTrace.yes")
+            : t("extensions.contextTrace.no"),
+        ]);
+      }
+      break;
+    case "run-start":
+    case "provider-request":
+    case "model-output":
+    case "turn-end":
+    case "tool-execution-start":
+    case "tool-execution-end":
+    case "round-settled":
+      break;
+  }
+
+  if (usage) {
+    items.push(
+      [t("extensions.contextTrace.fields.inputTokens"), number(usage.input)],
+      [t("extensions.contextTrace.fields.outputTokens"), number(usage.output)],
+      [t("extensions.contextTrace.fields.cacheReadTokens"), number(usage.cacheRead)],
+      [t("extensions.contextTrace.fields.cacheWriteTokens"), number(usage.cacheWrite)],
+    );
+  }
+  items.push([
+    t("extensions.contextTrace.fields.time"),
+    date(summary.time, { dateStyle: "medium", timeStyle: "medium" }),
+  ]);
+  if (flags.length > 0) {
+    items.push([t("extensions.contextTrace.fields.flags"), flags.join(", ")]);
+  }
 
   return (
     <Section title={t("extensions.contextTrace.overview")}>
-      <KeyValueGrid
-        items={[
-          [t("extensions.contextTrace.fields.session"), summary.sessionId],
-          [t("extensions.contextTrace.fields.activation"), summary.activationId],
-          [t("extensions.contextTrace.fields.round"), formatPrimitive(summary.roundId)],
-          [
-            t("extensions.contextTrace.fields.run"),
-            summary.runId ? `${summary.runId} · #${formatPrimitive(summary.runIndex)}` : "—",
-          ],
-          [
-            t("extensions.contextTrace.fields.turn"),
-            summary.turnId ? `${summary.turnId} · #${formatPrimitive(summary.turnIndex)}` : "—",
-          ],
-          [
-            t("extensions.contextTrace.fields.request"),
-            summary.requestId
-              ? `${summary.requestId} · #${formatPrimitive(summary.requestIndex)}`
-              : "—",
-          ],
-          [t("extensions.contextTrace.fields.toolName"), formatPrimitive(summary.toolName)],
-          [t("extensions.contextTrace.fields.toolCallId"), formatPrimitive(summary.toolCallId)],
-          [t("extensions.contextTrace.fields.provider"), formatPrimitive(summary.model?.provider)],
-          [t("extensions.contextTrace.fields.model"), formatPrimitive(summary.model?.model)],
-          [
-            t("extensions.contextTrace.fields.thinkingLevel"),
-            formatPrimitive(summary.thinkingLevel),
-          ],
-          [
-            t("extensions.contextTrace.fields.contextTokens"),
-            formatPrimitive(summary.contextUsage?.tokens),
-          ],
-          [
-            t("extensions.contextTrace.fields.contextWindow"),
-            formatPrimitive(summary.contextUsage?.contextWindow),
-          ],
-          [
-            t("extensions.contextTrace.fields.contextPercent"),
-            summary.contextUsage?.percent === null || summary.contextUsage?.percent === undefined
-              ? "—"
-              : `${number(summary.contextUsage.percent, { maximumFractionDigits: 2 })}%`,
-          ],
-          [t("extensions.contextTrace.fields.agentAttempt"), formatPrimitive(summary.agentAttempt)],
-          ...usageItems,
-          [t("extensions.contextTrace.fields.sequence"), number(summary.seq)],
-          [
-            t("extensions.contextTrace.fields.time"),
-            date(summary.time, { dateStyle: "medium", timeStyle: "medium" }),
-          ],
-          [t("extensions.contextTrace.fields.detailBytes"), number(summary.detailBytes)],
-          [t("extensions.contextTrace.fields.flags"), flags.join(", ") || "—"],
-          [t("extensions.contextTrace.fields.traceId"), summary.traceId],
-        ]}
-      />
+      <KeyValueGrid items={items} />
     </Section>
   );
 }
@@ -1756,7 +1887,15 @@ export function ContextTraceDetail({
         />
       );
     }
-    return <EventOverview summary={summary} />;
+    if (focus?.type === "system-prompt-source" && detail.event.kind === "prompt-composition") {
+      const source = detail.event.detail.systemPromptSources?.[focus.index];
+      return source ? (
+        <SystemPromptSourceMetadata source={source} />
+      ) : (
+        <p className="text-muted-foreground p-3 text-xs">{t("extensions.contextTrace.none")}</p>
+      );
+    }
+    return <EventOverview event={detail.event} summary={summary} />;
   }
   if (
     variant === "tool-execution" &&
