@@ -23,6 +23,7 @@ const ZERO_REVISION = () => 0;
 
 interface WorkbenchAgentRuntimeEnvironment {
   readonly id: string;
+  readonly threadId?: string;
   readonly commands: readonly WorkbenchAgentCommand[];
   readonly threadStore?: WorkbenchAgentThreadStore;
 }
@@ -31,20 +32,23 @@ const WorkbenchAgentRuntimeContext = createContext<WorkbenchAgentRuntimeEnvironm
 
 export function WorkbenchAgentRuntimeEnvironmentProvider({
   adapter,
+  threadId,
   commands,
   children,
 }: Readonly<{
   adapter: WorkbenchAgentRuntimeAdapter;
+  threadId?: string;
   commands: readonly WorkbenchAgentCommand[];
   children: ReactNode;
 }>) {
   const value = useMemo<WorkbenchAgentRuntimeEnvironment>(
     () => ({
       id: adapter.id,
+      ...(threadId ? { threadId } : {}),
       commands,
       ...(adapter.threadStore ? { threadStore: adapter.threadStore } : {}),
     }),
-    [adapter.id, adapter.threadStore, commands],
+    [adapter.id, adapter.threadStore, commands, threadId],
   );
 
   return (
@@ -63,6 +67,11 @@ function useWorkbenchAgentRuntimeEnvironment(): WorkbenchAgentRuntimeEnvironment
 /** Return the stable identifier of the Agent Runtime selected by the application composition root. */
 export function useWorkbenchAgentRuntimeId(): string {
   return useWorkbenchAgentRuntimeEnvironment().id;
+}
+
+/** Session/thread identity owned by the nearest Agent Runtime scope. */
+export function useWorkbenchAgentThreadId(): string | undefined {
+  return useWorkbenchAgentRuntimeEnvironment().threadId;
 }
 
 /** Commands exposed by the selected Agent Runtime for the active conversation or draft. */

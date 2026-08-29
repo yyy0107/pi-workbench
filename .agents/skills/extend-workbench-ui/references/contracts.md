@@ -174,6 +174,7 @@ workspace.actions
 workspace.empty.actions
 thread.left
 thread.header
+thread.menu
 thread.before
 thread.after
 thread.right
@@ -226,6 +227,11 @@ interface WorkspaceEmptyActionsSlotContext {
   isOpen: boolean;
 }
 
+interface ThreadMenuSlotContext {
+  threadId: string;
+  closeMenu(): void;
+}
+
 interface SlotPropsMap {
   "shell.background": Record<never, never>;
   "shell.overlay": Record<never, never>;
@@ -236,6 +242,7 @@ interface SlotPropsMap {
   "workspace.empty.actions": WorkspaceEmptyActionsSlotContext;
   "thread.left": { threadId?: string };
   "thread.header": { threadId?: string };
+  "thread.menu": ThreadMenuSlotContext;
   "thread.before": { threadId?: string };
   "thread.after": { threadId?: string };
   "thread.right": { threadId?: string };
@@ -255,6 +262,11 @@ interface SlotPropsMap {
 `thread.left` and `thread.right` render at full height beside the central Thread column. A
 contribution should define its own width; use a Panel instead when the surface needs host-managed
 resizing, tabs, or open/close state.
+
+`thread.menu` renders inside the current conversation's header overflow menu. Contributions receive
+the durable thread id and must call `closeMenu()` after starting or completing their action. Render
+menu-item semantics and include any separator owned by the contribution so an empty Slot leaves no
+orphaned chrome.
 
 Contribution shape:
 

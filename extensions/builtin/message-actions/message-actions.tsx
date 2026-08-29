@@ -23,8 +23,8 @@ import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/compone
 import { useI18n } from "@/i18n";
 import { formatAdaptiveDuration } from "@/lib/format-duration";
 import { type MessageSlotContext, useExtensionErrorReporter } from "@/platform/extensions";
+import { useWorkbenchAgentThreadId } from "@/runtime/assistant-ui/agent-runtime-context";
 import {
-  usePiActiveSessionId,
   usePiSessionManager,
   usePiThreadListItemSnapshot,
 } from "@/runtime/pi/client/runtime/context";
@@ -179,7 +179,7 @@ function AssistantActions({ canReload }: Readonly<{ canReload: boolean }>) {
   const { t } = useI18n();
   const aui = useAui();
   const manager = usePiSessionManager();
-  const sessionId = usePiActiveSessionId();
+  const sessionId = useWorkbenchAgentThreadId();
   const session = usePiThreadListItemSnapshot(sessionId);
   const reportError = useExtensionErrorReporter();
   const rawEventSeq = useAuiState((state) => state.message.metadata.custom.piEventSeq);
@@ -223,7 +223,7 @@ function AssistantActions({ canReload }: Readonly<{ canReload: boolean }>) {
 
   return (
     <ActionBarPrimitive.Root autohide="never" className="flex items-center gap-0.5">
-      {sessionId && eventSeq !== undefined ? (
+      {session && sessionId && eventSeq !== undefined ? (
         <TooltipIconButton
           tooltip={forkTooltip}
           type="button"

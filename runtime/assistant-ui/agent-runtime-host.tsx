@@ -1,6 +1,6 @@
 "use client";
 
-import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { AssistantRuntimeProvider, useAuiState } from "@assistant-ui/react";
 import type { ReactNode } from "react";
 
 import type { WorkbenchAgentRuntimeAdapter } from "./agent-runtime-adapter";
@@ -12,8 +12,17 @@ function WorkbenchAgentRuntimeEnvironmentHost({
   children,
 }: Readonly<{ adapter: WorkbenchAgentRuntimeAdapter; children: ReactNode }>) {
   const commands = adapter.useCommandCatalog();
+  const threadId = useAuiState((state) => {
+    const mainThreadId = state.threads.mainThreadId;
+    const mainThread = state.threads.threadItems.find((thread) => thread.id === mainThreadId);
+    return mainThread?.remoteId ?? mainThread?.externalId ?? mainThreadId;
+  });
   return (
-    <WorkbenchAgentRuntimeEnvironmentProvider adapter={adapter} commands={commands}>
+    <WorkbenchAgentRuntimeEnvironmentProvider
+      adapter={adapter}
+      threadId={threadId}
+      commands={commands}
+    >
       {children}
     </WorkbenchAgentRuntimeEnvironmentProvider>
   );

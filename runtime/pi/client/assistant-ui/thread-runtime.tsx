@@ -4,7 +4,10 @@ import { MessageNotSentError, useAuiState, useExternalStoreRuntime } from "@assi
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
 import { useI18n, type Translate } from "@/i18n";
-import type { WorkbenchAgentComposerSendError } from "@/runtime/assistant-ui/agent-runtime-adapter";
+import type {
+  WorkbenchAgentComposerSendError,
+  WorkbenchAgentWorkspace,
+} from "@/runtime/assistant-ui/agent-runtime-adapter";
 import { useWorkbenchRuntimeAdapters } from "@/runtime/assistant-ui/adapters/use-workbench-runtime-adapters";
 
 import type { PiSessionManager } from "../runtime/manager";
@@ -34,11 +37,24 @@ function localizedPiError(error: unknown, t: Translate): Error {
   }
 }
 
-export function usePiThreadRuntime(manager: PiSessionManager) {
+export interface BoundPiThreadRuntimeOptions {
+  /** Local assistant-ui id when a remote thread is still being promoted. */
+  localId?: string;
+  /** Explicit null preserves draft semantics; omission binds directly to `threadId`. */
+  remoteId?: string | null;
+  /** Optional workspace projection for sessions intentionally hidden from the formal thread list. */
+  workspace?: WorkbenchAgentWorkspace;
+}
+
+/** Build the existing Pi external-store Runtime around one explicit session identity. */
+export function useBoundPiThreadRuntime(
+  manager: PiSessionManager,
+  threadId: string,
+  options: BoundPiThreadRuntimeOptions = {},
+) {
   const { t } = useI18n();
-  const localId = useAuiState((state) => state.threadListItem.id);
-  const remoteId = useAuiState((state) => state.threadListItem.remoteId);
-  const threadScopeId = remoteId ?? localId;
+  const localId = options.localId ?? threadId;
+  const remoteId = options.remoteId === null ? undefined : (options.remoteId ?? threadId);
   const session = useMemo(
     () => manager.getSession(localId, remoteId),
     [localId, manager, remoteId],
@@ -49,15 +65,16 @@ export function usePiThreadRuntime(manager: PiSessionManager) {
     session.getSnapshot,
   );
   const subscribeThread = useMemo(
-    () => (listener: () => void) => manager.subscribeThread(threadScopeId, listener),
-    [manager, threadScopeId],
+    () => (listener: () => void) => manager.subscribeThread(threadId, listener),
+    [manager, threadId],
   );
   const getThreadRevision = useMemo(
-    () => () => manager.getThreadRevision(threadScopeId),
-    [manager, threadScopeId],
+    () => () => manager.getThreadRevision(threadId),
+    [manager, threadId],
   );
   useSyncExternalStore(subscribeThread, getThreadRevision, getThreadRevision);
-  const workspace = manager.getThreadStateSnapshot(threadScopeId).metadata.workspace;
+  const workspace =
+    options.workspace ?? manager.getThreadStateSnapshot(threadId).metadata.workspace;
   const [committedSession, setCommittedSession] = useState<typeof session>();
   const isPublishedRunning = committedSession === session && snapshot.isRunning;
   const adapters = useWorkbenchRuntimeAdapters();
@@ -167,5 +184,15 @@ export function usePiThreadRuntime(manager: PiSessionManager) {
     },
     onRefetchThread: () => session.reload(),
     adapters,
+  });
+}
+
+/** Bind the remote-thread-list current item through the explicit-session Runtime seam. */
+export function usePiThreadRuntime(manager: PiSessionManager) {
+  const localId = useAuiState((state) => state.threadListItem.id);
+  const remoteId = useAuiState((state) => state.threadListItem.remoteId);
+  return useBoundPiThreadRuntime(manager, remoteId ?? localId, {
+    localId,
+    remoteId: remoteId ?? null,
   });
 }

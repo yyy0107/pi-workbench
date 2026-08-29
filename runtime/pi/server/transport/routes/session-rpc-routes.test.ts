@@ -146,6 +146,21 @@ test("maps every extracted RPC method to the matching protocol operation", async
     { method: "session.delete", operation: "delete", payload: { sessionId: "session-1" } },
     { method: "session.fork", operation: "fork", payload: { sessionId: "session-1" } },
     {
+      method: "session.scratch.create",
+      operation: "scratchCreate",
+      payload: { sourceSessionId: "session-1", atSeq: 4 },
+    },
+    {
+      method: "session.scratch.release",
+      operation: "scratchRelease",
+      payload: { sessionId: "scratch-1" },
+    },
+    {
+      method: "session.scratch.promote",
+      operation: "scratchPromote",
+      payload: { sessionId: "scratch-1", title: "Saved" },
+    },
+    {
       method: "session.prompt",
       operation: "prompt",
       payload: {

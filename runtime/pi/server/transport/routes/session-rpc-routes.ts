@@ -89,6 +89,14 @@ const sessionForkPayload = rpcObject({
   sessionId: nonEmptyString,
   atSeq: rpcOptional(rpcInteger({ minimum: 0 })),
 });
+const sessionScratchCreatePayload = rpcObject({
+  sourceSessionId: nonEmptyString,
+  atSeq: rpcOptional(rpcInteger({ minimum: 0 })),
+});
+const sessionScratchPromotePayload = rpcObject({
+  sessionId: nonEmptyString,
+  title: rpcOptional(rpcString()),
+});
 
 const promptTextContent = rpcObject({ type: rpcLiteral("text"), text: rpcString() });
 const promptImageContent = rpcObject({
@@ -366,6 +374,27 @@ export function createSessionRpcRoutes({
             method,
             payload: sessionForkPayload,
             handler: (payload) => invokeProtocol(() => protocol.fork(payload), projectDomainError),
+          });
+        case "session.scratch.create":
+          return handleRpcPost(request, {
+            method,
+            payload: sessionScratchCreatePayload,
+            handler: (payload) =>
+              invokeProtocol(() => protocol.scratchCreate(payload), projectDomainError),
+          });
+        case "session.scratch.release":
+          return handleRpcPost(request, {
+            method,
+            payload: sessionIdPayload,
+            handler: (payload) =>
+              invokeProtocol(() => protocol.scratchRelease(payload), projectDomainError),
+          });
+        case "session.scratch.promote":
+          return handleRpcPost(request, {
+            method,
+            payload: sessionScratchPromotePayload,
+            handler: (payload) =>
+              invokeProtocol(() => protocol.scratchPromote(payload), projectDomainError),
           });
         case "session.prompt":
           return handleRpcPost(request, {

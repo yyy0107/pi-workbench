@@ -34,6 +34,7 @@ export const WORKBENCH_SLOTS = [
 
   "thread.left", // 会话区域左侧：会话级导航、上下文工具等
   "thread.header", // 会话区域头部：会话信息、模型状态、会话操作等
+  "thread.menu", // 会话操作菜单：扩展提供的当前会话操作
   "thread.before", // 消息列表之前：提示、上下文信息、全局状态等
   "thread.after", // 消息列表之后：会话级附加内容
   "thread.right", // 会话区域右侧：会话级信息、辅助工具等
@@ -134,6 +135,14 @@ export interface WorkspaceEmptyActionsSlotContext {
   isOpen: boolean;
 }
 
+/** 顶部会话操作菜单中的扩展项上下文。 */
+export interface ThreadMenuSlotContext {
+  /** 当前会话的稳定后端标识；新建草稿没有菜单入口。 */
+  threadId: string;
+  /** 操作成功或开始异步打开目标后关闭宿主菜单。 */
+  closeMenu(): void;
+}
+
 /**
  * Slot 名称到组件 props 的唯一类型映射。
  *
@@ -162,6 +171,7 @@ export interface SlotPropsMap {
   "workspace.empty.actions": WorkspaceEmptyActionsSlotContext; // Inspector Workspace 空状态启动入口
   "thread.left": { threadId?: string }; // 当前会话中央列左侧
   "thread.header": { threadId?: string }; // 当前会话顶部区域
+  "thread.menu": ThreadMenuSlotContext; // 顶部栏当前会话操作菜单
   "thread.before": { threadId?: string }; // 当前会话消息列表之前
   "thread.after": { threadId?: string }; // 当前会话消息列表之后
   "thread.right": { threadId?: string }; // 当前会话中央列右侧

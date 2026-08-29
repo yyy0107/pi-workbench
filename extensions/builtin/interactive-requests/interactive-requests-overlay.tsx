@@ -1,6 +1,5 @@
 "use client";
 
-import { useAuiState } from "@assistant-ui/react";
 import { LoaderCircleIcon, ShieldAlertIcon } from "lucide-react";
 import {
   useCallback,
@@ -23,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { useI18n } from "@/i18n";
 import type { ComposerOverlaySlotContext } from "@/platform/extensions/authoring";
+import { useWorkbenchAgentThreadId } from "@/runtime/assistant-ui/agent-runtime-context";
 import { usePiSessionManager } from "@/runtime/pi/client/runtime/context";
 import type {
   PiInteractionResponse,
@@ -271,11 +271,7 @@ function ApprovalDialog({
 
 function usePendingInteractions() {
   const manager = usePiSessionManager();
-  const activeSessionId = useAuiState((state) => {
-    const mainThreadId = state.threads.mainThreadId;
-    const mainThread = state.threads.threadItems.find((thread) => thread.id === mainThreadId);
-    return mainThread?.remoteId ?? mainThread?.externalId ?? mainThreadId;
-  });
+  const activeSessionId = useWorkbenchAgentThreadId();
   const revision = useSyncExternalStore(
     manager.subscribe,
     manager.getSnapshot,
@@ -307,9 +303,17 @@ export function InteractiveQuestionComposerOverlay({
   );
 }
 
-export function InteractiveRequestsOverlay() {
+export function InteractiveRequestsOverlay({ setOverlayVisible }: ComposerOverlaySlotContext) {
   const { manager, pending } = usePendingInteractions();
   const interaction = pending[0];
+  const approvalVisible = interaction?.kind === "approval";
+
+  useLayoutEffect(() => {
+    if (!approvalVisible) return;
+    setOverlayVisible(true);
+    return () => setOverlayVisible(false);
+  }, [approvalVisible, setOverlayVisible]);
+
   if (!interaction || interaction.kind !== "approval") return null;
 
   return (

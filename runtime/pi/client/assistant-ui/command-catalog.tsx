@@ -31,17 +31,11 @@ export function resolvePiCommandListPayload(
 
 export { projectPiAgentCommand, projectPiAgentCommands };
 
-/** Pi implementation of the backend-neutral command catalog capability. */
-export function usePiAgentCommandCatalog(
+function usePiAgentCommandCatalogTarget(
   manager: PiSessionManager,
+  sessionId: string | undefined,
+  workspaceId: string | undefined,
 ): readonly WorkbenchAgentCommand[] {
-  const sessionId = useSyncExternalStore(
-    manager.subscribeActiveSession,
-    manager.getActiveSessionId,
-    manager.getActiveSessionId,
-  );
-  const { activeWorkspaceId, draftWorkspaceId } = useWorkspaceSelection();
-  const workspaceId = draftWorkspaceId ?? activeWorkspaceId;
   const requestKey = sessionId
     ? `session:${sessionId}`
     : workspaceId
@@ -84,4 +78,26 @@ export function usePiAgentCommandCatalog(
   return commandState?.manager === manager && commandState.requestKey === requestKey
     ? commandState.commands
     : EMPTY_WORKBENCH_AGENT_COMMANDS;
+}
+
+/** Commands for an explicit Runtime-bound Pi session, including hidden scratch sessions. */
+export function useBoundPiAgentCommandCatalog(
+  manager: PiSessionManager,
+  sessionId: string,
+): readonly WorkbenchAgentCommand[] {
+  return usePiAgentCommandCatalogTarget(manager, sessionId, undefined);
+}
+
+/** Pi implementation of the backend-neutral command catalog capability. */
+export function usePiAgentCommandCatalog(
+  manager: PiSessionManager,
+): readonly WorkbenchAgentCommand[] {
+  const sessionId = useSyncExternalStore(
+    manager.subscribeActiveSession,
+    manager.getActiveSessionId,
+    manager.getActiveSessionId,
+  );
+  const { activeWorkspaceId, draftWorkspaceId } = useWorkspaceSelection();
+  const workspaceId = draftWorkspaceId ?? activeWorkspaceId;
+  return usePiAgentCommandCatalogTarget(manager, sessionId, workspaceId);
 }

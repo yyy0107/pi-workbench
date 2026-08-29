@@ -18,6 +18,7 @@ import { modelSelectorExtension } from "./builtin/model-selector";
 import { piExtensionsExtension } from "./builtin/pi-extensions";
 import { settingModelConfigExtension } from "./builtin/setting-model-config";
 import { settingsExtension } from "./builtin/settings";
+import { sideChatExtension } from "./builtin/side-chat";
 import { skillsExtension } from "./builtin/skills";
 import { terminalExtension } from "./builtin/terminal";
 import { toolboxExtension } from "./builtin/toolbox";
@@ -40,6 +41,7 @@ export const builtinExtensions = [
   settingsExtension,
   agentConfigurationExtension,
   interactiveRequestsExtension,
+  sideChatExtension,
   appearanceExtension,
   localeSelectorExtension,
   hardwareAccelerationExtension,

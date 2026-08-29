@@ -102,6 +102,12 @@ import type {
   SessionSelectModelValue,
   SessionSelectBranchPayload,
   SessionSelectBranchValue,
+  SessionScratchCreatePayload,
+  SessionScratchCreateValue,
+  SessionScratchPromotePayload,
+  SessionScratchPromoteValue,
+  SessionScratchReleasePayload,
+  SessionScratchReleaseValue,
   SessionUpdateQueuePayload,
   SessionUpdateQueueValue,
   SkillDescribePayload,
@@ -934,6 +940,24 @@ export function deletePiRpcSession(payload: SessionDeletePayload): Promise<Sessi
 
 export function forkPiRpcSession(payload: SessionForkPayload): Promise<SessionForkValue> {
   return callPiRpc("session.fork", payload);
+}
+
+export function createPiRpcScratchSession(
+  payload: SessionScratchCreatePayload,
+): Promise<SessionScratchCreateValue> {
+  return callPiRpc("session.scratch.create", payload);
+}
+
+export function releasePiRpcScratchSession(
+  payload: SessionScratchReleasePayload,
+): Promise<SessionScratchReleaseValue> {
+  return callPiRpc("session.scratch.release", payload);
+}
+
+export function promotePiRpcScratchSession(
+  payload: SessionScratchPromotePayload,
+): Promise<SessionScratchPromoteValue> {
+  return callPiRpc("session.scratch.promote", payload);
 }
 
 export function promptPiRpcSession(

@@ -13,6 +13,7 @@ import { SlotHost } from "@/platform/extensions/hosts/slot-host";
 import { useWorkbenchAgentThreadSnapshot } from "@/runtime/assistant-ui/agent-runtime-context";
 
 import { truncateConversationTitle } from "./conversation-title";
+import { ConversationActionsMenu } from "./conversation-actions-menu";
 
 function SidebarOpenButton() {
   const { t } = useI18n();
@@ -162,6 +163,13 @@ export function WorkbenchHeader() {
         ) : null}
         {activeMainView?.chrome?.headerLeft !== "hidden" ? (
           <SlotHost name="header.left" className="flex shrink-0 items-center gap-1 sm:gap-2" />
+        ) : null}
+        {!activeMainView && currentThread?.status === "regular" ? (
+          <ConversationActionsMenu
+            threadId={currentThread.id}
+            sessionId={currentThread.remoteId ?? currentThread.externalId ?? currentThread.id}
+            title={currentThreadTitle}
+          />
         ) : null}
       </div>
 

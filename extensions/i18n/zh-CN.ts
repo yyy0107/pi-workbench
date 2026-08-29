@@ -120,6 +120,14 @@ export const extensionsZhCN = {
       network: "无法发送回答，请检查连接后重试。",
     },
   },
+  sideChat: {
+    title: "临时侧聊",
+    open: "打开临时侧聊",
+    creating: "正在创建临时侧聊…",
+    promote: "保留为会话",
+    promoteDescription: "将这个临时侧聊保存为普通会话。",
+    promoting: "正在保存…",
+  },
   localeSelector: {
     languageTitle: "语言",
     languageDescription: "选择工作台控件和菜单使用的语言。",

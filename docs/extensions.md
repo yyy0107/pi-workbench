@@ -397,6 +397,12 @@ Thread Slot：
 
 `thread.left` 与 `thread.right` 以全高形式挂载在对话中央列两侧，贡献组件需要自行定义宽度。文件、审查、浏览器、产物和终端等检查型界面通过 Workspace Surface Contribution 注册。
 
+顶部会话操作菜单 Slot：
+
+- `thread.menu`；
+- 参数为 `{ threadId: string; closeMenu(): void }`；
+- 贡献应渲染菜单项语义，并在开始或完成操作后调用 `closeMenu()`。分隔线由贡献自身携带，避免没有贡献时留下空白菜单装饰。
+
 Message Slot：
 
 - `message.before`、`message.after`、`message.actions`；

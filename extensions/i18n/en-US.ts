@@ -122,6 +122,14 @@ export const extensionsEnUS = {
       network: "Could not send the response. Check the connection and try again.",
     },
   },
+  sideChat: {
+    title: "Temporary chat",
+    open: "Open temporary chat",
+    creating: "Creating temporary chat…",
+    promote: "Keep as conversation",
+    promoteDescription: "Save this temporary chat as a regular conversation.",
+    promoting: "Saving…",
+  },
   localeSelector: {
     languageTitle: "Language",
     languageDescription: "Choose the language used by Workbench controls and menus.",

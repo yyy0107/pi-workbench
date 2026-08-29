@@ -1,6 +1,7 @@
 import type {
   WorkbenchAgentComposerSendError,
   WorkbenchAgentRuntimeExtras,
+  WorkbenchAgentWorkspace,
 } from "@/runtime/assistant-ui/agent-runtime-adapter";
 
 import type { PiWorkspaceSummary } from "../../contracts/pi";
@@ -20,7 +21,7 @@ export function projectPiAgentRuntimeExtras({
 }: Readonly<{
   session: PiClientSession;
   snapshot: PiSessionSnapshot;
-  workspace?: PiWorkspaceSummary;
+  workspace?: PiWorkspaceSummary | WorkbenchAgentWorkspace;
   composerError?: WorkbenchAgentComposerSendError;
   clearComposerError(): void;
 }>): WorkbenchAgentRuntimeExtras {
@@ -34,7 +35,7 @@ export function projectPiAgentRuntimeExtras({
             workspace: {
               id: workspace.id,
               name: workspace.name,
-              rootPath: workspace.cwd,
+              rootPath: "cwd" in workspace ? workspace.cwd : workspace.rootPath,
               ...(workspace.pinned === undefined ? {} : { pinned: workspace.pinned }),
             },
           },

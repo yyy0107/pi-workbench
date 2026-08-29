@@ -1,6 +1,7 @@
-import { existsSync, statSync, unlinkSync } from "node:fs";
+import { existsSync, mkdtempSync, rmdirSync, statSync, unlinkSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { open, readdir, stat } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import {
   type AgentSession,
@@ -13,6 +14,7 @@ import {
   type SessionInfo,
   type SessionEntry,
   SessionManager,
+  type ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 
 import type {
@@ -171,6 +173,8 @@ import { resolveInitialSessionModel } from "./session-initial-model";
 export { PiServerError } from "../core/errors";
 
 const SESSION_IDLE_TIMEOUT_MS = 10 * 60 * 1000;
+export const SCRATCH_SESSION_TTL_MS = 24 * 60 * 60 * 1000;
+const SCRATCH_EXPIRY_BUSY_RETRY_MS = 60 * 1000;
 const TOOL_TIMING_CUSTOM_TYPE = "workbench.tool-timing.v1";
 const BRANCH_SELECTION_CUSTOM_TYPE = "workbench.branch-selection.v1";
 export const PROMPT_SOURCE_CUSTOM_TYPE = "workbench.prompt-source.v1";
@@ -3344,6 +3348,8 @@ class HostedPiSession {
 interface RegistryState {
   sessions: Map<string, HostedPiSession>;
   startLocks: Map<string, Promise<HostedPiSession>>;
+  scratchSessions: Map<string, ScratchSessionRecord>;
+  scratchDirectory?: string;
   persistedSessions: Map<string, SessionInfo>;
   persistedSessionSummaries: Map<string, PiSessionSummary>;
   persistedSessionFingerprints: Map<string, string>;
@@ -3355,6 +3361,17 @@ interface RegistryState {
   forkTail: Promise<void>;
 }
 
+export interface ScratchSessionRecord {
+  readonly id: string;
+  readonly sourceSessionId: string;
+  readonly workspaceId?: string;
+  readonly cwd: string;
+  readonly filePath: string;
+  readonly createdAt: number;
+  expiresAt: number;
+  expiryTimer?: ReturnType<typeof setTimeout>;
+}
+
 const serverGlobal = globalThis as typeof globalThis & {
   __workbenchPiRegistry?: RegistryState;
 };
@@ -3364,6 +3381,7 @@ function state(): RegistryState {
     serverGlobal.__workbenchPiRegistry = {
       sessions: new Map(),
       startLocks: new Map(),
+      scratchSessions: new Map(),
       persistedSessions: new Map(),
       persistedSessionSummaries: new Map(),
       persistedSessionFingerprints: new Map(),
@@ -3377,6 +3395,7 @@ function state(): RegistryState {
   const registry = serverGlobal.__workbenchPiRegistry;
   // Preserve compatibility with a registry retained across a development HMR update.
   registry.persistedSessions ??= new Map();
+  registry.scratchSessions ??= new Map();
   registry.persistedSessionSummaries ??= new Map();
   registry.persistedSessionFingerprints ??= new Map();
   registry.persistedSessionCacheKey ??= "";
@@ -3422,6 +3441,7 @@ function publishRunningSessions(): void {
 async function createHost(
   sessionManager: SessionManager,
   initialModel?: PiModelSelection,
+  options: { customTools?: readonly ToolDefinition[] } = {},
 ): Promise<HostedPiSession> {
   const cwd = sessionManager.getCwd();
   const initialContextPolicy = policyFromSessionEntries(sessionManager.getBranch());
@@ -3450,6 +3470,7 @@ async function createHost(
         commandPrefix: services.settingsManager.getShellCommandPrefix(),
         shellPath: services.settingsManager.getShellPath(),
       }),
+      ...(options.customTools ?? []),
     ],
   });
   const interactiveResponses = getInteractiveResponseRegistry();
@@ -3660,9 +3681,13 @@ function forkLeafForSequence(manager: SessionManager, atSeq?: number): SessionEn
  * Build a child from a detached manager. Pi's runtime-level fork replaces the live source session;
  * opening a second manager and branching that copy preserves the source host and its listeners.
  */
-export function createDetachedSessionFork(sourcePath: string, atSeq?: number): SessionManager {
+export function createDetachedSessionFork(
+  sourcePath: string,
+  atSeq?: number,
+  sessionDirectory?: string,
+): SessionManager {
   const sourceBefore = statSync(sourcePath);
-  const detached = SessionManager.open(sourcePath);
+  const detached = SessionManager.open(sourcePath, sessionDirectory);
   const contextPolicy = latestSessionContextPolicyMarker(detached.getBranch());
   const leaf = forkLeafForSequence(detached, atSeq);
   const sourceId = detached.getSessionId();
@@ -3736,6 +3761,7 @@ function announceSessionAdded(host: HostedPiSession): void {
 }
 
 function announceSessionChanged(host: HostedPiSession): void {
+  if (state().scratchSessions.has(host.id)) return;
   const summary = host.summary();
   cacheHostedSession(state(), host);
   try {
@@ -3758,6 +3784,14 @@ export async function getOrStartSession(id: string): Promise<HostedPiSession> {
   if (starting) return starting;
 
   const start = (async () => {
+    const scratch = registry.scratchSessions.get(id);
+    if (scratch) {
+      if (!existsSync(/* turbopackIgnore: true */ scratch.filePath)) {
+        registry.scratchSessions.delete(id);
+        throw new PiServerError("pi_session_not_found", 404);
+      }
+      return createHost(SessionManager.open(scratch.filePath, scratchSessionDirectory()));
+    }
     const info = await persistedSession(id);
     if (!info) throw new PiServerError("pi_session_not_found", 404);
     return createHost(SessionManager.open(info.path));
@@ -3766,10 +3800,215 @@ export async function getOrStartSession(id: string): Promise<HostedPiSession> {
   return start;
 }
 
+function scratchSessionDirectory(): string {
+  const registry = state();
+  registry.scratchDirectory ??= mkdtempSync(path.join(tmpdir(), "pi-workbench-scratch-"));
+  return registry.scratchDirectory;
+}
+
+function clearScratchExpiry(record: ScratchSessionRecord): void {
+  if (!record.expiryTimer) return;
+  clearTimeout(record.expiryTimer);
+  record.expiryTimer = undefined;
+}
+
+function scheduleScratchExpiry(record: ScratchSessionRecord): void {
+  clearScratchExpiry(record);
+  const delay = Math.max(0, record.expiresAt - Date.now());
+  record.expiryTimer = setTimeout(() => {
+    const current = state().scratchSessions.get(record.id);
+    if (current !== record) return;
+    const host = state().sessions.get(record.id);
+    if (host?.isAlive && host.isBusy) {
+      record.expiresAt = Date.now() + SCRATCH_EXPIRY_BUSY_RETRY_MS;
+      scheduleScratchExpiry(record);
+      return;
+    }
+    void releaseScratchSession(record.id).catch((error: unknown) => {
+      console.error("[workbench-pi] scratch session expiry failed", error);
+    });
+  }, delay);
+  record.expiryTimer.unref?.();
+}
+
+async function sessionSourceFile(
+  id: string,
+): Promise<{ cwd: string; filePath: string } | undefined> {
+  const registry = state();
+  let live = registry.sessions.get(id);
+  if (!live?.isAlive) {
+    const starting = registry.startLocks.get(id);
+    if (starting) live = await starting;
+  }
+  const liveFile = live?.session.sessionManager.getSessionFile();
+  if (live?.isAlive && liveFile && existsSync(/* turbopackIgnore: true */ liveFile)) {
+    return { cwd: live.session.sessionManager.getCwd(), filePath: liveFile };
+  }
+  const scratch = registry.scratchSessions.get(id);
+  if (scratch && existsSync(/* turbopackIgnore: true */ scratch.filePath)) {
+    return { cwd: scratch.cwd, filePath: scratch.filePath };
+  }
+  const persisted = await persistedSession(id);
+  return persisted ? { cwd: persisted.cwd, filePath: persisted.path } : undefined;
+}
+
+export function getScratchSessionRecord(id: string): ScratchSessionRecord | undefined {
+  return state().scratchSessions.get(id);
+}
+
+export async function getScratchSessionSummary(id: string): Promise<PiSessionSummary | undefined> {
+  const record = state().scratchSessions.get(id);
+  if (!record) return undefined;
+  const live = state().sessions.get(id);
+  if (live?.isAlive) return live.summary();
+  if (!existsSync(/* turbopackIgnore: true */ record.filePath)) return undefined;
+  return persistedMetadataFromManager(SessionManager.open(record.filePath), false).summary;
+}
+
+/** Create a hidden, independently runnable branch without admitting it to the formal catalog. */
+export async function createScratchSession(
+  sourceSessionId: string,
+  atSeq?: number,
+  options: Readonly<{ workspaceId?: string; ttlMs?: number }> = {},
+): Promise<{ host: HostedSession; record: ScratchSessionRecord }> {
+  const registry = state();
+  const source = await sessionSourceFile(sourceSessionId);
+  if (!source) throw new PiServerError("pi_session_not_found", 404);
+  if (atSeq === undefined && registry.sessions.get(sourceSessionId)?.isBusy) {
+    throw forkUnavailable();
+  }
+
+  return serializeForkCreation(async () => {
+    const sourceFile = await sessionSourceFile(sourceSessionId);
+    if (!sourceFile || !existsSync(/* turbopackIgnore: true */ sourceFile.filePath)) {
+      throw new PiServerError("pi_session_not_found", 404);
+    }
+    if (atSeq === undefined && registry.sessions.get(sourceSessionId)?.isBusy) {
+      throw forkUnavailable();
+    }
+
+    let child: SessionManager;
+    try {
+      child = createDetachedSessionFork(sourceFile.filePath, atSeq, scratchSessionDirectory());
+    } catch (error) {
+      if (error instanceof PiServerError) throw error;
+      throw forkUnavailable();
+    }
+    const sessionId = child.getSessionId();
+    const filePath = child.getSessionFile();
+    if (!filePath || !existsSync(/* turbopackIgnore: true */ filePath)) {
+      throw forkUnavailable();
+    }
+    if (
+      registry.sessions.has(sessionId) ||
+      registry.startLocks.has(sessionId) ||
+      registry.scratchSessions.has(sessionId)
+    ) {
+      removeFailedForkFile(sourceFile.filePath, child);
+      throw forkUnavailable();
+    }
+
+    const createdAt = Date.now();
+    const record: ScratchSessionRecord = {
+      id: sessionId,
+      sourceSessionId,
+      ...(options.workspaceId ? { workspaceId: options.workspaceId } : {}),
+      cwd: sourceFile.cwd,
+      filePath,
+      createdAt,
+      expiresAt: createdAt + (options.ttlMs ?? SCRATCH_SESSION_TTL_MS),
+    };
+    registry.scratchSessions.set(sessionId, record);
+    scheduleScratchExpiry(record);
+    try {
+      const host = await createHost(child);
+      return { host, record };
+    } catch (error) {
+      clearScratchExpiry(record);
+      registry.scratchSessions.delete(sessionId);
+      removeFailedForkFile(sourceFile.filePath, child);
+      throw error;
+    }
+  });
+}
+
+/** Release is idempotent so surface teardown and TTL cleanup may race safely. */
+export async function releaseScratchSession(id: string): Promise<void> {
+  const registry = state();
+  const record = registry.scratchSessions.get(id);
+  if (!record) return;
+  clearScratchExpiry(record);
+  const starting = registry.startLocks.get(id);
+  if (starting) await starting.catch(() => undefined);
+  const live = registry.sessions.get(id);
+  if (live?.isAlive) await live.shutdown();
+  coldSessionEventCache.invalidate(record.filePath);
+  if (existsSync(/* turbopackIgnore: true */ record.filePath)) unlinkSync(record.filePath);
+  registry.scratchSessions.delete(id);
+  registry.persistedSessions.delete(id);
+  registry.persistedSessionSummaries.delete(id);
+  registry.persistedSessionFingerprints.delete(record.filePath);
+}
+
+/** Promote a scratch branch into the normal Pi catalog, then remove its temporary identity. */
+export async function promoteScratchSession(
+  id: string,
+  title?: string,
+): Promise<{ host: HostedSession; sourceSessionId: string; workspaceId?: string }> {
+  const registry = state();
+  const record = registry.scratchSessions.get(id);
+  if (!record || !existsSync(/* turbopackIgnore: true */ record.filePath)) {
+    throw new PiServerError("pi_session_not_found", 404);
+  }
+  const live = registry.sessions.get(id);
+  if (live?.isAlive && live.isBusy) throw new PiServerError("pi_session_busy", 409);
+
+  return serializeForkCreation(async () => {
+    const current = registry.scratchSessions.get(id);
+    if (!current || !existsSync(/* turbopackIgnore: true */ current.filePath)) {
+      throw new PiServerError("pi_session_not_found", 404);
+    }
+    const currentHost = registry.sessions.get(id);
+    if (currentHost?.isAlive && currentHost.isBusy) {
+      throw new PiServerError("pi_session_busy", 409);
+    }
+
+    const promoted = SessionManager.forkFrom(current.filePath, current.cwd);
+    const promotedPath = promoted.getSessionFile();
+    if (title?.trim()) promoted.appendSessionInfo(title.trim());
+    let host: HostedPiSession;
+    try {
+      host = await createHost(promoted);
+    } catch (error) {
+      if (promotedPath && existsSync(/* turbopackIgnore: true */ promotedPath)) {
+        unlinkSync(promotedPath);
+      }
+      throw error;
+    }
+    announceSessionAdded(host);
+    try {
+      await releaseScratchSession(id);
+    } catch (error) {
+      // Promotion is already durable and visible. Retain success rather than deleting the formal
+      // file underneath a live host; the temporary file remains isolated for later cleanup.
+      console.error("[workbench-pi] promoted scratch cleanup failed", error);
+    }
+    return {
+      host,
+      sourceSessionId: current.sourceSessionId,
+      ...(current.workspaceId ? { workspaceId: current.workspaceId } : {}),
+    };
+  });
+}
+
 export async function createSession(
   cwd: string,
   sessionId?: string,
   initialModel?: PiModelSelection,
+  options: {
+    sessionDirectory?: string;
+    customTools?: readonly ToolDefinition[];
+  } = {},
 ): Promise<HostedPiSession> {
   const workspace = validateWorkspace(cwd);
   const registry = state();
@@ -3791,11 +4030,12 @@ export async function createSession(
       const persisted = await persistedSession(sessionId);
       if (persisted !== undefined) {
         requireRequestedCwd(sessionId, workspace.cwd, persisted.cwd);
-        return createHost(SessionManager.open(persisted.path));
+        return createHost(SessionManager.open(persisted.path), initialModel, options);
       }
       const host = await createHost(
-        SessionManager.create(workspace.cwd, undefined, { id: sessionId }),
+        SessionManager.create(workspace.cwd, options.sessionDirectory, { id: sessionId }),
         initialModel,
+        options,
       );
       announceSessionAdded(host);
       return host;
@@ -3805,7 +4045,11 @@ export async function createSession(
   }
 
   const key = `new:${randomUUID()}`;
-  const start = createHost(SessionManager.create(workspace.cwd), initialModel)
+  const start = createHost(
+    SessionManager.create(workspace.cwd, options.sessionDirectory),
+    initialModel,
+    options,
+  )
     .then((host) => {
       announceSessionAdded(host);
       return host;
@@ -4081,6 +4325,16 @@ function cacheHostedSession(
   host: HostedPiSession,
   fingerprints?: Map<string, string>,
 ): void {
+  if (registry.scratchSessions.has(host.id)) {
+    const previous = registry.persistedSessions.get(host.id);
+    registry.persistedSessions.delete(host.id);
+    registry.persistedSessionSummaries.delete(host.id);
+    if (previous) {
+      registry.persistedSessionFingerprints.delete(previous.path);
+      fingerprints?.delete(previous.path);
+    }
+    return;
+  }
   const { info, summary } = host.metadataSnapshot();
   registry.persistedSessionSummaries.set(summary.id, summary);
   if (!info) {
@@ -4382,6 +4636,9 @@ export async function listSessions(): Promise<{
 }> {
   const registry = await ensurePersistedSessionCache();
   const interactiveResponses = getInteractiveResponseRegistry();
+  const scratchIds = new Set(registry.scratchSessions.keys());
+  // Running ids are transport state, not catalog membership. Hidden scratch ids must remain here
+  // so their bound client Runtimes survive unary rebaselines during concurrent main/side runs.
   const runningIds = runningSessionIds();
   const running = new Set(runningIds);
   const summaries = new Map(
@@ -4391,7 +4648,7 @@ export async function listSessions(): Promise<{
     ]),
   );
   for (const host of registry.sessions.values()) {
-    if (host.isAlive) summaries.set(host.id, host.summary());
+    if (host.isAlive && !scratchIds.has(host.id)) summaries.set(host.id, host.summary());
   }
   return {
     sessions: [...summaries.values()]
@@ -4967,6 +5224,7 @@ export function subscribeRunningSessions(listener: RunningListener): () => void 
 export type HostedSession = HostedPiSession;
 
 registerWorkbenchShutdownHook("pi-sessions", async () => {
+  const registry = state();
   const results = await Promise.allSettled(
     getLoadedSessions().map((session) => session.shutdown()),
   );
@@ -4976,4 +5234,18 @@ registerWorkbenchShutdownHook("pi-sessions", async () => {
   if (failures.length > 0) {
     throw new AggregateError(failures, "One or more Pi sessions failed to shut down.");
   }
+  for (const record of registry.scratchSessions.values()) {
+    clearScratchExpiry(record);
+    coldSessionEventCache.invalidate(record.filePath);
+    if (existsSync(/* turbopackIgnore: true */ record.filePath)) unlinkSync(record.filePath);
+  }
+  registry.scratchSessions.clear();
+  if (registry.scratchDirectory && existsSync(registry.scratchDirectory)) {
+    try {
+      rmdirSync(registry.scratchDirectory);
+    } catch {
+      // Failed fork artifacts remain isolated in the operating system temp directory.
+    }
+  }
+  registry.scratchDirectory = undefined;
 });

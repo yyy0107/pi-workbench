@@ -37,6 +37,12 @@ import type {
   SessionSelectModelValue,
   SessionSelectBranchPayload,
   SessionSelectBranchValue,
+  SessionScratchCreatePayload,
+  SessionScratchCreateValue,
+  SessionScratchPromotePayload,
+  SessionScratchPromoteValue,
+  SessionScratchReleasePayload,
+  SessionScratchReleaseValue,
   SessionUpdateQueuePayload,
   SessionUpdateQueueValue,
   WorkspaceView,
@@ -85,6 +91,9 @@ export type SessionUpdateQueueInput = SessionUpdateQueuePayload;
 export type SessionCancelInput = SessionCancelPayload;
 export type SessionContextPolicyInput = SessionContextPolicyPayload;
 export type SessionContextPolicyUpdateInput = SessionContextPolicyUpdatePayload;
+export type SessionScratchCreateInput = SessionScratchCreatePayload;
+export type SessionScratchPromoteInput = SessionScratchPromotePayload;
+export type SessionScratchReleaseInput = SessionScratchReleasePayload;
 
 export type {
   SessionAttachmentValue,
@@ -106,6 +115,9 @@ export type {
   SessionSearchValue,
   SessionSelectModelValue,
   SessionSelectBranchValue,
+  SessionScratchCreateValue,
+  SessionScratchPromoteValue,
+  SessionScratchReleaseValue,
   SessionUpdateQueueValue,
 } from "@/runtime/pi/contracts/rpc";
 
@@ -168,12 +180,39 @@ export interface SessionRpcWorkspaceStore {
   ): Promise<{ items: WorkspaceView[] }>;
 }
 
+export interface SessionRpcScratchRecord {
+  readonly summary: AgentThreadSummary;
+  readonly sourceSessionId: string;
+  readonly workspaceId?: string;
+  readonly expiresAt: number;
+}
+
+export interface SessionRpcScratchStore {
+  get(sessionId: string): Promise<SessionRpcScratchRecord | undefined>;
+  runningSessionIds?(): Promise<readonly string[]>;
+  create(input: {
+    sourceSessionId: string;
+    atEventRevision?: number;
+    workspaceId?: string;
+  }): Promise<SessionRpcScratchRecord>;
+  release(sessionId: string): Promise<void>;
+  promote(
+    sessionId: string,
+    title?: string,
+  ): Promise<{
+    summary: AgentThreadSummary;
+    sourceSessionId: string;
+    workspaceId?: string;
+  }>;
+}
+
 export interface SessionRpcServiceOptions {
   workspaceStore: SessionRpcWorkspaceStore;
   execution: AgentExecutionPort;
   threads: AgentThreadStorePort;
   history: PiSessionHistoryService;
   modelContext: PiSessionModelContextService;
+  scratch?: SessionRpcScratchStore;
   defaultCwd?: string;
 }
 
@@ -301,6 +340,7 @@ export class SessionRpcService {
   private readonly threads: AgentThreadStorePort;
   private readonly historyService: PiSessionHistoryService;
   private readonly modelContextService: PiSessionModelContextService;
+  private readonly scratchStore?: SessionRpcScratchStore;
   private readonly defaultCwd: string;
   private readonly sessionCreateTails = new Map<string, Promise<void>>();
 
@@ -310,6 +350,7 @@ export class SessionRpcService {
     this.threads = options.threads;
     this.historyService = options.history;
     this.modelContextService = options.modelContext;
+    this.scratchStore = options.scratch;
     this.defaultCwd = options.defaultCwd ?? process.cwd();
   }
 
@@ -518,12 +559,25 @@ export class SessionRpcService {
   private async requireSession(sessionId: string): Promise<AgentThreadSummary> {
     nonEmpty(sessionId, "sessionId");
     const summary = (await this.allThreads()).find((item) => item.threadId === sessionId);
-    if (!summary) {
+    if (summary) return summary;
+    const scratch = await this.scratchStore?.get(sessionId);
+    if (!scratch) {
       throw new SessionRpcServiceError("session-not-found", "The session does not exist.", {
         sessionId,
       });
     }
-    return summary;
+    return scratch.summary;
+  }
+
+  private async requireScratch(sessionId: string): Promise<SessionRpcScratchRecord> {
+    nonEmpty(sessionId, "sessionId");
+    const scratch = await this.scratchStore?.get(sessionId);
+    if (!scratch) {
+      throw new SessionRpcServiceError("session-not-found", "The scratch session does not exist.", {
+        sessionId,
+      });
+    }
+    return scratch;
   }
 
   private async serializeRequestedCreate<T>(
@@ -548,7 +602,10 @@ export class SessionRpcService {
   }
 
   async list(_input: SessionListInput = {}): Promise<SessionListValue> {
-    const threads = await this.allThreads();
+    const [threads, scratchRunningSessionIds] = await Promise.all([
+      this.allThreads(),
+      this.scratchStore?.runningSessionIds?.() ?? Promise.resolve([]),
+    ]);
     return {
       items: threads.map((thread) => ({
         sessionId: thread.threadId,
@@ -563,6 +620,9 @@ export class SessionRpcService {
           values: { [WORKBENCH_SESSION_SUMMARY_PROJECTION]: piSessionSummary(thread) },
         },
       })),
+      ...(scratchRunningSessionIds.length > 0
+        ? { runningSessionIds: [...scratchRunningSessionIds] }
+        : {}),
     };
   }
 
@@ -963,6 +1023,72 @@ export class SessionRpcService {
       await this.attachToWorkspace(sourceWorkspace.workspaceId, forked.threadId);
     }
     return { sessionId: forked.threadId };
+  }
+
+  async scratchCreate(input: SessionScratchCreateInput): Promise<SessionScratchCreateValue> {
+    if (input.atSeq !== undefined && (!Number.isInteger(input.atSeq) || input.atSeq < 0)) {
+      throw badRequest([issue(["atSeq"], "atSeq must be an integer greater than or equal to 0.")]);
+    }
+    const source = await this.requireSession(input.sourceSessionId);
+    if (!this.scratchStore) this.translate(new Error("Scratch sessions are unavailable."));
+
+    let workspaceId: string | undefined;
+    try {
+      workspaceId = (await this.workspaceStore.list()).items.find((workspace) =>
+        workspace.sessionIds.includes(source.threadId),
+      )?.workspaceId;
+      workspaceId ??= (await this.scratchStore.get(source.threadId))?.workspaceId;
+    } catch (error) {
+      this.translate(error, { sessionId: input.sourceSessionId });
+    }
+
+    let created: SessionRpcScratchRecord;
+    try {
+      created = await this.scratchStore.create({
+        sourceSessionId: input.sourceSessionId,
+        ...(input.atSeq === undefined ? {} : { atEventRevision: input.atSeq }),
+        ...(workspaceId ? { workspaceId } : {}),
+      });
+    } catch (error) {
+      this.translate(error, { sessionId: input.sourceSessionId });
+    }
+    return {
+      sessionId: created.summary.threadId,
+      sourceSessionId: created.sourceSessionId,
+      expiresAt: created.expiresAt,
+    };
+  }
+
+  async scratchRelease(input: SessionScratchReleaseInput): Promise<SessionScratchReleaseValue> {
+    await this.requireScratch(input.sessionId);
+    try {
+      await this.scratchStore?.release(input.sessionId);
+    } catch (error) {
+      this.translate(error, { sessionId: input.sessionId });
+    }
+    return { released: true };
+  }
+
+  async scratchPromote(input: SessionScratchPromoteInput): Promise<SessionScratchPromoteValue> {
+    const scratch = await this.requireScratch(input.sessionId);
+    const title = input.title?.trim();
+    if (input.title !== undefined && !title) {
+      throw new SessionRpcServiceError("title-invalid", "The session title is invalid.", {
+        sessionId: input.sessionId,
+      });
+    }
+    let promoted: Awaited<ReturnType<SessionRpcScratchStore["promote"]>>;
+    try {
+      promoted = await this.scratchStore!.promote(input.sessionId, title);
+    } catch (error) {
+      this.translate(error, { sessionId: input.sessionId });
+    }
+    const workspaceId = promoted.workspaceId ?? scratch.workspaceId;
+    if (workspaceId) await this.attachToWorkspace(workspaceId, promoted.summary.threadId);
+    return {
+      sessionId: promoted.summary.threadId,
+      sourceSessionId: promoted.sourceSessionId,
+    };
   }
 
   async prompt(

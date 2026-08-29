@@ -51,6 +51,7 @@ type PiSessionHistoryServiceDependencies =
 type PiSessionModelContextServiceDependencies =
   import("./pi-session-model-context-service").PiSessionModelContextServiceDependencies;
 type SessionRpcWorkspaceStore = import("./session-rpc-service").SessionRpcWorkspaceStore;
+type SessionRpcScratchStore = import("./session-rpc-service").SessionRpcScratchStore;
 
 const PNG_BASE64 = "iVBORw0KGgo=";
 const PDF_BASE64 = Buffer.from("%PDF-1.7\nfixture").toString("base64");
@@ -151,12 +152,14 @@ type HarnessOverrides = Partial<
   PiSessionHistoryServiceDependencies & PiSessionModelContextServiceDependencies
 > & {
   execution?: Partial<AgentExecutionPort>;
+  scratch?: SessionRpcScratchStore;
   threads?: ThreadStoreOverrides;
 };
 
 function harness(overrides: HarnessOverrides = {}) {
   const {
     execution: executionOverrides = {},
+    scratch,
     threads: threadOverrides = {},
     ...dependencyOverrides
   } = overrides;
@@ -279,6 +282,7 @@ function harness(overrides: HarnessOverrides = {}) {
     threads,
     history: createPiSessionHistoryService(dependencies),
     modelContext: createPiSessionModelContextService(dependencies),
+    ...(scratch ? { scratch } : {}),
     defaultCwd: "/default",
   });
   return { service, calls, workspaceStore };
@@ -1123,6 +1127,122 @@ test("reports stable fork validation, missing, and unavailable errors", async ()
   await assert.rejects(missing.fork({ sessionId: "missing" }), {
     code: "session-not-found",
     details: { sessionId: "missing" },
+  });
+});
+
+test("creates, routes, releases, and promotes scratch sessions without catalog membership", async () => {
+  const records = new Map<string, Awaited<ReturnType<SessionRpcScratchStore["create"]>>>();
+  const scratchCalls: Array<{ name: string; value: unknown }> = [];
+  let sequence = 0;
+  const scratch: SessionRpcScratchStore = {
+    get: async (sessionId) => records.get(sessionId),
+    runningSessionIds: async () =>
+      [...records.values()]
+        .filter((record) => record.summary.running)
+        .map((record) => record.summary.threadId),
+    create: async (input) => {
+      scratchCalls.push({ name: "create", value: input });
+      const scratchId = `scratch-${++sequence}`;
+      const record = {
+        summary: summary({
+          threadId: scratchId,
+          title: undefined,
+          transient: true,
+        }),
+        sourceSessionId: input.sourceSessionId,
+        ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
+        expiresAt: 1_800_000_000_000,
+      };
+      records.set(scratchId, record);
+      return record;
+    },
+    release: async (sessionId) => {
+      scratchCalls.push({ name: "release", value: sessionId });
+      records.delete(sessionId);
+    },
+    promote: async (sessionId, title) => {
+      scratchCalls.push({ name: "promote", value: [sessionId, title] });
+      const record = records.get(sessionId)!;
+      records.delete(sessionId);
+      return {
+        summary: summary({ threadId: "session-promoted", title }),
+        sourceSessionId: record.sourceSessionId,
+        ...(record.workspaceId ? { workspaceId: record.workspaceId } : {}),
+      };
+    },
+  };
+  const scratchHarness = harness({ scratch });
+
+  assert.deepEqual(
+    await scratchHarness.service.scratchCreate({ sourceSessionId: "session-1", atSeq: 4 }),
+    {
+      sessionId: "scratch-1",
+      sourceSessionId: "session-1",
+      expiresAt: 1_800_000_000_000,
+    },
+  );
+  assert.deepEqual(scratchCalls.at(-1), {
+    name: "create",
+    value: {
+      sourceSessionId: "session-1",
+      atEventRevision: 4,
+      workspaceId: "workspace-1",
+    },
+  });
+  const createdScratch = records.get("scratch-1")!;
+  records.set("scratch-1", {
+    ...createdScratch,
+    summary: { ...createdScratch.summary, running: true },
+  });
+  const scratchList = await scratchHarness.service.list();
+  assert.deepEqual(scratchList.runningSessionIds, ["scratch-1"]);
+  assert.equal(
+    scratchList.items.some((item) => item.sessionId === "scratch-1"),
+    false,
+  );
+
+  await scratchHarness.service.prompt({
+    sessionId: "scratch-1",
+    mode: "queue",
+    content: [{ type: "text", text: "Side request" }],
+  });
+  assert.deepEqual(scratchHarness.calls.at(-1), {
+    name: "submit-prompt",
+    value: {
+      threadId: "scratch-1",
+      mode: "follow-up",
+      prompt: { text: "Side request", attachments: [] },
+      provenance: {},
+    },
+  });
+
+  assert.deepEqual(await scratchHarness.service.scratchRelease({ sessionId: "scratch-1" }), {
+    released: true,
+  });
+  await assert.rejects(
+    scratchHarness.service.prompt({
+      sessionId: "scratch-1",
+      mode: "queue",
+      content: [{ type: "text", text: "Released" }],
+    }),
+    { code: "session-not-found" },
+  );
+
+  await scratchHarness.service.scratchCreate({ sourceSessionId: "session-1" });
+  assert.deepEqual(
+    await scratchHarness.service.scratchPromote({
+      sessionId: "scratch-2",
+      title: "Saved side chat",
+    }),
+    { sessionId: "session-promoted", sourceSessionId: "session-1" },
+  );
+  assert.deepEqual(scratchCalls.at(-1), {
+    name: "promote",
+    value: ["scratch-2", "Saved side chat"],
+  });
+  assert.deepEqual(scratchHarness.calls.at(-1), {
+    name: "attach",
+    value: ["workspace-1", "session-promoted"],
   });
 });
 

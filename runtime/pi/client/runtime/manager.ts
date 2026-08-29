@@ -56,6 +56,7 @@ import {
   archivePiWorkspaceSession,
   cancelPiRpcSession,
   createPiRpcId,
+  createPiRpcScratchSession,
   createPiRpcSession,
   describePiHost,
   deletePiRpcSession,
@@ -70,9 +71,11 @@ import {
   listPiWorkspaces,
   PiApiError,
   promptPiRpcSession,
+  promotePiRpcScratchSession,
   regeneratePiRpcSession,
   resumePiRpcSession,
   renamePiRpcSession,
+  releasePiRpcScratchSession,
   replacePiSessionQueue,
   respondPiRpc,
   selectPiRpcSessionModel,
@@ -94,6 +97,8 @@ import type {
   SessionPromptValue,
   SessionQueueAction,
   SessionResumeCheckpoint,
+  SessionScratchCreateValue,
+  SessionScratchPromoteValue,
   WorkspaceView,
 } from "@/runtime/pi/contracts/rpc";
 import type {
@@ -2391,6 +2396,7 @@ export class PiSessionManager {
   private readonly summaries = new Map<string, PiSessionSummary>();
   private readonly workspaces = new Map<string, WorkspaceView>();
   private readonly sessions = new Map<string, PiClientSession>();
+  private readonly scratchSessions = new Map<string, SessionScratchCreateValue>();
   private readonly aliases = new Map<string, string>();
   private readonly initializeTasks = new Map<string, Promise<PiSessionSummary>>();
   private readonly requestedSessionIntents = new Map<string, SessionCreateIntent>();
@@ -3191,10 +3197,11 @@ export class PiSessionManager {
   async ensureRemote(session: PiClientSession): Promise<PiSessionSummary> {
     if (this.disposed) throw new Error("PiSessionManager has been disposed");
     if (session.remoteId) {
-      const summary = this.summaries.get(session.remoteId);
+      const summary = this.summaries.get(session.remoteId) ?? this.scratchSummary(session.remoteId);
       if (summary) return summary;
       await this.refreshMetadata();
-      const refreshed = this.summaries.get(session.remoteId);
+      const refreshed =
+        this.summaries.get(session.remoteId) ?? this.scratchSummary(session.remoteId);
       if (refreshed) return refreshed;
     }
 
@@ -3324,17 +3331,28 @@ export class PiSessionManager {
             this.runTimings.delete(summary.id);
           }
         }
+        const scratchWaitingForUserInput = [...this.scratchSessions.keys()].filter((sessionId) =>
+          this.waitingForUserInput.has(sessionId),
+        );
         this.waitingForUserInput.clear();
         for (const summary of next.values()) {
           if (summary.waitingForUserInput) this.waitingForUserInput.add(summary.id);
         }
+        for (const sessionId of scratchWaitingForUserInput) {
+          this.waitingForUserInput.add(sessionId);
+        }
         for (const sessionId of this.pendingQueues.keys()) {
-          if (next.has(sessionId)) continue;
+          if (next.has(sessionId) || this.scratchSessions.has(sessionId)) continue;
           this.pendingQueues.delete(sessionId);
           this.connections.deleteSession(sessionId);
         }
         for (const [key, stored] of this.pendingInteractions) {
-          if (!next.has(stored.interaction.sessionId)) this.pendingInteractions.delete(key);
+          if (
+            !next.has(stored.interaction.sessionId) &&
+            !this.scratchSessions.has(stored.interaction.sessionId)
+          ) {
+            this.pendingInteractions.delete(key);
+          }
         }
         if (workspaceGeneration === this.workspaceGeneration) {
           this.applyWorkspaceSnapshot(workspaceResponse, archivedResponse);
@@ -3343,9 +3361,10 @@ export class PiSessionManager {
           // again so changes missed during the disconnected window are not lost.
           this.requestRealtimeRefresh();
         }
-        const nextRunning = new Set(
-          [...next.values()].filter((summary) => summary.running).map((summary) => summary.id),
-        );
+        const nextRunning = new Set([
+          ...[...next.values()].filter((summary) => summary.running).map((summary) => summary.id),
+          ...(response.runningSessionIds ?? []),
+        ]);
         this.connections.replaceRunningBaseline([...nextRunning]);
         this.applyRunningSnapshot([...nextRunning], true);
         this.notify();
@@ -3441,6 +3460,55 @@ export class PiSessionManager {
       () => undefined,
     );
     return task;
+  }
+
+  async createScratchSession(input: {
+    sourceSessionId: string;
+    atSeq?: number;
+  }): Promise<SessionScratchCreateValue> {
+    await this.start();
+    const scratch = await createPiRpcScratchSession({
+      sourceSessionId: input.sourceSessionId,
+      ...(input.atSeq === undefined ? {} : { atSeq: input.atSeq }),
+    });
+    this.scratchSessions.set(scratch.sessionId, scratch);
+    return scratch;
+  }
+
+  /**
+   * Re-adopt a server-owned scratch identity retained by a live SideChat Surface. Fast Refresh
+   * can replace the client manager while preserving the React workspace tree; the Surface params
+   * are the durable in-memory lease needed to bind that hidden session again.
+   */
+  restoreScratchSession(scratch: SessionScratchCreateValue): boolean {
+    if (this.disposed || scratch.expiresAt <= Date.now()) return false;
+    const current = this.scratchSessions.get(scratch.sessionId);
+    if (current && current.sourceSessionId !== scratch.sourceSessionId) return false;
+    this.scratchSessions.set(scratch.sessionId, scratch);
+    return true;
+  }
+
+  async releaseScratchSession(sessionId: string): Promise<void> {
+    try {
+      await releasePiRpcScratchSession({ sessionId });
+    } finally {
+      this.forgetEphemeralSession(sessionId);
+    }
+  }
+
+  async promoteScratchSession(input: {
+    sessionId: string;
+    title?: string;
+  }): Promise<SessionScratchPromoteValue> {
+    const promoted = await promotePiRpcScratchSession({
+      sessionId: input.sessionId,
+      ...(input.title === undefined ? {} : { title: input.title }),
+    });
+    this.forgetEphemeralSession(input.sessionId);
+    await Promise.all([this.refreshMetadata(), this.refreshWorkspaces()]);
+    this.notify();
+    this.notifyThreadListIfStructureChanged();
+    return promoted;
   }
 
   private async performSessionFork(input: {
@@ -3873,6 +3941,23 @@ export class PiSessionManager {
     );
   }
 
+  private scratchSummary(sessionId: string): PiSessionSummary | undefined {
+    const scratch = this.scratchSessions.get(sessionId);
+    if (!scratch || scratch.expiresAt <= Date.now()) return undefined;
+    const source = this.summaries.get(scratch.sourceSessionId);
+    if (!source) return undefined;
+    const now = new Date().toISOString();
+    return {
+      ...source,
+      id: scratch.sessionId,
+      name: undefined,
+      created: now,
+      modified: now,
+      transient: true,
+      running: this.running.has(scratch.sessionId),
+    };
+  }
+
   private applySummaryRunning(summary: PiSessionSummary): boolean {
     const wasRunning = this.running.has(summary.id);
     if (summary.running) this.running.add(summary.id);
@@ -3993,6 +4078,13 @@ export class PiSessionManager {
         sessionIds: workspace.sessionIds.filter((id) => id !== sessionId),
       });
     }
+  }
+
+  /** Forget a Runtime-only identity without treating it as a catalog deletion. */
+  private forgetEphemeralSession(sessionId: string): void {
+    this.scratchSessions.delete(sessionId);
+    this.removeSessionMetadata(sessionId);
+    this.notify();
   }
 
   private async loadArchiveState(): Promise<void> {

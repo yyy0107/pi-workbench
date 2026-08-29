@@ -617,7 +617,9 @@ function composerErrorMessage(
   }
 }
 
-export function WorkbenchComposer() {
+export function WorkbenchComposer({
+  forceExistingThread = false,
+}: Readonly<{ forceExistingThread?: boolean }> = {}) {
   const { t, text: localize } = useI18n();
   const aui = useAui();
   const { activeWorkspace, draftWorkspace } = useWorkspaceSelection();
@@ -651,7 +653,7 @@ export function WorkbenchComposer() {
   const threadIds = useAuiState((state) => state.threads.threadIds);
   const archivedThreadIds = useAuiState((state) => state.threads.archivedThreadIds);
   const threadItems = useAuiState((state) => state.threads.threadItems);
-  const isNewThread = mainThreadId === newThreadId;
+  const isNewThread = !forceExistingThread && mainThreadId === newThreadId;
   const composerDrafts = useRef(new Map<string, ComposerDraftSnapshot>());
   const composerDraftThreadId = useRef(mainThreadId);
   const [isComposerFocused, setIsComposerFocused] = useState(false);

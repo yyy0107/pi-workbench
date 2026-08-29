@@ -55,7 +55,7 @@ const PI_THREAD_STORE_ERROR_CODE_MAP: Readonly<Record<string, AgentThreadStoreEr
   pi_fork_unavailable: "fork-unavailable",
 };
 
-function translatePiThreadStoreError(error: unknown): never {
+export function translatePiThreadStoreError(error: unknown): never {
   if (error instanceof AgentThreadStoreError) throw error;
   const code = errorCode(error);
   const translated =
@@ -70,7 +70,7 @@ function translatePiThreadStoreError(error: unknown): never {
   );
 }
 
-function projectSummary(summary: PiSessionSummary): AgentThreadSummary {
+export function projectPiSessionSummary(summary: PiSessionSummary): AgentThreadSummary {
   return {
     threadId: summary.id,
     rootPath: summary.cwd,
@@ -103,7 +103,7 @@ export function createPiAgentThreadStoreAdapter(
     async list() {
       try {
         const { sessions } = await implementation.listSessions();
-        return sessions.map(projectSummary);
+        return sessions.map(projectPiSessionSummary);
       } catch (error) {
         translatePiThreadStoreError(error);
       }

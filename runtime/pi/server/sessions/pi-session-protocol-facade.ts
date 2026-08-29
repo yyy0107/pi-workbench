@@ -12,6 +12,7 @@ import {
   createPiSessionModelContextService,
   type PiSessionModelContextService,
 } from "./pi-session-model-context-service";
+import { createPiScratchSessionStore } from "./pi-scratch-session-store";
 import { SessionRpcService, type SessionRpcWorkspaceStore } from "./session-rpc-service";
 
 type PiSessionAgentPorts = Pick<WorkbenchAgentServerAdapter, "execution" | "threads">;
@@ -45,6 +46,9 @@ export type PiSessionProtocolFacade = Pick<
   | "rename"
   | "delete"
   | "fork"
+  | "scratchCreate"
+  | "scratchRelease"
+  | "scratchPromote"
   | "prompt"
   | "attachment"
   | "updateQueue"
@@ -86,6 +90,7 @@ export function createPiSessionProtocolFacade(
     threads: agent.threads,
     history: options.history ?? createPiSessionHistoryService(),
     modelContext: options.modelContext ?? createPiSessionModelContextService(),
+    scratch: createPiScratchSessionStore(),
     ...(options.defaultCwd === undefined ? {} : { defaultCwd: options.defaultCwd }),
   });
 }

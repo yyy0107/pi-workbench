@@ -1282,6 +1282,8 @@ export interface SessionListPayload {
 
 export interface SessionListValue {
   items: SessionListItem[];
+  /** Includes hidden scratch sessions so bound Runtimes can recover after a stream reconnect. */
+  runningSessionIds?: string[];
 }
 
 export const EXTERNAL_SESSION_SOURCES = ["codex", "claude-code", "cursor"] as const;
@@ -2043,6 +2045,35 @@ export interface SessionForkPayload {
 
 export interface SessionForkValue {
   sessionId: string;
+}
+
+export interface SessionScratchCreatePayload {
+  sourceSessionId: string;
+  atSeq?: number;
+}
+
+export interface SessionScratchCreateValue {
+  sessionId: string;
+  sourceSessionId: string;
+  expiresAt: number;
+}
+
+export interface SessionScratchReleasePayload {
+  sessionId: string;
+}
+
+export interface SessionScratchReleaseValue {
+  released: true;
+}
+
+export interface SessionScratchPromotePayload {
+  sessionId: string;
+  title?: string;
+}
+
+export interface SessionScratchPromoteValue {
+  sessionId: string;
+  sourceSessionId: string;
 }
 
 export type SessionPromptContent =

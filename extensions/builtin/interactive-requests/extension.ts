@@ -41,7 +41,7 @@ export const interactiveRequestsExtension = defineExtension({
       id: "workbench.interactive-requests.question",
       component: InteractiveQuestionComposerOverlay,
     });
-    const approval = context.slots.register("shell.overlay", {
+    const approval = context.slots.register("composer.overlay", {
       id: "workbench.interactive-requests.overlay",
       order: 10,
       component: InteractiveRequestsOverlay,

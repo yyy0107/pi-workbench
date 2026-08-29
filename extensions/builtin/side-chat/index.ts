@@ -1,0 +1,1 @@
+export { sideChatExtension } from "./extension";
