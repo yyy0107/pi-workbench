@@ -35,6 +35,14 @@ export const assistantZhCN = {
   codeBlock: {
     plainText: "文本",
   },
+  linkSafety: {
+    title: "打开外部链接？",
+    description: "你即将访问外部网站。",
+    copy: "复制链接",
+    copied: "链接已复制",
+    copyFailed: "链接复制失败",
+    open: "打开链接",
+  },
   branch: {
     previous: "上一个版本",
     next: "下一个版本",

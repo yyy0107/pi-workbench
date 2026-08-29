@@ -35,6 +35,14 @@ export const assistantEnUS = {
   codeBlock: {
     plainText: "Text",
   },
+  linkSafety: {
+    title: "Open external link?",
+    description: "You're about to visit an external website.",
+    copy: "Copy link",
+    copied: "Link copied",
+    copyFailed: "Couldn't copy link",
+    open: "Open link",
+  },
   branch: {
     previous: "Previous",
     next: "Next",

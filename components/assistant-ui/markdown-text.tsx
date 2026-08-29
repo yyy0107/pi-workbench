@@ -5,12 +5,15 @@ import {
   escapeCurrencyDollars,
   normalizeMathDelimiters,
   StreamdownTextPrimitive,
+  type LinkSafetyConfig,
+  type LinkSafetyModalProps,
   type StreamdownTextComponents,
   type StreamdownTextPrimitiveProps,
   type SyntaxHighlighterProps,
 } from "@assistant-ui/react-streamdown";
 import { createCodePlugin } from "@streamdown/code";
 import { createMathPlugin } from "@streamdown/math";
+import { CheckIcon, CircleXIcon, CopyIcon, ExternalLinkIcon } from "lucide-react";
 import {
   Children,
   createContext,
@@ -27,6 +30,17 @@ import { CodeBlock } from "streamdown";
 
 import { CodexCodeHeader } from "@/components/assistant-ui/codex-code-header";
 import { InlineCitation, type Source } from "@/components/elements/inline-citation";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useClipboardCopy } from "@/hooks/use-clipboard-copy";
+import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { CODE_THEME_PAIRS, type CodeTheme } from "@/services/appearance/appearance-preferences";
 import { useAppearancePreferences } from "@/services/appearance/appearance-store";
@@ -59,7 +73,7 @@ function normalizeStreamdownMathDelimiters(text: string): string {
 
 export type MarkdownTextProps = Omit<
   StreamdownTextPrimitiveProps,
-  "components" | "controls" | "lineNumbers" | "plugins" | "shikiTheme"
+  "components" | "controls" | "lineNumbers" | "linkSafety" | "plugins" | "shikiTheme"
 > & {
   codeTheme?: CodeTheme;
   inheritLineHeight?: boolean;
@@ -111,6 +125,7 @@ const MarkdownTextImpl = ({
       components={streamdownComponents}
       controls={false}
       defer={defer}
+      linkSafety={streamdownLinkSafety}
       lineNumbers={false}
       mode={mode}
       plugins={plugins}
@@ -205,6 +220,75 @@ function CodexSyntaxHighlighter({ code, language }: SyntaxHighlighterProps) {
     </div>
   );
 }
+
+function MarkdownLinkSafetyDialog({ isOpen, onClose, onConfirm, url }: LinkSafetyModalProps) {
+  const { t } = useI18n();
+  const { copy, reset, status } = useClipboardCopy();
+  const copyLabel = t(
+    status === "copied"
+      ? "assistant.linkSafety.copied"
+      : status === "failed"
+        ? "assistant.linkSafety.copyFailed"
+        : "assistant.linkSafety.copy",
+  );
+  const close = () => {
+    reset();
+    onClose();
+  };
+
+  return (
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) close();
+      }}
+    >
+      <DialogContent closeLabel={t("assistant.common.close")} className="sm:max-w-md">
+        <DialogHeader className="pe-8">
+          <DialogTitle className="flex items-center gap-2">
+            <ExternalLinkIcon aria-hidden="true" />
+            {t("assistant.linkSafety.title")}
+          </DialogTitle>
+          <DialogDescription>{t("assistant.linkSafety.description")}</DialogDescription>
+        </DialogHeader>
+        <code className="max-h-32 overflow-auto rounded-lg bg-muted p-3 text-sm break-all">
+          {url}
+        </code>
+        <DialogFooter closeLabel={t("assistant.common.close")} className="m-0">
+          <Button type="button" variant="outline" aria-live="polite" onClick={() => void copy(url)}>
+            {status === "copied" ? (
+              <CheckIcon aria-hidden="true" data-icon="inline-start" />
+            ) : status === "failed" ? (
+              <CircleXIcon
+                aria-hidden="true"
+                className="text-destructive"
+                data-icon="inline-start"
+              />
+            ) : (
+              <CopyIcon aria-hidden="true" data-icon="inline-start" />
+            )}
+            {copyLabel}
+          </Button>
+          <Button
+            type="button"
+            onClick={() => {
+              onConfirm();
+              close();
+            }}
+          >
+            <ExternalLinkIcon aria-hidden="true" data-icon="inline-start" />
+            {t("assistant.linkSafety.open")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+const streamdownLinkSafety = {
+  enabled: true,
+  renderModal: (props) => <MarkdownLinkSafetyDialog {...props} />,
+} satisfies LinkSafetyConfig;
 
 function MarkdownSuperscript({
   children,
