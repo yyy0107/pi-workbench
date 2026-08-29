@@ -147,7 +147,7 @@ export function WorkbenchMessagePresentation() {
       : "completed";
 
   return (
-    <MessageDisclosureProvider key={disclosurePhase} phase={disclosurePhase}>
+    <MessageDisclosureProvider phase={disclosurePhase}>
       <MessagePrimitive.GroupedParts groupBy={groupMessagePart}>
         {({ part, children }) => {
           const index = partIndices.get(part as PartState);

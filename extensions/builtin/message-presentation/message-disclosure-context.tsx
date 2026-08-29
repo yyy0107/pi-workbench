@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type PropsWithChildren,
@@ -22,22 +23,57 @@ interface MessageDisclosureContextValue {
 }
 
 const MessageDisclosureContext = createContext<MessageDisclosureContextValue | null>(null);
+const EMPTY_DISCLOSURES: Readonly<Record<string, boolean>> = Object.freeze({});
+
+interface MessageDisclosureState {
+  phase: MessagePresentationPhase;
+  openByKey: Readonly<Record<string, boolean>>;
+}
 
 export function MessageDisclosureProvider({
   phase,
   children,
 }: PropsWithChildren<{ phase: MessagePresentationPhase }>) {
-  const [openByKey, setOpenByKey] = useState<Readonly<Record<string, boolean>>>({});
-  const setOpen = useCallback((key: string, open: boolean) => {
-    setOpenByKey((current) =>
-      current[key] === open
+  const [state, setState] = useState<MessageDisclosureState>(() => ({
+    phase,
+    openByKey: EMPTY_DISCLOSURES,
+  }));
+  const openByKey = state.phase === phase ? state.openByKey : EMPTY_DISCLOSURES;
+
+  // A phase change resets user overrides, but the provider and its Markdown descendants stay
+  // mounted. Re-keying this boundary at stream completion left the old deferred Markdown tree and
+  // its replacement on separate browser compositor frames, which appeared as a duplicate ghost.
+  useEffect(() => {
+    setState((current) =>
+      current.phase === phase
         ? current
         : {
-            ...current,
-            [key]: open,
+            phase,
+            openByKey: EMPTY_DISCLOSURES,
           },
     );
-  }, []);
+  }, [phase]);
+
+  const setOpen = useCallback(
+    (key: string, open: boolean) => {
+      setState((current) => {
+        const currentOpenByKey = current.phase === phase ? current.openByKey : EMPTY_DISCLOSURES;
+        if (current.phase === phase && currentOpenByKey[key] === open) return current;
+
+        return {
+          phase,
+          openByKey:
+            currentOpenByKey[key] === open
+              ? currentOpenByKey
+              : {
+                  ...currentOpenByKey,
+                  [key]: open,
+                },
+        };
+      });
+    },
+    [phase],
+  );
   const value = useMemo(() => ({ phase, openByKey, setOpen }), [openByKey, phase, setOpen]);
 
   return (
