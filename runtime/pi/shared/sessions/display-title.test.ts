@@ -73,6 +73,28 @@ test("renders canonical command links as readable conversation chrome", () => {
   );
 });
 
+test("renders extension commands and context references as readable conversation chrome", () => {
+  const cases = [
+    {
+      source: "[$WeChat Memory](command://workbench/wechat-memory) 检查配置",
+      expected: "WeChat Memory 检查配置",
+    },
+    {
+      source: "[@架构讨论](conversation://conversation-1) 对比结论",
+      expected: "架构讨论 对比结论",
+    },
+    {
+      source:
+        "[@.pi/extensions/wechat-memory/index.ts](workspace-file://%5B%22workspace-1%22%2C%22.pi%2Fextensions%2Fwechat-memory%2Findex.ts%22%5D) 检查实现",
+      expected: ".pi/extensions/wechat-memory/index.ts 检查实现",
+    },
+  ] as const;
+
+  for (const { source, expected } of cases) {
+    assert.equal(deriveSessionDisplayTitle(source, { maxCharacters: 120 }), expected);
+  }
+});
+
 test("keeps legacy Composer directives out of conversation chrome", () => {
   assert.equal(
     deriveSessionDisplayTitle(":pi-command[skill%3Aapple-design|Apple%20Design] 这是什么"),
