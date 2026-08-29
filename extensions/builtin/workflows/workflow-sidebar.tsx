@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import {
   GitBranchIcon,
   HistoryIcon,
@@ -33,6 +33,10 @@ export function WorkflowSidebar({ searchQuery }: SlotPropsMap["sidebar.workflows
     mainViews.getSnapshot,
     mainViews.getInitialSnapshot,
   );
+  useEffect(() => {
+    if (mainViews.getSnapshot()?.kind === "workflows") return;
+    mainViews.open(workflowMainViewRequest({ page: "workflows" }));
+  }, [mainViews]);
   const { items, loadState, refresh } = useWorkflowCatalogStore();
   const [category, setCategory] = useState<WorkflowKind>("workflow");
   const params =

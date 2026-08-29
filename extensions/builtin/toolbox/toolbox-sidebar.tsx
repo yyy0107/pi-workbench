@@ -11,7 +11,7 @@ import {
   WandSparklesIcon,
   type LucideIcon,
 } from "lucide-react";
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 
 import { collapsePanel } from "@/components/elements/surfaces";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -275,6 +275,14 @@ function ManagementRow({
 export function ToolboxSidebar({ searchQuery }: SlotPropsMap["sidebar.toolbox"]) {
   const { locale, number, t } = useI18n();
   const mainViews = useMainViewService();
+  useEffect(() => {
+    if (mainViews.getSnapshot()?.kind === "toolbox") return;
+    mainViews.open({
+      kind: "toolbox",
+      title: TOOLBOX_SECTION_TITLES.skills,
+      params: { section: "skills" },
+    });
+  }, [mainViews]);
   const scope = useToolboxScope();
   const [expandedSections, setExpandedSections] = useState<ReadonlySet<ToolboxMainSection>>(
     () => new Set(),
