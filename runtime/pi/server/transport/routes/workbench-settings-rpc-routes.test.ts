@@ -107,6 +107,7 @@ test("resolves a Workbench Settings service per call and sanitizes preference pa
   const update = routes.handle(
     rpcRequest("workbenchSettings.update", {
       patch: {
+        hardwareAcceleration: false,
         locale: "zh-CN",
         sidebarThreadSortMode: "manual",
         toolboxPins: ["skills", "packages"],
@@ -126,6 +127,7 @@ test("resolves a Workbench Settings service per call and sanitizes preference pa
     "describe",
     {
       patch: {
+        hardwareAcceleration: false,
         locale: "zh-CN",
         sidebarThreadSortMode: "manual",
         toolboxPins: ["skills", "packages"],
@@ -209,6 +211,7 @@ test("validates Workbench Settings patches before resolving a service", async ()
   for (const payload of [
     {},
     { patch: { locale: "en" } },
+    { patch: { hardwareAcceleration: "false" } },
     { patch: { sidebarThreadSortMode: "alphabetical" } },
     { patch: { toolboxScope: { kind: "project", workspaceId: "" } } },
     { patch: { modelSelector: { modelId: "" } } },

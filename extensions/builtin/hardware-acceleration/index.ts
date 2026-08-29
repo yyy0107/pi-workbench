@@ -1,0 +1,1 @@
+export { hardwareAccelerationExtension } from "./extension";

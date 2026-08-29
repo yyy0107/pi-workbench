@@ -2,6 +2,10 @@ const { spawn } = require("node:child_process");
 const path = require("node:path");
 
 const { app, BrowserWindow, dialog, ipcMain, nativeTheme, session, shell } = require("electron");
+const {
+  readHardwareAccelerationPreference,
+  resolveWorkbenchSettingsFile,
+} = require("./hardware-acceleration-preference.cjs");
 const { stopServerProcess } = require("./server-process-lifecycle.cjs");
 const { isWorkbenchServer, waitForWorkbenchServer } = require("./server-probe.cjs");
 const { waitForWorkbenchServerReady } = require("./server-startup-handshake.cjs");
@@ -11,6 +15,13 @@ const STARTUP_TIMEOUT_MS = 120_000;
 const IDENTITY_TIMEOUT_MS = 10_000;
 const TITLE_BAR_OVERLAY_CHANNEL = "workbench:title-bar-overlay";
 const OPAQUE_HEX_COLOR_PATTERN = /^#[\da-f]{6}$/i;
+const workbenchSettingsFile = resolveWorkbenchSettingsFile();
+
+// Electron requires this decision synchronously before `ready`; the settings UI persists the
+// preference for the next desktop launch.
+if (!readHardwareAccelerationPreference(workbenchSettingsFile)) {
+  app.disableHardwareAcceleration();
+}
 
 let isQuitting = false;
 let currentWorkbenchUrl;
@@ -79,6 +90,7 @@ function startWorkbenchServer(port) {
   const environment = {
     ...process.env,
     NODE_ENV: development ? "development" : "production",
+    PI_WORKBENCH_SETTINGS_FILE: workbenchSettingsFile,
     PORT: String(port),
     WORKBENCH_HOST: LOOPBACK_HOST,
   };

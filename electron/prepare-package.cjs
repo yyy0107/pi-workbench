@@ -31,6 +31,7 @@ const compiledServerDirectory = path.join(projectRoot, ".desktop-build");
 const compiledServerPath = path.join(compiledServerDirectory, "server.mjs");
 const compiledAllowlistPath = path.join(compiledServerDirectory, "runtime-allowlist.json");
 const ELECTRON_RUNTIME_FILES = Object.freeze([
+  "hardware-acceleration-preference.cjs",
   "main.cjs",
   "preload.cjs",
   "server-probe.cjs",

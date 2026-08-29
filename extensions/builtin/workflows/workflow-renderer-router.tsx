@@ -18,6 +18,6 @@ export function WorkflowRendererRouter({ document }: { document: WorkflowDocumen
   return document.kind === "sop" ? (
     <SopStepListRenderer document={document} />
   ) : (
-    <FlowCanvasCore document={document} />
+    <FlowCanvasCore key={document.id} document={document} />
   );
 }

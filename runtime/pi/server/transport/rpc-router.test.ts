@@ -1104,6 +1104,7 @@ test("persists Workbench preferences through the shared RPC boundary", async (t)
     await handlePiRpcPost(
       rpcRequest("workbenchSettings.update", {
         patch: {
+          hardwareAcceleration: false,
           locale: "zh-CN",
           sidebarOpen: false,
           sidebarThreadSortMode: "manual",
@@ -1124,6 +1125,7 @@ test("persists Workbench preferences through the shared RPC boundary", async (t)
     ),
   );
   assert.deepEqual(described.preferences, {
+    hardwareAcceleration: false,
     locale: "zh-CN",
     sidebarThreadOrderByScope: { pinned: ["session-b", "session-a"] },
     sidebarThreadSortMode: "manual",

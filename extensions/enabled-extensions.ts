@@ -7,6 +7,7 @@ import { connectionStatusExtension } from "./builtin/connection-status";
 import { contextTraceExtension } from "./builtin/context-trace";
 import { externalSessionImportExtension } from "./builtin/external-session-import";
 import { gitBranchExtension } from "./builtin/git-branch";
+import { hardwareAccelerationExtension } from "./builtin/hardware-acceleration";
 import { attachmentUnderstandingExtension } from "./builtin/image-understanding";
 import { interactiveRequestsExtension } from "./builtin/interactive-requests";
 import { localeSelectorExtension } from "./builtin/locale-selector";
@@ -41,6 +42,7 @@ export const builtinExtensions = [
   interactiveRequestsExtension,
   appearanceExtension,
   localeSelectorExtension,
+  hardwareAccelerationExtension,
   messagePresentationExtension,
   messageActionsExtension,
   userMessageIndexExtension,
