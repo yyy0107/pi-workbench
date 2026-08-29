@@ -54,9 +54,18 @@ function MenuStatus({ children, alert }: { children: React.ReactNode; alert?: bo
   );
 }
 
-function ModelMenuItem({ disabled, model }: { disabled: boolean; model: ModelSelectorOption }) {
+function ModelMenuItem({
+  disabled,
+  itemRef,
+  model,
+}: {
+  disabled: boolean;
+  itemRef?: React.Ref<HTMLDivElement>;
+  model: ModelSelectorOption;
+}) {
   return (
     <DropdownMenuRadioItem
+      ref={itemRef}
       value={model.id}
       closeOnClick={false}
       disabled={disabled || model.unavailable}
@@ -76,6 +85,7 @@ function ModelMenuGroup({
   providerId,
   providerName,
   providers,
+  selectedItemRef,
   selectedModelId,
   onModelChange,
   onProviderChange,
@@ -86,6 +96,7 @@ function ModelMenuGroup({
   providerId: string;
   providerName: string;
   providers: ReadonlyArray<readonly [string, string]>;
+  selectedItemRef: React.RefObject<HTMLDivElement | null>;
   selectedModelId?: string;
   onModelChange(modelId: string): void;
   onProviderChange(providerId: string): void;
@@ -132,7 +143,12 @@ function ModelMenuGroup({
       </DropdownMenuSub>
       <DropdownMenuRadioGroup value={selectedModelId} onValueChange={onModelChange}>
         {models.map((model) => (
-          <ModelMenuItem key={model.id} model={model} disabled={disabled} />
+          <ModelMenuItem
+            key={model.id}
+            model={model}
+            disabled={disabled}
+            itemRef={model.id === selectedModelId ? selectedItemRef : undefined}
+          />
         ))}
       </DropdownMenuRadioGroup>
     </div>
@@ -204,6 +220,7 @@ export function ModelSelector({
   const [modelQuery, setModelQuery] = useState("");
   const selectorDropdown = useAnimatedSelectorDropdown();
   const providerGroupRefs = useRef(new Map<string, HTMLDivElement>());
+  const selectedModelRef = useRef<HTMLDivElement>(null);
   const filteredModels = useMemo(
     () => filterModelSelectorOptions(models, modelQuery),
     [modelQuery, models],
@@ -264,7 +281,11 @@ export function ModelSelector({
             </MenuStatus>
           ) : null}
 
-          <DropdownMenuSub>
+          <DropdownMenuSub
+            onOpenChangeComplete={(open) => {
+              if (open) selectedModelRef.current?.scrollIntoView({ block: "center" });
+            }}
+          >
             <DropdownMenuSubTrigger
               disabled={selectionLocked || !models.length}
               className="min-h-9 gap-3 px-2 pt-[var(--control-content-padding-block-default-start)] pb-[var(--control-content-padding-block-default-end)] [&>svg]:ml-1.5"
@@ -305,6 +326,7 @@ export function ModelSelector({
                           providerName={providerName}
                           providers={providers}
                           models={providerModels}
+                          selectedItemRef={selectedModelRef}
                           selectedModelId={selectedModel?.id}
                           disabled={selectionLocked}
                           groupRef={(element) => {
