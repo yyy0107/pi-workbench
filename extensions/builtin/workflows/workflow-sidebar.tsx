@@ -54,7 +54,6 @@ export function WorkflowSidebar({ searchQuery }: SlotPropsMap["sidebar.workflows
   const visible = items.filter(
     (workflow) =>
       workflow.archivedAt === undefined &&
-      workflow.kind === effectiveCategory &&
       (!normalized ||
         `${workflow.name} ${workflow.description ?? ""} ${kindLabels[workflow.kind]}`
           .toLocaleLowerCase(locale)
@@ -100,7 +99,7 @@ export function WorkflowSidebar({ searchQuery }: SlotPropsMap["sidebar.workflows
         <div className="bg-sidebar-border mx-2 my-3 h-px" />
         <div className="flex h-9 items-center px-2">
           <h2 className="text-muted-foreground text-sm font-medium">
-            {t("extensions.workflows.sidebar.myWorkflows")}
+            {t("extensions.workflows.sidebar.allExecutions")}
           </h2>
         </div>
 

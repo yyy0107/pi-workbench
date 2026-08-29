@@ -817,7 +817,7 @@ export const extensionsZhCN = {
       newWorkflow: "新建流程",
       categories: "流程类型",
       allWorkflows: "全部流程",
-      myWorkflows: "我的流程",
+      allExecutions: "所有执行",
       noResults: "没有符合当前筛选条件的流程。",
       runHistory: "运行记录",
       templates: "模板",

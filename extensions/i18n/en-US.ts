@@ -858,7 +858,7 @@ export const extensionsEnUS = {
       newWorkflow: "New workflow",
       categories: "Workflow types",
       allWorkflows: "All workflows",
-      myWorkflows: "My workflows",
+      allExecutions: "All executions",
       noResults: "No workflows match this filter.",
       runHistory: "Run history",
       templates: "Templates",
