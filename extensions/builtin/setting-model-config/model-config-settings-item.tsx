@@ -59,12 +59,10 @@ import {
   getPiModelProviderLogin,
   listPiModelProviders,
   PiApiError,
-  resetPiModelContextWindow,
   removePiModelProvider,
   respondPiModelProviderLogin,
   startPiModelProviderLogin,
   testPiModelImageInput,
-  updatePiModelContextWindow,
 } from "@/runtime/pi/client/transport/api";
 import type {
   ConfigurableProviderView,
@@ -89,6 +87,7 @@ import {
   preferredAuthType,
   providerModelsForTest,
   providerTestDiscoverySource,
+  restoreAdapterModelDrafts,
   toModelDraft,
   toProviderDraft,
   type ModelDraft,
@@ -247,211 +246,6 @@ function MaxOutputTokensEditor({
         }}
       />
     </SettingsInlineEditor>
-  );
-}
-
-function RuntimeContextWindowRow({
-  provider,
-  model,
-  disabled,
-  onUpdated,
-}: {
-  provider: string;
-  model: ModelProviderModelConfiguration;
-  disabled: boolean;
-  onUpdated(model: ModelProviderModelConfiguration): void;
-}) {
-  const { number, t } = useI18n();
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(() => String(model.contextWindow ?? ""));
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string>();
-  const parsed = parseCapacity(draft);
-  const invalid = parsed === undefined || parsed > 10_000_000;
-
-  useEffect(() => {
-    if (!editing) setDraft(String(model.contextWindow ?? ""));
-  }, [editing, model.contextWindow]);
-
-  const save = async () => {
-    if (disabled || saving || invalid || parsed === undefined) return;
-    setSaving(true);
-    setError(undefined);
-    try {
-      const value = await updatePiModelContextWindow({
-        provider,
-        model: model.id,
-        contextWindow: parsed,
-      });
-      onUpdated({
-        ...model,
-        contextWindow: value.contextWindow,
-        contextWindowSource: value.source,
-      });
-      setEditing(false);
-    } catch {
-      setError(t("extensions.modelConfig.errors.contextWindowSaveFailed"));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const reset = async () => {
-    if (disabled || saving) return;
-    setSaving(true);
-    setError(undefined);
-    try {
-      const value = await resetPiModelContextWindow({ provider, model: model.id });
-      onUpdated({
-        ...model,
-        contextWindow: value.contextWindow,
-        contextWindowSource: value.source,
-      });
-      setDraft(String(value.contextWindow));
-      setEditing(false);
-    } catch {
-      setError(t("extensions.modelConfig.errors.contextWindowResetFailed"));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="border-b py-2 last:border-b-0">
-      <div className="flex min-h-8 items-center gap-3">
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium" title={model.name || model.id}>
-            {model.name || model.id}
-          </p>
-          <p className="text-muted-foreground truncate font-mono text-xs" title={model.id}>
-            {model.id}
-          </p>
-        </div>
-        <SettingsInlineEditor
-          editing={editing}
-          display={
-            <span className="inline-flex items-center gap-2 text-sm tabular-nums">
-              {model.contextWindow ? number(model.contextWindow) : "—"}
-              <span className="text-muted-foreground text-xs">
-                {t(
-                  model.contextWindowSource === "override"
-                    ? "extensions.modelConfig.contextWindowLocalOverride"
-                    : "extensions.modelConfig.contextWindowProviderDefault",
-                )}
-              </span>
-            </span>
-          }
-          editLabel={t("extensions.modelConfig.editContextWindow", {
-            name: model.name || model.id,
-          })}
-          cancelLabel={t("extensions.modelConfig.cancel")}
-          disabled={disabled || saving}
-          editingClassName="max-w-72"
-          cancelButtonVariant="default"
-          onEdit={() => {
-            setDraft(String(model.contextWindow ?? ""));
-            setError(undefined);
-            setEditing(true);
-          }}
-          onCancel={() => {
-            setDraft(String(model.contextWindow ?? ""));
-            setError(undefined);
-            setEditing(false);
-          }}
-        >
-          <Input
-            autoFocus
-            inputMode="decimal"
-            value={draft}
-            aria-label={t("extensions.modelConfig.contextWindow")}
-            aria-invalid={invalid}
-            aria-describedby={error ? `context-window-error-${provider}-${model.id}` : undefined}
-            className="min-w-24 tabular-nums"
-            onChange={(event) => setDraft(event.currentTarget.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !invalid) {
-                event.preventDefault();
-                void save();
-              }
-            }}
-          />
-          <Button type="button" size="sm" disabled={saving || invalid} onClick={() => void save()}>
-            {saving ? t("extensions.modelConfig.saving") : t("extensions.modelConfig.save")}
-          </Button>
-        </SettingsInlineEditor>
-        {model.contextWindowSource === "override" && !editing ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="shrink-0"
-            disabled={disabled || saving}
-            onClick={() => void reset()}
-          >
-            {t("extensions.modelConfig.restoreProviderDefault")}
-          </Button>
-        ) : null}
-      </div>
-      {error ? (
-        <p
-          id={`context-window-error-${provider}-${model.id}`}
-          className="text-destructive mt-1 text-xs"
-          role="alert"
-        >
-          {error}
-        </p>
-      ) : null}
-      {editing && invalid ? (
-        <p className="text-destructive mt-1 text-xs" role="alert">
-          {t("extensions.modelConfig.errors.invalidContextWindow")}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-function AdapterModelCatalog({
-  provider,
-  models,
-  disabled,
-  onUpdated,
-}: {
-  provider: string;
-  models: readonly ModelProviderModelConfiguration[];
-  disabled: boolean;
-  onUpdated(model: ModelProviderModelConfiguration): void;
-}) {
-  const { t } = useI18n();
-  if (!models.length) {
-    return (
-      <div className="text-muted-foreground mt-3 rounded-lg border border-dashed px-3 py-3 text-center text-sm">
-        {t("extensions.modelConfig.adapterCatalogEmpty")}
-      </div>
-    );
-  }
-
-  return (
-    <div className="mt-3">
-      <p className="text-muted-foreground text-xs leading-5">
-        {t("extensions.modelConfig.adapterCatalogDescription", { count: models.length })}
-      </p>
-      <div
-        role="region"
-        aria-label={t("extensions.modelConfig.modelCatalog")}
-        tabIndex={0}
-        className="focus-visible:ring-ring/50 mt-2 max-h-72 overflow-y-auto rounded-lg border px-3 outline-none focus-visible:ring-3 [scrollbar-gutter:stable]"
-      >
-        {models.map((model) => (
-          <RuntimeContextWindowRow
-            key={model.id}
-            provider={provider}
-            model={model}
-            disabled={disabled}
-            onUpdated={onUpdated}
-          />
-        ))}
-      </div>
-    </div>
   );
 }
 
@@ -1726,13 +1520,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                           type="button"
                           variant="ghost"
                           disabled={busy}
-                          onClick={() =>
-                            setDraft((current) => ({
-                              ...current,
-                              modelsSource: "adapter",
-                              models: [],
-                            }))
-                          }
+                          onClick={() => setDraft(restoreAdapterModelDrafts)}
                         >
                           {t("extensions.modelConfig.restoreDefaultModels")}
                         </Button>
@@ -1750,20 +1538,10 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                     </div>
                   </div>
 
-                  {draft.modelsSource === "adapter" ? (
-                    <AdapterModelCatalog
-                      provider={draft.provider}
-                      models={draft.availableModels}
-                      disabled={busy}
-                      onUpdated={(updated) =>
-                        setDraft((current) => ({
-                          ...current,
-                          availableModels: current.availableModels.map((model) =>
-                            model.id === updated.id ? updated : model,
-                          ),
-                        }))
-                      }
-                    />
+                  {draft.models.length === 0 ? (
+                    <div className="text-muted-foreground mt-3 rounded-lg border border-dashed px-3 py-3 text-center text-sm">
+                      {t("extensions.modelConfig.availableModelsEmpty")}
+                    </div>
                   ) : (
                     <div
                       role="region"

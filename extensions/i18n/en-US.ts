@@ -633,10 +633,6 @@ export const extensionsEnUS = {
     fetchLatestProviderModels: "Fetch latest from provider",
     fetchingLatestProviderModels: "Fetching latest…",
     restoreDefaultModels: "Restore default models",
-    adapterCatalogDescription: ({ count }: { count: number }) =>
-      `${count} adapter model${count === 1 ? "" : "s"}. Context-window overrides stay local; customize the catalog only when you want to replace these defaults.`,
-    adapterCatalogEmpty:
-      "The adapter does not currently provide any models. Refresh the provider catalog or create a custom catalog.",
     selectModelsTitle: "Choose models to add",
     selectModelsDescription: "Select the models to add from those available from this provider.",
     closeModelPicker: "Close model picker",
@@ -646,11 +642,6 @@ export const extensionsEnUS = {
     selectAvailableModel: "Select an available model",
     modelName: "Display name",
     contextWindow: "Context window",
-    contextWindowProviderDefault: "Provider default",
-    contextWindowLocalOverride: "Local override",
-    restoreProviderDefault: "Restore Provider default",
-    editContextWindow: ({ name }: { name: string }) =>
-      `Edit context capacity for ${name || "model"}`,
     maxOutputTokens: "Maximum output tokens",
     maxOutputTokensUnset: "Not set",
     editMaxOutputTokens: "Edit maximum output tokens",
@@ -793,9 +784,6 @@ export const extensionsEnUS = {
       modelRequired: "Add at least one model.",
       invalidModel: "Enter a model ID and valid positive capacities such as 128K or 1M.",
       duplicateModel: "Model IDs must be unique within a provider.",
-      invalidContextWindow: "Enter a whole number from 1 to 10,000,000.",
-      contextWindowSaveFailed: "Could not save the context-capacity override. Try again.",
-      contextWindowResetFailed: "Could not restore the Provider default. Try again.",
       saveFailed: "Could not save the model configuration. Try again.",
     },
   },

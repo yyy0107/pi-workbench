@@ -17,6 +17,7 @@ import {
   preferredAuthType,
   providerModelsForTest,
   providerTestDiscoverySource,
+  restoreAdapterModelDrafts,
   toModelDraft,
   toProviderDraft,
   type ProviderDraft,
@@ -160,6 +161,48 @@ test("converts configured models and providers into editable drafts", () => {
       imageInputSource: "provider-api",
     },
   ]);
+});
+
+test("converts adapter models into the same editable drafts", () => {
+  const draft = toProviderDraft(provider, {
+    provider: "acme",
+    displayName: "Acme",
+    defaultBaseURL: "https://api.example.test/v1",
+    api: "openai-responses",
+    configurationDefined: false,
+    modelsSource: "adapter",
+    models: [
+      {
+        id: "acme-default",
+        name: "Acme Default",
+        contextWindow: 200_000,
+      },
+    ],
+  });
+
+  assert.equal(draft.modelsSource, "adapter");
+  assert.equal(draft.models[0]?.id, "acme-default");
+  assert.equal(draft.models[0]?.name, "Acme Default");
+  assert.equal(draft.models[0]?.contextWindow, "200000");
+});
+
+test("restores available adapter models into the editable catalog draft", () => {
+  const draft = {
+    ...validCustomDraft(),
+    availableModels: [
+      {
+        id: "acme-default",
+        name: "Acme Default",
+        contextWindow: 200_000,
+      },
+    ],
+  };
+
+  const restored = restoreAdapterModelDrafts(draft);
+  assert.equal(restored.modelsSource, "adapter");
+  assert.equal(restored.models[0]?.id, "acme-default");
+  assert.equal(restored.models[0]?.name, "Acme Default");
+  assert.equal(restored.models[0]?.contextWindow, "200000");
 });
 
 test("prefers a supported current auth type and otherwise falls back deterministically", () => {

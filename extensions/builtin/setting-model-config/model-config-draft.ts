@@ -214,11 +214,16 @@ export function toProviderDraft(
     api: MODEL_PROVIDER_APIS.find((api) => api === configuration.api) ?? "openai-completions",
     customOpen: false,
     modelsSource: configuration.modelsSource,
-    models:
-      configuration.modelsSource === "custom"
-        ? configuration.models.map((model) => toModelDraft(model))
-        : [],
+    models: configuration.models.map((model) => toModelDraft(model)),
     availableModels: configuration.models,
+  };
+}
+
+export function restoreAdapterModelDrafts(draft: ProviderDraft): ProviderDraft {
+  return {
+    ...draft,
+    modelsSource: "adapter",
+    models: draft.availableModels.map((model) => toModelDraft(model)),
   };
 }
 
