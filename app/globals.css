@@ -107,7 +107,21 @@
   --control-hit-touch: 44px;
   --form-control-height: var(--control-hit-default);
   --control-text-line-height: 1.25;
-  --control-text-offset-y: 0.5px;
+  --control-text-offset-y: 1px;
+  --control-content-padding-block-compact: 0.25rem;
+  --control-content-padding-block-compact-start: calc(
+    var(--control-content-padding-block-compact) + var(--control-text-offset-y)
+  );
+  --control-content-padding-block-compact-end: calc(
+    var(--control-content-padding-block-compact) - var(--control-text-offset-y)
+  );
+  --control-content-padding-block-default: 0.375rem;
+  --control-content-padding-block-default-start: calc(
+    var(--control-content-padding-block-default) + var(--control-text-offset-y)
+  );
+  --control-content-padding-block-default-end: calc(
+    var(--control-content-padding-block-default) - var(--control-text-offset-y)
+  );
 
   /* Shared interaction states */
   --control-state-background-hover: color-mix(in oklab, var(--foreground) 6%, transparent);
@@ -161,13 +175,9 @@
   /* Inputs */
   --input-control-height: var(--form-control-height);
   --dropdown-control-height: var(--form-control-height);
-  --input-control-padding-block: 0.25rem;
-  --input-control-padding-block-start: calc(
-    var(--input-control-padding-block) + var(--control-text-offset-y)
-  );
-  --input-control-padding-block-end: calc(
-    var(--input-control-padding-block) - var(--control-text-offset-y)
-  );
+  --input-control-padding-block: var(--control-content-padding-block-compact);
+  --input-control-padding-block-start: var(--control-content-padding-block-compact-start);
+  --input-control-padding-block-end: var(--control-content-padding-block-compact-end);
   --input-control-radius: var(--radius);
   --input-control-background: transparent;
   --input-control-background-disabled: color-mix(in oklab, var(--input) 50%, transparent);

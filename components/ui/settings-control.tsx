@@ -94,7 +94,7 @@ function SettingsDropdownTrigger({
     <DropdownMenuTrigger
       data-slot="settings-dropdown-trigger"
       className={cn(
-        "inline-flex h-[var(--dropdown-control-height)] w-fit max-w-full items-center justify-center gap-2 rounded-[var(--input-control-radius)] border [border-color:var(--input-control-border)] [background:var(--input-control-background)] px-3 text-sm outline-none transition-colors hover:[background:var(--button-background-hover)] focus-visible:ring-3 focus-visible:ring-ring/50 data-popup-open:[background:var(--button-background-selected)] data-popup-open:[color:var(--button-foreground-selected)] disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex h-[var(--dropdown-control-height)] w-fit max-w-full items-center justify-center gap-2 rounded-[var(--input-control-radius)] border [border-color:var(--input-control-border)] [background:var(--input-control-background)] px-3 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] text-sm leading-[var(--control-text-line-height)]! outline-none transition-colors hover:[background:var(--button-background-hover)] focus-visible:ring-3 focus-visible:ring-ring/50 data-popup-open:[background:var(--button-background-selected)] data-popup-open:[color:var(--button-foreground-selected)] disabled:pointer-events-none disabled:opacity-50",
         className,
       )}
       {...props}
@@ -125,7 +125,10 @@ function SettingsDropdownItem({
   return (
     <DropdownMenuItem
       data-slot="settings-dropdown-item"
-      className={cn("min-h-[var(--button-height-default)] gap-2 px-2.5 py-1.5", className)}
+      className={cn(
+        "min-h-[var(--button-height-default)] gap-2 px-2.5 pt-[var(--control-content-padding-block-default-start)] pb-[var(--control-content-padding-block-default-end)]",
+        className,
+      )}
       {...props}
     />
   );
@@ -138,7 +141,10 @@ function SettingsDropdownRadioItem({
   return (
     <DropdownMenuRadioItem
       data-slot="settings-dropdown-radio-item"
-      className={cn("min-h-[var(--button-height-default)] gap-2 py-1.5 pr-8 pl-2.5", className)}
+      className={cn(
+        "min-h-[var(--button-height-default)] gap-2 pt-[var(--control-content-padding-block-default-start)] pr-8 pb-[var(--control-content-padding-block-default-end)] pl-2.5",
+        className,
+      )}
       {...props}
     />
   );
@@ -151,7 +157,10 @@ function SettingsDropdownCheckboxItem({
   return (
     <DropdownMenuCheckboxItem
       data-slot="settings-dropdown-checkbox-item"
-      className={cn("min-h-[var(--button-height-default)] gap-2 py-1.5 pr-8 pl-2.5", className)}
+      className={cn(
+        "min-h-[var(--button-height-default)] gap-2 pt-[var(--control-content-padding-block-default-start)] pr-8 pb-[var(--control-content-padding-block-default-end)] pl-2.5",
+        className,
+      )}
       {...props}
     />
   );

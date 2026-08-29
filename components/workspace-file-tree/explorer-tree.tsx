@@ -256,7 +256,7 @@ function ExplorerStatusContent({ item, level }: { item: ExplorerStatusTreeItem; 
         </span>
         <button
           type="button"
-          className="hover:bg-destructive/10 h-6 shrink-0 rounded-md px-2 font-medium outline-none focus-visible:ring-2"
+          className="hover:bg-destructive/10 h-6 shrink-0 rounded-md px-2 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] leading-[var(--control-text-line-height)]! font-medium outline-none focus-visible:ring-2"
           onClick={(event) => {
             event.stopPropagation();
             retryDirectory(item.parent);

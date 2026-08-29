@@ -236,7 +236,7 @@ export function RemoteDirectoryPickerDialog({
                   key={entry.path}
                   type="button"
                   disabled={interactionLocked}
-                  className="flex min-h-9 w-full items-center gap-2 rounded-lg px-3 text-start text-sm outline-none hover:bg-accent focus-visible:bg-accent disabled:pointer-events-none disabled:opacity-50"
+                  className="flex min-h-9 w-full items-center gap-2 rounded-lg px-3 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] text-start text-sm leading-[var(--control-text-line-height)]! outline-none hover:bg-accent focus-visible:bg-accent disabled:pointer-events-none disabled:opacity-50"
                   onClick={() => void navigateTo(entry.path)}
                 >
                   <FolderIcon className="size-4 shrink-0 text-muted-foreground" />

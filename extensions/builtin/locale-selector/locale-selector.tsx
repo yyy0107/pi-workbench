@@ -80,7 +80,11 @@ function LocaleSelector({ compact = false }: { compact?: boolean }) {
           }}
         >
           {SUPPORTED_LOCALES.map((option) => (
-            <DropdownMenuRadioItem key={option} value={option} className="min-h-8 px-2.5 py-1.5">
+            <DropdownMenuRadioItem
+              key={option}
+              value={option}
+              className="min-h-8 px-2.5 pt-[var(--control-content-padding-block-default-start)] pb-[var(--control-content-padding-block-default-end)]"
+            >
               {localeLabel(option)}
             </DropdownMenuRadioItem>
           ))}

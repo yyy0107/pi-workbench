@@ -111,7 +111,7 @@ const TimePicker = React.forwardRef<HTMLButtonElement, TimePickerProps>(function
                 ref={candidate === hour ? selectedHourRef : undefined}
                 value={candidate}
                 closeOnClick={false}
-                className="justify-center py-1.5 pr-6 pl-1.5 tabular-nums"
+                className="justify-center pt-[var(--control-content-padding-block-default-start)] pr-6 pb-[var(--control-content-padding-block-default-end)] pl-1.5 tabular-nums"
               >
                 {candidate}
               </DropdownMenuRadioItem>
@@ -137,7 +137,7 @@ const TimePicker = React.forwardRef<HTMLButtonElement, TimePickerProps>(function
                 ref={candidate === minute ? selectedMinuteRef : undefined}
                 value={candidate}
                 closeOnClick={false}
-                className="justify-center py-1.5 pr-6 pl-1.5 tabular-nums"
+                className="justify-center pt-[var(--control-content-padding-block-default-start)] pr-6 pb-[var(--control-content-padding-block-default-end)] pl-1.5 tabular-nums"
               >
                 {candidate}
               </DropdownMenuRadioItem>

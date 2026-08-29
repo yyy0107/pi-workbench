@@ -124,7 +124,7 @@ export function WorkspaceSelector({
           disabled={disabled || picking}
           aria-label={labels.select}
           className={cn(
-            "inline-flex h-[var(--dropdown-control-height)] min-w-0 flex-1 cursor-pointer items-center gap-2 pe-2 text-base font-normal outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:pointer-events-none disabled:cursor-default disabled:opacity-100",
+            "inline-flex h-[var(--dropdown-control-height)] min-w-0 flex-1 cursor-pointer items-center gap-2 pe-2 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] text-base leading-[var(--control-text-line-height)]! font-normal outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:pointer-events-none disabled:cursor-default disabled:opacity-100",
             variant === "outline" ? "rounded-[var(--input-control-radius)]" : "rounded-full",
             clearable ? "ps-0" : "ps-2",
           )}

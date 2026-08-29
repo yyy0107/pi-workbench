@@ -55,7 +55,7 @@ export function RightPanelTab({ definition, isActive, onClose, onSelect }: Right
         title={label}
         data-slot="workbench-right-panel-tab-trigger"
         className={cn(
-          "flex h-full min-w-0 flex-1 items-center gap-2 rounded-l-xl py-0 pr-1 pl-3 outline-none focus-visible:ring-2 focus-visible:ring-inset",
+          "flex h-full min-w-0 flex-1 items-center gap-2 rounded-l-xl pt-[var(--button-content-padding-block-start)] pr-1 pb-[var(--button-content-padding-block-end)] pl-3 leading-[var(--control-text-line-height)]! outline-none focus-visible:ring-2 focus-visible:ring-inset",
           resolveClassName(classNames?.trigger, styleContext),
         )}
         onClick={onSelect}

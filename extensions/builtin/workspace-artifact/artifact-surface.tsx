@@ -46,7 +46,7 @@ export function ArtifactSurface({ surface }: WorkspaceSurfaceProps<ArtifactSurfa
               key={candidate}
               type="button"
               data-state={mode === candidate ? "active" : "inactive"}
-              className="h-[var(--button-height-default)] rounded-[var(--button-radius)] px-2.5 text-xs data-[state=active]:[background:var(--button-background-selected)] data-[state=active]:[color:var(--button-foreground-selected)]"
+              className="inline-flex h-[var(--button-height-default)] items-center rounded-[var(--button-radius)] px-2.5 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] text-xs leading-[var(--control-text-line-height)]! data-[state=active]:[background:var(--button-background-selected)] data-[state=active]:[color:var(--button-foreground-selected)]"
               onClick={() => setMode(candidate)}
             >
               {candidate === "rendered"

@@ -107,7 +107,7 @@ function CapabilityCategory({
         data-workbench-selection-surface=""
         aria-label={expansionLabel}
         title={expansionLabel}
-        className="hover:bg-sidebar-accent focus-visible:ring-sidebar-ring flex h-9 w-full items-center gap-1 rounded-lg px-1.5 text-left outline-none transition-colors focus-visible:ring-2 active:translate-y-0!"
+        className="hover:bg-sidebar-accent focus-visible:ring-sidebar-ring flex h-9 w-full items-center gap-1 rounded-lg px-1.5 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] text-left leading-[var(--control-text-line-height)]! outline-none transition-colors focus-visible:ring-2 active:translate-y-0!"
       >
         <span className="flex size-7 shrink-0 items-center justify-center">
           <Icon aria-hidden="true" className="size-4" />
@@ -227,7 +227,7 @@ function ManagementRow({
       <div
         aria-disabled="true"
         title={title}
-        className="text-muted-foreground flex h-9 items-center gap-1 rounded-lg px-1.5 opacity-70"
+        className="text-muted-foreground flex h-9 items-center gap-1 rounded-lg px-1.5 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] leading-[var(--control-text-line-height)]! opacity-70"
       >
         <span className="flex size-7 shrink-0 items-center justify-center">
           <Icon aria-hidden="true" className="size-4" />
@@ -243,7 +243,7 @@ function ManagementRow({
       type="button"
       data-workbench-selection-surface=""
       className={cn(
-        "hover:bg-sidebar-accent focus-visible:ring-sidebar-ring flex h-9 w-full items-center gap-1 rounded-lg px-1.5 text-left outline-none transition-colors focus-visible:ring-2 active:translate-y-0!",
+        "hover:bg-sidebar-accent focus-visible:ring-sidebar-ring flex h-9 w-full items-center gap-1 rounded-lg px-1.5 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] text-left leading-[var(--control-text-line-height)]! outline-none transition-colors focus-visible:ring-2 active:translate-y-0!",
         emphasized && "hover:bg-emerald-500/10",
       )}
       onClick={onClick}

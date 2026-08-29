@@ -673,7 +673,7 @@ export function WorkspaceTabs() {
                     aria-selected={active}
                     tabIndex={active ? 0 : -1}
                     title={title}
-                    className="relative z-10 flex h-full min-w-0 flex-1 items-center gap-2 rounded-s-lg ps-2.5 pe-1 outline-none transition-[padding] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover/tab:pe-8 group-focus-within/tab:pe-8 group-data-[state=active]/tab:pe-8 focus-visible:ring-2 focus-visible:ring-inset motion-reduce:transition-none"
+                    className="relative z-10 flex h-full min-w-0 flex-1 items-center gap-2 rounded-s-lg ps-2.5 pe-1 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] leading-[var(--control-text-line-height)]! outline-none transition-[padding] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover/tab:pe-8 group-focus-within/tab:pe-8 group-data-[state=active]/tab:pe-8 focus-visible:ring-2 focus-visible:ring-inset motion-reduce:transition-none"
                     onClick={(event) => {
                       const suppressed = suppressedClick.current;
                       suppressedClick.current = null;

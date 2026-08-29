@@ -134,7 +134,7 @@ function CommandItem({
     <CommandPrimitive.Item
       data-slot="command-item"
       className={cn(
-        "group/command-item relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none in-data-[slot=dialog-content]:rounded-lg! data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-selected:[background:var(--control-state-background-selected)] data-selected:[color:var(--control-state-foreground-selected)] [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-[var(--icon-size-md)] data-selected:*:[svg]:[color:var(--control-state-foreground-selected)]",
+        "group/command-item relative flex cursor-default items-center gap-2 rounded-sm px-2 pt-[var(--control-content-padding-block-default-start)] pb-[var(--control-content-padding-block-default-end)] text-sm leading-[var(--control-text-line-height)]! outline-hidden select-none in-data-[slot=dialog-content]:rounded-lg! data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-selected:[background:var(--control-state-background-selected)] data-selected:[color:var(--control-state-foreground-selected)] [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-[var(--icon-size-md)] data-selected:*:[svg]:[color:var(--control-state-foreground-selected)]",
         className,
       )}
       {...props}

@@ -223,7 +223,7 @@ function TraceViewTabs({
             aria-label={label}
             title={label}
             className={cn(
-              "hover:bg-muted/70 focus-visible:ring-ring inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs outline-none focus-visible:ring-2",
+              "hover:bg-muted/70 focus-visible:ring-ring inline-flex h-8 items-center gap-1.5 rounded-md px-2 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] text-xs leading-[var(--control-text-line-height)]! outline-none focus-visible:ring-2",
               value === view ? "bg-muted text-foreground font-medium" : "text-muted-foreground",
             )}
             onClick={() => onChange(view)}
@@ -1010,7 +1010,7 @@ export function ContextTraceSurface({
               role="tab"
               aria-selected={detailView === view}
               className={cn(
-                "hover:text-foreground focus-visible:ring-ring relative h-full px-0.5 text-xs outline-none focus-visible:ring-2",
+                "hover:text-foreground focus-visible:ring-ring relative inline-flex h-full items-center px-0.5 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] text-xs leading-[var(--control-text-line-height)]! outline-none focus-visible:ring-2",
                 detailView === view ? "text-foreground" : "text-muted-foreground",
               )}
               onClick={() => setDetailView(view)}

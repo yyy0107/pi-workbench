@@ -30,7 +30,9 @@ export function DraftThreadListItem({
         onNavigate?.();
       }}
     >
-      <span className="min-w-0 flex-1 truncate">{t("workbench.sidebar.newThread")}</span>
+      <span className="min-w-0 flex-1 translate-y-[var(--control-text-offset-y)] truncate leading-[var(--control-text-line-height)]">
+        {t("workbench.sidebar.newThread")}
+      </span>
     </button>
   );
 }

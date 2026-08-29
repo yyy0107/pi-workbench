@@ -167,7 +167,7 @@ export function WorkbenchThreadListItem({
         ) : null}
         <span
           className={cn(
-            "min-w-0 flex-1 truncate md:group-hover/thread:pe-[var(--sidebar-action-pair-reserved-space)] md:group-has-[:focus-visible]/thread:pe-[var(--sidebar-action-pair-reserved-space)]",
+            "min-w-0 flex-1 translate-y-[var(--control-text-offset-y)] truncate leading-[var(--control-text-line-height)] md:group-hover/thread:pe-[var(--sidebar-action-pair-reserved-space)] md:group-has-[:focus-visible]/thread:pe-[var(--sidebar-action-pair-reserved-space)]",
             !waitingForUserInput && "pe-[var(--sidebar-action-touch-reserved-space)] md:pe-0",
           )}
         >
@@ -228,7 +228,7 @@ export function WorkbenchThreadListItem({
           >
             {threadActions.setPinned ? (
               <ThreadListItemMorePrimitive.Item
-                className="hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground flex min-h-[var(--control-hit-touch)] cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-sm outline-none select-none"
+                className="hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground flex min-h-[var(--control-hit-touch)] cursor-pointer items-center gap-2 rounded-lg px-2.5 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] text-sm leading-[var(--control-text-line-height)]! outline-none select-none"
                 onSelect={() => void togglePinned()}
               >
                 {isPinned ? (
@@ -242,7 +242,7 @@ export function WorkbenchThreadListItem({
             <ThreadListItemPrimitive.Archive
               onClick={leaveRemovedThreadRoute}
               render={
-                <ThreadListItemMorePrimitive.Item className="hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground flex min-h-[var(--control-hit-touch)] cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-sm outline-none select-none" />
+                <ThreadListItemMorePrimitive.Item className="hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground flex min-h-[var(--control-hit-touch)] cursor-pointer items-center gap-2 rounded-lg px-2.5 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] text-sm leading-[var(--control-text-line-height)]! outline-none select-none" />
               }
             >
               <ArchiveIcon className="size-[var(--icon-size-md)]" />

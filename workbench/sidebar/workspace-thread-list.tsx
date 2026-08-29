@@ -447,7 +447,9 @@ function WorkspaceDirectorySection({
           id={workspaceLabelId}
           className="pointer-events-none flex min-w-0 flex-1 items-center py-0 ps-1 pe-[var(--sidebar-action-touch-reserved-space)] text-start text-sm font-medium md:pe-[var(--sidebar-action-pair-reserved-space)]"
         >
-          <span className="truncate">{directory.name}</span>
+          <span className="translate-y-[var(--control-text-offset-y)] truncate leading-[var(--control-text-line-height)]">
+            {directory.name}
+          </span>
         </div>
         <span id={workspaceActionId} className="sr-only">
           {expansionLabel}
@@ -508,7 +510,7 @@ function WorkspaceDirectorySection({
               />
               <button
                 type="button"
-                className="hover:bg-accent focus-visible:bg-accent flex h-8 min-h-[var(--control-hit-touch)] w-full items-center gap-2 rounded-md px-2 text-start text-sm outline-none md:min-h-8"
+                className="hover:bg-accent focus-visible:bg-accent flex h-8 min-h-[var(--control-hit-touch)] w-full items-center gap-2 rounded-md px-2 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] text-start text-sm leading-[var(--control-text-line-height)]! outline-none md:min-h-8"
                 onClick={() => {
                   setMenuOpen(false);
                   void openWorkspaceFolder(directory.id).catch((error) =>
@@ -521,7 +523,7 @@ function WorkspaceDirectorySection({
               </button>
               <button
                 type="button"
-                className="hover:bg-accent focus-visible:bg-accent flex h-8 min-h-[var(--control-hit-touch)] w-full items-center gap-2 rounded-md px-2 text-start text-sm outline-none md:min-h-8"
+                className="hover:bg-accent focus-visible:bg-accent flex h-8 min-h-[var(--control-hit-touch)] w-full items-center gap-2 rounded-md px-2 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] text-start text-sm leading-[var(--control-text-line-height)]! outline-none md:min-h-8"
                 onClick={() => {
                   setMenuOpen(false);
                   void setWorkspacePinned(directory.id, !pinned).catch((error) =>
@@ -538,7 +540,7 @@ function WorkspaceDirectorySection({
               </button>
               <button
                 type="button"
-                className="text-destructive hover:bg-accent hover:text-destructive focus-visible:bg-accent flex h-8 min-h-[var(--control-hit-touch)] w-full items-center gap-2 rounded-md px-2 text-start text-sm outline-none md:min-h-8"
+                className="text-destructive hover:bg-accent hover:text-destructive focus-visible:bg-accent flex h-8 min-h-[var(--control-hit-touch)] w-full items-center gap-2 rounded-md px-2 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] text-start text-sm leading-[var(--control-text-line-height)]! outline-none md:min-h-8"
                 onClick={() => {
                   setMenuOpen(false);
                   onRemove();

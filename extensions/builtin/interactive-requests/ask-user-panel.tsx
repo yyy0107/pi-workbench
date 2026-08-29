@@ -93,7 +93,7 @@ function QuestionNavigator({
                   type="button"
                   aria-current={current ? "step" : undefined}
                   className={cn(
-                    "focus-visible:ring-ring/50 flex min-h-9 w-full items-center gap-2 rounded-md px-2 text-start text-sm outline-none transition-colors focus-visible:ring-3",
+                    "focus-visible:ring-ring/50 flex min-h-9 w-full items-center gap-2 rounded-md px-2 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] text-start text-sm leading-[var(--control-text-line-height)]! outline-none transition-colors focus-visible:ring-3",
                     current ? "bg-accent text-accent-foreground" : "hover:bg-muted/70",
                   )}
                   onClick={() => {

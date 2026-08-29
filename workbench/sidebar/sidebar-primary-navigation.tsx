@@ -101,7 +101,7 @@ export function SidebarPrimaryNavigation({
               <span
                 aria-hidden={!active}
                 className={cn(
-                  "pointer-events-none absolute start-[var(--icon-frame-size-default)] top-1/2 w-[4.25rem] -translate-x-1 -translate-y-1/2 truncate opacity-0 transition-[opacity,transform] ease-out motion-reduce:transition-none",
+                  "pointer-events-none absolute start-[var(--icon-frame-size-default)] top-[calc(50%+var(--control-text-offset-y))] w-[4.25rem] -translate-x-1 -translate-y-1/2 truncate opacity-0 transition-[opacity,transform] ease-out motion-reduce:transition-none",
                   active
                     ? "translate-x-0 opacity-100 delay-60 duration-140"
                     : "delay-0 duration-80",

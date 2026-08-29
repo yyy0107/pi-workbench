@@ -3,6 +3,7 @@
 import { ThreadPrimitive, useAuiState } from "@assistant-ui/react";
 import type { ReactNode } from "react";
 
+import { buttonVariants } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import { useWorkspaceSelection } from "@/services/workspace-selection-service";
 
@@ -49,7 +50,11 @@ export function WorkbenchEmpty({ children }: Readonly<{ children: ReactNode }>) 
             prompt={prompt}
             method="replace"
             autoSend={canAutoSendSuggestion}
-            className="hover:bg-muted focus-visible:ring-ring rounded-full border px-4 py-2 text-sm transition-colors outline-none focus-visible:ring-2"
+            className={buttonVariants({
+              variant: "outline",
+              size: "lg",
+              className: "rounded-full",
+            })}
           >
             {prompt}
           </ThreadPrimitive.Suggestion>
