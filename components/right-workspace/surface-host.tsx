@@ -205,6 +205,7 @@ export function SurfaceHost() {
     () => selectActiveAuxiliarySurface(state, context),
     [context, state],
   );
+  const activeAuxiliaryId = activeAuxiliary?.id;
   const split = resolveWorkspaceSplitLayout(
     containerWidth,
     auxiliaryWidth,
@@ -212,12 +213,14 @@ export function SurfaceHost() {
   );
 
   useEffect(() => {
-    if (!workspaceOpen) return;
+    if (!workspaceOpen || !auxiliaryOpen || !activeAuxiliaryId) return;
     const element = containerRef.current;
     if (!element) return;
+    const workspace = element.closest<HTMLElement>('[data-workbench-surface="right-workspace"]');
     let measureFrame: number | undefined;
     const measure = () => {
       measureFrame = undefined;
+      if (workspace?.dataset.resizing === "true") return;
       const nextWidth = Math.round(element.getBoundingClientRect().width);
       setContainerWidth((currentWidth) => (currentWidth === nextWidth ? currentWidth : nextWidth));
     };
@@ -228,11 +231,23 @@ export function SurfaceHost() {
     scheduleMeasure();
     const observer = new ResizeObserver(scheduleMeasure);
     observer.observe(element);
+    const resizeStateObserver = workspace
+      ? new MutationObserver(() => {
+          if (workspace.dataset.resizing !== "true") scheduleMeasure();
+        })
+      : undefined;
+    if (workspace) {
+      resizeStateObserver?.observe(workspace, {
+        attributes: true,
+        attributeFilter: ["data-resizing"],
+      });
+    }
     return () => {
       observer.disconnect();
+      resizeStateObserver?.disconnect();
       if (measureFrame !== undefined) window.cancelAnimationFrame(measureFrame);
     };
-  }, [workspaceOpen]);
+  }, [activeAuxiliaryId, auxiliaryOpen, workspaceOpen]);
 
   useEffect(() => {
     const visibleIds = workspaceOpen

@@ -1,6 +1,15 @@
 "use client";
 
-import { useEffect, useId, useLayoutEffect, useState, type ReactNode, type RefObject } from "react";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { useAuiState } from "@assistant-ui/react";
 import {
   ChevronRightIcon,
@@ -28,7 +37,10 @@ import {
   SidebarPrimaryNavigation,
   type SidebarSection,
 } from "@/workbench/sidebar/sidebar-primary-navigation";
-import { SidebarResizeHandle } from "@/workbench/sidebar/sidebar-resize-handle";
+import {
+  applySidebarResizePreview,
+  SidebarResizeHandle,
+} from "@/workbench/sidebar/sidebar-resize-handle";
 import { hydrateThreadOrderStore } from "@/workbench/sidebar/thread-order-store";
 import {
   WorkbenchPinnedThreadList,
@@ -413,14 +425,80 @@ export function WorkbenchSidebar({
 }: WorkbenchSidebarProps) {
   const { t } = useI18n();
   const { isMobile, setOpenMobile, state } = useSidebar();
+  const sidebarLayoutRef = useRef<HTMLDivElement>(null);
+  const renderedWidth = Math.min(maxWidth, width);
 
   useLayoutEffect(() => {
-    if (state !== "collapsed") return;
+    applySidebarResizePreview(sidebarLayoutRef.current, shellRef.current, renderedWidth, minWidth);
+  }, [minWidth, renderedWidth, shellRef, state]);
 
-    shellRef.current?.style.setProperty("--sidebar-width", `${width}px`);
-    shellRef.current?.style.setProperty("--sidebar-content-width", `${width}px`);
-    shellRef.current?.style.setProperty("--sidebar-resize-translate-x", "0px");
-  }, [shellRef, state, width]);
+  const content = (
+    <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+      <MainViewSidebarHost
+        mobile={isMobile}
+        onNavigate={isMobile ? () => setOpenMobile(false) : undefined}
+      >
+        <WorkbenchSidebarContent
+          mobile={isMobile}
+          onNavigate={isMobile ? () => setOpenMobile(false) : undefined}
+        />
+      </MainViewSidebarHost>
+    </div>
+  );
+
+  if (!isMobile) {
+    return (
+      <div
+        ref={sidebarLayoutRef}
+        data-slot="workbench-sidebar-layout"
+        data-state={state}
+        className="relative hidden h-full min-h-0 min-w-0 shrink-0 transition-[width] duration-[240ms] ease-[cubic-bezier(0.45,0,0.8,0.7)] motion-reduce:transition-none data-[resizing=true]:transition-none data-[resizing=true]:will-change-[width] data-[state=collapsed]:pointer-events-none md:block"
+        style={
+          {
+            width:
+              state === "collapsed"
+                ? 0
+                : `min(var(--workbench-sidebar-layout-width, ${renderedWidth}px), 100%)`,
+            maxWidth: "100%",
+          } as CSSProperties
+        }
+      >
+        <aside
+          data-workbench-surface="sidebar"
+          data-slot="sidebar"
+          data-state={state}
+          aria-label={t("workbench.sidebar.region")}
+          aria-hidden={state === "collapsed" ? true : undefined}
+          inert={state === "collapsed" ? true : undefined}
+          className="bg-sidebar text-sidebar-foreground absolute inset-y-0 left-0 flex min-h-0 min-w-0 flex-col overflow-hidden border-r transition-[width,transform,border-color] duration-[240ms] ease-[cubic-bezier(0.45,0,0.8,0.7)] motion-reduce:transition-none in-data-[resizing=true]:transition-none in-data-[resizing=true]:will-change-[width,transform] data-[state=collapsed]:border-transparent"
+          style={
+            {
+              width: `min(var(--workbench-sidebar-content-width, ${renderedWidth}px), 100vw)`,
+              maxWidth: "100vw",
+              transform:
+                state === "expanded"
+                  ? "translateX(var(--workbench-sidebar-resize-translate-x, 0px))"
+                  : "translateX(-100%)",
+            } as CSSProperties
+          }
+        >
+          <div data-sidebar="sidebar" data-slot="sidebar-inner" className="flex size-full flex-col">
+            {content}
+          </div>
+          {state === "expanded" ? (
+            <SidebarResizeHandle
+              width={renderedWidth}
+              minWidth={minWidth}
+              maxWidth={maxWidth}
+              sidebarLayoutRef={sidebarLayoutRef}
+              shellRef={shellRef}
+              onResize={onResize}
+            />
+          ) : null}
+        </aside>
+      </div>
+    );
+  }
 
   return (
     <Sidebar
@@ -431,26 +509,7 @@ export function WorkbenchSidebar({
       mobileTitle={t("workbench.sidebar.mobileTitle")}
       collapsible="offcanvas"
     >
-      <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
-        <MainViewSidebarHost
-          mobile={isMobile}
-          onNavigate={isMobile ? () => setOpenMobile(false) : undefined}
-        >
-          <WorkbenchSidebarContent
-            mobile={isMobile}
-            onNavigate={isMobile ? () => setOpenMobile(false) : undefined}
-          />
-        </MainViewSidebarHost>
-      </div>
-      {!isMobile ? (
-        <SidebarResizeHandle
-          width={width}
-          minWidth={minWidth}
-          maxWidth={maxWidth}
-          shellRef={shellRef}
-          onResize={onResize}
-        />
-      ) : null}
+      {content}
     </Sidebar>
   );
 }

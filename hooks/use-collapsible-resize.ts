@@ -13,6 +13,7 @@ import { animateSpring, applyMagneticSnap, type SpringAnimation } from "@/lib/re
 const DEFAULT_COLLAPSE_RATIO = 0.5;
 const DEFAULT_KEYBOARD_STEP = 16;
 const DEFAULT_RELEASE_DISTANCE = 24;
+const MAX_SPRING_VELOCITY = 2400;
 
 type ResizeDirection = -1 | 1;
 
@@ -117,7 +118,10 @@ export function useCollapsibleResize(options: UseCollapsibleResizeOptions): {
     const animation = animateSpring({
       from: session.currentWidth,
       to: target,
-      velocity: session.velocity * 1000,
+      velocity: Math.min(
+        MAX_SPRING_VELOCITY,
+        Math.max(-MAX_SPRING_VELOCITY, session.velocity * 1000),
+      ),
       onUpdate: (width) => {
         const renderedWidth = clampPreviewWidth(session, width);
         session.currentWidth = renderedWidth;

@@ -67,6 +67,7 @@ function clearLegacySidebarOpen(): void {
 
 export function WorkbenchShell({ children }: Readonly<{ children: ReactNode }>) {
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH);
+  const [maximumSidebarWidth, setMaximumSidebarWidth] = useState(MAX_SIDEBAR_WIDTH);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarAutoCollapsed, setSidebarAutoCollapsed] = useState(false);
   const [sidebarAutoCollapseSuppressed, setSidebarAutoCollapseSuppressed] = useState(false);
@@ -123,6 +124,24 @@ export function WorkbenchShell({ children }: Readonly<{ children: ReactNode }>) 
   );
 
   useLayoutEffect(() => {
+    const shell = shellRef.current;
+    if (!shell) return;
+
+    const update = () => {
+      const nextMaximum = Math.max(
+        MIN_SIDEBAR_WIDTH,
+        Math.min(MAX_SIDEBAR_WIDTH, Math.floor(shell.clientWidth / 2)),
+      );
+      setMaximumSidebarWidth((current) => (current === nextMaximum ? current : nextMaximum));
+    };
+
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(shell);
+    return () => observer.disconnect();
+  }, []);
+
+  useLayoutEffect(() => {
     const workspaceHost = workspaceHostRef.current;
     if (!workspaceHost) return;
 
@@ -156,6 +175,7 @@ export function WorkbenchShell({ children }: Readonly<{ children: ReactNode }>) 
 
     let observedThreadRoot: HTMLElement | undefined;
     let observer: ResizeObserver;
+    let resizeStateObserver: MutationObserver;
     let previousThreadWidth: number | undefined;
     let resizeIdleTimer: number | undefined;
 
@@ -178,6 +198,11 @@ export function WorkbenchShell({ children }: Readonly<{ children: ReactNode }>) 
       }
 
       const currentThreadWidth = observedThreadRoot.getBoundingClientRect().width;
+      if (shell.dataset.resizing === "true") {
+        previousThreadWidth = currentThreadWidth;
+        return;
+      }
+
       if (
         previousThreadWidth !== undefined &&
         Math.abs(currentThreadWidth - previousThreadWidth) > 0.25
@@ -194,8 +219,9 @@ export function WorkbenchShell({ children }: Readonly<{ children: ReactNode }>) 
       const shellWidth = shell.getBoundingClientRect().width;
       const desktopSidebarParticipates = shellWidth >= 768;
       const sidebarOccupiedWidth = desktopSidebarParticipates
-        ? (shell.querySelector<HTMLElement>('[data-slot="sidebar-gap"]')?.getBoundingClientRect()
-            .width ?? (sidebarEffectivelyOpen ? sidebarWidth : 0))
+        ? (shell
+            .querySelector<HTMLElement>('[data-slot="workbench-sidebar-layout"]')
+            ?.getBoundingClientRect().width ?? (sidebarEffectivelyOpen ? sidebarWidth : 0))
         : sidebarWidth;
       const expandedThreadWidth = resolveExpandedThreadWidth({
         currentThreadWidth,
@@ -236,21 +262,29 @@ export function WorkbenchShell({ children }: Readonly<{ children: ReactNode }>) 
     observer = new ResizeObserver(update);
     observer.observe(shell);
     observer.observe(conversationHost);
+    resizeStateObserver = new MutationObserver(() => {
+      if (shell.dataset.resizing !== "true") update();
+    });
+    resizeStateObserver.observe(shell, {
+      attributes: true,
+      attributeFilter: ["data-resizing"],
+    });
     update();
 
     return () => {
       observer.disconnect();
+      resizeStateObserver.disconnect();
       if (resizeIdleTimer !== undefined) window.clearTimeout(resizeIdleTimer);
       shell.removeAttribute("data-thread-resizing");
     };
   }, [sidebarEffectivelyOpen, sidebarOpen, sidebarWidth, workspacePresentation]);
 
-  const resizeSidebar = (width: number) => {
-    const viewportMaximum = Math.floor(window.innerWidth / 2);
+  const resizeSidebar = useCallback((width: number) => {
+    const viewportMaximum = Math.floor((shellRef.current?.clientWidth ?? window.innerWidth) / 2);
     setSidebarWidth(
-      Math.min(Math.max(width, MIN_SIDEBAR_WIDTH), MAX_SIDEBAR_WIDTH, viewportMaximum),
+      Math.round(Math.min(Math.max(width, MIN_SIDEBAR_WIDTH), MAX_SIDEBAR_WIDTH, viewportMaximum)),
     );
-  };
+  }, []);
 
   return (
     <SidebarProvider
@@ -295,7 +329,7 @@ export function WorkbenchShell({ children }: Readonly<{ children: ReactNode }>) 
       <WorkbenchSidebar
         width={sidebarWidth}
         minWidth={MIN_SIDEBAR_WIDTH}
-        maxWidth={MAX_SIDEBAR_WIDTH}
+        maxWidth={maximumSidebarWidth}
         shellRef={shellRef}
         onResize={resizeSidebar}
       />

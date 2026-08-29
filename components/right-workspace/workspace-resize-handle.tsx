@@ -1,15 +1,13 @@
 "use client";
 
-import type { RefObject } from "react";
+import { useRef, type RefObject } from "react";
 
-import {
-  resolveCollapsibleResizePreview,
-  useCollapsibleResize,
-} from "@/hooks/use-collapsible-resize";
+import { CollapsibleResizeHandle } from "@/components/ui/collapsible-resize-handle";
 import { useI18n } from "@/i18n";
 
 import { DEFAULT_RIGHT_WORKSPACE_WIDTH, MIN_RIGHT_WORKSPACE_WIDTH } from "./core/workspace-store";
 import { useRightWorkspace } from "./workspace-context";
+import { applyRightWorkspaceResizePreview } from "./workspace-resize-preview";
 
 const WIDE_RIGHT_WORKSPACE_WIDTH = 720;
 
@@ -24,51 +22,38 @@ export function WorkspaceResizeHandle({
 }>) {
   const { t } = useI18n();
   const controller = useRightWorkspace();
-  const resize = useCollapsibleResize({
-    width,
-    minimumWidth: MIN_RIGHT_WORKSPACE_WIDTH,
-    direction: -1,
-    getMaximumWidth: () => maximum,
-    getRenderedWidth: () => workspaceRef.current?.getBoundingClientRect().width || width,
-    getSnapPoints: () => [DEFAULT_RIGHT_WORKSPACE_WIDTH, WIDE_RIGHT_WORKSPACE_WIDTH],
-    onPreview: (nextWidth) => {
-      const preview = resolveCollapsibleResizePreview(nextWidth, MIN_RIGHT_WORKSPACE_WIDTH, -1);
-      workspaceRef.current?.style.setProperty(
-        "--right-workspace-layout-width",
-        `${preview.layoutWidth}px`,
-      );
-      workspaceRef.current?.style.setProperty(
-        "--right-workspace-content-width",
-        `${preview.contentWidth}px`,
-      );
-      workspaceRef.current?.style.setProperty(
-        "--right-workspace-resize-translate-x",
-        `${preview.translateX}px`,
-      );
-    },
-    onCommit: controller.setWidth,
-    onOpenChange: controller.setWorkspaceOpen,
-    onResizingChange: (resizing) => {
-      if (resizing) workspaceRef.current?.setAttribute("data-resizing", "true");
-      else workspaceRef.current?.removeAttribute("data-resizing");
-    },
-  });
+  const resizingShellRef = useRef<HTMLElement | null>(null);
 
   return (
-    <div
-      role="separator"
-      tabIndex={0}
-      aria-label={t("rightWorkspace.resize")}
-      aria-orientation="vertical"
-      aria-valuemin={MIN_RIGHT_WORKSPACE_WIDTH}
-      aria-valuemax={Math.round(maximum)}
-      aria-valuenow={Math.round(width)}
-      className="group absolute inset-y-0 -left-[5px] z-40 w-[10px] touch-none cursor-col-resize outline-none after:absolute after:inset-y-0 after:left-1/2 after:w-px after:bg-transparent after:blur-[0.35px] hover:after:bg-ring/30 focus-visible:after:bg-ring/50"
-      onPointerDown={resize.onPointerDown}
-      onPointerMove={resize.onPointerMove}
-      onPointerUp={resize.onPointerUp}
-      onPointerCancel={resize.onPointerCancel}
-      onKeyDown={resize.onKeyDown}
+    <CollapsibleResizeHandle
+      ariaLabel={t("rightWorkspace.resize")}
+      dataSlot="right-workspace-resize-handle"
+      edge="inline-start"
+      width={width}
+      minimumWidth={MIN_RIGHT_WORKSPACE_WIDTH}
+      maximumWidth={maximum}
+      direction={-1}
+      getRenderedWidth={() => workspaceRef.current?.getBoundingClientRect().width || width}
+      getSnapPoints={() => [DEFAULT_RIGHT_WORKSPACE_WIDTH, WIDE_RIGHT_WORKSPACE_WIDTH]}
+      onPreview={(nextWidth) => {
+        applyRightWorkspaceResizePreview(workspaceRef.current, nextWidth);
+      }}
+      onCommit={controller.setWidth}
+      onOpenChange={controller.setWorkspaceOpen}
+      onResizingChange={(resizing) => {
+        if (resizing) {
+          workspaceRef.current?.setAttribute("data-resizing", "true");
+          const shell =
+            workspaceRef.current?.closest<HTMLElement>("[data-workbench-shell]") ?? null;
+          resizingShellRef.current = shell;
+          shell?.setAttribute("data-resizing", "true");
+          return;
+        }
+
+        workspaceRef.current?.removeAttribute("data-resizing");
+        resizingShellRef.current?.removeAttribute("data-resizing");
+        resizingShellRef.current = null;
+      }}
     />
   );
 }

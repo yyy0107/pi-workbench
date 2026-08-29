@@ -1,21 +1,46 @@
 "use client";
 
-import { useRef, type RefObject } from "react";
+import type { RefObject } from "react";
 
 import { useSidebar } from "@/components/ui/sidebar";
-import {
-  resolveCollapsibleResizePreview,
-  useCollapsibleResize,
-} from "@/hooks/use-collapsible-resize";
+import { CollapsibleResizeHandle } from "@/components/ui/collapsible-resize-handle";
+import { resolveCollapsibleResizePreview } from "@/hooks/use-collapsible-resize";
 import { useI18n } from "@/i18n";
 
 const NORMAL_SIDEBAR_WIDTH = 268;
 const WIDE_SIDEBAR_WIDTH = 420;
 
+export function applySidebarResizePreview(
+  sidebarLayout: HTMLElement | null,
+  shell: HTMLElement | null,
+  width: number,
+  minimumWidth: number,
+): void {
+  const preview = resolveCollapsibleResizePreview(width, minimumWidth, 1);
+  sidebarLayout?.style.setProperty("--workbench-sidebar-layout-width", `${preview.layoutWidth}px`);
+  sidebarLayout?.style.setProperty(
+    "--workbench-sidebar-content-width",
+    `${preview.contentWidth}px`,
+  );
+  sidebarLayout?.style.setProperty(
+    "--workbench-sidebar-resize-translate-x",
+    `${preview.translateX}px`,
+  );
+  shell?.style.setProperty("--sidebar-width", `${preview.layoutWidth}px`);
+  shell?.style.setProperty("--sidebar-content-width", `${preview.contentWidth}px`);
+  shell?.style.setProperty("--sidebar-resize-translate-x", `${preview.translateX}px`);
+  if (preview.layoutWidth < minimumWidth) {
+    shell?.setAttribute("data-sidebar-collapse-preview", "true");
+  } else {
+    shell?.removeAttribute("data-sidebar-collapse-preview");
+  }
+}
+
 export interface SidebarResizeHandleProps {
   width: number;
   minWidth: number;
   maxWidth: number;
+  sidebarLayoutRef: RefObject<HTMLElement | null>;
   shellRef: RefObject<HTMLElement | null>;
   onResize(width: number): void;
 }
@@ -24,66 +49,35 @@ export function SidebarResizeHandle({
   width,
   minWidth,
   maxWidth,
+  sidebarLayoutRef,
   shellRef,
   onResize,
 }: SidebarResizeHandleProps) {
   const { t } = useI18n();
-  const { setCollapsePreview, setOpen } = useSidebar();
-  const collapsePreviewRef = useRef(false);
-  const updateCollapsePreview = (collapsePreview: boolean) => {
-    if (collapsePreviewRef.current === collapsePreview) return;
-    collapsePreviewRef.current = collapsePreview;
-    setCollapsePreview(collapsePreview);
-  };
-  const resize = useCollapsibleResize({
-    width,
-    minimumWidth: minWidth,
-    direction: 1,
-    getMaximumWidth: () => Math.min(maxWidth, Math.floor(window.innerWidth / 2)),
-    getRenderedWidth: () =>
-      shellRef.current
-        ? Number.parseFloat(
-            window.getComputedStyle(shellRef.current).getPropertyValue("--sidebar-width"),
-          ) || width
-        : width,
-    getSnapPoints: () => [NORMAL_SIDEBAR_WIDTH, WIDE_SIDEBAR_WIDTH],
-    onPreview: (nextWidth) => {
-      const preview = resolveCollapsibleResizePreview(nextWidth, minWidth, 1);
-      shellRef.current?.style.setProperty("--sidebar-width", `${preview.layoutWidth}px`);
-      shellRef.current?.style.setProperty("--sidebar-content-width", `${preview.contentWidth}px`);
-      shellRef.current?.style.setProperty(
-        "--sidebar-resize-translate-x",
-        `${preview.translateX}px`,
-      );
-      updateCollapsePreview(preview.layoutWidth < minWidth);
-    },
-    onCommit: onResize,
-    onOpenChange: setOpen,
-    onResizingChange: (resizing) => {
-      if (resizing) shellRef.current?.setAttribute("data-resizing", "true");
-      else {
-        shellRef.current?.removeAttribute("data-resizing");
-        updateCollapsePreview(false);
-      }
-    },
-  });
+  const { setOpen } = useSidebar();
 
   return (
-    <div
-      role="separator"
-      tabIndex={0}
-      aria-label={t("workbench.sidebar.resize")}
-      aria-orientation="vertical"
-      aria-valuenow={Math.round(width)}
-      aria-valuemin={Math.round(minWidth)}
-      aria-valuemax={Math.round(maxWidth)}
-      data-slot="workbench-sidebar-resize-handle"
-      className="group absolute inset-y-0 -right-[5px] z-30 w-[10px] touch-none cursor-col-resize outline-none after:absolute after:inset-y-0 after:left-1/2 after:w-px after:bg-transparent after:blur-[0.35px] after:transition-colors hover:after:bg-ring/30 focus-visible:after:bg-ring/50"
-      onPointerDown={resize.onPointerDown}
-      onPointerMove={resize.onPointerMove}
-      onPointerUp={resize.onPointerUp}
-      onPointerCancel={resize.onPointerCancel}
-      onKeyDown={resize.onKeyDown}
+    <CollapsibleResizeHandle
+      ariaLabel={t("workbench.sidebar.resize")}
+      dataSlot="workbench-sidebar-resize-handle"
+      edge="inline-end"
+      width={width}
+      minimumWidth={minWidth}
+      maximumWidth={maxWidth}
+      direction={1}
+      getRenderedWidth={() => sidebarLayoutRef.current?.getBoundingClientRect().width || width}
+      getSnapPoints={() => [NORMAL_SIDEBAR_WIDTH, WIDE_SIDEBAR_WIDTH]}
+      onPreview={(nextWidth) => {
+        applySidebarResizePreview(sidebarLayoutRef.current, shellRef.current, nextWidth, minWidth);
+      }}
+      onCommit={onResize}
+      onOpenChange={setOpen}
+      onResizingChange={(resizing) => {
+        for (const element of [sidebarLayoutRef.current, shellRef.current]) {
+          if (resizing) element?.setAttribute("data-resizing", "true");
+          else element?.removeAttribute("data-resizing");
+        }
+      }}
     />
   );
 }

@@ -11,7 +11,7 @@ import { useMainViewService } from "@/platform/extensions";
 
 export function WorkbenchBrandToggle() {
   const { t } = useI18n();
-  const { collapsePreview, isMobile, state, toggleSidebar } = useSidebar();
+  const { isMobile, state, toggleSidebar } = useSidebar();
   const mainViews = useMainViewService();
   const activeMainView = useSyncExternalStore(
     mainViews.subscribe,
@@ -24,7 +24,7 @@ export function WorkbenchBrandToggle() {
   const productIconHidden = activeMainView?.chrome?.productIcon === "hidden";
   if (productIconHidden && state === "expanded") return null;
 
-  const expanded = state === "expanded" && !collapsePreview;
+  const expanded = state === "expanded";
   const label = t(expanded ? "workbench.sidebar.collapse" : "workbench.sidebar.expand");
   const ToggleIcon = expanded ? PanelLeftCloseIcon : PanelLeftOpenIcon;
 

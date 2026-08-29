@@ -16,6 +16,9 @@ export interface SpringOptions {
   onComplete?(): void;
 }
 
+const MAX_SPRING_FRAME_SECONDS = 0.032;
+const MAX_SPRING_STEP_SECONDS = 1 / 120;
+
 export function nearestSnapPoint(value: number, points: readonly number[]): number {
   if (points.length === 0) return value;
   return points.reduce((nearest, point) =>
@@ -86,12 +89,16 @@ export function animateSpring({
   const tick = (now: number) => {
     if (!active) return;
 
-    const elapsedSeconds = Math.min((now - lastTime) / 1000, 0.032);
+    let remainingSeconds = Math.min((now - lastTime) / 1000, MAX_SPRING_FRAME_SECONDS);
     lastTime = now;
-    const springForce = -stiffness * (position - target);
-    const dampingForce = -damping * speed;
-    speed += ((springForce + dampingForce) / mass) * elapsedSeconds;
-    position += speed * elapsedSeconds;
+    while (remainingSeconds > 0) {
+      const stepSeconds = Math.min(remainingSeconds, MAX_SPRING_STEP_SECONDS);
+      const springForce = -stiffness * (position - target);
+      const dampingForce = -damping * speed;
+      speed += ((springForce + dampingForce) / mass) * stepSeconds;
+      position += speed * stepSeconds;
+      remainingSeconds -= stepSeconds;
+    }
 
     if (
       (Math.abs(speed) <= restSpeed && Math.abs(position - target) <= restDelta) ||

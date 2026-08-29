@@ -18,6 +18,7 @@ import { SurfaceHost } from "./surface-host";
 import { useRightWorkspaceState } from "./workspace-context";
 import { WorkspaceHeader } from "./workspace-header";
 import { WorkspaceResizeHandle } from "./workspace-resize-handle";
+import { applyRightWorkspaceResizePreview } from "./workspace-resize-preview";
 
 function workspaceMaximum(element: HTMLElement | null): number {
   if (typeof window === "undefined") return DEFAULT_RIGHT_WORKSPACE_WIDTH;
@@ -56,17 +57,8 @@ export function RightWorkspace() {
   const renderedWidth = Math.min(maximum, width);
 
   useLayoutEffect(() => {
-    if (open) return;
-
-    workspaceLayoutRef.current?.style.setProperty(
-      "--right-workspace-layout-width",
-      `${renderedWidth}px`,
-    );
-    workspaceLayoutRef.current?.style.setProperty(
-      "--right-workspace-content-width",
-      `${renderedWidth}px`,
-    );
-    workspaceLayoutRef.current?.style.setProperty("--right-workspace-resize-translate-x", "0px");
+    if (workspaceLayoutRef.current?.dataset.resizing === "true") return;
+    applyRightWorkspaceResizePreview(workspaceLayoutRef.current, renderedWidth);
   }, [open, renderedWidth]);
 
   return (
@@ -78,15 +70,12 @@ export function RightWorkspace() {
       className="relative h-full min-h-0 min-w-0 shrink-0 transition-[width] duration-[240ms] ease-[cubic-bezier(0.45,0,0.8,0.7)] motion-reduce:transition-none data-[resizing=true]:transition-none data-[resizing=true]:will-change-[width] data-[state=closed]:pointer-events-none"
       style={
         {
-          "--right-workspace-layout-width": `${renderedWidth}px`,
-          "--right-workspace-content-width": `${renderedWidth}px`,
-          "--right-workspace-resize-translate-x": "0px",
           width:
             presentation === "closed"
               ? 0
               : presentation === "maximized"
                 ? "100%"
-                : "min(var(--right-workspace-layout-width), 100%)",
+                : `min(var(--right-workspace-layout-width, ${renderedWidth}px), 100%)`,
           maxWidth: "100%",
         } as CSSProperties
       }
@@ -105,12 +94,12 @@ export function RightWorkspace() {
             width:
               presentation === "maximized"
                 ? "100%"
-                : "min(var(--right-workspace-content-width), 100vw)",
+                : `min(var(--right-workspace-content-width, ${renderedWidth}px), 100vw)`,
             maxWidth: "100vw",
             transform: open
               ? maximized
                 ? "translateX(0)"
-                : "translateX(var(--right-workspace-resize-translate-x))"
+                : "translateX(var(--right-workspace-resize-translate-x, 0px))"
               : "translateX(100%)",
           } as CSSProperties
         }
