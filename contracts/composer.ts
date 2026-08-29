@@ -62,6 +62,10 @@ export type ComposerCommandScope = "message" | "segment";
  */
 export type ComposerCommandSource = "workbench" | "agent";
 
+/** Stable directive and context identifiers for referencing another conversation. */
+export const COMPOSER_CONVERSATION_MENTION_TYPE = "conversation";
+export const COMPOSER_CONVERSATION_CONTEXT_TYPE = "workbench.conversation";
+
 export interface ComposerCommandSubmission {
   readonly id: string;
   readonly commandId: string;

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { ComposerCommandDefinition, ComposerCommandRegistry } from "@/platform/extensions";
+import { COMPOSER_CONVERSATION_MENTION_TYPE } from "@/contracts/composer";
 
 import {
   applyComposerCommandArguments,
@@ -83,6 +84,57 @@ test("formatter round-trips Workbench and Agent directives without parsing ordin
     },
     { kind: "text", text: " after :other[value]" },
   ]);
+});
+
+test("conversation mentions round-trip as durable links and compile into reference context", () => {
+  const conversation = workbenchComposerDirectiveFormatter.serialize({
+    id: "session/roadmap",
+    type: COMPOSER_CONVERSATION_MENTION_TYPE,
+    label: "Roadmap ] review",
+  });
+  const sourceText = `${conversation} compare the decisions`;
+  const document = parseComposerDocument(sourceText);
+
+  assert.equal(conversation, "[@Roadmap \\] review](conversation://session%2Froadmap)");
+  assert.deepEqual(document, [
+    {
+      type: "mention",
+      id: "mention:conversation:session/roadmap:0",
+      mentionType: COMPOSER_CONVERSATION_MENTION_TYPE,
+      value: "session/roadmap",
+      label: "Roadmap ] review",
+    },
+    { type: "text", text: " compare the decisions" },
+  ]);
+
+  const result = compileComposerDocument(document, registry([]));
+  assert.equal(result.sourceText, sourceText);
+  assert.equal(result.text, "@Roadmap ] review compare the decisions");
+  assert.deepEqual(result.context, [
+    {
+      type: "workbench.conversation",
+      value: {
+        version: 1,
+        conversationId: "session/roadmap",
+        title: "Roadmap ] review",
+      },
+    },
+  ]);
+  assert.deepEqual(result.commands, []);
+});
+
+test("compiler de-duplicates repeated conversation reference context", () => {
+  const conversation = workbenchComposerDirectiveFormatter.serialize({
+    id: "session-1",
+    type: COMPOSER_CONVERSATION_MENTION_TYPE,
+    label: "Release review",
+  });
+  const result = compileComposerDocument(
+    parseComposerDocument(`${conversation} compare ${conversation}`),
+    registry([]),
+  );
+
+  assert.equal(result.context.length, 1);
 });
 
 test("parser decodes and normalizes a legacy persisted localized Pi command", () => {

@@ -24,7 +24,18 @@ import {
   KEY_ENTER_COMMAND,
   type LexicalEditor,
 } from "lexical";
-import { AlertCircleIcon, ArrowUpIcon, MicIcon, SquareIcon, XIcon } from "lucide-react";
+import {
+  AlertCircleIcon,
+  ArrowUpIcon,
+  AtSignIcon,
+  MessageSquareIcon,
+  MicIcon,
+  PaperclipIcon,
+  PlusIcon,
+  SquareIcon,
+  SquareSlashIcon,
+  XIcon,
+} from "lucide-react";
 import {
   Fragment,
   useCallback,
@@ -38,7 +49,7 @@ import {
   type CSSProperties,
 } from "react";
 
-import { ComposerAddAttachment, ComposerAttachments } from "@/components/assistant-ui/attachment";
+import { ComposerAttachments } from "@/components/assistant-ui/attachment";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import {
   type ComposerCommand,
@@ -47,6 +58,13 @@ import {
   ComposerMenu,
 } from "@/components/elements/composer";
 import { ComposerWorkspaceFeedback } from "@/components/right-workspace";
+import { COMPOSER_CONVERSATION_MENTION_TYPE } from "@/contracts/composer";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import {
@@ -89,6 +107,7 @@ import {
   withComposerCommandParameterDefaults,
 } from "./composer-command-parameters";
 import { addComposerImagesFromPaste } from "./composer-image-paste";
+import { ComposerTokenIcon, type ComposerTokenKind } from "./composer-token-icon";
 import { MarkdownComposerInput } from "./markdown-composer-input";
 import { submitWorkbenchComposer } from "./composer-submit";
 import { ComposerTriggerEngine, excludeSlashPathOrCode } from "./composer-trigger-engine";
@@ -339,6 +358,49 @@ function ComposerEnterPlugin({ onSubmit }: Readonly<{ onSubmit(steer: boolean): 
   return null;
 }
 
+function ComposerAddMenu({
+  onInsertTrigger,
+}: Readonly<{ onInsertTrigger(trigger: "@" | "/"): void }>) {
+  const { t } = useI18n();
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <TooltipIconButton
+            tooltip={t("workbench.chat.composer.addMenu.open")}
+            type="button"
+            side="bottom"
+            variant="ghost"
+            size="icon"
+            data-frame="none"
+            className="aui-composer-add-menu text-muted-foreground hover:text-foreground hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30 size-[var(--composer-attachment-action-size)] rounded-[var(--button-radius)] active:scale-[0.96] motion-reduce:transition-none"
+            aria-label={t("workbench.chat.composer.addMenu.open")}
+          >
+            <PlusIcon className="aui-composer-add-menu-icon size-[var(--composer-attachment-icon-size)]" />
+          </TooltipIconButton>
+        }
+      />
+      <DropdownMenuContent align="start" side="top" sideOffset={8} className="w-64 p-1.5">
+        <ComposerPrimitive.AddAttachment
+          render={<DropdownMenuItem className="min-h-9 gap-2.5 px-2.5" />}
+        >
+          <PaperclipIcon aria-hidden="true" className="text-muted-foreground size-4" />
+          <span>{t("workbench.chat.composer.addMenu.attachment")}</span>
+        </ComposerPrimitive.AddAttachment>
+        <DropdownMenuItem className="min-h-9 gap-2.5 px-2.5" onClick={() => onInsertTrigger("@")}>
+          <AtSignIcon aria-hidden="true" className="text-muted-foreground size-4" />
+          <span>{t("workbench.chat.composer.addMenu.context")}</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem className="min-h-9 gap-2.5 px-2.5" onClick={() => onInsertTrigger("/")}>
+          <SquareSlashIcon aria-hidden="true" className="text-muted-foreground size-4" />
+          <span>{t("workbench.chat.composer.addMenu.capability")}</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 function ScrollingComposerCommandItem({
   suggestion,
   item,
@@ -407,6 +469,60 @@ function WorkbenchComposerCommandMenu({
   );
 }
 
+function ScrollingComposerConversationItem({
+  item,
+  index,
+  active,
+}: Readonly<{ item: Unstable_TriggerItem; index: number; active: boolean }>) {
+  const ref = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (active) ref.current?.scrollIntoView({ block: "nearest" });
+  }, [active]);
+
+  return (
+    <ComposerPrimitive.Unstable_TriggerPopoverItem
+      ref={ref}
+      item={item}
+      index={index}
+      className={cn(
+        "flex min-h-10 w-full items-center gap-2.5 rounded-[var(--button-radius)] px-3 py-2 text-start text-sm outline-none transition-colors",
+        active ? "bg-muted/80 dark:bg-muted/60" : "hover:bg-muted/50 dark:hover:bg-muted/35",
+      )}
+      onPointerDown={(event) => event.preventDefault()}
+    >
+      <MessageSquareIcon aria-hidden="true" className="text-muted-foreground size-4 shrink-0" />
+      <span className="min-w-0 flex-1 truncate">{item.label}</span>
+    </ComposerPrimitive.Unstable_TriggerPopoverItem>
+  );
+}
+
+function WorkbenchComposerConversationMenu() {
+  const { open, items, highlightedIndex } = unstable_useTriggerPopoverScopeContext();
+  const { t } = useI18n();
+
+  return (
+    <ComposerMenu
+      open={open && items.length > 0}
+      className="max-h-[min(24rem,50vh)] w-72 gap-0.5 overflow-y-auto p-1.5 pt-0 scroll-py-2"
+    >
+      <div
+        role="presentation"
+        className="bg-popover/95 text-muted-foreground sticky top-0 z-10 px-3 py-2 text-[11px] leading-4 font-medium backdrop-blur-sm"
+      >
+        {t("workbench.chat.composer.conversationMentions.title")}
+      </div>
+      {items.map((item, index) => (
+        <ScrollingComposerConversationItem
+          key={suggestionKey(item)}
+          item={item}
+          index={index}
+          active={index === highlightedIndex}
+        />
+      ))}
+    </ComposerMenu>
+  );
+}
+
 function composerErrorMessage(
   error: WorkbenchAgentComposerSendError,
   t: ReturnType<typeof useI18n>["t"],
@@ -452,6 +568,9 @@ export function WorkbenchComposer() {
   const isDictating = useAuiState((state) => state.thread.composer.dictation != null);
   const mainThreadId = useAuiState((state) => state.threads.mainThreadId);
   const newThreadId = useAuiState((state) => state.threads.newThreadId);
+  const threadIds = useAuiState((state) => state.threads.threadIds);
+  const archivedThreadIds = useAuiState((state) => state.threads.archivedThreadIds);
+  const threadItems = useAuiState((state) => state.threads.threadItems);
   const isNewThread = mainThreadId === newThreadId;
   const composerDrafts = useRef(new Map<string, ComposerDraftSnapshot>());
   const composerDraftThreadId = useRef(mainThreadId);
@@ -640,6 +759,64 @@ export function WorkbenchComposer() {
               suggestionParameterKey(suggestion.item) === activeCommandParameterKey,
           ),
     [activeCommandParameterKey, composerSuggestions],
+  );
+  const conversationMentionItems = useMemo<readonly Unstable_TriggerItem[]>(() => {
+    const itemsById = new Map(threadItems.map((item) => [item.id, item]));
+    return [...new Set([...threadIds, ...archivedThreadIds])].flatMap((threadId) => {
+      if (threadId === mainThreadId || threadId === newThreadId) return [];
+      const thread = itemsById.get(threadId);
+      if (!thread) return [];
+      return [
+        {
+          id: thread.remoteId ?? thread.externalId ?? thread.id,
+          type: COMPOSER_CONVERSATION_MENTION_TYPE,
+          label:
+            thread.title?.trim() ||
+            t("workbench.chat.composer.conversationMentions.untitledConversation"),
+        },
+      ];
+    });
+  }, [archivedThreadIds, mainThreadId, newThreadId, t, threadIds, threadItems]);
+  const conversationMentionTriggerEngine = useMemo(
+    () =>
+      new ComposerTriggerEngine<Unstable_TriggerItem>([
+        {
+          id: "conversation-mention",
+          character: "@",
+          search: (query) => {
+            const normalized = query.toLocaleLowerCase();
+            return conversationMentionItems.filter(
+              (item) =>
+                item.label.toLocaleLowerCase().includes(normalized) ||
+                item.id.toLocaleLowerCase().includes(normalized),
+            );
+          },
+        },
+      ]),
+    [conversationMentionItems],
+  );
+  const conversationMentionAdapter = useMemo<TriggerAdapter>(
+    () => ({
+      categories: () => [],
+      categoryItems: () => [],
+      search: (query) => {
+        if (!isComposerFocused) return [];
+        const match = conversationMentionTriggerEngine.detect({
+          value: composerValue,
+          cursorPosition: composerCursorPosition,
+          isComposing: isComposerComposing,
+        });
+        if (!match || match.query !== query) return [];
+        return match.suggestions;
+      },
+    }),
+    [
+      composerCursorPosition,
+      composerValue,
+      conversationMentionTriggerEngine,
+      isComposerComposing,
+      isComposerFocused,
+    ],
   );
   const slashCommandTriggerEngine = useMemo(
     () =>
@@ -929,6 +1106,25 @@ export function WorkbenchComposer() {
     lexicalEditorRef.current = editor;
   }, []);
 
+  const insertComposerTrigger = useCallback((trigger: "@" | "/") => {
+    const editor = lexicalEditorRef.current;
+    if (!editor) return;
+
+    editor.focus(() => {
+      editor.update(
+        () => {
+          let selection = $getSelection();
+          if (!$isRangeSelection(selection)) {
+            $getRoot().selectEnd();
+            selection = $getSelection();
+          }
+          if ($isRangeSelection(selection)) selection.insertText(trigger);
+        },
+        { tag: "history-merge" },
+      );
+    });
+  }, []);
+
   const updateComposerMarkdown = useCallback(
     (markdown: string) => aui.thread.composer().setText(markdown),
     [aui],
@@ -954,8 +1150,18 @@ export function WorkbenchComposer() {
       const editLabel = parameterKey
         ? t("workbench.chat.composer.commandParameters.edit", { command: label })
         : undefined;
+      const TokenIcon = suggestion?.definition?.icon;
+      const tokenKind: ComposerTokenKind | undefined =
+        directiveType === COMPOSER_CONVERSATION_MENTION_TYPE ? "conversation" : suggestion?.group;
       return (
         <ComposerCommandToken
+          icon={
+            TokenIcon ? (
+              <TokenIcon />
+            ) : tokenKind ? (
+              <ComposerTokenIcon kind={tokenKind} />
+            ) : undefined
+          }
           label={label}
           role={parameterKey ? "button" : undefined}
           tabIndex={parameterKey ? 0 : undefined}
@@ -1010,6 +1216,18 @@ export function WorkbenchComposer() {
             if (!composerOverlayVisible) dispatchComposer();
           }}
         >
+          <ComposerPrimitive.Unstable_TriggerPopover
+            char="@"
+            adapter={conversationMentionAdapter}
+            aria-label={t("workbench.chat.composer.conversationMentions.suggestions")}
+            className="contents"
+          >
+            <ComposerPrimitive.Unstable_TriggerPopover.Directive
+              formatter={workbenchComposerDirectiveFormatter}
+            />
+            <WorkbenchComposerConversationMenu />
+          </ComposerPrimitive.Unstable_TriggerPopover>
+
           <ComposerPrimitive.Unstable_TriggerPopover
             char="/"
             adapter={slashCommandAdapter}
@@ -1135,7 +1353,7 @@ export function WorkbenchComposer() {
                     "[--composer-action-row-size:32px] [--composer-attachment-action-size:32px] [--composer-attachment-icon-size:16px]",
                     "[--composer-voice-action-size:32px] [--composer-voice-icon-size:16px]",
                     "[--composer-primary-action-size:32px] [--composer-primary-icon-size:16px] [--composer-stop-icon-size:12px]",
-                    "[&_.aui-composer-add-attachment]:size-[var(--composer-attachment-action-size)]! [&_.aui-attachment-add-icon]:size-[var(--composer-attachment-icon-size)]!",
+                    "[&_.aui-composer-add-menu]:size-[var(--composer-attachment-action-size)]! [&_.aui-composer-add-menu-icon]:size-[var(--composer-attachment-icon-size)]!",
                     "[&_.aui-composer-stop-icon]:size-[var(--composer-stop-icon-size)]!",
                   )}
                 >
@@ -1145,7 +1363,7 @@ export function WorkbenchComposer() {
                       context={context}
                       className="flex min-w-0 items-center gap-2 empty:hidden"
                     />
-                    <ComposerAddAttachment />
+                    <ComposerAddMenu onInsertTrigger={insertComposerTrigger} />
                   </div>
 
                   <div className="flex h-full min-w-0 shrink-0 items-center justify-end gap-2 max-[360px]:gap-1">

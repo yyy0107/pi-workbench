@@ -12,6 +12,7 @@ import type {
 } from "@/runtime/shared/composer/request";
 
 import { ComposerCommandArguments } from "./composer-command-arguments";
+import { ComposerTokenIcon } from "./composer-token-icon";
 
 type Translate = ReturnType<typeof useI18n>["t"];
 
@@ -92,6 +93,7 @@ function CommandResponseIdentity({
       className={cn("flex max-w-full min-w-0 flex-wrap items-center gap-1.5 text-xs", className)}
     >
       <ComposerCommandToken
+        icon={<ComposerTokenIcon kind="builtin" />}
         label={response.label}
         data-command={response.commandId}
         className="shrink-0 text-xs leading-5"

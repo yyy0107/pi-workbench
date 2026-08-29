@@ -133,6 +133,7 @@ import {
   SESSION_EVENT_JOURNAL_CUSTOM_TYPE,
 } from "./session-event-journal";
 import { SessionQueueProjection } from "./session-queue";
+import { resolveConversationReferenceContexts } from "./composer-conversation-context";
 import { getStreamHub } from "../streams/stream-hub";
 import { getWorkspaceStore } from "../workspaces/workspace-registry";
 import { validateWorkspace, workspaceFromCwd } from "../workspaces/workspace-paths";
@@ -2631,6 +2632,11 @@ class HostedPiSession {
         onCommandResponse: publishCommandResponse,
       },
     );
+    resolution.request.untrustedContext = await resolveConversationReferenceContexts({
+      contexts: resolution.request.untrustedContext,
+      currentConversationId: this.session.sessionManager.getSessionId(),
+      getHistory: getSessionHistory,
+    });
     const commandFailed = resolution.request.commandTrace.some(
       (command) => command.status === "execution-failed",
     );

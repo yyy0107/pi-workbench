@@ -4,7 +4,11 @@ import type {
   Unstable_TriggerItem,
 } from "@assistant-ui/react";
 
-import { isComposerJsonValue } from "@/contracts/composer";
+import {
+  COMPOSER_CONVERSATION_CONTEXT_TYPE,
+  COMPOSER_CONVERSATION_MENTION_TYPE,
+  isComposerJsonValue,
+} from "@/contracts/composer";
 import type {
   CompiledComposerRequest,
   ComposerCommandArgsBinding,
@@ -36,6 +40,8 @@ const COMMAND_LINK_RE =
   /\[\$((?:\\.|[^\]\\\n]){1,4096})\]\(command:\/\/(agent|workbench)\/([^\s?)#\n]{1,2048})(?:\?args=([^\s)#\n]{1,196608}))?\)/gu;
 const SKILL_LINK_RE =
   /\[\$((?:\\.|[^\]\\\n]){1,4096})\]\(skill:\/\/(user|project)\/([^\s)\n]{1,2048})\)/gu;
+const CONVERSATION_LINK_RE =
+  /\[@((?:\\.|[^\]\\\n]){1,4096})\]\(conversation:\/\/([^\s)#\n]{1,2048})\)/gu;
 
 type PersistedSkillScope = "project" | "user";
 
@@ -191,11 +197,30 @@ function parsedDirectiveMatches(text: string): readonly ParsedDirectiveMatch[] {
     });
   }
 
+  for (const match of text.matchAll(CONVERSATION_LINK_RE)) {
+    const label = unescapeResourceLinkLabel(match[1]!);
+    const id = decodeDirectiveValue(match[2]!);
+    if (!label || !id) continue;
+    matches.push({
+      index: match.index,
+      end: match.index + match[0].length,
+      segment: {
+        kind: "mention",
+        type: COMPOSER_CONVERSATION_MENTION_TYPE,
+        id,
+        label,
+      },
+    });
+  }
+
   return matches.toSorted((left, right) => left.index - right.index);
 }
 
 export const workbenchComposerDirectiveFormatter: Unstable_DirectiveFormatter = {
   serialize(item: Unstable_TriggerItem): string {
+    if (item.type === COMPOSER_CONVERSATION_MENTION_TYPE) {
+      return `[@${escapeResourceLinkLabel(item.label)}](conversation://${encodeResourceLinkComponent(item.id)})`;
+    }
     const skillScope = persistedSkillScopeFromDirectiveType(item.type);
     if (skillScope) {
       const skillName = skillNameFromInvocationName(item.id);
@@ -279,6 +304,7 @@ export function parseComposerDocument(
 ): ComposerDocument {
   const nodes: ComposerDocumentNode[] = [];
   let commandIndex = 0;
+  let mentionIndex = 0;
 
   const appendText = (value: string) => {
     if (!value) return;
@@ -296,6 +322,17 @@ export function parseComposerDocument(
 
     if (segment.type === COMMAND_ARGUMENT_END_DIRECTIVE_TYPE) {
       // Retained only so drafts written by the former inline-argument editor remain parseable.
+      continue;
+    }
+
+    if (segment.type === COMPOSER_CONVERSATION_MENTION_TYPE) {
+      nodes.push({
+        type: "mention",
+        id: `mention:${segment.type}:${segment.id}:${mentionIndex++}`,
+        mentionType: segment.type,
+        value: segment.id,
+        label: segment.label,
+      });
       continue;
     }
 
@@ -358,7 +395,8 @@ export function composerDocumentText(document: ComposerDocument): string {
         break;
       }
       case "mention":
-        text += node.label;
+        text +=
+          node.mentionType === COMPOSER_CONVERSATION_MENTION_TYPE ? `@${node.label}` : node.label;
         removeNextBuffer = false;
         break;
       case "attachment":
@@ -405,7 +443,13 @@ export function composerDocumentSourceText(
         case "command-argument":
           return node.text;
         case "mention":
-          return node.label;
+          return node.mentionType === COMPOSER_CONVERSATION_MENTION_TYPE
+            ? workbenchComposerDirectiveFormatter.serialize({
+                id: node.value,
+                type: node.mentionType,
+                label: node.label,
+              })
+            : node.label;
         case "attachment":
           return "";
       }
@@ -414,9 +458,31 @@ export function composerDocumentSourceText(
 }
 
 function createDraft(document: ComposerDocument): ComposerCommandRequestDraft {
+  const referencedConversations = new Set<string>();
+  const context = document.flatMap((node) => {
+    if (
+      node.type !== "mention" ||
+      node.mentionType !== COMPOSER_CONVERSATION_MENTION_TYPE ||
+      referencedConversations.has(node.value)
+    ) {
+      return [];
+    }
+    referencedConversations.add(node.value);
+    return [
+      {
+        type: COMPOSER_CONVERSATION_CONTEXT_TYPE,
+        value: {
+          version: 1,
+          conversationId: node.value,
+          title: node.label,
+        },
+      },
+    ];
+  });
+
   return {
     text: composerDocumentText(document),
-    context: [],
+    context,
     metadata: {},
   };
 }

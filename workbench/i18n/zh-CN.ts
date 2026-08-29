@@ -15,6 +15,17 @@ export const workbenchZhCN = {
       selectWorkspacePlaceholder: "请先选择工作区，再开始会话…",
       messageInput: "消息输入框",
       commandSuggestions: "命令建议",
+      addMenu: {
+        open: "添加内容",
+        attachment: "添加附件",
+        context: "使用 @ 引用会话",
+        capability: "使用 / 选择能力",
+      },
+      conversationMentions: {
+        title: "会话",
+        suggestions: "会话建议",
+        untitledConversation: "未命名会话",
+      },
       commandParameters: {
         close: "关闭命令参数面板",
         disabled: "禁用",

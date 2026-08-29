@@ -17,6 +17,17 @@ export const workbenchEnUS = {
       selectWorkspacePlaceholder: "Select a workspace before starting a conversation…",
       messageInput: "Message input",
       commandSuggestions: "Command suggestions",
+      addMenu: {
+        open: "Add to composer",
+        attachment: "Add attachment",
+        context: "Mention a conversation with @",
+        capability: "Use / to select a capability",
+      },
+      conversationMentions: {
+        title: "Conversations",
+        suggestions: "Conversation suggestions",
+        untitledConversation: "Untitled conversation",
+      },
       commandParameters: {
         close: "Close command parameters",
         disabled: "Disabled",

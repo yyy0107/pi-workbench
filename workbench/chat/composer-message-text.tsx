@@ -4,6 +4,7 @@ import { useAuiState } from "@assistant-ui/react";
 
 import { CompactMarkdownText } from "@/components/assistant-ui/lazy-markdown-text";
 import { ComposerCommandToken } from "@/components/elements/composer";
+import { COMPOSER_CONVERSATION_MENTION_TYPE } from "@/contracts/composer";
 import { useI18n } from "@/i18n";
 import { useComposerCommandRegistry } from "@/platform/extensions";
 import { useWorkbenchAgentCommands } from "@/runtime/assistant-ui/agent-runtime-context";
@@ -16,6 +17,7 @@ import {
 } from "./agent-command";
 import { ComposerCommandArguments } from "./composer-command-arguments";
 import { parseComposerDocument } from "./composer-document";
+import { ComposerTokenIcon, type ComposerTokenKind } from "./composer-token-icon";
 
 function UserMessageTextBubble({ children }: { children: React.ReactNode }) {
   return (
@@ -36,6 +38,9 @@ export function WorkbenchComposerMessageText({ text }: { text: string }) {
     (state) => state.message.metadata.custom.workbenchComposerDocument,
   );
   const composerCommandRegistry = useComposerCommandRegistry();
+  const agentCommandKindsById = new Map(
+    commands.map((command) => [command.invocationName, command.kind] as const),
+  );
   const composerDocument =
     parseWorkbenchComposerDocument(persistedDocument) ??
     parseComposerDocument(text, composerCommandRegistry, commands);
@@ -52,7 +57,7 @@ export function WorkbenchComposerMessageText({ text }: { text: string }) {
 
   if (!hasTextPresentation) return null;
 
-  if (composerDocument.some((node) => node.type === "command")) {
+  if (composerDocument.some((node) => node.type === "command" || node.type === "mention")) {
     return (
       <UserMessageTextBubble>
         <p className="whitespace-pre-wrap">
@@ -70,13 +75,31 @@ export function WorkbenchComposerMessageText({ text }: { text: string }) {
                     {node.text}
                   </span>
                 );
-              case "command":
+              case "command": {
+                const DefinitionIcon =
+                  node.source === "workbench"
+                    ? composerCommandRegistry.get(node.commandId)?.icon
+                    : undefined;
+                const tokenKind: ComposerTokenKind | undefined =
+                  node.source === "workbench"
+                    ? "workbench"
+                    : agentCommandKindsById.get(node.commandId);
                 return (
                   <span
                     key={node.id}
                     className="inline-flex max-w-full flex-wrap items-center gap-1.5 align-middle"
                   >
-                    <ComposerCommandToken label={node.label} className="align-baseline" />
+                    <ComposerCommandToken
+                      icon={
+                        DefinitionIcon ? (
+                          <DefinitionIcon />
+                        ) : tokenKind ? (
+                          <ComposerTokenIcon kind={tokenKind} />
+                        ) : undefined
+                      }
+                      label={node.label}
+                      className="align-baseline"
+                    />
                     <ComposerCommandArguments
                       args={node.args}
                       omittedFields={projectedArgumentFields.get(node.id)}
@@ -93,8 +116,20 @@ export function WorkbenchComposerMessageText({ text }: { text: string }) {
                     />
                   </span>
                 );
+              }
               case "mention":
-                return <span key={node.id}>{node.label}</span>;
+                return (
+                  <ComposerCommandToken
+                    key={node.id}
+                    icon={
+                      node.mentionType === COMPOSER_CONVERSATION_MENTION_TYPE ? (
+                        <ComposerTokenIcon kind="conversation" />
+                      ) : undefined
+                    }
+                    label={`@${node.label}`}
+                    className="me-0.5 align-baseline"
+                  />
+                );
               case "attachment":
                 return null;
             }
@@ -112,6 +147,7 @@ export function WorkbenchComposerMessageText({ text }: { text: string }) {
       <UserMessageTextBubble>
         <p className="whitespace-pre-wrap">
           <ComposerCommandToken
+            icon={<ComposerTokenIcon kind={commandText.command.kind} />}
             label={formatAgentCommandLabel(commandText.command.name)}
             className="me-1 align-baseline"
           />

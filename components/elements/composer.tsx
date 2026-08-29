@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -118,11 +118,13 @@ export function ComposerCommandItem({
 }
 
 export function ComposerCommandToken({
+  icon,
   label,
   hint,
   className,
   ...props
 }: Omit<ComponentProps<"span">, "children"> & {
+  icon?: ReactNode;
   label: string;
   hint?: string;
 }) {
@@ -135,7 +137,18 @@ export function ComposerCommandToken({
       )}
       {...props}
     >
-      <span>{label}</span>
+      <span className="inline-flex items-center gap-1 align-baseline">
+        {icon ? (
+          <span
+            data-slot="composer-command-token-icon"
+            aria-hidden="true"
+            className="inline-flex size-[var(--icon-size-sm)] shrink-0 items-center justify-center [&_svg]:size-full [&_svg.lucide]:[stroke-width:1.5]"
+          >
+            {icon}
+          </span>
+        ) : null}
+        <span>{label}</span>
+      </span>
       {hint ? (
         <span
           data-slot="composer-command-argument-placeholder"
