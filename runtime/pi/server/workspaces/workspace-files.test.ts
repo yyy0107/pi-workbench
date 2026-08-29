@@ -69,6 +69,39 @@ test("lists direct workspace children with directories first and blocks escaping
   assert.equal(listing.truncated, false);
 });
 
+test("searches bounded Workspace file paths while skipping generated and hidden directories", async (t) => {
+  const { files, workspace, workspaceRoot } = await fixture(t);
+  await Promise.all([
+    mkdir(path.join(workspaceRoot, "src")),
+    mkdir(path.join(workspaceRoot, "node_modules")),
+    mkdir(path.join(workspaceRoot, ".git")),
+  ]);
+  await Promise.all([
+    writeFile(path.join(workspaceRoot, "README.md"), "read me\n"),
+    writeFile(path.join(workspaceRoot, "src", "app.ts"), "export {};\n"),
+    writeFile(path.join(workspaceRoot, "node_modules", "app.js"), "generated\n"),
+    writeFile(path.join(workspaceRoot, ".git", "app.txt"), "internal\n"),
+  ]);
+
+  const matching = await files.searchFiles({
+    workspaceId: workspace.workspaceId,
+    query: "app",
+  });
+  assert.deepEqual(
+    matching.entries.map((entry) => entry.relativePath),
+    ["src/app.ts"],
+  );
+  assert.equal(matching.truncated, false);
+
+  const bounded = await files.searchFiles({
+    workspaceId: workspace.workspaceId,
+    query: "",
+    limit: 1,
+  });
+  assert.equal(bounded.entries.length, 1);
+  assert.equal(bounded.truncated, true);
+});
+
 test("reads UTF-8 files and writes only from the expected version", async (t) => {
   const { files, workspace, workspaceRoot } = await fixture(t);
   await mkdir(path.join(workspaceRoot, "src"));

@@ -18,13 +18,17 @@ export const workbenchZhCN = {
       addMenu: {
         open: "添加内容",
         attachment: "添加附件",
-        context: "使用 @ 引用会话",
+        context: "使用 @ 添加上下文",
         capability: "使用 / 选择能力",
       },
-      conversationMentions: {
-        title: "会话",
-        suggestions: "会话建议",
+      contextMentions: {
+        suggestions: "上下文建议",
+        conversations: "会话",
+        workspaceFiles: "工作区文件",
         untitledConversation: "未命名会话",
+        loading: "正在加载工作区文件…",
+        empty: "未找到上下文",
+        loadError: "无法加载工作区文件",
       },
       commandParameters: {
         close: "关闭命令参数面板",

@@ -129,6 +129,8 @@ import type {
   WorkspaceFileSnapshotValue,
   WorkspaceFilesListPayload,
   WorkspaceFilesListValue,
+  WorkspaceFilesSearchPayload,
+  WorkspaceFilesSearchValue,
   WorkspaceFileWritePayload,
   WorkspaceGitCreateBranchPayload,
   WorkspaceGitDescribePayload,
@@ -337,6 +339,13 @@ export function listPiWorkspaceFiles(
   payload: WorkspaceFilesListPayload,
 ): Promise<WorkspaceFilesListValue> {
   return callPiRpc("workspace.files.list", payload);
+}
+
+export function searchPiWorkspaceFiles(
+  payload: WorkspaceFilesSearchPayload,
+  options?: PiRpcCallOptions,
+): Promise<WorkspaceFilesSearchValue> {
+  return callPiRpc("workspace.files.search", payload, options);
 }
 
 export function describePiWorkspaceFile(

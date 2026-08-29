@@ -4,6 +4,8 @@ import test from "node:test";
 import {
   WORKSPACE_FILE_EDITABLE_SIZE_LIMIT,
   WORKSPACE_FILE_RELATIVE_PATH_LENGTH_LIMIT,
+  WORKSPACE_FILE_SEARCH_QUERY_LENGTH_LIMIT,
+  WORKSPACE_FILE_SEARCH_RESULT_LIMIT,
   type RpcIssue,
   type ServerResponse,
 } from "@/runtime/pi/contracts/rpc";
@@ -104,7 +106,7 @@ test("claims only the Workspace file unary subdomain", async () => {
   }
 });
 
-test("maps all four file methods to sanitized payloads and the request AbortSignal", async () => {
+test("maps all five file methods to sanitized payloads and the request AbortSignal", async () => {
   const calls: Array<{ operation: PropertyKey; payload: unknown; signal: unknown }> = [];
   const service = new Proxy(
     {},
@@ -127,6 +129,12 @@ test("maps all four file methods to sanitized payloads and the request AbortSign
       payload: { workspaceId: "workspace-1", relativePath: "src", ignored: true },
       operation: "listDirectory",
       expectedPayload: { workspaceId: "workspace-1", relativePath: "src" },
+    },
+    {
+      method: "workspace.files.search",
+      payload: { workspaceId: "workspace-1", query: "app", limit: 20, ignored: true },
+      operation: "searchFiles",
+      expectedPayload: { workspaceId: "workspace-1", query: "app", limit: 20 },
     },
     {
       method: "workspace.files.describe",
@@ -198,6 +206,21 @@ test("validates bounded Workspace file identities before invoking the service", 
       },
     ],
     ["workspace.files.describe", { workspaceId: "workspace-1", relativePath: "" }],
+    [
+      "workspace.files.search",
+      {
+        workspaceId: "workspace-1",
+        query: "x".repeat(WORKSPACE_FILE_SEARCH_QUERY_LENGTH_LIMIT + 1),
+      },
+    ],
+    [
+      "workspace.files.search",
+      {
+        workspaceId: "workspace-1",
+        query: "app",
+        limit: WORKSPACE_FILE_SEARCH_RESULT_LIMIT + 1,
+      },
+    ],
     ["workspace.files.read", { workspaceId: "", relativePath: "app.ts" }],
     [
       "workspace.files.write",
@@ -312,6 +335,11 @@ test("normalizes cancellation independently for each file operation", async () =
   });
   const cases = [
     ["workspace.files.list", { workspaceId: "workspace-1" }, "Directory listing was cancelled."],
+    [
+      "workspace.files.search",
+      { workspaceId: "workspace-1", query: "app" },
+      "Workspace file search was cancelled.",
+    ],
     [
       "workspace.files.describe",
       { workspaceId: "workspace-1", relativePath: "app.ts" },

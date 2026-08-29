@@ -57,6 +57,7 @@ const {
   respondPiModelProviderLogin,
   respondPiRpc,
   searchPiPackageCatalog,
+  searchPiWorkspaceFiles,
   selectPiRpcSessionModel,
   waitForPendingPiRpcSessionModelSelection,
   startPiModelProviderLogin,
@@ -148,29 +149,44 @@ test("workspace file helpers use the typed workspace.files RPC methods", async (
             entries: [],
             truncated: false,
           }
-        : request.method === "workspace.files.describe"
+        : request.method === "workspace.files.search"
           ? {
               workspaceId: "workspace-1",
-              relativePath: "src/app.ts",
-              absolutePath: "/work/project/src/app.ts",
-              name: "app.ts",
-              mediaType: "text/plain",
-              encoding: "utf-8",
-              version: "stat-sha256:version",
-              size: 6,
-              modifiedAt: 1,
+              query: "app",
+              entries: [
+                {
+                  name: "app.ts",
+                  relativePath: "src/app.ts",
+                  absolutePath: "/work/project/src/app.ts",
+                  kind: "file",
+                  hidden: false,
+                },
+              ],
+              truncated: false,
             }
-          : {
-              workspaceId: "workspace-1",
-              relativePath: "src/app.ts",
-              absolutePath: "/work/project/src/app.ts",
-              name: "app.ts",
-              content: request.method === "workspace.files.write" ? "updated" : "source",
-              encoding: "utf-8",
-              version: "sha256:version",
-              size: 6,
-              modifiedAt: 1,
-            };
+          : request.method === "workspace.files.describe"
+            ? {
+                workspaceId: "workspace-1",
+                relativePath: "src/app.ts",
+                absolutePath: "/work/project/src/app.ts",
+                name: "app.ts",
+                mediaType: "text/plain",
+                encoding: "utf-8",
+                version: "stat-sha256:version",
+                size: 6,
+                modifiedAt: 1,
+              }
+            : {
+                workspaceId: "workspace-1",
+                relativePath: "src/app.ts",
+                absolutePath: "/work/project/src/app.ts",
+                name: "app.ts",
+                content: request.method === "workspace.files.write" ? "updated" : "source",
+                encoding: "utf-8",
+                version: "sha256:version",
+                size: 6,
+                modifiedAt: 1,
+              };
     return Response.json({
       type: "server-response",
       rpcId: request.rpcId,
@@ -181,6 +197,11 @@ test("workspace file helpers use the typed workspace.files RPC methods", async (
   assert.equal(
     (await listPiWorkspaceFiles({ workspaceId: "workspace-1" })).absolutePath,
     "/work/project",
+  );
+  assert.equal(
+    (await searchPiWorkspaceFiles({ workspaceId: "workspace-1", query: "app", limit: 20 }))
+      .entries[0]?.relativePath,
+    "src/app.ts",
   );
   assert.equal(
     (
@@ -217,6 +238,10 @@ test("workspace file helpers use the typed workspace.files RPC methods", async (
   );
   assert.deepEqual(calls, [
     { method: "workspace.files.list", payload: { workspaceId: "workspace-1" } },
+    {
+      method: "workspace.files.search",
+      payload: { workspaceId: "workspace-1", query: "app", limit: 20 },
+    },
     {
       method: "workspace.files.describe",
       payload: { workspaceId: "workspace-1", relativePath: "src/app.ts" },

@@ -7,7 +7,7 @@ import { ComposerCommandToken } from "@/components/elements/composer";
 
 import { ComposerTokenIcon } from "./composer-token-icon";
 
-function renderToken(kind: "extension" | "skill"): string {
+function renderToken(kind: "extension" | "skill" | "workspace-file"): string {
   return renderToStaticMarkup(
     <ComposerCommandToken icon={<ComposerTokenIcon kind={kind} />} label="fixture" />,
   );
@@ -21,4 +21,8 @@ test("distinguishes skill and extension command tokens by icon", () => {
   assert.match(skillMarkup, /lucide-sparkles/);
   assert.match(extensionMarkup, /lucide-puzzle/);
   assert.notEqual(skillMarkup, extensionMarkup);
+});
+
+test("renders Workspace file context tokens with a file icon", () => {
+  assert.match(renderToken("workspace-file"), /lucide-file-text/);
 });

@@ -1,4 +1,5 @@
 import {
+  FileTextIcon,
   MessageSquareQuoteIcon,
   MessagesSquareIcon,
   PuzzleIcon,
@@ -10,7 +11,11 @@ import {
 
 import type { WorkbenchAgentCommandKind } from "@/runtime/shared/agent-command/catalog";
 
-export type ComposerTokenKind = WorkbenchAgentCommandKind | "conversation" | "workbench";
+export type ComposerTokenKind =
+  | WorkbenchAgentCommandKind
+  | "conversation"
+  | "workspace-file"
+  | "workbench";
 
 const COMPOSER_TOKEN_ICONS: Readonly<Record<ComposerTokenKind, LucideIcon>> = {
   builtin: SquareTerminalIcon,
@@ -18,6 +23,7 @@ const COMPOSER_TOKEN_ICONS: Readonly<Record<ComposerTokenKind, LucideIcon>> = {
   prompt: MessageSquareQuoteIcon,
   skill: SparklesIcon,
   conversation: MessagesSquareIcon,
+  "workspace-file": FileTextIcon,
   workbench: WrenchIcon,
 };
 

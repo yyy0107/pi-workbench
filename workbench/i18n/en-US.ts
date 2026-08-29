@@ -20,13 +20,17 @@ export const workbenchEnUS = {
       addMenu: {
         open: "Add to composer",
         attachment: "Add attachment",
-        context: "Mention a conversation with @",
+        context: "Add context with @",
         capability: "Use / to select a capability",
       },
-      conversationMentions: {
-        title: "Conversations",
-        suggestions: "Conversation suggestions",
+      contextMentions: {
+        suggestions: "Context suggestions",
+        conversations: "Conversations",
+        workspaceFiles: "Workspace files",
         untitledConversation: "Untitled conversation",
+        loading: "Loading workspace files…",
+        empty: "No context found",
+        loadError: "Workspace files could not be loaded",
       },
       commandParameters: {
         close: "Close command parameters",

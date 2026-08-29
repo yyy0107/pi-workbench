@@ -298,6 +298,22 @@ export interface WorkspaceFilesListValue {
   truncated: boolean;
 }
 
+export const WORKSPACE_FILE_SEARCH_QUERY_LENGTH_LIMIT = 512;
+export const WORKSPACE_FILE_SEARCH_RESULT_LIMIT = 100;
+
+export interface WorkspaceFilesSearchPayload {
+  workspaceId: string;
+  query: string;
+  limit?: number;
+}
+
+export interface WorkspaceFilesSearchValue {
+  workspaceId: string;
+  query: string;
+  entries: WorkspaceFileEntry[];
+  truncated: boolean;
+}
+
 export interface WorkspaceFileReadPayload {
   workspaceId: string;
   relativePath: string;

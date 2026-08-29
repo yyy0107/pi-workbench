@@ -134,8 +134,10 @@ import {
 } from "./session-event-journal";
 import { SessionQueueProjection } from "./session-queue";
 import { resolveConversationReferenceContexts } from "./composer-conversation-context";
+import { resolveWorkspaceFileReferenceContexts } from "./composer-workspace-file-context";
 import { getStreamHub } from "../streams/stream-hub";
 import { getWorkspaceStore } from "../workspaces/workspace-registry";
+import { createWorkspaceFileService } from "../workspaces/workspace-files";
 import { validateWorkspace, workspaceFromCwd } from "../workspaces/workspace-paths";
 import { createWorkbenchBashToolOverride } from "../../../terminal/server/interactive-bash-tool";
 import {
@@ -2636,6 +2638,11 @@ class HostedPiSession {
       contexts: resolution.request.untrustedContext,
       currentConversationId: this.session.sessionManager.getSessionId(),
       getHistory: getSessionHistory,
+    });
+    const workspaceFileService = createWorkspaceFileService();
+    resolution.request.untrustedContext = await resolveWorkspaceFileReferenceContexts({
+      contexts: resolution.request.untrustedContext,
+      readFile: (input) => workspaceFileService.readFile(input),
     });
     const commandFailed = resolution.request.commandTrace.some(
       (command) => command.status === "execution-failed",

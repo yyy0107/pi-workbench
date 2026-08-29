@@ -7,12 +7,15 @@ import mime from "mime";
 import {
   WORKSPACE_FILE_EDITABLE_SIZE_LIMIT,
   WORKSPACE_FILE_RELATIVE_PATH_LENGTH_LIMIT,
+  WORKSPACE_FILE_SEARCH_RESULT_LIMIT,
   type WorkspaceFileDescriptorValue,
   type WorkspaceFileEntry,
   type WorkspaceFileReadPayload,
   type WorkspaceFileSnapshotValue,
   type WorkspaceFilesListPayload,
   type WorkspaceFilesListValue,
+  type WorkspaceFilesSearchPayload,
+  type WorkspaceFilesSearchValue,
   type WorkspaceFileWritePayload,
 } from "@/runtime/pi/contracts/rpc";
 import { RpcDomainError } from "../core/rpc-domain-error";
@@ -20,6 +23,27 @@ import { getWorkspaceStore } from "./workspace-registry";
 import type { WorkspaceStore } from "./workspace-store";
 
 const DIRECTORY_ENTRY_LIMIT = 2_000;
+const FILE_SEARCH_SCAN_LIMIT = 20_000;
+const FILE_SEARCH_SKIPPED_DIRECTORIES = new Set([
+  ".cache",
+  ".git",
+  ".mypy_cache",
+  ".next",
+  ".pnpm-store",
+  ".pytest_cache",
+  ".turbo",
+  ".vercel",
+  ".venv",
+  ".yarn",
+  "__pycache__",
+  "build",
+  "coverage",
+  "dist",
+  "node_modules",
+  "target",
+  "vendor",
+  "venv",
+]);
 export const WORKSPACE_FILE_SIZE_LIMIT = WORKSPACE_FILE_EDITABLE_SIZE_LIMIT;
 const ENCODING_SAMPLE_SIZE = 64 * 1024;
 const WINDOWS_ABSOLUTE_PATH = /^[a-zA-Z]:[\\/]/;
@@ -110,6 +134,10 @@ export interface WorkspaceFileProtocol {
     input: WorkspaceFilesListPayload,
     signal?: AbortSignal,
   ): Promise<WorkspaceFilesListValue>;
+  searchFiles(
+    input: WorkspaceFilesSearchPayload,
+    signal?: AbortSignal,
+  ): Promise<WorkspaceFilesSearchValue>;
   describeFile(
     input: WorkspaceFileReadPayload,
     signal?: AbortSignal,
@@ -355,6 +383,112 @@ export class WorkspaceFileService implements WorkspaceFileProtocol {
       absolutePath: resolved.absolutePath,
       entries: entries.slice(0, DIRECTORY_ENTRY_LIMIT),
       truncated: entries.length > DIRECTORY_ENTRY_LIMIT,
+    };
+  }
+
+  async searchFiles(
+    input: WorkspaceFilesSearchPayload,
+    signal?: AbortSignal,
+  ): Promise<WorkspaceFilesSearchValue> {
+    const rootPath = await this.workspaceRoot(input.workspaceId, signal);
+    const query = input.query.trim().toLocaleLowerCase("en-US");
+    const limit = Math.max(1, Math.min(input.limit ?? 50, WORKSPACE_FILE_SEARCH_RESULT_LIMIT));
+    const directories: Array<{ absolutePath: string; relativePath: string }> = [
+      { absolutePath: rootPath, relativePath: "" },
+    ];
+    const visitedDirectories = new Set([rootPath]);
+    const entries: WorkspaceFileEntry[] = [];
+    let scannedEntries = 0;
+    let truncated = false;
+
+    while (directories.length > 0 && entries.length <= limit) {
+      throwIfAborted(signal);
+      const directory = directories.shift()!;
+      let children;
+      try {
+        children = await readdir(directory.absolutePath, { withFileTypes: true });
+      } catch (error) {
+        if (isAbortError(error, signal)) throw error;
+        if (directory.relativePath === "") {
+          throw new WorkspaceFileError(
+            "workspace-path-unreadable",
+            "The workspace directory could not be searched.",
+            { workspaceId: input.workspaceId, relativePath: "" },
+          );
+        }
+        continue;
+      }
+      children.sort((left, right) =>
+        left.name.localeCompare(right.name, "en-US", { numeric: true, sensitivity: "base" }),
+      );
+
+      for (const child of children) {
+        throwIfAborted(signal);
+        scannedEntries += 1;
+        if (scannedEntries > FILE_SEARCH_SCAN_LIMIT) {
+          truncated = true;
+          break;
+        }
+
+        const relativePath = joinRelativePath(directory.relativePath, child.name);
+        const absolutePath = path.join(directory.absolutePath, child.name);
+        let kind: WorkspaceFileEntry["kind"] | undefined;
+        let symbolicLink = false;
+        let canonicalPath = absolutePath;
+
+        if (child.isDirectory()) kind = "directory";
+        else if (child.isFile()) kind = "file";
+        else if (child.isSymbolicLink()) {
+          symbolicLink = true;
+          try {
+            canonicalPath = await realpath(absolutePath);
+            if (!isContainedPath(rootPath, canonicalPath)) continue;
+            const childStat = await stat(canonicalPath);
+            if (childStat.isDirectory()) kind = "directory";
+            else if (childStat.isFile()) kind = "file";
+          } catch (error) {
+            if (isAbortError(error, signal)) throw error;
+            continue;
+          }
+        }
+
+        if (kind === "directory") {
+          if (
+            FILE_SEARCH_SKIPPED_DIRECTORIES.has(child.name) ||
+            visitedDirectories.has(canonicalPath)
+          ) {
+            continue;
+          }
+          visitedDirectories.add(canonicalPath);
+          directories.push({ absolutePath: canonicalPath, relativePath });
+          continue;
+        }
+        if (kind !== "file") continue;
+        if (query && !relativePath.toLocaleLowerCase("en-US").includes(query)) continue;
+
+        entries.push({
+          name: child.name,
+          relativePath,
+          absolutePath,
+          kind,
+          hidden: child.name.startsWith("."),
+          ...(symbolicLink ? { symbolicLink: true } : {}),
+        });
+        if (entries.length > limit) {
+          truncated = true;
+          break;
+        }
+      }
+
+      if (scannedEntries > FILE_SEARCH_SCAN_LIMIT) break;
+    }
+
+    if (directories.length > 0 && entries.length >= limit) truncated = true;
+    return {
+      workspaceId: input.workspaceId,
+      query: input.query.trim(),
+      entries: entries.slice(0, limit),
+      truncated,
     };
   }
 

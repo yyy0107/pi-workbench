@@ -4,7 +4,10 @@ import { useAuiState } from "@assistant-ui/react";
 
 import { CompactMarkdownText } from "@/components/assistant-ui/lazy-markdown-text";
 import { ComposerCommandToken } from "@/components/elements/composer";
-import { COMPOSER_CONVERSATION_MENTION_TYPE } from "@/contracts/composer";
+import {
+  COMPOSER_CONVERSATION_MENTION_TYPE,
+  COMPOSER_WORKSPACE_FILE_MENTION_TYPE,
+} from "@/contracts/composer";
 import { useI18n } from "@/i18n";
 import { useComposerCommandRegistry } from "@/platform/extensions";
 import { useWorkbenchAgentCommands } from "@/runtime/assistant-ui/agent-runtime-context";
@@ -124,9 +127,11 @@ export function WorkbenchComposerMessageText({ text }: { text: string }) {
                     icon={
                       node.mentionType === COMPOSER_CONVERSATION_MENTION_TYPE ? (
                         <ComposerTokenIcon kind="conversation" />
+                      ) : node.mentionType === COMPOSER_WORKSPACE_FILE_MENTION_TYPE ? (
+                        <ComposerTokenIcon kind="workspace-file" />
                       ) : undefined
                     }
-                    label={`@${node.label}`}
+                    label={node.label}
                     className="me-0.5 align-baseline"
                   />
                 );

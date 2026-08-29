@@ -1,12 +1,15 @@
 import {
   WORKSPACE_FILE_EDITABLE_SIZE_LIMIT,
   WORKSPACE_FILE_RELATIVE_PATH_LENGTH_LIMIT,
+  WORKSPACE_FILE_SEARCH_QUERY_LENGTH_LIMIT,
+  WORKSPACE_FILE_SEARCH_RESULT_LIMIT,
 } from "@/runtime/pi/contracts/rpc";
 import type { WorkspaceFileProtocol } from "../../workspaces/workspace-files";
 import {
   handleRpcPost,
   RPC_REQUEST_BODY_LIMITS,
   rpcBusinessError,
+  rpcInteger,
   rpcObject,
   rpcOptional,
   rpcString,
@@ -22,6 +25,11 @@ const nonEmptyString = rpcString({ minLength: 1 });
 const workspaceFilesListPayload = rpcObject({
   workspaceId: nonEmptyString,
   relativePath: rpcOptional(rpcString({ maxLength: WORKSPACE_FILE_RELATIVE_PATH_LENGTH_LIMIT })),
+});
+const workspaceFilesSearchPayload = rpcObject({
+  workspaceId: nonEmptyString,
+  query: rpcString({ maxLength: WORKSPACE_FILE_SEARCH_QUERY_LENGTH_LIMIT }),
+  limit: rpcOptional(rpcInteger({ minimum: 1, maximum: WORKSPACE_FILE_SEARCH_RESULT_LIMIT })),
 });
 const workspaceFileReadPayload = rpcObject({
   workspaceId: nonEmptyString,
@@ -76,6 +84,18 @@ export function createWorkspaceFileRpcRoutes({
                 () => service.listDirectory(payload, context.signal),
                 context.signal,
                 "Directory listing was cancelled.",
+                projectDomainError,
+              ),
+          });
+        case "workspace.files.search":
+          return handleRpcPost(request, {
+            method,
+            payload: workspaceFilesSearchPayload,
+            handler: (payload, context) =>
+              invokeFileOperation(
+                () => service.searchFiles(payload, context.signal),
+                context.signal,
+                "Workspace file search was cancelled.",
                 projectDomainError,
               ),
           });

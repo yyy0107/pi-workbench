@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { ComposerCommandDefinition, ComposerCommandRegistry } from "@/platform/extensions";
-import { COMPOSER_CONVERSATION_MENTION_TYPE } from "@/contracts/composer";
+import {
+  COMPOSER_CONVERSATION_MENTION_TYPE,
+  COMPOSER_WORKSPACE_FILE_MENTION_TYPE,
+} from "@/contracts/composer";
 
 import {
   applyComposerCommandArguments,
@@ -13,6 +16,7 @@ import {
   composerCommandArgumentKey,
   composerDocumentSourceText,
   composerDocumentText,
+  composerWorkspaceFileMentionId,
   parseComposerDocument,
   WORKBENCH_COMMAND_DIRECTIVE_TYPE,
   workbenchComposerDirectiveFormatter,
@@ -135,6 +139,41 @@ test("compiler de-duplicates repeated conversation reference context", () => {
   );
 
   assert.equal(result.context.length, 1);
+});
+
+test("workspace file mentions round-trip and compile into deduplicated reference context", () => {
+  const id = composerWorkspaceFileMentionId({
+    workspaceId: "workspace-1",
+    relativePath: "src/app.ts",
+  });
+  const file = workbenchComposerDirectiveFormatter.serialize({
+    id,
+    type: COMPOSER_WORKSPACE_FILE_MENTION_TYPE,
+    label: "src/app.ts",
+  });
+  const sourceText = `${file} review this file ${file}`;
+  const document = parseComposerDocument(sourceText);
+
+  assert.equal(
+    file,
+    "[@src/app.ts](workspace-file://%5B%22workspace-1%22%2C%22src%2Fapp.ts%22%5D)",
+  );
+  assert.equal(document.filter((node) => node.type === "mention").length, 2);
+  assert.equal(composerDocumentSourceText(document), sourceText);
+
+  const result = compileComposerDocument(document, registry([]));
+  assert.equal(result.text, "@src/app.ts review this file @src/app.ts");
+  assert.deepEqual(result.context, [
+    {
+      type: "workbench.workspace-file",
+      value: {
+        version: 1,
+        workspaceId: "workspace-1",
+        relativePath: "src/app.ts",
+        name: "src/app.ts",
+      },
+    },
+  ]);
 });
 
 test("parser decodes and normalizes a legacy persisted localized Pi command", () => {

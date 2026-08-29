@@ -66,6 +66,10 @@ export type ComposerCommandSource = "workbench" | "agent";
 export const COMPOSER_CONVERSATION_MENTION_TYPE = "conversation";
 export const COMPOSER_CONVERSATION_CONTEXT_TYPE = "workbench.conversation";
 
+/** Stable directive and context identifiers for referencing a file in a workspace. */
+export const COMPOSER_WORKSPACE_FILE_MENTION_TYPE = "workspace-file";
+export const COMPOSER_WORKSPACE_FILE_CONTEXT_TYPE = "workbench.workspace-file";
+
 export interface ComposerCommandSubmission {
   readonly id: string;
   readonly commandId: string;

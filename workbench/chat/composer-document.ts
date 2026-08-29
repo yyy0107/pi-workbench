@@ -7,6 +7,8 @@ import type {
 import {
   COMPOSER_CONVERSATION_CONTEXT_TYPE,
   COMPOSER_CONVERSATION_MENTION_TYPE,
+  COMPOSER_WORKSPACE_FILE_CONTEXT_TYPE,
+  COMPOSER_WORKSPACE_FILE_MENTION_TYPE,
   isComposerJsonValue,
 } from "@/contracts/composer";
 import type {
@@ -42,6 +44,13 @@ const SKILL_LINK_RE =
   /\[\$((?:\\.|[^\]\\\n]){1,4096})\]\(skill:\/\/(user|project)\/([^\s)\n]{1,2048})\)/gu;
 const CONVERSATION_LINK_RE =
   /\[@((?:\\.|[^\]\\\n]){1,4096})\]\(conversation:\/\/([^\s)#\n]{1,2048})\)/gu;
+const WORKSPACE_FILE_LINK_RE =
+  /\[@((?:\\.|[^\]\\\n]){1,4096})\]\(workspace-file:\/\/([^\s)#\n]{1,65536})\)/gu;
+
+export interface ComposerWorkspaceFileReference {
+  readonly workspaceId: string;
+  readonly relativePath: string;
+}
 
 type PersistedSkillScope = "project" | "user";
 
@@ -94,6 +103,51 @@ function encodeResourceLinkComponent(value: string): string {
   return encodeURIComponent(value).replace(
     /[!'()*]/gu,
     (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
+}
+
+export function composerWorkspaceFileMentionId(reference: ComposerWorkspaceFileReference): string {
+  if (
+    !reference.workspaceId ||
+    reference.workspaceId.length > 2048 ||
+    !reference.relativePath ||
+    reference.relativePath.length > 16_384
+  ) {
+    throw new Error("Invalid Workspace file reference");
+  }
+  return encodeResourceLinkComponent(
+    JSON.stringify([reference.workspaceId, reference.relativePath]),
+  );
+}
+
+export function workspaceFileReferenceFromMentionId(
+  value: string,
+): ComposerWorkspaceFileReference | undefined {
+  const decoded = decodeDirectiveValue(value);
+  if (decoded === undefined) return undefined;
+  try {
+    const reference: unknown = JSON.parse(decoded);
+    if (
+      !Array.isArray(reference) ||
+      reference.length !== 2 ||
+      typeof reference[0] !== "string" ||
+      !reference[0] ||
+      reference[0].length > 2048 ||
+      typeof reference[1] !== "string" ||
+      !reference[1] ||
+      reference[1].length > 16_384
+    ) {
+      return undefined;
+    }
+    return { workspaceId: reference[0], relativePath: reference[1] };
+  } catch {
+    return undefined;
+  }
+}
+
+function isContextMentionType(type: string): boolean {
+  return (
+    type === COMPOSER_CONVERSATION_MENTION_TYPE || type === COMPOSER_WORKSPACE_FILE_MENTION_TYPE
   );
 }
 
@@ -213,6 +267,22 @@ function parsedDirectiveMatches(text: string): readonly ParsedDirectiveMatch[] {
     });
   }
 
+  for (const match of text.matchAll(WORKSPACE_FILE_LINK_RE)) {
+    const label = unescapeResourceLinkLabel(match[1]!);
+    const reference = workspaceFileReferenceFromMentionId(match[2]!);
+    if (!label || !reference) continue;
+    matches.push({
+      index: match.index,
+      end: match.index + match[0].length,
+      segment: {
+        kind: "mention",
+        type: COMPOSER_WORKSPACE_FILE_MENTION_TYPE,
+        id: composerWorkspaceFileMentionId(reference),
+        label,
+      },
+    });
+  }
+
   return matches.toSorted((left, right) => left.index - right.index);
 }
 
@@ -220,6 +290,11 @@ export const workbenchComposerDirectiveFormatter: Unstable_DirectiveFormatter = 
   serialize(item: Unstable_TriggerItem): string {
     if (item.type === COMPOSER_CONVERSATION_MENTION_TYPE) {
       return `[@${escapeResourceLinkLabel(item.label)}](conversation://${encodeResourceLinkComponent(item.id)})`;
+    }
+    if (item.type === COMPOSER_WORKSPACE_FILE_MENTION_TYPE) {
+      const reference = workspaceFileReferenceFromMentionId(item.id);
+      if (!reference) throw new Error(`Invalid Workspace file mention "${item.id}"`);
+      return `[@${escapeResourceLinkLabel(item.label)}](workspace-file://${composerWorkspaceFileMentionId(reference)})`;
     }
     const skillScope = persistedSkillScopeFromDirectiveType(item.type);
     if (skillScope) {
@@ -325,7 +400,7 @@ export function parseComposerDocument(
       continue;
     }
 
-    if (segment.type === COMPOSER_CONVERSATION_MENTION_TYPE) {
+    if (isContextMentionType(segment.type)) {
       nodes.push({
         type: "mention",
         id: `mention:${segment.type}:${segment.id}:${mentionIndex++}`,
@@ -395,8 +470,7 @@ export function composerDocumentText(document: ComposerDocument): string {
         break;
       }
       case "mention":
-        text +=
-          node.mentionType === COMPOSER_CONVERSATION_MENTION_TYPE ? `@${node.label}` : node.label;
+        text += isContextMentionType(node.mentionType) ? `@${node.label}` : node.label;
         removeNextBuffer = false;
         break;
       case "attachment":
@@ -443,7 +517,7 @@ export function composerDocumentSourceText(
         case "command-argument":
           return node.text;
         case "mention":
-          return node.mentionType === COMPOSER_CONVERSATION_MENTION_TYPE
+          return isContextMentionType(node.mentionType)
             ? workbenchComposerDirectiveFormatter.serialize({
                 id: node.value,
                 type: node.mentionType,
@@ -459,26 +533,39 @@ export function composerDocumentSourceText(
 
 function createDraft(document: ComposerDocument): ComposerCommandRequestDraft {
   const referencedConversations = new Set<string>();
-  const context = document.flatMap((node) => {
-    if (
-      node.type !== "mention" ||
-      node.mentionType !== COMPOSER_CONVERSATION_MENTION_TYPE ||
-      referencedConversations.has(node.value)
-    ) {
-      return [];
-    }
-    referencedConversations.add(node.value);
-    return [
-      {
+  const referencedWorkspaceFiles = new Set<string>();
+  const context: ComposerCommandRequestDraft["context"] = [];
+  for (const node of document) {
+    if (node.type !== "mention") continue;
+    if (node.mentionType === COMPOSER_CONVERSATION_MENTION_TYPE) {
+      if (referencedConversations.has(node.value)) continue;
+      referencedConversations.add(node.value);
+      context.push({
         type: COMPOSER_CONVERSATION_CONTEXT_TYPE,
         value: {
           version: 1,
           conversationId: node.value,
           title: node.label,
         },
+      });
+      continue;
+    }
+    if (node.mentionType !== COMPOSER_WORKSPACE_FILE_MENTION_TYPE) continue;
+    const reference = workspaceFileReferenceFromMentionId(node.value);
+    if (!reference) continue;
+    const referenceKey = `${reference.workspaceId}\0${reference.relativePath}`;
+    if (referencedWorkspaceFiles.has(referenceKey)) continue;
+    referencedWorkspaceFiles.add(referenceKey);
+    context.push({
+      type: COMPOSER_WORKSPACE_FILE_CONTEXT_TYPE,
+      value: {
+        version: 1,
+        workspaceId: reference.workspaceId,
+        relativePath: reference.relativePath,
+        name: node.label,
       },
-    ];
-  });
+    });
+  }
 
   return {
     text: composerDocumentText(document),

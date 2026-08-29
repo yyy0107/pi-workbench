@@ -28,6 +28,8 @@ import {
   AlertCircleIcon,
   ArrowUpIcon,
   AtSignIcon,
+  FileTextIcon,
+  LoaderCircleIcon,
   MessageSquareIcon,
   MicIcon,
   PaperclipIcon,
@@ -58,7 +60,10 @@ import {
   ComposerMenu,
 } from "@/components/elements/composer";
 import { ComposerWorkspaceFeedback } from "@/components/right-workspace";
-import { COMPOSER_CONVERSATION_MENTION_TYPE } from "@/contracts/composer";
+import {
+  COMPOSER_CONVERSATION_MENTION_TYPE,
+  COMPOSER_WORKSPACE_FILE_MENTION_TYPE,
+} from "@/contracts/composer";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -78,6 +83,7 @@ import {
 } from "@/platform/extensions";
 import { SlotHost } from "@/platform/extensions/hosts/slot-host";
 import type { WorkbenchAgentComposerSendError } from "@/runtime/assistant-ui/agent-runtime-adapter";
+import { searchPiWorkspaceFiles } from "@/runtime/pi/client/transport/api";
 import type { WorkbenchAgentCommand } from "@/runtime/shared/agent-command/catalog";
 import {
   readAgentComposerExtras,
@@ -94,6 +100,7 @@ import {
   COMMAND_ARGUMENT_END_DIRECTIVE_TYPE,
   compileComposerDocument,
   composerCommandArgumentKey,
+  composerWorkspaceFileMentionId,
   isAgentComposerDirectiveType,
   parseComposerDocument,
   WORKBENCH_COMMAND_DIRECTIVE_TYPE,
@@ -128,6 +135,21 @@ interface ComposerDraftSnapshot {
   text: string;
   attachments: readonly (File | CreateAttachment)[];
 }
+
+interface WorkspaceFileMentionSearchState {
+  readonly workspaceId?: string;
+  readonly query: string;
+  readonly items: readonly Unstable_TriggerItem[];
+  readonly loading: boolean;
+  readonly loadError: boolean;
+}
+
+const EMPTY_WORKSPACE_FILE_MENTION_SEARCH: WorkspaceFileMentionSearchState = {
+  query: "",
+  items: [],
+  loading: false,
+  loadError: false,
+};
 
 function restorableComposerAttachment(attachment: Attachment): File | CreateAttachment | undefined {
   if (attachment.file) return attachment.file;
@@ -469,7 +491,11 @@ function WorkbenchComposerCommandMenu({
   );
 }
 
-function ScrollingComposerConversationItem({
+function contextItemIcon(type: string) {
+  return type === COMPOSER_WORKSPACE_FILE_MENTION_TYPE ? FileTextIcon : MessageSquareIcon;
+}
+
+function ScrollingComposerContextItem({
   item,
   index,
   active,
@@ -478,6 +504,7 @@ function ScrollingComposerConversationItem({
   useEffect(() => {
     if (active) ref.current?.scrollIntoView({ block: "nearest" });
   }, [active]);
+  const Icon = contextItemIcon(item.type);
 
   return (
     <ComposerPrimitive.Unstable_TriggerPopoverItem
@@ -490,35 +517,86 @@ function ScrollingComposerConversationItem({
       )}
       onPointerDown={(event) => event.preventDefault()}
     >
-      <MessageSquareIcon aria-hidden="true" className="text-muted-foreground size-4 shrink-0" />
-      <span className="min-w-0 flex-1 truncate">{item.label}</span>
+      <Icon aria-hidden="true" className="text-muted-foreground size-4 shrink-0" />
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate" title={item.label}>
+          {item.label}
+        </span>
+        {item.description ? (
+          <span className="text-muted-foreground truncate text-xs" title={item.description}>
+            {item.description}
+          </span>
+        ) : null}
+      </span>
     </ComposerPrimitive.Unstable_TriggerPopoverItem>
   );
 }
 
-function WorkbenchComposerConversationMenu() {
-  const { open, items, highlightedIndex } = unstable_useTriggerPopoverScopeContext();
+function WorkbenchComposerContextMenu({
+  hasWorkspace,
+  loadError,
+  visible,
+}: Readonly<{ hasWorkspace: boolean; loadError: boolean; visible: boolean }>) {
+  const { open, items, highlightedIndex, isLoading } = unstable_useTriggerPopoverScopeContext();
   const { t } = useI18n();
+  const indexedItems = items.map((item, index) => ({ item, index }));
+  const conversationItems = indexedItems.filter(
+    ({ item }) => item.type === COMPOSER_CONVERSATION_MENTION_TYPE,
+  );
+  const workspaceFileItems = indexedItems.filter(
+    ({ item }) => item.type === COMPOSER_WORKSPACE_FILE_MENTION_TYPE,
+  );
+  const groupLabelClassName =
+    "bg-popover/95 text-muted-foreground sticky top-0 z-10 px-3 py-2 text-[11px] leading-4 font-medium backdrop-blur-sm";
 
   return (
     <ComposerMenu
-      open={open && items.length > 0}
-      className="max-h-[min(24rem,50vh)] w-72 gap-0.5 overflow-y-auto p-1.5 pt-0 scroll-py-2"
+      open={open && visible}
+      className="max-h-[min(24rem,50vh)] w-full gap-2 overflow-y-auto p-1.5 pt-0 scroll-py-2"
     >
-      <div
-        role="presentation"
-        className="bg-popover/95 text-muted-foreground sticky top-0 z-10 px-3 py-2 text-[11px] leading-4 font-medium backdrop-blur-sm"
-      >
-        {t("workbench.chat.composer.conversationMentions.title")}
+      <div role="presentation" className={groupLabelClassName}>
+        {t("workbench.chat.composer.contextMentions.conversations")}
       </div>
-      {items.map((item, index) => (
-        <ScrollingComposerConversationItem
+      {conversationItems.map(({ item, index }) => (
+        <ScrollingComposerContextItem
           key={suggestionKey(item)}
           item={item}
           index={index}
           active={index === highlightedIndex}
         />
       ))}
+      {hasWorkspace ? (
+        <>
+          <div role="presentation" className={groupLabelClassName}>
+            {t("workbench.chat.composer.contextMentions.workspaceFiles")}
+          </div>
+          {workspaceFileItems.map(({ item, index }) => (
+            <ScrollingComposerContextItem
+              key={suggestionKey(item)}
+              item={item}
+              index={index}
+              active={index === highlightedIndex}
+            />
+          ))}
+          {isLoading || loadError ? (
+            <div className="text-muted-foreground flex min-h-10 items-center justify-center gap-2 px-3 py-2 text-xs">
+              {isLoading ? (
+                <>
+                  <LoaderCircleIcon aria-hidden="true" className="size-3.5 animate-spin" />
+                  <span>{t("workbench.chat.composer.contextMentions.loading")}</span>
+                </>
+              ) : (
+                <span>{t("workbench.chat.composer.contextMentions.loadError")}</span>
+              )}
+            </div>
+          ) : null}
+        </>
+      ) : null}
+      {items.length === 0 && !isLoading && !loadError ? (
+        <div className="text-muted-foreground flex min-h-12 items-center justify-center gap-2 px-3 py-2 text-xs">
+          <span>{t("workbench.chat.composer.contextMentions.empty")}</span>
+        </div>
+      ) : null}
     </ComposerMenu>
   );
 }
@@ -542,6 +620,8 @@ function composerErrorMessage(
 export function WorkbenchComposer() {
   const { t, text: localize } = useI18n();
   const aui = useAui();
+  const { activeWorkspace, draftWorkspace } = useWorkspaceSelection();
+  const contextWorkspace = draftWorkspace ?? activeWorkspace;
   const composerCommandRegistry = useComposerCommandRegistry();
   const reportExtensionError = useExtensionErrorReporter();
   const getComposerCommands = useCallback(
@@ -578,6 +658,8 @@ export function WorkbenchComposer() {
   const [isComposerComposing, setIsComposerComposing] = useState(false);
   const [composerCursorPosition, setComposerCursorPosition] = useState(0);
   const [composerCommandError, setComposerCommandError] = useState(false);
+  const [workspaceFileMentionSearch, setWorkspaceFileMentionSearch] =
+    useState<WorkspaceFileMentionSearchState>(EMPTY_WORKSPACE_FILE_MENTION_SEARCH);
   const [queueRestoreErrorThreadId, setQueueRestoreErrorThreadId] = useState<string>();
   const queueRestoreError = queueRestoreErrorThreadId === mainThreadId;
   const commandParametersByThreadRef = useRef(new Map<string, ComposerCommandParametersByKey>());
@@ -760,7 +842,7 @@ export function WorkbenchComposer() {
           ),
     [activeCommandParameterKey, composerSuggestions],
   );
-  const conversationMentionItems = useMemo<readonly Unstable_TriggerItem[]>(() => {
+  const conversationContextItems = useMemo<readonly Unstable_TriggerItem[]>(() => {
     const itemsById = new Map(threadItems.map((item) => [item.id, item]));
     return [...new Set([...threadIds, ...archivedThreadIds])].flatMap((threadId) => {
       if (threadId === mainThreadId || threadId === newThreadId) return [];
@@ -772,50 +854,125 @@ export function WorkbenchComposer() {
           type: COMPOSER_CONVERSATION_MENTION_TYPE,
           label:
             thread.title?.trim() ||
-            t("workbench.chat.composer.conversationMentions.untitledConversation"),
+            t("workbench.chat.composer.contextMentions.untitledConversation"),
         },
       ];
     });
   }, [archivedThreadIds, mainThreadId, newThreadId, t, threadIds, threadItems]);
-  const conversationMentionTriggerEngine = useMemo(
+  const workspaceFileContextItems = useMemo<readonly Unstable_TriggerItem[]>(
     () =>
-      new ComposerTriggerEngine<Unstable_TriggerItem>([
+      workspaceFileMentionSearch.workspaceId === contextWorkspace?.id
+        ? workspaceFileMentionSearch.items
+        : [],
+    [contextWorkspace?.id, workspaceFileMentionSearch],
+  );
+  const contextMentionDetectionEngine = useMemo(
+    () =>
+      new ComposerTriggerEngine<true>([
         {
-          id: "conversation-mention",
+          id: "context-mention",
           character: "@",
-          search: (query) => {
-            const normalized = query.toLocaleLowerCase();
-            return conversationMentionItems.filter(
-              (item) =>
-                item.label.toLocaleLowerCase().includes(normalized) ||
-                item.id.toLocaleLowerCase().includes(normalized),
-            );
-          },
+          search: () => [true],
         },
       ]),
-    [conversationMentionItems],
+    [],
   );
-  const conversationMentionAdapter = useMemo<TriggerAdapter>(
+  const contextMentionMatch = useMemo(() => {
+    if (!isComposerFocused) return undefined;
+    return contextMentionDetectionEngine.detect({
+      value: composerValue,
+      cursorPosition: composerCursorPosition,
+      isComposing: isComposerComposing,
+    });
+  }, [
+    composerCursorPosition,
+    composerValue,
+    contextMentionDetectionEngine,
+    isComposerComposing,
+    isComposerFocused,
+  ]);
+  const activeContextMentionQuery = contextMentionMatch?.query;
+  useEffect(() => {
+    if (!contextWorkspace || activeContextMentionQuery === undefined) {
+      setWorkspaceFileMentionSearch(EMPTY_WORKSPACE_FILE_MENTION_SEARCH);
+      return;
+    }
+
+    const workspaceId = contextWorkspace.id;
+    const workspaceName = contextWorkspace.name;
+    const query = activeContextMentionQuery;
+    const controller = new AbortController();
+    setWorkspaceFileMentionSearch({
+      workspaceId,
+      query,
+      items: [],
+      loading: true,
+      loadError: false,
+    });
+    const timeout = window.setTimeout(
+      () => {
+        void searchPiWorkspaceFiles(
+          { workspaceId, query, limit: 50 },
+          { signal: controller.signal },
+        )
+          .then((result) => {
+            if (controller.signal.aborted) return;
+            setWorkspaceFileMentionSearch({
+              workspaceId,
+              query,
+              items: result.entries.map((entry) => ({
+                id: composerWorkspaceFileMentionId({
+                  workspaceId,
+                  relativePath: entry.relativePath,
+                }),
+                type: COMPOSER_WORKSPACE_FILE_MENTION_TYPE,
+                label: entry.relativePath,
+                description: workspaceName,
+              })),
+              loading: false,
+              loadError: false,
+            });
+          })
+          .catch(() => {
+            if (controller.signal.aborted) return;
+            setWorkspaceFileMentionSearch({
+              workspaceId,
+              query,
+              items: [],
+              loading: false,
+              loadError: true,
+            });
+          });
+      },
+      query ? 120 : 0,
+    );
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [activeContextMentionQuery, contextWorkspace]);
+  const contextMentionAdapter = useMemo<TriggerAdapter>(
     () => ({
       categories: () => [],
       categoryItems: () => [],
       search: (query) => {
-        if (!isComposerFocused) return [];
-        const match = conversationMentionTriggerEngine.detect({
-          value: composerValue,
-          cursorPosition: composerCursorPosition,
-          isComposing: isComposerComposing,
-        });
-        if (!match || match.query !== query) return [];
-        return match.suggestions;
+        if (!contextMentionMatch || contextMentionMatch.query !== query) return [];
+        const normalized = query.toLocaleLowerCase();
+        const conversations = conversationContextItems.filter(
+          (item) =>
+            item.label.toLocaleLowerCase().includes(normalized) ||
+            item.id.toLocaleLowerCase().includes(normalized),
+        );
+        const workspaceFiles =
+          workspaceFileMentionSearch.query === query ? workspaceFileContextItems : [];
+        return [...conversations, ...workspaceFiles];
       },
     }),
     [
-      composerCursorPosition,
-      composerValue,
-      conversationMentionTriggerEngine,
-      isComposerComposing,
-      isComposerFocused,
+      contextMentionMatch,
+      conversationContextItems,
+      workspaceFileContextItems,
+      workspaceFileMentionSearch.query,
     ],
   );
   const slashCommandTriggerEngine = useMemo(
@@ -861,7 +1018,7 @@ export function WorkbenchComposer() {
       slashCommandTriggerEngine,
     ],
   );
-  const hasDraftWorkspace = useWorkspaceSelection().draftWorkspace !== undefined;
+  const hasDraftWorkspace = draftWorkspace !== undefined;
   const canSubmit = !isNewThread || hasDraftWorkspace;
   const context = { isRunning, isEmpty };
   const setComposerOverlayVisible = useCallback((visible: boolean) => {
@@ -1152,7 +1309,11 @@ export function WorkbenchComposer() {
         : undefined;
       const TokenIcon = suggestion?.definition?.icon;
       const tokenKind: ComposerTokenKind | undefined =
-        directiveType === COMPOSER_CONVERSATION_MENTION_TYPE ? "conversation" : suggestion?.group;
+        directiveType === COMPOSER_CONVERSATION_MENTION_TYPE
+          ? "conversation"
+          : directiveType === COMPOSER_WORKSPACE_FILE_MENTION_TYPE
+            ? "workspace-file"
+            : suggestion?.group;
       return (
         <ComposerCommandToken
           icon={
@@ -1218,14 +1379,19 @@ export function WorkbenchComposer() {
         >
           <ComposerPrimitive.Unstable_TriggerPopover
             char="@"
-            adapter={conversationMentionAdapter}
-            aria-label={t("workbench.chat.composer.conversationMentions.suggestions")}
+            adapter={contextMentionAdapter}
+            isLoading={workspaceFileMentionSearch.loading}
+            aria-label={t("workbench.chat.composer.contextMentions.suggestions")}
             className="contents"
           >
             <ComposerPrimitive.Unstable_TriggerPopover.Directive
               formatter={workbenchComposerDirectiveFormatter}
             />
-            <WorkbenchComposerConversationMenu />
+            <WorkbenchComposerContextMenu
+              hasWorkspace={contextWorkspace !== undefined}
+              loadError={workspaceFileMentionSearch.loadError}
+              visible={isComposerFocused}
+            />
           </ComposerPrimitive.Unstable_TriggerPopover>
 
           <ComposerPrimitive.Unstable_TriggerPopover
