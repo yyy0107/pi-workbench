@@ -43,6 +43,14 @@ import {
   agentRunTiming,
   displayedAgentRunElapsedMs,
 } from "./workbench-thread-timing";
+import {
+  NEW_THREAD_COMPOSER_WIDTH,
+  THREAD_CONTENT_COMPACT_GUTTER_PX,
+  THREAD_CONTENT_MAX_WIDTH_PX,
+  THREAD_CONTENT_MIN_WIDTH_PX,
+  THREAD_CONTENT_WIDTH_CLASS_NAME,
+  THREAD_VIEWPORT_CONTENT_WIDTH_CLASS_NAME,
+} from "./thread-content-width";
 
 interface MessageRow {
   id: string;
@@ -420,7 +428,10 @@ function WorkbenchMessages({ isRunning }: Readonly<{ isRunning: boolean }>) {
   return (
     <div
       data-slot="conversation-flow"
-      className="mx-auto flex w-[var(--thread-max-width)] shrink-0 flex-col gap-4 pb-4 [overflow-anchor:none]"
+      className={cn(
+        THREAD_VIEWPORT_CONTENT_WIDTH_CLASS_NAME,
+        "mx-auto flex shrink-0 flex-col gap-4 pb-4 [overflow-anchor:none]",
+      )}
     >
       {items}
     </div>
@@ -750,7 +761,11 @@ export function WorkbenchThread() {
       className="bg-background relative flex h-full min-h-0 min-w-0 text-base"
       style={
         {
-          "--thread-max-width": "min(clamp(46rem, 74cqw, 876px), calc(100cqw - 2rem))",
+          "--thread-content-width":
+            "calc(100cqw - var(--thread-content-inline-gutter, 4rem) - var(--thread-content-inline-gutter, 4rem))",
+          "--thread-content-min-width": `min(${THREAD_CONTENT_MIN_WIDTH_PX}px, calc(100cqw - ${THREAD_CONTENT_COMPACT_GUTTER_PX * 2}px))`,
+          "--thread-content-max-width": `min(${THREAD_CONTENT_MAX_WIDTH_PX}px, calc(100cqw - ${THREAD_CONTENT_COMPACT_GUTTER_PX * 2}px))`,
+          "--new-thread-composer-width": NEW_THREAD_COMPOSER_WIDTH,
           // Reserve the active optimistic turn's scaffold to prevent a vertical snap. Completed
           // turns return to their natural height so compact status rows do not create large gaps.
           "--assistant-turn-min-height": "5.25rem",
@@ -766,7 +781,7 @@ export function WorkbenchThread() {
 
       <div
         ref={threadFrameRef}
-        className="relative flex min-h-0 min-w-0 flex-1 flex-col [container-type:inline-size]"
+        className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-x-clip [container-type:inline-size]"
         style={
           {
             "--composer-dock-inset": `${composerDockInset}px`,
@@ -776,7 +791,7 @@ export function WorkbenchThread() {
               "calc(var(--composer-dock-inset) - var(--composer-dock-top-gap))",
             "--composer-dock-corner-radius": "var(--composer-inner-radius, 1.375rem)",
             "--thread-header-fade-size": "1.375rem",
-            "--thread-viewport-inline-padding": "1rem",
+            "--thread-viewport-inline-padding": `${THREAD_CONTENT_COMPACT_GUTTER_PX}px`,
           } as React.CSSProperties
         }
       >
@@ -798,7 +813,7 @@ export function WorkbenchThread() {
           scrollToBottomOnRunStart
           scrollToBottomOnThreadSwitch={false}
           className={cn(
-            "relative flex min-h-0 flex-1 scroll-smooth flex-col overflow-x-hidden overflow-y-auto motion-reduce:scroll-auto [overflow-anchor:none] [padding-inline:var(--thread-viewport-inline-padding)] [scrollbar-gutter:stable]",
+            "relative flex min-h-0 flex-1 scroll-smooth flex-col overflow-x-hidden overflow-y-auto motion-reduce:scroll-auto [overflow-anchor:none] [padding-inline:var(--thread-viewport-inline-padding)] [scrollbar-gutter:stable_both-edges]",
             hasDockedComposer
               ? "[margin-bottom:var(--composer-dock-content-top-inset)] [padding-top:var(--thread-header-fade-size)] [padding-bottom:var(--composer-dock-corner-radius)]"
               : "pt-4",
@@ -822,7 +837,10 @@ export function WorkbenchThread() {
           <SlotHost
             name="thread.before"
             context={slotContext}
-            className="mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-2 [overflow-anchor:none]"
+            className={cn(
+              THREAD_VIEWPORT_CONTENT_WIDTH_CLASS_NAME,
+              "mx-auto flex flex-col gap-2 [overflow-anchor:none]",
+            )}
           />
 
           {isHistoryLoading ? (
@@ -842,7 +860,10 @@ export function WorkbenchThread() {
           <SlotHost
             name="thread.after"
             context={slotContext}
-            className="mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-2 [overflow-anchor:none]"
+            className={cn(
+              THREAD_VIEWPORT_CONTENT_WIDTH_CLASS_NAME,
+              "mx-auto flex flex-col gap-2 [overflow-anchor:none]",
+            )}
           />
         </ThreadPrimitive.Viewport>
 
@@ -875,7 +896,10 @@ export function WorkbenchThread() {
           <div
             ref={composerDockRef}
             data-workbench-composer-dock=""
-            className="absolute right-4 bottom-0 left-4 z-20 mx-auto flex w-[var(--thread-max-width)] flex-col bg-transparent pt-[var(--composer-dock-top-gap)] pb-[var(--composer-dock-bottom-gap)] [overflow-anchor:none]"
+            className={cn(
+              THREAD_CONTENT_WIDTH_CLASS_NAME,
+              "absolute bottom-0 z-20 mx-auto flex flex-col bg-transparent pt-[var(--composer-dock-top-gap)] pb-[var(--composer-dock-bottom-gap)] [inset-inline:var(--thread-viewport-inline-padding)] [overflow-anchor:none]",
+            )}
           >
             <WorkbenchComposer />
           </div>

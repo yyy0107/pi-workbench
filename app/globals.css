@@ -9,6 +9,12 @@
 @custom-variant data-open (&:where([data-state="open"], [data-open]:not([data-open="false"])));
 @custom-variant data-closed (&:where([data-state="closed"], [data-closed]:not([data-closed="false"])));
 
+@property --thread-content-inline-gutter {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 64px;
+}
+
 @theme inline {
   @keyframes collapsible-down {
     from {

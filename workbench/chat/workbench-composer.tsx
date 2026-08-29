@@ -992,7 +992,7 @@ export function WorkbenchComposer() {
   );
 
   return (
-    <div className="grid w-full grid-rows-[auto_auto_auto]">
+    <div className="grid w-full min-w-0 max-w-full grid-rows-[auto_auto_auto]">
       <SlotHost
         name="composer.before"
         context={context}
@@ -1004,7 +1004,7 @@ export function WorkbenchComposer() {
           ref={composerRef}
           inert={composerOverlayVisible}
           aria-hidden={composerOverlayVisible || undefined}
-          className="group/composer relative col-start-1 row-start-2 flex w-full flex-col"
+          className="group/composer relative col-start-1 row-start-2 flex w-full min-w-0 max-w-full flex-col"
           onSubmit={(event) => {
             event.preventDefault();
             if (!composerOverlayVisible) dispatchComposer();
@@ -1050,7 +1050,7 @@ export function WorkbenchComposer() {
           <div
             data-slot="workbench-composer-shell"
             className={cn(
-              "relative isolate flex w-full flex-col [--composer-height:104px]",
+              "relative isolate flex w-full min-w-0 max-w-full flex-col [--composer-height:104px]",
               isNewThread &&
                 "bg-muted/45 overflow-hidden rounded-[var(--composer-radius,1.5rem)] border border-border/70 shadow-[0_2px_8px_rgba(0,0,0,0.06)] [--protruding-height:40px]",
             )}

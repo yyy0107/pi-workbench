@@ -37,3 +37,14 @@ test("keeps the user message index hidden for invalid measurements", () => {
     false,
   );
 });
+
+test("keeps the user message index hidden after the responsive layout releases its gutter", () => {
+  assert.equal(
+    shouldShowUserMessageIndex({
+      composerStart: MIN_COMPOSER_INDEX_GAP + 100,
+      threadStart: 0,
+      layoutAllowsIndex: false,
+    }),
+    false,
+  );
+});

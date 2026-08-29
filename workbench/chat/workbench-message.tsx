@@ -334,7 +334,7 @@ export function WorkbenchSystemMessage() {
 
   if (commandResponse) {
     return (
-      <MessagePrimitive.Root className="mx-auto w-full max-w-[var(--thread-max-width)] px-2 py-2">
+      <MessagePrimitive.Root className="mx-auto w-full max-w-[var(--thread-content-max-width)] px-2 py-2">
         <MessageSlot name="message.before" />
         <WorkbenchComposerCommandResponse response={commandResponse} />
         <MessageSlot name="message.after" />
@@ -343,7 +343,7 @@ export function WorkbenchSystemMessage() {
   }
 
   return (
-    <MessagePrimitive.Root className="mx-auto w-full max-w-[var(--thread-max-width)] px-2 py-2">
+    <MessagePrimitive.Root className="mx-auto w-full max-w-[var(--thread-content-max-width)] px-2 py-2">
       <MessageSlot name="message.before" />
       <div
         data-workbench-glass-surface=""

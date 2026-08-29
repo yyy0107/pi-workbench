@@ -6,6 +6,8 @@ import type { ReactNode } from "react";
 import { useI18n } from "@/i18n";
 import { useWorkspaceSelection } from "@/services/workspace-selection-service";
 
+import { NEW_THREAD_COMPOSER_WIDTH_CLASS_NAME } from "./thread-content-width";
+
 export function WorkbenchEmpty({ children }: Readonly<{ children: ReactNode }>) {
   const { t } = useI18n();
   const isNewThread = useAuiState(
@@ -20,7 +22,7 @@ export function WorkbenchEmpty({ children }: Readonly<{ children: ReactNode }>) 
   ];
 
   return (
-    <div className="relative mx-auto flex w-[var(--thread-max-width)] flex-1 flex-col justify-center py-12">
+    <div className="relative mx-auto flex w-full flex-1 flex-col justify-center py-12">
       <img
         src="/pi-logo-on-light.svg"
         alt=""
@@ -38,7 +40,7 @@ export function WorkbenchEmpty({ children }: Readonly<{ children: ReactNode }>) 
         </p>
       </div>
 
-      <div className="relative z-10">{children}</div>
+      <div className={`relative z-10 ${NEW_THREAD_COMPOSER_WIDTH_CLASS_NAME}`}>{children}</div>
 
       <div className="relative z-10 mt-5 flex flex-wrap justify-center gap-2">
         {starterPrompts.map((prompt) => (

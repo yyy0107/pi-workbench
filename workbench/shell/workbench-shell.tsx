@@ -29,6 +29,13 @@ import {
 } from "@/runtime/pi/client/settings/workbench-settings-client";
 
 import { PanelLayout } from "@/workbench/panels/panel-layout";
+import {
+  resolveExpandedThreadWidth,
+  resolveThreadResponsiveLayout,
+  THREAD_CONTENT_COMPACT_GUTTER_PX,
+  THREAD_CONTENT_GUTTER_TRANSITION_CLASS_NAME,
+  THREAD_CONTENT_INDEX_GUTTER_PX,
+} from "@/workbench/chat/thread-content-width";
 
 import { WorkbenchGlobalLayer } from "./workbench-global-layer";
 import { WorkbenchHeader } from "./workbench-header";
@@ -40,6 +47,7 @@ const DEFAULT_SIDEBAR_WIDTH = 268;
 const MIN_SIDEBAR_WIDTH = 240;
 const MAX_SIDEBAR_WIDTH = 560;
 const LEGACY_SIDEBAR_COOKIE_NAME = "sidebar_state";
+const THREAD_RESIZE_IDLE_MS = 120;
 
 function readLegacySidebarOpen(): boolean | undefined {
   const prefix = `${LEGACY_SIDEBAR_COOKIE_NAME}=`;
@@ -60,9 +68,13 @@ function clearLegacySidebarOpen(): void {
 export function WorkbenchShell({ children }: Readonly<{ children: ReactNode }>) {
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarAutoCollapsed, setSidebarAutoCollapsed] = useState(false);
+  const [sidebarAutoCollapseSuppressed, setSidebarAutoCollapseSuppressed] = useState(false);
+  const [conversationIndexHidden, setConversationIndexHidden] = useState(false);
   const sidebarRevision = useRef(0);
   const shellRef = useRef<HTMLDivElement>(null);
   const workspaceHostRef = useRef<HTMLDivElement>(null);
+  const conversationHostRef = useRef<HTMLDivElement>(null);
   const previousWorkspaceHostWidthRef = useRef<number | undefined>(undefined);
   const mainViews = useMainViewService();
   const activeMainView = useSyncExternalStore(
@@ -97,11 +109,18 @@ export function WorkbenchShell({ children }: Readonly<{ children: ReactNode }>) 
       .catch(() => undefined);
   }, []);
 
-  const handleSidebarOpenChange = useCallback((open: boolean) => {
-    sidebarRevision.current += 1;
-    setSidebarOpen(open);
-    void updateWorkbenchSettingsPreferences({ sidebarOpen: open }).catch(() => undefined);
-  }, []);
+  const sidebarEffectivelyOpen =
+    sidebarOpen && (!sidebarAutoCollapsed || sidebarAutoCollapseSuppressed);
+
+  const handleSidebarOpenChange = useCallback(
+    (open: boolean) => {
+      sidebarRevision.current += 1;
+      setSidebarOpen(open);
+      setSidebarAutoCollapseSuppressed(open && sidebarAutoCollapsed);
+      void updateWorkbenchSettingsPreferences({ sidebarOpen: open }).catch(() => undefined);
+    },
+    [sidebarAutoCollapsed],
+  );
 
   useLayoutEffect(() => {
     const workspaceHost = workspaceHostRef.current;
@@ -130,6 +149,102 @@ export function WorkbenchShell({ children }: Readonly<{ children: ReactNode }>) 
     return () => observer.disconnect();
   }, [workspaceController, workspacePresentation]);
 
+  useLayoutEffect(() => {
+    const shell = shellRef.current;
+    const conversationHost = conversationHostRef.current;
+    if (!shell || !conversationHost) return;
+
+    let observedThreadRoot: HTMLElement | undefined;
+    let observer: ResizeObserver;
+    let previousThreadWidth: number | undefined;
+    let resizeIdleTimer: number | undefined;
+
+    const update = () => {
+      const nextThreadRoot =
+        conversationHost.querySelector<HTMLElement>('[data-workbench-surface="thread"]') ??
+        undefined;
+      if (nextThreadRoot !== observedThreadRoot) {
+        if (observedThreadRoot) observer.unobserve(observedThreadRoot);
+        observedThreadRoot = nextThreadRoot;
+        if (observedThreadRoot) observer.observe(observedThreadRoot);
+      }
+
+      if (!observedThreadRoot) {
+        previousThreadWidth = undefined;
+        setConversationIndexHidden(false);
+        setSidebarAutoCollapsed(false);
+        setSidebarAutoCollapseSuppressed(false);
+        return;
+      }
+
+      const currentThreadWidth = observedThreadRoot.getBoundingClientRect().width;
+      if (
+        previousThreadWidth !== undefined &&
+        Math.abs(currentThreadWidth - previousThreadWidth) > 0.25
+      ) {
+        shell.dataset.threadResizing = "true";
+        if (resizeIdleTimer !== undefined) window.clearTimeout(resizeIdleTimer);
+        resizeIdleTimer = window.setTimeout(() => {
+          shell.removeAttribute("data-thread-resizing");
+          resizeIdleTimer = undefined;
+        }, THREAD_RESIZE_IDLE_MS);
+      }
+      previousThreadWidth = currentThreadWidth;
+
+      const shellWidth = shell.getBoundingClientRect().width;
+      const desktopSidebarParticipates = shellWidth >= 768;
+      const sidebarOccupiedWidth = desktopSidebarParticipates
+        ? (shell.querySelector<HTMLElement>('[data-slot="sidebar-gap"]')?.getBoundingClientRect()
+            .width ?? (sidebarEffectivelyOpen ? sidebarWidth : 0))
+        : sidebarWidth;
+      const expandedThreadWidth = resolveExpandedThreadWidth({
+        currentThreadWidth,
+        sidebarWidth,
+        sidebarOccupiedWidth,
+      });
+      const layout =
+        expandedThreadWidth === undefined
+          ? undefined
+          : resolveThreadResponsiveLayout(expandedThreadWidth);
+      if (!layout) return;
+
+      const nextConversationIndexHidden = layout.conversationIndexHidden;
+      const nextConversationGutter = nextConversationIndexHidden
+        ? THREAD_CONTENT_COMPACT_GUTTER_PX
+        : THREAD_CONTENT_INDEX_GUTTER_PX;
+
+      // ResizeObserver runs after layout but before paint. Synchronize the responsive target on
+      // the shell immediately so content widths do not wait for a React commit while the window
+      // is resizing; state keeps the declarative model aligned with the DOM afterward.
+      shell.dataset.conversationIndex = nextConversationIndexHidden ? "hidden" : "visible";
+      shell.style.setProperty("--thread-content-inline-gutter", `${nextConversationGutter}px`);
+      setConversationIndexHidden((current) =>
+        current === nextConversationIndexHidden ? current : nextConversationIndexHidden,
+      );
+
+      const nextSidebarAutoCollapsed =
+        desktopSidebarParticipates &&
+        workspacePresentation === "closed" &&
+        sidebarOpen &&
+        layout.sidebarAutoCollapsed;
+      setSidebarAutoCollapsed((current) =>
+        current === nextSidebarAutoCollapsed ? current : nextSidebarAutoCollapsed,
+      );
+      if (!nextSidebarAutoCollapsed) setSidebarAutoCollapseSuppressed(false);
+    };
+
+    observer = new ResizeObserver(update);
+    observer.observe(shell);
+    observer.observe(conversationHost);
+    update();
+
+    return () => {
+      observer.disconnect();
+      if (resizeIdleTimer !== undefined) window.clearTimeout(resizeIdleTimer);
+      shell.removeAttribute("data-thread-resizing");
+    };
+  }, [sidebarEffectivelyOpen, sidebarOpen, sidebarWidth, workspacePresentation]);
+
   const resizeSidebar = (width: number) => {
     const viewportMaximum = Math.floor(window.innerWidth / 2);
     setSidebarWidth(
@@ -139,17 +254,29 @@ export function WorkbenchShell({ children }: Readonly<{ children: ReactNode }>) 
 
   return (
     <SidebarProvider
-      open={sidebarOpen}
+      open={sidebarEffectivelyOpen}
       onOpenChange={handleSidebarOpenChange}
       ref={shellRef}
-      className="bg-background text-foreground relative isolate h-dvh min-h-0 overflow-hidden"
+      className={cn(
+        "bg-background text-foreground relative isolate h-dvh min-h-0 overflow-hidden",
+        THREAD_CONTENT_GUTTER_TRANSITION_CLASS_NAME,
+      )}
       data-workbench-shell=""
       data-workbench-surface="shell"
+      data-conversation-index={conversationIndexHidden ? "hidden" : "visible"}
+      data-sidebar-auto-collapsed={
+        sidebarAutoCollapsed && !sidebarAutoCollapseSuppressed ? "true" : "false"
+      }
       style={
         {
           "--sidebar-width": `${sidebarWidth}px`,
           "--sidebar-content-width": `${sidebarWidth}px`,
           "--sidebar-resize-translate-x": "0px",
+          "--thread-content-inline-gutter": `${
+            conversationIndexHidden
+              ? THREAD_CONTENT_COMPACT_GUTTER_PX
+              : THREAD_CONTENT_INDEX_GUTTER_PX
+          }px`,
           "--desktop-window-controls-inset-end":
             "calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw))",
           "--right-workspace-toggle-inset-end":
@@ -177,6 +304,7 @@ export function WorkbenchShell({ children }: Readonly<{ children: ReactNode }>) 
         <WorkbenchHeader />
         <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
           <div
+            ref={conversationHostRef}
             aria-hidden={conversationHidden ? true : undefined}
             inert={conversationHidden ? true : undefined}
             className={cn(

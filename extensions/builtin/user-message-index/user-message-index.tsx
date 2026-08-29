@@ -125,6 +125,7 @@ export function UserMessageIndex({ threadId }: UserMessageIndexProps) {
     const nav = navRef.current;
     const threadRoot = nav?.closest<HTMLElement>('[data-workbench-surface="thread"]');
     const composerDock = threadRoot?.querySelector<HTMLElement>("[data-workbench-composer-dock]");
+    const shell = threadRoot?.closest<HTMLElement>("[data-workbench-shell]");
     if (!nav || !threadRoot || !composerDock) return;
 
     const updateVisibility = () => {
@@ -133,6 +134,7 @@ export function UserMessageIndex({ threadId }: UserMessageIndexProps) {
       const nextVisible = shouldShowUserMessageIndex({
         composerStart: composerBounds.left,
         threadStart: threadBounds.left,
+        layoutAllowsIndex: shell?.dataset.conversationIndex !== "hidden",
       });
       setIndexVisible((current) => (current === nextVisible ? current : nextVisible));
     };
@@ -140,9 +142,20 @@ export function UserMessageIndex({ threadId }: UserMessageIndexProps) {
     const observer = new ResizeObserver(updateVisibility);
     observer.observe(threadRoot);
     observer.observe(composerDock);
+    let layoutObserver: MutationObserver | undefined;
+    if (shell) {
+      layoutObserver = new MutationObserver(updateVisibility);
+      layoutObserver.observe(shell, {
+        attributes: true,
+        attributeFilter: ["data-conversation-index"],
+      });
+    }
     updateVisibility();
 
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      layoutObserver?.disconnect();
+    };
   }, [hasUserMessages, threadId]);
 
   useEffect(() => {
@@ -221,7 +234,7 @@ export function UserMessageIndex({ threadId }: UserMessageIndexProps) {
         data-workbench-user-message-index=""
         className={cn(
           "absolute inset-y-0 left-0 z-10 h-full w-12",
-          indexVisible ? "block" : "hidden",
+          indexVisible ? "block in-data-[conversation-index=hidden]:hidden" : "hidden",
         )}
         onPointerLeave={() => setHoveredMarkerIndex(undefined)}
       >
