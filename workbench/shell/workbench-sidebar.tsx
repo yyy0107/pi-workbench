@@ -78,7 +78,6 @@ export function WorkbenchSidebarContent({
       const active = mainViews.getSnapshot();
       if (active?.kind === "workflows") setActiveSection("workflows");
       else if (active?.kind === "toolbox") setActiveSection("toolbox");
-      else setActiveSection("workspace");
     };
     syncActiveSection();
     return mainViews.subscribe(syncActiveSection);

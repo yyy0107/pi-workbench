@@ -51,22 +51,34 @@ function workflowMainViewPresentation(params: WorkflowMainViewParams): {
     case "create":
       return {
         title: CREATE_WORKFLOW_TITLE,
-        breadcrumbs: [{ label: WORKFLOW_MAIN_VIEW_TITLE }, { label: CREATE_WORKFLOW_TITLE }],
+        breadcrumbs: [
+          { label: WORKFLOW_MAIN_VIEW_TITLE, closeView: true },
+          { label: CREATE_WORKFLOW_TITLE },
+        ],
       };
     case "editor":
       return {
         title: EDIT_WORKFLOW_TITLE,
-        breadcrumbs: [{ label: WORKFLOW_MAIN_VIEW_TITLE }, { label: EDIT_WORKFLOW_TITLE }],
+        breadcrumbs: [
+          { label: WORKFLOW_MAIN_VIEW_TITLE, closeView: true },
+          { label: EDIT_WORKFLOW_TITLE },
+        ],
       };
     case "runs":
       return {
         title: WORKFLOW_RUNS_TITLE,
-        breadcrumbs: [{ label: WORKFLOW_MAIN_VIEW_TITLE }, { label: WORKFLOW_RUNS_TITLE }],
+        breadcrumbs: [
+          { label: WORKFLOW_MAIN_VIEW_TITLE, closeView: true },
+          { label: WORKFLOW_RUNS_TITLE },
+        ],
       };
     case "templates":
       return {
         title: WORKFLOW_TEMPLATES_TITLE,
-        breadcrumbs: [{ label: WORKFLOW_MAIN_VIEW_TITLE }, { label: WORKFLOW_TEMPLATES_TITLE }],
+        breadcrumbs: [
+          { label: WORKFLOW_MAIN_VIEW_TITLE, closeView: true },
+          { label: WORKFLOW_TEMPLATES_TITLE },
+        ],
       };
   }
 }

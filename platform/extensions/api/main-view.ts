@@ -6,13 +6,25 @@ import type { Disposable } from "./disposable";
 
 export type MainViewKind = string;
 
-export interface MainViewBreadcrumbItem<
-  P extends Record<string, unknown> = Record<string, unknown>,
-> {
+export type MainViewBreadcrumbItem<P extends Record<string, unknown> = Record<string, unknown>> = {
   label: LocalizableText;
-  /** Target state for an ancestor item. Omit for the current page or a display-only ancestor. */
-  params?: P;
-}
+} & (
+  | {
+      /** Target state for an ancestor within the same Main View. */
+      params: P;
+      closeView?: never;
+    }
+  | {
+      params?: never;
+      /** Close the active Main View and return to its shell-level parent destination. */
+      closeView: true;
+    }
+  | {
+      /** Current page. */
+      params?: never;
+      closeView?: never;
+    }
+);
 
 export type MainViewBreadcrumbs<P extends Record<string, unknown> = Record<string, unknown>> =
   readonly [Readonly<MainViewBreadcrumbItem<P>>, ...Readonly<MainViewBreadcrumbItem<P>>[]];

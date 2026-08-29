@@ -489,8 +489,8 @@ interface MainViewProps<P extends Record<string, unknown>> {
     kind: string;
     title: LocalizableText;
     breadcrumbs?: readonly [
-      { label: LocalizableText; params?: P },
-      ...{ label: LocalizableText; params?: P }[],
+      { label: LocalizableText; params?: P; closeView?: true },
+      ...{ label: LocalizableText; params?: P; closeView?: true }[],
     ];
     params: P;
     revision: number;
@@ -522,11 +522,13 @@ Main View.
 Every open request also supplies a `LocalizableText` title and may supply a non-empty `breadcrumbs`
 path ordered from parent to current page. The Workbench header resolves both at render time, so
 built-in extensions should pass `defineMessage(...)` descriptors instead of translated strings.
-An ancestor breadcrumb with `params` is rendered as a keyboard-accessible navigation button; omit
-`params` for the current page or a display-only ancestor. Selecting an ancestor reopens the same
-Main View kind with its target params and the shortened breadcrumb path. When breadcrumbs are
-present, the shared header treats `title` as the current page label for metadata and fallback
-behavior. A Main View title replaces the conversation title only while that view is active.
+Every ancestor breadcrumb must define either `params` or `closeView: true` and is rendered as a
+keyboard-accessible navigation button; omit both only for the current page. Selecting a `params`
+ancestor reopens the same Main View kind with its target params and the shortened breadcrumb path;
+selecting a `closeView` ancestor returns to the shell-level parent destination. Do not define both
+targets on one item or attach a target to the current item. When breadcrumbs are present, the
+shared header treats `title` as the current page label for metadata and fallback behavior. A Main
+View title replaces the conversation title only while that view is active.
 
 Main Views own their internal navigation, layout, and i18n. They do not provide URL routing,
 resource keys, persistent tabs, scopes, or keep-alive behavior. Use a Next.js route for URL identity

@@ -13,6 +13,7 @@ function freezeBreadcrumbs<P extends Record<string, unknown>>(
       Object.freeze({
         label: item.label,
         ...(item.params !== undefined ? { params: Object.freeze({ ...item.params }) as P } : {}),
+        ...(item.closeView === true ? { closeView: true as const } : {}),
       }),
     ),
   ) as unknown as MainViewBreadcrumbs<P>;
@@ -54,6 +55,18 @@ export class MainViewService {
     if (breadcrumbs?.some(({ label }) => typeof label === "string" && label.trim().length === 0)) {
       throw new Error("Main view breadcrumb labels must be non-empty strings");
     }
+    if (breadcrumbs?.some((item) => item.params !== undefined && item.closeView === true)) {
+      throw new Error("Main view breadcrumbs cannot define both params and closeView");
+    }
+    if (
+      breadcrumbs?.slice(0, -1).some((item) => item.params === undefined && item.closeView !== true)
+    ) {
+      throw new Error("Main view ancestor breadcrumbs must define a navigation destination");
+    }
+    const currentBreadcrumb = breadcrumbs?.at(-1);
+    if (currentBreadcrumb?.params !== undefined || currentBreadcrumb?.closeView === true) {
+      throw new Error("Main view current breadcrumb cannot define a navigation destination");
+    }
 
     this.#active = Object.freeze({
       kind,
@@ -85,6 +98,10 @@ export class MainViewService {
       return;
     }
     const destination = breadcrumbs[index];
+    if (destination.closeView === true) {
+      this.close();
+      return;
+    }
     if (destination.params === undefined) return;
 
     const destinationBreadcrumbs = breadcrumbs

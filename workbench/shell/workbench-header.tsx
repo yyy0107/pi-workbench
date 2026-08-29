@@ -122,7 +122,7 @@ export function WorkbenchHeader() {
     : currentThreadTitle || t("workbench.sidebar.newThread");
   const breadcrumbs = activeMainView?.breadcrumbs?.map((item) => ({
     label: text(item.label),
-    navigable: item.params !== undefined,
+    navigable: item.params !== undefined || item.closeView === true,
   }));
   const visibleTitle = activeMainView ? title : truncateConversationTitle(title);
   const desktopSidebarCollapsePreview = !isMobile && collapsePreview;

@@ -527,6 +527,7 @@ function ExampleTrigger() {
 - `params` 是功能自有的瞬时导航状态；Service 会浅复制并冻结它。
 - `revision` 每次 `open()` 都会变化，因此同一 kind 可以响应新的分类或选中项。
 - `close()` 恢复默认对话；核心侧栏切回“工作区”、会话 URL 变化或定义被撤销时也会关闭当前 Main View。
+- `breadcrumbs` 中的每个父级条目都必须通过 `params` 跳转到同一 Main View 的其他状态，或通过 `closeView: true` 返回 Shell 层级；两者不能同时设置，当前页也不能设置跳转目标。
 - Main View 拥有页面内部布局和文案，但不应复制 Workbench Shell、侧栏或右侧 Inspector。
 - Main View 不提供 URL、持久化标签、resourceKey 或 keep-alive；这些需求分别使用 Next.js 路由或 Workspace Surface。
 

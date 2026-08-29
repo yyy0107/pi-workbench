@@ -103,6 +103,80 @@ test("main view service opens an ancestor breadcrumb destination", () => {
   assert.deepEqual(service.getSnapshot()?.breadcrumbs, [{ label: "Toolbox" }]);
 });
 
+test("main view service closes a view from a shell-level parent breadcrumb", () => {
+  const registry = new MainViewRegistryImpl();
+  registry.register({ kind: "example", component: ExampleMainView });
+  const service = new MainViewService(registry);
+  service.open({
+    kind: "example",
+    title: "Run history",
+    breadcrumbs: [{ label: "Execution", closeView: true }, { label: "Run history" }],
+    params: { section: "runs" },
+  });
+
+  service.openBreadcrumb(0);
+
+  assert.equal(service.getSnapshot(), null);
+});
+
+test("main view service rejects conflicting breadcrumb destinations", () => {
+  const registry = new MainViewRegistryImpl();
+  registry.register({ kind: "example", component: ExampleMainView });
+  const service = new MainViewService(registry);
+
+  assert.throws(
+    () =>
+      service.open({
+        kind: "example",
+        title: "Run history",
+        breadcrumbs: [
+          {
+            label: "Execution",
+            params: { section: "catalog" },
+            closeView: true,
+          },
+          { label: "Run history" },
+        ],
+        params: { section: "runs" },
+      } as unknown as Parameters<typeof service.open>[0]),
+    /cannot define both params and closeView/,
+  );
+});
+
+test("main view service rejects a display-only ancestor breadcrumb", () => {
+  const registry = new MainViewRegistryImpl();
+  registry.register({ kind: "example", component: ExampleMainView });
+  const service = new MainViewService(registry);
+
+  assert.throws(
+    () =>
+      service.open({
+        kind: "example",
+        title: "Run history",
+        breadcrumbs: [{ label: "Execution" }, { label: "Run history" }],
+        params: { section: "runs" },
+      }),
+    /ancestor breadcrumbs must define a navigation destination/,
+  );
+});
+
+test("main view service rejects a navigation target on the current breadcrumb", () => {
+  const registry = new MainViewRegistryImpl();
+  registry.register({ kind: "example", component: ExampleMainView });
+  const service = new MainViewService(registry);
+
+  assert.throws(
+    () =>
+      service.open({
+        kind: "example",
+        title: "Run history",
+        breadcrumbs: [{ label: "Run history", closeView: true }],
+        params: { section: "runs" },
+      }),
+    /current breadcrumb cannot define a navigation destination/,
+  );
+});
+
 test("main view service rejects empty breadcrumb paths from untyped callers", () => {
   const registry = new MainViewRegistryImpl();
   registry.register({ kind: "example", component: ExampleMainView });
