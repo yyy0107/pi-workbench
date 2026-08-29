@@ -1,5 +1,4 @@
 import type {
-  TriggerSpec,
   ExecutionProtocol,
   ExecutionThinkingLevel,
   WorkflowDocument,
@@ -9,7 +8,6 @@ import type {
 import {
   assertExecutionJsonValue,
   parseExecutionDocument,
-  parseTriggerSpec,
 } from "@/runtime/server/executions/execution-schema";
 import {
   handleRpcPost,
@@ -68,18 +66,6 @@ const executionDocument = rpcRefine(
   },
   { code: "invalid_workflow", message: "Expected a valid workflow document." },
 ) as RpcValidator<WorkflowDocument>;
-const triggerSpec = rpcRefine(
-  rpcUnknown,
-  (value) => {
-    try {
-      parseTriggerSpec(value);
-      return true;
-    } catch {
-      return false;
-    }
-  },
-  { code: "invalid_trigger", message: "Expected a valid workflow trigger." },
-) as RpcValidator<TriggerSpec>;
 const jsonValue = rpcRefine(
   rpcUnknown,
   (value) => {
@@ -167,23 +153,6 @@ const approvalPayload = rpcObject({
   approved: rpcBoolean,
   result: rpcOptional(jsonValue),
 });
-const triggerListPayload = rpcObject({ workflowId: id });
-const triggerUpsertPayload = rpcObject({
-  workflowId: id,
-  baseDraftRevision: rpcInteger({ minimum: 0 }),
-  trigger: triggerSpec,
-});
-const triggerRemovePayload = rpcObject({
-  workflowId: id,
-  baseDraftRevision: rpcInteger({ minimum: 0 }),
-  triggerId: id,
-});
-const triggerEnabledPayload = rpcObject({
-  workflowId: id,
-  triggerId: id,
-  enabled: rpcBoolean,
-});
-
 async function invoke<Value>(
   operation: () => Promise<Value>,
   projectDomainError: ExecutionRpcRoutesDependencies["projectDomainError"],
@@ -294,31 +263,6 @@ export function createExecutionRpcRoutes({
             payload: approvalPayload,
             handler: (payload) =>
               invoke(() => service.resolveApproval(payload), projectDomainError),
-          });
-        case "workflow.trigger.list":
-          return handleRpcPost(request, {
-            method,
-            payload: triggerListPayload,
-            handler: (payload) => invoke(() => service.listTriggers(payload), projectDomainError),
-          });
-        case "workflow.trigger.upsert":
-          return handleRpcPost(request, {
-            method,
-            payload: triggerUpsertPayload,
-            handler: (payload) => invoke(() => service.upsertTrigger(payload), projectDomainError),
-          });
-        case "workflow.trigger.remove":
-          return handleRpcPost(request, {
-            method,
-            payload: triggerRemovePayload,
-            handler: (payload) => invoke(() => service.removeTrigger(payload), projectDomainError),
-          });
-        case "workflow.trigger.setEnabled":
-          return handleRpcPost(request, {
-            method,
-            payload: triggerEnabledPayload,
-            handler: (payload) =>
-              invoke(() => service.setTriggerEnabled(payload), projectDomainError),
           });
         default:
           return undefined;

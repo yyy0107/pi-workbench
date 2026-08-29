@@ -23,9 +23,6 @@ export type WorkflowJsonValue =
   | WorkflowJsonValue[]
   | { [key: string]: WorkflowJsonValue };
 
-export const MIN_SCHEDULE_RUN_DURATION_SECONDS = 60;
-export const MAX_SCHEDULE_RUN_DURATION_SECONDS = 31_536_000;
-
 export interface ValueBinding {
   source: "run-input" | "node-output";
   nodeId?: string;
@@ -115,34 +112,8 @@ export interface FlowGraph {
   };
 }
 
-export interface ScheduleTriggerSpec {
-  id: string;
-  type: "schedule";
-  name: string;
-  cron: string;
-  timezone: string;
-  /** Omitted when scheduled runs do not have a time limit. */
-  maxRunDurationSeconds?: number;
-  targetWorkspaceId?: string;
-}
-
-export type WorkflowInternalEventName =
-  | "workbench.application.started"
-  | "workbench.session.completed"
-  | "workbench.workspace.updated";
-
-export interface InternalEventTriggerSpec {
-  id: string;
-  type: "event";
-  name: string;
-  event: WorkflowInternalEventName;
-  targetWorkspaceId?: string;
-}
-
-export type TriggerSpec = ScheduleTriggerSpec | InternalEventTriggerSpec;
-
 export interface WorkflowDocument {
-  schemaVersion: 2;
+  schemaVersion: 3;
   id: string;
   kind: WorkflowKind;
   scope: WorkflowScope;
@@ -151,7 +122,6 @@ export interface WorkflowDocument {
   agents: WorkflowAgentDefinition[];
   graph: FlowGraph;
   concurrency: WorkflowConcurrency;
-  triggers: TriggerSpec[];
   draftRevision: number;
   publishedRevisionId?: string;
   createdAt: number;
@@ -160,7 +130,7 @@ export interface WorkflowDocument {
 }
 
 export interface FlowRevision {
-  schemaVersion: 2;
+  schemaVersion: 3;
   revisionId: string;
   workflowId: string;
   kind: WorkflowKind;
@@ -170,7 +140,6 @@ export interface FlowRevision {
   agents: WorkflowAgentDefinition[];
   graph: FlowGraph;
   concurrency: WorkflowConcurrency;
-  triggers: TriggerSpec[];
   publishedAt: number;
 }
 
@@ -187,7 +156,6 @@ export type WorkflowValidationCode =
   | "cycle"
   | "unreachable-node"
   | "invalid-sop"
-  | "invalid-trigger"
   | "invalid-binding"
   | "invalid-node-config";
 
@@ -197,7 +165,6 @@ export interface WorkflowValidationIssue {
   path: string;
   nodeId?: string;
   edgeId?: string;
-  triggerId?: string;
 }
 
 export interface WorkflowValidationResult {
@@ -216,8 +183,6 @@ export interface WorkflowSummary {
   createdAt: number;
   updatedAt: number;
   archivedAt?: number;
-  triggerCount: number;
-  enabledTriggerCount: number;
 }
 
 export type WorkflowRunStatus =
@@ -229,7 +194,10 @@ export type WorkflowRunStatus =
   | "cancelled"
   | "interrupted";
 
-export type WorkflowRunSource = "manual" | "schedule" | "event" | "replay";
+export type WorkflowRunStartSource = "manual" | "replay";
+
+/** Schedule and event are retained only for reading runs created by the removed trigger system. */
+export type WorkflowRunSource = WorkflowRunStartSource | "schedule" | "event";
 
 export const EXECUTION_SESSION_ORIGIN_CUSTOM_TYPE = "workbench.execution.origin";
 
@@ -244,6 +212,7 @@ export interface ExecutionSessionOrigin {
   nodeId: string;
   attempt: number;
   source: WorkflowRunSource;
+  /** @deprecated Present only in sessions created by the removed workflow trigger system. */
   triggerId?: string;
 }
 
@@ -277,7 +246,9 @@ export interface WorkflowRunSummary {
   source: WorkflowRunSource;
   status: WorkflowRunStatus;
   targetWorkspaceId?: string;
+  /** @deprecated Present only in runs created by the removed workflow trigger system. */
   triggerId?: string;
+  /** @deprecated Present only in runs created by the removed workflow trigger system. */
   dedupeKey?: string;
   input?: WorkflowJsonValue;
   output?: WorkflowJsonValue;
@@ -322,16 +293,6 @@ export interface WorkflowRunReadValue {
   nextSeq?: number;
 }
 
-export interface WorkflowTriggerState {
-  workflowId: string;
-  triggerId: string;
-  enabled: boolean;
-  nextRunAt?: number;
-  lastTriggeredAt?: number;
-  lastDedupeKey?: string;
-  disabledReason?: string;
-}
-
 export type WorkflowRunAdmission =
   | { kind: "started" | "queued"; run: WorkflowRunSummary }
   | { kind: "skipped"; activeRunId: string };
@@ -357,17 +318,11 @@ export interface WorkflowRunRemovedHostPayload {
   workflowId: string;
 }
 
-export interface WorkflowTriggerChangedHostPayload {
-  type: "host/workflow-trigger-changed";
-  state: WorkflowTriggerState;
-}
-
 export type WorkflowHostPayload =
   | WorkflowChangedHostPayload
   | WorkflowRemovedHostPayload
   | WorkflowRunChangedHostPayload
-  | WorkflowRunRemovedHostPayload
-  | WorkflowTriggerChangedHostPayload;
+  | WorkflowRunRemovedHostPayload;
 
 export interface WorkflowListPayload {
   workspaceId?: string;
@@ -388,7 +343,6 @@ export interface WorkflowReadValue {
   document: WorkflowDocument;
   /** Canonical host path used as the Project Trust boundary for Agent workspaces. */
   workflowDirectory: string;
-  triggerStates: WorkflowTriggerState[];
 }
 
 export interface WorkflowAgentModelSettings {
@@ -444,7 +398,7 @@ export interface WorkflowRunStartPayload {
   revisionId?: string;
   targetWorkspaceId?: string;
   input?: WorkflowJsonValue;
-  source?: WorkflowRunSource;
+  source?: WorkflowRunStartSource;
 }
 
 export interface WorkflowRunCancelPayload {
@@ -484,33 +438,6 @@ export interface WorkflowResolveApprovalPayload {
   result?: WorkflowJsonValue;
 }
 
-export interface WorkflowTriggerListPayload {
-  workflowId: string;
-}
-
-export interface WorkflowTriggerListValue {
-  triggers: TriggerSpec[];
-  states: WorkflowTriggerState[];
-}
-
-export interface WorkflowTriggerUpsertPayload {
-  workflowId: string;
-  baseDraftRevision: number;
-  trigger: TriggerSpec;
-}
-
-export interface WorkflowTriggerRemovePayload {
-  workflowId: string;
-  baseDraftRevision: number;
-  triggerId: string;
-}
-
-export interface WorkflowTriggerSetEnabledPayload {
-  workflowId: string;
-  triggerId: string;
-  enabled: boolean;
-}
-
 export interface ExecutionProtocol {
   list(payload: WorkflowListPayload): Promise<WorkflowListValue>;
   read(payload: WorkflowReadPayload): Promise<WorkflowReadValue>;
@@ -529,10 +456,6 @@ export interface ExecutionProtocol {
   listRuns(payload: WorkflowRunListPayload): Promise<WorkflowRunListValue>;
   readRun(payload: WorkflowRunReadPayload): Promise<WorkflowRunReadValue>;
   resolveApproval(payload: WorkflowResolveApprovalPayload): Promise<WorkflowRunSummary>;
-  listTriggers(payload: WorkflowTriggerListPayload): Promise<WorkflowTriggerListValue>;
-  upsertTrigger(payload: WorkflowTriggerUpsertPayload): Promise<WorkflowReadValue>;
-  removeTrigger(payload: WorkflowTriggerRemovePayload): Promise<WorkflowReadValue>;
-  setTriggerEnabled(payload: WorkflowTriggerSetEnabledPayload): Promise<WorkflowTriggerState>;
 }
 
 /** @deprecated Use ExecutionProtocol. Kept while the workflow.* wire protocol is compatible. */
@@ -577,12 +500,6 @@ export function isWorkflowHostPayload(value: unknown): value is WorkflowHostPayl
       return isRecord(value.run) && typeof value.run.id === "string";
     case "host/workflow-run-removed":
       return typeof value.runId === "string" && typeof value.workflowId === "string";
-    case "host/workflow-trigger-changed":
-      return (
-        isRecord(value.state) &&
-        typeof value.state.workflowId === "string" &&
-        typeof value.state.triggerId === "string"
-      );
     default:
       return false;
   }

@@ -7,7 +7,6 @@ import type {
   WorkflowHostPayload,
   WorkflowRunSummary,
   WorkflowSummary,
-  WorkflowTriggerState,
 } from "@/runtime/shared/execution";
 import { workflowClient } from "@/runtime/pi/client/workflows/workflow-client";
 import { mergeWorkflowRuns } from "./execution-run-merge";
@@ -19,7 +18,6 @@ interface WorkflowCatalogState {
   items: WorkflowSummary[];
   runs: WorkflowRunSummary[];
   removedRunIds: ReadonlySet<string>;
-  triggerStates: WorkflowTriggerState[];
   loadState: LoadState;
   keepAwake: boolean;
   wakeLockState: WorkflowWakeLockState;
@@ -38,7 +36,6 @@ export const useWorkflowCatalogStore = create<WorkflowCatalogState>((set) => ({
   items: [],
   runs: [],
   removedRunIds: new Set(),
-  triggerStates: [],
   loadState: "idle",
   keepAwake: false,
   wakeLockState: "idle",
@@ -87,9 +84,6 @@ export const useWorkflowCatalogStore = create<WorkflowCatalogState>((set) => ({
         set((state) => ({
           items: state.items.filter(({ id }) => id !== payload.workflowId),
           runs: state.runs.filter(({ workflowId }) => workflowId !== payload.workflowId),
-          triggerStates: state.triggerStates.filter(
-            ({ workflowId }) => workflowId !== payload.workflowId,
-          ),
         }));
         break;
       case "host/workflow-run-changed":
@@ -105,26 +99,6 @@ export const useWorkflowCatalogStore = create<WorkflowCatalogState>((set) => ({
           removedRunIds: new Set(state.removedRunIds).add(payload.runId),
         }));
         break;
-      case "host/workflow-trigger-changed":
-        set((state) => {
-          const triggerStates = [
-            payload.state,
-            ...state.triggerStates.filter(
-              ({ workflowId, triggerId }) =>
-                workflowId !== payload.state.workflowId || triggerId !== payload.state.triggerId,
-            ),
-          ];
-          const enabledTriggerCount = triggerStates.filter(
-            ({ workflowId, enabled }) => workflowId === payload.state.workflowId && enabled,
-          ).length;
-          return {
-            triggerStates,
-            items: state.items.map((item) =>
-              item.id === payload.state.workflowId ? { ...item, enabledTriggerCount } : item,
-            ),
-          };
-        });
-        break;
     }
   },
   setKeepAwake(keepAwake) {
@@ -138,42 +112,33 @@ export const useWorkflowCatalogStore = create<WorkflowCatalogState>((set) => ({
 export type WorkflowEditorSelection =
   | { type: "node"; id: string }
   | { type: "edge"; id: string }
-  | { type: "trigger"; id: string }
   | undefined;
 
 export type WorkflowSaveState = "idle" | "dirty" | "saving" | "saved" | "conflict" | "error";
 
 interface WorkflowEditorState {
   document?: WorkflowDocument;
-  triggerStates: WorkflowTriggerState[];
   selection: WorkflowEditorSelection;
-  inspectorTab: "node" | "trigger";
   saveState: WorkflowSaveState;
   error?: string;
   editVersion: number;
-  load(document: WorkflowDocument, triggerStates: WorkflowTriggerState[]): void;
+  load(document: WorkflowDocument): void;
   reset(): void;
   updateDocument(update: (document: WorkflowDocument) => WorkflowDocument): void;
   setSelection(selection: WorkflowEditorSelection): void;
-  setInspectorTab(tab: "node" | "trigger"): void;
   beginSave(): number;
   finishSave(document: WorkflowDocument, savedEditVersion: number): void;
   failSave(error: string, conflict?: boolean): void;
-  setTriggerState(state: WorkflowTriggerState): void;
 }
 
 export const useWorkflowEditorStore = create<WorkflowEditorState>((set, get) => ({
-  triggerStates: [],
   selection: undefined,
-  inspectorTab: "node",
   saveState: "idle",
   editVersion: 0,
-  load(document, triggerStates) {
+  load(document) {
     set({
       document,
-      triggerStates,
       selection: undefined,
-      inspectorTab: "node",
       saveState: "idle",
       error: undefined,
       editVersion: 0,
@@ -182,9 +147,7 @@ export const useWorkflowEditorStore = create<WorkflowEditorState>((set, get) => 
   reset() {
     set({
       document: undefined,
-      triggerStates: [],
       selection: undefined,
-      inspectorTab: "node",
       saveState: "idle",
       error: undefined,
       editVersion: 0,
@@ -201,10 +164,7 @@ export const useWorkflowEditorStore = create<WorkflowEditorState>((set, get) => 
     }));
   },
   setSelection(selection) {
-    set({ selection, ...(selection?.type === "trigger" ? { inspectorTab: "trigger" } : {}) });
-  },
-  setInspectorTab(inspectorTab) {
-    set({ inspectorTab });
+    set({ selection });
   },
   beginSave() {
     const version = get().editVersion;
@@ -230,16 +190,5 @@ export const useWorkflowEditorStore = create<WorkflowEditorState>((set, get) => 
   },
   failSave(error, conflict = false) {
     set({ saveState: conflict ? "conflict" : "error", error });
-  },
-  setTriggerState(triggerState) {
-    set((state) => ({
-      triggerStates: [
-        triggerState,
-        ...state.triggerStates.filter(
-          ({ workflowId, triggerId }) =>
-            workflowId !== triggerState.workflowId || triggerId !== triggerState.triggerId,
-        ),
-      ],
-    }));
   },
 }));

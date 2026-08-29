@@ -518,7 +518,6 @@ function isHostPayload(payload: ServerRequestFrame["payload"]): boolean {
     case "host/workflow-removed":
     case "host/workflow-run-changed":
     case "host/workflow-run-removed":
-    case "host/workflow-trigger-changed":
       return isWorkflowHostPayload(payload);
     case "stream/error":
       return isRpcError(payload.error);

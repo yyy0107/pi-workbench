@@ -5,7 +5,7 @@ import { useEffect } from "react";
 import { isWorkflowHostPayload } from "@/runtime/shared/execution";
 import { usePiSessionManager } from "@/runtime/pi/client/runtime/context";
 
-import { useWorkflowCatalogStore, useWorkflowEditorStore } from "./execution-state";
+import { useWorkflowCatalogStore } from "./execution-state";
 
 export function WorkflowRuntimeBridge() {
   const manager = usePiSessionManager();
@@ -17,9 +17,6 @@ export function WorkflowRuntimeBridge() {
     const unsubscribeHost = manager.subscribeHostEvents((payload) => {
       if (!isWorkflowHostPayload(payload)) return;
       useWorkflowCatalogStore.getState().applyHostPayload(payload);
-      if (payload.type === "host/workflow-trigger-changed") {
-        useWorkflowEditorStore.getState().setTriggerState(payload.state);
-      }
     });
     const unsubscribeReconnect = manager.subscribeConnectionReady(refresh);
     return () => {

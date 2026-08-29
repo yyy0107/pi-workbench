@@ -13,7 +13,6 @@ import type {
   WorkflowRemovedHostPayload,
   WorkflowRunChangedHostPayload,
   WorkflowRunRemovedHostPayload,
-  WorkflowTriggerChangedHostPayload,
 } from "@/runtime/shared/execution";
 
 export type { SessionEvent, ToolEventView } from "./rpc";
@@ -289,7 +288,6 @@ export type HostStreamPayload =
   | WorkflowRemovedHostPayload
   | WorkflowRunChangedHostPayload
   | WorkflowRunRemovedHostPayload
-  | WorkflowTriggerChangedHostPayload
   | StreamErrorPayload;
 
 export interface StreamPayloadMap {

@@ -15,7 +15,7 @@ import { ExecutionRepository } from "./execution-repository";
 
 function approvalDocument(): WorkflowDocument {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     id: "approval-flow",
     kind: "sop",
     scope: { type: "personal" },
@@ -40,7 +40,6 @@ function approvalDocument(): WorkflowDocument {
       editor: {},
     },
     concurrency: { mode: "queue" },
-    triggers: [],
     draftRevision: 0,
     createdAt: 1,
     updatedAt: 1,
@@ -205,53 +204,6 @@ test("records every settled parallel node before propagating a branch failure", 
     const run = await repository.readRunSummary(admission.run.id);
     assert.equal(run.attempts.find(({ nodeId }) => nodeId === "left")?.status, "failed");
     assert.equal(run.attempts.find(({ nodeId }) => nodeId === "right")?.status, "succeeded");
-  } finally {
-    await rm(root, { recursive: true, force: true });
-  }
-});
-
-test("fails a run and aborts active nodes when its scheduled duration is exceeded", async () => {
-  const root = await mkdtemp(path.join(tmpdir(), "workbench-flow-engine-timeout-"));
-  try {
-    const repository = new ExecutionRepository({
-      rootDirectory: root,
-      listWorkspaces: async () => [],
-    });
-    const executor: ExecutionNodeExecutor = {
-      async execute({ signal }) {
-        await new Promise<void>((_resolve, reject) => {
-          const abort = () => reject(signal.reason);
-          if (signal.aborted) abort();
-          else signal.addEventListener("abort", abort, { once: true });
-        });
-        return {};
-      },
-    };
-    const engine = new ExecutionEngine({
-      repository,
-      executors: new ExecutionNodeExecutorRegistry({ agent: executor, command: executor }),
-    });
-    const admission = await engine.start({
-      revision: compileExecutionDocument(parallelDocument(), 10).revision,
-      source: "schedule",
-      maxRunDurationSeconds: 0.02,
-    });
-    assert.notEqual(admission.kind, "skipped");
-    if (admission.kind === "skipped") return;
-
-    await waitForStatus(repository, admission.run.id, "failed");
-    const run = await repository.readRunSummary(admission.run.id);
-    assert.equal(run.errorCode, "run-timed-out");
-    assert.equal(run.errorMessage, "Run exceeded its maximum duration.");
-    assert.deepEqual(
-      run.attempts
-        .filter(({ nodeId }) => nodeId === "left" || nodeId === "right")
-        .map(({ status, errorCode }) => ({ status, errorCode })),
-      [
-        { status: "failed", errorCode: "run-timed-out" },
-        { status: "failed", errorCode: "run-timed-out" },
-      ],
-    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }

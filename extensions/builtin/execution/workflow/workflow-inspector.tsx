@@ -1,14 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import {
   BotIcon,
-  CalendarClockIcon,
   ChevronDownIcon,
   GitBranchIcon,
-  PlusIcon,
   Trash2Icon,
-  ZapIcon,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -20,15 +16,12 @@ import {
   SettingsDropdownRadioItem,
   SettingsDropdownTrigger,
 } from "@/components/ui/settings-control";
-import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useI18n } from "@/i18n";
-import { usePiWorkspaces } from "@/runtime/pi/client/runtime/context";
 import { workflowClient } from "@/runtime/pi/client/workflows/workflow-client";
 import type {
   ConditionOperator,
   FlowNode,
-  TriggerSpec,
   WorkflowJsonValue,
 } from "@/runtime/shared/execution";
 import type { WorkspaceSurfaceProps } from "@/platform/extensions/authoring";
@@ -106,8 +99,6 @@ export function WorkflowInspectorSurface({
 }: WorkspaceSurfaceProps<WorkflowInspectorParams>) {
   const { t } = useI18n();
   const document = useWorkflowEditorStore((state) => state.document);
-  const inspectorTab = useWorkflowEditorStore((state) => state.inspectorTab);
-  const setInspectorTab = useWorkflowEditorStore((state) => state.setInspectorTab);
   if (!document || document.id !== surface.params.workflowId) {
     return (
       <div className="text-muted-foreground p-4 text-sm">
@@ -116,30 +107,8 @@ export function WorkflowInspectorSurface({
     );
   }
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="border-border flex shrink-0 gap-1 border-b p-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          aria-pressed={inspectorTab === "node"}
-          onClick={() => setInspectorTab("node")}
-        >
-          <GitBranchIcon />
-          {t("extensions.workflows.inspector.nodeTab")}
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          aria-pressed={inspectorTab === "trigger"}
-          onClick={() => setInspectorTab("trigger")}
-        >
-          <ZapIcon />
-          {t("extensions.workflows.inspector.triggerTab")}
-        </Button>
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto p-4">
-        {inspectorTab === "trigger" ? <TriggerInspector /> : <NodeInspector />}
-      </div>
+    <div className="h-full min-h-0 overflow-y-auto p-4">
+      <NodeInspector />
     </div>
   );
 }
@@ -370,218 +339,6 @@ function NodeInspector() {
           {t("extensions.workflows.inspector.removeNode")}
         </Button>
       )}
-    </div>
-  );
-}
-
-function TriggerInspector() {
-  const { t } = useI18n();
-  const workspaces = usePiWorkspaces();
-  const document = useWorkflowEditorStore((state) => state.document)!;
-  const triggerStates = useWorkflowEditorStore((state) => state.triggerStates);
-  const saveState = useWorkflowEditorStore((state) => state.saveState);
-  const updateDocument = useWorkflowEditorStore((state) => state.updateDocument);
-  const setTriggerState = useWorkflowEditorStore((state) => state.setTriggerState);
-  const [pendingId, setPendingId] = useState<string>();
-  const update = (triggerId: string, patch: Partial<TriggerSpec>) =>
-    updateDocument((current) => ({
-      ...current,
-      triggers: current.triggers.map((trigger) =>
-        trigger.id === triggerId ? ({ ...trigger, ...patch } as TriggerSpec) : trigger,
-      ),
-    }));
-  const add = (type: TriggerSpec["type"]) => {
-    const id = globalThis.crypto.randomUUID();
-    const targetWorkspaceId = document.scope.type === "personal" ? workspaces[0]?.id : undefined;
-    const trigger: TriggerSpec =
-      type === "schedule"
-        ? {
-            id,
-            type,
-            name: t("extensions.workflows.triggers.schedule"),
-            cron: "0 9 * * 1-5",
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-            ...(targetWorkspaceId ? { targetWorkspaceId } : {}),
-          }
-        : {
-            id,
-            type,
-            name: t("extensions.workflows.triggers.event"),
-            event: "workbench.session.completed",
-            ...(targetWorkspaceId ? { targetWorkspaceId } : {}),
-          };
-    updateDocument((current) => ({ ...current, triggers: [...current.triggers, trigger] }));
-  };
-
-  return (
-    <div className="flex flex-col gap-4">
-      <div>
-        <h2 className="text-sm font-semibold">{t("extensions.workflows.triggers.title")}</h2>
-        <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
-          {t("extensions.workflows.triggers.description")}
-        </p>
-      </div>
-      <div className="flex flex-wrap gap-1">
-        <Button variant="outline" size="xs" onClick={() => add("schedule")}>
-          <CalendarClockIcon />
-          {t("extensions.workflows.triggers.addSchedule")}
-        </Button>
-        <Button variant="outline" size="xs" onClick={() => add("event")}>
-          <PlusIcon />
-          {t("extensions.workflows.triggers.addEvent")}
-        </Button>
-      </div>
-      {document.triggers.length === 0 ? (
-        <p className="text-muted-foreground py-6 text-center text-sm">
-          {t("extensions.workflows.triggers.empty")}
-        </p>
-      ) : null}
-      {document.triggers.map((trigger) => {
-        const state = triggerStates.find(({ triggerId }) => triggerId === trigger.id);
-        const canEnable =
-          Boolean(document.publishedRevisionId) &&
-          !["dirty", "saving", "conflict"].includes(saveState);
-        return (
-          <section key={trigger.id} className="rounded-[var(--radius-lg)] border p-3">
-            <div className="mb-3 flex items-center gap-2">
-              {trigger.type === "schedule" ? (
-                <CalendarClockIcon className="size-4" />
-              ) : (
-                <ZapIcon className="size-4" />
-              )}
-              <span className="flex-1 text-sm font-medium">
-                {trigger.type === "schedule"
-                  ? t("extensions.workflows.triggers.schedule")
-                  : t("extensions.workflows.triggers.event")}
-              </span>
-              <Switch
-                size="compact"
-                checked={state?.enabled ?? false}
-                disabled={!canEnable || pendingId === trigger.id}
-                aria-label={t("extensions.workflows.triggers.enabled")}
-                onCheckedChange={async (enabled) => {
-                  setPendingId(trigger.id);
-                  try {
-                    setTriggerState(
-                      await workflowClient.setTriggerEnabled({
-                        workflowId: document.id,
-                        triggerId: trigger.id,
-                        enabled,
-                      }),
-                    );
-                  } finally {
-                    setPendingId(undefined);
-                  }
-                }}
-              />
-            </div>
-            {!document.publishedRevisionId ? (
-              <p className="text-muted-foreground mb-3 text-xs">
-                {t("extensions.workflows.triggers.publishToEnable")}
-              </p>
-            ) : null}
-            <div className="flex flex-col gap-3">
-              <div className={fieldClass}>
-                <label htmlFor={`trigger-name-${trigger.id}`}>
-                  {t("extensions.workflows.triggers.name")}
-                </label>
-                <Input
-                  id={`trigger-name-${trigger.id}`}
-                  value={trigger.name}
-                  onChange={(event) => update(trigger.id, { name: event.currentTarget.value })}
-                />
-              </div>
-              {trigger.type === "schedule" ? (
-                <>
-                  <div className={fieldClass}>
-                    <label htmlFor={`trigger-cron-${trigger.id}`}>
-                      {t("extensions.workflows.triggers.cron")}
-                    </label>
-                    <Input
-                      id={`trigger-cron-${trigger.id}`}
-                      value={trigger.cron}
-                      onChange={(event) => update(trigger.id, { cron: event.currentTarget.value })}
-                    />
-                  </div>
-                  <div className={fieldClass}>
-                    <label htmlFor={`trigger-tz-${trigger.id}`}>
-                      {t("extensions.workflows.triggers.timezone")}
-                    </label>
-                    <Input
-                      id={`trigger-tz-${trigger.id}`}
-                      value={trigger.timezone}
-                      onChange={(event) =>
-                        update(trigger.id, { timezone: event.currentTarget.value })
-                      }
-                    />
-                  </div>
-                </>
-              ) : (
-                <div className={fieldClass}>
-                  <label htmlFor={`trigger-event-${trigger.id}`}>
-                    {t("extensions.workflows.triggers.eventName")}
-                  </label>
-                  <Select
-                    id={`trigger-event-${trigger.id}`}
-                    value={trigger.event}
-                    onChange={(event) =>
-                      update(trigger.id, {
-                        event: event.currentTarget.value as Extract<
-                          TriggerSpec,
-                          { type: "event" }
-                        >["event"],
-                      })
-                    }
-                  >
-                    <option value="workbench.application.started">
-                      workbench.application.started
-                    </option>
-                    <option value="workbench.session.completed">workbench.session.completed</option>
-                    <option value="workbench.workspace.updated">workbench.workspace.updated</option>
-                  </Select>
-                </div>
-              )}
-              {document.scope.type === "personal" ? (
-                <div className={fieldClass}>
-                  <label htmlFor={`trigger-workspace-${trigger.id}`}>
-                    {t("extensions.workflows.triggers.targetWorkspace")}
-                  </label>
-                  <Select
-                    id={`trigger-workspace-${trigger.id}`}
-                    value={trigger.targetWorkspaceId ?? ""}
-                    onChange={(event) =>
-                      update(trigger.id, {
-                        targetWorkspaceId: event.currentTarget.value || undefined,
-                      })
-                    }
-                  >
-                    <option value="">—</option>
-                    {workspaces.map((workspace) => (
-                      <option key={workspace.id} value={workspace.id}>
-                        {workspace.name}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-              ) : null}
-              <Button
-                variant="ghost"
-                size="xs"
-                className="self-start text-destructive"
-                onClick={() =>
-                  updateDocument((current) => ({
-                    ...current,
-                    triggers: current.triggers.filter(({ id }) => id !== trigger.id),
-                  }))
-                }
-              >
-                <Trash2Icon />
-                {t("extensions.workflows.triggers.remove")}
-              </Button>
-            </div>
-          </section>
-        );
-      })}
     </div>
   );
 }

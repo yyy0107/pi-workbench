@@ -8,8 +8,6 @@ import { ExecutionEngine } from "@/runtime/server/executions/execution-engine";
 import { ExecutionNodeExecutorRegistry } from "@/runtime/server/executions/execution-node-executor";
 import { ExecutionRepository } from "@/runtime/server/executions/execution-repository";
 import { ExecutionService } from "@/runtime/server/executions/execution-service";
-import { ExecutionTriggerService } from "@/runtime/server/executions/execution-trigger-service";
-import { getRunningSessionIds, subscribeRunningSessions } from "../sessions/session-registry";
 import { getStreamHub } from "../streams/stream-hub";
 import { getProjectTrustService } from "../trust/project-trust-service";
 import { getWorkspaceStore } from "../workspaces/workspace-registry";
@@ -54,13 +52,6 @@ export function createPiExecutionService(
     repository,
     executors: nodeExecutors,
     isWorkspaceTrusted,
-    getRunningSessionIds,
-    subscribeRunningSessions: (listener) => {
-      subscribeRunningSessions(listener);
-    },
-    subscribeWorkspaceEvents: (listener) => {
-      workspaceStore.subscribe(listener);
-    },
     onDefinitionChanged: (workflow) => {
       getStreamHub().publishHost({ type: "host/workflow-changed", workflow });
     },
@@ -69,9 +60,6 @@ export function createPiExecutionService(
     },
     onRunRemoved: ({ runId, workflowId }) => {
       getStreamHub().publishHost({ type: "host/workflow-run-removed", runId, workflowId });
-    },
-    onTriggerChanged: (state) => {
-      getStreamHub().publishHost({ type: "host/workflow-trigger-changed", state });
     },
   });
 }
@@ -83,17 +71,39 @@ interface ExecutionRegistryGlobal {
 
 const executionRegistry = globalThis as typeof globalThis & ExecutionRegistryGlobal;
 
+interface LegacyExecutionTriggerRuntime {
+  dispose?(): void;
+  handleInternalEvent(...args: unknown[]): Promise<void>;
+}
+
+const retiredExecutionTriggers: LegacyExecutionTriggerRuntime = Object.freeze({
+  dispose() {},
+  async handleInternalEvent() {},
+});
+
+function retireLegacyExecutionTriggers(service: ExecutionService): void {
+  const legacyService = service as ExecutionService & {
+    triggers?: LegacyExecutionTriggerRuntime;
+  };
+  const triggers = legacyService.triggers;
+  if (!triggers || triggers === retiredExecutionTriggers) return;
+  triggers.dispose?.();
+  // A cached pre-v3 service may still have old subscription closures that dereference this field.
+  // Leave an inert target until the process restarts so HMR cannot revive scheduling side effects.
+  legacyService.triggers = retiredExecutionTriggers;
+}
+
 function bindCurrentExecutionImplementation(
   service: ExecutionService,
 ): ExecutionNodeExecutorRegistry {
   // Development HMR replaces module constructors while the global service intentionally survives
-  // to preserve active runs, schedules, and subscriptions. Rebind the stateful objects to the
+  // to preserve active runs and subscriptions. Rebind the stateful objects to the
   // current prototypes instead of allocating a second service graph or leaving save/read methods
   // closed over the previous execution schema.
+  retireLegacyExecutionTriggers(service);
   Object.setPrototypeOf(service, ExecutionService.prototype);
   Object.setPrototypeOf(service.repository, ExecutionRepository.prototype);
   Object.setPrototypeOf(service.engine, ExecutionEngine.prototype);
-  Object.setPrototypeOf(service.triggers, ExecutionTriggerService.prototype);
 
   const nodeExecutors = service.engine.nodeExecutorRegistry();
   Object.setPrototypeOf(nodeExecutors, ExecutionNodeExecutorRegistry.prototype);

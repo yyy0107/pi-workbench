@@ -17,8 +17,6 @@ export interface ExecutionErrorDetails {
   "agent-workspace-not-trusted": { agentId: string };
   "cwd-outside-workspace": { workspaceId: string; relativeCwd: string };
   "workflow-not-published": { workflowId: string };
-  "trigger-not-found": { workflowId: string; triggerId: string };
-  "trigger-invalid": { workflowId: string; triggerId: string; reason: string };
   "command-rejected": { runId: string; nodeId: string; reason: string };
   "workflow-run-skipped": { workflowId: string; activeRunId: string };
   "prompt-template-not-found": { agentId: string; promptTemplate: string };

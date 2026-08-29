@@ -9,7 +9,7 @@ import type {
   WorkflowResolveApprovalPayload,
   WorkflowRunAdmission,
   WorkflowRunEvent,
-  WorkflowRunSource,
+  WorkflowRunStartSource,
   WorkflowRunStatus,
   WorkflowRunSummary,
 } from "@/runtime/shared/execution";
@@ -20,33 +20,19 @@ import { ExecutionRepository } from "./execution-repository";
 
 const MAX_READY_NODE_CONCURRENCY = 4;
 const MAX_ACTIVE_EXECUTION_RUNS = 8;
-const MAX_TIMER_DELAY_MS = 2_147_000_000;
-
-class ExecutionRunTimeoutError extends Error {
-  readonly code = "run-timed-out";
-
-  constructor() {
-    super("Run exceeded its maximum duration.");
-    this.name = "ExecutionRunTimeoutError";
-  }
-}
 
 interface StartExecutionInput {
   revision: FlowRevision;
-  source: WorkflowRunSource;
+  source: WorkflowRunStartSource;
   targetWorkspaceId?: string;
   workspacePath?: string;
-  triggerId?: string;
-  dedupeKey?: string;
   input?: WorkflowJsonValue;
-  maxRunDurationSeconds?: number;
 }
 
 interface QueuedRun {
   run: WorkflowRunSummary;
   plan: CompiledExecutionPlan;
   workspacePath?: string;
-  maxRunDurationSeconds?: number;
 }
 
 interface ApprovalResolution {
@@ -75,31 +61,6 @@ export interface ExecutionEngineOptions {
 
 function terminalNodeStatus(status: WorkflowNodeRunStatus): boolean {
   return ["succeeded", "failed", "cancelled", "skipped"].includes(status);
-}
-
-function runTimedOut(signal: AbortSignal): boolean {
-  return signal.aborted && signal.reason instanceof ExecutionRunTimeoutError;
-}
-
-function scheduleRunTimeout(
-  controller: AbortController,
-  durationSeconds: number | undefined,
-): (() => void) | undefined {
-  if (durationSeconds === undefined) return undefined;
-  const deadline = Date.now() + durationSeconds * 1_000;
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const schedule = (): void => {
-    const remaining = deadline - Date.now();
-    if (remaining <= 0) {
-      controller.abort(new ExecutionRunTimeoutError());
-      return;
-    }
-    timer = setTimeout(schedule, Math.min(remaining, MAX_TIMER_DELAY_MS));
-  };
-  schedule();
-  return () => {
-    if (timer !== undefined) clearTimeout(timer);
-  };
 }
 
 function jsonPointer(
@@ -259,8 +220,6 @@ export class ExecutionEngine {
       ...(input.targetWorkspaceId === undefined
         ? {}
         : { targetWorkspaceId: input.targetWorkspaceId }),
-      ...(input.triggerId === undefined ? {} : { triggerId: input.triggerId }),
-      ...(input.dedupeKey === undefined ? {} : { dedupeKey: input.dedupeKey }),
       ...(input.input === undefined ? {} : { input: input.input }),
       createdAt,
       updatedAt: createdAt,
@@ -272,7 +231,6 @@ export class ExecutionEngine {
       run: persisted,
       plan,
       workspacePath: input.workspacePath,
-      maxRunDurationSeconds: input.maxRunDurationSeconds,
     };
     if (
       concurrency.mode !== "independent" &&
@@ -289,14 +247,12 @@ export class ExecutionEngine {
 
   private launch(item: QueuedRun): Promise<WorkflowRunSummary> {
     const controller = new AbortController();
-    const cancelTimeout = scheduleRunTimeout(controller, item.maxRunDurationSeconds);
     this.workflowActiveRuns(item.run.workflowId).add(item.run.id);
     const started = this.persistRunStatus(item.run, "running", { startedAt: this.now() });
     const done = started
       .then((run) => this.execute({ ...item, run }, controller.signal))
       .catch(() => undefined)
       .finally(() => {
-        cancelTimeout?.();
         this.active.delete(item.run.id);
         this.workflowActiveRuns(item.run.workflowId).delete(item.run.id);
         this.drainQueues();
@@ -455,7 +411,6 @@ export class ExecutionEngine {
         nodeId: node.id,
         attempt: 1,
         source: item.run.source,
-        ...(item.run.triggerId === undefined ? {} : { triggerId: item.run.triggerId }),
       },
       node,
       attempt: 1,
@@ -532,12 +487,11 @@ export class ExecutionEngine {
           run = await this.persistRunStatus(run, "waiting-for-approval");
           const resolution = await approvalResolution;
           if (resolution.cancelled) {
-            const timedOut = runTimedOut(signal);
-            const status = timedOut ? "failed" : "cancelled";
+            const status = "cancelled";
             statuses.set(approvalNode.id, status);
             run = await this.persistNodeStatus(run, approvalNode.id, status, {
               completedAt: this.now(),
-              errorCode: timedOut ? "run-timed-out" : "run-cancelled",
+              errorCode: "run-cancelled",
             });
             throw new DOMException("Run cancelled", "AbortError");
           }
@@ -583,8 +537,7 @@ export class ExecutionEngine {
           const node = item.plan.nodes.get(nodeId)!;
           const result = results[index]!;
           if (result.status === "rejected") {
-            const timedOut = runTimedOut(signal);
-            const status = timedOut ? "failed" : signal.aborted ? "cancelled" : "failed";
+            const status = signal.aborted ? "cancelled" : "failed";
             statuses.set(nodeId, status);
             const rejected = result.reason as {
               code?: unknown;
@@ -593,11 +546,7 @@ export class ExecutionEngine {
             };
             run = await this.persistNodeStatus(run, nodeId, status, {
               completedAt: this.now(),
-              ...(timedOut
-                ? { errorCode: "run-timed-out" }
-                : typeof rejected.code === "string"
-                  ? { errorCode: rejected.code }
-                  : {}),
+              ...(typeof rejected.code === "string" ? { errorCode: rejected.code } : {}),
               ...(typeof rejected.exitCode === "number" ? { exitCode: rejected.exitCode } : {}),
             });
             if (rejected.artifact) {
@@ -642,26 +591,19 @@ export class ExecutionEngine {
         completedAt: this.now(),
       });
     } catch (error) {
-      const timedOut = runTimedOut(signal);
       const cancelled =
-        !timedOut &&
-        (signal.aborted || (error instanceof DOMException && error.name === "AbortError"));
+        signal.aborted || (error instanceof DOMException && error.name === "AbortError");
       const status: WorkflowRunStatus = cancelled ? "cancelled" : "failed";
       const record = error as { code?: unknown; exitCode?: unknown };
       await this.persistRunStatus(run, status, {
         completedAt: this.now(),
-        errorCode: timedOut
-          ? "run-timed-out"
-          : typeof record.code === "string"
+        errorCode:
+          typeof record.code === "string"
             ? record.code
             : cancelled
               ? "run-cancelled"
               : "node-execution-failed",
-        errorMessage: timedOut
-          ? "Run exceeded its maximum duration."
-          : error instanceof Error
-            ? error.message
-            : "Workflow node failed.",
+        errorMessage: error instanceof Error ? error.message : "Workflow node failed.",
       });
     }
   }

@@ -46,7 +46,6 @@ test("rejects Automation definitions at the Workflow HTTP RPC boundary", async (
     if (body.result.ok) assert.fail("Expected Workflow to reject Automation.");
     assert.equal(body.result.error.code, "bad-request");
   } finally {
-    service.triggers.dispose();
     await rm(root, { recursive: true, force: true });
   }
 });
@@ -103,7 +102,6 @@ test("returns a workflow-invalid envelope instead of HTTP 500 for an invalid dra
     assert.equal(body.result.error.code, "workflow-invalid");
     assert.equal(body.result.error.details?.workflowId, created.document.id);
   } finally {
-    service.triggers.dispose();
     await rm(root, { recursive: true, force: true });
   }
 });

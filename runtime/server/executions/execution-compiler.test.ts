@@ -1,11 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  MIN_SCHEDULE_RUN_DURATION_SECONDS,
-  type FlowNode,
-  type WorkflowDocument,
-} from "@/runtime/shared/execution";
+import type { FlowNode, WorkflowDocument } from "@/runtime/shared/execution";
 import { compileExecutionDocument, validateExecutionDocument } from "./execution-compiler";
 import { parseExecutionDocument } from "./execution-schema";
 
@@ -37,7 +33,7 @@ function node(id: string, type: FlowNode["type"]): FlowNode {
 
 function document(kind: WorkflowDocument["kind"] = "workflow"): WorkflowDocument {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     id: "flow-1",
     kind,
     scope: { type: "personal" },
@@ -61,7 +57,6 @@ function document(kind: WorkflowDocument["kind"] = "workflow"): WorkflowDocument
       editor: { viewport: { x: 100, y: 20, zoom: 1.2 } },
     },
     concurrency: { mode: "queue" },
-    triggers: [],
     draftRevision: 0,
     createdAt: 1,
     updatedAt: 1,
@@ -126,30 +121,23 @@ test("rejects an Agent node that references a missing workflow Agent", () => {
   assert.ok(result.issues.some(({ code }) => code === "invalid-node-config"));
 });
 
-test("accepts an optional scheduled-run duration and rejects values below the minimum", () => {
-  const value = document();
-  value.triggers = [
-    {
-      id: "schedule",
-      type: "schedule",
-      name: "Schedule",
-      cron: "0 9 * * *",
-      timezone: "UTC",
-      maxRunDurationSeconds: MIN_SCHEDULE_RUN_DURATION_SECONDS,
-    },
-  ];
-  const parsedTrigger = parseExecutionDocument(value).triggers[0];
-  assert.ok(parsedTrigger?.type === "schedule");
-  assert.equal(parsedTrigger.maxRunDurationSeconds, MIN_SCHEDULE_RUN_DURATION_SECONDS);
+test("migrates v2 workflows by discarding their retired trigger definitions", () => {
+  const legacy = {
+    ...document(),
+    schemaVersion: 2,
+    triggers: [
+      {
+        id: "schedule",
+        type: "schedule",
+        name: "Schedule",
+        cron: "0 9 * * 1-5",
+        timezone: "America/Los_Angeles",
+      },
+    ],
+  };
 
-  const invalid = structuredClone(value);
-  const trigger = invalid.triggers[0];
-  assert.ok(trigger?.type === "schedule");
-  trigger.maxRunDurationSeconds = MIN_SCHEDULE_RUN_DURATION_SECONDS - 1;
-  assert.throws(() => parseExecutionDocument(invalid));
-
-  const validTrigger = value.triggers[0];
-  assert.ok(validTrigger?.type === "schedule");
-  delete validTrigger.maxRunDurationSeconds;
-  assert.doesNotThrow(() => parseExecutionDocument(value));
+  const parsed = parseExecutionDocument(legacy);
+  assert.equal(parsed.schemaVersion, 3);
+  assert.equal("triggers" in parsed, false);
+  assert.doesNotThrow(() => compileExecutionDocument(parsed));
 });

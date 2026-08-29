@@ -2,10 +2,7 @@ import { Type, type Static, type TSchema } from "typebox";
 import { Value } from "typebox/value";
 
 import {
-  MAX_SCHEDULE_RUN_DURATION_SECONDS,
-  MIN_SCHEDULE_RUN_DURATION_SECONDS,
   type ExecutionThinkingLevel,
-  type TriggerSpec,
   type WorkflowDocument,
   type WorkflowJsonValue,
 } from "@/runtime/shared/execution";
@@ -157,41 +154,6 @@ const LegacyAgentNodeSchema = Type.Object(
 export const FlowNodeSchema = Type.Union([AgentNodeSchema, ...CommonNodeSchemas]);
 const LegacyFlowNodeSchema = Type.Union([LegacyAgentNodeSchema, ...CommonNodeSchemas]);
 
-export const TriggerSpecSchema = Type.Union([
-  Type.Object(
-    {
-      id: Id,
-      type: Type.Literal("schedule"),
-      name: Name,
-      cron: Type.String({ maxLength: 1_024 }),
-      timezone: Type.String({ maxLength: 200 }),
-      maxRunDurationSeconds: Type.Optional(
-        Type.Integer({
-          minimum: MIN_SCHEDULE_RUN_DURATION_SECONDS,
-          maximum: MAX_SCHEDULE_RUN_DURATION_SECONDS,
-          multipleOf: 60,
-        }),
-      ),
-      targetWorkspaceId: Type.Optional(Id),
-    },
-    { additionalProperties: false },
-  ),
-  Type.Object(
-    {
-      id: Id,
-      type: Type.Literal("event"),
-      name: Name,
-      event: Type.Union([
-        Type.Literal("workbench.application.started"),
-        Type.Literal("workbench.session.completed"),
-        Type.Literal("workbench.workspace.updated"),
-      ]),
-      targetWorkspaceId: Type.Optional(Id),
-    },
-    { additionalProperties: false },
-  ),
-]);
-
 function graphSchema(nodeSchema: TSchema) {
   return Type.Object(
     {
@@ -247,7 +209,6 @@ const DocumentBase = {
   name: Name,
   description: Type.Optional(Type.String({ maxLength: 20_000 })),
   concurrency: Concurrency,
-  triggers: Type.Array(TriggerSpecSchema, { maxItems: 100 }),
   draftRevision: Type.Integer({ minimum: 0 }),
   publishedRevisionId: Type.Optional(Id),
   createdAt: Type.Number({ minimum: 0 }),
@@ -257,7 +218,7 @@ const DocumentBase = {
 
 export const ExecutionDocumentSchema = Type.Object(
   {
-    schemaVersion: Type.Literal(2),
+    schemaVersion: Type.Literal(3),
     ...DocumentBase,
     agents: Type.Array(
       Type.Object({ id: PathSegmentId, name: Name }, { additionalProperties: false }),
@@ -268,16 +229,32 @@ export const ExecutionDocumentSchema = Type.Object(
   { additionalProperties: false },
 );
 
+const PreviousExecutionDocumentSchema = Type.Object(
+  {
+    schemaVersion: Type.Literal(2),
+    ...DocumentBase,
+    agents: Type.Array(
+      Type.Object({ id: PathSegmentId, name: Name }, { additionalProperties: false }),
+      { maxItems: 200 },
+    ),
+    graph: graphSchema(FlowNodeSchema),
+    triggers: Type.Optional(Type.Array(Type.Unknown(), { maxItems: 100 })),
+  },
+  { additionalProperties: false },
+);
+
 const LegacyExecutionDocumentSchema = Type.Object(
   {
     schemaVersion: Type.Literal(1),
     ...DocumentBase,
     graph: graphSchema(LegacyFlowNodeSchema),
+    triggers: Type.Optional(Type.Array(Type.Unknown(), { maxItems: 100 })),
   },
   { additionalProperties: false },
 );
 
 type SchemaWorkflowDocument = Static<typeof ExecutionDocumentSchema>;
+type PreviousWorkflowDocument = Static<typeof PreviousExecutionDocumentSchema>;
 type LegacyWorkflowDocument = Static<typeof LegacyExecutionDocumentSchema>;
 
 export interface LegacyWorkflowAgentResource {
@@ -362,10 +339,11 @@ function migrateLegacyDocument(value: LegacyWorkflowDocument): ExecutionDocument
       },
     };
   });
+  const { triggers: _legacyTriggers, ...legacyDocument } = value;
   return {
     document: structuredClone({
-      ...value,
-      schemaVersion: 2,
+      ...legacyDocument,
+      schemaVersion: 3,
       agents,
       graph: { ...value.graph, nodes },
     } as WorkflowDocument),
@@ -373,32 +351,43 @@ function migrateLegacyDocument(value: LegacyWorkflowDocument): ExecutionDocument
   };
 }
 
+function migratePreviousDocument(value: PreviousWorkflowDocument): WorkflowDocument {
+  const { triggers: _legacyTriggers, ...document } = value;
+  return structuredClone({ ...document, schemaVersion: 3 } as WorkflowDocument);
+}
+
+function assertDocumentJsonValues(document: WorkflowDocument): void {
+  for (const node of document.graph.nodes) {
+    if (
+      ((node.type === "condition" && node.config.value !== undefined) || node.type === "agent") &&
+      !isJsonValue(node.type === "condition" ? node.config.value : node.config.output.schema)
+    ) {
+      throw new TypeError(`/graph/nodes/${node.id}/config: Expected JSON-serializable data.`);
+    }
+  }
+}
+
 export function parseExecutionDocumentWithMigration(value: unknown): ExecutionDocumentParseResult {
   if (Value.Check(ExecutionDocumentSchema, value)) {
     const document = value as SchemaWorkflowDocument as WorkflowDocument;
-    for (const node of document.graph.nodes) {
-      if (
-        ((node.type === "condition" && node.config.value !== undefined) || node.type === "agent") &&
-        !isJsonValue(node.type === "condition" ? node.config.value : node.config.output.schema)
-      ) {
-        throw new TypeError(`/graph/nodes/${node.id}/config: Expected JSON-serializable data.`);
-      }
-    }
+    assertDocumentJsonValues(document);
     return { document: structuredClone(document), legacyAgentResources: [] };
   }
+  if (Value.Check(PreviousExecutionDocumentSchema, value)) {
+    const document = migratePreviousDocument(value as PreviousWorkflowDocument);
+    assertDocumentJsonValues(document);
+    return { document, legacyAgentResources: [] };
+  }
   if (Value.Check(LegacyExecutionDocumentSchema, value)) {
-    return migrateLegacyDocument(value as LegacyWorkflowDocument);
+    const migrated = migrateLegacyDocument(value as LegacyWorkflowDocument);
+    assertDocumentJsonValues(migrated.document);
+    return migrated;
   }
   throw schemaError(ExecutionDocumentSchema, value);
 }
 
 export function parseExecutionDocument(value: unknown): WorkflowDocument {
   return parseExecutionDocumentWithMigration(value).document;
-}
-
-export function parseTriggerSpec(value: unknown): TriggerSpec {
-  if (!Value.Check(TriggerSpecSchema, value)) throw schemaError(TriggerSpecSchema, value);
-  return structuredClone(value as TriggerSpec);
 }
 
 export function assertExecutionJsonValue(value: unknown, path = "/input"): WorkflowJsonValue {

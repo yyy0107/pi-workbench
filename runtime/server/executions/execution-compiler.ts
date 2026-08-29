@@ -1,12 +1,9 @@
 import { createHash } from "node:crypto";
 
-import { CronExpressionParser } from "cron-parser";
-
 import type {
   FlowEdge,
   FlowNode,
   FlowRevision,
-  TriggerSpec,
   WorkflowDocument,
   WorkflowValidationIssue,
   WorkflowValidationResult,
@@ -27,7 +24,7 @@ function issue(
   code: WorkflowValidationIssue["code"],
   message: string,
   path: string,
-  details: Pick<WorkflowValidationIssue, "nodeId" | "edgeId" | "triggerId"> = {},
+  details: Pick<WorkflowValidationIssue, "nodeId" | "edgeId"> = {},
 ): WorkflowValidationIssue {
   return { code, message, path, ...details };
 }
@@ -84,43 +81,6 @@ function validateBinding(
   }
 }
 
-function validateTriggers(triggers: readonly TriggerSpec[]): WorkflowValidationIssue[] {
-  const issues: WorkflowValidationIssue[] = [];
-  const ids = new Set<string>();
-  for (const trigger of triggers) {
-    if (ids.has(trigger.id)) {
-      issues.push(
-        issue("invalid-trigger", "Trigger IDs must be unique.", "/triggers", {
-          triggerId: trigger.id,
-        }),
-      );
-    }
-    ids.add(trigger.id);
-    if (!trigger.name.trim()) {
-      issues.push(
-        issue("invalid-trigger", "Trigger name cannot be empty.", "/triggers", {
-          triggerId: trigger.id,
-        }),
-      );
-    }
-    if (trigger.type === "schedule") {
-      try {
-        CronExpressionParser.parse(trigger.cron, {
-          currentDate: Date.now(),
-          tz: trigger.timezone,
-        }).next();
-      } catch {
-        issues.push(
-          issue("invalid-trigger", "Schedule expression and timezone must be valid.", "/triggers", {
-            triggerId: trigger.id,
-          }),
-        );
-      }
-    }
-  }
-  return issues;
-}
-
 export function validateExecutionDocument(value: unknown): WorkflowValidationResult {
   let document: WorkflowDocument;
   try {
@@ -138,7 +98,7 @@ export function validateExecutionDocument(value: unknown): WorkflowValidationRes
     };
   }
 
-  const issues: WorkflowValidationIssue[] = [...validateTriggers(document.triggers)];
+  const issues: WorkflowValidationIssue[] = [];
   if (!document.name.trim()) {
     issues.push(issue("invalid-schema", "Workflow name cannot be empty.", "/name"));
   }
@@ -355,7 +315,26 @@ export function executionRevisionIdForDocument(document: WorkflowDocument): stri
     agents: document.agents,
     graph: executableGraph(document),
     concurrency: document.concurrency,
-    triggers: document.triggers,
+  });
+  return createHash("sha256").update(JSON.stringify(content)).digest("hex");
+}
+
+/** Computes the v2 identity so a published definition can be migrated without a false conflict. */
+export function legacyExecutionRevisionIdForDocument(
+  document: WorkflowDocument,
+  triggers: unknown,
+): string {
+  const content = canonicalize({
+    schemaVersion: 2,
+    workflowId: document.id,
+    kind: document.kind,
+    scope: document.scope,
+    name: document.name,
+    description: document.description,
+    agents: document.agents,
+    graph: executableGraph(document),
+    concurrency: document.concurrency,
+    triggers,
   });
   return createHash("sha256").update(JSON.stringify(content)).digest("hex");
 }
@@ -373,7 +352,7 @@ export function compileExecutionDocument(
   const document = parseExecutionDocument(value);
   const revisionId = executionRevisionIdForDocument(document);
   const revision: FlowRevision = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     revisionId,
     workflowId: document.id,
     kind: document.kind,
@@ -383,7 +362,6 @@ export function compileExecutionDocument(
     agents: document.agents,
     graph: executableGraph(document),
     concurrency: document.concurrency,
-    triggers: document.triggers,
     publishedAt,
   };
   const nodes = new Map(revision.graph.nodes.map((node) => [node.id, node]));
@@ -417,9 +395,9 @@ export function compileExecutionDocument(
 }
 
 export function compileExecutionRevision(revision: FlowRevision): CompiledExecutionPlan {
-  return compileExecutionDocument(
+  const plan = compileExecutionDocument(
     {
-      schemaVersion: 2,
+      schemaVersion: 3,
       id: revision.workflowId,
       kind: revision.kind,
       scope: revision.scope,
@@ -428,7 +406,6 @@ export function compileExecutionRevision(revision: FlowRevision): CompiledExecut
       agents: revision.agents,
       graph: revision.graph,
       concurrency: revision.concurrency,
-      triggers: revision.triggers,
       draftRevision: 0,
       publishedRevisionId: revision.revisionId,
       createdAt: revision.publishedAt,
@@ -436,4 +413,5 @@ export function compileExecutionRevision(revision: FlowRevision): CompiledExecut
     },
     revision.publishedAt,
   );
+  return { ...plan, revision: { ...plan.revision, revisionId: revision.revisionId } };
 }

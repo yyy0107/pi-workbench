@@ -137,7 +137,6 @@ const HOST_TYPES = new Set<string>([
   "host/workflow-removed",
   "host/workflow-run-changed",
   "host/workflow-run-removed",
-  "host/workflow-trigger-changed",
   "stream/error",
 ]);
 

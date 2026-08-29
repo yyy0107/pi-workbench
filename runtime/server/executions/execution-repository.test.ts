@@ -5,13 +5,16 @@ import path from "node:path";
 import test from "node:test";
 
 import type { WorkflowDocument } from "@/runtime/shared/execution";
-import { compileExecutionDocument } from "./execution-compiler";
+import {
+  compileExecutionDocument,
+  legacyExecutionRevisionIdForDocument,
+} from "./execution-compiler";
 import { ExecutionError } from "./execution-errors";
 import { ExecutionRepository } from "./execution-repository";
 
 function document(): WorkflowDocument {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     id: "flow-1",
     kind: "workflow",
     scope: { type: "personal" },
@@ -26,7 +29,6 @@ function document(): WorkflowDocument {
       editor: {},
     },
     concurrency: { mode: "queue" },
-    triggers: [],
     draftRevision: 0,
     createdAt: 1,
     updatedAt: 1,
@@ -95,7 +97,8 @@ test("migrates v1 Agent nodes into stable Pi-native Agent workspaces", async () 
     const repository = new ExecutionRepository({ rootDirectory: root });
 
     const migrated = await repository.readDocument("legacy-flow");
-    assert.equal(migrated.schemaVersion, 2);
+    assert.equal(migrated.schemaVersion, 3);
+    assert.equal("triggers" in migrated, false);
     assert.deepEqual(migrated.agents, [{ id: "review-1", name: "Reviewer" }]);
     const migratedAgent = migrated.graph.nodes.find(({ type }) => type === "agent");
     assert.ok(migratedAgent?.type === "agent");
@@ -317,6 +320,55 @@ test("rejects project publish after external content changes", async () => {
       ),
       (error) => error instanceof ExecutionError && error.code === "revision-conflict",
     );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("publishes a migrated v2 project definition without reporting a false conflict", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-workflow-v2-project-"));
+  const data = path.join(root, "data");
+  const workspace = path.join(root, "workspace");
+  try {
+    const repository = new ExecutionRepository({
+      rootDirectory: data,
+      listWorkspaces: async () => [{ workspaceId: "workspace-1", path: workspace }],
+    });
+    const created = await repository.createDocument({
+      ...document(),
+      scope: { type: "project", workspaceId: "workspace-1" },
+    });
+    const triggers = [
+      {
+        id: "weekday-morning",
+        type: "schedule",
+        name: "Weekday morning",
+        cron: "0 9 * * 1-5",
+        timezone: "America/Los_Angeles",
+      },
+    ];
+    const legacyRevisionId = legacyExecutionRevisionIdForDocument(created, triggers);
+    const legacyDocument = {
+      ...created,
+      schemaVersion: 2,
+      triggers,
+      publishedRevisionId: legacyRevisionId,
+    };
+    const definitionFile = path.join(workspace, ".pi", "workflows", `${created.id}.json`);
+    const draftFile = path.join(data, "workflows", created.id, "workflow.json");
+    await mkdir(path.dirname(definitionFile), { recursive: true });
+    await writeFile(definitionFile, JSON.stringify(legacyDocument));
+    await writeFile(draftFile, JSON.stringify(legacyDocument));
+
+    const migrated = await repository.readDocument(created.id);
+    assert.equal(migrated.schemaVersion, 3);
+    assert.equal("triggers" in migrated, false);
+    const published = await repository.publish(
+      migrated,
+      compileExecutionDocument(migrated, 3).revision,
+      migrated.draftRevision,
+    );
+    assert.equal(published.schemaVersion, 3);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

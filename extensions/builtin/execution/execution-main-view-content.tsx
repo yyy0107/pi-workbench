@@ -449,7 +449,7 @@ function WorkflowEditorPage({ workflowId }: { workflowId: string }) {
       .read({ workflowId })
       .then((value) => {
         if (cancelled) return;
-        useWorkflowEditorStore.getState().load(value.document, value.triggerStates);
+        useWorkflowEditorStore.getState().load(value.document);
         setLoadState("ready");
       })
       .catch(() => !cancelled && setLoadState("error"));
@@ -531,7 +531,7 @@ function WorkflowEditorPage({ workflowId }: { workflowId: string }) {
         workflowId: saved.id,
         baseDraftRevision: saved.draftRevision,
       });
-      useWorkflowEditorStore.getState().load(result.document, result.triggerStates);
+      useWorkflowEditorStore.getState().load(result.document);
       setNotice(t("extensions.workflows.editor.publishSucceeded"));
       await useWorkflowCatalogStore.getState().refresh();
     } catch (nextError) {
@@ -562,7 +562,6 @@ function WorkflowEditorPage({ workflowId }: { workflowId: string }) {
           agents: document.agents,
           graph: document.graph,
           concurrency: document.concurrency,
-          triggers: document.triggers,
         },
       });
       const resourceReferences = new Map(
@@ -700,7 +699,7 @@ function WorkflowEditorPage({ workflowId }: { workflowId: string }) {
                   onClick={() => {
                     setLoadState("loading");
                     void workflowClient.read({ workflowId }).then((value) => {
-                      useWorkflowEditorStore.getState().load(value.document, value.triggerStates);
+                      useWorkflowEditorStore.getState().load(value.document);
                       setLoadState("ready");
                     });
                   }}

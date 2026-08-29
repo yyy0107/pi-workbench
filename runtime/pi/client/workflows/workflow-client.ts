@@ -20,12 +20,6 @@ import type {
   WorkflowRunReadValue,
   WorkflowRunStartPayload,
   WorkflowSaveDraftPayload,
-  WorkflowTriggerListPayload,
-  WorkflowTriggerListValue,
-  WorkflowTriggerRemovePayload,
-  WorkflowTriggerSetEnabledPayload,
-  WorkflowTriggerState,
-  WorkflowTriggerUpsertPayload,
   WorkflowValidationResult,
   WorkflowRunSummary,
 } from "@/runtime/shared/execution";
@@ -90,17 +84,5 @@ export const workflowClient = {
   },
   resolveApproval(payload: WorkflowResolveApprovalPayload): Promise<WorkflowRunSummary> {
     return callPiRpc("workflow.run.resolveApproval", payload);
-  },
-  listTriggers(payload: WorkflowTriggerListPayload): Promise<WorkflowTriggerListValue> {
-    return callWorkflowQuery("workflow.trigger.list", payload);
-  },
-  upsertTrigger(payload: WorkflowTriggerUpsertPayload): Promise<WorkflowReadValue> {
-    return callPiRpc("workflow.trigger.upsert", payload);
-  },
-  removeTrigger(payload: WorkflowTriggerRemovePayload): Promise<WorkflowReadValue> {
-    return callPiRpc("workflow.trigger.remove", payload);
-  },
-  setTriggerEnabled(payload: WorkflowTriggerSetEnabledPayload): Promise<WorkflowTriggerState> {
-    return callPiRpc("workflow.trigger.setEnabled", payload);
   },
 };

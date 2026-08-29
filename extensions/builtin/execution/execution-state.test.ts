@@ -14,8 +14,6 @@ const workflow = {
   draftRevision: 1,
   createdAt: 1,
   updatedAt: 2,
-  triggerCount: 1,
-  enabledTriggerCount: 1,
 } satisfies WorkflowSummary;
 
 test("keeps the workflow catalog usable when run history is unavailable", async () => {
@@ -29,7 +27,6 @@ test("keeps the workflow catalog usable when run history is unavailable", async 
     items: [],
     runs: [],
     removedRunIds: new Set(),
-    triggerStates: [],
     loadState: "idle",
     error: undefined,
   });
@@ -41,7 +38,6 @@ test("keeps the workflow catalog usable when run history is unavailable", async 
     assert.equal(state.loadState, "ready");
     assert.deepEqual(state.items, [workflow]);
     assert.deepEqual(state.runs, []);
-    assert.deepEqual(state.triggerStates, []);
     assert.equal(state.error, undefined);
   } finally {
     workflowClient.list = originalList;
@@ -62,7 +58,6 @@ test("publishes the catalog before supplementary snapshots finish", async () => 
     items: [],
     runs: [],
     removedRunIds: new Set(),
-    triggerStates: [],
     loadState: "idle",
     error: undefined,
   });

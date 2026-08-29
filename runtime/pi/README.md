@@ -13,7 +13,7 @@ Workbench 子集，而不是参考文档全部 59 个接口。线协议的类型
 - [`contracts/stream.ts`](./contracts/stream.ts)：mux/host WebSocket frame 和 payload 联合；
 - [`contracts/pi.ts`](./contracts/pi.ts)：Workbench UI 适配层与 legacy `/api/pi/**` 使用的 Pi 类型。
 
-Workbench Execution 负责 Workflow/SOP 的定义存储、编译、调度、触发和 Run 记录，实现在
+Workbench Execution 负责 Workflow/SOP 的定义存储、编译、手动执行和 Run 记录，实现在
 [`runtime/server/executions`](../server/executions)，共享契约位于
 [`runtime/shared/execution.ts`](../shared/execution.ts)。Automation 是独立领域，定义、存储和调度位于
 [`runtime/server/automations`](../server/automations)，共享契约位于

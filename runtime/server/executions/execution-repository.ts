@@ -14,21 +14,18 @@ import type {
   WorkflowRunStatus,
   WorkflowRunSummary,
   WorkflowScope,
-  WorkflowTriggerState,
 } from "@/runtime/shared/execution";
 import { atomicReplaceFile, withCrossProcessFileLock } from "@/runtime/server/file-persistence";
-import { executionRevisionIdForDocument } from "./execution-compiler";
+import {
+  executionRevisionIdForDocument,
+  legacyExecutionRevisionIdForDocument,
+} from "./execution-compiler";
 import { ExecutionError } from "./execution-errors";
 import {
   parseExecutionDocument,
   parseExecutionDocumentWithMigration,
   type LegacyWorkflowAgentResource,
 } from "./execution-schema";
-
-interface TriggerStateDocument {
-  schemaVersion: 1;
-  states: WorkflowTriggerState[];
-}
 
 export interface ExecutionWorkspace {
   workspaceId: string;
@@ -218,10 +215,6 @@ export class ExecutionRepository {
 
   artifactDirectory(runId: string): string {
     return path.join(this.runDirectory(runId), "artifacts");
-  }
-
-  private triggerStateFile(): string {
-    return path.join(this.rootDirectory, "trigger-state.json");
   }
 
   private async resolveWorkspace(workspaceId: string): Promise<ExecutionWorkspace> {
@@ -568,13 +561,23 @@ export class ExecutionRepository {
           ? this.personalDefinitionFile(effectiveCurrent.id)
           : await this.projectDefinitionFile(effectiveCurrent.scope, effectiveCurrent.id);
       if (effectiveCurrent.scope.type === "project") {
-        const published = await this.readDocumentFile(definitionFile);
+        const publishedValue = await readJson(definitionFile);
+        const published =
+          publishedValue === undefined ? undefined : parseExecutionDocument(publishedValue);
         const publishedContentRevisionId = published
           ? executionRevisionIdForDocument(published)
           : undefined;
+        const legacyPublishedContentRevisionId =
+          published &&
+          isPlainRecord(publishedValue) &&
+          publishedValue.schemaVersion === 2 &&
+          Array.isArray(publishedValue.triggers)
+            ? legacyExecutionRevisionIdForDocument(published, publishedValue.triggers)
+            : undefined;
         if (
           published?.publishedRevisionId !== effectiveCurrent.publishedRevisionId ||
-          publishedContentRevisionId !== published?.publishedRevisionId
+          (publishedContentRevisionId !== published?.publishedRevisionId &&
+            legacyPublishedContentRevisionId !== published?.publishedRevisionId)
         ) {
           throw new ExecutionError(
             "revision-conflict",
@@ -619,11 +622,20 @@ export class ExecutionRepository {
     }
     const revision = value as
       | FlowRevision
+      | (Omit<FlowRevision, "schemaVersion"> & {
+          schemaVersion: 2;
+          triggers?: unknown[];
+        })
       | (Omit<FlowRevision, "schemaVersion" | "agents"> & {
           schemaVersion: 1;
+          triggers?: unknown[];
         });
-    if (revision.schemaVersion === 2) {
+    if (revision.schemaVersion === 3) {
       return structuredClone(revision);
+    }
+    if (revision.schemaVersion === 2) {
+      const { triggers: _legacyTriggers, ...previousRevision } = revision;
+      return structuredClone({ ...previousRevision, schemaVersion: 3 });
     }
     const migrated = parseExecutionDocumentWithMigration({
       schemaVersion: 1,
@@ -634,16 +646,17 @@ export class ExecutionRepository {
       ...(revision.description === undefined ? {} : { description: revision.description }),
       graph: revision.graph,
       concurrency: revision.concurrency,
-      triggers: revision.triggers,
+      ...(revision.triggers === undefined ? {} : { triggers: revision.triggers }),
       draftRevision: 0,
       publishedRevisionId: revision.revisionId,
       createdAt: revision.publishedAt,
       updatedAt: revision.publishedAt,
     });
     await this.ensureAgentWorkspaces(migrated.document, migrated.legacyAgentResources);
+    const { triggers: _legacyTriggers, ...legacyRevision } = revision;
     return {
-      ...revision,
-      schemaVersion: 2,
+      ...legacyRevision,
+      schemaVersion: 3,
       agents: migrated.document.agents,
       graph: migrated.document.graph,
     };
@@ -838,43 +851,6 @@ export class ExecutionRepository {
       changed.push(next);
     }
     return changed;
-  }
-
-  async listTriggerStates(workflowId?: string): Promise<WorkflowTriggerState[]> {
-    const value = await readJson(this.triggerStateFile());
-    const states = (value as TriggerStateDocument | undefined)?.states ?? [];
-    return states
-      .filter((state) => !workflowId || state.workflowId === workflowId)
-      .map((state) => structuredClone(state));
-  }
-
-  async saveTriggerState(state: WorkflowTriggerState): Promise<WorkflowTriggerState> {
-    const file = this.triggerStateFile();
-    return withCrossProcessFileLock({ lockDirectory: `${file}.lock` }, async () => {
-      const states = await this.listTriggerStates();
-      const next = states.filter(
-        (item) => item.workflowId !== state.workflowId || item.triggerId !== state.triggerId,
-      );
-      next.push(state);
-      await atomicReplaceFile(
-        file,
-        json({ schemaVersion: 1, states: next } satisfies TriggerStateDocument),
-      );
-      return structuredClone(state);
-    });
-  }
-
-  async removeTriggerState(workflowId: string, triggerId: string): Promise<void> {
-    const file = this.triggerStateFile();
-    await withCrossProcessFileLock({ lockDirectory: `${file}.lock` }, async () => {
-      const states = (await this.listTriggerStates()).filter(
-        (item) => item.workflowId !== workflowId || item.triggerId !== triggerId,
-      );
-      await atomicReplaceFile(
-        file,
-        json({ schemaVersion: 1, states } satisfies TriggerStateDocument),
-      );
-    });
   }
 
   createId(): string {
