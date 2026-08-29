@@ -322,7 +322,6 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
   const [modelPickerLoading, setModelPickerLoading] = useState(false);
   const [modelPickerError, setModelPickerError] = useState<string>();
-  const [restoringDefaults, setRestoringDefaults] = useState(false);
   const [providerLogin, setProviderLogin] = useState<ModelProviderLoginValue>();
   const [loginStarting, setLoginStarting] = useState(false);
   const [loginResponding, setLoginResponding] = useState(false);
@@ -431,7 +430,6 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
     setModelPickerOpen(false);
     setModelPickerLoading(false);
     setModelPickerError(undefined);
-    setRestoringDefaults(false);
     setTestingProvider(false);
     setProviderTestResult(undefined);
     setTestingModelKey(undefined);
@@ -506,6 +504,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
       customOpen: false,
       modelsSource: "adapter",
       models: [],
+      adapterModels: [],
       availableModels: [],
     });
     setConfigLoading(false);
@@ -1048,30 +1047,10 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
     updateSelectedModelIds(availableModels);
   }, [draft.availableModels, refreshAvailableModels, updateSelectedModelIds]);
 
-  const restoreDefaultModels = useCallback(async () => {
-    const request = ++modelCatalogRequest.current;
-    setRestoringDefaults(true);
+  const restoreDefaultModels = useCallback(() => {
     setError(undefined);
-    try {
-      const result = await discoverPiModels({
-        ...modelDiscoveryPayload,
-        source: "provider",
-      });
-      if (request !== modelCatalogRequest.current) return;
-      setDraft((current) =>
-        restoreAdapterModelDrafts({
-          ...current,
-          availableModels: result.models,
-        }),
-      );
-    } catch {
-      if (request === modelCatalogRequest.current) {
-        setError(t("extensions.modelConfig.errors.fetchLatestModelsFailed"));
-      }
-    } finally {
-      if (request === modelCatalogRequest.current) setRestoringDefaults(false);
-    }
-  }, [modelDiscoveryPayload, t]);
+    setDraft((current) => restoreAdapterModelDrafts(current));
+  }, []);
 
   const refreshLatestAvailableModels = useCallback(async () => {
     const availableModels = await refreshAvailableModels(
@@ -1546,20 +1525,16 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                         <Button
                           type="button"
                           variant="ghost"
-                          disabled={busy || restoringDefaults || modelPickerLoading}
-                          onClick={() => void restoreDefaultModels()}
+                          disabled={busy || modelPickerLoading}
+                          onClick={restoreDefaultModels}
                         >
-                          {t(
-                            restoringDefaults
-                              ? "extensions.modelConfig.fetchingLatestProviderModels"
-                              : "extensions.modelConfig.restoreDefaultModels",
-                          )}
+                          {t("extensions.modelConfig.restoreDefaultModels")}
                         </Button>
                       ) : null}
                       <Button
                         type="button"
                         variant="ghost"
-                        disabled={busy || modelPickerLoading || restoringDefaults}
+                        disabled={busy || modelPickerLoading}
                         onClick={() => void openModelPicker()}
                       >
                         {modelPickerLoading

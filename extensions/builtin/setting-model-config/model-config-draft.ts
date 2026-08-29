@@ -43,6 +43,7 @@ export interface ProviderDraft {
   customOpen: boolean;
   modelsSource: "adapter" | "custom";
   models: ModelDraft[];
+  adapterModels: ModelProviderModelConfiguration[];
   availableModels: ModelProviderModelConfiguration[];
 }
 
@@ -146,6 +147,7 @@ export function emptyDraft(
     customOpen: false,
     modelsSource: "adapter",
     models: [],
+    adapterModels: [],
     availableModels: [],
   };
 }
@@ -215,7 +217,8 @@ export function toProviderDraft(
     customOpen: false,
     modelsSource: configuration.modelsSource,
     models: configuration.models.map((model) => toModelDraft(model)),
-    availableModels: configuration.models,
+    adapterModels: configuration.adapterModels,
+    availableModels: configuration.adapterModels,
   };
 }
 
@@ -223,7 +226,7 @@ export function restoreAdapterModelDrafts(draft: ProviderDraft): ProviderDraft {
   return {
     ...draft,
     modelsSource: "adapter",
-    models: draft.availableModels.map((model) => toModelDraft(model)),
+    models: draft.adapterModels.map((model) => toModelDraft(model)),
   };
 }
 

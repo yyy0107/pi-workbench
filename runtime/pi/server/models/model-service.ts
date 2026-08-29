@@ -388,11 +388,15 @@ const BUILTIN_PROVIDER_MAP = {
   "zai-coding-cn": true,
 } satisfies Record<KnownProvider, true>;
 const BUILTIN_PROVIDER_IDS = new Set(Object.keys(BUILTIN_PROVIDER_MAP));
+const BUILTIN_PROVIDERS = builtinProviders();
 const BUILTIN_PROVIDER_DEFAULT_BASE_URLS = new Map(
-  builtinProviders().flatMap((provider) => {
+  BUILTIN_PROVIDERS.flatMap((provider) => {
     const baseURL = provider.baseUrl || provider.getModels()[0]?.baseUrl;
     return baseURL ? [[provider.id, baseURL] as const] : [];
   }),
+);
+const BUILTIN_PROVIDER_DEFAULT_MODELS = new Map(
+  BUILTIN_PROVIDERS.map((provider) => [provider.id, provider.getModels()] as const),
 );
 
 const EFFORT_NAMES: Record<PiThinkingLevel, string> = {
@@ -1274,6 +1278,17 @@ export class ModelService implements ModelProviderProtocol, ModelContextWindowPr
       );
     }
     const runtimeModels = runtime.getModels(input.provider);
+    const hasModelCustomizations =
+      stored?.models !== undefined ||
+      (stored?.modelOverrides !== undefined && Object.keys(stored.modelOverrides).length > 0);
+    const builtinDefaultModels = BUILTIN_PROVIDER_DEFAULT_MODELS.get(input.provider);
+    // The live runtime catalog is composed with stored model values. Once it is customized,
+    // use the generated built-in catalog as the restore baseline. Purely dynamic built-ins
+    // have no generated models, so their provider-owned runtime catalog remains authoritative.
+    const adapterRuntimeModels =
+      !hasModelCustomizations || builtinDefaultModels?.length === 0
+        ? runtimeModels
+        : (builtinDefaultModels ?? []);
     const firstModel = runtimeModels[0];
     const defaultBaseURL =
       BUILTIN_PROVIDER_DEFAULT_BASE_URLS.get(input.provider) ||
@@ -1288,6 +1303,9 @@ export class ModelService implements ModelProviderProtocol, ModelContextWindowPr
       ...(stored?.api || firstModel?.api ? { api: stored?.api || firstModel?.api } : {}),
       configurationDefined: stored !== undefined,
       modelsSource: stored?.models ? "custom" : "adapter",
+      adapterModels: adapterRuntimeModels.map((model) =>
+        runtimeModelConfiguration(model, "provider"),
+      ),
       models:
         stored?.models?.map((model) => ({ ...model, contextWindowSource: "custom" as const })) ??
         runtimeModels.map((model) =>

@@ -113,6 +113,7 @@ test("maps provider operations to sanitized inputs, preserves signals, and publi
         displayName: "OpenAI",
         configurationDefined: false,
         modelsSource: "adapter",
+        adapterModels: [],
         models: [],
       };
     },
@@ -335,6 +336,7 @@ test("preserves trusted-host reads and loopback-only provider capabilities", asy
         displayName: payload.provider,
         configurationDefined: false,
         modelsSource: "adapter",
+        adapterModels: [],
         models: [],
       };
     },

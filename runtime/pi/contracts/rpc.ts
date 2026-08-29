@@ -522,6 +522,8 @@ export interface ModelProviderConfigValue {
   api?: string;
   configurationDefined: boolean;
   modelsSource: "adapter" | "custom";
+  /** Provider-owned baseline used when discarding model catalog customizations. */
+  adapterModels: ModelProviderModelConfiguration[];
   models: ModelProviderModelConfiguration[];
 }
 

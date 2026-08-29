@@ -136,6 +136,12 @@ test("converts configured models and providers into editable drafts", () => {
     api: "openai-responses",
     configurationDefined: true,
     modelsSource: "custom",
+    adapterModels: [
+      {
+        id: "vision-model",
+        contextWindow: 200_000,
+      },
+    ],
     models: [
       {
         id: "vision-model",
@@ -152,13 +158,16 @@ test("converts configured models and providers into editable drafts", () => {
   assert.equal(draft.models[0]?.reasoning, true);
   assert.deepEqual(draft.models[0]?.thinkingLevelMap, { high: null });
   assert.deepEqual(draft.models[0]?.input, ["text", "image"]);
+  assert.deepEqual(draft.adapterModels, [
+    {
+      id: "vision-model",
+      contextWindow: 200_000,
+    },
+  ]);
   assert.deepEqual(draft.availableModels, [
     {
       id: "vision-model",
-      reasoning: true,
-      thinkingLevelMap: { high: null },
-      input: ["text", "image"],
-      imageInputSource: "provider-api",
+      contextWindow: 200_000,
     },
   ]);
 });
@@ -171,6 +180,13 @@ test("converts adapter models into the same editable drafts", () => {
     api: "openai-responses",
     configurationDefined: false,
     modelsSource: "adapter",
+    adapterModels: [
+      {
+        id: "acme-default",
+        name: "Acme Default",
+        contextWindow: 200_000,
+      },
+    ],
     models: [
       {
         id: "acme-default",
@@ -186,14 +202,21 @@ test("converts adapter models into the same editable drafts", () => {
   assert.equal(draft.models[0]?.contextWindow, "200000");
 });
 
-test("restores available adapter models into the editable catalog draft", () => {
+test("restores the adapter baseline after the available-model catalog changes", () => {
   const draft = {
     ...validCustomDraft(),
-    availableModels: [
+    adapterModels: [
       {
         id: "acme-default",
         name: "Acme Default",
         contextWindow: 200_000,
+      },
+    ],
+    availableModels: [
+      {
+        id: "acme-latest",
+        name: "Acme Latest",
+        contextWindow: 400_000,
       },
     ],
   };
@@ -203,6 +226,7 @@ test("restores available adapter models into the editable catalog draft", () => 
   assert.equal(restored.models[0]?.id, "acme-default");
   assert.equal(restored.models[0]?.name, "Acme Default");
   assert.equal(restored.models[0]?.contextWindow, "200000");
+  assert.equal(restored.availableModels[0]?.id, "acme-latest");
 });
 
 test("prefers a supported current auth type and otherwise falls back deterministically", () => {

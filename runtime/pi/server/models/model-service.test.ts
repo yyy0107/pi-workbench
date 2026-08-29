@@ -886,6 +886,7 @@ test("persists a custom provider catalog, refreshes its route, and keeps credent
     api: "openai-responses",
     configurationDefined: true,
     modelsSource: "custom",
+    adapterModels: [],
     models: [
       {
         id: "acme-large",
@@ -983,6 +984,17 @@ test("returns adapter defaults without turning them into a custom override", asy
     defaultBaseURL: "https://api.openai.com/v1",
     configurationDefined: false,
     modelsSource: "adapter",
+    adapterModels: [
+      {
+        id: "gpt-reasoning",
+        name: "GPT Reasoning",
+        contextWindow: 200_000,
+        contextWindowSource: "provider",
+        maxTokens: 32_000,
+        reasoning: true,
+        thinkingLevelMap: { minimal: null, max: null },
+      },
+    ],
     models: [
       {
         id: "gpt-reasoning",
@@ -995,6 +1007,47 @@ test("returns adapter defaults without turning them into a custom override", asy
       },
     ],
   });
+});
+
+test("keeps built-in adapter window defaults separate from custom model values", async () => {
+  const store = memoryModelConfigStore({
+    "opencode-go": {
+      baseURL: "https://opencode.ai/zen/go/v1",
+      api: "openai-responses",
+      models: [
+        {
+          id: "deepseek-v4-flash",
+          name: "DeepSeek V4 Flash",
+          contextWindow: 131_072,
+        },
+      ],
+    },
+  });
+  const customizedModel = {
+    ...models[0],
+    provider: "opencode-go",
+    id: "deepseek-v4-flash",
+    name: "DeepSeek V4 Flash",
+    contextWindow: 131_072,
+  };
+  const service = modelService({
+    modelConfigStore: store,
+    runtime: runtime({
+      getProviders: () => [{ id: "opencode-go", name: "OpenCode Go" }],
+      getModels: (provider) => (!provider || provider === "opencode-go" ? [customizedModel] : []),
+    }),
+  });
+
+  const configuration = await service.providerConfig({ provider: "opencode-go" });
+  assert.equal(configuration.models[0]?.contextWindow, 131_072);
+  assert.equal(
+    configuration.adapterModels.find(({ id }) => id === "deepseek-v4-flash")?.contextWindow,
+    1_000_000,
+  );
+  assert.equal(
+    configuration.adapterModels.find(({ id }) => id === "deepseek-v4-flash")?.contextWindowSource,
+    "provider",
+  );
 });
 
 test("restores an internal provider's adapter model catalog", async () => {
@@ -1040,6 +1093,17 @@ test("restores an internal provider's adapter model catalog", async () => {
     api: "openai-responses",
     configurationDefined: true,
     modelsSource: "adapter",
+    adapterModels: [
+      {
+        id: "gpt-reasoning",
+        name: "GPT Reasoning",
+        contextWindow: 200_000,
+        contextWindowSource: "provider",
+        maxTokens: 32_000,
+        reasoning: true,
+        thinkingLevelMap: { minimal: null, max: null },
+      },
+    ],
     models: [
       {
         id: "gpt-reasoning",
@@ -1061,6 +1125,17 @@ test("restores an internal provider's adapter model catalog", async () => {
     defaultBaseURL: "https://api.openai.com/v1",
     configurationDefined: false,
     modelsSource: "adapter",
+    adapterModels: [
+      {
+        id: "gpt-reasoning",
+        name: "GPT Reasoning",
+        contextWindow: 200_000,
+        contextWindowSource: "provider",
+        maxTokens: 32_000,
+        reasoning: true,
+        thinkingLevelMap: { minimal: null, max: null },
+      },
+    ],
     models: [
       {
         id: "gpt-reasoning",
@@ -1114,6 +1189,7 @@ test("allows a custom provider without a model catalog", async () => {
     api: "openai-completions",
     configurationDefined: true,
     modelsSource: "adapter",
+    adapterModels: [],
     models: [],
   });
 });
