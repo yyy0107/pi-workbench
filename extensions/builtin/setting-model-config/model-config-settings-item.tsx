@@ -16,7 +16,6 @@ import {
   ExternalLinkIcon,
   LoaderCircleIcon,
   PlusIcon,
-  Trash2Icon,
 } from "lucide-react";
 
 import { collapsePanel } from "@/components/elements/surfaces";
@@ -34,23 +33,16 @@ import {
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  SettingsDropdownCheckboxItem,
   SettingsDropdownContent,
-  SettingsDropdownItem,
-  SettingsInlineEditor,
   SettingsDropdownRadioItem,
   SettingsDropdownTrigger,
 } from "@/components/ui/settings-control";
-import { Switch } from "@/components/ui/switch";
 import { useI18n, type StaticMessageKey } from "@/i18n";
 import type { SettingsItemComponentProps } from "@/platform/extensions";
-import { verifiedImageInputCapability } from "@/runtime/pi/shared/models/capabilities";
 import {
   cancelPiModelProviderLogin,
   configurePiModelProvider,
@@ -74,15 +66,11 @@ import type {
 } from "@/runtime/pi/contracts/rpc";
 
 import {
-  DEFAULT_MODEL_CONTEXT_WINDOW,
   MODEL_PROVIDER_APIS,
   discoveredImageInputConfiguration,
   emptyDraft,
   emptyModel,
   evaluateProviderModelAvailability,
-  modelNameAfterIdChange,
-  normalizeContextWindowInput,
-  parseCapacity,
   prepareProviderConfiguration,
   preferredAuthType,
   providerModelsForTest,
@@ -94,6 +82,7 @@ import {
   type ProviderDraft,
   type ProviderDraftError,
 } from "./model-config-draft";
+import { ModelCatalogRow, modelTypeMessageKey } from "./model-config-model-row";
 import { modelProviderCredentialWebsite } from "./model-provider-credential-links";
 
 type LoadState = "loading" | "ready" | "failed";
@@ -111,143 +100,6 @@ const PROVIDER_DRAFT_ERROR_KEYS = {
   invalidModel: "extensions.modelConfig.errors.invalidModel",
   duplicateModel: "extensions.modelConfig.errors.duplicateModel",
 } as const satisfies Record<ProviderDraftError, StaticMessageKey>;
-
-type ModelTypeValue = "multimodal" | "text";
-const MODEL_REASONING_LEVELS = ["minimal", "low", "medium", "high", "xhigh", "max"] as const;
-type ModelReasoningLevel = (typeof MODEL_REASONING_LEVELS)[number];
-const MODEL_REASONING_LEVEL_MESSAGE_KEYS = {
-  minimal: "extensions.modelConfig.reasoningLevelMinimal",
-  low: "extensions.modelConfig.reasoningLevelLow",
-  medium: "extensions.modelConfig.reasoningLevelMedium",
-  high: "extensions.modelConfig.reasoningLevelHigh",
-  xhigh: "extensions.modelConfig.reasoningLevelXhigh",
-  max: "extensions.modelConfig.reasoningLevelMax",
-} as const satisfies Record<ModelReasoningLevel, StaticMessageKey>;
-
-function modelTypeValue(
-  input: ModelDraft["input"],
-  source: ModelDraft["imageInputSource"],
-): ModelTypeValue | undefined {
-  switch (verifiedImageInputCapability(input, source)) {
-    case "supported":
-      return "multimodal";
-    case "unsupported":
-      return "text";
-    case "unknown":
-      return undefined;
-  }
-}
-
-function modelTypeMessageKey(
-  input: ModelDraft["input"],
-  source: ModelDraft["imageInputSource"],
-): StaticMessageKey {
-  switch (modelTypeValue(input, source)) {
-    case "multimodal":
-      return "extensions.modelConfig.modelTypeMultimodal";
-    case "text":
-      return "extensions.modelConfig.modelTypeText";
-    case undefined:
-      return "extensions.modelConfig.modelTypeUnknown";
-  }
-}
-
-function multimodalSupportMessageKey(
-  input: ModelDraft["input"],
-  source: ModelDraft["imageInputSource"],
-): StaticMessageKey {
-  switch (modelTypeValue(input, source)) {
-    case "multimodal":
-      return "extensions.modelConfig.multimodalSupported";
-    case "text":
-      return "extensions.modelConfig.multimodalUnsupported";
-    case undefined:
-      return "extensions.modelConfig.modelTypeUnknown";
-  }
-}
-
-function enabledReasoningLevels(model: ModelDraft): ModelReasoningLevel[] {
-  if (!model.reasoning) return [];
-  return MODEL_REASONING_LEVELS.filter((level) => model.thinkingLevelMap?.[level] !== null);
-}
-
-function setReasoningLevelSupported(
-  current: ModelDraft["thinkingLevelMap"],
-  level: ModelReasoningLevel,
-  supported: boolean,
-): ModelDraft["thinkingLevelMap"] {
-  const next = { ...current };
-  if (supported) delete next[level];
-  else next[level] = null;
-  return Object.keys(next).length > 0 ? next : undefined;
-}
-
-function MaxOutputTokensEditor({
-  value,
-  disabled,
-  onChange,
-}: {
-  value: string;
-  disabled: boolean;
-  onChange(value: string): void;
-}) {
-  const { number, t } = useI18n();
-  const [editing, setEditing] = useState(false);
-  const editStartValueRef = useRef(value);
-  const parsed = value.trim() ? parseCapacity(value) : undefined;
-  const invalid = value.trim().length > 0 && parsed === undefined;
-
-  const cancelEditing = () => {
-    onChange(editStartValueRef.current);
-    setEditing(false);
-  };
-
-  return (
-    <SettingsInlineEditor
-      editing={editing}
-      display={
-        <span className="text-sm tabular-nums">
-          {value.trim()
-            ? parsed === undefined
-              ? value
-              : number(parsed)
-            : t("extensions.modelConfig.maxOutputTokensUnset")}
-        </span>
-      }
-      editLabel={t("extensions.modelConfig.editMaxOutputTokens")}
-      cancelLabel={t("extensions.modelConfig.cancel")}
-      disabled={disabled}
-      editingClassName="max-w-64"
-      cancelButtonVariant="default"
-      onEdit={() => {
-        editStartValueRef.current = value;
-        setEditing(true);
-      }}
-      onCancel={cancelEditing}
-    >
-      <Input
-        autoFocus
-        inputMode="decimal"
-        value={value}
-        disabled={disabled}
-        aria-label={t("extensions.modelConfig.maxOutputTokens")}
-        aria-invalid={invalid}
-        placeholder="256K"
-        className="min-w-24 tabular-nums"
-        onChange={(event) => onChange(event.currentTarget.value)}
-        onKeyDown={(event) => {
-          if (event.key === "Escape") {
-            event.preventDefault();
-            cancelEditing();
-          } else if (event.key === "Enter" && !invalid) {
-            event.preventDefault();
-            setEditing(false);
-          }
-        }}
-      />
-    </SettingsInlineEditor>
-  );
-}
 
 function ProviderEditorSection({
   open,
@@ -385,7 +237,16 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
       source,
       ...(draft.apiKey.trim() ? { apiKey: draft.apiKey.trim() } : {}),
     } as const;
-  }, [customProviderMode, draft, selectedProvider]);
+  }, [
+    customProviderMode,
+    draft.api,
+    draft.apiKey,
+    draft.baseURL,
+    draft.defaultBaseURL,
+    draft.modelsSource,
+    draft.provider,
+    selectedProvider,
+  ]);
   const modelImageTestIdentity = draft.models
     .map(({ key, id }) => `${key}:${id.trim()}`)
     .join("\0");
@@ -777,7 +638,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
     [applyProviders, busy, closeEditor, editor, errorLabel],
   );
 
-  const updateModel = useCallback((key: number, patch: Partial<ModelDraft>, markCustom = true) => {
+  const updateModel = useCallback((key: number, patch: Partial<ModelDraft>) => {
     if (
       patch.id !== undefined ||
       patch.input !== undefined ||
@@ -791,9 +652,20 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
     }
     setDraft((current) => ({
       ...current,
-      ...(markCustom ? { modelsSource: "custom" as const } : {}),
+      modelsSource: "custom",
       models: current.models.map((model) => (model.key === key ? { ...model, ...patch } : model)),
     }));
+  }, []);
+
+  const removeModel = useCallback((key: number) => {
+    setDraft((current) => {
+      const models = current.models.filter((model) => model.key !== key);
+      return {
+        ...current,
+        modelsSource: models.length > 0 ? "custom" : "adapter",
+        models,
+      };
+    });
   }, []);
 
   const selectAvailableModel = useCallback(
@@ -1556,370 +1428,25 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                       className="bg-muted/20 focus-visible:ring-ring/50 mt-3 max-h-[min(34rem,60dvh)] space-y-2 overflow-y-auto overscroll-contain rounded-xl border p-1.5 outline-none focus-visible:ring-3 [scrollbar-gutter:stable]"
                     >
                       {draft.models.map((model, index) => (
-                        <div key={model.key}>
-                          <Collapsible
-                            open={model.expanded}
-                            onOpenChange={(expanded) => updateModel(model.key, { expanded }, false)}
-                            className="rounded-lg border p-1.5"
-                          >
-                            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(7rem,0.5fr)_auto_auto] gap-1.5">
-                              <DropdownMenu
-                                onOpenChange={(open) => {
-                                  if (
-                                    open &&
-                                    draft.availableModels.length === 0 &&
-                                    !modelPickerLoading
-                                  ) {
-                                    void refreshAvailableModels();
-                                  }
-                                }}
-                              >
-                                <InputGroup className="h-[var(--dropdown-control-height)]">
-                                  <InputGroupInput
-                                    className="h-full"
-                                    value={model.id}
-                                    disabled={busy}
-                                    aria-label={t("extensions.modelConfig.modelId")}
-                                    placeholder={t("extensions.modelConfig.modelId")}
-                                    onChange={(event) => {
-                                      const id = event.currentTarget.value;
-                                      updateModel(model.key, {
-                                        id,
-                                        name: modelNameAfterIdChange(model, id),
-                                        ...(id === model.id
-                                          ? {}
-                                          : {
-                                              reasoning: false,
-                                              thinkingLevelMap: undefined,
-                                              input: undefined,
-                                              imageInputSource: undefined,
-                                            }),
-                                      });
-                                    }}
-                                  />
-                                  <InputGroupAddon align="inline-end">
-                                    <DropdownMenuTrigger
-                                      type="button"
-                                      disabled={busy}
-                                      aria-label={t("extensions.modelConfig.selectAvailableModel")}
-                                      className="group text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 inline-flex size-6 shrink-0 items-center justify-center rounded-md outline-none transition-colors focus-visible:ring-3 disabled:pointer-events-none disabled:opacity-50"
-                                    >
-                                      <ChevronDownIcon className="size-3.5 transition-transform group-data-popup-open:rotate-180" />
-                                    </DropdownMenuTrigger>
-                                  </InputGroupAddon>
-                                </InputGroup>
-                                <SettingsDropdownContent
-                                  align="end"
-                                  side="bottom"
-                                  className="max-h-72 min-w-64"
-                                >
-                                  {modelPickerLoading ? (
-                                    <div
-                                      className="text-muted-foreground px-2.5 py-2 text-sm"
-                                      role="status"
-                                    >
-                                      {t("extensions.modelConfig.fetchingAvailableModels")}
-                                    </div>
-                                  ) : modelPickerError ? (
-                                    <div
-                                      className="text-destructive px-2.5 py-2 text-sm"
-                                      role="alert"
-                                    >
-                                      {modelPickerError}
-                                    </div>
-                                  ) : draft.availableModels.length === 0 ? (
-                                    <div className="text-muted-foreground px-2.5 py-2 text-sm">
-                                      {t("extensions.modelConfig.availableModelsEmpty")}
-                                    </div>
-                                  ) : (
-                                    draft.availableModels.map((availableModel) => (
-                                      <SettingsDropdownItem
-                                        key={availableModel.id}
-                                        disabled={draft.models.some(
-                                          (other) =>
-                                            other.key !== model.key &&
-                                            other.id.trim() === availableModel.id,
-                                        )}
-                                        onClick={() =>
-                                          selectAvailableModel(model.key, availableModel)
-                                        }
-                                      >
-                                        <span className="min-w-0 flex-1 truncate font-mono">
-                                          {availableModel.id}
-                                        </span>
-                                        <span className="text-muted-foreground shrink-0 text-xs">
-                                          {t(
-                                            modelTypeMessageKey(
-                                              availableModel.input,
-                                              availableModel.imageInputSource,
-                                            ),
-                                          )}
-                                        </span>
-                                      </SettingsDropdownItem>
-                                    ))
-                                  )}
-                                </SettingsDropdownContent>
-                              </DropdownMenu>
-                              <Input
-                                value={model.name}
-                                disabled={busy}
-                                aria-label={t("extensions.modelConfig.modelName")}
-                                placeholder={t("extensions.modelConfig.modelName")}
-                                onChange={(event) =>
-                                  updateModel(model.key, { name: event.currentTarget.value })
-                                }
-                                onBlur={() => {
-                                  if (!model.name.trim() && model.id.trim()) {
-                                    updateModel(model.key, { name: model.id.trim() });
-                                  }
-                                }}
-                              />
-                              <Input
-                                inputMode="numeric"
-                                pattern="[0-9]*"
-                                value={normalizeContextWindowInput(model.contextWindow)}
-                                disabled={busy}
-                                aria-label={t("extensions.modelConfig.contextWindow")}
-                                title={t("extensions.modelConfig.contextWindow")}
-                                placeholder={t("extensions.modelConfig.contextWindow")}
-                                onChange={(event) => {
-                                  const contextWindow = event.currentTarget.value.replace(
-                                    /\D+/gu,
-                                    "",
-                                  );
-                                  updateModel(model.key, {
-                                    contextWindow,
-                                  });
-                                }}
-                                onBlur={() => {
-                                  if (!model.contextWindow.trim()) {
-                                    updateModel(model.key, {
-                                      contextWindow: String(DEFAULT_MODEL_CONTEXT_WINDOW),
-                                    });
-                                  }
-                                }}
-                              />
-                              <CollapsibleTrigger
-                                type="button"
-                                disabled={busy}
-                                className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 inline-flex size-7 shrink-0 items-center justify-center rounded-[var(--button-radius)] bg-transparent p-1.5 outline-none transition-colors focus-visible:ring-3 disabled:pointer-events-none disabled:opacity-50"
-                                aria-label={
-                                  model.expanded
-                                    ? t("extensions.modelConfig.collapseModel", {
-                                        name: model.name || model.id,
-                                      })
-                                    : t("extensions.modelConfig.expandModel", {
-                                        name: model.name || model.id,
-                                      })
-                                }
-                              >
-                                {model.expanded ? (
-                                  <ChevronDownIcon className="size-4" />
-                                ) : (
-                                  <ChevronRightIcon className="size-4" />
-                                )}
-                              </CollapsibleTrigger>
-                              <Button
-                                type="button"
-                                size="icon-sm"
-                                variant="ghost"
-                                disabled={busy}
-                                aria-label={t("extensions.modelConfig.removeModel", {
-                                  name: model.name || model.id,
-                                })}
-                                className="text-muted-foreground hover:text-destructive"
-                                onClick={() =>
-                                  setDraft((current) => {
-                                    const models = current.models.filter(
-                                      ({ key }) => key !== model.key,
-                                    );
-                                    return {
-                                      ...current,
-                                      modelsSource: models.length > 0 ? "custom" : "adapter",
-                                      models,
-                                    };
-                                  })
-                                }
-                              >
-                                <Trash2Icon />
-                              </Button>
-                            </div>
-                            <CollapsibleContent className={`${collapsePanel} outline-none`}>
-                              <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                                <div className="flex min-h-14 items-center justify-between gap-3 rounded-md border px-3 py-2">
-                                  <div className="min-w-0">
-                                    <p className="text-sm font-medium">
-                                      {t("extensions.modelConfig.thinkingModel")}
-                                    </p>
-                                  </div>
-                                  <Switch
-                                    checked={model.reasoning}
-                                    disabled={busy}
-                                    aria-label={t("extensions.modelConfig.thinkingModel")}
-                                    onCheckedChange={(checked) =>
-                                      updateModel(model.key, { reasoning: checked })
-                                    }
-                                  />
-                                </div>
-                                <div className="flex min-h-14 items-center justify-between gap-3 rounded-md border px-3 py-2">
-                                  <span className="min-w-0 text-sm font-medium">
-                                    {t("extensions.modelConfig.reasoningLevels")}
-                                  </span>
-                                  <DropdownMenu>
-                                    <SettingsDropdownTrigger
-                                      disabled={busy || !model.reasoning}
-                                      aria-label={t("extensions.modelConfig.reasoningLevels")}
-                                    >
-                                      <span className="min-w-0 truncate text-start">
-                                        {model.reasoning
-                                          ? t("extensions.modelConfig.reasoningLevelsSelected", {
-                                              count: enabledReasoningLevels(model).length,
-                                            })
-                                          : t("extensions.modelConfig.reasoningLevelsDisabled")}
-                                      </span>
-                                      <ChevronDownIcon className="text-muted-foreground size-3.5 shrink-0" />
-                                    </SettingsDropdownTrigger>
-                                    <SettingsDropdownContent align="end" side="bottom">
-                                      {MODEL_REASONING_LEVELS.map((level) => {
-                                        const enabledLevels = enabledReasoningLevels(model);
-                                        const checked = enabledLevels.includes(level);
-                                        return (
-                                          <SettingsDropdownCheckboxItem
-                                            key={level}
-                                            checked={checked}
-                                            disabled={checked && enabledLevels.length === 1}
-                                            onCheckedChange={(supported) =>
-                                              updateModel(model.key, {
-                                                thinkingLevelMap: setReasoningLevelSupported(
-                                                  model.thinkingLevelMap,
-                                                  level,
-                                                  supported,
-                                                ),
-                                              })
-                                            }
-                                          >
-                                            {t(MODEL_REASONING_LEVEL_MESSAGE_KEYS[level])}
-                                          </SettingsDropdownCheckboxItem>
-                                        );
-                                      })}
-                                    </SettingsDropdownContent>
-                                  </DropdownMenu>
-                                </div>
-                                <div className="flex min-h-14 items-center justify-between gap-3 rounded-md border px-3 py-2">
-                                  <span className="min-w-0 text-sm font-medium">
-                                    {t("extensions.modelConfig.multimodalSupport")}
-                                  </span>
-                                  <div className="flex shrink-0 items-center gap-1.5">
-                                    <DropdownMenu>
-                                      <SettingsDropdownTrigger
-                                        disabled={busy || testingModelKey !== undefined}
-                                        aria-label={t("extensions.modelConfig.multimodalSupport")}
-                                      >
-                                        <span className="min-w-0 truncate text-start">
-                                          {t(
-                                            multimodalSupportMessageKey(
-                                              model.input,
-                                              model.imageInputSource,
-                                            ),
-                                          )}
-                                        </span>
-                                        <ChevronDownIcon className="text-muted-foreground size-3.5 shrink-0" />
-                                      </SettingsDropdownTrigger>
-                                      <SettingsDropdownContent align="end" side="bottom">
-                                        <DropdownMenuRadioGroup
-                                          value={
-                                            modelTypeValue(model.input, model.imageInputSource) ??
-                                            ""
-                                          }
-                                          aria-label={t("extensions.modelConfig.multimodalSupport")}
-                                          onValueChange={(modelType) => {
-                                            if (modelType === "multimodal") {
-                                              updateModel(model.key, {
-                                                input: ["text", "image"],
-                                                imageInputSource: "user",
-                                              });
-                                            } else if (modelType === "text") {
-                                              updateModel(model.key, {
-                                                input: ["text"],
-                                                imageInputSource: "user",
-                                              });
-                                            }
-                                          }}
-                                        >
-                                          <SettingsDropdownRadioItem value="multimodal">
-                                            {t("extensions.modelConfig.multimodalSupported")}
-                                          </SettingsDropdownRadioItem>
-                                          <SettingsDropdownRadioItem value="text">
-                                            {t("extensions.modelConfig.multimodalUnsupported")}
-                                          </SettingsDropdownRadioItem>
-                                        </DropdownMenuRadioGroup>
-                                      </SettingsDropdownContent>
-                                    </DropdownMenu>
-                                    <Button
-                                      type="button"
-                                      size="sm"
-                                      variant="outline"
-                                      disabled={
-                                        busy ||
-                                        testingModelKey !== undefined ||
-                                        !draft.provider.trim() ||
-                                        !model.id.trim()
-                                      }
-                                      aria-label={t("extensions.modelConfig.testMultimodal", {
-                                        name: model.name || model.id,
-                                      })}
-                                      onClick={() => void testModelImageInput(model)}
-                                    >
-                                      {testingModelKey === model.key
-                                        ? t("extensions.modelConfig.testingMultimodal")
-                                        : t("extensions.modelConfig.testMultimodalShort")}
-                                    </Button>
-                                  </div>
-                                </div>
-                                <div className="flex min-h-14 items-center justify-between gap-3 rounded-md border px-3 py-2">
-                                  <span className="min-w-0 text-sm font-medium">
-                                    {t("extensions.modelConfig.maxOutputTokens")}
-                                  </span>
-                                  <MaxOutputTokensEditor
-                                    value={model.maxTokens}
-                                    disabled={busy}
-                                    onChange={(maxTokens) =>
-                                      updateModel(model.key, {
-                                        maxTokens,
-                                      })
-                                    }
-                                  />
-                                </div>
-                              </div>
-                              <p className="text-muted-foreground mt-2 text-xs">
-                                {t("extensions.modelConfig.multimodalTestHint")}
-                              </p>
-                              {modelImageTestResults[model.key] ? (
-                                <p
-                                  className={
-                                    modelImageTestResults[model.key].kind === "error"
-                                      ? "text-destructive mt-1.5 text-sm"
-                                      : modelImageTestResults[model.key].kind === "warning"
-                                        ? "mt-1.5 text-sm text-amber-700 dark:text-amber-300"
-                                        : "mt-1.5 text-sm text-emerald-700 dark:text-emerald-300"
-                                  }
-                                  role={
-                                    modelImageTestResults[model.key].kind === "error"
-                                      ? "alert"
-                                      : "status"
-                                  }
-                                >
-                                  {modelImageTestResults[model.key].message}
-                                </p>
-                              ) : null}
-                            </CollapsibleContent>
-                          </Collapsible>
-                          {!model.id.trim() ? (
-                            <p className="text-muted-foreground mt-1.5 text-sm">
-                              {t("extensions.modelConfig.modelIdRequired", { index: index + 1 })}
-                            </p>
-                          ) : null}
-                        </div>
+                        <ModelCatalogRow
+                          key={model.key}
+                          model={model}
+                          index={index}
+                          configuredModels={draft.models}
+                          availableModels={draft.availableModels}
+                          busy={busy}
+                          modelPickerLoading={modelPickerLoading}
+                          modelPickerError={modelPickerError}
+                          providerReadyForTest={Boolean(draft.provider.trim())}
+                          testingDisabled={testingModelKey !== undefined}
+                          testing={testingModelKey === model.key}
+                          testResult={modelImageTestResults[model.key]}
+                          onUpdateModel={updateModel}
+                          onSelectAvailableModel={selectAvailableModel}
+                          onRefreshAvailableModels={refreshAvailableModels}
+                          onTestModelImageInput={testModelImageInput}
+                          onRemoveModel={removeModel}
+                        />
                       ))}
                     </div>
                   )}
