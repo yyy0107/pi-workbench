@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import {
   AlertTriangleIcon,
   CheckCircle2Icon,
@@ -416,6 +416,7 @@ function WorkflowEditorPage({ workflowId }: { workflowId: string }) {
   const rightWorkspace = useRightWorkspace();
   const workspaceContext = useWorkspaceContext();
   const workspaceApplicationId = workspaceContext.applicationId;
+  const inspectorSurfaceIdRef = useRef<string | undefined>(undefined);
   const document = useWorkflowEditorStore((state) => state.document);
   const saveState = useWorkflowEditorStore((state) => state.saveState);
   const error = useWorkflowEditorStore((state) => state.error);
@@ -428,6 +429,21 @@ function WorkflowEditorPage({ workflowId }: { workflowId: string }) {
   useEffect(() => {
     if (!targetWorkspaceId && workspaces[0]) setTargetWorkspaceId(workspaces[0].id);
   }, [targetWorkspaceId, workspaces]);
+
+  const revealInspector = useCallback(() => {
+    const currentDocument = useWorkflowEditorStore.getState().document;
+    if (!currentDocument || currentDocument.id !== workflowId) return;
+
+    inspectorSurfaceIdRef.current = rightWorkspace.reveal({
+      kind: "workflow-inspector",
+      title: currentDocument.name,
+      params: { workflowId } satisfies WorkflowInspectorParams,
+      context: { applicationId: workspaceApplicationId },
+      scope: { type: "application", key: workspaceApplicationId },
+      status: "ready",
+      policy: "reveal",
+    });
+  }, [rightWorkspace, workflowId, workspaceApplicationId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -449,17 +465,17 @@ function WorkflowEditorPage({ workflowId }: { workflowId: string }) {
 
   useEffect(() => {
     if (!document || document.id !== workflowId) return;
-    const surfaceId = rightWorkspace.reveal({
-      kind: "workflow-inspector",
-      title: document.name,
-      params: { workflowId } satisfies WorkflowInspectorParams,
-      context: { applicationId: workspaceApplicationId },
-      scope: { type: "application", key: workspaceApplicationId },
-      status: "ready",
-      policy: "reveal",
-    });
-    return () => rightWorkspace.close(surfaceId);
-  }, [document?.id, document?.name, rightWorkspace, workflowId, workspaceApplicationId]);
+    revealInspector();
+  }, [document?.id, document?.name, revealInspector, workflowId]);
+
+  useEffect(
+    () => () => {
+      if (inspectorSurfaceIdRef.current) {
+        rightWorkspace.close(inspectorSurfaceIdRef.current);
+      }
+    },
+    [rightWorkspace, workflowId],
+  );
 
   useEffect(() => {
     if (!document || document.id !== workflowId || saveState !== "dirty") return;
@@ -668,7 +684,7 @@ function WorkflowEditorPage({ workflowId }: { workflowId: string }) {
         </div>
       ) : null}
       <div className="min-h-0 flex-1">
-        <WorkflowRendererRouter document={document} />
+        <WorkflowRendererRouter document={document} onNodeSelect={revealInspector} />
       </div>
     </PageFrame>
   );

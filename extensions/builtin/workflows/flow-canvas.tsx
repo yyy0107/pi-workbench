@@ -174,7 +174,13 @@ function newNode(
   }
 }
 
-export function FlowCanvasCore({ document }: { document: WorkflowDocument }) {
+export function FlowCanvasCore({
+  document,
+  onNodeSelect,
+}: {
+  document: WorkflowDocument;
+  onNodeSelect(): void;
+}) {
   const { t } = useI18n();
   const reactFlowElementRef = useRef<HTMLDivElement>(null);
   const reactFlowInstanceRef = useRef<ReactFlowInstance<
@@ -327,8 +333,9 @@ export function FlowCanvasCore({ document }: { document: WorkflowDocument }) {
         graph: { ...current.graph, nodes: [...current.graph.nodes, node] },
       }));
       setSelection({ type: "node", id: node.id });
+      onNodeSelect();
     },
-    [document.graph.nodes.length, nodeLabels, setSelection, updateDocument],
+    [document.graph.nodes.length, nodeLabels, onNodeSelect, setSelection, updateDocument],
   );
 
   const activatePaletteNode = useCallback(
@@ -430,6 +437,7 @@ export function FlowCanvasCore({ document }: { document: WorkflowDocument }) {
   const openNodeContextMenu = useCallback<NodeMouseHandler<CanvasNode<CanvasNodeData>>>(
     (event, node) => {
       setSelection({ type: "node", id: node.id });
+      onNodeSelect();
       setContextMenuTarget({
         position: getContextMenuPosition(event),
         selection: {
@@ -439,7 +447,7 @@ export function FlowCanvasCore({ document }: { document: WorkflowDocument }) {
         },
       });
     },
-    [getContextMenuPosition, protectedNodeIds, setSelection],
+    [getContextMenuPosition, onNodeSelect, protectedNodeIds, setSelection],
   );
   const openEdgeContextMenu = useCallback<EdgeMouseHandler<CanvasEdge>>(
     (event, edge) => {
@@ -475,8 +483,11 @@ export function FlowCanvasCore({ document }: { document: WorkflowDocument }) {
   }, [cancelPaletteNodeDrag, finishPaletteNodeDrag, movePaletteNodeDrag]);
 
   const selectNode = useCallback<NodeMouseHandler<CanvasNode<CanvasNodeData>>>(
-    (_, node) => setSelection({ type: "node", id: node.id }),
-    [setSelection],
+    (_, node) => {
+      setSelection({ type: "node", id: node.id });
+      onNodeSelect();
+    },
+    [onNodeSelect, setSelection],
   );
   const selectEdge = useCallback<EdgeMouseHandler<CanvasEdge>>(
     (_, edge) => setSelection({ type: "edge", id: edge.id }),

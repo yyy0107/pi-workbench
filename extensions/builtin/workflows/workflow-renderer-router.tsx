@@ -6,7 +6,12 @@ import type { WorkflowDocument } from "@/runtime/shared/execution";
 
 import { SopStepListRenderer } from "./sop-step-list";
 
-const FlowCanvasCore = dynamic<{ document: WorkflowDocument }>(
+interface WorkflowRendererProps {
+  document: WorkflowDocument;
+  onNodeSelect(): void;
+}
+
+const FlowCanvasCore = dynamic<WorkflowRendererProps>(
   () => import("./flow-canvas").then((module) => module.FlowCanvasCore),
   {
     ssr: false,
@@ -14,10 +19,10 @@ const FlowCanvasCore = dynamic<{ document: WorkflowDocument }>(
   },
 );
 
-export function WorkflowRendererRouter({ document }: { document: WorkflowDocument }) {
+export function WorkflowRendererRouter({ document, onNodeSelect }: WorkflowRendererProps) {
   return document.kind === "sop" ? (
-    <SopStepListRenderer document={document} />
+    <SopStepListRenderer document={document} onNodeSelect={onNodeSelect} />
   ) : (
-    <FlowCanvasCore key={document.id} document={document} />
+    <FlowCanvasCore key={document.id} document={document} onNodeSelect={onNodeSelect} />
   );
 }

@@ -78,7 +78,13 @@ function createStep(type: SopStep["type"], name: string): SopStep {
   return { ...base, type, config: { message: "Please approve this step." } };
 }
 
-export function SopStepListRenderer({ document }: { document: WorkflowDocument }) {
+export function SopStepListRenderer({
+  document,
+  onNodeSelect,
+}: {
+  document: WorkflowDocument;
+  onNodeSelect(): void;
+}) {
   const { t } = useI18n();
   const updateDocument = useWorkflowEditorStore((state) => state.updateDocument);
   const selection = useWorkflowEditorStore((state) => state.selection);
@@ -90,6 +96,10 @@ export function SopStepListRenderer({ document }: { document: WorkflowDocument }
     approval: t("extensions.workflows.node.approval"),
   };
   const setSteps = (next: SopStep[]) => updateDocument((current) => rebuild(current, next));
+  const selectNode = (nodeId: string) => {
+    setSelection({ type: "node", id: nodeId });
+    onNodeSelect();
+  };
 
   return (
     <div className="h-full overflow-y-auto bg-muted/20 px-4 py-6 sm:px-8">
@@ -109,7 +119,7 @@ export function SopStepListRenderer({ document }: { document: WorkflowDocument }
                   "bg-card focus-visible:ring-ring relative flex min-h-14 w-full items-center gap-3 rounded-[var(--radius-lg)] border p-3 text-start shadow-sm outline-none focus-visible:ring-2",
                   selected ? "border-primary ring-primary/15 ring-2" : "border-border",
                 )}
-                onClick={() => setSelection({ type: "node", id: step.id })}
+                onClick={() => selectNode(step.id)}
               >
                 <span className="bg-muted flex size-8 shrink-0 items-center justify-center rounded-[var(--button-radius)]">
                   <Icon aria-hidden="true" />
@@ -183,7 +193,7 @@ export function SopStepListRenderer({ document }: { document: WorkflowDocument }
                   onClick={() => {
                     const step = createStep(type, labels[type]);
                     setSteps([...steps, step]);
-                    setSelection({ type: "node", id: step.id });
+                    selectNode(step.id);
                   }}
                 >
                   <Icon />
