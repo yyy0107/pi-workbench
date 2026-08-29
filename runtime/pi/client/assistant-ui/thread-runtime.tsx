@@ -1,7 +1,14 @@
 "use client";
 
 import { MessageNotSentError, useAuiState, useExternalStoreRuntime } from "@assistant-ui/react";
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import { useI18n, type Translate } from "@/i18n";
 import type {
@@ -120,12 +127,13 @@ export function useBoundPiThreadRuntime(
     ],
   );
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     // RemoteThreadResource publishes a newly bound runtime while React is rendering.
     // Publishing an already-running runtime makes assistant-ui synchronously notify
     // thread-list subscribers in that render, and React surfaces their failures as an
     // AggregateError. Publish an idle first snapshot, then expose the authoritative
-    // running state after this session has completed its first commit.
+    // running state after this session has completed its first commit but before paint,
+    // so the working row does not visibly disappear and remount during thread promotion.
     setCommittedSession(session);
   }, [session]);
 
