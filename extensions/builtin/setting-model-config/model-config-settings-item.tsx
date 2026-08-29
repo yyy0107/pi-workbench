@@ -322,6 +322,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
   const [modelPickerLoading, setModelPickerLoading] = useState(false);
   const [modelPickerError, setModelPickerError] = useState<string>();
+  const [restoringDefaults, setRestoringDefaults] = useState(false);
   const [providerLogin, setProviderLogin] = useState<ModelProviderLoginValue>();
   const [loginStarting, setLoginStarting] = useState(false);
   const [loginResponding, setLoginResponding] = useState(false);
@@ -430,6 +431,7 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
     setModelPickerOpen(false);
     setModelPickerLoading(false);
     setModelPickerError(undefined);
+    setRestoringDefaults(false);
     setTestingProvider(false);
     setProviderTestResult(undefined);
     setTestingModelKey(undefined);
@@ -1046,6 +1048,31 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
     updateSelectedModelIds(availableModels);
   }, [draft.availableModels, refreshAvailableModels, updateSelectedModelIds]);
 
+  const restoreDefaultModels = useCallback(async () => {
+    const request = ++modelCatalogRequest.current;
+    setRestoringDefaults(true);
+    setError(undefined);
+    try {
+      const result = await discoverPiModels({
+        ...modelDiscoveryPayload,
+        source: "provider",
+      });
+      if (request !== modelCatalogRequest.current) return;
+      setDraft((current) =>
+        restoreAdapterModelDrafts({
+          ...current,
+          availableModels: result.models,
+        }),
+      );
+    } catch {
+      if (request === modelCatalogRequest.current) {
+        setError(t("extensions.modelConfig.errors.fetchLatestModelsFailed"));
+      }
+    } finally {
+      if (request === modelCatalogRequest.current) setRestoringDefaults(false);
+    }
+  }, [modelDiscoveryPayload, t]);
+
   const refreshLatestAvailableModels = useCallback(async () => {
     const availableModels = await refreshAvailableModels(
       accountAuthentication ? "provider" : "endpoint",
@@ -1515,20 +1542,24 @@ export function ModelConfigSettingsItem({ sectionId, itemId }: SettingsItemCompo
                       ) : null}
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
-                      {draft.modelsSource === "custom" && !customProviderMode ? (
+                      {!customProviderMode ? (
                         <Button
                           type="button"
                           variant="ghost"
-                          disabled={busy}
-                          onClick={() => setDraft(restoreAdapterModelDrafts)}
+                          disabled={busy || restoringDefaults || modelPickerLoading}
+                          onClick={() => void restoreDefaultModels()}
                         >
-                          {t("extensions.modelConfig.restoreDefaultModels")}
+                          {t(
+                            restoringDefaults
+                              ? "extensions.modelConfig.fetchingLatestProviderModels"
+                              : "extensions.modelConfig.restoreDefaultModels",
+                          )}
                         </Button>
                       ) : null}
                       <Button
                         type="button"
                         variant="ghost"
-                        disabled={busy || modelPickerLoading}
+                        disabled={busy || modelPickerLoading || restoringDefaults}
                         onClick={() => void openModelPicker()}
                       >
                         {modelPickerLoading
