@@ -32,17 +32,17 @@ import { useI18n } from "@/i18n";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { formatAdaptiveDuration, formatCompactDuration } from "@/lib/format-duration";
 import { useMainViewService } from "@/platform/extensions";
-import { useSessionContextPolicy } from "@/runtime/pi/client/context-policy/use-session-context-policy";
-import { PiApiError } from "@/runtime/pi/client/transport/api";
+import { useSessionContextPolicy } from "@/workbench/runtime-contributions/pi/client/configuration";
+import { PiApiError } from "@/workbench/runtime-contributions/pi/client/errors";
 import type {
   SessionContextBreakdownCategory,
   SessionContextPolicy,
-} from "@/runtime/pi/contracts/rpc";
+} from "@/workbench/runtime-contributions/pi/protocol/rpc";
 import {
-  aggregatePiSessionStatistics,
-  mergeMonotonicPiSessionStatistics,
-  type PiSessionStatistics,
-} from "@/runtime/pi/client/messages/session-statistics";
+  aggregateWorkbenchSessionStatistics,
+  mergeMonotonicWorkbenchSessionStatistics,
+  type WorkbenchSessionStatistics,
+} from "@workbench/agent-runtime-client/message-statistics";
 
 import {
   interpolateTokenQuantities,
@@ -127,9 +127,11 @@ function useLiveStatisticsTime(isRunning: boolean): number {
   return currentTime;
 }
 
-function useMonotonicSessionStatistics(current: PiSessionStatistics): PiSessionStatistics {
+function useMonotonicSessionStatistics(
+  current: WorkbenchSessionStatistics,
+): WorkbenchSessionStatistics {
   const snapshot = useRef(current);
-  snapshot.current = mergeMonotonicPiSessionStatistics(snapshot.current, current);
+  snapshot.current = mergeMonotonicWorkbenchSessionStatistics(snapshot.current, current);
   return snapshot.current;
 }
 
@@ -142,9 +144,9 @@ interface TokenAnimationState {
 }
 
 function useAnimatedTokenStatistics(
-  statistics: PiSessionStatistics,
+  statistics: WorkbenchSessionStatistics,
   reduceMotion: boolean,
-): PiSessionStatistics {
+): WorkbenchSessionStatistics {
   const target = useMemo(
     () => tokenQuantities(statistics),
     [
@@ -228,7 +230,7 @@ function ThreadTokenUsage() {
   const [contextActionError, setContextActionError] = useState<unknown>(null);
   const currentTime = useLiveStatisticsTime(isRunning);
   const currentStatistics = useMemo(
-    () => aggregatePiSessionStatistics(messages, isRunning ? currentTime : undefined),
+    () => aggregateWorkbenchSessionStatistics(messages, isRunning ? currentTime : undefined),
     [currentTime, isRunning, messages],
   );
   const monotonicStatistics = useMonotonicSessionStatistics(currentStatistics);

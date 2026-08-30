@@ -24,27 +24,25 @@ import { useI18n } from "@/i18n";
 import type { SettingsItemComponentProps } from "@/platform/extensions";
 import {
   describeAttachmentUnderstandingSettings,
+  getPiModelCatalogRevision,
   listPiModelCatalog,
   listPiModelProviders,
-  PiApiError,
-  updateAttachmentUnderstandingSettings,
-} from "@/runtime/pi/client/transport/api";
-import {
-  getPiModelCatalogRevision,
   subscribePiModelCatalogInvalidation,
-} from "@/runtime/pi/client/models/model-catalog-invalidation";
+  updateAttachmentUnderstandingSettings,
+} from "@/workbench/runtime-contributions/pi/client/configuration";
+import { PiApiError } from "@/workbench/runtime-contributions/pi/client/errors";
 import type {
   AttachmentUnderstandingDescribeValue,
   AttachmentUnderstandingEngine,
   AttachmentUnderstandingRouting,
   AttachmentUnderstandingSettingsValue,
-} from "@/runtime/pi/contracts/rpc";
+} from "@/workbench/runtime-contributions/pi/protocol/rpc";
 import {
   getOcrAdapterPreset,
   OCR_ADAPTER_PRESETS,
   parseOcrAdapterSource,
   type OcrAdapterPresetId,
-} from "@/runtime/shared/attachment-understanding/ocr-adapter";
+} from "@workbench/attachment-understanding-contracts/ocr-adapter";
 
 import {
   configuredMultimodalModelOptions,

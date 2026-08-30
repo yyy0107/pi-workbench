@@ -9,8 +9,8 @@ import { useI18n } from "@/i18n";
 import {
   useWorkbenchAgentThreadActions,
   useWorkbenchAgentThreadSnapshots,
-} from "@/runtime/assistant-ui/agent-runtime-context";
-import { useWorkspaceSelection } from "@/services/workspace-selection-service";
+} from "@workbench/agent-runtime-client/context";
+import { useWorkspaceSelection } from "@workbench/agent-runtime-client/workspaces";
 import { resolveSidebarThreadWorkspaceId } from "@/workbench/workspaces/new-thread-policy";
 
 import { WorkbenchThreadListItem } from "./thread-list-item";

@@ -5,7 +5,7 @@ import type { ComposerCommandDefinition, ComposerCommandRegistry } from "@/platf
 import {
   COMPOSER_CONVERSATION_MENTION_TYPE,
   COMPOSER_WORKSPACE_FILE_MENTION_TYPE,
-} from "@/contracts/composer";
+} from "@workbench/contracts/composer";
 
 import {
   applyComposerCommandArguments,
@@ -26,7 +26,7 @@ import {
   composerDocumentMatchesCommands,
   parseWorkbenchComposerSubmission,
   WORKBENCH_COMPOSER_RUN_CONFIG_KEY,
-} from "@/runtime/shared/composer/request";
+} from "@workbench/contracts/composer/request";
 
 function registry(
   definitions: readonly ComposerCommandDefinition[],

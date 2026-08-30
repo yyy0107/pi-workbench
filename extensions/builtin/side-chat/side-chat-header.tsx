@@ -8,7 +8,7 @@ import { useRightWorkspace } from "@/components/right-workspace";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import { useExtensionErrorReporter, type WorkspaceSurfaceProps } from "@/platform/extensions";
-import { usePiSessionManager } from "@/runtime/pi/client/runtime/context";
+import { usePiSideChatClient } from "@/workbench/runtime-contributions/pi/client/side-chat";
 
 import { markScratchSessionPromoted } from "./scratch-session-lease";
 import type { SideChatSurfaceParams } from "./side-chat-workspace";
@@ -17,7 +17,7 @@ export function SideChatHeader({ surface }: WorkspaceSurfaceProps<SideChatSurfac
   const { t } = useI18n();
   const aui = useAui();
   const controller = useRightWorkspace();
-  const manager = usePiSessionManager();
+  const manager = usePiSideChatClient();
   const reportError = useExtensionErrorReporter();
   const [pending, setPending] = useState(false);
 

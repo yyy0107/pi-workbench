@@ -1,7 +1,7 @@
 import type {
   PromptFeedbackClaim,
   PromptFeedbackPort,
-} from "@/services/workspace-feedback-service";
+} from "@workbench/agent-runtime-client/prompt-feedback";
 
 import type { WorkspaceContext } from "../core/surface-types";
 import { scopeMatchesContext } from "../core/workspace-selectors";

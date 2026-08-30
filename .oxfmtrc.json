@@ -1,4 +1,14 @@
 {
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
-  "ignorePatterns": [".pi/settings.json"]
+  "ignorePatterns": [
+    ".pi/settings.json",
+    "**/node_modules/**",
+    ".agents/skills/banner-design/**",
+    ".agents/skills/brand/**",
+    ".agents/skills/design-system/**",
+    ".agents/skills/design/**",
+    ".agents/skills/slides/**",
+    ".agents/skills/ui-styling/**",
+    ".agents/skills/ui-ux-pro-max/**"
+  ]
 }

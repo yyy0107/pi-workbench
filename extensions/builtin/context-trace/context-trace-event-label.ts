@@ -1,5 +1,5 @@
 import type { Translate } from "@/i18n";
-import type { SessionContextTraceKind } from "@/runtime/pi/contracts/rpc";
+import type { SessionContextTraceKind } from "@/workbench/runtime-contributions/pi/protocol/rpc";
 
 export function contextTraceEventLabel(t: Translate, kind: SessionContextTraceKind): string {
   switch (kind) {

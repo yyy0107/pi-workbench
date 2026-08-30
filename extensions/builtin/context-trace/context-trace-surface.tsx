@@ -22,12 +22,15 @@ import { Input } from "@/components/ui/input";
 import { defineMessage, useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { useExtensionErrorReporter, type WorkspaceSurfaceProps } from "@/platform/extensions";
-import { usePiThreadStateSnapshot } from "@/runtime/pi/client/runtime/context";
-import { PiApiError, readPiRpcSessionContextTrace } from "@/runtime/pi/client/transport/api";
+import {
+  readPiRpcSessionContextTrace,
+  usePiThreadStateSnapshot,
+} from "@/workbench/runtime-contributions/pi/client/context-trace";
+import { PiApiError } from "@/workbench/runtime-contributions/pi/client/errors";
 import type {
   SessionContextTraceEventSummary,
   SessionContextTraceKind,
-} from "@/runtime/pi/contracts/rpc";
+} from "@/workbench/runtime-contributions/pi/protocol/rpc";
 
 import {
   ContextTraceDetail,

@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import type { FlowEdge, FlowNode } from "@/runtime/shared/execution";
+import type { FlowEdge, FlowNode } from "@workbench/execution-contracts";
 
 export interface CanvasNodeData extends Record<string, unknown> {
   label: string;

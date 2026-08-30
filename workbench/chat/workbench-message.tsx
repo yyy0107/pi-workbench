@@ -15,12 +15,14 @@ import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { SlotHost } from "@/platform/extensions/hosts/slot-host";
-import { readAgentRunRecovery } from "@/runtime/assistant-ui/agent-runtime-extras";
-import { parsePiConversationEvent } from "@/runtime/pi/client/messages/conversation-events";
-import { readPiUsage } from "@/runtime/pi/client/messages/pi-usage";
-import { parseWorkbenchComposerCommandResponseDetails } from "@/runtime/shared/composer/request";
-import { parseWorkbenchPromptFailureDetails } from "@/runtime/shared/composer/request";
-import { parsePiMessageTermination } from "@/runtime/pi/shared/messages/termination";
+import { readAgentRunRecovery } from "@workbench/agent-runtime-client/extras";
+import {
+  parseWorkbenchConversationEvent,
+  parseWorkbenchMessageTermination,
+  readWorkbenchMessageUsage,
+} from "@workbench/agent-runtime-contracts/message-metadata";
+import { parseWorkbenchComposerCommandResponseDetails } from "@workbench/contracts/composer/request";
+import { parseWorkbenchPromptFailureDetails } from "@workbench/contracts/composer/request";
 
 import { WorkbenchComposerCommandResponse } from "./composer-command-response";
 import { WorkbenchMessageActions } from "./message-actions";
@@ -66,14 +68,14 @@ function WorkbenchMessageError() {
   const isInLatestTurn = useAuiState((state) =>
     isMessageInLatestTurn(state.thread.messages, state.message.index),
   );
-  const termination = parsePiMessageTermination(
-    useAuiState((state) => state.message.metadata.custom.piTermination),
+  const termination = parseWorkbenchMessageTermination(
+    useAuiState((state) => state.message.metadata.custom.workbenchTermination),
   );
   const promptFailure = parseWorkbenchPromptFailureDetails(
     useAuiState((state) => state.message.metadata.custom.workbenchPromptFailure),
   );
-  const outputTokens = readPiUsage(
-    useAuiState((state) => state.message.metadata.custom.piUsage),
+  const outputTokens = readWorkbenchMessageUsage(
+    useAuiState((state) => state.message.metadata.custom.workbenchUsage),
   )?.output;
   const [retryPhase, setRetryPhase] = useState<"idle" | "requested" | "running">("idle");
   const [continuationFailed, setContinuationFailed] = useState(false);
@@ -176,7 +178,7 @@ function WorkbenchMessageError() {
         (error) => {
           setRetryPhase("idle");
           if (canContinue) {
-            console.warn("[workbench-pi] task continuation failed", error);
+            console.warn("[workbench-agent] task continuation failed", error);
             setContinuationFailed(true);
           }
         },
@@ -184,7 +186,7 @@ function WorkbenchMessageError() {
     } catch (error) {
       setRetryPhase("idle");
       if (canContinue) {
-        console.warn("[workbench-pi] task continuation failed", error);
+        console.warn("[workbench-agent] task continuation failed", error);
         setContinuationFailed(true);
       }
     }
@@ -255,9 +257,9 @@ export function WorkbenchAssistantMessage() {
 export function WorkbenchSystemMessage() {
   const { t } = useI18n();
   const conversationEventData = useAuiState(
-    (state) => state.message.metadata.custom.piConversationEvent,
+    (state) => state.message.metadata.custom.workbenchConversationEvent,
   );
-  const conversationEvent = parsePiConversationEvent(conversationEventData);
+  const conversationEvent = parseWorkbenchConversationEvent(conversationEventData);
   const commandResponse = parseWorkbenchComposerCommandResponseDetails(
     useAuiState((state) => state.message.metadata.custom.workbenchComposerCommandResponse),
   );

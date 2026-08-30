@@ -22,14 +22,14 @@ import {
 } from "@/components/ui/dialog";
 import { useI18n } from "@/i18n";
 import type { ComposerOverlaySlotContext } from "@/platform/extensions/authoring";
-import { useWorkbenchAgentThreadId } from "@/runtime/assistant-ui/agent-runtime-context";
-import { usePiSessionManager } from "@/runtime/pi/client/runtime/context";
+import { useWorkbenchAgentThreadId } from "@workbench/agent-runtime-client/context";
+import { PiApiError } from "@/workbench/runtime-contributions/pi/client/errors";
 import type {
+  PiInteractionClient,
   PiInteractionResponse,
   PiPendingInteraction,
-  PiSessionManager,
-} from "@/runtime/pi/client/runtime/manager";
-import { PiApiError } from "@/runtime/pi/client/transport/api";
+} from "@/workbench/runtime-contributions/pi/client/interactions";
+import { usePiInteractionClient } from "@/workbench/runtime-contributions/pi/client/interactions";
 
 import { AskUserPanel } from "./ask-user-panel";
 import { useAskUserPreferences } from "./ask-user-preferences";
@@ -82,7 +82,7 @@ function SubmitErrorMessage({ error }: { error: SubmitError | null }) {
 }
 
 function useInteractionSubmit(
-  manager: PiSessionManager,
+  manager: PiInteractionClient,
   rpcId: string,
 ): {
   error: SubmitError | null;
@@ -129,7 +129,7 @@ function QuestionComposerOverlay({
   setOverlayVisible,
 }: {
   interaction: Extract<PiPendingInteraction, { kind: "question" }>;
-  manager: PiSessionManager;
+  manager: PiInteractionClient;
   setOverlayVisible(visible: boolean): void;
 }) {
   const { t } = useI18n();
@@ -195,7 +195,7 @@ function ApprovalDialog({
   pendingCount,
 }: {
   interaction: Extract<PiPendingInteraction, { kind: "approval" }>;
-  manager: PiSessionManager;
+  manager: PiInteractionClient;
   pendingCount: number;
 }) {
   const { t } = useI18n();
@@ -270,7 +270,7 @@ function ApprovalDialog({
 }
 
 function usePendingInteractions() {
-  const manager = usePiSessionManager();
+  const manager = usePiInteractionClient();
   const activeSessionId = useWorkbenchAgentThreadId();
   const revision = useSyncExternalStore(
     manager.subscribe,

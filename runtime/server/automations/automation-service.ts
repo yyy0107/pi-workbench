@@ -18,11 +18,11 @@ import type {
   AutomationSessionsValue,
   AutomationSetEnabledPayload,
   AutomationSummary,
-} from "@/runtime/shared/automation";
+} from "@workbench/automation-contracts";
 import {
   MAX_AUTOMATION_DURATION_SECONDS,
   MIN_AUTOMATION_DURATION_SECONDS,
-} from "@/runtime/shared/automation";
+} from "@workbench/automation-contracts";
 import { AutomationError } from "./automation-errors";
 import { AutomationRepository } from "./automation-repository";
 

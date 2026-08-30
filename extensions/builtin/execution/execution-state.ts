@@ -8,8 +8,8 @@ import type {
   WorkflowReadValue,
   WorkflowRunSummary,
   WorkflowSummary,
-} from "@/runtime/shared/execution";
-import { workflowClient } from "@/runtime/pi/client/workflows/workflow-client";
+} from "@workbench/execution-contracts";
+import { workflowClient } from "@/workbench/runtime-contributions/pi/client/execution";
 import { mergeWorkflowRuns } from "./execution-run-merge";
 
 type LoadState = "idle" | "loading" | "ready" | "error";

@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { searchPiPackageCatalog } from "@/runtime/pi/client/transport/api";
+import { searchPiPackageCatalog } from "@/workbench/runtime-contributions/pi/client/resources";
 import type {
   PiPackageCatalogFilterType,
   PiPackageCatalogSearchValue,
   PiPackageCatalogSort,
-} from "@/runtime/pi/contracts/rpc";
+} from "@/workbench/runtime-contributions/pi/protocol/rpc";
 
 const EMPTY_CATALOG: PiPackageCatalogSearchValue = {
   sourceUrl: "https://pi.dev/packages",

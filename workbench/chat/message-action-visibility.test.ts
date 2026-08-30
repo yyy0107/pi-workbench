@@ -72,7 +72,7 @@ test("hides actions for a persisted message while its turn continues", () => {
     ...assistant("assistant-tool-step", "text", "tool-call"),
     isLast: true,
     status: { type: "complete" },
-    metadata: { custom: { piEventSeq: 7 } },
+    metadata: { custom: { workbenchStateToken: "7" } },
   };
 
   assert.equal(shouldHideMessageActionBar(completedToolStep, true), true);

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { streamPiWorkspaceFileText } from "@/runtime/pi/client/transport/api";
+import { streamPiWorkspaceFileText } from "@/workbench/runtime-contributions/pi/client/workspace";
 
 import { ProgressiveTextDocument, type ProgressiveTextSnapshot } from "./progressive-text-document";
 

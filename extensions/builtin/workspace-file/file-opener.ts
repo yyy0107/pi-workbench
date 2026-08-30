@@ -4,14 +4,14 @@ import {
   listPiSkillFiles,
   readPiExtensionFile,
   readPiSkillFile,
-} from "@/runtime/pi/client/transport/api";
+} from "@/workbench/runtime-contributions/pi/client/resources";
 import type {
   ExtensionFileReadPayload,
   ExtensionSourceOrigin,
   ExtensionSourceScope,
   PiResourceCatalogTarget,
   PiResourceRequest,
-} from "@/runtime/pi/contracts/rpc";
+} from "@/workbench/runtime-contributions/pi/protocol/rpc";
 import { fileWorkspaceContext, fileWorkspaceService } from "@/services/workspace-file-service";
 
 import { fileDiffService, parseFileDiffMetadata } from "./file-diff-service";

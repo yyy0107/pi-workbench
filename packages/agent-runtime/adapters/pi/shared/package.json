@@ -1,0 +1,47 @@
+{
+  "name": "@workbench/agent-runtime-pi-shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./descriptor": {
+      "types": "./src/descriptor.ts",
+      "import": "./src/descriptor.ts",
+      "default": "./src/descriptor.ts"
+    },
+    "./commands": {
+      "types": "./src/commands.ts",
+      "import": "./src/commands.ts",
+      "default": "./src/commands.ts"
+    },
+    "./messages": {
+      "types": "./src/messages.ts",
+      "import": "./src/messages.ts",
+      "default": "./src/messages.ts"
+    },
+    "./models": {
+      "types": "./src/models.ts",
+      "import": "./src/models.ts",
+      "default": "./src/models.ts"
+    },
+    "./sessions": {
+      "types": "./src/sessions.ts",
+      "import": "./src/sessions.ts",
+      "default": "./src/sessions.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@earendil-works/pi-ai": "0.84.2",
+    "@workbench/agent-runtime-contracts": "workspace:*",
+    "@workbench/agent-runtime-pi-protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2"
+  }
+}

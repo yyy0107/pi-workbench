@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
-import { readAgentQueueExtras } from "@/runtime/assistant-ui/agent-runtime-extras";
+import { readAgentQueueExtras } from "@workbench/agent-runtime-client/extras";
 
 function queueItemText(queueItem: QueueItemState): string {
   return queueItem.parts

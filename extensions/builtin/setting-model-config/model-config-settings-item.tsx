@@ -50,12 +50,12 @@ import {
   getPiModelProviderConfig,
   getPiModelProviderLogin,
   listPiModelProviders,
-  PiApiError,
   removePiModelProvider,
   respondPiModelProviderLogin,
   startPiModelProviderLogin,
   testPiModelImageInput,
-} from "@/runtime/pi/client/transport/api";
+} from "@/workbench/runtime-contributions/pi/client/configuration";
+import { PiApiError } from "@/workbench/runtime-contributions/pi/client/errors";
 import type {
   ConfigurableProviderView,
   ModelProviderConfiguration,
@@ -63,7 +63,7 @@ import type {
   ModelProviderModelConfiguration,
   ModelProvidersValue,
   TestModelImageInputValue,
-} from "@/runtime/pi/contracts/rpc";
+} from "@/workbench/runtime-contributions/pi/protocol/rpc";
 
 import {
   MODEL_PROVIDER_APIS,

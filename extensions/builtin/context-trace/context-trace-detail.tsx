@@ -27,7 +27,7 @@ import type {
   SessionContextTraceTextCapture,
   SessionContextTraceTokenUsage,
   SessionContextTraceTool,
-} from "@/runtime/pi/contracts/rpc";
+} from "@/workbench/runtime-contributions/pi/protocol/rpc";
 
 import {
   CONTEXT_TRACE_MESSAGE_ROLES,

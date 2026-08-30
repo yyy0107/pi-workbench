@@ -7,7 +7,7 @@ import {
   toolResultText,
   toolStringArg,
   useCompletedToolCalls,
-} from "@/runtime/assistant-ui/tool-events";
+} from "@workbench/agent-runtime-client";
 import { artifactPreviewService } from "./artifact-preview-service";
 
 export function ArtifactRuntimeBridge() {

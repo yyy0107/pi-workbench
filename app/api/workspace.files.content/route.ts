@@ -1,4 +1,4 @@
-import { handleWorkspaceFileContentRequest } from "@/runtime/pi/server/workspaces/workspace-file-content";
+import { handleWorkspaceFileContentRequest } from "@/workbench/server/pi/installed-pi-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

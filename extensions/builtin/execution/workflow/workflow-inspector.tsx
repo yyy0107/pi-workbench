@@ -16,7 +16,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/in
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useI18n } from "@/i18n";
-import { workflowClient } from "@/runtime/pi/client/workflows/workflow-client";
+import { workflowClient } from "@/workbench/runtime-contributions/pi/client/execution";
 import type {
   ConditionOperator,
   FlowNode,
@@ -24,7 +24,7 @@ import type {
   WorkflowAgentResourcesValue,
   WorkflowAgentSkillResource,
   WorkflowJsonValue,
-} from "@/runtime/shared/execution";
+} from "@workbench/execution-contracts";
 import type { WorkspaceSurfaceProps } from "@/platform/extensions/authoring";
 
 import { useWorkflowEditorStore } from "../execution-state";

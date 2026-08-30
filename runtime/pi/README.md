@@ -557,7 +557,8 @@ templates 在会话建立后由完整运行时目录补齐，避免在扩展实�
 Extension command 和 prompt template 项还返回脱敏后的 package 来源、作用域和来源类型；不会返回
 具体文件路径。工具箱使用这些字段把 package 提供的 Prompt 关联到官方 Package 详情。
 
-浏览器侧不会把这个 Pi RPC DTO 直接暴露给 Workbench。`client/assistant-ui/command-catalog.tsx` 根据
+浏览器侧不会把这个 Pi RPC DTO 直接暴露给 Workbench。`@workbench/agent-runtime-pi-client`
+实现层中的 command catalog 根据
 活动 session 或 draft workspace 选择请求目标并订阅资源 catalog revision；纯投影位于
 `shared/commands/command-projection.ts`，由浏览器和服务端 `AgentCommandCatalogPort` 共同复用，把每项
 转换为通用 `WorkbenchAgentCommand`。Pi 的扁平 `source/scope/origin` 在实现层收敛为通用的 `source`
@@ -1014,8 +1015,10 @@ cut，随后按 `session/subscribed → session/message-snapshot → queue/inter
 snapshot 恢复。snapshot 还携带尚未完成的 tool-call 原始 JSON buffer，因为已经解析的 arguments
 不能继续拼接后续 JSON fragment。durable `message_end`、branch reset 和 host shutdown 会清除该
 快照，避免重连复活已完成的 streaming row。bootstrap 缓冲上限为 10,000 帧；单 socket 待发送
-数据上限为 1 MiB。
-消费者过慢、序列化失败或 stream 异常时，服务尽力发送 `stream/error`，然后以 `1011` 结束
+数据背压水位为 1 MiB。同步 bootstrap 或密集 live delta 短暂越过水位时，网关会在保持帧顺序的同时
+继续排空队列；只有队列连续 10 秒仍高于水位时才判定客户端未消费，避免把健康的瞬时突发误报为慢
+消费者，同时防止持续落后的连接无限占用内存。
+消费者持续过慢、序列化失败或 stream 异常时，服务尽力发送 `stream/error`，然后以 `1011` 结束
 连接。普通 `GET|HEAD` 访问这两个路径而不 upgrade 会得到 `426 Upgrade Required`。
 
 浏览器把 mux 和 host 作为同一个 connection generation：只有两条 socket 都打开后才提交该代
@@ -1058,56 +1061,15 @@ Terminal 的 PTY 生命周期和双向 frame 协议属于独立的
 
 实现按传输层和业务域分组，测试与源文件共置：
 
-本节的 `shared/` 是 Pi client/server 之间的内部纯逻辑；可被 Pi 之外模块复用的 Composer 与附件
-理解领域逻辑位于上一级 [`runtime/shared`](../shared)，两者不要混用。
+Pi 浏览器适配器已迁至
+[`packages/agent-runtime/adapters/pi/client`](../../packages/agent-runtime/adapters/pi/client)，并只通过
+`@workbench/agent-runtime-pi-client/*` 的有限功能入口供应用使用。下面只展示仍由本目录拥有的 Pi
+服务端实现；协议和跨端纯逻辑分别由 `@workbench/agent-runtime-pi-protocol` 与
+`@workbench/agent-runtime-pi-shared` 拥有。
 
 ```text
 runtime/pi/
 ├── README.md
-├── descriptor.ts
-├── client/
-│   ├── assistant-ui/
-│   │   ├── adapter.ts
-│   │   ├── command-catalog.tsx
-│   │   ├── extras.ts
-│   │   ├── pi-runtime-installation.tsx
-│   │   ├── thread-store.ts
-│   │   ├── thread-runtime.tsx
-│   │   ├── pi-runtime-provider.tsx
-│   │   ├── trackers.tsx
-│   │   └── workspace-selection-provider.tsx
-│   ├── context-trace/
-│   │   └── data-part.ts
-│   ├── transport/
-│   │   ├── api.ts
-│   │   └── connections.ts
-│   ├── runtime/
-│   │   ├── manager.ts
-│   │   └── context.tsx
-│   ├── messages/
-│   │   ├── messages.ts
-│   │   └── queue.ts
-│   ├── models/
-│   │   └── model-selection.ts
-│   └── sessions/
-│       ├── session-create-intent.ts
-│       └── session-rpc-adapter.ts
-├── contracts/
-│   ├── attachments.ts
-│   ├── pi.ts
-│   ├── rpc.ts
-│   └── stream.ts
-├── shared/
-│   ├── commands/
-│   │   └── command-projection.ts
-│   ├── messages/
-│   │   ├── reducer.ts
-│   │   └── termination.ts
-│   ├── models/
-│   │   └── capabilities.ts
-│   └── sessions/
-│       ├── display-title.ts
-│       └── history-pagination.ts
 └── server/
     ├── agent-runtime/
     │   ├── pi-agent-execution-adapter.ts
@@ -1174,9 +1136,7 @@ runtime/pi/
     │   ├── installed-package-service.ts
     │   └── package-catalog-service.ts
     ├── settings/
-    │   ├── agent-settings-service.ts
-    │   ├── workbench-settings-file.ts
-    │   └── workbench-settings-service.ts
+    │   └── agent-settings-service.ts
     ├── commands/
     │   ├── command-service.ts
     │   └── pi-composer-prompt.ts
@@ -1222,30 +1182,27 @@ runtime/pi/
 
 职责约定：
 
-- `contracts` 只包含稳定、可序列化的跨端协议与兼容 DTO，不导入 `client`、`server` 或宿主对象；
-- `descriptor.ts` 是 Pi client/server installation 和 adapter 共用的纯身份，当前只包含稳定的 `pi` ID；
-  它不导入 SDK、React、transport 或 session registry，也不承担 Runtime 发现；
-- `pi/shared` 只包含 Pi client/server 可复用的纯逻辑，可以依赖 `contracts`，但不拥有网络、文件系统或
-  assistant-ui 状态；
-- 顶层 `runtime/shared` 包含 Pi 之外也会复用的领域语义；Pi 模块直接导入具体拥有者，不在
-  `pi/shared` 建立转发层；
-- `client` 可以依赖 `contracts` 和 `shared`，不得导入 `server`；
-- `client/assistant-ui` 是 Pi 对通用 `WorkbenchAgentRuntimeAdapter` 的具体实现。它拥有 Pi session 到
+- `@workbench/agent-runtime-pi-protocol` 只包含稳定、可序列化的跨端协议与兼容 DTO，不导入浏览器
+  实现、服务端实现或宿主对象；
+- `@workbench/agent-runtime-pi-shared` 保存 Pi 浏览器与服务端可复用的纯逻辑，可以依赖 protocol，
+  但不拥有网络、文件系统或 assistant-ui 状态；
+- `@workbench/agent-runtime-pi-client` 是 Pi 对通用 `WorkbenchAgentRuntimeAdapter` 的具体浏览器实现。
+  它拥有 Pi session 到
   assistant-ui Runtime 的投影、后台 thread presentation、通用 extras 和 callback 映射，以及 Pi
   manager、命令目录、workspace selection 与 active/draft tracker 的浏览器侧安装生命周期；通用
-  `runtime/assistant-ui` 不得反向导入 Pi。`thread-store.ts` 直接包装 manager 已有逐线程订阅并将
+  `@workbench/agent-runtime-client` 不得反向导入 Pi。内部 `thread-store.ts` 直接包装 manager 已有逐线程订阅并将
   `cwd` 映射为通用 `rootPath`，不建立第二份缓存；`command-catalog.tsx` 负责选择 session/workspace
-  target 与订阅资源 revision，纯 `CommandView` 投影复用 `pi/shared/commands`。
+  target 与订阅资源 revision，纯 `CommandView` 投影复用 Pi shared package。
   `adapter.test.tsx` 调用通用 `defineWorkbenchAgentRuntimeAdapterContract()`，从真实通用 Host 锁定 Pi 的
   assistant-ui capabilities、command/thread presentation 和订阅面；Pi 消息、队列与生命周期细节仍由
   实现目录的专项测试覆盖。`pi-runtime-installation.tsx` 只把应用输入绑定到完整
   `PiAgentRuntimeProvider`；manager 和 adapter 仍在 Provider 内创建。
   `workbench/providers/installed-agent-runtime.tsx` 是当前唯一具体实现选择点，使用 singular factory 选择
   Pi；`assistant-runtime-provider.tsx` 只挂载结果并安装后端无关 Surface 桥接；
-- `client/runtime` 的 `PiSessionManager` 维护独立的 thread-list 结构 revision。只有会话成员、归档状态
+- Pi client package 内部的 `PiSessionManager` 维护独立的 thread-list 结构 revision。只有会话成员、归档状态
   或排序变化才通知通用 Runtime；初始 list 和同一浏览器的 draft promotion 只更新结构基线，避免宽泛
   manager 状态触发重复 reload 或重复 remote item；
-- `server` 可以依赖 `contracts` 和 `shared`，不得导入 `client`。Node/Pi Runtime、凭据、信任和
+- `server` 可以依赖 Pi protocol/shared packages，不得导入 Pi client package。Node/Pi Runtime、凭据、信任和
   文件系统逻辑只留在这里；
 - `server/agent-runtime` 实现顶层 `runtime/server` 的后端无关执行与线程存储端口，把 `threadId`、
   `rootPath`、结构化 Prompt、目录摘要、搜索文档、CRUD/队列 mutation 和稳定 Agent 错误映射到 Pi
@@ -1333,10 +1290,11 @@ runtime/pi/
   `package-catalog-service.ts` 实现独立的 `PackageCatalogProtocol`，继续独占 `pi.dev` 网络访问、缓存、
   后台刷新和取消策略。transport 不直接取得两类服务的 Pi 或网络依赖；
 - `server/settings/agent-settings-service.ts` 实现 `AgentSettingsProtocol`，继续独占 Pi agent 目录、
-  `SYSTEM.md`、`settings.json`、revision 和跨进程文件锁；`workbench-settings-service.ts` 实现
-  `WorkbenchSettingsProtocol`，继续独占 preferences 解析、统一文档和进程内 listener。附件识别的
-  `settings-store.ts` 实现 `ImageUnderstandingSettingsProtocol`，但 runtime-only credential 读取不进入
-  该 transport 协议；
+  `SYSTEM.md`、`settings.json`、revision 和跨进程文件锁；Workbench-owned preferences 的协议位于
+  `@workbench/agent-runtime-contracts/settings`，通用持久化实现位于 `runtime/server/settings`。Pi route 只依赖
+  该窄协议，当前安装的 Pi agent 目录由 `workbench/server/workbench-settings.ts` 在应用组合层注入。
+  附件识别的 `settings-store.ts` 实现 `ImageUnderstandingSettingsProtocol`，但 runtime-only credential 读取
+  不进入该 transport 协议；
 - `server/models/model-service.ts` 同时实现 `ModelProviderProtocol` 与
   `ModelContextWindowProtocol`，继续独占 `createAgentSessionServices()` 创建的单一 Pi
   `ModelRuntime`、credential store、Provider 登录状态、`models.json` 配置、endpoint discovery 和
@@ -1350,7 +1308,7 @@ runtime/pi/
   `PromptCatalogProtocol`。两者继续在服务层取得 session 或 scoped resource context，transport 不接触
   ResourceLoader；
 - `server/streams` 负责实时分发与 legacy SSE，不拥有业务状态；
-- `client/transport` 不拥有 assistant-ui 状态，状态协调集中在 `client/runtime`；
+- Pi client package 的 transport 不拥有 assistant-ui 状态，状态协调集中在其内部 runtime；
 - 跨层导入直接指向拥有者模块，不通过聚合 barrel 隐藏依赖方向。
 
 ## 配置
@@ -1395,13 +1353,10 @@ pnpm exec tsc --noEmit
 pnpm lint
 ```
 
-运行 Pi runtime 的 Node 测试：
+运行 Pi server adapter 的 Node 测试：
 
 ```bash
-mapfile -t pi_tests < <(rg --files runtime/pi -g '*.test.ts')
-node --no-warnings=ExperimentalWarning \
-  --import ./.codex/hooks/register-typescript-loader.mjs \
-  --test "${pi_tests[@]}"
+pnpm --filter @workbench/agent-runtime-pi-server test
 ```
 
 修改 custom server 或 WebSocket 时，除单元测试外还应在非 3000 端口进行 smoke test，至少验证
@@ -1410,8 +1365,8 @@ downlink 发送消息后的 `1008` close。
 
 ## OCR 适配器规范
 
-OCR 的纯声明解析位于 `runtime/shared/attachment-understanding`，服务端执行适配位于
-`runtime/pi/server/attachment-understanding`。OCR 设置中的源码是以下形式的有效 TypeScript，但
+OCR 的纯声明解析位于 `@workbench/attachment-understanding-contracts`，服务端执行适配位于
+`packages/agent-runtime/adapters/pi/server/src/attachment-understanding`。OCR 设置中的源码是以下形式的有效 TypeScript，但
 运行时不会把它交给 TypeScript/JavaScript 引擎：
 
 ```ts

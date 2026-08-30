@@ -1,4 +1,4 @@
-import { handleSessionExportRequest } from "@/runtime/pi/server/sessions/session-export";
+import { handleSessionExportRequest } from "@/workbench/server/pi/installed-pi-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

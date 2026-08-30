@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 
-import type { FlowGraph } from "@/runtime/shared/execution";
+import type { FlowGraph } from "@workbench/execution-contracts";
 
 const WorkflowGraphThumbnailCore = dynamic<{ graph: FlowGraph }>(
   () =>

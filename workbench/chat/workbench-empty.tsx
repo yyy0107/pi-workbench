@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
-import { useWorkspaceSelection } from "@/services/workspace-selection-service";
+import { useWorkspaceSelection } from "@workbench/agent-runtime-client/workspaces";
 
 import { NEW_THREAD_COMPOSER_WIDTH_CLASS_NAME } from "./thread-content-width";
 

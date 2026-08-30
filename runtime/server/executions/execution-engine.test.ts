@@ -4,13 +4,13 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import type { WorkflowDocument, WorkflowRunStatus } from "@/runtime/shared/execution";
-import { compileExecutionDocument } from "./execution-compiler";
-import { ExecutionEngine } from "./execution-engine";
+import type { WorkflowDocument, WorkflowRunStatus } from "@workbench/execution-contracts";
 import {
   ExecutionNodeExecutorRegistry,
   type ExecutionNodeExecutor,
-} from "./execution-node-executor";
+} from "@workbench/execution-server/node-executor";
+import { compileExecutionDocument } from "./execution-compiler";
+import { ExecutionEngine } from "./execution-engine";
 import { ExecutionRepository } from "./execution-repository";
 
 function approvalDocument(): WorkflowDocument {

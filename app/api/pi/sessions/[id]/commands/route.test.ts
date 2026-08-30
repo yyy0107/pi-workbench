@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { RPC_REQUEST_BODY_LIMITS } from "@/runtime/pi/server/transport/rpc-transport";
+import { RPC_REQUEST_BODY_LIMITS } from "@workbench/agent-runtime-pi-server/legacy";
 
 const { POST } = (await import(
   new URL("./route.ts", import.meta.url).href

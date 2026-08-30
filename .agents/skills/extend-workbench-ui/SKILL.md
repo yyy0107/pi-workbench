@@ -177,7 +177,7 @@ When changing Pi transport or session behavior, also run the Pi tests documented
 - Register cross-feature resource handlers through `context.openers.register(...)`; callers use `useOpenerService()` and handle Promise rejection.
 - Do not add feature-specific kind branches, icons, services, or Agent tool mappings back to `components/right-workspace/`.
 - Do not assume registering a Renderer exposes or executes a model tool.
-- Do not call raw Pi endpoints, open another event stream, or copy RPC payload types into an extension. Follow `runtime/pi/README.md`, reuse `runtime/pi/client/transport/api.ts` or the manager hooks, and treat `/api/pi/**` as compatibility-only unless the README names an exception. Route server-side coding-agent work through `$pi-coding-agent-sdk` and direct Pi model/provider/stream work through `$pi-ai-sdk`.
+- Do not call raw Pi endpoints, open another event stream, or copy RPC payload types into an extension. Follow `runtime/pi/README.md`, reuse the narrow `@workbench/agent-runtime-pi-client/*` feature facade that owns the capability, and treat `/api/pi/**` as compatibility-only unless the README names an exception. Route server-side coding-agent work through `$pi-coding-agent-sdk` and direct Pi model/provider/stream work through `$pi-ai-sdk`.
 - Handle rejected Promises in event handlers; React Error Boundaries do not catch event or arbitrary async errors.
 - Keep API keys, secrets, and privileged execution out of frontend extensions.
 

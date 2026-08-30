@@ -1,4 +1,4 @@
-import type { FlowNode, WorkflowDocument } from "@/runtime/shared/execution";
+import type { FlowNode, WorkflowDocument } from "@workbench/execution-contracts";
 
 export function createLinearWorkflowGraph(
   document: WorkflowDocument,

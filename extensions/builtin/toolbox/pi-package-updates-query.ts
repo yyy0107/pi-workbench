@@ -1,5 +1,8 @@
-import type { PiPackageUpdatesValue, PiResourceCatalogTarget } from "@/runtime/pi/contracts/rpc";
-import { listAvailablePiPackageUpdates } from "@/runtime/pi/client/transport/api";
+import type {
+  PiPackageUpdatesValue,
+  PiResourceCatalogTarget,
+} from "@/workbench/runtime-contributions/pi/protocol/rpc";
+import { listAvailablePiPackageUpdates } from "@/workbench/runtime-contributions/pi/client/resources";
 
 const EMPTY_UPDATES: PiPackageUpdatesValue = { updates: [] };
 const DEFAULT_MAX_AGE_MS = 30_000;

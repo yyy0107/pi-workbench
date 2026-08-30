@@ -2,7 +2,10 @@
 
 import { useCallback, useState } from "react";
 
-import { describePiProjectTrust, updatePiProjectTrust } from "@/runtime/pi/client/transport/api";
+import {
+  describePiProjectTrust,
+  updatePiProjectTrust,
+} from "@/workbench/runtime-contributions/pi/client/execution";
 
 interface PendingExecutionTrust {
   path: string;

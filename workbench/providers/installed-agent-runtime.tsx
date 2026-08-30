@@ -1,8 +1,12 @@
 "use client";
 
-import type { WorkbenchAgentRuntimeInstallation } from "@/runtime/assistant-ui/agent-runtime-installation";
-import { createPiAgentRuntimeInstallation } from "@/runtime/pi/client/assistant-ui/pi-runtime-installation";
-import type { PromptFeedbackPort } from "@/services/workspace-feedback-service";
+import type { WorkbenchAgentRuntimeInstallation } from "@workbench/agent-runtime-client/installation";
+import type { PromptFeedbackPort } from "@workbench/agent-runtime-client/prompt-feedback";
+import {
+  createPiAgentRuntimeInstallation,
+  type PiAgentRuntimeCopy,
+} from "@workbench/agent-runtime-pi-client/installation";
+import { workspaceDirectoryStorePort } from "@/workbench/workspaces/workspace-directory-store";
 
 /**
  * The singular Agent Runtime installation selected by this Workbench build.
@@ -11,7 +15,10 @@ import type { PromptFeedbackPort } from "@/services/workspace-feedback-service";
  * selection policy belong here only after a second production implementation exists.
  */
 export function createInstalledAgentRuntime(
-  promptFeedback: PromptFeedbackPort,
+  options: Readonly<{ copy: PiAgentRuntimeCopy; promptFeedback: PromptFeedbackPort }>,
 ): WorkbenchAgentRuntimeInstallation {
-  return createPiAgentRuntimeInstallation({ promptFeedback });
+  return createPiAgentRuntimeInstallation({
+    ...options,
+    workspaceDirectoryStore: workspaceDirectoryStorePort,
+  });
 }

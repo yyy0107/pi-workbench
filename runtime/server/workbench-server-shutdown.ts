@@ -2,7 +2,7 @@ import type { Server } from "node:http";
 
 import type { WebSocket, WebSocketServer } from "ws";
 
-import { runWorkbenchShutdownHooks } from "./shutdown-hooks";
+import { runWorkbenchShutdownHooks } from "@workbench/server-core/shutdown-hooks";
 
 const DEFAULT_GRACE_PERIOD_MS = 4_000;
 const DEFAULT_FORCE_PERIOD_MS = 250;

@@ -29,7 +29,7 @@ function resolveAgentDir() {
 
 export function piResourceWatchExcludes({ agentDir = resolveAgentDir(), root = projectRoot } = {}) {
   // Pi reloads these resources inside AgentSession. Watching the same files here would turn an
-  // extension install/remove into a full custom-server restart and disconnect every browser.
+  // extension install/remove into a full Workbench server restart and disconnect every browser.
   const absolutePiPatterns = new Set(
     [agentDir, root].map((filePath) => nestedPiDirectoryPattern(filePath)),
   );

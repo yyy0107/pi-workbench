@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { workflowClient } from "@/runtime/pi/client/workflows/workflow-client";
-import type { WorkflowRunSummary } from "@/runtime/shared/execution";
+import { workflowClient } from "@/workbench/runtime-contributions/pi/client/execution";
+import type { WorkflowRunSummary } from "@workbench/execution-contracts";
 
 import { reconcileWorkflowRunBaseline } from "./execution-run-baseline";
 import { mergeWorkflowRuns } from "./execution-run-merge";

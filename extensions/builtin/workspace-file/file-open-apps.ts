@@ -1,4 +1,7 @@
-import type { LocalAppFileKind, LocalAppView } from "@/runtime/pi/contracts/rpc";
+import type {
+  LocalAppFileKind,
+  LocalAppView,
+} from "@/workbench/runtime-contributions/pi/protocol/rpc";
 
 import { isImagePreviewFile } from "./file-view-mode";
 

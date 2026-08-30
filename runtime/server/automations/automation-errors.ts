@@ -1,4 +1,4 @@
-import { RpcDomainError } from "@/runtime/server/rpc-domain-error";
+import { RpcDomainError } from "@workbench/server-core/rpc-domain-error";
 
 export interface AutomationErrorDetails {
   "automation-not-found": { automationId: string };

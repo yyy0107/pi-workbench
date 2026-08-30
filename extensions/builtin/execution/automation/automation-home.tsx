@@ -31,9 +31,9 @@ import { useI18n } from "@/i18n";
 import { ProjectTrustDialog } from "@/components/ui/project-trust-dialog";
 import { cn } from "@/lib/utils";
 import { useMainViewService } from "@/platform/extensions";
-import { automationClient } from "@/runtime/pi/client/automations/automation-client";
-import { usePiWorkspaces } from "@/runtime/pi/client/runtime/context";
-import type { AutomationSummary } from "@/runtime/shared/automation";
+import { useWorkspaceSelection } from "@workbench/agent-runtime-client/workspaces";
+import { automationClient } from "@/workbench/runtime-contributions/pi/client/execution";
+import type { AutomationSummary } from "@workbench/automation-contracts";
 
 import {
   describeScheduleCron,
@@ -64,7 +64,7 @@ interface AutomationFeedback {
 export function AutomationHome() {
   const { t } = useI18n();
   const mainViews = useMainViewService();
-  const workspaces = usePiWorkspaces();
+  const { workspaces } = useWorkspaceSelection();
   const [automations, setAutomations] = useState<AutomationSummary[]>([]);
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [pendingAction, setPendingAction] = useState<PendingAutomationAction>();
@@ -112,7 +112,7 @@ export function AutomationHome() {
       return;
     }
     await trustAdmission.admit(
-      workspace.cwd,
+      workspace.rootPath,
       async () => {
         await automationClient.runNow({ automationId: automation.id });
         setFeedback({

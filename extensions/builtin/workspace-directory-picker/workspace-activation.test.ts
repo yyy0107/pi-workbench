@@ -9,7 +9,7 @@ test("selects the accepted workspace before switching to the new thread", async 
   const switching = new Promise<void>((resolve) => {
     finishSwitch = resolve;
   });
-  const workspace = { id: "workspace-created", name: "Created", cwd: "/created" };
+  const workspace = { id: "workspace-created", name: "Created", rootPath: "/created" };
 
   const activation = activateCreatedWorkspace(workspace, {
     beginNewThreadWithCreatedWorkspace: (created) => events.push(`begin:${created.id}`),

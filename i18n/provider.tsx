@@ -17,7 +17,7 @@ import type { I18nRuntime } from "./types";
 import {
   loadWorkbenchSettingsPreferences,
   updateWorkbenchSettingsPreferences,
-} from "@/runtime/pi/client/settings/workbench-settings-client";
+} from "@/services/workbench-settings-service";
 
 interface I18nContextValue extends I18nRuntime<Translate> {
   setLocale(locale: Locale): void;

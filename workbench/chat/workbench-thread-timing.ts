@@ -1,8 +1,5 @@
-import type { WorkbenchAgentRunTiming } from "@/runtime/assistant-ui/agent-runtime-adapter";
-import {
-  readAgentAutoRetry,
-  readAgentRunTiming,
-} from "@/runtime/assistant-ui/agent-runtime-extras";
+import type { WorkbenchAgentRunTiming } from "@workbench/agent-runtime-client/adapter";
+import { readAgentAutoRetry, readAgentRunTiming } from "@workbench/agent-runtime-client/extras";
 
 /** Read the server-authoritative active-run timing snapshot from assistant-ui thread extras. */
 export const agentRunTiming = readAgentRunTiming;

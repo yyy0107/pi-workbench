@@ -9,7 +9,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import type { WorkbenchAgentCommandKind } from "@/runtime/shared/agent-command/catalog";
+import type { WorkbenchAgentCommandKind } from "@workbench/agent-runtime-contracts/commands";
 
 export type ComposerTokenKind =
   | WorkbenchAgentCommandKind

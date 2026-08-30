@@ -20,12 +20,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Skeleton } from "@/components/ui/skeleton";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
-import { useWorkbenchAgentThreadSnapshots } from "@/runtime/assistant-ui/agent-runtime-context";
+import { useWorkbenchAgentThreadSnapshots } from "@workbench/agent-runtime-client/context";
 import {
   useWorkspaceCapabilities,
   useWorkspaceSelection,
   type WorkspaceSummary,
-} from "@/services/workspace-selection-service";
+} from "@workbench/agent-runtime-client/workspaces";
 import { useAppearancePreferences } from "@/services/appearance/appearance-store";
 import { NewThreadButton } from "./new-thread-button";
 import { DraftThreadListItem } from "./draft-thread-list-item";

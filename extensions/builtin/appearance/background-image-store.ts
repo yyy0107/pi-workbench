@@ -5,7 +5,7 @@ import { useEffect, useSyncExternalStore } from "react";
 import {
   loadWorkbenchSettingsPreferences,
   updateWorkbenchSettingsPreferences,
-} from "@/runtime/pi/client/settings/workbench-settings-client";
+} from "@/services/workbench-settings-service";
 
 const DATABASE_NAME = "workbench-appearance";
 const DATABASE_VERSION = 1;

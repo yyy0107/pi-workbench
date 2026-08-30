@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 
-import type { WorkflowDocument } from "@/runtime/shared/execution";
+import type { WorkflowDocument } from "@workbench/execution-contracts";
 
 interface WorkflowRendererProps {
   document: WorkflowDocument;

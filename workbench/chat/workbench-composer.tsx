@@ -63,7 +63,7 @@ import { ComposerWorkspaceFeedback } from "@/components/right-workspace";
 import {
   COMPOSER_CONVERSATION_MENTION_TYPE,
   COMPOSER_WORKSPACE_FILE_MENTION_TYPE,
-} from "@/contracts/composer";
+} from "@workbench/contracts/composer";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -83,15 +83,17 @@ import {
   useExtensionErrorReporter,
 } from "@/platform/extensions";
 import { SlotHost } from "@/platform/extensions/hosts/slot-host";
-import type { WorkbenchAgentComposerSendError } from "@/runtime/assistant-ui/agent-runtime-adapter";
-import { searchPiWorkspaceFiles } from "@/runtime/pi/client/transport/api";
-import type { WorkbenchAgentCommand } from "@/runtime/shared/agent-command/catalog";
+import type { WorkbenchAgentComposerSendError } from "@workbench/agent-runtime-client/adapter";
+import type { WorkbenchAgentCommand } from "@workbench/agent-runtime-contracts/commands";
 import {
   readAgentComposerExtras,
   readAgentRejectedQueueDraft,
-} from "@/runtime/assistant-ui/agent-runtime-extras";
-import { useWorkbenchAgentCommands } from "@/runtime/assistant-ui/agent-runtime-context";
-import { useWorkspaceSelection } from "@/services/workspace-selection-service";
+} from "@workbench/agent-runtime-client/extras";
+import {
+  useWorkbenchAgentCommands,
+  useWorkbenchAgentWorkspaceFileSearch,
+} from "@workbench/agent-runtime-client/context";
+import { useWorkspaceSelection } from "@workbench/agent-runtime-client/workspaces";
 
 import {
   applyComposerCommandArguments,
@@ -625,6 +627,7 @@ export function WorkbenchComposer({
   const aui = useAui();
   const { activeWorkspace, draftWorkspace } = useWorkspaceSelection();
   const contextWorkspace = draftWorkspace ?? activeWorkspace;
+  const workspaceFileSearch = useWorkbenchAgentWorkspaceFileSearch();
   const composerCommandRegistry = useComposerCommandRegistry();
   const reportExtensionError = useExtensionErrorReporter();
   const getComposerCommands = useCallback(
@@ -896,7 +899,7 @@ export function WorkbenchComposer({
   ]);
   const activeContextMentionQuery = contextMentionMatch?.query;
   useEffect(() => {
-    if (!contextWorkspace || activeContextMentionQuery === undefined) {
+    if (!contextWorkspace || activeContextMentionQuery === undefined || !workspaceFileSearch) {
       setWorkspaceFileMentionSearch(EMPTY_WORKSPACE_FILE_MENTION_SEARCH);
       return;
     }
@@ -914,16 +917,14 @@ export function WorkbenchComposer({
     });
     const timeout = window.setTimeout(
       () => {
-        void searchPiWorkspaceFiles(
-          { workspaceId, query, limit: 50 },
-          { signal: controller.signal },
-        )
-          .then((result) => {
+        void workspaceFileSearch
+          .search({ workspaceId, query, limit: 50, signal: controller.signal })
+          .then((entries) => {
             if (controller.signal.aborted) return;
             setWorkspaceFileMentionSearch({
               workspaceId,
               query,
-              items: result.entries.map((entry) => ({
+              items: entries.map((entry) => ({
                 id: composerWorkspaceFileMentionId({
                   workspaceId,
                   relativePath: entry.relativePath,
@@ -953,7 +954,7 @@ export function WorkbenchComposer({
       window.clearTimeout(timeout);
       controller.abort();
     };
-  }, [activeContextMentionQuery, contextWorkspace]);
+  }, [activeContextMentionQuery, contextWorkspace, workspaceFileSearch]);
   const contextMentionAdapter = useMemo<TriggerAdapter>(
     () => ({
       categories: () => [],

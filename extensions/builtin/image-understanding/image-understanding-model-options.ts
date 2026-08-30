@@ -2,7 +2,7 @@ import type {
   ModelCapabilityState,
   ModelCatalogValue,
   ModelProvidersValue,
-} from "@/runtime/pi/contracts/rpc";
+} from "@/workbench/runtime-contributions/pi/protocol/rpc";
 
 export interface MultimodalModelOption {
   readonly value: string;

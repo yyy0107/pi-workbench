@@ -1,7 +1,7 @@
 "use client";
 
 import { useI18n } from "@/i18n";
-import { usePiHostDescription } from "@/runtime/pi/client/runtime/context";
+import { usePiHostDescription } from "@/workbench/runtime-contributions/pi/client/host";
 
 import { ConnectionStatus } from "./connection-status";
 

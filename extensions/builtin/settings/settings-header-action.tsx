@@ -16,7 +16,7 @@ import { useMainViewService } from "@/platform/extensions";
 import {
   openPiSettingsDocument,
   openWorkbenchSettingsDocument,
-} from "@/runtime/pi/client/transport/api";
+} from "@/workbench/runtime-contributions/pi/client/configuration";
 
 import { SETTINGS_MAIN_VIEW_KIND } from "./settings-main-view";
 import { MobileSettingsTrigger } from "./settings-trigger";

@@ -9,8 +9,8 @@ import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TerminalBlock } from "@/components/elements/terminal-block";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
-import { usePiActiveSessionId } from "@/runtime/pi/client/runtime/context";
 import type { WorkbenchBashInput } from "@/runtime/terminal/bash-tool-input";
+import { useWorkbenchAgentThreadId } from "@workbench/agent-runtime-client/context";
 
 import { normalizeTerminalTabTitle } from "./terminal-tab-title";
 import { terminalResultLines } from "./terminal-tool-transcript";
@@ -33,7 +33,7 @@ export function BashTerminal({ toolCallId, command, result, running, input }: Ba
   const { t } = useI18n();
   const controller = useRightWorkspace();
   const context = useWorkspaceContext();
-  const piSessionId = usePiActiveSessionId();
+  const piSessionId = useWorkbenchAgentThreadId();
   const displayedCommand = command || "bash";
   const lines = terminalResultLines(result);
   const userInputRequested = running && input?.source === "user";

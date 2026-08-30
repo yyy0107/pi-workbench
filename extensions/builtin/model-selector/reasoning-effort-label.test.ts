@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { SUPPORTED_LOCALES, createI18n, type Locale } from "@/i18n";
-import { PI_THINKING_LEVELS, type PiThinkingLevel } from "@/runtime/pi/contracts/pi";
+import {
+  PI_THINKING_LEVELS,
+  type PiThinkingLevel,
+} from "@/workbench/runtime-contributions/pi/protocol/messages";
 
 import { reasoningEffortLabel } from "./reasoning-effort-label";
 

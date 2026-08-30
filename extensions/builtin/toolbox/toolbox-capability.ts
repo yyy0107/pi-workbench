@@ -8,7 +8,7 @@ import type {
   PiPackageCatalogItemView,
   PromptCommandView,
   SkillView,
-} from "@/runtime/pi/contracts/rpc";
+} from "@/workbench/runtime-contributions/pi/protocol/rpc";
 import type { ComponentType } from "react";
 import type { ComponentExtensionContributionKind, OpenableResource } from "@/platform/extensions";
 

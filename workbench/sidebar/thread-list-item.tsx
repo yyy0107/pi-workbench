@@ -16,9 +16,9 @@ import { cn } from "@/lib/utils";
 import {
   useWorkbenchAgentThreadActions,
   useWorkbenchAgentThreadSnapshot,
-} from "@/runtime/assistant-ui/agent-runtime-context";
+} from "@workbench/agent-runtime-client/context";
 import { useAppearancePreferences } from "@/services/appearance/appearance-store";
-import { useWorkspaceCapabilities } from "@/services/workspace-selection-service";
+import { useWorkspaceCapabilities } from "@workbench/agent-runtime-client/workspaces";
 import { conversationThreadIdFromPathname } from "@/workbench/workspaces/new-thread-policy";
 
 import { RunningThreadIndicator } from "./running-thread-indicator";

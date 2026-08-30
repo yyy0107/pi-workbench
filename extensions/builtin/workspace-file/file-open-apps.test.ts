@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { LocalAppView } from "@/runtime/pi/contracts/rpc";
+import type { LocalAppView } from "@/workbench/runtime-contributions/pi/protocol/rpc";
 
 import {
   compatibleLocalFileApps,

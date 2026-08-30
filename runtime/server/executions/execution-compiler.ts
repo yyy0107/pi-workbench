@@ -7,8 +7,8 @@ import type {
   WorkflowDocument,
   WorkflowValidationIssue,
   WorkflowValidationResult,
-} from "@/runtime/shared/execution";
-import { parseExecutionDocument } from "./execution-schema";
+} from "@workbench/execution-contracts";
+import { parseExecutionDocument } from "@workbench/execution-contracts/schema";
 
 export interface CompiledExecutionPlan {
   revision: FlowRevision;

@@ -1,4 +1,4 @@
-import type { SessionContextTraceEvent } from "@/runtime/pi/contracts/rpc";
+import type { SessionContextTraceEvent } from "@/workbench/runtime-contributions/pi/protocol/rpc";
 
 import type { ContextTraceDetailFocus } from "./context-trace-detail";
 import {

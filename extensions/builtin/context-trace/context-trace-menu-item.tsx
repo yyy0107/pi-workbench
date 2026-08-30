@@ -6,7 +6,7 @@ import { useRightWorkspace, useWorkspaceContext } from "@/components/right-works
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import type { WorkspaceSurfaceMenuItemProps } from "@/platform/extensions";
-import { usePiActiveSessionId } from "@/runtime/pi/client/runtime/context";
+import { usePiActiveSessionId } from "@/workbench/runtime-contributions/pi/client/context-trace";
 
 import { revealContextTrace } from "./context-trace-workspace";
 

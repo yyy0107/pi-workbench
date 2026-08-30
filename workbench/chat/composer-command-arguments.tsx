@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import type { WorkbenchComposerJsonValue } from "@/runtime/shared/composer/request";
+import type { WorkbenchComposerJsonValue } from "@workbench/contracts/composer/request";
 
 interface ComposerCommandArgumentEntry {
   readonly field?: string;

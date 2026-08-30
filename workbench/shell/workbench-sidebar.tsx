@@ -31,8 +31,8 @@ import { cn } from "@/lib/utils";
 import { useMainViewService } from "@/platform/extensions";
 import { MainViewSidebarHost } from "@/platform/extensions/hosts/main-view-sidebar-host";
 import { SlotHost } from "@/platform/extensions/hosts/slot-host";
-import { useWorkbenchAgentThreadSnapshots } from "@/runtime/assistant-ui/agent-runtime-context";
-import { useWorkspaceSelection } from "@/services/workspace-selection-service";
+import { useWorkbenchAgentThreadSnapshots } from "@workbench/agent-runtime-client/context";
+import { useWorkspaceSelection } from "@workbench/agent-runtime-client/workspaces";
 import {
   SidebarPrimaryNavigation,
   type SidebarSection,

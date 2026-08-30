@@ -16,11 +16,12 @@ import {
   useSetWorkspaceContext,
   WorkspaceSurfaceRuntimeHost,
 } from "@/components/right-workspace";
+import { useI18n } from "@/i18n";
 import { useRightWorkspaceState } from "@/components/right-workspace/workspace-context";
 import { useMainViewService } from "@/platform/extensions";
-import { readAgentThreadWorkspace } from "@/runtime/assistant-ui/agent-runtime-extras";
-import { WorkbenchAgentRuntimeInstallationHost } from "@/runtime/assistant-ui/agent-runtime-installation";
-import { useWorkspaceCapabilities } from "@/services/workspace-selection-service";
+import { readAgentThreadWorkspace } from "@workbench/agent-runtime-client/extras";
+import { WorkbenchAgentRuntimeInstallationHost } from "@workbench/agent-runtime-client/installation";
+import { useWorkspaceCapabilities } from "@workbench/agent-runtime-client/workspaces";
 import { shouldCloseRightWorkspaceForNewThread } from "@/workbench/workspaces/new-thread-policy";
 
 import {
@@ -150,8 +151,30 @@ function ActiveWorkspaceContextTracker() {
 
 /** Mount the explicitly installed Agent Runtime while keeping Workbench bridges backend-neutral. */
 export function WorkbenchAssistantRuntimeProvider({ children }: Readonly<{ children: ReactNode }>) {
+  const { t } = useI18n();
   const promptFeedback = useWorkspaceFeedbackStore();
-  const installation = useMemo(() => createInstalledAgentRuntime(promptFeedback), [promptFeedback]);
+  const copy = useMemo(
+    () => ({
+      titles: {
+        attachment: t("workbench.chat.titles.attachmentAnalysis"),
+        image: t("workbench.chat.titles.imageConversation"),
+      },
+      errors: {
+        sessionBusy: t("workbench.chat.errors.sessionBusy"),
+        emptyPrompt: t("workbench.chat.errors.emptyPrompt"),
+        sessionNotFound: t("workbench.chat.errors.sessionNotFound"),
+        invalidWorkingDirectory: t("workbench.chat.errors.invalidWorkingDirectory"),
+        invalidWorkspace: t("workbench.chat.errors.invalidWorkspace"),
+        modelNotAvailable: t("workbench.chat.errors.modelNotAvailable"),
+        requestFailed: t("workbench.chat.errors.requestFailed"),
+      },
+    }),
+    [t],
+  );
+  const installation = useMemo(
+    () => createInstalledAgentRuntime({ copy, promptFeedback }),
+    [copy, promptFeedback],
+  );
 
   return (
     <WorkbenchAgentRuntimeInstallationHost installation={installation}>

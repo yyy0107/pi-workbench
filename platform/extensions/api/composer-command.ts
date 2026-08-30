@@ -17,7 +17,7 @@ import type {
   ComposerJsonValue as CanonicalComposerJsonValue,
   ComposerMentionNode as CanonicalComposerMentionNode,
   ComposerTextNode as CanonicalComposerTextNode,
-} from "@/contracts/composer";
+} from "@workbench/contracts/composer";
 import type { LocalizableText } from "@/i18n";
 
 import type { Disposable } from "./disposable";

@@ -1,4 +1,4 @@
-import { handlePiRpcPost } from "@/runtime/pi/server/transport/rpc-router";
+import { handlePiRpcPost } from "@/workbench/server/pi/installed-pi-server";
 
 export const runtime = "nodejs";
 

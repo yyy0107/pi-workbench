@@ -11,13 +11,13 @@ import { useI18n } from "@/i18n";
 import type { SettingsItemComponentProps } from "@/platform/extensions";
 import {
   describePiSettings,
-  PiApiError,
   updatePiAgentSettings,
-} from "@/runtime/pi/client/transport/api";
+} from "@/workbench/runtime-contributions/pi/client/configuration";
+import { PiApiError } from "@/workbench/runtime-contributions/pi/client/errors";
 import {
   PI_AGENT_SETTINGS_NAMESPACE,
   type PiAgentSettingsNamespaceView,
-} from "@/runtime/pi/contracts/rpc";
+} from "@/workbench/runtime-contributions/pi/protocol/rpc";
 
 type LoadState = "loading" | "ready" | "failed";
 

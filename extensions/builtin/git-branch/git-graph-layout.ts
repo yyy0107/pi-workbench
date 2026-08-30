@@ -1,4 +1,4 @@
-import type { WorkspaceGitCommit } from "@/runtime/pi/contracts/rpc";
+import type { WorkspaceGitCommit } from "@/workbench/runtime-contributions/pi/protocol/rpc";
 
 interface GitGraphLane {
   hash: string;

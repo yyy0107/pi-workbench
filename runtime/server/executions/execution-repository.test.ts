@@ -4,12 +4,12 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import type { WorkflowDocument } from "@/runtime/shared/execution";
+import type { WorkflowDocument } from "@workbench/execution-contracts";
 import {
   compileExecutionDocument,
   legacyExecutionRevisionIdForDocument,
 } from "./execution-compiler";
-import { ExecutionError } from "./execution-errors";
+import { ExecutionError } from "@workbench/execution-server/errors";
 import { ExecutionRepository } from "./execution-repository";
 
 function document(): WorkflowDocument {

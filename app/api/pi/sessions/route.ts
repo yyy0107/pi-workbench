@@ -1,10 +1,6 @@
-import {
-  createSession,
-  listSessions,
-  PiServerError,
-} from "@/runtime/pi/server/sessions/session-registry";
-import { rejectUntrustedApiRequest } from "@/runtime/pi/server/transport/api-request-guard";
-import { piErrorResponse } from "@/runtime/pi/server/transport/responses";
+import { createSession, listSessions } from "@/workbench/server/pi/installed-pi-server";
+import { PiServerError, piErrorResponse } from "@workbench/agent-runtime-pi-server/legacy";
+import { rejectUntrustedApiRequest } from "@workbench/server-core/request-guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

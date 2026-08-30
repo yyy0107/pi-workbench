@@ -10,7 +10,7 @@ import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { useMainViewService } from "@/platform/extensions";
 import { SlotHost } from "@/platform/extensions/hosts/slot-host";
-import { useWorkbenchAgentThreadSnapshot } from "@/runtime/assistant-ui/agent-runtime-context";
+import { useWorkbenchAgentThreadSnapshot } from "@workbench/agent-runtime-client/context";
 
 import { truncateConversationTitle } from "./conversation-title";
 import { ConversationActionsMenu } from "./conversation-actions-menu";

@@ -3,7 +3,7 @@ import { create } from "zustand";
 import {
   loadWorkbenchSettingsPreferences,
   updateWorkbenchSettingsPreferences,
-} from "@/runtime/pi/client/settings/workbench-settings-client";
+} from "@/services/workbench-settings-service";
 
 export const MODEL_SELECTOR_STORAGE_KEY = "workbench.model-selector.v1";
 

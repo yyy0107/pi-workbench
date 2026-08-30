@@ -28,7 +28,8 @@ import {
 } from "@/components/ui/settings-control";
 import { useI18n } from "@/i18n";
 import type { SettingsItemComponentProps } from "@/platform/extensions";
-import { usePiThreadStates, usePiWorkspaces } from "@/runtime/pi/client/runtime/context";
+import { useWorkbenchAgentThreadSnapshots } from "@workbench/agent-runtime-client/context";
+import { useWorkspaceSelection } from "@workbench/agent-runtime-client/workspaces";
 
 const ALL_PROJECTS = "all-projects";
 const UNGROUPED_PROJECT = "ungrouped-project";
@@ -43,7 +44,7 @@ interface ArchivedChatView {
   lastMessageAt?: Date;
   workspaceId?: string;
   workspaceName?: string;
-  workspaceCwd?: string;
+  workspaceRootPath?: string;
 }
 
 type DeleteTarget =
@@ -74,7 +75,7 @@ function ArchivedChatRowsSkeleton({ label, count }: { label: string; count: numb
 export function ArchivedChatsSettingsItem({ sectionId, itemId }: SettingsItemComponentProps) {
   const { date: formatDate, locale, t } = useI18n();
   const aui = useAui();
-  const workspaces = usePiWorkspaces();
+  const { workspaces } = useWorkspaceSelection();
   const archivedThreadIds = useAuiState((state) => state.threads.archivedThreadIds);
   const threadItems = useAuiState((state) => state.threads.threadItems);
   const isLoading = useAuiState((state) => state.threads.isLoading);
@@ -95,7 +96,7 @@ export function ArchivedChatsSettingsItem({ sectionId, itemId }: SettingsItemCom
       return thread ? [thread.remoteId ?? thread.externalId ?? thread.id] : [];
     });
   }, [archivedThreadIds, threadItems]);
-  const archivedThreadStates = usePiThreadStates(archivedRouteThreadIds);
+  const archivedThreadSnapshots = useWorkbenchAgentThreadSnapshots(archivedRouteThreadIds);
 
   const archivedChats = useMemo<ArchivedChatView[]>(() => {
     const itemsById = new Map(threadItems.map((thread) => [thread.id, thread]));
@@ -103,26 +104,26 @@ export function ArchivedChatsSettingsItem({ sectionId, itemId }: SettingsItemCom
       const thread = itemsById.get(threadId);
       if (!thread) return [];
       const remoteId = thread.remoteId ?? thread.externalId ?? thread.id;
-      const managedState = archivedThreadStates.get(remoteId);
-      const workspace = managedState?.metadata.workspace;
+      const managedSnapshot = archivedThreadSnapshots.get(remoteId);
+      const workspace = managedSnapshot?.workspace;
       return [
         {
           id: thread.id,
-          title: managedState?.thread?.title ?? thread.title,
-          lastMessageAt: managedState?.thread?.lastMessageAt ?? thread.lastMessageAt,
+          title: managedSnapshot?.title ?? thread.title,
+          lastMessageAt: managedSnapshot?.lastMessageAt ?? thread.lastMessageAt,
           workspaceId: workspace?.id,
           workspaceName: workspace?.name,
-          workspaceCwd: workspace?.cwd,
+          workspaceRootPath: workspace?.rootPath,
         },
       ];
     });
-  }, [archivedThreadIds, archivedThreadStates, threadItems]);
+  }, [archivedThreadIds, archivedThreadSnapshots, threadItems]);
 
   const workspaceOptions = useMemo(() => {
     const options = workspaces.map((workspace) => ({
       id: workspace.id,
       name: workspace.name,
-      cwd: workspace.cwd,
+      rootPath: workspace.rootPath,
     }));
     const knownIds = new Set(options.map(({ id }) => id));
     for (const chat of archivedChats) {
@@ -130,7 +131,7 @@ export function ArchivedChatsSettingsItem({ sectionId, itemId }: SettingsItemCom
       options.push({
         id: chat.workspaceId,
         name: chat.workspaceName ?? chat.workspaceId,
-        cwd: chat.workspaceCwd ?? "",
+        rootPath: chat.workspaceRootPath ?? "",
       });
       knownIds.add(chat.workspaceId);
     }
@@ -159,7 +160,7 @@ export function ArchivedChatsSettingsItem({ sectionId, itemId }: SettingsItemCom
           return false;
         }
         if (!normalizedQuery) return true;
-        return [chat.title, chat.workspaceName, chat.workspaceCwd]
+        return [chat.title, chat.workspaceName, chat.workspaceRootPath]
           .filter((value): value is string => Boolean(value))
           .some((value) => value.toLocaleLowerCase(locale).includes(normalizedQuery));
       })

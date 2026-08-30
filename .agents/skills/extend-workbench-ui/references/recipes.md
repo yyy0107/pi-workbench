@@ -392,10 +392,12 @@ Promise returned by `open()`. Do not import the owner's component, store, or int
 Before adding Pi-backed UI, read `runtime/pi/README.md` completely and inspect the exact source file
 it names. Prefer:
 
-- `usePiSessionManager()`, `usePiThreadActivity()`, or `usePiWorkspaces()` from
-  `runtime/pi/client/runtime/context.tsx` for subscribed manager state;
-- an existing helper from `runtime/pi/client/transport/api.ts` for unary RPC;
-- shared types from `runtime/pi/contracts/rpc.ts` or `runtime/pi/contracts/stream.ts`.
+- `usePiThreadStateSnapshot()` or `usePiThreadStates()` from
+  `@workbench/agent-runtime-pi-client/threads`, and `usePiWorkspaces()` from
+  `@workbench/agent-runtime-pi-client/workspace`, for subscribed state;
+- an existing helper from the owning `@workbench/agent-runtime-pi-client/*` feature facade for unary RPC;
+- shared types from `@workbench/agent-runtime-pi-protocol/rpc` or
+  `@workbench/agent-runtime-pi-protocol/stream`.
 
 Do not write raw `/api/pi/**` or `/api/<method>` fetches in a component, open a second WebSocket/SSE
 connection, or copy payload shapes into the extension. The shared manager already owns mux/host

@@ -8,9 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useI18n } from "@/i18n";
 import type { SettingsItemComponentProps } from "@/platform/extensions";
-import { usePiSessionCatalog } from "@/runtime/pi/client/runtime/session-catalog";
-import { listPiExtensions } from "@/runtime/pi/client/transport/api";
-import type { ExtensionView } from "@/runtime/pi/contracts/rpc";
+import {
+  listPiExtensions,
+  usePiSessionCatalog,
+} from "@/workbench/runtime-contributions/pi/client/resources";
+import type { ExtensionView } from "@/workbench/runtime-contributions/pi/protocol/rpc";
 
 interface PiExtensionsCatalog {
   readonly extensions: readonly ExtensionView[];

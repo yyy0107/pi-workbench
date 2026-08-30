@@ -4,8 +4,8 @@ import { useEffect, useRef } from "react";
 
 import { useRightWorkspace, useWorkspaceContext } from "@/components/right-workspace";
 import type { ToolPresentationDisclosureControllerProps } from "@/platform/extensions";
-import { usePiActiveSessionId } from "@/runtime/pi/client/runtime/context";
 import { workbenchBashInputFromArgs } from "@/runtime/terminal/bash-tool-input";
+import { useWorkbenchAgentThreadId } from "@workbench/agent-runtime-client/context";
 
 import {
   shouldExpandBashTerminalForUserInput,
@@ -24,7 +24,7 @@ export function BashToolDisclosureController({
 }: ToolPresentationDisclosureControllerProps) {
   const controller = useRightWorkspace();
   const context = useWorkspaceContext();
-  const piSessionId = usePiActiveSessionId();
+  const piSessionId = useWorkbenchAgentThreadId();
   const revealedToolCallIdRef = useRef<string | undefined>(undefined);
   const alreadyRevealed = revealedToolCallIdRef.current === part.toolCallId;
   const inputSource = workbenchBashInputFromArgs(part.args)?.source;

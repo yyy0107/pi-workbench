@@ -1,4 +1,4 @@
-import type { WorkflowRunSummary } from "@/runtime/shared/execution";
+import type { WorkflowRunSummary } from "@workbench/execution-contracts";
 
 import { mergeWorkflowRuns } from "./execution-run-merge";
 

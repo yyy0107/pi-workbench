@@ -19,7 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { defineMessage, useI18n, type LocalizableText } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { useMainViewService, type SlotPropsMap } from "@/platform/extensions";
-import type { PiPackageCatalogItemView } from "@/runtime/pi/contracts/rpc";
+import type { PiPackageCatalogItemView } from "@/workbench/runtime-contributions/pi/protocol/rpc";
 
 import {
   packageSurfaceParams,

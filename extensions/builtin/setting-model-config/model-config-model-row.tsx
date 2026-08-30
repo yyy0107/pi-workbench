@@ -23,8 +23,8 @@ import {
 } from "@/components/ui/settings-control";
 import { Switch } from "@/components/ui/switch";
 import { useI18n, type StaticMessageKey } from "@/i18n";
-import { verifiedImageInputCapability } from "@/runtime/pi/shared/models/capabilities";
-import type { ModelProviderModelConfiguration } from "@/runtime/pi/contracts/rpc";
+import { verifiedImageInputCapability } from "@/workbench/runtime-contributions/pi/shared/models";
+import type { ModelProviderModelConfiguration } from "@/workbench/runtime-contributions/pi/protocol/rpc";
 
 import {
   DEFAULT_MODEL_CONTEXT_WINDOW,

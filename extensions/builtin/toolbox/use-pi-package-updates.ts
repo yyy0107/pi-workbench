@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 
-import type { PiResourceCatalogTarget } from "@/runtime/pi/contracts/rpc";
+import type { PiResourceCatalogTarget } from "@/workbench/runtime-contributions/pi/protocol/rpc";
 
 import { IDLE_PACKAGE_UPDATES_SNAPSHOT, piPackageUpdatesQuery } from "./pi-package-updates-query";
 

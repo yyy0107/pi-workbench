@@ -1,6 +1,6 @@
 import { defineMessage } from "@/i18n";
 import type { MainViewBreadcrumbs, OpenMainViewRequest } from "@/platform/extensions/authoring";
-import type { WorkflowKind, WorkflowScope } from "@/runtime/shared/execution";
+import type { WorkflowKind, WorkflowScope } from "@workbench/execution-contracts";
 
 import type { AutomationTaskPreset } from "./automation/automation-task-presets";
 

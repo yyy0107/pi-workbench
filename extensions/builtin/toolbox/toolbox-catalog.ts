@@ -3,26 +3,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import { useI18n } from "@/i18n";
-import { usePiWorkspaces } from "@/runtime/pi/client/runtime/context";
 import {
   getPiResourceCatalogRevision,
   invalidatePiResourceCatalog,
-  subscribePiResourceCatalog,
-} from "@/runtime/pi/client/runtime/resource-catalog-revision";
-import {
   listInstalledPiPackages,
   listPiExtensions,
   listPiPrompts,
   listPiSkills,
-} from "@/runtime/pi/client/transport/api";
+  subscribePiResourceCatalog,
+} from "@/workbench/runtime-contributions/pi/client/resources";
+import { usePiWorkspaces } from "@/workbench/runtime-contributions/pi/client/workspace";
 import type {
   ExtensionView,
   InstalledPackageView,
   PiResourceCatalogTarget,
   PromptCommandView,
   SkillView,
-  WorkbenchToolboxScopePreference,
-} from "@/runtime/pi/contracts/rpc";
+} from "@/workbench/runtime-contributions/pi/protocol/rpc";
+import type { WorkbenchToolboxScopePreference } from "@workbench/agent-runtime-contracts/settings";
 
 import {
   bindCapabilityToCatalogTarget,

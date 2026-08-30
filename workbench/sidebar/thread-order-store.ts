@@ -5,7 +5,7 @@ import { create } from "zustand";
 import {
   loadWorkbenchSettingsPreferences,
   updateWorkbenchSettingsPreferences,
-} from "@/runtime/pi/client/settings/workbench-settings-client";
+} from "@/services/workbench-settings-service";
 
 interface ThreadOrderState {
   readonly manualOrderByScope: Readonly<Record<string, readonly string[]>>;

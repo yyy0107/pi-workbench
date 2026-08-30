@@ -7,11 +7,11 @@ import { ComposerCommandToken } from "@/components/elements/composer";
 import {
   COMPOSER_CONVERSATION_MENTION_TYPE,
   COMPOSER_WORKSPACE_FILE_MENTION_TYPE,
-} from "@/contracts/composer";
+} from "@workbench/contracts/composer";
 import { useI18n } from "@/i18n";
 import { useComposerCommandRegistry } from "@/platform/extensions";
-import { useWorkbenchAgentCommands } from "@/runtime/assistant-ui/agent-runtime-context";
-import { parseWorkbenchComposerDocument } from "@/runtime/shared/composer/request";
+import { useWorkbenchAgentCommands } from "@workbench/agent-runtime-client/context";
+import { parseWorkbenchComposerDocument } from "@workbench/contracts/composer/request";
 
 import {
   formatAgentCommandLabel,

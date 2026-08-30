@@ -3,14 +3,14 @@
 import { useEffect, useMemo } from "react";
 
 import { useRightWorkspaceState } from "@/components/right-workspace";
-import { usePiSessionManager } from "@/runtime/pi/client/runtime/context";
+import { usePiSideChatClient } from "@/workbench/runtime-contributions/pi/client/side-chat";
 
 import { retainScratchSession } from "./scratch-session-lease";
 import { SIDE_CHAT_SURFACE_KIND, type SideChatSurfaceParams } from "./side-chat-workspace";
 
 /** Keep scratch leases aligned with stored Surface instances, not their current scope visibility. */
 export function SideChatRuntimeBridge() {
-  const manager = usePiSessionManager();
+  const manager = usePiSideChatClient();
   const signature = useRightWorkspaceState((state) =>
     JSON.stringify(
       [

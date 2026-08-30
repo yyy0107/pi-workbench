@@ -5,6 +5,7 @@ import { useMemo, type ReactNode } from "react";
 import { RightWorkspaceProvider } from "@/components/right-workspace";
 import { useInstalledComponentExtensions } from "@/extensions/component-extension-installation";
 import { builtinExtensions } from "@/extensions/enabled-extensions";
+import { installedAgentRuntimeExtensions } from "@/workbench/runtime-contributions/installed-agent-runtime";
 import {
   ExtensionProvider,
   useOpenerRegistry,
@@ -27,7 +28,11 @@ function RightWorkspaceProviders({ children }: Readonly<{ children: ReactNode }>
 export function WorkbenchProviders({ children }: Readonly<{ children: ReactNode }>) {
   const installedComponentExtensions = useInstalledComponentExtensions();
   const activeExtensions = useMemo(
-    () => [...builtinExtensions, ...installedComponentExtensions],
+    () => [
+      ...builtinExtensions,
+      ...installedAgentRuntimeExtensions,
+      ...installedComponentExtensions,
+    ],
     [installedComponentExtensions],
   );
 

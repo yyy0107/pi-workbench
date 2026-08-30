@@ -21,8 +21,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useI18n } from "@/i18n";
-import { createPiHostDirectory, listPiHostDirectory } from "@/runtime/pi/client/transport/api";
-import type { HostDirectoryListing } from "@/runtime/pi/contracts/rpc";
+import {
+  createPiHostDirectory,
+  listPiHostDirectory,
+} from "@/workbench/runtime-contributions/pi/client/host";
+import type { HostDirectoryListing } from "@/workbench/runtime-contributions/pi/protocol/rpc";
 
 type PickerError = "browse" | "create" | "select";
 

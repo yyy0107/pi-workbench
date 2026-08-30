@@ -8,12 +8,13 @@ import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdow
 import { WorkspaceSelector } from "@/components/ui/workspace-selector";
 import { useI18n } from "@/i18n";
 import type { ComposerSlotContext } from "@/platform/extensions";
-import { PiApiError, pickPiHostDirectory } from "@/runtime/pi/client/transport/api";
-import type { PiWorkspaceSummary } from "@/runtime/pi/contracts/pi";
 import {
   useWorkspaceCapabilities,
   useWorkspaceSelection,
-} from "@/services/workspace-selection-service";
+  type WorkbenchWorkspaceSummary,
+} from "@workbench/agent-runtime-client/workspaces";
+import { PiApiError } from "@/workbench/runtime-contributions/pi/client/errors";
+import { pickPiHostDirectory } from "@/workbench/runtime-contributions/pi/client/host";
 
 import {
   RemoteDirectoryPickerDialog,
@@ -37,7 +38,7 @@ export function WorkspaceDirectorySummary(_context: ComposerSlotContext) {
   const canClearWorkspace = isNewThread && selectedDirectory !== undefined && !picking;
 
   const selectWorkspace = useCallback(
-    (workspace: PiWorkspaceSummary) => {
+    (workspace: WorkbenchWorkspaceSummary) => {
       beginNewThreadWithCreatedWorkspace(workspace);
     },
     [beginNewThreadWithCreatedWorkspace],

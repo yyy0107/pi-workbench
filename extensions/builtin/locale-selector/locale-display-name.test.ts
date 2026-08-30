@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { SUPPORTED_LOCALES } from "@/contracts/locale";
+import { SUPPORTED_LOCALES } from "@workbench/contracts/locale";
 
 import { createLocaleDisplayName } from "./locale-display-name";
 

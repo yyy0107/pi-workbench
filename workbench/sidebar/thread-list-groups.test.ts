@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { WorkbenchAgentThreadSnapshot } from "@/runtime/assistant-ui/agent-runtime-adapter";
+import type { WorkbenchAgentThreadSnapshot } from "@workbench/agent-runtime-client/adapter";
 
 import { groupSidebarThreads } from "./thread-list-groups";
 

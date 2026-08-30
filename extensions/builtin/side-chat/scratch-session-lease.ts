@@ -1,4 +1,4 @@
-import type { PiSessionManager } from "@/runtime/pi/client/runtime/manager";
+import type { PiSideChatClient } from "@/workbench/runtime-contributions/pi/client/side-chat";
 
 interface ScratchLease {
   count: number;
@@ -9,7 +9,7 @@ interface ScratchLease {
 const leases = new Map<string, ScratchLease>();
 
 /** Delay release by one task so React development effect replay cannot destroy a live scratch. */
-export function retainScratchSession(manager: PiSessionManager, sessionId: string): () => void {
+export function retainScratchSession(manager: PiSideChatClient, sessionId: string): () => void {
   const lease = leases.get(sessionId) ?? { count: 0, promoted: false };
   if (lease.releaseTimer) clearTimeout(lease.releaseTimer);
   lease.releaseTimer = undefined;

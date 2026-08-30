@@ -1,4 +1,4 @@
-import type { WorkflowRunSummary } from "@/runtime/shared/execution";
+import type { WorkflowRunSummary } from "@workbench/execution-contracts";
 
 function byUpdatedAt(left: WorkflowRunSummary, right: WorkflowRunSummary): number {
   return right.updatedAt - left.updatedAt;

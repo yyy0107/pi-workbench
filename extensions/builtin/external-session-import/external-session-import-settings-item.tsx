@@ -8,12 +8,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import type { SettingsItemComponentProps } from "@/platform/extensions";
-import { importExternalSessions, scanExternalSessions } from "@/runtime/pi/client/transport/api";
+import {
+  importExternalSessions,
+  scanExternalSessions,
+} from "@/workbench/runtime-contributions/pi/client/external-import";
 import type {
   ExternalSessionImportScanValue,
   ExternalSessionImportView,
   ExternalSessionSource,
-} from "@/runtime/pi/contracts/rpc";
+} from "@/workbench/runtime-contributions/pi/protocol/rpc";
 
 const IMPORT_BATCH_SIZE = 200;
 

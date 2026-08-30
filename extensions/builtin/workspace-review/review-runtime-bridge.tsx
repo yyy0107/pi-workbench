@@ -7,7 +7,7 @@ import {
   useWorkspaceContext,
   useWorkspaceSurfaces,
 } from "@/components/right-workspace";
-import { toolStringArg, useCompletedToolCalls } from "@/runtime/assistant-ui/tool-events";
+import { toolStringArg, useCompletedToolCalls } from "@workbench/agent-runtime-client";
 
 import { gitReviewService } from "./git-review-service";
 

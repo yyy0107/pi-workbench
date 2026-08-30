@@ -38,9 +38,6 @@ runtime/
 │       ├── paddleocr-models.ts
 │       └── state-machine.ts
 ├── pi/                              # Pi Runtime
-│   ├── client/
-│   ├── contracts/
-│   ├── shared/
 │   └── server/
 └── terminal/                        # 独立 Terminal Runtime
     ├── contracts.ts
@@ -54,7 +51,7 @@ runtime/
 - `server` 是后端无关、仅在宿主进程使用的 Agent 端口层；它不得导入 `pi` 或其他具体 Runtime。
   当前抽象已验证的执行生命周期、线程目录/存储与 Composer 命令目录，不复制 Pi 的消息、history、
   canonical event 或传输协议。
-- `pi/client/assistant-ui` 是当前唯一的 Agent Runtime 实现层，负责把 Pi session、队列、恢复、错误
+- `@workbench/agent-runtime-pi-client` 是当前唯一的 Pi 浏览器 Agent Runtime 实现，负责把 Pi session、队列、恢复、错误
   和 workspace 能力投影为 assistant-ui Runtime，并完整拥有 Pi manager 的浏览器侧安装与生命周期；
   Pi 的 HTTP/WebSocket 协议不会进入通用接口。
 - 顶层 `shared` 保存可被多个 runtime 或 client/server 共同使用的纯领域逻辑。这里的模块必须可测试、
@@ -70,7 +67,7 @@ runtime/
   网络调用、凭据与 Pi 模型执行属于 `pi/server/attachment-understanding`。
 - `pi/contracts` 是 Pi client/server 之间的稳定协议层；`pi/shared` 只放 Pi client/server 复用的
   纯逻辑。`pi/shared` 不等同于顶层 `shared`，不应承载 Pi 之外的通用领域模块。
-- `pi/client` 不导入 `pi/server`，`pi/server` 也不导入 `pi/client`。Node、文件系统、凭据和
+- Pi client package 不导入 `pi/server`，`pi/server` 也不导入 Pi client package。Node、文件系统、凭据和
   `@earendil-works/pi-coding-agent` Runtime 对象只留在 `pi/server`。
 - `terminal` 拥有独立的双向协议和生命周期，不导入 Pi client/server，也不复用 Pi 的 downlink
   stream；共同的请求信任策略由顶层 server 组合根注入。
@@ -115,7 +112,7 @@ Composer wire 的结构化节点写入 `source: "agent"`，`sourceText` 使用
 配置枚举或 fallback。Pi 的 installation 再由 `PiAgentRuntimeProvider` 创建 manager 和 adapter，最后交给
 通用 `WorkbenchAgentRuntimeHost`。
 
-以后接入 Codex 或 Claude Code 时，应分别新增自己的 descriptor、client/transport、assistant-ui adapter、
+以后接入 Codex 或 Claude Code 时，应分别新增自己的 descriptor、浏览器 transport package、assistant-ui adapter、
 完整实现 Provider 和 server installation，再修改这个显式应用组合点。在第二个生产实现真正出现前不
 增加 registry、配置 UI 或空壳实现，避免提前固化尚未验证的共同能力。
 

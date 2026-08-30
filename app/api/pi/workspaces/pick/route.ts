@@ -1,7 +1,6 @@
-import { PiServerError } from "@/runtime/pi/server/core/errors";
-import { isTrustedLocalApiRequest } from "@/runtime/pi/server/transport/local-api-request-trust";
-import { piErrorResponse } from "@/runtime/pi/server/transport/responses";
-import { pickWorkspaceDirectory } from "@/runtime/pi/server/workspaces/workspace-paths";
+import { PiServerError, piErrorResponse } from "@workbench/agent-runtime-pi-server/legacy";
+import { isTrustedLocalApiRequest } from "@workbench/server-core/request-trust";
+import { pickWorkspaceDirectory } from "@/workbench/server/pi/installed-pi-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

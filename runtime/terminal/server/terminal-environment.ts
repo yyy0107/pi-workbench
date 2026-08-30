@@ -1,4 +1,4 @@
-import { childProcessEnvironment } from "../../server/child-process-environment";
+import { childProcessEnvironment } from "@workbench/server-core/child-process-environment";
 
 const UTF8_LOCALE_PATTERN = /utf-?8/i;
 const PORTABLE_LOCALE_PATTERN = /^(?:c|posix)(?:[._-]?utf-?8)?$/i;

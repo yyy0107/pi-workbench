@@ -51,24 +51,24 @@ They are coding-agent concerns, not `@earendil-works/pi-agent-core` types.
 
 Inspect these repository paths before adding a new abstraction:
 
-| Concern                                    | Workbench path                                   |
-| ------------------------------------------ | ------------------------------------------------ |
-| Embedded runtime contract and architecture | `runtime/pi/README.md`                           |
-| Session/service construction and binding   | `runtime/pi/server/sessions/session-registry.ts` |
-| Host-owned inline extensions               | `runtime/pi/server/internal-extensions/`         |
-| User extension listing/mutation            | `runtime/pi/server/extensions/`                  |
-| Installed Pi package management            | `runtime/pi/server/packages/`                    |
-| Browser-facing unary types                 | `runtime/pi/contracts/rpc.ts`                    |
-| Browser-facing stream types                | `runtime/pi/contracts/stream.ts`                 |
-| Pi-to-Workbench adapter contracts          | `runtime/pi/contracts/pi.ts`                     |
-| Workbench Agent Runtime port               | `runtime/assistant-ui/agent-runtime-adapter.ts`  |
-| Pi assistant-ui adapter implementation     | `runtime/pi/client/assistant-ui/adapter.ts`      |
-| Terminal-owned Pi bash tool definitions    | `runtime/terminal/server/`                       |
+| Concern                                    | Workbench path                                                               |
+| ------------------------------------------ | ---------------------------------------------------------------------------- |
+| Embedded runtime contract and architecture | `runtime/pi/README.md`                                                       |
+| Session/service construction and binding   | `packages/agent-runtime/adapters/pi/server/src/sessions/session-registry.ts` |
+| Host-owned inline extensions               | `packages/agent-runtime/adapters/pi/server/src/internal-extensions/`         |
+| User extension listing/mutation            | `packages/agent-runtime/adapters/pi/server/src/extensions/`                  |
+| Installed Pi package management            | `packages/agent-runtime/adapters/pi/server/src/packages/`                    |
+| Browser-facing unary types                 | `packages/agent-runtime/adapters/pi/protocol/src/rpc.ts`                     |
+| Browser-facing stream types                | `packages/agent-runtime/adapters/pi/protocol/src/stream.ts`                  |
+| Pi-to-Workbench adapter contracts          | `packages/agent-runtime/core/contracts/src/`                                 |
+| Workbench Agent Runtime port               | `packages/agent-runtime/core/client/src/adapter.ts`                          |
+| Pi assistant-ui adapter implementation     | `packages/agent-runtime/adapters/pi/client/src/assistant-ui/adapter.ts`      |
+| Terminal-owned Pi bash tool definitions    | `runtime/terminal/server/`                                                   |
 
 Search before editing:
 
 ```bash
-rg -n '@earendil-works/pi-coding-agent|extensionFactories|bindExtensions|extensionsOverride' runtime server.ts
+rg -n '@earendil-works/pi-coding-agent|extensionFactories|bindExtensions|extensionsOverride' packages/agent-runtime/adapters/pi server.ts
 rg -n 'export (type|interface|class|function).*<Name>|<Name>' node_modules/@earendil-works/pi-coding-agent/dist
 rg -n '<Name>' /home/wy/projects/pi/packages/coding-agent/src /home/wy/projects/pi/packages/coding-agent/docs
 ```

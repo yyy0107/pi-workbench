@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { PiSessionManager } from "@/runtime/pi/client/runtime/manager";
+import type { PiSideChatClient } from "@/workbench/runtime-contributions/pi/client/side-chat";
 
 import { markScratchSessionPromoted, retainScratchSession } from "./scratch-session-lease";
 
@@ -13,7 +13,7 @@ test("keeps a scratch alive across a transient Surface remount and releases it o
   const released: string[] = [];
   const manager = {
     releaseScratchSession: async (sessionId: string) => void released.push(sessionId),
-  } as PiSessionManager;
+  } as PiSideChatClient;
   const sessionId = `scratch-remount-${Date.now()}`;
 
   const firstRelease = retainScratchSession(manager, sessionId);
@@ -31,7 +31,7 @@ test("does not release a scratch identity after promotion consumed it", async ()
   const released: string[] = [];
   const manager = {
     releaseScratchSession: async (sessionId: string) => void released.push(sessionId),
-  } as PiSessionManager;
+  } as PiSideChatClient;
   const sessionId = `scratch-promoted-${Date.now()}`;
 
   const release = retainScratchSession(manager, sessionId);

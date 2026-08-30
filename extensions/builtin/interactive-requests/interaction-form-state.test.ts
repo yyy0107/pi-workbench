@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { QuestionItem } from "@/runtime/pi/contracts/stream";
+import type { QuestionItem } from "@/workbench/runtime-contributions/pi/protocol/stream";
 
 import {
   buildQuestionAnswers,

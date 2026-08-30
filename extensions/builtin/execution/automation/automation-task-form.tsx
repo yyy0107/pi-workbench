@@ -42,16 +42,17 @@ import { useI18n } from "@/i18n";
 import { formatCompactDuration } from "@/lib/format-duration";
 import { cn } from "@/lib/utils";
 import { useMainViewService, useNavigationService } from "@/platform/extensions";
-import { automationClient } from "@/runtime/pi/client/automations/automation-client";
-import { usePiThreadStates, usePiWorkspaces } from "@/runtime/pi/client/runtime/context";
-import { listPiModelCatalog } from "@/runtime/pi/client/transport/api";
+import { useWorkbenchAgentThreadSnapshots } from "@workbench/agent-runtime-client/context";
+import { useWorkspaceSelection } from "@workbench/agent-runtime-client/workspaces";
+import { listPiModelCatalog } from "@/workbench/runtime-contributions/pi/client/configuration";
+import { automationClient } from "@/workbench/runtime-contributions/pi/client/execution";
 import {
   MAX_AUTOMATION_DURATION_SECONDS,
   MIN_AUTOMATION_DURATION_SECONDS,
   type AutomationDefinition,
   type AutomationSessionReference,
-} from "@/runtime/shared/automation";
-import type { ModelSelection } from "@/runtime/shared/model-selection";
+} from "@workbench/automation-contracts";
+import type { ModelSelection } from "@workbench/contracts/model-selection";
 
 import {
   draftSelectorModels,
@@ -111,7 +112,7 @@ export function AutomationTaskForm({ params }: { params: AutomationTaskParams })
   const { locale, t } = useI18n();
   const mainViews = useMainViewService();
   const navigation = useNavigationService();
-  const workspaces = usePiWorkspaces();
+  const { workspaces } = useWorkspaceSelection();
   const editingAutomationId = params.page === "automation-edit" ? params.automationId : undefined;
   const presetName = params.page === "automation-create" ? params.preset : undefined;
   const presetDefinition = presetName ? findAutomationTaskPreset(presetName) : undefined;
@@ -164,7 +165,9 @@ export function AutomationTaskForm({ params }: { params: AutomationTaskParams })
   const timePickerRef = useRef<HTMLButtonElement>(null);
   const customCronInputRef = useRef<HTMLInputElement>(null);
   const promptInputRef = useRef<HTMLTextAreaElement>(null);
-  const sessionStates = usePiThreadStates(sessions.map(({ sessionId }) => sessionId));
+  const sessionSnapshots = useWorkbenchAgentThreadSnapshots(
+    sessions.map(({ sessionId }) => sessionId),
+  );
 
   const selectableModels = useMemo(() => {
     if (!fallbackModel || models.some(({ id }) => id === fallbackModel.id)) return models;
@@ -377,7 +380,7 @@ export function AutomationTaskForm({ params }: { params: AutomationTaskParams })
     };
 
     try {
-      await trustAdmission.admit(workspace.cwd, save, (nextError) => {
+      await trustAdmission.admit(workspace.rootPath, save, (nextError) => {
         setError(nextError instanceof Error ? nextError.message : "automation-save-failed");
       });
     } catch (nextError) {
@@ -924,13 +927,13 @@ export function AutomationTaskForm({ params }: { params: AutomationTaskParams })
                     <tbody>
                       {sessions.map((session) => {
                         const triggeredAt = dateTimeFormatter.format(new Date(session.triggeredAt));
-                        const state = sessionStates.get(session.sessionId);
-                        const runStatus = state?.metadata.running
+                        const snapshot = sessionSnapshots.get(session.sessionId);
+                        const runStatus = snapshot?.isRunning
                           ? "running"
-                          : state?.thread
+                          : snapshot?.lastMessageAt
                             ? "succeeded"
                             : "unavailable";
-                        const completedAt = state?.thread?.lastMessageAt.getTime();
+                        const completedAt = snapshot?.lastMessageAt?.getTime();
                         const duration =
                           runStatus === "succeeded" &&
                           completedAt !== undefined &&

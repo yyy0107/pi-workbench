@@ -1,4 +1,4 @@
-import type { ProjectTrustDescribeValue } from "@/runtime/pi/contracts/rpc";
+import type { ProjectTrustDescribeValue } from "@/workbench/runtime-contributions/pi/protocol/rpc";
 
 type DescribedWorkspaceTrust = Pick<ProjectTrustDescribeValue, "path" | "trusted">;
 

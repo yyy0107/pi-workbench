@@ -8,9 +8,12 @@ import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
-import { PiApiError, pickPiHostDirectory } from "@/runtime/pi/client/transport/api";
-import type { PiWorkspaceSummary } from "@/runtime/pi/contracts/pi";
-import { useWorkspaceCapabilities } from "@/services/workspace-selection-service";
+import {
+  useWorkspaceCapabilities,
+  type WorkbenchWorkspaceSummary,
+} from "@workbench/agent-runtime-client/workspaces";
+import { PiApiError } from "@/workbench/runtime-contributions/pi/client/errors";
+import { pickPiHostDirectory } from "@/workbench/runtime-contributions/pi/client/host";
 
 import {
   RemoteDirectoryPickerDialog,
@@ -30,7 +33,7 @@ export function DirectoryPickerButton() {
   const { beginNewThreadWithCreatedWorkspace } = useWorkspaceCapabilities();
 
   const activateDirectory = useCallback(
-    async (workspace: PiWorkspaceSummary) => {
+    async (workspace: WorkbenchWorkspaceSummary) => {
       await activateCreatedWorkspace(workspace, {
         beginNewThreadWithCreatedWorkspace,
         switchToNewThread: () => aui.threads.switchToNewThread(),

@@ -23,30 +23,35 @@ import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/compone
 import { useI18n } from "@/i18n";
 import { formatAdaptiveDuration } from "@/lib/format-duration";
 import { type MessageSlotContext, useExtensionErrorReporter } from "@/platform/extensions";
-import { useWorkbenchAgentThreadId } from "@/runtime/assistant-ui/agent-runtime-context";
 import {
-  usePiSessionManager,
-  usePiThreadListItemSnapshot,
-} from "@/runtime/pi/client/runtime/context";
-import { readPiUsage } from "@/runtime/pi/client/messages/pi-usage";
-import { readPiTurnStatistics } from "@/runtime/pi/client/messages/session-statistics";
-import { parseAttachmentRecognitionSnapshot } from "@/runtime/shared/attachment-understanding/state-machine";
+  useWorkbenchAgentThreadActions,
+  useWorkbenchAgentThreadId,
+  useWorkbenchAgentThreadSnapshot,
+} from "@workbench/agent-runtime-client/context";
+import {
+  readWorkbenchMessageStateToken,
+  readWorkbenchMessageUsage,
+  readWorkbenchTurnStatistics,
+} from "@workbench/agent-runtime-contracts/message-metadata";
+import { parseAttachmentRecognitionSnapshot } from "@workbench/attachment-understanding-contracts/state-machine";
 
-import { assistantForkEventSequence, isExpectedForkUnavailableError } from "./fork-availability";
+import { isExpectedForkUnavailableError } from "./fork-availability";
 import { messageCacheHitRate, messageTokensPerSecond } from "./message-performance-statistics";
 import { shouldShowMessagePerformance } from "./message-performance-visibility";
 
 function MessagePerformance() {
   const timing = useMessageTiming();
   const rawUsage = useAuiState((state) =>
-    state.message.role === "assistant" ? state.message.metadata.custom.piUsage : undefined,
+    state.message.role === "assistant" ? state.message.metadata.custom.workbenchUsage : undefined,
   );
   const rawTurnStatistics = useAuiState((state) =>
-    state.message.role === "assistant" ? state.message.metadata.custom.piTurnStatistics : undefined,
+    state.message.role === "assistant"
+      ? state.message.metadata.custom.workbenchTurnStatistics
+      : undefined,
   );
-  const usage = useMemo(() => readPiUsage(rawUsage), [rawUsage]);
+  const usage = useMemo(() => readWorkbenchMessageUsage(rawUsage), [rawUsage]);
   const turnStatistics = useMemo(
-    () => readPiTurnStatistics(rawTurnStatistics),
+    () => readWorkbenchTurnStatistics(rawTurnStatistics),
     [rawTurnStatistics],
   );
   const { locale, number, t } = useI18n();
@@ -178,12 +183,13 @@ function UserActions() {
 function AssistantActions({ canReload }: Readonly<{ canReload: boolean }>) {
   const { t } = useI18n();
   const aui = useAui();
-  const manager = usePiSessionManager();
+  const threadActions = useWorkbenchAgentThreadActions();
   const sessionId = useWorkbenchAgentThreadId();
-  const session = usePiThreadListItemSnapshot(sessionId);
+  const session = useWorkbenchAgentThreadSnapshot(sessionId);
   const reportError = useExtensionErrorReporter();
-  const rawEventSeq = useAuiState((state) => state.message.metadata.custom.piEventSeq);
-  const eventSeq = assistantForkEventSequence(rawEventSeq);
+  const stateToken = readWorkbenchMessageStateToken(
+    useAuiState((state) => state.message.metadata.custom.workbenchStateToken),
+  );
   const retriesCancelledAttachment = useAuiState((state) => {
     if (state.message.metadata.custom.workbenchAttachmentRecognitionOnly !== true) return false;
     return (
@@ -194,16 +200,16 @@ function AssistantActions({ canReload }: Readonly<{ canReload: boolean }>) {
   });
   const [forkState, setForkState] = useState<"idle" | "pending" | "failed">("idle");
   const forkConversation = useCallback(async () => {
-    if (!sessionId || eventSeq === undefined || forkState === "pending") return;
+    if (!sessionId || !stateToken || !threadActions.forkAt || forkState === "pending") return;
     setForkState("pending");
     try {
-      const forked = await manager.forkSessionAt({
-        sessionId,
-        atSeq: eventSeq,
+      const forked = await threadActions.forkAt({
+        threadId: sessionId,
+        atStateToken: stateToken,
         sourceTitle: session?.title ?? t("workbench.sidebar.newThread"),
       });
       await aui.threads.reload();
-      window.history.pushState(null, "", `/c/${encodeURIComponent(forked.sessionId)}`);
+      window.history.pushState(null, "", `/c/${encodeURIComponent(forked.threadId)}`);
     } catch (error) {
       setForkState("failed");
       if (!isExpectedForkUnavailableError(error)) {
@@ -213,7 +219,7 @@ function AssistantActions({ canReload }: Readonly<{ canReload: boolean }>) {
         });
       }
     }
-  }, [aui, eventSeq, forkState, manager, reportError, session?.title, sessionId, t]);
+  }, [aui, forkState, reportError, session?.title, sessionId, stateToken, t, threadActions]);
   const forkTooltip =
     forkState === "pending"
       ? t("extensions.messageActions.forkConversationPending")
@@ -223,7 +229,7 @@ function AssistantActions({ canReload }: Readonly<{ canReload: boolean }>) {
 
   return (
     <ActionBarPrimitive.Root autohide="never" className="flex items-center gap-0.5">
-      {session && sessionId && eventSeq !== undefined ? (
+      {sessionId && stateToken && threadActions.forkAt ? (
         <TooltipIconButton
           tooltip={forkTooltip}
           type="button"

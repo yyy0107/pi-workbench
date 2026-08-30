@@ -1,3 +1,9 @@
+packages:
+  - "packages/contracts/*"
+  - "packages/server/*"
+  - "packages/agent-runtime/core/*"
+  - "packages/agent-runtime/adapters/pi/*"
+
 allowBuilds:
   "@google/genai": false
   electron: true

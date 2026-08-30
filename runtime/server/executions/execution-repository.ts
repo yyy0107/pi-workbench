@@ -14,18 +14,21 @@ import type {
   WorkflowRunStatus,
   WorkflowRunSummary,
   WorkflowScope,
-} from "@/runtime/shared/execution";
-import { atomicReplaceFile, withCrossProcessFileLock } from "@/runtime/server/file-persistence";
-import {
-  executionRevisionIdForDocument,
-  legacyExecutionRevisionIdForDocument,
-} from "./execution-compiler";
-import { ExecutionError } from "./execution-errors";
+} from "@workbench/execution-contracts";
 import {
   parseExecutionDocument,
   parseExecutionDocumentWithMigration,
   type LegacyWorkflowAgentResource,
-} from "./execution-schema";
+} from "@workbench/execution-contracts/schema";
+import { ExecutionError } from "@workbench/execution-server/errors";
+import {
+  atomicReplaceFile,
+  withCrossProcessFileLock,
+} from "@workbench/server-core/file-persistence";
+import {
+  executionRevisionIdForDocument,
+  legacyExecutionRevisionIdForDocument,
+} from "./execution-compiler";
 
 export interface ExecutionWorkspace {
   workspaceId: string;

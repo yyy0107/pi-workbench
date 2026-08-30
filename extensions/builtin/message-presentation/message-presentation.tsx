@@ -24,8 +24,11 @@ import {
   RendererHost,
   useDataPresentationMap,
 } from "@/platform/extensions/hosts/renderer-host";
-import { readPiTurnTiming, resolvePiTurnDuration } from "@/runtime/pi/client/messages/turn-timing";
-import { parsePiMessageTermination } from "@/runtime/pi/shared/messages/termination";
+import {
+  parseWorkbenchMessageTermination,
+  readWorkbenchTurnTiming,
+  resolveWorkbenchTurnDuration,
+} from "@workbench/agent-runtime-contracts/message-metadata";
 import { WorkbenchComposerMessageText } from "@/workbench/chat/composer-message-text";
 
 import {
@@ -73,13 +76,17 @@ export function WorkbenchMessagePresentation() {
   const timing = useMessageTiming();
   const messageCreatedAt = useAuiState((state) => state.message.createdAt);
   const messageRole = useAuiState((state) => state.message.role);
-  const storedTurnTiming = useAuiState((state) => state.message.metadata.custom.piTurnTiming);
-  const storedTermination = useAuiState((state) => state.message.metadata.custom.piTermination);
-  const termination = parsePiMessageTermination(storedTermination);
-  const turnTiming = readPiTurnTiming(storedTurnTiming);
+  const storedTurnTiming = useAuiState(
+    (state) => state.message.metadata.custom.workbenchTurnTiming,
+  );
+  const storedTermination = useAuiState(
+    (state) => state.message.metadata.custom.workbenchTermination,
+  );
+  const termination = parseWorkbenchMessageTermination(storedTermination);
+  const turnTiming = readWorkbenchTurnTiming(storedTurnTiming);
   const turnStreaming = useAuiState((state) => state.thread.isRunning && state.message.isLast);
   const interruptedBySteering = useAuiState(
-    (state) => state.message.metadata.custom.piSteerInterrupted === true,
+    (state) => state.message.metadata.custom.workbenchSteerInterrupted === true,
   );
   const messageParts = useAuiState((state) => state.message.parts);
   const dataPresentations = useDataPresentationMap();
@@ -94,7 +101,7 @@ export function WorkbenchMessagePresentation() {
     (timing?.totalStreamTime === undefined
       ? messageCreatedAt
       : timing.streamStartTime + timing.totalStreamTime);
-  const turnDuration = resolvePiTurnDuration(storedTurnTiming, timing?.totalStreamTime);
+  const turnDuration = resolveWorkbenchTurnDuration(storedTurnTiming, timing?.totalStreamTime);
   const completedLabel = t("extensions.messagePresentation.completedTurn", {
     completedAt: formatCompletedAt(completionTimestamp, Date.now(), { date, relativeTime }),
     duration: formatCompletedDuration(turnDuration, locale),

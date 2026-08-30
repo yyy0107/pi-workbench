@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { FlowNode, WorkflowDocument } from "@/runtime/shared/execution";
+import type { FlowNode, WorkflowDocument } from "@workbench/execution-contracts";
+import { parseExecutionDocument } from "@workbench/execution-contracts/schema";
 import { compileExecutionDocument, validateExecutionDocument } from "./execution-compiler";
-import { parseExecutionDocument } from "./execution-schema";
 
 function node(id: string, type: FlowNode["type"]): FlowNode {
   const base = { id, name: id, position: { x: 0, y: 0 } };

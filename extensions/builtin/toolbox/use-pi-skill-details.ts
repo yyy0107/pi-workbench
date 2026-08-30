@@ -2,8 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { describePiSkill } from "@/runtime/pi/client/transport/api";
-import type { PiResourceCatalogTarget, SkillDescribeValue } from "@/runtime/pi/contracts/rpc";
+import { describePiSkill } from "@/workbench/runtime-contributions/pi/client/resources";
+import type {
+  PiResourceCatalogTarget,
+  SkillDescribeValue,
+} from "@/workbench/runtime-contributions/pi/protocol/rpc";
 
 type SkillDetailsLoadState = "idle" | "loading" | "ready" | "failed";
 

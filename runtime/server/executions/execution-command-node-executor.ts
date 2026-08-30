@@ -4,18 +4,18 @@ import { mkdir, unlink } from "node:fs/promises";
 import path from "node:path";
 import { finished } from "node:stream/promises";
 
-import type { CommandNode } from "@/runtime/shared/execution";
+import type { CommandNode } from "@workbench/execution-contracts";
+import { ExecutionError } from "@workbench/execution-server/errors";
+import type {
+  ExecutionNodeContext,
+  ExecutionNodeExecutor,
+  ExecutionNodeResult,
+} from "@workbench/execution-server/node-executor";
 import { bashCommandPolicy } from "@/runtime/terminal/server/bash-command-policy";
 import {
   getToolTerminalSessionManager,
   type ToolTerminalSessionManager,
 } from "@/runtime/terminal/server/tool-terminal-session-manager";
-import { ExecutionError } from "./execution-errors";
-import type {
-  ExecutionNodeContext,
-  ExecutionNodeExecutor,
-  ExecutionNodeResult,
-} from "./execution-node-executor";
 
 const MAX_INLINE_COMMAND_OUTPUT_BYTES = 1024 * 1024;
 

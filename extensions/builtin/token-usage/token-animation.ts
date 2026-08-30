@@ -1,4 +1,4 @@
-import type { PiSessionStatistics } from "@/runtime/pi/client/messages/session-statistics";
+import type { WorkbenchSessionStatistics } from "@workbench/agent-runtime-client/message-statistics";
 
 export const TOKEN_ANIMATION_DURATION_MS = 500;
 
@@ -9,7 +9,7 @@ export interface TokenQuantities {
   readonly cacheWriteTokens: number;
 }
 
-export function tokenQuantities(statistics: PiSessionStatistics): TokenQuantities {
+export function tokenQuantities(statistics: WorkbenchSessionStatistics): TokenQuantities {
   return {
     inputTokens: statistics.inputTokens,
     outputTokens: statistics.outputTokens,

@@ -15,7 +15,7 @@ import { useMainViewService } from "@/platform/extensions";
 import {
   usePiActiveSessionId,
   usePiThreadStateSnapshot,
-} from "@/runtime/pi/client/runtime/context";
+} from "@/workbench/runtime-contributions/pi/client/context-trace";
 
 import { CONTEXT_TRACE_SURFACE_KIND, revealContextTrace } from "./context-trace-workspace";
 

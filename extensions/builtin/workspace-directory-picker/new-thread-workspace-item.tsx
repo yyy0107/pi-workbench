@@ -8,7 +8,7 @@ import { useI18n } from "@/i18n";
 import {
   useWorkspaceCapabilities,
   useWorkspaceSelection,
-} from "@/services/workspace-selection-service";
+} from "@workbench/agent-runtime-client/workspaces";
 import { preferredNewThreadWorkspaceId } from "@/workbench/workspaces/new-thread-policy";
 
 export function NewThreadWorkspaceItem() {

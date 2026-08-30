@@ -1,0 +1,42 @@
+{
+  "name": "@workbench/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./composer": {
+      "types": "./src/composer.ts",
+      "import": "./src/composer.ts",
+      "default": "./src/composer.ts"
+    },
+    "./composer/request": {
+      "types": "./src/composer/request.ts",
+      "import": "./src/composer/request.ts",
+      "default": "./src/composer/request.ts"
+    },
+    "./locale": {
+      "types": "./src/locale.ts",
+      "import": "./src/locale.ts",
+      "default": "./src/locale.ts"
+    },
+    "./model-selection": {
+      "types": "./src/model-selection.ts",
+      "import": "./src/model-selection.ts",
+      "default": "./src/model-selection.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2"
+  }
+}

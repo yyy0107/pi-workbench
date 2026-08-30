@@ -8,7 +8,7 @@ import {
   loadWorkbenchSettingsPreferences,
   toWorkbenchSettingsJsonObject,
   updateWorkbenchSettingsPreferences,
-} from "@/runtime/pi/client/settings/workbench-settings-client";
+} from "@/services/workbench-settings-service";
 
 import {
   DefaultRightWorkspaceController,

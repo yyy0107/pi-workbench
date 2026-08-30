@@ -60,18 +60,19 @@ import { useI18n } from "@/i18n";
 import { useExtensionErrorReporter, type ExtensionErrorSource } from "@/platform/extensions";
 import type { ComponentExtensionContributionKind } from "@/platform/extensions/authoring";
 import { ExtensionErrorBoundary } from "@/platform/extensions/hosts/extension-error-boundary";
-import { usePiHostDescription, usePiWorkspaces } from "@/runtime/pi/client/runtime/context";
+import { PiApiError } from "@/workbench/runtime-contributions/pi/client/errors";
+import { usePiHostDescription } from "@/workbench/runtime-contributions/pi/client/host";
 import {
   installPiPackage,
   listInstalledPiPackages,
-  PiApiError,
   removePiExtension,
   removePiPackage,
   removePiSkill,
   setPiExtensionEnabled,
   setPiSkillEnabled,
   updatePiPackage,
-} from "@/runtime/pi/client/transport/api";
+} from "@/workbench/runtime-contributions/pi/client/resources";
+import { usePiWorkspaces } from "@/workbench/runtime-contributions/pi/client/workspace";
 import { fileWorkspaceTargetService } from "@/services/file-workspace-target-service";
 
 import {

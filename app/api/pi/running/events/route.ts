@@ -1,6 +1,6 @@
-import { createRunningEventResponse } from "@/runtime/pi/server/streams/legacy-sse";
-import { rejectUntrustedApiRequest } from "@/runtime/pi/server/transport/api-request-guard";
-import { piErrorResponse } from "@/runtime/pi/server/transport/responses";
+import { rejectUntrustedApiRequest } from "@workbench/server-core/request-guard";
+import { piErrorResponse } from "@workbench/agent-runtime-pi-server/legacy";
+import { createRunningEventResponse } from "@/workbench/server/pi/installed-pi-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

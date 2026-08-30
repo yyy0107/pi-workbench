@@ -1,11 +1,11 @@
 import {
   getOcrAdapterPreset,
   inferOcrAdapterPreset,
-} from "@/runtime/shared/attachment-understanding/ocr-adapter";
+} from "@workbench/attachment-understanding-contracts/ocr-adapter";
 import type {
   AttachmentUnderstandingSettingsValue,
   ImageUnderstandingOcrAdapterSettingsValue,
-} from "@/runtime/pi/contracts/rpc";
+} from "@/workbench/runtime-contributions/pi/protocol/rpc";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);

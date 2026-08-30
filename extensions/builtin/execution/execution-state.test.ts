@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { workflowClient } from "@/runtime/pi/client/workflows/workflow-client";
-import type { WorkflowReadValue, WorkflowSummary } from "@/runtime/shared/execution";
+import { workflowClient } from "@/workbench/runtime-contributions/pi/client/execution";
+import type { WorkflowReadValue, WorkflowSummary } from "@workbench/execution-contracts";
 
 import { useWorkflowCatalogStore, useWorkflowEditorStore } from "./execution-state";
 

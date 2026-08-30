@@ -5,7 +5,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { I18nProvider } from "@/i18n/provider";
-import type { WorkbenchComposerCommandResponseDetails } from "@/runtime/shared/composer/request";
+import type { WorkbenchComposerCommandResponseDetails } from "@workbench/contracts/composer/request";
 
 import { WorkbenchComposerCommandResponse } from "./composer-command-response";
 

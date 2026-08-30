@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 
 import { useI18n } from "@/i18n";
-import { useWorkspaceCapabilities } from "@/services/workspace-selection-service";
+import { useWorkspaceCapabilities } from "@workbench/agent-runtime-client/workspaces";
 
 export function DraftThreadListItem({
   workspaceId,

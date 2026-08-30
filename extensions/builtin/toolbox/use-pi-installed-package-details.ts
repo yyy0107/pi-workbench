@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { describeInstalledPiPackage } from "@/runtime/pi/client/transport/api";
+import { describeInstalledPiPackage } from "@/workbench/runtime-contributions/pi/client/resources";
 import type {
   InstalledPackageDetailsView,
   PiResourceCatalogTarget,
-} from "@/runtime/pi/contracts/rpc";
+} from "@/workbench/runtime-contributions/pi/protocol/rpc";
 
 type InstalledPackageDetailsLoadState = "idle" | "loading" | "ready" | "failed";
 

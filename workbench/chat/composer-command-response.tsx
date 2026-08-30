@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import type {
   WorkbenchComposerCommandFailureReason,
   WorkbenchComposerCommandResponseDetails,
-} from "@/runtime/shared/composer/request";
+} from "@workbench/contracts/composer/request";
 
 import { ComposerCommandArguments } from "./composer-command-arguments";
 import { ComposerTokenIcon } from "./composer-token-icon";

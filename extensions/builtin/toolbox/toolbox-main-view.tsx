@@ -21,13 +21,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import type { MainViewProps } from "@/platform/extensions";
-import { usePiWorkspaces } from "@/runtime/pi/client/runtime/context";
+import { usePiWorkspaces } from "@/workbench/runtime-contributions/pi/client/workspace";
 import type {
   PiPackageCatalogFilterType,
   PiPackageCatalogItemView,
   PiPackageCatalogSort,
   PiPackageUpdateView,
-} from "@/runtime/pi/contracts/rpc";
+} from "@/workbench/runtime-contributions/pi/protocol/rpc";
 
 import {
   bindCapabilityToCatalogTarget,

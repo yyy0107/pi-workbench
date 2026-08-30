@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { WorkflowRunSummary } from "@/runtime/shared/execution";
+import type { WorkflowRunSummary } from "@workbench/execution-contracts";
 
 import { reconcileWorkflowRunBaseline } from "./execution-run-baseline";
 

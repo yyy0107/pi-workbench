@@ -7,7 +7,7 @@ import type {
   ModelCatalogValue,
   ModelSelection,
   SessionModelsValue,
-} from "@/runtime/pi/contracts/rpc";
+} from "@/workbench/runtime-contributions/pi/protocol/rpc";
 
 export type SelectorEffort = ModelSelectorEffort;
 export type SelectorModel = ModelSelectorOption;

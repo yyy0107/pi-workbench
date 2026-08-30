@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { WorkspaceGitCommit } from "@/runtime/pi/contracts/rpc";
+import type { WorkspaceGitCommit } from "@/workbench/runtime-contributions/pi/protocol/rpc";
 
 import { createGitGraphLayout } from "./git-graph-layout";
 

@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ModelCatalogValue, ModelProvidersValue } from "@/runtime/pi/contracts/rpc";
+import type {
+  ModelCatalogValue,
+  ModelProvidersValue,
+} from "@/workbench/runtime-contributions/pi/protocol/rpc";
 
 import { configuredMultimodalModelOptions } from "./image-understanding-model-options";
 

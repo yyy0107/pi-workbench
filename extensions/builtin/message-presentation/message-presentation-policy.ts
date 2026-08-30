@@ -1,4 +1,4 @@
-import type { AttachmentReference } from "@/runtime/shared/attachment-understanding/state-machine";
+import type { AttachmentReference } from "@workbench/attachment-understanding-contracts/state-machine";
 
 export type MessagePresentationDisclosure =
   | "completed-turn"

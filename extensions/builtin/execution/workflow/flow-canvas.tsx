@@ -42,7 +42,7 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { useI18n } from "@/i18n";
-import type { FlowEdge, FlowNode, WorkflowDocument } from "@/runtime/shared/execution";
+import type { FlowEdge, FlowNode, WorkflowDocument } from "@workbench/execution-contracts";
 
 import {
   createCanvasEdge,

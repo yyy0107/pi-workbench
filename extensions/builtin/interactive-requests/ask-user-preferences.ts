@@ -5,7 +5,7 @@ import { useLayoutEffect, useSyncExternalStore } from "react";
 import {
   loadWorkbenchSettingsPreferences,
   updateWorkbenchSettingsPreferences,
-} from "@/runtime/pi/client/settings/workbench-settings-client";
+} from "@/services/workbench-settings-service";
 
 export const ASK_USER_PREFERENCES_STORAGE_KEY = "workbench.ask-user.v1";
 

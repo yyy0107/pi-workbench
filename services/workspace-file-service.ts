@@ -1,15 +1,17 @@
 import type { OpenableResource, WorkspaceScope } from "@/platform/extensions";
 import {
-  describePiWorkspaceFile,
   listPiExtensionFiles,
   listPiSkillFiles,
-  listPiWorkspaceFiles,
-  piWorkspaceFileContentUrl,
   readPiExtensionFile,
   readPiSkillFile,
+} from "@/workbench/runtime-contributions/pi/client/resources";
+import {
+  describePiWorkspaceFile,
+  listPiWorkspaceFiles,
+  piWorkspaceFileContentUrl,
   readPiWorkspaceFile,
   writePiWorkspaceFile,
-} from "@/runtime/pi/client/transport/api";
+} from "@/workbench/runtime-contributions/pi/client/workspace";
 import type {
   ExtensionFileReadPayload,
   ExtensionFileSnapshotValue,
@@ -30,7 +32,7 @@ import type {
   WorkspaceFilesListPayload,
   WorkspaceFilesListValue,
   WorkspaceFileWritePayload,
-} from "@/runtime/pi/contracts/rpc";
+} from "@/workbench/runtime-contributions/pi/protocol/rpc";
 
 export interface WorkspaceFileSession {
   source: "workspace";

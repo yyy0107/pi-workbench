@@ -12,10 +12,13 @@ import type {
   WorkflowRunStartSource,
   WorkflowRunStatus,
   WorkflowRunSummary,
-} from "@/runtime/shared/execution";
+} from "@workbench/execution-contracts";
+import { ExecutionError } from "@workbench/execution-server/errors";
+import {
+  ExecutionNodeExecutorRegistry,
+  type ExecutionNodeResult,
+} from "@workbench/execution-server/node-executor";
 import { compileExecutionRevision, type CompiledExecutionPlan } from "./execution-compiler";
-import { ExecutionNodeExecutorRegistry, type ExecutionNodeResult } from "./execution-node-executor";
-import { ExecutionError } from "./execution-errors";
 import { ExecutionRepository } from "./execution-repository";
 
 const MAX_READY_NODE_CONCURRENCY = 4;

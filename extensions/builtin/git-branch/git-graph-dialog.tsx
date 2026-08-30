@@ -29,12 +29,12 @@ import {
 } from "@/components/ui/dialog";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
-import { readPiWorkspaceGitLog } from "@/runtime/pi/client/transport/api";
+import { readPiWorkspaceGitLog } from "@/workbench/runtime-contributions/pi/client/workspace";
 import type {
   WorkspaceGitCommit,
   WorkspaceGitCommitRef,
   WorkspaceGitLogValue,
-} from "@/runtime/pi/contracts/rpc";
+} from "@/workbench/runtime-contributions/pi/protocol/rpc";
 
 import {
   createGitGraphLayout,

@@ -1,4 +1,4 @@
-import type { FlowNode } from "@/runtime/shared/execution";
+import type { FlowNode } from "@workbench/execution-contracts";
 
 type NamedWorkflowNode = Pick<FlowNode, "name" | "type">;
 

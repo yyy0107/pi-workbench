@@ -1,0 +1,45 @@
+{
+  "name": "@workbench/agent-runtime-contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./descriptor": {
+      "types": "./src/descriptor.ts",
+      "import": "./src/descriptor.ts",
+      "default": "./src/descriptor.ts"
+    },
+    "./commands": {
+      "types": "./src/commands.ts",
+      "import": "./src/commands.ts",
+      "default": "./src/commands.ts"
+    },
+    "./message-metadata": {
+      "types": "./src/message-metadata.ts",
+      "import": "./src/message-metadata.ts",
+      "default": "./src/message-metadata.ts"
+    },
+    "./settings": {
+      "types": "./src/settings.ts",
+      "import": "./src/settings.ts",
+      "default": "./src/settings.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@workbench/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2"
+  }
+}

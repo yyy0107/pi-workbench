@@ -38,14 +38,14 @@ import {
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { useMainViewService } from "@/platform/extensions";
-import { usePiWorkspaces } from "@/runtime/pi/client/runtime/context";
-import { workflowClient } from "@/runtime/pi/client/workflows/workflow-client";
+import { useWorkspaceSelection } from "@workbench/agent-runtime-client/workspaces";
+import { workflowClient } from "@/workbench/runtime-contributions/pi/client/execution";
 import type {
   FlowGraph,
   WorkflowRunStatus,
   WorkflowRunSummary,
   WorkflowSummary,
-} from "@/runtime/shared/execution";
+} from "@workbench/execution-contracts";
 
 import { WorkflowGraphThumbnail } from "./workflow-graph-thumbnail";
 import { workflowMainViewRequest } from "../execution-main-view";
@@ -68,7 +68,7 @@ export function WorkflowHome() {
   const mainViews = useMainViewService();
   const items = useWorkflowCatalogStore((state) => state.items);
   const runs = useWorkflowCatalogStore((state) => state.runs);
-  const workspaces = usePiWorkspaces();
+  const { workspaces } = useWorkspaceSelection();
   const loadState = useWorkflowCatalogStore((state) => state.loadState);
   const refresh = useWorkflowCatalogStore((state) => state.refresh);
   const [deleteTarget, setDeleteTarget] = useState<WorkflowSummary>();

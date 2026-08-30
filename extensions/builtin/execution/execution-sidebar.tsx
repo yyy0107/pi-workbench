@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { useMainViewService, type SlotPropsMap } from "@/platform/extensions";
-import type { WorkflowKind, WorkflowSummary } from "@/runtime/shared/execution";
+import type { WorkflowKind, WorkflowSummary } from "@workbench/execution-contracts";
 
 import { workflowMainViewRequest, type WorkflowMainViewParams } from "./execution-main-view";
 import { useWorkflowCatalogStore } from "./execution-state";

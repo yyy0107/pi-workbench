@@ -12,7 +12,7 @@ import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdow
 import { useI18n } from "@/i18n";
 import { useExtensionErrorReporter } from "@/platform/extensions";
 import type { ThreadMenuSlotContext } from "@/platform/extensions/authoring";
-import { usePiSessionManager } from "@/runtime/pi/client/runtime/context";
+import { usePiSideChatClient } from "@/workbench/runtime-contributions/pi/client/side-chat";
 
 import {
   nextSideChatSequence,
@@ -32,7 +32,7 @@ function useSideChatLauncher({
   const controller = useRightWorkspace();
   const context = useWorkspaceContext();
   const sideChats = useWorkspaceSurfaces(SIDE_CHAT_SURFACE_KIND);
-  const manager = usePiSessionManager();
+  const manager = usePiSideChatClient();
   const reportError = useExtensionErrorReporter();
   const [pending, setPending] = useState(false);
 

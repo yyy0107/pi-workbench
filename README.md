@@ -281,15 +281,15 @@ See the [Pi Runtime trust boundary](./runtime/pi/README.md) and
 
 ## Repository map
 
-| Directory                                                                                  | Responsibility                                                        |
-| ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
-| [`app/`](./app/), [`workbench/`](./workbench/), [`components/`](./components/)             | Next.js routes, application shell, chat, workspace UI, and shared UI  |
-| [`platform/extensions/`](./platform/extensions/)                                           | Workbench extension contracts, registries, hosts, and lifecycle       |
-| [`extensions/`](./extensions/)                                                             | Built-in and app-bundled installable Workbench extensions             |
-| [`runtime/assistant-ui/`](./runtime/assistant-ui/), [`runtime/server/`](./runtime/server/) | Backend-neutral browser and server Agent Runtime adapter boundaries   |
-| [`runtime/pi/`](./runtime/pi/)                                                             | Concrete Pi client/server adapters, sessions, models, tools, and RPC  |
-| [`runtime/terminal/`](./runtime/terminal/)                                                 | PTY sessions, tool terminals, and Terminal WebSocket gateway          |
-| [`electron/`](./electron/)                                                                 | Desktop lifecycle, local service process, packaging, and distribution |
+| Directory                                                                                                                                                      | Responsibility                                                        |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| [`app/`](./app/), [`workbench/`](./workbench/), [`components/`](./components/)                                                                                 | Next.js routes, application shell, chat, workspace UI, and shared UI  |
+| [`platform/extensions/`](./platform/extensions/)                                                                                                               | Workbench extension contracts, registries, hosts, and lifecycle       |
+| [`extensions/`](./extensions/)                                                                                                                                 | Built-in and app-bundled installable Workbench extensions             |
+| [`packages/agent-runtime/core/client/`](./packages/agent-runtime/core/client/), [`packages/agent-runtime/core/server/`](./packages/agent-runtime/core/server/) | Backend-neutral browser and server Agent Runtime adapter boundaries   |
+| [`runtime/pi/`](./runtime/pi/)                                                                                                                                 | Concrete Pi client/server adapters, sessions, models, tools, and RPC  |
+| [`runtime/terminal/`](./runtime/terminal/)                                                                                                                     | PTY sessions, tool terminals, and Terminal WebSocket gateway          |
+| [`electron/`](./electron/)                                                                                                                                     | Desktop lifecycle, local service process, packaging, and distribution |
 
 ## Development
 
@@ -312,8 +312,8 @@ for adding another language are documented in the
 - [Internationalization](./docs/i18n.md)
 - [Workbench extension platform](./docs/extensions.md)
 - [RightWorkspace architecture](./docs/right-workspace.md)
-- [Browser Agent Runtime adapter](./runtime/assistant-ui/README.md)
-- [Server Agent Runtime ports](./runtime/server/README.md)
+- [Browser Agent Runtime adapter](./packages/agent-runtime/core/client/README.md)
+- [Server Agent Runtime ports](./packages/agent-runtime/core/server/README.md)
 - [Pi Runtime architecture and protocols](./runtime/pi/README.md)
 - [Terminal Runtime](./runtime/terminal/README.md)
 

@@ -1,4 +1,4 @@
-import type { WorkbenchAgentThreadSnapshot } from "@/runtime/assistant-ui/agent-runtime-adapter";
+import type { WorkbenchAgentThreadSnapshot } from "@workbench/agent-runtime-client/adapter";
 import { resolveSidebarThreadWorkspaceId } from "@/workbench/workspaces/new-thread-policy";
 
 export interface SidebarThreadGroups {

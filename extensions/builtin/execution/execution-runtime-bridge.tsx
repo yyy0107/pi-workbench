@@ -2,13 +2,13 @@
 
 import { useEffect } from "react";
 
-import { isWorkflowHostPayload } from "@/runtime/shared/execution";
-import { usePiSessionManager } from "@/runtime/pi/client/runtime/context";
+import { usePiExecutionRuntimeClient } from "@/workbench/runtime-contributions/pi/client/execution";
+import { isWorkflowHostPayload } from "@workbench/execution-contracts";
 
 import { useWorkflowCatalogStore } from "./execution-state";
 
 export function WorkflowRuntimeBridge() {
-  const manager = usePiSessionManager();
+  const manager = usePiExecutionRuntimeClient();
   const keepAwake = useWorkflowCatalogStore((state) => state.keepAwake);
 
   useEffect(() => {

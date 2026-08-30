@@ -1,13 +1,15 @@
-import type { PiUsageMetadata } from "@/runtime/pi/client/messages/pi-usage";
-import type { PiTurnStatistics } from "@/runtime/pi/client/messages/session-statistics";
+import type {
+  WorkbenchMessageUsage,
+  WorkbenchTurnStatistics,
+} from "@workbench/agent-runtime-contracts/message-metadata";
 
 interface MessageCacheHitRateOptions {
-  readonly turnStatistics?: PiTurnStatistics;
-  readonly usage?: PiUsageMetadata;
+  readonly turnStatistics?: WorkbenchTurnStatistics;
+  readonly usage?: WorkbenchMessageUsage;
 }
 
 interface MessageTokensPerSecondOptions {
-  readonly turnStatistics?: PiTurnStatistics;
+  readonly turnStatistics?: WorkbenchTurnStatistics;
   readonly timingTokensPerSecond?: number;
 }
 

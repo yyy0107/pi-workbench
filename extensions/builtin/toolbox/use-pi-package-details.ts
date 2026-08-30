@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { describePiPackageCatalog } from "@/runtime/pi/client/transport/api";
-import type { PiPackageCatalogDetailsView } from "@/runtime/pi/contracts/rpc";
+import { describePiPackageCatalog } from "@/workbench/runtime-contributions/pi/client/resources";
+import type { PiPackageCatalogDetailsView } from "@/workbench/runtime-contributions/pi/protocol/rpc";
 
 type PackageDetailsLoadState = "idle" | "loading" | "ready" | "failed";
 

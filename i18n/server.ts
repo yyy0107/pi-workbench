@@ -4,9 +4,9 @@ import { cookies, headers } from "next/headers";
 
 import { DEFAULT_LOCALE, LOCALE_COOKIE_NAME, matchLocale, type Locale } from "./config";
 import { createI18n } from "./runtime";
-import { WorkbenchSettingsService } from "@/runtime/pi/server/settings/workbench-settings-service";
+import { createInstalledWorkbenchSettingsService } from "@/workbench/server/workbench-settings";
 
-const workbenchSettingsService = new WorkbenchSettingsService();
+const workbenchSettingsService = createInstalledWorkbenchSettingsService();
 
 function localeFromAcceptLanguage(value: string | null): Locale | undefined {
   if (!value) return undefined;

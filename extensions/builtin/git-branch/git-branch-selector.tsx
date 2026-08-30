@@ -37,15 +37,15 @@ import { FileTypeIcon } from "@/components/workspace-file-tree";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { useMainViewService } from "@/platform/extensions";
-import { useWorkbenchAgentThreadSnapshot } from "@/runtime/assistant-ui/agent-runtime-context";
+import { useWorkbenchAgentThreadSnapshot } from "@workbench/agent-runtime-client/context";
+import { PiApiError } from "@/workbench/runtime-contributions/pi/client/errors";
 import {
   createPiWorkspaceGitBranch,
   describePiWorkspaceGit,
-  PiApiError,
   switchPiWorkspaceGitBranch,
-} from "@/runtime/pi/client/transport/api";
-import type { WorkspaceGitStatus } from "@/runtime/pi/contracts/rpc";
-import { useWorkspaceSelection } from "@/services/workspace-selection-service";
+} from "@/workbench/runtime-contributions/pi/client/workspace";
+import type { WorkspaceGitStatus } from "@/workbench/runtime-contributions/pi/protocol/rpc";
+import { useWorkspaceSelection } from "@workbench/agent-runtime-client/workspaces";
 
 import { GitGraphDialog } from "./git-graph-dialog";
 

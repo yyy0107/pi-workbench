@@ -12,6 +12,7 @@ const { transformSync } = tsxRequire("esbuild");
 // this list narrow: in particular, do not alias next/navigation, so a Host leaking into the pure
 // Extension authoring graph remains a hard Node loading failure.
 const NODE_TEST_SPECIFIER_ALIASES = new Map([
+  ["next/dynamic", pathToFileURL(repositoryRequire.resolve("next/dynamic.js")).href],
   ["next/image", pathToFileURL(repositoryRequire.resolve("next/image")).href],
 ]);
 

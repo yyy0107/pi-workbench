@@ -32,7 +32,7 @@ import { SlotHost } from "@/platform/extensions/hosts/slot-host";
 import {
   useWorkbenchAgentThreadActions,
   useWorkbenchAgentThreadSnapshot,
-} from "@/runtime/assistant-ui/agent-runtime-context";
+} from "@workbench/agent-runtime-client/context";
 
 type PendingAction = "archive" | "pin" | "rename";
 

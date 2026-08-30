@@ -2,8 +2,14 @@ import { randomUUID } from "node:crypto";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 
-import { atomicReplaceFile, withCrossProcessFileLock } from "@/runtime/server/file-persistence";
-import type { AutomationDefinition, AutomationSessionReference } from "@/runtime/shared/automation";
+import {
+  atomicReplaceFile,
+  withCrossProcessFileLock,
+} from "@workbench/server-core/file-persistence";
+import type {
+  AutomationDefinition,
+  AutomationSessionReference,
+} from "@workbench/automation-contracts";
 import { AutomationError } from "./automation-errors";
 
 const MAX_SESSION_REFERENCES = 200;

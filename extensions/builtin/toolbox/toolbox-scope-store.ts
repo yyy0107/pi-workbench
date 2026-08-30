@@ -5,8 +5,8 @@ import { useEffect, useSyncExternalStore } from "react";
 import {
   loadWorkbenchSettingsPreferences,
   updateWorkbenchSettingsPreferences,
-} from "@/runtime/pi/client/settings/workbench-settings-client";
-import type { WorkbenchToolboxScopePreference } from "@/runtime/pi/contracts/rpc";
+} from "@/services/workbench-settings-service";
+import type { WorkbenchToolboxScopePreference } from "@workbench/agent-runtime-contracts/settings";
 
 import { USER_TOOLBOX_SCOPE } from "./toolbox-scope";
 

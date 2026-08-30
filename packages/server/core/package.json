@@ -1,0 +1,52 @@
+{
+  "name": "@workbench/server-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./child-process-environment": {
+      "types": "./src/child-process-environment.ts",
+      "import": "./src/child-process-environment.ts",
+      "default": "./src/child-process-environment.ts"
+    },
+    "./file-persistence": {
+      "types": "./src/file-persistence.ts",
+      "import": "./src/file-persistence.ts",
+      "default": "./src/file-persistence.ts"
+    },
+    "./rpc-domain-error": {
+      "types": "./src/rpc-domain-error.ts",
+      "import": "./src/rpc-domain-error.ts",
+      "default": "./src/rpc-domain-error.ts"
+    },
+    "./request-guard": {
+      "types": "./src/request-guard.ts",
+      "import": "./src/request-guard.ts",
+      "default": "./src/request-guard.ts"
+    },
+    "./request-trust": {
+      "types": "./src/request-trust.ts",
+      "import": "./src/request-trust.ts",
+      "default": "./src/request-trust.ts"
+    },
+    "./shutdown-hooks": {
+      "types": "./src/shutdown-hooks.ts",
+      "import": "./src/shutdown-hooks.ts",
+      "default": "./src/shutdown-hooks.ts"
+    },
+    "./workbench-settings-file": {
+      "types": "./src/workbench-settings-file.ts",
+      "import": "./src/workbench-settings-file.ts",
+      "default": "./src/workbench-settings-file.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2"
+  }
+}

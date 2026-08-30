@@ -4,7 +4,7 @@ import test from "node:test";
 import {
   appendWorkspaceFeedbackContext,
   stripWorkspaceFeedbackContext,
-} from "@/services/workspace-feedback-service";
+} from "@workbench/agent-runtime-client/prompt-feedback";
 import { MemoryWorkspaceFeedbackStore } from "./feedback-store";
 
 test("workspace feedback is structured for Pi while the visible message stays clean", () => {

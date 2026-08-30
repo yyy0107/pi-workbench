@@ -6,8 +6,8 @@ import {
   createPiWorkspace,
   describePiProjectTrust,
   updatePiProjectTrust,
-} from "@/runtime/pi/client/transport/api";
-import type { PiWorkspaceSummary } from "@/runtime/pi/contracts/pi";
+} from "@/workbench/runtime-contributions/pi/client/workspace";
+import type { WorkbenchWorkspaceSummary } from "@workbench/agent-runtime-client/workspaces";
 import type { ProjectTrustDialogError } from "@/components/ui/project-trust-dialog";
 
 import { admitTrustedWorkspace } from "./workspace-admission";
@@ -16,12 +16,12 @@ function workspaceSummary(workspace: {
   workspaceId: string;
   title: string;
   path: string;
-}): PiWorkspaceSummary {
-  return { id: workspace.workspaceId, name: workspace.title, cwd: workspace.path };
+}): WorkbenchWorkspaceSummary {
+  return { id: workspace.workspaceId, name: workspace.title, rootPath: workspace.path };
 }
 
 export function useWorkspaceDirectoryAdmission(
-  onSelect: (workspace: PiWorkspaceSummary) => void | Promise<void>,
+  onSelect: (workspace: WorkbenchWorkspaceSummary) => void | Promise<void>,
 ) {
   const [pendingPath, setPendingPath] = useState<string>();
   const [savingDecision, setSavingDecision] = useState<"trust" | "decline">();

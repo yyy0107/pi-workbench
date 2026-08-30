@@ -8,9 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useI18n } from "@/i18n";
 import type { SettingsItemComponentProps } from "@/platform/extensions";
-import { usePiSessionCatalog } from "@/runtime/pi/client/runtime/session-catalog";
-import { listPiSkills } from "@/runtime/pi/client/transport/api";
-import type { SkillView } from "@/runtime/pi/contracts/rpc";
+import {
+  listPiSkills,
+  usePiSessionCatalog,
+} from "@/workbench/runtime-contributions/pi/client/resources";
+import type { SkillView } from "@/workbench/runtime-contributions/pi/protocol/rpc";
 
 const EMPTY_SKILLS: readonly SkillView[] = [];
 

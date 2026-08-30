@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/selector-dropdown";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
-import { usePiWorkspaces } from "@/runtime/pi/client/runtime/context";
+import { usePiWorkspaces } from "@/workbench/runtime-contributions/pi/client/workspace";
 
 import { parseToolboxScopeKey, toolboxScopeKey } from "./toolbox-scope";
 import { setToolboxScope, useToolboxScope } from "./toolbox-scope-store";

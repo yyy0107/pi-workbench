@@ -2,18 +2,20 @@ import { createServer } from "node:http";
 
 import next from "next";
 import { WebSocketServer } from "ws";
+import { STREAM_PATHS } from "@workbench/agent-runtime-pi-protocol/stream";
 
-import { createNoServerWebSocketGateway } from "./runtime/pi/server/streams/websocket-gateway";
+import { createNoServerWebSocketGateway } from "@workbench/agent-runtime-pi-server/websocket";
 import {
   createWorkbenchHttpServer,
   type WorkbenchRequestHandler,
   type WorkbenchWebSocketGateway,
-} from "./runtime/pi/server/transport/custom-server";
+} from "./runtime/server/http/workbench-http-server";
 import {
   configuredApiTrustedHosts,
   inspectApiRequestTrust,
-} from "./runtime/pi/server/transport/local-api-request-trust";
-import { migrateLegacyWorkbenchMessageTerminationExtension } from "./runtime/pi/server/internal-extensions/legacy-message-termination";
+} from "@workbench/server-core/request-trust";
+import { migrateLegacyWorkbenchMessageTerminationExtension } from "@workbench/agent-runtime-pi-server/legacy";
+import { TERMINAL_WEBSOCKET_PATH } from "./runtime/terminal/contracts";
 import {
   createTerminalGateway,
   type TerminalSessionManagerLike,
@@ -166,6 +168,7 @@ async function main(): Promise<void> {
     requestHandler,
     webSocketGateway,
     nextUpgradeRelay,
+    upgradeRequiredPaths: [STREAM_PATHS.mux, STREAM_PATHS.host, TERMINAL_WEBSOCKET_PATH],
     onRequestError: (error) => console.error("Workbench request failed.", error),
     onUpgradeRelayMissing: (request) =>
       console.error(`No Next.js upgrade handler accepted ${request.url ?? "the request"}.`),

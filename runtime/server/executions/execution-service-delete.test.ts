@@ -4,8 +4,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import type { WorkflowRunDeleteValue, WorkflowRunSummary } from "@/runtime/shared/execution";
-import { ExecutionError } from "./execution-errors";
+import type { WorkflowRunDeleteValue, WorkflowRunSummary } from "@workbench/execution-contracts";
+import { ExecutionError } from "@workbench/execution-server/errors";
 import { ExecutionRepository } from "./execution-repository";
 import { ExecutionService } from "./execution-service";
 

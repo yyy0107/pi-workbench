@@ -3,25 +3,23 @@ import {
   type PiImageContent,
   type PiModelSelection,
   type PiQueuedPrompt,
-} from "@/runtime/pi/contracts/pi";
+} from "@workbench/agent-runtime-pi-protocol/messages";
 import {
   cancelSession,
-  PiServerError,
   queuePrompt,
   replacePromptQueue,
   sendPrompt,
   setPromptQueuePaused,
   steerQueuedPrompt,
-} from "@/runtime/pi/server/sessions/session-registry";
+} from "@/workbench/server/pi/installed-pi-server";
 import {
   admitInlineImages,
   InlineImageAdmissionError,
-} from "@/runtime/pi/server/sessions/inline-image-admission";
-import { piErrorResponse } from "@/runtime/pi/server/transport/responses";
-import {
+  PiServerError,
+  piErrorResponse,
   readTrustedJsonPost,
   RPC_REQUEST_BODY_LIMITS,
-} from "@/runtime/pi/server/transport/rpc-transport";
+} from "@workbench/agent-runtime-pi-server/legacy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

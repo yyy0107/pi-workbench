@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 export interface WorkspaceSelectorOption {
   id: string;
   name: string;
-  cwd: string;
+  rootPath: string;
 }
 
 export interface WorkspaceSelectorLabels {
@@ -66,7 +66,7 @@ export function WorkspaceSelector({
     return workspaces.filter(
       (workspace) =>
         workspace.name.toLocaleLowerCase().includes(normalizedQuery) ||
-        workspace.cwd.toLocaleLowerCase().includes(normalizedQuery),
+        workspace.rootPath.toLocaleLowerCase().includes(normalizedQuery),
     );
   }, [workspaceQuery, workspaces]);
 
@@ -79,7 +79,7 @@ export function WorkspaceSelector({
       }}
     >
       <div
-        title={error ? labels.selectError : (selectedWorkspace?.cwd ?? labels.select)}
+        title={error ? labels.selectError : (selectedWorkspace?.rootPath ?? labels.select)}
         className={cn(
           "group/workspace inline-flex h-[var(--dropdown-control-height)] min-w-0 max-w-56 items-center text-base font-normal text-foreground transition-colors",
           variant === "outline"
@@ -185,7 +185,7 @@ export function WorkspaceSelector({
                   key={workspace.id}
                   value={workspace.id}
                   className="min-h-9 gap-2.5 rounded-lg px-2.5 pe-9 text-sm"
-                  title={workspace.cwd}
+                  title={workspace.rootPath}
                 >
                   <FolderIcon aria-hidden="true" className="size-4 text-muted-foreground" />
                   <span className="min-w-0 flex-1 truncate">{workspace.name}</span>

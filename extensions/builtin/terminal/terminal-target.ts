@@ -3,7 +3,7 @@
 import { useAuiState } from "@assistant-ui/react";
 import { useMemo } from "react";
 
-import { useWorkbenchAgentThreadSnapshot } from "@/runtime/assistant-ui/agent-runtime-context";
+import { useWorkbenchAgentThreadSnapshot } from "@workbench/agent-runtime-client/context";
 
 export interface TerminalPtyTarget extends Record<string, unknown> {
   mode?: "pty";

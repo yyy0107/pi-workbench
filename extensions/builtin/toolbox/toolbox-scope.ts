@@ -1,7 +1,5 @@
-import type {
-  PiResourceCatalogTarget,
-  WorkbenchToolboxScopePreference,
-} from "@/runtime/pi/contracts/rpc";
+import type { PiResourceCatalogTarget } from "@/workbench/runtime-contributions/pi/protocol/rpc";
+import type { WorkbenchToolboxScopePreference } from "@workbench/agent-runtime-contracts/settings";
 
 import type { ToolboxCapabilitySurfaceParams } from "./toolbox-capability";
 

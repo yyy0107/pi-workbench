@@ -704,10 +704,10 @@ importing or naming the contribution currently rendered in that pane.
 Read `runtime/pi/README.md` completely before adding Pi-backed UI. It is the maintained architecture
 and capability reference. Verify exact shapes against:
 
-- `runtime/pi/contracts/rpc.ts` for unary RPC envelopes and payload/value types;
-- `runtime/pi/contracts/stream.ts` for mux/host WebSocket frames;
-- `runtime/pi/client/transport/api.ts` for existing browser-side RPC helpers;
-- `runtime/pi/client/runtime/context.tsx` and `manager.ts` for session-manager state and actions.
+- `@workbench/agent-runtime-pi-protocol/rpc` for unary RPC envelopes and payload/value types;
+- `@workbench/agent-runtime-pi-protocol/stream` for mux/host WebSocket frames;
+- the owning `@workbench/agent-runtime-pi-client/*` feature facade for browser-side RPC helpers and
+  subscribed state.
 
 New UI reads authoritative snapshots through the manager or typed unary helpers and receives deltas
 through the shared paired mux/host WebSocket connection. Do not issue raw `fetch()` calls, create a
@@ -751,8 +751,8 @@ CommandService `execute(id)` returns a Promise. Catch rejection when invoking it
 extensions normally register sections/items synchronously through `context.settings`.
 
 RightWorkspace and `useOpenerService()` hooks come from `@/components/right-workspace`, Workspace
-Surface/Open Handler registration comes from `context.workspace`/`context.openers`, and Pi manager
-hooks come from `@/runtime/pi/client/runtime/context`.
+Surface/Open Handler registration comes from `context.workspace`/`context.openers`, and Pi hooks come
+from the relevant `@workbench/agent-runtime-pi-client/*` feature facade.
 
 Use `useAui()` and `useAuiState()` for assistant-ui Runtime state. Do not mirror chat state in a separate extension store.
 

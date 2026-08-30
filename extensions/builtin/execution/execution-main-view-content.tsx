@@ -25,9 +25,9 @@ import { WorkspaceSelector } from "@/components/ui/workspace-selector";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import { useMainViewService, type MainViewProps } from "@/platform/extensions";
-import { usePiWorkspaces } from "@/runtime/pi/client/runtime/context";
-import { workflowClient } from "@/runtime/pi/client/workflows/workflow-client";
-import { PiApiError } from "@/runtime/pi/client/transport/api";
+import { useWorkspaceSelection } from "@workbench/agent-runtime-client/workspaces";
+import { PiApiError } from "@/workbench/runtime-contributions/pi/client/errors";
+import { workflowClient } from "@/workbench/runtime-contributions/pi/client/execution";
 import type {
   FlowNode,
   WorkflowDocument,
@@ -35,7 +35,7 @@ import type {
   WorkflowRunEvent,
   WorkflowRunSummary,
   WorkflowScope,
-} from "@/runtime/shared/execution";
+} from "@workbench/execution-contracts";
 
 import { AutomationHome } from "./automation/automation-home";
 import { AutomationTaskForm } from "./automation/automation-task-form";
@@ -113,7 +113,7 @@ function CreateWorkflowPage({
 }) {
   const { t } = useI18n();
   const mainViews = useMainViewService();
-  const workspaces = usePiWorkspaces();
+  const { workspaces } = useWorkspaceSelection();
   const kind = params.kind ?? "workflow";
   const [scopeType, setScopeType] = useState<WorkflowScope["type"]>(
     params.scope?.type ?? "personal",
@@ -404,7 +404,7 @@ async function saveCurrentDraft(): Promise<WorkflowDocument | undefined> {
 function WorkflowEditorPage({ workflowId }: { workflowId: string }) {
   const { t } = useI18n();
   const mainViews = useMainViewService();
-  const workspaces = usePiWorkspaces();
+  const { workspaces } = useWorkspaceSelection();
   const rightWorkspace = useRightWorkspace();
   const workspaceContext = useWorkspaceContext();
   const workspaceApplicationId = workspaceContext.applicationId;

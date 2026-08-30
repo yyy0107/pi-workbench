@@ -5,24 +5,22 @@ import { useAui, useAuiState } from "@assistant-ui/react";
 import { ModelSelector as ModelSelectorControl } from "@/components/ui/model-selector";
 import { useI18n } from "@/i18n";
 import {
+  getPiModelCatalogRevision,
+  getPiSessionModelSelectionRevision,
   listPiModelCatalog,
   listPiRpcSessionModels,
   selectPiRpcSessionModel,
-} from "@/runtime/pi/client/transport/api";
-import {
-  getPiModelCatalogRevision,
-  getPiSessionModelSelectionRevision,
   subscribePiModelCatalogInvalidation,
   subscribePiSessionModelSelectionInvalidation,
-} from "@/runtime/pi/client/models/model-catalog-invalidation";
+  usePiModelSessionClient,
+  useSessionContextPolicy,
+} from "@/workbench/runtime-contributions/pi/client/configuration";
 import type {
   ModelCatalogValue,
   ModelSelection,
   SessionModelsValue,
-} from "@/runtime/pi/contracts/rpc";
-import { usePiSessionManager } from "@/runtime/pi/client/runtime/context";
-import { useSessionContextPolicy } from "@/runtime/pi/client/context-policy/use-session-context-policy";
-import { useWorkspaceSelection } from "@/services/workspace-selection-service";
+} from "@/workbench/runtime-contributions/pi/protocol/rpc";
+import { useWorkspaceSelection } from "@workbench/agent-runtime-client/workspaces";
 
 import {
   draftSelectorModels,
@@ -87,7 +85,7 @@ function ModelContextBridge({
 
 export function ModelSelector() {
   const { t } = useI18n();
-  const sessionManager = usePiSessionManager();
+  const sessionClient = usePiModelSessionClient();
   const localThreadId = useAuiState((state) => state.threadListItem.id);
   const remoteId = useAuiState((state) => state.threadListItem.remoteId);
   const contextPolicy = useSessionContextPolicy(remoteId);
@@ -248,9 +246,8 @@ export function ModelSelector() {
           setOptimisticSelection((current) =>
             current?.scopeKey === requestScope ? undefined : current,
           );
-          void sessionManager
-            .getSession(localThreadId, remoteId)
-            .reload()
+          void sessionClient
+            .reloadSession(localThreadId, remoteId)
             .catch((error) =>
               console.error("[workbench-pi] model change timeline refresh failed", error),
             );
@@ -265,7 +262,7 @@ export function ModelSelector() {
         },
       );
     },
-    [contextPolicy, localThreadId, rememberSelection, remoteId, scopeKey, sessionManager],
+    [contextPolicy, localThreadId, rememberSelection, remoteId, scopeKey, sessionClient],
   );
 
   const changeModel = useCallback(

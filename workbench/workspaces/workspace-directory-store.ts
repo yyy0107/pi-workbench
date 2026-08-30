@@ -1,5 +1,7 @@
 import { create } from "zustand";
 
+import type { WorkbenchWorkspaceDirectoryStorePort } from "@workbench/agent-runtime-client/workspaces";
+
 interface WorkspaceDirectoryState {
   collapsedDirectoryIds: readonly string[];
   activeDirectoryId?: string;
@@ -88,3 +90,22 @@ export const useWorkspaceDirectoryStore = create<WorkspaceDirectoryState>((set) 
     })),
   destroyNewThread: () => set({ draftDirectoryId: undefined }),
 }));
+
+/** Application-owned bridge injected into the selected Agent Runtime at the composition root. */
+export const workspaceDirectoryStorePort: WorkbenchWorkspaceDirectoryStorePort = {
+  getSnapshot: () => useWorkspaceDirectoryStore.getState(),
+  subscribe: (listener) => useWorkspaceDirectoryStore.subscribe(listener),
+  actions: {
+    reconcileDirectoryIds: (ids, newlyAddedIds) =>
+      useWorkspaceDirectoryStore.getState().reconcileDirectoryIds(ids, newlyAddedIds),
+    discardDirectory: (id) => useWorkspaceDirectoryStore.getState().discardDirectory(id),
+    activateDirectory: (id) => useWorkspaceDirectoryStore.getState().activateDirectory(id),
+    deactivateDirectory: () => useWorkspaceDirectoryStore.getState().deactivateDirectory(),
+    revealDirectory: (id) => useWorkspaceDirectoryStore.getState().revealDirectory(id),
+    setDirectoryCollapsed: (id, collapsed) =>
+      useWorkspaceDirectoryStore.getState().setDirectoryCollapsed(id, collapsed),
+    toggleDirectory: (id) => useWorkspaceDirectoryStore.getState().toggleDirectory(id),
+    beginNewThread: (id) => useWorkspaceDirectoryStore.getState().beginNewThread(id),
+    destroyNewThread: () => useWorkspaceDirectoryStore.getState().destroyNewThread(),
+  },
+};

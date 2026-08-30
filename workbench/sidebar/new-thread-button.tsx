@@ -6,7 +6,7 @@ import { PlusIcon } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
-import { useWorkspaceCapabilities } from "@/services/workspace-selection-service";
+import { useWorkspaceCapabilities } from "@workbench/agent-runtime-client/workspaces";
 
 export function NewThreadButton({
   className,

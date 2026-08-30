@@ -27,17 +27,17 @@ import type {
   WorkflowSaveDraftPayload,
   WorkflowSummary,
   WorkflowValidationResult,
-} from "@/runtime/shared/execution";
+} from "@workbench/execution-contracts";
+import { parseExecutionDocument } from "@workbench/execution-contracts/schema";
+import { ExecutionError } from "@workbench/execution-server/errors";
+import type { ExecutionNodeExecutorRegistry } from "@workbench/execution-server/node-executor";
 import {
   compileExecutionDocument,
   compileExecutionRevision,
   validateExecutionDocument,
 } from "./execution-compiler";
 import { ExecutionEngine } from "./execution-engine";
-import { ExecutionError } from "./execution-errors";
-import type { ExecutionNodeExecutorRegistry } from "./execution-node-executor";
 import { ExecutionRepository } from "./execution-repository";
-import { parseExecutionDocument } from "./execution-schema";
 
 export interface ExecutionServiceOptions {
   repository: ExecutionRepository;

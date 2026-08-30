@@ -2,15 +2,15 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { usePiSessionManager } from "@/runtime/pi/client/runtime/context";
 import {
   listPiRpcSessionContextTrace,
   listPiRpcSessionContextTraceActivations,
-} from "@/runtime/pi/client/transport/api";
+  usePiContextTraceEventClient,
+} from "@/workbench/runtime-contributions/pi/client/context-trace";
 import type {
   SessionContextTraceCapabilities,
   SessionContextTraceEventSummary,
-} from "@/runtime/pi/contracts/rpc";
+} from "@/workbench/runtime-contributions/pi/protocol/rpc";
 
 import { selectContextTraceActivation } from "./context-trace-activation";
 
@@ -130,7 +130,7 @@ export function useContextTrace(
   refreshRevision: number,
   requestedActivationId?: string,
 ): ContextTraceSnapshot {
-  const manager = usePiSessionManager();
+  const manager = usePiContextTraceEventClient();
   const [snapshot, setSnapshot] = useState<ContextTraceSnapshot>(initialSnapshot);
 
   const acceptLiveEvent = useCallback(

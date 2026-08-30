@@ -30,8 +30,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import { useExtensionErrorReporter, type WorkspaceSurfaceProps } from "@/platform/extensions";
-import { listPiLocalApps, openPiHostPath, openPiLocalApp } from "@/runtime/pi/client/transport/api";
-import type { LocalAppFileKind, LocalAppView } from "@/runtime/pi/contracts/rpc";
+import {
+  listPiLocalApps,
+  openPiHostPath,
+  openPiLocalApp,
+} from "@/workbench/runtime-contributions/pi/client/host";
+import type {
+  LocalAppFileKind,
+  LocalAppView,
+} from "@/workbench/runtime-contributions/pi/protocol/rpc";
 import { useRightWorkspace, useRightWorkspaceState } from "@/components/right-workspace";
 import { cn } from "@/lib/utils";
 import {

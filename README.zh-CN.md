@@ -267,15 +267,15 @@ Electron renderer 使用浏览器隔离，但 Pi Tools 和终端进程通过本�
 
 ## 仓库结构
 
-| 目录                                                                                       | 职责                                                   |
-| ------------------------------------------------------------------------------------------ | ------------------------------------------------------ |
-| [`app/`](./app/)、[`workbench/`](./workbench/)、[`components/`](./components/)             | Next.js 路由、应用 Shell、聊天、工作区界面和共享 UI    |
-| [`platform/extensions/`](./platform/extensions/)                                           | Workbench Extension 契约、Registries、Hosts 和生命周期 |
-| [`extensions/`](./extensions/)                                                             | 内置和随应用提供的可安装 Workbench Extensions          |
-| [`runtime/assistant-ui/`](./runtime/assistant-ui/)、[`runtime/server/`](./runtime/server/) | 后端无关的浏览器与服务端 Agent Runtime 适配边界        |
-| [`runtime/pi/`](./runtime/pi/)                                                             | 具体 Pi 客户端/服务端 Adapter、会话、模型、工具和 RPC  |
-| [`runtime/terminal/`](./runtime/terminal/)                                                 | PTY、Tool Terminal 和 Terminal WebSocket Gateway       |
-| [`electron/`](./electron/)                                                                 | 桌面生命周期、本地服务进程、打包与分发                 |
+| 目录                                                                                                                                                           | 职责                                                   |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| [`app/`](./app/)、[`workbench/`](./workbench/)、[`components/`](./components/)                                                                                 | Next.js 路由、应用 Shell、聊天、工作区界面和共享 UI    |
+| [`platform/extensions/`](./platform/extensions/)                                                                                                               | Workbench Extension 契约、Registries、Hosts 和生命周期 |
+| [`extensions/`](./extensions/)                                                                                                                                 | 内置和随应用提供的可安装 Workbench Extensions          |
+| [`packages/agent-runtime/core/client/`](./packages/agent-runtime/core/client/)、[`packages/agent-runtime/core/server/`](./packages/agent-runtime/core/server/) | 后端无关的浏览器与服务端 Agent Runtime 适配边界        |
+| [`runtime/pi/`](./runtime/pi/)                                                                                                                                 | 具体 Pi 客户端/服务端 Adapter、会话、模型、工具和 RPC  |
+| [`runtime/terminal/`](./runtime/terminal/)                                                                                                                     | PTY、Tool Terminal 和 Terminal WebSocket Gateway       |
+| [`electron/`](./electron/)                                                                                                                                     | 桌面生命周期、本地服务进程、打包与分发                 |
 
 ## 开发
 
@@ -296,8 +296,8 @@ pnpm build
 - [国际化指南](./docs/i18n.zh-CN.md)
 - [Workbench Extension 平台](./docs/extensions.md)
 - [RightWorkspace 架构](./docs/right-workspace.md)
-- [浏览器侧 Agent Runtime Adapter](./runtime/assistant-ui/README.md)
-- [服务端 Agent Runtime Ports](./runtime/server/README.md)
+- [浏览器侧 Agent Runtime Adapter](./packages/agent-runtime/core/client/README.md)
+- [服务端 Agent Runtime Ports](./packages/agent-runtime/core/server/README.md)
 - [Pi Runtime 架构与协议](./runtime/pi/README.md)
 - [Terminal Runtime](./runtime/terminal/README.md)
 

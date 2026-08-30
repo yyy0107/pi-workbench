@@ -6,7 +6,7 @@ import { useMemo } from "react";
 import { Background, BackgroundVariant, ReactFlow } from "@xyflow/react";
 
 import { useI18n } from "@/i18n";
-import type { FlowGraph } from "@/runtime/shared/execution";
+import type { FlowGraph } from "@workbench/execution-contracts";
 
 import {
   createCanvasEdge,

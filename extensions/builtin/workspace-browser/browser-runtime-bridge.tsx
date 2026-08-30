@@ -3,7 +3,7 @@
 import { useCallback } from "react";
 
 import { useRightWorkspace, useWorkspaceContext } from "@/components/right-workspace";
-import { toolStringArg, useCompletedToolCalls } from "@/runtime/assistant-ui/tool-events";
+import { toolStringArg, useCompletedToolCalls } from "@workbench/agent-runtime-client";
 
 import { browserSessionService } from "./browser-session-service";
 
