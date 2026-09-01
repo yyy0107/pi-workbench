@@ -22,6 +22,7 @@ import { createServerRequest, STREAM_PATHS } from "@workbench/agent-runtime-pi-p
 export const WEB_SOCKET_OPEN = 1;
 export const DEFAULT_MAX_WEBSOCKET_BUFFERED_BYTES = 1024 * 1024;
 export const DEFAULT_WEBSOCKET_BACKPRESSURE_GRACE_MS = 10_000;
+const WEBSOCKET_HEARTBEAT_INTERVAL_MS = 10_000;
 
 export interface WebSocketGatewayTimers {
   setTimeout(callback: () => void, delayMs: number): unknown;
@@ -39,8 +40,10 @@ export interface DownlinkWebSocket {
   readonly readyState: number;
   readonly bufferedAmount: number;
   send(data: string, callback?: (error?: Error) => void): void;
+  ping?(): void;
   close(code?: number, reason?: string): void;
-  on(event: "message" | "close" | "error", listener: SocketListener): unknown;
+  terminate?(): void;
+  on(event: "message" | "close" | "error" | "pong", listener: SocketListener): unknown;
 }
 
 export interface DownlinkConnection {
@@ -100,6 +103,8 @@ export function acceptDownlinkWebSocket<Stream extends StreamName>(
   let subscription: StreamSubscription | undefined;
   let sendInFlight = false;
   let backpressureTimer: unknown | undefined;
+  let heartbeatTimer: unknown | undefined;
+  let awaitingPong = false;
   let pendingBytes = 0;
   let pendingOversizedFrames = 0;
   let pendingFrameHead = 0;
@@ -110,6 +115,12 @@ export function acceptDownlinkWebSocket<Stream extends StreamName>(
     if (backpressureTimer === undefined) return;
     timers.clearTimeout(backpressureTimer);
     backpressureTimer = undefined;
+  };
+
+  const clearHeartbeatTimer = () => {
+    if (heartbeatTimer === undefined) return;
+    timers.clearTimeout(heartbeatTimer);
+    heartbeatTimer = undefined;
   };
 
   const clearPendingFrames = () => {
@@ -124,6 +135,7 @@ export function acceptDownlinkWebSocket<Stream extends StreamName>(
   const cleanup = () => {
     if (terminal) return;
     terminal = true;
+    clearHeartbeatTimer();
     clearPendingFrames();
     subscription?.close();
   };
@@ -131,6 +143,7 @@ export function acceptDownlinkWebSocket<Stream extends StreamName>(
   const closeSocket = (code: number, reason: string) => {
     if (terminal) return;
     terminal = true;
+    clearHeartbeatTimer();
     clearPendingFrames();
     subscription?.close();
     try {
@@ -143,6 +156,7 @@ export function acceptDownlinkWebSocket<Stream extends StreamName>(
   const closeWithStreamError = (error: unknown) => {
     if (terminal) return;
     terminal = true;
+    clearHeartbeatTimer();
     clearPendingFrames();
     subscription?.close();
 
@@ -161,6 +175,40 @@ export function acceptDownlinkWebSocket<Stream extends StreamName>(
     } catch {
       // The peer or transport may already be gone.
     }
+  };
+
+  const terminateUnresponsiveSocket = () => {
+    if (terminal) return;
+    terminal = true;
+    clearHeartbeatTimer();
+    clearPendingFrames();
+    subscription?.close();
+    try {
+      if (socket.terminate) socket.terminate();
+      else socket.close(1011, "heartbeat timeout");
+    } catch {
+      // The peer or transport may already be gone.
+    }
+  };
+
+  const scheduleHeartbeat = () => {
+    if (terminal || !socket.ping) return;
+    heartbeatTimer = timers.setTimeout(() => {
+      heartbeatTimer = undefined;
+      if (terminal) return;
+      if (awaitingPong) {
+        terminateUnresponsiveSocket();
+        return;
+      }
+      awaitingPong = true;
+      try {
+        socket.ping?.();
+      } catch {
+        terminateUnresponsiveSocket();
+        return;
+      }
+      scheduleHeartbeat();
+    }, WEBSOCKET_HEARTBEAT_INTERVAL_MS);
   };
 
   const pendingBacklogExceedsBudget = () =>
@@ -246,6 +294,9 @@ export function acceptDownlinkWebSocket<Stream extends StreamName>(
   };
 
   socket.on("message", () => closeSocket(1008, "downlink only"));
+  socket.on("pong", () => {
+    awaitingPong = false;
+  });
   socket.on("close", cleanup);
   socket.on("error", cleanup);
 
@@ -263,6 +314,7 @@ export function acceptDownlinkWebSocket<Stream extends StreamName>(
   } catch (error) {
     closeWithStreamError(error);
   }
+  scheduleHeartbeat();
 
   return {
     ready: subscription?.ready ?? Promise.resolve(),

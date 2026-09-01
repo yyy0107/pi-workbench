@@ -20,6 +20,8 @@ const { createStreamHub } = (await import(
 class FakeWebSocket implements DownlinkWebSocket {
   readyState = 1;
   bufferedAmount = 0;
+  ping?: () => void;
+  terminate?: () => void;
   autoCompleteSends = true;
   readonly sent: string[] = [];
   readonly closes: Array<{ code?: number; reason?: string }> = [];
@@ -53,13 +55,13 @@ class FakeWebSocket implements DownlinkWebSocket {
     this.emit("close", code, reason);
   }
 
-  on(event: "message" | "close" | "error", listener: (...args: unknown[]) => void): void {
+  on(event: "message" | "close" | "error" | "pong", listener: (...args: unknown[]) => void): void {
     const listeners = this.listeners.get(event) ?? [];
     listeners.push(listener);
     this.listeners.set(event, listeners);
   }
 
-  emit(event: "message" | "close" | "error", ...args: unknown[]): void {
+  emit(event: "message" | "close" | "error" | "pong", ...args: unknown[]): void {
     for (const listener of this.listeners.get(event) ?? []) listener(...args);
   }
 }
@@ -119,6 +121,37 @@ test("serializes exact ServerRequest frames and rejects all client messages", as
 
   socket.emit("message", "client data");
   assert.deepEqual(socket.closes.at(-1), { code: 1008, reason: "downlink only" });
+});
+
+test("terminates a WebSocket that stops answering native heartbeat pings", async () => {
+  const hub = createStreamHub();
+  const socket = new FakeWebSocket();
+  const timers = new FakeTimers();
+  let pings = 0;
+  let terminations = 0;
+  socket.ping = () => {
+    pings += 1;
+  };
+  socket.terminate = () => {
+    terminations += 1;
+    socket.readyState = 3;
+    socket.emit("close");
+  };
+
+  const connection = acceptDownlinkWebSocket("host", socket, { hub, timers });
+  await connection.ready;
+
+  timers.runAll();
+  assert.equal(pings, 1);
+  assert.equal(terminations, 0);
+
+  socket.emit("pong");
+  timers.runAll();
+  assert.equal(pings, 2);
+  assert.equal(terminations, 0);
+
+  timers.runAll();
+  assert.equal(terminations, 1);
 });
 
 test("sends stream/error best-effort and closes 1011 when a source fails", async () => {
