@@ -6,7 +6,6 @@ import {
   BufferedFileWorkspaceService,
   fileWorkspaceContext,
   fileWorkspaceOpenableResource,
-  isPathWithinWorkspace,
   MemoryFileWorkspaceService,
   resolveFileWorkspaceSession,
   workspaceRelativePath,
@@ -335,7 +334,7 @@ test("resource file sessions share directory, read, and opener behavior", async 
   ]);
 });
 
-test("resource directory capabilities require one complete shared catalog identity", () => {
+test("file workspace sessions require complete identities and accept path aliases", () => {
   assert.equal(
     resolveFileWorkspaceSession({
       source: "extension",
@@ -375,6 +374,15 @@ test("resource directory capabilities require one complete shared catalog identi
     }),
     { source: "workspace", rootPath: "/project", workspaceId: "workspace-1" },
   );
+  assert.deepEqual(
+    resolveFileWorkspaceSession({
+      source: "workspace",
+      rootPath: "/home/user/project",
+      workspaceId: "workspace-1",
+      absolutePath: "/project/code/main.fixture",
+    }),
+    { source: "workspace", rootPath: "/home/user/project", workspaceId: "workspace-1" },
+  );
 });
 
 test("workspaceRelativePath rejects paths outside the authoritative root", () => {
@@ -385,13 +393,4 @@ test("workspaceRelativePath rejects paths outside the authoritative root", () =>
   assert.equal(workspaceRelativePath("C:\\work", "C:\\work\\src\\app.ts"), "src/app.ts");
   assert.throws(() => workspaceRelativePath("/workspace", "/other/app.ts"), /outside/);
   assert.throws(() => workspaceRelativePath("/workspace", "../other/app.ts"), /outside/);
-});
-
-test("workspace path containment can be checked without throwing", () => {
-  assert.equal(isPathWithinWorkspace("/project", "/project/code/main.fixture"), true);
-  assert.equal(isPathWithinWorkspace("C:\\work", "c:\\WORK\\src\\app.ts"), true);
-  assert.equal(isPathWithinWorkspace("/workspace", "src/app.ts"), true);
-  assert.equal(isPathWithinWorkspace("/workspace", "/other/app.ts"), false);
-  assert.equal(isPathWithinWorkspace(undefined, "/project/code/main.fixture"), false);
-  assert.equal(isPathWithinWorkspace("/workspace", "../other/app.ts"), false);
 });

@@ -195,15 +195,6 @@ export function workspaceRelativePath(rootPath: string | undefined, path: string
   return normalizeRelativePath(target.slice(prefix.length));
 }
 
-export function isPathWithinWorkspace(rootPath: string | undefined, path: string): boolean {
-  try {
-    workspaceRelativePath(rootPath, path);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 function nonEmptyString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value : undefined;
 }
@@ -252,9 +243,7 @@ export function resolveFileWorkspaceSession(
   if (params.source === "workspace") {
     const rootPath = nonEmptyString(params.rootPath);
     const workspaceId = nonEmptyString(params.workspaceId);
-    const absolutePath = nonEmptyString(params.absolutePath);
     if (!rootPath || !workspaceId) return undefined;
-    if (absolutePath && !isPathWithinWorkspace(rootPath, absolutePath)) return undefined;
     return { source: "workspace", rootPath, workspaceId };
   }
 
