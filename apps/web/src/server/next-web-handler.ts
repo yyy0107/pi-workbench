@@ -21,11 +21,8 @@ export interface NextWebHandler {
   close(): Promise<void>;
 }
 
-type NextUpgradeHandler = (request: IncomingMessage, socket: Duplex, head: Buffer) => Promise<void>;
-
 interface NextCustomApplication {
   getRequestHandler(): (request: IncomingMessage, response: ServerResponse) => Promise<void>;
-  getUpgradeHandler(): NextUpgradeHandler;
   prepare(): Promise<void>;
   close(): Promise<void>;
 }
@@ -44,12 +41,6 @@ type NextCustomApplicationFactory = (
 ) => NextCustomApplication;
 
 const createDefaultNextApplication: NextCustomApplicationFactory = (options) => next(options);
-
-function upgradeError(error: unknown): Error {
-  return error instanceof Error
-    ? error
-    : new Error("Next.js upgrade handler failed.", { cause: error });
-}
 
 /** Prepares only the Web application; Runtime HTTP, WebSocket, and lifecycle stay outside Next. */
 export async function createNextWebHandler(
@@ -83,16 +74,12 @@ export async function createNextWebHandler(
     throw prepareError;
   }
 
-  const handleUpgrade = app.getUpgradeHandler();
   let closed = false;
   let closeOperation: Promise<void> | undefined;
   const upgradeRelay: NonRuntimeUpgradeRelay = Object.freeze({
     emit(_event: "upgrade", request: IncomingMessage, socket: Duplex, head: Buffer): boolean {
       if (closed) return false;
-      void handleUpgrade(request, socket, head).catch((error: unknown) => {
-        socket.destroy(upgradeError(error));
-      });
-      return true;
+      return nextUpgradeCarrier.emit("upgrade", request, socket, head);
     },
   });
 

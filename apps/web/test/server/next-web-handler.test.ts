@@ -76,7 +76,7 @@ function createState(): FakeNextState {
   return { closeCount: 0, requestCount: 0, upgradeCount: 0, upgradeOperations: [] };
 }
 
-test("relays a Next upgrade exactly once before and after the first ordinary request", async () => {
+test("relays upgrades through the listener Next installs on its carrier", async () => {
   const state = createState();
   const nextWeb = await createNextWebHandler(
     { dev: false, hostname: "127.0.0.1", port: 3210, webRoot: WEB_ROOT },
@@ -90,11 +90,9 @@ test("relays a Next upgrade exactly once before and after the first ordinary req
   const firstSocket = firstRequest.socket;
   assert.equal(
     nextWeb.upgradeRelay.emit("upgrade", firstRequest, firstSocket, Buffer.alloc(0)),
-    true,
+    false,
   );
-  assert.equal(state.upgradeOperations.length, 1);
-  await state.upgradeOperations[0];
-  assert.equal(state.upgradeCount, 1);
+  assert.equal(state.upgradeOperations.length, 0);
 
   const ordinaryRequest = createRequest("/");
   const ordinaryResponse = new ServerResponse(ordinaryRequest);
@@ -108,9 +106,9 @@ test("relays a Next upgrade exactly once before and after the first ordinary req
     nextWeb.upgradeRelay.emit("upgrade", secondRequest, secondSocket, Buffer.alloc(0)),
     true,
   );
-  assert.equal(state.upgradeOperations.length, 2);
-  await state.upgradeOperations[1];
-  assert.equal(state.upgradeCount, 2);
+  assert.equal(state.upgradeOperations.length, 1);
+  await state.upgradeOperations[0];
+  assert.equal(state.upgradeCount, 1);
 
   ordinaryResponse.destroy();
   firstSocket.destroy();
@@ -124,6 +122,9 @@ test("keeps Runtime upgrade paths Host-owned and only relays non-Runtime paths t
     { dev: false, hostname: "127.0.0.1", port: 3210, webRoot: WEB_ROOT },
     createFakeNextFactory(state),
   );
+  const ordinaryRequest = createRequest("/");
+  const ordinaryResponse = new ServerResponse(ordinaryRequest);
+  await nextWeb.requestHandler(ordinaryRequest, ordinaryResponse);
   let runtimeUpgradeCount = 0;
   const dispatchUpgrade = createUpgradeDispatcher({
     webSocketGateway: {
@@ -153,6 +154,7 @@ test("keeps Runtime upgrade paths Host-owned and only relays non-Runtime paths t
 
   runtimeSocket.destroy();
   nextSocket.destroy();
+  ordinaryResponse.destroy();
   await nextWeb.close();
 });
 
