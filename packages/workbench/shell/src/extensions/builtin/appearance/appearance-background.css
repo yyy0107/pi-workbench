@@ -35,6 +35,14 @@
   --secondary-foreground: var(--workbench-theme-foreground);
   --accent: var(--muted);
   --accent-foreground: var(--workbench-theme-foreground);
+  /* Re-resolve derived radii where the appearance controller overrides their source values. */
+  --radius-sm: max(0px, calc(var(--radius) - 4px));
+  --radius-md: max(0px, calc(var(--radius) - 2px));
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --button-radius: var(--radius);
+  --input-control-radius: var(--radius);
+  --composer-inner-radius: max(0px, calc(var(--composer-radius) - 2px));
   --sidebar-accent: var(--muted);
   --sidebar-accent-foreground: var(--workbench-theme-foreground);
   --border: color-mix(
