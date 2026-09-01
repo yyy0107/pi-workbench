@@ -135,6 +135,24 @@ function navigationOrigin(rawUrl) {
   return url.origin === "null" ? `${url.protocol}//${url.host}` : url.origin;
 }
 
+function isTrustedClipboardWrite(webContents, permission, requestingUrl, isMainFrame) {
+  if (
+    permission !== "clipboard-sanitized-write" ||
+    !isMainFrame ||
+    !currentWorkbenchUrl ||
+    !mainWindow ||
+    mainWindow.isDestroyed() ||
+    webContents !== mainWindow.webContents
+  ) {
+    return false;
+  }
+  try {
+    return navigationOrigin(requestingUrl) === navigationOrigin(currentWorkbenchUrl);
+  } catch {
+    return false;
+  }
+}
+
 function stopWorkbenchRuntime() {
   runtimeReady = false;
   rendererRuntimeConnection = undefined;
@@ -320,9 +338,27 @@ ipcMain.handle(RUNTIME_RESTART_CHANNEL, (event) => {
 });
 
 async function bootstrap() {
-  session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => {
-    callback(false);
-  });
+  session.defaultSession.setPermissionCheckHandler(
+    (webContents, permission, requestingOrigin, details) =>
+      isTrustedClipboardWrite(
+        webContents,
+        permission,
+        details.requestingUrl ?? requestingOrigin,
+        details.isMainFrame,
+      ),
+  );
+  session.defaultSession.setPermissionRequestHandler(
+    (webContents, permission, callback, details) => {
+      callback(
+        isTrustedClipboardWrite(
+          webContents,
+          permission,
+          details.requestingUrl,
+          details.isMainFrame,
+        ),
+      );
+    },
+  );
 
   const rendererOrigin = app.isPackaged
     ? DESKTOP_RENDERER_ORIGIN

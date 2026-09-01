@@ -37,6 +37,17 @@ test("Runtime bootstrap remains a main-frame-only in-memory capability", () => {
   assert.doesNotMatch(preloadSource, /localStorage|sessionStorage|URLSearchParams|accessToken/u);
 });
 
+test("Clipboard writes are limited to the trusted Workbench main frame", () => {
+  assert.match(mainSource, /permission !== "clipboard-sanitized-write"/u);
+  assert.match(mainSource, /webContents !== mainWindow\.webContents/u);
+  assert.match(
+    mainSource,
+    /navigationOrigin\(requestingUrl\) === navigationOrigin\(currentWorkbenchUrl\)/u,
+  );
+  assert.match(mainSource, /setPermissionCheckHandler/u);
+  assert.match(mainSource, /setPermissionRequestHandler/u);
+});
+
 test("Runtime restart is a trusted-frame lifecycle capability with ordered generation replacement", () => {
   assert.match(mainSource, /ipcMain\.handle\(RUNTIME_RESTART_CHANNEL/u);
   assert.match(
