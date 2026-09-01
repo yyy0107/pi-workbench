@@ -438,66 +438,6 @@ export const piExtensionsEnUS = {
         saveFailed: "Could not save the model configuration. Try again.",
       },
     },
-    skills: {
-      title: "Skills",
-      description: "View the skills loaded for the current Pi session.",
-      loading: "Loading session skills…",
-      noSession: "Select an existing conversation to view the skills available to its Pi session.",
-      sessionUnavailable: "This session is no longer available.",
-      loadFailed: "Could not load skills from Pi.",
-      retry: "Retry",
-      refresh: "Refresh skills",
-      searchLabel: "Search skills",
-      searchPlaceholder: "Search skills…",
-      count: ({ count }: { count: number }, { number }: MessageFormatters) =>
-        `${number(count)} ${count === 1 ? "skill" : "skills"}`,
-      empty: "Pi did not load any skills for this session.",
-      noMatches: "No skills match this search.",
-      modelInvocable: "Available to model",
-      manualOnly: "Manual invocation only",
-      whenToUse: "When to use:",
-    },
-    piExtensions: {
-      title: "Extensions",
-      description: "View the extensions loaded for the current Pi session.",
-      loading: "Loading session extensions…",
-      noSession: "Select an existing conversation to view the extensions loaded by its Pi session.",
-      sessionUnavailable: "This session is no longer available.",
-      loadFailed: "Could not load extensions from Pi.",
-      retry: "Retry",
-      refresh: "Refresh extensions",
-      searchLabel: "Search Pi extensions",
-      searchPlaceholder: "Search extensions…",
-      count: ({ count }: { count: number }, { number }: MessageFormatters) =>
-        `${number(count)} ${count === 1 ? "extension" : "extensions"}`,
-      loadErrors: ({ count }: { count: number }, { number }: MessageFormatters) =>
-        `${number(count)} ${count === 1 ? "extension failed" : "extensions failed"} to load`,
-      empty: "Pi did not load any visible extensions for this session.",
-      noMatches: "No extensions match this search.",
-      showDetails: ({ name }: { name: string }) => `View details for ${name}`,
-      hideDetails: ({ name }: { name: string }) => `Hide details for ${name}`,
-      detailsLabel: ({ name }: { name: string }) => `${name} extension details`,
-      source: "Source",
-      registeredEvents: "Registered events",
-      registeredTools: "Registered tools",
-      registeredCommands: "Registered commands",
-      none: "None",
-      events: ({ count }: { count: number }, { number }: MessageFormatters) =>
-        `${number(count)} ${count === 1 ? "event" : "events"}`,
-      tools: ({ count }: { count: number }, { number }: MessageFormatters) =>
-        `${number(count)} ${count === 1 ? "tool" : "tools"}`,
-      commands: ({ count }: { count: number }, { number }: MessageFormatters) =>
-        `${number(count)} ${count === 1 ? "command" : "commands"}`,
-      scopes: {
-        user: "User",
-        project: "Project",
-        temporary: "Temporary",
-      },
-      origins: {
-        package: "Package",
-        "top-level": "Local extension",
-      },
-    },
     automations: {
       title: "Automations",
       breadcrumb: {

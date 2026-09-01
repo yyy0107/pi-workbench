@@ -180,8 +180,6 @@ test("preserves the product-owned cross-package extension activation order", () 
     "workbench.side-chat",
     "workbench.setting-model-config",
     "workbench.image-understanding",
-    "workbench.skills",
-    "workbench.pi-extensions",
     "workbench.toolbox",
     "workbench.automations",
     "workbench.model-selector",

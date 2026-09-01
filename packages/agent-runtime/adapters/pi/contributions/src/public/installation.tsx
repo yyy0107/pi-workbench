@@ -14,10 +14,8 @@ import { gitBranchExtension } from "../extensions/git-branch";
 import { attachmentUnderstandingExtension } from "../extensions/image-understanding";
 import { interactiveRequestsExtension } from "../extensions/interactive-requests";
 import { modelSelectorExtension } from "../extensions/model-selector";
-import { piExtensionsExtension } from "../extensions/pi-extensions";
 import { settingModelConfigExtension } from "../extensions/setting-model-config";
 import { sideChatExtension } from "../extensions/side-chat";
-import { skillsExtension } from "../extensions/skills";
 import { terminalExtension } from "../extensions/terminal";
 import { tokenUsageExtension } from "../extensions/token-usage";
 import { toolboxExtension } from "../extensions/toolbox";
@@ -57,8 +55,6 @@ const piRuntimeExtensions: readonly WorkbenchExtension[] = Object.freeze([
   sideChatExtension,
   settingModelConfigExtension,
   attachmentUnderstandingExtension,
-  skillsExtension,
-  piExtensionsExtension,
   toolboxExtension,
   automationExtension,
   modelSelectorExtension,

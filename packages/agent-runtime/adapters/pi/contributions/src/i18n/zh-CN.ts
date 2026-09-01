@@ -401,66 +401,6 @@ export const piExtensionsZhCN = {
         saveFailed: "无法保存模型配置，请重试。",
       },
     },
-    skills: {
-      title: "技能",
-      description: "查看当前 Pi 会话已加载的技能。",
-      loading: "正在加载会话技能…",
-      noSession: "请选择一个已有对话，以查看对应 Pi 会话可用的技能。",
-      sessionUnavailable: "此会话已不可用。",
-      loadFailed: "无法从 Pi 加载技能。",
-      retry: "重试",
-      refresh: "刷新技能",
-      searchLabel: "搜索技能",
-      searchPlaceholder: "搜索技能…",
-      count: ({ count }: { count: number }, { number }: MessageFormatters) =>
-        `${number(count)} 项技能`,
-      empty: "Pi 没有为此会话加载任何技能。",
-      noMatches: "没有匹配此搜索的技能。",
-      modelInvocable: "模型可调用",
-      manualOnly: "仅可手动调用",
-      whenToUse: "适用场景：",
-    },
-    piExtensions: {
-      title: "扩展",
-      description: "查看当前 Pi 会话已加载的扩展。",
-      loading: "正在加载会话扩展…",
-      noSession: "请选择一个已有对话，以查看对应 Pi 会话已加载的扩展。",
-      sessionUnavailable: "此会话已不可用。",
-      loadFailed: "无法从 Pi 加载扩展。",
-      retry: "重试",
-      refresh: "刷新扩展",
-      searchLabel: "搜索 Pi 扩展",
-      searchPlaceholder: "搜索扩展…",
-      count: ({ count }: { count: number }, { number }: MessageFormatters) =>
-        `${number(count)} 个扩展`,
-      loadErrors: ({ count }: { count: number }, { number }: MessageFormatters) =>
-        `${number(count)} 个扩展加载失败`,
-      empty: "Pi 没有为此会话加载任何可见扩展。",
-      noMatches: "没有匹配此搜索的扩展。",
-      showDetails: ({ name }: { name: string }) => `查看 ${name} 的详情`,
-      hideDetails: ({ name }: { name: string }) => `收起 ${name} 的详情`,
-      detailsLabel: ({ name }: { name: string }) => `${name} 扩展详情`,
-      source: "来源",
-      registeredEvents: "注册的事件",
-      registeredTools: "注册的工具",
-      registeredCommands: "注册的命令",
-      none: "无",
-      events: ({ count }: { count: number }, { number }: MessageFormatters) =>
-        `${number(count)} 个事件`,
-      tools: ({ count }: { count: number }, { number }: MessageFormatters) =>
-        `${number(count)} 个工具`,
-      commands: ({ count }: { count: number }, { number }: MessageFormatters) =>
-        `${number(count)} 个命令`,
-      scopes: {
-        user: "用户级",
-        project: "项目级",
-        temporary: "临时",
-      },
-      origins: {
-        package: "包",
-        "top-level": "本地扩展",
-      },
-    },
     automations: {
       title: "自动化",
       breadcrumb: {
