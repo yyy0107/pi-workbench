@@ -3,7 +3,6 @@ import type {
   ComposerUserProjection as WorkbenchComposerUserProjection,
 } from "@workbench/contracts/composer";
 import type { AutomationSessionOrigin } from "@workbench/automation-contracts";
-import type { ExecutionSessionOrigin } from "@workbench/execution-contracts";
 
 export interface PiSessionSummary {
   id: string;
@@ -20,7 +19,6 @@ export interface PiSessionSummary {
   waitingForUserInput?: boolean;
   runTiming?: PiRunTiming;
   automationOrigin?: AutomationSessionOrigin;
-  executionOrigin?: ExecutionSessionOrigin;
 }
 
 /** Server-authoritative timing snapshot for the currently active Pi run. */

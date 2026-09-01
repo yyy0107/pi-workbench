@@ -1,6 +1,6 @@
 "use client";
 
-import { HouseIcon, SearchIcon, ToolboxIcon, WorkflowIcon, type LucideIcon } from "lucide-react";
+import { HouseIcon, SearchIcon, ToolboxIcon, ZapIcon, type LucideIcon } from "lucide-react";
 
 import { Button } from "../ui/button";
 import { useI18n } from "../i18n";
@@ -8,7 +8,7 @@ import { cn } from "../utils";
 
 import styles from "./sidebar-primary-navigation.module.css";
 
-export type SidebarSection = "workspace" | "toolbox" | "workflows";
+export type SidebarSection = "workspace" | "toolbox" | "automations";
 
 interface SidebarNavigationItem {
   id: SidebarSection;
@@ -40,17 +40,13 @@ export function SidebarPrimaryNavigation({
       label: t("workbench.sidebar.toolbox"),
     },
     {
-      id: "workflows",
-      icon: WorkflowIcon,
-      label: t("workbench.sidebar.workflows"),
+      id: "automations",
+      icon: ZapIcon,
+      label: t("workbench.sidebar.automations"),
     },
   ];
   const searchLabel = t(
-    activeSection === "toolbox"
-      ? "workbench.sidebar.searchToolbox"
-      : activeSection === "workflows"
-        ? "workbench.sidebar.searchWorkflows"
-        : "workbench.sidebar.search",
+    activeSection === "toolbox" ? "workbench.sidebar.searchToolbox" : "workbench.sidebar.search",
   );
   const navigationGridClass =
     activeSection === "workspace"
@@ -114,18 +110,20 @@ export function SidebarPrimaryNavigation({
         })}
       </nav>
 
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        aria-label={searchLabel}
-        title={searchLabel}
-        aria-expanded={searchOpen}
-        className="text-muted-foreground hover:text-foreground ms-auto rounded-xl p-0! transition-none! active:translate-y-0!"
-        onClick={onSearchToggle}
-      >
-        <SearchIcon aria-hidden="true" className="size-[var(--icon-size-lg)]!" />
-      </Button>
+      {activeSection === "automations" ? null : (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          aria-label={searchLabel}
+          title={searchLabel}
+          aria-expanded={searchOpen}
+          className="text-muted-foreground hover:text-foreground ms-auto rounded-xl p-0! transition-none! active:translate-y-0!"
+          onClick={onSearchToggle}
+        >
+          <SearchIcon aria-hidden="true" className="size-[var(--icon-size-lg)]!" />
+        </Button>
+      )}
     </div>
   );
 }

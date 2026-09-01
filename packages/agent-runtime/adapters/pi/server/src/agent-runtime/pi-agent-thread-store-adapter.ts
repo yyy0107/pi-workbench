@@ -115,7 +115,6 @@ export function projectPiSessionSummary(summary: PiSessionSummary): AgentThreadS
     ...(summary.automationOrigin === undefined
       ? {}
       : { automationOrigin: summary.automationOrigin }),
-    ...(summary.executionOrigin === undefined ? {} : { executionOrigin: summary.executionOrigin }),
   };
 }
 

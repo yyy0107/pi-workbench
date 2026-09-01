@@ -7,7 +7,6 @@ import type {
 
 import type { WorkbenchAgentCommand } from "@workbench/agent-runtime-contracts/commands";
 import type { AutomationSessionOrigin } from "@workbench/automation-contracts";
-import type { ExecutionSessionOrigin } from "@workbench/execution-contracts";
 
 /** Workbench-owned workspace identity projected by an Agent Runtime implementation. */
 export interface WorkbenchAgentWorkspace {
@@ -30,8 +29,6 @@ export interface WorkbenchAgentThreadSnapshot {
   readonly createdAt?: string;
   /** Durable provenance for conversations created by an Automation task. */
   readonly automationOrigin?: AutomationSessionOrigin;
-  /** Durable workflow provenance for conversations created by an Execution run. */
-  readonly executionOrigin?: ExecutionSessionOrigin;
   readonly isRunning: boolean;
   readonly isWaitingForInput: boolean;
   /** Whether a background completion still needs to be acknowledged by opening the thread. */

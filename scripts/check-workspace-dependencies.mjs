@@ -16,14 +16,6 @@ const PACKAGE_PRODUCTION_DEPENDENCY_POLICIES = new Map([
     new Set(["@workbench/automation-contracts", "@workbench/server-core", "cron-parser"]),
   ],
   [
-    "@workbench/execution-server",
-    new Set([
-      "@workbench/execution-contracts",
-      "@workbench/server-core",
-      "@workbench/terminal-server",
-    ]),
-  ],
-  [
     "@workbench/settings-server",
     new Set([
       "@workbench/agent-runtime-contracts",

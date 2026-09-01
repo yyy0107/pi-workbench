@@ -40,8 +40,6 @@
     "@workbench/attachment-understanding-contracts": "workspace:*",
     "@workbench/automation-contracts": "workspace:*",
     "@workbench/contracts": "workspace:*",
-    "@workbench/execution-contracts": "workspace:*",
-    "@workbench/execution-server": "workspace:*",
     "@workbench/server-core": "workspace:*",
     "mime": "4.1.0",
     "typebox": "1.3.7"

@@ -27,7 +27,7 @@ export interface AutomationSessionReference {
   triggeredAt: number;
 }
 
-/** A scheduled Composer prompt submission. It is not a workflow, graph, or execution run. */
+/** A scheduled Composer prompt submission. */
 export interface AutomationDefinition {
   schemaVersion: 1;
   id: string;

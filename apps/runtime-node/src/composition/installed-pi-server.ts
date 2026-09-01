@@ -41,7 +41,6 @@ import { runWorkbenchShutdownHooks } from "@workbench/server-core/shutdown-hooks
 import { subscribeWorkbenchSettingsPreferences } from "@workbench/settings-server/service";
 import { createInstalledWorkbenchSettingsService } from "./installed-workbench-settings";
 import { getInstalledPiAutomationService } from "./installed-automation";
-import { getInstalledPiExecutionService } from "./installed-execution";
 
 export interface InstalledPiServer {
   readonly lifecycleVersion: 3;
@@ -65,14 +64,12 @@ const installedGlobal = globalThis as typeof globalThis & InstalledPiServerGloba
 export interface InstalledPiDisposalOwners {
   readonly shutdownPackageCatalog: () => Promise<void>;
   readonly automation: Pick<ReturnType<typeof getInstalledPiAutomationService>, "shutdown">;
-  readonly execution: Pick<ReturnType<typeof getInstalledPiExecutionService>, "shutdown">;
   readonly runShutdownHooks?: () => Promise<unknown[]>;
 }
 
 export function createInstalledPiDisposer({
   shutdownPackageCatalog,
   automation,
-  execution,
   runShutdownHooks = runWorkbenchShutdownHooks,
 }: InstalledPiDisposalOwners): () => Promise<void> {
   let disposeOperation: Promise<void> | undefined;
@@ -94,11 +91,6 @@ export function createInstalledPiDisposer({
       }
       try {
         await automation.shutdown();
-      } catch (error) {
-        errors.push(error);
-      }
-      try {
-        await execution.shutdown();
       } catch (error) {
         errors.push(error);
       }
@@ -166,12 +158,10 @@ function createInstalledPiServer(host: PiAgentHostBindings): InstalledPiServerSt
   const commands = new CommandService();
   const agent = createPiAgentServerAdapter({ commands, host });
   const automation = getInstalledPiAutomationService({ agentExecution: agent.execution });
-  const execution = getInstalledPiExecutionService({ execution: agent.execution });
   const routeGroups = createDefaultPiRpcRouteGroups({
     agent,
     commands,
     automation,
-    execution,
     getWorkbenchSettingsService: createInstalledWorkbenchSettingsService,
   });
   const handleRpcPost = createPiRpcRouter({
@@ -181,7 +171,6 @@ function createInstalledPiServer(host: PiAgentHostBindings): InstalledPiServerSt
   const dispose = createInstalledPiDisposer({
     shutdownPackageCatalog: shutdownPiPackageCatalogService,
     automation,
-    execution,
   });
   return Object.freeze({
     lifecycleVersion: 3 as const,
@@ -210,7 +199,6 @@ export function getInstalledPiServer(): InstalledPiServer {
       const automation = getInstalledPiAutomationService({
         agentExecution: current.agent.execution,
       });
-      const execution = getInstalledPiExecutionService({ execution: current.agent.execution });
       const upgraded = Object.freeze({
         ...current,
         lifecycleVersion: 3 as const,
@@ -221,7 +209,6 @@ export function getInstalledPiServer(): InstalledPiServer {
         dispose: createInstalledPiDisposer({
           shutdownPackageCatalog: shutdownPiPackageCatalogService,
           automation,
-          execution,
         }),
       });
       installedGlobal.__workbenchInstalledPiServer = upgraded;

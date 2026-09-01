@@ -108,7 +108,7 @@ test("the route composition injects core session dependencies without handling m
     source,
     /const sessionProtocolFacade = createPiSessionProtocolFacade\(\{ agent \}\)/,
   );
-  assert.match(source, /execution: \{ service: execution, \.\.\.domainErrors \}/);
+  assert.match(source, /automation: \{ service: automation, \.\.\.domainErrors \}/);
   assert.match(source, /createSessionRpcRoutes\(dependencies\.session\)/);
   assert.match(source, /session: \{ protocol: sessionProtocolFacade, \.\.\.domainErrors \}/);
   assert.match(source, /projectRpcDomainError/);

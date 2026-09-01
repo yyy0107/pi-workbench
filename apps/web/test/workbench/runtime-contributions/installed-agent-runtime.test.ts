@@ -45,10 +45,6 @@ const RUNTIME_NODE_PI_IMPORTS = new Map<string, readonly string[]>([
     ["@workbench/agent-runtime-pi-server/installation"],
   ],
   [
-    "apps/runtime-node/src/composition/installed-execution.ts",
-    ["@workbench/agent-runtime-pi-server/installation"],
-  ],
-  [
     "apps/runtime-node/src/composition/installed-pi-server.ts",
     [
       "@workbench/agent-runtime-pi-server/http",
@@ -63,10 +59,6 @@ const RUNTIME_NODE_PI_IMPORTS = new Map<string, readonly string[]>([
   [
     "apps/runtime-node/src/installed-runtime-service.ts",
     ["@workbench/agent-runtime-pi-protocol/stream", "@workbench/agent-runtime-pi-server/websocket"],
-  ],
-  [
-    "apps/runtime-node/test/execution-rpc-integration.test.ts",
-    ["@workbench/agent-runtime-pi-protocol/rpc", "@workbench/agent-runtime-pi-server/http"],
   ],
   [
     "apps/runtime-node/test/installed-pi-server-rpc.test.ts",
@@ -192,7 +184,7 @@ test("preserves the product-owned cross-package extension activation order", () 
     "workbench.skills",
     "workbench.pi-extensions",
     "workbench.toolbox",
-    "workbench.workflows",
+    "workbench.automations",
     "workbench.model-selector",
     "workbench.connection-status",
     "workbench.context-trace",

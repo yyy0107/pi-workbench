@@ -14,7 +14,6 @@ const RPC_DOMAIN_ERROR_PROJECTOR = new URL(
 const REPOSITORY_ROOT = new URL("../../../../../../../", import.meta.url);
 
 const EXPOSED_DOMAIN_ERRORS = [
-  ["packages/server/execution/src/errors.ts", "ExecutionError"],
   [
     "packages/agent-runtime/adapters/pi/server/src/attachment-understanding/settings-store.ts",
     "ImageUnderstandingSettingsStoreError",

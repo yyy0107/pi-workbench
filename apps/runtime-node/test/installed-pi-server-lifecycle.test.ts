@@ -3,14 +3,12 @@ import test from "node:test";
 
 import { createInstalledPiDisposer } from "../src/composition/installed-pi-server";
 
-test("installed Pi disposal stops Catalog, Automation, Execution, then Pi sessions exactly once", async () => {
+test("installed Pi disposal stops Catalog, Automation, then Pi sessions exactly once", async () => {
   const calls: string[] = [];
   let releaseCatalog!: () => void;
   const catalogReleased = new Promise<void>((resolve) => (releaseCatalog = resolve));
   let releaseAutomation!: () => void;
   const automationReleased = new Promise<void>((resolve) => (releaseAutomation = resolve));
-  let releaseExecution!: () => void;
-  const executionReleased = new Promise<void>((resolve) => (releaseExecution = resolve));
   let reenteredDispose: Promise<void> | undefined;
   let dispose!: () => Promise<void>;
   dispose = createInstalledPiDisposer({
@@ -22,16 +20,9 @@ test("installed Pi disposal stops Catalog, Automation, Execution, then Pi sessio
     automation: {
       async shutdown() {
         calls.push("automation:start");
+        reenteredDispose = dispose();
         await automationReleased;
         calls.push("automation:end");
-      },
-    },
-    execution: {
-      async shutdown() {
-        calls.push("execution:start");
-        reenteredDispose = dispose();
-        await executionReleased;
-        calls.push("execution:end");
       },
     },
     async runShutdownHooks() {
@@ -47,41 +38,29 @@ test("installed Pi disposal stops Catalog, Automation, Execution, then Pi sessio
   await new Promise<void>((resolve) => setImmediate(resolve));
   assert.deepEqual(calls, ["catalog:start", "catalog:end", "automation:start"]);
   releaseAutomation();
-  await new Promise<void>((resolve) => setImmediate(resolve));
+  await operation;
   assert.equal(reenteredDispose, operation);
   assert.deepEqual(calls, [
     "catalog:start",
     "catalog:end",
     "automation:start",
     "automation:end",
-    "execution:start",
-  ]);
-  releaseExecution();
-  await operation;
-  assert.deepEqual(calls, [
-    "catalog:start",
-    "catalog:end",
-    "automation:start",
-    "automation:end",
-    "execution:start",
-    "execution:end",
     "pi-sessions:shutdown",
   ]);
 });
 
-test("installed Pi disposal aggregates Catalog and Execution failures before session hooks", async () => {
+test("installed Pi disposal aggregates Catalog and Automation failures before session hooks", async () => {
   const catalogFailure = new Error("catalog failed");
-  const executionFailure = new Error("execution failed");
+  const automationFailure = new Error("automation failed");
   const hookFailure = new Error("Pi session failed");
   let hooks = 0;
   const dispose = createInstalledPiDisposer({
     async shutdownPackageCatalog() {
       throw catalogFailure;
     },
-    automation: { async shutdown() {} },
-    execution: {
+    automation: {
       async shutdown() {
-        throw executionFailure;
+        throw automationFailure;
       },
     },
     async runShutdownHooks() {
@@ -92,7 +71,7 @@ test("installed Pi disposal aggregates Catalog and Execution failures before ses
 
   await assert.rejects(dispose(), (error: unknown) => {
     assert.ok(error instanceof AggregateError);
-    assert.deepEqual(error.errors, [catalogFailure, executionFailure, hookFailure]);
+    assert.deepEqual(error.errors, [catalogFailure, automationFailure, hookFailure]);
     return true;
   });
   assert.equal(hooks, 1);

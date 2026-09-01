@@ -126,17 +126,6 @@ function sessionSummary(id: string) {
       source: "schedule",
       triggeredAt: 1_777_000_000_000,
     },
-    executionOrigin: {
-      version: 1,
-      origin: "execution",
-      workflowId: "workflow-1",
-      workflowName: "Daily review",
-      workflowKind: "workflow",
-      runId: "run-1",
-      nodeId: "agent-1",
-      attempt: 1,
-      source: "schedule",
-    },
   };
 }
 

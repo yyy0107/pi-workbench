@@ -16,10 +16,3 @@ export {
   type PiAutomationRuntimeBindings,
   type PiAutomationWorkspace,
 } from "../automations/pi-automation-service";
-export {
-  createPiExecutionRuntimeBindings,
-  type PiExecutionAgentResourceInput,
-  type PiExecutionRuntimeBindingOptions,
-  type PiExecutionRuntimeBindings,
-  type PiExecutionWorkspace,
-} from "../executions/pi-execution-service";

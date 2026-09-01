@@ -8,7 +8,7 @@ import type { OpenerRegistry, WorkbenchExtension } from "@workbench/extension-sd
 import { agentConfigurationExtension } from "../extensions/agent-configuration";
 import { connectionStatusExtension } from "../extensions/connection-status";
 import { contextTraceExtension } from "../extensions/context-trace";
-import { executionExtension } from "../extensions/execution";
+import { automationExtension } from "../extensions/automation";
 import { externalSessionImportExtension } from "../extensions/external-session-import";
 import { gitBranchExtension } from "../extensions/git-branch";
 import { attachmentUnderstandingExtension } from "../extensions/image-understanding";
@@ -60,7 +60,7 @@ const piRuntimeExtensions: readonly WorkbenchExtension[] = Object.freeze([
   skillsExtension,
   piExtensionsExtension,
   toolboxExtension,
-  executionExtension,
+  automationExtension,
   modelSelectorExtension,
   connectionStatusExtension,
   contextTraceExtension,

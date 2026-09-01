@@ -5,7 +5,6 @@ import type {
 } from "@workbench/agent-runtime-pi-protocol/messages";
 import { isSessionMessageDelta } from "@workbench/agent-runtime-pi-protocol/stream";
 import { parseAutomationSessionOrigin } from "@workbench/automation-contracts";
-import { isWorkflowHostPayload, parseExecutionSessionOrigin } from "@workbench/execution-contracts";
 import type {
   HostStreamPayload,
   MuxStreamPayload,
@@ -213,8 +212,6 @@ function isPiSessionSummary(value: unknown): boolean {
     (value.waitingForUserInput === undefined || typeof value.waitingForUserInput === "boolean") &&
     (value.automationOrigin === undefined ||
       parseAutomationSessionOrigin(value.automationOrigin) !== undefined) &&
-    (value.executionOrigin === undefined ||
-      parseExecutionSessionOrigin(value.executionOrigin) !== undefined) &&
     isOptionalPiRunTiming(value.runTiming)
   );
 }
@@ -517,11 +514,6 @@ function isHostPayload(payload: ServerRequestFrame["payload"]): boolean {
       return isNonEmptyString(payload.sessionId) && typeof payload.pinned === "boolean";
     case "host/remote-event":
       return isNonEmptyString(payload.event) && Array.isArray(payload.args);
-    case "host/workflow-changed":
-    case "host/workflow-removed":
-    case "host/workflow-run-changed":
-    case "host/workflow-run-removed":
-      return isWorkflowHostPayload(payload);
     case "stream/error":
       return isRpcError(payload.error);
     default:

@@ -27,7 +27,7 @@ test("publishes only explicit feature facades", () => {
     "./resources",
     "./configuration",
     "./workspace",
-    "./execution",
+    "./automation",
     "./external-import",
     "./context-trace",
     "./interactions",

@@ -20,7 +20,7 @@ export const WORKBENCH_SLOTS = [
   "sidebar.header", // 侧边栏头部：标题、折叠按钮等
   "sidebar.navigation", // 侧边栏分段切换器下方：可选主导航、页面入口等
   "sidebar.toolbox", // 工具箱分段主体：能力入口、分类列表与管理操作
-  "sidebar.workflows", // 流程分段主体：流程定义、类型筛选、运行记录与模板
+  "sidebar.automations", // 自动化分段主体：计划任务与运行记录
   "sidebar.workspace.actions", // 工作区操作行右侧：新建工作区、筛选等紧凑操作
   "sidebar.top", // 工作区内容顶部：会话列表之前的主要操作
   "sidebar.bottom", // 侧边栏主体底部扩展区域
@@ -97,9 +97,9 @@ export interface SidebarToolboxSlotContext {
   searchQuery: string;
 }
 
-/** 流程主体贡献收到的宿主搜索状态。 */
-export interface SidebarWorkflowsSlotContext {
-  /** 顶部搜索框的当前原始输入；筛选语义由流程扩展负责。 */
+/** 自动化主体贡献收到的宿主搜索状态。 */
+export interface SidebarAutomationsSlotContext {
+  /** 顶部搜索框的当前原始输入；筛选语义由自动化扩展负责。 */
   searchQuery: string;
 }
 
@@ -160,7 +160,7 @@ export interface SlotPropsMap {
   "sidebar.header": Record<never, never>; // 侧边栏品牌下方的头部控件
   "sidebar.navigation": Record<never, never>; // 核心分段切换器下方的可选主导航
   "sidebar.toolbox": SidebarToolboxSlotContext; // 工具箱分段的完整主体
-  "sidebar.workflows": SidebarWorkflowsSlotContext; // 流程分段的完整主体
+  "sidebar.automations": SidebarAutomationsSlotContext; // 自动化分段的完整主体
   "sidebar.workspace.actions": Record<never, never>; // 工作区主要操作行右侧的紧凑操作区
   "sidebar.top": Record<never, never>; // 工作区会话列表上方的主要操作，桌面和移动端均挂载
   "sidebar.bottom": Record<never, never>; // 会话列表下方的上下文区域

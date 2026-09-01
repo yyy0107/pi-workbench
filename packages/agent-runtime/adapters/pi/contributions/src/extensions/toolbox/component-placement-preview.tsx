@@ -20,7 +20,7 @@ import {
   SettingsIcon,
   SquareTerminalIcon,
   ToolboxIcon,
-  WorkflowIcon,
+  ZapIcon,
   WrenchIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -201,7 +201,7 @@ function MiniSidebar({
           ) : null}
         </span>
         <span className="text-muted-foreground flex size-[14px] items-center justify-center rounded-md">
-          <WorkflowIcon className="size-2.5" />
+          <ZapIcon className="size-2.5" />
         </span>
         <span className="text-muted-foreground ms-auto flex size-[14px] items-center justify-center rounded-md">
           <SearchIcon className="size-2.5" />

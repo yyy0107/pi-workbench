@@ -1,5 +1,4 @@
 import type { AutomationSessionOrigin } from "@workbench/automation-contracts";
-import type { ExecutionSessionOrigin } from "@workbench/execution-contracts";
 
 import type { AgentForkPointToken, AgentMutationToken } from "./tokens";
 
@@ -22,7 +21,6 @@ export interface AgentThreadSummary {
   readonly waitingForUserInput?: boolean;
   readonly runTiming?: AgentThreadRunTiming;
   readonly automationOrigin?: AutomationSessionOrigin;
-  readonly executionOrigin?: ExecutionSessionOrigin;
 }
 
 export interface AgentThreadSearchDocument {

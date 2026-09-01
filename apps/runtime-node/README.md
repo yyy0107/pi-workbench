@@ -1,7 +1,7 @@
 # `@workbench/runtime-node`
 
 `apps/runtime-node` is the Node-only application composition root for the Workbench Runtime Host.
-It selects the installed Pi implementation, binds Workbench-owned Automation, Execution, Settings,
+It selects the installed Pi implementation, binds Workbench-owned Automation, Settings,
 and Terminal capabilities, and exposes that service graph through the generic Host ingress. It does
 not import Next.js, React, browser state, or Electron implementation code.
 
@@ -11,7 +11,6 @@ flowchart LR
   APP --> HOST["@workbench/host-server"]
   APP --> PI["@workbench/agent-runtime-pi-server"]
   APP --> TERMINAL["@workbench/terminal-server"]
-  APP --> EXECUTION["@workbench/execution-server"]
   APP --> AUTOMATION["@workbench/automation-server"]
   APP --> SETTINGS["@workbench/settings-server"]
   HOST --> HTTP["authenticated HTTP RPC"]
@@ -35,12 +34,9 @@ flowchart LR
   Runtime-neutral command, execution, and thread ports plus the singular installation contract.
   Pi session, history, model, resource, and transport semantics remain in the
   [Pi adapter packages](../../packages/agent-runtime/adapters/pi/README.md).
-- [`@workbench/execution-server`](../../packages/server/execution/README.md) owns Workflow
-  validation, persistence, scheduling, approvals, and the Terminal-backed Command node. The Pi
-  package contributes Agent-node and resource-catalog bindings at this application root.
 - [`@workbench/automation-server`](../../packages/server/automation/) owns Automation definitions,
   persistence, and scheduling. Its installed Pi binding launches an ordinary visible session
-  through the generic Agent execution port; Automation does not create a second Workflow engine.
+  through the generic Agent execution port.
 - [`@workbench/settings-server`](../../packages/server/settings/) owns Workbench preference
   persistence and subscriptions. This app injects the installed Pi agent directory and compatibility
   environment variables.
@@ -65,8 +61,8 @@ applies independently: Host/Origin/cross-site checks guard browser reachability,
 filesystem and native-host operations remain loopback-only.
 
 Shutdown stops ingress, closes upgraded sockets, quiesces Pi-owned resources, then releases
-Terminal sessions. Automation, Execution, package-catalog, and registered application hooks are
-disposed through their installed owners. A positive deadline bounds graceful cleanup; the external
+Terminal sessions. Automation, package-catalog, and registered application hooks are disposed
+through their installed owners. A positive deadline bounds graceful cleanup; the external
 process owner remains responsible for terminating an uncooperative child after the protocol
 deadline.
 

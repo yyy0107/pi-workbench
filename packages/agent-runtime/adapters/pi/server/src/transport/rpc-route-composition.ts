@@ -2,7 +2,6 @@ import type { WorkbenchAgentServerAdapter } from "@workbench/agent-runtime-serve
 import type { AgentCommandCatalogPort } from "@workbench/agent-runtime-server/commands";
 import type { WorkbenchSettingsProtocol } from "@workbench/agent-runtime-contracts/settings";
 import type { AutomationProtocol } from "@workbench/automation-contracts";
-import type { ExecutionProtocol } from "@workbench/execution-contracts";
 
 import { getImageUnderstandingSettingsStore } from "../attachment-understanding/registry";
 import type { CommandCatalogProtocol } from "../commands/command-service";
@@ -100,10 +99,6 @@ import {
   createAutomationRpcRoutes,
   type AutomationRpcRoutesDependencies,
 } from "./routes/automation-rpc-routes";
-import {
-  createExecutionRpcRoutes,
-  type ExecutionRpcRoutesDependencies,
-} from "./routes/execution-rpc-routes";
 import { projectRpcDomainError } from "./rpc-domain-error-projector";
 
 /** Injectable dependencies for the ordered Pi RPC route-group composition. */
@@ -128,7 +123,6 @@ export interface PiRpcRouteGroupsDependencies {
   readonly projectTrust: ProjectTrustRpcRoutesDependencies;
   readonly resourceCatalog: ResourceCatalogRpcRoutesDependencies;
   readonly automation: AutomationRpcRoutesDependencies;
-  readonly execution: ExecutionRpcRoutesDependencies;
 }
 
 /** Creates the ordered first-claim route groups from explicitly supplied domain dependencies. */
@@ -143,7 +137,6 @@ export function createPiRpcRouteGroups(
     createWorkspaceGitRpcRoutes(dependencies.workspaceGit),
     createWorkspaceFileRpcRoutes(dependencies.workspaceFile),
     createAutomationRpcRoutes(dependencies.automation),
-    createExecutionRpcRoutes(dependencies.execution),
     createSkillRpcRoutes(dependencies.skill),
     createExtensionRpcRoutes(dependencies.extension),
     createInstalledPackageRpcRoutes(dependencies.installedPackage),
@@ -164,7 +157,6 @@ export interface DefaultPiRpcRouteGroupsDependencies {
   readonly agent: WorkbenchAgentServerAdapter;
   readonly commands: AgentCommandCatalogPort & CommandCatalogProtocol;
   readonly automation: AutomationProtocol;
-  readonly execution: ExecutionProtocol;
   readonly getWorkbenchSettingsService: () => WorkbenchSettingsProtocol;
 }
 
@@ -173,7 +165,6 @@ export function createDefaultPiRpcRouteGroups({
   agent,
   commands,
   automation,
-  execution,
   getWorkbenchSettingsService,
 }: DefaultPiRpcRouteGroupsDependencies): readonly RpcRouteGroup[] {
   const resourceMutationCoordinator = getPiResourceMutationCoordinator();
@@ -211,7 +202,6 @@ export function createDefaultPiRpcRouteGroups({
     workspaceGit: { service: workspaceGitService, ...domainErrors },
     workspaceFile: { service: workspaceFileService, ...domainErrors },
     automation: { service: automation, ...domainErrors },
-    execution: { service: execution, ...domainErrors },
     skill: { service: skillService, ...domainErrors },
     extension: { service: extensionService, ...domainErrors },
     installedPackage: { service: installedPackageService, ...domainErrors },

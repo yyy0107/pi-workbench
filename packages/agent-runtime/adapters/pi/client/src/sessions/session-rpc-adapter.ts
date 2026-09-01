@@ -15,7 +15,6 @@ import {
 } from "@workbench/agent-runtime-pi-protocol/attachments";
 import { parseAutomationSessionOrigin } from "@workbench/automation-contracts";
 import { parseWorkbenchComposerUserProjection } from "@workbench/contracts/composer/request";
-import { parseExecutionSessionOrigin } from "@workbench/execution-contracts";
 import { deriveSessionDisplayTitle } from "@workbench/agent-runtime-pi-shared/sessions";
 import type {
   SessionHistoryValue,
@@ -87,7 +86,6 @@ export function piSummaryFromSessionListItem(item: SessionListItem): PiSessionSu
   const messageCount = numberValue(projected?.messageCount) ?? (item.blank ? 0 : 1);
   const runTiming = item.runTiming ?? projectedRunTiming(projected?.runTiming);
   const automationOrigin = parseAutomationSessionOrigin(projected?.automationOrigin);
-  const executionOrigin = parseExecutionSessionOrigin(projected?.executionOrigin);
   const name = deriveSessionDisplayTitle(stringValue(projected?.name));
 
   return {
@@ -105,7 +103,6 @@ export function piSummaryFromSessionListItem(item: SessionListItem): PiSessionSu
       item.waitingForUserInput ?? booleanValue(projected?.waitingForUserInput) ?? false,
     ...(item.running && runTiming !== undefined ? { runTiming } : {}),
     ...(automationOrigin === undefined ? {} : { automationOrigin }),
-    ...(executionOrigin === undefined ? {} : { executionOrigin }),
   };
 }
 

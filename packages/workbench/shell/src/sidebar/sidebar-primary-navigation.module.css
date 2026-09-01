@@ -28,7 +28,7 @@ nav[data-active-section="toolbox"] .selectionIndicator {
   --selection-offset: calc(var(--icon-frame-size-default) + var(--selection-gap));
 }
 
-nav[data-active-section="workflows"] .selectionIndicator {
+nav[data-active-section="automations"] .selectionIndicator {
   --selection-offset: calc(
     var(--icon-frame-size-default) + var(--icon-frame-size-default) + var(--selection-gap) +
       var(--selection-gap)

@@ -8,7 +8,7 @@ import type { AutomationDefinition } from "@workbench/automation-contracts";
 import { AutomationRepository } from "../src/repository";
 import { AutomationService } from "../src/service";
 
-test("runNow creates an ordinary session reference without a workflow run", async () => {
+test("runNow creates an ordinary session reference", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "workbench-automation-service-"));
   const launches: Array<{
     automation: AutomationDefinition;

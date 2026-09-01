@@ -14,10 +14,6 @@ export {
   type PiRuntimeHttpHandler,
   type PiRuntimeHttpRouterDependencies,
 } from "../transport/runtime-http-router";
-export {
-  createExecutionRpcRoutes,
-  type ExecutionRpcRoutesDependencies,
-} from "../transport/routes/execution-rpc-routes";
 export { projectRpcDomainError } from "../transport/rpc-domain-error-projector";
 export { handleInteractiveResponsePost } from "../sessions/interactive-response-registry";
 export {

@@ -14,7 +14,6 @@ const ROUTE_METHODS = [
   "workspace.git.describe",
   "workspace.files.list",
   "automation.list",
-  "workflow.list",
   "skill.list",
   "extension.list",
   "package.list",
@@ -40,7 +39,6 @@ function unusedDependencies(): PiRpcRouteGroupsDependencies {
     workspaceGit: empty,
     workspaceFile: empty,
     automation: empty,
-    execution: empty,
     skill: empty,
     extension: empty,
     installedPackage: empty,
@@ -57,7 +55,7 @@ function unusedDependencies(): PiRpcRouteGroupsDependencies {
   };
 }
 
-test("creates all twenty-one route groups in stable first-claim order", async () => {
+test("creates all twenty route groups in stable first-claim order", async () => {
   const groups = createPiRpcRouteGroups(unusedDependencies());
 
   assert.equal(groups.length, ROUTE_METHODS.length);

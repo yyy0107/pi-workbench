@@ -57,8 +57,7 @@
   "dependencies": {
     "@assistant-ui/react": "0.15.16",
     "@workbench/agent-runtime-contracts": "workspace:*",
-    "@workbench/automation-contracts": "workspace:*",
-    "@workbench/execution-contracts": "workspace:*"
+    "@workbench/automation-contracts": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",

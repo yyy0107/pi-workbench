@@ -16,7 +16,7 @@ import {
   PanelLeftCloseIcon,
   SearchIcon,
   ToolboxIcon,
-  WorkflowIcon,
+  ZapIcon,
   XIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -81,7 +81,7 @@ export function WorkbenchSidebarContent({
   useEffect(() => {
     const syncActiveSection = () => {
       const active = mainViews.getSnapshot();
-      if (active?.kind === "workflows") setActiveSection("workflows");
+      if (active?.kind === "automations") setActiveSection("automations");
       else if (active?.kind === "toolbox") setActiveSection("toolbox");
     };
     syncActiveSection();
@@ -103,18 +103,12 @@ export function WorkbenchSidebarContent({
   };
 
   const searchLabel = t(
-    activeSection === "toolbox"
-      ? "workbench.sidebar.searchToolbox"
-      : activeSection === "workflows"
-        ? "workbench.sidebar.searchWorkflows"
-        : "workbench.sidebar.search",
+    activeSection === "toolbox" ? "workbench.sidebar.searchToolbox" : "workbench.sidebar.search",
   );
   const searchPlaceholder = t(
     activeSection === "toolbox"
       ? "workbench.sidebar.searchToolboxPlaceholder"
-      : activeSection === "workflows"
-        ? "workbench.sidebar.searchWorkflowsPlaceholder"
-        : "workbench.sidebar.searchPlaceholder",
+      : "workbench.sidebar.searchPlaceholder",
   );
 
   return (
@@ -274,14 +268,14 @@ export function WorkbenchSidebarContent({
         />
       ) : (
         <SlotHost
-          name="sidebar.workflows"
+          name="sidebar.automations"
           context={{ searchQuery }}
           className="min-h-0 flex-1"
           emptyFallback={
             <SidebarSectionEmptyState
-              section="workflows"
-              icon={WorkflowIcon}
-              label={t("workbench.sidebar.workflowsEmpty")}
+              section="automations"
+              icon={ZapIcon}
+              label={t("workbench.sidebar.automationsEmpty")}
             />
           }
         />

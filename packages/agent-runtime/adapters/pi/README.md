@@ -15,51 +15,12 @@ Workbench 子集，而不是参考文档全部 59 个接口。线协议的类型
 - [`protocol/src/messages.ts`](./protocol/src/messages.ts)：Workbench UI 适配层与 legacy
   `/api/pi/**` 使用的 Pi 消息类型。
 
-Workbench Execution 负责 Workflow 的定义存储、编译、手动执行和 Run 记录，实现在
-[`@workbench/execution-server`](../../../server/execution)，共享契约位于
-[`@workbench/execution-contracts`](../../../contracts/execution)。Automation 是独立领域，定义、存储
-和调度位于 [`@workbench/automation-server`](../../../server/automation)，共享契约位于
-[`@workbench/automation-contracts`](../../../contracts/automation)。Automation 不创建执行图或 Workflow Run；
-触发时只在目标工作区创建一个普通、可见的会话，再通过标准 Agent 执行端口提交用户配置的提示词。
-本目录只保留 Workflow Agent 节点适配器、资源 catalog、Automation 普通会话启动适配器，以及
-Workbench 事件/RPC 接线；Pi installation 将它们注入 Execution leaf。前端页面外壳位于
-`contributions/src/extensions/execution/{workflow,automation}`。
-
-### Workflow Multi-Agent v2
-
-Workflow v2 将稳定 Agent 与图节点分开：`agents[]` 定义 `workflowId + agentId` 身份，Agent Node
-只引用 `agentId`、Pi prompt template、输入 binding 和输出 JSON Schema。个人工作流的持久目录为：
-
-```text
-<execution-root>/workflows/<workflowId>/
-├── workflow.json
-├── agents/<agentId>/.pi/
-│   ├── APPEND_SYSTEM.md
-│   ├── settings.json
-│   └── prompts/*.md
-└── runs/<runId>/
-    ├── summary.json
-    ├── events.jsonl
-    ├── sessions/<agentId>/*.jsonl
-    └── artifacts/
-```
-
-项目工作流使用同一内部布局，但完整目录位于所选项目中：
-
-```text
-<project>/.pi/workflows/<workflowId>/
-```
-
-已发布的项目定义继续写入相邻的 `<project>/.pi/workflows/<workflowId>.json`，供外部编辑和发布冲突
-检测使用。旧版本误写在用户级 `<execution-root>/workflows/<workflowId>/` 的项目工作流会在首次读取时
-整体迁移到项目目录，保留 Agent 资源、修订、Run、会话和产物。
-
-Agent cwd 固定为 `agents/<agentId>`，因此模型、Thinking、Prompt、Skill 和 Extension 都直接使用
-Pi 的项目级资源加载与全局继承，不存在第二套 Agent 配置格式。执行器以 `runId + agentId` 解析
-会话：同一 Run 的同一 Agent 使用 follow-up 串行复用，不同 Agent 可并行，新 Run 使用新的会话。
-每个 Workflow Agent 会话额外注册 `submit_workflow_output`；工具按当前 Node 的 JSON Schema 校验
-结果，Prompt 结束而未提交时以 `structured-output-missing` 失败。加载 Agent 本地 `.pi` 资源前仍
-必须通过 Project Trust；该目录隔离只用于组织工作区，不是文件系统安全沙箱。
+Automation 的定义、存储和调度位于
+[`@workbench/automation-server`](../../../server/automation)，共享契约位于
+[`@workbench/automation-contracts`](../../../contracts/automation)。任务触发时会在目标工作区创建一个
+普通、可见的会话，再通过标准 Agent 执行端口提交用户配置的提示词。本目录保留 Automation 的 Pi
+会话启动适配器和 Workbench 事件/RPC 接线；前端页面位于
+`contributions/src/extensions/automation`。
 
 ## 架构
 
@@ -87,7 +48,6 @@ flowchart TD
   COMPOSITION --> WORKBENCH_SETTINGS_ROUTES["Workbench Settings RPC routes"]
   COMPOSITION --> IMAGE_SETTINGS_ROUTES["Image Understanding Settings RPC routes"]
   COMPOSITION --> SESSION_ROUTES["Session RPC routes"]
-  COMPOSITION --> EXECUTION_ROUTES["Execution RPC routes"]
   COMPOSITION --> AUTOMATION_ROUTES["Automation RPC routes"]
   COMPOSITION --> TRACE_ROUTES["Context Trace RPC routes"]
   COMPOSITION --> IMPORT_ROUTES["External Import RPC routes"]
@@ -125,9 +85,7 @@ flowchart TD
   SESSION --> THREAD_PORT["AgentThreadStorePort"]
   SESSION --> HISTORY["PiSessionHistoryService"]
   SESSION --> MODEL_CONTEXT["PiSessionModelContextService"]
-  EXECUTION_ROUTES --> EXECUTION["Workbench Execution service"]
   AUTOMATION_ROUTES --> AUTOMATION["Automation service"]
-  EXECUTION --> WORKFLOW_EXECUTOR["Workflow Agent node adapter"]
   AUTOMATION --> AUTOMATION_EXECUTOR["Ordinary session launch adapter"]
   COMMAND -.->|"implements"| COMMAND_PORT["AgentCommandCatalogPort"]
   EXEC_PORT --> PI_SERVER["Pi server adapter"]
@@ -142,7 +100,6 @@ flowchart TD
   IMPORT_SERVICE --> IMPORT_ADAPTERS["Codex / Claude Code / Cursor adapters"]
   IMPORT_SERVICE --> WORKSPACE
   REGISTRY --> PI["Pi AgentSession + SessionManager"]
-  WORKFLOW_EXECUTOR --> PI
   AUTOMATION_EXECUTOR --> PI
   IMPORT_SERVICE --> PI
   REGISTRY --> TRACE

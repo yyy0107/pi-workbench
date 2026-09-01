@@ -37,9 +37,6 @@ export function projectPiAgentThreadSnapshot(
     ...(metadata.automationOrigin === undefined
       ? {}
       : { automationOrigin: metadata.automationOrigin }),
-    ...(metadata.executionOrigin === undefined
-      ? {}
-      : { executionOrigin: metadata.executionOrigin }),
     isRunning: metadata.running,
     isWaitingForInput: metadata.waitingForUserInput,
     hasUnreadCompletion: metadata.completed,

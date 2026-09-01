@@ -7,7 +7,6 @@ import type { PromptFeedbackPort } from "@workbench/agent-runtime-client/prompt-
 import type { WorkbenchWorkspaceDirectoryStorePort } from "@workbench/agent-runtime-client/workspaces";
 
 import { PiSessionManagerProvider } from "../runtime/context";
-import { PiExecutionClientStateProvider } from "../public/execution";
 import {
   PI_CLIENT_RUNTIME_IMPLEMENTATION_TOKEN,
   PiSessionManager,
@@ -75,15 +74,13 @@ export function PiAgentRuntimeProvider({
   return (
     <PiAgentRuntimeCopyProvider copy={copy}>
       <PiSessionManagerProvider manager={manager}>
-        <PiExecutionClientStateProvider>
-          <PiWorkspaceSelectionProvider directoryStore={workspaceDirectoryStore}>
-            <WorkbenchAgentRuntimeHost adapter={adapter}>
-              <ActivePiThreadTracker manager={manager} />
-              <PiDraftWorkspaceTracker manager={manager} />
-              {children}
-            </WorkbenchAgentRuntimeHost>
-          </PiWorkspaceSelectionProvider>
-        </PiExecutionClientStateProvider>
+        <PiWorkspaceSelectionProvider directoryStore={workspaceDirectoryStore}>
+          <WorkbenchAgentRuntimeHost adapter={adapter}>
+            <ActivePiThreadTracker manager={manager} />
+            <PiDraftWorkspaceTracker manager={manager} />
+            {children}
+          </WorkbenchAgentRuntimeHost>
+        </PiWorkspaceSelectionProvider>
       </PiSessionManagerProvider>
     </PiAgentRuntimeCopyProvider>
   );

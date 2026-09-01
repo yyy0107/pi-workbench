@@ -42,10 +42,8 @@ function stateEnvironment(stateRoot) {
     PI_WORKBENCH_SESSION_INDEX_FILE: path.join(stateRoot, "session-index.json"),
     PI_WORKBENCH_SETTINGS_FILE: path.join(stateRoot, "workbench-settings.json"),
     PI_WORKBENCH_STATE_DIR: path.join(stateRoot, "state"),
-    PI_WORKBENCH_WORKFLOW_DIR: path.join(stateRoot, "workflows"),
     PI_WORKBENCH_WORKSPACE_STATE_FILE: path.join(stateRoot, "workspace-state.json"),
     WORKBENCH_AUTOMATION_DIR: path.join(stateRoot, "automation"),
-    WORKBENCH_EXECUTION_DIR: path.join(stateRoot, "execution"),
     XDG_CONFIG_HOME: path.join(stateRoot, "xdg-config"),
   };
 }

@@ -9,10 +9,6 @@ import {
   type AutomationSessionOrigin,
 } from "@workbench/automation-contracts";
 import {
-  parseExecutionSessionOrigin,
-  type ExecutionSessionOrigin,
-} from "@workbench/execution-contracts";
-import {
   atomicReplaceFile,
   withCrossProcessFileLock,
 } from "@workbench/server-core/file-persistence";
@@ -37,7 +33,6 @@ interface SessionCatalogIndexEntryV1 {
   summaryFirstMessage: string;
   allMessagesText: string;
   automationOrigin?: AutomationSessionOrigin;
-  executionOrigin?: ExecutionSessionOrigin;
 }
 
 interface SessionCatalogIndexDocumentV1 {
@@ -135,11 +130,6 @@ function parseDocument(
         : parseAutomationSessionOrigin(candidate.automationOrigin);
     if (candidate.automationOrigin !== undefined && automationOrigin === undefined)
       return undefined;
-    const executionOrigin =
-      candidate.executionOrigin === undefined
-        ? undefined
-        : parseExecutionSessionOrigin(candidate.executionOrigin);
-    if (candidate.executionOrigin !== undefined && executionOrigin === undefined) return undefined;
     const info: SessionInfo = {
       path: file,
       id: candidate.id,
@@ -164,7 +154,6 @@ function parseDocument(
       transient: false,
       running: false,
       ...(automationOrigin === undefined ? {} : { automationOrigin }),
-      ...(executionOrigin === undefined ? {} : { executionOrigin }),
     });
     fingerprints.set(file, candidate.fingerprint);
   }
@@ -235,9 +224,6 @@ export async function writeSessionCatalogIndex(
       ...(summary.automationOrigin === undefined
         ? {}
         : { automationOrigin: summary.automationOrigin }),
-      ...(summary.executionOrigin === undefined
-        ? {}
-        : { executionOrigin: summary.executionOrigin }),
     });
   }
   entries.sort((left, right) => left.relativePath.localeCompare(right.relativePath));

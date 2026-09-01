@@ -35,8 +35,7 @@
     "@workbench/agent-runtime-contracts": "workspace:*",
     "@workbench/attachment-understanding-contracts": "workspace:*",
     "@workbench/automation-contracts": "workspace:*",
-    "@workbench/contracts": "workspace:*",
-    "@workbench/execution-contracts": "workspace:*"
+    "@workbench/contracts": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",

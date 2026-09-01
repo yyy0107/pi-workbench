@@ -8,12 +8,6 @@ import type {
   ToolEventView,
   WorkspaceView,
 } from "./rpc";
-import type {
-  WorkflowChangedHostPayload,
-  WorkflowRemovedHostPayload,
-  WorkflowRunChangedHostPayload,
-  WorkflowRunRemovedHostPayload,
-} from "@workbench/execution-contracts";
 
 export type { SessionEvent, ToolEventView } from "./rpc";
 
@@ -284,10 +278,6 @@ export type HostStreamPayload =
   | HostSessionArchiveChangedPayload
   | HostSessionPinnedChangedPayload
   | HostRemoteEventPayload
-  | WorkflowChangedHostPayload
-  | WorkflowRemovedHostPayload
-  | WorkflowRunChangedHostPayload
-  | WorkflowRunRemovedHostPayload
   | StreamErrorPayload;
 
 export interface StreamPayloadMap {

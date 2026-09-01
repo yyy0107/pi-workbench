@@ -140,66 +140,6 @@ test("rejects imports of unknown Workbench packages", async (t) => {
   );
 });
 
-test("enforces the Execution Server owner graph across every module-loading form", async (t) => {
-  const root = await fixture();
-  t.after(() => rm(root, { recursive: true, force: true }));
-  for (const [relativeDirectory, name] of [
-    ["packages/contracts/execution", "@workbench/execution-contracts"],
-    ["packages/server/core", "@workbench/server-core"],
-    ["packages/terminal/server", "@workbench/terminal-server"],
-    ["packages/agent-runtime/adapters/pi/server", "@workbench/agent-runtime-pi-server"],
-  ]) {
-    await packageFixture(root, relativeDirectory, { name, private: true });
-  }
-  await packageFixture(
-    root,
-    "packages/server/execution",
-    {
-      name: "@workbench/execution-server",
-      private: true,
-      dependencies: {
-        "@workbench/execution-contracts": "workspace:*",
-        "@workbench/server-core": "workspace:*",
-        "@workbench/terminal-server": "workspace:*",
-        "@workbench/agent-runtime-pi-server": "workspace:*",
-      },
-    },
-    {
-      "src/side-effect.ts": 'import "@workbench/agent-runtime-pi-server";\n',
-      "src/dynamic.ts": 'void import("@workbench/agent-runtime-pi-server");\n',
-      "src/require.ts": 'require("@workbench/agent-runtime-pi-server");\n',
-      "src/re-export.ts": 'export * from "@workbench/agent-runtime-pi-server";\n',
-      "src/relative-escape.ts":
-        'import "../../../agent-runtime/adapters/pi/server/src/internal";\n',
-    },
-  );
-
-  const violations = await workspaceDependencyViolations(root);
-  assert.ok(
-    violations.includes(
-      "packages/server/execution/package.json: @workbench/execution-server must not declare production dependency @workbench/agent-runtime-pi-server",
-    ),
-  );
-  assert.equal(
-    violations.filter((violation) =>
-      violation.includes(
-        "@workbench/execution-server source must not import dependency @workbench/agent-runtime-pi-server",
-      ),
-    ).length,
-    4,
-    JSON.stringify(violations, null, 2),
-  );
-  assert.ok(
-    violations.some(
-      (violation) =>
-        violation.includes("must not depend on another package source") &&
-        violation.includes("packages/agent-runtime/adapters/pi/server") &&
-        violation.includes("../../../agent-runtime/adapters/pi/server/src/internal"),
-    ),
-    JSON.stringify(violations, null, 2),
-  );
-});
-
 test("rejects production dependency cycles while allowing one-way package layering", async (t) => {
   const root = await fixture();
   t.after(() => rm(root, { recursive: true, force: true }));

@@ -131,18 +131,7 @@ test("production DOM IDREF literals use the exact domain allowlist", async () =>
     assert.doesNotMatch(source, /document\.getElementById\s*\(/u, filename);
   }
 
-  assert.deepEqual(literals, [
-    {
-      attribute: "id",
-      filename: "extensions/execution/workflow/workflow-canvas-elements.tsx",
-      value: "true",
-    },
-    {
-      attribute: "id",
-      filename: "extensions/execution/workflow/workflow-canvas-elements.tsx",
-      value: "false",
-    },
-  ]);
+  assert.deepEqual(literals, []);
 
   const runningIndicator = await readFile(
     new URL("../src/running-indicator/pi-running-indicator.tsx", import.meta.url),

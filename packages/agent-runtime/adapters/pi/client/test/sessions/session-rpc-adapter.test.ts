@@ -42,17 +42,6 @@ test("adapts session list metadata carried in protocol projections", () => {
             source: "schedule",
             triggeredAt: 1_777_000_000_000,
           },
-          executionOrigin: {
-            version: 1,
-            origin: "execution",
-            workflowId: "workflow-1",
-            workflowName: "Daily review",
-            workflowKind: "workflow",
-            runId: "run-1",
-            nodeId: "agent-1",
-            attempt: 1,
-            source: "schedule",
-          },
         },
       },
     },
@@ -67,8 +56,6 @@ test("adapts session list metadata carried in protocol projections", () => {
   assert.deepEqual(summary.workspace, { id: "w-1", name: "Work", cwd: "/work" });
   assert.equal(summary.automationOrigin?.automationName, "Morning briefing");
   assert.equal(summary.automationOrigin?.source, "schedule");
-  assert.equal(summary.executionOrigin?.workflowKind, "workflow");
-  assert.equal(summary.executionOrigin?.runId, "run-1");
 });
 
 test("normalizes legacy Composer protocols before session titles enter the thread list", () => {

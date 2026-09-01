@@ -343,7 +343,6 @@ function piSessionSummary(thread: AgentThreadSummary): PiSessionSummary {
       : { waitingForUserInput: thread.waitingForUserInput }),
     ...(thread.runTiming === undefined ? {} : { runTiming: thread.runTiming }),
     ...(thread.automationOrigin === undefined ? {} : { automationOrigin: thread.automationOrigin }),
-    ...(thread.executionOrigin === undefined ? {} : { executionOrigin: thread.executionOrigin }),
   };
 }
 
