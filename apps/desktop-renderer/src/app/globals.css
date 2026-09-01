@@ -9,8 +9,8 @@
 @source "../../node_modules/@streamdown/code/dist/*.js";
 @source "../../node_modules/@streamdown/math/dist/*.js";
 
-/* The static Desktop app owns its platform-safe font selection. */
+/* Web and Desktop expose the same self-hosted font variables to the shared Shell. */
 @theme inline {
-  --font-sans: ui-sans-serif, system-ui, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
 }

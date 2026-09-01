@@ -1,8 +1,19 @@
 import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
 import "katex/dist/katex.min.css";
 
 import { desktopRendererEnUS } from "./i18n/en-US";
 import "./globals.css";
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
 
 export const metadata: Metadata = {
   title: {
@@ -32,7 +43,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en-US" suppressHydrationWarning>
       <body
         data-workbench-desktop-renderer="1"
-        className="font-sans antialiased [&_button_svg.lucide]:size-4 [&_svg.lucide]:[stroke-width:1.5]"
+        className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased [&_button_svg.lucide]:size-4 [&_svg.lucide]:[stroke-width:1.5]`}
       >
         {children}
       </body>
