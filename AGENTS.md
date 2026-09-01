@@ -34,7 +34,7 @@
 ## 常用命令
 
 ```bash
-pnpm dev          # 根 manager 启动独立 Web + Runtime，并保留 Next Fast Refresh
+pnpm dev          # 默认构建并启动非热更新的 Web + Runtime；追加 -- --hot 开启热更新
 pnpm build        # 依次委托 Runtime、Web 与 Electron app 构建/组合 artifacts
 pnpm start        # 根 orchestrator 以生产模式启动独立 Web + Runtime
 pnpm lint         # oxlint + oxfmt --check

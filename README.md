@@ -130,35 +130,28 @@ pnpm install
 pnpm dev
 ```
 
-`pnpm dev` synchronizes the required static assets, then runs the root
-[`web-runtime-watch`](./scripts/web-runtime-watch.mjs) manager. Each managed generation owns one Web
-process and one Runtime process, verifies their identity/admission boundary, and exposes the Web
-process at [http://127.0.0.1:3000](http://127.0.0.1:3000). Add a project directory, then open
+`pnpm dev` synchronizes the required static assets, creates a production build, then starts one
+separately owned Web process and Runtime process. It verifies their identity/admission boundary and
+exposes the Web process at [http://127.0.0.1:3000](http://127.0.0.1:3000). Add a project directory, then open
 Settings → Models to sign in to a provider or add an API-key/custom-provider configuration. Select
 a model in the Composer to start a conversation.
 
-### Running without hot reload
+The default mode does not watch source files or apply Fast Refresh/HMR. After changing source code,
+stop the service and run `pnpm dev` again.
 
-`pnpm dev` enables two reload layers: the root source-generation manager replaces the separately
-owned Web/Runtime generation when Runtime, Web-host, or package source changes, while Next.js
-development mode provides Fast Refresh/HMR for application code and styles.
+### Running with hot reload
 
-> [!TIP]
-> **Recommended:** when hot compilation is not required, use the production build and server. This
-> is the simplest and most predictable way to disable all file watching, Fast Refresh, and HMR.
-
-Build once and run the production server:
+Pass the explicit `--hot` flag when hot reload is required:
 
 ```bash
-pnpm build
-pnpm start
+pnpm dev -- --hot
 ```
 
-Production mode does not watch source files or apply Fast Refresh. After changing source code, run
-`pnpm build` again and restart `pnpm start`.
+Hot mode runs the root [`web-runtime-watch`](./scripts/web-runtime-watch.mjs) manager. It replaces the
+separately owned Web/Runtime generation when Runtime, Web-host, or package source changes, while
+Next.js development mode provides Fast Refresh/HMR for application code and styles.
 
-Only when Next.js Fast Refresh is still required, disable just the outer source-generation manager
-with:
+Only when Next.js Fast Refresh is required without the outer source-generation manager, use:
 
 ```bash
 pnpm predev
@@ -171,8 +164,8 @@ pages, components, and styles. Changes to [`apps/web/src/server/`](./apps/web/sr
 [`apps/runtime-node/`](./apps/runtime-node/), or package server code require a manual restart. The
 root orchestrator resolves exact app roots, so it remains independent of the caller's working
 directory. The installed Next.js development server does not provide a supported switch for
-disabling Fast Refresh while otherwise retaining development mode; use the production commands
-above when all hot compilation must be disabled.
+disabling Fast Refresh while otherwise retaining development mode; use the default `pnpm dev` when
+all hot compilation must be disabled.
 
 ### Electron development
 

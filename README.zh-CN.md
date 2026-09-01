@@ -124,33 +124,26 @@ pnpm install
 pnpm dev
 ```
 
-`pnpm dev` 会同步所需的静态资源，再运行根目录的
-[`web-runtime-watch`](./scripts/web-runtime-watch.mjs) manager。每一代受管进程分别拥有一个 Web process
-和一个 Runtime process，验证两者的 identity/admission 边界，并在
+`pnpm dev` 会同步所需的静态资源、执行生产构建，再启动一次独立的 Web process 和 Runtime process。
+它会验证两者的 identity/admission 边界，并在
 [http://127.0.0.1:3000](http://127.0.0.1:3000) 暴露 Web process。添加项目目录后，进入
 “设置 → 模型”登录 Provider 账号，或添加 API Key/自定义 Provider 配置；从 Composer 选择模型后即可开始会话。
 
-### 关闭热编译与热更新
+默认模式不会监听源码文件，也不会执行 Fast Refresh/HMR。修改源码后，停止服务并重新运行 `pnpm dev`。
 
-`pnpm dev` 会启用两层热更新：根 source-generation manager 在 Runtime、Web Host 或 package
-源码变化时替换一整代分别拥有的 Web/Runtime process；Web process 内的 Next.js 开发模式则为应用代码
-和样式提供 Fast Refresh/HMR。
+### 开启热编译与热更新
 
-> [!TIP]
-> **推荐方案：** 不需要热编译时，优先使用生产构建和生产服务。这是关闭全部文件监听、Fast Refresh
-> 和 HMR 最简单、行为最可预期的方式。
-
-先构建一次，再运行生产服务：
+需要热更新时，显式传入 `--hot`：
 
 ```bash
-pnpm build
-pnpm start
+pnpm dev -- --hot
 ```
 
-生产模式不会监听源码文件，也不会执行 Fast Refresh。修改源码后，需要重新运行 `pnpm build`，然后
-重启 `pnpm start`。
+热更新模式会运行根目录的 [`web-runtime-watch`](./scripts/web-runtime-watch.mjs) manager：Runtime、Web Host
+或 package 源码变化时，它会替换一整代分别拥有的 Web/Runtime process；Web process 内的 Next.js
+开发模式则为应用代码和样式提供 Fast Refresh/HMR。
 
-只有仍然需要 Next.js Fast Refresh 时，才建议仅关闭外层 source-generation manager：
+只有需要 Next.js Fast Refresh、但不需要外层 source-generation manager 时，才使用：
 
 ```bash
 pnpm predev
@@ -162,7 +155,7 @@ pnpm dev:once
 [`apps/web/src/runtime-connected-web-main.ts`](./apps/web/src/runtime-connected-web-main.ts)、
 [`apps/runtime-node/`](./apps/runtime-node/) 或 package 服务端代码后必须手动重启。根 orchestrator 会解析
 精确的 app root，因此不依赖调用者当前工作目录。当前安装的 Next.js 开发服务器没有提供受支持的开关，
-可在保留其他开发模式能力的同时关闭 Fast Refresh；如需关闭全部热编译，请使用上面的生产模式命令。
+可在保留其他开发模式能力的同时关闭 Fast Refresh；如需关闭全部热编译，请使用默认的 `pnpm dev`。
 
 ### Electron 开发
 

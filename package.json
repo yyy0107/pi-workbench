@@ -7,7 +7,7 @@
     "icons:sync": "pnpm --filter @workbench/web run icons:sync",
     "file-viewer:sync": "pnpm --filter @workbench/web run file-viewer:sync",
     "predev": "node apps/web/scripts/sync-assets.mjs",
-    "dev": "node scripts/web-runtime-watch.mjs",
+    "dev": "node scripts/web-runtime-dev.mjs",
     "dev:once": "node scripts/web-runtime-orchestrator.mjs --development",
     "electron:dev": "pnpm --filter @workbench/desktop-electron build && node scripts/electron-dev-orchestrator.mjs",
     "electron:dev:connect": "node scripts/electron-dev-orchestrator.mjs --connect-existing",
