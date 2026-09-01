@@ -5,9 +5,9 @@
 
 @source "../../../../packages/workbench/shell/src/**/*.{ts,tsx}";
 @source "../../../../packages/agent-runtime/adapters/pi/contributions/src/**/*.{ts,tsx}";
-@source "../../../../node_modules/streamdown/dist/*.js";
-@source "../../../../node_modules/@streamdown/code/dist/*.js";
-@source "../../../../node_modules/@streamdown/math/dist/*.js";
+@source "../../node_modules/streamdown/dist/*.js";
+@source "../../node_modules/@streamdown/code/dist/*.js";
+@source "../../node_modules/@streamdown/math/dist/*.js";
 
 /* The Web app owns its selected font implementation; Shell consumes these semantic variables. */
 @theme inline {
