@@ -1,16 +1,24 @@
 import { MessagesSquareIcon } from "lucide-react";
 
-import { defineExtension, type WorkspaceSurfaceDefinition } from "@workbench/extension-sdk";
+import {
+  createLazyWorkspaceSurface,
+  defineExtension,
+  type WorkspaceSurfaceDefinition,
+} from "@workbench/extension-sdk";
 
 import { SideChatHeader } from "./side-chat-header";
 import { SideChatThreadMenuItem } from "./side-chat-menu-item";
 import { SideChatRuntimeBridge } from "./side-chat-runtime-bridge";
-import { SideChatSurface } from "./side-chat-surface";
 import {
   sideChatResourceKey,
   SIDE_CHAT_SURFACE_KIND,
   type SideChatSurfaceParams,
 } from "./side-chat-workspace";
+
+const SideChatSurface = createLazyWorkspaceSurface(async () => {
+  const module = await import("./side-chat-surface");
+  return { default: module.SideChatSurface };
+});
 
 export const sideChatSurfaceDefinition = {
   kind: SIDE_CHAT_SURFACE_KIND,
