@@ -23,46 +23,31 @@ const artifact = Object.freeze({
   }),
 });
 
-function developmentResponse(
-  body,
-  { contentType = "text/html; charset=utf-8", url = "http://127.0.0.1:43101/" } = {},
-) {
-  const response = new Response(body, { headers: { "Content-Type": contentType } });
-  return {
-    body: response.body,
-    headers: response.headers,
-    ok: true,
-    redirected: false,
-    status: 200,
-    url,
-  };
+function developmentResponse(body, { contentType = "text/html; charset=utf-8" } = {}) {
+  return new Response(body, { headers: { "Content-Type": contentType } });
 }
 
 test("admits only bounded canonical development renderer HTML with the stable identity marker", async () => {
-  const origin = "http://127.0.0.1:43101";
-  await assert.doesNotReject(
-    assertDesktopRendererDevelopmentResponse(
-      developmentResponse(`<body ${DESKTOP_RENDERER_DEVELOPMENT_MARKER}></body>`),
-      origin,
-    ),
+  const responseWithoutReliableUrl = developmentResponse(
+    `<body ${DESKTOP_RENDERER_DEVELOPMENT_MARKER}></body>`,
   );
+  assert.equal(responseWithoutReliableUrl.url, "");
+  await assert.doesNotReject(assertDesktopRendererDevelopmentResponse(responseWithoutReliableUrl));
   await assert.rejects(
-    assertDesktopRendererDevelopmentResponse(developmentResponse("<body></body>"), origin),
+    assertDesktopRendererDevelopmentResponse(developmentResponse("<body></body>")),
     /identity marker was missing/u,
   );
   await assert.rejects(
     assertDesktopRendererDevelopmentResponse(
       developmentResponse(`<body ${DESKTOP_RENDERER_DEVELOPMENT_MARKER}></body>`, {
-        url: "http://127.0.0.1:43102/",
+        contentType: "application/json",
       }),
-      origin,
     ),
     /canonical HTML entrypoint/u,
   );
   await assert.rejects(
     assertDesktopRendererDevelopmentResponse(
       developmentResponse("x".repeat(DESKTOP_RENDERER_DEVELOPMENT_HTML_MAX_BYTES + 1)),
-      origin,
     ),
     /exceeded its size limit/u,
   );

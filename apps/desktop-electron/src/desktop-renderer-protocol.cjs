@@ -6,21 +6,11 @@ const DESKTOP_RENDERER_SCHEME = "workbench";
 const DESKTOP_RENDERER_DEVELOPMENT_MARKER = 'data-workbench-desktop-renderer="1"';
 const DESKTOP_RENDERER_DEVELOPMENT_HTML_MAX_BYTES = 2 * 1024 * 1024;
 
-async function assertDesktopRendererDevelopmentResponse(response, expectedOrigin) {
-  let finalUrl;
-  try {
-    finalUrl = new URL(response?.url);
-  } catch {
-    throw new Error("The development Desktop renderer response URL was invalid.");
-  }
+async function assertDesktopRendererDevelopmentResponse(response) {
   if (
     !response.ok ||
     response.status !== 200 ||
     response.redirected === true ||
-    finalUrl.origin !== expectedOrigin ||
-    finalUrl.pathname !== "/" ||
-    finalUrl.search ||
-    finalUrl.hash ||
     response.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase() !== "text/html"
   ) {
     throw new Error(

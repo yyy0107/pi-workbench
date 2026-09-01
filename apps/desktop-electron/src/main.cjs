@@ -350,7 +350,7 @@ async function bootstrap() {
     installPackagedRendererProtocol(packagedRuntimeSession);
   } else {
     const response = await net.fetch(workbenchUrl, { redirect: "error" });
-    await assertDesktopRendererDevelopmentResponse(response, rendererOrigin);
+    await assertDesktopRendererDevelopmentResponse(response);
     console.log(`> Electron connected to the explicit Desktop renderer at ${rendererOrigin}`);
   }
   if (isQuitting) {
