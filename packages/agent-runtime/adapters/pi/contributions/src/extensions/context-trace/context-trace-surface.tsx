@@ -44,8 +44,14 @@ import {
   type ContextTraceToolDetailContext,
 } from "./context-trace-detail";
 import { cacheContextTraceDetail } from "./context-trace-detail-cache";
-import { ContextTraceContextView } from "./context-trace-context-view";
+import { ContextTraceContextView, ContextTraceSearchHighlight } from "./context-trace-context-view";
 import { ContextTraceOverview, type ContextTraceTimeRange } from "./context-trace-overview";
+import {
+  contextTraceEventSearchMatches,
+  isContextTraceMessageContentEvent,
+  normalizeContextTraceSearchText,
+  type ContextTraceSearchMatch,
+} from "./context-trace-search";
 import { projectContextTraceTurns } from "./context-trace-tree";
 import type { ContextTraceSurfaceParams } from "./context-trace-workspace";
 import { useContextTrace, useContextTraceTarget } from "./use-context-trace";
@@ -265,11 +271,15 @@ function Timeline({
   events,
   firstTime,
   onSelect,
+  query,
+  searchMatches,
   selectedTraceId,
 }: {
   events: readonly SessionContextTraceEventSummary[];
   firstTime: number;
   onSelect(event: SessionContextTraceEventSummary): void;
+  query: string;
+  searchMatches: ReadonlyMap<string, readonly ContextTraceSearchMatch[]>;
   selectedTraceId?: string;
 }) {
   const { t } = usePiI18n();
@@ -287,6 +297,7 @@ function Timeline({
             ? t("extensions.contextTrace.round")
             : undefined;
         const category = eventCategory(event.kind);
+        const contentMatch = searchMatches.get(event.traceId)?.[0];
         const correlationId =
           event.toolCallId ?? event.requestId ?? event.turnId ?? event.runId ?? event.roundId;
         return (
@@ -323,8 +334,18 @@ function Timeline({
             >
               {eventCategoryLabel(t, category)}
             </span>
-            <span className="min-w-0 flex-1 truncate font-medium">
-              {contextTraceEventLabel(t, event.kind)}
+            <span className="min-w-0 flex-1 truncate">
+              <span className="font-medium">
+                <ContextTraceSearchHighlight
+                  text={contextTraceEventLabel(t, event.kind)}
+                  query={query}
+                />
+              </span>
+              {contentMatch ? (
+                <span className="text-muted-foreground ms-1 text-[11px]">
+                  · <ContextTraceSearchHighlight text={contentMatch.snippet} query={query} />
+                </span>
+              ) : null}
             </span>
             {event.truncated ? (
               <TriangleAlertIcon
@@ -345,7 +366,7 @@ function Timeline({
                 className="text-muted-foreground mx-2 hidden max-w-28 truncate font-mono text-[10px] sm:block"
                 title={correlationId}
               >
-                {correlationId}
+                <ContextTraceSearchHighlight text={correlationId} query={query} />
               </span>
             ) : null}
             {duration !== undefined ? (
@@ -388,6 +409,10 @@ export function ContextTraceSurface({
   const [viewMode, setViewMode] = useState<TraceViewMode>("turns");
   const [detailView, setDetailView] = useState<ContextTraceDetailView>("summary");
   const [query, setQuery] = useState("");
+  const [searchMatches, setSearchMatches] = useState<
+    ReadonlyMap<string, readonly ContextTraceSearchMatch[]>
+  >(new Map());
+  const [searching, setSearching] = useState(false);
   const [followLive, setFollowLive] = useState(true);
   const [timelineRange, setTimelineRange] = useState<ContextTraceTimeRange | null>(null);
   const { rootRef, wide } = useWideSurface();
@@ -477,6 +502,65 @@ export function ContextTraceSurface({
     },
     [reportError, storeDetail, surface.id, surface.params.sessionId],
   );
+
+  const normalizedQuery = normalizeContextTraceSearchText(query);
+  const searchableEvents = useMemo(
+    () => trace.events.filter(isContextTraceMessageContentEvent),
+    [trace.events],
+  );
+
+  useEffect(() => {
+    let active = true;
+    setSearchMatches(new Map());
+    if (!normalizedQuery) {
+      setSearching(false);
+      return () => {
+        active = false;
+      };
+    }
+
+    setSearching(true);
+    const timeout = window.setTimeout(() => {
+      void (async () => {
+        const matches = new Map<string, readonly ContextTraceSearchMatch[]>();
+        for (let index = 0; index < searchableEvents.length; index += 8) {
+          const details = await Promise.all(
+            searchableEvents.slice(index, index + 8).map(async (summary) => {
+              const cached = detailByTraceIdRef.current.get(summary.traceId);
+              if (cached?.status === "ready") return cached.event;
+              try {
+                return (
+                  await traceClient.read({
+                    sessionId: surface.params.sessionId,
+                    traceId: summary.traceId,
+                  })
+                ).event;
+              } catch {
+                return undefined;
+              }
+            }),
+          );
+          if (!active) return;
+          let changed = false;
+          for (const detail of details) {
+            if (!detail) continue;
+            const eventMatches = contextTraceEventSearchMatches(detail, normalizedQuery);
+            if (eventMatches.length > 0) {
+              matches.set(detail.traceId, eventMatches);
+              changed = true;
+            }
+          }
+          if (changed) setSearchMatches(new Map(matches));
+        }
+        if (active) setSearching(false);
+      })();
+    }, 180);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timeout);
+    };
+  }, [normalizedQuery, searchableEvents, surface.params.sessionId, traceClient]);
 
   useEffect(() => {
     if (!selectedTraceId) return;
@@ -576,14 +660,13 @@ export function ContextTraceSurface({
     selectedToolSchemaSummary,
     selectedToolStart,
   ]);
-  const normalizedQuery = query.trim().toLowerCase();
   const viewEvents = useMemo(
     () => trace.events.filter((event) => matchesView(event, viewMode)),
     [trace.events, viewMode],
   );
   const matchingTraceIds = useMemo(() => {
     if (!normalizedQuery) return null;
-    return new Set(
+    const matches = new Set(
       trace.events
         .filter((event) =>
           [
@@ -598,11 +681,13 @@ export function ContextTraceSurface({
             event.toolCallId,
             event.toolName,
             String(event.seq),
-          ].some((value) => value?.toLowerCase().includes(normalizedQuery)),
+          ].some((value) => normalizeContextTraceSearchText(value ?? "").includes(normalizedQuery)),
         )
         .map((event) => event.traceId),
     );
-  }, [normalizedQuery, t, trace.events]);
+    for (const traceId of searchMatches.keys()) matches.add(traceId);
+    return matches;
+  }, [normalizedQuery, searchMatches, t, trace.events]);
   const filteredEvents = useMemo(
     () =>
       viewEvents.filter((event) => {
@@ -706,6 +791,8 @@ export function ContextTraceSurface({
               detailByTraceId={detailByTraceId}
               onLoadDetail={loadDetail}
               onSelect={selectContextEvent}
+              searchMatches={searchMatches}
+              searching={searching}
             />
             {trace.hasMore ? (
               <div className="flex justify-center px-2 pb-3 pt-1">
@@ -730,6 +817,8 @@ export function ContextTraceSurface({
             <Timeline
               events={filteredEvents}
               firstTime={trace.events[0]?.time ?? 0}
+              query={normalizedQuery}
+              searchMatches={searchMatches}
               selectedTraceId={selectedTraceId}
               onSelect={selectEvent}
             />
@@ -751,6 +840,11 @@ export function ContextTraceSurface({
             ) : null}
             <div ref={timelineBottomRef} />
           </>
+        ) : normalizedQuery && searching ? (
+          <div className="text-muted-foreground flex h-full items-center justify-center gap-2 p-8 text-center text-xs">
+            <DatabaseIcon className="size-4 animate-pulse" />
+            {t("extensions.contextTrace.loadingTreeData")}
+          </div>
         ) : trace.events.length > 0 ? (
           <div className="text-muted-foreground flex h-full items-center justify-center p-8 text-center text-xs">
             {t("extensions.contextTrace.noMatches")}
@@ -1117,9 +1211,20 @@ export function ContextTraceSurface({
         />
       ) : null}
 
-      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,0.58fr)_minmax(0,0.42fr)]">
-        <div className="flex min-h-0 min-w-0 flex-col border-e">{timeline}</div>
-        <div className="flex min-h-0 min-w-0 flex-col">{detail}</div>
+      <div
+        className={cn(
+          "grid min-h-0 flex-1",
+          selectedSummary
+            ? "grid-cols-[minmax(0,0.58fr)_minmax(0,0.42fr)]"
+            : "grid-cols-1",
+        )}
+      >
+        <div className={cn("flex min-h-0 min-w-0 flex-col", selectedSummary && "border-e")}>
+          {timeline}
+        </div>
+        {selectedSummary ? (
+          <div className="flex min-h-0 min-w-0 flex-col">{detail}</div>
+        ) : null}
       </div>
     </section>
   );

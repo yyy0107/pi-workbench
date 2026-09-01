@@ -4,6 +4,7 @@ import {
   BotIcon,
   BracesIcon,
   ChevronRightIcon,
+  DatabaseIcon,
   FileTextIcon,
   ImageIcon,
   MessageSquareIcon,
@@ -16,7 +17,7 @@ import {
   WrenchIcon,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { usePiI18n } from "../../i18n";
 import { cn } from "@workbench/shell/utils";
@@ -34,6 +35,10 @@ import {
   listContextTraceOutputBlocks,
   type ContextTraceMessageRole,
 } from "./context-trace-messages";
+import {
+  normalizeContextTraceSearchText,
+  type ContextTraceSearchMatch,
+} from "./context-trace-search";
 import {
   contextInputTokens,
   projectContextTraceTurns,
@@ -59,6 +64,7 @@ interface TraceTreeNode {
   children?: readonly TraceTreeNode[];
   expandable?: boolean;
   loadTraceIds?: readonly string[];
+  searchText?: string;
 }
 
 function readyEvent(
@@ -175,15 +181,40 @@ function filterTreeNodes(
   if (!normalizedQuery) return nodes;
   return nodes.flatMap((node) => {
     if (
-      [node.label, node.meta, node.trailing, node.event?.toolName, node.event?.model?.model].some(
-        (value) => value?.toLowerCase().includes(normalizedQuery),
-      )
+      [
+        node.label,
+        node.meta,
+        node.trailing,
+        node.searchText,
+        node.event?.toolName,
+        node.event?.model?.model,
+      ].some((value) => normalizeContextTraceSearchText(value ?? "").includes(normalizedQuery))
     ) {
       return [node];
     }
     const children = node.children ? filterTreeNodes(node.children, normalizedQuery) : [];
     return children.length > 0 ? [{ ...node, children }] : [];
   });
+}
+
+export function ContextTraceSearchHighlight({ text, query }: { text: string; query: string }) {
+  if (!query) return text;
+  const normalizedText = text.toLocaleLowerCase();
+  const parts: ReactNode[] = [];
+  let cursor = 0;
+  let matchIndex = normalizedText.indexOf(query);
+  while (matchIndex >= 0) {
+    parts.push(text.slice(cursor, matchIndex));
+    parts.push(
+      <mark key={matchIndex} className="bg-primary/20 text-inherit">
+        {text.slice(matchIndex, matchIndex + query.length)}
+      </mark>,
+    );
+    cursor = matchIndex + query.length;
+    matchIndex = normalizedText.indexOf(query, cursor);
+  }
+  parts.push(text.slice(cursor));
+  return parts;
 }
 
 function treeNodeMatchesRange(node: TraceTreeNode, range: ContextTraceTimeRange): boolean {
@@ -199,6 +230,7 @@ function TraceTree({
   onLoadDetail,
   onSelect,
   onToggle,
+  query,
   selectedFocusKey,
   selectedTraceId,
 }: {
@@ -209,6 +241,7 @@ function TraceTree({
   onLoadDetail(traceId: string): void;
   onSelect(event: SessionContextTraceEventSummary, focus?: ContextTraceDetailFocus): void;
   onToggle(id: string): void;
+  query: string;
   selectedFocusKey: string;
   selectedTraceId?: string;
 }) {
@@ -260,18 +293,18 @@ function TraceTree({
               node.badgeTone,
             )}
           >
-            {node.label}
+            <ContextTraceSearchHighlight text={node.label} query={query} />
           </span>
           {node.meta ? (
             <span
               className={cn("text-muted-foreground min-w-0 truncate text-[11px]", node.metaTone)}
             >
-              {node.meta}
+              <ContextTraceSearchHighlight text={node.meta} query={query} />
             </span>
           ) : null}
           {node.trailing ? (
             <span className="text-muted-foreground ms-auto shrink-0 font-mono text-[10px] tabular-nums">
-              {node.trailing}
+              <ContextTraceSearchHighlight text={node.trailing} query={query} />
             </span>
           ) : null}
         </button>
@@ -285,6 +318,7 @@ function TraceTree({
               onLoadDetail={onLoadDetail}
               onSelect={onSelect}
               onToggle={onToggle}
+              query={query}
               selectedFocusKey={selectedFocusKey}
               selectedTraceId={selectedTraceId}
             />
@@ -302,6 +336,8 @@ export function ContextTraceContextView({
   onLoadDetail,
   onSelect,
   query,
+  searchMatches,
+  searching,
   selectedFocus,
   selectedTraceId,
 }: {
@@ -312,10 +348,13 @@ export function ContextTraceContextView({
   onLoadDetail(traceId: string): void;
   onSelect(event: SessionContextTraceEventSummary, focus?: ContextTraceDetailFocus): void;
   query: string;
+  searchMatches: ReadonlyMap<string, readonly ContextTraceSearchMatch[]>;
+  searching: boolean;
   selectedFocus?: ContextTraceDetailFocus;
   selectedTraceId?: string;
 }) {
   const { number, t } = usePiI18n();
+  const normalizedQuery = normalizeContextTraceSearchText(query);
   const turns = useMemo(() => projectContextTraceTurns(events), [events]);
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   const initializedTurnRef = useRef<string | undefined>(undefined);
@@ -348,6 +387,8 @@ export function ContextTraceContextView({
         });
   const durationLabel = (value: number | undefined) =>
     value === undefined ? undefined : t("extensions.contextTrace.duration", { value });
+  const searchMatch = (traceId: string | undefined, focusKey: string) =>
+    traceId ? searchMatches.get(traceId)?.find((match) => match.focusKey === focusKey) : undefined;
   const contextWindowLabel = (usage: SessionContextTraceContextUsage | undefined) => {
     if (!usage) return undefined;
     return t("extensions.contextTrace.contextWindowUsage", {
@@ -404,9 +445,25 @@ export function ContextTraceContextView({
     if (!output) return [];
     const detail = readyEvent(detailByTraceId, output.traceId);
     const capture = outputMessageCapture(detail);
-    if (!capture) return [loadingNode(`output:${step.id}:loading`)];
-    return listContextTraceOutputBlocks(capture.value).map((block): TraceTreeNode => {
+    const matchedBlocks = (searchMatches.get(output.traceId) ?? []).filter(
+      (match) => match.type === "output-block",
+    );
+    const blocks = capture
+      ? listContextTraceOutputBlocks(capture.value)
+      : matchedBlocks.map((match) => ({
+          id: `output:${match.contentIndex}`,
+          kind: match.blockKind,
+          contentIndex: match.contentIndex,
+          value: match.snippet,
+          text: match.snippet,
+          preview: match.snippet,
+          ...(match.toolName ? { toolName: match.toolName } : {}),
+          ...(match.toolCallId ? { toolCallId: match.toolCallId } : {}),
+        }));
+    if (blocks.length === 0) return [loadingNode(`output:${step.id}:loading`)];
+    return blocks.map((block): TraceTreeNode => {
       const id = `output:${step.id}:${block.contentIndex}`;
+      const match = searchMatch(output.traceId, `output-block:${block.contentIndex}:content`);
       if (block.kind === "tool-call") {
         const execution = step.toolExecutions.find(
           (candidate) => candidate.toolCallId === block.toolCallId,
@@ -417,6 +474,8 @@ export function ContextTraceContextView({
           label: t("extensions.contextTrace.tree.toolCall", { name: block.toolName ?? "—" }),
           icon: WrenchIcon,
           tone: EVENT_TONES.tool,
+          meta: match?.snippet,
+          searchText: block.text,
           event: output,
           focus: { type: "output-block", contentIndex: block.contentIndex },
           expandable: true,
@@ -450,6 +509,8 @@ export function ContextTraceContextView({
             : t("extensions.contextTrace.tree.text"),
         icon: block.kind === "reasoning" ? SparklesIcon : TextIcon,
         tone: block.kind === "reasoning" ? EVENT_TONES.modelStep : EVENT_TONES.output,
+        meta: match?.snippet,
+        searchText: block.text,
         event: output,
         focus: { type: "output-block", contentIndex: block.contentIndex },
         loadTraceIds: [output.traceId],
@@ -478,6 +539,21 @@ export function ContextTraceContextView({
           context.detail.messageTokenEstimates?.tokens,
         )
       : undefined;
+    const matchedMessages = (snapshot ? (searchMatches.get(snapshot.traceId) ?? []) : []).filter(
+      (match) => match.type === "context-message",
+    );
+    const conversationMessages =
+      messages ??
+      matchedMessages.map((match) => ({
+        id: `${match.sourceIndex}:message`,
+        role: match.role,
+        sourceIndex: match.sourceIndex,
+        value: match.snippet,
+        text: match.snippet,
+        preview: match.snippet,
+        estimatedTokens: undefined,
+        ...(match.toolName ? { toolName: match.toolName } : {}),
+      }));
     const attachments = composition ? jsonArrayLength(composition.detail.images.value) : undefined;
     const systemPromptSources =
       context?.detail.systemPromptSources ??
@@ -571,37 +647,42 @@ export function ContextTraceContextView({
         : [loadingNode(`tools:${step.id}:loading`)];
 
     const conversationChildren: TraceTreeNode[] = snapshot
-      ? messages
-        ? messages.map((message) => ({
-            id: `conversation:${step.id}:${message.sourceIndex}`,
-            label:
-              message.role === "tool"
-                ? t("extensions.contextTrace.tree.toolResult", {
-                    name: message.toolName ?? "—",
-                  })
-                : message.role === "compaction"
-                  ? t("extensions.contextTrace.tree.compactionSummary")
-                  : t(`extensions.contextTrace.contextRoles.${message.role}`),
-            icon: roleIcon(message.role),
-            tone: roleTone(message.role),
-            meta:
-              message.role === "compaction"
-                ? t("extensions.contextTrace.compactionInsertionPosition", {
-                    index: message.sourceIndex + 1,
-                  })
-                : t("extensions.contextTrace.contextMessageNumber", {
-                    index: message.sourceIndex + 1,
-                  }),
-            title: message.preview || undefined,
-            trailing: estimatedTokenLabel(message.estimatedTokens),
-            event: snapshot,
-            focus: {
-              type: "context-message",
-              sourceIndex: message.sourceIndex,
-              role: message.role,
-            },
-            loadTraceIds: [snapshot.traceId],
-          }))
+      ? messages !== undefined || conversationMessages.length > 0
+        ? conversationMessages.map((message) => {
+            const match = searchMatch(snapshot.traceId, `context-message:${message.sourceIndex}`);
+            return {
+              id: `conversation:${step.id}:${message.sourceIndex}`,
+              label:
+                message.role === "tool"
+                  ? t("extensions.contextTrace.tree.toolResult", {
+                      name: message.toolName ?? "—",
+                    })
+                  : message.role === "compaction"
+                    ? t("extensions.contextTrace.tree.compactionSummary")
+                    : t(`extensions.contextTrace.contextRoles.${message.role}`),
+              icon: roleIcon(message.role),
+              tone: roleTone(message.role),
+              meta:
+                match?.snippet ??
+                (message.role === "compaction"
+                  ? t("extensions.contextTrace.compactionInsertionPosition", {
+                      index: message.sourceIndex + 1,
+                    })
+                  : t("extensions.contextTrace.contextMessageNumber", {
+                      index: message.sourceIndex + 1,
+                    })),
+              searchText: message.text,
+              title: message.preview || undefined,
+              trailing: estimatedTokenLabel(message.estimatedTokens),
+              event: snapshot,
+              focus: {
+                type: "context-message" as const,
+                sourceIndex: message.sourceIndex,
+                role: message.role,
+              },
+              loadTraceIds: [snapshot.traceId],
+            };
+          })
         : [loadingNode(`conversation:${step.id}:loading`)]
       : [];
 
@@ -753,6 +834,10 @@ export function ContextTraceContextView({
   const turnNodes: readonly TraceTreeNode[] = turns.map((turn) => {
     const prompt = turn.prompt;
     const promptPreview = prompt?.promptPreview;
+    const promptMatch = searchMatch(prompt?.traceId, "prompt:user-prompt");
+    const promptDetail = readyEvent(detailByTraceId, prompt?.traceId);
+    const promptText =
+      promptDetail?.kind === "prompt-composition" ? promptDetail.detail.prompt.text : undefined;
     const children: TraceTreeNode[] = [];
     if (prompt) {
       children.push({
@@ -760,6 +845,8 @@ export function ContextTraceContextView({
         label: t("extensions.contextTrace.tree.userMessage"),
         icon: UserIcon,
         tone: EVENT_TONES.user,
+        meta: promptMatch?.snippet,
+        searchText: promptText ?? promptMatch?.snippet ?? promptPreview,
         event: prompt,
         focus: { type: "prompt-section", section: "user-prompt" },
         loadTraceIds: [prompt.traceId],
@@ -873,11 +960,16 @@ export function ContextTraceContextView({
       }
     }
     if (turn.finalOutput) {
+      const outputMatches = (searchMatches.get(turn.finalOutput.traceId) ?? []).filter(
+        (match) => match.type === "output-block",
+      );
       children.push({
         id: `final:${turn.id}`,
         label: t("extensions.contextTrace.tree.finalResponse"),
         icon: SparklesIcon,
         tone: EVENT_TONES.finalResponse,
+        meta: outputMatches[0]?.snippet,
+        searchText: outputMatches.map((match) => match.snippet).join(" "),
         trailing: tokenLabel(turn.finalOutput.usage?.output),
         event: turn.finalOutput,
         focus: { type: "trace-node", node: "final-response" },
@@ -901,7 +993,6 @@ export function ContextTraceContextView({
     };
   });
 
-  const normalizedQuery = query.trim().toLowerCase();
   const visibleNodes = filterTreeNodes(turnNodes, normalizedQuery);
   if (turns.length === 0) {
     return (
@@ -911,6 +1002,14 @@ export function ContextTraceContextView({
           {t("extensions.contextTrace.noContextSnapshots")}
         </p>
         <p>{t("extensions.contextTrace.noContextSnapshotsDescription")}</p>
+      </div>
+    );
+  }
+  if (visibleNodes.length === 0 && searching) {
+    return (
+      <div className="text-muted-foreground flex h-full items-center justify-center gap-2 p-8 text-center text-xs">
+        <DatabaseIcon className="size-4 animate-pulse" />
+        {t("extensions.contextTrace.loadingTreeData")}
       </div>
     );
   }
@@ -929,6 +1028,7 @@ export function ContextTraceContextView({
         expanded={expanded}
         focusRange={focusRange}
         forceExpanded={Boolean(normalizedQuery)}
+        query={normalizedQuery}
         selectedTraceId={selectedTraceId}
         selectedFocusKey={contextTraceDetailFocusKey(selectedFocus)}
         onLoadDetail={onLoadDetail}
