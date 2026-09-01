@@ -411,37 +411,8 @@
 }
 
 .aui-streamdown {
-  --workbench-streaming-text-accent: var(--color-blue-500);
   min-width: 0;
   overflow-wrap: anywhere;
-}
-
-.dark .aui-streamdown {
-  --workbench-streaming-text-accent: var(--color-blue-400);
-}
-
-@keyframes sd-workbench-streaming-text {
-  from {
-    color: var(--workbench-streaming-text-accent);
-    opacity: 0;
-  }
-  35% {
-    opacity: 1;
-  }
-  to {
-    color: inherit;
-    opacity: 1;
-  }
-}
-
-.aui-streamdown [data-sd-animate] {
-  animation: var(--sd-animation) var(--sd-duration) var(--sd-easing) var(--sd-delay, 0ms) both;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .aui-streamdown [data-sd-animate] {
-    animation: none;
-  }
 }
 
 .aui-streamdown :where(p) {

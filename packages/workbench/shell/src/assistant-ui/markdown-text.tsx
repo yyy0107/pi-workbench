@@ -59,13 +59,6 @@ interface InlineCitationContextValue {
 
 const InlineCitationContext = createContext<InlineCitationContextValue | null>(null);
 const mathPlugin = createMathPlugin({ singleDollarTextMath: true });
-const streamingTextAnimation = {
-  animation: "workbench-streaming-text",
-  duration: 500,
-  easing: "cubic-bezier(0.22, 1, 0.36, 1)",
-  sep: "char",
-  stagger: 4,
-} as const;
 const LATEX_DISPLAY_MATH = /\\{1,2}\[([\s\S]+?)\\{1,2}\]/g;
 
 function normalizeStreamdownMathDelimiters(text: string): string {
@@ -121,7 +114,6 @@ const MarkdownTextImpl = ({
   return (
     <StreamdownTextPrimitive
       {...props}
-      animated={streamingTextAnimation}
       className={cn(
         "aui-streamdown space-y-0 [&>*:first-child]:mt-0! [&>*:last-child]:mb-0!",
         inheritLineHeight &&
