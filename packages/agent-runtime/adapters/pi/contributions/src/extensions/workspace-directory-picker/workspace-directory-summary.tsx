@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuiState } from "@assistant-ui/react";
-import { CloudIcon, FolderPlusIcon, LoaderCircleIcon, MessageCircleIcon } from "lucide-react";
+import { FolderPlusIcon, LoaderCircleIcon } from "lucide-react";
 import { useCallback, useState } from "react";
 
 import { DropdownMenuItem, DropdownMenuSeparator } from "@workbench/shell/ui";
@@ -112,24 +112,6 @@ export function WorkspaceDirectorySummary(_context: ComposerSlotContext) {
                   <FolderPlusIcon aria-hidden="true" className="size-4 text-muted-foreground" />
                 )}
                 {t("extensions.workspaceDirectory.openFolder")}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="min-h-9 gap-2.5 rounded-lg px-2.5 text-sm"
-                onClick={() => {
-                  setError(false);
-                  setRemotePickerOpen(true);
-                }}
-              >
-                <CloudIcon aria-hidden="true" className="size-4 text-muted-foreground" />
-                {t("extensions.workspaceDirectory.remoteConnection")}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                disabled
-                title={t("extensions.workspaceDirectory.noProjectUnavailable")}
-                className="min-h-9 gap-2.5 rounded-lg px-2.5 text-sm"
-              >
-                <MessageCircleIcon aria-hidden="true" className="size-4 text-muted-foreground" />
-                {t("extensions.workspaceDirectory.noProject")}
               </DropdownMenuItem>
             </div>
           </div>
