@@ -4,8 +4,6 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { isRootProductionSourceReference } from "./source-ownership-ledger.mjs";
-
 const REPOSITORY_ROOT = fileURLToPath(new URL("../", import.meta.url));
 const BUILTIN_MODULES = new Set(
   builtinModules.flatMap((moduleName) => [moduleName, `node:${moduleName}`]),
@@ -262,44 +260,6 @@ function matchingPackageSourceDirectory({
   return packageDirectories.find((directory) => isInsideDirectory(resolved, directory));
 }
 
-function matchingRootProductionSource({
-  filename,
-  reference,
-  repositoryRelative = false,
-  repositoryRoot,
-  aliasRoot = repositoryRoot,
-}) {
-  const pathLike =
-    repositoryRelative ||
-    reference.startsWith(".") ||
-    reference.startsWith("/") ||
-    reference.startsWith("@/") ||
-    path.isAbsolute(reference);
-  if (!pathLike) return undefined;
-  const resolved = reference.startsWith("@/")
-    ? path.resolve(aliasRoot, reference.slice(2))
-    : path.resolve(repositoryRelative ? repositoryRoot : path.dirname(filename), reference);
-  if (isInsideDirectory(resolved, repositoryRoot)) {
-    const relative = path.relative(repositoryRoot, resolved).split(path.sep).join("/");
-    if (isRootProductionSourceReference(relative)) return relative;
-  }
-  if (!repositoryRelative && !reference.startsWith("@/") && !path.isAbsolute(reference)) {
-    return undefined;
-  }
-  if (reference.startsWith("@/") && path.resolve(aliasRoot) !== path.resolve(repositoryRoot)) {
-    return undefined;
-  }
-  const normalized = reference
-    .replace(/^@\//u, "")
-    .split(/[/\\]+/u)
-    .filter(Boolean);
-  for (let index = 0; index < normalized.length; index += 1) {
-    const candidate = normalized.slice(index).join("/");
-    if (isRootProductionSourceReference(candidate)) return candidate;
-  }
-  return undefined;
-}
-
 function sourceBoundaryViolations({
   appDirectories,
   appNames,
@@ -326,11 +286,6 @@ function sourceBoundaryViolations({
         `${location}: apps must not depend on another app source (${target}) via ${detail}`,
       );
     }
-  };
-  const reportRoot = (target, detail) => {
-    violations.push(
-      `${location}: workspace source must not depend on root production source (${target}) via ${detail}`,
-    );
   };
   const reportPackage = (targetDirectory, detail) => {
     if (!enforcePackageBoundary || targetDirectory === owner.directory) return;
@@ -363,13 +318,6 @@ function sourceBoundaryViolations({
         reportPackage(packageDirectory, `module specifier ${specifier}`);
         continue;
       }
-      const rootTarget = matchingRootProductionSource({
-        aliasRoot,
-        filename,
-        reference: specifier,
-        repositoryRoot,
-      });
-      if (rootTarget) reportRoot(rootTarget, `module specifier ${specifier}`);
     }
   }
   for (const { reference, repositoryRelative } of pathReferenceValues(source)) {
@@ -394,16 +342,6 @@ function sourceBoundaryViolations({
       if (packageDirectory) {
         reportPackage(packageDirectory, `source path ${reference}`);
         continue;
-      }
-      const rootTarget = matchingRootProductionSource({
-        aliasRoot,
-        filename,
-        reference,
-        repositoryRelative,
-        repositoryRoot,
-      });
-      if (rootTarget && SOURCE_EXTENSIONS.has(path.extname(rootTarget))) {
-        reportRoot(rootTarget, `source path ${reference}`);
       }
     }
   }

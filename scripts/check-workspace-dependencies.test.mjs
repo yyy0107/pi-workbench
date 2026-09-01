@@ -122,49 +122,6 @@ test("rejects workspace source internals and non-workspace dependency protocols"
   );
 });
 
-test("rejects package-to-root source bypasses without rejecting adjacent package sources", async (t) => {
-  const root = await fixture();
-  t.after(() => rm(root, { recursive: true, force: true }));
-  const longNamedImport = Array.from(
-    { length: 70 },
-    (_, index) => `rootSymbol${index} as localSymbol${index}`,
-  ).join(", ");
-
-  await packageFixture(
-    root,
-    "packages/contracts/consumer",
-    { name: "@workbench/consumer", private: true },
-    {
-      "src/index.ts": [
-        'import "@/components/root-alias";',
-        'import "../../../../components/relative-escape";',
-        `import { ${longNamedImport} } from "@/components/long-import";`,
-        'await readFile(path.join(repositoryRoot, "components", "filesystem-escape.tsx"));',
-        'import "./internal";',
-      ].join("\n"),
-      "src/internal.ts": "export const internal = true;\n",
-    },
-  );
-
-  const violations = await workspaceDependencyViolations(root);
-  const rootBoundaryViolations = violations.filter((violation) =>
-    violation.includes("workspace source must not depend on root production source"),
-  );
-  assert.equal(rootBoundaryViolations.length, 4, JSON.stringify(violations, null, 2));
-  for (const detail of [
-    "@/components/root-alias",
-    "../../../../components/relative-escape",
-    "@/components/long-import",
-    "components/filesystem-escape.tsx",
-  ]) {
-    assert.ok(rootBoundaryViolations.some((violation) => violation.includes(detail)));
-  }
-  assert.equal(
-    violations.some((violation) => violation.includes("./internal")),
-    false,
-  );
-});
-
 test("rejects imports of unknown Workbench packages", async (t) => {
   const root = await fixture();
   t.after(() => rm(root, { recursive: true, force: true }));

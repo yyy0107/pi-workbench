@@ -5,9 +5,9 @@ export {
   type PiBashToolFactoryInput,
 } from "../agent-runtime/pi-agent-host-bindings";
 export {
-  createPiAgentServerInstallation,
-  type PiAgentServerInstallationOptions,
-} from "../agent-runtime/pi-agent-server-installation";
+  createPiAgentServerAdapter,
+  type PiAgentServerAdapterDependencies,
+} from "../agent-runtime/pi-agent-server-adapter";
 export { CommandService, type CommandCatalogProtocol } from "../commands/command-service";
 export { shutdownPiPackageCatalogService } from "../packages/package-catalog-service";
 export {

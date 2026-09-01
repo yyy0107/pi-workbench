@@ -157,26 +157,6 @@ pnpm start
 Production mode does not watch source files or apply Fast Refresh. After changing source code, run
 `pnpm build` again and restart `pnpm start`.
 
-The repository also provides convenience production launchers:
-
-```powershell
-# Windows
-.\run_scripts\windows\web-build.cmd
-```
-
-```bash
-# Linux
-./run_scripts/linux/web-build.sh
-```
-
-The corresponding packaged Electron launchers are
-[`run_scripts/windows/electron-build.cmd`](./run_scripts/windows/electron-build.cmd) and
-[`run_scripts/linux/electron-build.sh`](./run_scripts/linux/electron-build.sh).
-
-The launchers resolve the repository from their own location, install the frozen lockfile, and then
-delegate to the same root commands. They never terminate an existing port owner; stop a conflicting
-service yourself or choose another `PORT` for the Web server.
-
 Only when Next.js Fast Refresh is still required, disable just the outer source-generation manager
 with:
 

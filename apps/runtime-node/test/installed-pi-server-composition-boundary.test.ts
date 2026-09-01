@@ -11,24 +11,20 @@ function count(source: string, expression: RegExp): number {
 test("the Runtime application owns the one installed Pi service graph", async () => {
   const source = await readFile(INSTALLED_PI_SERVER, "utf8");
 
-  assert.match(source, /createInstalledWorkbenchAgentServerAdapter/);
-  assert.match(source, /createPiAgentServerInstallation/);
+  assert.match(source, /createPiAgentServerAdapter/);
   assert.match(source, /CommandService/);
   assert.match(source, /createDefaultPiRpcRouteGroups/);
   assert.match(source, /createPiRpcRouter/);
   assert.match(source, /createPiRuntimeHttpRouter/);
   assert.match(source, /const commands = new CommandService\(\)/);
-  assert.match(
-    source,
-    /createInstalledWorkbenchAgentServerAdapter\(\s*createPiAgentServerInstallation\(\{ commands, host \}\),?\s*\)/,
-  );
+  assert.match(source, /createPiAgentServerAdapter\(\{ commands, host \}\)/);
   assert.match(source, /const routeGroups = createDefaultPiRpcRouteGroups\(\{/);
   assert.match(source, /const handleRpcPost = createPiRpcRouter\(\{/);
   assert.match(source, /handleHttpRequest: createInstalledPiRuntimeHttpHandler\(handleRpcPost\)/);
   assert.match(source, /return createPiRuntimeHttpRouter\(\{/);
 
   assert.equal(count(source, /new CommandService\(\)/g), 1);
-  assert.equal(count(source, /createPiAgentServerInstallation\(/g), 1);
+  assert.equal(count(source, /createPiAgentServerAdapter\(/g), 1);
   assert.equal(count(source, /createDefaultPiRpcRouteGroups\(/g), 1);
   assert.equal(count(source, /createPiRpcRouter\(/g), 1);
   assert.equal(count(source, /createPiRuntimeHttpRouter\(/g), 1);

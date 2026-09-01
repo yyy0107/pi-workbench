@@ -946,6 +946,3 @@ export function AttachmentUnderstandingSettingsItem({
     </div>
   );
 }
-
-/** @deprecated Use the attachment-neutral settings component name. */
-export const ImageUnderstandingSettingsItem = AttachmentUnderstandingSettingsItem;

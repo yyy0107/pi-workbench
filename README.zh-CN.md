@@ -150,25 +150,6 @@ pnpm start
 生产模式不会监听源码文件，也不会执行 Fast Refresh。修改源码后，需要重新运行 `pnpm build`，然后
 重启 `pnpm start`。
 
-仓库还提供了便捷的生产启动脚本：
-
-```powershell
-# Windows
-.\run_scripts\windows\web-build.cmd
-```
-
-```bash
-# Linux
-./run_scripts/linux/web-build.sh
-```
-
-对应的 Electron 打包启动脚本是
-[`run_scripts/windows/electron-build.cmd`](./run_scripts/windows/electron-build.cmd) 和
-[`run_scripts/linux/electron-build.sh`](./run_scripts/linux/electron-build.sh)。
-
-启动脚本从自身位置解析仓库目录，按 frozen lockfile 安装依赖，再委托给相同的根命令。它们不会终止已有
-端口 owner；若 Web 端口冲突，请自行停止对应服务或为 Web server 选择另一个 `PORT`。
-
 只有仍然需要 Next.js Fast Refresh 时，才建议仅关闭外层 source-generation manager：
 
 ```bash

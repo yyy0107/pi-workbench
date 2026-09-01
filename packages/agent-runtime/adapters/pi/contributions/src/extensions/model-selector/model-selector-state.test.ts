@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { SelectorModel } from "./model-selector-state";
+import type { SelectorModel } from "../../model-selector/model-selector-state";
 
 const {
   draftSelectorModels,
@@ -12,8 +12,8 @@ const {
   resolveDraftSelectorModel,
   sessionSelectorModels,
 } = (await import(
-  new URL("./model-selector-state.ts", import.meta.url).href
-)) as typeof import("./model-selector-state");
+  new URL("../../model-selector/model-selector-state.ts", import.meta.url).href
+)) as typeof import("../../model-selector/model-selector-state");
 const { createModelSelectorStore, parseRememberedModelSelection } = (await import(
   new URL("./model-selector-store.ts", import.meta.url).href
 )) as typeof import("./model-selector-store");

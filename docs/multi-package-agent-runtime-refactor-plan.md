@@ -39,20 +39,16 @@ source-first exports 同时声明 `types`、`import` 和同源 `default` 条件�
 `packages/**/src` 文件后，`pnpm dev` 包装路径和 Electron development 使用的直接 `tsx watch server.ts` 路径都检测到
 变更、重启并再次完成 ready/RPC warmup。
 
-本计划第一交付收口时，按原始范围约束，Next 应用仍位于仓库根；这不是该交付的未完成项。后续 Apps 计划现已在
-Phase 5 将它迁入 `apps/web`，并保留本计划完成的 Pi Client/public installation 边界；当前证据见
-[`migration/phase-5-web-shell-pi-evidence.md`](./migration/phase-5-web-shell-pi-evidence.md)。后续 Apps 计划的
-Phase 6 已以独立 Web/Runtime manifests 取代上述 single-server allowlist：Web external 精确为 `[next]`，Runtime external 精确为
+本计划第一交付收口时，按原始范围约束，Next 应用仍位于仓库根；这不是该交付的未完成项。后续迁移已将它移入
+`apps/web`，并保留本计划完成的 Pi Client/public installation 边界。独立 Web/Runtime manifests 已取代上述
+single-server allowlist：Web external 精确为 `[next]`，Runtime external 精确为
 `[@earendil-works/pi-coding-agent,node-pty,tree-sitter,tree-sitter-bash,ws]`，aggregate 为六个唯一 package；dynamic ownership
 另行精确记录为 `[@earendil-works/pi-ai,@earendil-works/pi-coding-agent]`。Runtime manifest 可精确列出 Pi README/docs/examples
 的 model-readable closure，其中允许 manifest-owned 的 TypeScript/test-shaped 资源，但它们不构成 startup、NFT 或
-dynamic-loader admission，closure 之外仍禁止这类资源。fresh staging、native/process/package 与 exact exception 证据见
-[`migration/phase-6-standalone-runtime-staging-evidence.md`](./migration/phase-6-standalone-runtime-staging-evidence.md)。
+dynamic-loader admission，closure 之外仍禁止这类资源。
 
-后续 Extension Platform、Host Server、Terminal、Execution 与 Shell capability extraction 的 fresh aggregate
-release evidence 由独立 Apps / Packages / Electron / Tauri 计划维护，见
-[`migration/phase-2-aggregate-release-evidence.md`](./migration/phase-2-aggregate-release-evidence.md)。该证据不回写或
-重新定义本计划已经完成的第一交付范围与历史 gate 度量。
+后续 Extension Platform、Host Server、Terminal、Execution 与 Shell capability extraction 不回写或重新定义本计划
+已经完成的第一交付范围与历史 gate 度量。
 
 ## 1. 结论与范围
 
@@ -797,9 +793,8 @@ pnpm --recursive --filter './packages/**' run test
 ### Phase 5：清理并迁移 Pi Client
 
 状态：已完成。`@workbench/agent-runtime-pi-client` 已拥有 browser transport、manager、assistant-ui projection 与 client
-installation；旧 browser implementation owner 已删除，应用只从 public exports 安装 Pi。后续 Apps 计划的 Phase 5 已将
-最终组合根迁入 `apps/web`，并证明 Shell 不反向依赖 Pi、Web SSR/standalone 不包含 Pi Server/SDK/native Runtime；见
-[`migration/phase-5-web-shell-pi-evidence.md`](./migration/phase-5-web-shell-pi-evidence.md)。
+installation；旧 browser implementation owner 已删除，应用只从 public exports 安装 Pi。最终组合根位于 `apps/web`，
+Shell 不反向依赖 Pi，Web SSR/standalone 不包含 Pi Server/SDK/native Runtime。
 
 先解耦，再移动：
 
@@ -838,7 +833,7 @@ installation；旧 browser implementation owner 已删除，应用只从 public 
 3. 在 Pi Server 测试中运行 Workbench server testkit；
 4. 生成所有 Pi 目录外 `runtime/pi/server` import 清单，为 Next routes、custom server 和 legacy routes 建立有限的
    `./installation`、`./http`、`./websocket`、`./legacy` public facades；
-5. 新增服务端应用组合点，由它创建唯一 `createPiAgentServerInstallation()`；protocol facade/route composition 接收
+5. 新增服务端应用组合点，由它创建唯一 `createPiAgentServerAdapter()`；protocol facade/route composition 接收
    Workbench server adapter，不再在内部隐藏创建具体 Runtime；
 6. 更新 Next route/custom server 组合根，只从 Pi Server 公共 subpath 或已安装的 server adapter 导入；
 7. 维护现有单例 session facade、registry、stream hub 和 resource lifecycle；
@@ -916,18 +911,14 @@ installation；旧 browser implementation owner 已删除，应用只从 public 
 
 ### Phase 8：后续相邻模块（独立项目）
 
-本阶段已经冻结为独立的
-[Workbench Apps / Packages / Electron / Tauri 架构迁移计划](./workbench-apps-packages-tauri-migration-plan.md)，后续在当前
-分支按阶段连续实施，不回写或扩大本计划已经完成的第一交付范围。
+本阶段已作为独立架构迁移完成，不回写或扩大本计划已经完成的第一交付范围。
 
 Agent Runtime 重构完成后，再按独立计划考虑：
 
 - `platform/extensions` → `extension-sdk` + `extension-host`，完成后再把应用层 Pi integration bundle 提升为
   `agent-runtime-pi-contributions` package；
 - `runtime/server/automations` → `automation-server`；
-- `runtime/server/executions` → `execution-server`（source/test/closure 与 Phase 2 aggregate release gate 已完成；
-  Execution/Automation coordinated shutdown 仍是 application-lifecycle residual，见
-  [`migration/phase-2-execution-server-evidence.md`](./migration/phase-2-execution-server-evidence.md)）；
+- `runtime/server/executions` → `execution-server`；
 - `runtime/server` 的 file persistence、RPC error、child-process environment、shutdown utilities → `server-core`；
 - `runtime/terminal` → `terminal-contracts` + `terminal-server`，其中直接导入 Pi coding-agent 的
   `interactive-bash-tool` 必须留作独立 `pi-terminal-tool` Adapter，不能泄漏进通用 Terminal；
@@ -936,11 +927,8 @@ Agent Runtime 重构完成后，再按独立计划考虑：
 - `components/workspace-file-tree` → `workspace-file-tree`；
 - `components/code-highlighting` → `code-highlighting`；
 - 大型 builtin extensions → `packages/extensions/*`；
-- Next 与 Runtime 已分别迁入 `apps/web` 和 `apps/runtime-node`；Electron → `apps/desktop-electron` 仍属于后续阶段。
-  未来静态桌面入口与 Tauri 分别为 `apps/desktop-renderer` + `apps/desktop-tauri`。Web relocation 证据见
-  [`migration/phase-5-web-shell-pi-evidence.md`](./migration/phase-5-web-shell-pi-evidence.md)，split Web/Runtime artifact 与
-  Electron staging evidence 见
-  [`migration/phase-6-standalone-runtime-staging-evidence.md`](./migration/phase-6-standalone-runtime-staging-evidence.md)。
+- Next 与 Runtime 已分别迁入 `apps/web` 和 `apps/runtime-node`；静态桌面入口与 Tauri 分别位于
+  `apps/desktop-renderer` 和 `apps/desktop-tauri`。
 
 Phase 2 Execution residual：Execution/Automation 的协调 shutdown 仍由应用 lifecycle 承担；本次 execution
 leaf 迁移不改变这项既有债务。

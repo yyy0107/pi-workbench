@@ -573,23 +573,6 @@ export function reconcileAttachmentRecognitionInMessages(
   );
 }
 
-/** @deprecated Use the attachment-recognition name. */
-export const imageRecognitionSnapshotFromMessage = attachmentRecognitionSnapshotFromMessage;
-/** @deprecated Use the attachment-recognition name. */
-export const imageRecognitionAssistantMessage = attachmentRecognitionAssistantMessage;
-/** @deprecated Use the attachment-recognition name. */
-export const isImageRecognitionOnlyAssistant = isAttachmentRecognitionOnlyAssistant;
-/** @deprecated Use the attachment-recognition name. */
-export const upsertImageRecognitionAssistantPart = upsertAttachmentRecognitionAssistantPart;
-/** @deprecated Use the attachment-recognition name. */
-export const reconcileImageRecognitionAssistantPart = reconcileAttachmentRecognitionAssistantPart;
-/** @deprecated Use the attachment-recognition name. */
-export const withoutImageRecognitionUserParts = withoutAttachmentRecognitionUserParts;
-/** @deprecated Use the attachment-recognition name. */
-export const upsertImageRecognitionInMessages = upsertAttachmentRecognitionInMessages;
-/** @deprecated Use the attachment-recognition name. */
-export const reconcileImageRecognitionInMessages = reconcileAttachmentRecognitionInMessages;
-
 export function workbenchComposerCommandResponseId(
   response: Pick<WorkbenchComposerCommandResponseDetails, "submissionId" | "commandId">,
 ): string {

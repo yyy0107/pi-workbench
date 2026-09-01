@@ -1,6 +1,6 @@
 # `@workbench/agent-runtime-server`
 
-Workbench 拥有、由具体 Agent Runtime 在宿主服务端实现的通用端口与安装边界。
+Workbench 拥有、由具体 Agent Runtime 在宿主服务端实现的通用端口。
 
 ## Public entries
 
@@ -10,7 +10,6 @@ Workbench 拥有、由具体 Agent Runtime 在宿主服务端实现的通用端�
 - `@workbench/agent-runtime-server/execution`
 - `@workbench/agent-runtime-server/threads`
 - `@workbench/agent-runtime-server/adapter`
-- `@workbench/agent-runtime-server/installation`
 
 `commands`、`execution` 与 `threads` 是 Workbench 的稳定 server port。执行端只强制实现
 `submit`/`cancel`，线程端只强制实现 catalog 与 CRUD；regeneration、resume、branches、queue、search

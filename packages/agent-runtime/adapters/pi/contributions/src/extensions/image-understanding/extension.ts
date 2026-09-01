@@ -75,6 +75,3 @@ export const attachmentUnderstandingExtension = defineExtension({
     return [section, item, renderer, legacyRenderer, presentation, legacyPresentation];
   },
 });
-
-/** @deprecated The extension id is stable, but new code should use the attachment-neutral export. */
-export const imageUnderstandingExtension = attachmentUnderstandingExtension;

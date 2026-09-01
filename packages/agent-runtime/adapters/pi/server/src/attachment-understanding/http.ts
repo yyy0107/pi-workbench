@@ -576,11 +576,6 @@ export function attachmentBytes(attachment: RecognizableAttachment): Uint8Array 
   return Buffer.from(dataUrl.slice(separator + 1), "base64");
 }
 
-/** @deprecated Use the attachment-neutral helpers. */
-export const imageDataUrl = attachmentDataUrl;
-/** @deprecated Use the attachment-neutral helpers. */
-export const imageBytes = attachmentBytes;
-
 function errorForStatus(status: number): ImageUnderstandingProviderError {
   if (status === 401 || status === 403) {
     return new ImageUnderstandingProviderError("provider-authentication-failed", { status });

@@ -9,7 +9,6 @@ import {
   type AttachmentRecognitionMethod as SharedAttachmentRecognitionMethod,
   type AttachmentRecognitionFailureDiagnostic,
   type AttachmentRecognitionResultFormat as SharedAttachmentRecognitionResultFormat,
-  type AttachmentRecognitionSnapshot,
   type AttachmentRecognitionStage as SharedAttachmentRecognitionStage,
   type AttachmentRecognitionStatus as SharedAttachmentRecognitionStatus,
   type AttachmentReferenceKind,
@@ -17,8 +16,6 @@ import {
 
 export const ATTACHMENT_RECOGNITION_DATA_PART_NAME = WORKBENCH_ATTACHMENT_RECOGNITION_DATA_NAME;
 export const LEGACY_IMAGE_RECOGNITION_DATA_PART_NAME = WORKBENCH_IMAGE_RECOGNITION_DATA_NAME;
-/** @deprecated Register the attachment-neutral data-part name for new messages. */
-export const IMAGE_RECOGNITION_DATA_PART_NAME = ATTACHMENT_RECOGNITION_DATA_PART_NAME;
 
 export const IMAGE_RECOGNITION_STATUSES = [
   "pending",
@@ -39,8 +36,6 @@ export type ImageRecognitionResultFormat = SharedAttachmentRecognitionResultForm
  * The renderer deliberately keeps operation identifiers and timestamps out of
  * its presentation model so they can never become accidental user-facing text.
  */
-export type ImageRecognitionDataPartV1 = AttachmentRecognitionSnapshot;
-
 export type ImageRecognitionErrorKind =
   | "authentication"
   | "configuration"

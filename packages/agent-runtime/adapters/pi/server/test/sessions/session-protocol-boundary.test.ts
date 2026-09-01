@@ -81,10 +81,7 @@ test("the session RPC facade depends on Pi protocol collaborators instead of the
 test("the session protocol facade owns concrete collaborators and late-bound workspaces", async () => {
   const source = await readFile(SESSION_PROTOCOL_FACADE, "utf8");
 
-  assert.doesNotMatch(
-    source,
-    /createPiAgentServerInstallation|createInstalledWorkbenchAgentServerAdapter/,
-  );
+  assert.doesNotMatch(source, /createPiAgentServerAdapter/);
   assert.match(source, /createPiSessionHistoryService/);
   assert.match(source, /createPiSessionModelContextService/);
   assert.match(source, /new SessionRpcService/);
@@ -106,10 +103,7 @@ test("core session transport routes depend on the protocol facade without reachi
 test("the route composition injects core session dependencies without handling methods", async () => {
   const source = await readFile(RPC_ROUTE_COMPOSITION, "utf8");
 
-  assert.doesNotMatch(
-    source,
-    /createInstalledWorkbenchAgentServerAdapter|createPiAgentServerInstallation/,
-  );
+  assert.doesNotMatch(source, /createPiAgentServerAdapter/);
   assert.match(
     source,
     /const sessionProtocolFacade = createPiSessionProtocolFacade\(\{ agent \}\)/,

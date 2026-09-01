@@ -1,3 +1,6 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
 import type { PiSessionSummary } from "@workbench/agent-runtime-pi-protocol/messages";
 import { PI_AGENT_RUNTIME_DESCRIPTOR } from "@workbench/agent-runtime-pi-shared/descriptor";
 import {
@@ -8,6 +11,10 @@ import { defineWorkbenchAgentServerAdapterContract } from "@workbench/agent-runt
 
 import { createPiAgentExecutionAdapter } from "../../src/agent-runtime/pi-agent-execution-adapter";
 import { createPiAgentServerAdapter } from "../../src/agent-runtime/pi-agent-server-adapter";
+import {
+  bindPiAgentHostBindings,
+  getPiAgentHostBindings,
+} from "../../src/agent-runtime/pi-agent-host-bindings";
 import { createPiAgentThreadStoreAdapter } from "../../src/agent-runtime/pi-agent-thread-store-adapter";
 
 const commandCases = (
@@ -43,6 +50,14 @@ const summary: PiSessionSummary = {
   waitingForUserInput: true,
   runTiming: { startedAt: 1_000, elapsedMs: 250 },
 };
+
+test("binds the selected Pi host while creating the adapter", (t) => {
+  const previous = getPiAgentHostBindings();
+  t.after(() => bindPiAgentHostBindings(previous));
+  const host = { createBashToolOverride: () => ({}) as never };
+  createPiAgentServerAdapter({ host });
+  assert.equal(getPiAgentHostBindings(), host);
+});
 
 defineWorkbenchAgentServerAdapterContract({
   name: "Pi",

@@ -255,9 +255,6 @@ importers:
 
   apps/web:
     dependencies:
-      '@assistant-ui/react':
-        specifier: 0.15.16
-        version: 0.15.16(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))
       '@streamdown/code':
         specifier: ^1.1.1
         version: 1.1.1(react@19.2.8)
@@ -279,9 +276,6 @@ importers:
       '@workbench/agent-runtime-pi-protocol':
         specifier: workspace:*
         version: link:../../packages/agent-runtime/adapters/pi/protocol
-      '@workbench/desktop-contracts':
-        specifier: workspace:*
-        version: link:../../packages/workbench/desktop-contracts
       '@workbench/extension-host':
         specifier: workspace:*
         version: link:../../packages/extension-platform/host
@@ -306,9 +300,6 @@ importers:
       '@workbench/shell':
         specifier: workspace:*
         version: link:../../packages/workbench/shell
-      '@workbench/terminal-contracts':
-        specifier: workspace:*
-        version: link:../../packages/terminal/contracts
       katex:
         specifier: ^0.16.47
         version: 0.16.47
@@ -330,9 +321,6 @@ importers:
       tw-shimmer:
         specifier: ^0.4.12
         version: 0.4.12(tailwindcss@4.3.3)
-      zustand:
-        specifier: ^5.0.14
-        version: 5.0.15(@types/react@19.2.18)(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))
     devDependencies:
       '@tailwindcss/postcss':
         specifier: ^4.3.3

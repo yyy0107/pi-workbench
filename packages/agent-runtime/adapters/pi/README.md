@@ -1080,7 +1080,6 @@ packages/agent-runtime/adapters/pi/
 └── server/src/
     ├── agent-runtime/
     │   ├── pi-agent-execution-adapter.ts
-    │   ├── pi-agent-server-installation.ts
     │   ├── pi-agent-thread-store-adapter.ts
     │   └── pi-agent-server-adapter.ts
     ├── core/
@@ -1217,8 +1216,7 @@ packages/agent-runtime/adapters/pi/
   不再直接调用这些 Pi 执行或线程存储函数。`CommandService` 保留 Pi wire DTO，同时实现通用
   `AgentCommandCatalogPort`。`pi-agent-server-adapter.test.ts` 以可注入的底层依赖运行通用
   `defineWorkbenchAgentServerAdapterContract()`；测试仍经过真实 Pi execution/thread adapter，不创建
-  第二个 session service；`pi-agent-server-installation.ts` 将同一个 Pi descriptor 与 adapter factory
-  绑定，session facade 通过通用 installation 边界实例化它并校验 ID，默认服务图保持不变；
+  第二个 session service；应用组合根直接创建唯一的 Pi adapter 并绑定 Host，默认服务图保持不变；
 - `server/src/sessions/pi-session-protocol-facade.ts` 是 Pi session protocol 的组合根：每个 server module
   generation 只组装一个长寿命 `SessionRpcService`，因此 requested session ID 的创建协调能覆盖多个
   独立 HTTP 请求；可被 HMR 替换的 `WorkspaceStore` 通过延迟解析端口按调用取得当前实现，Facade

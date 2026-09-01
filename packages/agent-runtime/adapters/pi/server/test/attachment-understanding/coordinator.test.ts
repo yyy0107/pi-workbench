@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { ImageUnderstandingSettingsValue } from "@workbench/agent-runtime-pi-protocol/rpc";
 import { getOcrAdapterPreset } from "@workbench/attachment-understanding-contracts/ocr-adapter";
-import { decideImageUnderstandingRoute } from "../../src/attachment-understanding/coordinator";
+import { decideAttachmentUnderstandingRoute } from "../../src/attachment-understanding/coordinator";
 
 const glmAdapterPreset = getOcrAdapterPreset("glm-ocr");
 
@@ -37,18 +37,18 @@ const settings = {
 
 test("routes no-image and native-capable auto submissions without preprocessing", () => {
   assert.deepEqual(
-    decideImageUnderstandingRoute({ settings, hasImages: false, modelSupportsImages: false }),
+    decideAttachmentUnderstandingRoute({ settings, hasImages: false, modelSupportsImages: false }),
     { kind: "none", reason: "no-attachments" },
   );
   assert.deepEqual(
-    decideImageUnderstandingRoute({ settings, hasImages: true, modelSupportsImages: true }),
+    decideAttachmentUnderstandingRoute({ settings, hasImages: true, modelSupportsImages: true }),
     { kind: "native", method: "native", reason: "auto-native" },
   );
 });
 
 test("preprocesses text-only auto models and every always-preprocess model", () => {
   assert.deepEqual(
-    decideImageUnderstandingRoute({ settings, hasImages: true, modelSupportsImages: false }),
+    decideAttachmentUnderstandingRoute({ settings, hasImages: true, modelSupportsImages: false }),
     {
       kind: "preprocess",
       method: "ocr",
@@ -58,7 +58,7 @@ test("preprocesses text-only auto models and every always-preprocess model", () 
     },
   );
   assert.deepEqual(
-    decideImageUnderstandingRoute({
+    decideAttachmentUnderstandingRoute({
       settings: { ...settings, routing: "always-preprocess" },
       hasImages: true,
       modelSupportsImages: true,
@@ -75,7 +75,7 @@ test("preprocesses text-only auto models and every always-preprocess model", () 
 
 test("keeps disabled explicit and sends native-only images directly to the selected model", () => {
   assert.deepEqual(
-    decideImageUnderstandingRoute({
+    decideAttachmentUnderstandingRoute({
       settings: { ...settings, routing: "disabled" },
       hasImages: true,
       modelSupportsImages: false,
@@ -83,7 +83,7 @@ test("keeps disabled explicit and sends native-only images directly to the selec
     { kind: "unsupported", reason: "recognition-disabled" },
   );
   assert.deepEqual(
-    decideImageUnderstandingRoute({
+    decideAttachmentUnderstandingRoute({
       settings: { ...settings, routing: "native-only" },
       hasImages: true,
       modelSupportsImages: false,
@@ -94,7 +94,7 @@ test("keeps disabled explicit and sends native-only images directly to the selec
 
 test("routes configured multimodal preprocessing and rejects missing provider configuration", () => {
   assert.deepEqual(
-    decideImageUnderstandingRoute({
+    decideAttachmentUnderstandingRoute({
       settings: { ...settings, engine: "multimodal" },
       hasImages: true,
       modelSupportsImages: false,
@@ -108,7 +108,7 @@ test("routes configured multimodal preprocessing and rejects missing provider co
     },
   );
   assert.deepEqual(
-    decideImageUnderstandingRoute({
+    decideAttachmentUnderstandingRoute({
       settings: {
         ...settings,
         ocrAdapter: { ...settings.ocrAdapter, credentialConfigured: false },
@@ -122,7 +122,7 @@ test("routes configured multimodal preprocessing and rejects missing provider co
 
 test("routes PDF documents only through a configured OCR provider", () => {
   assert.deepEqual(
-    decideImageUnderstandingRoute({
+    decideAttachmentUnderstandingRoute({
       settings,
       hasImages: false,
       hasDocuments: true,
@@ -137,7 +137,7 @@ test("routes PDF documents only through a configured OCR provider", () => {
     },
   );
   assert.deepEqual(
-    decideImageUnderstandingRoute({
+    decideAttachmentUnderstandingRoute({
       settings: { ...settings, routing: "native-only" },
       hasImages: false,
       hasDocuments: true,
@@ -146,7 +146,7 @@ test("routes PDF documents only through a configured OCR provider", () => {
     { kind: "unsupported", reason: "document-ocr-required" },
   );
   assert.deepEqual(
-    decideImageUnderstandingRoute({
+    decideAttachmentUnderstandingRoute({
       settings: { ...settings, engine: "multimodal" },
       hasImages: false,
       hasDocuments: true,

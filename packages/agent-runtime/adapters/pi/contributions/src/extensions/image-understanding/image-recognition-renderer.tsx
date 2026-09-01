@@ -320,6 +320,3 @@ export const AttachmentRecognitionRenderer: DataMessagePartComponent = ({ data }
     </div>
   );
 };
-
-/** @deprecated Use the attachment-neutral renderer name for new registrations. */
-export const ImageRecognitionRenderer = AttachmentRecognitionRenderer;

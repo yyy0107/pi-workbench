@@ -1,0 +1,156 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["import"],
+  "rules": {
+    "import/no-cycle": "error"
+  },
+  "overrides": [
+    {
+      "files": ["packages/agent-runtime/adapters/pi/contributions/src/**/*"],
+      "excludeFiles": ["**/*.test.*", "**/*.spec.*", "**/*.bench.*"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@/**", "next", "next/**"],
+                "message": "Pi contributions must stay independent from the app and Next.js."
+              },
+              {
+                "group": [
+                  "@workbench/extension-host/internal",
+                  "@workbench/extension-sdk/internal",
+                  "@workbench/agent-runtime-pi-server",
+                  "@workbench/agent-runtime-pi-server/**",
+                  "@earendil-works/pi*"
+                ],
+                "message": "Use the public Extension Platform and Pi client seams."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["packages/workbench/shell/src/**/*"],
+      "excludeFiles": ["**/*.test.*", "**/*.spec.*", "**/*.bench.*"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "@workbench/extension-host",
+                "allowImportNames": [
+                  "useCommandService",
+                  "useComposerCommandRegistry",
+                  "useExtensionErrorReporter",
+                  "useMainViewService",
+                  "usePanelRegistry",
+                  "usePanelService",
+                  "useSettingsRegistry"
+                ],
+                "message": "Shell may consume only the finite public host hooks."
+              }
+            ],
+            "patterns": [
+              {
+                "group": [
+                  "@/**",
+                  "@earendil-works/pi*",
+                  "@workbench/agent-runtime-pi*",
+                  "i18next",
+                  "i18next/**",
+                  "react-i18next",
+                  "react-i18next/**",
+                  "next-intl",
+                  "next-intl/**",
+                  "next",
+                  "next/**",
+                  "node:*",
+                  "node-pty",
+                  "tree-sitter",
+                  "tree-sitter-bash",
+                  "electron",
+                  "electron/**",
+                  "@electron/**",
+                  "tauri",
+                  "@tauri-apps/**"
+                ],
+                "message": "Shell must remain product-, framework-, and host-neutral."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["apps/web/src/**/*", "apps/desktop-renderer/src/**/*"],
+      "excludeFiles": ["**/*.test.*", "**/*.spec.*", "**/*.bench.*"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "@workbench/agent-runtime-pi-client",
+                  "@workbench/agent-runtime-pi-client/**",
+                  "@workbench/agent-runtime-pi-protocol",
+                  "@workbench/agent-runtime-pi-protocol/**",
+                  "@workbench/agent-runtime-pi-shared",
+                  "@workbench/agent-runtime-pi-shared/**"
+                ],
+                "message": "Install Pi once at the application composition root."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": [
+        "apps/desktop-renderer/src/desktop/desktop-workbench.tsx",
+        "apps/web/src/workbench/providers/installed-agent-runtime.tsx"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              "@workbench/agent-runtime-pi-protocol",
+              "@workbench/agent-runtime-pi-protocol/**",
+              "@workbench/agent-runtime-pi-shared",
+              "@workbench/agent-runtime-pi-shared/**"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["apps/web/src/workbench/providers/installed-workbench-settings.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "@workbench/agent-runtime-pi-client/workbench-settings",
+                "allowImportNames": ["createPiWorkbenchSettingsClient"],
+                "allowTypeImports": true,
+                "message": "Install only the settings client at this composition root."
+              }
+            ],
+            "patterns": [
+              "@workbench/agent-runtime-pi-protocol",
+              "@workbench/agent-runtime-pi-protocol/**",
+              "@workbench/agent-runtime-pi-shared",
+              "@workbench/agent-runtime-pi-shared/**"
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

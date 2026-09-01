@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { dirname, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
@@ -24,12 +24,6 @@ const COMPONENT_ROOTS = [
 ];
 const PLATFORM_API_ROOT = resolve(PROJECT_ROOT, "packages/extension-platform/sdk/src/api");
 const RIGHT_WORKSPACE_ROOTS = [resolve(SHELL_SOURCE_ROOT, "right-workspace")];
-const LEGACY_RIGHT_WORKSPACE_GENERIC_SOURCES = [
-  "components/right-workspace/workspace-context.tsx",
-  "components/right-workspace/workspace-surface-runtime-host.tsx",
-  "components/right-workspace/feedback/feedback-store.ts",
-  "components/right-workspace/feedback/feedback-types.ts",
-];
 const RUNTIME_ROOTS = [
   resolve(PROJECT_ROOT, "apps/runtime-node/src"),
   resolve(PROJECT_ROOT, "packages/agent-runtime"),
@@ -253,15 +247,6 @@ test("RightWorkspace package primitives do not import business extensions", () =
   );
 
   assert.deepEqual(violations, []);
-});
-
-test("RightWorkspace generic React and feedback owners have no legacy root source", () => {
-  assert.deepEqual(
-    LEGACY_RIGHT_WORKSPACE_GENERIC_SOURCES.filter((source) =>
-      existsSync(resolve(PROJECT_ROOT, source)),
-    ),
-    [],
-  );
 });
 
 test("generic components do not depend on concrete built-in extensions", () => {

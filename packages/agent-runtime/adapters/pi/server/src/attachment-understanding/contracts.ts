@@ -49,13 +49,6 @@ export interface AttachmentRecognitionProvider {
   recognize(request: AttachmentRecognitionRequest): Promise<AttachmentUnderstandingObservation[]>;
 }
 
-/** @deprecated Compatibility aliases for the original image-only provider contract. */
-export type ImageUnderstandingInputImage = RecognizableAttachment;
-export type ImageUnderstandingObservation = AttachmentUnderstandingObservation;
-export type ImageRecognitionObserver = AttachmentRecognitionObserver;
-export type ImageUnderstandingRecognitionRequest = AttachmentRecognitionRequest;
-export type ImageUnderstandingProvider = AttachmentRecognitionProvider;
-
 export type ImageUnderstandingProviderErrorCode =
   | "provider-aborted"
   | "provider-timeout"

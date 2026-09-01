@@ -212,9 +212,3 @@ export class AttachmentRecognitionLifecycle {
     return snapshot;
   }
 }
-
-/** @deprecated Compatibility aliases for integrations compiled against the image-only API. */
-export type ImageRecognitionLifecycleOptions = AttachmentRecognitionLifecycleOptions;
-export type ImageRecognitionProgressUpdate = AttachmentRecognitionProgressUpdate;
-export type ImageRecognitionSuccessUpdate = AttachmentRecognitionSuccessUpdate;
-export const ImageRecognitionLifecycle = AttachmentRecognitionLifecycle;

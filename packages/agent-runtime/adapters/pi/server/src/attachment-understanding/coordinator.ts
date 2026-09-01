@@ -94,9 +94,3 @@ export function decideAttachmentUnderstandingRoute(
   }
   return preprocessDecision(input.settings, "auto-text-only");
 }
-
-/** @deprecated Use the attachment-neutral coordinator name for new integrations. */
-export type ImageUnderstandingRouteDecision = AttachmentUnderstandingRouteDecision;
-/** @deprecated Use the attachment-neutral coordinator input name for new integrations. */
-export type DecideImageUnderstandingRouteInput = DecideAttachmentUnderstandingRouteInput;
-export const decideImageUnderstandingRoute = decideAttachmentUnderstandingRoute;

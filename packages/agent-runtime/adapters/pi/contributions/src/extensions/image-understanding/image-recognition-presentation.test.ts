@@ -3,7 +3,6 @@ import test from "node:test";
 
 const {
   ATTACHMENT_RECOGNITION_DATA_PART_NAME,
-  IMAGE_RECOGNITION_DATA_PART_NAME,
   IMAGE_RECOGNITION_STAGES,
   IMAGE_RECOGNITION_STATUSES,
   LEGACY_IMAGE_RECOGNITION_DATA_PART_NAME,
@@ -35,7 +34,6 @@ function payload(overrides: Record<string, unknown> = {}): Record<string, unknow
 
 test("uses an attachment-neutral data-part name while retaining the legacy image name", () => {
   assert.equal(ATTACHMENT_RECOGNITION_DATA_PART_NAME, "workbench.attachment-recognition");
-  assert.equal(IMAGE_RECOGNITION_DATA_PART_NAME, ATTACHMENT_RECOGNITION_DATA_PART_NAME);
   assert.equal(LEGACY_IMAGE_RECOGNITION_DATA_PART_NAME, "workbench.image-recognition");
 });
 

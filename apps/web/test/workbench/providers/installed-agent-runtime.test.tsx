@@ -11,12 +11,12 @@ import {
   RUNTIME_CONNECTION_PROTOCOL_VERSION,
   defineRuntimeConnection,
 } from "@workbench/host-contracts";
+import { createWorkspaceDirectoryStoreInstallation } from "@workbench/shell/workspace-directory-store";
 
 import {
   createInstalledAgentRuntime,
   createInstalledAgentRuntimeTransport,
 } from "@/workbench/providers/installed-agent-runtime";
-import { createWorkspaceDirectoryStoreInstallation } from "@/workbench/workspaces/workspace-directory-store";
 
 class FakeWebSocket implements RuntimeWebSocket {
   readyState = 0;

@@ -34,11 +34,6 @@
       "types": "./src/adapter.ts",
       "import": "./src/adapter.ts",
       "default": "./src/adapter.ts"
-    },
-    "./installation": {
-      "types": "./src/installation.ts",
-      "import": "./src/installation.ts",
-      "default": "./src/installation.ts"
     }
   },
   "scripts": {

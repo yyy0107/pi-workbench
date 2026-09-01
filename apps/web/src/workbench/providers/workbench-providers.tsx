@@ -13,7 +13,6 @@ import {
 import { installedWorkbenchExtensionPrefix } from "@/workbench/runtime-contributions/installed-workbench-extensions";
 import { MainViewHost } from "@/workbench/shell/main-view-host";
 
-import { DesktopTitleBarOverlaySync } from "../desktop/title-bar-overlay-sync";
 import { WorkbenchAssistantRuntimeProvider } from "./assistant-runtime-provider";
 import {
   createWorkbenchDraftPersistence,
@@ -46,7 +45,6 @@ export function WorkbenchProviders({ children }: Readonly<{ children: ReactNode 
       createDraftPersistence={createWorkbenchDraftPersistence}
       createThreadScrollPersistence={createWorkbenchThreadScrollPersistence}
       extensionPrefix={installedWorkbenchExtensionPrefix}
-      installationEffects={DesktopTitleBarOverlaySync}
       mainViewHost={MainViewHost}
       runningIndicatorCatalog={PRODUCT_RUNNING_INDICATORS}
       runtimeProvider={WorkbenchAssistantRuntimeProvider}

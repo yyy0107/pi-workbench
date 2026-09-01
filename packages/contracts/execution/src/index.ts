@@ -488,9 +488,6 @@ export interface ExecutionProtocol {
   resolveApproval(payload: WorkflowResolveApprovalPayload): Promise<WorkflowRunSummary>;
 }
 
-/** @deprecated Use ExecutionProtocol. Kept while the workflow.* wire protocol is compatible. */
-export type WorkflowProtocol = ExecutionProtocol;
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }

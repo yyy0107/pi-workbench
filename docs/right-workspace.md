@@ -87,11 +87,9 @@ Provider 当作响应式 prop adapter 使用。React Strict Effects replay 复�
 key replacement 才会 dispose。旧 Controller 与 feedback writer 随后稳定 fail-fast，React 环境只暴露
 selector hooks，不公开 raw environment 或 Store owner。
 
-`apps/web/src/components/right-workspace/right-workspace-provider.tsx` 只是 Web 产品组合 wrapper：它注入
-settings 与 legacy localStorage adapter、真实 catalog validator、`pi-workbench` application context 以及
-DefaultOpenerService factory。Prompt feedback 通过 Web 组合根的显式 adapter 绑定 installed Agent
-Runtime；Shell claim/store 不导入 Agent Runtime。Workspace Surface runtime host 同样由 Web 组合根注入
-extension error reporter，Shell 只依赖精确公开的 Extension Error Boundary leaf。
+`@workbench/shell/application` 直接组合通用 `RightWorkspaceProvider`；Web 的
+`apps/web/src/workbench/providers/workbench-providers.tsx` 只向 `WorkbenchApplicationShell` 注入应用标识、
+资源、运行时 Provider 与持久化能力。Shell claim/store 不导入具体 Agent Runtime。
 Runtime Host 使用 registry 每次注册产生的 frozen definition identity 作为本地挂载身份；同一个 kind
 被 dispose 后重新注册时会强制 remount 并清除旧 Error Boundary，即使 runtime component function 未变，
 也不需要 module-global registry。

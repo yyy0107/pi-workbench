@@ -7,7 +7,7 @@ import {
   type PiThinkingLevel,
 } from "@workbench/agent-runtime-pi-protocol/messages";
 
-import { reasoningEffortLabel } from "./reasoning-effort-label";
+import { reasoningEffortLabel } from "../../model-selector/reasoning-effort-label";
 import { createPiI18n } from "../../i18n";
 
 const EXPECTED_LABELS = {

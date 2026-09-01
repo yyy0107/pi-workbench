@@ -16,7 +16,6 @@ const ROOT_TEST_DIRECTORIES = [
   "i18n",
   "lib",
   "platform",
-  "run_scripts",
   "scripts",
   "services",
   "stores",

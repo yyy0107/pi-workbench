@@ -1,4 +1,4 @@
-# Phase 9 Tauri sidecar containment ADR
+# Tauri sidecar containment ADR
 
 Date: 2026-08-31
 Status: Accepted; Linux exact-PGID final-package gate passed, Windows/macOS native promotion gates
@@ -51,7 +51,7 @@ made safe by relying on `ExitRequested::prevent_exit`.
 
 ## Unix watchdog decision
 
-Phase 9 will add a private self-exec watchdog and accept it only as
+The Tauri host uses a private self-exec watchdog and accepts it only as
 **exact-runtime-process-group parent-death containment**.
 
 The ordering is part of the contract:
@@ -141,10 +141,8 @@ watchdog, Host, every observed same-PGID member, and old port disappear while an
 remains. This composed run, together with the construction and real-binary tests above, covers the
 exact-PGID parent-death contract without treating equivalent timing points as independent evidence.
 
-That final Debian normal and running hard-death evidence passed on Linux x64 glibc. Exact package
-hashes, Runtime tree measurements, generation ports, residue counts, decoy result, and the real PTY
-scope-out observation are recorded in
-[`phase-9-tauri-sidecar-evidence.md`](./phase-9-tauri-sidecar-evidence.md).
+The final Debian normal and running hard-death evidence passed on Linux x64 glibc. Exact package
+hashes and measurements remain available in repository history.
 
 ### Real PTY gate
 
@@ -174,8 +172,8 @@ shutdown, and restart smoke.
 
 ## References
 
-- [`apps/desktop-tauri/src-tauri/src/runtime_supervisor.rs`](../../apps/desktop-tauri/src-tauri/src/runtime_supervisor.rs)
-- [`apps/desktop-tauri/src-tauri/test-fixtures/runtime-supervisor-child.mjs`](../../apps/desktop-tauri/src-tauri/test-fixtures/runtime-supervisor-child.mjs)
+- [`apps/desktop-tauri/src-tauri/src/runtime_supervisor.rs`](../apps/desktop-tauri/src-tauri/src/runtime_supervisor.rs)
+- [`apps/desktop-tauri/src-tauri/test-fixtures/runtime-supervisor-child.mjs`](../apps/desktop-tauri/src-tauri/test-fixtures/runtime-supervisor-child.mjs)
 - [Linux kernel cgroup v2 documentation](https://docs.kernel.org/admin-guide/cgroup-v2.html)
 - [process-wrap 10.0.0](https://crates.io/crates/process-wrap/10.0.0)
 - [Tauri sidecar documentation](https://v2.tauri.app/develop/sidecar/)
