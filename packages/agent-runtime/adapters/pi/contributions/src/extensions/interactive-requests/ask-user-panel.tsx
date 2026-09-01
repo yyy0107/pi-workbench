@@ -38,6 +38,9 @@ interface AskUserPanelProps {
   onSubmit(answers: readonly AskUserAnswer[]): void;
 }
 
+const answerOptionClassName =
+  "focus-within:ring-ring/50 flex min-h-10 cursor-pointer items-start gap-2 rounded-lg border bg-background/55 px-2.5 py-1.5 transition-[border-color,background-color,box-shadow] focus-within:ring-2 has-disabled:cursor-not-allowed has-disabled:opacity-60";
+
 function isRequired(question: AskUserQuestion): boolean {
   const hasOptions = (question.options?.length ?? 0) > 0;
   return question.required ?? (hasOptions && !question.multiSelect);
@@ -196,71 +199,72 @@ function QuestionControl({
   const customLabelId = `${customInputId}-label`;
 
   return (
-    <div className="space-y-2">
-      <fieldset
-        className={cn(
-          "space-y-1.5 overflow-y-auto overscroll-contain pe-1 [scrollbar-gutter:stable]",
-          question.allowCustom ? "max-h-44" : "max-h-60",
-        )}
-        disabled={disabled}
-        aria-labelledby={questionLabelId}
-      >
-        <legend className="sr-only">{question.question}</legend>
-        {options.map((option, optionIndex) => {
-          const checked = draft.selected.includes(option.label);
-          const displayLabel = formatOptionLabel(question, option.label);
-          return (
-            <label
-              key={`${option.label}:${optionIndex}`}
-              className="has-checked:border-primary/45 has-checked:bg-primary/5 focus-within:ring-ring/50 flex min-h-10 cursor-pointer items-start gap-2 rounded-lg border bg-background/55 px-2.5 py-1.5 transition-[border-color,background-color,box-shadow] focus-within:ring-2 has-disabled:cursor-not-allowed has-disabled:opacity-60"
-            >
-              <input
-                type={question.multiSelect ? "checkbox" : "radio"}
-                name={`${groupName}-${questionIndex}`}
-                value={option.label}
-                checked={checked}
-                className="mt-0.5 size-4 shrink-0 accent-primary outline-none"
-                onChange={(event) => onOptionChange(option.label, event.currentTarget.checked)}
-              />
-              <span className="min-w-0 flex-1">
-                <span className="flex min-w-0 items-center gap-1.5 text-sm font-medium leading-5">
-                  <span className="min-w-0 truncate" title={displayLabel}>
-                    {displayLabel}
-                  </span>
-                  {option.recommended ? <AskUserRecommendedMark /> : null}
+    <fieldset
+      className="max-h-60 space-y-1.5 overflow-y-auto overscroll-contain pe-1 [scrollbar-gutter:stable]"
+      disabled={disabled}
+      aria-labelledby={questionLabelId}
+    >
+      <legend className="sr-only">{question.question}</legend>
+      {options.map((option, optionIndex) => {
+        const checked = draft.selected.includes(option.label);
+        const displayLabel = formatOptionLabel(question, option.label);
+        return (
+          <label
+            key={`${option.label}:${optionIndex}`}
+            className={cn(
+              answerOptionClassName,
+              "has-checked:border-primary/45 has-checked:bg-primary/5",
+            )}
+          >
+            <input
+              type={question.multiSelect ? "checkbox" : "radio"}
+              name={`${groupName}-${questionIndex}`}
+              value={option.label}
+              checked={checked}
+              className="mt-0.5 size-4 shrink-0 accent-primary outline-none"
+              onChange={(event) => onOptionChange(option.label, event.currentTarget.checked)}
+            />
+            <span className="min-w-0 flex-1">
+              <span className="flex min-w-0 items-center gap-1.5 text-sm font-medium leading-5">
+                <span className="min-w-0 truncate" title={displayLabel}>
+                  {displayLabel}
                 </span>
-                {option.description ? (
-                  <span className="text-muted-foreground block text-xs leading-4">
-                    {option.description}
-                  </span>
-                ) : null}
+                {option.recommended ? <AskUserRecommendedMark /> : null}
               </span>
-            </label>
-          );
-        })}
-      </fieldset>
+              {option.description ? (
+                <span className="text-muted-foreground block text-xs leading-4">
+                  {option.description}
+                </span>
+              ) : null}
+            </span>
+          </label>
+        );
+      })}
 
       {question.allowCustom ? (
-        <div className="space-y-1">
-          <label
-            id={customLabelId}
-            htmlFor={customInputId}
-            className="text-muted-foreground block text-xs font-medium"
-          >
+        <label
+          htmlFor={customInputId}
+          className={cn(
+            answerOptionClassName,
+            "flex-col gap-1",
+            draft.custom.trim() && "border-primary/45 bg-primary/5",
+          )}
+        >
+          <span id={customLabelId} className="text-sm font-medium leading-5">
             {t("extensions.interactiveRequests.customAnswerLabel")}
-          </label>
+          </span>
           <Textarea
             id={customInputId}
             value={draft.custom}
             disabled={disabled}
             aria-labelledby={`${questionLabelId} ${customLabelId}`}
             placeholder={t("extensions.interactiveRequests.customAnswerPlaceholder")}
-            className="min-h-14 max-h-24 resize-y rounded-lg bg-background/70 py-2 text-sm"
+            className="min-h-14 max-h-24 resize-y border-0 [background:transparent] p-0 text-sm"
             onChange={(event) => onCustomChange(event.currentTarget.value)}
           />
-        </div>
+        </label>
       ) : null}
-    </div>
+    </fieldset>
   );
 }
 
