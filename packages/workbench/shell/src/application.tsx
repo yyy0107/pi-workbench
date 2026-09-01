@@ -16,6 +16,7 @@ import {
 } from "react";
 
 import { readAgentThreadWorkspace } from "@workbench/agent-runtime-client/extras";
+import { useWorkbenchAgentThreadSnapshot } from "@workbench/agent-runtime-client/context";
 import {
   WorkbenchAgentRuntimeInstallationHost,
   type WorkbenchAgentRuntimeInstallation,
@@ -262,9 +263,18 @@ export function createMainViewWorkspaceContext(
 
 export interface ActiveConversationWorkspace {
   readonly context: WorkspaceContext;
+  readonly isPinned: boolean;
   readonly mainThreadId?: string;
   readonly threadScopeId?: string;
   readonly workspaceId?: string;
+}
+
+export function syncConversationWorkspaceSelection(
+  workspaceId: string | undefined,
+  isPinned: boolean,
+  revealWorkspace: (workspaceId: string) => void,
+): void {
+  if (workspaceId && !isPinned) revealWorkspace(workspaceId);
 }
 
 /** Bind one product workspace selection to Shell and runtime contributions. */
@@ -293,8 +303,12 @@ export function ActiveWorkspaceRuntimeBindings({
   );
 
   useEffect(() => {
-    if (conversation.workspaceId) revealWorkspace(conversation.workspaceId);
-  }, [conversation.workspaceId, revealWorkspace]);
+    syncConversationWorkspaceSelection(
+      conversation.workspaceId,
+      conversation.isPinned,
+      revealWorkspace,
+    );
+  }, [conversation.isPinned, conversation.workspaceId, revealWorkspace]);
 
   useLayoutEffect(() => {
     setContext(resolvedContext);
@@ -366,6 +380,7 @@ function useActiveConversationWorkspace(applicationId: string) {
   const runtimeWorkspace = useAuiState((state) => readAgentThreadWorkspace(state.thread.extras));
   const workspace = runtimeThreadId === mainThreadId ? runtimeWorkspace : undefined;
   const threadScopeId = mainThread?.remoteId ?? mainThread?.externalId ?? mainThreadId;
+  const threadSnapshot = useWorkbenchAgentThreadSnapshot(threadScopeId);
   const workspaceId = workspace?.id;
   const rootPath = workspace?.rootPath;
   const context = useMemo(
@@ -378,7 +393,13 @@ function useActiveConversationWorkspace(applicationId: string) {
     [applicationId, rootPath, threadScopeId, workspaceId],
   );
 
-  return { context, mainThreadId, threadScopeId, workspaceId } as const;
+  return {
+    context,
+    isPinned: threadSnapshot.isPinned,
+    mainThreadId,
+    threadScopeId,
+    workspaceId,
+  } as const;
 }
 
 function InstalledActiveWorkspaceRuntimeBindings({

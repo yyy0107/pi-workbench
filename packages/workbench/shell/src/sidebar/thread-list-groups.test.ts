@@ -40,7 +40,7 @@ test("groups each conversation once for scoped sidebar rendering", () => {
   assert.deepEqual(groups.ungroupedThreadIds, ["ungrouped"]);
 });
 
-test("reports workspaces with running conversations, including pinned and draft conversations", () => {
+test("reports workspaces with unpinned running conversations", () => {
   const groups = groupSidebarThreads({
     threadIds: ["pinned", "draft", "idle", "ungrouped"],
     states: new Map([
@@ -53,5 +53,5 @@ test("reports workspaces with running conversations, including pinned and draft 
     draftWorkspaceId: "two",
   });
 
-  assert.deepEqual(groups.runningWorkspaceIds, new Set(["one", "two"]));
+  assert.deepEqual(groups.runningWorkspaceIds, new Set(["two"]));
 });

@@ -32,12 +32,12 @@ export function groupSidebarThreads({
       isMainThread: threadId === mainThreadId,
       draftWorkspaceId,
     });
-    if (state?.isRunning && workspaceId) runningWorkspaceIds.add(workspaceId);
-
     if (state?.isPinned) {
       pinnedThreadIds.push(threadId);
       continue;
     }
+
+    if (state?.isRunning && workspaceId) runningWorkspaceIds.add(workspaceId);
 
     if (!workspaceId) {
       ungroupedThreadIds.push(threadId);

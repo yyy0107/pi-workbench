@@ -78,8 +78,10 @@ export function WorkbenchThreadListItem({
         .reset()
         .catch((error) => console.error("[workbench] failed to discard empty conversation", error));
     }
-    if (workspaceId) activateWorkspace(workspaceId);
-    else deactivateWorkspace();
+    if (!isPinned) {
+      if (workspaceId) activateWorkspace(workspaceId);
+      else deactivateWorkspace();
+    }
     if (navigation.currentConversationId !== routeThreadId) {
       navigation.openConversation(routeThreadId);
     }
@@ -140,7 +142,7 @@ export function WorkbenchThreadListItem({
           <span className="absolute start-0 top-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500" />
         </span>
       ) : null}
-      {isRunning ? (
+      {isRunning && !isPinned ? (
         <RunningThreadIndicator
           id={runningIndicatorId}
           className="pointer-events-none absolute start-2 top-1/2 -translate-y-1/2"
@@ -159,20 +161,42 @@ export function WorkbenchThreadListItem({
       >
         <span
           className={cn(
-            "min-w-0 flex flex-1 translate-y-[var(--control-text-offset-y)] items-center leading-[var(--control-text-line-height)] md:group-hover/thread:pe-[var(--sidebar-action-pair-reserved-space)] md:group-has-[:focus-visible]/thread:pe-[var(--sidebar-action-pair-reserved-space)]",
+            "min-w-0 flex flex-1 items-center leading-[var(--control-text-line-height)] md:group-hover/thread:pe-[var(--sidebar-action-pair-reserved-space)] md:group-has-[:focus-visible]/thread:pe-[var(--sidebar-action-pair-reserved-space)]",
             !waitingForUserInput && "pe-[var(--sidebar-action-touch-reserved-space)] md:pe-0",
           )}
         >
-          <span className="min-w-0 truncate">{title || t("workbench.sidebar.newThread")}</span>
           {isAutomationTask ? (
             <span
               title={t("workbench.sidebar.automationTask")}
-              className="text-muted-foreground ms-1.5 inline-flex shrink-0"
+              className={cn(
+                "text-muted-foreground inline-flex shrink-0",
+                isPinned ? "ms-[calc(var(--icon-frame-size-compact)*-1)] me-2" : "me-1.5",
+              )}
             >
-              <Clock3Icon aria-hidden="true" className="size-[var(--icon-size-sm)]" />
+              <Clock3Icon aria-hidden="true" className="size-[var(--icon-size-md)]" />
               <span className="sr-only">{t("workbench.sidebar.automationTask")}</span>
             </span>
           ) : null}
+          {isRunning && isPinned ? (
+            <RunningThreadIndicator
+              id={runningIndicatorId}
+              className={cn(
+                "pointer-events-none me-2 size-[var(--icon-size-md)] shrink-0",
+                !isAutomationTask && "ms-[calc(var(--icon-frame-size-compact)*-1)]",
+              )}
+            />
+          ) : null}
+          <span
+            className={cn(
+              "min-w-0 translate-y-[var(--control-text-offset-y)] truncate",
+              isPinned &&
+                !isAutomationTask &&
+                !isRunning &&
+                "ms-[calc(var(--icon-frame-size-compact)*-1)]",
+            )}
+          >
+            {title || t("workbench.sidebar.newThread")}
+          </span>
         </span>
         {waitingForUserInput ? (
           <span
