@@ -283,6 +283,35 @@ test("the last switched model is shared with subsequent drafts", () => {
   });
 });
 
+test("the persisted selection replaces a draft default created before hydration", async () => {
+  const load = deferred<{
+    modelSelector: { modelId: string; reasoningEffort: string };
+  }>();
+  const store = createModelSelectorStore({
+    load: () => load.promise,
+    async update() {},
+  });
+
+  const hydration = store.getState().hydrate();
+  store.getState().setDraftSelection("draft", {
+    modelId: searchableModels[0]!.id,
+    reasoningEffort: "low",
+  });
+  load.resolve({
+    modelSelector: {
+      modelId: searchableModels[1]!.id,
+      reasoningEffort: "high",
+    },
+  });
+  await hydration;
+
+  assert.deepEqual(store.getState().draftSelections, {});
+  assert.deepEqual(store.getState().rememberedSelection, {
+    modelId: searchableModels[1]!.id,
+    reasoningEffort: "high",
+  });
+});
+
 test("does not migrate, clean up, or set state after a disposed installation resolves hydration", async () => {
   const load = deferred<Record<string, never>>();
   const writes: unknown[] = [];

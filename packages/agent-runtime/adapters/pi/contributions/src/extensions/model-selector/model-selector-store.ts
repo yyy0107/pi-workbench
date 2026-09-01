@@ -95,7 +95,10 @@ export function createModelSelectorStore(settings: WorkbenchSettingsPort): Model
         if (closed) return;
         if (preferences.modelSelector) {
           if (!closed && rememberedSelectionRevision === hydrationRevision) {
-            store.setState({ rememberedSelection: preferences.modelSelector });
+            store.setState({
+              draftSelections: {},
+              rememberedSelection: preferences.modelSelector,
+            });
           }
           if (closed) return;
           removeLegacyRememberedSelection();
