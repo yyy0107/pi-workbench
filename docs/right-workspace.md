@@ -61,7 +61,11 @@ context.workspace.register({
 ## 核心生命周期
 
 所有标签写操作仍经过 `RightWorkspaceController`：`open`、`reveal`、`focus`、`close`、
-`closeOthers`、`closeAll` 和 `update`。布局写操作同样只经过 Controller，包括
+`closeOthers`、`closeAll` 和 `update`。草稿线程获得远端 ID 时，root binding 只调用一次
+`promoteThreadScope(fromThreadKey, nextContext)`；目标 scope 从 `nextContext.threadId` 派生，核心在同一
+状态提交中重算 contribution-owned resource key 并处理不允许重复的碰撞，保留 live draft instance 的
+ID/脏状态/参数。若 contribution 暂未注册，则只迁移 scope 并保留 opaque key，不猜测业务去重规则。
+布局写操作同样只经过 Controller，包括
 `setWorkspaceOpen`、`setAuxiliaryOpen` 和尺寸更新。关闭工作区或辅助区只隐藏布局，不删除实例。
 
 核心不会根据 `kind` 判断业务作用域，也不会导入任何具体 Surface/Service。扩展未注册时，持久化实例
@@ -69,8 +73,28 @@ context.workspace.register({
 激活时序或临时禁用扩展导致用户布局丢失。
 
 布局元数据（包括辅助区显隐与宽度）保存在 `~/.pi/agent/workbench-settings.json` 的
-`preferences.rightWorkspace`。旧浏览器键 `pi-workbench:right-workspace:v1` 会在首次 hydrate 时导入并删除。React 组件、Service、WebSocket、Browser
-Session、文件缓冲区和其他不可序列化资源不进入核心 Store。
+`preferences.rightWorkspace`。只有在权威 settings 读取成功并确认该字段缺失后，旧浏览器键
+`pi-workbench:right-workspace:v1` 才会作为迁移输入；归一化 settings 写入成功后才清理旧键。
+settings 读取、写入或旧键删除失败都会保留迁移线索，留待新的 Provider installation 重试，未知远端
+或未知版本的持久化结构不会被默认快照覆盖。同一浏览器 realm 只允许一个安装承担旧键迁移；现代
+settings、Store 与 Controller 本身仍按 Provider installation 隔离。React 组件、Service、WebSocket、
+Browser Session、文件缓冲区和其他不可序列化资源不进入核心 Store。
+
+`@workbench/shell/right-workspace/react` 的通用 `RightWorkspaceProvider` 在一次挂载中固定捕获
+persistence、validator、initial context、WorkspaceSurfaceRegistry 与 opener factory。它们属于不可变
+installation 输入；若上层更换任一 owner，必须通过 keyed remount 建立新 installation，不能把该
+Provider 当作响应式 prop adapter 使用。React Strict Effects replay 复用已提交 installation；真实卸载或
+key replacement 才会 dispose。旧 Controller 与 feedback writer 随后稳定 fail-fast，React 环境只暴露
+selector hooks，不公开 raw environment 或 Store owner。
+
+`apps/web/src/components/right-workspace/right-workspace-provider.tsx` 只是 Web 产品组合 wrapper：它注入
+settings 与 legacy localStorage adapter、真实 catalog validator、`pi-workbench` application context 以及
+DefaultOpenerService factory。Prompt feedback 通过 Web 组合根的显式 adapter 绑定 installed Agent
+Runtime；Shell claim/store 不导入 Agent Runtime。Workspace Surface runtime host 同样由 Web 组合根注入
+extension error reporter，Shell 只依赖精确公开的 Extension Error Boundary leaf。
+Runtime Host 使用 registry 每次注册产生的 frozen definition identity 作为本地挂载身份；同一个 kind
+被 dispose 后重新注册时会强制 remount 并清除旧 Error Boundary，即使 runtime component function 未变，
+也不需要 module-global registry。
 
 Surface 的 `title` 与 `statusMessage` 以 `LocalizableText` 持久化：内置界面文案保存
 `defineMessage(...)` 描述符并由 Host 在渲染时解析，文件名、URL、用户/资源标题以及旧快照继续保存为
@@ -94,7 +118,8 @@ Explorer
 
 File contribution 在同步 `setup()` 中通过 `context.openers.register(...)` 注册 handler。执行时
 Service 注入通用 Surface operations，因此 setup 不需要 React Hook；Explorer 不知道 File 的
-React component、store 或 surface kind。共享文件能力位于 `services/workspace-file-service.ts`，
+React component、store 或 surface kind。Pi 文件能力位于
+`packages/agent-runtime/adapters/pi/contributions/src/services/workspace-file-service.ts`，
 并以 Workspace scope + path 隔离缓冲与订阅；后续替换为 App Server-backed adapter 时不需要改
 Explorer/File 的组件边界。
 
@@ -107,7 +132,8 @@ Explorer/File 的组件边界。
 - `workbench.workspace-artifact`
 - `workbench.terminal`
 
-它们在 `extensions/enabled-extensions.ts` 静态启用。各自拥有 Surface、菜单入口、领域 Service、
-Runtime Bridge 和 `extensions.*` i18n 文案；禁用任一扩展不影响核心聊天或其他 Surface 能力。
+它们由 `apps/web/src/workbench/runtime-contributions/installed-workbench-extensions.ts` 从 Shell 与 Pi
+contribution 的公开 extension groups 静态组合。各自拥有 Surface、菜单入口、领域 Service、Runtime
+Bridge 和 `extensions.*` i18n 文案；禁用任一扩展不影响核心聊天或其他 Surface 能力。
 Surface 实现模块在实例首次激活时懒加载，切走后按 `keep-alive` 保留；注册元数据与轻量 Runtime
 bridge 仍在启动时同步激活。

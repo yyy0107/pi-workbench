@@ -1,25 +1,11 @@
 import assert from "node:assert/strict";
-import { registerHooks } from "node:module";
 import test from "node:test";
 
 import { AgentCommandCatalogError } from "@workbench/agent-runtime-server/commands";
 
-const moduleHooks = registerHooks({
-  resolve(specifier, context, nextResolve) {
-    if (
-      specifier.startsWith(".") &&
-      !/\.[^/]+$/.test(specifier) &&
-      context.parentURL?.includes("/runtime/pi/")
-    ) {
-      return nextResolve(`${specifier}.ts`, context);
-    }
-    return nextResolve(specifier, context);
-  },
-});
 const { CommandService, CommandServiceError } = (await import(
   new URL("../../src/commands/command-service.ts", import.meta.url).href
 )) as typeof import("../../src/commands/command-service");
-moduleHooks.deregister();
 
 test("lists supported built-ins, extensions, prompt templates, and skills", async () => {
   const requestedSessionIds: string[] = [];

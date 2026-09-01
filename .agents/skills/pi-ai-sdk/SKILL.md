@@ -1,6 +1,6 @@
 ---
 name: pi-ai-sdk
-description: Use @earendil-works/pi-ai in this Workbench repository for model/provider collections, authentication, chat or image requests, streaming events, tool schemas, partial tool-call JSON, and Pi Messages wire events. Use when code imports pi-ai, changes runtime/pi model catalog or streamed-message handling, builds a custom provider, or needs version-correct Pi AI types. Do not use for coding-agent sessions or extensions unless the task also touches Pi AI; use the pi-coding-agent-sdk skill for that layer.
+description: Use @earendil-works/pi-ai in this Workbench repository for model/provider collections, authentication, chat or image requests, streaming events, tool schemas, partial tool-call JSON, and Pi Messages wire events. Use when code imports pi-ai, changes the Pi adapter model catalog or streamed-message handling, builds a custom provider, or needs version-correct Pi AI types. Do not use for coding-agent sessions or extensions unless the task also touches Pi AI; use the pi-coding-agent-sdk skill for that layer.
 ---
 
 # Pi AI SDK
@@ -10,7 +10,7 @@ Use Pi AI as the provider-neutral model, message, streaming, tool-schema, authen
 ## Load the right context
 
 1. Read the repository `AGENTS.md` and the nearest instructions for every file being changed.
-2. Read `runtime/pi/README.md` completely before changing model, provider, auth, session stream, attachment, or browser transport behavior.
+2. Read `packages/agent-runtime/adapters/pi/README.md` completely before changing model, provider, auth, session stream, attachment, or browser transport behavior.
 3. Read [references/source-routing.md](references/source-routing.md) before choosing an import. Resolve the installed package version and export map first.
 4. Read [references/models-providers-auth.md](references/models-providers-auth.md) for model lookup, provider composition, custom providers, dynamic catalogs, authentication, or reasoning options.
 5. Read [references/messages-streams-tools-images.md](references/messages-streams-tools-images.md) for contexts, message/event protocols, reducers, tool calls, image input, or image generation.

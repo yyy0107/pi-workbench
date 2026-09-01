@@ -11,13 +11,11 @@ const TYPESCRIPT_TEST_LOADER = fileURLToPath(
 const ROOT_TEST_DIRECTORIES = [
   "app",
   "components",
-  "electron",
   "extensions",
   "hooks",
   "i18n",
   "lib",
   "platform",
-  "runtime",
   "run_scripts",
   "scripts",
   "services",

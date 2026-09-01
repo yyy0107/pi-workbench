@@ -9,18 +9,20 @@ import { createPiAgentThreadStore } from "./thread-store";
 import { usePiThreadRuntime } from "./thread-runtime";
 import { searchPiWorkspaceFiles } from "../transport/api";
 
-const PI_WORKSPACE_FILES: NonNullable<WorkbenchAgentRuntimeAdapter["workspaceFiles"]> = {
-  async search({ signal, ...payload }) {
-    const result = await searchPiWorkspaceFiles(payload, { signal });
-    return result.entries.map(({ relativePath }) => ({ relativePath }));
-  },
-};
-
 /** Create the only currently installed Workbench Agent Runtime implementation. */
 export function createPiAgentRuntimeAdapter(
   manager: PiSessionManager,
 ): WorkbenchAgentRuntimeAdapter {
   const threadStore = createPiAgentThreadStore(manager);
+  const workspaceFiles: NonNullable<WorkbenchAgentRuntimeAdapter["workspaceFiles"]> = {
+    async search({ signal, ...payload }) {
+      const result = await searchPiWorkspaceFiles(payload, {
+        ...manager.rpcTransportOptions,
+        signal,
+      });
+      return result.entries.map(({ relativePath }) => ({ relativePath }));
+    },
+  };
 
   function useThreadRuntime() {
     return usePiThreadRuntime(manager);
@@ -36,7 +38,7 @@ export function createPiAgentRuntimeAdapter(
     useThreadRuntime,
     useCommandCatalog,
     threadStore,
-    workspaceFiles: PI_WORKSPACE_FILES,
+    workspaceFiles,
     getThreadListRevision: manager.getThreadListRevision,
     subscribeThreadList: manager.subscribeThreadList,
   };

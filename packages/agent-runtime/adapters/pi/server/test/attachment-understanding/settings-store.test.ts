@@ -1,22 +1,9 @@
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
-import { registerHooks } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-const moduleHooks = registerHooks({
-  resolve(specifier, context, nextResolve) {
-    if (
-      specifier.startsWith(".") &&
-      !/\.[^/]+$/.test(specifier) &&
-      context.parentURL?.includes("/runtime/pi/")
-    ) {
-      return nextResolve(`${specifier}.ts`, context);
-    }
-    return nextResolve(specifier, context);
-  },
-});
 const {
   DEFAULT_IMAGE_UNDERSTANDING_SETTINGS,
   ImageUnderstandingSettingsStore,
@@ -24,7 +11,6 @@ const {
 } = (await import(
   new URL("../../src/attachment-understanding/settings-store.ts", import.meta.url).href
 )) as typeof import("../../src/attachment-understanding/settings-store");
-moduleHooks.deregister();
 
 async function fixture(t: test.TestContext) {
   const directory = await mkdtemp(path.join(tmpdir(), "workbench-image-settings-"));

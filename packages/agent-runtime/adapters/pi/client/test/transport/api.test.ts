@@ -1,23 +1,11 @@
 import assert from "node:assert/strict";
-import { registerHooks } from "node:module";
 import test from "node:test";
 
-const moduleHooks = registerHooks({
-  resolve(specifier, context, nextResolve) {
-    if (
-      specifier.startsWith(".") &&
-      !/\.[^/]+$/.test(specifier) &&
-      context.parentURL?.includes("/runtime/pi/")
-    ) {
-      return nextResolve(`${specifier}.ts`, context);
-    }
-    return nextResolve(specifier, context);
-  },
-});
 const {
   callPiRpc,
   cancelPiModelProviderLogin,
   configurePiModelProvider,
+  createPiHttpTransport,
   deletePiRpcSession,
   describeInstalledPiPackage,
   describePiPackageCatalog,
@@ -26,6 +14,7 @@ const {
   describePiWorkspaceFile,
   describePiSettings,
   describeWorkbenchSettings,
+  fetchPiRpcSessionAttachment,
   getPiModelContextWindow,
   getPiModelProviderLogin,
   installPiPackage,
@@ -56,14 +45,16 @@ const {
   removePiModelProvider,
   respondPiModelProviderLogin,
   respondPiRpc,
+  replacePiSessionQueue,
+  searchPiRpcSessions,
   searchPiPackageCatalog,
   searchPiWorkspaceFiles,
   selectPiRpcSessionModel,
-  waitForPendingPiRpcSessionModelSelection,
   startPiModelProviderLogin,
   streamPiWorkspaceFileText,
   testPiModelImageInput,
   setPiExtensionEnabled,
+  setPiSessionQueuePaused,
   setPiSkillEnabled,
   updatePiAgentSettings,
   updatePiPackage,
@@ -75,17 +66,24 @@ const {
 } = (await import(
   new URL("../../src/transport/api.ts", import.meta.url).href
 )) as typeof import("../../src/transport/api");
-const {
-  getPiModelCatalogRevision,
-  getPiSessionModelSelectionRevision,
-  subscribePiModelCatalogInvalidation,
-  subscribePiSessionModelSelectionInvalidation,
-} = (await import(
+const { PiModelCatalogInvalidation } = (await import(
   new URL("../../src/models/model-catalog-invalidation.ts", import.meta.url).href
 )) as typeof import("../../src/models/model-catalog-invalidation");
-moduleHooks.deregister();
 
 type FetchCall = { input: string | URL | Request; init?: RequestInit };
+
+function modelInvalidationFixture() {
+  const signal = new PiModelCatalogInvalidation();
+  return {
+    signal,
+    options: {
+      invalidation: {
+        invalidateModelCatalog: signal.invalidate,
+        invalidateSessionModelSelection: signal.invalidateSessionSelection,
+      },
+    },
+  } as const;
+}
 
 function requestBody(call: FetchCall): Record<string, unknown> {
   const body = call.init?.body;
@@ -126,6 +124,187 @@ test("callPiRpc sends and verifies the shared RPC envelope", async (t) => {
     method: "workspace.test",
     payload: { extra: 1 },
   });
+});
+
+test("the browser default uses the host client's same-origin Runtime transport", async (t) => {
+  const originalFetch = globalThis.fetch;
+  const originalLocation = Object.getOwnPropertyDescriptor(globalThis, "location");
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+    if (originalLocation) Object.defineProperty(globalThis, "location", originalLocation);
+    else delete (globalThis as { location?: Location }).location;
+  });
+
+  Object.defineProperty(globalThis, "location", {
+    configurable: true,
+    value: { origin: "https://workbench.example.test" },
+  });
+  const calls: FetchCall[] = [];
+  globalThis.fetch = async (input, init) => {
+    const call = { input, init };
+    calls.push(call);
+    const body = requestBody(call);
+    return Response.json({
+      type: "server-response",
+      rpcId: body.rpcId,
+      result: { ok: true, value: { accepted: true } },
+    });
+  };
+
+  assert.deepEqual(await callPiRpc("workspace.test", {}), { accepted: true });
+  assert.ok(calls[0]?.input instanceof URL);
+  assert.equal(calls[0]?.input.toString(), "https://workbench.example.test/api/workspace.test");
+});
+
+test("explicit desktop transports remain isolated and carry their own bearer credentials", async () => {
+  const calls: Array<{ input: URL; init?: RequestInit }> = [];
+  const createTransport = (port: number, token: string) =>
+    createPiHttpTransport(
+      {
+        kind: "desktop-sidecar",
+        protocolVersion: 1,
+        httpOrigin: `http://127.0.0.1:${port}`,
+        instanceId: `runtime-${port}`,
+        accessToken: token,
+      },
+      async (input, init) => {
+        calls.push({ input, init });
+        const body = JSON.parse(String(init?.body)) as { rpcId: string };
+        return Response.json({
+          type: "server-response",
+          rpcId: body.rpcId,
+          result: { ok: true, value: { port } },
+        });
+      },
+    );
+
+  const first = createTransport(41_271, "first-secret");
+  const second = createTransport(53_917, "second-secret");
+  assert.deepEqual(await callPiRpc("host.describe", {}, { transport: first }), { port: 41_271 });
+  assert.deepEqual(await callPiRpc("host.describe", {}, { transport: second }), { port: 53_917 });
+
+  assert.deepEqual(
+    calls.map((call) => ({
+      url: call.input.toString(),
+      authorization: new Headers(call.init?.headers).get("Authorization"),
+    })),
+    [
+      { url: "http://127.0.0.1:41271/api/host.describe", authorization: "Bearer first-secret" },
+      { url: "http://127.0.0.1:53917/api/host.describe", authorization: "Bearer second-secret" },
+    ],
+  );
+});
+
+test("feature RPC helpers preserve two same-ID desktop transports without ambient routing", async () => {
+  const calls: Array<{ input: URL; init?: RequestInit }> = [];
+  const createTransport = (port: number, token: string) =>
+    createPiHttpTransport(
+      {
+        kind: "desktop-sidecar",
+        protocolVersion: 1,
+        httpOrigin: `http://127.0.0.1:${port}`,
+        instanceId: "shared-runtime-id",
+        accessToken: token,
+      },
+      async (input, init) => {
+        calls.push({ input, init });
+        const body = JSON.parse(String(init?.body)) as { rpcId: string; method: string };
+        return Response.json({
+          type: "server-response",
+          rpcId: body.rpcId,
+          result: { ok: true, value: { source: port } },
+        });
+      },
+    );
+
+  const first = createTransport(41_272, "first-feature-secret");
+  const second = createTransport(53_918, "second-feature-secret");
+  assert.deepEqual(await listPiSkills({ target: { scope: "user" } }, { transport: first }), {
+    source: 41_272,
+  });
+  assert.deepEqual(await listPiSkills({ target: { scope: "user" } }, { transport: second }), {
+    source: 53_918,
+  });
+
+  assert.deepEqual(
+    calls.map((call) => ({
+      url: call.input.toString(),
+      authorization: new Headers(call.init?.headers).get("Authorization"),
+    })),
+    [
+      {
+        url: "http://127.0.0.1:41272/api/skill.list",
+        authorization: "Bearer first-feature-secret",
+      },
+      {
+        url: "http://127.0.0.1:53918/api/skill.list",
+        authorization: "Bearer second-feature-secret",
+      },
+    ],
+  );
+});
+
+test("session search and attachment helpers honor the explicit HTTP transport seam", async () => {
+  const methods: string[] = [];
+  const transport = async (_path: string, init?: RequestInit): Promise<Response> => {
+    const request = JSON.parse(String(init?.body)) as { rpcId: string; method: string };
+    methods.push(request.method);
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: { ok: true, value: {} },
+    });
+  };
+
+  await searchPiRpcSessions({ query: "needle" }, { transport });
+  await fetchPiRpcSessionAttachment(
+    { sessionId: "session-1", attachmentId: "attachment-1" },
+    { transport },
+  );
+
+  assert.deepEqual(methods, ["session.search", "session.attachment"]);
+});
+
+test("respond, workspace content, and legacy commands use the explicit HTTP transport seam", async () => {
+  const paths: string[] = [];
+  const transport = async (path: string, init?: RequestInit): Promise<Response> => {
+    paths.push(path);
+    if (path === "/api/respond") return Response.json({ accepted: true });
+    if (path.startsWith("/api/workspace.files.content?")) return new Response("hello");
+    assert.match(path, /^\/api\/pi\/sessions\/session-1\/commands$/);
+    assert.equal(init?.method, "POST");
+    return Response.json({});
+  };
+
+  await respondPiRpc(
+    {
+      type: "client-response",
+      rpcId: "response-rpc",
+      result: {
+        ok: true,
+        value: {
+          sessionId: "session-1",
+          answer: { answers: [{ id: "question-1", selected: ["Continue"] }] },
+        },
+      },
+    },
+    { transport },
+  );
+  const chunks: string[] = [];
+  await streamPiWorkspaceFileText(
+    { workspaceId: "workspace-1", relativePath: "notes.txt" },
+    { transport, onChunk: (chunk) => chunks.push(chunk.text) },
+  );
+  await replacePiSessionQueue("session-1", [], [], { transport });
+  await setPiSessionQueuePaused("session-1", true, [], [], { transport });
+
+  assert.deepEqual(chunks, ["hello"]);
+  assert.deepEqual(paths, [
+    "/api/respond",
+    "/api/workspace.files.content?workspaceId=workspace-1&relativePath=notes.txt",
+    "/api/pi/sessions/session-1/commands",
+    "/api/pi/sessions/session-1/commands",
+  ]);
 });
 
 test("workspace file helpers use the typed workspace.files RPC methods", async (t) => {
@@ -332,18 +511,19 @@ test("callPiRpc exposes structured business errors", async (t) => {
   });
 });
 
-test("successful provider mutations invalidate the shared model catalog", async (t) => {
+test("successful provider mutations invalidate only the supplied model catalog", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => {
     globalThis.fetch = originalFetch;
   });
 
+  const { options, signal } = modelInvalidationFixture();
   let notifications = 0;
-  const unsubscribe = subscribePiModelCatalogInvalidation(() => {
+  const unsubscribe = signal.subscribe(() => {
     notifications += 1;
   });
   t.after(unsubscribe);
-  const initialRevision = getPiModelCatalogRevision();
+  const initialRevision = signal.getRevision();
   globalThis.fetch = async (_input, init) => {
     const request = JSON.parse(String(init?.body)) as { rpcId: string };
     return Response.json({
@@ -353,12 +533,12 @@ test("successful provider mutations invalidate the shared model catalog", async 
     });
   };
 
-  await configurePiModelProvider({ provider: "acme", apiKey: "private-key" });
-  assert.equal(getPiModelCatalogRevision(), initialRevision + 1);
+  await configurePiModelProvider({ provider: "acme", apiKey: "private-key" }, options);
+  assert.equal(signal.getRevision(), initialRevision + 1);
   assert.equal(notifications, 1);
 
-  await removePiModelProvider({ provider: "acme" });
-  assert.equal(getPiModelCatalogRevision(), initialRevision + 2);
+  await removePiModelProvider({ provider: "acme" }, options);
+  assert.equal(signal.getRevision(), initialRevision + 2);
   assert.equal(notifications, 2);
 
   globalThis.fetch = async (_input, init) => {
@@ -372,8 +552,10 @@ test("successful provider mutations invalidate the shared model catalog", async 
       },
     });
   };
-  await assert.rejects(configurePiModelProvider({ provider: "acme", apiKey: "private-key" }));
-  assert.equal(getPiModelCatalogRevision(), initialRevision + 2);
+  await assert.rejects(
+    configurePiModelProvider({ provider: "acme", apiKey: "private-key" }, options),
+  );
+  assert.equal(signal.getRevision(), initialRevision + 2);
   assert.equal(notifications, 2);
 });
 
@@ -383,18 +565,19 @@ test("successful model selection invalidates only that session selection", async
     globalThis.fetch = originalFetch;
   });
 
+  const { options, signal } = modelInvalidationFixture();
   let selectedSessionNotifications = 0;
   let unrelatedSessionNotifications = 0;
-  const unsubscribeSelected = subscribePiSessionModelSelectionInvalidation("session-1", () => {
+  const unsubscribeSelected = signal.subscribeSessionSelection("session-1", () => {
     selectedSessionNotifications += 1;
   });
-  const unsubscribeUnrelated = subscribePiSessionModelSelectionInvalidation("session-2", () => {
+  const unsubscribeUnrelated = signal.subscribeSessionSelection("session-2", () => {
     unrelatedSessionNotifications += 1;
   });
   t.after(unsubscribeSelected);
   t.after(unsubscribeUnrelated);
-  const initialSelectedRevision = getPiSessionModelSelectionRevision("session-1");
-  const initialUnrelatedRevision = getPiSessionModelSelectionRevision("session-2");
+  const initialSelectedRevision = signal.getSessionSelectionRevision("session-1");
+  const initialUnrelatedRevision = signal.getSessionSelectionRevision("session-2");
   globalThis.fetch = async (_input, init) => {
     const request = JSON.parse(String(init?.body)) as { rpcId: string };
     return Response.json({
@@ -410,16 +593,19 @@ test("successful model selection invalidates only that session selection", async
   };
 
   assert.deepEqual(
-    await selectPiRpcSessionModel({
-      sessionId: "session-1",
-      provider: "openai",
-      model: "gpt-5",
-      reasoningEffort: "high",
-    }),
+    await selectPiRpcSessionModel(
+      {
+        sessionId: "session-1",
+        provider: "openai",
+        model: "gpt-5",
+        reasoningEffort: "high",
+      },
+      options,
+    ),
     { selected: { provider: "openai", model: "gpt-5", reasoningEffort: "high" } },
   );
-  assert.equal(getPiSessionModelSelectionRevision("session-1"), initialSelectedRevision + 1);
-  assert.equal(getPiSessionModelSelectionRevision("session-2"), initialUnrelatedRevision);
+  assert.equal(signal.getSessionSelectionRevision("session-1"), initialSelectedRevision + 1);
+  assert.equal(signal.getSessionSelectionRevision("session-2"), initialUnrelatedRevision);
   assert.equal(selectedSessionNotifications, 1);
   assert.equal(unrelatedSessionNotifications, 0);
 
@@ -435,50 +621,13 @@ test("successful model selection invalidates only that session selection", async
     });
   };
   await assert.rejects(
-    selectPiRpcSessionModel({ sessionId: "session-1", provider: "openai", model: "gpt-5" }),
+    selectPiRpcSessionModel(
+      { sessionId: "session-1", provider: "openai", model: "gpt-5" },
+      options,
+    ),
   );
-  assert.equal(getPiSessionModelSelectionRevision("session-1"), initialSelectedRevision + 1);
+  assert.equal(signal.getSessionSelectionRevision("session-1"), initialSelectedRevision + 1);
   assert.equal(selectedSessionNotifications, 1);
-});
-
-test("model-sensitive actions can wait for an optimistic session selection to commit", async (t) => {
-  const originalFetch = globalThis.fetch;
-  t.after(() => {
-    globalThis.fetch = originalFetch;
-  });
-
-  let completeSelection: (() => void) | undefined;
-  globalThis.fetch = async (_input, init) => {
-    const request = JSON.parse(String(init?.body)) as { rpcId: string };
-    await new Promise<void>((resolve) => {
-      completeSelection = resolve;
-    });
-    return Response.json({
-      type: "server-response",
-      rpcId: request.rpcId,
-      result: {
-        ok: true,
-        value: { selected: { provider: "openai", model: "gpt-vision" } },
-      },
-    });
-  };
-
-  const selection = selectPiRpcSessionModel({
-    sessionId: "session-model-race",
-    provider: "openai",
-    model: "gpt-vision",
-  });
-  let retryUnblocked = false;
-  const retryGate = waitForPendingPiRpcSessionModelSelection("session-model-race").then(() => {
-    retryUnblocked = true;
-  });
-
-  await new Promise<void>((resolve) => setImmediate(resolve));
-  assert.equal(retryUnblocked, false);
-  assert.ok(completeSelection);
-  completeSelection();
-  await Promise.all([selection, retryGate]);
-  assert.equal(retryUnblocked, true);
 });
 
 test("image-input test helper uses the typed model capability RPC", async (t) => {
@@ -521,8 +670,9 @@ test("provider account-login helpers use typed RPC methods and invalidate on com
     globalThis.fetch = originalFetch;
   });
 
+  const { options, signal } = modelInvalidationFixture();
   const requests: Array<{ method: string; payload: unknown }> = [];
-  const initialRevision = getPiModelCatalogRevision();
+  const initialRevision = signal.getRevision();
   globalThis.fetch = async (_input, init) => {
     const request = JSON.parse(String(init?.body)) as {
       rpcId: string;
@@ -548,16 +698,19 @@ test("provider account-login helpers use typed RPC methods and invalidate on com
     });
   };
 
-  await startPiModelProviderLogin({ provider: "openai-codex", authType: "oauth" });
-  await respondPiModelProviderLogin({
-    loginId: "login-1",
-    promptId: "prompt-1",
-    value: "browser",
-  });
-  await cancelPiModelProviderLogin({ loginId: "login-1" });
-  await getPiModelProviderLogin({ loginId: "login-1" });
+  await startPiModelProviderLogin({ provider: "openai-codex", authType: "oauth" }, options);
+  await respondPiModelProviderLogin(
+    {
+      loginId: "login-1",
+      promptId: "prompt-1",
+      value: "browser",
+    },
+    options,
+  );
+  await cancelPiModelProviderLogin({ loginId: "login-1" }, options);
+  await getPiModelProviderLogin({ loginId: "login-1" }, options);
 
-  assert.equal(getPiModelCatalogRevision(), initialRevision + 1);
+  assert.equal(signal.getRevision(), initialRevision + 1);
   assert.deepEqual(requests, [
     {
       method: "llm.startProviderLogin",

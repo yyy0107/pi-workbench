@@ -1,0 +1,93 @@
+{
+  "name": "@workbench/extension-host",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./internal": {
+      "types": "./src/internal.ts",
+      "import": "./src/internal.ts",
+      "default": "./src/internal.ts"
+    },
+    "./installation": {
+      "types": "./src/installation.ts",
+      "import": "./src/installation.ts",
+      "default": "./src/installation.ts"
+    },
+    "./services": {
+      "types": "./src/services/index.ts",
+      "import": "./src/services/index.ts",
+      "default": "./src/services/index.ts"
+    },
+    "./command-palette": {
+      "types": "./src/command-palette-store.ts",
+      "import": "./src/command-palette-store.ts",
+      "default": "./src/command-palette-store.ts"
+    },
+    "./i18n/en-US": {
+      "types": "./src/i18n/en-US.ts",
+      "import": "./src/i18n/en-US.ts",
+      "default": "./src/i18n/en-US.ts"
+    },
+    "./i18n/zh-CN": {
+      "types": "./src/i18n/zh-CN.ts",
+      "import": "./src/i18n/zh-CN.ts",
+      "default": "./src/i18n/zh-CN.ts"
+    },
+    "./hosts/extension-error-boundary": {
+      "types": "./src/hosts/extension-error-boundary.tsx",
+      "import": "./src/hosts/extension-error-boundary.tsx",
+      "default": "./src/hosts/extension-error-boundary.tsx"
+    },
+    "./hosts/main-view-host": {
+      "types": "./src/hosts/main-view-host.tsx",
+      "import": "./src/hosts/main-view-host.tsx",
+      "default": "./src/hosts/main-view-host.tsx"
+    },
+    "./hosts/main-view-sidebar-host": {
+      "types": "./src/hosts/main-view-sidebar-host.tsx",
+      "import": "./src/hosts/main-view-sidebar-host.tsx",
+      "default": "./src/hosts/main-view-sidebar-host.tsx"
+    },
+    "./hosts/panel-host": {
+      "types": "./src/hosts/panel-host.tsx",
+      "import": "./src/hosts/panel-host.tsx",
+      "default": "./src/hosts/panel-host.tsx"
+    },
+    "./hosts/renderer-host": {
+      "types": "./src/hosts/renderer-host.tsx",
+      "import": "./src/hosts/renderer-host.tsx",
+      "default": "./src/hosts/renderer-host.tsx"
+    },
+    "./hosts/slot-host": {
+      "types": "./src/hosts/slot-host.tsx",
+      "import": "./src/hosts/slot-host.tsx",
+      "default": "./src/hosts/slot-host.tsx"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@assistant-ui/react": "0.15.16",
+    "@workbench/extension-sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "typescript": "^7.0.2"
+  },
+  "peerDependencies": {
+    "react": "^19.2.8"
+  }
+}

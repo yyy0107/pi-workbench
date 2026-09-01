@@ -1,11 +1,10 @@
 import assert from "node:assert/strict";
-import { access, readFile, readdir } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const PACKAGE_ROOT = fileURLToPath(new URL("../", import.meta.url));
-const REPOSITORY_ROOT = fileURLToPath(new URL("../../../../../../", import.meta.url));
 const PUBLIC_EXPORTS = ["./installation", "./http", "./websocket", "./legacy"];
 
 async function sourceFiles(directory: string): Promise<string[]> {
@@ -40,15 +39,10 @@ test("Pi server production sources cannot reach back into the Workbench applicat
     const source = await readFile(file, "utf8");
     if (
       /(?:from\s+|import\()["']@\//u.test(source) ||
-      /runtime\/pi\/server/u.test(source) ||
       /@workbench\/agent-runtime-pi-server\/src/u.test(source)
     ) {
       violations.push(path.relative(PACKAGE_ROOT, file));
     }
   }
   assert.deepEqual(violations, []);
-});
-
-test("the former application-owned Pi server source tree cannot return", async () => {
-  await assert.rejects(access(path.join(REPOSITORY_ROOT, "runtime/pi/server")), { code: "ENOENT" });
 });

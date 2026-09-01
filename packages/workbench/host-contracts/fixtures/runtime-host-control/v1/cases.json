@@ -1,0 +1,518 @@
+{
+  "fixtureSchemaVersion": 1,
+  "controlVersion": 1,
+  "hostProtocolVersion": 1,
+  "maximumFrameBytes": 65536,
+  "cases": [
+    {
+      "id": "container.start.tauri-origin",
+      "direction": "container-to-host",
+      "bytes": {
+        "kind": "utf8",
+        "value": "{\"type\":\"start\",\"controlVersion\":1,\"authMode\":\"desktop-sidecar\",\"accessToken\":\"fixture-access-token\",\"allowedOrigins\":[\"tauri://localhost\"]}\n"
+      },
+      "byteLength": 141,
+      "canonicalSerialization": true,
+      "chunkings": ["whole", "one-byte"],
+      "expect": {
+        "ndjson": { "kind": "frames", "count": 1 },
+        "dto": { "kind": "accept", "type": "start" }
+      }
+    },
+    {
+      "id": "container.shutdown.requested",
+      "direction": "container-to-host",
+      "bytes": {
+        "kind": "utf8",
+        "value": "{\"type\":\"shutdown\",\"controlVersion\":1,\"reason\":\"requested\",\"deadlineMs\":5000}\n"
+      },
+      "byteLength": 78,
+      "canonicalSerialization": true,
+      "chunkings": ["whole", "one-byte"],
+      "expect": {
+        "ndjson": { "kind": "frames", "count": 1 },
+        "dto": { "kind": "accept", "type": "shutdown" }
+      }
+    },
+    {
+      "id": "container.shutdown.container-exit",
+      "direction": "container-to-host",
+      "bytes": {
+        "kind": "utf8",
+        "value": "{\"type\":\"shutdown\",\"controlVersion\":1,\"reason\":\"container-exit\",\"deadlineMs\":5000}\n"
+      },
+      "byteLength": 83,
+      "canonicalSerialization": true,
+      "chunkings": ["whole", "one-byte"],
+      "expect": {
+        "ndjson": { "kind": "frames", "count": 1 },
+        "dto": { "kind": "accept", "type": "shutdown" }
+      }
+    },
+    {
+      "id": "container.shutdown.restart",
+      "direction": "container-to-host",
+      "bytes": {
+        "kind": "utf8",
+        "value": "{\"type\":\"shutdown\",\"controlVersion\":1,\"reason\":\"restart\",\"deadlineMs\":5000}\n"
+      },
+      "byteLength": 76,
+      "canonicalSerialization": true,
+      "chunkings": ["whole", "one-byte"],
+      "expect": {
+        "ndjson": { "kind": "frames", "count": 1 },
+        "dto": { "kind": "accept", "type": "shutdown" }
+      }
+    },
+    {
+      "id": "host.ready.ascii",
+      "direction": "host-to-container",
+      "bytes": {
+        "kind": "utf8",
+        "value": "{\"type\":\"ready\",\"controlVersion\":1,\"hostProtocolVersion\":1,\"instanceId\":\"runtime-fixture\",\"pid\":4242,\"httpOrigin\":\"http://127.0.0.1:43127\"}\n"
+      },
+      "byteLength": 140,
+      "canonicalSerialization": true,
+      "chunkings": ["whole", "one-byte"],
+      "expect": {
+        "ndjson": { "kind": "frames", "count": 1 },
+        "dto": { "kind": "accept", "type": "ready" }
+      }
+    },
+    {
+      "id": "host.ready.utf8-splits",
+      "direction": "host-to-container",
+      "bytes": {
+        "kind": "utf8",
+        "value": "{\"type\":\"ready\",\"controlVersion\":1,\"hostProtocolVersion\":1,\"instanceId\":\"运行时-é\",\"pid\":4242,\"httpOrigin\":\"http://127.0.0.1:43127\"}\n"
+      },
+      "byteLength": 137,
+      "canonicalSerialization": true,
+      "chunkings": ["whole", "one-byte", { "cuts": [74, 77, 80, 84] }],
+      "expect": {
+        "ndjson": { "kind": "frames", "count": 1 },
+        "dto": { "kind": "accept", "type": "ready" }
+      }
+    },
+    {
+      "id": "host.startup-error.invalid-control-frame",
+      "direction": "host-to-container",
+      "bytes": {
+        "kind": "utf8",
+        "value": "{\"type\":\"startup-error\",\"controlVersion\":1,\"code\":\"invalid-control-frame\",\"message\":\"Runtime Host control input is invalid.\"}\n"
+      },
+      "byteLength": 126,
+      "canonicalSerialization": true,
+      "chunkings": ["whole", "one-byte"],
+      "expect": {
+        "ndjson": { "kind": "frames", "count": 1 },
+        "dto": { "kind": "accept", "type": "startup-error" }
+      }
+    },
+    {
+      "id": "host.startup-error.unsupported-control-version",
+      "direction": "host-to-container",
+      "bytes": {
+        "kind": "utf8",
+        "value": "{\"type\":\"startup-error\",\"controlVersion\":1,\"code\":\"unsupported-control-version\",\"message\":\"Runtime Host control protocol version is unsupported.\"}\n"
+      },
+      "byteLength": 147,
+      "canonicalSerialization": true,
+      "chunkings": ["whole", "one-byte"],
+      "expect": {
+        "ndjson": { "kind": "frames", "count": 1 },
+        "dto": { "kind": "accept", "type": "startup-error" }
+      }
+    },
+    {
+      "id": "host.startup-error.startup-failed",
+      "direction": "host-to-container",
+      "bytes": {
+        "kind": "utf8",
+        "value": "{\"type\":\"startup-error\",\"controlVersion\":1,\"code\":\"startup-failed\",\"message\":\"Runtime Host startup failed.\"}\n"
+      },
+      "byteLength": 109,
+      "canonicalSerialization": true,
+      "chunkings": ["whole", "one-byte"],
+      "expect": {
+        "ndjson": { "kind": "frames", "count": 1 },
+        "dto": { "kind": "accept", "type": "startup-error" }
+      }
+    },
+    {
+      "id": "host.shutdown-ack",
+      "direction": "host-to-container",
+      "bytes": {
+        "kind": "utf8",
+        "value": "{\"type\":\"shutdown-ack\",\"controlVersion\":1}\n"
+      },
+      "byteLength": 43,
+      "canonicalSerialization": true,
+      "chunkings": ["whole", "one-byte"],
+      "expect": {
+        "ndjson": { "kind": "frames", "count": 1 },
+        "dto": { "kind": "accept", "type": "shutdown-ack" }
+      }
+    },
+    {
+      "id": "framing.invalid-utf8",
+      "direction": "framing-only",
+      "bytes": { "kind": "hex", "value": "ff0a" },
+      "byteLength": 2,
+      "chunkings": ["whole", "one-byte"],
+      "expect": {
+        "ndjson": { "kind": "error", "code": "invalid-encoding", "when": "push" }
+      }
+    },
+    {
+      "id": "framing.invalid-json",
+      "direction": "framing-only",
+      "bytes": { "kind": "utf8", "value": "{not-json}\n" },
+      "byteLength": 11,
+      "chunkings": ["whole", "one-byte"],
+      "expect": {
+        "ndjson": { "kind": "error", "code": "invalid-json", "when": "push" }
+      }
+    },
+    {
+      "id": "framing.empty-record",
+      "direction": "framing-only",
+      "bytes": { "kind": "hex", "value": "0a" },
+      "byteLength": 1,
+      "chunkings": ["whole"],
+      "expect": {
+        "ndjson": { "kind": "error", "code": "invalid-json", "when": "push" }
+      }
+    },
+    {
+      "id": "framing.incomplete-ready",
+      "direction": "framing-only",
+      "bytes": {
+        "kind": "utf8",
+        "value": "{\"type\":\"ready\",\"controlVersion\":1,\"hostProtocolVersion\":1,\"instanceId\":\"runtime-fixture\",\"pid\":4242,\"httpOrigin\":\"http://127.0.0.1:43127\"}"
+      },
+      "byteLength": 139,
+      "chunkings": ["whole", "one-byte"],
+      "expect": {
+        "ndjson": { "kind": "error", "code": "incomplete-frame", "when": "finish" }
+      }
+    },
+    {
+      "id": "framing.maximum-content-bytes",
+      "direction": "framing-only",
+      "bytes": {
+        "kind": "segments",
+        "value": [
+          { "kind": "hex", "value": "22" },
+          { "kind": "repeat-hex", "value": "61", "count": 65534 },
+          { "kind": "hex", "value": "220a" }
+        ]
+      },
+      "byteLength": 65537,
+      "chunkings": ["whole", { "cuts": [1, 65535, 65536] }],
+      "expect": {
+        "ndjson": { "kind": "frames", "count": 1 }
+      }
+    },
+    {
+      "id": "framing.oversized-content",
+      "direction": "framing-only",
+      "bytes": {
+        "kind": "segments",
+        "value": [
+          { "kind": "hex", "value": "22" },
+          { "kind": "repeat-hex", "value": "61", "count": 65535 },
+          { "kind": "hex", "value": "220a" }
+        ]
+      },
+      "byteLength": 65538,
+      "chunkings": ["whole", { "cuts": [1, 65536, 65537] }],
+      "expect": {
+        "ndjson": { "kind": "error", "code": "frame-too-large", "when": "push" }
+      }
+    },
+    {
+      "id": "framing.ready-crlf",
+      "direction": "host-to-container",
+      "bytes": {
+        "kind": "utf8",
+        "value": "{\"type\":\"ready\",\"controlVersion\":1,\"hostProtocolVersion\":1,\"instanceId\":\"runtime-fixture\",\"pid\":4242,\"httpOrigin\":\"http://127.0.0.1:43127\"}\r\n"
+      },
+      "byteLength": 141,
+      "chunkings": ["whole", "one-byte"],
+      "expect": {
+        "ndjson": { "kind": "frames", "count": 1 },
+        "dto": { "kind": "accept", "type": "ready" }
+      }
+    },
+    {
+      "id": "input.invalid.extra-key",
+      "direction": "container-to-host",
+      "bytes": {
+        "kind": "utf8",
+        "value": "{\"type\":\"start\",\"controlVersion\":1,\"authMode\":\"desktop-sidecar\",\"accessToken\":\"fixture-access-token\",\"allowedOrigins\":[\"tauri://localhost\"],\"tokenCopy\":\"fixture-access-token\"}\n"
+      },
+      "byteLength": 176,
+      "chunkings": ["whole"],
+      "expect": {
+        "ndjson": { "kind": "frames", "count": 1 },
+        "dto": { "kind": "reject" },
+        "inputErrorCode": "invalid-control-frame"
+      }
+    },
+    {
+      "id": "input.invalid.control-version",
+      "direction": "container-to-host",
+      "bytes": {
+        "kind": "utf8",
+        "value": "{\"type\":\"start\",\"controlVersion\":2,\"authMode\":\"desktop-sidecar\",\"accessToken\":\"fixture-access-token\",\"allowedOrigins\":[\"tauri://localhost\"]}\n"
+      },
+      "byteLength": 141,
+      "chunkings": ["whole"],
+      "expect": {
+        "ndjson": { "kind": "frames", "count": 1 },
+        "dto": { "kind": "reject" },
+        "inputErrorCode": "unsupported-control-version"
+      }
+    },
+    {
+      "id": "input.invalid.auth-mode",
+      "direction": "container-to-host",
+      "bytes": {
+        "kind": "utf8",
+        "value": "{\"type\":\"start\",\"controlVersion\":1,\"authMode\":\"bearer\",\"accessToken\":\"fixture-access-token\",\"allowedOrigins\":[\"tauri://localhost\"]}\n"
+      },
+      "byteLength": 132,
+      "chunkings": ["whole"],
+      "expect": {
+        "ndjson": { "kind": "frames", "count": 1 },
+        "dto": { "kind": "reject" },
+        "inputErrorCode": "invalid-control-frame"
+      }
+    },
+    {
+      "id": "input.invalid.unsafe-token",
+      "direction": "container-to-host",
+      "bytes": {
+        "kind": "utf8",
+        "value": "{\"type\":\"start\",\"controlVersion\":1,\"authMode\":\"desktop-sidecar\",\"accessToken\":\"fixture token\",\"allowedOrigins\":[\"tauri://localhost\"]}\n"
+      },
+      "byteLength": 134,
+      "chunkings": ["whole"],
+      "expect": {
+        "ndjson": { "kind": "frames", "count": 1 },
+        "dto": { "kind": "reject" },
+        "inputErrorCode": "invalid-control-frame"
+      }
+    },
+    {
+      "id": "input.invalid.wildcard-origin",
+      "direction": "container-to-host",
+      "bytes": {
+        "kind": "utf8",
+        "value": "{\"type\":\"start\",\"controlVersion\":1,\"authMode\":\"desktop-sidecar\",\"accessToken\":\"fixture-access-token\",\"allowedOrigins\":[\"*\"]}\n"
+      },
+      "byteLength": 125,
+      "chunkings": ["whole"],
+      "expect": {
+        "ndjson": { "kind": "frames", "count": 1 },
+        "dto": { "kind": "reject" },
+        "inputErrorCode": "invalid-control-frame"
+      }
+    },
+    {
+      "id": "input.invalid.duplicate-canonical-origin",
+      "direction": "container-to-host",
+      "bytes": {
+        "kind": "utf8",
+        "value": "{\"type\":\"start\",\"controlVersion\":1,\"authMode\":\"desktop-sidecar\",\"accessToken\":\"fixture-access-token\",\"allowedOrigins\":[\"https://renderer.workbench.test\",\"https://renderer.workbench.test/\"]}\n"
+      },
+      "byteLength": 190,
+      "chunkings": ["whole"],
+      "expect": {
+        "ndjson": { "kind": "frames", "count": 1 },
+        "dto": { "kind": "reject" },
+        "inputErrorCode": "invalid-control-frame"
+      }
+    },
+    {
+      "id": "input.invalid.deadline-zero",
+      "direction": "container-to-host",
+      "bytes": {
+        "kind": "utf8",
+        "value": "{\"type\":\"shutdown\",\"controlVersion\":1,\"reason\":\"requested\",\"deadlineMs\":0}\n"
+      },
+      "byteLength": 75,
+      "chunkings": ["whole"],
+      "expect": {
+        "ndjson": { "kind": "frames", "count": 1 },
+        "dto": { "kind": "reject" },
+        "inputErrorCode": "invalid-control-frame"
+      }
+    },
+    {
+      "id": "input.invalid.deadline-over-maximum",
+      "direction": "container-to-host",
+      "bytes": {
+        "kind": "utf8",
+        "value": "{\"type\":\"shutdown\",\"controlVersion\":1,\"reason\":\"requested\",\"deadlineMs\":60001}\n"
+      },
+      "byteLength": 79,
+      "chunkings": ["whole"],
+      "expect": {
+        "ndjson": { "kind": "frames", "count": 1 },
+        "dto": { "kind": "reject" },
+        "inputErrorCode": "invalid-control-frame"
+      }
+    },
+    {
+      "id": "input.invalid.shutdown-reason",
+      "direction": "container-to-host",
+      "bytes": {
+        "kind": "utf8",
+        "value": "{\"type\":\"shutdown\",\"controlVersion\":1,\"reason\":\"unknown\",\"deadlineMs\":5000}\n"
+      },
+      "byteLength": 76,
+      "chunkings": ["whole"],
+      "expect": {
+        "ndjson": { "kind": "frames", "count": 1 },
+        "dto": { "kind": "reject" },
+        "inputErrorCode": "invalid-control-frame"
+      }
+    },
+    {
+      "id": "output.invalid.credential-field",
+      "direction": "host-to-container",
+      "bytes": {
+        "kind": "utf8",
+        "value": "{\"type\":\"ready\",\"controlVersion\":1,\"hostProtocolVersion\":1,\"instanceId\":\"runtime-fixture\",\"pid\":4242,\"httpOrigin\":\"http://127.0.0.1:43127\",\"accessToken\":\"must-not-cross-stdout\"}\n"
+      },
+      "byteLength": 178,
+      "chunkings": ["whole"],
+      "expect": {
+        "ndjson": { "kind": "frames", "count": 1 },
+        "dto": { "kind": "reject" }
+      }
+    },
+    {
+      "id": "output.invalid.control-version",
+      "direction": "host-to-container",
+      "bytes": {
+        "kind": "utf8",
+        "value": "{\"type\":\"ready\",\"controlVersion\":2,\"hostProtocolVersion\":1,\"instanceId\":\"runtime-fixture\",\"pid\":4242,\"httpOrigin\":\"http://127.0.0.1:43127\"}\n"
+      },
+      "byteLength": 140,
+      "chunkings": ["whole"],
+      "expect": {
+        "ndjson": { "kind": "frames", "count": 1 },
+        "dto": { "kind": "reject" }
+      }
+    },
+    {
+      "id": "output.invalid.host-protocol-version",
+      "direction": "host-to-container",
+      "bytes": {
+        "kind": "utf8",
+        "value": "{\"type\":\"ready\",\"controlVersion\":1,\"hostProtocolVersion\":2,\"instanceId\":\"runtime-fixture\",\"pid\":4242,\"httpOrigin\":\"http://127.0.0.1:43127\"}\n"
+      },
+      "byteLength": 140,
+      "chunkings": ["whole"],
+      "expect": {
+        "ndjson": { "kind": "frames", "count": 1 },
+        "dto": { "kind": "reject" }
+      }
+    },
+    {
+      "id": "output.invalid.pid",
+      "direction": "host-to-container",
+      "bytes": {
+        "kind": "utf8",
+        "value": "{\"type\":\"ready\",\"controlVersion\":1,\"hostProtocolVersion\":1,\"instanceId\":\"runtime-fixture\",\"pid\":0,\"httpOrigin\":\"http://127.0.0.1:43127\"}\n"
+      },
+      "byteLength": 137,
+      "chunkings": ["whole"],
+      "expect": {
+        "ndjson": { "kind": "frames", "count": 1 },
+        "dto": { "kind": "reject" }
+      }
+    },
+    {
+      "id": "output.invalid.non-loopback-origin",
+      "direction": "host-to-container",
+      "bytes": {
+        "kind": "utf8",
+        "value": "{\"type\":\"ready\",\"controlVersion\":1,\"hostProtocolVersion\":1,\"instanceId\":\"runtime-fixture\",\"pid\":4242,\"httpOrigin\":\"http://0.0.0.0:43127\"}\n"
+      },
+      "byteLength": 138,
+      "chunkings": ["whole"],
+      "expect": {
+        "ndjson": { "kind": "frames", "count": 1 },
+        "dto": { "kind": "reject" }
+      }
+    },
+    {
+      "id": "output.invalid.startup-error-message",
+      "direction": "host-to-container",
+      "bytes": {
+        "kind": "utf8",
+        "value": "{\"type\":\"startup-error\",\"controlVersion\":1,\"code\":\"startup-failed\",\"message\":\"raw failure at /sensitive/path\"}\n"
+      },
+      "byteLength": 111,
+      "chunkings": ["whole"],
+      "expect": {
+        "ndjson": { "kind": "frames", "count": 1 },
+        "dto": { "kind": "reject" }
+      }
+    },
+    {
+      "id": "output.invalid.shutdown-ack-extra-key",
+      "direction": "host-to-container",
+      "bytes": {
+        "kind": "utf8",
+        "value": "{\"type\":\"shutdown-ack\",\"controlVersion\":1,\"unexpected\":true}\n"
+      },
+      "byteLength": 61,
+      "chunkings": ["whole"],
+      "expect": {
+        "ndjson": { "kind": "frames", "count": 1 },
+        "dto": { "kind": "reject" }
+      }
+    },
+    {
+      "id": "output.invalid.unknown-type",
+      "direction": "host-to-container",
+      "bytes": {
+        "kind": "utf8",
+        "value": "{\"type\":\"diagnostic\",\"controlVersion\":1,\"message\":\"not a control frame\"}\n"
+      },
+      "byteLength": 73,
+      "chunkings": ["whole"],
+      "expect": {
+        "ndjson": { "kind": "frames", "count": 1 },
+        "dto": { "kind": "reject" }
+      }
+    }
+  ],
+  "compatibilityExceptions": [
+    {
+      "id": "duplicate-recognized-key",
+      "parityGate": false,
+      "bytes": {
+        "kind": "utf8",
+        "value": "{\"type\":\"ready\",\"controlVersion\":2,\"controlVersion\":1,\"hostProtocolVersion\":1,\"instanceId\":\"runtime-fixture\",\"pid\":4242,\"httpOrigin\":\"http://127.0.0.1:43127\"}\n"
+      },
+      "typescriptCurrentBehavior": "JSON.parse retains the final value before exact post-parse key validation.",
+      "rustRequirement": "A strict serde DTO rejects duplicate recognized fields."
+    },
+    {
+      "id": "lone-utf16-surrogate-escape",
+      "parityGate": false,
+      "bytes": {
+        "kind": "utf8",
+        "value": "{\"type\":\"ready\",\"controlVersion\":1,\"hostProtocolVersion\":1,\"instanceId\":\"\\ud800\",\"pid\":4242,\"httpOrigin\":\"http://127.0.0.1:43127\"}\n"
+      },
+      "typescriptCurrentBehavior": "JSON.parse produces one unpaired UTF-16 code unit that the current string guard accepts.",
+      "rustRequirement": "serde_json String decoding rejects an unpaired surrogate escape."
+    }
+  ]
+}

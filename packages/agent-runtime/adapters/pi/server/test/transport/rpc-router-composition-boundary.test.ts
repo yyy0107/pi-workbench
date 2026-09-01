@@ -3,12 +3,11 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const RPC_ROUTER = new URL("../../src/transport/rpc-router.ts", import.meta.url);
+const RUNTIME_HTTP_ROUTER = new URL("../../src/transport/runtime-http-router.ts", import.meta.url);
 const RPC_ROUTE_COMPOSITION = new URL(
   "../../src/transport/rpc-route-composition.ts",
   import.meta.url,
 );
-const REPOSITORY_ROOT = new URL("../../../../../../../", import.meta.url);
-const INSTALLED_PI_SERVER = new URL("workbench/server/pi/installed-pi-server.ts", REPOSITORY_ROOT);
 const HOST_SERVICE = new URL("../../src/host/host-service.ts", import.meta.url);
 const LOCAL_APP_SERVICE = new URL("../../src/local-apps/service.ts", import.meta.url);
 const PROJECT_TRUST_SERVICE = new URL("../../src/trust/project-trust-service.ts", import.meta.url);
@@ -127,11 +126,10 @@ test("domain services implement the narrow protocols while retaining state owner
   }
 });
 
-test("route composition owns the domain graph while the Router remains injectable and thin", async () => {
-  const [compositionSource, routerSource, installedSource] = await Promise.all([
+test("route composition owns the injectable domain graph while the Router remains thin", async () => {
+  const [compositionSource, routerSource] = await Promise.all([
     readFile(RPC_ROUTE_COMPOSITION, "utf8"),
     readFile(RPC_ROUTER, "utf8"),
-    readFile(INSTALLED_PI_SERVER, "utf8"),
   ]);
 
   for (const [factory, dependency] of [
@@ -148,11 +146,8 @@ test("route composition owns the domain graph while the Router remains injectabl
   assert.match(compositionSource, /export function createDefaultPiRpcRouteGroups/);
   assert.match(compositionSource, /const hostService = new HostService\(\)/);
   assert.doesNotMatch(compositionSource, /new CommandService\(\)/);
-  assert.match(installedSource, /const commands = new CommandService\(\)/);
   assert.match(routerSource, /export function createPiRpcRouter/);
   assert.doesNotMatch(routerSource, /createDefaultPiRpcRouteGroups|handleInteractiveResponsePost/);
-  assert.match(installedSource, /const routeGroups = createDefaultPiRpcRouteGroups/);
-  assert.match(installedSource, /handleRpcPost: createPiRpcRouter/);
   assert.match(routerSource, /dispatchRpcRouteGroups\(request, method, routeGroups\)/);
   assert.match(routerSource, /if \(method === "respond"\) return respond\(request\)/);
   for (const method of [
@@ -174,4 +169,31 @@ test("route composition owns the domain graph while the Router remains injectabl
   assert.doesNotMatch(routerSource, /resource-rpc-validators|projectRpcDomainError/);
   assert.doesNotMatch(routerSource, /rpcObject|rpcOptional|rpcString|rpcBoolean|RpcValidator/);
   assert.doesNotMatch(routerSource, /getAgentDir|PI_VERSION|listModels|canOpenHostPath/);
+});
+
+test("the Runtime HTTP router owns carriers but never constructs a second service graph", async () => {
+  const runtimeRouterSource = await readFile(RUNTIME_HTTP_ROUTER, "utf8");
+
+  assert.match(runtimeRouterSource, /export function createPiRuntimeHttpRouter/);
+  for (const path of [
+    "/api/pi/models",
+    "/api/pi/running/events",
+    "/api/pi/sessions",
+    "/api/pi/workspaces/pick",
+    "/api/session.export",
+    "/api/workspace.files.content",
+  ]) {
+    assert.ok(runtimeRouterSource.includes(path), `Runtime HTTP owner is missing ${path}`);
+  }
+  assert.match(runtimeRouterSource, /SESSION_ROUTE/);
+  assert.match(runtimeRouterSource, /RPC_ROUTE/);
+  assert.match(runtimeRouterSource, /RPC_REQUEST_BODY_LIMITS\.inlineAttachment/);
+  assert.doesNotMatch(
+    runtimeRouterSource,
+    /session-registry|legacy-sse|workspace-paths|createDefaultPiRpcRouteGroups|getStreamHub/,
+  );
+  assert.doesNotMatch(
+    runtimeRouterSource,
+    /new (?:CommandService|ExecutionService|AutomationService|TerminalSessionManager)/,
+  );
 });

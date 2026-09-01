@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { registerHooks } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -14,18 +13,6 @@ import type {
   ServerRequest,
 } from "@workbench/agent-runtime-pi-protocol/stream";
 
-const moduleHooks = registerHooks({
-  resolve(specifier, context, nextResolve) {
-    if (
-      specifier.startsWith(".") &&
-      !/\.[^/]+$/.test(specifier) &&
-      context.parentURL?.includes("/runtime/")
-    ) {
-      return nextResolve(`${specifier}.ts`, context);
-    }
-    return nextResolve(specifier, context);
-  },
-});
 const {
   cancelSession,
   compactAssistantMessageUpdate,
@@ -67,7 +54,6 @@ const { createStreamHub, STREAM_HUB_SYMBOL } = (await import(
 const { getImageUnderstandingSettingsStore } = (await import(
   new URL("../../src/attachment-understanding/registry.ts", import.meta.url).href
 )) as typeof import("../../src/attachment-understanding/registry");
-moduleHooks.deregister();
 
 test("detects image content across durable session message roles", () => {
   assert.equal(messagesHaveImages([{ role: "user", content: "text only" }]), false);

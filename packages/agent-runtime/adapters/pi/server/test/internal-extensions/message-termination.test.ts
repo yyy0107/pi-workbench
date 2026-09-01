@@ -1,26 +1,10 @@
 import assert from "node:assert/strict";
-import { registerHooks } from "node:module";
 import test from "node:test";
-
-const moduleHooks = registerHooks({
-  resolve(specifier, context, nextResolve) {
-    if (
-      specifier.startsWith(".") &&
-      !/\.[^/]+$/.test(specifier) &&
-      context.parentURL?.includes("/runtime/pi/")
-    ) {
-      return nextResolve(`${specifier}.ts`, context);
-    }
-    return nextResolve(specifier, context);
-  },
-});
 
 const { reportWorkbenchInternalPiExtensionErrors, workbenchInternalPiExtensions } =
   await import("../../src/internal-extensions/index");
 const { messageTerminationExtension } =
   await import("../../src/internal-extensions/message-termination");
-
-test.after(() => moduleHooks.deregister());
 
 type MessageEndHandler = (event: unknown, context: unknown) => unknown | Promise<unknown>;
 

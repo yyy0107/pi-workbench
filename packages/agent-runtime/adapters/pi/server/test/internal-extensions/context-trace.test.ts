@@ -1,22 +1,8 @@
 import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
-import { registerHooks } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-
-const moduleHooks = registerHooks({
-  resolve(specifier, context, nextResolve) {
-    if (
-      specifier.startsWith(".") &&
-      !/\.[^/]+$/.test(specifier) &&
-      context.parentURL?.includes("/runtime/pi/")
-    ) {
-      return nextResolve(`${specifier}.ts`, context);
-    }
-    return nextResolve(specifier, context);
-  },
-});
 
 const { contextTraceExtension } = await import("../../src/internal-extensions/context-trace");
 const { activateSessionContextTrace, releaseSessionContextTrace } =
@@ -24,8 +10,6 @@ const { activateSessionContextTrace, releaseSessionContextTrace } =
 const { SessionContextTraceJournal } =
   await import("../../src/sessions/session-context-trace-journal");
 const { formatSkillsForPrompt } = await import("@earendil-works/pi-coding-agent");
-
-test.after(() => moduleHooks.deregister());
 
 test("observes final prompt resources, messages, tools, and provider payload without mutation", async (t) => {
   const traceDirectory = await mkdtemp(path.join(tmpdir(), "workbench-context-trace-extension-"));

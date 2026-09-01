@@ -2,19 +2,20 @@
 
 type ResourceCatalogListener = () => void;
 
-const listeners = new Set<ResourceCatalogListener>();
-let revision = 0;
+/** One installation's resource-catalog revision signal. */
+export class PiResourceCatalogRevision {
+  private readonly listeners = new Set<ResourceCatalogListener>();
+  private revision = 0;
 
-export function getPiResourceCatalogRevision(): number {
-  return revision;
-}
+  getRevision = (): number => this.revision;
 
-export function subscribePiResourceCatalog(listener: ResourceCatalogListener): () => void {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-}
+  subscribe = (listener: ResourceCatalogListener): (() => void) => {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  };
 
-export function invalidatePiResourceCatalog(): void {
-  revision += 1;
-  for (const listener of listeners) listener();
+  invalidate = (): void => {
+    this.revision += 1;
+    for (const listener of this.listeners) listener();
+  };
 }

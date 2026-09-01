@@ -3,6 +3,7 @@
   "ignorePatterns": [
     ".pi/settings.json",
     "**/node_modules/**",
+    "apps/desktop-tauri/src-tauri/gen/schemas/**",
     ".agents/skills/banner-design/**",
     ".agents/skills/brand/**",
     ".agents/skills/design-system/**",

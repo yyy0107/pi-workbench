@@ -1,22 +1,12 @@
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { registerHooks } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-const moduleHooks = registerHooks({
-  resolve(specifier, context, nextResolve) {
-    return nextResolve(
-      specifier === "../../src/models/model-config-store" ? `${specifier}.ts` : specifier,
-      context,
-    );
-  },
-});
 const { ModelConfigStore } = (await import(
   new URL("../../src/models/model-config-store.ts", import.meta.url).href
 )) as typeof import("../../src/models/model-config-store");
-moduleHooks.deregister();
 
 test("merges provider models without exposing or overwriting credentials", async (t) => {
   const directory = await mkdtemp(path.join(tmpdir(), "workbench-model-config-"));

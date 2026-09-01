@@ -1,27 +1,13 @@
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, readdir, rm, stat, utimes, writeFile } from "node:fs/promises";
-import { registerHooks } from "node:module";
 import { hostname, tmpdir } from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
-const moduleHooks = registerHooks({
-  resolve(specifier, context, nextResolve) {
-    if (
-      specifier.startsWith(".") &&
-      !/\.[^/]+$/.test(specifier) &&
-      context.parentURL?.includes("/runtime/pi/")
-    ) {
-      return nextResolve(`${specifier}.ts`, context);
-    }
-    return nextResolve(specifier, context);
-  },
-});
 const { WorkspaceStore, WorkspaceStoreError } = (await import(
   new URL("../../src/workspaces/workspace-store.ts", import.meta.url).href
 )) as typeof import("../../src/workspaces/workspace-store");
-moduleHooks.deregister();
 
 type WorkspaceStoreEvent = import("../../src/workspaces/workspace-store").WorkspaceStoreEvent;
 

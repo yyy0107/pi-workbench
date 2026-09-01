@@ -25,18 +25,18 @@
 
 ## UI 全局样式复用
 
-- 新建或修改 UI 组件前，必须先检查 `components/ui/` 中的共享组件和 `app/globals.css` 中的全局语义 token；复用优先级为：共享组件及其 variant → Tailwind 语义类 → 现有 CSS token → 新增局部样式。不得在业务组件中复制已有基础组件或交互状态样式。
+- 新建或修改 UI 组件前，必须先检查 `packages/workbench/shell/src/ui/` 中的共享组件和 `apps/web/src/app/globals.css` 中的全局语义 token；复用优先级为：共享组件及其 variant → Tailwind 语义类 → 现有 CSS token → 新增局部样式。不得在业务组件中复制已有基础组件或交互状态样式。
 - 新组件必须接入全局外观系统。颜色使用 `bg-background`、`bg-muted`、`text-foreground`、`text-muted-foreground`、`border-border` 等语义类；控件高度、圆角、图标、输入框、下拉框、开关和交互状态使用 `--button-*`、`--control-*`、`--icon-*`、`--input-control-*`、`--dropdown-control-*`、`--switch-*` 等现有 token。若已有对应 token，禁止改用固定的 `px`、任意 Tailwind 尺寸、十六进制/RGB 颜色或独立圆角值覆盖它。
 - 下拉选择器必须复用 `components/ui/` 中对应的全局组件和既有布局：工作区或项目选择统一使用 `WorkspaceSelector`，通用富下拉优先使用 `SelectorDropdown`、`DropdownMenu` 及其共享选项组件。不得在业务组件中直接使用原生 `<select>`、用 `components/ui/Select` 替代已有富下拉，或自行复制触发器、弹层、搜索、选中态等样式。仅当现有全局组件无法表达且产品明确需要原生选择语义时，才允许使用 `components/ui/Select`，并应在代码附近说明原因。
-- 只有确属功能私有、不会随主题、暗色模式、密度或圆角设置变化的布局值才允许保留局部常量。若某种视觉语义会跨组件复用或需要响应外观设置，应先扩展 `app/globals.css` 的语义 token 或 `components/ui/` 的共享 variant，再在业务组件中引用，不得创建第二套设计变量。
+- 只有确属功能私有、不会随主题、暗色模式、密度或圆角设置变化的布局值才允许保留局部常量。若某种视觉语义会跨组件复用或需要响应外观设置，应先扩展 `apps/web/src/app/globals.css` 的语义 token 或 Shell 共享 UI variant，再在业务组件中引用，不得创建第二套设计变量。
 - 实现完成后必须静态检查新增 class/style，确认组件能随浅色/深色主题、全局颜色、控件密度和圆角配置变化；无具体渲染不确定性时按验证策略仅做代码检查，不为此机械启动 Browser 或完整测试。
 
 ## 常用命令
 
 ```bash
-pnpm dev          # 启动开发服务器（next dev --turbopack）
-pnpm build        # 生产构建
-pnpm start        # 启动生产服务器
+pnpm dev          # 根 manager 启动独立 Web + Runtime，并保留 Next Fast Refresh
+pnpm build        # 依次委托 Runtime、Web 与 Electron app 构建/组合 artifacts
+pnpm start        # 根 orchestrator 以生产模式启动独立 Web + Runtime
 pnpm lint         # oxlint + oxfmt --check
 pnpm lint:fix     # oxlint --fix && oxfmt
 pnpm format       # oxfmt --check

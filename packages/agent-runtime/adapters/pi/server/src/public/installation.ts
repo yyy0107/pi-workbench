@@ -9,6 +9,7 @@ export {
   type PiAgentServerInstallationOptions,
 } from "../agent-runtime/pi-agent-server-installation";
 export { CommandService, type CommandCatalogProtocol } from "../commands/command-service";
+export { shutdownPiPackageCatalogService } from "../packages/package-catalog-service";
 export {
   createPiAutomationRuntimeBindings,
   type PiAutomationRuntimeBindingOptions,

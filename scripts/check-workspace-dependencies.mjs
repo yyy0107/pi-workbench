@@ -4,12 +4,36 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { isRootProductionSourceReference } from "./source-ownership-ledger.mjs";
+
 const REPOSITORY_ROOT = fileURLToPath(new URL("../", import.meta.url));
 const BUILTIN_MODULES = new Set(
   builtinModules.flatMap((moduleName) => [moduleName, `node:${moduleName}`]),
 );
 const SOURCE_EXTENSIONS = new Set([".cjs", ".cts", ".js", ".jsx", ".mjs", ".mts", ".ts", ".tsx"]);
 const PRODUCTION_DEPENDENCY_FIELDS = ["dependencies", "optionalDependencies", "peerDependencies"];
+const PACKAGE_PRODUCTION_DEPENDENCY_POLICIES = new Map([
+  [
+    "@workbench/automation-server",
+    new Set(["@workbench/automation-contracts", "@workbench/server-core", "cron-parser"]),
+  ],
+  [
+    "@workbench/execution-server",
+    new Set([
+      "@workbench/execution-contracts",
+      "@workbench/server-core",
+      "@workbench/terminal-server",
+    ]),
+  ],
+  [
+    "@workbench/settings-server",
+    new Set([
+      "@workbench/agent-runtime-contracts",
+      "@workbench/contracts",
+      "@workbench/server-core",
+    ]),
+  ],
+]);
 
 export function parseWorkspacePackagePatterns(source) {
   const patterns = [];
@@ -29,7 +53,7 @@ export function parseWorkspacePackagePatterns(source) {
   return patterns;
 }
 
-async function workspacePackageDirectories(repositoryRoot) {
+async function workspaceDirectories(repositoryRoot) {
   const workspaceSource = await readFile(path.join(repositoryRoot, "pnpm-workspace.yaml"), "utf8");
   const patterns = parseWorkspacePackagePatterns(workspaceSource);
   const directories = [];
@@ -55,13 +79,16 @@ async function workspacePackageDirectories(repositoryRoot) {
       const directory = path.join(parentDirectory, entry.name);
       try {
         await readFile(path.join(directory, "package.json"), "utf8");
-        directories.push(directory);
+        directories.push({
+          directory,
+          kind: pattern.startsWith("apps/") ? "app" : "package",
+        });
       } catch (error) {
         if (error?.code !== "ENOENT") throw error;
       }
     }
   }
-  return directories.sort();
+  return directories.sort(({ directory: left }, { directory: right }) => left.localeCompare(right));
 }
 
 async function sourceFiles(directory) {
@@ -85,58 +112,15 @@ async function sourceFiles(directory) {
 
 function sourceTokens(source) {
   const tokens = [];
-  let index = 0;
-  while (index < source.length) {
-    const character = source[index];
-    const next = source[index + 1];
-    if (/\s/.test(character)) {
-      index += 1;
-      continue;
-    }
-    if (character === "/" && next === "/") {
-      index = source.indexOf("\n", index + 2);
-      if (index === -1) break;
-      continue;
-    }
-    if (character === "/" && next === "*") {
-      const commentEnd = source.indexOf("*/", index + 2);
-      index = commentEnd === -1 ? source.length : commentEnd + 2;
-      continue;
-    }
-    if (character === '"' || character === "'") {
-      const quote = character;
-      let value = "";
-      index += 1;
-      while (index < source.length && source[index] !== quote) {
-        if (source[index] === "\\" && index + 1 < source.length) index += 1;
-        value += source[index];
-        index += 1;
-      }
-      index += 1;
-      tokens.push({ type: "string", value });
-      continue;
-    }
-    if (character === "`") {
-      index += 1;
-      while (index < source.length && source[index] !== "`") {
-        if (source[index] === "\\" && index + 1 < source.length) index += 1;
-        index += 1;
-      }
-      index += 1;
-      continue;
-    }
-    if (/[A-Za-z_$]/.test(character)) {
-      let value = character;
-      index += 1;
-      while (index < source.length && /[\w$]/.test(source[index])) {
-        value += source[index];
-        index += 1;
-      }
-      tokens.push({ type: "identifier", value });
-      continue;
-    }
-    tokens.push({ type: "punctuation", value: character });
-    index += 1;
+  const expression =
+    /\/\*[\s\S]*?\*\/|\/\/[^\n]*|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`([^`\\]|\\.)*`|[A-Za-z_$][\w$]*|\S/g;
+  for (const match of source.matchAll(expression)) {
+    const value = match[0];
+    if (value.startsWith("//") || value.startsWith("/*")) continue;
+    if (value[0] === '"' || value[0] === "'" || value[0] === "`") {
+      tokens.push({ type: "string", value: value.slice(1, -1) });
+    } else if (/^[A-Za-z_$]/u.test(value)) tokens.push({ type: "identifier", value });
+    else tokens.push({ type: "punctuation", value });
   }
   return tokens;
 }
@@ -147,7 +131,6 @@ function moduleSpecifiers(source) {
   for (let index = 0; index < tokens.length; index += 1) {
     const token = tokens[index];
     if (token.type !== "identifier") continue;
-
     if (
       (token.value === "import" || token.value === "require") &&
       tokens[index + 1]?.value === "("
@@ -156,13 +139,8 @@ function moduleSpecifiers(source) {
       continue;
     }
     if (token.value !== "import" && token.value !== "export") continue;
-    if (tokens[index - 1]?.value === ".") continue;
-    if (tokens[index + 1]?.type === "string") {
-      specifiers.push(tokens[index + 1].value);
-      continue;
-    }
-
-    for (let cursor = index + 1; cursor < Math.min(tokens.length, index + 64); cursor += 1) {
+    if (tokens[index + 1]?.type === "string") specifiers.push(tokens[index + 1].value);
+    for (let cursor = index + 1; cursor < tokens.length; cursor += 1) {
       if (tokens[cursor].value === ";") break;
       if (tokens[cursor].value === "from" && tokens[cursor + 1]?.type === "string") {
         specifiers.push(tokens[cursor + 1].value);
@@ -173,13 +151,34 @@ function moduleSpecifiers(source) {
   return specifiers;
 }
 
+function pathReferenceValues(source) {
+  const values = [];
+  const expression =
+    /(?=(?:new\s+URL|(?:path\.)?(?:join|resolve|normalize)|(?:fs\.)?(?:readFile|readFileSync|readdir|readdirSync|stat|statSync))\s*\(([^)]*)\))/gu;
+  for (const match of source.matchAll(expression)) {
+    const argumentsSource = match[1] ?? "";
+    const strings = [...argumentsSource.matchAll(/["'`]([^"'`]*)["'`]/gu)].map((item) => item[1]);
+    if (strings.length === 0) continue;
+    values.push({
+      reference: strings.join("/"),
+      repositoryRelative: /^\s*(?:repositoryRoot|PROJECT_ROOT|REPOSITORY_ROOT)\s*(?:,|$)/u.test(
+        argumentsSource,
+      ),
+    });
+  }
+  return values;
+}
+
 function importedPackageName(specifier) {
   if (
     specifier.startsWith(".") ||
     specifier.startsWith("/") ||
+    specifier.startsWith("@/") ||
     specifier.startsWith("#") ||
     specifier.startsWith("data:") ||
     specifier.startsWith("file:") ||
+    specifier === "client-only" ||
+    specifier === "server-only" ||
     BUILTIN_MODULES.has(specifier)
   ) {
     return undefined;
@@ -197,6 +196,218 @@ function declaredDependencies(manifest, includeDevelopment) {
 
 function packageSubpath(specifier, packageName) {
   return specifier === packageName ? "" : specifier.slice(packageName.length + 1);
+}
+
+function isInsideDirectory(target, directory) {
+  const relative = path.relative(directory, target);
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
+
+function matchingAppDirectory({
+  filename,
+  reference,
+  repositoryRelative = false,
+  appDirectories,
+  repositoryRoot,
+  aliasRoot = repositoryRoot,
+}) {
+  const resolved = reference.startsWith("@/")
+    ? path.resolve(aliasRoot, reference.slice(2))
+    : path.resolve(repositoryRelative ? repositoryRoot : path.dirname(filename), reference);
+  for (const directory of appDirectories) {
+    if (isInsideDirectory(resolved, directory)) return directory;
+  }
+
+  const normalizedReference = reference.split(/[/\\]+/).filter(Boolean);
+  for (const directory of appDirectories) {
+    const relativeDirectory = path
+      .relative(repositoryRoot, directory)
+      .split(path.sep)
+      .filter(Boolean);
+    for (
+      let index = 0;
+      index <= normalizedReference.length - relativeDirectory.length;
+      index += 1
+    ) {
+      if (
+        relativeDirectory.every(
+          (segment, offset) => normalizedReference[index + offset] === segment,
+        )
+      ) {
+        return directory;
+      }
+    }
+  }
+  return undefined;
+}
+
+function matchingPackageSourceDirectory({
+  filename,
+  reference,
+  repositoryRelative = false,
+  packageDirectories,
+  repositoryRoot,
+  aliasRoot = repositoryRoot,
+}) {
+  const pathLike =
+    repositoryRelative ||
+    reference.startsWith(".") ||
+    reference.startsWith("/") ||
+    reference.startsWith("@/") ||
+    path.isAbsolute(reference);
+  if (!pathLike) return undefined;
+  const resolved = reference.startsWith("@/")
+    ? path.resolve(aliasRoot, reference.slice(2))
+    : path.resolve(repositoryRelative ? repositoryRoot : path.dirname(filename), reference);
+  return packageDirectories.find((directory) => isInsideDirectory(resolved, directory));
+}
+
+function matchingRootProductionSource({
+  filename,
+  reference,
+  repositoryRelative = false,
+  repositoryRoot,
+  aliasRoot = repositoryRoot,
+}) {
+  const pathLike =
+    repositoryRelative ||
+    reference.startsWith(".") ||
+    reference.startsWith("/") ||
+    reference.startsWith("@/") ||
+    path.isAbsolute(reference);
+  if (!pathLike) return undefined;
+  const resolved = reference.startsWith("@/")
+    ? path.resolve(aliasRoot, reference.slice(2))
+    : path.resolve(repositoryRelative ? repositoryRoot : path.dirname(filename), reference);
+  if (isInsideDirectory(resolved, repositoryRoot)) {
+    const relative = path.relative(repositoryRoot, resolved).split(path.sep).join("/");
+    if (isRootProductionSourceReference(relative)) return relative;
+  }
+  if (!repositoryRelative && !reference.startsWith("@/") && !path.isAbsolute(reference)) {
+    return undefined;
+  }
+  if (reference.startsWith("@/") && path.resolve(aliasRoot) !== path.resolve(repositoryRoot)) {
+    return undefined;
+  }
+  const normalized = reference
+    .replace(/^@\//u, "")
+    .split(/[/\\]+/u)
+    .filter(Boolean);
+  for (let index = 0; index < normalized.length; index += 1) {
+    const candidate = normalized.slice(index).join("/");
+    if (isRootProductionSourceReference(candidate)) return candidate;
+  }
+  return undefined;
+}
+
+function sourceBoundaryViolations({
+  appDirectories,
+  appNames,
+  enforcePackageBoundary,
+  filename,
+  owner,
+  packageDirectories,
+  repositoryRoot,
+  source,
+}) {
+  const location = path.relative(repositoryRoot, filename);
+  const aliasRoot = owner.kind === "app" ? path.join(owner.directory, "src") : repositoryRoot;
+  const violations = [];
+  const report = (targetDirectory, detail) => {
+    const target = path.relative(repositoryRoot, targetDirectory);
+    if (owner.kind === "package") {
+      violations.push(
+        `${location}: packages must not depend on app source (${target}) via ${detail}`,
+      );
+      return;
+    }
+    if (targetDirectory !== owner.directory) {
+      violations.push(
+        `${location}: apps must not depend on another app source (${target}) via ${detail}`,
+      );
+    }
+  };
+  const reportRoot = (target, detail) => {
+    violations.push(
+      `${location}: workspace source must not depend on root production source (${target}) via ${detail}`,
+    );
+  };
+  const reportPackage = (targetDirectory, detail) => {
+    if (!enforcePackageBoundary || targetDirectory === owner.directory) return;
+    violations.push(
+      `${location}: workspace source must not depend on another package source (${path.relative(repositoryRoot, targetDirectory)}) via ${detail}`,
+    );
+  };
+
+  for (const specifier of moduleSpecifiers(source, filename)) {
+    const dependency = importedPackageName(specifier);
+    const targetDirectory =
+      appNames.get(dependency) ??
+      matchingAppDirectory({
+        aliasRoot,
+        filename,
+        reference: specifier,
+        appDirectories,
+        repositoryRoot,
+      });
+    if (targetDirectory) report(targetDirectory, `module specifier ${specifier}`);
+    else {
+      const packageDirectory = matchingPackageSourceDirectory({
+        aliasRoot,
+        filename,
+        reference: specifier,
+        packageDirectories,
+        repositoryRoot,
+      });
+      if (packageDirectory) {
+        reportPackage(packageDirectory, `module specifier ${specifier}`);
+        continue;
+      }
+      const rootTarget = matchingRootProductionSource({
+        aliasRoot,
+        filename,
+        reference: specifier,
+        repositoryRoot,
+      });
+      if (rootTarget) reportRoot(rootTarget, `module specifier ${specifier}`);
+    }
+  }
+  for (const { reference, repositoryRelative } of pathReferenceValues(source)) {
+    const targetDirectory = matchingAppDirectory({
+      aliasRoot,
+      filename,
+      reference,
+      repositoryRelative,
+      appDirectories,
+      repositoryRoot,
+    });
+    if (targetDirectory) report(targetDirectory, `source path ${reference}`);
+    else {
+      const packageDirectory = matchingPackageSourceDirectory({
+        aliasRoot,
+        filename,
+        reference,
+        repositoryRelative,
+        packageDirectories,
+        repositoryRoot,
+      });
+      if (packageDirectory) {
+        reportPackage(packageDirectory, `source path ${reference}`);
+        continue;
+      }
+      const rootTarget = matchingRootProductionSource({
+        aliasRoot,
+        filename,
+        reference,
+        repositoryRelative,
+        repositoryRoot,
+      });
+      if (rootTarget && SOURCE_EXTENSIONS.has(path.extname(rootTarget))) {
+        reportRoot(rootTarget, `source path ${reference}`);
+      }
+    }
+  }
+  return [...new Set(violations)];
 }
 
 function productionWorkspaceGraph(packages, workspaceNames) {
@@ -248,31 +459,61 @@ function workspaceDependencyCycles(graph) {
 }
 
 export async function workspaceDependencyViolations(repositoryRoot = REPOSITORY_ROOT) {
-  const packageDirectories = await workspacePackageDirectories(repositoryRoot);
-  const packages = [];
+  const directories = await workspaceDirectories(repositoryRoot);
+  const workspaces = [];
 
-  for (const directory of packageDirectories) {
+  for (const { directory, kind } of directories) {
     const manifestPath = path.join(directory, "package.json");
     const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
     if (!manifest.name || typeof manifest.name !== "string") {
       throw new Error(`${path.relative(repositoryRoot, manifestPath)} must declare a package name`);
     }
-    packages.push({ directory, manifest, manifestPath });
+    workspaces.push({ directory, kind, manifest, manifestPath });
   }
 
+  const packages = workspaces.filter((workspace) => workspace.kind === "package");
+  const apps = workspaces.filter((workspace) => workspace.kind === "app");
   const workspaceNames = new Set(packages.map(({ manifest }) => manifest.name));
+  const allWorkspaceNames = new Set(workspaces.map(({ manifest }) => manifest.name));
+  const appNames = new Map(apps.map(({ directory, manifest }) => [manifest.name, directory]));
+  const appDirectories = apps.map(({ directory }) => directory);
+  const packageDirectories = packages.map(({ directory }) => directory);
   const violations = [];
   for (const cycle of workspaceDependencyCycles(
     productionWorkspaceGraph(packages, workspaceNames),
   )) {
     violations.push(`workspace production dependency cycle: ${cycle}`);
   }
-  for (const { directory, manifest, manifestPath } of packages) {
+
+  for (const workspace of workspaces) {
+    const { directory, kind, manifest, manifestPath } = workspace;
+    const productionDependencyPolicy = PACKAGE_PRODUCTION_DEPENDENCY_POLICIES.get(manifest.name);
     for (const field of [...PRODUCTION_DEPENDENCY_FIELDS, "devDependencies"]) {
       for (const [dependency, version] of Object.entries(manifest[field] ?? {})) {
-        if (workspaceNames.has(dependency) && !String(version).startsWith("workspace:")) {
+        if (
+          productionDependencyPolicy &&
+          PRODUCTION_DEPENDENCY_FIELDS.includes(field) &&
+          !productionDependencyPolicy.has(dependency)
+        ) {
+          violations.push(
+            `${path.relative(repositoryRoot, manifestPath)}: ${manifest.name} must not declare production dependency ${dependency}`,
+          );
+        }
+        if (allWorkspaceNames.has(dependency) && !String(version).startsWith("workspace:")) {
           violations.push(
             `${path.relative(repositoryRoot, manifestPath)}: ${dependency} must use the workspace: protocol`,
+          );
+        }
+        const appDirectory = appNames.get(dependency);
+        if (!appDirectory) continue;
+        const appPath = path.relative(repositoryRoot, appDirectory);
+        if (kind === "package") {
+          violations.push(
+            `${path.relative(repositoryRoot, manifestPath)}: packages must not declare app dependency (${appPath})`,
+          );
+        } else if (appDirectory !== directory) {
+          violations.push(
+            `${path.relative(repositoryRoot, manifestPath)}: apps must not declare another app dependency (${appPath})`,
           );
         }
       }
@@ -283,18 +524,40 @@ export async function workspaceDependencyViolations(repositoryRoot = REPOSITORY_
       const declared = declaredDependencies(manifest, allowDevelopment);
       for (const filename of await sourceFiles(path.join(directory, sourceDirectory))) {
         const source = await readFile(filename, "utf8");
-        for (const specifier of moduleSpecifiers(source)) {
+        violations.push(
+          ...sourceBoundaryViolations({
+            appDirectories,
+            appNames,
+            enforcePackageBoundary: sourceDirectory === "src",
+            filename,
+            owner: { directory, kind },
+            packageDirectories,
+            repositoryRoot,
+            source,
+          }),
+        );
+        for (const specifier of moduleSpecifiers(source, filename)) {
           const dependency = importedPackageName(specifier);
           if (!dependency || dependency === manifest.name) continue;
           const location = path.relative(repositoryRoot, filename);
 
           if (
-            workspaceNames.has(dependency) &&
+            sourceDirectory === "src" &&
+            productionDependencyPolicy &&
+            !productionDependencyPolicy.has(dependency)
+          ) {
+            violations.push(
+              `${location}: ${manifest.name} source must not import dependency ${dependency}`,
+            );
+          }
+
+          if (
+            allWorkspaceNames.has(dependency) &&
             packageSubpath(specifier, dependency).startsWith("src")
           ) {
             violations.push(`${location}: do not import workspace source internals (${specifier})`);
           }
-          if (dependency.startsWith("@workbench/") && !workspaceNames.has(dependency)) {
+          if (dependency.startsWith("@workbench/") && !allWorkspaceNames.has(dependency)) {
             violations.push(`${location}: unknown Workbench workspace package ${dependency}`);
           }
           if (!declared.has(dependency)) {

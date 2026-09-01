@@ -1,28 +1,14 @@
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { registerHooks } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
 import { PI_AGENT_SETTINGS_NAMESPACE } from "@workbench/agent-runtime-pi-protocol/rpc";
 
-const moduleHooks = registerHooks({
-  resolve(specifier, context, nextResolve) {
-    if (
-      specifier.startsWith(".") &&
-      !/\.[^/]+$/.test(specifier) &&
-      context.parentURL?.includes("/runtime/pi/")
-    ) {
-      return nextResolve(`${specifier}.ts`, context);
-    }
-    return nextResolve(specifier, context);
-  },
-});
 const { AgentSettingsService, AgentSettingsServiceError } = (await import(
   new URL("../../src/settings/agent-settings-service.ts", import.meta.url).href
 )) as typeof import("../../src/settings/agent-settings-service");
-moduleHooks.deregister();
 
 async function fixture(t: test.TestContext) {
   const agentDir = await mkdtemp(path.join(tmpdir(), "workbench-agent-settings-"));

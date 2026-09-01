@@ -14,6 +14,7 @@ import type {
   SessionMessageUpdatePayload,
   StreamName,
 } from "@workbench/agent-runtime-pi-protocol/stream";
+import { STREAM_PATHS } from "@workbench/agent-runtime-pi-protocol/stream";
 import { SessionMessageAccumulator } from "./session-message-accumulator";
 
 const IDLE_CLOSE_DELAY_MS = 30_000;
@@ -23,11 +24,6 @@ const MAX_RECONNECT_DELAY_MS = 10_000;
 // Match the server hub's bootstrap buffer so a large retained mux baseline
 // cannot force the paired sockets into a permanent reconnect loop.
 const MAX_PENDING_GENERATION_FRAMES = 10_000;
-
-const STREAM_PATHS: Record<StreamName, string> = {
-  mux: "/api/events.mux",
-  host: "/api/events.host",
-};
 
 const LOG_CONNECTION_LIFECYCLE = process.env.NODE_ENV === "development";
 

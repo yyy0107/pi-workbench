@@ -1,25 +1,32 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  getPiResourceCatalogRevision,
-  invalidatePiResourceCatalog,
-  subscribePiResourceCatalog,
-} from "../../src/runtime/resource-catalog-revision";
+import { PiResourceCatalogRevision } from "../../src/runtime/resource-catalog-revision";
 
-test("invalidates every Pi resource catalog subscriber through one shared revision", () => {
-  const initialRevision = getPiResourceCatalogRevision();
-  let notifications = 0;
-  const unsubscribe = subscribePiResourceCatalog(() => {
-    notifications += 1;
+test("resource catalog revisions are isolated per installation", () => {
+  const first = new PiResourceCatalogRevision();
+  const second = new PiResourceCatalogRevision();
+  let firstNotifications = 0;
+  let secondNotifications = 0;
+  const unsubscribeFirst = first.subscribe(() => {
+    firstNotifications += 1;
+  });
+  const unsubscribeSecond = second.subscribe(() => {
+    secondNotifications += 1;
   });
 
-  invalidatePiResourceCatalog();
-  assert.equal(getPiResourceCatalogRevision(), initialRevision + 1);
-  assert.equal(notifications, 1);
+  first.invalidate();
+  assert.equal(first.getRevision(), 1);
+  assert.equal(second.getRevision(), 0);
+  assert.equal(firstNotifications, 1);
+  assert.equal(secondNotifications, 0);
 
-  unsubscribe();
-  invalidatePiResourceCatalog();
-  assert.equal(getPiResourceCatalogRevision(), initialRevision + 2);
-  assert.equal(notifications, 1);
+  second.invalidate();
+  assert.equal(first.getRevision(), 1);
+  assert.equal(second.getRevision(), 1);
+  assert.equal(firstNotifications, 1);
+  assert.equal(secondNotifications, 1);
+
+  unsubscribeFirst();
+  unsubscribeSecond();
 });

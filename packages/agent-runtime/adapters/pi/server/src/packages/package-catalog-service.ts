@@ -455,9 +455,13 @@ export class PiPackageCatalogService implements PackageCatalogProtocol {
   private readonly detailRefreshes = new Map<string, Promise<PiPackageCatalogDetailsView>>();
   private snapshot?: PackageCatalogSnapshot;
   private snapshotRefresh?: Promise<void>;
+  private readonly lifecycleController = new AbortController();
+  private readonly activeOperations = new Set<Promise<unknown>>();
   private backgroundRefreshStarted = false;
   private backgroundStartup?: Promise<void>;
   private stopScheduler?: () => void;
+  private closed = false;
+  private shutdownOperation?: Promise<void>;
 
   constructor(
     dependencies: Partial<PiPackageCatalogServiceDependencies> = {},
@@ -514,8 +518,31 @@ export class PiPackageCatalogService implements PackageCatalogProtocol {
     return cached;
   }
 
+  private operationSignal(signal?: AbortSignal): AbortSignal {
+    if (this.closed || this.lifecycleController.signal.aborted || signal?.aborted) {
+      throw catalogUnavailable({
+        cause: signal?.reason ?? this.lifecycleController.signal.reason,
+      });
+    }
+    return signal
+      ? AbortSignal.any([signal, this.lifecycleController.signal])
+      : this.lifecycleController.signal;
+  }
+
+  private track<Value>(operation: Promise<Value>): Promise<Value> {
+    this.activeOperations.add(operation);
+    void operation.then(
+      () => this.activeOperations.delete(operation),
+      () => this.activeOperations.delete(operation),
+    );
+    return operation;
+  }
+
   private async fetchHtml(url: URL, signal?: AbortSignal, maxAttempts = 1): Promise<string> {
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      if (signal?.aborted || this.closed) {
+        throw catalogUnavailable({ cause: signal?.reason });
+      }
       let response: Response;
       try {
         response = await this.dependencies.fetch(url, {
@@ -531,6 +558,11 @@ export class PiPackageCatalogService implements PackageCatalogProtocol {
         }
         await this.waitBeforeRetry(attempt, signal);
         continue;
+      }
+
+      if (signal?.aborted || this.closed) {
+        await response.body?.cancel().catch(() => {});
+        throw catalogUnavailable({ cause: signal?.reason });
       }
 
       if (!response.ok) {
@@ -560,6 +592,9 @@ export class PiPackageCatalogService implements PackageCatalogProtocol {
           {},
         );
       }
+      if (signal?.aborted || this.closed) {
+        throw catalogUnavailable({ cause: signal?.reason });
+      }
       return html;
     }
     throw new Error("The package catalog retry loop ended unexpectedly.");
@@ -570,6 +605,9 @@ export class PiPackageCatalogService implements PackageCatalogProtocol {
     signal?: AbortSignal,
     response?: Response,
   ): Promise<void> {
+    if (signal?.aborted || this.closed) {
+      throw catalogUnavailable({ cause: signal?.reason });
+    }
     const delayMs =
       (response && retryAfterDelayMs(response, this.dependencies.now())) ??
       Math.min(CATALOG_RETRY_BASE_DELAY_MS * 2 ** (attempt - 1), CATALOG_RETRY_MAX_DELAY_MS);
@@ -577,6 +615,9 @@ export class PiPackageCatalogService implements PackageCatalogProtocol {
       await this.dependencies.sleep(delayMs, signal);
     } catch (error) {
       throw catalogUnavailable({ cause: error });
+    }
+    if (signal?.aborted || this.closed) {
+      throw catalogUnavailable({ cause: signal?.reason });
     }
   }
 
@@ -589,11 +630,12 @@ export class PiPackageCatalogService implements PackageCatalogProtocol {
     return parsePiPackageCatalogPageHtml(html, payload.page ?? 1);
   }
 
-  private async loadCompleteSnapshot(): Promise<PackageCatalogSnapshot> {
+  private async loadCompleteSnapshot(signal: AbortSignal): Promise<PackageCatalogSnapshot> {
     const controller = new AbortController();
+    const refreshSignal = AbortSignal.any([signal, controller.signal]);
     const firstPage = await this.fetchCatalogPage(
       { sort: "name", page: 1 },
-      controller.signal,
+      refreshSignal,
       CATALOG_REQUEST_MAX_ATTEMPTS,
     );
     if (firstPage.value.filteredTotal !== firstPage.value.total) {
@@ -616,7 +658,7 @@ export class PiPackageCatalogService implements PackageCatalogProtocol {
         if (page > firstPage.value.pageCount) return;
         pages[page - 1] = await this.fetchCatalogPage(
           { sort: "name", page },
-          controller.signal,
+          refreshSignal,
           CATALOG_REQUEST_MAX_ATTEMPTS,
         );
       }
@@ -659,17 +701,21 @@ export class PiPackageCatalogService implements PackageCatalogProtocol {
     return { entries, total: entries.length };
   }
 
-  refreshCatalog(): Promise<void> {
+  refreshCatalog(signal?: AbortSignal): Promise<void> {
+    const refreshSignal = this.operationSignal(signal);
     if (this.snapshotRefresh) return this.snapshotRefresh;
-    const refresh = this.loadCompleteSnapshot()
+    const refresh = this.loadCompleteSnapshot(refreshSignal)
       .then((snapshot) => {
+        if (refreshSignal.aborted || this.closed) {
+          throw catalogUnavailable({ cause: refreshSignal.reason });
+        }
         this.snapshot = snapshot;
         this.fallbackSearchCache.clear();
       })
       .finally(() => {
         if (this.snapshotRefresh === refresh) this.snapshotRefresh = undefined;
       });
-    this.snapshotRefresh = refresh;
+    this.snapshotRefresh = this.track(refresh);
     return refresh;
   }
 
@@ -712,11 +758,15 @@ export class PiPackageCatalogService implements PackageCatalogProtocol {
     payload: PiPackageCatalogSearchPayload,
     signal?: AbortSignal,
   ): Promise<PiPackageCatalogSearchValue> {
+    const refreshSignal = this.operationSignal(signal);
     const key = buildPiPackageCatalogUrl(payload).toString();
     const active = this.fallbackSearchRefreshes.get(key);
     if (active) return active;
-    const refresh = this.fetchCatalogPage(payload, signal)
+    const refresh = this.fetchCatalogPage(payload, refreshSignal)
       .then(({ value }) => {
+        if (refreshSignal.aborted || this.closed) {
+          throw catalogUnavailable({ cause: refreshSignal.reason });
+        }
         this.cacheValue(this.fallbackSearchCache, key, value, MAX_FALLBACK_SEARCH_CACHE_ENTRIES);
         return value;
       })
@@ -725,7 +775,7 @@ export class PiPackageCatalogService implements PackageCatalogProtocol {
           this.fallbackSearchRefreshes.delete(key);
         }
       });
-    this.fallbackSearchRefreshes.set(key, refresh);
+    this.fallbackSearchRefreshes.set(key, this.track(refresh));
     return refresh;
   }
 
@@ -733,11 +783,15 @@ export class PiPackageCatalogService implements PackageCatalogProtocol {
     payload: PiPackageCatalogDescribePayload,
     signal?: AbortSignal,
   ): Promise<PiPackageCatalogDetailsView> {
+    const refreshSignal = this.operationSignal(signal);
     const active = this.detailRefreshes.get(payload.name);
     if (active) return active;
-    const refresh = this.fetchHtml(buildPiPackageCatalogDetailUrl(payload.name), signal)
+    const refresh = this.fetchHtml(buildPiPackageCatalogDetailUrl(payload.name), refreshSignal)
       .then((html) => parsePiPackageCatalogDetailHtml(html))
       .then((details) => {
+        if (refreshSignal.aborted || this.closed) {
+          throw catalogUnavailable({ cause: refreshSignal.reason });
+        }
         if (details.name !== payload.name) {
           throw new PiPackageCatalogServiceError(
             "catalog-invalid-response",
@@ -753,11 +807,11 @@ export class PiPackageCatalogService implements PackageCatalogProtocol {
           this.detailRefreshes.delete(payload.name);
         }
       });
-    this.detailRefreshes.set(payload.name, refresh);
+    this.detailRefreshes.set(payload.name, this.track(refresh));
     return refresh;
   }
 
-  private async refreshObservedFallbackSearches(): Promise<void> {
+  private async refreshObservedFallbackSearches(signal: AbortSignal): Promise<void> {
     if (this.snapshot || this.fallbackSearchCache.size === 0) return;
     const payloads = [...this.fallbackSearchCache.keys()].map((url) => {
       const parsed = new URL(url);
@@ -773,10 +827,12 @@ export class PiPackageCatalogService implements PackageCatalogProtocol {
         ...(page > 1 ? { page } : {}),
       } satisfies PiPackageCatalogSearchPayload;
     });
-    await Promise.allSettled(payloads.map((payload) => this.refreshFallbackSearch(payload)));
+    await Promise.allSettled(
+      payloads.map((payload) => this.refreshFallbackSearch(payload, signal)),
+    );
   }
 
-  private async refreshObservedDetails(): Promise<void> {
+  private async refreshObservedDetails(signal: AbortSignal): Promise<void> {
     const threshold = this.dependencies.now() - DEFAULT_DETAIL_REFRESH_INTERVAL_MS;
     const names = [...this.detailCache]
       .filter(([, cached]) => cached.refreshedAt <= threshold)
@@ -788,9 +844,9 @@ export class PiPackageCatalogService implements PackageCatalogProtocol {
         nextIndex += 1;
         const name = names[index];
         if (!name) return;
-        await this.refreshDetail({ name }).catch((error: unknown) =>
-          this.dependencies.onBackgroundError(error),
-        );
+        await this.refreshDetail({ name }, signal).catch((error: unknown) => {
+          if (!signal.aborted && !this.closed) this.dependencies.onBackgroundError(error);
+        });
       }
     };
     await Promise.all(
@@ -798,47 +854,80 @@ export class PiPackageCatalogService implements PackageCatalogProtocol {
     );
   }
 
-  private async runBackgroundRefresh(): Promise<void> {
+  private async runBackgroundRefresh(signal: AbortSignal): Promise<void> {
     try {
-      await this.refreshCatalog();
+      await this.refreshCatalog(signal);
     } catch (error) {
+      if (signal.aborted || this.closed) return;
       this.dependencies.onBackgroundError(error);
-      await this.refreshObservedFallbackSearches();
+      await this.refreshObservedFallbackSearches(signal);
     }
-    await this.refreshObservedDetails();
+    if (signal.aborted || this.closed) return;
+    await this.refreshObservedDetails(signal);
   }
 
   start(): Promise<void> {
-    if (!this.backgroundRefresh) return Promise.resolve();
+    if (!this.backgroundRefresh || this.closed || this.lifecycleController.signal.aborted) {
+      return Promise.resolve();
+    }
     if (this.backgroundRefreshStarted) return this.backgroundStartup ?? Promise.resolve();
     this.backgroundRefreshStarted = true;
     this.stopScheduler = this.dependencies.scheduleInterval(() => {
-      void this.runBackgroundRefresh();
+      if (this.closed || this.lifecycleController.signal.aborted) return;
+      void this.track(this.runBackgroundRefresh(this.lifecycleController.signal)).catch(
+        (error: unknown) => {
+          if (!this.closed && !this.lifecycleController.signal.aborted) {
+            this.dependencies.onBackgroundError(error);
+          }
+        },
+      );
     }, this.refreshIntervalMs);
-    this.backgroundStartup = this.runBackgroundRefresh().finally(() => {
-      this.backgroundStartup = undefined;
+    const startup = this.runBackgroundRefresh(this.lifecycleController.signal).finally(() => {
+      if (this.backgroundStartup === startup) this.backgroundStartup = undefined;
     });
+    this.backgroundStartup = this.track(startup);
     return this.backgroundStartup;
   }
 
-  dispose(): void {
-    this.stopScheduler?.();
+  shutdown(): Promise<void> {
+    if (this.shutdownOperation) return this.shutdownOperation;
+    let resolveShutdown!: () => void;
+    let rejectShutdown!: (error: unknown) => void;
+    const operation = new Promise<void>((resolve, reject) => {
+      resolveShutdown = resolve;
+      rejectShutdown = reject;
+    });
+    this.shutdownOperation = operation;
+    this.closed = true;
+    let schedulerFailure: unknown;
+    try {
+      this.stopScheduler?.();
+    } catch (error) {
+      schedulerFailure = error;
+    }
     this.stopScheduler = undefined;
-    this.backgroundRefreshStarted = false;
+    this.lifecycleController.abort(new Error("Pi package catalog service shut down."));
+    const pending = [...this.activeOperations];
+    void Promise.allSettled(pending).then(() => {
+      if (schedulerFailure !== undefined) rejectShutdown(schedulerFailure);
+      else resolveShutdown();
+    });
+    return operation;
   }
 
   async search(
     payload: PiPackageCatalogSearchPayload,
     signal?: AbortSignal,
   ): Promise<PiPackageCatalogSearchValue> {
+    const operationSignal = this.operationSignal(signal);
     try {
       if (this.snapshot) return this.searchSnapshot(this.snapshot, payload);
       const key = buildPiPackageCatalogUrl(payload).toString();
       const cached = this.readCachedValue(this.fallbackSearchCache, key);
       if (cached) return cached.value;
-      return await this.refreshFallbackSearch(payload, this.backgroundRefresh ? undefined : signal);
+      return await this.refreshFallbackSearch(payload, operationSignal);
     } finally {
-      void this.start();
+      if (!operationSignal.aborted && !this.closed) void this.start();
     }
   }
 
@@ -846,6 +935,7 @@ export class PiPackageCatalogService implements PackageCatalogProtocol {
     payload: PiPackageCatalogDescribePayload,
     signal?: AbortSignal,
   ): Promise<PiPackageCatalogDetailsView> {
+    const operationSignal = this.operationSignal(signal);
     try {
       const cached = this.readCachedValue(this.detailCache, payload.name);
       if (cached) {
@@ -853,15 +943,19 @@ export class PiPackageCatalogService implements PackageCatalogProtocol {
           this.backgroundRefresh &&
           cached.refreshedAt <= this.dependencies.now() - DEFAULT_DETAIL_REFRESH_INTERVAL_MS
         ) {
-          void this.refreshDetail(payload).catch((error: unknown) =>
-            this.dependencies.onBackgroundError(error),
+          void this.refreshDetail(payload, this.lifecycleController.signal).catch(
+            (error: unknown) => {
+              if (!this.closed && !this.lifecycleController.signal.aborted) {
+                this.dependencies.onBackgroundError(error);
+              }
+            },
           );
         }
         return cached.value;
       }
-      return await this.refreshDetail(payload, this.backgroundRefresh ? undefined : signal);
+      return await this.refreshDetail(payload, operationSignal);
     } finally {
-      void this.start();
+      if (!operationSignal.aborted && !this.closed) void this.start();
     }
   }
 }
@@ -876,4 +970,11 @@ export function getPiPackageCatalogService(): PiPackageCatalogService {
     {},
     { backgroundRefresh: true },
   ));
+}
+
+const absentPackageCatalogShutdown = Promise.resolve();
+
+/** Closes the process-global catalog owner without constructing it during shutdown. */
+export function shutdownPiPackageCatalogService(): Promise<void> {
+  return packageCatalogGlobal[packageCatalogServiceKey]?.shutdown() ?? absentPackageCatalogShutdown;
 }

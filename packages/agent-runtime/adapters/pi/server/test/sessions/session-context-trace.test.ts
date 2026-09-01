@@ -1,19 +1,5 @@
 import assert from "node:assert/strict";
-import { registerHooks } from "node:module";
 import test from "node:test";
-
-const moduleHooks = registerHooks({
-  resolve(specifier, context, nextResolve) {
-    if (
-      specifier.startsWith(".") &&
-      !/\.[^/]+$/.test(specifier) &&
-      context.parentURL?.includes("/runtime/pi/")
-    ) {
-      return nextResolve(`${specifier}.ts`, context);
-    }
-    return nextResolve(specifier, context);
-  },
-});
 
 const {
   captureSessionContextTraceJson,
@@ -29,8 +15,6 @@ const {
 const { sessionContextTracePromptPreview } = (await import(
   new URL("../../src/sessions/session-context-trace-summary.ts", import.meta.url).href
 )) as typeof import("../../src/sessions/session-context-trace-summary");
-
-test.after(() => moduleHooks.deregister());
 
 test("projects Pi system prompt precedence without mixing in Skills", () => {
   const sources = sessionContextTraceSystemPromptSources(

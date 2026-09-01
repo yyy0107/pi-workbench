@@ -1,29 +1,13 @@
 import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
-import { registerHooks } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-
-const moduleHooks = registerHooks({
-  resolve(specifier, context, nextResolve) {
-    if (
-      specifier.startsWith(".") &&
-      !/\.[^/]+$/.test(specifier) &&
-      context.parentURL?.includes("/runtime/pi/")
-    ) {
-      return nextResolve(`${specifier}.ts`, context);
-    }
-    return nextResolve(specifier, context);
-  },
-});
 
 const { contextTraceExtension } = await import("../../src/internal-extensions/context-trace");
 const { prepareWorkbenchPiExtensions } = await import("../../src/internal-extensions/index");
 const { activateSessionContextTrace, releaseSessionContextTrace } =
   await import("../../src/sessions/session-context-trace");
-
-test.after(() => moduleHooks.deregister());
 
 test("records every effective before_agent_start system-prompt mutation in execution order", async (t) => {
   const traceDirectory = await mkdtemp(path.join(tmpdir(), "workbench-system-prompt-hook-trace-"));

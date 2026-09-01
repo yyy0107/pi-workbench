@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { registerHooks } from "node:module";
 import test from "node:test";
 
 import type { AppendMessage } from "@assistant-ui/react";
@@ -8,22 +7,9 @@ import { appendWorkspaceFeedbackContext } from "@workbench/agent-runtime-client/
 
 import type { QueueItem } from "@workbench/agent-runtime-pi-protocol/stream";
 
-const moduleHooks = registerHooks({
-  resolve(specifier, context, nextResolve) {
-    if (
-      specifier.startsWith(".") &&
-      !/\.[^/]+$/.test(specifier) &&
-      context.parentURL?.includes("/runtime/pi/")
-    ) {
-      return nextResolve(`${specifier}.ts`, context);
-    }
-    return nextResolve(specifier, context);
-  },
-});
 const { PiMessageQueue } = (await import(
   new URL("../../src/messages/queue.ts", import.meta.url).href
 )) as typeof import("../../src/messages/queue");
-moduleHooks.deregister();
 
 function message(text: string): AppendMessage {
   return {

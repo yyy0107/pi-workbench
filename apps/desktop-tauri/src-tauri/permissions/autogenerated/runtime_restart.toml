@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-runtime-restart"
+description = "Enables the runtime_restart command without any pre-configured scope."
+commands.allow = ["runtime_restart"]
+
+[[permission]]
+identifier = "deny-runtime-restart"
+description = "Denies the runtime_restart command without any pre-configured scope."
+commands.deny = ["runtime_restart"]

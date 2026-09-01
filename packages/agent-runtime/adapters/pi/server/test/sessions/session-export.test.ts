@@ -2,25 +2,11 @@ import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { registerHooks } from "node:module";
 import test, { type TestContext } from "node:test";
 
-const moduleHooks = registerHooks({
-  resolve(specifier, context, nextResolve) {
-    if (
-      specifier.startsWith(".") &&
-      !/\.[^/]+$/.test(specifier) &&
-      context.parentURL?.includes("/runtime/pi/")
-    ) {
-      return nextResolve(`${specifier}.ts`, context);
-    }
-    return nextResolve(specifier, context);
-  },
-});
 const { handleSessionExportRequest } = (await import(
   new URL("../../src/sessions/session-export.ts", import.meta.url).href
 )) as typeof import("../../src/sessions/session-export");
-moduleHooks.deregister();
 
 type SessionExportDependencies =
   import("../../src/sessions/session-export").SessionExportDependencies;

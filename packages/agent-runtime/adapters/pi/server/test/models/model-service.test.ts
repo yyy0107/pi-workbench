@@ -1,29 +1,15 @@
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
-import { registerHooks } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-const moduleHooks = registerHooks({
-  resolve(specifier, context, nextResolve) {
-    return nextResolve(
-      specifier.endsWith("/contracts/pi") ||
-        specifier.endsWith("/contracts/rpc") ||
-        specifier === "../../src/models/model-config-store"
-        ? `${specifier}.ts`
-        : specifier,
-      context,
-    );
-  },
-});
 const { ModelService, ModelServiceError, toModelCatalogModel } = (await import(
   new URL("../../src/models/model-service.ts", import.meta.url).href
 )) as typeof import("../../src/models/model-service");
 const { ModelConfigStore } = (await import(
   new URL("../../src/models/model-config-store.ts", import.meta.url).href
 )) as typeof import("../../src/models/model-config-store");
-moduleHooks.deregister();
 
 type ModelRuntimeLike = import("../../src/models/model-service").ModelRuntimeLike;
 type ModelRuntimeModel = import("../../src/models/model-service").ModelRuntimeModel;

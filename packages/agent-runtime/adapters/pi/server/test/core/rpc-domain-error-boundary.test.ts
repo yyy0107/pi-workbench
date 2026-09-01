@@ -54,7 +54,7 @@ const EXPOSED_DOMAIN_ERRORS = [
     "packages/agent-runtime/adapters/pi/server/src/settings/agent-settings-service.ts",
     "AgentSettingsServiceError",
   ],
-  ["runtime/server/settings/workbench-settings-service.ts", "WorkbenchSettingsServiceError"],
+  ["packages/server/settings/src/service.ts", "WorkbenchSettingsServiceError"],
   ["packages/agent-runtime/adapters/pi/server/src/skills/skill-service.ts", "SkillServiceError"],
   [
     "packages/agent-runtime/adapters/pi/server/src/trust/project-trust-service.ts",

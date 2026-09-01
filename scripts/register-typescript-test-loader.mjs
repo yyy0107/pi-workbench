@@ -2,9 +2,10 @@ import { readFileSync } from "node:fs";
 import { createRequire, registerHooks } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-const REPOSITORY_ROOT_URL = new URL("../", import.meta.url);
+const WEB_SOURCE_ROOT_URL = new URL("../apps/web/src/", import.meta.url);
 const RETRYABLE_RESOLUTION_ERRORS = new Set(["ERR_MODULE_NOT_FOUND", "ERR_UNSUPPORTED_DIR_IMPORT"]);
 const repositoryRequire = createRequire(import.meta.url);
+const webRequire = createRequire(new URL("../apps/web/package.json", import.meta.url));
 const tsxRequire = createRequire(repositoryRequire.resolve("tsx/package.json"));
 const { transformSync } = tsxRequire("esbuild");
 
@@ -12,8 +13,8 @@ const { transformSync } = tsxRequire("esbuild");
 // this list narrow: in particular, do not alias next/navigation, so a Host leaking into the pure
 // Extension authoring graph remains a hard Node loading failure.
 const NODE_TEST_SPECIFIER_ALIASES = new Map([
-  ["next/dynamic", pathToFileURL(repositoryRequire.resolve("next/dynamic.js")).href],
-  ["next/image", pathToFileURL(repositoryRequire.resolve("next/image")).href],
+  ["next/dynamic", pathToFileURL(webRequire.resolve("next/dynamic.js")).href],
+  ["next/image", pathToFileURL(webRequire.resolve("next/image")).href],
 ]);
 
 function splitSpecifierSuffix(specifier) {
@@ -34,7 +35,7 @@ function resolutionCandidates(specifier) {
   if (!isAlias && !isRelative) return [specifier];
 
   const mappedSpecifier = isAlias
-    ? new URL(specifier.slice(2), REPOSITORY_ROOT_URL).href
+    ? new URL(specifier.slice(2), WEB_SOURCE_ROOT_URL).href
     : specifier;
   const { path, suffix } = splitSpecifierSuffix(mappedSpecifier);
   const hasExtension = /\.[^/]+$/.test(path);
@@ -64,7 +65,29 @@ registerHooks({
     throw lastError;
   },
   load(url, context, nextLoad) {
-    if (url.startsWith("file:") && new URL(url).pathname.endsWith(".svg")) {
+    const pathname = url.startsWith("file:") ? new URL(url).pathname : "";
+    if (pathname.endsWith(".module.css")) {
+      return {
+        format: "module",
+        shortCircuit: true,
+        source: `const classTokens = new Proxy(Object.create(null), {
+  get(_target, property) {
+    return typeof property === "string" ? property : undefined;
+  },
+});
+export default classTokens;`,
+      };
+    }
+
+    if (pathname.endsWith(".css")) {
+      return {
+        format: "module",
+        shortCircuit: true,
+        source: "export {};",
+      };
+    }
+
+    if (pathname.endsWith(".svg")) {
       return {
         format: "module",
         shortCircuit: true,
@@ -72,7 +95,7 @@ registerHooks({
       };
     }
 
-    if (!url.startsWith("file:") || !new URL(url).pathname.endsWith(".tsx")) {
+    if (!pathname.endsWith(".tsx")) {
       return nextLoad(url, context);
     }
 

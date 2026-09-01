@@ -1,0 +1,72 @@
+{
+  "name": "@workbench/host-contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./runtime-connection": {
+      "types": "./src/runtime-connection.ts",
+      "import": "./src/runtime-connection.ts",
+      "default": "./src/runtime-connection.ts"
+    },
+    "./host-control": {
+      "types": "./src/host-control.ts",
+      "import": "./src/host-control.ts",
+      "default": "./src/host-control.ts"
+    },
+    "./runtime-connected-web-control": {
+      "types": "./src/runtime-connected-web-control.ts",
+      "import": "./src/runtime-connected-web-control.ts",
+      "default": "./src/runtime-connected-web-control.ts"
+    },
+    "./control-ndjson": {
+      "types": "./src/control-ndjson.ts",
+      "import": "./src/control-ndjson.ts",
+      "default": "./src/control-ndjson.ts"
+    },
+    "./runtime-host-control": {
+      "types": "./src/runtime-host-control.ts",
+      "import": "./src/runtime-host-control.ts",
+      "default": "./src/runtime-host-control.ts"
+    },
+    "./runtime-host-identity": {
+      "types": "./src/runtime-host-identity.ts",
+      "import": "./src/runtime-host-identity.ts",
+      "default": "./src/runtime-host-identity.ts"
+    },
+    "./runtime-artifact-manifest": {
+      "types": "./src/runtime-artifact-manifest.ts",
+      "import": "./src/runtime-artifact-manifest.ts",
+      "default": "./src/runtime-artifact-manifest.ts"
+    },
+    "./web-host-control": {
+      "types": "./src/web-host-control.ts",
+      "import": "./src/web-host-control.ts",
+      "default": "./src/web-host-control.ts"
+    },
+    "./web-artifact-manifest": {
+      "types": "./src/web-artifact-manifest.ts",
+      "import": "./src/web-artifact-manifest.ts",
+      "default": "./src/web-artifact-manifest.ts"
+    },
+    "./desktop-renderer-artifact-manifest": {
+      "types": "./src/desktop-renderer-artifact-manifest.ts",
+      "import": "./src/desktop-renderer-artifact-manifest.ts",
+      "default": "./src/desktop-renderer-artifact-manifest.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2"
+  }
+}

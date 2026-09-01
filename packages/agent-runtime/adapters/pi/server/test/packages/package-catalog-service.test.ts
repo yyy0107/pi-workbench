@@ -4,9 +4,11 @@ import test from "node:test";
 import {
   buildPiPackageCatalogDetailUrl,
   buildPiPackageCatalogUrl,
+  getPiPackageCatalogService,
   parsePiPackageCatalogDetailHtml,
   parsePiPackageCatalogHtml,
   PiPackageCatalogService,
+  shutdownPiPackageCatalogService,
 } from "../../src/packages/package-catalog-service";
 
 const catalogHtml = `
@@ -254,8 +256,195 @@ test("periodically builds one complete snapshot and searches it without another 
   );
   assert.equal(requestedUrls.length, 2);
 
-  service.dispose();
+  await service.shutdown();
   assert.equal(stopped, true);
+});
+
+test("shutdown aborts an active fetch before it can retry or start the scheduler", async () => {
+  let fetchCount = 0;
+  let retryCount = 0;
+  let schedulerCount = 0;
+  let requestSignal: AbortSignal | undefined;
+  let notifyFetchStarted!: () => void;
+  const fetchStarted = new Promise<void>((resolve) => (notifyFetchStarted = resolve));
+  let reenteredShutdown: Promise<void> | undefined;
+  let service!: PiPackageCatalogService;
+  service = new PiPackageCatalogService(
+    {
+      fetch: async (_input, init) => {
+        fetchCount += 1;
+        requestSignal = init?.signal ?? undefined;
+        notifyFetchStarted();
+        return new Promise<Response>((_resolve, reject) => {
+          const rejectAborted = () => {
+            reenteredShutdown = service.shutdown();
+            reject(requestSignal?.reason ?? new DOMException("Aborted", "AbortError"));
+          };
+          if (requestSignal?.aborted) rejectAborted();
+          else requestSignal?.addEventListener("abort", rejectAborted, { once: true });
+        });
+      },
+      scheduleInterval: () => {
+        schedulerCount += 1;
+        return () => {};
+      },
+      sleep: async () => {
+        retryCount += 1;
+      },
+    },
+    { backgroundRefresh: true },
+  );
+
+  const search = service.search({});
+  await fetchStarted;
+  const shutdown = service.shutdown();
+  assert.equal(service.shutdown(), shutdown);
+  assert.equal(reenteredShutdown, shutdown);
+  await assert.rejects(search, {
+    name: "PiPackageCatalogServiceError",
+    code: "catalog-unavailable",
+  });
+  await shutdown;
+
+  assert.equal(requestSignal?.aborted, true);
+  assert.equal(fetchCount, 1);
+  assert.equal(retryCount, 0);
+  assert.equal(schedulerCount, 0);
+  await assert.rejects(service.search({}), {
+    name: "PiPackageCatalogServiceError",
+    code: "catalog-unavailable",
+  });
+});
+
+test("shutdown owns the full-snapshot refresh started after a successful warmup", async () => {
+  let fetchCount = 0;
+  let retryCount = 0;
+  let schedulerStarts = 0;
+  let schedulerStops = 0;
+  let backgroundErrors = 0;
+  let snapshotSignal: AbortSignal | undefined;
+  let notifySnapshotStarted!: () => void;
+  const snapshotStarted = new Promise<void>((resolve) => (notifySnapshotStarted = resolve));
+  const service = new PiPackageCatalogService(
+    {
+      fetch: async (_input, init) => {
+        fetchCount += 1;
+        if (fetchCount === 1) return new Response(catalogHtml, { status: 200 });
+        snapshotSignal = init?.signal ?? undefined;
+        notifySnapshotStarted();
+        return new Promise<Response>((_resolve, reject) => {
+          const rejectAborted = () =>
+            reject(snapshotSignal?.reason ?? new DOMException("Aborted", "AbortError"));
+          if (snapshotSignal?.aborted) rejectAborted();
+          else snapshotSignal?.addEventListener("abort", rejectAborted, { once: true });
+        });
+      },
+      onBackgroundError: () => {
+        backgroundErrors += 1;
+      },
+      scheduleInterval: () => {
+        schedulerStarts += 1;
+        return () => {
+          schedulerStops += 1;
+        };
+      },
+      sleep: async () => {
+        retryCount += 1;
+      },
+    },
+    { backgroundRefresh: true },
+  );
+
+  assert.equal((await service.search({})).total, 5439);
+  await snapshotStarted;
+  await service.shutdown();
+
+  assert.equal(snapshotSignal?.aborted, true);
+  assert.equal(fetchCount, 2);
+  assert.equal(retryCount, 0);
+  assert.equal(schedulerStarts, 1);
+  assert.equal(schedulerStops, 1);
+  assert.equal(backgroundErrors, 0);
+});
+
+test("shutdown prevents a retry when injected backoff does not observe abort", async () => {
+  let fetchCount = 0;
+  let notifyBackoffStarted!: () => void;
+  const backoffStarted = new Promise<void>((resolve) => (notifyBackoffStarted = resolve));
+  let releaseBackoff!: () => void;
+  const backoffReleased = new Promise<void>((resolve) => (releaseBackoff = resolve));
+  const service = new PiPackageCatalogService({
+    fetch: async () => {
+      fetchCount += 1;
+      return new Response("busy", { status: 503 });
+    },
+    sleep: async () => {
+      notifyBackoffStarted();
+      await backoffReleased;
+    },
+  });
+
+  const refresh = service.refreshCatalog();
+  await backoffStarted;
+  const shutdown = service.shutdown();
+  releaseBackoff();
+  await assert.rejects(refresh, {
+    name: "PiPackageCatalogServiceError",
+    code: "catalog-unavailable",
+  });
+  await shutdown;
+  assert.equal(fetchCount, 1);
+});
+
+test("caller cancellation aborts cold search and detail fetches without starting background work", async () => {
+  for (const operation of ["search", "describe"] as const) {
+    let requestSignal: AbortSignal | undefined;
+    let schedulerCount = 0;
+    let notifyFetchStarted!: () => void;
+    const fetchStarted = new Promise<void>((resolve) => (notifyFetchStarted = resolve));
+    const service = new PiPackageCatalogService(
+      {
+        fetch: async (_input, init) => {
+          requestSignal = init?.signal ?? undefined;
+          notifyFetchStarted();
+          return new Promise<Response>((_resolve, reject) => {
+            const rejectAborted = () =>
+              reject(requestSignal?.reason ?? new DOMException("Aborted", "AbortError"));
+            if (requestSignal?.aborted) rejectAborted();
+            else requestSignal?.addEventListener("abort", rejectAborted, { once: true });
+          });
+        },
+        scheduleInterval: () => {
+          schedulerCount += 1;
+          return () => {};
+        },
+      },
+      { backgroundRefresh: true },
+    );
+    const controller = new AbortController();
+    const request =
+      operation === "search"
+        ? service.search({}, controller.signal)
+        : service.describe({ name: "@example/pi-tools" }, controller.signal);
+    await fetchStarted;
+    controller.abort(new Error("caller disconnected"));
+    await assert.rejects(request, {
+      name: "PiPackageCatalogServiceError",
+      code: "catalog-unavailable",
+    });
+    assert.equal(requestSignal?.aborted, true);
+    assert.equal(schedulerCount, 0);
+    await service.shutdown();
+  }
+});
+
+test("the process-global catalog and its shutdown promise remain stable across accessors", async () => {
+  const first = getPiPackageCatalogService();
+  assert.equal(getPiPackageCatalogService(), first);
+  const shutdown = shutdownPiPackageCatalogService();
+  assert.equal(shutdownPiPackageCatalogService(), shutdown);
+  assert.equal(first.shutdown(), shutdown);
+  await shutdown;
 });
 
 test("keeps serving the previous complete snapshot when a scheduled refresh fails", async () => {

@@ -8,11 +8,15 @@ const AGENT_SETTINGS_SERVICE = new URL(
 );
 const REPOSITORY_ROOT = new URL("../../../../../../../", import.meta.url);
 const WORKBENCH_SETTINGS_SERVICE = new URL(
-  "runtime/server/settings/workbench-settings-service.ts",
+  "packages/server/settings/src/service.ts",
   REPOSITORY_ROOT,
 );
 const WORKBENCH_SETTINGS_FILE = new URL(
   "packages/server/core/src/workbench-settings-file.ts",
+  REPOSITORY_ROOT,
+);
+const WORKBENCH_SETTINGS_PUBLIC_FILE = new URL(
+  "packages/server/settings/src/file.ts",
   REPOSITORY_ROOT,
 );
 const IMAGE_SETTINGS_STORE = new URL(
@@ -68,7 +72,7 @@ test("each Settings transport depends on only its narrow protocol", async () => 
   }
   assert.doesNotMatch(
     workbench,
-    /runtime\/server\/settings|workbench\/server\/workbench-settings|WorkbenchSettingsService/,
+    /(?:runtime\/server\/settings|@workbench\/settings-server|workbench\/server\/workbench-settings|WorkbenchSettingsService)/,
   );
   assert.doesNotMatch(agent, /WorkbenchSettingsProtocol|ImageUnderstandingSettingsProtocol/);
   assert.doesNotMatch(workbench, /AgentSettingsProtocol|ImageUnderstandingSettingsProtocol/);
@@ -102,10 +106,11 @@ test("Settings routes preserve their distinct trust, budget, and lifecycle bound
 });
 
 test("Settings services implement narrow protocols while retaining persistence ownership", async () => {
-  const [agent, workbench, workbenchFile, image] = await Promise.all([
+  const [agent, workbench, workbenchFile, workbenchPublicFile, image] = await Promise.all([
     readFile(AGENT_SETTINGS_SERVICE, "utf8"),
     readFile(WORKBENCH_SETTINGS_SERVICE, "utf8"),
     readFile(WORKBENCH_SETTINGS_FILE, "utf8"),
+    readFile(WORKBENCH_SETTINGS_PUBLIC_FILE, "utf8"),
     readFile(IMAGE_SETTINGS_STORE, "utf8"),
   ]);
 
@@ -130,6 +135,12 @@ test("Settings services implement narrow protocols while retaining persistence o
   assert.match(workbenchFile, /configuredFile\?: string/);
   assert.match(workbenchFile, /defaultDirectory: string/);
   assert.doesNotMatch(workbenchFile, /@earendil-works\/pi-coding-agent|agent-runtime-pi-protocol/);
+  assert.match(workbenchPublicFile, /@workbench\/server-core\/workbench-settings-file/);
+  assert.match(workbenchPublicFile, /configuredWorkbenchSettingsFile/);
+  assert.doesNotMatch(
+    workbenchPublicFile,
+    /@earendil-works\/pi-coding-agent|agent-runtime-pi-protocol/,
+  );
 
   assert.match(image, /export interface ImageUnderstandingSettingsProtocol/);
   assert.match(

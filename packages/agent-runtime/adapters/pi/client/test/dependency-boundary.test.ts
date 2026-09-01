@@ -5,9 +5,6 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const PACKAGE_ROOT = fileURLToPath(new URL("../", import.meta.url));
-const APPLICATION_PI_ROOT = fileURLToPath(
-  new URL("../../../../../../runtime/pi/", import.meta.url),
-);
 const SOURCE_ROOT = path.join(PACKAGE_ROOT, "src");
 const PUBLIC_ROOT = path.join(SOURCE_ROOT, "public");
 
@@ -62,7 +59,6 @@ test("keeps package source independent from the application and Pi server", () =
     /from\s+["']next(?:\/|["'])/,
     /from\s+["']zustand(?:\/|["'])/,
     /from\s+["']@earendil-works\/pi-coding-agent(?:\/|["'])/,
-    /runtime\/pi\/server/,
   ];
 
   for (const file of [...filesUnder(SOURCE_ROOT), ...filesUnder(path.join(PACKAGE_ROOT, "test"))]) {
@@ -76,8 +72,4 @@ test("keeps package source independent from the application and Pi server", () =
       );
     }
   }
-});
-
-test("keeps the package as the only Pi browser implementation root", () => {
-  assert.equal(existsSync(path.join(APPLICATION_PI_ROOT, "client")), false);
 });

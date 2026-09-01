@@ -14,6 +14,14 @@ export {
 export { useWorkbenchRuntimeAdapters } from "./adapters/use-workbench-runtime-adapters";
 export { WorkbenchAgentRuntimeHost } from "./agent-runtime-host";
 export {
+  createWorkbenchParallelToolPresentationMetadata,
+  createWorkbenchReasoningPresentationMetadata,
+  readWorkbenchParallelToolPresentationMetadata,
+  readWorkbenchReasoningPresentationMetadata,
+  type WorkbenchParallelToolPresentationMetadata,
+  type WorkbenchReasoningPresentationMetadata,
+} from "./message-presentation-metadata";
+export {
   createThreadListReloadCoordinator,
   type ThreadListReloadCoordinator,
 } from "./thread-list-reload-coordinator";

@@ -97,7 +97,7 @@ export function PiWorkspaceSelectionProvider({
       openWorkspaceFolder: async (workspaceId) => {
         const workspace = workspaces.find((candidate) => candidate.id === workspaceId);
         if (!workspace) throw new Error(`Workspace not found: ${workspaceId}`);
-        await openPiHostPath(workspace.rootPath);
+        await openPiHostPath(workspace.rootPath, manager.rpcTransportOptions);
       },
       removeWorkspace: async (workspaceId) => {
         await manager.deleteWorkspace(workspaceId);

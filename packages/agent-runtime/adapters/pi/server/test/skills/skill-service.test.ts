@@ -1,27 +1,13 @@
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, stat, symlink, writeFile } from "node:fs/promises";
-import { registerHooks } from "node:module";
 import path from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
 
-const moduleHooks = registerHooks({
-  resolve(specifier, context, nextResolve) {
-    if (
-      specifier.startsWith(".") &&
-      !/\.[^/]+$/.test(specifier) &&
-      context.parentURL?.includes("/runtime/pi/")
-    ) {
-      return nextResolve(`${specifier}.ts`, context);
-    }
-    return nextResolve(specifier, context);
-  },
-});
 const { MAX_SKILL_DOCUMENT_BYTES, SkillService, SkillServiceError } = (await import(
   new URL("../../src/skills/skill-service.ts", import.meta.url).href
 )) as typeof import("../../src/skills/skill-service");
 const { SettingsManager } = await import("@earendil-works/pi-coding-agent");
-moduleHooks.deregister();
 
 function host(
   skills: Array<{

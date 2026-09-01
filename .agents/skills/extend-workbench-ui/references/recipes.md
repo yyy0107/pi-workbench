@@ -24,7 +24,7 @@ co-located `en-US` and `zh-CN` dictionaries; use `defineMessage(...)` for regist
 ## Slot-only feature
 
 ```tsx
-// extensions/builtin/session-badge/session-badge.tsx
+// packages/workbench/shell/src/extensions/builtin/session-badge/session-badge.tsx
 "use client";
 
 import { useAuiState } from "@assistant-ui/react";
@@ -44,8 +44,8 @@ export function SessionBadge() {
 ```
 
 ```ts
-// extensions/builtin/session-badge/extension.ts
-import { defineExtension } from "@/platform/extensions/authoring";
+// packages/workbench/shell/src/extensions/builtin/session-badge/extension.ts
+import { defineExtension } from "@workbench/extension-sdk";
 
 import { SessionBadge } from "./session-badge";
 
@@ -73,8 +73,8 @@ Use `connection-status` and `token-usage` as the in-repository references.
 "use client";
 
 import { useI18n } from "@/i18n";
-import { useCommandService } from "@/platform/extensions";
-import type { ComposerSlotContext } from "@/platform/extensions/authoring";
+import { useCommandService } from "@workbench/extension-host";
+import type { ComposerSlotContext } from "@workbench/extension-sdk";
 
 export function NotesTrigger({ isRunning }: ComposerSlotContext) {
   const { t } = useI18n();
@@ -103,7 +103,7 @@ export function NotesTrigger({ isRunning }: ComposerSlotContext) {
 import { useState } from "react";
 
 import { useI18n } from "@/i18n";
-import type { PanelComponentProps } from "@/platform/extensions/authoring";
+import type { PanelComponentProps } from "@workbench/extension-sdk";
 
 export function NotesPanel({ panelId, close }: PanelComponentProps) {
   const { t } = useI18n();
@@ -128,7 +128,7 @@ export function NotesPanel({ panelId, close }: PanelComponentProps) {
 ```ts
 // notes-command.ts
 import { defineMessage } from "@/i18n";
-import type { CommandDefinition } from "@/platform/extensions/authoring";
+import type { CommandDefinition } from "@workbench/extension-sdk";
 
 export const toggleNotesCommand = {
   id: "notes.toggle",
@@ -147,7 +147,7 @@ export const toggleNotesCommand = {
 import { StickyNoteIcon } from "lucide-react";
 
 import { defineMessage } from "@/i18n";
-import { defineExtension } from "@/platform/extensions/authoring";
+import { defineExtension } from "@workbench/extension-sdk";
 
 import { toggleNotesCommand } from "./notes-command";
 import { NotesPanel } from "./notes-panel";
@@ -181,7 +181,9 @@ export const notesExtension = defineExtension({
 });
 ```
 
-Export `notesExtension` from the feature `index.ts`, then add it to `extensions/enabled-extensions.ts`.
+Export `notesExtension` from the feature `index.ts`, add it to the owning package's semantic group,
+then preserve the final application order in
+`apps/web/src/workbench/runtime-contributions/installed-workbench-extensions.ts`.
 
 Prefer this command-first trigger when the action has a Command. For a trivial Panel toggle, calling `usePanelService().toggle("notes")` directly is also valid.
 
@@ -267,14 +269,16 @@ state and persistence with the feature that owns the item. Do not register
 during render or import the concrete Settings registry implementation. Items may register before
 their section appears.
 
-Use `extensions/builtin/settings` for the shell and
-`extensions/builtin/locale-selector` for an independently owned item.
+Use `packages/workbench/shell/src/extensions/builtin/settings` for the shell and
+`packages/workbench/shell/src/extensions/builtin/locale-selector` for an independently owned item.
 
 ## Installable Toolbox entry
 
 Toolbox metadata describes an actual registered component contribution. For an uninstallable,
-statically trusted bundle, keep the feature under `extensions/installable/`, align metadata with the
-real registration, and list the stable extension object in `installableComponentExtensions`:
+statically trusted bundle, keep the feature under
+`packages/workbench/shell/src/extensions/installable/`, align metadata with the real registration,
+and list the stable extension object in `installableComponentExtensions`. Metadata `entryFile` and
+`sourceFiles` remain relative to the owner package's `src/` directory:
 
 ```ts
 export const generativeUiExtension = defineExtension({
@@ -326,7 +330,7 @@ capability as a Workspace Surface contribution:
 ```ts
 import { FileTextIcon } from "lucide-react";
 
-import { defineExtension, type WorkspaceSurfaceDefinition } from "@/platform/extensions/authoring";
+import { defineExtension, type WorkspaceSurfaceDefinition } from "@workbench/extension-sdk";
 
 import { NotesMenuItem } from "./notes-menu-item";
 import { NotesRuntimeBridge } from "./notes-runtime-bridge";
@@ -384,12 +388,12 @@ const opener = context.openers.register({
 });
 ```
 
-Client callers obtain `useOpenerService()` from `@/components/right-workspace` and handle the
+Client callers obtain `useOpenerService()` from `@workbench/shell/right-workspace/react` and handle the
 Promise returned by `open()`. Do not import the owner's component, store, or internal service.
 
 ## Pi-backed extension
 
-Before adding Pi-backed UI, read `runtime/pi/README.md` completely and inspect the exact source file
+Before adding Pi-backed UI, read `packages/agent-runtime/adapters/pi/README.md` completely and inspect the exact source file
 it names. Prefer:
 
 - `usePiThreadStateSnapshot()` or `usePiThreadStates()` from
@@ -426,7 +430,7 @@ reasoning appearance, tool-group chrome, and Tool/Data fallbacks:
 "use client";
 
 import { groupPartByType, MessagePrimitive } from "@assistant-ui/react";
-import { RendererHost } from "@/platform/extensions/hosts/renderer-host";
+import { RendererHost } from "@workbench/extension-host/hosts/renderer-host";
 
 export function CompactMessageRenderer() {
   return (
@@ -586,8 +590,9 @@ Keep optional product areas out of the core sidebar. Register replaceable produc
 persistent utilities in `sidebar.footer`. The host owns layout, so the contribution should render
 one control and should not add outer padding or section chrome.
 
-Use `extensions/builtin/workbench-brand` as the minimal `sidebar.brand` reference. Keep one active
-brand contribution in normal configurations; multiple contributions render in Slot order.
+Use `packages/workbench/shell/src/extensions/builtin/workbench-brand` as the minimal
+`sidebar.brand` reference. Keep one active brand contribution in normal configurations; multiple
+contributions render in Slot order.
 
 ```ts
 const navigation = context.slots.register("sidebar.navigation", {
@@ -606,14 +611,15 @@ extension.
 
 Use this only when no existing host contract can represent a broadly reusable insertion point.
 
-1. Add the literal name to `WORKBENCH_SLOTS` in `platform/extensions/api/slot.ts`.
+1. Add the literal name to `WORKBENCH_SLOTS` in `packages/extension-platform/sdk/src/api/slot.ts`.
 2. Add its props to `SlotPropsMap`.
-3. Mount `SlotHost` in the appropriate `workbench/` component.
+3. Mount `SlotHost` in the appropriate `packages/workbench/shell/src/` Host component, or in
+   `apps/web/src/workbench/` only when the insertion point is application-specific.
 4. Supply the typed context expected by `SlotPropsMap`.
 5. Add or update the public extension guide.
 
 ```ts
-// platform/extensions/api/slot.ts
+// packages/extension-platform/sdk/src/api/slot.ts
 export interface SlotPropsMap {
   // existing slots...
   "thread.toolbar": { threadId?: string };
@@ -639,7 +645,7 @@ Do not add a feature-specific Slot such as `notes.button`. Add a semantic host l
 - [ ] Register inspector kinds through `context.workspace`; keep feature branches and services out of RightWorkspace core.
 - [ ] Register cross-feature resource routing through `context.openers`; do not deep-import sibling builtin features.
 - [ ] Use `workspace.actions`/`workspace.empty.actions` only for compact controls outside a Surface lifecycle.
-- [ ] Read `runtime/pi/README.md` before Pi-backed UI and route server SDK work through `$pi-coding-agent-sdk` or `$pi-ai-sdk`.
+- [ ] Read `packages/agent-runtime/adapters/pi/README.md` before Pi-backed UI and route server SDK work through `$pi-coding-agent-sdk` or `$pi-ai-sdk`.
 - [ ] Audit registered shortcuts and standalone global `keydown` listeners.
 - [ ] Return Disposables for external resources.
 - [ ] Avoid duplicate Panel chrome.

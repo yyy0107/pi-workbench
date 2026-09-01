@@ -1,24 +1,10 @@
 import assert from "node:assert/strict";
-import { registerHooks } from "node:module";
 import test from "node:test";
 import type { AppendMessage } from "@assistant-ui/react";
 
-const moduleHooks = registerHooks({
-  resolve(specifier, context, nextResolve) {
-    if (
-      specifier.startsWith(".") &&
-      !/\.[^/]+$/.test(specifier) &&
-      context.parentURL?.includes("/runtime/pi/")
-    ) {
-      return nextResolve(`${specifier}.ts`, context);
-    }
-    return nextResolve(specifier, context);
-  },
-});
 const { draftSessionModelSelection } = (await import(
   new URL("../../src/models/model-selection.ts", import.meta.url).href
 )) as typeof import("../../src/models/model-selection");
-moduleHooks.deregister();
 
 function message(piModel: Record<string, unknown>): AppendMessage {
   return {

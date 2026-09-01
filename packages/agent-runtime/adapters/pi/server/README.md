@@ -12,7 +12,7 @@ The package intentionally has no root barrel and exposes only four bounded entry
 - `./websocket` — the no-server Pi stream gateway;
 - `./legacy` — compatibility endpoints used by the old `/api/pi/*` routes.
 
-Production code must not import from the Workbench repository through `@/*`, from `./src/*`, or
-from the removed `runtime/pi/server` tree. Internal Workbench packages are source-first workspace
-dependencies and are bundled into Next.js and the Electron custom server; they are never desktop
-runtime externals.
+Production consumers use the public entries above and the ownership described in the
+[Pi adapter architecture](../README.md). They must not import through `@/*` or private `./src/*`
+paths. Internal Workbench packages are source-first workspace dependencies and are bundled into the
+Web and Runtime artifacts; they are never desktop Runtime externals.

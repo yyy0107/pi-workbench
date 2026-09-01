@@ -2,23 +2,9 @@ import assert from "node:assert/strict";
 import { appendFile, mkdtemp, readdir, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { registerHooks } from "node:module";
 import test from "node:test";
 
 import type { SessionContextTraceEvent } from "@workbench/agent-runtime-pi-protocol/rpc";
-
-const moduleHooks = registerHooks({
-  resolve(specifier, context, nextResolve) {
-    if (
-      specifier.startsWith(".") &&
-      !/\.[^/]+$/.test(specifier) &&
-      context.parentURL?.includes("/runtime/pi/")
-    ) {
-      return nextResolve(`${specifier}.ts`, context);
-    }
-    return nextResolve(specifier, context);
-  },
-});
 
 const { SessionContextTraceJournal, SessionContextTraceJournalError } = (await import(
   new URL("../../src/sessions/session-context-trace-journal.ts", import.meta.url).href
@@ -32,8 +18,6 @@ const {
 } = (await import(
   new URL("../../src/sessions/session-context-trace.ts", import.meta.url).href
 )) as typeof import("../../src/sessions/session-context-trace");
-
-test.after(() => moduleHooks.deregister());
 
 function roundStartEvent(): SessionContextTraceEvent {
   return {

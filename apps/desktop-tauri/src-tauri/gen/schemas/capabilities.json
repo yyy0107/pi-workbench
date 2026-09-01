@@ -1,0 +1,1 @@
+{"main-runtime-control":{"identifier":"main-runtime-control","description":"Allows only the bundled Pi Workbench main window to bootstrap and restart its Runtime Host.","local":true,"windows":["main"],"permissions":["allow-runtime-bootstrap","allow-runtime-restart"],"platforms":["linux","macOS","windows"]}}

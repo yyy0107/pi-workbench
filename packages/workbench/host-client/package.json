@@ -1,0 +1,35 @@
+{
+  "name": "@workbench/host-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./runtime-fetch": {
+      "types": "./src/runtime-fetch.ts",
+      "import": "./src/runtime-fetch.ts",
+      "default": "./src/runtime-fetch.ts"
+    },
+    "./runtime-websocket": {
+      "types": "./src/runtime-websocket.ts",
+      "import": "./src/runtime-websocket.ts",
+      "default": "./src/runtime-websocket.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@workbench/host-contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2"
+  }
+}

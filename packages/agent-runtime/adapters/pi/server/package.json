@@ -49,6 +49,7 @@
   "devDependencies": {
     "@types/node": "^26.2.0",
     "@workbench/agent-runtime-testkit": "workspace:*",
+    "@workbench/settings-server": "workspace:*",
     "typescript": "^7.0.2"
   }
 }

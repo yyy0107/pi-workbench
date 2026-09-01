@@ -4,4 +4,5 @@ export { createPiAgentRuntimeInstallation } from "../assistant-ui/pi-runtime-ins
 export type {
   PiAgentRuntimeCopy,
   PiAgentRuntimeInstallationOptions,
+  PiClientTransport,
 } from "../assistant-ui/pi-runtime-installation";

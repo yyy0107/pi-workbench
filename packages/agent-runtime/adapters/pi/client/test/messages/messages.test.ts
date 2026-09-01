@@ -1256,7 +1256,9 @@ test("preserves a live reasoning start time across renderer remounts", () => {
   const reasoning = converted.content[0];
   assert.equal(reasoning?.type, "reasoning");
   if (reasoning?.type !== "reasoning") return;
-  assert.deepEqual(reasoning.providerMetadata, { pi: { startedAt: 1_000 } });
+  assert.deepEqual(reasoning.providerMetadata, {
+    workbench: { reasoningTiming: { startedAt: 1_000 } },
+  });
 });
 
 test("preserves completed reasoning and tool durations on message parts", () => {
@@ -1289,7 +1291,9 @@ test("preserves completed reasoning and tool durations on message parts", () => 
   assert.equal(reasoning?.type, "reasoning");
   assert.equal(tool?.type, "tool-call");
   if (reasoning?.type !== "reasoning" || tool?.type !== "tool-call") return;
-  assert.deepEqual(reasoning.providerMetadata, { pi: { startedAt: 1_000, durationMs: 2_600 } });
+  assert.deepEqual(reasoning.providerMetadata, {
+    workbench: { reasoningTiming: { startedAt: 1_000, durationMs: 2_600 } },
+  });
   assert.deepEqual(tool.timing, toolTiming);
 });
 
@@ -1311,9 +1315,11 @@ test("marks tool calls from one assistant message as the same parallel batch", (
   assert.equal(tools.length, 2);
   for (const tool of tools) {
     assert.deepEqual(tool.providerMetadata, {
-      pi: {
-        parallelToolBatchId: "read-call",
-        parallelToolBatchSize: 2,
+      workbench: {
+        parallelToolBatch: {
+          id: "read-call",
+          size: 2,
+        },
       },
     });
   }
@@ -1792,7 +1798,9 @@ test("restores completed reasoning duration from the persisted entry timestamp",
   const [reasoning] = message.content;
   assert.equal(reasoning?.type, "reasoning");
   if (reasoning?.type !== "reasoning") return;
-  assert.deepEqual(reasoning.providerMetadata, { pi: { startedAt: 10_000, durationMs: 2_600 } });
+  assert.deepEqual(reasoning.providerMetadata, {
+    workbench: { reasoningTiming: { startedAt: 10_000, durationMs: 2_600 } },
+  });
   assert.deepEqual(message.metadata.timing, {
     streamStartTime: 10_000,
     totalStreamTime: 2_600,

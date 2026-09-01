@@ -1,22 +1,12 @@
 import assert from "node:assert/strict";
-import { registerHooks } from "node:module";
 import test from "node:test";
 
-const moduleHooks = registerHooks({
-  resolve(specifier, context, nextResolve) {
-    if (specifier === "../transport/api") {
-      return nextResolve(new URL("../../src/transport/api.ts", import.meta.url).href, context);
-    }
-    return nextResolve(specifier, context);
-  },
-});
 const { PiApiError } = (await import(
   new URL("../../src/transport/api.ts", import.meta.url).href
 )) as typeof import("../../src/transport/api");
 const { piComposerSendError } = (await import(
   new URL("../../src/runtime/send-error.ts", import.meta.url).href
 )) as typeof import("../../src/runtime/send-error");
-moduleHooks.deregister();
 
 test("classifies recoverable attachment admission failures for the composer", () => {
   assert.equal(

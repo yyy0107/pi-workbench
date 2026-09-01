@@ -1,27 +1,13 @@
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
-import { registerHooks } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-const moduleHooks = registerHooks({
-  resolve(specifier, context, nextResolve) {
-    if (
-      specifier.startsWith(".") &&
-      !/\.[^/]+$/.test(specifier) &&
-      context.parentURL?.includes("/runtime/pi/")
-    ) {
-      return nextResolve(`${specifier}.ts`, context);
-    }
-    return nextResolve(specifier, context);
-  },
-});
 const { ExtensionService, ExtensionServiceError } = (await import(
   new URL("../../src/extensions/extension-service.ts", import.meta.url).href
 )) as typeof import("../../src/extensions/extension-service");
 const { DefaultPackageManager, SettingsManager } = await import("@earendil-works/pi-coding-agent");
-moduleHooks.deregister();
 
 function extension(
   path: string,

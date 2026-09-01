@@ -64,9 +64,11 @@ import {
   forkPiRpcSession,
   insertPiSessionBefore,
   insertPiWorkspaceBefore,
+  listAvailablePiPackageUpdates,
   listPiArchivedWorkspaceSessions,
   listPiRpcSessions,
   listPiWorkspaces,
+  type PiRpcCallOptions,
   PiApiError,
   promptPiRpcSession,
   promotePiRpcScratchSession,
@@ -83,7 +85,6 @@ import {
   setPiWorkspaceSessionPinned,
   unarchivePiWorkspaceSession,
   updatePiRpcSessionQueue,
-  waitForPendingPiRpcSessionModelSelection,
 } from "../transport/api";
 import type {
   HostDescription,
@@ -97,6 +98,8 @@ import type {
   SessionResumeCheckpoint,
   SessionScratchCreateValue,
   SessionScratchPromoteValue,
+  SessionSelectModelPayload,
+  SessionSelectModelValue,
   WorkspaceView,
 } from "@workbench/agent-runtime-pi-protocol/rpc";
 import type {
@@ -107,6 +110,7 @@ import type {
   ServerRequest,
 } from "@workbench/agent-runtime-pi-protocol/stream";
 import { PiConnectionController } from "../transport/connections";
+import { snapshotPiClientTransport, type PiClientTransport } from "../transport/client-transport";
 import {
   conversationEventFromSessionEvent,
   conversationEventThreadMessage,
@@ -141,7 +145,12 @@ import {
   workbenchComposerCommandResponseId,
 } from "../messages/messages";
 import { draftSessionModelSelection } from "../models/model-selection";
+import { PiModelCatalogInvalidation } from "../models/model-catalog-invalidation";
 import { PiMessageQueue, queueItemAppendMessage } from "../messages/queue";
+import { createPiPackageUpdatesQuery, type PiPackageUpdatesQuery } from "./package-updates-query";
+import { PiResourceCatalogRevision } from "./resource-catalog-revision";
+import { PiWorkbenchSettingsClient } from "../settings/workbench-settings-client";
+import { PiSessionContextPolicyClient } from "../context-policy/session-context-policy-client";
 import {
   resolveSessionCreateIntent,
   type SessionCreateIntent,
@@ -849,7 +858,10 @@ export class PiClientSession {
       this.publishMessages({ autoRetry, resumeCheckpoint: value.resume?.checkpoint });
     };
     const promptPartsTask = hydrateContextTracePromptParts
-      ? fetchPiRpcSessionContextTracePromptParts({ sessionId: remoteId })
+      ? fetchPiRpcSessionContextTracePromptParts(
+          { sessionId: remoteId },
+          this.manager.rpcTransportOptions,
+        )
           .then((value) => {
             if (this.disposed || this.remoteIdValue !== remoteId) return;
             for (const part of value.parts) {
@@ -868,18 +880,22 @@ export class PiClientSession {
             console.error("[workbench-pi] context trace prompt hydration failed", error);
           })
       : Promise.resolve();
-    const historyTask = fetchProgressiveSessionHistory(remoteId, fetchPiRpcSessionHistory, {
-      onInitialPage: (history) => {
-        if (this.disposed) return;
-        // A paginated first page is only a tail of the conversation. It is useful for the
-        // initial paint, but replacing an already-published history with that tail briefly
-        // removes every older row and collapses the scroll range until backfill completes.
-        // Keep the complete, visible history during refreshes and swap in the new complete
-        // snapshot atomically once pagination finishes.
-        if (!hasPublishedBaseHistory || !history.hasMore) applyHistory(history);
-        if (this.snapshotValue.isLoading) this.replaceSnapshot({ isLoading: false });
+    const historyTask = fetchProgressiveSessionHistory(
+      remoteId,
+      (payload) => fetchPiRpcSessionHistory(payload, this.manager.rpcTransportOptions),
+      {
+        onInitialPage: (history) => {
+          if (this.disposed) return;
+          // A paginated first page is only a tail of the conversation. It is useful for the
+          // initial paint, but replacing an already-published history with that tail briefly
+          // removes every older row and collapses the scroll range until backfill completes.
+          // Keep the complete, visible history during refreshes and swap in the new complete
+          // snapshot atomically once pagination finishes.
+          if (!hasPublishedBaseHistory || !history.hasMore) applyHistory(history);
+          if (this.snapshotValue.isLoading) this.replaceSnapshot({ isLoading: false });
+        },
       },
-    });
+    );
     this.reloadTask = Promise.all([historyTask, promptPartsTask])
       .then(([history]) => {
         // The initial page paints without waiting for journal replay. Reapply the final history
@@ -963,7 +979,7 @@ export class PiClientSession {
       }
 
       if (draftModel) {
-        await selectPiRpcSessionModel({ sessionId: submittedRemoteId, ...draftModel });
+        await this.manager.selectSessionModel({ sessionId: submittedRemoteId, ...draftModel });
         if (this.disposed) {
           this.manager.releasePromptFeedback(workspaceFeedbackClaim);
           return;
@@ -981,6 +997,7 @@ export class PiClientSession {
           ...(clientTimeZone === undefined ? {} : { clientTimeZone }),
         },
         promptRpcId,
+        this.manager.rpcTransportOptions,
       );
       if (this.disposed) {
         this.manager.releasePromptFeedback(workspaceFeedbackClaim);
@@ -1035,7 +1052,7 @@ export class PiClientSession {
     if (!source) throw new PiApiError("pi_empty_prompt", 400);
 
     if (!this.remoteIdValue) throw new PiApiError("pi_session_not_found", 404);
-    await waitForPendingPiRpcSessionModelSelection(this.remoteIdValue);
+    await this.manager.waitForPendingSessionModelSelection(this.remoteIdValue);
     if (this.disposed) return;
     const attachmentRetryRpcId = isAttachmentRecognitionRetrySource(source)
       ? createPiRpcId("session.regenerate-attachment")
@@ -1087,11 +1104,14 @@ export class PiClientSession {
     try {
       await this.manager.connections.ensureSessionEvents(this.remoteIdValue, this.handleEvent);
       if (this.disposed) return;
-      await regeneratePiRpcSession({
-        sessionId: this.remoteIdValue,
-        messageId: sourceEntryId,
-        ...(attachmentRetryRpcId === undefined ? {} : { requestId: attachmentRetryRpcId }),
-      });
+      await regeneratePiRpcSession(
+        {
+          sessionId: this.remoteIdValue,
+          messageId: sourceEntryId,
+          ...(attachmentRetryRpcId === undefined ? {} : { requestId: attachmentRetryRpcId }),
+        },
+        this.manager.rpcTransportOptions,
+      );
     } catch (error) {
       if (this.streamingMessage?.id === optimisticAssistantId) this.streamingMessage = undefined;
       if (this.activeAssistantMessageId === optimisticAssistantId) {
@@ -1126,7 +1146,10 @@ export class PiClientSession {
     try {
       await this.manager.connections.ensureSessionEvents(sessionId, this.handleEvent);
       if (this.disposed) return;
-      await resumePiRpcSession({ sessionId, checkpointId, expectedLeafId });
+      await resumePiRpcSession(
+        { sessionId, checkpointId, expectedLeafId },
+        this.manager.rpcTransportOptions,
+      );
       if (this.promptRequestPending) {
         this.promptStartTimer = setTimeout(() => {
           this.promptRequestPending = false;
@@ -1178,7 +1201,7 @@ export class PiClientSession {
     const leafId = this.branchLeafByHeadMessageId.get(headMessageId);
     if (!leafId || !this.remoteIdValue) return;
     const sessionId = this.remoteIdValue;
-    const task = selectPiRpcSessionBranch({ sessionId, leafId })
+    const task = selectPiRpcSessionBranch({ sessionId, leafId }, this.manager.rpcTransportOptions)
       .then(() => this.reload())
       .catch(async (error) => {
         // assistant-ui switches its local repository optimistically before this
@@ -1198,7 +1221,7 @@ export class PiClientSession {
   async cancel(): Promise<void> {
     if (this.disposed) return;
     if (!this.remoteIdValue) return;
-    await cancelPiRpcSession({ sessionId: this.remoteIdValue });
+    await cancelPiRpcSession({ sessionId: this.remoteIdValue }, this.manager.rpcTransportOptions);
   }
 
   private async queuePrompt(
@@ -1229,6 +1252,7 @@ export class PiClientSession {
           ...(clientTimeZone === undefined ? {} : { clientTimeZone }),
         },
         rpcId,
+        this.manager.rpcTransportOptions,
       );
       if (this.disposed) {
         this.manager.releasePromptFeedback(workspaceFeedbackClaim);
@@ -1247,7 +1271,10 @@ export class PiClientSession {
     if (!this.remoteIdValue) throw new PiApiError("pi_session_not_found", 404);
     await this.manager.connections.ensureSessionEvents(this.remoteIdValue, this.handleEvent);
     if (this.disposed) return;
-    await updatePiRpcSessionQueue({ sessionId: this.remoteIdValue, itemId, action });
+    await updatePiRpcSessionQueue(
+      { sessionId: this.remoteIdValue, itemId, action },
+      this.manager.rpcTransportOptions,
+    );
   }
 
   private async setQueuePaused(
@@ -1257,7 +1284,13 @@ export class PiClientSession {
   ): Promise<void> {
     if (this.disposed) return;
     if (!this.remoteIdValue) throw new PiApiError("pi_session_not_found", 404);
-    await setPiSessionQueuePaused(this.remoteIdValue, paused, steering, followUp);
+    await setPiSessionQueuePaused(
+      this.remoteIdValue,
+      paused,
+      steering,
+      followUp,
+      this.manager.rpcTransportOptions,
+    );
   }
 
   private async replaceQueue(
@@ -1266,7 +1299,12 @@ export class PiClientSession {
   ): Promise<void> {
     if (this.disposed) return;
     if (!this.remoteIdValue) throw new PiApiError("pi_session_not_found", 404);
-    await replacePiSessionQueue(this.remoteIdValue, steering, followUp);
+    await replacePiSessionQueue(
+      this.remoteIdValue,
+      steering,
+      followUp,
+      this.manager.rpcTransportOptions,
+    );
   }
 
   applyQueueSnapshot(items: readonly QueueItem[]): void {
@@ -2387,9 +2425,10 @@ export interface PiSessionTitleFallbacks {
   readonly image: string;
 }
 
-interface PiSessionManagerOptions {
+export interface PiSessionManagerOptions {
   readonly promptFeedback?: PromptFeedbackPort;
   readonly titleFallbacks?: PiSessionTitleFallbacks;
+  readonly transport?: PiClientTransport;
 }
 
 /**
@@ -2404,6 +2443,12 @@ export const PI_CLIENT_RUNTIME_IMPLEMENTATION_TOKEN = Object.freeze({
 export class PiSessionManager {
   readonly implementationToken = PI_CLIENT_RUNTIME_IMPLEMENTATION_TOKEN;
   readonly connections: PiConnectionController;
+  readonly modelCatalogInvalidation = new PiModelCatalogInvalidation();
+  readonly resourceCatalogRevision = new PiResourceCatalogRevision();
+  readonly packageUpdatesQuery: PiPackageUpdatesQuery;
+  readonly workbenchSettings: PiWorkbenchSettingsClient;
+  readonly contextPolicies: PiSessionContextPolicyClient;
+  readonly rpcTransportOptions: Readonly<Pick<PiRpcCallOptions, "invalidation" | "transport">>;
   private readonly listeners = new Set<Listener>();
   private readonly threadListListeners = new Set<Listener>();
   private readonly activeSessionListeners = new Set<Listener>();
@@ -2426,6 +2471,7 @@ export class PiSessionManager {
   private readonly pinned = new Set<string>();
   private readonly pinnedWorkspaces = new Set<string>();
   private readonly completed = new Set<string>();
+  private readonly pendingModelSelections = new Map<string, Promise<SessionSelectModelValue>>();
   private readonly runTimings = new Map<string, PiClientRunTiming>();
   private running = new Set<string>();
   private activeLocalId?: string;
@@ -2454,9 +2500,23 @@ export class PiSessionManager {
   private titleFallbacks?: PiSessionTitleFallbacks;
 
   constructor(options: Readonly<PiSessionManagerOptions> = {}) {
+    const transport = snapshotPiClientTransport(options.transport);
     this.promptFeedback = options.promptFeedback;
     this.titleFallbacks = options.titleFallbacks;
+    this.rpcTransportOptions = Object.freeze({
+      ...(transport.http === undefined ? {} : { transport: transport.http }),
+      invalidation: {
+        invalidateModelCatalog: this.modelCatalogInvalidation.invalidate,
+        invalidateSessionModelSelection: this.modelCatalogInvalidation.invalidateSessionSelection,
+      },
+    });
+    this.packageUpdatesQuery = createPiPackageUpdatesQuery({
+      load: (target) => listAvailablePiPackageUpdates({ target }, this.rpcTransportOptions),
+    });
+    this.workbenchSettings = new PiWorkbenchSettingsClient(this.rpcTransportOptions);
+    this.contextPolicies = new PiSessionContextPolicyClient(this.rpcTransportOptions);
     this.connections = new PiConnectionController({
+      webSocketFactory: transport.webSocketFactory,
       onMuxFrame: (frame, generation) => this.handleMuxFrame(frame, generation),
       onHostFrame: (payload, generation) => this.handleHostFrame(payload, generation),
       onGenerationReady: (generation) => this.handleGenerationReady(generation),
@@ -2469,6 +2529,26 @@ export class PiSessionManager {
 
   setTitleFallbacks(fallbacks: PiSessionTitleFallbacks): void {
     this.titleFallbacks = fallbacks;
+  }
+
+  async waitForPendingSessionModelSelection(sessionId: string): Promise<void> {
+    while (true) {
+      const pending = this.pendingModelSelections.get(sessionId);
+      if (!pending) return;
+      await pending;
+    }
+  }
+
+  async selectSessionModel(payload: SessionSelectModelPayload): Promise<SessionSelectModelValue> {
+    const request = selectPiRpcSessionModel(payload, this.rpcTransportOptions);
+    this.pendingModelSelections.set(payload.sessionId, request);
+    try {
+      return await request;
+    } finally {
+      if (this.pendingModelSelections.get(payload.sessionId) === request) {
+        this.pendingModelSelections.delete(payload.sessionId);
+      }
+    }
   }
 
   getActiveSessionId = (): string | undefined => this.activeRemoteId;
@@ -2553,7 +2633,10 @@ export class PiSessionManager {
                 outcome: (response as Extract<PiInteractionResponse, { kind: "approval" }>).outcome,
               },
             };
-    const receipt = await respondPiRpc({ type: "client-response", rpcId, result });
+    const receipt = await respondPiRpc(
+      { type: "client-response", rpcId, result },
+      this.rpcTransportOptions,
+    );
     if (receipt.accepted || receipt.reason === "not-pending") {
       for (const [key, stored] of this.pendingInteractions) {
         if (stored.interaction.rpcId === rpcId) this.pendingInteractions.delete(key);
@@ -2891,6 +2974,7 @@ export class PiSessionManager {
     this.pinned.clear();
     this.pinnedWorkspaces.clear();
     this.completed.clear();
+    this.pendingModelSelections.clear();
     this.runTimings.clear();
     this.running.clear();
     this.activeLocalId = undefined;
@@ -2939,7 +3023,7 @@ export class PiSessionManager {
   private refreshHostDescription(): Promise<void> {
     if (this.disposed) return Promise.resolve();
     if (this.hostDescriptionTask) return this.hostDescriptionTask;
-    const task = describePiHost()
+    const task = describePiHost(this.rpcTransportOptions)
       .then((description) => {
         if (this.disposed) return;
         this.hostDescriptionValue = description;
@@ -3240,10 +3324,13 @@ export class PiSessionManager {
         () => createClientMessageId("pi-session"),
       );
       this.requestedSessionIntents.set(session.localId, intent);
-      const { sessionId } = await createPiRpcSession({
-        workspaceId: intent.workspaceId,
-        sessionId: intent.sessionId,
-      });
+      const { sessionId } = await createPiRpcSession(
+        {
+          workspaceId: intent.workspaceId,
+          sessionId: intent.sessionId,
+        },
+        this.rpcTransportOptions,
+      );
       const authoritative = this.summaries.get(sessionId);
       const canonicalWorkspace = this.workspaceForSession(sessionId);
       const summaryWorkspace = canonicalWorkspace
@@ -3309,9 +3396,9 @@ export class PiSessionManager {
     this.metadataWaitingForUserInputMutations = waitingForUserInputMutations;
     const workspaceGeneration = ++this.workspaceGeneration;
     const task = Promise.all([
-      listPiRpcSessions(),
-      listPiWorkspaces(),
-      listPiArchivedWorkspaceSessions(),
+      listPiRpcSessions({}, this.rpcTransportOptions),
+      listPiWorkspaces(this.rpcTransportOptions),
+      listPiArchivedWorkspaceSessions(this.rpcTransportOptions),
     ])
       .then(([response, workspaceResponse, archivedResponse]) => {
         if (this.disposed) return;
@@ -3410,8 +3497,8 @@ export class PiSessionManager {
     if (this.disposed) return;
     const generation = ++this.workspaceGeneration;
     const [response, archivedResponse] = await Promise.all([
-      listPiWorkspaces(),
-      listPiArchivedWorkspaceSessions(),
+      listPiWorkspaces(this.rpcTransportOptions),
+      listPiArchivedWorkspaceSessions(this.rpcTransportOptions),
     ]);
     if (this.disposed) return;
     if (generation !== this.workspaceGeneration) {
@@ -3489,10 +3576,13 @@ export class PiSessionManager {
     atSeq?: number;
   }): Promise<SessionScratchCreateValue> {
     await this.start();
-    const scratch = await createPiRpcScratchSession({
-      sourceSessionId: input.sourceSessionId,
-      ...(input.atSeq === undefined ? {} : { atSeq: input.atSeq }),
-    });
+    const scratch = await createPiRpcScratchSession(
+      {
+        sourceSessionId: input.sourceSessionId,
+        ...(input.atSeq === undefined ? {} : { atSeq: input.atSeq }),
+      },
+      this.rpcTransportOptions,
+    );
     this.scratchSessions.set(scratch.sessionId, scratch);
     return scratch;
   }
@@ -3512,7 +3602,7 @@ export class PiSessionManager {
 
   async releaseScratchSession(sessionId: string): Promise<void> {
     try {
-      await releasePiRpcScratchSession({ sessionId });
+      await releasePiRpcScratchSession({ sessionId }, this.rpcTransportOptions);
     } finally {
       this.forgetEphemeralSession(sessionId);
     }
@@ -3522,10 +3612,13 @@ export class PiSessionManager {
     sessionId: string;
     title?: string;
   }): Promise<SessionScratchPromoteValue> {
-    const promoted = await promotePiRpcScratchSession({
-      sessionId: input.sessionId,
-      ...(input.title === undefined ? {} : { title: input.title }),
-    });
+    const promoted = await promotePiRpcScratchSession(
+      {
+        sessionId: input.sessionId,
+        ...(input.title === undefined ? {} : { title: input.title }),
+      },
+      this.rpcTransportOptions,
+    );
     this.forgetEphemeralSession(input.sessionId);
     await Promise.all([this.refreshMetadata(), this.refreshWorkspaces()]);
     this.notify();
@@ -3562,8 +3655,11 @@ export class PiSessionManager {
         .filter((candidate): candidate is string => Boolean(candidate)),
     );
 
-    const forked = await forkPiRpcSession({ sessionId: source.id, atSeq: input.atSeq });
-    await renamePiRpcSession({ sessionId: forked.sessionId, title });
+    const forked = await forkPiRpcSession(
+      { sessionId: source.id, atSeq: input.atSeq },
+      this.rpcTransportOptions,
+    );
+    await renamePiRpcSession({ sessionId: forked.sessionId, title }, this.rpcTransportOptions);
 
     const now = new Date().toISOString();
     const child = this.summaries.get(forked.sessionId);
@@ -3594,7 +3690,7 @@ export class PiSessionManager {
 
   async deleteWorkspace(workspaceId: string): Promise<void> {
     this.workspaceGeneration += 1;
-    await deletePiWorkspace(workspaceId);
+    await deletePiWorkspace(workspaceId, this.rpcTransportOptions);
     this.workspaceGeneration += 1;
     this.workspaces.delete(workspaceId);
     this.pinnedWorkspaces.delete(workspaceId);
@@ -3604,7 +3700,11 @@ export class PiSessionManager {
 
   async moveWorkspaceBefore(workspaceId: string, beforeWorkspaceId?: string): Promise<void> {
     this.workspaceGeneration += 1;
-    const result = await insertPiWorkspaceBefore(workspaceId, beforeWorkspaceId);
+    const result = await insertPiWorkspaceBefore(
+      workspaceId,
+      beforeWorkspaceId,
+      this.rpcTransportOptions,
+    );
     this.workspaceGeneration += 1;
     const reordered = new Map<string, WorkspaceView>();
     for (const reorderedWorkspaceId of result.workspaceIds) {
@@ -3635,7 +3735,12 @@ export class PiSessionManager {
       ? (this.aliases.get(beforeSessionId) ?? beforeSessionId)
       : undefined;
     this.workspaceGeneration += 1;
-    const result = await insertPiSessionBefore(workspaceId, remoteSessionId, remoteBeforeSessionId);
+    const result = await insertPiSessionBefore(
+      workspaceId,
+      remoteSessionId,
+      remoteBeforeSessionId,
+      this.rpcTransportOptions,
+    );
     this.workspaceGeneration += 1;
     const current = this.workspaces.get(workspaceId);
     if (workspaceViewsEqual(current, result.workspace)) return;
@@ -3646,7 +3751,7 @@ export class PiSessionManager {
 
   async setWorkspacePinned(workspaceId: string, pinned: boolean): Promise<void> {
     this.workspaceGeneration += 1;
-    const result = await setPiWorkspacePinned(workspaceId, pinned);
+    const result = await setPiWorkspacePinned(workspaceId, pinned, this.rpcTransportOptions);
     this.workspaceGeneration += 1;
     const changed = result.pinned
       ? !this.pinnedWorkspaces.has(result.workspaceId)
@@ -3659,7 +3764,7 @@ export class PiSessionManager {
   async setThreadPinned(threadId: string, pinned: boolean): Promise<void> {
     const sessionId = this.aliases.get(threadId) ?? threadId;
     this.workspaceGeneration += 1;
-    const result = await setPiWorkspaceSessionPinned(sessionId, pinned);
+    const result = await setPiWorkspaceSessionPinned(sessionId, pinned, this.rpcTransportOptions);
     this.workspaceGeneration += 1;
     const changed = result.pinned
       ? !this.pinned.has(result.sessionId)
@@ -3677,8 +3782,8 @@ export class PiSessionManager {
   }
 
   private async setSessionArchivedMetadata(sessionId: string, archived: boolean): Promise<void> {
-    if (archived) await archivePiWorkspaceSession(sessionId);
-    else await unarchivePiWorkspaceSession(sessionId);
+    if (archived) await archivePiWorkspaceSession(sessionId, this.rpcTransportOptions);
+    else await unarchivePiWorkspaceSession(sessionId, this.rpcTransportOptions);
   }
 
   createThreadListAdapter(): RemoteThreadListAdapter {
@@ -3723,7 +3828,10 @@ export class PiSessionManager {
         await this.setThreadPinned(remoteId, pinned);
       },
       rename: async (remoteId, newTitle) => {
-        await renamePiRpcSession({ sessionId: remoteId, title: newTitle });
+        await renamePiRpcSession(
+          { sessionId: remoteId, title: newTitle },
+          this.rpcTransportOptions,
+        );
         const summary = this.summaries.get(remoteId);
         if (summary && this.setSummary({ ...summary, name: newTitle })) this.notify();
       },
@@ -3734,7 +3842,7 @@ export class PiSessionManager {
         await this.setSessionArchivedMetadata(remoteId, false);
       },
       delete: async (remoteId) => {
-        await deletePiRpcSession({ sessionId: remoteId });
+        await deletePiRpcSession({ sessionId: remoteId }, this.rpcTransportOptions);
         this.removeSessionMetadata(remoteId);
         this.notify();
         this.notifyThreadListIfStructureChanged();
@@ -3746,7 +3854,7 @@ export class PiSessionManager {
           ? deriveSessionDisplayTitle(summary?.name)
           : this.titleFromMessages(messages);
         if (!hasExistingName && title) {
-          await renamePiRpcSession({ sessionId: remoteId, title });
+          await renamePiRpcSession({ sessionId: remoteId, title }, this.rpcTransportOptions);
           if (summary && this.setSummary({ ...summary, name: title })) this.notify();
         }
         return createAssistantStream((controller) => {

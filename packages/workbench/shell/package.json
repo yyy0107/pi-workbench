@@ -1,0 +1,237 @@
+{
+  "name": "@workbench/shell",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    "./application": {
+      "types": "./src/application.tsx",
+      "import": "./src/application.tsx",
+      "default": "./src/application.tsx"
+    },
+    "./appearance": {
+      "types": "./src/appearance.ts",
+      "import": "./src/appearance.ts",
+      "default": "./src/appearance.ts"
+    },
+    "./assistant-ui": {
+      "types": "./src/assistant-ui/index.ts",
+      "import": "./src/assistant-ui/index.ts",
+      "default": "./src/assistant-ui/index.ts"
+    },
+    "./browser-session-persistence": {
+      "types": "./src/browser-session-persistence.ts",
+      "import": "./src/browser-session-persistence.ts",
+      "default": "./src/browser-session-persistence.ts"
+    },
+    "./chat": {
+      "types": "./src/chat/index.ts",
+      "import": "./src/chat/index.ts",
+      "default": "./src/chat/index.ts"
+    },
+    "./code-highlighting": {
+      "types": "./src/code-highlighting/index.ts",
+      "import": "./src/code-highlighting/index.ts",
+      "default": "./src/code-highlighting/index.ts"
+    },
+    "./component-extensions": {
+      "types": "./src/extensions/component-extension-installation.ts",
+      "import": "./src/extensions/component-extension-installation.ts",
+      "default": "./src/extensions/component-extension-installation.ts"
+    },
+    "./conversation-title": {
+      "types": "./src/conversation-title.ts",
+      "import": "./src/conversation-title.ts",
+      "default": "./src/conversation-title.ts"
+    },
+    "./dom": {
+      "types": "./src/dom.tsx",
+      "import": "./src/dom.tsx",
+      "default": "./src/dom.tsx"
+    },
+    "./elements": {
+      "types": "./src/elements/index.ts",
+      "import": "./src/elements/index.ts",
+      "default": "./src/elements/index.ts"
+    },
+    "./extensions": {
+      "types": "./src/extensions/index.ts",
+      "import": "./src/extensions/index.ts",
+      "default": "./src/extensions/index.ts"
+    },
+    "./format-duration": {
+      "types": "./src/format-duration.ts",
+      "import": "./src/format-duration.ts",
+      "default": "./src/format-duration.ts"
+    },
+    "./hooks": {
+      "types": "./src/hooks/index.ts",
+      "import": "./src/hooks/index.ts",
+      "default": "./src/hooks/index.ts"
+    },
+    "./hosts/statusbar": {
+      "types": "./src/hosts/statusbar.tsx",
+      "import": "./src/hosts/statusbar.tsx",
+      "default": "./src/hosts/statusbar.tsx"
+    },
+    "./i18n": {
+      "types": "./src/i18n/index.ts",
+      "import": "./src/i18n/index.ts",
+      "default": "./src/i18n/index.ts"
+    },
+    "./i18n/runtime": {
+      "types": "./src/i18n/public-runtime.ts",
+      "import": "./src/i18n/public-runtime.ts",
+      "default": "./src/i18n/public-runtime.ts"
+    },
+    "./layout": {
+      "types": "./src/layout.tsx",
+      "import": "./src/layout.tsx",
+      "default": "./src/layout.tsx"
+    },
+    "./navigation": {
+      "types": "./src/navigation.tsx",
+      "import": "./src/navigation.tsx",
+      "default": "./src/navigation.tsx"
+    },
+    "./new-thread-policy": {
+      "types": "./src/new-thread-policy.ts",
+      "import": "./src/new-thread-policy.ts",
+      "default": "./src/new-thread-policy.ts"
+    },
+    "./panels": {
+      "types": "./src/panels/index.ts",
+      "import": "./src/panels/index.ts",
+      "default": "./src/panels/index.ts"
+    },
+    "./presentation": {
+      "types": "./src/presentation.tsx",
+      "import": "./src/presentation.tsx",
+      "default": "./src/presentation.tsx"
+    },
+    "./resize": {
+      "types": "./src/resize.ts",
+      "import": "./src/resize.ts",
+      "default": "./src/resize.ts"
+    },
+    "./right-workspace": {
+      "types": "./src/right-workspace.ts",
+      "import": "./src/right-workspace.ts",
+      "default": "./src/right-workspace.ts"
+    },
+    "./right-workspace/presentation": {
+      "types": "./src/right-workspace/presentation/index.ts",
+      "import": "./src/right-workspace/presentation/index.ts",
+      "default": "./src/right-workspace/presentation/index.ts"
+    },
+    "./right-workspace/persistence": {
+      "types": "./src/right-workspace/right-workspace-persistence.ts",
+      "import": "./src/right-workspace/right-workspace-persistence.ts",
+      "default": "./src/right-workspace/right-workspace-persistence.ts"
+    },
+    "./right-workspace/react": {
+      "types": "./src/right-workspace-react.ts",
+      "import": "./src/right-workspace-react.ts",
+      "default": "./src/right-workspace-react.ts"
+    },
+    "./runtime-connection": {
+      "types": "./src/runtime-connection.ts",
+      "import": "./src/runtime-connection.ts",
+      "default": "./src/runtime-connection.ts"
+    },
+    "./running-indicator": {
+      "types": "./src/running-indicator.tsx",
+      "import": "./src/running-indicator.tsx",
+      "default": "./src/running-indicator.tsx"
+    },
+    "./settings": {
+      "types": "./src/settings.tsx",
+      "import": "./src/settings.tsx",
+      "default": "./src/settings.tsx"
+    },
+    "./styles.css": "./src/styles.css",
+    "./ui": {
+      "types": "./src/ui/index.ts",
+      "import": "./src/ui/index.ts",
+      "default": "./src/ui/index.ts"
+    },
+    "./utils": {
+      "types": "./src/utils.ts",
+      "import": "./src/utils.ts",
+      "default": "./src/utils.ts"
+    },
+    "./workbench": {
+      "types": "./src/workbench.ts",
+      "import": "./src/workbench.ts",
+      "default": "./src/workbench.ts"
+    },
+    "./workspace-file-tree": {
+      "types": "./src/workspace-file-tree/index.ts",
+      "import": "./src/workspace-file-tree/index.ts",
+      "default": "./src/workspace-file-tree/index.ts"
+    },
+    "./workspace-directory-store": {
+      "types": "./src/workspace-directory-store.ts",
+      "import": "./src/workspace-directory-store.ts",
+      "default": "./src/workspace-directory-store.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@assistant-ui/react": "0.15.16",
+    "@assistant-ui/react-generative-ui": "^0.0.15",
+    "@assistant-ui/react-lexical": "0.2.9",
+    "@assistant-ui/react-streamdown": "^0.3.11",
+    "@base-ui/react": "^1.7.0",
+    "@lexical/code-core": "0.49.0",
+    "@lexical/link": "0.49.0",
+    "@lexical/list": "0.49.0",
+    "@lexical/markdown": "0.49.0",
+    "@lexical/react": "0.49.0",
+    "@lexical/rich-text": "0.49.0",
+    "@shikijs/langs": "3.23.0",
+    "@shikijs/themes": "3.23.0",
+    "@streamdown/code": "^1.1.1",
+    "@streamdown/math": "^1.0.2",
+    "@workbench/agent-runtime-client": "workspace:*",
+    "@workbench/agent-runtime-contracts": "workspace:*",
+    "@workbench/attachment-understanding-contracts": "workspace:*",
+    "@workbench/contracts": "workspace:*",
+    "@workbench/extension-host": "workspace:*",
+    "@workbench/extension-sdk": "workspace:*",
+    "@workbench/host-contracts": "workspace:*",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
+    "get-east-asian-width": "1.6.0",
+    "hast-util-to-jsx-runtime": "2.3.6",
+    "lexical": "0.49.0",
+    "lucide-react": "^1.29.0",
+    "material-icon-theme": "^5.37.0",
+    "radix-ui": "^1.6.7",
+    "react-arborist": "^3.16.0",
+    "shiki": "3.23.0",
+    "streamdown": "^2.5.0",
+    "tailwind-merge": "^3.6.0",
+    "thinking-orbs": "^0.3.1",
+    "zustand": "^5.0.14"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "typescript": "^7.0.2"
+  },
+  "peerDependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  }
+}

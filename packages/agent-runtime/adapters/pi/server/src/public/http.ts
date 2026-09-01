@@ -10,6 +10,11 @@ export {
   type PiRpcRouterDependencies,
 } from "../transport/rpc-router";
 export {
+  createPiRuntimeHttpRouter,
+  type PiRuntimeHttpHandler,
+  type PiRuntimeHttpRouterDependencies,
+} from "../transport/runtime-http-router";
+export {
   createExecutionRpcRoutes,
   type ExecutionRpcRoutesDependencies,
 } from "../transport/routes/execution-rpc-routes";

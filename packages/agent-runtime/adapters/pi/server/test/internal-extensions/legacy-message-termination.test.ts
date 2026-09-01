@@ -1,23 +1,9 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { registerHooks } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-
-const moduleHooks = registerHooks({
-  resolve(specifier, context, nextResolve) {
-    if (
-      specifier.startsWith(".") &&
-      !/\.[^/]+$/.test(specifier) &&
-      context.parentURL?.includes("/runtime/pi/")
-    ) {
-      return nextResolve(`${specifier}.ts`, context);
-    }
-    return nextResolve(specifier, context);
-  },
-});
 
 const {
   LEGACY_WORKBENCH_MESSAGE_TERMINATION_EXTENSION_FILE,
@@ -26,8 +12,6 @@ const {
 } = await import("../../src/internal-extensions/legacy-message-termination");
 const { LEGACY_WORKBENCH_MESSAGE_TERMINATION_EXTENSION_SOURCE } =
   await import("../../src/internal-extensions/legacy-message-termination-extension-source");
-
-test.after(() => moduleHooks.deregister());
 
 test("embeds the byte-identical historical extension source", async () => {
   const embeddedBytes = Buffer.from(LEGACY_WORKBENCH_MESSAGE_TERMINATION_EXTENSION_SOURCE, "utf8");

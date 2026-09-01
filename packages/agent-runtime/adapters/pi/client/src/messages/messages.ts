@@ -50,6 +50,10 @@ import type {
   PiUserMessage,
 } from "@workbench/agent-runtime-pi-protocol/messages";
 import { stripWorkspaceFeedbackContext } from "@workbench/agent-runtime-client/prompt-feedback";
+import {
+  createWorkbenchParallelToolPresentationMetadata,
+  createWorkbenchReasoningPresentationMetadata,
+} from "@workbench/agent-runtime-client/message-presentation-metadata";
 import { PI_CONVERSATION_EVENT_CUSTOM_TYPE } from "@workbench/agent-runtime-pi-protocol/messages";
 import {
   parsePiContextTraceData,
@@ -781,7 +785,7 @@ function assistantStatus(message: PiAssistantMessage, streaming: boolean) {
       return {
         type: "incomplete",
         reason: "error",
-        error: message.errorMessage ?? "pi_response_error",
+        ...(message.errorMessage ? { error: message.errorMessage } : {}),
       } as const;
     default:
       return { type: "complete", reason: "unknown" } as const;
@@ -839,12 +843,7 @@ function reasoningProviderMetadata(timing: MessageTiming | undefined) {
       : undefined;
   if (startedAt === undefined && durationMs === undefined) return undefined;
 
-  return {
-    pi: {
-      ...(startedAt === undefined ? {} : { startedAt }),
-      ...(durationMs === undefined ? {} : { durationMs }),
-    },
-  };
+  return createWorkbenchReasoningPresentationMetadata({ startedAt, durationMs });
 }
 
 export function piAssistantToThreadMessage(
@@ -875,12 +874,10 @@ export function piAssistantToThreadMessage(
   const parallelToolMetadata =
     parallelToolCount > 1 && parallelToolBatchId
       ? {
-          providerMetadata: {
-            pi: {
-              parallelToolBatchId,
-              parallelToolBatchSize: parallelToolCount,
-            },
-          },
+          providerMetadata: createWorkbenchParallelToolPresentationMetadata(
+            parallelToolBatchId,
+            parallelToolCount,
+          ),
         }
       : {};
   let content: ThreadAssistantMessage["content"] = message.content.map((part, contentIndex) => {

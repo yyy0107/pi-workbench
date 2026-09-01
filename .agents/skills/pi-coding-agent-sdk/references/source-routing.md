@@ -53,7 +53,7 @@ Inspect these repository paths before adding a new abstraction:
 
 | Concern                                    | Workbench path                                                               |
 | ------------------------------------------ | ---------------------------------------------------------------------------- |
-| Embedded runtime contract and architecture | `runtime/pi/README.md`                                                       |
+| Embedded runtime contract and architecture | `packages/agent-runtime/adapters/pi/README.md`                               |
 | Session/service construction and binding   | `packages/agent-runtime/adapters/pi/server/src/sessions/session-registry.ts` |
 | Host-owned inline extensions               | `packages/agent-runtime/adapters/pi/server/src/internal-extensions/`         |
 | User extension listing/mutation            | `packages/agent-runtime/adapters/pi/server/src/extensions/`                  |
@@ -63,12 +63,13 @@ Inspect these repository paths before adding a new abstraction:
 | Pi-to-Workbench adapter contracts          | `packages/agent-runtime/core/contracts/src/`                                 |
 | Workbench Agent Runtime port               | `packages/agent-runtime/core/client/src/adapter.ts`                          |
 | Pi assistant-ui adapter implementation     | `packages/agent-runtime/adapters/pi/client/src/assistant-ui/adapter.ts`      |
-| Terminal-owned Pi bash tool definitions    | `runtime/terminal/server/`                                                   |
+| Terminal-owned Pi bash `ToolDefinition`    | `packages/terminal/pi-tool/src/`                                             |
+| Terminal sessions and native process owner | `packages/terminal/server/src/`                                              |
 
 Search before editing:
 
 ```bash
-rg -n '@earendil-works/pi-coding-agent|extensionFactories|bindExtensions|extensionsOverride' packages/agent-runtime/adapters/pi server.ts
+rg -n '@earendil-works/pi-coding-agent|extensionFactories|bindExtensions|extensionsOverride' packages/agent-runtime/adapters/pi apps/runtime-node/src apps/web/src/server
 rg -n 'export (type|interface|class|function).*<Name>|<Name>' node_modules/@earendil-works/pi-coding-agent/dist
 rg -n '<Name>' /home/wy/projects/pi/packages/coding-agent/src /home/wy/projects/pi/packages/coding-agent/docs
 ```

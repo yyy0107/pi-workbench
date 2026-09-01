@@ -1,0 +1,32 @@
+{
+  "name": "@workbench/settings-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./file": {
+      "types": "./src/file.ts",
+      "import": "./src/file.ts",
+      "default": "./src/file.ts"
+    },
+    "./service": {
+      "types": "./src/service.ts",
+      "import": "./src/service.ts",
+      "default": "./src/service.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@workbench/agent-runtime-contracts": "workspace:*",
+    "@workbench/contracts": "workspace:*",
+    "@workbench/server-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2"
+  }
+}

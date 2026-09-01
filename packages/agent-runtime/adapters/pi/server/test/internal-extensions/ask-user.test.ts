@@ -1,24 +1,8 @@
 import assert from "node:assert/strict";
-import { registerHooks } from "node:module";
 import test from "node:test";
-
-const moduleHooks = registerHooks({
-  resolve(specifier, context, nextResolve) {
-    if (
-      specifier.startsWith(".") &&
-      !/\.[^/]+$/.test(specifier) &&
-      context.parentURL?.includes("/runtime/pi/")
-    ) {
-      return nextResolve(`${specifier}.ts`, context);
-    }
-    return nextResolve(specifier, context);
-  },
-});
 
 const { ASK_USER_TOOL_NAME, createAskUserExtension } =
   await import("../../src/internal-extensions/ask-user");
-
-test.after(() => moduleHooks.deregister());
 
 type Handler = (...args: never[]) => unknown;
 

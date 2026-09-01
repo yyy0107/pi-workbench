@@ -14,10 +14,6 @@ import {
 import { useWorkspaceSelection } from "@workbench/agent-runtime-client/workspaces";
 
 import type { PiSessionManager } from "../runtime/manager";
-import {
-  getPiResourceCatalogRevision,
-  subscribePiResourceCatalog,
-} from "../runtime/resource-catalog-revision";
 import { listPiCommands } from "../transport/api";
 
 export function resolvePiCommandListPayload(
@@ -42,9 +38,9 @@ function usePiAgentCommandCatalogTarget(
       ? `project:${workspaceId}`
       : "user";
   const resourceCatalogRevision = useSyncExternalStore(
-    subscribePiResourceCatalog,
-    getPiResourceCatalogRevision,
-    () => 0,
+    manager.resourceCatalogRevision.subscribe,
+    manager.resourceCatalogRevision.getRevision,
+    manager.resourceCatalogRevision.getRevision,
   );
   const [commandState, setCommandState] = useState<{
     readonly manager: PiSessionManager;
@@ -56,7 +52,10 @@ function usePiAgentCommandCatalogTarget(
     let cancelled = false;
     setCommandState(undefined);
 
-    void listPiCommands(resolvePiCommandListPayload(sessionId, workspaceId))
+    void listPiCommands(
+      resolvePiCommandListPayload(sessionId, workspaceId),
+      manager.rpcTransportOptions,
+    )
       .then(({ commands }) => {
         if (!cancelled) {
           setCommandState({

@@ -9,17 +9,20 @@ import { PI_AGENT_RUNTIME_DESCRIPTOR } from "@workbench/agent-runtime-pi-shared/
 
 import type { PiAgentRuntimeCopy } from "./copy";
 import { PiAgentRuntimeProvider } from "./pi-runtime-provider";
+import { snapshotPiClientTransport, type PiClientTransport } from "../transport/client-transport";
 
 export interface PiAgentRuntimeInstallationOptions {
   readonly copy: PiAgentRuntimeCopy;
   readonly workspaceDirectoryStore: WorkbenchWorkspaceDirectoryStorePort;
   readonly promptFeedback?: PromptFeedbackPort;
+  readonly transport?: PiClientTransport;
 }
 
 /** Bind application-owned inputs to Pi's complete browser lifecycle without creating a registry. */
 export function createPiAgentRuntimeInstallation(
   options: PiAgentRuntimeInstallationOptions,
 ): WorkbenchAgentRuntimeInstallation {
+  const transport = snapshotPiClientTransport(options.transport);
   return {
     descriptor: PI_AGENT_RUNTIME_DESCRIPTOR,
     render(children: ReactNode) {
@@ -27,6 +30,7 @@ export function createPiAgentRuntimeInstallation(
         <PiAgentRuntimeProvider
           copy={options.copy}
           promptFeedback={options.promptFeedback}
+          transport={transport}
           workspaceDirectoryStore={options.workspaceDirectoryStore}
         >
           {children}
@@ -37,3 +41,4 @@ export function createPiAgentRuntimeInstallation(
 }
 
 export type { PiAgentRuntimeCopy } from "./copy";
+export type { PiClientTransport } from "../transport/client-transport";

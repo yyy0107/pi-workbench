@@ -9,19 +9,18 @@ const PACKAGE_SOURCE_ROOT = fileURLToPath(new URL("../src/", import.meta.url));
 const CONCRETE_RUNTIME_IMPORT =
   /(?:from\s+|import\s*\()\s*["'](?:@\/runtime\/pi|@workbench\/agent-runtime-pi(?:[-/]|["'])|\.\.\/pi)(?:\/|["'])?/;
 const GENERIC_THREAD_PRESENTATION_CONSUMERS = [
-  "extensions/builtin/terminal/terminal-target.ts",
-  "workbench/sidebar/thread-list-groups.ts",
-  "workbench/sidebar/thread-list-item.tsx",
-  "workbench/sidebar/thread-list.tsx",
-  "workbench/sidebar/workspace-thread-list.tsx",
-  "workbench/shell/workbench-header.tsx",
-  "workbench/shell/workbench-sidebar.tsx",
+  "packages/agent-runtime/adapters/pi/contributions/src/extensions/terminal/terminal-target.ts",
+  "packages/workbench/shell/src/sidebar/thread-list-groups.ts",
+  "packages/workbench/shell/src/sidebar/thread-list-item.tsx",
+  "packages/workbench/shell/src/sidebar/thread-list.tsx",
+  "packages/workbench/shell/src/sidebar/workspace-thread-list.tsx",
+  "packages/workbench/shell/src/shell/workbench-header.tsx",
+  "packages/workbench/shell/src/shell/workbench-sidebar.tsx",
 ] as const;
 const GENERIC_AGENT_COMMAND_CONSUMERS = [
-  "workbench/chat/composer-message-text.tsx",
-  "workbench/chat/workbench-composer.tsx",
+  "packages/workbench/shell/src/chat/composer-message-text.tsx",
+  "packages/workbench/shell/src/chat/workbench-composer.tsx",
 ] as const;
-const APPLICATION_RUNTIME_PROVIDER = "workbench/providers/assistant-runtime-provider.tsx";
 
 async function productionSources(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -67,14 +66,4 @@ test("Workbench Composer consumers stay backend-neutral", async () => {
   }
 
   assert.deepEqual(violations, []);
-});
-
-test("the application Runtime provider selects through the explicit installation module", async () => {
-  const source = await readFile(
-    path.resolve(REPOSITORY_ROOT, APPLICATION_RUNTIME_PROVIDER),
-    "utf8",
-  );
-
-  assert.equal(CONCRETE_RUNTIME_IMPORT.test(source), false);
-  assert.match(source, /from\s+["']\.\/installed-agent-runtime["']/);
 });

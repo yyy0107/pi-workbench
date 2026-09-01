@@ -34,6 +34,11 @@
       "import": "./src/message-statistics.ts",
       "default": "./src/message-statistics.ts"
     },
+    "./message-presentation-metadata": {
+      "types": "./src/message-presentation-metadata.ts",
+      "import": "./src/message-presentation-metadata.ts",
+      "default": "./src/message-presentation-metadata.ts"
+    },
     "./prompt-feedback": {
       "types": "./src/prompt-feedback.ts",
       "import": "./src/prompt-feedback.ts",

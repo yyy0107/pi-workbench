@@ -1,18 +1,9 @@
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises";
-import { registerHooks } from "node:module";
 import { homedir, tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-const moduleHooks = registerHooks({
-  resolve(specifier, context, nextResolve) {
-    return nextResolve(
-      specifier === "../../src/host/native-workspace-picker" ? `${specifier}.ts` : specifier,
-      context,
-    );
-  },
-});
 const {
   HostDirectoryError,
   canOpenHostPath,
@@ -23,7 +14,6 @@ const {
 } = (await import(
   new URL("../../src/host/host-directories.ts", import.meta.url).href
 )) as typeof import("../../src/host/host-directories");
-moduleHooks.deregister();
 
 type HostDirectoryErrorCode = import("../../src/host/host-directories").HostDirectoryErrorCode;
 type HostPathRunner = import("../../src/host/host-directories").HostPathRunner;

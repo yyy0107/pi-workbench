@@ -14,6 +14,26 @@
       "types": "./src/errors.ts",
       "import": "./src/errors.ts",
       "default": "./src/errors.ts"
+    },
+    "./engine": {
+      "types": "./src/engine.ts",
+      "import": "./src/engine.ts",
+      "default": "./src/engine.ts"
+    },
+    "./repository": {
+      "types": "./src/repository.ts",
+      "import": "./src/repository.ts",
+      "default": "./src/repository.ts"
+    },
+    "./service": {
+      "types": "./src/service.ts",
+      "import": "./src/service.ts",
+      "default": "./src/service.ts"
+    },
+    "./terminal-command-executor": {
+      "types": "./src/terminal-command-executor.ts",
+      "import": "./src/terminal-command-executor.ts",
+      "default": "./src/terminal-command-executor.ts"
     }
   },
   "scripts": {
@@ -22,7 +42,8 @@
   },
   "dependencies": {
     "@workbench/execution-contracts": "workspace:*",
-    "@workbench/server-core": "workspace:*"
+    "@workbench/server-core": "workspace:*",
+    "@workbench/terminal-server": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",

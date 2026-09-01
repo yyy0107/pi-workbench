@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
-import { registerHooks } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -11,18 +10,6 @@ import type { PiSessionSummary } from "@workbench/agent-runtime-pi-protocol/mess
 import { AUTOMATION_SESSION_ORIGIN_CUSTOM_TYPE } from "@workbench/automation-contracts";
 import { EXECUTION_SESSION_ORIGIN_CUSTOM_TYPE } from "@workbench/execution-contracts";
 
-const moduleHooks = registerHooks({
-  resolve(specifier, context, nextResolve) {
-    if (
-      specifier.startsWith(".") &&
-      !/\.[^/]+$/u.test(specifier) &&
-      context.parentURL?.includes("/runtime/pi/")
-    ) {
-      return nextResolve(`${specifier}.ts`, context);
-    }
-    return nextResolve(specifier, context);
-  },
-});
 const { configuredSessionCatalogIndexFile, readSessionCatalogIndex, writeSessionCatalogIndex } =
   (await import(
     new URL("../../src/sessions/session-catalog-index.ts", import.meta.url).href
@@ -30,7 +17,6 @@ const { configuredSessionCatalogIndexFile, readSessionCatalogIndex, writeSession
 const { listSessions, listSessionSearchText } = (await import(
   new URL("../../src/sessions/session-registry.ts", import.meta.url).href
 )) as typeof import("../../src/sessions/session-registry");
-moduleHooks.deregister();
 
 async function fixture(t: test.TestContext) {
   const root = await mkdtemp(path.join(tmpdir(), "workbench-session-catalog-index-"));

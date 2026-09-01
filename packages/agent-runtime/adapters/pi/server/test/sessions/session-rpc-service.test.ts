@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { registerHooks } from "node:module";
 import test from "node:test";
 
 import { AgentExecutionError } from "@workbench/agent-runtime-server/execution";
@@ -13,18 +12,6 @@ import {
 
 import { workspaceFromCwd } from "../../src/workspaces/workspace-paths";
 
-const moduleHooks = registerHooks({
-  resolve(specifier, context, nextResolve) {
-    if (
-      specifier.startsWith(".") &&
-      !/\.[^/]+$/.test(specifier) &&
-      context.parentURL?.includes("/runtime/pi/")
-    ) {
-      return nextResolve(`${specifier}.ts`, context);
-    }
-    return nextResolve(specifier, context);
-  },
-});
 const [sessionRpcModule, sessionHistoryModule, sessionModelContextModule] = await Promise.all([
   import(new URL("../../src/sessions/session-rpc-service.ts", import.meta.url).href) as Promise<
     typeof import("../../src/sessions/session-rpc-service")
@@ -36,7 +23,6 @@ const [sessionRpcModule, sessionHistoryModule, sessionModelContextModule] = awai
     new URL("../../src/sessions/pi-session-model-context-service.ts", import.meta.url).href
   ) as Promise<typeof import("../../src/sessions/pi-session-model-context-service")>,
 ]);
-moduleHooks.deregister();
 const { SessionRpcService, SessionRpcServiceError } = sessionRpcModule;
 const { createPiSessionHistoryService } = sessionHistoryModule;
 const { createPiSessionModelContextService } = sessionModelContextModule;

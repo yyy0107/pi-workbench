@@ -24,8 +24,6 @@ const RPC_ROUTE_COMPOSITION = new URL(
   "../../src/transport/rpc-route-composition.ts",
   import.meta.url,
 );
-const REPOSITORY_ROOT = new URL("../../../../../../../", import.meta.url);
-const INSTALLED_PI_SERVER = new URL("workbench/server/pi/installed-pi-server.ts", REPOSITORY_ROOT);
 const RPC_ROUTE_GROUP = new URL("../../src/transport/routes/rpc-route-group.ts", import.meta.url);
 const SESSION_RPC_ROUTES = new URL(
   "../../src/transport/routes/session-rpc-routes.ts",
@@ -80,14 +78,9 @@ test("the session RPC facade depends on Pi protocol collaborators instead of the
   assert.match(source, /from\s+["']\.\/pi-session-model-context-service["']/);
 });
 
-test("the Pi composition root installs concrete session collaborators and late-bound workspaces", async () => {
-  const [source, installed] = await Promise.all([
-    readFile(SESSION_PROTOCOL_FACADE, "utf8"),
-    readFile(INSTALLED_PI_SERVER, "utf8"),
-  ]);
+test("the session protocol facade owns concrete collaborators and late-bound workspaces", async () => {
+  const source = await readFile(SESSION_PROTOCOL_FACADE, "utf8");
 
-  assert.match(installed, /createPiAgentServerInstallation/);
-  assert.match(installed, /createInstalledWorkbenchAgentServerAdapter/);
   assert.doesNotMatch(
     source,
     /createPiAgentServerInstallation|createInstalledWorkbenchAgentServerAdapter/,
@@ -111,17 +104,12 @@ test("core session transport routes depend on the protocol facade without reachi
 });
 
 test("the route composition injects core session dependencies without handling methods", async () => {
-  const [source, installed] = await Promise.all([
-    readFile(RPC_ROUTE_COMPOSITION, "utf8"),
-    readFile(INSTALLED_PI_SERVER, "utf8"),
-  ]);
+  const source = await readFile(RPC_ROUTE_COMPOSITION, "utf8");
 
   assert.doesNotMatch(
     source,
     /createInstalledWorkbenchAgentServerAdapter|createPiAgentServerInstallation/,
   );
-  assert.match(installed, /createInstalledWorkbenchAgentServerAdapter/);
-  assert.match(installed, /createPiAgentServerInstallation/);
   assert.match(
     source,
     /const sessionProtocolFacade = createPiSessionProtocolFacade\(\{ agent \}\)/,
@@ -140,14 +128,9 @@ test("the route composition injects core session dependencies without handling m
 });
 
 test("the RPC router dispatches injected route groups without owning Pi services", async () => {
-  const [source, installed] = await Promise.all([
-    readFile(RPC_ROUTER, "utf8"),
-    readFile(INSTALLED_PI_SERVER, "utf8"),
-  ]);
+  const source = await readFile(RPC_ROUTER, "utf8");
 
   assert.doesNotMatch(source, /createDefaultPiRpcRouteGroups|handleInteractiveResponsePost/);
-  assert.match(installed, /createDefaultPiRpcRouteGroups/);
-  assert.match(installed, /createPiRpcRouter/);
   assert.match(source, /dispatchRpcRouteGroups\(request, method, routeGroups\)/);
   assert.doesNotMatch(source, /createPiSessionProtocolFacade|createSessionRpcRoutes/);
   assert.doesNotMatch(source, /SessionRpcService|session-registry|ModelService/);

@@ -1,6 +1,6 @@
 # Workbench Agent Runtime 多 Package 重构计划
 
-状态：Completed（2026-08-29）
+状态：Completed（2026-08-29；Agent Runtime first delivery）
 
 目标：把当前单 package 内的 `runtime/**` 模块重构为 pnpm workspace 下多个拥有独立
 `src/`、`test/`、`package.json` 和 `tsconfig.json` 的 package；由 Workbench 定义公共接口，Pi 作为
@@ -18,27 +18,41 @@ package：4 个领域 contracts、4 个 Workbench Agent Runtime Core package、4
 - Workbench owns contracts、client host、server ports 和 client/server testkit；Pi protocol、shared、client、server
   均作为 Adapter leaf package 实现这些接口；
 - 服务端通用 persistence、RPC error、process environment、shutdown/settings document 支撑收口到
-  `@workbench/server-core`，Execution node executor/error 收口到 `@workbench/execution-server`；
+  `@workbench/server-core`；`@workbench/execution-server` 现拥有 Execution node executor/error、compiler、
+  engine、repository、service 和 Terminal Command adapter，而 Pi 只在应用安装层注入 Agent executor/catalog；
 - 浏览器与服务端各自只有一个显式 Pi composition root；测试中的非 Pi fixture 可以只实现 Workbench 最小
   client/server contract；
-- Runtime-neutral builtin extensions 与当前安装 Runtime 的 contributions 已拆成两个互斥列表；Pi UI 能力只经
-  `workbench/runtime-contributions/pi` 应用组合边界暴露；
+- Runtime-neutral builtin extensions 与当前安装 Runtime 的 contributions 已拆成两个互斥列表；Pi UI 能力由
+  `@workbench/agent-runtime-pi-contributions` 拥有，并只经 `apps/web` 应用组合边界暴露；
 - 旧 `runtime/assistant-ui`、`runtime/pi/{contracts,shared,client,server}` 以及已迁移的
   `runtime/shared`/`runtime/server` compatibility 实现已删除；
-- custom Electron server 会 bundle 所有 `@workbench/*` source package，并机械断言 external allowlist 仍精确为
-  `@earendil-works/pi-coding-agent`、`next`、`node-pty`、`ws`。
+- 本计划第一交付中的 custom Electron server 会 bundle 所有 `@workbench/*` source package，并机械断言其 single-server
+  external allowlist 精确为 `@earendil-works/pi-coding-agent`、`next`、`node-pty`、`ws`。
 
 最终 gate 全部通过：`pnpm check`、fresh `pnpm build`、Electron staging/runtime budget、staged server
 ready + `host.describe`/`session.list` RPC + Pi WebSocket smoke，以及 `pnpm electron:pack`。最终 staged runtime 为
 123.3 MiB、6348 个文件、115 个依赖 package；packaged Linux directory 为 123.2 MiB、6339 个文件。产物中
-TypeScript、测试、source map、broken symlink 和 `@workbench/*` external runtime package 均为零。
+TypeScript、测试、source map、broken symlink 和 `@workbench/*` external runtime package 均为零；这是当时单一
+custom-server artifact 的历史测量，并非后续拆分 artifact 的约束。
 
 source-first exports 同时声明 `types`、`import` 和同源 `default` 条件；实际修改 Pi Protocol 与 Pi Server 的
 `packages/**/src` 文件后，`pnpm dev` 包装路径和 Electron development 使用的直接 `tsx watch server.ts` 路径都检测到
 变更、重启并再次完成 ready/RPC warmup。
 
-按原始范围约束，Next 应用仍位于仓库根；迁入 `apps/workbench`、Extension Platform/Terminal/RightWorkspace 的
-进一步 package 化仍属于 Phase 8 的独立后续项目，不是本计划第一交付的未完成项。
+本计划第一交付收口时，按原始范围约束，Next 应用仍位于仓库根；这不是该交付的未完成项。后续 Apps 计划现已在
+Phase 5 将它迁入 `apps/web`，并保留本计划完成的 Pi Client/public installation 边界；当前证据见
+[`migration/phase-5-web-shell-pi-evidence.md`](./migration/phase-5-web-shell-pi-evidence.md)。后续 Apps 计划的
+Phase 6 已以独立 Web/Runtime manifests 取代上述 single-server allowlist：Web external 精确为 `[next]`，Runtime external 精确为
+`[@earendil-works/pi-coding-agent,node-pty,tree-sitter,tree-sitter-bash,ws]`，aggregate 为六个唯一 package；dynamic ownership
+另行精确记录为 `[@earendil-works/pi-ai,@earendil-works/pi-coding-agent]`。Runtime manifest 可精确列出 Pi README/docs/examples
+的 model-readable closure，其中允许 manifest-owned 的 TypeScript/test-shaped 资源，但它们不构成 startup、NFT 或
+dynamic-loader admission，closure 之外仍禁止这类资源。fresh staging、native/process/package 与 exact exception 证据见
+[`migration/phase-6-standalone-runtime-staging-evidence.md`](./migration/phase-6-standalone-runtime-staging-evidence.md)。
+
+后续 Extension Platform、Host Server、Terminal、Execution 与 Shell capability extraction 的 fresh aggregate
+release evidence 由独立 Apps / Packages / Electron / Tauri 计划维护，见
+[`migration/phase-2-aggregate-release-evidence.md`](./migration/phase-2-aggregate-release-evidence.md)。该证据不回写或
+重新定义本计划已经完成的第一交付范围与历史 gate 度量。
 
 ## 1. 结论与范围
 
@@ -64,8 +78,8 @@ source-first exports 同时声明 `types`、`import` 和同源 `default` 条件�
 
 以下内容不与第一交付同时进行：
 
-- 不把 Next 应用移动到 `apps/workbench`；
-- 不把 Electron 移动到 `apps/desktop`；
+- 不把 Next 应用移动到后续 `apps/*` assembly tier；
+- 不把 Electron 移动到后续 `apps/*` assembly tier；
 - 不引入 Turborepo、Nx 或新的构建器；
 - 不实现 Runtime 动态发现、Registry、选择 UI 或 fallback；
 - 不把 Pi 独有的 history、context policy、resource loader、event journal 或 WebSocket frame 提升成通用接口；
@@ -416,8 +430,9 @@ Protocol，但不拥有网络、文件系统、React 状态或 AgentSession。
 Skills、Pi Toolbox、Pi context trace 或实现专属 settings，先收口到 `workbench/runtime-contributions/pi/**` 一类应用组合目录。
 
 它可以同时依赖 Workbench 应用 Extension Platform 与 `@workbench/agent-runtime-pi-client` 的窄 public capability，但不属于
-Workbench Core。之所以第一阶段不把它做成 workspace package，是因为当前 Extension SDK/Host 尚未 package 化；强行移动会让
-新 package 反向导入根应用 `@/*`。待后续提取 `extension-sdk` 后，再把这组 contribution 提升成独立 Pi package。
+Workbench Core。首个 delivery 没有把它做成 workspace package，因为当时 Extension SDK/Host 尚未 package 化；强行移动会让
+新 package 反向导入根应用 `@/*`。后续 Apps/Packages 迁移现已提取 `extension-sdk`/`extension-host`，并把这组 contribution
+提升为独立 Pi package。
 
 通用的 message、composer、workspace 功能不能留在此 bundle，必须消费 Workbench-owned port。bundle 也不得读取 Pi Server
 或公开完整 `PiSessionManager`。
@@ -781,6 +796,11 @@ pnpm --recursive --filter './packages/**' run test
 
 ### Phase 5：清理并迁移 Pi Client
 
+状态：已完成。`@workbench/agent-runtime-pi-client` 已拥有 browser transport、manager、assistant-ui projection 与 client
+installation；旧 browser implementation owner 已删除，应用只从 public exports 安装 Pi。后续 Apps 计划的 Phase 5 已将
+最终组合根迁入 `apps/web`，并证明 Shell 不反向依赖 Pi、Web SSR/standalone 不包含 Pi Server/SDK/native Runtime；见
+[`migration/phase-5-web-shell-pi-evidence.md`](./migration/phase-5-web-shell-pi-evidence.md)。
+
 先解耦，再移动：
 
 1. 生成所有 Pi 目录外旧 Pi browser implementation import 清单，并逐项分类为：Workbench generic port、合法 Pi-owned
@@ -826,14 +846,16 @@ pnpm --recursive --filter './packages/**' run test
 9. 检查所有 Pi SDK import 来自安装版本公开 root entry；
 10. 修改 `electron/build-desktop-server.cjs` 的 esbuild 策略：`@workbench/*` 必须随入口 bundle，不能继续
     被 `packages: "external"` 留作运行时源码依赖；
-11. 给 `.desktop-build/runtime-allowlist.json` 增加断言：不得出现 `@workbench/*`，且 custom server external 集合
-    继续精确为 `@earendil-works/pi-coding-agent`、`next`、`node-pty`、`ws`；
+11. 在本计划第一交付中，给 `.desktop-build/runtime-allowlist.json` 增加断言：不得出现 `@workbench/*`，且 custom server
+    external 集合精确为 `@earendil-works/pi-coding-agent`、`next`、`node-pty`、`ws`；后续 Apps Phase 6 不再将该文件作为
+    当前 authority，而由独立 Web/Runtime manifests 声明各自 ownership；
 12. 保持 Next `serverExternalPackages` 中 `@earendil-works/pi-ai`、`@earendil-works/pi-coding-agent`、
     `tree-sitter`、`tree-sitter-bash` 的既有 Node/runtime 行为；内部 workspace package 不得加入此列表；
 13. Pi/native 第三方依赖先在 leaf manifest 正确声明，同时保留根依赖的 staging ownership；等
     `resolvedPackageDirectory()`、native/dynamic package 复制在 workspace 下验证稳定后，再用独立清理 PR 移除根声明；
-14. 验证 Next standalone tracing 和 Electron desktop server bundle 能包含 workspace package 实现及运行时资源，
-    staged runtime 中仍不包含 `.ts`/`.tsx` 源码。
+14. 验证 Next standalone tracing 和 Electron desktop server bundle 能包含 workspace package 实现及运行时资源；本计划第一
+    交付的 staged runtime 不包含 `.ts`/`.tsx` 源码。后续 Apps Phase 6 的 Runtime artifact 则只允许 exact manifest-owned
+    Pi README/docs/examples model-readable closure 中的 TypeScript/test-shaped 资源。
 
 验收：
 
@@ -843,7 +865,9 @@ pnpm --recursive --filter './packages/**' run test
 - session lifecycle、RPC routes、mux/host streams、resources、extensions、models、settings 专项测试通过；
 - `pnpm build` 通过；
 - Electron runtime budget 和 desktop server launcher 验证通过；
-- `.desktop-build/runtime-allowlist.json` 不含 `@workbench/*`，staged runtime 不含 TypeScript 源码；
+- 本计划第一交付的 `.desktop-build/runtime-allowlist.json` 不含 `@workbench/*`，其 staged runtime 不含 TypeScript 源码；
+  后续 Apps Phase 6 以拆分 manifest 为 authority，只有 exact manifest-owned Pi README/docs/examples model-readable closure
+  可包含 TypeScript/test-shaped 资源，且这些资源不属于 startup、NFT 或 dynamic-loader admission；
 - 没有第二个 Pi service/event stream。
 
 ### Phase 7：让 Pi 真正成为其中一个实现，再删除兼容层
@@ -892,20 +916,34 @@ pnpm --recursive --filter './packages/**' run test
 
 ### Phase 8：后续相邻模块（独立项目）
 
+本阶段已经冻结为独立的
+[Workbench Apps / Packages / Electron / Tauri 架构迁移计划](./workbench-apps-packages-tauri-migration-plan.md)，后续在当前
+分支按阶段连续实施，不回写或扩大本计划已经完成的第一交付范围。
+
 Agent Runtime 重构完成后，再按独立计划考虑：
 
 - `platform/extensions` → `extension-sdk` + `extension-host`，完成后再把应用层 Pi integration bundle 提升为
   `agent-runtime-pi-contributions` package；
 - `runtime/server/automations` → `automation-server`；
-- `runtime/server/executions` → `execution-server`；
+- `runtime/server/executions` → `execution-server`（source/test/closure 与 Phase 2 aggregate release gate 已完成；
+  Execution/Automation coordinated shutdown 仍是 application-lifecycle residual，见
+  [`migration/phase-2-execution-server-evidence.md`](./migration/phase-2-execution-server-evidence.md)）；
 - `runtime/server` 的 file persistence、RPC error、child-process environment、shutdown utilities → `server-core`；
 - `runtime/terminal` → `terminal-contracts` + `terminal-server`，其中直接导入 Pi coding-agent 的
   `interactive-bash-tool` 必须留作独立 `pi-terminal-tool` Adapter，不能泄漏进通用 Terminal；
-- `components/right-workspace` → `right-workspace`/`inspector-host`；
+- `components/right-workspace` → `@workbench/shell/right-workspace`：pure layout/model 先完成，随后 S2/S3 已将
+  controller 与 generic React host 迁入；产品 inspector integration 和完整 Shell composition 仍是独立后续 slice；
 - `components/workspace-file-tree` → `workspace-file-tree`；
 - `components/code-highlighting` → `code-highlighting`；
 - 大型 builtin extensions → `packages/extensions/*`；
-- Next/Electron → `apps/workbench` + `apps/desktop`。
+- Next 与 Runtime 已分别迁入 `apps/web` 和 `apps/runtime-node`；Electron → `apps/desktop-electron` 仍属于后续阶段。
+  未来静态桌面入口与 Tauri 分别为 `apps/desktop-renderer` + `apps/desktop-tauri`。Web relocation 证据见
+  [`migration/phase-5-web-shell-pi-evidence.md`](./migration/phase-5-web-shell-pi-evidence.md)，split Web/Runtime artifact 与
+  Electron staging evidence 见
+  [`migration/phase-6-standalone-runtime-staging-evidence.md`](./migration/phase-6-standalone-runtime-staging-evidence.md)。
+
+Phase 2 Execution residual：Execution/Automation 的协调 shutdown 仍由应用 lifecycle 承担；本次 execution
+leaf 迁移不改变这项既有债务。
 
 这些迁移不得阻塞 Agent Runtime 第一交付，也不应在同一个大型变更中完成。
 
@@ -987,7 +1025,10 @@ pnpm exec oxlint <package-path>
 5. 修改组合根或 server/client 边界：`pnpm build`；
 6. 修改 Pi Server、Terminal、custom server 或 desktop tracing/bundle：从 fresh `.next`/`.desktop-build` 产物执行
    Electron staging、runtime budget 和 server ready/identity/WebSocket smoke check；
-7. 验证 staged runtime 为零 TypeScript、零测试、零 source map、零 broken symlink、零 `@workbench/*` external；
+7. 对本计划第一交付，验证 staged runtime 为零 TypeScript、零测试、零 source map、零 broken symlink、零
+   `@workbench/*` external；后续 Apps Phase 6 的拆分 Runtime artifact 在 exact manifest-owned Pi README/docs/examples
+   model-readable closure 之外为零 forbidden TypeScript/test-shaped，且无 source map/broken symlink；这些 model resources
+   不构成 startup、NFT 或 dynamic-loader admission；
 8. 首次迁移含 Tailwind class 的 UI package 时，用一个唯一 class 验证生成 CSS；只有确认漏扫时才增加窄 `@source`；
 9. 专门验证 `pnpm dev` 与 Electron dev 修改 `packages/**/src` 后能够触发预期的重编译/重启；
 10. 只有存在具体浏览器状态同步不确定性时才使用 Browser/E2E。
@@ -1059,8 +1100,10 @@ server smoke 和 milestone `electron:pack --dir`。生产 gate 必须从 fresh �
 15. 旧 `runtime/**` 兼容入口已删除；
 16. workspace graph 无循环、无未声明依赖和无深导入；
 17. RPC、stream、持久化格式和用户行为未因目录迁移改变；
-18. custom server external allowlist 不含 `@workbench/*`，Electron staged runtime 为零 TypeScript、零测试、零
-    source map 和零 broken symlink；
+18. 本计划第一交付的 custom server external allowlist 不含 `@workbench/*`，其 Electron staged runtime 为零 TypeScript、
+    零测试、零 source map 和零 broken symlink；后续 Apps Phase 6 的 Runtime manifest 仅在 exact manifest-owned Pi
+    README/docs/examples model-readable closure 内例外允许 TypeScript/test-shaped 资源，closure 之外仍为零且无 source
+    map/broken symlink，例外资源不属于 startup、NFT 或 dynamic-loader admission；
 19. fresh install/fresh build 下根 lint、typecheck、tests、production build、desktop server smoke 与 Electron budget
     验证通过。
 

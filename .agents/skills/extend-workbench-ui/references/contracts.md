@@ -35,25 +35,28 @@ import {
   type MainViewProps,
   type WorkspaceActionsSlotContext,
   type WorkspaceSurfaceDefinition,
-} from "@/platform/extensions/authoring";
+} from "@workbench/extension-sdk";
 import {
   useCommandService,
   useMainViewService,
   useNavigationService,
   usePanelService,
   useSettingsRegistry,
-} from "@/platform/extensions";
+} from "@workbench/extension-host";
 ```
 
 Source of truth:
 
-- `platform/extensions/authoring.ts`
-- `platform/extensions/index.ts`
-- `platform/extensions/api/`
-- `platform/extensions/extension-context.ts`
+- `packages/extension-platform/sdk/src/authoring.ts`
+- `packages/extension-platform/sdk/src/index.ts`
+- `packages/extension-platform/sdk/src/api/`
+- `packages/extension-platform/host/src/index.ts`
+- `packages/extension-platform/host/src/extension-context.ts`
 
-Business extensions must not import concrete registries, stores, or the aggregate Host barrel. The
-active Message Renderer and shared extension surfaces may use the explicitly allowlisted
+Business extensions import authoring definitions and contribution types from the SDK. Mounted
+components may import the explicit runtime hooks and Host-owned error types from the Host root, but
+must not import its internal composition entry, concrete registries, or services. The active Message
+Renderer and shared extension surfaces may use the explicitly allowlisted
 `hosts/renderer-host` and `hosts/extension-error-boundary` leaf entries. Main View and Workspace
 Surface registration are part of `ExtensionContext`; RightWorkspace controller hooks and Pi runtime
 remain separate public boundaries described below.
@@ -89,9 +92,10 @@ interface WorkbenchExtension {
 These extensions are trusted, in-process, statically bundled contribution containers. They are not
 third-party plugins and do not imply an Extension Host, permissions, or a stable external ABI.
 
-Distribution is separate from the contribution lifecycle. Fixed product capabilities live in
-`extensions/builtin/` and enter `builtinExtensions`. User-installable component bundles live in
-`extensions/installable/`, declare `toolbox.distribution: "installable"`, and enter the static
+Distribution is separate from the contribution lifecycle. Fixed product capabilities live in the
+owning package's `src/extensions/builtin/` and enter its semantic extension groups. User-installable
+component bundles currently live in `packages/workbench/shell/src/extensions/installable/`, declare
+`toolbox.distribution: "installable"`, and enter the static
 `installableComponentExtensions` catalog. The application persists whether each catalog entry is
 installed and passes only installed entries to `ExtensionProvider`; uninstalling therefore invokes
 normal ExtensionManager deactivation and disposes every owned contribution. Catalog code remains
@@ -145,10 +149,11 @@ For `kind: "slot"`, `target` must be a real `WorkbenchSlot`; for `kind: "panel"`
 that uses the real design system and renders representative states without invoking privileged
 runtime behavior. Use typed `defineMessage(...)` descriptors for user-visible metadata.
 
-An uninstallable entry belongs under `extensions/installable/<feature>/`, declares
+An uninstallable entry belongs under
+`packages/workbench/shell/src/extensions/installable/<feature>/`, declares
 `distribution: "installable"`, and is listed in `installableComponentExtensions`. Fixed product
-features remain under `extensions/builtin/` and enter `builtinExtensions`; adding Toolbox metadata
-does not change that ownership boundary.
+features remain under their owner package's `src/extensions/builtin/` and enter that package's
+semantic extension groups; adding Toolbox metadata does not change that ownership boundary.
 
 ## Slot contract
 
@@ -624,12 +629,13 @@ interface OpenHandlerDefinition {
 
 Register ownership synchronously with `context.openers.register(handler)`. A `canOpen()` score of
 zero means unsupported; the highest positive score wins and registration order breaks ties. Client
-components call `useOpenerService().open(request)` from `@/components/right-workspace` and must
+components call `useOpenerService().open(request)` from `@workbench/shell/right-workspace/react` and must
 handle rejection in event handlers. Setup never calls a React hook because the service injects
 `open/reveal` Surface operations only when executing the handler.
 
-Do not deep-import a sibling `extensions/builtin/<feature>`. Promote genuinely shared capability
-contracts to `services/` or `runtime/`, and use the Opener only for resource ownership/routing.
+Do not deep-import a sibling `<owner-package>/src/extensions/builtin/<feature>`. Promote genuinely
+shared capability contracts to a finite public entry in the owning workspace package, and use the
+Opener only for resource ownership/routing.
 
 ## RightWorkspace boundary
 
@@ -638,12 +644,31 @@ capabilities are Workspace Surface contributions registered through `ExtensionCo
 
 Source of truth:
 
-- `platform/extensions/api/workspace-surface.ts`: public contribution, instance, scope, and registry contracts;
-- `platform/extensions/registries/workspace-surface-registry.ts`: tracked capability registry;
-- `components/right-workspace/index.ts`: public controller and state hooks;
-- `components/right-workspace/core/surface-types.ts`: core layout state and public type re-exports;
-- `components/right-workspace/core/workspace-controller.ts`: `open`, `reveal`, `focus`, `close`,
-  update, layout, and restore operations.
+- `packages/extension-platform/sdk/src/api/workspace-surface.ts`: public contribution, instance, scope, and registry contracts;
+- `packages/extension-platform/sdk/src/registries/workspace-surface-registry.ts`: tracked capability registry;
+- `apps/web/src/components/right-workspace/index.ts`: Web application facade for product presentation only, including the
+  visual workspace, feedback forms/chrome, toggle, and product composition Provider;
+- `packages/workbench/shell/src/right-workspace.ts`: finite public entry for generic
+  RightWorkspace controller/persistence ports, layout state, selectors, mount/split policy, tabs,
+  and resize preview. It does not re-export SDK authoring constants or Workspace Surface contracts;
+- `packages/workbench/shell/src/right-workspace/`: implementation of those platform-independent
+  primitives; it must not import business extensions, Pi, Next, or a root alias;
+- `packages/workbench/shell/src/right-workspace/workspace-controller.ts`: `open`, `reveal`, `focus`,
+  `close`, update, layout, restore, hydration arbitration, ordered persistence, and disposal. Product
+  settings/localStorage and catalog validation enter only through injected root-owned adapters;
+- `packages/workbench/shell/src/right-workspace-react.ts`: finite `./right-workspace/react` entry for
+  generic context/hooks, immutable installation Provider, and Surface runtime host. Provider inputs
+  are installation-scoped and require a keyed remount to change; the entry exposes selector hooks,
+  not the internal environment or raw Store owner;
+- `packages/workbench/shell/src/right-workspace/workspace-feedback-*.ts`: runtime-neutral feedback
+  store and immutable claim/CAS contract; it does not import an Agent Runtime;
+- `apps/web/src/components/right-workspace/right-workspace-provider.tsx`: Web product wrapper injecting settings,
+  legacy storage, catalog validation, application context, and opener construction. Product visual
+  presentation remains root-owned.
+
+Workspace Surface definitions, instances, scopes, registry, and authoring constants remain direct
+imports from `@workbench/extension-sdk`; Shell exports its controller and state contracts without
+re-exporting those SDK authoring contracts.
 
 Register a definition synchronously in setup:
 
@@ -701,7 +726,7 @@ importing or naming the contribution currently rendered in that pane.
 
 ## Pi runtime boundary
 
-Read `runtime/pi/README.md` completely before adding Pi-backed UI. It is the maintained architecture
+Read `packages/agent-runtime/adapters/pi/README.md` completely before adding Pi-backed UI. It is the maintained architecture
 and capability reference. Verify exact shapes against:
 
 - `@workbench/agent-runtime-pi-protocol/rpc` for unary RPC envelopes and payload/value types;
@@ -715,7 +740,7 @@ second WebSocket/SSE connection, duplicate payload interfaces, or treat HTTP `20
 success without checking the RPC result envelope.
 
 `/api/pi/**`, legacy contracts, and `legacy-sse.ts` are compatibility paths, not the default for new
-features. Use one only when `runtime/pi/README.md` explicitly identifies a remaining exception (for
+features. Use one only when `packages/agent-runtime/adapters/pi/README.md` explicitly identifies a remaining exception (for
 example the current queue-pause compatibility command). If a required method is missing, extend the
 wire contracts, validation/router, domain service, client helper, and tests before wiring the UI.
 Do not infer unimplemented Harness APIs or bypass the trust boundary from a component.
@@ -750,7 +775,7 @@ CommandService `execute(id)` returns a Promise. Catch rejection when invoking it
 `useSettingsRegistry()` is intended for the shared Settings host or subscribed tooling. Business
 extensions normally register sections/items synchronously through `context.settings`.
 
-RightWorkspace and `useOpenerService()` hooks come from `@/components/right-workspace`, Workspace
+RightWorkspace and `useOpenerService()` hooks come from `@workbench/shell/right-workspace/react`, Workspace
 Surface/Open Handler registration comes from `context.workspace`/`context.openers`, and Pi hooks come
 from the relevant `@workbench/agent-runtime-pi-client/*` feature facade.
 
