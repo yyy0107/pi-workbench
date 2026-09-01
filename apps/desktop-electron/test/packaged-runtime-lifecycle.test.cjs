@@ -117,6 +117,7 @@ function harness({ startupError = false, trailingFrame = false } = {}) {
 
 test("starts one Runtime child with the exact renderer origin and shuts it down", async () => {
   const fixture = harness();
+  delete fixture.options.settingsFile;
   const session = await startPackagedWorkbenchRuntime({
     ...fixture.options,
     async reportOwner(owner) {
@@ -140,6 +141,7 @@ test("starts one Runtime child with the exact renderer origin and shuts it down"
   );
   assert.equal(JSON.stringify(spawn).includes("desktop-secret-token"), false);
   assert.equal(spawn.options.env.WORKBENCH_RUNTIME_MANAGED_CHILD, "1");
+  assert.equal("PI_WORKBENCH_SETTINGS_FILE" in spawn.options.env, false);
   assert.equal("NODE_OPTIONS" in spawn.options.env, false);
 
   const stopping = session.stop();
@@ -183,6 +185,7 @@ test("scrubs inherited control namespaces and redacts split credentials", () => 
   );
   assert.equal(environment.PATH, "/usr/bin");
   assert.equal(environment.NODE_ENV, "production");
+  assert.equal(environment.PI_WORKBENCH_SETTINGS_FILE, "/state/settings.json");
   assert.equal(environment.WORKBENCH_RUNTIME_MANAGED_CHILD, "1");
   assert.equal("NODE_OPTIONS" in environment, false);
   assert.equal("workbench_web_origin" in environment, false);

@@ -15,10 +15,11 @@ test("Electron owns one privileged static-renderer origin and one Runtime child"
   assert.match(mainSource, /supportFetchAPI: true/u);
   assert.doesNotMatch(mainSource, /bypassCSP: true/u);
   assert.match(mainSource, /parseExplicitLoopbackOrigin\("WORKBENCH_DESKTOP_RENDERER_ORIGIN"\)/u);
-  assert.match(mainSource, /assertDesktopRendererDevelopmentResponse\(response, rendererOrigin\)/u);
+  assert.match(mainSource, /assertDesktopRendererDevelopmentResponse\(response\)/u);
   assert.match(mainSource, /path\.join\(process\.resourcesPath, "desktop-runtime"\)/u);
   assert.match(mainSource, /startPackagedWorkbenchRuntime/u);
   assert.match(mainSource, /protocol\.handle/u);
+  assert.doesNotMatch(mainSource, /workbenchSettingsFile|PI_WORKBENCH_SETTINGS_FILE/u);
   assert.doesNotMatch(mainSource, /WORKBENCH_WEB_ORIGIN|WORKBENCH_RUNTIME_ORIGIN|same-origin/u);
 });
 

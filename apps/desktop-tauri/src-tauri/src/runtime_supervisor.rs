@@ -1240,13 +1240,7 @@ fn production_runtime_command<R: Runtime>(
         return Err(RuntimeSupervisorError::Unavailable);
     }
 
-    let app_data = app
-        .path()
-        .app_data_dir()
-        .map_err(|_| RuntimeSupervisorError::Unavailable)?;
-    fs::create_dir_all(&app_data).map_err(|_| RuntimeSupervisorError::Unavailable)?;
-    let settings_file = app_data.join("settings.json");
-    let environment = sanitized_runtime_environment(&settings_file);
+    let environment = sanitized_runtime_environment();
     let command = app
         .shell()
         .sidecar(RUNTIME_SIDECAR_NAME)
@@ -1274,7 +1268,7 @@ fn canonical_runtime_root(resource_directory: &Path) -> Result<PathBuf, RuntimeS
     fs::canonicalize(configured).map_err(|_| RuntimeSupervisorError::Unavailable)
 }
 
-fn sanitized_runtime_environment(settings_file: &Path) -> Vec<(OsString, OsString)> {
+fn sanitized_runtime_environment() -> Vec<(OsString, OsString)> {
     let mut environment = env::vars_os()
         .filter(|(name, _)| {
             let normalized = name.to_string_lossy().to_uppercase();
@@ -1288,10 +1282,6 @@ fn sanitized_runtime_environment(settings_file: &Path) -> Vec<(OsString, OsStrin
         .collect::<Vec<_>>();
     environment.extend([
         (OsString::from("NODE_ENV"), OsString::from("production")),
-        (
-            OsString::from("PI_WORKBENCH_SETTINGS_FILE"),
-            settings_file.as_os_str().to_owned(),
-        ),
         (
             OsString::from("WORKBENCH_RUNTIME_MANAGED_CHILD"),
             OsString::from("1"),
@@ -1701,9 +1691,10 @@ mod tests {
     fn runtime_environment_scrubs_inherited_credentials_case_insensitively() {
         // The helper is based on the real environment. Its invariant is that only the two canonical
         // managed variables can survive, regardless of inherited key casing.
-        let environment = sanitized_runtime_environment(Path::new("/settings.json"));
+        let environment = sanitized_runtime_environment();
         for (name, value) in &environment {
             let normalized = name.to_string_lossy().to_uppercase();
+            assert_ne!(normalized, "PI_WORKBENCH_SETTINGS_FILE");
             if normalized.starts_with("WORKBENCH_") {
                 assert_eq!(normalized, "WORKBENCH_RUNTIME_MANAGED_CHILD");
                 assert_eq!(value, "1");

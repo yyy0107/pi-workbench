@@ -370,7 +370,6 @@ async function bootstrap() {
   runtimeConfiguration = Object.freeze({
     runtimeDirectory,
     supportPath,
-    settingsFile: workbenchSettingsFile,
     rendererOrigin,
     reportOwner: createPackagedSmokeOwnerReporter(),
   });

@@ -247,7 +247,7 @@ function packagedChildEnvironment(environment, settingsFile) {
   delete childEnvironment.PORT;
   childEnvironment.ELECTRON_RUN_AS_NODE = "1";
   childEnvironment.NODE_ENV = "production";
-  childEnvironment.PI_WORKBENCH_SETTINGS_FILE = settingsFile;
+  if (settingsFile) childEnvironment.PI_WORKBENCH_SETTINGS_FILE = settingsFile;
   childEnvironment.WORKBENCH_RUNTIME_MANAGED_CHILD = "1";
   return childEnvironment;
 }
@@ -492,7 +492,7 @@ async function startPackagedWorkbenchRuntime({
   reportOwner,
   writeDiagnostic,
 } = {}) {
-  if (!runtimeDirectory || !supportPath || !settingsFile || !rendererOrigin) {
+  if (!runtimeDirectory || !supportPath || !rendererOrigin) {
     throw new Error("Packaged Runtime lifecycle paths and renderer origin are required.");
   }
   const support = assertPackagedSupport(loadSupport(supportPath));
