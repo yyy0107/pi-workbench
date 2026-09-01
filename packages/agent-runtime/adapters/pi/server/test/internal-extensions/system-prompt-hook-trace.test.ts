@@ -64,11 +64,13 @@ test("records every effective before_agent_start system-prompt mutation in execu
   const trace = (activeTrace = await activateSessionContextTrace("session-hook-trace"));
   trace.setSystemPromptSourcesResolver(() => [{ kind: "builtin", scope: "builtin" }]);
 
+  let systemPrompt = "base prompt";
   const context = {
+    cwd: "/workspace",
     sessionManager: { getSessionId: () => "session-hook-trace" },
+    getSystemPrompt: () => systemPrompt,
     getContextUsage: () => undefined,
   };
-  let systemPrompt = "base prompt";
   for (const handler of wrappedHandlers) {
     const hookResult = (await handler(
       {
@@ -100,7 +102,10 @@ test("records every effective before_agent_start system-prompt mutation in execu
     } as never,
     context as never,
   );
-
+  await traceHandlers.get("context")?.(
+    { type: "context", messages: [{ role: "user", content: "hello" }] } as never,
+    context as never,
+  );
   const summary = trace.list(-1, 10).events.find((event) => event.kind === "prompt-composition");
   assert.ok(summary);
   assert.deepEqual(summary.promptResources?.systemPromptSources, [

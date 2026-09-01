@@ -1455,9 +1455,17 @@ export const piExtensionsEnUS = {
         toolSchema: "TOOL SCHEMA",
       },
       messagePart: {
+        composeContext: "Compose context",
+        composingContext: "Composing context",
+        contextComposed: "Context composed",
+        systemPromptInjected: "· System Prompt injected",
+        toolsInjected: ({ count }: { count: number }, { number }: MessageFormatters) =>
+          `· Tools injected (${number(count)})`,
+        extensionsLoaded: ({ count }: { count: number }, { number }: MessageFormatters) =>
+          `· Extensions loaded (${number(count)})`,
         extensions: "Extensions",
         systemPromptSources: "System prompt injection sources",
-        activeTools: "Active tools",
+        modelTools: "Tools sent to the model",
         systemPromptCharacters: "System prompt characters",
       },
       tree: {
@@ -1641,7 +1649,6 @@ export const piExtensionsEnUS = {
         "The timeline summary is still available, but this detail could not be found in the audit journal.",
       overview: "Overview",
       finalSystemPrompt: "Final system prompt",
-      systemPromptWithoutSkills: "System prompt (excluding Skills)",
       systemPromptLoading: "System prompt loading",
       systemPromptSourceContent: "Prompt content",
       piDefaultPromptDescription:

@@ -31,11 +31,6 @@ const promptEvent = {
     type: "prompt-composition",
     prompt: { ...capture, text: "Only this user prompt", originalCharacters: 21 },
     systemPrompt: { ...capture, text: "Large system prompt", originalCharacters: 19 },
-    systemPromptWithoutSkills: {
-      ...capture,
-      text: "System prompt without skills",
-      originalCharacters: 28,
-    },
     systemPromptSources: [
       {
         kind: "replacement",
@@ -72,13 +67,13 @@ test("projects a selected user row without serializing the rest of prompt compos
   );
 });
 
-test("projects the Skills-free system prompt and one selected loading source", () => {
+test("projects the exact system prompt and one selected loading source", () => {
   assert.deepEqual(
     contextTraceSelectedRawValue(promptEvent, {
       type: "prompt-section",
       section: "system-prompt",
     }),
-    promptEvent.detail.systemPromptWithoutSkills,
+    promptEvent.detail.systemPrompt,
   );
   assert.deepEqual(
     contextTraceSelectedRawValue(promptEvent, { type: "system-prompt-source", index: 0 }),
@@ -110,7 +105,6 @@ test("projects one context message and one output block by their source indexes"
       type: "context-snapshot",
       messageCount: 2,
       systemPrompt: promptEvent.detail.systemPrompt,
-      systemPromptWithoutSkills: promptEvent.detail.systemPromptWithoutSkills,
       systemPromptSources: promptEvent.detail.systemPromptSources,
       systemPromptOptions: promptEvent.detail.systemPromptOptions,
       tools: promptEvent.detail.tools,

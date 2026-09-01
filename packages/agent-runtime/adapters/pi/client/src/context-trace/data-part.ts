@@ -1,11 +1,30 @@
-import type { SessionContextTraceEventSummary } from "@workbench/agent-runtime-pi-protocol/rpc";
+import type {
+  SessionContextTraceEventSummary,
+  SessionContextTracePromptInjection,
+} from "@workbench/agent-runtime-pi-protocol/rpc";
 
 /** Named assistant-ui Data Part carrying one safe Pi context-trace summary. */
 export const WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME = "workbench.pi-context-trace-event";
 
+const PI_CONTEXT_TRACE_PROMPT_INJECTIONS: readonly SessionContextTracePromptInjection[] = [
+  "system-prompt",
+  "tools",
+  "extensions",
+];
+
+export function piContextTracePromptInjections(
+  event: SessionContextTraceEventSummary,
+): SessionContextTracePromptInjection[] {
+  if (!Array.isArray(event.promptInjections)) return [];
+  return [...new Set(event.promptInjections)].filter((injection) =>
+    PI_CONTEXT_TRACE_PROMPT_INJECTIONS.includes(injection),
+  );
+}
+
 export interface WorkbenchPiContextTraceDataV1 {
   readonly version: 1;
   readonly event: SessionContextTraceEventSummary;
+  readonly promptInjection?: SessionContextTracePromptInjection;
 }
 
 const PI_CONTEXT_TRACE_KINDS = new Set<SessionContextTraceEventSummary["kind"]>([
@@ -32,13 +51,22 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 export function piContextTraceData(
   event: SessionContextTraceEventSummary,
+  promptInjection?: SessionContextTracePromptInjection,
 ): WorkbenchPiContextTraceDataV1 {
-  return { version: 1, event };
+  return { version: 1, event, ...(promptInjection ? { promptInjection } : {}) };
 }
 
 /** Tolerant parser used at the extension boundary; unknown future payloads render as no-op. */
 export function parsePiContextTraceData(value: unknown): WorkbenchPiContextTraceDataV1 | undefined {
   if (!isRecord(value) || value.version !== 1 || !isRecord(value.event)) return undefined;
+  if (
+    value.promptInjection !== undefined &&
+    !PI_CONTEXT_TRACE_PROMPT_INJECTIONS.includes(
+      value.promptInjection as SessionContextTracePromptInjection,
+    )
+  ) {
+    return undefined;
+  }
   const event = value.event;
   if (
     event.schemaVersion !== 1 ||

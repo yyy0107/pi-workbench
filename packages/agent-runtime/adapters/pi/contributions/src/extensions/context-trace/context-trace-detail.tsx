@@ -769,7 +769,6 @@ type PromptCompositionEvent = Extract<SessionContextTraceEvent, { kind: "prompt-
 
 interface PromptMetadata {
   systemPrompt: SessionContextTraceTextCapture;
-  systemPromptWithoutSkills?: SessionContextTraceTextCapture;
   systemPromptSources?: SessionContextTraceSystemPromptSource[];
   systemPromptOptions: SessionContextTraceSystemPromptOptions;
   tools: SessionContextTraceTool[];
@@ -785,17 +784,12 @@ function promptMetadata(event: SessionContextTraceEvent): PromptMetadata | undef
   ) {
     return {
       systemPrompt: event.detail.systemPrompt,
-      systemPromptWithoutSkills: event.detail.systemPromptWithoutSkills,
       systemPromptSources: event.detail.systemPromptSources,
       systemPromptOptions: event.detail.systemPromptOptions,
       tools: event.detail.tools,
     };
   }
   return undefined;
-}
-
-function visibleSystemPrompt(metadata: PromptMetadata): SessionContextTraceTextCapture {
-  return metadata.systemPromptWithoutSkills ?? metadata.systemPrompt;
 }
 
 function systemPromptSourceKindLabel(
@@ -979,8 +973,8 @@ function PromptCompositionDetail({ event }: { event: PromptCompositionEvent }) {
 
       {detail.contextUsage ? <ContextWindowUsageView usage={detail.contextUsage} /> : null}
 
-      <Section title={t("extensions.contextTrace.systemPromptWithoutSkills")}>
-        <TextCaptureView capture={visibleSystemPrompt(detail)} />
+      <Section title={t("extensions.contextTrace.finalSystemPrompt")}>
+        <TextCaptureView capture={detail.systemPrompt} />
       </Section>
 
       <Section title={t("extensions.contextTrace.userPrompt")}>
@@ -1199,8 +1193,8 @@ function EventSpecificDetail({ event }: { event: SessionContextTraceEvent }) {
           ) : null}
           {metadata ? (
             <>
-              <Section title={t("extensions.contextTrace.systemPromptWithoutSkills")}>
-                <TextCaptureView capture={visibleSystemPrompt(metadata)} />
+              <Section title={t("extensions.contextTrace.finalSystemPrompt")}>
+                <TextCaptureView capture={metadata.systemPrompt} />
               </Section>
               <SkillsView metadata={metadata} />
               <ToolSchemasView metadata={metadata} activeOnly />
@@ -1405,8 +1399,8 @@ function FocusedContextDetail({
         ) : null;
       case "system-prompt":
         return (
-          <Section title={t("extensions.contextTrace.systemPromptWithoutSkills")}>
-            <TextCaptureView capture={visibleSystemPrompt(metadata)} />
+          <Section title={t("extensions.contextTrace.finalSystemPrompt")}>
+            <TextCaptureView capture={metadata.systemPrompt} />
           </Section>
         );
       case "skills":

@@ -3,6 +3,7 @@ import type {
   SessionContextTraceEventSummary,
 } from "@workbench/agent-runtime-pi-protocol/rpc";
 import { deriveSessionDisplayTitle } from "@workbench/agent-runtime-pi-shared/sessions";
+import { extensionDisplayName } from "../extensions/extension-name";
 
 const PROMPT_PREVIEW_CHARACTERS = 32;
 
@@ -36,6 +37,7 @@ export function summarizeSessionContextTraceEvent(
   const promptResources =
     detail.type === "prompt-composition"
       ? {
+          cwd: detail.systemPromptOptions.cwd,
           systemPromptCharacters: detail.systemPrompt.originalCharacters,
           systemPromptSourceCount: detail.systemPromptSources?.length ?? 0,
           systemPromptSources: (detail.systemPromptSources ?? []).map((source) => ({
@@ -47,12 +49,14 @@ export function summarizeSessionContextTraceEvent(
           })),
           contextFileCount: detail.systemPromptOptions.contextFiles.length,
           contextFiles: detail.systemPromptOptions.contextFiles.map((file) => file.path),
-          skills: detail.systemPromptOptions.skills.map((skill) => ({
-            name: skill.name,
-            disableModelInvocation: skill.disableModelInvocation === true,
-          })),
+          skills: detail.systemPromptOptions.skills
+            .filter((skill) => skill.disableModelInvocation !== true)
+            .map((skill) => ({
+              name: skill.name,
+              disableModelInvocation: false,
+            })),
           extensions: (detail.extensions ?? []).map((extension) => ({
-            name: extension.name,
+            name: extensionDisplayName(extension.path),
             hidden: extension.hidden,
           })),
           tools: {
@@ -61,6 +65,8 @@ export function summarizeSessionContextTraceEvent(
           },
         }
       : undefined;
+  const promptInjections =
+    detail.type === "prompt-composition" ? (detail.promptInjections ?? []) : undefined;
   const compaction =
     detail.type === "compaction"
       ? {
@@ -95,6 +101,7 @@ export function summarizeSessionContextTraceEvent(
     ...(messageTimestamp === undefined ? {} : { messageTimestamp }),
     ...(promptPreview ? { promptPreview } : {}),
     ...(promptResources ? { promptResources } : {}),
+    ...(promptInjections ? { promptInjections } : {}),
     ...(contextUsage ? { contextUsage } : {}),
     ...(compaction ? { compaction } : {}),
     ...(detail.type === "model-output"

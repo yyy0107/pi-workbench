@@ -24,8 +24,14 @@ import {
   reconcileLiveMessagesAfterHistory,
   reconcilePiContextTraceAssistantParts,
 } from "../../src/messages/messages";
-import { WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME } from "../../src/context-trace/data-part";
-import type { SessionContextTraceEventSummary } from "@workbench/agent-runtime-pi-protocol/rpc";
+import {
+  parsePiContextTraceData,
+  WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME,
+} from "../../src/context-trace/data-part";
+import type {
+  SessionContextTraceEventSummary,
+  SessionContextTracePromptInjection,
+} from "@workbench/agent-runtime-pi-protocol/rpc";
 import {
   LEGACY_STRUCTURED_WORKBENCH_COMPOSER_USER_CUSTOM_TYPE,
   LEGACY_WORKBENCH_COMPOSER_COMMAND_RESPONSE_CUSTOM_TYPE,
@@ -50,6 +56,12 @@ const assistantMessage: PiAssistantMessage = {
   content: [{ type: "text", text: "Hello" }],
 };
 
+const PROMPT_INJECTIONS: SessionContextTracePromptInjection[] = [
+  "system-prompt",
+  "tools",
+  "extensions",
+];
+
 function contextTraceEvent(traceId: string, seq: number): SessionContextTraceEventSummary {
   return {
     schemaVersion: 1,
@@ -62,6 +74,18 @@ function contextTraceEvent(traceId: string, seq: number): SessionContextTraceEve
     detailBytes: 1,
     truncated: false,
     redacted: false,
+    promptInjections: ["workspace", "skills", ...PROMPT_INJECTIONS],
+    promptResources: {
+      cwd: "/workspace",
+      systemPromptCharacters: 12,
+      systemPromptSourceCount: 1,
+      systemPromptSources: [{ kind: "builtin", scope: "builtin" }],
+      contextFileCount: 1,
+      contextFiles: ["/workspace/AGENTS.md"],
+      skills: [{ name: "review", disableModelInvocation: false }],
+      extensions: [{ name: "audit", hidden: false }],
+      tools: { active: ["read"], total: 1 },
+    },
   };
 }
 
@@ -94,7 +118,38 @@ test("inserts trace Data Parts before the empty optimistic placeholder", () => {
     projected.content.map((part) =>
       part.type === "data" ? `${part.type}:${part.name}` : part.type,
     ),
-    [`data:${WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME}`, "text"],
+    [...PROMPT_INJECTIONS.map(() => `data:${WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME}`), "text"],
+  );
+  assert.deepEqual(
+    projected.content.flatMap((part) =>
+      part.type === "data" ? [parsePiContextTraceData(part.data)?.promptInjection] : [],
+    ),
+    PROMPT_INJECTIONS,
+  );
+});
+
+test("omits prompt sections duplicated by the system prompt", () => {
+  const placeholder = piAssistantToThreadMessage({ role: "assistant", content: [] }, "assistant", {
+    optimistic: true,
+    streaming: true,
+  });
+  const event = contextTraceEvent("activation:empty", 1);
+  const projected = appendPiContextTraceAssistantPart(placeholder, {
+    ...event,
+    promptInjections: ["system-prompt", "workspace", "skills"],
+    promptResources: {
+      ...event.promptResources!,
+      skills: [],
+      extensions: [{ name: "internal", hidden: true }],
+      tools: { active: [], total: 3 },
+    },
+  });
+
+  assert.deepEqual(
+    projected.content.flatMap((part) =>
+      part.type === "data" ? [parsePiContextTraceData(part.data)?.promptInjection] : [],
+    ),
+    ["system-prompt"],
   );
 });
 
@@ -124,7 +179,11 @@ test("keeps prompt trace Data Parts before native response parts across cumulati
     projected.content.map((part) =>
       part.type === "data" ? `${part.type}:${part.name}` : part.type,
     ),
-    [`data:${WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME}`, "reasoning", "tool-call"],
+    [
+      ...PROMPT_INJECTIONS.map(() => `data:${WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME}`),
+      "reasoning",
+      "tool-call",
+    ],
   );
 });
 
@@ -148,7 +207,7 @@ test("retains live trace Data Parts when authoritative history replaces an assis
     projected.content.map((part) =>
       part.type === "data" ? `${part.type}:${part.name}` : part.type,
     ),
-    [`data:${WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME}`, "text"],
+    [...PROMPT_INJECTIONS.map(() => `data:${WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME}`), "text"],
   );
 });
 

@@ -113,6 +113,7 @@ function promptCompositionEvent(
       },
       images: captureSessionContextTraceJson([]),
       tools: [],
+      promptInjections: ["system-prompt", "workspace"],
     },
   };
 }
@@ -267,7 +268,9 @@ test("replays only durable prompt-composition Parts without starting a live trac
   assert.deepEqual(value.parts[0]?.event.promptResources?.systemPromptSources, [
     { kind: "replacement", scope: "user", path: "/agent/SYSTEM.md" },
   ]);
+  assert.equal(value.parts[0]?.event.promptResources?.cwd, "/workspace");
   assert.deepEqual(value.parts[0]?.event.promptResources?.contextFiles, ["/workspace/AGENTS.md"]);
+  assert.deepEqual(value.parts[0]?.event.promptInjections, ["system-prompt", "workspace"]);
   assert.equal(value.parts[0]?.assistantMessageTimestamp, 42_000);
 });
 

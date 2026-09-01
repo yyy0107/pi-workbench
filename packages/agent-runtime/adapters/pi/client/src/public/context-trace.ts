@@ -15,6 +15,7 @@ import {
 export {
   parsePiContextTraceData,
   piContextTraceData,
+  piContextTracePromptInjections,
   WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME,
 } from "../context-trace/data-part";
 export type { WorkbenchPiContextTraceDataV1 } from "../context-trace/data-part";

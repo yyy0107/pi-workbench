@@ -1,13 +1,13 @@
-import {
-  formatSkillsForPrompt,
-  type BuildSystemPromptOptions,
-  type ExtensionFactory,
-  type ToolInfo,
+import type {
+  BuildSystemPromptOptions,
+  ExtensionFactory,
+  ToolInfo,
 } from "@earendil-works/pi-coding-agent";
 
 import type {
   SessionContextTraceCompactionPreparation,
   SessionContextTraceModel,
+  SessionContextTracePromptInjection,
   SessionContextTraceSystemPromptOptions,
   SessionContextTraceSystemPromptSource,
   SessionContextTraceTool,
@@ -72,14 +72,6 @@ function promptOptionsView(
       disableModelInvocation: skill.disableModelInvocation,
     })),
   };
-}
-
-function systemPromptWithoutSkills(prompt: string, options: BuildSystemPromptOptions): string {
-  const skillsBlock = formatSkillsForPrompt(options.skills ?? []);
-  if (!skillsBlock) return prompt;
-  const skillsIndex = prompt.lastIndexOf(skillsBlock);
-  if (skillsIndex < 0) return prompt;
-  return prompt.slice(0, skillsIndex) + prompt.slice(skillsIndex + skillsBlock.length);
 }
 
 function fallbackSystemPromptSources(
@@ -169,6 +161,7 @@ export const contextTraceExtension: ExtensionFactory = (pi) => {
         sources: SessionContextTraceSystemPromptSource[];
       }
     | undefined;
+  let pendingPromptInput: { prompt: string; images: unknown } | undefined;
 
   pi.on("turn_start", (event, context) => {
     getSessionContextTrace(sessionId(context))?.observeTurnStartTimestamp(event.timestamp);
@@ -177,8 +170,6 @@ export const contextTraceExtension: ExtensionFactory = (pi) => {
   pi.on("before_agent_start", (event, context) => {
     const trace = getSessionContextTrace(sessionId(context));
     if (!trace) return;
-    const activeTools = new Set(pi.getActiveTools());
-    const contextUsage = context.getContextUsage();
     const systemPromptSources = trace.getSystemPromptSources();
     const systemPromptHookSources = trace.consumeSystemPromptHookSources(event.systemPrompt);
     const effectiveSources =
@@ -190,25 +181,7 @@ export const contextTraceExtension: ExtensionFactory = (pi) => {
       options: event.systemPromptOptions,
       sources: effectiveSources,
     };
-    trace.observePromptComposition({
-      type: "prompt-composition",
-      prompt: captureSessionContextTraceText(event.prompt),
-      systemPrompt: captureSessionContextTraceText(event.systemPrompt),
-      systemPromptWithoutSkills: captureSessionContextTraceText(
-        systemPromptWithoutSkills(event.systemPrompt, event.systemPromptOptions),
-      ),
-      systemPromptSources: effectiveSources,
-      systemPromptOptions: promptOptionsView(event.systemPromptOptions),
-      images: captureSessionContextTraceJson(event.images ?? []),
-      model: modelView(context.model),
-      ...(context.thinkingLevel ? { thinkingLevel: context.thinkingLevel } : {}),
-      ...(contextUsage ? { contextUsage } : {}),
-      tools: pi.getAllTools().map((tool) => toolView(tool, activeTools)),
-      extensions: trace.getExtensions().map((extension) => ({
-        ...extension,
-        source: { ...extension.source },
-      })),
-    });
+    pendingPromptInput = { prompt: event.prompt, images: event.images ?? [] };
   });
 
   pi.on("context", (event, context) => {
@@ -243,12 +216,41 @@ export const contextTraceExtension: ExtensionFactory = (pi) => {
       ],
     };
     const systemPromptSources = trace.getSystemPromptSources();
+    const extensions = trace.getExtensions().map((extension) => ({
+      ...extension,
+      source: { ...extension.source },
+    }));
+    const promptInjections: SessionContextTracePromptInjection[] = [];
+    if (systemPrompt.length > 0) promptInjections.push("system-prompt");
+    if (activeTools.size > 0) promptInjections.push("tools");
+    if (extensions.some((extension) => !extension.hidden)) promptInjections.push("extensions");
+    const promptInput = pendingPromptInput;
+    const contextUsage = context.getContextUsage();
+    pendingPromptInput = undefined;
 
-    trace.observeContext(event.messages, context.getContextUsage(), {
+    // Pi invokes `context` immediately before every model call, including continuations and
+    // post-tool turns that do not emit `before_agent_start`.
+    trace.observePromptComposition({
+      type: "prompt-composition",
+      prompt: captureSessionContextTraceText(promptInput?.prompt ?? ""),
       systemPrompt: captureSessionContextTraceText(systemPrompt),
-      systemPromptWithoutSkills: captureSessionContextTraceText(
-        systemPromptWithoutSkills(systemPrompt, currentOptions),
-      ),
+      systemPromptSources:
+        promptMetadata?.sources ??
+        (systemPromptSources.length > 0
+          ? [...systemPromptSources]
+          : fallbackSystemPromptSources(currentOptions)),
+      systemPromptOptions: promptOptionsView(currentOptions),
+      images: captureSessionContextTraceJson(promptInput?.images ?? []),
+      model: modelView(context.model),
+      ...(context.thinkingLevel ? { thinkingLevel: context.thinkingLevel } : {}),
+      ...(contextUsage ? { contextUsage } : {}),
+      tools: allTools.map((tool) => toolView(tool, activeTools)),
+      extensions,
+      promptInjections,
+    });
+
+    trace.observeContext(event.messages, contextUsage, {
+      systemPrompt: captureSessionContextTraceText(systemPrompt),
       systemPromptSources:
         promptMetadata?.sources ??
         (systemPromptSources.length > 0
@@ -256,10 +258,7 @@ export const contextTraceExtension: ExtensionFactory = (pi) => {
           : fallbackSystemPromptSources(currentOptions)),
       systemPromptOptions: promptOptionsView(currentOptions),
       tools: allTools.map((tool) => toolView(tool, activeTools)),
-      extensions: trace.getExtensions().map((extension) => ({
-        ...extension,
-        source: { ...extension.source },
-      })),
+      extensions,
       model: modelView(context.model),
       ...(context.thinkingLevel ? { thinkingLevel: context.thinkingLevel } : {}),
     });

@@ -791,7 +791,7 @@ export function ContextTraceSurface({
         case "system-prompt":
           return {
             badge: t("extensions.contextTrace.contextRoles.system"),
-            title: t("extensions.contextTrace.systemPromptWithoutSkills"),
+            title: t("extensions.contextTrace.finalSystemPrompt"),
             tone: "bg-muted text-foreground",
           };
         case "skills":

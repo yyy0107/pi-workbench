@@ -36,6 +36,7 @@ import {
   SessionContextTraceJournal,
 } from "./session-context-trace-journal";
 import { summarizeSessionContextTraceEvent } from "./session-context-trace-summary";
+import { extensionDisplayName } from "../extensions/extension-name";
 
 export const SESSION_CONTEXT_TRACE_MAX_EVENTS = 512;
 export const SESSION_CONTEXT_TRACE_MAX_BYTES = 16 * 1024 * 1024;
@@ -150,14 +151,6 @@ export function sessionContextTraceSystemPromptOptions(
     customPrompt: resourceLoader.getSystemPrompt(),
     appendSystemPrompt: appendPrompts.length > 0 ? appendPrompts.join("\n\n") : undefined,
   };
-}
-
-function extensionDisplayName(extensionPath: string): string {
-  const inline = /^<inline:(.+)>$/u.exec(extensionPath)?.[1];
-  if (inline) return inline;
-  const base = path.basename(extensionPath);
-  const extension = path.extname(base);
-  return extension ? base.slice(0, -extension.length) : base;
 }
 
 /** Projects Pi's final loaded extension inventory without retaining handler/runtime objects. */

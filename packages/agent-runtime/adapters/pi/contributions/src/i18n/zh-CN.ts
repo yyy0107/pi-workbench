@@ -1372,9 +1372,17 @@ export const piExtensionsZhCN = {
         toolSchema: "TOOL SCHEMA",
       },
       messagePart: {
-        extensions: "Extensions",
+        composeContext: "组成上下文",
+        composingContext: "正在组成上下文",
+        contextComposed: "上下文已组成",
+        systemPromptInjected: "· System Prompt 已注入",
+        toolsInjected: ({ count }: { count: number }, { number }: MessageFormatters) =>
+          `· 工具已注入（${number(count)}）`,
+        extensionsLoaded: ({ count }: { count: number }, { number }: MessageFormatters) =>
+          `· 扩展已加载（${number(count)}）`,
+        extensions: "扩展",
         systemPromptSources: "System Prompt 注入来源",
-        activeTools: "已启用工具",
+        modelTools: "实际提供给模型的工具",
         systemPromptCharacters: "System Prompt 字符数",
       },
       tree: {
@@ -1553,7 +1561,6 @@ export const piExtensionsZhCN = {
       evictedDescription: "时间线摘要仍然可用，但无法在审计日志中找到该详情。",
       overview: "概览",
       finalSystemPrompt: "最终 System Prompt",
-      systemPromptWithoutSkills: "System Prompt（不含 Skills）",
       systemPromptLoading: "System Prompt 加载来源",
       systemPromptSourceContent: "提示词内容",
       piDefaultPromptDescription:

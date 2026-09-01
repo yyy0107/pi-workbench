@@ -22,7 +22,6 @@ function outputMessage(event: SessionContextTraceEvent) {
 function promptMetadata(event: SessionContextTraceEvent):
   | {
       systemPrompt: SessionContextTraceTextCapture;
-      systemPromptWithoutSkills?: SessionContextTraceTextCapture;
       systemPromptSources?: SessionContextTraceSystemPromptSource[];
       systemPromptOptions: SessionContextTraceSystemPromptOptions;
       tools: SessionContextTraceTool[];
@@ -37,13 +36,19 @@ function promptMetadata(event: SessionContextTraceEvent):
   ) {
     return {
       systemPrompt: event.detail.systemPrompt,
-      systemPromptWithoutSkills: event.detail.systemPromptWithoutSkills,
       systemPromptSources: event.detail.systemPromptSources,
       systemPromptOptions: event.detail.systemPromptOptions,
       tools: event.detail.tools,
     };
   }
   return undefined;
+}
+
+export function contextTraceSystemPromptCapture(
+  event: SessionContextTraceEvent,
+): SessionContextTraceTextCapture | undefined {
+  const metadata = promptMetadata(event);
+  return metadata?.systemPrompt;
 }
 
 function compactionOverview(event: Extract<SessionContextTraceEvent, { kind: "compaction" }>) {
@@ -97,7 +102,7 @@ export function contextTraceSelectedRawValue(
       case "user-prompt":
         return event.kind === "prompt-composition" ? event.detail.prompt : null;
       case "system-prompt":
-        return metadata.systemPromptWithoutSkills ?? metadata.systemPrompt;
+        return contextTraceSystemPromptCapture(event);
       case "skills":
         return metadata.systemPromptOptions.skills;
       case "context-files":

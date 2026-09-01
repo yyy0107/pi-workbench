@@ -3903,6 +3903,18 @@ test("projects context trace mux events into the active assistant message as Dat
           truncated: false,
           redacted: false,
           roundId: "round-parts",
+          promptInjections: ["system-prompt", "workspace", "skills", "tools", "extensions"],
+          promptResources: {
+            cwd: "/workspace",
+            systemPromptCharacters: 12,
+            systemPromptSourceCount: 1,
+            systemPromptSources: [{ kind: "builtin", scope: "builtin" }],
+            contextFileCount: 1,
+            contextFiles: ["/workspace/AGENTS.md"],
+            skills: [{ name: "review", disableModelInvocation: false }],
+            extensions: [{ name: "audit", hidden: false }],
+            tools: { active: ["read"], total: 1 },
+          },
         },
       },
     },
@@ -3958,11 +3970,106 @@ test("projects context trace mux events into the active assistant message as Dat
     assistant.content.filter(
       (part) => part.type === "data" && part.name === "workbench.pi-context-trace-event",
     ).length,
-    1,
+    3,
   );
   assert.deepEqual(
     assistant.content.map((part) => (part.type === "data" ? `data:${part.name}` : part.type)),
-    ["data:workbench.pi-context-trace-event", "text"],
+    [
+      "data:workbench.pi-context-trace-event",
+      "data:workbench.pi-context-trace-event",
+      "data:workbench.pi-context-trace-event",
+      "text",
+    ],
+  );
+});
+
+test("holds an early prompt composition for the next assistant message", (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("session-pending-parts", "session-pending-parts");
+  const previousAssistant: ThreadMessage = {
+    id: "previous-assistant",
+    role: "assistant",
+    content: [{ type: "text", text: "Previous answer", status: { type: "complete" } }],
+    status: { type: "complete", reason: "stop" },
+    createdAt: new Date(1_000),
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      steps: [],
+      custom: {},
+    },
+  };
+  const sessionInternals = session as unknown as {
+    baseMessages: ThreadMessage[];
+    pendingContextTraceEvents: unknown[];
+    streamingMessage?: ThreadMessage;
+    handleEvent(event: PiEvent): void;
+  };
+  sessionInternals.baseMessages = [previousAssistant];
+  const managerInternals = manager as unknown as {
+    handleMuxFrame(frame: ServerRequest<MuxStreamPayload>, generation: number): void;
+  };
+
+  managerInternals.handleMuxFrame(
+    {
+      type: "server-request",
+      rpcId: "trace-pending-rpc",
+      method: "session/context-trace",
+      payload: {
+        type: "session/context-trace",
+        sessionId: "session-pending-parts",
+        event: {
+          schemaVersion: 1,
+          traceId: "activation-pending:0",
+          sessionId: "session-pending-parts",
+          activationId: "activation-pending",
+          seq: 0,
+          time: 1_725_000_000_000,
+          kind: "prompt-composition",
+          detailBytes: 48,
+          truncated: false,
+          redacted: false,
+          roundId: "round-pending",
+          promptInjections: ["system-prompt", "tools", "extensions"],
+          promptResources: {
+            cwd: "/workspace",
+            systemPromptCharacters: 12,
+            systemPromptSourceCount: 1,
+            systemPromptSources: [{ kind: "builtin", scope: "builtin" }],
+            contextFileCount: 0,
+            contextFiles: [],
+            skills: [],
+            extensions: [{ name: "audit", hidden: false }],
+            tools: { active: ["read"], total: 1 },
+          },
+        },
+      },
+    },
+    1,
+  );
+
+  assert.equal(
+    previousAssistant.content.some(
+      (part) => part.type === "data" && part.name === "workbench.pi-context-trace-event",
+    ),
+    false,
+  );
+  assert.equal(sessionInternals.pendingContextTraceEvents.length, 1);
+
+  sessionInternals.handleEvent({
+    type: "message_start",
+    sequence: 1,
+    message: { role: "assistant", content: [], timestamp: 2_000 },
+  });
+
+  assert.equal(sessionInternals.pendingContextTraceEvents.length, 0);
+  assert.equal(
+    sessionInternals.streamingMessage?.content.filter(
+      (part) => part.type === "data" && part.name === "workbench.pi-context-trace-event",
+    ).length,
+    3,
   );
 });
 
@@ -3993,6 +4100,18 @@ test("hydrates only persisted prompt-composition Parts when an idle session open
                   redacted: false,
                   roundId: "persisted-round",
                   promptPreview: "Explain persistence",
+                  promptInjections: ["system-prompt", "workspace", "skills", "tools", "extensions"],
+                  promptResources: {
+                    cwd: "/workspace",
+                    systemPromptCharacters: 12,
+                    systemPromptSourceCount: 1,
+                    systemPromptSources: [{ kind: "builtin", scope: "builtin" }],
+                    contextFileCount: 1,
+                    contextFiles: ["/workspace/AGENTS.md"],
+                    skills: [{ name: "review", disableModelInvocation: false }],
+                    extensions: [{ name: "audit", hidden: false }],
+                    tools: { active: ["read"], total: 1 },
+                  },
                 },
                 assistantMessageTimestamp: 2_000,
               },
@@ -4044,6 +4163,11 @@ test("hydrates only persisted prompt-composition Parts when an idle session open
   if (assistant?.role !== "assistant") return;
   assert.deepEqual(
     assistant.content.map((part) => (part.type === "data" ? `data:${part.name}` : part.type)),
-    ["data:workbench.pi-context-trace-event", "text"],
+    [
+      "data:workbench.pi-context-trace-event",
+      "data:workbench.pi-context-trace-event",
+      "data:workbench.pi-context-trace-event",
+      "text",
+    ],
   );
 });

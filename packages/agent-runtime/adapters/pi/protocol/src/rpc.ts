@@ -1513,6 +1513,8 @@ export interface SessionContextTraceSystemPromptSourceSummary {
 
 /** Bounded, non-payload projection copied onto prompt-composition summaries and message Parts. */
 export interface SessionContextTracePromptResources {
+  /** Effective working directory used while composing this prompt. */
+  cwd?: string;
   systemPromptCharacters: number;
   systemPromptSourceCount: number;
   systemPromptSources: SessionContextTraceSystemPromptSourceSummary[];
@@ -1531,6 +1533,14 @@ export interface SessionContextTracePromptResources {
     total: number;
   };
 }
+
+/** Context entries confirmed at Pi's prompt-composition lifecycle boundary, in display order. */
+export type SessionContextTracePromptInjection =
+  | "system-prompt"
+  | "workspace"
+  | "skills"
+  | "tools"
+  | "extensions";
 
 export interface SessionContextTraceContextFile {
   path: string;
@@ -1609,6 +1619,8 @@ export interface SessionContextTraceEventSummary extends SessionContextTraceCoor
   promptPreview?: string;
   /** Final resource inventory used to compose this prompt, without prompt/tool payload bodies. */
   promptResources?: SessionContextTracePromptResources;
+  /** Authoritative non-empty entries observed at the real prompt-composition boundary. */
+  promptInjections?: SessionContextTracePromptInjection[];
   /** Present on prompt composition and per-call context snapshots when Pi can estimate it. */
   contextUsage?: SessionContextTraceContextUsage;
   /** This context snapshot contains call-scoped instructions and tool metadata. */
@@ -1627,8 +1639,6 @@ export type SessionContextTraceDetail =
       prompt: SessionContextTraceTextCapture;
       /** The exact effective prompt observed after every extension mutation. */
       systemPrompt: SessionContextTraceTextCapture;
-      /** UI projection of systemPrompt with Pi's formatted Skills block removed. */
-      systemPromptWithoutSkills?: SessionContextTraceTextCapture;
       /** Pi ResourceLoader precedence and append layers used for this prompt. */
       systemPromptSources?: SessionContextTraceSystemPromptSource[];
       systemPromptOptions: SessionContextTraceSystemPromptOptions;
@@ -1639,6 +1649,8 @@ export type SessionContextTraceDetail =
       tools: SessionContextTraceTool[];
       /** Final Pi extension inventory at the same observation boundary. */
       extensions?: SessionContextTraceExtension[];
+      /** Entries confirmed by the before_agent_start observer; clients must not infer these. */
+      promptInjections?: SessionContextTracePromptInjection[];
     }
   | { type: "run-start" }
   | { type: "turn-start"; timestamp?: number }
@@ -1650,7 +1662,6 @@ export type SessionContextTraceDetail =
       messageTokenEstimates?: SessionContextTraceMessageTokenEstimates;
       /** Effective call-scoped prompt state observed immediately before this model request. */
       systemPrompt?: SessionContextTraceTextCapture;
-      systemPromptWithoutSkills?: SessionContextTraceTextCapture;
       systemPromptSources?: SessionContextTraceSystemPromptSource[];
       systemPromptOptions?: SessionContextTraceSystemPromptOptions;
       tools?: SessionContextTraceTool[];

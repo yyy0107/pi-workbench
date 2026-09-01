@@ -1305,21 +1305,8 @@ export class PiClientSession {
       return;
     }
 
-    const applyToLatestAssistant = (messages: ThreadMessage[]): boolean => {
-      for (let index = messages.length - 1; index >= 0; index -= 1) {
-        const message = messages[index];
-        if (message?.role !== "assistant") continue;
-        messages[index] = appendPiContextTraceAssistantPart(message, event);
-        return true;
-      }
-      return false;
-    };
-    if (applyToLatestAssistant(this.liveMessages) || applyToLatestAssistant(this.baseMessages)) {
-      this.scheduleMessagesPublish();
-      return;
-    }
-
-    // A resumed run can publish mux diagnostics before its canonical assistant message arrives.
+    // Prompt composition is emitted before a model call. Without an active assistant, the event
+    // belongs to the next response, never the previous completed message.
     this.pendingContextTraceEvents.push(event);
   }
 

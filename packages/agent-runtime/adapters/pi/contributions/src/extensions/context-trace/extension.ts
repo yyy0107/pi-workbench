@@ -7,8 +7,11 @@ import {
 } from "@workbench/extension-sdk";
 import {
   parsePiContextTraceData,
+  piContextTracePromptInjections,
   WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME,
 } from "@workbench/agent-runtime-pi-client/context-trace";
+
+import { definePiMessage } from "../../i18n";
 
 import { ContextTraceMessagePart } from "./context-trace-message-part";
 import { ContextTraceMenuItem } from "./context-trace-menu-item";
@@ -53,8 +56,20 @@ export const contextTraceExtension = defineExtension({
       WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME,
       {
         display: "timeline",
-        isVisible: (part) =>
-          parsePiContextTraceData(part.data)?.event.kind === "prompt-composition",
+        group: {
+          getKey: (part) => parsePiContextTraceData(part.data)?.event.traceId,
+          label: definePiMessage("extensions.contextTrace.messagePart.contextComposed"),
+          activeLabel: definePiMessage("extensions.contextTrace.messagePart.composingContext"),
+          icon: ScanSearchIcon,
+        },
+        isVisible: (part) => {
+          const parsed = parsePiContextTraceData(part.data);
+          return (
+            parsed?.event.kind === "prompt-composition" &&
+            parsed.promptInjection !== undefined &&
+            piContextTracePromptInjections(parsed.event).includes(parsed.promptInjection)
+          );
+        },
       },
     );
     const surface = context.workspace.register(contextTraceSurfaceDefinition);

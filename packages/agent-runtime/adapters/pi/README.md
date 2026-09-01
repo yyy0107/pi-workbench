@@ -825,11 +825,13 @@ Model Step 的完成边界；它同时记录当时的 model、thinking level 和
 缓存写入拆分。工具执行发生在该边界之后，并以 `toolCallId` 与 output 中的 tool call 配对。观测坐标按
 下面的层次关联：
 
-`prompt-composition` 保存一次用户提交在 `before_agent_start` 后的完整 prompt composition；每个
-`context-snapshot` 另行保存紧邻该次 provider 请求的有效 system prompt、model、thinking level、active
-tools、tool schema 和资源选项，作为 Model Step 的调用级审计真值。这样同一 Turn 内切换工具后的下一次
-调用，以及不触发 `before_agent_start` 的 Pi continuation，都不会复用旧的 Instructions/Tools。UI 的
-`SYSTEM` 节点使用移除 Pi 格式化 Skills 块后的独立投影。System Prompt 的加载来源直接读取 Pi
+`prompt-composition` 在每次 `context` 注入点、也就是实际 Model Step 之前保存该次调用的完整 prompt
+composition；`before_agent_start` 只补充新用户提交及 system-prompt hook 的来源信息。每个
+`context-snapshot` 另行保存紧邻该次 provider 请求的有效 messages、system prompt、model、thinking
+level、active tools、tool schema 和资源选项，作为调用级审计真值。这样同一 Turn 的工具续轮，以及不触发
+`before_agent_start` 的 Pi continuation，也都会产生并持久化自己的“上下文已组成”消息。UI 的
+`SYSTEM` 节点直接展示该生命周期事件捕获的完整有效 System Prompt，不再从最终字符串删除或反向解析
+Skills、工作区等片段。System Prompt 的加载来源直接读取 Pi
 `ResourceLoader`：受信任
 项目的 `.pi/SYSTEM.md` 优先于用户目录 `~/.pi/agent/SYSTEM.md`，两者都不存在时标记为 Pi 内置默认；
 `.pi/APPEND_SYSTEM.md` 与用户目录 `APPEND_SYSTEM.md` 按同样优先级记录为追加层。Pi 扩展通过
@@ -870,18 +872,23 @@ sessionId
 - mux 的 `session/context-trace` 只推与 list 相同的摘要。前端先把摘要插入时间线，用户展开节点时
   再调用 read，避免每次完整上下文快照都在 WebSocket 中广播。
 
-只有 `prompt-composition` mux 摘要会由 `PiClientSession` 投影为名为
-`workbench.pi-context-trace-event` 的 assistant-ui `data` Part，与 `reasoning` 和 `tool-call`
+只有 `prompt-composition` mux 摘要会由 `PiClientSession` 投影为最多三个名为
+`workbench.pi-context-trace-event` 的 assistant-ui `data` Part，分别展示非空的 System Prompt、Tools
+和 Extensions 注入状态，并与 `reasoning` 和 `tool-call`
 进入同一个 Assistant 消息工作时间线；Round、Run、Turn、Provider、模型输出、工具执行等 trace
-事件只留在审计界面，不进入聊天 Parts。Pi 的累计式 `message_update` 每次重建原生 Parts 时，客户端按
+事件只留在审计界面，不进入聊天 Parts。哪些 Part 存在由最后注册的 `context` 观察器在 Pi 真实模型调用
+边界写入 `promptInjections`；Tools 使用当次实际 active tool 清单，客户端只验证并渲染该列表，不再从
+`promptResources` 反推注入项。Skills、工作目录与 context files 已包含在完整 System Prompt 中，因此
+不再重复投影为聊天 Part，但仍保留在 Context Trace 审计资源中。Pi 的累计式 `message_update` 每次重建原生 Parts 时，客户端按
 事件被观测时的原生 Part 边界重新插入 Prompt Data Part。冷启动时，客户端把 `session.history` 与
 `session.contextTrace.promptParts` 并行加载，再以持久摘要关联的 AssistantMessage timestamp 把 Prompt
 Part 插到对应原生消息内容之前；分页回填、分支切换和运行结束后的 rebaseline 都复用同一个投影。
-`prompt-composition` 摘要携带每一层 System Prompt 的注入类型、作用域和文件路径，以及最终 Skill、
-Extension、context-file 路径和 active-tool 清单及计数，供 Data Renderer 直接展示。来源可以区分 Pi
+`prompt-composition` 摘要携带当前工作目录、每一层 System Prompt 的注入类型、作用域和文件路径，以及最终 Skill、
+Extension、context-file 路径和实际提供给模型的 tool 清单及计数，供 Data Renderer 直接展示。来源可以区分 Pi
 内置默认提示词、用户目录或项目目录的 `SYSTEM.md`、追加提示词及临时覆盖；完整 system prompt、工具
 Schema、context-file 正文、provider payload 和其它 trace 详情仍只存在审计 journal，不会复制进
-assistant-ui 消息状态。
+assistant-ui 消息状态。用户展开 System Prompt Part 时，Renderer 通过现有 read RPC 按需读取 journal
+中的完整详情并展示该事件捕获的完整最终正文。
 
 浏览器侧对应的 typed helpers 是 `listPiRpcSessionContextTraceActivations()`、
 `listPiRpcSessionContextTrace()`、`fetchPiRpcSessionContextTracePromptParts()`、

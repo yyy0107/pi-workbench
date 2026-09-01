@@ -58,6 +58,7 @@ import { PI_CONVERSATION_EVENT_CUSTOM_TYPE } from "@workbench/agent-runtime-pi-p
 import {
   parsePiContextTraceData,
   piContextTraceData,
+  piContextTracePromptInjections,
   WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME,
 } from "../context-trace/data-part";
 import type {
@@ -90,14 +91,20 @@ function isPiContextTracePart(part: ThreadAssistantMessage["content"][number]): 
   return part.type === "data" && part.name === WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME;
 }
 
-function piContextTraceId(part: ThreadAssistantMessage["content"][number]): string | undefined {
+function piContextTracePartId(part: ThreadAssistantMessage["content"][number]): string | undefined {
   if (!isPiContextTracePart(part) || part.type !== "data") return undefined;
-  return parsePiContextTraceData(part.data)?.event.traceId;
+  const parsed = parsePiContextTraceData(part.data);
+  return parsed ? `${parsed.event.traceId}:${parsed.promptInjection ?? "legacy"}` : undefined;
 }
 
 function isPiContextTracePromptPart(part: ThreadAssistantMessage["content"][number]): boolean {
   if (!isPiContextTracePart(part) || part.type !== "data") return false;
-  return parsePiContextTraceData(part.data)?.event.kind === "prompt-composition";
+  const parsed = parsePiContextTraceData(part.data);
+  return (
+    parsed?.event.kind === "prompt-composition" &&
+    parsed.promptInjection !== undefined &&
+    piContextTracePromptInjections(parsed.event).includes(parsed.promptInjection)
+  );
 }
 
 export function appendPiContextTraceAssistantPart(
@@ -105,15 +112,22 @@ export function appendPiContextTraceAssistantPart(
   event: SessionContextTraceEventSummary,
 ): ThreadAssistantMessage {
   if (event.kind !== "prompt-composition") return message;
-  if (message.content.some((part) => piContextTraceId(part) === event.traceId)) return message;
-  const part = {
-    type: "data" as const,
-    name: WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME,
-    data: piContextTraceData(event),
-  };
+  const parts = piContextTracePromptInjections(event).flatMap((promptInjection) => {
+    const partId = `${event.traceId}:${promptInjection}`;
+    return message.content.some((part) => piContextTracePartId(part) === partId)
+      ? []
+      : [
+          {
+            type: "data" as const,
+            name: WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME,
+            data: piContextTraceData(event, promptInjection),
+          },
+        ];
+  });
+  if (parts.length === 0) return message;
   return {
     ...message,
-    content: [part, ...message.content],
+    content: [...parts, ...message.content],
   };
 }
 
@@ -128,12 +142,12 @@ export function reconcilePiContextTraceAssistantParts(
   const promptParts: ThreadAssistantMessage["content"][number][] = [];
   const seen = new Set<string>();
   for (const part of [...previous.content, ...message.content]) {
-    const traceId = piContextTraceId(part);
-    if (traceId) {
-      if (isPiContextTracePromptPart(part) && !seen.has(traceId)) {
+    const partId = piContextTracePartId(part);
+    if (partId) {
+      if (isPiContextTracePromptPart(part) && !seen.has(partId)) {
         promptParts.push(part);
       }
-      seen.add(traceId);
+      seen.add(partId);
     }
   }
   if (promptParts.length === 0) return message;
@@ -198,22 +212,24 @@ export function projectPiContextTracePromptParts(
     const events = timestamp === undefined ? undefined : eventsByTimestamp.get(timestamp);
     if (!events?.length) return message;
 
-    const existingTraceIds = new Set(
+    const existingPartIds = new Set(
       message.content.flatMap((part) => {
-        const traceId = piContextTraceId(part);
-        return traceId ? [traceId] : [];
+        const partId = piContextTracePartId(part);
+        return partId ? [partId] : [];
       }),
     );
     const traceContent = events.flatMap((event) =>
-      existingTraceIds.has(event.traceId)
-        ? []
-        : [
-            {
-              type: "data" as const,
-              name: WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME,
-              data: piContextTraceData(event),
-            },
-          ],
+      piContextTracePromptInjections(event).flatMap((promptInjection) =>
+        existingPartIds.has(`${event.traceId}:${promptInjection}`)
+          ? []
+          : [
+              {
+                type: "data" as const,
+                name: WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME,
+                data: piContextTraceData(event, promptInjection),
+              },
+            ],
+      ),
     );
     if (traceContent.length === 0) return message;
     changed = true;

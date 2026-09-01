@@ -22,7 +22,9 @@ test("observes final prompt resources, messages, tools, and provider payload wit
   });
   const handlers = new Map<string, (event: never, context: never) => unknown>();
   const longText = "x".repeat(140 * 1024);
-  const selectedTools = Array.from({ length: 300 }, (_, index) => `tool-${index}`);
+  const selectedTools = Array.from({ length: 300 }, (_, index) =>
+    index === 0 ? "read" : `tool-${index}`,
+  );
   const toolSnippets = Object.fromEntries(
     Array.from({ length: 300 }, (_, index) => [`tool-${index}`, `snippet-${index}`]),
   );
@@ -45,7 +47,7 @@ test("observes final prompt resources, messages, tools, and provider payload wit
     disableModelInvocation: false,
   }));
   const tools = Array.from({ length: 513 }, (_, index) => ({
-    name: `tool-${index}`,
+    name: index === 0 ? "read" : `tool-${index}`,
     description: index === 512 ? longText : `Tool ${index}`,
     parameters: { type: "object", properties: { value: { type: "string" } } },
     promptGuidelines: [index === 512 ? longText : `Use tool ${index}.`],
@@ -56,12 +58,9 @@ test("observes final prompt resources, messages, tools, and provider payload wit
       origin: "top-level",
     },
   }));
-  const promptWithoutSkills = "effective system prompt\n\nCurrent working directory: /workspace";
   const effectiveSystemPrompt =
     `effective system prompt${formatSkillsForPrompt(skills as never)}` +
     "\n\nCurrent working directory: /workspace";
-  const continuedPromptWithoutSkills =
-    "continued system prompt\n\nCurrent working directory: /workspace";
   const continuedSystemPrompt =
     `continued system prompt${formatSkillsForPrompt(skills as never)}` +
     "\n\nCurrent working directory: /workspace";
@@ -212,18 +211,12 @@ test("observes final prompt resources, messages, tools, and provider payload wit
   const composition = await trace.readAny(compositionSummary.traceId);
   assert.equal(composition?.detail.type, "prompt-composition");
   if (composition?.detail.type !== "prompt-composition") assert.fail("Missing composition detail");
-  assert.equal(composition.detail.systemPrompt.text, effectiveSystemPrompt);
-  assert.equal(composition.detail.systemPromptWithoutSkills?.text, promptWithoutSkills);
+  assert.equal(composition.detail.systemPrompt.text, continuedSystemPrompt);
+  assert.deepEqual(composition.detail.promptInjections, ["system-prompt", "tools"]);
   assert.deepEqual(composition.detail.systemPromptSources, [{ kind: "builtin", scope: "builtin" }]);
-  assert.equal(composition.detail.systemPromptOptions.selectedTools?.length, selectedTools.length);
-  assert.equal(
-    Object.keys(composition.detail.systemPromptOptions.toolSnippets ?? {}).length,
-    Object.keys(toolSnippets).length,
-  );
-  assert.equal(
-    composition.detail.systemPromptOptions.promptGuidelines?.length,
-    promptGuidelines.length,
-  );
+  assert.deepEqual(composition.detail.systemPromptOptions.selectedTools, ["tool-512"]);
+  assert.equal(composition.detail.systemPromptOptions.toolSnippets, undefined);
+  assert.deepEqual(composition.detail.systemPromptOptions.promptGuidelines, [longText]);
   assert.equal(composition.detail.systemPromptOptions.contextFiles.length, contextFiles.length);
   assert.equal(composition.detail.systemPromptOptions.contextFiles[128]?.content.text, longText);
   assert.equal(composition.detail.systemPromptOptions.skills.length, skills.length);
@@ -236,8 +229,9 @@ test("observes final prompt resources, messages, tools, and provider payload wit
       description: composition.detail.tools.at(-1)?.description,
       promptGuideline: composition.detail.tools.at(-1)?.promptGuidelines?.[0],
     },
-    { name: "tool-512", active: false, description: longText, promptGuideline: longText },
+    { name: "tool-512", active: true, description: longText, promptGuideline: longText },
   );
+  assert.deepEqual(compositionSummary.promptResources?.tools.active, ["tool-512"]);
 
   const providerSummary = snapshot.events.find((event) => event.kind === "provider-request");
   assert.ok(providerSummary);
@@ -280,10 +274,6 @@ test("observes final prompt resources, messages, tools, and provider payload wit
     tokens: [6],
   });
   assert.equal(contextSnapshot.detail.systemPrompt?.text, continuedSystemPrompt);
-  assert.equal(
-    contextSnapshot.detail.systemPromptWithoutSkills?.text,
-    continuedPromptWithoutSkills,
-  );
   assert.deepEqual(contextSnapshot.detail.systemPromptOptions?.selectedTools, ["tool-512"]);
   assert.equal(contextSnapshot.detail.systemPromptOptions?.toolSnippets, undefined);
   assert.deepEqual(
@@ -360,4 +350,62 @@ test("observes final prompt resources, messages, tools, and provider payload wit
   assert.deepEqual(persistedCompaction.detail.preparation?.turnPrefixMessages.value, [
     { role: "user", content: "current turn" },
   ]);
+});
+
+test("emits actual injections for every model context including continuations", async () => {
+  const handlers = new Map<string, (event: never, context: never) => unknown>();
+  contextTraceExtension({
+    on(event: string, handler: (event: never, context: never) => unknown) {
+      handlers.set(event, handler);
+    },
+    getActiveTools: () => [],
+    getAllTools: () => [],
+  } as never);
+  const trace = await activateSessionContextTrace("session-empty-injections");
+
+  await handlers.get("before_agent_start")?.(
+    {
+      type: "before_agent_start",
+      prompt: "hello",
+      systemPrompt: "system",
+      systemPromptOptions: {
+        cwd: "/workspace",
+        selectedTools: ["bash"],
+        contextFiles: [],
+        skills: [{ name: "not-injected-without-read" }],
+      },
+    } as never,
+    {
+      cwd: "/workspace",
+      sessionManager: { getSessionId: () => "session-empty-injections" },
+      getSystemPrompt: () => "system",
+      getContextUsage: () => undefined,
+    } as never,
+  );
+  const context = {
+    cwd: "/workspace",
+    sessionManager: { getSessionId: () => "session-empty-injections" },
+    getSystemPrompt: () => "system",
+    getContextUsage: () => undefined,
+  };
+  await handlers.get("context")?.(
+    { type: "context", messages: [{ role: "user", content: "hello" }] } as never,
+    context as never,
+  );
+  await handlers.get("context")?.(
+    { type: "context", messages: [{ role: "toolResult", content: "continued" }] } as never,
+    context as never,
+  );
+
+  const summaries = trace
+    .list(-1, 10)
+    .events.filter((event) => event.kind === "prompt-composition");
+  assert.equal(summaries.length, 2);
+  assert.deepEqual(
+    summaries.map((event) => event.promptInjections),
+    [["system-prompt"], ["system-prompt"]],
+  );
+  assert.equal(summaries[0]?.promptPreview, "hello");
+  assert.equal(summaries[1]?.promptPreview, undefined);
+  await releaseSessionContextTrace("session-empty-injections", trace);
 });

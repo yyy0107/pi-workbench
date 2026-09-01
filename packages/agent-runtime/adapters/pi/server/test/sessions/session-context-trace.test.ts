@@ -87,10 +87,10 @@ test("projects the final Pi extension inventory without retaining runtime handle
           shortcuts: new Map(),
         },
         {
-          path: "/workspace/.pi/extensions/audit.ts",
-          resolvedPath: "/workspace/.pi/extensions/audit.ts",
+          path: "/workspace/.pi/extensions/audit/index.ts",
+          resolvedPath: "/workspace/.pi/extensions/audit/index.ts",
           sourceInfo: {
-            path: "/workspace/.pi/extensions/audit.ts",
+            path: "/workspace/.pi/extensions/audit/index.ts",
             source: "project",
             scope: "project",
             origin: "top-level",
@@ -154,6 +154,11 @@ test("copies the final prompt resource inventory onto the live event summary", (
           filePath: "/workspace/.pi/skills/review/SKILL.md",
           disableModelInvocation: false,
         },
+        {
+          name: "explicit-only",
+          filePath: "/workspace/.pi/skills/explicit-only/SKILL.md",
+          disableModelInvocation: true,
+        },
       ],
     },
     images: captureSessionContextTraceJson([]),
@@ -173,22 +178,24 @@ test("copies the final prompt resource inventory onto the live event summary", (
     ],
     extensions: [
       {
-        name: "audit",
-        path: "/workspace/.pi/extensions/audit.ts",
-        resolvedPath: "/workspace/.pi/extensions/audit.ts",
+        name: "index",
+        path: "/workspace/.pi/extensions/audit/index.ts",
+        resolvedPath: "/workspace/.pi/extensions/audit/index.ts",
         hidden: false,
         source: {
-          path: "/workspace/.pi/extensions/audit.ts",
+          path: "/workspace/.pi/extensions/audit/index.ts",
           source: "project",
           scope: "project",
           origin: "top-level",
         },
       },
     ],
+    promptInjections: ["system-prompt", "workspace", "skills", "tools", "extensions"],
   });
 
   const summary = trace.list(-1, 10).events.find((event) => event.kind === "prompt-composition");
   assert.deepEqual(summary?.promptResources, {
+    cwd: "/workspace",
     systemPromptCharacters: 13,
     systemPromptSourceCount: 3,
     systemPromptSources: [
@@ -212,6 +219,13 @@ test("copies the final prompt resource inventory onto the live event summary", (
     extensions: [{ name: "audit", hidden: false }],
     tools: { active: ["read"], total: 1 },
   });
+  assert.deepEqual(summary?.promptInjections, [
+    "system-prompt",
+    "workspace",
+    "skills",
+    "tools",
+    "extensions",
+  ]);
 });
 
 test("preserves complete serializable values, sensitive fields, binary bodies, and headers", () => {

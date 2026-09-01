@@ -52,6 +52,7 @@ import {
 } from "../resources/resource-text-file";
 import { isWorkbenchInternalPiExtensionPath } from "../internal-extensions/index";
 import { getOrStartSession } from "../sessions/session-registry";
+import { extensionDisplayName } from "./extension-name";
 
 export const MAX_EXTENSION_FILE_BYTES = 5 * 1024 * 1024;
 const EXTENSION_DIRECTORY_ENTRY_LIMIT = 2_000;
@@ -173,13 +174,6 @@ export class ExtensionServiceError<
 function errorCode(error: unknown): string | undefined {
   if (typeof error !== "object" || error === null || !("code" in error)) return undefined;
   return typeof error.code === "string" ? error.code : undefined;
-}
-
-function extensionName(filePath: string): string {
-  const fileName = path.basename(filePath);
-  const extension = path.extname(fileName);
-  const stem = extension ? fileName.slice(0, -extension.length) : fileName;
-  return stem === "index" ? path.basename(path.dirname(filePath)) : stem;
 }
 
 function relativeDisplayPath(rootPath: string, candidatePath: string): string {
@@ -433,7 +427,7 @@ export class ExtensionService implements ExtensionProtocol {
       }
       const filePath = resource?.path ?? extension.path;
       records.push({
-        name: extensionName(filePath),
+        name: extensionDisplayName(filePath),
         filePath,
         enabled: resource?.enabled ?? true,
         sourceInfo: resource?.metadata ?? extension.sourceInfo,
@@ -446,7 +440,7 @@ export class ExtensionService implements ExtensionProtocol {
     for (const resource of resolved) {
       if (seenPaths.has(resource.path) || hiddenPaths.has(resource.path)) continue;
       records.push({
-        name: extensionName(resource.path),
+        name: extensionDisplayName(resource.path),
         filePath: resource.path,
         enabled: resource.enabled,
         sourceInfo: resource.metadata,
