@@ -16,7 +16,7 @@ function SettingsTrigger({ compact = false }: { compact?: boolean }) {
     <Button
       type="button"
       variant="ghost"
-      size={compact ? "icon" : "lg"}
+      size={compact ? "icon" : "default"}
       aria-label={label}
       title={label}
       className={cn(

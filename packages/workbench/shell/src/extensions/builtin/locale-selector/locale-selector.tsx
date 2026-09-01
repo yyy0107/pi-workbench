@@ -49,7 +49,7 @@ function LocaleSelector({ compact = false }: { compact?: boolean }) {
         aria-label={selectLanguageLabel}
         title={selectLanguageLabel}
         className={cn(
-          buttonVariants({ variant: "ghost", size: compact ? "icon" : "lg" }),
+          buttonVariants({ variant: "ghost", size: compact ? "icon" : "default" }),
           "text-muted-foreground hover:text-foreground",
           compact
             ? "hidden sm:inline-flex md:hidden"
