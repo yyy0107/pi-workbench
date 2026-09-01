@@ -111,7 +111,6 @@ function createDesktopArtifactSupportBuildOptions({ paths, outfile }) {
 
 const PACKAGED_MAIN_LOCAL_EXTERNALS = Object.freeze([
   "desktop-renderer-protocol.cjs",
-  "hardware-acceleration-preference.cjs",
   "packaged-runtime-lifecycle.cjs",
   "runtime-artifact-environment.cjs",
   "title-bar-overlay.cjs",

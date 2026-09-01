@@ -52,13 +52,6 @@ export const extensionsEnUS = {
     languageDescription: "Choose the language used by Workbench controls and menus.",
     selectLanguage: "Select interface language",
   },
-  hardwareAcceleration: {
-    enable: "Use hardware acceleration",
-    description:
-      "Use the GPU to render the desktop interface and workflow canvas. Turn this off if you see visual glitches, black screens, or graphics-driver crashes. Changes take effect after restart.",
-    restartRequired: "Saved. Restart Workbench to apply this change.",
-    saveError: "Could not save this setting. Check the connection and try again.",
-  },
   settings: {
     title: "Settings",
     category: "Workbench",

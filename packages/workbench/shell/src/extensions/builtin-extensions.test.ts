@@ -13,7 +13,6 @@ const SHELL_CORE_EXTENSION_IDS = Object.freeze([
   "workbench.brand",
   "workbench.appearance",
   "workbench.locale-selector",
-  "workbench.hardware-acceleration",
   "workbench.message-presentation",
   "workbench.message-actions",
   "workbench.user-message-index",

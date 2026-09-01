@@ -45,7 +45,6 @@ const workbenchSettingsUpdatePayload = rpcObject({
         }),
       ),
     ),
-    hardwareAcceleration: rpcOptional(rpcNullable(rpcBoolean)),
     locale: rpcOptional(rpcNullable(rpcEnum(SUPPORTED_LOCALES))),
     modelSelector: rpcOptional(
       rpcNullable(

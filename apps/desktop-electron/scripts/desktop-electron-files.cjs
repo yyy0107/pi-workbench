@@ -1,6 +1,5 @@
 const ELECTRON_RUNTIME_FILES = Object.freeze([
   "desktop-renderer-protocol.cjs",
-  "hardware-acceleration-preference.cjs",
   "main.cjs",
   "packaged-runtime-lifecycle.cjs",
   "preload.cjs",

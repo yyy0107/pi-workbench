@@ -126,12 +126,6 @@ function parsePreferences(value: unknown): WorkbenchSettingsPreferences {
   if (value.backgroundImage !== undefined) {
     preferences.backgroundImage = backgroundImage(value.backgroundImage);
   }
-  if (value.hardwareAcceleration !== undefined) {
-    if (typeof value.hardwareAcceleration !== "boolean") {
-      throw new TypeError("hardwareAcceleration is invalid");
-    }
-    preferences.hardwareAcceleration = value.hardwareAcceleration;
-  }
   if (value.locale !== undefined) {
     if (!isLocale(value.locale)) throw new TypeError("locale is invalid");
     preferences.locale = value.locale;

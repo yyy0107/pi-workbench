@@ -51,13 +51,6 @@ export const extensionsZhCN = {
     languageDescription: "选择工作台控件和菜单使用的语言。",
     selectLanguage: "选择界面语言",
   },
-  hardwareAcceleration: {
-    enable: "启用硬件加速",
-    description:
-      "使用 GPU 渲染桌面界面和工作流画布。若出现画面异常、黑屏或显卡驱动崩溃，可关闭此项；更改将在重启后生效。",
-    restartRequired: "已保存。重启 Workbench 后生效。",
-    saveError: "无法保存此设置，请检查连接后重试。",
-  },
   settings: {
     title: "设置",
     category: "工作台",

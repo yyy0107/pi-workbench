@@ -2,7 +2,6 @@ import type { WorkbenchExtension } from "@workbench/extension-sdk";
 
 import { archivedChatsExtension } from "./builtin/archived-chats";
 import { appearanceExtension } from "./builtin/appearance";
-import { hardwareAccelerationExtension } from "./builtin/hardware-acceleration";
 import { localeSelectorExtension } from "./builtin/locale-selector";
 import { messageActionsExtension } from "./builtin/message-actions";
 import { messagePresentationExtension } from "./builtin/message-presentation";
@@ -18,7 +17,6 @@ export const shellCoreExtensions: readonly WorkbenchExtension[] = Object.freeze(
   workbenchBrandExtension,
   appearanceExtension,
   localeSelectorExtension,
-  hardwareAccelerationExtension,
   messagePresentationExtension,
   messageActionsExtension,
   userMessageIndexExtension,

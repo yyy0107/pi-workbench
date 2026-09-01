@@ -152,25 +152,3 @@ test("persists Ask User capability updates and notifies matching live sessions",
   assert.deepEqual(observed, [false, true]);
   assert.deepEqual(unrelated, []);
 });
-
-test("persists and validates the desktop hardware acceleration preference", async (t) => {
-  const root = await mkdtemp(path.join(tmpdir(), "workbench-settings-hardware-acceleration-"));
-  t.after(() => rm(root, { recursive: true, force: true }));
-  const stateFile = path.join(root, "agent", "workbench-settings.json");
-  const service = new WorkbenchSettingsService({ stateFile });
-
-  await service.update({ patch: { hardwareAcceleration: false } });
-  assert.equal(
-    (await new WorkbenchSettingsService({ stateFile }).describe()).preferences.hardwareAcceleration,
-    false,
-  );
-
-  await assert.rejects(
-    service.update({ patch: { hardwareAcceleration: "false" as unknown as boolean } }),
-    {
-      name: "WorkbenchSettingsServiceError",
-      code: "workbench-settings-invalid",
-    },
-  );
-  assert.equal((await service.describe()).preferences.hardwareAcceleration, false);
-});

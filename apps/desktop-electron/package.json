@@ -50,7 +50,6 @@
     "files": [
       "package.json",
       "electron/desktop-renderer-protocol.cjs",
-      "electron/hardware-acceleration-preference.cjs",
       "electron/main.cjs",
       "electron/packaged-runtime-lifecycle.cjs",
       "electron/preload.cjs",

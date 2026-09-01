@@ -12,10 +12,6 @@ const {
   shell,
 } = require("electron");
 const {
-  readHardwareAccelerationPreference,
-  resolveWorkbenchSettingsFile,
-} = require("./hardware-acceleration-preference.cjs");
-const {
   createPackagedSmokeOwnerReporter,
   startPackagedWorkbenchRuntime,
 } = require("./packaged-runtime-lifecycle.cjs");
@@ -31,8 +27,6 @@ const { resolveDesktopArtifactSupport } = require("./runtime-artifact-environmen
 const RUNTIME_BOOTSTRAP_CHANNEL = "workbench:runtime-bootstrap";
 const RUNTIME_RESTART_CHANNEL = "workbench:runtime-restart";
 const TITLE_BAR_OVERLAY_CHANNEL = "workbench:title-bar-overlay";
-const workbenchSettingsFile = resolveWorkbenchSettingsFile();
-
 protocol.registerSchemesAsPrivileged([
   {
     scheme: DESKTOP_RENDERER_SCHEME,
@@ -44,12 +38,6 @@ protocol.registerSchemesAsPrivileged([
     },
   },
 ]);
-
-// Electron requires this decision synchronously before `ready`; the settings UI persists the
-// preference for the next desktop launch.
-if (!readHardwareAccelerationPreference(workbenchSettingsFile)) {
-  app.disableHardwareAcceleration();
-}
 
 let isQuitting = false;
 let currentWorkbenchUrl;
