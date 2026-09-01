@@ -8,16 +8,21 @@ Pi Workbench 是本地优先、以工作区为中心的 AI 编程工作台，同
 
 主要边界：
 
-- `app/`：Next.js 路由、页面与 Provider 装配
-- `workbench/`：Workbench Shell、核心聊天、侧栏和布局
-- `components/`：共享 UI 与通用宿主组件
-- `platform/extensions/`：扩展公共契约、Registry、Host 和生命周期
-- `extensions/builtin/`：静态内置功能扩展
-- `extensions/installable/`：可安装但仍静态可信的组件扩展
-- `runtime/pi/`：Pi RPC、会话、模型、Workspace 和实时事件
-- `runtime/terminal/`：PTY、终端协议与服务
-- `electron/`：桌面启动、服务进程和打包
-- `services/`：跨功能共享的稳定前端服务
+- `scripts/web-runtime-orchestrator.mjs` 与 `scripts/web-runtime-watch.mjs`：根目录拥有的 Web/Runtime
+  process 编排与 source-generation replacement；根目录不拥有产品运行实现
+- `apps/web/`：Next.js 路由、页面、Runtime-connected/Web-only Host 与 Web artifact producer；
+  `src/runtime-connected-web-main.ts` 只消费已通过 admission 的 Runtime connection，不创建或关闭 Runtime
+- `packages/workbench/shell/`：通用 Workbench Shell、核心聊天、侧栏、布局与 Shell-owned extensions
+- `packages/extension-platform/`：扩展公共契约、Registry、Host 和生命周期
+- `packages/agent-runtime/adapters/pi/contributions/`：Pi-owned Workbench UI contributions
+- `packages/agent-runtime/adapters/pi/`：Pi 协议、client/server adapter、会话、模型、Workspace 和实时事件
+- `apps/runtime-node/`：唯一的 API-only Node Runtime Host 应用组合、生命周期与 artifact producer
+- `packages/host/`：Host contracts、HTTP/WebSocket ingress、Web/Runtime control、artifact admission 与
+  source-shape policy
+- `packages/terminal/`：PTY、终端协议、服务与 Pi tool adapter
+- `apps/desktop-electron/`：Electron 桌面启动、Web/Runtime artifact 组合与 staging、原生容器和打包；
+  使用 `scripts/compose-desktop-artifacts.cjs` 与非可执行的 `desktop-artifact-support.cjs`
+- `packages/**`：跨 app 复用的 contracts、client/server capabilities 和 UI platform
 
 不要混淆 Workbench UI Extensions 与 Pi Agent Extensions。
 
@@ -35,7 +40,13 @@ Pi Workbench 是本地优先、以工作区为中心的 AI 编程工作台，同
 
 - 只使用 `pnpm`；禁止 npm 和 Yarn，不生成 `package-lock.json`。
 - 修改 Next.js 代码前，必须查阅当前安装版本的 `node_modules/next/dist/docs/`。
-- 修改 Pi transport、session、workspace、model 或 host 状态前，完整阅读 `runtime/pi/README.md`，复用现有 typed contracts、transport API 和 manager hooks；不要调用未授权的原始端点、复制 RPC 类型或另开事件流。
+- 普通浏览器开发/生产使用根 `pnpm dev`、`pnpm dev:once`、`pnpm start` 编排两个 sibling owner；
+  不要在 Web Host 中重新引入 Runtime child lifecycle 或复制 Runtime HTTP/WebSocket 实现。
+- 构建职责归 app：`@workbench/runtime-node` 生产 Runtime artifact、`@workbench/web` 生产 Next/Web artifact、
+  `@workbench/desktop-electron` 组合并打包它们；根 `pnpm build` 与 `electron:*` 只负责顺序编排。
+- 修改 Pi transport、session、workspace、model 或 host 状态前，完整阅读
+  `packages/agent-runtime/adapters/pi/README.md`，复用现有 typed contracts、transport API 和 manager
+  hooks；不要调用未授权的原始端点、复制 RPC 类型或另开事件流。
 - assistant-ui API 以当前安装版本及项目 Skills 为准。不要使用已移除的旧 Hook，也不要把 message、composer 或运行状态复制进 Zustand。
 - 可独立启用或移除的前端功能优先实现为扩展。遵守 Slot、Panel、Command、Opener、Renderer、Settings 和 Workspace Surface 的职责边界；不要在业务扩展中虚构 Slot，也不要深度导入兄弟扩展。
 - RightWorkspace core 只拥有通用 tab、布局、持久化和反馈宿主；功能 Surface、图标、菜单、Runtime bridge 与领域服务由对应扩展拥有。

@@ -1,0 +1,52 @@
+{
+  "name": "@workbench/agent-runtime-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./tokens": {
+      "types": "./src/tokens.ts",
+      "import": "./src/tokens.ts",
+      "default": "./src/tokens.ts"
+    },
+    "./commands": {
+      "types": "./src/commands.ts",
+      "import": "./src/commands.ts",
+      "default": "./src/commands.ts"
+    },
+    "./execution": {
+      "types": "./src/execution.ts",
+      "import": "./src/execution.ts",
+      "default": "./src/execution.ts"
+    },
+    "./threads": {
+      "types": "./src/threads.ts",
+      "import": "./src/threads.ts",
+      "default": "./src/threads.ts"
+    },
+    "./adapter": {
+      "types": "./src/adapter.ts",
+      "import": "./src/adapter.ts",
+      "default": "./src/adapter.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@workbench/agent-runtime-contracts": "workspace:*",
+    "@workbench/automation-contracts": "workspace:*",
+    "@workbench/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2"
+  }
+}

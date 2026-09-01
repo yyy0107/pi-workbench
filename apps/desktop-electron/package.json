@@ -1,0 +1,88 @@
+{
+  "name": "@workbench/desktop-electron",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "main": "src/main.cjs",
+  "scripts": {
+    "dev": "electron .",
+    "build": "pnpm --filter @workbench/desktop-renderer build && node scripts/build-desktop-artifacts.cjs",
+    "pack": "node scripts/build-package.cjs --dir",
+    "pack:artifact": "node scripts/build-package.cjs --dir --artifact-only",
+    "dist": "node scripts/build-package.cjs",
+    "dist:artifact": "node scripts/build-package.cjs --artifact-only",
+    "budget": "node scripts/check-runtime-budget.cjs",
+    "test": "node ../../scripts/run-typescript-tests.mjs --package",
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json"
+  },
+  "dependencies": {
+    "@workbench/host-artifact-policy": "workspace:*",
+    "@workbench/host-server": "workspace:*"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^4.2.0",
+    "@types/node": "^26.2.0",
+    "@workbench/host-client": "workspace:*",
+    "@workbench/host-contracts": "workspace:*",
+    "electron": "^43.4.1",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.12",
+    "typescript": "^7.0.2",
+    "ws": "^8.21.3"
+  },
+  "peerDependencies": {
+    "electron": "^43.4.1"
+  },
+  "build": {
+    "appId": "com.piworkbench.desktop",
+    "productName": "Pi Workbench",
+    "asar": false,
+    "npmRebuild": false,
+    "electronLanguages": [
+      "en-US",
+      "zh-CN"
+    ],
+    "directories": {
+      "app": "../../.electron-build/app",
+      "output": "../../dist-electron"
+    },
+    "files": [
+      "package.json",
+      "electron/desktop-renderer-protocol.cjs",
+      "electron/main.cjs",
+      "electron/packaged-runtime-lifecycle.cjs",
+      "electron/preload.cjs",
+      "electron/runtime-artifact-environment.cjs",
+      "electron/server-process-lifecycle.cjs",
+      "electron/title-bar-overlay.cjs",
+      "public/app-icon.svg",
+      "!node_modules/**/*"
+    ],
+    "afterPack": "scripts/after-pack.cjs",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "icon": "../../.electron-build/app/public/app-icon.svg",
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "linux": {
+      "category": "Development",
+      "syncDesktopName": true,
+      "target": [
+        "AppImage"
+      ]
+    }
+  },
+  "desktopName": "com.piworkbench.PiWorkbench.desktop",
+  "desktopPackageName": "workbench-ui",
+  "productName": "Pi Workbench"
+}

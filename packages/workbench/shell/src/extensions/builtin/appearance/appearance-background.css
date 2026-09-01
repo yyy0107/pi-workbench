@@ -1,0 +1,185 @@
+[data-workbench-shell][data-workbench-border-style] :where(*, *::before, *::after) {
+  border-style: var(--workbench-border-style) !important;
+}
+
+[data-workbench-shell][data-workbench-appearance] {
+  --background: var(--workbench-theme-background);
+  --workbench-canvas-background: var(--workbench-theme-background);
+  --foreground: var(--workbench-theme-foreground);
+  --card: var(--workbench-theme-background);
+  --card-foreground: var(--workbench-theme-foreground);
+  --popover: var(--workbench-theme-background);
+  --popover-foreground: var(--workbench-theme-foreground);
+  --sidebar: var(--workbench-theme-background);
+  --sidebar-foreground: var(--workbench-theme-foreground);
+  --primary: var(--workbench-theme-accent);
+  --primary-foreground: var(--workbench-theme-background);
+  --sidebar-primary: var(--workbench-theme-accent);
+  --sidebar-primary-foreground: var(--workbench-theme-background);
+  --ring: color-mix(
+    in srgb,
+    var(--workbench-theme-foreground) 40%,
+    var(--workbench-theme-background)
+  );
+  --muted: color-mix(
+    in srgb,
+    var(--workbench-theme-background) 92%,
+    var(--workbench-theme-foreground)
+  );
+  --muted-foreground: color-mix(
+    in srgb,
+    var(--workbench-theme-foreground) 62%,
+    var(--workbench-theme-background)
+  );
+  --secondary: var(--muted);
+  --secondary-foreground: var(--workbench-theme-foreground);
+  --accent: var(--muted);
+  --accent-foreground: var(--workbench-theme-foreground);
+  --control-state-background-selected: var(--accent);
+  --control-state-foreground-selected: var(--accent-foreground);
+  --button-background-selected: var(--control-state-background-selected);
+  --button-foreground-selected: var(--control-state-foreground-selected);
+  --icon-frame-background-selected: var(--control-state-background-selected);
+  --icon-frame-foreground-selected: var(--control-state-foreground-selected);
+  /* Re-resolve derived radii where the appearance controller overrides their source values. */
+  --radius-sm: max(0px, calc(var(--radius) - 4px));
+  --radius-md: max(0px, calc(var(--radius) - 2px));
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --button-radius: var(--radius);
+  --input-control-radius: var(--radius);
+  --composer-inner-radius: max(0px, calc(var(--composer-radius) - 2px));
+  --sidebar-accent: var(--muted);
+  --sidebar-accent-foreground: var(--workbench-theme-foreground);
+  --border: color-mix(
+    in srgb,
+    var(--workbench-theme-background) 92%,
+    var(--workbench-theme-foreground)
+  );
+  --input: color-mix(
+    in srgb,
+    var(--workbench-theme-background) 82%,
+    var(--workbench-theme-foreground)
+  );
+  --input-control-border: var(--input);
+  --sidebar-border: var(--border);
+  --aui-accent: var(--workbench-theme-accent);
+  --aui-accent-foreground: var(--workbench-theme-background);
+  --aui-background: var(--workbench-theme-background);
+  --aui-foreground: var(--workbench-theme-foreground);
+  --aui-muted-foreground: var(--muted-foreground);
+  --aui-border: var(--border);
+  --aui-user-message: var(--muted);
+  --aui-composer: var(--muted);
+  --aui-font-family: var(--workbench-theme-ui-font);
+  --font-sans: var(--workbench-theme-ui-font);
+  --font-mono: var(--workbench-theme-code-font);
+  font-family: var(--workbench-theme-ui-font);
+  font-size: var(--workbench-ui-font-size);
+  filter: contrast(var(--workbench-theme-contrast));
+}
+
+[data-workbench-shell][data-workbench-appearance]:not(.dark) {
+  --workbench-theme-accent: var(--workbench-light-accent);
+  --workbench-theme-background: var(--workbench-light-background);
+  --workbench-theme-foreground: var(--workbench-light-foreground);
+  --workbench-theme-ui-font: var(--workbench-light-ui-font);
+  --workbench-theme-code-font: var(--workbench-light-code-font);
+  --workbench-theme-contrast: var(--workbench-light-contrast);
+}
+
+[data-workbench-shell][data-workbench-appearance].dark {
+  --workbench-theme-accent: var(--workbench-dark-accent);
+  --workbench-theme-background: var(--workbench-dark-background);
+  --workbench-theme-foreground: var(--workbench-dark-foreground);
+  --workbench-theme-ui-font: var(--workbench-dark-ui-font);
+  --workbench-theme-code-font: var(--workbench-dark-code-font);
+  --workbench-theme-contrast: var(--workbench-dark-contrast);
+}
+
+[data-workbench-shell][data-workbench-appearance] :where(code, pre, kbd, samp) {
+  font-family: var(--workbench-theme-code-font);
+  font-size: var(--workbench-code-font-size);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-workbench-shell],
+  [data-workbench-shell] :where(*, *::before, *::after) {
+    scroll-behavior: auto !important;
+  }
+
+  [data-workbench-shell] :where(*, *::before, *::after) {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+[data-workbench-shell][data-workbench-hide-diff-markers] [data-diff-marker] {
+  display: none;
+}
+
+[data-workbench-shell][data-workbench-backdrop],
+[data-workbench-shell][data-workbench-backdrop] [data-workbench-surface="main"],
+[data-workbench-shell][data-workbench-backdrop] [data-workbench-surface="thread"],
+[data-workbench-shell][data-workbench-backdrop] [data-workbench-composer-dock] {
+  background-color: transparent !important;
+  backdrop-filter: none;
+}
+
+[data-workbench-shell][data-workbench-backdrop]
+  :where(
+    [data-workbench-surface="header"],
+    [data-workbench-surface="panel"],
+    [data-workbench-surface="statusbar"],
+    [data-slot="workbench-composer-card"],
+    [data-workbench-glass-surface],
+    [data-workbench-selection-surface]:hover,
+    [data-workbench-selection-surface]:focus-visible,
+    [data-workbench-selection-surface]:focus-within,
+    [data-workbench-selection-surface][data-active]:not(
+        [data-workbench-selection-mode="foreground"]
+      ),
+    [data-workbench-selection-surface][data-state="active"]:not(
+        [data-workbench-selection-mode="foreground"]
+      ),
+    [data-workbench-selection-surface][aria-current="page"]:not(
+        [data-workbench-selection-mode="foreground"]
+      ),
+    [data-workbench-selection-surface][aria-selected="true"]:not(
+        [data-workbench-selection-mode="foreground"]
+      )
+  ) {
+  background-color: color-mix(
+    in srgb,
+    var(--workbench-surface-base) var(--workbench-surface-opacity),
+    transparent
+  ) !important;
+  backdrop-filter: blur(var(--workbench-surface-blur));
+}
+
+[data-workbench-shell][data-workbench-backdrop]
+  [data-workbench-surface="sidebar"]
+  [data-slot="sidebar-inner"] {
+  background-color: color-mix(
+    in srgb,
+    var(--workbench-sidebar-surface-base) var(--workbench-surface-opacity),
+    transparent
+  ) !important;
+  backdrop-filter: blur(var(--workbench-surface-blur));
+}
+
+[data-workbench-shell][data-workbench-backdrop]
+  :where(
+    [data-slot="dialog-content"],
+    [data-slot="dropdown-menu-content"],
+    [data-slot="popover-content"],
+    [data-slot="sheet-content"]
+  ) {
+  background-color: color-mix(
+    in srgb,
+    var(--workbench-floating-surface-base) var(--workbench-floating-surface-opacity),
+    transparent
+  ) !important;
+  backdrop-filter: blur(var(--workbench-surface-blur));
+}

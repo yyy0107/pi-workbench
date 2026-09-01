@@ -1,0 +1,44 @@
+{
+  "name": "@workbench/agent-runtime-pi-protocol",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./attachments": {
+      "types": "./src/attachments.ts",
+      "import": "./src/attachments.ts",
+      "default": "./src/attachments.ts"
+    },
+    "./messages": {
+      "types": "./src/messages.ts",
+      "import": "./src/messages.ts",
+      "default": "./src/messages.ts"
+    },
+    "./rpc": {
+      "types": "./src/rpc.ts",
+      "import": "./src/rpc.ts",
+      "default": "./src/rpc.ts"
+    },
+    "./stream": {
+      "types": "./src/stream.ts",
+      "import": "./src/stream.ts",
+      "default": "./src/stream.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@earendil-works/pi-ai": "0.84.2",
+    "@workbench/agent-runtime-contracts": "workspace:*",
+    "@workbench/attachment-understanding-contracts": "workspace:*",
+    "@workbench/automation-contracts": "workspace:*",
+    "@workbench/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2"
+  }
+}

@@ -16,7 +16,7 @@
 插件 ABI，也没有权限隔离或独立 Extension Host；未来的外部插件体系应使用单独的 public API
 与隔离边界。
 
-扩展定义和贡献契约的纯入口是 [`platform/extensions/authoring.ts`](../platform/extensions/authoring.ts)，使用 `@/platform/extensions/authoring` 不会加载 React Host 或 Next.js 宿主实现。挂载后的客户端组件从 `@/platform/extensions` 使用公开 Hook；Workbench 组合层以及平台明确允许的 Renderer/Error surface 使用具体 leaf Host 入口，不依赖聚合 `hosts/` barrel、Registry 或其他内部实现。
+扩展定义和贡献契约的纯入口是 [`packages/extension-platform/sdk/src/authoring.ts`](../packages/extension-platform/sdk/src/authoring.ts)，使用 `@workbench/extension-sdk` 不会加载 React Host 或 Next.js 宿主实现。挂载后的客户端组件从 `@workbench/extension-host` 使用公开 Hook；Workbench 组合层以及平台明确允许的 Renderer/Error surface 使用具体 leaf Host 入口，不依赖聚合 `hosts/` barrel、Registry 或其他内部实现。
 
 ## 1. 先理解九种扩展能力
 
@@ -60,7 +60,7 @@ activeExtensions = builtinExtensions + 已安装的 installableComponentExtensio
 推荐每个扩展拥有独立目录：
 
 ```text
-extensions/builtin/notes/
+packages/workbench/shell/src/extensions/builtin/notes/
 ├── extension.ts
 ├── notes-panel.tsx
 ├── notes-trigger.tsx
@@ -70,8 +70,8 @@ extensions/builtin/notes/
 
 目录表达分发语义，而不是贡献类型：
 
-- `extensions/builtin/<feature>/`：Workbench 固定内建、用户不可卸载；
-- `extensions/installable/<feature>/`：静态受信任目录中的可安装组件拓展，安装状态决定是否交给
+- `<owner-package>/src/extensions/builtin/<feature>/`：所属 package 固定内建、用户不可卸载；
+- `<owner-package>/src/extensions/installable/<feature>/`：静态受信任目录中的可安装组件拓展，安装状态决定是否交给
   `ExtensionProvider` 激活。
 
 两类扩展使用完全相同的 Slot、Renderer、Panel 等贡献契约。`installable` 仍然随应用静态构建，
@@ -81,7 +81,7 @@ extensions/builtin/notes/
 最小扩展只有一个 `extension.ts`：
 
 ```ts
-import { defineExtension } from "@/platform/extensions/authoring";
+import { defineExtension } from "@workbench/extension-sdk";
 
 export const exampleExtension = defineExtension({
   id: "workbench.example",
@@ -141,14 +141,14 @@ export const exampleExtension = defineExtension({
 
 ### 第一步：创建 Panel 组件
 
-创建 `extensions/builtin/notes/notes-panel.tsx`：
+创建 `packages/workbench/shell/src/extensions/builtin/notes/notes-panel.tsx`：
 
 ```tsx
 "use client";
 
 import { useState } from "react";
 
-import type { PanelComponentProps } from "@/platform/extensions/authoring";
+import type { PanelComponentProps } from "@workbench/extension-sdk";
 
 export function NotesPanel({ panelId, close }: PanelComponentProps) {
   const [value, setValue] = useState("");
@@ -184,15 +184,15 @@ export function NotesPanel({ panelId, close }: PanelComponentProps) {
 
 ### 第二步：创建 Slot 入口
 
-创建 `extensions/builtin/notes/notes-trigger.tsx`：
+创建 `packages/workbench/shell/src/extensions/builtin/notes/notes-trigger.tsx`：
 
 ```tsx
 "use client";
 
 import { StickyNoteIcon } from "lucide-react";
 
-import { usePanelService } from "@/platform/extensions";
-import type { ComposerSlotContext } from "@/platform/extensions/authoring";
+import { usePanelService } from "@workbench/extension-host";
+import type { ComposerSlotContext } from "@workbench/extension-sdk";
 
 export function NotesTrigger({ isRunning }: ComposerSlotContext) {
   const panels = usePanelService();
@@ -232,13 +232,13 @@ export function NotesTrigger({ isRunning }: ComposerSlotContext) {
 
 ### 第三步：创建 Command
 
-创建 `extensions/builtin/notes/toggle-notes-command.ts`：
+创建 `packages/workbench/shell/src/extensions/builtin/notes/toggle-notes-command.ts`：
 
 ```ts
 import { StickyNoteIcon } from "lucide-react";
 
 import { defineMessage } from "@/i18n";
-import type { CommandDefinition } from "@/platform/extensions/authoring";
+import type { CommandDefinition } from "@workbench/extension-sdk";
 
 export const toggleNotesCommand = {
   id: "notes.toggle",
@@ -270,13 +270,13 @@ export const toggleNotesCommand = {
 
 ### 第四步：注册三类贡献
 
-创建 `extensions/builtin/notes/extension.ts`：
+创建 `packages/workbench/shell/src/extensions/builtin/notes/extension.ts`：
 
 ```ts
 import { StickyNoteIcon } from "lucide-react";
 
 import { defineMessage } from "@/i18n";
-import { defineExtension } from "@/platform/extensions/authoring";
+import { defineExtension } from "@workbench/extension-sdk";
 
 import { NotesPanel } from "./notes-panel";
 import { NotesTrigger } from "./notes-trigger";
@@ -312,7 +312,7 @@ export const notesExtension = defineExtension({
 });
 ```
 
-再创建 `extensions/builtin/notes/index.ts`：
+再创建 `packages/workbench/shell/src/extensions/builtin/notes/index.ts`：
 
 ```ts
 export { notesExtension } from "./extension";
@@ -330,10 +330,14 @@ Panel Registry 只保存定义。打开状态、位置和尺寸由 Panel Store �
 
 ### 第五步：静态启用扩展
 
-修改 [`extensions/enabled-extensions.ts`](../extensions/enabled-extensions.ts)：
+在所属 package 的公开 extension group 中加入扩展；Shell 的入口是
+[`packages/workbench/shell/src/extensions/builtin-extensions.ts`](../packages/workbench/shell/src/extensions/builtin-extensions.ts)，
+最终顺序由
+[`apps/web/src/workbench/runtime-contributions/installed-workbench-extensions.ts`](../apps/web/src/workbench/runtime-contributions/installed-workbench-extensions.ts)
+组合：
 
 ```ts
-import type { WorkbenchExtension } from "@/platform/extensions/authoring";
+import type { WorkbenchExtension } from "@workbench/extension-sdk";
 
 import { notesExtension } from "./builtin/notes";
 // 其他内置扩展 import...
@@ -348,13 +352,13 @@ export const builtinExtensions = [
 `installableComponentExtensions` 合成为稳定的活动列表，再由 ExtensionProvider 在客户端激活。
 不要增加目录扫描、运行时文件发现或远程 `import()`。
 
-数组顺序就是激活顺序，也会影响相同 Slot `order` 时的先后、冲突快捷键的匹配顺序，以及 Command Palette 中同组命令的显示顺序。保持数组为模块级稳定常量。若需要让其他模块直接导入该扩展，可再从 `extensions/index.ts` 选择性导出。
+数组顺序就是激活顺序，也会影响相同 Slot `order` 时的先后、冲突快捷键的匹配顺序，以及 Command Palette 中同组命令的显示顺序。保持数组为模块级稳定常量。若需要让其他模块直接导入该扩展，可再从 owner package 的 `src/extensions/index.ts` 选择性导出。
 
 ### 第六步：验证
 
 ```bash
-pnpm exec oxfmt --check extensions/builtin/notes
-pnpm exec oxlint extensions/builtin/notes
+pnpm exec oxfmt --check packages/workbench/shell/src/extensions/builtin/notes
+pnpm exec oxlint packages/workbench/shell/src/extensions/builtin/notes
 pnpm exec tsc --noEmit
 pnpm build
 pnpm dev
@@ -418,7 +422,7 @@ Composer Slot：
 - 参数为 `{ isRunning, isEmpty, setOverlayVisible(visible) }`。贡献可见时应在 layout effect 中报告
   `true`，并在 cleanup 中报告 `false`，使宿主将底层 Composer 设为 inert。
 
-完整类型定义见 [`platform/extensions/api/slot.ts`](../platform/extensions/api/slot.ts)。
+完整类型定义见 [`packages/extension-platform/sdk/src/api/slot.ts`](../packages/extension-platform/sdk/src/api/slot.ts)。
 
 `sidebar.toolbox` 是“工具箱”分段的紧凑根视图，参数为 `{ searchQuery: string }`。贡献负责能力入口、固定项和分段内底部操作；宿主只传入顶部搜索框的原始输入。分类列表和长内容详情应通过 Main View 替换中央对话区域，不要在窄侧栏内钻取，也不要为管理页面占用右侧 Inspector。内置工具箱通过类型化的 `packageCatalog.search` RPC 使用 Pi 官方 `https://pi.dev/packages` 作为发现源；扩展组件不能自行抓取官方页面或直接执行第三方包安装。
 
@@ -461,12 +465,12 @@ context.slots.register("header.right", {
 普通扩展只能使用已有 Slot。如果确实要扩展宿主契约，需要同时修改两处：
 
 1. 在 `WORKBENCH_SLOTS` 与 `SlotPropsMap` 中增加名称和参数类型；
-2. 在 `workbench/` 对应位置挂载 `SlotHost` 并传入 Context。
+2. 在 `packages/workbench/shell/src/` 对应 Host 位置挂载 `SlotHost` 并传入 Context。
 
 示意：
 
 ```ts
-// platform/extensions/api/slot.ts
+// packages/extension-platform/sdk/src/api/slot.ts
 export interface SlotPropsMap {
   // ...
   "thread.toolbar": { threadId?: string };
@@ -474,7 +478,7 @@ export interface SlotPropsMap {
 ```
 
 ```tsx
-// workbench/chat/...
+// packages/workbench/shell/src/chat/...
 <SlotHost name="thread.toolbar" context={{ threadId }} />
 ```
 
@@ -486,8 +490,8 @@ Main View 用于工具箱、管理中心等需要中央宽屏空间的完整功�
 
 ```tsx
 import { defineMessage } from "@/i18n";
-import { useMainViewService } from "@/platform/extensions";
-import { defineExtension, type MainViewProps } from "@/platform/extensions/authoring";
+import { useMainViewService } from "@workbench/extension-host";
+import { defineExtension, type MainViewProps } from "@workbench/extension-sdk";
 
 interface ExampleMainViewParams extends Record<string, unknown> {
   section: "overview" | "catalog";
@@ -565,11 +569,12 @@ const contribution = context.workspace.register({
 - `menuItem`：可选，挂载到核心加号菜单；
 - `runtime`：可选，在 AssistantRuntimeProvider 内挂载一次，用于监听 Agent 状态并打开或刷新该能力。
 
-扩展同时拥有对应的领域 Service 和 `extensions.*` 文案。不要把功能分支、图标映射、Service 或工具名判断写回 `components/right-workspace/`。扩展停用时定义会被撤销，但核心保留已持久化的标签实例；重新启用同一 kind 后可以恢复渲染。
+扩展同时拥有对应的领域 Service 和 `extensions.*` 文案。不要把功能分支、图标映射、Service 或工具名判断写回 `packages/workbench/shell/src/right-workspace/`。扩展停用时定义会被撤销，但核心保留已持久化的标签实例；重新启用同一 kind 后可以恢复渲染。
 
-`open()`、`reveal()` 和 `update()` 中的 `title`、`statusMessage` 接受 `LocalizableText`。内置产品文案必须传入 `defineMessage(...)` 描述符，由 Host 在渲染时按当前 locale 解析；文件名、URL、用户或资源提供的标题保持 literal string。两种形态都可序列化，旧快照中的字符串会继续兼容恢复。异步失败应通过 `useExtensionErrorReporter()` 保存原始诊断，并只把稳定、面向用户的消息描述符写入 `statusMessage`，不得直接显示 `Error.message`。
+`open()`、`reveal()` 和 `update()` 中的 `title`、`statusMessage` 接受 `LocalizableText`。内置产品文案必须传入 `defineMessage(...)` 描述符，由 Host 在渲染时按当前 locale 解析；文件名、URL、用户或资源提供的标题保持 literal string。`defineMessage()` 是应用 catalog 唯一的公开描述符构造器，会同时校验包含 namespace 的组合键与参数；raw object literal 不能满足 SDK 的 opaque descriptor 类型。运行时仍使用 plain JSON `{ key }` / `{ key, values }` 形状，因此两种形态都可序列化，旧快照中的字符串会继续兼容恢复。异步失败应通过 `useExtensionErrorReporter()` 保存原始诊断，并只把稳定、面向用户的消息描述符写入 `statusMessage`，不得直接显示 `Error.message`。
 
-当前参考实现位于 `extensions/builtin/workspace-review`、`workspace-explorer`、`workspace-file`、`workspace-browser`、`workspace-artifact` 和 `terminal`。
+当前通用参考实现位于 `packages/workbench/shell/src/extensions/builtin/`；Pi/Runtime 专属参考实现位于
+`packages/agent-runtime/adapters/pi/contributions/src/extensions/`。
 
 ### 跨 Contribution 打开资源：Opener
 
@@ -602,7 +607,7 @@ await openers.open({
 ```
 
 `canOpen()` 返回零表示不支持；最高正分 handler 获得请求，同分保持注册顺序。事件处理器必须处理
-`open()` 的 Promise rejection。跨多个 feature 的能力接口应提升到 `services/` 或 runtime，不能
+`open()` 的 Promise rejection。跨多个 feature 的能力接口应提升到 owner package 的公共 service 或 runtime，不能
 放进某个 feature 的 `internal` 后再让其他 contribution 深层导入。
 
 ## 7. Panel 开发参考
@@ -627,8 +632,8 @@ context.panels.register({
 ```tsx
 "use client";
 
-import { usePanelService } from "@/platform/extensions";
-import type { RightPanelAddMenuSlotContext } from "@/platform/extensions/authoring";
+import { usePanelService } from "@workbench/extension-host";
+import type { RightPanelAddMenuSlotContext } from "@workbench/extension-sdk";
 
 export function BrowserAddMenuItem({ closeMenu }: RightPanelAddMenuSlotContext) {
   const panels = usePanelService();
@@ -661,7 +666,7 @@ context.slots.register("panel.right.add-menu", {
 ```tsx
 "use client";
 
-import type { PanelTabComponentProps } from "@/platform/extensions/authoring";
+import type { PanelTabComponentProps } from "@workbench/extension-sdk";
 
 export function BrowserTab({ isActive }: PanelTabComponentProps) {
   const { faviconUrl, pageTitle } = useBrowserStore();
@@ -830,7 +835,7 @@ Pi 的 adapter prompt 不会再显示成第二条用户消息。
 ```tsx
 "use client";
 
-import { useCommandService } from "@/platform/extensions";
+import { useCommandService } from "@workbench/extension-host";
 
 export function RunNotesCommandButton() {
   const commands = useCommandService();
@@ -908,7 +913,7 @@ Message Renderer 接管一条消息内部的 `MessagePrimitive.Parts` 或
 "use client";
 
 import { groupPartByType, MessagePrimitive } from "@assistant-ui/react";
-import { RendererHost } from "@/platform/extensions/hosts/renderer-host";
+import { RendererHost } from "@workbench/extension-host/hosts/renderer-host";
 
 export function CompactMessageRenderer() {
   return (
@@ -1074,7 +1079,7 @@ Message Renderer 全局唯一；Part Renderer 按贡献 id 唯一并按注册顺
 
 ## 11. 生命周期与错误隔离
 
-扩展由 [`ExtensionProvider`](../platform/extensions/extension-provider.tsx) 激活：
+扩展由 [`ExtensionProvider`](../packages/extension-platform/host/src/extension-provider.tsx) 激活：
 
 - `setup()` 成功后扩展进入 active 状态；
 - setup 中途失败时，已经注册的贡献会回滚；
@@ -1087,7 +1092,7 @@ React Error Boundary 不会捕获事件处理器和任意异步回调中的异�
 如果扩展自己添加浏览器监听器，应返回清理对象：
 
 ```ts
-import { createDisposable, defineExtension } from "@/platform/extensions/authoring";
+import { createDisposable, defineExtension } from "@workbench/extension-sdk";
 
 export const resizeObserverExtension = defineExtension({
   id: "workbench.resize-observer",
@@ -1173,8 +1178,8 @@ Slot、Panel、Command 定义在注册时会被复制并浅冻结。注册后不
 - 不要从远程 URL `import()` 任意 JavaScript 插件。
 - 不要在扩展中注册 Next.js 路由。
 - 不要从业务扩展 import Registry 或 Host 的内部实现。
-- 不要从一个 `extensions/builtin/<feature>` 深层 import 另一个 feature；通过公开 Registry、Service 或 Renderer 协作。
-- 不要把可卸载组件拓展放进 `extensions/builtin/`；放入 `extensions/installable/` 并加入
+- 不要从一个 `<owner-package>/src/extensions/builtin/<feature>` 深层 import 另一个 feature；通过公开 Registry、Service 或 Renderer 协作。
+- 不要把可卸载组件拓展放进 `builtin/`；放入同一 owner 的 `installable/` 并加入
   `installableComponentExtensions` 静态目录。
 - 不要在 React render 期间调用 `register()`。
 - 不要在 `setup()` 中调用 React Hook；`setup()` 不是组件。
@@ -1187,14 +1192,14 @@ Slot、Panel、Command 定义在注册时会被复制并浅冻结。注册后不
 
 ## 15. 可参考的现有扩展
 
-- 最小 Slot：[`connection-status`](../extensions/builtin/connection-status/extension.ts)
-- assistant-ui ModelContext：[`model-selector`](../extensions/builtin/model-selector/extension.ts)
-- Settings + Pi RPC：[`skills`](../extensions/builtin/skills/extension.ts)
-- Workspace Surface + Open Handler：[`workspace-file`](../extensions/builtin/workspace-file/extension.ts)
-- Workspace Surface + Command + Tool Renderer：[`terminal`](../extensions/builtin/terminal/extension.ts)
-- Sidebar/Header Slot + floating Settings：[`settings`](../extensions/builtin/settings/extension.ts)
-- Message 分组、reasoning 与 Tool/Data fallback：[`message-presentation`](../extensions/builtin/message-presentation/extension.ts)
-- Runtime 状态派生：[`token-usage`](../extensions/builtin/token-usage/extension.ts)
+- 最小 Slot：[`connection-status`](../packages/agent-runtime/adapters/pi/contributions/src/extensions/connection-status/extension.ts)
+- assistant-ui ModelContext：[`model-selector`](../packages/agent-runtime/adapters/pi/contributions/src/extensions/model-selector/extension.ts)
+- Settings + Pi RPC：[`skills`](../packages/agent-runtime/adapters/pi/contributions/src/extensions/skills/extension.ts)
+- Workspace Surface + Open Handler：[`workspace-file`](../packages/agent-runtime/adapters/pi/contributions/src/extensions/workspace-file/extension.ts)
+- Workspace Surface + Command + Tool Renderer：[`terminal`](../packages/agent-runtime/adapters/pi/contributions/src/extensions/terminal/extension.ts)
+- Sidebar/Header Slot + floating Settings：[`settings`](../packages/workbench/shell/src/extensions/builtin/settings/extension.ts)
+- Message 分组、reasoning 与 Tool/Data fallback：[`message-presentation`](../packages/workbench/shell/src/extensions/builtin/message-presentation/extension.ts)
+- Runtime 状态派生：[`token-usage`](../packages/agent-runtime/adapters/pi/contributions/src/extensions/token-usage/extension.ts)
 
 如果新需求无法自然归入 Slot、Panel、Command、Renderer 或 Settings，先判断它是不是：
 

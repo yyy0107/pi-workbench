@@ -1,0 +1,84 @@
+{
+  "name": "@workbench/host-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./runtime-transport-auth": {
+      "types": "./src/runtime-transport-auth.ts",
+      "import": "./src/runtime-transport-auth.ts",
+      "default": "./src/runtime-transport-auth.ts"
+    },
+    "./workbench-http-server": {
+      "types": "./src/workbench-http-server.ts",
+      "import": "./src/workbench-http-server.ts",
+      "default": "./src/workbench-http-server.ts"
+    },
+    "./fetch-request-handler": {
+      "types": "./src/fetch-request-handler.ts",
+      "import": "./src/fetch-request-handler.ts",
+      "default": "./src/fetch-request-handler.ts"
+    },
+    "./api-only-runtime-host": {
+      "types": "./src/api-only-runtime-host.ts",
+      "import": "./src/api-only-runtime-host.ts",
+      "default": "./src/api-only-runtime-host.ts"
+    },
+    "./runtime-host-control-session": {
+      "types": "./src/runtime-host-control-session.ts",
+      "import": "./src/runtime-host-control-session.ts",
+      "default": "./src/runtime-host-control-session.ts"
+    },
+    "./web-host-control-session": {
+      "types": "./src/web-host-control-session.ts",
+      "import": "./src/web-host-control-session.ts",
+      "default": "./src/web-host-control-session.ts"
+    },
+    "./web-artifact": {
+      "types": "./src/web-artifact.ts",
+      "import": "./src/web-artifact.ts",
+      "default": "./src/web-artifact.ts"
+    },
+    "./runtime-artifact": {
+      "types": "./src/runtime-artifact.ts",
+      "import": "./src/runtime-artifact.ts",
+      "default": "./src/runtime-artifact.ts"
+    },
+    "./runtime-sidecar-proxy": {
+      "types": "./src/runtime-sidecar-proxy.ts",
+      "import": "./src/runtime-sidecar-proxy.ts",
+      "default": "./src/runtime-sidecar-proxy.ts"
+    },
+    "./runtime-sidecar-child": {
+      "types": "./src/runtime-sidecar-child.ts",
+      "import": "./src/runtime-sidecar-child.ts",
+      "default": "./src/runtime-sidecar-child.ts"
+    },
+    "./windows-process-census": {
+      "types": "./src/windows-process-census.d.ts",
+      "require": "./src/windows-process-census.cjs",
+      "default": "./src/windows-process-census.cjs"
+    },
+    "./host-probe": {
+      "types": "./src/host-probe.d.cts",
+      "require": "./src/host-probe.cjs",
+      "default": "./src/host-probe.cjs"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@workbench/host-contracts": "workspace:*",
+    "@workbench/server-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/ws": "^8.18.1",
+    "@workbench/host-client": "workspace:*",
+    "typescript": "^7.0.2",
+    "ws": "^8.21.3"
+  }
+}

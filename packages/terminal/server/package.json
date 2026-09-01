@@ -1,0 +1,44 @@
+{
+  "name": "@workbench/terminal-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./bash-command-policy": {
+      "types": "./src/bash-command-policy.ts",
+      "import": "./src/bash-command-policy.ts",
+      "default": "./src/bash-command-policy.ts"
+    },
+    "./gateway": {
+      "types": "./src/terminal-gateway.ts",
+      "import": "./src/terminal-gateway.ts",
+      "default": "./src/terminal-gateway.ts"
+    },
+    "./shell-sessions": {
+      "types": "./src/terminal-session-manager.ts",
+      "import": "./src/terminal-session-manager.ts",
+      "default": "./src/terminal-session-manager.ts"
+    },
+    "./tool-sessions": {
+      "types": "./src/tool-terminal-session-manager.ts",
+      "import": "./src/tool-terminal-session-manager.ts",
+      "default": "./src/tool-terminal-session-manager.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@workbench/server-core": "workspace:*",
+    "@workbench/terminal-contracts": "workspace:*",
+    "node-pty": "^1.1.0",
+    "tree-sitter": "^0.25.1",
+    "tree-sitter-bash": "^0.25.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2"
+  }
+}

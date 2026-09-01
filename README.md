@@ -6,23 +6,23 @@
 
 <div align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="./public/pi-logo-on-dark.svg">
-    <source media="(prefers-color-scheme: light)" srcset="./public/pi-logo-on-light.svg">
-    <img src="./public/pi-logo-on-light.svg" alt="Pi Workbench logo" width="112">
+    <source media="(prefers-color-scheme: dark)" srcset="./apps/web/public/pi-logo-on-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="./apps/web/public/pi-logo-on-light.svg">
+    <img src="./apps/web/public/pi-logo-on-light.svg" alt="Pi Workbench logo" width="112">
   </picture>
   <h1 align="center">Pi Workbench</h1>
   <p align="center">
     <strong>A local-first AI coding workbench built around projects and persistent agent sessions.</strong>
   </p>
   <p align="center">
-    Use Pi Coding Agent, workspace files, model configuration, and real terminals from one Web or Electron interface.
+    Use Pi Coding Agent, workspace files, model configuration, and real terminals from Web, Electron, or Tauri.
   </p>
 </div>
 
 <div align="center">
   <img src="https://img.shields.io/badge/status-early_development-blue?style=for-the-badge" alt="Project status: early development">
   <img src="https://img.shields.io/badge/runtime-local--first-18181b?style=for-the-badge" alt="Local-first runtime">
-  <img src="https://img.shields.io/badge/interface-Web_%2B_Electron-47848f?style=for-the-badge&logo=electron&logoColor=white" alt="Web and Electron">
+  <img src="https://img.shields.io/badge/interface-Web_%2B_Desktop-47848f?style=for-the-badge&logo=electron&logoColor=white" alt="Web, Electron, and Tauri">
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-22c55e?style=for-the-badge" alt="MIT License"></a>
 </div>
 
@@ -38,9 +38,12 @@
 
 <hr>
 
-Pi Workbench runs an [assistant-ui](https://github.com/assistant-ui/assistant-ui) client in the
-browser or Electron renderer and connects it to a local service started by
-[`server.ts`](./server.ts). The current build selects
+Pi Workbench runs a shared [assistant-ui](https://github.com/assistant-ui/assistant-ui) product shell
+in the serverful browser app and in a static Desktop renderer consumed by Electron and Tauri. The
+root Web command keeps [`apps/web`](./apps/web/) and [`apps/runtime-node`](./apps/runtime-node/) as
+separate process owners. Each desktop container instead owns its Runtime and passes one narrow,
+authenticated connection to [`apps/desktop-renderer`](./apps/desktop-renderer/). The current build
+selects
 [`@earendil-works/pi-coding-agent`](https://github.com/earendil-works/pi) as its production Agent
 Runtime through Workbench's client and server adapter boundaries.
 
@@ -127,79 +130,86 @@ pnpm install
 pnpm dev
 ```
 
-`pnpm dev` synchronizes the required static assets and starts the local Workbench service with
-reload support. Open [http://127.0.0.1:3000](http://127.0.0.1:3000), add a project directory, then
-open Settings → Models to sign in to a provider or add an API-key/custom-provider configuration.
-Select a model in the Composer to start a conversation.
+`pnpm dev` synchronizes the required static assets, creates a production build, then starts one
+separately owned Web process and Runtime process. It verifies their identity/admission boundary and
+exposes the Web process at [http://127.0.0.1:3000](http://127.0.0.1:3000). Add a project directory, then open
+Settings → Models to sign in to a provider or add an API-key/custom-provider configuration. Select
+a model in the Composer to start a conversation.
 
-### Running without hot reload
+The default mode does not watch source files or apply Fast Refresh/HMR. After changing source code,
+stop the service and run `pnpm dev` again.
 
-`pnpm dev` enables two reload layers: `tsx watch` restarts the custom server when server-side files
-change, while Next.js development mode provides Fast Refresh/HMR for application code and styles.
+### Running with hot reload
 
-> [!TIP]
-> **Recommended:** when hot compilation is not required, use the production build and server. This
-> is the simplest and most predictable way to disable all file watching, Fast Refresh, and HMR.
-
-Build once and run the production server:
+Pass the explicit `--hot` flag when hot reload is required:
 
 ```bash
-pnpm build
-pnpm start
+pnpm dev -- --hot
 ```
 
-Production mode does not watch source files or apply Fast Refresh. After changing source code, run
-`pnpm build` again and restart `pnpm start`.
+Hot mode runs the root [`web-runtime-watch`](./scripts/web-runtime-watch.mjs) manager. It replaces the
+separately owned Web/Runtime generation when Runtime, Web-host, or package source changes, while
+Next.js development mode provides Fast Refresh/HMR for application code and styles.
 
-The repository also provides convenience production launchers:
-
-```powershell
-# Windows
-.\run_scripts\windows\web-build.cmd
-```
-
-```bash
-# Linux
-./run_scripts/linux/web-build.sh
-```
-
-The corresponding packaged Electron launchers are
-[`run_scripts/windows/electron-build.cmd`](./run_scripts/windows/electron-build.cmd) and
-[`run_scripts/linux/electron-build.sh`](./run_scripts/linux/electron-build.sh).
-
-> [!WARNING]
-> The `web-build` and `electron-build` launchers first terminate every process listening on
-> `PORT`, which defaults to `3000`. They do not verify that a listener belongs to Pi Workbench:
-> Windows force-stops it immediately; Linux sends `TERM` and then `KILL` if the port is still busy
-> after about three seconds. Stop or move any unrelated service before using these launchers, or
-> set `PORT` to a different value. The recommended direct `pnpm build` and `pnpm start` commands
-> above do **not** automatically terminate a port owner.
-
-Only when Next.js Fast Refresh is still required, disable just the outer `tsx watch` process with:
+Only when Next.js Fast Refresh is required without the outer source-generation manager, use:
 
 ```bash
 pnpm predev
-pnpm exec tsx server.ts --dev
+pnpm dev:once
 ```
 
-This still provides Next.js Fast Refresh for pages, components, and styles, but changes to
-`server.ts` or other custom-server code require a manual restart. The installed Next.js development
-server does not provide a supported switch for disabling Fast Refresh while otherwise retaining
-development mode; use the production commands above when all hot compilation must be disabled.
+This starts the same separate Web/Runtime topology once and still provides Next.js Fast Refresh for
+pages, components, and styles. Changes to [`apps/web/src/server/`](./apps/web/src/server/),
+[`apps/web/src/runtime-connected-web-main.ts`](./apps/web/src/runtime-connected-web-main.ts),
+[`apps/runtime-node/`](./apps/runtime-node/), or package server code require a manual restart. The
+root orchestrator resolves exact app roots, so it remains independent of the caller's working
+directory. The installed Next.js development server does not provide a supported switch for
+disabling Fast Refresh while otherwise retaining development mode; use the default `pnpm dev` when
+all hot compilation must be disabled.
 
 ### Electron development
 
-`electron:dev` does not run the Web `predev` hook. In a fresh checkout, synchronize the generated
-static assets once before starting Electron:
+The managed command builds the current Runtime/Desktop composition, starts the Desktop renderer's
+Next.js development server, waits for its product marker, and then starts Electron. Electron owns
+the Runtime process from `.desktop-build`; the root orchestrator owns only the renderer and Electron
+children and cleans them in reverse order:
 
 ```bash
-pnpm icons:sync
-pnpm file-viewer:sync
 pnpm electron:dev
 ```
 
-In development, Electron uses `127.0.0.1:3000`. It connects to an existing Pi Workbench service on
-that address when one is available; otherwise it starts and watches its own local service.
+The managed renderer uses `http://127.0.0.1:3000`. Startup fails if that endpoint is occupied; the
+command never kills an unrelated listener.
+
+To use a Desktop renderer server you already own, first create a current `.desktop-build`
+Runtime/Desktop composition, then pass its one canonical IPv4 loopback HTTP origin:
+
+```bash
+WORKBENCH_DESKTOP_RENDERER_ORIGIN=http://127.0.0.1:43127 \
+pnpm electron:dev:connect
+```
+
+Connect mode verifies the renderer marker, starts only Electron, and still lets Electron own
+Runtime. `localhost`, remote hosts, paths, query strings, fragments, and the obsolete two-origin
+environment contract are rejected.
+
+### Tauri development
+
+Tauri consumes the same built static Desktop renderer and Runtime artifact; it does not use a
+remote production URL or the browser Web host. Build those inputs before starting the app:
+
+```bash
+pnpm --filter @workbench/runtime-node build
+pnpm --filter @workbench/desktop-renderer build
+pnpm --filter @workbench/desktop-tauri dev
+```
+
+This path restages the admitted renderer and target sidecar before launching `tauri dev`; it is a
+static-renderer workflow, not Next.js HMR. Rust/Cargo and the platform's Tauri system dependencies
+are additionally required. Packaged Electron and Tauri load only admitted local assets under a
+strict CSP; their bridge exposes only Runtime bootstrap and lifecycle restart to the trusted main
+frame/window. Do not work around a startup failure with a remote renderer URL or relaxed
+script/style policy.
 
 ### Production builds
 
@@ -210,52 +220,123 @@ pnpm build
 pnpm start
 ```
 
+The root build is orchestration only: it builds the Node Runtime used by Web/Tauri and the Web app,
+then delegates the Desktop renderer, installed-Electron ABI Runtime, and exact composition to the
+Electron app. For a focused build, use the owning workspace command:
+
+```bash
+pnpm --filter @workbench/runtime-node build
+pnpm --filter @workbench/web build
+pnpm --filter @workbench/desktop-renderer build
+pnpm --filter @workbench/desktop-electron build # build renderer + Electron-ABI Runtime + composition
+```
+
+Web, Runtime, and Desktop renderer artifacts are published under `.desktop-build/web/`,
+`.desktop-build/runtime-node/`, and `.desktop-build/desktop-renderer/`. Electron writes the exact
+renderer/Runtime composition to `.desktop-build/desktop-artifacts.json`. `pnpm start` runs the permanent root
+[`web-runtime-orchestrator`](./scripts/web-runtime-orchestrator.mjs) in production mode, keeping Web
+and Runtime as separate sibling owners.
+
 Build the desktop application:
 
 ```bash
-pnpm electron:pack # unpacked application for the current platform
-pnpm electron:dist # installer or distributable for the current platform
+pnpm electron:pack # native unpacked application; includes the required Linux execution smoke
+pnpm electron:dist # native installer/distributable; includes the required Linux execution smoke
 ```
 
 Both Electron commands run the production build automatically. Desktop output is written to
 `dist-electron/`. Configured targets are macOS DMG/ZIP, Windows NSIS, and Linux AppImage; build on
-the target operating system for the corresponding artifact.
+the target operating system for the corresponding artifact. The packaged Window/RPC/WebSocket/PTY/
+Runtime-restart/renderer-reload/titlebar/cleanup execution contract is currently implemented only
+for a native Linux target. On macOS, Windows, or a cross-target build, the canonical commands fail
+rather than reporting an unexecuted application as successful. Use
+`pnpm electron:pack:artifact` or
+`pnpm electron:dist:artifact` only when you explicitly need manifest/layout/budget artifact
+validation; they return a structured `execution: "not-run"` result and do not claim the native
+execution contract passed.
+
+Electron artifact composition and packaging belong to
+[`apps/desktop-electron`](./apps/desktop-electron/). Its
+[`build-desktop-artifacts.cjs`](./apps/desktop-electron/scripts/build-desktop-artifacts.cjs) builds
+the installed-Electron Runtime target before publishing the composition. Staged packages carry the
+non-executable
+[`desktop-artifact-support.cjs`](./apps/desktop-electron/scripts/desktop-artifact-support.cjs)
+contract used to validate and load those artifacts. Packaging stages the app under
+`.electron-build/app/`, including the composed artifacts at
+`.electron-build/app/desktop-runtime/`. After a current composition already exists, the app-owned
+entry points are `pnpm --filter @workbench/desktop-electron run pack` and
+`pnpm --filter @workbench/desktop-electron run dist`; the root `electron:*` commands remain the
+canonical clean flow because they build first.
+
+Build Tauri from the same current artifacts with:
+
+```bash
+pnpm build
+pnpm --filter @workbench/desktop-tauri tauri:build
+# Linux Debian package only:
+pnpm --filter @workbench/desktop-tauri tauri:build:deb
+```
+
+Tauri output is owned by `apps/desktop-tauri/src-tauri/target`. The repository does not currently
+configure desktop signing credentials, notarization, or an updater endpoint, so these commands do
+not constitute a signed auto-updating release. Add those only in target-OS release jobs with managed
+secrets; Windows and macOS package/native smoke rows remain unverified.
+
+If desktop startup reports a missing or stale manifest, rerun `pnpm build`. If managed Electron
+development cannot bind `127.0.0.1:3000`, stop that listener or run the Desktop renderer yourself
+and use the canonical connect command above. Tauri build failures before Rust compilation usually
+mean the renderer/Runtime artifacts were not built or the target's Tauri system dependencies are
+missing. A missing bootstrap, CSP rejection, or sidecar target mismatch indicates mixed or stale
+artifacts: rebuild and restage them together instead of widening the bridge, CSP, or Origin list.
 
 ## Architecture
 
-The browser and Electron renderer use the same Next.js and assistant-ui application. A single local
-custom server owns Next.js HTTP/RPC dispatch, the Pi event WebSocket, and the Terminal WebSocket.
-Electron starts that same service as a child process instead of maintaining a second backend.
+The browser and desktop apps reuse the same Workbench Shell and Pi client contributions through two
+application roots. Browser commands run the serverful Web host beside API-only Runtime. Electron
+and Tauri load the same admitted static Desktop renderer artifact; each container owns one
+target-matched Runtime process and exposes only narrow bootstrap and lifecycle-restart capabilities
+to its trusted main window.
 
 ```mermaid
 flowchart LR
-  client["Browser or Electron renderer<br/>Next.js + assistant-ui"]
-  server["server.ts<br/>single local HTTP/WebSocket server"]
-  next["Next.js routes and RPC"]
+  owner["Root Web owner"]
+  browser["Browser"]
+  web["Web application host<br/>apps/web"]
+  desktop["Static Desktop renderer<br/>apps/desktop-renderer"]
+  electron["Electron container"]
+  tauri["Tauri container"]
+  runtime["API-only Runtime app<br/>apps/runtime-node"]
   pi["Pi Agent Runtime<br/>sessions, models, tools, resources"]
   terminal["Terminal Gateway<br/>node-pty"]
   local["Local workspaces and ~/.pi state"]
   providers["Configured model providers"]
 
-  client <-->|"HTTP / RPC / WebSocket"| server
-  server --> next
-  server --> pi
-  server --> terminal
+  owner --> web
+  owner --> runtime
+  browser <-->|"same-origin HTTP / RPC / WebSocket"| web
+  electron --> desktop
+  tauri --> desktop
+  electron -.->|"desktop Runtime bootstrap / restart"| runtime
+  tauri -.->|"desktop Runtime bootstrap / restart"| runtime
+  web <-->|"authenticated private proxy"| runtime
+  desktop <-->|"authenticated HTTP / WebSocket"| runtime
+  runtime --> pi
+  runtime --> terminal
   pi <--> local
   terminal <--> local
   pi --> providers
 ```
 
-The server listens on `127.0.0.1:3000` by default. `PORT` changes the port, and `WORKBENCH_HOST`
-changes the bind address. Exposing the service beyond loopback requires an external authentication
-and TLS boundary.
+The public Web host binds the canonical loopback address `127.0.0.1`; `PORT` changes its default
+port of `3000`. The permanent host does not accept a remote bind address.
 
 ### Extension model
 
 Pi Workbench currently has three extension categories:
 
-- **Built-in Workbench extensions** are statically compiled UI contribution bundles in
-  [`extensions/builtin/`](./extensions/builtin/) and are always active.
+- **Built-in Workbench extensions** are statically compiled UI contribution bundles owned by
+  [`@workbench/shell`](./packages/workbench/shell/src/extensions/builtin/) and the installed
+  [Pi contribution leaf](./packages/agent-runtime/adapters/pi/contributions/src/extensions/).
 - **Installable Component Extensions** are trusted UI bundles shipped in the application catalog.
   They can be installed or removed at runtime, but their code is still included at build time. The
   current catalog contains Generative UI.
@@ -264,32 +345,40 @@ Pi Workbench currently has three extension categories:
 
 Workbench does not download or execute arbitrary remote UI JavaScript and does not have a separate
 Extension Host or stable third-party UI plugin ABI. UI extension code should import the public
-authoring API from [`@/platform/extensions`](./platform/extensions/index.ts).
+authoring API from [`@workbench/extension-sdk`](./packages/extension-platform/sdk/src/index.ts).
+Mounted extension components import runtime hooks from
+[`@workbench/extension-host`](./packages/extension-platform/host/src/index.ts) and use only the
+explicitly exported Host leaves.
 
 ## Security boundary
 
-The Electron renderer uses browser isolation, but Pi tools and terminal processes execute through
-the local backend with the user's real permissions. Import only projects you trust and review tool
-requests before approving them.
+The Electron and Tauri renderers are isolated from native authority, but Pi tools and terminal
+processes execute through the local backend with the user's real permissions. Import only projects
+you trust and review tool requests before approving them.
 
 `PI_WORKBENCH_TRUSTED_HOSTS` only adds allowed request authorities; it does not provide
 authentication or TLS. Project resource trust is stored per directory through Pi. Set
 `PI_WORKBENCH_TRUST_PROJECT=1` only when the current process should trust every imported project.
 
-See the [Pi Runtime trust boundary](./runtime/pi/README.md) and
-[Terminal Runtime](./runtime/terminal/README.md) for implementation details.
+See the [Pi Server adapter](./packages/agent-runtime/adapters/pi/server/README.md) and
+[Terminal Runtime](./packages/terminal/README.md) for implementation details.
 
 ## Repository map
 
-| Directory                                                                                  | Responsibility                                                        |
-| ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
-| [`app/`](./app/), [`workbench/`](./workbench/), [`components/`](./components/)             | Next.js routes, application shell, chat, workspace UI, and shared UI  |
-| [`platform/extensions/`](./platform/extensions/)                                           | Workbench extension contracts, registries, hosts, and lifecycle       |
-| [`extensions/`](./extensions/)                                                             | Built-in and app-bundled installable Workbench extensions             |
-| [`runtime/assistant-ui/`](./runtime/assistant-ui/), [`runtime/server/`](./runtime/server/) | Backend-neutral browser and server Agent Runtime adapter boundaries   |
-| [`runtime/pi/`](./runtime/pi/)                                                             | Concrete Pi client/server adapters, sessions, models, tools, and RPC  |
-| [`runtime/terminal/`](./runtime/terminal/)                                                 | PTY sessions, tool terminals, and Terminal WebSocket gateway          |
-| [`electron/`](./electron/)                                                                 | Desktop lifecycle, local service process, packaging, and distribution |
+| Directory                                                                                                                                                      | Responsibility                                                                           |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| [`scripts/`](./scripts/)                                                                                                                                       | Root Web/Runtime and Electron development orchestration plus repository gates            |
+| [`apps/web/`](./apps/web/)                                                                                                                                     | Next.js routes, Runtime-connected/Web-only hosts, Web artifact build, config, and assets |
+| [`apps/runtime-node/`](./apps/runtime-node/)                                                                                                                   | API-only Runtime application composition, lifecycle, and artifact build                  |
+| [`apps/desktop-renderer/`](./apps/desktop-renderer/)                                                                                                           | Static-export Desktop application, navigation, bootstrap, assets, and artifact manifest  |
+| [`apps/desktop-electron/`](./apps/desktop-electron/)                                                                                                           | Electron lifecycle, artifact composition/staging, packaging, budget, and distribution    |
+| [`apps/desktop-tauri/`](./apps/desktop-tauri/)                                                                                                                 | Tauri lifecycle, Runtime sidecar, renderer staging, capabilities, and packaging          |
+| [`packages/workbench/shell/`](./packages/workbench/shell/)                                                                                                     | Reusable application shell, chat, workspace UI, shared UI, and core extensions           |
+| [`packages/extension-platform/sdk/`](./packages/extension-platform/sdk/)                                                                                       | Host-free extension contracts, authoring helpers, registries, and lifecycle              |
+| [`packages/extension-platform/host/`](./packages/extension-platform/host/)                                                                                     | React Host hooks, contribution hosts, and application-injected services                  |
+| [`packages/agent-runtime/adapters/pi/`](./packages/agent-runtime/adapters/pi/)                                                                                 | Pi protocol, shared types, client/server adapters, and UI contributions                  |
+| [`packages/agent-runtime/core/client/`](./packages/agent-runtime/core/client/), [`packages/agent-runtime/core/server/`](./packages/agent-runtime/core/server/) | Backend-neutral browser and server Agent Runtime adapter boundaries                      |
+| [`packages/terminal/`](./packages/terminal/)                                                                                                                   | Terminal contracts, client helpers, PTY sessions, Pi tool adapter, and gateway           |
 
 ## Development
 
@@ -312,10 +401,10 @@ for adding another language are documented in the
 - [Internationalization](./docs/i18n.md)
 - [Workbench extension platform](./docs/extensions.md)
 - [RightWorkspace architecture](./docs/right-workspace.md)
-- [Browser Agent Runtime adapter](./runtime/assistant-ui/README.md)
-- [Server Agent Runtime ports](./runtime/server/README.md)
-- [Pi Runtime architecture and protocols](./runtime/pi/README.md)
-- [Terminal Runtime](./runtime/terminal/README.md)
+- [Browser Agent Runtime adapter](./packages/agent-runtime/core/client/README.md)
+- [Server Agent Runtime ports](./packages/agent-runtime/core/server/README.md)
+- [Pi Server adapter](./packages/agent-runtime/adapters/pi/server/README.md)
+- [Terminal Runtime](./packages/terminal/README.md)
 
 Detailed subsystem documentation is currently mostly written in Simplified Chinese.
 

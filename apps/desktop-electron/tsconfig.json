@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "lib": ["es2023"],
+    "types": ["node"]
+  },
+  "include": ["src/**/*.cjs", "scripts/**/*.cjs", "test/**/*.cjs"]
+}

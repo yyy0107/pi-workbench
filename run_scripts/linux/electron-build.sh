@@ -2,5 +2,6 @@
 
 set -Eeuo pipefail
 
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-exec "${SCRIPT_DIR}/_run.sh" electron-build
+cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.."
+pnpm install --frozen-lockfile --prod=false
+pnpm electron:dist

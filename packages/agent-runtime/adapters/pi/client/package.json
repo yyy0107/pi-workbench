@@ -1,0 +1,106 @@
+{
+  "name": "@workbench/agent-runtime-pi-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./installation": {
+      "types": "./src/public/installation.tsx",
+      "import": "./src/public/installation.tsx",
+      "default": "./src/public/installation.tsx"
+    },
+    "./errors": {
+      "types": "./src/public/errors.ts",
+      "import": "./src/public/errors.ts",
+      "default": "./src/public/errors.ts"
+    },
+    "./host": {
+      "types": "./src/public/host.ts",
+      "import": "./src/public/host.ts",
+      "default": "./src/public/host.ts"
+    },
+    "./resources": {
+      "types": "./src/public/resources.ts",
+      "import": "./src/public/resources.ts",
+      "default": "./src/public/resources.ts"
+    },
+    "./configuration": {
+      "types": "./src/public/configuration.ts",
+      "import": "./src/public/configuration.ts",
+      "default": "./src/public/configuration.ts"
+    },
+    "./workbench-settings": {
+      "types": "./src/public/workbench-settings.ts",
+      "import": "./src/public/workbench-settings.ts",
+      "default": "./src/public/workbench-settings.ts"
+    },
+    "./workspace": {
+      "types": "./src/public/workspace.ts",
+      "import": "./src/public/workspace.ts",
+      "default": "./src/public/workspace.ts"
+    },
+    "./automation": {
+      "types": "./src/public/automation.ts",
+      "import": "./src/public/automation.ts",
+      "default": "./src/public/automation.ts"
+    },
+    "./external-import": {
+      "types": "./src/public/external-import.ts",
+      "import": "./src/public/external-import.ts",
+      "default": "./src/public/external-import.ts"
+    },
+    "./context-trace": {
+      "types": "./src/public/context-trace.ts",
+      "import": "./src/public/context-trace.ts",
+      "default": "./src/public/context-trace.ts"
+    },
+    "./interactions": {
+      "types": "./src/public/interactions.ts",
+      "import": "./src/public/interactions.ts",
+      "default": "./src/public/interactions.ts"
+    },
+    "./side-chat": {
+      "types": "./src/public/side-chat.tsx",
+      "import": "./src/public/side-chat.tsx",
+      "default": "./src/public/side-chat.tsx"
+    },
+    "./message-metadata": {
+      "types": "./src/public/message-metadata.ts",
+      "import": "./src/public/message-metadata.ts",
+      "default": "./src/public/message-metadata.ts"
+    },
+    "./threads": {
+      "types": "./src/public/threads.ts",
+      "import": "./src/public/threads.ts",
+      "default": "./src/public/threads.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@assistant-ui/react": "0.15.16",
+    "@workbench/agent-runtime-client": "workspace:*",
+    "@workbench/agent-runtime-contracts": "workspace:*",
+    "@workbench/agent-runtime-pi-protocol": "workspace:*",
+    "@workbench/agent-runtime-pi-shared": "workspace:*",
+    "@workbench/attachment-understanding-contracts": "workspace:*",
+    "@workbench/automation-contracts": "workspace:*",
+    "@workbench/contracts": "workspace:*",
+    "@workbench/host-client": "workspace:*",
+    "assistant-stream": "0.3.37"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@workbench/agent-runtime-testkit": "workspace:*",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "typescript": "^7.0.2"
+  },
+  "peerDependencies": {
+    "react": "^19.2.8"
+  }
+}

@@ -1,1 +1,0 @@
-export { skillsExtension } from "./extension";

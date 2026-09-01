@@ -1,0 +1,70 @@
+"use client";
+
+import { MessageSquareTextIcon, XIcon } from "lucide-react";
+import { useState } from "react";
+
+import { Button } from "../../../ui/button";
+import { useI18n } from "../../../i18n";
+
+import {
+  useActiveWorkspaceSurface,
+  useWorkspaceFeedbackState,
+  useWorkspaceFeedbackStore,
+} from "../../../right-workspace-react";
+
+export function WorkspaceFeedbackLayer() {
+  const { t } = useI18n();
+  const activeSurfaceId = useActiveWorkspaceSurface()?.id;
+  const feedbackStore = useWorkspaceFeedbackStore();
+  const feedback = useWorkspaceFeedbackState((snapshot) =>
+    snapshot.feedback.filter((item) => item.surfaceId === activeSurfaceId),
+  );
+  const [expanded, setExpanded] = useState(false);
+
+  if (feedback.length === 0) return null;
+
+  return (
+    <aside
+      aria-label={t("rightWorkspace.feedback.title")}
+      className="bg-background/95 absolute inset-x-2 bottom-2 z-30 overflow-hidden rounded-xl border shadow-lg backdrop-blur"
+    >
+      <button
+        type="button"
+        aria-expanded={expanded}
+        className="hover:bg-muted/45 flex h-9 w-full items-center gap-2 px-3 text-left text-xs"
+        onClick={() => setExpanded((value) => !value)}
+      >
+        <MessageSquareTextIcon className="size-3.5" />
+        <span className="font-medium">
+          {t("rightWorkspace.feedback.pending", { count: feedback.length })}
+        </span>
+        <span className="text-muted-foreground ms-auto truncate">
+          {t("rightWorkspace.feedback.composerHint")}
+        </span>
+      </button>
+      {expanded ? (
+        <div className="max-h-48 space-y-1 overflow-y-auto border-t p-2">
+          {feedback.map((item) => (
+            <div
+              key={item.id}
+              className="bg-muted/35 flex items-start gap-2 rounded-lg p-2 text-xs"
+            >
+              <p className="min-w-0 flex-1 whitespace-pre-wrap">{item.text}</p>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label={t("rightWorkspace.feedback.remove")}
+                title={t("rightWorkspace.feedback.remove")}
+                className="text-muted-foreground shrink-0 hover:text-foreground"
+                onClick={() => feedbackStore.remove(item.id)}
+              >
+                <XIcon />
+              </Button>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </aside>
+  );
+}

@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+**/node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -14,13 +15,22 @@
 /coverage
 
 # next.js
-/.next/
-/out/
-/public/vendor/material-icon-theme/
-/public/file-viewer/
+/apps/web/.next/
+/apps/web/public/vendor/material-icon-theme/
+/apps/web/public/file-viewer/
+/apps/desktop-renderer/.next/
+/apps/desktop-renderer/out/
+/apps/desktop-renderer/public/vendor/material-icon-theme/
+/apps/desktop-renderer/public/file-viewer/
 
 # production
 /build
+/apps/desktop-tauri/dist/
+/apps/desktop-tauri/src-tauri/.sidecar-envelope-*/
+/apps/desktop-tauri/src-tauri/binaries/
+/apps/desktop-tauri/src-tauri/gen/
+/apps/desktop-tauri/src-tauri/resources/runtime/
+/apps/desktop-tauri/src-tauri/target/
 /.desktop-build
 /.electron-build
 /dist-electron

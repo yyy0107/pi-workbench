@@ -1,0 +1,41 @@
+"use client";
+
+import { ThreadListPrimitive } from "@assistant-ui/react";
+import { PlusIcon } from "lucide-react";
+
+import { Button } from "@workbench/shell/ui";
+import { usePiI18n } from "../../i18n";
+import {
+  useWorkspaceCapabilities,
+  useWorkspaceSelection,
+} from "@workbench/agent-runtime-client/workspaces";
+import { preferredNewThreadWorkspaceId } from "@workbench/shell/new-thread-policy";
+
+export function NewThreadWorkspaceItem() {
+  const { t } = usePiI18n();
+  const { activeWorkspaceId, workspaces } = useWorkspaceSelection();
+  const targetWorkspaceId = preferredNewThreadWorkspaceId(
+    activeWorkspaceId,
+    workspaces.map((workspace) => workspace.id),
+  );
+  const { beginNewThread, destroyNewThread } = useWorkspaceCapabilities();
+
+  return (
+    <ThreadListPrimitive.New
+      asChild
+      onClick={() => {
+        if (targetWorkspaceId) beginNewThread(targetWorkspaceId);
+        else destroyNewThread();
+      }}
+    >
+      <Button
+        type="button"
+        variant="ghost"
+        className="hover:bg-sidebar-accent data-active:bg-sidebar-accent h-9 w-full justify-start gap-2 rounded-lg px-3 text-sm font-medium"
+      >
+        <PlusIcon className="size-4" />
+        {t("extensions.workspaceDirectory.newThread")}
+      </Button>
+    </ThreadListPrimitive.New>
+  );
+}

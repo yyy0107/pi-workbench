@@ -1,3 +1,14 @@
+packages:
+  - "apps/*"
+  - "packages/contracts/*"
+  - "packages/server/*"
+  - "packages/agent-runtime/core/*"
+  - "packages/agent-runtime/adapters/pi/*"
+  - "packages/extension-platform/*"
+  - "packages/host/*"
+  - "packages/terminal/*"
+  - "packages/workbench/*"
+
 allowBuilds:
   "@google/genai": false
   electron: true
