@@ -189,7 +189,7 @@ Pi agent 目录。
 Workbench 自有的持久配置统一写入 Pi agent 目录下的 `workbench-settings.json`。文档使用
 `version`、全局 `revision`、`preferences`、`workspaces` 和 `imageUnderstanding` 顶层字段；三类
 写入共享进程间锁并使用 mode-0600 原子替换。`preferences` 包含外观与背景图、locale、模型选择器
-记忆、Toolbox 置顶、RightWorkspace 布局和侧栏开关。浏览器中的旧 localStorage、Cookie 与
+记忆、Toolbox 置顶、RightWorkspace 布局、侧栏开关、工作区展开项和桌面端当前会话。浏览器中的旧 localStorage、Cookie 与
 IndexedDB 值在对应功能首次 hydrate 时导入，成功后删除。滚动位置和未保存文件草稿仍是
 sessionStorage 临时状态，不属于跨窗口的用户配置。
 `workbenchSettings.openDocument` 会在文档不存在时写入最小的 `version`/`revision` 结构，再交给本地

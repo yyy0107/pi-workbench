@@ -108,6 +108,8 @@ test("resolves a Workbench Settings service per call and sanitizes preference pa
     rpcRequest("workbenchSettings.update", {
       patch: {
         locale: "zh-CN",
+        sidebarExpandedWorkspaceIds: ["workspace-1", "workspace-2"],
+        sidebarSelectedThreadId: "session-1",
         sidebarThreadSortMode: "manual",
         toolboxPins: ["skills", "packages"],
         toolboxScope: { kind: "project", workspaceId: "workspace-1", ignored: true },
@@ -127,6 +129,8 @@ test("resolves a Workbench Settings service per call and sanitizes preference pa
     {
       patch: {
         locale: "zh-CN",
+        sidebarExpandedWorkspaceIds: ["workspace-1", "workspace-2"],
+        sidebarSelectedThreadId: "session-1",
         sidebarThreadSortMode: "manual",
         toolboxPins: ["skills", "packages"],
         toolboxScope: { kind: "project", workspaceId: "workspace-1" },

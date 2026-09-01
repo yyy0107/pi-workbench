@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   conversationIdFromDesktopUrl,
+  desktopConversationIdForLaunch,
   desktopUrlForConversation,
 } from "../src/navigation/desktop-routes";
 
@@ -19,6 +20,20 @@ test("projects conversation identity into one static document URL", () => {
   assert.equal(
     desktopUrlForConversation(conversationUrl, undefined),
     "workbench://app/index.html?retained=yes",
+  );
+});
+
+test("restores the selected conversation unless the launch URL is explicit", () => {
+  assert.equal(
+    desktopConversationIdForLaunch("workbench://app/index.html", "persisted-thread"),
+    "persisted-thread",
+  );
+  assert.equal(
+    desktopConversationIdForLaunch(
+      "workbench://app/index.html?conversation=url-thread",
+      "persisted-thread",
+    ),
+    "url-thread",
   );
 });
 

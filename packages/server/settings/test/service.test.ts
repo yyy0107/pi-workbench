@@ -102,6 +102,8 @@ test("persists sidebar conversation sorting preferences across service instances
   await first.update({
     patch: {
       sidebarThreadSortMode: "manual",
+      sidebarExpandedWorkspaceIds: ["workspace-1", "workspace-2"],
+      sidebarSelectedThreadId: "session-c",
       sidebarThreadOrderByScope: {
         pinned: ["session-b", "session-a"],
         "workspace:workspace-1": ["session-c", "session-d"],
@@ -113,6 +115,8 @@ test("persists sidebar conversation sorting preferences across service instances
   const second = new WorkbenchSettingsService({ stateFile });
   assert.deepEqual((await second.describe()).preferences, {
     sidebarThreadSortMode: "manual",
+    sidebarExpandedWorkspaceIds: ["workspace-1", "workspace-2"],
+    sidebarSelectedThreadId: "session-c",
     sidebarThreadOrderByScope: {
       pinned: ["session-b", "session-a"],
       "workspace:workspace-1": ["session-c", "session-d"],

@@ -9,6 +9,13 @@ export function conversationIdFromDesktopUrl(href: string): string | undefined {
   }
 }
 
+export function desktopConversationIdForLaunch(
+  href: string,
+  persistedConversationId: string | undefined,
+): string | undefined {
+  return conversationIdFromDesktopUrl(href) ?? persistedConversationId;
+}
+
 export function desktopUrlForConversation(
   href: string,
   conversationId: string | undefined,

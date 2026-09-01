@@ -54,6 +54,10 @@ const workbenchSettingsUpdatePayload = rpcObject({
         }),
       ),
     ),
+    sidebarExpandedWorkspaceIds: rpcOptional(
+      rpcNullable(rpcArray(rpcString({ minLength: 1, maxLength: 512 }), { maxLength: 1_000 })),
+    ),
+    sidebarSelectedThreadId: rpcOptional(rpcNullable(rpcString({ minLength: 1, maxLength: 512 }))),
     sidebarThreadOrderByScope: rpcOptional(
       rpcNullable(
         rpcRecord(rpcArray(rpcString({ minLength: 1, maxLength: 512 }), { maxLength: 10_000 })),

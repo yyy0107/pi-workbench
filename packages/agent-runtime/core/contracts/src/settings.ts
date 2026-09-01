@@ -33,6 +33,8 @@ export interface WorkbenchSettingsPreferences {
   backgroundImage?: WorkbenchBackgroundImagePreference;
   locale?: Locale;
   modelSelector?: WorkbenchModelSelectorPreference;
+  sidebarExpandedWorkspaceIds?: string[];
+  sidebarSelectedThreadId?: string;
   sidebarThreadOrderByScope?: Record<string, string[]>;
   sidebarThreadSortMode?: WorkbenchSidebarThreadSortMode;
   toolboxPins?: string[];

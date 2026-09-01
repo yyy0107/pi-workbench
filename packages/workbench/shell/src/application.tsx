@@ -463,8 +463,9 @@ export function WorkbenchAgentRuntimeApplicationProvider({
     [feedback],
   );
   const reportExtensionError = useExtensionErrorReporter();
-  const [workspaceDirectories] = useState<WorkspaceDirectoryStoreInstallation>(
-    createWorkspaceDirectoryStoreInstallation,
+  const settings = useWorkbenchSettingsService();
+  const [workspaceDirectories] = useState<WorkspaceDirectoryStoreInstallation>(() =>
+    createWorkspaceDirectoryStoreInstallation(settings),
   );
   const installation = useMemo(
     () =>
@@ -475,6 +476,14 @@ export function WorkbenchAgentRuntimeApplicationProvider({
       }),
     [createInstallation, promptFeedback, runtimeConnection, workspaceDirectories],
   );
+
+  useEffect(() => {
+    void workspaceDirectories
+      .hydrate()
+      .catch((error) =>
+        console.error("[workbench] failed to restore sidebar workspace expansion", error),
+      );
+  }, [workspaceDirectories]);
 
   return (
     <WorkbenchAgentRuntimeInstallationHost installation={installation}>

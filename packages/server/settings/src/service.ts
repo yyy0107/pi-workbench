@@ -145,6 +145,19 @@ function parsePreferences(value: unknown): WorkbenchSettingsPreferences {
           }),
     };
   }
+  if (value.sidebarExpandedWorkspaceIds !== undefined) {
+    preferences.sidebarExpandedWorkspaceIds = stringList(
+      value.sidebarExpandedWorkspaceIds,
+      "sidebarExpandedWorkspaceIds",
+    );
+  }
+  if (value.sidebarSelectedThreadId !== undefined) {
+    preferences.sidebarSelectedThreadId = shortString(
+      value.sidebarSelectedThreadId,
+      "sidebarSelectedThreadId",
+      512,
+    );
+  }
   if (value.sidebarThreadOrderByScope !== undefined) {
     preferences.sidebarThreadOrderByScope = sidebarThreadOrderByScope(
       value.sidebarThreadOrderByScope,
