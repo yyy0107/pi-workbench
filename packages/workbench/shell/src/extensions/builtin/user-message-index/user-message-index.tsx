@@ -9,7 +9,7 @@ import { useI18n } from "../../../i18n";
 import { useReducedMotion } from "../../../hooks/use-reduced-motion";
 import { cn } from "../../../utils";
 
-import { shouldShowUserMessageIndex } from "./user-message-index-layout";
+import { isMessageInViewport, shouldShowUserMessageIndex } from "./user-message-index-layout";
 
 interface UserMessageIndexProps {
   threadId?: string;
@@ -91,6 +91,7 @@ export function UserMessageIndex({ threadId }: UserMessageIndexProps) {
   const messages = useAuiState((state) => state.thread.messages);
   const navRef = useRef<HTMLElement>(null);
   const [activeMessageId, setActiveMessageId] = useState<string>();
+  const [visibleMessageIds, setVisibleMessageIds] = useState<readonly string[]>([]);
   const [hoveredMarkerIndex, setHoveredMarkerIndex] = useState<number>();
   const [focusedMarkerIndex, setFocusedMarkerIndex] = useState<number>();
   const [indexVisible, setIndexVisible] = useState(false);
@@ -168,24 +169,37 @@ export function UserMessageIndex({ threadId }: UserMessageIndexProps) {
 
     if (!threadRoot || !viewport || userMessages.length === 0) {
       setActiveMessageId(undefined);
+      setVisibleMessageIds((current) => (current.length ? [] : current));
       return;
     }
 
     let frame: number | undefined;
     const updateActiveMessage = () => {
       frame = undefined;
-      const activationLine =
-        viewport.getBoundingClientRect().top + Math.min(96, viewport.clientHeight / 4);
+      const viewportBounds = viewport.getBoundingClientRect();
+      const activationLine = viewportBounds.top + Math.min(96, viewport.clientHeight / 4);
       let nextActiveId = userMessages[0]?.id;
+      const nextVisibleMessageIds: string[] = [];
 
       for (const message of userMessages) {
         const element = getMessageElement(threadRoot, message.id);
-        if (element && element.getBoundingClientRect().top <= activationLine) {
+        if (!element) continue;
+        const messageBounds = element.getBoundingClientRect();
+        if (isMessageInViewport(messageBounds, viewportBounds)) {
+          nextVisibleMessageIds.push(message.id);
+        }
+        if (messageBounds.top <= activationLine) {
           nextActiveId = message.id;
         }
       }
 
       setActiveMessageId((current) => (current === nextActiveId ? current : nextActiveId));
+      setVisibleMessageIds((current) =>
+        current.length === nextVisibleMessageIds.length &&
+        current.every((id, index) => id === nextVisibleMessageIds[index])
+          ? current
+          : nextVisibleMessageIds,
+      );
     };
     const scheduleUpdate = () => {
       if (frame !== undefined) return;
@@ -241,6 +255,7 @@ export function UserMessageIndex({ threadId }: UserMessageIndexProps) {
         <ol className="flex h-full w-full flex-col overflow-y-auto py-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {userMessages.map((message, index) => {
             const isActive = activeMessageId ? activeMessageId === message.id : index === 0;
+            const isVisible = visibleMessageIds.includes(message.id);
             const label = t("extensions.userMessageIndex.jumpTo", { index: index + 1 });
 
             return (
@@ -271,7 +286,7 @@ export function UserMessageIndex({ threadId }: UserMessageIndexProps) {
                           aria-hidden="true"
                           className={cn(
                             "block h-0.5 origin-left rounded-full transition-[width,background-color] duration-100 ease-out",
-                            highlightedMarkerIndex === index || isActive
+                            highlightedMarkerIndex === index || isVisible
                               ? "bg-foreground"
                               : "bg-muted-foreground/35",
                           )}

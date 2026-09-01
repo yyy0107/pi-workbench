@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  isMessageInViewport,
   MIN_COMPOSER_INDEX_GAP,
   resolveComposerIndexGap,
   shouldShowUserMessageIndex,
@@ -47,4 +48,13 @@ test("keeps the user message index hidden after the responsive layout releases i
     }),
     false,
   );
+});
+
+test("detects user messages intersecting the scroll viewport", () => {
+  const viewport = { top: 100, bottom: 300 };
+
+  assert.equal(isMessageInViewport({ top: 50, bottom: 100 }, viewport), false);
+  assert.equal(isMessageInViewport({ top: 50, bottom: 101 }, viewport), true);
+  assert.equal(isMessageInViewport({ top: 299, bottom: 350 }, viewport), true);
+  assert.equal(isMessageInViewport({ top: 300, bottom: 350 }, viewport), false);
 });
