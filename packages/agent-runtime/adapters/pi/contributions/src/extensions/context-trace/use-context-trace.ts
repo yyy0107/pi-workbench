@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import {
+  type PiContextTraceEventClient,
   usePiContextTraceClient,
   usePiContextTraceEventClient,
 } from "@workbench/agent-runtime-pi-client/context-trace";
@@ -83,12 +84,23 @@ function isPermissionError(error: unknown): boolean {
   );
 }
 
+function useConnectionRevision(manager: PiContextTraceEventClient): number {
+  const [revision, setRevision] = useState(0);
+  useEffect(
+    () => manager.subscribeConnectionReady(() => setRevision((current) => current + 1)),
+    [manager],
+  );
+  return revision;
+}
+
 export function useContextTraceTarget(
   sessionId: string,
   refreshRevision: number,
   running: boolean,
 ): ContextTraceTargetSnapshot {
+  const manager = usePiContextTraceEventClient();
   const traceClient = usePiContextTraceClient();
+  const connectionRevision = useConnectionRevision(manager);
   const [snapshot, setSnapshot] = useState<ContextTraceTargetSnapshot>({ status: "loading" });
 
   useEffect(() => {
@@ -121,7 +133,7 @@ export function useContextTraceTarget(
     return () => {
       active = false;
     };
-  }, [refreshRevision, running, sessionId, traceClient]);
+  }, [connectionRevision, refreshRevision, running, sessionId, traceClient]);
 
   return snapshot;
 }
@@ -133,6 +145,7 @@ export function useContextTrace(
 ): ContextTraceSnapshot {
   const manager = usePiContextTraceEventClient();
   const traceClient = usePiContextTraceClient();
+  const connectionRevision = useConnectionRevision(manager);
   const [snapshot, setSnapshot] = useState<ContextTraceSnapshot>(initialSnapshot);
 
   const acceptLiveEvent = useCallback(
@@ -293,7 +306,15 @@ export function useContextTrace(
       active = false;
       unsubscribe();
     };
-  }, [acceptLiveEvent, manager, refreshRevision, requestedActivationId, sessionId, traceClient]);
+  }, [
+    acceptLiveEvent,
+    connectionRevision,
+    manager,
+    refreshRevision,
+    requestedActivationId,
+    sessionId,
+    traceClient,
+  ]);
 
   return { ...snapshot, loadMore };
 }

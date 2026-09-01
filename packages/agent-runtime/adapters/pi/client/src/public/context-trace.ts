@@ -30,6 +30,7 @@ export interface PiContextTraceEventClient {
   subscribeSessionContextTrace(
     listener: (event: SessionContextTraceEventSummary) => void,
   ): () => void;
+  subscribeConnectionReady(listener: () => void): () => void;
 }
 
 export function usePiContextTraceEventClient(): PiContextTraceEventClient {

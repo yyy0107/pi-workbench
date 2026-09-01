@@ -888,7 +888,8 @@ assistant-ui 消息状态。
 `readPiRpcSessionContextTrace()` 和
 `PiSessionManager.subscribeSessionContextTrace()`。推荐先注册 live listener，再读取当前 activation 的
 list 基线，并按 `activationId + seq` 去重；这样 list 与订阅建立之间发生的事件也不会丢失。读取历史
-activation 时不订阅 live 增量，并使用 `hasMore` 分页。
+activation 时不订阅 live 增量，并使用 `hasMore` 分页。WebSocket connection-ready generation 改变时，
+当前 activation 会重新读取 list 基线，以补齐断线期间未收到的 durable 事件。
 
 审计 UI 不把 Pi 的内部 `turnIndex` 直接解释成用户 Turn。它按 `roundId` 投影为
 `Turn → Model Step → Context / Output`：一个 `roundId` 是一次用户交互；同一 round 中每个唯一
