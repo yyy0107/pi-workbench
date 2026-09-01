@@ -21,6 +21,7 @@ export interface ToolCallProps {
   iconClassName?: string;
   running: boolean;
   failed?: boolean;
+  cancelled?: boolean;
   failedLabel?: string;
   elapsed?: string;
   showCompletionIcon?: boolean;
@@ -48,6 +49,7 @@ export function ToolCall({
   iconClassName,
   running,
   failed = false,
+  cancelled = false,
   failedLabel,
   elapsed,
   showCompletionIcon = true,
@@ -60,6 +62,9 @@ export function ToolCall({
 }: ToolCallProps) {
   const [rootRef, handleOpenChange] = useDisclosureScrollLock(onOpenChange);
   const hasCustomSummary = summary !== undefined;
+  const terminal = failed || cancelled;
+  const displayedLabel = running ? activeLabel : terminal ? (failedLabel ?? label) : label;
+  const status = cancelled ? "cancelled" : failed ? "error" : running ? "running" : "complete";
   const summaryContent = (
     <>
       {Icon && (
@@ -80,9 +85,10 @@ export function ToolCall({
             className={cn(
               "relative shrink-0 whitespace-nowrap leading-none",
               failed && "text-destructive",
+              cancelled && "text-muted-foreground line-through",
             )}
           >
-            {running ? activeLabel : failed ? (failedLabel ?? label) : label}
+            {displayedLabel}
           </ShimmerLabel>
           {elapsed !== undefined && (
             <span className={cn(mono, "text-foreground/30 shrink-0 tabular-nums")}>{elapsed}</span>
@@ -99,10 +105,13 @@ export function ToolCall({
           </span>
         </span>
       )}
-      {!running && failed ? (
+      {!running && terminal ? (
         <CircleXIcon
           aria-hidden="true"
-          className="fade-in zoom-in-90 animate-in text-destructive size-3.5 shrink-0 duration-200 motion-reduce:animate-none"
+          className={cn(
+            "fade-in zoom-in-90 animate-in size-3.5 shrink-0 duration-200 motion-reduce:animate-none",
+            failed ? "text-destructive" : "text-muted-foreground",
+          )}
         />
       ) : !running && showCompletionIcon ? (
         <CheckIcon
@@ -143,7 +152,7 @@ export function ToolCall({
     return (
       <div
         data-slot="tool-call"
-        data-status={failed ? "error" : running ? "running" : "complete"}
+        data-status={status}
         aria-busy={running}
         className={cn("w-full", className)}
       >
@@ -165,7 +174,7 @@ export function ToolCall({
         <Collapsible
           ref={rootRef}
           data-slot="tool-call"
-          data-status={failed ? "error" : running ? "running" : "complete"}
+          data-status={status}
           aria-busy={running}
           open={open}
           onOpenChange={handleOpenChange}
@@ -176,7 +185,7 @@ export function ToolCall({
             className="group/tool-summary relative flex w-full min-w-0 items-center gap-1.5 rounded-md py-1 text-[13.5px] outline-none"
           >
             <CollapsibleTrigger
-              aria-label={`${running ? activeLabel : failed ? (failedLabel ?? label) : label} ${query}`.trim()}
+              aria-label={`${displayedLabel} ${query}`.trim()}
               className="peer/trigger absolute inset-0 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
             />
             <div className="pointer-events-none relative z-10 flex min-w-0 items-center gap-1.5 text-foreground/55 [--tool-diff-additions:currentColor] [--tool-diff-deletions:currentColor] transition-colors group-hover/tool-summary:text-foreground group-hover/tool-summary:[--tool-diff-additions:var(--color-emerald-600)] group-hover/tool-summary:[--tool-diff-deletions:var(--color-red-600)] group-focus-within/tool-summary:text-foreground group-focus-within/tool-summary:[--tool-diff-additions:var(--color-emerald-600)] group-focus-within/tool-summary:[--tool-diff-deletions:var(--color-red-600)] dark:group-hover/tool-summary:[--tool-diff-additions:var(--color-emerald-400)] dark:group-hover/tool-summary:[--tool-diff-deletions:var(--color-red-400)] dark:group-focus-within/tool-summary:[--tool-diff-additions:var(--color-emerald-400)] dark:group-focus-within/tool-summary:[--tool-diff-deletions:var(--color-red-400)]">
@@ -198,7 +207,7 @@ export function ToolCall({
       <Collapsible
         ref={rootRef}
         data-slot="tool-call"
-        data-status={failed ? "error" : running ? "running" : "complete"}
+        data-status={status}
         aria-busy={running}
         open={open}
         onOpenChange={handleOpenChange}

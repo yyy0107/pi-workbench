@@ -2166,6 +2166,15 @@ test("ends the visible run at a terminal response while host cleanup remains act
   };
   internals.reload = async () => {};
   internals.publishMessagesAndSetRunning(true);
+  const publishedStates: string[] = [];
+  const unsubscribe = session.subscribe(() => {
+    const snapshot = session.getSnapshot();
+    const lastMessage = snapshot.messages.at(-1);
+    if (lastMessage?.role === "assistant") {
+      publishedStates.push(`${snapshot.isRunning}:${lastMessage.status.type}`);
+    }
+  });
+  t.after(unsubscribe);
 
   internals.handleEvent({
     type: "message_start",
@@ -2185,6 +2194,7 @@ test("ends the visible run at a terminal response while host cleanup remains act
 
   assert.equal(session.getSnapshot().isRunning, false);
   assert.equal(manager.isRunning("remote-session"), true);
+  assert.equal(publishedStates.includes("true:complete"), false);
 
   // A host/session-changed summary can still report cleanup as running. It must not reopen the
   // completed assistant-ui run while Pi executes agent_settled extension handlers.

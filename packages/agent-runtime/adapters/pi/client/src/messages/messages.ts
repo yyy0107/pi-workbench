@@ -1211,6 +1211,13 @@ export function coalesceConsecutiveAssistantMessages(
 
   for (const message of messages) {
     if (message.role === "assistant") {
+      const previousAssistant = assistantGroup.at(-1);
+      if (
+        previousAssistant?.status.type === "incomplete" &&
+        !isAttachmentRecognitionOnlyAssistant(previousAssistant)
+      ) {
+        flushAssistantGroup();
+      }
       assistantGroup.push(message);
       continue;
     }

@@ -16,12 +16,14 @@ export function projectPiAgentRuntimeExtras({
   session,
   snapshot,
   workspace,
+  transportRecovering,
   composerError,
   clearComposerError,
 }: Readonly<{
   session: PiClientSession;
   snapshot: PiSessionSnapshot;
   workspace?: PiWorkspaceSummary | WorkbenchAgentWorkspace;
+  transportRecovering: boolean;
   composerError?: WorkbenchAgentComposerSendError;
   clearComposerError(): void;
 }>): WorkbenchAgentRuntimeExtras {
@@ -50,6 +52,7 @@ export function projectPiAgentRuntimeExtras({
     agentRun: {
       timing: snapshot.runTiming,
       autoRetry: snapshot.autoRetry,
+      transportRecovering,
       resumeCheckpoint: snapshot.resumeCheckpoint
         ? {
             checkpointId: snapshot.resumeCheckpoint.checkpointId,

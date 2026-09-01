@@ -1645,14 +1645,13 @@ export class PiClientSession {
         this.activeMessageTiming = undefined;
         this.activeAssistantMessageId = undefined;
         this.streamingMessage = undefined;
-        this.publishMessages();
         if (assistantMessage.stopReason === "stop") {
           // Pi has completed the user-visible response. AgentSession may remain busy while
           // agent_settled extension handlers finish, but assistant-ui must not keep this run open.
           // The manager retains the authoritative host-running state until agent_settled.
           this.terminalResponseReceived = true;
-          this.setRunning(false, false);
-        }
+          this.publishMessagesAndSetRunning(false, false);
+        } else this.publishMessages();
       }
       return;
     }
@@ -2216,7 +2215,7 @@ export class PiClientSession {
     });
   }
 
-  private publishMessagesAndSetRunning(running: boolean): void {
+  private publishMessagesAndSetRunning(running: boolean, notifyManager = true): void {
     if (this.disposed) return;
     const messages = this.currentMessages();
     this.replaceSnapshot({
@@ -2226,7 +2225,7 @@ export class PiClientSession {
       ...(running ? {} : { runTiming: undefined }),
       autoRetry: undefined,
     });
-    if (this.remoteIdValue) {
+    if (notifyManager && this.remoteIdValue) {
       this.manager.updateRunningFromSession(this.remoteIdValue, running, this);
     }
   }
@@ -2496,6 +2495,7 @@ export class PiSessionManager {
       onMuxFrame: (frame, generation) => this.handleMuxFrame(frame, generation),
       onHostFrame: (payload, generation) => this.handleHostFrame(payload, generation),
       onGenerationReady: (generation) => this.handleGenerationReady(generation),
+      onConnectionRecoveringChange: () => this.notify(),
     });
   }
 

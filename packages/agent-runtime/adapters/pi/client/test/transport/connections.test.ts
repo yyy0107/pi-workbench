@@ -142,6 +142,7 @@ test("reconnects both sockets as one generation and ignores stale generation fra
   const sockets: FakeSocket[] = [];
   const hostFrames: HostStreamPayload[] = [];
   const readyGenerations: number[] = [];
+  const recoveringStates: boolean[] = [];
   const controller = new PiConnectionController({
     webSocketFactory: (path) => {
       const socket = new FakeSocket(path);
@@ -152,6 +153,7 @@ test("reconnects both sockets as one generation and ignores stale generation fra
     random: () => 0,
     onHostFrame: (payload) => hostFrames.push(payload),
     onGenerationReady: (generation) => readyGenerations.push(generation),
+    onConnectionRecoveringChange: (recovering) => recoveringStates.push(recovering),
   });
 
   controller.startRunningEvents(() => undefined);
@@ -171,6 +173,7 @@ test("reconnects both sockets as one generation and ignores stale generation fra
   assert.equal(hostFrames.length, 1);
 
   firstMux.remoteClose();
+  assert.deepEqual(recoveringStates, [true]);
   assert.ok(firstHost.closeCalls.length > 0, "the peer socket closes with its generation");
   assert.equal(timers.pending().length, 1, "one reconnect timer owns the generation");
   const firstDelay = timers.pending()[0]?.delayMs;
@@ -191,6 +194,7 @@ test("reconnects both sockets as one generation and ignores stale generation fra
   assert.deepEqual(readyGenerations, [1]);
   secondMux.open();
   assert.deepEqual(readyGenerations, [1, 2]);
+  assert.deepEqual(recoveringStates, [true, false]);
 
   for (const socket of sockets) assert.equal(socket.sendCalls.length, 0);
   controller.dispose();

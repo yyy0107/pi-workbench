@@ -2290,6 +2290,39 @@ test("does not let an empty streaming placeholder split a merged tool timeline",
   assert.equal(merged.status.type, "running");
 });
 
+test("keeps an aborted assistant run separate from a later stream", () => {
+  const aborted = piAssistantToThreadMessage(
+    {
+      role: "assistant",
+      content: [
+        { type: "toolCall", id: "aborted-edit", name: "edit", arguments: { path: "old.ts" } },
+      ],
+      stopReason: "aborted",
+    },
+    "aborted",
+  );
+  const streaming = piAssistantToThreadMessage(
+    {
+      role: "assistant",
+      content: [
+        { type: "toolCall", id: "active-edit", name: "edit", arguments: { path: "new.ts" } },
+      ],
+    },
+    "streaming",
+    { streaming: true },
+  );
+
+  const messages = coalesceConsecutiveAssistantMessages([aborted, streaming]);
+
+  assert.deepEqual(
+    messages.map((message) => ({ id: message.id, status: message.status })),
+    [
+      { id: "aborted", status: { type: "incomplete", reason: "cancelled" } },
+      { id: "streaming", status: { type: "running" } },
+    ],
+  );
+});
+
 test("streams partial tool output through artifacts until the result completes", () => {
   const messages = [
     piAssistantToThreadMessage(

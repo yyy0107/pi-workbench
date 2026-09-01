@@ -8,13 +8,14 @@ import {
   useMessageTiming,
 } from "@assistant-ui/react";
 import { ExternalLinkIcon } from "lucide-react";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, type PropsWithChildren } from "react";
 
 import { File } from "../../../assistant-ui/file";
 import { Image } from "../../../assistant-ui/image";
 import { MarkdownText, MarkdownTextWithCitations } from "../../../assistant-ui/lazy-markdown-text";
 import { ToolFallback } from "../../../assistant-ui/tool-fallback";
 import { ScrollCompensatedDetails } from "../../../elements/scroll-compensated-details";
+import { ReasoningPanel } from "../../../elements/reasoning-panel";
 import { useI18n } from "../../../i18n";
 import {
   MessagePartRendererHost,
@@ -36,12 +37,17 @@ import {
 } from "./completed-turn-model";
 import { CompletedTurnPanel } from "./completed-turn-panel";
 import { messageCitationLayout } from "./message-citations";
-import { MessageDisclosureProvider } from "./message-disclosure-context";
+import { MessageDisclosureProvider, useMessageDisclosure } from "./message-disclosure-context";
 import { messageAttachmentReference, messageTextPresentation } from "./message-presentation-policy";
 import { MessageToolTimeline } from "./message-tool-timeline";
-import { dataTimelineState } from "./tool-timeline-model";
+import { dataTimelineState, type DataTimelineState } from "./tool-timeline-model";
 
-type PresentationGroup = "group-completed-turn" | "group-tool-timeline";
+const DATA_TIMELINE_GROUP_PREFIX = "group-data-timeline:";
+
+type PresentationGroup =
+  | "group-completed-turn"
+  | "group-tool-timeline"
+  | `group-data-timeline:${string}`;
 
 const groupTimelinePartByType = groupPartByType<PresentationGroup>({
   reasoning: ["group-tool-timeline"],
@@ -67,6 +73,34 @@ const MessageDataFallback: DataMessagePartComponent = ({ name, data }) => (
     </pre>
   </ScrollCompensatedDetails>
 );
+
+function MessageDataTimelineGroup({
+  children,
+  group,
+  indices,
+  running,
+}: PropsWithChildren<{
+  group: NonNullable<DataTimelineState["group"]>;
+  indices: readonly number[];
+  running: boolean;
+}>) {
+  const { text } = useI18n();
+  const [open, setOpen] = useMessageDisclosure("steps", `data-group:${indices[0] ?? "empty"}`);
+
+  return (
+    <ReasoningPanel
+      steps={[{ marker: false, body: <div className="space-y-1">{children}</div> }]}
+      visibleSteps={1}
+      streaming={running}
+      open={open}
+      onOpenChange={setOpen}
+      activeLabel={text(group.activeLabel)}
+      restingLabel={text(group.label)}
+      icon={group.icon}
+      className="my-1 max-w-none [overflow-anchor:none]"
+    />
+  );
+}
 
 export function WorkbenchMessagePresentation() {
   const { t, date, locale, relativeTime } = useI18n();
@@ -108,9 +142,12 @@ export function WorkbenchMessagePresentation() {
     (part: PartState, context: GroupByContext): readonly PresentationGroup[] => {
       const typePath = groupTimelinePartByType(part, context);
       if (typePath.length > 0) return typePath;
-      return part.type === "data" && dataTimelineState(part, dataPresentations)
-        ? ["group-tool-timeline"]
-        : [];
+      if (part.type !== "data") return [];
+      const timelineState = dataTimelineState(part, dataPresentations);
+      if (!timelineState) return [];
+      return timelineState.group
+        ? [`${DATA_TIMELINE_GROUP_PREFIX}${part.name}:${timelineState.group.key}`]
+        : ["group-tool-timeline"];
     },
     [dataPresentations],
   );
@@ -130,20 +167,6 @@ export function WorkbenchMessagePresentation() {
     },
     [completedBoundary, groupTimelinePart, interruptedBySteering, messageRole, partIndices],
   );
-  const activeTimelinePartIndex = useAuiState((state) => {
-    if (!state.thread.isRunning || !state.message.isLast) return -1;
-
-    for (let index = state.message.content.length - 1; index >= 0; index -= 1) {
-      const part = state.message.content[index];
-      if (part?.type === "tool-call" && part.result === undefined) return index;
-      if (index === state.message.content.length - 1 && part?.type === "reasoning") return index;
-      if (part?.type === "data" && dataTimelineState(part, dataPresentations)?.active === true) {
-        return index;
-      }
-    }
-    return -1;
-  });
-
   const disclosurePhase = interruptedBySteering
     ? "steered"
     : turnStreaming
@@ -168,6 +191,25 @@ export function WorkbenchMessagePresentation() {
               )
             : undefined;
 
+          if ("indices" in part && part.type.startsWith(DATA_TIMELINE_GROUP_PREFIX)) {
+            const sourcePart = messageParts[part.indices[0] ?? -1];
+            const group =
+              sourcePart?.type === "data"
+                ? dataTimelineState(sourcePart, dataPresentations)?.group
+                : undefined;
+            return group ? (
+              <MessageDataTimelineGroup
+                group={group}
+                indices={part.indices}
+                running={part.status.type === "running"}
+              >
+                {children}
+              </MessageDataTimelineGroup>
+            ) : (
+              children
+            );
+          }
+
           switch (part.type) {
             case "group-completed-turn": {
               return (
@@ -177,18 +219,9 @@ export function WorkbenchMessagePresentation() {
               );
             }
             case "group-tool-timeline": {
-              return (
-                <MessageToolTimeline
-                  indices={part.indices}
-                  activePartIndex={activeTimelinePartIndex}
-                  turnStreaming={turnStreaming}
-                >
-                  {children}
-                </MessageToolTimeline>
-              );
+              return <MessageToolTimeline indices={part.indices}>{children}</MessageToolTimeline>;
             }
             case "text": {
-              if (part.status.type === "running" && part.text === "") return null;
               if (messageTextPresentation(messageRole) === "composer") {
                 return <WorkbenchComposerMessageText text={part.text} />;
               }

@@ -434,6 +434,8 @@ export const extensionsEnUS = {
     },
     reasoning: {
       active: "Thinking",
+      recovering: "Restoring connection",
+      stalled: "Still thinking",
       complete: "Reasoned",
       completeWithDuration: ({ seconds }: { seconds: number }, { number }: MessageFormatters) =>
         `Reasoned for ${number(seconds)}s`,

@@ -193,6 +193,11 @@ export function readAgentAutoRetry(extras: unknown): WorkbenchAgentAutoRetry | u
   return autoRetry as unknown as WorkbenchAgentAutoRetry;
 }
 
+/** Whether the active run's realtime transport is reconnecting. */
+export function readAgentTransportRecovering(extras: unknown): boolean {
+  return agentSection(extras, "agentRun")?.transportRecovering === true;
+}
+
 /** Read the subset used by interrupted-run recovery UI. Invalid optional fields are omitted. */
 export function readAgentRunRecovery(extras: unknown): WorkbenchAgentRunRecovery {
   const candidate = agentSection(extras, "agentRun");

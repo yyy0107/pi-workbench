@@ -424,6 +424,8 @@ export const extensionsZhCN = {
     },
     reasoning: {
       active: "正在思考",
+      recovering: "连接正在恢复",
+      stalled: "仍在思考",
       complete: "已完成思考",
       completeWithDuration: ({ seconds }: { seconds: number }, { number }: MessageFormatters) =>
         `思考用时 ${number(seconds)} 秒`,

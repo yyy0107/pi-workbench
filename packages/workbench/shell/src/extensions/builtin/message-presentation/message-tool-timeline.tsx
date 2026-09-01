@@ -6,7 +6,7 @@ import {
   useAuiState,
   type DataMessagePart,
   type EnrichedPartState,
-  type ReasoningMessagePart,
+  type PartState,
   type ToolCallMessagePart,
   type ToolCallMessagePartComponent,
 } from "@assistant-ui/react";
@@ -21,6 +21,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { ThinkingOrb } from "thinking-orbs";
+import { readAgentTransportRecovering } from "@workbench/agent-runtime-client/extras";
 
 import {
   ToolGroupContent,
@@ -53,12 +54,12 @@ import {
   timelineEntries,
   timelineStats,
   timelineSteps,
-  type TimelineSourcePart,
   type ToolTimelineStepKind,
 } from "./tool-timeline-model";
 
-type TimelineReasoningPart = ReasoningMessagePart;
-type TimelineToolPart = ToolCallMessagePart;
+type TimelinePartState = Extract<PartState, { type: "reasoning" | "tool-call" | "data" }>;
+type TimelineReasoningPart = Extract<TimelinePartState, { type: "reasoning" }>;
+type TimelineToolPart = Extract<TimelinePartState, { type: "tool-call" }>;
 
 const STEP_ICONS: Readonly<Record<ToolTimelineStepKind, LucideIcon>> = {
   thinking: SparklesIcon,
@@ -80,10 +81,12 @@ const TIMELINE_TOOL_DETAIL_COMPONENTS = {
   tools: { Override: TimelineToolDetail },
 };
 
+const REASONING_STALL_DELAY_MS = 3_000;
+
 function isTimelineSourcePart(
   value: unknown,
   dataPresentations: ReturnType<typeof useDataPresentationMap>,
-): value is TimelineSourcePart {
+): value is TimelinePartState {
   if (!value || typeof value !== "object") return false;
   const type = (value as { type?: unknown }).type;
   if (type === "reasoning" || type === "tool-call") return true;
@@ -135,20 +138,37 @@ function useElapsedSeconds(
   return elapsedSeconds;
 }
 
+export function useReasoningStalled(running: boolean, content: string): boolean {
+  const [stalled, setStalled] = useState(false);
+
+  useEffect(() => {
+    setStalled(false);
+    if (!running) return;
+
+    const timer = window.setTimeout(() => setStalled(true), REASONING_STALL_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [content, running]);
+
+  return stalled;
+}
+
 function TimelineReasoning({
   part,
   running,
+  transportRecovering,
   preview,
   disclosureId,
 }: {
   part: TimelineReasoningPart;
   running: boolean;
+  transportRecovering: boolean;
   preview: string;
   disclosureId: string | number;
 }) {
   const { locale, t } = useI18n();
   const [open, setOpen] = useMessageDisclosure("reasoning", disclosureId);
   const elapsedSeconds = useElapsedSeconds(running, reasoningPartTiming(part));
+  const stalled = useReasoningStalled(running, part.text || part.unstable_summary || "");
   const collapsedPreview = running
     ? liveReasoningPreview(part.text || part.unstable_summary || "") || preview
     : preview;
@@ -165,7 +185,13 @@ function TimelineReasoning({
       streaming={running}
       open={open}
       onOpenChange={setOpen}
-      activeLabel={t("extensions.messagePresentation.reasoning.active")}
+      activeLabel={t(
+        transportRecovering
+          ? "extensions.messagePresentation.reasoning.recovering"
+          : stalled
+            ? "extensions.messagePresentation.reasoning.stalled"
+            : "extensions.messagePresentation.reasoning.active",
+      )}
       restingLabel={t("extensions.messagePresentation.reasoning.step")}
       icon={SparklesIcon}
       activeIcon={
@@ -236,8 +262,14 @@ function TimelineToolCall({
     part.toolName === "write"
       ? t("extensions.messagePresentation.toolTimeline.activeSteps.creating")
       : activeLabel;
+  const cancelled = part.status.type === "incomplete" && part.status.reason === "cancelled";
+  const failed = Boolean(part.isError) || (part.status.type === "incomplete" && !cancelled);
   const failedLabel = t("extensions.messagePresentation.toolTimeline.failed");
-  const fileDiff = useMemo(() => (part.isError ? undefined : toolDiffModel(part)), [part]);
+  const terminalLabel = cancelled ? t("assistant.tool.cancelled") : failedLabel;
+  const fileDiff = useMemo(
+    () => (part.status.type === "complete" && !part.isError ? toolDiffModel(part) : undefined),
+    [part],
+  );
   const [hunkDecisions, setHunkDecisions] = useState<Readonly<Record<string, HunkDecision>>>({});
   const reviewHunks = useMemo(
     () =>
@@ -279,10 +311,20 @@ function TimelineToolCall({
   const fileMutationSummary = isFileMutation ? (
     <span
       data-slot="file-mutation-tool-summary"
-      className={cn("flex min-w-0 items-center gap-1", part.isError && "text-destructive")}
+      className={cn(
+        "flex min-w-0 items-center gap-1",
+        failed && "text-destructive",
+        cancelled && "text-muted-foreground",
+      )}
     >
-      <ShimmerLabel active={running} className="relative shrink-0 whitespace-nowrap leading-none">
-        {running ? displayActiveLabel : part.isError ? failedLabel : displayLabel}
+      <ShimmerLabel
+        active={running}
+        className={cn(
+          "relative shrink-0 whitespace-nowrap leading-none",
+          cancelled && "line-through",
+        )}
+      >
+        {running ? displayActiveLabel : failed || cancelled ? terminalLabel : displayLabel}
       </ShimmerLabel>
       {fileDiff ? (
         <button
@@ -328,10 +370,11 @@ function TimelineToolCall({
       resultLabel={t("extensions.messagePresentation.toolTimeline.result")}
       icon={Icon}
       running={running}
-      failed={part.isError}
-      failedLabel={failedLabel}
+      failed={failed}
+      cancelled={cancelled}
+      failedLabel={terminalLabel}
       showCompletionIcon={!isFileMutation}
-      expandable={!isFileMutation || Boolean(fileDiff) || part.isError}
+      expandable={!isFileMutation || Boolean(fileDiff) || failed || cancelled}
       open={open}
       onOpenChange={setOpen}
       disclosureController={
@@ -375,7 +418,7 @@ function TimelineToolCall({
           onDiscard={(id) => decideHunk(id, "discarded")}
           className="max-w-none"
         />
-      ) : !part.isError && hasToolDetail ? (
+      ) : !failed && !cancelled && hasToolDetail ? (
         <MessagePrimitive.PartByIndex
           index={partIndex}
           components={TIMELINE_TOOL_DETAIL_COMPONENTS}
@@ -392,7 +435,6 @@ function ParallelToolGroup({
   kinds,
   queries,
   presentations,
-  turnStreaming,
 }: {
   batchId: string;
   parts: readonly TimelineToolPart[];
@@ -400,9 +442,8 @@ function ParallelToolGroup({
   kinds: readonly ToolTimelineStepKind[];
   queries: readonly string[];
   presentations: readonly (ToolPresentationDefinition | undefined)[];
-  turnStreaming: boolean;
 }) {
-  const running = turnStreaming && parts.some((part) => !part.isError && part.result === undefined);
+  const running = parts.some((part) => part.status.type === "running");
   const [open, setOpen] = useMessageDisclosure("parallel-tools", batchId);
 
   return (
@@ -424,7 +465,7 @@ function ParallelToolGroup({
           const query = queries[index];
           const partIndex = partIndices[index];
           if (!kind || query === undefined || partIndex === undefined) return null;
-          const toolRunning = turnStreaming && !part.isError && part.result === undefined;
+          const toolRunning = part.status.type === "running";
 
           return (
             <TimelineToolCall
@@ -445,26 +486,22 @@ function ParallelToolGroup({
 
 export function MessageToolTimeline({
   indices,
-  activePartIndex,
-  turnStreaming,
 }: PropsWithChildren<{
   indices: readonly number[];
-  activePartIndex: number;
-  turnStreaming: boolean;
 }>) {
   const { t, text } = useI18n();
-  const content = useAuiState((state) => state.message.content);
+  const content = useAuiState((state) => state.message.parts);
+  const transportRecovering = useAuiState((state) =>
+    readAgentTransportRecovering(state.thread.extras),
+  );
   const toolPresentations = useToolPresentationMap();
   const dataPresentations = useDataPresentationMap();
   const [open, setOpen] = useMessageDisclosure("steps", indices[0] ?? "empty");
-  const activeStepIndex = indices.indexOf(activePartIndex);
   const parts = useMemo(
     () =>
       indices
         .map((index) => content[index])
-        .filter((part): part is TimelineSourcePart =>
-          isTimelineSourcePart(part, dataPresentations),
-        ),
+        .filter((part): part is TimelinePartState => isTimelineSourcePart(part, dataPresentations)),
     [content, dataPresentations, indices],
   );
   const stepModels = useMemo(
@@ -472,16 +509,31 @@ export function MessageToolTimeline({
     [parts, toolPresentations],
   );
   const entries = useMemo(() => timelineEntries(parts), [parts]);
-  const stats = useMemo(() => timelineStats(parts), [parts]);
+  const stats = useMemo(
+    () =>
+      timelineStats(
+        parts.filter((part) => part.type !== "tool-call" || part.status.type === "complete"),
+      ),
+    [parts],
+  );
+  const timelineRunning = parts.some((part) =>
+    part.type === "data"
+      ? dataTimelineState(part, dataPresentations)?.active === true
+      : part.status.type === "running",
+  );
   const steps: ReasoningStep[] = entries.map((entry) => {
     if (entry.kind === "parallel-tools") {
       const models = entry.sourceIndices.map((index) => stepModels[index]);
+      const parallelParts = entry.sourceIndices.flatMap((index) => {
+        const part = parts[index];
+        return part?.type === "tool-call" ? [part] : [];
+      });
       return {
         marker: false,
         body: (
           <ParallelToolGroup
             batchId={entry.batchId}
-            parts={entry.parts}
+            parts={parallelParts}
             partIndices={entry.sourceIndices.map((index) => indices[index] ?? index)}
             kinds={models.flatMap((model) => (model && model.kind !== "data" ? [model.kind] : []))}
             queries={models.flatMap((model) =>
@@ -490,13 +542,14 @@ export function MessageToolTimeline({
             presentations={models.map((model) =>
               model?.kind === "data" ? undefined : model?.presentation,
             )}
-            turnStreaming={turnStreaming}
           />
         ),
       };
     }
 
-    const { part, sourceIndex } = entry;
+    const { sourceIndex } = entry;
+    const part = parts[sourceIndex];
+    if (!part) return { body: null };
     const model = stepModels[sourceIndex];
     if (!model) return { body: null };
 
@@ -521,7 +574,8 @@ export function MessageToolTimeline({
         body: (
           <TimelineReasoning
             part={part}
-            running={sourceIndex === activeStepIndex}
+            running={part.status.type === "running"}
+            transportRecovering={transportRecovering}
             preview={text(model.chip)}
             disclosureId={indices[sourceIndex] ?? sourceIndex}
           />
@@ -537,7 +591,7 @@ export function MessageToolTimeline({
           partIndex={indices[sourceIndex] ?? sourceIndex}
           kind={model.kind}
           query={text(model.chip)}
-          running={turnStreaming && !part.isError && part.result === undefined}
+          running={part.status.type === "running"}
           presentation={model.presentation}
         />
       ),
@@ -550,7 +604,7 @@ export function MessageToolTimeline({
     <ReasoningPanel
       steps={steps}
       visibleSteps={entries.length}
-      streaming={activeStepIndex >= 0}
+      streaming={timelineRunning}
       open={open}
       onOpenChange={setOpen}
       restingLabel={t("extensions.messagePresentation.toolTimeline.summary", summaryArgs)}

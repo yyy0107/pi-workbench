@@ -188,6 +188,13 @@ export interface DataPresentationDefinition {
   readonly isVisible?: (part: DataMessagePart) => boolean;
   /** 可选活动状态判断，用于时间线的展开状态与进行中提示。 */
   readonly isActive?: (part: DataMessagePart) => boolean;
+  /** 可选连续分组；相同名称和稳定 key 的相邻 Part 会进入独立折叠组。 */
+  readonly group?: {
+    readonly getKey: (part: DataMessagePart) => string | undefined;
+    readonly label: LocalizableText;
+    readonly activeLabel: LocalizableText;
+    readonly icon: LucideIcon;
+  };
 }
 
 /** 按 `data.name` 精确匹配 Data Part 时间线展示声明的可订阅 Registry。 */

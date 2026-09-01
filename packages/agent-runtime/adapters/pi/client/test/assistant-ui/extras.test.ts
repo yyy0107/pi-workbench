@@ -5,6 +5,7 @@ import type { ThreadMessage } from "@assistant-ui/react";
 import {
   readAgentRunRecovery,
   readAgentThreadWorkspace,
+  readAgentTransportRecovering,
 } from "@workbench/agent-runtime-client/extras";
 
 import { PiSessionManager } from "../../src/runtime/manager";
@@ -26,9 +27,11 @@ test("projects Pi cwd metadata into the backend-neutral Workbench workspace capa
       session,
       snapshot: session.getSnapshot(),
       workspace,
+      transportRecovering: true,
       clearComposerError: () => undefined,
     });
 
+    assert.equal(readAgentTransportRecovering(extras), true);
     assert.deepEqual(readAgentThreadWorkspace(extras), {
       id: "workspace-1",
       name: "Project",
@@ -74,6 +77,7 @@ test("projects a terminal checkpoint onto its coalesced visible assistant row", 
           createdAt: 1_777_000_000_000,
         },
       },
+      transportRecovering: false,
       clearComposerError: () => undefined,
     });
 

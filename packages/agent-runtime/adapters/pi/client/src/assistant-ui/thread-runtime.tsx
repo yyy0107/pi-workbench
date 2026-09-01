@@ -81,6 +81,11 @@ export function useBoundPiThreadRuntime(
     [manager, threadId],
   );
   useSyncExternalStore(subscribeThread, getThreadRevision, getThreadRevision);
+  const transportRecovering = useSyncExternalStore(
+    manager.subscribe,
+    manager.connections.getRecovering,
+    manager.connections.getRecovering,
+  );
   const workspace =
     options.workspace ?? manager.getThreadStateSnapshot(threadId).metadata.workspace;
   const [committedSession, setCommittedSession] = useState<typeof session>();
@@ -109,6 +114,7 @@ export function useBoundPiThreadRuntime(
         session,
         snapshot,
         workspace,
+        transportRecovering,
         composerError,
         clearComposerError,
       }),
@@ -123,6 +129,7 @@ export function useBoundPiThreadRuntime(
       snapshot.resumeCheckpoint,
       snapshot.runTiming,
       snapshot.steeringQueueIds,
+      transportRecovering,
       workspace,
     ],
   );

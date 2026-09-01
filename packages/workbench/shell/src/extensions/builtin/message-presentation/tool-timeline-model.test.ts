@@ -68,15 +68,23 @@ test("admits only data parts that opt into the shared work timeline", () => {
       display: "timeline",
       isVisible: (part) => part.data !== "hidden",
       isActive: (part) => part.data === "running",
+      group: {
+        getKey: () => "context-1",
+        label: "Context composed",
+        activeLabel: "Composing context",
+        icon: WrenchIcon,
+      },
     },
   } satisfies Readonly<Record<string, DataPresentationDefinition>>;
 
-  assert.deepEqual(dataTimelineState(data("workbench.progress", "running"), presentations), {
-    active: true,
-  });
-  assert.deepEqual(dataTimelineState(data("workbench.progress", "complete"), presentations), {
-    active: false,
-  });
+  const runningState = dataTimelineState(data("workbench.progress", "running"), presentations);
+  assert.equal(runningState?.active, true);
+  assert.equal(runningState?.group?.key, "context-1");
+  assert.equal(runningState?.group?.label, "Context composed");
+  assert.equal(
+    dataTimelineState(data("workbench.progress", "complete"), presentations)?.active,
+    false,
+  );
   assert.equal(dataTimelineState(data("workbench.progress", "hidden"), presentations), undefined);
   assert.equal(dataTimelineState(data("unregistered", "running"), presentations), undefined);
   assert.deepEqual(timelineSteps([data("workbench.progress", "complete")]), [{ kind: "data" }]);

@@ -49,6 +49,9 @@ export type ToolTimelineEntry =
 
 export interface DataTimelineState {
   readonly active: boolean;
+  readonly group?: NonNullable<DataPresentationDefinition["group"]> & {
+    readonly key: string;
+  };
 }
 
 export function dataTimelineState(
@@ -66,10 +69,21 @@ export function dataTimelineState(
     return undefined;
   }
 
+  let active = false;
   try {
-    return { active: presentation.isActive?.(part) === true };
+    active = presentation.isActive?.(part) === true;
   } catch {
-    return { active: false };
+    // Optional presentation chrome must not hide an otherwise valid data step.
+  }
+
+  try {
+    const key = presentation.group?.getKey(part)?.trim();
+    return {
+      active,
+      ...(key && presentation.group ? { group: { ...presentation.group, key } } : {}),
+    };
+  } catch {
+    return { active };
   }
 }
 

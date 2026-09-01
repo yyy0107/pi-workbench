@@ -165,6 +165,7 @@ export interface WorkbenchAgentQueueExtras {
 export interface WorkbenchAgentRunExtras {
   readonly timing?: WorkbenchAgentRunTiming;
   readonly autoRetry?: WorkbenchAgentAutoRetry;
+  readonly transportRecovering?: boolean;
   readonly resumeCheckpoint?: WorkbenchAgentResumeCheckpoint;
   resume?(checkpointId: string, expectedStateId: string): Promise<void>;
   resumeLatest?(terminalMessageId: string): Promise<void>;

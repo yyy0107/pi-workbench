@@ -97,6 +97,7 @@ export interface PiConnectionControllerOptions {
   onMuxFrame?: (frame: ServerRequest<MuxStreamPayload>, generation: number) => void;
   onHostFrame?: (payload: HostStreamPayload, generation: number) => void;
   onGenerationReady?: (generation: number) => void;
+  onConnectionRecoveringChange?: (recovering: boolean) => void;
 }
 
 interface SessionConnection {
@@ -611,12 +612,14 @@ export class PiConnectionController {
   private readonly onMuxFrame?: PiConnectionControllerOptions["onMuxFrame"];
   private readonly onHostFrame?: PiConnectionControllerOptions["onHostFrame"];
   private readonly onGenerationReady?: PiConnectionControllerOptions["onGenerationReady"];
+  private readonly onConnectionRecoveringChange?: PiConnectionControllerOptions["onConnectionRecoveringChange"];
   private readonly readyWaiters = new Set<ReadyWaiter>();
   private runningListener?: (sessionIds: string[]) => void;
   private generation?: ConnectionGeneration;
   private reconnectTimer?: unknown;
   private reconnectAttempt = 0;
   private nextGenerationId = 0;
+  private recovering = false;
   private started = false;
   private disposed = false;
 
@@ -627,7 +630,10 @@ export class PiConnectionController {
     this.onMuxFrame = options.onMuxFrame;
     this.onHostFrame = options.onHostFrame;
     this.onGenerationReady = options.onGenerationReady;
+    this.onConnectionRecoveringChange = options.onConnectionRecoveringChange;
   }
+
+  getRecovering = (): boolean => this.recovering;
 
   startRunningEvents(listener: (sessionIds: string[]) => void): void {
     if (this.disposed) return;
@@ -816,6 +822,7 @@ export class PiConnectionController {
       if (!this.isCurrent(generation)) return;
       this.dispatchFrame(generation, frame.stream, frame.data);
     }
+    this.setRecovering(false);
     try {
       this.onGenerationReady?.(generation.id);
     } catch {
@@ -1029,6 +1036,7 @@ export class PiConnectionController {
 
   private scheduleReconnect(): void {
     if (this.disposed || !this.started || this.reconnectTimer !== undefined) return;
+    this.setRecovering(true);
     const exponentialDelay = Math.min(
       MAX_RECONNECT_DELAY_MS,
       INITIAL_RECONNECT_DELAY_MS * 2 ** Math.min(this.reconnectAttempt, 16),
@@ -1051,6 +1059,16 @@ export class PiConnectionController {
       this.reconnectTimer = undefined;
       this.openGeneration();
     }, delay);
+  }
+
+  private setRecovering(recovering: boolean): void {
+    if (this.recovering === recovering) return;
+    this.recovering = recovering;
+    try {
+      this.onConnectionRecoveringChange?.(recovering);
+    } catch {
+      // Presentation observers must not invalidate the transport.
+    }
   }
 
   private waitUntilConnected(): Promise<void> {
