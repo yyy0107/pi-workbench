@@ -49,7 +49,6 @@ export function runtimeSourceWatchIncludes({ paths = createWorkbenchPaths() } = 
     `${normalizeWatchPattern(paths.runtimeAppRoot)}/src/**/*.{ts,tsx,js,jsx,mjs,cjs,json}`,
     `${normalizeWatchPattern(paths.webSourceRoot)}/server/**/*.{ts,tsx,js,jsx,mjs,cjs,json}`,
     `${normalizeWatchPattern(paths.webSourceRoot)}/runtime-connected-web-main.ts`,
-    `${normalizeWatchPattern(paths.repositoryRoot)}/packages/**/src/**/*.{ts,tsx,js,jsx,mjs,cjs,json}`,
     `${normalizeWatchPattern(paths.runtimeAppRoot)}/package.json`,
     `${normalizeWatchPattern(paths.webRoot)}/package.json`,
     `${normalizeWatchPattern(paths.repositoryRoot)}/packages/**/package.json`,

@@ -11,7 +11,7 @@ import {
 
 const { createWorkbenchPaths } = workbenchPaths;
 
-test("derives one exact Runtime/package/custom-Web source watch boundary", () => {
+test("derives one exact Runtime/custom-Web source watch boundary", () => {
   const paths = createWorkbenchPaths({
     repositoryRoot: path.resolve("/arbitrary/workbench-repository"),
   });
@@ -30,7 +30,6 @@ test("derives one exact Runtime/package/custom-Web source watch boundary", () =>
     `${paths.runtimeAppRoot}/src/**/*.{ts,tsx,js,jsx,mjs,cjs,json}`,
     `${paths.webSourceRoot}/server/**/*.{ts,tsx,js,jsx,mjs,cjs,json}`,
     `${paths.webSourceRoot}/runtime-connected-web-main.ts`,
-    `${paths.repositoryRoot}/packages/**/src/**/*.{ts,tsx,js,jsx,mjs,cjs,json}`,
     `${paths.runtimeAppRoot}/package.json`,
     `${paths.webRoot}/package.json`,
     `${paths.repositoryRoot}/packages/**/package.json`,
