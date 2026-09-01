@@ -31,7 +31,6 @@ import {
   FileTextIcon,
   LoaderCircleIcon,
   MessageSquareIcon,
-  MicIcon,
   PaperclipIcon,
   PlusIcon,
   SquareIcon,
@@ -125,10 +124,6 @@ import { formatAgentCommandLabel } from "./agent-command";
 
 const COMPOSER_PRIMARY_ACTION_CLASS_NAME =
   "aui-composer-primary-action rounded-[var(--button-radius)] [&:hover:not(:active)]:bg-primary! dark:[&:hover:not(:active)]:bg-primary!";
-const COMPOSER_VOICE_ACTION_STYLE = {
-  "--icon-frame-size-default": "var(--composer-voice-action-size)",
-  "--icon-size-md": "var(--composer-voice-icon-size)",
-} as CSSProperties;
 const COMPOSER_PRIMARY_ACTION_STYLE = {
   "--icon-frame-size-default": "var(--composer-primary-action-size)",
   "--icon-size-md": "var(--composer-primary-icon-size)",
@@ -653,7 +648,6 @@ export function WorkbenchComposer({
   const composerAttachments = useAuiState((state) => state.thread.composer.attachments);
   const canSend = useAuiState((state) => state.thread.composer.canSend);
   const canQueue = useAuiState((state) => state.thread.capabilities.queue);
-  const isDictating = useAuiState((state) => state.thread.composer.dictation != null);
   const mainThreadId = useAuiState((state) => state.threads.mainThreadId);
   const newThreadId = useAuiState((state) => state.threads.newThreadId);
   const threadIds = useAuiState((state) => state.threads.threadIds);
@@ -1531,7 +1525,6 @@ export function WorkbenchComposer({
                   className={cn(
                     "flex h-[var(--composer-action-row-size)] shrink-0 items-center justify-between gap-2 [padding-inline:var(--composer-action-inset)] max-[360px]:gap-1",
                     "[--composer-action-row-size:32px] [--composer-attachment-action-size:32px] [--composer-attachment-icon-size:16px]",
-                    "[--composer-voice-action-size:32px] [--composer-voice-icon-size:16px]",
                     "[--composer-primary-action-size:32px] [--composer-primary-icon-size:16px] [--composer-stop-icon-size:12px]",
                     "[&_.aui-composer-add-menu]:size-[var(--composer-attachment-action-size)]! [&_.aui-composer-add-menu-icon]:size-[var(--composer-attachment-icon-size)]!",
                     "[&_.aui-composer-stop-icon]:size-[var(--composer-stop-icon-size)]!",
@@ -1552,37 +1545,6 @@ export function WorkbenchComposer({
                       context={context}
                       className="flex min-w-0 items-center justify-end gap-2 empty:hidden"
                     />
-                    {isDictating ? (
-                      <ComposerPrimitive.StopDictation
-                        render={
-                          <TooltipIconButton
-                            tooltip={t("workbench.chat.composer.stopVoiceInput")}
-                            type="button"
-                            size="icon"
-                            variant="ghost"
-                            className="aui-composer-voice-action text-muted-foreground hover:text-foreground rounded-[var(--button-radius)] max-[360px]:hidden"
-                            style={COMPOSER_VOICE_ACTION_STYLE}
-                          />
-                        }
-                      >
-                        <SquareIcon className="aui-composer-voice-icon fill-current" />
-                      </ComposerPrimitive.StopDictation>
-                    ) : (
-                      <ComposerPrimitive.Dictate
-                        render={
-                          <TooltipIconButton
-                            tooltip={t("workbench.chat.composer.voiceInput")}
-                            type="button"
-                            size="icon"
-                            variant="ghost"
-                            className="aui-composer-voice-action text-muted-foreground hover:text-foreground rounded-[var(--button-radius)] max-[360px]:hidden"
-                            style={COMPOSER_VOICE_ACTION_STYLE}
-                          />
-                        }
-                      >
-                        <MicIcon className="aui-composer-voice-icon" />
-                      </ComposerPrimitive.Dictate>
-                    )}
                     {isRunning ? (
                       <ComposerPrimitive.Cancel
                         render={
