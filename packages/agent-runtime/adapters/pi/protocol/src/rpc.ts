@@ -1611,6 +1611,8 @@ export interface SessionContextTraceEventSummary extends SessionContextTraceCoor
   promptResources?: SessionContextTracePromptResources;
   /** Present on prompt composition and per-call context snapshots when Pi can estimate it. */
   contextUsage?: SessionContextTraceContextUsage;
+  /** This context snapshot contains call-scoped instructions and tool metadata. */
+  callContextCaptured?: true;
   /** Present on compaction events so list consumers can render the before/after transition. */
   compaction?: SessionContextTraceCompactionSummary;
 }
@@ -1646,6 +1648,15 @@ export type SessionContextTraceDetail =
       messages: SessionContextTraceJsonCapture;
       contextUsage?: SessionContextTraceContextUsage;
       messageTokenEstimates?: SessionContextTraceMessageTokenEstimates;
+      /** Effective call-scoped prompt state observed immediately before this model request. */
+      systemPrompt?: SessionContextTraceTextCapture;
+      systemPromptWithoutSkills?: SessionContextTraceTextCapture;
+      systemPromptSources?: SessionContextTraceSystemPromptSource[];
+      systemPromptOptions?: SessionContextTraceSystemPromptOptions;
+      tools?: SessionContextTraceTool[];
+      extensions?: SessionContextTraceExtension[];
+      model?: SessionContextTraceModel;
+      thinkingLevel?: string;
     }
   | {
       type: "provider-request";
@@ -1689,7 +1700,12 @@ export type SessionContextTraceDetail =
   | { type: "run-end"; messageCount: number; willRetry: boolean }
   | {
       type: "retry";
-      phase: "scheduled" | "finished" | "summarization-scheduled" | "summarization-finished";
+      phase:
+        | "scheduled"
+        | "finished"
+        | "summarization-scheduled"
+        | "summarization-attempt"
+        | "summarization-finished";
       attempt?: number;
       maxAttempts?: number;
       delayMs?: number;

@@ -1,4 +1,10 @@
-import type { SessionContextTraceEvent } from "@workbench/agent-runtime-pi-protocol/rpc";
+import type {
+  SessionContextTraceEvent,
+  SessionContextTraceSystemPromptOptions,
+  SessionContextTraceSystemPromptSource,
+  SessionContextTraceTextCapture,
+  SessionContextTraceTool,
+} from "@workbench/agent-runtime-pi-protocol/rpc";
 
 import type { ContextTraceDetailFocus } from "./context-trace-detail";
 import {
@@ -11,6 +17,33 @@ function outputMessage(event: SessionContextTraceEvent) {
   return event.kind === "model-output" || event.kind === "turn-end"
     ? event.detail.message
     : undefined;
+}
+
+function promptMetadata(event: SessionContextTraceEvent):
+  | {
+      systemPrompt: SessionContextTraceTextCapture;
+      systemPromptWithoutSkills?: SessionContextTraceTextCapture;
+      systemPromptSources?: SessionContextTraceSystemPromptSource[];
+      systemPromptOptions: SessionContextTraceSystemPromptOptions;
+      tools: SessionContextTraceTool[];
+    }
+  | undefined {
+  if (event.kind === "prompt-composition") return event.detail;
+  if (
+    event.kind === "context-snapshot" &&
+    event.detail.systemPrompt &&
+    event.detail.systemPromptOptions &&
+    event.detail.tools
+  ) {
+    return {
+      systemPrompt: event.detail.systemPrompt,
+      systemPromptWithoutSkills: event.detail.systemPromptWithoutSkills,
+      systemPromptSources: event.detail.systemPromptSources,
+      systemPromptOptions: event.detail.systemPromptOptions,
+      tools: event.detail.tools,
+    };
+  }
+  return undefined;
 }
 
 function compactionOverview(event: Extract<SessionContextTraceEvent, { kind: "compaction" }>) {
@@ -57,30 +90,31 @@ export function contextTraceSelectedRawValue(
   focus: ContextTraceDetailFocus | undefined,
 ): unknown {
   if (!focus) return event;
+  const metadata = promptMetadata(event);
 
-  if (focus.type === "prompt-section" && event.kind === "prompt-composition") {
+  if (focus.type === "prompt-section" && metadata) {
     switch (focus.section) {
       case "user-prompt":
-        return event.detail.prompt;
+        return event.kind === "prompt-composition" ? event.detail.prompt : null;
       case "system-prompt":
-        return event.detail.systemPromptWithoutSkills ?? event.detail.systemPrompt;
+        return metadata.systemPromptWithoutSkills ?? metadata.systemPrompt;
       case "skills":
-        return event.detail.systemPromptOptions.skills;
+        return metadata.systemPromptOptions.skills;
       case "context-files":
-        return event.detail.systemPromptOptions.contextFiles;
+        return metadata.systemPromptOptions.contextFiles;
       case "tool-schema":
-        return event.detail.tools.filter((tool) => tool.active);
+        return metadata.tools.filter((tool) => tool.active);
       case "attachments":
-        return event.detail.images;
+        return event.kind === "prompt-composition" ? event.detail.images : null;
     }
   }
 
-  if (focus.type === "system-prompt-source" && event.kind === "prompt-composition") {
-    return event.detail.systemPromptSources?.[focus.index] ?? null;
+  if (focus.type === "system-prompt-source" && metadata) {
+    return metadata.systemPromptSources?.[focus.index] ?? null;
   }
 
-  if (focus.type === "prompt-tool" && event.kind === "prompt-composition") {
-    return event.detail.tools.find((tool) => tool.name === focus.toolName) ?? null;
+  if (focus.type === "prompt-tool" && metadata) {
+    return metadata.tools.find((tool) => tool.name === focus.toolName) ?? null;
   }
 
   if (focus.type === "context-message" && event.kind === "context-snapshot") {

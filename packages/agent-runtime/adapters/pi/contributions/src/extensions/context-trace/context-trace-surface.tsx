@@ -523,7 +523,11 @@ export function ContextTraceSurface({
     selectedToolExecution?.end ??
     (selectedSummary?.kind === "tool-execution-end" ? selectedSummary : undefined);
   const selectedToolSchemaSummary =
-    selectedDetailVariant === "tool-execution" ? selectedTreeLocation?.turn.prompt : undefined;
+    selectedDetailVariant === "tool-execution"
+      ? selectedTreeLocation?.step?.context?.callContextCaptured
+        ? selectedTreeLocation.step.context
+        : selectedTreeLocation?.turn.prompt
+      : undefined;
 
   useEffect(() => {
     if (selectedDetailVariant !== "tool-execution") return;
@@ -550,8 +554,10 @@ export function ContextTraceSurface({
       ? (detailByTraceId.get(selectedToolSchemaSummary.traceId) ?? { status: "loading" as const })
       : undefined;
     const schema =
-      schemaDetail?.status === "ready" && schemaDetail.event.kind === "prompt-composition"
-        ? schemaDetail.event.detail.tools.find(
+      schemaDetail?.status === "ready" &&
+      (schemaDetail.event.kind === "prompt-composition" ||
+        schemaDetail.event.kind === "context-snapshot")
+        ? schemaDetail.event.detail.tools?.find(
             (tool) => tool.name === (selectedSummary?.toolName ?? selectedToolExecution?.toolName),
           )
         : undefined;
@@ -816,7 +822,9 @@ export function ContextTraceSurface({
     }
     if (selectedContextFocus?.type === "system-prompt-source") {
       const source =
-        selectedDetail.status === "ready" && selectedDetail.event.kind === "prompt-composition"
+        selectedDetail.status === "ready" &&
+        (selectedDetail.event.kind === "prompt-composition" ||
+          selectedDetail.event.kind === "context-snapshot")
           ? selectedDetail.event.detail.systemPromptSources?.[selectedContextFocus.index]
           : undefined;
       return {

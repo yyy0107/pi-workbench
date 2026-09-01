@@ -60,17 +60,30 @@ test("observes final prompt resources, messages, tools, and provider payload wit
   const effectiveSystemPrompt =
     `effective system prompt${formatSkillsForPrompt(skills as never)}` +
     "\n\nCurrent working directory: /workspace";
+  const continuedPromptWithoutSkills =
+    "continued system prompt\n\nCurrent working directory: /workspace";
+  const continuedSystemPrompt =
+    `continued system prompt${formatSkillsForPrompt(skills as never)}` +
+    "\n\nCurrent working directory: /workspace";
+  let activeToolNames = selectedTools;
+  let currentSystemPrompt = effectiveSystemPrompt;
   const pi = {
     on(event: string, handler: (event: never, context: never) => unknown) {
       handlers.set(event, handler);
     },
-    getActiveTools: () => ["tool-512"],
+    getActiveTools: () => activeToolNames,
     getAllTools: () => tools,
   };
   contextTraceExtension(pi as never);
 
   const trace = await activateSessionContextTrace("session-1");
+  trace.setSystemPromptOptionsResolver(() => ({
+    cwd: "/workspace",
+    contextFiles,
+    skills: skills as never,
+  }));
   const context = {
+    cwd: "/workspace",
     sessionManager: { getSessionId: () => "session-1" },
     model: {
       provider: "acme",
@@ -80,6 +93,7 @@ test("observes final prompt resources, messages, tools, and provider payload wit
       maxTokens: 8_192,
     },
     thinkingLevel: "high",
+    getSystemPrompt: () => currentSystemPrompt,
     getContextUsage: () => ({ tokens: 100, contextWindow: 128_000, percent: 0.078125 }),
   };
 
@@ -100,6 +114,8 @@ test("observes final prompt resources, messages, tools, and provider payload wit
     } as never,
     context as never,
   );
+  activeToolNames = ["tool-512"];
+  currentSystemPrompt = continuedSystemPrompt;
   await handlers.get("context")?.(
     { type: "context", messages: [{ role: "user", content: "effective user prompt" }] } as never,
     context as never,
@@ -220,7 +236,7 @@ test("observes final prompt resources, messages, tools, and provider payload wit
       description: composition.detail.tools.at(-1)?.description,
       promptGuideline: composition.detail.tools.at(-1)?.promptGuidelines?.[0],
     },
-    { name: "tool-512", active: true, description: longText, promptGuideline: longText },
+    { name: "tool-512", active: false, description: longText, promptGuideline: longText },
   );
 
   const providerSummary = snapshot.events.find((event) => event.kind === "provider-request");
@@ -248,10 +264,13 @@ test("observes final prompt resources, messages, tools, and provider payload wit
 
   const contextSummary = snapshot.events.find((event) => event.kind === "context-snapshot");
   assert.deepEqual(contextSummary?.contextUsage, {
-    tokens: 100,
+    tokens: 6,
     contextWindow: 128_000,
-    percent: 0.078125,
+    percent: 0.0046875,
   });
+  assert.equal(contextSummary?.model?.model, "model-1");
+  assert.equal(contextSummary?.thinkingLevel, "high");
+  assert.equal(contextSummary?.callContextCaptured, true);
   const contextSnapshot = contextSummary ? await trace.readAny(contextSummary.traceId) : undefined;
   if (contextSnapshot?.detail.type !== "context-snapshot") {
     assert.fail("Missing context snapshot detail");
@@ -260,6 +279,17 @@ test("observes final prompt resources, messages, tools, and provider payload wit
     method: "pi-estimate-tokens-v1",
     tokens: [6],
   });
+  assert.equal(contextSnapshot.detail.systemPrompt?.text, continuedSystemPrompt);
+  assert.equal(
+    contextSnapshot.detail.systemPromptWithoutSkills?.text,
+    continuedPromptWithoutSkills,
+  );
+  assert.deepEqual(contextSnapshot.detail.systemPromptOptions?.selectedTools, ["tool-512"]);
+  assert.equal(contextSnapshot.detail.systemPromptOptions?.toolSnippets, undefined);
+  assert.deepEqual(
+    contextSnapshot.detail.tools?.filter((tool) => tool.active).map((tool) => tool.name),
+    ["tool-512"],
+  );
   const compactionSummary = snapshot.events.findLast(
     (event) => event.kind === "compaction" && event.compaction?.phase === "end",
   );

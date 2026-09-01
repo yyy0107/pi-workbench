@@ -3,6 +3,7 @@ import path from "node:path";
 
 import type { AssistantMessage, Usage } from "@earendil-works/pi-ai";
 import {
+  type BuildSystemPromptOptions,
   estimateTokens,
   type AgentSessionEvent,
   type ResourceLoader,
@@ -41,6 +42,7 @@ export const SESSION_CONTEXT_TRACE_MAX_BYTES = 16 * 1024 * 1024;
 
 type TracePublisher = (event: SessionContextTraceEventSummary) => void;
 type SystemPromptSourcesResolver = () => readonly SessionContextTraceSystemPromptSource[];
+type SystemPromptOptionsResolver = () => BuildSystemPromptOptions;
 type ExtensionsResolver = () => readonly SessionContextTraceExtension[];
 
 interface PendingSystemPromptHookMutation {
@@ -54,6 +56,12 @@ interface PendingCompactionTrace {
   preparation?: SessionContextTraceCompactionPreparation;
   compactionEntryId?: string;
   fromExtension?: boolean;
+}
+
+interface PendingSummarizationRetry {
+  attempt: number;
+  maxAttempts: number;
+  source?: "compaction" | "branch-summary";
 }
 
 function byteLength(value: string): number {
@@ -128,6 +136,20 @@ export function sessionContextTraceSystemPromptSources(
     });
   });
   return sources;
+}
+
+export function sessionContextTraceSystemPromptOptions(
+  resourceLoader: ResourceLoader,
+  cwd: string,
+): BuildSystemPromptOptions {
+  const appendPrompts = resourceLoader.getAppendSystemPrompt();
+  return {
+    cwd,
+    skills: resourceLoader.getSkills().skills,
+    contextFiles: resourceLoader.getAgentsFiles().agentsFiles,
+    customPrompt: resourceLoader.getSystemPrompt(),
+    appendSystemPrompt: appendPrompts.length > 0 ? appendPrompts.join("\n\n") : undefined,
+  };
 }
 
 function extensionDisplayName(extensionPath: string): string {
@@ -331,9 +353,12 @@ export class SessionContextTrace {
   private readonly pendingRequests: Array<{ requestId: string; requestIndex: number }> = [];
   private readonly messageTokenEstimateCache = new WeakMap<object, number | null>();
   private agentAttempt: number | undefined;
+  private pendingTurnStartTimestamp: number | undefined;
   private pendingCompaction: PendingCompactionTrace | undefined;
+  private pendingSummarizationRetry: PendingSummarizationRetry | undefined;
   private readonly pendingSystemPromptHookMutations: PendingSystemPromptHookMutation[] = [];
   private systemPromptSourcesResolver: SystemPromptSourcesResolver | undefined;
+  private systemPromptOptionsResolver: SystemPromptOptionsResolver | undefined;
   private extensionsResolver: ExtensionsResolver | undefined;
 
   constructor(sessionId: string, publisher?: TracePublisher, journal?: SessionContextTraceJournal) {
@@ -360,6 +385,18 @@ export class SessionContextTrace {
     } catch {
       // Resource diagnostics must not interrupt a model call.
       return [];
+    }
+  }
+
+  setSystemPromptOptionsResolver(resolver: SystemPromptOptionsResolver): void {
+    this.systemPromptOptionsResolver = resolver;
+  }
+
+  getSystemPromptOptions(): BuildSystemPromptOptions | undefined {
+    try {
+      return this.systemPromptOptionsResolver?.();
+    } catch {
+      return undefined;
     }
   }
 
@@ -494,15 +531,43 @@ export class SessionContextTrace {
     this.append(detail);
   }
 
-  observeContext(messages: unknown[], contextUsage?: SessionContextTraceContextUsage): void {
+  observeContext(
+    messages: unknown[],
+    contextUsage?: SessionContextTraceContextUsage,
+    callContext: Partial<
+      Omit<
+        Extract<SessionContextTraceDetail, { type: "context-snapshot" }>,
+        "type" | "messageCount" | "messages" | "contextUsage" | "messageTokenEstimates"
+      >
+    > = {},
+  ): void {
     this.ensureRound("unknown");
+    const estimates = messageTokenEstimates(messages, this.messageTokenEstimateCache);
+    const estimatedTokens = estimates.tokens.every((tokens) => tokens !== null)
+      ? estimates.tokens.reduce<number>((total, tokens) => total + (tokens ?? 0), 0)
+      : null;
+    const alignedContextUsage = contextUsage
+      ? {
+          tokens: contextUsage.tokens === null ? null : estimatedTokens,
+          contextWindow: contextUsage.contextWindow,
+          percent:
+            contextUsage.tokens === null || estimatedTokens === null
+              ? null
+              : (estimatedTokens / contextUsage.contextWindow) * 100,
+        }
+      : undefined;
     this.append({
       type: "context-snapshot",
       messageCount: messages.length,
       messages: captureSessionContextTraceJson(messages),
-      ...(contextUsage ? { contextUsage } : {}),
-      messageTokenEstimates: messageTokenEstimates(messages, this.messageTokenEstimateCache),
+      ...(alignedContextUsage ? { contextUsage: alignedContextUsage } : {}),
+      messageTokenEstimates: estimates,
+      ...callContext,
     });
+  }
+
+  observeTurnStartTimestamp(timestamp: number): void {
+    this.pendingTurnStartTimestamp = timestamp;
   }
 
   observeCompactionPreparation(
@@ -603,7 +668,8 @@ export class SessionContextTrace {
         this.turnId = randomUUID();
         this.requestIndex = -1;
         this.pendingRequests.length = 0;
-        this.append({ type: "turn-start" });
+        this.append({ type: "turn-start", timestamp: this.pendingTurnStartTimestamp });
+        this.pendingTurnStartTimestamp = undefined;
         return;
       case "turn_end": {
         const usage =
@@ -661,9 +727,11 @@ export class SessionContextTrace {
         this.runId = undefined;
         return;
       case "agent_settled":
+        if (!this.roundId) return;
         this.append({ type: "round-settled" });
         this.roundId = undefined;
         this.runId = undefined;
+        this.pendingSummarizationRetry = undefined;
         this.turnId = undefined;
         this.turnIndex = undefined;
         this.pendingRequests.length = 0;
@@ -692,6 +760,10 @@ export class SessionContextTrace {
         });
         return;
       case "summarization_retry_scheduled":
+        this.pendingSummarizationRetry = {
+          attempt: event.attempt,
+          maxAttempts: event.maxAttempts,
+        };
         this.append({
           type: "retry",
           phase: "summarization-scheduled",
@@ -701,8 +773,37 @@ export class SessionContextTrace {
           error: captureSessionContextTraceText(event.errorMessage),
         });
         return;
+      case "summarization_retry_attempt_start": {
+        const source = event.source === "branchSummary" ? "branch-summary" : "compaction";
+        this.pendingSummarizationRetry = {
+          attempt: this.pendingSummarizationRetry?.attempt ?? 1,
+          maxAttempts: this.pendingSummarizationRetry?.maxAttempts ?? 1,
+          source,
+        };
+        this.append({
+          type: "retry",
+          phase: "summarization-attempt",
+          source,
+          attempt: this.pendingSummarizationRetry.attempt,
+          maxAttempts: this.pendingSummarizationRetry.maxAttempts,
+        });
+        return;
+      }
       case "summarization_retry_finished":
-        this.append({ type: "retry", phase: "summarization-finished" });
+        this.append({
+          type: "retry",
+          phase: "summarization-finished",
+          ...(this.pendingSummarizationRetry?.source
+            ? { source: this.pendingSummarizationRetry.source }
+            : {}),
+          ...(this.pendingSummarizationRetry
+            ? {
+                attempt: this.pendingSummarizationRetry.attempt,
+                maxAttempts: this.pendingSummarizationRetry.maxAttempts,
+              }
+            : {}),
+        });
+        this.pendingSummarizationRetry = undefined;
         return;
       case "compaction_start":
         this.pendingCompaction = { reason: event.reason };

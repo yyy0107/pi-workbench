@@ -153,8 +153,8 @@ function projectSteps(
         end,
         toolExecutions: projectToolExecutions(stepEvents),
         usage: output?.usage ?? end?.usage,
-        model: output?.model,
-        thinkingLevel: output?.thinkingLevel,
+        model: output?.model ?? context?.model,
+        thinkingLevel: output?.thinkingLevel ?? context?.thinkingLevel,
         duration: durationBetween(request ?? start, output),
         firstSeq,
       };

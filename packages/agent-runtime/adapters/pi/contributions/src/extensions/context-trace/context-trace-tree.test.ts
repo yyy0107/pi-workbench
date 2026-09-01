@@ -53,7 +53,11 @@ test("projects one user round with multiple Pi turns into one Turn with monotoni
     }),
     event(9, "turn-end", { turnId: "pi-turn-1", usage }),
     event(10, "turn-start", { runId: "run-1", turnId: "pi-turn-2", turnIndex: 1 }),
-    event(11, "context-snapshot", { turnId: "pi-turn-2" }),
+    event(11, "context-snapshot", {
+      turnId: "pi-turn-2",
+      model: { provider: "openai", model: "gpt-5.7" },
+      thinkingLevel: "medium",
+    }),
     event(12, "provider-request", { turnId: "pi-turn-2", requestId: "request-2" }),
     event(13, "model-output", { turnId: "pi-turn-2", usage }),
     event(14, "turn-end", { turnId: "pi-turn-2", usage }),
@@ -80,6 +84,8 @@ test("projects one user round with multiple Pi turns into one Turn with monotoni
   assert.equal(turns[0]?.steps[0]?.toolExecutions[0]?.duration, 100);
   assert.equal(turns[0]?.steps[0]?.model?.model, "gpt-5.6");
   assert.equal(turns[0]?.steps[0]?.thinkingLevel, "high");
+  assert.equal(turns[0]?.steps[1]?.model?.model, "gpt-5.7");
+  assert.equal(turns[0]?.steps[1]?.thinkingLevel, "medium");
   assert.equal(turns[0]?.finalOutput?.traceId, "activation:20");
   assert.deepEqual(
     turns[0]?.items.map((item) => item.type),

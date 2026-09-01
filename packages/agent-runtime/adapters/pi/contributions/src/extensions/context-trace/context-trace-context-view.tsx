@@ -464,7 +464,14 @@ export function ContextTraceContextView({
     const snapshot = step.context;
     const snapshotDetail = readyEvent(detailByTraceId, snapshot?.traceId);
     const context = snapshotDetail?.kind === "context-snapshot" ? snapshotDetail : undefined;
-    const activeTools = composition?.detail.tools.filter((tool) => tool.active);
+    const promptEvent = snapshot?.callContextCaptured ? snapshot : (prompt ?? snapshot);
+    const promptOptions =
+      context?.detail.systemPromptOptions ??
+      (snapshot?.callContextCaptured ? undefined : composition?.detail.systemPromptOptions);
+    const activeTools = (
+      context?.detail.tools ??
+      (snapshot?.callContextCaptured ? undefined : composition?.detail.tools)
+    )?.filter((tool) => tool.active);
     const messages = context
       ? listContextTraceMessages(
           context.detail.messages.value,
@@ -472,8 +479,10 @@ export function ContextTraceContextView({
         )
       : undefined;
     const attachments = composition ? jsonArrayLength(composition.detail.images.value) : undefined;
-    const systemPromptSources = composition?.detail.systemPromptSources;
-    const systemPromptSourceChildren: TraceTreeNode[] = composition
+    const systemPromptSources =
+      context?.detail.systemPromptSources ??
+      (snapshot?.callContextCaptured ? undefined : composition?.detail.systemPromptSources);
+    const systemPromptSourceChildren: TraceTreeNode[] = promptEvent
       ? (systemPromptSources ?? []).map((source, index) => ({
           id: `instructions:${step.id}:system:${index}`,
           label:
@@ -485,16 +494,16 @@ export function ContextTraceContextView({
           tone: EVENT_TONES.instruction,
           meta: t(`extensions.contextTrace.systemPromptSourceScopes.${source.scope}`),
           title: source.path,
-          event: prompt,
+          event: promptEvent,
           focus: { type: "system-prompt-source" as const, index },
-          loadTraceIds: [prompt?.traceId].filter((value): value is string => Boolean(value)),
+          loadTraceIds: [promptEvent.traceId],
         }))
       : [loadingNode(`instructions:${step.id}:system:loading`)];
     const activeSystemPromptSource = systemPromptSources?.find(
       (source) => source.kind === "builtin" || source.kind === "replacement",
     );
 
-    const instructionChildren: TraceTreeNode[] = prompt
+    const instructionChildren: TraceTreeNode[] = promptEvent
       ? [
           {
             id: `instructions:${step.id}:system`,
@@ -508,15 +517,15 @@ export function ContextTraceContextView({
               : undefined,
             trailing:
               systemPromptSources === undefined
-                ? composition
+                ? promptOptions
                   ? undefined
                   : t("extensions.contextTrace.contextCountPending")
                 : number(systemPromptSources.length),
-            event: prompt,
+            event: promptEvent,
             focus: { type: "prompt-section", section: "system-prompt" },
             expandable: systemPromptSourceChildren.length > 0,
             children: systemPromptSourceChildren,
-            loadTraceIds: [prompt.traceId],
+            loadTraceIds: [promptEvent.traceId],
           },
           {
             id: `instructions:${step.id}:skills`,
@@ -524,24 +533,24 @@ export function ContextTraceContextView({
             icon: PackageIcon,
             tone: EVENT_TONES.skills,
             trailing:
-              composition === undefined
+              promptOptions === undefined
                 ? t("extensions.contextTrace.contextCountPending")
-                : number(composition.detail.systemPromptOptions.skills.length),
-            event: prompt,
+                : number(promptOptions.skills.length),
+            event: promptEvent,
             focus: { type: "prompt-section", section: "skills" },
-            loadTraceIds: [prompt.traceId],
+            loadTraceIds: [promptEvent.traceId],
           },
-          ...(composition?.detail.systemPromptOptions.contextFiles.length
+          ...(promptOptions?.contextFiles.length
             ? [
                 {
                   id: `instructions:${step.id}:context-files`,
                   label: t("extensions.contextTrace.tree.contextFiles"),
                   icon: FileTextIcon,
                   tone: EVENT_TONES.instruction,
-                  trailing: number(composition.detail.systemPromptOptions.contextFiles.length),
-                  event: prompt,
+                  trailing: number(promptOptions.contextFiles.length),
+                  event: promptEvent,
                   focus: { type: "prompt-section" as const, section: "context-files" as const },
-                  loadTraceIds: [prompt.traceId],
+                  loadTraceIds: [promptEvent.traceId],
                 },
               ]
             : []),
@@ -549,15 +558,15 @@ export function ContextTraceContextView({
       : [];
 
     const toolChildren: TraceTreeNode[] =
-      prompt && activeTools
+      promptEvent && activeTools
         ? activeTools.map((tool) => ({
             id: `tools:${step.id}:${tool.name}`,
             label: tool.name,
             icon: WrenchIcon,
             tone: EVENT_TONES.toolSchema,
-            event: prompt,
+            event: promptEvent,
             focus: { type: "prompt-tool", toolName: tool.name },
-            loadTraceIds: [prompt.traceId],
+            loadTraceIds: [promptEvent.traceId],
           }))
         : [loadingNode(`tools:${step.id}:loading`)];
 
@@ -625,16 +634,12 @@ export function ContextTraceContextView({
         icon: ShieldIcon,
         tone: EVENT_TONES.instruction,
         trailing:
-          composition === undefined
+          promptOptions === undefined
             ? t("extensions.contextTrace.contextCountPending")
-            : number(
-                1 +
-                  composition.detail.systemPromptOptions.skills.length +
-                  composition.detail.systemPromptOptions.contextFiles.length,
-              ),
-        event: prompt,
-        expandable: Boolean(prompt),
-        loadTraceIds: prompt ? [prompt.traceId] : [],
+            : number(1 + promptOptions.skills.length + promptOptions.contextFiles.length),
+        event: promptEvent,
+        expandable: Boolean(promptEvent),
+        loadTraceIds: promptEvent ? [promptEvent.traceId] : [],
         children: instructionChildren,
       },
       {
@@ -646,10 +651,10 @@ export function ContextTraceContextView({
           activeTools === undefined
             ? t("extensions.contextTrace.contextCountPending")
             : number(activeTools.length),
-        event: prompt,
+        event: promptEvent,
         focus: { type: "prompt-section", section: "tool-schema" },
-        expandable: Boolean(prompt),
-        loadTraceIds: prompt ? [prompt.traceId] : [],
+        expandable: Boolean(promptEvent),
+        loadTraceIds: promptEvent ? [promptEvent.traceId] : [],
         children: toolChildren,
       },
       {

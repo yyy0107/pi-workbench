@@ -23,6 +23,7 @@ import type {
   SessionContextTraceEvent,
   SessionContextTraceEventSummary,
   SessionContextTraceJsonCapture,
+  SessionContextTraceSystemPromptOptions,
   SessionContextTraceSystemPromptSource,
   SessionContextTraceTextCapture,
   SessionContextTraceTokenUsage,
@@ -270,6 +271,26 @@ function JsonCaptureView({ capture }: { capture: SessionContextTraceJsonCapture 
     <>
       <CaptureMetadata capture={capture.capture} />
       <CodeBlock>{JSON.stringify(capture.value, null, 2)}</CodeBlock>
+    </>
+  );
+}
+
+function JsonCodeCaptureView({
+  ariaLabel,
+  capture,
+}: {
+  ariaLabel: string;
+  capture: SessionContextTraceJsonCapture;
+}) {
+  return (
+    <>
+      <CaptureMetadata capture={capture.capture} />
+      <WorkbenchCodeView
+        ariaLabel={ariaLabel}
+        name="tool-schema.json"
+        value={JSON.stringify(capture.value, null, 2)}
+        className="bg-muted/35 max-h-[32rem] rounded-lg"
+      />
     </>
   );
 }
@@ -746,8 +767,35 @@ function MessageList({
 
 type PromptCompositionEvent = Extract<SessionContextTraceEvent, { kind: "prompt-composition" }>;
 
-function visibleSystemPrompt(event: PromptCompositionEvent): SessionContextTraceTextCapture {
-  return event.detail.systemPromptWithoutSkills ?? event.detail.systemPrompt;
+interface PromptMetadata {
+  systemPrompt: SessionContextTraceTextCapture;
+  systemPromptWithoutSkills?: SessionContextTraceTextCapture;
+  systemPromptSources?: SessionContextTraceSystemPromptSource[];
+  systemPromptOptions: SessionContextTraceSystemPromptOptions;
+  tools: SessionContextTraceTool[];
+}
+
+function promptMetadata(event: SessionContextTraceEvent): PromptMetadata | undefined {
+  if (event.kind === "prompt-composition") return event.detail;
+  if (
+    event.kind === "context-snapshot" &&
+    event.detail.systemPrompt &&
+    event.detail.systemPromptOptions &&
+    event.detail.tools
+  ) {
+    return {
+      systemPrompt: event.detail.systemPrompt,
+      systemPromptWithoutSkills: event.detail.systemPromptWithoutSkills,
+      systemPromptSources: event.detail.systemPromptSources,
+      systemPromptOptions: event.detail.systemPromptOptions,
+      tools: event.detail.tools,
+    };
+  }
+  return undefined;
+}
+
+function visibleSystemPrompt(metadata: PromptMetadata): SessionContextTraceTextCapture {
+  return metadata.systemPromptWithoutSkills ?? metadata.systemPrompt;
 }
 
 function systemPromptSourceKindLabel(
@@ -785,15 +833,9 @@ function SystemPromptSourceMetadata({ source }: { source: SessionContextTraceSys
   );
 }
 
-function SystemPromptSourceView({
-  event,
-  index,
-}: {
-  event: PromptCompositionEvent;
-  index: number;
-}) {
+function SystemPromptSourceView({ metadata, index }: { metadata: PromptMetadata; index: number }) {
   const { t } = usePiI18n();
-  const source = event.detail.systemPromptSources?.[index];
+  const source = metadata.systemPromptSources?.[index];
   if (!source) {
     return <p className="text-muted-foreground p-3 text-xs">{t("extensions.contextTrace.none")}</p>;
   }
@@ -813,9 +855,9 @@ function SystemPromptSourceView({
   );
 }
 
-function SkillsView({ event }: { event: PromptCompositionEvent }) {
+function SkillsView({ metadata }: { metadata: PromptMetadata }) {
   const { t } = usePiI18n();
-  const skills = event.detail.systemPromptOptions.skills;
+  const skills = metadata.systemPromptOptions.skills;
   return (
     <Section title={t("extensions.contextTrace.skills")}>
       {skills.length > 0 ? (
@@ -846,13 +888,13 @@ function SkillsView({ event }: { event: PromptCompositionEvent }) {
 
 function ToolSchemasView({
   activeOnly = false,
-  event,
+  metadata,
 }: {
   activeOnly?: boolean;
-  event: PromptCompositionEvent;
+  metadata: PromptMetadata;
 }) {
   const { t } = usePiI18n();
-  const tools = activeOnly ? event.detail.tools.filter((tool) => tool.active) : event.detail.tools;
+  const tools = activeOnly ? metadata.tools.filter((tool) => tool.active) : metadata.tools;
   return (
     <Section title={t("extensions.contextTrace.toolSchemas")}>
       {tools.length > 0 ? (
@@ -879,7 +921,10 @@ function ToolSchemasView({
                 <p className="text-muted-foreground break-all font-mono text-[11px]">
                   {tool.source.path}
                 </p>
-                <JsonCaptureView capture={tool.parameters} />
+                <JsonCodeCaptureView
+                  ariaLabel={`${t("extensions.contextTrace.toolSchemas")}: ${tool.name}`}
+                  capture={tool.parameters}
+                />
               </div>
             </details>
           ))}
@@ -891,9 +936,9 @@ function ToolSchemasView({
   );
 }
 
-function ToolSchemaView({ event, toolName }: { event: PromptCompositionEvent; toolName: string }) {
+function ToolSchemaView({ metadata, toolName }: { metadata: PromptMetadata; toolName: string }) {
   const { t } = usePiI18n();
-  const tool = event.detail.tools.find((candidate) => candidate.name === toolName);
+  const tool = metadata.tools.find((candidate) => candidate.name === toolName);
   if (!tool) {
     return <p className="text-muted-foreground p-3 text-xs">{t("extensions.contextTrace.none")}</p>;
   }
@@ -904,7 +949,10 @@ function ToolSchemaView({ event, toolName }: { event: PromptCompositionEvent; to
         <p className="text-muted-foreground break-all font-mono text-[11px]">{tool.source.path}</p>
       </Section>
       <Section title={t("extensions.contextTrace.toolSchemas")}>
-        <JsonCaptureView capture={tool.parameters} />
+        <JsonCodeCaptureView
+          ariaLabel={`${t("extensions.contextTrace.toolSchemas")}: ${tool.name}`}
+          capture={tool.parameters}
+        />
       </Section>
     </div>
   );
@@ -932,7 +980,7 @@ function PromptCompositionDetail({ event }: { event: PromptCompositionEvent }) {
       {detail.contextUsage ? <ContextWindowUsageView usage={detail.contextUsage} /> : null}
 
       <Section title={t("extensions.contextTrace.systemPromptWithoutSkills")}>
-        <TextCaptureView capture={visibleSystemPrompt(event)} />
+        <TextCaptureView capture={visibleSystemPrompt(detail)} />
       </Section>
 
       <Section title={t("extensions.contextTrace.userPrompt")}>
@@ -957,9 +1005,9 @@ function PromptCompositionDetail({ event }: { event: PromptCompositionEvent }) {
         </Section>
       ) : null}
 
-      <SkillsView event={event} />
+      <SkillsView metadata={detail} />
 
-      <ToolSchemasView event={event} />
+      <ToolSchemasView metadata={detail} />
 
       <Section title={t("extensions.contextTrace.images")}>
         <JsonCaptureView capture={detail.images} />
@@ -1142,17 +1190,28 @@ function EventSpecificDetail({ event }: { event: SessionContextTraceEvent }) {
   switch (event.kind) {
     case "prompt-composition":
       return <PromptCompositionDetail event={event} />;
-    case "context-snapshot":
+    case "context-snapshot": {
+      const metadata = promptMetadata(event);
       return (
         <div className="space-y-3">
           {event.detail.contextUsage ? (
             <ContextWindowUsageView usage={event.detail.contextUsage} />
+          ) : null}
+          {metadata ? (
+            <>
+              <Section title={t("extensions.contextTrace.systemPromptWithoutSkills")}>
+                <TextCaptureView capture={visibleSystemPrompt(metadata)} />
+              </Section>
+              <SkillsView metadata={metadata} />
+              <ToolSchemasView metadata={metadata} activeOnly />
+            </>
           ) : null}
           <Section title={t("extensions.contextTrace.modelContext")}>
             <MessageList capture={event.detail.messages} />
           </Section>
         </div>
       );
+    }
     case "provider-request":
       return (
         <div className="space-y-3">
@@ -1335,28 +1394,29 @@ function FocusedContextDetail({
   focus: ContextTraceDetailFocus;
 }) {
   const { t } = usePiI18n();
-  if (focus.type === "prompt-section" && event.kind === "prompt-composition") {
+  const metadata = promptMetadata(event);
+  if (focus.type === "prompt-section" && metadata) {
     switch (focus.section) {
       case "user-prompt":
-        return (
+        return event.kind === "prompt-composition" ? (
           <Section title={t("extensions.contextTrace.userPrompt")}>
             <TextCaptureView capture={event.detail.prompt} />
           </Section>
-        );
+        ) : null;
       case "system-prompt":
         return (
           <Section title={t("extensions.contextTrace.systemPromptWithoutSkills")}>
-            <TextCaptureView capture={visibleSystemPrompt(event)} />
+            <TextCaptureView capture={visibleSystemPrompt(metadata)} />
           </Section>
         );
       case "skills":
-        return <SkillsView event={event} />;
+        return <SkillsView metadata={metadata} />;
       case "context-files":
         return (
           <Section title={t("extensions.contextTrace.contextFiles")}>
-            {event.detail.systemPromptOptions.contextFiles.length > 0 ? (
+            {metadata.systemPromptOptions.contextFiles.length > 0 ? (
               <div className="space-y-2">
-                {event.detail.systemPromptOptions.contextFiles.map((file) => (
+                {metadata.systemPromptOptions.contextFiles.map((file) => (
                   <details key={file.path} className="overflow-hidden rounded-lg border">
                     <summary className="hover:bg-muted/40 cursor-pointer px-3 py-2 font-mono text-xs">
                       {file.path}
@@ -1373,20 +1433,20 @@ function FocusedContextDetail({
           </Section>
         );
       case "tool-schema":
-        return <ToolSchemasView event={event} activeOnly />;
+        return <ToolSchemasView metadata={metadata} activeOnly />;
       case "attachments":
-        return (
+        return event.kind === "prompt-composition" ? (
           <Section title={t("extensions.contextTrace.images")}>
             <JsonCaptureView capture={event.detail.images} />
           </Section>
-        );
+        ) : null;
     }
   }
-  if (focus.type === "system-prompt-source" && event.kind === "prompt-composition") {
-    return <SystemPromptSourceView event={event} index={focus.index} />;
+  if (focus.type === "system-prompt-source" && metadata) {
+    return <SystemPromptSourceView metadata={metadata} index={focus.index} />;
   }
-  if (focus.type === "prompt-tool" && event.kind === "prompt-composition") {
-    return <ToolSchemaView event={event} toolName={focus.toolName} />;
+  if (focus.type === "prompt-tool" && metadata) {
+    return <ToolSchemaView metadata={metadata} toolName={focus.toolName} />;
   }
   if (focus.type === "context-message" && event.kind === "context-snapshot") {
     const entry = listContextTraceMessages(event.detail.messages.value).find(
@@ -1483,11 +1543,15 @@ function EventOverview({
 }) {
   const { date, number, t } = usePiI18n();
   const model =
-    event.kind === "prompt-composition" || event.kind === "model-output"
+    event.kind === "prompt-composition" ||
+    event.kind === "context-snapshot" ||
+    event.kind === "model-output"
       ? event.detail.model
       : summary.model;
   const thinkingLevel =
-    event.kind === "prompt-composition" || event.kind === "model-output"
+    event.kind === "prompt-composition" ||
+    event.kind === "context-snapshot" ||
+    event.kind === "model-output"
       ? event.detail.thinkingLevel
       : summary.thinkingLevel;
   const contextUsage =
@@ -1690,12 +1754,12 @@ interface PromptSourceSelection {
 }
 
 function selectPromptSources(
-  event: PromptCompositionEvent,
+  metadata: PromptMetadata,
   focus: ContextTraceDetailFocus | undefined,
   t: PiTranslate,
 ): PromptSourceSelection {
-  const options = event.detail.systemPromptOptions;
-  const systemPromptSources = (event.detail.systemPromptSources ?? []).map((source) => ({
+  const options = metadata.systemPromptOptions;
+  const systemPromptSources = (metadata.systemPromptSources ?? []).map((source) => ({
     label: systemPromptSourceKindLabel(t, source.kind),
     path: source.path,
   }));
@@ -1707,7 +1771,7 @@ function selectPromptSources(
     label: skill.name,
     path: skill.filePath,
   }));
-  const tools = event.detail.tools.map((tool) => ({
+  const tools = metadata.tools.map((tool) => ({
     active: tool.active,
     label: tool.name,
     path: tool.source.path,
@@ -1785,7 +1849,8 @@ function EventSourceDetail({
   focus?: ContextTraceDetailFocus;
 }) {
   const { t } = usePiI18n();
-  if (event.kind !== "prompt-composition") {
+  const metadata = promptMetadata(event);
+  if (!metadata) {
     return (
       <div className="text-muted-foreground flex min-h-48 flex-col items-center justify-center gap-2 p-8 text-center text-xs">
         <FileTextIcon className="size-6 opacity-45" />
@@ -1797,8 +1862,8 @@ function EventSourceDetail({
     );
   }
 
-  const options = event.detail.systemPromptOptions;
-  const selection = selectPromptSources(event, focus, t);
+  const options = metadata.systemPromptOptions;
+  const selection = selectPromptSources(metadata, focus, t);
 
   return (
     <div>
@@ -1887,8 +1952,8 @@ export function ContextTraceDetail({
         />
       );
     }
-    if (focus?.type === "system-prompt-source" && detail.event.kind === "prompt-composition") {
-      const source = detail.event.detail.systemPromptSources?.[focus.index];
+    if (focus?.type === "system-prompt-source") {
+      const source = promptMetadata(detail.event)?.systemPromptSources?.[focus.index];
       return source ? (
         <SystemPromptSourceMetadata source={source} />
       ) : (

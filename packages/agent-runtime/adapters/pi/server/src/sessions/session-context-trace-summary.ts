@@ -104,6 +104,15 @@ export function summarizeSessionContextTraceEvent(
           ...(detail.thinkingLevel ? { thinkingLevel: detail.thinkingLevel } : {}),
         }
       : {}),
+    ...(detail.type === "context-snapshot"
+      ? {
+          ...(detail.systemPrompt && detail.systemPromptOptions && detail.tools
+            ? { callContextCaptured: true as const }
+            : {}),
+          ...(detail.model ? { model: detail.model } : {}),
+          ...(detail.thinkingLevel ? { thinkingLevel: detail.thinkingLevel } : {}),
+        }
+      : {}),
     ...(detail.type === "turn-end" && detail.usage ? { usage: detail.usage } : {}),
   };
 }

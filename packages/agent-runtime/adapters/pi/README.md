@@ -825,8 +825,12 @@ Model Step 的完成边界；它同时记录当时的 model、thinking level 和
 缓存写入拆分。工具执行发生在该边界之后，并以 `toolCallId` 与 output 中的 tool call 配对。观测坐标按
 下面的层次关联：
 
-`prompt-composition` 仍保存扩展处理后的完整 system prompt 作为审计真值，但 UI 的 `SYSTEM` 节点使用
-移除 Pi 格式化 Skills 块后的独立投影。System Prompt 的加载来源直接读取 Pi `ResourceLoader`：受信任
+`prompt-composition` 保存一次用户提交在 `before_agent_start` 后的完整 prompt composition；每个
+`context-snapshot` 另行保存紧邻该次 provider 请求的有效 system prompt、model、thinking level、active
+tools、tool schema 和资源选项，作为 Model Step 的调用级审计真值。这样同一 Turn 内切换工具后的下一次
+调用，以及不触发 `before_agent_start` 的 Pi continuation，都不会复用旧的 Instructions/Tools。UI 的
+`SYSTEM` 节点使用移除 Pi 格式化 Skills 块后的独立投影。System Prompt 的加载来源直接读取 Pi
+`ResourceLoader`：受信任
 项目的 `.pi/SYSTEM.md` 优先于用户目录 `~/.pi/agent/SYSTEM.md`，两者都不存在时标记为 Pi 内置默认；
 `.pi/APPEND_SYSTEM.md` 与用户目录 `APPEND_SYSTEM.md` 按同样优先级记录为追加层。Pi 扩展通过
 `before_agent_start` 返回值实际改变 system prompt 时，每个发生变更的 handler 还会按执行顺序记录为

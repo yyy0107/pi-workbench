@@ -109,6 +109,11 @@ test("projects one context message and one output block by their source indexes"
     detail: {
       type: "context-snapshot",
       messageCount: 2,
+      systemPrompt: promptEvent.detail.systemPrompt,
+      systemPromptWithoutSkills: promptEvent.detail.systemPromptWithoutSkills,
+      systemPromptSources: promptEvent.detail.systemPromptSources,
+      systemPromptOptions: promptEvent.detail.systemPromptOptions,
+      tools: promptEvent.detail.tools,
       messages: {
         value: [
           { role: "system", content: "System" },
@@ -139,6 +144,13 @@ test("projects one context message and one output block by their source indexes"
       sourceIndex: 1,
     }),
     { role: "user", content: "Selected message" },
+  );
+  assert.deepEqual(
+    contextTraceSelectedRawValue(contextEvent, {
+      type: "prompt-section",
+      section: "tool-schema",
+    }),
+    promptEvent.detail.tools,
   );
   assert.deepEqual(
     contextTraceSelectedRawValue(outputEvent, {

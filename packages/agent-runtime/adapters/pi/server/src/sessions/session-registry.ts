@@ -127,6 +127,7 @@ import {
   activateSessionContextTrace,
   releaseSessionContextTrace,
   sessionContextTraceExtensions,
+  sessionContextTraceSystemPromptOptions,
   sessionContextTraceSystemPromptSources,
   type SessionContextTrace,
 } from "./session-context-trace";
@@ -1975,10 +1976,12 @@ class HostedPiSession {
       .then(() => {
         // Agent.continue() is the Pi core primitive and does not emit AgentSession's high-level
         // settled event. Persist the same durable boundary used by ordinary prompt runs.
+        this.contextTrace.observeAgentEvent({ type: "agent_settled" });
         this.publish({ type: "agent_settled" });
         this.publish({ type: "command_done" });
       })
       .catch((error: unknown) => {
+        this.contextTrace.observeAgentEvent({ type: "agent_settled" });
         this.publish({ type: "agent_settled" });
         this.publish({ type: "command_error", code: "pi_prompt_failed" });
         try {
@@ -3501,6 +3504,9 @@ async function createHost(
   });
   contextTrace.setSystemPromptSourcesResolver(() =>
     sessionContextTraceSystemPromptSources(session.resourceLoader, cwd, services.agentDir),
+  );
+  contextTrace.setSystemPromptOptionsResolver(() =>
+    sessionContextTraceSystemPromptOptions(session.resourceLoader, cwd),
   );
   contextTrace.setExtensionsResolver(() => sessionContextTraceExtensions(session.resourceLoader));
   let host: HostedPiSession;

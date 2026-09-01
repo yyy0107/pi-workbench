@@ -304,6 +304,7 @@ test("correlates round, retry run, turn, and logical provider request coordinate
     tools: [],
   });
   trace.observeAgentEvent({ type: "agent_start" } as never);
+  trace.observeTurnStartTimestamp(1_234);
   trace.observeAgentEvent({ type: "turn_start" } as never);
   trace.observeContext([{ role: "user", content: "hello" }]);
   trace.observeProviderRequest({ model: "model-1", messages: [] });
@@ -359,6 +360,7 @@ test("correlates round, retry run, turn, and logical provider request coordinate
     errorMessage: "temporary failure",
   } as never);
   trace.observeAgentEvent({ type: "agent_start" } as never);
+  trace.observeTurnStartTimestamp(5_678);
   trace.observeAgentEvent({ type: "turn_start" } as never);
   trace.observeAgentEvent({ type: "agent_end", messages: [], willRetry: false } as never);
   trace.observeAgentEvent({ type: "agent_settled" } as never);
@@ -404,6 +406,9 @@ test("correlates round, retry run, turn, and logical provider request coordinate
     turns.map((event) => event.turnIndex),
     [0, 0],
   );
+  const firstTurnStart = trace.read(turns[0]!.traceId);
+  if (firstTurnStart?.detail.type !== "turn-start") assert.fail("Missing turn-start detail");
+  assert.equal(firstTurnStart.detail.timestamp, 1_234);
 
   const request = snapshot.events.find((event) => event.kind === "provider-request");
   const response = snapshot.events.find((event) => event.kind === "provider-response");
@@ -463,6 +468,44 @@ test("correlates round, retry run, turn, and logical provider request coordinate
   assert.deepEqual(
     trace.list(request.seq, 2).events.map((event) => event.kind),
     ["provider-response", "model-output"],
+  );
+  trace.observeAgentEvent({ type: "agent_settled" } as never);
+  assert.equal(
+    trace.list(-1, 100).events.filter((event) => event.kind === "round-settled").length,
+    1,
+  );
+});
+
+test("records summarization retry attempts and their source", () => {
+  const trace = new SessionContextTrace("session-retry");
+  trace.observeAgentEvent({
+    type: "summarization_retry_scheduled",
+    attempt: 2,
+    maxAttempts: 3,
+    delayMs: 250,
+    errorMessage: "temporary failure",
+  } as never);
+  trace.observeAgentEvent({
+    type: "summarization_retry_attempt_start",
+    source: "branchSummary",
+  } as never);
+  trace.observeAgentEvent({ type: "summarization_retry_finished" } as never);
+
+  const retries = trace
+    .list(-1, 20)
+    .events.filter((event) => event.kind === "retry")
+    .map((event) => trace.read(event.traceId)?.detail);
+  assert.deepEqual(
+    retries.map((detail) =>
+      detail?.type === "retry"
+        ? [detail.phase, detail.source, detail.attempt, detail.maxAttempts]
+        : undefined,
+    ),
+    [
+      ["summarization-scheduled", undefined, 2, 3],
+      ["summarization-attempt", "branch-summary", 2, 3],
+      ["summarization-finished", "branch-summary", 2, 3],
+    ],
   );
 });
 

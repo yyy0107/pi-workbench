@@ -162,6 +162,18 @@ function compactionPreparationView(event: {
  * values after user/package extensions have transformed system prompts, messages, and payloads.
  */
 export const contextTraceExtension: ExtensionFactory = (pi) => {
+  let latestPromptMetadata:
+    | {
+        systemPrompt: string;
+        options: BuildSystemPromptOptions;
+        sources: SessionContextTraceSystemPromptSource[];
+      }
+    | undefined;
+
+  pi.on("turn_start", (event, context) => {
+    getSessionContextTrace(sessionId(context))?.observeTurnStartTimestamp(event.timestamp);
+  });
+
   pi.on("before_agent_start", (event, context) => {
     const trace = getSessionContextTrace(sessionId(context));
     if (!trace) return;
@@ -169,6 +181,15 @@ export const contextTraceExtension: ExtensionFactory = (pi) => {
     const contextUsage = context.getContextUsage();
     const systemPromptSources = trace.getSystemPromptSources();
     const systemPromptHookSources = trace.consumeSystemPromptHookSources(event.systemPrompt);
+    const effectiveSources =
+      systemPromptSources.length > 0
+        ? [...systemPromptSources.map((source) => ({ ...source })), ...systemPromptHookSources]
+        : [...fallbackSystemPromptSources(event.systemPromptOptions), ...systemPromptHookSources];
+    latestPromptMetadata = {
+      systemPrompt: event.systemPrompt,
+      options: event.systemPromptOptions,
+      sources: effectiveSources,
+    };
     trace.observePromptComposition({
       type: "prompt-composition",
       prompt: captureSessionContextTraceText(event.prompt),
@@ -176,10 +197,7 @@ export const contextTraceExtension: ExtensionFactory = (pi) => {
       systemPromptWithoutSkills: captureSessionContextTraceText(
         systemPromptWithoutSkills(event.systemPrompt, event.systemPromptOptions),
       ),
-      systemPromptSources:
-        systemPromptSources.length > 0
-          ? [...systemPromptSources.map((source) => ({ ...source })), ...systemPromptHookSources]
-          : [...fallbackSystemPromptSources(event.systemPromptOptions), ...systemPromptHookSources],
+      systemPromptSources: effectiveSources,
       systemPromptOptions: promptOptionsView(event.systemPromptOptions),
       images: captureSessionContextTraceJson(event.images ?? []),
       model: modelView(context.model),
@@ -194,10 +212,57 @@ export const contextTraceExtension: ExtensionFactory = (pi) => {
   });
 
   pi.on("context", (event, context) => {
-    getSessionContextTrace(sessionId(context))?.observeContext(
-      event.messages,
-      context.getContextUsage(),
+    const trace = getSessionContextTrace(sessionId(context));
+    if (!trace) return;
+    const systemPrompt = context.getSystemPrompt();
+    const promptMetadata =
+      latestPromptMetadata?.systemPrompt === systemPrompt ? latestPromptMetadata : undefined;
+    const activeToolNames = pi.getActiveTools();
+    const activeTools = new Set(activeToolNames);
+    const allTools = pi.getAllTools();
+    const baseOptions = promptMetadata?.options ??
+      trace.getSystemPromptOptions() ?? {
+        cwd: context.cwd,
+      };
+    const { toolSnippets: baseToolSnippets, ...resourceOptions } = baseOptions;
+    const toolSnippets = Object.fromEntries(
+      Object.entries(baseToolSnippets ?? {}).filter(([name]) => activeTools.has(name)),
     );
+    const currentOptions: BuildSystemPromptOptions = {
+      ...resourceOptions,
+      selectedTools: activeToolNames,
+      ...(Object.keys(toolSnippets).length > 0 ? { toolSnippets } : {}),
+      promptGuidelines: [
+        ...new Set(
+          allTools
+            .filter((tool) => activeTools.has(tool.name))
+            .flatMap((tool) => tool.promptGuidelines ?? [])
+            .map((guideline) => guideline.trim())
+            .filter(Boolean),
+        ),
+      ],
+    };
+    const systemPromptSources = trace.getSystemPromptSources();
+
+    trace.observeContext(event.messages, context.getContextUsage(), {
+      systemPrompt: captureSessionContextTraceText(systemPrompt),
+      systemPromptWithoutSkills: captureSessionContextTraceText(
+        systemPromptWithoutSkills(systemPrompt, currentOptions),
+      ),
+      systemPromptSources:
+        promptMetadata?.sources ??
+        (systemPromptSources.length > 0
+          ? [...systemPromptSources]
+          : fallbackSystemPromptSources(currentOptions)),
+      systemPromptOptions: promptOptionsView(currentOptions),
+      tools: allTools.map((tool) => toolView(tool, activeTools)),
+      extensions: trace.getExtensions().map((extension) => ({
+        ...extension,
+        source: { ...extension.source },
+      })),
+      model: modelView(context.model),
+      ...(context.thinkingLevel ? { thinkingLevel: context.thinkingLevel } : {}),
+    });
   });
 
   pi.on("session_before_compact", (event, context) => {
