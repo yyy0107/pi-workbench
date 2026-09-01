@@ -1,5 +1,6 @@
 "use client";
 
+import { MessagePartPrimitive } from "@assistant-ui/react";
 import { lazy, Suspense, type ComponentProps } from "react";
 
 export type { MarkdownTextProps } from "./markdown-text";
@@ -24,9 +25,13 @@ const LazyMarkdownCodeBlockContent = lazy(async () => ({
 
 // Streamdown pulls in Markdown parsing, Mermaid, KaTeX, and Shiki. Keep that graph out of the
 // desktop shell's startup chunks and fetch it only when a surface actually renders rich text.
+function MessageTextFallback() {
+  return <MessagePartPrimitive.Text component="p" smooth={false} className="whitespace-pre-wrap" />;
+}
+
 export function MarkdownText() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<MessageTextFallback />}>
       <LazyMarkdownText />
     </Suspense>
   );
@@ -36,7 +41,7 @@ export function MarkdownTextWithCitations(
   props: ComponentProps<MarkdownModule["MarkdownTextWithCitations"]>,
 ) {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<MessageTextFallback />}>
       <LazyMarkdownTextWithCitations {...props} />
     </Suspense>
   );
@@ -44,7 +49,7 @@ export function MarkdownTextWithCitations(
 
 export function CompactMarkdownText() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<MessageTextFallback />}>
       <LazyCompactMarkdownText />
     </Suspense>
   );
