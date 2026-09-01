@@ -77,17 +77,18 @@ export function WorkbenchMessageActions({ className }: Readonly<{ className?: st
   );
   const context = { messageId, role, isLast };
 
-  if (hideActionBar) return null;
-  if (!actionsVisible && !navigationVisible) return null;
+  if (!actionsVisible && !navigationVisible && !hideActionBar) return null;
 
   return (
     <div
       data-slot="message-actions"
+      aria-hidden={hideActionBar || undefined}
       className={cn(
         messageActionStyles,
-        "text-muted-foreground flex min-h-8 flex-wrap items-center gap-0.5",
+        "text-muted-foreground flex min-h-8 flex-wrap items-center gap-0.5 transition-opacity duration-150 ease-out motion-reduce:transition-none",
+        hideActionBar && "invisible pointer-events-none opacity-0",
         role === "user" &&
-          "opacity-100 transition-opacity md:opacity-0 md:group-focus-within/message:opacity-100 md:group-hover/message:opacity-100 motion-reduce:transition-none",
+          "opacity-100 md:opacity-0 md:group-focus-within/message:opacity-100 md:group-hover/message:opacity-100",
         className,
       )}
     >
