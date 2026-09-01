@@ -76,8 +76,6 @@ const CONTEXT_BREAKDOWN_GROUPS = [
 
 const CONTEXT_BUDGET_MODES = [
   "inherit",
-  "auto",
-  "maximum",
   "custom",
 ] as const satisfies readonly SessionContextPolicy["mode"][];
 
