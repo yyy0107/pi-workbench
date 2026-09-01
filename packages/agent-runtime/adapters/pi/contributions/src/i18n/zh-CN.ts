@@ -4,6 +4,11 @@ import { piExtensionsEnUS } from "./en-US";
 
 export const piExtensionsZhCN = {
   extensions: {
+    shared: {
+      copyMarkdown: "复制 Markdown",
+      markdownCopied: "已复制 Markdown",
+      markdownCopyFailed: "Markdown 复制失败",
+    },
     interactiveRequests: {
       questionTitle: "需要你的回答",
       questionDescription: "回答此请求后，会话才能继续。",
@@ -151,6 +156,7 @@ export const piExtensionsZhCN = {
         title: "系统提示词",
         description: "设置 Pi 在所有工作区中使用的全局系统提示词。",
         editorLabel: "自定义系统提示词",
+        preview: "预览 Markdown",
         placeholder: "输入自定义系统提示词…",
         defaultHint:
           "留空并保存可恢复 Pi 内置默认提示词。项目级 .pi/SYSTEM.md 可覆盖此全局值；AGENTS.md、技能和当前工作目录上下文仍会由运行时追加。",
@@ -1751,9 +1757,6 @@ export const piExtensionsZhCN = {
       viewSource: "查看源代码",
       viewPreview: "查看预览",
       markdownPreview: ({ name }: { name: string }) => `${name} 预览`,
-      copyMarkdown: "复制 Markdown",
-      markdownCopied: "已复制 Markdown",
-      markdownCopyFailed: "Markdown 复制失败",
       documentPreview: ({ name }: { name: string }) => `${name} 文档预览`,
       loadingPreview: "正在加载预览…",
       previewUnsupportedTitle: "无法预览",

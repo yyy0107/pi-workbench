@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { Code2Icon, EyeIcon } from "lucide-react";
 
 import { Button } from "@workbench/shell/ui";
 import { Input } from "@workbench/shell/ui";
@@ -8,6 +9,7 @@ import { SettingsInlineEditor } from "@workbench/shell/ui";
 import { Switch } from "@workbench/shell/ui";
 import { Textarea } from "@workbench/shell/ui";
 import { usePiI18n } from "../../i18n";
+import { MarkdownPreview } from "../../markdown-preview";
 import type { SettingsItemComponentProps } from "@workbench/extension-sdk";
 import { usePiConfigurationClient } from "@workbench/agent-runtime-pi-client/configuration";
 import { PiApiError } from "@workbench/agent-runtime-pi-client/errors";
@@ -108,6 +110,7 @@ export function SystemPromptSettingsItem({ sectionId, itemId }: SettingsItemComp
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string>();
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     if (!view) return;
@@ -130,6 +133,7 @@ export function SystemPromptSettingsItem({ sectionId, itemId }: SettingsItemComp
       setBaseline(updated.value.systemPrompt);
       setDraft(updated.value.systemPrompt);
       setSaved(true);
+      setEditing(false);
     } catch (error) {
       setSaveError(
         saveErrorLabel(
@@ -153,6 +157,11 @@ export function SystemPromptSettingsItem({ sectionId, itemId }: SettingsItemComp
   if (loadState === "failed" || !view) return <LoadFailure onRetry={load} />;
 
   const dirty = draft !== baseline;
+  const viewToggleLabel = editing
+    ? t("extensions.agentConfiguration.systemPrompt.preview")
+    : t("extensions.agentConfiguration.editValue", {
+        label: t("extensions.agentConfiguration.systemPrompt.editorLabel"),
+      });
   return (
     <div data-settings-section={sectionId} data-settings-item={itemId} className="py-5">
       <div>
@@ -165,23 +174,60 @@ export function SystemPromptSettingsItem({ sectionId, itemId }: SettingsItemComp
       </div>
 
       <div className="mt-4">
-        <label htmlFor={systemPromptId} className="text-muted-foreground block text-sm">
-          {t("extensions.agentConfiguration.systemPrompt.editorLabel")}
-        </label>
-        <Textarea
-          id={systemPromptId}
-          value={draft}
-          maxLength={500_000}
-          spellCheck={false}
-          disabled={saving}
-          placeholder={t("extensions.agentConfiguration.systemPrompt.placeholder")}
-          className="bg-background mt-2 min-h-44 resize-y font-mono text-xs leading-5"
-          onChange={(event) => {
-            setDraft(event.currentTarget.value);
-            setSaved(false);
-            setSaveError(undefined);
-          }}
-        />
+        <div className="flex items-center justify-between gap-2">
+          <label htmlFor={systemPromptId} className="text-muted-foreground block text-sm">
+            {t("extensions.agentConfiguration.systemPrompt.editorLabel")}
+          </label>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-pressed={!editing}
+            aria-label={viewToggleLabel}
+            title={viewToggleLabel}
+            className={!editing ? "bg-muted/55" : undefined}
+            disabled={saving}
+            onClick={() => setEditing((current) => !current)}
+          >
+            {editing ? <EyeIcon aria-hidden="true" /> : <Code2Icon aria-hidden="true" />}
+          </Button>
+        </div>
+        <div className="mt-2">
+          {editing ? (
+            <Textarea
+              id={systemPromptId}
+              autoFocus
+              value={draft}
+              maxLength={500_000}
+              spellCheck={false}
+              disabled={saving}
+              placeholder={t("extensions.agentConfiguration.systemPrompt.placeholder")}
+              className="bg-background min-h-44 resize-y font-mono text-xs leading-5"
+              onChange={(event) => {
+                setDraft(event.currentTarget.value);
+                setSaved(false);
+                setSaveError(undefined);
+              }}
+            />
+          ) : (
+            <div className="h-44 overflow-hidden rounded-[var(--input-control-radius)] border [border-color:var(--input-control-border)] [background:var(--input-control-background)]">
+              {draft ? (
+                <MarkdownPreview
+                  content={draft}
+                  ariaLabel={t("extensions.agentConfiguration.systemPrompt.editorLabel")}
+                />
+              ) : (
+                <p
+                  role="document"
+                  aria-label={t("extensions.agentConfiguration.systemPrompt.editorLabel")}
+                  className="text-muted-foreground px-8 py-7 text-sm leading-7"
+                >
+                  {t("extensions.agentConfiguration.systemPrompt.placeholder")}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
         <p className="text-muted-foreground mt-2 text-xs leading-5">
           {t("extensions.agentConfiguration.systemPrompt.defaultHint")}
         </p>

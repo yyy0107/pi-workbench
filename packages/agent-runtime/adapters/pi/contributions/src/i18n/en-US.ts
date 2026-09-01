@@ -2,6 +2,11 @@ import type { MessageFormatters } from "@workbench/shell/i18n";
 
 export const piExtensionsEnUS = {
   extensions: {
+    shared: {
+      copyMarkdown: "Copy Markdown",
+      markdownCopied: "Markdown copied",
+      markdownCopyFailed: "Couldn't copy Markdown",
+    },
     interactiveRequests: {
       questionTitle: "Your response is needed",
       questionDescription: "Answer this request to let the session continue.",
@@ -151,6 +156,7 @@ export const piExtensionsEnUS = {
         title: "System prompt",
         description: "Set the global system prompt Pi uses across all workspaces.",
         editorLabel: "Custom system prompt",
+        preview: "Preview Markdown",
         placeholder: "Enter a custom system prompt…",
         defaultHint:
           "Leave this empty and save to use Pi's built-in default. A project-level .pi/SYSTEM.md can override this global value; AGENTS.md, skills, and working-directory context are still added by the runtime.",
@@ -1839,9 +1845,6 @@ export const piExtensionsEnUS = {
       viewSource: "View source code",
       viewPreview: "View preview",
       markdownPreview: ({ name }: { name: string }) => `${name} preview`,
-      copyMarkdown: "Copy Markdown",
-      markdownCopied: "Markdown copied",
-      markdownCopyFailed: "Couldn't copy Markdown",
       documentPreview: ({ name }: { name: string }) => `${name} document preview`,
       loadingPreview: "Loading preview…",
       previewUnsupportedTitle: "Preview unavailable",

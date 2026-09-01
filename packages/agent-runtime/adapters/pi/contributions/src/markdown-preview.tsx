@@ -2,14 +2,14 @@
 
 import { CheckIcon, CircleXIcon, CopyIcon } from "lucide-react";
 
-import { MarkdownTextContent } from "@workbench/shell/assistant-ui";
-import { TooltipIconButton } from "@workbench/shell/assistant-ui";
+import { MarkdownTextContent, TooltipIconButton } from "@workbench/shell/assistant-ui";
 import { useClipboardCopy } from "@workbench/shell/hooks";
-import { usePiI18n } from "../../i18n";
+
+import { usePiI18n } from "./i18n";
 
 const COPY_FEEDBACK_DURATION_MS = 2_000;
 
-export function FileMarkdownPreview({
+export function MarkdownPreview({
   ariaLabel,
   content,
 }: Readonly<{
@@ -22,10 +22,10 @@ export function FileMarkdownPreview({
   });
   const copyLabel = t(
     status === "copied"
-      ? "extensions.workspaceFile.markdownCopied"
+      ? "extensions.shared.markdownCopied"
       : status === "failed"
-        ? "extensions.workspaceFile.markdownCopyFailed"
-        : "extensions.workspaceFile.copyMarkdown",
+        ? "extensions.shared.markdownCopyFailed"
+        : "extensions.shared.copyMarkdown",
   );
 
   return (

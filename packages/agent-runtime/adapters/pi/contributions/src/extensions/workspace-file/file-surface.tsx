@@ -7,6 +7,7 @@ import { useRightWorkspace, useWorkspaceDraftStore } from "@workbench/shell/righ
 import { shouldHighlightWorkbenchCode } from "@workbench/shell/code-highlighting";
 import { languageForFilename } from "@workbench/shell/code-highlighting";
 import { usePiI18n } from "../../i18n";
+import { MarkdownPreview } from "../../markdown-preview";
 import { useExtensionErrorReporter } from "@workbench/extension-host";
 import type { WorkspaceSurfaceProps } from "@workbench/extension-sdk";
 import { WORKSPACE_FILE_BUFFERED_PREVIEW_SIZE_LIMIT } from "@workbench/agent-runtime-pi-protocol/rpc";
@@ -25,7 +26,6 @@ import { saveFileBuffer } from "./file-buffer-actions";
 import { readFileBufferDraft, writeFileBufferDraft } from "./file-buffer-draft";
 import { FileDiffViewer } from "./file-diff-viewer";
 import { FileDocumentPreview } from "./file-document-preview";
-import { FileMarkdownPreview } from "./file-markdown-preview";
 import { FILE_SURFACE_LOAD_FAILED, FILE_SURFACE_SAVE_FAILED } from "./file-surface-messages";
 import {
   isFileViewerPreviewFile,
@@ -455,7 +455,7 @@ export function FileSurface({
 
   if (markdownPreview && snapshot) {
     return (
-      <FileMarkdownPreview
+      <MarkdownPreview
         content={snapshot.content}
         ariaLabel={t("extensions.workspaceFile.markdownPreview", { name: snapshot.name })}
       />
