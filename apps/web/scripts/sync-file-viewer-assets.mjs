@@ -1,11 +1,12 @@
-import { cp, mkdir, rm } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
 
 import workbenchPaths from "../../../scripts/workbench-paths.cjs";
+import { syncStaticAssets } from "./sync-static-assets.mjs";
 
 const require = createRequire(import.meta.url);
 const { webPublicRoot } = workbenchPaths.defaultWorkbenchPaths;
+const packageManifest = require("file-viewer-copy-assets/package.json");
 const packageRoot = path.dirname(require.resolve("file-viewer-copy-assets/package.json"));
 const sourceRoot = path.join(packageRoot, "viewer");
 const targetRoot = path.join(webPublicRoot, "file-viewer");
@@ -28,10 +29,14 @@ const officeAssetDirectories = [
   "vendor/xlsx",
 ];
 
-await rm(targetRoot, { recursive: true, force: true });
-await mkdir(targetRoot, { recursive: true });
-for (const relativePath of officeAssetDirectories) {
-  const target = path.join(targetRoot, relativePath);
-  await mkdir(path.dirname(target), { recursive: true });
-  await cp(path.join(sourceRoot, relativePath), target, { recursive: true });
-}
+await syncStaticAssets({
+  targetRoot,
+  fingerprint: JSON.stringify({
+    package: `${packageManifest.name}@${packageManifest.version}`,
+    assets: officeAssetDirectories,
+  }),
+  entries: officeAssetDirectories.map((relativePath) => ({
+    source: path.join(sourceRoot, relativePath),
+    target: relativePath,
+  })),
+});

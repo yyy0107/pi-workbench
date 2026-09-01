@@ -6,10 +6,10 @@
   "scripts": {
     "icons:sync": "node scripts/sync-material-icon-theme.mjs",
     "file-viewer:sync": "node scripts/sync-file-viewer-assets.mjs",
-    "predev": "pnpm icons:sync && pnpm file-viewer:sync",
+    "predev": "node scripts/sync-assets.mjs",
     "dev": "node ../../scripts/web-runtime-watch.mjs",
     "dev:once": "node ../../scripts/web-runtime-orchestrator.mjs --development",
-    "prebuild": "pnpm icons:sync && pnpm file-viewer:sync",
+    "prebuild": "node scripts/sync-assets.mjs",
     "build": "next build",
     "postbuild": "tsx scripts/build-web-artifact.ts",
     "smoke:standalone": "node scripts/web-standalone-smoke.cjs",
