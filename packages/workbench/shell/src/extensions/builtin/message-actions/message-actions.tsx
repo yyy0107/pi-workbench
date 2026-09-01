@@ -3,7 +3,6 @@
 import {
   ActionBarPrimitive,
   BranchPickerPrimitive,
-  useAui,
   useAuiState,
   useMessageTiming,
 } from "@assistant-ui/react";
@@ -184,7 +183,6 @@ function UserActions() {
 
 function AssistantActions({ canReload }: Readonly<{ canReload: boolean }>) {
   const { t } = useI18n();
-  const aui = useAui();
   const threadActions = useWorkbenchAgentThreadActions();
   const sessionId = useWorkbenchAgentThreadId();
   const session = useWorkbenchAgentThreadSnapshot(sessionId);
@@ -211,7 +209,6 @@ function AssistantActions({ canReload }: Readonly<{ canReload: boolean }>) {
         atStateToken: stateToken,
         sourceTitle: session?.title ?? t("workbench.sidebar.newThread"),
       });
-      await aui.threads.reload();
       navigation.openConversation(forked.threadId);
     } catch (error) {
       setForkState("failed");
@@ -222,17 +219,7 @@ function AssistantActions({ canReload }: Readonly<{ canReload: boolean }>) {
         });
       }
     }
-  }, [
-    aui,
-    forkState,
-    navigation,
-    reportError,
-    session?.title,
-    sessionId,
-    stateToken,
-    t,
-    threadActions,
-  ]);
+  }, [forkState, navigation, reportError, session?.title, sessionId, stateToken, t, threadActions]);
   const forkTooltip =
     forkState === "pending"
       ? t("extensions.messageActions.forkConversationPending")

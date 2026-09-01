@@ -19,6 +19,8 @@ const {
   createScratchSession,
   createSession,
   createDetachedSessionFork,
+  forkSession,
+  getLoadedSessions,
   getSessionEventBranches,
   getSessionEvents,
   getSessionHistory,
@@ -3473,6 +3475,63 @@ test("creates detached omitted and anchored forks without replacing the source",
   assert.equal(source.getSessionFile(), sourcePath);
   assert.equal(source.getLeafId(), sourceLeaf);
   assert.equal(await readFile(sourcePath, "utf8"), sourceBefore);
+});
+
+test("keeps a formal fork cold until execution needs a host", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "workbench-cold-fork-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+  const previousStateDir = process.env.PI_WORKBENCH_STATE_DIR;
+  process.env.PI_CODING_AGENT_DIR = path.join(root, "agent");
+  process.env.PI_WORKBENCH_STATE_DIR = path.join(root, "state");
+  t.after(() => {
+    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+    if (previousStateDir === undefined) delete process.env.PI_WORKBENCH_STATE_DIR;
+    else process.env.PI_WORKBENCH_STATE_DIR = previousStateDir;
+  });
+
+  const cwd = path.join(root, "project");
+  await mkdir(cwd, { recursive: true });
+  const source = await createSession(cwd, "cold-fork-source");
+  t.after(() => source.shutdown());
+  const manager = source.session.sessionManager;
+  const user = { role: "user" as const, content: "main context", timestamp: 1 };
+  const assistant = assistantMessage("main answer", 2);
+  appendSessionEventJournal(manager, { type: "turn_start", seq: 0, time: 1, data: {} });
+  appendSessionEventJournal(manager, {
+    type: "message_end",
+    seq: 1,
+    time: 2,
+    data: { message: user },
+  });
+  manager.appendMessage(user);
+  appendSessionEventJournal(manager, {
+    type: "message_end",
+    seq: 2,
+    time: 3,
+    data: { message: assistant },
+  });
+  manager.appendMessage(assistant);
+  appendSessionEventJournal(manager, { type: "turn_end", seq: 3, time: 4, data: {} });
+
+  const forked = await forkSession(source.id, 2);
+  assert.equal(
+    getLoadedSessions().some((host) => host.id === forked.id),
+    false,
+  );
+  assert.equal(
+    (await listSessions()).sessions.some((session) => session.id === forked.id),
+    true,
+  );
+  assert.deepEqual((await getSessionHistory(forked.id)).context.messages, [user, assistant]);
+
+  const child = await getOrStartSession(forked.id);
+  t.after(() => child.shutdown());
+  assert.equal(
+    getLoadedSessions().some((host) => host.id === forked.id),
+    true,
+  );
 });
 
 test("keeps scratch sessions hidden, releases their files, and promotes them explicitly", async (t) => {

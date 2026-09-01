@@ -4103,7 +4103,7 @@ async function serializeForkCreation<Value>(operation: () => Promise<Value>): Pr
 }
 
 /** Create an independent child without replacing or rebinding the source live AgentSession. */
-export async function forkSession(id: string, atSeq?: number): Promise<HostedPiSession> {
+export async function forkSession(id: string, atSeq?: number): Promise<{ id: string }> {
   const registry = state();
   let live = registry.sessions.get(id);
   if (!live?.isAlive) {
@@ -4130,7 +4130,7 @@ export async function forkSession(id: string, atSeq?: number): Promise<HostedPiS
     ) {
       throw forkUnavailable();
     }
-    const occupiedIds = new Set((await SessionManager.listAll()).map((session) => session.id));
+    const occupiedIds = new Set(registry.persistedSessions.keys());
     if (
       !existsSync(/* turbopackIgnore: true */ resolvedSourcePath) ||
       (atSeq === undefined && registry.sessions.get(id)?.isBusy)
@@ -4156,18 +4156,12 @@ export async function forkSession(id: string, atSeq?: number): Promise<HostedPiS
         continue;
       }
 
-      const start = createHost(child)
-        .then((host) => {
-          announceSessionAdded(host);
-          return host;
-        })
-        .catch((error) => {
-          removeFailedForkFile(resolvedSourcePath, child);
-          throw error;
-        })
-        .finally(() => registry.startLocks.delete(childId));
-      registry.startLocks.set(childId, start);
-      return start;
+      try {
+        return { id: registerImportedSessionManager(child).id };
+      } catch (error) {
+        removeFailedForkFile(resolvedSourcePath, child);
+        throw error;
+      }
     }
     throw forkUnavailable();
   });
@@ -4394,7 +4388,7 @@ function cachePersistedSessionManager(
   return summary;
 }
 
-/** Admit a fully populated, cold SessionManager created by a host-owned importer. */
+/** Admit a fully populated, cold SessionManager without starting an AgentSession. */
 export function registerImportedSessionManager(manager: SessionManager): PiSessionSummary {
   const registry = state();
   const id = manager.getSessionId();
