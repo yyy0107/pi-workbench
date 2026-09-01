@@ -10,6 +10,7 @@ import {
 test("defaults to production and accepts only the explicit hot flag", () => {
   assert.deepEqual(parseWebRuntimeDevOptions([]), { hot: false });
   assert.deepEqual(parseWebRuntimeDevOptions(["--hot"]), { hot: true });
+  assert.deepEqual(parseWebRuntimeDevOptions(["--", "--hot"]), { hot: true });
   for (const argv of [["--unknown"], ["--hot", "--hot"]]) {
     assert.throws(() => parseWebRuntimeDevOptions(argv), /Usage:/u);
   }

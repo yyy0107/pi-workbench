@@ -13,7 +13,11 @@ const HOT_ARGUMENT = "--hot";
 
 export function parseWebRuntimeDevOptions(argv = process.argv.slice(2)) {
   if (argv.length === 0) return Object.freeze({ hot: false });
-  if (argv.length === 1 && argv[0] === HOT_ARGUMENT) return Object.freeze({ hot: true });
+  if (
+    (argv.length === 1 && argv[0] === HOT_ARGUMENT) ||
+    (argv.length === 2 && argv[0] === "--" && argv[1] === HOT_ARGUMENT)
+  )
+    return Object.freeze({ hot: true });
   throw new Error(`Usage: web-runtime-dev.mjs [${HOT_ARGUMENT}]`);
 }
 
