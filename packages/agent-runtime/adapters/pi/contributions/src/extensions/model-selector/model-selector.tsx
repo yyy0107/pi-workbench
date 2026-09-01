@@ -341,6 +341,7 @@ export function ModelSelector() {
         />
       ) : null}
       <ModelSelectorControl
+        compact
         currentUnavailable={currentUnavailable}
         labels={{
           select: tShell("assistant.model.select"),

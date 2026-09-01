@@ -189,27 +189,6 @@ export const extensionsEnUS = {
         shaping: "Shaping · Geometric outline",
       },
     },
-    controls: {
-      title: "Control heights",
-      controlHeight: "Form control height",
-      controlHeightDescription: "Keep shared inputs, dropdowns, and buttons at one aligned height.",
-      switchHeight: "Switch height",
-      switchHeightDescription: "Resize standard and compact switches proportionally.",
-      heightValue: ({ height }: { height: number }, { number }: MessageFormatters) =>
-        `${number(height)} px`,
-      preview: {
-        title: "Live preview",
-        inputLabel: "Input",
-        inputPlaceholder: "Type something…",
-        dropdownLabel: "Dropdown",
-        dropdownPrimary: "Comfortable",
-        dropdownSecondary: "Compact",
-        buttonLabel: "Button",
-        buttonValue: "Continue",
-        switchLabel: "Switch",
-        switchValue: "Enabled",
-      },
-    },
     fontFamilies: {
       ui: {
         system: "System UI",

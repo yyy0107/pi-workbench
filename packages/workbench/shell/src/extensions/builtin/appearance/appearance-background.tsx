@@ -161,34 +161,6 @@ function blendWithCustomBackground(themeColor: string, backgroundColor: string):
   return `color-mix(in srgb, ${themeColor} ${THEME_SURFACE_COLOR_WEIGHT}%, ${backgroundColor})`;
 }
 
-function getControlSizeProperties(height: number): Record<string, string> {
-  return {
-    "--form-control-height": `${height}px`,
-    "--button-height-compact": `${Math.max(20, height - 2)}px`,
-    "--button-height-large": `${height + 10}px`,
-  };
-}
-
-function getSwitchSizeProperties(height: number): Record<string, string> {
-  const padding = Math.max(1, Math.round(height / 12));
-  const width = Math.round((height * 5) / 3);
-  const thumbSize = height - padding * 2;
-  const compactHeight = Math.round((height * 2) / 3);
-  const compactWidth = Math.round((compactHeight * 7) / 4);
-
-  return {
-    "--switch-track-height": `${height}px`,
-    "--switch-track-width": `${width}px`,
-    "--switch-track-padding": `${padding}px`,
-    "--switch-thumb-size": `${thumbSize}px`,
-    "--switch-thumb-translate": `${width - height}px`,
-    "--switch-compact-track-height": `${compactHeight}px`,
-    "--switch-compact-track-width": `${compactWidth}px`,
-    "--switch-compact-thumb-size": `${compactHeight - padding * 2}px`,
-    "--switch-compact-thumb-translate": `${compactWidth - compactHeight}px`,
-  };
-}
-
 export function workbenchAppearanceRoot(element: Element | null): HTMLElement | undefined {
   return element?.closest<HTMLElement>("[data-workbench-shell]") ?? undefined;
 }
@@ -249,8 +221,6 @@ export function AppearanceBackground() {
       "--workbench-dark-contrast": `${preferences.darkContrast}%`,
       "--workbench-ui-font-size": `${preferences.uiFontSize}px`,
       "--workbench-code-font-size": `${preferences.codeFontSize}px`,
-      ...getControlSizeProperties(preferences.controlHeight),
-      ...getSwitchSizeProperties(preferences.switchControlHeight),
     } as const;
 
     for (const [property, value] of Object.entries(themeProperties)) {

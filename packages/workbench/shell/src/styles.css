@@ -97,7 +97,7 @@
 
   /* Control density */
   --control-hit-compact: 24px;
-  --control-hit-default: 26px;
+  --control-hit-default: 32px;
   --control-hit-touch: 44px;
   --form-control-height: var(--control-hit-default);
   --control-text-line-height: 1.25;
@@ -126,9 +126,9 @@
   --control-focus-ring: var(--ring);
 
   /* Buttons */
-  --button-height-compact: var(--control-hit-compact);
+  --button-height-compact: calc(var(--form-control-height) - 2px);
   --button-height-default: var(--form-control-height);
-  --button-height-large: 36px;
+  --button-height-large: calc(var(--form-control-height) + 10px);
   --button-content-padding-block-start: calc(
     var(--control-text-offset-y) + var(--control-text-offset-y)
   );

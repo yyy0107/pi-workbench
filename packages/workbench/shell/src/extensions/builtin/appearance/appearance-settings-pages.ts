@@ -30,8 +30,6 @@ export const DEFAULT_APPEARANCE_PREFERENCES_BY_PAGE = {
     cornerRadius: DEFAULT_APPEARANCE_PREFERENCES.cornerRadius,
     uiFont: DEFAULT_APPEARANCE_PREFERENCES.uiFont,
     uiFontSize: DEFAULT_APPEARANCE_PREFERENCES.uiFontSize,
-    controlHeight: DEFAULT_APPEARANCE_PREFERENCES.controlHeight,
-    switchControlHeight: DEFAULT_APPEARANCE_PREFERENCES.switchControlHeight,
     runningIndicatorId: DEFAULT_APPEARANCE_PREFERENCES.runningIndicatorId,
     runningIndicatorStyleId: DEFAULT_APPEARANCE_PREFERENCES.runningIndicatorStyleId,
     runningIndicatorSize: DEFAULT_APPEARANCE_PREFERENCES.runningIndicatorSize,

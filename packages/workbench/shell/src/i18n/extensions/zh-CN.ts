@@ -187,27 +187,6 @@ export const extensionsZhCN = {
         shaping: "塑形 · 几何轮廓",
       },
     },
-    controls: {
-      title: "控件高度",
-      controlHeight: "表单控件高度",
-      controlHeightDescription: "统一设置共享输入框、下拉框和按钮的高度，保持同行对齐。",
-      switchHeight: "开关高度",
-      switchHeightDescription: "按比例调整标准和紧凑开关的尺寸。",
-      heightValue: ({ height }: { height: number }, { number }: MessageFormatters) =>
-        `${number(height)} 像素`,
-      preview: {
-        title: "实时预览",
-        inputLabel: "输入框",
-        inputPlaceholder: "输入一些内容…",
-        dropdownLabel: "下拉框",
-        dropdownPrimary: "舒适",
-        dropdownSecondary: "紧凑",
-        buttonLabel: "按钮",
-        buttonValue: "继续",
-        switchLabel: "开关",
-        switchValue: "已启用",
-      },
-    },
     fontFamilies: {
       ui: {
         system: "系统字体",

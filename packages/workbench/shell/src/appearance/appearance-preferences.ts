@@ -180,14 +180,6 @@ export const MIN_UI_FONT_SIZE = 12;
 export const MAX_UI_FONT_SIZE = 20;
 export type UiFontSize = number;
 
-export const MIN_CONTROL_HEIGHT = 24;
-export const MAX_CONTROL_HEIGHT = 48;
-export type ControlHeight = number;
-
-export const MIN_SWITCH_CONTROL_HEIGHT = 20;
-export const MAX_SWITCH_CONTROL_HEIGHT = 36;
-export type SwitchControlHeight = number;
-
 export const MIN_CODE_FONT_SIZE = 10;
 export const MAX_CODE_FONT_SIZE = 18;
 export type CodeFontSize = number;
@@ -218,8 +210,6 @@ export interface AppearancePreferences {
   runningIndicatorSize: number;
   codeFont: CodeFontFamily;
   uiFontSize: UiFontSize;
-  controlHeight: ControlHeight;
-  switchControlHeight: SwitchControlHeight;
   codeFontSize: CodeFontSize;
   codeTheme: CodeTheme;
   showDiffMarkers: boolean;
@@ -251,8 +241,6 @@ export const DEFAULT_APPEARANCE_PREFERENCES = Object.freeze({
   runningIndicatorSize: 14,
   codeFont: "geistMono",
   uiFontSize: 16,
-  controlHeight: 26,
-  switchControlHeight: 24,
   codeFontSize: 13,
   codeTheme: "dark-plus",
   showDiffMarkers: true,
@@ -287,24 +275,6 @@ function isIntegerInRange(value: unknown, minimum: number, maximum: number): val
   return (
     typeof value === "number" && Number.isInteger(value) && value >= minimum && value <= maximum
   );
-}
-
-function parseControlHeight(value: Record<string, unknown>): ControlHeight {
-  if (isIntegerInRange(value.controlHeight, MIN_CONTROL_HEIGHT, MAX_CONTROL_HEIGHT)) {
-    return value.controlHeight;
-  }
-
-  const legacyHeights = [
-    value.buttonControlHeight,
-    value.inputControlHeight,
-    value.dropdownControlHeight,
-  ].filter((height): height is number =>
-    isIntegerInRange(height, MIN_CONTROL_HEIGHT, MAX_CONTROL_HEIGHT),
-  );
-
-  return legacyHeights.length > 0
-    ? Math.max(...legacyHeights)
-    : DEFAULT_APPEARANCE_PREFERENCES.controlHeight;
 }
 
 export function parseAppearancePreferences(serialized: string | null): AppearancePreferences {
@@ -420,14 +390,6 @@ export function parseAppearancePreferences(serialized: string | null): Appearanc
     uiFontSize: isIntegerInRange(value.uiFontSize, MIN_UI_FONT_SIZE, MAX_UI_FONT_SIZE)
       ? value.uiFontSize
       : DEFAULT_APPEARANCE_PREFERENCES.uiFontSize,
-    controlHeight: parseControlHeight(value),
-    switchControlHeight: isIntegerInRange(
-      value.switchControlHeight,
-      MIN_SWITCH_CONTROL_HEIGHT,
-      MAX_SWITCH_CONTROL_HEIGHT,
-    )
-      ? value.switchControlHeight
-      : DEFAULT_APPEARANCE_PREFERENCES.switchControlHeight,
     codeFontSize: isIntegerInRange(value.codeFontSize, MIN_CODE_FONT_SIZE, MAX_CODE_FONT_SIZE)
       ? value.codeFontSize
       : DEFAULT_APPEARANCE_PREFERENCES.codeFontSize,

@@ -15,6 +15,7 @@ import {
 } from "./dropdown-menu";
 import { Input } from "./input";
 import { SelectorDropdownContent, useAnimatedSelectorDropdown } from "./selector-dropdown";
+import { cn } from "../utils";
 import {
   filterModelSelectorOptions,
   type ModelSelectorEffort,
@@ -185,6 +186,7 @@ function MenuCurrentValue({ children }: { children: React.ReactNode }) {
 }
 
 export function ModelSelector({
+  compact = false,
   currentUnavailable = false,
   labels,
   loadFailed = false,
@@ -198,6 +200,7 @@ export function ModelSelector({
   onModelChange,
   onOpen,
 }: {
+  compact?: boolean;
   currentUnavailable?: boolean;
   labels: ModelSelectorLabels;
   loadFailed?: boolean;
@@ -251,7 +254,10 @@ export function ModelSelector({
           disabled={selectionLocked}
           aria-label={labels.select}
           style={selectorDropdown.triggerStyle}
-          className="group relative flex h-[var(--dropdown-control-height)] w-fit max-w-32 items-center justify-center rounded-md bg-transparent px-2 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] text-base leading-[var(--control-text-line-height)]! outline-none transition-[width,background-color,color] [transition-duration:400ms,200ms,200ms] ease-out hover:[background:var(--button-background-hover)] focus-visible:ring-2 focus-visible:ring-ring/50 data-popup-open:[background:var(--button-background-selected)] data-popup-open:[color:var(--button-foreground-selected)] disabled:cursor-not-allowed max-[360px]:max-w-24 sm:max-w-48"
+          className={cn(
+            "group relative flex w-fit max-w-32 items-center justify-center rounded-md bg-transparent px-2 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] text-base leading-[var(--control-text-line-height)]! outline-none transition-[width,background-color,color] [transition-duration:400ms,200ms,200ms] ease-out hover:[background:var(--button-background-hover)] focus-visible:ring-2 focus-visible:ring-ring/50 data-popup-open:[background:var(--button-background-selected)] data-popup-open:[color:var(--button-foreground-selected)] disabled:cursor-not-allowed max-[360px]:max-w-24 sm:max-w-48",
+            compact ? "h-[var(--button-height-compact)]" : "h-[var(--dropdown-control-height)]",
+          )}
           onTransitionEnd={selectorDropdown.onTriggerTransitionEnd}
         >
           <span

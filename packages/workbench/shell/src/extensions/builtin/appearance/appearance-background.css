@@ -35,6 +35,12 @@
   --secondary-foreground: var(--workbench-theme-foreground);
   --accent: var(--muted);
   --accent-foreground: var(--workbench-theme-foreground);
+  --control-state-background-selected: var(--accent);
+  --control-state-foreground-selected: var(--accent-foreground);
+  --button-background-selected: var(--control-state-background-selected);
+  --button-foreground-selected: var(--control-state-foreground-selected);
+  --icon-frame-background-selected: var(--control-state-background-selected);
+  --icon-frame-foreground-selected: var(--control-state-foreground-selected);
   /* Re-resolve derived radii where the appearance controller overrides their source values. */
   --radius-sm: max(0px, calc(var(--radius) - 4px));
   --radius-md: max(0px, calc(var(--radius) - 2px));

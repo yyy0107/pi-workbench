@@ -109,7 +109,7 @@ export function ConversationActionsMenu({
             <Button
               type="button"
               variant="ghost"
-              size="icon-sm"
+              size="icon"
               aria-label={t("workbench.sidebar.conversationOptions")}
               title={t("workbench.sidebar.conversationOptions")}
               className="text-muted-foreground hover:text-foreground"

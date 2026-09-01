@@ -59,7 +59,6 @@ export const appearanceExtension = defineExtension({
         defineMessage("extensions.appearance.typography.title"),
         defineMessage("extensions.appearance.runningIndicator.title"),
         defineMessage("extensions.appearance.activityAnimation.title"),
-        defineMessage("extensions.appearance.controls.title"),
         defineMessage("extensions.appearance.surfaces.title"),
         defineMessage("extensions.appearance.borders.title"),
         defineMessage("extensions.appearance.corners.title"),

@@ -395,7 +395,7 @@ function ComposerAddMenu({
             variant="ghost"
             size="icon"
             data-frame="none"
-            className="aui-composer-add-menu text-muted-foreground hover:text-foreground hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30 size-[var(--composer-attachment-action-size)] rounded-[var(--button-radius)] active:scale-[0.96] motion-reduce:transition-none"
+            className="aui-composer-add-menu text-muted-foreground hover:text-foreground hover:bg-muted-foreground/15 dark:hover:bg-muted-foreground/30 size-[var(--composer-attachment-action-size)] rounded-[var(--button-radius)] active:scale-[0.96] motion-reduce:transition-none"
             aria-label={t("workbench.chat.composer.addMenu.open")}
           >
             <PlusIcon className="aui-composer-add-menu-icon size-[var(--composer-attachment-icon-size)]" />

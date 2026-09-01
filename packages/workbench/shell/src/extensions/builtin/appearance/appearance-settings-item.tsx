@@ -1,13 +1,12 @@
 "use client";
 
-import { CheckIcon, ChevronDownIcon, ImagePlusIcon, RotateCcwIcon, Trash2Icon } from "lucide-react";
+import { CheckIcon, ChevronDownIcon, ImagePlusIcon, Trash2Icon } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { CodeThemePreview } from "../../../assistant-ui/shiki-highlighter";
 import { RunningThreadIndicator } from "../../../elements/running-thread-indicator";
 import { Button } from "../../../ui/button";
 import { DropdownMenu, DropdownMenuRadioGroup } from "../../../ui/dropdown-menu";
-import { Input } from "../../../ui/input";
 import {
   SettingsDropdownContent,
   SettingsDropdownItem,
@@ -27,20 +26,15 @@ import {
   CODE_THEMES,
   COLOR_MODES,
   CORNER_RADIUS_STYLES,
-  DEFAULT_APPEARANCE_PREFERENCES,
   GLASS_BLURS,
   MAX_CODE_FONT_SIZE,
-  MAX_CONTROL_HEIGHT,
   MAX_RUNNING_INDICATOR_SIZE,
   MAX_SURFACE_OPACITY,
-  MAX_SWITCH_CONTROL_HEIGHT,
   MAX_THEME_CONTRAST,
   MAX_UI_FONT_SIZE,
   MIN_CODE_FONT_SIZE,
-  MIN_CONTROL_HEIGHT,
   MIN_RUNNING_INDICATOR_SIZE,
   MIN_SURFACE_OPACITY,
-  MIN_SWITCH_CONTROL_HEIGHT,
   MIN_THEME_CONTRAST,
   MIN_UI_FONT_SIZE,
   RUNNING_INDICATOR_IDS,
@@ -394,87 +388,6 @@ function BackgroundImagePicker({ image }: { image: BackgroundImageSnapshot }) {
           {errorLabel(image.error)}
         </p>
       ) : null}
-    </div>
-  );
-}
-
-function ControlHeightPreview() {
-  const { t } = useI18n();
-  const [dropdownSelection, setDropdownSelection] = useState<"primary" | "secondary">("primary");
-  const dropdownLabels = {
-    primary: t("extensions.appearance.controls.preview.dropdownPrimary"),
-    secondary: t("extensions.appearance.controls.preview.dropdownSecondary"),
-  } as const;
-
-  return (
-    <div className="py-4">
-      <div
-        role="group"
-        aria-label={t("extensions.appearance.controls.preview.title")}
-        className="rounded-[var(--radius-lg)] border [background:color-mix(in_oklab,var(--muted)_45%,transparent)] p-4"
-      >
-        <div className="text-muted-foreground text-xs font-medium">
-          {t("extensions.appearance.controls.preview.title")}
-        </div>
-        <div className="mt-3 grid items-end gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <label className="min-w-0 space-y-1.5">
-            <span className="text-muted-foreground block text-xs">
-              {t("extensions.appearance.controls.preview.inputLabel")}
-            </span>
-            <Input
-              aria-label={t("extensions.appearance.controls.preview.inputLabel")}
-              placeholder={t("extensions.appearance.controls.preview.inputPlaceholder")}
-            />
-          </label>
-
-          <div className="min-w-0 space-y-1.5">
-            <div className="text-muted-foreground text-xs">
-              {t("extensions.appearance.controls.preview.dropdownLabel")}
-            </div>
-            <DropdownMenu>
-              <SettingsDropdownTrigger
-                aria-label={t("extensions.appearance.controls.preview.dropdownLabel")}
-                className="w-full justify-between"
-              >
-                <span className="min-w-0 truncate">{dropdownLabels[dropdownSelection]}</span>
-                <ChevronDownIcon className="text-muted-foreground size-3.5 shrink-0" />
-              </SettingsDropdownTrigger>
-              <SettingsDropdownContent align="start" side="bottom">
-                {(["primary", "secondary"] as const).map((option) => (
-                  <SettingsDropdownItem key={option} onClick={() => setDropdownSelection(option)}>
-                    <span className="min-w-0 flex-1">{dropdownLabels[option]}</span>
-                    {option === dropdownSelection ? <CheckIcon className="size-4" /> : null}
-                  </SettingsDropdownItem>
-                ))}
-              </SettingsDropdownContent>
-            </DropdownMenu>
-          </div>
-
-          <div className="min-w-0 space-y-1.5">
-            <div className="text-muted-foreground text-xs">
-              {t("extensions.appearance.controls.preview.buttonLabel")}
-            </div>
-            <Button type="button" className="w-full">
-              {t("extensions.appearance.controls.preview.buttonValue")}
-            </Button>
-          </div>
-
-          <div className="min-w-0 space-y-1.5">
-            <div className="text-muted-foreground text-xs">
-              {t("extensions.appearance.controls.preview.switchLabel")}
-            </div>
-            <label className="flex min-h-[var(--dropdown-control-height)] cursor-pointer items-center justify-between gap-3 rounded-[var(--input-control-radius)] border [border-color:var(--input-control-border)] [background:var(--input-control-background)] px-3 py-1">
-              <span className="min-w-0 truncate text-sm">
-                {t("extensions.appearance.controls.preview.switchValue")}
-              </span>
-              <Switch
-                defaultChecked
-                aria-label={t("extensions.appearance.controls.preview.switchValue")}
-              />
-            </label>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
@@ -884,11 +797,6 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
     t("extensions.appearance.themeSettings.contrastValue", { contrast: value });
   const fontSizeLabel = (value: number): string =>
     t("extensions.appearance.preferences.fontSizeValue", { size: value });
-  const controlHeightLabel = (value: number): string =>
-    t("extensions.appearance.controls.heightValue", { height: value });
-  const controlHeightsAreDefault =
-    preferences.controlHeight === DEFAULT_APPEARANCE_PREFERENCES.controlHeight &&
-    preferences.switchControlHeight === DEFAULT_APPEARANCE_PREFERENCES.switchControlHeight;
   return (
     <div data-settings-section={sectionId} data-settings-item={itemId} className="py-4">
       <div className="divide-y">
@@ -1113,57 +1021,6 @@ export function AppearanceSettingsItem({ sectionId, itemId }: SettingsItemCompon
             </SettingGroup>
 
             <SettingGroup layout="cards" showHeading={false}>
-              <SettingSubgroup
-                title={t("extensions.appearance.controls.title")}
-                action={
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="xs"
-                    disabled={controlHeightsAreDefault}
-                    onClick={() => {
-                      appearanceController.update({
-                        controlHeight: DEFAULT_APPEARANCE_PREFERENCES.controlHeight,
-                        switchControlHeight: DEFAULT_APPEARANCE_PREFERENCES.switchControlHeight,
-                      });
-                    }}
-                  >
-                    <RotateCcwIcon />
-                    {t("extensions.appearance.reset")}
-                  </Button>
-                }
-              >
-                <ControlHeightPreview />
-                <SettingRow
-                  label={t("extensions.appearance.controls.controlHeight")}
-                  description={t("extensions.appearance.controls.controlHeightDescription")}
-                >
-                  <RangeControl
-                    label={t("extensions.appearance.controls.controlHeight")}
-                    value={preferences.controlHeight}
-                    formatValue={controlHeightLabel}
-                    minimum={MIN_CONTROL_HEIGHT}
-                    maximum={MAX_CONTROL_HEIGHT}
-                    onChange={(controlHeight) => appearanceController.update({ controlHeight })}
-                  />
-                </SettingRow>
-                <SettingRow
-                  label={t("extensions.appearance.controls.switchHeight")}
-                  description={t("extensions.appearance.controls.switchHeightDescription")}
-                >
-                  <RangeControl
-                    label={t("extensions.appearance.controls.switchHeight")}
-                    value={preferences.switchControlHeight}
-                    formatValue={controlHeightLabel}
-                    minimum={MIN_SWITCH_CONTROL_HEIGHT}
-                    maximum={MAX_SWITCH_CONTROL_HEIGHT}
-                    onChange={(switchControlHeight) =>
-                      appearanceController.update({ switchControlHeight })
-                    }
-                  />
-                </SettingRow>
-              </SettingSubgroup>
-
               <SettingSubgroup title={t("extensions.appearance.surfaces.title")}>
                 <SettingRow label={t("extensions.appearance.surfaces.opacity")}>
                   <RangeControl
