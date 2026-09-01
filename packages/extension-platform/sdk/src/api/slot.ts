@@ -78,6 +78,8 @@ export interface ComposerSlotContext {
   isRunning: boolean;
   /** 当前 Composer 是否没有文本、附件或其他可发送内容。 */
   isEmpty: boolean;
+  /** 最近一次提交是否被宿主前置条件拦截。 */
+  submissionBlocked: boolean;
 }
 
 /** `composer.overlay` Slot 用于接管 Composer 时收到的上下文。 */

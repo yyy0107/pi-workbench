@@ -665,6 +665,7 @@ export function WorkbenchComposer({
   const [isComposerFocused, setIsComposerFocused] = useState(false);
   const [isComposerComposing, setIsComposerComposing] = useState(false);
   const [composerCursorPosition, setComposerCursorPosition] = useState(0);
+  const [submissionBlocked, setSubmissionBlocked] = useState(false);
   const [composerCommandError, setComposerCommandError] = useState(false);
   const [workspaceFileMentionSearch, setWorkspaceFileMentionSearch] =
     useState<WorkspaceFileMentionSearchState>(EMPTY_WORKSPACE_FILE_MENTION_SEARCH);
@@ -1026,7 +1027,7 @@ export function WorkbenchComposer({
   );
   const hasDraftWorkspace = draftWorkspace !== undefined;
   const canSubmit = !isNewThread || hasDraftWorkspace;
-  const context = { isRunning, isEmpty };
+  const context = { isRunning, isEmpty, submissionBlocked };
   const setComposerOverlayVisible = useCallback((visible: boolean) => {
     setComposerOverlayCount((count) => Math.max(0, count + (visible ? 1 : -1)));
   }, []);
@@ -1035,6 +1036,10 @@ export function WorkbenchComposer({
     setOverlayVisible: setComposerOverlayVisible,
   };
   const composerOverlayVisible = composerOverlayCount > 0;
+  useEffect(() => {
+    if (canSubmit) setSubmissionBlocked(false);
+  }, [canSubmit]);
+
   useEffect(() => {
     setCommandParametersByKey(commandParametersByThreadRef.current.get(mainThreadId) ?? {});
     setActiveCommandParameterKey(undefined);
@@ -1196,7 +1201,10 @@ export function WorkbenchComposer({
     (steer = false) => {
       const threadState = aui.thread.getState();
       const composerState = aui.thread.composer().getState();
-      if (!canSubmit) return;
+      if (!canSubmit) {
+        setSubmissionBlocked(true);
+        return;
+      }
       if (threadState.isRunning && !threadState.capabilities.queue) return;
 
       try {
@@ -1595,7 +1603,7 @@ export function WorkbenchComposer({
                         tooltip={t("workbench.chat.composer.sendMessage")}
                         type="button"
                         size="icon"
-                        disabled={!canSubmit || !canSend}
+                        disabled={!canSend}
                         variant="default"
                         className={cn(
                           COMPOSER_PRIMARY_ACTION_CLASS_NAME,

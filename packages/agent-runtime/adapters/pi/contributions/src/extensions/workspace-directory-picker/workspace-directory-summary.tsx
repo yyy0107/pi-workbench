@@ -23,7 +23,7 @@ import { ProjectTrustDialog } from "@workbench/shell/ui";
 import { useWorkspaceDirectoryAdmission } from "./use-workspace-directory-admission";
 import { workspaceProjectTrustDialogCopy } from "../project-trust-dialog-copy";
 
-export function WorkspaceDirectorySummary(_context: ComposerSlotContext) {
+export function WorkspaceDirectorySummary({ submissionBlocked }: ComposerSlotContext) {
   const { t } = usePiI18n();
   const trustDialogCopy = workspaceProjectTrustDialogCopy(t);
   const hostClient = usePiHostClient();
@@ -39,6 +39,7 @@ export function WorkspaceDirectorySummary(_context: ComposerSlotContext) {
     useWorkspaceCapabilities();
   const selectedDirectory = isNewThread ? draftWorkspace : activeWorkspace;
   const canClearWorkspace = isNewThread && selectedDirectory !== undefined && !picking;
+  const workspaceRequired = submissionBlocked && selectedDirectory === undefined;
 
   const selectWorkspace = useCallback(
     (workspace: WorkbenchWorkspaceSummary) => {
@@ -76,12 +77,16 @@ export function WorkspaceDirectorySummary(_context: ComposerSlotContext) {
       <WorkspaceSelector
         canClear={canClearWorkspace}
         disabled={!isNewThread}
-        error={error}
+        error={error || workspaceRequired}
         labels={{
           select: t("extensions.workspaceDirectory.selectTitle"),
           clear: t("extensions.workspaceDirectory.clearWorkspace"),
           selecting: t("extensions.workspaceDirectory.selecting"),
-          selectError: t("extensions.workspaceDirectory.selectError"),
+          selectError: t(
+            workspaceRequired
+              ? "extensions.workspaceDirectory.required"
+              : "extensions.workspaceDirectory.selectError",
+          ),
           empty: t("extensions.workspaceDirectory.defaultName"),
           search: t("extensions.workspaceDirectory.searchLabel"),
           searchPlaceholder: t("extensions.workspaceDirectory.searchPlaceholder"),
@@ -95,7 +100,10 @@ export function WorkspaceDirectorySummary(_context: ComposerSlotContext) {
           destroyNewThread();
         }}
         onValueChange={(workspaceId) => {
-          if (isNewThread) beginNewThread(workspaceId);
+          if (isNewThread) {
+            setError(false);
+            beginNewThread(workspaceId);
+          }
         }}
         footer={
           <div>

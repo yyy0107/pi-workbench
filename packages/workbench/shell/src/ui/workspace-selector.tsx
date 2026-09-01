@@ -91,7 +91,9 @@ export function WorkspaceSelector({
             (variant === "outline"
               ? "[background:var(--button-background-selected)] [color:var(--button-foreground-selected)]"
               : "bg-muted"),
-          error && "text-destructive",
+          error &&
+            "bg-destructive/5 text-destructive ring-3 ring-destructive/20 dark:ring-destructive/40",
+          error && variant === "outline" && "border-destructive dark:border-destructive/50",
         )}
       >
         {clearable ? (
@@ -126,6 +128,7 @@ export function WorkspaceSelector({
           type="button"
           disabled={disabled || picking}
           aria-label={labels.select}
+          aria-invalid={error || undefined}
           className={cn(
             "inline-flex h-[var(--dropdown-control-height)] min-w-0 flex-1 cursor-pointer items-center gap-2 pe-2 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] text-base leading-[var(--control-text-line-height)]! font-normal outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:pointer-events-none disabled:cursor-default disabled:opacity-100",
             variant === "outline" ? "rounded-[var(--input-control-radius)]" : "rounded-full",

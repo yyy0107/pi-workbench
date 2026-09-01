@@ -2062,6 +2062,7 @@ export const piExtensionsZhCN = {
       clearWorkspace: "清除所选项目",
       localPi: "Pi 主机",
       selectTitle: "选择工作区",
+      required: "请先选择工作区",
       searchLabel: "搜索工作区",
       searchPlaceholder: "搜索工作区",
       noSearchResults: "没有匹配的工作区",

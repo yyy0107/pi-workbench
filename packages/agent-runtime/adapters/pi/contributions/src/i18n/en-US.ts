@@ -2158,6 +2158,7 @@ export const piExtensionsEnUS = {
       clearWorkspace: "Clear selected project",
       localPi: "Pi host",
       selectTitle: "Select workspace",
+      required: "Select a workspace before sending",
       searchLabel: "Search workspaces",
       searchPlaceholder: "Search workspaces",
       noSearchResults: "No matching workspaces",
