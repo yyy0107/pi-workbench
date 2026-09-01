@@ -383,10 +383,23 @@ test("expands a prompt template into the single main request without an intermed
 test("records a successful built-in command as a visible response outcome", async () => {
   let reloadCount = 0;
   const responseStatuses: string[] = [];
+  const resourceLoader = {
+    getExtensions: () => ({
+      extensions: [
+        { path: "/project/.pi/extensions/review.ts" },
+        { path: "workbench.internal", hidden: true },
+      ],
+    }),
+    getSkills: () => ({ skills: [{ name: "react" }] }),
+    getPrompts: () => ({ prompts: [{ name: "review" }] }),
+    getSystemPromptSource: () => ({ path: "/project/.pi/SYSTEM.md" }),
+    getAppendSystemPromptSources: () => [{ path: "/project/.pi/APPEND_SYSTEM.md" }],
+    getAgentsFiles: () => ({ agentsFiles: [{ path: "/project/AGENTS.md" }] }),
+  };
   const session = {
     extensionRunner: { getRegisteredCommands: () => [] },
     promptTemplates: [],
-    resourceLoader: { getSkills: () => ({ skills: [] }) },
+    resourceLoader,
     sessionManager: { buildSessionContext: () => ({ messages: [] }) },
     compact: async () => undefined,
     reload: async () => {
@@ -426,6 +439,16 @@ test("records a successful built-in command as a visible response outcome", asyn
       commandId: "reload",
       label: "Reload",
       status: "success",
+      reloadConfiguration: {
+        extensions: ["/project/.pi/extensions/review.ts"],
+        skills: ["react"],
+        prompts: ["review"],
+        contextFiles: [
+          "/project/.pi/SYSTEM.md",
+          "/project/.pi/APPEND_SYSTEM.md",
+          "/project/AGENTS.md",
+        ],
+      },
     },
   ]);
 });

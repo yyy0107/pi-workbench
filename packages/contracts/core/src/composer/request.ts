@@ -161,6 +161,15 @@ export interface WorkbenchComposerCommandResponse {
   args?: WorkbenchComposerJsonValue;
   /** Stable, redacted failure classification. Raw runtime/provider errors never cross this wire. */
   failureReason?: WorkbenchComposerCommandFailureReason;
+  /** Effective Pi resources captured after a successful `/reload`. */
+  reloadConfiguration?: WorkbenchComposerReloadConfiguration;
+}
+
+export interface WorkbenchComposerReloadConfiguration {
+  extensions: string[];
+  skills: string[];
+  prompts: string[];
+  contextFiles: string[];
 }
 
 export interface WorkbenchComposerCommandResponseDetails extends WorkbenchComposerCommandResponse {
@@ -592,6 +601,9 @@ export function parseWorkbenchComposerCommandResponseDetails(
   const normalizedFailureReason = isRecord(value)
     ? normalizeWorkbenchComposerCommandFailureReason(value.failureReason)
     : undefined;
+  const reloadConfiguration = isRecord(value)
+    ? parseWorkbenchComposerReloadConfiguration(value.reloadConfiguration)
+    : undefined;
   if (
     !isRecord(value) ||
     (value.version !== 1 && value.version !== 2) ||
@@ -604,7 +616,12 @@ export function parseWorkbenchComposerCommandResponseDetails(
       value.status !== "execution-failed") ||
     (value.args !== undefined && !isComposerJsonValue(value.args)) ||
     (value.failureReason !== undefined &&
-      (value.status !== "execution-failed" || normalizedFailureReason === undefined))
+      (value.status !== "execution-failed" || normalizedFailureReason === undefined)) ||
+    (value.reloadConfiguration !== undefined &&
+      (value.version !== 2 ||
+        value.commandId !== "reload" ||
+        value.status !== "success" ||
+        reloadConfiguration === undefined))
   ) {
     return undefined;
   }
@@ -617,5 +634,26 @@ export function parseWorkbenchComposerCommandResponseDetails(
     status: value.status,
     ...(value.args === undefined ? {} : { args: value.args }),
     ...(normalizedFailureReason === undefined ? {} : { failureReason: normalizedFailureReason }),
+    ...(reloadConfiguration === undefined ? {} : { reloadConfiguration }),
   };
+}
+
+function parseWorkbenchComposerReloadConfiguration(
+  value: unknown,
+): WorkbenchComposerReloadConfiguration | undefined {
+  if (!isRecord(value)) return undefined;
+  const { extensions, skills, prompts, contextFiles } = value;
+  if (
+    !Array.isArray(extensions) ||
+    !extensions.every((item) => typeof item === "string") ||
+    !Array.isArray(skills) ||
+    !skills.every((item) => typeof item === "string") ||
+    !Array.isArray(prompts) ||
+    !prompts.every((item) => typeof item === "string") ||
+    !Array.isArray(contextFiles) ||
+    !contextFiles.every((item) => typeof item === "string")
+  ) {
+    return undefined;
+  }
+  return { extensions, skills, prompts, contextFiles };
 }

@@ -273,6 +273,42 @@ test("parses a safe built-in command response without accepting raw error fields
     }),
     undefined,
   );
+
+  const reloadConfiguration = {
+    extensions: ["/project/.pi/extensions/review.ts"],
+    skills: ["react"],
+    prompts: ["review"],
+    contextFiles: ["/project/AGENTS.md"],
+  };
+  assert.deepEqual(
+    parseWorkbenchComposerCommandResponseDetails({
+      ...response,
+      version: 2,
+      source: "agent",
+      commandId: "reload",
+      status: "success",
+      reloadConfiguration,
+    }),
+    {
+      ...response,
+      version: 2,
+      source: "agent",
+      commandId: "reload",
+      status: "success",
+      reloadConfiguration,
+    },
+  );
+  assert.equal(
+    parseWorkbenchComposerCommandResponseDetails({
+      ...response,
+      version: 2,
+      source: "agent",
+      commandId: "reload",
+      status: "success",
+      reloadConfiguration: { ...reloadConfiguration, skills: ["react", 42] },
+    }),
+    undefined,
+  );
 });
 
 test("retains only stable failure reasons in durable command traces", () => {

@@ -54,6 +54,7 @@ import {
   parseWorkbenchComposerUserDetails,
   type WorkbenchComposerCommandResponse,
   type WorkbenchComposerCommandResponseDetails,
+  type WorkbenchComposerReloadConfiguration,
   type WorkbenchComposerCommandTrace,
   type WorkbenchComposerCommandSubmission,
   type WorkbenchPromptFailureDetails,
@@ -455,6 +456,25 @@ function commandTrace(
   };
 }
 
+function currentReloadConfiguration(
+  resourceLoader: AgentSession["resourceLoader"],
+): WorkbenchComposerReloadConfiguration {
+  const systemPromptSource = resourceLoader.getSystemPromptSource();
+  return {
+    extensions: resourceLoader
+      .getExtensions()
+      .extensions.filter((extension) => !extension.hidden)
+      .map((extension) => extension.path),
+    skills: resourceLoader.getSkills().skills.map((skill) => skill.name),
+    prompts: resourceLoader.getPrompts().prompts.map((prompt) => prompt.name),
+    contextFiles: [
+      ...(systemPromptSource ? [systemPromptSource.path] : []),
+      ...resourceLoader.getAppendSystemPromptSources().map((source) => source.path),
+      ...resourceLoader.getAgentsFiles().agentsFiles.map((file) => file.path),
+    ],
+  };
+}
+
 export interface ResolvedWorkbenchComposerRequest {
   request: WorkbenchResolvedAgentRequest;
   /** Durable, user-visible outcomes produced by the active Agent's built-in session actions. */
@@ -503,6 +523,7 @@ export async function resolveWorkbenchComposerCommands(
 
   for (const plan of plans) {
     const command = plan.command;
+    let reloadConfiguration: WorkbenchComposerReloadConfiguration | undefined;
     if (plan.kind === "builtin") {
       notifyCommandResponse(options, {
         source: "agent",
@@ -520,7 +541,10 @@ export async function resolveWorkbenchComposerCommands(
           if (plan.builtin.name === "compact") {
             await session.compact(resolvePiCompactCustomInstructions(command, request.userText));
             if (piCompactUsesLegacyArguments(command)) request.userText = "";
-          } else await session.reload();
+          } else {
+            await session.reload();
+            reloadConfiguration = currentReloadConfiguration(session.resourceLoader);
+          }
           break;
         case "skill": {
           request.selectedSkills.push({
@@ -559,6 +583,7 @@ export async function resolveWorkbenchComposerCommands(
           label: command.label,
           status: "success",
           ...(command.args === undefined ? {} : { args: command.args }),
+          ...(reloadConfiguration === undefined ? {} : { reloadConfiguration }),
         };
         commandResponses.push(response);
         notifyCommandResponse(options, response);

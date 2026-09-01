@@ -95,3 +95,31 @@ test("keeps non-compaction command responses in the result card", () => {
   assert.match(markup, /data-command="reload"/);
   assert.doesNotMatch(markup, /data-kind="compaction"/);
 });
+
+test("shows the effective configuration after reload", () => {
+  const markup = renderResponse({
+    version: 2,
+    submissionId: "submission-reload-success",
+    source: "agent",
+    commandId: "reload",
+    label: "重新加载资源",
+    status: "success",
+    reloadConfiguration: {
+      extensions: ["/project/.pi/extensions/review.ts"],
+      skills: ["react"],
+      prompts: ["review"],
+      contextFiles: ["/project/AGENTS.md"],
+    },
+  });
+
+  assert.match(markup, /data-slot="composer-reload-configuration"/);
+  assert.match(markup, /重新加载后的配置/);
+  assert.match(markup, /扩展/);
+  assert.match(markup, /<code[^>]*>\/project\/\.pi\/extensions\/review\.ts<\/code>/);
+  assert.match(markup, /Skills/);
+  assert.match(markup, /react/);
+  assert.match(markup, /提示词/);
+  assert.match(markup, /\/review/);
+  assert.match(markup, /上下文文件/);
+  assert.match(markup, /<code[^>]*>\/project\/AGENTS\.md<\/code>/);
+});
