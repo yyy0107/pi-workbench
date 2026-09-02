@@ -274,7 +274,7 @@ function CustomAnswerControl({
     : t("extensions.interactiveRequests.answerLabel", { question: question.question });
 
   return (
-    <div className="flex min-w-0 flex-1 items-end gap-2.5">
+    <div className="flex min-w-0 flex-1 items-end gap-2.5 ps-3">
       <span
         aria-hidden="true"
         className="text-muted-foreground bg-muted flex size-[var(--button-height-large)] shrink-0 items-center justify-center rounded-full border border-border/70"

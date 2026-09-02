@@ -255,13 +255,13 @@ export function ModelSelector({
           aria-label={labels.select}
           style={selectorDropdown.triggerStyle}
           className={cn(
-            "group relative flex w-fit max-w-32 items-center justify-center rounded-md bg-transparent px-2 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] text-base leading-[var(--control-text-line-height)]! outline-none transition-[width,background-color,color] [transition-duration:400ms,200ms,200ms] ease-out hover:[background:var(--button-background-hover)] focus-visible:ring-2 focus-visible:ring-ring/50 data-popup-open:[background:var(--button-background-selected)] data-popup-open:[color:var(--button-foreground-selected)] disabled:cursor-not-allowed max-[360px]:max-w-24 sm:max-w-48",
+            "group relative flex w-fit max-w-32 items-center justify-center rounded-md bg-transparent px-2 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] font-sans [font-size:var(--workbench-ui-font-size,1rem)] leading-[var(--control-text-line-height)]! outline-none transition-[width,background-color,color] [transition-duration:400ms,200ms,200ms] ease-out hover:[background:var(--button-background-hover)] focus-visible:ring-2 focus-visible:ring-ring/50 data-popup-open:[background:var(--button-background-selected)] data-popup-open:[color:var(--button-foreground-selected)] disabled:cursor-not-allowed max-[360px]:max-w-24 sm:max-w-48",
             compact ? "h-[var(--button-height-compact)]" : "h-[var(--dropdown-control-height)]",
           )}
           onTransitionEnd={selectorDropdown.onTriggerTransitionEnd}
         >
           <span
-            className="group-hover:pe-6 group-focus-visible:pe-6 group-data-popup-open:pe-6 block max-w-full min-w-0 truncate text-end font-mono font-medium transition-[padding] duration-200 ease-out"
+            className="group-hover:pe-6 group-focus-visible:pe-6 group-data-popup-open:pe-6 block max-w-full min-w-0 truncate text-end font-medium transition-[padding] duration-200 ease-out"
             title={selectedModel?.name}
           >
             {selectedModel?.name ?? labels.select}
