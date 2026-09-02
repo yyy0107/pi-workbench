@@ -36,10 +36,6 @@ const RUNTIME_GRAPH_IDENTIFIERS = [
   "InteractiveResponseRegistry",
 ];
 const NONLITERAL_MODULE_REFERENCE_EXCEPTIONS = new Map([
-  [
-    "apps/desktop-electron/scripts/native-runtime-smoke.cjs",
-    'require:path.join(nodePtyRoot,"lib","utils.js"',
-  ],
   ["apps/desktop-electron/src/packaged-runtime-lifecycle.cjs", "require:supportPath"],
 ]);
 const RUNTIME_CONNECTION_OWNER =

@@ -6,6 +6,7 @@
   "scripts": {
     "build": "tsx scripts/build-runtime-artifact.ts",
     "build:artifact": "tsx scripts/build-runtime-artifact.ts",
+    "smoke:native": "tsx scripts/run-native-runtime-smoke.ts",
     "dev": "tsx src/main.ts",
     "start": "tsx src/main.ts",
     "test": "node ../../scripts/run-typescript-tests.mjs --package",

@@ -12,6 +12,7 @@
     "dist": "node scripts/build-package.cjs",
     "dist:artifact": "node scripts/build-package.cjs --artifact-only",
     "budget": "node scripts/check-runtime-budget.cjs",
+    "smoke:native": "node scripts/run-staged-native-smoke.cjs",
     "test": "node ../../scripts/run-typescript-tests.mjs --package",
     "typecheck": "tsc --noEmit --incremental false -p tsconfig.json"
   },
@@ -20,7 +21,6 @@
     "@workbench/host-server": "workspace:*"
   },
   "devDependencies": {
-    "@electron/rebuild": "^4.2.0",
     "@types/node": "^26.2.0",
     "@workbench/host-client": "workspace:*",
     "@workbench/host-contracts": "workspace:*",

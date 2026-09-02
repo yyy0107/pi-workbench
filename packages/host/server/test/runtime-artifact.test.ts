@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { once } from "node:events";
 import {
   chmod,
+  lstat,
   mkdir,
   mkdtemp,
   readFile,
@@ -191,18 +192,19 @@ async function artifactFixture(t: TestContext): Promise<RuntimeArtifactFixture> 
     await writeFile(absolute, bytes);
     await chmod(absolute, 0o644);
   }
+  const nativeInventoryFiles = await Promise.all(
+    nativePayloads.map(async ([relativePath, bytes]) => ({
+      path: relativePath,
+      size: bytes.byteLength,
+      sha256: sha256(bytes),
+      mode: (await lstat(path.join(root, ...relativePath.split("/")))).mode & 0o777,
+    })),
+  );
   const inventoryBytes = Buffer.from(
     `${JSON.stringify({
       schemaVersion: 1,
       target: NODE_TARGET,
-      files: nativePayloads
-        .map(([relativePath, bytes]) => ({
-          path: relativePath,
-          size: bytes.byteLength,
-          sha256: sha256(bytes),
-          mode: 0o644,
-        }))
-        .sort((left, right) => left.path.localeCompare(right.path)),
+      files: nativeInventoryFiles.sort((left, right) => left.path.localeCompare(right.path)),
     })}\n`,
   );
   await writeFile(path.join(root, "server.mjs"), "export {};\n");
@@ -237,6 +239,24 @@ async function artifactFixture(t: TestContext): Promise<RuntimeArtifactFixture> 
       JSON.parse(await readFile(manifestPath, "utf8")) as Record<string, unknown>,
     writeManifest: async (value) => writeFile(manifestPath, `${JSON.stringify(value)}\n`),
   };
+}
+
+async function updateFixtureInventory(
+  fixture: RuntimeArtifactFixture,
+  update: (inventory: Record<string, unknown>) => void,
+): Promise<void> {
+  const inventoryPath = path.join(fixture.root, "native-runtime-inventory.json");
+  const inventory = JSON.parse(await readFile(inventoryPath, "utf8")) as Record<string, unknown>;
+  update(inventory);
+  await writeFile(inventoryPath, `${JSON.stringify(inventory, null, 2)}\n`);
+  const inventoryBytes = await readFile(inventoryPath);
+  const manifest = await fixture.readManifest();
+  manifest.nativeInventory = {
+    path: "native-runtime-inventory.json",
+    size: inventoryBytes.byteLength,
+    sha256: sha256(inventoryBytes),
+  };
+  await fixture.writeManifest(manifest);
 }
 
 test("resolves and freezes a complete Runtime artifact against an explicit target", async (t) => {
@@ -410,7 +430,10 @@ test("binds native inventory bytes, modes, and the complete native payload", asy
   );
 
   const modeFixture = await artifactFixture(t);
-  await chmod(path.join(modeFixture.root, "node_modules/node-pty/build/Release/pty.node"), 0o600);
+  await updateFixtureInventory(modeFixture, (inventory) => {
+    const files = inventory.files as Array<Record<string, unknown>>;
+    files[0].mode = files[0].mode === 0o600 ? 0o644 : 0o600;
+  });
   await assert.rejects(
     resolveRuntimeArtifact({
       manifestPath: modeFixture.manifestPath,

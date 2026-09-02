@@ -27,6 +27,7 @@
     }
   },
   "scripts": {
+    "native:pty:build": "node ../../../scripts/build-node-pty-native.cjs",
     "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
     "test": "node ../../../scripts/run-typescript-tests.mjs --package"
   },

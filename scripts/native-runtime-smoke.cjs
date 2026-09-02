@@ -1,4 +1,6 @@
+// Executes the same admitted native Runtime tree under Node, Electron-as-Node, or a Tauri sidecar.
 const assert = require("node:assert/strict");
+const { createHash } = require("node:crypto");
 const { lstatSync, realpathSync, readFileSync } = require("node:fs");
 const { createRequire } = require("node:module");
 const path = require("node:path");
@@ -8,7 +10,7 @@ const PTY_SENTINEL = "__workbench_native_pty_smoke__";
 
 function runtimeArgument(arguments_ = process.argv.slice(2)) {
   if (arguments_.length !== 2 || arguments_[0] !== "--runtime") {
-    throw new Error("Usage: native-runtime-smoke.cjs --runtime <desktop-runtime-directory>");
+    throw new Error("Usage: native-runtime-smoke.cjs --runtime <runtime-artifact-directory>");
   }
   return path.resolve(arguments_[1]);
 }
@@ -39,10 +41,9 @@ function targetTriple(platform, arch, libc) {
   return `${cpu}-unknown-linux-${libc === "glibc" ? "gnu" : "musl"}`;
 }
 
-function currentElectronTarget() {
+function currentRuntimeTarget() {
   const libc = currentLibc();
-  return {
-    runtimeFlavor: "electron-node",
+  const common = {
     platform: process.platform,
     arch: process.arch,
     targetTriple: targetTriple(process.platform, process.arch, libc),
@@ -50,17 +51,50 @@ function currentElectronTarget() {
     nodeVersion: process.versions.node,
     nodeModuleAbi: Number(process.versions.modules),
     napiVersion: Number(process.versions.napi),
-    electronVersion: process.versions.electron,
+  };
+  return process.versions.electron
+    ? { runtimeFlavor: "electron-node", ...common, electronVersion: process.versions.electron }
+    : { runtimeFlavor: "node", ...common };
+}
+
+function interactiveShell() {
+  if (process.platform === "win32") {
+    return {
+      executable: process.env.ComSpec || "cmd.exe",
+      args: ["/d", "/q"],
+      input: `echo ${PTY_SENTINEL}\r\nexit\r\n`,
+    };
+  }
+  return {
+    executable: "/bin/sh",
+    args: [],
+    input: `printf '%s\\n' '${PTY_SENTINEL}'\nexit\n`,
   };
 }
 
-function smokePty(nodePty, runtimeDirectory, options = {}) {
-  const windows = process.platform === "win32";
-  const executable = windows ? process.env.ComSpec || "cmd.exe" : "/bin/sh";
-  const args = windows
-    ? ["/d", "/s", "/c", `echo ${PTY_SENTINEL}`]
-    : ["-lc", `printf '%s\\n' '${PTY_SENTINEL}'`];
+function longRunningShell() {
+  if (process.platform === "win32") {
+    return {
+      executable: process.env.ComSpec || "cmd.exe",
+      args: ["/d", "/s", "/c", "ping -n 30 127.0.0.1 >nul"],
+    };
+  }
+  return { executable: "/bin/sh", args: ["-lc", "sleep 30"] };
+}
 
+function ptyOptions(runtimeDirectory, options) {
+  return {
+    cols: 80,
+    cwd: runtimeDirectory,
+    env: { ...process.env, TERM: "xterm" },
+    name: "xterm",
+    rows: 24,
+    ...options,
+  };
+}
+
+function smokeInteractivePty(nodePty, runtimeDirectory, options = {}) {
+  const shell = interactiveShell();
   return new Promise((resolve, reject) => {
     let output = "";
     let terminal;
@@ -68,18 +102,12 @@ function smokePty(nodePty, runtimeDirectory, options = {}) {
       try {
         terminal?.kill();
       } catch {}
-      reject(new Error("node-pty smoke timed out."));
+      reject(new Error("node-pty interactive smoke timed out."));
     }, 10_000);
-
     try {
-      terminal = nodePty.spawn(executable, args, {
-        cols: 80,
-        cwd: runtimeDirectory,
-        env: { ...process.env, TERM: "xterm" },
-        name: "xterm",
-        rows: 24,
-        ...options,
-      });
+      terminal = nodePty.spawn(shell.executable, shell.args, ptyOptions(runtimeDirectory, options));
+      terminal.resize(100, 30);
+      terminal.write(shell.input);
     } catch (error) {
       clearTimeout(timeout);
       reject(error);
@@ -91,13 +119,48 @@ function smokePty(nodePty, runtimeDirectory, options = {}) {
     terminal.onExit(({ exitCode }) => {
       clearTimeout(timeout);
       try {
-        assert.equal(exitCode, 0, `node-pty smoke exited with ${exitCode}.`);
+        assert.equal(exitCode, 0, `node-pty interactive smoke exited with ${exitCode}.`);
         assert.match(output, new RegExp(PTY_SENTINEL, "u"));
         resolve();
       } catch (error) {
         reject(error);
       }
     });
+  });
+}
+
+function smokeTerminatedPty(nodePty, runtimeDirectory, options = {}) {
+  const shell = longRunningShell();
+  return new Promise((resolve, reject) => {
+    let terminal;
+    const timeout = setTimeout(() => {
+      try {
+        terminal?.kill();
+      } catch {}
+      reject(new Error("node-pty termination smoke timed out."));
+    }, 10_000);
+    try {
+      terminal = nodePty.spawn(shell.executable, shell.args, ptyOptions(runtimeDirectory, options));
+      terminal.onExit(() => {
+        clearTimeout(timeout);
+        resolve();
+      });
+      setTimeout(() => {
+        try {
+          // node-pty's ConPTY kill path races its console-list helper with native teardown and can
+          // print a benign AttachConsole failure. Terminating the live shell still exercises the
+          // forced-exit event while allowing node-pty to perform its normal native cleanup.
+          if (process.platform === "win32") process.kill(terminal.pid);
+          else terminal.kill();
+        } catch (error) {
+          clearTimeout(timeout);
+          reject(error);
+        }
+      }, 100);
+    } catch (error) {
+      clearTimeout(timeout);
+      reject(error);
+    }
   });
 }
 
@@ -109,19 +172,23 @@ async function main() {
   const inventory = JSON.parse(
     readFileSync(path.join(runtimeDirectory, manifest.nativeInventory.path), "utf8"),
   );
-  const target = currentElectronTarget();
+  const target = currentRuntimeTarget();
   assert.deepEqual(
     target,
     manifest.target,
-    "The staged Runtime artifact target must match Electron's embedded Node runtime.",
+    "The staged Runtime artifact target must match the executing runtime.",
   );
   assert.deepEqual(inventory.target, manifest.target, "The native inventory target changed.");
   for (const file of inventory.files) {
     const absolutePath = path.join(runtimeDirectory, ...file.path.split("/"));
+    const stats = lstatSync(absolutePath);
+    assert.equal(stats.isFile(), true, `${file.path} is not a regular file.`);
+    assert.equal(stats.size, file.size, `${file.path} size changed after inventory.`);
+    assert.equal(stats.mode & 0o777, file.mode, `${file.path} mode changed after staging.`);
     assert.equal(
-      lstatSync(absolutePath).mode & 0o777,
-      file.mode,
-      `${file.path} mode changed after staging.`,
+      createHash("sha256").update(readFileSync(absolutePath)).digest("hex"),
+      file.sha256,
+      `${file.path} content changed after inventory.`,
     );
   }
 
@@ -129,12 +196,14 @@ async function main() {
   const Parser = requireFromRuntime("tree-sitter");
   const Bash = requireFromRuntime("tree-sitter-bash");
   const nodePty = requireFromRuntime("node-pty");
-
   const parser = new Parser();
   parser.setLanguage(Bash);
   const tree = parser.parse("echo native_gate");
   assert.equal(tree.rootNode.type, "program");
   assert.equal(tree.rootNode.hasError, false);
+
+  const variants =
+    process.platform === "win32" ? [{ useConpty: true }, { useConpty: false }] : [{}];
   if (process.platform === "win32") {
     const nodePtyRoot = path.dirname(path.dirname(requireFromRuntime.resolve("node-pty")));
     const nativeLoader = require(path.join(nodePtyRoot, "lib", "utils.js"));
@@ -147,10 +216,10 @@ async function main() {
         `${addon} loaded from a different node-pty native root.`,
       );
     }
-    await smokePty(nodePty, runtimeDirectory, { useConpty: true });
-    await smokePty(nodePty, runtimeDirectory, { useConpty: false });
-  } else {
-    await smokePty(nodePty, runtimeDirectory);
+  }
+  for (const options of variants) {
+    await smokeInteractivePty(nodePty, runtimeDirectory, options);
+    await smokeTerminatedPty(nodePty, runtimeDirectory, options);
   }
 
   const loadedNativePaths = Object.keys(require.cache)
@@ -166,19 +235,30 @@ async function main() {
 
   tree.delete?.();
   parser.delete?.();
-  process.stdout.write(`${RESULT_PREFIX}${JSON.stringify({ target, loadedNativePaths })}\n`);
+  await new Promise((resolve, reject) =>
+    process.stdout.write(
+      `${RESULT_PREFIX}${JSON.stringify({ target, loadedNativePaths, lifecycle: "passed" })}\n`,
+      (error) => (error ? reject(error) : resolve()),
+    ),
+  );
 }
 
-void main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  void main().then(
+    () => process.exit(0),
+    (error) => {
+      console.error(error);
+      process.exit(1);
+    },
+  );
+}
 
 module.exports = {
   PTY_SENTINEL,
-  currentElectronTarget,
   currentLibc,
+  currentRuntimeTarget,
   runtimeArgument,
-  smokePty,
+  smokeInteractivePty,
+  smokeTerminatedPty,
   targetTriple,
 };

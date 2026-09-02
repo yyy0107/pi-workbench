@@ -86,6 +86,7 @@ const NFT_DYNAMIC_SEGMENT = "\x1a";
 const TREE_SITTER_DYNAMIC_PREBUILD_DEPENDENCY = `./prebuilds/${NFT_DYNAMIC_SEGMENT}-${NFT_DYNAMIC_SEGMENT}/tree-sitter.node`;
 const runtimeAppRequire = createRequire(import.meta.url);
 const nativeTools = runtimeAppRequire("@workbench/host-artifact-policy/runtime-native") as {
+  readonly NODE_PTY_NATIVE_BUILD_MANIFEST_ENV: string;
   readonly expectedNativeRuntimeFiles: (
     target: Pick<RuntimeArtifactTarget, "platform" | "arch">,
   ) => readonly {
@@ -96,7 +97,11 @@ const nativeTools = runtimeAppRequire("@workbench/host-artifact-policy/runtime-n
   readonly prunePackageNativeVariants: (
     directory: string,
     packageName: string,
-    target: Pick<RuntimeArtifactTarget, "platform" | "arch">,
+    target: RuntimeArtifactTarget,
+    options?: {
+      readonly nativeBuildManifestPath?: string;
+      readonly repositoryRoot?: string;
+    },
   ) => void;
   readonly collectNativeRuntimeInventory: (directory: string) => readonly {
     readonly path: string;
@@ -219,15 +224,17 @@ export async function runtimeArtifactMaterializationSnapshot(
   const snapshot = new Map<string, string>();
   const regularFileLinks = new Map<
     string,
-    { readonly linkCount: number; readonly paths: string[] }
+    { readonly linkCount: bigint; readonly paths: string[] }
   >();
-  const rootStats = await lstat(artifactRoot);
+  // Windows file IDs exceed Number's safe integer range. BigInt stats prevent two unrelated files
+  // from collapsing to the same dev/ino key during the native materialization boundary scan.
+  const rootStats = await lstat(artifactRoot, { bigint: true });
   if (!rootStats.isDirectory() || rootStats.isSymbolicLink()) {
     throw new Error("Runtime artifact materialization root must be a real directory.");
   }
   snapshot.set(
     ".",
-    `directory:${rootStats.mode & 0o7777}:${rootStats.dev}:${rootStats.ino}:${rootStats.nlink}`,
+    `directory:${rootStats.mode & BigInt(0o7777)}:${rootStats.dev}:${rootStats.ino}:${rootStats.nlink}`,
   );
   async function visit(directory: string, relativeDirectory: string): Promise<void> {
     const entries = await readdir(directory, { withFileTypes: true });
@@ -235,8 +242,8 @@ export async function runtimeArtifactMaterializationSnapshot(
     for (const entry of entries) {
       const absolute = path.join(directory, entry.name);
       const relative = path.posix.join(relativeDirectory, entry.name);
-      const stats = await lstat(absolute);
-      const mode = stats.mode & 0o7777;
+      const stats = await lstat(absolute, { bigint: true });
+      const mode = stats.mode & BigInt(0o7777);
       if (stats.isSymbolicLink()) {
         snapshot.set(
           relative,
@@ -273,7 +280,7 @@ export async function runtimeArtifactMaterializationSnapshot(
   }
   await visit(artifactRoot, "");
   for (const { linkCount, paths } of regularFileLinks.values()) {
-    if (paths.length !== linkCount) {
+    if (BigInt(paths.length) !== linkCount) {
       throw new Error(
         `Runtime artifact regular file ${paths[0]} has ${linkCount} hard links but only ${paths.length} ${paths.length === 1 ? "name" : "names"} inside the artifact.`,
       );
@@ -1132,6 +1139,96 @@ export async function copyRuntimeArtifactClosurePath(
   }
 }
 
+/**
+ * Recreates pnpm's package-local dependency links only when NFT copied both physical owners.
+ * NFT traces the real files behind Windows junctions, but it can omit the issuer-side junction;
+ * without that link Node cannot resolve a dependency from the copied `.pnpm` package directory.
+ */
+export async function projectTracedPnpmDependencyLinks({
+  repositoryRoot = REPOSITORY_ROOT,
+  outputDirectory,
+}: {
+  readonly repositoryRoot?: string;
+  readonly outputDirectory: string;
+}): Promise<void> {
+  const sourcePnpmRoot = path.join(repositoryRoot, "node_modules", ".pnpm");
+  const artifactPnpmRoot = path.join(outputDirectory, "node_modules", ".pnpm");
+  const dependencyLinks = async (ownerDirectory: string): Promise<readonly string[]> => {
+    const nodeModulesDirectory = path.join(ownerDirectory, "node_modules");
+    const result: string[] = [];
+    for (const entry of await readdir(nodeModulesDirectory, { withFileTypes: true })) {
+      if (entry.isSymbolicLink()) {
+        result.push(entry.name);
+        continue;
+      }
+      if (!entry.isDirectory() || !entry.name.startsWith("@")) continue;
+      for (const scopedEntry of await readdir(path.join(nodeModulesDirectory, entry.name), {
+        withFileTypes: true,
+      })) {
+        if (scopedEntry.isSymbolicLink()) result.push(path.join(entry.name, scopedEntry.name));
+      }
+    }
+    return Object.freeze(result.sort());
+  };
+
+  for (const owner of await readdir(artifactPnpmRoot, { withFileTypes: true })) {
+    if (!owner.isDirectory()) continue;
+    const sourceOwner = path.join(sourcePnpmRoot, owner.name);
+    const artifactOwner = path.join(artifactPnpmRoot, owner.name);
+    await assertSourceInsideRepository(sourceOwner, repositoryRoot, `pnpm owner ${owner.name}`);
+    for (const dependencyLink of await dependencyLinks(sourceOwner)) {
+      const sourceLink = path.join(sourceOwner, "node_modules", dependencyLink);
+      const sourceTarget = await assertSourceInsideRepository(
+        sourceLink,
+        repositoryRoot,
+        `pnpm dependency link ${owner.name}/${dependencyLink}`,
+      );
+      const artifactTarget = path.join(
+        outputDirectory,
+        path.relative(repositoryRoot, sourceTarget),
+      );
+      let artifactTargetRealPath: string;
+      try {
+        artifactTargetRealPath = await assertSourceInsideRepository(
+          artifactTarget,
+          outputDirectory,
+          `traced pnpm dependency target ${owner.name}/${dependencyLink}`,
+        );
+      } catch (error: unknown) {
+        if (error instanceof Error && "code" in error && error.code === "ENOENT") continue;
+        throw error;
+      }
+      const destinationPath = path.join(artifactOwner, "node_modules", dependencyLink);
+      try {
+        const destinationStats = await lstat(destinationPath);
+        if (!destinationStats.isSymbolicLink()) {
+          throw new Error(
+            `Traced pnpm dependency destination is not a link: ${owner.name}/${dependencyLink}.`,
+          );
+        }
+        if ((await realpath(destinationPath)) !== artifactTargetRealPath) {
+          throw new Error(
+            `Traced pnpm dependency link has the wrong target: ${owner.name}/${dependencyLink}.`,
+          );
+        }
+        continue;
+      } catch (error: unknown) {
+        if (!(error instanceof Error) || !("code" in error) || error.code !== "ENOENT") throw error;
+      }
+      await mkdir(path.dirname(destinationPath), { recursive: true });
+      const targetStats = await lstat(artifactTargetRealPath);
+      await symlink(
+        path
+          .relative(path.dirname(destinationPath), artifactTargetRealPath)
+          .split(path.sep)
+          .join("/"),
+        destinationPath,
+        targetStats.isDirectory() ? "dir" : "file",
+      );
+    }
+  }
+}
+
 export async function projectRuntimeAppOwnedExternalTraceAliases({
   tracedPaths,
   appRoot = RUNTIME_NODE_APP_ROOT,
@@ -1395,12 +1492,16 @@ export async function pruneRuntimeTree(
 async function pruneKnownNativeVariants(
   outputDirectory: string,
   target: RuntimeArtifactTarget,
+  repositoryRoot: string,
 ): Promise<void> {
   for (const packageName of RUNTIME_ARTIFACT_NATIVE_PACKAGES) {
     const packageDirectory = await realpath(
       path.join(outputDirectory, "node_modules", packageName),
     );
-    nativeTools.prunePackageNativeVariants(packageDirectory, packageName, target);
+    nativeTools.prunePackageNativeVariants(packageDirectory, packageName, target, {
+      nativeBuildManifestPath: process.env[nativeTools.NODE_PTY_NATIVE_BUILD_MANIFEST_ENV],
+      repositoryRoot,
+    });
   }
 }
 
@@ -1602,6 +1703,356 @@ async function finalArtifactLinks(
   return Object.freeze(links.map((link) => Object.freeze(link)));
 }
 
+async function copyDereferencedRuntimeEntry(
+  source: string,
+  destination: string,
+  artifactRoot: string,
+  ancestors: ReadonlySet<string>,
+): Promise<void> {
+  const resolvedSource = await realpath(source);
+  if (!isInside(artifactRoot, resolvedSource)) {
+    throw new Error(`Runtime artifact link target escapes its closure: ${source}.`);
+  }
+  const stats = await lstat(resolvedSource);
+  if (stats.isFile()) {
+    await mkdir(path.dirname(destination), { recursive: true });
+    await copyFile(resolvedSource, destination);
+    await chmod(destination, stats.mode & 0o777);
+    return;
+  }
+  if (!stats.isDirectory()) {
+    throw new Error(`Runtime artifact link target is not a regular file or directory: ${source}.`);
+  }
+  if (ancestors.has(resolvedSource)) {
+    throw new Error(`Runtime artifact link target contains a directory cycle: ${source}.`);
+  }
+  const nextAncestors = new Set(ancestors);
+  nextAncestors.add(resolvedSource);
+  await mkdir(destination);
+  await chmod(destination, stats.mode & 0o777);
+  const entries = await readdir(resolvedSource, { withFileTypes: true });
+  entries.sort((left, right) => left.name.localeCompare(right.name));
+  for (const entry of entries) {
+    await copyDereferencedRuntimeEntry(
+      path.join(resolvedSource, entry.name),
+      path.join(destination, entry.name),
+      artifactRoot,
+      nextAncestors,
+    );
+  }
+}
+
+interface RuntimeArtifactLink {
+  readonly path: string;
+  readonly target: string;
+}
+
+interface StandalonePackageNode {
+  readonly key: string;
+  readonly root: string;
+  readonly name: string;
+  readonly version: string;
+  readonly dependencies: Map<string, StandalonePackageNode>;
+  referenceCount: number;
+}
+
+function packageOwnerNodeModules(packageRoot: string, packageName: string, label: string): string {
+  let owner = packageRoot;
+  const segments = packageName.split("/");
+  for (let index = segments.length - 1; index >= 0; index -= 1) {
+    if (path.basename(owner) !== segments[index]) {
+      throw new Error(`${label} does not end with its package name ${packageName}.`);
+    }
+    owner = path.dirname(owner);
+  }
+  if (path.basename(owner) !== "node_modules") {
+    throw new Error(`${label} is not installed beneath node_modules.`);
+  }
+  return owner;
+}
+
+function setStandaloneRequirement(
+  requirements: Map<string, StandalonePackageNode>,
+  dependency: StandalonePackageNode,
+  label: string,
+): void {
+  const existing = requirements.get(dependency.name);
+  if (existing && existing.key !== dependency.key) {
+    throw new Error(
+      `${label} resolves ${dependency.name} to both ${existing.version} and ${dependency.version}.`,
+    );
+  }
+  requirements.set(dependency.name, dependency);
+}
+
+async function copyStandalonePackage(
+  node: StandalonePackageNode,
+  destination: string,
+  artifactRoot: string,
+  placements: Map<string, string>,
+): Promise<void> {
+  const normalizedDestination = path.resolve(destination);
+  const existing = placements.get(normalizedDestination);
+  if (existing) {
+    if (existing !== node.key) {
+      throw new Error(`Standalone Runtime package placement collides at ${destination}.`);
+    }
+    return;
+  }
+  await mkdir(path.dirname(destination), { recursive: true });
+  await copyDereferencedRuntimeEntry(node.root, destination, artifactRoot, new Set());
+  placements.set(normalizedDestination, node.key);
+}
+
+async function materializeStandaloneDependencies(
+  node: StandalonePackageNode,
+  destination: string,
+  available: ReadonlyMap<string, StandalonePackageNode>,
+  artifactRoot: string,
+  placements: Map<string, string>,
+  hydrated: Set<string>,
+): Promise<void> {
+  const hydrationKey = `${path.resolve(destination)}\0${node.key}`;
+  if (hydrated.has(hydrationKey)) return;
+  hydrated.add(hydrationKey);
+
+  const localDependencies = [...node.dependencies.values()]
+    .filter((dependency) => available.get(dependency.name)?.key !== dependency.key)
+    .sort((left, right) => left.name.localeCompare(right.name));
+  const locallyAvailable = new Map(available);
+  for (const dependency of localDependencies) {
+    const dependencyDestination = path.join(
+      destination,
+      "node_modules",
+      ...dependency.name.split("/"),
+    );
+    await copyStandalonePackage(dependency, dependencyDestination, artifactRoot, placements);
+    locallyAvailable.set(dependency.name, dependency);
+  }
+  for (const dependency of localDependencies) {
+    await materializeStandaloneDependencies(
+      dependency,
+      path.join(destination, "node_modules", ...dependency.name.split("/")),
+      locallyAvailable,
+      artifactRoot,
+      placements,
+      hydrated,
+    );
+  }
+}
+
+/**
+ * Converts the pruned pnpm dependency graph into a link-free Node.js layout. Windows installers
+ * cannot preserve pnpm directory links, so every selected package is hoisted once and only version
+ * conflicts are nested beneath their issuer. The resulting Runtime is installer-independent.
+ */
+export async function flattenWindowsRuntimeNodeModules(
+  outputDirectory: string,
+  links: readonly RuntimeArtifactLink[],
+): Promise<void> {
+  const artifactRoot = path.resolve(outputDirectory);
+  const rootNodeModules = path.join(artifactRoot, "node_modules");
+  const nodesByRoot = new Map<string, StandalonePackageNode>();
+  const records: {
+    readonly linkPath: string;
+    readonly ownerNodeModules: string;
+    readonly node: StandalonePackageNode;
+  }[] = [];
+
+  for (const linkEntry of links) {
+    const linkPath = path.resolve(artifactRoot, ...linkEntry.path.split("/"));
+    if (!isInside(artifactRoot, linkPath)) {
+      throw new Error(`Runtime artifact link path escapes its closure: ${linkEntry.path}.`);
+    }
+    const stats = await lstat(linkPath);
+    if (
+      !stats.isSymbolicLink() ||
+      (await readlink(linkPath)).split(path.sep).join("/") !== linkEntry.target
+    ) {
+      throw new Error(`Runtime artifact link changed before flattening: ${linkEntry.path}.`);
+    }
+    const packageRoot = await realpath(linkPath);
+    if (!isInside(artifactRoot, packageRoot)) {
+      throw new Error(`Runtime artifact link target escapes its closure: ${linkEntry.path}.`);
+    }
+    const manifest = JSON.parse(await readFile(path.join(packageRoot, "package.json"), "utf8")) as {
+      readonly name?: unknown;
+      readonly version?: unknown;
+    };
+    if (
+      typeof manifest.name !== "string" ||
+      manifest.name.length === 0 ||
+      typeof manifest.version !== "string" ||
+      manifest.version.length === 0
+    ) {
+      throw new Error(`Runtime artifact link is not a versioned package: ${linkEntry.path}.`);
+    }
+    packageOwnerNodeModules(linkPath, manifest.name, `Runtime artifact link ${linkEntry.path}`);
+    const key = path.resolve(packageRoot);
+    let node = nodesByRoot.get(key);
+    if (!node) {
+      node = {
+        key,
+        root: packageRoot,
+        name: manifest.name,
+        version: manifest.version,
+        dependencies: new Map(),
+        referenceCount: 0,
+      };
+      nodesByRoot.set(key, node);
+    } else if (node.name !== manifest.name || node.version !== manifest.version) {
+      throw new Error(`Runtime package identity changed across links: ${linkEntry.path}.`);
+    }
+    node.referenceCount += 1;
+    records.push({
+      linkPath,
+      ownerNodeModules: packageOwnerNodeModules(
+        linkPath,
+        manifest.name,
+        `Runtime artifact link ${linkEntry.path}`,
+      ),
+      node,
+    });
+  }
+
+  const issuerByOwner = new Map<string, StandalonePackageNode>();
+  for (const node of nodesByRoot.values()) {
+    const owner = packageOwnerNodeModules(node.root, node.name, `Runtime package ${node.name}`);
+    const existing = issuerByOwner.get(owner);
+    if (existing && existing.key !== node.key) {
+      throw new Error(`Runtime pnpm owner contains multiple physical package roots: ${owner}.`);
+    }
+    issuerByOwner.set(owner, node);
+  }
+
+  const rootRequirements = new Map<string, StandalonePackageNode>();
+  const externalRequirements = new Map<string, Map<string, StandalonePackageNode>>();
+  const externalOwners = new Set<string>();
+  for (const record of records) {
+    const publicLink = path.join(rootNodeModules, ...record.node.name.split("/"));
+    if (path.resolve(record.linkPath) === path.resolve(publicLink)) {
+      setStandaloneRequirement(rootRequirements, record.node, "Runtime root");
+      continue;
+    }
+    const issuer = issuerByOwner.get(record.ownerNodeModules);
+    if (issuer) {
+      setStandaloneRequirement(issuer.dependencies, record.node, `Runtime package ${issuer.name}`);
+      continue;
+    }
+    if (!isInside(rootNodeModules, record.ownerNodeModules)) {
+      externalOwners.add(record.ownerNodeModules);
+      let requirements = externalRequirements.get(record.ownerNodeModules);
+      if (!requirements) {
+        requirements = new Map();
+        externalRequirements.set(record.ownerNodeModules, requirements);
+      }
+      setStandaloneRequirement(
+        requirements,
+        record.node,
+        `Runtime owner ${record.ownerNodeModules}`,
+      );
+      continue;
+    }
+    const relativeOwner = path.relative(rootNodeModules, record.ownerNodeModules);
+    if (relativeOwner !== path.join(".pnpm", "node_modules")) {
+      throw new Error(`Runtime dependency link has no package issuer: ${record.linkPath}.`);
+    }
+  }
+
+  const nodesByName = new Map<string, StandalonePackageNode[]>();
+  for (const node of nodesByRoot.values()) {
+    const candidates = nodesByName.get(node.name) ?? [];
+    candidates.push(node);
+    nodesByName.set(node.name, candidates);
+  }
+  const rootChoices = new Map<string, StandalonePackageNode>();
+  for (const [name, candidates] of nodesByName) {
+    const required = rootRequirements.get(name);
+    const selected =
+      required ??
+      [...candidates].sort(
+        (left, right) =>
+          right.referenceCount - left.referenceCount ||
+          left.version.localeCompare(right.version) ||
+          left.key.localeCompare(right.key),
+      )[0];
+    if (!selected) throw new Error(`Runtime package ${name} has no standalone candidate.`);
+    rootChoices.set(name, selected);
+  }
+
+  const stagingRoot = path.join(artifactRoot, ".standalone-runtime");
+  const stagedNodeModules = path.join(stagingRoot, "node_modules");
+  await rm(stagingRoot, { force: true, recursive: true });
+  await mkdir(stagedNodeModules, { recursive: true });
+  const placements = new Map<string, string>();
+  const hydrated = new Set<string>();
+  const sortedRootChoices = [...rootChoices.values()].sort((left, right) =>
+    left.name.localeCompare(right.name),
+  );
+  for (const node of sortedRootChoices) {
+    await copyStandalonePackage(
+      node,
+      path.join(stagedNodeModules, ...node.name.split("/")),
+      artifactRoot,
+      placements,
+    );
+  }
+  for (const node of sortedRootChoices) {
+    await materializeStandaloneDependencies(
+      node,
+      path.join(stagedNodeModules, ...node.name.split("/")),
+      rootChoices,
+      artifactRoot,
+      placements,
+      hydrated,
+    );
+  }
+
+  const stagedExternalOwners: { readonly owner: string; readonly staging: string }[] = [];
+  const sortedExternalOwners = [...externalOwners].sort();
+  for (const [index, owner] of sortedExternalOwners.entries()) {
+    const requirements = externalRequirements.get(owner) ?? new Map();
+    const localRequirements = [...requirements.values()]
+      .filter((dependency) => rootChoices.get(dependency.name)?.key !== dependency.key)
+      .sort((left, right) => left.name.localeCompare(right.name));
+    if (localRequirements.length === 0) continue;
+    const staging = path.join(stagingRoot, "external", String(index), "node_modules");
+    await mkdir(staging, { recursive: true });
+    const locallyAvailable = new Map(rootChoices);
+    for (const dependency of localRequirements) {
+      await copyStandalonePackage(
+        dependency,
+        path.join(staging, ...dependency.name.split("/")),
+        artifactRoot,
+        placements,
+      );
+      locallyAvailable.set(dependency.name, dependency);
+    }
+    for (const dependency of localRequirements) {
+      await materializeStandaloneDependencies(
+        dependency,
+        path.join(staging, ...dependency.name.split("/")),
+        locallyAvailable,
+        artifactRoot,
+        placements,
+        hydrated,
+      );
+    }
+    stagedExternalOwners.push({ owner, staging });
+  }
+
+  for (const owner of sortedExternalOwners) {
+    await rm(owner, { force: true, recursive: true });
+  }
+  await rm(rootNodeModules, { force: true, recursive: true });
+  await rename(stagedNodeModules, rootNodeModules);
+  for (const { owner, staging } of stagedExternalOwners) {
+    await mkdir(path.dirname(owner), { recursive: true });
+    await rename(staging, owner);
+  }
+  await rm(stagingRoot, { force: true, recursive: true });
+}
+
 export function createRuntimeArtifactManifest(
   target: RuntimeArtifactTarget,
   externalPackages: readonly string[],
@@ -1746,7 +2197,10 @@ async function createUniqueOwnedDirectory(
   prefix: string,
 ): Promise<Readonly<{ path: string; identity: DirectoryIdentity }>> {
   for (let attempt = 0; attempt < 4; attempt += 1) {
-    const directory = path.join(outputDirectory, `${prefix}-${process.pid}-${randomUUID()}`);
+    // Native Windows build tools still impose legacy path limits. A short random token keeps the
+    // transaction isolated without appending a PID and full UUID to deep pnpm package paths.
+    const ownerToken = randomUUID().replaceAll("-", "").slice(0, 8);
+    const directory = path.join(outputDirectory, `${prefix}-${ownerToken}`);
     try {
       await mkdir(directory);
       return Object.freeze({
@@ -2615,7 +3069,11 @@ export async function publishRuntimeArtifactTransaction({
         finalDirectory,
         admit,
       );
-      const temporary = await createUniqueOwnedDirectory(outputDirectory, `.${targetKey}.tmp`);
+      const targetToken = createHash("sha256").update(targetKey).digest("hex").slice(0, 8);
+      const temporary = await createUniqueOwnedDirectory(
+        outputDirectory,
+        `.t-${targetToken}-${process.pid}`,
+      );
       let temporaryAtPath = true;
       let publishedAtFinal = false;
       const backupPath = path.join(outputDirectory, runtimeArtifactPublishBackupName(targetKey));
@@ -2885,6 +3343,10 @@ export async function buildRuntimeArtifact({
       // dependency graph; this replaces just those owner packages with complete target material.
       for (const packageName of RUNTIME_ARTIFACT_NATIVE_PACKAGES)
         await copyOwnedPackage(packageName, appRoot, repositoryRoot, temporaryDirectory);
+      await projectTracedPnpmDependencyLinks({
+        repositoryRoot,
+        outputDirectory: temporaryDirectory,
+      });
       await adapter.materialize?.({ target, outputDirectory: temporaryDirectory, repositoryRoot });
       // Capture the actual physical Pi documentation/examples tree before pruning.
       // Only its resolved examples members receive the TS/test exception below.
@@ -2893,12 +3355,19 @@ export async function buildRuntimeArtifact({
         modelReadableResources: prePruneModelReadable.resources,
         resolvedExamplesRoot: prePruneModelReadable.resolvedExamplesRoot,
       });
-      await pruneKnownNativeVariants(temporaryDirectory, target);
+      await pruneKnownNativeVariants(temporaryDirectory, target, repositoryRoot);
+      const sourceLinks = await finalArtifactLinks(temporaryDirectory);
+      if (target.platform === "win32") {
+        await flattenWindowsRuntimeNodeModules(temporaryDirectory, sourceLinks);
+      }
       await assertArtifactConfinement(temporaryDirectory);
       await assertFinalArtifactPackageBoundary(temporaryDirectory);
       const measured = await writeNativeInventory(temporaryDirectory, target);
       const resources = await finalArtifactResources(temporaryDirectory);
       const links = await finalArtifactLinks(temporaryDirectory);
+      if (target.platform === "win32" && links.length > 0) {
+        throw new Error("Windows Runtime artifact must not contain symbolic links.");
+      }
       const modelReadable = await collectRuntimeModelReadableResources(temporaryDirectory);
       assertRuntimeModelReadableResourceClassification({
         resources,

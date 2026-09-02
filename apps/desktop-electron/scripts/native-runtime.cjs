@@ -11,7 +11,6 @@ const {
   readdirSync,
   realpathSync,
   rmSync,
-  writeFileSync,
 } = require("node:fs");
 const { createRequire } = require("node:module");
 const path = require("node:path");
@@ -21,7 +20,7 @@ const {
   runtimeArtifactTargetKey,
 } = require("@workbench/host-contracts/runtime-artifact-manifest");
 const nativeArtifact = require("@workbench/host-artifact-policy/runtime-native");
-const { runNodeScript, runPackageManager } = require("./process-runner.cjs");
+const { runPackageManager } = require("./process-runner.cjs");
 const {
   resolveDesktopRuntimeArtifact,
   resolveStagedDesktopRuntimeArtifact,
@@ -555,144 +554,9 @@ function materializeNapiPrebuild(packageName, outputDirectory, repositoryRoot, t
   chmodSync(destinationPath, lstatSync(sourcePath).mode & 0o777);
 }
 
-function stageNodePtyBuildInputs(outputDirectory, repositoryRoot) {
-  const nodePtySource = resolveTerminalNativePackageDirectory("node-pty", { repositoryRoot });
-  const nodePtyDestination = resolveArtifactPackageDirectory(outputDirectory, "node-pty");
-  const requireFromNodePty = createRequire(path.join(nodePtySource, "package.json"));
-  const nodeAddonApiManifest = realpathSync(
-    requireFromNodePty.resolve("node-addon-api/package.json"),
-  );
-  const nodeAddonApiSource = assertConfinedDependencyTree(
-    path.dirname(nodeAddonApiManifest),
-    repositoryRoot,
-    "node-addon-api",
-  );
-  assertPathInside(nodeAddonApiSource, nodeAddonApiManifest, "node-addon-api manifest");
-  const nodeAddonApiDestination = path.join(outputDirectory, "node_modules", "node-addon-api");
-  const generatedBuildSupportPaths = Object.freeze([
-    path.join(outputDirectory, "node_modules", ".pnpm", "node-addon-api"),
-    path.join(path.dirname(nodePtyDestination), "node-addon-api"),
-  ]);
-  // @electron/rebuild's ModuleWalker unconditionally reads buildPath/package.json before it walks
-  // dependencies. Runtime artifacts intentionally have no root package manifest, so provide the
-  // narrowest possible build-only manifest and remove it before shared resource measurement.
-  const rootManifestPath = path.join(outputDirectory, "package.json");
-  if (existsSync(rootManifestPath)) {
-    throw new Error("Runtime artifact unexpectedly contains a root package.json before rebuild.");
-  }
-  const nodePtyManifest = JSON.parse(
-    readFileSync(path.join(nodePtyDestination, "package.json"), "utf8"),
-  );
-  if (typeof nodePtyManifest.version !== "string" || nodePtyManifest.version.length === 0) {
-    throw new Error("Runtime artifact node-pty package has no version for rebuild ownership.");
-  }
-  for (const generatedPath of generatedBuildSupportPaths) {
-    if (existsSync(generatedPath)) {
-      throw new Error(
-        `Runtime artifact unexpectedly contains generated node-addon-api build support at ${path.relative(outputDirectory, generatedPath)} before rebuild.`,
-      );
-    }
-  }
-  const buildInputs = Object.freeze({
-    generatedBuildSupportPaths,
-    nodeAddonApiDestination,
-    rootManifestPath,
-  });
-  try {
-    rmSync(nodeAddonApiDestination, { force: true, recursive: true });
-    cpSync(nodeAddonApiSource, nodeAddonApiDestination, { dereference: true, recursive: true });
-    writeFileSync(
-      rootManifestPath,
-      `${JSON.stringify({
-        name: "@workbench/runtime-node-electron-materialization",
-        version: "0.0.0",
-        private: true,
-        dependencies: { "node-pty": nodePtyManifest.version },
-      })}\n`,
-    );
-  } catch (error) {
-    cleanupNodePtyBuildInputs(buildInputs);
-    throw error;
-  }
-  return buildInputs;
-}
-
-function cleanupNodePtyBuildInputs(buildInputs) {
-  rmSync(buildInputs.nodeAddonApiDestination, { force: true, recursive: true });
-  for (const generatedPath of buildInputs.generatedBuildSupportPaths) {
-    rmSync(generatedPath, { force: true, recursive: true });
-  }
-  rmSync(buildInputs.rootManifestPath, { force: true });
-}
-
-function runElectronRebuild(
-  outputDirectory,
-  target,
-  {
-    environment = process.env,
-    run = runNodeScript,
-    electronRebuildCli = path.join(path.dirname(require.resolve("@electron/rebuild")), "cli.js"),
-  } = {},
-) {
-  run(
-    electronRebuildCli,
-    [
-      "--arch",
-      target.arch,
-      "--platform",
-      target.platform,
-      "--disable-pre-gyp-copy",
-      "--force",
-      "--only",
-      "node-pty",
-      "--module-dir",
-      outputDirectory,
-      "--version",
-      target.electronVersion,
-    ],
-    {
-      cwd: outputDirectory,
-      env: {
-        ...environment,
-        npm_config_arch: target.arch,
-        npm_config_platform: target.platform,
-      },
-      label: "electron-rebuild",
-      stdio: "inherit",
-    },
-  );
-}
-
-function assertNodePtyMaterialization(outputDirectory, target) {
-  const packageDirectory = resolveArtifactPackageDirectory(outputDirectory, "node-pty");
-  const releaseDirectory = path.join(packageDirectory, "build", "Release");
-  const metadataPath = path.join(releaseDirectory, ".forge-meta");
-  const expectedMetadata = `${target.arch}--${target.nodeModuleAbi}`;
-  if (!existsSync(metadataPath) || readFileSync(metadataPath, "utf8").trim() !== expectedMetadata) {
-    throw new Error(
-      `node-pty rebuild metadata must be ${expectedMetadata} before shared runtime pruning.`,
-    );
-  }
-  for (const expected of nativeArtifact
-    .expectedNativeRuntimeFiles(target)
-    .filter((file) => file.packageName === "node-pty")) {
-    const filePath = path.join(packageDirectory, expected.relativePath);
-    if (!existsSync(filePath) || !lstatSync(filePath).isFile()) {
-      throw new Error(`electron-rebuild did not produce node-pty/${expected.relativePath}.`);
-    }
-    if (expected.executable && (lstatSync(filePath).mode & 0o111) === 0) {
-      throw new Error(
-        `electron-rebuild produced a non-executable node-pty/${expected.relativePath}.`,
-      );
-    }
-  }
-}
-
 function createElectronRuntimeArtifactAdapter({
   target: measuredTarget,
-  environment = process.env,
   materializePrebuild = materializeNapiPrebuild,
-  rebuild = runElectronRebuild,
 } = {}) {
   const expectedTarget = validateElectronRuntimeTarget(measuredTarget);
   return Object.freeze({
@@ -702,13 +566,6 @@ function createElectronRuntimeArtifactAdapter({
     },
     materialize({ target, outputDirectory, repositoryRoot }) {
       assertExactTarget(validateElectronRuntimeTarget(target), expectedTarget);
-      const buildInputs = stageNodePtyBuildInputs(outputDirectory, repositoryRoot);
-      try {
-        rebuild(outputDirectory, target, { environment });
-        assertNodePtyMaterialization(outputDirectory, target);
-      } finally {
-        cleanupNodePtyBuildInputs(buildInputs);
-      }
       for (const packageName of ["tree-sitter", "tree-sitter-bash"]) {
         materializePrebuild(packageName, outputDirectory, repositoryRoot, target);
       }
@@ -808,7 +665,7 @@ async function runStagedNativeSmoke({
   target,
   electronExecutable = require("electron"),
   environment = process.env,
-  smokeScript = path.join(__dirname, "native-runtime-smoke.cjs"),
+  smokeScript = path.resolve(__dirname, "../../../scripts/native-runtime-smoke.cjs"),
   spawn = spawnSync,
   readIdentity = readElectronRuntimeIdentity,
   resolveArtifact = resolveDesktopRuntimeArtifact,
@@ -872,7 +729,6 @@ module.exports = {
   SUPPORTED_NATIVE_TARGETS,
   assertElectronExecutableMatchesTarget,
   assertExactTarget,
-  assertNodePtyMaterialization,
   assertPathInside,
   assertProjectElectronBuilderConfig,
   buildElectronRuntimeArtifact,
@@ -886,8 +742,6 @@ module.exports = {
   resolveInstalledElectronTarget,
   resolveNativeTarget,
   resolveTerminalNativePackageDirectory,
-  runElectronRebuild,
-  stageNodePtyBuildInputs,
   runStagedNativeSmoke,
   targetTriple,
   validateElectronRuntimeTarget,

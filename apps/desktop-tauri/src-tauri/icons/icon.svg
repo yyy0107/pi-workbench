@@ -1,5 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title">
-  <title id="title">Pi Workbench</title>
-  <rect x="56" y="56" width="912" height="912" rx="224" fill="#08090b" stroke="#242529" stroke-width="16" />
-  <path fill="#f7f7f8" d="M212 212h450v300h150v300H662V512H512v150H362v150H212zm150 150v150h150V362z" />
-</svg>

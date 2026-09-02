@@ -89,9 +89,15 @@ pnpm --filter @workbench/runtime-node dev
 pnpm --filter @workbench/runtime-node typecheck
 pnpm --filter @workbench/runtime-node test
 pnpm --filter @workbench/runtime-node build:artifact
+pnpm --filter @workbench/runtime-node smoke:native
 ```
 
 `dev` runs the Runtime process itself; the normal browser Web/Runtime topology is owned by root
 `pnpm dev`, and the desktop topology is owned by root `pnpm electron:dev`. The package tests cover
 control, Host composition, lifecycle, RPC/WebSocket/Terminal admission, and artifact production
 boundaries.
+
+Release CI supplies `WORKBENCH_NODE_PTY_NATIVE_BUILD_MANIFEST` from the native Runner's
+`@workbench/terminal-server native:pty:build` step. When it is present, artifact publication fails
+unless the retained `node-pty` files exactly match the recorded SHA-256, size, and mode. Local builds
+without that variable may use the package's current-target prebuild and never compile implicitly.
