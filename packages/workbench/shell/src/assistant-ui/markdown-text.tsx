@@ -1,6 +1,11 @@
 "use client";
 
-import { TextMessagePartProvider } from "@assistant-ui/react";
+import {
+  TextMessagePartProvider,
+  useAuiState,
+  useMessagePartText,
+  useSmooth,
+} from "@assistant-ui/react";
 import {
   escapeCurrencyDollars,
   normalizeMathDelimiters,
@@ -21,18 +26,17 @@ import {
   memo,
   useCallback,
   useContext,
-  useLayoutEffect,
+  useEffect,
   useMemo,
   useRef,
   useState,
   type ComponentProps,
   type ReactNode,
 } from "react";
-import { Block, CodeBlock, type BlockProps } from "streamdown";
+import { CodeBlock } from "streamdown";
 
 import { CodexCodeHeader } from "./codex-code-header";
 import { InlineCitation, type Source } from "../elements/inline-citation";
-import { segmentStreamingWords } from "../elements/streaming-text";
 import { Button } from "../ui/button";
 import {
   Dialog,
@@ -63,143 +67,132 @@ interface InlineCitationContextValue {
 const InlineCitationContext = createContext<InlineCitationContextValue | null>(null);
 const mathPlugin = createMathPlugin({ singleDollarTextMath: true });
 const LATEX_DISPLAY_MATH = /\\{1,2}\[([\s\S]+?)\\{1,2}\]/g;
-const STREAMING_FRESH_WORDS = 4;
-const STREAMING_MARKDOWN_ANIMATION = {
-  animation: "auiStreamingWordIn",
-  duration: 150,
-  easing: "cubic-bezier(0.22, 1, 0.36, 1)",
-  sep: "word",
+// Pi publishes cumulative message snapshots and intentionally coalesces them per animation frame.
+// Drain the visible text over time so several updates arriving in one frame remain perceptibly
+// streamed instead of painting as one large block. Commit at roughly 30 fps to keep full Markdown
+// reparses from monopolizing the renderer while the animator continues advancing every frame.
+const STREAMING_MARKDOWN_SMOOTHING = {
+  drainMs: 120,
+  maxCharIntervalMs: 3,
+  maxCharsPerFrame: 8,
+  minCommitMs: 32,
 } as const;
-const STREAMING_TEXT_EXCLUDED_TAGS = new Set([
-  "annotation",
-  "pre",
-  "script",
-  "style",
-  "sup",
-  "svg",
-]);
-const STREAMING_TEXT_ATOMIC_TAGS = new Set(["code", "math"]);
+const RUNNING_TEXT_STATUS = { type: "running" } as const;
+const STANDALONE_TEXT_MESSAGE_ID = "workbench-standalone-text";
 
-type StreamingMarkdownNode = {
-  type: string;
-  tagName?: string;
-  value?: string;
-  properties?: Record<string, unknown>;
-  children?: StreamingMarkdownNode[];
-};
+type TextPartState = ReturnType<typeof useMessagePartText>;
 
-function useStreamingFreshTail(enabled: boolean) {
-  const rootRef = useRef<HTMLDivElement>(null);
-
-  useLayoutEffect(() => {
-    const root = rootRef.current;
-    if (!enabled || !root) return;
-
-    const update = () => {
-      const segments = [...root.querySelectorAll<HTMLElement>("[data-streaming-segment]")];
-      const freshFrom = segments
-        .filter((segment) => segment.dataset.streamingSegment === "word")
-        .at(-STREAMING_FRESH_WORDS);
-      let fresh = false;
-
-      for (const segment of segments) {
-        fresh ||= segment === freshFrom;
-        segment.toggleAttribute("data-streaming-fresh", fresh);
-      }
-    };
-
-    update();
-    const observer = new MutationObserver(update);
-    observer.observe(root, { childList: true, characterData: true, subtree: true });
-    return () => observer.disconnect();
-  }, [enabled]);
-
-  return rootRef;
+interface SettledBurstRelease {
+  readonly messageId: string;
+  readonly text: string;
 }
 
-function excludesStreamingText(node: StreamingMarkdownNode) {
-  return Boolean(node.tagName && STREAMING_TEXT_EXCLUDED_TAGS.has(node.tagName));
+interface AnimationFrameScheduler {
+  request(callback: FrameRequestCallback): number;
+  cancel(handle: number): void;
 }
 
-function isAtomicStreamingWord(node: StreamingMarkdownNode) {
-  if (node.tagName && STREAMING_TEXT_ATOMIC_TAGS.has(node.tagName)) return true;
-  const className = node.properties?.className;
-  const classes = Array.isArray(className) ? className : [className];
-  return classes.some((value) => typeof value === "string" && value.startsWith("katex"));
+interface SettledBurstGuardInput {
+  readonly enabled: boolean;
+  readonly messageId: string;
+  readonly released: SettledBurstRelease | undefined;
+  readonly runningMessageId: string | undefined;
+  readonly state: TextPartState;
 }
 
-function countStreamingWords(node: StreamingMarkdownNode): number {
-  if (excludesStreamingText(node)) return 0;
-  if (isAtomicStreamingWord(node)) return 1;
-  if (node.type === "text" && node.value) {
-    return segmentStreamingWords(node.value).filter(({ wordLike }) => wordLike).length;
-  }
-  return node.children?.reduce((count, child) => count + countStreamingWords(child), 0) ?? 0;
+/** @internal */
+export function shouldHoldSettledBurst({
+  enabled,
+  messageId,
+  released,
+  runningMessageId,
+  state,
+}: SettledBurstGuardInput): boolean {
+  return (
+    enabled &&
+    state.status.type !== "running" &&
+    state.text.length > 0 &&
+    runningMessageId === messageId &&
+    (released?.messageId !== messageId || released?.text !== state.text)
+  );
 }
 
-function rehypeStreamingText() {
-  return (tree: StreamingMarkdownNode) => {
-    const freshFrom = Math.max(0, countStreamingWords(tree) - STREAMING_FRESH_WORDS);
-    let wordIndex = 0;
-    let fresh = false;
+/** @internal */
+export function scheduleAfterNextPaint(
+  callback: () => void,
+  scheduler: AnimationFrameScheduler = {
+    request: (frameCallback) => globalThis.requestAnimationFrame(frameCallback),
+    cancel: (handle) => globalThis.cancelAnimationFrame(handle),
+  },
+): () => void {
+  let secondFrame: number | undefined;
+  const firstFrame = scheduler.request(() => {
+    secondFrame = scheduler.request(callback);
+  });
 
-    const transform = (node: StreamingMarkdownNode): StreamingMarkdownNode[] => {
-      if (excludesStreamingText(node)) return [node];
-
-      if (isAtomicStreamingWord(node)) {
-        fresh ||= wordIndex >= freshFrom;
-        wordIndex += 1;
-        node.properties = {
-          ...node.properties,
-          "data-streaming-segment": "word",
-          ...(fresh && { "data-streaming-fresh": "true" }),
-        };
-        return [node];
-      }
-
-      if (node.type === "text" && node.value) {
-        return segmentStreamingWords(node.value).map(({ word, wordLike }) => {
-          if (wordLike) {
-            fresh ||= wordIndex >= freshFrom;
-            wordIndex += 1;
-          }
-
-          return {
-            type: "element",
-            tagName: "span",
-            properties: {
-              "data-streaming-segment": wordLike ? "word" : "separator",
-              ...(fresh && { "data-streaming-fresh": "true" }),
-            },
-            children: [{ type: "text", value: word }],
-          };
-        });
-      }
-
-      if (node.children) node.children = node.children.flatMap(transform);
-      return [node];
-    };
-
-    if (tree.children) tree.children = tree.children.flatMap(transform);
+  return () => {
+    scheduler.cancel(firstFrame);
+    if (secondFrame !== undefined) scheduler.cancel(secondFrame);
   };
 }
 
-const StreamingMarkdownBlock = memo(function StreamingMarkdownBlock({
-  animatePlugin,
-  rehypePlugins,
-  ...props
-}: BlockProps) {
-  const plugins = useMemo(() => {
-    const result = [...(rehypePlugins ?? [])];
-    const animateIndex = animatePlugin
-      ? result.lastIndexOf(animatePlugin.rehypePlugin)
-      : result.length;
-    result.splice(animateIndex < 0 ? result.length : animateIndex, 0, rehypeStreamingText);
-    return result;
-  }, [animatePlugin, rehypePlugins]);
+/** Keep a just-settled live part running long enough for its first visible smoothing frame. */
+function useSettledBurstGuard(state: TextPartState, enabled: boolean): TextPartState {
+  const messageId =
+    useAuiState((snapshot) => snapshot.optional.message?.id) ?? STANDALONE_TEXT_MESSAGE_ID;
+  const runningMessageIdRef = useRef<string | undefined>(undefined);
+  const [released, setReleased] = useState<SettledBurstRelease>();
 
-  return <Block {...props} animatePlugin={animatePlugin} rehypePlugins={plugins} />;
-});
+  useEffect(() => {
+    if (state.status.type === "running") runningMessageIdRef.current = messageId;
+  }, [messageId, state.status.type]);
+
+  const holdSettledBurst = shouldHoldSettledBurst({
+    enabled,
+    messageId,
+    released,
+    runningMessageId: runningMessageIdRef.current,
+    state,
+  });
+
+  useEffect(() => {
+    if (!holdSettledBurst) return;
+
+    return scheduleAfterNextPaint(() => {
+      if (runningMessageIdRef.current === messageId) runningMessageIdRef.current = undefined;
+      setReleased({ messageId, text: state.text });
+    });
+  }, [holdSettledBurst, messageId, state.text]);
+
+  return holdSettledBurst ? { ...state, status: RUNNING_TEXT_STATUS } : state;
+}
+
+function SmoothedTextProvider({
+  children,
+  preprocess,
+  smooth,
+}: Readonly<{
+  children: ReactNode;
+  preprocess: (text: string) => string;
+  smooth: Parameters<typeof useSmooth>[1];
+}>) {
+  const messagePart = useMessagePartText();
+  const processedPart = useMemo(
+    () => ({ ...messagePart, text: preprocess(messagePart.text) }),
+    [messagePart, preprocess],
+  );
+  const guardedPart = useSettledBurstGuard(processedPart, true);
+  const visiblePart = useSmooth(guardedPart, smooth);
+
+  return (
+    <TextMessagePartProvider
+      text={visiblePart.text}
+      isRunning={visiblePart.status.type === "running"}
+    >
+      {children}
+    </TextMessagePartProvider>
+  );
+}
 
 function normalizeStreamdownMathDelimiters(text: string): string {
   // The upstream normalizer trims bracket-delimited bodies. Preserve their
@@ -221,10 +214,6 @@ export type MarkdownTextProps = Omit<
   resetParagraphMargins?: boolean;
 };
 
-type ConfiguredMarkdownTextProps = MarkdownTextProps & {
-  streamingTail?: boolean;
-};
-
 const MarkdownTextImpl = ({
   className,
   codeTheme: codeThemeOverride,
@@ -234,10 +223,9 @@ const MarkdownTextImpl = ({
   preserveWhitespace = false,
   preprocess,
   resetParagraphMargins = false,
-  streamingTail = false,
+  smooth = false,
   ...props
-}: ConfiguredMarkdownTextProps) => {
-  const rootRef = useStreamingFreshTail(streamingTail);
+}: MarkdownTextProps) => {
   const { codeTheme: preferredCodeTheme } = useAppearancePreferences();
   const codeTheme = codeThemeOverride ?? preferredCodeTheme;
   const { light, dark } = CODE_THEME_PAIRS[codeTheme];
@@ -256,11 +244,9 @@ const MarkdownTextImpl = ({
     },
     [preprocess],
   );
-
-  return (
+  const markdown = (
     <StreamdownTextPrimitive
       {...props}
-      ref={rootRef}
       className={cn(
         "aui-streamdown space-y-0 [&>*:first-child]:mt-0! [&>*:last-child]:mb-0!",
         inheritLineHeight &&
@@ -276,8 +262,16 @@ const MarkdownTextImpl = ({
       lineNumbers={false}
       mode={mode}
       plugins={plugins}
-      preprocess={preprocessMarkdown}
+      preprocess={smooth === false || smooth === null ? preprocessMarkdown : undefined}
     />
+  );
+
+  return smooth === false || smooth === null ? (
+    markdown
+  ) : (
+    <SmoothedTextProvider preprocess={preprocessMarkdown} smooth={smooth}>
+      {markdown}
+    </SmoothedTextProvider>
   );
 };
 
@@ -315,11 +309,8 @@ function CitationMarkdownText({
   return (
     <InlineCitationContext.Provider value={context}>
       <ConfiguredMarkdownText
-        animated={STREAMING_MARKDOWN_ANIMATION}
-        BlockComponent={StreamingMarkdownBlock}
-        containerClassName="aui-streamdown-text"
         preprocess={preprocessCitations}
-        streamingTail
+        smooth={STREAMING_MARKDOWN_SMOOTHING}
       />
     </InlineCitationContext.Provider>
   );

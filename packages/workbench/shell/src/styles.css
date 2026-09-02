@@ -1,4 +1,3 @@
-@import "streamdown/styles.css";
 @import "./code-highlighting/workbench-code-editor.css";
 @import "./elements/reviewable-diff.css";
 @import "./extensions/builtin/appearance/appearance-background.css";
@@ -414,45 +413,6 @@
 .aui-streamdown {
   min-width: 0;
   overflow-wrap: anywhere;
-}
-
-@keyframes sd-auiStreamingWordIn {
-  from {
-    opacity: 0;
-    filter: blur(1px);
-    top: 2px;
-  }
-  to {
-    opacity: 1;
-    filter: blur(0);
-    top: 0;
-  }
-}
-
-.aui-streamdown-text [data-streaming-segment] > [data-sd-animate] {
-  position: relative;
-}
-
-.aui-streamdown-text [data-streaming-segment] {
-  transition: color 700ms ease-out;
-}
-
-.aui-streamdown-text[data-status="running"] [data-streaming-fresh] {
-  color: var(--color-blue-500);
-}
-
-.dark .aui-streamdown-text[data-status="running"] [data-streaming-fresh] {
-  color: var(--color-blue-400);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .aui-streamdown-text [data-sd-animate] {
-    animation: none;
-  }
-
-  .aui-streamdown-text [data-streaming-segment] {
-    transition: none;
-  }
 }
 
 .aui-streamdown :where(p) {

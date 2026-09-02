@@ -7,7 +7,13 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { WorkbenchSettingsProvider, type WorkbenchSettingsPort } from "../settings";
 
-import { MarkdownText, MarkdownTextContent, MarkdownTextWithCitations } from "./markdown-text";
+import {
+  MarkdownText,
+  MarkdownTextContent,
+  MarkdownTextWithCitations,
+  scheduleAfterNextPaint,
+  shouldHoldSettledBurst,
+} from "./markdown-text";
 
 const settings = {
   async load() {
@@ -128,47 +134,81 @@ test("renders structured citations inside assistant markdown", () => {
   assert.doesNotMatch(markup, /workbench-inline-citations/);
 });
 
-test("segments multilingual words and keeps inline Markdown atoms in the fresh tail", () => {
+test("does not paint an entire cumulative burst in the first streaming frame", () => {
+  const text = Array.from({ length: 200 }, (_, index) => `word-${index}`).join(" ");
   const markup = renderWithWorkbenchSettings(
-    createElement(
-      TextMessagePartProvider,
-      {
-        text: "one **two** three four 中文流式消息测试 `inline` $E=mc^2$ tail",
-        isRunning: true,
-      },
-      createElement(MarkdownText),
-    ),
+    createElement(TextMessagePartProvider, { text, isRunning: true }, createElement(MarkdownText)),
   );
 
   assert.match(markup, /data-status="running"/);
-  assert.match(markup, /data-streamdown="strong"/);
-  assert.match(markup, /class="katex"/);
-  assert.equal(markup.match(/data-streaming-segment="word"/g)?.length, 10);
+  assert.notEqual(textFromMarkup(markup), text);
+  assert.doesNotMatch(markup, /data-streaming-segment/);
+});
+
+test("holds a settled live burst until its text has started painting", () => {
+  const messageId = "assistant-message";
+  const state = {
+    type: "text" as const,
+    text: "completed burst",
+    status: { type: "complete" as const },
+  };
+
   assert.equal(
-    markup.match(/data-streaming-segment="word" data-streaming-fresh="true"/g)?.length,
-    4,
+    shouldHoldSettledBurst({
+      enabled: true,
+      messageId,
+      released: undefined,
+      runningMessageId: messageId,
+      state,
+    }),
+    true,
   );
-  assert.match(markup, />测试</);
-  assert.match(
-    markup,
-    /<code[^>]*data-streaming-segment="word" data-streaming-fresh="true"/,
+  assert.equal(
+    shouldHoldSettledBurst({
+      enabled: true,
+      messageId,
+      released: { messageId, text: state.text },
+      runningMessageId: messageId,
+      state,
+    }),
+    false,
   );
-  assert.match(
-    markup,
-    /class="katex" data-streaming-segment="word" data-streaming-fresh="true"/,
+  assert.equal(
+    shouldHoldSettledBurst({
+      enabled: true,
+      messageId,
+      released: undefined,
+      runningMessageId: "different-assistant-message",
+      state,
+    }),
+    false,
   );
 });
 
-test("renders the full current text while the message is still streaming", () => {
-  const text = "alpha beta gamma delta";
-  const markup = renderWithWorkbenchSettings(
-    createElement(
-      TextMessagePartProvider,
-      { text, isRunning: true },
-      createElement(MarkdownText),
-    ),
+test("releases a settled burst only after a paint opportunity", () => {
+  const frames: FrameRequestCallback[] = [];
+  const cancelled: number[] = [];
+  let released = false;
+  const cancel = scheduleAfterNextPaint(
+    () => {
+      released = true;
+    },
+    {
+      request(callback) {
+        frames.push(callback);
+        return frames.length;
+      },
+      cancel(handle) {
+        cancelled.push(handle);
+      },
+    },
   );
 
-  assert.match(markup, /data-status="running"/);
-  assert.equal(textFromMarkup(markup), text);
+  frames.shift()?.(0);
+  assert.equal(released, false);
+  frames.shift()?.(16);
+  assert.equal(released, true);
+
+  cancel();
+  assert.deepEqual(cancelled, [1, 1]);
 });
