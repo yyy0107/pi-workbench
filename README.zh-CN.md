@@ -159,13 +159,25 @@ pnpm dev:once
 
 ### Electron 开发
 
-托管命令会构建当前 Runtime/Desktop composition，启动 Desktop renderer 的 Next.js 开发服务器，等待产品
-标记就绪后再启动 Electron。Electron 从 `.desktop-build` 自行拥有 Runtime process；根 orchestrator 只拥有
-renderer 与 Electron 两个 child，并按相反顺序清理：
+修改桌面端源码后，停止当前 Electron 进程并重新运行以下命令。它会重新构建当前 Runtime/Desktop
+composition，启动 Desktop renderer 的 Next.js 开发服务器，等待产品标记就绪后再启动 Electron：
 
 ```bash
 pnpm electron:dev
 ```
+
+如果只需要重新构建桌面 artifacts、但不启动 Electron，运行：
+
+```bash
+pnpm --filter @workbench/desktop-electron build
+```
+
+该命令只生成 `.desktop-build` artifacts，不会启动可用的桌面窗口。不要用普通浏览器直接打开 Desktop
+renderer 的 `http://127.0.0.1:3000`；浏览器没有 Electron preload bridge，会显示“无法初始化本地
+Workbench Runtime”。需要使用应用时，请运行 `pnpm electron:dev` 并等待 Electron 窗口自动打开。
+
+Electron 从 `.desktop-build` 自行拥有 Runtime process；根 orchestrator 只拥有 renderer 与 Electron 两个
+child，并按相反顺序清理。
 
 托管 renderer 固定使用 `http://127.0.0.1:3000`。若端口已被占用，启动会失败；命令不会强杀无关 listener。
 

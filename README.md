@@ -169,14 +169,27 @@ all hot compilation must be disabled.
 
 ### Electron development
 
-The managed command builds the current Runtime/Desktop composition, starts the Desktop renderer's
-Next.js development server, waits for its product marker, and then starts Electron. Electron owns
-the Runtime process from `.desktop-build`; the root orchestrator owns only the renderer and Electron
-children and cleans them in reverse order:
+After changing Desktop source code, stop the current Electron process and rerun the following
+command. It rebuilds the current Runtime/Desktop composition, starts the Desktop renderer's Next.js
+development server, waits for its product marker, and then starts Electron:
 
 ```bash
 pnpm electron:dev
 ```
+
+To rebuild the Desktop artifacts without starting Electron, run:
+
+```bash
+pnpm --filter @workbench/desktop-electron build
+```
+
+This command only produces `.desktop-build` artifacts; it does not launch a usable Desktop window.
+Do not open the Desktop renderer at `http://127.0.0.1:3000` in a regular browser. A browser has no
+Electron preload bridge and will report that the local Workbench Runtime could not be initialized.
+Run `pnpm electron:dev` and wait for the Electron window to open when using the application.
+
+Electron owns the Runtime process from `.desktop-build`; the root orchestrator owns only the
+renderer and Electron children and cleans them in reverse order.
 
 The managed renderer uses `http://127.0.0.1:3000`. Startup fails if that endpoint is occupied; the
 command never kills an unrelated listener.
