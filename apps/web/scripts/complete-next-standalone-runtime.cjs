@@ -91,47 +91,46 @@ function standaloneWebApplicationRoot(paths, standaloneRoot) {
   );
 }
 
-function prepareStandaloneNextRootAlias({ standaloneRoot, runtimeNodeModules, standaloneWebRoot }) {
-  const applicationAlias = path.join(standaloneWebRoot, "node_modules", "next");
-  const destination = path.join(runtimeNodeModules, "next");
-  const applicationEntry = existingEntry(applicationAlias);
-  const packageRoot = confinedRealpath(
-    standaloneRoot,
-    applicationEntry ? applicationAlias : destination,
-    applicationEntry ? "Standalone Web application Next alias" : "Standalone root Next alias",
-  );
-  validateReplacementDestination(standaloneRoot, destination, "Standalone root Next alias");
-  const existing = existingEntry(destination);
-  if (existing) {
-    const existingRoot = confinedRealpath(
-      standaloneRoot,
-      destination,
-      "Standalone root Next alias",
-    );
-    if (existingRoot !== packageRoot) {
-      throw new Error(
-        "Standalone root Next alias does not resolve to the Web application's traced Next owner.",
-      );
-    }
+function tracedPackageRoot({ repositoryRoot, sourceManifest, standaloneRoot, label }) {
+  const canonicalRepositoryRoot = realpathSync(path.resolve(repositoryRoot));
+  const sourcePackageRoot = realpathSync(path.dirname(sourceManifest));
+  if (!isInside(canonicalRepositoryRoot, sourcePackageRoot)) {
+    throw new Error(`${label} source escapes the selected repository: ${sourcePackageRoot}`);
   }
-  return Object.freeze({ destination, packageRoot, create: !existing });
+  return confinedRealpath(
+    standaloneRoot,
+    path.join(standaloneRoot, path.relative(canonicalRepositoryRoot, sourcePackageRoot)),
+    label,
+  );
 }
 
-function completeStandaloneNextRootAlias(plan, standaloneRoot) {
-  if (plan.create) {
+function prepareStandaloneNextAlias({ standaloneRoot, destination, packageRoot, label }) {
+  validateReplacementDestination(standaloneRoot, destination, label);
+  const existing = existingEntry(destination);
+  if (existing) {
+    const existingRoot = confinedRealpath(standaloneRoot, destination, label);
+    if (existingRoot !== packageRoot) {
+      if (!existingEntry(path.join(existingRoot, "package.json"))) {
+        return Object.freeze({ destination, packageRoot, replace: true });
+      }
+      throw new Error(`${label} does not resolve to the traced Next owner.`);
+    }
+  }
+  return Object.freeze({ destination, packageRoot, replace: false, create: !existing });
+}
+
+function completeStandaloneNextAlias(plan, standaloneRoot, label) {
+  if (plan.replace) rmSync(plan.destination, { force: true, recursive: true });
+  if (plan.create || plan.replace) {
     symlinkSync(
       path.relative(path.dirname(plan.destination), plan.packageRoot),
       plan.destination,
       "dir",
     );
   }
-  const completedRoot = confinedRealpath(
-    standaloneRoot,
-    plan.destination,
-    "Standalone root Next alias",
-  );
+  const completedRoot = confinedRealpath(standaloneRoot, plan.destination, label);
   if (completedRoot !== plan.packageRoot) {
-    throw new Error("Standalone root Next alias changed owner while it was completed.");
+    throw new Error(`${label} changed owner while it was completed.`);
   }
   return completedRoot;
 }
@@ -209,14 +208,27 @@ function completeNextStandaloneRuntime({
   const sourceTslibRoot = path.dirname(sourceTslibManifest);
 
   const standaloneWebRoot = standaloneWebApplicationRoot(paths, canonicalStandaloneRoot);
-  const nextAliasPlan = prepareStandaloneNextRootAlias({
+  const runtimeNextRoot = tracedPackageRoot({
+    repositoryRoot: paths.repositoryRoot,
+    sourceManifest: sourceNextManifest,
     standaloneRoot: canonicalStandaloneRoot,
-    runtimeNodeModules,
-    standaloneWebRoot,
+    label: "Standalone traced Next package",
   });
+  const nextAliasPlans = [
+    [path.join(standaloneWebRoot, "node_modules", "next"), "Standalone Web application Next alias"],
+    [path.join(runtimeNodeModules, "next"), "Standalone root Next alias"],
+  ].map(([destination, label]) => [
+    prepareStandaloneNextAlias({
+      standaloneRoot: canonicalStandaloneRoot,
+      destination,
+      packageRoot: runtimeNextRoot,
+      label,
+    }),
+    label,
+  ]);
   const runtimeNextManifest = confinedRealpath(
     canonicalStandaloneRoot,
-    path.join(nextAliasPlan.packageRoot, "package.json"),
+    path.join(runtimeNextRoot, "package.json"),
     "Standalone Next manifest",
   );
   const runtimeNext = packageIdentity(runtimeNextManifest, "Standalone Next");
@@ -244,7 +256,9 @@ function completeNextStandaloneRuntime({
     "Standalone tslib package",
   );
 
-  completeStandaloneNextRootAlias(nextAliasPlan, canonicalStandaloneRoot);
+  for (const [plan, label] of nextAliasPlans) {
+    completeStandaloneNextAlias(plan, canonicalStandaloneRoot, label);
+  }
 
   const completedHelpersRoot = replacePackageDirectory({
     source: sourceHelpersRoot,

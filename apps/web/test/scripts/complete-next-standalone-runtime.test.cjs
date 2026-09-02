@@ -36,9 +36,31 @@ function fixture(t) {
   t.after(() => rmSync(repositoryRoot, { force: true, recursive: true }));
   const paths = createWorkbenchPaths({ repositoryRoot });
   writeFile(path.join(paths.webRoot, "package.json"), '{"name":"web-fixture"}\n');
-  const sourceNextRoot = path.join(paths.webRoot, "node_modules", "next");
-  const sourceHelpersRoot = path.join(paths.webRoot, "node_modules", "@swc", "helpers");
-  const sourceTslibRoot = path.join(paths.webRoot, "node_modules", "tslib");
+  const sourceNextRoot = path.join(
+    repositoryRoot,
+    "node_modules",
+    ".pnpm",
+    "next@16.3.1_fixture",
+    "node_modules",
+    "next",
+  );
+  const sourceHelpersRoot = path.join(
+    repositoryRoot,
+    "node_modules",
+    ".pnpm",
+    "@swc+helpers@0.5.23",
+    "node_modules",
+    "@swc",
+    "helpers",
+  );
+  const sourceTslibRoot = path.join(
+    repositoryRoot,
+    "node_modules",
+    ".pnpm",
+    "tslib@2.8.1",
+    "node_modules",
+    "tslib",
+  );
   writePackage(sourceNextRoot, {
     name: "next",
     version: "16.3.1",
@@ -75,16 +97,29 @@ function fixture(t) {
       "tslib.js": "module.exports = {};",
     },
   );
+  const sourceNextHelpersAlias = path.join(path.dirname(sourceNextRoot), "@swc", "helpers");
+  mkdirSync(path.dirname(sourceNextHelpersAlias), { recursive: true });
+  symlinkSync(
+    path.relative(path.dirname(sourceNextHelpersAlias), sourceHelpersRoot),
+    sourceNextHelpersAlias,
+    "dir",
+  );
+  const sourceHelpersTslibAlias = path.join(path.dirname(path.dirname(sourceHelpersRoot)), "tslib");
+  symlinkSync(
+    path.relative(path.dirname(sourceHelpersTslibAlias), sourceTslibRoot),
+    sourceHelpersTslibAlias,
+    "dir",
+  );
+  const sourceNextApplicationAlias = path.join(paths.webRoot, "node_modules", "next");
+  mkdirSync(path.dirname(sourceNextApplicationAlias), { recursive: true });
+  symlinkSync(
+    path.relative(path.dirname(sourceNextApplicationAlias), sourceNextRoot),
+    sourceNextApplicationAlias,
+    "dir",
+  );
 
   const standaloneRoot = paths.webStandaloneRoot;
-  const runtimeNextRoot = path.join(
-    standaloneRoot,
-    "node_modules",
-    ".pnpm",
-    "next@16.3.1_fixture",
-    "node_modules",
-    "next",
-  );
+  const runtimeNextRoot = path.join(standaloneRoot, path.relative(repositoryRoot, sourceNextRoot));
   const runtimeNextApplicationAlias = path.join(
     standaloneRoot,
     "apps",
@@ -195,7 +230,7 @@ test("completes the full helper and tslib packages and is idempotent", (t) => {
   assert.equal(realpathSync(runtimeNextRootAlias), runtimeNextRoot);
 });
 
-test("uses the root Next alias when the application alias is absent", (t) => {
+test("restores the application Next alias when it is absent", (t) => {
   const {
     paths,
     runtimeNextApplicationAlias,
@@ -213,8 +248,27 @@ test("uses the root Next alias when the application alias is absent", (t) => {
   const report = completeNextStandaloneRuntime({ paths, standaloneRoot });
 
   assert.equal(report.nextVersion, "16.3.1");
-  assert.equal(existsSync(runtimeNextApplicationAlias), false);
+  assert.equal(realpathSync(runtimeNextApplicationAlias), runtimeNextRoot);
   assert.equal(realpathSync(runtimeNextRootAlias), runtimeNextRoot);
+});
+
+test("repairs a partial Next directory left by Windows trace copying", (t) => {
+  const {
+    paths,
+    runtimeNextApplicationAlias,
+    runtimeNextRoot,
+    runtimeNextRootAlias,
+    standaloneRoot,
+  } = fixture(t);
+  rmSync(runtimeNextApplicationAlias);
+  writeFile(path.join(runtimeNextApplicationAlias, "dist", "partial.js"), "partial trace");
+
+  const report = completeNextStandaloneRuntime({ paths, standaloneRoot });
+
+  assert.equal(report.nextVersion, "16.3.1");
+  assert.equal(realpathSync(runtimeNextApplicationAlias), runtimeNextRoot);
+  assert.equal(realpathSync(runtimeNextRootAlias), runtimeNextRoot);
+  assert.equal(existsSync(path.join(runtimeNextApplicationAlias, "dist", "partial.js")), false);
 });
 
 test("rejects a standalone dependency version mismatch before replacing files", (t) => {
@@ -309,7 +363,7 @@ test("rejects a preexisting root Next alias with a different physical owner", (t
 
   assert.throws(
     () => completeNextStandaloneRuntime({ paths, standaloneRoot }),
-    /does not resolve to the Web application's traced Next owner/u,
+    /Standalone root Next alias does not resolve to the traced Next owner/u,
   );
   assert.equal(realpathSync(runtimeNextRootAlias), conflictingNextRoot);
 });
