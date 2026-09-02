@@ -355,10 +355,8 @@ export function MainConversationHost() {
 
     if (!runFinishedAtBottom) return;
 
-    // The final content update and the running -> complete transition can share one React commit.
-    // autoScroll is disabled for that completed render, so preserve an existing bottom-follow
-    // intent across the final Markdown reflow and action-bar layout without reclaiming users who
-    // deliberately scrolled up during the run.
+    // Preserve an existing bottom-follow intent across the final Markdown reflow and action-bar
+    // layout without reclaiming users who deliberately scrolled up during the run.
     scrollToBottom();
     wasAtBottom.current = true;
     const frame = window.requestAnimationFrame(() => {
@@ -388,7 +386,7 @@ export function MainConversationHost() {
       viewportRef={viewportRef}
       frameRef={threadFrameRef}
       composerDockInset={composerDockInset}
-      autoScroll={isRunning}
+      autoScroll
     />
   );
 }

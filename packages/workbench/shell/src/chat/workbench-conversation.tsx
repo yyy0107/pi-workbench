@@ -475,7 +475,7 @@ export function WorkbenchConversation({
 
           {!isEmpty ? (
             <ThreadPrimitive.ScrollToBottom
-              behavior="smooth"
+              behavior={isRunning ? "instant" : "auto"}
               render={
                 <TooltipIconButton
                   tooltip={t("workbench.chat.scrollLatest")}
