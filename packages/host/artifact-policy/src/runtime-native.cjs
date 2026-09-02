@@ -1,7 +1,10 @@
 const { createHash } = require("node:crypto");
 const {
+  chmodSync,
+  copyFileSync,
   existsSync,
   lstatSync,
+  mkdirSync,
   readdirSync,
   readFileSync,
   realpathSync,
@@ -116,12 +119,47 @@ function nativeMaterializationMutationPolicy(target) {
   );
 }
 
+function materializeNodePtyPrebuild(packageDirectory, target, expected) {
+  const releaseDirectory = path.join(packageDirectory, "build", "Release");
+  if (
+    expected.every((item) => {
+      const destination = path.join(packageDirectory, item.relativePath);
+      return existsSync(destination) && lstatSync(destination).isFile();
+    })
+  ) {
+    return;
+  }
+
+  const prebuildDirectory = path.join(
+    packageDirectory,
+    "prebuilds",
+    `${target.platform}-${target.arch}`,
+  );
+  const sources = expected.map((item) => {
+    const source = path.join(prebuildDirectory, path.basename(item.relativePath));
+    if (!existsSync(source) || !lstatSync(source).isFile()) {
+      throw new Error(`node-pty is missing target prebuild ${source}.`);
+    }
+    assertPathInside(packageDirectory, realpathSync(source), "node-pty target prebuild");
+    return { item, source };
+  });
+
+  rmSync(releaseDirectory, { force: true, recursive: true });
+  mkdirSync(releaseDirectory, { recursive: true });
+  for (const { item, source } of sources) {
+    const destination = path.join(packageDirectory, item.relativePath);
+    copyFileSync(source, destination);
+    chmodSync(destination, lstatSync(source).mode & 0o777);
+  }
+}
+
 function prunePackageNativeVariants(packageDirectory, packageName, target) {
   const expected = expectedNativeRuntimeFiles(target).filter(
     (item) => item.packageName === packageName,
   );
   if (expected.length === 0) throw new Error(`No native policy exists for ${packageName}.`);
   if (packageName === "node-pty") {
+    materializeNodePtyPrebuild(packageDirectory, target, expected);
     for (const item of [
       "bin",
       "binding.gyp",

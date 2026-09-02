@@ -1,5 +1,12 @@
 const assert = require("node:assert/strict");
-const { mkdtempSync, mkdirSync, rmSync, writeFileSync } = require("node:fs");
+const {
+  existsSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
@@ -89,4 +96,23 @@ test("prunes non-target native variants and measures only actual regular bytes",
     collectNativeRuntimeInventory(runtime).every((item) => Number.isInteger(item.mode)),
     true,
   );
+});
+
+test("materializes the selected Windows node-pty prebuild before pruning", (t) => {
+  const runtime = temporaryDirectory(t);
+  const packageDirectory = path.join(runtime, "node_modules", "node-pty");
+  const target = { platform: "win32", arch: "x64" };
+  const expected = expectedNativeRuntimeFiles(target).filter(
+    ({ packageName }) => packageName === "node-pty",
+  );
+  for (const item of expected) {
+    file(packageDirectory, `prebuilds/win32-x64/${path.basename(item.relativePath)}`, item.role);
+  }
+
+  prunePackageNativeVariants(packageDirectory, "node-pty", target);
+
+  assert.equal(existsSync(path.join(packageDirectory, "prebuilds")), false);
+  for (const item of expected) {
+    assert.equal(readFileSync(path.join(packageDirectory, item.relativePath), "utf8"), item.role);
+  }
 });
