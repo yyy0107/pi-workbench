@@ -2,6 +2,7 @@ const {
   cpSync,
   lstatSync,
   mkdtempSync,
+  mkdirSync,
   readFileSync,
   realpathSync,
   renameSync,
@@ -12,6 +13,9 @@ const { createRequire } = require("node:module");
 const path = require("node:path");
 
 const { createWorkbenchPaths } = require("../../../scripts/workbench-paths.cjs");
+const {
+  resolveWebArtifactNextWebpackRuntime,
+} = require("@workbench/host-artifact-policy/web-next-runtime-exception");
 
 const REQUIRED_HELPER_FILES = Object.freeze([
   "cjs/_interop_require_default.cjs",
@@ -200,8 +204,129 @@ function assertRequiredFiles(packageRoot, requiredFiles, label) {
   }
 }
 
+function copyConfinedPackageFile({
+  sourcePackageRoot,
+  destinationPackageRoot,
+  relativeFile,
+  label,
+}) {
+  const segments = relativeFile.split("/");
+  if (
+    segments.length === 0 ||
+    segments.some((segment) => !segment || segment === "." || segment === "..") ||
+    relativeFile.includes("\\") ||
+    path.isAbsolute(relativeFile)
+  ) {
+    throw new Error(`${label} has an invalid package-relative path: ${relativeFile}`);
+  }
+  const source = realpathSync(path.join(sourcePackageRoot, ...segments));
+  const sourceStats = lstatSync(source);
+  if (
+    !isInside(sourcePackageRoot, source) ||
+    !sourceStats.isFile() ||
+    sourceStats.isSymbolicLink()
+  ) {
+    throw new Error(`${label} source is not a confined regular file: ${relativeFile}`);
+  }
+
+  const destination = path.join(destinationPackageRoot, ...segments);
+  const destinationParent = path.dirname(destination);
+  mkdirSync(destinationParent, { recursive: true });
+  const canonicalParent = realpathSync(destinationParent);
+  if (canonicalParent !== destinationParent || !isInside(destinationPackageRoot, canonicalParent)) {
+    throw new Error(`${label} destination parent escapes its package: ${relativeFile}`);
+  }
+  const existing = existingEntry(destination);
+  if (
+    existing &&
+    (!existing.isFile() || existing.isSymbolicLink() || realpathSync(destination) !== destination)
+  ) {
+    throw new Error(`${label} destination is not a canonical regular file: ${relativeFile}`);
+  }
+  cpSync(source, destination, { force: true, preserveTimestamps: true });
+  const completed = realpathSync(destination);
+  const completedStats = lstatSync(completed);
+  if (
+    completed !== destination ||
+    !isInside(destinationPackageRoot, completed) ||
+    !completedStats.isFile() ||
+    completedStats.isSymbolicLink()
+  ) {
+    throw new Error(`${label} did not produce a confined regular file: ${relativeFile}`);
+  }
+  return completed;
+}
+
+function completeNextWebpackRuntime({
+  repositoryRoot,
+  sourceNextAlias,
+  sourceNextRoot,
+  sourceNext,
+  standaloneRoot,
+  runtimeNextRoot,
+}) {
+  const sourceRuntime = resolveWebArtifactNextWebpackRuntime({
+    artifactRoot: repositoryRoot,
+    nextAlias: sourceNextAlias,
+  });
+  assertPackageIdentity(
+    sourceRuntime.packageIdentity,
+    sourceNext,
+    "Installed Next webpack runtime",
+  );
+  const configUtilsRelativePath = path
+    .relative(sourceNextRoot, sourceRuntime.configUtils)
+    .split(path.sep)
+    .join("/");
+  const files = [
+    Object.freeze({
+      relativeFile: configUtilsRelativePath,
+      sourceFile: sourceRuntime.configUtils,
+    }),
+    ...sourceRuntime.resources.map((resource) =>
+      Object.freeze({
+        relativeFile: resource.nextPackageRelativePath,
+        sourceFile: resource.runtimeFile,
+      }),
+    ),
+  ];
+  const completedFiles = files.map(({ relativeFile, sourceFile }) => {
+    const canonicalSource = realpathSync(path.join(sourceNextRoot, ...relativeFile.split("/")));
+    if (canonicalSource !== sourceFile) {
+      throw new Error(`Installed Next webpack runtime source changed: ${relativeFile}`);
+    }
+    copyConfinedPackageFile({
+      sourcePackageRoot: sourceNextRoot,
+      destinationPackageRoot: runtimeNextRoot,
+      relativeFile,
+      label: "Standalone Next webpack runtime",
+    });
+    return relativeFile;
+  });
+
+  const completedRuntime = resolveWebArtifactNextWebpackRuntime({ artifactRoot: standaloneRoot });
+  assertPackageIdentity(
+    completedRuntime.packageIdentity,
+    sourceNext,
+    "Standalone Next webpack runtime",
+  );
+  const expectedClosure = sourceRuntime.resources
+    .map((resource) => resource.nextPackageRelativePath)
+    .sort();
+  const completedClosure = completedRuntime.resources
+    .map((resource) => resource.nextPackageRelativePath)
+    .sort();
+  if (JSON.stringify(completedClosure) !== JSON.stringify(expectedClosure)) {
+    throw new Error(
+      "Standalone Next webpack runtime dependency closure changed during completion.",
+    );
+  }
+  return Object.freeze([...new Set(completedFiles)].sort());
+}
+
 /**
- * Completes the package branches that Next 16's standalone trace omits on Node 24.
+ * Completes the package branches and audited dynamic runtime files that Next 16's standalone
+ * trace omits on Node 24.
  *
  * Node 24 selects `@swc/helpers`' `module-sync` export, while Next's generated trace currently
  * retains only the CommonJS helper files. Resolve the exact helper dependency selected by the
@@ -213,6 +338,7 @@ function completeNextStandaloneRuntime({
   paths = createWorkbenchPaths(),
   standaloneRoot = paths.webStandaloneRoot,
 } = {}) {
+  const repositoryRoot = realpathSync(path.resolve(paths.repositoryRoot));
   const canonicalStandaloneRoot = realpathSync(path.resolve(standaloneRoot));
   const runtimeNodeModules = confinedRealpath(
     canonicalStandaloneRoot,
@@ -295,6 +421,14 @@ function completeNextStandaloneRuntime({
   for (const [plan, label] of nextAliasPlans) {
     completeStandalonePackageAlias(plan, canonicalStandaloneRoot, label);
   }
+  const completedNextRuntimeFiles = completeNextWebpackRuntime({
+    repositoryRoot,
+    sourceNextAlias: path.join(paths.webRoot, "node_modules", "next"),
+    sourceNextRoot: path.dirname(sourceNextManifest),
+    sourceNext,
+    standaloneRoot: canonicalStandaloneRoot,
+    runtimeNextRoot,
+  });
   completeStandalonePackageAlias(helpersAliasPlan, canonicalStandaloneRoot, helpersAliasLabel);
 
   const completedHelpersRoot = replacePackageDirectory({
@@ -319,6 +453,7 @@ function completeNextStandaloneRuntime({
   return Object.freeze({
     standaloneRoot: canonicalStandaloneRoot,
     nextVersion: sourceNext.version,
+    completedNextRuntimeFiles,
     completedPackages: Object.freeze([
       Object.freeze({
         name: sourceHelpers.name,

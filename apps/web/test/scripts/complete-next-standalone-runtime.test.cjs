@@ -15,6 +15,9 @@ const test = require("node:test");
 
 const { createWorkbenchPaths } = require("../../../../scripts/workbench-paths.cjs");
 const {
+  resolveWebArtifactNextWebpackRuntime,
+} = require("@workbench/host-artifact-policy/web-next-runtime-exception");
+const {
   completeNextStandaloneRuntime,
 } = require("../../scripts/complete-next-standalone-runtime.cjs");
 const { assertCompletedRuntime } = require("../../scripts/web-standalone-smoke.cjs");
@@ -61,11 +64,27 @@ function fixture(t) {
     "node_modules",
     "tslib",
   );
-  writePackage(sourceNextRoot, {
-    name: "next",
-    version: "16.3.1",
-    exports: { "./package.json": "./package.json" },
-  });
+  writePackage(
+    sourceNextRoot,
+    {
+      name: "next",
+      version: "16.3.1",
+    },
+    {
+      "dist/compiled/@babel/runtime/package.json": '{"name":"@babel/runtime"}\n',
+      "dist/compiled/webpack/bundle5.js": "module.exports = {};\n",
+      "dist/compiled/webpack/webpack-lib.js": 'module.exports = require("./webpack.js");\n',
+      "dist/compiled/webpack/webpack.js": 'module.exports = require("./bundle5");\n',
+      "dist/server/config-utils.js": [
+        '"use strict";',
+        'require("../server/require-hook").addHookAliases([',
+        '  ["webpack", "next/dist/compiled/webpack/webpack-lib"],',
+        '  ["@babel/runtime", "next/dist/compiled/@babel/runtime/package.json"],',
+        "].map(([request, replacement]) => [request, require.resolve(replacement)]));",
+        "",
+      ].join("\n"),
+    },
+  );
   writePackage(
     sourceHelpersRoot,
     {
@@ -195,6 +214,17 @@ test("completes the full helper and tslib packages and is idempotent", (t) => {
   assert.deepEqual(
     first.completedPackages.map(({ name, version }) => `${name}@${version}`),
     ["@swc/helpers@0.5.23", "tslib@2.8.1"],
+  );
+  assert.deepEqual(first.completedNextRuntimeFiles, [
+    "dist/compiled/@babel/runtime/package.json",
+    "dist/compiled/webpack/bundle5.js",
+    "dist/compiled/webpack/webpack-lib.js",
+    "dist/compiled/webpack/webpack.js",
+    "dist/server/config-utils.js",
+  ]);
+  assert.equal(
+    resolveWebArtifactNextWebpackRuntime({ artifactRoot: standaloneRoot }).packageIdentity.version,
+    "16.3.1",
   );
   assert.equal(
     readFileSync(path.join(runtimeHelpersRoot, "esm", "_interop_require_default.js"), "utf8"),
