@@ -231,6 +231,13 @@ manifest/layout/budget artifact 验证时才使用 `pnpm electron:pack:artifact`
 `pnpm electron:dist:artifact`；它们会返回结构化 `execution: "not-run"` 结果，不宣称原生执行
 契约已经通过。
 
+官方发布工作流在六个原生 Runner 上分别源码编译 `node-pty@1.1.0`，并用
+`node-pty-native-build.json` 中的 SHA-256、大小和文件模式约束 Web 与 Electron Runtime。两端共享同一份
+Node-API 原生文件，并分别执行真实 PTY smoke；Electron 不再运行 `electron-rebuild`。本地未设置
+`WORKBENCH_NODE_PTY_NATIVE_BUILD_MANIFEST` 时仍可使用上游当前目标预编译，打包过程不会隐式调用
+`node-gyp`。因此已发布应用或 Runtime 压缩包的用户无需 Python、node-gyp、Visual Studio Build Tools、
+Xcode CLI、gcc、clang 或 make。
+
 Electron artifact 组合与打包属于 [`apps/desktop-electron`](./apps/desktop-electron/)。其中
 [`build-desktop-artifacts.cjs`](./apps/desktop-electron/scripts/build-desktop-artifacts.cjs) 会先构建当前已安装
 Electron 对应的 Runtime target，再发布组合清单；staged package 携带不可执行的

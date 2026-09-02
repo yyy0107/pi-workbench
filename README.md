@@ -249,6 +249,14 @@ rather than reporting an unexecuted application as successful. Use
 validation; they return a structured `execution: "not-run"` result and do not claim the native
 execution contract passed.
 
+The official release workflow source-builds `node-pty@1.1.0` on each of six native Runners. A
+`node-pty-native-build.json` records SHA-256, size, and mode for the exact files consumed by the Web
+and Electron Runtimes. Both consumers share those Node-API bytes and run real PTY smoke under their
+actual Runtime; Electron no longer runs `electron-rebuild`. Local builds without
+`WORKBENCH_NODE_PTY_NATIVE_BUILD_MANIFEST` may still use the upstream current-target prebuild, and
+packaging never compiles implicitly. Users of published applications and Runtime archives therefore
+do not need Python, node-gyp, Visual Studio Build Tools, Xcode CLI, gcc, clang, or make.
+
 Electron artifact composition and packaging belong to
 [`apps/desktop-electron`](./apps/desktop-electron/). Its
 [`build-desktop-artifacts.cjs`](./apps/desktop-electron/scripts/build-desktop-artifacts.cjs) builds
