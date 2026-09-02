@@ -48,7 +48,10 @@ import {
   type PiUserMessage,
   type PiWorkspaceSummary,
 } from "@workbench/agent-runtime-pi-protocol/messages";
-import { WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME } from "../context-trace/data-part";
+import {
+  recordPiContextTracePromptPresentation,
+  WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME,
+} from "../context-trace/data-part";
 import {
   archivePiWorkspaceSession,
   cancelPiRpcSession,
@@ -517,6 +520,7 @@ export class PiClientSession {
   private readonly steeringMessageIds = new Map<string, string>();
   private readonly contextTraceIds = new Set<string>();
   private readonly contextTracePromptParts = new Map<string, SessionContextTracePromptPart>();
+  private readonly contextTracePromptPresentations = new Map<string, string>();
   private pendingContextTraceEvents: SessionContextTraceEventSummary[] = [];
   private readonly messageQueue: PiMessageQueue;
 
@@ -737,6 +741,7 @@ export class PiClientSession {
     this.steeringMessageIds.clear();
     this.contextTraceIds.clear();
     this.contextTracePromptParts.clear();
+    this.contextTracePromptPresentations.clear();
     this.pendingContextTraceEvents = [];
     this.snapshotValue = {
       messages: [],
@@ -849,6 +854,10 @@ export class PiClientSession {
                 this.applyContextTraceEvent(part.event);
               } else {
                 this.contextTraceIds.add(part.event.traceId);
+                recordPiContextTracePromptPresentation(
+                  part.event,
+                  this.contextTracePromptPresentations,
+                );
               }
             }
           })
@@ -1298,6 +1307,9 @@ export class PiClientSession {
       return;
     }
     this.contextTraceIds.add(event.traceId);
+    if (!recordPiContextTracePromptPresentation(event, this.contextTracePromptPresentations)) {
+      return;
+    }
 
     if (this.streamingMessage?.role === "assistant") {
       this.streamingMessage = appendPiContextTraceAssistantPart(this.streamingMessage, event);

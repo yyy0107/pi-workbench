@@ -3,12 +3,16 @@ import test from "node:test";
 import { INTERNAL, type AppendMessage, type ThreadMessage } from "@assistant-ui/react";
 
 import type { PiEvent, PiSessionSummary } from "@workbench/agent-runtime-pi-protocol/messages";
-import type { SessionHistoryValue } from "@workbench/agent-runtime-pi-protocol/rpc";
+import type {
+  SessionContextTraceEventSummary,
+  SessionHistoryValue,
+} from "@workbench/agent-runtime-pi-protocol/rpc";
 import type {
   HostStreamPayload,
   MuxStreamPayload,
   ServerRequest,
 } from "@workbench/agent-runtime-pi-protocol/stream";
+import { parsePiContextTraceData } from "../../src/context-trace/data-part";
 import { PiSessionManager } from "../../src/runtime/manager";
 
 function summary(overrides: Partial<PiSessionSummary> = {}): PiSessionSummary {
@@ -23,6 +27,39 @@ function summary(overrides: Partial<PiSessionSummary> = {}): PiSessionSummary {
     transient: false,
     running: false,
     ...overrides,
+  };
+}
+
+function promptCompositionEvent(
+  traceId: string,
+  seq: number,
+  roundId: string,
+  activeTools = ["read"],
+): SessionContextTraceEventSummary {
+  return {
+    schemaVersion: 1,
+    traceId,
+    sessionId: "session-live-parts",
+    activationId: "activation-live-parts",
+    seq,
+    time: seq,
+    kind: "prompt-composition",
+    detailBytes: 48,
+    truncated: false,
+    redacted: false,
+    roundId,
+    promptInjections: ["system-prompt", "tools", "extensions"],
+    promptResources: {
+      cwd: "/workspace",
+      systemPromptCharacters: 12,
+      systemPromptSourceCount: 1,
+      systemPromptSources: [{ kind: "builtin", scope: "builtin" }],
+      contextFileCount: 0,
+      contextFiles: [],
+      skills: [],
+      extensions: [{ name: "audit", hidden: false }],
+      tools: { active: activeTools, total: activeTools.length },
+    },
   };
 }
 
@@ -3981,6 +4018,54 @@ test("projects context trace mux events into the active assistant message as Dat
       "text",
     ],
   );
+});
+
+test("projects one live prompt composition per round until its presentation changes", (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("session-live-parts", "session-live-parts");
+  const internals = session as unknown as { streamingMessage: ThreadMessage };
+  internals.streamingMessage = {
+    id: "assistant",
+    role: "assistant",
+    content: [{ type: "text", text: "Running", status: { type: "running" } }],
+    status: { type: "running" },
+    createdAt: new Date(0),
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      steps: [],
+      custom: {},
+    },
+  };
+
+  session.applyContextTraceEvent(promptCompositionEvent("activation-live-parts:0", 0, "round-1"));
+  session.applyContextTraceEvent(promptCompositionEvent("activation-live-parts:1", 1, "round-1"));
+  session.applyContextTraceEvent(
+    promptCompositionEvent("activation-live-parts:2", 2, "round-1", ["read", "bash"]),
+  );
+  session.applyContextTraceEvent(
+    promptCompositionEvent("activation-live-parts:3", 3, "round-2", ["read", "bash"]),
+  );
+
+  const traceIds = [
+    ...new Set(
+      internals.streamingMessage.content.flatMap((part) =>
+        part.type === "data"
+          ? [parsePiContextTraceData(part.data)?.event.traceId].filter(
+              (traceId): traceId is string => traceId !== undefined,
+            )
+          : [],
+      ),
+    ),
+  ].sort();
+
+  assert.deepEqual(traceIds, [
+    "activation-live-parts:0",
+    "activation-live-parts:2",
+    "activation-live-parts:3",
+  ]);
 });
 
 test("holds an early prompt composition for the next assistant message", (t) => {

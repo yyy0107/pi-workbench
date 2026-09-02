@@ -21,6 +21,7 @@ import {
   piAssistantToThreadMessage,
   piHistoryToThreadMessages,
   piUserMessageContent,
+  projectPiContextTracePromptParts,
   reconcileLiveMessagesAfterHistory,
   reconcilePiContextTraceAssistantParts,
 } from "../../src/messages/messages";
@@ -209,6 +210,58 @@ test("retains live trace Data Parts when authoritative history replaces an assis
     ),
     [...PROMPT_INJECTIONS.map(() => `data:${WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME}`), "text"],
   );
+});
+
+test("projects prompt composition once per round until its presentation changes", () => {
+  const first = { ...contextTraceEvent("activation:1", 1), roundId: "round-1" };
+  const duplicate = { ...contextTraceEvent("activation:2", 2), roundId: "round-1" };
+  const changedBase = contextTraceEvent("activation:3", 3);
+  const changed = {
+    ...changedBase,
+    roundId: "round-1",
+    promptResources: {
+      ...changedBase.promptResources!,
+      tools: { active: ["read", "bash"], total: 2 },
+    },
+  };
+  const nextRound = {
+    ...contextTraceEvent("activation:4", 4),
+    roundId: "round-2",
+    promptResources: changed.promptResources,
+  };
+  const events = [first, duplicate, changed, nextRound];
+  const messages = events.map((event, index) =>
+    piAssistantToThreadMessage(
+      {
+        role: "assistant",
+        content: [{ type: "text", text: `Answer ${index + 1}` }],
+        timestamp: index + 1,
+      },
+      `assistant-${index + 1}`,
+    ),
+  );
+
+  const projected = projectPiContextTracePromptParts(
+    messages,
+    events.map((event, index) => ({ event, assistantMessageTimestamp: index + 1 })),
+  );
+  const traceIds = projected.map((message) =>
+    message.role === "assistant"
+      ? [
+          ...new Set(
+            message.content.flatMap((part) =>
+              part.type === "data"
+                ? [parsePiContextTraceData(part.data)?.event.traceId].filter(
+                    (traceId): traceId is string => traceId !== undefined,
+                  )
+                : [],
+            ),
+          ),
+        ]
+      : [],
+  );
+
+  assert.deepEqual(traceIds, [["activation:1"], [], ["activation:3"], ["activation:4"]]);
 });
 
 test("preserves the canonical event sequence used for conversation forks", () => {

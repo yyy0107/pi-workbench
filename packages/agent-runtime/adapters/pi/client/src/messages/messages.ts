@@ -59,6 +59,7 @@ import {
   parsePiContextTraceData,
   piContextTraceData,
   piContextTracePromptInjections,
+  recordPiContextTracePromptPresentation,
   WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME,
 } from "../context-trace/data-part";
 import type {
@@ -195,8 +196,13 @@ export function projectPiContextTracePromptParts(
   promptParts: readonly SessionContextTracePromptPart[],
 ): ThreadMessage[] {
   const eventsByTimestamp = new Map<number, SessionContextTraceEventSummary[]>();
+  const lastPresentationByRound = new Map<string, string>();
   for (const part of promptParts) {
-    if (part.event.kind !== "prompt-composition" || part.assistantMessageTimestamp === undefined) {
+    if (
+      part.event.kind !== "prompt-composition" ||
+      part.assistantMessageTimestamp === undefined ||
+      !recordPiContextTracePromptPresentation(part.event, lastPresentationByRound)
+    ) {
       continue;
     }
     const events = eventsByTimestamp.get(part.assistantMessageTimestamp) ?? [];

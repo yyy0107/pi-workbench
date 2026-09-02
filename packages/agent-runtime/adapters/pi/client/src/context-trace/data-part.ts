@@ -21,6 +21,23 @@ export function piContextTracePromptInjections(
   );
 }
 
+export function recordPiContextTracePromptPresentation(
+  event: SessionContextTraceEventSummary,
+  lastPresentationByRound: Map<string, string>,
+): boolean {
+  if (event.kind !== "prompt-composition" || !event.roundId || !event.promptResources) return true;
+
+  // ponytail: compare the summary rendered in chat; add a server digest only if same-summary
+  // prompt-content changes must surface as updates.
+  const presentation = JSON.stringify([
+    piContextTracePromptInjections(event),
+    event.promptResources,
+  ]);
+  const changed = lastPresentationByRound.get(event.roundId) !== presentation;
+  lastPresentationByRound.set(event.roundId, presentation);
+  return changed;
+}
+
 export interface WorkbenchPiContextTraceDataV1 {
   readonly version: 1;
   readonly event: SessionContextTraceEventSummary;
