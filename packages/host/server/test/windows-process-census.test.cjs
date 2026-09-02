@@ -3,6 +3,7 @@ const test = require("node:test");
 
 const {
   createWindowsProcessRegistry,
+  readWindowsProcessCensus,
   terminateVerifiedWindowsProcessTree,
 } = require("../src/windows-process-census.cjs");
 
@@ -46,3 +47,18 @@ test("shared Windows census cleans only a reverified registered descendant after
 
   assert.deepEqual(killed, [descendant.pid]);
 });
+
+test(
+  "real Windows census emits a flat argv string array",
+  { skip: process.platform !== "win32" },
+  () => {
+    const records = readWindowsProcessCensus();
+
+    assert.ok(records.length > 0);
+    for (const record of records) {
+      assert.ok(Array.isArray(record.argv));
+      assert.ok(record.argv.length > 0);
+      assert.ok(record.argv.every((argument) => typeof argument === "string"));
+    }
+  },
+);

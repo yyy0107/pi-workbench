@@ -31,7 +31,9 @@ function Convert-WorkbenchCommandLine([string] $commandLine) {
       $pointer = [Runtime.InteropServices.Marshal]::ReadIntPtr($memory, $index * [IntPtr]::Size)
       $arguments += [Runtime.InteropServices.Marshal]::PtrToStringUni($pointer)
     }
-    return ,$arguments
+    # Let PowerShell enumerate each argument into the caller's @(...). Returning the array as one
+    # item creates argv = [[...]], which makes every process identity unverifiable after JSON.
+    return $arguments
   } finally {
     [void] [WorkbenchCommandLine]::LocalFree($memory)
   }
