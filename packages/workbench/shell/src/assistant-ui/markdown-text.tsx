@@ -21,15 +21,18 @@ import {
   memo,
   useCallback,
   useContext,
+  useLayoutEffect,
   useMemo,
+  useRef,
   useState,
   type ComponentProps,
   type ReactNode,
 } from "react";
-import { CodeBlock } from "streamdown";
+import { Block, CodeBlock, type BlockProps } from "streamdown";
 
 import { CodexCodeHeader } from "./codex-code-header";
 import { InlineCitation, type Source } from "../elements/inline-citation";
+import { segmentStreamingWords } from "../elements/streaming-text";
 import { Button } from "../ui/button";
 import {
   Dialog,
@@ -60,6 +63,143 @@ interface InlineCitationContextValue {
 const InlineCitationContext = createContext<InlineCitationContextValue | null>(null);
 const mathPlugin = createMathPlugin({ singleDollarTextMath: true });
 const LATEX_DISPLAY_MATH = /\\{1,2}\[([\s\S]+?)\\{1,2}\]/g;
+const STREAMING_FRESH_WORDS = 4;
+const STREAMING_MARKDOWN_ANIMATION = {
+  animation: "auiStreamingWordIn",
+  duration: 150,
+  easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+  sep: "word",
+} as const;
+const STREAMING_TEXT_EXCLUDED_TAGS = new Set([
+  "annotation",
+  "pre",
+  "script",
+  "style",
+  "sup",
+  "svg",
+]);
+const STREAMING_TEXT_ATOMIC_TAGS = new Set(["code", "math"]);
+
+type StreamingMarkdownNode = {
+  type: string;
+  tagName?: string;
+  value?: string;
+  properties?: Record<string, unknown>;
+  children?: StreamingMarkdownNode[];
+};
+
+function useStreamingFreshTail(enabled: boolean) {
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    if (!enabled || !root) return;
+
+    const update = () => {
+      const segments = [...root.querySelectorAll<HTMLElement>("[data-streaming-segment]")];
+      const freshFrom = segments
+        .filter((segment) => segment.dataset.streamingSegment === "word")
+        .at(-STREAMING_FRESH_WORDS);
+      let fresh = false;
+
+      for (const segment of segments) {
+        fresh ||= segment === freshFrom;
+        segment.toggleAttribute("data-streaming-fresh", fresh);
+      }
+    };
+
+    update();
+    const observer = new MutationObserver(update);
+    observer.observe(root, { childList: true, characterData: true, subtree: true });
+    return () => observer.disconnect();
+  }, [enabled]);
+
+  return rootRef;
+}
+
+function excludesStreamingText(node: StreamingMarkdownNode) {
+  return Boolean(node.tagName && STREAMING_TEXT_EXCLUDED_TAGS.has(node.tagName));
+}
+
+function isAtomicStreamingWord(node: StreamingMarkdownNode) {
+  if (node.tagName && STREAMING_TEXT_ATOMIC_TAGS.has(node.tagName)) return true;
+  const className = node.properties?.className;
+  const classes = Array.isArray(className) ? className : [className];
+  return classes.some((value) => typeof value === "string" && value.startsWith("katex"));
+}
+
+function countStreamingWords(node: StreamingMarkdownNode): number {
+  if (excludesStreamingText(node)) return 0;
+  if (isAtomicStreamingWord(node)) return 1;
+  if (node.type === "text" && node.value) {
+    return segmentStreamingWords(node.value).filter(({ wordLike }) => wordLike).length;
+  }
+  return node.children?.reduce((count, child) => count + countStreamingWords(child), 0) ?? 0;
+}
+
+function rehypeStreamingText() {
+  return (tree: StreamingMarkdownNode) => {
+    const freshFrom = Math.max(0, countStreamingWords(tree) - STREAMING_FRESH_WORDS);
+    let wordIndex = 0;
+    let fresh = false;
+
+    const transform = (node: StreamingMarkdownNode): StreamingMarkdownNode[] => {
+      if (excludesStreamingText(node)) return [node];
+
+      if (isAtomicStreamingWord(node)) {
+        fresh ||= wordIndex >= freshFrom;
+        wordIndex += 1;
+        node.properties = {
+          ...node.properties,
+          "data-streaming-segment": "word",
+          ...(fresh && { "data-streaming-fresh": "true" }),
+        };
+        return [node];
+      }
+
+      if (node.type === "text" && node.value) {
+        return segmentStreamingWords(node.value).map(({ word, wordLike }) => {
+          if (wordLike) {
+            fresh ||= wordIndex >= freshFrom;
+            wordIndex += 1;
+          }
+
+          return {
+            type: "element",
+            tagName: "span",
+            properties: {
+              "data-streaming-segment": wordLike ? "word" : "separator",
+              ...(fresh && { "data-streaming-fresh": "true" }),
+            },
+            children: [{ type: "text", value: word }],
+          };
+        });
+      }
+
+      if (node.children) node.children = node.children.flatMap(transform);
+      return [node];
+    };
+
+    if (tree.children) tree.children = tree.children.flatMap(transform);
+  };
+}
+
+const StreamingMarkdownBlock = memo(function StreamingMarkdownBlock({
+  animatePlugin,
+  rehypePlugins,
+  ...props
+}: BlockProps) {
+  const plugins = useMemo(() => {
+    const result = [...(rehypePlugins ?? [])];
+    const animateIndex = animatePlugin
+      ? result.lastIndexOf(animatePlugin.rehypePlugin)
+      : result.length;
+    result.splice(animateIndex < 0 ? result.length : animateIndex, 0, rehypeStreamingText);
+    return result;
+  }, [animatePlugin, rehypePlugins]);
+
+  return <Block {...props} animatePlugin={animatePlugin} rehypePlugins={plugins} />;
+});
 
 function normalizeStreamdownMathDelimiters(text: string): string {
   // The upstream normalizer trims bracket-delimited bodies. Preserve their
@@ -81,6 +221,10 @@ export type MarkdownTextProps = Omit<
   resetParagraphMargins?: boolean;
 };
 
+type ConfiguredMarkdownTextProps = MarkdownTextProps & {
+  streamingTail?: boolean;
+};
+
 const MarkdownTextImpl = ({
   className,
   codeTheme: codeThemeOverride,
@@ -90,8 +234,10 @@ const MarkdownTextImpl = ({
   preserveWhitespace = false,
   preprocess,
   resetParagraphMargins = false,
+  streamingTail = false,
   ...props
-}: MarkdownTextProps) => {
+}: ConfiguredMarkdownTextProps) => {
+  const rootRef = useStreamingFreshTail(streamingTail);
   const { codeTheme: preferredCodeTheme } = useAppearancePreferences();
   const codeTheme = codeThemeOverride ?? preferredCodeTheme;
   const { light, dark } = CODE_THEME_PAIRS[codeTheme];
@@ -114,6 +260,7 @@ const MarkdownTextImpl = ({
   return (
     <StreamdownTextPrimitive
       {...props}
+      ref={rootRef}
       className={cn(
         "aui-streamdown space-y-0 [&>*:first-child]:mt-0! [&>*:last-child]:mb-0!",
         inheritLineHeight &&
@@ -168,8 +315,11 @@ function CitationMarkdownText({
   return (
     <InlineCitationContext.Provider value={context}>
       <ConfiguredMarkdownText
+        animated={STREAMING_MARKDOWN_ANIMATION}
+        BlockComponent={StreamingMarkdownBlock}
+        containerClassName="aui-streamdown-text"
         preprocess={preprocessCitations}
-        smooth={{ drainMs: 120, maxCharIntervalMs: 3, maxCharsPerFrame: 8 }}
+        streamingTail
       />
     </InlineCitationContext.Provider>
   );

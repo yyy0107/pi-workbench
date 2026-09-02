@@ -22,6 +22,10 @@ function renderWithWorkbenchSettings(node: ReactNode): string {
   );
 }
 
+function textFromMarkup(markup: string): string {
+  return markup.replace(/<[^>]+>/g, "");
+}
+
 test("renders inline, display, and bracket-delimited math with KaTeX", () => {
   const markup = renderWithWorkbenchSettings(
     createElement(MarkdownTextContent, {
@@ -90,8 +94,8 @@ test("renders URL citation markers as numbered inline citations", () => {
     ),
   );
 
-  assert.match(markup, /Message parts\./);
-  assert.match(markup, /Streamdown\./);
+  assert.match(textFromMarkup(markup), /Message parts\./);
+  assert.match(textFromMarkup(markup), /Streamdown\./);
   assert.match(markup, />1<\/button>/);
   assert.match(markup, />2<\/button>/);
   assert.equal(markup.match(/data-slot="inline-citation"/g)?.length, 2);
@@ -117,9 +121,54 @@ test("renders structured citations inside assistant markdown", () => {
     ),
   );
 
-  assert.match(markup, /Evidence-backed answer\./);
+  assert.match(textFromMarkup(markup), /Evidence-backed answer\./);
   assert.match(markup, /data-slot="inline-citation"/);
   assert.match(markup, /aria-label="Example guide"/);
   assert.match(markup, />1<\/button>/);
   assert.doesNotMatch(markup, /workbench-inline-citations/);
+});
+
+test("segments multilingual words and keeps inline Markdown atoms in the fresh tail", () => {
+  const markup = renderWithWorkbenchSettings(
+    createElement(
+      TextMessagePartProvider,
+      {
+        text: "one **two** three four 中文流式消息测试 `inline` $E=mc^2$ tail",
+        isRunning: true,
+      },
+      createElement(MarkdownText),
+    ),
+  );
+
+  assert.match(markup, /data-status="running"/);
+  assert.match(markup, /data-streamdown="strong"/);
+  assert.match(markup, /class="katex"/);
+  assert.equal(markup.match(/data-streaming-segment="word"/g)?.length, 10);
+  assert.equal(
+    markup.match(/data-streaming-segment="word" data-streaming-fresh="true"/g)?.length,
+    4,
+  );
+  assert.match(markup, />测试</);
+  assert.match(
+    markup,
+    /<code[^>]*data-streaming-segment="word" data-streaming-fresh="true"/,
+  );
+  assert.match(
+    markup,
+    /class="katex" data-streaming-segment="word" data-streaming-fresh="true"/,
+  );
+});
+
+test("renders the full current text while the message is still streaming", () => {
+  const text = "alpha beta gamma delta";
+  const markup = renderWithWorkbenchSettings(
+    createElement(
+      TextMessagePartProvider,
+      { text, isRunning: true },
+      createElement(MarkdownText),
+    ),
+  );
+
+  assert.match(markup, /data-status="running"/);
+  assert.equal(textFromMarkup(markup), text);
 });

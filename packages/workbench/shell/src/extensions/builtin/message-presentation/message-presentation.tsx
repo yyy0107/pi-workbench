@@ -6,10 +6,9 @@ import {
   MessagePrimitive,
   useAuiState,
   useMessageTiming,
-  useSmooth,
 } from "@assistant-ui/react";
 import { ExternalLinkIcon } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState, type PropsWithChildren } from "react";
+import { useCallback, useMemo, type PropsWithChildren } from "react";
 
 import { File } from "../../../assistant-ui/file";
 import { Image } from "../../../assistant-ui/image";
@@ -17,7 +16,6 @@ import { MarkdownText, MarkdownTextWithCitations } from "../../../assistant-ui/l
 import { ToolFallback } from "../../../assistant-ui/tool-fallback";
 import { ScrollCompensatedDetails } from "../../../elements/scroll-compensated-details";
 import { ReasoningPanel } from "../../../elements/reasoning-panel";
-import { StreamingText } from "../../../elements/streaming-text";
 import { useI18n } from "../../../i18n";
 import {
   MessagePartRendererHost,
@@ -45,43 +43,6 @@ import { MessageToolTimeline } from "./message-tool-timeline";
 import { dataTimelineState, type DataTimelineState } from "./tool-timeline-model";
 
 const DATA_TIMELINE_GROUP_PREFIX = "group-data-timeline:";
-const STREAMING_TEXT_SETTLE_MS = 700;
-
-function StreamingAssistantText({
-  children,
-  part,
-}: PropsWithChildren<Readonly<{ part: Extract<PartState, { type: "text" }> }>>) {
-  const smoothedPart = useSmooth(part, { drainMs: 250, maxCharsPerFrame: 3 });
-  const segments = useMemo(() => [{ text: smoothedPart.text }], [smoothedPart.text]);
-  const running = smoothedPart.status.type === "running";
-  const [settled, setSettled] = useState(!running);
-
-  useEffect(() => {
-    if (running) {
-      setSettled(false);
-      return;
-    }
-    if (settled) return;
-
-    const timer = window.setTimeout(
-      () => setSettled(true),
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : STREAMING_TEXT_SETTLE_MS,
-    );
-    return () => window.clearTimeout(timer);
-  }, [running, settled]);
-
-  if (settled && !running) return children;
-
-  return (
-    <StreamingText
-      className="min-h-0 max-w-none whitespace-pre-wrap"
-      segments={segments}
-      count={Number.POSITIVE_INFINITY}
-      streaming={running}
-      granularity="multilingual-word"
-    />
-  );
-}
 
 type PresentationGroup =
   | "group-completed-turn"
@@ -266,17 +227,11 @@ export function WorkbenchMessagePresentation() {
               }
               const citationSources =
                 index === undefined ? undefined : citationLayout.byTextPart.get(index);
-              const settledText = citationSources ? (
+              const fallback = citationSources ? (
                 <MarkdownTextWithCitations sources={citationSources} />
               ) : (
                 <MarkdownText />
               );
-              const fallback =
-                messageRole === "assistant" ? (
-                  <StreamingAssistantText part={part}>{settledText}</StreamingAssistantText>
-                ) : (
-                  settledText
-                );
               return messageRole === "assistant" ? (
                 <MessagePartRendererHost part={part} fallback={fallback} />
               ) : (

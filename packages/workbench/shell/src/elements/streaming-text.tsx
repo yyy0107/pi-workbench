@@ -13,6 +13,14 @@ export interface Segment {
 
 const MULTILINGUAL_WORD_PATTERN =
   /\p{Script=Han}{1,3}|(?:(?!\p{Script=Han})[\p{L}\p{M}\p{N}])+(?:['’](?:(?!\p{Script=Han})[\p{L}\p{M}\p{N}])+)*|[^\p{L}\p{M}\p{N}]+/gu;
+const WORD_LIKE_PATTERN = /[\p{L}\p{N}]/u;
+
+export function segmentStreamingWords(text: string) {
+  return (text.match(MULTILINGUAL_WORD_PATTERN) ?? []).map((word) => ({
+    word,
+    wordLike: WORD_LIKE_PATTERN.test(word),
+  }));
+}
 
 export function StreamingText({
   segments,
@@ -31,11 +39,14 @@ export function StreamingText({
     () =>
       segments.flatMap((segment) =>
         (granularity === "multilingual-word"
-          ? (segment.text.match(MULTILINGUAL_WORD_PATTERN) ?? [])
-          : segment.text.split(" ")
-        ).map((word) => ({
+          ? segmentStreamingWords(segment.text)
+          : segment.text.split(" ").map((word) => ({
+              word,
+              wordLike: WORD_LIKE_PATTERN.test(word),
+            }))
+        ).map(({ word, wordLike }) => ({
           word,
-          wordLike: /[\p{L}\p{N}]/u.test(word),
+          wordLike,
           mono: segment.mono ?? false,
         })),
       ),
