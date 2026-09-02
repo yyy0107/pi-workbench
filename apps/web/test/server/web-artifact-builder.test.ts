@@ -612,15 +612,22 @@ test("publishes an admitted candidate under the target lock and removes the old 
   const fixture = await createPublishFixture();
   t.after(() => rm(fixture.repositoryRoot, { force: true, recursive: true }));
   await writePublishMarker(fixture.finalRoot, "old");
+  await writePublishMarker(path.join(fixture.parent, "w"), "stale");
   let admissionCount = 0;
+  let temporaryBasename = "";
 
   await publishTransaction(fixture, "new", {
+    async buildTemporaryArtifact(temporaryRoot) {
+      temporaryBasename = path.basename(temporaryRoot);
+      await writePublishMarker(temporaryRoot, "new");
+    },
     async resolveArtifactImpl(options) {
       admissionCount += 1;
       return acceptingMarkerResolver(options);
     },
   });
 
+  assert.equal(temporaryBasename, "w");
   assert.equal(admissionCount, 2, "the candidate and published final must both be admitted");
   assert.equal(await readFile(path.join(fixture.finalRoot, "marker.txt"), "utf8"), "new");
   assert.deepEqual((await readdir(fixture.parent)).sort(), ["web"]);

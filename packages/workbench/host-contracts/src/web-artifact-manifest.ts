@@ -32,7 +32,7 @@ export interface WebArtifactFile {
 
 export interface WebArtifactLink {
   readonly path: string;
-  /** The un-normalized `readlink` target measured from the final artifact tree. */
+  /** The platform-neutral `readlink` target measured from the final artifact tree. */
   readonly target: string;
 }
 

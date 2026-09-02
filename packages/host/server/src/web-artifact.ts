@@ -94,7 +94,12 @@ function actualWebArtifactInventory(artifactRoot: string): WebArtifactInventory 
         if (!isPathInside(artifactRoot, canonicalTarget)) {
           throw new Error(`Web artifact symlink escapes the artifact: ${relativePath}.`);
         }
-        links.push(Object.freeze({ path: relativePath, target: readlinkSync(absolutePath) }));
+        links.push(
+          Object.freeze({
+            path: relativePath,
+            target: readlinkSync(absolutePath).split(path.sep).join("/"),
+          }),
+        );
         continue;
       }
       if (stats.isDirectory()) {
