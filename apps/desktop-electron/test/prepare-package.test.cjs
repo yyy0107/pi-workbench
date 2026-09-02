@@ -83,7 +83,7 @@ test("bundles finite packaged support, main, preload, and process cleanup", asyn
     Object.keys(preload.result.metafile.inputs)
       .map((item) => item.replaceAll("\\", "/"))
       .sort(),
-    ["apps/desktop-electron/src/preload.cjs", "apps/desktop-electron/src/title-bar-overlay.cjs"],
+    ["apps/desktop-electron/src/preload.cjs"],
   );
   assert.doesNotMatch(readFileSync(cleanup.outfile, "utf8"), /@workbench\/host-server/u);
 });
