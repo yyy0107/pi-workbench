@@ -2443,6 +2443,104 @@ test("keeps the optimistic assistant id from stream start through completion", (
   assert.equal(session.getSnapshot().messages.at(-1)?.status?.type, "complete");
 });
 
+test("keeps the in-flight assistant id when settled history wins the stream race", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as { rpcId: string; method: string };
+    assert.equal(request.method, "session.history");
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: {
+        ok: true,
+        value: {
+          events: [
+            {
+              event: {
+                type: "message_end",
+                seq: 1,
+                time: 1_000,
+                entryId: "journal-user",
+                data: { message: { role: "user", content: "Hello", timestamp: 1_000 } },
+              },
+            },
+            {
+              event: {
+                type: "message_end",
+                seq: 2,
+                time: 2_000,
+                entryId: "journal-assistant",
+                data: {
+                  message: {
+                    role: "assistant",
+                    content: [{ type: "text", text: "Settled answer" }],
+                    stopReason: "stop",
+                    timestamp: 2_000,
+                  },
+                },
+              },
+            },
+          ],
+          hasMore: false,
+        },
+      },
+    });
+  };
+
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("local-session", "remote-session");
+  const internals = session as unknown as {
+    activeAssistantMessageId?: string;
+    liveMessages: ThreadMessage[];
+    publishMessagesAndSetRunning(running: boolean): void;
+    streamingMessage?: ThreadMessage;
+  };
+  internals.liveMessages = [
+    {
+      id: "optimistic-user",
+      role: "user",
+      content: [{ type: "text", text: "Hello" }],
+      attachments: [],
+      createdAt: new Date(1_000),
+      metadata: { custom: { piOptimistic: true }, isOptimistic: true },
+    },
+  ];
+  internals.streamingMessage = {
+    id: "optimistic-assistant",
+    role: "assistant",
+    content: [{ type: "text", text: "", status: { type: "running" } }],
+    status: { type: "running" },
+    createdAt: new Date(2_000),
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      steps: [],
+      custom: { piMessageTimestamp: 2_000 },
+      isOptimistic: true,
+    },
+  };
+  internals.activeAssistantMessageId = internals.streamingMessage.id;
+  internals.publishMessagesAndSetRunning(true);
+
+  await session.reload();
+
+  assert.deepEqual(
+    session.getSnapshot().messages.map((message) => message.id),
+    ["optimistic-user", "optimistic-assistant"],
+  );
+  assert.equal(session.getSnapshot().messageRepository.headId, "optimistic-assistant");
+  assert.equal(session.getSnapshot().isRunning, false);
+  assert.equal(internals.streamingMessage, undefined);
+  assert.equal(internals.activeAssistantMessageId, undefined);
+  const settledPart = session.getSnapshot().messages.at(-1)?.content[0];
+  assert.equal(settledPart?.type === "text" ? settledPart.text : undefined, "Settled answer");
+});
+
 test("removes an unused optimistic assistant when a command settles without model output", (t) => {
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());

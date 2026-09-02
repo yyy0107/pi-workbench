@@ -476,6 +476,32 @@ function sameComposerRetryUser(left: ThreadMessage, right: ThreadMessage): boole
   return sameUserPrompt(left, right);
 }
 
+/** Matches the transient and journal-backed projections of one Pi assistant response. */
+function sameAssistantResponse(left: ThreadMessage, right: ThreadMessage): boolean {
+  if (left.role !== "assistant" || right.role !== "assistant") return false;
+
+  const leftSequence = left.metadata.custom.piEventSeq;
+  const rightSequence = right.metadata.custom.piEventSeq;
+  if (
+    typeof leftSequence === "number" &&
+    Number.isFinite(leftSequence) &&
+    typeof rightSequence === "number" &&
+    Number.isFinite(rightSequence)
+  ) {
+    return leftSequence === rightSequence;
+  }
+
+  const leftTimestamp = left.metadata.custom.piMessageTimestamp;
+  const rightTimestamp = right.metadata.custom.piMessageTimestamp;
+  return (
+    typeof leftTimestamp === "number" &&
+    Number.isFinite(leftTimestamp) &&
+    typeof rightTimestamp === "number" &&
+    Number.isFinite(rightTimestamp) &&
+    leftTimestamp === rightTimestamp
+  );
+}
+
 export class PiClientSession {
   readonly localId: string;
   readonly runtimeExtras: {
@@ -812,6 +838,12 @@ export class PiClientSession {
         ),
         previousMessages,
       );
+      const authoritativeStreamingMessage =
+        streamingMessageAtStart?.role === "assistant"
+          ? projectedBaseMessages.find((message) =>
+              sameAssistantResponse(streamingMessageAtStart, message),
+            )
+          : undefined;
       const branchState = this.messageRepositoryFromHistory(remoteId, value, projectedBaseMessages);
       const baseMessages = branchState.activeMessages;
       this.baseMessages = baseMessages;
@@ -822,11 +854,18 @@ export class PiClientSession {
         baseMessageIdsAtStart,
         preserveUnpersistedOptimisticUsers: preserveUnpersistedOptimisticTurn,
       });
-      // Running history intentionally excludes an assistant message until its message_end event.
-      // A stream rebaseline must therefore retain the in-memory assistant placeholder; removing it
-      // creates a user-only snapshot until message_start arrives and makes waiting UI blink.
-      if (!preserveUnpersistedOptimisticTurn && this.streamingMessage === streamingMessageAtStart) {
+      // Retain the in-memory placeholder while history has no completed copy. If journal history
+      // wins the race against the event stream, let its authoritative response take over with the
+      // aliased live id; keeping both copies would reshape Parts and remount the streaming text.
+      if (
+        this.streamingMessage === streamingMessageAtStart &&
+        (!preserveUnpersistedOptimisticTurn || authoritativeStreamingMessage)
+      ) {
         this.streamingMessage = undefined;
+        if (authoritativeStreamingMessage) {
+          this.activeAssistantMessageId = undefined;
+          this.terminalResponseReceived = true;
+        }
       }
       const historySequence = value.events.at(-1)?.event.seq ?? -1;
       if (!preserveUnpersistedOptimisticTurn || historySequence >= this.lastSequence) {
@@ -837,6 +876,9 @@ export class PiClientSession {
           ? piAutoRetryFromHistory(value)
           : this.snapshotValue.autoRetry;
       this.publishMessages({ autoRetry, resumeCheckpoint: value.resume?.checkpoint });
+      if (authoritativeStreamingMessage?.status?.type === "complete") {
+        this.setRunning(false, false);
+      }
     };
     const promptPartsTask = hydrateContextTracePromptParts
       ? fetchPiRpcSessionContextTracePromptParts(
@@ -2327,11 +2369,32 @@ export class PiClientSession {
       (message): message is ThreadUserMessage =>
         message.role === "user" && message.metadata.custom.piOptimistic === true,
     );
+    const unmatchedOptimisticAssistants = coalesceConsecutiveAssistantMessages([
+      ...this.liveMessages,
+      ...(this.streamingMessage ? [this.streamingMessage] : []),
+    ]).filter(
+      (message): message is ThreadAssistantMessage =>
+        message.role === "assistant" && message.metadata.isOptimistic === true,
+    );
 
     return messages.map((message) => {
       const existingAlias = this.authoritativeMessageIdAliases.get(message.id);
       if (existingAlias) return { ...message, id: existingAlias };
-      if (message.role !== "user" || baseMessageIdsAtStart.has(message.id)) return message;
+      if (baseMessageIdsAtStart.has(message.id)) return message;
+
+      if (message.role === "assistant") {
+        const optimisticIndex = unmatchedOptimisticAssistants.findIndex((candidate) =>
+          sameAssistantResponse(candidate, message),
+        );
+        if (optimisticIndex < 0) return message;
+
+        const [optimistic] = unmatchedOptimisticAssistants.splice(optimisticIndex, 1);
+        if (!optimistic) return message;
+        this.authoritativeMessageIdAliases.set(message.id, optimistic.id);
+        return { ...message, id: optimistic.id };
+      }
+
+      if (message.role !== "user") return message;
 
       const optimisticIndex = unmatchedOptimisticUsers.findIndex((candidate) =>
         sameUserPrompt(candidate, message),
