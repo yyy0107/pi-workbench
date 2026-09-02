@@ -74,9 +74,7 @@
                   "tree-sitter-bash",
                   "electron",
                   "electron/**",
-                  "@electron/**",
-                  "tauri",
-                  "@tauri-apps/**"
+                  "@electron/**"
                 ],
                 "message": "Shell must remain product-, framework-, and host-neutral."
               }

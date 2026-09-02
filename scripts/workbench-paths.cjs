@@ -21,7 +21,6 @@ function createWorkbenchPaths({ repositoryRoot = DEFAULT_REPOSITORY_ROOT } = {})
   const desktopElectronRoot = path.join(resolvedRepositoryRoot, "apps", "desktop-electron");
   const desktopElectronSourceRoot = path.join(desktopElectronRoot, "src");
   const desktopElectronScriptsRoot = path.join(desktopElectronRoot, "scripts");
-  const tauriRoot = path.join(resolvedRepositoryRoot, "apps", "desktop-tauri");
   const stagingRoot = path.join(resolvedRepositoryRoot, ".electron-build");
   const webBuildRoot = path.join(webRoot, ".next");
   const desktopRendererBuildRoot = path.join(desktopRendererRoot, ".next");
@@ -49,7 +48,6 @@ function createWorkbenchPaths({ repositoryRoot = DEFAULT_REPOSITORY_ROOT } = {})
     desktopElectronRoot,
     desktopElectronSourceRoot,
     desktopElectronScriptsRoot,
-    tauriRoot,
     stagingRoot,
     webBuildRoot,
     desktopRendererBuildRoot,

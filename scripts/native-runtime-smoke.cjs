@@ -1,4 +1,4 @@
-// Executes the same admitted native Runtime tree under Node, Electron-as-Node, or a Tauri sidecar.
+// Executes the same admitted native Runtime tree under Node or Electron-as-Node.
 const assert = require("node:assert/strict");
 const { createHash } = require("node:crypto");
 const { lstatSync, realpathSync, readFileSync } = require("node:fs");

@@ -15,14 +15,14 @@
     <strong>以项目和持久 Agent 会话为核心的本地优先 AI 编程工作台。</strong>
   </p>
   <p align="center">
-    通过 Web、Electron 或 Tauri 使用 Pi Coding Agent、工作区文件、模型配置和真实终端。
+    通过 Web 或 Electron 使用 Pi Coding Agent、工作区文件、模型配置和真实终端。
   </p>
 </div>
 
 <div align="center">
   <img src="https://img.shields.io/badge/status-early_development-blue?style=for-the-badge" alt="项目状态：早期开发">
   <img src="https://img.shields.io/badge/runtime-local--first-18181b?style=for-the-badge" alt="本地优先运行时">
-  <img src="https://img.shields.io/badge/interface-Web_%2B_Desktop-47848f?style=for-the-badge&logo=electron&logoColor=white" alt="Web、Electron 与 Tauri">
+  <img src="https://img.shields.io/badge/interface-Web_%2B_Desktop-47848f?style=for-the-badge&logo=electron&logoColor=white" alt="Web 与 Electron">
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-22c55e?style=for-the-badge" alt="MIT License"></a>
 </div>
 
@@ -38,10 +38,10 @@
 
 <hr>
 
-Pi Workbench 在带服务端的浏览器应用，以及 Electron/Tauri 共同消费的静态 Desktop renderer 中运行共享的
+Pi Workbench 在带服务端的浏览器应用，以及 Electron 消费的静态 Desktop renderer 中运行共享的
 [assistant-ui](https://github.com/assistant-ui/assistant-ui) 产品 Shell。根 Web 命令继续把
 [`apps/web`](./apps/web/) 与 [`apps/runtime-node`](./apps/runtime-node/) 作为两个独立 process owner；每个桌面
-container 则自行拥有 Runtime，并只向 [`apps/desktop-renderer`](./apps/desktop-renderer/) 交付一个窄的认证连接。
+Electron 则自行拥有 Runtime，并只向 [`apps/desktop-renderer`](./apps/desktop-renderer/) 交付一个窄的认证连接。
 当前构建通过 Workbench 的客户端和服务端适配边界，选择
 [`@earendil-works/pi-coding-agent`](https://github.com/earendil-works/pi) 作为生产 Agent Runtime。
 
@@ -192,22 +192,6 @@ pnpm electron:dev:connect
 connect 模式会验证 renderer 产品标记，只启动 Electron，并仍由 Electron 拥有 Runtime。`localhost`、远程
 host、路径、query、fragment，以及废弃的双 origin 环境契约都会被拒绝。
 
-### Tauri 开发
-
-Tauri 消费相同的静态 Desktop renderer 与 Runtime artifact，不使用远程生产 URL 或浏览器 Web Host。启动前先
-构建这两个输入：
-
-```bash
-pnpm --filter @workbench/runtime-node build
-pnpm --filter @workbench/desktop-renderer build
-pnpm --filter @workbench/desktop-tauri dev
-```
-
-该流程会在 `tauri dev` 前重新 stage 已 admission 的 renderer 与目标 sidecar；这是静态 renderer 流程，不提供
-Next.js HMR。另外还需要 Rust/Cargo 和对应平台的 Tauri 系统依赖。打包后的 Electron/Tauri 只在严格 CSP 下
-加载通过 admission 的本地资源；bridge 只向可信主 frame/window 暴露 Runtime bootstrap 与生命周期重启。
-不要用远程 renderer URL 或放宽 script/style 策略来绕过启动错误。
-
 ### 生产构建
 
 运行生产 Web 服务：
@@ -217,7 +201,7 @@ pnpm build
 pnpm start
 ```
 
-根构建只负责编排：它先构建 Web/Tauri 使用的 Node Runtime 与 Web app，再把 Desktop renderer、当前已安装
+根构建只负责编排：它先构建 Node Runtime 与 Web app，再把 Desktop renderer、当前已安装
 Electron ABI 的 Runtime 及精确 composition 委托给 Electron app。只构建某一层时，使用对应 workspace 自己的命令：
 
 ```bash
@@ -256,31 +240,16 @@ Electron 对应的 Runtime target，再发布组合清单；staged package 携�
 `pnpm --filter @workbench/desktop-electron run pack` 与
 `pnpm --filter @workbench/desktop-electron run dist`；根 `electron:*` 命令会先执行构建，因此仍是规范的 clean flow。
 
-从相同的当前 artifacts 构建 Tauri：
-
-```bash
-pnpm build
-pnpm --filter @workbench/desktop-tauri tauri:build
-# 仅构建 Linux Debian package：
-pnpm --filter @workbench/desktop-tauri tauri:build:deb
-```
-
-Tauri 输出由 `apps/desktop-tauri/src-tauri/target` 拥有。仓库目前未配置桌面签名凭据、notarization 或 updater
-endpoint，因此这些命令不代表已签名且支持自动更新的发行版。只应在目标系统的 release job 中通过托管 secret
-补齐这些能力；Windows 与 macOS 的 package/native smoke 仍未验证。
-
 若桌面启动报告 manifest 缺失或过期，请重新运行 `pnpm build`。若托管 Electron 开发无法绑定
 `127.0.0.1:3000`，请停止该 listener，或自行运行 Desktop renderer 并使用上面的 canonical connect 命令。
-Tauri 在 Rust 编译前失败通常表示 renderer/Runtime artifacts 尚未构建，或目标平台缺少 Tauri 系统依赖。
 bootstrap 缺失、CSP 拒绝或 sidecar target mismatch 表示 artifacts 混用或过期；应整体 rebuild/restage，而不是
 扩大 bridge、CSP 或 Origin allowlist。
 
 ## 架构
 
 浏览器与桌面应用通过两个 application root 复用同一 Workbench Shell 和 Pi client contributions。浏览器命令
-让带服务端的 Web Host 与 API-only Runtime 并列运行。Electron/Tauri 加载同一个已 admission 的静态 Desktop
-renderer artifact；每个 container 自行拥有一个目标匹配的 Runtime process，只向可信主窗口暴露窄 bootstrap
-与生命周期重启能力。
+让带服务端的 Web Host 与 API-only Runtime 并列运行。Electron 加载已 admission 的静态 Desktop renderer
+artifact，自行拥有一个目标匹配的 Runtime process，并只向可信主窗口暴露窄 bootstrap 与生命周期重启能力。
 
 ```mermaid
 flowchart LR
@@ -289,7 +258,6 @@ flowchart LR
   web["Web application host<br/>apps/web"]
   desktop["静态 Desktop renderer<br/>apps/desktop-renderer"]
   electron["Electron container"]
-  tauri["Tauri container"]
   runtime["API-only Runtime app<br/>apps/runtime-node"]
   pi["Pi Agent Runtime<br/>会话、模型、工具与资源"]
   terminal["Terminal Gateway<br/>node-pty"]
@@ -300,9 +268,7 @@ flowchart LR
   owner --> runtime
   browser <-->|"同源 HTTP / RPC / WebSocket"| web
   electron --> desktop
-  tauri --> desktop
   electron -.->|"desktop Runtime bootstrap / restart"| runtime
-  tauri -.->|"desktop Runtime bootstrap / restart"| runtime
   web <-->|"认证私有代理"| runtime
   desktop <-->|"认证 HTTP / WebSocket"| runtime
   runtime --> pi
@@ -337,7 +303,7 @@ API。挂载后的扩展组件从
 
 ## 安全边界
 
-Electron 与 Tauri renderer 都与原生权限隔离，但 Pi Tools 和终端进程通过本地后端以用户真实权限执行。
+Electron renderer 与原生权限隔离，但 Pi Tools 和终端进程通过本地后端以用户真实权限执行。
 只导入可信项目，并在允许工具请求前检查其内容。
 
 `PI_WORKBENCH_TRUSTED_HOSTS` 只增加允许的请求 Authority，不提供认证或 TLS。Pi 会按目录保存项目
@@ -355,7 +321,6 @@ Electron 与 Tauri renderer 都与原生权限隔离，但 Pi Tools 和终端进
 | [`apps/runtime-node/`](./apps/runtime-node/)                                                                                                                   | API-only Runtime 应用组合、生命周期与 artifact 构建                              |
 | [`apps/desktop-renderer/`](./apps/desktop-renderer/)                                                                                                           | 静态导出 Desktop 应用、导航、bootstrap、资源与 artifact manifest                 |
 | [`apps/desktop-electron/`](./apps/desktop-electron/)                                                                                                           | Electron 生命周期、artifact 组合与 staging、打包、预算与分发                     |
-| [`apps/desktop-tauri/`](./apps/desktop-tauri/)                                                                                                                 | Tauri 生命周期、Runtime sidecar、renderer staging、capability 与打包             |
 | [`packages/workbench/shell/`](./packages/workbench/shell/)                                                                                                     | 可复用应用 Shell、聊天、工作区界面、共享 UI 与核心扩展                           |
 | [`packages/extension-platform/sdk/`](./packages/extension-platform/sdk/)                                                                                       | 无 Host 依赖的 Extension 契约、Authoring helper、Registries 和生命周期           |
 | [`packages/extension-platform/host/`](./packages/extension-platform/host/)                                                                                     | React Host Hook、Contribution Host 和应用注入的 Services                         |

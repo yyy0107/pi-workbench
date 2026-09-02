@@ -927,8 +927,8 @@ Agent Runtime 重构完成后，再按独立计划考虑：
 - `components/workspace-file-tree` → `workspace-file-tree`；
 - `components/code-highlighting` → `code-highlighting`；
 - 大型 builtin extensions → `packages/extensions/*`；
-- Next 与 Runtime 已分别迁入 `apps/web` 和 `apps/runtime-node`；静态桌面入口与 Tauri 分别位于
-  `apps/desktop-renderer` 和 `apps/desktop-tauri`。
+- Next、Runtime 与静态桌面入口已分别迁入 `apps/web`、`apps/runtime-node` 和
+  `apps/desktop-renderer`。
 
 Phase 2 Execution residual：Execution/Automation 的协调 shutdown 仍由应用 lifecycle 承担；本次 execution
 leaf 迁移不改变这项既有债务。

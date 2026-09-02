@@ -197,7 +197,7 @@ test("decodes coalesced golden frames independently of UTF-8 and frame chunk bou
   const selected = [
     "host.ready.utf8-splits",
     "host.shutdown-ack",
-    "container.start.tauri-origin",
+    "container.start.desktop-origin",
     "container.shutdown.requested",
   ].map((id) => {
     const fixture = fixturesById.get(id);

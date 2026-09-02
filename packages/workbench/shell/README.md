@@ -77,7 +77,7 @@ function and resets an earlier contribution error boundary without a process-glo
 This package may consume only the generic Agent Runtime client/contracts and finite public
 Extension Host/SDK capabilities needed by reusable UI. It must not import Agent Runtime
 implementations, Pi packages or semantics, Next.js, Node production APIs, native packages,
-Electron, Tauri, root aliases, raw WebSockets, or product endpoints. The sole SDK-internal import is
+Electron, root aliases, raw WebSockets, or product endpoints. The sole SDK-internal import is
 the catalog runtime's branded descriptor constructor; the transport boundary guard enforces that
 exact file and named export. Read-only compatibility with legacy product directives/storage is
 centralized in one private helper and never used for new writes. `get-east-asian-width` is owned by

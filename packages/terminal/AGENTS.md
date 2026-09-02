@@ -16,6 +16,6 @@ below intact when changing this slice.
 
 The shared Runtime artifact producer gets `node-pty`, `tree-sitter`, and `tree-sitter-bash` from
 `@workbench/terminal-server` and confines their physical package roots to the repository-local pnpm
-virtual store. Electron and Tauri consume that admitted native tree; they must not rebuild it. Do not
+virtual store. Electron consumes that admitted native tree; it must not rebuild it. Do not
 reintroduce root compatibility declarations for those packages. See `server/README.md` for the
 resolver boundary. Do not add a root Terminal re-export shim or duplicate the moved runtime sources.
