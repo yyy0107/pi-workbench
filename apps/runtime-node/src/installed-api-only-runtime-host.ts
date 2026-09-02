@@ -275,5 +275,8 @@ export async function runInstalledRuntimeHostControl({
     result.code === RuntimeHostControlSessionResultCode.controlDisconnected
       ? 0
       : 1;
-  if (process.exitCode !== 0) forceExit?.(1);
+  // The control result is emitted only after the HTTP, WebSocket, Pi, and terminal owners finish
+  // disposal. Exit at that completed process boundary because node-pty can retain an internal
+  // ConPTY/WinPTY worker handle after its shell has already reported a clean exit on Windows.
+  forceExit?.(process.exitCode === 0 ? 0 : 1);
 }

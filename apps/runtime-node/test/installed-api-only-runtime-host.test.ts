@@ -70,7 +70,7 @@ test("runtime-only control force-exits when control-error cleanup throws", async
   }
 });
 
-test("runtime-only control does not force-exit after complete disposal", async () => {
+test("runtime-only control exits zero only after complete disposal", async () => {
   const exitCodes: number[] = [];
   const previousExitCode = process.exitCode;
   try {
@@ -82,7 +82,7 @@ test("runtime-only control does not force-exit after complete disposal", async (
         code: RuntimeHostControlSessionResultCode.shutdownAcknowledged,
       }),
     });
-    assert.deepEqual(exitCodes, []);
+    assert.deepEqual(exitCodes, [0]);
     assert.equal(process.exitCode, 0);
   } finally {
     process.exitCode = previousExitCode;
@@ -123,7 +123,7 @@ test("managed Runtime children defer terminal signals to supervisor control and 
       return { code: RuntimeHostControlSessionResultCode.shutdownAcknowledged };
     },
   });
-  assert.deepEqual(exitCodes, []);
+  assert.deepEqual(exitCodes, [0]);
   assert.deepEqual(
     process.listeners("SIGTERM").filter((listener) => !before.has(listener)),
     [],
