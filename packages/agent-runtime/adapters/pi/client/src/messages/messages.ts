@@ -197,10 +197,17 @@ export function projectPiContextTracePromptParts(
 ): ThreadMessage[] {
   const eventsByTimestamp = new Map<number, SessionContextTraceEventSummary[]>();
   const lastPresentationByRound = new Map<string, string>();
+  const visibleAssistantTimestamps = new Set<number>();
+  for (const message of messages) {
+    if (message.role !== "assistant") continue;
+    const timestamp = assistantMessageTimestamp(message);
+    if (timestamp !== undefined) visibleAssistantTimestamps.add(timestamp);
+  }
   for (const part of promptParts) {
     if (
       part.event.kind !== "prompt-composition" ||
       part.assistantMessageTimestamp === undefined ||
+      !visibleAssistantTimestamps.has(part.assistantMessageTimestamp) ||
       !recordPiContextTracePromptPresentation(part.event, lastPresentationByRound)
     ) {
       continue;

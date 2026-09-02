@@ -264,6 +264,45 @@ test("projects prompt composition once per round until its presentation changes"
   assert.deepEqual(traceIds, [["activation:1"], [], ["activation:3"], ["activation:4"]]);
 });
 
+test("hydrates prompt composition from the visible automatic-retry attempt", () => {
+  const first = { ...contextTraceEvent("activation:retry-1", 1), roundId: "round-retry" };
+  const final = { ...contextTraceEvent("activation:retry-2", 2), roundId: "round-retry" };
+  const message = piAssistantToThreadMessage(
+    {
+      role: "assistant",
+      content: [],
+      stopReason: "error",
+      errorMessage: "fetch failed",
+      timestamp: 2,
+    },
+    "assistant-final",
+  );
+
+  const [projected] = projectPiContextTracePromptParts(
+    [message],
+    [
+      { event: first, assistantMessageTimestamp: 1 },
+      { event: final, assistantMessageTimestamp: 2 },
+    ],
+  );
+  assert.equal(projected?.role, "assistant");
+  if (projected?.role !== "assistant") return;
+  assert.deepEqual(
+    [
+      ...new Set(
+        projected.content.flatMap((part) =>
+          part.type === "data"
+            ? [parsePiContextTraceData(part.data)?.event.traceId].filter(
+                (traceId): traceId is string => traceId !== undefined,
+              )
+            : [],
+        ),
+      ),
+    ],
+    ["activation:retry-2"],
+  );
+});
+
 test("preserves the canonical event sequence used for conversation forks", () => {
   const message = piAssistantToThreadMessage(assistantMessage, "assistant", { eventSeq: 7 });
 

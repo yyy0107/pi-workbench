@@ -1412,7 +1412,11 @@ export class PiClientSession {
     }
     if (event.type === "auto_retry_start") {
       const autoRetry = piAutoRetryFromEvent(event);
-      if (autoRetry) this.replaceSnapshot({ autoRetry });
+      if (!autoRetry) return;
+      this.discardRetryingAssistant();
+      this.pendingContextTraceEvents = [];
+      this.contextTracePromptPresentations.clear();
+      this.publishMessages({ autoRetry });
       return;
     }
     if (event.type === "auto_retry_end") {
@@ -2125,6 +2129,21 @@ export class PiClientSession {
     if (!this.terminalResponseReceived) return;
     this.terminalResponseReceived = false;
     this.setRunning(true, false, runTiming);
+  }
+
+  private discardRetryingAssistant(): void {
+    const discard = (messages: ThreadMessage[]) => {
+      for (let index = messages.length - 1; index >= 0; index -= 1) {
+        const message = messages[index];
+        if (message?.role === "user") return false;
+        if (message?.role !== "assistant") continue;
+        if (message.status.type !== "incomplete" || message.status.reason !== "error") return false;
+        messages.splice(index, 1);
+        return true;
+      }
+      return false;
+    };
+    if (!discard(this.liveMessages)) discard(this.baseMessages);
   }
 
   private discardEmptyOptimisticAssistant(): boolean {

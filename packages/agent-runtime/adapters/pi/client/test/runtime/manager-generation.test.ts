@@ -2290,6 +2290,97 @@ test("projects automatic-retry progress until the complete run settles", (t) => 
   assert.equal(session.getSnapshot().isRunning, false);
 });
 
+test("replaces failed automatic-retry attempts in the visible response", (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  (manager as unknown as { refreshMetadata(): Promise<void> }).refreshMetadata = async () => {};
+  const session = manager.getSession("session-live-parts", "session-live-parts");
+  const internals = session as unknown as {
+    handleEvent(event: PiEvent): void;
+    publishMessagesAndSetRunning(running: boolean): void;
+    reload(): Promise<void>;
+  };
+  internals.reload = async () => {};
+  internals.publishMessagesAndSetRunning(true);
+
+  session.applyContextTraceEvent(promptCompositionEvent("activation-retry:0", 0, "round-retry"));
+  internals.handleEvent({
+    type: "message_start",
+    sequence: 0,
+    message: { role: "assistant", content: [], timestamp: 1 },
+  });
+  internals.handleEvent({
+    type: "message_end",
+    sequence: 1,
+    message: {
+      role: "assistant",
+      content: [],
+      stopReason: "error",
+      errorMessage: "fetch failed",
+      timestamp: 1,
+    },
+  });
+  internals.handleEvent({
+    type: "auto_retry_start",
+    sequence: 2,
+    attempt: 2,
+    maxAttempts: 3,
+    delayMs: 1,
+    errorMessage: "fetch failed",
+  });
+
+  assert.equal(
+    session.getSnapshot().messages.filter((message) => message.role === "assistant").length,
+    0,
+  );
+
+  session.applyContextTraceEvent(promptCompositionEvent("activation-retry:1", 1, "round-retry"));
+  internals.handleEvent({
+    type: "message_start",
+    sequence: 3,
+    message: { role: "assistant", content: [], timestamp: 2 },
+  });
+  internals.handleEvent({
+    type: "message_end",
+    sequence: 4,
+    message: {
+      role: "assistant",
+      content: [],
+      stopReason: "error",
+      errorMessage: "fetch failed",
+      timestamp: 2,
+    },
+  });
+  internals.handleEvent({ type: "agent_settled", sequence: 5 });
+
+  const assistants = session
+    .getSnapshot()
+    .messages.filter((message) => message.role === "assistant");
+  assert.equal(assistants.length, 1);
+  const assistant = assistants[0];
+  assert.equal(assistant?.role, "assistant");
+  if (assistant?.role !== "assistant") return;
+  assert.deepEqual(assistant.status, {
+    type: "incomplete",
+    reason: "error",
+    error: "fetch failed",
+  });
+  assert.deepEqual(
+    [
+      ...new Set(
+        assistant.content.flatMap((part) =>
+          part.type === "data"
+            ? [parsePiContextTraceData(part.data)?.event.traceId].filter(
+                (traceId): traceId is string => traceId !== undefined,
+              )
+            : [],
+        ),
+      ),
+    ],
+    ["activation-retry:1"],
+  );
+});
+
 test("keeps the optimistic assistant id from stream start through completion", (t) => {
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());

@@ -205,6 +205,76 @@ test("restores time to first token from compact message completion timing", () =
   assert.equal(message?.metadata.custom.piEventSeq, 1);
 });
 
+test("drops failed assistant attempts superseded by automatic retry", () => {
+  const history = piHistoryFromSessionEvents("s-1", {
+    events: [
+      {
+        event: {
+          type: "message_end",
+          seq: 0,
+          time: 10,
+          entryId: "user",
+          data: { message: { role: "user", content: "hello", timestamp: 10 } },
+        },
+      },
+      {
+        event: {
+          type: "message_end",
+          seq: 1,
+          time: 20,
+          entryId: "failed-attempt",
+          data: {
+            message: {
+              role: "assistant",
+              content: [],
+              stopReason: "error",
+              errorMessage: "fetch failed",
+              timestamp: 20,
+            },
+          },
+        },
+      },
+      {
+        event: {
+          type: "auto_retry_start",
+          seq: 2,
+          time: 30,
+          data: { attempt: 2, maxAttempts: 3, delayMs: 1, errorMessage: "fetch failed" },
+        },
+      },
+      {
+        event: {
+          type: "message_end",
+          seq: 3,
+          time: 40,
+          entryId: "final-attempt",
+          data: {
+            message: {
+              role: "assistant",
+              content: [],
+              stopReason: "error",
+              errorMessage: "fetch failed",
+              timestamp: 40,
+            },
+          },
+        },
+      },
+    ],
+    hasMore: false,
+  });
+
+  assert.deepEqual(history.context.entryIds, ["user", "final-attempt"]);
+  assert.deepEqual(history.context.entrySeqs, [0, 3]);
+  assert.deepEqual(history.context.entryCompletedAts, [10, 40]);
+  const threadMessages = piHistoryToThreadMessages(history);
+  assert.equal(threadMessages.length, 2);
+  assert.deepEqual(threadMessages[1]?.status, {
+    type: "incomplete",
+    reason: "error",
+    error: "fetch failed",
+  });
+});
+
 test("carries the Workbench Composer projection beside the unchanged Pi user message", () => {
   const history = piHistoryFromSessionEvents("s-1", {
     events: [

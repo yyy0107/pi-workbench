@@ -149,6 +149,19 @@ export function piHistoryFromSessionEvents(
   let assistantMessageStartedAt: number | undefined;
   let firstAssistantTokenAt: number | undefined;
 
+  const discardRetryingAssistant = () => {
+    const userIndex = messages.findLastIndex((message) => message.role === "user");
+    const assistantIndex = messages.findLastIndex(
+      (message) => message.role === "assistant" && message.stopReason === "error",
+    );
+    if (assistantIndex < 0 || assistantIndex < userIndex) return;
+    messages.splice(assistantIndex, 1);
+    entryIds.splice(assistantIndex, 1);
+    entrySeqs.splice(assistantIndex, 1);
+    entryCompletedAts.splice(assistantIndex, 1);
+    entryFirstTokenAts.splice(assistantIndex, 1);
+  };
+
   const pushMessage = (
     message: PiAgentMessage,
     entryId: string,
@@ -200,6 +213,10 @@ export function piHistoryFromSessionEvents(
   for (const { event } of history.events) {
     const eventId = event.entryId ?? `pi-event-${event.seq}`;
     const data = record(event.data);
+    if (event.type === "auto_retry_start") {
+      discardRetryingAssistant();
+      continue;
+    }
     if (event.type === "tool_execution_start" && typeof data?.toolCallId === "string") {
       toolStarts.set(data.toolCallId, event.time);
     } else if (event.type === "tool_execution_end" && typeof data?.toolCallId === "string") {
