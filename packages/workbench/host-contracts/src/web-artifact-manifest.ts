@@ -89,6 +89,13 @@ export function isWebArtifactRelativePath(value: unknown): value is string {
   );
 }
 
+/** Normalizes platform-native Next metadata without relaxing the canonical manifest format. */
+export function normalizeWebArtifactRelativePath(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const normalized = value.replaceAll("\\", "/");
+  return isWebArtifactRelativePath(normalized) ? normalized : undefined;
+}
+
 function isBuildId(value: unknown): value is string {
   return typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9._-]{0,255}$/u.test(value);
 }

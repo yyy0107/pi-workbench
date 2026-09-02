@@ -5,6 +5,7 @@ import path from "node:path";
 import {
   WEB_ARTIFACT_MANIFEST_FILENAME,
   assertWebArtifactManifest,
+  normalizeWebArtifactRelativePath,
   webArtifactBuildIdPath,
   type WebArtifactFile,
   type WebArtifactLink,
@@ -265,7 +266,8 @@ export function resolveWebArtifact({
 
   const requiredServerManifest = parseRequiredServerFiles(requiredServerFiles);
   if (
-    requiredServerManifest.relativeAppDir !== manifest.relativeAppDir ||
+    normalizeWebArtifactRelativePath(requiredServerManifest.relativeAppDir) !==
+      manifest.relativeAppDir ||
     requiredServerManifest.config.output !== "standalone"
   ) {
     throw new Error("The Next required-server-files metadata does not match the Web artifact.");

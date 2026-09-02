@@ -93,12 +93,13 @@ function standaloneWebApplicationRoot(paths, standaloneRoot) {
 
 function prepareStandaloneNextRootAlias({ standaloneRoot, runtimeNodeModules, standaloneWebRoot }) {
   const applicationAlias = path.join(standaloneWebRoot, "node_modules", "next");
+  const destination = path.join(runtimeNodeModules, "next");
+  const applicationEntry = existingEntry(applicationAlias);
   const packageRoot = confinedRealpath(
     standaloneRoot,
-    applicationAlias,
-    "Standalone Web application Next alias",
+    applicationEntry ? applicationAlias : destination,
+    applicationEntry ? "Standalone Web application Next alias" : "Standalone root Next alias",
   );
-  const destination = path.join(runtimeNodeModules, "next");
   validateReplacementDestination(standaloneRoot, destination, "Standalone root Next alias");
   const existing = existingEntry(destination);
   if (existing) {
@@ -113,7 +114,7 @@ function prepareStandaloneNextRootAlias({ standaloneRoot, runtimeNodeModules, st
       );
     }
   }
-  return Object.freeze({ applicationAlias, destination, packageRoot, create: !existing });
+  return Object.freeze({ destination, packageRoot, create: !existing });
 }
 
 function completeStandaloneNextRootAlias(plan, standaloneRoot) {
@@ -215,7 +216,7 @@ function completeNextStandaloneRuntime({
   });
   const runtimeNextManifest = confinedRealpath(
     canonicalStandaloneRoot,
-    path.join(nextAliasPlan.applicationAlias, "package.json"),
+    path.join(nextAliasPlan.packageRoot, "package.json"),
     "Standalone Next manifest",
   );
   const runtimeNext = packageIdentity(runtimeNextManifest, "Standalone Next");

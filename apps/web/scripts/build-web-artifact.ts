@@ -28,6 +28,7 @@ import {
   WEB_ARTIFACT_PRIMARY_ENTRYPOINT,
   assertWebArtifactManifest,
   isWebArtifactRelativePath,
+  normalizeWebArtifactRelativePath,
   webArtifactBuildIdPath,
   webArtifactRequiredServerFilesPath,
   type WebArtifactFile,
@@ -201,8 +202,8 @@ function isInside(parent: string, candidate: string): boolean {
 }
 
 function artifactRelativePath(value: string): string {
-  const normalized = value.split(path.sep).join("/");
-  if (!isWebArtifactRelativePath(normalized)) {
+  const normalized = normalizeWebArtifactRelativePath(value);
+  if (!normalized) {
     throw new Error("Unsafe Web artifact relative path: " + value + ".");
   }
   return normalized;
@@ -265,6 +266,9 @@ export async function readNextStandaloneMetadata({
   } catch {
     throw new Error("Next required-server-files.json is invalid JSON.");
   }
+  const relativeAppDir = isRecord(metadata)
+    ? normalizeWebArtifactRelativePath(metadata.relativeAppDir)
+    : undefined;
   if (
     !isRecord(metadata) ||
     metadata.version !== 1 ||
@@ -275,7 +279,7 @@ export async function readNextStandaloneMetadata({
     !path.isAbsolute(metadata.appDir) ||
     typeof metadata.config.outputFileTracingRoot !== "string" ||
     !path.isAbsolute(metadata.config.outputFileTracingRoot) ||
-    !isWebArtifactRelativePath(metadata.relativeAppDir)
+    !relativeAppDir
   ) {
     throw new Error("Next required-server-files metadata is incomplete or not standalone.");
   }
@@ -296,12 +300,12 @@ export async function readNextStandaloneMetadata({
     .join("/");
   if (
     !isWebArtifactRelativePath(derivedRelativeAppDir) ||
-    derivedRelativeAppDir !== metadata.relativeAppDir
+    derivedRelativeAppDir !== relativeAppDir
   ) {
     throw new Error("Next relativeAppDir is not derived from its metadata roots.");
   }
   return Object.freeze({
-    relativeAppDir: metadata.relativeAppDir,
+    relativeAppDir,
     buildId: normalizedBuildId(await readFile(path.join(webBuildRoot, "BUILD_ID"), "utf8")),
     config: Object.freeze({ ...metadata.config }),
   });
@@ -324,7 +328,7 @@ async function assertCopiedNextIdentity(
   }
   if (
     !isRecord(copied) ||
-    copied.relativeAppDir !== metadata.relativeAppDir ||
+    normalizeWebArtifactRelativePath(copied.relativeAppDir) !== metadata.relativeAppDir ||
     !isRecord(copied.config) ||
     copied.config.output !== "standalone" ||
     copied.config.distDir !== ".next"

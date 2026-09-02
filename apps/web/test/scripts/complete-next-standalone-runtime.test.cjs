@@ -195,6 +195,28 @@ test("completes the full helper and tslib packages and is idempotent", (t) => {
   assert.equal(realpathSync(runtimeNextRootAlias), runtimeNextRoot);
 });
 
+test("uses the root Next alias when the application alias is absent", (t) => {
+  const {
+    paths,
+    runtimeNextApplicationAlias,
+    runtimeNextRoot,
+    runtimeNextRootAlias,
+    standaloneRoot,
+  } = fixture(t);
+  rmSync(runtimeNextApplicationAlias);
+  symlinkSync(
+    path.relative(path.dirname(runtimeNextRootAlias), runtimeNextRoot),
+    runtimeNextRootAlias,
+    "dir",
+  );
+
+  const report = completeNextStandaloneRuntime({ paths, standaloneRoot });
+
+  assert.equal(report.nextVersion, "16.3.1");
+  assert.equal(existsSync(runtimeNextApplicationAlias), false);
+  assert.equal(realpathSync(runtimeNextRootAlias), runtimeNextRoot);
+});
+
 test("rejects a standalone dependency version mismatch before replacing files", (t) => {
   const { paths, runtimeHelpersRoot, standaloneRoot } = fixture(t);
   writePackage(

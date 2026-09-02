@@ -1305,6 +1305,33 @@ test("derives relativeAppDir only from canonical standalone metadata", async (t)
   );
 });
 
+test("normalizes Windows separators in standalone metadata", async (t) => {
+  const repositoryRoot = await mkdtemp(path.join(os.tmpdir(), "workbench-web-windows-metadata-"));
+  t.after(() => rm(repositoryRoot, { force: true, recursive: true }));
+  const fixture = await createWebFixture(repositoryRoot);
+  const metadataPaths = [
+    path.join(fixture.webBuildRoot, "required-server-files.json"),
+    path.join(
+      fixture.standaloneRoot,
+      ...RELATIVE_APP_DIRECTORY.split("/"),
+      ".next",
+      "required-server-files.json",
+    ),
+  ];
+  for (const metadataPath of metadataPaths) {
+    const metadata = JSON.parse(await readFile(metadataPath, "utf8")) as Record<string, unknown>;
+    await writeFile(
+      metadataPath,
+      JSON.stringify({ ...metadata, relativeAppDir: String.raw`apps\web` }),
+      "utf8",
+    );
+  }
+
+  const artifact = await buildFixtureArtifact(fixture);
+
+  assert.equal(artifact.manifest.relativeAppDir, RELATIVE_APP_DIRECTORY);
+});
+
 test("uses the production-only esbuild policy for the sole Web control entry", () => {
   const options = createWebArtifactBuildOptions({
     appRoot: "/fixture/apps/web",
