@@ -162,7 +162,7 @@ function fixture(t) {
       "obsolete.txt": "remove me",
     },
   );
-  const runtimeHelpersLink = path.join(runtimeNextRoot, "node_modules", "@swc", "helpers");
+  const runtimeHelpersLink = path.join(path.dirname(runtimeNextRoot), "@swc", "helpers");
   mkdirSync(path.dirname(runtimeHelpersLink), { recursive: true });
   symlinkSync(
     path.relative(path.dirname(runtimeHelpersLink), runtimeHelpersRoot),
@@ -290,7 +290,7 @@ test("rejects a standalone dependency version mismatch before replacing files", 
   assert.equal(readFileSync(path.join(runtimeHelpersRoot, "obsolete.txt"), "utf8"), "preserved");
 });
 
-test("rejects a traced helper symlink that escapes the standalone root", (t) => {
+test("repairs an absolute helper alias without touching its external target", (t) => {
   const { paths, repositoryRoot, runtimeHelpersLink, runtimeHelpersRoot, standaloneRoot } =
     fixture(t);
   const outsideHelpersRoot = path.join(repositoryRoot, "outside", "@swc", "helpers");
@@ -304,44 +304,40 @@ test("rejects a traced helper symlink that escapes the standalone root", (t) => 
     { "outside-marker.txt": "untouched" },
   );
   rmSync(runtimeHelpersLink);
-  symlinkSync(
-    path.relative(path.dirname(runtimeHelpersLink), outsideHelpersRoot),
-    runtimeHelpersLink,
-  );
+  symlinkSync(outsideHelpersRoot, runtimeHelpersLink, "dir");
 
-  assert.throws(
-    () => completeNextStandaloneRuntime({ paths, standaloneRoot }),
-    /Standalone @swc\/helpers manifest escapes the selected standalone root/u,
-  );
+  completeNextStandaloneRuntime({ paths, standaloneRoot });
+
+  assert.equal(realpathSync(runtimeHelpersLink), runtimeHelpersRoot);
   assert.equal(
     readFileSync(path.join(outsideHelpersRoot, "outside-marker.txt"), "utf8"),
     "untouched",
   );
-  assert.equal(existsSync(path.join(runtimeHelpersRoot, "obsolete.txt")), true);
+  assert.equal(existsSync(path.join(runtimeHelpersRoot, "obsolete.txt")), false);
 });
 
-test("rejects a Web application Next alias that escapes the standalone root", (t) => {
+test("repairs an absolute application Next alias without touching its external target", (t) => {
   const {
     paths,
     repositoryRoot,
     runtimeNextApplicationAlias,
+    runtimeNextRoot,
     runtimeNextRootAlias,
     standaloneRoot,
   } = fixture(t);
   const outsideNextRoot = path.join(repositoryRoot, "outside", "next");
   writePackage(outsideNextRoot, { name: "next", version: "16.3.1" });
   rmSync(runtimeNextApplicationAlias);
-  symlinkSync(
-    path.relative(path.dirname(runtimeNextApplicationAlias), outsideNextRoot),
-    runtimeNextApplicationAlias,
-    "dir",
-  );
+  symlinkSync(outsideNextRoot, runtimeNextApplicationAlias, "dir");
 
-  assert.throws(
-    () => completeNextStandaloneRuntime({ paths, standaloneRoot }),
-    /Standalone Web application Next alias escapes the selected standalone root/u,
+  completeNextStandaloneRuntime({ paths, standaloneRoot });
+
+  assert.equal(realpathSync(runtimeNextApplicationAlias), runtimeNextRoot);
+  assert.equal(realpathSync(runtimeNextRootAlias), runtimeNextRoot);
+  assert.equal(
+    readFileSync(path.join(outsideNextRoot, "package.json"), "utf8"),
+    '{"name":"next","version":"16.3.1"}\n',
   );
-  assert.equal(existsSync(runtimeNextRootAlias), false);
 });
 
 test("rejects a preexisting root Next alias with a different physical owner", (t) => {
@@ -363,7 +359,7 @@ test("rejects a preexisting root Next alias with a different physical owner", (t
 
   assert.throws(
     () => completeNextStandaloneRuntime({ paths, standaloneRoot }),
-    /Standalone root Next alias does not resolve to the traced Next owner/u,
+    /Standalone root Next alias does not resolve to the traced package owner/u,
   );
   assert.equal(realpathSync(runtimeNextRootAlias), conflictingNextRoot);
 });

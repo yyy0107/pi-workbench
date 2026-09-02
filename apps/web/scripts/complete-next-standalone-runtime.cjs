@@ -65,11 +65,16 @@ function existingEntry(filePath) {
   }
 }
 
-function validateReplacementDestination(root, destination, label) {
+function validateDestinationParent(root, destination, label) {
   const parent = confinedRealpath(root, path.dirname(destination), `${label} parent`);
   if (!isInside(parent, path.resolve(destination))) {
     throw new Error(`${label} is not a direct child of its confined parent: ${destination}`);
   }
+  return parent;
+}
+
+function validateReplacementDestination(root, destination, label) {
+  const parent = validateDestinationParent(root, destination, label);
   if (existingEntry(destination)) confinedRealpath(root, destination, label);
   return parent;
 }
@@ -104,23 +109,43 @@ function tracedPackageRoot({ repositoryRoot, sourceManifest, standaloneRoot, lab
   );
 }
 
-function prepareStandaloneNextAlias({ standaloneRoot, destination, packageRoot, label }) {
-  validateReplacementDestination(standaloneRoot, destination, label);
+function prepareStandalonePackageAlias({ standaloneRoot, destination, packageRoot, label }) {
+  validateDestinationParent(standaloneRoot, destination, label);
   const existing = existingEntry(destination);
   if (existing) {
-    const existingRoot = confinedRealpath(standaloneRoot, destination, label);
+    let existingRoot;
+    try {
+      existingRoot = realpathSync(destination);
+    } catch (error) {
+      if (existing.isSymbolicLink() && error?.code === "ENOENT") {
+        return Object.freeze({ destination, packageRoot, replace: true });
+      }
+      throw error;
+    }
+    if (!isInside(standaloneRoot, existingRoot)) {
+      if (existing.isSymbolicLink()) {
+        return Object.freeze({ destination, packageRoot, replace: true });
+      }
+      throw new Error(`${label} escapes the selected standalone root: ${destination}`);
+    }
     if (existingRoot !== packageRoot) {
       if (!existingEntry(path.join(existingRoot, "package.json"))) {
         return Object.freeze({ destination, packageRoot, replace: true });
       }
-      throw new Error(`${label} does not resolve to the traced Next owner.`);
+      throw new Error(`${label} does not resolve to the traced package owner.`);
     }
   }
   return Object.freeze({ destination, packageRoot, replace: false, create: !existing });
 }
 
-function completeStandaloneNextAlias(plan, standaloneRoot, label) {
-  if (plan.replace) rmSync(plan.destination, { force: true, recursive: true });
+function completeStandalonePackageAlias(plan, standaloneRoot, label) {
+  if (plan.replace) {
+    const existing = existingEntry(plan.destination);
+    rmSync(plan.destination, {
+      force: true,
+      recursive: Boolean(existing?.isDirectory() && !existing.isSymbolicLink()),
+    });
+  }
   if (plan.create || plan.replace) {
     symlinkSync(
       path.relative(path.dirname(plan.destination), plan.packageRoot),
@@ -218,7 +243,7 @@ function completeNextStandaloneRuntime({
     [path.join(standaloneWebRoot, "node_modules", "next"), "Standalone Web application Next alias"],
     [path.join(runtimeNodeModules, "next"), "Standalone root Next alias"],
   ].map(([destination, label]) => [
-    prepareStandaloneNextAlias({
+    prepareStandalonePackageAlias({
       standaloneRoot: canonicalStandaloneRoot,
       destination,
       packageRoot: runtimeNextRoot,
@@ -234,16 +259,27 @@ function completeNextStandaloneRuntime({
   const runtimeNext = packageIdentity(runtimeNextManifest, "Standalone Next");
   assertPackageIdentity(runtimeNext, sourceNext, "Standalone Next");
 
-  const runtimeNextRequire = createRequire(runtimeNextManifest);
+  const runtimeHelpersRoot = tracedPackageRoot({
+    repositoryRoot: paths.repositoryRoot,
+    sourceManifest: sourceHelpersManifest,
+    standaloneRoot: canonicalStandaloneRoot,
+    label: "Standalone traced @swc/helpers package",
+  });
   const runtimeHelpersManifest = confinedRealpath(
     canonicalStandaloneRoot,
-    runtimeNextRequire.resolve("@swc/helpers/package.json"),
+    path.join(runtimeHelpersRoot, "package.json"),
     "Standalone @swc/helpers manifest",
   );
   const runtimeHelpers = packageIdentity(runtimeHelpersManifest, "Standalone @swc/helpers");
   assertPackageIdentity(runtimeHelpers, sourceHelpers, "Standalone @swc/helpers");
+  const helpersAliasLabel = "Standalone Next @swc/helpers alias";
+  const helpersAliasPlan = prepareStandalonePackageAlias({
+    standaloneRoot: canonicalStandaloneRoot,
+    destination: path.join(path.dirname(runtimeNextRoot), "@swc", "helpers"),
+    packageRoot: runtimeHelpersRoot,
+    label: helpersAliasLabel,
+  });
 
-  const runtimeHelpersRoot = path.dirname(runtimeHelpersManifest);
   const runtimeTslibRoot = path.join(runtimeNodeModules, "tslib");
   validateReplacementDestination(
     canonicalStandaloneRoot,
@@ -257,8 +293,9 @@ function completeNextStandaloneRuntime({
   );
 
   for (const [plan, label] of nextAliasPlans) {
-    completeStandaloneNextAlias(plan, canonicalStandaloneRoot, label);
+    completeStandalonePackageAlias(plan, canonicalStandaloneRoot, label);
   }
+  completeStandalonePackageAlias(helpersAliasPlan, canonicalStandaloneRoot, helpersAliasLabel);
 
   const completedHelpersRoot = replacePackageDirectory({
     source: sourceHelpersRoot,
