@@ -20,6 +20,7 @@ export interface ToolCallProps {
   /** Optional optical-size correction for glyphs with unusually inset viewBox artwork. */
   iconClassName?: string;
   running: boolean;
+  requiresAction?: boolean;
   failed?: boolean;
   cancelled?: boolean;
   failedLabel?: string;
@@ -36,6 +37,31 @@ export interface ToolCallProps {
   className?: string;
 }
 
+export function ToolCallDetails({
+  request,
+  requestLabel,
+  result,
+  resultLabel,
+}: Readonly<Pick<ToolCallProps, "request" | "requestLabel" | "result" | "resultLabel">>) {
+  return (
+    <div className={cn(field, "mt-2 overflow-hidden rounded-2xl text-xs")}>
+      <div className="px-3.5 pt-2.5 pb-2">
+        <p className={cn(mono, "text-foreground/35 mb-1")}>{requestLabel}</p>
+        <pre className="text-foreground/55 max-h-72 overflow-auto whitespace-pre-wrap break-words font-mono">
+          {request}
+        </pre>
+      </div>
+      <div className="bg-foreground/[0.06] mx-3.5 h-px" />
+      <div className="px-3.5 pt-2 pb-2.5">
+        <p className={cn(mono, "text-foreground/35 mb-1")}>{resultLabel}</p>
+        <pre className="text-foreground/90 max-h-72 overflow-auto whitespace-pre-wrap break-words font-sans">
+          {result}
+        </pre>
+      </div>
+    </div>
+  );
+}
+
 export function ToolCall({
   label,
   activeLabel,
@@ -48,6 +74,7 @@ export function ToolCall({
   icon: Icon,
   iconClassName,
   running,
+  requiresAction = false,
   failed = false,
   cancelled = false,
   failedLabel,
@@ -63,8 +90,17 @@ export function ToolCall({
   const [rootRef, handleOpenChange] = useDisclosureScrollLock(onOpenChange);
   const hasCustomSummary = summary !== undefined;
   const terminal = failed || cancelled;
-  const displayedLabel = running ? activeLabel : terminal ? (failedLabel ?? label) : label;
-  const status = cancelled ? "cancelled" : failed ? "error" : running ? "running" : "complete";
+  const displayedLabel =
+    running || requiresAction ? activeLabel : terminal ? (failedLabel ?? label) : label;
+  const status = cancelled
+    ? "cancelled"
+    : failed
+      ? "error"
+      : requiresAction
+        ? "requires-action"
+        : running
+          ? "running"
+          : "complete";
   const summaryContent = (
     <>
       {Icon && (
@@ -113,7 +149,7 @@ export function ToolCall({
             failed ? "text-destructive" : "text-muted-foreground",
           )}
         />
-      ) : !running && showCompletionIcon ? (
+      ) : !running && !requiresAction && showCompletionIcon ? (
         <CheckIcon
           aria-hidden="true"
           className="fade-in zoom-in-90 animate-in size-3.5 shrink-0 text-emerald-500 duration-200 motion-reduce:animate-none"
@@ -127,21 +163,12 @@ export function ToolCall({
   const detailContent = children ? (
     <div className="mt-2 min-w-0">{children}</div>
   ) : (
-    <div className={cn(field, "mt-2 overflow-hidden rounded-2xl text-xs")}>
-      <div className="px-3.5 pt-2.5 pb-2">
-        <p className={cn(mono, "text-foreground/35 mb-1")}>{requestLabel}</p>
-        <pre className="text-foreground/55 max-h-72 overflow-auto whitespace-pre-wrap break-words font-mono">
-          {request}
-        </pre>
-      </div>
-      <div className="bg-foreground/[0.06] mx-3.5 h-px" />
-      <div className="px-3.5 pt-2 pb-2.5">
-        <p className={cn(mono, "text-foreground/35 mb-1")}>{resultLabel}</p>
-        <pre className="text-foreground/90 max-h-72 overflow-auto whitespace-pre-wrap break-words font-sans">
-          {result}
-        </pre>
-      </div>
-    </div>
+    <ToolCallDetails
+      request={request}
+      result={result}
+      requestLabel={requestLabel}
+      resultLabel={resultLabel}
+    />
   );
   const controlledDisclosure = disclosureController?.({
     open,

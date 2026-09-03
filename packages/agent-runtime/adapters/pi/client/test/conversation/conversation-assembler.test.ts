@@ -136,6 +136,95 @@ test("projects image, file, and document source semantics into Workbench blocks"
   ]);
 });
 
+test("projects native reasoning and tool timeline state into Workbench blocks", () => {
+  const [node] = conversationNodesFromPiConversation([
+    {
+      id: "assistant-timeline",
+      role: "assistant",
+      content: [
+        {
+          type: "reasoning",
+          text: "Plan",
+          status: { type: "running" },
+          providerMetadata: {
+            workbench: { reasoningTiming: { startedAt: 1_000, durationMs: 2_500 } },
+          },
+        },
+        {
+          type: "tool-call",
+          toolCallId: "running-1",
+          toolName: "search",
+          args: { query: "partial" },
+          argsText: '{"query":"part',
+          timing: { startedAt: 4_000 },
+          providerMetadata: {
+            workbench: { parallelToolBatch: { id: "batch-1", size: 2 } },
+          },
+        },
+        {
+          type: "tool-call",
+          toolCallId: "complete-1",
+          toolName: "read",
+          args: { path: "README.md" },
+          argsText: '{"path":"README.md"}',
+          result: "done",
+        },
+        {
+          type: "tool-call",
+          toolCallId: "error-1",
+          toolName: "write",
+          args: {},
+          argsText: "{}",
+          result: "denied",
+          isError: true,
+        },
+        {
+          type: "tool-call",
+          toolCallId: "action-1",
+          toolName: "ask_user",
+          args: { questions: [] },
+          argsText: '{"questions":[]}',
+          approval: { id: "approval-1" },
+        },
+      ],
+      status: { type: "running" },
+      createdAt: new Date(1_725_000_000_001),
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+    },
+  ]);
+
+  assert.equal(node?.kind, "assistant");
+  if (node?.kind !== "assistant") return;
+  assert.deepEqual(node.blocks[0], {
+    key: "assistant-timeline:reasoning",
+    kind: "reasoning",
+    text: "Plan",
+    status: "running",
+    timing: { startedAt: 1_000, completedAt: 3_500 },
+  });
+  assert.deepEqual(
+    node.blocks.slice(1).map((block) => (block.kind === "tool-call" ? block.status : undefined)),
+    ["running", "complete", "error", "requires-action"],
+  );
+  assert.deepEqual(node.blocks[1], {
+    key: "assistant-timeline:tool:running-1",
+    kind: "tool-call",
+    callId: "running-1",
+    toolName: "search",
+    arguments: { query: "partial" },
+    argumentsText: '{"query":"part',
+    status: "running",
+    timing: { startedAt: 4_000 },
+    parallelGroup: { key: "batch-1", size: 2 },
+  });
+});
+
 test("assembles equivalent nodes from history replay and live Pi messages", () => {
   const message: PiAssistantMessage = {
     role: "assistant",
@@ -327,6 +416,7 @@ test("keeps partial tool JSON through overlap dedupe and gap snapshot repair", (
     kind: "tool-call",
     callId: "tool-1",
     toolName: "search",
+    arguments: { query: "hel" },
     argumentsText: partialJson,
     status: "running",
   });

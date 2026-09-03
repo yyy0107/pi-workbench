@@ -21,20 +21,24 @@ import { ToolFallback } from "../../../assistant-ui/tool-fallback";
 import { ReasoningPanel } from "../../../elements/reasoning-panel";
 import { useI18n } from "../../../i18n";
 import {
-  MessagePartRendererHost,
-  useDataPresentationMap,
-} from "@workbench/extension-host/hosts/renderer-host";
+  LegacyMessagePartRendererHost,
+  LegacyToolDataRenderer,
+  useLegacyDataPresentationMap,
+} from "../../../assistant-ui/renderer-compat";
 import {
   parseWorkbenchMessageTermination,
   readWorkbenchTurnTiming,
   resolveWorkbenchTurnDuration,
 } from "@workbench/agent-runtime-contracts/message-metadata";
 import { useConversationNode } from "@workbench/agent-runtime-client";
+import { readAgentTransportRecovering } from "@workbench/agent-runtime-client/extras";
 import { WorkbenchComposerMessageText } from "../../../chat/composer-message-text";
 import {
   WorkbenchMessageFileBlock,
+  WorkbenchMessageDataBlock,
   WorkbenchMessageSourceBlock,
   WorkbenchMessageTextBlock,
+  WorkbenchMessageToolBlock,
 } from "../../../chat/renderers/message-blocks";
 
 import {
@@ -106,6 +110,9 @@ export function WorkbenchMessagePresentation() {
   const termination = parseWorkbenchMessageTermination(storedTermination);
   const turnTiming = readWorkbenchTurnTiming(storedTurnTiming);
   const turnStreaming = useAuiState((state) => state.thread.isRunning && state.message.isLast);
+  const transportRecovering = useAuiState((state) =>
+    readAgentTransportRecovering(state.thread.extras),
+  );
   const interruptedBySteering = useAuiState(
     (state) => state.message.metadata.custom.workbenchSteerInterrupted === true,
   );
@@ -115,7 +122,7 @@ export function WorkbenchMessagePresentation() {
   );
   const node = useConversationNode(messageId);
   const blocks = node && "blocks" in node ? node.blocks : undefined;
-  const dataPresentations = useDataPresentationMap();
+  const dataPresentations = useLegacyDataPresentationMap();
   const completedBoundary = useMemo(() => completedWorkBoundary(messageParts), [messageParts]);
   const partIndices = useMemo(
     () => new Map(messageParts.map((part, index) => [part, index])),
@@ -141,13 +148,16 @@ export function WorkbenchMessagePresentation() {
       const typePath = groupTimelinePartByType(part, context);
       if (typePath.length > 0) return typePath;
       if (part.type !== "data") return [];
-      const timelineState = dataTimelineState(part, dataPresentations);
+      const index = partIndices.get(part);
+      const block = index === undefined ? undefined : blocks?.[index];
+      if (block?.kind !== "data") return [];
+      const timelineState = dataTimelineState(block, dataPresentations);
       if (!timelineState) return [];
       return timelineState.group
-        ? [`${DATA_TIMELINE_GROUP_PREFIX}${part.name}:${timelineState.group.key}`]
+        ? [`${DATA_TIMELINE_GROUP_PREFIX}${block.name}:${timelineState.group.key}`]
         : ["group-tool-timeline"];
     },
-    [dataPresentations],
+    [blocks, dataPresentations, partIndices],
   );
   const groupMessagePart = useCallback(
     (part: PartState, context: GroupByContext): readonly PresentationGroup[] => {
@@ -190,16 +200,19 @@ export function WorkbenchMessagePresentation() {
             : undefined;
 
           if ("indices" in part && part.type.startsWith(DATA_TIMELINE_GROUP_PREFIX)) {
-            const sourcePart = messageParts[part.indices[0] ?? -1];
+            const sourceBlock = blocks?.[part.indices[0] ?? -1];
             const group =
-              sourcePart?.type === "data"
-                ? dataTimelineState(sourcePart, dataPresentations)?.group
+              sourceBlock?.kind === "data"
+                ? dataTimelineState(sourceBlock, dataPresentations)?.group
                 : undefined;
             return group ? (
               <MessageDataTimelineGroup
                 group={group}
                 indices={part.indices}
-                running={part.status.type === "running"}
+                running={
+                  sourceBlock?.kind === "data" &&
+                  dataTimelineState(sourceBlock, dataPresentations)?.active === true
+                }
               >
                 {children}
               </MessageDataTimelineGroup>
@@ -218,7 +231,11 @@ export function WorkbenchMessagePresentation() {
             }
             case "group-tool-timeline": {
               return (
-                <MessageToolTimeline indices={part.indices} blocks={blocks}>
+                <MessageToolTimeline
+                  indices={part.indices}
+                  blocks={blocks}
+                  transportRecovering={transportRecovering}
+                >
                   {children}
                 </MessageToolTimeline>
               );
@@ -236,7 +253,7 @@ export function WorkbenchMessagePresentation() {
                   />
                 );
                 return messageRole === "assistant" ? (
-                  <MessagePartRendererHost part={part} fallback={fallback} />
+                  <LegacyMessagePartRendererHost part={part} fallback={fallback} />
                 ) : (
                   fallback
                 );
@@ -252,13 +269,51 @@ export function WorkbenchMessagePresentation() {
                 <MarkdownText />
               );
               return messageRole === "assistant" ? (
-                <MessagePartRendererHost part={part} fallback={fallback} />
+                <LegacyMessagePartRendererHost part={part} fallback={fallback} />
               ) : (
                 fallback
               );
             }
             case "reasoning":
               return null;
+            case "tool-call":
+            case "data": {
+              const block = index === undefined ? undefined : blocks?.[index];
+              if (
+                index !== undefined &&
+                ((part.type === "tool-call" && block?.kind === "tool-call") ||
+                  (part.type === "data" && block?.kind === "data"))
+              ) {
+                return (
+                  <LegacyToolDataRenderer
+                    block={block}
+                    partIndex={index}
+                    fallback={
+                      block.kind === "tool-call" ? (
+                        <WorkbenchMessageToolBlock block={block} />
+                      ) : (
+                        <WorkbenchMessageDataBlock block={block} />
+                      )
+                    }
+                  />
+                );
+              }
+              return (
+                <MessagePartLeaf
+                  part={part}
+                  sourceFallbackLabel={t("extensions.messagePresentation.sourceFallback")}
+                  sourceVariant="chip"
+                  toolFallback={ToolFallback}
+                  dataFallback={DefaultMessageDataFallback}
+                />
+              );
+            }
+            case "generative-ui": {
+              const block = index === undefined ? undefined : blocks?.[index];
+              const fallback =
+                block?.kind === "data" ? <WorkbenchMessageDataBlock block={block} /> : null;
+              return <LegacyMessagePartRendererHost part={part} fallback={fallback} />;
+            }
             case "image":
             case "file": {
               const block = index === undefined ? undefined : blocks?.[index];

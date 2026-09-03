@@ -7,12 +7,8 @@ import type {
 } from "@assistant-ui/react";
 import { ExternalLinkIcon } from "lucide-react";
 
-import {
-  MessagePartRendererHost,
-  RendererHost,
-} from "@workbench/extension-host/hosts/renderer-host";
-
 import { ScrollCompensatedDetails } from "../elements/scroll-compensated-details";
+import { LegacyEnrichedToolDataRenderer, LegacyMessagePartRendererHost } from "./renderer-compat";
 
 type SharedMessagePartLeaf = Extract<
   EnrichedPartState,
@@ -147,14 +143,20 @@ export function MessagePartLeaf({
       );
     case "tool-call":
     case "data":
-      return <RendererHost part={part} toolFallback={toolFallback} dataFallback={DataFallback} />;
+      return (
+        <LegacyEnrichedToolDataRenderer
+          part={part}
+          toolFallback={toolFallback}
+          dataFallback={DataFallback}
+        />
+      );
     case "audio":
       return <audio controls src={messageAudioSource(part)} className="my-2 max-w-full" />;
     case "generative-ui": {
       const fallback = (
         <DataFallback type="data" name="generative-ui" data={part.spec} status={part.status} />
       );
-      return <MessagePartRendererHost part={part} fallback={fallback} />;
+      return <LegacyMessagePartRendererHost part={part} fallback={fallback} />;
     }
   }
 }

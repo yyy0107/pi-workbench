@@ -4,10 +4,12 @@ import { useState } from "react";
 
 import type {
   ConversationError,
+  DataBlock,
   FileBlock,
   ReasoningBlock,
   SourceBlock,
   TextBlock,
+  ToolCallBlock,
 } from "@workbench/agent-runtime-contracts/conversation";
 import { useConversationSession } from "@workbench/agent-runtime-client";
 
@@ -17,6 +19,7 @@ import { MarkdownTextContentWithCitations } from "../../assistant-ui/lazy-markdo
 import { MessageSource, type MessageSourceVariant } from "../../assistant-ui/message-part-leaves";
 import { ErrorState } from "../../elements/error-state";
 import type { Source } from "../../elements/inline-citation";
+import { ScrollCompensatedDetails } from "../../elements/scroll-compensated-details";
 import { useI18n } from "../../i18n";
 
 import { WorkbenchComposerMessageTextContent } from "../composer-message-text";
@@ -59,6 +62,45 @@ export function WorkbenchMessageTextBlock({
 
 export function WorkbenchMessageReasoningBlock({ block }: Readonly<{ block: ReasoningBlock }>) {
   return <pre className="text-muted-foreground my-2 whitespace-pre-wrap text-xs">{block.text}</pre>;
+}
+
+function serializeBlockValue(value: unknown): string {
+  if (typeof value === "string") return value;
+  try {
+    return JSON.stringify(value, null, 2) ?? String(value);
+  } catch {
+    return String(value);
+  }
+}
+
+export function WorkbenchMessageToolBlock({ block }: Readonly<{ block: ToolCallBlock }>) {
+  const value =
+    block.error?.message ??
+    block.result ??
+    (block.argumentsText.length > 0 ? block.argumentsText : block.arguments);
+
+  return (
+    <ScrollCompensatedDetails className="bg-muted/40 my-2 rounded-lg border px-3 py-2 text-sm">
+      <summary className="cursor-pointer font-mono text-xs">{block.toolName}</summary>
+      <pre
+        className="text-muted-foreground mt-2 max-h-72 overflow-auto whitespace-pre-wrap break-all text-xs"
+        role={block.status === "error" ? "alert" : undefined}
+      >
+        {serializeBlockValue(value)}
+      </pre>
+    </ScrollCompensatedDetails>
+  );
+}
+
+export function WorkbenchMessageDataBlock({ block }: Readonly<{ block: DataBlock }>) {
+  return (
+    <ScrollCompensatedDetails className="bg-muted/40 my-2 rounded-lg border px-3 py-2 text-sm">
+      <summary className="cursor-pointer font-medium">{block.name}</summary>
+      <pre className="text-muted-foreground mt-2 max-h-72 overflow-auto whitespace-pre-wrap break-all text-xs">
+        {serializeBlockValue(block.data)}
+      </pre>
+    </ScrollCompensatedDetails>
+  );
 }
 
 export function WorkbenchMessageSourceBlock({

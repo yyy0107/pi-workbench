@@ -16,6 +16,11 @@ interface MessageBlockBase {
   readonly key: string;
 }
 
+export interface MessageBlockTiming {
+  readonly startedAt: number;
+  readonly completedAt?: number;
+}
+
 export interface TextBlock extends MessageBlockBase {
   readonly kind: "text";
   readonly text: string;
@@ -24,19 +29,36 @@ export interface TextBlock extends MessageBlockBase {
 export interface ReasoningBlock extends MessageBlockBase {
   readonly kind: "reasoning";
   readonly text: string;
+  readonly status?: "running" | "complete" | "incomplete";
+  readonly timing?: MessageBlockTiming;
 }
 
 export type ToolCallStatus = "running" | "complete" | "incomplete" | "requires-action" | "error";
+export type ToolCallIncompleteReason =
+  | "cancelled"
+  | "length"
+  | "content-filter"
+  | "other"
+  | "error"
+  | "tool-calls";
 
 export interface ToolCallBlock extends MessageBlockBase {
   readonly kind: "tool-call";
   readonly callId: string;
   readonly toolName: string;
+  /** Best-effort parsed arguments; partial while the call is streaming. */
+  readonly arguments?: ConversationData;
   /** Verbatim input remains useful while the JSON document is incomplete. */
   readonly argumentsText: string;
   readonly status: ToolCallStatus;
+  readonly incompleteReason?: ToolCallIncompleteReason;
   readonly result?: ConversationData;
   readonly error?: ConversationError;
+  readonly timing?: MessageBlockTiming;
+  readonly parallelGroup?: {
+    readonly key: string;
+    readonly size: number;
+  };
 }
 
 export interface DataBlock extends MessageBlockBase {

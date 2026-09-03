@@ -8,6 +8,10 @@ import type {
 } from "@workbench/agent-runtime-contracts/conversation";
 import { isComposerJsonValue } from "@workbench/contracts/composer";
 import { parseWorkbenchComposerCommandResponseDetails } from "@workbench/contracts/composer/request";
+import {
+  readWorkbenchParallelToolPresentationMetadata,
+  readWorkbenchReasoningPresentationMetadata,
+} from "@workbench/agent-runtime-client/message-presentation-metadata";
 
 import { parsePiConversationEvent } from "../messages/conversation-events";
 import type {
@@ -65,6 +69,18 @@ function assistantStatus(message: ThreadAssistantMessage): AssistantMessageNode[
   return message.status.reason === "error" ? "error" : "incomplete";
 }
 
+function reasoningTiming(
+  part: Extract<ThreadAssistantMessage["content"][number], { type: "reasoning" }>,
+) {
+  const timing = readWorkbenchReasoningPresentationMetadata(part.providerMetadata);
+  if (!timing) return undefined;
+  if (timing.durationMs !== undefined) {
+    const startedAt = timing.startedAt ?? 0;
+    return { startedAt, completedAt: startedAt + timing.durationMs };
+  }
+  return timing.startedAt === undefined ? undefined : { startedAt: timing.startedAt };
+}
+
 function blocks(message: ThreadMessage): MessageBlock[] {
   const counts = new Map<string, number>();
   const key = (kind: string, identity?: string): string => {
@@ -80,21 +96,43 @@ function blocks(message: ThreadMessage): MessageBlock[] {
       case "text":
         projected.push({ key: key("text"), kind: "text", text: part.text });
         break;
-      case "reasoning":
-        projected.push({ key: key("reasoning"), kind: "reasoning", text: part.text });
+      case "reasoning": {
+        const timing = reasoningTiming(part);
+        projected.push({
+          key: key("reasoning"),
+          kind: "reasoning",
+          text: part.text,
+          ...(part.status === undefined ? {} : { status: part.status.type }),
+          ...(timing === undefined ? {} : { timing }),
+        });
         break;
+      }
       case "tool-call": {
         if (message.role !== "assistant") break;
         const status = toolStatus(part, message);
+        const parallelGroup = readWorkbenchParallelToolPresentationMetadata(part.providerMetadata);
         projected.push({
           key: key("tool", part.toolCallId),
           kind: "tool-call",
           callId: part.toolCallId,
           toolName: part.toolName,
+          arguments: serializable(part.args),
           argumentsText: part.argsText,
           status,
+          ...(status === "incomplete" && message.status.type === "incomplete"
+            ? { incompleteReason: message.status.reason }
+            : {}),
           ...(part.result === undefined ? {} : { result: serializable(part.result) }),
           ...(status !== "error" ? {} : { error: error("tool-error", part.result) }),
+          ...(part.timing === undefined ? {} : { timing: part.timing }),
+          ...(parallelGroup === undefined
+            ? {}
+            : {
+                parallelGroup: {
+                  key: parallelGroup.batchId,
+                  size: parallelGroup.batchSize,
+                },
+              }),
         });
         break;
       }

@@ -10,15 +10,18 @@ import { isSharedMessagePartLeaf, MessagePartLeaf } from "../assistant-ui/messag
 import { useI18n } from "../i18n";
 import { useConversationNode } from "@workbench/agent-runtime-client";
 import {
-  MessagePartRendererHost,
-  MessageRendererHost,
-} from "@workbench/extension-host/hosts/renderer-host";
+  LegacyMessagePartRendererHost,
+  LegacyMessageRendererHost,
+  LegacyToolDataRenderer,
+} from "../assistant-ui/renderer-compat";
 
 import {
   WorkbenchMessageFileBlock,
+  WorkbenchMessageDataBlock,
   WorkbenchMessageReasoningBlock,
   WorkbenchMessageSourceBlock,
   WorkbenchMessageTextBlock,
+  WorkbenchMessageToolBlock,
 } from "./renderers/message-blocks";
 import { WorkbenchComposerMessageText } from "./composer-message-text";
 
@@ -64,7 +67,7 @@ function DefaultWorkbenchMessageParts() {
                 />
               );
               return role === "assistant" ? (
-                <MessagePartRendererHost part={part} fallback={fallback} />
+                <LegacyMessagePartRendererHost part={part} fallback={fallback} />
               ) : (
                 fallback
               );
@@ -72,7 +75,7 @@ function DefaultWorkbenchMessageParts() {
 
             if (role === "user") return <WorkbenchComposerMessageText text={part.text} />;
             const fallback = <p className="whitespace-pre-wrap">{part.text}</p>;
-            return <MessagePartRendererHost part={part} fallback={fallback} />;
+            return <LegacyMessagePartRendererHost part={part} fallback={fallback} />;
           }
           case "reasoning":
             return block?.kind === "reasoning" ? (
@@ -103,6 +106,33 @@ function DefaultWorkbenchMessageParts() {
                 sourceFallbackLabel={t("workbench.chat.sourceFallback")}
               />
             ) : null;
+          case "tool-call":
+          case "data":
+            return index !== undefined &&
+              ((part.type === "tool-call" && block?.kind === "tool-call") ||
+                (part.type === "data" && block?.kind === "data")) ? (
+              <LegacyToolDataRenderer
+                block={block}
+                partIndex={index}
+                fallback={
+                  block.kind === "tool-call" ? (
+                    <WorkbenchMessageToolBlock block={block} />
+                  ) : (
+                    <WorkbenchMessageDataBlock block={block} />
+                  )
+                }
+              />
+            ) : isSharedMessagePartLeaf(part) ? (
+              <MessagePartLeaf
+                part={part}
+                sourceFallbackLabel={t("workbench.chat.sourceFallback")}
+              />
+            ) : null;
+          case "generative-ui": {
+            const fallback =
+              block?.kind === "data" ? <WorkbenchMessageDataBlock block={block} /> : null;
+            return <LegacyMessagePartRendererHost part={part} fallback={fallback} />;
+          }
           default:
             return isSharedMessagePartLeaf(part) ? (
               <MessagePartLeaf
@@ -117,5 +147,5 @@ function DefaultWorkbenchMessageParts() {
 }
 
 export function WorkbenchMessageParts() {
-  return <MessageRendererHost fallback={<DefaultWorkbenchMessageParts />} />;
+  return <LegacyMessageRendererHost fallback={<DefaultWorkbenchMessageParts />} />;
 }

@@ -906,16 +906,20 @@ Shell 消息区域开始按 vertical slice 消费这些 hooks。
 | ---- | -------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
 | 4A   | 已完成（2026-09-03） | 生产消息列表改读 `nodeKeys`；增加 per-node `ConversationNodeSeat`；主会话和 Side Chat 绑定明确的 Headless Session      | Client/Testkit/Shell/Pi Contributions typecheck、Testkit 17 项测试 |
 | 4B   | 已完成（2026-09-03） | 将 text/Markdown、reasoning、source、file、image 和 error 改为直接消费 Workbench Node/Block                            | Shell 367 项、Pi Client 282 项测试；全仓 typecheck/build           |
-| 4C   | 下一步               | 迁移 tool/data timeline，并把尚未迁移的扩展呈现收敛到一个临时兼容入口                                                  | partial args、running/complete/error/requires-action 组件测试      |
-| 4D   | 待开始               | 用原生 Viewport/scroll state 替换 Thread primitives，锁定 bottom-follow、用户滚动和 prepend anchor，并对照退出条件收口 | scroll 组件测试、受影响 package 检查；有具体不确定性时 Browser     |
+| 4C   | 已完成（2026-09-03） | 迁移 tool/data timeline，并把尚未迁移的扩展呈现收敛到一个临时兼容入口                                                  | partial args、running/complete/error/requires-action 组件测试      |
+| 4D   | 下一步               | 用原生 Viewport/scroll state 替换 Thread primitives，锁定 bottom-follow、用户滚动和 prepend anchor，并对照退出条件收口 | scroll 组件测试、受影响 package 检查；有具体不确定性时 Browser     |
 
 4A 将列表顺序和 Node 更新改由同一个 `ConversationSession` 的 Headless snapshot/observable 驱动。
 4B 新增 `chat/renderers/message-blocks.tsx`，复用现有 Markdown、ReasoningPanel、File/Image 和 ErrorState
 视觉叶子；text、reasoning、source、file/image 与 error 的展示内容现在读取 Workbench Block，结构化引用
 也直接从 Block 布局生成。`FileBlock.sourceType` 和文档型 `SourceBlock` 保留了安全下载与文档引用所需语义。
 
-当前 assistant-ui 兼容入口只继续承担 4C 的 tool/data timeline 与扩展 renderer、Phase 5 的消息 actions，
-以及 4D 前的外层 Message/Thread primitive；后续切片在原位删除这些兼容调用，不建立第二套 store。
+4C 将 partial/raw arguments、running/complete/error/requires-action、timing 和并行分组统一投影到
+`ToolCallBlock`，tool/data timeline、chips、diff 和 activity 直接消费 Workbench Block；现有 tool/data
+扩展 renderer 与交互动作只经 `assistant-ui/renderer-compat.tsx` 这一处临时入口复用。
+
+当前 assistant-ui 兼容入口只继续承担 Phase 7 前的扩展 renderer、Phase 5 的消息 actions，以及 4D 前的
+外层 Message/Thread primitive；后续切片在原位删除这些兼容调用，不建立第二套 store。
 
 ### Phase 5：Composer、附件和消息 Actions
 
@@ -1088,8 +1092,8 @@ Browser/E2E 只用于静态和组件测试无法确认的高风险交互，例�
 第一批只完成 Runtime 地基，不改用户界面：
 
 当前进度：1–4 已随 Phase 1 完成，5–7 已随 Phase 2 完成；Phase 3 已补齐 React Provider、selector
-hooks，并把同一个 Pi manager/session 同时接入新旧 UI 边界。下一步从 Phase 4 开始 Conversation 与
-Message UI vertical slices。
+hooks，并把同一个 Pi manager/session 同时接入新旧 UI 边界。Phase 4 已完成 4A–4C，下一步以 4D
+替换外层 Thread primitives 和滚动状态。
 
 1. 新建 `packages/agent-runtime/core/runtime`；
 2. 定义最小 `HostObservable`、`Notifier`、`AgentRuntime` 和 `ConversationSession`；
