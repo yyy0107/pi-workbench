@@ -1,10 +1,14 @@
 "use client";
 
-import { ThreadPrimitive, useAuiState } from "@assistant-ui/react";
+import { useAui, useAuiState } from "@assistant-ui/react";
 import { ArrowDownIcon } from "lucide-react";
-import { useEffect, useState, type CSSProperties, type ReactNode, type Ref } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 
-import { SessionProvider } from "@workbench/agent-runtime-client";
+import {
+  SessionProvider,
+  useConversationSession,
+  useSessionState,
+} from "@workbench/agent-runtime-client";
 import { TooltipIconButton } from "../assistant-ui/tooltip-icon-button";
 import { TypingIndicator } from "../elements/typing-indicator";
 import { useI18n } from "../i18n";
@@ -23,8 +27,8 @@ import {
 } from "../layout";
 
 import { WorkbenchEmpty } from "./workbench-empty";
-import { WorkbenchConversationViewportScope } from "./workbench-conversation-viewport-scope";
 import { ConversationList } from "./conversation-list";
+import { useWorkbenchConversationViewport } from "./workbench-conversation-viewport";
 import {
   agentAutoRetryStatus,
   agentRunTiming,
@@ -155,49 +159,72 @@ export interface WorkbenchConversationProps {
   composerDock?: ReactNode;
   /** Whether loading the current runtime should replace messages with the history indicator. */
   showHistoryLoading?: boolean;
-  viewportRef?: Ref<HTMLDivElement>;
-  frameRef?: Ref<HTMLDivElement>;
   composerDockInset?: number;
   autoScroll?: boolean;
   scrollToBottomOnInitialize?: boolean;
-  scrollToBottomOnThreadSwitch?: boolean;
   rootClassName?: string;
   rootDataSurface?: string;
+}
+
+function useStopSpeechOnEscape() {
+  const aui = useAui();
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented || aui.thread.source === null) return;
+      if (aui.thread.getState().speech == null) return;
+      event.preventDefault();
+      try {
+        aui.thread.stopSpeaking();
+      } catch (error) {
+        if (!(error instanceof Error) || error.message !== "No message is being spoken")
+          throw error;
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [aui]);
 }
 
 /**
  * Runtime-scoped Workbench conversation UI shared by the central MainView and nested surfaces.
  *
- * Routing, persistent scroll restoration, and Composer Dock measurement are deliberately supplied
- * by the host. Everything below reads messages and actions only from the nearest assistant-ui
- * Runtime provider.
+ * Routing and Composer Dock measurement are supplied by the host. Conversation structure and
+ * scrolling read the Headless Session; assistant-ui remains only for unmigrated actions/renderers.
  */
-export function WorkbenchConversation({
+function WorkbenchConversationContent({
   threadId,
-  sessionId,
   hostContent,
   emptyComposer,
   composerDock,
   showHistoryLoading = false,
-  viewportRef,
-  frameRef,
   composerDockInset = 138,
   autoScroll,
   scrollToBottomOnInitialize = false,
-  scrollToBottomOnThreadSwitch = false,
   rootClassName,
   rootDataSurface = "thread",
-}: WorkbenchConversationProps) {
+}: Omit<WorkbenchConversationProps, "sessionId">) {
   const { t } = useI18n();
-  const isEmpty = useAuiState((state) => state.thread.isEmpty);
-  const isThreadLoading = useAuiState((state) => state.thread.isLoading);
-  const isRunning = useAuiState((state) => state.thread.isRunning);
+  const session = useConversationSession();
+  const nodeKeys = useSessionState((snapshot) => snapshot.nodeKeys);
+  const isThreadLoading = useSessionState((snapshot) => snapshot.isLoading);
+  const isRunning = useSessionState((snapshot) => snapshot.isRunning);
+  const isEmpty = nodeKeys.length === 0;
   const isHistoryLoading = showHistoryLoading && isThreadLoading;
   const hasDockedComposer = Boolean(composerDock) && (!isEmpty || isHistoryLoading);
   const slotContext = { threadId };
+  const viewport = useWorkbenchConversationViewport({
+    autoScroll: autoScroll ?? isRunning,
+    isRunning,
+    nodeKeys,
+    scrollToBottomOnInitialize,
+    sessionId: session.id,
+  });
+  useStopSpeechOnEscape();
 
   return (
-    <ThreadPrimitive.Root
+    <div
       data-workbench-surface={rootDataSurface}
       className={cn("bg-background relative flex h-full min-h-0 min-w-0 text-base", rootClassName)}
       style={
@@ -220,125 +247,119 @@ export function WorkbenchConversation({
         className="flex h-full min-h-0 shrink-0 flex-col empty:hidden"
       />
 
-      <WorkbenchConversationViewportScope>
+      <div
+        className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-x-clip [container-type:inline-size]"
+        style={
+          {
+            "--composer-dock-inset": `${composerDockInset}px`,
+            "--composer-dock-bottom-gap": "1rem",
+            "--composer-dock-top-gap": "0.5rem",
+            "--composer-dock-content-top-inset":
+              "calc(var(--composer-dock-inset) - var(--composer-dock-top-gap))",
+            "--composer-dock-corner-radius": "var(--composer-inner-radius, 1.375rem)",
+            "--thread-header-fade-size": "1.375rem",
+            "--thread-viewport-inline-padding": `${THREAD_CONTENT_COMPACT_GUTTER_PX}px`,
+          } as CSSProperties
+        }
+      >
+        <SlotHost
+          name="thread.header"
+          context={slotContext}
+          className="flex shrink-0 items-center gap-2 border-b px-4 empty:hidden"
+        />
+
         <div
-          ref={frameRef}
-          className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-x-clip [container-type:inline-size]"
+          ref={viewport.viewportRef}
+          data-slot="conversation-viewport"
+          className={cn(
+            "relative flex min-h-0 flex-1 scroll-smooth flex-col overflow-x-hidden overflow-y-auto motion-reduce:scroll-auto [overflow-anchor:none] [padding-inline:var(--thread-viewport-inline-padding)] [scrollbar-gutter:stable_both-edges]",
+            hasDockedComposer
+              ? "[margin-bottom:var(--composer-dock-content-top-inset)] [padding-top:var(--thread-header-fade-size)] [padding-bottom:var(--composer-dock-corner-radius)]"
+              : "pt-4",
+          )}
           style={
-            {
-              "--composer-dock-inset": `${composerDockInset}px`,
-              "--composer-dock-bottom-gap": "1rem",
-              "--composer-dock-top-gap": "0.5rem",
-              "--composer-dock-content-top-inset":
-                "calc(var(--composer-dock-inset) - var(--composer-dock-top-gap))",
-              "--composer-dock-corner-radius": "var(--composer-inner-radius, 1.375rem)",
-              "--thread-header-fade-size": "1.375rem",
-              "--thread-viewport-inline-padding": `${THREAD_CONTENT_COMPACT_GUTTER_PX}px`,
-            } as CSSProperties
+            hasDockedComposer
+              ? {
+                  scrollbarColor: "var(--scrollbar-thumb) transparent",
+                  WebkitMaskImage: THREAD_VIEWPORT_MASK_IMAGE,
+                  maskImage: THREAD_VIEWPORT_MASK_IMAGE,
+                  WebkitMaskPosition: "left top, right top",
+                  maskPosition: "left top, right top",
+                  WebkitMaskRepeat: "no-repeat",
+                  maskRepeat: "no-repeat",
+                  WebkitMaskSize: THREAD_VIEWPORT_MASK_SIZE,
+                  maskSize: THREAD_VIEWPORT_MASK_SIZE,
+                }
+              : undefined
           }
         >
           <SlotHost
-            name="thread.header"
+            name="thread.before"
             context={slotContext}
-            className="flex shrink-0 items-center gap-2 border-b px-4 empty:hidden"
+            className={cn(
+              THREAD_VIEWPORT_CONTENT_WIDTH_CLASS_NAME,
+              "mx-auto flex flex-col gap-2 [overflow-anchor:none]",
+            )}
           />
 
-          <ThreadPrimitive.Viewport
-            ref={viewportRef}
-            turnAnchor="bottom"
-            autoScroll={autoScroll ?? isRunning}
-            scrollToBottomOnInitialize={scrollToBottomOnInitialize}
-            scrollToBottomOnRunStart
-            scrollToBottomOnThreadSwitch={scrollToBottomOnThreadSwitch}
+          {isHistoryLoading ? (
+            <ThreadHistoryLoading />
+          ) : (
+            <>
+              {isEmpty ? <WorkbenchEmpty>{emptyComposer}</WorkbenchEmpty> : null}
+              <ConversationList renderWorkingStatus={() => <AssistantWorkingStatus />} />
+            </>
+          )}
+
+          <SlotHost
+            name="thread.after"
+            context={slotContext}
             className={cn(
-              "relative flex min-h-0 flex-1 scroll-smooth flex-col overflow-x-hidden overflow-y-auto motion-reduce:scroll-auto [overflow-anchor:none] [padding-inline:var(--thread-viewport-inline-padding)] [scrollbar-gutter:stable_both-edges]",
-              hasDockedComposer
-                ? "[margin-bottom:var(--composer-dock-content-top-inset)] [padding-top:var(--thread-header-fade-size)] [padding-bottom:var(--composer-dock-corner-radius)]"
-                : "pt-4",
+              THREAD_VIEWPORT_CONTENT_WIDTH_CLASS_NAME,
+              "mx-auto flex flex-col gap-2 [overflow-anchor:none]",
             )}
-            style={
-              hasDockedComposer
-                ? {
-                    scrollbarColor: "var(--scrollbar-thumb) transparent",
-                    WebkitMaskImage: THREAD_VIEWPORT_MASK_IMAGE,
-                    maskImage: THREAD_VIEWPORT_MASK_IMAGE,
-                    WebkitMaskPosition: "left top, right top",
-                    maskPosition: "left top, right top",
-                    WebkitMaskRepeat: "no-repeat",
-                    maskRepeat: "no-repeat",
-                    WebkitMaskSize: THREAD_VIEWPORT_MASK_SIZE,
-                    maskSize: THREAD_VIEWPORT_MASK_SIZE,
-                  }
-                : undefined
-            }
-          >
-            <SlotHost
-              name="thread.before"
-              context={slotContext}
-              className={cn(
-                THREAD_VIEWPORT_CONTENT_WIDTH_CLASS_NAME,
-                "mx-auto flex flex-col gap-2 [overflow-anchor:none]",
-              )}
-            />
-
-            {isHistoryLoading ? (
-              <ThreadHistoryLoading />
-            ) : (
-              <>
-                <ThreadPrimitive.Empty>
-                  <WorkbenchEmpty>{emptyComposer}</WorkbenchEmpty>
-                </ThreadPrimitive.Empty>
-
-                <SessionProvider sessionId={sessionId}>
-                  <ConversationList renderWorkingStatus={() => <AssistantWorkingStatus />} />
-                </SessionProvider>
-              </>
-            )}
-
-            <SlotHost
-              name="thread.after"
-              context={slotContext}
-              className={cn(
-                THREAD_VIEWPORT_CONTENT_WIDTH_CLASS_NAME,
-                "mx-auto flex flex-col gap-2 [overflow-anchor:none]",
-              )}
-            />
-          </ThreadPrimitive.Viewport>
-
-          {!isEmpty ? (
-            <ThreadPrimitive.ScrollToBottom
-              behavior={isRunning ? "instant" : "auto"}
-              render={
-                <TooltipIconButton
-                  tooltip={t("workbench.chat.scrollLatest")}
-                  variant="outline"
-                  size="icon"
-                  className="bg-background absolute bottom-[calc(var(--composer-dock-inset)+0.5rem)] left-1/2 z-30 size-8 -translate-x-1/2 rounded-full shadow-sm disabled:invisible"
-                />
-              }
-            >
-              {isRunning ? (
-                <TypingIndicator
-                  label={t("workbench.chat.scrollLatest")}
-                  variant="bare"
-                  aria-hidden="true"
-                  className="scale-75"
-                />
-              ) : (
-                <ArrowDownIcon className="size-4" />
-              )}
-            </ThreadPrimitive.ScrollToBottom>
-          ) : null}
-
-          {hasDockedComposer ? composerDock : null}
+          />
         </div>
-      </WorkbenchConversationViewportScope>
+
+        {!isEmpty ? (
+          <TooltipIconButton
+            type="button"
+            tooltip={t("workbench.chat.scrollLatest")}
+            variant="outline"
+            size="icon"
+            disabled={viewport.isAtBottom}
+            onClick={() => viewport.scrollToBottom(isRunning ? "instant" : "auto")}
+            className="bg-background absolute bottom-[calc(var(--composer-dock-inset)+0.5rem)] left-1/2 z-30 size-8 -translate-x-1/2 rounded-full shadow-sm disabled:invisible"
+          >
+            {isRunning ? (
+              <TypingIndicator
+                label={t("workbench.chat.scrollLatest")}
+                variant="bare"
+                aria-hidden="true"
+                className="scale-75"
+              />
+            ) : (
+              <ArrowDownIcon className="size-4" />
+            )}
+          </TooltipIconButton>
+        ) : null}
+
+        {hasDockedComposer ? composerDock : null}
+      </div>
 
       <SlotHost
         name="thread.right"
         context={slotContext}
         className="flex h-full min-h-0 shrink-0 flex-col empty:hidden"
       />
-    </ThreadPrimitive.Root>
+    </div>
+  );
+}
+
+export function WorkbenchConversation({ sessionId, ...props }: WorkbenchConversationProps) {
+  return (
+    <SessionProvider sessionId={sessionId}>
+      <WorkbenchConversationContent {...props} />
+    </SessionProvider>
   );
 }

@@ -185,7 +185,9 @@ export function ThreadScrollStateProvider({
 export function useThreadScrollState(): ThreadScrollState {
   const state = useContext(ThreadScrollStateContext);
   if (!state) {
-    throw new Error("MainConversationHost must be rendered within its WorkbenchShell installation");
+    throw new Error(
+      "WorkbenchConversation must be rendered within its WorkbenchShell installation",
+    );
   }
   return state;
 }

@@ -2,6 +2,7 @@
 
 import {
   MessagePrimitive,
+  ThreadPrimitive,
   useAuiState,
   type DataMessagePart,
   type DataMessagePartComponent,
@@ -9,7 +10,7 @@ import {
   type ToolCallMessagePart,
   type ToolCallMessagePartComponent,
 } from "@assistant-ui/react";
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 
 import type { DataBlock, ToolCallBlock } from "@workbench/agent-runtime-contracts/conversation";
 import {
@@ -41,6 +42,12 @@ export function legacyDataPresentationPart(block: DataBlock): DataMessagePart {
 
 export function LegacyMessageRendererHost({ fallback }: Readonly<{ fallback: ReactNode }>) {
   return <MessageRendererHost fallback={fallback} />;
+}
+
+export function LegacyConversationMessageByIndex(
+  props: ComponentProps<typeof ThreadPrimitive.MessageByIndex>,
+) {
+  return <ThreadPrimitive.MessageByIndex {...props} />;
 }
 
 export function LegacyMessagePartRendererHost({

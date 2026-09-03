@@ -1,7 +1,6 @@
 "use client";
 
 import { memo, useMemo, type ReactNode } from "react";
-import { ThreadPrimitive } from "@assistant-ui/react";
 
 import {
   useConversationNode,
@@ -28,6 +27,7 @@ import {
   WorkbenchUserMessage,
 } from "./workbench-message";
 import { WorkbenchConversationError } from "./renderers/message-blocks";
+import { LegacyConversationMessageByIndex } from "../assistant-ui/renderer-compat";
 
 interface ConversationRow {
   readonly createdAt: number;
@@ -74,8 +74,12 @@ export const ConversationNodeSeat = memo(function ConversationNodeSeat({
   }
 
   return (
-    <div data-conversation-node-key={node.key} data-conversation-node-kind={node.kind}>
-      <ThreadPrimitive.MessageByIndex index={index} components={messageComponents} />
+    <div
+      data-message-id={node.key}
+      data-conversation-node-key={node.key}
+      data-conversation-node-kind={node.kind}
+    >
+      <LegacyConversationMessageByIndex index={index} components={messageComponents} />
     </div>
   );
 });

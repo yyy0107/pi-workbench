@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ComposerPrimitive, MessagePrimitive, useAui, useAuiState } from "@assistant-ui/react";
+import { ComposerPrimitive, useAui, useAuiState } from "@assistant-ui/react";
 
 import { ComposerAttachments } from "../assistant-ui/attachment";
 import {
@@ -228,10 +228,7 @@ export function WorkbenchUserMessage() {
   const [animateOnMount] = useState(isOptimistic);
 
   return (
-    <MessagePrimitive.Root
-      data-role="user"
-      className="group/message flex w-full min-w-0 flex-col items-end gap-1.5"
-    >
+    <div data-role="user" className="group/message flex w-full min-w-0 flex-col items-end gap-1.5">
       <MessageSlot name="message.before" />
       <div
         className={cn(
@@ -244,7 +241,7 @@ export function WorkbenchUserMessage() {
       </div>
       <WorkbenchMessageActions className="justify-end" />
       <MessageSlot name="message.after" />
-    </MessagePrimitive.Root>
+    </div>
   );
 }
 
@@ -252,7 +249,7 @@ export function WorkbenchAssistantMessage() {
   const preferUpward = useAuiState((state) => state.thread.isRunning && state.message.isLast);
 
   return (
-    <MessagePrimitive.Root data-role="assistant" className="w-full min-w-0">
+    <div data-role="assistant" className="w-full min-w-0">
       <DisclosureScrollDirectionProvider preferUpward={preferUpward}>
         <MessageSlot name="message.before" />
         <div className="min-w-0 break-words leading-relaxed [overflow-anchor:none]">
@@ -262,7 +259,7 @@ export function WorkbenchAssistantMessage() {
         </div>
         <MessageSlot name="message.after" />
       </DisclosureScrollDirectionProvider>
-    </MessagePrimitive.Root>
+    </div>
   );
 }
 
@@ -291,14 +288,14 @@ export function WorkbenchSystemMessage() {
 
   if (commandResponse?.commandId === "compact") {
     return (
-      <MessagePrimitive.Root className="w-full py-0.5">
+      <div className="w-full py-0.5">
         <MessageSlot name="message.before" />
         <WorkbenchComposerCommandResponse
           response={commandResponse}
           compactionDetail={compactionDetail}
         />
         <MessageSlot name="message.after" />
-      </MessagePrimitive.Root>
+      </div>
     );
   }
 
@@ -314,7 +311,7 @@ export function WorkbenchSystemMessage() {
             .join("/")
         : undefined;
     return (
-      <MessagePrimitive.Root className="w-full py-0.5">
+      <div className="w-full py-0.5">
         <MessageSlot name="message.before" />
         {conversationEvent.kind === "model-change" ? (
           <ModelChangeSeparator
@@ -342,22 +339,22 @@ export function WorkbenchSystemMessage() {
           />
         )}
         <MessageSlot name="message.after" />
-      </MessagePrimitive.Root>
+      </div>
     );
   }
 
   if (commandResponse) {
     return (
-      <MessagePrimitive.Root className="mx-auto w-full max-w-[var(--thread-content-max-width)] px-2 py-2">
+      <div className="mx-auto w-full max-w-[var(--thread-content-max-width)] px-2 py-2">
         <MessageSlot name="message.before" />
         <WorkbenchComposerCommandResponse response={commandResponse} />
         <MessageSlot name="message.after" />
-      </MessagePrimitive.Root>
+      </div>
     );
   }
 
   return (
-    <MessagePrimitive.Root className="mx-auto w-full max-w-[var(--thread-content-max-width)] px-2 py-2">
+    <div className="mx-auto w-full max-w-[var(--thread-content-max-width)] px-2 py-2">
       <MessageSlot name="message.before" />
       <div
         data-workbench-glass-surface=""
@@ -366,7 +363,7 @@ export function WorkbenchSystemMessage() {
         <WorkbenchMessageParts />
       </div>
       <MessageSlot name="message.after" />
-    </MessagePrimitive.Root>
+    </div>
   );
 }
 
@@ -374,7 +371,7 @@ export function WorkbenchEditComposer() {
   const { t } = useI18n();
 
   return (
-    <MessagePrimitive.Root className="w-full min-w-0">
+    <div className="w-full min-w-0">
       <ComposerPrimitive.Root className="flex w-full flex-col gap-2">
         <ComposerAttachments />
         <ComposerPrimitive.Input
@@ -391,6 +388,6 @@ export function WorkbenchEditComposer() {
           </ComposerPrimitive.Send>
         </div>
       </ComposerPrimitive.Root>
-    </MessagePrimitive.Root>
+    </div>
   );
 }
