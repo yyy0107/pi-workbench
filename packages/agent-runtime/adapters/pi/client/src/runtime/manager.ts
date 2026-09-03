@@ -516,6 +516,10 @@ export class PiClientSession {
   private remoteIdValue?: string;
   private baseMessages: ThreadMessage[] = [];
   private baseMessageRepository: ExportedMessageRepository = { headId: null, messages: [] };
+  private baseMessageRepositoryIndex?: {
+    repository: ExportedMessageRepository;
+    byId: ReadonlyMap<string, number>;
+  };
   private branchLeafByHeadMessageId = new Map<string, string>();
   private branchSwitchTask?: Promise<void>;
   private liveMessages: ThreadMessage[] = [];
@@ -2297,18 +2301,34 @@ export class PiClientSession {
       if (pendingSteerIndex < 0) liveMessages.push(this.streamingMessage);
       else liveMessages.splice(pendingSteerIndex, 0, this.streamingMessage);
     }
-    const messages = coalesceConsecutiveAssistantMessages([...this.baseMessages, ...liveMessages]);
-    return messages.map((message, index) => {
+    // History is already coalesced when it becomes the base. A live assistant can only merge
+    // with the final base turn, so keep every older turn referentially stable while streaming.
+    const baseTailStart =
+      liveMessages.length === 0 || liveMessages[0]?.role === "user"
+        ? this.baseMessages.length
+        : Math.max(
+            0,
+            this.baseMessages.findLastIndex((message) => message.role === "user"),
+          );
+    const messages = this.baseMessages.slice(0, baseTailStart);
+    messages.push(
+      ...coalesceConsecutiveAssistantMessages([
+        ...this.baseMessages.slice(baseTailStart),
+        ...liveMessages,
+      ]),
+    );
+    for (let index = Math.max(0, baseTailStart - 1); index < messages.length; index += 1) {
+      const message = messages[index];
       const nextMessage = messages[index + 1];
       if (
-        message.role !== "assistant" ||
+        message?.role !== "assistant" ||
         nextMessage?.role !== "user" ||
         nextMessage.metadata.custom.piSteering !== true
       ) {
-        return message;
+        continue;
       }
 
-      return {
+      messages[index] = {
         ...message,
         metadata: {
           ...message.metadata,
@@ -2319,14 +2339,24 @@ export class PiClientSession {
           },
         },
       };
-    });
+    }
+    return messages;
   }
 
   private currentMessageRepository(
     currentMessages: readonly ThreadMessage[],
   ): ExportedMessageRepository {
-    const messages = this.baseMessageRepository.messages.map((item) => ({ ...item }));
-    const byId = new Map(messages.map((item) => [item.message.id, item]));
+    const baseRepository = this.baseMessageRepository;
+    let baseIndex = this.baseMessageRepositoryIndex;
+    if (baseIndex?.repository !== baseRepository) {
+      baseIndex = {
+        repository: baseRepository,
+        byId: new Map(baseRepository.messages.map((item, index) => [item.message.id, index])),
+      };
+      this.baseMessageRepositoryIndex = baseIndex;
+    }
+    let messages: ExportedMessageRepository["messages"] | undefined;
+    const appendedIndexes = new Map<string, number>();
     let parentId: string | null = null;
 
     // assistant-ui treats messageRepository as authoritative when both repository and
@@ -2335,15 +2365,25 @@ export class PiClientSession {
     // model/tool cycle as a separate completed assistant response.
     for (const message of currentMessages) {
       const item = { message, parentId };
-      const existing = byId.get(message.id);
-      if (existing) Object.assign(existing, item);
-      else {
+      const existingIndex = baseIndex.byId.get(message.id) ?? appendedIndexes.get(message.id);
+      const existing =
+        existingIndex === undefined
+          ? undefined
+          : (messages ?? baseRepository.messages)[existingIndex];
+      if (existingIndex !== undefined && existing) {
+        if (existing.message !== message || existing.parentId !== parentId) {
+          messages ??= [...baseRepository.messages];
+          messages[existingIndex] = { ...existing, ...item };
+        }
+      } else {
+        messages ??= [...baseRepository.messages];
+        appendedIndexes.set(message.id, messages.length);
         messages.push(item);
-        byId.set(message.id, item);
       }
       parentId = message.id;
     }
-    return { headId: parentId, messages };
+    if (!messages && baseRepository.headId === parentId) return baseRepository;
+    return { headId: parentId, messages: messages ?? baseRepository.messages };
   }
 
   private firstPendingSteeringMessageIndex(messages: readonly ThreadMessage[]): number {

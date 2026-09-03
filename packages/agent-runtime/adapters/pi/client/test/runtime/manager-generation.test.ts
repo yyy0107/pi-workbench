@@ -689,6 +689,87 @@ test("coalesces internal assistant cycles in the active message repository", (t)
   assert.equal(completedMessages.at(-1)?.status?.type, "complete");
 });
 
+test("keeps settled history identities stable across streamed tail updates", (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("remote-session", "remote-session");
+  const firstUser: ThreadMessage = {
+    id: "stable-user-1",
+    role: "user",
+    content: [{ type: "text", text: "First turn" }],
+    attachments: [],
+    createdAt: new Date(1_000),
+    metadata: { custom: {} },
+  };
+  const settledAssistant: ThreadMessage = {
+    id: "stable-assistant-1",
+    role: "assistant",
+    content: [{ type: "text", text: "Settled answer", status: { type: "complete" } }],
+    status: { type: "complete", reason: "stop" },
+    createdAt: new Date(2_000),
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      steps: [],
+      custom: {},
+    },
+  };
+  const activeUser: ThreadMessage = {
+    ...firstUser,
+    id: "stable-user-2",
+    content: [{ type: "text", text: "Second turn" }],
+    createdAt: new Date(3_000),
+  };
+  const streamingAssistant: ThreadMessage = {
+    ...settledAssistant,
+    id: "streaming-assistant",
+    content: [{ type: "text", text: "Partial", status: { type: "running" } }],
+    status: { type: "running" },
+    createdAt: new Date(4_000),
+  };
+  const internals = session as unknown as {
+    baseMessages: ThreadMessage[];
+    baseMessageRepository: ReturnType<typeof session.getSnapshot>["messageRepository"];
+    liveMessages: ThreadMessage[];
+    streamingMessage?: ThreadMessage;
+    publishMessages(): void;
+  };
+
+  internals.liveMessages = [firstUser, settledAssistant, activeUser];
+  internals.publishMessages();
+  const settled = session.getSnapshot();
+  internals.baseMessages = [...settled.messages];
+  internals.baseMessageRepository = settled.messageRepository;
+  internals.liveMessages = [];
+  internals.streamingMessage = streamingAssistant;
+
+  internals.publishMessages();
+  const firstFrame = session.getSnapshot();
+  internals.streamingMessage = {
+    ...streamingAssistant,
+    content: [{ type: "text", text: "Partial answer", status: { type: "running" } }],
+  };
+  internals.publishMessages();
+  const secondFrame = session.getSnapshot();
+
+  assert.equal(secondFrame.messages[0], firstFrame.messages[0]);
+  assert.equal(secondFrame.messages[1], firstFrame.messages[1]);
+  assert.equal(
+    secondFrame.messageRepository.messages.find(
+      ({ message }) => message.id === settledAssistant.id,
+    ),
+    firstFrame.messageRepository.messages.find(({ message }) => message.id === settledAssistant.id),
+  );
+  assert.notEqual(secondFrame.messages.at(-1), firstFrame.messages.at(-1));
+  const streamedPart = secondFrame.messages.at(-1)?.content[0];
+  assert.equal(streamedPart?.type === "text" ? streamedPart.text : undefined, "Partial answer");
+
+  internals.streamingMessage = undefined;
+  internals.publishMessages();
+  assert.equal(session.getSnapshot().messageRepository, settled.messageRepository);
+});
+
 test("maps regenerated assistant answers to sibling repository branches", (t) => {
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
