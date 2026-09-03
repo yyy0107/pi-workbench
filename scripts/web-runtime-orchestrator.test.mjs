@@ -7,6 +7,8 @@ import { RuntimeConnectedWebMode } from "@workbench/host-contracts/runtime-conne
 
 import workbenchPaths from "./workbench-paths.cjs";
 import {
+  createDevelopmentRuntimeLaunchConfiguration,
+  createDevelopmentWebLaunchConfiguration,
   parseWebRuntimeOrchestratorOptions,
   runManagedWebRuntime,
 } from "./web-runtime-orchestrator.mjs";
@@ -28,6 +30,25 @@ function cleanShutdown(events, owner) {
     return { forced: false, errors: [] };
   };
 }
+
+test("passes portable file URLs to Node --import", () => {
+  const launches = [
+    createDevelopmentWebLaunchConfiguration({
+      paths,
+      mode: RuntimeConnectedWebMode.production,
+      webOrigin: "http://127.0.0.1:43127",
+    }),
+    createDevelopmentRuntimeLaunchConfiguration({
+      paths,
+      mode: RuntimeConnectedWebMode.production,
+    }),
+  ];
+
+  for (const launch of launches) {
+    assert.deepEqual(launch.args.slice(0, 1), ["--import"]);
+    assert.match(launch.args[1], /^file:\/\//u);
+  }
+});
 
 test("parses one explicit browser mode and optional managed-owner registration", () => {
   assert.deepEqual(
