@@ -14,7 +14,7 @@ Use Pi AI as the provider-neutral model, message, streaming, tool-schema, authen
 3. Read [references/source-routing.md](references/source-routing.md) before choosing an import. Resolve the installed package version and export map first.
 4. Read [references/models-providers-auth.md](references/models-providers-auth.md) for model lookup, provider composition, custom providers, dynamic catalogs, authentication, or reasoning options.
 5. Read [references/messages-streams-tools-images.md](references/messages-streams-tools-images.md) for contexts, message/event protocols, reducers, tool calls, image input, or image generation.
-6. Also use `pi-coding-agent-sdk` when the change constructs a coding-agent session, uses `ModelRuntime`, or registers a Pi extension. Use the assistant-ui `streaming` skill only when the task additionally changes assistant-ui's own wire protocol.
+6. Also use `pi-coding-agent-sdk` when the change constructs a coding-agent session, uses `ModelRuntime`, or registers a Pi extension. If the task touches remaining assistant-ui compatibility code, follow [`docs/assistant-ui-removal-and-custom-runtime-plan.md`](../../../docs/assistant-ui-removal-and-custom-runtime-plan.md) and do not expand that surface.
 
 ## Follow the implementation workflow
 
