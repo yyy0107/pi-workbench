@@ -8,6 +8,10 @@ import { RunningThreadIndicator } from "../../../elements/running-thread-indicat
 import { Button } from "../../../ui/button";
 import { DropdownMenu, DropdownMenuRadioGroup } from "../../../ui/dropdown-menu";
 import {
+  SettingsGroup as SharedSettingsGroup,
+  SettingsRow as SharedSettingsRow,
+} from "../../../ui/settings-layout";
+import {
   SettingsDropdownContent,
   SettingsDropdownItem,
   SettingsDropdownRadioItem,
@@ -79,31 +83,15 @@ function SettingGroup({
   showHeading?: boolean;
   children: ReactNode;
 }) {
-  const hasHeading = showHeading && Boolean(title);
   return (
-    <section className="py-5 first:pt-1 last:pb-3">
-      {hasHeading ? (
-        <div>
-          <h3 className="text-sm font-medium">{title}</h3>
-          {description ? (
-            <p className="text-muted-foreground mt-1 text-sm leading-5">{description}</p>
-          ) : null}
-        </div>
-      ) : null}
-      <div
-        className={
-          layout === "cards"
-            ? hasHeading
-              ? "mt-4 space-y-6"
-              : "space-y-6"
-            : hasHeading
-              ? "mt-4 divide-y"
-              : "divide-y"
-        }
-      >
-        {children}
-      </div>
-    </section>
+    <SharedSettingsGroup
+      title={showHeading ? title : undefined}
+      description={showHeading ? description : undefined}
+      className="my-5 first:mt-1 last:mb-3"
+      contentClassName={layout === "cards" ? "space-y-6 divide-y-0 p-4" : undefined}
+    >
+      {children}
+    </SharedSettingsGroup>
   );
 }
 
@@ -141,29 +129,22 @@ function SettingRow({
   children: ReactNode;
 }) {
   return (
-    <div
-      className={
+    <SharedSettingsRow
+      label={label}
+      description={description}
+      className={cn(
+        "min-h-14 px-4 sm:gap-8",
         wideControl
-          ? "grid min-h-14 gap-2 py-3 sm:grid-cols-[minmax(0,1fr)_minmax(20rem,26rem)] sm:items-center sm:gap-8"
-          : "grid min-h-14 gap-2 py-3 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,15rem)] sm:items-center sm:gap-8"
-      }
+          ? "sm:grid-cols-[minmax(0,1fr)_minmax(20rem,26rem)]"
+          : "sm:grid-cols-[minmax(0,1fr)_minmax(12rem,15rem)]",
+      )}
+      controlClassName={cn(
+        "flex min-w-0 w-full justify-end justify-self-end",
+        wideControl ? undefined : "sm:w-60",
+      )}
     >
-      <div className="min-w-0">
-        <div className="text-sm">{label}</div>
-        {description ? (
-          <p className="text-muted-foreground mt-0.5 text-xs leading-4">{description}</p>
-        ) : null}
-      </div>
-      <div
-        className={
-          wideControl
-            ? "flex min-w-0 w-full justify-end justify-self-end"
-            : "flex min-w-0 w-full justify-end justify-self-end sm:w-60"
-        }
-      >
-        {children}
-      </div>
-    </div>
+      {children}
+    </SharedSettingsRow>
   );
 }
 

@@ -8,13 +8,13 @@ import type { Disposable } from "./disposable";
 /**
  * Workbench 可承载 Panel 的区域。
  *
- * `left`、`right`、`bottom` 是稳定布局协议，不应本地化。当前右侧区域支持标签页；具体 chrome、
- * 折叠和 resize 行为由 Workbench Host 管理，而不是 Panel 内容组件管理。
+ * `left`、`bottom` 是稳定布局协议，不应本地化。持久化 Inspector 使用 Workspace Surface，
+ * 不属于 Panel。
  */
-export type PanelLocation = "left" | "right" | "bottom";
+export type PanelLocation = "left" | "bottom";
 
 /** PanelLocation 的运行时枚举，用于校验、遍历和 UI 选项。 */
-export const PANEL_LOCATIONS = ["left", "right", "bottom"] as const;
+export const PANEL_LOCATIONS = ["left", "bottom"] as const;
 
 /**
  * Workbench 挂载 Panel 内容组件时传入的 props。
@@ -29,7 +29,7 @@ export interface PanelComponentProps {
 }
 
 /**
- * 自定义右侧 Panel 标签内容收到的只读状态。
+ * 自定义 Panel 标签内容收到的只读状态。
  *
  * 标签组件应只输出图标、标题等非交互内容；外层选中、关闭和键盘交互仍由 Host 所有。
  */

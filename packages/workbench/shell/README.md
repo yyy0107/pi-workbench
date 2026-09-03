@@ -12,10 +12,8 @@ web, desktop, and future hosts. Its finite public entries are grouped by respons
   `./i18n/runtime` is the server-safe finite entry with no React Provider/client module. Product and
   runtime packages retain their own bilingual catalogs and inject them at composition.
 - `./settings`, `./appearance`, and `./extensions` own generic preferences and semantic extension
-  groups (`core`, `settings`, and `workspace`). `createSettingsExtension` accepts the optional
-  product-specific Settings header action. Component-extension enablement is deliberately one
-  persisted realm-wide preference shared by every Shell installation, not per-installation UI
-  state.
+  groups (`core`, `settings`, and `workspace`). Product-specific Settings actions are registered by
+  their owning extensions, while the Shell Settings extension remains static.
 - `./panels` exposes `createPanelStore`; application composition creates one store per Workbench
   installation instead of sharing process-global panel state.
 - `./presentation` and `./running-indicator` accept explicit branding, asset roots, and an immutable

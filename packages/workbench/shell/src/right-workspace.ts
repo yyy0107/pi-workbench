@@ -37,11 +37,7 @@ export {
   shouldCollapseRightWorkspaceBeforeSidebar,
 } from "./right-workspace/right-workspace-layout";
 export type { RightWorkspacePresentation } from "./right-workspace/right-workspace-layout";
-export {
-  nextWorkspaceTabIndex,
-  workspaceTabId,
-  workspaceTabPanelId,
-} from "./right-workspace/workspace-tab-a11y";
+export { workspaceTabId, workspaceTabPanelId } from "./right-workspace/workspace-tab-a11y";
 export { workspaceTabScrollDelta } from "./right-workspace/workspace-tab-layout";
 export { applyRightWorkspaceResizePreview } from "./right-workspace/workspace-resize-preview";
 export {

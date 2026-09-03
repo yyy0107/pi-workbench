@@ -12,7 +12,7 @@ import {
   PinOffIcon,
 } from "lucide-react";
 
-import { collapsePanel } from "../elements/surfaces";
+import { collapsePanel } from "../ui/surface";
 import { Button } from "../ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";

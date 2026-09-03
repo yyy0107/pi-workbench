@@ -57,7 +57,7 @@ const HOST_ROOT_RUNTIME_IMPORTS = new Set([
   "usePanelRegistry",
   "usePanelService",
   "useSettingsRegistry",
-  "useWorkbenchExtensions",
+  "useSidebarSectionRegistry",
 ]);
 const IGNORED_SOURCE_DIRECTORIES = new Set([".git", ".next", "coverage", "dist", "node_modules"]);
 
@@ -179,7 +179,7 @@ test("all business extension modules use only public SDK contracts and Host runt
   const violations: string[] = [];
 
   for (const sourcePath of [...BUILTIN_ROOTS, INSTALLABLE_ROOT].flatMap(sourceFiles)) {
-    const sourceRelative = relative(PROJECT_ROOT, sourcePath);
+    const sourceRelative = relative(PROJECT_ROOT, sourcePath).replaceAll("\\", "/");
     for (const specifier of moduleSpecifiers(sourcePath)) {
       if (
         specifier.startsWith("@workbench/extension-") &&
@@ -306,7 +306,7 @@ test("only Shell i18n infrastructure imports the opaque SDK descriptor factory",
     ) {
       return [];
     }
-    const sourceRelative = relative(PROJECT_ROOT, sourcePath);
+    const sourceRelative = relative(PROJECT_ROOT, sourcePath).replaceAll("\\", "/");
     return allowed.has(sourceRelative) ? [] : [sourceRelative];
   });
 

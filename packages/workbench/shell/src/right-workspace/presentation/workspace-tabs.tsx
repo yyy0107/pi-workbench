@@ -1,5 +1,6 @@
 "use client";
 
+import { DirectionProvider } from "@base-ui/react/direction-provider";
 import { PanelsTopLeftIcon, PinIcon, XIcon } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -11,6 +12,7 @@ import {
   ContextMenuTrigger,
 } from "../../ui/context-menu";
 import { Button } from "../../ui/button";
+import { Tabs, TabsList, TabsTrigger } from "../../ui/tabs";
 import { useWorkbenchPortalContainer } from "../../ui/workbench-portal-container";
 import {
   Dialog,
@@ -25,13 +27,13 @@ import { useWorkbenchDomIds } from "../../dom";
 import { useReducedMotion } from "../../hooks/use-reduced-motion";
 import { cn } from "../../utils";
 import {
-  nextWorkspaceTabIndex,
   selectActiveSurface,
   selectContextSurfacesByPlacement,
   workspaceTabId,
   workspaceTabPanelId,
   workspaceTabScrollDelta,
 } from "../../right-workspace";
+import { workspaceTabDropPosition } from "../workspace-tab-layout";
 import {
   useRightWorkspace,
   useRightWorkspaceState,
@@ -113,14 +115,8 @@ function horizontalLayoutBounds(element: HTMLElement) {
 
 function horizontalDropPosition(clientX: number, element: HTMLElement): DropPosition {
   const bounds = horizontalLayoutBounds(element);
-  const beforeMidpoint = clientX < bounds.left + bounds.width / 2;
-  return getComputedStyle(element).direction === "rtl"
-    ? beforeMidpoint
-      ? "after"
-      : "before"
-    : beforeMidpoint
-      ? "before"
-      : "after";
+  const direction = getComputedStyle(element).direction === "rtl" ? "rtl" : "ltr";
+  return workspaceTabDropPosition(clientX, bounds.left, bounds.width, direction);
 }
 
 export function WorkspaceTabs() {
@@ -135,6 +131,7 @@ export function WorkspaceTabs() {
   const activeSurfaceId = selectActiveSurface(workspaceState, context)?.id ?? null;
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [pendingClose, setPendingClose] = useState<PendingSurfaceClose>();
+  const [tabDirection, setTabDirection] = useState<"ltr" | "rtl">("ltr");
   const draggingIdRef = useRef<string | null>(null);
   const pointerDragCandidate = useRef<PointerDragCandidate | null>(null);
   const suppressedClick = useRef<{ surfaceId: string; until: number } | null>(null);
@@ -155,20 +152,6 @@ export function WorkspaceTabs() {
   const surfaces = useMemo(
     () => selectContextSurfacesByPlacement(workspaceState, context, "primary"),
     [context, workspaceState],
-  );
-  const focusTabAt = useCallback(
-    (index: number) => {
-      const surface = surfaces[index];
-      if (!surface) return;
-      controller.focus(surface.id);
-      window.requestAnimationFrame(() => {
-        tabElements.current
-          .get(surface.id)
-          ?.querySelector<HTMLButtonElement>('[role="tab"]')
-          ?.focus();
-      });
-    },
-    [controller, surfaces],
   );
   const captureTabLayouts = useCallback(() => {
     const layouts = new Map<string, TabLayout>();
@@ -410,6 +393,13 @@ export function WorkspaceTabs() {
   }, []);
 
   useLayoutEffect(() => {
+    const element = tabListElement.current;
+    if (!element) return;
+    const nextDirection = getComputedStyle(element).direction === "rtl" ? "rtl" : "ltr";
+    setTabDirection((current) => (current === nextDirection ? current : nextDirection));
+  });
+
+  useLayoutEffect(() => {
     const candidate = pointerDragCandidate.current;
     if (candidate && draggingIdRef.current === candidate.surfaceId) {
       positionDragOverlay(candidate.lastClientX, candidate.lastClientY);
@@ -605,201 +595,191 @@ export function WorkspaceTabs() {
 
   return (
     <>
-      <div className="relative w-fit min-w-0 max-w-full flex-[0_1_auto] overflow-hidden">
-        <div
-          ref={tabListElement}
-          role="tablist"
-          aria-label={t("rightWorkspace.tabs")}
-          className="flex w-full min-w-0 items-center gap-1 overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          onPointerLeave={scheduleTabWidthRelease}
+      <DirectionProvider direction={tabDirection}>
+        <Tabs
+          value={activeSurfaceId}
+          onValueChange={(surfaceId) => {
+            if (typeof surfaceId === "string") controller.focus(surfaceId);
+          }}
+          className="relative w-fit min-w-0 max-w-full flex-[0_1_auto] overflow-hidden"
         >
-          {surfaces.map((surface, surfaceIndex) => {
-            const Icon = definitionByKind.get(surface.kind)?.icon ?? PanelsTopLeftIcon;
-            const active = surface.id === activeSurfaceId;
-            const canCloseToRight = surfaceIndex < surfaces.length - 1;
-            const canCloseOthers = surfaces.length > 1;
-            const title = text(surface.title);
-            return (
-              <ContextMenu key={surface.id}>
-                <ContextMenuTrigger
-                  ref={(element) => {
-                    if (element) tabElements.current.set(surface.id, element);
-                    else tabElements.current.delete(surface.id);
-                  }}
-                  role="presentation"
-                  data-state={active ? "active" : "inactive"}
-                  data-dragging={draggingId === surface.id ? "true" : undefined}
-                  className={cn(
-                    "group/tab text-muted-foreground hover:text-foreground data-[state=active]:[color:var(--control-state-foreground-selected)] after:bg-border/70 relative flex h-[var(--button-height-default)] w-40 min-w-20 max-w-40 flex-[1_1_10rem] select-none items-center rounded-[var(--button-radius)] text-xs transition-[background-color,color,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] before:pointer-events-none before:absolute before:inset-0 before:rounded-[var(--button-radius)] before:[background:var(--control-state-background-selected)] before:opacity-0 before:scale-[0.96] before:transition-[opacity,scale] before:duration-200 before:ease-[cubic-bezier(0.32,0.72,0,1)] before:content-[''] after:absolute after:inset-y-1.5 after:end-[-3px] after:w-px after:content-[''] hover:[background:var(--button-background-hover)] last:after:hidden hover:after:hidden focus-within:after:hidden motion-reduce:transition-none motion-reduce:before:transition-none data-[dragging=true]:cursor-grabbing data-[dragging=true]:opacity-25 data-[state=active]:before:opacity-100 data-[state=active]:before:scale-100 data-[state=active]:after:hidden",
-                    surfaces.length > 1 ? "cursor-grab active:cursor-grabbing" : "cursor-default",
-                  )}
-                  onPointerDown={(event) => {
-                    if (
-                      !event.isPrimary ||
-                      event.button !== 0 ||
-                      (event.target as Element).closest('[data-workspace-tab-close="true"]')
-                    ) {
-                      return;
-                    }
-
-                    // Selecting on press keeps tab activation independent from the drag gesture.
-                    // A small pointer movement may suppress the later click, but must not leave
-                    // focus styling on one tab while another surface remains active.
-                    controller.focus(surface.id);
-                    if (surfaces.length < 2) return;
-
-                    const bounds = event.currentTarget.getBoundingClientRect();
-                    pointerDragCandidate.current = {
-                      grabOffsetX: event.clientX - bounds.left,
-                      grabOffsetY: event.clientY - bounds.top,
-                      height: bounds.height,
-                      lastClientX: event.clientX,
-                      lastClientY: event.clientY,
-                      pointerId: event.pointerId,
-                      startX: event.clientX,
-                      startY: event.clientY,
-                      surfaceId: surface.id,
-                      width: bounds.width,
-                    };
-                    event.currentTarget.setPointerCapture?.(event.pointerId);
-                  }}
-                >
-                  <button
-                    type="button"
-                    role="tab"
-                    id={workspaceTabId(domIds.rightWorkspaceTabIdPrefix, surface.id)}
-                    aria-controls={workspaceTabPanelId(
-                      domIds.rightWorkspaceTabPanelIdPrefix,
-                      surface.id,
+          <TabsList
+            ref={tabListElement}
+            activateOnFocus
+            aria-label={t("rightWorkspace.tabs")}
+            className="flex w-full min-w-0 items-center gap-1 overflow-x-auto overflow-y-hidden rounded-none bg-transparent p-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            onPointerLeave={scheduleTabWidthRelease}
+          >
+            {surfaces.map((surface, surfaceIndex) => {
+              const Icon = definitionByKind.get(surface.kind)?.icon ?? PanelsTopLeftIcon;
+              const active = surface.id === activeSurfaceId;
+              const canCloseToRight = surfaceIndex < surfaces.length - 1;
+              const canCloseOthers = surfaces.length > 1;
+              const title = text(surface.title);
+              return (
+                <ContextMenu key={surface.id}>
+                  <ContextMenuTrigger
+                    ref={(element) => {
+                      if (element) tabElements.current.set(surface.id, element);
+                      else tabElements.current.delete(surface.id);
+                    }}
+                    role="presentation"
+                    data-state={active ? "active" : "inactive"}
+                    data-dragging={draggingId === surface.id ? "true" : undefined}
+                    className={cn(
+                      "group/tab text-muted-foreground hover:text-foreground data-[state=active]:[color:var(--control-state-foreground-selected)] after:bg-border/70 relative flex h-[var(--button-height-default)] w-40 min-w-20 max-w-40 flex-[1_1_10rem] select-none items-center rounded-[var(--button-radius)] text-xs transition-[background-color,color,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] before:pointer-events-none before:absolute before:inset-0 before:rounded-[var(--button-radius)] before:[background:var(--control-state-background-selected)] before:opacity-0 before:scale-[0.96] before:transition-[opacity,scale] before:duration-200 before:ease-[cubic-bezier(0.32,0.72,0,1)] before:content-[''] after:absolute after:inset-y-1.5 after:end-[-3px] after:w-px after:content-[''] hover:[background:var(--button-background-hover)] last:after:hidden hover:after:hidden focus-within:after:hidden motion-reduce:transition-none motion-reduce:before:transition-none data-[dragging=true]:cursor-grabbing data-[dragging=true]:opacity-25 data-[state=active]:before:opacity-100 data-[state=active]:before:scale-100 data-[state=active]:after:hidden",
+                      surfaces.length > 1 ? "cursor-grab active:cursor-grabbing" : "cursor-default",
                     )}
-                    aria-selected={active}
-                    tabIndex={active ? 0 : -1}
-                    title={title}
-                    className="relative z-10 flex h-full min-w-0 flex-1 items-center gap-2 rounded-s-lg ps-2.5 pe-1 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] leading-[var(--control-text-line-height)]! outline-none transition-[padding] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover/tab:pe-8 group-focus-within/tab:pe-8 group-data-[state=active]/tab:pe-8 focus-visible:ring-2 focus-visible:ring-inset motion-reduce:transition-none"
-                    onClick={(event) => {
-                      const suppressed = suppressedClick.current;
-                      suppressedClick.current = null;
+                    onPointerDown={(event) => {
                       if (
-                        suppressed?.surfaceId === surface.id &&
-                        performance.now() <= suppressed.until
+                        !event.isPrimary ||
+                        event.button !== 0 ||
+                        (event.target as Element).closest('[data-workspace-tab-close="true"]')
                       ) {
-                        event.preventDefault();
-                        event.stopPropagation();
                         return;
                       }
-                      controller.focus(surface.id);
-                    }}
-                    onKeyDown={(event) => {
-                      const direction =
-                        getComputedStyle(tabListElement.current ?? event.currentTarget)
-                          .direction === "rtl"
-                          ? "rtl"
-                          : "ltr";
-                      const nextIndex = nextWorkspaceTabIndex(
-                        event.key,
-                        surfaceIndex,
-                        surfaces.length,
-                        direction,
-                      );
-                      if (nextIndex === undefined) return;
-                      event.preventDefault();
-                      focusTabAt(nextIndex);
-                    }}
-                  >
-                    <Icon className="size-3.5 shrink-0" />
-                    <span className="min-w-0 flex-1 overflow-hidden whitespace-nowrap text-start [mask-image:linear-gradient(to_right,#000_calc(100%_-_0.75rem),transparent)]">
-                      {title}
-                    </span>
-                    {surface.dirty ? (
-                      <span
-                        className="bg-foreground size-1.5 shrink-0 rounded-full"
-                        aria-hidden="true"
-                      />
-                    ) : null}
-                    {surface.pinned ? (
-                      <PinIcon className="size-3 shrink-0" aria-hidden="true" />
-                    ) : null}
-                  </button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={t("rightWorkspace.closeTab", { title })}
-                    title={t("rightWorkspace.closeTab", { title })}
-                    data-frame="none"
-                    data-workspace-tab-close="true"
-                    tabIndex={active ? 0 : -1}
-                    className="group/tab-close text-foreground/65 hover:bg-transparent hover:text-foreground pointer-events-none absolute end-[2px] top-1/2 z-10 -translate-y-1/2 scale-90 rounded-md opacity-0 transition-[color,opacity,scale] duration-150 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover/tab:pointer-events-auto group-hover/tab:scale-100 group-hover/tab:opacity-100 group-focus-within/tab:pointer-events-auto group-focus-within/tab:scale-100 group-focus-within/tab:opacity-100 group-data-[state=active]/tab:pointer-events-auto group-data-[state=active]/tab:scale-100 group-data-[state=active]/tab:opacity-100 focus-visible:scale-100 focus-visible:bg-transparent focus-visible:text-foreground focus-visible:opacity-100 active:-translate-y-1/2! motion-reduce:transition-none dark:hover:bg-transparent dark:focus-visible:bg-transparent"
-                    onPointerUp={(event) => {
-                      if (!event.isPrimary || event.button !== 0) return;
-                      event.preventDefault();
-                      requestCloseWithTabAnimation(
-                        [surface.id],
-                        () => controller.close(surface.id),
-                        event.pointerType === "mouse",
-                      );
-                    }}
-                    onClick={(event) => {
-                      if (event.detail !== 0) return;
-                      requestCloseWithTabAnimation(
-                        [surface.id],
-                        () => controller.close(surface.id),
-                        false,
-                      );
+
+                      // Focus on press lets the shared Tabs primitive activate the surface before
+                      // a drag suppresses the later click. It also covers presses on wrapper space.
+                      event.currentTarget.querySelector<HTMLButtonElement>('[role="tab"]')?.focus();
+                      if (surfaces.length < 2) return;
+
+                      const bounds = event.currentTarget.getBoundingClientRect();
+                      pointerDragCandidate.current = {
+                        grabOffsetX: event.clientX - bounds.left,
+                        grabOffsetY: event.clientY - bounds.top,
+                        height: bounds.height,
+                        lastClientX: event.clientX,
+                        lastClientY: event.clientY,
+                        pointerId: event.pointerId,
+                        startX: event.clientX,
+                        startY: event.clientY,
+                        surfaceId: surface.id,
+                        width: bounds.width,
+                      };
+                      event.currentTarget.setPointerCapture?.(event.pointerId);
                     }}
                   >
-                    <span
-                      aria-hidden="true"
-                      className="pointer-events-none absolute left-1/2 top-1/2 flex size-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-[5px] transition-colors duration-75 group-hover/tab-close:bg-foreground/[0.04] group-focus-visible/tab-close:bg-foreground/[0.04] dark:group-hover/tab-close:bg-background/35 dark:group-focus-visible/tab-close:bg-background/35"
+                    <TabsTrigger
+                      type="button"
+                      value={surface.id}
+                      id={workspaceTabId(domIds.rightWorkspaceTabIdPrefix, surface.id)}
+                      aria-controls={workspaceTabPanelId(
+                        domIds.rightWorkspaceTabPanelIdPrefix,
+                        surface.id,
+                      )}
+                      aria-selected={active}
+                      tabIndex={active ? 0 : -1}
+                      title={title}
+                      className="relative z-10 flex h-full min-h-0 min-w-0 flex-1 items-center justify-start gap-2 rounded-s-lg rounded-e-none ps-2.5 pe-1 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] text-xs leading-[var(--control-text-line-height)]! font-normal whitespace-normal outline-none transition-[padding] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover/tab:pe-8 group-focus-within/tab:pe-8 group-data-[state=active]/tab:pe-8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset data-active:bg-transparent data-active:text-inherit data-active:shadow-none motion-reduce:transition-none"
+                      onClick={(event) => {
+                        const suppressed = suppressedClick.current;
+                        suppressedClick.current = null;
+                        if (
+                          suppressed?.surfaceId === surface.id &&
+                          performance.now() <= suppressed.until
+                        ) {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          return;
+                        }
+                      }}
                     >
-                      <XIcon className="size-4 scale-[0.875]" />
-                    </span>
-                  </Button>
-                </ContextMenuTrigger>
-                <ContextMenuContent>
-                  <ContextMenuItem
-                    onClick={() =>
-                      requestCloseWithTabAnimation(
-                        [surface.id],
-                        () => controller.close(surface.id),
-                        false,
-                      )
-                    }
-                  >
-                    {t("rightWorkspace.closeTabAction")}
-                  </ContextMenuItem>
-                  <ContextMenuItem
-                    disabled={!canCloseToRight}
-                    onClick={() =>
-                      requestCloseWithTabAnimation(
-                        surfaces.slice(surfaceIndex + 1).map((candidate) => candidate.id),
-                        () => controller.closeToRight(surface.id, context),
-                        false,
-                      )
-                    }
-                  >
-                    {t("rightWorkspace.closeToRight")}
-                  </ContextMenuItem>
-                  <ContextMenuItem
-                    disabled={!canCloseOthers}
-                    onClick={() =>
-                      requestCloseWithTabAnimation(
-                        surfaces
-                          .filter((candidate) => candidate.id !== surface.id)
-                          .map((candidate) => candidate.id),
-                        () => controller.closeOthers(surface.id, context),
-                        false,
-                      )
-                    }
-                  >
-                    {t("rightWorkspace.closeOthers")}
-                  </ContextMenuItem>
-                </ContextMenuContent>
-              </ContextMenu>
-            );
-          })}
-        </div>
-      </div>
+                      <Icon className="size-3.5 shrink-0" />
+                      <span className="min-w-0 flex-1 overflow-hidden whitespace-nowrap text-start [mask-image:linear-gradient(to_right,#000_calc(100%_-_0.75rem),transparent)]">
+                        {title}
+                      </span>
+                      {surface.dirty ? (
+                        <span
+                          className="bg-foreground size-1.5 shrink-0 rounded-full"
+                          aria-hidden="true"
+                        />
+                      ) : null}
+                      {surface.pinned ? (
+                        <PinIcon className="size-3 shrink-0" aria-hidden="true" />
+                      ) : null}
+                    </TabsTrigger>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={t("rightWorkspace.closeTab", { title })}
+                      title={t("rightWorkspace.closeTab", { title })}
+                      data-frame="none"
+                      data-workspace-tab-close="true"
+                      tabIndex={active ? 0 : -1}
+                      className="group/tab-close text-foreground/65 hover:bg-transparent hover:text-foreground pointer-events-none absolute end-[2px] top-1/2 z-10 -translate-y-1/2 scale-90 rounded-md opacity-0 transition-[color,opacity,scale] duration-150 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover/tab:pointer-events-auto group-hover/tab:scale-100 group-hover/tab:opacity-100 group-focus-within/tab:pointer-events-auto group-focus-within/tab:scale-100 group-focus-within/tab:opacity-100 group-data-[state=active]/tab:pointer-events-auto group-data-[state=active]/tab:scale-100 group-data-[state=active]/tab:opacity-100 focus-visible:scale-100 focus-visible:bg-transparent focus-visible:text-foreground focus-visible:opacity-100 motion-reduce:transition-none dark:hover:bg-transparent dark:focus-visible:bg-transparent"
+                      onPointerUp={(event) => {
+                        if (!event.isPrimary || event.button !== 0) return;
+                        event.preventDefault();
+                        requestCloseWithTabAnimation(
+                          [surface.id],
+                          () => controller.close(surface.id),
+                          event.pointerType === "mouse",
+                        );
+                      }}
+                      onClick={(event) => {
+                        if (event.detail !== 0) return;
+                        requestCloseWithTabAnimation(
+                          [surface.id],
+                          () => controller.close(surface.id),
+                          false,
+                        );
+                      }}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute left-1/2 top-1/2 flex size-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-[5px] transition-colors duration-75 group-hover/tab-close:bg-foreground/[0.04] group-focus-visible/tab-close:bg-foreground/[0.04] dark:group-hover/tab-close:bg-background/35 dark:group-focus-visible/tab-close:bg-background/35"
+                      >
+                        <XIcon className="size-4 scale-[0.875]" />
+                      </span>
+                    </Button>
+                  </ContextMenuTrigger>
+                  <ContextMenuContent>
+                    <ContextMenuItem
+                      onClick={() =>
+                        requestCloseWithTabAnimation(
+                          [surface.id],
+                          () => controller.close(surface.id),
+                          false,
+                        )
+                      }
+                    >
+                      {t("rightWorkspace.closeTabAction")}
+                    </ContextMenuItem>
+                    <ContextMenuItem
+                      disabled={!canCloseToRight}
+                      onClick={() =>
+                        requestCloseWithTabAnimation(
+                          surfaces.slice(surfaceIndex + 1).map((candidate) => candidate.id),
+                          () => controller.closeToRight(surface.id, context),
+                          false,
+                        )
+                      }
+                    >
+                      {t("rightWorkspace.closeToRight")}
+                    </ContextMenuItem>
+                    <ContextMenuItem
+                      disabled={!canCloseOthers}
+                      onClick={() =>
+                        requestCloseWithTabAnimation(
+                          surfaces
+                            .filter((candidate) => candidate.id !== surface.id)
+                            .map((candidate) => candidate.id),
+                          () => controller.closeOthers(surface.id, context),
+                          false,
+                        )
+                      }
+                    >
+                      {t("rightWorkspace.closeOthers")}
+                    </ContextMenuItem>
+                  </ContextMenuContent>
+                </ContextMenu>
+              );
+            })}
+          </TabsList>
+        </Tabs>
+      </DirectionProvider>
       {draggingSurface && pointerDragCandidate.current && typeof document !== "undefined"
         ? createPortal(
             <>

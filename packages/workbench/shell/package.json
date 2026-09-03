@@ -37,11 +37,6 @@
       "import": "./src/code-highlighting/index.ts",
       "default": "./src/code-highlighting/index.ts"
     },
-    "./component-extensions": {
-      "types": "./src/extensions/component-extension-installation.ts",
-      "import": "./src/extensions/component-extension-installation.ts",
-      "default": "./src/extensions/component-extension-installation.ts"
-    },
     "./conversation-title": {
       "types": "./src/conversation-title.ts",
       "import": "./src/conversation-title.ts",
@@ -185,7 +180,6 @@
   },
   "dependencies": {
     "@assistant-ui/react": "0.15.16",
-    "@assistant-ui/react-generative-ui": "^0.0.15",
     "@assistant-ui/react-lexical": "0.2.9",
     "@assistant-ui/react-streamdown": "^0.3.11",
     "@base-ui/react": "^1.7.0",

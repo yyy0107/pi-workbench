@@ -11,10 +11,12 @@ import { userMessageIndexExtension } from "./builtin/user-message-index";
 import { workbenchBrandExtension } from "./builtin/workbench-brand";
 import { workspaceArtifactExtension } from "./builtin/workspace-artifact";
 import { workspaceBrowserExtension } from "./builtin/workspace-browser";
+import { workspaceSidebarExtension } from "./builtin/workspace-sidebar";
 
 /** Stable frame and conversation contributions mounted before runtime-specific setup. */
 export const shellCoreExtensions: readonly WorkbenchExtension[] = Object.freeze([
   workbenchBrandExtension,
+  workspaceSidebarExtension,
   appearanceExtension,
   localeSelectorExtension,
   messagePresentationExtension,
@@ -24,7 +26,7 @@ export const shellCoreExtensions: readonly WorkbenchExtension[] = Object.freeze(
   archivedChatsExtension,
 ]);
 
-/** Generic settings host. Applications may replace this group with a factory-built variant. */
+/** Generic, static settings host. Feature-specific actions register through their own extensions. */
 export const shellSettingsExtensions: readonly WorkbenchExtension[] = Object.freeze([
   settingsExtension,
 ]);

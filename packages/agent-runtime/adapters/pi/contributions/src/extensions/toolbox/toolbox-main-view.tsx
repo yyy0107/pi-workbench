@@ -155,7 +155,7 @@ function MainPackageRow({
       aria-current={active ? "true" : undefined}
       title={t("extensions.toolbox.openDetails", { name: item.name })}
       className={cn(
-        "hover:bg-muted/70 focus-visible:ring-ring flex min-h-16 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left outline-none transition-colors focus-visible:ring-2 active:translate-y-0!",
+        "hover:bg-muted/70 focus-visible:ring-ring flex min-h-16 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left outline-none transition-colors focus-visible:ring-2",
         active && "bg-muted",
       )}
       onClick={() => onOpen(item)}
@@ -205,7 +205,7 @@ function PackageUpdateRow({
       aria-current={active ? "true" : undefined}
       title={t("extensions.toolbox.openDetails", { name: item.displayName })}
       className={cn(
-        "hover:bg-muted/70 focus-visible:ring-ring flex min-h-16 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left outline-none transition-colors focus-visible:ring-2 active:translate-y-0!",
+        "hover:bg-muted/70 focus-visible:ring-ring flex min-h-16 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left outline-none transition-colors focus-visible:ring-2",
         active && "bg-muted",
       )}
       onClick={() => onOpen(item)}
@@ -331,7 +331,7 @@ function PackageUpdatesView() {
               type="button"
               variant="outline"
               size="sm"
-              className="mt-3 active:translate-y-0!"
+              className="mt-3"
               onClick={packageUpdates.refresh}
             >
               <RefreshCwIcon aria-hidden="true" />
@@ -379,7 +379,7 @@ function PackageUpdatesView() {
             disabled={packageUpdates.loadState === "loading" || packageUpdates.isRefreshing}
             aria-label={t("extensions.toolbox.packages.checkUpdates")}
             title={t("extensions.toolbox.packages.checkUpdates")}
-            className="active:translate-y-0!"
+
             onClick={() => {
               setSelected(undefined);
               packageUpdates.refresh();
@@ -479,7 +479,7 @@ export function ToolboxMainView({ close, view }: MainViewProps<ToolboxMainViewPa
               type="button"
               variant="outline"
               size="sm"
-              className="mt-3 active:translate-y-0!"
+              className="mt-3"
               onClick={packageCatalog.refresh}
             >
               <RefreshCwIcon aria-hidden="true" />
@@ -549,7 +549,7 @@ export function ToolboxMainView({ close, view }: MainViewProps<ToolboxMainViewPa
             size="icon-sm"
             aria-label={t("extensions.toolbox.packages.refresh")}
             title={t("extensions.toolbox.packages.refresh")}
-            className="active:translate-y-0!"
+
             onClick={packageCatalog.refresh}
           >
             <RefreshCwIcon aria-hidden="true" />
@@ -576,7 +576,7 @@ export function ToolboxMainView({ close, view }: MainViewProps<ToolboxMainViewPa
                   variant="ghost"
                   size="sm"
                   disabled={packagePage <= 1}
-                  className="active:translate-y-0!"
+
                   onClick={() => setPackagePage((page) => Math.max(1, page - 1))}
                 >
                   {t("extensions.toolbox.packages.previous")}
@@ -592,7 +592,7 @@ export function ToolboxMainView({ close, view }: MainViewProps<ToolboxMainViewPa
                   variant="ghost"
                   size="sm"
                   disabled={packagePage >= packageCatalog.value.pageCount}
-                  className="active:translate-y-0!"
+
                   onClick={() => setPackagePage((page) => page + 1)}
                 >
                   {t("extensions.toolbox.packages.next")}

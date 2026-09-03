@@ -3,7 +3,6 @@ import test from "node:test";
 
 import {
   bindCapabilityToCatalogTarget,
-  componentExtensionCapabilityId,
   extensionSurfaceParams,
   npmPackageNameFromSource,
   sectionForCapability,
@@ -22,16 +21,8 @@ function capability(
   };
 }
 
-test("keeps frontend component extensions separate from Pi extensions", () => {
-  assert.equal(sectionForCapability(capability("component-extension")), "component-extensions");
+test("maps Pi extensions to their toolbox section", () => {
   assert.equal(sectionForCapability(capability("extension")), "extensions");
-});
-
-test("uses a component-specific capability id namespace", () => {
-  assert.equal(
-    componentExtensionCapabilityId("workbench.generative-ui"),
-    "component-extension:workbench.generative-ui",
-  );
 });
 
 test("derives official catalog package names only from canonical npm sources", () => {

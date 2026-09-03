@@ -4,6 +4,12 @@ import * as React from "react";
 import { Menu as MenuPrimitive } from "@base-ui/react/menu";
 
 import { cn } from "../utils";
+import {
+  menuChoiceItemStyles,
+  menuItemStyles,
+  menuPopupStyles,
+  menuSeparatorStyles,
+} from "./menu-styles";
 import { useWorkbenchPortalContainer } from "./workbench-portal-container";
 import { ChevronRightIcon, CheckIcon } from "lucide-react";
 
@@ -36,10 +42,7 @@ function DropdownMenuContent({
       >
         <MenuPrimitive.Popup
           data-slot="dropdown-menu-content"
-          className={cn(
-            "z-50 max-h-(--available-height) w-(--anchor-width) min-w-32 origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 outline-none data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:overflow-hidden data-closed:fade-out-0 data-closed:zoom-out-95",
-            className,
-          )}
+          className={cn(menuPopupStyles, "w-(--anchor-width) min-w-32", className)}
           {...props}
         />
       </MenuPrimitive.Positioner>
@@ -85,10 +88,7 @@ function DropdownMenuItem({
       data-slot="dropdown-menu-item"
       data-inset={inset}
       data-variant={variant}
-      className={cn(
-        "group/dropdown-menu-item relative flex cursor-default items-center gap-1.5 rounded-md px-1.5 pt-[var(--control-content-padding-block-compact-start)] pb-[var(--control-content-padding-block-compact-end)] text-sm leading-[var(--control-text-line-height)]! outline-hidden select-none focus:[background:var(--control-state-background-selected)] focus:[color:var(--control-state-foreground-selected)] not-data-[variant=destructive]:focus:**:[color:var(--control-state-foreground-selected)] data-inset:pl-7 data-[variant=destructive]:text-destructive data-[variant=destructive]:focus:bg-destructive/10 data-[variant=destructive]:focus:text-destructive dark:data-[variant=destructive]:focus:bg-destructive/20 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-[var(--icon-size-md)] data-[variant=destructive]:*:[svg]:text-destructive",
-        className,
-      )}
+      className={cn("group/dropdown-menu-item", menuItemStyles, className)}
       {...props}
     />
   );
@@ -160,10 +160,7 @@ function DropdownMenuCheckboxItem({
     <MenuPrimitive.CheckboxItem
       data-slot="dropdown-menu-checkbox-item"
       data-inset={inset}
-      className={cn(
-        "relative flex cursor-default items-center gap-1.5 rounded-md pt-[var(--control-content-padding-block-compact-start)] pr-8 pb-[var(--control-content-padding-block-compact-end)] pl-1.5 text-sm leading-[var(--control-text-line-height)]! outline-hidden select-none focus:[background:var(--control-state-background-selected)] focus:[color:var(--control-state-foreground-selected)] focus:**:[color:var(--control-state-foreground-selected)] data-inset:pl-7 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-[var(--icon-size-md)]",
-        className,
-      )}
+      className={cn(menuChoiceItemStyles, className)}
       checked={checked}
       closeOnClick={closeOnClick}
       {...props}
@@ -198,10 +195,7 @@ function DropdownMenuRadioItem({
     <MenuPrimitive.RadioItem
       data-slot="dropdown-menu-radio-item"
       data-inset={inset}
-      className={cn(
-        "relative flex cursor-default items-center gap-1.5 rounded-md pt-[var(--control-content-padding-block-compact-start)] pr-8 pb-[var(--control-content-padding-block-compact-end)] pl-1.5 text-sm leading-[var(--control-text-line-height)]! outline-hidden select-none focus:[background:var(--control-state-background-selected)] focus:[color:var(--control-state-foreground-selected)] focus:**:[color:var(--control-state-foreground-selected)] data-inset:pl-7 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-[var(--icon-size-md)]",
-        className,
-      )}
+      className={cn(menuChoiceItemStyles, className)}
       closeOnClick={closeOnClick}
       {...props}
     >
@@ -222,7 +216,7 @@ function DropdownMenuSeparator({ className, ...props }: MenuPrimitive.Separator.
   return (
     <MenuPrimitive.Separator
       data-slot="dropdown-menu-separator"
-      className={cn("-mx-1 my-1 h-px bg-border", className)}
+      className={cn(menuSeparatorStyles, className)}
       {...props}
     />
   );

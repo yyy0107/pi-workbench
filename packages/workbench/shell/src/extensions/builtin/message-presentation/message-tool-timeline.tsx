@@ -30,7 +30,7 @@ import {
 } from "../../../assistant-ui/tool-group";
 import { ReasoningPanel, type ReasoningStep } from "../../../elements/reasoning-panel";
 import { ReviewableDiff, type HunkDecision } from "../../../elements/reviewable-diff";
-import { ShimmerLabel } from "../../../elements/surfaces";
+import { ShimmerLabel } from "../../../ui/surface";
 import { ToolCall } from "../../../elements/tool-call";
 import { useOpenerService, useWorkspaceContext } from "../../../right-workspace-react";
 import { useI18n } from "../../../i18n";
@@ -330,7 +330,7 @@ function TimelineToolCall({
         <button
           type="button"
           title={query}
-          className="pointer-events-auto min-w-0 cursor-pointer truncate border-b border-dotted border-foreground/30 bg-transparent text-left leading-tight text-foreground/55 transition-colors group-hover/tool-summary:text-foreground group-focus-within/tool-summary:text-foreground focus-visible:outline-none"
+          className="pointer-events-auto min-w-0 cursor-pointer truncate border-b border-dotted border-foreground/30 bg-transparent text-left leading-tight text-foreground/55 transition-colors group-hover/tool-summary:text-foreground group-focus-within/tool-summary:text-foreground"
           onClick={openWorkspaceDiff}
         >
           {query}

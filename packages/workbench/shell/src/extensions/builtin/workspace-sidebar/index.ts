@@ -1,0 +1,1 @@
+export { workspaceSidebarExtension } from "./extension";

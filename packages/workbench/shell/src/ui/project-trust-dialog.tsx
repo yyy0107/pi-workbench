@@ -2,7 +2,7 @@
 
 import { LoaderCircleIcon, ShieldCheckIcon } from "lucide-react";
 
-import { paper } from "../elements/surfaces";
+import { paper } from "./surface";
 import { Button } from "./button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./dialog";
 import { cn } from "../utils";
@@ -91,7 +91,7 @@ export function ProjectTrustDialog({
               size="lg"
               disabled={saving}
               aria-busy={savingDecision === "decline"}
-              className="rounded-xl px-4 transition-colors active:translate-y-0!"
+              className="rounded-xl px-4 transition-colors"
               onClick={() => void onDecline()}
             >
               {savingDecision === "decline" ? (
@@ -107,7 +107,7 @@ export function ProjectTrustDialog({
               size="lg"
               disabled={saving}
               aria-busy={savingDecision === "trust"}
-              className="rounded-xl px-5 transition-colors active:translate-y-0!"
+              className="rounded-xl px-5 transition-colors"
               onClick={() => void onConfirm()}
             >
               {savingDecision === "trust" ? (

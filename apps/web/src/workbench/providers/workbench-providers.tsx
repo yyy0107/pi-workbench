@@ -10,7 +10,7 @@ import {
   shellRunningIndicatorDefinitions,
 } from "@workbench/shell/running-indicator";
 
-import { installedWorkbenchExtensionPrefix } from "@/workbench/runtime-contributions/installed-workbench-extensions";
+import { installedWorkbenchExtensions } from "@/workbench/runtime-contributions/installed-workbench-extensions";
 import { MainViewHost } from "@/workbench/shell/main-view-host";
 
 import { WorkbenchAssistantRuntimeProvider } from "./assistant-runtime-provider";
@@ -44,7 +44,7 @@ export function WorkbenchProviders({ children }: Readonly<{ children: ReactNode 
       branding={PRODUCT_BRANDING}
       createDraftPersistence={createWorkbenchDraftPersistence}
       createThreadScrollPersistence={createWorkbenchThreadScrollPersistence}
-      extensionPrefix={installedWorkbenchExtensionPrefix}
+      extensions={installedWorkbenchExtensions}
       mainViewHost={MainViewHost}
       runningIndicatorCatalog={PRODUCT_RUNNING_INDICATORS}
       runtimeProvider={WorkbenchAssistantRuntimeProvider}

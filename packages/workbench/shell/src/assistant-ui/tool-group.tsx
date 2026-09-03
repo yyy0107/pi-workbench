@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 import { ChevronDownIcon, LoaderIcon, type LucideIcon } from "lucide-react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
-import { collapsePanel } from "../elements/surfaces";
+import { collapsePanel } from "../ui/surface";
 import { useDisclosureScrollLock } from "../elements/use-disclosure-scroll-lock";
 import { cn } from "../utils";
 import { useI18n } from "../i18n";

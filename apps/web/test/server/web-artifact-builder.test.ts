@@ -1290,7 +1290,7 @@ test("keeps broken and escaping non-optimizer links fail-closed", async (t) => {
     );
     await assert.rejects(
       buildFixtureArtifact(fixture),
-      /Web artifact symlink escapes the artifact/u,
+      /(?:Web artifact symlink escapes the artifact|Raw standalone symlink target is outside its admitted package roots)/u,
     );
   });
 });

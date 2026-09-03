@@ -4,7 +4,7 @@ import type { ComponentProps, ReactNode } from "react";
 
 import { cn } from "../utils";
 
-import { mutedPaper } from "./surfaces";
+import { mutedPaper } from "../ui/surface";
 import { StreamingText } from "./streaming-text";
 
 export interface MessagePairProps extends Omit<ComponentProps<"div">, "children"> {

@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { ChevronRightIcon, type LucideIcon } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 import { cn } from "../utils";
-import { collapsePanel, mono, ShimmerLabel, SwapLabel } from "./surfaces";
+import { collapsePanel, mono, ShimmerLabel, SwapLabel } from "../ui/surface";
 import { take } from "./range";
 import { useDisclosureScrollLock } from "./use-disclosure-scroll-lock";
 

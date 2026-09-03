@@ -1,7 +1,9 @@
 "use client";
 
+import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentProps } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
+
 import { cn } from "../utils";
 
 export const paper =
@@ -14,6 +16,36 @@ export const floating =
   "bg-background shadow-[0_2px_8px_rgba(0,0,0,0.05),0_20px_48px_-16px_rgba(0,0,0,0.18)] dark:bg-popover dark:shadow-[0_20px_48px_-16px_rgba(0,0,0,0.55)]";
 
 export const field = "bg-foreground/[0.04] dark:bg-foreground/[0.06]";
+
+const surfaceVariants = cva("text-foreground", {
+  variants: {
+    variant: {
+      paper,
+      muted: mutedPaper,
+      floating,
+      field,
+    },
+  },
+  defaultVariants: {
+    variant: "paper",
+  },
+});
+
+/** Generic themed surface for cards, floating layers, and recessed fields. */
+function Surface({
+  className,
+  variant = "paper",
+  ...props
+}: ComponentProps<"div"> & VariantProps<typeof surfaceVariants>) {
+  return (
+    <div
+      data-slot="surface"
+      data-variant={variant}
+      className={cn(surfaceVariants({ variant }), className)}
+      {...props}
+    />
+  );
+}
 
 const labelSwap =
   "col-start-1 row-start-1 flex w-max items-center gap-1.5 leading-none transition-[opacity,filter] duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none";
@@ -94,3 +126,5 @@ export function SwapLabel({
     </span>
   );
 }
+
+export { Surface, surfaceVariants };

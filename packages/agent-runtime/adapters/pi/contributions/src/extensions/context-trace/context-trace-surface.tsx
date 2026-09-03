@@ -17,8 +17,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useRightWorkspace } from "@workbench/shell/right-workspace/react";
-import { Button } from "@workbench/shell/ui";
-import { Input } from "@workbench/shell/ui";
+import { Button, Input, Tabs, TabsIndicator, TabsList, TabsTrigger } from "@workbench/shell/ui";
 import { definePiMessage, usePiI18n } from "../../i18n";
 import { cn } from "@workbench/shell/utils";
 import { useExtensionErrorReporter } from "@workbench/extension-host";
@@ -223,30 +222,30 @@ function TraceViewTabs({
   const { t } = usePiI18n();
   const views = ["duration", "turns", "calls"] as const;
   return (
-    <div className="flex shrink-0 items-center gap-0.5" role="tablist">
-      {views.map((view) => {
-        const label = viewLabel(t, view);
-        const Icon = view === "duration" ? ClockIcon : view === "turns" ? ListTreeIcon : SendIcon;
-        return (
-          <button
-            key={view}
-            type="button"
-            role="tab"
-            aria-selected={value === view}
-            aria-label={label}
-            title={label}
-            className={cn(
-              "hover:bg-muted/70 focus-visible:ring-ring inline-flex h-8 items-center gap-1.5 rounded-md px-2 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] text-xs leading-[var(--control-text-line-height)]! outline-none focus-visible:ring-2",
-              value === view ? "bg-muted text-foreground font-medium" : "text-muted-foreground",
-            )}
-            onClick={() => onChange(view)}
-          >
-            <Icon aria-hidden="true" className="size-3.5" />
-            {compact ? null : <span>{label}</span>}
-          </button>
-        );
-      })}
-    </div>
+    <Tabs
+      value={value}
+      className="shrink-0"
+      onValueChange={(nextValue) => onChange(nextValue as TraceViewMode)}
+    >
+      <TabsList className="min-h-0 gap-0.5 bg-transparent p-0">
+        {views.map((view) => {
+          const label = viewLabel(t, view);
+          const Icon = view === "duration" ? ClockIcon : view === "turns" ? ListTreeIcon : SendIcon;
+          return (
+            <TabsTrigger
+              key={view}
+              value={view}
+              aria-label={label}
+              title={label}
+              className="hover:bg-muted/70 h-8 min-h-0 px-2 text-xs"
+            >
+              <Icon aria-hidden="true" className="size-3.5" />
+              {compact ? null : <span>{label}</span>}
+            </TabsTrigger>
+          );
+        })}
+      </TabsList>
+    </Tabs>
   );
 }
 
@@ -1113,26 +1112,24 @@ export function ContextTraceSurface({
         </div>
       ) : null}
       {selectedSummary ? (
-        <div className="flex h-10 shrink-0 items-end gap-4 border-b px-3" role="tablist">
-          {detailViews.map((view) => (
-            <button
-              key={view}
-              type="button"
-              role="tab"
-              aria-selected={detailView === view}
-              className={cn(
-                "hover:text-foreground focus-visible:ring-ring relative inline-flex h-full items-center px-0.5 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] text-xs leading-[var(--control-text-line-height)]! outline-none focus-visible:ring-2",
-                detailView === view ? "text-foreground" : "text-muted-foreground",
-              )}
-              onClick={() => setDetailView(view)}
-            >
-              {detailViewLabel(t, view)}
-              {detailView === view ? (
-                <span className="absolute inset-x-0 bottom-0 h-0.5 bg-blue-500" />
-              ) : null}
-            </button>
-          ))}
-        </div>
+        <Tabs
+          value={detailView}
+          className="shrink-0"
+          onValueChange={(nextValue) => setDetailView(nextValue as ContextTraceDetailView)}
+        >
+          <TabsList className="h-10 min-h-0 w-full items-end gap-4 rounded-none border-b bg-transparent px-3 py-0">
+            {detailViews.map((view) => (
+              <TabsTrigger
+                key={view}
+                value={view}
+                className="h-full min-h-0 min-w-0 rounded-none bg-transparent px-0.5 text-xs shadow-none data-active:bg-transparent data-active:shadow-none"
+              >
+                {detailViewLabel(t, view)}
+              </TabsTrigger>
+            ))}
+            <TabsIndicator className="top-auto bottom-0 h-0.5 rounded-none bg-info shadow-none" />
+          </TabsList>
+        </Tabs>
       ) : null}
       <div className="min-h-0 flex-1 overflow-y-auto">
         <ContextTraceDetail
@@ -1214,17 +1211,13 @@ export function ContextTraceSurface({
       <div
         className={cn(
           "grid min-h-0 flex-1",
-          selectedSummary
-            ? "grid-cols-[minmax(0,0.58fr)_minmax(0,0.42fr)]"
-            : "grid-cols-1",
+          selectedSummary ? "grid-cols-[minmax(0,0.58fr)_minmax(0,0.42fr)]" : "grid-cols-1",
         )}
       >
         <div className={cn("flex min-h-0 min-w-0 flex-col", selectedSummary && "border-e")}>
           {timeline}
         </div>
-        {selectedSummary ? (
-          <div className="flex min-h-0 min-w-0 flex-col">{detail}</div>
-        ) : null}
+        {selectedSummary ? <div className="flex min-h-0 min-w-0 flex-col">{detail}</div> : null}
       </div>
     </section>
   );

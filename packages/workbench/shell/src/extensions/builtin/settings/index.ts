@@ -1,6 +1,2 @@
-export {
-  createSettingsExtension,
-  settingsExtension,
-  type SettingsExtensionOptions,
-} from "./extension";
+export { settingsExtension } from "./extension";
 export { MobileSettingsTrigger } from "./settings-trigger";

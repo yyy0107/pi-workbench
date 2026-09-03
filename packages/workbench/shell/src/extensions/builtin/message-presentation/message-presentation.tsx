@@ -1,25 +1,27 @@
 "use client";
 
-import type { DataMessagePartComponent, GroupByContext, PartState } from "@assistant-ui/react";
+import type { GroupByContext, PartState } from "@assistant-ui/react";
 import {
   groupPartByType,
   MessagePrimitive,
   useAuiState,
   useMessageTiming,
 } from "@assistant-ui/react";
-import { ExternalLinkIcon } from "lucide-react";
 import { useCallback, useMemo, type PropsWithChildren } from "react";
 
 import { File } from "../../../assistant-ui/file";
 import { Image } from "../../../assistant-ui/image";
 import { MarkdownText, MarkdownTextWithCitations } from "../../../assistant-ui/lazy-markdown-text";
+import {
+  DefaultMessageDataFallback,
+  isSharedMessagePartLeaf,
+  MessagePartLeaf,
+} from "../../../assistant-ui/message-part-leaves";
 import { ToolFallback } from "../../../assistant-ui/tool-fallback";
-import { ScrollCompensatedDetails } from "../../../elements/scroll-compensated-details";
 import { ReasoningPanel } from "../../../elements/reasoning-panel";
 import { useI18n } from "../../../i18n";
 import {
   MessagePartRendererHost,
-  RendererHost,
   useDataPresentationMap,
 } from "@workbench/extension-host/hosts/renderer-host";
 import {
@@ -54,25 +56,6 @@ const groupTimelinePartByType = groupPartByType<PresentationGroup>({
   "tool-call": ["group-tool-timeline"],
   "standalone-tool-call": [],
 });
-
-function serializeData(value: unknown) {
-  if (typeof value === "string") return value;
-
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch {
-    return String(value);
-  }
-}
-
-const MessageDataFallback: DataMessagePartComponent = ({ name, data }) => (
-  <ScrollCompensatedDetails className="bg-muted/40 my-2 rounded-lg border px-3 py-2 text-sm">
-    <summary className="cursor-pointer font-medium">{name}</summary>
-    <pre className="text-muted-foreground mt-2 max-h-72 overflow-auto whitespace-pre-wrap break-all text-xs">
-      {serializeData(data)}
-    </pre>
-  </ScrollCompensatedDetails>
-);
 
 function MessageDataTimelineGroup({
   children,
@@ -269,59 +252,26 @@ export function WorkbenchMessagePresentation() {
               if (index !== undefined && citationLayout.inlineSourcePartIndices.has(index)) {
                 return null;
               }
-
-              const label =
-                part.title || part.url || t("extensions.messagePresentation.sourceFallback");
-              const isSafeUrl = part.sourceType === "url" && /^https?:\/\//i.test(part.url);
-
-              if (!isSafeUrl) {
-                return (
-                  <span className="bg-muted text-muted-foreground my-1 inline-flex rounded-md px-2 py-1 text-xs">
-                    {label}
-                  </span>
-                );
-              }
-
               return (
-                <a
-                  href={part.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="bg-muted/60 hover:bg-muted my-1 inline-flex max-w-full items-center gap-1.5 rounded-md px-2 py-1 text-xs underline-offset-2 hover:underline"
-                >
-                  <span className="truncate">{label}</span>
-                  <ExternalLinkIcon className="size-3 shrink-0" />
-                </a>
-              );
-            }
-            case "tool-call":
-            case "data":
-              return (
-                <RendererHost
+                <MessagePartLeaf
                   part={part}
+                  sourceFallbackLabel={t("extensions.messagePresentation.sourceFallback")}
+                  sourceVariant="chip"
                   toolFallback={ToolFallback}
-                  dataFallback={MessageDataFallback}
+                  dataFallback={DefaultMessageDataFallback}
                 />
               );
-            case "audio": {
-              const source = part.audio.data.startsWith("data:")
-                ? part.audio.data
-                : `data:audio/${part.audio.format};base64,${part.audio.data}`;
-              return <audio controls src={source} className="my-2 max-w-full" />;
-            }
-            case "generative-ui": {
-              const fallback = (
-                <MessageDataFallback
-                  type="data"
-                  name="generative-ui"
-                  data={part.spec}
-                  status={part.status}
-                />
-              );
-              return <MessagePartRendererHost part={part} fallback={fallback} />;
             }
             default:
-              return null;
+              return isSharedMessagePartLeaf(part) ? (
+                <MessagePartLeaf
+                  part={part}
+                  sourceFallbackLabel={t("extensions.messagePresentation.sourceFallback")}
+                  sourceVariant="chip"
+                  toolFallback={ToolFallback}
+                  dataFallback={DefaultMessageDataFallback}
+                />
+              ) : null;
           }
         }}
       </MessagePrimitive.GroupedParts>

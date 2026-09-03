@@ -7,7 +7,7 @@ import { ExternalLinkIcon } from "lucide-react";
 import { cn } from "../utils";
 import { useWorkbenchPortalContainer } from "../ui/workbench-portal-container";
 
-import { floating, mono } from "./surfaces";
+import { floating, mono } from "../ui/surface";
 
 export interface Source {
   domain: string;

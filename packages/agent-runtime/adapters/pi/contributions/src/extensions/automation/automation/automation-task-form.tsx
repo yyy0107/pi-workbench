@@ -14,7 +14,7 @@ import {
   Trash2Icon,
 } from "lucide-react";
 
-import { Button } from "@workbench/shell/ui";
+import { Button, StatusBadge, Tabs, TabsContent, TabsList, TabsTrigger } from "@workbench/shell/ui";
 import {
   Dialog,
   DialogContent,
@@ -561,128 +561,125 @@ export function AutomationTaskForm({ params }: { params: AutomationTaskParams })
             </p>
           </header>
 
-          <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
-            <div
-              className="bg-muted/60 flex items-center rounded-[var(--button-radius)] p-0.5"
-              role="tablist"
-              aria-label={t("extensions.automations.automationTask.tabsLabel")}
-            >
-              {(["settings", "history"] as const).map((tab) => (
-                <Button
-                  key={tab}
-                  type="button"
-                  role="tab"
-                  variant="ghost"
-                  size="sm"
-                  aria-selected={activeTab === tab}
-                  className={cn("px-4", activeTab !== tab && "text-muted-foreground")}
-                  onClick={() => setActiveTab(tab)}
-                >
-                  {t(`extensions.automations.automationTask.${tab}`)}
+          <Tabs
+            value={activeTab}
+            className="mt-8"
+            onValueChange={(value) => setActiveTab(value as AutomationTaskTab)}
+          >
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <TabsList
+                className="bg-muted/60"
+                aria-label={t("extensions.automations.automationTask.tabsLabel")}
+              >
+                {(["settings", "history"] as const).map((tab) => (
+                  <TabsTrigger key={tab} value={tab} className="px-4">
+                    {t(`extensions.automations.automationTask.${tab}`)}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+
+              <div className="flex items-center gap-2">
+                <Button type="submit" disabled={Boolean(pendingAction)}>
+                  {pendingAction === "save" ? (
+                    <RefreshCwIcon aria-hidden="true" className="animate-spin" />
+                  ) : null}
+                  {t(
+                    pendingAction === "save"
+                      ? editingAutomationId
+                        ? "extensions.automations.automationTask.saving"
+                        : "extensions.automations.automationTask.creating"
+                      : editingAutomationId
+                        ? "extensions.automations.automationTask.save"
+                        : "extensions.automations.automationTask.create",
+                  )}
                 </Button>
-              ))}
-            </div>
 
-            <div className="flex items-center gap-2">
-              <Button type="submit" disabled={Boolean(pendingAction)}>
-                {pendingAction === "save" ? (
-                  <RefreshCwIcon aria-hidden="true" className="animate-spin" />
-                ) : null}
-                {t(
-                  pendingAction === "save"
-                    ? editingAutomationId
-                      ? "extensions.automations.automationTask.saving"
-                      : "extensions.automations.automationTask.creating"
-                    : editingAutomationId
-                      ? "extensions.automations.automationTask.save"
-                      : "extensions.automations.automationTask.create",
-                )}
-              </Button>
-
-              {editingAutomationId ? (
-                <>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    disabled={Boolean(pendingAction)}
-                    onClick={() => void submit(true)}
-                  >
-                    {pendingAction === "run" ? (
-                      <RefreshCwIcon aria-hidden="true" className="animate-spin" />
-                    ) : (
-                      <PlayIcon aria-hidden="true" />
-                    )}
-                    {t(
-                      pendingAction === "run"
-                        ? "extensions.automations.automationHome.starting"
-                        : "extensions.automations.automationHome.runNow",
-                    )}
-                  </Button>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="icon"
-                          aria-label={t("extensions.automations.automationTask.moreActions")}
+                {editingAutomationId ? (
+                  <>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={Boolean(pendingAction)}
+                      onClick={() => void submit(true)}
+                    >
+                      {pendingAction === "run" ? (
+                        <RefreshCwIcon aria-hidden="true" className="animate-spin" />
+                      ) : (
+                        <PlayIcon aria-hidden="true" />
+                      )}
+                      {t(
+                        pendingAction === "run"
+                          ? "extensions.automations.automationHome.starting"
+                          : "extensions.automations.automationHome.runNow",
+                      )}
+                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="icon"
+                            aria-label={t("extensions.automations.automationTask.moreActions")}
+                          >
+                            <MoreHorizontalIcon aria-hidden="true" />
+                          </Button>
+                        }
+                      />
+                      <DropdownMenuContent align="end" className="min-w-44 p-1.5">
+                        <DropdownMenuItem
+                          disabled={!automation || Boolean(pendingAction)}
+                          onClick={() => void setTaskEnabled(!automation?.enabled)}
                         >
-                          <MoreHorizontalIcon aria-hidden="true" />
-                        </Button>
-                      }
-                    />
-                    <DropdownMenuContent align="end" className="min-w-44 p-1.5">
-                      <DropdownMenuItem
-                        disabled={!automation || Boolean(pendingAction)}
-                        onClick={() => void setTaskEnabled(!automation?.enabled)}
-                      >
-                        {automation?.enabled ? (
-                          <CirclePauseIcon aria-hidden="true" />
-                        ) : (
-                          <CirclePlayIcon aria-hidden="true" />
-                        )}
-                        {t(
-                          automation?.enabled
-                            ? "extensions.automations.automationHome.pause"
-                            : "extensions.automations.automationHome.enable",
-                        )}
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        variant="destructive"
-                        disabled={!automation || Boolean(pendingAction)}
-                        onClick={() => void archiveTask()}
-                      >
-                        <Trash2Icon aria-hidden="true" />
-                        {t("extensions.automations.automationHome.delete")}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </>
-              ) : null}
+                          {automation?.enabled ? (
+                            <CirclePauseIcon aria-hidden="true" />
+                          ) : (
+                            <CirclePlayIcon aria-hidden="true" />
+                          )}
+                          {t(
+                            automation?.enabled
+                              ? "extensions.automations.automationHome.pause"
+                              : "extensions.automations.automationHome.enable",
+                          )}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          variant="destructive"
+                          disabled={!automation || Boolean(pendingAction)}
+                          onClick={() => void archiveTask()}
+                        >
+                          <Trash2Icon aria-hidden="true" />
+                          {t("extensions.automations.automationHome.delete")}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </>
+                ) : null}
+              </div>
             </div>
-          </div>
 
-          {activeTab === "settings" ? (
-            <section className="mt-8 space-y-6" role="tabpanel">
+            <TabsContent value="settings" className="mt-8 space-y-6">
               {automation ? (
                 <div className="space-y-2">
                   <span className="text-muted-foreground text-sm">
                     {t("extensions.automations.automationTask.status")}
                   </span>
                   <div>
-                    <span className="bg-muted inline-flex h-[var(--button-height-default)] items-center gap-3 rounded-[var(--radius-md)] px-4 text-sm">
+                    <StatusBadge
+                      tone={automation.enabled ? "success" : "neutral"}
+                      className="min-h-[var(--button-height-default)] gap-2 rounded-[var(--radius-md)] px-4 text-sm"
+                    >
                       <span
                         aria-hidden="true"
                         className={cn(
                           "size-2 rounded-full",
-                          automation.enabled ? "bg-emerald-500" : "bg-muted-foreground",
+                          automation.enabled ? "bg-success" : "bg-muted-foreground",
                         )}
                       />
                       {t(
                         `extensions.automations.automationTask.${automation.enabled ? "statusRunning" : "statusPaused"}`,
                       )}
-                    </span>
+                    </StatusBadge>
                   </div>
                 </div>
               ) : null}
@@ -904,9 +901,8 @@ export function AutomationTaskForm({ params }: { params: AutomationTaskParams })
                   </p>
                 ) : null}
               </div>
-            </section>
-          ) : (
-            <section className="mt-8" role="tabpanel">
+            </TabsContent>
+            <TabsContent value="history" className="mt-8">
               {historyState === "loading" && sessions.length === 0 ? (
                 <div className="border-border text-muted-foreground flex min-h-48 items-center justify-center rounded-[var(--radius-lg)] border p-6 text-sm">
                   {t("extensions.automations.automationTask.loading")}
@@ -979,29 +975,28 @@ export function AutomationTaskForm({ params }: { params: AutomationTaskParams })
                               )}
                             </td>
                             <td className="px-4 whitespace-nowrap">
-                              <span
-                                className={cn(
-                                  "inline-flex items-center gap-2 font-medium",
+                              <StatusBadge
+                                tone={
                                   runStatus === "succeeded"
-                                    ? "text-emerald-600 dark:text-emerald-400"
+                                    ? "success"
                                     : runStatus === "running"
-                                      ? "text-primary"
-                                      : "text-muted-foreground",
-                                )}
+                                      ? "info"
+                                      : "neutral"
+                                }
                               >
                                 <span
                                   aria-hidden="true"
                                   className={cn(
                                     "size-2 rounded-full",
                                     runStatus === "succeeded"
-                                      ? "bg-emerald-500"
+                                      ? "bg-success"
                                       : runStatus === "running"
-                                        ? "bg-primary"
+                                        ? "bg-info"
                                         : "bg-muted-foreground/60",
                                   )}
                                 />
                                 {t(`extensions.automations.automationTask.runStatus.${runStatus}`)}
-                              </span>
+                              </StatusBadge>
                             </td>
                             <td className="px-4 tabular-nums whitespace-nowrap">{duration}</td>
                             <td className="pe-2 text-end">
@@ -1054,8 +1049,8 @@ export function AutomationTaskForm({ params }: { params: AutomationTaskParams })
                   </table>
                 </div>
               )}
-            </section>
-          )}
+            </TabsContent>
+          </Tabs>
 
           <div className="min-h-6 pt-4">
             {error ? (

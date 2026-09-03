@@ -1,16 +1,18 @@
 "use client";
 
-import { ChevronDownIcon, FolderIcon, LoaderCircleIcon, SearchIcon, XIcon } from "lucide-react";
-import { useMemo, useState, type ReactNode, type Ref } from "react";
+import { FolderIcon, LoaderCircleIcon, SearchIcon, XIcon } from "lucide-react";
+import type { ReactNode, Ref } from "react";
 
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from "./dropdown-menu";
+  SearchableSelector,
+  SearchableSelectorClear,
+  SearchableSelectorContent,
+  SearchableSelectorEmpty,
+  SearchableSelectorInput,
+  SearchableSelectorItem,
+  SearchableSelectorList,
+  SearchableSelectorTrigger,
+} from "./searchable-selector";
 import { cn } from "../utils";
 
 export interface WorkspaceSelectorOption {
@@ -59,25 +61,27 @@ export function WorkspaceSelector({
   onClear?(): void;
   onValueChange(workspaceId: string): void;
 }) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [workspaceQuery, setWorkspaceQuery] = useState("");
   const clearable = canClear && selectedWorkspace !== undefined && !picking;
-  const filteredWorkspaces = useMemo(() => {
-    const normalizedQuery = workspaceQuery.trim().toLocaleLowerCase();
-    if (!normalizedQuery) return workspaces;
-    return workspaces.filter(
-      (workspace) =>
-        workspace.name.toLocaleLowerCase().includes(normalizedQuery) ||
-        workspace.rootPath.toLocaleLowerCase().includes(normalizedQuery),
-    );
-  }, [workspaceQuery, workspaces]);
 
   return (
-    <DropdownMenu
-      open={menuOpen}
-      onOpenChange={(open) => {
-        setMenuOpen(open);
-        if (!open) setWorkspaceQuery("");
+    <SearchableSelector<WorkspaceSelectorOption>
+      items={workspaces}
+      value={selectedWorkspace ?? null}
+      itemToStringLabel={(workspace) => `${workspace.name} ${workspace.rootPath}`}
+      isItemEqualToValue={(workspace, value) => workspace.id === value.id}
+      onValueChange={(workspace) => {
+        if (workspace) {
+          onValueChange(workspace.id);
+          return;
+        }
+        onClear?.();
+      }}
+      filter={(workspace, query) => {
+        const normalizedQuery = query.trim().toLocaleLowerCase();
+        return (
+          workspace.name.toLocaleLowerCase().includes(normalizedQuery) ||
+          workspace.rootPath.toLocaleLowerCase().includes(normalizedQuery)
+        );
       }}
     >
       <div
@@ -87,29 +91,19 @@ export function WorkspaceSelector({
           variant === "outline"
             ? "rounded-[var(--input-control-radius)] border [border-color:var(--input-control-border)] [background:var(--input-control-background)] hover:[background:var(--button-background-hover)] focus-within:[background:var(--button-background-hover)]"
             : "rounded-full bg-transparent hover:bg-muted focus-within:bg-muted",
-          menuOpen &&
-            (variant === "outline"
-              ? "[background:var(--button-background-selected)] [color:var(--button-foreground-selected)]"
-              : "bg-muted"),
           error &&
             "bg-destructive/5 text-destructive ring-3 ring-destructive/20 dark:ring-destructive/40",
           error && variant === "outline" && "border-destructive dark:border-destructive/50",
         )}
       >
         {clearable ? (
-          <button
-            type="button"
+          <SearchableSelectorClear
             aria-label={labels.clear}
             title={labels.clear}
             className={cn(
-              "group/clear relative grid size-[var(--dropdown-control-height)] shrink-0 cursor-pointer place-items-center outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+              "group/clear relative size-[var(--dropdown-control-height)] shrink-0",
               variant === "outline" ? "rounded-[var(--input-control-radius)]" : "rounded-full",
             )}
-            onClick={() => {
-              setMenuOpen(false);
-              setWorkspaceQuery("");
-              onClear?.();
-            }}
           >
             <FolderIcon
               aria-hidden="true"
@@ -119,10 +113,10 @@ export function WorkspaceSelector({
               aria-hidden="true"
               className="absolute hidden size-4 group-hover/workspace:block group-focus-visible/clear:block"
             />
-          </button>
+          </SearchableSelectorClear>
         ) : null}
 
-        <DropdownMenuTrigger
+        <SearchableSelectorTrigger
           ref={triggerRef}
           id={triggerId}
           type="button"
@@ -130,9 +124,11 @@ export function WorkspaceSelector({
           aria-label={labels.select}
           aria-invalid={error || undefined}
           className={cn(
-            "inline-flex h-[var(--dropdown-control-height)] min-w-0 flex-1 cursor-pointer items-center gap-2 pe-2 pt-[var(--button-content-padding-block-start)] pb-[var(--button-content-padding-block-end)] text-base leading-[var(--control-text-line-height)]! font-normal outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:pointer-events-none disabled:cursor-default disabled:opacity-100",
+            "h-[var(--dropdown-control-height)] min-w-0 flex-1 cursor-pointer border-0 text-base font-normal focus-visible:-outline-offset-2 disabled:cursor-default disabled:opacity-100",
             variant === "outline" ? "rounded-[var(--input-control-radius)]" : "rounded-full",
-            clearable ? "ps-0" : "ps-2",
+            variant === "ghost" &&
+              "[background:transparent] hover:[background:var(--button-background-hover)]",
+            clearable ? "ps-0" : "ps-2.5",
           )}
         >
           {!clearable ? (
@@ -149,11 +145,10 @@ export function WorkspaceSelector({
                 ? labels.selectError
                 : (selectedWorkspace?.name ?? labels.empty)}
           </span>
-          <ChevronDownIcon aria-hidden="true" className="size-3.5 shrink-0 opacity-60" />
-        </DropdownMenuTrigger>
+        </SearchableSelectorTrigger>
       </div>
 
-      <DropdownMenuContent
+      <SearchableSelectorContent
         align="start"
         alignOffset={clearable ? -32 : 0}
         side="bottom"
@@ -162,51 +157,33 @@ export function WorkspaceSelector({
       >
         <div className="flex h-11 items-center gap-2 border-b px-3">
           <SearchIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
-          <input
+          <SearchableSelectorInput
             autoFocus
-            value={workspaceQuery}
-            type="search"
             aria-label={labels.search}
             placeholder={labels.searchPlaceholder}
             autoComplete="off"
             spellCheck={false}
-            className="h-full min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-            onChange={(event) => setWorkspaceQuery(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key.length === 1 || event.key === "Backspace" || event.key === "Delete") {
-                event.stopPropagation();
-              }
-            }}
+            className="h-full min-w-0 flex-1 border-0 px-0"
           />
         </div>
 
-        <div className="min-h-0 overflow-y-auto p-1">
-          {filteredWorkspaces.length ? (
-            <DropdownMenuRadioGroup
-              value={selectedWorkspace?.id ?? ""}
-              onValueChange={onValueChange}
+        <SearchableSelectorEmpty>{labels.noSearchResults}</SearchableSelectorEmpty>
+        <SearchableSelectorList className="min-h-0">
+          {(workspace: WorkspaceSelectorOption) => (
+            <SearchableSelectorItem
+              key={workspace.id}
+              value={workspace}
+              className="min-h-9 gap-2.5 rounded-lg px-2.5 pe-9 text-sm"
+              title={workspace.rootPath}
             >
-              {filteredWorkspaces.map((workspace) => (
-                <DropdownMenuRadioItem
-                  key={workspace.id}
-                  value={workspace.id}
-                  className="min-h-9 gap-2.5 rounded-lg px-2.5 pe-9 text-sm"
-                  title={workspace.rootPath}
-                >
-                  <FolderIcon aria-hidden="true" className="size-4 text-muted-foreground" />
-                  <span className="min-w-0 flex-1 truncate">{workspace.name}</span>
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-          ) : (
-            <DropdownMenuItem disabled className="min-h-9 px-2.5 text-sm">
-              {labels.noSearchResults}
-            </DropdownMenuItem>
+              <FolderIcon aria-hidden="true" className="size-4 text-muted-foreground" />
+              <span className="min-w-0 flex-1 truncate">{workspace.name}</span>
+            </SearchableSelectorItem>
           )}
-        </div>
+        </SearchableSelectorList>
 
         {footer}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </SearchableSelectorContent>
+    </SearchableSelector>
   );
 }

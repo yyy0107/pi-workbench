@@ -4,7 +4,7 @@ import type { ComponentProps, ReactNode } from "react";
 
 import { cn } from "../utils";
 
-import { field, floating } from "./surfaces";
+import { field, floating } from "../ui/surface";
 
 export interface ComposerCommand {
   name: string;

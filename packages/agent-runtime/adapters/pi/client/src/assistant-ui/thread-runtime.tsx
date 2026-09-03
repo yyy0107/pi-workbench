@@ -16,7 +16,7 @@ import type {
 } from "@workbench/agent-runtime-client/adapter";
 import { useWorkbenchRuntimeAdapters } from "@workbench/agent-runtime-client";
 
-import type { PiSessionManager } from "../runtime/manager";
+import type { PiClientSession, PiSessionManager } from "../runtime/manager";
 import { piRequestErrorKind } from "../runtime/request-error";
 import { piComposerSendError } from "../runtime/send-error";
 import { PiApiError } from "../transport/api";
@@ -43,6 +43,20 @@ function localizedPiError(error: unknown, copy: PiAgentRuntimeCopy["errors"]): E
     default:
       return new Error(copy.requestFailed);
   }
+}
+
+/** Keep assistant-ui cancellation mapped to the authoritative Pi session command. */
+export function createPiThreadCancelHandler(
+  session: Pick<PiClientSession, "cancel">,
+  errorCopy: PiAgentRuntimeCopy["errors"],
+): () => Promise<void> {
+  return async () => {
+    try {
+      await session.cancel();
+    } catch (error) {
+      throw localizedPiError(error, errorCopy);
+    }
+  };
 }
 
 export interface BoundPiThreadRuntimeOptions {
@@ -185,13 +199,7 @@ export function useBoundPiThreadRuntime(
         throw new MessageNotSentError(localized.message);
       }
     },
-    onCancel: async () => {
-      try {
-        await session.cancel();
-      } catch (error) {
-        throw localizedPiError(error, errorCopy);
-      }
-    },
+    onCancel: createPiThreadCancelHandler(session, errorCopy),
     onReload: async (parentId, config) => {
       try {
         await session.retry(parentId, config.runConfig);

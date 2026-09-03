@@ -28,7 +28,6 @@ export function PanelContainer({
       className={cn(
         "bg-background relative flex min-h-0 min-w-0 shrink-0 flex-col overflow-hidden",
         location === "left" && "border-r",
-        location === "right" && "border-l",
         location === "bottom" && "border-t",
         className,
       )}

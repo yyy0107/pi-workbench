@@ -11,11 +11,9 @@ import { PanelContainer } from "./panel-container";
 import { PanelHeader } from "./panel-header";
 import { PanelResizeHandle } from "./panel-resize-handle";
 import { PanelTabContent } from "./panel-tab-content";
-import { RightPanelTabs } from "./right-panel-tabs";
 
 const DEFAULT_PANEL_SIZE: Record<PanelLocation, number> = {
   left: 320,
-  right: 360,
   bottom: 280,
 };
 
@@ -59,14 +57,10 @@ export function PanelDock({ location, className }: PanelDockProps) {
         className,
       )}
     >
-      {location === "right" ? (
-        <RightPanelTabs />
-      ) : (
-        <PanelHeader
-          title={<PanelTabContent definition={definition} isActive />}
-          onClose={() => panels.close(definition.id)}
-        />
-      )}
+      <PanelHeader
+        title={<PanelTabContent definition={definition} isActive />}
+        onClose={() => panels.close(definition.id)}
+      />
       <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
         <PanelHost location={location} className="size-full" />
       </div>
@@ -75,10 +69,7 @@ export function PanelDock({ location, className }: PanelDockProps) {
         size={size}
         minSize={definition.minSize}
         maxSize={definition.maxSize}
-        collapsible={location === "right"}
         onResize={(nextSize) => panels.setSize(location, nextSize)}
-        onCollapse={location === "right" ? () => panels.collapse(location) : undefined}
-        onExpand={location === "right" ? () => panels.expand(location) : undefined}
         onResizingChange={setIsResizing}
         onResizeSessionChange={setIsResizeSessionActive}
       />

@@ -16,14 +16,12 @@ const WEB_APPLICATION_ID = "pi-workbench";
 
 function InstalledRuntimeContributions({
   children,
-  openers,
   runtimeConnection,
 }: WorkbenchRuntimeContributionsProviderProps) {
   return (
     <PiAgentRuntimeContributionsProvider
       assets={{ fileViewerAssetBaseUrl: "/file-viewer/" }}
       branding={{ piLogoUrl: "/pi-logo-on-light.svg", runtimeName: "Pi" }}
-      openers={openers}
       runtimeConnection={runtimeConnection}
     >
       {children}

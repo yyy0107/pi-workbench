@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
+import path from "node:path";
 import test from "node:test";
 
 import {
@@ -56,14 +57,15 @@ test("validates one renderer endpoint, waits before Electron launch, and cleans 
       }),
     /canonical loopback HTTP origin/u,
   );
+  const paths = createWorkbenchPaths({ repositoryRoot: "/arbitrary/workbench" });
   const webWatch = createWebRuntimeWatchLaunchConfiguration({
-    paths: createWorkbenchPaths({ repositoryRoot: "/arbitrary/workbench" }),
+    paths,
     environment: { WORKBENCH_RUNTIME_ORIGIN: "http://127.0.0.1:49999" },
     tsxCli: "/virtual/tsx-cli.mjs",
   });
   assert.deepEqual(webWatch.args.slice(0, 2), ["/virtual/tsx-cli.mjs", "watch"]);
   assert.deepEqual(webWatch.args.slice(-2), [
-    "/arbitrary/workbench/scripts/web-runtime-orchestrator.mjs",
+    path.join(paths.repositoryRoot, "scripts", "web-runtime-orchestrator.mjs"),
     "--development",
   ]);
   assert.equal(JSON.stringify(webWatch).includes("49999"), false);

@@ -3,7 +3,7 @@
 import type { PropsWithChildren } from "react";
 import { CheckCircle2Icon, ChevronRightIcon } from "lucide-react";
 
-import { collapsePanel } from "../../../elements/surfaces";
+import { collapsePanel } from "../../../ui/surface";
 import { useDisclosureScrollLock } from "../../../elements/use-disclosure-scroll-lock";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../../../ui/collapsible";
 import { cn } from "../../../utils";

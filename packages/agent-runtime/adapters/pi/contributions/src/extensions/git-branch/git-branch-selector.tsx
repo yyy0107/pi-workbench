@@ -4,7 +4,6 @@ import { useAuiState } from "@assistant-ui/react";
 import {
   AlertCircleIcon,
   ArrowRightIcon,
-  ChevronDownIcon,
   GitBranchIcon,
   GitForkIcon,
   LoaderCircleIcon,
@@ -12,15 +11,7 @@ import {
   SearchIcon,
   TriangleAlertIcon,
 } from "lucide-react";
-import {
-  useCallback,
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 
 import { Button } from "@workbench/shell/ui";
 import {
@@ -31,16 +22,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@workbench/shell/ui";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@workbench/shell/ui";
 import { Input } from "@workbench/shell/ui";
+import {
+  SearchableSelector,
+  SearchableSelectorCollection,
+  SearchableSelectorContent,
+  SearchableSelectorEmpty,
+  SearchableSelectorGroup,
+  SearchableSelectorGroupLabel,
+  SearchableSelectorInput,
+  SearchableSelectorItem,
+  SearchableSelectorList,
+  SearchableSelectorTrigger,
+} from "@workbench/shell/ui";
 import { FileTypeIcon } from "@workbench/shell/workspace-file-tree";
 import { usePiI18n } from "../../i18n";
 import { cn } from "@workbench/shell/utils";
@@ -159,15 +153,6 @@ function GitBranchSelector({
   }, [workspaceClient, workspaceId]);
 
   const repository = status?.repository ? status : undefined;
-  const normalizedQuery = query.trim().toLocaleLowerCase();
-  const filteredBranches = useMemo(() => {
-    if (!repository) return [];
-    if (!normalizedQuery) return repository.branches;
-    return repository.branches.filter((branch) =>
-      branch.toLocaleLowerCase().includes(normalizedQuery),
-    );
-  }, [normalizedQuery, repository]);
-
   const errorMessage = (error: BranchActionError): string => {
     switch (error) {
       case "session-busy":
@@ -269,31 +254,33 @@ function GitBranchSelector({
 
   return (
     <>
-      <DropdownMenu
+      <SearchableSelector<string>
+        items={repository.branches}
+        value={repository.branch ?? null}
         open={menuOpen}
+        inputValue={query}
+        onInputValueChange={setQuery}
         onOpenChange={(open) => {
           if (busy) return;
           setMenuOpen(open);
           if (open) void loadStatus();
           else setQuery("");
         }}
+        onValueChange={(branch) => {
+          if (branch) requestBranchSwitch(branch);
+        }}
       >
-        <DropdownMenuTrigger
+        <SearchableSelectorTrigger
           disabled={busy}
           aria-label={t("extensions.gitBranch.select")}
           title={headLabel}
-          render={
-            <Button
-              type="button"
-              variant="ghost"
-              className={cn(
-                "min-w-0 px-2",
-                placement === "header"
-                  ? "border-border/60 bg-muted/70 text-muted-foreground h-[var(--button-height-default)] max-w-36 rounded-md border text-sm font-medium sm:max-w-48"
-                  : "max-w-56 rounded-full text-base font-normal",
-              )}
-            />
-          }
+          type="button"
+          className={cn(
+            "min-w-0 px-2",
+            placement === "header"
+              ? "border-border/60 bg-muted/70 text-muted-foreground h-[var(--button-height-default)] max-w-36 rounded-md text-sm font-medium sm:max-w-48"
+              : "max-w-56 rounded-full border-0 [background:transparent] text-base font-normal hover:[background:var(--button-background-hover)]",
+          )}
         >
           {busy || loading ? (
             <LoaderCircleIcon
@@ -308,10 +295,9 @@ function GitBranchSelector({
               ? t("extensions.gitBranch.switching", { branch: switchingBranch })
               : headLabel}
           </span>
-          <ChevronDownIcon aria-hidden="true" className="size-3.5 opacity-60" />
-        </DropdownMenuTrigger>
+        </SearchableSelectorTrigger>
 
-        <DropdownMenuContent
+        <SearchableSelectorContent
           align="start"
           side="bottom"
           sideOffset={6}
@@ -319,30 +305,22 @@ function GitBranchSelector({
         >
           <div className="flex h-11 items-center gap-2 border-b px-3">
             <SearchIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
-            <input
+            <SearchableSelectorInput
               autoFocus
-              type="search"
-              value={query}
               aria-label={t("extensions.gitBranch.searchLabel")}
               placeholder={t("extensions.gitBranch.searchPlaceholder")}
               autoComplete="off"
               spellCheck={false}
-              className="h-full min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-              onChange={(event) => setQuery(event.currentTarget.value)}
-              onKeyDown={(event) => {
-                if (event.key.length === 1 || event.key === "Backspace" || event.key === "Delete") {
-                  event.stopPropagation();
-                }
-              }}
+              className="h-full min-w-0 flex-1 border-0 px-0"
             />
           </div>
 
-          <div className="min-h-0 overflow-y-auto p-1">
-            <p className="px-2.5 py-1.5 text-sm font-medium text-muted-foreground">
-              {t("extensions.gitBranch.branches")}
-            </p>
-            {!repository.branch && !normalizedQuery ? (
-              <DropdownMenuItem disabled className="min-h-11 gap-2.5 rounded-lg px-2.5 text-sm">
+          <div className="flex min-h-0 flex-col p-1">
+            {!repository.branch && !query.trim() ? (
+              <div
+                aria-disabled="true"
+                className="text-muted-foreground flex min-h-11 items-center gap-2.5 rounded-lg px-2.5 text-sm opacity-70"
+              >
                 <GitBranchIcon aria-hidden="true" className="size-4 text-muted-foreground" />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate">{headLabel}</span>
@@ -354,87 +332,91 @@ function GitBranchSelector({
                     </span>
                   ) : null}
                 </span>
-              </DropdownMenuItem>
+              </div>
             ) : null}
-            {filteredBranches.length ? (
-              <DropdownMenuRadioGroup
-                value={repository.branch ?? ""}
-                onValueChange={requestBranchSwitch}
-              >
-                {filteredBranches.map((branch) => {
-                  const current = branch === repository.branch;
-                  return (
-                    <DropdownMenuRadioItem
-                      key={branch}
-                      value={branch}
-                      closeOnClick={false}
-                      disabled={busy}
-                      className={cn(
-                        "gap-2.5 rounded-lg px-2.5 pe-9 text-sm",
-                        current && repository.changedFileCount > 0 ? "min-h-14" : "min-h-9",
-                      )}
-                    >
-                      <GitBranchIcon aria-hidden="true" className="size-4 text-muted-foreground" />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate">{branch}</span>
-                        {current && repository.changedFileCount > 0 ? (
-                          <span className="block truncate text-xs text-muted-foreground">
-                            {t("extensions.gitBranch.changedFiles", {
-                              count: repository.changedFileCount,
-                            })}
-                          </span>
-                        ) : null}
-                      </span>
-                      {switchingBranch === branch ? (
-                        <LoaderCircleIcon
+            <SearchableSelectorEmpty>
+              {repository.branches.length
+                ? t("extensions.gitBranch.noSearchResults")
+                : t("extensions.gitBranch.noBranches")}
+            </SearchableSelectorEmpty>
+            <SearchableSelectorList className="max-h-none min-h-0 flex-1 p-0">
+              <SearchableSelectorGroup items={repository.branches}>
+                <SearchableSelectorGroupLabel className="px-2.5 py-1.5 text-sm">
+                  {t("extensions.gitBranch.branches")}
+                </SearchableSelectorGroupLabel>
+                <SearchableSelectorCollection>
+                  {(branch: string) => {
+                    const current = branch === repository.branch;
+                    return (
+                      <SearchableSelectorItem
+                        key={branch}
+                        value={branch}
+                        disabled={busy}
+                        className={cn(
+                          "gap-2.5 rounded-lg px-2.5 pe-9 text-sm",
+                          current && repository.changedFileCount > 0 ? "min-h-14" : "min-h-9",
+                        )}
+                      >
+                        <GitBranchIcon
                           aria-hidden="true"
-                          className="absolute end-2 size-4 animate-spin motion-reduce:animate-none"
+                          className="size-4 text-muted-foreground"
                         />
-                      ) : null}
-                    </DropdownMenuRadioItem>
-                  );
-                })}
-              </DropdownMenuRadioGroup>
-            ) : (
-              <DropdownMenuItem disabled className="min-h-9 px-2.5 text-sm">
-                {repository.branches.length
-                  ? t("extensions.gitBranch.noSearchResults")
-                  : t("extensions.gitBranch.noBranches")}
-              </DropdownMenuItem>
-            )}
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate">{branch}</span>
+                          {current && repository.changedFileCount > 0 ? (
+                            <span className="block truncate text-xs text-muted-foreground">
+                              {t("extensions.gitBranch.changedFiles", {
+                                count: repository.changedFileCount,
+                              })}
+                            </span>
+                          ) : null}
+                        </span>
+                        {switchingBranch === branch ? (
+                          <LoaderCircleIcon
+                            aria-hidden="true"
+                            className="absolute end-2 size-4 animate-spin motion-reduce:animate-none"
+                          />
+                        ) : null}
+                      </SearchableSelectorItem>
+                    );
+                  }}
+                </SearchableSelectorCollection>
+              </SearchableSelectorGroup>
+            </SearchableSelectorList>
           </div>
 
-          <div>
-            <DropdownMenuSeparator className="m-0" />
-            <div className="p-1">
-              <DropdownMenuItem
-                disabled={busy}
-                className="min-h-9 gap-2.5 rounded-lg px-2.5 text-sm"
-                onClick={() => {
-                  setMenuOpen(false);
-                  setBranchName("");
-                  setCreateError(undefined);
-                  setCreateOpen(true);
-                }}
-              >
-                <PlusIcon aria-hidden="true" className="size-4 text-muted-foreground" />
-                {t("extensions.gitBranch.createAction")}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                disabled={busy}
-                className="min-h-9 gap-2.5 rounded-lg px-2.5 text-sm"
-                onClick={() => {
-                  setMenuOpen(false);
-                  setGraphOpen(true);
-                }}
-              >
-                <GitForkIcon aria-hidden="true" className="size-4 text-muted-foreground" />
-                {t("extensions.gitBranch.graph.action")}
-              </DropdownMenuItem>
-            </div>
+          <div className="border-t p-1">
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={busy}
+              className="min-h-9 w-full justify-start gap-2.5 rounded-lg px-2.5 text-sm"
+              onClick={() => {
+                setMenuOpen(false);
+                setBranchName("");
+                setCreateError(undefined);
+                setCreateOpen(true);
+              }}
+            >
+              <PlusIcon aria-hidden="true" className="size-4 text-muted-foreground" />
+              {t("extensions.gitBranch.createAction")}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={busy}
+              className="min-h-9 w-full justify-start gap-2.5 rounded-lg px-2.5 text-sm"
+              onClick={() => {
+                setMenuOpen(false);
+                setGraphOpen(true);
+              }}
+            >
+              <GitForkIcon aria-hidden="true" className="size-4 text-muted-foreground" />
+              {t("extensions.gitBranch.graph.action")}
+            </Button>
           </div>
-        </DropdownMenuContent>
-      </DropdownMenu>
+        </SearchableSelectorContent>
+      </SearchableSelector>
 
       <Dialog
         open={pendingBranch !== undefined}

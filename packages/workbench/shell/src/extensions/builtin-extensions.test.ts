@@ -11,6 +11,7 @@ import {
 
 const SHELL_CORE_EXTENSION_IDS = Object.freeze([
   "workbench.brand",
+  "workbench.workspace-sidebar",
   "workbench.appearance",
   "workbench.locale-selector",
   "workbench.message-presentation",

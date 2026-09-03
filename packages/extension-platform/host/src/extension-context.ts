@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useSyncExternalStore } from "react";
+import { createContext, useContext } from "react";
 
 import type {
   ComposerCommandRegistry,
@@ -8,7 +8,7 @@ import type {
   OpenerRegistry,
   PanelRegistry,
   SettingsRegistry,
-  WorkbenchExtension,
+  SidebarSectionRegistry,
   WorkspaceSurfaceRegistry,
 } from "@workbench/extension-sdk";
 import type { ExtensionManager } from "@workbench/extension-sdk/internal";
@@ -18,8 +18,6 @@ import type { MainViewService } from "./services/main-view-service";
 import type { NavigationService } from "./services/navigation-service";
 import type { PanelService } from "./services/panel-service";
 
-const EMPTY_WORKBENCH_EXTENSIONS = Object.freeze([]) as readonly WorkbenchExtension[];
-
 export type ExtensionErrorSource =
   | "command"
   | "main-view"
@@ -27,6 +25,7 @@ export type ExtensionErrorSource =
   | "panel"
   | "renderer"
   | "setting"
+  | "sidebar-section"
   | "setup"
   | "slot"
   | "workspace";
@@ -62,16 +61,6 @@ export function useExtensionEnvironment(): ExtensionEnvironment {
 
 export function useExtensionManager(): ExtensionManager {
   return useExtensionEnvironment().manager;
-}
-
-/** 返回当前活动扩展的稳定快照，供工具箱等通用 Host 构建能力目录。 */
-export function useWorkbenchExtensions(): readonly WorkbenchExtension[] {
-  const manager = useExtensionManager();
-  return useSyncExternalStore(
-    manager.subscribe,
-    () => manager.getExtensions(),
-    () => EMPTY_WORKBENCH_EXTENSIONS,
-  );
 }
 
 export function usePanelService(): PanelService {
@@ -112,6 +101,10 @@ export function usePanelRegistry(): PanelRegistry {
 
 export function useSettingsRegistry(): SettingsRegistry {
   return useExtensionEnvironment().manager.settings;
+}
+
+export function useSidebarSectionRegistry(): SidebarSectionRegistry {
+  return useExtensionEnvironment().manager.sidebarSections;
 }
 
 export function useWorkspaceSurfaceRegistry(): WorkspaceSurfaceRegistry {

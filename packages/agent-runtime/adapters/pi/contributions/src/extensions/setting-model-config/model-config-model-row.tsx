@@ -3,7 +3,7 @@
 import { memo, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronDownIcon, ChevronRightIcon, Trash2Icon } from "lucide-react";
 
-import { collapsePanel } from "@workbench/shell/elements";
+import { collapsePanel } from "@workbench/shell/ui";
 import { Button } from "@workbench/shell/ui";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@workbench/shell/ui";
 import { DropdownMenu, DropdownMenuRadioGroup, DropdownMenuTrigger } from "@workbench/shell/ui";

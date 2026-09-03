@@ -46,12 +46,6 @@ import {
   createWorkbenchDraftPersistence,
   createWorkbenchThreadScrollPersistence,
 } from "./browser-session-persistence";
-import {
-  createSettingsExtension,
-  shellExtensionGroups,
-  useInstalledComponentExtensions,
-  type SettingsExtensionOptions,
-} from "./extensions";
 import { I18nProvider, useI18n, type Locale, type TranslationBundle } from "./i18n";
 import { shouldCloseRightWorkspaceForNewThread } from "./new-thread-policy";
 import { createPanelStore } from "./panels";
@@ -152,35 +146,6 @@ export function WorkbenchApplicationProviders({
       </RuntimeConnectionProvider>
     </WorkbenchApplicationInstallationContext.Provider>
   );
-}
-
-export interface WorkbenchRuntimeExtensionGroups {
-  readonly workspace: readonly WorkbenchExtension[];
-  readonly terminal: readonly WorkbenchExtension[];
-  readonly setup: readonly WorkbenchExtension[];
-  readonly runtime: readonly WorkbenchExtension[];
-}
-
-/** Interleave one runtime's semantic groups with the reusable Shell groups. */
-export function createWorkbenchExtensionPrefix({
-  runtimeExtensionGroups,
-  SettingsViewHeaderAction,
-}: Readonly<{
-  runtimeExtensionGroups: WorkbenchRuntimeExtensionGroups;
-  SettingsViewHeaderAction?: SettingsExtensionOptions["SettingsViewHeaderAction"];
-}>): readonly WorkbenchExtension[] {
-  const settingsExtension = createSettingsExtension(
-    SettingsViewHeaderAction ? { SettingsViewHeaderAction } : {},
-  );
-  return Object.freeze([
-    ...shellExtensionGroups.core,
-    ...runtimeExtensionGroups.workspace,
-    ...shellExtensionGroups.workspace,
-    ...runtimeExtensionGroups.terminal,
-    ...runtimeExtensionGroups.setup,
-    settingsExtension,
-    ...runtimeExtensionGroups.runtime,
-  ]);
 }
 
 const BROWSER_LEGACY_STORAGE: RightWorkspaceLegacyStorage = Object.freeze({
@@ -507,7 +472,7 @@ type WorkbenchApplicationShellFrameProps = Pick<
 export interface WorkbenchApplicationShellProps extends WorkbenchApplicationShellFrameProps {
   readonly applicationId: string;
   readonly children: ReactNode;
-  readonly extensionPrefix: readonly WorkbenchExtension[];
+  readonly extensions: readonly WorkbenchExtension[];
   readonly runtimeProvider: ComponentType<{ children: ReactNode }>;
   readonly createDraftPersistence?: (namespace: string) => RightWorkspaceDraftPersistencePort;
   readonly createThreadScrollPersistence?: (namespace: string) => ThreadScrollPersistencePort;
@@ -565,24 +530,18 @@ export function WorkbenchApplicationShell({
   children,
   createDraftPersistence = createWorkbenchDraftPersistence,
   createThreadScrollPersistence = createWorkbenchThreadScrollPersistence,
-  extensionPrefix,
+  extensions,
   installationEffects,
   mainViewHost,
   runningIndicatorCatalog,
   runtimeProvider,
 }: WorkbenchApplicationShellProps) {
   const installationId = useWorkbenchApplicationInstallationId();
-  const installedComponentExtensions = useInstalledComponentExtensions();
   const [panelStore] = useState(createPanelStore);
   const [draftPersistence] = useState(() => createDraftPersistence(installationId));
   const [threadScrollPersistence] = useState(() => createThreadScrollPersistence(installationId));
-  const activeExtensions = useMemo(
-    () => Object.freeze([...extensionPrefix, ...installedComponentExtensions]),
-    [extensionPrefix, installedComponentExtensions],
-  );
-
   return (
-    <ExtensionProvider extensions={activeExtensions} panelStore={panelStore}>
+    <ExtensionProvider extensions={extensions} panelStore={panelStore}>
       <WorkbenchApplicationShellInstallation
         applicationId={applicationId}
         assets={assets}

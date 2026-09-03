@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 
 import { cn } from "../utils";
 
-import { mono } from "./surfaces";
+import { mono } from "../ui/surface";
 
 type DiffKind = "context" | "added" | "removed";
 

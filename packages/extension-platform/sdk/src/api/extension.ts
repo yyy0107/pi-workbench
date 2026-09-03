@@ -1,90 +1,14 @@
-import type { ComponentType } from "react";
-
-import type { LocalizableText } from "./localizable-text";
-
 import type { CommandRegistry } from "./command";
 import type { ComposerCommandRegistry } from "./composer-command";
 import type { Disposable } from "./disposable";
 import type { MainViewRegistry } from "./main-view";
 import type { OpenerRegistry } from "./opener";
-import type { PanelLocation, PanelRegistry } from "./panel";
+import type { PanelRegistry } from "./panel";
 import type { RendererRegistry } from "./renderer";
 import type { SettingsRegistry } from "./settings";
-import type { SlotRegistry, WorkbenchSlot } from "./slot";
+import type { SidebarSectionRegistry } from "./sidebar-section";
+import type { SlotRegistry } from "./slot";
 import type { WorkspaceSurfaceRegistry } from "./workspace-surface";
-
-/** Workbench 中所有直接承载 React 组件的公开贡献类型。 */
-export const COMPONENT_EXTENSION_CONTRIBUTION_KINDS = [
-  "slot",
-  "panel",
-  "message-renderer",
-  "message-part-renderer",
-  "tool-renderer",
-  "data-renderer",
-  "settings-section",
-  "settings-item",
-  "main-view",
-  "workspace-surface",
-] as const;
-
-export type ComponentExtensionContributionKind =
-  (typeof COMPONENT_EXTENSION_CONTRIBUTION_KINDS)[number];
-
-/** 所有组件贡献共享的工具箱展示契约。 */
-interface ComponentExtensionContributionBase {
-  /** 与实际注册贡献一致的稳定 id、名称或 kind。 */
-  readonly id: string;
-  /** 用户可理解的组件出现区域，例如 AI 消息中的单个消息 Part。 */
-  readonly surface: LocalizableText;
-  /** 可选的最终 React 挂载 Host/Primitive 路径；Slot target 自身足够时可以省略。 */
-  readonly host?: string;
-  /** 命中、替换或回退规则的可选说明。 */
-  readonly description?: LocalizableText;
-  /** 使用贡献真实组件库和样式渲染的无 props 预览组件类型。 */
-  readonly preview: ComponentType;
-  /** 实现该贡献的项目相对源码文件；首项应为主要 React 组件文件。 */
-  readonly sourceFiles: readonly [string, ...string[]];
-}
-
-/**
- * 一个可在工具箱中检查和预览的真实前端组件贡献。
- *
- * Slot target 直接复用平台的 `WorkbenchSlot` 联合类型，Panel target 复用 `PanelLocation`，确保
- * 工具箱位置框线图使用真实宿主区域；其他 Registry/Host 使用其自身的稳定字符串 key。
- */
-export type ComponentExtensionContribution = ComponentExtensionContributionBase &
-  (
-    | { readonly kind: "slot"; readonly target: WorkbenchSlot }
-    | { readonly kind: "panel"; readonly target: PanelLocation }
-    | {
-        readonly kind: Exclude<ComponentExtensionContributionKind, "panel" | "slot">;
-        readonly target: string;
-      }
-  );
-
-/**
- * 扩展在 Workbench 工具箱中公开的可选前端组件能力描述。
- *
- * 文案保留为延迟解析的消息描述，由工具箱 Host 按当前 locale 解析。未提供该元数据的扩展仍可
- * 正常激活，只是不进入面向用户的“组件拓展”目录。
- */
-export interface ExtensionToolboxCapability {
-  /** 工具箱使用的能力分类；前端组件渲染能力不得归入 Pi 扩展。 */
-  readonly kind: "component-extension";
-  /** 扩展的分发方式；installable 可由应用级安装注册表独立激活或卸载。 */
-  readonly distribution: "builtin" | "installable";
-  /** 工具箱能力列表和详情页使用的本地化名称。 */
-  readonly name: LocalizableText;
-  /** 对该扩展所提供能力的简短本地化说明。 */
-  readonly description?: LocalizableText;
-  /** 定义 `defineExtension()` 和 setup 生命周期的项目相对入口文件。 */
-  readonly entryFile: string;
-  /** 该能力拥有的所有前端组件贡献；一个扩展可同时进入多个插槽或宿主。 */
-  readonly contributions: readonly [
-    ComponentExtensionContribution,
-    ...ComponentExtensionContribution[],
-  ];
-}
 
 /**
  * 传给扩展 `setup()` 的能力集合。
@@ -108,6 +32,8 @@ export interface ExtensionContext {
   readonly renderers: RendererRegistry;
   /** 注册共享设置面板中的分区和功能自有设置项。 */
   readonly settings: SettingsRegistry;
+  /** 注册由共享侧边栏导航和搜索 chrome 承载的完整功能区域。 */
+  readonly sidebarSections: SidebarSectionRegistry;
   /** 注册替换中央对话区域的完整功能主视图。 */
   readonly mainViews: MainViewRegistry;
   /** 注册由 RightWorkspace 核心宿主管理标签和生命周期的检查能力。 */
@@ -135,8 +61,6 @@ export interface WorkbenchExtension {
   name: string;
   /** 非空版本元数据；当前不参与依赖解析或升级协商。 */
   version: string;
-  /** 可选的工具箱能力目录元数据；扩展停用后对应条目会随活动扩展快照一起移除。 */
-  toolbox?: ExtensionToolboxCapability;
   /**
    * 同步注册扩展贡献并返回扩展拥有的额外资源。
    *

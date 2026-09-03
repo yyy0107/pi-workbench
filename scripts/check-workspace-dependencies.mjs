@@ -25,6 +25,10 @@ const PACKAGE_PRODUCTION_DEPENDENCY_POLICIES = new Map([
   ],
 ]);
 
+function repositoryRelativePath(repositoryRoot, target) {
+  return path.relative(repositoryRoot, target).split(path.sep).join("/");
+}
+
 export function parseWorkspacePackagePatterns(source) {
   const patterns = [];
   let inPackages = false;
@@ -262,11 +266,11 @@ function sourceBoundaryViolations({
   repositoryRoot,
   source,
 }) {
-  const location = path.relative(repositoryRoot, filename);
+  const location = repositoryRelativePath(repositoryRoot, filename);
   const aliasRoot = owner.kind === "app" ? path.join(owner.directory, "src") : repositoryRoot;
   const violations = [];
   const report = (targetDirectory, detail) => {
-    const target = path.relative(repositoryRoot, targetDirectory);
+    const target = repositoryRelativePath(repositoryRoot, targetDirectory);
     if (owner.kind === "package") {
       violations.push(
         `${location}: packages must not depend on app source (${target}) via ${detail}`,
@@ -282,7 +286,7 @@ function sourceBoundaryViolations({
   const reportPackage = (targetDirectory, detail) => {
     if (!enforcePackageBoundary || targetDirectory === owner.directory) return;
     violations.push(
-      `${location}: workspace source must not depend on another package source (${path.relative(repositoryRoot, targetDirectory)}) via ${detail}`,
+      `${location}: workspace source must not depend on another package source (${repositoryRelativePath(repositoryRoot, targetDirectory)}) via ${detail}`,
     );
   };
 
@@ -396,7 +400,9 @@ export async function workspaceDependencyViolations(repositoryRoot = REPOSITORY_
     const manifestPath = path.join(directory, "package.json");
     const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
     if (!manifest.name || typeof manifest.name !== "string") {
-      throw new Error(`${path.relative(repositoryRoot, manifestPath)} must declare a package name`);
+      throw new Error(
+        `${repositoryRelativePath(repositoryRoot, manifestPath)} must declare a package name`,
+      );
     }
     workspaces.push({ directory, kind, manifest, manifestPath });
   }
@@ -426,24 +432,24 @@ export async function workspaceDependencyViolations(repositoryRoot = REPOSITORY_
           !productionDependencyPolicy.has(dependency)
         ) {
           violations.push(
-            `${path.relative(repositoryRoot, manifestPath)}: ${manifest.name} must not declare production dependency ${dependency}`,
+            `${repositoryRelativePath(repositoryRoot, manifestPath)}: ${manifest.name} must not declare production dependency ${dependency}`,
           );
         }
         if (allWorkspaceNames.has(dependency) && !String(version).startsWith("workspace:")) {
           violations.push(
-            `${path.relative(repositoryRoot, manifestPath)}: ${dependency} must use the workspace: protocol`,
+            `${repositoryRelativePath(repositoryRoot, manifestPath)}: ${dependency} must use the workspace: protocol`,
           );
         }
         const appDirectory = appNames.get(dependency);
         if (!appDirectory) continue;
-        const appPath = path.relative(repositoryRoot, appDirectory);
+        const appPath = repositoryRelativePath(repositoryRoot, appDirectory);
         if (kind === "package") {
           violations.push(
-            `${path.relative(repositoryRoot, manifestPath)}: packages must not declare app dependency (${appPath})`,
+            `${repositoryRelativePath(repositoryRoot, manifestPath)}: packages must not declare app dependency (${appPath})`,
           );
         } else if (appDirectory !== directory) {
           violations.push(
-            `${path.relative(repositoryRoot, manifestPath)}: apps must not declare another app dependency (${appPath})`,
+            `${repositoryRelativePath(repositoryRoot, manifestPath)}: apps must not declare another app dependency (${appPath})`,
           );
         }
       }
@@ -469,7 +475,7 @@ export async function workspaceDependencyViolations(repositoryRoot = REPOSITORY_
         for (const specifier of moduleSpecifiers(source, filename)) {
           const dependency = importedPackageName(specifier);
           if (!dependency || dependency === manifest.name) continue;
-          const location = path.relative(repositoryRoot, filename);
+          const location = repositoryRelativePath(repositoryRoot, filename);
 
           if (
             sourceDirectory === "src" &&

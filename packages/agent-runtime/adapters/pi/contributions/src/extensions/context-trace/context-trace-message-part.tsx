@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { DataMessagePartComponent } from "@assistant-ui/react";
 import { ScanSearchIcon } from "lucide-react";
 
-import { field, mono } from "@workbench/shell/elements";
+import { field, mono } from "@workbench/shell/ui";
 import { ToolCall } from "@workbench/shell/elements";
 import { Button } from "@workbench/shell/ui";
 import { usePiI18n } from "../../i18n";

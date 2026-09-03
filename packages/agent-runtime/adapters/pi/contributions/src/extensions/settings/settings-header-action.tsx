@@ -1,10 +1,11 @@
 "use client";
 
 import { FileJson2Icon } from "lucide-react";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 
 import { Button } from "@workbench/shell/ui";
 import { usePiConfigurationClient } from "@workbench/agent-runtime-pi-client/configuration";
+import { useMainViewService } from "@workbench/extension-host";
 
 import { usePiI18n } from "../../i18n";
 
@@ -67,4 +68,16 @@ export function PiSettingsConfigurationMenu() {
       ) : null}
     </>
   );
+}
+
+/** Mount the Pi-only action only while the shared Settings main view is active. */
+export function PiSettingsHeaderAction() {
+  const mainViews = useMainViewService();
+  const activeMainView = useSyncExternalStore(
+    mainViews.subscribe,
+    mainViews.getSnapshot,
+    mainViews.getInitialSnapshot,
+  );
+
+  return activeMainView?.kind === "settings" ? <PiSettingsConfigurationMenu /> : null;
 }

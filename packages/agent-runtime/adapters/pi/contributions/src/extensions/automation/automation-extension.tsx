@@ -1,6 +1,6 @@
 "use client";
 
-import { PlusIcon } from "lucide-react";
+import { PlusIcon, ZapIcon } from "lucide-react";
 import { lazy, Suspense } from "react";
 
 import { defineExtension, type MainViewProps } from "@workbench/extension-sdk";
@@ -32,9 +32,13 @@ export const automationExtension = defineExtension({
   name: "Automations",
   version: "1.0.0",
   setup(context) {
-    const sidebar = context.slots.register("sidebar.automations", {
-      id: "workbench.automations.sidebar",
+    const sidebar = context.sidebarSections.register({
+      id: "automations",
+      title: definePiMessage("extensions.automations.automationHome.title"),
+      icon: ZapIcon,
       component: AutomationSidebar,
+      order: 30,
+      mainViewKinds: [AUTOMATION_MAIN_VIEW_KIND],
     });
     const mainView = context.mainViews.register<AutomationMainViewParams>({
       kind: AUTOMATION_MAIN_VIEW_KIND,

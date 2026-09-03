@@ -8,10 +8,9 @@ the final extension activation order. This package receives those through public
 
 - semantic Pi extension groups, so an application can interleave Shell and Pi owners without
   changing equal-order registry behavior;
-- `PiAgentRuntimeContributionsProvider`, which receives Pi file-viewer assets, Pi branding,
-  openers, and a runtime connection;
-- `piTranslationBundle`, `PiSettingsConfigurationMenu`, and `piRunningIndicatorDefinitions` for
-  explicit application installation.
+- `PiAgentRuntimeContributionsProvider`, which receives Pi file-viewer assets, Pi branding, and a
+  runtime connection; Workspace File openers are owned and disposed by their extension lifecycle;
+- `piTranslationBundle` and `piRunningIndicatorDefinitions` for explicit application installation.
 
 Pi file-viewer fallback assets use a reference-counted lease because the third-party library keeps
 a process-global default. Concurrent Pi roots must use the same normalized base URL; a conflicting

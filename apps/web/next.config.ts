@@ -42,7 +42,6 @@ export const WEB_OUTPUT_FILE_TRACING_EXCLUDES = Object.freeze([
   "src/i18n/**/*",
   "src/server/**/*",
   "src/workbench/**/*",
-  "components.json",
   "tsconfig.json",
 ]);
 

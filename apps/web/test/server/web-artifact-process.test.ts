@@ -324,19 +324,23 @@ test("the bundled primary process exits zero after control disconnect or a proce
   t.after(() => rm(arbitraryCwd, { force: true, recursive: true }));
 
   for (const termination of ["disconnect", "SIGINT", "SIGTERM"] as const) {
-    await t.test(termination, async (t) => {
-      const running = await startPrimaryProcess(fixture.artifactRoot, arbitraryCwd);
-      t.after(() => {
-        if (running.child.exitCode === null && running.child.signalCode === null) {
-          running.child.kill("SIGKILL");
-        }
-      });
+    await t.test(
+      termination,
+      { skip: process.platform === "win32" && termination !== "disconnect" },
+      async (t) => {
+        const running = await startPrimaryProcess(fixture.artifactRoot, arbitraryCwd);
+        t.after(() => {
+          if (running.child.exitCode === null && running.child.signalCode === null) {
+            running.child.kill("SIGKILL");
+          }
+        });
 
-      if (termination === "disconnect") running.child.stdin.end();
-      else assert.equal(running.child.kill(termination), true);
+        if (termination === "disconnect") running.child.stdin.end();
+        else assert.equal(running.child.kill(termination), true);
 
-      await assertPrimaryExitZero(running.child, running.stderrChunks);
-      assert.deepEqual(outputFrameTypes(running.stdoutChunks), ["ready"]);
-    });
+        await assertPrimaryExitZero(running.child, running.stderrChunks);
+        assert.deepEqual(outputFrameTypes(running.stdoutChunks), ["ready"]);
+      },
+    );
   }
 });
