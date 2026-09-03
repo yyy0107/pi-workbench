@@ -27,6 +27,7 @@ import {
   WorkbenchSystemMessage,
   WorkbenchUserMessage,
 } from "./workbench-message";
+import { WorkbenchConversationError } from "./renderers/message-blocks";
 
 interface ConversationRow {
   readonly createdAt: number;
@@ -68,6 +69,9 @@ export const ConversationNodeSeat = memo(function ConversationNodeSeat({
 }: Readonly<{ index: number; nodeKey: string }>) {
   const node = useConversationNode(nodeKey);
   if (!node) return null;
+  if (node.kind === "error") {
+    return <WorkbenchConversationError error={node.error} nodeKey={node.key} />;
+  }
 
   return (
     <div data-conversation-node-key={node.key} data-conversation-node-kind={node.kind}>

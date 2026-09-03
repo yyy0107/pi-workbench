@@ -332,6 +332,22 @@ export const MarkdownTextContent = memo(function MarkdownTextContent({
   );
 });
 
+export const MarkdownTextContentWithCitations = memo(function MarkdownTextContentWithCitations({
+  text,
+  sources,
+  isRunning = false,
+}: Readonly<{
+  text: string;
+  sources: readonly Source[];
+  isRunning?: boolean;
+}>) {
+  return (
+    <TextMessagePartProvider text={text} isRunning={isRunning}>
+      <CitationMarkdownText sources={sources} appendUnplacedSources />
+    </TextMessagePartProvider>
+  );
+});
+
 export const MarkdownCodeBlockContent = memo(function MarkdownCodeBlockContent({
   className,
   code,

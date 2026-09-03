@@ -2,7 +2,7 @@
 
 import { useAuiState } from "@assistant-ui/react";
 
-import { CompactMarkdownText } from "../assistant-ui/lazy-markdown-text";
+import { MarkdownTextContent } from "../assistant-ui/lazy-markdown-text";
 import { ComposerCommandToken } from "../elements/composer";
 import {
   COMPOSER_CONVERSATION_MENTION_TYPE,
@@ -35,11 +35,19 @@ function UserMessageTextBubble({ children }: { children: React.ReactNode }) {
 
 /** Renders the serialized Composer document in a sent user message using the same Token UI. */
 export function WorkbenchComposerMessageText({ text }: { text: string }) {
-  const { t } = useI18n();
-  const commands = useWorkbenchAgentCommands();
   const persistedDocument = useAuiState(
     (state) => state.message.metadata.custom.workbenchComposerDocument,
   );
+  return <WorkbenchComposerMessageTextContent text={text} persistedDocument={persistedDocument} />;
+}
+
+/** Stateless sent-message presentation used by the Headless Conversation Block renderer. */
+export function WorkbenchComposerMessageTextContent({
+  text,
+  persistedDocument,
+}: Readonly<{ text: string; persistedDocument?: unknown }>) {
+  const { t } = useI18n();
+  const commands = useWorkbenchAgentCommands();
   const composerCommandRegistry = useComposerCommandRegistry();
   const agentCommandKindsById = new Map(
     commands.map((command) => [command.invocationName, command.kind] as const),
@@ -169,7 +177,7 @@ export function WorkbenchComposerMessageText({ text }: { text: string }) {
 
   return (
     <UserMessageTextBubble>
-      <CompactMarkdownText />
+      <MarkdownTextContent text={text} inheritLineHeight preserveWhitespace resetParagraphMargins />
     </UserMessageTextBubble>
   );
 }

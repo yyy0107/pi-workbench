@@ -113,7 +113,10 @@ function blocks(message: ThreadMessage): MessageBlock[] {
           kind: "file",
           name: part.filename ?? "image",
           source: part.image,
-          ...(imageMediaType ? { mediaType: imageMediaType } : {}),
+          mediaType: imageMediaType ?? "image/png",
+          ...(/^(?:data:|https?:\/\/|blob:)/i.test(part.image)
+            ? { sourceType: "url" as const }
+            : {}),
         });
         break;
       }
@@ -124,25 +127,18 @@ function blocks(message: ThreadMessage): MessageBlock[] {
           name: part.filename ?? "file",
           source: part.data,
           mediaType: part.mimeType,
+          ...(part.sourceType === undefined ? {} : { sourceType: part.sourceType }),
         });
         break;
       case "source":
-        if (part.sourceType === "url") {
-          projected.push({
-            key: key("source", part.id),
-            kind: "source",
-            url: part.url,
-            ...(part.title ? { title: part.title } : {}),
-          });
-        } else {
-          projected.push({
-            key: key("file", part.id),
-            kind: "file",
-            name: part.filename ?? part.title,
-            source: "",
-            mediaType: part.mediaType,
-          });
-        }
+        projected.push({
+          key: key("source", part.id),
+          kind: "source",
+          ...(part.sourceType === "url" ? { url: part.url } : {}),
+          ...(part.title ? { title: part.title } : {}),
+          ...(part.sourceType === "document" && part.filename ? { filename: part.filename } : {}),
+          ...(part.sourceType === "document" ? { mediaType: part.mediaType } : {}),
+        });
         break;
       case "audio":
         projected.push({

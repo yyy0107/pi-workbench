@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { ThinkingOrb } from "thinking-orbs";
 import { readAgentTransportRecovering } from "@workbench/agent-runtime-client/extras";
+import type { MessageBlock, ReasoningBlock } from "@workbench/agent-runtime-contracts/conversation";
 
 import {
   ToolGroupContent,
@@ -154,12 +155,14 @@ export function useReasoningStalled(running: boolean, content: string): boolean 
 
 function TimelineReasoning({
   part,
+  block,
   running,
   transportRecovering,
   preview,
   disclosureId,
 }: {
   part: TimelineReasoningPart;
+  block?: ReasoningBlock;
   running: boolean;
   transportRecovering: boolean;
   preview: string;
@@ -168,17 +171,16 @@ function TimelineReasoning({
   const { locale, t } = useI18n();
   const [open, setOpen] = useMessageDisclosure("reasoning", disclosureId);
   const elapsedSeconds = useElapsedSeconds(running, reasoningPartTiming(part));
-  const stalled = useReasoningStalled(running, part.text || part.unstable_summary || "");
-  const collapsedPreview = running
-    ? liveReasoningPreview(part.text || part.unstable_summary || "") || preview
-    : preview;
+  const content = block?.text || part.text || part.unstable_summary || "";
+  const stalled = useReasoningStalled(running, content);
+  const collapsedPreview = running ? liveReasoningPreview(content) || preview : preview;
 
   return (
     <ReasoningPanel
       steps={[
         {
           marker: false,
-          body: <div className="whitespace-pre-wrap">{part.text || part.unstable_summary}</div>,
+          body: <div className="whitespace-pre-wrap">{content}</div>,
         },
       ]}
       visibleSteps={1}
@@ -485,8 +487,10 @@ function ParallelToolGroup({
 }
 
 export function MessageToolTimeline({
+  blocks,
   indices,
 }: PropsWithChildren<{
+  blocks?: readonly MessageBlock[];
   indices: readonly number[];
 }>) {
   const { t, text } = useI18n();
@@ -569,11 +573,13 @@ export function MessageToolTimeline({
     if (model.kind === "data") return { body: null };
 
     if (part.type === "reasoning") {
+      const block = blocks?.[indices[sourceIndex] ?? -1];
       return {
         marker: false,
         body: (
           <TimelineReasoning
             part={part}
+            block={block?.kind === "reasoning" ? block : undefined}
             running={part.status.type === "running"}
             transportRecovering={transportRecovering}
             preview={text(model.chip)}

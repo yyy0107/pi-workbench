@@ -1,12 +1,17 @@
 import type { Source } from "../../../elements/inline-citation";
 
 interface MessageCitationPart {
-  type: string;
+  type?: string;
+  kind?: string;
   sourceType?: string;
   url?: string;
   title?: string;
   filename?: string;
   mediaType?: string;
+}
+
+function partKind(part: MessageCitationPart): string | undefined {
+  return part.kind ?? part.type;
 }
 
 export interface MessageCitationLayout {
@@ -15,7 +20,7 @@ export interface MessageCitationLayout {
 }
 
 function urlCitation(part: MessageCitationPart): Source | undefined {
-  if (part.sourceType !== "url" || !part.url) return undefined;
+  if (partKind(part) !== "source" || part.sourceType === "document" || !part.url) return undefined;
 
   try {
     const url = new URL(part.url);
@@ -36,7 +41,7 @@ function urlCitation(part: MessageCitationPart): Source | undefined {
 }
 
 function documentCitation(part: MessageCitationPart): Source | undefined {
-  if (part.sourceType !== "document" || !part.title) return undefined;
+  if (partKind(part) !== "source" || part.url || !part.title) return undefined;
 
   const descriptor = part.filename || part.mediaType || part.title;
   return {
@@ -63,12 +68,12 @@ export function messageCitationLayout(
   let nearestTextPartIndex: number | undefined;
 
   parts.forEach((part, index) => {
-    if (part.type === "text") {
+    if (partKind(part) === "text") {
       nearestTextPartIndex = index;
       return;
     }
 
-    if (part.type !== "source" || nearestTextPartIndex === undefined) return;
+    if (partKind(part) !== "source" || nearestTextPartIndex === undefined) return;
     const source = inlineCitationSource(part);
     if (!source) return;
 

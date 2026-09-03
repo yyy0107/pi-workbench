@@ -10,6 +10,7 @@ import { WorkbenchSettingsProvider, type WorkbenchSettingsPort } from "../settin
 import {
   MarkdownText,
   MarkdownTextContent,
+  MarkdownTextContentWithCitations,
   MarkdownTextWithCitations,
   scheduleAfterNextPaint,
   shouldHoldSettledBurst,
@@ -132,6 +133,26 @@ test("renders structured citations inside assistant markdown", () => {
   assert.match(markup, /aria-label="Example guide"/);
   assert.match(markup, />1<\/button>/);
   assert.doesNotMatch(markup, /workbench-inline-citations/);
+});
+
+test("renders Headless text content with structured citations", () => {
+  const markup = renderWithWorkbenchSettings(
+    createElement(MarkdownTextContentWithCitations, {
+      text: "Evidence-backed answer.",
+      sources: [
+        {
+          domain: "example.com",
+          title: "Example guide",
+          snippet: "https://example.com/guide",
+          url: "https://example.com/guide",
+        },
+      ],
+    }),
+  );
+
+  assert.match(textFromMarkup(markup), /Evidence-backed answer\./);
+  assert.match(markup, /data-slot="inline-citation"/);
+  assert.match(markup, /aria-label="Example guide"/);
 });
 
 test("does not paint an entire cumulative burst in the first streaming frame", () => {

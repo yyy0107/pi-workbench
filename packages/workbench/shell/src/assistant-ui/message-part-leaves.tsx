@@ -70,17 +70,16 @@ export const DefaultMessageDataFallback: DataMessagePartComponent = ({ name, dat
   </ScrollCompensatedDetails>
 );
 
-function MessageSourceLeaf({
-  fallbackLabel,
-  part,
+export function MessageSource({
+  label,
+  url: rawUrl,
   variant,
 }: Readonly<{
-  fallbackLabel: string;
-  part: Extract<SharedMessagePartLeaf, { type: "source" }>;
+  label: string;
+  url?: string;
   variant: MessageSourceVariant;
 }>) {
-  const label = part.title || part.url || fallbackLabel;
-  const url = part.sourceType === "url" ? safeExternalMessageUrl(part.url) : undefined;
+  const url = safeExternalMessageUrl(rawUrl);
   const plain = variant === "plain";
 
   if (!url) {
@@ -140,9 +139,9 @@ export function MessagePartLeaf({
   switch (part.type) {
     case "source":
       return (
-        <MessageSourceLeaf
-          part={part}
-          fallbackLabel={sourceFallbackLabel}
+        <MessageSource
+          label={part.title || part.url || sourceFallbackLabel}
+          url={part.sourceType === "url" ? part.url : undefined}
           variant={sourceVariant}
         />
       );

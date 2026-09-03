@@ -50,12 +50,15 @@ export interface FileBlock extends MessageBlockBase {
   readonly name: string;
   readonly source: string;
   readonly mediaType?: string;
+  readonly sourceType?: "url" | "id";
 }
 
 export interface SourceBlock extends MessageBlockBase {
   readonly kind: "source";
-  readonly url: string;
+  readonly url?: string;
   readonly title?: string;
+  readonly filename?: string;
+  readonly mediaType?: string;
 }
 
 export interface ErrorBlock extends MessageBlockBase {

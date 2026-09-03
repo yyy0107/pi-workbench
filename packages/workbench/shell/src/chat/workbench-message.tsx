@@ -16,6 +16,7 @@ import { useI18n } from "../i18n";
 import { cn } from "../utils";
 import { SlotHost } from "@workbench/extension-host/hosts/slot-host";
 import { readAgentRunRecovery } from "@workbench/agent-runtime-client/extras";
+import { useConversationNode } from "@workbench/agent-runtime-client";
 import {
   parseWorkbenchConversationEvent,
   parseWorkbenchMessageTermination,
@@ -63,6 +64,11 @@ function WorkbenchMessageError() {
   const aui = useAui();
   const status = useAuiState((state) => state.message.status);
   const messageId = useAuiState((state) => state.message.id);
+  const headlessError = useConversationNode(messageId, (node) => {
+    if (node?.kind === "error") return node.error;
+    if (!node || !("blocks" in node)) return undefined;
+    return node.blocks.find((block) => block.kind === "error")?.error;
+  });
   const isRunning = useAuiState((state) => state.thread.isRunning);
   const recovery = readAgentRunRecovery(useAuiState((state) => state.thread.extras));
   const isInLatestTurn = useAuiState((state) =>
@@ -86,7 +92,7 @@ function WorkbenchMessageError() {
   }, [isRunning, retryPhase]);
 
   if (
-    status?.type !== "incomplete" ||
+    (!headlessError && status?.type !== "incomplete") ||
     !shouldShowMessageError({
       isRunning,
       isInLatestTurn,
@@ -96,8 +102,14 @@ function WorkbenchMessageError() {
     return null;
   }
 
-  const rawDetail = termination?.errorMessage ?? readableErrorDetail(status.error);
-  const kind = termination?.kind ?? status.reason;
+  const rawDetail =
+    termination?.errorMessage ??
+    headlessError?.message ??
+    readableErrorDetail(status?.type === "incomplete" ? status.error : undefined);
+  const kind =
+    termination?.kind ??
+    headlessError?.code ??
+    (status?.type === "incomplete" ? status.reason : undefined);
   let title = t("workbench.chat.errors.requestFailedTitle");
   let detail = rawDetail ?? t("workbench.chat.errors.unknownFailure");
 

@@ -19,6 +19,9 @@ const LazyCompactMarkdownText = lazy(async () => ({
 const LazyMarkdownTextContent = lazy(async () => ({
   default: (await import("./markdown-text")).MarkdownTextContent,
 }));
+const LazyMarkdownTextContentWithCitations = lazy(async () => ({
+  default: (await import("./markdown-text")).MarkdownTextContentWithCitations,
+}));
 const LazyMarkdownCodeBlockContent = lazy(async () => ({
   default: (await import("./markdown-text")).MarkdownCodeBlockContent,
 }));
@@ -57,8 +60,18 @@ export function CompactMarkdownText() {
 
 export function MarkdownTextContent(props: ComponentProps<MarkdownModule["MarkdownTextContent"]>) {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<p className="whitespace-pre-wrap">{props.text}</p>}>
       <LazyMarkdownTextContent {...props} />
+    </Suspense>
+  );
+}
+
+export function MarkdownTextContentWithCitations(
+  props: ComponentProps<MarkdownModule["MarkdownTextContentWithCitations"]>,
+) {
+  return (
+    <Suspense fallback={<p className="whitespace-pre-wrap">{props.text}</p>}>
+      <LazyMarkdownTextContentWithCitations {...props} />
     </Suspense>
   );
 }

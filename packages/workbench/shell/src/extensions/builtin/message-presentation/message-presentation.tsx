@@ -29,7 +29,13 @@ import {
   readWorkbenchTurnTiming,
   resolveWorkbenchTurnDuration,
 } from "@workbench/agent-runtime-contracts/message-metadata";
+import { useConversationNode } from "@workbench/agent-runtime-client";
 import { WorkbenchComposerMessageText } from "../../../chat/composer-message-text";
+import {
+  WorkbenchMessageFileBlock,
+  WorkbenchMessageSourceBlock,
+  WorkbenchMessageTextBlock,
+} from "../../../chat/renderers/message-blocks";
 
 import {
   completedWorkBoundary,
@@ -88,6 +94,7 @@ function MessageDataTimelineGroup({
 export function WorkbenchMessagePresentation() {
   const { t, date, locale, relativeTime } = useI18n();
   const timing = useMessageTiming();
+  const messageId = useAuiState((state) => state.message.id);
   const messageCreatedAt = useAuiState((state) => state.message.createdAt);
   const messageRole = useAuiState((state) => state.message.role);
   const storedTurnTiming = useAuiState(
@@ -103,13 +110,21 @@ export function WorkbenchMessagePresentation() {
     (state) => state.message.metadata.custom.workbenchSteerInterrupted === true,
   );
   const messageParts = useAuiState((state) => state.message.parts);
+  const composerDocument = useAuiState(
+    (state) => state.message.metadata.custom.workbenchComposerDocument,
+  );
+  const node = useConversationNode(messageId);
+  const blocks = node && "blocks" in node ? node.blocks : undefined;
   const dataPresentations = useDataPresentationMap();
   const completedBoundary = useMemo(() => completedWorkBoundary(messageParts), [messageParts]);
   const partIndices = useMemo(
     () => new Map(messageParts.map((part, index) => [part, index])),
     [messageParts],
   );
-  const citationLayout = useMemo(() => messageCitationLayout(messageParts), [messageParts]);
+  const citationLayout = useMemo(
+    () => messageCitationLayout(blocks ?? messageParts),
+    [blocks, messageParts],
+  );
   const completionTimestamp =
     turnTiming?.completedAt ??
     (timing?.totalStreamTime === undefined
@@ -202,9 +217,30 @@ export function WorkbenchMessagePresentation() {
               );
             }
             case "group-tool-timeline": {
-              return <MessageToolTimeline indices={part.indices}>{children}</MessageToolTimeline>;
+              return (
+                <MessageToolTimeline indices={part.indices} blocks={blocks}>
+                  {children}
+                </MessageToolTimeline>
+              );
             }
             case "text": {
+              const block = index === undefined ? undefined : blocks?.[index];
+              if (index !== undefined && block?.kind === "text") {
+                const fallback = (
+                  <WorkbenchMessageTextBlock
+                    block={block}
+                    composerDocument={composerDocument}
+                    role={messageRole}
+                    sources={citationLayout.byTextPart.get(index)}
+                    streaming={part.status.type === "running"}
+                  />
+                );
+                return messageRole === "assistant" ? (
+                  <MessagePartRendererHost part={part} fallback={fallback} />
+                ) : (
+                  fallback
+                );
+              }
               if (messageTextPresentation(messageRole) === "composer") {
                 return <WorkbenchComposerMessageText text={part.text} />;
               }
@@ -224,18 +260,26 @@ export function WorkbenchMessagePresentation() {
             case "reasoning":
               return null;
             case "image":
-              return attachmentReferenceLabel ? (
+            case "file": {
+              const block = index === undefined ? undefined : blocks?.[index];
+              if (block?.kind === "file") {
+                return (
+                  <WorkbenchMessageFileBlock
+                    block={block}
+                    referenceLabel={attachmentReferenceLabel}
+                  />
+                );
+              }
+              return part.type === "image" && attachmentReferenceLabel ? (
                 <div data-slot="user-attachment-reference" className="relative max-w-full">
                   <Image {...part} />
                   <span className="bg-background/85 text-foreground pointer-events-none absolute top-2 left-2 rounded-full border border-foreground/10 px-2 py-0.5 text-[11px] font-medium shadow-sm backdrop-blur-sm">
                     {attachmentReferenceLabel}
                   </span>
                 </div>
-              ) : (
+              ) : part.type === "image" ? (
                 <Image {...part} />
-              );
-            case "file":
-              return attachmentReferenceLabel ? (
+              ) : attachmentReferenceLabel ? (
                 <div
                   data-slot="user-attachment-reference"
                   className="flex max-w-full items-center gap-2"
@@ -248,9 +292,20 @@ export function WorkbenchMessagePresentation() {
               ) : (
                 <File {...part} />
               );
+            }
             case "source": {
               if (index !== undefined && citationLayout.inlineSourcePartIndices.has(index)) {
                 return null;
+              }
+              const block = index === undefined ? undefined : blocks?.[index];
+              if (block?.kind === "source") {
+                return (
+                  <WorkbenchMessageSourceBlock
+                    block={block}
+                    fallbackLabel={t("extensions.messagePresentation.sourceFallback")}
+                    variant="chip"
+                  />
+                );
               }
               return (
                 <MessagePartLeaf

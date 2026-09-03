@@ -905,13 +905,17 @@ Shell 消息区域开始按 vertical slice 消费这些 hooks。
 | 切片 | 状态                 | 变更范围                                                                                                               | 最小验证                                                           |
 | ---- | -------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
 | 4A   | 已完成（2026-09-03） | 生产消息列表改读 `nodeKeys`；增加 per-node `ConversationNodeSeat`；主会话和 Side Chat 绑定明确的 Headless Session      | Client/Testkit/Shell/Pi Contributions typecheck、Testkit 17 项测试 |
-| 4B   | 下一步               | 将 text/Markdown、reasoning、source、file、image 和 error 改为直接消费 Workbench Node/Block                            | renderer 组件测试、Shell typecheck/test                            |
-| 4C   | 待开始               | 迁移 tool/data timeline，并把尚未迁移的扩展呈现收敛到一个临时兼容入口                                                  | partial args、running/complete/error/requires-action 组件测试      |
+| 4B   | 已完成（2026-09-03） | 将 text/Markdown、reasoning、source、file、image 和 error 改为直接消费 Workbench Node/Block                            | Shell 367 项、Pi Client 282 项测试；全仓 typecheck/build           |
+| 4C   | 下一步               | 迁移 tool/data timeline，并把尚未迁移的扩展呈现收敛到一个临时兼容入口                                                  | partial args、running/complete/error/requires-action 组件测试      |
 | 4D   | 待开始               | 用原生 Viewport/scroll state 替换 Thread primitives，锁定 bottom-follow、用户滚动和 prepend anchor，并对照退出条件收口 | scroll 组件测试、受影响 package 检查；有具体不确定性时 Browser     |
 
-4A 保留现有 assistant-ui Message/Part renderer 作为 `ConversationNodeSeat` 内唯一的临时呈现入口，
-因此工具交互、消息 actions 和扩展 renderer 行为不变；列表顺序和 Node 更新已经改由同一个
-`ConversationSession` 的 Headless snapshot/observable 驱动。后续切片在原位逐类删除兼容调用，不建立第二套 store。
+4A 将列表顺序和 Node 更新改由同一个 `ConversationSession` 的 Headless snapshot/observable 驱动。
+4B 新增 `chat/renderers/message-blocks.tsx`，复用现有 Markdown、ReasoningPanel、File/Image 和 ErrorState
+视觉叶子；text、reasoning、source、file/image 与 error 的展示内容现在读取 Workbench Block，结构化引用
+也直接从 Block 布局生成。`FileBlock.sourceType` 和文档型 `SourceBlock` 保留了安全下载与文档引用所需语义。
+
+当前 assistant-ui 兼容入口只继续承担 4C 的 tool/data timeline 与扩展 renderer、Phase 5 的消息 actions，
+以及 4D 前的外层 Message/Thread primitive；后续切片在原位删除这些兼容调用，不建立第二套 store。
 
 ### Phase 5：Composer、附件和消息 Actions
 

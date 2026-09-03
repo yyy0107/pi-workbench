@@ -9,6 +9,7 @@ import type {
 } from "@workbench/agent-runtime-pi-protocol/stream";
 
 import { PiConversationAssembler } from "../../src/conversation/conversation-assembler";
+import { conversationNodesFromPiConversation } from "../../src/conversation/conversation-node-projection";
 import { piAssistantToThreadMessage, piHistoryToThreadMessages } from "../../src/messages/messages";
 import { PiSessionManager } from "../../src/runtime/manager";
 import { piHistoryFromSessionEvents } from "../../src/sessions/session-rpc-adapter";
@@ -58,6 +59,82 @@ function projectedAssistant(event: Record<string, unknown>): ThreadAssistantMess
     rawToolArgsText: event.rawToolArgsText as Readonly<Record<string, string>> | undefined,
   });
 }
+
+test("projects image, file, and document source semantics into Workbench blocks", () => {
+  const message = {
+    id: "assistant-media",
+    role: "assistant",
+    content: [
+      { type: "image", image: "https://example.com/generated", filename: "generated" },
+      {
+        type: "file",
+        data: "file-id",
+        filename: "report.pdf",
+        mimeType: "application/pdf",
+        sourceType: "id",
+      },
+      {
+        type: "source",
+        sourceType: "document",
+        id: "document-1",
+        title: "Architecture",
+        filename: "architecture.pdf",
+        mediaType: "application/pdf",
+      },
+      {
+        type: "source",
+        sourceType: "url",
+        id: "url-1",
+        title: "Guide",
+        url: "https://example.com/guide",
+      },
+    ],
+    status: { type: "complete", reason: "stop" },
+    createdAt: new Date(1_725_000_000_001),
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      steps: [],
+      custom: {},
+    },
+  } satisfies ThreadAssistantMessage;
+
+  const [node] = conversationNodesFromPiConversation([message]);
+  assert.equal(node?.kind, "assistant");
+  if (node?.kind !== "assistant") return;
+  assert.deepEqual(node.blocks, [
+    {
+      key: "assistant-media:file:generated",
+      kind: "file",
+      name: "generated",
+      source: "https://example.com/generated",
+      mediaType: "image/png",
+      sourceType: "url",
+    },
+    {
+      key: "assistant-media:file:report.pdf",
+      kind: "file",
+      name: "report.pdf",
+      source: "file-id",
+      mediaType: "application/pdf",
+      sourceType: "id",
+    },
+    {
+      key: "assistant-media:source:document-1",
+      kind: "source",
+      title: "Architecture",
+      filename: "architecture.pdf",
+      mediaType: "application/pdf",
+    },
+    {
+      key: "assistant-media:source:url-1",
+      kind: "source",
+      url: "https://example.com/guide",
+      title: "Guide",
+    },
+  ]);
+});
 
 test("assembles equivalent nodes from history replay and live Pi messages", () => {
   const message: PiAssistantMessage = {
