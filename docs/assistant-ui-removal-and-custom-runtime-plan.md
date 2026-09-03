@@ -1,6 +1,6 @@
 # Workbench 移除 assistant-ui 与自有会话 Runtime 迁移计划
 
-状态：方向已确认；assistant-ui 专属 Agent skills 已删除，Phase 1–4 已完成，下一步进入 Phase 5（2026-09-03）
+状态：方向已确认；assistant-ui 专属 Agent skills 已删除，Phase 1–5 已完成，下一步进入 Phase 6（2026-09-03）
 
 ## 0. 决策摘要
 
@@ -922,10 +922,10 @@ Shell 消息区域开始按 vertical slice 消费这些 hooks。
 主会话与 Side Chat 共用 bottom-follow、用户滚动锁、prepend scroll-height anchor，并复用现有
 `ThreadScrollState` 持久化位置。外层 Message root primitive 同步删除。
 
-当前 assistant-ui 兼容入口只继续承担 Phase 7 前的扩展 renderer/message scope，以及 Phase 5 的消息
-actions、Composer suggestion；后续切片在原位删除这些兼容调用，不建立第二套 store。
+当前 assistant-ui 兼容入口只继续承担 Phase 6 的 Thread List/Current Session 路由，以及 Phase 7 前的
+扩展 renderer/message presentation scope；后续切片在原位删除这些兼容调用，不建立第二套 store。
 
-### Phase 5：Composer、附件和消息 Actions
+### Phase 5：Composer、附件和消息 Actions（已完成，2026-09-03）
 
 工作：
 
@@ -941,6 +941,23 @@ actions、Composer suggestion；后续切片在原位删除这些兼容调用，
 - IME、受控输入、附件和首次发送行为稳定；
 - 拒绝发送、网络错误和恢复路径不丢失草稿；
 - Actions 使用 Session 稳定方法，不直接操作 transport。
+
+完成记录：
+
+- Composer、Commands、mentions 和 queue UI 已改为直接消费 Headless `ConversationSession`；本地
+  Lexical directive node 取代 assistant-ui composer scope，Shell 已移除 `@assistant-ui/react-lexical`；
+- `ComposerSnapshot` 现在承载 per-session 草稿、附件、提交阶段、错误与 queue，Session 稳定 actions
+  覆盖 send/cancel/queue/steer、附件、queue 编辑/排序/暂停、retry/fork 和 branch selection；
+- 附件继续复用现有 image/PDF 校验和数据转换，文件选择、拖放与粘贴统一进入同一个 Session action；
+- 提交前乐观清空草稿；拒绝发送或网络错误时合并恢复已提交草稿、提交期间的新输入与附件，避免数据丢失；
+- 消息复制使用浏览器 Clipboard API；retry、fork 和 branch picker 只调用 Session 稳定方法，不再
+  直接读取 assistant-ui scope 或操作 Pi transport；
+- actions 按 Session method presence 显示；Pi 当前没有 edit/feedback/quote capability，因此未保留
+  无实际实现的按钮或创建第二套状态；
+- Pi Client 285 项、Shell 365 项测试通过，受影响 package typecheck 通过。
+
+本阶段没有迁移 Thread List、Current Session 路由或剩余 extension renderer compatibility；这些分别
+留给 Phase 6 和 Phase 7。
 
 ### Phase 6：Thread List、Current Session 和路由
 

@@ -1,4 +1,6 @@
 import type {
+  ComposerAttachment,
+  ComposerQueueItem,
   ComposerSubmission,
   ConversationNode,
   ConversationSnapshot,
@@ -12,6 +14,11 @@ import type {
 } from "./thread-manager";
 
 export interface ConversationActions {
+  /** Update only submit-relevant draft text; selection and IME state remain editor-owned. */
+  setComposerText(text: string): void;
+  addComposerAttachment(attachment: ComposerAttachment): Promise<void>;
+  removeComposerAttachment(key: string): void;
+  dismissComposerError(): void;
   send(input: ComposerSubmission): Promise<void>;
   cancel(): Promise<void>;
   queue(input: ComposerSubmission): Promise<void>;
@@ -19,6 +26,16 @@ export interface ConversationActions {
   retry(nodeKey: string): Promise<void>;
   edit(nodeKey: string, input: ComposerSubmission): Promise<void>;
   fork(nodeKey: string): Promise<string>;
+  selectBranch(nodeKey: string): Promise<void>;
+  editQueueItem(key: string): ComposerQueueItem | undefined;
+  mutateQueueItem(
+    key: string,
+    mutation:
+      | { readonly kind: "remove" }
+      | { readonly kind: "steer" }
+      | { readonly kind: "move"; readonly beforeKey?: string; readonly afterKey?: string },
+  ): void;
+  setQueuePaused(paused: boolean): void;
   loadOlder(): Promise<void>;
 }
 

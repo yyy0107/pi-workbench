@@ -7,7 +7,13 @@ import type {
 } from "@assistant-ui/react";
 
 import type {
+  ComposerAttachment,
+  ComposerQueueItem,
+  ComposerSnapshot,
+  ComposerSubmission,
+  ConversationError,
   ConversationNode,
+  ConversationNodeBranch,
   ConversationSnapshot,
 } from "@workbench/agent-runtime-contracts/conversation";
 import type {
@@ -21,6 +27,7 @@ import {
   parseWorkbenchComposerUserProjection,
   parseWorkbenchPromptFailureDetails,
   WORKBENCH_PROMPT_FAILURE_CUSTOM_TYPE,
+  WORKBENCH_COMPOSER_RUN_CONFIG_KEY,
 } from "@workbench/contracts/composer/request";
 import {
   parseAttachmentRecognitionSnapshot,
@@ -128,8 +135,94 @@ import type {
   PiToolCallTiming as ToolCallTiming,
 } from "../conversation/pi-conversation-message";
 import type { PiSessionManager } from "./manager";
+import { piComposerSendError } from "./send-error";
 
 type Listener = () => void;
+
+const EMPTY_COMPOSER_ATTACHMENTS = Object.freeze([]) as readonly ComposerAttachment[];
+const EMPTY_COMPOSER_QUEUE_ITEMS = Object.freeze([]) as readonly ComposerQueueItem[];
+
+function initialComposerSnapshot(): ComposerSnapshot {
+  return Object.freeze({
+    text: "",
+    attachments: EMPTY_COMPOSER_ATTACHMENTS,
+    mode: "send",
+    phase: "idle",
+    queue: Object.freeze({ items: EMPTY_COMPOSER_QUEUE_ITEMS, paused: false }),
+  });
+}
+
+function composerError(error: unknown): ConversationError {
+  const code =
+    piComposerSendError(error) ??
+    (error instanceof PiApiError ? error.code : "composer-submit-failed");
+  return Object.freeze({
+    code,
+    message: error instanceof Error ? error.message : String(error),
+    recoverable: true,
+  });
+}
+
+function submissionMessage(
+  submission: ComposerSubmission,
+  attachments: readonly ComposerAttachment[],
+): AppendMessage {
+  return {
+    role: "user",
+    content: submission.sourceText ? [{ type: "text", text: submission.sourceText }] : [],
+    attachments: attachments.map((attachment) => {
+      const mediaType = attachment.mediaType ?? /^data:([^;,]+)/u.exec(attachment.source)?.[1];
+      const isImage = mediaType?.startsWith("image/") === true;
+      return {
+        id: attachment.key,
+        type: isImage ? ("image" as const) : ("document" as const),
+        name: attachment.name,
+        ...(mediaType ? { contentType: mediaType } : {}),
+        content: isImage
+          ? [{ type: "image" as const, image: attachment.source }]
+          : [
+              {
+                type: "file" as const,
+                data: attachment.source,
+                mimeType: mediaType ?? "application/pdf",
+                filename: attachment.name,
+              },
+            ],
+        status: { type: "complete" as const },
+      };
+    }),
+    createdAt: new Date(),
+    metadata: { custom: {} },
+    parentId: null,
+    runConfig: { custom: { [WORKBENCH_COMPOSER_RUN_CONFIG_KEY]: submission } },
+    sourceId: null,
+  };
+}
+
+function mergeRejectedDraft(
+  submitted: ComposerSnapshot,
+  current: ComposerSnapshot,
+  error: ConversationError,
+): ComposerSnapshot {
+  const text =
+    submitted.text && current.text && submitted.text !== current.text
+      ? `${submitted.text}\n\n${current.text}`
+      : submitted.text || current.text;
+  const attachments = new Map(
+    [...submitted.attachments, ...current.attachments].map((attachment) => [
+      attachment.key,
+      attachment,
+    ]),
+  );
+  return Object.freeze({
+    ...current,
+    text,
+    attachments: Object.freeze([...attachments.values()]),
+    mode: submitted.mode,
+    phase: "error",
+    error,
+  });
+}
 
 export interface PiClientRunTiming extends PiRunTiming {
   /** Monotonic browser timestamp captured when the server timing snapshot arrived. */
@@ -343,6 +436,8 @@ export class PiClientSession implements ConversationSession {
   };
   private readonly manager: PiSessionManager;
   private readonly conversationAssembler: PiConversationAssembler;
+  private composerValue = initialComposerSnapshot();
+  private conversationBranches: ReadonlyMap<string, ConversationNodeBranch> = new Map();
   private readonly listeners = new Set<Listener>();
   private remoteIdValue?: string;
   private baseMessages: ThreadMessage[] = [];
@@ -530,10 +625,23 @@ export class PiClientSession implements ConversationSession {
       messages: this.conversationMessages,
       isLoading: this.snapshotValue.isLoading,
       isRunning: this.snapshotValue.isRunning,
+      composer: this.composerValue,
     });
     this.actions = Object.freeze({
+      setComposerText: (text) => this.setComposerText(text),
+      addComposerAttachment: (attachment) => this.addComposerAttachment(attachment),
+      removeComposerAttachment: (key) => this.removeComposerAttachment(key),
+      dismissComposerError: () => this.dismissComposerError(),
+      send: (input) => this.submitComposer("send", input),
       cancel: () => this.cancel(),
+      queue: (input) => this.submitComposer("queue", input),
+      steer: (input) => this.submitComposer("steer", input),
       retry: (nodeKey) => this.retry(nodeKey, undefined),
+      fork: (nodeKey) => this.fork(nodeKey),
+      selectBranch: (nodeKey) => this.selectBranch(nodeKey),
+      editQueueItem: (key) => this.editQueueItem(key),
+      mutateQueueItem: (key, mutation) => this.messageQueue.mutateItem(key, mutation),
+      setQueuePaused: (paused) => this.messageQueue.setPaused(paused),
       loadOlder: () => this.reload(),
     });
     this.messageQueue = new PiMessageQueue({
@@ -579,6 +687,145 @@ export class PiClientSession implements ConversationSession {
 
   node(key: string): HostObservable<ConversationNode | undefined> {
     return this.conversationAssembler.node(key);
+  }
+
+  private publishConversation(publication: ConversationPublication = "immediate"): void {
+    this.conversationAssembler.update(
+      {
+        messages: this.conversationMessages,
+        isLoading: this.snapshotValue.isLoading,
+        isRunning: this.snapshotValue.isRunning,
+        composer: this.composerValue,
+        branches: this.conversationBranches,
+      },
+      publication,
+    );
+  }
+
+  private replaceComposer(
+    patch: Partial<ComposerSnapshot>,
+    publication: ConversationPublication = "immediate",
+  ): void {
+    if (this.disposed) return;
+    const next = Object.freeze({ ...this.composerValue, ...patch });
+    if (
+      next.text === this.composerValue.text &&
+      next.attachments === this.composerValue.attachments &&
+      next.mode === this.composerValue.mode &&
+      next.phase === this.composerValue.phase &&
+      next.error === this.composerValue.error &&
+      next.queue === this.composerValue.queue
+    ) {
+      return;
+    }
+    this.composerValue = next;
+    this.publishConversation(publication);
+  }
+
+  private setComposerText(text: string): void {
+    this.replaceComposer({ text });
+  }
+
+  private async addComposerAttachment(attachment: ComposerAttachment): Promise<void> {
+    const mediaType = attachment.mediaType ?? /^data:([^;,]+)/u.exec(attachment.source)?.[1];
+    if (
+      (!mediaType?.startsWith("image/") && mediaType !== "application/pdf") ||
+      !attachment.source.startsWith("data:")
+    ) {
+      const error = Object.freeze({
+        code: "attachment-invalid",
+        message: "Unsupported Composer attachment",
+        recoverable: true,
+      });
+      this.replaceComposer({ phase: "error", error });
+      throw new TypeError(error.message);
+    }
+    if (this.composerValue.attachments.some(({ key }) => key === attachment.key)) return;
+    this.replaceComposer({
+      attachments: Object.freeze([...this.composerValue.attachments, Object.freeze(attachment)]),
+    });
+  }
+
+  private removeComposerAttachment(key: string): void {
+    const attachments = this.composerValue.attachments.filter(
+      (attachment) => attachment.key !== key,
+    );
+    if (attachments.length === this.composerValue.attachments.length) return;
+    this.replaceComposer({ attachments: Object.freeze(attachments) });
+  }
+
+  private dismissComposerError(): void {
+    if (!this.composerValue.error && this.composerValue.phase !== "error") return;
+    this.replaceComposer({ phase: "idle", error: undefined });
+  }
+
+  private async submitComposer(
+    mode: "send" | "queue" | "steer",
+    input: ComposerSubmission,
+  ): Promise<void> {
+    if (this.disposed || this.composerValue.phase === "submitting") return;
+    const submission = input.mode === mode ? input : { ...input, mode };
+    const submitted = Object.freeze({ ...this.composerValue, mode });
+    if (
+      !submission.sourceText.trim() &&
+      !submission.text.trim() &&
+      submission.commands.length === 0 &&
+      submitted.attachments.length === 0
+    ) {
+      return;
+    }
+
+    this.composerValue = Object.freeze({
+      ...this.composerValue,
+      text: "",
+      attachments: EMPTY_COMPOSER_ATTACHMENTS,
+      mode,
+      phase: "submitting",
+      error: undefined,
+    });
+    this.publishConversation("immediate");
+
+    try {
+      const message = submissionMessage(submission, submitted.attachments);
+      if (mode === "send") await this.send(message);
+      else await this.messageQueue.enqueue(mode === "steer" ? "steer" : "followUp", message);
+      this.replaceComposer({ phase: "idle", error: undefined });
+    } catch (error) {
+      this.composerValue = mergeRejectedDraft(submitted, this.composerValue, composerError(error));
+      this.publishConversation("immediate");
+      throw error;
+    }
+  }
+
+  private editQueueItem(key: string): ComposerQueueItem | undefined {
+    const item = this.messageQueue.edit(key);
+    if (!item) return undefined;
+    this.replaceComposer({
+      text: item.text,
+      attachments: item.attachments,
+      mode: "queue",
+      phase: "idle",
+      error: undefined,
+    });
+    return item;
+  }
+
+  private async fork(nodeKey: string): Promise<string> {
+    if (!this.remoteIdValue) throw new PiApiError("pi_session_not_found", 404);
+    const message = this.conversationMessages.find(({ id }) => id === nodeKey);
+    const stateToken = message?.metadata.custom.workbenchStateToken;
+    const sequence = typeof stateToken === "string" ? Number(stateToken) : Number.NaN;
+    if (!Number.isSafeInteger(sequence) || sequence < 0 || String(sequence) !== stateToken) {
+      throw new PiApiError("fork-unavailable", 409);
+    }
+    const sourceTitle = this.manager.getThreadStateSnapshot(this.remoteIdValue).thread?.title;
+    if (!sourceTitle) throw new PiApiError("pi_fork_title_unavailable", 409);
+    const forked = await this.manager.forkSessionAt({
+      sessionId: this.remoteIdValue,
+      atSeq: sequence,
+      sourceTitle,
+    });
+    return forked.sessionId;
   }
 
   subscribe = (listener: Listener): (() => void) => {
@@ -1078,7 +1325,7 @@ export class PiClientSession implements ConversationSession {
     await this.resume(checkpoint.checkpointId, checkpoint.branchLeafId);
   }
 
-  selectBranch(headMessageId: string): void {
+  async selectBranch(headMessageId: string): Promise<void> {
     if (this.disposed) return;
     const leafId = this.branchLeafByHeadMessageId.get(headMessageId);
     if (!leafId || !this.remoteIdValue) return;
@@ -1086,10 +1333,7 @@ export class PiClientSession implements ConversationSession {
     const task = selectPiRpcSessionBranch({ sessionId, leafId }, this.manager.rpcTransportOptions)
       .then(() => this.reload())
       .catch(async (error) => {
-        // assistant-ui switches its local repository optimistically before this
-        // RPC runs. Re-publish the authoritative server branch on failure so a
-        // rejected switch cannot leave the visible conversation on a branch
-        // that Pi never selected.
+        // Re-publish the authoritative server branch after a rejected switch.
         await this.reload().catch(() => this.publishMessages());
         throw error;
       })
@@ -1097,7 +1341,12 @@ export class PiClientSession implements ConversationSession {
         if (this.branchSwitchTask === task) this.branchSwitchTask = undefined;
       });
     this.branchSwitchTask = task;
-    void task.catch((error) => console.error("[workbench-pi] branch selection failed", error));
+    try {
+      await task;
+    } catch (error) {
+      console.error("[workbench-pi] branch selection failed", error);
+      throw error;
+    }
   }
 
   async cancel(): Promise<void> {
@@ -2331,6 +2580,18 @@ export class PiClientSession implements ConversationSession {
       const messages = this.currentMessages();
       messagePatch = this.conversationPatch(messages);
     }
+    const items = Object.freeze(this.messageQueue.queuedItems);
+    const queue = this.composerValue.queue;
+    if (
+      !queue ||
+      queue.paused !== this.messageQueue.isPaused ||
+      JSON.stringify(queue.items) !== JSON.stringify(items)
+    ) {
+      this.composerValue = Object.freeze({
+        ...this.composerValue,
+        queue: Object.freeze({ items, paused: this.messageQueue.isPaused }),
+      });
+    }
     this.replaceSnapshot({
       queuePaused: this.messageQueue.isPaused,
       steeringQueueIds: this.messageQueue.steeringItems.map((item) => item.id),
@@ -2367,10 +2628,54 @@ export class PiClientSession implements ConversationSession {
     messages: readonly ThreadMessage[],
   ): Pick<PiSessionSnapshot, "messages" | "messageRepository"> {
     this.conversationMessages = messages;
+    const messageRepository = this.currentMessageRepository(messages);
+    this.conversationBranches = this.branchPresentation(messageRepository, messages);
     return {
       messages: assistantUiMessagesFromPiConversation(messages),
-      messageRepository: this.currentMessageRepository(messages),
+      messageRepository,
     };
+  }
+
+  private branchPresentation(
+    repository: ExportedMessageRepository,
+    visibleMessages: readonly ThreadMessage[],
+  ): ReadonlyMap<string, ConversationNodeBranch> {
+    if (this.branchLeafByHeadMessageId.size < 2) return new Map();
+    const byId = new Map(repository.messages.map((item) => [item.message.id, item]));
+    const children = new Map<string | null, string[]>();
+    for (const item of repository.messages) {
+      const siblings = children.get(item.parentId) ?? [];
+      siblings.push(item.message.id);
+      children.set(item.parentId, siblings);
+    }
+    const paths = [...this.branchLeafByHeadMessageId.keys()].map((headKey) => {
+      const path = new Set<string>();
+      let cursor: string | null = headKey;
+      while (cursor) {
+        if (path.has(cursor)) break;
+        path.add(cursor);
+        cursor = byId.get(cursor)?.parentId ?? null;
+      }
+      return { headKey, path };
+    });
+    const result = new Map<string, ConversationNodeBranch>();
+    for (const message of visibleMessages) {
+      const item = byId.get(message.id);
+      if (!item) continue;
+      const alternatives = (children.get(item.parentId) ?? []).flatMap((nodeKey) => {
+        const branch = paths.find(({ path }) => path.has(nodeKey));
+        return branch ? [{ nodeKey, headKey: branch.headKey }] : [];
+      });
+      const index = alternatives.findIndex(({ nodeKey }) => nodeKey === message.id);
+      if (alternatives.length < 2 || index < 0) continue;
+      result.set(message.id, {
+        index,
+        count: alternatives.length,
+        ...(index === 0 ? {} : { previousKey: alternatives[index - 1]?.headKey }),
+        ...(index === alternatives.length - 1 ? {} : { nextKey: alternatives[index + 1]?.headKey }),
+      });
+    }
+    return result;
   }
 
   private replaceSnapshot(
@@ -2379,14 +2684,7 @@ export class PiClientSession implements ConversationSession {
   ): void {
     if (this.disposed) return;
     this.snapshotValue = { ...this.snapshotValue, ...patch };
-    this.conversationAssembler.update(
-      {
-        messages: this.conversationMessages,
-        isLoading: this.snapshotValue.isLoading,
-        isRunning: this.snapshotValue.isRunning,
-      },
-      publication,
-    );
+    this.publishConversation(publication);
     for (const listener of this.listeners) listener();
   }
 }

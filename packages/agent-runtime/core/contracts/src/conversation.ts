@@ -102,6 +102,28 @@ interface ConversationNodeBase {
   readonly key: string;
   /** Unix epoch milliseconds when the source provides a timestamp. */
   readonly createdAt?: number;
+  /** Backend-neutral presentation data used by message chrome and extension Slots. */
+  readonly presentation?: ConversationNodePresentation;
+}
+
+export interface ConversationNodeBranch {
+  /** Zero-based position within the alternatives at this conversation boundary. */
+  readonly index: number;
+  readonly count: number;
+  /** Opaque node keys echoed to `selectBranch`; the UI never interprets them. */
+  readonly previousKey?: string;
+  readonly nextKey?: string;
+}
+
+export interface ConversationNodePresentation {
+  /** JSON-safe custom metadata retained for existing Workbench presentation readers. */
+  readonly custom?: Readonly<Record<string, ConversationData>>;
+  readonly isOptimistic?: boolean;
+  readonly timing?: {
+    readonly firstTokenTime?: number;
+    readonly tokensPerSecond?: number;
+  };
+  readonly branch?: ConversationNodeBranch;
 }
 
 export interface UserMessageNode extends ConversationNodeBase {
@@ -158,6 +180,17 @@ export interface ComposerAttachment {
   readonly mediaType?: string;
 }
 
+export interface ComposerQueueItem {
+  readonly key: string;
+  readonly text: string;
+  readonly attachments: readonly ComposerAttachment[];
+}
+
+export interface ComposerQueueSnapshot {
+  readonly items: readonly ComposerQueueItem[];
+  readonly paused: boolean;
+}
+
 /** Submit-relevant per-session draft state; editor selection and IME state stay in React. */
 export interface ComposerSnapshot {
   readonly text: string;
@@ -165,6 +198,7 @@ export interface ComposerSnapshot {
   readonly mode: ComposerMode;
   readonly phase: ComposerPhase;
   readonly error?: ConversationError;
+  readonly queue?: ComposerQueueSnapshot;
 }
 
 export interface ConversationSnapshot {

@@ -173,7 +173,7 @@ export function useBoundPiThreadRuntime(
     // mutation is handled by `unstable_onBranchChange` against Pi's session tree.
     setMessages: () => undefined,
     unstable_onBranchChange: ({ headId }) => {
-      if (headId) session.selectBranch(headId);
+      if (headId) void session.selectBranch(headId).catch(() => undefined);
     },
     isRunning: isPublishedRunning,
     isLoading: snapshot.isLoading,

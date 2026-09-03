@@ -1,9 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ComposerPrimitive, useAui, useAuiState } from "@assistant-ui/react";
-
-import { ComposerAttachments } from "../assistant-ui/attachment";
+import { useAuiState } from "@assistant-ui/react";
 import {
   CompactionSeparator,
   ForkSeparator,
@@ -11,12 +9,15 @@ import {
 } from "../elements/conversation-separator";
 import { DisclosureScrollDirectionProvider } from "../elements/disclosure-scroll-direction";
 import { ErrorState } from "../elements/error-state";
-import { Button } from "../ui/button";
 import { useI18n } from "../i18n";
 import { cn } from "../utils";
 import { SlotHost } from "@workbench/extension-host/hosts/slot-host";
 import { readAgentRunRecovery } from "@workbench/agent-runtime-client/extras";
-import { useConversationNode } from "@workbench/agent-runtime-client";
+import {
+  useConversationNode,
+  useConversationSession,
+  useSessionState,
+} from "@workbench/agent-runtime-client";
 import {
   parseWorkbenchConversationEvent,
   parseWorkbenchMessageTermination,
@@ -28,12 +29,11 @@ import { parseWorkbenchPromptFailureDetails } from "@workbench/contracts/compose
 import { WorkbenchComposerCommandResponse } from "./composer-command-response";
 import { WorkbenchMessageActions } from "./message-actions";
 import { WorkbenchMessageParts } from "./message-parts";
+import { useConversationMessageContext } from "./conversation-message-context";
 import { isMessageInLatestTurn, shouldShowMessageError } from "./workbench-message-error";
 
 function MessageSlot({ name }: { name: "message.before" | "message.after" }) {
-  const messageId = useAuiState((state) => state.message.id);
-  const role = useAuiState((state) => state.message.role);
-  const isLast = useAuiState((state) => state.message.isLast);
+  const { messageId, role, isLast } = useConversationMessageContext();
 
   return (
     <SlotHost
@@ -61,18 +61,25 @@ function readableErrorDetail(value: unknown): string | undefined {
 
 function WorkbenchMessageError() {
   const { t } = useI18n();
-  const aui = useAui();
+  const session = useConversationSession();
+  const { messageId, index } = useConversationMessageContext();
   const status = useAuiState((state) => state.message.status);
-  const messageId = useAuiState((state) => state.message.id);
   const headlessError = useConversationNode(messageId, (node) => {
     if (node?.kind === "error") return node.error;
     if (!node || !("blocks" in node)) return undefined;
     return node.blocks.find((block) => block.kind === "error")?.error;
   });
-  const isRunning = useAuiState((state) => state.thread.isRunning);
+  const isRunning = useSessionState((snapshot) => snapshot.isRunning);
+  const nodeKeys = useSessionState((snapshot) => snapshot.nodeKeys);
   const recovery = readAgentRunRecovery(useAuiState((state) => state.thread.extras));
-  const isInLatestTurn = useAuiState((state) =>
-    isMessageInLatestTurn(state.thread.messages, state.message.index),
+  const isInLatestTurn = isMessageInLatestTurn(
+    nodeKeys.map((key) => {
+      const node = session.node(key).getSnapshot();
+      return {
+        role: node?.kind === "user" || node?.kind === "assistant" ? node.kind : "system",
+      };
+    }),
+    index,
   );
   const termination = parseWorkbenchMessageTermination(
     useAuiState((state) => state.message.metadata.custom.workbenchTermination),
@@ -172,7 +179,8 @@ function WorkbenchMessageError() {
 
   const stoppedWithoutCheckpoint =
     (kind === "cancelled" || kind === "aborted") && resumeCheckpoint === undefined;
-  const showRetry = !resumeCheckpoint && !stoppedWithoutCheckpoint;
+  const showRetry =
+    !resumeCheckpoint && !stoppedWithoutCheckpoint && session.actions.retry !== undefined;
   const showAction = canContinue || showRetry;
 
   const retry = () => {
@@ -184,7 +192,7 @@ function WorkbenchMessageError() {
         ? canContinueCheckpoint
           ? recovery.resume?.(resumeCheckpoint.checkpointId, resumeCheckpoint.expectedStateId)
           : recovery.resumeLatest?.(messageId)
-        : aui.message.reload();
+        : session.actions.retry?.(messageId);
       void Promise.resolve(action).then(
         () => setRetryPhase((current) => (current === "requested" ? "running" : current)),
         (error) => {
@@ -224,7 +232,11 @@ function WorkbenchMessageError() {
 }
 
 export function WorkbenchUserMessage() {
-  const isOptimistic = useAuiState((state) => state.message.metadata.isOptimistic === true);
+  const { messageId } = useConversationMessageContext();
+  const isOptimistic = useConversationNode(
+    messageId,
+    (node) => node?.presentation?.isOptimistic === true,
+  );
   const [animateOnMount] = useState(isOptimistic);
 
   return (
@@ -246,7 +258,8 @@ export function WorkbenchUserMessage() {
 }
 
 export function WorkbenchAssistantMessage() {
-  const preferUpward = useAuiState((state) => state.thread.isRunning && state.message.isLast);
+  const { isLast } = useConversationMessageContext();
+  const preferUpward = useSessionState((snapshot) => snapshot.isRunning) && isLast;
 
   return (
     <div data-role="assistant" className="w-full min-w-0">
@@ -363,31 +376,6 @@ export function WorkbenchSystemMessage() {
         <WorkbenchMessageParts />
       </div>
       <MessageSlot name="message.after" />
-    </div>
-  );
-}
-
-export function WorkbenchEditComposer() {
-  const { t } = useI18n();
-
-  return (
-    <div className="w-full min-w-0">
-      <ComposerPrimitive.Root className="flex w-full flex-col gap-2">
-        <ComposerAttachments />
-        <ComposerPrimitive.Input
-          autoFocus
-          className="min-h-20 w-full resize-none bg-transparent px-2 py-1 text-sm outline-none"
-          aria-label={t("workbench.chat.edit.label")}
-        />
-        <div className="flex items-center justify-end gap-2">
-          <ComposerPrimitive.Cancel render={<Button type="button" variant="ghost" size="sm" />}>
-            {t("workbench.chat.edit.cancel")}
-          </ComposerPrimitive.Cancel>
-          <ComposerPrimitive.Send render={<Button type="submit" size="sm" />}>
-            {t("workbench.chat.edit.update")}
-          </ComposerPrimitive.Send>
-        </div>
-      </ComposerPrimitive.Root>
     </div>
   );
 }

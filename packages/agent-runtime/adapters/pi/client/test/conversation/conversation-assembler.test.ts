@@ -10,7 +10,11 @@ import type {
 
 import { PiConversationAssembler } from "../../src/conversation/conversation-assembler";
 import { conversationNodesFromPiConversation } from "../../src/conversation/conversation-node-projection";
-import { piAssistantToThreadMessage, piHistoryToThreadMessages } from "../../src/messages/messages";
+import {
+  coalesceConsecutiveAssistantMessages,
+  piAssistantToThreadMessage,
+  piHistoryToThreadMessages,
+} from "../../src/messages/messages";
 import { PiSessionManager } from "../../src/runtime/manager";
 import { piHistoryFromSessionEvents } from "../../src/sessions/session-rpc-adapter";
 import { SessionMessageAccumulator } from "../../src/transport/session-message-accumulator";
@@ -59,6 +63,42 @@ function projectedAssistant(event: Record<string, unknown>): ThreadAssistantMess
     rawToolArgsText: event.rawToolArgsText as Readonly<Record<string, string>> | undefined,
   });
 }
+
+test("projects Workbench message chrome metadata and branch navigation", () => {
+  const message = assistant("Answer");
+  const [node] = conversationNodesFromPiConversation(
+    [
+      {
+        ...message,
+        metadata: {
+          ...message.metadata,
+          isOptimistic: true,
+          timing: {
+            streamStartTime: 1_725_000_000_001,
+            firstTokenTime: 125,
+            tokensPerSecond: 42,
+            totalChunks: 2,
+            toolCallCount: 1,
+          },
+          custom: {
+            workbenchUsage: { input: 10, output: 20 },
+            piPrivateValue: "excluded",
+          },
+        },
+      },
+    ],
+    new Map([
+      [message.id, { index: 1, count: 3, previousKey: "previous-head", nextKey: "next-head" }],
+    ]),
+  );
+
+  assert.deepEqual(node?.presentation, {
+    custom: { workbenchUsage: { input: 10, output: 20 } },
+    isOptimistic: true,
+    timing: { firstTokenTime: 125, tokensPerSecond: 42 },
+    branch: { index: 1, count: 3, previousKey: "previous-head", nextKey: "next-head" },
+  });
+});
 
 test("projects image, file, and document source semantics into Workbench blocks", () => {
   const message = {
@@ -254,7 +294,17 @@ test("assembles equivalent nodes from history replay and live Pi messages", () =
   });
   const live = new PiConversationAssembler("session-1");
   live.update({
-    messages: [piAssistantToThreadMessage(message, "assistant-1", { eventSeq: 7 })],
+    messages: coalesceConsecutiveAssistantMessages([
+      piAssistantToThreadMessage(message, "assistant-1", {
+        eventSeq: 7,
+        timing: {
+          streamStartTime: 1_725_000_000_001,
+          totalStreamTime: 1,
+          totalChunks: 0,
+          toolCallCount: 0,
+        },
+      }),
+    ]),
     isLoading: false,
     isRunning: false,
   });

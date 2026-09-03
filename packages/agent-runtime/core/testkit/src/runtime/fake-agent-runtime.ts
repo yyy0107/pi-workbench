@@ -79,12 +79,20 @@ export class FakeConversationSession implements ConversationSession {
     const actions = options.actions;
     this.actions = Object.freeze({
       send: actions?.send ?? (async () => undefined),
+      setComposerText: actions?.setComposerText ?? (() => undefined),
+      addComposerAttachment: actions?.addComposerAttachment ?? (async () => undefined),
+      removeComposerAttachment: actions?.removeComposerAttachment ?? (() => undefined),
+      dismissComposerError: actions?.dismissComposerError ?? (() => undefined),
       cancel: actions?.cancel ?? (async () => undefined),
       queue: actions?.queue ?? (async () => undefined),
       steer: actions?.steer ?? (async () => undefined),
       retry: actions?.retry ?? (async () => undefined),
       edit: actions?.edit ?? (async () => undefined),
       fork: actions?.fork ?? (async () => `${id}:fork`),
+      selectBranch: actions?.selectBranch ?? (async () => undefined),
+      editQueueItem: actions?.editQueueItem ?? (() => undefined),
+      mutateQueueItem: actions?.mutateQueueItem ?? (() => undefined),
+      setQueuePaused: actions?.setQueuePaused ?? (() => undefined),
       loadOlder: actions?.loadOlder ?? (async () => undefined),
     });
   }

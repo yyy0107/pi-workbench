@@ -422,7 +422,7 @@ test("keeps an optimistic follow-up across stale snapshots and rolls it back on 
     onChange: () => {},
   });
 
-  queue.adapter.enqueue(message("later"));
+  const submission = queue.enqueue("followUp", message("later"));
   queue.replaceAuthoritative([]);
   assert.deepEqual(
     queue.adapter.items.map((item) => [item.id, item.prompt]),
@@ -431,7 +431,7 @@ test("keeps an optimistic follow-up across stale snapshots and rolls it back on 
 
   await flush();
   rejectRequest?.(new Error("queue rejected"));
-  await flush();
+  await assert.rejects(submission, /queue rejected/);
   assert.deepEqual(queue.adapter.items, []);
   assert.equal(rejectedMessages.length, 1);
   assert.equal(rejectedMessages[0]?.content.find((part) => part.type === "text")?.text, "later");
@@ -726,5 +726,20 @@ test("maps queued and steering content while leaving context outside the compose
   );
   assert.deepEqual(queue.adapter.items[1]?.parts, [
     { type: "file", data: "payload", mimeType: "image/png", filename: "queued.png" },
+  ]);
+  assert.deepEqual(queue.queuedItems, [
+    { key: "queued", text: "later", attachments: [] },
+    {
+      key: "image",
+      text: "",
+      attachments: [
+        {
+          key: "0:queued.png",
+          name: "queued.png",
+          source: "data:image/png;base64,payload",
+          mediaType: "image/png",
+        },
+      ],
+    },
   ]);
 });

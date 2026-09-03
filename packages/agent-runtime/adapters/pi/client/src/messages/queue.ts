@@ -5,6 +5,10 @@ import type {
   QueueItemState,
   TextMessagePart,
 } from "@assistant-ui/react";
+import type {
+  ComposerAttachment,
+  ComposerQueueItem,
+} from "@workbench/agent-runtime-contracts/conversation";
 
 import type { PiQueuedPrompt, PiQueueMode } from "@workbench/agent-runtime-pi-protocol/messages";
 import type { SessionQueueAction } from "@workbench/agent-runtime-pi-protocol/rpc";
@@ -111,6 +115,33 @@ function queueItemState(item: QueueItem): QueueItemState {
   };
 }
 
+function composerAttachment(
+  part: Extract<ReturnType<typeof queueItemParts>[number], { type: "file" }>,
+  index: number,
+): ComposerAttachment {
+  const mediaType = part.mimeType === "image/*" ? "image/png" : part.mimeType;
+  return {
+    key: `${index}:${part.filename ?? "attachment"}`,
+    name: part.filename ?? "attachment",
+    source: part.data.startsWith("data:") ? part.data : `data:${mediaType};base64,${part.data}`,
+    mediaType,
+  };
+}
+
+function composerQueueItem(item: QueueItem): ComposerQueueItem {
+  const parts = queueItemParts(item);
+  return {
+    key: item.id,
+    text: parts
+      .filter((part): part is TextMessagePart => part.type === "text")
+      .map((part) => part.text)
+      .join("\n\n"),
+    attachments: parts
+      .filter((part): part is FileMessagePart => part.type === "file")
+      .map(composerAttachment),
+  };
+}
+
 function promptFromQueueItem(item: QueueItem): PiQueuedPrompt {
   const message = item.message.content
     .filter((part) => part.type === "text" && typeof part.text === "string")
@@ -198,8 +229,8 @@ export class PiMessageQueue {
     this.adapter = {
       items: [],
       steerItems: [],
-      enqueue: (message) => this.submit("followUp", message),
-      steer: (message) => this.submit("steer", message),
+      enqueue: (message) => void this.submit("followUp", message).catch(() => undefined),
+      steer: (message) => void this.submit("steer", message).catch(() => undefined),
       move: (id, placement) => {
         if (
           placement.lane === "steer" &&
@@ -240,6 +271,39 @@ export class PiMessageQueue {
 
   get steeringItems(): readonly QueueItem[] {
     return this.items.filter((item) => item.placement === "steering");
+  }
+
+  get queuedItems(): readonly ComposerQueueItem[] {
+    return this.items
+      .filter((item) => item.placement === "queued" && item.id !== this.editingId)
+      .map(composerQueueItem);
+  }
+
+  enqueue(mode: PiQueueMode, message: AppendMessage): Promise<void> {
+    return this.submit(mode, message);
+  }
+
+  edit(id: string): ComposerQueueItem | undefined {
+    const item = this.items.find((candidate) => candidate.id === id);
+    if (!item || item.placement !== "queued") return undefined;
+    this.beginEdit(id);
+    return composerQueueItem(item);
+  }
+
+  mutateItem(
+    id: string,
+    mutation:
+      | { readonly kind: "remove" }
+      | { readonly kind: "steer" }
+      | { readonly kind: "move"; readonly beforeKey?: string; readonly afterKey?: string },
+  ): void {
+    if (mutation.kind === "remove") this.mutate(id, { kind: "remove" });
+    else if (mutation.kind === "steer") this.mutate(id, { kind: "steer" });
+    else if (mutation.beforeKey !== undefined) {
+      this.reorder(id, { insertBefore: mutation.beforeKey });
+    } else if (mutation.afterKey !== undefined) {
+      this.reorder(id, { insertAfter: mutation.afterKey });
+    }
   }
 
   dispose(): void {
@@ -334,8 +398,8 @@ export class PiMessageQueue {
       });
   }
 
-  private submit(mode: PiQueueMode, rawMessage: AppendMessage): void {
-    if (this.disposed) return;
+  private submit(mode: PiQueueMode, rawMessage: AppendMessage): Promise<void> {
+    if (this.disposed) return Promise.resolve();
     const message = this.transform(rawMessage);
     if (this.editingId) {
       const itemId = this.editingId;
@@ -344,13 +408,10 @@ export class PiMessageQueue {
       this.editingWorkspaceFeedbackSuffix = undefined;
       this.publish();
       this.mutate(itemId, appendContent(message, feedbackSuffix));
-      return;
+      return Promise.resolve();
     }
     if (!this.options.isRunning()) {
-      void this.options
-        .run(message)
-        .catch((error) => console.error("[workbench-pi] prompt failed", error));
-      return;
+      return this.options.run(message);
     }
     const prompt = appendMessageToPiPrompt(message);
     const queued: PiQueuedPrompt = {
@@ -363,7 +424,7 @@ export class PiMessageQueue {
     this.pendingEnqueues.set(optimisticId, optimisticQueueItem(optimisticId, mode, queued));
     this.rebuildItems();
     this.publish();
-    this.syncTask = this.syncTask
+    const task = this.syncTask
       .catch(() => undefined)
       .then(() => {
         if (this.disposed) return { queued: false };
@@ -375,7 +436,10 @@ export class PiMessageQueue {
         this.rejectEnqueue(optimisticId);
         this.options.onEnqueueRejected?.(message, error);
         console.error(`[workbench-pi] ${mode} queue failed`, error);
+        throw error;
       });
+    this.syncTask = task.catch(() => undefined);
+    return task;
   }
 
   private mutate(itemId: string, action: SessionQueueAction): void {

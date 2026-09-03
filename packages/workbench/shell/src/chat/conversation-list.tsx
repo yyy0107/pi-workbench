@@ -22,10 +22,10 @@ import {
 } from "./workbench-message-rows";
 import {
   WorkbenchAssistantMessage,
-  WorkbenchEditComposer,
   WorkbenchSystemMessage,
   WorkbenchUserMessage,
 } from "./workbench-message";
+import { ConversationMessageProvider } from "./conversation-message-context";
 import { WorkbenchConversationError } from "./renderers/message-blocks";
 import { LegacyConversationMessageByIndex } from "../assistant-ui/renderer-compat";
 
@@ -40,7 +40,6 @@ const messageComponents = {
   UserMessage: WorkbenchUserMessage,
   AssistantMessage: WorkbenchAssistantMessage,
   SystemMessage: WorkbenchSystemMessage,
-  EditComposer: WorkbenchEditComposer,
 };
 
 function nodeRole(node: ConversationNode): ConversationRow["role"] {
@@ -68,19 +67,24 @@ export const ConversationNodeSeat = memo(function ConversationNodeSeat({
   nodeKey,
 }: Readonly<{ index: number; nodeKey: string }>) {
   const node = useConversationNode(nodeKey);
+  const isLast = useSessionState((snapshot) => snapshot.nodeKeys.at(-1) === nodeKey);
   if (!node) return null;
   if (node.kind === "error") {
     return <WorkbenchConversationError error={node.error} nodeKey={node.key} />;
   }
 
   return (
-    <div
-      data-message-id={node.key}
-      data-conversation-node-key={node.key}
-      data-conversation-node-kind={node.kind}
+    <ConversationMessageProvider
+      value={{ messageId: node.key, role: nodeRole(node), isLast, index }}
     >
-      <LegacyConversationMessageByIndex index={index} components={messageComponents} />
-    </div>
+      <div
+        data-message-id={node.key}
+        data-conversation-node-key={node.key}
+        data-conversation-node-kind={node.kind}
+      >
+        <LegacyConversationMessageByIndex index={index} components={messageComponents} />
+      </div>
+    </ConversationMessageProvider>
   );
 });
 

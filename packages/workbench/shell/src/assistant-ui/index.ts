@@ -1,4 +1,3 @@
-export * from "./attachment";
 export * from "./codex-code-header";
 export * from "./file";
 export * from "./image";

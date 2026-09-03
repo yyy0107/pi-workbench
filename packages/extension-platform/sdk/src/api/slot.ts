@@ -56,7 +56,7 @@ export type WorkbenchSlot = (typeof WORKBENCH_SLOTS)[number];
 /**
  * `message.*` Slot 在单条消息范围内收到的上下文。
  *
- * 这些值直接来自 assistant-ui 当前 Message scope；扩展不应复制到独立 Store。
+ * 这些值来自 Workbench Conversation Node seat；扩展不应复制到独立 Store。
  */
 export interface MessageSlotContext {
   /** 当前消息的稳定 Runtime id。 */

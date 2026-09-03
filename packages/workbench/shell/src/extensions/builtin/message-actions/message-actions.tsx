@@ -1,59 +1,50 @@
 "use client";
 
 import {
-  ActionBarPrimitive,
-  BranchPickerPrimitive,
-  useAuiState,
-  useMessageTiming,
-} from "@assistant-ui/react";
-import {
   ChevronLeftIcon,
   ChevronRightIcon,
   GaugeIcon,
-  PencilIcon,
   RefreshCwIcon,
   SplitIcon,
 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 
-import { TooltipIconButton } from "../../../assistant-ui/tooltip-icon-button";
-import { Button } from "../../../ui/button";
-import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "../../../ui/popover";
-import { useI18n } from "../../../i18n";
-import { useWorkbenchNavigation } from "../../../navigation";
-import { formatAdaptiveDuration } from "../../../format-duration";
-import { useExtensionErrorReporter } from "@workbench/extension-host";
-import type { MessageSlotContext } from "@workbench/extension-sdk";
 import {
-  useWorkbenchAgentThreadActions,
-  useWorkbenchAgentThreadId,
-  useWorkbenchAgentThreadSnapshot,
-} from "@workbench/agent-runtime-client/context";
+  useConversationNode,
+  useConversationSession,
+  useSessionState,
+} from "@workbench/agent-runtime-client";
+import type { ConversationNode } from "@workbench/agent-runtime-contracts/conversation";
 import {
   readWorkbenchMessageStateToken,
   readWorkbenchMessageUsage,
   readWorkbenchTurnStatistics,
 } from "@workbench/agent-runtime-contracts/message-metadata";
 import { parseAttachmentRecognitionSnapshot } from "@workbench/attachment-understanding-contracts/state-machine";
+import { useExtensionErrorReporter } from "@workbench/extension-host";
+import type { MessageSlotContext } from "@workbench/extension-sdk";
+
+import { TooltipIconButton } from "../../../assistant-ui/tooltip-icon-button";
+import { formatAdaptiveDuration } from "../../../format-duration";
+import { useI18n } from "../../../i18n";
+import { useWorkbenchNavigation } from "../../../navigation";
+import { Button } from "../../../ui/button";
+import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "../../../ui/popover";
 
 import { isExpectedForkUnavailableError } from "./fork-availability";
 import { messageCacheHitRate, messageTokensPerSecond } from "./message-performance-statistics";
 import { shouldShowMessagePerformance } from "./message-performance-visibility";
 
-function MessagePerformance() {
-  const timing = useMessageTiming();
-  const rawUsage = useAuiState((state) =>
-    state.message.role === "assistant" ? state.message.metadata.custom.workbenchUsage : undefined,
+function MessagePerformance({ node }: Readonly<{ node: ConversationNode }>) {
+  const custom = node.presentation?.custom;
+  const timing = node.presentation?.timing;
+  const usage = useMemo(
+    () => readWorkbenchMessageUsage(custom?.workbenchUsage),
+    [custom?.workbenchUsage],
   );
-  const rawTurnStatistics = useAuiState((state) =>
-    state.message.role === "assistant"
-      ? state.message.metadata.custom.workbenchTurnStatistics
-      : undefined,
-  );
-  const usage = useMemo(() => readWorkbenchMessageUsage(rawUsage), [rawUsage]);
   const turnStatistics = useMemo(
-    () => readWorkbenchTurnStatistics(rawTurnStatistics),
-    [rawTurnStatistics],
+    () => readWorkbenchTurnStatistics(custom?.workbenchTurnStatistics),
+    [custom?.workbenchTurnStatistics],
   );
   const { locale, number, t } = useI18n();
   const stats: { label: string; value: string }[] = [];
@@ -92,19 +83,15 @@ function MessagePerformance() {
   if (cacheHitRate !== undefined) {
     stats.push({
       label: t("extensions.messageActions.timing.cacheHitRate"),
-      value: number(cacheHitRate, {
-        style: "percent",
-        maximumFractionDigits: 1,
-      }),
+      value: number(cacheHitRate, { style: "percent", maximumFractionDigits: 1 }),
     });
   }
 
   if (stats.length === 0) return null;
-
   const label = t("extensions.messageActions.timing.details");
 
   return (
-    <ActionBarPrimitive.Root autohide="never" className="flex items-center">
+    <div className="flex items-center">
       <Popover>
         <PopoverTrigger
           openOnHover
@@ -136,80 +123,70 @@ function MessagePerformance() {
           </dl>
         </PopoverContent>
       </Popover>
-    </ActionBarPrimitive.Root>
+    </div>
   );
 }
 
-function BranchPicker() {
+function BranchPicker({ node }: Readonly<{ node: ConversationNode }>) {
   const { t } = useI18n();
+  const session = useConversationSession();
+  const reportError = useExtensionErrorReporter();
+  const branch = node.presentation?.branch;
+  if (!branch || branch.count <= 1 || !session.actions.selectBranch) return null;
+
+  const select = (key: string | undefined) => {
+    if (!key) return;
+    void session.actions.selectBranch?.(key).catch((error) => {
+      reportError(error, {
+        source: "slot",
+        contributionId: "message-actions.select-branch",
+      });
+    });
+  };
 
   return (
-    <BranchPickerPrimitive.Root
-      hideWhenSingleBranch
-      className="text-muted-foreground inline-flex items-center text-xs"
-    >
-      <BranchPickerPrimitive.Previous
-        render={<TooltipIconButton tooltip={t("extensions.messageActions.previousResponse")} />}
+    <div className="text-muted-foreground inline-flex items-center text-xs">
+      <TooltipIconButton
+        tooltip={t("extensions.messageActions.previousResponse")}
+        type="button"
+        disabled={!branch.previousKey}
+        onClick={() => select(branch.previousKey)}
       >
         <ChevronLeftIcon className="size-3.5" />
-      </BranchPickerPrimitive.Previous>
+      </TooltipIconButton>
       <span className="px-0.5 font-medium tabular-nums">
-        <BranchPickerPrimitive.Number /> / <BranchPickerPrimitive.Count />
+        {branch.index + 1} / {branch.count}
       </span>
-      <BranchPickerPrimitive.Next
-        render={<TooltipIconButton tooltip={t("extensions.messageActions.nextResponse")} />}
+      <TooltipIconButton
+        tooltip={t("extensions.messageActions.nextResponse")}
+        type="button"
+        disabled={!branch.nextKey}
+        onClick={() => select(branch.nextKey)}
       >
         <ChevronRightIcon className="size-3.5" />
-      </BranchPickerPrimitive.Next>
-    </BranchPickerPrimitive.Root>
+      </TooltipIconButton>
+    </div>
   );
 }
 
-function UserActions() {
+function AssistantActions({ node }: Readonly<{ node: ConversationNode }>) {
   const { t } = useI18n();
-  const isRunning = useAuiState((state) => state.thread.isRunning);
-
-  return (
-    <ActionBarPrimitive.Root autohide="never" className="flex items-center gap-0.5">
-      <ActionBarPrimitive.Edit
-        disabled={isRunning}
-        render={<TooltipIconButton tooltip={t("extensions.messageActions.editMessage")} />}
-      >
-        <PencilIcon className="size-3.5" />
-      </ActionBarPrimitive.Edit>
-    </ActionBarPrimitive.Root>
-  );
-}
-
-function AssistantActions({ canReload }: Readonly<{ canReload: boolean }>) {
-  const { t } = useI18n();
-  const threadActions = useWorkbenchAgentThreadActions();
-  const sessionId = useWorkbenchAgentThreadId();
-  const session = useWorkbenchAgentThreadSnapshot(sessionId);
+  const session = useConversationSession();
+  const isRunning = useSessionState((snapshot) => snapshot.isRunning);
   const reportError = useExtensionErrorReporter();
   const navigation = useWorkbenchNavigation();
-  const stateToken = readWorkbenchMessageStateToken(
-    useAuiState((state) => state.message.metadata.custom.workbenchStateToken),
-  );
-  const retriesCancelledAttachment = useAuiState((state) => {
-    if (state.message.metadata.custom.workbenchAttachmentRecognitionOnly !== true) return false;
-    return (
-      parseAttachmentRecognitionSnapshot(
-        state.message.metadata.custom.workbenchAttachmentRecognition,
-      )?.status === "cancelled"
-    );
-  });
+  const custom = node.presentation?.custom;
+  const stateToken = readWorkbenchMessageStateToken(custom?.workbenchStateToken);
+  const retriesCancelledAttachment =
+    custom?.workbenchAttachmentRecognitionOnly === true &&
+    parseAttachmentRecognitionSnapshot(custom.workbenchAttachmentRecognition)?.status ===
+      "cancelled";
   const [forkState, setForkState] = useState<"idle" | "pending" | "failed">("idle");
   const forkConversation = useCallback(async () => {
-    if (!sessionId || !stateToken || !threadActions.forkAt || forkState === "pending") return;
+    if (!stateToken || !session.actions.fork || forkState === "pending") return;
     setForkState("pending");
     try {
-      const forked = await threadActions.forkAt({
-        threadId: sessionId,
-        atStateToken: stateToken,
-        sourceTitle: session?.title ?? t("workbench.sidebar.newThread"),
-      });
-      navigation.openConversation(forked.threadId);
+      navigation.openConversation(await session.actions.fork(node.key));
     } catch (error) {
       setForkState("failed");
       if (!isExpectedForkUnavailableError(error)) {
@@ -219,17 +196,25 @@ function AssistantActions({ canReload }: Readonly<{ canReload: boolean }>) {
         });
       }
     }
-  }, [forkState, navigation, reportError, session?.title, sessionId, stateToken, t, threadActions]);
+  }, [forkState, navigation, node.key, reportError, session, stateToken]);
   const forkTooltip =
     forkState === "pending"
       ? t("extensions.messageActions.forkConversationPending")
       : forkState === "failed"
         ? t("extensions.messageActions.forkConversationFailed")
         : t("extensions.messageActions.forkConversation");
+  const retry = () => {
+    void session.actions.retry?.(node.key).catch((error) => {
+      reportError(error, {
+        source: "slot",
+        contributionId: "message-actions.retry-response",
+      });
+    });
+  };
 
   return (
-    <ActionBarPrimitive.Root autohide="never" className="flex items-center gap-0.5">
-      {sessionId && stateToken && threadActions.forkAt ? (
+    <div className="flex items-center gap-0.5">
+      {stateToken && session.actions.fork ? (
         <TooltipIconButton
           tooltip={forkTooltip}
           type="button"
@@ -239,40 +224,39 @@ function AssistantActions({ canReload }: Readonly<{ canReload: boolean }>) {
           <SplitIcon className="size-3.5 rotate-90" />
         </TooltipIconButton>
       ) : null}
-      {canReload ? (
-        <ActionBarPrimitive.Reload
-          render={
-            <TooltipIconButton
-              tooltip={t(
-                retriesCancelledAttachment
-                  ? "extensions.messageActions.retryAttachmentRequest"
-                  : "extensions.messageActions.regenerateResponse",
-              )}
-            />
-          }
+      {session.actions.retry ? (
+        <TooltipIconButton
+          tooltip={t(
+            retriesCancelledAttachment
+              ? "extensions.messageActions.retryAttachmentRequest"
+              : "extensions.messageActions.regenerateResponse",
+          )}
+          type="button"
+          disabled={isRunning}
+          onClick={retry}
         >
           <RefreshCwIcon className="size-3.5" />
-        </ActionBarPrimitive.Reload>
+        </TooltipIconButton>
       ) : null}
-    </ActionBarPrimitive.Root>
+    </div>
   );
 }
 
-export function MessageActions({ role, isLast }: MessageSlotContext) {
-  const capabilities = useAuiState((state) => state.thread.capabilities);
-  const isRunning = useAuiState((state) => state.thread.isRunning);
+export function MessageActions({ messageId, role, isLast }: MessageSlotContext) {
+  const node = useConversationNode(messageId);
+  const isRunning = useSessionState((snapshot) => snapshot.isRunning);
+  if (!node) return null;
   const showPerformance = shouldShowMessagePerformance({ isLast, isRunning });
 
   return (
     <>
-      {role === "user" && capabilities.edit ? <UserActions /> : null}
       {role === "assistant" ? (
         <>
-          <AssistantActions canReload={capabilities.reload} />
-          {showPerformance ? <MessagePerformance /> : null}
+          <AssistantActions node={node} />
+          {showPerformance ? <MessagePerformance node={node} /> : null}
         </>
       ) : null}
-      {capabilities.switchToBranch ? <BranchPicker /> : null}
+      <BranchPicker node={node} />
     </>
   );
 }

@@ -2,6 +2,8 @@ import type {
   AssistantMessageNode,
   ConversationData,
   ConversationError,
+  ConversationNodeBranch,
+  ConversationNodePresentation,
   ConversationNode,
   MessageBlock,
   ToolCallBlock,
@@ -213,14 +215,56 @@ function blocks(message: ThreadMessage): MessageBlock[] {
   return projected;
 }
 
-function node(message: ThreadMessage): ConversationNode {
+function presentation(
+  message: ThreadMessage,
+  branch: ConversationNodeBranch | undefined,
+): ConversationNodePresentation | undefined {
+  const custom = Object.fromEntries(
+    Object.entries(message.metadata.custom)
+      .filter(([key, value]) => key.startsWith("workbench") && value !== undefined)
+      .map(([key, value]) => [key, serializable(value)]),
+  );
+  const sourceTiming = message.metadata.timing;
+  const timing =
+    sourceTiming?.firstTokenTime === undefined && sourceTiming?.tokensPerSecond === undefined
+      ? undefined
+      : {
+          ...(sourceTiming.firstTokenTime === undefined
+            ? {}
+            : { firstTokenTime: sourceTiming.firstTokenTime }),
+          ...(sourceTiming.tokensPerSecond === undefined
+            ? {}
+            : { tokensPerSecond: sourceTiming.tokensPerSecond }),
+        };
+  if (
+    Object.keys(custom).length === 0 &&
+    message.metadata.isOptimistic !== true &&
+    !timing &&
+    !branch
+  ) {
+    return undefined;
+  }
+  return {
+    ...(Object.keys(custom).length === 0 ? {} : { custom }),
+    ...(message.metadata.isOptimistic === true ? { isOptimistic: true } : {}),
+    ...(timing ? { timing } : {}),
+    ...(branch ? { branch } : {}),
+  };
+}
+
+function node(message: ThreadMessage, branch?: ConversationNodeBranch): ConversationNode {
   const timestamp = createdAt(message);
+  const nodePresentation = presentation(message, branch);
+  const base = {
+    ...(timestamp === undefined ? {} : { createdAt: timestamp }),
+    ...(nodePresentation === undefined ? {} : { presentation: nodePresentation }),
+  };
   if (message.role === "user") {
     return {
       key: message.id,
       kind: "user",
       blocks: blocks(message),
-      ...(timestamp === undefined ? {} : { createdAt: timestamp }),
+      ...base,
     };
   }
   if (message.role === "assistant") {
@@ -229,7 +273,7 @@ function node(message: ThreadMessage): ConversationNode {
       kind: "assistant",
       blocks: blocks(message),
       status: assistantStatus(message),
-      ...(timestamp === undefined ? {} : { createdAt: timestamp }),
+      ...base,
     };
   }
 
@@ -249,7 +293,7 @@ function node(message: ThreadMessage): ConversationNode {
           : command.status === "success"
             ? "complete"
             : "error",
-      ...(timestamp === undefined ? {} : { createdAt: timestamp }),
+      ...base,
     };
   }
 
@@ -259,14 +303,14 @@ function node(message: ThreadMessage): ConversationNode {
       key: message.id,
       kind: "compaction",
       summary: event.reason,
-      ...(timestamp === undefined ? {} : { createdAt: timestamp }),
+      ...base,
     };
   }
   return {
     key: message.id,
     kind: "system",
     blocks: blocks(message),
-    ...(timestamp === undefined ? {} : { createdAt: timestamp }),
+    ...base,
   };
 }
 
@@ -275,6 +319,7 @@ function node(message: ThreadMessage): ConversationNode {
  */
 export function conversationNodesFromPiConversation(
   messages: readonly ThreadMessage[],
+  branches?: ReadonlyMap<string, ConversationNodeBranch>,
 ): readonly ConversationNode[] {
-  return messages.map(node);
+  return messages.map((message) => node(message, branches?.get(message.id)));
 }

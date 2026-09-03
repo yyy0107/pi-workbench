@@ -1,41 +1,23 @@
 "use client";
 
-import {
-  ComposerPrimitive,
-  type Attachment,
-  type CreateAttachment,
-  type Unstable_TriggerItem,
-  unstable_useTriggerPopoverScopeContext,
-  useAui,
-  useAuiEvent,
-  useAuiState,
-} from "@assistant-ui/react";
-import { DirectiveNode, type DirectiveChipProps } from "@assistant-ui/react-lexical";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import {
   $createTextNode,
   $getRoot,
   $getSelection,
-  $isElementNode,
   $isRangeSelection,
   $isTextNode,
   $nodesOfType,
+  COMMAND_PRIORITY_HIGH,
   COMMAND_PRIORITY_NORMAL,
+  KEY_ARROW_DOWN_COMMAND,
+  KEY_ARROW_UP_COMMAND,
   KEY_ENTER_COMMAND,
+  KEY_ESCAPE_COMMAND,
   type LexicalEditor,
 } from "lexical";
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-  type ComponentProps,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
-import { ComposerAttachments } from "../assistant-ui/attachment";
 import { ComposerCommandToken } from "../elements/composer";
 import { ComposerWorkspaceFeedback } from "../right-workspace/presentation";
 import {
@@ -54,12 +36,15 @@ import type {
   ComposerCommandRegistry,
 } from "@workbench/extension-sdk";
 import { SlotHost } from "@workbench/extension-host/hosts/slot-host";
-import type { WorkbenchAgentComposerSendError } from "@workbench/agent-runtime-client/adapter";
 import type { WorkbenchAgentCommand } from "@workbench/agent-runtime-contracts/commands";
 import {
-  readAgentComposerExtras,
-  readAgentRejectedQueueDraft,
-} from "@workbench/agent-runtime-client/extras";
+  WORKBENCH_COMPOSER_ATTACHMENT_ACCEPT,
+  composerAttachmentFromFile,
+  useConversationSession,
+  useCurrentSession,
+  useSessionState,
+  useThreadList,
+} from "@workbench/agent-runtime-client";
 import {
   useWorkbenchAgentCommands,
   useWorkbenchAgentWorkspaceFileSearch,
@@ -88,6 +73,13 @@ import {
   withComposerCommandParameterDefaults,
 } from "./composer-command-parameters";
 import { addComposerImagesFromPaste } from "./composer-image-paste";
+import { ComposerAttachments } from "./composer-attachments";
+import {
+  $insertDirectiveAtSelection,
+  DirectiveNode,
+  type ComposerTriggerItem,
+  type DirectiveChipProps,
+} from "./composer-directive";
 import { ComposerTokenIcon, type ComposerTokenKind } from "./composer-token-icon";
 import { MarkdownComposerInput } from "./markdown-composer-input";
 import { submitWorkbenchComposer } from "./composer-submit";
@@ -104,15 +96,10 @@ import {
   type WorkbenchComposerSuggestionGroup,
 } from "./workbench-composer-view";
 
-interface ComposerDraftSnapshot {
-  text: string;
-  attachments: readonly (File | CreateAttachment)[];
-}
-
 interface WorkspaceFileMentionSearchState {
   readonly workspaceId?: string;
   readonly query: string;
-  readonly items: readonly Unstable_TriggerItem[];
+  readonly items: readonly ComposerTriggerItem[];
   readonly loading: boolean;
   readonly loadError: boolean;
 }
@@ -123,17 +110,6 @@ const EMPTY_WORKSPACE_FILE_MENTION_SEARCH: WorkspaceFileMentionSearchState = {
   loading: false,
   loadError: false,
 };
-
-function restorableComposerAttachment(attachment: Attachment): File | CreateAttachment | undefined {
-  if (attachment.file) return attachment.file;
-  if (!attachment.content) return undefined;
-  return {
-    type: attachment.type,
-    name: attachment.name,
-    ...(attachment.contentType ? { contentType: attachment.contentType } : {}),
-    content: [...attachment.content],
-  };
-}
 
 interface WorkbenchComposerSuggestion extends WorkbenchComposerMenuSuggestion {
   readonly group: WorkbenchAgentCommand["kind"] | "workbench";
@@ -147,15 +123,12 @@ type ComposerCommandParameterValues = Readonly<Record<string, ComposerJsonValue>
 type ComposerCommandParametersByKey = Readonly<Record<string, ComposerCommandParameterValues>>;
 
 const EMPTY_COMPOSER_COMMANDS = Object.freeze([]) as readonly ComposerCommandDefinition[];
-type TriggerAdapter = NonNullable<
-  ComponentProps<typeof ComposerPrimitive.Unstable_TriggerPopover>["adapter"]
->;
 
-function suggestionKey(item: Pick<Unstable_TriggerItem, "id" | "type">): string {
+function suggestionKey(item: Pick<ComposerTriggerItem, "id" | "type">): string {
   return `${item.type}:${item.id}`;
 }
 
-function suggestionParameterKey(item: Pick<Unstable_TriggerItem, "id" | "type">): string {
+function suggestionParameterKey(item: Pick<ComposerTriggerItem, "id" | "type">): string {
   return composerCommandArgumentKey(
     isAgentComposerDirectiveType(item.type) ? "agent" : "workbench",
     item.id,
@@ -225,7 +198,7 @@ function builtinCommandPresentation(
 }
 
 function directiveGroup(
-  item: Pick<Unstable_TriggerItem, "id" | "type">,
+  item: Pick<ComposerTriggerItem, "id" | "type">,
   registry: Pick<ComposerCommandRegistry, "get">,
 ): string | undefined {
   if (item.type !== WORKBENCH_COMMAND_DIRECTIVE_TYPE && !isAgentComposerDirectiveType(item.type)) {
@@ -237,38 +210,6 @@ function directiveGroup(
     definition.composer.group ??
     (definition.composer.behavior === "modifier" ? `modifier:${definition.id}` : undefined)
   );
-}
-
-function $directiveAtSelection(item: Unstable_TriggerItem): DirectiveNode | undefined {
-  const selection = $getSelection();
-  if ($isRangeSelection(selection) && selection.isCollapsed()) {
-    const anchor = selection.anchor;
-    const anchorNode = anchor.getNode();
-    const candidates = [];
-
-    if ($isElementNode(anchorNode)) {
-      candidates.push(anchorNode.getChildAtIndex(anchor.offset - 1));
-      candidates.push(anchorNode.getChildAtIndex(anchor.offset));
-    } else if ($isTextNode(anchorNode)) {
-      if (anchor.offset === 0) candidates.push(anchorNode.getPreviousSibling());
-      if (anchor.offset === anchorNode.getTextContentSize()) {
-        candidates.push(anchorNode.getNextSibling());
-      }
-    }
-
-    for (const candidate of candidates) {
-      if (!(candidate instanceof DirectiveNode)) continue;
-      const directive = candidate.getDirectiveItem();
-      if (directive.id === item.id && directive.type === item.type) return candidate;
-    }
-  }
-
-  return $nodesOfType(DirectiveNode)
-    .toReversed()
-    .find((node) => {
-      const directive = node.getDirectiveItem();
-      return directive.id === item.id && directive.type === item.type;
-    });
 }
 
 function $removeDirectiveAndBuffer(node: DirectiveNode): void {
@@ -301,14 +242,6 @@ function CaptureLexicalEditor({
     onChange(editor);
     return () => onChange(null);
   }, [editor, onChange]);
-  return null;
-}
-
-function ComposerEditableGuard({ enabled }: Readonly<{ enabled: boolean }>) {
-  const [editor] = useLexicalComposerContext();
-  useEffect(() => {
-    editor.setEditable(enabled);
-  }, [editor, enabled]);
   return null;
 }
 
@@ -352,56 +285,76 @@ function ComposerEnterPlugin({ onSubmit }: Readonly<{ onSubmit(steer: boolean): 
   return null;
 }
 
-function WorkbenchComposerCommandMenu({
-  suggestions,
-}: Readonly<{ suggestions: ReadonlyMap<string, WorkbenchComposerSuggestion> }>) {
-  const { open, items, highlightedIndex } = unstable_useTriggerPopoverScopeContext();
-  const { t } = useI18n();
-  const { runtimeName } = useWorkbenchBranding();
-
-  return (
-    <WorkbenchComposerCommandMenuView
-      open={open}
-      items={items}
-      highlightedIndex={highlightedIndex}
-      suggestions={suggestions}
-      groupLabel={(group) => suggestionGroupLabel(group, t, runtimeName)}
-    />
-  );
+function ComposerSuggestionKeyboardPlugin({
+  active,
+  items,
+  highlightedIndex,
+  onHighlightedIndexChange,
+  onSelect,
+  onDismiss,
+}: Readonly<{
+  active: boolean;
+  items: readonly ComposerTriggerItem[];
+  highlightedIndex: number;
+  onHighlightedIndexChange(index: number): void;
+  onSelect(item: ComposerTriggerItem): void;
+  onDismiss(): void;
+}>) {
+  const [editor] = useLexicalComposerContext();
+  useEffect(() => {
+    const move = (offset: number) => {
+      if (!active || items.length === 0) return false;
+      onHighlightedIndexChange((highlightedIndex + offset + items.length) % items.length);
+      return true;
+    };
+    const unregister = [
+      editor.registerCommand(
+        KEY_ARROW_DOWN_COMMAND,
+        (event) => {
+          if (!move(1)) return false;
+          event?.preventDefault();
+          return true;
+        },
+        COMMAND_PRIORITY_HIGH,
+      ),
+      editor.registerCommand(
+        KEY_ARROW_UP_COMMAND,
+        (event) => {
+          if (!move(-1)) return false;
+          event?.preventDefault();
+          return true;
+        },
+        COMMAND_PRIORITY_HIGH,
+      ),
+      editor.registerCommand(
+        KEY_ENTER_COMMAND,
+        (event) => {
+          const item = active ? items[highlightedIndex] : undefined;
+          if (!item || event?.shiftKey) return false;
+          event?.preventDefault();
+          event?.stopPropagation();
+          queueMicrotask(() => onSelect(item));
+          return true;
+        },
+        COMMAND_PRIORITY_HIGH,
+      ),
+      editor.registerCommand(
+        KEY_ESCAPE_COMMAND,
+        (event) => {
+          if (!active) return false;
+          event?.preventDefault();
+          onDismiss();
+          return true;
+        },
+        COMMAND_PRIORITY_HIGH,
+      ),
+    ];
+    return () => unregister.forEach((cleanup) => cleanup());
+  }, [active, editor, highlightedIndex, items, onDismiss, onHighlightedIndexChange, onSelect]);
+  return null;
 }
 
-function WorkbenchComposerContextMenu({
-  hasWorkspace,
-  loadError,
-  visible,
-}: Readonly<{ hasWorkspace: boolean; loadError: boolean; visible: boolean }>) {
-  const { open, items, highlightedIndex, isLoading } = unstable_useTriggerPopoverScopeContext();
-  const { t } = useI18n();
-
-  return (
-    <WorkbenchComposerContextMenuView
-      open={open}
-      items={items}
-      highlightedIndex={highlightedIndex}
-      isLoading={isLoading}
-      hasWorkspace={hasWorkspace}
-      loadError={loadError}
-      visible={visible}
-      labels={{
-        conversations: t("workbench.chat.composer.contextMentions.conversations"),
-        workspaceFiles: t("workbench.chat.composer.contextMentions.workspaceFiles"),
-        loading: t("workbench.chat.composer.contextMentions.loading"),
-        loadError: t("workbench.chat.composer.contextMentions.loadError"),
-        empty: t("workbench.chat.composer.contextMentions.empty"),
-      }}
-    />
-  );
-}
-
-function composerErrorMessage(
-  error: WorkbenchAgentComposerSendError,
-  t: ReturnType<typeof useI18n>["t"],
-) {
+function composerErrorMessage(error: string, t: ReturnType<typeof useI18n>["t"]): string {
   switch (error) {
     case "model-attachment-unsupported":
       return t("workbench.chat.errors.modelDoesNotSupportAttachments");
@@ -411,6 +364,8 @@ function composerErrorMessage(
       return t("workbench.chat.errors.tooManyAttachments");
     case "attachment-invalid":
       return t("workbench.chat.errors.invalidAttachment");
+    default:
+      return t("workbench.chat.errors.queueSendFailedRestored");
   }
 }
 
@@ -418,7 +373,21 @@ export function WorkbenchComposer({
   forceExistingThread = false,
 }: Readonly<{ forceExistingThread?: boolean }> = {}) {
   const { t, text: localize } = useI18n();
-  const aui = useAui();
+  const { runtimeName } = useWorkbenchBranding();
+  const session = useConversationSession();
+  const currentSession = useCurrentSession();
+  const composer = useSessionState((snapshot) => snapshot.composer);
+  const isRunning = useSessionState((snapshot) => snapshot.isRunning);
+  const threads = useThreadList((snapshot) => snapshot.threads);
+  const composerValue = composer.text;
+  const composerAttachments = composer.attachments;
+  const isEmpty = !composerValue.trim() && composerAttachments.length === 0;
+  const canQueue = session.actions.queue !== undefined;
+  const canSend = composer.phase !== "submitting" && !isEmpty;
+  const attachmentsEnabled = session.actions.addComposerAttachment !== undefined;
+  const mainThreadId = session.id;
+  const isNewThread =
+    !forceExistingThread && currentSession.sessionId === mainThreadId && currentSession.isNewThread;
   const { activeWorkspace, draftWorkspace } = useWorkspaceSelection();
   const contextWorkspace = draftWorkspace ?? activeWorkspace;
   const workspaceFileSearch = useWorkbenchAgentWorkspaceFileSearch();
@@ -433,105 +402,26 @@ export function WorkbenchComposer({
     getComposerCommands,
     () => EMPTY_COMPOSER_COMMANDS,
   );
-  const extras = useAuiState((state) => state.thread.extras);
-  const composerActions = readAgentComposerExtras(extras);
-  const rejectedQueueDraftActions = readAgentRejectedQueueDraft(extras);
   const composerRef = useRef<HTMLFormElement>(null);
+  const attachmentInputRef = useRef<HTMLInputElement>(null);
   const [composerOverlayCount, setComposerOverlayCount] = useState(0);
   const lexicalEditorRef = useRef<LexicalEditor | null>(null);
-  const isRunning = useAuiState((state) => state.thread.isRunning);
-  const isEmpty = useAuiState((state) => state.thread.composer.isEmpty);
-  const composerValue = useAuiState((state) => state.thread.composer.text);
-  const composerAttachments = useAuiState((state) => state.thread.composer.attachments);
-  const canSend = useAuiState((state) => state.thread.composer.canSend);
-  const canQueue = useAuiState((state) => state.thread.capabilities.queue);
-  const mainThreadId = useAuiState((state) => state.threads.mainThreadId);
-  const newThreadId = useAuiState((state) => state.threads.newThreadId);
-  const threadIds = useAuiState((state) => state.threads.threadIds);
-  const archivedThreadIds = useAuiState((state) => state.threads.archivedThreadIds);
-  const threadItems = useAuiState((state) => state.threads.threadItems);
-  const isNewThread = !forceExistingThread && mainThreadId === newThreadId;
-  const composerDrafts = useRef(new Map<string, ComposerDraftSnapshot>());
-  const composerDraftThreadId = useRef(mainThreadId);
   const [isComposerFocused, setIsComposerFocused] = useState(false);
   const [isComposerComposing, setIsComposerComposing] = useState(false);
   const [composerCursorPosition, setComposerCursorPosition] = useState(0);
+  const [contextHighlightedIndex, setContextHighlightedIndex] = useState(0);
+  const [commandHighlightedIndex, setCommandHighlightedIndex] = useState(0);
+  const [suppressedMatchKey, setSuppressedMatchKey] = useState<string>();
   const [submissionBlocked, setSubmissionBlocked] = useState(false);
   const [composerCommandError, setComposerCommandError] = useState(false);
   const [workspaceFileMentionSearch, setWorkspaceFileMentionSearch] =
     useState<WorkspaceFileMentionSearchState>(EMPTY_WORKSPACE_FILE_MENTION_SEARCH);
-  const [queueRestoreErrorThreadId, setQueueRestoreErrorThreadId] = useState<string>();
-  const queueRestoreError = queueRestoreErrorThreadId === mainThreadId;
   const commandParametersByThreadRef = useRef(new Map<string, ComposerCommandParametersByKey>());
   const [commandParametersByKey, setCommandParametersByKey] =
     useState<ComposerCommandParametersByKey>({});
   const [activeCommandParameterKey, setActiveCommandParameterKey] = useState<string>();
   const [commandParameterValidationKey, setCommandParameterValidationKey] = useState<string>();
   const agentCommands = useWorkbenchAgentCommands();
-  const handledRejectedQueueDraft = useRef("");
-
-  useAuiEvent("composer.send", ({ threadId, messageId }) => {
-    if (messageId !== undefined) return;
-    // assistant-ui removes the attachments selected for this send before it emits
-    // composer.send. Invalidate Workbench's per-thread draft copy at the same boundary so an
-    // intermediate sending snapshot cannot restore those attachments into a later turn. A
-    // rejected send is still recoverable: assistant-ui restores it into the live composer and
-    // the layout effect below records that restored draft again.
-    composerDrafts.current.delete(threadId);
-    composerDrafts.current.delete(composerDraftThreadId.current);
-  });
-
-  useLayoutEffect(() => {
-    if (composerDraftThreadId.current === mainThreadId) {
-      const attachments = composerAttachments.flatMap((attachment) => {
-        const restorable = restorableComposerAttachment(attachment);
-        return restorable ? [restorable] : [];
-      });
-      if (composerValue || attachments.length > 0) {
-        composerDrafts.current.set(mainThreadId, { text: composerValue, attachments });
-      } else {
-        composerDrafts.current.delete(mainThreadId);
-      }
-      return;
-    }
-
-    composerDraftThreadId.current = mainThreadId;
-    const draft = composerDrafts.current.get(mainThreadId);
-    if (!draft || !isEmpty) return;
-
-    const composer = aui.thread.composer();
-    composer.setText(draft.text);
-    void Promise.all(
-      draft.attachments.map((attachment) => composer.addAttachment(attachment)),
-    ).catch((error) => console.error("[workbench] failed to restore conversation draft", error));
-  }, [aui, composerAttachments, composerValue, isEmpty, mainThreadId]);
-
-  useEffect(() => {
-    const rejected = rejectedQueueDraftActions?.rejectedDraft;
-    const rejectionKey = rejected ? `${mainThreadId}:${rejected.revision}` : undefined;
-    if (!rejected || !rejectionKey || handledRejectedQueueDraft.current === rejectionKey) return;
-    handledRejectedQueueDraft.current = rejectionKey;
-
-    const composer = aui.thread.composer();
-    const current = composer.getState();
-    const rejectedText = rejected.message.content
-      .filter((part) => part.type === "text")
-      .map((part) => part.text)
-      .join("\n\n");
-    const restoredText = [rejectedText, current.text].filter(Boolean).join("\n\n");
-    if (restoredText) composer.setText(restoredText);
-    if (current.isEmpty) composer.setRunConfig(rejected.message.runConfig ?? {});
-
-    const attachments = (rejected.message.attachments ?? []).flatMap((attachment) => {
-      const restorable = restorableComposerAttachment(attachment);
-      return restorable ? [restorable] : [];
-    });
-    void Promise.all(attachments.map((attachment) => composer.addAttachment(attachment))).catch(
-      (error) => console.error("[workbench] failed to restore rejected queue attachments", error),
-    );
-    rejectedQueueDraftActions.clearRejectedDraft(rejected.revision);
-    setQueueRestoreErrorThreadId(mainThreadId);
-  }, [aui, mainThreadId, rejectedQueueDraftActions]);
 
   const composerSuggestions = useMemo<readonly WorkbenchComposerSuggestion[]>(() => {
     const definitions = new Map(
@@ -642,24 +532,24 @@ export function WorkbenchComposer({
           ),
     [activeCommandParameterKey, composerSuggestions],
   );
-  const conversationContextItems = useMemo<readonly Unstable_TriggerItem[]>(() => {
-    const itemsById = new Map(threadItems.map((item) => [item.id, item]));
-    return [...new Set([...threadIds, ...archivedThreadIds])].flatMap((threadId) => {
-      if (threadId === mainThreadId || threadId === newThreadId) return [];
-      const thread = itemsById.get(threadId);
-      if (!thread) return [];
-      return [
-        {
-          id: thread.remoteId ?? thread.externalId ?? thread.id,
-          type: COMPOSER_CONVERSATION_MENTION_TYPE,
-          label:
-            thread.title?.trim() ||
-            t("workbench.chat.composer.contextMentions.untitledConversation"),
-        },
-      ];
-    });
-  }, [archivedThreadIds, mainThreadId, newThreadId, t, threadIds, threadItems]);
-  const workspaceFileContextItems = useMemo<readonly Unstable_TriggerItem[]>(
+  const conversationContextItems = useMemo<readonly ComposerTriggerItem[]>(
+    () =>
+      threads.flatMap((thread) =>
+        thread.threadId === mainThreadId
+          ? []
+          : [
+              {
+                id: thread.threadId,
+                type: COMPOSER_CONVERSATION_MENTION_TYPE,
+                label:
+                  thread.title?.trim() ||
+                  t("workbench.chat.composer.contextMentions.untitledConversation"),
+              },
+            ],
+      ),
+    [mainThreadId, t, threads],
+  );
+  const workspaceFileContextItems = useMemo<readonly ComposerTriggerItem[]>(
     () =>
       workspaceFileMentionSearch.workspaceId === contextWorkspace?.id
         ? workspaceFileMentionSearch.items
@@ -749,30 +639,24 @@ export function WorkbenchComposer({
       controller.abort();
     };
   }, [activeContextMentionQuery, contextWorkspace, workspaceFileSearch]);
-  const contextMentionAdapter = useMemo<TriggerAdapter>(
-    () => ({
-      categories: () => [],
-      categoryItems: () => [],
-      search: (query) => {
-        if (!contextMentionMatch || contextMentionMatch.query !== query) return [];
-        const normalized = query.toLocaleLowerCase();
-        const conversations = conversationContextItems.filter(
-          (item) =>
-            item.label.toLocaleLowerCase().includes(normalized) ||
-            item.id.toLocaleLowerCase().includes(normalized),
-        );
-        const workspaceFiles =
-          workspaceFileMentionSearch.query === query ? workspaceFileContextItems : [];
-        return [...conversations, ...workspaceFiles];
-      },
-    }),
-    [
-      contextMentionMatch,
-      conversationContextItems,
-      workspaceFileContextItems,
-      workspaceFileMentionSearch.query,
-    ],
-  );
+  const contextMentionItems = useMemo<readonly ComposerTriggerItem[]>(() => {
+    const query = contextMentionMatch?.query;
+    if (query === undefined) return [];
+    const normalized = query.toLocaleLowerCase();
+    const conversations = conversationContextItems.filter(
+      (item) =>
+        item.label.toLocaleLowerCase().includes(normalized) ||
+        item.id.toLocaleLowerCase().includes(normalized),
+    );
+    const workspaceFiles =
+      workspaceFileMentionSearch.query === query ? workspaceFileContextItems : [];
+    return [...conversations, ...workspaceFiles];
+  }, [
+    contextMentionMatch?.query,
+    conversationContextItems,
+    workspaceFileContextItems,
+    workspaceFileMentionSearch.query,
+  ]);
   const slashCommandTriggerEngine = useMemo(
     () =>
       new ComposerTriggerEngine<WorkbenchComposerSuggestion>([
@@ -793,21 +677,15 @@ export function WorkbenchComposer({
       ]),
     [composerSuggestions],
   );
-  const slashCommandAdapter = useMemo<TriggerAdapter>(
-    () => ({
-      categories: () => [],
-      categoryItems: () => [],
-      search: (query) => {
-        if (!isComposerFocused) return [];
-        const match = slashCommandTriggerEngine.detect({
-          value: composerValue,
-          cursorPosition: composerCursorPosition,
-          isComposing: isComposerComposing,
-        });
-        if (!match || match.query !== query) return [];
-        return match.suggestions.map(({ item }) => item);
-      },
-    }),
+  const slashCommandMatch = useMemo(
+    () =>
+      isComposerFocused
+        ? slashCommandTriggerEngine.detect({
+            value: composerValue,
+            cursorPosition: composerCursorPosition,
+            isComposing: isComposerComposing,
+          })
+        : undefined,
     [
       composerCursorPosition,
       composerValue,
@@ -816,6 +694,16 @@ export function WorkbenchComposer({
       slashCommandTriggerEngine,
     ],
   );
+  const slashCommandItems = useMemo(
+    () => slashCommandMatch?.suggestions.map(({ item }) => item) ?? [],
+    [slashCommandMatch],
+  );
+  const contextMenuOpen =
+    contextMentionMatch !== undefined && suppressedMatchKey !== contextMentionMatch.key;
+  const commandMenuOpen =
+    slashCommandMatch !== undefined && suppressedMatchKey !== slashCommandMatch.key;
+  useEffect(() => setContextHighlightedIndex(0), [contextMentionMatch?.key]);
+  useEffect(() => setCommandHighlightedIndex(0), [slashCommandMatch?.key]);
   const hasDraftWorkspace = draftWorkspace !== undefined;
   const canSubmit = !isNewThread || hasDraftWorkspace;
   const context = { isRunning, isEmpty, submissionBlocked };
@@ -893,9 +781,10 @@ export function WorkbenchComposer({
   }, [mainThreadId]);
 
   const handleDirectiveSelect = useCallback(
-    (item: Unstable_TriggerItem) => {
+    (item: ComposerTriggerItem, trigger: "@" | "/") => {
       const editor = lexicalEditorRef.current;
       if (!editor) return;
+      setSuppressedMatchKey(undefined);
       const selectedSuggestion = composerSuggestionsByKey.get(suggestionKey(item));
       const parameterSelection =
         selectedSuggestion?.argsSchema && suggestionHasParameterFields(selectedSuggestion)
@@ -914,7 +803,11 @@ export function WorkbenchComposer({
 
       editor.update(
         () => {
-          const selected = $directiveAtSelection(item);
+          const selected = $insertDirectiveAtSelection(
+            trigger,
+            item,
+            workbenchComposerDirectiveFormatter,
+          );
           if (!selected) return;
 
           const selectedExclusive =
@@ -990,17 +883,21 @@ export function WorkbenchComposer({
 
   const dispatchComposer = useCallback(
     (steer = false) => {
-      const threadState = aui.thread.getState();
-      const composerState = aui.thread.composer().getState();
+      const snapshot = session.snapshot.getSnapshot();
       if (!canSubmit) {
         setSubmissionBlocked(true);
         return;
       }
-      if (threadState.isRunning && !threadState.capabilities.queue) return;
+      if (
+        snapshot.isRunning &&
+        (steer ? session.actions.steer === undefined : session.actions.queue === undefined)
+      ) {
+        return;
+      }
 
       try {
         const parsedDocument = parseComposerDocument(
-          composerState.text,
+          snapshot.composer.text,
           composerCommandRegistry,
           agentCommands,
         );
@@ -1043,16 +940,19 @@ export function WorkbenchComposer({
           throw new Error("Exclusive Composer commands must be submitted separately");
         }
         const request = compileComposerDocument(document, composerCommandRegistry, agentCommands);
-        const dispatched = submitWorkbenchComposer(aui.thread, undefined, request, { steer });
-        if (!dispatched) return;
-        setComposerCommandError(false);
-        clearCommandParameterValues();
+        void submitWorkbenchComposer(session, request, { steer }).then(
+          (dispatched) => {
+            if (!dispatched) return;
+            setComposerCommandError(false);
+            clearCommandParameterValues();
+          },
+          () => undefined,
+        );
       } catch (error) {
         reportComposerCommandError(error);
       }
     },
     [
-      aui,
       canSubmit,
       clearCommandParameterValues,
       commandParametersByKey,
@@ -1060,6 +960,7 @@ export function WorkbenchComposer({
       composerSuggestionsByCommandKey,
       agentCommands,
       reportComposerCommandError,
+      session,
       updateCommandParameterValues,
     ],
   );
@@ -1088,8 +989,23 @@ export function WorkbenchComposer({
   }, []);
 
   const updateComposerMarkdown = useCallback(
-    (markdown: string) => aui.thread.composer().setText(markdown),
-    [aui],
+    (markdown: string) => session.actions.setComposerText?.(markdown),
+    [session],
+  );
+
+  const addComposerFiles = useCallback(
+    async (files: readonly File[]) => {
+      const addAttachment = session.actions.addComposerAttachment;
+      if (!addAttachment) return;
+      try {
+        await Promise.all(
+          files.map(async (file) => addAttachment(await composerAttachmentFromFile(file))),
+        );
+      } catch (error) {
+        console.error("[workbench] add composer attachment failed", error);
+      }
+    },
+    [session],
   );
 
   const renderDirectiveChip = useCallback(
@@ -1171,198 +1087,226 @@ export function WorkbenchComposer({
         className="col-start-1 row-start-1 flex flex-col gap-2 empty:hidden [&:not(:empty)]:mb-2"
       />
 
-      <ComposerPrimitive.Unstable_TriggerPopoverRoot>
-        <ComposerPrimitive.Root
-          ref={composerRef}
-          inert={composerOverlayVisible}
-          aria-hidden={composerOverlayVisible || undefined}
-          className="group/composer relative col-start-1 row-start-2 flex w-full min-w-0 max-w-full flex-col"
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (!composerOverlayVisible) dispatchComposer();
+      <form
+        ref={composerRef}
+        inert={composerOverlayVisible}
+        aria-hidden={composerOverlayVisible || undefined}
+        className="group/composer relative col-start-1 row-start-2 flex w-full min-w-0 max-w-full flex-col"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!composerOverlayVisible) dispatchComposer();
+        }}
+      >
+        <WorkbenchComposerContextMenuView
+          open={contextMenuOpen}
+          items={contextMentionItems}
+          highlightedIndex={contextHighlightedIndex}
+          isLoading={workspaceFileMentionSearch.loading}
+          hasWorkspace={contextWorkspace !== undefined}
+          loadError={workspaceFileMentionSearch.loadError}
+          visible={isComposerFocused}
+          ariaLabel={t("workbench.chat.composer.contextMentions.suggestions")}
+          labels={{
+            conversations: t("workbench.chat.composer.contextMentions.conversations"),
+            workspaceFiles: t("workbench.chat.composer.contextMentions.workspaceFiles"),
+            loading: t("workbench.chat.composer.contextMentions.loading"),
+            loadError: t("workbench.chat.composer.contextMentions.loadError"),
+            empty: t("workbench.chat.composer.contextMentions.empty"),
           }}
-        >
-          <ComposerPrimitive.Unstable_TriggerPopover
-            char="@"
-            adapter={contextMentionAdapter}
-            isLoading={workspaceFileMentionSearch.loading}
-            aria-label={t("workbench.chat.composer.contextMentions.suggestions")}
-            className="contents"
-          >
-            <ComposerPrimitive.Unstable_TriggerPopover.Directive
-              formatter={workbenchComposerDirectiveFormatter}
-            />
-            <WorkbenchComposerContextMenu
-              hasWorkspace={contextWorkspace !== undefined}
-              loadError={workspaceFileMentionSearch.loadError}
-              visible={isComposerFocused}
-            />
-          </ComposerPrimitive.Unstable_TriggerPopover>
+          onSelect={(item) => handleDirectiveSelect(item, "@")}
+        />
+        <WorkbenchComposerCommandMenuView
+          open={commandMenuOpen}
+          items={slashCommandItems}
+          highlightedIndex={commandHighlightedIndex}
+          suggestions={composerSuggestionsByKey}
+          groupLabel={(group) => suggestionGroupLabel(group, t, runtimeName)}
+          ariaLabel={t("workbench.chat.composer.commandSuggestions")}
+          onSelect={(item) => handleDirectiveSelect(item, "/")}
+        />
 
-          <ComposerPrimitive.Unstable_TriggerPopover
-            char="/"
-            adapter={slashCommandAdapter}
-            aria-label={t("workbench.chat.composer.commandSuggestions")}
-            className="contents"
-          >
-            <ComposerPrimitive.Unstable_TriggerPopover.Directive
-              formatter={workbenchComposerDirectiveFormatter}
-            />
-            <WorkbenchComposerCommandMenu suggestions={composerSuggestionsByKey} />
-          </ComposerPrimitive.Unstable_TriggerPopover>
-
-          {activeCommandParameterSuggestion?.argsSchema ? (
-            <ComposerCommandParameterPanel
-              key={activeCommandParameterKey}
-              command={{
-                label: activeCommandParameterSuggestion.item.label,
-                argsSchema: activeCommandParameterSuggestion.argsSchema,
-                ...(activeCommandParameterSuggestion.argsBinding
-                  ? { argsBinding: activeCommandParameterSuggestion.argsBinding }
-                  : {}),
-              }}
-              values={
-                activeCommandParameterKey
-                  ? (commandParametersByKey[activeCommandParameterKey] ?? {})
-                  : {}
+        {activeCommandParameterSuggestion?.argsSchema ? (
+          <ComposerCommandParameterPanel
+            key={activeCommandParameterKey}
+            command={{
+              label: activeCommandParameterSuggestion.item.label,
+              argsSchema: activeCommandParameterSuggestion.argsSchema,
+              ...(activeCommandParameterSuggestion.argsBinding
+                ? { argsBinding: activeCommandParameterSuggestion.argsBinding }
+                : {}),
+            }}
+            values={
+              activeCommandParameterKey
+                ? (commandParametersByKey[activeCommandParameterKey] ?? {})
+                : {}
+            }
+            revealValidation={commandParameterValidationKey === activeCommandParameterKey}
+            onChange={(values) => {
+              if (activeCommandParameterKey) {
+                updateCommandParameterValues(activeCommandParameterKey, values);
               }
-              revealValidation={commandParameterValidationKey === activeCommandParameterKey}
-              onChange={(values) => {
-                if (activeCommandParameterKey) {
-                  updateCommandParameterValues(activeCommandParameterKey, values);
+            }}
+            onClose={() => setActiveCommandParameterKey(undefined)}
+          />
+        ) : null}
+
+        <WorkbenchComposerSurfaceView
+          isNewThread={isNewThread}
+          headerLeft={
+            <SlotHost
+              name="composer.header.left"
+              context={context}
+              className="flex min-w-0 flex-1 items-center gap-2 empty:hidden"
+            />
+          }
+          headerRight={
+            <SlotHost
+              name="composer.header.right"
+              context={context}
+              className="flex min-w-0 shrink-0 items-center justify-end gap-2 empty:hidden"
+            />
+          }
+          feedback={<ComposerWorkspaceFeedback />}
+          attachments={
+            <ComposerAttachments
+              attachments={composerAttachments}
+              onRemove={(key) => session.actions.removeComposerAttachment?.(key)}
+            />
+          }
+          input={
+            <MarkdownComposerInput
+              formatter={workbenchComposerDirectiveFormatter}
+              value={composerValue}
+              onChange={updateComposerMarkdown}
+              directiveChip={renderDirectiveChip}
+              onCursorPositionChange={setComposerCursorPosition}
+              placeholder={t(
+                isRunning && canQueue
+                  ? "workbench.chat.composer.runningPlaceholder"
+                  : "workbench.chat.composer.placeholder",
+              )}
+              className={cn(
+                "relative max-h-[336px] min-w-0 flex-1 overflow-y-auto bg-transparent text-base leading-6 outline-none",
+                "[&_.aui-lexical-input]:min-h-7 [&_.aui-lexical-input]:whitespace-pre-wrap [&_.aui-lexical-input]:break-words [&_.aui-lexical-input]:outline-none",
+                "[&_.aui-lexical-placeholder]:text-muted-foreground/85 [&_.aui-lexical-placeholder]:pointer-events-none [&_.aui-lexical-placeholder]:absolute [&_.aui-lexical-placeholder]:start-0 [&_.aui-lexical-placeholder]:top-0",
+                isNewThread && "min-h-10 [&_.aui-lexical-input]:min-h-10",
+              )}
+              onFocusCapture={() => setIsComposerFocused(true)}
+              onBlurCapture={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget)) {
+                  setIsComposerFocused(false);
                 }
               }}
-              onClose={() => setActiveCommandParameterKey(undefined)}
-            />
-          ) : null}
-
-          <WorkbenchComposerSurfaceView
-            isNewThread={isNewThread}
-            headerLeft={
-              <SlotHost
-                name="composer.header.left"
-                context={context}
-                className="flex min-w-0 flex-1 items-center gap-2 empty:hidden"
-              />
-            }
-            headerRight={
-              <SlotHost
-                name="composer.header.right"
-                context={context}
-                className="flex min-w-0 shrink-0 items-center justify-end gap-2 empty:hidden"
-              />
-            }
-            feedback={<ComposerWorkspaceFeedback />}
-            attachments={<ComposerAttachments />}
-            input={
-              <MarkdownComposerInput
-                submitMode="none"
-                formatter={workbenchComposerDirectiveFormatter}
-                value={composerValue}
-                onChange={updateComposerMarkdown}
-                directiveChip={renderDirectiveChip}
-                directivePluginProps={{ onDirectiveSelect: handleDirectiveSelect }}
-                onCursorPositionChange={setComposerCursorPosition}
-                placeholder={t(
-                  isRunning && canQueue
-                    ? "workbench.chat.composer.runningPlaceholder"
-                    : "workbench.chat.composer.placeholder",
-                )}
-                className={cn(
-                  "relative max-h-[336px] min-w-0 flex-1 overflow-y-auto bg-transparent text-base leading-6 outline-none",
-                  "[&_.aui-lexical-input]:min-h-7 [&_.aui-lexical-input]:whitespace-pre-wrap [&_.aui-lexical-input]:break-words [&_.aui-lexical-input]:outline-none",
-                  "[&_.aui-lexical-placeholder]:text-muted-foreground/85 [&_.aui-lexical-placeholder]:pointer-events-none [&_.aui-lexical-placeholder]:absolute [&_.aui-lexical-placeholder]:start-0 [&_.aui-lexical-placeholder]:top-0",
-                  isNewThread && "min-h-10 [&_.aui-lexical-input]:min-h-10",
-                )}
-                onFocusCapture={() => setIsComposerFocused(true)}
-                onBlurCapture={(event) => {
-                  if (!event.currentTarget.contains(event.relatedTarget)) {
-                    setIsComposerFocused(false);
-                  }
-                }}
-                onCompositionStartCapture={() => setIsComposerComposing(true)}
-                onCompositionEndCapture={() => setIsComposerComposing(false)}
-                onPasteCapture={(event) => {
-                  const composer = aui.thread.composer();
-                  void addComposerImagesFromPaste(event, {
-                    attachmentsEnabled: aui.thread.getState().capabilities.attachments,
-                    addAttachment: (file) => composer.addAttachment(file),
-                  });
-                }}
-              >
-                <CaptureLexicalEditor onChange={captureLexicalEditor} />
-                <ComposerEditableGuard enabled />
-                <ComposerAccessibilityPlugin
-                  enabled
-                  label={t("workbench.chat.composer.messageInput")}
-                />
-                <ComposerEnterPlugin onSubmit={dispatchComposer} />
-              </MarkdownComposerInput>
-            }
-            actionsLeft={
-              <>
-                <SlotHost
-                  name="composer.actions.left"
-                  context={context}
-                  className="flex min-w-0 items-center gap-2 empty:hidden"
-                />
-                <ComposerAddMenuView
-                  labels={{
-                    open: t("workbench.chat.composer.addMenu.open"),
-                    attachment: t("workbench.chat.composer.addMenu.attachment"),
-                    context: t("workbench.chat.composer.addMenu.context"),
-                    capability: t("workbench.chat.composer.addMenu.capability"),
-                  }}
-                  onInsertTrigger={insertComposerTrigger}
-                />
-              </>
-            }
-            actionsRight={
-              <>
-                <SlotHost
-                  name="composer.actions.right"
-                  context={context}
-                  className="flex min-w-0 items-center justify-end gap-2 empty:hidden"
-                />
-                <ComposerPrimaryActionView
-                  isRunning={isRunning}
-                  canSend={canSend}
-                  sendLabel={t("workbench.chat.composer.sendMessage")}
-                  stopLabel={t("workbench.chat.composer.stopGenerating")}
-                  onSend={() => dispatchComposer()}
-                />
-              </>
-            }
-          />
-
-          {composerActions?.error || composerCommandError || queueRestoreError ? (
-            <ComposerErrorAlertView
-              message={
-                composerActions?.error
-                  ? composerErrorMessage(composerActions.error, t)
-                  : queueRestoreError
-                    ? t("workbench.chat.errors.queueSendFailedRestored")
-                    : t("workbench.chat.errors.commandCompileFailed")
-              }
-              dismissLabel={t("workbench.chat.composer.dismissError")}
-              onDismiss={() => {
-                composerActions?.clearError();
-                setComposerCommandError(false);
-                setQueueRestoreErrorThreadId(undefined);
+              onCompositionStartCapture={() => setIsComposerComposing(true)}
+              onCompositionEndCapture={() => setIsComposerComposing(false)}
+              onPasteCapture={(event) => {
+                void addComposerImagesFromPaste(event, {
+                  attachmentsEnabled,
+                  addAttachment: async (file) => addComposerFiles([file]),
+                });
               }}
-            />
-          ) : null}
-        </ComposerPrimitive.Root>
-
-        <SlotHost
-          name="composer.overlay"
-          context={composerOverlayContext}
-          className={cn(
-            "relative z-10 col-start-1 row-start-2 min-w-0 empty:hidden",
-            !composerOverlayVisible && "pointer-events-none",
-          )}
+            >
+              <CaptureLexicalEditor onChange={captureLexicalEditor} />
+              <ComposerAccessibilityPlugin
+                enabled
+                label={t("workbench.chat.composer.messageInput")}
+              />
+              <ComposerSuggestionKeyboardPlugin
+                active={contextMenuOpen}
+                items={contextMentionItems}
+                highlightedIndex={contextHighlightedIndex}
+                onHighlightedIndexChange={setContextHighlightedIndex}
+                onSelect={(item) => handleDirectiveSelect(item, "@")}
+                onDismiss={() => setSuppressedMatchKey(contextMentionMatch?.key)}
+              />
+              <ComposerSuggestionKeyboardPlugin
+                active={commandMenuOpen}
+                items={slashCommandItems}
+                highlightedIndex={commandHighlightedIndex}
+                onHighlightedIndexChange={setCommandHighlightedIndex}
+                onSelect={(item) => handleDirectiveSelect(item, "/")}
+                onDismiss={() => setSuppressedMatchKey(slashCommandMatch?.key)}
+              />
+              <ComposerEnterPlugin onSubmit={dispatchComposer} />
+            </MarkdownComposerInput>
+          }
+          actionsLeft={
+            <>
+              <SlotHost
+                name="composer.actions.left"
+                context={context}
+                className="flex min-w-0 items-center gap-2 empty:hidden"
+              />
+              <ComposerAddMenuView
+                attachmentsEnabled={attachmentsEnabled}
+                labels={{
+                  open: t("workbench.chat.composer.addMenu.open"),
+                  attachment: t("workbench.chat.composer.addMenu.attachment"),
+                  context: t("workbench.chat.composer.addMenu.context"),
+                  capability: t("workbench.chat.composer.addMenu.capability"),
+                }}
+                onInsertTrigger={insertComposerTrigger}
+                onChooseAttachment={() => attachmentInputRef.current?.click()}
+              />
+              <input
+                ref={attachmentInputRef}
+                type="file"
+                multiple
+                accept={WORKBENCH_COMPOSER_ATTACHMENT_ACCEPT}
+                tabIndex={-1}
+                className="sr-only"
+                onChange={(event) => {
+                  void addComposerFiles(Array.from(event.currentTarget.files ?? []));
+                  event.currentTarget.value = "";
+                }}
+              />
+            </>
+          }
+          actionsRight={
+            <>
+              <SlotHost
+                name="composer.actions.right"
+                context={context}
+                className="flex min-w-0 items-center justify-end gap-2 empty:hidden"
+              />
+              <ComposerPrimaryActionView
+                isRunning={isRunning}
+                canSend={canSend}
+                sendLabel={t("workbench.chat.composer.sendMessage")}
+                stopLabel={t("workbench.chat.composer.stopGenerating")}
+                onSend={() => dispatchComposer()}
+                onCancel={() => void session.actions.cancel?.().catch(console.error)}
+              />
+            </>
+          }
+          attachmentsEnabled={attachmentsEnabled}
+          onDropFiles={(files) => void addComposerFiles(files)}
         />
-      </ComposerPrimitive.Unstable_TriggerPopoverRoot>
+
+        {composer.error || composerCommandError ? (
+          <ComposerErrorAlertView
+            message={
+              composer.error
+                ? composerErrorMessage(composer.error.code, t)
+                : t("workbench.chat.errors.commandCompileFailed")
+            }
+            dismissLabel={t("workbench.chat.composer.dismissError")}
+            onDismiss={() => {
+              session.actions.dismissComposerError?.();
+              setComposerCommandError(false);
+            }}
+          />
+        ) : null}
+      </form>
+
+      <SlotHost
+        name="composer.overlay"
+        context={composerOverlayContext}
+        className={cn(
+          "relative z-10 col-start-1 row-start-2 min-w-0 empty:hidden",
+          !composerOverlayVisible && "pointer-events-none",
+        )}
+      />
 
       <SlotHost
         name="composer.after"

@@ -19,25 +19,6 @@ import { MarkdownShortcutPlugin } from "@lexical/react/LexicalMarkdownShortcutPl
 import { RichTextPlugin } from "@lexical/react/LexicalRichTextPlugin";
 import { HeadingNode, QuoteNode } from "@lexical/rich-text";
 import {
-  INTERNAL,
-  type Unstable_DirectiveFormatter,
-  type Unstable_DirectiveSegment,
-  type Unstable_RegisteredTrigger,
-  type Unstable_TriggerItem,
-  unstable_defaultDirectiveFormatter,
-  unstable_useTriggerPopoverRootContextOptional,
-  useAui,
-  useAuiState,
-} from "@assistant-ui/react";
-import {
-  $createDirectiveNodeWithFormatter,
-  DirectiveChipProvider,
-  DirectiveNode,
-  DirectivePlugin,
-  type DirectiveChipProps,
-  type DirectivePluginProps,
-} from "@assistant-ui/react-lexical";
-import {
   $createParagraphNode,
   $createRangeSelection,
   $getRoot,
@@ -45,12 +26,6 @@ import {
   $isRangeSelection,
   $isTextNode,
   COMMAND_PRIORITY_HIGH,
-  KEY_ARROW_DOWN_COMMAND,
-  KEY_ARROW_UP_COMMAND,
-  KEY_BACKSPACE_COMMAND,
-  KEY_ENTER_COMMAND,
-  KEY_ESCAPE_COMMAND,
-  KEY_TAB_COMMAND,
   PASTE_COMMAND,
   type LexicalEditor,
   type TextNode,
@@ -60,19 +35,25 @@ import {
   type FC,
   type ReactNode,
   forwardRef,
-  useCallback,
   useEffect,
   useMemo,
   useRef,
-  useSyncExternalStore,
 } from "react";
 
 import { hasRenderableMarkdown } from "./composer-markdown-detection";
+import {
+  $createDirectiveNodeWithFormatter,
+  ComposerDirectivePlugin,
+  DirectiveChipProvider,
+  DirectiveNode,
+  type ComposerDirectiveFormatter,
+  type ComposerDirectiveSegment,
+  type ComposerTriggerItem,
+  type DirectiveChipProps,
+} from "./composer-directive";
 
 const MARKDOWN_TRANSFORMERS = TRANSFORMERS;
 const SYNC_TAG = "workbench-markdown-composer-sync";
-const EMPTY_TRIGGERS: ReadonlyMap<string, Unstable_RegisteredTrigger> = new Map();
-const noopSubscribe = () => () => {};
 
 const MARKDOWN_COMPOSER_THEME = {
   code: "my-2 block overflow-x-auto rounded-lg bg-muted px-3 py-2 font-mono text-[0.875em] leading-5",
@@ -104,29 +85,27 @@ const MARKDOWN_COMPOSER_THEME = {
 };
 
 type ParsedSegment = {
-  readonly segment: Unstable_DirectiveSegment;
-  readonly formatter: Unstable_DirectiveFormatter;
+  readonly segment: ComposerDirectiveSegment;
+  readonly formatter: ComposerDirectiveFormatter;
 };
 
 type CompositeParser = (text: string) => readonly ParsedSegment[];
 
 type DirectivePlaceholder = {
   readonly token: string;
-  readonly item: Unstable_TriggerItem;
-  readonly formatter: Unstable_DirectiveFormatter;
+  readonly item: ComposerTriggerItem;
+  readonly formatter: ComposerDirectiveFormatter;
 };
 
 export type MarkdownComposerInputProps = Omit<
   ComponentPropsWithoutRef<"div">,
   "autoFocus" | "children" | "onChange"
 > & {
-  readonly submitMode?: "enter" | "ctrlEnter" | "none" | undefined;
-  readonly cancelOnEscape?: boolean | undefined;
   readonly placeholder?: string | undefined;
   readonly autoFocus?: boolean | undefined;
-  readonly directivePluginProps?: DirectivePluginProps | undefined;
+  readonly disabled?: boolean | undefined;
   readonly directiveChip?: FC<DirectiveChipProps> | undefined;
-  readonly formatter?: Unstable_DirectiveFormatter | undefined;
+  readonly formatter: ComposerDirectiveFormatter;
   readonly value: string;
   readonly onChange: (markdown: string) => void;
   readonly onCursorPositionChange?: ((position: number) => void) | undefined;
@@ -134,25 +113,13 @@ export type MarkdownComposerInputProps = Omit<
 };
 
 function collectFormatters(
-  triggers: ReadonlyMap<string, Unstable_RegisteredTrigger>,
-  propFormatter: Unstable_DirectiveFormatter | undefined,
-): readonly Unstable_DirectiveFormatter[] {
-  const ordered: Unstable_DirectiveFormatter[] = [];
-  const seen = new Set<Unstable_DirectiveFormatter>();
-  const push = (formatter: Unstable_DirectiveFormatter | undefined) => {
-    if (!formatter || seen.has(formatter)) return;
-    seen.add(formatter);
-    ordered.push(formatter);
-  };
-
-  push(propFormatter);
-  for (const trigger of triggers.values()) push(trigger.behavior?.formatter);
-  push(unstable_defaultDirectiveFormatter);
-  return ordered;
+  propFormatter: ComposerDirectiveFormatter,
+): readonly ComposerDirectiveFormatter[] {
+  return [propFormatter];
 }
 
-function composeParsers(formatters: readonly Unstable_DirectiveFormatter[]): CompositeParser {
-  const ordered = formatters.length > 0 ? formatters : [unstable_defaultDirectiveFormatter];
+function composeParsers(formatters: readonly ComposerDirectiveFormatter[]): CompositeParser {
+  const ordered = formatters;
   return (text) => {
     let fallback: readonly ParsedSegment[] | undefined;
     for (const formatter of ordered) {
@@ -263,22 +230,12 @@ function MarkdownSyncPlugin({
   value,
   onChange,
 }: Readonly<{
-  formatter?: Unstable_DirectiveFormatter | undefined;
+  formatter: ComposerDirectiveFormatter;
   value: string;
   onChange(markdown: string): void;
 }>) {
   const [editor] = useLexicalComposerContext();
-  const root = unstable_useTriggerPopoverRootContextOptional();
-  const subscribe = useCallback(
-    (listener: () => void) => (root ? root.subscribe(listener) : noopSubscribe()),
-    [root],
-  );
-  const getSnapshot = useCallback(() => (root ? root.getTriggers() : EMPTY_TRIGGERS), [root]);
-  const triggers = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-  const formatters = useMemo(
-    () => collectFormatters(triggers, propFormatter),
-    [propFormatter, triggers],
-  );
+  const formatters = useMemo(() => collectFormatters(propFormatter), [propFormatter]);
   const parser = useMemo(() => composeParsers(formatters), [formatters]);
   const lastSyncedTextRef = useRef("");
 
@@ -306,85 +263,6 @@ function MarkdownSyncPlugin({
   return null;
 }
 
-function KeyboardPlugin({
-  submitMode,
-  cancelOnEscape,
-}: Readonly<{
-  submitMode: "enter" | "ctrlEnter" | "none";
-  cancelOnEscape: boolean;
-}>) {
-  const [editor] = useLexicalComposerContext();
-  const aui = useAui();
-  const pluginRegistry = INTERNAL.useComposerInputPluginRegistryOptional();
-
-  useEffect(() => {
-    const delegateToPlugins = (event: KeyboardEvent): boolean => {
-      if (!pluginRegistry) return false;
-      for (const plugin of pluginRegistry.getPlugins()) {
-        if (plugin.handleKeyDown(event)) return true;
-      }
-      return false;
-    };
-
-    const unregister = [
-      editor.registerCommand(
-        KEY_ENTER_COMMAND,
-        (event) => {
-          if (!event || event.isComposing || event.shiftKey) return false;
-          if (delegateToPlugins(event)) return true;
-          if (submitMode === "none" || aui.thread.getState().isRunning) return false;
-          const shouldSubmit =
-            submitMode === "ctrlEnter"
-              ? event.ctrlKey || event.metaKey
-              : !event.ctrlKey && !event.metaKey;
-          if (!shouldSubmit) return false;
-          event.preventDefault();
-          aui.composer.send();
-          return true;
-        },
-        COMMAND_PRIORITY_HIGH,
-      ),
-      editor.registerCommand(
-        KEY_ESCAPE_COMMAND,
-        (event) => {
-          if (event && delegateToPlugins(event)) return true;
-          if (!cancelOnEscape || !aui.composer.getState().canCancel) return false;
-          aui.composer.cancel();
-          event?.preventDefault();
-          return true;
-        },
-        COMMAND_PRIORITY_HIGH,
-      ),
-      editor.registerCommand(
-        KEY_ARROW_DOWN_COMMAND,
-        (event) => (event ? delegateToPlugins(event) : false),
-        COMMAND_PRIORITY_HIGH,
-      ),
-      editor.registerCommand(
-        KEY_ARROW_UP_COMMAND,
-        (event) => (event ? delegateToPlugins(event) : false),
-        COMMAND_PRIORITY_HIGH,
-      ),
-      editor.registerCommand(
-        KEY_BACKSPACE_COMMAND,
-        (event) => (event ? delegateToPlugins(event) : false),
-        COMMAND_PRIORITY_HIGH,
-      ),
-      editor.registerCommand(
-        KEY_TAB_COMMAND,
-        (event) => (event ? delegateToPlugins(event) : false),
-        COMMAND_PRIORITY_HIGH,
-      ),
-    ];
-
-    return () => {
-      for (const cleanup of unregister) cleanup();
-    };
-  }, [aui, cancelOnEscape, editor, pluginRegistry, submitMode]);
-
-  return null;
-}
-
 function markdownCursorPosition(): number {
   const selection = $getSelection();
   if (!$isRangeSelection(selection) || !selection.isCollapsed()) return 0;
@@ -402,7 +280,6 @@ function CursorPlugin({
   onChange,
 }: Readonly<{ onChange?: ((position: number) => void) | undefined }>) {
   const [editor] = useLexicalComposerContext();
-  const pluginRegistry = INTERNAL.useComposerInputPluginRegistryOptional();
 
   useEffect(
     () =>
@@ -411,13 +288,11 @@ function CursorPlugin({
           () => {
             const position = markdownCursorPosition();
             onChange?.(position);
-            if (!pluginRegistry) return;
-            for (const plugin of pluginRegistry.getPlugins()) plugin.setCursorPosition(position);
           },
           { editor },
         );
       }),
-    [editor, onChange, pluginRegistry],
+    [editor, onChange],
   );
 
   return null;
@@ -425,13 +300,11 @@ function CursorPlugin({
 
 function FocusPlugin({ autoFocus }: Readonly<{ autoFocus: boolean }>) {
   const [editor] = useLexicalComposerContext();
-  const aui = useAui();
 
   useEffect(() => {
     if (autoFocus) editor.focus();
   }, [autoFocus, editor]);
 
-  useEffect(() => aui.on("thread.runStart", () => editor.focus()), [aui, editor]);
   return null;
 }
 
@@ -471,11 +344,9 @@ function MarkdownPastePlugin() {
 export const MarkdownComposerInput = forwardRef<HTMLDivElement, MarkdownComposerInputProps>(
   (
     {
-      submitMode = "enter",
-      cancelOnEscape = true,
       placeholder,
       autoFocus = false,
-      directivePluginProps,
+      disabled = false,
       directiveChip,
       formatter,
       value,
@@ -487,9 +358,6 @@ export const MarkdownComposerInput = forwardRef<HTMLDivElement, MarkdownComposer
     },
     ref,
   ) => {
-    const isDisabled = useAuiState(
-      (state) => state.thread.isDisabled || state.composer.dictation?.inputDisabled,
-    );
     const initialConfig = useMemo(
       () => ({
         namespace: "workbench-markdown-composer",
@@ -518,13 +386,12 @@ export const MarkdownComposerInput = forwardRef<HTMLDivElement, MarkdownComposer
             />
             <HistoryPlugin />
             <MarkdownSyncPlugin formatter={formatter} value={value} onChange={onChange} />
-            <DirectivePlugin {...directivePluginProps} />
+            <ComposerDirectivePlugin />
             <MarkdownShortcutPlugin transformers={MARKDOWN_TRANSFORMERS} />
             <MarkdownPastePlugin />
-            <KeyboardPlugin submitMode={submitMode} cancelOnEscape={cancelOnEscape} />
             <CursorPlugin onChange={onCursorPositionChange} />
             <FocusPlugin autoFocus={autoFocus} />
-            <EditablePlugin disabled={!!isDisabled} />
+            <EditablePlugin disabled={disabled} />
             {children}
           </div>
         </DirectiveChipProvider>

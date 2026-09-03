@@ -1,6 +1,7 @@
 import type {
   ComposerSnapshot,
   ConversationNode,
+  ConversationNodeBranch,
   ConversationSnapshot,
   MessageBlock,
 } from "@workbench/agent-runtime-contracts/conversation";
@@ -16,6 +17,7 @@ export interface PiConversationProjection {
   readonly isRunning: boolean;
   readonly hasMore?: boolean;
   readonly composer?: ComposerSnapshot;
+  readonly branches?: ReadonlyMap<string, ConversationNodeBranch>;
 }
 
 interface CachedNode {
@@ -119,7 +121,7 @@ export class PiConversationAssembler {
     source: PiConversationProjection,
     publication: ConversationPublication = "immediate",
   ): void {
-    const nodes = conversationNodesFromPiConversation(source.messages);
+    const nodes = conversationNodesFromPiConversation(source.messages, source.branches);
     // ponytail: this identity scan is O(n); pass changed node keys when long-session profiling
     // shows the scan matters.
     const nextNodes = new Map<string, CachedNode>();

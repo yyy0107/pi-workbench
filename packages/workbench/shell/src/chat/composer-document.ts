@@ -1,9 +1,3 @@
-import type {
-  Unstable_DirectiveFormatter,
-  Unstable_DirectiveSegment,
-  Unstable_TriggerItem,
-} from "@assistant-ui/react";
-
 import {
   COMPOSER_CONVERSATION_CONTEXT_TYPE,
   COMPOSER_CONVERSATION_MENTION_TYPE,
@@ -29,6 +23,11 @@ import {
   LEGACY_PROJECT_SKILL_DIRECTIVE_TYPE,
   LEGACY_USER_SKILL_DIRECTIVE_TYPE,
 } from "../legacy-pi-compat";
+import type {
+  ComposerDirectiveFormatter,
+  ComposerDirectiveSegment,
+  ComposerTriggerItem,
+} from "./composer-directive";
 
 export const WORKBENCH_COMMAND_DIRECTIVE_TYPE = "workbench-command";
 export const AGENT_COMMAND_DIRECTIVE_TYPE = "agent-command";
@@ -157,7 +156,7 @@ function skillNameFromInvocationName(invocationName: string): string | undefined
 interface ParsedDirectiveMatch {
   readonly index: number;
   readonly end: number;
-  readonly segment: Exclude<Unstable_DirectiveSegment, { readonly kind: "text" }> & {
+  readonly segment: Exclude<ComposerDirectiveSegment, { readonly kind: "text" }> & {
     readonly args?: ComposerJsonValue;
   };
 }
@@ -283,8 +282,8 @@ function parsedDirectiveMatches(text: string): readonly ParsedDirectiveMatch[] {
   return matches.toSorted((left, right) => left.index - right.index);
 }
 
-export const workbenchComposerDirectiveFormatter: Unstable_DirectiveFormatter = {
-  serialize(item: Unstable_TriggerItem): string {
+export const workbenchComposerDirectiveFormatter: ComposerDirectiveFormatter = {
+  serialize(item: ComposerTriggerItem): string {
     if (item.type === COMPOSER_CONVERSATION_MENTION_TYPE) {
       return `[@${escapeResourceLinkLabel(item.label)}](conversation://${encodeResourceLinkComponent(item.id)})`;
     }
@@ -316,8 +315,8 @@ export const workbenchComposerDirectiveFormatter: Unstable_DirectiveFormatter = 
     return serializeCommandLink({ id: item.id, label: item.label, source });
   },
 
-  parse(text: string): readonly Unstable_DirectiveSegment[] {
-    const segments: Unstable_DirectiveSegment[] = [];
+  parse(text: string): readonly ComposerDirectiveSegment[] {
+    const segments: ComposerDirectiveSegment[] = [];
     let lastIndex = 0;
 
     for (const match of parsedDirectiveMatches(text)) {

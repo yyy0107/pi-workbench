@@ -21,8 +21,9 @@ test("composer presentation leaves do not read runtime or workbench state", asyn
 test("composer container owns runtime integration and supplies typed views", async () => {
   const source = await readFile(new URL("src/chat/workbench-composer.tsx", packageRoot), "utf8");
 
-  assert.match(source, /useAui\(\)/);
-  assert.match(source, /useAuiState\(/);
+  assert.doesNotMatch(source, /@assistant-ui\/|\bComposerPrimitive\b|\buseAui(?:State|Event)?\b/);
+  assert.match(source, /useConversationSession\(\)/);
+  assert.match(source, /useSessionState\(/);
   assert.match(source, /useWorkspaceSelection\(\)/);
   assert.match(source, /from "\.\/workbench-composer-view"/);
   assert.match(source, /<WorkbenchComposerSurfaceView\b/);

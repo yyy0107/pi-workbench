@@ -81,6 +81,57 @@ test("does not duplicate the unary metadata baseline for the first socket genera
   assert.equal(refreshCount, 0);
 });
 
+test("restores the submitted draft alongside typing added while a send is pending", async (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("local-session");
+  let rejectSend: ((error: Error) => void) | undefined;
+  (session as unknown as { send(message: AppendMessage): Promise<void> }).send = () =>
+    new Promise((_, reject) => {
+      rejectSend = reject;
+    });
+  const submission = {
+    version: 2 as const,
+    document: [],
+    sourceText: "original draft",
+    text: "original draft",
+    context: [],
+    metadata: {},
+    commands: [],
+  };
+
+  session.actions.setComposerText?.("original draft");
+  await session.actions.addComposerAttachment?.({
+    key: "original.png",
+    name: "original.png",
+    source: "data:image/png;base64,original",
+    mediaType: "image/png",
+  });
+  const task = session.actions.send?.(submission);
+  assert.ok(task);
+  assert.equal(session.snapshot.getSnapshot().composer.phase, "submitting");
+  assert.equal(session.snapshot.getSnapshot().composer.text, "");
+
+  session.actions.setComposerText?.("typed while pending");
+  await session.actions.addComposerAttachment?.({
+    key: "pending.pdf",
+    name: "pending.pdf",
+    source: "data:application/pdf;base64,pending",
+    mediaType: "application/pdf",
+  });
+  rejectSend?.(new Error("network unavailable"));
+  await assert.rejects(task, /network unavailable/);
+
+  const composer = session.snapshot.getSnapshot().composer;
+  assert.equal(composer.phase, "error");
+  assert.equal(composer.error?.code, "composer-submit-failed");
+  assert.equal(composer.text, "original draft\n\ntyped while pending");
+  assert.deepEqual(
+    composer.attachments.map(({ key }) => key),
+    ["original.png", "pending.pdf"],
+  );
+});
+
 test("publishes the current Pi version from the host description", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => {
@@ -1033,10 +1084,10 @@ test("reloads the authoritative branch after a branch selection is rejected", as
   };
   internals.branchLeafByHeadMessageId.set("assistant-head", "missing-leaf");
 
-  session.selectBranch("assistant-head");
+  const selection = session.selectBranch("assistant-head");
   const task = internals.branchSwitchTask;
   assert.ok(task);
-  await assert.rejects(task, /Branch not found/);
+  await assert.rejects(selection, /Branch not found/);
 
   assert.deepEqual(methods, ["session.selectBranch", "session.history"]);
   assert.equal(internals.branchSwitchTask, undefined);

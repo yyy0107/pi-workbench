@@ -126,7 +126,23 @@ test("keeps current Session identity stable across draft promotion", (t) => {
   assert.deepEqual(draft, { sessionId: "draft-thread", isNewThread: true });
   assert.strictEqual(runtime.current.getSnapshot(), draft);
   assert.strictEqual(runtime.session("draft-thread"), session);
-  assert.deepEqual(Object.keys(session.actions).sort(), ["cancel", "loadOlder", "retry"]);
+  assert.deepEqual(Object.keys(session.actions).sort(), [
+    "addComposerAttachment",
+    "cancel",
+    "dismissComposerError",
+    "editQueueItem",
+    "fork",
+    "loadOlder",
+    "mutateQueueItem",
+    "queue",
+    "removeComposerAttachment",
+    "retry",
+    "selectBranch",
+    "send",
+    "setComposerText",
+    "setQueuePaused",
+    "steer",
+  ]);
 
   manager.setActive("draft-thread", undefined);
   assert.equal(notifications, 1);

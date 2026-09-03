@@ -1,6 +1,5 @@
 "use client";
 
-import { ComposerPrimitive, type Unstable_TriggerItem } from "@assistant-ui/react";
 import {
   AlertCircleIcon,
   ArrowUpIcon,
@@ -14,7 +13,15 @@ import {
   SquareSlashIcon,
   XIcon,
 } from "lucide-react";
-import { Fragment, useEffect, useRef, type CSSProperties, type ReactNode } from "react";
+import {
+  Fragment,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type DragEvent,
+  type ReactNode,
+} from "react";
 
 import { TooltipIconButton } from "../assistant-ui/tooltip-icon-button";
 import { type ComposerCommand, ComposerCommandItem, ComposerMenu } from "../elements/composer";
@@ -30,6 +37,7 @@ import {
   COMPOSER_CONVERSATION_MENTION_TYPE,
   COMPOSER_WORKSPACE_FILE_MENTION_TYPE,
 } from "@workbench/contracts/composer";
+import type { ComposerTriggerItem } from "./composer-directive";
 
 const COMPOSER_PRIMARY_ACTION_CLASS_NAME =
   "aui-composer-primary-action rounded-[var(--button-radius)] [&:hover:not(:active)]:bg-primary! dark:[&:hover:not(:active)]:bg-primary!";
@@ -46,25 +54,25 @@ export type WorkbenchComposerSuggestionGroup =
   | "workbench";
 
 export interface WorkbenchComposerMenuSuggestion {
-  readonly item: Unstable_TriggerItem;
+  readonly item: ComposerTriggerItem;
   readonly command: ComposerCommand;
   readonly group: WorkbenchComposerSuggestionGroup;
 }
 
-function suggestionKey(item: Pick<Unstable_TriggerItem, "id" | "type">): string {
+function suggestionKey(item: Pick<ComposerTriggerItem, "id" | "type">): string {
   return `${item.type}:${item.id}`;
 }
 
 function ScrollingComposerCommandItem({
   suggestion,
   item,
-  index,
   active,
+  onSelect,
 }: Readonly<{
   suggestion: WorkbenchComposerMenuSuggestion;
-  item: Unstable_TriggerItem;
-  index: number;
+  item: ComposerTriggerItem;
   active: boolean;
+  onSelect(item: ComposerTriggerItem): void;
 }>) {
   const ref = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -72,13 +80,15 @@ function ScrollingComposerCommandItem({
   }, [active]);
 
   return (
-    <ComposerPrimitive.Unstable_TriggerPopoverItem
+    <ComposerCommandItem
       ref={ref}
-      item={item}
-      index={index}
+      command={suggestion.command}
+      active={active}
+      role="option"
+      aria-selected={active}
       className="scroll-mt-8"
-      render={<ComposerCommandItem command={suggestion.command} active={active} />}
       onPointerDown={(event) => event.preventDefault()}
+      onClick={() => onSelect(item)}
     />
   );
 }
@@ -90,18 +100,24 @@ export function WorkbenchComposerCommandMenuView({
   highlightedIndex,
   suggestions,
   groupLabel,
+  ariaLabel,
+  onSelect,
 }: Readonly<{
   open: boolean;
-  items: readonly Unstable_TriggerItem[];
+  items: readonly ComposerTriggerItem[];
   highlightedIndex: number;
   suggestions: ReadonlyMap<string, WorkbenchComposerMenuSuggestion>;
   groupLabel(group: WorkbenchComposerSuggestionGroup): string;
+  ariaLabel: string;
+  onSelect(item: ComposerTriggerItem): void;
 }>) {
   let previousGroup: WorkbenchComposerSuggestionGroup | undefined;
 
   return (
     <ComposerMenu
       open={open && items.length > 0}
+      role="listbox"
+      aria-label={ariaLabel}
       className="max-h-[min(24rem,50vh)] w-full gap-2 overflow-y-auto p-1.5 pt-0 scroll-py-2"
     >
       {items.map((item, index) => {
@@ -122,8 +138,8 @@ export function WorkbenchComposerCommandMenuView({
             <ScrollingComposerCommandItem
               suggestion={suggestion}
               item={item}
-              index={index}
               active={index === highlightedIndex}
+              onSelect={onSelect}
             />
           </Fragment>
         );
@@ -138,9 +154,13 @@ function contextItemIcon(type: string) {
 
 function ScrollingComposerContextItem({
   item,
-  index,
   active,
-}: Readonly<{ item: Unstable_TriggerItem; index: number; active: boolean }>) {
+  onSelect,
+}: Readonly<{
+  item: ComposerTriggerItem;
+  active: boolean;
+  onSelect(item: ComposerTriggerItem): void;
+}>) {
   const ref = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (active) ref.current?.scrollIntoView({ block: "nearest" });
@@ -148,15 +168,17 @@ function ScrollingComposerContextItem({
   const Icon = contextItemIcon(item.type);
 
   return (
-    <ComposerPrimitive.Unstable_TriggerPopoverItem
+    <button
+      type="button"
       ref={ref}
-      item={item}
-      index={index}
+      role="option"
+      aria-selected={active}
       className={cn(
         "flex min-h-10 w-full items-center gap-2.5 rounded-[var(--button-radius)] px-3 py-2 text-start text-sm outline-none transition-colors",
         active ? "bg-muted/80 dark:bg-muted/60" : "hover:bg-muted/50 dark:hover:bg-muted/35",
       )}
       onPointerDown={(event) => event.preventDefault()}
+      onClick={() => onSelect(item)}
     >
       <Icon aria-hidden="true" className="text-muted-foreground size-4 shrink-0" />
       <span className="flex min-w-0 flex-1 flex-col">
@@ -169,7 +191,7 @@ function ScrollingComposerContextItem({
           </span>
         ) : null}
       </span>
-    </ComposerPrimitive.Unstable_TriggerPopoverItem>
+    </button>
   );
 }
 
@@ -191,15 +213,19 @@ export function WorkbenchComposerContextMenuView({
   loadError,
   visible,
   labels,
+  ariaLabel,
+  onSelect,
 }: Readonly<{
   open: boolean;
-  items: readonly Unstable_TriggerItem[];
+  items: readonly ComposerTriggerItem[];
   highlightedIndex: number;
   isLoading: boolean;
   hasWorkspace: boolean;
   loadError: boolean;
   visible: boolean;
   labels: ComposerContextMenuLabels;
+  ariaLabel: string;
+  onSelect(item: ComposerTriggerItem): void;
 }>) {
   const indexedItems = items.map((item, index) => ({ item, index }));
   const conversationItems = indexedItems.filter(
@@ -214,6 +240,8 @@ export function WorkbenchComposerContextMenuView({
   return (
     <ComposerMenu
       open={open && visible}
+      role="listbox"
+      aria-label={ariaLabel}
       className="max-h-[min(24rem,50vh)] w-full gap-2 overflow-y-auto p-1.5 pt-0 scroll-py-2"
     >
       <div role="presentation" className={groupLabelClassName}>
@@ -223,8 +251,8 @@ export function WorkbenchComposerContextMenuView({
         <ScrollingComposerContextItem
           key={suggestionKey(item)}
           item={item}
-          index={index}
           active={index === highlightedIndex}
+          onSelect={onSelect}
         />
       ))}
       {hasWorkspace ? (
@@ -236,8 +264,8 @@ export function WorkbenchComposerContextMenuView({
             <ScrollingComposerContextItem
               key={suggestionKey(item)}
               item={item}
-              index={index}
               active={index === highlightedIndex}
+              onSelect={onSelect}
             />
           ))}
           {isLoading || loadError ? (
@@ -272,10 +300,14 @@ export interface ComposerAddMenuLabels {
 
 export function ComposerAddMenuView({
   labels,
+  attachmentsEnabled,
   onInsertTrigger,
+  onChooseAttachment,
 }: Readonly<{
   labels: ComposerAddMenuLabels;
+  attachmentsEnabled: boolean;
   onInsertTrigger(trigger: "@" | "/"): void;
+  onChooseAttachment(): void;
 }>) {
   return (
     <DropdownMenu>
@@ -296,12 +328,14 @@ export function ComposerAddMenuView({
         }
       />
       <DropdownMenuContent align="start" side="top" sideOffset={8} className="w-64 p-1.5">
-        <ComposerPrimitive.AddAttachment
-          render={<DropdownMenuItem className="min-h-9 gap-2.5 px-2.5" />}
+        <DropdownMenuItem
+          className="min-h-9 gap-2.5 px-2.5"
+          disabled={!attachmentsEnabled}
+          onClick={onChooseAttachment}
         >
           <PaperclipIcon aria-hidden="true" className="text-muted-foreground size-4" />
           <span>{labels.attachment}</span>
-        </ComposerPrimitive.AddAttachment>
+        </DropdownMenuItem>
         <DropdownMenuItem className="min-h-9 gap-2.5 px-2.5" onClick={() => onInsertTrigger("@")}>
           <AtSignIcon aria-hidden="true" className="text-muted-foreground size-4" />
           <span>{labels.context}</span>
@@ -321,28 +355,27 @@ export function ComposerPrimaryActionView({
   sendLabel,
   stopLabel,
   onSend,
+  onCancel,
 }: Readonly<{
   isRunning: boolean;
   canSend: boolean;
   sendLabel: string;
   stopLabel: string;
   onSend(): void;
+  onCancel(): void;
 }>) {
   return isRunning ? (
-    <ComposerPrimitive.Cancel
-      render={
-        <TooltipIconButton
-          tooltip={stopLabel}
-          type="button"
-          size="icon"
-          variant="default"
-          className={COMPOSER_PRIMARY_ACTION_CLASS_NAME}
-          style={COMPOSER_PRIMARY_ACTION_STYLE}
-        />
-      }
+    <TooltipIconButton
+      tooltip={stopLabel}
+      type="button"
+      size="icon"
+      variant="default"
+      className={COMPOSER_PRIMARY_ACTION_CLASS_NAME}
+      style={COMPOSER_PRIMARY_ACTION_STYLE}
+      onClick={onCancel}
     >
       <SquareIcon className="aui-composer-stop-icon fill-current" />
-    </ComposerPrimitive.Cancel>
+    </TooltipIconButton>
   ) : (
     <TooltipIconButton
       tooltip={sendLabel}
@@ -372,6 +405,8 @@ export function WorkbenchComposerSurfaceView({
   input,
   actionsLeft,
   actionsRight,
+  attachmentsEnabled,
+  onDropFiles,
 }: Readonly<{
   isNewThread: boolean;
   headerLeft: ReactNode;
@@ -381,7 +416,14 @@ export function WorkbenchComposerSurfaceView({
   input: ReactNode;
   actionsLeft: ReactNode;
   actionsRight: ReactNode;
+  attachmentsEnabled: boolean;
+  onDropFiles(files: readonly File[]): void;
 }>) {
+  const [dragging, setDragging] = useState(false);
+  const dragDepth = useRef(0);
+  const acceptsFiles = (event: DragEvent<HTMLElement>) =>
+    attachmentsEnabled && event.dataTransfer.types.includes("Files");
+
   return (
     <div
       data-slot="workbench-composer-shell"
@@ -401,8 +443,32 @@ export function WorkbenchComposerSurfaceView({
         </div>
       ) : null}
 
-      <ComposerPrimitive.AttachmentDropzone
+      <div
         data-slot="workbench-composer-card"
+        data-dragging={dragging || undefined}
+        onDragEnter={(event) => {
+          if (!acceptsFiles(event)) return;
+          event.preventDefault();
+          dragDepth.current += 1;
+          setDragging(true);
+        }}
+        onDragOver={(event) => {
+          if (!acceptsFiles(event)) return;
+          event.preventDefault();
+          event.dataTransfer.dropEffect = "copy";
+        }}
+        onDragLeave={(event) => {
+          if (!acceptsFiles(event)) return;
+          dragDepth.current = Math.max(0, dragDepth.current - 1);
+          if (dragDepth.current === 0) setDragging(false);
+        }}
+        onDrop={(event) => {
+          if (!acceptsFiles(event)) return;
+          event.preventDefault();
+          dragDepth.current = 0;
+          setDragging(false);
+          onDropFiles([...event.dataTransfer.files]);
+        }}
         className={cn(
           "bg-background data-[dragging=true]:bg-accent/50 flex min-h-[var(--composer-height)] flex-col overflow-hidden rounded-[var(--composer-inner-radius,1.375rem)] border shadow-[0_1px_3px_rgba(0,0,0,0.08)] outline-none transition-[border-color,box-shadow,background-color] data-[dragging=true]:border-dashed",
           isNewThread && "relative z-10 -mt-px",
@@ -430,7 +496,7 @@ export function WorkbenchComposerSurfaceView({
             </div>
           </div>
         </div>
-      </ComposerPrimitive.AttachmentDropzone>
+      </div>
     </div>
   );
 }
