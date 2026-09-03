@@ -368,6 +368,7 @@ export function MainConversationHost() {
   return (
     <WorkbenchConversation
       threadId={threadId ?? activeThreadId}
+      sessionId={activeThreadId}
       hostContent={<ThreadRouteSync threadId={threadId} />}
       emptyComposer={<WorkbenchComposer />}
       composerDock={

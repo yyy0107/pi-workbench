@@ -8,13 +8,16 @@ import { SessionContext, useRuntimeContext } from "./runtime-context";
 export interface SessionProviderProps {
   readonly children: ReactNode;
   readonly fallback?: ReactNode;
+  /** Bind a nested conversation without changing the Runtime's global current selection. */
+  readonly sessionId?: string;
 }
 
-/** Resolve the current Session and remount only its scoped subtree when its stable id changes. */
-export function SessionProvider({ children, fallback = null }: SessionProviderProps) {
+/** Resolve a current or explicitly bound Session and key its scoped subtree by stable id. */
+export function SessionProvider({ children, fallback = null, sessionId }: SessionProviderProps) {
   const runtime = useRuntimeContext();
-  const { sessionId } = useCurrentSession();
-  const session = sessionId ? runtime.session(sessionId) : undefined;
+  const current = useCurrentSession();
+  const resolvedSessionId = sessionId ?? current.sessionId;
+  const session = resolvedSessionId ? runtime.session(resolvedSessionId) : undefined;
 
   if (!session) return fallback;
   return (

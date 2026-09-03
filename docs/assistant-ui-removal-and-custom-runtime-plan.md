@@ -1,6 +1,6 @@
 # Workbench 移除 assistant-ui 与自有会话 Runtime 迁移计划
 
-状态：方向已确认；assistant-ui 专属 Agent skills 已删除，Phase 1–3 已完成，下一步 Phase 4（2026-09-03）
+状态：方向已确认；assistant-ui 专属 Agent skills 已删除，Phase 1–3 已完成，Phase 4 进行中（2026-09-03）
 
 ## 0. 决策摘要
 
@@ -884,7 +884,7 @@ Phase 2 的退出条件均由 Pi Client 测试锁定：history/live 产生确定
 本阶段没有迁移 Conversation/Message UI，也没有新增 Pi transport 或 SessionManager。Phase 4 从现有
 Shell 消息区域开始按 vertical slice 消费这些 hooks。
 
-### Phase 4：Conversation 与 Message UI
+### Phase 4：Conversation 与 Message UI（进行中，2026-09-03）
 
 工作：
 
@@ -899,6 +899,19 @@ Shell 消息区域开始按 vertical slice 消费这些 hooks。
 - token 更新只刷新活动 Node；
 - 流式 Markdown、代码块和工具状态与旧 UI 行为一致；
 - 键盘、复制、选择、ARIA 和错误展示保持可用。
+
+执行切片：
+
+| 切片 | 状态                 | 变更范围                                                                                                               | 最小验证                                                           |
+| ---- | -------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| 4A   | 已完成（2026-09-03） | 生产消息列表改读 `nodeKeys`；增加 per-node `ConversationNodeSeat`；主会话和 Side Chat 绑定明确的 Headless Session      | Client/Testkit/Shell/Pi Contributions typecheck、Testkit 17 项测试 |
+| 4B   | 下一步               | 将 text/Markdown、reasoning、source、file、image 和 error 改为直接消费 Workbench Node/Block                            | renderer 组件测试、Shell typecheck/test                            |
+| 4C   | 待开始               | 迁移 tool/data timeline，并把尚未迁移的扩展呈现收敛到一个临时兼容入口                                                  | partial args、running/complete/error/requires-action 组件测试      |
+| 4D   | 待开始               | 用原生 Viewport/scroll state 替换 Thread primitives，锁定 bottom-follow、用户滚动和 prepend anchor，并对照退出条件收口 | scroll 组件测试、受影响 package 检查；有具体不确定性时 Browser     |
+
+4A 保留现有 assistant-ui Message/Part renderer 作为 `ConversationNodeSeat` 内唯一的临时呈现入口，
+因此工具交互、消息 actions 和扩展 renderer 行为不变；列表顺序和 Node 更新已经改由同一个
+`ConversationSession` 的 Headless snapshot/observable 驱动。后续切片在原位逐类删除兼容调用，不建立第二套 store。
 
 ### Phase 5：Composer、附件和消息 Actions
 

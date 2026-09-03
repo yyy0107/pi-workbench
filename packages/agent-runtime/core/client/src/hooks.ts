@@ -16,6 +16,11 @@ export function useAgentRuntime() {
   return useRuntimeContext();
 }
 
+/** Read the stable Session object installed by the nearest SessionProvider. */
+export function useConversationSession() {
+  return useSessionContext();
+}
+
 export function useThreadList(): ThreadListSnapshot;
 export function useThreadList<Selection>(
   selector: (snapshot: ThreadListSnapshot) => Selection,
@@ -46,7 +51,7 @@ export function useSessionState<Selection>(
   ) => Selection,
   isEqual?: (left: Selection, right: Selection) => boolean,
 ): Selection {
-  return useHostSnapshot(useSessionContext().snapshot, selector, isEqual);
+  return useHostSnapshot(useConversationSession().snapshot, selector, isEqual);
 }
 
 export function useConversationNode(nodeKey: string): ConversationNode | undefined;
@@ -62,5 +67,5 @@ export function useConversationNode<Selection>(
   ) => Selection,
   isEqual?: (left: Selection, right: Selection) => boolean,
 ): Selection {
-  return useHostSnapshot(useSessionContext().node(nodeKey), selector, isEqual);
+  return useHostSnapshot(useConversationSession().node(nodeKey), selector, isEqual);
 }

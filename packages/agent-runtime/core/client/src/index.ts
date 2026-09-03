@@ -16,6 +16,7 @@ export { WorkbenchAgentRuntimeHost } from "./agent-runtime-host";
 export { bindSnapshotSelector, type SnapshotSelectorHook } from "./bind-snapshot-selector";
 export {
   useAgentRuntime,
+  useConversationSession,
   useConversationNode,
   useCurrentSession,
   useSessionState,

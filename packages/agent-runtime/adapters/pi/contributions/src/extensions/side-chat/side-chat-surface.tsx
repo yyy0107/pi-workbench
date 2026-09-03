@@ -34,6 +34,7 @@ function SideChatConversation({ params }: Readonly<{ params: SideChatSurfacePara
     <PiBoundThreadRuntimeProvider sessionId={params.scratchSessionId} workspace={workspace}>
       <WorkbenchConversation
         threadId={params.scratchSessionId}
+        sessionId={params.scratchSessionId}
         emptyComposer={<WorkbenchComposer forceExistingThread />}
         composerDock={
           <div

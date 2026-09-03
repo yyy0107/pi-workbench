@@ -182,3 +182,55 @@ test("remounts the SessionProvider subtree by stable Session id", async () => {
     environment.restore();
   }
 });
+
+test("binds an explicit Session without changing the Runtime current selection", async () => {
+  const environment = installMinimalReactDomEnvironment();
+  const current = createFakeConversationSession("session-1");
+  const nested = createFakeConversationSession("session-2");
+  const runtime = createFakeAgentRuntime([current, nested]);
+  runtime.switchToThread(current.id);
+  const root = createRoot(environment.container);
+  let mounted = true;
+  const observed: string[] = [];
+
+  function Probe() {
+    observed.push(useSessionState((snapshot) => snapshot.sessionId));
+    return null;
+  }
+
+  try {
+    await act(async () => {
+      root.render(
+        createElement(RuntimeProvider, {
+          runtime,
+          children: createElement(SessionProvider, {
+            sessionId: nested.id,
+            children: createElement(Probe),
+          }),
+        }),
+      );
+      await flushReactMicrotasks();
+    });
+    assert.deepEqual(observed, [nested.id]);
+
+    await act(async () => {
+      runtime.switchToNewThread();
+      await flushReactMicrotasks();
+    });
+    assert.deepEqual(observed, [nested.id]);
+
+    await act(async () => {
+      root.unmount();
+      await flushReactMicrotasks();
+    });
+    mounted = false;
+  } finally {
+    if (mounted) {
+      await act(async () => {
+        root.unmount();
+        await flushReactMicrotasks();
+      });
+    }
+    environment.restore();
+  }
+});

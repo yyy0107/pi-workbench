@@ -2,11 +2,10 @@
 
 import { ThreadPrimitive, useAuiState } from "@assistant-ui/react";
 import { ArrowDownIcon } from "lucide-react";
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type Ref } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode, type Ref } from "react";
 
+import { SessionProvider } from "@workbench/agent-runtime-client";
 import { TooltipIconButton } from "../assistant-ui/tooltip-icon-button";
-import { DaySeparator } from "../elements/conversation-separator";
-import { MessagePair } from "../elements/message-pair";
 import { TypingIndicator } from "../elements/typing-indicator";
 import { useI18n } from "../i18n";
 import { formatCompactDuration } from "../format-duration";
@@ -25,81 +24,17 @@ import {
 
 import { WorkbenchEmpty } from "./workbench-empty";
 import { WorkbenchConversationViewportScope } from "./workbench-conversation-viewport-scope";
-import {
-  conversationPairKey,
-  isLastConversationPair,
-  shouldShowWorkingStatus,
-} from "./workbench-message-rows";
-import {
-  WorkbenchAssistantMessage,
-  WorkbenchEditComposer,
-  WorkbenchSystemMessage,
-  WorkbenchUserMessage,
-} from "./workbench-message";
+import { ConversationList } from "./conversation-list";
 import {
   agentAutoRetryStatus,
   agentRunTiming,
   displayedAgentRunElapsedMs,
 } from "./workbench-thread-timing";
 
-interface MessageRow {
-  id: string;
-  role: "user" | "assistant" | "system";
-  createdAt: number;
-}
-
 const THREAD_VIEWPORT_MASK_IMAGE =
   "linear-gradient(to bottom, transparent 0, #000 var(--thread-header-fade-size), #000 calc(100% - var(--composer-dock-corner-radius)), transparent 100%), linear-gradient(#000 0 0)";
 const THREAD_VIEWPORT_MASK_SIZE =
   "calc(100% - var(--thread-viewport-inline-padding)) 100%, var(--thread-viewport-inline-padding) 100%";
-
-const messageComponents = {
-  UserMessage: WorkbenchUserMessage,
-  AssistantMessage: WorkbenchAssistantMessage,
-  SystemMessage: WorkbenchSystemMessage,
-  EditComposer: WorkbenchEditComposer,
-};
-
-function localDayKey(timestamp: number): string | undefined {
-  // Legacy runtime entries can lack timestamps and use tiny positional fallbacks.
-  // Do not turn those placeholders into a misleading January 1970 divider.
-  if (timestamp < Date.UTC(2000, 0, 1)) return undefined;
-  const value = new Date(timestamp);
-  if (!Number.isFinite(value.getTime())) return undefined;
-  const year = value.getFullYear();
-  const month = String(value.getMonth() + 1).padStart(2, "0");
-  const day = String(value.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function useThreadMessageRows(): readonly MessageRow[] {
-  const previousRows = useRef<readonly MessageRow[]>([]);
-
-  return useAuiState((state) => {
-    const messages = state.thread.messages;
-    const previous = previousRows.current;
-
-    if (
-      previous.length === messages.length &&
-      previous.every(
-        (row, index) =>
-          row.id === messages[index]?.id &&
-          row.role === messages[index]?.role &&
-          row.createdAt === messages[index]?.createdAt.getTime(),
-      )
-    ) {
-      return previous;
-    }
-
-    const next = messages.map((message) => ({
-      id: message.id,
-      role: message.role,
-      createdAt: message.createdAt.getTime(),
-    }));
-    previousRows.current = next;
-    return next;
-  });
-}
 
 function AssistantWorkingStatus() {
   const { locale, t } = useI18n();
@@ -207,117 +142,11 @@ function ThreadHistoryLoading() {
   );
 }
 
-function WorkbenchMessages({ isRunning }: Readonly<{ isRunning: boolean }>) {
-  const { date } = useI18n();
-  const messages = useThreadMessageRows();
-  const items: ReactNode[] = [];
-  let previousDay: string | undefined;
-
-  for (let index = 0; index < messages.length; index += 1) {
-    const message = messages[index];
-    if (!message) continue;
-
-    const day = localDayKey(message.createdAt);
-    if (day && day !== previousDay) {
-      items.push(
-        <DaySeparator
-          key={`day:${day}:${message.id}`}
-          dateTime={day}
-          label={date(message.createdAt, {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-            weekday: "short",
-          })}
-          aria-label={date(message.createdAt, {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-            weekday: "long",
-          })}
-          className="[overflow-anchor:none]"
-        />,
-      );
-      previousDay = day;
-    }
-
-    if (message.role === "system") {
-      items.push(
-        <div key={message.id} className="[overflow-anchor:none]">
-          <ThreadPrimitive.MessageByIndex index={index} components={messageComponents} />
-        </div>,
-      );
-      continue;
-    }
-
-    const nextMessage = messages[index + 1];
-    const assistantIndex =
-      message.role === "user" &&
-      nextMessage?.role === "assistant" &&
-      localDayKey(nextMessage.createdAt) === day
-        ? index + 1
-        : undefined;
-    const hasAssistantMessage = message.role === "assistant" || assistantIndex !== undefined;
-    const pairMessageIndex = assistantIndex ?? index;
-    const showWorkingStatus = shouldShowWorkingStatus({
-      isLastPair: isLastConversationPair(messages, pairMessageIndex),
-      threadIsRunning: isRunning,
-    });
-    const hasAssistantTurn = hasAssistantMessage || showWorkingStatus;
-
-    items.push(
-      <MessagePair
-        key={conversationPairKey(message)}
-        variant="flat"
-        className="max-w-none gap-4 px-2 [overflow-anchor:none]"
-        userMessage={
-          message.role === "user" ? (
-            <ThreadPrimitive.MessageByIndex index={index} components={messageComponents} />
-          ) : undefined
-        }
-        assistantMessage={
-          hasAssistantTurn ? (
-            <div
-              data-slot="assistant-message-slot"
-              className={cn(
-                "w-full [overflow-anchor:none]",
-                showWorkingStatus && "min-h-[var(--assistant-turn-min-height)]",
-              )}
-            >
-              {hasAssistantMessage ? (
-                <ThreadPrimitive.MessageByIndex
-                  index={assistantIndex ?? index}
-                  components={messageComponents}
-                />
-              ) : null}
-              {showWorkingStatus ? <AssistantWorkingStatus /> : null}
-            </div>
-          ) : undefined
-        }
-      />,
-    );
-
-    if (assistantIndex !== undefined) index = assistantIndex;
-  }
-
-  if (items.length === 0) return null;
-
-  return (
-    <div
-      data-slot="conversation-flow"
-      className={cn(
-        THREAD_VIEWPORT_CONTENT_WIDTH_CLASS_NAME,
-        "mx-auto flex shrink-0 flex-col gap-4 pb-4 [overflow-anchor:none]",
-      )}
-    >
-      {items}
-    </div>
-  );
-}
-
 export interface WorkbenchConversationProps {
   /** Runtime-bound thread id passed to extension Slots; no routing semantics are attached. */
   threadId?: string;
+  /** Stable Headless Runtime Session id; defaults to the Runtime's current Session. */
+  sessionId?: string;
   /** Host-owned content that must render inside the Thread root before extension columns. */
   hostContent?: ReactNode;
   /** Composer rendered inside the empty-state presentation. */
@@ -345,6 +174,7 @@ export interface WorkbenchConversationProps {
  */
 export function WorkbenchConversation({
   threadId,
+  sessionId,
   hostContent,
   emptyComposer,
   composerDock,
@@ -459,7 +289,9 @@ export function WorkbenchConversation({
                   <WorkbenchEmpty>{emptyComposer}</WorkbenchEmpty>
                 </ThreadPrimitive.Empty>
 
-                <WorkbenchMessages isRunning={isRunning} />
+                <SessionProvider sessionId={sessionId}>
+                  <ConversationList renderWorkingStatus={() => <AssistantWorkingStatus />} />
+                </SessionProvider>
               </>
             )}
 

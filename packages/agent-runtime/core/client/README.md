@@ -2,8 +2,9 @@
 
 Workbench 浏览器侧、与具体 Agent 实现无关的 Headless Runtime React 接入层。
 
-`RuntimeProvider` 的 Context 只保存稳定 `AgentRuntime`；`SessionProvider` 通过稳定 session id
-限定并切换会话子树。`useThreadList`、`useSessionState` 和 `useConversationNode` 使用
+`RuntimeProvider` 的 Context 只保存稳定 `AgentRuntime`；`SessionProvider` 默认绑定当前会话，也可通过
+显式稳定 session id 绑定不改变全局选择的嵌套会话。`useThreadList`、`useSessionState`、
+`useConversationNode` 和稳定对象 hook `useConversationSession` 使用
 selector-aware external-store 订阅，未选中的 snapshot 变化不会触发组件重渲染。
 
 迁移期间，该 package 继续保留 assistant-ui Host、adapter 端口、extras readers 和通用浏览器
