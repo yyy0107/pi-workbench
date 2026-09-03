@@ -16,7 +16,8 @@ import type {
 } from "@workbench/agent-runtime-client/adapter";
 import { useWorkbenchRuntimeAdapters } from "@workbench/agent-runtime-client";
 
-import type { PiClientSession, PiSessionManager } from "../runtime/manager";
+import type { PiSessionManager } from "../runtime/manager";
+import type { PiClientSession } from "../runtime/session";
 import { piRequestErrorKind } from "../runtime/request-error";
 import { piComposerSendError } from "../runtime/send-error";
 import { PiApiError } from "../transport/api";

@@ -77,13 +77,6 @@ import {
   type PiClientRunTiming,
 } from "./session";
 
-export {
-  PiClientSession,
-  visibleResumeCheckpointTerminalMessageId,
-  type PiClientRunTiming,
-  type PiSessionSnapshot,
-} from "./session";
-
 const ARCHIVED_STORAGE_KEY = `${WORKBENCH_STORAGE_PREFIX}pi-archived-sessions`;
 const PINNED_STORAGE_KEY = `${WORKBENCH_STORAGE_PREFIX}pi-pinned-sessions`;
 const PINNED_WORKSPACES_STORAGE_KEY = "pi-workbench:pinned-workspaces";

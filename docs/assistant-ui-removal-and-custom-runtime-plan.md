@@ -1,6 +1,6 @@
 # Workbench 移除 assistant-ui 与自有会话 Runtime 迁移计划
 
-状态：方向已确认；assistant-ui 专属 Agent skills 已删除，Phase 1 已完成，Phase 2 已完成 2A–2C、下一步 2D（2026-09-03）
+状态：方向已确认；assistant-ui 专属 Agent skills 已删除，Phase 1–2 已完成，下一步 Phase 3（2026-09-03）
 
 ## 0. 决策摘要
 
@@ -810,7 +810,7 @@ export interface ToolRendererProps {
 - Notifier 的 snapshot cache、microtask、animation frame 和 immediate 发布测试通过；相关 package
   typecheck/test、workspace dependency check、全仓 typecheck 和 Web/Electron build 通过。
 
-### Phase 2：Pi Session 和 Conversation Assembler（进行中，2026-09-02）
+### Phase 2：Pi Session 和 Conversation Assembler（已完成，2026-09-03）
 
 工作：
 
@@ -834,15 +834,21 @@ export interface ToolRendererProps {
 | 2A   | 已完成（2026-09-02） | 接入 session-owned `PiConversationAssembler`；稳定 Node/Block key、结构共享、per-node observable 和同一 Session 双投影     | Pi Client 277 项测试、package typecheck、workspace dependency                     |
 | 2B   | 已完成（2026-09-02） | 将 `PiClientSession` 和仅属于 Session 的 helper 物理移动到 `runtime/session.ts`；`manager.ts` 只保留目录、选择、缓存和路由 | 兼容导出不变；Pi Client 277 项测试和 package typecheck 通过                       |
 | 2C   | 已完成（2026-09-03） | 让 Assembler 直接消费 Pi-owned canonical history/live state；assistant-ui 改为同源的下游兼容投影；接入发布优先级           | Pi Client 279 项测试；覆盖 history/live、reconnect、partial args 和 Node 定向通知 |
-| 2D   | 待开始               | 对照本阶段退出条件收口，更新 Pi Client 架构说明并删除本阶段已失效的临时路径                                                | package typecheck/test、workspace dependency；按边界决定 build                    |
+| 2D   | 已完成（2026-09-03） | 对照退出条件收口；删除 `manager.ts` 的 Session 兼容重导出并更新 Pi Client 架构说明                                         | Pi Client 279 项测试、package typecheck、workspace dependency                     |
 
 2A 暂时以 assistant-ui projection 作为 Assembler 输入，这是避免第二个事件 reducer 的迁移边界；
 2B 通过 `manager.ts` 的兼容 re-export 保持现有调用方不变，并仅使用 type-only 的 Session → Manager 引用，
 不形成运行时循环。2C 已将 history、live 和 optimistic 共用的归一化消息形态收归
 `PiConversationMessage`，Assembler 直接消费该状态并生成 Workbench Node；assistant-ui 只从同一状态
 获取零拷贝兼容投影。普通 history/metadata 使用 microtask，流式 delta 复用 Session 既有 RAF 合帧，
-finish/error 等终态立即发布，且 immediate 更新会抢占待发布的低优先级通知。Phase 2 保持“进行中”，
-下一步只执行 2D 收口；Phase 3 Provider 和 UI 迁移不混入本阶段。
+finish/error 等终态立即发布，且 immediate 更新会抢占待发布的低优先级通知。2D 删除了 2B 的临时
+兼容 re-export，内部调用方改为直接引用 `runtime/session.ts`，并在 Pi Client README 和总体架构图中
+明确唯一状态所有者及临时兼容边界。
+
+Phase 2 的退出条件均由 Pi Client 测试锁定：history/live 产生确定性 Snapshot；overlap、gap、reconnect
+和 partial tool JSON 均有覆盖；单个 delta 保持无关 Node/Block 引用稳定且只通知对应 Node；新旧投影
+来自同一个 `PiClientSession`。2D 未改变 Provider 或 client/server 边界，因此按验证策略不额外运行
+全仓 build 或 Browser。Phase 3 Provider 和 UI 迁移未混入本阶段。
 
 ### Phase 3：React Provider 和 Selector Hooks
 
@@ -1047,7 +1053,8 @@ Browser/E2E 只用于静态和组件测试无法确认的高风险交互，例�
 第一批只完成 Runtime 地基，不改用户界面：
 
 当前进度：1–4 已随 Phase 1 完成，5–7 已随 Phase 2 的 2A 切片完成；Session 物理提取已随 2B
-完成，canonical state 和发布优先级已随 2C 完成，后续只执行 Phase 2 的 2D 收口。
+完成，canonical state 和发布优先级已随 2C 完成，临时兼容路径和架构说明已随 2D 收口。下一步从
+Phase 3 开始 Provider 和 selector hooks 迁移。
 
 1. 新建 `packages/agent-runtime/core/runtime`；
 2. 定义最小 `HostObservable`、`Notifier`、`AgentRuntime` 和 `ConversationSession`；

@@ -9,7 +9,7 @@ import {
   visibleResumeCheckpointTerminalMessageId,
   type PiClientSession,
   type PiSessionSnapshot,
-} from "../runtime/manager";
+} from "../runtime/session";
 
 /** Project Pi-native state into the small backend-neutral surface consumed by Workbench UI. */
 export function projectPiAgentRuntimeExtras({

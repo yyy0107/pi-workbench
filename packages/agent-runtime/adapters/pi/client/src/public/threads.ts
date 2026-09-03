@@ -8,13 +8,12 @@ export {
   usePiThreadStateSnapshot,
 } from "../runtime/context";
 export type {
-  PiClientRunTiming,
   PiForkSessionResult,
-  PiSessionSnapshot,
   PiThreadListItemSnapshot,
   PiThreadMetadataSnapshot,
   PiThreadStateSnapshot,
 } from "../runtime/manager";
+export type { PiClientRunTiming, PiSessionSnapshot } from "../runtime/session";
 export { piAutoRetryFromEvent, piAutoRetryFromHistory } from "../runtime/auto-retry";
 export type { PiAutoRetrySnapshot } from "../runtime/auto-retry";
 export { nextForkTitle } from "../runtime/fork-title";

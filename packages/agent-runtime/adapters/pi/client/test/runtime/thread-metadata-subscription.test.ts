@@ -3,7 +3,8 @@ import test from "node:test";
 
 import type { PiSessionSummary } from "@workbench/agent-runtime-pi-protocol/messages";
 import type { HostStreamPayload } from "@workbench/agent-runtime-pi-protocol/stream";
-import { PiSessionManager, type PiClientSession } from "../../src/runtime/manager";
+import { PiSessionManager } from "../../src/runtime/manager";
+import type { PiClientSession } from "../../src/runtime/session";
 
 function summary(id: string, overrides: Partial<PiSessionSummary> = {}): PiSessionSummary {
   return {

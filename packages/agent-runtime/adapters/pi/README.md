@@ -26,9 +26,11 @@ Automation 的定义、存储和调度位于
 
 ```mermaid
 flowchart TD
-  UI["Browser / assistant-ui"] --> PORT["WorkbenchAgentRuntimeAdapter"]
-  PORT --> ADAPTER["Pi assistant-ui adapter"]
-  ADAPTER --> CM["PiSessionManager / PiClientSession"]
+  UI["Browser / Workbench UI"] --> PORT["WorkbenchAgentRuntimeAdapter"]
+  PORT --> CM["PiSessionManager / PiClientSession"]
+  CM --> ASSEMBLER["Pi Conversation Assembler"]
+  ASSEMBLER --> SNAPSHOT["Workbench ConversationSnapshot"]
+  CM --> COMPAT["assistant-ui compatibility projection"]
   CM -->|"POST /api/<method>"| HTTP["Unary RPC"]
   CM -->|"events.mux + events.host"| WS["Paired WebSocket generation"]
 
@@ -1162,9 +1164,12 @@ packages/agent-runtime/adapters/pi/
 - `@workbench/agent-runtime-pi-shared` 保存 Pi 浏览器与服务端可复用的纯逻辑，可以依赖 protocol，
   但不拥有网络、文件系统或 assistant-ui 状态；
 - `@workbench/agent-runtime-pi-client` 是 Pi 对通用 `WorkbenchAgentRuntimeAdapter` 的具体浏览器实现。
-  它拥有 Pi session 到
-  assistant-ui Runtime 的投影、后台 thread presentation、通用 extras 和 callback 映射，以及 Pi
-  manager、命令目录、workspace selection 与 active/draft tracker 的浏览器侧安装生命周期；通用
+  每个 `PiClientSession` 是其会话 history、live、optimistic、重连和交互状态的唯一可变所有者；这些输入
+  共用 `PiConversationMessage` canonical state，并由 `PiConversationAssembler` 生成稳定的 Workbench
+  Conversation Snapshot 和 per-node observable。`assistant-ui/` 只保留从同一 Session 派生的只读兼容
+  投影及当前安装边界，不建立第二个 reducer、连接或消息 store。该 package 还拥有后台 thread
+  presentation、通用 extras 和 callback 映射，以及 Pi manager、命令目录、workspace selection 与
+  active/draft tracker 的浏览器侧安装生命周期；通用
   `@workbench/agent-runtime-client` 不得反向导入 Pi。内部 `thread-store.ts` 直接包装 manager 已有逐线程订阅并将
   `cwd` 映射为通用 `rootPath`，不建立第二份缓存；`command-catalog.tsx` 负责选择 session/workspace
   target 与订阅资源 revision，纯 `CommandView` 投影复用 Pi shared package。
@@ -1283,7 +1288,8 @@ packages/agent-runtime/adapters/pi/
   `PromptCatalogProtocol`。两者继续在服务层取得 session 或 scoped resource context，transport 不接触
   ResourceLoader；
 - `server/src/streams` 负责实时分发与 legacy SSE，不拥有业务状态；
-- Pi client package 的 transport 不拥有 assistant-ui 状态，状态协调集中在其内部 runtime；
+- Pi client package 的 transport 不拥有 Conversation 或 UI 状态，单会话状态协调集中在
+  `PiClientSession`；
 - 跨层导入直接指向拥有者模块，不通过聚合 barrel 隐藏依赖方向。
 
 ## 配置
