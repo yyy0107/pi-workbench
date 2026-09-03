@@ -97,7 +97,7 @@ export function normalizeWebArtifactRelativePath(value: unknown): string | undef
 }
 
 function isBuildId(value: unknown): value is string {
-  return typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9._-]{0,255}$/u.test(value);
+  return typeof value === "string" && /^[A-Za-z0-9_-][A-Za-z0-9._-]{0,255}$/u.test(value);
 }
 
 function isNonNegativeInteger(value: unknown): value is number {

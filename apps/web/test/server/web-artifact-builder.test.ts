@@ -27,7 +27,7 @@ import {
 } from "../../scripts/build-web-artifact";
 
 const RELATIVE_APP_DIRECTORY = "apps/web";
-const BUILD_ID = "web-artifact-fixture-123";
+const BUILD_ID = "-web-artifact-fixture-123";
 const NEXT_NODE_MODULE_ALIAS = `${RELATIVE_APP_DIRECTORY}/.next/node_modules/shiki-fixture`;
 const NEXT_PACKAGE_STORE_PATH = "node_modules/.pnpm/next@16.3.1_fixture/node_modules/next";
 const NEXT_PACKAGE_ALIAS = "node_modules/next";

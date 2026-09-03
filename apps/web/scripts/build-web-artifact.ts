@@ -71,7 +71,7 @@ const WEB_ARTIFACT_EXTERNAL_SPECIFIERS = WEB_ARTIFACT_EXTERNAL_PACKAGES.flatMap(
 const WEB_ARTIFACT_ESM_BANNER =
   'import { createRequire as __workbenchCreateRequire } from "node:module";\n' +
   "const require = __workbenchCreateRequire(import.meta.url);";
-const WEB_BUILD_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,255}$/u;
+const WEB_BUILD_ID_PATTERN = /^[A-Za-z0-9_-][A-Za-z0-9._-]{0,255}$/u;
 const WEB_RUNTIME_OWNED_PACKAGES = new Set([
   "@earendil-works/pi-ai",
   "@earendil-works/pi-coding-agent",
