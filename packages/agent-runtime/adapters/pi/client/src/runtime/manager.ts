@@ -2,6 +2,14 @@ import type { RemoteThreadListAdapter, ThreadMessage } from "@assistant-ui/react
 import { createAssistantStream } from "assistant-stream";
 
 import { workbenchBrowserStorage, WORKBENCH_STORAGE_PREFIX } from "@workbench/agent-runtime-client";
+import type {
+  AgentRuntime,
+  CreateThreadOptions,
+  CurrentSessionSnapshot,
+  HostObservable,
+  ThreadListItem,
+  ThreadListSnapshot,
+} from "@workbench/agent-runtime-core";
 import { deriveSessionDisplayTitle } from "@workbench/agent-runtime-pi-shared/sessions";
 import type { AutomationSessionOrigin } from "@workbench/automation-contracts";
 import type {
@@ -231,9 +239,11 @@ export const PI_CLIENT_RUNTIME_IMPLEMENTATION_TOKEN = Object.freeze({
   scope: "pi-client-runtime",
 });
 
-export class PiSessionManager {
+export class PiSessionManager implements AgentRuntime {
   readonly implementationToken = PI_CLIENT_RUNTIME_IMPLEMENTATION_TOKEN;
   readonly connections: PiConnectionController;
+  readonly threads: HostObservable<ThreadListSnapshot>;
+  readonly current: HostObservable<CurrentSessionSnapshot>;
   readonly modelCatalogInvalidation = new PiModelCatalogInvalidation();
   readonly resourceCatalogRevision = new PiResourceCatalogRevision();
   readonly packageUpdatesQuery: PiPackageUpdatesQuery;
@@ -286,6 +296,20 @@ export class PiSessionManager {
   private threadListRevision = 0;
   private threadListStructureKey = "[]";
   private threadListBaselineReady = false;
+  private runtimeCatalogLoading = true;
+  private runtimeThreadListRevision = -1;
+  private runtimeThreadListSnapshot: ThreadListSnapshot = Object.freeze({
+    threads: Object.freeze([]),
+    isLoading: true,
+  });
+  private runtimeThreadItems = new Map<
+    string,
+    { readonly signature: string; readonly item: ThreadListItem }
+  >();
+  private runtimeCurrentSnapshot: CurrentSessionSnapshot = Object.freeze({
+    sessionId: undefined,
+    isNewThread: true,
+  });
   private disposed = false;
   private readonly promptFeedback?: PromptFeedbackPort;
   private titleFallbacks?: PiSessionTitleFallbacks;
@@ -312,6 +336,14 @@ export class PiSessionManager {
       onHostFrame: (payload, generation) => this.handleHostFrame(payload, generation),
       onGenerationReady: (generation) => this.handleGenerationReady(generation),
       onConnectionRecoveringChange: () => this.notify(),
+    });
+    this.threads = Object.freeze({
+      getSnapshot: () => this.getRuntimeThreadListSnapshot(),
+      subscribe: (listener: Listener) => this.subscribe(listener),
+    });
+    this.current = Object.freeze({
+      getSnapshot: () => this.getRuntimeCurrentSnapshot(),
+      subscribe: (listener: Listener) => this.subscribeActiveSession(listener),
     });
   }
 
@@ -344,6 +376,19 @@ export class PiSessionManager {
   }
 
   getActiveSessionId = (): string | undefined => this.activeRemoteId;
+
+  private getRuntimeCurrentSnapshot(): CurrentSessionSnapshot {
+    const sessionId = this.activeLocalId;
+    const isNewThread = this.activeRemoteId === undefined;
+    if (
+      this.runtimeCurrentSnapshot.sessionId === sessionId &&
+      this.runtimeCurrentSnapshot.isNewThread === isNewThread
+    ) {
+      return this.runtimeCurrentSnapshot;
+    }
+    this.runtimeCurrentSnapshot = Object.freeze({ sessionId, isNewThread });
+    return this.runtimeCurrentSnapshot;
+  }
 
   getHostDescription = (): HostDescription | undefined => this.hostDescriptionValue;
 
@@ -476,6 +521,65 @@ export class PiSessionManager {
       lastMessageAt: new Date(summary.modified),
       custom: this.getThreadCustom(summary.id),
     }));
+  }
+
+  private getRuntimeThreadListSnapshot(): ThreadListSnapshot {
+    if (this.runtimeThreadListRevision === this.revision) return this.runtimeThreadListSnapshot;
+    this.runtimeThreadListRevision = this.revision;
+
+    const nextItems = new Map<
+      string,
+      { readonly signature: string; readonly item: ThreadListItem }
+    >();
+    const projected = this.getThreadListSnapshot().map(({ remoteId }) => {
+      const state = this.getThreadStateSnapshot(remoteId);
+      const thread = state.thread!;
+      const { metadata } = state;
+      const signature = this.threadStateSignature(state);
+      const cached = this.runtimeThreadItems.get(remoteId);
+      if (cached?.signature === signature) {
+        nextItems.set(remoteId, cached);
+        return cached.item;
+      }
+      const workspace = metadata.workspace;
+      const item: ThreadListItem = Object.freeze({
+        threadId: remoteId,
+        ...(thread.title === undefined ? {} : { title: thread.title }),
+        ...(metadata.createdAt === undefined ? {} : { createdAt: metadata.createdAt }),
+        updatedAt: thread.lastMessageAt.toISOString(),
+        isArchived: thread.status === "archived",
+        isPinned: metadata.pinned,
+        isRunning: metadata.running,
+        isWaitingForInput: metadata.waitingForUserInput,
+        hasUnreadCompletion: metadata.completed,
+        ...(workspace
+          ? {
+              workspace: {
+                id: workspace.id,
+                name: workspace.name,
+                rootPath: workspace.cwd,
+              },
+            }
+          : {}),
+      });
+      nextItems.set(remoteId, { signature, item });
+      return item;
+    });
+    this.runtimeThreadItems = nextItems;
+    const previous = this.runtimeThreadListSnapshot;
+    const threads =
+      previous.threads.length === projected.length &&
+      previous.threads.every((thread, index) => thread === projected[index])
+        ? previous.threads
+        : Object.freeze(projected);
+    if (previous.threads === threads && previous.isLoading === this.runtimeCatalogLoading) {
+      return previous;
+    }
+    this.runtimeThreadListSnapshot = Object.freeze({
+      threads,
+      isLoading: this.runtimeCatalogLoading,
+    });
+    return this.runtimeThreadListSnapshot;
   }
 
   private createThreadListStructureKey(
@@ -716,7 +820,11 @@ export class PiSessionManager {
     // deliver active-session changes while the initial list baseline is still loading; the
     // refresh mutation overlay below keeps those frames from being overwritten by an older list.
     this.connections.startRunningEvents(this.applyRunningSnapshot);
-    this.startTask ??= this.loadInitialMetadata();
+    this.startTask ??= this.loadInitialMetadata().finally(() => {
+      if (this.disposed) return;
+      this.runtimeCatalogLoading = false;
+      this.notify();
+    });
     return this.startTask;
   }
 
@@ -767,6 +875,17 @@ export class PiSessionManager {
     this.running.clear();
     this.activeLocalId = undefined;
     this.activeRemoteId = undefined;
+    this.runtimeCatalogLoading = false;
+    this.runtimeThreadListRevision = -1;
+    this.runtimeThreadItems.clear();
+    this.runtimeThreadListSnapshot = Object.freeze({
+      threads: Object.freeze([]),
+      isLoading: false,
+    });
+    this.runtimeCurrentSnapshot = Object.freeze({
+      sessionId: undefined,
+      isNewThread: true,
+    });
     this.startTask = undefined;
     this.hostDescriptionValue = undefined;
     this.hostDescriptionTask = undefined;
@@ -1086,6 +1205,41 @@ export class PiSessionManager {
     }
     session.connectIfRunning();
     return session;
+  }
+
+  session(id: string): PiClientSession | undefined {
+    const remoteId =
+      this.aliases.get(id) ??
+      (this.summaries.has(id) || this.scratchSessions.has(id) ? id : undefined);
+    const existing = (remoteId ? this.sessions.get(remoteId) : undefined) ?? this.sessions.get(id);
+    if (existing) return existing;
+    if (!remoteId && !this.draftWorkspaces.has(id)) return undefined;
+    return this.getSession(id, remoteId);
+  }
+
+  async createThread(options: CreateThreadOptions = {}): Promise<string> {
+    await this.start();
+    const created = await createPiRpcSession(
+      {
+        ...(options.workspaceId === undefined ? {} : { workspaceId: options.workspaceId }),
+        ...(options.preset === undefined ? {} : { agentPreset: options.preset }),
+      },
+      this.rpcTransportOptions,
+    );
+    await this.refreshMetadata();
+    this.getSession(created.sessionId, created.sessionId);
+    this.setActive(created.sessionId, created.sessionId);
+    return created.sessionId;
+  }
+
+  switchToThread(id: string): void {
+    const session = this.session(id);
+    if (!session) throw new Error(`Unknown Pi Session: ${id}`);
+    this.setActive(session.id, session.remoteId);
+  }
+
+  switchToNewThread(): void {
+    this.setActive(undefined, undefined);
   }
 
   async ensureRemote(session: PiClientSession): Promise<PiSessionSummary> {
@@ -1653,9 +1807,11 @@ export class PiSessionManager {
   }
 
   setActive(localId: string | undefined, remoteId: string | undefined): void {
+    const previousLocalId = this.activeLocalId;
     this.activeLocalId = localId;
     const nextActiveRemoteId = remoteId ?? (localId ? this.aliases.get(localId) : undefined);
-    const activeSessionChanged = this.activeRemoteId !== nextActiveRemoteId;
+    const activeSessionChanged =
+      previousLocalId !== localId || this.activeRemoteId !== nextActiveRemoteId;
     this.activeRemoteId = nextActiveRemoteId;
     if (activeSessionChanged) {
       for (const listener of this.activeSessionListeners) listener();

@@ -25,7 +25,8 @@ export interface ConversationActions {
 export interface ConversationSession {
   readonly id: string;
   readonly snapshot: HostObservable<ConversationSnapshot>;
-  readonly actions: ConversationActions;
+  /** Method presence is the capability signal while actions migrate in vertical slices. */
+  readonly actions: Readonly<Partial<ConversationActions>>;
   node(key: string): HostObservable<ConversationNode | undefined>;
 }
 

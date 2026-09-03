@@ -1,6 +1,6 @@
 # Workbench 移除 assistant-ui 与自有会话 Runtime 迁移计划
 
-状态：方向已确认；assistant-ui 专属 Agent skills 已删除，Phase 1–2 已完成，下一步 Phase 3（2026-09-03）
+状态：方向已确认；assistant-ui 专属 Agent skills 已删除，Phase 1–3 已完成，下一步 Phase 4（2026-09-03）
 
 ## 0. 决策摘要
 
@@ -310,7 +310,7 @@ export interface ConversationSession {
 
   node(key: string): HostObservable<ConversationNode | undefined>;
 
-  readonly actions: ConversationActions;
+  readonly actions: Readonly<Partial<ConversationActions>>;
 }
 ```
 
@@ -345,7 +345,8 @@ export interface ConversationActions {
 }
 ```
 
-只在当前产品确实支持对应行为时公开方法或 capability；不为未来假设添加空实现。
+只在当前产品确实支持对应行为时公开方法；方法存在本身就是 capability，调用方必须先检查，不为未来
+假设添加空实现。
 
 ## 7. Conversation 数据模型
 
@@ -565,7 +566,7 @@ src/
 |- session-provider.tsx
 |- bind-snapshot-selector.ts
 |- hooks.ts
-|- installation.tsx
+|- agent-runtime-installation.tsx
 `- index.ts
 ```
 
@@ -850,7 +851,7 @@ Phase 2 的退出条件均由 Pi Client 测试锁定：history/live 产生确定
 来自同一个 `PiClientSession`。2D 未改变 Provider 或 client/server 边界，因此按验证策略不额外运行
 全仓 build 或 Browser。Phase 3 Provider 和 UI 迁移未混入本阶段。
 
-### Phase 3：React Provider 和 Selector Hooks
+### Phase 3：React Provider 和 Selector Hooks（已完成，2026-09-03）
 
 工作：
 
@@ -865,6 +866,23 @@ Phase 2 的退出条件均由 Pi Client 测试锁定：history/live 产生确定
 - selector 只在选中值变化时渲染；
 - Session 切换按稳定 session id remount 所需子树；
 - 不产生第二个连接或第二个 SessionManager。
+
+完成记录：
+
+- `@workbench/agent-runtime-client` 新增只持有稳定 Runtime 的 `RuntimeProvider`、按稳定 session id
+  remount 的 `SessionProvider`，以及 Runtime、thread、Session 和 per-node selector hooks；
+- selector 绑定复用官方 `use-sync-external-store/with-selector`，未复制状态到 React Context；
+- `PiSessionManager` 直接实现 Headless `AgentRuntime` 的 thread/current/session faces，
+  `PiClientSession` 直接实现 `ConversationSession` 并只公开当前可支持的 action capabilities；
+- Pi 安装边界将同一个 manager 同时交给新 `RuntimeProvider` 和旧 assistant-ui Host；既有 route、
+  new-thread tracker、Session cache 与 transport lifecycle 保持原样；
+- React 组件测试锁定 Context/selector 隔离与 keyed remount，Pi Client 测试锁定 thread snapshot
+  结构共享、draft promotion 的稳定 Session id 和单 manager 安装；
+- Core Runtime 4 项、Core Client 29 项、Testkit 16 项、Pi Client 281 项测试通过；受影响 package 与
+  全仓 typecheck、workspace dependency check、Runtime/Web/Desktop/Electron production build 通过。
+
+本阶段没有迁移 Conversation/Message UI，也没有新增 Pi transport 或 SessionManager。Phase 4 从现有
+Shell 消息区域开始按 vertical slice 消费这些 hooks。
 
 ### Phase 4：Conversation 与 Message UI
 
@@ -1052,9 +1070,9 @@ Browser/E2E 只用于静态和组件测试无法确认的高风险交互，例�
 
 第一批只完成 Runtime 地基，不改用户界面：
 
-当前进度：1–4 已随 Phase 1 完成，5–7 已随 Phase 2 的 2A 切片完成；Session 物理提取已随 2B
-完成，canonical state 和发布优先级已随 2C 完成，临时兼容路径和架构说明已随 2D 收口。下一步从
-Phase 3 开始 Provider 和 selector hooks 迁移。
+当前进度：1–4 已随 Phase 1 完成，5–7 已随 Phase 2 完成；Phase 3 已补齐 React Provider、selector
+hooks，并把同一个 Pi manager/session 同时接入新旧 UI 边界。下一步从 Phase 4 开始 Conversation 与
+Message UI vertical slices。
 
 1. 新建 `packages/agent-runtime/core/runtime`；
 2. 定义最小 `HostObservable`、`Notifier`、`AgentRuntime` 和 `ConversationSession`；

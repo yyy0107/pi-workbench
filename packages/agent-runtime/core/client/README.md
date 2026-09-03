@@ -1,14 +1,19 @@
 # `@workbench/agent-runtime-client`
 
-Workbench 浏览器侧的、与具体 Agent 实现无关的 assistant-ui Runtime 接入层。
+Workbench 浏览器侧、与具体 Agent 实现无关的 Headless Runtime React 接入层。
 
-它直接复用 assistant-ui 的 Runtime、`RemoteThreadListAdapter`、Provider、消息和线程状态，
-只提供 Workbench 需要的 adapter 端口、Host、Runtime context、extras readers 及通用浏览器 adapters；
-不定义第二套消息、线程或流协议，也不依赖 Pi 或其他具体 Agent Runtime。
+`RuntimeProvider` 的 Context 只保存稳定 `AgentRuntime`；`SessionProvider` 通过稳定 session id
+限定并切换会话子树。`useThreadList`、`useSessionState` 和 `useConversationNode` 使用
+selector-aware external-store 订阅，未选中的 snapshot 变化不会触发组件重渲染。
+
+迁移期间，该 package 继续保留 assistant-ui Host、adapter 端口、extras readers 和通用浏览器
+adapters 作为兼容边界。新旧 React 路径读取同一个具体 Runtime/Session，不定义第二套消息、线程、
+流协议或连接，也不依赖 Pi 或其他具体 Agent Runtime。
 
 ## Public entries
 
-- `@workbench/agent-runtime-client`：Host、Runtime hook、通用浏览器 adapters、storage 与 tool helpers
+- `@workbench/agent-runtime-client`：`RuntimeProvider`、`SessionProvider`、selector hooks，以及临时兼容
+  Host、通用浏览器 adapters、storage 与 tool helpers
 - `@workbench/agent-runtime-client/adapter`：实现端口、thread presentation 与 extras 类型
 - `@workbench/agent-runtime-client/context`：Runtime identity、commands、thread snapshot/actions hooks
 - `@workbench/agent-runtime-client/extras`：对 assistant-ui `thread.extras` 的独立校验 readers

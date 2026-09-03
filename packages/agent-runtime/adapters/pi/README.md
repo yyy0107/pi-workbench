@@ -1166,10 +1166,12 @@ packages/agent-runtime/adapters/pi/
 - `@workbench/agent-runtime-pi-client` 是 Pi 对通用 `WorkbenchAgentRuntimeAdapter` 的具体浏览器实现。
   每个 `PiClientSession` 是其会话 history、live、optimistic、重连和交互状态的唯一可变所有者；这些输入
   共用 `PiConversationMessage` canonical state，并由 `PiConversationAssembler` 生成稳定的 Workbench
-  Conversation Snapshot 和 per-node observable。`assistant-ui/` 只保留从同一 Session 派生的只读兼容
-  投影及当前安装边界，不建立第二个 reducer、连接或消息 store。该 package 还拥有后台 thread
-  presentation、通用 extras 和 callback 映射，以及 Pi manager、命令目录、workspace selection 与
-  active/draft tracker 的浏览器侧安装生命周期；通用
+  Conversation Snapshot 和 per-node observable。`PiSessionManager` 同时通过稳定 observable 暴露通用
+  `AgentRuntime` 的 thread catalog、current selection 和同一 Session cache；`assistant-ui/` 只保留从
+  同一 Session 派生的只读兼容投影及当前安装边界。Provider 将同一个 manager 同时安装到
+  `RuntimeProvider` 与旧 Host，不建立第二个 reducer、连接、SessionManager 或消息 store。该 package
+  还拥有后台 thread presentation、通用 extras 和 callback 映射，以及 Pi manager、命令目录、workspace
+  selection 与 active/draft tracker 的浏览器侧安装生命周期；通用
   `@workbench/agent-runtime-client` 不得反向导入 Pi。内部 `thread-store.ts` 直接包装 manager 已有逐线程订阅并将
   `cwd` 映射为通用 `rootPath`，不建立第二份缓存；`command-catalog.tsx` 负责选择 session/workspace
   target 与订阅资源 revision，纯 `CommandView` 投影复用 Pi shared package。

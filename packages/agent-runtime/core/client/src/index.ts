@@ -13,6 +13,16 @@ export {
 } from "./adapters/history";
 export { useWorkbenchRuntimeAdapters } from "./adapters/use-workbench-runtime-adapters";
 export { WorkbenchAgentRuntimeHost } from "./agent-runtime-host";
+export { bindSnapshotSelector, type SnapshotSelectorHook } from "./bind-snapshot-selector";
+export {
+  useAgentRuntime,
+  useConversationNode,
+  useCurrentSession,
+  useSessionState,
+  useThreadList,
+} from "./hooks";
+export { RuntimeProvider } from "./runtime-provider";
+export { SessionProvider, type SessionProviderProps } from "./session-provider";
 export {
   createWorkbenchParallelToolPresentationMetadata,
   createWorkbenchReasoningPresentationMetadata,

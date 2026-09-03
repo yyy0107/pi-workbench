@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
 
-import { WorkbenchAgentRuntimeHost } from "@workbench/agent-runtime-client";
+import { RuntimeProvider, WorkbenchAgentRuntimeHost } from "@workbench/agent-runtime-client";
 import type { PromptFeedbackPort } from "@workbench/agent-runtime-client/prompt-feedback";
 import type { WorkbenchWorkspaceDirectoryStorePort } from "@workbench/agent-runtime-client/workspaces";
 
@@ -75,11 +75,13 @@ export function PiAgentRuntimeProvider({
     <PiAgentRuntimeCopyProvider copy={copy}>
       <PiSessionManagerProvider manager={manager}>
         <PiWorkspaceSelectionProvider directoryStore={workspaceDirectoryStore}>
-          <WorkbenchAgentRuntimeHost adapter={adapter}>
-            <ActivePiThreadTracker manager={manager} />
-            <PiDraftWorkspaceTracker manager={manager} />
-            {children}
-          </WorkbenchAgentRuntimeHost>
+          <RuntimeProvider runtime={manager}>
+            <WorkbenchAgentRuntimeHost adapter={adapter}>
+              <ActivePiThreadTracker manager={manager} />
+              <PiDraftWorkspaceTracker manager={manager} />
+              {children}
+            </WorkbenchAgentRuntimeHost>
+          </RuntimeProvider>
         </PiWorkspaceSelectionProvider>
       </PiSessionManagerProvider>
     </PiAgentRuntimeCopyProvider>

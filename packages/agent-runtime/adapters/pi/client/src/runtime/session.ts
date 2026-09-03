@@ -10,7 +10,11 @@ import type {
   ConversationNode,
   ConversationSnapshot,
 } from "@workbench/agent-runtime-contracts/conversation";
-import type { HostObservable } from "@workbench/agent-runtime-core";
+import type {
+  ConversationActions,
+  ConversationSession,
+  HostObservable,
+} from "@workbench/agent-runtime-core";
 import {
   isWorkbenchComposerCommandResponseCustomType,
   parseWorkbenchComposerCommandResponseDetails,
@@ -325,10 +329,11 @@ function sameAssistantResponse(left: ThreadMessage, right: ThreadMessage): boole
   );
 }
 
-export class PiClientSession {
+export class PiClientSession implements ConversationSession {
   readonly id: string;
   readonly localId: string;
   readonly snapshot: HostObservable<ConversationSnapshot>;
+  readonly actions: Readonly<Partial<ConversationActions>>;
   readonly runtimeExtras: {
     piQueue: {
       beginEdit(id: string): QueueItemState | undefined;
@@ -525,6 +530,11 @@ export class PiClientSession {
       messages: this.conversationMessages,
       isLoading: this.snapshotValue.isLoading,
       isRunning: this.snapshotValue.isRunning,
+    });
+    this.actions = Object.freeze({
+      cancel: () => this.cancel(),
+      retry: (nodeKey) => this.retry(nodeKey, undefined),
+      loadOlder: () => this.reload(),
     });
     this.messageQueue = new PiMessageQueue({
       isRunning: () => this.snapshotValue.isRunning,
