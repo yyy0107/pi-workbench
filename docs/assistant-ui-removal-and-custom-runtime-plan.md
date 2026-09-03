@@ -1,6 +1,6 @@
 # Workbench 移除 assistant-ui 与自有会话 Runtime 迁移计划
 
-状态：方向已确认；assistant-ui 专属 Agent skills 已删除，Phase 1 已完成，Phase 2 已完成 2A–2B（2026-09-02）
+状态：方向已确认；assistant-ui 专属 Agent skills 已删除，Phase 1 已完成，Phase 2 已完成 2A–2C、下一步 2D（2026-09-03）
 
 ## 0. 决策摘要
 
@@ -511,13 +511,13 @@ WebSocket frame
 ### 9.2 发布优先级
 
 ```ts
-type ConversationPublication = "none" | "animation-frame" | "immediate";
+type ConversationPublication = "microtask" | "animation-frame" | "immediate";
 ```
 
 - text/reasoning delta：`animation-frame`；
 - 普通 catalog、metadata 和非紧急状态：microtask；
 - finish、error、approval/question、受控 Composer 输入：`immediate`；
-- usage-only 且 UI 不展示的更新：`none`。
+- usage-only 且 UI 不展示的更新：不进入 Conversation 发布链路。
 
 Notifier 必须先重建缓存 snapshot，再通知订阅者，保证 `useSyncExternalStore` 的 snapshot 引用稳定。
 
@@ -829,16 +829,20 @@ export interface ToolRendererProps {
 
 执行切片：
 
-| 切片 | 状态                 | 变更范围                                                                                                                   | 最小验证                                                        |
-| ---- | -------------------- | -------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| 2A   | 已完成（2026-09-02） | 接入 session-owned `PiConversationAssembler`；稳定 Node/Block key、结构共享、per-node observable 和同一 Session 双投影     | Pi Client 277 项测试、package typecheck、workspace dependency   |
-| 2B   | 已完成（2026-09-02） | 将 `PiClientSession` 和仅属于 Session 的 helper 物理移动到 `runtime/session.ts`；`manager.ts` 只保留目录、选择、缓存和路由 | 兼容导出不变；Pi Client 277 项测试和 package typecheck 通过     |
-| 2C   | 下一步               | 让 Assembler 直接消费 Pi-owned canonical history/live state；assistant-ui 改为同源的下游兼容投影；接入发布优先级           | history/live 等价、reconnect、partial args 和 Node 通知定向测试 |
-| 2D   | 待开始               | 对照本阶段退出条件收口，更新 Pi Client 架构说明并删除本阶段已失效的临时路径                                                | package typecheck/test、workspace dependency；按边界决定 build  |
+| 切片 | 状态                 | 变更范围                                                                                                                   | 最小验证                                                                          |
+| ---- | -------------------- | -------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| 2A   | 已完成（2026-09-02） | 接入 session-owned `PiConversationAssembler`；稳定 Node/Block key、结构共享、per-node observable 和同一 Session 双投影     | Pi Client 277 项测试、package typecheck、workspace dependency                     |
+| 2B   | 已完成（2026-09-02） | 将 `PiClientSession` 和仅属于 Session 的 helper 物理移动到 `runtime/session.ts`；`manager.ts` 只保留目录、选择、缓存和路由 | 兼容导出不变；Pi Client 277 项测试和 package typecheck 通过                       |
+| 2C   | 已完成（2026-09-03） | 让 Assembler 直接消费 Pi-owned canonical history/live state；assistant-ui 改为同源的下游兼容投影；接入发布优先级           | Pi Client 279 项测试；覆盖 history/live、reconnect、partial args 和 Node 定向通知 |
+| 2D   | 待开始               | 对照本阶段退出条件收口，更新 Pi Client 架构说明并删除本阶段已失效的临时路径                                                | package typecheck/test、workspace dependency；按边界决定 build                    |
 
-2A 暂时以 assistant-ui projection 作为 Assembler 输入，这是避免第二个事件 reducer 的迁移边界，不是最终事实源；
+2A 暂时以 assistant-ui projection 作为 Assembler 输入，这是避免第二个事件 reducer 的迁移边界；
 2B 通过 `manager.ts` 的兼容 re-export 保持现有调用方不变，并仅使用 type-only 的 Session → Manager 引用，
-不形成运行时循环。2C 完成前 Phase 2 保持“进行中”；Phase 3 Provider 和任何 UI 迁移不得提前混入 2C。
+不形成运行时循环。2C 已将 history、live 和 optimistic 共用的归一化消息形态收归
+`PiConversationMessage`，Assembler 直接消费该状态并生成 Workbench Node；assistant-ui 只从同一状态
+获取零拷贝兼容投影。普通 history/metadata 使用 microtask，流式 delta 复用 Session 既有 RAF 合帧，
+finish/error 等终态立即发布，且 immediate 更新会抢占待发布的低优先级通知。Phase 2 保持“进行中”，
+下一步只执行 2D 收口；Phase 3 Provider 和 UI 迁移不混入本阶段。
 
 ### Phase 3：React Provider 和 Selector Hooks
 
@@ -1043,7 +1047,7 @@ Browser/E2E 只用于静态和组件测试无法确认的高风险交互，例�
 第一批只完成 Runtime 地基，不改用户界面：
 
 当前进度：1–4 已随 Phase 1 完成，5–7 已随 Phase 2 的 2A 切片完成；Session 物理提取已随 2B
-完成，后续工作按 Phase 2 的 2C–2D 切片执行。
+完成，canonical state 和发布优先级已随 2C 完成，后续只执行 Phase 2 的 2D 收口。
 
 1. 新建 `packages/agent-runtime/core/runtime`；
 2. 定义最小 `HostObservable`、`Notifier`、`AgentRuntime` 和 `ConversationSession`；

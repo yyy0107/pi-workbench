@@ -1,13 +1,4 @@
-import type {
-  AppendMessage,
-  ImageMessagePart,
-  MessageTiming,
-  ThreadAssistantMessage,
-  ThreadMessage,
-  ThreadUserMessage,
-  ToolCallMessagePart,
-  ToolCallTiming,
-} from "@assistant-ui/react";
+import type { AppendMessage } from "@assistant-ui/react";
 
 import {
   parseAttachmentRecognitionSnapshot,
@@ -68,6 +59,15 @@ import type {
 } from "@workbench/agent-runtime-pi-protocol/rpc";
 import { terminationFromAssistantMessage } from "@workbench/agent-runtime-pi-shared/messages";
 import type { PiMessageTermination } from "@workbench/agent-runtime-pi-shared/messages";
+import type {
+  PiConversationAssistantMessage as ThreadAssistantMessage,
+  PiConversationMessage as ThreadMessage,
+  PiConversationUserMessage as ThreadUserMessage,
+  PiImageMessagePart as ImageMessagePart,
+  PiMessageTiming as MessageTiming,
+  PiToolCallMessagePart as ToolCallMessagePart,
+  PiToolCallTiming as ToolCallTiming,
+} from "../conversation/pi-conversation-message";
 
 import { parsePiConversationEvent, projectPiConversationEvent } from "./conversation-events";
 import type { PiUsageMetadata } from "./pi-usage";

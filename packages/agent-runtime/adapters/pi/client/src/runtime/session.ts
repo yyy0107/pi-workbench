@@ -2,12 +2,8 @@ import type {
   AppendMessage,
   ExportedMessageRepository,
   ExternalThreadQueueAdapter,
-  MessageTiming,
   QueueItemState,
-  ThreadAssistantMessage,
-  ThreadMessage,
-  ThreadUserMessage,
-  ToolCallTiming,
+  ThreadMessage as AssistantUiThreadMessage,
 } from "@assistant-ui/react";
 
 import type {
@@ -115,7 +111,18 @@ import {
   piAutoRetryFromHistory,
   type PiAutoRetrySnapshot,
 } from "./auto-retry";
-import { PiConversationAssembler } from "../conversation/conversation-assembler";
+import { assistantUiMessagesFromPiConversation } from "../assistant-ui/conversation-projection";
+import {
+  PiConversationAssembler,
+  type ConversationPublication,
+} from "../conversation/conversation-assembler";
+import type {
+  PiConversationAssistantMessage as ThreadAssistantMessage,
+  PiConversationMessage as ThreadMessage,
+  PiConversationUserMessage as ThreadUserMessage,
+  PiMessageTiming as MessageTiming,
+  PiToolCallTiming as ToolCallTiming,
+} from "../conversation/pi-conversation-message";
 import type { PiSessionManager } from "./manager";
 
 type Listener = () => void;
@@ -215,7 +222,7 @@ function livePiUserMessage(
 }
 
 export interface PiSessionSnapshot {
-  messages: readonly ThreadMessage[];
+  messages: readonly AssistantUiThreadMessage[];
   messageRepository: ExportedMessageRepository;
   /** User-visible response activity exposed to assistant-ui, excluding post-response host cleanup. */
   isRunning: boolean;
@@ -348,6 +355,7 @@ export class PiClientSession {
   private queueRejectionRevision = 0;
   private readonly authoritativeMessageIdAliases = new Map<string, string>();
   private snapshotValue: PiSessionSnapshot;
+  private conversationMessages: readonly ThreadMessage[] = [];
   private openTask?: Promise<void>;
   private reloadTask?: Promise<void>;
   private historyRebaselineGeneration = 0;
@@ -513,7 +521,11 @@ export class PiClientSession {
     };
     this.conversationAssembler = new PiConversationAssembler(localId);
     this.snapshot = this.conversationAssembler.snapshot;
-    this.conversationAssembler.update(this.snapshotValue);
+    this.conversationAssembler.update({
+      messages: this.conversationMessages,
+      isLoading: this.snapshotValue.isLoading,
+      isRunning: this.snapshotValue.isRunning,
+    });
     this.messageQueue = new PiMessageQueue({
       isRunning: () => this.snapshotValue.isRunning,
       run: (message) => this.send(message),
@@ -579,6 +591,7 @@ export class PiClientSession {
     this.branchLeafByHeadMessageId.clear();
     this.liveMessages = [];
     this.streamingMessage = undefined;
+    this.conversationMessages = [];
     this.activeUserMessageId = undefined;
     this.activeAssistantMessageId = undefined;
     this.lastSequence = -1;
@@ -707,7 +720,7 @@ export class PiClientSession {
         this.snapshotValue.isRunning && historySequence >= this.lastSequence
           ? piAutoRetryFromHistory(value)
           : this.snapshotValue.autoRetry;
-      this.publishMessages({ autoRetry, resumeCheckpoint: value.resume?.checkpoint });
+      this.publishMessages({ autoRetry, resumeCheckpoint: value.resume?.checkpoint }, "microtask");
       if (authoritativeStreamingMessage?.status?.type === "complete") {
         this.setRunning(false, false);
       }
@@ -1229,13 +1242,15 @@ export class PiClientSession {
     const wasRunning = this.snapshotValue.isRunning;
     if (!running && this.discardEmptyOptimisticAssistant()) {
       const messages = this.currentMessages();
-      this.replaceSnapshot({
-        messages,
-        messageRepository: this.currentMessageRepository(messages),
-        isRunning: false,
-        runTiming: undefined,
-        autoRetry: undefined,
-      });
+      this.replaceSnapshot(
+        {
+          ...this.conversationPatch(messages),
+          isRunning: false,
+          runTiming: undefined,
+          autoRetry: undefined,
+        },
+        "immediate",
+      );
     } else {
       this.setRunning(running, false, runTiming);
     }
@@ -1959,23 +1974,26 @@ export class PiClientSession {
           runTiming: clientRunTiming(runTiming, this.snapshotValue.runTiming),
         });
       } else if (!running && (this.snapshotValue.autoRetry || this.snapshotValue.runTiming)) {
-        this.replaceSnapshot({ autoRetry: undefined, runTiming: undefined });
+        this.replaceSnapshot({ autoRetry: undefined, runTiming: undefined }, "immediate");
       }
       if (notifyManager && this.remoteIdValue) {
         this.manager.updateRunningFromSession(this.remoteIdValue, running, this, runTiming);
       }
       return;
     }
-    this.replaceSnapshot({
-      isRunning: running,
-      runTiming:
-        running && runTiming !== undefined
-          ? clientRunTiming(runTiming, this.snapshotValue.runTiming)
-          : running
-            ? this.snapshotValue.runTiming
-            : undefined,
-      ...(running ? {} : { autoRetry: undefined }),
-    });
+    this.replaceSnapshot(
+      {
+        isRunning: running,
+        runTiming:
+          running && runTiming !== undefined
+            ? clientRunTiming(runTiming, this.snapshotValue.runTiming)
+            : running
+              ? this.snapshotValue.runTiming
+              : undefined,
+        ...(running ? {} : { autoRetry: undefined }),
+      },
+      "immediate",
+    );
     if (notifyManager && this.remoteIdValue) {
       this.manager.updateRunningFromSession(this.remoteIdValue, running, this, runTiming);
     }
@@ -2097,26 +2115,25 @@ export class PiClientSession {
 
   private publishMessages(
     patch: Pick<Partial<PiSessionSnapshot>, "autoRetry" | "resumeCheckpoint"> = {},
+    publication: ConversationPublication = "immediate",
   ): void {
     if (this.disposed) return;
     const messages = this.currentMessages();
-    this.replaceSnapshot({
-      messages,
-      messageRepository: this.currentMessageRepository(messages),
-      ...patch,
-    });
+    this.replaceSnapshot({ ...this.conversationPatch(messages), ...patch }, publication);
   }
 
   private publishMessagesAndSetRunning(running: boolean, notifyManager = true): void {
     if (this.disposed) return;
     const messages = this.currentMessages();
-    this.replaceSnapshot({
-      messages,
-      messageRepository: this.currentMessageRepository(messages),
-      isRunning: running,
-      ...(running ? {} : { runTiming: undefined }),
-      autoRetry: undefined,
-    });
+    this.replaceSnapshot(
+      {
+        ...this.conversationPatch(messages),
+        isRunning: running,
+        ...(running ? {} : { runTiming: undefined }),
+        autoRetry: undefined,
+      },
+      "immediate",
+    );
     if (notifyManager && this.remoteIdValue) {
       this.manager.updateRunningFromSession(this.remoteIdValue, running, this);
     }
@@ -2302,10 +2319,7 @@ export class PiClientSession {
     let messagePatch: Partial<Pick<PiSessionSnapshot, "messages" | "messageRepository">> = {};
     if (messagesChanged) {
       const messages = this.currentMessages();
-      messagePatch = {
-        messages,
-        messageRepository: this.currentMessageRepository(messages),
-      };
+      messagePatch = this.conversationPatch(messages);
     }
     this.replaceSnapshot({
       queuePaused: this.messageQueue.isPaused,
@@ -2328,6 +2342,8 @@ export class PiClientSession {
     const publish = () => {
       this.messagePublishScheduled = false;
       if (this.disposed) return;
+      // This callback is already the streaming animation-frame boundary; publishing the
+      // assembler immediately here avoids adding a second frame of visible latency.
       this.publishMessages();
     };
     if (typeof globalThis.requestAnimationFrame === "function") {
@@ -2337,10 +2353,30 @@ export class PiClientSession {
     }
   }
 
-  private replaceSnapshot(patch: Partial<PiSessionSnapshot>): void {
+  private conversationPatch(
+    messages: readonly ThreadMessage[],
+  ): Pick<PiSessionSnapshot, "messages" | "messageRepository"> {
+    this.conversationMessages = messages;
+    return {
+      messages: assistantUiMessagesFromPiConversation(messages),
+      messageRepository: this.currentMessageRepository(messages),
+    };
+  }
+
+  private replaceSnapshot(
+    patch: Partial<PiSessionSnapshot>,
+    publication: ConversationPublication = "microtask",
+  ): void {
     if (this.disposed) return;
     this.snapshotValue = { ...this.snapshotValue, ...patch };
-    this.conversationAssembler.update(this.snapshotValue);
+    this.conversationAssembler.update(
+      {
+        messages: this.conversationMessages,
+        isLoading: this.snapshotValue.isLoading,
+        isRunning: this.snapshotValue.isRunning,
+      },
+      publication,
+    );
     for (const listener of this.listeners) listener();
   }
 }

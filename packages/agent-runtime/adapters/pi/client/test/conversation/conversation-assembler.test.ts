@@ -9,8 +9,9 @@ import type {
 } from "@workbench/agent-runtime-pi-protocol/stream";
 
 import { PiConversationAssembler } from "../../src/conversation/conversation-assembler";
-import { piAssistantToThreadMessage } from "../../src/messages/messages";
+import { piAssistantToThreadMessage, piHistoryToThreadMessages } from "../../src/messages/messages";
 import { PiSessionManager } from "../../src/runtime/manager";
+import { piHistoryFromSessionEvents } from "../../src/sessions/session-rpc-adapter";
 import { SessionMessageAccumulator } from "../../src/transport/session-message-accumulator";
 
 function user(id: string, text: string): ThreadMessage {
@@ -57,6 +58,47 @@ function projectedAssistant(event: Record<string, unknown>): ThreadAssistantMess
     rawToolArgsText: event.rawToolArgsText as Readonly<Record<string, string>> | undefined,
   });
 }
+
+test("assembles equivalent nodes from history replay and live Pi messages", () => {
+  const message: PiAssistantMessage = {
+    role: "assistant",
+    content: [{ type: "text", text: "Same answer" }],
+    stopReason: "stop",
+    timestamp: 1_725_000_000_001,
+  };
+  const history = piHistoryFromSessionEvents("session-1", {
+    events: [
+      {
+        event: {
+          type: "message_end",
+          seq: 7,
+          time: 1_725_000_000_002,
+          entryId: "assistant-1",
+          data: { message },
+        },
+      },
+    ],
+    hasMore: false,
+  });
+  const replay = new PiConversationAssembler("session-1");
+  replay.update({
+    messages: piHistoryToThreadMessages(history),
+    isLoading: false,
+    isRunning: false,
+  });
+  const live = new PiConversationAssembler("session-1");
+  live.update({
+    messages: [piAssistantToThreadMessage(message, "assistant-1", { eventSeq: 7 })],
+    isLoading: false,
+    isRunning: false,
+  });
+
+  assert.deepEqual(live.snapshot.getSnapshot(), replay.snapshot.getSnapshot());
+  assert.deepEqual(
+    live.node("assistant-1").getSnapshot(),
+    replay.node("assistant-1").getSnapshot(),
+  );
+});
 
 test("publishes only changed nodes and preserves stable blocks across replay and deltas", () => {
   const assembler = new PiConversationAssembler("session-1");
@@ -125,6 +167,52 @@ test("publishes only changed nodes and preserves stable blocks across replay and
   });
   assert.equal(assembler.node("assistant-1").getSnapshot(), deltaAssistantNode);
   assert.equal(assistantNotifications, 1);
+});
+
+test("lets an immediate terminal update supersede a pending streaming frame", () => {
+  const runtimeGlobal = globalThis as unknown as {
+    requestAnimationFrame?: (callback: () => void) => number;
+  };
+  const original = runtimeGlobal.requestAnimationFrame;
+  const frames: Array<() => void> = [];
+  runtimeGlobal.requestAnimationFrame = (callback) => frames.push(callback);
+
+  try {
+    const assembler = new PiConversationAssembler("session-1");
+    assembler.update({
+      messages: [assistant("Searching")],
+      isLoading: false,
+      isRunning: true,
+    });
+    let notifications = 0;
+    assembler.node("assistant-1").subscribe(() => notifications++);
+
+    assembler.update(
+      {
+        messages: [assistant("Done")],
+        isLoading: false,
+        isRunning: true,
+      },
+      "animation-frame",
+    );
+    assert.equal(notifications, 0);
+    assert.equal(frames.length, 1);
+
+    assembler.update(
+      {
+        messages: [assistant("Done")],
+        isLoading: false,
+        isRunning: false,
+      },
+      "immediate",
+    );
+    assert.equal(notifications, 1);
+    frames[0]?.();
+    assert.equal(notifications, 1);
+  } finally {
+    if (original) runtimeGlobal.requestAnimationFrame = original;
+    else delete runtimeGlobal.requestAnimationFrame;
+  }
 });
 
 test("keeps partial tool JSON through overlap dedupe and gap snapshot repair", () => {

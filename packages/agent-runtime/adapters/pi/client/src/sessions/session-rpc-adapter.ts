@@ -132,7 +132,7 @@ function assistantMessageHasOutput(message: PiAgentMessage | undefined): boolean
   );
 }
 
-/** Convert canonical session history events into the existing assistant-ui message projection. */
+/** Rebuild canonical Pi message history from persisted session events. */
 export function piHistoryFromSessionEvents(
   sessionId: string,
   history: SessionHistoryValue,
