@@ -1,6 +1,6 @@
 # Workbench 移除 assistant-ui 与自有会话 Runtime 迁移计划
 
-状态：方向已确认；assistant-ui 专属 Agent skills 已删除，Phase 1 Runtime 地基已完成（2026-09-02）
+状态：方向已确认；assistant-ui 专属 Agent skills 已删除，Phase 1 已完成，Phase 2 已完成 2A–2B（2026-09-02）
 
 ## 0. 决策摘要
 
@@ -810,7 +810,7 @@ export interface ToolRendererProps {
 - Notifier 的 snapshot cache、microtask、animation frame 和 immediate 发布测试通过；相关 package
   typecheck/test、workspace dependency check、全仓 typecheck 和 Web/Electron build 通过。
 
-### Phase 2：Pi Session 和 Conversation Assembler
+### Phase 2：Pi Session 和 Conversation Assembler（进行中，2026-09-02）
 
 工作：
 
@@ -826,6 +826,19 @@ export interface ToolRendererProps {
 - overlap、gap、reconnect、partial tool JSON 有测试；
 - 单个 delta 不改变无关 Node 引用；
 - assistant-ui 和新 Snapshot 来自同一 PiClientSession。
+
+执行切片：
+
+| 切片 | 状态                 | 变更范围                                                                                                                   | 最小验证                                                        |
+| ---- | -------------------- | -------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| 2A   | 已完成（2026-09-02） | 接入 session-owned `PiConversationAssembler`；稳定 Node/Block key、结构共享、per-node observable 和同一 Session 双投影     | Pi Client 277 项测试、package typecheck、workspace dependency   |
+| 2B   | 已完成（2026-09-02） | 将 `PiClientSession` 和仅属于 Session 的 helper 物理移动到 `runtime/session.ts`；`manager.ts` 只保留目录、选择、缓存和路由 | 兼容导出不变；Pi Client 277 项测试和 package typecheck 通过     |
+| 2C   | 下一步               | 让 Assembler 直接消费 Pi-owned canonical history/live state；assistant-ui 改为同源的下游兼容投影；接入发布优先级           | history/live 等价、reconnect、partial args 和 Node 通知定向测试 |
+| 2D   | 待开始               | 对照本阶段退出条件收口，更新 Pi Client 架构说明并删除本阶段已失效的临时路径                                                | package typecheck/test、workspace dependency；按边界决定 build  |
+
+2A 暂时以 assistant-ui projection 作为 Assembler 输入，这是避免第二个事件 reducer 的迁移边界，不是最终事实源；
+2B 通过 `manager.ts` 的兼容 re-export 保持现有调用方不变，并仅使用 type-only 的 Session → Manager 引用，
+不形成运行时循环。2C 完成前 Phase 2 保持“进行中”；Phase 3 Provider 和任何 UI 迁移不得提前混入 2C。
 
 ### Phase 3：React Provider 和 Selector Hooks
 
@@ -1025,11 +1038,12 @@ Browser/E2E 只用于静态和组件测试无法确认的高风险交互，例�
 | 复制 DSH 整套框架                 | Cordis、React、协议耦合      | 只借鉴算法和对象模型，使用 Workbench contracts |
 | 同时修改服务端持久化              | 故障定位和回滚困难           | durable chunk 单独 Phase 9                     |
 
-## 18. 第一批交付范围
+## 18. 第一批交付范围（已完成，2026-09-02）
 
 第一批只完成 Runtime 地基，不改用户界面：
 
-当前进度：1–4 已随 Phase 1 完成；5–7 属于 Phase 2，尚未开始。
+当前进度：1–4 已随 Phase 1 完成，5–7 已随 Phase 2 的 2A 切片完成；Session 物理提取已随 2B
+完成，后续工作按 Phase 2 的 2C–2D 切片执行。
 
 1. 新建 `packages/agent-runtime/core/runtime`；
 2. 定义最小 `HostObservable`、`Notifier`、`AgentRuntime` 和 `ConversationSession`；
@@ -1049,7 +1063,7 @@ Browser/E2E 只用于静态和组件测试无法确认的高风险交互，例�
 - 不创建 `chat-ui` package；
 - 不移除 assistant-ui dependency。
 
-这些工作在第一批完成后才进入后续 vertical slices。
+以上跳过项继续保持边界；只有对应后续 Phase 开始后才进入 vertical slices。
 
 ## 19. 完成定义
 

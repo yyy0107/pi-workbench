@@ -333,6 +333,9 @@ importers:
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
         version: link:../../../core/contracts
+      '@workbench/agent-runtime-core':
+        specifier: workspace:*
+        version: link:../../../core/runtime
       '@workbench/agent-runtime-pi-protocol':
         specifier: workspace:*
         version: link:../protocol
