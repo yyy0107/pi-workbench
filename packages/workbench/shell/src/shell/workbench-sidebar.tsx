@@ -37,7 +37,7 @@ export function WorkbenchSidebarContent({
   const sectionRegistry = useSidebarSectionRegistry();
   const sections = useSyncExternalStore(
     sectionRegistry.subscribe,
-    sectionRegistry.getAll,
+    () => sectionRegistry.getAll(),
     () => EMPTY_SIDEBAR_SECTIONS,
   );
   const [requestedSectionId, setRequestedSectionId] = useState("workspace");
