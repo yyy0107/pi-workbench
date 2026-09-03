@@ -1,0 +1,45 @@
+{
+  "name": "@workbench/agent-runtime-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./notifier": {
+      "types": "./src/notifier.ts",
+      "import": "./src/notifier.ts",
+      "default": "./src/notifier.ts"
+    },
+    "./observable": {
+      "types": "./src/observable.ts",
+      "import": "./src/observable.ts",
+      "default": "./src/observable.ts"
+    },
+    "./runtime": {
+      "types": "./src/runtime.ts",
+      "import": "./src/runtime.ts",
+      "default": "./src/runtime.ts"
+    },
+    "./thread-manager": {
+      "types": "./src/thread-manager.ts",
+      "import": "./src/thread-manager.ts",
+      "default": "./src/thread-manager.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@workbench/agent-runtime-contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2"
+  }
+}

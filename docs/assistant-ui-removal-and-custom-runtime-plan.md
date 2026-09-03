@@ -1,6 +1,6 @@
 # Workbench 移除 assistant-ui 与自有会话 Runtime 迁移计划
 
-状态：方向已确认；项目内 assistant-ui 专属 Agent skills 已删除，产品代码迁移尚未开始（2026-09-02）
+状态：方向已确认；assistant-ui 专属 Agent skills 已删除，Phase 1 Runtime 地基已完成（2026-09-02）
 
 ## 0. 决策摘要
 
@@ -784,7 +784,7 @@ export interface ToolRendererProps {
 - 已覆盖 edit/retry/fork、attachment、approval/question；
 - 已记录允许临时存在的兼容入口。
 
-### Phase 1：Headless Core 和 Workbench Contracts
+### Phase 1：Headless Core 和 Workbench Contracts（已完成，2026-09-02）
 
 工作：
 
@@ -799,6 +799,16 @@ export interface ToolRendererProps {
 - Core package 不依赖 React、Pi、Shell 或 assistant-ui；
 - snapshot 缓存、microtask/RAF/immediate 发布有小型单元测试；
 - Fake Runtime 可以在无 Pi、无 React 环境构造和推进状态。
+
+完成记录：
+
+- 新增 `@workbench/agent-runtime-core`，公开 `HostObservable`、`Notifier`、Runtime/Session faces
+  和 Thread Catalog snapshots；
+- `@workbench/agent-runtime-contracts/conversation` 已提供 Node、Block、Conversation Snapshot、
+  Composer Snapshot 与复用既有 canonical Composer submission 的 actions 输入；
+- `@workbench/agent-runtime-testkit/runtime` 已提供无 React、无 Pi 的 Fake Runtime/Fake Session；
+- Notifier 的 snapshot cache、microtask、animation frame 和 immediate 发布测试通过；相关 package
+  typecheck/test、workspace dependency check、全仓 typecheck 和 Web/Electron build 通过。
 
 ### Phase 2：Pi Session 和 Conversation Assembler
 
@@ -1018,6 +1028,8 @@ Browser/E2E 只用于静态和组件测试无法确认的高风险交互，例�
 ## 18. 第一批交付范围
 
 第一批只完成 Runtime 地基，不改用户界面：
+
+当前进度：1–4 已随 Phase 1 完成；5–7 属于 Phase 2，尚未开始。
 
 1. 新建 `packages/agent-runtime/core/runtime`；
 2. 定义最小 `HostObservable`、`Notifier`、`AgentRuntime` 和 `ConversationSession`；

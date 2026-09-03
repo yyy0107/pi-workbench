@@ -623,6 +623,19 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
+  packages/agent-runtime/core/runtime:
+    dependencies:
+      '@workbench/agent-runtime-contracts':
+        specifier: workspace:*
+        version: link:../contracts
+    devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.2.0
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
   packages/agent-runtime/core/server:
     dependencies:
       '@workbench/agent-runtime-contracts':
@@ -653,6 +666,9 @@ importers:
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@workbench/agent-runtime-core':
+        specifier: workspace:*
+        version: link:../runtime
       '@workbench/agent-runtime-server':
         specifier: workspace:*
         version: link:../server

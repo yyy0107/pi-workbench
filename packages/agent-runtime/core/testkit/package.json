@@ -14,6 +14,11 @@
       "types": "./src/server/index.ts",
       "import": "./src/server/index.ts",
       "default": "./src/server/index.ts"
+    },
+    "./runtime": {
+      "types": "./src/runtime/index.ts",
+      "import": "./src/runtime/index.ts",
+      "default": "./src/runtime/index.ts"
     }
   },
   "scripts": {
@@ -24,6 +29,7 @@
     "@assistant-ui/react": "0.15.16",
     "@workbench/agent-runtime-client": "workspace:*",
     "@workbench/agent-runtime-contracts": "workspace:*",
+    "@workbench/agent-runtime-core": "workspace:*",
     "@workbench/agent-runtime-server": "workspace:*"
   },
   "devDependencies": {
