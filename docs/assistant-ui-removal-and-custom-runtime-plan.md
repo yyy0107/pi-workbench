@@ -23,18 +23,17 @@ Conversation Node、稳定快照和 selector 订阅设计，实现 Workbench 自
 本计划采用“最终全部删除、实施分阶段切换”的方式。assistant-ui 兼容投影只允许作为迁移脚手架存在，
 不得成为长期双 Runtime。
 
-## 1. 与既有架构文档的关系
+## 1. 与既有架构的关系
 
-[Workbench Agent Runtime 多 Package 重构计划](./multi-package-agent-runtime-refactor-plan.md) 已于
-2026-08-29 完成，是当时 package 拆分工作的历史记录。该计划明确选择继续复用 assistant-ui，避免在同一交付中
-建立第二套浏览器消息和线程模型。
+2026-08-29 落地的 Agent Runtime 多 Package 架构是当前代码基线，不再保留单独的迁移计划文档。
+该架构当时选择继续复用 assistant-ui，避免在同一交付中建立第二套浏览器消息和线程模型。
 
 本计划是后续独立决策，只取代以下旧假设：
 
 > 浏览器继续由 assistant-ui 管理 messages、Composer、thread state 和 Runtime scopes。
 
-既有计划中已经完成的 Ports and Adapters、Pi Client/Server 分离、应用组合根、Extension Platform、
-package exports 和依赖边界继续有效，不回写也不重新定义其历史交付结果。
+现有实现中的 Ports and Adapters、Pi Client/Server 分离、应用组合根、Extension Platform、package exports
+和依赖边界继续有效；本计划不回滚或重新实现这些已经落地的边界。
 
 相关参考：
 
