@@ -17,7 +17,7 @@ export const toolboxExtension = defineExtension({
   version: "1.0.0",
   setup(context) {
     const binding = createPiResourceFileOpenersBinding();
-    const openers = registerPiResourceFileOpeners(context.openers, binding);
+    const openers = registerPiResourceFileOpeners(context.openers, binding, context.workspace);
     const resourceBridge = context.slots.register("shell.overlay", {
       id: "workbench.toolbox.file-openers",
       component: createPiResourceFileOpenersContribution(binding),

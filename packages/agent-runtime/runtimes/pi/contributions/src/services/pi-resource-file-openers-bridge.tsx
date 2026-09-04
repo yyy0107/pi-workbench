@@ -6,7 +6,14 @@ import {
   usePiResourceClient,
   type PiResourceClient,
 } from "@workbench/agent-runtime-pi-client/resources";
-import type { Disposable, OpenHandlerDefinition, OpenerRegistry } from "@workbench/extension-sdk";
+import {
+  createDisposable,
+  disposeAll,
+  type Disposable,
+  type OpenHandlerDefinition,
+  type OpenerRegistry,
+  type WorkspaceSurfaceRegistry,
+} from "@workbench/extension-sdk";
 import {
   useWorkspaceFileRuntime,
   type WorkspaceFileRuntime,
@@ -65,44 +72,50 @@ export function createPiResourceFileOpenersBinding(): PiResourceFileOpenersBindi
   });
 }
 
-/** Register Pi resource file schemes as one transactional lifecycle unit. */
+/** Register Pi resource file schemes only while their Shell file surface is installed. */
 export function registerPiResourceFileOpeners(
   openers: OpenerRegistry,
   binding: PiResourceFileOpenersBinding,
+  workspace: WorkspaceSurfaceRegistry,
 ): Disposable {
   const registrations: Disposable[] = [];
-  let disposed = false;
 
-  try {
-    for (const key of PI_RESOURCE_FILE_OPEN_HANDLER_KEYS) {
-      registrations.push(
-        openers.register({
-          id: PI_RESOURCE_FILE_OPEN_HANDLER_IDS[key],
-          canOpen(request) {
-            return binding.getHandler(key)?.canOpen(request) ?? 0;
-          },
-          open(request, context) {
-            const handler = binding.getHandler(key);
-            if (!handler) {
-              throw new Error("Workspace File runtime is not mounted");
-            }
-            return handler.open(request, context);
-          },
-        }),
-      );
+  const synchronize = () => {
+    if (!workspace.get("file")) {
+      disposeAll(registrations.splice(0));
+      return;
     }
-  } catch (error) {
-    for (const registration of registrations.reverse()) registration.dispose();
-    throw error;
-  }
+    if (registrations.length) return;
 
-  return {
-    dispose() {
-      if (disposed) return;
-      disposed = true;
-      for (const registration of registrations.reverse()) registration.dispose();
-    },
+    try {
+      for (const key of PI_RESOURCE_FILE_OPEN_HANDLER_KEYS) {
+        registrations.push(
+          openers.register({
+            id: PI_RESOURCE_FILE_OPEN_HANDLER_IDS[key],
+            canOpen(request) {
+              return workspace.get("file") ? (binding.getHandler(key)?.canOpen(request) ?? 0) : 0;
+            },
+            open(request, context) {
+              const handler = workspace.get("file") ? binding.getHandler(key) : undefined;
+              if (!handler) {
+                throw new Error("Workspace File runtime is not mounted");
+              }
+              return handler.open(request, context);
+            },
+          }),
+        );
+      }
+    } catch (error) {
+      disposeAll(registrations.splice(0));
+      throw error;
+    }
   };
+  synchronize();
+  const unsubscribe = workspace.subscribe(synchronize);
+  return createDisposable(() => {
+    unsubscribe();
+    disposeAll(registrations.splice(0));
+  });
 }
 
 /** Creates the mount-only contribution that supplies Pi services to one extension activation. */

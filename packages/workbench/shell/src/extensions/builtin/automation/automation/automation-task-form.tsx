@@ -79,6 +79,7 @@ import {
 import { findAutomationTaskPreset } from "./automation-task-presets";
 import { automationProjectTrustDialogCopy } from "../project-trust-dialog-copy";
 import { focusFirstInvalidAutomationField } from "./automation-invalid-focus";
+import { automationSaveErrorMessage } from "./automation-save-error";
 
 type AutomationTaskParams = Extract<
   AutomationMainViewParams,
@@ -183,9 +184,10 @@ export function AutomationTaskForm({
   const [notice, setNotice] = useState<string>();
   const [deleteTarget, setDeleteTarget] = useState<RunDeleteTarget>();
   const [deleteState, setDeleteState] = useState<RunDeleteState>("idle");
-  const trustAdmission = useAutomationTrustAdmission(host, (nextError) => {
-    setError(nextError instanceof Error ? nextError.message : "automation-save-failed");
-  });
+  const reportSaveError = (nextError: unknown) => {
+    setError(automationSaveErrorMessage(nextError, t, Boolean(editingAutomationId)));
+  };
+  const trustAdmission = useAutomationTrustAdmission(host, reportSaveError);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const addScheduleButtonRef = useRef<HTMLButtonElement>(null);
   const timePickerRef = useRef<HTMLButtonElement>(null);
@@ -421,19 +423,9 @@ export function AutomationTaskForm({
     };
 
     try {
-      await trustAdmission.admit(workspace.rootPath, save, (nextError) => {
-        setError(nextError instanceof Error ? nextError.message : "automation-save-failed");
-      });
+      await trustAdmission.admit(workspace.rootPath, save, reportSaveError);
     } catch (nextError) {
-      setError(
-        nextError instanceof Error
-          ? nextError.message
-          : t(
-              editingAutomationId
-                ? "extensions.automations.automationTask.saveFailed"
-                : "extensions.automations.automationTask.createFailed",
-            ),
-      );
+      reportSaveError(nextError);
     } finally {
       setPendingAction(undefined);
     }

@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { FileCode2Icon } from "lucide-react";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { OpenSurfaceRequest } from "@workbench/extension-sdk";
+import { defineExtension, type OpenSurfaceRequest } from "@workbench/extension-sdk";
 import { ExtensionManager } from "@workbench/extension-sdk/internal";
 import { createPiAgentRuntimeInstallation } from "@workbench/agent-runtime-pi-client/installation";
 import {
@@ -23,8 +24,25 @@ import {
 } from "../../src/services/pi-resource-file-openers-bridge";
 import { toolboxExtension } from "../../src/extensions/toolbox/extension";
 
-test("Toolbox owns Pi resource opener registration, binding, rollback, and disposal", () => {
+const fileExtension = defineExtension({
+  id: "test.workspace-file",
+  name: "Test file surface",
+  version: "1.0.0",
+  setup(context) {
+    return context.workspace.register({
+      kind: "file",
+      icon: FileCode2Icon,
+      cachePolicy: "unmount",
+      getResourceKey: () => "test:file",
+      render: () => null,
+    });
+  },
+});
+
+test("Toolbox owns Pi resource opener registration, binding, rollback, and disposal", (t) => {
   const manager = new ExtensionManager();
+  t.after(() => manager.dispose());
+  manager.activate(fileExtension);
   const activation = manager.activate(toolboxExtension);
   assert.deepEqual(
     manager.openers.getAll().map(({ id }) => id),
@@ -44,8 +62,8 @@ test("Toolbox owns Pi resource opener registration, binding, rollback, and dispo
   assert.deepEqual(manager.slots.get("shell.overlay"), []);
 
   const binding = createPiResourceFileOpenersBinding();
-  const registration = registerPiResourceFileOpeners(manager.openers, binding);
-  const opener = manager.openers.getAll()[0]!;
+  const registration = registerPiResourceFileOpeners(manager.openers, binding, manager.workspace);
+  const opener = manager.openers.getAll().find(({ id }) => id === "workspace.file.skill")!;
   const request = {
     resource: {
       scheme: "skill-file",
@@ -75,7 +93,7 @@ test("Toolbox owns Pi resource opener registration, binding, rollback, and dispo
     open: () => undefined,
   });
   assert.throws(
-    () => registerPiResourceFileOpeners(manager.openers, binding),
+    () => registerPiResourceFileOpeners(manager.openers, binding, manager.workspace),
     /already registered/u,
   );
   assert.deepEqual(
@@ -83,6 +101,70 @@ test("Toolbox owns Pi resource opener registration, binding, rollback, and dispo
     ["workspace.directory.skill"],
   );
   collision.dispose();
+});
+
+test("Pi resource openers follow Workspace File unload and reinstall without stale registrations", (t) => {
+  const manager = new ExtensionManager();
+  t.after(() => manager.dispose());
+  const binding = createPiResourceFileOpenersBinding();
+  const registration = registerPiResourceFileOpeners(manager.openers, binding, manager.workspace);
+  t.after(() => registration.dispose());
+  const connection = binding.connect(
+    { files: {} as never, diffs: {} as never },
+    {} as PiResourceClient,
+  );
+  t.after(() => connection.dispose());
+  const requests = ["skill-file", "skill-directory", "extension-file", "extension-directory"].map(
+    (scheme) => ({
+      resource: {
+        scheme,
+        path: "SKILL.md",
+        metadata: {
+          sessionId: "session-1",
+          skillName: "example",
+          relativePath: "SKILL.md",
+          extensionName: "example",
+          extensionFilePath: "/extensions/example.ts",
+          extensionSource: "local",
+          extensionScope: "user",
+          extensionOrigin: "top-level",
+        },
+      },
+      context: { applicationId: "test" },
+    }),
+  );
+  let notifications = 0;
+  const unsubscribe = manager.openers.subscribe(() => {
+    notifications += 1;
+  });
+  t.after(unsubscribe);
+  assert.deepEqual(manager.openers.getAll(), []);
+
+  let fileActivation = manager.activate(fileExtension);
+  const handlers = manager.openers.getAll();
+  assert.equal(handlers.length, 4);
+  for (const [index, handler] of handlers.entries()) {
+    assert.equal(handler.canOpen(requests[index]!), 100);
+  }
+
+  notifications = 0;
+  fileActivation.dispose();
+  assert.deepEqual(manager.openers.getAll(), []);
+  assert.ok(notifications > 0, "opener consumers are notified when the file surface disappears");
+  for (const [index, handler] of handlers.entries()) {
+    assert.equal(handler.canOpen(requests[index]!), 0);
+    assert.throws(() => handler.open(requests[index]!, {} as never), /runtime is not mounted/u);
+  }
+
+  fileActivation = manager.activate(fileExtension);
+  assert.equal(manager.openers.getAll().length, 4);
+  for (const request of requests) {
+    assert.ok(manager.openers.getAll().some((handler) => handler.canOpen(request) === 100));
+  }
+  registration.dispose();
+  fileActivation.dispose();
+  manager.activate(fileExtension);
+  assert.deepEqual(manager.openers.getAll(), []);
 });
 
 function fileOpenHandlers() {
