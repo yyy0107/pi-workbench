@@ -27,29 +27,6 @@ import {
 } from "../transport/api";
 
 export {
-  describeInstalledPiPackage,
-  describePiPackageCatalog,
-  describePiSkill,
-  installPiPackage,
-  listAvailablePiPackageUpdates,
-  listInstalledPiPackages,
-  listPiCommands,
-  listPiExtensionFiles,
-  listPiExtensions,
-  listPiPrompts,
-  listPiSkillFiles,
-  listPiSkills,
-  readPiExtensionFile,
-  readPiSkillFile,
-  removePiExtension,
-  removePiPackage,
-  removePiSkill,
-  searchPiPackageCatalog,
-  setPiExtensionEnabled,
-  setPiSkillEnabled,
-  updatePiPackage,
-} from "../transport/api";
-export {
   createPiPackageUpdatesQuery,
   IDLE_PI_PACKAGE_UPDATES_SNAPSHOT,
   piPackageUpdatesTargetKey,
@@ -60,24 +37,8 @@ export type {
   PiPackageUpdatesQueryOptions,
   PiPackageUpdatesSnapshot,
 } from "../runtime/package-updates-query";
-export {
-  createPiSessionCatalogState,
-  isPiSessionUnavailable,
-  readPiSessionCatalog,
-  transitionPiSessionCatalog,
-  usePiSessionCatalog,
-} from "../runtime/session-catalog";
-export type {
-  PiSessionCatalog,
-  PiSessionCatalogEvent,
-  PiSessionCatalogLoadState,
-  PiSessionCatalogState,
-} from "../runtime/session-catalog";
 
-/**
- * Bind resource-catalog requests to the installation that owns the current Pi manager.
- * Standalone exports above intentionally retain their same-origin default for isolated callers.
- */
+/** Bind Pi resource requests to the installation that owns the current manager. */
 export function usePiResourceClient() {
   const manager = usePiSessionManager();
   return useMemo(() => {

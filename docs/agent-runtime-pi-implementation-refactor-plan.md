@@ -1,6 +1,6 @@
 # Workbench Agent Runtime 边界与 Pi Implementation 重构计划
 
-状态：阶段 1–6 已完成（2026-09-04）；阶段 7–8 待继续。
+状态：阶段 1–7 已完成（2026-09-04）；阶段 8 待继续。
 
 本计划是已完成的
 [`assistant-ui-removal-and-custom-runtime-plan.md`](./assistant-ui-removal-and-custom-runtime-plan.md)
@@ -175,7 +175,7 @@ Pi 实现内部的结构性命名调整：
 - [x] 阶段 4：迁移已经与 Pi 无关的通用扩展（2026-09-04）
 - [x] 阶段 5：迁移 Workspace / Host 垂直切片
 - [x] 阶段 6：迁移会话级通用能力（2026-09-04）
-- [ ] 阶段 7：收缩 Pi Contributions
+- [x] 阶段 7：收缩 Pi Contributions（2026-09-04）
 - [ ] 阶段 8：清理与文档收尾
 
 ### 6.1 阶段 1：建立边界保护
@@ -403,10 +403,37 @@ Desktop 使用同一序列，并在末尾追加 `workbench.desktop-runtime-lifec
 迁移完成后只保留 Agent Configuration、Provider/Model Configuration、Pi Settings、Toolbox、Context
 Trace、External Session Import、Pi Version/Connection Status、Running Indicator 和 branding。
 
-- [ ] 缩减 `PiAgentRuntimeContributionsProvider` 的 assets、services 和 contexts。
-- [ ] 删除无 Pi 专属消费者的公开 facade。
+- [x] 缩减 `PiAgentRuntimeContributionsProvider` 的 assets、services 和 contexts。
+- [x] 删除无 Pi 专属消费者的公开 facade。
 - [x] Shell 与 Pi 导出语义化 extension groups，由应用按基线顺序交错组合（阶段 6 迁移时完成）。
 - [x] 不引入动态 registry；保持 extension/command/settings/storage ID 与顺序不变。
+
+实施记录（2026-09-04）：
+
+- `PiAgentRuntimeContributionsProvider` 直接把 Skill/Extension 资源 backend 注入 Shell 文件运行时，
+  删除重复的 `PiWorkspaceFileRuntimeProvider` 包装。通用文件缓冲、diff、草稿、assets、workspace target、
+  navigation 和 Runtime Connection 继续由 Shell 拥有。
+- 删除 `automation`、`interactions`、`side-chat`、`message-metadata`、`threads` 五个无生产消费者的公开入口，
+  同步删除 package exports。Host/Workspace 只保留 Pi Version 与 Toolbox 使用的只读订阅；Configuration
+  只保留 Agent Settings、Provider 认证与模型配置。资源、Trace 与错误入口移除无消费者的重导出。
+- 删除已被 Workbench hooks 替代的 Pi context-policy 与线程批量订阅 hooks；RPC、消息投影、scratch
+  binding 和 capability 实现保留在 Pi Client 内部，通用 UI 继续通过 Workbench capability 访问。
+- 移除 Contributions 中六项无引用依赖并同步 lockfile；更新 Client/Contributions README 及引用被删除
+  入口的扩展 recipe。Shell/Pi 的语义化 groups 与 Web/Desktop 组合顺序保持阶段 6 实现。
+- 公开入口边界测试固定剩余九个 subpath，并检查没有未导出的残留 facade 文件。现有资源文件 opener
+  测试改为通过真实 Pi installation、Contributions Provider 与 Shell 文件运行时执行；SSR 测试移入
+  `test/services`，使 `react-dom/server` 继续只作为开发依赖使用。
+
+验证记录（2026-09-04）：
+
+- Pi Client 280 项、Pi Contributions 76 项测试通过；Web/Desktop 装配及 Shell/全仓 Pi 依赖边界
+  12 项定向测试通过，共 368 项。资源 opener 测试移动后单独重跑 4 项通过，原扩展 ID 与激活顺序不变。
+- Pi Client、Pi Contributions、Shell、Web、Desktop Renderer 定向 typecheck 通过；测试目录调整后
+  Pi Contributions typecheck 再次通过。
+- `pnpm check:workspace-dependencies`、`pnpm lint`、`git diff --check` 通过；`pnpm build` 完成
+  Runtime Node、Web、Desktop Renderer 与 Desktop Electron artifact 组合。
+- 本阶段代码与验证记录一并提交。未运行 Browser/E2E：没有新增交互或渲染变化；全仓 `pnpm check` 与最终文档复核
+  留待阶段 8。
 
 ### 6.8 阶段 8：清理与收尾
 

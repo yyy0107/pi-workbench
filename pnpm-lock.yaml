@@ -504,9 +504,6 @@ importers:
 
   packages/agent-runtime/runtimes/pi/contributions:
     dependencies:
-      '@tanstack/react-virtual':
-        specifier: 3.14.10
-        version: 3.14.10(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@workbench/agent-runtime-client':
         specifier: workspace:*
         version: link:../../../core/client
@@ -522,33 +519,18 @@ importers:
       '@workbench/agent-runtime-pi-shared':
         specifier: workspace:*
         version: link:../shared
-      '@workbench/attachment-understanding-contracts':
-        specifier: workspace:*
-        version: link:../../../../contracts/attachment-understanding
-      '@workbench/contracts':
-        specifier: workspace:*
-        version: link:../../../../contracts/core
       '@workbench/extension-host':
         specifier: workspace:*
         version: link:../../../../extension-platform/host
       '@workbench/extension-sdk':
         specifier: workspace:*
         version: link:../../../../extension-platform/sdk
-      '@workbench/host-contracts':
-        specifier: workspace:*
-        version: link:../../../../workbench/host-contracts
       '@workbench/shell':
         specifier: workspace:*
         version: link:../../../../workbench/shell
       lucide-react:
         specifier: ^1.29.0
         version: 1.31.0(react@19.2.8)
-      shiki:
-        specifier: 3.23.0
-        version: 3.23.0
-      zustand:
-        specifier: ^5.0.14
-        version: 5.0.15(@types/react@19.2.18)(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))
     devDependencies:
       '@types/node':
         specifier: ^26.2.0

@@ -6,7 +6,6 @@ import { useMemo } from "react";
 
 import { usePiSessionManager } from "../runtime/context";
 import {
-  fetchPiRpcSessionContextTracePromptParts,
   listPiRpcSessionContextTrace,
   listPiRpcSessionContextTraceActivations,
   readPiRpcSessionContextTrace,
@@ -14,17 +13,9 @@ import {
 
 export {
   parsePiContextTraceData,
-  piContextTraceData,
   piContextTracePromptInjections,
   WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME,
 } from "../context-trace/data-part";
-export type { WorkbenchPiContextTraceDataV1 } from "../context-trace/data-part";
-export {
-  fetchPiRpcSessionContextTracePromptParts,
-  listPiRpcSessionContextTrace,
-  listPiRpcSessionContextTraceActivations,
-  readPiRpcSessionContextTrace,
-} from "../transport/api";
 export { usePiActiveSessionId, usePiThreadStateSnapshot } from "../runtime/context";
 
 export interface PiContextTraceEventClient {
@@ -51,8 +42,6 @@ export function usePiContextTraceClient() {
         listPiRpcSessionContextTraceActivations(payload, options),
       read: (payload: Parameters<typeof readPiRpcSessionContextTrace>[0]) =>
         readPiRpcSessionContextTrace(payload, options),
-      promptParts: (payload: Parameters<typeof fetchPiRpcSessionContextTracePromptParts>[0]) =>
-        fetchPiRpcSessionContextTracePromptParts(payload, options),
     };
   }, [manager]);
 }

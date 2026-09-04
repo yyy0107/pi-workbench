@@ -5,12 +5,7 @@ import { createContext, useContext, useMemo, useSyncExternalStore, type ReactNod
 import type { PiWorkspaceSummary } from "@workbench/agent-runtime-pi-protocol/messages";
 import type { HostDescription } from "@workbench/agent-runtime-pi-protocol/rpc";
 
-import {
-  PiSessionManager,
-  type PiThreadListItemSnapshot,
-  type PiThreadMetadataSnapshot,
-  type PiThreadStateSnapshot,
-} from "./manager";
+import { PiSessionManager, type PiThreadStateSnapshot } from "./manager";
 
 const PiSessionManagerContext = createContext<PiSessionManager | null>(null);
 
@@ -47,64 +42,6 @@ export function usePiThreadStateSnapshot(threadId: string | undefined): PiThread
   const getSnapshot = useMemo(() => () => manager.getThreadRevision(threadId), [manager, threadId]);
   useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
   return manager.getThreadStateSnapshot(threadId);
-}
-
-export function usePiThreadListItemSnapshot(
-  threadId: string | undefined,
-): PiThreadListItemSnapshot | undefined {
-  return usePiThreadStateSnapshot(threadId).thread;
-}
-
-export function usePiThreadListItemState(threadId: string): {
-  thread: PiThreadListItemSnapshot | undefined;
-  running: boolean;
-  completed: boolean;
-  metadata: PiThreadMetadataSnapshot;
-} {
-  const state = usePiThreadStateSnapshot(threadId);
-  return {
-    thread: state.thread,
-    running: state.metadata.running,
-    completed: state.metadata.completed,
-    metadata: state.metadata,
-  };
-}
-
-export function usePiThreadStates(
-  threadIds: readonly string[],
-): ReadonlyMap<string, PiThreadStateSnapshot> {
-  const manager = usePiSessionManager();
-  const threadIdsSignature = JSON.stringify([...new Set(threadIds)]);
-  const stableThreadIds = useMemo(
-    () => JSON.parse(threadIdsSignature) as string[],
-    [threadIdsSignature],
-  );
-  const subscribe = useMemo(
-    () => (listener: () => void) => {
-      const unsubscribers = stableThreadIds.map((threadId) =>
-        manager.subscribeThread(threadId, listener),
-      );
-      return () => {
-        for (const unsubscribe of unsubscribers) unsubscribe();
-      };
-    },
-    [manager, stableThreadIds],
-  );
-  const getSnapshot = useMemo(
-    () => () =>
-      JSON.stringify(
-        stableThreadIds.map((threadId) => [threadId, manager.getThreadRevision(threadId)]),
-      ),
-    [manager, stableThreadIds],
-  );
-  const revisionSignature = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-  return useMemo(
-    () =>
-      new Map(
-        stableThreadIds.map((threadId) => [threadId, manager.getThreadStateSnapshot(threadId)]),
-      ),
-    [manager, revisionSignature, stableThreadIds],
-  );
 }
 
 export function usePiWorkspaces(): readonly PiWorkspaceSummary[] {

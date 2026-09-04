@@ -1,8 +1,10 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 
+import { usePiResourceClient } from "@workbench/agent-runtime-pi-client/resources";
 import type { WorkbenchExtension } from "@workbench/extension-sdk";
+import { WorkbenchWorkspaceFileRuntimeProvider } from "@workbench/shell/workspace-files";
 
 import { agentConfigurationExtension } from "../extensions/agent-configuration";
 import { connectionStatusExtension } from "../extensions/connection-status";
@@ -11,7 +13,7 @@ import { externalSessionImportExtension } from "../extensions/external-session-i
 import { settingModelConfigExtension } from "../extensions/setting-model-config";
 import { piSettingsActionExtension } from "../extensions/settings";
 import { toolboxExtension } from "../extensions/toolbox";
-import { PiWorkspaceFileRuntimeProvider } from "../services/workspace-file-runtime";
+import { createPiResourceFileBackend } from "../services/pi-resource-file-backend";
 
 /**
  * Pi groups are intentionally semantic rather than one opaque catalog: the app interleaves them
@@ -37,12 +39,18 @@ export const piAgentRuntimeExtensions: readonly WorkbenchExtension[] = Object.fr
 ]);
 
 /**
- * Connects Pi's file backend to the Workbench-owned file runtime contract.
+ * Supplies only Pi Skill/Extension resources to Shell's capability-backed file runtime.
  */
 export function PiAgentRuntimeContributionsProvider({
   children,
 }: Readonly<{ children: ReactNode }>) {
-  return <PiWorkspaceFileRuntimeProvider>{children}</PiWorkspaceFileRuntimeProvider>;
+  const client = usePiResourceClient();
+  const resources = useMemo(() => createPiResourceFileBackend(client), [client]);
+  return (
+    <WorkbenchWorkspaceFileRuntimeProvider resources={resources}>
+      {children}
+    </WorkbenchWorkspaceFileRuntimeProvider>
+  );
 }
 
 export { piTranslationBundle } from "../i18n";

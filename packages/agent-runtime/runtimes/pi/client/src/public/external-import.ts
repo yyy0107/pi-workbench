@@ -5,8 +5,6 @@ import { useMemo } from "react";
 import { usePiSessionManager } from "../runtime/context";
 import { importExternalSessions, scanExternalSessions } from "../transport/api";
 
-export { importExternalSessions, scanExternalSessions } from "../transport/api";
-
 /** Bind external-session import requests to the active installation. */
 export function usePiExternalImportClient() {
   const manager = usePiSessionManager();

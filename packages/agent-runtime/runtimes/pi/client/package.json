@@ -39,11 +39,6 @@
       "import": "./src/public/workspace.ts",
       "default": "./src/public/workspace.ts"
     },
-    "./automation": {
-      "types": "./src/public/automation.ts",
-      "import": "./src/public/automation.ts",
-      "default": "./src/public/automation.ts"
-    },
     "./external-import": {
       "types": "./src/public/external-import.ts",
       "import": "./src/public/external-import.ts",
@@ -53,26 +48,6 @@
       "types": "./src/public/context-trace.ts",
       "import": "./src/public/context-trace.ts",
       "default": "./src/public/context-trace.ts"
-    },
-    "./interactions": {
-      "types": "./src/public/interactions.ts",
-      "import": "./src/public/interactions.ts",
-      "default": "./src/public/interactions.ts"
-    },
-    "./side-chat": {
-      "types": "./src/public/side-chat.tsx",
-      "import": "./src/public/side-chat.tsx",
-      "default": "./src/public/side-chat.tsx"
-    },
-    "./message-metadata": {
-      "types": "./src/public/message-metadata.ts",
-      "import": "./src/public/message-metadata.ts",
-      "default": "./src/public/message-metadata.ts"
-    },
-    "./threads": {
-      "types": "./src/public/threads.ts",
-      "import": "./src/public/threads.ts",
-      "default": "./src/public/threads.ts"
     }
   },
   "scripts": {

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createAutomationClient } from "../src/public/automation";
+import { createAutomationClient } from "../src/automations/automation-client";
 
 function rpcResponse(request: Request | string, input: RequestInit | undefined) {
   const body = input?.body ?? (request instanceof Request ? request.body : undefined);

@@ -1,22 +1,27 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import type { OpenSurfaceRequest } from "@workbench/extension-sdk";
 import { ExtensionManager } from "@workbench/extension-sdk/internal";
-import type { PiResourceClient } from "@workbench/agent-runtime-pi-client/resources";
+import { createPiAgentRuntimeInstallation } from "@workbench/agent-runtime-pi-client/installation";
 import {
-  listPiExtensionFiles,
-  listPiSkillFiles,
-  readPiExtensionFile,
-  readPiSkillFile,
+  usePiResourceClient,
+  type PiResourceClient,
 } from "@workbench/agent-runtime-pi-client/resources";
-import { BufferedFileWorkspaceService } from "@workbench/shell/workspace-files";
-import { createPiResourceFileBackend } from "./pi-resource-file-backend";
-import { createPiResourceFileOpenHandlers } from "./pi-resource-file-openers";
+import {
+  createSameOriginRuntimeConnection,
+  RuntimeConnectionProvider,
+} from "@workbench/shell/runtime-connection";
+import { createWorkspaceDirectoryStoreInstallation } from "@workbench/shell/workspace-directory-store";
+import { useWorkspaceFileRuntime } from "@workbench/shell/workspace-files";
+import { PiAgentRuntimeContributionsProvider } from "../../src/public/installation";
+import { createPiResourceFileOpenHandlers } from "../../src/services/pi-resource-file-openers";
 import {
   createPiResourceFileOpenersBinding,
   registerPiResourceFileOpeners,
-} from "./pi-resource-file-openers-bridge";
-import { toolboxExtension } from "../extensions/toolbox/extension";
+} from "../../src/services/pi-resource-file-openers-bridge";
+import { toolboxExtension } from "../../src/extensions/toolbox/extension";
 
 test("Toolbox owns Pi resource opener registration, binding, rollback, and disposal", () => {
   const manager = new ExtensionManager();
@@ -80,19 +85,40 @@ test("Toolbox owns Pi resource opener registration, binding, rollback, and dispo
   collision.dispose();
 });
 
-const resourceClient = {
-  listExtensionFiles: listPiExtensionFiles,
-  listSkillFiles: listPiSkillFiles,
-  readExtensionFile: readPiExtensionFile,
-  readSkillFile: readPiSkillFile,
-};
-
 function fileOpenHandlers() {
-  const files = new BufferedFileWorkspaceService(
-    undefined,
-    createPiResourceFileBackend(resourceClient),
+  let handlers: ReturnType<typeof createPiResourceFileOpenHandlers> | undefined;
+  function Capture() {
+    const runtime = useWorkspaceFileRuntime();
+    const resources = usePiResourceClient();
+    handlers = createPiResourceFileOpenHandlers(runtime.files, resources);
+    return null;
+  }
+  const installation = createPiAgentRuntimeInstallation({
+    copy: {
+      titles: { attachment: "Attachment", image: "Image" },
+      errors: {
+        sessionBusy: "Busy",
+        emptyPrompt: "Empty",
+        sessionNotFound: "Missing",
+        invalidWorkingDirectory: "Invalid directory",
+        invalidWorkspace: "Invalid workspace",
+        modelNotAvailable: "Model unavailable",
+        requestFailed: "Request failed",
+      },
+    },
+    workspaceDirectoryStore: createWorkspaceDirectoryStoreInstallation().port,
+    transport: { http: (path, init) => globalThis.fetch(path, init) },
+  });
+  renderToStaticMarkup(
+    createElement(RuntimeConnectionProvider, {
+      connection: createSameOriginRuntimeConnection("http://localhost"),
+      children: installation.render(
+        createElement(PiAgentRuntimeContributionsProvider, { children: createElement(Capture) }),
+      ),
+    }),
   );
-  return createPiResourceFileOpenHandlers(files, resourceClient);
+  assert.ok(handlers);
+  return handlers;
 }
 
 test("the skill file opener reads nested Skill files into the read-only File Surface", async (t) => {

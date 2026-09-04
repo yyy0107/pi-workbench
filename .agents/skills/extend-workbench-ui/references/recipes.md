@@ -396,10 +396,13 @@ Promise returned by `open()`. Do not import the owner's component, store, or int
 Before adding Pi-backed UI, read `packages/agent-runtime/runtimes/pi/README.md` completely and inspect the exact source file
 it names. Prefer:
 
-- `usePiThreadStateSnapshot()` or `usePiThreadStates()` from
-  `@workbench/agent-runtime-pi-client/threads`, and `usePiWorkspaces()` from
-  `@workbench/agent-runtime-pi-client/workspace`, for subscribed state;
-- an existing helper from the owning `@workbench/agent-runtime-pi-client/*` feature facade for unary RPC;
+- Workbench session/thread hooks from `@workbench/agent-runtime-client` and its `/context` entry,
+  plus `useWorkspaceSelection()` from `/workspaces`, for generic subscribed state;
+- Workbench capability hooks from `@workbench/agent-runtime-client/context` for generic operations;
+- `usePiThreadStateSnapshot()` from `@workbench/agent-runtime-pi-client/context-trace` for Pi trace
+  diagnostics, and `usePiWorkspaces()` from `@workbench/agent-runtime-pi-client/workspace` for Toolbox;
+- an installation-bound hook from the owning `@workbench/agent-runtime-pi-client/*` feature facade
+  for Pi-specific unary RPC;
 - shared types from `@workbench/agent-runtime-pi-protocol/rpc` or
   `@workbench/agent-runtime-pi-protocol/stream`.
 

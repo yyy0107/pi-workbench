@@ -1,26 +1,22 @@
 # Pi contribution package
 
-`@workbench/agent-runtime-pi-contributions` owns the statically bundled UI contributions that
-require Pi runtime/client contracts. Its only public entry point is `./installation`.
+`@workbench/agent-runtime-pi-contributions` owns Agent Configuration, Provider/Model Configuration,
+Pi Settings, Toolbox, Context Trace, External Session Import, Pi Version/Connection Status, and Pi
+running indicators and branding. Its only public entry point is `./installation`.
 
 The application composition owns transport creation, served asset URLs, branding, URL syntax, and
 the final extension activation order. Workbench Shell owns the generic workspace UI, file buffers,
 presentation assets, branding, and runtime-connection contexts. This package exports:
 
-- the semantic Pi runtime extension group for application composition;
+- the frozen `agentConfiguration`, `configuration`, `toolbox`, and `diagnostics` extension groups;
 - `PiAgentRuntimeContributionsProvider`, which supplies only the Pi Skill/Extension resource backend
   to Shell's capability-backed file runtime; Toolbox owns and disposes the four Pi resource openers,
   while Shell's Workspace File extension owns the generic workspace-file opener and surface;
 - `piTranslationBundle` and `piRunningIndicatorDefinitions` for explicit application installation.
 
-Shell's file-viewer fallback assets use a reference-counted lease because the library keeps a
-process-global default. Concurrent Workbench roots must use the same normalized base URL; a
-conflicting base is rejected before it can redirect another root's preset assets. The first lease
-captures the baseline and the final release restores it. Shell owns mutable file targets, review
-state, file buffers, and terminal hosts. File-buffer drafts use RightWorkspace's generic
-`WorkspaceDraftStore`: it defaults to memory per installation, while an app that wants remount
-persistence injects an already namespaced `RightWorkspaceDraftPersistencePort` at the RightWorkspace
-boundary. Pi side-chat navigation stays semantic and delegates URL syntax to Shell's navigation
-port.
+Web and Desktop interleave these groups with Shell's groups in the original extension ID order.
+The provider only binds the Pi resource backend; Shell owns file buffers, diffs, drafts, asset
+leases, workspace targets, navigation, and runtime-connection contexts. Generic workspace and
+session features live in Shell and consume Workbench capabilities from the installed Pi Runtime.
 
 Do not import Next, root aliases, Pi server modules, or Extension Host internals from this package.

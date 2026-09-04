@@ -15,7 +15,7 @@ function filesUnder(directory: string): string[] {
   });
 }
 
-test("publishes only explicit feature facades", () => {
+test("publishes only Pi contribution facades and application installation entries", () => {
   const manifest = JSON.parse(readFileSync(path.join(PACKAGE_ROOT, "package.json"), "utf8")) as {
     exports: Record<string, { types: string; import: string }>;
     sideEffects?: unknown;
@@ -26,16 +26,13 @@ test("publishes only explicit feature facades", () => {
     "./host",
     "./resources",
     "./configuration",
+    "./workbench-settings",
     "./workspace",
-    "./automation",
     "./external-import",
     "./context-trace",
-    "./interactions",
-    "./side-chat",
-    "./message-metadata",
   ];
 
-  assert.equal(manifest.exports["."], undefined);
+  assert.deepEqual(Object.keys(manifest.exports).sort(), required.sort());
   assert.equal(manifest.sideEffects, undefined);
   for (const subpath of required) {
     const target = manifest.exports[subpath];
@@ -44,6 +41,12 @@ test("publishes only explicit feature facades", () => {
     assert.match(target.import, /^\.\/src\/public\/[^/]+\.tsx?$/);
     assert.ok(existsSync(path.join(PACKAGE_ROOT, target.import)));
   }
+  assert.deepEqual(
+    filesUnder(PUBLIC_ROOT).sort(),
+    Object.values(manifest.exports)
+      .map((target) => path.join(PACKAGE_ROOT, target.import))
+      .sort(),
+  );
 
   for (const file of filesUnder(PUBLIC_ROOT)) {
     const source = readFileSync(file, "utf8");
