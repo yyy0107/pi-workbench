@@ -98,6 +98,10 @@
 :root {
   --radius: 0.625rem;
 
+  /* Shared shell layout motion */
+  --layout-motion-duration: 400ms;
+  --layout-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
   /* Control density */
   --control-hit-compact: 24px;
   --control-hit-default: 32px;

@@ -13,7 +13,7 @@ export const THREAD_SIDEBAR_AUTO_COLLAPSE_WIDTH_PX =
   THREAD_CONTENT_MIN_WIDTH_PX + THREAD_CONTENT_COMPACT_GUTTER_PX * 2;
 
 export const THREAD_CONTENT_GUTTER_TRANSITION_CLASS_NAME =
-  "transition-[--thread-content-inline-gutter] duration-[260ms] ease-[linear(0,0.34_12%,0.68_27%,0.9_43%,1.03_62%,0.99_80%,1)] data-[resizing=true]:transition-none data-[thread-resizing=true]:transition-none motion-reduce:transition-none";
+  "transition-[--thread-content-inline-gutter] duration-(--layout-motion-duration) ease-(--layout-motion-ease) data-[resizing=true]:transition-none motion-reduce:transition-none";
 
 export const THREAD_CONTENT_WIDTH_CLASS_NAME =
   "w-[var(--thread-content-width)] min-w-[var(--thread-content-min-width)] max-w-[var(--thread-content-max-width)]";
@@ -29,15 +29,21 @@ export function resolveExpandedThreadWidth({
   currentThreadWidth,
   sidebarWidth,
   sidebarOccupiedWidth,
+  workspaceWidth = 0,
+  workspaceOccupiedWidth = 0,
 }: {
   currentThreadWidth: number;
   sidebarWidth: number;
   sidebarOccupiedWidth: number;
+  workspaceWidth?: number;
+  workspaceOccupiedWidth?: number;
 }): number | undefined {
   if (
     !Number.isFinite(currentThreadWidth) ||
     !Number.isFinite(sidebarWidth) ||
-    !Number.isFinite(sidebarOccupiedWidth)
+    !Number.isFinite(sidebarOccupiedWidth) ||
+    !Number.isFinite(workspaceWidth) ||
+    !Number.isFinite(workspaceOccupiedWidth)
   ) {
     return undefined;
   }
@@ -46,7 +52,13 @@ export function resolveExpandedThreadWidth({
     0,
     Math.max(0, sidebarWidth) - Math.max(0, sidebarOccupiedWidth),
   );
-  return Math.max(0, currentThreadWidth - releasedSidebarWidth);
+  return Math.max(
+    0,
+    currentThreadWidth -
+      releasedSidebarWidth +
+      Math.max(0, workspaceOccupiedWidth) -
+      Math.max(0, workspaceWidth),
+  );
 }
 
 export function resolveThreadResponsiveLayout(

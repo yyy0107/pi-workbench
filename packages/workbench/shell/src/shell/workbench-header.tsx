@@ -127,7 +127,7 @@ export function WorkbenchHeader() {
     >
       <div
         className={cn(
-          "relative flex h-full min-w-0 items-center gap-1.5 transition-[padding-inline-start] duration-[240ms] ease-[cubic-bezier(0.45,0,0.8,0.7)] in-data-[resizing=true]:transition-none in-data-[sidebar-collapse-preview=true]:ps-[max(0px,calc(28px-var(--sidebar-width)))] motion-reduce:transition-none sm:gap-2 in-data-[sidebar-collapse-preview=true]:sm:ps-[max(0px,calc(24px-var(--sidebar-width)))]",
+          "relative flex h-full min-w-0 items-center gap-1.5 transition-[padding-inline-start] duration-(--layout-motion-duration) ease-(--layout-motion-ease) in-data-[resizing=true]:transition-none in-data-[sidebar-collapse-preview=true]:ps-[max(0px,calc(28px-var(--sidebar-width)))] motion-reduce:transition-none sm:gap-2 in-data-[sidebar-collapse-preview=true]:sm:ps-[max(0px,calc(24px-var(--sidebar-width)))]",
           desktopSidebarCollapsed && "ps-7 sm:ps-6",
         )}
       >

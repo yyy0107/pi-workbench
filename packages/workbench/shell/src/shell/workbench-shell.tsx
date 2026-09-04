@@ -59,7 +59,6 @@ export type { WorkbenchInstallationEffectsProps } from "./workbench-global-layer
 const DEFAULT_SIDEBAR_WIDTH = 268;
 const MIN_SIDEBAR_WIDTH = 240;
 const MAX_SIDEBAR_WIDTH = 560;
-const THREAD_RESIZE_IDLE_MS = 120;
 
 export interface WorkbenchMainViewHostProps {
   children: ReactNode;
@@ -179,8 +178,6 @@ export function WorkbenchShell({
     let observedThreadRoot: HTMLElement | undefined;
     let observer: ResizeObserver;
     let resizeStateObserver: MutationObserver;
-    let previousThreadWidth: number | undefined;
-    let resizeIdleTimer: number | undefined;
 
     const update = () => {
       const nextThreadRoot =
@@ -193,32 +190,15 @@ export function WorkbenchShell({
       }
 
       if (!observedThreadRoot) {
-        previousThreadWidth = undefined;
         setConversationIndexHidden(false);
         setSidebarAutoCollapsed(false);
         setSidebarAutoCollapseSuppressed(false);
         return;
       }
 
+      if (shell.dataset.resizing === "true") return;
+
       const currentThreadWidth = observedThreadRoot.getBoundingClientRect().width;
-      if (shell.dataset.resizing === "true") {
-        previousThreadWidth = currentThreadWidth;
-        return;
-      }
-
-      if (
-        previousThreadWidth !== undefined &&
-        Math.abs(currentThreadWidth - previousThreadWidth) > 0.25
-      ) {
-        shell.dataset.threadResizing = "true";
-        if (resizeIdleTimer !== undefined) window.clearTimeout(resizeIdleTimer);
-        resizeIdleTimer = window.setTimeout(() => {
-          shell.removeAttribute("data-thread-resizing");
-          resizeIdleTimer = undefined;
-        }, THREAD_RESIZE_IDLE_MS);
-      }
-      previousThreadWidth = currentThreadWidth;
-
       const shellWidth = shell.getBoundingClientRect().width;
       const desktopSidebarParticipates = shellWidth >= 768;
       const sidebarOccupiedWidth = desktopSidebarParticipates
@@ -226,10 +206,30 @@ export function WorkbenchShell({
             .querySelector<HTMLElement>('[data-slot="workbench-sidebar-layout"]')
             ?.getBoundingClientRect().width ?? (sidebarEffectivelyOpen ? sidebarWidth : 0))
         : sidebarWidth;
+      const workspaceLayout = workspaceHostRef.current?.querySelector<HTMLElement>(
+        '[data-slot="right-workspace-layout"]',
+      );
+      const workspaceOccupiedWidth = workspaceLayout?.getBoundingClientRect().width ?? 0;
+      const workspaceAvailableWidth = workspaceLayout?.parentElement?.clientWidth ?? 0;
+      // Use the panel's final width so gutters and panel motion start together, instead of
+      // changing the gutter target halfway through the panel's CSS transition.
+      const workspaceWidth =
+        workspacePresentation === "closed"
+          ? 0
+          : workspacePresentation === "maximized"
+            ? workspaceAvailableWidth
+            : Math.min(
+                workspaceAvailableWidth,
+                Number.parseFloat(
+                  workspaceLayout?.style.getPropertyValue("--right-workspace-layout-width") ?? "",
+                ) || workspaceOccupiedWidth,
+              );
       const expandedThreadWidth = resolveExpandedThreadWidth({
         currentThreadWidth,
         sidebarWidth,
         sidebarOccupiedWidth,
+        workspaceWidth,
+        workspaceOccupiedWidth,
       });
       const layout =
         expandedThreadWidth === undefined
@@ -277,8 +277,6 @@ export function WorkbenchShell({
     return () => {
       observer.disconnect();
       resizeStateObserver.disconnect();
-      if (resizeIdleTimer !== undefined) window.clearTimeout(resizeIdleTimer);
-      shell.removeAttribute("data-thread-resizing");
     };
   }, [sidebarEffectivelyOpen, sidebarOpen, sidebarWidth, workspacePresentation]);
 

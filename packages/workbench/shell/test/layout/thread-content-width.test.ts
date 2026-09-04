@@ -77,6 +77,26 @@ test("measures responsive stages against the width with the sidebar expanded", (
   );
 });
 
+test("keeps the gutter target stable throughout workspace opening and closing", () => {
+  for (const workspaceWidth of [0, 360]) {
+    for (const workspaceOccupiedWidth of [0, 72, 180, 300, 360]) {
+      const expandedThreadWidth = resolveExpandedThreadWidth({
+        currentThreadWidth: 1012 - workspaceOccupiedWidth,
+        sidebarWidth: 268,
+        sidebarOccupiedWidth: 268,
+        workspaceWidth,
+        workspaceOccupiedWidth,
+      });
+
+      assert.equal(expandedThreadWidth, 1012 - workspaceWidth);
+      assert.equal(
+        resolveThreadResponsiveLayout(expandedThreadWidth!)?.conversationIndexHidden,
+        workspaceWidth > 0,
+      );
+    }
+  }
+});
+
 test("rejects invalid responsive measurements", () => {
   assert.equal(resolveThreadResponsiveLayout(Number.NaN), undefined);
   assert.equal(

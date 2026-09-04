@@ -247,7 +247,7 @@ export function WorkbenchSidebar({
         ref={sidebarLayoutRef}
         data-slot="workbench-sidebar-layout"
         data-state={state}
-        className="relative hidden h-full min-h-0 min-w-0 shrink-0 transition-[width] duration-[240ms] ease-[cubic-bezier(0.45,0,0.8,0.7)] motion-reduce:transition-none data-[resizing=true]:transition-none data-[resizing=true]:will-change-[width] data-[state=collapsed]:pointer-events-none md:block"
+        className="relative hidden h-full min-h-0 min-w-0 shrink-0 transition-[width] duration-(--layout-motion-duration) ease-(--layout-motion-ease) motion-reduce:transition-none data-[resizing=true]:transition-none data-[resizing=true]:will-change-[width] data-[state=collapsed]:pointer-events-none md:block"
         style={
           {
             width:
@@ -265,7 +265,7 @@ export function WorkbenchSidebar({
           aria-label={t("workbench.sidebar.region")}
           aria-hidden={state === "collapsed" ? true : undefined}
           inert={state === "collapsed" ? true : undefined}
-          className="bg-sidebar text-sidebar-foreground absolute inset-y-0 left-0 flex min-h-0 min-w-0 flex-col overflow-hidden border-r transition-[width,transform,border-color] duration-[240ms] ease-[cubic-bezier(0.45,0,0.8,0.7)] motion-reduce:transition-none in-data-[resizing=true]:transition-none in-data-[resizing=true]:will-change-[width,transform] data-[state=collapsed]:border-transparent"
+          className="bg-sidebar text-sidebar-foreground absolute inset-y-0 left-0 flex min-h-0 min-w-0 flex-col overflow-hidden border-r transition-[width,transform,border-color] duration-(--layout-motion-duration) ease-(--layout-motion-ease) motion-reduce:transition-none in-data-[resizing=true]:transition-none in-data-[resizing=true]:will-change-[width,transform] data-[state=collapsed]:border-transparent"
           style={
             {
               width: `min(var(--workbench-sidebar-content-width, ${renderedWidth}px), 100vw)`,

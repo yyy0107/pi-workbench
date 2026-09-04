@@ -218,7 +218,7 @@ function Sidebar({
       <div
         data-slot="sidebar-gap"
         className={cn(
-          "relative w-(--sidebar-width) bg-transparent transition-[width] duration-[240ms] ease-[cubic-bezier(0.45,0,0.8,0.7)] in-data-[resizing=true]:transition-none",
+          "relative w-(--sidebar-width) bg-transparent transition-[width] duration-(--layout-motion-duration) ease-(--layout-motion-ease) in-data-[resizing=true]:transition-none motion-reduce:transition-none",
           "group-data-[collapsible=offcanvas]:w-0",
           "group-data-[side=right]:rotate-180",
           variant === "floating" || variant === "inset"
@@ -230,7 +230,7 @@ function Sidebar({
         data-slot="sidebar-container"
         data-side={side}
         className={cn(
-          "fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-content-width) translate-x-0 transition-[width,translate] duration-[240ms] ease-[cubic-bezier(0.45,0,0.8,0.7)] in-data-[resizing=true]:translate-x-(--sidebar-resize-translate-x) in-data-[resizing=true]:transition-none data-[side=left]:left-0 data-[side=left]:group-data-[collapsible=offcanvas]:-translate-x-full data-[side=right]:right-0 data-[side=right]:group-data-[collapsible=offcanvas]:translate-x-full md:flex",
+          "fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-content-width) translate-x-0 transition-[width,translate] duration-(--layout-motion-duration) ease-(--layout-motion-ease) in-data-[resizing=true]:translate-x-(--sidebar-resize-translate-x) in-data-[resizing=true]:transition-none motion-reduce:transition-none data-[side=left]:left-0 data-[side=left]:group-data-[collapsible=offcanvas]:-translate-x-full data-[side=right]:right-0 data-[side=right]:group-data-[collapsible=offcanvas]:translate-x-full md:flex",
           // Adjust the padding for floating and inset variants.
           variant === "floating" || variant === "inset"
             ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
