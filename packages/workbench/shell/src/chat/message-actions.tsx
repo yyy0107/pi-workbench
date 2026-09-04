@@ -1,9 +1,16 @@
 "use client";
 
-import { ActionBarPrimitive, useAui, useAuiState } from "@assistant-ui/react";
 import { CheckIcon, CircleXIcon, CopyIcon } from "lucide-react";
+import { useMemo } from "react";
 
-import { TooltipIconButton } from "../assistant-ui/tooltip-icon-button";
+import {
+  useConversationNode,
+  useConversationSession,
+  useSessionState,
+} from "@workbench/agent-runtime-client";
+import type { ConversationNode } from "@workbench/agent-runtime-contracts/conversation";
+
+import { TooltipIconButton } from "../ui/tooltip-icon-button";
 import { useClipboardCopy } from "../hooks/use-clipboard-copy";
 import { useI18n } from "../i18n";
 import { cn } from "../utils";
@@ -13,7 +20,9 @@ import {
   shouldHideMessageActionBar,
   shouldShowMessageActions,
   shouldShowMessageNavigation,
+  type MessageActionVisibilityMessage,
 } from "./message-action-visibility";
+import { useConversationMessageContext } from "./conversation-message-context";
 
 const messageActionStyles = [
   "[&_button.aui-button-icon]:size-[var(--icon-frame-size-default)]!",
@@ -22,8 +31,7 @@ const messageActionStyles = [
   "[&_button_svg.lucide]:size-[var(--icon-size-md)]!",
 ].join(" ");
 
-function CopyAction({ role }: Readonly<{ role: "user" | "assistant" }>) {
-  const aui = useAui();
+function CopyAction({ role, text }: Readonly<{ role: "user" | "assistant"; text: string }>) {
   const { t } = useI18n();
   const { copy, isCopied, status } = useClipboardCopy();
   const tooltip = t(
@@ -37,12 +45,8 @@ function CopyAction({ role }: Readonly<{ role: "user" | "assistant" }>) {
   );
 
   return (
-    <ActionBarPrimitive.Root autohide="never" className="flex items-center gap-0.5">
-      <TooltipIconButton
-        type="button"
-        tooltip={tooltip}
-        onClick={() => void copy(aui.message.getCopyText())}
-      >
+    <div className="flex items-center gap-0.5">
+      <TooltipIconButton type="button" tooltip={tooltip} onClick={() => void copy(text)}>
         {isCopied ? (
           <CheckIcon className="size-3.5" />
         ) : status === "failed" ? (
@@ -51,31 +55,63 @@ function CopyAction({ role }: Readonly<{ role: "user" | "assistant" }>) {
           <CopyIcon className="size-3.5" />
         )}
       </TooltipIconButton>
-    </ActionBarPrimitive.Root>
+    </div>
   );
+}
+
+function visibilityMessage(
+  node: ConversationNode,
+  isLast: boolean,
+): MessageActionVisibilityMessage {
+  const role = node.kind === "user" || node.kind === "assistant" ? node.kind : "system";
+  return {
+    id: node.key,
+    role,
+    content:
+      "blocks" in node
+        ? node.blocks.map((block) => ({
+            type: block.kind,
+            ...(block.kind === "text" ? { text: block.text } : {}),
+          }))
+        : [],
+    branchCount: node.presentation?.branch?.count,
+    isLast,
+    ...(node.kind === "assistant" ? { status: { type: node.status } } : {}),
+  };
 }
 
 export function WorkbenchMessageActions({ className }: Readonly<{ className?: string }>) {
   const { date } = useI18n();
-  const messageId = useAuiState((state) => state.message.id);
-  const role = useAuiState((state) => state.message.role);
-  const createdAt = useAuiState((state) => state.message.createdAt);
-  const isLast = useAuiState((state) => state.message.isLast);
-  const capabilities = useAuiState((state) => state.thread.capabilities);
-  const hideActionBar = useAuiState((state) =>
-    shouldHideMessageActionBar(state.message, state.thread.isRunning),
+  const { messageId, role, isLast, index } = useConversationMessageContext();
+  const session = useConversationSession();
+  const node = useConversationNode(messageId);
+  const nodeKeys = useSessionState((snapshot) => snapshot.nodeKeys);
+  const isRunning = useSessionState((snapshot) => snapshot.isRunning);
+  const messages = useMemo(
+    () =>
+      nodeKeys.flatMap((key, nodeIndex) => {
+        const item = session.node(key).getSnapshot();
+        return item ? [visibilityMessage(item, nodeIndex === nodeKeys.length - 1)] : [];
+      }),
+    [nodeKeys, session],
   );
-  const actionsVisible = useAuiState((state) =>
-    shouldShowMessageActions(state.thread.messages, state.message.index),
-  );
-  const navigationVisible = useAuiState((state) =>
-    shouldShowMessageNavigation(
-      state.thread.messages,
-      state.message.index,
-      state.thread.capabilities.switchToBranch,
-    ),
+  if (!node) return null;
+  const message = visibilityMessage(node, isLast);
+  const hideActionBar = shouldHideMessageActionBar(message, isRunning);
+  const actionsVisible = shouldShowMessageActions(messages, index);
+  const navigationVisible = shouldShowMessageNavigation(
+    messages,
+    index,
+    session.actions.selectBranch !== undefined,
   );
   const context = { messageId, role, isLast };
+  const copyText =
+    "blocks" in node
+      ? node.blocks
+          .filter((block) => block.kind === "text")
+          .map((block) => block.text)
+          .join("\n\n")
+      : "";
 
   if (!actionsVisible && !navigationVisible && !hideActionBar) return null;
 
@@ -92,13 +128,13 @@ export function WorkbenchMessageActions({ className }: Readonly<{ className?: st
         className,
       )}
     >
-      {actionsVisible && role === "user" ? (
-        <time dateTime={createdAt.toISOString()} className="text-xs tabular-nums">
-          {date(createdAt, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+      {actionsVisible && role === "user" && node.createdAt !== undefined ? (
+        <time dateTime={new Date(node.createdAt).toISOString()} className="text-xs tabular-nums">
+          {date(node.createdAt, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
         </time>
       ) : null}
-      {actionsVisible && capabilities.unstable_copy && (role === "user" || role === "assistant") ? (
-        <CopyAction role={role} />
+      {actionsVisible && copyText && (role === "user" || role === "assistant") ? (
+        <CopyAction role={role} text={copyText} />
       ) : null}
       <SlotHost name="message.actions" context={context} className="flex items-center gap-0.5" />
     </div>

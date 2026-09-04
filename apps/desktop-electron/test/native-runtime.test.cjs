@@ -1,4 +1,5 @@
 const assert = require("node:assert/strict");
+const { createHash } = require("node:crypto");
 const {
   chmodSync,
   existsSync,
@@ -59,7 +60,7 @@ const ELECTRON_TARGET = Object.freeze({
 });
 
 function temporaryDirectory(t, prefix = "workbench-electron-runtime-") {
-  const directory = mkdtempSync(path.join(os.tmpdir(), prefix));
+  const directory = realpathSync(mkdtempSync(path.join(os.tmpdir(), prefix)));
   t.after(() => rmSync(directory, { force: true, recursive: true }));
   return directory;
 }
@@ -80,7 +81,6 @@ function writeNativeOwner(repositoryRoot) {
       dependencies: Object.fromEntries(NATIVE_RUNTIME_PACKAGES.map((name) => [name, "1.0.0"])),
     }),
   );
-  const packageDirectories = new Map();
   for (const packageName of NATIVE_RUNTIME_PACKAGES) {
     const packageDirectory = path.join(
       repositoryRoot,
@@ -90,13 +90,11 @@ function writeNativeOwner(repositoryRoot) {
       "node_modules",
       ...packageName.split("/"),
     );
-    packageDirectories.set(packageName, packageDirectory);
     writeFixtureFile(
       path.join(packageDirectory, "package.json"),
       JSON.stringify({
         name: packageName,
         version: "1.0.0",
-        ...(packageName === "node-pty" ? { dependencies: { "node-addon-api": "1.0.0" } } : {}),
       }),
     );
     if (packageName !== "node-pty") {
@@ -111,34 +109,6 @@ function writeNativeOwner(repositoryRoot) {
     mkdirSync(path.dirname(alias), { recursive: true });
     symlinkSync(path.relative(path.dirname(alias), packageDirectory), alias, "dir");
   }
-  const nodeAddonApiDirectory = path.join(
-    repositoryRoot,
-    "node_modules",
-    ".pnpm",
-    "node-addon-api@1.0.0",
-    "node_modules",
-    "node-addon-api",
-  );
-  writeFixtureFile(
-    path.join(nodeAddonApiDirectory, "package.json"),
-    JSON.stringify({ name: "node-addon-api", version: "1.0.0" }),
-  );
-  writeFixtureFile(path.join(nodeAddonApiDirectory, "index.js"), "module.exports = {};\n");
-  const ownerNodeAddonAlias = path.join(owner, "node_modules", "node-addon-api");
-  symlinkSync(
-    path.relative(path.dirname(ownerNodeAddonAlias), nodeAddonApiDirectory),
-    ownerNodeAddonAlias,
-    "dir",
-  );
-  const nodePtyDependencyAlias = path.join(
-    path.dirname(packageDirectories.get("node-pty")),
-    "node-addon-api",
-  );
-  symlinkSync(
-    path.relative(path.dirname(nodePtyDependencyAlias), nodeAddonApiDirectory),
-    nodePtyDependencyAlias,
-    "dir",
-  );
   return owner;
 }
 
@@ -156,10 +126,11 @@ function materializerCandidate(t, prefix = "workbench-materializer-boundary-") {
   const repositoryRoot = path.join(root, "repository");
   const producerPid = 4242;
   const outputParent = path.join(repositoryRoot, ".desktop-build", "runtime-node");
-  const outputDirectory = path.join(
-    outputParent,
-    `.${runtimeArtifactTargetKey(ELECTRON_TARGET)}.tmp-${producerPid}-123e4567-e89b-42d3-a456-426614174000`,
-  );
+  const targetToken = createHash("sha256")
+    .update(runtimeArtifactTargetKey(ELECTRON_TARGET))
+    .digest("hex")
+    .slice(0, 8);
+  const outputDirectory = path.join(outputParent, `.t-${targetToken}-${producerPid}-123e4567`);
   mkdirSync(outputDirectory, { recursive: true });
   return Object.freeze({ outputDirectory, outputParent, producerPid, repositoryRoot, root });
 }
@@ -289,7 +260,7 @@ test("resolves packaging arguments against installed Electron rather than host N
   );
   assert.throws(
     () =>
-      resolveNativeTarget(["--linux", "--dir"], {
+      resolveNativeTarget(["--linux", "--x64", "--dir"], {
         electronRuntime: ELECTRON_IDENTITY,
         projectBuildConfig: {
           afterPack: "scripts/after-pack.cjs",
@@ -302,60 +273,16 @@ test("resolves packaging arguments against installed Electron rather than host N
   );
 });
 
-test("Electron adapter rebuilds node-pty and explicitly materializes both target N-API prebuilds", async (t) => {
+test("Electron adapter reuses node-pty and materializes only parser prebuilds", async (t) => {
   const repositoryRoot = temporaryDirectory(t);
   writeNativeOwner(repositoryRoot);
   const artifactRoot = path.join(repositoryRoot, "artifact");
   writeArtifactPackages(artifactRoot);
-  const calls = [];
-  const adapter = createElectronRuntimeArtifactAdapter({
-    target: ELECTRON_TARGET,
-    rebuild: (outputDirectory, target) => {
-      calls.push({ outputDirectory, target });
-      assert.deepEqual(
-        JSON.parse(readFileSync(path.join(outputDirectory, "package.json"), "utf8")),
-        {
-          name: "@workbench/runtime-node-electron-materialization",
-          version: "0.0.0",
-          private: true,
-          dependencies: { "node-pty": "1.0.0" },
-        },
-      );
-      assert.equal(
-        existsSync(path.join(outputDirectory, "node_modules", "node-addon-api", "package.json")),
-        true,
-      );
-      const nodePtyRoot = path.join(outputDirectory, "node_modules", "node-pty");
-      writeFixtureFile(
-        path.join(
-          outputDirectory,
-          "node_modules",
-          ".pnpm",
-          "node-addon-api",
-          "node_addon_api.Makefile",
-        ),
-        "generated build support\n",
-      );
-      writeFixtureFile(
-        path.join(
-          path.dirname(realpathSync(nodePtyRoot)),
-          "node-addon-api",
-          "node_addon_api_except.stamp",
-        ),
-        "generated build support\n",
-      );
-      writeFixtureFile(
-        path.join(outputDirectory, "node_modules", ".pnpm", "node-addon-api-decoy", "keep"),
-        "not build support\n",
-      );
-      writeFixtureFile(
-        path.join(nodePtyRoot, "build", "Release", "pty.node"),
-        "electron-abi-148",
-        0o755,
-      );
-      writeFixtureFile(path.join(nodePtyRoot, "build", "Release", ".forge-meta"), "x64--148");
-    },
-  });
+  writeFixtureFile(
+    path.join(artifactRoot, "node_modules", "node-pty", "build", "Release", "pty.node"),
+    "shared-node-api-build",
+  );
+  const adapter = createElectronRuntimeArtifactAdapter({ target: ELECTRON_TARGET });
 
   adapter.validateTarget(ELECTRON_TARGET);
   await adapter.materialize({
@@ -364,27 +291,15 @@ test("Electron adapter rebuilds node-pty and explicitly materializes both target
     repositoryRoot,
   });
 
-  assert.equal(calls.length, 1);
-  assert.deepEqual(calls[0].target, ELECTRON_TARGET);
-  assert.equal(existsSync(path.join(artifactRoot, "node_modules", "node-addon-api")), false);
   assert.equal(
-    existsSync(path.join(artifactRoot, "node_modules", ".pnpm", "node-addon-api")),
-    false,
-  );
-  assert.equal(
-    existsSync(
-      path.join(
-        path.dirname(realpathSync(path.join(artifactRoot, "node_modules", "node-pty"))),
-        "node-addon-api",
-      ),
+    readFileSync(
+      path.join(artifactRoot, "node_modules", "node-pty", "build", "Release", "pty.node"),
+      "utf8",
     ),
-    false,
-  );
-  assert.equal(
-    existsSync(path.join(artifactRoot, "node_modules", ".pnpm", "node-addon-api-decoy", "keep")),
-    true,
+    "shared-node-api-build",
   );
   assert.equal(existsSync(path.join(artifactRoot, "package.json")), false);
+  assert.equal(existsSync(path.join(artifactRoot, "node_modules", "node-addon-api")), false);
   for (const packageName of ["tree-sitter", "tree-sitter-bash"]) {
     const filename = packageName === "tree-sitter" ? "tree-sitter.node" : "tree-sitter-bash.node";
     assert.equal(
@@ -395,57 +310,6 @@ test("Electron adapter rebuilds node-pty and explicitly materializes both target
       `${packageName}-electron-prebuild`,
     );
   }
-
-  for (const packageName of NATIVE_RUNTIME_PACKAGES) {
-    nativeArtifact.prunePackageNativeVariants(
-      path.join(artifactRoot, "node_modules", packageName),
-      packageName,
-      ELECTRON_TARGET,
-    );
-  }
-  const inventory = nativeArtifact.collectNativeRuntimeInventory(artifactRoot);
-  assert.deepEqual(
-    inventory.map((item) => item.path),
-    [
-      "node_modules/node-pty/build/Release/pty.node",
-      "node_modules/tree-sitter-bash/prebuilds/linux-x64/tree-sitter-bash.node",
-      "node_modules/tree-sitter/prebuilds/linux-x64/tree-sitter.node",
-    ],
-  );
-  assert.equal(
-    inventory.every((item) => Number.isInteger(item.mode)),
-    true,
-  );
-});
-
-test("adapter removes all build-only inputs when electron-rebuild fails", (t) => {
-  const repositoryRoot = temporaryDirectory(t, "workbench-electron-rebuild-failure-");
-  writeNativeOwner(repositoryRoot);
-  const artifactRoot = path.join(repositoryRoot, "artifact");
-  writeArtifactPackages(artifactRoot);
-  const failure = new Error("injected electron-rebuild failure");
-  const adapter = createElectronRuntimeArtifactAdapter({
-    target: ELECTRON_TARGET,
-    rebuild: () => {
-      assert.equal(existsSync(path.join(artifactRoot, "package.json")), true);
-      assert.equal(
-        existsSync(path.join(artifactRoot, "node_modules", "node-addon-api", "package.json")),
-        true,
-      );
-      throw failure;
-    },
-  });
-  assert.throws(
-    () =>
-      adapter.materialize({
-        target: ELECTRON_TARGET,
-        outputDirectory: artifactRoot,
-        repositoryRoot,
-      }),
-    failure,
-  );
-  assert.equal(existsSync(path.join(artifactRoot, "package.json")), false);
-  assert.equal(existsSync(path.join(artifactRoot, "node_modules", "node-addon-api")), false);
 });
 
 test("adapter rejects target drift before materializing native bytes", () => {
@@ -462,11 +326,9 @@ test("adapter rejects target drift before materializing native bytes", () => {
 
 test("native orchestration has no private manifest reader or Web source resolver", () => {
   const source = readFileSync(path.join(__dirname, "..", "scripts", "native-runtime.cjs"), "utf8");
-  assert.doesNotMatch(
-    source,
-    /apps\/web\/src|runtime-node\/scripts|function readRuntimeArtifactManifest/u,
-  );
+  assert.doesNotMatch(source, /apps\/web\/src|function readRuntimeArtifactManifest/u);
   assert.doesNotMatch(source, /async function resolveRuntimeArtifact/u);
+  assert.doesNotMatch(source, /@electron\/rebuild|electron-rebuild|node-addon-api|\.forge-meta/u);
   assert.match(source, /resolveDesktopRuntimeArtifact/u);
 });
 
@@ -797,7 +659,7 @@ test("native smoke verifies the exact target and exact selected manifest-owned w
   assert.deepEqual(report.loadedNativePaths, selectedPaths);
   assert.deepEqual(admissionCalls, [{ artifactRoot, expectedTarget: ELECTRON_TARGET }]);
   assert.deepEqual(calls[0][1], [
-    path.join(__dirname, "..", "scripts", "native-runtime-smoke.cjs"),
+    path.resolve(__dirname, "..", "..", "..", "scripts", "native-runtime-smoke.cjs"),
     "--runtime",
     artifactRoot,
   ]);
@@ -805,7 +667,7 @@ test("native smoke verifies the exact target and exact selected manifest-owned w
 });
 
 test("native smoke rejects an external descriptor outside the staged selection root", async () => {
-  const stagedRoot = "/staged/desktop-runtime/runtime-node";
+  const stagedRoot = path.resolve("staged", "desktop-runtime", "runtime-node");
   const admittedArtifact = {
     artifactRoot: path.join(stagedRoot, "electron-target"),
     manifestPath: path.join(stagedRoot, "electron-target", "artifact-manifest.json"),
@@ -815,8 +677,13 @@ test("native smoke rejects an external descriptor outside the staged selection r
   await assert.rejects(
     runStagedNativeSmoke({
       runtimeArtifact: {
-        artifactRoot: "/source/runtime/electron-target",
-        manifestPath: "/source/runtime/electron-target/artifact-manifest.json",
+        artifactRoot: path.resolve("source", "runtime", "electron-target"),
+        manifestPath: path.resolve(
+          "source",
+          "runtime",
+          "electron-target",
+          "artifact-manifest.json",
+        ),
         manifest: { target: ELECTRON_TARGET },
       },
       runtimeDirectory: stagedRoot,
@@ -912,51 +779,6 @@ test("rejects a terminal-owned native package file that escapes its package root
     () => resolveTerminalNativePackageDirectory("tree-sitter", { repositoryRoot }),
     /source package file escapes the runtime artifact/u,
   );
-});
-
-test("rejects external and package-internal node-addon-api dependency escapes", (t) => {
-  for (const escapeKind of ["external-root", "internal-file"]) {
-    const repositoryRoot = temporaryDirectory(t, `workbench-node-addon-${escapeKind}-`);
-    const externalRoot = temporaryDirectory(t, `workbench-node-addon-${escapeKind}-external-`);
-    const owner = writeNativeOwner(repositoryRoot);
-    const nodePtyDirectory = realpathSync(path.join(owner, "node_modules", "node-pty"));
-    const nodeAddonApi = path.join(path.dirname(nodePtyDirectory), "node-addon-api");
-    if (escapeKind === "external-root") {
-      const externalPackage = path.join(externalRoot, "node-addon-api");
-      writeFixtureFile(
-        path.join(externalPackage, "package.json"),
-        JSON.stringify({ name: "node-addon-api", version: "1.0.0" }),
-      );
-      writeFixtureFile(path.join(externalPackage, "index.js"), "module.exports = {};\n");
-      rmSync(nodeAddonApi, { force: true, recursive: true });
-      symlinkSync(externalPackage, nodeAddonApi, "dir");
-    } else {
-      const externalFile = path.join(externalRoot, "index.js");
-      writeFixtureFile(externalFile, "module.exports = {};\n");
-      const physicalNodeAddonApi = realpathSync(nodeAddonApi);
-      rmSync(path.join(physicalNodeAddonApi, "index.js"));
-      symlinkSync(externalFile, path.join(physicalNodeAddonApi, "index.js"));
-    }
-    const artifactRoot = path.join(repositoryRoot, "artifact");
-    writeArtifactPackages(artifactRoot);
-    const adapter = createElectronRuntimeArtifactAdapter({
-      target: ELECTRON_TARGET,
-      rebuild: () => {
-        throw new Error("rebuild must not run after dependency provenance failure");
-      },
-    });
-    assert.throws(
-      () =>
-        adapter.materialize({
-          target: ELECTRON_TARGET,
-          outputDirectory: artifactRoot,
-          repositoryRoot,
-        }),
-      escapeKind === "external-root"
-        ? /node-addon-api root escapes the runtime artifact/u
-        : /node-addon-api file escapes the runtime artifact/u,
-    );
-  }
 });
 
 test("strict target comparison includes Electron Node version and ABI", () => {

@@ -1,12 +1,13 @@
 "use client";
 
-import { ThreadListPrimitive } from "@assistant-ui/react";
 import { PlusIcon } from "lucide-react";
+import { useAgentRuntime } from "@workbench/agent-runtime-client";
 
 import { buttonVariants } from "../ui/button";
 import { useI18n } from "../i18n";
 import { cn } from "../utils";
 import { useWorkspaceCapabilities } from "@workbench/agent-runtime-client/workspaces";
+import { useWorkbenchNavigation } from "../navigation";
 
 export function NewThreadButton({
   className,
@@ -22,10 +23,14 @@ export function NewThreadButton({
   onNavigate?: () => void;
 }) {
   const { t } = useI18n();
+  const runtime = useAgentRuntime();
+  const navigation = useWorkbenchNavigation();
   const { beginNewThread } = useWorkspaceCapabilities();
 
   const prepareNewThread = () => {
     beginNewThread(workspaceId);
+    runtime.createDraft({ workspaceId });
+    navigation.openHome();
     onNavigate?.();
   };
 
@@ -39,6 +44,7 @@ export function NewThreadButton({
           "text-muted-foreground hover:text-foreground focus-visible:text-foreground active:text-foreground active:scale-90",
           className,
         )}
+        onClick={prepareNewThread}
       >
         <PlusIcon />
       </button>
@@ -57,15 +63,12 @@ export function NewThreadButton({
           className,
         )}
         aria-current={variant === "row" && active ? "page" : undefined}
+        onClick={prepareNewThread}
       >
         {variant === "menu" ? <PlusIcon className="size-[var(--icon-size-md)]" /> : null}
         {t("workbench.sidebar.newThread")}
       </button>
     );
 
-  return (
-    <ThreadListPrimitive.New asChild onClick={prepareNewThread}>
-      {button}
-    </ThreadListPrimitive.New>
-  );
+  return button;
 }

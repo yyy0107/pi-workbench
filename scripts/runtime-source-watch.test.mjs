@@ -11,6 +11,8 @@ import {
 
 const { createWorkbenchPaths } = workbenchPaths;
 
+const watchPath = (value) => value.split(path.sep).join("/");
+
 test("derives one exact Runtime/custom-Web source watch boundary", () => {
   const paths = createWorkbenchPaths({
     repositoryRoot: path.resolve("/arbitrary/workbench-repository"),
@@ -27,12 +29,12 @@ test("derives one exact Runtime/custom-Web source watch boundary", () => {
     assert.equal(arguments_[index - 1], "--include");
   }
   assert.deepEqual(runtimeSourceWatchIncludes({ paths }), [
-    `${paths.runtimeAppRoot}/src/**/*.{ts,tsx,js,jsx,mjs,cjs,json}`,
-    `${paths.webSourceRoot}/server/**/*.{ts,tsx,js,jsx,mjs,cjs,json}`,
-    `${paths.webSourceRoot}/runtime-connected-web-main.ts`,
-    `${paths.runtimeAppRoot}/package.json`,
-    `${paths.webRoot}/package.json`,
-    `${paths.repositoryRoot}/packages/**/package.json`,
+    `${watchPath(paths.runtimeAppRoot)}/src/**/*.{ts,tsx,js,jsx,mjs,cjs,json}`,
+    `${watchPath(paths.webSourceRoot)}/server/**/*.{ts,tsx,js,jsx,mjs,cjs,json}`,
+    `${watchPath(paths.webSourceRoot)}/runtime-connected-web-main.ts`,
+    `${watchPath(paths.runtimeAppRoot)}/package.json`,
+    `${watchPath(paths.webRoot)}/package.json`,
+    `${watchPath(paths.repositoryRoot)}/packages/**/package.json`,
   ]);
   assert.equal(arguments_.includes("apps/runtime-node/src/main.ts"), false);
 });

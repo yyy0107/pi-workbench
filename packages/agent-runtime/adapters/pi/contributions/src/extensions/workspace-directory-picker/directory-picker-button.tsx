@@ -1,10 +1,10 @@
 "use client";
 
-import { useAui } from "@assistant-ui/react";
 import { LoaderCircleIcon, PlusIcon } from "lucide-react";
 import { useCallback, useState } from "react";
 
 import { Button } from "@workbench/shell/ui";
+import { useAgentRuntime } from "@workbench/agent-runtime-client";
 import { usePiI18n } from "../../i18n";
 import { cn } from "@workbench/shell/utils";
 import {
@@ -28,7 +28,7 @@ export function DirectoryPickerButton() {
   const trustDialogCopy = workspaceProjectTrustDialogCopy(t);
   const hostClient = usePiHostClient();
   const runtimeConnection = usePiRuntimeConnection();
-  const aui = useAui();
+  const runtime = useAgentRuntime();
   const navigation = useNavigationService();
   const [picking, setPicking] = useState(false);
   const [remotePickerOpen, setRemotePickerOpen] = useState(false);
@@ -39,11 +39,13 @@ export function DirectoryPickerButton() {
     async (workspace: WorkbenchWorkspaceSummary) => {
       await activateCreatedWorkspace(workspace, {
         beginNewThreadWithCreatedWorkspace,
-        switchToNewThread: () => aui.threads.switchToNewThread(),
+        createDraft: (workspaceId) => {
+          runtime.createDraft({ workspaceId });
+        },
         navigateHome: navigation.newThread,
       });
     },
-    [aui.threads, beginNewThreadWithCreatedWorkspace, navigation],
+    [beginNewThreadWithCreatedWorkspace, navigation, runtime],
   );
   const admission = useWorkspaceDirectoryAdmission(activateDirectory);
 

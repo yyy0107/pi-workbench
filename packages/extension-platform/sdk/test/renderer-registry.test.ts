@@ -5,7 +5,7 @@ import { WrenchIcon } from "lucide-react";
 
 import type {
   DataPresentationDefinition,
-  MessagePartRendererContribution,
+  MessageBlockRendererContribution,
   ToolPresentationDefinition,
 } from "../src/api/renderer";
 import { ExtensionManager } from "../src/extension-manager";
@@ -15,32 +15,32 @@ function DisclosureController() {
   return null;
 }
 
-function PartRenderer() {
+function BlockRenderer() {
   return null;
 }
 
-const partRenderer = {
-  id: "workbench.test-part-renderer",
-  canRender: (part) => part.type === "text",
-  component: PartRenderer,
-} satisfies MessagePartRendererContribution;
+const blockRenderer = {
+  id: "workbench.test-block-renderer",
+  canRender: (block) => block.kind === "text",
+  component: BlockRenderer,
+} satisfies MessageBlockRendererContribution;
 
 const presentation = {
   label: "Used",
   activeLabel: "Using",
   icon: WrenchIcon,
-  summarize: (part) => part.toolName,
+  summarize: (block) => block.toolName,
   disclosureController: DisclosureController,
 } satisfies ToolPresentationDefinition;
 
 const dataPresentation = {
   display: "timeline",
-  isVisible: (part) => part.data !== null,
-  isActive: (part) =>
-    typeof part.data === "object" &&
-    part.data !== null &&
-    "status" in part.data &&
-    part.data.status === "running",
+  isVisible: (block) => block.data !== null,
+  isActive: (block) =>
+    typeof block.data === "object" &&
+    block.data !== null &&
+    "status" in block.data &&
+    block.data.status === "running",
 } satisfies DataPresentationDefinition;
 
 test("tool presentations publish stable frozen snapshots and dispose independently", () => {
@@ -117,7 +117,12 @@ test("data presentations publish stable frozen snapshots and follow extension li
   assert.notEqual(populatedSnapshot, emptySnapshot);
   assert.equal(populatedSnapshot["custom.data"], registered);
   assert.equal(
-    registered?.isActive?.({ type: "data", name: "custom.data", data: { status: "running" } }),
+    registered?.isActive?.({
+      key: "data-1",
+      kind: "data",
+      name: "custom.data",
+      data: { status: "running" },
+    }),
     true,
   );
 
@@ -125,18 +130,18 @@ test("data presentations publish stable frozen snapshots and follow extension li
   assert.equal(manager.renderers.dataPresentations.get("custom.data"), undefined);
 });
 
-test("message part renderers publish ordered frozen snapshots and dispose independently", () => {
-  const registry = new RendererRegistryImpl().parts;
+test("message block renderers publish ordered frozen snapshots and dispose independently", () => {
+  const registry = new RendererRegistryImpl().blocks;
   const emptySnapshot = registry.getAll();
   let changes = 0;
   const unsubscribe = registry.subscribe(() => {
     changes += 1;
   });
 
-  const firstDisposable = registry.register(partRenderer);
+  const firstDisposable = registry.register(blockRenderer);
   const secondDisposable = registry.register({
-    ...partRenderer,
-    id: "workbench.test-part-renderer-second",
+    ...blockRenderer,
+    id: "workbench.test-block-renderer-second",
   });
   const populatedSnapshot = registry.getAll();
 
@@ -145,17 +150,17 @@ test("message part renderers publish ordered frozen snapshots and dispose indepe
   assert.notEqual(populatedSnapshot, emptySnapshot);
   assert.deepEqual(
     populatedSnapshot.map((contribution) => contribution.id),
-    ["workbench.test-part-renderer", "workbench.test-part-renderer-second"],
+    ["workbench.test-block-renderer", "workbench.test-block-renderer-second"],
   );
   assert.equal(registry.getAll(), populatedSnapshot);
   assert.equal(changes, 2);
-  assert.throws(() => registry.register(partRenderer), /already registered/);
-  assert.throws(() => registry.register({ ...partRenderer, id: "  " }), /non-empty string/);
+  assert.throws(() => registry.register(blockRenderer), /already registered/);
+  assert.throws(() => registry.register({ ...blockRenderer, id: "  " }), /non-empty string/);
 
   firstDisposable.dispose();
   assert.deepEqual(
     registry.getAll().map((contribution) => contribution.id),
-    ["workbench.test-part-renderer-second"],
+    ["workbench.test-block-renderer-second"],
   );
   secondDisposable.dispose();
   assert.deepEqual(registry.getAll(), []);
@@ -163,19 +168,19 @@ test("message part renderers publish ordered frozen snapshots and dispose indepe
   unsubscribe();
 });
 
-test("extension lifecycle tracks message part renderer registrations", () => {
+test("extension lifecycle tracks message block renderer registrations", () => {
   const manager = new ExtensionManager();
   const activation = manager.activate({
-    id: "workbench.test-part-renderer-extension",
-    name: "Message Part Renderer Test",
+    id: "workbench.test-block-renderer-extension",
+    name: "Message Block Renderer Test",
     version: "1.0.0",
     setup(context) {
-      return context.renderers.parts.register(partRenderer);
+      return context.renderers.blocks.register(blockRenderer);
     },
   });
 
-  assert.equal(manager.renderers.parts.getAll()[0]?.id, partRenderer.id);
+  assert.equal(manager.renderers.blocks.getAll()[0]?.id, blockRenderer.id);
 
   activation.dispose();
-  assert.deepEqual(manager.renderers.parts.getAll(), []);
+  assert.deepEqual(manager.renderers.blocks.getAll(), []);
 });

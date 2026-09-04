@@ -1,29 +1,116 @@
 "use client";
 
-import { useLayoutEffect } from "react";
+import { useLayoutEffect, type ComponentType } from "react";
 
-import type { OpenerRegistry } from "@workbench/extension-sdk";
+import type { Disposable, OpenHandlerDefinition, OpenerRegistry } from "@workbench/extension-sdk";
 
 import { createFileOpenHandlers } from "../extensions/workspace-file/file-opener";
-import { useWorkspaceFileRuntime } from "./workspace-file-runtime";
+import { useWorkspaceFileRuntime, type WorkspaceFileRuntime } from "./workspace-file-runtime";
 
-/** Registers File resource handlers for the explicitly installed Pi contribution set. */
-export function PiFileWorkspaceOpenersBridge({ openers }: Readonly<{ openers: OpenerRegistry }>) {
-  const { files, resources, diffs } = useWorkspaceFileRuntime();
+type WorkspaceFileOpenHandlers = ReturnType<typeof createFileOpenHandlers>;
+type WorkspaceFileOpenHandlerKey = keyof WorkspaceFileOpenHandlers;
 
-  useLayoutEffect(() => {
-    const handlers = createFileOpenHandlers(files, resources, diffs);
-    const registrations = [
-      openers.register(handlers.fileOpenHandler),
-      openers.register(handlers.skillFileOpenHandler),
-      openers.register(handlers.skillDirectoryOpenHandler),
-      openers.register(handlers.extensionFileOpenHandler),
-      openers.register(handlers.extensionDirectoryOpenHandler),
-    ];
-    return () => {
+const WORKSPACE_FILE_OPEN_HANDLER_IDS = Object.freeze({
+  fileOpenHandler: "workspace.file",
+  skillFileOpenHandler: "workspace.file.skill",
+  skillDirectoryOpenHandler: "workspace.directory.skill",
+  extensionFileOpenHandler: "workspace.file.extension",
+  extensionDirectoryOpenHandler: "workspace.directory.extension",
+}) satisfies Readonly<Record<WorkspaceFileOpenHandlerKey, string>>;
+
+const WORKSPACE_FILE_OPEN_HANDLER_KEYS = Object.freeze(
+  Object.keys(WORKSPACE_FILE_OPEN_HANDLER_IDS) as WorkspaceFileOpenHandlerKey[],
+);
+
+/**
+ * Runtime binding captured by one Workspace File extension activation.
+ *
+ * Open handlers are registered synchronously by the extension while the React bridge supplies the
+ * installation-local Pi services after commit. Keeping those two lifetimes separate ensures that
+ * extension deactivation removes every handler before a replacement activation can begin.
+ */
+export interface WorkspaceFileOpenersBinding {
+  connect(runtime: WorkspaceFileRuntime): Disposable;
+  getHandler(key: WorkspaceFileOpenHandlerKey): OpenHandlerDefinition | undefined;
+}
+
+export function createWorkspaceFileOpenersBinding(): WorkspaceFileOpenersBinding {
+  const connections: { readonly handlers: WorkspaceFileOpenHandlers }[] = [];
+
+  return Object.freeze({
+    connect(runtime: WorkspaceFileRuntime): Disposable {
+      const connection = {
+        handlers: createFileOpenHandlers(runtime.files, runtime.resources, runtime.diffs),
+      };
+      connections.push(connection);
+      let disposed = false;
+      return {
+        dispose() {
+          if (disposed) return;
+          disposed = true;
+          const index = connections.indexOf(connection);
+          if (index >= 0) connections.splice(index, 1);
+        },
+      };
+    },
+    getHandler(key: WorkspaceFileOpenHandlerKey) {
+      return connections.at(-1)?.handlers[key];
+    },
+  });
+}
+
+/** Register every Workspace File resource scheme as one transactional lifecycle unit. */
+export function registerWorkspaceFileOpeners(
+  openers: OpenerRegistry,
+  binding: WorkspaceFileOpenersBinding,
+): Disposable {
+  const registrations: Disposable[] = [];
+  let disposed = false;
+
+  try {
+    for (const key of WORKSPACE_FILE_OPEN_HANDLER_KEYS) {
+      registrations.push(
+        openers.register({
+          id: WORKSPACE_FILE_OPEN_HANDLER_IDS[key],
+          canOpen(request) {
+            return binding.getHandler(key)?.canOpen(request) ?? 0;
+          },
+          open(request, context) {
+            const handler = binding.getHandler(key);
+            if (!handler) {
+              throw new Error("Workspace File runtime is not mounted");
+            }
+            return handler.open(request, context);
+          },
+        }),
+      );
+    }
+  } catch (error) {
+    for (const registration of registrations.reverse()) registration.dispose();
+    throw error;
+  }
+
+  return {
+    dispose() {
+      if (disposed) return;
+      disposed = true;
       for (const registration of registrations.reverse()) registration.dispose();
-    };
-  }, [diffs, files, openers, resources]);
+    },
+  };
+}
 
-  return null;
+/** Creates the mount-only contribution that supplies Pi services to one extension activation. */
+export function createWorkspaceFileOpenersContribution(
+  binding: WorkspaceFileOpenersBinding,
+): ComponentType<Record<never, never>> {
+  return function WorkspaceFileOpenersContribution() {
+    const runtime = useWorkspaceFileRuntime();
+
+    useLayoutEffect(() => {
+      const connection = binding.connect(runtime);
+      return () => connection.dispose();
+    }, [binding, runtime]);
+
+    return null;
+  };
 }

@@ -1,3 +1,4 @@
+const { createHash } = require("node:crypto");
 const path = require("node:path");
 const { lstatSync, realpathSync, statSync } = require("node:fs");
 
@@ -65,11 +66,8 @@ function assertRuntimeProducerCandidate(outputDirectory, repositoryRoot, target,
     );
   }
   const targetKey = runtimeArtifactTargetKey(target);
-  const escapedTargetKey = targetKey.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
-  const candidatePattern = new RegExp(
-    `^\\.${escapedTargetKey}\\.tmp-${producerPid}-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`,
-    "u",
-  );
+  const targetToken = createHash("sha256").update(targetKey).digest("hex").slice(0, 8);
+  const candidatePattern = new RegExp(`^\\.t-${targetToken}-${producerPid}-[0-9a-f]{8}$`, "u");
   if (!candidatePattern.test(path.basename(outputDirectory))) {
     throw new Error(
       `Runtime artifact materialization output must be the exact ${targetKey} producer candidate.`,

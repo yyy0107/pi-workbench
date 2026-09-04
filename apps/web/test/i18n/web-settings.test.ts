@@ -20,14 +20,14 @@ test("resolves only an explicitly supplied Web settings file", () => {
       configuredFile: "config/workbench-settings.json",
       workingDirectory: "/srv/workbench-web",
     }),
-    "/srv/workbench-web/config/workbench-settings.json",
+    path.resolve("/srv/workbench-web", "config/workbench-settings.json"),
   );
   assert.equal(
     explicitWebWorkbenchSettingsFile({
       configuredFile: "/var/lib/workbench/settings.json",
       workingDirectory: "/ignored",
     }),
-    "/var/lib/workbench/settings.json",
+    path.resolve("/ignored", "/var/lib/workbench/settings.json"),
   );
 });
 

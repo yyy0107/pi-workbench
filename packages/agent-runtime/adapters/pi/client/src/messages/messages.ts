@@ -1,14 +1,3 @@
-import type {
-  AppendMessage,
-  ImageMessagePart,
-  MessageTiming,
-  ThreadAssistantMessage,
-  ThreadMessage,
-  ThreadUserMessage,
-  ToolCallMessagePart,
-  ToolCallTiming,
-} from "@assistant-ui/react";
-
 import {
   parseAttachmentRecognitionSnapshot,
   reconcileAttachmentRecognitionSnapshot,
@@ -59,6 +48,7 @@ import {
   parsePiContextTraceData,
   piContextTraceData,
   piContextTracePromptInjections,
+  recordPiContextTracePromptPresentation,
   WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME,
 } from "../context-trace/data-part";
 import type {
@@ -67,6 +57,16 @@ import type {
 } from "@workbench/agent-runtime-pi-protocol/rpc";
 import { terminationFromAssistantMessage } from "@workbench/agent-runtime-pi-shared/messages";
 import type { PiMessageTermination } from "@workbench/agent-runtime-pi-shared/messages";
+import type {
+  PiConversationAssistantMessage as ThreadAssistantMessage,
+  PiConversationMessage as ThreadMessage,
+  PiConversationUserMessage as ThreadUserMessage,
+  PiImageMessagePart as ImageMessagePart,
+  PiMessageTiming as MessageTiming,
+  PiToolCallMessagePart as ToolCallMessagePart,
+  PiToolCallTiming as ToolCallTiming,
+  PiComposerMessage,
+} from "../conversation/pi-conversation-message";
 
 import { parsePiConversationEvent, projectPiConversationEvent } from "./conversation-events";
 import type { PiUsageMetadata } from "./pi-usage";
@@ -195,8 +195,20 @@ export function projectPiContextTracePromptParts(
   promptParts: readonly SessionContextTracePromptPart[],
 ): ThreadMessage[] {
   const eventsByTimestamp = new Map<number, SessionContextTraceEventSummary[]>();
+  const lastPresentationByRound = new Map<string, string>();
+  const visibleAssistantTimestamps = new Set<number>();
+  for (const message of messages) {
+    if (message.role !== "assistant") continue;
+    const timestamp = assistantMessageTimestamp(message);
+    if (timestamp !== undefined) visibleAssistantTimestamps.add(timestamp);
+  }
   for (const part of promptParts) {
-    if (part.event.kind !== "prompt-composition" || part.assistantMessageTimestamp === undefined) {
+    if (
+      part.event.kind !== "prompt-composition" ||
+      part.assistantMessageTimestamp === undefined ||
+      !visibleAssistantTimestamps.has(part.assistantMessageTimestamp) ||
+      !recordPiContextTracePromptPresentation(part.event, lastPresentationByRound)
+    ) {
       continue;
     }
     const events = eventsByTimestamp.get(part.assistantMessageTimestamp) ?? [];
@@ -773,8 +785,9 @@ function toolExecutionOutput(result: unknown): unknown {
   return candidate.details === undefined ? text : { text, details: candidate.details };
 }
 
-function assistantStatus(message: PiAssistantMessage, streaming: boolean) {
+function assistantStatus(message: PiAssistantMessage, streaming: boolean, unfinished: boolean) {
   if (streaming) return { type: "running" } as const;
+  if (unfinished) return { type: "incomplete", reason: "other" } as const;
   switch (message.stopReason) {
     case "aborted":
       return { type: "incomplete", reason: "cancelled" } as const;
@@ -851,6 +864,7 @@ export function piAssistantToThreadMessage(
   {
     optimistic = false,
     streaming = false,
+    unfinished = false,
     timing,
     toolTimingById,
     rawToolArgsText,
@@ -859,6 +873,7 @@ export function piAssistantToThreadMessage(
   }: Readonly<{
     optimistic?: boolean;
     streaming?: boolean;
+    unfinished?: boolean;
     timing?: MessageTiming;
     toolTimingById?: ReadonlyMap<string, ToolCallTiming>;
     rawToolArgsText?: Readonly<Record<string, string>>;
@@ -885,14 +900,22 @@ export function piAssistantToThreadMessage(
         return {
           type: "text" as const,
           text: part.text,
-          status: streaming ? ({ type: "running" } as const) : ({ type: "complete" } as const),
+          status: streaming
+            ? ({ type: "running" } as const)
+            : unfinished
+              ? ({ type: "incomplete", reason: "other" } as const)
+              : ({ type: "complete" } as const),
         };
       case "thinking":
         const providerMetadata = reasoningProviderMetadata(timing);
         return {
           type: "reasoning" as const,
           text: part.redacted ? "" : part.thinking,
-          status: streaming ? ({ type: "running" } as const) : ({ type: "complete" } as const),
+          status: streaming
+            ? ({ type: "running" } as const)
+            : unfinished
+              ? ({ type: "incomplete", reason: "other" } as const)
+              : ({ type: "complete" } as const),
           ...(providerMetadata === undefined ? {} : { providerMetadata }),
         };
       case "image":
@@ -931,7 +954,7 @@ export function piAssistantToThreadMessage(
     id,
     role: "assistant",
     content,
-    status: assistantStatus(message, streaming),
+    status: assistantStatus(message, streaming, unfinished),
     createdAt: messageDate(message.timestamp ?? createdAt, 0),
     metadata: {
       unstable_state: null,
@@ -1717,8 +1740,7 @@ function splitDocumentDataUrl(
 }
 
 export function appendMessageToPiPrompt(
-  message: Pick<AppendMessage, "content" | "attachments"> &
-    Partial<Pick<AppendMessage, "runConfig">>,
+  message: Pick<PiComposerMessage, "content" | "attachments" | "runConfig">,
 ): {
   text: string;
   images: PiImageContent[];
@@ -1754,7 +1776,7 @@ export function appendMessageToPiPrompt(
 }
 
 export function optimisticUserMessage(
-  message: AppendMessage,
+  message: PiComposerMessage,
   id: string,
   promptRpcId?: string,
 ): ThreadMessage {

@@ -8,7 +8,7 @@ import { useWorkbenchHighlightedCode } from "../code-highlighting/use-workbench-
 import { cn } from "../utils";
 
 import { DiffHeader, type DiffLine } from "./code-diff";
-import { codeScroll, codeSurface, mono, paper } from "./surfaces";
+import { codeScroll, codeSurface, mono, paper } from "../ui/surface";
 
 export type HunkDecision = "pending" | "kept" | "discarded";
 

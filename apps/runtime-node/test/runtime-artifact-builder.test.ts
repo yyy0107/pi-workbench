@@ -23,10 +23,15 @@ import {
   writeFile,
 } from "node:fs/promises";
 import os from "node:os";
+import { createRequire } from "node:module";
 import path from "node:path";
 import test from "node:test";
 
 import type { Metafile } from "esbuild";
+
+async function temporaryDirectory(prefix: string): Promise<string> {
+  return realpath(await mkdtemp(path.join(os.tmpdir(), prefix)));
+}
 
 import {
   RUNTIME_ARTIFACT_APP_OWNED_EXTERNAL_PACKAGES,
@@ -51,8 +56,10 @@ import {
   createRuntimeArtifactTraceResolver,
   currentNodeArtifactTarget,
   currentNodeRuntimeArtifactAdapter,
+  flattenWindowsRuntimeNodeModules,
   outputDirectoryForTarget,
   parseRuntimeArtifactBuildRequest,
+  projectTracedPnpmDependencyLinks,
   projectRuntimeAppOwnedExternalTraceAliases,
   publishRuntimeArtifactTransaction,
   pruneRuntimeTree,
@@ -137,7 +144,7 @@ test("bundles every Workbench package and never externalizes Next", () => {
 });
 
 test("binds app-owned artifact externals to a declared, installed, confined Runtime owner", async (t) => {
-  const fixtureRoot = await mkdtemp(path.join(os.tmpdir(), "workbench-runtime-trace-owner-"));
+  const fixtureRoot = await temporaryDirectory("workbench-runtime-trace-owner-");
   t.after(() => rm(fixtureRoot, { force: true, recursive: true }));
   const repositoryRoot = path.join(fixtureRoot, "repository");
   const appRoot = path.join(repositoryRoot, "apps", "runtime-node");
@@ -299,7 +306,7 @@ test("keys artifacts by runtime ABI and rejects an unmaterialized Node target", 
 
 test("parses the app-owned artifact producer request and delegates target materialization", async (t) => {
   const target = currentNodeArtifactTarget();
-  const repositoryRoot = await mkdtemp(path.join(os.tmpdir(), "workbench-materializer-command-"));
+  const repositoryRoot = await temporaryDirectory("workbench-materializer-command-");
   const outputDirectory = path.join(repositoryRoot, "candidate");
   await mkdir(outputDirectory);
   await writeFile(path.join(outputDirectory, "server.mjs"), "export {};\n");
@@ -353,7 +360,7 @@ test("parses the app-owned artifact producer request and delegates target materi
 
 test("materializer command may mutate only policy-derived native owner subtrees", async (t) => {
   const target = currentNodeArtifactTarget();
-  const repositoryRoot = await mkdtemp(path.join(os.tmpdir(), "workbench-native-mutation-"));
+  const repositoryRoot = await temporaryDirectory("workbench-native-mutation-");
   t.after(() => rm(repositoryRoot, { force: true, recursive: true }));
 
   async function adapterWithMutation(mutate: (outputDirectory: string) => void) {
@@ -478,16 +485,18 @@ test("materializer command may mutate only policy-derived native owner subtrees"
     });
   }, /regular file node_modules\/\.pnpm\/node-pty\/node_modules\/node-pty\/build\/Release\/pty\.node has 2 hard links but only 1 name inside the artifact/u);
 
-  const rootModeMutation = await adapterWithMutation((outputDirectory) => {
-    chmodSync(outputDirectory, 0o700);
-  });
-  await assert.rejects(async () => {
-    await rootModeMutation.adapter.materialize?.({
-      target,
-      outputDirectory: rootModeMutation.outputDirectory,
-      repositoryRoot,
+  if (process.platform !== "win32") {
+    const rootModeMutation = await adapterWithMutation((outputDirectory) => {
+      chmodSync(outputDirectory, 0o700);
     });
-  }, /changed paths outside declared native owner subtrees: \./u);
+    await assert.rejects(async () => {
+      await rootModeMutation.adapter.materialize?.({
+        target,
+        outputDirectory: rootModeMutation.outputDirectory,
+        repositoryRoot,
+      });
+    }, /changed paths outside declared native owner subtrees: \./u);
+  }
 
   const rootIdentityReplacement = await adapterWithMutation((outputDirectory) => {
     const displacedRoot = `${outputDirectory}-displaced`;
@@ -669,12 +678,26 @@ test("rejects malformed target-specific artifact producer requests", () => {
 });
 
 test("writes measured native inventory before the strict api-only manifest", async (t) => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "workbench-runtime-artifact-"));
+  const directory = await temporaryDirectory("workbench-runtime-artifact-");
   t.after(() => rm(directory, { force: true, recursive: true }));
   const target = currentNodeArtifactTarget();
   const tuple = `${target.platform}-${target.arch}`;
+  const nodePtyFiles =
+    target.platform === "win32"
+      ? [
+          "conpty.node",
+          "conpty_console_list.node",
+          "pty.node",
+          "winpty-agent.exe",
+          "winpty.dll",
+          "conpty/conpty.dll",
+          "conpty/OpenConsole.exe",
+        ]
+      : target.platform === "darwin"
+        ? ["pty.node", "spawn-helper"]
+        : ["pty.node"];
   const files = [
-    "node_modules/node-pty/build/Release/pty.node",
+    ...nodePtyFiles.map((filename) => `node_modules/node-pty/build/Release/${filename}`),
     `node_modules/tree-sitter/prebuilds/${tuple}/tree-sitter.node`,
     `node_modules/tree-sitter-bash/prebuilds/${tuple}/tree-sitter-bash.node`,
   ];
@@ -683,7 +706,7 @@ test("writes measured native inventory before the strict api-only manifest", asy
       const destination = path.join(directory, ...file.split("/"));
       await mkdir(path.dirname(destination), { recursive: true });
       await writeFile(destination, file, "utf8");
-      chmodSync(destination, index === 0 ? 0o700 : 0o664);
+      chmodSync(destination, file.endsWith("spawn-helper") ? 0o700 : index === 0 ? 0o700 : 0o664);
     }),
   );
   await mkdir(path.join(directory, "node_modules", "@earendil-works", "pi-coding-agent"), {
@@ -696,10 +719,12 @@ test("writes measured native inventory before the strict api-only manifest", asy
   );
   const measured = await writeNativeInventory(directory, target);
   assert.equal(measured.reference.path, RUNTIME_ARTIFACT_NATIVE_INVENTORY_FILENAME);
-  assert.equal(measured.inventory.files.length, 3);
+  assert.equal(measured.inventory.files.length, files.length);
   assert.deepEqual(
     measured.inventory.files.map((file) => file.mode),
-    [0o644, 0o644, 0o644],
+    measured.inventory.files.map((file) =>
+      file.path.endsWith("spawn-helper") ? 0o755 : process.platform === "win32" ? 0o666 : 0o644,
+    ),
   );
   assert.ok(measured.reference.size > 0);
   const manifest = createRuntimeArtifactManifest(
@@ -716,7 +741,7 @@ test("writes measured native inventory before the strict api-only manifest", asy
 });
 
 test("rejects a symlink whose resolved target leaves the artifact", async (t) => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "workbench-runtime-confinement-"));
+  const directory = await temporaryDirectory("workbench-runtime-confinement-");
   t.after(() => rm(directory, { force: true, recursive: true }));
   const outside = path.join(directory, "..", `${path.basename(directory)}-outside`);
   await writeFile(outside, "outside", "utf8");
@@ -737,8 +762,8 @@ test("rewrites absolute source junction targets to relocatable artifact-local li
     ".pnpm/pkg@1/node_modules/pkg",
   );
 
-  const repositoryRoot = await mkdtemp(path.join(os.tmpdir(), "workbench-link-source-"));
-  const outputDirectory = await mkdtemp(path.join(os.tmpdir(), "workbench-link-artifact-"));
+  const repositoryRoot = await temporaryDirectory("workbench-link-source-");
+  const outputDirectory = await temporaryDirectory("workbench-link-artifact-");
   t.after(() => rm(repositoryRoot, { force: true, recursive: true }));
   t.after(() => rm(outputDirectory, { force: true, recursive: true }));
   const ownerRelative = "node_modules/.pnpm/pkg@1/node_modules/pkg";
@@ -756,7 +781,7 @@ test("rewrites absolute source junction targets to relocatable artifact-local li
   );
   await copyRuntimeArtifactClosurePath("node_modules/pkg", repositoryRoot, outputDirectory);
   assert.equal(
-    await readlink(path.join(outputDirectory, "node_modules", "pkg")),
+    (await readlink(path.join(outputDirectory, "node_modules", "pkg"))).split(path.sep).join("/"),
     ".pnpm/pkg@1/node_modules/pkg",
   );
   assert.equal(
@@ -766,7 +791,7 @@ test("rewrites absolute source junction targets to relocatable artifact-local li
 });
 
 test("projects only a traced Runtime app package alias onto the artifact root owner", async (t) => {
-  const fixtureRoot = await mkdtemp(path.join(os.tmpdir(), "workbench-runtime-alias-projection-"));
+  const fixtureRoot = await temporaryDirectory("workbench-runtime-alias-projection-");
   t.after(() => rm(fixtureRoot, { force: true, recursive: true }));
   const repositoryRoot = path.join(fixtureRoot, "repository");
   const appRoot = path.join(repositoryRoot, "apps", "runtime-node");
@@ -861,6 +886,137 @@ test("projects only a traced Runtime app package alias onto the artifact root ow
   });
 });
 
+test("projects package-local pnpm dependency links when both physical owners were traced", async (t) => {
+  const fixtureRoot = await temporaryDirectory("workbench-runtime-pnpm-links-");
+  t.after(() => rm(fixtureRoot, { force: true, recursive: true }));
+  const outputDirectory = path.join(fixtureRoot, "artifact");
+  const sourceOwner = path.join(fixtureRoot, "node_modules", ".pnpm", "issuer@1", "node_modules");
+  const sourceTarget = path.join(
+    fixtureRoot,
+    "node_modules",
+    ".pnpm",
+    "dependency@1",
+    "node_modules",
+    "@scope",
+    "dependency",
+  );
+  const artifactOwner = path.join(
+    outputDirectory,
+    "node_modules",
+    ".pnpm",
+    "issuer@1",
+    "node_modules",
+  );
+  const artifactTarget = path.join(
+    outputDirectory,
+    "node_modules",
+    ".pnpm",
+    "dependency@1",
+    "node_modules",
+    "@scope",
+    "dependency",
+  );
+  const sourceLink = path.join(sourceOwner, "@scope", "dependency");
+  const artifactLink = path.join(artifactOwner, "@scope", "dependency");
+  await mkdir(sourceTarget, { recursive: true });
+  await mkdir(path.dirname(sourceLink), { recursive: true });
+  await symlink(path.relative(path.dirname(sourceLink), sourceTarget), sourceLink, "dir");
+  await mkdir(artifactTarget, { recursive: true });
+  await mkdir(artifactOwner, { recursive: true });
+
+  await projectTracedPnpmDependencyLinks({
+    repositoryRoot: fixtureRoot,
+    outputDirectory,
+  });
+
+  assert.equal((await lstat(artifactLink)).isSymbolicLink(), true);
+  assert.equal(await realpath(artifactLink), await realpath(artifactTarget));
+});
+
+test("flattens the Windows Runtime dependency graph without losing version conflicts", async (t) => {
+  const outputDirectory = await temporaryDirectory("workbench-runtime-standalone-modules-");
+  t.after(() => rm(outputDirectory, { force: true, recursive: true }));
+  const appTarget = path.join(
+    outputDirectory,
+    "node_modules",
+    ".pnpm",
+    "app@1.0.0",
+    "node_modules",
+    "app",
+  );
+  const dependencyOneTarget = path.join(
+    outputDirectory,
+    "node_modules",
+    ".pnpm",
+    "dependency@1.0.0",
+    "node_modules",
+    "dependency",
+  );
+  const dependencyTwoTarget = path.join(
+    outputDirectory,
+    "node_modules",
+    ".pnpm",
+    "dependency@2.0.0",
+    "node_modules",
+    "dependency",
+  );
+  for (const [directory, manifest, source] of [
+    [
+      appTarget,
+      '{"name":"app","version":"1.0.0","main":"index.js"}\n',
+      "module.exports = require('dependency');\n",
+    ],
+    [
+      dependencyOneTarget,
+      '{"name":"dependency","version":"1.0.0","main":"index.js"}\n',
+      "module.exports = 'one';\n",
+    ],
+    [
+      dependencyTwoTarget,
+      '{"name":"dependency","version":"2.0.0","main":"index.js"}\n',
+      "module.exports = 'two';\n",
+    ],
+  ] as const) {
+    await mkdir(directory, { recursive: true });
+    await writeFile(path.join(directory, "package.json"), manifest);
+    await writeFile(path.join(directory, "index.js"), source);
+  }
+  const appAlias = path.join(outputDirectory, "node_modules", "app");
+  const dependencyAlias = path.join(outputDirectory, "node_modules", "dependency");
+  const appDependencyAlias = path.join(
+    outputDirectory,
+    "node_modules",
+    ".pnpm",
+    "app@1.0.0",
+    "node_modules",
+    "dependency",
+  );
+  for (const [alias, target] of [
+    [appAlias, appTarget],
+    [dependencyAlias, dependencyOneTarget],
+    [appDependencyAlias, dependencyTwoTarget],
+  ] as const) {
+    await mkdir(path.dirname(alias), { recursive: true });
+    await symlink(path.relative(path.dirname(alias), target), alias, "dir");
+  }
+  const links = await Promise.all(
+    [appAlias, dependencyAlias, appDependencyAlias].map(async (alias) => ({
+      path: path.relative(outputDirectory, alias).split(path.sep).join("/"),
+      target: (await readlink(alias)).split(path.sep).join("/"),
+    })),
+  );
+
+  await flattenWindowsRuntimeNodeModules(outputDirectory, links);
+
+  assert.equal((await lstat(appAlias)).isDirectory(), true);
+  assert.equal((await lstat(appAlias)).isSymbolicLink(), false);
+  assert.equal((await lstat(dependencyAlias)).isSymbolicLink(), false);
+  await assert.rejects(access(path.join(outputDirectory, "node_modules", ".pnpm")));
+  const requireFromArtifact = createRequire(path.join(outputDirectory, "probe.cjs"));
+  assert.equal(requireFromArtifact("dependency"), "one");
+  assert.equal(requireFromArtifact("app"), "two");
+});
+
 async function createPiModelFixture(directory: string): Promise<{
   readonly packageDirectory: string;
   readonly examplesDirectory: string;
@@ -895,7 +1051,7 @@ async function createPiModelFixture(directory: string): Promise<{
 }
 
 test("derives and preserves the exact physical Pi model closure, with TS/test exceptions only in examples", async (t) => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "workbench-runtime-prune-"));
+  const directory = await temporaryDirectory("workbench-runtime-prune-");
   t.after(() => rm(directory, { force: true, recursive: true }));
   const { packageDirectory, examplesDirectory } = await createPiModelFixture(directory);
   const files = [
@@ -978,7 +1134,7 @@ test("derives and preserves the exact physical Pi model closure, with TS/test ex
 });
 
 test("rejects a symlink inside the Pi model-readable closure", async (t) => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "workbench-runtime-model-symlink-"));
+  const directory = await temporaryDirectory("workbench-runtime-model-symlink-");
   t.after(() => rm(directory, { force: true, recursive: true }));
   const { packageDirectory } = await createPiModelFixture(directory);
   const outside = path.join(directory, "outside.md");
@@ -997,7 +1153,7 @@ async function createPublishFixture(): Promise<{
   readonly finalDirectory: string;
   readonly target: ReturnType<typeof currentNodeArtifactTarget>;
 }> {
-  const root = await mkdtemp(path.join(os.tmpdir(), "workbench-runtime-publish-"));
+  const root = await temporaryDirectory("workbench-runtime-publish-");
   const repositoryRoot = path.join(root, "repository");
   const outputDirectory = path.join(root, "output");
   await mkdir(repositoryRoot);
@@ -1131,6 +1287,7 @@ test("atomically publishes an admitted candidate and removes the old backup", as
   await mkdir(fixture.finalDirectory);
   await writeFile(path.join(fixture.finalDirectory, "marker.txt"), "old", "utf8");
   let admissionCount = 0;
+  let temporaryBasename = "";
   const accept = acceptingFixtureResolver(fixture.target);
 
   await publishRuntimeArtifactTransaction({
@@ -1138,13 +1295,18 @@ test("atomically publishes an admitted candidate and removes the old backup", as
     repositoryRoot: fixture.repositoryRoot,
     outputDirectory: fixture.outputDirectory,
     testOnlyOutputPolicy: TEST_ONLY_ALLOW_NONSTANDARD_RUNTIME_ARTIFACT_OUTPUT,
-    buildTemporaryArtifact: (directory) => writePublishCandidate(directory, fixture.target, "new"),
+    buildTemporaryArtifact: (directory) => {
+      temporaryBasename = path.basename(directory);
+      return writePublishCandidate(directory, fixture.target, "new");
+    },
     resolveArtifactImpl: async (options) => {
       admissionCount += 1;
       return accept(options);
     },
   });
 
+  assert.match(temporaryBasename, /^\.t-[a-f0-9]{8}-[0-9]+-[a-f0-9]{8}$/u);
+  assert.ok(temporaryBasename.length <= 32, "temporary roots must preserve native path budget");
   assert.equal(admissionCount, 2);
   assert.equal(await readFile(path.join(fixture.finalDirectory, "marker.txt"), "utf8"), "new");
   await assertOnlyFinalTargetRemains(fixture.outputDirectory, fixture.target);
@@ -2003,7 +2165,7 @@ test("default output authority rejects wrong and aliased roots before building",
 });
 
 test("rejects a package-internal symlink escaping its canonical package owner", async (t) => {
-  const repositoryRoot = await mkdtemp(path.join(os.tmpdir(), "workbench-package-provenance-"));
+  const repositoryRoot = await temporaryDirectory("workbench-package-provenance-");
   t.after(() => rm(repositoryRoot, { force: true, recursive: true }));
   const packageDirectory = path.join(repositoryRoot, "node_modules", "package");
   const siblingFile = path.join(repositoryRoot, "outside-package.txt");

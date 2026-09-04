@@ -9,36 +9,10 @@ import type {
   PromptCommandView,
   SkillView,
 } from "@workbench/agent-runtime-pi-protocol/rpc";
-import type { ComponentType } from "react";
-import type {
-  ComponentExtensionContributionKind,
-  OpenableResource,
-} from "@workbench/extension-sdk";
+import type { OpenableResource } from "@workbench/extension-sdk";
 
-export interface ToolboxComponentContribution {
-  id: string;
-  kind: ComponentExtensionContributionKind;
-  surface: string;
-  target: string;
-  host?: string;
-  description?: string;
-  preview: ComponentType;
-  sourceFiles: readonly string[];
-}
-
-export type ToolboxCapabilityKind =
-  | "skill"
-  | "component-extension"
-  | "extension"
-  | "prompt"
-  | "package";
-export type ToolboxMainSection =
-  | "skills"
-  | "component-extensions"
-  | "extensions"
-  | "prompts"
-  | "packages"
-  | "updates";
+export type ToolboxCapabilityKind = "skill" | "extension" | "prompt" | "package";
+export type ToolboxMainSection = "skills" | "extensions" | "prompts" | "packages" | "updates";
 
 export interface ToolboxCapabilitySurfaceParams extends Record<string, unknown> {
   capabilityId: string;
@@ -61,10 +35,6 @@ export interface ToolboxCapabilitySurfaceParams extends Record<string, unknown> 
   eventDetails?: ExtensionRegisteredEventView[];
   toolDetails?: ExtensionRegisteredToolView[];
   commandDetails?: ExtensionRegisteredCommandView[];
-  entryFile?: string;
-  componentExtensionId?: string;
-  componentExtensionDistribution?: "builtin" | "installable";
-  componentContributions?: ToolboxComponentContribution[];
   packageTypes?: PiPackageCatalogItemView["types"];
   author?: string;
   monthlyDownloads?: number;
@@ -110,10 +80,6 @@ export function bindCapabilityToCatalogTarget(
         }
       : {}),
   };
-}
-
-export function componentExtensionCapabilityId(extensionId: string): string {
-  return `component-extension:${encodeURIComponent(extensionId)}`;
 }
 
 export interface ToolboxMainViewParams extends Record<string, unknown> {
@@ -172,15 +138,13 @@ export function sectionForCapability(
 ): ToolboxMainSection {
   return capability.capabilityKind === "skill"
     ? "skills"
-    : capability.capabilityKind === "component-extension"
-      ? "component-extensions"
-      : capability.capabilityKind === "extension"
-        ? "extensions"
-        : capability.capabilityKind === "prompt"
+    : capability.capabilityKind === "extension"
+      ? "extensions"
+      : capability.capabilityKind === "prompt"
+        ? "prompts"
+        : capability.packageTypes?.includes("prompt")
           ? "prompts"
-          : capability.packageTypes?.includes("prompt")
-            ? "prompts"
-            : "packages";
+          : "packages";
 }
 
 export function skillCapabilityId(skill: Pick<SkillView, "name">): string {

@@ -1,6 +1,5 @@
 "use client";
 
-import { useAuiState } from "@assistant-ui/react";
 import { FolderPlusIcon, LoaderCircleIcon } from "lucide-react";
 import { useCallback, useState } from "react";
 
@@ -8,6 +7,7 @@ import { DropdownMenuItem, DropdownMenuSeparator } from "@workbench/shell/ui";
 import { WorkspaceSelector } from "@workbench/shell/ui";
 import { usePiI18n } from "../../i18n";
 import type { ComposerSlotContext } from "@workbench/extension-sdk";
+import { useCurrentSession } from "@workbench/agent-runtime-client";
 import {
   useWorkspaceCapabilities,
   useWorkspaceSelection,
@@ -31,9 +31,7 @@ export function WorkspaceDirectorySummary({ submissionBlocked }: ComposerSlotCon
   const [picking, setPicking] = useState(false);
   const [remotePickerOpen, setRemotePickerOpen] = useState(false);
   const [error, setError] = useState(false);
-  const isNewThread = useAuiState(
-    (state) => state.threads.mainThreadId === state.threads.newThreadId,
-  );
+  const isNewThread = useCurrentSession().isNewThread;
   const { activeWorkspace, draftWorkspace, workspaces } = useWorkspaceSelection();
   const { beginNewThread, beginNewThreadWithCreatedWorkspace, destroyNewThread } =
     useWorkspaceCapabilities();

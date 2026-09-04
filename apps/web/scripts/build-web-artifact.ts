@@ -11,6 +11,7 @@ import {
   realpath,
   rename,
   rm,
+  symlink,
   unlink,
   writeFile,
 } from "node:fs/promises";
@@ -28,6 +29,7 @@ import {
   WEB_ARTIFACT_PRIMARY_ENTRYPOINT,
   assertWebArtifactManifest,
   isWebArtifactRelativePath,
+  normalizeWebArtifactRelativePath,
   webArtifactBuildIdPath,
   webArtifactRequiredServerFilesPath,
   type WebArtifactFile,
@@ -69,7 +71,7 @@ const WEB_ARTIFACT_EXTERNAL_SPECIFIERS = WEB_ARTIFACT_EXTERNAL_PACKAGES.flatMap(
 const WEB_ARTIFACT_ESM_BANNER =
   'import { createRequire as __workbenchCreateRequire } from "node:module";\n' +
   "const require = __workbenchCreateRequire(import.meta.url);";
-const WEB_BUILD_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,255}$/u;
+const WEB_BUILD_ID_PATTERN = /^[A-Za-z0-9_-][A-Za-z0-9._-]{0,255}$/u;
 const WEB_RUNTIME_OWNED_PACKAGES = new Set([
   "@earendil-works/pi-ai",
   "@earendil-works/pi-coding-agent",
@@ -201,8 +203,8 @@ function isInside(parent: string, candidate: string): boolean {
 }
 
 function artifactRelativePath(value: string): string {
-  const normalized = value.split(path.sep).join("/");
-  if (!isWebArtifactRelativePath(normalized)) {
+  const normalized = normalizeWebArtifactRelativePath(value);
+  if (!normalized) {
     throw new Error("Unsafe Web artifact relative path: " + value + ".");
   }
   return normalized;
@@ -265,6 +267,9 @@ export async function readNextStandaloneMetadata({
   } catch {
     throw new Error("Next required-server-files.json is invalid JSON.");
   }
+  const relativeAppDir = isRecord(metadata)
+    ? normalizeWebArtifactRelativePath(metadata.relativeAppDir)
+    : undefined;
   if (
     !isRecord(metadata) ||
     metadata.version !== 1 ||
@@ -275,7 +280,7 @@ export async function readNextStandaloneMetadata({
     !path.isAbsolute(metadata.appDir) ||
     typeof metadata.config.outputFileTracingRoot !== "string" ||
     !path.isAbsolute(metadata.config.outputFileTracingRoot) ||
-    !isWebArtifactRelativePath(metadata.relativeAppDir)
+    !relativeAppDir
   ) {
     throw new Error("Next required-server-files metadata is incomplete or not standalone.");
   }
@@ -296,12 +301,12 @@ export async function readNextStandaloneMetadata({
     .join("/");
   if (
     !isWebArtifactRelativePath(derivedRelativeAppDir) ||
-    derivedRelativeAppDir !== metadata.relativeAppDir
+    derivedRelativeAppDir !== relativeAppDir
   ) {
     throw new Error("Next relativeAppDir is not derived from its metadata roots.");
   }
   return Object.freeze({
-    relativeAppDir: metadata.relativeAppDir,
+    relativeAppDir,
     buildId: normalizedBuildId(await readFile(path.join(webBuildRoot, "BUILD_ID"), "utf8")),
     config: Object.freeze({ ...metadata.config }),
   });
@@ -324,7 +329,7 @@ async function assertCopiedNextIdentity(
   }
   if (
     !isRecord(copied) ||
-    copied.relativeAppDir !== metadata.relativeAppDir ||
+    normalizeWebArtifactRelativePath(copied.relativeAppDir) !== metadata.relativeAppDir ||
     !isRecord(copied.config) ||
     copied.config.output !== "standalone" ||
     copied.config.distDir !== ".next"
@@ -369,7 +374,17 @@ async function assertNoBrokenLinks(directory: string): Promise<void> {
       try {
         await realpath(absolute);
       } catch {
-        throw new Error("Web artifact contains a broken symlink: " + absolute + ".");
+        const target = await readlink(absolute);
+        const resolvedTarget = path.resolve(path.dirname(absolute), target);
+        throw new Error(
+          "Web artifact contains a broken symlink: " +
+            absolute +
+            " -> " +
+            target +
+            " (resolved as " +
+            resolvedTarget +
+            ").",
+        );
       }
     } else if (entry.isDirectory()) {
       await assertNoBrokenLinks(absolute);
@@ -389,6 +404,72 @@ async function visitLinks(
     if (entry.isSymbolicLink()) await visit(absolute);
     else if (entry.isDirectory()) await visitLinks(absolute, visit, skipped);
   }
+}
+
+/** Rebuilds standalone aliases as type-correct links to artifact-confined targets. */
+async function confineStandaloneLinks(
+  repositoryRoot: string,
+  standaloneRoot: string,
+  artifactRoot: string,
+): Promise<void> {
+  const repositoryPnpmRoot = path.join(repositoryRoot, "node_modules", ".pnpm");
+  const standalonePnpmRoot = path.join(standaloneRoot, "node_modules", ".pnpm");
+  const artifactPnpmRoot = path.join(artifactRoot, "node_modules", ".pnpm");
+  await visitLinks(artifactRoot, async (artifactLink) => {
+    const relativeLink = path.relative(artifactRoot, artifactLink);
+    const sourceLink = path.join(standaloneRoot, relativeLink);
+    let sourceTarget: string;
+    let artifactTarget: string | undefined;
+    try {
+      sourceTarget = await realpath(sourceLink);
+    } catch {
+      const missingTarget = path.resolve(path.dirname(sourceLink), await readlink(sourceLink));
+      if (!isInside(standalonePnpmRoot, missingTarget)) {
+        throw new Error("Web artifact contains a broken symlink outside its pnpm store.");
+      }
+      const relativeTarget = path.relative(standalonePnpmRoot, missingTarget);
+      const canonicalRepositoryPnpmRoot = await realpath(repositoryPnpmRoot);
+      sourceTarget = await realpath(path.join(canonicalRepositoryPnpmRoot, relativeTarget));
+      if (!isInside(canonicalRepositoryPnpmRoot, sourceTarget)) {
+        throw new Error("Raw standalone pnpm link target escapes the repository store.");
+      }
+      artifactTarget = path.join(artifactPnpmRoot, relativeTarget);
+    }
+    if (!artifactTarget) {
+      if (isInside(standaloneRoot, sourceTarget)) {
+        artifactTarget = path.join(artifactRoot, path.relative(standaloneRoot, sourceTarget));
+      } else if (isInside(repositoryPnpmRoot, sourceTarget)) {
+        artifactTarget = path.join(
+          artifactPnpmRoot,
+          path.relative(repositoryPnpmRoot, sourceTarget),
+        );
+      } else {
+        throw new Error("Raw standalone symlink target is outside its admitted package roots.");
+      }
+    }
+    if (!isInside(artifactRoot, artifactTarget)) {
+      throw new Error("Mapped standalone symlink target escapes the artifact root.");
+    }
+
+    const targetStats = await lstat(sourceTarget);
+    if (!(await pathExists(artifactTarget))) {
+      await mkdir(path.dirname(artifactTarget), { recursive: true });
+      await cp(sourceTarget, artifactTarget, {
+        dereference: false,
+        force: true,
+        preserveTimestamps: true,
+        recursive: targetStats.isDirectory(),
+        verbatimSymlinks: true,
+      });
+    }
+    const relativeTarget = path
+      .relative(path.dirname(artifactLink), artifactTarget)
+      .split(path.sep)
+      .join("/");
+    await rm(artifactLink, { force: true });
+    await symlink(relativeTarget, artifactLink, targetStats.isDirectory() ? "dir" : "file");
+    await realpath(artifactLink);
+  });
 }
 
 function pnpmEntryForTarget(pnpmDirectory: string, target: string): string | undefined {
@@ -708,7 +789,12 @@ export async function measureWebArtifactTree(artifactRoot: string): Promise<{
         if (!isInside(canonicalRoot, target)) {
           throw new Error("Web artifact symlink escapes the artifact: " + relative + ".");
         }
-        links.push(Object.freeze({ path: relative, target: await readlink(absolute) }));
+        links.push(
+          Object.freeze({
+            path: relative,
+            target: (await readlink(absolute)).split(path.sep).join("/"),
+          }),
+        );
       } else if (stats.isDirectory()) {
         await visit(absolute);
       } else if (stats.isFile()) {
@@ -803,6 +889,7 @@ type ProcessAliveProbe = (pid: number) => boolean;
 
 const WEB_ARTIFACT_PUBLISH_BACKUP_NAME = ".web.backup";
 const WEB_ARTIFACT_PUBLISH_LOCK_NAME = ".web.publish-lock";
+const WEB_ARTIFACT_PUBLISH_TEMPORARY_NAME = "w";
 const WEB_ARTIFACT_PUBLISH_LOCK_INITIALIZATION_ATTEMPTS = 20;
 const WEB_ARTIFACT_PUBLISH_LOCK_RETRY_MILLISECONDS = 10;
 const WEB_ARTIFACT_PUBLISH_LOCK_WAIT_TIMEOUT_MILLISECONDS = 30 * 60 * 1_000;
@@ -897,24 +984,24 @@ async function assertUnchangedOptionalDirectory(
   }
 }
 
-async function createUniqueOwnedDirectory(
+async function createOwnedTemporaryDirectory(
   parent: string,
-  prefix: string,
 ): Promise<Readonly<{ path: string; identity: DirectoryIdentity }>> {
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    const directory = path.join(parent, prefix + "-" + process.pid + "-" + randomUUID());
-    try {
-      await mkdir(directory);
-      return Object.freeze({
-        path: directory,
-        identity: await directoryIdentity(directory, "Web artifact temporary target"),
-      });
-    } catch (error: unknown) {
-      if (error instanceof Error && "code" in error && error.code === "EEXIST") continue;
-      throw error;
-    }
+  // The publish lock makes a unique suffix unnecessary. Keeping this name shorter than `web`
+  // preserves the final artifact's Windows path budget while copying deep pnpm package trees.
+  const directory = path.join(parent, WEB_ARTIFACT_PUBLISH_TEMPORARY_NAME);
+  const staleIdentity = await optionalDirectoryIdentity(
+    directory,
+    "Stale Web artifact temporary target",
+  );
+  if (staleIdentity) {
+    await removeOwnedDirectory(directory, staleIdentity, "Stale Web artifact temporary target");
   }
-  throw new Error("Could not allocate a unique Web artifact temporary target.");
+  await mkdir(directory);
+  return Object.freeze({
+    path: directory,
+    identity: await directoryIdentity(directory, "Web artifact temporary target"),
+  });
 }
 
 async function uniqueUnusedSiblingPath(parent: string, prefix: string): Promise<string> {
@@ -1769,7 +1856,7 @@ export async function publishWebArtifactTransaction({
         resolveArtifactImpl,
         removeOwnedDirectoryImpl,
       );
-      const temporary = await createUniqueOwnedDirectory(authority.parent, ".web.tmp");
+      const temporary = await createOwnedTemporaryDirectory(authority.parent);
       const backupPath = path.join(authority.parent, WEB_ARTIFACT_PUBLISH_BACKUP_NAME);
       let temporaryAtPath = true;
       let publishedAtFinal = false;
@@ -1948,6 +2035,7 @@ export async function buildWebArtifact({
     paths: pathTools.createWorkbenchPaths({ repositoryRoot }),
     standaloneRoot,
   });
+  await confineStandaloneLinks(repositoryRoot, standaloneRoot, standaloneRoot);
   await assertNoBrokenLinks(standaloneRoot);
 
   const resolved = await publishWebArtifactTransaction({
@@ -1964,6 +2052,7 @@ export async function buildWebArtifact({
         recursive: true,
         verbatimSymlinks: true,
       });
+      await confineStandaloneLinks(repositoryRoot, standaloneRoot, temporaryRoot);
       const appRoot = path.join(temporaryRoot, ...metadata.relativeAppDir.split("/"));
       await cp(publicRoot, path.join(appRoot, "public"), {
         dereference: false,

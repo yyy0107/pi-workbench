@@ -1,5 +1,5 @@
-import { assistantEnUS } from "../assistant-ui/i18n/en-US";
-import { assistantZhCN } from "../assistant-ui/i18n/zh-CN";
+import { assistantEnUS } from "./chat/en-US";
+import { assistantZhCN } from "./chat/zh-CN";
 import { rightWorkspaceEnUS } from "../right-workspace/presentation/i18n/en-US";
 import { rightWorkspaceZhCN } from "../right-workspace/presentation/i18n/zh-CN";
 import { platformExtensionsEnUS } from "@workbench/extension-host/i18n/en-US";

@@ -1,4 +1,4 @@
-interface MessageActionVisibilityMessage {
+export interface MessageActionVisibilityMessage {
   readonly id: string;
   readonly role: "user" | "assistant" | "system";
   readonly content: readonly { readonly type: string; readonly text?: string }[];

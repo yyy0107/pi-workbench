@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import test from "node:test";
 
-import { installedWorkbenchExtensionPrefix } from "@/workbench/runtime-contributions/installed-workbench-extensions";
+import { installedWorkbenchExtensions } from "@/workbench/runtime-contributions/installed-workbench-extensions";
 
 const repositoryRoot = fileURLToPath(new URL("../../../../../", import.meta.url));
 const IGNORED_DIRECTORIES = new Set([
@@ -155,11 +155,12 @@ function directPiPackageImportViolations(sources: ReadonlyMap<string, string>): 
 }
 
 test("preserves the product-owned cross-package extension activation order", () => {
-  assert.equal(Object.isFrozen(installedWorkbenchExtensionPrefix), true);
-  const ids = installedWorkbenchExtensionPrefix.map(({ id }) => id);
+  assert.equal(Object.isFrozen(installedWorkbenchExtensions), true);
+  const ids = installedWorkbenchExtensions.map(({ id }) => id);
   assert.equal(new Set(ids).size, ids.length);
   assert.deepEqual(ids, [
     "workbench.brand",
+    "workbench.workspace-sidebar",
     "workbench.appearance",
     "workbench.locale-selector",
     "workbench.message-presentation",
@@ -179,6 +180,7 @@ test("preserves the product-owned cross-package extension activation order", () 
     "workbench.interactive-requests",
     "workbench.side-chat",
     "workbench.setting-model-config",
+    "workbench.pi.settings-action",
     "workbench.image-understanding",
     "workbench.toolbox",
     "workbench.automations",

@@ -27,13 +27,13 @@ co-located `en-US` and `zh-CN` dictionaries; use `defineMessage(...)` for regist
 // packages/workbench/shell/src/extensions/builtin/session-badge/session-badge.tsx
 "use client";
 
-import { useAuiState } from "@assistant-ui/react";
+import { useSessionState } from "@workbench/agent-runtime-client";
 
 import { useI18n } from "@/i18n";
 
 export function SessionBadge() {
   const { t } = useI18n();
-  const messageCount = useAuiState((state) => state.thread.messages.length);
+  const messageCount = useSessionState((state) => state.nodeKeys.length);
 
   return (
     <span aria-label={t("extensions.sessionBadge.messageCount", { count: messageCount })}>
@@ -293,11 +293,11 @@ export const generativeUiExtension = defineExtension({
     entryFile: "extensions/installable/generative-ui/extension.ts",
     contributions: [
       {
-        id: "workbench.generative-ui.message-part",
-        kind: "message-part-renderer",
+        id: "workbench.generative-ui.message-block",
+        kind: "message-block-renderer",
         surface: defineMessage("extensions.generativeUi.placement.surface"),
-        target: "context.renderers.parts",
-        host: "MessagePrimitive.Parts → MessagePartRendererHost",
+        target: "context.renderers.blocks",
+        host: "ConversationNode → RendererHost",
         description: defineMessage("extensions.generativeUi.placement.description"),
         preview: GenerativeUIPreview,
         sourceFiles: [
@@ -308,9 +308,9 @@ export const generativeUiExtension = defineExtension({
     ],
   },
   setup(context) {
-    return context.renderers.parts.register({
-      id: "workbench.generative-ui.message-part",
-      canRender: canRenderGenerativeUIPart,
+    return context.renderers.blocks.register({
+      id: "workbench.generative-ui.message-block",
+      canRender: canRenderGenerativeUIBlock,
       component: GenerativeUIRenderer,
     });
   },
@@ -423,34 +423,21 @@ server package directly.
 
 ## Message Renderer
 
-Register one complete message presentation when an extension needs to choose part grouping,
+Register one complete message presentation when an extension needs to choose Block grouping,
 reasoning appearance, tool-group chrome, and Tool/Data fallbacks:
 
 ```tsx
 "use client";
 
-import { groupPartByType, MessagePrimitive } from "@assistant-ui/react";
+import type { MessageRendererProps } from "@workbench/extension-sdk";
 import { RendererHost } from "@workbench/extension-host/hosts/renderer-host";
 
-export function CompactMessageRenderer() {
-  return (
-    <MessagePrimitive.GroupedParts
-      groupBy={groupPartByType({
-        reasoning: ["group-reasoning"],
-        "tool-call": ["group-tool"],
-      })}
-    >
-      {({ part, children }) => {
-        if (part.type === "group-reasoning") return <details>{children}</details>;
-        if (part.type === "group-tool") return <section>{children}</section>;
-        if (part.type === "text" || part.type === "reasoning") return <p>{part.text}</p>;
-        if (part.type === "tool-call" || part.type === "data") {
-          return <RendererHost part={part} />;
-        }
-        return null;
-      }}
-    </MessagePrimitive.GroupedParts>
-  );
+export function CompactMessageRenderer({ node }: MessageRendererProps) {
+  return node.blocks.map((block) => {
+    const fallback =
+      block.kind === "text" || block.kind === "reasoning" ? <p>{block.text}</p> : null;
+    return <RendererHost key={block.key} node={node} block={block} fallback={fallback} />;
+  });
 }
 ```
 
@@ -470,48 +457,30 @@ Workspace Surface, Command, and `bash` renderer together so all terminal UI disp
 ```tsx
 "use client";
 
-import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
-
 import { useI18n } from "@/i18n";
+import type { ToolRendererComponent } from "@workbench/extension-sdk";
 
-interface WeatherArgs {
-  city?: string;
-}
-
-interface WeatherResult {
-  temperatureC: number;
-  summary: string;
-}
-
-export const WeatherRenderer: ToolCallMessagePartComponent<WeatherArgs, WeatherResult> = ({
-  args,
-  argsText,
-  result,
-  status,
-  isError,
-}) => {
+export const WeatherRenderer: ToolRendererComponent = ({ block, fallback }) => {
   const { t } = useI18n();
+  const args =
+    block.arguments && typeof block.arguments === "object" && !Array.isArray(block.arguments)
+      ? block.arguments
+      : {};
 
-  if (status.type === "running") {
-    return <div>{t("extensions.weather.readingArguments", { args: argsText || "…" })}</div>;
+  if (block.status === "running") {
+    return (
+      <div>{t("extensions.weather.readingArguments", { args: block.argumentsText || "…" })}</div>
+    );
   }
-  if (status.type === "requires-action") {
+  if (block.status === "requires-action") {
     return <div>{t("extensions.weather.waitingForAction")}</div>;
   }
-  if (isError || status.type === "incomplete") {
-    return <div role="alert">{t("extensions.weather.incomplete")}</div>;
-  }
+  if (block.status !== "complete") return fallback;
 
   return (
     <section className="rounded-lg border p-3">
-      <p>{args.city ?? t("extensions.weather.unknownCity")}</p>
-      {result ? (
-        <p>
-          {result.temperatureC}°C · {result.summary}
-        </p>
-      ) : (
-        <p>{t("extensions.weather.noResult")}</p>
-      )}
+      <p>{typeof args.city === "string" ? args.city : t("extensions.weather.unknownCity")}</p>
+      <pre>{JSON.stringify(block.result, null, 2)}</pre>
     </section>
   );
 };
@@ -529,12 +498,12 @@ Renderer:
 
 ```tsx
 const disclosureController: ToolPresentationDisclosureController = ({
-  part,
+  block,
   running,
   open,
   onOpenChange,
 }) => {
-  const needsAttention = useToolAttention(part.toolCallId, running && !open);
+  const needsAttention = useToolAttention(block.callId, running && !open);
 
   useEffect(() => {
     if (needsAttention && !open) onOpenChange(true);
@@ -549,21 +518,22 @@ collapsed detail and preserves its scroll-compensated disclosure behavior. The c
 observe presentation state, but it must not execute the tool or duplicate the registered Tool
 Renderer.
 
-Also define/expose the actual `get_weather` tool through the appropriate assistant-ui Tool/Runtime/backend path. Renderer registration is presentation-only.
+Also define/expose the actual `get_weather` tool through the owning Agent Runtime/backend capability.
+Renderer registration is presentation-only.
 
 ## Data Renderer
 
 ```tsx
 "use client";
 
-import type { DataMessagePartComponent } from "@assistant-ui/react";
+import type { DataRendererComponent } from "@workbench/extension-sdk";
 
-interface CitationData {
-  label: string;
-  url: string;
-}
-
-export const CitationRenderer: DataMessagePartComponent<CitationData> = ({ data }) => {
+export const CitationRenderer: DataRendererComponent = ({ block, fallback }) => {
+  const data =
+    block.data && typeof block.data === "object" && !Array.isArray(block.data)
+      ? block.data
+      : undefined;
+  if (typeof data?.label !== "string" || typeof data.url !== "string") return fallback;
   const safeUrl = /^https?:\/\//i.test(data.url);
 
   if (!safeUrl) return <span>{data.label}</span>;
@@ -580,7 +550,7 @@ export const CitationRenderer: DataMessagePartComponent<CitationData> = ({ data 
 const renderer = context.renderers.data.register("citation", CitationRenderer);
 ```
 
-The Runtime or transport must emit a data Part whose `name` is exactly `citation`.
+The Runtime or transport must emit a Data Block whose `name` is exactly `citation`.
 
 ## Sidebar contribution
 
@@ -651,6 +621,6 @@ Do not add a feature-specific Slot such as `notes.button`. Add a semantic host l
 - [ ] Avoid duplicate Panel chrome.
 - [ ] Use only currently mounted Panel locations; do not target the unmounted right Panel host.
 - [ ] Guard partial streaming tool args.
-- [ ] Keep assistant-ui state in assistant-ui.
+- [ ] Keep conversation state in the Workbench Agent Runtime.
 - [ ] Run targeted oxfmt and oxlint.
 - [ ] Run TypeScript; run production build for boundary changes.

@@ -13,15 +13,15 @@ test("selects the accepted workspace before switching to the new thread", async 
 
   const activation = activateCreatedWorkspace(workspace, {
     beginNewThreadWithCreatedWorkspace: (created) => events.push(`begin:${created.id}`),
-    switchToNewThread: () => {
-      events.push("switch");
+    createDraft: (workspaceId) => {
+      events.push(`draft:${workspaceId}`);
       return switching;
     },
     navigateHome: () => events.push("navigate"),
   });
 
-  assert.deepEqual(events, ["begin:workspace-created", "switch"]);
+  assert.deepEqual(events, ["begin:workspace-created", "draft:workspace-created"]);
   finishSwitch();
   await activation;
-  assert.deepEqual(events, ["begin:workspace-created", "switch", "navigate"]);
+  assert.deepEqual(events, ["begin:workspace-created", "draft:workspace-created", "navigate"]);
 });

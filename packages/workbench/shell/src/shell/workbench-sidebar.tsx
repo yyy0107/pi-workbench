@@ -2,47 +2,28 @@
 
 import {
   useEffect,
-  useId,
   useLayoutEffect,
   useRef,
   useState,
+  useSyncExternalStore,
   type CSSProperties,
-  type ReactNode,
   type RefObject,
 } from "react";
-import { useAuiState } from "@assistant-ui/react";
-import {
-  ChevronRightIcon,
-  PanelLeftCloseIcon,
-  SearchIcon,
-  ToolboxIcon,
-  ZapIcon,
-  XIcon,
-  type LucideIcon,
-} from "lucide-react";
+import { PanelLeftCloseIcon, SearchIcon, XIcon } from "lucide-react";
 
-import { collapsePanel } from "../elements/surfaces";
 import { Button } from "../ui/button";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 import { Input } from "../ui/input";
 import { Sidebar, useSidebar } from "../ui/sidebar";
 import { useI18n } from "../i18n";
-import { cn } from "../utils";
-import { useMainViewService } from "@workbench/extension-host";
+import { useMainViewService, useSidebarSectionRegistry } from "@workbench/extension-host";
 import { MainViewSidebarHost } from "@workbench/extension-host/hosts/main-view-sidebar-host";
+import { SidebarSectionHost } from "@workbench/extension-host/hosts/sidebar-section-host";
 import { SlotHost } from "@workbench/extension-host/hosts/slot-host";
-import { useWorkbenchAgentThreadSnapshots } from "@workbench/agent-runtime-client/context";
-import { useWorkspaceSelection } from "@workbench/agent-runtime-client/workspaces";
-import {
-  SidebarPrimaryNavigation,
-  type SidebarSection,
-} from "../sidebar/sidebar-primary-navigation";
+import type { SidebarSectionDefinition } from "@workbench/extension-sdk";
+import { SidebarPrimaryNavigation } from "../sidebar/sidebar-primary-navigation";
 import { applySidebarResizePreview, SidebarResizeHandle } from "../sidebar/sidebar-resize-handle";
-import { useHydrateThreadOrderStore } from "../sidebar/thread-order-store";
-import {
-  WorkbenchPinnedThreadList,
-  WorkbenchWorkspaceThreadList,
-} from "../sidebar/workspace-thread-list";
+
+const EMPTY_SIDEBAR_SECTIONS = Object.freeze([]) as readonly SidebarSectionDefinition[];
 
 export function WorkbenchSidebarContent({
   mobile = false,
@@ -51,46 +32,42 @@ export function WorkbenchSidebarContent({
   mobile?: boolean;
   onNavigate?: () => void;
 }) {
-  const { t } = useI18n();
-  useHydrateThreadOrderStore();
+  const { t, text } = useI18n();
   const mainViews = useMainViewService();
-  const threadIds = useAuiState((state) => state.threads.threadIds);
-  const threadItems = useAuiState((state) => state.threads.threadItems);
-  const threadStates = useWorkbenchAgentThreadSnapshots(threadIds);
-  const hasPinnedThreads = threadIds.some(
-    (threadId) => threadStates.get(threadId)?.isPinned === true,
+  const sectionRegistry = useSidebarSectionRegistry();
+  const sections = useSyncExternalStore(
+    sectionRegistry.subscribe,
+    () => sectionRegistry.getAll(),
+    () => EMPTY_SIDEBAR_SECTIONS,
   );
-  const hasPinnedDirectories = useWorkspaceSelection().workspaces.some(
-    (workspace) => workspace.pinned === true,
-  );
-  const [pinnedExpanded, setPinnedExpanded] = useState(true);
-  const [projectsExpanded, setProjectsExpanded] = useState(true);
-  const [activeSection, setActiveSection] = useState<SidebarSection>("workspace");
+  const [requestedSectionId, setRequestedSectionId] = useState("workspace");
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const workspacePanelId = useId();
-  const normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase();
-  const hasSearchResults =
-    !normalizedSearchQuery ||
-    threadItems.some((thread) =>
-      (threadStates.get(thread.id)?.title ?? thread.title)
-        ?.toLocaleLowerCase()
-        .includes(normalizedSearchQuery),
-    );
+  const activeSection = sections.find(({ id }) => id === requestedSectionId) ?? sections[0];
 
   useEffect(() => {
     const syncActiveSection = () => {
       const active = mainViews.getSnapshot();
-      if (active?.kind === "automations") setActiveSection("automations");
-      else if (active?.kind === "toolbox") setActiveSection("toolbox");
+      if (!active) return;
+      const owningSection = sections.find(({ mainViewKinds }) =>
+        mainViewKinds?.includes(active.kind),
+      );
+      if (owningSection) setRequestedSectionId(owningSection.id);
     };
     syncActiveSection();
     return mainViews.subscribe(syncActiveSection);
-  }, [mainViews]);
+  }, [mainViews, sections]);
 
-  const changeSection = (section: SidebarSection) => {
-    if (section === "workspace") mainViews.close();
-    setActiveSection(section);
+  const changeSection = (sectionId: string) => {
+    const nextSection = sectionRegistry.get(sectionId);
+    const activeMainView = mainViews.getSnapshot();
+    if (
+      activeMainView &&
+      (!nextSection?.mainViewKinds || !nextSection.mainViewKinds.includes(activeMainView.kind))
+    ) {
+      mainViews.close();
+    }
+    setRequestedSectionId(sectionId);
     setSearchOpen(false);
     setSearchQuery("");
   };
@@ -102,14 +79,9 @@ export function WorkbenchSidebarContent({
     });
   };
 
-  const searchLabel = t(
-    activeSection === "toolbox" ? "workbench.sidebar.searchToolbox" : "workbench.sidebar.search",
-  );
-  const searchPlaceholder = t(
-    activeSection === "toolbox"
-      ? "workbench.sidebar.searchToolboxPlaceholder"
-      : "workbench.sidebar.searchPlaceholder",
-  );
+  const searchDefinition = activeSection?.search;
+  const searchLabel = searchDefinition ? text(searchDefinition.label) : "";
+  const searchPlaceholder = searchDefinition ? text(searchDefinition.placeholder) : "";
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -130,7 +102,8 @@ export function WorkbenchSidebarContent({
       ) : null}
 
       <SidebarPrimaryNavigation
-        activeSection={activeSection}
+        activeSectionId={activeSection?.id}
+        sections={sections}
         searchOpen={searchOpen}
         onSectionChange={changeSection}
         onSearchToggle={toggleSearch}
@@ -141,7 +114,7 @@ export function WorkbenchSidebarContent({
         className="mx-3 mb-1 flex shrink-0 flex-col gap-1 empty:hidden"
       />
 
-      {searchOpen ? (
+      {searchOpen && searchDefinition ? (
         <div className="relative mx-3 mb-2 shrink-0">
           <SearchIcon
             aria-hidden="true"
@@ -183,105 +156,16 @@ export function WorkbenchSidebarContent({
         </div>
       ) : null}
 
-      {activeSection === "workspace" ? (
-        <div
-          id={workspacePanelId}
-          role="region"
-          aria-label={t("workbench.shell.workspace")}
-          data-workspace-scroll-container
-          className="min-h-0 flex-1 overflow-y-auto py-1 ps-3 pe-[2px] [scrollbar-gutter:stable]"
-        >
-          <div
-            className="mb-2 min-w-0"
-            onClick={(event) => {
-              if (
-                !mobile ||
-                !(event.target instanceof Element) ||
-                !event.target.closest("button, a")
-              ) {
-                return;
-              }
-              onNavigate?.();
-            }}
-          >
-            <SlotHost name="sidebar.top" className="empty:hidden" />
-          </div>
-
-          {normalizedSearchQuery && !hasSearchResults ? (
-            <p className="text-muted-foreground px-2 py-6 text-center text-xs leading-relaxed">
-              {t("workbench.sidebar.noSearchResults")}
-            </p>
-          ) : (
-            <>
-              {hasPinnedThreads || hasPinnedDirectories ? (
-                <Collapsible
-                  render={<section />}
-                  open={pinnedExpanded}
-                  onOpenChange={setPinnedExpanded}
-                  className="mb-1 flex flex-col gap-0.5"
-                >
-                  <SidebarSectionHeading
-                    label={t("workbench.sidebar.pinned")}
-                    expanded={pinnedExpanded}
-                  />
-                  <CollapsibleContent className={cn(collapsePanel, "outline-none")}>
-                    <WorkbenchPinnedThreadList searchQuery={searchQuery} onNavigate={onNavigate} />
-                  </CollapsibleContent>
-                </Collapsible>
-              ) : null}
-
-              <Collapsible
-                render={<section />}
-                open={projectsExpanded}
-                onOpenChange={setProjectsExpanded}
-                className="flex flex-col gap-0.5"
-              >
-                <SidebarSectionHeading
-                  label={t("workbench.sidebar.projects")}
-                  expanded={projectsExpanded}
-                  actions={
-                    <SlotHost
-                      name="sidebar.workspace.actions"
-                      className="flex shrink-0 items-center empty:hidden"
-                    />
-                  }
-                />
-                <CollapsibleContent className={cn(collapsePanel, "outline-none")}>
-                  <WorkbenchWorkspaceThreadList searchQuery={searchQuery} onNavigate={onNavigate} />
-                </CollapsibleContent>
-              </Collapsible>
-            </>
-          )}
-        </div>
-      ) : activeSection === "toolbox" ? (
-        <SlotHost
-          name="sidebar.toolbox"
-          context={{ searchQuery }}
-          className="min-h-0 flex-1"
-          emptyFallback={
-            <SidebarSectionEmptyState
-              section="toolbox"
-              icon={ToolboxIcon}
-              label={t("workbench.sidebar.toolboxEmpty")}
-            />
-          }
+      {activeSection ? (
+        <SidebarSectionHost
+          sectionId={activeSection.id}
+          mobile={mobile}
+          onNavigate={onNavigate}
+          searchQuery={searchQuery}
         />
-      ) : (
-        <SlotHost
-          name="sidebar.automations"
-          context={{ searchQuery }}
-          className="min-h-0 flex-1"
-          emptyFallback={
-            <SidebarSectionEmptyState
-              section="automations"
-              icon={ZapIcon}
-              label={t("workbench.sidebar.automationsEmpty")}
-            />
-          }
-        />
-      )}
+      ) : null}
 
-      {!mobile && activeSection !== "toolbox" ? (
+      {!mobile && activeSection?.id === "workspace" ? (
         <SlotHost
           name="sidebar.bottom"
           className="flex shrink-0 flex-col gap-2 px-3 empty:hidden"
@@ -294,84 +178,6 @@ export function WorkbenchSidebarContent({
           className="flex min-h-12 shrink-0 items-center gap-2 px-4 pt-2 pb-1 empty:hidden"
         />
       ) : null}
-    </div>
-  );
-}
-
-function SidebarSectionHeading({
-  label,
-  expanded,
-  actions,
-}: {
-  label: string;
-  expanded: boolean;
-  actions?: ReactNode;
-}) {
-  const { t } = useI18n();
-  const labelId = useId();
-  const actionId = useId();
-  const actionLabel = t(
-    expanded ? "workbench.sidebar.collapseSection" : "workbench.sidebar.expandSection",
-  );
-
-  return (
-    <div className="group/sidebar-section relative flex h-9 w-full shrink-0 items-center rounded-lg ps-2">
-      <CollapsibleTrigger
-        type="button"
-        aria-labelledby={`${labelId} ${actionId}`}
-        className="absolute inset-0 rounded-lg outline-none"
-      />
-      <h2
-        id={labelId}
-        className="text-muted-foreground pointer-events-none min-w-0 text-sm font-medium"
-      >
-        {label}
-      </h2>
-      <div className="pointer-events-none flex size-[var(--icon-frame-size-default)] shrink-0 items-center justify-center">
-        <ChevronRightIcon
-          className={cn(
-            "size-[var(--icon-size-md)] opacity-100 transition-[transform,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none md:opacity-0 md:group-hover/sidebar-section:opacity-100 md:group-focus-within/sidebar-section:opacity-100",
-            expanded && "rotate-90",
-          )}
-        />
-      </div>
-      {actions ? (
-        <div
-          data-sidebar-actions=""
-          className="relative z-10 ms-auto flex shrink-0 opacity-100 transition-opacity duration-150 ease-out motion-reduce:transition-none md:pointer-events-none md:opacity-0 md:group-hover/sidebar-section:pointer-events-auto md:group-hover/sidebar-section:opacity-100 md:group-focus-within/sidebar-section:pointer-events-auto md:group-focus-within/sidebar-section:opacity-100"
-        >
-          {actions}
-        </div>
-      ) : null}
-      <span id={actionId} className="sr-only">
-        {actionLabel}
-      </span>
-    </div>
-  );
-}
-
-function SidebarSectionEmptyState({
-  section,
-  icon: Icon,
-  label,
-}: {
-  section: Exclude<SidebarSection, "workspace">;
-  icon: LucideIcon;
-  label: string;
-}) {
-  const panelId = useId();
-  return (
-    <div
-      id={panelId}
-      data-sidebar-section={section}
-      role="region"
-      aria-label={label}
-      className="text-muted-foreground flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-8 text-center text-sm"
-    >
-      <div className="bg-sidebar-accent flex size-11 items-center justify-center rounded-2xl">
-        <Icon aria-hidden="true" className="size-5" />
-      </div>
-      <p>{label}</p>
     </div>
   );
 }

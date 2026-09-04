@@ -1,7 +1,6 @@
 import { ScanTextIcon } from "lucide-react";
-import type { DataMessagePart } from "@assistant-ui/react";
 
-import { defineExtension } from "@workbench/extension-sdk";
+import { defineExtension, type DataPresentationDefinition } from "@workbench/extension-sdk";
 import { defineMessage } from "@workbench/shell/i18n";
 
 import { definePiMessage } from "../../i18n";
@@ -54,15 +53,15 @@ export const attachmentUnderstandingExtension = defineExtension({
     );
     const presentationDefinition = {
       display: "timeline" as const,
-      isVisible(part: DataMessagePart) {
-        const state = parseAttachmentRecognitionPresentation(part.data);
+      isVisible(block) {
+        const state = parseAttachmentRecognitionPresentation(block.data);
         return Boolean(state && !(state.status === "skipped" && state.method === "native"));
       },
-      isActive(part: DataMessagePart) {
-        const state = parseAttachmentRecognitionPresentation(part.data);
+      isActive(block) {
+        const state = parseAttachmentRecognitionPresentation(block.data);
         return state?.status === "pending" || state?.status === "running";
       },
-    };
+    } satisfies DataPresentationDefinition;
     const presentation = context.renderers.dataPresentations.register(
       ATTACHMENT_RECOGNITION_DATA_PART_NAME,
       presentationDefinition,

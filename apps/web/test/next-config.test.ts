@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { access } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
@@ -46,6 +47,7 @@ test("tracing exclusions remain narrow and relative to apps/web", () => {
   ]) {
     assert.equal(WEB_OUTPUT_FILE_TRACING_EXCLUDES.includes(pattern), true, pattern);
   }
+  assert.equal(WEB_OUTPUT_FILE_TRACING_EXCLUDES.includes("components.json"), false);
   assert.equal("serverExternalPackages" in nextConfig, false);
 });
 
@@ -73,4 +75,8 @@ test("tracing includes derive only Next's exact dynamic webpack runtime closure"
   ]) {
     assert.equal(WEB_OUTPUT_FILE_TRACING_INCLUDES.includes(path), true, path);
   }
+});
+
+test("Web does not own a second generated component library", async () => {
+  await assert.rejects(access(new URL("../components.json", import.meta.url)));
 });

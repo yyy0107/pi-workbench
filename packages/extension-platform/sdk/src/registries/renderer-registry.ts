@@ -2,8 +2,8 @@ import type {
   DataPresentationDefinition,
   DataPresentationRegistry,
   DataRendererComponent,
-  MessagePartRendererContribution,
-  MessagePartRendererRegistry,
+  MessageBlockRendererContribution,
+  MessageBlockRendererRegistry,
   MessageRendererContribution,
   MessageRendererRegistry,
   NamedRendererRegistry,
@@ -16,9 +16,9 @@ import { createDisposable } from "../api/disposable";
 import { assertNonEmptyId, emitRegistryChange } from "./registry-utils";
 
 const EMPTY_COMPONENT_MAP = Object.freeze(Object.create(null));
-const EMPTY_PART_RENDERERS = Object.freeze(
+const EMPTY_BLOCK_RENDERERS = Object.freeze(
   [],
-) as readonly Readonly<MessagePartRendererContribution>[];
+) as readonly Readonly<MessageBlockRendererContribution>[];
 
 class NamedRendererRegistryImpl<TComponent> implements NamedRendererRegistry<TComponent> {
   readonly #kind: string;
@@ -100,15 +100,15 @@ class MessageRendererRegistryImpl implements MessageRendererRegistry {
   };
 }
 
-class MessagePartRendererRegistryImpl implements MessagePartRendererRegistry {
-  readonly #contributions = new Map<string, Readonly<MessagePartRendererContribution>>();
+class MessageBlockRendererRegistryImpl implements MessageBlockRendererRegistry {
+  readonly #contributions = new Map<string, Readonly<MessageBlockRendererContribution>>();
   readonly #listeners = new Set<() => void>();
-  #snapshot = EMPTY_PART_RENDERERS;
+  #snapshot = EMPTY_BLOCK_RENDERERS;
 
-  register(contribution: MessagePartRendererContribution) {
-    assertNonEmptyId(contribution.id, "Message part renderer id");
+  register(contribution: MessageBlockRendererContribution) {
+    assertNonEmptyId(contribution.id, "Message block renderer id");
     if (this.#contributions.has(contribution.id)) {
-      throw new Error(`Message part renderer "${contribution.id}" is already registered`);
+      throw new Error(`Message block renderer "${contribution.id}" is already registered`);
     }
 
     const registered = Object.freeze({ ...contribution });
@@ -122,7 +122,7 @@ class MessagePartRendererRegistryImpl implements MessagePartRendererRegistry {
     });
   }
 
-  getAll(): readonly Readonly<MessagePartRendererContribution>[] {
+  getAll(): readonly Readonly<MessageBlockRendererContribution>[] {
     return this.#snapshot;
   }
 
@@ -187,7 +187,7 @@ class NamedPresentationRegistryImpl<TPresentation extends object> {
 
 export class RendererRegistryImpl implements RendererRegistry {
   readonly message: MessageRendererRegistry = new MessageRendererRegistryImpl();
-  readonly parts: MessagePartRendererRegistry = new MessagePartRendererRegistryImpl();
+  readonly blocks: MessageBlockRendererRegistry = new MessageBlockRendererRegistryImpl();
   readonly tools: NamedRendererRegistry<ToolRendererComponent> =
     new NamedRendererRegistryImpl<ToolRendererComponent>("Tool");
   readonly data: NamedRendererRegistry<DataRendererComponent> =

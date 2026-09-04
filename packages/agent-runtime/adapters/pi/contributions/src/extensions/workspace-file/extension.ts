@@ -9,6 +9,11 @@ import {
   fileWorkspaceSessionKey,
   resolveFileWorkspaceSession,
 } from "../../services/workspace-file-service";
+import {
+  createWorkspaceFileOpenersBinding,
+  createWorkspaceFileOpenersContribution,
+  registerWorkspaceFileOpeners,
+} from "../../services/pi-file-workspace-openers-bridge";
 
 import { FileMenuItem } from "./file-menu-item";
 import type { FileSurfaceParams } from "./file-surface";
@@ -48,7 +53,14 @@ export const workspaceFileExtension = defineExtension({
   name: "Workspace File",
   version: "1.0.0",
   setup(context) {
+    const openerBinding = createWorkspaceFileOpenersBinding();
+    const openerRegistration = registerWorkspaceFileOpeners(context.openers, openerBinding);
+    const WorkspaceFileOpenersContribution = createWorkspaceFileOpenersContribution(openerBinding);
     const surface = context.workspace.register(fileSurfaceDefinition);
-    return [surface];
+    const runtimeBridge = context.slots.register("shell.overlay", {
+      id: "workbench.workspace-file.openers",
+      component: WorkspaceFileOpenersContribution,
+    });
+    return [surface, openerRegistration, runtimeBridge];
   },
 });

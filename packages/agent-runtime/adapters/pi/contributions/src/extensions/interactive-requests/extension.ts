@@ -52,15 +52,15 @@ export const interactiveRequestsExtension = defineExtension({
     const toolPresentation = context.renderers.toolPresentations.register(ASK_USER_TOOL_NAME, {
       label: definePiMessage("extensions.interactiveRequests.askUserTool.activityComplete"),
       activeLabel: definePiMessage("extensions.interactiveRequests.askUserTool.activityRunning"),
-      getActiveLabel: (part) =>
-        areAskUserQuestionsReady(part.args, part.result ?? part.artifact, part.argsText)
+      getActiveLabel: (block) =>
+        areAskUserQuestionsReady(block.arguments, block.result, block.argumentsText)
           ? definePiMessage("extensions.interactiveRequests.askUserTool.activityRunning")
           : definePiMessage("extensions.interactiveRequests.askUserTool.activityGenerating"),
       icon: MessageCircleQuestionIcon,
-      summarize: (part) => {
-        const output = part.result ?? part.artifact;
-        const count = askUserQuestionCount(part.args, output);
-        return areAskUserQuestionsReady(part.args, output, part.argsText) && count > 0
+      summarize: (block) => {
+        const count = askUserQuestionCount(block.arguments, block.result);
+        return areAskUserQuestionsReady(block.arguments, block.result, block.argumentsText) &&
+          count > 0
           ? definePiMessage("extensions.interactiveRequests.askUserTool.questionCount", { count })
           : "…";
       },

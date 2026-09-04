@@ -24,7 +24,7 @@ async function requestDesktopRuntimeConnection(): Promise<RuntimeConnection> {
   return defineRuntimeConnection(await port.bootstrap());
 }
 
-/** Resolve the sync Electron or future async Tauri capability exactly once per attempt. */
+/** Resolve the Electron runtime capability exactly once per attempt. */
 export function bootstrapDesktopRuntimeConnection(): Promise<RuntimeConnection> {
   bootstrapRequest ??= requestDesktopRuntimeConnection().catch((error: unknown) => {
     bootstrapRequest = undefined;

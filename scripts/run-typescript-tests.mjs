@@ -2,10 +2,10 @@ import { spawn } from "node:child_process";
 import { realpathSync } from "node:fs";
 import { readdir } from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const REPOSITORY_ROOT = fileURLToPath(new URL("../", import.meta.url));
-const TYPESCRIPT_TEST_LOADER = fileURLToPath(
+const TYPESCRIPT_TEST_LOADER_PATH = fileURLToPath(
   new URL("./register-typescript-test-loader.mjs", import.meta.url),
 );
 const ROOT_TEST_DIRECTORIES = [
@@ -78,6 +78,25 @@ export async function testGlobs({ projectDirectory } = {}) {
   return globs;
 }
 
+/**
+ * Converts a local module path into the URL specifier required by Node's
+ * `--import` option. Passing a Windows drive-letter path directly is parsed as
+ * an unsupported URL scheme by Node's ESM loader.
+ */
+export function nodeImportSpecifier(modulePath) {
+  return pathToFileURL(modulePath).href;
+}
+
+export function typescriptTestNodeArguments(globs) {
+  return [
+    "--no-warnings=ExperimentalWarning",
+    "--import",
+    nodeImportSpecifier(TYPESCRIPT_TEST_LOADER_PATH),
+    "--test",
+    ...globs,
+  ];
+}
+
 function selectedProjectDirectory(arguments_) {
   if (arguments_.length === 0) return undefined;
   if (arguments_.length === 1 && arguments_[0] === "--package") {
@@ -98,11 +117,10 @@ export async function runTests(arguments_ = process.argv.slice(2)) {
   const globs = await testGlobs({ projectDirectory });
   if (globs.length === 0) return 0;
 
-  const child = spawn(
-    process.execPath,
-    ["--no-warnings=ExperimentalWarning", "--import", TYPESCRIPT_TEST_LOADER, "--test", ...globs],
-    { cwd: REPOSITORY_ROOT, stdio: "inherit" },
-  );
+  const child = spawn(process.execPath, typescriptTestNodeArguments(globs), {
+    cwd: REPOSITORY_ROOT,
+    stdio: "inherit",
+  });
   return new Promise((resolve, reject) => {
     child.once("error", reject);
     child.once("exit", (code, signal) => {

@@ -14,5 +14,5 @@ export {
   usePanelRegistry,
   usePanelService,
   useSettingsRegistry,
-  useWorkbenchExtensions,
+  useSidebarSectionRegistry,
 } from "./extension-context";

@@ -8,6 +8,13 @@ test("Shell owns its generic tokens and streamdown component styles", async () =
   const styles = await readFile(new URL("src/styles.css", packageRoot), "utf8");
 
   assert.match(styles, /--control-hit-default:/);
+  assert.match(styles, /--color-info:/);
+  assert.match(styles, /--color-success:/);
+  assert.match(styles, /--color-warning:/);
+  assert.match(styles, /--color-danger:/);
+  assert.match(styles, /:where\(:focus-visible,/);
+  assert.doesNotMatch(styles, /var\(----/);
+  assert.doesNotMatch(styles, /outline:\s*none\s*!important/);
   assert.match(styles, /\.aui-streamdown/);
   assert.match(styles, /\.aui-codex-code-header/);
   assert.doesNotMatch(styles, /pi-logo|Pi Working|agent-runtime\/adapters\/pi/i);

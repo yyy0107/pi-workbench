@@ -15,6 +15,9 @@ const test = require("node:test");
 
 const { createWorkbenchPaths } = require("../../../../scripts/workbench-paths.cjs");
 const {
+  resolveWebArtifactNextWebpackRuntime,
+} = require("@workbench/host-artifact-policy/web-next-runtime-exception");
+const {
   completeNextStandaloneRuntime,
 } = require("../../scripts/complete-next-standalone-runtime.cjs");
 const { assertCompletedRuntime } = require("../../scripts/web-standalone-smoke.cjs");
@@ -36,14 +39,52 @@ function fixture(t) {
   t.after(() => rmSync(repositoryRoot, { force: true, recursive: true }));
   const paths = createWorkbenchPaths({ repositoryRoot });
   writeFile(path.join(paths.webRoot, "package.json"), '{"name":"web-fixture"}\n');
-  const sourceNextRoot = path.join(paths.webRoot, "node_modules", "next");
-  const sourceHelpersRoot = path.join(paths.webRoot, "node_modules", "@swc", "helpers");
-  const sourceTslibRoot = path.join(paths.webRoot, "node_modules", "tslib");
-  writePackage(sourceNextRoot, {
-    name: "next",
-    version: "16.3.1",
-    exports: { "./package.json": "./package.json" },
-  });
+  const sourceNextRoot = path.join(
+    repositoryRoot,
+    "node_modules",
+    ".pnpm",
+    "next@16.3.1_fixture",
+    "node_modules",
+    "next",
+  );
+  const sourceHelpersRoot = path.join(
+    repositoryRoot,
+    "node_modules",
+    ".pnpm",
+    "@swc+helpers@0.5.23",
+    "node_modules",
+    "@swc",
+    "helpers",
+  );
+  const sourceTslibRoot = path.join(
+    repositoryRoot,
+    "node_modules",
+    ".pnpm",
+    "tslib@2.8.1",
+    "node_modules",
+    "tslib",
+  );
+  writePackage(
+    sourceNextRoot,
+    {
+      name: "next",
+      version: "16.3.1",
+    },
+    {
+      "dist/compiled/@babel/runtime/package.json": '{"name":"@babel/runtime"}\n',
+      "dist/compiled/webpack/bundle5.js": "module.exports = {};\n",
+      "dist/compiled/webpack/webpack-lib.js": 'module.exports = require("./webpack.js");\n',
+      "dist/compiled/webpack/webpack.js": 'module.exports = require("./bundle5");\n',
+      "dist/server/config-utils.js": [
+        '"use strict";',
+        'require("../server/require-hook").addHookAliases([',
+        '  ["webpack", "next/dist/compiled/webpack/webpack-lib"],',
+        '  ["@babel/runtime", "next/dist/compiled/@babel/runtime/package.json"],',
+        "].map(([request, replacement]) => [request, require.resolve(replacement)]));",
+        "",
+      ].join("\n"),
+    },
+  );
   writePackage(
     sourceHelpersRoot,
     {
@@ -75,16 +116,29 @@ function fixture(t) {
       "tslib.js": "module.exports = {};",
     },
   );
+  const sourceNextHelpersAlias = path.join(path.dirname(sourceNextRoot), "@swc", "helpers");
+  mkdirSync(path.dirname(sourceNextHelpersAlias), { recursive: true });
+  symlinkSync(
+    path.relative(path.dirname(sourceNextHelpersAlias), sourceHelpersRoot),
+    sourceNextHelpersAlias,
+    "dir",
+  );
+  const sourceHelpersTslibAlias = path.join(path.dirname(path.dirname(sourceHelpersRoot)), "tslib");
+  symlinkSync(
+    path.relative(path.dirname(sourceHelpersTslibAlias), sourceTslibRoot),
+    sourceHelpersTslibAlias,
+    "dir",
+  );
+  const sourceNextApplicationAlias = path.join(paths.webRoot, "node_modules", "next");
+  mkdirSync(path.dirname(sourceNextApplicationAlias), { recursive: true });
+  symlinkSync(
+    path.relative(path.dirname(sourceNextApplicationAlias), sourceNextRoot),
+    sourceNextApplicationAlias,
+    "dir",
+  );
 
   const standaloneRoot = paths.webStandaloneRoot;
-  const runtimeNextRoot = path.join(
-    standaloneRoot,
-    "node_modules",
-    ".pnpm",
-    "next@16.3.1_fixture",
-    "node_modules",
-    "next",
-  );
+  const runtimeNextRoot = path.join(standaloneRoot, path.relative(repositoryRoot, sourceNextRoot));
   const runtimeNextApplicationAlias = path.join(
     standaloneRoot,
     "apps",
@@ -127,7 +181,7 @@ function fixture(t) {
       "obsolete.txt": "remove me",
     },
   );
-  const runtimeHelpersLink = path.join(runtimeNextRoot, "node_modules", "@swc", "helpers");
+  const runtimeHelpersLink = path.join(path.dirname(runtimeNextRoot), "@swc", "helpers");
   mkdirSync(path.dirname(runtimeHelpersLink), { recursive: true });
   symlinkSync(
     path.relative(path.dirname(runtimeHelpersLink), runtimeHelpersRoot),
@@ -160,6 +214,17 @@ test("completes the full helper and tslib packages and is idempotent", (t) => {
   assert.deepEqual(
     first.completedPackages.map(({ name, version }) => `${name}@${version}`),
     ["@swc/helpers@0.5.23", "tslib@2.8.1"],
+  );
+  assert.deepEqual(first.completedNextRuntimeFiles, [
+    "dist/compiled/@babel/runtime/package.json",
+    "dist/compiled/webpack/bundle5.js",
+    "dist/compiled/webpack/webpack-lib.js",
+    "dist/compiled/webpack/webpack.js",
+    "dist/server/config-utils.js",
+  ]);
+  assert.equal(
+    resolveWebArtifactNextWebpackRuntime({ artifactRoot: standaloneRoot }).packageIdentity.version,
+    "16.3.1",
   );
   assert.equal(
     readFileSync(path.join(runtimeHelpersRoot, "esm", "_interop_require_default.js"), "utf8"),
@@ -195,6 +260,47 @@ test("completes the full helper and tslib packages and is idempotent", (t) => {
   assert.equal(realpathSync(runtimeNextRootAlias), runtimeNextRoot);
 });
 
+test("restores the application Next alias when it is absent", (t) => {
+  const {
+    paths,
+    runtimeNextApplicationAlias,
+    runtimeNextRoot,
+    runtimeNextRootAlias,
+    standaloneRoot,
+  } = fixture(t);
+  rmSync(runtimeNextApplicationAlias);
+  symlinkSync(
+    path.relative(path.dirname(runtimeNextRootAlias), runtimeNextRoot),
+    runtimeNextRootAlias,
+    "dir",
+  );
+
+  const report = completeNextStandaloneRuntime({ paths, standaloneRoot });
+
+  assert.equal(report.nextVersion, "16.3.1");
+  assert.equal(realpathSync(runtimeNextApplicationAlias), runtimeNextRoot);
+  assert.equal(realpathSync(runtimeNextRootAlias), runtimeNextRoot);
+});
+
+test("repairs a partial Next directory left by Windows trace copying", (t) => {
+  const {
+    paths,
+    runtimeNextApplicationAlias,
+    runtimeNextRoot,
+    runtimeNextRootAlias,
+    standaloneRoot,
+  } = fixture(t);
+  rmSync(runtimeNextApplicationAlias);
+  writeFile(path.join(runtimeNextApplicationAlias, "dist", "partial.js"), "partial trace");
+
+  const report = completeNextStandaloneRuntime({ paths, standaloneRoot });
+
+  assert.equal(report.nextVersion, "16.3.1");
+  assert.equal(realpathSync(runtimeNextApplicationAlias), runtimeNextRoot);
+  assert.equal(realpathSync(runtimeNextRootAlias), runtimeNextRoot);
+  assert.equal(existsSync(path.join(runtimeNextApplicationAlias, "dist", "partial.js")), false);
+});
+
 test("rejects a standalone dependency version mismatch before replacing files", (t) => {
   const { paths, runtimeHelpersRoot, standaloneRoot } = fixture(t);
   writePackage(
@@ -214,7 +320,7 @@ test("rejects a standalone dependency version mismatch before replacing files", 
   assert.equal(readFileSync(path.join(runtimeHelpersRoot, "obsolete.txt"), "utf8"), "preserved");
 });
 
-test("rejects a traced helper symlink that escapes the standalone root", (t) => {
+test("repairs an absolute helper alias without touching its external target", (t) => {
   const { paths, repositoryRoot, runtimeHelpersLink, runtimeHelpersRoot, standaloneRoot } =
     fixture(t);
   const outsideHelpersRoot = path.join(repositoryRoot, "outside", "@swc", "helpers");
@@ -228,44 +334,40 @@ test("rejects a traced helper symlink that escapes the standalone root", (t) => 
     { "outside-marker.txt": "untouched" },
   );
   rmSync(runtimeHelpersLink);
-  symlinkSync(
-    path.relative(path.dirname(runtimeHelpersLink), outsideHelpersRoot),
-    runtimeHelpersLink,
-  );
+  symlinkSync(outsideHelpersRoot, runtimeHelpersLink, "dir");
 
-  assert.throws(
-    () => completeNextStandaloneRuntime({ paths, standaloneRoot }),
-    /Standalone @swc\/helpers manifest escapes the selected standalone root/u,
-  );
+  completeNextStandaloneRuntime({ paths, standaloneRoot });
+
+  assert.equal(realpathSync(runtimeHelpersLink), runtimeHelpersRoot);
   assert.equal(
     readFileSync(path.join(outsideHelpersRoot, "outside-marker.txt"), "utf8"),
     "untouched",
   );
-  assert.equal(existsSync(path.join(runtimeHelpersRoot, "obsolete.txt")), true);
+  assert.equal(existsSync(path.join(runtimeHelpersRoot, "obsolete.txt")), false);
 });
 
-test("rejects a Web application Next alias that escapes the standalone root", (t) => {
+test("repairs an absolute application Next alias without touching its external target", (t) => {
   const {
     paths,
     repositoryRoot,
     runtimeNextApplicationAlias,
+    runtimeNextRoot,
     runtimeNextRootAlias,
     standaloneRoot,
   } = fixture(t);
   const outsideNextRoot = path.join(repositoryRoot, "outside", "next");
   writePackage(outsideNextRoot, { name: "next", version: "16.3.1" });
   rmSync(runtimeNextApplicationAlias);
-  symlinkSync(
-    path.relative(path.dirname(runtimeNextApplicationAlias), outsideNextRoot),
-    runtimeNextApplicationAlias,
-    "dir",
-  );
+  symlinkSync(outsideNextRoot, runtimeNextApplicationAlias, "dir");
 
-  assert.throws(
-    () => completeNextStandaloneRuntime({ paths, standaloneRoot }),
-    /Standalone Web application Next alias escapes the selected standalone root/u,
+  completeNextStandaloneRuntime({ paths, standaloneRoot });
+
+  assert.equal(realpathSync(runtimeNextApplicationAlias), runtimeNextRoot);
+  assert.equal(realpathSync(runtimeNextRootAlias), runtimeNextRoot);
+  assert.equal(
+    readFileSync(path.join(outsideNextRoot, "package.json"), "utf8"),
+    '{"name":"next","version":"16.3.1"}\n',
   );
-  assert.equal(existsSync(runtimeNextRootAlias), false);
 });
 
 test("rejects a preexisting root Next alias with a different physical owner", (t) => {
@@ -287,7 +389,7 @@ test("rejects a preexisting root Next alias with a different physical owner", (t
 
   assert.throws(
     () => completeNextStandaloneRuntime({ paths, standaloneRoot }),
-    /does not resolve to the Web application's traced Next owner/u,
+    /Standalone root Next alias does not resolve to the traced package owner/u,
   );
   assert.equal(realpathSync(runtimeNextRootAlias), conflictingNextRoot);
 });

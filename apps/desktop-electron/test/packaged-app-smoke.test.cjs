@@ -599,7 +599,7 @@ test("identifies the timed-out inspector evaluation stage", async () => {
   class UnresponsiveWebSocket extends EventEmitter {
     constructor() {
       super();
-      setImmediate(() => this.emit("open"));
+      queueMicrotask(() => this.emit("open"));
     }
     close() {
       this.emit("close");

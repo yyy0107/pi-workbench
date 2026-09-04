@@ -26,6 +26,7 @@ test("keeps Pi extension groups deeply frozen with their app-composition orderin
     "workbench.interactive-requests",
     "workbench.side-chat",
     "workbench.setting-model-config",
+    "workbench.pi.settings-action",
     "workbench.image-understanding",
     "workbench.toolbox",
     "workbench.automations",

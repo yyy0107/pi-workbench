@@ -1,12 +1,14 @@
 "use client";
 
-import { ThreadPrimitive, useAuiState } from "@assistant-ui/react";
 import { ArrowDownIcon } from "lucide-react";
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type Ref } from "react";
+import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from "react";
 
-import { TooltipIconButton } from "../assistant-ui/tooltip-icon-button";
-import { DaySeparator } from "../elements/conversation-separator";
-import { MessagePair } from "../elements/message-pair";
+import {
+  SessionProvider,
+  useConversationSession,
+  useSessionState,
+} from "@workbench/agent-runtime-client";
+import { TooltipIconButton } from "../ui/tooltip-icon-button";
 import { TypingIndicator } from "../elements/typing-indicator";
 import { useI18n } from "../i18n";
 import { formatCompactDuration } from "../format-duration";
@@ -24,82 +26,14 @@ import {
 } from "../layout";
 
 import { WorkbenchEmpty } from "./workbench-empty";
-import { WorkbenchConversationViewportScope } from "./workbench-conversation-viewport-scope";
-import {
-  conversationPairKey,
-  isLastConversationPair,
-  shouldShowWorkingStatus,
-} from "./workbench-message-rows";
-import {
-  WorkbenchAssistantMessage,
-  WorkbenchEditComposer,
-  WorkbenchSystemMessage,
-  WorkbenchUserMessage,
-} from "./workbench-message";
-import {
-  agentAutoRetryStatus,
-  agentRunTiming,
-  displayedAgentRunElapsedMs,
-} from "./workbench-thread-timing";
-
-interface MessageRow {
-  id: string;
-  role: "user" | "assistant" | "system";
-  createdAt: number;
-}
+import { ConversationList } from "./conversation-list";
+import { useWorkbenchConversationViewport } from "./workbench-conversation-viewport";
+import { displayedAgentRunElapsedMs } from "./workbench-thread-timing";
 
 const THREAD_VIEWPORT_MASK_IMAGE =
   "linear-gradient(to bottom, transparent 0, #000 var(--thread-header-fade-size), #000 calc(100% - var(--composer-dock-corner-radius)), transparent 100%), linear-gradient(#000 0 0)";
 const THREAD_VIEWPORT_MASK_SIZE =
   "calc(100% - var(--thread-viewport-inline-padding)) 100%, var(--thread-viewport-inline-padding) 100%";
-
-const messageComponents = {
-  UserMessage: WorkbenchUserMessage,
-  AssistantMessage: WorkbenchAssistantMessage,
-  SystemMessage: WorkbenchSystemMessage,
-  EditComposer: WorkbenchEditComposer,
-};
-
-function localDayKey(timestamp: number): string | undefined {
-  // Legacy runtime entries can lack timestamps and use tiny positional fallbacks.
-  // Do not turn those placeholders into a misleading January 1970 divider.
-  if (timestamp < Date.UTC(2000, 0, 1)) return undefined;
-  const value = new Date(timestamp);
-  if (!Number.isFinite(value.getTime())) return undefined;
-  const year = value.getFullYear();
-  const month = String(value.getMonth() + 1).padStart(2, "0");
-  const day = String(value.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function useThreadMessageRows(): readonly MessageRow[] {
-  const previousRows = useRef<readonly MessageRow[]>([]);
-
-  return useAuiState((state) => {
-    const messages = state.thread.messages;
-    const previous = previousRows.current;
-
-    if (
-      previous.length === messages.length &&
-      previous.every(
-        (row, index) =>
-          row.id === messages[index]?.id &&
-          row.role === messages[index]?.role &&
-          row.createdAt === messages[index]?.createdAt.getTime(),
-      )
-    ) {
-      return previous;
-    }
-
-    const next = messages.map((message) => ({
-      id: message.id,
-      role: message.role,
-      createdAt: message.createdAt.getTime(),
-    }));
-    previousRows.current = next;
-    return next;
-  });
-}
 
 function AssistantWorkingStatus() {
   const { locale, t } = useI18n();
@@ -107,8 +41,8 @@ function AssistantWorkingStatus() {
   const { runningIndicatorSize, runningIndicatorStyleId } = useAppearancePreferences();
   const indicatorDefinition = useRunningIndicatorCatalog().resolve(runningIndicatorStyleId);
   const indicatorPresentation = indicatorDefinition.presentation;
-  const runTiming = useAuiState((state) => agentRunTiming(state.thread.extras));
-  const autoRetry = useAuiState((state) => agentAutoRetryStatus(state.thread.extras));
+  const runTiming = useSessionState((snapshot) => snapshot.runTiming);
+  const autoRetry = useSessionState((snapshot) => snapshot.autoRetry);
   const [elapsedMs, setElapsedMs] = useState<number | undefined>(runTiming?.elapsedMs);
 
   useEffect(() => {
@@ -207,117 +141,11 @@ function ThreadHistoryLoading() {
   );
 }
 
-function WorkbenchMessages({ isRunning }: Readonly<{ isRunning: boolean }>) {
-  const { date } = useI18n();
-  const messages = useThreadMessageRows();
-  const items: ReactNode[] = [];
-  let previousDay: string | undefined;
-
-  for (let index = 0; index < messages.length; index += 1) {
-    const message = messages[index];
-    if (!message) continue;
-
-    const day = localDayKey(message.createdAt);
-    if (day && day !== previousDay) {
-      items.push(
-        <DaySeparator
-          key={`day:${day}:${message.id}`}
-          dateTime={day}
-          label={date(message.createdAt, {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-            weekday: "short",
-          })}
-          aria-label={date(message.createdAt, {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-            weekday: "long",
-          })}
-          className="[overflow-anchor:none]"
-        />,
-      );
-      previousDay = day;
-    }
-
-    if (message.role === "system") {
-      items.push(
-        <div key={message.id} className="[overflow-anchor:none]">
-          <ThreadPrimitive.MessageByIndex index={index} components={messageComponents} />
-        </div>,
-      );
-      continue;
-    }
-
-    const nextMessage = messages[index + 1];
-    const assistantIndex =
-      message.role === "user" &&
-      nextMessage?.role === "assistant" &&
-      localDayKey(nextMessage.createdAt) === day
-        ? index + 1
-        : undefined;
-    const hasAssistantMessage = message.role === "assistant" || assistantIndex !== undefined;
-    const pairMessageIndex = assistantIndex ?? index;
-    const showWorkingStatus = shouldShowWorkingStatus({
-      isLastPair: isLastConversationPair(messages, pairMessageIndex),
-      threadIsRunning: isRunning,
-    });
-    const hasAssistantTurn = hasAssistantMessage || showWorkingStatus;
-
-    items.push(
-      <MessagePair
-        key={conversationPairKey(message)}
-        variant="flat"
-        className="max-w-none gap-4 px-2 [overflow-anchor:none]"
-        userMessage={
-          message.role === "user" ? (
-            <ThreadPrimitive.MessageByIndex index={index} components={messageComponents} />
-          ) : undefined
-        }
-        assistantMessage={
-          hasAssistantTurn ? (
-            <div
-              data-slot="assistant-message-slot"
-              className={cn(
-                "w-full [overflow-anchor:none]",
-                showWorkingStatus && "min-h-[var(--assistant-turn-min-height)]",
-              )}
-            >
-              {hasAssistantMessage ? (
-                <ThreadPrimitive.MessageByIndex
-                  index={assistantIndex ?? index}
-                  components={messageComponents}
-                />
-              ) : null}
-              {showWorkingStatus ? <AssistantWorkingStatus /> : null}
-            </div>
-          ) : undefined
-        }
-      />,
-    );
-
-    if (assistantIndex !== undefined) index = assistantIndex;
-  }
-
-  if (items.length === 0) return null;
-
-  return (
-    <div
-      data-slot="conversation-flow"
-      className={cn(
-        THREAD_VIEWPORT_CONTENT_WIDTH_CLASS_NAME,
-        "mx-auto flex shrink-0 flex-col gap-4 pb-4 [overflow-anchor:none]",
-      )}
-    >
-      {items}
-    </div>
-  );
-}
-
 export interface WorkbenchConversationProps {
   /** Runtime-bound thread id passed to extension Slots; no routing semantics are attached. */
   threadId?: string;
+  /** Stable Headless Runtime Session id; defaults to the Runtime's current Session. */
+  sessionId?: string;
   /** Host-owned content that must render inside the Thread root before extension columns. */
   hostContent?: ReactNode;
   /** Composer rendered inside the empty-state presentation. */
@@ -326,12 +154,9 @@ export interface WorkbenchConversationProps {
   composerDock?: ReactNode;
   /** Whether loading the current runtime should replace messages with the history indicator. */
   showHistoryLoading?: boolean;
-  viewportRef?: Ref<HTMLDivElement>;
-  frameRef?: Ref<HTMLDivElement>;
   composerDockInset?: number;
   autoScroll?: boolean;
   scrollToBottomOnInitialize?: boolean;
-  scrollToBottomOnThreadSwitch?: boolean;
   rootClassName?: string;
   rootDataSurface?: string;
 }
@@ -339,35 +164,52 @@ export interface WorkbenchConversationProps {
 /**
  * Runtime-scoped Workbench conversation UI shared by the central MainView and nested surfaces.
  *
- * Routing, persistent scroll restoration, and Composer Dock measurement are deliberately supplied
- * by the host. Everything below reads messages and actions only from the nearest assistant-ui
- * Runtime provider.
+ * Routing and Composer Dock measurement are supplied by the host. Conversation structure and
+ * scrolling read the Headless Session.
  */
-export function WorkbenchConversation({
+export function WorkbenchConversationContent({
   threadId,
   hostContent,
   emptyComposer,
   composerDock,
   showHistoryLoading = false,
-  viewportRef,
-  frameRef,
   composerDockInset = 138,
   autoScroll,
   scrollToBottomOnInitialize = false,
-  scrollToBottomOnThreadSwitch = false,
   rootClassName,
   rootDataSurface = "thread",
-}: WorkbenchConversationProps) {
+}: Omit<WorkbenchConversationProps, "sessionId">) {
   const { t } = useI18n();
-  const isEmpty = useAuiState((state) => state.thread.isEmpty);
-  const isThreadLoading = useAuiState((state) => state.thread.isLoading);
-  const isRunning = useAuiState((state) => state.thread.isRunning);
+  const session = useConversationSession();
+  const nodeKeys = useSessionState((snapshot) => snapshot.nodeKeys);
+  const isThreadLoading = useSessionState((snapshot) => snapshot.isLoading);
+  const isRunning = useSessionState((snapshot) => snapshot.isRunning);
+  const hasMore = useSessionState((snapshot) => snapshot.hasMore);
+  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
+  const isEmpty = nodeKeys.length === 0;
   const isHistoryLoading = showHistoryLoading && isThreadLoading;
   const hasDockedComposer = Boolean(composerDock) && (!isEmpty || isHistoryLoading);
   const slotContext = { threadId };
-
+  const loadOlder = useCallback(() => {
+    if (!hasMore || isLoadingOlder || !session.actions.loadOlder) return;
+    setIsLoadingOlder(true);
+    void session.actions
+      .loadOlder()
+      .catch((error) =>
+        console.error("[workbench] failed to load older conversation history", error),
+      )
+      .finally(() => setIsLoadingOlder(false));
+  }, [hasMore, isLoadingOlder, session.actions]);
+  const viewport = useWorkbenchConversationViewport({
+    autoScroll: autoScroll ?? isRunning,
+    isRunning,
+    nodeKeys,
+    onReachTop: loadOlder,
+    scrollToBottomOnInitialize,
+    sessionId: session.id,
+  });
   return (
-    <ThreadPrimitive.Root
+    <div
       data-workbench-surface={rootDataSurface}
       className={cn("bg-background relative flex h-full min-h-0 min-w-0 text-base", rootClassName)}
       style={
@@ -390,123 +232,119 @@ export function WorkbenchConversation({
         className="flex h-full min-h-0 shrink-0 flex-col empty:hidden"
       />
 
-      <WorkbenchConversationViewportScope>
+      <div
+        className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-x-clip [container-type:inline-size]"
+        style={
+          {
+            "--composer-dock-inset": `${composerDockInset}px`,
+            "--composer-dock-bottom-gap": "1rem",
+            "--composer-dock-top-gap": "0.5rem",
+            "--composer-dock-content-top-inset":
+              "calc(var(--composer-dock-inset) - var(--composer-dock-top-gap))",
+            "--composer-dock-corner-radius": "var(--composer-inner-radius, 1.375rem)",
+            "--thread-header-fade-size": "1.375rem",
+            "--thread-viewport-inline-padding": `${THREAD_CONTENT_COMPACT_GUTTER_PX}px`,
+          } as CSSProperties
+        }
+      >
+        <SlotHost
+          name="thread.header"
+          context={slotContext}
+          className="flex shrink-0 items-center gap-2 border-b px-4 empty:hidden"
+        />
+
         <div
-          ref={frameRef}
-          className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-x-clip [container-type:inline-size]"
+          ref={viewport.viewportRef}
+          data-slot="conversation-viewport"
+          className={cn(
+            "relative flex min-h-0 flex-1 scroll-smooth flex-col overflow-x-hidden overflow-y-auto motion-reduce:scroll-auto [overflow-anchor:none] [padding-inline:var(--thread-viewport-inline-padding)] [scrollbar-gutter:stable_both-edges]",
+            hasDockedComposer
+              ? "[margin-bottom:var(--composer-dock-content-top-inset)] [padding-top:var(--thread-header-fade-size)] [padding-bottom:var(--composer-dock-corner-radius)]"
+              : "pt-4",
+          )}
           style={
-            {
-              "--composer-dock-inset": `${composerDockInset}px`,
-              "--composer-dock-bottom-gap": "1rem",
-              "--composer-dock-top-gap": "0.5rem",
-              "--composer-dock-content-top-inset":
-                "calc(var(--composer-dock-inset) - var(--composer-dock-top-gap))",
-              "--composer-dock-corner-radius": "var(--composer-inner-radius, 1.375rem)",
-              "--thread-header-fade-size": "1.375rem",
-              "--thread-viewport-inline-padding": `${THREAD_CONTENT_COMPACT_GUTTER_PX}px`,
-            } as CSSProperties
+            hasDockedComposer
+              ? {
+                  scrollbarColor: "var(--scrollbar-thumb) transparent",
+                  WebkitMaskImage: THREAD_VIEWPORT_MASK_IMAGE,
+                  maskImage: THREAD_VIEWPORT_MASK_IMAGE,
+                  WebkitMaskPosition: "left top, right top",
+                  maskPosition: "left top, right top",
+                  WebkitMaskRepeat: "no-repeat",
+                  maskRepeat: "no-repeat",
+                  WebkitMaskSize: THREAD_VIEWPORT_MASK_SIZE,
+                  maskSize: THREAD_VIEWPORT_MASK_SIZE,
+                }
+              : undefined
           }
         >
           <SlotHost
-            name="thread.header"
+            name="thread.before"
             context={slotContext}
-            className="flex shrink-0 items-center gap-2 border-b px-4 empty:hidden"
+            className={cn(
+              THREAD_VIEWPORT_CONTENT_WIDTH_CLASS_NAME,
+              "mx-auto flex flex-col gap-2 [overflow-anchor:none]",
+            )}
           />
 
-          <ThreadPrimitive.Viewport
-            ref={viewportRef}
-            turnAnchor="bottom"
-            autoScroll={autoScroll ?? isRunning}
-            scrollToBottomOnInitialize={scrollToBottomOnInitialize}
-            scrollToBottomOnRunStart
-            scrollToBottomOnThreadSwitch={scrollToBottomOnThreadSwitch}
+          {isHistoryLoading ? (
+            <ThreadHistoryLoading />
+          ) : (
+            <>
+              {isEmpty ? <WorkbenchEmpty>{emptyComposer}</WorkbenchEmpty> : null}
+              <ConversationList renderWorkingStatus={() => <AssistantWorkingStatus />} />
+            </>
+          )}
+
+          <SlotHost
+            name="thread.after"
+            context={slotContext}
             className={cn(
-              "relative flex min-h-0 flex-1 scroll-smooth flex-col overflow-x-hidden overflow-y-auto motion-reduce:scroll-auto [overflow-anchor:none] [padding-inline:var(--thread-viewport-inline-padding)] [scrollbar-gutter:stable_both-edges]",
-              hasDockedComposer
-                ? "[margin-bottom:var(--composer-dock-content-top-inset)] [padding-top:var(--thread-header-fade-size)] [padding-bottom:var(--composer-dock-corner-radius)]"
-                : "pt-4",
+              THREAD_VIEWPORT_CONTENT_WIDTH_CLASS_NAME,
+              "mx-auto flex flex-col gap-2 [overflow-anchor:none]",
             )}
-            style={
-              hasDockedComposer
-                ? {
-                    scrollbarColor: "var(--scrollbar-thumb) transparent",
-                    WebkitMaskImage: THREAD_VIEWPORT_MASK_IMAGE,
-                    maskImage: THREAD_VIEWPORT_MASK_IMAGE,
-                    WebkitMaskPosition: "left top, right top",
-                    maskPosition: "left top, right top",
-                    WebkitMaskRepeat: "no-repeat",
-                    maskRepeat: "no-repeat",
-                    WebkitMaskSize: THREAD_VIEWPORT_MASK_SIZE,
-                    maskSize: THREAD_VIEWPORT_MASK_SIZE,
-                  }
-                : undefined
-            }
-          >
-            <SlotHost
-              name="thread.before"
-              context={slotContext}
-              className={cn(
-                THREAD_VIEWPORT_CONTENT_WIDTH_CLASS_NAME,
-                "mx-auto flex flex-col gap-2 [overflow-anchor:none]",
-              )}
-            />
-
-            {isHistoryLoading ? (
-              <ThreadHistoryLoading />
-            ) : (
-              <>
-                <ThreadPrimitive.Empty>
-                  <WorkbenchEmpty>{emptyComposer}</WorkbenchEmpty>
-                </ThreadPrimitive.Empty>
-
-                <WorkbenchMessages isRunning={isRunning} />
-              </>
-            )}
-
-            <SlotHost
-              name="thread.after"
-              context={slotContext}
-              className={cn(
-                THREAD_VIEWPORT_CONTENT_WIDTH_CLASS_NAME,
-                "mx-auto flex flex-col gap-2 [overflow-anchor:none]",
-              )}
-            />
-          </ThreadPrimitive.Viewport>
-
-          {!isEmpty ? (
-            <ThreadPrimitive.ScrollToBottom
-              behavior="smooth"
-              render={
-                <TooltipIconButton
-                  tooltip={t("workbench.chat.scrollLatest")}
-                  variant="outline"
-                  size="icon"
-                  className="bg-background absolute bottom-[calc(var(--composer-dock-inset)+0.5rem)] left-1/2 z-30 size-8 -translate-x-1/2 rounded-full shadow-sm disabled:invisible"
-                />
-              }
-            >
-              {isRunning ? (
-                <TypingIndicator
-                  label={t("workbench.chat.scrollLatest")}
-                  variant="bare"
-                  aria-hidden="true"
-                  className="scale-75"
-                />
-              ) : (
-                <ArrowDownIcon className="size-4" />
-              )}
-            </ThreadPrimitive.ScrollToBottom>
-          ) : null}
-
-          {hasDockedComposer ? composerDock : null}
+          />
         </div>
-      </WorkbenchConversationViewportScope>
+
+        {!isEmpty ? (
+          <TooltipIconButton
+            type="button"
+            tooltip={t("workbench.chat.scrollLatest")}
+            variant="outline"
+            size="icon"
+            disabled={viewport.isAtBottom}
+            onClick={() => viewport.scrollToBottom(isRunning ? "instant" : "auto")}
+            className="bg-background absolute bottom-[calc(var(--composer-dock-inset)+0.5rem)] left-1/2 z-30 size-8 -translate-x-1/2 rounded-full shadow-sm disabled:invisible"
+          >
+            {isRunning ? (
+              <TypingIndicator
+                label={t("workbench.chat.scrollLatest")}
+                variant="bare"
+                aria-hidden="true"
+                className="scale-75"
+              />
+            ) : (
+              <ArrowDownIcon className="size-4" />
+            )}
+          </TooltipIconButton>
+        ) : null}
+
+        {hasDockedComposer ? composerDock : null}
+      </div>
 
       <SlotHost
         name="thread.right"
         context={slotContext}
         className="flex h-full min-h-0 shrink-0 flex-col empty:hidden"
       />
-    </ThreadPrimitive.Root>
+    </div>
+  );
+}
+
+export function WorkbenchConversation({ sessionId, ...props }: WorkbenchConversationProps) {
+  return (
+    <SessionProvider sessionId={sessionId}>
+      <WorkbenchConversationContent {...props} />
+    </SessionProvider>
   );
 }

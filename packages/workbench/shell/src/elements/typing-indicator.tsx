@@ -2,7 +2,7 @@
 
 import type { ComponentProps } from "react";
 import { cn } from "../utils";
-import { paper } from "./surfaces";
+import { paper } from "../ui/surface";
 
 const DOT_DELAYS = ["-0.32s", "-0.16s", "0s"];
 

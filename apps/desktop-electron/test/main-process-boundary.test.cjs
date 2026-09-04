@@ -35,6 +35,7 @@ test("Runtime bootstrap remains a main-frame-only in-memory capability", () => {
     preloadSource,
     /bootstrap: \(\) => ipcRenderer\.sendSync\(RUNTIME_BOOTSTRAP_CHANNEL\)/u,
   );
+  assert.doesNotMatch(preloadSource, /require\(["']\.\//u);
   assert.doesNotMatch(preloadSource, /localStorage|sessionStorage|URLSearchParams|accessToken/u);
 });
 
@@ -78,6 +79,15 @@ test("Runtime restart is a trusted-frame lifecycle capability with ordered gener
   assert.match(
     mainSource,
     /packagedRuntimeSession = await startWorkbenchRuntime\(\);[\s\S]*if \(isQuitting\)/u,
+  );
+});
+
+test("sandboxed preload delegates title-bar payload validation to the trusted main process", () => {
+  assert.match(preloadSource, /ipcRenderer\.send\(TITLE_BAR_OVERLAY_CHANNEL, options\)/u);
+  assert.match(mainSource, /const validatedOptions = copyTitleBarOverlayOptions\(options\)/u);
+  assert.match(
+    mainSource,
+    /ipcMain\.on\(TITLE_BAR_OVERLAY_CHANNEL[\s\S]*event\.sender !== mainWindow\.webContents[\s\S]*event\.senderFrame !== mainWindow\.webContents\.mainFrame/u,
   );
 });
 

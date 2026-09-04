@@ -33,40 +33,26 @@ export function shouldCloseRightWorkspaceForNewThread({
 }
 
 export function resolvePromotedThreadRouteId({
-  mainThreadId,
-  newThreadId,
-  status,
-  remoteId,
-  externalId,
+  isNewThread,
+  threadId,
   hasMessages,
 }: {
-  mainThreadId: string | undefined;
-  newThreadId: string | null | undefined;
-  status: string | undefined;
-  remoteId: string | undefined;
-  externalId: string | undefined;
+  isNewThread: boolean;
+  threadId: string | undefined;
   hasMessages: boolean;
 }): string | undefined {
-  if (!mainThreadId || status !== "regular" || mainThreadId === newThreadId || !hasMessages) {
-    return undefined;
-  }
-  // A local assistant-ui id is not a durable route. Waiting for the already-requested
-  // remote id avoids changing the address twice during one draft promotion.
-  return remoteId ?? externalId;
+  return !isNewThread && hasMessages ? threadId : undefined;
 }
 
 export function resolveSidebarThreadWorkspaceId({
-  customWorkspaceId,
   managedWorkspaceId,
   isMainThread,
   draftWorkspaceId,
 }: {
-  customWorkspaceId: unknown;
   managedWorkspaceId: unknown;
   isMainThread: boolean;
   draftWorkspaceId: string | undefined;
 }): string | undefined {
-  if (typeof customWorkspaceId === "string") return customWorkspaceId;
   if (typeof managedWorkspaceId === "string") return managedWorkspaceId;
   return isMainThread ? draftWorkspaceId : undefined;
 }

@@ -55,7 +55,7 @@ export async function addComposerImagesFromPaste(
       try {
         await target.addAttachment(image);
       } catch {
-        // assistant-ui emits composer.attachmentAddError before rejecting.
+        // The runtime publishes the attachment error before rejecting.
       }
     }),
   );

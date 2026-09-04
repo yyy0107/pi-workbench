@@ -3,7 +3,7 @@ import { ArrowRightIcon, BrainCircuitIcon, GitBranchIcon, Minimize2Icon } from "
 
 import { cn } from "../utils";
 
-import { mono } from "./surfaces";
+import { mono } from "../ui/surface";
 
 export type ConversationSeparatorTone = "neutral" | "info" | "accent" | "danger";
 

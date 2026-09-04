@@ -7,7 +7,7 @@ import test from "node:test";
 const WEB_ROOT = path.resolve(fileURLToPath(new URL("../", import.meta.url)));
 const WEB_SOURCE_ROOT = path.join(WEB_ROOT, "src");
 const APPLICATION_RUNTIME_PROVIDER_EXPORT =
-  /^\s*export\s+function\s+WorkbenchAssistantRuntimeProvider\b/mu;
+  /^\s*export\s+function\s+WorkbenchAgentRuntimeProvider\b/mu;
 const CONCRETE_RUNTIME_IMPORT =
   /(?:from\s+|import\s*\()\s*["'](?:@\/runtime\/pi|@workbench\/agent-runtime-pi(?:[-/]|["'])|\.\.\/pi)(?:\/|["'])?/;
 const PI_CONTRIBUTION_INSTALLATION = "@workbench/agent-runtime-pi-contributions/installation";

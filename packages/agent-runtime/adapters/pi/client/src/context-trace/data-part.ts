@@ -3,7 +3,7 @@ import type {
   SessionContextTracePromptInjection,
 } from "@workbench/agent-runtime-pi-protocol/rpc";
 
-/** Named assistant-ui Data Part carrying one safe Pi context-trace summary. */
+/** Named conversation Data Block carrying one safe Pi context-trace summary. */
 export const WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME = "workbench.pi-context-trace-event";
 
 const PI_CONTEXT_TRACE_PROMPT_INJECTIONS: readonly SessionContextTracePromptInjection[] = [
@@ -19,6 +19,23 @@ export function piContextTracePromptInjections(
   return [...new Set(event.promptInjections)].filter((injection) =>
     PI_CONTEXT_TRACE_PROMPT_INJECTIONS.includes(injection),
   );
+}
+
+export function recordPiContextTracePromptPresentation(
+  event: SessionContextTraceEventSummary,
+  lastPresentationByRound: Map<string, string>,
+): boolean {
+  if (event.kind !== "prompt-composition" || !event.roundId || !event.promptResources) return true;
+
+  // ponytail: compare the summary rendered in chat; add a server digest only if same-summary
+  // prompt-content changes must surface as updates.
+  const presentation = JSON.stringify([
+    piContextTracePromptInjections(event),
+    event.promptResources,
+  ]);
+  const changed = lastPresentationByRound.get(event.roundId) !== presentation;
+  lastPresentationByRound.set(event.roundId, presentation);
+  return changed;
 }
 
 export interface WorkbenchPiContextTraceDataV1 {

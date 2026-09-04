@@ -56,7 +56,7 @@ export function createPanelStore(initialData: Partial<PanelStoreData> = {}): Pan
 
     open(panelId, requestedLocation) {
       set((state) => {
-        const location = requestedLocation ?? state.locationByPanelId[panelId] ?? "right";
+        const location = requestedLocation ?? state.locationByPanelId[panelId] ?? "bottom";
         const previousLocation = state.locationByPanelId[panelId];
         const isOpen = state.openedPanelIds.includes(panelId);
 

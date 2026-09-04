@@ -1,15 +1,13 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
-const { copyTitleBarOverlayOptions } = require("./title-bar-overlay.cjs");
-
 const TITLE_BAR_OVERLAY_CHANNEL = "workbench:title-bar-overlay";
 const RUNTIME_BOOTSTRAP_CHANNEL = "workbench:runtime-bootstrap";
 const RUNTIME_RESTART_CHANNEL = "workbench:runtime-restart";
 
 function setTitleBarOverlay(options) {
-  const validated = copyTitleBarOverlayOptions(options);
-  if (!validated) return;
-  ipcRenderer.send(TITLE_BAR_OVERLAY_CHANNEL, validated);
+  // Sandboxed preload scripts can import Electron, but not arbitrary local modules. Keep payload
+  // validation in the main process, which also verifies the sender and main-frame identity.
+  ipcRenderer.send(TITLE_BAR_OVERLAY_CHANNEL, options);
 }
 
 // The renderer receives a capability, not ipcRenderer. Main still validates the

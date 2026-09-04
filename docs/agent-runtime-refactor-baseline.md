@@ -16,7 +16,6 @@ contained user changes in:
 - `runtime/pi/README.md`
 - `runtime/pi/server/streams/websocket-gateway.ts`
 - `runtime/pi/server/streams/websocket-gateway.test.ts`
-- `docs/multi-package-agent-runtime-refactor-plan.md` (new plan document)
 
 Those changes are part of the observed baseline and must not be overwritten by the package migration.
 

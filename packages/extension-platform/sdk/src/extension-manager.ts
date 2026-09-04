@@ -7,7 +7,7 @@ import type { MainViewDefinition, MainViewRegistry } from "./api/main-view";
 import type {
   DataPresentationRegistry,
   DataRendererComponent,
-  MessagePartRendererRegistry,
+  MessageBlockRendererRegistry,
   MessageRendererRegistry,
   NamedRendererRegistry,
   RendererRegistry,
@@ -15,6 +15,7 @@ import type {
   ToolRendererComponent,
 } from "./api/renderer";
 import type { SettingsRegistry } from "./api/settings";
+import type { SidebarSectionRegistry } from "./api/sidebar-section";
 import type { SlotContribution, SlotRegistry, WorkbenchSlot } from "./api/slot";
 import type { WorkspaceSurfaceDefinition, WorkspaceSurfaceRegistry } from "./api/workspace-surface";
 import type { OpenerRegistry } from "./api/opener";
@@ -24,6 +25,7 @@ import { PanelRegistryImpl } from "./registries/panel-registry";
 import { MainViewRegistryImpl } from "./registries/main-view-registry";
 import { RendererRegistryImpl } from "./registries/renderer-registry";
 import { SettingsRegistryImpl } from "./registries/settings-registry";
+import { SidebarSectionRegistryImpl } from "./registries/sidebar-section-registry";
 import { SlotRegistryImpl } from "./registries/slot-registry";
 import { WorkspaceSurfaceRegistryImpl } from "./registries/workspace-surface-registry";
 import { OpenerRegistryImpl } from "./registries/opener-registry";
@@ -43,6 +45,7 @@ export class ExtensionManager implements Disposable {
   readonly composerCommands: ComposerCommandRegistry = new ComposerCommandRegistryImpl();
   readonly renderers: RendererRegistry = new RendererRegistryImpl();
   readonly settings: SettingsRegistry = new SettingsRegistryImpl();
+  readonly sidebarSections: SidebarSectionRegistry = new SidebarSectionRegistryImpl();
   readonly mainViews: MainViewRegistry = new MainViewRegistryImpl();
   readonly workspace: WorkspaceSurfaceRegistry = new WorkspaceSurfaceRegistryImpl();
 
@@ -198,11 +201,11 @@ export class ExtensionManager implements Disposable {
         get: () => this.renderers.message.get(),
         subscribe: this.renderers.message.subscribe,
       } satisfies MessageRendererRegistry,
-      parts: {
-        register: (contribution) => track(this.renderers.parts.register(contribution)),
-        getAll: () => this.renderers.parts.getAll(),
-        subscribe: this.renderers.parts.subscribe,
-      } satisfies MessagePartRendererRegistry,
+      blocks: {
+        register: (contribution) => track(this.renderers.blocks.register(contribution)),
+        getAll: () => this.renderers.blocks.getAll(),
+        subscribe: this.renderers.blocks.subscribe,
+      } satisfies MessageBlockRendererRegistry,
       tools: wrapRenderers<ToolRendererComponent>(this.renderers.tools),
       data: wrapRenderers<DataRendererComponent>(this.renderers.data),
       toolPresentations: {
@@ -229,6 +232,13 @@ export class ExtensionManager implements Disposable {
       subscribe: this.settings.subscribe,
     };
 
+    const sidebarSections: SidebarSectionRegistry = {
+      register: (definition) => track(this.sidebarSections.register(definition)),
+      get: (sectionId) => this.sidebarSections.get(sectionId),
+      getAll: () => this.sidebarSections.getAll(),
+      subscribe: this.sidebarSections.subscribe,
+    };
+
     const mainViews: MainViewRegistry = {
       register: <P extends Record<string, unknown>>(definition: MainViewDefinition<P>) =>
         track(this.mainViews.register(definition)),
@@ -253,6 +263,7 @@ export class ExtensionManager implements Disposable {
       composerCommands,
       renderers,
       settings,
+      sidebarSections,
       mainViews,
       workspace,
     });

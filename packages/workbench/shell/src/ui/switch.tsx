@@ -16,7 +16,7 @@ function Switch({
       data-slot="switch"
       data-size={size}
       className={cn(
-        "relative inline-flex shrink-0 cursor-pointer items-center rounded-[var(--switch-track-radius)] [background:var(--switch-track-background)] p-[var(--switch-track-padding)] transition-colors outline-none after:pointer-events-none after:absolute after:inset-0 after:rounded-[var(--switch-track-radius)] after:border after:border-border data-checked:[background:var(--switch-track-background-checked)] data-disabled:cursor-not-allowed data-disabled:opacity-50 data-focused:ring-3 data-focused:[--tw-ring-color:color-mix(in_oklab,var(--control-focus-ring)_50%,transparent)]",
+        "relative inline-flex shrink-0 cursor-pointer items-center rounded-[var(--switch-track-radius)] [background:var(--switch-track-background)] p-[var(--switch-track-padding)] transition-colors outline-none after:pointer-events-none after:absolute after:inset-0 after:rounded-[var(--switch-track-radius)] after:border after:border-border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring data-checked:[background:var(--switch-track-background-checked)] data-disabled:cursor-not-allowed data-disabled:opacity-50",
         compact
           ? "h-[var(--switch-compact-track-height)] w-[var(--switch-compact-track-width)]"
           : "h-[var(--switch-track-height)] w-[var(--switch-track-width)]",

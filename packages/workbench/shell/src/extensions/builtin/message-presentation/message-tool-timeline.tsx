@@ -2,15 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type PropsWithChildren } from "react";
 import {
-  MessagePrimitive,
-  useAuiState,
-  type DataMessagePart,
-  type EnrichedPartState,
-  type PartState,
-  type ToolCallMessagePart,
-  type ToolCallMessagePartComponent,
-} from "@assistant-ui/react";
-import {
   FileSearchIcon,
   ListChecksIcon,
   PencilIcon,
@@ -21,27 +12,28 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { ThinkingOrb } from "thinking-orbs";
-import { readAgentTransportRecovering } from "@workbench/agent-runtime-client/extras";
+import type {
+  DataBlock,
+  MessageBlock,
+  MessageBlockTiming,
+  ReasoningBlock,
+  ToolCallBlock,
+} from "@workbench/agent-runtime-contracts/conversation";
 
-import {
-  ToolGroupContent,
-  ToolGroupRoot,
-  ToolGroupTrigger,
-} from "../../../assistant-ui/tool-group";
+import { ToolGroupContent, ToolGroupRoot, ToolGroupTrigger } from "../../../chat/tool-group";
 import { ReasoningPanel, type ReasoningStep } from "../../../elements/reasoning-panel";
 import { ReviewableDiff, type HunkDecision } from "../../../elements/reviewable-diff";
-import { ShimmerLabel } from "../../../elements/surfaces";
-import { ToolCall } from "../../../elements/tool-call";
+import { ShimmerLabel } from "../../../ui/surface";
+import { ToolCall, ToolCallDetails } from "../../../elements/tool-call";
 import { useOpenerService, useWorkspaceContext } from "../../../right-workspace-react";
 import { useI18n } from "../../../i18n";
 import { formatCompactDuration } from "../../../format-duration";
 import { cn } from "../../../utils";
-import type { ToolPresentationDefinition } from "@workbench/extension-sdk";
+import type { MessageRendererNode, ToolPresentationDefinition } from "@workbench/extension-sdk";
 import {
   RendererHost,
   useDataPresentationMap,
   useToolPresentationMap,
-  useToolRendererMap,
 } from "@workbench/extension-host/hosts/renderer-host";
 
 import { useMessageDisclosure } from "./message-disclosure-context";
@@ -50,16 +42,14 @@ import {
   activeToolPresentationLabel,
   dataTimelineState,
   liveReasoningPreview,
-  reasoningPartTiming,
   timelineEntries,
   timelineStats,
   timelineSteps,
+  toolTimelineCallState,
   type ToolTimelineStepKind,
 } from "./tool-timeline-model";
 
-type TimelinePartState = Extract<PartState, { type: "reasoning" | "tool-call" | "data" }>;
-type TimelineReasoningPart = Extract<TimelinePartState, { type: "reasoning" }>;
-type TimelineToolPart = Extract<TimelinePartState, { type: "tool-call" }>;
+type TimelineBlock = ReasoningBlock | ToolCallBlock | DataBlock;
 
 const STEP_ICONS: Readonly<Record<ToolTimelineStepKind, LucideIcon>> = {
   thinking: SparklesIcon,
@@ -70,29 +60,14 @@ const STEP_ICONS: Readonly<Record<ToolTimelineStepKind, LucideIcon>> = {
   used: WrenchIcon,
 };
 
-const TimelineToolDetail: ToolCallMessagePartComponent = (part) => {
-  const RegisteredToolUI = useAuiState((state) => state.tools.toolUIs[part.toolName]?.[0]?.render);
-  const toolUI = RegisteredToolUI ? <RegisteredToolUI {...part} /> : null;
-
-  return <RendererHost part={{ ...part, toolUI }} />;
-};
-
-const TIMELINE_TOOL_DETAIL_COMPONENTS = {
-  tools: { Override: TimelineToolDetail },
-};
-
 const REASONING_STALL_DELAY_MS = 3_000;
 
-function isTimelineSourcePart(
-  value: unknown,
+function isTimelineBlock(
+  block: MessageBlock | undefined,
   dataPresentations: ReturnType<typeof useDataPresentationMap>,
-): value is TimelinePartState {
-  if (!value || typeof value !== "object") return false;
-  const type = (value as { type?: unknown }).type;
-  if (type === "reasoning" || type === "tool-call") return true;
-  return (
-    type === "data" && dataTimelineState(value as DataMessagePart, dataPresentations) !== undefined
-  );
+): block is TimelineBlock {
+  if (block?.kind === "reasoning" || block?.kind === "tool-call") return true;
+  return block?.kind === "data" && dataTimelineState(block, dataPresentations) !== undefined;
 }
 
 function serializeToolValue(value: unknown): string {
@@ -106,10 +81,7 @@ function serializeToolValue(value: unknown): string {
   }
 }
 
-function useElapsedSeconds(
-  running: boolean,
-  timing?: ToolCallMessagePart["timing"],
-): number | undefined {
+function useElapsedSeconds(running: boolean, timing?: MessageBlockTiming): number | undefined {
   const fallbackStartedAt = useRef<number | undefined>(running ? Date.now() : undefined);
   const [elapsedSeconds, setElapsedSeconds] = useState<number | undefined>(() => {
     if (timing?.completedAt !== undefined) {
@@ -153,13 +125,13 @@ export function useReasoningStalled(running: boolean, content: string): boolean 
 }
 
 function TimelineReasoning({
-  part,
+  block,
   running,
   transportRecovering,
   preview,
   disclosureId,
 }: {
-  part: TimelineReasoningPart;
+  block: ReasoningBlock;
   running: boolean;
   transportRecovering: boolean;
   preview: string;
@@ -167,18 +139,17 @@ function TimelineReasoning({
 }) {
   const { locale, t } = useI18n();
   const [open, setOpen] = useMessageDisclosure("reasoning", disclosureId);
-  const elapsedSeconds = useElapsedSeconds(running, reasoningPartTiming(part));
-  const stalled = useReasoningStalled(running, part.text || part.unstable_summary || "");
-  const collapsedPreview = running
-    ? liveReasoningPreview(part.text || part.unstable_summary || "") || preview
-    : preview;
+  const elapsedSeconds = useElapsedSeconds(running, block.timing);
+  const content = block.text;
+  const stalled = useReasoningStalled(running, content);
+  const collapsedPreview = running ? liveReasoningPreview(content) || preview : preview;
 
   return (
     <ReasoningPanel
       steps={[
         {
           marker: false,
-          body: <div className="whitespace-pre-wrap">{part.text || part.unstable_summary}</div>,
+          body: <div className="whitespace-pre-wrap">{content}</div>,
         },
       ]}
       visibleSteps={1}
@@ -219,56 +190,55 @@ function TimelineReasoning({
 }
 
 function TimelineToolCall({
-  part,
-  partIndex,
+  block,
   kind,
+  node,
   query,
-  running,
   presentation,
 }: {
-  part: TimelineToolPart;
-  partIndex: number;
+  block: ToolCallBlock;
   kind: ToolTimelineStepKind;
+  node: MessageRendererNode;
   query: string;
-  running: boolean;
   presentation?: ToolPresentationDefinition;
 }) {
   const { locale, number, t, text } = useI18n();
-  const [open, setOpen] = useMessageDisclosure("tool", part.toolCallId);
+  const [open, setOpen] = useMessageDisclosure("tool", block.callId);
   const openers = useOpenerService();
   const workspaceContext = useWorkspaceContext();
-  const toolRenderers = useToolRendererMap();
-  const hasAssistantToolUI = useAuiState(
-    (state) => state.tools.toolUIs[part.toolName]?.[0]?.render !== undefined,
-  );
-  const hasToolDetail = Object.hasOwn(toolRenderers, part.toolName) || hasAssistantToolUI;
-  const displayedResult = part.result ?? part.artifact;
-  const elapsedSeconds = useElapsedSeconds(running, part.timing);
+  const state = toolTimelineCallState(block);
+  const elapsedSeconds = useElapsedSeconds(state.running, block.timing);
   const Icon = presentation?.icon ?? STEP_ICONS[kind];
   const DisclosureController = presentation?.disclosureController;
   const label = presentation
     ? text(presentation.label)
     : t(`extensions.messagePresentation.toolTimeline.steps.${kind}`);
-  const presentationActiveLabel = activeToolPresentationLabel(part, presentation);
+  const presentationActiveLabel = activeToolPresentationLabel(block, presentation);
   const activeLabel = presentationActiveLabel
     ? text(presentationActiveLabel)
     : t(`extensions.messagePresentation.toolTimeline.activeSteps.${kind}`);
-  const isFileMutation = part.toolName === "edit" || part.toolName === "write";
+  const isFileMutation = block.toolName === "edit" || block.toolName === "write";
   const displayLabel =
-    part.toolName === "write"
+    block.toolName === "write"
       ? t("extensions.messagePresentation.toolTimeline.steps.created")
       : label;
   const displayActiveLabel =
-    part.toolName === "write"
+    block.toolName === "write"
       ? t("extensions.messagePresentation.toolTimeline.activeSteps.creating")
       : activeLabel;
-  const cancelled = part.status.type === "incomplete" && part.status.reason === "cancelled";
-  const failed = Boolean(part.isError) || (part.status.type === "incomplete" && !cancelled);
   const failedLabel = t("extensions.messagePresentation.toolTimeline.failed");
-  const terminalLabel = cancelled ? t("assistant.tool.cancelled") : failedLabel;
+  const terminalLabel = state.cancelled ? t("assistant.tool.cancelled") : failedLabel;
   const fileDiff = useMemo(
-    () => (part.status.type === "complete" && !part.isError ? toolDiffModel(part) : undefined),
-    [part],
+    () =>
+      block.status === "complete"
+        ? toolDiffModel({
+            toolName: block.toolName,
+            toolCallId: block.callId,
+            args: block.arguments,
+            result: block.result,
+          })
+        : undefined,
+    [block],
   );
   const [hunkDecisions, setHunkDecisions] = useState<Readonly<Record<string, HunkDecision>>>({});
   const reviewHunks = useMemo(
@@ -282,7 +252,7 @@ function TimelineToolCall({
   const decideHunk = useCallback((id: string, decision: HunkDecision) => {
     setHunkDecisions((current) => ({ ...current, [id]: decision }));
   }, []);
-  const diffId = `file-diff:${workspaceContext.threadId ?? workspaceContext.applicationId}:${part.toolCallId}`;
+  const diffId = `file-diff:${workspaceContext.threadId ?? workspaceContext.applicationId}:${block.callId}`;
   const openWorkspaceDiff = useCallback(() => {
     if (!fileDiff) return;
 
@@ -313,24 +283,28 @@ function TimelineToolCall({
       data-slot="file-mutation-tool-summary"
       className={cn(
         "flex min-w-0 items-center gap-1",
-        failed && "text-destructive",
-        cancelled && "text-muted-foreground",
+        state.failed && "text-destructive",
+        state.cancelled && "text-muted-foreground",
       )}
     >
       <ShimmerLabel
-        active={running}
+        active={state.running}
         className={cn(
           "relative shrink-0 whitespace-nowrap leading-none",
-          cancelled && "line-through",
+          state.cancelled && "line-through",
         )}
       >
-        {running ? displayActiveLabel : failed || cancelled ? terminalLabel : displayLabel}
+        {state.running || state.requiresAction
+          ? displayActiveLabel
+          : state.failed || state.cancelled
+            ? terminalLabel
+            : displayLabel}
       </ShimmerLabel>
       {fileDiff ? (
         <button
           type="button"
           title={query}
-          className="pointer-events-auto min-w-0 cursor-pointer truncate border-b border-dotted border-foreground/30 bg-transparent text-left leading-tight text-foreground/55 transition-colors group-hover/tool-summary:text-foreground group-focus-within/tool-summary:text-foreground focus-visible:outline-none"
+          className="pointer-events-auto min-w-0 cursor-pointer truncate border-b border-dotted border-foreground/30 bg-transparent text-left leading-tight text-foreground/55 transition-colors group-hover/tool-summary:text-foreground group-focus-within/tool-summary:text-foreground"
           onClick={openWorkspaceDiff}
         >
           {query}
@@ -357,6 +331,18 @@ function TimelineToolCall({
       ) : null}
     </span>
   ) : undefined;
+  const requestLabel = t("extensions.messagePresentation.toolTimeline.request");
+  const resultLabel = t("extensions.messagePresentation.toolTimeline.result");
+  const request = state.request;
+  const result = serializeToolValue(state.result);
+  const fallbackDetail = (
+    <ToolCallDetails
+      request={request}
+      result={result}
+      requestLabel={requestLabel}
+      resultLabel={resultLabel}
+    />
+  );
 
   return (
     <ToolCall
@@ -364,25 +350,32 @@ function TimelineToolCall({
       activeLabel={displayActiveLabel}
       query={query}
       summary={fileMutationSummary}
-      request={serializeToolValue(part.args)}
-      result={serializeToolValue(displayedResult)}
-      requestLabel={t("extensions.messagePresentation.toolTimeline.request")}
-      resultLabel={t("extensions.messagePresentation.toolTimeline.result")}
+      request={request}
+      result={result}
+      requestLabel={requestLabel}
+      resultLabel={resultLabel}
       icon={Icon}
-      running={running}
-      failed={failed}
-      cancelled={cancelled}
+      running={state.running}
+      requiresAction={state.requiresAction}
+      failed={state.failed}
+      cancelled={state.cancelled}
       failedLabel={terminalLabel}
       showCompletionIcon={!isFileMutation}
-      expandable={!isFileMutation || Boolean(fileDiff) || failed || cancelled}
+      expandable={
+        !isFileMutation ||
+        Boolean(fileDiff) ||
+        state.failed ||
+        state.cancelled ||
+        state.requiresAction
+      }
       open={open}
       onOpenChange={setOpen}
       disclosureController={
         DisclosureController
           ? ({ open: disclosureOpen, onOpenChange }) => (
               <DisclosureController
-                part={part}
-                running={running}
+                block={block}
+                running={state.running}
                 open={disclosureOpen}
                 onOpenChange={onOpenChange}
               />
@@ -418,32 +411,29 @@ function TimelineToolCall({
           onDiscard={(id) => decideHunk(id, "discarded")}
           className="max-w-none"
         />
-      ) : !failed && !cancelled && hasToolDetail ? (
-        <MessagePrimitive.PartByIndex
-          index={partIndex}
-          components={TIMELINE_TOOL_DETAIL_COMPONENTS}
-        />
-      ) : null}
+      ) : (
+        <RendererHost node={node} block={block} fallback={fallbackDetail} />
+      )}
     </ToolCall>
   );
 }
 
 function ParallelToolGroup({
   batchId,
-  parts,
-  partIndices,
+  blocks,
   kinds,
+  node,
   queries,
   presentations,
 }: {
   batchId: string;
-  parts: readonly TimelineToolPart[];
-  partIndices: readonly number[];
+  blocks: readonly ToolCallBlock[];
   kinds: readonly ToolTimelineStepKind[];
+  node: MessageRendererNode;
   queries: readonly string[];
   presentations: readonly (ToolPresentationDefinition | undefined)[];
 }) {
-  const running = parts.some((part) => part.status.type === "running");
+  const running = blocks.some((block) => block.status === "running");
   const [open, setOpen] = useMessageDisclosure("parallel-tools", batchId);
 
   return (
@@ -454,27 +444,23 @@ function ParallelToolGroup({
       className="max-w-none [overflow-anchor:none]"
     >
       <ToolGroupTrigger
-        count={parts.length}
+        count={blocks.length}
         active={running}
         icon={WrenchIcon}
         className="text-foreground/55 hover:text-foreground/90 gap-1.5 py-1 text-[13.5px] transition-colors outline-none"
       />
       <ToolGroupContent className="[&>div]:ms-1 [&>div]:border-s [&>div]:border-foreground/10 [&>div]:ps-3">
-        {parts.map((part, index) => {
+        {blocks.map((block, index) => {
           const kind = kinds[index];
           const query = queries[index];
-          const partIndex = partIndices[index];
-          if (!kind || query === undefined || partIndex === undefined) return null;
-          const toolRunning = part.status.type === "running";
-
+          if (!kind || query === undefined) return null;
           return (
             <TimelineToolCall
-              key={part.toolCallId}
-              part={part}
-              partIndex={partIndex}
+              key={block.callId}
+              block={block}
               kind={kind}
+              node={node}
               query={query}
-              running={toolRunning}
               presentation={presentations[index]}
             />
           );
@@ -485,57 +471,67 @@ function ParallelToolGroup({
 }
 
 export function MessageToolTimeline({
+  blocks,
+  children,
   indices,
+  node,
+  transportRecovering,
 }: PropsWithChildren<{
+  blocks?: readonly MessageBlock[];
   indices: readonly number[];
+  node: MessageRendererNode;
+  transportRecovering: boolean;
 }>) {
   const { t, text } = useI18n();
-  const content = useAuiState((state) => state.message.parts);
-  const transportRecovering = useAuiState((state) =>
-    readAgentTransportRecovering(state.thread.extras),
-  );
   const toolPresentations = useToolPresentationMap();
   const dataPresentations = useDataPresentationMap();
   const [open, setOpen] = useMessageDisclosure("steps", indices[0] ?? "empty");
-  const parts = useMemo(
-    () =>
-      indices
-        .map((index) => content[index])
-        .filter((part): part is TimelinePartState => isTimelineSourcePart(part, dataPresentations)),
-    [content, dataPresentations, indices],
-  );
+  const timeline = useMemo(() => {
+    const timelineBlocks: TimelineBlock[] = [];
+    const blockIndices: number[] = [];
+
+    for (const blockIndex of indices) {
+      const block = blocks?.[blockIndex];
+      if (!isTimelineBlock(block, dataPresentations)) continue;
+      timelineBlocks.push(block);
+      blockIndices.push(blockIndex);
+    }
+
+    return { blocks: timelineBlocks, blockIndices };
+  }, [blocks, dataPresentations, indices]);
+  const timelineBlocks = timeline.blocks;
   const stepModels = useMemo(
-    () => timelineSteps(parts, toolPresentations),
-    [parts, toolPresentations],
+    () => timelineSteps(timelineBlocks, toolPresentations),
+    [timelineBlocks, toolPresentations],
   );
-  const entries = useMemo(() => timelineEntries(parts), [parts]);
+  const entries = useMemo(() => timelineEntries(timelineBlocks), [timelineBlocks]);
   const stats = useMemo(
     () =>
       timelineStats(
-        parts.filter((part) => part.type !== "tool-call" || part.status.type === "complete"),
+        timelineBlocks.filter((block) => block.kind !== "tool-call" || block.status === "complete"),
       ),
-    [parts],
+    [timelineBlocks],
   );
-  const timelineRunning = parts.some((part) =>
-    part.type === "data"
-      ? dataTimelineState(part, dataPresentations)?.active === true
-      : part.status.type === "running",
+  const timelineRunning = timelineBlocks.some((block) =>
+    block.kind === "data"
+      ? dataTimelineState(block, dataPresentations)?.active === true
+      : block.status === "running",
   );
   const steps: ReasoningStep[] = entries.map((entry) => {
     if (entry.kind === "parallel-tools") {
       const models = entry.sourceIndices.map((index) => stepModels[index]);
-      const parallelParts = entry.sourceIndices.flatMap((index) => {
-        const part = parts[index];
-        return part?.type === "tool-call" ? [part] : [];
+      const parallelBlocks = entry.sourceIndices.flatMap((index) => {
+        const block = timelineBlocks[index];
+        return block?.kind === "tool-call" ? [block] : [];
       });
       return {
         marker: false,
         body: (
           <ParallelToolGroup
             batchId={entry.batchId}
-            parts={parallelParts}
-            partIndices={entry.sourceIndices.map((index) => indices[index] ?? index)}
+            blocks={parallelBlocks}
             kinds={models.flatMap((model) => (model && model.kind !== "data" ? [model.kind] : []))}
+            node={node}
             queries={models.flatMap((model) =>
               model && model.kind !== "data" ? [text(model.chip)] : [],
             )}
@@ -548,36 +544,30 @@ export function MessageToolTimeline({
     }
 
     const { sourceIndex } = entry;
-    const part = parts[sourceIndex];
-    if (!part) return { body: null };
+    const block = timelineBlocks[sourceIndex];
+    if (!block) return { body: null };
     const model = stepModels[sourceIndex];
     if (!model) return { body: null };
 
-    if (part.type === "data") {
-      const timelineState = dataTimelineState(part, dataPresentations);
-      const enrichedPart = {
-        ...part,
-        status: { type: timelineState?.active ? "running" : "complete" },
-        dataRendererUI: null,
-      } satisfies EnrichedPartState;
+    if (block.kind === "data") {
       return {
         marker: false,
-        body: <RendererHost part={enrichedPart} />,
+        body: <RendererHost node={node} block={block} fallback={null} />,
       };
     }
 
     if (model.kind === "data") return { body: null };
 
-    if (part.type === "reasoning") {
+    if (block.kind === "reasoning") {
       return {
         marker: false,
         body: (
           <TimelineReasoning
-            part={part}
-            running={part.status.type === "running"}
+            block={block}
+            running={block.status === "running"}
             transportRecovering={transportRecovering}
             preview={text(model.chip)}
-            disclosureId={indices[sourceIndex] ?? sourceIndex}
+            disclosureId={timeline.blockIndices[sourceIndex] ?? sourceIndex}
           />
         ),
       };
@@ -587,11 +577,10 @@ export function MessageToolTimeline({
       marker: false,
       body: (
         <TimelineToolCall
-          part={part}
-          partIndex={indices[sourceIndex] ?? sourceIndex}
+          block={block}
           kind={model.kind}
+          node={node}
           query={text(model.chip)}
-          running={part.status.type === "running"}
           presentation={model.presentation}
         />
       ),
@@ -599,6 +588,7 @@ export function MessageToolTimeline({
   });
 
   const summaryArgs = { steps: entries.length, files: stats.length };
+  if (timelineBlocks.length === 0) return children;
 
   return (
     <ReasoningPanel

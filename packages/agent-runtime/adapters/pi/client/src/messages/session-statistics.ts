@@ -1,4 +1,7 @@
-import type { ThreadAssistantMessage, ThreadMessage } from "@assistant-ui/react";
+import type {
+  PiConversationAssistantMessage as ThreadAssistantMessage,
+  PiConversationMessage as ThreadMessage,
+} from "../conversation/pi-conversation-message";
 
 import { readPiUsage } from "./pi-usage";
 

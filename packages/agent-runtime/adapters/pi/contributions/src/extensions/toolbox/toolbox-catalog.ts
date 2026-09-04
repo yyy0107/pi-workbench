@@ -39,7 +39,7 @@ interface ToolboxCatalogTarget {
 
 export interface ToolboxCapabilityItem {
   readonly id: string;
-  readonly kind: "skill" | "component-extension" | "extension" | "prompt" | "package";
+  readonly kind: "skill" | "extension" | "prompt" | "package";
   readonly name: string;
   readonly description?: string;
   readonly status?: string;

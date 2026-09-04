@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import type { SessionSelectModelPayload } from "@workbench/agent-runtime-pi-protocol/rpc";
 
 import { usePiSessionManager } from "../runtime/context";
 import {
@@ -62,12 +63,14 @@ export {
   updateWorkbenchSettings,
 } from "../transport/api";
 export { toWorkbenchSettingsJsonObject } from "../settings/workbench-settings-client";
-export { draftSessionModelSelection } from "../models/model-selection";
-export type { DraftSessionModelSelection } from "../models/model-selection";
 export { useSessionContextPolicy } from "../context-policy/use-session-context-policy";
 
 export interface PiModelSessionClient {
   reloadSession(localThreadId: string, remoteSessionId: string): Promise<void>;
+  setDraftSelection(
+    localThreadId: string,
+    selection: Omit<SessionSelectModelPayload, "sessionId"> | undefined,
+  ): void;
 }
 
 export function usePiModelSessionClient(): PiModelSessionClient {
@@ -76,6 +79,9 @@ export function usePiModelSessionClient(): PiModelSessionClient {
     () => ({
       reloadSession: async (localThreadId: string, remoteSessionId: string) => {
         await manager.getSession(localThreadId, remoteSessionId).reload();
+      },
+      setDraftSelection: (localThreadId, selection) => {
+        manager.getSession(localThreadId).setDraftModelSelection(selection);
       },
     }),
     [manager],

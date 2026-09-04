@@ -41,7 +41,6 @@ function pointerDelta(
   event: ReactPointerEvent<HTMLDivElement>,
 ) {
   if (location === "left") return event.clientX - start.x;
-  if (location === "right") return start.x - event.clientX;
   return start.y - event.clientY;
 }
 
@@ -124,8 +123,6 @@ export function PanelResizeHandle({
         "group absolute z-30 touch-none outline-none after:absolute after:bg-transparent after:blur-[0.35px] after:transition-colors hover:after:bg-ring/30 focus-visible:after:bg-ring/50",
         location === "left" &&
           "inset-y-0 -right-1 w-2 cursor-col-resize after:inset-y-0 after:left-1/2 after:w-px",
-        location === "right" &&
-          "inset-y-0 -left-1 w-2 cursor-col-resize after:inset-y-0 after:left-1/2 after:w-px",
         location === "bottom" &&
           "inset-x-0 -top-1 h-2 cursor-row-resize after:inset-x-0 after:top-1/2 after:h-px",
         className,
@@ -191,9 +188,6 @@ export function PanelResizeHandle({
         if (location === "left") {
           if (event.key === "ArrowLeft") delta = -KEYBOARD_STEP;
           if (event.key === "ArrowRight") delta = KEYBOARD_STEP;
-        } else if (location === "right") {
-          if (event.key === "ArrowLeft") delta = KEYBOARD_STEP;
-          if (event.key === "ArrowRight") delta = -KEYBOARD_STEP;
         } else {
           if (event.key === "ArrowUp") delta = KEYBOARD_STEP;
           if (event.key === "ArrowDown") delta = -KEYBOARD_STEP;

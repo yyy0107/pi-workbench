@@ -4,7 +4,7 @@ export interface IndexedThreadListItem {
 }
 
 /**
- * Resolve the desired visible order to assistant-ui's canonical thread indexes.
+ * Resolve the desired visible order to the Runtime's canonical thread indexes.
  * Rendering only these indexes avoids walking the complete thread list once per workspace.
  */
 export function indexVisibleThreads(

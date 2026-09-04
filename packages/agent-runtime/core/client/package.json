@@ -9,20 +9,15 @@
       "import": "./src/index.ts",
       "default": "./src/index.ts"
     },
-    "./adapter": {
-      "types": "./src/agent-runtime-adapter.ts",
-      "import": "./src/agent-runtime-adapter.ts",
-      "default": "./src/agent-runtime-adapter.ts"
+    "./environment": {
+      "types": "./src/agent-runtime-environment.ts",
+      "import": "./src/agent-runtime-environment.ts",
+      "default": "./src/agent-runtime-environment.ts"
     },
     "./context": {
       "types": "./src/agent-runtime-context.tsx",
       "import": "./src/agent-runtime-context.tsx",
       "default": "./src/agent-runtime-context.tsx"
-    },
-    "./extras": {
-      "types": "./src/agent-runtime-extras.ts",
-      "import": "./src/agent-runtime-extras.ts",
-      "default": "./src/agent-runtime-extras.ts"
     },
     "./installation": {
       "types": "./src/agent-runtime-installation.tsx",
@@ -55,14 +50,16 @@
     "test": "node ../../../../scripts/run-typescript-tests.mjs --package"
   },
   "dependencies": {
-    "@assistant-ui/react": "0.15.16",
     "@workbench/agent-runtime-contracts": "workspace:*",
-    "@workbench/automation-contracts": "workspace:*"
+    "@workbench/agent-runtime-core": "workspace:*",
+    "@workbench/automation-contracts": "workspace:*",
+    "use-sync-external-store": "^1.6.0"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
+    "@types/use-sync-external-store": "^1.5.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "typescript": "^7.0.2"

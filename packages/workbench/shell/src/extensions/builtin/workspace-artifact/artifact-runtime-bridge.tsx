@@ -18,7 +18,7 @@ export function ArtifactRuntimeBridge() {
   useCompletedToolCalls(
     useCallback(
       (part) => {
-        const artifactId = toolStringArg(part.args, "artifactId", "artifact_id");
+        const artifactId = toolStringArg(part.arguments, "artifactId", "artifact_id");
         if (
           !/artifact/i.test(part.toolName) ||
           part.result === undefined ||
@@ -27,7 +27,7 @@ export function ArtifactRuntimeBridge() {
         ) {
           return false;
         }
-        const title = toolStringArg(part.args, "title", "name") ?? artifactId;
+        const title = toolStringArg(part.arguments, "title", "name") ?? artifactId;
         const scope = { type: "thread", key: context.threadId } as const;
         artifactPreviewService.upsertArtifact({
           id: artifactId,

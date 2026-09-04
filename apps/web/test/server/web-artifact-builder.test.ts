@@ -1,6 +1,16 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { lstat, mkdtemp, mkdir, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
+import {
+  lstat,
+  mkdtemp,
+  mkdir,
+  readFile,
+  readdir,
+  realpath,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -27,7 +37,7 @@ import {
 } from "../../scripts/build-web-artifact";
 
 const RELATIVE_APP_DIRECTORY = "apps/web";
-const BUILD_ID = "web-artifact-fixture-123";
+const BUILD_ID = "-web-artifact-fixture-123";
 const NEXT_NODE_MODULE_ALIAS = `${RELATIVE_APP_DIRECTORY}/.next/node_modules/shiki-fixture`;
 const NEXT_PACKAGE_STORE_PATH = "node_modules/.pnpm/next@16.3.1_fixture/node_modules/next";
 const NEXT_PACKAGE_ALIAS = "node_modules/next";
@@ -612,15 +622,22 @@ test("publishes an admitted candidate under the target lock and removes the old 
   const fixture = await createPublishFixture();
   t.after(() => rm(fixture.repositoryRoot, { force: true, recursive: true }));
   await writePublishMarker(fixture.finalRoot, "old");
+  await writePublishMarker(path.join(fixture.parent, "w"), "stale");
   let admissionCount = 0;
+  let temporaryBasename = "";
 
   await publishTransaction(fixture, "new", {
+    async buildTemporaryArtifact(temporaryRoot) {
+      temporaryBasename = path.basename(temporaryRoot);
+      await writePublishMarker(temporaryRoot, "new");
+    },
     async resolveArtifactImpl(options) {
       admissionCount += 1;
       return acceptingMarkerResolver(options);
     },
   });
 
+  assert.equal(temporaryBasename, "w");
   assert.equal(admissionCount, 2, "the candidate and published final must both be admitted");
   assert.equal(await readFile(path.join(fixture.finalRoot, "marker.txt"), "utf8"), "new");
   assert.deepEqual((await readdir(fixture.parent)).sort(), ["web"]);
@@ -1253,6 +1270,61 @@ test("removes only unoptimized image optimizer aliases before strict pnpm reacha
   );
 });
 
+test("restores a traced pnpm owner omitted from the standalone tree", async (t) => {
+  const repositoryRoot = await mkdtemp(path.join(os.tmpdir(), "workbench-web-missing-owner-"));
+  t.after(() => rm(repositoryRoot, { force: true, recursive: true }));
+  const fixture = await createWebFixture(repositoryRoot);
+  const coreOwner = "node_modules/.pnpm/@shikijs+core@3.23.0/node_modules/@shikijs/core";
+  const typesOwner = "node_modules/.pnpm/@shikijs+types@3.23.0/node_modules/@shikijs/types";
+  const typesLink = path.join(
+    fixture.standaloneRoot,
+    "node_modules",
+    ".pnpm",
+    "@shikijs+core@3.23.0",
+    "node_modules",
+    "@shikijs",
+    "types",
+  );
+  await Promise.all([
+    writeFixtureFile(
+      fixture.standaloneRoot,
+      `${coreOwner}/package.json`,
+      '{"name":"@shikijs/core"}\n',
+    ),
+    writeFixtureFile(
+      repositoryRoot,
+      `${typesOwner}/dist/index.mjs`,
+      "export class ShikiError {}\n",
+    ),
+  ]);
+  const coreAlias = path.join(fixture.standaloneRoot, "node_modules", "@shikijs", "core");
+  await mkdir(path.dirname(coreAlias), { recursive: true });
+  await symlink(
+    path.relative(path.dirname(coreAlias), path.join(fixture.standaloneRoot, coreOwner)),
+    coreAlias,
+    "dir",
+  );
+  await symlink(
+    path.relative(path.dirname(typesLink), path.join(fixture.standaloneRoot, typesOwner)),
+    typesLink,
+    "dir",
+  );
+
+  const artifact = await buildFixtureArtifact(fixture);
+
+  assert.equal(await realpath(typesLink), path.join(fixture.standaloneRoot, typesOwner));
+  assert.equal(
+    await readFile(path.join(artifact.artifactRoot, typesOwner, "dist", "index.mjs"), "utf8"),
+    "export class ShikiError {}\n",
+  );
+  assert.equal(
+    await realpath(
+      path.join(artifact.artifactRoot, path.relative(fixture.standaloneRoot, typesLink)),
+    ),
+    path.join(artifact.artifactRoot, typesOwner),
+  );
+});
+
 test("keeps broken and escaping non-optimizer links fail-closed", async (t) => {
   await t.test("broken link", async (t) => {
     const repositoryRoot = await mkdtemp(path.join(os.tmpdir(), "workbench-web-broken-link-"));
@@ -1283,7 +1355,7 @@ test("keeps broken and escaping non-optimizer links fail-closed", async (t) => {
     );
     await assert.rejects(
       buildFixtureArtifact(fixture),
-      /Web artifact symlink escapes the artifact/u,
+      /(?:Web artifact symlink escapes the artifact|Raw standalone symlink target is outside its admitted package roots)/u,
     );
   });
 });
@@ -1303,6 +1375,33 @@ test("derives relativeAppDir only from canonical standalone metadata", async (t)
     readNextStandaloneMetadata(fixture),
     /relativeAppDir is not derived from its metadata roots/u,
   );
+});
+
+test("normalizes Windows separators in standalone metadata", async (t) => {
+  const repositoryRoot = await mkdtemp(path.join(os.tmpdir(), "workbench-web-windows-metadata-"));
+  t.after(() => rm(repositoryRoot, { force: true, recursive: true }));
+  const fixture = await createWebFixture(repositoryRoot);
+  const metadataPaths = [
+    path.join(fixture.webBuildRoot, "required-server-files.json"),
+    path.join(
+      fixture.standaloneRoot,
+      ...RELATIVE_APP_DIRECTORY.split("/"),
+      ".next",
+      "required-server-files.json",
+    ),
+  ];
+  for (const metadataPath of metadataPaths) {
+    const metadata = JSON.parse(await readFile(metadataPath, "utf8")) as Record<string, unknown>;
+    await writeFile(
+      metadataPath,
+      JSON.stringify({ ...metadata, relativeAppDir: String.raw`apps\web` }),
+      "utf8",
+    );
+  }
+
+  const artifact = await buildFixtureArtifact(fixture);
+
+  assert.equal(artifact.manifest.relativeAppDir, RELATIVE_APP_DIRECTORY);
 });
 
 test("uses the production-only esbuild policy for the sole Web control entry", () => {

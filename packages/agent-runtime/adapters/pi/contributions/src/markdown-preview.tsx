@@ -2,7 +2,8 @@
 
 import { CheckIcon, CircleXIcon, CopyIcon } from "lucide-react";
 
-import { MarkdownTextContent, TooltipIconButton } from "@workbench/shell/assistant-ui";
+import { MarkdownTextContent } from "@workbench/shell/chat";
+import { TooltipIconButton } from "@workbench/shell/ui";
 import { useClipboardCopy } from "@workbench/shell/hooks";
 
 import { usePiI18n } from "./i18n";

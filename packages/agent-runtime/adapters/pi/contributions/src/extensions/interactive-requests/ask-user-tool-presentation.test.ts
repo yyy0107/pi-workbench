@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ToolCallMessagePart } from "@assistant-ui/react";
+import type { ToolCallBlock } from "@workbench/agent-runtime-contracts/conversation";
 
 import { ExtensionManager } from "@workbench/extension-sdk/internal";
 
@@ -13,28 +13,30 @@ test("registers the ask_user renderer and localized timeline presentation", () =
   const manager = new ExtensionManager();
   const activation = manager.activate(interactiveRequestsExtension);
   const presentation = manager.renderers.toolPresentations.get("ask_user");
-  const part = {
-    type: "tool-call",
-    toolCallId: "ask-user-call",
+  const block = {
+    key: "tool:ask-user-call",
+    kind: "tool-call",
+    callId: "ask-user-call",
     toolName: "ask_user",
-    args: {
+    arguments: {
       questions: [
         { id: "first", question: "First question?" },
         { id: "second", question: "Second question?" },
       ],
     },
-    argsText: JSON.stringify({
+    argumentsText: JSON.stringify({
       questions: [
         { id: "first", question: "First question?" },
         { id: "second", question: "Second question?" },
       ],
     }),
-  } satisfies ToolCallMessagePart;
-  const partialPart = {
-    ...part,
-    args: { questions: [{ id: "first" }] },
-    argsText: '{"questions":[{"id":"first"',
-  } satisfies ToolCallMessagePart;
+    status: "running",
+  } satisfies ToolCallBlock;
+  const partialBlock = {
+    ...block,
+    arguments: { questions: [{ id: "first" }] },
+    argumentsText: '{"questions":[{"id":"first"',
+  } satisfies ToolCallBlock;
 
   assert.equal(typeof manager.renderers.tools.get("ask_user"), "function");
   assert.deepEqual(
@@ -44,11 +46,11 @@ test("registers the ask_user renderer and localized timeline presentation", () =
   assert.equal(typeof presentation?.getActiveLabel, "function");
   if (typeof presentation?.getActiveLabel !== "function") return;
   assert.deepEqual(
-    presentation.getActiveLabel(part),
+    presentation.getActiveLabel(block),
     definePiMessage("extensions.interactiveRequests.askUserTool.activityRunning"),
   );
   assert.deepEqual(
-    presentation.getActiveLabel(partialPart),
+    presentation.getActiveLabel(partialBlock),
     definePiMessage("extensions.interactiveRequests.askUserTool.activityGenerating"),
   );
   assert.deepEqual(
@@ -56,10 +58,10 @@ test("registers the ask_user renderer and localized timeline presentation", () =
     definePiMessage("extensions.interactiveRequests.askUserTool.activityComplete"),
   );
   assert.deepEqual(
-    presentation?.summarize?.(part),
+    presentation?.summarize?.(block),
     definePiMessage("extensions.interactiveRequests.askUserTool.questionCount", { count: 2 }),
   );
-  assert.equal(presentation?.summarize?.(partialPart), "…");
+  assert.equal(presentation?.summarize?.(partialBlock), "…");
 
   activation.dispose();
   assert.equal(manager.renderers.tools.get("ask_user"), undefined);

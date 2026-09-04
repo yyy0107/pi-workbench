@@ -37,8 +37,9 @@ test("registers settings and the exact data renderer for one extension lifecycle
   const presentation = manager.renderers.dataPresentations.get(
     ATTACHMENT_RECOGNITION_DATA_PART_NAME,
   );
-  const runningPart = {
-    type: "data" as const,
+  const runningBlock = {
+    key: "data:recognition-1",
+    kind: "data" as const,
     name: ATTACHMENT_RECOGNITION_DATA_PART_NAME,
     data: {
       version: 1,
@@ -54,16 +55,15 @@ test("registers settings and the exact data renderer for one extension lifecycle
     },
   };
   assert.equal(presentation?.display, "timeline");
-  assert.equal(presentation?.isVisible?.(runningPart), true);
-  assert.equal(presentation?.isActive?.(runningPart), true);
+  assert.equal(presentation?.isVisible?.(runningBlock), true);
+  assert.equal(presentation?.isActive?.(runningBlock), true);
   assert.equal(
     presentation?.isVisible?.({
-      ...runningPart,
+      ...runningBlock,
       data: {
-        ...runningPart.data,
+        ...runningBlock.data,
         revision: 2,
         status: "skipped",
-        stage: undefined,
         method: "native",
         progress: 0,
       },

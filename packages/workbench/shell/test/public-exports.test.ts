@@ -8,7 +8,6 @@ import { WorkbenchMain, resolveThreadResponsiveLayout } from "@workbench/shell/l
 import {
   WorkbenchApplicationProviders,
   WorkbenchApplicationShell,
-  createWorkbenchExtensionPrefix,
 } from "@workbench/shell/application";
 import {
   createWorkbenchDraftPersistence,
@@ -70,7 +69,6 @@ test("public Shell subpaths expose the finite Shell contracts", () => {
   assert.equal(typeof WorkbenchMain, "function");
   assert.equal(typeof WorkbenchApplicationProviders, "function");
   assert.equal(typeof WorkbenchApplicationShell, "function");
-  assert.equal(typeof createWorkbenchExtensionPrefix, "function");
   assert.equal(typeof createWorkbenchDraftPersistence, "function");
   assert.equal(typeof createWorkbenchThreadScrollPersistence, "function");
   assert.equal(typeof createWorkspaceDirectoryStoreInstallation, "function");
@@ -154,11 +152,9 @@ test("Shell manifest exposes only finite public subpaths", async () => {
   assert.deepEqual(Object.keys(manifest.exports).sort(), [
     "./appearance",
     "./application",
-    "./assistant-ui",
     "./browser-session-persistence",
     "./chat",
     "./code-highlighting",
-    "./component-extensions",
     "./conversation-title",
     "./dom",
     "./elements",

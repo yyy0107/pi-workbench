@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
+import path from "node:path";
 import test from "node:test";
 
 import {
@@ -24,7 +25,7 @@ import {
   type StartRuntimeConnectedWebHostOptions,
 } from "@/server/runtime-connected-web-host";
 
-const WEB_ROOT = "/repository/apps/web";
+const WEB_ROOT = path.resolve("/repository/apps/web");
 const PUBLIC_ORIGIN = "http://127.0.0.1:43127";
 const ACCESS_TOKEN = "root-owned-runtime-secret";
 const RUNTIME_CONNECTION = Object.freeze({

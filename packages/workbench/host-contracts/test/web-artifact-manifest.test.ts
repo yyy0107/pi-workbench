@@ -7,6 +7,7 @@ import {
   WEB_ARTIFACT_MANIFEST_SCHEMA_VERSION,
   WEB_ARTIFACT_PRIMARY_ENTRYPOINT,
   assertWebArtifactManifest,
+  normalizeWebArtifactRelativePath,
   parseWebArtifactManifest,
   webArtifactBuildIdPath,
 } from "../src/web-artifact-manifest";
@@ -87,6 +88,11 @@ test("strictly parses and freezes the Web artifact envelope", () => {
     parsed.files.some((entry) => entry.path === "artifact-manifest.json"),
     false,
   );
+});
+
+test("normalizes platform-native Web artifact paths before manifest admission", () => {
+  assert.equal(normalizeWebArtifactRelativePath(String.raw`apps\web`), "apps/web");
+  assert.equal(normalizeWebArtifactRelativePath(String.raw`..\apps\web`), undefined);
 });
 
 test("requires the metadata-derived required-server-files resource as a regular file", () => {

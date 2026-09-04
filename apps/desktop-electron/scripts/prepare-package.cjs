@@ -272,10 +272,7 @@ function assertPackagedPreloadBuild(result) {
   const normalizedInputs = Object.keys(result.metafile.inputs)
     .map((input) => input.replaceAll("\\", "/"))
     .sort();
-  const expectedSuffixes = [
-    "apps/desktop-electron/src/preload.cjs",
-    "apps/desktop-electron/src/title-bar-overlay.cjs",
-  ];
+  const expectedSuffixes = ["apps/desktop-electron/src/preload.cjs"];
   if (
     normalizedInputs.length !== expectedSuffixes.length ||
     expectedSuffixes.some((suffix) => !normalizedInputs.some((input) => input.endsWith(suffix)))

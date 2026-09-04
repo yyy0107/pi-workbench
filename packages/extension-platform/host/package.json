@@ -69,6 +69,11 @@
       "types": "./src/hosts/slot-host.tsx",
       "import": "./src/hosts/slot-host.tsx",
       "default": "./src/hosts/slot-host.tsx"
+    },
+    "./hosts/sidebar-section-host": {
+      "types": "./src/hosts/sidebar-section-host.tsx",
+      "import": "./src/hosts/sidebar-section-host.tsx",
+      "default": "./src/hosts/sidebar-section-host.tsx"
     }
   },
   "scripts": {
@@ -76,7 +81,6 @@
     "test": "node ../../../scripts/run-typescript-tests.mjs --package"
   },
   "dependencies": {
-    "@assistant-ui/react": "0.15.16",
     "@workbench/extension-sdk": "workspace:*"
   },
   "devDependencies": {

@@ -3,6 +3,7 @@ import test from "node:test";
 
 import type { PiAssistantMessage, PiEvent } from "@workbench/agent-runtime-pi-protocol/messages";
 import type {
+  SessionMessageChunkData,
   SessionMessageSnapshotPayload,
   SessionMessageUpdatePayload,
 } from "@workbench/agent-runtime-pi-protocol/stream";
@@ -26,6 +27,22 @@ function update(
     time: 1_725_000_000_000 + revision,
     message: { role: "assistant", model: "model-1" },
     update: value,
+  };
+}
+
+function chunk(
+  firstRevision: number,
+  revision: number,
+  updates: SessionMessageChunkData["updates"],
+): SessionMessageChunkData {
+  return {
+    format: "pi-messages-v1",
+    streamId: "stream-1",
+    firstRevision,
+    revision,
+    startSeq: 10,
+    message: { role: "assistant", model: "model-1" },
+    updates,
   };
 }
 
@@ -187,7 +204,7 @@ test("deduplicates revisions, freezes on gaps, and accepts an authoritative snap
   assert.equal(next.content[0]?.text, "repaired!");
 });
 
-test("preserves partial tool JSON for assistant-ui projection", () => {
+test("preserves partial tool JSON for conversation projection", () => {
   const accumulator = new SessionMessageAccumulator();
   accumulator.start({ role: "assistant", content: [] }, 10, 1_725_000_000_000);
   messageFrom(
@@ -274,4 +291,47 @@ test("preserves reconnect snapshot tool JSON until the tool call ends", () => {
   assert.equal(ended.kind, "event");
   if (ended.kind !== "event") return;
   assert.equal(ended.event.rawToolArgsText, undefined);
+});
+
+test("replays packed durable chunks and advances their canonical sequence after a snapshot", () => {
+  const accumulator = new SessionMessageAccumulator();
+  accumulator.start({ role: "assistant", content: [] }, 10, 1);
+  const first = accumulator.applyChunk(
+    chunk(1, 3, [
+      { type: "text_start", contentIndex: 0 },
+      { type: "text_delta", contentIndex: 0, delta: "Hello" },
+    ]),
+    11,
+    2,
+  );
+  const firstMessage = messageFrom(first) as { content: Array<{ text?: string }> };
+  assert.equal(firstMessage.content[0]?.text, "Hello");
+  assert.equal(first.kind === "event" ? first.event.sequence : undefined, 11);
+
+  const snapshot = new SessionMessageAccumulator();
+  snapshot.applySnapshot({
+    type: "session/message-snapshot",
+    format: "pi-messages-v1",
+    sessionId: "session-1",
+    streamId: "stream-1",
+    startSeq: 10,
+    revision: 3,
+    time: 2,
+    message: { role: "assistant", content: [{ type: "text", text: "Hello" }] },
+  });
+  const duplicate = snapshot.applyChunk(
+    chunk(1, 3, [{ type: "text_delta", contentIndex: 0, delta: "Hello" }]),
+    11,
+    2,
+  );
+  assert.equal(duplicate.kind, "event");
+  if (duplicate.kind !== "event") return;
+  assert.equal(duplicate.event.sequence, 11);
+  const duplicateMessage = duplicate.event.message as PiAssistantMessage;
+  assert.equal(
+    duplicateMessage.content[0]?.type === "text"
+      ? (duplicateMessage.content[0] as { text: string }).text
+      : undefined,
+    "Hello",
+  );
 });

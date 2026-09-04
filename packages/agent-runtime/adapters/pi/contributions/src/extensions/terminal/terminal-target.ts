@@ -1,9 +1,9 @@
 "use client";
 
-import { useAuiState } from "@assistant-ui/react";
 import { useMemo } from "react";
 
-import { useWorkbenchAgentThreadSnapshot } from "@workbench/agent-runtime-client/context";
+import { useCurrentSession, useThreadList } from "@workbench/agent-runtime-client";
+import { useWorkspaceSelection } from "@workbench/agent-runtime-client/workspaces";
 
 export interface TerminalPtyTarget extends Record<string, unknown> {
   mode?: "pty";
@@ -64,14 +64,15 @@ export function createTerminalTarget(
 }
 
 export function useTerminalLaunchContext(): TerminalLaunchContext {
-  const mainThreadId = useAuiState((state) => state.threads.mainThreadId);
-  const mainThread = useAuiState((state) =>
-    state.threads.threadItems.find((thread) => thread.id === state.threads.mainThreadId),
+  const current = useCurrentSession();
+  const thread = useThreadList((snapshot) =>
+    snapshot.threads.find((candidate) => candidate.threadId === current.threadId),
   );
-  const threadId = mainThread?.remoteId ?? mainThread?.externalId ?? mainThreadId ?? "application";
-  const threadState = useWorkbenchAgentThreadSnapshot(threadId);
-  const workspaceId = threadState.workspace?.id ?? "application";
-  const cwd = threadState.workspace?.rootPath;
+  const { draftWorkspace } = useWorkspaceSelection();
+  const workspace = current.isNewThread ? draftWorkspace : thread?.workspace;
+  const threadId = current.threadId ?? current.sessionId ?? "application";
+  const workspaceId = workspace?.id ?? "application";
+  const cwd = workspace?.rootPath;
 
   return useMemo(
     () => ({

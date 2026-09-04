@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuiState } from "@assistant-ui/react";
+import { useSessionState } from "@workbench/agent-runtime-client";
 
 import { usePiI18n } from "../../i18n";
 
@@ -18,9 +18,9 @@ const STATUS = {
 
 export function ConnectionStatus() {
   const { t } = usePiI18n();
-  const phase = useAuiState((state) => {
-    if (state.thread.isLoading) return "loading";
-    if (state.thread.isRunning) return "streaming";
+  const phase = useSessionState((state) => {
+    if (state.isLoading) return "loading";
+    if (state.isRunning) return "streaming";
     return "ready";
   });
   const status = STATUS[phase];

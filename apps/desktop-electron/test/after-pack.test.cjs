@@ -112,7 +112,9 @@ test("afterPack replaces builder-mutated output with the exact curated runtime t
   ]);
   assert.equal(existsSync(path.join(destination, "stale.js")), false);
   assert.equal(
-    readlinkSync(path.join(destination, "node_modules", "runtime")),
+    readlinkSync(path.join(destination, "node_modules", "runtime"))
+      .split(path.sep)
+      .join("/"),
     ".pnpm/runtime/node_modules/runtime",
   );
   assertRuntimeTreeEquivalent(source, destination);

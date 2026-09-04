@@ -1,7 +1,9 @@
 "use client";
 
-import { useAuiState, type MessagePartState } from "@assistant-ui/react";
+import type { ToolCallBlock } from "@workbench/agent-runtime-contracts/conversation";
 import { useEffect, useRef } from "react";
+
+import { useConversationNodes, useConversationSession } from "./hooks";
 
 /** Read the first non-empty string argument matching one of the supplied protocol field names. */
 export function toolStringArg(args: unknown, ...keys: string[]): string | undefined {
@@ -23,29 +25,23 @@ export function toolResultText(result: unknown): string | undefined {
   return undefined;
 }
 
-/**
- * Observe completed tool calls once per assistant-ui thread.
- *
- * Returning `true` marks a call as consumed. Returning `false` leaves it eligible for a later pass,
- * which lets a feature wait until streaming arguments or results are complete.
- */
-export function useCompletedToolCalls(
-  handle: (part: Extract<MessagePartState, { type: "tool-call" }>) => boolean,
-): void {
-  const messages = useAuiState((state) => state.thread.messages);
-  const threadId = useAuiState((state) => state.threads.mainThreadId);
+/** Observe completed tool calls once per runtime session. */
+export function useCompletedToolCalls(handle: (part: ToolCallBlock) => boolean): void {
+  const nodes = useConversationNodes();
+  const sessionId = useConversationSession().id;
   const seen = useRef(new Set<string>());
 
   useEffect(() => {
     seen.current.clear();
-  }, [threadId]);
+  }, [sessionId]);
 
   useEffect(() => {
-    for (const message of messages) {
-      for (const part of message.parts) {
-        if (part.type !== "tool-call" || seen.current.has(part.toolCallId)) continue;
-        if (handle(part)) seen.current.add(part.toolCallId);
+    for (const node of nodes) {
+      if (node.kind !== "assistant") continue;
+      for (const block of node.blocks) {
+        if (block.kind !== "tool-call" || seen.current.has(block.callId)) continue;
+        if (handle(block)) seen.current.add(block.callId);
       }
     }
-  }, [handle, messages]);
+  }, [handle, nodes]);
 }

@@ -1,8 +1,8 @@
 # Shell extension ownership and i18n
 
-- Shell-owned built-in and installable component-extension copy belongs in
-  `../i18n/extensions/<locale>.ts`, grouped by stable extension namespace. Do not create a private
-  dictionary or translation hook for each small extension.
+- Shell-owned built-in extension copy belongs in `../i18n/extensions/<locale>.ts`, grouped by
+  stable extension namespace. Do not create a private dictionary or translation hook for each
+  small extension.
 - Extension IDs, command IDs, panel IDs, renderer names, and state enums are stable protocol values
   and are not translated. Names, titles, descriptions, categories, controls, errors, empty states,
   tooltips, and accessibility copy are translated.

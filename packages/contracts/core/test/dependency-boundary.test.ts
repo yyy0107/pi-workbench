@@ -10,7 +10,8 @@ const SOURCE_ROOTS = [
   path.resolve(REPOSITORY_ROOT, "packages/agent-runtime/core/contracts"),
 ];
 const ENVIRONMENT_IMPORT =
-  /(?:from\s+|import\s*\()\s*["'](?:node:|react(?:\/|["'])|next(?:\/|["'])|@assistant-ui\/|@earendil-works\/|@\/runtime\/(?:pi|server|terminal)(?:\/|["']))/;
+  /(?:from\s+|import\s*\()\s*["'](?:node:|react(?:\/|["'])|next(?:\/|["'])|@earendil-works\/|@\/runtime\/(?:pi|server|terminal)(?:\/|["']))/;
+const REMOVED_UI_PACKAGE_PREFIX = ["@assistant", "ui/"].join("-");
 
 async function productionSources(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -32,7 +33,8 @@ test("contract packages do not depend on UI, host, or concrete Runtime modules",
   const violations: string[] = [];
   for (const sourceRoot of SOURCE_ROOTS) {
     for (const file of await productionSources(sourceRoot)) {
-      if (ENVIRONMENT_IMPORT.test(await readFile(file, "utf8"))) {
+      const source = await readFile(file, "utf8");
+      if (ENVIRONMENT_IMPORT.test(source) || source.includes(REMOVED_UI_PACKAGE_PREFIX)) {
         violations.push(path.relative(REPOSITORY_ROOT, file));
       }
     }

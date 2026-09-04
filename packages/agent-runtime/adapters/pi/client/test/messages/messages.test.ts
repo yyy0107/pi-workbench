@@ -1,8 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { AppendMessage, MessageTiming, ThreadMessage } from "@assistant-ui/react";
-
 import {
   PI_CONVERSATION_EVENT_CUSTOM_TYPE,
   type PiAssistantMessage,
@@ -21,6 +19,7 @@ import {
   piAssistantToThreadMessage,
   piHistoryToThreadMessages,
   piUserMessageContent,
+  projectPiContextTracePromptParts,
   reconcileLiveMessagesAfterHistory,
   reconcilePiContextTraceAssistantParts,
 } from "../../src/messages/messages";
@@ -50,6 +49,11 @@ import {
   WORKBENCH_ATTACHMENT_RECOGNITION_CUSTOM_TYPE,
   WORKBENCH_ATTACHMENT_RECOGNITION_DATA_NAME,
 } from "@workbench/attachment-understanding-contracts/state-machine";
+import type {
+  PiComposerMessage as AppendMessage,
+  PiConversationMessage as ThreadMessage,
+  PiMessageTiming as MessageTiming,
+} from "../../src/conversation/pi-conversation-message";
 
 const assistantMessage: PiAssistantMessage = {
   role: "assistant",
@@ -208,6 +212,97 @@ test("retains live trace Data Parts when authoritative history replaces an assis
       part.type === "data" ? `${part.type}:${part.name}` : part.type,
     ),
     [...PROMPT_INJECTIONS.map(() => `data:${WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME}`), "text"],
+  );
+});
+
+test("projects prompt composition once per round until its presentation changes", () => {
+  const first = { ...contextTraceEvent("activation:1", 1), roundId: "round-1" };
+  const duplicate = { ...contextTraceEvent("activation:2", 2), roundId: "round-1" };
+  const changedBase = contextTraceEvent("activation:3", 3);
+  const changed = {
+    ...changedBase,
+    roundId: "round-1",
+    promptResources: {
+      ...changedBase.promptResources!,
+      tools: { active: ["read", "bash"], total: 2 },
+    },
+  };
+  const nextRound = {
+    ...contextTraceEvent("activation:4", 4),
+    roundId: "round-2",
+    promptResources: changed.promptResources,
+  };
+  const events = [first, duplicate, changed, nextRound];
+  const messages = events.map((event, index) =>
+    piAssistantToThreadMessage(
+      {
+        role: "assistant",
+        content: [{ type: "text", text: `Answer ${index + 1}` }],
+        timestamp: index + 1,
+      },
+      `assistant-${index + 1}`,
+    ),
+  );
+
+  const projected = projectPiContextTracePromptParts(
+    messages,
+    events.map((event, index) => ({ event, assistantMessageTimestamp: index + 1 })),
+  );
+  const traceIds = projected.map((message) =>
+    message.role === "assistant"
+      ? [
+          ...new Set(
+            message.content.flatMap((part) =>
+              part.type === "data"
+                ? [parsePiContextTraceData(part.data)?.event.traceId].filter(
+                    (traceId): traceId is string => traceId !== undefined,
+                  )
+                : [],
+            ),
+          ),
+        ]
+      : [],
+  );
+
+  assert.deepEqual(traceIds, [["activation:1"], [], ["activation:3"], ["activation:4"]]);
+});
+
+test("hydrates prompt composition from the visible automatic-retry attempt", () => {
+  const first = { ...contextTraceEvent("activation:retry-1", 1), roundId: "round-retry" };
+  const final = { ...contextTraceEvent("activation:retry-2", 2), roundId: "round-retry" };
+  const message = piAssistantToThreadMessage(
+    {
+      role: "assistant",
+      content: [],
+      stopReason: "error",
+      errorMessage: "fetch failed",
+      timestamp: 2,
+    },
+    "assistant-final",
+  );
+
+  const [projected] = projectPiContextTracePromptParts(
+    [message],
+    [
+      { event: first, assistantMessageTimestamp: 1 },
+      { event: final, assistantMessageTimestamp: 2 },
+    ],
+  );
+  assert.equal(projected?.role, "assistant");
+  if (projected?.role !== "assistant") return;
+  assert.deepEqual(
+    [
+      ...new Set(
+        projected.content.flatMap((part) =>
+          part.type === "data"
+            ? [parsePiContextTraceData(part.data)?.event.traceId].filter(
+                (traceId): traceId is string => traceId !== undefined,
+              )
+            : [],
+        ),
+      ),
+    ],
+    ["activation:retry-2"],
   );
 });
 

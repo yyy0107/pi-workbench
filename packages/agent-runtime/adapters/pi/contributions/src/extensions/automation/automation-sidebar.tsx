@@ -4,12 +4,13 @@ import { ListIcon, PlusIcon } from "lucide-react";
 import { useEffect } from "react";
 
 import { useMainViewService } from "@workbench/extension-host";
+import type { SidebarSectionComponentProps } from "@workbench/extension-sdk";
 import { Button } from "@workbench/shell/ui";
 
 import { usePiI18n } from "../../i18n";
 import { AUTOMATION_MAIN_VIEW_KIND, automationMainViewRequest } from "./automation-main-view";
 
-export function AutomationSidebar() {
+export function AutomationSidebar({ onNavigate }: SidebarSectionComponentProps) {
   const { t } = usePiI18n();
   const mainViews = useMainViewService();
 
@@ -28,7 +29,10 @@ export function AutomationSidebar() {
         type="button"
         variant="ghost"
         className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground h-9 w-full justify-start"
-        onClick={() => mainViews.open(automationMainViewRequest({ page: "automations" }))}
+        onClick={() => {
+          mainViews.open(automationMainViewRequest({ page: "automations" }));
+          onNavigate?.();
+        }}
       >
         <ListIcon aria-hidden="true" />
         {t("extensions.automations.automationHome.myAutomations")}
@@ -37,7 +41,10 @@ export function AutomationSidebar() {
         type="button"
         variant="ghost"
         className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground h-9 w-full justify-start"
-        onClick={() => mainViews.open(automationMainViewRequest({ page: "automation-create" }))}
+        onClick={() => {
+          mainViews.open(automationMainViewRequest({ page: "automation-create" }));
+          onNavigate?.();
+        }}
       >
         <PlusIcon aria-hidden="true" />
         {t("extensions.automations.automationHome.newAutomation")}

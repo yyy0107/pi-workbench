@@ -1,6 +1,5 @@
 "use client";
 
-import { useAuiState } from "@assistant-ui/react";
 import { ChevronRightIcon, FolderIcon, PanelLeftOpenIcon } from "lucide-react";
 import { useSyncExternalStore } from "react";
 
@@ -10,7 +9,8 @@ import { useI18n } from "../i18n";
 import { cn } from "../utils";
 import { useMainViewService } from "@workbench/extension-host";
 import { SlotHost } from "@workbench/extension-host/hosts/slot-host";
-import { useWorkbenchAgentThreadSnapshot } from "@workbench/agent-runtime-client/context";
+import { useCurrentSession, useThreadList } from "@workbench/agent-runtime-client";
+import { useWorkspaceSelection } from "@workbench/agent-runtime-client/workspaces";
 import { truncateConversationTitle } from "../conversation-title";
 import { ConversationActionsMenu } from "./conversation-actions-menu";
 
@@ -100,14 +100,14 @@ export function WorkbenchHeader() {
     mainViews.getSnapshot,
     mainViews.getInitialSnapshot,
   );
-  const currentThread = useAuiState((state) =>
-    state.threads.threadItems.find((thread) => thread.id === state.threads.mainThreadId),
+  const current = useCurrentSession();
+  const currentThread = useThreadList((snapshot) =>
+    snapshot.threads.find((thread) => thread.threadId === current.threadId),
   );
-  const managedThread = useWorkbenchAgentThreadSnapshot(
-    currentThread?.remoteId ?? currentThread?.externalId ?? currentThread?.id,
-  );
-  const currentThreadTitle = managedThread.title ?? currentThread?.title;
-  const currentWorkspace = managedThread.workspace;
+  const { draftWorkspace } = useWorkspaceSelection();
+  const currentThreadTitle = currentThread?.title;
+  const currentWorkspace =
+    currentThread?.workspace ?? (current.isNewThread ? draftWorkspace : undefined);
   const currentWorkspaceName =
     currentWorkspace?.name ?? currentWorkspace?.rootPath ?? currentWorkspace?.id;
   const title = activeMainView
@@ -163,10 +163,10 @@ export function WorkbenchHeader() {
         {activeMainView?.chrome?.headerLeft !== "hidden" ? (
           <SlotHost name="header.left" className="flex shrink-0 items-center gap-1 sm:gap-2" />
         ) : null}
-        {!activeMainView && currentThread?.status === "regular" ? (
+        {!activeMainView && currentThread ? (
           <ConversationActionsMenu
-            threadId={currentThread.id}
-            sessionId={currentThread.remoteId ?? currentThread.externalId ?? currentThread.id}
+            threadId={currentThread.threadId}
+            isPinned={currentThread.isPinned}
             title={currentThreadTitle}
           />
         ) : null}

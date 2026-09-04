@@ -17,11 +17,6 @@
       "import": "./src/appearance.ts",
       "default": "./src/appearance.ts"
     },
-    "./assistant-ui": {
-      "types": "./src/assistant-ui/index.ts",
-      "import": "./src/assistant-ui/index.ts",
-      "default": "./src/assistant-ui/index.ts"
-    },
     "./browser-session-persistence": {
       "types": "./src/browser-session-persistence.ts",
       "import": "./src/browser-session-persistence.ts",
@@ -36,11 +31,6 @@
       "types": "./src/code-highlighting/index.ts",
       "import": "./src/code-highlighting/index.ts",
       "default": "./src/code-highlighting/index.ts"
-    },
-    "./component-extensions": {
-      "types": "./src/extensions/component-extension-installation.ts",
-      "import": "./src/extensions/component-extension-installation.ts",
-      "default": "./src/extensions/component-extension-installation.ts"
     },
     "./conversation-title": {
       "types": "./src/conversation-title.ts",
@@ -184,10 +174,6 @@
     "test": "node ../../../scripts/run-typescript-tests.mjs --package"
   },
   "dependencies": {
-    "@assistant-ui/react": "0.15.16",
-    "@assistant-ui/react-generative-ui": "^0.0.15",
-    "@assistant-ui/react-lexical": "0.2.9",
-    "@assistant-ui/react-streamdown": "^0.3.11",
     "@base-ui/react": "^1.7.0",
     "@lexical/code-core": "0.49.0",
     "@lexical/link": "0.49.0",
@@ -217,7 +203,7 @@
     "radix-ui": "^1.6.7",
     "react-arborist": "^3.16.0",
     "shiki": "3.23.0",
-    "streamdown": "^2.5.0",
+    "streamdown": "^2.6.0",
     "tailwind-merge": "^3.6.0",
     "thinking-orbs": "^0.3.1",
     "zustand": "^5.0.14"

@@ -1,6 +1,8 @@
 "use client";
 
-import { HouseIcon, SearchIcon, ToolboxIcon, ZapIcon, type LucideIcon } from "lucide-react";
+import { SearchIcon } from "lucide-react";
+
+import type { SidebarSectionDefinition } from "@workbench/extension-sdk";
 
 import { Button } from "../ui/button";
 import { useI18n } from "../i18n";
@@ -8,67 +10,33 @@ import { cn } from "../utils";
 
 import styles from "./sidebar-primary-navigation.module.css";
 
-export type SidebarSection = "workspace" | "toolbox" | "automations";
-
-interface SidebarNavigationItem {
-  id: SidebarSection;
-  icon: LucideIcon;
-  label: string;
-}
-
 export function SidebarPrimaryNavigation({
-  activeSection,
+  activeSectionId,
+  sections,
   searchOpen,
   onSectionChange,
   onSearchToggle,
 }: {
-  activeSection: SidebarSection;
+  activeSectionId?: string;
+  sections: readonly SidebarSectionDefinition[];
   searchOpen: boolean;
-  onSectionChange(section: SidebarSection): void;
+  onSectionChange(sectionId: string): void;
   onSearchToggle(): void;
 }) {
-  const { t } = useI18n();
-  const items: readonly SidebarNavigationItem[] = [
-    {
-      id: "workspace",
-      icon: HouseIcon,
-      label: t("workbench.shell.workspace"),
-    },
-    {
-      id: "toolbox",
-      icon: ToolboxIcon,
-      label: t("workbench.sidebar.toolbox"),
-    },
-    {
-      id: "automations",
-      icon: ZapIcon,
-      label: t("workbench.sidebar.automations"),
-    },
-  ];
-  const searchLabel = t(
-    activeSection === "toolbox" ? "workbench.sidebar.searchToolbox" : "workbench.sidebar.search",
-  );
-  const navigationGridClass =
-    activeSection === "workspace"
-      ? "grid-cols-[minmax(var(--icon-frame-size-default),7rem)_var(--icon-frame-size-default)_var(--icon-frame-size-default)]"
-      : activeSection === "toolbox"
-        ? "grid-cols-[var(--icon-frame-size-default)_minmax(var(--icon-frame-size-default),7rem)_var(--icon-frame-size-default)]"
-        : "grid-cols-[var(--icon-frame-size-default)_var(--icon-frame-size-default)_minmax(var(--icon-frame-size-default),7rem)]";
+  const { t, text } = useI18n();
+  const activeSection = sections.find(({ id }) => id === activeSectionId);
+  const searchLabel = activeSection?.search ? text(activeSection.search.label) : "";
 
   return (
     <div className="flex h-11 shrink-0 items-center gap-1 ps-4 pe-0.5 md:h-10 md:ps-[calc(var(--icon-frame-size-default)+14px)]">
       <nav
         aria-label={t("workbench.sidebar.mainNavigation")}
-        data-active-section={activeSection}
-        className={cn(
-          "relative isolate grid min-w-0 flex-1 items-center gap-1 transition-[grid-template-columns] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
-          navigationGridClass,
-        )}
+        data-active-section={activeSectionId}
+        className="relative isolate flex min-w-0 flex-1 items-center gap-1"
       >
-        <span aria-hidden="true" className={styles.selectionIndicator} />
-
-        {items.map(({ id, icon: Icon, label }) => {
-          const active = id === activeSection;
+        {sections.map(({ id, icon: Icon, title }) => {
+          const active = id === activeSectionId;
+          const label = text(title);
 
           return (
             <Button
@@ -80,11 +48,11 @@ export function SidebarPrimaryNavigation({
               title={label}
               data-selection="none"
               className={cn(
-                "relative z-10 w-full justify-start! gap-0! overflow-hidden! rounded-xl bg-transparent! p-0! text-sm font-semibold transition-[background-color,color]! duration-150 ease-out motion-reduce:transition-none! active:translate-y-0!",
+                "relative z-10 justify-start! gap-0! overflow-hidden! rounded-xl p-0! text-sm font-semibold transition-[width,background-color,color]! duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none!",
                 styles.navigationButton,
                 active
-                  ? "[color:var(--button-foreground-selected)] hover:bg-transparent!"
-                  : "text-muted-foreground hover:text-foreground",
+                  ? "w-28 [background:var(--button-background-selected)]! [color:var(--button-foreground-selected)] hover:[background:var(--button-background-selected)]!"
+                  : "text-muted-foreground hover:text-foreground w-[var(--icon-frame-size-default)] shrink-0 bg-transparent!",
               )}
               onClick={() => onSectionChange(id)}
             >
@@ -110,7 +78,7 @@ export function SidebarPrimaryNavigation({
         })}
       </nav>
 
-      {activeSection === "automations" ? null : (
+      {activeSection?.search ? (
         <Button
           type="button"
           variant="ghost"
@@ -118,12 +86,12 @@ export function SidebarPrimaryNavigation({
           aria-label={searchLabel}
           title={searchLabel}
           aria-expanded={searchOpen}
-          className="text-muted-foreground hover:text-foreground ms-auto rounded-xl p-0! transition-none! active:translate-y-0!"
+          className="text-muted-foreground hover:text-foreground ms-auto rounded-xl p-0! transition-none!"
           onClick={onSearchToggle}
         >
           <SearchIcon aria-hidden="true" className="size-[var(--icon-size-lg)]!" />
         </Button>
-      )}
+      ) : null}
     </div>
   );
 }

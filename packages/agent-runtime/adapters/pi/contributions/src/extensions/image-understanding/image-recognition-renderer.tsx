@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import type { DataMessagePartComponent } from "@assistant-ui/react";
 import { ScanTextIcon } from "lucide-react";
 
-import { field, mono } from "@workbench/shell/elements";
+import type { DataRendererComponent } from "@workbench/extension-sdk";
+import { field, mono } from "@workbench/shell/ui";
 import { ToolCall } from "@workbench/shell/elements";
 import { usePiI18n } from "../../i18n";
 import type {
@@ -147,10 +147,10 @@ function skipLabel(kind: ImageRecognitionSkipKind, t: ReturnType<typeof usePiI18
   }
 }
 
-export const AttachmentRecognitionRenderer: DataMessagePartComponent = ({ data }) => {
+export const AttachmentRecognitionRenderer: DataRendererComponent = ({ block }) => {
   const { number, t } = usePiI18n();
   const [open, setOpen] = useState(false);
-  const state = parseAttachmentRecognitionPresentation(data);
+  const state = parseAttachmentRecognitionPresentation(block.data);
   if (!state || (state.status === "skipped" && state.method === "native")) return null;
 
   const failed = state.status === "failed";

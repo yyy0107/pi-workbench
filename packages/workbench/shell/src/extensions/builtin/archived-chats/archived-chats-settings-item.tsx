@@ -1,6 +1,5 @@
 "use client";
 
-import { useAui, useAuiState } from "@assistant-ui/react";
 import {
   ArrowDownAZIcon,
   ArchiveRestoreIcon,
@@ -28,7 +27,7 @@ import {
 } from "../../../ui/settings-control";
 import { useI18n } from "../../../i18n";
 import type { SettingsItemComponentProps } from "@workbench/extension-sdk";
-import { useWorkbenchAgentThreadSnapshots } from "@workbench/agent-runtime-client/context";
+import { useAgentRuntime, useThreadList } from "@workbench/agent-runtime-client";
 import { useWorkspaceSelection } from "@workbench/agent-runtime-client/workspaces";
 
 import { archivedChatGroupHeadingId } from "./archived-chat-group-a11y";
@@ -76,11 +75,10 @@ function ArchivedChatRowsSkeleton({ label, count }: { label: string; count: numb
 
 export function ArchivedChatsSettingsItem({ sectionId, itemId }: SettingsItemComponentProps) {
   const { date: formatDate, locale, t } = useI18n();
-  const aui = useAui();
+  const runtime = useAgentRuntime();
+  const threadActions = runtime.threadActions;
   const { workspaces } = useWorkspaceSelection();
-  const archivedThreadIds = useAuiState((state) => state.threads.archivedThreadIds);
-  const threadItems = useAuiState((state) => state.threads.threadItems);
-  const isLoading = useAuiState((state) => state.threads.isLoading);
+  const { threads: threadItems, isLoading } = useThreadList();
   const [query, setQuery] = useState("");
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
   const [workspaceFilter, setWorkspaceFilter] = useState(ALL_PROJECTS);
@@ -92,35 +90,18 @@ export function ArchivedChatsSettingsItem({ sectionId, itemId }: SettingsItemCom
   const archivedChatGroupIdPrefix = useId();
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const stickyToolbarRef = useRef<HTMLDivElement>(null);
-  const archivedRouteThreadIds = useMemo(() => {
-    const itemsById = new Map(threadItems.map((thread) => [thread.id, thread]));
-    return archivedThreadIds.flatMap((threadId) => {
-      const thread = itemsById.get(threadId);
-      return thread ? [thread.remoteId ?? thread.externalId ?? thread.id] : [];
-    });
-  }, [archivedThreadIds, threadItems]);
-  const archivedThreadSnapshots = useWorkbenchAgentThreadSnapshots(archivedRouteThreadIds);
-
   const archivedChats = useMemo<ArchivedChatView[]>(() => {
-    const itemsById = new Map(threadItems.map((thread) => [thread.id, thread]));
-    return archivedThreadIds.flatMap((threadId) => {
-      const thread = itemsById.get(threadId);
-      if (!thread) return [];
-      const remoteId = thread.remoteId ?? thread.externalId ?? thread.id;
-      const managedSnapshot = archivedThreadSnapshots.get(remoteId);
-      const workspace = managedSnapshot?.workspace;
-      return [
-        {
-          id: thread.id,
-          title: managedSnapshot?.title ?? thread.title,
-          lastMessageAt: managedSnapshot?.lastMessageAt ?? thread.lastMessageAt,
-          workspaceId: workspace?.id,
-          workspaceName: workspace?.name,
-          workspaceRootPath: workspace?.rootPath,
-        },
-      ];
-    });
-  }, [archivedThreadIds, archivedThreadSnapshots, threadItems]);
+    return threadItems
+      .filter((thread) => thread.isArchived)
+      .map((thread) => ({
+        id: thread.threadId,
+        title: thread.title,
+        lastMessageAt: thread.updatedAt ? new Date(thread.updatedAt) : undefined,
+        workspaceId: thread.workspace?.id,
+        workspaceName: thread.workspace?.name,
+        workspaceRootPath: thread.workspace?.rootPath,
+      }));
+  }, [threadItems]);
 
   const workspaceOptions = useMemo(() => {
     const options = workspaces.map((workspace) => ({
@@ -264,7 +245,8 @@ export function ArchivedChatsSettingsItem({ sectionId, itemId }: SettingsItemCom
     setActionFailed(false);
     setBusy([chat.id], true);
     try {
-      await aui.threads.item({ id: chat.id }).unarchive();
+      if (!threadActions.unarchive) throw new Error("Unarchive is not supported");
+      await threadActions.unarchive(chat.id);
     } catch (error) {
       console.error("[workbench] failed to unarchive conversation", error);
       setActionFailed(true);
@@ -281,7 +263,8 @@ export function ArchivedChatsSettingsItem({ sectionId, itemId }: SettingsItemCom
     let failed = false;
     for (const chat of deleteTarget.chats) {
       try {
-        await aui.threads.item({ id: chat.id }).delete();
+        if (!threadActions.delete) throw new Error("Delete is not supported");
+        await threadActions.delete(chat.id);
       } catch (error) {
         console.error("[workbench] failed to delete archived conversation", error);
         failed = true;

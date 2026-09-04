@@ -209,7 +209,7 @@ export function ExplorerSurface({
               size="icon-sm"
               aria-label={tPi("extensions.workspaceExplorer.clearFilter")}
               title={tPi("extensions.workspaceExplorer.clearFilter")}
-              className="text-muted-foreground absolute top-1/2 end-1 -translate-y-1/2 hover:text-foreground active:-translate-y-1/2!"
+              className="text-muted-foreground absolute top-1/2 end-1 -translate-y-1/2 hover:text-foreground"
               onClick={() => setFilter("")}
             >
               <XIcon aria-hidden="true" />

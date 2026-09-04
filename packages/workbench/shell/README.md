@@ -3,7 +3,7 @@
 This package owns the platform-independent Workbench shell and UI closure that can be installed by
 web, desktop, and future hosts. Its finite public entries are grouped by responsibility:
 
-- `./workbench`, `./layout`, `./chat`, `./assistant-ui`, `./elements`, `./ui`, `./hooks`, and
+- `./workbench`, `./layout`, `./chat`, `./elements`, `./ui`, `./hooks`, and
   `./workspace-file-tree` provide the generic shell frame and presentation components.
 - `./navigation` and `./runtime-connection` are explicit application ports. Shell asks for semantic
   home/conversation navigation and an installed runtime connection; it does not know routes,
@@ -12,10 +12,8 @@ web, desktop, and future hosts. Its finite public entries are grouped by respons
   `./i18n/runtime` is the server-safe finite entry with no React Provider/client module. Product and
   runtime packages retain their own bilingual catalogs and inject them at composition.
 - `./settings`, `./appearance`, and `./extensions` own generic preferences and semantic extension
-  groups (`core`, `settings`, and `workspace`). `createSettingsExtension` accepts the optional
-  product-specific Settings header action. Component-extension enablement is deliberately one
-  persisted realm-wide preference shared by every Shell installation, not per-installation UI
-  state.
+  groups (`core`, `settings`, and `workspace`). Product-specific Settings actions are registered by
+  their owning extensions, while the Shell Settings extension remains static.
 - `./panels` exposes `createPanelStore`; application composition creates one store per Workbench
   installation instead of sharing process-global panel state.
 - `./presentation` and `./running-indicator` accept explicit branding, asset roots, and an immutable
@@ -77,7 +75,7 @@ function and resets an earlier contribution error boundary without a process-glo
 This package may consume only the generic Agent Runtime client/contracts and finite public
 Extension Host/SDK capabilities needed by reusable UI. It must not import Agent Runtime
 implementations, Pi packages or semantics, Next.js, Node production APIs, native packages,
-Electron, Tauri, root aliases, raw WebSockets, or product endpoints. The sole SDK-internal import is
+Electron, root aliases, raw WebSockets, or product endpoints. The sole SDK-internal import is
 the catalog runtime's branded descriptor constructor; the transport boundary guard enforces that
 exact file and named export. Read-only compatibility with legacy product directives/storage is
 centralized in one private helper and never used for new writes. `get-east-asian-width` is owned by

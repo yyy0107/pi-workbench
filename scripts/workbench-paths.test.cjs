@@ -28,7 +28,6 @@ test("maps every application and artifact root from an injectable repository roo
     desktopElectronRoot: path.join(repositoryRoot, "apps", "desktop-electron"),
     desktopElectronSourceRoot: path.join(repositoryRoot, "apps", "desktop-electron", "src"),
     desktopElectronScriptsRoot: path.join(repositoryRoot, "apps", "desktop-electron", "scripts"),
-    tauriRoot: path.join(repositoryRoot, "apps", "desktop-tauri"),
     stagingRoot: path.join(repositoryRoot, ".electron-build"),
     webBuildRoot: path.join(repositoryRoot, "apps", "web", ".next"),
     desktopRendererBuildRoot: path.join(repositoryRoot, "apps", "desktop-renderer", ".next"),
@@ -89,7 +88,6 @@ test("maps every application and artifact root from an injectable repository roo
   });
   assert.equal(Object.isFrozen(paths), true);
   assert.equal(existsSync(repositoryRoot), false);
-  assert.equal(existsSync(defaultWorkbenchPaths.tauriRoot), true);
 });
 
 test("exports the current repository mapping without requiring each caller to derive it", () => {

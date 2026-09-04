@@ -26,7 +26,7 @@
     "test": "node ../../../scripts/run-typescript-tests.mjs --package"
   },
   "dependencies": {
-    "@assistant-ui/react": "0.15.16",
+    "@workbench/agent-runtime-contracts": "workspace:*",
     "@workbench/contracts": "workspace:*",
     "lucide-react": "^1.29.0"
   },

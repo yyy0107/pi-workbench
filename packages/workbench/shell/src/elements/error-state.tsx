@@ -6,7 +6,7 @@ import { CircleAlertIcon, CircleStopIcon, PlayIcon, RefreshCwIcon } from "lucide
 import { Button } from "../ui/button";
 import { cn } from "../utils";
 
-import { ShimmerLabel } from "./surfaces";
+import { ShimmerLabel } from "../ui/surface";
 
 export interface ErrorStateProps extends Omit<ComponentProps<"div">, "children" | "role"> {
   title: string;

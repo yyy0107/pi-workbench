@@ -125,7 +125,7 @@ type ComponentExtensionContributionKind =
   | "slot"
   | "panel"
   | "message-renderer"
-  | "message-part-renderer"
+  | "message-block-renderer"
   | "tool-renderer"
   | "data-renderer"
   | "settings-section"
@@ -554,49 +554,59 @@ and a Workspace Surface for a persistent, resource-scoped right Inspector.
 ## Renderer contract
 
 ```ts
-type ToolRendererComponent = ToolCallMessagePartComponent;
-type DataRendererComponent = DataMessagePartComponent;
+type MessageRendererComponent = ComponentType<{ node: UserMessageNode | AssistantMessageNode }>;
+type ToolRendererComponent = ComponentType<{
+  node: UserMessageNode | AssistantMessageNode | SystemNode;
+  block: ToolCallBlock;
+  fallback: ReactNode;
+}>;
+type DataRendererComponent = ComponentType<{
+  node: UserMessageNode | AssistantMessageNode | SystemNode;
+  block: DataBlock;
+  fallback: ReactNode;
+}>;
 
 context.renderers.message.register({ id, component: MessageRenderer });
-context.renderers.parts.register({ id, canRender, component: MessagePartRenderer });
+context.renderers.blocks.register({ id, canRender, component: MessageBlockRenderer });
 context.renderers.tools.register(toolName, ToolRenderer);
 context.renderers.data.register(dataName, DataRenderer);
 context.renderers.toolPresentations.register(toolName, toolPresentation);
 context.renderers.dataPresentations.register(dataName, dataPresentation);
 ```
 
-The Message Renderer is a singleton contribution that owns `MessagePrimitive.Parts` or
-`MessagePrimitive.GroupedParts`, including reasoning/tool/data grouping and presentation. Only one
+The Message Renderer is a singleton contribution that receives the complete User/Assistant Node
+and owns its Block grouping and presentation. Only one
 can be active; without one, Workbench renders its minimal fallback. Tool and Data renderers compose
 under it through `RendererHost` and retain exact, case-sensitive name matching in separate
-uniqueness scopes. Predicate-matched Message Part renderers are tried in registration order; the
-first match wins, and the active Message Renderer decides where to mount `MessagePartRendererHost`
-with its existing fallback. Renderer APIs have no numeric `order` or `priority` field.
+uniqueness scopes. Predicate-matched Message Block renderers are tried in registration order; the
+first match wins. `RendererHost` receives the owning Node, Block, and existing fallback. Renderer
+APIs have no numeric `order` or `priority` field.
 
-Tool/Data presentation registries add timeline metadata without replacing the corresponding Part
+Tool/Data presentation registries add timeline metadata without replacing the corresponding Block
 renderer. Tool presentations provide localizable active/completed labels, an icon, an optional pure
 stream-safe summary returning `LocalizableText`, and an optional disclosure controller. An optional
 `getActiveLabel` pure function may override the default active label when the running tool has
-distinct partial-argument-safe streaming phases. Data presentations can opt a named Data Part into the timeline and provide pure
+distinct partial-argument-safe streaming phases. Data presentations can opt a named Data Block into the timeline and provide pure
 visibility/activity predicates. Names are exact, case-sensitive, and independently unique from the
 Tool/Data renderer registries.
 
 Resolution order:
 
-1. exact-name extension Renderer;
-2. Part-provided `toolUI` or `dataRendererUI`;
-3. fallback supplied by the active Message Renderer, or the Workbench safety fallback;
-4. `RendererHost` children.
+1. first predicate-matched Message Block Renderer;
+2. exact-name Tool/Data Renderer;
+3. fallback supplied by the active Message Renderer or Workbench safety renderer.
 
-A Renderer only displays an existing message Part. It does not define a tool, expose it to a model, execute it, or cause a data Part to be emitted.
+A Renderer only displays an existing Message Block. It does not define a tool, expose it to a model, execute it, or cause a Data Block to be emitted.
 
-Tool args are partial during streaming. Handle `running`, `complete`, `incomplete`, and `requires-action` as applicable. Tool renderer props can expose `addResult()`, `resume()`, and `respondToApproval()`; call them only in the matching Runtime state.
+Tool arguments are partial during streaming. Handle `running`, `complete`, `incomplete`,
+`requires-action`, and `error`; use `argumentsText` while parsed `arguments` are incomplete. Tool
+execution, approval, and resume actions belong to the owning Runtime capability, not Renderer props.
 
 `ToolPresentationDefinition.disclosureController` is an optional component mounted outside the
-tool-detail disclosure. It receives the current Part, `running`, `open`, and the host-owned
+tool-detail disclosure. It receives the current Tool Block, `running`, `open`, and the host-owned
 `onOpenChange`; use it when an extension-owned asynchronous presentation signal—such as a terminal
 waiting for input—must reveal a collapsed Tool Renderer. It is presentation-only: do not execute the
-tool, duplicate the detail UI, or mutate the Part from this controller.
+tool, duplicate the detail UI, or mutate the Block from this controller.
 
 ## Opener contract
 
@@ -694,7 +704,7 @@ const surface = context.workspace.register({
 ```
 
 `kind` is globally unique. `menuItem` is rendered in the core add-surface menu and `runtime` is
-mounted once inside AssistantRuntimeProvider. Both are optional and owned by the extension.
+mounted once inside the application Runtime provider. Both are optional and owned by the extension.
 Registration is tracked and removed on rollback/deactivation.
 
 `cachePolicy` controls whether inactive content stays mounted. `persistence: "session"` excludes an
@@ -779,7 +789,8 @@ RightWorkspace and `useOpenerService()` hooks come from `@workbench/shell/right-
 Surface/Open Handler registration comes from `context.workspace`/`context.openers`, and Pi hooks come
 from the relevant `@workbench/agent-runtime-pi-client/*` feature facade.
 
-Use `useAui()` and `useAuiState()` for assistant-ui Runtime state. Do not mirror chat state in a separate extension store.
+Use the Workbench Agent Runtime hooks for Session state. Message/Block renderers should prefer their
+Host-provided `node`/`block` props; do not mirror chat state in a separate extension store.
 
 ## Uniqueness and ordering
 
@@ -794,7 +805,7 @@ Settings section id   global within SettingsRegistry
 Main view kind         global within MainViewRegistry
 Settings item id      unique within one settings section
 Message renderer      one active within Message RendererRegistry
-Message part renderer id global within MessagePartRendererRegistry
+Message block renderer id global within MessageBlockRendererRegistry
 Tool renderer name    unique within Tool RendererRegistry
 Data renderer name    unique within Data RendererRegistry
 Tool presentation name unique within ToolPresentationRegistry

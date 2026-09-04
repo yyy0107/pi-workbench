@@ -1,18 +1,33 @@
 "use client";
 
-export { workbenchAttachmentAdapter } from "./adapters/attachments";
-export {
-  WORKBENCH_FEEDBACK_EVENT,
-  workbenchFeedbackAdapter,
-  type WorkbenchFeedbackEventDetail,
-} from "./adapters/feedback";
 export {
   WORKBENCH_STORAGE_PREFIX,
   workbenchBrowserStorage,
   type WorkbenchAsyncStorage,
 } from "./adapters/history";
-export { useWorkbenchRuntimeAdapters } from "./adapters/use-workbench-runtime-adapters";
-export { WorkbenchAgentRuntimeHost } from "./agent-runtime-host";
+export { bindSnapshotSelector, type SnapshotSelectorHook } from "./bind-snapshot-selector";
+export {
+  WORKBENCH_COMPOSER_ATTACHMENT_ACCEPT,
+  composerAttachmentFromFile,
+} from "./composer-attachment";
+export {
+  useAgentRuntime,
+  useConversationSession,
+  useConversationNode,
+  useConversationNodes,
+  useCurrentSession,
+  useSessionState,
+  useThreadList,
+} from "./hooks";
+export { RuntimeProvider } from "./runtime-provider";
+export { SessionProvider, type SessionProviderProps } from "./session-provider";
+export type {
+  CurrentSessionSnapshot,
+  ThreadListActions,
+  ThreadListItem,
+  ThreadListMove,
+  ThreadListSnapshot,
+} from "@workbench/agent-runtime-core";
 export {
   createWorkbenchParallelToolPresentationMetadata,
   createWorkbenchReasoningPresentationMetadata,
@@ -26,4 +41,3 @@ export {
   type ThreadListReloadCoordinator,
 } from "./thread-list-reload-coordinator";
 export { toolResultText, toolStringArg, useCompletedToolCalls } from "./tool-events";
-export { useWorkbenchRuntime } from "./use-workbench-runtime";

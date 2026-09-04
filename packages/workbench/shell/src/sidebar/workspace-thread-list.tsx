@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef, useState, type PointerEvent } from "react";
-import { useAui, useAuiState } from "@assistant-ui/react";
 import {
   ChevronRightIcon,
   FolderIcon,
@@ -12,14 +11,14 @@ import {
   PinOffIcon,
 } from "lucide-react";
 
-import { collapsePanel } from "../elements/surfaces";
+import { collapsePanel } from "../ui/surface";
 import { Button } from "../ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Skeleton } from "../ui/skeleton";
 import { useI18n } from "../i18n";
 import { cn } from "../utils";
-import { useWorkbenchAgentThreadSnapshots } from "@workbench/agent-runtime-client/context";
+import { useAgentRuntime, useCurrentSession, useThreadList } from "@workbench/agent-runtime-client";
 import {
   useWorkspaceCapabilities,
   useWorkspaceSelection,
@@ -85,7 +84,7 @@ function useWorkspaceDirectoryReorder(
 }
 
 function useRemoveWorkspace(onNavigate?: () => void) {
-  const aui = useAui();
+  const runtime = useAgentRuntime();
   const navigation = useWorkbenchNavigation();
   const { removeWorkspace } = useWorkspaceCapabilities();
 
@@ -93,7 +92,7 @@ function useRemoveWorkspace(onNavigate?: () => void) {
     try {
       await removeWorkspace(directoryId);
       if (!active) return;
-      aui.threads.switchToNewThread();
+      runtime.switchToNewThread();
       navigation.openHome();
       onNavigate?.();
     } catch (error) {
@@ -110,17 +109,13 @@ export function WorkbenchPinnedThreadList({
   onNavigate?: () => void;
 }) {
   const { isHome } = useWorkbenchNavigation();
-  const threadIds = useAuiState((state) => state.threads.threadIds);
-  const mainThreadId = useAuiState((state) => state.threads.mainThreadId);
-  const threadStates = useWorkbenchAgentThreadSnapshots(threadIds);
-  const workspaceFallbackThreadId =
-    mainThreadId && !threadStates.get(mainThreadId)?.workspace?.id ? mainThreadId : undefined;
-  const hasEmptyDraftNewThread = useAuiState(
-    (state) =>
-      state.threads.newThreadId !== undefined &&
-      state.threads.mainThreadId === state.threads.newThreadId &&
-      state.thread.messages.length === 0,
+  const current = useCurrentSession();
+  const threadItems = useThreadList((snapshot) => snapshot.threads);
+  const visibleThreads = useMemo(
+    () => threadItems.filter((thread) => !thread.isArchived),
+    [threadItems],
   );
+  const hasEmptyDraftNewThread = current.isNewThread;
   const {
     workspaces,
     activeWorkspaceId: activeDirectoryId,
@@ -129,12 +124,11 @@ export function WorkbenchPinnedThreadList({
   const threadGroups = useMemo(
     () =>
       groupSidebarThreads({
-        threadIds,
-        states: threadStates,
-        mainThreadId: workspaceFallbackThreadId,
+        threads: visibleThreads,
+        mainThreadId: current.threadId,
         draftWorkspaceId: draftDirectoryId,
       }),
-    [draftDirectoryId, threadIds, threadStates, workspaceFallbackThreadId],
+    [current.threadId, draftDirectoryId, visibleThreads],
   );
   const hasPinnedThreads = threadGroups.pinnedThreadIds.length > 0;
   const { activateWorkspace: activateDirectory } = useWorkspaceCapabilities();
@@ -191,18 +185,13 @@ export function WorkbenchWorkspaceThreadList({
 }) {
   const { t } = useI18n();
   const { isHome } = useWorkbenchNavigation();
-  const isLoading = useAuiState((state) => state.threads.isLoading);
-  const threadIds = useAuiState((state) => state.threads.threadIds);
-  const mainThreadId = useAuiState((state) => state.threads.mainThreadId);
-  const threadStates = useWorkbenchAgentThreadSnapshots(threadIds);
-  const workspaceFallbackThreadId =
-    mainThreadId && !threadStates.get(mainThreadId)?.workspace?.id ? mainThreadId : undefined;
-  const hasEmptyDraftNewThread = useAuiState(
-    (state) =>
-      state.threads.newThreadId !== undefined &&
-      state.threads.mainThreadId === state.threads.newThreadId &&
-      state.thread.messages.length === 0,
+  const current = useCurrentSession();
+  const { isLoading, threads: threadItems } = useThreadList();
+  const visibleThreads = useMemo(
+    () => threadItems.filter((thread) => !thread.isArchived),
+    [threadItems],
   );
+  const hasEmptyDraftNewThread = current.isNewThread;
   const {
     workspaces: directories,
     activeWorkspaceId: activeDirectoryId,
@@ -213,12 +202,11 @@ export function WorkbenchWorkspaceThreadList({
   const threadGroups = useMemo(
     () =>
       groupSidebarThreads({
-        threadIds,
-        states: threadStates,
-        mainThreadId: workspaceFallbackThreadId,
+        threads: visibleThreads,
+        mainThreadId: current.threadId,
         draftWorkspaceId: draftDirectoryId,
       }),
-    [draftDirectoryId, threadIds, threadStates, workspaceFallbackThreadId],
+    [current.threadId, draftDirectoryId, visibleThreads],
   );
   const hasUngroupedThreads = threadGroups.ungroupedThreadIds.length > 0;
   const [visibleWorkspaceCount, setVisibleWorkspaceCount] = useState(WORKSPACE_PAGE_SIZE);

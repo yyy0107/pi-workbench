@@ -3,7 +3,7 @@
 import { SlidersHorizontalIcon, XIcon } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
-import { TooltipIconButton } from "../assistant-ui/tooltip-icon-button";
+import { TooltipIconButton } from "../ui/tooltip-icon-button";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Select } from "../ui/select";

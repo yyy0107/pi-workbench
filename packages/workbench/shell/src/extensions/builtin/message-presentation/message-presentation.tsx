@@ -1,91 +1,55 @@
 "use client";
 
-import type { DataMessagePartComponent, GroupByContext, PartState } from "@assistant-ui/react";
-import {
-  groupPartByType,
-  MessagePrimitive,
-  useAuiState,
-  useMessageTiming,
-} from "@assistant-ui/react";
-import { ExternalLinkIcon } from "lucide-react";
-import { useCallback, useMemo, type PropsWithChildren } from "react";
+import { useMemo, type PropsWithChildren, type ReactNode } from "react";
 
-import { File } from "../../../assistant-ui/file";
-import { Image } from "../../../assistant-ui/image";
-import { MarkdownText, MarkdownTextWithCitations } from "../../../assistant-ui/lazy-markdown-text";
-import { ToolFallback } from "../../../assistant-ui/tool-fallback";
-import { ScrollCompensatedDetails } from "../../../elements/scroll-compensated-details";
-import { ReasoningPanel } from "../../../elements/reasoning-panel";
-import { useI18n } from "../../../i18n";
-import {
-  MessagePartRendererHost,
-  RendererHost,
-  useDataPresentationMap,
-} from "@workbench/extension-host/hosts/renderer-host";
+import type { DataBlock, MessageBlock } from "@workbench/agent-runtime-contracts/conversation";
 import {
   parseWorkbenchMessageTermination,
   readWorkbenchTurnTiming,
   resolveWorkbenchTurnDuration,
 } from "@workbench/agent-runtime-contracts/message-metadata";
-import { WorkbenchComposerMessageText } from "../../../chat/composer-message-text";
+import type { DataPresentationDefinition, MessageRendererProps } from "@workbench/extension-sdk";
+import {
+  RendererHost,
+  useDataPresentationMap,
+} from "@workbench/extension-host/hosts/renderer-host";
+
+import {
+  WorkbenchMessageDataBlock,
+  WorkbenchMessageFileBlock,
+  WorkbenchMessageReasoningBlock,
+  WorkbenchMessageSourceBlock,
+  WorkbenchMessageTextBlock,
+  WorkbenchMessageToolBlock,
+} from "../../../chat/renderers/message-blocks";
+import { ReasoningPanel } from "../../../elements/reasoning-panel";
+import type { Source } from "../../../elements/inline-citation";
+import { useI18n } from "../../../i18n";
 
 import {
   completedWorkBoundary,
   formatCompletedAt,
   formatCompletedDuration,
-  partBelongsToCompletedWork,
 } from "./completed-turn-model";
 import { CompletedTurnPanel } from "./completed-turn-panel";
 import { messageCitationLayout } from "./message-citations";
 import { MessageDisclosureProvider, useMessageDisclosure } from "./message-disclosure-context";
-import { messageAttachmentReference, messageTextPresentation } from "./message-presentation-policy";
+import { messageAttachmentReference } from "./message-presentation-policy";
 import { MessageToolTimeline } from "./message-tool-timeline";
 import { dataTimelineState, type DataTimelineState } from "./tool-timeline-model";
-
-const DATA_TIMELINE_GROUP_PREFIX = "group-data-timeline:";
-
-type PresentationGroup =
-  | "group-completed-turn"
-  | "group-tool-timeline"
-  | `group-data-timeline:${string}`;
-
-const groupTimelinePartByType = groupPartByType<PresentationGroup>({
-  reasoning: ["group-tool-timeline"],
-  "tool-call": ["group-tool-timeline"],
-  "standalone-tool-call": [],
-});
-
-function serializeData(value: unknown) {
-  if (typeof value === "string") return value;
-
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch {
-    return String(value);
-  }
-}
-
-const MessageDataFallback: DataMessagePartComponent = ({ name, data }) => (
-  <ScrollCompensatedDetails className="bg-muted/40 my-2 rounded-lg border px-3 py-2 text-sm">
-    <summary className="cursor-pointer font-medium">{name}</summary>
-    <pre className="text-muted-foreground mt-2 max-h-72 overflow-auto whitespace-pre-wrap break-all text-xs">
-      {serializeData(data)}
-    </pre>
-  </ScrollCompensatedDetails>
-);
 
 function MessageDataTimelineGroup({
   children,
   group,
-  indices,
+  firstIndex,
   running,
 }: PropsWithChildren<{
   group: NonNullable<DataTimelineState["group"]>;
-  indices: readonly number[];
+  firstIndex: number;
   running: boolean;
 }>) {
   const { text } = useI18n();
-  const [open, setOpen] = useMessageDisclosure("steps", `data-group:${indices[0] ?? "empty"}`);
+  const [open, setOpen] = useMessageDisclosure("steps", `data-group:${firstIndex}`);
 
   return (
     <ReasoningPanel
@@ -102,229 +66,231 @@ function MessageDataTimelineGroup({
   );
 }
 
-export function WorkbenchMessagePresentation() {
+function PresentedBlock({
+  block,
+  index,
+  node,
+  inlineSourcePartIndices,
+  sources,
+}: Readonly<{
+  block: MessageBlock;
+  index: number;
+  node: MessageRendererProps["node"];
+  inlineSourcePartIndices: ReadonlySet<number>;
+  sources?: readonly Source[];
+}>) {
+  const { t } = useI18n();
+  const attachmentReference =
+    node.kind === "user" ? messageAttachmentReference(node.blocks, index) : undefined;
+  const referenceLabel = attachmentReference
+    ? t(
+        attachmentReference.kind === "image"
+          ? "extensions.messagePresentation.attachmentReference.image"
+          : "extensions.messagePresentation.attachmentReference.pdf",
+        { index: attachmentReference.sequence },
+      )
+    : undefined;
+  const streaming =
+    node.kind === "assistant" &&
+    node.status === "running" &&
+    !node.blocks.slice(index + 1).some((candidate) => candidate.kind === "text");
+  const fallback = (() => {
+    switch (block.kind) {
+      case "text":
+        return (
+          <WorkbenchMessageTextBlock
+            block={block}
+            composerDocument={node.presentation?.custom?.workbenchComposerDocument}
+            role={node.kind}
+            sources={sources}
+            streaming={streaming}
+          />
+        );
+      case "reasoning":
+        return <WorkbenchMessageReasoningBlock block={block} />;
+      case "tool-call":
+        return <WorkbenchMessageToolBlock block={block} />;
+      case "data":
+        return <WorkbenchMessageDataBlock block={block} />;
+      case "file":
+        return <WorkbenchMessageFileBlock block={block} referenceLabel={referenceLabel} />;
+      case "source":
+        return inlineSourcePartIndices.has(index) ? null : (
+          <WorkbenchMessageSourceBlock
+            block={block}
+            fallbackLabel={t("extensions.messagePresentation.sourceFallback")}
+            variant="chip"
+          />
+        );
+      case "error":
+        return null;
+    }
+  })();
+
+  return <RendererHost node={node} block={block} fallback={fallback} />;
+}
+
+function groupedDataIdentity(
+  block: MessageBlock | undefined,
+  presentations: Readonly<Record<string, DataPresentationDefinition>>,
+): { block: DataBlock; state: DataTimelineState; identity: string } | undefined {
+  if (block?.kind !== "data") return undefined;
+  const state = dataTimelineState(block, presentations);
+  return state?.group
+    ? { block, state, identity: `${block.name}\u0000${state.group.key}` }
+    : undefined;
+}
+
+function belongsToPlainTimeline(
+  block: MessageBlock | undefined,
+  presentations: Readonly<Record<string, DataPresentationDefinition>>,
+): boolean {
+  if (block?.kind === "reasoning" || block?.kind === "tool-call") return true;
+  if (block?.kind !== "data") return false;
+  const state = dataTimelineState(block, presentations);
+  return state !== undefined && state.group === undefined;
+}
+
+function MessageBlockRange({
+  end,
+  node,
+  presentations,
+  start,
+}: Readonly<{
+  end: number;
+  node: MessageRendererProps["node"];
+  presentations: Readonly<Record<string, DataPresentationDefinition>>;
+  start: number;
+}>) {
+  const citationLayout = useMemo(() => messageCitationLayout(node.blocks), [node.blocks]);
+  const content: ReactNode[] = [];
+  let index = start;
+
+  while (index < end) {
+    const grouped = groupedDataIdentity(node.blocks[index], presentations);
+    if (grouped?.state.group) {
+      const indices: number[] = [];
+      let running = false;
+      while (index < end) {
+        const candidate = groupedDataIdentity(node.blocks[index], presentations);
+        if (!candidate || candidate.identity !== grouped.identity) break;
+        indices.push(index);
+        running ||= candidate.state.active;
+        index += 1;
+      }
+      content.push(
+        <MessageDataTimelineGroup
+          key={`data-group:${grouped.identity}:${indices[0]}`}
+          group={grouped.state.group}
+          firstIndex={indices[0] ?? start}
+          running={running}
+        >
+          {indices.map((blockIndex) => {
+            const block = node.blocks[blockIndex];
+            return block ? (
+              <PresentedBlock
+                key={block.key}
+                node={node}
+                block={block}
+                index={blockIndex}
+                inlineSourcePartIndices={citationLayout.inlineSourcePartIndices}
+                sources={citationLayout.byTextPart.get(blockIndex)}
+              />
+            ) : null;
+          })}
+        </MessageDataTimelineGroup>,
+      );
+      continue;
+    }
+
+    if (belongsToPlainTimeline(node.blocks[index], presentations)) {
+      const indices: number[] = [];
+      while (
+        index < end &&
+        belongsToPlainTimeline(node.blocks[index], presentations) &&
+        !groupedDataIdentity(node.blocks[index], presentations)
+      ) {
+        indices.push(index);
+        index += 1;
+      }
+      content.push(
+        <MessageToolTimeline
+          key={`timeline:${indices[0]}`}
+          node={node}
+          indices={indices}
+          blocks={node.blocks}
+          transportRecovering={false}
+        />,
+      );
+      continue;
+    }
+
+    const block = node.blocks[index];
+    if (block) {
+      content.push(
+        <PresentedBlock
+          key={block.key}
+          node={node}
+          block={block}
+          index={index}
+          inlineSourcePartIndices={citationLayout.inlineSourcePartIndices}
+          sources={citationLayout.byTextPart.get(index)}
+        />,
+      );
+    }
+    index += 1;
+  }
+
+  return content;
+}
+
+export function WorkbenchMessagePresentation({ node }: MessageRendererProps) {
   const { t, date, locale, relativeTime } = useI18n();
-  const timing = useMessageTiming();
-  const messageCreatedAt = useAuiState((state) => state.message.createdAt);
-  const messageRole = useAuiState((state) => state.message.role);
-  const storedTurnTiming = useAuiState(
-    (state) => state.message.metadata.custom.workbenchTurnTiming,
-  );
-  const storedTermination = useAuiState(
-    (state) => state.message.metadata.custom.workbenchTermination,
-  );
-  const termination = parseWorkbenchMessageTermination(storedTermination);
-  const turnTiming = readWorkbenchTurnTiming(storedTurnTiming);
-  const turnStreaming = useAuiState((state) => state.thread.isRunning && state.message.isLast);
-  const interruptedBySteering = useAuiState(
-    (state) => state.message.metadata.custom.workbenchSteerInterrupted === true,
-  );
-  const messageParts = useAuiState((state) => state.message.parts);
   const dataPresentations = useDataPresentationMap();
-  const completedBoundary = useMemo(() => completedWorkBoundary(messageParts), [messageParts]);
-  const partIndices = useMemo(
-    () => new Map(messageParts.map((part, index) => [part, index])),
-    [messageParts],
-  );
-  const citationLayout = useMemo(() => messageCitationLayout(messageParts), [messageParts]);
+  const custom = node.presentation?.custom;
+  const storedTurnTiming = custom?.workbenchTurnTiming;
+  const turnTiming = readWorkbenchTurnTiming(storedTurnTiming);
+  const termination = parseWorkbenchMessageTermination(custom?.workbenchTermination);
+  const interruptedBySteering = custom?.workbenchSteerInterrupted === true;
+  const turnStreaming = node.kind === "assistant" && node.status === "running";
+  const completedBoundary = completedWorkBoundary(node.blocks);
+  const now = Date.now();
   const completionTimestamp =
-    turnTiming?.completedAt ??
-    (timing?.totalStreamTime === undefined
-      ? messageCreatedAt
-      : timing.streamStartTime + timing.totalStreamTime);
-  const turnDuration = resolveWorkbenchTurnDuration(storedTurnTiming, timing?.totalStreamTime);
+    turnTiming?.completedAt ?? node.createdAt ?? turnTiming?.startedAt ?? now;
   const completedLabel = t("extensions.messagePresentation.completedTurn", {
-    completedAt: formatCompletedAt(completionTimestamp, Date.now(), { date, relativeTime }),
-    duration: formatCompletedDuration(turnDuration, locale),
+    completedAt: formatCompletedAt(completionTimestamp, now, { date, relativeTime }),
+    duration: formatCompletedDuration(
+      resolveWorkbenchTurnDuration(storedTurnTiming, undefined),
+      locale,
+    ),
     kind: termination?.kind ?? "completed",
   });
-  const groupTimelinePart = useCallback(
-    (part: PartState, context: GroupByContext): readonly PresentationGroup[] => {
-      const typePath = groupTimelinePartByType(part, context);
-      if (typePath.length > 0) return typePath;
-      if (part.type !== "data") return [];
-      const timelineState = dataTimelineState(part, dataPresentations);
-      if (!timelineState) return [];
-      return timelineState.group
-        ? [`${DATA_TIMELINE_GROUP_PREFIX}${part.name}:${timelineState.group.key}`]
-        : ["group-tool-timeline"];
-    },
-    [dataPresentations],
-  );
-  const groupMessagePart = useCallback(
-    (part: PartState, context: GroupByContext): readonly PresentationGroup[] => {
-      const timelinePath = groupTimelinePart(part, context);
-      const index = partIndices.get(part);
-
-      if (
-        !interruptedBySteering &&
-        partBelongsToCompletedWork(messageRole, index, completedBoundary)
-      ) {
-        return ["group-completed-turn", ...timelinePath];
-      }
-
-      return timelinePath;
-    },
-    [completedBoundary, groupTimelinePart, interruptedBySteering, messageRole, partIndices],
-  );
   const disclosurePhase = interruptedBySteering
     ? "steered"
     : turnStreaming
       ? "streaming"
       : "completed";
+  const completedWork =
+    node.kind === "assistant" && !interruptedBySteering && completedBoundary > 0;
 
   return (
     <MessageDisclosureProvider phase={disclosurePhase}>
-      <MessagePrimitive.GroupedParts groupBy={groupMessagePart}>
-        {({ part, children }) => {
-          const index = partIndices.get(part as PartState);
-          const attachmentReference =
-            messageRole === "user" && index !== undefined
-              ? messageAttachmentReference(messageParts, index)
-              : undefined;
-          const attachmentReferenceLabel = attachmentReference
-            ? t(
-                attachmentReference.kind === "image"
-                  ? "extensions.messagePresentation.attachmentReference.image"
-                  : "extensions.messagePresentation.attachmentReference.pdf",
-                { index: attachmentReference.sequence },
-              )
-            : undefined;
-
-          if ("indices" in part && part.type.startsWith(DATA_TIMELINE_GROUP_PREFIX)) {
-            const sourcePart = messageParts[part.indices[0] ?? -1];
-            const group =
-              sourcePart?.type === "data"
-                ? dataTimelineState(sourcePart, dataPresentations)?.group
-                : undefined;
-            return group ? (
-              <MessageDataTimelineGroup
-                group={group}
-                indices={part.indices}
-                running={part.status.type === "running"}
-              >
-                {children}
-              </MessageDataTimelineGroup>
-            ) : (
-              children
-            );
-          }
-
-          switch (part.type) {
-            case "group-completed-turn": {
-              return (
-                <CompletedTurnPanel completed={!turnStreaming} label={completedLabel}>
-                  {children}
-                </CompletedTurnPanel>
-              );
-            }
-            case "group-tool-timeline": {
-              return <MessageToolTimeline indices={part.indices}>{children}</MessageToolTimeline>;
-            }
-            case "text": {
-              if (messageTextPresentation(messageRole) === "composer") {
-                return <WorkbenchComposerMessageText text={part.text} />;
-              }
-              const citationSources =
-                index === undefined ? undefined : citationLayout.byTextPart.get(index);
-              const fallback = citationSources ? (
-                <MarkdownTextWithCitations sources={citationSources} />
-              ) : (
-                <MarkdownText />
-              );
-              return messageRole === "assistant" ? (
-                <MessagePartRendererHost part={part} fallback={fallback} />
-              ) : (
-                fallback
-              );
-            }
-            case "reasoning":
-              return null;
-            case "image":
-              return attachmentReferenceLabel ? (
-                <div data-slot="user-attachment-reference" className="relative max-w-full">
-                  <Image {...part} />
-                  <span className="bg-background/85 text-foreground pointer-events-none absolute top-2 left-2 rounded-full border border-foreground/10 px-2 py-0.5 text-[11px] font-medium shadow-sm backdrop-blur-sm">
-                    {attachmentReferenceLabel}
-                  </span>
-                </div>
-              ) : (
-                <Image {...part} />
-              );
-            case "file":
-              return attachmentReferenceLabel ? (
-                <div
-                  data-slot="user-attachment-reference"
-                  className="flex max-w-full items-center gap-2"
-                >
-                  <span className="bg-muted text-muted-foreground shrink-0 rounded-full px-2 py-1 text-[11px] font-medium">
-                    {attachmentReferenceLabel}
-                  </span>
-                  <File {...part} />
-                </div>
-              ) : (
-                <File {...part} />
-              );
-            case "source": {
-              if (index !== undefined && citationLayout.inlineSourcePartIndices.has(index)) {
-                return null;
-              }
-
-              const label =
-                part.title || part.url || t("extensions.messagePresentation.sourceFallback");
-              const isSafeUrl = part.sourceType === "url" && /^https?:\/\//i.test(part.url);
-
-              if (!isSafeUrl) {
-                return (
-                  <span className="bg-muted text-muted-foreground my-1 inline-flex rounded-md px-2 py-1 text-xs">
-                    {label}
-                  </span>
-                );
-              }
-
-              return (
-                <a
-                  href={part.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="bg-muted/60 hover:bg-muted my-1 inline-flex max-w-full items-center gap-1.5 rounded-md px-2 py-1 text-xs underline-offset-2 hover:underline"
-                >
-                  <span className="truncate">{label}</span>
-                  <ExternalLinkIcon className="size-3 shrink-0" />
-                </a>
-              );
-            }
-            case "tool-call":
-            case "data":
-              return (
-                <RendererHost
-                  part={part}
-                  toolFallback={ToolFallback}
-                  dataFallback={MessageDataFallback}
-                />
-              );
-            case "audio": {
-              const source = part.audio.data.startsWith("data:")
-                ? part.audio.data
-                : `data:audio/${part.audio.format};base64,${part.audio.data}`;
-              return <audio controls src={source} className="my-2 max-w-full" />;
-            }
-            case "generative-ui": {
-              const fallback = (
-                <MessageDataFallback
-                  type="data"
-                  name="generative-ui"
-                  data={part.spec}
-                  status={part.status}
-                />
-              );
-              return <MessagePartRendererHost part={part} fallback={fallback} />;
-            }
-            default:
-              return null;
-          }
-        }}
-      </MessagePrimitive.GroupedParts>
+      {completedWork ? (
+        <CompletedTurnPanel completed={!turnStreaming} label={completedLabel}>
+          <MessageBlockRange
+            node={node}
+            start={0}
+            end={completedBoundary}
+            presentations={dataPresentations}
+          />
+        </CompletedTurnPanel>
+      ) : null}
+      <MessageBlockRange
+        node={node}
+        start={completedWork ? completedBoundary : 0}
+        end={node.blocks.length}
+        presentations={dataPresentations}
+      />
     </MessageDisclosureProvider>
   );
 }

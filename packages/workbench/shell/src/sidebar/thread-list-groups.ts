@@ -1,4 +1,4 @@
-import type { WorkbenchAgentThreadSnapshot } from "@workbench/agent-runtime-client/adapter";
+import type { ThreadListItem } from "@workbench/agent-runtime-client";
 import { resolveSidebarThreadWorkspaceId } from "../new-thread-policy";
 
 export interface SidebarThreadGroups {
@@ -9,13 +9,11 @@ export interface SidebarThreadGroups {
 }
 
 export function groupSidebarThreads({
-  threadIds,
-  states,
+  threads,
   mainThreadId,
   draftWorkspaceId,
 }: {
-  readonly threadIds: readonly string[];
-  readonly states: ReadonlyMap<string, WorkbenchAgentThreadSnapshot>;
+  readonly threads: readonly ThreadListItem[];
   readonly mainThreadId?: string;
   readonly draftWorkspaceId?: string;
 }): SidebarThreadGroups {
@@ -24,20 +22,19 @@ export function groupSidebarThreads({
   const threadIdsByWorkspace = new Map<string, string[]>();
   const runningWorkspaceIds = new Set<string>();
 
-  for (const threadId of threadIds) {
-    const state = states.get(threadId);
+  for (const thread of threads) {
+    const threadId = thread.threadId;
     const workspaceId = resolveSidebarThreadWorkspaceId({
-      customWorkspaceId: undefined,
-      managedWorkspaceId: state?.workspace?.id,
+      managedWorkspaceId: thread.workspace?.id,
       isMainThread: threadId === mainThreadId,
       draftWorkspaceId,
     });
-    if (state?.isPinned) {
+    if (thread.isPinned) {
       pinnedThreadIds.push(threadId);
       continue;
     }
 
-    if (state?.isRunning && workspaceId) runningWorkspaceIds.add(workspaceId);
+    if (thread.isRunning && workspaceId) runningWorkspaceIds.add(workspaceId);
 
     if (!workspaceId) {
       ungroupedThreadIds.push(threadId);

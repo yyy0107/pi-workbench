@@ -3,7 +3,7 @@
 import { useLayoutEffect, useMemo, type ReactNode } from "react";
 
 import type { RuntimeConnection } from "@workbench/host-contracts";
-import type { OpenerRegistry, WorkbenchExtension } from "@workbench/extension-sdk";
+import type { WorkbenchExtension } from "@workbench/extension-sdk";
 
 import { agentConfigurationExtension } from "../extensions/agent-configuration";
 import { connectionStatusExtension } from "../extensions/connection-status";
@@ -15,6 +15,7 @@ import { attachmentUnderstandingExtension } from "../extensions/image-understand
 import { interactiveRequestsExtension } from "../extensions/interactive-requests";
 import { modelSelectorExtension } from "../extensions/model-selector";
 import { settingModelConfigExtension } from "../extensions/setting-model-config";
+import { piSettingsActionExtension } from "../extensions/settings";
 import { sideChatExtension } from "../extensions/side-chat";
 import { terminalExtension } from "../extensions/terminal";
 import { tokenUsageExtension } from "../extensions/token-usage";
@@ -23,7 +24,6 @@ import { workspaceDirectoryPickerExtension } from "../extensions/workspace-direc
 import { workspaceExplorerExtension } from "../extensions/workspace-explorer";
 import { workspaceFileExtension } from "../extensions/workspace-file";
 import { workspaceReviewExtension } from "../extensions/workspace-review";
-import { PiFileWorkspaceOpenersBridge } from "../services/pi-file-workspace-openers-bridge";
 import { acquireFileViewerAssetBaseLease } from "../services/file-viewer-asset-base-lease";
 import { WorkspaceFileRuntimeProvider } from "../services/workspace-file-runtime";
 import { PiContributionInstallationServicesProvider } from "./installation-services";
@@ -54,6 +54,7 @@ const piRuntimeExtensions: readonly WorkbenchExtension[] = Object.freeze([
   interactiveRequestsExtension,
   sideChatExtension,
   settingModelConfigExtension,
+  piSettingsActionExtension,
   attachmentUnderstandingExtension,
   toolboxExtension,
   automationExtension,
@@ -88,20 +89,18 @@ export const piAgentRuntimeExtensions: readonly WorkbenchExtension[] = Object.fr
 /**
  * Connects Pi-only contribution services to public host contracts.
  *
- * The web app owns its concrete extension-host registry and runtime connection; this package
- * receives both as narrow public ports so it remains reusable by another renderer shell.
+ * The application supplies the runtime connection while extension-owned host registrations flow
+ * through the mounted Extension Host context, keeping their disposal tied to extension lifecycle.
  */
 export function PiAgentRuntimeContributionsProvider({
   assets,
   branding,
   children,
-  openers,
   runtimeConnection,
 }: Readonly<{
   assets: PiContributionAssets;
   branding: PiContributionBranding;
   children: ReactNode;
-  openers: OpenerRegistry;
   runtimeConnection: RuntimeConnection;
 }>) {
   const normalizedAssets = useMemo(
@@ -124,10 +123,7 @@ export function PiAgentRuntimeContributionsProvider({
       <PiContributionBrandingProvider branding={branding}>
         <PiRuntimeConnectionProvider connection={runtimeConnection}>
           <PiContributionInstallationServicesProvider>
-            <WorkspaceFileRuntimeProvider>
-              <PiFileWorkspaceOpenersBridge openers={openers} />
-              {children}
-            </WorkspaceFileRuntimeProvider>
+            <WorkspaceFileRuntimeProvider>{children}</WorkspaceFileRuntimeProvider>
           </PiContributionInstallationServicesProvider>
         </PiRuntimeConnectionProvider>
       </PiContributionBrandingProvider>
@@ -137,7 +133,6 @@ export function PiAgentRuntimeContributionsProvider({
 
 export type { PiContributionAssets, PiContributionBranding } from "./assets-context";
 export { piTranslationBundle } from "../i18n";
-export { PiSettingsConfigurationMenu } from "../extensions/settings/settings-header-action";
 export {
   createPiRunningIndicatorRenderer,
   isPiRunningIndicatorWordmarkStyle,

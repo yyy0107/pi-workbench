@@ -2,8 +2,8 @@ import { formatCompactDuration } from "../../../format-duration";
 
 import type { MessageFormatters } from "../../../i18n";
 
-interface MessagePartLike {
-  readonly type: string;
+interface MessageBlockLike {
+  readonly kind: string;
 }
 
 /**
@@ -11,12 +11,12 @@ interface MessagePartLike {
  * to the completed-work disclosure. A tool-only turn has no body, so all of
  * its parts are considered completed work.
  */
-export function completedWorkBoundary(parts: readonly MessagePartLike[]): number {
-  for (let index = parts.length - 1; index >= 0; index -= 1) {
-    if (parts[index]?.type === "text") return index;
+export function completedWorkBoundary(blocks: readonly MessageBlockLike[]): number {
+  for (let index = blocks.length - 1; index >= 0; index -= 1) {
+    if (blocks[index]?.kind === "text") return index;
   }
 
-  return parts.length;
+  return blocks.length;
 }
 
 /**

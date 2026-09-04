@@ -31,7 +31,7 @@ function authPolicy(
   return defineDesktopSidecarRuntimeAuthPolicy({
     instanceId,
     accessToken,
-    allowedOrigins: [RENDERER_ORIGIN, "tauri://localhost"],
+    allowedOrigins: [RENDERER_ORIGIN, "workbench://app"],
     webSocketAuthenticationTimeoutMs: 25,
   });
 }
@@ -48,7 +48,7 @@ test("defines immutable credential-safe sidecar policies and canonical renderer 
   assert.equal(Object.isFrozen(policy), true);
   assert.equal(Object.isFrozen(policy.allowedOrigins), true);
   assert.equal(policy.protocolVersion, RUNTIME_CONNECTION_PROTOCOL_VERSION);
-  assert.deepEqual(policy.allowedOrigins, [RENDERER_ORIGIN, "tauri://localhost"]);
+  assert.deepEqual(policy.allowedOrigins, [RENDERER_ORIGIN, "workbench://app"]);
 
   assert.throws(
     () =>

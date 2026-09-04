@@ -1,9 +1,18 @@
 # Terminal server native dependency ownership
 
 `@workbench/terminal-server` is the sole production owner of `node-pty`, `tree-sitter`, and
-`tree-sitter-bash`. Electron staging resolves all three from this leaf's manifest, requires their
-physical package roots to remain inside the repository-local pnpm virtual store, rebuilds
-`node-pty`, and stages/prunes the exact target `tree-sitter` and `tree-sitter-bash` prebuilds.
+`tree-sitter-bash`. The Runtime artifact producer resolves all three from this leaf's manifest and
+requires their physical package roots to remain inside the repository-local pnpm virtual store.
+Normal local builds may materialize the current upstream `node-pty` prebuild. Release CI runs
+`pnpm --filter @workbench/terminal-server native:pty:build` on the matching native Runner and sets
+`WORKBENCH_NODE_PTY_NATIVE_BUILD_MANIFEST`; the Runtime producer then requires every staged
+`node-pty` byte and mode to match that source-build manifest before pruning compiler inputs and
+non-target variants.
+
+Electron consumes the admitted Node-API files and runs the shared native Runtime smoke under its
+actual executable. It does not invoke `electron-rebuild`, `node-gyp`, or stage `node-addon-api`.
+Published applications therefore carry the verified native files and do not require an end-user
+C/C++ toolchain.
 
 The former root compatibility declarations were removed after focused resolver, source-provenance,
 native materialization, and target-drift tests proved this leaf-owned path. Do not add a second root

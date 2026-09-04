@@ -5,10 +5,10 @@ import type {
   SessionScratchPromoteValue,
 } from "@workbench/agent-runtime-pi-protocol/rpc";
 
-import { PiBoundThreadRuntimeProvider } from "../assistant-ui/bound-thread-runtime-provider";
+import { PiBoundSessionProvider } from "../integration/bound-session-provider";
 import { usePiSessionManager } from "../runtime/context";
 
-export { PiBoundThreadRuntimeProvider };
+export { PiBoundSessionProvider };
 export { usePiThreadStateSnapshot } from "../runtime/context";
 
 export interface PiSideChatClient {

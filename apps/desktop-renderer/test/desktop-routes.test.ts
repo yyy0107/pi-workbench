@@ -39,9 +39,9 @@ test("restores the selected conversation unless the launch URL is explicit", () 
 
 test("fails closed for invalid, empty, or unbounded conversation URLs", () => {
   assert.equal(conversationIdFromDesktopUrl("not a URL"), undefined);
-  assert.equal(conversationIdFromDesktopUrl("tauri://localhost/?conversation="), undefined);
+  assert.equal(conversationIdFromDesktopUrl("workbench://app/?conversation="), undefined);
   assert.equal(
-    conversationIdFromDesktopUrl(`tauri://localhost/?conversation=${"a".repeat(4_097)}`),
+    conversationIdFromDesktopUrl(`workbench://app/?conversation=${"a".repeat(4_097)}`),
     undefined,
   );
 });

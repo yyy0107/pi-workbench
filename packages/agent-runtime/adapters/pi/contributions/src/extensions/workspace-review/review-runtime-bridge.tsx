@@ -28,7 +28,7 @@ export function ReviewRuntimeBridge() {
         ) {
           return false;
         }
-        const path = toolStringArg(part.args, "path", "file_path", "filePath");
+        const path = toolStringArg(part.arguments, "path", "file_path", "filePath");
         if (path) gitReview.noteChanged(context.worktreeId, path);
         const target = surfaces.find(
           (surface) =>

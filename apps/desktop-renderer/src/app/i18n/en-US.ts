@@ -1,6 +1,6 @@
 export const desktopRendererEnUS = {
   metadata: {
-    description: "A composable AI workbench built with assistant-ui.",
+    description: "A composable AI workbench built on the Workbench Agent Runtime.",
   },
   bootstrap: {
     title: "Pi Workbench",

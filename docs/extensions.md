@@ -1,13 +1,13 @@
 # Workbench 扩展组件开发指南
 
-本文说明如何为 Pi Workbench 开发扩展组件，并介绍 Slot、Panel、Command、Composer Command、Renderer、Settings、Main View、Workspace Surface、Open Handler 九类扩展能力。
+本文说明如何为 Pi Workbench 开发扩展组件，并介绍 Slot、Panel、Command、Composer Command、Renderer、Settings、Sidebar Section、Main View、Workspace Surface、Open Handler 十类扩展能力。
 
 让 AI 协助实现扩展时，可以显式调用项目技能 `$extend-workbench-ui`。技能位于 [`.agents/skills/extend-workbench-ui/`](../.agents/skills/extend-workbench-ui/SKILL.md)，会按本文的边界、流程和验证要求执行。
 
 本文对应当前代码：
 
 - Next.js 16 单应用；
-- assistant-ui 0.15.x；
+- Workbench Agent Runtime；
 - 扩展随应用静态打包；
 - 不支持从远程 URL 加载 JavaScript；
 - 不支持由扩展动态注册 Next.js 路由。
@@ -18,26 +18,27 @@
 
 扩展定义和贡献契约的纯入口是 [`packages/extension-platform/sdk/src/authoring.ts`](../packages/extension-platform/sdk/src/authoring.ts)，使用 `@workbench/extension-sdk` 不会加载 React Host 或 Next.js 宿主实现。挂载后的客户端组件从 `@workbench/extension-host` 使用公开 Hook；Workbench 组合层以及平台明确允许的 Renderer/Error surface 使用具体 leaf Host 入口，不依赖聚合 `hosts/` barrel、Registry 或其他内部实现。
 
-## 1. 先理解九种扩展能力
+## 1. 先理解十种扩展能力
 
 一个扩展由 `defineExtension()` 定义，并在 `setup(context)` 中注册一个或多个贡献：
 
 ```text
-activeExtensions = builtinExtensions + 已安装的 installableComponentExtensions
+activeExtensions = 应用组合层提供的完整有序扩展列表
   -> ExtensionProvider
     -> extension.setup(context)
-      -> Slot / Panel / Command / Composer Command / Renderer / Settings / Main View / Workspace Surface / Opener Registry
+      -> Slot / Panel / Command / Composer Command / Renderer / Settings / Sidebar Section / Main View / Workspace Surface / Opener Registry
         -> 对应 Host 渲染或执行
 ```
 
-九种贡献各自解决不同问题：
+十种贡献各自解决不同问题：
 
 - **Slot**：把小型组件插入宿主已经声明的位置，例如 Composer 按钮或状态栏指标。
 - **Panel**：提供宿主管理尺寸与开关状态的左侧或底部辅助区域。
 - **Command**：提供可复用动作，同时进入命令面板和快捷键系统。
 - **Composer Command**：把 `/` 面板选项注册为结构化 Token，并在提交时编译为一次 Agent 请求。
-- **Renderer**：接管整条消息的 Parts/分组策略，或按 tool name、data name 渲染单个 assistant-ui Part。
+- **Renderer**：接管整条消息的 Blocks/分组策略，或按 tool name、data name 渲染单个 Workbench Block。
 - **Settings**：向共享悬浮设置面板注册导航分区或功能自有设置项。
+- **Sidebar Section**：注册由 Shell 统一导航和搜索 chrome 承载的完整侧边栏区域。
 - **Main View**：用完整功能页面替换中央对话区域；宿主管理“功能页 / 对话”的切换。
 - **Workspace Surface**：向右侧 Inspector 注册可持久化的检查能力；核心只管理标签和布局。
 - **Open Handler**：按资源能力评分处理 `file`、`https`、`artifact` 等打开请求，避免 feature 之间直接引用。
@@ -53,6 +54,7 @@ activeExtensions = builtinExtensions + 已安装的 installableComponentExtensio
 - 需要在消息文字中插入可删除、可组合的 `/command` Token：使用 Composer Command。
 - 需要决定 reasoning/tool 是否分组、消息样式，或展示模型工具调用和结构化数据：使用 Renderer。
 - 功能需要出现在共享悬浮设置面板：使用 Settings；分区由壳扩展注册，具体设置项由所属功能注册。
+- 功能需要拥有完整侧边栏目的地：使用 Sidebar Section，并在定义中声明关联的 Main View kinds。
 - 需要一个新 URL：直接增加 Next.js 文件路由，不要放进扩展 API。
 
 ## 2. 扩展的最小结构
@@ -68,15 +70,8 @@ packages/workbench/shell/src/extensions/builtin/notes/
 └── index.ts
 ```
 
-目录表达分发语义，而不是贡献类型：
-
-- `<owner-package>/src/extensions/builtin/<feature>/`：所属 package 固定内建、用户不可卸载；
-- `<owner-package>/src/extensions/installable/<feature>/`：静态受信任目录中的可安装组件拓展，安装状态决定是否交给
-  `ExtensionProvider` 激活。
-
-两类扩展使用完全相同的 Slot、Renderer、Panel 等贡献契约。`installable` 仍然随应用静态构建，
-不表示允许从远程 URL 执行任意 JavaScript；“卸载”移除的是应用安装注册表和活动贡献，静态目录
-项保留，因此用户可以重新安装。
+目录按能力所有者组织。Shell 通用能力放在 Shell，Pi Runtime 能力放在 Pi contributions；应用组合层
+只负责提供完整、有序的静态扩展列表。
 
 最小扩展只有一个 `extension.ts`：
 
@@ -99,43 +94,22 @@ export const exampleExtension = defineExtension({
 - `id`：扩展全局唯一，推荐使用 `workbench.<feature>` 命名。
 - `name`：供日志和开发工具识别的人类可读名称。
 - `version`：当前只作为元数据，推荐从 `1.0.0` 开始。
-- `toolbox`：可选的本地化能力目录元数据；当前需要显式声明
-  `kind: "component-extension"`，组件拓展目录会出现在工具箱独立的“组件拓展”列表中，而不会混入
-  Pi 扩展。`distribution` 明确声明它是不可卸载的 `builtin`，还是进入应用安装注册表的
-  `installable`。`contributions` 为该能力拥有的所有组件插入点；每项都要声明实际贡献 id、贡献类型、
-  Slot/Registry target、最终挂载 Host（如适用）、本地化位置说明和复用真实样式的 Preview
-  组件。`entryFile` 声明扩展注册入口，每项贡献的非空 `sourceFiles` 声明主要 React 组件、样式和
-  相关实现文件，工具箱会以可复制的项目相对路径显示。Slot target 受 `WorkbenchSlot` 约束，
-  Panel target 受 `PanelLocation` 约束，使工具箱项目全景可以在当前 Workbench 实际布局中高亮
-  真实宿主区域。位置预览应按比例完整复刻 Workbench Shell 的侧栏、顶部栏、对话、输入区、
-  RightWorkspace、面板、浮层和状态栏，复用同一设计变量和 Surface 层级；高亮只能作为不影响布局的
-  覆盖层，不能退化为空白区域组成的抽象框线图。消息位置还必须同时提供系统、用户、助手消息以及
-  文本、推理、工具、数据、来源、附件、音频、生成式 UI 和错误状态示例；激活
-  `message.before`、`message.actions` 或 `message.after` 时，要显示带消息角色的可见示例，不能只留
-  一条没有内容的高亮细线。卸载
-  `installable` 扩展时，其活动贡献立即移除，而静态目录项保留为“已卸载”状态以支持重新安装。
 - `setup`：只做注册和必要的资源初始化，不在模块顶层产生副作用。
 
 `setup()` 可以返回 `void`、一个 `Disposable`，或 `Disposable[]`。ExtensionProvider 卸载、热更新或替换扩展时，会按反向顺序清理资源。
 
 `setup()` 当前必须是同步函数，不能声明为 `async`，也不能返回 Promise。异步工作应放到组件 `useEffect()`、Command 的 `run()`，或由 setup 启动并通过 Disposable 可靠取消。
 
-通过 `context.slots/panels/commands/openers/composerCommands/renderers/settings/mainViews/workspace` 创建的 Disposable 会被 Manager 追踪。仍建议显式返回它们；额外创建的事件监听、计时器或订阅则必须包装成 Disposable 并返回。
+通过 `context.slots/panels/commands/openers/composerCommands/renderers/settings/sidebarSections/mainViews/workspace` 创建的 Disposable 会被 Manager 追踪。仍建议显式返回它们；额外创建的事件监听、计时器或订阅则必须包装成 Disposable 并返回。
 
 `defineExtension()` 是保留字面量类型的 identity helper，真正的运行时校验和激活由 ExtensionManager 完成。扩展对象应定义在模块顶层并保持引用稳定；不要在 React render 中临时创建新的扩展对象或 `extensions` 数组，否则相同 id 也会因对象引用变化而先停用再激活。
-
-“组件拓展”是所有可承载 React UI 的前端贡献目录，不等同于某一种 Renderer。当前元数据支持
-`slot`、`panel`、`message-renderer`、`message-part-renderer`、`tool-renderer`、
-`data-renderer`、`settings-section`、`settings-item`、`main-view` 和
-`workspace-surface`。Command、Opener 等没有直接组件挂载点的行为契约不应伪装成组件插入点；
-它们继续使用各自的扩展 API。
 
 ## 3. 完整教程：Notes 扩展
 
 下面实现一个 Notes 扩展，它包含：
 
 - Composer 中的入口按钮；
-- 右侧 Notes Panel；
+- 左侧 Notes Panel；
 - `Mod+Shift+N` 命令；
 - 静态启用配置。
 
@@ -299,7 +273,7 @@ export const notesExtension = defineExtension({
       title: defineMessage("extensions.notes.title"),
       icon: StickyNoteIcon,
       component: NotesPanel,
-      defaultLocation: "right",
+      defaultLocation: "left",
       defaultSize: 360,
       minSize: 280,
       maxSize: 640,
@@ -321,7 +295,6 @@ export { notesExtension } from "./extension";
 `defaultLocation` 只能是：
 
 - `left`；
-- `right`；
 - `bottom`。
 
 `defaultSize`、`minSize` 和 `maxSize` 在当前 Workbench 中使用像素。
@@ -348,9 +321,8 @@ export const builtinExtensions = [
 ] satisfies readonly WorkbenchExtension[];
 ```
 
-完成后，Workbench 会把 `builtinExtensions` 与当前已安装的
-`installableComponentExtensions` 合成为稳定的活动列表，再由 ExtensionProvider 在客户端激活。
-不要增加目录扫描、运行时文件发现或远程 `import()`。
+完成后，由应用组合层把各 owner 的静态 extension group 合成为稳定的完整列表，再交给
+ExtensionProvider 激活。不要增加目录扫描、运行时文件发现或远程 `import()`。
 
 数组顺序就是激活顺序，也会影响相同 Slot `order` 时的先后、冲突快捷键的匹配顺序，以及 Command Palette 中同组命令的显示顺序。保持数组为模块级稳定常量。若需要让其他模块直接导入该扩展，可再从 owner package 的 `src/extensions/index.ts` 选择性导出。
 
@@ -389,11 +361,6 @@ Inspector Workspace 工具栏 Slot：
 - `workspace.actions`：参数为 `{ activeSurfaceId?: string, isOpen: boolean }`；适合不属于 Surface 生命周期的紧凑外部动作。
 - `workspace.empty.actions`：参数为 `{ isOpen: boolean }`；用于空 Workspace 的可启动能力列表，贡献应渲染完整宽度的可访问操作项。
 
-旧版右侧 Panel 标签行 Slot（兼容保留，当前 Workbench Shell 不再挂载对应 Host）：
-
-- `panel.right.add-menu`：加号弹出菜单中的选项，参数为 `{ activePanelId, closeMenu() }`；
-- `panel.right.actions`：标签行最右侧的图标操作区，参数为 `{ activePanelId }`。
-
 Thread Slot：
 
 - `thread.left`、`thread.header`、`thread.before`、`thread.after`、`thread.right`；
@@ -424,8 +391,6 @@ Composer Slot：
 
 完整类型定义见 [`packages/extension-platform/sdk/src/api/slot.ts`](../packages/extension-platform/sdk/src/api/slot.ts)。
 
-`sidebar.toolbox` 是“工具箱”分段的紧凑根视图，参数为 `{ searchQuery: string }`。贡献负责能力入口、固定项和分段内底部操作；宿主只传入顶部搜索框的原始输入。分类列表和长内容详情应通过 Main View 替换中央对话区域，不要在窄侧栏内钻取，也不要为管理页面占用右侧 Inspector。内置工具箱通过类型化的 `packageCatalog.search` RPC 使用 Pi 官方 `https://pi.dev/packages` 作为发现源；扩展组件不能自行抓取官方页面或直接执行第三方包安装。
-
 `sidebar.brand` 位于侧栏顶部，用于可替换的产品标识；默认 `workbench-brand` 扩展在这里贡献 “Pi-Workbench”。`sidebar.navigation` 位于核心分段切换器下方，适合 Agent、资产等可选主导航；`sidebar.top` 位于“工作区”内容顶部并同时挂载于桌面与移动侧栏，适合“新建会话”等主要操作；`sidebar.workspace.actions` 位于同一工作区操作行右侧，适合添加、筛选等紧凑操作；`sidebar.footer` 位于侧栏固定底部，适合工作区分段的设置或状态入口。核心 Thread List 不由扩展替换。
 
 `shell.background` 挂载在 Workbench 内容下方，适合全局底色、纹理、渐变或主题控制器。贡献必须保持非交互，不得在背景层放置按钮或链接；若要同步组件表面，应通过共享主题变量实现。
@@ -437,8 +402,6 @@ Composer Slot：
 `workspace.actions` 贡献应渲染紧凑按钮并提供 `aria-label`。已有 Workspace Surface 的入口优先由 definition 自有的 `menuItem` 注册到统一加号菜单。
 
 `workspace.empty.actions` 贡献应渲染适合启动列表的完整操作项；它只用于 Surface 生命周期之外的补充入口。
-
-`panel.right.add-menu` 与 `panel.right.actions` 只为旧扩展的类型兼容保留；当前 Shell 不挂载旧版右侧 Panel Host。新功能不要继续注册这两个 Slot。
 
 ### 排序与唯一性
 
@@ -458,7 +421,8 @@ context.slots.register("header.right", {
 - `order` 相同时保持注册顺序；
 - contribution id 在同一个 Slot 内必须唯一；
 - 注册的是 `ComponentType<Props>`，不是预先创建的 ReactNode；
-- Slot 组件位于 AssistantRuntimeProvider 内，可以使用 `useAui()` 和 `useAuiState()`。
+- Slot 组件位于 Workbench `RuntimeProvider` 内；需要当前会话身份时使用
+  `useCurrentSession()`，只有明确位于 `SessionProvider` 内的 Slot 才使用 `useSessionState()`。
 
 ### 如何增加一个新的宿主 Slot
 
@@ -484,7 +448,32 @@ export interface SlotPropsMap {
 
 新增 Slot 是宿主 API 变更，应评估命名、布局、响应式和后续兼容性，不应由单个业务扩展随意添加。
 
-## 5. Main View 开发参考
+## 5. Sidebar Section 开发参考
+
+Sidebar Section 注册一个完整侧栏目的地；Shell 统一提供导航、选择态与可选搜索框，功能扩展拥有
+标题、图标、正文组件和关联的 Main View：
+
+```ts
+context.sidebarSections.register({
+  id: "toolbox",
+  title: defineMessage("extensions.toolbox.title"),
+  icon: ToolboxIcon,
+  component: ToolboxSidebar,
+  order: 20,
+  mainViewKinds: ["toolbox"],
+  search: {
+    label: defineMessage("extensions.toolbox.search"),
+    placeholder: defineMessage("extensions.toolbox.searchPlaceholder"),
+  },
+});
+```
+
+正文组件接收 `{ mobile, searchQuery, onNavigate }`。它负责过滤和业务导航；移动端完成导航后调用
+`onNavigate?.()` 关闭抽屉。标题、图标、搜索文案及翻译都属于贡献自身，Shell 不硬编码功能名称
+或 Main View kind。注册返回的 Disposable 在扩展停用时自动释放，导航顺序按 `order` 再按注册
+顺序排列。
+
+## 6. Main View 开发参考
 
 Main View 用于工具箱、管理中心等需要中央宽屏空间的完整功能页。扩展同步注册 renderer，再通过 `useMainViewService()` 打开或关闭：
 
@@ -541,7 +530,7 @@ function ExampleTrigger() {
 - Main View 拥有页面内部布局和文案，但不应复制 Workbench Shell、侧栏或右侧 Inspector。
 - Main View 不提供 URL、持久化标签、resourceKey 或 keep-alive；这些需求分别使用 Next.js 路由或 Workspace Surface。
 
-## 6. Workspace Surface 开发参考
+## 7. Workspace Surface 开发参考
 
 右侧 Inspector 核心不内置业务 kind。扩展通过 `context.workspace.register()` 同步注册完整能力：
 
@@ -610,7 +599,7 @@ await openers.open({
 `open()` 的 Promise rejection。跨多个 feature 的能力接口应提升到 owner package 的公共 service 或 runtime，不能
 放进某个 feature 的 `internal` 后再让其他 contribution 深层导入。
 
-## 7. Panel 开发参考
+## 8. Panel 开发参考
 
 Panel 定义：
 
@@ -624,40 +613,6 @@ context.panels.register({
   defaultSize: 420,
   minSize: 280,
   maxSize: 720,
-});
-```
-
-如果 Panel 需要出现在标签行的加号菜单中，由同一个扩展注册菜单项：
-
-```tsx
-"use client";
-
-import { usePanelService } from "@workbench/extension-host";
-import type { RightPanelAddMenuSlotContext } from "@workbench/extension-sdk";
-
-export function BrowserAddMenuItem({ closeMenu }: RightPanelAddMenuSlotContext) {
-  const panels = usePanelService();
-
-  return (
-    <button
-      type="button"
-      role="menuitem"
-      onClick={() => {
-        panels.open("browser");
-        closeMenu();
-      }}
-    >
-      打开浏览器
-    </button>
-  );
-}
-```
-
-```ts
-context.slots.register("panel.right.add-menu", {
-  id: "workbench.browser.right-panel-add-menu",
-  order: 30,
-  component: BrowserAddMenuItem,
 });
 ```
 
@@ -693,7 +648,7 @@ context.panels.register({
     closeButton: "hover:bg-sky-500/15",
   },
   component: BrowserPanel,
-  defaultLocation: "right",
+  defaultLocation: "left",
 });
 ```
 
@@ -716,11 +671,11 @@ context.panels.register({
 - 组件只渲染内容，不要重复实现宿主标题栏；
 - 完整工作区优先使用 Panel，不要把大型 UI 塞入 Slot。
 
-当前 Shell 只使用 Panel 系统承载左侧与底部通用辅助区域。全高右侧检查区由 `RightWorkspace` 核心管理标签、resourceKey 去重、cachePolicy、作用域恢复和持久化，具体能力由 Workspace Surface 扩展注册；详见 [`docs/right-workspace.md`](./right-workspace.md)。`PanelLocation` 中的 `right` 只作为旧扩展协议兼容保留，不应作为新功能入口。
+当前 Shell 只使用 Panel 系统承载左侧与底部通用辅助区域。全高右侧检查区由 `RightWorkspace` 核心管理标签、resourceKey 去重、cachePolicy、作用域恢复和持久化，具体能力由 Workspace Surface 扩展注册；详见 [`docs/right-workspace.md`](./right-workspace.md)。
 
 React 组件内使用 `usePanelService()`；Command 内使用 `context.panels`。两者用途不同：前者暴露完整 PanelService，后者只暴露命令执行所需的 `open/close/toggle/move`。
 
-## 8. Command 开发参考
+## 9. Command 开发参考
 
 ### Composer Command：结构化输入命令
 
@@ -857,7 +812,7 @@ export function RunNotesCommandButton() {
 
 优先让 Slot 按钮和快捷键调用同一个 Command，避免分别实现两套业务逻辑。若按钮只做简单的 Panel toggle，也可以直接使用 `usePanelService()`。
 
-## 9. Settings 开发参考
+## 10. Settings 开发参考
 
 共享悬浮设置面板由 `workbench.settings` 扩展提供。它通过 `shell.overlay` 全局挂载，不属于左、右或底部 Panel。设置分区与设置项是独立贡献：壳扩展注册分区，功能扩展把自己的设置项注册到目标分区，因此语言、主题或模型功能可以随扩展一起启用和卸载。
 
@@ -890,51 +845,37 @@ const item = context.settings.registerItem({
 
 React 组件可通过 `useSettingsRegistry()` 读取稳定快照并订阅注册变化。普通业务扩展应在 `setup()` 中注册贡献，不要在 React render 期间调用 registry。
 
-## 10. Renderer 开发参考
+## 11. Renderer 开发参考
 
-Renderer 只负责展示消息 Part，不负责：
+Renderer 只负责展示 Workbench Conversation Node/Message Block，不负责：
 
 - 把工具定义暴露给模型；
 - 执行后端工具；
-- 让 Runtime 自动产生某个 data Part。
+- 让 Runtime 自动产生某个 Data Block。
 
-这些工作属于 assistant-ui Tool、Runtime 或后端协议。Tool/Data Renderer 只有在消息中实际出现匹配的 `toolName` 或 `data.name` 时才会生效。
+这些工作属于 Agent Runtime 或后端协议。Tool/Data Renderer 只有在消息中实际出现匹配的 `toolName` 或 `data.name` 时才会生效。
 
 ### Message Renderer：整体呈现与分组
 
-Message Renderer 接管一条消息内部的 `MessagePrimitive.Parts` 或
-`MessagePrimitive.GroupedParts`。它可以决定：
+Message Renderer 接收完整的 `UserMessageNode` 或 `AssistantMessageNode`，并接管其中的
+`blocks`。它可以决定：
 
 - reasoning、tool、data 是否分组以及如何嵌套；
 - reasoning block、tool group、正文流式状态和 fallback 的视觉样式；
-- 在叶子 `tool-call` / `data` Part 上是否继续交给 `RendererHost` 做精确名称匹配。
+- 在叶子 `tool-call` / `data` Block 上是否继续交给 `RendererHost` 做精确名称匹配。
 
 ```tsx
 "use client";
 
-import { groupPartByType, MessagePrimitive } from "@assistant-ui/react";
+import type { MessageRendererProps } from "@workbench/extension-sdk";
 import { RendererHost } from "@workbench/extension-host/hosts/renderer-host";
 
-export function CompactMessageRenderer() {
-  return (
-    <MessagePrimitive.GroupedParts
-      groupBy={groupPartByType({
-        reasoning: ["group-reasoning"],
-        "tool-call": ["group-tool"],
-      })}
-    >
-      {({ part, children }) => {
-        if (part.type === "group-reasoning") return <details>{children}</details>;
-        if (part.type === "group-tool") return <section>{children}</section>;
-        if (part.type === "text") return <p>{part.text}</p>;
-        if (part.type === "reasoning") return <p>{part.text}</p>;
-        if (part.type === "tool-call" || part.type === "data") {
-          return <RendererHost part={part} />;
-        }
-        return null;
-      }}
-    </MessagePrimitive.GroupedParts>
-  );
+export function CompactMessageRenderer({ node }: MessageRendererProps) {
+  return node.blocks.map((block) => {
+    const fallback =
+      block.kind === "text" || block.kind === "reasoning" ? <p>{block.text}</p> : null;
+    return <RendererHost key={block.key} node={node} block={block} fallback={fallback} />;
+  });
 }
 ```
 
@@ -948,32 +889,31 @@ const messageRenderer = context.renderers.message.register({
 ```
 
 同一时间只能启用一个 Message Renderer；重复注册会在 setup 阶段失败并回滚该扩展。
-卸载它后，Workbench 会恢复最小安全 fallback。Part/Tool/Data Renderer 是可叠加的叶子贡献，
+卸载它后，Workbench 会恢复最小安全 fallback。Block/Tool/Data Renderer 是可叠加的叶子贡献，
 通常由提供对应能力的扩展注册，例如 Terminal 扩展同时注册 Workspace Surface、Command 和 `bash`
 Tool Renderer。这样卸载能力扩展时，其入口和工具呈现会一起消失。
 
-### Part Renderer：按消息 Part 谓词扩展
+### Block Renderer：按消息 Block 谓词扩展
 
 当能力无法用 `toolName` 或 `data.name` 表达，但又不应接管整条消息时，使用
-`context.renderers.parts` 注册叶子 renderer。当前 Message Renderer 和最小安全 fallback 都应在
-对应 Part 分支挂载 `MessagePartRendererHost`，并传入原有展示作为 `fallback`：
+`context.renderers.blocks` 注册叶子 renderer。Host 会在精确 Tool/Data 匹配前按注册顺序执行谓词，
+并把调用方原有展示作为 `fallback` 传给命中的组件：
 
 ```tsx
-const fallback = <MarkdownText />;
-return <MessagePartRendererHost part={part} fallback={fallback} />;
+return <RendererHost node={node} block={block} fallback={fallback} />;
 ```
 
 扩展注册贡献：
 
 ```ts
-const structuredTextRenderer = context.renderers.parts.register({
+const structuredTextRenderer = context.renderers.blocks.register({
   id: "workbench.structured-text.renderer",
-  canRender: (part) => part.type === "text" && isStructuredText(part.text),
+  canRender: (block) => block.kind === "text" && isStructuredText(block.text),
   component: StructuredTextRenderer,
 });
 ```
 
-`canRender` 在 React render 期间运行，必须是纯函数并容忍 streaming 中的不完整 Part。多个贡献
+`canRender` 在 React render 期间运行，必须是纯函数并容忍 streaming 中的不完整 Block。多个贡献
 同时命中时，注册顺序靠前者优先；贡献 id 必须唯一。停用扩展会注销贡献，Host 随即恢复调用方
 提供的 fallback。
 
@@ -982,46 +922,28 @@ const structuredTextRenderer = context.renderers.parts.register({
 ```tsx
 "use client";
 
-import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
+import type { ToolRendererComponent } from "@workbench/extension-sdk";
 
-interface WeatherArgs {
-  city?: string;
-}
+export const WeatherRenderer: ToolRendererComponent = ({ block, fallback }) => {
+  const args =
+    block.arguments && typeof block.arguments === "object" && !Array.isArray(block.arguments)
+      ? block.arguments
+      : {};
 
-interface WeatherResult {
-  temperatureC: number;
-  summary: string;
-}
-
-export const WeatherRenderer: ToolCallMessagePartComponent<WeatherArgs, WeatherResult> = ({
-  args,
-  argsText,
-  result,
-  status,
-  isError,
-}) => {
-  if (status.type === "running") {
+  if (block.status === "running") {
     return (
       <div className="rounded-lg border p-3 text-sm">
-        Reading weather arguments: {argsText || "…"}
+        Reading weather arguments: {block.argumentsText || "…"}
       </div>
     );
   }
 
-  if (isError) {
-    return <div className="text-destructive">Weather lookup failed.</div>;
-  }
+  if (block.status !== "complete") return fallback;
 
   return (
     <div className="rounded-lg border p-3 text-sm">
-      <p>{args.city ?? "Unknown city"}</p>
-      {result ? (
-        <p>
-          {result.temperatureC}°C · {result.summary}
-        </p>
-      ) : (
-        <p>No result returned.</p>
-      )}
+      <p>{typeof args.city === "string" ? args.city : "Unknown city"}</p>
+      <pre>{JSON.stringify(block.result, null, 2)}</pre>
     </div>
   );
 };
@@ -1033,27 +955,25 @@ export const WeatherRenderer: ToolCallMessagePartComponent<WeatherArgs, WeatherR
 const weatherRenderer = context.renderers.tools.register("get_weather", WeatherRenderer);
 ```
 
-注意：工具参数在 streaming 阶段只是部分解析结果，字段可能缺失。必须允许可选字段，并根据 `status`、`argsText` 或 `useToolArgsStatus()` 渲染中间状态。
-
-Tool renderer props 还提供 `addResult()`、`resume()` 和 `respondToApproval()`，分别用于前端结果、人机交互恢复和工具审批。只有对应 Runtime 状态允许时才能调用。
+注意：`block.arguments` 在 streaming 阶段只是尽力解析的部分结果，甚至可能为 `undefined`；
+`block.argumentsText` 保留原始增量文本。Renderer 必须处理 `running`、`complete`、`incomplete`、
+`requires-action` 和 `error`。执行、审批或恢复动作应调用所属 Runtime capability，不属于 Renderer
+展示契约。
 
 ### Data Renderer
 
 ```tsx
 "use client";
 
-import type { DataMessagePartComponent } from "@assistant-ui/react";
+import type { DataRendererComponent } from "@workbench/extension-sdk";
 
-interface CitationData {
-  label: string;
-  url: string;
-}
-
-export const CitationRenderer: DataMessagePartComponent<CitationData> = ({ data }) => (
-  <a href={data.url} target="_blank" rel="noopener noreferrer">
-    {data.label}
-  </a>
-);
+export const CitationRenderer: DataRendererComponent = ({ block, fallback }) => {
+  const data =
+    block.data && typeof block.data === "object" && !Array.isArray(block.data)
+      ? block.data
+      : undefined;
+  return typeof data?.label === "string" ? <span>{data.label}</span> : fallback;
+};
 ```
 
 注册：
@@ -1064,20 +984,19 @@ const citationRenderer = context.renderers.data.register("citation", CitationRen
 
 ### Renderer 匹配与优先顺序
 
-Message Renderer 全局唯一；Part Renderer 按贡献 id 唯一并按注册顺序匹配；Tool 和 Data Renderer
+Message Renderer 全局唯一；Block Renderer 按贡献 id 唯一并按注册顺序匹配；Tool 和 Data Renderer
 各自按名称唯一。这些 Registry 都没有 `order` 或 `priority` 字段。
 
 `RendererHost` 的解析顺序固定为：
 
-1. 扩展 Registry 中精确名称匹配的 Renderer；
-2. Part 自带的 `toolUI` 或 `dataRendererUI`；
-3. 当前 Message Renderer（或 Workbench 安全 fallback）提供的 Tool/Data Fallback；
-4. `RendererHost` 的 children。
+1. 第一个命中的 Block Renderer；
+2. `toolName` 或 `data.name` 精确匹配的 Renderer；
+3. 当前 Message Renderer（或 Workbench 安全 fallback）传入的 `fallback`。
 
 同一个 tool name 或 data name 重复注册会在开发阶段报错。名称来自模型或协议，必须使用精确匹配，不要依赖对象原型键或模糊匹配。
 匹配区分大小写：`get_weather` 与 `Get_Weather` 是两个不同名称。
 
-## 11. 生命周期与错误隔离
+## 12. 生命周期与错误隔离
 
 扩展由 [`ExtensionProvider`](../packages/extension-platform/host/src/extension-provider.tsx) 激活：
 
@@ -1114,9 +1033,9 @@ export const resizeObserverExtension = defineExtension({
 
 但要注意：`setup()` 在 Provider 的 client effect 中运行。尽管此时可以访问 `window`，更推荐把 React 相关副作用放入扩展组件自己的 `useEffect()`，让生命周期更直观。
 
-## 12. 状态应该放在哪里
+## 13. 状态应该放在哪里
 
-使用 assistant-ui Runtime 保存：
+使用 Workbench Agent Runtime 保存：
 
 - messages；
 - thread、composer；
@@ -1136,14 +1055,16 @@ Workbench Store 保存：
 - Panel 打开状态、位置、尺寸；
 - 宿主级 UI 偏好。
 
-不要再创建一份 `messages` 或 `isRunning` 并与 assistant-ui 双向同步。扩展组件已经位于 AssistantRuntimeProvider 内，应直接使用：
+不要再创建一份 `messages` 或 `isRunning` 与 Agent Runtime 双向同步。消息 Renderer 直接使用
+Host 传入的 `node`；位于 `SessionProvider` 内的会话组件使用 headless hooks：
 
 ```tsx
-const messages = useAuiState((state) => state.thread.messages);
-const isRunning = useAuiState((state) => state.thread.isRunning);
+const nodeKeys = useSessionState((snapshot) => snapshot.nodeKeys);
+const isRunning = useSessionState((snapshot) => snapshot.isRunning);
+const node = useConversationNode(nodeKeys.at(-1) ?? "");
 ```
 
-## 13. ID 与注册规则
+## 14. ID 与注册规则
 
 推荐命名：
 
@@ -1154,6 +1075,7 @@ panel id:              notes
 command id:            notes.toggle
 open handler id:       workspace.file
 message renderer id:   workbench.compact-message
+block renderer id:     workbench.structured-text.renderer
 tool renderer name:    get_weather
 data renderer name:    citation
 ```
@@ -1166,6 +1088,7 @@ data renderer name:    citation
 - Command id：整个 CommandRegistry；
 - Open handler id：整个 OpenerRegistry；
 - Message renderer：整个 Message RendererRegistry 同时只能有一个；
+- Block renderer id：整个 MessageBlockRendererRegistry；
 - Tool renderer name：Tool RendererRegistry；
 - Data renderer name：Data RendererRegistry。
 - Settings section id：整个 SettingsRegistry；
@@ -1173,27 +1096,25 @@ data renderer name:    citation
 
 Slot、Panel、Command 定义在注册时会被复制并浅冻结。注册后不要修改原对象来尝试更新 UI；需要替换贡献时，应 dispose 后重新注册。
 
-## 14. 不要做的事情
+## 15. 不要做的事情
 
 - 不要从远程 URL `import()` 任意 JavaScript 插件。
 - 不要在扩展中注册 Next.js 路由。
 - 不要从业务扩展 import Registry 或 Host 的内部实现。
 - 不要从一个 `<owner-package>/src/extensions/builtin/<feature>` 深层 import 另一个 feature；通过公开 Registry、Service 或 Renderer 协作。
-- 不要把可卸载组件拓展放进 `builtin/`；放入同一 owner 的 `installable/` 并加入
-  `installableComponentExtensions` 静态目录。
 - 不要在 React render 期间调用 `register()`。
 - 不要在 `setup()` 中调用 React Hook；`setup()` 不是组件。
 - 不要把 ReactNode 作为 Slot 注册值；应注册组件类型。
 - 不要让两个扩展争用同一个 Panel、Command 或 Renderer id。
 - 不要假设 streaming Tool args 已经完整。
 - 不要把大型工作区塞进 Header 或 Composer Slot。
-- 不要复制 assistant-ui 的消息和 Composer 状态。
+- 不要复制 Workbench Agent Runtime 的消息和 Composer 状态。
 - 不要在前端扩展中放 API Key 或其他秘密。
 
-## 15. 可参考的现有扩展
+## 16. 可参考的现有扩展
 
 - 最小 Slot：[`connection-status`](../packages/agent-runtime/adapters/pi/contributions/src/extensions/connection-status/extension.ts)
-- assistant-ui ModelContext：[`model-selector`](../packages/agent-runtime/adapters/pi/contributions/src/extensions/model-selector/extension.ts)
+- Model 选择与当前 Session bridge：[`model-selector`](../packages/agent-runtime/adapters/pi/contributions/src/extensions/model-selector/extension.ts)
 - Settings + Pi RPC：[`skills`](../packages/agent-runtime/adapters/pi/contributions/src/extensions/skills/extension.ts)
 - Workspace Surface + Open Handler：[`workspace-file`](../packages/agent-runtime/adapters/pi/contributions/src/extensions/workspace-file/extension.ts)
 - Workspace Surface + Command + Tool Renderer：[`terminal`](../packages/agent-runtime/adapters/pi/contributions/src/extensions/terminal/extension.ts)
@@ -1204,7 +1125,7 @@ Slot、Panel、Command 定义在注册时会被复制并浅冻结。注册后不
 如果新需求无法自然归入 Slot、Panel、Command、Renderer 或 Settings，先判断它是不是：
 
 1. Next.js 路由职责；
-2. assistant-ui Runtime/Tool 职责；
+2. Workbench Agent Runtime/Tool 职责；
 3. 后端或持久化职责；
 4. 真正需要新增的 Workbench 宿主能力。
 

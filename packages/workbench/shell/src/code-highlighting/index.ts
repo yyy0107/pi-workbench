@@ -15,3 +15,4 @@ export {
   WorkbenchCodeView,
   type WorkbenchCodeLineDecoration,
 } from "./workbench-code-editor";
+export * from "./code-theme-preview";

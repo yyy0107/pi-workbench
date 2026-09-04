@@ -9,7 +9,6 @@ import {
 import { createPiWorkbenchSettingsClient } from "@workbench/agent-runtime-pi-client/workbench-settings";
 import {
   PiAgentRuntimeContributionsProvider,
-  PiSettingsConfigurationMenu,
   piAgentRuntimeExtensionGroups,
   piRunningIndicatorDefinitions,
   piTranslationBundle,
@@ -22,11 +21,11 @@ import {
   WorkbenchAgentRuntimeApplicationProvider,
   WorkbenchApplicationProviders,
   WorkbenchApplicationShell,
-  createWorkbenchExtensionPrefix,
   type WorkbenchAgentRuntimeInstallationOptions,
   type WorkbenchRuntimeContributionsProviderProps,
 } from "@workbench/shell/application";
 import { WorkbenchThread } from "@workbench/shell/chat";
+import { shellExtensionGroups } from "@workbench/shell/extensions";
 import { createTranslationBundleMessageFactory, useI18n, type Locale } from "@workbench/shell/i18n";
 import { useWorkbenchNavigation } from "@workbench/shell/navigation";
 import {
@@ -64,11 +63,14 @@ const DESKTOP_RUNTIME_LIFECYCLE_EXTENSION = defineExtension({
     });
   },
 });
-const DESKTOP_EXTENSION_PREFIX = Object.freeze([
-  ...createWorkbenchExtensionPrefix({
-    runtimeExtensionGroups: piAgentRuntimeExtensionGroups,
-    SettingsViewHeaderAction: PiSettingsConfigurationMenu,
-  }),
+const DESKTOP_EXTENSIONS = Object.freeze([
+  ...shellExtensionGroups.core,
+  ...piAgentRuntimeExtensionGroups.workspace,
+  ...shellExtensionGroups.workspace,
+  ...piAgentRuntimeExtensionGroups.terminal,
+  ...piAgentRuntimeExtensionGroups.setup,
+  ...shellExtensionGroups.settings,
+  ...piAgentRuntimeExtensionGroups.runtime,
   DESKTOP_RUNTIME_LIFECYCLE_EXTENSION,
 ]);
 const PRODUCT_BRANDING = Object.freeze({
@@ -105,14 +107,12 @@ function DesktopMainViewHost({ children }: Readonly<{ children: ReactNode }>) {
 
 function InstalledRuntimeContributions({
   children,
-  openers,
   runtimeConnection,
 }: WorkbenchRuntimeContributionsProviderProps) {
   return (
     <PiAgentRuntimeContributionsProvider
       assets={{ fileViewerAssetBaseUrl: "/file-viewer/" }}
       branding={{ piLogoUrl: "/pi-logo-on-light.svg", runtimeName: "Pi" }}
-      openers={openers}
       runtimeConnection={runtimeConnection}
     >
       {children}
@@ -120,7 +120,7 @@ function InstalledRuntimeContributions({
   );
 }
 
-function DesktopAssistantRuntimeProvider({ children }: Readonly<{ children: ReactNode }>) {
+function DesktopAgentRuntimeProvider({ children }: Readonly<{ children: ReactNode }>) {
   const { t } = useI18n();
   const copy = useMemo<PiAgentRuntimeCopy>(
     () => ({
@@ -192,11 +192,11 @@ export function DesktopWorkbench({
           applicationId={DESKTOP_APPLICATION_ID}
           assets={PRODUCT_ASSETS}
           branding={PRODUCT_BRANDING}
-          extensionPrefix={DESKTOP_EXTENSION_PREFIX}
+          extensions={DESKTOP_EXTENSIONS}
           installationEffects={DesktopTitleBarOverlaySync}
           mainViewHost={DesktopMainViewHost}
           runningIndicatorCatalog={PRODUCT_RUNNING_INDICATORS}
-          runtimeProvider={DesktopAssistantRuntimeProvider}
+          runtimeProvider={DesktopAgentRuntimeProvider}
         >
           <WorkbenchThread />
         </WorkbenchApplicationShell>

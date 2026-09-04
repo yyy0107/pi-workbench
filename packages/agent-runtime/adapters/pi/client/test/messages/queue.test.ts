@@ -1,17 +1,21 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { AppendMessage } from "@assistant-ui/react";
-
-import { appendWorkspaceFeedbackContext } from "@workbench/agent-runtime-client/prompt-feedback";
+import {
+  appendWorkspaceFeedbackContext,
+  stripWorkspaceFeedbackContext,
+} from "@workbench/agent-runtime-client/prompt-feedback";
 
 import type { QueueItem } from "@workbench/agent-runtime-pi-protocol/stream";
+import type { PiComposerMessage } from "../../src/conversation/pi-conversation-message";
 
 const { PiMessageQueue } = (await import(
   new URL("../../src/messages/queue.ts", import.meta.url).href
 )) as typeof import("../../src/messages/queue");
 
-function message(text: string): AppendMessage {
+type Queue = InstanceType<typeof PiMessageQueue>;
+
+function message(text: string): PiComposerMessage {
   return {
     role: "user",
     content: [{ type: "text", text }],
@@ -24,7 +28,7 @@ function message(text: string): AppendMessage {
   };
 }
 
-function imageMessage(text: string, filename: string): AppendMessage {
+function imageMessage(text: string, filename: string): PiComposerMessage {
   return {
     ...message(text),
     content: [
@@ -34,7 +38,7 @@ function imageMessage(text: string, filename: string): AppendMessage {
   };
 }
 
-function documentMessage(text: string, filename: string): AppendMessage {
+function documentMessage(text: string, filename: string): PiComposerMessage {
   return {
     ...message(text),
     content: [
@@ -71,6 +75,88 @@ function queuedImage(id: string, text: string, name: string): QueueItem {
       source: { kind: "user" },
     },
   };
+}
+
+function queueItemState(item: QueueItem) {
+  return {
+    id: item.id,
+    prompt: stripWorkspaceFeedbackContext(
+      item.message.content
+        .map((part) =>
+          part.type === "text" && typeof part.text === "string" ? part.text : `[${part.type}]`,
+        )
+        .join(""),
+    ),
+    parts: item.message.content.map((part) => {
+      if (part.type === "text" && typeof part.text === "string") {
+        return { type: "text" as const, text: stripWorkspaceFeedbackContext(part.text) };
+      }
+      if (
+        (part.type === "image" || part.type === "file") &&
+        typeof part.data === "string" &&
+        typeof part.mediaType === "string"
+      ) {
+        return {
+          type: "file" as const,
+          data: part.data,
+          mimeType: part.mediaType,
+          ...(typeof part.name === "string" ? { filename: part.name } : {}),
+        };
+      }
+      return { type: "text" as const, text: `[${part.type}]` };
+    }),
+  };
+}
+
+function internalItems(queue: Queue) {
+  return (queue as unknown as { items: readonly QueueItem[]; editingId?: string }).items;
+}
+
+function queueItems(queue: Queue) {
+  const editingId = (queue as unknown as { editingId?: string }).editingId;
+  return internalItems(queue)
+    .filter((item) => item.placement === "queued" && item.id !== editingId)
+    .map(queueItemState);
+}
+
+function steerItems(queue: Queue) {
+  return internalItems(queue)
+    .filter((item) => item.placement === "steering")
+    .map(queueItemState);
+}
+
+function enqueue(queue: Queue, value: PiComposerMessage): void {
+  void queue.enqueue("followUp", value).catch(() => undefined);
+}
+
+function beginEdit(queue: Queue, id: string) {
+  const item = queueItems(queue).find((candidate) => candidate.id === id);
+  queue.edit(id);
+  return item;
+}
+
+function remove(queue: Queue, id: string): void {
+  queue.mutateItem(id, { kind: "remove" });
+}
+
+function move(
+  queue: Queue,
+  id: string,
+  placement: {
+    readonly lane?: "steer";
+    readonly insertBefore?: string | null;
+    readonly insertAfter?: string | null;
+  },
+): void {
+  if (placement.lane === "steer") {
+    queue.mutateItem(id, { kind: "steer" });
+  } else {
+    queue.mutateItem(id, {
+      kind: "move",
+      ...(typeof placement.insertBefore === "string" ? { beforeKey: placement.insertBefore } : {}),
+      ...(typeof placement.insertAfter === "string" ? { afterKey: placement.insertAfter } : {}),
+    });
+  }
 }
 
 function harness() {
@@ -110,9 +196,9 @@ async function flush(): Promise<void> {
 
 test("publishes a follow-up immediately and lets the authoritative snapshot adopt its id", async () => {
   const { queue, calls } = harness();
-  queue.adapter.enqueue(message("later"));
+  enqueue(queue, message("later"));
   assert.deepEqual(
-    queue.adapter.items.map((item) => [item.id, item.prompt]),
+    queueItems(queue).map((item) => [item.id, item.prompt]),
     [["client-queue-1", "later"]],
   );
   await flush();
@@ -120,7 +206,7 @@ test("publishes a follow-up immediately and lets the authoritative snapshot adop
 
   queue.replaceAuthoritative([queued("client-queue-1", "later")]);
   assert.deepEqual(
-    queue.adapter.items.map((item) => [item.id, item.prompt]),
+    queueItems(queue).map((item) => [item.id, item.prompt]),
     [["client-queue-1", "later"]],
   );
 });
@@ -128,23 +214,23 @@ test("publishes a follow-up immediately and lets the authoritative snapshot adop
 test("dispose releases queue payloads and ignores late authoritative snapshots", () => {
   const { queue } = harness();
   queue.replaceAuthoritative([queuedImage("queue-1", "one", "large.png")]);
-  assert.equal(queue.adapter.items.length, 1);
+  assert.equal(queueItems(queue).length, 1);
 
   queue.dispose();
   queue.replaceAuthoritative([queued("queue-2", "two")]);
-  queue.adapter.enqueue(message("late"));
+  enqueue(queue, message("late"));
 
-  assert.deepEqual(queue.adapter.items, []);
-  assert.deepEqual(queue.adapter.steerItems, []);
-  assert.equal(queue.beginEdit("queue-1"), undefined);
+  assert.deepEqual(queueItems(queue), []);
+  assert.deepEqual(steerItems(queue), []);
+  assert.equal(beginEdit(queue, "queue-1"), undefined);
 });
 
 test("preserves an image filename in the optimistic queue item and submitted prompt", async () => {
   const { queue, calls } = harness();
 
-  queue.adapter.enqueue(imageMessage("look", "optimistic.png"));
+  enqueue(queue, imageMessage("look", "optimistic.png"));
 
-  assert.deepEqual(queue.adapter.items[0]?.parts, [
+  assert.deepEqual(queueItems(queue)[0]?.parts, [
     { type: "text", text: "look" },
     {
       type: "file",
@@ -177,9 +263,9 @@ test("preserves an image filename in the optimistic queue item and submitted pro
 test("preserves a PDF filename in the optimistic queue item and submitted prompt", async () => {
   const { queue, calls } = harness();
 
-  queue.adapter.enqueue(documentMessage("read", "invoice.pdf"));
+  enqueue(queue, documentMessage("read", "invoice.pdf"));
 
-  assert.deepEqual(queue.adapter.items[0]?.parts, [
+  assert.deepEqual(queueItems(queue)[0]?.parts, [
     { type: "text", text: "read" },
     {
       type: "file",
@@ -217,9 +303,9 @@ test("reorders follow-ups optimistically and keeps the order across an older sna
     queued("queue-3", "three"),
   ]);
 
-  queue.adapter.move("queue-3", { insertBefore: "queue-1" });
+  move(queue, "queue-3", { insertBefore: "queue-1" });
   assert.deepEqual(
-    queue.adapter.items.map((item) => item.id),
+    queueItems(queue).map((item) => item.id),
     ["queue-3", "queue-1", "queue-2"],
   );
 
@@ -229,7 +315,7 @@ test("reorders follow-ups optimistically and keeps the order across an older sna
     queued("queue-3", "three"),
   ]);
   assert.deepEqual(
-    queue.adapter.items.map((item) => item.id),
+    queueItems(queue).map((item) => item.id),
     ["queue-3", "queue-1", "queue-2"],
   );
 
@@ -238,7 +324,7 @@ test("reorders follow-ups optimistically and keeps the order across an older sna
     ["replace", [], [{ message: "three" }, { message: "one" }, { message: "two" }]],
   ]);
   assert.deepEqual(
-    queue.adapter.items.map((item) => item.id),
+    queueItems(queue).map((item) => item.id),
     ["queue-3", "queue-1", "queue-2"],
   );
 });
@@ -285,7 +371,7 @@ test("preserves image names when reconstructing paused and reordered prompts", a
   ]);
 
   calls.length = 0;
-  queue.adapter.move("queue-2", { insertBefore: "queue-1" });
+  move(queue, "queue-2", { insertBefore: "queue-1" });
   await flush();
   assert.deepEqual(calls, [
     [
@@ -340,15 +426,15 @@ test("rolls an optimistic follow-up reorder back when queue replacement fails", 
   });
   queue.replaceAuthoritative([queued("queue-1", "one"), queued("queue-2", "two")]);
 
-  queue.adapter.move("queue-2", { insertBefore: "queue-1" });
+  move(queue, "queue-2", { insertBefore: "queue-1" });
   assert.deepEqual(
-    queue.adapter.items.map((item) => item.id),
+    queueItems(queue).map((item) => item.id),
     ["queue-2", "queue-1"],
   );
 
   await flush();
   assert.deepEqual(
-    queue.adapter.items.map((item) => item.id),
+    queueItems(queue).map((item) => item.id),
     ["queue-1", "queue-2"],
   );
 });
@@ -380,10 +466,10 @@ test("rolls a failed rapid reorder back to the last accepted order", async (t) =
     queued("queue-3", "three"),
   ]);
 
-  queue.adapter.move("queue-3", { insertBefore: "queue-1" });
-  queue.adapter.move("queue-2", { insertBefore: "queue-3" });
+  move(queue, "queue-3", { insertBefore: "queue-1" });
+  move(queue, "queue-2", { insertBefore: "queue-3" });
   assert.deepEqual(
-    queue.adapter.items.map((item) => item.id),
+    queueItems(queue).map((item) => item.id),
     ["queue-2", "queue-3", "queue-1"],
   );
 
@@ -393,7 +479,7 @@ test("rolls a failed rapid reorder back to the last accepted order", async (t) =
     ["two", "three", "one"],
   ]);
   assert.deepEqual(
-    queue.adapter.items.map((item) => item.id),
+    queueItems(queue).map((item) => item.id),
     ["queue-3", "queue-1", "queue-2"],
   );
 });
@@ -405,7 +491,7 @@ test("keeps an optimistic follow-up across stale snapshots and rolls it back on 
     console.error = originalConsoleError;
   });
   let rejectRequest: ((error: Error) => void) | undefined;
-  const rejectedMessages: AppendMessage[] = [];
+  const rejectedMessages: PiComposerMessage[] = [];
   const queue = new PiMessageQueue({
     isRunning: () => true,
     run: async () => {},
@@ -422,17 +508,17 @@ test("keeps an optimistic follow-up across stale snapshots and rolls it back on 
     onChange: () => {},
   });
 
-  queue.adapter.enqueue(message("later"));
+  const submission = queue.enqueue("followUp", message("later"));
   queue.replaceAuthoritative([]);
   assert.deepEqual(
-    queue.adapter.items.map((item) => [item.id, item.prompt]),
+    queueItems(queue).map((item) => [item.id, item.prompt]),
     [["client-queue", "later"]],
   );
 
   await flush();
   rejectRequest?.(new Error("queue rejected"));
-  await flush();
-  assert.deepEqual(queue.adapter.items, []);
+  await assert.rejects(submission, /queue rejected/);
+  assert.deepEqual(queueItems(queue), []);
   assert.equal(rejectedMessages.length, 1);
   assert.equal(rejectedMessages[0]?.content.find((part) => part.type === "text")?.text, "later");
 });
@@ -450,32 +536,32 @@ test("removes the optimistic queue row when admission starts it as the next turn
     onChange: () => {},
   });
 
-  queue.adapter.enqueue(message("run next"));
-  assert.equal(queue.adapter.items.length, 1);
+  enqueue(queue, message("run next"));
+  assert.equal(queueItems(queue).length, 1);
   await flush();
-  assert.deepEqual(queue.adapter.items, []);
+  assert.deepEqual(queueItems(queue), []);
 });
 
 test("edits, removes, and steers using the stable host item id", async () => {
   const { queue, calls } = harness();
   queue.replaceAuthoritative([queued("queue-1", "one"), queued("queue-2", "two")]);
 
-  const draft = queue.beginEdit("queue-1");
+  const draft = beginEdit(queue, "queue-1");
   assert.equal(draft?.prompt, "one");
   assert.deepEqual(
-    queue.adapter.items.map((item) => item.id),
+    queueItems(queue).map((item) => item.id),
     ["queue-2"],
   );
-  queue.adapter.enqueue(message("edited"));
-  queue.adapter.remove("queue-2");
-  queue.adapter.move("queue-2", { lane: "steer", insertAfter: null });
-  queue.adapter.move("queue-2", { lane: "steer", insertAfter: null });
+  enqueue(queue, message("edited"));
+  remove(queue, "queue-2");
+  move(queue, "queue-2", { lane: "steer", insertAfter: null });
+  move(queue, "queue-2", { lane: "steer", insertAfter: null });
 
   assert.deepEqual(
-    queue.adapter.items.map((item) => item.id),
+    queueItems(queue).map((item) => item.id),
     ["queue-1"],
   );
-  assert.deepEqual(queue.adapter.steerItems, []);
+  assert.deepEqual(steerItems(queue), []);
   await flush();
 
   assert.deepEqual(calls, [
@@ -496,11 +582,11 @@ test("shows visible feedback text while preserving the original envelope on edit
   ]);
   queue.replaceAuthoritative([queued("queue-feedback", original)]);
 
-  const draft = queue.beginEdit("queue-feedback");
+  const draft = beginEdit(queue, "queue-feedback");
   assert.equal(draft?.prompt, "Original visible text");
   assert.deepEqual(draft?.parts, [{ type: "text", text: "Original visible text" }]);
 
-  queue.adapter.enqueue(message("Edited visible text"));
+  enqueue(queue, message("Edited visible text"));
   await flush();
 
   assert.deepEqual(calls, [
@@ -524,9 +610,9 @@ test("edits an ordinary queue item without adding a feedback envelope", async ()
   const { queue, calls } = harness();
   queue.replaceAuthoritative([queued("queue-plain", "Original plain text")]);
 
-  const draft = queue.beginEdit("queue-plain");
+  const draft = beginEdit(queue, "queue-plain");
   assert.equal(draft?.prompt, "Original plain text");
-  queue.adapter.enqueue(message("Edited plain text"));
+  enqueue(queue, message("Edited plain text"));
   await flush();
 
   assert.deepEqual(calls, [
@@ -556,21 +642,21 @@ test("keeps a removed item hidden across stale authoritative snapshots", async (
   });
   queue.replaceAuthoritative([queued("queue-1", "delete me")]);
 
-  queue.adapter.remove("queue-1");
-  assert.equal(queue.adapter.items.length, 0);
+  remove(queue, "queue-1");
+  assert.equal(queueItems(queue).length, 0);
 
   queue.replaceAuthoritative([queued("queue-1", "delete me")]);
-  assert.equal(queue.adapter.items.length, 0);
+  assert.equal(queueItems(queue).length, 0);
 
   resolveRemove?.();
   await flush();
   queue.replaceAuthoritative([queued("queue-1", "delete me")]);
-  assert.equal(queue.adapter.items.length, 0);
+  assert.equal(queueItems(queue).length, 0);
 
   queue.replaceAuthoritative([]);
   queue.replaceAuthoritative([queued("queue-1", "new occurrence")]);
   assert.deepEqual(
-    queue.adapter.items.map((item) => item.prompt),
+    queueItems(queue).map((item) => item.prompt),
     ["new occurrence"],
   );
 });
@@ -596,12 +682,12 @@ test("restores a removed item when the server rejects the removal", async (t) =>
   });
   queue.replaceAuthoritative([queued("queue-1", "keep me")]);
 
-  queue.adapter.remove("queue-1");
-  assert.equal(queue.adapter.items.length, 0);
+  remove(queue, "queue-1");
+  assert.equal(queueItems(queue).length, 0);
   await flush();
 
   assert.deepEqual(
-    queue.adapter.items.map((item) => item.prompt),
+    queueItems(queue).map((item) => item.prompt),
     ["keep me"],
   );
 });
@@ -630,9 +716,9 @@ test("dispatches removal while optimistic admission is still pending", async () 
     onChange: () => {},
   });
 
-  queue.adapter.enqueue(message("cancel before admission"));
-  queue.adapter.remove("pending-queue-item");
-  assert.deepEqual(queue.adapter.items, []);
+  enqueue(queue, message("cancel before admission"));
+  remove(queue, "pending-queue-item");
+  assert.deepEqual(queueItems(queue), []);
   assert.deepEqual(calls, [["update", "pending-queue-item", { kind: "remove" }]]);
 
   await new Promise<void>((resolve) => setImmediate(resolve));
@@ -642,19 +728,19 @@ test("dispatches removal while optimistic admission is still pending", async () 
   ]);
   resolveAdmission?.({ queued: false });
   await flush();
-  assert.deepEqual(queue.adapter.items, []);
+  assert.deepEqual(queueItems(queue), []);
 });
 
 test("keeps an accepted steer promoted across an older queued snapshot", async () => {
   const { queue, calls } = harness();
   queue.replaceAuthoritative([queued("queue-1", "redirect")]);
 
-  queue.adapter.move("queue-1", { lane: "steer", insertAfter: null });
+  move(queue, "queue-1", { lane: "steer", insertAfter: null });
   queue.replaceAuthoritative([queued("queue-1", "redirect")]);
 
-  assert.deepEqual(queue.adapter.items, []);
+  assert.deepEqual(queueItems(queue), []);
   assert.deepEqual(
-    queue.adapter.steerItems.map((item) => [item.id, item.prompt]),
+    steerItems(queue).map((item) => [item.id, item.prompt]),
     [["queue-1", "redirect"]],
   );
   await flush();
@@ -683,15 +769,15 @@ test("restores the queued row when steer is rejected", async (t) => {
   });
   queue.replaceAuthoritative([queued("queue-1", "redirect")]);
 
-  queue.adapter.move("queue-1", { lane: "steer", insertAfter: null });
-  assert.equal(queue.adapter.items.length, 0);
+  move(queue, "queue-1", { lane: "steer", insertAfter: null });
+  assert.equal(queueItems(queue).length, 0);
   await flush();
 
   assert.deepEqual(
-    queue.adapter.items.map((item) => [item.id, item.prompt]),
+    queueItems(queue).map((item) => [item.id, item.prompt]),
     [["queue-1", "redirect"]],
   );
-  assert.deepEqual(queue.adapter.steerItems, []);
+  assert.deepEqual(steerItems(queue), []);
   assert.deepEqual(calls, [["steer-rejected", "queue-1"]]);
 });
 
@@ -714,17 +800,32 @@ test("maps queued and steering content while leaving context outside the compose
   ]);
 
   assert.deepEqual(
-    queue.adapter.items.map((item) => [item.id, item.prompt]),
+    queueItems(queue).map((item) => [item.id, item.prompt]),
     [
       ["queued", "later"],
       ["image", "[image]"],
     ],
   );
   assert.deepEqual(
-    queue.adapter.steerItems.map((item) => [item.id, item.prompt]),
+    steerItems(queue).map((item) => [item.id, item.prompt]),
     [["steering", "now"]],
   );
-  assert.deepEqual(queue.adapter.items[1]?.parts, [
+  assert.deepEqual(queueItems(queue)[1]?.parts, [
     { type: "file", data: "payload", mimeType: "image/png", filename: "queued.png" },
+  ]);
+  assert.deepEqual(queue.queuedItems, [
+    { key: "queued", text: "later", attachments: [] },
+    {
+      key: "image",
+      text: "",
+      attachments: [
+        {
+          key: "0:queued.png",
+          name: "queued.png",
+          source: "data:image/png;base64,payload",
+          mediaType: "image/png",
+        },
+      ],
+    },
   ]);
 });

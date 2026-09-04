@@ -1,13 +1,7 @@
 "use client";
 
-import {
-  ComposerPrimitive,
-  QueueItemPrimitive,
-  useAui,
-  useAuiState,
-  type CreateAttachment,
-  type QueueItemState,
-} from "@assistant-ui/react";
+import type { ComposerQueueItem } from "@workbench/agent-runtime-contracts/conversation";
+import { useConversationSession, useSessionState } from "@workbench/agent-runtime-client";
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -19,7 +13,6 @@ import {
   Trash2Icon,
 } from "lucide-react";
 import { useState, type DragEvent } from "react";
-import { flushSync } from "react-dom";
 
 import {
   DropdownMenu,
@@ -29,14 +22,6 @@ import {
 } from "../../../ui/dropdown-menu";
 import { useI18n } from "../../../i18n";
 import { cn } from "../../../utils";
-import { readAgentQueueExtras } from "@workbench/agent-runtime-client/extras";
-
-function queueItemText(queueItem: QueueItemState): string {
-  return queueItem.parts
-    .filter((part) => part.type === "text")
-    .map((part) => part.text)
-    .join("\n\n");
-}
 
 type DropPosition = "before" | "after";
 
@@ -46,7 +31,7 @@ function dropPosition(event: DragEvent<HTMLElement>): DropPosition {
 }
 
 interface ComposerQueueItemProps {
-  queueItem: QueueItemState;
+  queueItem: ComposerQueueItem;
   dragging: boolean;
   dropPosition?: DropPosition;
   onDragStart(event: DragEvent<HTMLButtonElement>, id: string): void;
@@ -54,7 +39,8 @@ interface ComposerQueueItemProps {
   onDragEnd(): void;
   onDrop(targetId: string, position: DropPosition): void;
   onSteer(id: string): void;
-  onEdit(queueItem: QueueItemState): void;
+  onRemove(id: string): void;
+  onEdit(id: string): void;
   canMoveDown: boolean;
   canMoveUp: boolean;
   onMoveDown(): void;
@@ -72,6 +58,7 @@ function ComposerQueueItem({
   onDragEnd,
   onDrop,
   onSteer,
+  onRemove,
   onEdit,
   canMoveDown,
   canMoveUp,
@@ -81,14 +68,14 @@ function ComposerQueueItem({
   onToggleQueueMode,
 }: ComposerQueueItemProps) {
   const { t } = useI18n();
-  const text = queueItemText(queueItem);
+  const text = queueItem.text;
 
   return (
     <li
-      onDragOver={(event) => onDragOver(event, queueItem.id)}
+      onDragOver={(event) => onDragOver(event, queueItem.key)}
       onDrop={(event) => {
         event.preventDefault();
-        onDrop(queueItem.id, dropPosition(event));
+        onDrop(queueItem.key, dropPosition(event));
       }}
       className={cn(
         "group relative flex min-h-9 items-center px-2 transition-colors duration-100 hover:bg-muted/40",
@@ -109,34 +96,37 @@ function ComposerQueueItem({
         draggable
         aria-label={t("extensions.messageQueue.drag")}
         title={t("extensions.messageQueue.drag")}
-        onDragStart={(event) => onDragStart(event, queueItem.id)}
+        onDragStart={(event) => onDragStart(event, queueItem.key)}
         onDragEnd={onDragEnd}
         className="me-1 flex size-[var(--icon-frame-size-default)] shrink-0 cursor-grab items-center justify-center rounded-[var(--button-radius)] text-muted-foreground/50 hover:[background:var(--icon-frame-background-hover)] hover:text-foreground active:cursor-grabbing"
       >
         <ListRestartIcon className="size-[var(--icon-size-sm)]" />
       </button>
 
-      <QueueItemPrimitive.Text className="min-w-0 flex-1 truncate text-[13px] text-foreground/90">
+      <span className="min-w-0 flex-1 truncate text-[13px] text-foreground/90">
         {text || t("extensions.messageQueue.messageFallback")}
-      </QueueItemPrimitive.Text>
+      </span>
 
       <div className="ms-2 flex shrink-0 items-center gap-0.5">
-        <QueueItemPrimitive.Steer
+        <button
+          type="button"
           onClick={(event) => {
             event.preventDefault();
-            flushSync(() => onSteer(queueItem.id));
+            onSteer(queueItem.key);
           }}
           className="flex h-[var(--button-height-default)] items-center gap-1 rounded-[var(--button-radius)] px-2 text-xs text-muted-foreground/65 transition-colors hover:[background:var(--button-background-hover)] hover:text-foreground"
         >
           <CornerDownLeftIcon className="size-3" />
           <span>{t("extensions.messageQueue.steer")}</span>
-        </QueueItemPrimitive.Steer>
-        <QueueItemPrimitive.Remove
+        </button>
+        <button
+          type="button"
           aria-label={t("extensions.messageQueue.remove")}
+          onClick={() => onRemove(queueItem.key)}
           className="flex size-[var(--icon-frame-size-default)] items-center justify-center rounded-[var(--button-radius)] text-muted-foreground/50 transition-colors hover:[background:var(--icon-frame-background-hover)] hover:text-foreground"
         >
           <Trash2Icon className="size-3" />
-        </QueueItemPrimitive.Remove>
+        </button>
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-label={t("extensions.messageQueue.more")}
@@ -145,7 +135,7 @@ function ComposerQueueItem({
             <MoreHorizontalIcon className="size-[var(--icon-size-sm)]" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" side="bottom" sideOffset={4} className="min-w-36">
-            <DropdownMenuItem onClick={() => onEdit(queueItem)} className="gap-2">
+            <DropdownMenuItem onClick={() => onEdit(queueItem.key)} className="gap-2">
               <PencilIcon className="size-4" />
               <span>{t("extensions.messageQueue.edit")}</span>
             </DropdownMenuItem>
@@ -177,56 +167,31 @@ function ComposerQueueItem({
 }
 
 export function ComposerMessageQueue() {
-  const { t } = useI18n();
-  const aui = useAui();
-  const queue = useAuiState((state) => state.thread.composer.queue);
-  const extras = useAuiState((state) => state.thread.extras);
-  const queueActions = readAgentQueueExtras(extras);
-  const steeringIds = new Set(queueActions?.steeringIds ?? []);
+  const session = useConversationSession();
+  const queue = useSessionState((snapshot) => snapshot.composer.queue);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{
     id: string;
     position: DropPosition;
   } | null>(null);
-  const visibleQueue = queue.filter((item) => !steeringIds.has(item.id));
+  const visibleQueue = queue?.items ?? [];
 
   if (visibleQueue.length === 0) return null;
 
   const reorder = (targetId: string, position: DropPosition) => {
     if (!draggingId || draggingId === targetId) return;
-    const placement = position === "after" ? { insertAfter: targetId } : { insertBefore: targetId };
-    aui.thread.composer().queueItem({ id: draggingId }).move(placement);
+    session.actions.mutateQueueItem?.(
+      draggingId,
+      position === "after"
+        ? { kind: "move", afterKey: targetId }
+        : { kind: "move", beforeKey: targetId },
+    );
     setDraggingId(null);
     setDropTarget(null);
   };
 
-  const editInComposer = async (queueItem: QueueItemState) => {
-    const composer = aui.thread.composer();
-    const draft = queueActions?.beginEdit(queueItem.id);
-    if (!draft) return;
-
-    try {
-      await composer.reset();
-    } catch (error) {
-      console.error("[workbench] clear composer draft failed", error);
-    }
-    composer.setText(queueItemText(draft));
-    const attachments: CreateAttachment[] = draft.parts
-      .filter((part) => part.type === "file")
-      .map((part) => ({
-        type: part.mimeType.startsWith("image/") ? "image" : "file",
-        name: part.filename ?? t("extensions.messageQueue.messageFallback"),
-        contentType:
-          part.mimeType === "image/*"
-            ? (/^data:([^;,]+)/.exec(part.data)?.[1] ?? "image/png")
-            : part.mimeType,
-        content: [part],
-      }));
-    try {
-      await Promise.all(attachments.map((attachment) => composer.addAttachment(attachment)));
-    } catch (error) {
-      console.error("[workbench] restore queued attachments failed", error);
-    }
+  const editInComposer = (id: string) => {
+    if (!session.actions.editQueueItem?.(id)) return;
     requestAnimationFrame(() => {
       document
         .querySelector<HTMLElement>(
@@ -239,74 +204,66 @@ export function ComposerMessageQueue() {
   return (
     <div className="w-full overflow-hidden rounded-2xl border border-border/60 bg-background">
       <ul>
-        <ComposerPrimitive.Queue>
-          {({ queueItem }) =>
-            steeringIds.has(queueItem.id) ? null : (
-              <ComposerQueueItem
-                key={queueItem.id}
-                queueItem={queueItem}
-                dragging={draggingId === queueItem.id}
-                dropPosition={dropTarget?.id === queueItem.id ? dropTarget.position : undefined}
-                onDragStart={(event, id) => {
-                  setDraggingId(id);
-                  setDropTarget(null);
-                  event.dataTransfer.effectAllowed = "move";
-                  event.dataTransfer.setData("text/plain", id);
-                }}
-                onDragOver={(event, id) => {
-                  event.preventDefault();
-                  event.dataTransfer.dropEffect = "move";
-                  if (!draggingId || draggingId === id) {
-                    setDropTarget(null);
-                    return;
-                  }
-                  const position = dropPosition(event);
-                  setDropTarget((current) =>
-                    current?.id === id && current.position === position
-                      ? current
-                      : { id, position },
-                  );
-                }}
-                onDragEnd={() => {
-                  setDraggingId(null);
-                  setDropTarget(null);
-                }}
-                onDrop={reorder}
-                onSteer={(id) =>
-                  aui.thread.composer().queueItem({ id }).move({ lane: "steer", insertAfter: null })
-                }
-                onEdit={(item) => void editInComposer(item)}
-                canMoveUp={visibleQueue.findIndex((item) => item.id === queueItem.id) > 0}
-                canMoveDown={
-                  visibleQueue.findIndex((item) => item.id === queueItem.id) <
-                  visibleQueue.length - 1
-                }
-                onMoveUp={() => {
-                  const index = visibleQueue.findIndex((item) => item.id === queueItem.id);
-                  const previous = visibleQueue[index - 1];
-                  if (previous) {
-                    aui.thread
-                      .composer()
-                      .queueItem({ id: queueItem.id })
-                      .move({ insertBefore: previous.id });
-                  }
-                }}
-                onMoveDown={() => {
-                  const index = visibleQueue.findIndex((item) => item.id === queueItem.id);
-                  const next = visibleQueue[index + 1];
-                  if (next) {
-                    aui.thread
-                      .composer()
-                      .queueItem({ id: queueItem.id })
-                      .move({ insertAfter: next.id });
-                  }
-                }}
-                queuePaused={queueActions?.paused ?? false}
-                onToggleQueueMode={() => queueActions?.setPaused(!queueActions.paused)}
-              />
-            )
-          }
-        </ComposerPrimitive.Queue>
+        {visibleQueue.map((queueItem) => (
+          <ComposerQueueItem
+            key={queueItem.key}
+            queueItem={queueItem}
+            dragging={draggingId === queueItem.key}
+            dropPosition={dropTarget?.id === queueItem.key ? dropTarget.position : undefined}
+            onDragStart={(event, id) => {
+              setDraggingId(id);
+              setDropTarget(null);
+              event.dataTransfer.effectAllowed = "move";
+              event.dataTransfer.setData("text/plain", id);
+            }}
+            onDragOver={(event, id) => {
+              event.preventDefault();
+              event.dataTransfer.dropEffect = "move";
+              if (!draggingId || draggingId === id) {
+                setDropTarget(null);
+                return;
+              }
+              const position = dropPosition(event);
+              setDropTarget((current) =>
+                current?.id === id && current.position === position ? current : { id, position },
+              );
+            }}
+            onDragEnd={() => {
+              setDraggingId(null);
+              setDropTarget(null);
+            }}
+            onDrop={reorder}
+            onSteer={(id) => session.actions.mutateQueueItem?.(id, { kind: "steer" })}
+            onRemove={(id) => session.actions.mutateQueueItem?.(id, { kind: "remove" })}
+            onEdit={editInComposer}
+            canMoveUp={visibleQueue.findIndex((item) => item.key === queueItem.key) > 0}
+            canMoveDown={
+              visibleQueue.findIndex((item) => item.key === queueItem.key) < visibleQueue.length - 1
+            }
+            onMoveUp={() => {
+              const index = visibleQueue.findIndex((item) => item.key === queueItem.key);
+              const previous = visibleQueue[index - 1];
+              if (previous) {
+                session.actions.mutateQueueItem?.(queueItem.key, {
+                  kind: "move",
+                  beforeKey: previous.key,
+                });
+              }
+            }}
+            onMoveDown={() => {
+              const index = visibleQueue.findIndex((item) => item.key === queueItem.key);
+              const next = visibleQueue[index + 1];
+              if (next) {
+                session.actions.mutateQueueItem?.(queueItem.key, {
+                  kind: "move",
+                  afterKey: next.key,
+                });
+              }
+            }}
+            queuePaused={queue?.paused ?? false}
+            onToggleQueueMode={() => session.actions.setQueuePaused?.(!(queue?.paused ?? false))}
+          />
+        ))}
       </ul>
     </div>
   );

@@ -20,6 +20,11 @@
       "import": "./src/commands.ts",
       "default": "./src/commands.ts"
     },
+    "./conversation": {
+      "types": "./src/conversation.ts",
+      "import": "./src/conversation.ts",
+      "default": "./src/conversation.ts"
+    },
     "./message-metadata": {
       "types": "./src/message-metadata.ts",
       "import": "./src/message-metadata.ts",

@@ -14,8 +14,8 @@ below intact when changing this slice.
   `@earendil-works/pi-coding-agent` API. It owns the `interactive-bash-tool` ToolDefinition adapter
   and must not deep-import Pi internals.
 
-The Electron staging/rebuild resolver gets `node-pty`, `tree-sitter`, and `tree-sitter-bash` from
+The shared Runtime artifact producer gets `node-pty`, `tree-sitter`, and `tree-sitter-bash` from
 `@workbench/terminal-server` and confines their physical package roots to the repository-local pnpm
-virtual store. Do not reintroduce root compatibility declarations for those packages. See
-`server/README.md` for the resolver boundary. Do not add a root Terminal re-export shim or duplicate
-the moved runtime sources.
+virtual store. Electron consumes that admitted native tree; it must not rebuild it. Do not
+reintroduce root compatibility declarations for those packages. See `server/README.md` for the
+resolver boundary. Do not add a root Terminal re-export shim or duplicate the moved runtime sources.

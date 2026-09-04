@@ -51,7 +51,7 @@ export function createDevelopmentWebLaunchConfiguration({
   environment = process.env,
   mode,
   webOrigin,
-  tsxLoader = fileURLToPath(import.meta.resolve("tsx")),
+  tsxLoader = import.meta.resolve("tsx"),
 } = {}) {
   const url = new URL(webOrigin);
   return Object.freeze({
@@ -81,7 +81,7 @@ export function createDevelopmentRuntimeLaunchConfiguration({
   paths = createWorkbenchPaths(),
   environment = process.env,
   mode,
-  tsxLoader = fileURLToPath(import.meta.resolve("tsx")),
+  tsxLoader = import.meta.resolve("tsx"),
 } = {}) {
   return Object.freeze({
     command: process.execPath,

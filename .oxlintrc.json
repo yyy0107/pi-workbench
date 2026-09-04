@@ -49,7 +49,8 @@
                   "useMainViewService",
                   "usePanelRegistry",
                   "usePanelService",
-                  "useSettingsRegistry"
+                  "useSettingsRegistry",
+                  "useSidebarSectionRegistry"
                 ],
                 "message": "Shell may consume only the finite public host hooks."
               }
@@ -74,9 +75,7 @@
                   "tree-sitter-bash",
                   "electron",
                   "electron/**",
-                  "@electron/**",
-                  "tauri",
-                  "@tauri-apps/**"
+                  "@electron/**"
                 ],
                 "message": "Shell must remain product-, framework-, and host-neutral."
               }

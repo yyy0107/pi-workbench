@@ -40,9 +40,11 @@ test("permanently disposes and evicts a deleted client session", async (t) => {
   connectionInternals.sessionMessageAccumulators.set("remote-session", {});
   connectionInternals.endedSessionMessageStreams.set("remote-session", "stream-1");
 
-  await manager.createThreadListAdapter().delete("remote-session");
+  await manager.deleteThread("remote-session");
 
-  assert.equal(internals.sessions.size, 0);
+  // The manager retains its independently-owned current draft while evicting both aliases for
+  // the deleted durable Session.
+  assert.equal(internals.sessions.size, 1);
   assert.equal(internals.aliases.size, 0);
   assert.equal(connectionInternals.sessions.has("remote-session"), false);
   assert.equal(connectionInternals.sessionWatermarks.has("remote-session"), false);
@@ -50,7 +52,7 @@ test("permanently disposes and evicts a deleted client session", async (t) => {
   assert.equal(connectionInternals.endedSessionMessageStreams.has("remote-session"), false);
   assert.equal(disposalNotifications, 1);
   assert.deepEqual(cached.getSnapshot().messages, []);
-  assert.deepEqual(cached.queueAdapter.items, []);
+  assert.deepEqual(cached.snapshot.getSnapshot().composer.queue?.items ?? [], []);
 
   const recreated = manager.getSession("local-session", "remote-session");
   assert.notStrictEqual(recreated, cached);

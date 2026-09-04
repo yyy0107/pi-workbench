@@ -1,8 +1,8 @@
 "use client";
 
-import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
 import { CircleSlashIcon, Clock3Icon, LoaderCircleIcon } from "lucide-react";
 
+import type { ToolRendererComponent } from "@workbench/extension-sdk";
 import { usePiI18n } from "../../i18n";
 import { cn } from "@workbench/shell/utils";
 
@@ -65,20 +65,14 @@ function AnswerRecord({
   );
 }
 
-export const AskUserToolRenderer: ToolCallMessagePartComponent = ({
-  args,
-  argsText,
-  result,
-  artifact,
-  status,
-}) => {
+export const AskUserToolRenderer: ToolRendererComponent = ({ block }) => {
   const { number, t } = usePiI18n();
-  const output = result ?? artifact;
-  const record = readAskUserToolRecord(args, output);
-  const pending = status.type === "running" || status.type === "requires-action";
-  const interrupted = status.type === "incomplete";
+  const output = block.result;
+  const record = readAskUserToolRecord(block.arguments, output);
+  const pending = block.status === "running" || block.status === "requires-action";
+  const interrupted = block.status === "incomplete";
   const cancelled = record.cancelled || interrupted;
-  const questionsReady = areAskUserQuestionsReady(args, output, argsText);
+  const questionsReady = areAskUserQuestionsReady(block.arguments, output, block.argumentsText);
 
   if ((pending && !questionsReady) || record.questions.length === 0) {
     return (

@@ -3,10 +3,12 @@ import test from "node:test";
 
 const {
   createServerRequest,
+  createSessionMessageChunkData,
   createSessionEventPayload,
   createSessionMessageSnapshotPayload,
   createSessionMessageUpdatePayload,
   isSessionMessageDelta,
+  isSessionMessageChunkData,
   STREAM_PATHS,
 } = (await import(
   new URL("../src/stream.ts", import.meta.url).href
@@ -75,6 +77,39 @@ test("wraps compact message updates without cumulative content or a durable sequ
       message: { role: "assistant", model: "model-1" },
       update: { type: "text_delta", contentIndex: 0, delta: "Hello" },
     },
+  );
+});
+
+test("creates packed durable assistant chunks without cumulative content", () => {
+  const chunk = createSessionMessageChunkData(
+    "stream-1",
+    3,
+    5,
+    42,
+    { role: "assistant", model: "model-1" },
+    [
+      { type: "text_delta", contentIndex: 0, delta: "Hello" },
+      { type: "thinking_delta", contentIndex: 1, delta: "Reason" },
+    ],
+  );
+
+  assert.deepEqual(chunk, {
+    format: "pi-messages-v1",
+    streamId: "stream-1",
+    firstRevision: 3,
+    revision: 5,
+    startSeq: 42,
+    message: { role: "assistant", model: "model-1" },
+    updates: [
+      { type: "text_delta", contentIndex: 0, delta: "Hello" },
+      { type: "thinking_delta", contentIndex: 1, delta: "Reason" },
+    ],
+  });
+  assert.equal(isSessionMessageChunkData(chunk), true);
+  assert.equal(isSessionMessageChunkData({ ...chunk, firstRevision: 6 }), false);
+  assert.equal(
+    isSessionMessageChunkData({ ...chunk, message: { role: "assistant", content: [] } }),
+    false,
   );
 });
 

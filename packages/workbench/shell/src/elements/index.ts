@@ -11,7 +11,7 @@ export * from "./reasoning-panel";
 export * from "./reviewable-diff";
 export * from "./running-thread-indicator";
 export * from "./scroll-compensated-details";
-export * from "./surfaces";
+export * from "./streaming-text";
 export * from "./terminal-block";
 export * from "./tool-call";
 export * from "./typing-indicator";

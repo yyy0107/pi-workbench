@@ -34,7 +34,7 @@ import {
   resolveWebArtifact,
 } from "@workbench/host-server/web-artifact";
 
-const FIXTURE_RELATIVE_APP_DIR = "standalone-app";
+const FIXTURE_RELATIVE_APP_DIR = "standalone/app";
 const FIXTURE_REQUIRED_SERVER_FILES = `${FIXTURE_RELATIVE_APP_DIR}/.next/required-server-files.json`;
 const FIXTURE_BUILD_ID_PATH = `${FIXTURE_RELATIVE_APP_DIR}/.next/BUILD_ID`;
 const FIXTURE_REQUIRED_SERVER_FILES_LINK = `${FIXTURE_RELATIVE_APP_DIR}/.next/required-server-files-link.json`;
@@ -282,6 +282,19 @@ test("binds manifest identity to BUILD_ID bytes and standalone Next metadata", a
     assert.throws(
       () => resolveWebArtifact({ artifactRoot: value.artifactRoot }),
       /metadata does not match/u,
+    );
+  });
+
+  await t.test("Windows relativeAppDir", (t) => {
+    const value = fixture(t);
+    refreshOwnedFile(
+      value,
+      FIXTURE_REQUIRED_SERVER_FILES,
+      `${JSON.stringify({ config: { output: "standalone" }, relativeAppDir: String.raw`standalone\app` })}\n`,
+    );
+    assert.equal(
+      resolveWebArtifact({ artifactRoot: value.artifactRoot }).manifest.relativeAppDir,
+      FIXTURE_RELATIVE_APP_DIR,
     );
   });
 

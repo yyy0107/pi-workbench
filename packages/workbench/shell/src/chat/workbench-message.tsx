@@ -1,9 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ComposerPrimitive, MessagePrimitive, useAui, useAuiState } from "@assistant-ui/react";
-
-import { ComposerAttachments } from "../assistant-ui/attachment";
 import {
   CompactionSeparator,
   ForkSeparator,
@@ -11,11 +8,14 @@ import {
 } from "../elements/conversation-separator";
 import { DisclosureScrollDirectionProvider } from "../elements/disclosure-scroll-direction";
 import { ErrorState } from "../elements/error-state";
-import { Button } from "../ui/button";
 import { useI18n } from "../i18n";
 import { cn } from "../utils";
 import { SlotHost } from "@workbench/extension-host/hosts/slot-host";
-import { readAgentRunRecovery } from "@workbench/agent-runtime-client/extras";
+import {
+  useConversationNode,
+  useConversationSession,
+  useSessionState,
+} from "@workbench/agent-runtime-client";
 import {
   parseWorkbenchConversationEvent,
   parseWorkbenchMessageTermination,
@@ -27,12 +27,11 @@ import { parseWorkbenchPromptFailureDetails } from "@workbench/contracts/compose
 import { WorkbenchComposerCommandResponse } from "./composer-command-response";
 import { WorkbenchMessageActions } from "./message-actions";
 import { WorkbenchMessageParts } from "./message-parts";
+import { useConversationMessageContext } from "./conversation-message-context";
 import { isMessageInLatestTurn, shouldShowMessageError } from "./workbench-message-error";
 
 function MessageSlot({ name }: { name: "message.before" | "message.after" }) {
-  const messageId = useAuiState((state) => state.message.id);
-  const role = useAuiState((state) => state.message.role);
-  const isLast = useAuiState((state) => state.message.isLast);
+  const { messageId, role, isLast } = useConversationMessageContext();
 
   return (
     <SlotHost
@@ -43,40 +42,33 @@ function MessageSlot({ name }: { name: "message.before" | "message.after" }) {
   );
 }
 
-function readableErrorDetail(value: unknown): string | undefined {
-  if (typeof value === "string") {
-    const detail = value.trim();
-    return detail || undefined;
-  }
-  if (value === undefined || value === null) return undefined;
-
-  try {
-    const detail = JSON.stringify(value, null, 2);
-    return detail && detail !== "{}" ? detail : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
 function WorkbenchMessageError() {
   const { t } = useI18n();
-  const aui = useAui();
-  const status = useAuiState((state) => state.message.status);
-  const messageId = useAuiState((state) => state.message.id);
-  const isRunning = useAuiState((state) => state.thread.isRunning);
-  const recovery = readAgentRunRecovery(useAuiState((state) => state.thread.extras));
-  const isInLatestTurn = useAuiState((state) =>
-    isMessageInLatestTurn(state.thread.messages, state.message.index),
+  const session = useConversationSession();
+  const { messageId, index } = useConversationMessageContext();
+  const node = useConversationNode(messageId);
+  const status = node?.kind === "assistant" ? node.status : undefined;
+  const custom = node?.presentation?.custom;
+  const headlessError = useConversationNode(messageId, (node) => {
+    if (node?.kind === "error") return node.error;
+    if (!node || !("blocks" in node)) return undefined;
+    return node.blocks.find((block) => block.kind === "error")?.error;
+  });
+  const isRunning = useSessionState((snapshot) => snapshot.isRunning);
+  const nodeKeys = useSessionState((snapshot) => snapshot.nodeKeys);
+  const resumeCheckpoint = useSessionState((snapshot) => snapshot.resumeCheckpoint);
+  const isInLatestTurn = isMessageInLatestTurn(
+    nodeKeys.map((key) => {
+      const node = session.node(key).getSnapshot();
+      return {
+        role: node?.kind === "user" || node?.kind === "assistant" ? node.kind : "system",
+      };
+    }),
+    index,
   );
-  const termination = parseWorkbenchMessageTermination(
-    useAuiState((state) => state.message.metadata.custom.workbenchTermination),
-  );
-  const promptFailure = parseWorkbenchPromptFailureDetails(
-    useAuiState((state) => state.message.metadata.custom.workbenchPromptFailure),
-  );
-  const outputTokens = readWorkbenchMessageUsage(
-    useAuiState((state) => state.message.metadata.custom.workbenchUsage),
-  )?.output;
+  const termination = parseWorkbenchMessageTermination(custom?.workbenchTermination);
+  const promptFailure = parseWorkbenchPromptFailureDetails(custom?.workbenchPromptFailure);
+  const outputTokens = readWorkbenchMessageUsage(custom?.workbenchUsage)?.output;
   const [retryPhase, setRetryPhase] = useState<"idle" | "requested" | "running">("idle");
   const [continuationFailed, setContinuationFailed] = useState(false);
 
@@ -86,7 +78,7 @@ function WorkbenchMessageError() {
   }, [isRunning, retryPhase]);
 
   if (
-    status?.type !== "incomplete" ||
+    (!headlessError && status !== "incomplete" && status !== "error" && !termination) ||
     !shouldShowMessageError({
       isRunning,
       isInLatestTurn,
@@ -96,8 +88,11 @@ function WorkbenchMessageError() {
     return null;
   }
 
-  const rawDetail = termination?.errorMessage ?? readableErrorDetail(status.error);
-  const kind = termination?.kind ?? status.reason;
+  const rawDetail = termination?.errorMessage ?? headlessError?.message;
+  const kind =
+    termination?.kind ??
+    headlessError?.code ??
+    (status === "error" ? "error" : status === "incomplete" ? "other" : undefined);
   let title = t("workbench.chat.errors.requestFailedTitle");
   let detail = rawDetail ?? t("workbench.chat.errors.unknownFailure");
 
@@ -133,21 +128,19 @@ function WorkbenchMessageError() {
     detail = t("workbench.chat.errors.imageInputUnsupported");
   }
 
-  const resumeCheckpoint =
-    recovery.resumeCheckpoint?.terminalMessageId === messageId
-      ? recovery.resumeCheckpoint
-      : undefined;
+  const messageResumeCheckpoint =
+    resumeCheckpoint?.terminalMessageId === messageId ? resumeCheckpoint : undefined;
   const canContinueCheckpoint =
-    resumeCheckpoint?.capability === "ready" && recovery.resume !== undefined;
+    messageResumeCheckpoint?.capability === "ready" && session.actions.resume !== undefined;
   const canRepairAndContinue =
-    resumeCheckpoint === undefined &&
+    messageResumeCheckpoint === undefined &&
     isInLatestTurn &&
     (kind === "cancelled" || kind === "aborted") &&
-    recovery.resumeLatest !== undefined;
+    session.actions.resumeLatest !== undefined;
   const canContinue = canContinueCheckpoint || canRepairAndContinue;
-  if (resumeCheckpoint?.capability === "confirmation-required") {
+  if (messageResumeCheckpoint?.capability === "confirmation-required") {
     detail = t("workbench.chat.errors.resumeRequiresConfirmation");
-  } else if (resumeCheckpoint?.capability === "blocked") {
+  } else if (messageResumeCheckpoint?.capability === "blocked") {
     detail = t("workbench.chat.errors.resumeRequiresModelChange");
   } else if (canContinue && continuationFailed) {
     detail = t("workbench.chat.errors.continueFailed");
@@ -159,8 +152,9 @@ function WorkbenchMessageError() {
   }
 
   const stoppedWithoutCheckpoint =
-    (kind === "cancelled" || kind === "aborted") && resumeCheckpoint === undefined;
-  const showRetry = !resumeCheckpoint && !stoppedWithoutCheckpoint;
+    (kind === "cancelled" || kind === "aborted") && messageResumeCheckpoint === undefined;
+  const showRetry =
+    !messageResumeCheckpoint && !stoppedWithoutCheckpoint && session.actions.retry !== undefined;
   const showAction = canContinue || showRetry;
 
   const retry = () => {
@@ -170,9 +164,12 @@ function WorkbenchMessageError() {
     try {
       const action = canContinue
         ? canContinueCheckpoint
-          ? recovery.resume?.(resumeCheckpoint.checkpointId, resumeCheckpoint.expectedStateId)
-          : recovery.resumeLatest?.(messageId)
-        : aui.message.reload();
+          ? session.actions.resume?.(
+              messageResumeCheckpoint.checkpointId,
+              messageResumeCheckpoint.expectedStateId,
+            )
+          : session.actions.resumeLatest?.(messageId)
+        : session.actions.retry?.(messageId);
       void Promise.resolve(action).then(
         () => setRetryPhase((current) => (current === "requested" ? "running" : current)),
         (error) => {
@@ -212,14 +209,15 @@ function WorkbenchMessageError() {
 }
 
 export function WorkbenchUserMessage() {
-  const isOptimistic = useAuiState((state) => state.message.metadata.isOptimistic === true);
+  const { messageId } = useConversationMessageContext();
+  const isOptimistic = useConversationNode(
+    messageId,
+    (node) => node?.presentation?.isOptimistic === true,
+  );
   const [animateOnMount] = useState(isOptimistic);
 
   return (
-    <MessagePrimitive.Root
-      data-role="user"
-      className="group/message flex w-full min-w-0 flex-col items-end gap-1.5"
-    >
+    <div data-role="user" className="group/message flex w-full min-w-0 flex-col items-end gap-1.5">
       <MessageSlot name="message.before" />
       <div
         className={cn(
@@ -232,15 +230,16 @@ export function WorkbenchUserMessage() {
       </div>
       <WorkbenchMessageActions className="justify-end" />
       <MessageSlot name="message.after" />
-    </MessagePrimitive.Root>
+    </div>
   );
 }
 
 export function WorkbenchAssistantMessage() {
-  const preferUpward = useAuiState((state) => state.thread.isRunning && state.message.isLast);
+  const { isLast } = useConversationMessageContext();
+  const preferUpward = useSessionState((snapshot) => snapshot.isRunning) && isLast;
 
   return (
-    <MessagePrimitive.Root data-role="assistant" className="w-full min-w-0">
+    <div data-role="assistant" className="w-full min-w-0">
       <DisclosureScrollDirectionProvider preferUpward={preferUpward}>
         <MessageSlot name="message.before" />
         <div className="min-w-0 break-words leading-relaxed [overflow-anchor:none]">
@@ -250,18 +249,17 @@ export function WorkbenchAssistantMessage() {
         </div>
         <MessageSlot name="message.after" />
       </DisclosureScrollDirectionProvider>
-    </MessagePrimitive.Root>
+    </div>
   );
 }
 
 export function WorkbenchSystemMessage() {
   const { t } = useI18n();
-  const conversationEventData = useAuiState(
-    (state) => state.message.metadata.custom.workbenchConversationEvent,
-  );
-  const conversationEvent = parseWorkbenchConversationEvent(conversationEventData);
+  const { messageId } = useConversationMessageContext();
+  const custom = useConversationNode(messageId, (node) => node?.presentation?.custom);
+  const conversationEvent = parseWorkbenchConversationEvent(custom?.workbenchConversationEvent);
   const commandResponse = parseWorkbenchComposerCommandResponseDetails(
-    useAuiState((state) => state.message.metadata.custom.workbenchComposerCommandResponse),
+    custom?.workbenchComposerCommandResponse,
   );
   const compactionDetail =
     conversationEvent?.kind === "compaction" &&
@@ -279,14 +277,14 @@ export function WorkbenchSystemMessage() {
 
   if (commandResponse?.commandId === "compact") {
     return (
-      <MessagePrimitive.Root className="w-full py-0.5">
+      <div className="w-full py-0.5">
         <MessageSlot name="message.before" />
         <WorkbenchComposerCommandResponse
           response={commandResponse}
           compactionDetail={compactionDetail}
         />
         <MessageSlot name="message.after" />
-      </MessagePrimitive.Root>
+      </div>
     );
   }
 
@@ -302,7 +300,7 @@ export function WorkbenchSystemMessage() {
             .join("/")
         : undefined;
     return (
-      <MessagePrimitive.Root className="w-full py-0.5">
+      <div className="w-full py-0.5">
         <MessageSlot name="message.before" />
         {conversationEvent.kind === "model-change" ? (
           <ModelChangeSeparator
@@ -330,22 +328,22 @@ export function WorkbenchSystemMessage() {
           />
         )}
         <MessageSlot name="message.after" />
-      </MessagePrimitive.Root>
+      </div>
     );
   }
 
   if (commandResponse) {
     return (
-      <MessagePrimitive.Root className="mx-auto w-full max-w-[var(--thread-content-max-width)] px-2 py-2">
+      <div className="mx-auto w-full max-w-[var(--thread-content-max-width)] px-2 py-2">
         <MessageSlot name="message.before" />
         <WorkbenchComposerCommandResponse response={commandResponse} />
         <MessageSlot name="message.after" />
-      </MessagePrimitive.Root>
+      </div>
     );
   }
 
   return (
-    <MessagePrimitive.Root className="mx-auto w-full max-w-[var(--thread-content-max-width)] px-2 py-2">
+    <div className="mx-auto w-full max-w-[var(--thread-content-max-width)] px-2 py-2">
       <MessageSlot name="message.before" />
       <div
         data-workbench-glass-surface=""
@@ -354,31 +352,6 @@ export function WorkbenchSystemMessage() {
         <WorkbenchMessageParts />
       </div>
       <MessageSlot name="message.after" />
-    </MessagePrimitive.Root>
-  );
-}
-
-export function WorkbenchEditComposer() {
-  const { t } = useI18n();
-
-  return (
-    <MessagePrimitive.Root className="w-full min-w-0">
-      <ComposerPrimitive.Root className="flex w-full flex-col gap-2">
-        <ComposerAttachments />
-        <ComposerPrimitive.Input
-          autoFocus
-          className="min-h-20 w-full resize-none bg-transparent px-2 py-1 text-sm outline-none"
-          aria-label={t("workbench.chat.edit.label")}
-        />
-        <div className="flex items-center justify-end gap-2">
-          <ComposerPrimitive.Cancel render={<Button type="button" variant="ghost" size="sm" />}>
-            {t("workbench.chat.edit.cancel")}
-          </ComposerPrimitive.Cancel>
-          <ComposerPrimitive.Send render={<Button type="submit" size="sm" />}>
-            {t("workbench.chat.edit.update")}
-          </ComposerPrimitive.Send>
-        </div>
-      </ComposerPrimitive.Root>
-    </MessagePrimitive.Root>
+    </div>
   );
 }

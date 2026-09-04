@@ -1,5 +1,7 @@
-import type { ThreadAssistantMessage, ThreadMessage } from "@assistant-ui/react";
-
+import type {
+  AssistantMessageNode,
+  ConversationNode,
+} from "@workbench/agent-runtime-contracts/conversation";
 import {
   readWorkbenchMessageUsage,
   readWorkbenchTurnStatistics,
@@ -26,11 +28,11 @@ function nonNegativeNumber(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : undefined;
 }
 
-function toolDuration(message: ThreadAssistantMessage, currentTime?: number): number {
-  return message.content.reduce((duration, part) => {
-    if (part.type !== "tool-call") return duration;
-    const startedAt = nonNegativeNumber(part.timing?.startedAt);
-    const completedAt = nonNegativeNumber(part.timing?.completedAt);
+function toolDuration(message: AssistantMessageNode, currentTime?: number): number {
+  return message.blocks.reduce((duration, block) => {
+    if (block.kind !== "tool-call") return duration;
+    const startedAt = nonNegativeNumber(block.timing?.startedAt);
+    const completedAt = nonNegativeNumber(block.timing?.completedAt);
     if (startedAt === undefined) return duration;
     if (completedAt !== undefined) {
       return completedAt < startedAt ? duration : duration + completedAt - startedAt;
@@ -41,9 +43,9 @@ function toolDuration(message: ThreadAssistantMessage, currentTime?: number): nu
   }, 0);
 }
 
-function activeLlmDuration(message: ThreadAssistantMessage, currentTime?: number): number {
-  if (currentTime === undefined || message.status.type !== "running") return 0;
-  const timing = message.metadata.timing;
+function activeLlmDuration(message: AssistantMessageNode, currentTime?: number): number {
+  if (currentTime === undefined || message.status !== "running") return 0;
+  const timing = message.presentation?.timing;
   const streamStartTime = nonNegativeNumber(timing?.streamStartTime);
   if (
     streamStartTime === undefined ||
@@ -56,10 +58,11 @@ function activeLlmDuration(message: ThreadAssistantMessage, currentTime?: number
 }
 
 function assistantStatistics(
-  message: ThreadAssistantMessage,
+  message: AssistantMessageNode,
   currentTime?: number,
 ): WorkbenchTurnStatistics {
-  const stored = readWorkbenchTurnStatistics(message.metadata.custom.workbenchTurnStatistics);
+  const custom = message.presentation?.custom;
+  const stored = readWorkbenchTurnStatistics(custom?.workbenchTurnStatistics);
   if (stored) {
     return {
       ...stored,
@@ -68,11 +71,11 @@ function assistantStatistics(
     };
   }
 
-  const timing = message.metadata.timing;
+  const timing = message.presentation?.timing;
   const llmDurationMs =
     nonNegativeNumber(timing?.totalStreamTime) ?? activeLlmDuration(message, currentTime);
   const firstTokenTime = nonNegativeNumber(timing?.firstTokenTime);
-  const usage = readWorkbenchMessageUsage(message.metadata.custom.workbenchUsage);
+  const usage = readWorkbenchMessageUsage(custom?.workbenchUsage);
   return {
     steps: 1,
     llmDurationMs,
@@ -104,7 +107,7 @@ function addStatistics(
 }
 
 export function aggregateWorkbenchTurnStatistics(
-  messages: readonly ThreadAssistantMessage[],
+  messages: readonly AssistantMessageNode[],
 ): WorkbenchTurnStatistics {
   return messages.reduce(
     (total, message) => addStatistics(total, assistantStatistics(message)),
@@ -113,15 +116,15 @@ export function aggregateWorkbenchTurnStatistics(
 }
 
 export function aggregateWorkbenchSessionStatistics(
-  messages: readonly ThreadMessage[],
+  nodes: readonly ConversationNode[],
   currentTime?: number,
 ): WorkbenchSessionStatistics {
   let turns = 0;
   let statistics = EMPTY_TURN_STATISTICS;
-  for (const message of messages) {
-    if (message.role === "user") turns += 1;
-    else if (message.role === "assistant") {
-      statistics = addStatistics(statistics, assistantStatistics(message, currentTime));
+  for (const node of nodes) {
+    if (node.kind === "user") turns += 1;
+    else if (node.kind === "assistant") {
+      statistics = addStatistics(statistics, assistantStatistics(node, currentTime));
     }
   }
   return { turns, ...statistics };

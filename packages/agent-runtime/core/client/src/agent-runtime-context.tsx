@@ -4,12 +4,11 @@ import { createContext, useContext, useMemo, useSyncExternalStore, type ReactNod
 
 import type { WorkbenchAgentCommand } from "@workbench/agent-runtime-contracts/commands";
 import type {
-  WorkbenchAgentRuntimeAdapter,
   WorkbenchAgentThreadActions,
   WorkbenchAgentThreadSnapshot,
   WorkbenchAgentThreadStore,
   WorkbenchWorkspaceFileSearchPort,
-} from "./agent-runtime-adapter";
+} from "./agent-runtime-environment";
 
 export const EMPTY_WORKBENCH_AGENT_THREAD_SNAPSHOT: WorkbenchAgentThreadSnapshot = Object.freeze({
   isRunning: false,
@@ -22,7 +21,7 @@ const EMPTY_THREAD_ACTIONS: WorkbenchAgentThreadActions = Object.freeze({});
 const EMPTY_SUBSCRIBE = () => () => undefined;
 const ZERO_REVISION = () => 0;
 
-interface WorkbenchAgentRuntimeEnvironment {
+export interface WorkbenchAgentRuntimeEnvironment {
   readonly id: string;
   readonly threadId?: string;
   readonly commands: readonly WorkbenchAgentCommand[];
@@ -33,25 +32,29 @@ interface WorkbenchAgentRuntimeEnvironment {
 const WorkbenchAgentRuntimeContext = createContext<WorkbenchAgentRuntimeEnvironment | null>(null);
 
 export function WorkbenchAgentRuntimeEnvironmentProvider({
-  adapter,
+  id,
   threadId,
   commands,
+  threadStore,
+  workspaceFiles,
   children,
 }: Readonly<{
-  adapter: WorkbenchAgentRuntimeAdapter;
+  id: string;
   threadId?: string;
   commands: readonly WorkbenchAgentCommand[];
+  threadStore?: WorkbenchAgentThreadStore;
+  workspaceFiles?: WorkbenchWorkspaceFileSearchPort;
   children: ReactNode;
 }>) {
   const value = useMemo<WorkbenchAgentRuntimeEnvironment>(
     () => ({
-      id: adapter.id,
+      id,
       ...(threadId ? { threadId } : {}),
       commands,
-      ...(adapter.threadStore ? { threadStore: adapter.threadStore } : {}),
-      ...(adapter.workspaceFiles ? { workspaceFiles: adapter.workspaceFiles } : {}),
+      ...(threadStore ? { threadStore } : {}),
+      ...(workspaceFiles ? { workspaceFiles } : {}),
     }),
-    [adapter.id, adapter.threadStore, adapter.workspaceFiles, commands, threadId],
+    [commands, id, threadId, threadStore, workspaceFiles],
   );
 
   return (
@@ -63,7 +66,7 @@ export function WorkbenchAgentRuntimeEnvironmentProvider({
 
 function useWorkbenchAgentRuntimeEnvironment(): WorkbenchAgentRuntimeEnvironment {
   const environment = useContext(WorkbenchAgentRuntimeContext);
-  if (!environment) throw new Error("WorkbenchAgentRuntimeHost is missing");
+  if (!environment) throw new Error("Workbench Agent Runtime environment is missing");
   return environment;
 }
 

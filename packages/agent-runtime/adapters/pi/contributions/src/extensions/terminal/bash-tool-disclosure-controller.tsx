@@ -17,7 +17,7 @@ import { revealTerminalTranscript, TERMINAL_SURFACE_TITLE } from "./terminal-wor
 import { useToolTerminalReady } from "./use-tool-terminal-ready";
 
 export function BashToolDisclosureController({
-  part,
+  block,
   running,
   open,
   onOpenChange,
@@ -26,11 +26,11 @@ export function BashToolDisclosureController({
   const context = useWorkspaceContext();
   const piSessionId = useWorkbenchAgentThreadId();
   const revealedToolCallIdRef = useRef<string | undefined>(undefined);
-  const alreadyRevealed = revealedToolCallIdRef.current === part.toolCallId;
-  const inputSource = workbenchBashInputFromArgs(part.args)?.source;
+  const alreadyRevealed = revealedToolCallIdRef.current === block.callId;
+  const inputSource = workbenchBashInputFromArgs(block.arguments)?.source;
   const terminalReady = useToolTerminalReady(
     piSessionId,
-    part.toolCallId,
+    block.callId,
     running && inputSource === "user" && !alreadyRevealed,
   );
 
@@ -45,12 +45,12 @@ export function BashToolDisclosureController({
       return;
     }
 
-    const command = bashCommandFromArgs(part.args) ?? "bash";
-    revealedToolCallIdRef.current = part.toolCallId;
+    const command = bashCommandFromArgs(block.arguments) ?? "bash";
+    revealedToolCallIdRef.current = block.callId;
     revealTerminalTranscript({
       controller,
       context,
-      toolCallId: part.toolCallId,
+      toolCallId: block.callId,
       command,
       ...(piSessionId ? { piSessionId } : {}),
       title: normalizeTerminalTabTitle(command) ?? TERMINAL_SURFACE_TITLE,
@@ -62,8 +62,8 @@ export function BashToolDisclosureController({
     inputSource,
     onOpenChange,
     open,
-    part.args,
-    part.toolCallId,
+    block.arguments,
+    block.callId,
     piSessionId,
     running,
     terminalReady,

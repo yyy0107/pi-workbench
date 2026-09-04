@@ -5,13 +5,13 @@
   "maximumFrameBytes": 65536,
   "cases": [
     {
-      "id": "container.start.tauri-origin",
+      "id": "container.start.desktop-origin",
       "direction": "container-to-host",
       "bytes": {
         "kind": "utf8",
-        "value": "{\"type\":\"start\",\"controlVersion\":1,\"authMode\":\"desktop-sidecar\",\"accessToken\":\"fixture-access-token\",\"allowedOrigins\":[\"tauri://localhost\"]}\n"
+        "value": "{\"type\":\"start\",\"controlVersion\":1,\"authMode\":\"desktop-sidecar\",\"accessToken\":\"fixture-access-token\",\"allowedOrigins\":[\"workbench://app\"]}\n"
       },
-      "byteLength": 141,
+      "byteLength": 139,
       "canonicalSerialization": true,
       "chunkings": ["whole", "one-byte"],
       "expect": {
@@ -250,9 +250,9 @@
       "direction": "container-to-host",
       "bytes": {
         "kind": "utf8",
-        "value": "{\"type\":\"start\",\"controlVersion\":1,\"authMode\":\"desktop-sidecar\",\"accessToken\":\"fixture-access-token\",\"allowedOrigins\":[\"tauri://localhost\"],\"tokenCopy\":\"fixture-access-token\"}\n"
+        "value": "{\"type\":\"start\",\"controlVersion\":1,\"authMode\":\"desktop-sidecar\",\"accessToken\":\"fixture-access-token\",\"allowedOrigins\":[\"workbench://app\"],\"tokenCopy\":\"fixture-access-token\"}\n"
       },
-      "byteLength": 176,
+      "byteLength": 174,
       "chunkings": ["whole"],
       "expect": {
         "ndjson": { "kind": "frames", "count": 1 },
@@ -265,9 +265,9 @@
       "direction": "container-to-host",
       "bytes": {
         "kind": "utf8",
-        "value": "{\"type\":\"start\",\"controlVersion\":2,\"authMode\":\"desktop-sidecar\",\"accessToken\":\"fixture-access-token\",\"allowedOrigins\":[\"tauri://localhost\"]}\n"
+        "value": "{\"type\":\"start\",\"controlVersion\":2,\"authMode\":\"desktop-sidecar\",\"accessToken\":\"fixture-access-token\",\"allowedOrigins\":[\"workbench://app\"]}\n"
       },
-      "byteLength": 141,
+      "byteLength": 139,
       "chunkings": ["whole"],
       "expect": {
         "ndjson": { "kind": "frames", "count": 1 },
@@ -280,9 +280,9 @@
       "direction": "container-to-host",
       "bytes": {
         "kind": "utf8",
-        "value": "{\"type\":\"start\",\"controlVersion\":1,\"authMode\":\"bearer\",\"accessToken\":\"fixture-access-token\",\"allowedOrigins\":[\"tauri://localhost\"]}\n"
+        "value": "{\"type\":\"start\",\"controlVersion\":1,\"authMode\":\"bearer\",\"accessToken\":\"fixture-access-token\",\"allowedOrigins\":[\"workbench://app\"]}\n"
       },
-      "byteLength": 132,
+      "byteLength": 130,
       "chunkings": ["whole"],
       "expect": {
         "ndjson": { "kind": "frames", "count": 1 },
@@ -295,9 +295,9 @@
       "direction": "container-to-host",
       "bytes": {
         "kind": "utf8",
-        "value": "{\"type\":\"start\",\"controlVersion\":1,\"authMode\":\"desktop-sidecar\",\"accessToken\":\"fixture token\",\"allowedOrigins\":[\"tauri://localhost\"]}\n"
+        "value": "{\"type\":\"start\",\"controlVersion\":1,\"authMode\":\"desktop-sidecar\",\"accessToken\":\"fixture token\",\"allowedOrigins\":[\"workbench://app\"]}\n"
       },
-      "byteLength": 134,
+      "byteLength": 132,
       "chunkings": ["whole"],
       "expect": {
         "ndjson": { "kind": "frames", "count": 1 },

@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Code2Icon, EyeIcon } from "lucide-react";
 
 import { Button } from "@workbench/shell/ui";
 import { Input } from "@workbench/shell/ui";
 import { SettingsInlineEditor } from "@workbench/shell/ui";
+import { SettingsGroup, SettingsRow } from "@workbench/shell/ui";
 import { Switch } from "@workbench/shell/ui";
 import { Textarea } from "@workbench/shell/ui";
 import { usePiI18n } from "../../i18n";
@@ -263,48 +264,6 @@ export function SystemPromptSettingsItem({ sectionId, itemId }: SettingsItemComp
   );
 }
 
-function SettingGroup({
-  title,
-  description,
-  children,
-}: {
-  title: string;
-  description: string;
-  children: ReactNode;
-}) {
-  return (
-    <section className="py-5 first:pt-1 last:pb-3">
-      <div>
-        <h3 className="text-sm font-medium">{title}</h3>
-        <p className="text-muted-foreground mt-1 text-sm leading-5">{description}</p>
-      </div>
-      <div className="mt-4 rounded-xl border px-4 py-1">
-        <div className="divide-y">{children}</div>
-      </div>
-    </section>
-  );
-}
-
-function SettingRow({
-  label,
-  description,
-  children,
-}: {
-  label: string;
-  description: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className="grid min-h-16 gap-3 py-3 sm:grid-cols-[minmax(0,1fr)_17rem] sm:items-center sm:gap-8">
-      <div className="min-w-0">
-        <div className="text-sm">{label}</div>
-        <p className="text-muted-foreground mt-0.5 text-xs leading-4">{description}</p>
-      </div>
-      <div className="flex min-w-0 justify-end">{children}</div>
-    </div>
-  );
-}
-
 function parseTokenCount(value: string): number | undefined {
   if (!/^\d+$/u.test(value.trim())) return undefined;
   const parsed = Number(value);
@@ -503,13 +462,16 @@ export function ContextManagementSettingsItem({ sectionId, itemId }: SettingsIte
 
   return (
     <div data-settings-section={sectionId} data-settings-item={itemId} className="py-4">
-      <SettingGroup
+      <SettingsGroup
         title={t("extensions.agentConfiguration.context.compactionTitle")}
         description={t("extensions.agentConfiguration.context.compactionDescription")}
+        className="my-5 first:mt-1 last:mb-3"
       >
-        <SettingRow
+        <SettingsRow
           label={t("extensions.agentConfiguration.context.autoCompaction")}
           description={t("extensions.agentConfiguration.context.autoCompactionDescription")}
+          className="min-h-16 sm:grid-cols-[minmax(0,1fr)_17rem] sm:gap-8"
+          controlClassName="flex min-w-0 justify-end"
         >
           <Switch
             checked={enabled}
@@ -521,10 +483,12 @@ export function ContextManagementSettingsItem({ sectionId, itemId }: SettingsIte
               setSaveError(undefined);
             }}
           />
-        </SettingRow>
-        <SettingRow
+        </SettingsRow>
+        <SettingsRow
           label={t("extensions.agentConfiguration.context.reserveTokens")}
           description={t("extensions.agentConfiguration.context.reserveTokensDescription")}
+          className="min-h-16 sm:grid-cols-[minmax(0,1fr)_17rem] sm:gap-8"
+          controlClassName="flex min-w-0 justify-end"
         >
           <InlineNumberEditor
             value={reserveTokens}
@@ -539,10 +503,12 @@ export function ContextManagementSettingsItem({ sectionId, itemId }: SettingsIte
               setSaveError(undefined);
             }}
           />
-        </SettingRow>
-        <SettingRow
+        </SettingsRow>
+        <SettingsRow
           label={t("extensions.agentConfiguration.context.keepRecentTokens")}
           description={t("extensions.agentConfiguration.context.keepRecentTokensDescription")}
+          className="min-h-16 sm:grid-cols-[minmax(0,1fr)_17rem] sm:gap-8"
+          controlClassName="flex min-w-0 justify-end"
         >
           <InlineNumberEditor
             value={keepRecentTokens}
@@ -557,8 +523,8 @@ export function ContextManagementSettingsItem({ sectionId, itemId }: SettingsIte
               setSaveError(undefined);
             }}
           />
-        </SettingRow>
-      </SettingGroup>
+        </SettingsRow>
+      </SettingsGroup>
 
       {invalid ? (
         <p className="text-destructive text-sm" role="alert">

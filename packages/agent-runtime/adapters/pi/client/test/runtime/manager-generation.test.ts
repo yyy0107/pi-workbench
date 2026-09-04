@@ -1,14 +1,22 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { INTERNAL, type AppendMessage, type ThreadMessage } from "@assistant-ui/react";
 
 import type { PiEvent, PiSessionSummary } from "@workbench/agent-runtime-pi-protocol/messages";
-import type { SessionHistoryValue } from "@workbench/agent-runtime-pi-protocol/rpc";
+import type {
+  SessionContextTraceEventSummary,
+  SessionHistoryValue,
+} from "@workbench/agent-runtime-pi-protocol/rpc";
 import type {
   HostStreamPayload,
   MuxStreamPayload,
   ServerRequest,
 } from "@workbench/agent-runtime-pi-protocol/stream";
+import { parsePiContextTraceData } from "../../src/context-trace/data-part";
+import type {
+  PiComposerMessage as AppendMessage,
+  PiConversationMessage as ThreadMessage,
+  PiConversationMessageRepository,
+} from "../../src/conversation/pi-conversation-message";
 import { PiSessionManager } from "../../src/runtime/manager";
 
 function summary(overrides: Partial<PiSessionSummary> = {}): PiSessionSummary {
@@ -23,6 +31,58 @@ function summary(overrides: Partial<PiSessionSummary> = {}): PiSessionSummary {
     transient: false,
     running: false,
     ...overrides,
+  };
+}
+
+function repositoryMessages(
+  repository: PiConversationMessageRepository,
+  headId: string | null = repository.headId,
+): ThreadMessage[] {
+  const byId = new Map(repository.messages.map((item) => [item.message.id, item]));
+  const path: ThreadMessage[] = [];
+  const seen = new Set<string>();
+  let id = headId;
+  while (id) {
+    if (seen.has(id)) throw new Error(`cyclic message repository at ${id}`);
+    seen.add(id);
+    const item = byId.get(id);
+    if (!item) throw new Error(`missing message repository node ${id}`);
+    path.unshift(item.message);
+    id = item.parentId;
+  }
+  return path;
+}
+
+function promptCompositionEvent(
+  traceId: string,
+  seq: number,
+  roundId: string,
+  activeTools = ["read"],
+): SessionContextTraceEventSummary {
+  return {
+    schemaVersion: 1,
+    traceId,
+    sessionId: "session-live-parts",
+    activationId: "activation-live-parts",
+    seq,
+    time: seq,
+    kind: "prompt-composition",
+    detailBytes: 48,
+    truncated: false,
+    redacted: false,
+    roundId,
+    promptInjections: ["system-prompt", "tools", "extensions"],
+    promptResources: {
+      cwd: "/workspace",
+      systemPromptCharacters: 12,
+      systemPromptSourceCount: 1,
+      systemPromptSources: [{ kind: "builtin", scope: "builtin" }],
+      contextFileCount: 0,
+      contextFiles: [],
+      skills: [],
+      extensions: [{ name: "audit", hidden: false }],
+      tools: { active: activeTools, total: activeTools.length },
+    },
   };
 }
 
@@ -42,6 +102,57 @@ test("does not duplicate the unary metadata baseline for the first socket genera
   await new Promise<void>((resolve) => setImmediate(resolve));
 
   assert.equal(refreshCount, 0);
+});
+
+test("restores the submitted draft alongside typing added while a send is pending", async (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("local-session");
+  let rejectSend: ((error: Error) => void) | undefined;
+  (session as unknown as { send(message: AppendMessage): Promise<void> }).send = () =>
+    new Promise((_, reject) => {
+      rejectSend = reject;
+    });
+  const submission = {
+    version: 2 as const,
+    document: [],
+    sourceText: "original draft",
+    text: "original draft",
+    context: [],
+    metadata: {},
+    commands: [],
+  };
+
+  session.actions.setComposerText?.("original draft");
+  await session.actions.addComposerAttachment?.({
+    key: "original.png",
+    name: "original.png",
+    source: "data:image/png;base64,original",
+    mediaType: "image/png",
+  });
+  const task = session.actions.send?.(submission);
+  assert.ok(task);
+  assert.equal(session.snapshot.getSnapshot().composer.phase, "submitting");
+  assert.equal(session.snapshot.getSnapshot().composer.text, "");
+
+  session.actions.setComposerText?.("typed while pending");
+  await session.actions.addComposerAttachment?.({
+    key: "pending.pdf",
+    name: "pending.pdf",
+    source: "data:application/pdf;base64,pending",
+    mediaType: "application/pdf",
+  });
+  rejectSend?.(new Error("network unavailable"));
+  await assert.rejects(task, /network unavailable/);
+
+  const composer = session.snapshot.getSnapshot().composer;
+  assert.equal(composer.phase, "error");
+  assert.equal(composer.error?.code, "composer-submit-failed");
+  assert.equal(composer.text, "original draft\n\ntyped while pending");
+  assert.deepEqual(
+    composer.attachments.map(({ key }) => key),
+    ["original.png", "pending.pdf"],
+  );
 });
 
 test("publishes the current Pi version from the host description", async (t) => {
@@ -76,32 +187,6 @@ test("publishes the current Pi version from the host description", async (t) => 
 
   assert.equal(manager.getHostDescription()?.piVersion, "0.84.2");
   assert.equal(manager.getHostDescription()?.userPackageDir, "/home/example/.pi/agent/npm");
-});
-
-test("fetches a route-selected thread without waiting for full manager startup", async (t) => {
-  const manager = new PiSessionManager();
-  t.after(() => manager.dispose());
-  const internals = manager as unknown as {
-    summaries: Map<string, PiSessionSummary>;
-    refreshMetadata(): Promise<void>;
-    start(): Promise<void>;
-  };
-  let refreshCount = 0;
-  let startCount = 0;
-  internals.refreshMetadata = async () => {
-    refreshCount += 1;
-    internals.summaries.set("route-session", summary({ id: "route-session" }));
-  };
-  internals.start = async () => {
-    startCount += 1;
-    throw new Error("fetch must not wait for full startup");
-  };
-
-  const fetched = await manager.createThreadListAdapter().fetch("route-session");
-
-  assert.equal(fetched.remoteId, "route-session");
-  assert.equal(refreshCount, 1);
-  assert.equal(startCount, 0);
 });
 
 test("regenerates from the existing user node without appending a duplicate user message", async (t) => {
@@ -554,10 +639,8 @@ test("retains a live-only user as the parent when regenerating before history re
   assert.equal(byId.get(completedAssistant.id)?.parentId, user.id);
   assert.equal(byId.get(snapshot.messageRepository.headId ?? "")?.parentId, user.id);
 
-  const repository = new INTERNAL.MessageRepository();
-  assert.doesNotThrow(() => repository.import(snapshot.messageRepository));
   assert.deepEqual(
-    repository.getMessages().map((message) => [message.id, message.role]),
+    repositoryMessages(snapshot.messageRepository).map((message) => [message.id, message.role]),
     [
       [user.id, "user"],
       [snapshot.messageRepository.headId, "assistant"],
@@ -613,9 +696,7 @@ test("coalesces internal assistant cycles in the active message repository", (t)
   internals.publishMessagesAndSetRunning(true);
 
   const snapshot = session.getSnapshot();
-  const repository = new INTERNAL.MessageRepository();
-  assert.doesNotThrow(() => repository.import(snapshot.messageRepository));
-  const activeMessages = repository.getMessages();
+  const activeMessages = repositoryMessages(snapshot.messageRepository);
 
   assert.equal(snapshot.isRunning, true);
   assert.deepEqual(
@@ -644,12 +725,91 @@ test("coalesces internal assistant cycles in the active message repository", (t)
   internals.publishMessagesAndSetRunning(false);
 
   const completedSnapshot = session.getSnapshot();
-  const completedRepository = new INTERNAL.MessageRepository();
-  assert.doesNotThrow(() => completedRepository.import(completedSnapshot.messageRepository));
-  const completedMessages = completedRepository.getMessages();
+  const completedMessages = repositoryMessages(completedSnapshot.messageRepository);
   assert.equal(completedSnapshot.isRunning, false);
   assert.equal(completedMessages.length, 2);
   assert.equal(completedMessages.at(-1)?.status?.type, "complete");
+});
+
+test("keeps settled history identities stable across streamed tail updates", (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("remote-session", "remote-session");
+  const firstUser: ThreadMessage = {
+    id: "stable-user-1",
+    role: "user",
+    content: [{ type: "text", text: "First turn" }],
+    attachments: [],
+    createdAt: new Date(1_000),
+    metadata: { custom: {} },
+  };
+  const settledAssistant: ThreadMessage = {
+    id: "stable-assistant-1",
+    role: "assistant",
+    content: [{ type: "text", text: "Settled answer", status: { type: "complete" } }],
+    status: { type: "complete", reason: "stop" },
+    createdAt: new Date(2_000),
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      steps: [],
+      custom: {},
+    },
+  };
+  const activeUser: ThreadMessage = {
+    ...firstUser,
+    id: "stable-user-2",
+    content: [{ type: "text", text: "Second turn" }],
+    createdAt: new Date(3_000),
+  };
+  const streamingAssistant: ThreadMessage = {
+    ...settledAssistant,
+    id: "streaming-assistant",
+    content: [{ type: "text", text: "Partial", status: { type: "running" } }],
+    status: { type: "running" },
+    createdAt: new Date(4_000),
+  };
+  const internals = session as unknown as {
+    baseMessages: ThreadMessage[];
+    baseMessageRepository: ReturnType<typeof session.getSnapshot>["messageRepository"];
+    liveMessages: ThreadMessage[];
+    streamingMessage?: ThreadMessage;
+    publishMessages(): void;
+  };
+
+  internals.liveMessages = [firstUser, settledAssistant, activeUser];
+  internals.publishMessages();
+  const settled = session.getSnapshot();
+  internals.baseMessages = [...settled.messages];
+  internals.baseMessageRepository = settled.messageRepository;
+  internals.liveMessages = [];
+  internals.streamingMessage = streamingAssistant;
+
+  internals.publishMessages();
+  const firstFrame = session.getSnapshot();
+  internals.streamingMessage = {
+    ...streamingAssistant,
+    content: [{ type: "text", text: "Partial answer", status: { type: "running" } }],
+  };
+  internals.publishMessages();
+  const secondFrame = session.getSnapshot();
+
+  assert.equal(secondFrame.messages[0], firstFrame.messages[0]);
+  assert.equal(secondFrame.messages[1], firstFrame.messages[1]);
+  assert.equal(
+    secondFrame.messageRepository.messages.find(
+      ({ message }) => message.id === settledAssistant.id,
+    ),
+    firstFrame.messageRepository.messages.find(({ message }) => message.id === settledAssistant.id),
+  );
+  assert.notEqual(secondFrame.messages.at(-1), firstFrame.messages.at(-1));
+  const streamedPart = secondFrame.messages.at(-1)?.content[0];
+  assert.equal(streamedPart?.type === "text" ? streamedPart.text : undefined, "Partial answer");
+
+  internals.streamingMessage = undefined;
+  internals.publishMessages();
+  assert.equal(session.getSnapshot().messageRepository, settled.messageRepository);
 });
 
 test("maps regenerated assistant answers to sibling repository branches", (t) => {
@@ -915,10 +1075,10 @@ test("reloads the authoritative branch after a branch selection is rejected", as
   };
   internals.branchLeafByHeadMessageId.set("assistant-head", "missing-leaf");
 
-  session.selectBranch("assistant-head");
+  const selection = session.selectBranch("assistant-head");
   const task = internals.branchSwitchTask;
   assert.ok(task);
-  await assert.rejects(task, /Branch not found/);
+  await assert.rejects(selection, /Branch not found/);
 
   assert.deepEqual(methods, ["session.selectBranch", "session.history"]);
   assert.equal(internals.branchSwitchTask, undefined);
@@ -1089,15 +1249,12 @@ test("keeps projected Composer messages on both repository branches without repa
     seen.add(item.message.id);
   }
 
-  const repository = new INTERNAL.MessageRepository();
-  assert.doesNotThrow(() => repository.import(state.repository));
   assert.deepEqual(
-    repository.getMessages().map((message) => message.id),
+    repositoryMessages(state.repository).map((message) => message.id),
     ["previous-user", "previous-assistant", "composer-marker"],
   );
-  repository.switchToBranch(unresolvedPath[1] ?? "");
   assert.deepEqual(
-    repository.getMessages().map((message) => message.id),
+    repositoryMessages(state.repository, unresolvedHead).map((message) => message.id),
     unresolvedPath,
   );
 
@@ -1222,9 +1379,7 @@ test("persists conversation and workspace pins through workspace RPC", async (t)
     sessionIds: ["remote-session"],
   });
 
-  const updateCustom = manager.createThreadListAdapter().updateCustom;
-  assert.ok(updateCustom);
-  await updateCustom("remote-session", { piPinned: true });
+  await manager.threadActions.setPinned("remote-session", true);
   await manager.setWorkspacePinned("workspace-1", true);
 
   assert.deepEqual(requests, [
@@ -1660,7 +1815,7 @@ test("does not collapse identical follow-up turns or duplicate an unclaimed opti
   const session = manager.getSession("local-session", "remote-session");
   const internals = session as unknown as {
     handleEvent(event: PiEvent): void;
-    liveMessages: import("@assistant-ui/react").ThreadMessage[];
+    liveMessages: ThreadMessage[];
     publishMessages(): void;
   };
   internals.liveMessages = [
@@ -1759,7 +1914,7 @@ test("publishes a complete optimistic turn and running state in one session snap
   });
 });
 
-test("keeps complete visible history while a paginated refresh backfills older messages", async (t) => {
+test("loads one older history page only after the Headless Session action is requested", async (t) => {
   const originalFetch = globalThis.fetch;
   let releaseBackfill: (() => void) | undefined;
   const backfillGate = new Promise<void>((resolve) => {
@@ -1809,37 +1964,27 @@ test("keeps complete visible history while a paginated refresh backfills older m
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
   const session = manager.getSession("local-session", "remote-session");
-  const internals = session as unknown as {
-    baseMessages: import("@assistant-ui/react").ThreadMessage[];
-    publishMessages(): void;
-  };
-  internals.baseMessages = Array.from({ length: 12 }, (_, seq) => ({
-    id: `pi-event-${seq}`,
-    role: "user" as const,
-    content: [{ type: "text" as const, text: String(seq) }],
-    attachments: [],
-    createdAt: new Date(seq),
-    metadata: { custom: { piEntryId: `pi-event-${seq}` } },
-  }));
-  internals.publishMessages();
-
   const publishedCounts: number[] = [];
   const unsubscribe = session.subscribe(() => {
     publishedCounts.push(session.getSnapshot().messages.length);
   });
   t.after(unsubscribe);
 
-  const reload = session.reload();
+  await session.reload();
+  assert.equal(session.getSnapshot().messages.length, 2);
+  assert.equal(session.snapshot.getSnapshot().hasMore, true);
+  assert.ok(publishedCounts.length > 0);
+  assert.ok(publishedCounts.every((count) => count === 2));
+
+  const loadOlder = session.actions.loadOlder?.();
+  assert.ok(loadOlder);
   await backfillStarted;
-
-  assert.equal(session.getSnapshot().messages.length, 12);
-  assert.ok(publishedCounts.every((count) => count === 12));
-
+  assert.equal(session.getSnapshot().messages.length, 2);
   releaseBackfill?.();
-  await reload;
+  await loadOlder;
 
   assert.equal(session.getSnapshot().messages.length, 12);
-  assert.ok(publishedCounts.every((count) => count === 12));
+  assert.equal(session.snapshot.getSnapshot().hasMore, false);
 });
 
 test("keeps the optimistic assistant placeholder through a running history rebaseline", async (t) => {
@@ -1861,8 +2006,8 @@ test("keeps the optimistic assistant placeholder through a running history rebas
   t.after(() => manager.dispose());
   const session = manager.getSession("local-session", "remote-session");
   const internals = session as unknown as {
-    liveMessages: import("@assistant-ui/react").ThreadMessage[];
-    streamingMessage?: import("@assistant-ui/react").ThreadMessage;
+    liveMessages: ThreadMessage[];
+    streamingMessage?: ThreadMessage;
     activeAssistantMessageId?: string;
     publishMessagesAndSetRunning(running: boolean): void;
   };
@@ -1914,6 +2059,58 @@ test("keeps the optimistic assistant placeholder through a running history rebas
   );
 });
 
+test("restores a cold unfinished assistant from durable chunks", (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("local-session", "remote-session");
+  const history: SessionHistoryValue = {
+    events: [
+      {
+        event: {
+          type: "message_start",
+          seq: 7,
+          time: 1_000,
+          entryId: "assistant-start",
+          data: { message: { role: "assistant", content: [], stopReason: "pending" } },
+        },
+      },
+      {
+        event: {
+          type: "message_update",
+          seq: 8,
+          time: 1_010,
+          data: {
+            format: "pi-messages-v1",
+            streamId: "stream-1",
+            firstRevision: 1,
+            revision: 2,
+            startSeq: 7,
+            message: { role: "assistant", stopReason: "pending" },
+            updates: [
+              { type: "text_start", contentIndex: 0 },
+              { type: "text_delta", contentIndex: 0, delta: "Recovered" },
+            ],
+          },
+        },
+      },
+    ],
+    hasMore: false,
+  };
+
+  (
+    session as unknown as { applyHistory(value: SessionHistoryValue, remoteId: string): void }
+  ).applyHistory(history, "remote-session");
+
+  const [message] = session.getSnapshot().messages;
+  assert.equal(message?.id, "assistant-start");
+  assert.deepEqual(message?.status, { type: "incomplete", reason: "other" });
+  assert.equal(
+    message?.content[0]?.type === "text" ? message.content[0].text : undefined,
+    "Recovered",
+  );
+  assert.equal(message?.metadata.custom.piEventSeq, 8);
+});
+
 test("keeps the optimistic turn ids when history persists the running user message", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => {
@@ -1949,10 +2146,10 @@ test("keeps the optimistic turn ids when history persists the running user messa
   const session = manager.getSession("local-session", "remote-session");
   const internals = session as unknown as {
     activeAssistantMessageId?: string;
-    liveMessages: import("@assistant-ui/react").ThreadMessage[];
+    liveMessages: ThreadMessage[];
     localRunLeaseActive: boolean;
     publishMessagesAndSetRunning(running: boolean): void;
-    streamingMessage?: import("@assistant-ui/react").ThreadMessage;
+    streamingMessage?: ThreadMessage;
   };
   internals.liveMessages = [
     {
@@ -2008,12 +2205,12 @@ test("keeps the optimistic assistant between prompt admission and agent start", 
   const session = manager.getSession("local-session", "remote-session");
   const internals = session as unknown as {
     activeAssistantMessageId?: string;
-    liveMessages: import("@assistant-ui/react").ThreadMessage[];
+    liveMessages: ThreadMessage[];
     localRunLeaseActive: boolean;
     pendingPromptRpcIds: Set<string>;
     promptRequestPending: boolean;
     publishMessagesAndSetRunning(running: boolean): void;
-    streamingMessage?: import("@assistant-ui/react").ThreadMessage;
+    streamingMessage?: ThreadMessage;
   };
   internals.liveMessages = [
     {
@@ -2066,12 +2263,12 @@ test("keeps the optimistic assistant after agent start until the run settles", (
   const internals = session as unknown as {
     activeAssistantMessageId?: string;
     handleEvent(event: PiEvent): void;
-    liveMessages: import("@assistant-ui/react").ThreadMessage[];
+    liveMessages: ThreadMessage[];
     localRunLeaseActive: boolean;
     promptRequestPending: boolean;
     publishMessagesAndSetRunning(running: boolean): void;
     reload(): Promise<void>;
-    streamingMessage?: import("@assistant-ui/react").ThreadMessage;
+    streamingMessage?: ThreadMessage;
   };
   internals.reload = async () => {};
   internals.liveMessages = [
@@ -2197,7 +2394,7 @@ test("ends the visible run at a terminal response while host cleanup remains act
   assert.equal(publishedStates.includes("true:complete"), false);
 
   // A host/session-changed summary can still report cleanup as running. It must not reopen the
-  // completed assistant-ui run while Pi executes agent_settled extension handlers.
+  // completed visible run while Pi executes agent_settled extension handlers.
   session.setRunningFromManager(true);
   assert.equal(session.getSnapshot().isRunning, false);
 
@@ -2253,14 +2450,105 @@ test("projects automatic-retry progress until the complete run settles", (t) => 
   assert.equal(session.getSnapshot().isRunning, false);
 });
 
+test("replaces failed automatic-retry attempts in the visible response", (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  (manager as unknown as { refreshMetadata(): Promise<void> }).refreshMetadata = async () => {};
+  const session = manager.getSession("session-live-parts", "session-live-parts");
+  const internals = session as unknown as {
+    handleEvent(event: PiEvent): void;
+    publishMessagesAndSetRunning(running: boolean): void;
+    reload(): Promise<void>;
+  };
+  internals.reload = async () => {};
+  internals.publishMessagesAndSetRunning(true);
+
+  session.applyContextTraceEvent(promptCompositionEvent("activation-retry:0", 0, "round-retry"));
+  internals.handleEvent({
+    type: "message_start",
+    sequence: 0,
+    message: { role: "assistant", content: [], timestamp: 1 },
+  });
+  internals.handleEvent({
+    type: "message_end",
+    sequence: 1,
+    message: {
+      role: "assistant",
+      content: [],
+      stopReason: "error",
+      errorMessage: "fetch failed",
+      timestamp: 1,
+    },
+  });
+  internals.handleEvent({
+    type: "auto_retry_start",
+    sequence: 2,
+    attempt: 2,
+    maxAttempts: 3,
+    delayMs: 1,
+    errorMessage: "fetch failed",
+  });
+
+  assert.equal(
+    session.getSnapshot().messages.filter((message) => message.role === "assistant").length,
+    0,
+  );
+
+  session.applyContextTraceEvent(promptCompositionEvent("activation-retry:1", 1, "round-retry"));
+  internals.handleEvent({
+    type: "message_start",
+    sequence: 3,
+    message: { role: "assistant", content: [], timestamp: 2 },
+  });
+  internals.handleEvent({
+    type: "message_end",
+    sequence: 4,
+    message: {
+      role: "assistant",
+      content: [],
+      stopReason: "error",
+      errorMessage: "fetch failed",
+      timestamp: 2,
+    },
+  });
+  internals.handleEvent({ type: "agent_settled", sequence: 5 });
+
+  const assistants = session
+    .getSnapshot()
+    .messages.filter((message) => message.role === "assistant");
+  assert.equal(assistants.length, 1);
+  const assistant = assistants[0];
+  assert.equal(assistant?.role, "assistant");
+  if (assistant?.role !== "assistant") return;
+  assert.deepEqual(assistant.status, {
+    type: "incomplete",
+    reason: "error",
+    error: "fetch failed",
+  });
+  assert.deepEqual(
+    [
+      ...new Set(
+        assistant.content.flatMap((part) =>
+          part.type === "data"
+            ? [parsePiContextTraceData(part.data)?.event.traceId].filter(
+                (traceId): traceId is string => traceId !== undefined,
+              )
+            : [],
+        ),
+      ),
+    ],
+    ["activation-retry:1"],
+  );
+});
+
 test("keeps the optimistic assistant id from stream start through completion", (t) => {
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
   const session = manager.getSession("local-session", "remote-session");
   const internals = session as unknown as {
     activeAssistantMessageId?: string;
-    streamingMessage?: import("@assistant-ui/react").ThreadMessage;
-    liveMessages: import("@assistant-ui/react").ThreadMessage[];
+    streamingMessage?: ThreadMessage;
+    liveMessages: ThreadMessage[];
     handleEvent(event: PiEvent): void;
     publishMessagesAndSetRunning(running: boolean): void;
   };
@@ -2315,6 +2603,104 @@ test("keeps the optimistic assistant id from stream start through completion", (
   assert.equal(session.getSnapshot().messages.at(-1)?.status?.type, "complete");
 });
 
+test("keeps the in-flight assistant id when settled history wins the stream race", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String(init?.body)) as { rpcId: string; method: string };
+    assert.equal(request.method, "session.history");
+    return Response.json({
+      type: "server-response",
+      rpcId: request.rpcId,
+      result: {
+        ok: true,
+        value: {
+          events: [
+            {
+              event: {
+                type: "message_end",
+                seq: 1,
+                time: 1_000,
+                entryId: "journal-user",
+                data: { message: { role: "user", content: "Hello", timestamp: 1_000 } },
+              },
+            },
+            {
+              event: {
+                type: "message_end",
+                seq: 2,
+                time: 2_000,
+                entryId: "journal-assistant",
+                data: {
+                  message: {
+                    role: "assistant",
+                    content: [{ type: "text", text: "Settled answer" }],
+                    stopReason: "stop",
+                    timestamp: 2_000,
+                  },
+                },
+              },
+            },
+          ],
+          hasMore: false,
+        },
+      },
+    });
+  };
+
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("local-session", "remote-session");
+  const internals = session as unknown as {
+    activeAssistantMessageId?: string;
+    liveMessages: ThreadMessage[];
+    publishMessagesAndSetRunning(running: boolean): void;
+    streamingMessage?: ThreadMessage;
+  };
+  internals.liveMessages = [
+    {
+      id: "optimistic-user",
+      role: "user",
+      content: [{ type: "text", text: "Hello" }],
+      attachments: [],
+      createdAt: new Date(1_000),
+      metadata: { custom: { piOptimistic: true }, isOptimistic: true },
+    },
+  ];
+  internals.streamingMessage = {
+    id: "optimistic-assistant",
+    role: "assistant",
+    content: [{ type: "text", text: "", status: { type: "running" } }],
+    status: { type: "running" },
+    createdAt: new Date(2_000),
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      steps: [],
+      custom: { piMessageTimestamp: 2_000 },
+      isOptimistic: true,
+    },
+  };
+  internals.activeAssistantMessageId = internals.streamingMessage.id;
+  internals.publishMessagesAndSetRunning(true);
+
+  await session.reload();
+
+  assert.deepEqual(
+    session.getSnapshot().messages.map((message) => message.id),
+    ["optimistic-user", "optimistic-assistant"],
+  );
+  assert.equal(session.getSnapshot().messageRepository.headId, "optimistic-assistant");
+  assert.equal(session.getSnapshot().isRunning, false);
+  assert.equal(internals.streamingMessage, undefined);
+  assert.equal(internals.activeAssistantMessageId, undefined);
+  const settledPart = session.getSnapshot().messages.at(-1)?.content[0];
+  assert.equal(settledPart?.type === "text" ? settledPart.text : undefined, "Settled answer");
+});
+
 test("removes an unused optimistic assistant when a command settles without model output", (t) => {
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
@@ -2323,7 +2709,7 @@ test("removes an unused optimistic assistant when a command settles without mode
   const session = manager.getSession("local-session");
   const internals = session as unknown as {
     activeAssistantMessageId?: string;
-    streamingMessage?: import("@assistant-ui/react").ThreadMessage;
+    streamingMessage?: ThreadMessage;
     handleEvent(event: PiEvent): void;
     publishMessagesAndSetRunning(running: boolean): void;
   };
@@ -3201,8 +3587,7 @@ test("publishes image-recognition updates through the repository for a base-hist
   assert.equal(snapshot.messageRepository.messages[0]?.parentId, null);
   assert.equal(repositoryAssistant?.parentId, user.id);
   assert.equal(snapshot.messageRepository.headId, repositoryAssistant?.message.id);
-  const repository = new INTERNAL.MessageRepository();
-  assert.doesNotThrow(() => repository.import(snapshot.messageRepository));
+  assert.doesNotThrow(() => repositoryMessages(snapshot.messageRepository));
 });
 
 test("does not let stale history replace a newer image-recognition revision", async (t) => {
@@ -3342,8 +3727,7 @@ test("does not let stale history replace a newer image-recognition revision", as
     ),
     "succeeded",
   );
-  const repository = new INTERNAL.MessageRepository();
-  assert.doesNotThrow(() => repository.import(snapshot.messageRepository));
+  assert.doesNotThrow(() => repositoryMessages(snapshot.messageRepository));
 });
 
 test("binds a created session without starting a redundant metadata pull", async (t) => {
@@ -3438,7 +3822,7 @@ test("coalesces initialization while manager startup is pending", async (t) => {
   assert.equal(createCount, 1);
 });
 
-test("applies rich host session deltas without requesting a list refresh", async (t) => {
+test("applies rich host session deltas to the Headless thread list", (t) => {
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
   const internals = manager as unknown as {
@@ -3463,9 +3847,9 @@ test("applies rich host session deltas without requesting a list refresh", async
     },
     1,
   );
-  let listed = await manager.createThreadListAdapter().list();
+  let listed = manager.threads.getSnapshot();
   assert.deepEqual(
-    listed.threads.map((thread) => thread.remoteId),
+    listed.threads.map((thread) => thread.threadId),
     [initial.id],
   );
   assert.equal(listed.threads[0]?.title, "Realtime title");
@@ -3475,12 +3859,12 @@ test("applies rich host session deltas without requesting a list refresh", async
     { type: "host/session-changed", sessionId: renamed.id, summary: renamed },
     1,
   );
-  listed = await manager.createThreadListAdapter().list();
+  listed = manager.threads.getSnapshot();
   assert.equal(listed.threads[0]?.title, "Renamed elsewhere");
   assert.equal(refreshCount, 0);
 });
 
-test("publishes thread-list invalidation after applying an archive host delta", async (t) => {
+test("publishes an archived Headless thread after applying a host delta", (t) => {
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
   const internals = manager as unknown as {
@@ -3500,12 +3884,8 @@ test("publishes thread-list invalidation after applying an archive host delta", 
     },
     1,
   );
-  const adapter = manager.createThreadListAdapter();
-  await adapter.list();
-  assert.equal(manager.getThreadListRevision(), 0);
-
   let invalidations = 0;
-  const unsubscribe = manager.subscribeThreadList(() => {
+  const unsubscribe = manager.threads.subscribe(() => {
     invalidations += 1;
   });
   t.after(unsubscribe);
@@ -3519,13 +3899,11 @@ test("publishes thread-list invalidation after applying an archive host delta", 
     1,
   );
 
-  assert.equal(invalidations, 1);
-  assert.equal(manager.getThreadListRevision(), 1);
-  const listed = await adapter.list();
-  assert.equal(listed.threads[0]?.status, "archived");
+  assert.ok(invalidations >= 1);
+  assert.equal(manager.threads.getSnapshot().threads[0]?.isArchived, true);
 });
 
-test("publishes only structural thread-list host deltas", async (t) => {
+test("publishes Headless thread-list host deltas", (t) => {
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
   const internals = manager as unknown as {
@@ -3533,11 +3911,8 @@ test("publishes only structural thread-list host deltas", async (t) => {
     handleHostFrame(payload: HostStreamPayload, generation: number): void;
   };
   internals.start = async () => {};
-  const adapter = manager.createThreadListAdapter();
-  await adapter.list();
-
   let invalidations = 0;
-  const unsubscribe = manager.subscribeThreadList(() => {
+  const unsubscribe = manager.threads.subscribe(() => {
     invalidations += 1;
   });
   t.after(unsubscribe);
@@ -3553,8 +3928,10 @@ test("publishes only structural thread-list host deltas", async (t) => {
     },
     1,
   );
-  assert.equal(manager.getThreadListRevision(), 1);
-  assert.equal(invalidations, 1);
+  assert.deepEqual(
+    manager.threads.getSnapshot().threads.map((thread) => thread.threadId),
+    [created.id],
+  );
 
   internals.handleHostFrame(
     {
@@ -3568,16 +3945,15 @@ test("publishes only structural thread-list host deltas", async (t) => {
     { type: "host/session-status", sessionId: created.id, running: true },
     1,
   );
-  assert.equal(manager.getThreadListRevision(), 1);
-  assert.equal(invalidations, 1);
+  assert.equal(manager.threads.getSnapshot().threads[0]?.title, "Metadata-only rename");
+  assert.equal(manager.threads.getSnapshot().threads[0]?.isRunning, true);
 
   internals.handleHostFrame({ type: "host/session-removed", sessionId: created.id }, 1);
-  assert.equal(manager.getThreadListRevision(), 2);
-  assert.equal(invalidations, 2);
-  assert.deepEqual((await adapter.list()).threads, []);
+  assert.ok(invalidations >= 3);
+  assert.deepEqual(manager.threads.getSnapshot().threads, []);
 });
 
-test("publishes thread-list invalidation when pinning changes order", async (t) => {
+test("updates the Headless thread order when pinning changes", (t) => {
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
   const internals = manager as unknown as {
@@ -3598,11 +3974,8 @@ test("publishes thread-list invalidation when pinning changes order", async (t) 
       1,
     );
   }
-  const adapter = manager.createThreadListAdapter();
-  await adapter.list();
-
   let invalidations = 0;
-  const unsubscribe = manager.subscribeThreadList(() => {
+  const unsubscribe = manager.threads.subscribe(() => {
     invalidations += 1;
   });
   t.after(unsubscribe);
@@ -3611,15 +3984,14 @@ test("publishes thread-list invalidation when pinning changes order", async (t) 
     { type: "host/session-pinned-changed", sessionId: "thread-b", pinned: true },
     1,
   );
-  assert.equal(manager.getThreadListRevision(), 1);
-  assert.equal(invalidations, 1);
+  assert.ok(invalidations >= 1);
   assert.deepEqual(
-    (await adapter.list()).threads.map((thread) => thread.remoteId),
+    manager.threads.getSnapshot().threads.map((thread) => thread.threadId),
     ["thread-b", "thread-a"],
   );
 });
 
-test("publishes thread-list invalidation when workspace order changes thread order", async (t) => {
+test("updates the Headless thread order when workspace order changes", (t) => {
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
   const internals = manager as unknown as {
@@ -3657,14 +4029,13 @@ test("publishes thread-list invalidation when workspace order changes thread ord
     1,
   );
 
-  const adapter = manager.createThreadListAdapter();
   assert.deepEqual(
-    (await adapter.list()).threads.map((thread) => thread.remoteId),
+    manager.threads.getSnapshot().threads.map((thread) => thread.threadId),
     ["thread-a", "thread-b"],
   );
 
   let invalidations = 0;
-  const unsubscribe = manager.subscribeThreadList(() => {
+  const unsubscribe = manager.threads.subscribe(() => {
     invalidations += 1;
   });
   t.after(unsubscribe);
@@ -3677,15 +4048,14 @@ test("publishes thread-list invalidation when workspace order changes thread ord
     1,
   );
 
-  assert.equal(manager.getThreadListRevision(), 1);
-  assert.equal(invalidations, 1);
+  assert.ok(invalidations >= 1);
   assert.deepEqual(
-    (await adapter.list()).threads.map((thread) => thread.remoteId),
+    manager.threads.getSnapshot().threads.map((thread) => thread.threadId),
     ["thread-b", "thread-a"],
   );
 });
 
-test("does not expose a remote duplicate while the same browser promotes its draft", async (t) => {
+test("does not expose a remote duplicate while the same browser promotes its draft", (t) => {
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
   const internals = manager as unknown as {
@@ -3710,11 +4080,10 @@ test("does not expose a remote duplicate while the same browser promotes its dra
     1,
   );
 
-  const listed = await manager.createThreadListAdapter().list();
-  assert.deepEqual(listed.threads, []);
+  assert.deepEqual(manager.threads.getSnapshot().threads, []);
 });
 
-test("running-state changes preserve the message activity timestamp", async (t) => {
+test("running-state changes preserve the message activity timestamp", (t) => {
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
   const internals = manager as unknown as {
@@ -3734,13 +4103,13 @@ test("running-state changes preserve the message activity timestamp", async (t) 
     },
     1,
   );
-  const before = (await manager.createThreadListAdapter().list()).threads[0]?.lastMessageAt;
+  const before = manager.threads.getSnapshot().threads[0]?.updatedAt;
 
   internals.updateRunning(created.id, true);
   internals.updateRunning(created.id, false);
 
-  const after = (await manager.createThreadListAdapter().list()).threads[0]?.lastMessageAt;
-  assert.equal(after?.toISOString(), before?.toISOString());
+  const after = manager.threads.getSnapshot().threads[0]?.updatedAt;
+  assert.equal(after, before);
 });
 
 test("applies the correlated prompt admission from events.mux", async (t) => {
@@ -3981,6 +4350,54 @@ test("projects context trace mux events into the active assistant message as Dat
       "text",
     ],
   );
+});
+
+test("projects one live prompt composition per round until its presentation changes", (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("session-live-parts", "session-live-parts");
+  const internals = session as unknown as { streamingMessage: ThreadMessage };
+  internals.streamingMessage = {
+    id: "assistant",
+    role: "assistant",
+    content: [{ type: "text", text: "Running", status: { type: "running" } }],
+    status: { type: "running" },
+    createdAt: new Date(0),
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      steps: [],
+      custom: {},
+    },
+  };
+
+  session.applyContextTraceEvent(promptCompositionEvent("activation-live-parts:0", 0, "round-1"));
+  session.applyContextTraceEvent(promptCompositionEvent("activation-live-parts:1", 1, "round-1"));
+  session.applyContextTraceEvent(
+    promptCompositionEvent("activation-live-parts:2", 2, "round-1", ["read", "bash"]),
+  );
+  session.applyContextTraceEvent(
+    promptCompositionEvent("activation-live-parts:3", 3, "round-2", ["read", "bash"]),
+  );
+
+  const traceIds = [
+    ...new Set(
+      internals.streamingMessage.content.flatMap((part) =>
+        part.type === "data"
+          ? [parsePiContextTraceData(part.data)?.event.traceId].filter(
+              (traceId): traceId is string => traceId !== undefined,
+            )
+          : [],
+      ),
+    ),
+  ].sort();
+
+  assert.deepEqual(traceIds, [
+    "activation-live-parts:0",
+    "activation-live-parts:2",
+    "activation-live-parts:3",
+  ]);
 });
 
 test("holds an early prompt composition for the next assistant message", (t) => {

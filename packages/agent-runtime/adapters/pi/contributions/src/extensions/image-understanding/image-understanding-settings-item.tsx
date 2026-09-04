@@ -16,6 +16,7 @@ import { WorkbenchCodeEditor } from "@workbench/shell/code-highlighting";
 import { Button } from "@workbench/shell/ui";
 import { DropdownMenu, DropdownMenuRadioGroup } from "@workbench/shell/ui";
 import { Input } from "@workbench/shell/ui";
+import { SettingsField, SettingsGroup, SettingsRow } from "@workbench/shell/ui";
 import {
   SettingsDropdownContent,
   SettingsDropdownRadioItem,
@@ -209,27 +210,7 @@ function ChoiceControl<TValue extends string>({
   );
 }
 
-function SettingsRow({
-  title,
-  description,
-  children,
-}: {
-  title: string;
-  description: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
-      <div className="min-w-0 sm:max-w-[65%]">
-        <p className="text-sm font-medium">{title}</p>
-        <p className="text-muted-foreground mt-1 text-xs leading-5">{description}</p>
-      </div>
-      <div className="shrink-0">{children}</div>
-    </div>
-  );
-}
-
-function Field({
+function SettingsFieldWithLabelAction({
   id,
   label,
   labelAction,
@@ -244,20 +225,19 @@ function Field({
 }) {
   const descriptionId = description ? `${id}-description` : undefined;
   return (
-    <div className="flex h-full min-w-0 flex-col">
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-        <label htmlFor={id} className="text-sm font-medium">
-          {label}
-        </label>
-        {labelAction}
-      </div>
-      {description ? (
-        <p id={descriptionId} className="text-muted-foreground mt-1 text-xs leading-5">
-          {description}
-        </p>
-      ) : null}
-      <div className="mt-auto pt-2">{children}</div>
-    </div>
+    <SettingsField
+      className="h-full"
+      label={
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+          <label htmlFor={id}>{label}</label>
+          {labelAction}
+        </div>
+      }
+      description={description ? <span id={descriptionId}>{description}</span> : undefined}
+      contentClassName="mt-auto pt-2"
+    >
+      {children}
+    </SettingsField>
   );
 }
 
@@ -594,10 +574,11 @@ export function AttachmentUnderstandingSettingsItem({
 
   return (
     <div data-settings-section={sectionId} data-settings-item={itemId} className="py-5">
-      <section className="divide-y rounded-xl border px-4">
+      <SettingsGroup>
         <SettingsRow
-          title={t("extensions.imageUnderstanding.settings.routing.label")}
+          label={t("extensions.imageUnderstanding.settings.routing.label")}
           description={t("extensions.imageUnderstanding.settings.routing.description")}
+          controlClassName="shrink-0"
         >
           <ChoiceControl
             label={t("extensions.imageUnderstanding.settings.routing.label")}
@@ -608,8 +589,9 @@ export function AttachmentUnderstandingSettingsItem({
           />
         </SettingsRow>
         <SettingsRow
-          title={t("extensions.imageUnderstanding.settings.engine.label")}
+          label={t("extensions.imageUnderstanding.settings.engine.label")}
           description={t("extensions.imageUnderstanding.settings.engine.description")}
+          controlClassName="shrink-0"
         >
           <ChoiceControl
             label={t("extensions.imageUnderstanding.settings.engine.label")}
@@ -621,8 +603,9 @@ export function AttachmentUnderstandingSettingsItem({
         </SettingsRow>
         {draft.engine === "ocr" ? (
           <SettingsRow
-            title={t("extensions.imageUnderstanding.settings.ocrAdapter.label")}
+            label={t("extensions.imageUnderstanding.settings.ocrAdapter.label")}
             description={t("extensions.imageUnderstanding.settings.ocrAdapter.description")}
+            controlClassName="shrink-0"
           >
             <ChoiceControl
               label={t("extensions.imageUnderstanding.settings.ocrAdapter.label")}
@@ -649,7 +632,7 @@ export function AttachmentUnderstandingSettingsItem({
             />
           </SettingsRow>
         ) : null}
-      </section>
+      </SettingsGroup>
 
       {draft.engine === "ocr" ? (
         <section className="mt-5 rounded-xl border p-4">
@@ -663,7 +646,7 @@ export function AttachmentUnderstandingSettingsItem({
           </div>
 
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <Field
+            <SettingsFieldWithLabelAction
               id={ocrEndpointId}
               label={t("extensions.imageUnderstanding.settings.providers.endpoint")}
             >
@@ -676,8 +659,8 @@ export function AttachmentUnderstandingSettingsItem({
                 autoComplete="url"
                 onChange={(event) => updateDraft({ ocrEndpoint: event.currentTarget.value })}
               />
-            </Field>
-            <Field
+            </SettingsFieldWithLabelAction>
+            <SettingsFieldWithLabelAction
               id={ocrModelId}
               label={t("extensions.imageUnderstanding.settings.providers.model")}
             >
@@ -688,9 +671,9 @@ export function AttachmentUnderstandingSettingsItem({
                 spellCheck={false}
                 onChange={(event) => updateDraft({ ocrModel: event.currentTarget.value })}
               />
-            </Field>
+            </SettingsFieldWithLabelAction>
             <div className="sm:col-span-2">
-              <Field
+              <SettingsFieldWithLabelAction
                 id={ocrApiKeyId}
                 label={t("extensions.imageUnderstanding.settings.providers.apiKey")}
                 labelAction={
@@ -743,10 +726,10 @@ export function AttachmentUnderstandingSettingsItem({
                     </Button>
                   ) : null}
                 </div>
-              </Field>
+              </SettingsFieldWithLabelAction>
             </div>
             <div className="sm:col-span-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field
+              <SettingsFieldWithLabelAction
                 id={ocrPollIntervalId}
                 label={t("extensions.imageUnderstanding.settings.providers.pollInterval")}
               >
@@ -760,8 +743,8 @@ export function AttachmentUnderstandingSettingsItem({
                     updateDraft({ ocrPollIntervalMs: event.currentTarget.value })
                   }
                 />
-              </Field>
-              <Field
+              </SettingsFieldWithLabelAction>
+              <SettingsFieldWithLabelAction
                 id={ocrPollTimeoutId}
                 label={t("extensions.imageUnderstanding.settings.providers.pollTimeout")}
               >
@@ -773,10 +756,10 @@ export function AttachmentUnderstandingSettingsItem({
                   disabled={ocrAdapterDisabled}
                   onChange={(event) => updateDraft({ ocrPollTimeoutMs: event.currentTarget.value })}
                 />
-              </Field>
+              </SettingsFieldWithLabelAction>
             </div>
             <div className="sm:col-span-2">
-              <Field
+              <SettingsFieldWithLabelAction
                 id={ocrSourceId}
                 label={t("extensions.imageUnderstanding.settings.ocrAdapter.sourceLabel")}
                 description={t("extensions.imageUnderstanding.settings.ocrAdapter.sourceSecurity")}
@@ -801,7 +784,7 @@ export function AttachmentUnderstandingSettingsItem({
                     });
                   }}
                 />
-              </Field>
+              </SettingsFieldWithLabelAction>
               {parsedAdapter ? (
                 <p className="text-muted-foreground mt-2 text-xs leading-5" role="status">
                   {t("extensions.imageUnderstanding.settings.ocrAdapter.validSummary", {
@@ -832,7 +815,7 @@ export function AttachmentUnderstandingSettingsItem({
             {t("extensions.imageUnderstanding.settings.multimodal.description")}
           </p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <Field
+            <SettingsFieldWithLabelAction
               id={multimodalProviderId}
               label={t("extensions.imageUnderstanding.settings.multimodal.provider")}
             >
@@ -874,8 +857,8 @@ export function AttachmentUnderstandingSettingsItem({
                   });
                 }}
               />
-            </Field>
-            <Field
+            </SettingsFieldWithLabelAction>
+            <SettingsFieldWithLabelAction
               id={multimodalModelId}
               label={t("extensions.imageUnderstanding.settings.providers.model")}
             >
@@ -900,7 +883,7 @@ export function AttachmentUnderstandingSettingsItem({
                 contentClassName="max-h-72 overflow-y-auto"
                 onChange={(multimodalModel) => updateDraft({ multimodalModel })}
               />
-            </Field>
+            </SettingsFieldWithLabelAction>
           </div>
         </section>
       )}

@@ -1,4 +1,3 @@
-import type { ThreadMessage } from "@assistant-ui/react";
 import type { WorkbenchConversationEvent } from "@workbench/agent-runtime-contracts/message-metadata";
 
 import {
@@ -11,6 +10,7 @@ import {
   type PiForkConversationEvent,
   type PiModelChangeConversationEvent,
 } from "@workbench/agent-runtime-pi-protocol/messages";
+import type { PiConversationMessage as ThreadMessage } from "../conversation/pi-conversation-message";
 
 function record(value: unknown): Record<string, unknown> | undefined {
   return typeof value === "object" && value !== null && !Array.isArray(value)

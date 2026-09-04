@@ -8,5 +8,6 @@ export * from "./opener";
 export * from "./panel";
 export * from "./renderer";
 export * from "./settings";
+export * from "./sidebar-section";
 export * from "./slot";
 export * from "./workspace-surface";

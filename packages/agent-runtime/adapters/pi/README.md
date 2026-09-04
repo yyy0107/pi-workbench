@@ -12,7 +12,7 @@ Workbench 子集，而不是参考文档全部 59 个接口。线协议的类型
 - [`protocol/src/rpc.ts`](./protocol/src/rpc.ts)：RPC envelope，以及 Host、Workspace、LLM、Settings、
   Session 的请求和响应类型；
 - [`protocol/src/stream.ts`](./protocol/src/stream.ts)：mux/host WebSocket frame 和 payload 联合；
-- [`protocol/src/messages.ts`](./protocol/src/messages.ts)：Workbench UI 适配层与 legacy
+- [`protocol/src/messages.ts`](./protocol/src/messages.ts)：Pi client 与 legacy
   `/api/pi/**` 使用的 Pi 消息类型。
 
 Automation 的定义、存储和调度位于
@@ -26,9 +26,11 @@ Automation 的定义、存储和调度位于
 
 ```mermaid
 flowchart TD
-  UI["Browser / assistant-ui"] --> PORT["WorkbenchAgentRuntimeAdapter"]
-  PORT --> ADAPTER["Pi assistant-ui adapter"]
-  ADAPTER --> CM["PiSessionManager / PiClientSession"]
+  UI["Browser / Workbench UI"] --> HEADLESS["Workbench AgentRuntime / Session"]
+  HEADLESS --> CM["PiSessionManager / PiClientSession"]
+  CM --> ASSEMBLER["Pi Conversation Assembler"]
+  ASSEMBLER --> SNAPSHOT["Workbench ConversationSnapshot"]
+  SNAPSHOT --> UI
   CM -->|"POST /api/<method>"| HTTP["Unary RPC"]
   CM -->|"events.mux + events.host"| WS["Paired WebSocket generation"]
 
@@ -788,7 +790,7 @@ Workbench 在 Pi JSONL 中保存 canonical event journal。每个 `SessionEvent`
 `session.history.branches` 返回的 leaf，重建 Pi model context 和 branch-local context policy，刷新
 canonical event watermark，并用 `workbench.branch-selection.v1` custom entry 持久化这次选择。
 两种 mutation 都与 prompt/queue mutation 串行执行；session 正在运行时返回 busy，客户端不得只在
-assistant-ui 本地切换分支而不提交权威 RPC。
+浏览器本地切换分支而不提交权威 RPC。
 
 可恢复中止使用同一份 Pi JSONL，而不是浏览器临时状态。一次 run 到达 `agent_settled` 后，如果最后的
 assistant message 被归类为用户停止、进程中止、网络错误、限流、额度/鉴权或 Provider 错误，Hosted
@@ -873,21 +875,21 @@ sessionId
   再调用 read，避免每次完整上下文快照都在 WebSocket 中广播。
 
 只有 `prompt-composition` mux 摘要会由 `PiClientSession` 投影为最多三个名为
-`workbench.pi-context-trace-event` 的 assistant-ui `data` Part，分别展示非空的 System Prompt、Tools
-和 Extensions 注入状态，并与 `reasoning` 和 `tool-call`
+`workbench.pi-context-trace-event` 的 Workbench Data Block，分别展示非空的 System Prompt、Tools
+和 Extensions 注入状态，并与 Reasoning/Tool Call Block
 进入同一个 Assistant 消息工作时间线；Round、Run、Turn、Provider、模型输出、工具执行等 trace
-事件只留在审计界面，不进入聊天 Parts。哪些 Part 存在由最后注册的 `context` 观察器在 Pi 真实模型调用
+事件只留在审计界面，不进入聊天 Blocks。哪些 Block 存在由最后注册的 `context` 观察器在 Pi 真实模型调用
 边界写入 `promptInjections`；Tools 使用当次实际 active tool 清单，客户端只验证并渲染该列表，不再从
 `promptResources` 反推注入项。Skills、工作目录与 context files 已包含在完整 System Prompt 中，因此
-不再重复投影为聊天 Part，但仍保留在 Context Trace 审计资源中。Pi 的累计式 `message_update` 每次重建原生 Parts 时，客户端按
-事件被观测时的原生 Part 边界重新插入 Prompt Data Part。冷启动时，客户端把 `session.history` 与
+不再重复投影为聊天 Block，但仍保留在 Context Trace 审计资源中。Pi 的累计式 `message_update` 每次重建原生内容时，客户端按
+事件被观测时的原生内容边界重新插入 Prompt Data Block。冷启动时，客户端把 `session.history` 与
 `session.contextTrace.promptParts` 并行加载，再以持久摘要关联的 AssistantMessage timestamp 把 Prompt
-Part 插到对应原生消息内容之前；分页回填、分支切换和运行结束后的 rebaseline 都复用同一个投影。
+Block 插到对应原生消息内容之前；分页回填、分支切换和运行结束后的 rebaseline 都复用同一个投影。
 `prompt-composition` 摘要携带当前工作目录、每一层 System Prompt 的注入类型、作用域和文件路径，以及最终 Skill、
 Extension、context-file 路径和实际提供给模型的 tool 清单及计数，供 Data Renderer 直接展示。来源可以区分 Pi
 内置默认提示词、用户目录或项目目录的 `SYSTEM.md`、追加提示词及临时覆盖；完整 system prompt、工具
 Schema、context-file 正文、provider payload 和其它 trace 详情仍只存在审计 journal，不会复制进
-assistant-ui 消息状态。用户展开 System Prompt Part 时，Renderer 通过现有 read RPC 按需读取 journal
+临时消息兼容投影。用户展开 System Prompt Block 时，Renderer 通过现有 read RPC 按需读取 journal
 中的完整详情并展示该事件捕获的完整最终正文。
 
 浏览器侧对应的 typed helpers 是 `listPiRpcSessionContextTraceActivations()`、
@@ -926,14 +928,16 @@ Pi 目前的 `before_provider_request` 是“逻辑 provider 请求”钩子：�
 `requestId` 误画成每次网络尝试。当前 scope 是 `agent-turn`；compaction/branch summary 或附件 OCR
 内部自行发起的辅助模型请求，并不保证经过这个 provider payload 钩子。
 
-token 级 `message_update` 是例外：它通过 `session/message-update` 作为无 durable `seq` 的
-transient compact delta 实时发送，不写 JSONL、不进入 canonical event cache，也不推进 reconnect
-watermark。delta 复用 `@earendil-works/pi-ai` 的 `PiMessagesEvent` 内容事件子集，并由固定的
-`streamId`、`message_start` durable `startSeq` 和 stream 内 revision 定序；payload 只重复不含
-`content` 的固定大小 message metadata。`message_start` 后会先保留 revision 0 的空基线，因此在首个
-token 到达前连接的客户端也能建立正确 stream。最终 durable `message_end` 仍是完成态的权威校正，首 token
-时间也只在 `message_end.data.workbenchTiming` 中持久化一次。旧 JSONL 中已经存在的 durable
-`message_update` 仍按原序列读取，以保持历史和 fork 坐标兼容。
+token 级 `message_update` 使用 canonical durable chunk：服务端在 16 ms 窗口内合并相邻的
+text/reasoning/tool-args fragment，将一个 `SessionMessageChunkData` 作为有连续 durable `seq` 的
+`message_update` 先写入 Pi JSONL，再通过 `session/event` 发布并推进 reconnect watermark。delta 复用
+`@earendil-works/pi-ai` 的 `PiMessagesEvent` 内容事件子集，并由固定的 `streamId`、`message_start`
+的 durable `startSeq`、`firstRevision` 和 `revision` 定序；payload 只重复不含 `content` 的固定大小
+message metadata。`message_start` 后仍会保留 revision 0 的空 snapshot，使首 token 前接入的客户端能快速
+建立 stream；snapshot 只是 bootstrap 优化，history 会从 journal 重放 chunk 并物化未完成 assistant。
+最终 durable `message_end` 仍是完成态的权威校正，首 token 时间也只在
+`message_end.data.workbenchTiming` 中持久化一次。旧 JSONL 中的累计式 durable `message_update` 继续按原
+序列读取；客户端也继续接受旧服务端的 transient `session/message-update`，用于滚动升级兼容。
 
 其他关键行为：
 
@@ -966,8 +970,7 @@ approval 的上行回答必须通过 `POST /api/respond`。
 
 `/api/events.mux` 当前承载：
 
-- canonical session event 和 session watermark；
-- 不参与 journal、durable sequence 或 reconnect watermark 的 transient `session/message-update`；
+- canonical session event（包括 durable packed `message_update`）和 session watermark；
 - 仅在连接 bootstrap 或 compact projector 自修复时出现的 `session/message-snapshot`；
 - `session.prompt` 真正接纳后的瞬时 `session/prompt-accepted` 确认；其 frame `rpcId` 与原 HTTP
   RPC 相同，并携带接纳后的运行态，但不重复传输 prompt 内容；
@@ -984,11 +987,13 @@ approval 的上行回答必须通过 `POST /api/respond`。
 直接应用会话创建、标题/消息元数据、运行、等待输入与归档增量。
 
 每个 active assistant stream 在 Hub 中只保留一份物化快照。Hub 在订阅调用栈内同步捕获 snapshot
-cut，随后按 `session/subscribed → session/message-snapshot → queue/interaction → cut 后 live delta`
-发送；客户端丢弃不高于 snapshot revision 的重复 delta，revision 缺口则废弃本代连接并通过新
-snapshot 恢复。snapshot 还携带尚未完成的 tool-call 原始 JSON buffer，因为已经解析的 arguments
-不能继续拼接后续 JSON fragment。durable `message_end`、branch reset 和 host shutdown 会清除该
-快照，避免重连复活已完成的 streaming row。bootstrap 缓冲上限为 10,000 帧；单 socket 待发送
+cut，随后按 `session/subscribed → session/message-snapshot → queue/interaction → cut 后 live canonical chunk`
+发送；客户端丢弃不高于 snapshot revision 的重复 chunk，revision 缺口则废弃本代连接并从 durable
+history 重新建立基线。snapshot 还携带尚未完成的 tool-call 原始 JSON buffer，因为已经解析的 arguments
+不能继续拼接后续 JSON fragment；它只缩短 bootstrap，不替代 journal 恢复。durable `message_end`、
+branch reset 和 host shutdown 会清除该快照，避免重连复活已完成的 streaming row。旧
+`session/message-update` payload 仍由客户端读取，但当前服务端不再生产。bootstrap 缓冲上限为
+10,000 帧；单 socket 待发送
 数据背压水位为 1 MiB。同步 bootstrap 或密集 live delta 短暂越过水位时，网关会在保持帧顺序的同时
 继续排空队列；只有队列连续 10 秒仍高于水位时才判定客户端未消费，避免把健康的瞬时突发误报为慢
 消费者，同时防止持续落后的连接无限占用内存。
@@ -1160,23 +1165,26 @@ packages/agent-runtime/adapters/pi/
 - `@workbench/agent-runtime-pi-protocol` 只包含稳定、可序列化的跨端协议与兼容 DTO，不导入浏览器
   实现、服务端实现或宿主对象；
 - `@workbench/agent-runtime-pi-shared` 保存 Pi 浏览器与服务端可复用的纯逻辑，可以依赖 protocol，
-  但不拥有网络、文件系统或 assistant-ui 状态；
-- `@workbench/agent-runtime-pi-client` 是 Pi 对通用 `WorkbenchAgentRuntimeAdapter` 的具体浏览器实现。
-  它拥有 Pi session 到
-  assistant-ui Runtime 的投影、后台 thread presentation、通用 extras 和 callback 映射，以及 Pi
-  manager、命令目录、workspace selection 与 active/draft tracker 的浏览器侧安装生命周期；通用
-  `@workbench/agent-runtime-client` 不得反向导入 Pi。内部 `thread-store.ts` 直接包装 manager 已有逐线程订阅并将
+  但不拥有网络、文件系统或 UI 状态；
+- `@workbench/agent-runtime-pi-client` 是 Pi 对通用 `AgentRuntime` 的具体浏览器实现。
+  每个 `PiClientSession` 是其会话 history、live、optimistic、重连和交互状态的唯一可变所有者；这些输入
+  共用 `PiConversationMessage` canonical state，并由 `PiConversationAssembler` 生成稳定的 Workbench
+  Conversation Snapshot 和 per-node observable。`PiSessionManager` 同时通过稳定 observable 暴露通用
+  `AgentRuntime` 的 thread catalog、current selection、catalog actions 和同一 Session cache；本地
+  `sessionId` 在 draft promotion 前后保持稳定，晋升后的 durable `threadId` 独立用于路由。Shell 与
+  Extension Renderer 直接消费 Workbench Node/Block。Provider 以 `RuntimeProvider` 安装唯一 manager，
+  不建立第二个 reducer、连接、SessionManager 或消息 store。该 package 还拥有 Pi manager、命令目录、
+  workspace selection 与 active/draft tracker 的浏览器侧安装生命周期；通用
+  `@workbench/agent-runtime-client` 不得反向导入 Pi。内部 `integration/thread-store.ts` 直接包装 manager 已有逐线程订阅并将
   `cwd` 映射为通用 `rootPath`，不建立第二份缓存；`command-catalog.tsx` 负责选择 session/workspace
   target 与订阅资源 revision，纯 `CommandView` 投影复用 Pi shared package。
-  `adapter.test.tsx` 调用通用 `defineWorkbenchAgentRuntimeAdapterContract()`，从真实通用 Host 锁定 Pi 的
-  assistant-ui capabilities、command/thread presentation 和订阅面；Pi 消息、队列与生命周期细节仍由
-  实现目录的专项测试覆盖。`pi-runtime-installation.tsx` 只把应用输入绑定到完整
-  `PiAgentRuntimeProvider`；manager 和 adapter 仍在 Provider 内创建。
+  Pi 消息、队列、Headless projection 与生命周期由实现目录的专项测试覆盖。
+  `pi-runtime-installation.tsx` 只把应用输入绑定到完整 `PiAgentRuntimeProvider`；manager 仍在 Provider 内创建。
   `apps/web/src/workbench/providers/installed-agent-runtime.tsx` 是当前唯一 Web 具体实现选择点，使用 singular factory 选择
-  Pi；`assistant-runtime-provider.tsx` 只挂载结果并安装后端无关 Surface 桥接；
-- Pi client package 内部的 `PiSessionManager` 维护独立的 thread-list 结构 revision。只有会话成员、归档状态
-  或排序变化才通知通用 Runtime；初始 list 和同一浏览器的 draft promotion 只更新结构基线，避免宽泛
-  manager 状态触发重复 reload 或重复 remote item；
+  Pi；`agent-runtime-provider.tsx` 只挂载结果并安装后端无关 Surface 桥接；
+- Pi client package 内部的 `PiSessionManager` 通过同一 Runtime revision 发布 thread catalog、metadata、
+  running、waiting 和 completed 更新。draft promotion 复用原 Session 并发布一次 durable identity，
+  不产生重复 remote item；
 - `server` 可以依赖 Pi protocol/shared packages，不得导入 Pi client package。Node/Pi Runtime、凭据、信任和
   文件系统逻辑只留在这里；
 - `server/src/agent-runtime` 实现 `@workbench/agent-runtime-server` 的后端无关执行与线程存储端口，把 `threadId`、
@@ -1283,7 +1291,8 @@ packages/agent-runtime/adapters/pi/
   `PromptCatalogProtocol`。两者继续在服务层取得 session 或 scoped resource context，transport 不接触
   ResourceLoader；
 - `server/src/streams` 负责实时分发与 legacy SSE，不拥有业务状态；
-- Pi client package 的 transport 不拥有 assistant-ui 状态，状态协调集中在其内部 runtime；
+- Pi client package 的 transport 不拥有 Conversation 或 UI 状态，单会话状态协调集中在
+  `PiClientSession`；
 - 跨层导入直接指向拥有者模块，不通过聚合 barrel 隐藏依赖方向。
 
 ## 配置

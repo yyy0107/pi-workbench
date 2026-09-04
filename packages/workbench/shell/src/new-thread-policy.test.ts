@@ -24,16 +24,14 @@ test("new conversations prefer the active workspace and fall back to the first w
 test("sidebar threads keep their workspace while a draft is becoming persistent", () => {
   assert.equal(
     resolveSidebarThreadWorkspaceId({
-      customWorkspaceId: "workspace-server",
       managedWorkspaceId: "workspace-draft",
       isMainThread: true,
       draftWorkspaceId: "workspace-ui",
     }),
-    "workspace-server",
+    "workspace-draft",
   );
   assert.equal(
     resolveSidebarThreadWorkspaceId({
-      customWorkspaceId: undefined,
       managedWorkspaceId: "workspace-draft",
       isMainThread: false,
       draftWorkspaceId: undefined,
@@ -42,7 +40,6 @@ test("sidebar threads keep their workspace while a draft is becoming persistent"
   );
   assert.equal(
     resolveSidebarThreadWorkspaceId({
-      customWorkspaceId: undefined,
       managedWorkspaceId: undefined,
       isMainThread: true,
       draftWorkspaceId: "workspace-ui",
@@ -51,7 +48,6 @@ test("sidebar threads keep their workspace while a draft is becoming persistent"
   );
   assert.equal(
     resolveSidebarThreadWorkspaceId({
-      customWorkspaceId: undefined,
       managedWorkspaceId: undefined,
       isMainThread: false,
       draftWorkspaceId: "workspace-ui",
@@ -144,11 +140,8 @@ test("a new conversation closes the hydrated right workspace only once", () => {
 test("a promoted draft routes once its first message and durable id are both available", () => {
   assert.equal(
     resolvePromotedThreadRouteId({
-      mainThreadId: "local-thread",
-      newThreadId: undefined,
-      status: "regular",
-      remoteId: undefined,
-      externalId: undefined,
+      isNewThread: false,
+      threadId: undefined,
       hasMessages: true,
     }),
     undefined,
@@ -156,33 +149,24 @@ test("a promoted draft routes once its first message and durable id are both ava
   );
   assert.equal(
     resolvePromotedThreadRouteId({
-      mainThreadId: "local-thread",
-      newThreadId: undefined,
-      status: "regular",
-      remoteId: "remote-thread",
-      externalId: "remote-thread",
+      isNewThread: false,
+      threadId: "remote-thread",
       hasMessages: true,
     }),
     "remote-thread",
   );
   assert.equal(
     resolvePromotedThreadRouteId({
-      mainThreadId: "local-thread",
-      newThreadId: "local-thread",
-      status: "new",
-      remoteId: undefined,
-      externalId: undefined,
+      isNewThread: true,
+      threadId: undefined,
       hasMessages: false,
     }),
     undefined,
   );
   assert.equal(
     resolvePromotedThreadRouteId({
-      mainThreadId: "local-thread",
-      newThreadId: undefined,
-      status: "regular",
-      remoteId: "remote-thread",
-      externalId: "remote-thread",
+      isNewThread: false,
+      threadId: "remote-thread",
       hasMessages: false,
     }),
     undefined,

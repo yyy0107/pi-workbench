@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import type { DataMessagePartComponent } from "@assistant-ui/react";
 import { ScanSearchIcon } from "lucide-react";
 
-import { field, mono } from "@workbench/shell/elements";
+import type { DataRendererComponent } from "@workbench/extension-sdk";
+import { field, mono } from "@workbench/shell/ui";
 import { ToolCall } from "@workbench/shell/elements";
 import { Button } from "@workbench/shell/ui";
 import { usePiI18n } from "../../i18n";
@@ -73,12 +73,12 @@ type SystemPromptContentState =
   | { traceId: string; status: "loading" | "error" }
   | { traceId: string; status: "ready"; text: string };
 
-export const ContextTraceMessagePart: DataMessagePartComponent = ({ data }) => {
+export const ContextTraceMessagePart: DataRendererComponent = ({ block }) => {
   const { number, t } = usePiI18n();
   const traceClient = usePiContextTraceClient();
   const [open, setOpen] = useState(false);
   const [systemPromptContent, setSystemPromptContent] = useState<SystemPromptContentState>();
-  const parsed = parsePiContextTraceData(data);
+  const parsed = parsePiContextTraceData(block.data);
   if (!parsed || parsed.event.kind !== "prompt-composition") return null;
 
   const event = parsed.event;

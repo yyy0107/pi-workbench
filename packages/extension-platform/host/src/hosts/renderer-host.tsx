@@ -1,19 +1,17 @@
 "use client";
 
 import { useSyncExternalStore, type ReactNode } from "react";
-import type {
-  DataMessagePartComponent,
-  EnrichedPartState,
-  ToolCallMessagePartComponent,
-} from "@assistant-ui/react";
 
 import type {
   DataPresentationDefinition,
   DataRendererComponent,
+  MessageBlockNode,
+  MessageBlockRendererContribution,
+  MessageRendererNode,
   ToolPresentationDefinition,
   ToolRendererComponent,
-  MessagePartRendererContribution,
 } from "@workbench/extension-sdk";
+
 import { useExtensionEnvironment } from "../extension-context";
 import { ExtensionErrorBoundary } from "./extension-error-boundary";
 
@@ -29,11 +27,14 @@ const EMPTY_DATA_PRESENTATIONS = Object.freeze(Object.create(null)) as Readonly<
 const EMPTY_TOOL_PRESENTATIONS = Object.freeze(Object.create(null)) as Readonly<
   Record<string, ToolPresentationDefinition>
 >;
-const EMPTY_PART_RENDERERS = Object.freeze(
+const EMPTY_BLOCK_RENDERERS = Object.freeze(
   [],
-) as readonly Readonly<MessagePartRendererContribution>[];
+) as readonly Readonly<MessageBlockRendererContribution>[];
 
-export function MessageRendererHost({ fallback = null }: { fallback?: ReactNode }) {
+export function MessageRendererHost({
+  node,
+  fallback = null,
+}: Readonly<{ node: MessageRendererNode; fallback?: ReactNode }>) {
   const { manager, reportError } = useExtensionEnvironment();
   const contribution = useSyncExternalStore(
     manager.renderers.message.subscribe,
@@ -49,72 +50,20 @@ export function MessageRendererHost({ fallback = null }: { fallback?: ReactNode 
       contributionId={contribution.id}
       source="renderer"
       onError={reportError}
-      resetKey={MessageRenderer}
+      resetKey={node}
       fallback={fallback}
     >
-      <MessageRenderer />
+      <MessageRenderer node={node} />
     </ExtensionErrorBoundary>
   );
 }
 
-export function useMessagePartRenderers(): readonly Readonly<MessagePartRendererContribution>[] {
+export function useMessageBlockRenderers(): readonly Readonly<MessageBlockRendererContribution>[] {
   const { manager } = useExtensionEnvironment();
   return useSyncExternalStore(
-    manager.renderers.parts.subscribe,
-    () => manager.renderers.parts.getAll(),
-    () => EMPTY_PART_RENDERERS,
-  );
-}
-
-export function MessagePartRendererHost({
-  part,
-  fallback = null,
-}: {
-  part: EnrichedPartState;
-  fallback?: ReactNode;
-}) {
-  const renderers = useMessagePartRenderers();
-  const { reportError } = useExtensionEnvironment();
-
-  return (
-    <ExtensionErrorBoundary
-      key={JSON.stringify(renderers.map((renderer) => renderer.id))}
-      contributionId="message-part-renderer.match"
-      source="renderer"
-      onError={reportError}
-      resetKey={part}
-      fallback={fallback}
-    >
-      <MatchedMessagePartRenderer part={part} renderers={renderers} fallback={fallback} />
-    </ExtensionErrorBoundary>
-  );
-}
-
-function MatchedMessagePartRenderer({
-  part,
-  renderers,
-  fallback,
-}: {
-  part: EnrichedPartState;
-  renderers: readonly Readonly<MessagePartRendererContribution>[];
-  fallback: ReactNode;
-}) {
-  const { reportError } = useExtensionEnvironment();
-  const contribution = renderers.find((renderer) => renderer.canRender(part));
-
-  if (!contribution) return fallback;
-  const PartRenderer = contribution.component;
-
-  return (
-    <ExtensionErrorBoundary
-      contributionId={contribution.id}
-      source="renderer"
-      onError={reportError}
-      resetKey={part}
-      fallback={fallback}
-    >
-      <PartRenderer part={part} />
-    </ExtensionErrorBoundary>
+    manager.renderers.blocks.subscribe,
+    () => manager.renderers.blocks.getAll(),
+    () => EMPTY_BLOCK_RENDERERS,
   );
 }
 
@@ -155,64 +104,106 @@ export function useDataPresentationMap(): Readonly<Record<string, DataPresentati
 }
 
 export interface RendererHostProps {
-  part: EnrichedPartState;
-  toolFallback?: ToolCallMessagePartComponent;
-  dataFallback?: DataMessagePartComponent;
-  children?: ReactNode;
+  readonly node: MessageBlockNode;
+  readonly block: MessageBlockNode["blocks"][number];
+  readonly fallback?: ReactNode;
 }
 
-export function RendererHost({
-  part,
-  toolFallback: ToolFallback,
-  dataFallback: DataFallback,
-  children = null,
-}: RendererHostProps) {
+/** Resolve predicate renderers first, then exact Tool/Data renderers, then the caller fallback. */
+export function RendererHost({ node, block, fallback = null }: RendererHostProps) {
+  const renderers = useMessageBlockRenderers();
   const toolRenderers = useToolRendererMap();
   const dataRenderers = useDataRendererMap();
   const { reportError } = useExtensionEnvironment();
 
-  if (part.type === "tool-call") {
-    const ToolRenderer = Object.hasOwn(toolRenderers, part.toolName)
-      ? toolRenderers[part.toolName]
-      : undefined;
-    if (ToolRenderer) {
-      return (
-        <ExtensionErrorBoundary
-          key={part.toolCallId}
-          contributionId={`tool:${part.toolName}`}
-          source="renderer"
-          onError={reportError}
-          resetKey={`${part.status.type}:${part.argsText}`}
-        >
-          <ToolRenderer {...part} />
-        </ExtensionErrorBoundary>
-      );
-    }
-    if (part.toolUI != null) return part.toolUI;
-    if (ToolFallback) return <ToolFallback {...part} />;
-    return children;
+  return (
+    <ExtensionErrorBoundary
+      contributionId="message-block-renderer.match"
+      source="renderer"
+      onError={reportError}
+      resetKey={block}
+      fallback={fallback}
+    >
+      <MatchedRenderer
+        node={node}
+        block={block}
+        renderers={renderers}
+        toolRenderers={toolRenderers}
+        dataRenderers={dataRenderers}
+        fallback={fallback}
+      />
+    </ExtensionErrorBoundary>
+  );
+}
+
+function MatchedRenderer({
+  node,
+  block,
+  renderers,
+  toolRenderers,
+  dataRenderers,
+  fallback,
+}: RendererHostProps & {
+  readonly renderers: readonly Readonly<MessageBlockRendererContribution>[];
+  readonly toolRenderers: Readonly<Record<string, ToolRendererComponent>>;
+  readonly dataRenderers: Readonly<Record<string, DataRendererComponent>>;
+  readonly fallback: ReactNode;
+}) {
+  const { reportError } = useExtensionEnvironment();
+  const contribution = renderers.find((renderer) => renderer.canRender(block));
+
+  if (contribution) {
+    const BlockRenderer = contribution.component;
+    return (
+      <ExtensionErrorBoundary
+        contributionId={contribution.id}
+        source="renderer"
+        onError={reportError}
+        resetKey={block}
+        fallback={fallback}
+      >
+        <BlockRenderer node={node} block={block} fallback={fallback} />
+      </ExtensionErrorBoundary>
+    );
   }
 
-  if (part.type === "data") {
-    const DataRenderer = Object.hasOwn(dataRenderers, part.name)
-      ? dataRenderers[part.name]
+  if (block.kind === "tool-call") {
+    const ToolRenderer = Object.hasOwn(toolRenderers, block.toolName)
+      ? toolRenderers[block.toolName]
       : undefined;
-    if (DataRenderer) {
-      return (
-        <ExtensionErrorBoundary
-          contributionId={`data:${part.name}`}
-          source="renderer"
-          onError={reportError}
-          resetKey={part.data}
-        >
-          <DataRenderer {...part} />
-        </ExtensionErrorBoundary>
-      );
-    }
-    if (part.dataRendererUI != null) return part.dataRendererUI;
-    if (DataFallback) return <DataFallback {...part} />;
-    return children;
+    return ToolRenderer ? (
+      <ExtensionErrorBoundary
+        contributionId={`tool:${block.toolName}`}
+        source="renderer"
+        onError={reportError}
+        resetKey={block}
+        fallback={fallback}
+      >
+        <ToolRenderer node={node} block={block} fallback={fallback} />
+      </ExtensionErrorBoundary>
+    ) : (
+      fallback
+    );
   }
 
-  return children;
+  if (block.kind === "data") {
+    const DataRenderer = Object.hasOwn(dataRenderers, block.name)
+      ? dataRenderers[block.name]
+      : undefined;
+    return DataRenderer ? (
+      <ExtensionErrorBoundary
+        contributionId={`data:${block.name}`}
+        source="renderer"
+        onError={reportError}
+        resetKey={block}
+        fallback={fallback}
+      >
+        <DataRenderer node={node} block={block} fallback={fallback} />
+      </ExtensionErrorBoundary>
+    ) : (
+      fallback
+    );
+  }
+
+  return fallback;
 }
