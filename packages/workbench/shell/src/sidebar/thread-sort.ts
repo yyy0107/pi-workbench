@@ -47,7 +47,9 @@ export function resolveThreadOrder(
   threadIds: readonly string[],
   createdAtByThreadId: ReadonlyMap<string, string | undefined>,
   storedOrder: readonly string[],
+  sourceOrderIsCanonical = false,
 ): readonly string[] {
+  if (sourceOrderIsCanonical) return threadIds;
   return resolveManualThreadOrder(
     sortThreadIdsByCreation(threadIds, createdAtByThreadId),
     storedOrder,

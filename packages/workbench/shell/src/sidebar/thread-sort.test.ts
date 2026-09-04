@@ -38,6 +38,10 @@ test("reconciles the dragged id order with removed conversations", () => {
   );
 });
 
+test("preserves the Runtime order for workspace conversations", () => {
+  assert.equal(resolveThreadOrder(threadIds, createdAtByThreadId, ["middle"], true), threadIds);
+});
+
 test("moves a conversation before or after the drop target", () => {
   assert.deepEqual(moveThreadId(["a", "b", "c", "d"], "d", "b", "before"), ["a", "d", "b", "c"]);
   assert.deepEqual(moveThreadId(["a", "b", "c", "d"], "a", "c", "after"), ["b", "c", "a", "d"]);

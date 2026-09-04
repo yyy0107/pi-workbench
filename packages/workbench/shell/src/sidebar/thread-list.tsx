@@ -95,6 +95,8 @@ export function WorkbenchThreadList({
   }, [itemsById, normalizedSearchQuery, scopeThreadIds]);
   const hasThreads = visibleThreadIds.length > 0;
   const orderScope = pinnedOnly ? "pinned" : workspaceId ? `workspace:${workspaceId}` : "ungrouped";
+  const sourceOrderIsCanonical =
+    workspaceId !== undefined && !pinnedOnly && threadActions.moveWithinWorkspace !== undefined;
   const storedManualOrder = useThreadOrderStore(
     (state) => state.manualOrderByScope[orderScope] ?? EMPTY_THREAD_ORDER,
   );
@@ -104,8 +106,14 @@ export function WorkbenchThreadList({
     [itemsById, scopeThreadIds],
   );
   const resolvedScopeThreadIds = useMemo(
-    () => resolveThreadOrder(scopeThreadIds, createdAtByThreadId, storedManualOrder),
-    [createdAtByThreadId, scopeThreadIds, storedManualOrder],
+    () =>
+      resolveThreadOrder(
+        scopeThreadIds,
+        createdAtByThreadId,
+        storedManualOrder,
+        sourceOrderIsCanonical,
+      ),
+    [createdAtByThreadId, scopeThreadIds, sourceOrderIsCanonical, storedManualOrder],
   );
   const sortedThreadIds = useMemo(() => {
     if (!normalizedSearchQuery) return resolvedScopeThreadIds;
@@ -141,31 +149,29 @@ export function WorkbenchThreadList({
     ignoreSelector: "[data-thread-item-actions]",
     onMove: (sourceThreadId, targetThreadId, position) => {
       const { orderScope: currentScope, resolvedScopeThreadIds } = dragOrderContextRef.current;
-      const nextOrder = moveThreadId(
-        resolvedScopeThreadIds,
-        sourceThreadId,
-        targetThreadId,
-        position,
-      );
-      setManualOrder(currentScope, nextOrder);
+      if (workspaceId && !pinnedOnly && threadActions.moveWithinWorkspace) {
+        const beforeSessionId = sidebarItemIdAfterMove(
+          resolvedScopeThreadIds,
+          sourceThreadId,
+          targetThreadId,
+          position,
+        );
+        void threadActions
+          .moveWithinWorkspace({
+            workspaceId,
+            threadId: sourceThreadId,
+            ...(beforeSessionId === undefined ? {} : { beforeThreadId: beforeSessionId }),
+          })
+          .catch((error) => {
+            console.error("[workbench] failed to persist conversation order", error);
+          });
+        return;
+      }
 
-      if (!workspaceId || pinnedOnly || !threadActions.moveWithinWorkspace) return;
-      const beforeSessionId = sidebarItemIdAfterMove(
-        resolvedScopeThreadIds,
-        sourceThreadId,
-        targetThreadId,
-        position,
+      setManualOrder(
+        currentScope,
+        moveThreadId(resolvedScopeThreadIds, sourceThreadId, targetThreadId, position),
       );
-      void threadActions
-        .moveWithinWorkspace({
-          workspaceId,
-          threadId: sourceThreadId,
-          ...(beforeSessionId === undefined ? {} : { beforeThreadId: beforeSessionId }),
-        })
-        .catch((error) => {
-          setManualOrder(currentScope, resolvedScopeThreadIds);
-          console.error("[workbench] failed to persist conversation order", error);
-        });
     },
   });
   return (

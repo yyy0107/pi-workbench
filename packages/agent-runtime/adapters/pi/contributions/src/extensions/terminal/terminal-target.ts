@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 
 import { useCurrentSession, useThreadList } from "@workbench/agent-runtime-client";
+import { useWorkspaceSelection } from "@workbench/agent-runtime-client/workspaces";
 
 export interface TerminalPtyTarget extends Record<string, unknown> {
   mode?: "pty";
@@ -67,9 +68,11 @@ export function useTerminalLaunchContext(): TerminalLaunchContext {
   const thread = useThreadList((snapshot) =>
     snapshot.threads.find((candidate) => candidate.threadId === current.threadId),
   );
+  const { draftWorkspace } = useWorkspaceSelection();
+  const workspace = current.isNewThread ? draftWorkspace : thread?.workspace;
   const threadId = current.threadId ?? current.sessionId ?? "application";
-  const workspaceId = thread?.workspace?.id ?? "application";
-  const cwd = thread?.workspace?.rootPath;
+  const workspaceId = workspace?.id ?? "application";
+  const cwd = workspace?.rootPath;
 
   return useMemo(
     () => ({

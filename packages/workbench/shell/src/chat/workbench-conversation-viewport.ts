@@ -278,7 +278,7 @@ export function useWorkbenchConversationViewport({
     viewport.addEventListener("pointerdown", cancelPendingScroll, { passive: true });
     viewport.addEventListener("wheel", cancelPendingScroll, { passive: true });
     const disconnectContentObserver = observeViewportContent(viewport, handleContentChange);
-    handleScroll();
+    handleViewportScroll();
 
     return () => {
       viewport.removeEventListener("scroll", handleViewportScroll);

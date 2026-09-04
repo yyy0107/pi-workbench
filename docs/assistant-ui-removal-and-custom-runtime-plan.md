@@ -979,12 +979,12 @@ List、Current Session 和路由已在 Phase 6 改读 Headless Runtime。后续�
 
 执行切片：
 
-| 切片 | 状态                 | 变更范围                                                                                                             | 最小验证                                                          |
-| ---- | -------------------- | -------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| 6A   | 已完成（2026-09-03） | 扩展 Headless thread catalog/current 契约，增加 durable `threadId`、draft identity 和 catalog actions                | Core Runtime/Client/Testkit typecheck、Testkit 17 项测试          |
-| 6B   | 已完成（2026-09-03） | `PiSessionManager` 接管 draft promotion、current selection、CRUD、pin、workspace 排序和后台目录状态                  | Pi Client typecheck、draft/background/Session reuse 专项测试      |
-| 6C   | 已完成（2026-09-03） | Sidebar、Header、Archived Chats、route sync 和 workspace picker 改读 Headless Runtime，生产入口移除远程线程列表 Host | Shell 365 项、Pi Contributions 226 项测试                         |
-| 6D   | 已完成（2026-09-03） | 首屏历史改为尾页加载，并由原生 viewport 到顶显式调用 `ConversationSession.actions.loadOlder()`                       | 分页、并发复用、prepend anchor 专项测试；受影响 package typecheck |
+| 切片 | 状态                 | 变更范围                                                                                                                                                                 | 最小验证                                                          |
+| ---- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
+| 6A   | 已完成（2026-09-03） | 扩展 Headless thread catalog/current 契约，增加 durable `threadId`、draft identity 和 catalog actions                                                                    | Core Runtime/Client/Testkit typecheck、Testkit 17 项测试          |
+| 6B   | 已完成（2026-09-03） | `PiSessionManager` 接管 draft promotion、current selection、CRUD、pin、workspace 排序和后台目录状态                                                                      | Pi Client typecheck、draft/background/Session reuse 专项测试      |
+| 6C   | 已完成（2026-09-03） | Sidebar、Header、Archived Chats、route sync 和 workspace picker 改读 Headless Runtime；草稿工作区投影和 workspace 会话顺序以 Runtime 为准；生产入口移除远程线程列表 Host | Shell 366 项、Pi Contributions 226 项测试                         |
+| 6D   | 已完成（2026-09-03） | 首屏历史改为尾页加载，并由原生 viewport 在初始化及到顶时显式调用 `ConversationSession.actions.loadOlder()`                                                               | 分页、并发复用、prepend anchor 专项测试；受影响 package typecheck |
 
 本阶段把本地稳定 `sessionId` 与持久化 `threadId` 明确分离：草稿首次发送晋升时继续复用同一个
 `PiClientSession`，只为当前选择补充 durable route identity，避免消息子树重挂载或建立第二条连接。生产
@@ -996,6 +996,11 @@ Sidebar、Header、归档设置和 Pi 的 Workspace、Git、Terminal、Model、T
 排序只调用 Headless Runtime 稳定方法。后台 host/mux 事件继续直接更新 manager catalog，完成标记在切入
 线程时清除，重复切换返回同一个 Session。路由只接受 catalog 中的 durable id，首页草稿在乐观用户 Node
 和 durable id 同时出现后一次性 replace URL，保留桌面恢复和首次发送时序。
+
+收尾复核补齐了三个边界：新草稿的 workspace 会继续传给 Git 和 Terminal contribution；workspace 内会话
+直接保留 Runtime catalog 顺序，不再被 Shell 的本地顺序覆盖；历史首屏不足一屏时会立即请求更早一页。最终
+通过 Shell 366 项、Pi Contributions 226 项测试，以及全仓 typecheck、workspace dependency/runtime host
+ownership 检查、受影响文件 lint/format 和 Web/Desktop/Electron 生产构建。
 
 ### Phase 7：Extension SDK、Host 和 Pi Contributions
 

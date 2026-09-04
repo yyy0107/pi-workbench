@@ -640,7 +640,13 @@ export function HeaderGitBranchSelector() {
   const currentThread = useThreadList((snapshot) =>
     snapshot.threads.find((thread) => thread.threadId === current.threadId),
   );
+  const { draftWorkspace } = useWorkspaceSelection();
 
   if (activeMainView) return null;
-  return <GitBranchSelector placement="header" workspaceId={currentThread?.workspace?.id} />;
+  return (
+    <GitBranchSelector
+      placement="header"
+      workspaceId={current.isNewThread ? draftWorkspace?.id : currentThread?.workspace?.id}
+    />
+  );
 }
