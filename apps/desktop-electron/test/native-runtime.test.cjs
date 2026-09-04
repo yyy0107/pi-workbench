@@ -60,7 +60,7 @@ const ELECTRON_TARGET = Object.freeze({
 });
 
 function temporaryDirectory(t, prefix = "workbench-electron-runtime-") {
-  const directory = mkdtempSync(path.join(os.tmpdir(), prefix));
+  const directory = realpathSync(mkdtempSync(path.join(os.tmpdir(), prefix)));
   t.after(() => rmSync(directory, { force: true, recursive: true }));
   return directory;
 }

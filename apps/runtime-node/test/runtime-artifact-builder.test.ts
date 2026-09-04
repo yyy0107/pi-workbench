@@ -3,6 +3,7 @@ import {
   chmodSync,
   linkSync,
   mkdirSync,
+  realpathSync,
   renameSync,
   rmSync,
   symlinkSync,
@@ -28,6 +29,8 @@ import path from "node:path";
 import test from "node:test";
 
 import type { Metafile } from "esbuild";
+
+const temporaryRoot = realpathSync(os.tmpdir());
 
 import {
   RUNTIME_ARTIFACT_APP_OWNED_EXTERNAL_PACKAGES,
@@ -140,7 +143,7 @@ test("bundles every Workbench package and never externalizes Next", () => {
 });
 
 test("binds app-owned artifact externals to a declared, installed, confined Runtime owner", async (t) => {
-  const fixtureRoot = await mkdtemp(path.join(os.tmpdir(), "workbench-runtime-trace-owner-"));
+  const fixtureRoot = await mkdtemp(path.join(temporaryRoot, "workbench-runtime-trace-owner-"));
   t.after(() => rm(fixtureRoot, { force: true, recursive: true }));
   const repositoryRoot = path.join(fixtureRoot, "repository");
   const appRoot = path.join(repositoryRoot, "apps", "runtime-node");
@@ -227,7 +230,7 @@ test("binds app-owned artifact externals to a declared, installed, confined Runt
 test("reanchors exact Runtime app external package specifiers and subpaths for NFT", async () => {
   const appRoot = path.resolve("apps/runtime-node");
   const repositoryRoot = path.resolve(".");
-  const originalParent = path.join(os.tmpdir(), "workbench-runtime-trace-parent", "server.mjs");
+  const originalParent = path.join(temporaryRoot, "workbench-runtime-trace-parent", "server.mjs");
   const calls: { readonly specifier: string; readonly parent: string }[] = [];
   const resolver = await createRuntimeArtifactTraceResolver({
     appRoot,
@@ -302,7 +305,7 @@ test("keys artifacts by runtime ABI and rejects an unmaterialized Node target", 
 
 test("parses the app-owned artifact producer request and delegates target materialization", async (t) => {
   const target = currentNodeArtifactTarget();
-  const repositoryRoot = await mkdtemp(path.join(os.tmpdir(), "workbench-materializer-command-"));
+  const repositoryRoot = await mkdtemp(path.join(temporaryRoot, "workbench-materializer-command-"));
   const outputDirectory = path.join(repositoryRoot, "candidate");
   await mkdir(outputDirectory);
   await writeFile(path.join(outputDirectory, "server.mjs"), "export {};\n");
@@ -356,7 +359,7 @@ test("parses the app-owned artifact producer request and delegates target materi
 
 test("materializer command may mutate only policy-derived native owner subtrees", async (t) => {
   const target = currentNodeArtifactTarget();
-  const repositoryRoot = await mkdtemp(path.join(os.tmpdir(), "workbench-native-mutation-"));
+  const repositoryRoot = await mkdtemp(path.join(temporaryRoot, "workbench-native-mutation-"));
   t.after(() => rm(repositoryRoot, { force: true, recursive: true }));
 
   async function adapterWithMutation(mutate: (outputDirectory: string) => void) {
@@ -674,7 +677,7 @@ test("rejects malformed target-specific artifact producer requests", () => {
 });
 
 test("writes measured native inventory before the strict api-only manifest", async (t) => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "workbench-runtime-artifact-"));
+  const directory = await mkdtemp(path.join(temporaryRoot, "workbench-runtime-artifact-"));
   t.after(() => rm(directory, { force: true, recursive: true }));
   const target = currentNodeArtifactTarget();
   const tuple = `${target.platform}-${target.arch}`;
@@ -737,7 +740,7 @@ test("writes measured native inventory before the strict api-only manifest", asy
 });
 
 test("rejects a symlink whose resolved target leaves the artifact", async (t) => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "workbench-runtime-confinement-"));
+  const directory = await mkdtemp(path.join(temporaryRoot, "workbench-runtime-confinement-"));
   t.after(() => rm(directory, { force: true, recursive: true }));
   const outside = path.join(directory, "..", `${path.basename(directory)}-outside`);
   await writeFile(outside, "outside", "utf8");
@@ -758,8 +761,8 @@ test("rewrites absolute source junction targets to relocatable artifact-local li
     ".pnpm/pkg@1/node_modules/pkg",
   );
 
-  const repositoryRoot = await mkdtemp(path.join(os.tmpdir(), "workbench-link-source-"));
-  const outputDirectory = await mkdtemp(path.join(os.tmpdir(), "workbench-link-artifact-"));
+  const repositoryRoot = await mkdtemp(path.join(temporaryRoot, "workbench-link-source-"));
+  const outputDirectory = await mkdtemp(path.join(temporaryRoot, "workbench-link-artifact-"));
   t.after(() => rm(repositoryRoot, { force: true, recursive: true }));
   t.after(() => rm(outputDirectory, { force: true, recursive: true }));
   const ownerRelative = "node_modules/.pnpm/pkg@1/node_modules/pkg";
@@ -787,7 +790,9 @@ test("rewrites absolute source junction targets to relocatable artifact-local li
 });
 
 test("projects only a traced Runtime app package alias onto the artifact root owner", async (t) => {
-  const fixtureRoot = await mkdtemp(path.join(os.tmpdir(), "workbench-runtime-alias-projection-"));
+  const fixtureRoot = await mkdtemp(
+    path.join(temporaryRoot, "workbench-runtime-alias-projection-"),
+  );
   t.after(() => rm(fixtureRoot, { force: true, recursive: true }));
   const repositoryRoot = path.join(fixtureRoot, "repository");
   const appRoot = path.join(repositoryRoot, "apps", "runtime-node");
@@ -884,7 +889,7 @@ test("projects only a traced Runtime app package alias onto the artifact root ow
 
 test("projects package-local pnpm dependency links when both physical owners were traced", async (t) => {
   const fixtureRoot = await realpath(
-    await mkdtemp(path.join(os.tmpdir(), "workbench-runtime-pnpm-links-")),
+    await mkdtemp(path.join(temporaryRoot, "workbench-runtime-pnpm-links-")),
   );
   t.after(() => rm(fixtureRoot, { force: true, recursive: true }));
   const outputDirectory = path.join(fixtureRoot, "artifact");
@@ -933,7 +938,7 @@ test("projects package-local pnpm dependency links when both physical owners wer
 
 test("flattens the Windows Runtime dependency graph without losing version conflicts", async (t) => {
   const outputDirectory = await realpath(
-    await mkdtemp(path.join(os.tmpdir(), "workbench-runtime-standalone-modules-")),
+    await mkdtemp(path.join(temporaryRoot, "workbench-runtime-standalone-modules-")),
   );
   t.after(() => rm(outputDirectory, { force: true, recursive: true }));
   const appTarget = path.join(
@@ -1051,7 +1056,7 @@ async function createPiModelFixture(directory: string): Promise<{
 }
 
 test("derives and preserves the exact physical Pi model closure, with TS/test exceptions only in examples", async (t) => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "workbench-runtime-prune-"));
+  const directory = await mkdtemp(path.join(temporaryRoot, "workbench-runtime-prune-"));
   t.after(() => rm(directory, { force: true, recursive: true }));
   const { packageDirectory, examplesDirectory } = await createPiModelFixture(directory);
   const files = [
@@ -1134,7 +1139,7 @@ test("derives and preserves the exact physical Pi model closure, with TS/test ex
 });
 
 test("rejects a symlink inside the Pi model-readable closure", async (t) => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "workbench-runtime-model-symlink-"));
+  const directory = await mkdtemp(path.join(temporaryRoot, "workbench-runtime-model-symlink-"));
   t.after(() => rm(directory, { force: true, recursive: true }));
   const { packageDirectory } = await createPiModelFixture(directory);
   const outside = path.join(directory, "outside.md");
@@ -1153,7 +1158,7 @@ async function createPublishFixture(): Promise<{
   readonly finalDirectory: string;
   readonly target: ReturnType<typeof currentNodeArtifactTarget>;
 }> {
-  const root = await mkdtemp(path.join(os.tmpdir(), "workbench-runtime-publish-"));
+  const root = await mkdtemp(path.join(temporaryRoot, "workbench-runtime-publish-"));
   const repositoryRoot = path.join(root, "repository");
   const outputDirectory = path.join(root, "output");
   await mkdir(repositoryRoot);
@@ -2165,7 +2170,7 @@ test("default output authority rejects wrong and aliased roots before building",
 });
 
 test("rejects a package-internal symlink escaping its canonical package owner", async (t) => {
-  const repositoryRoot = await mkdtemp(path.join(os.tmpdir(), "workbench-package-provenance-"));
+  const repositoryRoot = await mkdtemp(path.join(temporaryRoot, "workbench-package-provenance-"));
   t.after(() => rm(repositoryRoot, { force: true, recursive: true }));
   const packageDirectory = path.join(repositoryRoot, "node_modules", "package");
   const siblingFile = path.join(repositoryRoot, "outside-package.txt");
