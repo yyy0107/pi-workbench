@@ -8,20 +8,23 @@
   display: none;
 }
 
-/* Xterm injects slider geometry and colors at runtime. Override the visual thumb while retaining
- * the larger track hit area when an already-open terminal still has Xterm's default track width. */
+/* Keep the transparent drag target wider than the painted thumb, including during dragging. */
 .scrollbarTheme :global(.xterm-scrollable-element > .scrollbar > .slider) {
   right: 0 !important;
   left: auto !important;
-  width: var(--scrollbar-size) !important;
-  border-radius: var(--scrollbar-radius);
-  background: var(--scrollbar-thumb) !important;
+  box-sizing: border-box;
+  width: var(--scrollbar-hit-size) !important;
+  border: var(--scrollbar-hit-padding) solid transparent !important;
+  border-block-width: 0 !important;
+  border-radius: calc(var(--scrollbar-radius) + var(--scrollbar-hit-padding));
+  background-color: var(--scrollbar-thumb) !important;
+  background-clip: padding-box !important;
 }
 
 .scrollbarTheme :global(.xterm-scrollable-element > .scrollbar > .slider:hover) {
-  background: var(--scrollbar-thumb-hover) !important;
+  background-color: var(--scrollbar-thumb-hover) !important;
 }
 
 .scrollbarTheme :global(.xterm-scrollable-element > .scrollbar > .slider.active) {
-  background: var(--scrollbar-thumb-active) !important;
+  background-color: var(--scrollbar-thumb-active) !important;
 }

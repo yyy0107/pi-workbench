@@ -210,15 +210,6 @@
   --composer-radius: 1.5rem;
   --composer-inner-radius: max(0px, calc(var(--composer-radius) - 2px));
 
-  /* Scrollbars */
-  --scrollbar-size: 6px;
-  --scrollbar-width: thin;
-  --scrollbar-radius: 9999px;
-  --scrollbar-track: transparent;
-  --scrollbar-thumb: color-mix(in oklab, var(--foreground) 14%, transparent);
-  --scrollbar-thumb-hover: color-mix(in oklab, var(--foreground) 20%, transparent);
-  --scrollbar-thumb-active: color-mix(in oklab, var(--foreground) 28%, transparent);
-
   --background: oklch(1 0 0);
   --foreground: oklch(0.141 0.005 285.823);
   --card: oklch(1 0 0);
@@ -326,6 +317,20 @@
   --aui-font-family: system-ui;
 }
 
+/* Resolve scrollbar tokens at each Shell's theme boundary, not just the document root. */
+:root,
+[data-workbench-shell] {
+  --scrollbar-size: 8px;
+  --scrollbar-hit-padding: 4px;
+  --scrollbar-hit-size: calc(var(--scrollbar-size) + var(--scrollbar-hit-padding) * 2);
+  --scrollbar-width: auto;
+  --scrollbar-radius: var(--radius);
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: color-mix(in oklab, var(--foreground) 14%, transparent);
+  --scrollbar-thumb-hover: color-mix(in oklab, var(--foreground) 20%, transparent);
+  --scrollbar-thumb-active: color-mix(in oklab, var(--foreground) 28%, transparent);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -355,8 +360,8 @@
   }
 
   *::-webkit-scrollbar {
-    width: var(--scrollbar-size);
-    height: var(--scrollbar-size);
+    width: var(--scrollbar-hit-size);
+    height: var(--scrollbar-hit-size);
     background: var(--scrollbar-track);
   }
 
@@ -366,16 +371,26 @@
   }
 
   *::-webkit-scrollbar-thumb {
-    border-radius: var(--scrollbar-radius);
-    background: var(--scrollbar-thumb);
+    border: 0 solid transparent;
+    border-radius: calc(var(--scrollbar-radius) + var(--scrollbar-hit-padding));
+    background-color: var(--scrollbar-thumb);
+    background-clip: padding-box;
+  }
+
+  *::-webkit-scrollbar-thumb:vertical {
+    border-width: 0 var(--scrollbar-hit-padding);
+  }
+
+  *::-webkit-scrollbar-thumb:horizontal {
+    border-width: var(--scrollbar-hit-padding) 0;
   }
 
   *::-webkit-scrollbar-thumb:hover {
-    background: var(--scrollbar-thumb-hover);
+    background-color: var(--scrollbar-thumb-hover);
   }
 
   *::-webkit-scrollbar-thumb:active {
-    background: var(--scrollbar-thumb-active);
+    background-color: var(--scrollbar-thumb-active);
   }
 
   :root {

@@ -265,7 +265,6 @@ export function WorkbenchConversationContent({
           style={
             hasDockedComposer
               ? {
-                  scrollbarColor: "var(--scrollbar-thumb) transparent",
                   WebkitMaskImage: THREAD_VIEWPORT_MASK_IMAGE,
                   maskImage: THREAD_VIEWPORT_MASK_IMAGE,
                   WebkitMaskPosition: "left top, right top",

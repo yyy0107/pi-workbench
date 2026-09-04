@@ -109,7 +109,7 @@ function useCurrentBashToolCall(toolCallId: string) {
 
 const TERMINAL_MONOSPACE_FALLBACK =
   'ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
-const TERMINAL_SCROLLBAR_FALLBACK_SIZE = 6;
+const TERMINAL_SCROLLBAR_FALLBACK_SIZE = 16;
 const TERMINAL_VIEWPORT_CLASS_NAME = `${styles.scrollbarTheme} min-h-0 flex-1 overflow-hidden py-2 ps-2 [&_.xterm]:h-full [&_.xterm-viewport]:!bg-transparent [&_.xterm-viewport]:!overflow-y-auto`;
 
 function resolveTerminalFontFamily(container: HTMLElement): string {
@@ -207,7 +207,11 @@ function synchronizeTerminalTheme(container: HTMLElement, terminal: Terminal): (
       updateFrame = undefined;
       terminal.options.theme = resolveTerminalTheme(container);
       terminal.options.overviewRuler = {
-        width: resolveThemeLength(container, "--scrollbar-size", TERMINAL_SCROLLBAR_FALLBACK_SIZE),
+        width: resolveThemeLength(
+          container,
+          "--scrollbar-hit-size",
+          TERMINAL_SCROLLBAR_FALLBACK_SIZE,
+        ),
       };
     });
   };
@@ -245,7 +249,11 @@ function xtermOptions(
     screenReaderMode: true,
     scrollback: 10_000,
     overviewRuler: {
-      width: resolveThemeLength(container, "--scrollbar-size", TERMINAL_SCROLLBAR_FALLBACK_SIZE),
+      width: resolveThemeLength(
+        container,
+        "--scrollbar-hit-size",
+        TERMINAL_SCROLLBAR_FALLBACK_SIZE,
+      ),
     },
     theme: resolveTerminalTheme(container),
   };
