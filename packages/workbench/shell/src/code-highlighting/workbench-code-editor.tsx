@@ -105,8 +105,11 @@ export function WorkbenchCodeView({
 export function WorkbenchCodeEditor({
   id,
   ariaLabel,
+  autoFocus,
   exitLabel,
+  maxLength,
   name,
+  placeholder,
   saveLabel,
   value,
   disabled = false,
@@ -116,8 +119,11 @@ export function WorkbenchCodeEditor({
 }: Readonly<{
   id?: string;
   ariaLabel: string;
+  autoFocus?: boolean;
   exitLabel: string;
+  maxLength?: number;
   name: string;
+  placeholder?: string;
   saveLabel: string;
   value: string;
   disabled?: boolean;
@@ -146,6 +152,7 @@ export function WorkbenchCodeEditor({
     const start = editor.selectionStart;
     const end = editor.selectionEnd;
     const nextValue = `${value.slice(0, start)}  ${value.slice(end)}`;
+    if (maxLength !== undefined && nextValue.length > maxLength) return;
     onChange(nextValue);
     requestAnimationFrame(() => {
       editorRef.current?.setSelectionRange(start + 2, start + 2);
@@ -163,6 +170,9 @@ export function WorkbenchCodeEditor({
       <textarea
         id={id}
         ref={editorRef}
+        autoFocus={autoFocus}
+        maxLength={maxLength}
+        placeholder={placeholder}
         value={value}
         disabled={disabled}
         wrap="soft"
@@ -172,7 +182,7 @@ export function WorkbenchCodeEditor({
         aria-label={ariaLabel}
         aria-describedby={helpId}
         title={saveLabel}
-        className="caret-foreground absolute inset-0 z-10 size-full resize-none overflow-hidden border-0 bg-transparent py-1 pe-3 ps-[60px] font-mono leading-6 whitespace-pre-wrap text-transparent outline-none selection:bg-blue-500/20 disabled:cursor-not-allowed [font-size:var(--workbench-code-font-size,13px)] [tab-size:2]"
+        className="caret-foreground absolute inset-0 z-10 size-full resize-none overflow-hidden border-0 bg-transparent py-1 pe-3 ps-[60px] font-mono leading-6 whitespace-pre-wrap text-transparent outline-none placeholder:text-muted-foreground selection:bg-blue-500/20 disabled:cursor-not-allowed [font-size:var(--workbench-code-font-size,13px)] [tab-size:2]"
         onChange={(event) => onChange(event.currentTarget.value)}
         onKeyDown={handleKeyDown}
       />

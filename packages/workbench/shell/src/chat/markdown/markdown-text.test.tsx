@@ -53,6 +53,24 @@ test("routes fenced code and code previews through Streamdown's code block", () 
   );
 });
 
+test("keeps Markdown editor source literal through Streamdown highlighting", () => {
+  const code = [
+    "# System prompt",
+    "Cost: $5 or $10.",
+    String.raw`Keep \(x\) and \[y\] literal.`,
+    "```markdown",
+    "**nested source**",
+    "```",
+  ].join("\n");
+  const markup = render(createElement(MarkdownCodeBlockContent, { code, language: "markdown" }));
+
+  assert.match(markup, /data-language="markdown"/);
+  assert.ok(markup.includes("Cost: $5 or $10."));
+  assert.ok(markup.includes(String.raw`Keep \(x\) and \[y\] literal.`));
+  assert.ok(markup.includes("```markdown"));
+  assert.ok(markup.includes("**nested source**"));
+});
+
 test("renders supported math delimiters without treating currency as math", () => {
   const markup = render(
     createElement(MarkdownTextContent, {

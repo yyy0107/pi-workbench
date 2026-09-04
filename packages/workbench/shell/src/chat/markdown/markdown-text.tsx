@@ -363,7 +363,14 @@ export const MarkdownCodeBlockContent = memo(function MarkdownCodeBlockContent({
   const fence = "`".repeat(fenceLength);
   const info = language.trim().replace(/\s+/g, "-");
   const text = `${fence}${info}\n${code}${code.endsWith("\n") ? "" : "\n"}${fence}`;
+  // Source code must bypass the prose math and currency normalization.
   return (
-    <ConfiguredMarkdownText text={text} className={className} codeTheme={codeTheme} mode="static" />
+    <ConfiguredMarkdownText
+      text={text}
+      preprocess={() => text}
+      className={className}
+      codeTheme={codeTheme}
+      mode="static"
+    />
   );
 });

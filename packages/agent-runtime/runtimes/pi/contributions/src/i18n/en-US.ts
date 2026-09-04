@@ -65,6 +65,8 @@ export const piExtensionsEnUS = {
         title: "System prompt",
         description: "Set the global system prompt Pi uses across all workspaces.",
         editorLabel: "Custom system prompt",
+        exitEditor: "Press Escape to leave the system prompt editor.",
+        saveShortcut: "Save system prompt (Ctrl or Command + S)",
         preview: "Preview Markdown",
         placeholder: "Enter a custom system prompt…",
         defaultHint:

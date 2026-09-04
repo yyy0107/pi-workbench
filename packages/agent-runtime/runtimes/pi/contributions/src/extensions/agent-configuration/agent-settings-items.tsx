@@ -5,10 +5,11 @@ import { Code2Icon, EyeIcon } from "lucide-react";
 
 import { Button } from "@workbench/shell/ui";
 import { Input } from "@workbench/shell/ui";
+import { InputGroup } from "@workbench/shell/ui";
 import { SettingsInlineEditor } from "@workbench/shell/ui";
 import { SettingsGroup, SettingsRow } from "@workbench/shell/ui";
 import { Switch } from "@workbench/shell/ui";
-import { Textarea } from "@workbench/shell/ui";
+import { WorkbenchCodeEditor } from "@workbench/shell/code-highlighting";
 import { usePiI18n } from "../../i18n";
 import { MarkdownPreview } from "@workbench/shell/chat";
 import type { SettingsItemComponentProps } from "@workbench/extension-sdk";
@@ -193,25 +194,29 @@ export function SystemPromptSettingsItem({ sectionId, itemId }: SettingsItemComp
             {editing ? <EyeIcon aria-hidden="true" /> : <Code2Icon aria-hidden="true" />}
           </Button>
         </div>
-        <div className="mt-2">
+        <InputGroup className="mt-2 h-80 min-h-44 resize-y items-stretch overflow-hidden">
           {editing ? (
-            <Textarea
+            <WorkbenchCodeEditor
               id={systemPromptId}
+              ariaLabel={t("extensions.agentConfiguration.systemPrompt.editorLabel")}
+              exitLabel={t("extensions.agentConfiguration.systemPrompt.exitEditor")}
+              saveLabel={t("extensions.agentConfiguration.systemPrompt.saveShortcut")}
+              name="SYSTEM.md"
               autoFocus
               value={draft}
               maxLength={500_000}
-              spellCheck={false}
               disabled={saving}
               placeholder={t("extensions.agentConfiguration.systemPrompt.placeholder")}
-              className="bg-background min-h-44 resize-y font-mono text-xs leading-5"
-              onChange={(event) => {
-                setDraft(event.currentTarget.value);
+              className="h-full w-full"
+              onSave={save}
+              onChange={(value) => {
+                setDraft(value);
                 setSaved(false);
                 setSaveError(undefined);
               }}
             />
           ) : (
-            <div className="h-44 overflow-hidden rounded-[var(--input-control-radius)] border [border-color:var(--input-control-border)] [background:var(--input-control-background)]">
+            <div className="h-full w-full overflow-hidden">
               {draft ? (
                 <MarkdownPreview
                   content={draft}
@@ -228,7 +233,7 @@ export function SystemPromptSettingsItem({ sectionId, itemId }: SettingsItemComp
               )}
             </div>
           )}
-        </div>
+        </InputGroup>
         <p className="text-muted-foreground mt-2 text-xs leading-5">
           {t("extensions.agentConfiguration.systemPrompt.defaultHint")}
         </p>

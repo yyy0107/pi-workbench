@@ -66,6 +66,8 @@ export const piExtensionsZhCN = {
         title: "系统提示词",
         description: "设置 Pi 在所有工作区中使用的全局系统提示词。",
         editorLabel: "自定义系统提示词",
+        exitEditor: "按 Escape 离开系统提示词编辑器。",
+        saveShortcut: "保存系统提示词（Ctrl 或 Command + S）",
         preview: "预览 Markdown",
         placeholder: "输入自定义系统提示词…",
         defaultHint:

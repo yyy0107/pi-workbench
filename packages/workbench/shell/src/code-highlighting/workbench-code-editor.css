@@ -33,6 +33,8 @@
 
 [data-workbench-code-view] [data-workbench-code] [data-streamdown="code-block-body"] {
   min-height: 100%;
+  /* The editor viewport owns scrolling, so override Streamdown's inline height cap. */
+  max-height: none !important;
   overflow: visible;
   padding: 4px 12px 4px 60px;
   font-size: var(--workbench-code-font-size, 13px);
