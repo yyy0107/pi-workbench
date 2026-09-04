@@ -74,6 +74,20 @@
   --aui-font-family: var(--workbench-theme-ui-font);
   --font-sans: var(--workbench-theme-ui-font);
   --font-mono: var(--workbench-theme-code-font);
+  /* Scale text within this Shell; rem still belongs to the host document. */
+  --text-xs: calc(var(--workbench-ui-font-size) * 0.75);
+  --text-sm: calc(var(--workbench-ui-font-size) * 0.875);
+  --text-base: var(--workbench-ui-font-size);
+  --text-lg: calc(var(--workbench-ui-font-size) * 1.125);
+  --text-xl: calc(var(--workbench-ui-font-size) * 1.25);
+  --text-2xl: calc(var(--workbench-ui-font-size) * 1.5);
+  --text-3xl: calc(var(--workbench-ui-font-size) * 1.875);
+  --text-4xl: calc(var(--workbench-ui-font-size) * 2.25);
+  --text-5xl: calc(var(--workbench-ui-font-size) * 3);
+  --text-6xl: calc(var(--workbench-ui-font-size) * 3.75);
+  --text-7xl: calc(var(--workbench-ui-font-size) * 4.5);
+  --text-8xl: calc(var(--workbench-ui-font-size) * 6);
+  --text-9xl: calc(var(--workbench-ui-font-size) * 8);
   font-family: var(--workbench-theme-ui-font);
   font-size: var(--workbench-ui-font-size);
   filter: contrast(var(--workbench-theme-contrast));

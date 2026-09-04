@@ -73,7 +73,7 @@ const buttonVariants = cva(
         default:
           "h-[var(--button-height-default)] min-w-[var(--button-height-compact)] gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
         xs: "h-[var(--button-height-compact)] min-h-[var(--button-height-compact)] min-w-[var(--button-height-compact)] gap-1 rounded-[min(var(--radius-md),10px)] px-2 text-xs in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-[var(--icon-size-sm)]",
-        sm: "h-[var(--button-height-default)] min-h-[var(--button-height-default)] min-w-[var(--button-height-compact)] gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-[var(--icon-size-sm)]",
+        sm: "h-[var(--button-height-default)] min-h-[var(--button-height-default)] min-w-[var(--button-height-compact)] gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[length:calc(var(--text-base)*0.8)] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-[var(--icon-size-sm)]",
         lg: "h-[var(--button-height-large)] min-h-[var(--button-height-default)] min-w-[var(--button-height-compact)] gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
         icon: iconButtonStyles,
         "icon-sm": compactIconButtonStyles,
