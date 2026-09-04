@@ -12,7 +12,7 @@ Workbench 子集，而不是参考文档全部 59 个接口。线协议的类型
 - [`protocol/src/rpc.ts`](./protocol/src/rpc.ts)：RPC envelope，以及 Host、Workspace、LLM、Settings、
   Session 的请求和响应类型；
 - [`protocol/src/stream.ts`](./protocol/src/stream.ts)：mux/host WebSocket frame 和 payload 联合；
-- [`protocol/src/messages.ts`](./protocol/src/messages.ts)：Workbench UI 适配层与 legacy
+- [`protocol/src/messages.ts`](./protocol/src/messages.ts)：Pi client 与 legacy
   `/api/pi/**` 使用的 Pi 消息类型。
 
 Automation 的定义、存储和调度位于
@@ -28,11 +28,9 @@ Automation 的定义、存储和调度位于
 flowchart TD
   UI["Browser / Workbench UI"] --> HEADLESS["Workbench AgentRuntime / Session"]
   HEADLESS --> CM["PiSessionManager / PiClientSession"]
-  UI -.->|"temporary message-row compatibility"| PORT["WorkbenchAgentRuntimeAdapter"]
-  PORT --> CM
   CM --> ASSEMBLER["Pi Conversation Assembler"]
   ASSEMBLER --> SNAPSHOT["Workbench ConversationSnapshot"]
-  CM --> COMPAT["assistant-ui compatibility projection"]
+  SNAPSHOT --> UI
   CM -->|"POST /api/<method>"| HTTP["Unary RPC"]
   CM -->|"events.mux + events.host"| WS["Paired WebSocket generation"]
 
@@ -792,7 +790,7 @@ Workbench 在 Pi JSONL 中保存 canonical event journal。每个 `SessionEvent`
 `session.history.branches` 返回的 leaf，重建 Pi model context 和 branch-local context policy，刷新
 canonical event watermark，并用 `workbench.branch-selection.v1` custom entry 持久化这次选择。
 两种 mutation 都与 prompt/queue mutation 串行执行；session 正在运行时返回 busy，客户端不得只在
-assistant-ui 本地切换分支而不提交权威 RPC。
+浏览器本地切换分支而不提交权威 RPC。
 
 可恢复中止使用同一份 Pi JSONL，而不是浏览器临时状态。一次 run 到达 `agent_settled` 后，如果最后的
 assistant message 被归类为用户停止、进程中止、网络错误、限流、额度/鉴权或 Provider 错误，Hosted
@@ -1164,31 +1162,26 @@ packages/agent-runtime/adapters/pi/
 - `@workbench/agent-runtime-pi-protocol` 只包含稳定、可序列化的跨端协议与兼容 DTO，不导入浏览器
   实现、服务端实现或宿主对象；
 - `@workbench/agent-runtime-pi-shared` 保存 Pi 浏览器与服务端可复用的纯逻辑，可以依赖 protocol，
-  但不拥有网络、文件系统或 assistant-ui 状态；
-- `@workbench/agent-runtime-pi-client` 是 Pi 对通用 `WorkbenchAgentRuntimeAdapter` 的具体浏览器实现。
+  但不拥有网络、文件系统或 UI 状态；
+- `@workbench/agent-runtime-pi-client` 是 Pi 对通用 `AgentRuntime` 的具体浏览器实现。
   每个 `PiClientSession` 是其会话 history、live、optimistic、重连和交互状态的唯一可变所有者；这些输入
   共用 `PiConversationMessage` canonical state，并由 `PiConversationAssembler` 生成稳定的 Workbench
   Conversation Snapshot 和 per-node observable。`PiSessionManager` 同时通过稳定 observable 暴露通用
   `AgentRuntime` 的 thread catalog、current selection、catalog actions 和同一 Session cache；本地
-  `sessionId` 在 draft promotion 前后保持稳定，晋升后的 durable `threadId` 独立用于路由。`assistant-ui/`
-  只保留从当前 Session 派生的只读消息行兼容投影；Extension Renderer 已直接消费 Workbench Node/Block。
-  Provider 以 `RuntimeProvider` 安装唯一
-  manager，再把同一当前 Session 投影给临时兼容 Provider，不建立第二个 reducer、连接、SessionManager
-  或消息 store。该 package
-  还拥有后台 thread presentation、通用 extras 和 callback 映射，以及 Pi manager、命令目录、workspace
-  selection 与 active/draft tracker 的浏览器侧安装生命周期；通用
-  `@workbench/agent-runtime-client` 不得反向导入 Pi。内部 `thread-store.ts` 直接包装 manager 已有逐线程订阅并将
+  `sessionId` 在 draft promotion 前后保持稳定，晋升后的 durable `threadId` 独立用于路由。Shell 与
+  Extension Renderer 直接消费 Workbench Node/Block。Provider 以 `RuntimeProvider` 安装唯一 manager，
+  不建立第二个 reducer、连接、SessionManager 或消息 store。该 package 还拥有 Pi manager、命令目录、
+  workspace selection 与 active/draft tracker 的浏览器侧安装生命周期；通用
+  `@workbench/agent-runtime-client` 不得反向导入 Pi。内部 `integration/thread-store.ts` 直接包装 manager 已有逐线程订阅并将
   `cwd` 映射为通用 `rootPath`，不建立第二份缓存；`command-catalog.tsx` 负责选择 session/workspace
   target 与订阅资源 revision，纯 `CommandView` 投影复用 Pi shared package。
-  `adapter.test.tsx` 调用通用 `defineWorkbenchAgentRuntimeAdapterContract()`，从真实通用 Host 锁定 Pi 的
-  assistant-ui capabilities、command/thread presentation 和订阅面；Pi 消息、队列与生命周期细节仍由
-  实现目录的专项测试覆盖。`pi-runtime-installation.tsx` 只把应用输入绑定到完整
-  `PiAgentRuntimeProvider`；manager 和 adapter 仍在 Provider 内创建。
+  Pi 消息、队列、Headless projection 与生命周期由实现目录的专项测试覆盖。
+  `pi-runtime-installation.tsx` 只把应用输入绑定到完整 `PiAgentRuntimeProvider`；manager 仍在 Provider 内创建。
   `apps/web/src/workbench/providers/installed-agent-runtime.tsx` 是当前唯一 Web 具体实现选择点，使用 singular factory 选择
-  Pi；`assistant-runtime-provider.tsx` 只挂载结果并安装后端无关 Surface 桥接；
-- Pi client package 内部的 `PiSessionManager` 维护独立的 thread-list 结构 revision。会话成员、归档状态
-  或排序变化会通知 Headless catalog；metadata、running、waiting 和 completed 通过同一 manager revision
-  更新。draft promotion 复用原 Session 并发布一次 durable identity，不产生重复 remote item；
+  Pi；`agent-runtime-provider.tsx` 只挂载结果并安装后端无关 Surface 桥接；
+- Pi client package 内部的 `PiSessionManager` 通过同一 Runtime revision 发布 thread catalog、metadata、
+  running、waiting 和 completed 更新。draft promotion 复用原 Session 并发布一次 durable identity，
+  不产生重复 remote item；
 - `server` 可以依赖 Pi protocol/shared packages，不得导入 Pi client package。Node/Pi Runtime、凭据、信任和
   文件系统逻辑只留在这里；
 - `server/src/agent-runtime` 实现 `@workbench/agent-runtime-server` 的后端无关执行与线程存储端口，把 `threadId`、

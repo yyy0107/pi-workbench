@@ -3,7 +3,7 @@ import type {
   SessionContextTracePromptInjection,
 } from "@workbench/agent-runtime-pi-protocol/rpc";
 
-/** Named assistant-ui Data Part carrying one safe Pi context-trace summary. */
+/** Named conversation Data Block carrying one safe Pi context-trace summary. */
 export const WORKBENCH_PI_CONTEXT_TRACE_DATA_NAME = "workbench.pi-context-trace-event";
 
 const PI_CONTEXT_TRACE_PROMPT_INJECTIONS: readonly SessionContextTracePromptInjection[] = [

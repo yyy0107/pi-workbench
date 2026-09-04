@@ -43,7 +43,7 @@ lifecycle event and distinguishes normal exit from abort, timeout, or explicit t
 
 `TerminalSessionManager` owns one PTY process per terminal instance id. Every New terminal action allocates
 a fresh id and PTY, so one conversation can keep multiple independent terminals open at once. The
-RightWorkspace surface and PTY id both carry the assistant-ui conversation id; terminal tabs are
+RightWorkspace surface and PTY id both carry the Workbench conversation id; terminal tabs are
 thread-scoped and are restored only for that conversation. The manager canonicalizes the working
 directory, rejects an instance id reused for another directory, keeps ordered output deltas and up
 to 1 MiB of output for reconnect replay, reports when that replay cap rolls, limits the process to

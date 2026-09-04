@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ThreadAssistantMessage, ThreadMessage } from "@assistant-ui/react";
 import type { PiAssistantMessage } from "@workbench/agent-runtime-pi-protocol/messages";
 import type {
   SessionMessageSnapshotPayload,
@@ -10,6 +9,10 @@ import type {
 
 import { PiConversationAssembler } from "../../src/conversation/conversation-assembler";
 import { conversationNodesFromPiConversation } from "../../src/conversation/conversation-node-projection";
+import type {
+  PiConversationAssistantMessage as ThreadAssistantMessage,
+  PiConversationMessage as ThreadMessage,
+} from "../../src/conversation/pi-conversation-message";
 import {
   coalesceConsecutiveAssistantMessages,
   piAssistantToThreadMessage,
@@ -58,7 +61,7 @@ function assistant(text: string): ThreadAssistantMessage {
 
 function projectedAssistant(event: Record<string, unknown>): ThreadAssistantMessage {
   const message = event.message as PiAssistantMessage;
-  return piAssistantToThreadMessage(message, "assistant-stream", {
+  return piAssistantToThreadMessage(message, "streamed-assistant", {
     streaming: true,
     rawToolArgsText: event.rawToolArgsText as Readonly<Record<string, string>> | undefined,
   });
@@ -95,7 +98,13 @@ test("projects Workbench message chrome metadata and branch navigation", () => {
   assert.deepEqual(node?.presentation, {
     custom: { workbenchUsage: { input: 10, output: 20 } },
     isOptimistic: true,
-    timing: { firstTokenTime: 125, tokensPerSecond: 42 },
+    timing: {
+      streamStartTime: 1_725_000_000_001,
+      firstTokenTime: 125,
+      tokensPerSecond: 42,
+      totalChunks: 2,
+      toolCallCount: 1,
+    },
     branch: { index: 1, count: 3, previousKey: "previous-head", nextKey: "next-head" },
   });
 });
@@ -458,11 +467,11 @@ test("keeps partial tool JSON through overlap dedupe and gap snapshot repair", (
     isLoading: false,
     isRunning: true,
   });
-  const firstNode = assembler.node("assistant-stream").getSnapshot();
+  const firstNode = assembler.node("streamed-assistant").getSnapshot();
   assert.equal(firstNode?.kind, "assistant");
   if (firstNode?.kind !== "assistant") return;
   assert.deepEqual(firstNode.blocks[0], {
-    key: "assistant-stream:tool:tool-1",
+    key: "streamed-assistant:tool:tool-1",
     kind: "tool-call",
     callId: "tool-1",
     toolName: "search",
@@ -484,7 +493,7 @@ test("keeps partial tool JSON through overlap dedupe and gap snapshot repair", (
     update: { type: "toolcall_delta", contentIndex: 0, delta: 'lo"}' },
   };
   assert.equal(accumulator.applyUpdate(gap).kind, "gap");
-  assert.equal(assembler.node("assistant-stream").getSnapshot(), firstNode);
+  assert.equal(assembler.node("streamed-assistant").getSnapshot(), firstNode);
 
   const repaired = accumulator.applySnapshot({
     ...snapshot,
@@ -503,7 +512,7 @@ test("keeps partial tool JSON through overlap dedupe and gap snapshot repair", (
     isLoading: false,
     isRunning: true,
   });
-  const repairedNode = assembler.node("assistant-stream").getSnapshot();
+  const repairedNode = assembler.node("streamed-assistant").getSnapshot();
   assert.equal(repairedNode?.key, firstNode.key);
   assert.notEqual(repairedNode, firstNode);
   assert.equal(
@@ -514,7 +523,7 @@ test("keeps partial tool JSON through overlap dedupe and gap snapshot repair", (
   );
 });
 
-test("publishes compatibility messages and Workbench nodes from the same PiClientSession", (t) => {
+test("publishes canonical messages and Workbench nodes from the same PiClientSession", (t) => {
   const manager = new PiSessionManager();
   t.after(() => manager.dispose());
   const session = manager.getSession("local-session");

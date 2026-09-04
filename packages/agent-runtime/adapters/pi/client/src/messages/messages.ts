@@ -1,5 +1,3 @@
-import type { AppendMessage } from "@assistant-ui/react";
-
 import {
   parseAttachmentRecognitionSnapshot,
   reconcileAttachmentRecognitionSnapshot,
@@ -67,6 +65,7 @@ import type {
   PiMessageTiming as MessageTiming,
   PiToolCallMessagePart as ToolCallMessagePart,
   PiToolCallTiming as ToolCallTiming,
+  PiComposerMessage,
 } from "../conversation/pi-conversation-message";
 
 import { parsePiConversationEvent, projectPiConversationEvent } from "./conversation-events";
@@ -1730,8 +1729,7 @@ function splitDocumentDataUrl(
 }
 
 export function appendMessageToPiPrompt(
-  message: Pick<AppendMessage, "content" | "attachments"> &
-    Partial<Pick<AppendMessage, "runConfig">>,
+  message: Pick<PiComposerMessage, "content" | "attachments" | "runConfig">,
 ): {
   text: string;
   images: PiImageContent[];
@@ -1767,7 +1765,7 @@ export function appendMessageToPiPrompt(
 }
 
 export function optimisticUserMessage(
-  message: AppendMessage,
+  message: PiComposerMessage,
   id: string,
   promptRpcId?: string,
 ): ThreadMessage {

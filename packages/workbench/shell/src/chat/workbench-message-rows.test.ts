@@ -11,7 +11,7 @@ test("keeps a conversation pair mounted while assistant output is attached", () 
   const userOnly = [{ id: "user-1", role: "user" as const }];
   const withStreamingAssistant = [
     ...userOnly,
-    { id: "assistant-stream", role: "assistant" as const },
+    { id: "streamed-assistant", role: "assistant" as const },
   ];
   const withSettledAssistant = [
     ...userOnly,

@@ -2,10 +2,10 @@ import {
   isSessionAttachmentErrorReason,
   type SessionAttachmentErrorReason,
 } from "@workbench/agent-runtime-pi-protocol/attachments";
-import type { WorkbenchAgentComposerSendError } from "@workbench/agent-runtime-client/adapter";
+import type { WorkbenchAgentComposerSendError } from "@workbench/agent-runtime-client/environment";
 import { PiApiError } from "../transport/api";
 
-/** @deprecated Import WorkbenchAgentComposerSendError from the assistant-ui adapter contract. */
+/** @deprecated Import WorkbenchAgentComposerSendError from the runtime environment contract. */
 export type PiComposerSendError = WorkbenchAgentComposerSendError;
 
 const SEND_ERROR_BY_ATTACHMENT_REASON = {

@@ -120,7 +120,7 @@ function InstalledRuntimeContributions({
   );
 }
 
-function DesktopAssistantRuntimeProvider({ children }: Readonly<{ children: ReactNode }>) {
+function DesktopAgentRuntimeProvider({ children }: Readonly<{ children: ReactNode }>) {
   const { t } = useI18n();
   const copy = useMemo<PiAgentRuntimeCopy>(
     () => ({
@@ -196,7 +196,7 @@ export function DesktopWorkbench({
           installationEffects={DesktopTitleBarOverlaySync}
           mainViewHost={DesktopMainViewHost}
           runningIndicatorCatalog={PRODUCT_RUNNING_INDICATORS}
-          runtimeProvider={DesktopAssistantRuntimeProvider}
+          runtimeProvider={DesktopAgentRuntimeProvider}
         >
           <WorkbenchThread />
         </WorkbenchApplicationShell>

@@ -10,7 +10,7 @@ import {
 } from "@workbench/agent-runtime-client";
 import type { ConversationNode } from "@workbench/agent-runtime-contracts/conversation";
 
-import { TooltipIconButton } from "../assistant-ui/tooltip-icon-button";
+import { TooltipIconButton } from "../ui/tooltip-icon-button";
 import { useClipboardCopy } from "../hooks/use-clipboard-copy";
 import { useI18n } from "../i18n";
 import { cn } from "../utils";

@@ -5,7 +5,7 @@ import { useState } from "react";
 
 import type { ComposerAttachment } from "@workbench/agent-runtime-contracts/conversation";
 
-import { TooltipIconButton } from "../assistant-ui/tooltip-icon-button";
+import { TooltipIconButton } from "../ui/tooltip-icon-button";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "../ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";

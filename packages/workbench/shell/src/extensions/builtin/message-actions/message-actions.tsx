@@ -24,7 +24,7 @@ import { parseAttachmentRecognitionSnapshot } from "@workbench/attachment-unders
 import { useExtensionErrorReporter } from "@workbench/extension-host";
 import type { MessageSlotContext } from "@workbench/extension-sdk";
 
-import { TooltipIconButton } from "../../../assistant-ui/tooltip-icon-button";
+import { TooltipIconButton } from "../../../ui/tooltip-icon-button";
 import { formatAdaptiveDuration } from "../../../format-duration";
 import { useI18n } from "../../../i18n";
 import { useWorkbenchNavigation } from "../../../navigation";

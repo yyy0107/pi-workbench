@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { AppendMessage } from "@assistant-ui/react";
 
 import type {
   PiQueuedPrompt,
@@ -11,6 +10,7 @@ import type {
   PromptFeedbackClaim,
   PromptFeedbackPort,
 } from "@workbench/agent-runtime-client/prompt-feedback";
+import type { PiComposerMessage as AppendMessage } from "../../src/conversation/pi-conversation-message";
 import { PiSessionManager } from "../../src/runtime/manager";
 
 const feedback = [

@@ -1,7 +1,10 @@
 "use client";
 
-import { useAuiState } from "@assistant-ui/react";
-import { useCurrentSession } from "@workbench/agent-runtime-client";
+import {
+  useConversationNodes,
+  useCurrentSession,
+  useSessionState,
+} from "@workbench/agent-runtime-client";
 import {
   ChevronDownIcon,
   ChevronRightIcon,
@@ -219,8 +222,8 @@ function ThreadTokenUsage() {
   const contextBudgetValidationId = useId();
   const remoteId = useCurrentSession().threadId;
   const reduceMotion = useReducedMotion();
-  const messages = useAuiState((state) => state.thread.messages);
-  const isRunning = useAuiState((state) => state.thread.isRunning);
+  const nodes = useConversationNodes();
+  const isRunning = useSessionState((state) => state.isRunning);
   const contextPolicy = useSessionContextPolicy(remoteId);
   const openers = useOpenerService();
   const workspaceContext = useWorkspaceContext();
@@ -230,8 +233,8 @@ function ThreadTokenUsage() {
   const [contextActionError, setContextActionError] = useState<unknown>(null);
   const currentTime = useLiveStatisticsTime(isRunning);
   const currentStatistics = useMemo(
-    () => aggregateWorkbenchSessionStatistics(messages, isRunning ? currentTime : undefined),
-    [currentTime, isRunning, messages],
+    () => aggregateWorkbenchSessionStatistics(nodes, isRunning ? currentTime : undefined),
+    [currentTime, isRunning, nodes],
   );
   const monotonicStatistics = useMonotonicSessionStatistics(currentStatistics);
   const statistics = useAnimatedTokenStatistics(monotonicStatistics, reduceMotion);
@@ -349,7 +352,7 @@ function ThreadTokenUsage() {
 
   useEffect(() => {
     if (!isRunning && remoteId) void contextPolicy.refresh().catch(() => undefined);
-  }, [contextPolicy.refresh, isRunning, messages.length, remoteId]);
+  }, [contextPolicy.refresh, isRunning, nodes.length, remoteId]);
 
   const updateContextPolicy = (policy: SessionContextPolicy) => {
     setContextActionError(null);

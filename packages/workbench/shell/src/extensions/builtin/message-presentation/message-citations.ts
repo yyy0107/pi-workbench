@@ -56,7 +56,7 @@ function inlineCitationSource(part: MessageCitationPart): Source | undefined {
 }
 
 /**
- * assistant-ui source parts do not carry a character offset. Associate each
+ * Source blocks do not carry a character offset. Associate each
  * source with the nearest text part before it so the reference remains stable
  * across streaming updates and mixed tool/text messages.
  */

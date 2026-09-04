@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useAuiState } from "@assistant-ui/react";
+import { useConversationNodes } from "@workbench/agent-runtime-client";
 
-import { MarkdownTextContent } from "../../../assistant-ui/lazy-markdown-text";
+import { MarkdownTextContent } from "../../../chat/markdown/lazy-markdown-text";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../../ui/tooltip";
 import { useI18n } from "../../../i18n";
 import { useReducedMotion } from "../../../hooks/use-reduced-motion";
@@ -31,11 +31,11 @@ function getMarkerWidth(index: number, highlightedIndex: number | undefined): nu
 }
 
 function getTextPreview(
-  content: readonly { type: string; text?: string }[],
+  content: readonly { kind: string; text?: string }[],
   length = PREVIEW_LENGTH,
 ): string {
   const text = content
-    .flatMap((part) => (part.type === "text" && typeof part.text === "string" ? [part.text] : []))
+    .flatMap((part) => (part.kind === "text" && typeof part.text === "string" ? [part.text] : []))
     .join("\n\n")
     .trim();
 
@@ -88,7 +88,7 @@ function getScrollViewport(element: HTMLElement, threadRoot: HTMLElement): HTMLE
 export function UserMessageIndex({ threadId }: UserMessageIndexProps) {
   const { t } = useI18n();
   const reduceMotion = useReducedMotion();
-  const messages = useAuiState((state) => state.thread.messages);
+  const nodes = useConversationNodes();
   const navRef = useRef<HTMLElement>(null);
   const [activeMessageId, setActiveMessageId] = useState<string>();
   const [visibleMessageIds, setVisibleMessageIds] = useState<readonly string[]>([]);
@@ -100,24 +100,24 @@ export function UserMessageIndex({ threadId }: UserMessageIndexProps) {
   const userMessages = useMemo<readonly UserMessageSummary[]>(() => {
     const summaries: UserMessageSummary[] = [];
 
-    for (const message of messages) {
-      if (message.role === "user") {
+    for (const node of nodes) {
+      if (node.kind === "user") {
         summaries.push({
-          id: message.id,
-          preview: getTextPreview(message.content),
+          id: node.key,
+          preview: getTextPreview(node.blocks),
           responsePreview: "",
         });
         continue;
       }
 
-      if (message.role !== "assistant") continue;
+      if (node.kind !== "assistant") continue;
       const currentSummary = summaries.at(-1);
       if (!currentSummary || currentSummary.responsePreview) continue;
-      currentSummary.responsePreview = getTextPreview(message.content);
+      currentSummary.responsePreview = getTextPreview(node.blocks);
     }
 
     return summaries;
-  }, [messages]);
+  }, [nodes]);
   const hasUserMessages = userMessages.length > 0;
 
   useEffect(() => {

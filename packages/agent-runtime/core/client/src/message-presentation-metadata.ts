@@ -1,4 +1,12 @@
-import type { PartProviderMetadata } from "@assistant-ui/react";
+type ProviderMetadataValue =
+  | null
+  | boolean
+  | number
+  | string
+  | readonly ProviderMetadataValue[]
+  | { readonly [key: string]: ProviderMetadataValue };
+
+type ProviderMetadata = Readonly<Record<string, Readonly<Record<string, ProviderMetadataValue>>>>;
 
 export interface WorkbenchReasoningPresentationMetadata {
   readonly startedAt?: number;
@@ -24,7 +32,7 @@ function finiteNumber(value: unknown): number | undefined {
 export function createWorkbenchReasoningPresentationMetadata({
   startedAt,
   durationMs,
-}: WorkbenchReasoningPresentationMetadata): PartProviderMetadata | undefined {
+}: WorkbenchReasoningPresentationMetadata): ProviderMetadata | undefined {
   const normalizedStart = finiteNumber(startedAt);
   const finiteDuration = finiteNumber(durationMs);
   const normalizedDuration =
@@ -60,7 +68,7 @@ export function readWorkbenchReasoningPresentationMetadata(
 export function createWorkbenchParallelToolPresentationMetadata(
   batchId: string,
   batchSize: number,
-): PartProviderMetadata | undefined {
+): ProviderMetadata | undefined {
   const normalizedId = batchId.trim();
   if (!normalizedId || !Number.isInteger(batchSize) || batchSize <= 1) return undefined;
   return {

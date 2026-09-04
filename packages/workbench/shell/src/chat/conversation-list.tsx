@@ -27,7 +27,6 @@ import {
 } from "./workbench-message";
 import { ConversationMessageProvider } from "./conversation-message-context";
 import { WorkbenchConversationError } from "./renderers/message-blocks";
-import { LegacyConversationMessageByIndex } from "../assistant-ui/renderer-compat";
 
 interface ConversationRow {
   readonly createdAt: number;
@@ -58,10 +57,6 @@ function localDayKey(timestamp: number): string | undefined {
   return `${year}-${month}-${day}`;
 }
 
-/**
- * Subscribe one stable Workbench Node key while the remaining assistant-ui presentation migrates.
- * The compatibility primitive is deliberately isolated here so sibling Nodes stay untouched.
- */
 export const ConversationNodeSeat = memo(function ConversationNodeSeat({
   index,
   nodeKey,
@@ -72,6 +67,14 @@ export const ConversationNodeSeat = memo(function ConversationNodeSeat({
   if (node.kind === "error") {
     return <WorkbenchConversationError error={node.error} nodeKey={node.key} />;
   }
+  const Message =
+    messageComponents[
+      nodeRole(node) === "user"
+        ? "UserMessage"
+        : nodeRole(node) === "assistant"
+          ? "AssistantMessage"
+          : "SystemMessage"
+    ];
 
   return (
     <ConversationMessageProvider
@@ -82,7 +85,7 @@ export const ConversationNodeSeat = memo(function ConversationNodeSeat({
         data-conversation-node-key={node.key}
         data-conversation-node-kind={node.kind}
       >
-        <LegacyConversationMessageByIndex index={index} components={messageComponents} />
+        <Message />
       </div>
     </ConversationMessageProvider>
   );

@@ -20,11 +20,7 @@ import type {
   ToolCallBlock,
 } from "@workbench/agent-runtime-contracts/conversation";
 
-import {
-  ToolGroupContent,
-  ToolGroupRoot,
-  ToolGroupTrigger,
-} from "../../../assistant-ui/tool-group";
+import { ToolGroupContent, ToolGroupRoot, ToolGroupTrigger } from "../../../chat/tool-group";
 import { ReasoningPanel, type ReasoningStep } from "../../../elements/reasoning-panel";
 import { ReviewableDiff, type HunkDecision } from "../../../elements/reviewable-diff";
 import { ShimmerLabel } from "../../../ui/surface";

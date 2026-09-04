@@ -4,6 +4,7 @@ import type {
   ConversationNode,
   ConversationSnapshot,
 } from "@workbench/agent-runtime-contracts/conversation";
+import { useMemo, useSyncExternalStore } from "react";
 import type { CurrentSessionSnapshot, ThreadListSnapshot } from "@workbench/agent-runtime-core";
 
 import { useHostSnapshot } from "./bind-snapshot-selector";
@@ -68,4 +69,34 @@ export function useConversationNode<Selection>(
   isEqual?: (left: Selection, right: Selection) => boolean,
 ): Selection {
   return useHostSnapshot(useConversationSession().node(nodeKey), selector, isEqual);
+}
+
+/** Subscribe to every node in the current conversation while preserving the stable node objects. */
+export function useConversationNodes(): readonly ConversationNode[] {
+  const session = useConversationSession();
+  const nodeKeys = useSessionState((snapshot) => snapshot.nodeKeys);
+  const keySignature = JSON.stringify(nodeKeys);
+  const stableKeys = useMemo(() => JSON.parse(keySignature) as string[], [keySignature]);
+  const subscribe = useMemo(
+    () => (listener: () => void) => {
+      const unsubscribers = stableKeys.map((key) => session.node(key).subscribe(listener));
+      return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
+    },
+    [session, stableKeys],
+  );
+  const getSnapshot = useMemo(() => {
+    let current: readonly ConversationNode[] = [];
+    return () => {
+      const next = stableKeys.flatMap((key) => {
+        const node = session.node(key).getSnapshot();
+        return node ? [node] : [];
+      });
+      if (next.length === current.length && next.every((node, index) => node === current[index])) {
+        return current;
+      }
+      current = Object.freeze(next);
+      return current;
+    };
+  }, [session, stableKeys]);
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }

@@ -1,7 +1,10 @@
 import type {
   ComposerSnapshot,
+  ConversationAutoRetry,
   ConversationNode,
   ConversationNodeBranch,
+  ConversationResumeCheckpoint,
+  ConversationRunTiming,
   ConversationSnapshot,
   MessageBlock,
 } from "@workbench/agent-runtime-contracts/conversation";
@@ -18,6 +21,9 @@ export interface PiConversationProjection {
   readonly hasMore?: boolean;
   readonly composer?: ComposerSnapshot;
   readonly branches?: ReadonlyMap<string, ConversationNodeBranch>;
+  readonly runTiming?: ConversationRunTiming;
+  readonly autoRetry?: ConversationAutoRetry;
+  readonly resumeCheckpoint?: ConversationResumeCheckpoint;
 }
 
 interface CachedNode {
@@ -79,11 +85,23 @@ function sameKeys(left: readonly string[], right: readonly string[]): boolean {
   return left.length === right.length && left.every((key, index) => key === right[index]);
 }
 
+function sameResumeCheckpoint(
+  left: ConversationResumeCheckpoint | undefined,
+  right: ConversationResumeCheckpoint | undefined,
+): boolean {
+  return (
+    left === right ||
+    (left?.checkpointId === right?.checkpointId &&
+      left?.terminalMessageId === right?.terminalMessageId &&
+      left?.expectedStateId === right?.expectedStateId &&
+      left?.capability === right?.capability)
+  );
+}
+
 /**
  * Structure-sharing Workbench projection owned by one PiClientSession.
  *
- * The assembler consumes the Pi-owned normalized history/live state. The temporary assistant-ui
- * compatibility projection stays outside this headless publication layer.
+ * The assembler consumes the Pi-owned normalized history/live state.
  */
 export class PiConversationAssembler {
   readonly snapshot: HostObservable<ConversationSnapshot>;
@@ -168,12 +186,21 @@ export class PiConversationAssembler {
       : Object.freeze(candidateKeys);
     const composer = source.composer ?? EMPTY_COMPOSER;
     const hasMore = source.hasMore ?? false;
+    const resumeCheckpoint = sameResumeCheckpoint(
+      source.resumeCheckpoint,
+      previousSnapshot.resumeCheckpoint,
+    )
+      ? previousSnapshot.resumeCheckpoint
+      : source.resumeCheckpoint;
     if (
       nodeKeys === previousSnapshot.nodeKeys &&
       source.isLoading === previousSnapshot.isLoading &&
       source.isRunning === previousSnapshot.isRunning &&
       hasMore === previousSnapshot.hasMore &&
-      composer === previousSnapshot.composer
+      composer === previousSnapshot.composer &&
+      source.runTiming === previousSnapshot.runTiming &&
+      source.autoRetry === previousSnapshot.autoRetry &&
+      resumeCheckpoint === previousSnapshot.resumeCheckpoint
     ) {
       return;
     }
@@ -185,6 +212,9 @@ export class PiConversationAssembler {
         isRunning: source.isRunning,
         hasMore,
         composer,
+        ...(source.runTiming === undefined ? {} : { runTiming: source.runTiming }),
+        ...(source.autoRetry === undefined ? {} : { autoRetry: source.autoRetry }),
+        ...(resumeCheckpoint === undefined ? {} : { resumeCheckpoint }),
       }),
       publication,
     );

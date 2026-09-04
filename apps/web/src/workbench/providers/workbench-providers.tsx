@@ -13,7 +13,7 @@ import {
 import { installedWorkbenchExtensions } from "@/workbench/runtime-contributions/installed-workbench-extensions";
 import { MainViewHost } from "@/workbench/shell/main-view-host";
 
-import { WorkbenchAssistantRuntimeProvider } from "./assistant-runtime-provider";
+import { WorkbenchAgentRuntimeProvider } from "./agent-runtime-provider";
 import {
   createWorkbenchDraftPersistence,
   createWorkbenchThreadScrollPersistence,
@@ -47,7 +47,7 @@ export function WorkbenchProviders({ children }: Readonly<{ children: ReactNode 
       extensions={installedWorkbenchExtensions}
       mainViewHost={MainViewHost}
       runningIndicatorCatalog={PRODUCT_RUNNING_INDICATORS}
-      runtimeProvider={WorkbenchAssistantRuntimeProvider}
+      runtimeProvider={WorkbenchAgentRuntimeProvider}
     >
       {children}
     </WorkbenchApplicationShell>

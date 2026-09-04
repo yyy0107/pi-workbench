@@ -38,6 +38,8 @@ export interface ConversationActions {
   ): void;
   setQueuePaused(paused: boolean): void;
   loadOlder(): Promise<void>;
+  resume(checkpointId: string, expectedStateId: string): Promise<void>;
+  resumeLatest(terminalMessageId: string): Promise<void>;
 }
 
 export interface ConversationSession {

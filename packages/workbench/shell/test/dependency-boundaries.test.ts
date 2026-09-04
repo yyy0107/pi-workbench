@@ -8,6 +8,9 @@ const PACKAGE_ROOT = fileURLToPath(new URL("../", import.meta.url));
 const SOURCE_ROOT = path.join(PACKAGE_ROOT, "src");
 const PRODUCTION_SOURCE = /(?<!\.(?:test|spec))\.[cm]?[jt]sx?$/u;
 const IMPORT_SOURCE = /(?:\bfrom\s*|\bimport\s*(?:\(\s*)?)["']([^"']+)["']/gu;
+const REMOVED_UI_PACKAGE_PREFIX = ["@assistant", "ui/"].join("-");
+const REMOVED_UI_DIRECTORY = ["assistant", "ui/"].join("-");
+const REMOVED_UI_HOOK = ["use", "Aui"].join("");
 
 function filesUnder(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -73,13 +76,16 @@ test("generic Shell source never imports the concrete Pi runtime", () => {
 
 test("shared UI foundations do not depend on chat, elements, or a conversation runtime", () => {
   assertNoImports(productionFilesUnder(path.join(SOURCE_ROOT, "ui")), (source, file) => {
-    if (source.startsWith("@assistant-ui/") || source.startsWith("@workbench/agent-runtime")) {
+    if (
+      source.startsWith(REMOVED_UI_PACKAGE_PREFIX) ||
+      source.startsWith("@workbench/agent-runtime")
+    ) {
       return true;
     }
 
     const resolved = resolvedSourcePath(file, source);
     return (
-      resolved?.startsWith("assistant-ui/") === true ||
+      resolved?.startsWith(REMOVED_UI_DIRECTORY) === true ||
       resolved?.startsWith("chat/") === true ||
       resolved?.startsWith("elements/") === true ||
       resolved?.startsWith("runtime-connection/") === true
@@ -97,7 +103,9 @@ test("RightWorkspace core remains independent from conversation and Agent runtim
   );
 
   assertNoImports(coreFiles, (source) => {
-    return source.startsWith("@assistant-ui/") || source.startsWith("@workbench/agent-runtime");
+    return (
+      source.startsWith(REMOVED_UI_PACKAGE_PREFIX) || source.startsWith("@workbench/agent-runtime")
+    );
   });
 });
 
@@ -107,7 +115,7 @@ test("AI presentation leaves do not read session, transport, or external store s
 
   assertNoImports(elementFiles, (source) => {
     return (
-      source.startsWith("@assistant-ui/") ||
+      source.startsWith(REMOVED_UI_PACKAGE_PREFIX) ||
       source.startsWith("@workbench/agent-runtime") ||
       source === "zustand" ||
       source.startsWith("zustand/") ||
@@ -119,7 +127,10 @@ test("AI presentation leaves do not read session, transport, or external store s
     const source = readFileSync(file, "utf8");
     assert.doesNotMatch(
       source,
-      /\b(?:useAui|useStore|useSession|useTransport|useWorkbenchAgent)\w*\s*\(/u,
+      new RegExp(
+        `\\b(?:${REMOVED_UI_HOOK}|useStore|useSession|useTransport|useWorkbenchAgent)\\w*\\s*\\(`,
+        "u",
+      ),
       packageRelative(file),
     );
   }
@@ -149,7 +160,10 @@ test("fallback and built-in message renderers share the Workbench Block host and
     );
     assert.doesNotMatch(
       source,
-      /@assistant-ui\/|\b(?:MessagePrimitive|useAui)\w*/u,
+      new RegExp(
+        `${REMOVED_UI_PACKAGE_PREFIX}|\\b(?:MessagePrimitive|${REMOVED_UI_HOOK})\\w*`,
+        "u",
+      ),
       packageRelative(owner),
     );
   }

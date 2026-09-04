@@ -3,7 +3,7 @@
 import { CheckIcon, ChevronDownIcon, ImagePlusIcon, Trash2Icon } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
-import { CodeThemePreview } from "../../../assistant-ui/shiki-highlighter";
+import { CodeThemePreview } from "../../../code-highlighting/code-theme-preview";
 import { RunningThreadIndicator } from "../../../elements/running-thread-indicator";
 import { Button } from "../../../ui/button";
 import { DropdownMenu, DropdownMenuRadioGroup } from "../../../ui/dropdown-menu";

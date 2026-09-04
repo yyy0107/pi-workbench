@@ -197,6 +197,18 @@ export interface PiConversationAttachment {
   readonly status: { readonly type: "complete" };
 }
 
+/** Internal Composer dispatch shape used before a prompt becomes a conversation message. */
+export interface PiComposerMessage {
+  readonly role: "user";
+  readonly content: readonly PiConversationUserMessagePart[];
+  readonly attachments: readonly PiConversationAttachment[];
+  readonly createdAt: Date;
+  readonly metadata: { readonly custom: Record<string, unknown> };
+  readonly parentId: string | null;
+  readonly runConfig?: unknown;
+  readonly sourceId: string | null;
+}
+
 export interface PiConversationStep {
   readonly messageId?: string;
   readonly usage?: {
@@ -259,14 +271,13 @@ export interface PiConversationAssistantMessage extends PiConversationMessageBas
   };
 }
 
-/**
- * Pi-owned normalized conversation state shared by history, live events, optimistic updates, the
- * Workbench node projection, and the temporary assistant-ui compatibility projection.
- *
- * ponytail: legacy-compatible field names avoid a second live reducer; remove them with the
- * assistant-ui compatibility projection.
- */
+/** Pi-owned normalized state shared by history, live events, optimistic updates, and Workbench. */
 export type PiConversationMessage =
   | PiConversationSystemMessage
   | PiConversationUserMessage
   | PiConversationAssistantMessage;
+
+export interface PiConversationMessageRepository {
+  headId: string | null;
+  messages: Array<{ message: PiConversationMessage; parentId: string | null }>;
+}

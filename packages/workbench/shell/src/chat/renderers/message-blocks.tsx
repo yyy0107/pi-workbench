@@ -13,10 +13,10 @@ import type {
 } from "@workbench/agent-runtime-contracts/conversation";
 import { useConversationSession } from "@workbench/agent-runtime-client";
 
-import { File, getBase64Size, getFileDataKind } from "../../assistant-ui/file";
-import { Image } from "../../assistant-ui/image";
-import { MarkdownTextContentWithCitations } from "../../assistant-ui/lazy-markdown-text";
-import { MessageSource, type MessageSourceVariant } from "../../assistant-ui/message-part-leaves";
+import { File, getBase64Size, getFileDataKind } from "./file";
+import { Image } from "./image";
+import { MarkdownTextContentWithCitations } from "../markdown/lazy-markdown-text";
+import { MessageSource, type MessageSourceVariant } from "./message-source";
 import { ErrorState } from "../../elements/error-state";
 import type { Source } from "../../elements/inline-citation";
 import { ScrollCompensatedDetails } from "../../elements/scroll-compensated-details";

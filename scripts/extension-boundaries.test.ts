@@ -16,7 +16,6 @@ const SHARED_BUILTIN_TARGETS = new Set([resolve(PI_BUILTIN_ROOT, "project-trust-
 const INSTALLABLE_ROOT = resolve(SHELL_SOURCE_ROOT, "extensions/installable");
 const BUSINESS_EXTENSION_ROOTS = [...BUILTIN_ROOTS, INSTALLABLE_ROOT].filter(existsSync);
 const COMPONENT_ROOTS = [
-  resolve(SHELL_SOURCE_ROOT, "assistant-ui"),
   resolve(SHELL_SOURCE_ROOT, "chat"),
   resolve(SHELL_SOURCE_ROOT, "elements"),
   resolve(SHELL_SOURCE_ROOT, "right-workspace"),

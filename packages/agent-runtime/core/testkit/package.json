@@ -5,11 +5,6 @@
   "type": "module",
   "sideEffects": false,
   "exports": {
-    "./client": {
-      "types": "./src/client/index.ts",
-      "import": "./src/client/index.ts",
-      "default": "./src/client/index.ts"
-    },
     "./server": {
       "types": "./src/server/index.ts",
       "import": "./src/server/index.ts",
@@ -26,7 +21,6 @@
     "test": "node ../../../../scripts/run-typescript-tests.mjs --package"
   },
   "dependencies": {
-    "@assistant-ui/react": "0.15.16",
     "@workbench/agent-runtime-client": "workspace:*",
     "@workbench/agent-runtime-contracts": "workspace:*",
     "@workbench/agent-runtime-core": "workspace:*",

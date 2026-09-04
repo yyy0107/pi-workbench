@@ -1,8 +1,8 @@
 "use client";
 
-import { useAuiState } from "@assistant-ui/react";
+import { useConversationNode } from "@workbench/agent-runtime-client";
 
-import { MarkdownTextContent } from "../assistant-ui/lazy-markdown-text";
+import { MarkdownTextContent } from "./markdown/lazy-markdown-text";
 import { ComposerCommandToken } from "../elements/composer";
 import {
   COMPOSER_CONVERSATION_MENTION_TYPE,
@@ -21,6 +21,7 @@ import {
 import { ComposerCommandArguments } from "./composer-command-arguments";
 import { parseComposerDocument } from "./composer-document";
 import { ComposerTokenIcon, type ComposerTokenKind } from "./composer-token-icon";
+import { useConversationMessageContext } from "./conversation-message-context";
 
 function UserMessageTextBubble({ children }: { children: React.ReactNode }) {
   return (
@@ -35,8 +36,10 @@ function UserMessageTextBubble({ children }: { children: React.ReactNode }) {
 
 /** Renders the serialized Composer document in a sent user message using the same Token UI. */
 export function WorkbenchComposerMessageText({ text }: { text: string }) {
-  const persistedDocument = useAuiState(
-    (state) => state.message.metadata.custom.workbenchComposerDocument,
+  const { messageId } = useConversationMessageContext();
+  const persistedDocument = useConversationNode(
+    messageId,
+    (node) => node?.presentation?.custom?.workbenchComposerDocument,
   );
   return <WorkbenchComposerMessageTextContent text={text} persistedDocument={persistedDocument} />;
 }

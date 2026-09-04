@@ -1,18 +1,18 @@
 "use client";
 
-import { ThreadPrimitive } from "@assistant-ui/react";
 import type { ReactNode } from "react";
 
-import { buttonVariants } from "../ui/button";
+import { Button } from "../ui/button";
 import { useI18n } from "../i18n";
 import { useWorkspaceSelection } from "@workbench/agent-runtime-client/workspaces";
 import { NEW_THREAD_COMPOSER_WIDTH_CLASS_NAME } from "../layout";
 import { useWorkbenchBranding } from "../presentation";
-import { useCurrentSession } from "@workbench/agent-runtime-client";
+import { useConversationSession, useCurrentSession } from "@workbench/agent-runtime-client";
 
 export function WorkbenchEmpty({ children }: Readonly<{ children: ReactNode }>) {
   const { t } = useI18n();
   const { productLogoUrl, productName } = useWorkbenchBranding();
+  const session = useConversationSession();
   const isNewThread = useCurrentSession().isNewThread;
   const hasDraftWorkspace = useWorkspaceSelection().draftWorkspace !== undefined;
   const canAutoSendSuggestion = !isNewThread || hasDraftWorkspace;
@@ -47,19 +47,33 @@ export function WorkbenchEmpty({ children }: Readonly<{ children: ReactNode }>) 
 
       <div className="relative z-10 mt-5 flex flex-wrap justify-center gap-2">
         {starterPrompts.map((prompt) => (
-          <ThreadPrimitive.Suggestion
+          <Button
             key={prompt}
-            prompt={prompt}
-            method="replace"
-            autoSend={canAutoSendSuggestion}
-            className={buttonVariants({
-              variant: "outline",
-              size: "lg",
-              className: "rounded-full",
-            })}
+            type="button"
+            variant="outline"
+            size="lg"
+            className="rounded-full"
+            onClick={() => {
+              if (!canAutoSendSuggestion || !session.actions.send) {
+                session.actions.setComposerText?.(prompt);
+                return;
+              }
+              void session.actions
+                .send({
+                  version: 2,
+                  sourceText: prompt,
+                  text: prompt,
+                  context: [],
+                  metadata: {},
+                  commands: [],
+                })
+                .catch((error) =>
+                  console.error("[workbench] failed to send starter prompt", error),
+                );
+            }}
           >
             {prompt}
-          </ThreadPrimitive.Suggestion>
+          </Button>
         ))}
       </div>
     </div>

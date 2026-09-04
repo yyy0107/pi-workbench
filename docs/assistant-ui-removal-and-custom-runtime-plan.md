@@ -1,6 +1,6 @@
 # Workbench 移除 assistant-ui 与自有会话 Runtime 迁移计划
 
-状态：方向已确认；assistant-ui 专属 Agent skills 已删除，Phase 1–7 已完成，下一步进入 Phase 8（2026-09-03）
+状态：Phase 1–8 已完成；浏览器 Runtime 迁移已收口，Phase 9 durable chunk 为独立可选项目（2026-09-03）
 
 ## 0. 决策摘要
 
@@ -1039,7 +1039,7 @@ ownership 检查、受影响文件 lint/format 和 Web/Desktop/Electron 生产�
   typecheck、workspace dependency check、lint/format 与 Web/Desktop/Electron 生产构建通过。根级 boundary
   test 同步允许已退役的可安装扩展目录不存在，仍对所有实际存在的 builtin/installable roots 执行检查。
 
-### Phase 8：删除兼容层和依赖
+### Phase 8：删除兼容层和依赖（已完成，2026-09-03）
 
 工作：
 
@@ -1064,6 +1064,20 @@ rg '@assistant-ui|assistant-stream|useAui|AssistantRuntime' apps packages
 - 所有 public exports 不含 assistant-ui 类型；
 - 旧 compatibility adapter 已删除而不是永久 deprecated。
 - `.agents/skills/` 不再包含 assistant-ui 专属技能，保留的 Workbench/Pi skills 不再把任务路由到它们。
+
+完成记录：
+
+- Pi Client 已删除旧 projection、thread/runtime adapter、extras 和 model-selection bridge；Pi 自有消息仓库、
+  queue、session snapshot 与 manager observable 直接向 Headless Runtime 发布稳定 Node、Block、Composer、
+  Thread Catalog、run timing、retry 和 resume 状态；
+- Shell 已删除剩余 wrapper 和 compatibility renderer，Markdown、附件、source/citation、tool timeline、
+  Composer、消息状态与扩展贡献直接消费 Workbench contracts 和 Headless hooks；通用 UI 叶子已迁入现有
+  `chat`、`ui`、`i18n` 与 `code-highlighting` 边界；
+- Core testkit、Pi/Shell compatibility tests、旧 public exports 及所有 package manifest/lockfile 依赖已删除，
+  README、架构说明和 package boundary checks 已同步到最终边界；
+- 源码、manifest、lockfile、public source 以及 Web/Desktop/Electron 构建产物对
+  `@assistant-ui|assistant-stream|useAui|AssistantRuntime` 均为零命中，旧 `assistant-ui` 源码目录不存在；
+- 全仓 `pnpm check` 与 `pnpm build` 通过。
 
 ### Phase 9：可选的 durable chunk 协议
 

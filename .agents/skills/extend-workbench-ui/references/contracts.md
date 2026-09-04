@@ -704,7 +704,7 @@ const surface = context.workspace.register({
 ```
 
 `kind` is globally unique. `menuItem` is rendered in the core add-surface menu and `runtime` is
-mounted once inside AssistantRuntimeProvider. Both are optional and owned by the extension.
+mounted once inside the application Runtime provider. Both are optional and owned by the extension.
 Registration is tracked and removed on rollback/deactivation.
 
 `cachePolicy` controls whether inactive content stays mounted. `persistence: "session"` excludes an

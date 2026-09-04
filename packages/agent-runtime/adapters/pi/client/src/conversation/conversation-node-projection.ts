@@ -226,15 +226,22 @@ function presentation(
   );
   const sourceTiming = message.metadata.timing;
   const timing =
-    sourceTiming?.firstTokenTime === undefined && sourceTiming?.tokensPerSecond === undefined
+    sourceTiming === undefined
       ? undefined
       : {
+          streamStartTime: sourceTiming.streamStartTime,
           ...(sourceTiming.firstTokenTime === undefined
             ? {}
             : { firstTokenTime: sourceTiming.firstTokenTime }),
+          ...(sourceTiming.totalStreamTime === undefined
+            ? {}
+            : { totalStreamTime: sourceTiming.totalStreamTime }),
+          ...(sourceTiming.tokenCount === undefined ? {} : { tokenCount: sourceTiming.tokenCount }),
           ...(sourceTiming.tokensPerSecond === undefined
             ? {}
             : { tokensPerSecond: sourceTiming.tokensPerSecond }),
+          totalChunks: sourceTiming.totalChunks,
+          toolCallCount: sourceTiming.toolCallCount,
         };
   if (
     Object.keys(custom).length === 0 &&

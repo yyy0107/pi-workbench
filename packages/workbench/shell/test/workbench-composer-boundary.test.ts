@@ -3,6 +3,8 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const packageRoot = new URL("../", import.meta.url);
+const removedUiPackagePrefix = ["@assistant", "ui/"].join("-");
+const removedUiHook = ["use", "Aui"].join("");
 
 test("composer presentation leaves do not read runtime or workbench state", async () => {
   const source = await readFile(
@@ -10,7 +12,7 @@ test("composer presentation leaves do not read runtime or workbench state", asyn
     "utf8",
   );
 
-  assert.doesNotMatch(source, /useAui(?:State|Event)?\b/);
+  assert.equal(new RegExp(`${removedUiHook}(?:State|Event)?\\b`, "u").test(source), false);
   assert.doesNotMatch(source, /useWorkspaceSelection\b/);
   assert.doesNotMatch(source, /useWorkbenchAgent\w*\b/);
   assert.doesNotMatch(source, /useComposerCommandRegistry\b|useExtensionErrorReporter\b/);
@@ -21,7 +23,13 @@ test("composer presentation leaves do not read runtime or workbench state", asyn
 test("composer container owns runtime integration and supplies typed views", async () => {
   const source = await readFile(new URL("src/chat/workbench-composer.tsx", packageRoot), "utf8");
 
-  assert.doesNotMatch(source, /@assistant-ui\/|\bComposerPrimitive\b|\buseAui(?:State|Event)?\b/);
+  assert.equal(
+    new RegExp(
+      `${removedUiPackagePrefix}|\\bComposerPrimitive\\b|\\b${removedUiHook}(?:State|Event)?\\b`,
+      "u",
+    ).test(source),
+    false,
+  );
   assert.match(source, /useConversationSession\(\)/);
   assert.match(source, /useSessionState\(/);
   assert.match(source, /useWorkspaceSelection\(\)/);

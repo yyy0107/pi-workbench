@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { useAui } from "@assistant-ui/react";
 import { useCurrentSession } from "@workbench/agent-runtime-client";
 import { ModelSelector as ModelSelectorControl } from "@workbench/shell/ui";
 import { useI18n } from "@workbench/shell/i18n";
@@ -25,12 +24,9 @@ import {
   modelSelectorId,
   resolveDraftSelectorModel,
   sessionSelectorModels,
-  type SelectorModel,
 } from "../../model-selector/model-selector-state";
 import { useHydrateModelSelectorStore, useModelSelectorStore } from "./model-selector-store";
 import { reasoningEffortLabel } from "../../model-selector/reasoning-effort-label";
-
-type AppModel = SelectorModel;
 
 type LoadedCatalog =
   | { scopeKey: string; kind: "session"; value: SessionModelsValue }
@@ -39,44 +35,6 @@ type LoadedCatalog =
 interface OptimisticSelection {
   scopeKey: string;
   value: ModelSelection;
-}
-
-function ModelContextBridge({
-  model,
-  reasoningEffort,
-  includePiMetadata,
-}: {
-  model: AppModel;
-  reasoningEffort?: string;
-  includePiMetadata: boolean;
-}) {
-  const api = useAui();
-
-  useEffect(
-    () =>
-      api.modelContext.register({
-        getModelContext: () => ({
-          config: {
-            modelName: model.id,
-            ...(reasoningEffort ? { reasoningEffort } : {}),
-          },
-          ...(includePiMetadata
-            ? {
-                unstable_composerMetadata: {
-                  piModel: {
-                    provider: model.provider,
-                    modelId: model.model,
-                    ...(model.efforts && reasoningEffort ? { thinkingLevel: reasoningEffort } : {}),
-                  },
-                },
-              }
-            : {}),
-        }),
-      }),
-    [api, includePiMetadata, model.efforts, model.id, model.model, model.provider, reasoningEffort],
-  );
-
-  return null;
 }
 
 export function ModelSelector() {
@@ -220,6 +178,19 @@ export function ModelSelector() {
       ).reasoningEffort
     : undefined;
 
+  useEffect(() => {
+    sessionClient.setDraftSelection(
+      localThreadId,
+      remoteId || !selectedModel
+        ? undefined
+        : {
+            provider: selectedModel.provider,
+            model: selectedModel.model,
+            ...(selectedEffort ? { reasoningEffort: selectedEffort } : {}),
+          },
+    );
+  }, [localThreadId, remoteId, selectedEffort, selectedModel, sessionClient]);
+
   const applySessionSelection = useCallback(
     (selection: ModelSelection) => {
       if (!remoteId) return;
@@ -334,41 +305,32 @@ export function ModelSelector() {
   const selectionLocked = savingSelection || contextPolicy.status === "saving";
 
   return (
-    <>
-      {selectedModel ? (
-        <ModelContextBridge
-          model={selectedModel}
-          reasoningEffort={selectedEffort}
-          includePiMetadata={!remoteId}
-        />
-      ) : null}
-      <ModelSelectorControl
-        compact
-        currentUnavailable={currentUnavailable}
-        labels={{
-          select: tShell("assistant.model.select"),
-          model: tShell("assistant.model.model"),
-          reasoningEffort: tShell("assistant.model.reasoningEffort"),
-          search: t("extensions.modelSelector.searchLabel"),
-          searchPlaceholder: t("extensions.modelSelector.searchPlaceholder"),
-          loadFailed: t("extensions.modelSelector.loadFailed"),
-          noModels: t("extensions.modelSelector.noModels"),
-          noSearchResults: t("extensions.modelSelector.noSearchResults"),
-          selectFailed: t("extensions.modelSelector.selectFailed"),
-          currentUnavailable: t("extensions.modelSelector.currentUnavailable"),
-          saving: t("extensions.modelSelector.saving"),
-        }}
-        loadFailed={loadFailed}
-        models={models}
-        selectedEffort={selectedEffort}
-        selectedModelId={selectedModel?.id}
-        selectionFailed={selectionFailed}
-        selectionLocked={selectionLocked}
-        getEffortLabel={(effort) => reasoningEffortLabel(effort, t)}
-        onEffortChange={changeEffort}
-        onModelChange={changeModel}
-        onOpen={loadCatalog}
-      />
-    </>
+    <ModelSelectorControl
+      compact
+      currentUnavailable={currentUnavailable}
+      labels={{
+        select: tShell("assistant.model.select"),
+        model: tShell("assistant.model.model"),
+        reasoningEffort: tShell("assistant.model.reasoningEffort"),
+        search: t("extensions.modelSelector.searchLabel"),
+        searchPlaceholder: t("extensions.modelSelector.searchPlaceholder"),
+        loadFailed: t("extensions.modelSelector.loadFailed"),
+        noModels: t("extensions.modelSelector.noModels"),
+        noSearchResults: t("extensions.modelSelector.noSearchResults"),
+        selectFailed: t("extensions.modelSelector.selectFailed"),
+        currentUnavailable: t("extensions.modelSelector.currentUnavailable"),
+        saving: t("extensions.modelSelector.saving"),
+      }}
+      loadFailed={loadFailed}
+      models={models}
+      selectedEffort={selectedEffort}
+      selectedModelId={selectedModel?.id}
+      selectionFailed={selectionFailed}
+      selectionLocked={selectionLocked}
+      getEffortLabel={(effort) => reasoningEffortLabel(effort, t)}
+      onEffortChange={changeEffort}
+      onModelChange={changeModel}
+      onOpen={loadCatalog}
+    />
   );
 }

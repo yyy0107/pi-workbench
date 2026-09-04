@@ -1,6 +1,5 @@
 "use client";
 
-import { useAui, useAuiState } from "@assistant-ui/react";
 import { ArrowDownIcon } from "lucide-react";
 import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from "react";
 
@@ -9,7 +8,7 @@ import {
   useConversationSession,
   useSessionState,
 } from "@workbench/agent-runtime-client";
-import { TooltipIconButton } from "../assistant-ui/tooltip-icon-button";
+import { TooltipIconButton } from "../ui/tooltip-icon-button";
 import { TypingIndicator } from "../elements/typing-indicator";
 import { useI18n } from "../i18n";
 import { formatCompactDuration } from "../format-duration";
@@ -29,11 +28,7 @@ import {
 import { WorkbenchEmpty } from "./workbench-empty";
 import { ConversationList } from "./conversation-list";
 import { useWorkbenchConversationViewport } from "./workbench-conversation-viewport";
-import {
-  agentAutoRetryStatus,
-  agentRunTiming,
-  displayedAgentRunElapsedMs,
-} from "./workbench-thread-timing";
+import { displayedAgentRunElapsedMs } from "./workbench-thread-timing";
 
 const THREAD_VIEWPORT_MASK_IMAGE =
   "linear-gradient(to bottom, transparent 0, #000 var(--thread-header-fade-size), #000 calc(100% - var(--composer-dock-corner-radius)), transparent 100%), linear-gradient(#000 0 0)";
@@ -46,8 +41,8 @@ function AssistantWorkingStatus() {
   const { runningIndicatorSize, runningIndicatorStyleId } = useAppearancePreferences();
   const indicatorDefinition = useRunningIndicatorCatalog().resolve(runningIndicatorStyleId);
   const indicatorPresentation = indicatorDefinition.presentation;
-  const runTiming = useAuiState((state) => agentRunTiming(state.thread.extras));
-  const autoRetry = useAuiState((state) => agentAutoRetryStatus(state.thread.extras));
+  const runTiming = useSessionState((snapshot) => snapshot.runTiming);
+  const autoRetry = useSessionState((snapshot) => snapshot.autoRetry);
   const [elapsedMs, setElapsedMs] = useState<number | undefined>(runTiming?.elapsedMs);
 
   useEffect(() => {
@@ -166,32 +161,11 @@ export interface WorkbenchConversationProps {
   rootDataSurface?: string;
 }
 
-function useStopSpeechOnEscape() {
-  const aui = useAui();
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || event.defaultPrevented || aui.thread.source === null) return;
-      if (aui.thread.getState().speech == null) return;
-      event.preventDefault();
-      try {
-        aui.thread.stopSpeaking();
-      } catch (error) {
-        if (!(error instanceof Error) || error.message !== "No message is being spoken")
-          throw error;
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [aui]);
-}
-
 /**
  * Runtime-scoped Workbench conversation UI shared by the central MainView and nested surfaces.
  *
  * Routing and Composer Dock measurement are supplied by the host. Conversation structure and
- * scrolling read the Headless Session; assistant-ui remains only for unmigrated actions/renderers.
+ * scrolling read the Headless Session.
  */
 export function WorkbenchConversationContent({
   threadId,
@@ -234,8 +208,6 @@ export function WorkbenchConversationContent({
     scrollToBottomOnInitialize,
     sessionId: session.id,
   });
-  useStopSpeechOnEscape();
-
   return (
     <div
       data-workbench-surface={rootDataSurface}

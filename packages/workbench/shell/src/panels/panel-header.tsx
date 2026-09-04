@@ -1,7 +1,7 @@
 import type { ElementType, ReactNode } from "react";
 import { XIcon } from "lucide-react";
 
-import { TooltipIconButton } from "../assistant-ui/tooltip-icon-button";
+import { TooltipIconButton } from "../ui/tooltip-icon-button";
 import { useI18n } from "../i18n";
 import { cn } from "../utils";
 

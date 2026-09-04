@@ -32,7 +32,7 @@ export type ImageRecognitionMethod = SharedAttachmentRecognitionMethod;
 export type ImageRecognitionResultFormat = SharedAttachmentRecognitionResultFormat;
 
 /**
- * The version-one transport shape emitted as a named assistant-ui data part.
+ * The version-one transport shape emitted as a named conversation data block.
  * The renderer deliberately keeps operation identifiers and timestamps out of
  * its presentation model so they can never become accidental user-facing text.
  */

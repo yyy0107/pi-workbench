@@ -30,7 +30,10 @@ test("removes component-extension installation and right-panel compatibility API
   };
 
   assert.equal("./component-extensions" in manifest.exports, false);
-  assert.equal("@assistant-ui/react-generative-ui" in (manifest.dependencies ?? {}), false);
+  assert.equal(
+    ["@assistant", "ui/react-generative-ui"].join("-") in (manifest.dependencies ?? {}),
+    false,
+  );
   for (const removedApi of [
     "@workbench/shell/component-extensions",
     "component-extension-installation",

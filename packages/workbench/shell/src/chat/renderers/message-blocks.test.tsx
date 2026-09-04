@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { WorkbenchMessageSourceBlock } from "./message-blocks";
 
-test("renders a Workbench SourceBlock without assistant-ui Part state", () => {
+test("renders a Workbench SourceBlock without provider-specific Part state", () => {
   const markup = renderToStaticMarkup(
     <WorkbenchMessageSourceBlock
       block={{

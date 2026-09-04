@@ -1,8 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { AppendMessage, MessageTiming, ThreadMessage } from "@assistant-ui/react";
-
 import {
   PI_CONVERSATION_EVENT_CUSTOM_TYPE,
   type PiAssistantMessage,
@@ -51,6 +49,11 @@ import {
   WORKBENCH_ATTACHMENT_RECOGNITION_CUSTOM_TYPE,
   WORKBENCH_ATTACHMENT_RECOGNITION_DATA_NAME,
 } from "@workbench/attachment-understanding-contracts/state-machine";
+import type {
+  PiComposerMessage as AppendMessage,
+  PiConversationMessage as ThreadMessage,
+  PiMessageTiming as MessageTiming,
+} from "../../src/conversation/pi-conversation-message";
 
 const assistantMessage: PiAssistantMessage = {
   role: "assistant",

@@ -120,8 +120,13 @@ export interface ConversationNodePresentation {
   readonly custom?: Readonly<Record<string, ConversationData>>;
   readonly isOptimistic?: boolean;
   readonly timing?: {
+    readonly streamStartTime?: number;
     readonly firstTokenTime?: number;
+    readonly totalStreamTime?: number;
+    readonly tokenCount?: number;
     readonly tokensPerSecond?: number;
+    readonly totalChunks?: number;
+    readonly toolCallCount?: number;
   };
   readonly branch?: ConversationNodeBranch;
 }
@@ -201,6 +206,28 @@ export interface ComposerSnapshot {
   readonly queue?: ComposerQueueSnapshot;
 }
 
+export interface ConversationRunTiming {
+  /** Unix timestamp supplied by the host for the beginning of the active run. */
+  readonly startedAt: number;
+  /** Server-authoritative elapsed duration when the client observed this snapshot. */
+  readonly elapsedMs: number;
+  /** Monotonic browser timestamp captured when the client observed this snapshot. */
+  readonly observedAt: number;
+}
+
+export interface ConversationAutoRetry {
+  readonly attempt: number;
+  readonly maxAttempts: number;
+}
+
+export interface ConversationResumeCheckpoint {
+  readonly checkpointId: string;
+  readonly terminalMessageId: string;
+  /** Opaque concurrency token echoed to the runtime on resume. */
+  readonly expectedStateId: string;
+  readonly capability: "ready" | "blocked" | "confirmation-required";
+}
+
 export interface ConversationSnapshot {
   readonly sessionId: string;
   readonly nodeKeys: readonly string[];
@@ -209,4 +236,7 @@ export interface ConversationSnapshot {
   readonly hasMore: boolean;
   readonly composer: ComposerSnapshot;
   readonly error?: ConversationError;
+  readonly runTiming?: ConversationRunTiming;
+  readonly autoRetry?: ConversationAutoRetry;
+  readonly resumeCheckpoint?: ConversationResumeCheckpoint;
 }

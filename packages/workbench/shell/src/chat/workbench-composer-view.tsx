@@ -23,7 +23,7 @@ import {
   type ReactNode,
 } from "react";
 
-import { TooltipIconButton } from "../assistant-ui/tooltip-icon-button";
+import { TooltipIconButton } from "../ui/tooltip-icon-button";
 import { type ComposerCommand, ComposerCommandItem, ComposerMenu } from "../elements/composer";
 import { Button } from "../ui/button";
 import {

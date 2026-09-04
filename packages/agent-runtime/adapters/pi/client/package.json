@@ -80,7 +80,6 @@
     "test": "node ../../../../../scripts/run-typescript-tests.mjs --package"
   },
   "dependencies": {
-    "@assistant-ui/react": "0.15.16",
     "@workbench/agent-runtime-client": "workspace:*",
     "@workbench/agent-runtime-contracts": "workspace:*",
     "@workbench/agent-runtime-core": "workspace:*",
@@ -89,8 +88,7 @@
     "@workbench/attachment-understanding-contracts": "workspace:*",
     "@workbench/automation-contracts": "workspace:*",
     "@workbench/contracts": "workspace:*",
-    "@workbench/host-client": "workspace:*",
-    "assistant-stream": "0.3.37"
+    "@workbench/host-client": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",

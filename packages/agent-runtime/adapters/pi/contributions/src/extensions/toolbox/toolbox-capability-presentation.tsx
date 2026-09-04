@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
-import { MarkdownTextContent } from "@workbench/shell/assistant-ui";
+import { MarkdownTextContent } from "@workbench/shell/chat";
 import { Button, Switch } from "@workbench/shell/ui";
 
 import { usePiI18n } from "../../i18n";

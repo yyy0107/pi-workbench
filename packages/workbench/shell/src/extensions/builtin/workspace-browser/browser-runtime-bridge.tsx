@@ -15,8 +15,13 @@ export function BrowserRuntimeBridge() {
   useCompletedToolCalls(
     useCallback(
       (part) => {
-        const url = toolStringArg(part.args, "url");
-        const sessionId = toolStringArg(part.args, "browserSessionId", "sessionId", "session_id");
+        const url = toolStringArg(part.arguments, "url");
+        const sessionId = toolStringArg(
+          part.arguments,
+          "browserSessionId",
+          "sessionId",
+          "session_id",
+        );
         if (!/browser/i.test(part.toolName) || part.result === undefined || !url || !sessionId) {
           return false;
         }

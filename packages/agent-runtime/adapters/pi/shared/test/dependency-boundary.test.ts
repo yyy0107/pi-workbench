@@ -7,7 +7,8 @@ import { fileURLToPath } from "node:url";
 const PACKAGE_ROOT = fileURLToPath(new URL("../", import.meta.url));
 const SOURCE_ROOT = path.join(PACKAGE_ROOT, "src");
 const FORBIDDEN_IMPORT =
-  /(?:from\s+|import\s*\()\s*["'](?:@\/|node:|react(?:\/|["'])|next(?:\/|["'])|@assistant-ui\/|@earendil-works\/pi-coding-agent|@workbench\/agent-runtime-pi-(?:client|server)|\.\.\/\.\.\/\.\.\/\.\.\/\.\.\/runtime\/pi)/u;
+  /(?:from\s+|import\s*\()\s*["'](?:@\/|node:|react(?:\/|["'])|next(?:\/|["'])|@earendil-works\/pi-coding-agent|@workbench\/agent-runtime-pi-(?:client|server)|\.\.\/\.\.\/\.\.\/\.\.\/\.\.\/runtime\/pi)/u;
+const REMOVED_UI_PACKAGE_PREFIX = ["@assistant", "ui/"].join("-");
 
 async function sourceFiles(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -24,7 +25,8 @@ async function sourceFiles(directory: string): Promise<string[]> {
 test("shared Pi logic does not depend on a UI, host, or coding-agent runtime", async () => {
   const violations: string[] = [];
   for (const file of await sourceFiles(SOURCE_ROOT)) {
-    if (FORBIDDEN_IMPORT.test(await readFile(file, "utf8"))) {
+    const source = await readFile(file, "utf8");
+    if (FORBIDDEN_IMPORT.test(source) || source.includes(REMOVED_UI_PACKAGE_PREFIX)) {
       violations.push(path.relative(PACKAGE_ROOT, file));
     }
   }

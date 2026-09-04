@@ -152,7 +152,6 @@ test("Shell manifest exposes only finite public subpaths", async () => {
   assert.deepEqual(Object.keys(manifest.exports).sort(), [
     "./appearance",
     "./application",
-    "./assistant-ui",
     "./browser-session-persistence",
     "./chat",
     "./code-highlighting",

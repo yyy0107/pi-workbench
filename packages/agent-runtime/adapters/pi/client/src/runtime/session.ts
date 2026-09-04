@@ -1,12 +1,4 @@
 import type {
-  AppendMessage,
-  ExportedMessageRepository,
-  ExternalThreadQueueAdapter,
-  QueueItemState,
-  ThreadMessage as AssistantUiThreadMessage,
-} from "@assistant-ui/react";
-
-import type {
   ComposerAttachment,
   ComposerQueueItem,
   ComposerSnapshot,
@@ -75,6 +67,7 @@ import type {
   SessionPromptValue,
   SessionQueueAction,
   SessionResumeCheckpoint,
+  SessionSelectModelPayload,
 } from "@workbench/agent-runtime-pi-protocol/rpc";
 import type { QueueItem } from "@workbench/agent-runtime-pi-protocol/stream";
 import {
@@ -111,7 +104,6 @@ import {
   workbenchComposerCommandResponseId,
 } from "../messages/messages";
 import { PiMessageQueue, queueItemAppendMessage } from "../messages/queue";
-import { draftSessionModelSelection } from "../models/model-selection";
 import {
   BACKFILL_SESSION_HISTORY_MESSAGES,
   INITIAL_SESSION_HISTORY_MESSAGES,
@@ -123,7 +115,6 @@ import {
   piAutoRetryFromHistory,
   type PiAutoRetrySnapshot,
 } from "./auto-retry";
-import { assistantUiMessagesFromPiConversation } from "../assistant-ui/conversation-projection";
 import {
   PiConversationAssembler,
   type ConversationPublication,
@@ -134,6 +125,8 @@ import type {
   PiConversationUserMessage as ThreadUserMessage,
   PiMessageTiming as MessageTiming,
   PiToolCallTiming as ToolCallTiming,
+  PiComposerMessage,
+  PiConversationMessageRepository,
 } from "../conversation/pi-conversation-message";
 import type { PiSessionManager } from "./manager";
 import { piComposerSendError } from "./send-error";
@@ -167,7 +160,7 @@ function composerError(error: unknown): ConversationError {
 function submissionMessage(
   submission: ComposerSubmission,
   attachments: readonly ComposerAttachment[],
-): AppendMessage {
+): PiComposerMessage {
   return {
     role: "user",
     content: submission.sourceText ? [{ type: "text", text: submission.sourceText }] : [],
@@ -320,9 +313,9 @@ function livePiUserMessage(
 }
 
 export interface PiSessionSnapshot {
-  messages: readonly AssistantUiThreadMessage[];
-  messageRepository: ExportedMessageRepository;
-  /** User-visible response activity exposed to assistant-ui, excluding post-response host cleanup. */
+  messages: readonly ThreadMessage[];
+  messageRepository: PiConversationMessageRepository;
+  /** User-visible response activity, excluding post-response host cleanup. */
   isRunning: boolean;
   runTiming?: PiClientRunTiming;
   autoRetry?: PiAutoRetrySnapshot;
@@ -330,13 +323,9 @@ export interface PiSessionSnapshot {
   isLoading: boolean;
   queuePaused: boolean;
   steeringQueueIds: readonly string[];
-  rejectedQueueDraft?: {
-    revision: number;
-    message: AppendMessage;
-  };
 }
 
-/** Resolve a durable Pi checkpoint to the assistant-ui row that currently renders its terminal event. */
+/** Resolve a durable Pi checkpoint to the row that currently renders its terminal event. */
 export function visibleResumeCheckpointTerminalMessageId(
   snapshot: Pick<PiSessionSnapshot, "messages" | "resumeCheckpoint">,
 ): string | undefined {
@@ -428,13 +417,6 @@ export class PiClientSession implements ConversationSession {
   readonly localId: string;
   readonly snapshot: HostObservable<ConversationSnapshot>;
   readonly actions: Readonly<Partial<ConversationActions>>;
-  readonly runtimeExtras: {
-    piQueue: {
-      beginEdit(id: string): QueueItemState | undefined;
-      clearRejectedDraft(revision: number): void;
-      setPaused(paused: boolean): void;
-    };
-  };
   private readonly manager: PiSessionManager;
   private readonly conversationAssembler: PiConversationAssembler;
   private composerValue = initialComposerSnapshot();
@@ -442,9 +424,9 @@ export class PiClientSession implements ConversationSession {
   private readonly listeners = new Set<Listener>();
   private remoteIdValue?: string;
   private baseMessages: ThreadMessage[] = [];
-  private baseMessageRepository: ExportedMessageRepository = { headId: null, messages: [] };
+  private baseMessageRepository: PiConversationMessageRepository = { headId: null, messages: [] };
   private baseMessageRepositoryIndex?: {
-    repository: ExportedMessageRepository;
+    repository: PiConversationMessageRepository;
     byId: ReadonlyMap<string, number>;
   };
   private branchLeafByHeadMessageId = new Map<string, string>();
@@ -453,7 +435,6 @@ export class PiClientSession implements ConversationSession {
   private streamingMessage?: ThreadMessage;
   private activeUserMessageId?: string;
   private activeAssistantMessageId?: string;
-  private queueRejectionRevision = 0;
   private readonly authoritativeMessageIdAliases = new Map<string, string>();
   private snapshotValue: PiSessionSnapshot;
   private conversationMessages: readonly ThreadMessage[] = [];
@@ -484,13 +465,14 @@ export class PiClientSession implements ConversationSession {
   private readonly contextTracePromptPresentations = new Map<string, string>();
   private pendingContextTraceEvents: SessionContextTraceEventSummary[] = [];
   private readonly messageQueue: PiMessageQueue;
+  private draftModelSelection?: Omit<SessionSelectModelPayload, "sessionId">;
 
   private messageRepositoryFromHistory(
     sessionId: string,
     history: SessionHistoryValue,
     activeMessages: readonly ThreadMessage[],
   ): {
-    repository: ExportedMessageRepository;
+    repository: PiConversationMessageRepository;
     leafByHeadMessageId: Map<string, string>;
     activeMessages: ThreadMessage[];
   } {
@@ -508,7 +490,7 @@ export class PiClientSession implements ConversationSession {
     };
     if (!history.branches?.items.length) return fallback;
 
-    const repositoryItems = new Map<string, ExportedMessageRepository["messages"][number]>();
+    const repositoryItems = new Map<string, PiConversationMessageRepository["messages"][number]>();
     const leafByHeadMessageId = new Map<string, string>();
     const branchScopedMessageIds = new Map<string, string>();
     const activeBranch = history.branches.items.find(
@@ -586,7 +568,7 @@ export class PiClientSession implements ConversationSession {
       if (item) item.message = message;
     }
     // Each branch is visited root-to-leaf and an existing node is never reparented, so insertion
-    // order is also a valid parent-before-child import order for assistant-ui's repository.
+    // order is also a valid parent-before-child repository order.
     const repository = { headId, messages: [...repositoryItems.values()] };
     const visibleMessages: ThreadMessage[] = [];
     let cursor: string | null = headId;
@@ -647,6 +629,8 @@ export class PiClientSession implements ConversationSession {
       mutateQueueItem: (key, mutation) => this.messageQueue.mutateItem(key, mutation),
       setQueuePaused: (paused) => this.messageQueue.setPaused(paused),
       loadOlder: () => this.loadOlder(),
+      resume: (checkpointId, expectedStateId) => this.resume(checkpointId, expectedStateId),
+      resumeLatest: (terminalMessageId) => this.resumeLatest(terminalMessageId),
     });
     this.messageQueue = new PiMessageQueue({
       isRunning: () => this.snapshotValue.isRunning,
@@ -656,35 +640,20 @@ export class PiClientSession implements ConversationSession {
       update: (itemId, action) => this.updateQueue(itemId, action),
       replace: (steering, followUp) => this.replaceQueue(steering, followUp),
       setPaused: (paused, steering, followUp) => this.setQueuePaused(paused, steering, followUp),
-      onEnqueueRejected: (message) => {
-        this.replaceSnapshot({
-          rejectedQueueDraft: {
-            revision: ++this.queueRejectionRevision,
-            message,
-          },
-        });
-      },
       onSteerRejected: (itemId) => this.rejectOptimisticSteer(itemId),
       onChange: () => this.publishQueueState(),
     });
-    this.runtimeExtras = {
-      piQueue: {
-        beginEdit: (id) => this.messageQueue.beginEdit(id),
-        clearRejectedDraft: (revision) => {
-          if (this.snapshotValue.rejectedQueueDraft?.revision !== revision) return;
-          this.replaceSnapshot({ rejectedQueueDraft: undefined });
-        },
-        setPaused: (paused) => this.messageQueue.setPaused(paused),
-      },
-    };
   }
 
   get remoteId(): string | undefined {
     return this.remoteIdValue;
   }
 
-  get queueAdapter(): ExternalThreadQueueAdapter {
-    return this.messageQueue.adapter;
+  setDraftModelSelection(
+    selection: Omit<SessionSelectModelPayload, "sessionId"> | undefined,
+  ): void {
+    if (this.remoteIdValue) return;
+    this.draftModelSelection = selection;
   }
 
   getSnapshot = (): PiSessionSnapshot => this.snapshotValue;
@@ -702,6 +671,18 @@ export class PiClientSession implements ConversationSession {
         hasMore: this.historyHasMore,
         composer: this.composerValue,
         branches: this.conversationBranches,
+        runTiming: this.snapshotValue.runTiming,
+        autoRetry: this.snapshotValue.autoRetry,
+        resumeCheckpoint: this.snapshotValue.resumeCheckpoint
+          ? {
+              checkpointId: this.snapshotValue.resumeCheckpoint.checkpointId,
+              terminalMessageId:
+                visibleResumeCheckpointTerminalMessageId(this.snapshotValue) ??
+                this.snapshotValue.resumeCheckpoint.terminalMessageId,
+              expectedStateId: this.snapshotValue.resumeCheckpoint.branchLeafId,
+              capability: this.snapshotValue.resumeCheckpoint.capability,
+            }
+          : undefined,
       },
       publication,
     );
@@ -1110,7 +1091,7 @@ export class PiClientSession implements ConversationSession {
     return this.reloadTask;
   }
 
-  async send(message: AppendMessage): Promise<void> {
+  async send(message: PiComposerMessage): Promise<void> {
     if (this.disposed) return;
     await this.branchSwitchTask;
     if (this.disposed) return;
@@ -1158,7 +1139,7 @@ export class PiClientSession implements ConversationSession {
         prompt.text,
         workspaceFeedbackClaim?.items ?? [],
       );
-      const draftModel = draftSessionModelSelection(this.remoteIdValue, message);
+      const draftModel = this.remoteIdValue ? undefined : this.draftModelSelection;
       const summary = await this.manager.ensureRemote(this);
       if (this.disposed) {
         this.manager.releasePromptFeedback(workspaceFeedbackClaim);
@@ -1225,7 +1206,7 @@ export class PiClientSession implements ConversationSession {
     }
   }
 
-  async retry(parentId: string | null, _runConfig: AppendMessage["runConfig"]): Promise<void> {
+  async retry(parentId: string | null, _runConfig: PiComposerMessage["runConfig"]): Promise<void> {
     if (this.disposed) return;
     await this.branchSwitchTask;
     if (this.disposed) return;
@@ -1863,7 +1844,7 @@ export class PiClientSession implements ConversationSession {
         this.streamingMessage = undefined;
         if (assistantMessage.stopReason === "stop") {
           // Pi has completed the user-visible response. AgentSession may remain busy while
-          // agent_settled extension handlers finish, but assistant-ui must not keep this run open.
+          // agent_settled extension handlers finish, but the UI must not keep this run open.
           // The manager retains the authoritative host-running state until agent_settled.
           this.terminalResponseReceived = true;
           this.publishMessagesAndSetRunning(false, false);
@@ -2514,7 +2495,7 @@ export class PiClientSession implements ConversationSession {
 
   private currentMessageRepository(
     currentMessages: readonly ThreadMessage[],
-  ): ExportedMessageRepository {
+  ): PiConversationMessageRepository {
     const baseRepository = this.baseMessageRepository;
     let baseIndex = this.baseMessageRepositoryIndex;
     if (baseIndex?.repository !== baseRepository) {
@@ -2524,14 +2505,12 @@ export class PiClientSession implements ConversationSession {
       };
       this.baseMessageRepositoryIndex = baseIndex;
     }
-    let messages: ExportedMessageRepository["messages"] | undefined;
+    let messages: PiConversationMessageRepository["messages"] | undefined;
     const appendedIndexes = new Map<string, number>();
     let parentId: string | null = null;
 
-    // assistant-ui treats messageRepository as authoritative when both repository and
-    // messages are supplied. Project the active branch from the same coalesced messages
-    // used by the flat snapshot so one Pi agent turn does not render every internal
-    // model/tool cycle as a separate completed assistant response.
+    // Keep branch topology aligned with the coalesced visible conversation so one Pi agent turn
+    // does not render every internal model/tool cycle as a separate completed response.
     for (const message of currentMessages) {
       const item = { message, parentId };
       const existingIndex = baseIndex.byId.get(message.id) ?? appendedIndexes.get(message.id);
@@ -2696,13 +2675,13 @@ export class PiClientSession implements ConversationSession {
     const messageRepository = this.currentMessageRepository(messages);
     this.conversationBranches = this.branchPresentation(messageRepository, messages);
     return {
-      messages: assistantUiMessagesFromPiConversation(messages),
+      messages,
       messageRepository,
     };
   }
 
   private branchPresentation(
-    repository: ExportedMessageRepository,
+    repository: PiConversationMessageRepository,
     visibleMessages: readonly ThreadMessage[],
   ): ReadonlyMap<string, ConversationNodeBranch> {
     if (this.branchLeafByHeadMessageId.size < 2) return new Map();

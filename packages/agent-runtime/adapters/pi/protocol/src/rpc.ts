@@ -1879,7 +1879,7 @@ export type SessionResumeCapability = "ready" | "blocked" | "confirmation-requir
 export interface SessionResumeCheckpoint {
   /** Durable Pi custom-entry id for this recovery point. */
   checkpointId: string;
-  /** Canonical message event id used by assistant-ui as the stopped message id. */
+  /** Canonical message event id used by the conversation UI as the stopped message id. */
   terminalMessageId: string;
   /** Current branch leaf. Clients echo it to prevent resuming a stale branch. */
   branchLeafId: string;

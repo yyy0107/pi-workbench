@@ -187,7 +187,7 @@ test("deduplicates revisions, freezes on gaps, and accepts an authoritative snap
   assert.equal(next.content[0]?.text, "repaired!");
 });
 
-test("preserves partial tool JSON for assistant-ui projection", () => {
+test("preserves partial tool JSON for conversation projection", () => {
   const accumulator = new SessionMessageAccumulator();
   accumulator.start({ role: "assistant", content: [] }, 10, 1_725_000_000_000);
   messageFrom(

@@ -1,39 +1,35 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ThreadAssistantMessage, ThreadMessage } from "@assistant-ui/react";
+import type {
+  AssistantMessageNode,
+  ConversationData,
+  ConversationNode,
+} from "@workbench/agent-runtime-contracts/conversation";
 
 import {
   aggregateWorkbenchSessionStatistics,
   mergeMonotonicWorkbenchSessionStatistics,
 } from "../src/message-statistics";
 
-function assistant(custom: Record<string, unknown>): ThreadAssistantMessage {
+function assistant(custom: Record<string, ConversationData>): AssistantMessageNode {
   return {
-    id: "assistant",
-    role: "assistant",
-    content: [{ type: "text", text: "Done" }],
-    status: { type: "complete", reason: "stop" },
-    createdAt: new Date(0),
-    metadata: {
-      unstable_state: null,
-      unstable_annotations: [],
-      unstable_data: [],
-      steps: [],
-      custom,
-    },
+    key: "assistant",
+    kind: "assistant",
+    blocks: [{ key: "text", kind: "text", text: "Done" }],
+    status: "complete",
+    createdAt: 0,
+    presentation: { custom },
   };
 }
 
 test("aggregates Workbench-owned usage and turn statistics across a session", () => {
   const messages = [
     {
-      id: "user",
-      role: "user",
-      content: [{ type: "text", text: "Question" }],
-      createdAt: new Date(0),
-      attachments: [],
-      metadata: { custom: {} },
+      key: "user",
+      kind: "user",
+      blocks: [{ key: "text", kind: "text", text: "Question" }],
+      createdAt: 0,
     },
     assistant({
       workbenchUsage: { input: 10, output: 5, cacheRead: 2, cacheWrite: 1 },
@@ -51,7 +47,7 @@ test("aggregates Workbench-owned usage and turn statistics across a session", ()
         cacheWriteTokens: 1,
       },
     }),
-  ] as readonly ThreadMessage[];
+  ] as readonly ConversationNode[];
 
   assert.deepEqual(aggregateWorkbenchSessionStatistics(messages), {
     turns: 1,

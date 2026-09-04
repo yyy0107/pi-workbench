@@ -1,6 +1,3 @@
-import type { RemoteThreadListAdapter, ThreadMessage } from "@assistant-ui/react";
-import { createAssistantStream } from "assistant-stream";
-
 import { workbenchBrowserStorage, WORKBENCH_STORAGE_PREFIX } from "@workbench/agent-runtime-client";
 import type {
   AgentRuntime,
@@ -253,7 +250,6 @@ export class PiSessionManager implements AgentRuntime {
   readonly contextPolicies: PiSessionContextPolicyClient;
   readonly rpcTransportOptions: Readonly<Pick<PiRpcCallOptions, "invalidation" | "transport">>;
   private readonly listeners = new Set<Listener>();
-  private readonly threadListListeners = new Set<Listener>();
   private readonly activeSessionListeners = new Set<Listener>();
   private readonly contextTraceListeners = new Set<PiSessionContextTraceListener>();
   private readonly hostEventListeners = new Set<PiHostEventListener>();
@@ -295,9 +291,6 @@ export class PiSessionManager implements AgentRuntime {
   private realtimeRefreshTask?: Promise<void>;
   private forkTaskTail: Promise<void> = Promise.resolve();
   private revision = 0;
-  private threadListRevision = 0;
-  private threadListStructureKey = "[]";
-  private threadListBaselineReady = false;
   private runtimeCatalogLoading = true;
   private runtimeThreadListRevision = -1;
   private runtimeThreadListSnapshot: ThreadListSnapshot = Object.freeze({
@@ -360,8 +353,6 @@ export class PiSessionManager implements AgentRuntime {
   }
 
   getSnapshot = (): number => this.revision;
-
-  getThreadListRevision = (): number => this.threadListRevision;
 
   setTitleFallbacks(fallbacks: PiSessionTitleFallbacks): void {
     this.titleFallbacks = fallbacks;
@@ -603,31 +594,6 @@ export class PiSessionManager implements AgentRuntime {
     return this.runtimeThreadListSnapshot;
   }
 
-  private createThreadListStructureKey(
-    items: readonly PiThreadListItemSnapshot[] = this.getThreadListSnapshot(),
-  ): string {
-    return JSON.stringify(items.map(({ remoteId, status }) => [remoteId, status]));
-  }
-
-  private acknowledgeThreadListStructure(
-    items: readonly PiThreadListItemSnapshot[] = this.getThreadListSnapshot(),
-  ): void {
-    this.threadListStructureKey = this.createThreadListStructureKey(items);
-  }
-
-  private notifyThreadListIfStructureChanged(): void {
-    if (this.disposed) return;
-    const nextKey = this.createThreadListStructureKey();
-    if (!this.threadListBaselineReady) {
-      this.threadListStructureKey = nextKey;
-      return;
-    }
-    if (nextKey === this.threadListStructureKey) return;
-    this.threadListStructureKey = nextKey;
-    this.threadListRevision += 1;
-    for (const listener of this.threadListListeners) listener();
-  }
-
   getThreadListItemSnapshot(threadId: string | undefined): PiThreadListItemSnapshot | undefined {
     if (!threadId) return undefined;
     const remoteId = this.aliases.get(threadId) ?? threadId;
@@ -808,12 +774,6 @@ export class PiSessionManager implements AgentRuntime {
     return () => this.listeners.delete(listener);
   };
 
-  subscribeThreadList = (listener: Listener): (() => void) => {
-    if (this.disposed) return () => undefined;
-    this.threadListListeners.add(listener);
-    return () => this.threadListListeners.delete(listener);
-  };
-
   /** Subscribe to lightweight live summaries; use the context-trace unary RPCs for baseline/detail. */
   subscribeSessionContextTrace = (listener: PiSessionContextTraceListener): (() => void) => {
     if (this.disposed) return () => undefined;
@@ -917,7 +877,6 @@ export class PiSessionManager implements AgentRuntime {
     this.realtimeRefreshRequested = false;
     this.realtimeRefreshTask = undefined;
     this.listeners.clear();
-    this.threadListListeners.clear();
     this.activeSessionListeners.clear();
     this.contextTraceListeners.clear();
     this.hostEventListeners.clear();
@@ -1058,7 +1017,6 @@ export class PiSessionManager implements AgentRuntime {
       this.workspaceGeneration += 1;
       this.workspaces.set(payload.workspace.workspaceId, payload.workspace);
       this.notify();
-      this.notifyThreadListIfStructureChanged();
       return;
     }
     if (payload.type === "host/workspace-removed") {
@@ -1066,7 +1024,6 @@ export class PiSessionManager implements AgentRuntime {
       this.workspaces.delete(payload.workspaceId);
       this.pinnedWorkspaces.delete(payload.workspaceId);
       this.notify();
-      this.notifyThreadListIfStructureChanged();
       return;
     }
     if (payload.type === "host/workspace-order-changed") {
@@ -1084,7 +1041,6 @@ export class PiSessionManager implements AgentRuntime {
         this.workspaces.set(workspaceId, workspace);
       }
       this.notify();
-      this.notifyThreadListIfStructureChanged();
       return;
     }
     if (payload.type === "host/workspace-pinned-changed") {
@@ -1111,7 +1067,6 @@ export class PiSessionManager implements AgentRuntime {
         changed = true;
       }
       if (changed) this.notify();
-      this.notifyThreadListIfStructureChanged();
       return;
     }
     if (payload.type === "host/session-pinned-changed") {
@@ -1123,7 +1078,6 @@ export class PiSessionManager implements AgentRuntime {
       else this.pinned.delete(payload.sessionId);
       if (changed) {
         this.notify();
-        this.notifyThreadListIfStructureChanged();
       }
       return;
     }
@@ -1153,7 +1107,6 @@ export class PiSessionManager implements AgentRuntime {
       const summaryChanged = this.setSummary(payload.summary);
       if (workspaceChanged || runningChanged || waitingForUserInputChanged || summaryChanged) {
         this.notify();
-        this.notifyThreadListIfStructureChanged();
       }
       return;
     }
@@ -1164,14 +1117,12 @@ export class PiSessionManager implements AgentRuntime {
       const summaryChanged = this.setSummary(payload.summary);
       if (runningChanged || waitingForUserInputChanged || summaryChanged) {
         this.notify();
-        this.notifyThreadListIfStructureChanged();
       }
       return;
     }
     if (payload.type === "host/session-removed") {
       this.removeSessionMetadata(payload.sessionId);
       this.notify();
-      this.notifyThreadListIfStructureChanged();
       return;
     }
     if (payload.type === "host/agent-error") {
@@ -1473,7 +1424,6 @@ export class PiSessionManager implements AgentRuntime {
         this.connections.replaceRunningBaseline([...nextRunning]);
         this.applyRunningSnapshot([...nextRunning], true);
         this.notify();
-        this.notifyThreadListIfStructureChanged();
       })
       .finally(() => {
         if (this.metadataRefreshTask === task) this.metadataRefreshTask = undefined;
@@ -1503,7 +1453,6 @@ export class PiSessionManager implements AgentRuntime {
     }
     this.applyWorkspaceSnapshot(response, archivedResponse);
     this.notify();
-    this.notifyThreadListIfStructureChanged();
   }
 
   private applyWorkspaceSnapshot(
@@ -1618,7 +1567,6 @@ export class PiSessionManager implements AgentRuntime {
     this.forgetEphemeralSession(input.sessionId);
     await Promise.all([this.refreshMetadata(), this.refreshWorkspaces()]);
     this.notify();
-    this.notifyThreadListIfStructureChanged();
     return promoted;
   }
 
@@ -1677,7 +1625,6 @@ export class PiSessionManager implements AgentRuntime {
       });
     }
     this.notify();
-    this.notifyThreadListIfStructureChanged();
     void this.refreshMetadata().catch((error) =>
       console.error("[workbench-pi] fork metadata refresh failed", error),
     );
@@ -1691,7 +1638,6 @@ export class PiSessionManager implements AgentRuntime {
     this.workspaces.delete(workspaceId);
     this.pinnedWorkspaces.delete(workspaceId);
     this.notify();
-    this.notifyThreadListIfStructureChanged();
   }
 
   async moveWorkspaceBefore(workspaceId: string, beforeWorkspaceId?: string): Promise<void> {
@@ -1718,7 +1664,6 @@ export class PiSessionManager implements AgentRuntime {
       this.workspaces.set(reorderedWorkspaceId, workspace);
     }
     this.notify();
-    this.notifyThreadListIfStructureChanged();
   }
 
   async moveWorkspaceSessionBefore(
@@ -1742,7 +1687,6 @@ export class PiSessionManager implements AgentRuntime {
     if (workspaceViewsEqual(current, result.workspace)) return;
     this.workspaces.set(workspaceId, result.workspace);
     this.notify();
-    this.notifyThreadListIfStructureChanged();
   }
 
   async setWorkspacePinned(workspaceId: string, pinned: boolean): Promise<void> {
@@ -1769,7 +1713,6 @@ export class PiSessionManager implements AgentRuntime {
     else this.pinned.delete(result.sessionId);
     if (changed) {
       this.notify();
-      this.notifyThreadListIfStructureChanged();
     }
   }
 
@@ -1790,7 +1733,6 @@ export class PiSessionManager implements AgentRuntime {
     await deletePiRpcSession({ sessionId }, this.rpcTransportOptions);
     this.removeSessionMetadata(sessionId);
     this.notify();
-    this.notifyThreadListIfStructureChanged();
   }
 
   private async archiveSessionMetadata(sessionId: string): Promise<void> {
@@ -1800,84 +1742,6 @@ export class PiSessionManager implements AgentRuntime {
   private async setSessionArchivedMetadata(sessionId: string, archived: boolean): Promise<void> {
     if (archived) await archivePiWorkspaceSession(sessionId, this.rpcTransportOptions);
     else await unarchivePiWorkspaceSession(sessionId, this.rpcTransportOptions);
-  }
-
-  createThreadListAdapter(): RemoteThreadListAdapter {
-    return {
-      list: async () => {
-        await this.start();
-        const threads = this.getThreadListSnapshot();
-        this.acknowledgeThreadListStructure(threads);
-        this.threadListBaselineReady = true;
-        return {
-          threads: threads.map((thread) => ({
-            ...thread,
-            externalId: thread.remoteId,
-          })),
-        };
-      },
-      fetch: async (threadId) => {
-        let summary = this.summaries.get(threadId);
-        if (!summary) {
-          // Fetching the route-selected thread only needs the catalog baseline. Do not wait for
-          // host description or one-time legacy preference migrations owned by start().
-          await this.refreshMetadata();
-          summary = this.summaries.get(threadId);
-        }
-        if (!summary) throw new Error("pi_session_not_found");
-        return {
-          status: this.archived.has(threadId) ? "archived" : "regular",
-          remoteId: threadId,
-          externalId: threadId,
-          title: this.summaryTitle(summary) || undefined,
-          lastMessageAt: new Date(summary.modified),
-          custom: this.getThreadCustom(summary.id),
-        };
-      },
-      initialize: (threadId) => this.initialize(threadId),
-      // Workspace metadata is derived from the canonical session summary. The
-      // pinned flag is the one user-editable presentation field in custom data.
-      updateCustom: async (remoteId, custom) => {
-        const pinned = custom?.piPinned === true;
-        const changed = pinned ? !this.pinned.has(remoteId) : this.pinned.has(remoteId);
-        if (!changed) return;
-        await this.setThreadPinned(remoteId, pinned);
-      },
-      rename: async (remoteId, newTitle) => {
-        await renamePiRpcSession(
-          { sessionId: remoteId, title: newTitle },
-          this.rpcTransportOptions,
-        );
-        const summary = this.summaries.get(remoteId);
-        if (summary && this.setSummary({ ...summary, name: newTitle })) this.notify();
-      },
-      archive: async (remoteId) => {
-        await this.archiveSessionMetadata(remoteId);
-      },
-      unarchive: async (remoteId) => {
-        await this.setSessionArchivedMetadata(remoteId, false);
-      },
-      delete: async (remoteId) => {
-        await deletePiRpcSession({ sessionId: remoteId }, this.rpcTransportOptions);
-        this.removeSessionMetadata(remoteId);
-        this.notify();
-        this.notifyThreadListIfStructureChanged();
-      },
-      generateTitle: async (remoteId, messages) => {
-        const summary = this.summaries.get(remoteId);
-        const hasExistingName = Boolean(summary?.name?.trim());
-        const title = hasExistingName
-          ? deriveSessionDisplayTitle(summary?.name)
-          : this.titleFromMessages(messages);
-        if (!hasExistingName && title) {
-          await renamePiRpcSession({ sessionId: remoteId, title }, this.rpcTransportOptions);
-          if (summary && this.setSummary({ ...summary, name: title })) this.notify();
-        }
-        return createAssistantStream((controller) => {
-          if (title) controller.appendText(title);
-        });
-      },
-    };
   }
 
   setActive(localId: string | undefined, remoteId: string | undefined): void {
@@ -1978,7 +1842,6 @@ export class PiSessionManager implements AgentRuntime {
     this.notify();
     // The Headless Runtime owns draft promotion. Compatibility consumers observe the resulting
     // catalog invalidation instead of maintaining a second promotion state machine.
-    this.notifyThreadListIfStructureChanged();
   }
 
   private readonly applyRunningSnapshot = (
@@ -2060,27 +1923,6 @@ export class PiSessionManager implements AgentRuntime {
       this.setSummary({ ...summary, waitingForUserInput });
     }
     if (wasWaitingForUserInput !== waitingForUserInput) this.notify();
-  }
-
-  private titleFromMessages(messages: readonly ThreadMessage[]): string {
-    const firstUser = messages.find((message) => message.role === "user");
-    if (!firstUser) return "";
-    const text = firstUser.content
-      .filter((part): part is { type: "text"; text: string } => part.type === "text")
-      .map((part) => part.text)
-      .join(" ");
-    const hasFile =
-      firstUser.content.some((part) => part.type === "file") ||
-      firstUser.attachments?.some((attachment) => attachment.type !== "image");
-    const hasImage =
-      firstUser.content.some((part) => part.type === "image") ||
-      firstUser.attachments?.some((attachment) => attachment.type === "image");
-    const fallback = hasFile
-      ? this.titleFallbacks?.attachment
-      : hasImage
-        ? this.titleFallbacks?.image
-        : undefined;
-    return deriveSessionDisplayTitle(text, { fallback });
   }
 
   private summaryTitle(summary: PiSessionSummary): string {

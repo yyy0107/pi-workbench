@@ -136,6 +136,8 @@ test("keeps current Session identity stable across draft promotion", (t) => {
     "mutateQueueItem",
     "queue",
     "removeComposerAttachment",
+    "resume",
+    "resumeLatest",
     "retry",
     "selectBranch",
     "send",

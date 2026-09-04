@@ -95,6 +95,8 @@ export class FakeConversationSession implements ConversationSession {
       mutateQueueItem: actions?.mutateQueueItem ?? (() => undefined),
       setQueuePaused: actions?.setQueuePaused ?? (() => undefined),
       loadOlder: actions?.loadOlder ?? (async () => undefined),
+      resume: actions?.resume ?? (async () => undefined),
+      resumeLatest: actions?.resumeLatest ?? (async () => undefined),
     });
   }
 

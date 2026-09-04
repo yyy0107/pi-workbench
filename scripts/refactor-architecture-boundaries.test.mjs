@@ -73,7 +73,7 @@ test("retired component-extension and right Panel APIs cannot return", () => {
   }
 });
 
-test("the application has one assistant-ui runtime stack and no AI SDK chat runtime", () => {
+test("the application has one Headless Agent Runtime stack and no AI SDK chat runtime", () => {
   assertSourcesDoNotMatch(/\bfrom\s*["'](?:ai|@ai-sdk\/react)["']/u, "AI SDK import");
   assertSourcesDoNotMatch(/\buseChat\s*\(/u, "second chat runtime hook");
 

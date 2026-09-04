@@ -30,6 +30,7 @@ export * from "./surface";
 export * from "./switch";
 export * from "./textarea";
 export * from "./time-picker";
+export * from "./tooltip-icon-button";
 export * from "./tabs";
 export * from "./tooltip";
 export * from "./workspace-selector";

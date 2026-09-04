@@ -3,7 +3,7 @@
 This package owns the platform-independent Workbench shell and UI closure that can be installed by
 web, desktop, and future hosts. Its finite public entries are grouped by responsibility:
 
-- `./workbench`, `./layout`, `./chat`, `./assistant-ui`, `./elements`, `./ui`, `./hooks`, and
+- `./workbench`, `./layout`, `./chat`, `./elements`, `./ui`, `./hooks`, and
   `./workspace-file-tree` provide the generic shell frame and presentation components.
 - `./navigation` and `./runtime-connection` are explicit application ports. Shell asks for semantic
   home/conversation navigation and an installed runtime connection; it does not know routes,

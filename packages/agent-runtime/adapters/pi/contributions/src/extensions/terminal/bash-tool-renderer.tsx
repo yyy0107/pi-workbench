@@ -3,7 +3,7 @@
 import { KeyboardIcon, SquareTerminalIcon } from "lucide-react";
 
 import type { ToolRendererComponent } from "@workbench/extension-sdk";
-import { TooltipIconButton } from "@workbench/shell/assistant-ui";
+import { TooltipIconButton } from "@workbench/shell/ui";
 import { useRightWorkspace, useWorkspaceContext } from "@workbench/shell/right-workspace/react";
 import { TerminalBlock } from "@workbench/shell/elements";
 import { Button } from "@workbench/shell/ui";

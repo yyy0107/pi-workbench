@@ -1,11 +1,4 @@
 import type {
-  AppendMessage,
-  ExternalThreadQueueAdapter,
-  FileMessagePart,
-  QueueItemState,
-  TextMessagePart,
-} from "@assistant-ui/react";
-import type {
   ComposerAttachment,
   ComposerQueueItem,
 } from "@workbench/agent-runtime-contracts/conversation";
@@ -14,11 +7,16 @@ import type { PiQueuedPrompt, PiQueueMode } from "@workbench/agent-runtime-pi-pr
 import type { SessionQueueAction } from "@workbench/agent-runtime-pi-protocol/rpc";
 import type { QueueItem } from "@workbench/agent-runtime-pi-protocol/stream";
 import { stripWorkspaceFeedbackContext } from "@workbench/agent-runtime-client/prompt-feedback";
+import type {
+  PiComposerMessage,
+  PiFileMessagePart,
+  PiTextMessagePart,
+} from "../conversation/pi-conversation-message";
 import { appendMessageToPiPrompt } from "./messages";
 
 interface PiMessageQueueOptions {
   isRunning(): boolean;
-  run(message: AppendMessage): Promise<void>;
+  run(message: PiComposerMessage): Promise<void>;
   createId(): string;
   enqueue(
     mode: PiQueueMode,
@@ -32,13 +30,13 @@ interface PiMessageQueueOptions {
     steering: readonly PiQueuedPrompt[],
     followUp: readonly PiQueuedPrompt[],
   ): Promise<void>;
-  onEnqueueRejected?(message: AppendMessage, error: unknown): void;
+  onEnqueueRejected?(message: PiComposerMessage, error: unknown): void;
   onSteerRejected(itemId: string): void;
   onChange(): void;
 }
 
 function appendContent(
-  message: AppendMessage,
+  message: PiComposerMessage,
   workspaceFeedbackSuffix?: string,
 ): SessionQueueAction & { kind: "edit" } {
   const prompt = appendMessageToPiPrompt(message);
@@ -63,8 +61,8 @@ function extractWorkspaceFeedbackSuffix(item: QueueItem | undefined): string | u
   return text.slice(visibleText.length);
 }
 
-function queueItemParts(item: QueueItem): readonly (FileMessagePart | TextMessagePart)[] {
-  return item.message.content.map((part): FileMessagePart | TextMessagePart => {
+function queueItemParts(item: QueueItem): readonly (PiFileMessagePart | PiTextMessagePart)[] {
+  return item.message.content.map((part): PiFileMessagePart | PiTextMessagePart => {
     if (part.type === "text" && typeof part.text === "string") {
       return { type: "text", text: stripWorkspaceFeedbackContext(part.text) };
     }
@@ -84,7 +82,7 @@ function queueItemParts(item: QueueItem): readonly (FileMessagePart | TextMessag
   });
 }
 
-export function queueItemAppendMessage(item: QueueItem): AppendMessage {
+export function queueItemAppendMessage(item: QueueItem): PiComposerMessage {
   return {
     role: "user",
     content: [...queueItemParts(item)],
@@ -94,24 +92,6 @@ export function queueItemAppendMessage(item: QueueItem): AppendMessage {
     parentId: null,
     runConfig: undefined,
     sourceId: null,
-  };
-}
-
-function queueItemText(item: QueueItem): string {
-  const text = item.message.content
-    .map((part) => {
-      if (part.type === "text" && typeof part.text === "string") return part.text;
-      return `[${part.type}]`;
-    })
-    .join("");
-  return stripWorkspaceFeedbackContext(text);
-}
-
-function queueItemState(item: QueueItem): QueueItemState {
-  return {
-    id: item.id,
-    prompt: queueItemText(item),
-    parts: queueItemParts(item),
   };
 }
 
@@ -133,11 +113,11 @@ function composerQueueItem(item: QueueItem): ComposerQueueItem {
   return {
     key: item.id,
     text: parts
-      .filter((part): part is TextMessagePart => part.type === "text")
+      .filter((part): part is PiTextMessagePart => part.type === "text")
       .map((part) => part.text)
       .join("\n\n"),
     attachments: parts
-      .filter((part): part is FileMessagePart => part.type === "file")
+      .filter((part): part is PiFileMessagePart => part.type === "file")
       .map(composerAttachment),
   };
 }
@@ -207,7 +187,6 @@ function optimisticQueueItem(id: string, mode: PiQueueMode, prompt: PiQueuedProm
 
 /** Client-side read model of the authoritative `session/queue` mux snapshot. */
 export class PiMessageQueue {
-  readonly adapter: ExternalThreadQueueAdapter;
   private readonly options: PiMessageQueueOptions;
   private authoritativeItems: readonly QueueItem[] = [];
   private items: readonly QueueItem[] = [];
@@ -220,49 +199,11 @@ export class PiMessageQueue {
   private paused = false;
   private editingId?: string;
   private editingWorkspaceFeedbackSuffix?: string;
-  private transform: (message: AppendMessage) => AppendMessage = (message) => message;
   private syncTask: Promise<void> = Promise.resolve();
   private disposed = false;
 
   constructor(options: PiMessageQueueOptions) {
     this.options = options;
-    this.adapter = {
-      items: [],
-      steerItems: [],
-      enqueue: (message) => void this.submit("followUp", message).catch(() => undefined),
-      steer: (message) => void this.submit("steer", message).catch(() => undefined),
-      move: (id, placement) => {
-        if (
-          placement.lane === "steer" &&
-          placement.insertAfter === null &&
-          placement.insertBefore === undefined
-        ) {
-          this.mutate(id, { kind: "steer" });
-          return;
-        }
-        this.reorder(id, placement);
-      },
-      edit: (id, message) =>
-        this.mutate(
-          id,
-          appendContent(
-            this.transform(message),
-            extractWorkspaceFeedbackSuffix(this.items.find((item) => item.id === id)),
-          ),
-        ),
-      remove: (id) => this.mutate(id, { kind: "remove" }),
-      __internal_setDispatchTransform: (transform) => {
-        if (this.disposed) return;
-        this.transform = transform;
-      },
-      __internal_notifyCancelled: () => {
-        if (this.disposed) return;
-        if (!this.editingId) return;
-        this.editingId = undefined;
-        this.editingWorkspaceFeedbackSuffix = undefined;
-        this.publish();
-      },
-    };
   }
 
   get isPaused(): boolean {
@@ -279,7 +220,7 @@ export class PiMessageQueue {
       .map(composerQueueItem);
   }
 
-  enqueue(mode: PiQueueMode, message: AppendMessage): Promise<void> {
+  enqueue(mode: PiQueueMode, message: PiComposerMessage): Promise<void> {
     return this.submit(mode, message);
   }
 
@@ -318,9 +259,6 @@ export class PiMessageQueue {
     this.pendingOrder = undefined;
     this.editingId = undefined;
     this.editingWorkspaceFeedbackSuffix = undefined;
-    this.transform = (message) => message;
-    this.adapter.items = [];
-    this.adapter.steerItems = [];
   }
 
   replaceAuthoritative(items: readonly QueueItem[]): void {
@@ -353,7 +291,7 @@ export class PiMessageQueue {
     this.options.onChange();
   }
 
-  beginEdit(id: string): QueueItemState | undefined {
+  private beginEdit(id: string): void {
     if (this.disposed) return undefined;
     if (this.editingId) {
       this.editingId = undefined;
@@ -362,12 +300,11 @@ export class PiMessageQueue {
     const item = this.items.find((candidate) => candidate.id === id);
     if (!item || item.placement !== "queued") {
       this.publish();
-      return undefined;
+      return;
     }
     this.editingId = id;
     this.editingWorkspaceFeedbackSuffix = extractWorkspaceFeedbackSuffix(item);
     this.publish();
-    return queueItemState(item);
   }
 
   setPaused(paused: boolean): void {
@@ -398,9 +335,8 @@ export class PiMessageQueue {
       });
   }
 
-  private submit(mode: PiQueueMode, rawMessage: AppendMessage): Promise<void> {
+  private submit(mode: PiQueueMode, message: PiComposerMessage): Promise<void> {
     if (this.disposed) return Promise.resolve();
-    const message = this.transform(rawMessage);
     if (this.editingId) {
       const itemId = this.editingId;
       const feedbackSuffix = this.editingWorkspaceFeedbackSuffix;
@@ -502,13 +438,11 @@ export class PiMessageQueue {
 
   private reorder(
     itemId: string,
-    placement: Parameters<ExternalThreadQueueAdapter["move"]>[1],
+    placement: { readonly insertBefore?: string | null; readonly insertAfter?: string | null },
   ): void {
     if (this.disposed) return;
     const item = this.items.find((candidate) => candidate.id === itemId);
     if (!item || item.placement !== "queued") return;
-    if (placement.lane !== undefined && placement.lane !== "queue") return;
-
     const queued = this.items.filter((candidate) => candidate.placement === "queued");
     const destination = queued.filter((candidate) => candidate.id !== itemId);
     const anchorIndex = (anchorId: string): number | undefined => {
@@ -676,12 +610,6 @@ export class PiMessageQueue {
 
   private publish(): void {
     if (this.disposed) return;
-    this.adapter.items = this.items
-      .filter((item) => item.placement === "queued" && item.id !== this.editingId)
-      .map(queueItemState);
-    this.adapter.steerItems = this.items
-      .filter((item) => item.placement === "steering")
-      .map(queueItemState);
     this.options.onChange();
   }
 }
