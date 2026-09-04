@@ -1,23 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { ArchiveIcon, Clock3Icon, MoreHorizontalIcon, PinIcon, PinOffIcon } from "lucide-react";
+import { ArchiveIcon, Clock3Icon, PinIcon, PinOffIcon } from "lucide-react";
 import type { ThreadListItem } from "@workbench/agent-runtime-client";
 import { Button } from "../ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "../ui/dropdown-menu";
 import { SidebarActions, SidebarRow, SidebarStatus } from "../ui/sidebar-items";
 import { useI18n } from "../i18n";
 import { useAppearancePreferences } from "../appearance";
 import { useWorkbenchNavigation } from "../navigation";
 import { RunningThreadIndicator } from "./running-thread-indicator";
 import {
-  SidebarMoveMenuItems,
   sidebarThreadKey,
   useWorkspaceSidebar,
   useWorkspaceSidebarItem,
@@ -37,7 +28,6 @@ export function WorkbenchThreadListItem({
   const sidebar = useWorkspaceSidebar();
   const controls = useWorkspaceSidebarItem(sidebarThreadKey(thread.threadId));
   const navigation = useWorkbenchNavigation();
-  const [menuOpen, setMenuOpen] = useState(false);
   const threadActions = sidebar.runtime.threadActions;
   const isActive = sidebar.current.threadId === thread.threadId;
   const waiting = !isActive && thread.isWaitingForInput;
@@ -70,7 +60,6 @@ export function WorkbenchThreadListItem({
       label={thread.title || t("workbench.sidebar.newThread")}
       active={isActive}
       drag={controls.drag}
-      menuOpen={menuOpen}
       data-thread-id={thread.threadId}
       icon={
         thread.isRunning && runningIndicatorId !== "none" ? (
@@ -110,70 +99,35 @@ export function WorkbenchThreadListItem({
         onNavigate?.();
       }}
       actions={
-        <SidebarActions
-          desktop={
-            <>
-              {threadActions.setPinned ? (
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  disabled={sidebar.dragState.pending}
-                  aria-label={pinLabel}
-                  title={pinLabel}
-                  aria-pressed={thread.isPinned}
-                  onClick={controls.togglePinned}
-                >
-                  {thread.isPinned ? <PinOffIcon /> : <PinIcon />}
-                </Button>
-              ) : null}
-              {threadActions.archive ? (
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  disabled={sidebar.dragState.pending}
-                  aria-label={t("workbench.sidebar.archive")}
-                  title={t("workbench.sidebar.archive")}
-                  onClick={archive}
-                >
-                  <ArchiveIcon />
-                </Button>
-              ) : null}
-            </>
-          }
-        >
-          <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  disabled={sidebar.dragState.pending}
-                  aria-label={t("workbench.sidebar.conversationOptions")}
-                />
-              }
-            >
-              <MoreHorizontalIcon />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="sidebar-menu w-max">
-              {threadActions.setPinned ? (
-                <DropdownMenuItem onClick={controls.togglePinned}>
-                  {thread.isPinned ? <PinOffIcon /> : <PinIcon />}
-                  {pinLabel}
-                </DropdownMenuItem>
-              ) : null}
-              <SidebarMoveMenuItems controls={controls} />
-              {threadActions.archive ? (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={archive}>
-                    <ArchiveIcon />
-                    {t("workbench.sidebar.archive")}
-                  </DropdownMenuItem>
-                </>
-              ) : null}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </SidebarActions>
+        threadActions.setPinned || threadActions.archive ? (
+          <SidebarActions>
+            {threadActions.setPinned ? (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                disabled={sidebar.dragState.pending}
+                aria-label={pinLabel}
+                title={pinLabel}
+                aria-pressed={thread.isPinned}
+                onClick={controls.togglePinned}
+              >
+                {thread.isPinned ? <PinOffIcon /> : <PinIcon />}
+              </Button>
+            ) : null}
+            {threadActions.archive ? (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                disabled={sidebar.dragState.pending}
+                aria-label={t("workbench.sidebar.archive")}
+                title={t("workbench.sidebar.archive")}
+                onClick={archive}
+              >
+                <ArchiveIcon />
+              </Button>
+            ) : null}
+          </SidebarActions>
+        ) : undefined
       }
     />
   );

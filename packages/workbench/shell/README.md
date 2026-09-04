@@ -102,7 +102,7 @@ use item rows. These primitives live in `src/ui/sidebar-items.tsx`, exported thr
 | `SidebarSectionHeading` | Dedicated Projects / Pinned heading with `label`, `expanded`, `description`, `actions`, and an optional receiving `drag` binding. Uses `CollapsibleTrigger`, a chevron after the label, and no selectable or hover background. |
 | `SidebarRow` | `folder` or `item` variant with `icon`, `hoverIcon`, `label`, `description`, `status`, `actions`, `active`, `menuOpen`, and an optional `drag` binding. `trigger` defaults to `Button`; use `CollapsibleTrigger` for expandable folder rows. |
 | `SidebarStatus` | Trailing content with shared alignment and truncation. Set `secondary` for timestamps hidden on touch or narrow layouts; waiting and unread-completion indicators remain primary. |
-| `SidebarActions` | Put one shared `DropdownMenu` in `children`; `desktop` and `mobile` contain additional quick actions. Owns visibility, spacing, touch targets, and the `data-sidebar-actions` marker that prevents drag initiation. |
+| `SidebarActions` | Put controls shared by all devices in `children`; `desktop` and `mobile` contain additional quick actions. Owns visibility, spacing, touch targets, and the `data-sidebar-actions` marker that prevents drag initiation. Folder menus reuse `DropdownMenu`. |
 
 The primary trigger and actions are sibling DOM elements. Supply navigation through `onActivate`,
 keep action buttons in `SidebarActions`, and pass controlled menu state to `menuOpen`. Row labels,
@@ -138,9 +138,10 @@ consumer.
 - Trailing status is independent of the left running indicator. Its priority is waiting for input
   on a non-current conversation, then unread completion on a non-running conversation, then the
   update time on a non-running conversation. Running and waiting can appear together.
-- Desktop hover, keyboard focus, or an open menu reveals actions and hides trailing status. Touch
-  and narrow layouts keep the menu visible, reserve separate space for primary status, and hide
-  secondary timestamps. Menus include Move up / Move down so sorting remains accessible without
+- Desktop hover, keyboard focus, or an open folder menu reveals actions and hides trailing status.
+  Touch and narrow layouts keep actions visible, reserve separate space for primary status, and
+  hide secondary timestamps. Conversation rows expose pin/unpin and archive buttons directly,
+  without an overflow menu. Folder menus include Move up / Move down; conversation ordering uses
   pointer dragging.
 
 ### Drag coordination and drop rules
@@ -163,7 +164,8 @@ The coordinator handles mouse dragging with the existing 5 px activation thresho
 portal overlay, horizontal and vertical hit testing within the scroll viewport, edge scrolling,
 and a 350 ms post-drag click suppression window. Escape, window blur, pointer cancellation, source
 removal, and search activation cancel the drag. Actions never initiate dragging. Touch and keyboard
-users use the same business operations through menus.
+users can pin/unpin and archive conversations with the shared action buttons, and reorder folders
+through their menus.
 
 `src/sidebar/sidebar-move.ts` owns the pure drop policy; `workspace-sidebar-context.tsx` supplies the
 current model and commits operations. Pinned conversations precede pinned folders, and each type
@@ -185,8 +187,8 @@ own folder, wherever that folder is located. Keep the current conversation selec
 
 ### Persistence and failure handling
 
-Revalidate the source and target against the latest model before submitting. Drag and menu moves
-share the session's pending gate: one move runs at a time, controls are disabled while saving, and
+Revalidate the source and target against the latest model before submitting. Drag, button, and menu
+moves share the session's pending gate: one move runs at a time, controls are disabled while saving, and
 additional `session.run` calls during that interval are ignored rather than queued.
 
 Save pin membership before destination order. A pin failure stops the operation; an order failure

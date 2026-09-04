@@ -205,7 +205,7 @@ export function SidebarStatus({
   );
 }
 
-/** Put a shared menu in children; desktop/mobile slots contain additional quick actions. */
+/** Put shared controls in children; desktop/mobile slots contain additional quick actions. */
 export function SidebarActions({
   children,
   desktop,
