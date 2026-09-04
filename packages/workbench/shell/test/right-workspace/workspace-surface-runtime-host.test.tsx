@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import {
+  RuntimeProvider,
+  useCompletedToolCalls,
+  useConversationSession,
+  useCurrentSession,
+} from "@workbench/agent-runtime-client";
 import type {
   LocalizableText,
   OpenerService,
@@ -8,13 +14,14 @@ import type {
   WorkspaceSurfaceDefinition,
 } from "@workbench/extension-sdk";
 import { WorkspaceSurfaceRegistryImpl } from "@workbench/extension-sdk/internal";
+import { ActiveWorkspaceRuntimeBindings } from "@workbench/shell/application";
 import {
   RightWorkspaceProvider,
   WorkspaceSurfaceRuntimeHost,
   useWorkspaceContext,
   type WorkspaceRuntimeErrorDetails,
 } from "@workbench/shell/right-workspace/react";
-import { act, createElement, useEffect } from "react";
+import { act, createElement, useEffect, type ComponentProps } from "react";
 import { createRoot } from "react-dom/client";
 
 import { flushReactMicrotasks, installMinimalReactDomEnvironment } from "../react-dom-environment";
@@ -32,6 +39,137 @@ function createOpener(): OpenerService {
     subscribe: () => () => undefined,
   };
 }
+
+test("active workspace runtimes bind tool events to the current session", async () => {
+  const dom = installMinimalReactDomEnvironment();
+  const root = createRoot(dom.container);
+  const registry = new WorkspaceSurfaceRegistryImpl();
+  const reports: unknown[] = [];
+  const completed: unknown[] = [];
+  const listeners = new Set<() => void>();
+  type Runtime = ComponentProps<typeof RuntimeProvider>["runtime"];
+  let current: ReturnType<Runtime["current"]["getSnapshot"]> = {
+    sessionId: undefined,
+    isNewThread: true,
+  };
+  const sessions = new Map(
+    ["first", "second"].map((id) => {
+      const snapshot = {
+        sessionId: id,
+        isRunning: false,
+        isLoading: false,
+        hasMore: false,
+        nodeKeys: ["assistant"],
+        composer: { text: "", attachments: [], mode: "send" as const, phase: "idle" as const },
+      };
+      const node = {
+        key: "assistant",
+        kind: "assistant" as const,
+        status: "complete" as const,
+        blocks: [
+          {
+            key: "tool",
+            kind: "tool-call" as const,
+            callId: "shared-call-id",
+            toolName: "write",
+            argumentsText: "{}",
+            status: "complete" as const,
+            result: "done",
+          },
+        ],
+      };
+      return [
+        id,
+        {
+          id,
+          snapshot: { getSnapshot: () => snapshot, subscribe: () => () => undefined },
+          actions: {},
+          node: () => ({ getSnapshot: () => node, subscribe: () => () => undefined }),
+        },
+      ];
+    }),
+  );
+  const runtime: Pick<Runtime, "current" | "session"> = {
+    current: {
+      getSnapshot: () => current,
+      subscribe: (listener) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+    },
+    session: (id) => sessions.get(id),
+  };
+
+  function ToolRuntime() {
+    const sessionId = useConversationSession().id;
+    const { threadId } = useWorkspaceContext();
+    useCompletedToolCalls((part) => {
+      completed.push({ sessionId, threadId, callId: part.callId });
+      return true;
+    });
+    return null;
+  }
+
+  function Bindings() {
+    const { sessionId, threadId } = useCurrentSession();
+    return (
+      <ActiveWorkspaceRuntimeBindings
+        applicationId="test"
+        conversation={{
+          context: { applicationId: "test", threadId },
+          isPinned: false,
+          mainThreadId: sessionId,
+          threadScopeId: threadId,
+        }}
+        reportError={(error) => reports.push(error)}
+        revealWorkspace={() => undefined}
+      />
+    );
+  }
+
+  registry.register({
+    kind: "tool-runtime",
+    icon: FixtureIcon,
+    cachePolicy: "unmount",
+    getResourceKey: () => "tool-runtime",
+    render: () => null,
+    runtime: ToolRuntime,
+  });
+
+  try {
+    await act(async () => {
+      root.render(
+        <RuntimeProvider runtime={runtime as Runtime}>
+          <RightWorkspaceProvider
+            createOpener={createOpener}
+            initialContext={{ applicationId: "test" }}
+            registry={registry}
+            validateLocalizableText={validateLocalizableText}
+          >
+            <Bindings />
+          </RightWorkspaceProvider>
+        </RuntimeProvider>,
+      );
+    });
+    assert.deepEqual(reports, []);
+    assert.deepEqual(completed, []);
+
+    for (const sessionId of ["first", "second", "missing"]) {
+      await act(async () => {
+        current = { sessionId, threadId: `thread-${sessionId}`, isNewThread: false };
+        for (const listener of listeners) listener();
+      });
+      assert.deepEqual(reports, []);
+    }
+    assert.deepEqual(completed, [
+      { sessionId: "first", threadId: "thread-first", callId: "shared-call-id" },
+      { sessionId: "second", threadId: "thread-second", callId: "shared-call-id" },
+    ]);
+  } finally {
+    await act(async () => root.unmount());
+    dom.restore();
+  }
+});
 
 test("runtime host overrides context and isolates contribution errors through the public boundary", async () => {
   const dom = installMinimalReactDomEnvironment();

@@ -14,7 +14,7 @@ import {
   type ReactNode,
 } from "react";
 
-import { useCurrentSession, useThreadList } from "@workbench/agent-runtime-client";
+import { SessionProvider, useCurrentSession, useThreadList } from "@workbench/agent-runtime-client";
 import {
   WorkbenchAgentRuntimeInstallationHost,
   type WorkbenchAgentRuntimeInstallation,
@@ -304,7 +304,11 @@ export function ActiveWorkspaceRuntimeBindings({
     setContext,
   ]);
 
-  return <WorkspaceSurfaceRuntimeHost context={resolvedContext} reportError={reportError} />;
+  return (
+    <SessionProvider sessionId={conversation.mainThreadId}>
+      <WorkspaceSurfaceRuntimeHost context={resolvedContext} reportError={reportError} />
+    </SessionProvider>
+  );
 }
 
 function NewThreadWorkspaceLayoutTracker() {
