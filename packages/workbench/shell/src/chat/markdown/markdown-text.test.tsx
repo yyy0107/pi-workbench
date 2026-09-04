@@ -4,8 +4,13 @@ import test from "node:test";
 import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
+import { I18nProvider } from "../../i18n";
 import { WorkbenchSettingsProvider, type WorkbenchSettingsPort } from "../../settings";
-import { MarkdownTextContent, MarkdownTextContentWithCitations } from "./markdown-text";
+import {
+  MarkdownCodeBlockContent,
+  MarkdownTextContent,
+  MarkdownTextContentWithCitations,
+} from "./markdown-text";
 
 const settings = {
   async load() {
@@ -16,9 +21,37 @@ const settings = {
 
 function render(node: ReactNode): string {
   return renderToStaticMarkup(
-    createElement(WorkbenchSettingsProvider, { service: settings, children: node }),
+    createElement(WorkbenchSettingsProvider, {
+      service: settings,
+      children: createElement(I18nProvider, { initialLocale: "en-US", children: node }),
+    }),
   );
 }
+
+test("routes fenced code and code previews through Streamdown's code block", () => {
+  const code = "const answer = 42;\nconsole.log(answer);";
+  for (const node of [
+    createElement(MarkdownTextContent, {
+      text: `Inline \`answer\`.\n\n\`\`\`typescript\n${code}\n\`\`\``,
+    }),
+    createElement(MarkdownCodeBlockContent, { code, language: "typescript" }),
+  ]) {
+    const markup = render(node);
+    assert.match(markup, /data-streamdown="code-block"/);
+    assert.match(markup, /data-streamdown="code-block-body"/);
+    assert.match(markup, /data-language="typescript"/);
+    assert.match(markup, /aui-codex-code-language">TypeScript</);
+    assert.match(markup, /<pre[\s>]/);
+    assert.match(markup, /const answer = 42;/);
+    assert.match(markup, /console.log\(answer\);/);
+    assert.doesNotMatch(markup, /aui-streamdown-inline-code[^>]*>const/);
+  }
+
+  assert.match(
+    render(createElement(MarkdownTextContent, { text: "Inline `answer`." })),
+    /<code class="aui-streamdown-inline-code">answer<\/code>/,
+  );
+});
 
 test("renders supported math delimiters without treating currency as math", () => {
   const markup = render(
