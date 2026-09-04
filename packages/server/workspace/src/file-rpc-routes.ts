@@ -1,0 +1,144 @@
+export const RPC_REQUEST_BODY_LIMITS = Object.freeze({ workspaceFileWrite: 20 * 1024 * 1024 });
+import {
+  WORKSPACE_FILE_EDITABLE_SIZE_LIMIT,
+  WORKSPACE_FILE_RELATIVE_PATH_LENGTH_LIMIT,
+  WORKSPACE_FILE_SEARCH_QUERY_LENGTH_LIMIT,
+  WORKSPACE_FILE_SEARCH_RESULT_LIMIT,
+} from "@workbench/agent-runtime-contracts/runtime-capabilities";
+import type { WorkspaceFileProtocol } from "./files";
+import {
+  handleRpcPost,
+  rpcBusinessError,
+  rpcInteger,
+  rpcObject,
+  rpcOptional,
+  rpcString,
+} from "@workbench/host-server/rpc";
+import type { RpcRouteGroup } from "@workbench/host-server/rpc";
+
+export interface WorkspaceFileRpcRoutesDependencies {
+  readonly service: WorkspaceFileProtocol;
+  readonly projectDomainError: (error: unknown) => never;
+}
+
+const nonEmptyString = rpcString({ minLength: 1 });
+const workspaceFilesListPayload = rpcObject({
+  workspaceId: nonEmptyString,
+  relativePath: rpcOptional(rpcString({ maxLength: WORKSPACE_FILE_RELATIVE_PATH_LENGTH_LIMIT })),
+});
+const workspaceFilesSearchPayload = rpcObject({
+  workspaceId: nonEmptyString,
+  query: rpcString({ maxLength: WORKSPACE_FILE_SEARCH_QUERY_LENGTH_LIMIT }),
+  limit: rpcOptional(rpcInteger({ minimum: 1, maximum: WORKSPACE_FILE_SEARCH_RESULT_LIMIT })),
+});
+const workspaceFileReadPayload = rpcObject({
+  workspaceId: nonEmptyString,
+  relativePath: rpcString({
+    minLength: 1,
+    maxLength: WORKSPACE_FILE_RELATIVE_PATH_LENGTH_LIMIT,
+  }),
+});
+const workspaceFileWritePayload = rpcObject({
+  workspaceId: nonEmptyString,
+  relativePath: rpcString({
+    minLength: 1,
+    maxLength: WORKSPACE_FILE_RELATIVE_PATH_LENGTH_LIMIT,
+  }),
+  content: rpcString({ maxLength: WORKSPACE_FILE_EDITABLE_SIZE_LIMIT }),
+  expectedVersion: nonEmptyString,
+});
+
+function isAborted(error: unknown, signal: AbortSignal): boolean {
+  return signal.aborted || (error instanceof Error && error.name === "AbortError");
+}
+
+async function invokeFileOperation<Value>(
+  operation: () => Promise<Value>,
+  signal: AbortSignal,
+  cancellationMessage: string,
+  projectDomainError: WorkspaceFileRpcRoutesDependencies["projectDomainError"],
+): Promise<Value> {
+  try {
+    return await operation();
+  } catch (error) {
+    if (isAborted(error, signal)) {
+      throw rpcBusinessError("cancelled", cancellationMessage, {});
+    }
+    projectDomainError(error);
+  }
+}
+
+export function createWorkspaceFileRpcRoutes({
+  service,
+  projectDomainError,
+}: WorkspaceFileRpcRoutesDependencies): RpcRouteGroup {
+  return {
+    handle(request, method) {
+      switch (method) {
+        case "workspace.files.list":
+          return handleRpcPost(request, {
+            method,
+            payload: workspaceFilesListPayload,
+            handler: (payload, context) =>
+              invokeFileOperation(
+                () => service.listDirectory(payload, context.signal),
+                context.signal,
+                "Directory listing was cancelled.",
+                projectDomainError,
+              ),
+          });
+        case "workspace.files.search":
+          return handleRpcPost(request, {
+            method,
+            payload: workspaceFilesSearchPayload,
+            handler: (payload, context) =>
+              invokeFileOperation(
+                () => service.searchFiles(payload, context.signal),
+                context.signal,
+                "Workspace file search was cancelled.",
+                projectDomainError,
+              ),
+          });
+        case "workspace.files.describe":
+          return handleRpcPost(request, {
+            method,
+            payload: workspaceFileReadPayload,
+            handler: (payload, context) =>
+              invokeFileOperation(
+                () => service.describeFile(payload, context.signal),
+                context.signal,
+                "File inspection was cancelled.",
+                projectDomainError,
+              ),
+          });
+        case "workspace.files.read":
+          return handleRpcPost(request, {
+            method,
+            payload: workspaceFileReadPayload,
+            handler: (payload, context) =>
+              invokeFileOperation(
+                () => service.readFile(payload, context.signal),
+                context.signal,
+                "File reading was cancelled.",
+                projectDomainError,
+              ),
+          });
+        case "workspace.files.write":
+          return handleRpcPost(request, {
+            method,
+            payload: workspaceFileWritePayload,
+            maxRequestBodyBytes: RPC_REQUEST_BODY_LIMITS.workspaceFileWrite,
+            handler: (payload, context) =>
+              invokeFileOperation(
+                () => service.writeFile(payload, context.signal),
+                context.signal,
+                "File writing was cancelled.",
+                projectDomainError,
+              ),
+          });
+        default:
+          return undefined;
+      }
+    },
+  };
+}

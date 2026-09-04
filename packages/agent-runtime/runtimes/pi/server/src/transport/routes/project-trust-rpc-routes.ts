@@ -5,12 +5,12 @@ import {
   rpcObject,
   rpcString,
   type RpcValidator,
-} from "../rpc-transport";
+} from "@workbench/host-server/rpc";
 import type {
   ProjectTrustDescribePayload,
   ProjectTrustUpdatePayload,
 } from "@workbench/agent-runtime-pi-protocol/rpc";
-import type { RpcRouteGroup } from "./rpc-route-group";
+import type { RpcRouteGroup } from "@workbench/host-server/rpc";
 
 export interface ProjectTrustRpcRoutesDependencies {
   readonly getService: () => ProjectTrustProtocol;

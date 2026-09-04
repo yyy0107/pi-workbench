@@ -145,7 +145,6 @@ import { resolveConversationReferenceContexts } from "./composer-conversation-co
 import { resolveWorkspaceFileReferenceContexts } from "./composer-workspace-file-context";
 import { getStreamHub } from "../streams/stream-hub";
 import { getWorkspaceStore } from "../workspaces/workspace-registry";
-import { createWorkspaceFileService } from "../workspaces/workspace-files";
 import { validateWorkspace, workspaceFromCwd } from "../workspaces/workspace-paths";
 import { getPiAgentHostBindings } from "../agent-runtime/pi-agent-host-bindings";
 import {
@@ -158,16 +157,11 @@ import {
   type AttachmentRecognitionSnapshot,
 } from "@workbench/attachment-understanding-contracts/state-machine";
 import {
-  decideAttachmentUnderstandingRoute,
-  ImageUnderstandingProviderError,
-  OcrAdapterProvider,
-  projectAttachmentRecognitionResults,
   type AttachmentUnderstandingObservation,
   type RecognizableAttachment,
-} from "../attachment-understanding/index";
-import { AttachmentRecognitionLifecycle } from "../attachment-understanding/lifecycle";
+} from "@workbench/attachment-understanding-server/contracts";
+import { runAttachmentUnderstandingTask } from "@workbench/attachment-understanding-server/task";
 import { recognizeWithMultimodalModel } from "../attachment-understanding/multimodal";
-import { getImageUnderstandingSettingsStore } from "../attachment-understanding/registry";
 import {
   createWorkbenchInternalPiExtensions,
   prepareWorkbenchPiExtensions,
@@ -893,8 +887,6 @@ type AttachmentUnderstandingRunResult =
   | { kind: "failed"; errorCode: string }
   | { kind: "cancelled" };
 
-const MAX_ATTACHMENT_UNDERSTANDING_CONTEXT_CHARACTERS = 250_000;
-
 function recognizableAttachments(
   images: readonly PiImageContent[],
   documents: readonly PiDocumentContent[],
@@ -923,48 +915,6 @@ function recognizableAttachments(
       };
     }),
   ];
-}
-
-function validateAttachmentUnderstandingObservations(
-  observations: readonly AttachmentUnderstandingObservation[],
-  expectedAttachments: readonly RecognizableAttachment[],
-): void {
-  const attachmentCount = expectedAttachments.length;
-  if (observations.length !== attachmentCount) {
-    throw new ImageUnderstandingProviderError("provider-invalid-response");
-  }
-  const expectedById = new Map(
-    expectedAttachments.map((attachment) => [attachment.id, attachment]),
-  );
-  const observedIds = new Set<string>();
-  const referencesMatch = observations.every((observation) => {
-    const expected = expectedById.get(observation.attachmentId);
-    if (!expected || observedIds.has(observation.attachmentId)) return false;
-    observedIds.add(observation.attachmentId);
-    return expected.kind === observation.kind && expected.sequence === observation.sequence;
-  });
-  if (expectedById.size !== attachmentCount || !referencesMatch) {
-    throw new ImageUnderstandingProviderError("provider-invalid-response");
-  }
-  const totalCharacters = observations.reduce((total, observation) => {
-    return total + observation.text.length;
-  }, 0);
-  if (totalCharacters > MAX_ATTACHMENT_UNDERSTANDING_CONTEXT_CHARACTERS) {
-    throw new ImageUnderstandingProviderError("provider-response-too-large");
-  }
-}
-
-function stableImageUnderstandingErrorCode(error: unknown): string {
-  if (error instanceof ImageUnderstandingProviderError) return error.code;
-  if (error instanceof Error && error.name === "AbortError") return "provider-aborted";
-  if (isRecord(error) && typeof error.code === "string" && /^[a-z0-9._-]+$/u.test(error.code)) {
-    return error.code;
-  }
-  return "provider-unavailable";
-}
-
-function stableAttachmentRecognitionDiagnostic(error: unknown) {
-  return error instanceof ImageUnderstandingProviderError ? error.diagnostic : undefined;
 }
 
 function interruptedAttachmentRecognitionTransitions(
@@ -2406,11 +2356,16 @@ class HostedPiSession {
     submissionId: string,
     rpcId?: string,
   ): Promise<AttachmentUnderstandingRunResult> {
-    const settingsStore = getImageUnderstandingSettingsStore();
-    const settingsResult = await settingsStore.resolveRuntimeSettings().then(
-      (value) => ({ ok: true as const, value }),
-      (error: unknown) => ({ ok: false as const, error }),
-    );
+    const settingsResult = await Promise.resolve()
+      .then(() => {
+        const settingsStore = getPiAgentHostBindings().attachmentUnderstandingSettings?.();
+        if (!settingsStore) throw new Error("Attachment understanding settings are not installed.");
+        return settingsStore.resolveRuntimeSettings();
+      })
+      .then(
+        (value) => ({ ok: true as const, value }),
+        (error: unknown) => ({ ok: false as const, error }),
+      );
     if (settingsResult.ok && settingsResult.value.value.routing === "native-only") {
       if (documents.length > 0) throw documentPreprocessingRequired();
       return { kind: "native", images };
@@ -2424,16 +2379,34 @@ class HostedPiSession {
     this.imageRecognitionCompletion = new Promise<void>((resolve) => {
       this.completeImageRecognition = resolve;
     });
+    let terminalSnapshot: AttachmentRecognitionSnapshot | undefined;
     const task = (async (): Promise<AttachmentUnderstandingRunResult> => {
-      if (!settingsResult.ok) {
-        const { error } = settingsResult;
-        const lifecycle = new AttachmentRecognitionLifecycle({
+      try {
+        const result = await runAttachmentUnderstandingTask({
           operationId: randomUUID(),
           submissionId,
           ...(rpcId === undefined ? {} : { rpcId }),
-          method: "ocr",
-          attachmentCount: attachments.length,
+          attachments,
+          settings: settingsResult,
+          signal: controller.signal,
+          modelSupportsImages: async () => {
+            const selectedModel = this.session.model;
+            if (selectedModel?.provider)
+              await this.refreshChangedModelProvider(selectedModel.provider);
+            const availableModels = this.session.modelRuntime.getAvailableSnapshot();
+            const currentModel = selectedModel
+              ? availableModels.find(
+                  (model) =>
+                    model.provider === selectedModel.provider && model.id === selectedModel.id,
+                )
+              : availableModels[0];
+            return currentModel?.input.includes("image") === true;
+          },
+          prepareMultimodal: (provider) => this.refreshChangedModelProvider(provider),
+          recognizeMultimodal: (options) =>
+            recognizeWithMultimodalModel({ ...options, runtime: this.session.modelRuntime }),
           publish: (snapshot) => {
+            if (isTerminalAttachmentRecognitionSnapshot(snapshot)) terminalSnapshot = snapshot;
             const timestamp = snapshot.timestamps?.updatedAt ?? Date.now();
             this.publish(
               {
@@ -2449,167 +2422,12 @@ class HostedPiSession {
             );
           },
         });
-        await lifecycle.pending();
-        await lifecycle.running("routing");
-        if (controller.signal.aborted) await lifecycle.cancelled();
-        else {
-          await lifecycle.failed(
-            stableImageUnderstandingErrorCode(error),
-            stableAttachmentRecognitionDiagnostic(error),
-          );
-        }
-        this.session.sessionManager.appendCustomEntry(
-          WORKBENCH_ATTACHMENT_RECOGNITION_CUSTOM_TYPE,
-          lifecycle.current,
-        );
-        return controller.signal.aborted
-          ? { kind: "cancelled" }
-          : {
-              kind: "failed",
-              errorCode: lifecycle.current.errorCode ?? "image-settings-invalid",
-            };
-      }
-      const runtimeSettings = settingsResult.value;
-
-      const selectedModel = this.session.model;
-      if (selectedModel?.provider) await this.refreshChangedModelProvider(selectedModel.provider);
-      const availableModels = this.session.modelRuntime.getAvailableSnapshot();
-      const currentModel = selectedModel
-        ? availableModels.find(
-            (model) => model.provider === selectedModel.provider && model.id === selectedModel.id,
-          )
-        : availableModels[0];
-      const route = decideAttachmentUnderstandingRoute({
-        settings: runtimeSettings.value,
-        hasImages: images.length > 0,
-        hasDocuments: documents.length > 0,
-        modelSupportsImages: currentModel?.input.includes("image") === true,
-      });
-      const method = route.kind === "native" ? "native" : runtimeSettings.value.engine;
-      const providerId = route.kind === "preprocess" ? route.providerId : undefined;
-      const lifecycle = new AttachmentRecognitionLifecycle({
-        operationId: randomUUID(),
-        submissionId,
-        ...(rpcId === undefined ? {} : { rpcId }),
-        method,
-        ...(providerId === undefined ? {} : { providerId }),
-        attachmentCount: attachments.length,
-        publish: (snapshot) => {
-          const timestamp = snapshot.timestamps?.updatedAt ?? Date.now();
-          this.publish(
-            {
-              type: "message",
-              role: "custom",
-              customType: WORKBENCH_ATTACHMENT_RECOGNITION_CUSTOM_TYPE,
-              content: "",
-              display: true,
-              details: snapshot,
-              timestamp,
-            },
-            timestamp,
-          );
-        },
-      });
-      try {
-        await lifecycle.pending();
-        await lifecycle.running("routing");
-        if (controller.signal.aborted) {
-          await lifecycle.cancelled();
-          return { kind: "cancelled" };
-        }
-        if (route.kind === "native") {
-          await lifecycle.skipped("native");
-          return { kind: "native", images };
-        }
-        if (route.kind === "none") {
-          await lifecycle.skipped(method);
-          return { kind: "preprocessed", observations: [] };
-        }
-        if (route.kind === "unsupported") {
-          await lifecycle.failed(route.reason);
-          return { kind: "failed", errorCode: route.reason };
-        }
-        if (route.method === "multimodal") {
-          // Attachment settings may point at a provider other than the session model. Reload that
-          // provider too so retries use its current credentials and model configuration.
-          await this.refreshChangedModelProvider(route.providerId);
-        }
-
-        const inputs = attachments;
-        let observations: AttachmentUnderstandingObservation[];
-        if (route.method === "ocr") {
-          const credential = runtimeSettings.credential;
-          if (!credential) {
-            await lifecycle.failed("preprocessor-not-configured");
-            return { kind: "failed", errorCode: "preprocessor-not-configured" };
-          }
-          await lifecycle.running("submitting");
-          const provider = new OcrAdapterProvider({
-            source: runtimeSettings.value.ocrAdapter.source,
-            endpoint: runtimeSettings.value.ocrAdapter.endpoint,
-            model: runtimeSettings.value.ocrAdapter.model,
-            pollIntervalMs: runtimeSettings.value.ocrAdapter.pollIntervalMs,
-            pollTimeoutMs: runtimeSettings.value.ocrAdapter.pollTimeoutMs,
-            onSubmissionRetry: async () => {
-              await lifecycle.running("submitting");
-            },
-            onSubmitted: async () => {
-              await lifecycle.running("polling");
-            },
-          });
-          if (provider.definition.operation.kind === "sync") {
-            await lifecycle.running("recognizing");
-          }
-          observations = await provider.recognize({
-            attachments: inputs,
-            credential,
-            signal: controller.signal,
-          });
-        } else {
-          await lifecycle.running("submitting");
-          await lifecycle.running("recognizing");
-          observations = await recognizeWithMultimodalModel({
-            runtime: this.session.modelRuntime,
-            provider: runtimeSettings.value.multimodal.provider,
-            model: runtimeSettings.value.multimodal.model,
-            attachments: inputs,
-            signal: controller.signal,
-            onProgress: async (completedCount) => {
-              await lifecycle.running("recognizing", {
-                completedCount,
-                progress: completedCount / attachments.length,
-              });
-            },
-          });
-        }
-        validateAttachmentUnderstandingObservations(observations, inputs);
-        await lifecycle.running("normalizing", {
-          completedCount: observations.length,
-          progress: observations.length / attachments.length,
-        });
-        await lifecycle.succeeded({
-          results: projectAttachmentRecognitionResults(observations),
-        });
-        return { kind: "preprocessed", observations };
-      } catch (error) {
-        if (
-          controller.signal.aborted ||
-          stableImageUnderstandingErrorCode(error) === "provider-aborted"
-        ) {
-          if (!isTerminalAttachmentRecognitionSnapshot(lifecycle.current)) {
-            await lifecycle.cancelled();
-          }
-          return { kind: "cancelled" };
-        }
-        const errorCode = stableImageUnderstandingErrorCode(error);
-        if (!isTerminalAttachmentRecognitionSnapshot(lifecycle.current))
-          await lifecycle.failed(errorCode, stableAttachmentRecognitionDiagnostic(error));
-        return { kind: "failed", errorCode };
+        return result.kind === "native" ? { ...result, images } : result;
       } finally {
-        if (isTerminalAttachmentRecognitionSnapshot(lifecycle.current)) {
+        if (terminalSnapshot) {
           this.session.sessionManager.appendCustomEntry(
             WORKBENCH_ATTACHMENT_RECOGNITION_CUSTOM_TYPE,
-            lifecycle.current,
+            terminalSnapshot,
           );
         }
       }
@@ -2737,10 +2555,13 @@ class HostedPiSession {
       currentConversationId: this.session.sessionManager.getSessionId(),
       getHistory: getSessionHistory,
     });
-    const workspaceFileService = createWorkspaceFileService();
     resolution.request.untrustedContext = await resolveWorkspaceFileReferenceContexts({
       contexts: resolution.request.untrustedContext,
-      readFile: (input) => workspaceFileService.readFile(input),
+      readFile: (input) => {
+        const files = getPiAgentHostBindings().workspaceFiles;
+        if (!files) throw new Error("Workspace file service is not installed.");
+        return files.readFile(input);
+      },
     });
     const commandFailed = resolution.request.commandTrace.some(
       (command) => command.status === "execution-failed",

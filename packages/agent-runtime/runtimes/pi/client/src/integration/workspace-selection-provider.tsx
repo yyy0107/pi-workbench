@@ -12,14 +12,19 @@ import {
   type WorkbenchWorkspaceSummary,
 } from "@workbench/agent-runtime-client/workspaces";
 
-import { openPiHostPath } from "../transport/api";
+import type { WorkbenchServicesCapabilities } from "@workbench/agent-runtime-client/capabilities";
 import { usePiSessionManager, usePiWorkspaces } from "../runtime/context";
 
 /** Pi implementation of the Workbench workspace-selection capability. */
 export function PiWorkspaceSelectionProvider({
   children,
   directoryStore,
-}: Readonly<{ children: ReactNode; directoryStore: WorkbenchWorkspaceDirectoryStorePort }>) {
+  host,
+}: Readonly<{
+  children: ReactNode;
+  directoryStore: WorkbenchWorkspaceDirectoryStorePort;
+  host: WorkbenchServicesCapabilities["host"];
+}>) {
   const manager = usePiSessionManager();
   const piWorkspaces = usePiWorkspaces();
   const workspaces = useMemo<readonly WorkbenchWorkspaceSummary[]>(
@@ -97,7 +102,7 @@ export function PiWorkspaceSelectionProvider({
       openWorkspaceFolder: async (workspaceId) => {
         const workspace = workspaces.find((candidate) => candidate.id === workspaceId);
         if (!workspace) throw new Error(`Workspace not found: ${workspaceId}`);
-        await openPiHostPath(workspace.rootPath, manager.rpcTransportOptions);
+        await host.openPath(workspace.rootPath);
       },
       removeWorkspace: async (workspaceId) => {
         await manager.deleteWorkspace(workspaceId);
@@ -114,6 +119,7 @@ export function PiWorkspaceSelectionProvider({
       destroyNewThread,
       discardWorkspace,
       manager,
+      host,
       revealWorkspace,
       setWorkspaceCollapsed,
       toggleWorkspaceCollapsed,

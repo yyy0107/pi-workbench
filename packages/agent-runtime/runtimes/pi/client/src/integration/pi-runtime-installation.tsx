@@ -1,5 +1,7 @@
 "use client";
 
+import type { WorkbenchServicesCapabilities } from "@workbench/agent-runtime-client/capabilities";
+
 import type { ReactNode } from "react";
 
 import type { WorkbenchAgentRuntimeInstallation } from "@workbench/agent-runtime-client/installation";
@@ -13,6 +15,7 @@ import { snapshotPiClientTransport, type PiClientTransport } from "../transport/
 
 export interface PiAgentRuntimeInstallationOptions {
   readonly copy: PiAgentRuntimeCopy;
+  readonly services: WorkbenchServicesCapabilities;
   readonly workspaceDirectoryStore: WorkbenchWorkspaceDirectoryStorePort;
   readonly promptFeedback?: PromptFeedbackPort;
   readonly transport?: PiClientTransport;
@@ -29,6 +32,7 @@ export function createPiAgentRuntimeInstallation(
       return (
         <PiAgentRuntimeProvider
           copy={options.copy}
+          services={options.services}
           promptFeedback={options.promptFeedback}
           transport={transport}
           workspaceDirectoryStore={options.workspaceDirectoryStore}

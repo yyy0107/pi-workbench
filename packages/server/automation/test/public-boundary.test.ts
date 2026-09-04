@@ -19,9 +19,15 @@ test("publishes exactly the Automation server capability subpaths", () => {
     exports: Record<string, unknown>;
     dependencies: Record<string, string>;
   };
-  assert.deepEqual(Object.keys(manifest.exports).sort(), ["./errors", "./repository", "./service"]);
+  assert.deepEqual(Object.keys(manifest.exports).sort(), [
+    "./errors",
+    "./repository",
+    "./rpc",
+    "./service",
+  ]);
   assert.deepEqual(Object.keys(manifest.dependencies).sort(), [
     "@workbench/automation-contracts",
+    "@workbench/host-server",
     "@workbench/server-core",
     "cron-parser",
   ]);

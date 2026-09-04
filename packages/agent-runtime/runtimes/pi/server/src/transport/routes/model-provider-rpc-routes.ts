@@ -1,3 +1,4 @@
+import { RPC_REQUEST_BODY_LIMITS } from "../rpc-request-budgets";
 import type {
   ConfigureModelProviderPayload,
   DiscoverModelsPayload,
@@ -11,7 +12,6 @@ import type {
 import type { ModelProviderProtocol } from "../../models/model-service";
 import {
   handleRpcPost,
-  RPC_REQUEST_BODY_LIMITS,
   rpcArray,
   rpcBoolean,
   rpcBusinessError,
@@ -23,8 +23,8 @@ import {
   rpcOptional,
   rpcString,
   type RpcValidator,
-} from "../rpc-transport";
-import type { RpcRouteGroup } from "./rpc-route-group";
+} from "@workbench/host-server/rpc";
+import type { RpcRouteGroup } from "@workbench/host-server/rpc";
 
 export interface ModelProviderRpcRoutesDependencies {
   readonly service: ModelProviderProtocol;

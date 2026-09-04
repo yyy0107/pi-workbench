@@ -1,0 +1,47 @@
+{
+  "name": "@workbench/local-host-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./directories": {
+      "types": "./src/host-directories.ts",
+      "import": "./src/host-directories.ts",
+      "default": "./src/host-directories.ts"
+    },
+    "./picker": {
+      "types": "./src/native-workspace-picker.ts",
+      "import": "./src/native-workspace-picker.ts",
+      "default": "./src/native-workspace-picker.ts"
+    },
+    "./applications": {
+      "types": "./src/local-apps/service.ts",
+      "import": "./src/local-apps/service.ts",
+      "default": "./src/local-apps/service.ts"
+    },
+    "./service": {
+      "types": "./src/service.ts",
+      "import": "./src/service.ts",
+      "default": "./src/service.ts"
+    },
+    "./rpc": {
+      "types": "./src/rpc.ts",
+      "import": "./src/rpc.ts",
+      "default": "./src/rpc.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@workbench/host-contracts": "workspace:*",
+    "@workbench/host-server": "workspace:*",
+    "@workbench/server-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2"
+  }
+}

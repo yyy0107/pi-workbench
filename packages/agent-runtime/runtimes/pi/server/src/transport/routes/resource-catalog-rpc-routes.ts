@@ -2,8 +2,8 @@ import type { PromptListPayload } from "@workbench/agent-runtime-pi-protocol/rpc
 import type { CommandCatalogProtocol } from "../../commands/command-service";
 import type { PromptCatalogProtocol } from "../../prompts/prompt-service";
 import { resourceCatalogTarget, resourceListPayload } from "../resource-rpc-validators";
-import { handleRpcPost, rpcObject, type RpcValidator } from "../rpc-transport";
-import type { RpcRouteGroup } from "./rpc-route-group";
+import { handleRpcPost, rpcObject, type RpcValidator } from "@workbench/host-server/rpc";
+import type { RpcRouteGroup } from "@workbench/host-server/rpc";
 
 export interface ResourceCatalogRpcRoutesDependencies {
   readonly commands: CommandCatalogProtocol;

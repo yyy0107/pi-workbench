@@ -197,7 +197,6 @@ function MarkdownCode({
 
 const streamdownComponents = {
   code: MarkdownCode,
-  pre: ({ children }: ComponentProps<"pre"> & { node?: unknown }) => <>{children}</>,
   sup: MarkdownSuperscript,
 } as Components;
 

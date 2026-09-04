@@ -17,8 +17,7 @@ import type { StreamHub } from "../streams/stream-hub";
 // Node's native TypeScript test runner requires explicit extensions for runtime imports.
 // @ts-expect-error TS5097 -- application sources are bundled without emitting this specifier.
 import { getStreamHub } from "../streams/stream-hub.ts";
-// @ts-expect-error TS5097 -- application sources are bundled without emitting this specifier.
-import { readTrustedJsonPost } from "../transport/rpc-transport.ts";
+import { readTrustedJsonPost } from "@workbench/host-server/rpc";
 
 export const INTERACTIVE_RESPONSE_REGISTRY_SYMBOL = Symbol.for(
   "workbench-ui.pi.interactive-response-registry.v1",

@@ -13,14 +13,52 @@ const PRODUCTION_DEPENDENCY_FIELDS = ["dependencies", "optionalDependencies", "p
 const PACKAGE_PRODUCTION_DEPENDENCY_POLICIES = new Map([
   [
     "@workbench/automation-server",
-    new Set(["@workbench/automation-contracts", "@workbench/server-core", "cron-parser"]),
+    new Set([
+      "@workbench/automation-contracts",
+      "@workbench/host-server",
+      "@workbench/server-core",
+      "cron-parser",
+    ]),
   ],
   [
     "@workbench/settings-server",
     new Set([
       "@workbench/agent-runtime-contracts",
       "@workbench/contracts",
+      "@workbench/host-server",
       "@workbench/server-core",
+    ]),
+  ],
+  [
+    "@workbench/local-host-server",
+    new Set(["@workbench/host-contracts", "@workbench/host-server", "@workbench/server-core"]),
+  ],
+  [
+    "@workbench/workspace-server",
+    new Set([
+      "@workbench/agent-runtime-contracts",
+      "@workbench/host-server",
+      "@workbench/server-core",
+      "mime",
+    ]),
+  ],
+  [
+    "@workbench/attachment-understanding-server",
+    new Set([
+      "@workbench/attachment-understanding-contracts",
+      "@workbench/host-server",
+      "@workbench/server-core",
+    ]),
+  ],
+  [
+    "@workbench/services-client",
+    new Set([
+      "@workbench/agent-runtime-client",
+      "@workbench/agent-runtime-contracts",
+      "@workbench/attachment-understanding-contracts",
+      "@workbench/automation-contracts",
+      "@workbench/host-client",
+      "@workbench/host-contracts",
     ]),
   ],
 ]);

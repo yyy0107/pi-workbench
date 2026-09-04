@@ -8,14 +8,14 @@ const RPC_ROUTE_COMPOSITION = new URL(
   import.meta.url,
 );
 const RPC_DOMAIN_ERROR_PROJECTOR = new URL(
-  "../../src/transport/rpc-domain-error-projector.ts",
+  "../../../../../../../packages/host/server/src/rpc.ts",
   import.meta.url,
 );
 const REPOSITORY_ROOT = new URL("../../../../../../../", import.meta.url);
 
 const EXPOSED_DOMAIN_ERRORS = [
   [
-    "packages/agent-runtime/runtimes/pi/server/src/attachment-understanding/settings-store.ts",
+    "packages/server/attachment-understanding/src/settings-store.ts",
     "ImageUnderstandingSettingsStoreError",
   ],
   [
@@ -26,8 +26,8 @@ const EXPOSED_DOMAIN_ERRORS = [
     "packages/agent-runtime/runtimes/pi/server/src/extensions/extension-service.ts",
     "ExtensionServiceError",
   ],
-  ["packages/agent-runtime/runtimes/pi/server/src/host/host-directories.ts", "HostDirectoryError"],
-  ["packages/agent-runtime/runtimes/pi/server/src/local-apps/service.ts", "LocalAppServiceError"],
+  ["packages/server/local-host/src/host-directories.ts", "HostDirectoryError"],
+  ["packages/server/local-host/src/local-apps/service.ts", "LocalAppServiceError"],
   ["packages/agent-runtime/runtimes/pi/server/src/models/model-service.ts", "ModelServiceError"],
   [
     "packages/agent-runtime/runtimes/pi/server/src/packages/installed-package-service.ts",
@@ -59,10 +59,7 @@ const EXPOSED_DOMAIN_ERRORS = [
     "packages/agent-runtime/runtimes/pi/server/src/trust/project-trust-service.ts",
     "ProjectTrustServiceError",
   ],
-  [
-    "packages/agent-runtime/runtimes/pi/server/src/workspaces/workspace-files.ts",
-    "WorkspaceFileError",
-  ],
+  ["packages/server/workspace/src/files.ts", "WorkspaceFileError"],
   [
     "packages/agent-runtime/runtimes/pi/server/src/workspaces/workspace-protocol-service.ts",
     "WorkspaceProtocolServiceError",
@@ -90,7 +87,10 @@ test("the shared projector accepts branded errors without importing domain imple
   assert.match(source, /import \{ isRpcDomainError \}/);
   assert.match(source, /if \(!isRpcDomainError\(error\)\) throw error/);
   assert.match(source, /rpcBusinessError\(error\.code, error\.message/);
-  assert.doesNotMatch(source, /instanceof/);
+  assert.doesNotMatch(
+    source.slice(source.indexOf("export const projectRpcDomainError")),
+    /instanceof/,
+  );
   for (const [, className] of EXPOSED_DOMAIN_ERRORS) {
     assert.ok(!source.includes(className), `Projector imports concrete error ${className}`);
   }

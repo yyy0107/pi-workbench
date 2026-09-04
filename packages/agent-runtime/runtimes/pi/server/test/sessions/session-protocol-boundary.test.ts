@@ -24,7 +24,10 @@ const RPC_ROUTE_COMPOSITION = new URL(
   "../../src/transport/rpc-route-composition.ts",
   import.meta.url,
 );
-const RPC_ROUTE_GROUP = new URL("../../src/transport/routes/rpc-route-group.ts", import.meta.url);
+const RPC_ROUTE_GROUP = new URL(
+  "../../../../../../../packages/host/server/src/rpc.ts",
+  import.meta.url,
+);
 const SESSION_RPC_ROUTES = new URL(
   "../../src/transport/routes/session-rpc-routes.ts",
   import.meta.url,
@@ -108,7 +111,7 @@ test("the route composition injects core session dependencies without handling m
     source,
     /const sessionProtocolFacade = createPiSessionProtocolFacade\(\{ agent \}\)/,
   );
-  assert.match(source, /automation: \{ service: automation, \.\.\.domainErrors \}/);
+  assert.doesNotMatch(source, /createAutomationRpcRoutes|AutomationService/);
   assert.match(source, /createSessionRpcRoutes\(dependencies\.session\)/);
   assert.match(source, /session: \{ protocol: sessionProtocolFacade, \.\.\.domainErrors \}/);
   assert.match(source, /projectRpcDomainError/);

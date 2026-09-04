@@ -10,8 +10,8 @@ import {
   rpcObject,
   rpcString,
   type RpcValidator,
-} from "../rpc-transport";
-import type { RpcRouteGroup } from "./rpc-route-group";
+} from "@workbench/host-server/rpc";
+import type { RpcRouteGroup } from "@workbench/host-server/rpc";
 
 export interface ModelContextWindowRpcRoutesDependencies {
   readonly service: ModelContextWindowProtocol;

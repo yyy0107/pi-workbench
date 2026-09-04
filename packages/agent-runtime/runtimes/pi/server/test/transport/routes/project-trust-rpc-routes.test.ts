@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { ServerResponse } from "@workbench/agent-runtime-pi-protocol/rpc";
 import type { ProjectTrustProtocol } from "../../../src/trust/project-trust-service";
-import { rpcBusinessError } from "../../../src/transport/rpc-transport";
+import { rpcBusinessError } from "@workbench/host-server/rpc";
 import { createProjectTrustRpcRoutes } from "../../../src/transport/routes/project-trust-rpc-routes";
 
 function rpcRequest(

@@ -1,4 +1,4 @@
-import { dispatchRpcRouteGroups, type RpcRouteGroup } from "./routes/rpc-route-group";
+import { dispatchRpcRouteGroups, type RpcRouteGroup } from "@workbench/host-server/rpc";
 
 export type PiRpcPostHandler = (request: Request, method: string) => Promise<Response>;
 

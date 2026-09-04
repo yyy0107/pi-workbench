@@ -81,12 +81,6 @@ importers:
       '@streamdown/math':
         specifier: ^1.0.2
         version: 1.0.2(react@19.2.8)(supports-color@7.2.0)
-      '@workbench/agent-runtime-pi-client':
-        specifier: workspace:*
-        version: link:../../packages/agent-runtime/runtimes/pi/client
-      '@workbench/agent-runtime-pi-contributions':
-        specifier: workspace:*
-        version: link:../../packages/agent-runtime/runtimes/pi/contributions
       '@workbench/desktop-contracts':
         specifier: workspace:*
         version: link:../../packages/workbench/desktop-contracts
@@ -102,6 +96,9 @@ importers:
       '@workbench/host-contracts':
         specifier: workspace:*
         version: link:../../packages/workbench/host-contracts
+      '@workbench/pi-product':
+        specifier: workspace:*
+        version: link:../../packages/workbench/pi-product
       '@workbench/shell':
         specifier: workspace:*
         version: link:../../packages/workbench/shell
@@ -139,6 +136,9 @@ importers:
       '@types/react-dom':
         specifier: ^19.2.4
         version: 19.2.4(@types/react@19.2.18)
+      '@workbench/host-artifact-policy':
+        specifier: workspace:*
+        version: link:../../packages/host/artifact-policy
       file-viewer-copy-assets:
         specifier: 2.3.0
         version: 2.3.0
@@ -169,12 +169,18 @@ importers:
       '@workbench/agent-runtime-server':
         specifier: workspace:*
         version: link:../../packages/agent-runtime/core/server
+      '@workbench/attachment-understanding-server':
+        specifier: workspace:*
+        version: link:../../packages/server/attachment-understanding
       '@workbench/automation-server':
         specifier: workspace:*
         version: link:../../packages/server/automation
       '@workbench/host-server':
         specifier: workspace:*
         version: link:../../packages/host/server
+      '@workbench/local-host-server':
+        specifier: workspace:*
+        version: link:../../packages/server/local-host
       '@workbench/pi-terminal-tool':
         specifier: workspace:*
         version: link:../../packages/terminal/pi-tool
@@ -190,6 +196,9 @@ importers:
       '@workbench/terminal-server':
         specifier: workspace:*
         version: link:../../packages/terminal/server
+      '@workbench/workspace-server':
+        specifier: workspace:*
+        version: link:../../packages/server/workspace
       ws:
         specifier: ^8.21.3
         version: 8.21.3
@@ -236,12 +245,6 @@ importers:
       '@workbench/agent-runtime-contracts':
         specifier: workspace:*
         version: link:../../packages/agent-runtime/core/contracts
-      '@workbench/agent-runtime-pi-client':
-        specifier: workspace:*
-        version: link:../../packages/agent-runtime/runtimes/pi/client
-      '@workbench/agent-runtime-pi-contributions':
-        specifier: workspace:*
-        version: link:../../packages/agent-runtime/runtimes/pi/contributions
       '@workbench/agent-runtime-pi-protocol':
         specifier: workspace:*
         version: link:../../packages/agent-runtime/runtimes/pi/protocol
@@ -263,6 +266,9 @@ importers:
       '@workbench/host-server':
         specifier: workspace:*
         version: link:../../packages/host/server
+      '@workbench/pi-product':
+        specifier: workspace:*
+        version: link:../../packages/workbench/pi-product
       '@workbench/settings-server':
         specifier: workspace:*
         version: link:../../packages/server/settings
@@ -303,9 +309,6 @@ importers:
       '@types/react-dom':
         specifier: ^19.2.4
         version: 19.2.4(@types/react@19.2.18)
-      '@workbench/agent-runtime-pi-shared':
-        specifier: workspace:*
-        version: link:../../packages/agent-runtime/runtimes/pi/shared
       esbuild:
         specifier: ^0.28.2
         version: 0.28.2
@@ -479,6 +482,9 @@ importers:
       '@workbench/host-client':
         specifier: workspace:*
         version: link:../../../../workbench/host-client
+      '@workbench/services-client':
+        specifier: workspace:*
+        version: link:../../../../workbench/services-client
     devDependencies:
       '@types/node':
         specifier: ^26.2.0
@@ -541,6 +547,9 @@ importers:
       '@types/react-dom':
         specifier: ^19.2.4
         version: 19.2.4(@types/react@19.2.18)
+      '@workbench/services-client':
+        specifier: workspace:*
+        version: link:../../../../workbench/services-client
       react:
         specifier: ^19.2.8
         version: 19.2.8
@@ -568,6 +577,9 @@ importers:
       '@workbench/contracts':
         specifier: workspace:*
         version: link:../../../../contracts/core
+      '@workbench/host-contracts':
+        specifier: workspace:*
+        version: link:../../../../workbench/host-contracts
     devDependencies:
       '@types/node':
         specifier: ^26.2.0
@@ -599,15 +611,27 @@ importers:
       '@workbench/attachment-understanding-contracts':
         specifier: workspace:*
         version: link:../../../../contracts/attachment-understanding
+      '@workbench/attachment-understanding-server':
+        specifier: workspace:*
+        version: link:../../../../server/attachment-understanding
       '@workbench/automation-contracts':
         specifier: workspace:*
         version: link:../../../../contracts/automation
       '@workbench/contracts':
         specifier: workspace:*
         version: link:../../../../contracts/core
+      '@workbench/host-server':
+        specifier: workspace:*
+        version: link:../../../../host/server
+      '@workbench/local-host-server':
+        specifier: workspace:*
+        version: link:../../../../server/local-host
       '@workbench/server-core':
         specifier: workspace:*
         version: link:../../../../server/core
+      '@workbench/workspace-server':
+        specifier: workspace:*
+        version: link:../../../../server/workspace
       mime:
         specifier: 4.1.0
         version: 4.1.0
@@ -772,11 +796,36 @@ importers:
         specifier: ^8.21.3
         version: 8.21.3
 
+  packages/server/attachment-understanding:
+    dependencies:
+      '@workbench/attachment-understanding-contracts':
+        specifier: workspace:*
+        version: link:../../contracts/attachment-understanding
+      '@workbench/host-server':
+        specifier: workspace:*
+        version: link:../../host/server
+      '@workbench/server-core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.2.0
+      '@workbench/host-contracts':
+        specifier: workspace:*
+        version: link:../../workbench/host-contracts
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
   packages/server/automation:
     dependencies:
       '@workbench/automation-contracts':
         specifier: workspace:*
         version: link:../../contracts/automation
+      '@workbench/host-server':
+        specifier: workspace:*
+        version: link:../../host/server
       '@workbench/server-core':
         specifier: workspace:*
         version: link:../core
@@ -787,11 +836,33 @@ importers:
       '@types/node':
         specifier: ^26.2.0
         version: 26.2.0
+      '@workbench/host-contracts':
+        specifier: workspace:*
+        version: link:../../workbench/host-contracts
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
 
   packages/server/core:
+    devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.2.0
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
+  packages/server/local-host:
+    dependencies:
+      '@workbench/host-contracts':
+        specifier: workspace:*
+        version: link:../../workbench/host-contracts
+      '@workbench/host-server':
+        specifier: workspace:*
+        version: link:../../host/server
+      '@workbench/server-core':
+        specifier: workspace:*
+        version: link:../core
     devDependencies:
       '@types/node':
         specifier: ^26.2.0
@@ -808,6 +879,9 @@ importers:
       '@workbench/contracts':
         specifier: workspace:*
         version: link:../../contracts/core
+      '@workbench/host-server':
+        specifier: workspace:*
+        version: link:../../host/server
       '@workbench/server-core':
         specifier: workspace:*
         version: link:../core
@@ -815,6 +889,34 @@ importers:
       '@types/node':
         specifier: ^26.2.0
         version: 26.2.0
+      '@workbench/host-contracts':
+        specifier: workspace:*
+        version: link:../../workbench/host-contracts
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
+  packages/server/workspace:
+    dependencies:
+      '@workbench/agent-runtime-contracts':
+        specifier: workspace:*
+        version: link:../../agent-runtime/core/contracts
+      '@workbench/host-server':
+        specifier: workspace:*
+        version: link:../../host/server
+      '@workbench/server-core':
+        specifier: workspace:*
+        version: link:../core
+      mime:
+        specifier: 4.1.0
+        version: 4.1.0
+    devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.2.0
+      '@workbench/host-contracts':
+        specifier: workspace:*
+        version: link:../../workbench/host-contracts
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -925,6 +1027,89 @@ importers:
       '@types/node':
         specifier: ^26.2.0
         version: 26.2.0
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
+  packages/workbench/pi-product:
+    dependencies:
+      '@workbench/agent-runtime-client':
+        specifier: workspace:*
+        version: link:../../agent-runtime/core/client
+      '@workbench/agent-runtime-contracts':
+        specifier: workspace:*
+        version: link:../../agent-runtime/core/contracts
+      '@workbench/agent-runtime-pi-client':
+        specifier: workspace:*
+        version: link:../../agent-runtime/runtimes/pi/client
+      '@workbench/agent-runtime-pi-contributions':
+        specifier: workspace:*
+        version: link:../../agent-runtime/runtimes/pi/contributions
+      '@workbench/extension-sdk':
+        specifier: workspace:*
+        version: link:../../extension-platform/sdk
+      '@workbench/host-client':
+        specifier: workspace:*
+        version: link:../host-client
+      '@workbench/host-contracts':
+        specifier: workspace:*
+        version: link:../host-contracts
+      '@workbench/services-client':
+        specifier: workspace:*
+        version: link:../services-client
+      '@workbench/shell':
+        specifier: workspace:*
+        version: link:../shell
+    devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.2.0
+      '@types/react':
+        specifier: ^19.2.18
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19.2.4
+        version: 19.2.4(@types/react@19.2.18)
+      '@workbench/agent-runtime-pi-shared':
+        specifier: workspace:*
+        version: link:../../agent-runtime/runtimes/pi/shared
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
+  packages/workbench/services-client:
+    dependencies:
+      '@workbench/agent-runtime-client':
+        specifier: workspace:*
+        version: link:../../agent-runtime/core/client
+      '@workbench/agent-runtime-contracts':
+        specifier: workspace:*
+        version: link:../../agent-runtime/core/contracts
+      '@workbench/attachment-understanding-contracts':
+        specifier: workspace:*
+        version: link:../../contracts/attachment-understanding
+      '@workbench/automation-contracts':
+        specifier: workspace:*
+        version: link:../../contracts/automation
+      '@workbench/host-client':
+        specifier: workspace:*
+        version: link:../host-client
+      '@workbench/host-contracts':
+        specifier: workspace:*
+        version: link:../host-contracts
+    devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.2.0
+      '@types/react':
+        specifier: ^19.2.18
+        version: 19.2.18
       typescript:
         specifier: ^7.0.2
         version: 7.0.2

@@ -62,3 +62,50 @@ test("thread-order stores isolate snapshots, listeners, and persistence queues",
   unsubscribeFirst();
   unsubscribeSecond();
 });
+
+test("failed ordering restores the confirmed scope and leaves other scopes intact", async () => {
+  const saved = { pinned: ["a", "b"], ungrouped: ["x"] };
+  const store = createThreadOrderStore({
+    async load() {
+      return { sidebarThreadOrderByScope: saved };
+    },
+    async update() {
+      throw new Error("offline");
+    },
+  });
+  await store.getState().hydrate();
+  await assert.rejects(store.getState().setManualOrder("pinned", ["b", "a"]), /offline/);
+  assert.deepEqual(store.getState().manualOrderByScope, saved);
+});
+
+test("an older failed write cannot roll back a newer order or leak into another scope", async () => {
+  let saved: Record<string, string[]> = { pinned: ["a", "b"] };
+  let writes = 0;
+  const store = createThreadOrderStore({
+    async load() {
+      return { sidebarThreadOrderByScope: saved };
+    },
+    async update(patch) {
+      writes += 1;
+      if (writes === 1) throw new Error("offline");
+      saved = patch.sidebarThreadOrderByScope!;
+    },
+  });
+  await store.getState().hydrate();
+  const first = store.getState().setManualOrder("pinned", ["b", "a"]);
+  const firstFailure = assert.rejects(first, /offline/);
+  const next = store.getState().setManualOrder("pinned", ["c", "a", "b"]);
+  await firstFailure;
+  assert.deepEqual(store.getState().manualOrderByScope.pinned, ["c", "a", "b"]);
+  await next;
+  assert.deepEqual(saved.pinned, ["c", "a", "b"]);
+
+  writes = 0;
+  const failed = assert.rejects(
+    store.getState().setManualOrder("pinned", ["b", "c", "a"]),
+    /offline/,
+  );
+  const other = store.getState().setManualOrder("ungrouped", ["x"]);
+  await Promise.all([failed, other]);
+  assert.deepEqual(saved, { pinned: ["c", "a", "b"], ungrouped: ["x"] });
+});

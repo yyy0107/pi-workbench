@@ -46,3 +46,11 @@ export interface WorkbenchLocalAppOpenRequest {
   appId: string;
   target: string;
 }
+
+export type WorkbenchLocalAppPlatform = "windows" | "macos" | "linux";
+export interface WorkbenchLocalAppsListResult {
+  apps: WorkbenchLocalApp[];
+}
+export interface WorkbenchLocalAppOpenResult {
+  opened: true;
+}

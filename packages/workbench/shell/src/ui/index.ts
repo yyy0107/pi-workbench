@@ -24,6 +24,7 @@ export * from "./settings-control";
 export * from "./settings-layout";
 export * from "./sheet";
 export * from "./sidebar";
+export * from "./sidebar-items";
 export * from "./skeleton";
 export * from "./status-badge";
 export * from "./surface";

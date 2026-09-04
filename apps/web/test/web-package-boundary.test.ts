@@ -6,11 +6,6 @@ import test from "node:test";
 
 const WEB_ROOT = path.resolve(fileURLToPath(new URL("../", import.meta.url)));
 const WEB_SOURCE_ROOT = path.join(WEB_ROOT, "src");
-const APPLICATION_RUNTIME_PROVIDER_EXPORT =
-  /^\s*export\s+function\s+WorkbenchAgentRuntimeProvider\b/mu;
-const CONCRETE_RUNTIME_IMPORT =
-  /(?:from\s+|import\s*\()\s*["'](?:@\/runtime\/pi|@workbench\/agent-runtime-pi(?:[-/]|["'])|\.\.\/pi)(?:\/|["'])?/;
-const PI_CONTRIBUTION_INSTALLATION = "@workbench/agent-runtime-pi-contributions/installation";
 const FORBIDDEN_PRODUCTION_DEPENDENCIES = Object.freeze([
   "@earendil-works/pi-ai",
   "@earendil-works/pi-coding-agent",
@@ -31,25 +26,6 @@ async function sourceFiles(directory: string): Promise<string[]> {
   return files;
 }
 
-async function applicationRuntimeProviderOwner(): Promise<{
-  readonly filename: string;
-  readonly source: string;
-}> {
-  const matches: Array<{ readonly filename: string; readonly source: string }> = [];
-  for (const filename of await sourceFiles(WEB_SOURCE_ROOT)) {
-    const source = await readFile(filename, "utf8");
-    if (APPLICATION_RUNTIME_PROVIDER_EXPORT.test(source)) matches.push({ filename, source });
-  }
-  assert.equal(
-    matches.length,
-    1,
-    `Expected one Web application Runtime provider owner, found: ${matches
-      .map(({ filename }) => path.relative(WEB_ROOT, filename).split(path.sep).join("/"))
-      .join(", ")}`,
-  );
-  return matches[0]!;
-}
-
 test("@workbench/web declares only browser/server-safe production dependencies", async () => {
   const manifest = JSON.parse(await readFile(path.join(WEB_ROOT, "package.json"), "utf8")) as {
     readonly name?: string;
@@ -58,8 +34,8 @@ test("@workbench/web declares only browser/server-safe production dependencies",
   };
   assert.equal(manifest.name, "@workbench/web");
   assert.equal(manifest.dependencies?.["@workbench/settings-server"], "workspace:*");
-  assert.equal(manifest.dependencies?.["@workbench/agent-runtime-pi-contributions"], "workspace:*");
-  assert.equal(manifest.devDependencies?.["@workbench/agent-runtime-pi-shared"], "workspace:*");
+  assert.equal(manifest.dependencies?.["@workbench/pi-product"], "workspace:*");
+  assert.equal(manifest.dependencies?.["@workbench/agent-runtime-pi-client"], undefined);
   for (const packageName of FORBIDDEN_PRODUCTION_DEPENDENCIES) {
     assert.equal(manifest.dependencies?.[packageName], undefined, packageName);
   }
@@ -86,13 +62,12 @@ test("Web production source does not construct Pi settings or import native/Pi S
   assert.deepEqual(violations, []);
 });
 
-test("the Web application Runtime provider selects through explicit installation modules", async () => {
-  const { source } = await applicationRuntimeProviderOwner();
-
-  assert.equal(
-    CONCRETE_RUNTIME_IMPORT.test(source.replaceAll(PI_CONTRIBUTION_INSTALLATION, "")),
-    false,
+test("Web composes the shared Pi product through its public application entry", async () => {
+  const source = await readFile(
+    path.join(WEB_SOURCE_ROOT, "workbench/providers/workbench-providers.tsx"),
+    "utf8",
   );
-  assert.match(source, /from\s+["']\.\/installed-agent-runtime["']/u);
-  assert.match(source, new RegExp(`from\\s+["']${PI_CONTRIBUTION_INSTALLATION}["']`, "u"));
+  assert.match(source, /from\s+["']@workbench\/pi-product\/application["']/u);
+  assert.match(source, /<PiWorkbenchShell\b/u);
+  assert.doesNotMatch(source, /@workbench\/agent-runtime-pi-/u);
 });

@@ -12,8 +12,14 @@ import {
   resourceRelativeFilePathValidator,
   resourceRequestPayload,
 } from "../resource-rpc-validators";
-import { handleRpcPost, rpcBoolean, rpcEnum, rpcOptional, rpcString } from "../rpc-transport";
-import type { RpcRouteGroup } from "./rpc-route-group";
+import {
+  handleRpcPost,
+  rpcBoolean,
+  rpcEnum,
+  rpcOptional,
+  rpcString,
+} from "@workbench/host-server/rpc";
+import type { RpcRouteGroup } from "@workbench/host-server/rpc";
 
 export interface ExtensionRpcRoutesDependencies {
   readonly service: ExtensionProtocol;

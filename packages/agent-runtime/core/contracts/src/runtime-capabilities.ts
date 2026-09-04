@@ -312,3 +312,17 @@ export interface WorkbenchContextPolicyValue {
   breakdown?: WorkbenchContextBreakdown;
   nearingCompaction: boolean;
 }
+
+export const WORKSPACE_GIT_BRANCH_NAME_LENGTH_LIMIT = 255;
+export const WORKSPACE_GIT_LOG_COMMIT_LIMIT = 500;
+export const WORKSPACE_FILE_RELATIVE_PATH_LENGTH_LIMIT = 16_384;
+export const WORKSPACE_FILE_EDITABLE_SIZE_LIMIT = 5 * 1024 * 1024;
+export const WORKSPACE_FILE_SEARCH_QUERY_LENGTH_LIMIT = 512;
+export const WORKSPACE_FILE_SEARCH_RESULT_LIMIT = 100;
+
+export interface WorkbenchWorkspaceGitRequest {
+  workspaceId: string;
+}
+export interface WorkbenchWorkspaceGitBranchRequest extends WorkbenchWorkspaceGitRequest {
+  branch: string;
+}

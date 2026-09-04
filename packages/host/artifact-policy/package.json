@@ -24,6 +24,11 @@
     "./web-next-runtime-exception": {
       "require": "./src/web-next-runtime-exception.cjs",
       "default": "./src/web-next-runtime-exception.cjs"
+    },
+    "./filesystem": {
+      "types": "./src/filesystem.d.cts",
+      "require": "./src/filesystem.cjs",
+      "default": "./src/filesystem.cjs"
     }
   },
   "scripts": {

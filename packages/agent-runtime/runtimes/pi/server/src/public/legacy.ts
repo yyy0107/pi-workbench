@@ -1,7 +1,8 @@
 export { PiServerError } from "../core/errors";
 export { admitInlineImages, InlineImageAdmissionError } from "../sessions/inline-image-admission";
 export { piErrorResponse } from "../transport/responses";
-export { readTrustedJsonPost, RPC_REQUEST_BODY_LIMITS } from "../transport/rpc-transport";
+export { readTrustedJsonPost } from "@workbench/host-server/rpc";
+export { RPC_REQUEST_BODY_LIMITS } from "../transport/rpc-request-budgets";
 export {
   migrateLegacyWorkbenchMessageTerminationExtension,
   type LegacyWorkbenchMessageTerminationMigrationResult,

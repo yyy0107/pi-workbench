@@ -1,0 +1,46 @@
+{
+  "name": "@workbench/pi-product",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./application": {
+      "types": "./src/application.tsx",
+      "import": "./src/application.tsx",
+      "default": "./src/application.tsx"
+    },
+    "./installation": {
+      "types": "./src/installation.tsx",
+      "import": "./src/installation.tsx",
+      "default": "./src/installation.tsx"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@workbench/agent-runtime-client": "workspace:*",
+    "@workbench/agent-runtime-contracts": "workspace:*",
+    "@workbench/agent-runtime-pi-client": "workspace:*",
+    "@workbench/agent-runtime-pi-contributions": "workspace:*",
+    "@workbench/extension-sdk": "workspace:*",
+    "@workbench/host-client": "workspace:*",
+    "@workbench/host-contracts": "workspace:*",
+    "@workbench/services-client": "workspace:*",
+    "@workbench/shell": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@workbench/agent-runtime-pi-shared": "workspace:*",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "typescript": "^7.0.2"
+  },
+  "peerDependencies": {
+    "react": "^19.2.8"
+  }
+}

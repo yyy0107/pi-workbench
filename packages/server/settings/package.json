@@ -14,6 +14,11 @@
       "types": "./src/service.ts",
       "import": "./src/service.ts",
       "default": "./src/service.ts"
+    },
+    "./rpc": {
+      "types": "./src/rpc.ts",
+      "import": "./src/rpc.ts",
+      "default": "./src/rpc.ts"
     }
   },
   "scripts": {
@@ -23,10 +28,12 @@
   "dependencies": {
     "@workbench/agent-runtime-contracts": "workspace:*",
     "@workbench/contracts": "workspace:*",
+    "@workbench/host-server": "workspace:*",
     "@workbench/server-core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
+    "@workbench/host-contracts": "workspace:*",
     "typescript": "^7.0.2"
   }
 }

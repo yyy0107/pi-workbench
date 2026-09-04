@@ -17,13 +17,16 @@
     "@workbench/agent-runtime-pi-protocol": "workspace:*",
     "@workbench/agent-runtime-pi-server": "workspace:*",
     "@workbench/agent-runtime-server": "workspace:*",
+    "@workbench/attachment-understanding-server": "workspace:*",
     "@workbench/automation-server": "workspace:*",
     "@workbench/host-server": "workspace:*",
+    "@workbench/local-host-server": "workspace:*",
     "@workbench/pi-terminal-tool": "workspace:*",
     "@workbench/server-core": "workspace:*",
     "@workbench/settings-server": "workspace:*",
     "@workbench/terminal-contracts": "workspace:*",
     "@workbench/terminal-server": "workspace:*",
+    "@workbench/workspace-server": "workspace:*",
     "ws": "^8.21.3"
   },
   "devDependencies": {

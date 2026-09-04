@@ -1,3 +1,4 @@
+import { isInside } from "@workbench/host-artifact-policy/filesystem";
 import { createHash, randomUUID } from "node:crypto";
 import {
   chmod,
@@ -63,14 +64,6 @@ async function pathExists(value: string): Promise<boolean> {
     if (isRecord(error) && error.code === "ENOENT") return false;
     throw error;
   }
-}
-
-function isInside(parent: string, candidate: string): boolean {
-  const relative = path.relative(path.resolve(parent), path.resolve(candidate));
-  return (
-    relative === "" ||
-    (relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative))
-  );
 }
 
 async function requireRealDirectory(value: string, label: string): Promise<void> {

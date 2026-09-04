@@ -89,3 +89,123 @@ the catalog runtime's branded descriptor constructor; the transport boundary gua
 exact file and named export. Read-only compatibility with legacy product directives/storage is
 centralized in one private helper and never used for new writes. `get-east-asian-width` is owned by
 this package because the conversation-title helper is its only production consumer.
+
+## Sidebar presentation and interaction
+
+Projects and Pinned use a dedicated section heading; workspace folders, conversations, and drafts
+use item rows. These primitives live in `src/ui/sidebar-items.tsx`, exported through
+`@workbench/shell/ui`:
+
+| Component | Contract |
+| --- | --- |
+| `SidebarGroup` | Controlled `open` / `onOpenChange`, `header`, and `children`; reuses `Collapsible` for expansion and animation. `indent` adds child indentation; `dropPosition` draws group-level insertion feedback. |
+| `SidebarSectionHeading` | Dedicated Projects / Pinned heading with `label`, `expanded`, `description`, `actions`, and an optional receiving `drag` binding. Uses `CollapsibleTrigger`, a chevron after the label, and no selectable or hover background. |
+| `SidebarRow` | `folder` or `item` variant with `icon`, `hoverIcon`, `label`, `description`, `status`, `actions`, `active`, `menuOpen`, and an optional `drag` binding. `trigger` defaults to `Button`; use `CollapsibleTrigger` for expandable folder rows. |
+| `SidebarStatus` | Trailing content with shared alignment and truncation. Set `secondary` for timestamps hidden on touch or narrow layouts; waiting and unread-completion indicators remain primary. |
+| `SidebarActions` | Put controls shared by all devices in `children`; `desktop` and `mobile` contain additional quick actions. Owns visibility, spacing, touch targets, and the `data-sidebar-actions` marker that prevents drag initiation. Folder menus reuse `DropdownMenu`. |
+
+The primary trigger and actions are sibling DOM elements. Supply navigation through `onActivate`,
+keep action buttons in `SidebarActions`, and pass controlled menu state to `menuOpen`. Row labels,
+descriptions, and status are associated with the trigger for accessibility. The row owns its
+selection background, keeping the trigger transparent so it cannot cover icons or status.
+Section headings remain plain labels when expanded, hovered, or focused; keyboard focus outlines
+and valid drop outlines provide their interaction feedback. They do not use `SidebarRow` or its
+selection state. Both heading and row actions use `SidebarActions` as siblings of the trigger.
+Workspace conversation and draft lists leave `SidebarGroup.indent` disabled. Their rows, including
+selection and hover backgrounds, span the same width as the folder header. Icon space belongs
+inside the row and does not inset its background.
+
+These primitives accept React content and callbacks. Runtime subscriptions, workspace operations,
+navigation, persistence, and localized copy belong to `src/sidebar/`; the shared UI does not import
+Runtime or `elements`. Layout and interaction styles live in `src/styles.css`, using
+`--sidebar-row-*`, `--sidebar-action-*`, `--sidebar-drop-line-size`, and existing control, icon,
+selection, and theme tokens. Extend these shared rules instead of duplicating row styles in a
+consumer.
+
+### Icons, status, and actions
+
+- `icon` and `hoverIcon` share one fixed slot. CSS shows `hoverIcon` on row hover, keyboard focus,
+  or an open menu; without a replacement, `icon` stays visible. Coarse-pointer/no-hover devices
+  show the supplied hover icon directly. Icon switching does not move the label.
+- Business rows supply `RunningThreadIndicator` as `icon` while running. The existing global
+  indicator selection and reduced-motion preference apply; `none` falls back to the ordinary
+  icon. Conversations and drafts normally leave this slot empty; automation conversations retain
+  their type icon. Folders use a folder icon with a left hover chevron. Section headings have a
+  separate chevron after the label, revealed with their actions on hover/focus or on touch layouts.
+- A collapsed folder aggregates running state from its non-pinned conversations. Expanded folders
+  let individual conversations display their own indicators. Derive this state with the existing
+  Runtime projection and `groupSidebarThreads`, without duplicating it in a presentation store.
+- Trailing status is independent of the left running indicator. Its priority is waiting for input
+  on a non-current conversation, then unread completion on a non-running conversation, then the
+  update time on a non-running conversation. Running and waiting can appear together.
+- Desktop hover, keyboard focus, or an open folder menu reveals actions and hides trailing status.
+  Touch and narrow layouts keep actions visible, reserve separate space for primary status, and
+  hide secondary timestamps. Conversation rows expose pin/unpin and archive buttons directly,
+  without an overflow menu. Folder menus include Move up / Move down; conversation ordering uses
+  pointer dragging.
+
+### Drag coordination and drop rules
+
+`@workbench/shell/hooks` exports `SidebarDragSessionProvider`, `useSidebarPointerReorder`,
+`useSidebarDragState`, and `useSidebarDragSession`. `WorkbenchShell` installs one provider around
+its sidebar; a standalone sidebar installs its own. Registration, drag state, pending saves,
+overlays, and click suppression are local to that provider.
+
+Register each row or receiving heading with `useSidebarPointerReorder({ id, enabled, resolveDrop,
+onDrop })` and pass its returned binding to `SidebarRow` or `SidebarSectionHeading`. `enabled`
+controls whether a row can start a drag; register section headings with `enabled: false` so they
+only receive drops through `resolveDrop`. Return `before`,
+`after`, or `inside` for a permitted drop, and `undefined` otherwise. `onDrop` returns a Promise.
+Use typed keys such as `workspace:<id>` and `thread:<id>` to avoid identity collisions. For folder
+groups, render `before` / `after` feedback on `SidebarGroup` and `inside` feedback on its header row;
+guard controlled expansion with `drag.shouldSuppressClick()`.
+
+The coordinator handles mouse dragging with the existing 5 px activation threshold, installation
+portal overlay, horizontal and vertical hit testing within the scroll viewport, edge scrolling,
+and a 350 ms post-drag click suppression window. Escape, window blur, pointer cancellation, source
+removal, and search activation cancel the drag. Actions never initiate dragging. Touch and keyboard
+users can pin/unpin and archive conversations with the shared action buttons, and reorder folders
+through their menus.
+
+`src/sidebar/sidebar-move.ts` owns the pure drop policy; `workspace-sidebar-context.tsx` supplies the
+current model and commits operations. Pinned conversations precede pinned folders, and each type
+has its own order. A conversation's own pin state is independent of its folder's pin state.
+
+| Source and target | Result |
+| --- | --- |
+| Same list and type | Insert before or after the target. |
+| Folder to the other group or one of its folders | Change pin membership and append at the heading or insert beside the folder; preserve the moved folder's expansion state. |
+| Conversation to Pinned or a pinned conversation | Pin and append at the heading or insert beside the conversation; preserve workspace ownership. |
+| Pinned conversation to Projects heading | Unpin and restore the original workspace order, or return to the ungrouped list. |
+| Pinned conversation to its own folder or an unpinned conversation in that folder | Unpin; append when targeting the folder, or insert at the conversation's position. Collapsed folders accept this drop. |
+| Conversation to another workspace, or folders and conversations mixed in one order | Reject the drop. |
+
+An empty Pinned receiving heading appears during dragging, including when the source is a single
+item. A non-empty search disables dragging and menu sorting while leaving pin toggles available.
+After a committed move, expand the destination group; restoring a conversation also expands its
+own folder, wherever that folder is located. Keep the current conversation selection unchanged.
+
+### Persistence and failure handling
+
+Revalidate the source and target against the latest model before submitting. Drag, button, and menu
+moves share the session's pending gate: one move runs at a time, controls are disabled while saving, and
+additional `session.run` calls during that interval are ignored rather than queued.
+
+Save pin membership before destination order. A pin failure stops the operation; an order failure
+after a successful pin keeps the new membership and reports the ordering failure. The sidebar owns
+the `role="alert"` message and its `en-US` / `zh-CN` translations.
+
+Workspace ordering uses the existing workspace capability. Conversation ordering inside a workspace
+uses `threadActions.moveWithinWorkspace` when available. Pinned, ungrouped, and fallback workspace
+orders use the installation-local `thread-order-store.ts` and the existing
+`sidebarThreadOrderByScope` settings field (`pinned`, `ungrouped`, or `workspace:<id>`).
+`setManualOrder` returns an awaitable Promise, serializes writes, and merges only the affected scope
+into persisted preferences. Failed writes restore that scope's confirmed order only if no newer
+local revision has superseded the write. This flow requires no new backend protocol or migration.
+
+Focused regression coverage lives in `sidebar-move.test.ts`, `sidebar-drag-session.test.ts`,
+`thread-order-store.test.ts`, and `ui/sidebar-items.test.tsx`, alongside the existing grouping and
+sorting tests. When changing behavior, run the affected Node tests through
+`scripts/register-typescript-test-loader.mjs`; use Shell/Web type checks for API changes. Browser
+verification should resolve rendering or interaction uncertainties such as icon layering, menu
+visibility, touch status spacing, cross-group scrolling, cancellation, and appearance settings.

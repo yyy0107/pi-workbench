@@ -18,7 +18,7 @@ import {
   rpcString,
   rpcUnion,
   type RpcValidator,
-} from "./rpc-transport";
+} from "@workbench/host-server/rpc";
 
 const nonEmptyString = rpcString({ minLength: 1 });
 

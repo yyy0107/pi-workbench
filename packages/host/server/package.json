@@ -64,6 +64,11 @@
       "types": "./src/host-probe.d.cts",
       "require": "./src/host-probe.cjs",
       "default": "./src/host-probe.cjs"
+    },
+    "./rpc": {
+      "types": "./src/rpc.ts",
+      "import": "./src/rpc.ts",
+      "default": "./src/rpc.ts"
     }
   },
   "scripts": {

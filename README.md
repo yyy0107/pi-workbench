@@ -287,7 +287,9 @@ Shell's generic workspace and session features consume Workbench conversation pr
 optional capabilities. Core, Shell, and Extension SDK/Host do not import Pi packages. The
 [Pi implementation](./packages/agent-runtime/runtimes/pi/README.md) owns Pi protocols, event projection,
 and error mapping; its contributions retain Pi configuration, Toolbox, diagnostics, imports, and
-branding. Application roots select Pi and interleave Shell/Pi extension groups in the existing order.
+branding. `@workbench/pi-product` composes Pi and the fixed Shell/Pi extension order for both apps.
+Public services own Settings, Automation, native Host operations, files/Git, and attachment recognition;
+Runtime injects Pi workspace/session adapters. See [public layers](./docs/workbench-public-layers.md).
 
 ```mermaid
 flowchart LR
@@ -298,6 +300,7 @@ flowchart LR
   electron["Electron container"]
   runtime["API-only Runtime app<br/>apps/runtime-node"]
   pi["Pi Agent Runtime<br/>sessions, models, tools, resources"]
+  services["Public services<br/>Settings, Automation, Host, Workspace, Attachments"]
   terminal["Terminal Gateway<br/>node-pty"]
   local["Local workspaces and ~/.pi state"]
   providers["Configured model providers"]
@@ -310,6 +313,8 @@ flowchart LR
   web <-->|"authenticated private proxy"| runtime
   desktop <-->|"authenticated HTTP / WebSocket"| runtime
   runtime --> pi
+  runtime --> services
+  services <--> local
   runtime --> terminal
   pi <--> local
   terminal <--> local

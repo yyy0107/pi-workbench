@@ -64,6 +64,11 @@
       "types": "./src/desktop-renderer-artifact-manifest.ts",
       "import": "./src/desktop-renderer-artifact-manifest.ts",
       "default": "./src/desktop-renderer-artifact-manifest.ts"
+    },
+    "./rpc": {
+      "types": "./src/rpc.ts",
+      "import": "./src/rpc.ts",
+      "default": "./src/rpc.ts"
     }
   },
   "scripts": {

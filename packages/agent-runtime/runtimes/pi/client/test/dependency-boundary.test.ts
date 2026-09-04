@@ -26,7 +26,6 @@ test("publishes only Pi contribution facades and application installation entrie
     "./host",
     "./resources",
     "./configuration",
-    "./workbench-settings",
     "./workspace",
     "./external-import",
     "./context-trace",

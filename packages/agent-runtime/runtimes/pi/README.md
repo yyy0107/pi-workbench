@@ -205,8 +205,8 @@ Pi agent 目录下的 `SYSTEM.md`；上下文压缩参数写入同目录的 `set
 后生效。`settings.openDocument` 会在文件不存在时创建最小的 `settings.json`，再交给本地主机的
 默认应用打开。
 
-三个设置子域分别由 `transport/routes/agent-settings-rpc-routes.ts`、
-`workbench-settings-rpc-routes.ts` 和 `image-understanding-settings-rpc-routes.ts` 拥有，避免把 Pi
+三个设置子域分别由 Pi 的 `transport/routes/agent-settings-rpc-routes.ts`、
+`@workbench/settings-server/rpc` 和 `@workbench/attachment-understanding-server/rpc` 拥有，避免把 Pi
 原生设置、Workbench preferences 与附件识别凭据合并成一个泛化服务。Agent Settings route 只依赖
 `AgentSettingsProtocol` 和组合根注入的文档打开函数，三个方法全部保持 loopback-only，并独占 4 MiB
 更新载体预算与打开取消映射；Workbench Settings route 通过 late-bound `WorkbenchSettingsProtocol`
@@ -1062,6 +1062,8 @@ HMR 与 Electron；Electron 从 `.desktop-build` 自有 Runtime，因此 Runtime
 Runtime 源码 watcher。生产桌面构建消费 Runtime app 发布的、按 runtime/platform/arch/libc/ABI 键控的
 immutable artifact，不从根依赖 hoist 猜测服务端闭包。
 
+公共产品与服务抽象见 [Workbench 公共层](../../../../docs/workbench-public-layers.md)。
+
 ## 目录布局
 
 实现按 client、protocol、shared、server 和 Workbench contribution ownership 分组，测试位于各
@@ -1091,13 +1093,9 @@ packages/agent-runtime/runtimes/pi/
     │   ├── pi-agent-thread-store.ts
     │   └── pi-agent-server-implementation.ts
     ├── core/
-    │   ├── errors.ts
-    │   └── rpc-domain-error.ts
+    │   └── errors.ts
     ├── attachment-understanding/
-    │   ├── providers/
-    │   ├── coordinator.ts
-    │   ├── lifecycle.ts
-    │   └── settings-store.ts
+    │   └── multimodal.ts
     ├── imports/
     │   ├── claude-code-session-importer.ts
     │   ├── codex-session-importer.ts
@@ -1115,33 +1113,21 @@ packages/agent-runtime/runtimes/pi/
     │   │   ├── extension-rpc-routes.ts
     │   │   ├── external-session-import-rpc-routes.ts
     │   │   ├── host-rpc-routes.ts
-    │   │   ├── image-understanding-settings-rpc-routes.ts
     │   │   ├── installed-package-rpc-routes.ts
-    │   │   ├── local-app-rpc-routes.ts
     │   │   ├── model-context-window-rpc-routes.ts
     │   │   ├── model-provider-rpc-routes.ts
     │   │   ├── package-catalog-rpc-routes.ts
     │   │   ├── project-trust-rpc-routes.ts
     │   │   ├── resource-catalog-rpc-routes.ts
-    │   │   ├── rpc-route-group.ts
     │   │   ├── session-context-trace-rpc-routes.ts
     │   │   ├── session-rpc-routes.ts
     │   │   ├── skill-rpc-routes.ts
-    │   │   ├── workbench-settings-rpc-routes.ts
-    │   │   ├── workspace-git-rpc-routes.ts
-    │   │   ├── workspace-file-rpc-routes.ts
     │   │   └── workspace-rpc-routes.ts
-    │   ├── rpc-domain-error-projector.ts
     │   ├── rpc-route-composition.ts
     │   ├── rpc-router.ts
-    │   ├── rpc-transport.ts
     │   └── runtime-http-router.ts
     ├── host/
-    │   ├── host-directories.ts
-    │   ├── host-service.ts
-    │   └── native-workspace-picker.ts
-    ├── local-apps/
-    │   └── service.ts
+    │   └── host-service.ts
     ├── models/
     │   └── model-service.ts
     ├── packages/
@@ -1163,9 +1149,7 @@ packages/agent-runtime/runtimes/pi/
     ├── skills/
     │   └── skill-service.ts
     ├── workspaces/
-    │   ├── workspace-git.ts
-    │   ├── workspace-file-content.ts
-    │   ├── workspace-files.ts
+    │   ├── workspace-service-bindings.ts
     │   ├── workspace-protocol-service.ts
     │   ├── workspace-registry.ts
     │   ├── workspace-store.ts
@@ -1212,13 +1196,13 @@ packages/agent-runtime/runtimes/pi/
   target 与订阅资源 revision，纯 `CommandView` 投影复用 Pi shared package。
   Pi 消息、队列、Headless projection 与生命周期由实现目录的专项测试覆盖。
   `pi-runtime-installation.tsx` 只把应用输入绑定到完整 `PiAgentRuntimeProvider`；manager 仍在 Provider 内创建。
-  `apps/web/src/workbench/providers/installed-agent-runtime.tsx` 是当前唯一 Web 具体实现选择点，使用 singular factory 选择
-  Pi；`agent-runtime-provider.tsx` 只挂载结果并安装后端无关 Surface 桥接；
+  `@workbench/pi-product` 为 Web/Desktop 共享产品装配，绑定公共服务客户端、运行时文案、默认扩展顺序和
+  Shell Provider。应用只传入词典、连接、导航、资源 URL、持久化适配器及平台扩展；
 - Pi client package 内部的 `PiSessionManager` 通过同一 Runtime revision 发布 thread catalog、metadata、
   running、waiting 和 completed 更新。draft promotion 复用原 Session 并发布一次 durable identity，
   不产生重复 remote item；
 - `server` 可以依赖 Pi protocol/shared packages，不得导入 Pi client package。Node/Pi Runtime、凭据、信任和
-  文件系统逻辑只留在这里；
+  Pi 资源文件逻辑留在这里；通用文件、Git、Host 和附件识别由公共服务包拥有；
 - `server/src/agent-runtime` 实现 `@workbench/agent-runtime-server` 的后端无关执行与线程存储端口，把 `threadId`、
   `rootPath`、结构化 Prompt、目录摘要、搜索文档、CRUD/队列 mutation 和稳定 Agent 错误映射到 Pi
   `sessionId`、`cwd`、`PiQueuedPrompt`、Hosted Session/registry 操作和 Pi 错误码；`SessionRpcService`
@@ -1236,9 +1220,10 @@ packages/agent-runtime/runtimes/pi/
   policy 与手动 compaction，并在 Pi SDK 边界归一化预期错误。两者是 Pi protocol collaborator，
   不是顶层通用 Agent 端口；`SessionRpcService` 只做请求校验、会话存在性检查、调用编排和 wire error
   投影，不直接导入 `session-registry` 或 `ModelService`；
-- `server/src/attachment-understanding` 拥有 OCR 网络调用、设置凭据、Pi 多模态执行和附件识别生命周期，
-  纯声明与跨端状态机复用 `@workbench/attachment-understanding-contracts`；对外
-  `imageUnderstanding.*` RPC 名称保持兼容；
+- `server/src/attachment-understanding/multimodal.ts` 只保留 Pi ModelRuntime 多模态执行；
+  `@workbench/attachment-understanding-server` 拥有路由决策、任务生命周期、OCR、受限 HTTP 和设置存储。
+  Runtime app 注入设置路径与旧环境变量；Pi 会话保留模型刷新、忙碌租约、取消释放和唯一终态持久化。
+  纯声明和跨端状态机复用 `@workbench/attachment-understanding-contracts`，`imageUnderstanding.*` wire 名称保持兼容；
 - `server/src/imports` 拥有本机 Codex、Claude Code、Cursor 数据发现与解析、Pi `SessionManager` 原生
   JSONL 写入、幂等 provenance、Workspace 创建/绑定和既有 Host 事件发布。它直接复用
   `protocol/src/rpc.ts` 的来源枚举及扫描/导入 DTO，只额外保留不跨浏览器边界的已加载 Pi Message 类型；
@@ -1251,11 +1236,9 @@ packages/agent-runtime/runtimes/pi/
   `sessionImport.*` validator、批量边界和 loopback-only 约束，只依赖窄的
   `ExternalSessionImportProtocol`。`routes/workspace-rpc-routes.ts` 拥有 11 个 Workspace 组织/归档
   validator 与 handler 映射，只依赖 `WorkspaceProtocolService`；
-  `routes/workspace-git-rpc-routes.ts` 独立拥有四个 Workspace Git validator、两个 loopback-only
-  mutation 约束、取消映射和 handler，只依赖 `WorkspaceGitProtocol`；
-  `routes/workspace-file-rpc-routes.ts` 独立拥有四个 `workspace.files.*` unary validator、20 MiB 写入载体
-  预算、取消映射和 handler，并只依赖 `WorkspaceFileProtocol`。Range/ETag 流式 content 端点继续与
-  POST route 分离。`routes/skill-rpc-routes.ts` 拥有六个 `skill.*` validator、两个 loopback-only
+  文件/Git validator、取消映射、20 MiB 文件写入预算及 Range/ETag content 服务由
+  `@workbench/workspace-server` 拥有，Runtime app 注入同一文件实例与 Pi 工作区根目录解析器。
+  `routes/skill-rpc-routes.ts` 拥有六个 `skill.*` validator、两个 loopback-only
   mutation 约束和 handler，并只依赖 `SkillProtocol`；`routes/extension-rpc-routes.ts` 拥有五个
   `extension.*` validator、完整扩展身份、两个 loopback-only mutation 约束和 handler，并只依赖
   `ExtensionProtocol`。`routes/installed-package-rpc-routes.ts` 拥有六个本地 Package 查询/变更
@@ -1264,19 +1247,17 @@ packages/agent-runtime/runtimes/pi/
   `PackageCatalogProtocol`，并把请求 `AbortSignal` 原样交给服务层。npm 名称、已配置 Package source、
   mutation target 和 Catalog 查询边界集中在 `package-rpc-validators.ts`；跨资源领域复用的
   session/target 身份、target scope、名称和相对路径校验集中在 `resource-rpc-validators.ts`。
-  `routes/agent-settings-rpc-routes.ts`、`workbench-settings-rpc-routes.ts` 和
-  `image-understanding-settings-rpc-routes.ts` 分别拥有 3/3/2 个设置方法的 validator、载体预算、信任边界
-  和 handler，只依赖对应窄协议；Agent 与 Workbench Settings 文档打开函数由组合根注入，Workbench
-  Settings service 与 Image Understanding store 按调用延迟解析。`routes/model-provider-rpc-routes.ts` 拥有 11 个
+  `routes/agent-settings-rpc-routes.ts` 拥有 Pi 设置方法、预算和信任边界；公共 Workbench Settings 与
+  Image Understanding 路由分别归 `@workbench/settings-server/rpc` 和
+  `@workbench/attachment-understanding-server/rpc`，由 Runtime app 组合并按调用解析设置存储。
+  `routes/model-provider-rpc-routes.ts` 拥有 11 个
   Provider/auth/catalog/discovery 方法及其配置载体预算、取消和 refresh 通知，只依赖
   `ModelProviderProtocol`；`model-context-window-rpc-routes.ts` 独立拥有三个容量读取/覆盖方法，只依赖
-  `ModelContextWindowProtocol`。`host-rpc-routes.ts` 拥有五个 Host 描述、目录选择/浏览/创建和路径打开
-  方法，只依赖 `HostProtocol`，其中原生选择与路径打开保持 loopback-only；
-  `local-app-rpc-routes.ts` 拥有三个应用发现、刷新和打开方法，只依赖 `LocalAppProtocol` 且全部保持
-  loopback-only。`project-trust-rpc-routes.ts` 通过延迟解析的 `ProjectTrustProtocol` 读写决定，并只在
+  `ModelContextWindowProtocol`。`host-rpc-routes.ts` 只保留包含 Pi 信息的 `host.describe`；原生目录操作、应用发现与打开及其
+  loopback-only 约束属于 `@workbench/local-host-server`。`project-trust-rpc-routes.ts` 通过延迟解析的 `ProjectTrustProtocol` 读写决定，并只在
   成功更新后调用组合根注入的资源失效回调；`resource-catalog-rpc-routes.ts` 复用共享资源身份校验，
-  分别通过 `CommandCatalogProtocol` 与 `PromptCatalogProtocol` 提供两个只读目录。十九个领域 route 由
-  `createPiRpcRouteGroups(dependencies)` 从显式依赖创建，并通过 `rpc-route-group.ts` 的 first-claim
+  分别通过 `CommandCatalogProtocol` 与 `PromptCatalogProtocol` 提供两个只读目录。Pi 专属领域 route 由
+  `createPiRpcRouteGroups(dependencies)` 从显式依赖创建，并通过 `@workbench/host-server/rpc` 的 first-claim
   dispatcher 统一委托；`createDefaultPiRpcRouteGroups()` 只负责当前 server module generation 的一份
   长寿命默认服务图，共享 resource mutation coordinator、CommandService、ModelService 和 HostService，
   同时保留需要的 late-bound store/service。`createPiRpcRouter()` 只接收已创建的 route groups 与
@@ -1289,10 +1270,9 @@ packages/agent-runtime/runtimes/pi/
   `compaction-rpc-validator.ts`，避免两套 compaction patch 边界漂移；
 - `server/src/workspaces/workspace-protocol-service.ts` 通过窄 Session catalog、Trust migration、resource
   context 和延迟 Store 端口编排 Workspace 组织协议；`WorkspaceStore` 继续独占状态持久化与 Host stream
-  事件，`WorkspaceGitProtocol` 独占 workspace-bound Git 状态与本地分支 mutation，
-  `WorkspaceFileService` 通过 `WorkspaceFileProtocol` 独占 workspace-bound 文件授权，并由共享默认工厂
-  同时服务 unary route 与流式 content 端点。`server/src/sessions`、`workspaces`、`models`、`host` 包含其余
-  业务规则和 Pi/文件系统适配；
+  事件。`workspace-service-bindings.ts` 向公共文件/Git 服务注入根目录解析和 Pi mutation coordinator，
+  将会话忙碌错误转为公共 Git 领域错误，并保留检查、修改、重载的顺序；未改变资源的操作不触发重载。
+  Runtime app 为 RPC、内容流和 Composer 文件引用注入同一个 `WorkspaceFileService`。
 - `server/src/skills/skill-service.ts` 实现窄的 `SkillProtocol`，并继续独占 Pi ResourceLoader、SettingsManager、
   session/scoped resource host、启停与删除协调，以及 Skill 授权目录和文件读取；transport 不直接取得
   Pi runtime、资源路径或 mutation coordinator；
@@ -1382,7 +1362,7 @@ downlink 发送消息后的 `1008` close。
 ## OCR 适配器规范
 
 OCR 的纯声明解析位于 `@workbench/attachment-understanding-contracts`，服务端执行适配位于
-`packages/agent-runtime/runtimes/pi/server/src/attachment-understanding`。OCR 设置中的源码是以下形式的有效 TypeScript，但
+`packages/server/attachment-understanding`。OCR 设置中的源码是以下形式的有效 TypeScript，但
 运行时不会把它交给 TypeScript/JavaScript 引擎：
 
 ```ts

@@ -11,6 +11,14 @@ export interface PiBashToolFactoryInput {
 
 /** Workbench Host capabilities required while constructing a Pi session. */
 export interface PiAgentHostBindings {
+  readonly attachmentUnderstandingSettings?: () => Pick<
+    import("@workbench/attachment-understanding-server/settings").ImageUnderstandingSettingsStore,
+    "resolveRuntimeSettings"
+  >;
+  readonly workspaceFiles?: Pick<
+    import("@workbench/workspace-server/files").WorkspaceFileService,
+    "readFile"
+  >;
   readonly createBashToolOverride?: (input: PiBashToolFactoryInput) => ToolDefinition;
   readonly askUserSettings?: AskUserCapabilitySettings;
 }

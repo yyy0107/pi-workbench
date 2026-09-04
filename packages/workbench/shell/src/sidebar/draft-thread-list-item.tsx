@@ -1,8 +1,9 @@
 "use client";
 
+import { useWorkspaceCapabilities } from "@workbench/agent-runtime-client/workspaces";
 import { useI18n } from "../i18n";
 import { useWorkbenchNavigation } from "../navigation";
-import { useWorkspaceCapabilities } from "@workbench/agent-runtime-client/workspaces";
+import { SidebarRow } from "../ui/sidebar-items";
 
 export function DraftThreadListItem({
   workspaceId,
@@ -14,24 +15,16 @@ export function DraftThreadListItem({
   const { t } = useI18n();
   const navigation = useWorkbenchNavigation();
   const { activateWorkspace } = useWorkspaceCapabilities();
-
   return (
-    <button
-      type="button"
-      data-workbench-selection-surface=""
-      data-workbench-selection-mode="foreground"
+    <SidebarRow
+      active
       data-thread-status="new"
-      aria-current="page"
-      className="text-sidebar-foreground hover:bg-sidebar-accent focus-visible:ring-sidebar-ring relative -ms-6 flex h-[var(--control-hit-touch)] w-[calc(100%+1.5rem)] items-center rounded-lg pe-2.5 ps-[34px] text-start text-sm outline-none focus-visible:ring-2 md:h-9"
-      onClick={() => {
+      label={t("workbench.sidebar.newThread")}
+      onActivate={() => {
         activateWorkspace(workspaceId);
         navigation.openHome();
         onNavigate?.();
       }}
-    >
-      <span className="min-w-0 flex-1 translate-y-[var(--control-text-offset-y)] truncate leading-[var(--control-text-line-height)]">
-        {t("workbench.sidebar.newThread")}
-      </span>
-    </button>
+    />
   );
 }

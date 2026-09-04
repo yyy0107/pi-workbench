@@ -1,5 +1,8 @@
 "use client";
 
+import type { WorkbenchServicesCapabilities } from "@workbench/agent-runtime-client/capabilities";
+import { createWorkspaceFileSearchPort } from "@workbench/services-client/workspace";
+
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
 
 import { RuntimeProvider, useCurrentSession } from "@workbench/agent-runtime-client";
@@ -16,11 +19,11 @@ import {
 } from "../runtime/manager";
 import type { PiClientTransport } from "../transport/client-transport";
 import { usePiAgentCommandCatalog } from "./command-catalog";
-import { PiBoundSessionProvider } from "./bound-session-provider";
+import { createPiSessionBinding } from "./bound-session-provider";
 import { createPiAgentRuntimeCapabilities } from "./capabilities";
 import { PiAgentRuntimeCopyProvider, type PiAgentRuntimeCopy } from "./copy";
 import { beginPiSessionManagerLifecycle } from "./session-manager-lifecycle";
-import { createPiAgentThreadStore, createPiWorkspaceFileSearchPort } from "./thread-store";
+import { createPiAgentThreadStore } from "./thread-store";
 import { PiDraftWorkspaceTracker } from "./trackers";
 import { PiWorkspaceSelectionProvider } from "./workspace-selection-provider";
 
@@ -31,12 +34,24 @@ export type PiSessionManagerFactory = (
 function PiRuntimeEnvironmentHost({
   children,
   manager,
-}: Readonly<{ children: ReactNode; manager: PiSessionManager }>) {
+  services,
+}: Readonly<{
+  children: ReactNode;
+  manager: PiSessionManager;
+  services: WorkbenchServicesCapabilities;
+}>) {
   const current = useCurrentSession();
   const commands = usePiAgentCommandCatalog(manager);
-  const capabilities = useMemo(() => createPiAgentRuntimeCapabilities(manager), [manager]);
+  const sessionBinding = useMemo(() => createPiSessionBinding(services), [services]);
+  const capabilities = useMemo(
+    () => createPiAgentRuntimeCapabilities(manager, services),
+    [manager, services],
+  );
   const threadStore = useMemo(() => createPiAgentThreadStore(manager), [manager]);
-  const workspaceFiles = useMemo(() => createPiWorkspaceFileSearchPort(manager), [manager]);
+  const workspaceFiles = useMemo(
+    () => createWorkspaceFileSearchPort(services.workspace),
+    [services.workspace],
+  );
   const session = current.sessionId ? manager.session(current.sessionId) : undefined;
 
   useEffect(() => {
@@ -54,7 +69,7 @@ function PiRuntimeEnvironmentHost({
       capabilities={capabilities}
       threadStore={threadStore}
       workspaceFiles={workspaceFiles}
-      sessionBinding={PiBoundSessionProvider}
+      sessionBinding={sessionBinding}
     >
       {children}
     </WorkbenchAgentRuntimeEnvironmentProvider>
@@ -78,9 +93,11 @@ export function PiAgentRuntimeProvider({
   promptFeedback,
   transport,
   workspaceDirectoryStore,
+  services,
 }: Readonly<{
   children: ReactNode;
   copy: PiAgentRuntimeCopy;
+  services: WorkbenchServicesCapabilities;
   promptFeedback?: PromptFeedbackPort;
   transport?: PiClientTransport;
   workspaceDirectoryStore: WorkbenchWorkspaceDirectoryStorePort;
@@ -92,6 +109,7 @@ export function PiAgentRuntimeProvider({
   managerRef.current = resolvePiSessionManager(managerRef.current, {
     promptFeedback,
     titleFallbacks,
+    settings: services.settings,
     transport,
   });
   const manager = managerRef.current;
@@ -108,10 +126,12 @@ export function PiAgentRuntimeProvider({
   return (
     <PiAgentRuntimeCopyProvider copy={copy}>
       <PiSessionManagerProvider manager={manager}>
-        <PiWorkspaceSelectionProvider directoryStore={workspaceDirectoryStore}>
+        <PiWorkspaceSelectionProvider directoryStore={workspaceDirectoryStore} host={services.host}>
           <RuntimeProvider runtime={manager}>
             <PiDraftWorkspaceTracker manager={manager} />
-            <PiRuntimeEnvironmentHost manager={manager}>{children}</PiRuntimeEnvironmentHost>
+            <PiRuntimeEnvironmentHost manager={manager} services={services}>
+              {children}
+            </PiRuntimeEnvironmentHost>
           </RuntimeProvider>
         </PiWorkspaceSelectionProvider>
       </PiSessionManagerProvider>

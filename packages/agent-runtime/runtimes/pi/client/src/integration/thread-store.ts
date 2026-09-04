@@ -1,11 +1,9 @@
 import type {
   WorkbenchAgentThreadSnapshot,
   WorkbenchAgentThreadStore,
-  WorkbenchWorkspaceFileSearchPort,
 } from "@workbench/agent-runtime-client/environment";
 
 import type { PiSessionManager, PiThreadStateSnapshot } from "../runtime/manager";
-import { searchPiWorkspaceFiles } from "../transport/api";
 
 type PiThreadStoreManager = Pick<
   PiSessionManager,
@@ -75,20 +73,6 @@ export function createPiAgentThreadStore(manager: PiThreadStoreManager): Workben
         });
         return { threadId: forked.sessionId };
       },
-    },
-  };
-}
-
-export function createPiWorkspaceFileSearchPort(
-  manager: Pick<PiSessionManager, "rpcTransportOptions">,
-): WorkbenchWorkspaceFileSearchPort {
-  return {
-    async search({ signal, ...payload }) {
-      const result = await searchPiWorkspaceFiles(payload, {
-        ...manager.rpcTransportOptions,
-        signal,
-      });
-      return result.entries.map(({ relativePath }) => ({ relativePath }));
     },
   };
 }

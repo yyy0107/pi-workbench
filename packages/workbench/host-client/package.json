@@ -19,6 +19,11 @@
       "types": "./src/runtime-websocket.ts",
       "import": "./src/runtime-websocket.ts",
       "default": "./src/runtime-websocket.ts"
+    },
+    "./rpc": {
+      "types": "./src/rpc.ts",
+      "import": "./src/rpc.ts",
+      "default": "./src/rpc.ts"
     }
   },
   "scripts": {

@@ -1,6 +1,12 @@
 import type { PiSessionContextTraceService } from "../../sessions/pi-session-context-trace-service";
-import { handleRpcPost, rpcInteger, rpcObject, rpcOptional, rpcString } from "../rpc-transport";
-import type { RpcRouteGroup } from "./rpc-route-group";
+import {
+  handleRpcPost,
+  rpcInteger,
+  rpcObject,
+  rpcOptional,
+  rpcString,
+} from "@workbench/host-server/rpc";
+import type { RpcRouteGroup } from "@workbench/host-server/rpc";
 
 export interface SessionContextTraceRpcRoutesDependencies {
   readonly service: PiSessionContextTraceService;

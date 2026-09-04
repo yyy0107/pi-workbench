@@ -1,3 +1,11 @@
+import {
+  isInside,
+  canonicalPathSpelling,
+  directoryIdentity,
+  optionalDirectoryIdentity,
+  sameDirectoryIdentity,
+  type DirectoryIdentity,
+} from "@workbench/host-artifact-policy/filesystem";
 import { createHash, randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import {
@@ -617,11 +625,6 @@ export function assertRuntimeArtifactExternalPackages(
     );
   }
   return Object.freeze(actual);
-}
-
-function isInside(parent: string, candidate: string): boolean {
-  const relative = path.relative(path.resolve(parent), path.resolve(candidate));
-  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
 }
 
 function artifactRelativePath(relativePath: string): string {
@@ -2090,11 +2093,6 @@ type RuntimeArtifactResolver = (
   options: ResolveRuntimeArtifactOptions,
 ) => Promise<ResolvedRuntimeArtifact>;
 
-interface DirectoryIdentity {
-  readonly device: number;
-  readonly inode: number;
-}
-
 interface RuntimeArtifactPublishLockOwner {
   readonly schemaVersion: 1;
   readonly targetKey: string;
@@ -2126,45 +2124,6 @@ const RUNTIME_ARTIFACT_PUBLISH_LOCK_WAIT_TIMEOUT_MILLISECONDS = 30 * 60 * 1_000;
 
 function isMissingPathError(error: unknown): error is NodeJS.ErrnoException {
   return error instanceof Error && "code" in error && error.code === "ENOENT";
-}
-
-function canonicalPathSpelling(candidate: string, label: string): string {
-  if (
-    typeof candidate !== "string" ||
-    !path.isAbsolute(candidate) ||
-    path.normalize(candidate) !== candidate ||
-    path.resolve(candidate) !== candidate
-  ) {
-    throw new Error(`${label} must be an absolute canonical path without aliases.`);
-  }
-  return candidate;
-}
-
-async function directoryIdentity(directory: string, label: string): Promise<DirectoryIdentity> {
-  const stats = await lstat(directory);
-  if (!stats.isDirectory() || stats.isSymbolicLink()) {
-    throw new Error(`${label} must be a regular directory and not a symbolic link.`);
-  }
-  if ((await realpath(directory)) !== directory) {
-    throw new Error(`${label} must be canonical and not aliased.`);
-  }
-  return Object.freeze({ device: stats.dev, inode: stats.ino });
-}
-
-async function optionalDirectoryIdentity(
-  directory: string,
-  label: string,
-): Promise<DirectoryIdentity | undefined> {
-  try {
-    return await directoryIdentity(directory, label);
-  } catch (error: unknown) {
-    if (isMissingPathError(error)) return undefined;
-    throw error;
-  }
-}
-
-function sameDirectoryIdentity(left: DirectoryIdentity, right: DirectoryIdentity): boolean {
-  return left.device === right.device && left.inode === right.inode;
 }
 
 async function assertUnchangedDirectory(

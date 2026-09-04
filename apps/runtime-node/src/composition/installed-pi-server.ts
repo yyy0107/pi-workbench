@@ -1,7 +1,31 @@
+import { getImageUnderstandingSettingsStore } from "./installed-attachment-understanding";
+import { createImageUnderstandingSettingsRpcRoutes } from "@workbench/attachment-understanding-server/rpc";
+import { createRuntimeHttpRouter } from "./runtime-http-router";
+import { createWorkbenchSettingsRpcRoutes } from "@workbench/settings-server/rpc";
+import { createAutomationRpcRoutes } from "@workbench/automation-server/rpc";
+import { projectRpcDomainError } from "@workbench/host-server/rpc";
+import { localHostService } from "@workbench/local-host-server/service";
+import { LocalAppService } from "@workbench/local-host-server/applications";
+import {
+  createLocalHostRpcRoutes,
+  createLocalAppRpcRoutes,
+} from "@workbench/local-host-server/rpc";
+import {
+  createWorkspaceFileService,
+  type WorkspaceFileService,
+} from "@workbench/workspace-server/files";
+import { createWorkspaceGitService } from "@workbench/workspace-server/git";
+import { createWorkspaceFileContentHandler } from "@workbench/workspace-server/http";
+import {
+  createWorkspaceFileRpcRoutes,
+  createWorkspaceGitRpcRoutes,
+} from "@workbench/workspace-server/rpc";
 import type { WorkbenchAgentServerAdapter } from "@workbench/agent-runtime-server/adapter";
 
 import {
   bindPiAgentHostBindings,
+  resolvePiWorkspaceRoot,
+  mutatePiWorkspace,
   CommandService,
   createPiAgentServerImplementation,
   shutdownPiPackageCatalogService,
@@ -32,7 +56,6 @@ import {
   createPiRuntimeHttpRouter,
   handleInteractiveResponsePost,
   handleSessionExportRequest as handlePiSessionExportRequest,
-  handleWorkspaceFileContentRequest as handlePiWorkspaceFileContentRequest,
   type PiRpcPostHandler,
   type PiRuntimeHttpHandler,
 } from "@workbench/agent-runtime-pi-server/http";
@@ -43,10 +66,11 @@ import { createInstalledWorkbenchSettingsService } from "./installed-workbench-s
 import { getInstalledPiAutomationService } from "./installed-automation";
 
 export interface InstalledPiServer {
-  readonly lifecycleVersion: 3;
+  readonly lifecycleVersion: 4;
   readonly agent: WorkbenchAgentServerAdapter;
   readonly handleRpcPost: PiRpcPostHandler;
   readonly handleHttpRequest: PiRuntimeHttpHandler;
+  readonly handleWorkspaceFileContentRequest: PiRuntimeHttpHandler;
   /** Releases process-lifetime resources owned by the installed Pi service graph. */
   dispose(): Promise<void>;
 }
@@ -109,9 +133,9 @@ export function createInstalledPiDisposer({
 
 function createInstalledPiRuntimeHttpHandler(
   handleRpcPost: PiRpcPostHandler,
+  handleWorkspaceFileContentRequest: PiRuntimeHttpHandler,
 ): PiRuntimeHttpHandler {
-  return createPiRuntimeHttpRouter({
-    handleRpcPost,
+  const handlePiRequest = createPiRuntimeHttpRouter({
     listModels: listPiModels,
     createRunningEventResponse: createPiRunningEventResponse,
     createSessionEventResponse: createPiSessionEventResponse,
@@ -128,13 +152,21 @@ function createInstalledPiRuntimeHttpHandler(
     listSessions: listPiSessions,
     pickWorkspaceDirectory: pickPiWorkspaceDirectory,
     handleSessionExportRequest: handlePiSessionExportRequest,
-    handleWorkspaceFileContentRequest: handlePiWorkspaceFileContentRequest,
+  });
+  return createRuntimeHttpRouter({
+    handleRpcPost,
+    handleWorkspaceFileContentRequest,
+    handlePiRequest,
   });
 }
 
-function createInstalledPiAgentHostBindings(): PiAgentHostBindings {
+function createInstalledPiAgentHostBindings(
+  workspaceFiles: WorkspaceFileService,
+): PiAgentHostBindings {
   const settings = createInstalledWorkbenchSettingsService();
   return {
+    workspaceFiles,
+    attachmentUnderstandingSettings: getImageUnderstandingSettingsStore,
     createBashToolOverride({ cwd, sessionId, commandPrefix, shellPath }) {
       return createWorkbenchBashToolOverride(cwd, sessionId, {
         ...(commandPrefix === undefined ? {} : { commandPrefix }),
@@ -154,16 +186,40 @@ function createInstalledPiAgentHostBindings(): PiAgentHostBindings {
   };
 }
 
-function createInstalledPiServer(host: PiAgentHostBindings): InstalledPiServerState {
-  const commands = new CommandService();
-  const agent = createPiAgentServerImplementation({ commands, host });
-  const automation = getInstalledPiAutomationService({ agentExecution: agent.execution });
-  const routeGroups = createDefaultPiRpcRouteGroups({
-    agent,
-    commands,
-    automation,
-    getWorkbenchSettingsService: createInstalledWorkbenchSettingsService,
+function createInstalledPiServer(
+  existingAgent?: WorkbenchAgentServerAdapter,
+): InstalledPiServerState {
+  const workspaceFiles = createWorkspaceFileService({
+    resolveWorkspaceRoot: resolvePiWorkspaceRoot,
   });
+  const workspaceGit = createWorkspaceGitService({
+    resolveWorkspaceRoot: resolvePiWorkspaceRoot,
+    mutateWorkspace: mutatePiWorkspace,
+  });
+  const host = createInstalledPiAgentHostBindings(workspaceFiles);
+  bindPiAgentHostBindings(host);
+  const commands = new CommandService();
+  const agent = existingAgent ?? createPiAgentServerImplementation({ commands, host });
+  const automation = getInstalledPiAutomationService({ agentExecution: agent.execution });
+  const domainErrors = { projectDomainError: projectRpcDomainError };
+  const routeGroups = [
+    createImageUnderstandingSettingsRpcRoutes({
+      getStore: getImageUnderstandingSettingsStore,
+      ...domainErrors,
+    }),
+    createWorkspaceGitRpcRoutes({ service: workspaceGit, ...domainErrors }),
+    createWorkspaceFileRpcRoutes({ service: workspaceFiles, ...domainErrors }),
+    createAutomationRpcRoutes({ service: automation, ...domainErrors }),
+    createWorkbenchSettingsRpcRoutes({
+      getService: createInstalledWorkbenchSettingsService,
+      openDocument: localHostService.openPath,
+      ...domainErrors,
+    }),
+    createLocalHostRpcRoutes({ service: localHostService, ...domainErrors }),
+    createLocalAppRpcRoutes({ service: new LocalAppService(), ...domainErrors }),
+    ...createDefaultPiRpcRouteGroups({ agent, commands, openDocument: localHostService.openPath }),
+  ];
+  const handleWorkspaceFileContentRequest = createWorkspaceFileContentHandler(workspaceFiles);
   const handleRpcPost = createPiRpcRouter({
     routeGroups,
     respond: handleInteractiveResponsePost,
@@ -173,11 +229,15 @@ function createInstalledPiServer(host: PiAgentHostBindings): InstalledPiServerSt
     automation,
   });
   return Object.freeze({
-    lifecycleVersion: 3 as const,
+    lifecycleVersion: 4 as const,
     agent,
     host,
     handleRpcPost,
-    handleHttpRequest: createInstalledPiRuntimeHttpHandler(handleRpcPost),
+    handleWorkspaceFileContentRequest,
+    handleHttpRequest: createInstalledPiRuntimeHttpHandler(
+      handleRpcPost,
+      handleWorkspaceFileContentRequest,
+    ),
     dispose,
   });
 }
@@ -187,37 +247,14 @@ export function getInstalledPiServer(): InstalledPiServer {
   const current = installedGlobal.__workbenchInstalledPiServer;
   if (current) {
     bindPiAgentHostBindings(current.host);
-    if (
-      typeof current.handleHttpRequest !== "function" ||
-      current.lifecycleVersion !== 3 ||
-      typeof (current as Partial<InstalledPiServer>).dispose !== "function"
-    ) {
-      // A development module generation may retain the pre-Runtime-router frozen installation.
-      // Upgrade only its transport/lifecycle facade; the Agent, RPC graph, registries and hubs stay
-      // identical. Recover the already-installed Automation service instead of constructing a
-      // second timer/repository owner.
-      const automation = getInstalledPiAutomationService({
-        agentExecution: current.agent.execution,
-      });
-      const upgraded = Object.freeze({
-        ...current,
-        lifecycleVersion: 3 as const,
-        handleHttpRequest:
-          typeof current.handleHttpRequest === "function"
-            ? current.handleHttpRequest
-            : createInstalledPiRuntimeHttpHandler(current.handleRpcPost),
-        dispose: createInstalledPiDisposer({
-          shutdownPackageCatalog: shutdownPiPackageCatalogService,
-          automation,
-        }),
-      });
+    if (current.lifecycleVersion !== 4) {
+      const upgraded = createInstalledPiServer(current.agent);
       installedGlobal.__workbenchInstalledPiServer = upgraded;
       return upgraded;
     }
     return current;
   }
-  const host = createInstalledPiAgentHostBindings();
-  const installed = createInstalledPiServer(host);
+  const installed = createInstalledPiServer();
   installedGlobal.__workbenchInstalledPiServer = installed;
   return installed;
 }
@@ -312,9 +349,6 @@ export function handleSessionExportRequest(
   return handlePiSessionExportRequest(...args);
 }
 
-export function handleWorkspaceFileContentRequest(
-  ...args: Parameters<typeof handlePiWorkspaceFileContentRequest>
-) {
-  getInstalledPiServer();
-  return handlePiWorkspaceFileContentRequest(...args);
+export function handleWorkspaceFileContentRequest(request: Request): Promise<Response> {
+  return getInstalledPiServer().handleWorkspaceFileContentRequest(request);
 }
