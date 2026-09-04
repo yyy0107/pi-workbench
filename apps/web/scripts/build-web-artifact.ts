@@ -419,21 +419,10 @@ async function confineStandaloneLinks(
     const relativeLink = path.relative(artifactRoot, artifactLink);
     const sourceLink = path.join(standaloneRoot, relativeLink);
     let sourceTarget: string;
-    let artifactTarget: string;
+    let artifactTarget: string | undefined;
     try {
       sourceTarget = await realpath(sourceLink);
-      if (isInside(standaloneRoot, sourceTarget)) {
-        artifactTarget = path.join(artifactRoot, path.relative(standaloneRoot, sourceTarget));
-      } else if (isInside(repositoryPnpmRoot, sourceTarget)) {
-        artifactTarget = path.join(
-          artifactPnpmRoot,
-          path.relative(repositoryPnpmRoot, sourceTarget),
-        );
-      } else {
-        throw new Error("Raw standalone symlink target is outside its admitted package roots.");
-      }
-    } catch (error: unknown) {
-      if (!isMissingPathError(error)) throw error;
+    } catch {
       const missingTarget = path.resolve(path.dirname(sourceLink), await readlink(sourceLink));
       if (!isInside(standalonePnpmRoot, missingTarget)) {
         throw new Error("Web artifact contains a broken symlink outside its pnpm store.");
@@ -445,6 +434,18 @@ async function confineStandaloneLinks(
         throw new Error("Raw standalone pnpm link target escapes the repository store.");
       }
       artifactTarget = path.join(artifactPnpmRoot, relativeTarget);
+    }
+    if (!artifactTarget) {
+      if (isInside(standaloneRoot, sourceTarget)) {
+        artifactTarget = path.join(artifactRoot, path.relative(standaloneRoot, sourceTarget));
+      } else if (isInside(repositoryPnpmRoot, sourceTarget)) {
+        artifactTarget = path.join(
+          artifactPnpmRoot,
+          path.relative(repositoryPnpmRoot, sourceTarget),
+        );
+      } else {
+        throw new Error("Raw standalone symlink target is outside its admitted package roots.");
+      }
     }
     if (!isInside(artifactRoot, artifactTarget)) {
       throw new Error("Mapped standalone symlink target escapes the artifact root.");
