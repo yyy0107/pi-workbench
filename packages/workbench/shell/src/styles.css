@@ -321,6 +321,21 @@
   --aui-font-family: system-ui;
 }
 
+/* Window-control geometry changes on every native resize. Keep its inherited
+   environment-variable dependency out of the conversation and sidebar trees. */
+[data-workbench-surface="header"],
+[data-workbench-surface="right-workspace-toggle"] {
+  --desktop-window-controls-inset-end: calc(
+    100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw)
+  );
+  --right-workspace-toggle-inset-end: calc(0.75rem + var(--desktop-window-controls-inset-end));
+}
+
+/* Native window resizing must not animate toward an obsolete layout width. */
+[data-workbench-shell][data-window-resizing="true"] {
+  --layout-motion-duration: 0ms;
+}
+
 /* Resolve scrollbar tokens at each Shell's theme boundary, not just the document root. */
 :root,
 [data-workbench-shell] {

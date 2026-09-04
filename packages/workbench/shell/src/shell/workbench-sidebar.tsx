@@ -3,6 +3,7 @@
 import {
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -221,24 +222,43 @@ export function WorkbenchSidebar({
   const { t } = useI18n();
   const { isMobile, setOpenMobile, state } = useSidebar();
   const sidebarLayoutRef = useRef<HTMLDivElement>(null);
-  const renderedWidth = Math.min(maxWidth, width);
+  const [maximumWidth, setMaximumWidth] = useState(maxWidth);
+  const renderedWidth = Math.min(maximumWidth, width);
+
+  useLayoutEffect(() => {
+    const shell = shellRef.current;
+    if (!shell) return;
+
+    const update = () => {
+      const nextMaximum = Math.max(minWidth, Math.min(maxWidth, Math.floor(shell.clientWidth / 2)));
+      setMaximumWidth((current) => (current === nextMaximum ? current : nextMaximum));
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(shell);
+    return () => observer.disconnect();
+  }, [maxWidth, minWidth, shellRef]);
 
   useLayoutEffect(() => {
     applySidebarResizePreview(sidebarLayoutRef.current, shellRef.current, renderedWidth, minWidth);
   }, [minWidth, renderedWidth, shellRef, state]);
 
-  const content = (
-    <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
-      <MainViewSidebarHost
-        mobile={isMobile}
-        onNavigate={isMobile ? () => setOpenMobile(false) : undefined}
-      >
-        <WorkbenchSidebarContent
+  // Window constraints only resize the frame; keep the conversation list out of that render path.
+  const content = useMemo(
+    () => (
+      <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+        <MainViewSidebarHost
           mobile={isMobile}
           onNavigate={isMobile ? () => setOpenMobile(false) : undefined}
-        />
-      </MainViewSidebarHost>
-    </div>
+        >
+          <WorkbenchSidebarContent
+            mobile={isMobile}
+            onNavigate={isMobile ? () => setOpenMobile(false) : undefined}
+          />
+        </MainViewSidebarHost>
+      </div>
+    ),
+    [isMobile, setOpenMobile],
   );
 
   if (!isMobile) {
@@ -284,7 +304,7 @@ export function WorkbenchSidebar({
             <SidebarResizeHandle
               width={renderedWidth}
               minWidth={minWidth}
-              maxWidth={maxWidth}
+              maxWidth={maximumWidth}
               sidebarLayoutRef={sidebarLayoutRef}
               shellRef={shellRef}
               onResize={onResize}

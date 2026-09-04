@@ -53,6 +53,7 @@ import { WorkbenchSidebar } from "./workbench-sidebar";
 import { useSidebarSettingsHydration } from "./use-sidebar-settings-hydration";
 import { SidebarDragSessionProvider } from "../hooks/use-sidebar-pointer-reorder";
 import { WorkbenchDomIdsProvider } from "../dom";
+import { observeWindowResize } from "./window-resize";
 
 export type { WorkbenchInstallationEffectsProps } from "./workbench-global-layer";
 
@@ -85,7 +86,6 @@ export function WorkbenchShell({
 }: Readonly<WorkbenchShellProps>) {
   const settings = useWorkbenchSettingsService();
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH);
-  const [maximumSidebarWidth, setMaximumSidebarWidth] = useState(MAX_SIDEBAR_WIDTH);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarAutoCollapsed, setSidebarAutoCollapsed] = useState(false);
   const [sidebarAutoCollapseSuppressed, setSidebarAutoCollapseSuppressed] = useState(false);
@@ -128,19 +128,7 @@ export function WorkbenchShell({
   useLayoutEffect(() => {
     const shell = shellRef.current;
     if (!shell) return;
-
-    const update = () => {
-      const nextMaximum = Math.max(
-        MIN_SIDEBAR_WIDTH,
-        Math.min(MAX_SIDEBAR_WIDTH, Math.floor(shell.clientWidth / 2)),
-      );
-      setMaximumSidebarWidth((current) => (current === nextMaximum ? current : nextMaximum));
-    };
-
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(shell);
-    return () => observer.disconnect();
+    return observeWindowResize(shell);
   }, []);
 
   useLayoutEffect(() => {
@@ -318,10 +306,6 @@ export function WorkbenchShell({
                         ? THREAD_CONTENT_COMPACT_GUTTER_PX
                         : THREAD_CONTENT_INDEX_GUTTER_PX
                     }px`,
-                    "--desktop-window-controls-inset-end":
-                      "calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw))",
-                    "--right-workspace-toggle-inset-end":
-                      "calc(0.75rem + var(--desktop-window-controls-inset-end))",
                     "--right-workspace-toggle-reserved-width": rightWorkspaceVisible
                       ? "calc(var(--control-hit-default) + 0.125rem)"
                       : "0px",
@@ -337,7 +321,7 @@ export function WorkbenchShell({
                   <WorkbenchSidebar
                     width={sidebarWidth}
                     minWidth={MIN_SIDEBAR_WIDTH}
-                    maxWidth={maximumSidebarWidth}
+                    maxWidth={MAX_SIDEBAR_WIDTH}
                     shellRef={shellRef}
                     onResize={resizeSidebar}
                   />

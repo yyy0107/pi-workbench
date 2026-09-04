@@ -43,13 +43,12 @@ export function RightWorkspace() {
   useLayoutEffect(() => {
     const update = () => setMaximum(workspaceMaximum(workspaceLayoutRef.current));
     update();
-    window.addEventListener("resize", update);
+    // The parent observer already covers native resizing, after layout is available.
     const parent = workspaceLayoutRef.current?.parentElement;
     const observer = parent ? new ResizeObserver(update) : undefined;
     if (parent) observer?.observe(parent);
     return () => {
       observer?.disconnect();
-      window.removeEventListener("resize", update);
     };
   }, []);
 
