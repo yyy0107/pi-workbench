@@ -1,6 +1,16 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { lstat, mkdtemp, mkdir, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
+import {
+  lstat,
+  mkdtemp,
+  mkdir,
+  readFile,
+  readdir,
+  realpath,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -1257,6 +1267,61 @@ test("removes only unoptimized image optimizer aliases before strict pnpm reacha
       "utf8",
     ),
     '{"name":"next","version":"fixture"}\n',
+  );
+});
+
+test("restores a traced pnpm owner omitted from the standalone tree", async (t) => {
+  const repositoryRoot = await mkdtemp(path.join(os.tmpdir(), "workbench-web-missing-owner-"));
+  t.after(() => rm(repositoryRoot, { force: true, recursive: true }));
+  const fixture = await createWebFixture(repositoryRoot);
+  const coreOwner = "node_modules/.pnpm/@shikijs+core@3.23.0/node_modules/@shikijs/core";
+  const typesOwner = "node_modules/.pnpm/@shikijs+types@3.23.0/node_modules/@shikijs/types";
+  const typesLink = path.join(
+    fixture.standaloneRoot,
+    "node_modules",
+    ".pnpm",
+    "@shikijs+core@3.23.0",
+    "node_modules",
+    "@shikijs",
+    "types",
+  );
+  await Promise.all([
+    writeFixtureFile(
+      fixture.standaloneRoot,
+      `${coreOwner}/package.json`,
+      '{"name":"@shikijs/core"}\n',
+    ),
+    writeFixtureFile(
+      repositoryRoot,
+      `${typesOwner}/dist/index.mjs`,
+      "export class ShikiError {}\n",
+    ),
+  ]);
+  const coreAlias = path.join(fixture.standaloneRoot, "node_modules", "@shikijs", "core");
+  await mkdir(path.dirname(coreAlias), { recursive: true });
+  await symlink(
+    path.relative(path.dirname(coreAlias), path.join(fixture.standaloneRoot, coreOwner)),
+    coreAlias,
+    "dir",
+  );
+  await symlink(
+    path.relative(path.dirname(typesLink), path.join(fixture.standaloneRoot, typesOwner)),
+    typesLink,
+    "dir",
+  );
+
+  const artifact = await buildFixtureArtifact(fixture);
+
+  assert.equal(await realpath(typesLink), path.join(fixture.standaloneRoot, typesOwner));
+  assert.equal(
+    await readFile(path.join(artifact.artifactRoot, typesOwner, "dist", "index.mjs"), "utf8"),
+    "export class ShikiError {}\n",
+  );
+  assert.equal(
+    await realpath(
+      path.join(artifact.artifactRoot, path.relative(fixture.standaloneRoot, typesLink)),
+    ),
+    path.join(artifact.artifactRoot, typesOwner),
   );
 });
 

@@ -5,6 +5,7 @@ const {
   mkdtempSync,
   mkdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } = require("node:fs");
@@ -24,7 +25,7 @@ const {
 const TARGET = Object.freeze({ platform: "linux", arch: "x64" });
 
 function temporaryDirectory(t) {
-  const directory = mkdtempSync(path.join(os.tmpdir(), "workbench-native-helper-"));
+  const directory = realpathSync(mkdtempSync(path.join(os.tmpdir(), "workbench-native-helper-")));
   t.after(() => rmSync(directory, { force: true, recursive: true }));
   return directory;
 }

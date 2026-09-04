@@ -1,5 +1,12 @@
 const assert = require("node:assert/strict");
-const { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } = require("node:fs");
+const {
+  mkdtempSync,
+  mkdirSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
@@ -17,7 +24,9 @@ function writeFile(filename, contents = "") {
 }
 
 function fixture(t) {
-  const artifactRoot = mkdtempSync(path.join(os.tmpdir(), "workbench-web-next-runtime-"));
+  const artifactRoot = realpathSync(
+    mkdtempSync(path.join(os.tmpdir(), "workbench-web-next-runtime-")),
+  );
   t.after(() => rmSync(artifactRoot, { force: true, recursive: true }));
   const packageRoot = path.join(
     artifactRoot,

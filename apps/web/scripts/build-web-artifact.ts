@@ -406,25 +406,46 @@ async function visitLinks(
   }
 }
 
-/** Rebuilds copied standalone aliases as type-correct links to artifact-confined targets. */
-async function confineCopiedStandaloneLinks(
+/** Rebuilds standalone aliases as type-correct links to artifact-confined targets. */
+async function confineStandaloneLinks(
   repositoryRoot: string,
   standaloneRoot: string,
   artifactRoot: string,
 ): Promise<void> {
   const repositoryPnpmRoot = path.join(repositoryRoot, "node_modules", ".pnpm");
+  const standalonePnpmRoot = path.join(standaloneRoot, "node_modules", ".pnpm");
   const artifactPnpmRoot = path.join(artifactRoot, "node_modules", ".pnpm");
   await visitLinks(artifactRoot, async (artifactLink) => {
     const relativeLink = path.relative(artifactRoot, artifactLink);
     const sourceLink = path.join(standaloneRoot, relativeLink);
-    const sourceTarget = await realpath(sourceLink);
-    let artifactTarget: string;
-    if (isInside(standaloneRoot, sourceTarget)) {
-      artifactTarget = path.join(artifactRoot, path.relative(standaloneRoot, sourceTarget));
-    } else if (isInside(repositoryPnpmRoot, sourceTarget)) {
-      artifactTarget = path.join(artifactPnpmRoot, path.relative(repositoryPnpmRoot, sourceTarget));
-    } else {
-      throw new Error("Raw standalone symlink target is outside its admitted package roots.");
+    let sourceTarget: string;
+    let artifactTarget: string | undefined;
+    try {
+      sourceTarget = await realpath(sourceLink);
+    } catch {
+      const missingTarget = path.resolve(path.dirname(sourceLink), await readlink(sourceLink));
+      if (!isInside(standalonePnpmRoot, missingTarget)) {
+        throw new Error("Web artifact contains a broken symlink outside its pnpm store.");
+      }
+      const relativeTarget = path.relative(standalonePnpmRoot, missingTarget);
+      const canonicalRepositoryPnpmRoot = await realpath(repositoryPnpmRoot);
+      sourceTarget = await realpath(path.join(canonicalRepositoryPnpmRoot, relativeTarget));
+      if (!isInside(canonicalRepositoryPnpmRoot, sourceTarget)) {
+        throw new Error("Raw standalone pnpm link target escapes the repository store.");
+      }
+      artifactTarget = path.join(artifactPnpmRoot, relativeTarget);
+    }
+    if (!artifactTarget) {
+      if (isInside(standaloneRoot, sourceTarget)) {
+        artifactTarget = path.join(artifactRoot, path.relative(standaloneRoot, sourceTarget));
+      } else if (isInside(repositoryPnpmRoot, sourceTarget)) {
+        artifactTarget = path.join(
+          artifactPnpmRoot,
+          path.relative(repositoryPnpmRoot, sourceTarget),
+        );
+      } else {
+        throw new Error("Raw standalone symlink target is outside its admitted package roots.");
+      }
     }
     if (!isInside(artifactRoot, artifactTarget)) {
       throw new Error("Mapped standalone symlink target escapes the artifact root.");
@@ -2014,6 +2035,7 @@ export async function buildWebArtifact({
     paths: pathTools.createWorkbenchPaths({ repositoryRoot }),
     standaloneRoot,
   });
+  await confineStandaloneLinks(repositoryRoot, standaloneRoot, standaloneRoot);
   await assertNoBrokenLinks(standaloneRoot);
 
   const resolved = await publishWebArtifactTransaction({
@@ -2030,7 +2052,7 @@ export async function buildWebArtifact({
         recursive: true,
         verbatimSymlinks: true,
       });
-      await confineCopiedStandaloneLinks(repositoryRoot, standaloneRoot, temporaryRoot);
+      await confineStandaloneLinks(repositoryRoot, standaloneRoot, temporaryRoot);
       const appRoot = path.join(temporaryRoot, ...metadata.relativeAppDir.split("/"));
       await cp(publicRoot, path.join(appRoot, "public"), {
         dereference: false,
