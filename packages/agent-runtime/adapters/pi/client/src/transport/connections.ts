@@ -3,7 +3,10 @@ import type {
   PiEvent,
   PiRunTiming,
 } from "@workbench/agent-runtime-pi-protocol/messages";
-import { isSessionMessageDelta } from "@workbench/agent-runtime-pi-protocol/stream";
+import {
+  isSessionMessageChunkData,
+  isSessionMessageDelta,
+} from "@workbench/agent-runtime-pi-protocol/stream";
 import { parseAutomationSessionOrigin } from "@workbench/automation-contracts";
 import type {
   HostStreamPayload,
@@ -922,6 +925,34 @@ export class PiConnectionController {
         this.invalidateGeneration(generation, "mux", "error");
       } else if (result.kind === "event") {
         this.deliverSessionEvent(muxPayload.sessionId, result.event);
+      }
+      return;
+    }
+    if (
+      muxPayload.type === "session/event" &&
+      muxPayload.event.type === "message_update" &&
+      isSessionMessageChunkData(muxPayload.event.data)
+    ) {
+      const accumulator =
+        this.sessionMessageAccumulators.get(muxPayload.sessionId) ??
+        new SessionMessageAccumulator();
+      this.sessionMessageAccumulators.set(muxPayload.sessionId, accumulator);
+      const result = accumulator.applyChunk(
+        muxPayload.event.data,
+        muxPayload.event.seq,
+        muxPayload.event.time,
+      );
+      this.sessionWatermarks.set(
+        muxPayload.sessionId,
+        Math.max(this.sessionWatermarks.get(muxPayload.sessionId) ?? -1, muxPayload.event.seq),
+      );
+      if (result.kind === "gap") {
+        this.invalidateGeneration(generation, "mux", "error");
+      } else if (result.kind === "event") {
+        this.deliverSessionEvent(muxPayload.sessionId, {
+          ...result.event,
+          ...(muxPayload.runTiming === undefined ? {} : { runTiming: muxPayload.runTiming }),
+        });
       }
       return;
     }

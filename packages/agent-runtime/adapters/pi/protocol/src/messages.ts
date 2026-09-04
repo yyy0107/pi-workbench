@@ -192,6 +192,17 @@ export interface PiToolCallTiming {
   completedAt: number;
 }
 
+export interface PiActiveAssistantMessage {
+  message: PiAssistantMessage;
+  /** Stable id of the durable assistant `message_start` event. */
+  entryId: string;
+  startSeq: number;
+  lastSeq: number;
+  updatedAt: number;
+  firstTokenAt?: number;
+  rawToolArgsText?: Readonly<Record<string, string>>;
+}
+
 export interface PiSessionHistory {
   sessionId: string;
   context: {
@@ -201,6 +212,8 @@ export interface PiSessionHistory {
     entryCompletedAts?: Array<number | null>;
     entryFirstTokenAts?: Array<number | null>;
     toolTimings?: PiToolCallTiming[];
+    /** Materialized tail when durable chunks exist without a matching `message_end`. */
+    activeAssistant?: PiActiveAssistantMessage;
     thinkingLevel: string;
     model: { provider: string; modelId: string } | null;
   };

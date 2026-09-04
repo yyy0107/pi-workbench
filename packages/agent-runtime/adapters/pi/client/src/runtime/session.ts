@@ -912,13 +912,28 @@ export class PiClientSession implements ConversationSession {
       ...this.liveMessages,
       ...(this.streamingMessage ? [this.streamingMessage] : []),
     ];
+    const activeAssistant = history.context.activeAssistant;
+    const activeAssistantIsRunning = activeAssistant !== undefined && this.snapshotValue.isRunning;
+    let historyMessages = piHistoryToThreadMessages(
+      history,
+      this.messageTimingByTimestamp,
+      this.toolTimingById,
+      [...this.contextTracePromptParts.values()],
+    );
+    if (activeAssistant && !activeAssistantIsRunning) {
+      historyMessages.push(
+        piAssistantToThreadMessage(activeAssistant.message, activeAssistant.entryId, {
+          unfinished: true,
+          rawToolArgsText: activeAssistant.rawToolArgsText,
+          createdAt: activeAssistant.updatedAt,
+          eventSeq: activeAssistant.lastSeq,
+        }),
+      );
+      historyMessages = coalesceConsecutiveAssistantMessages(historyMessages);
+    }
     const projectedBaseMessages = mergePiContextTracePartsFromMessages(
       this.stabilizeAuthoritativeMessageIds(
-        this.mergeAttachmentRecognitionHistory(
-          piHistoryToThreadMessages(history, this.messageTimingByTimestamp, this.toolTimingById, [
-            ...this.contextTracePromptParts.values(),
-          ]),
-        ),
+        this.mergeAttachmentRecognitionHistory(historyMessages),
         baseMessageIdsAtStart,
       ),
       previousMessages,
@@ -941,11 +956,33 @@ export class PiClientSession implements ConversationSession {
       baseMessageIdsAtStart,
       preserveUnpersistedOptimisticUsers: preserveUnpersistedOptimisticTurn,
     });
+    if (
+      activeAssistantIsRunning &&
+      activeAssistant &&
+      this.streamingMessage === streamingMessageAtStart
+    ) {
+      let projected = piAssistantToThreadMessage(activeAssistant.message, activeAssistant.entryId, {
+        streaming: true,
+        rawToolArgsText: activeAssistant.rawToolArgsText,
+        createdAt: activeAssistant.updatedAt,
+        eventSeq: activeAssistant.lastSeq,
+      });
+      if (
+        streamingMessageAtStart?.role === "assistant" &&
+        sameAssistantResponse(streamingMessageAtStart, projected)
+      ) {
+        projected = { ...projected, id: streamingMessageAtStart.id };
+      }
+      this.streamingMessage = this.preserveActiveAssistantRecognition(projected);
+      this.activeAssistantMessageId = this.streamingMessage.id;
+      this.terminalResponseReceived = false;
+    }
     // Retain the in-memory placeholder while history has no completed copy. If journal history
     // wins the race against the event stream, let its authoritative response take over with the
     // aliased live id; keeping both copies would reshape Parts and remount the streaming text.
     if (
       this.streamingMessage === streamingMessageAtStart &&
+      !activeAssistantIsRunning &&
       (!preserveUnpersistedOptimisticTurn || authoritativeStreamingMessage)
     ) {
       this.streamingMessage = undefined;

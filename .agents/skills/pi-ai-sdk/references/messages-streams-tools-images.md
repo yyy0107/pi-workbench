@@ -84,12 +84,14 @@ type SessionMessageDelta = Exclude<PiMessagesEvent, { type: "start" | "done" | "
 Preserve the existing Workbench protocol:
 
 - `message_start` is the durable empty baseline.
-- `session/message-update` carries transient compact deltas with `streamId`, `revision`, and `startSeq`.
-- `session/message-snapshot` restores active materialized content plus raw partial tool JSON after reconnect.
+- canonical `message_update` carries packed durable deltas with a session `seq`, `streamId`, `startSeq`, and a contiguous `firstRevision..revision` range.
+- adjacent text, thinking, and tool-call argument fragments may be concatenated inside one chunk; apply the declared updates in order, then advance to its ending revision.
+- `session/message-snapshot` restores active materialized content plus raw partial tool JSON as a reconnect bootstrap optimization; journal replay remains authoritative.
 - durable `message_end` is the authoritative final correction.
 - revisions are monotonic within one stream generation; a gap invalidates that generation.
+- legacy transient `session/message-update` payloads remain a client-side rolling-upgrade input, not the current producer path.
 
-Do not substitute raw `AssistantMessageEvent` objects into this contract. Workbench validates the Pi Messages subset at the boundary and deliberately excludes terminal wire events from transient deltas.
+Do not substitute raw `AssistantMessageEvent` objects into this contract. Workbench validates the Pi Messages subset at the boundary and deliberately excludes terminal wire events from durable chunks.
 
 ## Handle tool calls
 

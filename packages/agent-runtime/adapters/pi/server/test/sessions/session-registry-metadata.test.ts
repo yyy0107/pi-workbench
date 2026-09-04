@@ -2985,7 +2985,7 @@ test("cold rename publishes its canonical event and retains the same lastSeq", a
   assert.equal(retained.payload.lastSeq, seq);
 });
 
-test("keeps legacy updates cumulative while mux deltas and the durable journal stay linear", async (t) => {
+test("packs assistant deltas into durable linear-size chunks while legacy updates stay cumulative", async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), "workbench-transient-message-updates-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
@@ -3082,6 +3082,7 @@ test("keeps legacy updates cumulative while mux deltas and the durable journal s
       },
     });
   }
+  await new Promise((resolve) => setTimeout(resolve, 25));
 
   const activeReconnectFrames: ServerRequest<MuxStreamPayload>[] = [];
   const activeReconnect = hub.subscribe("mux", {
@@ -3113,19 +3114,20 @@ test("keeps legacy updates cumulative while mux deltas and the durable journal s
     durableEvents.map((event) => [event.seq, event.type]),
     [
       [0, "message_start"],
-      [1, "message_end"],
+      [1, "message_update"],
+      [2, "message_end"],
     ],
   );
-  assert.equal(host.currentSequence, 1);
-  assert.equal(host.canonicalEvents.length, 2);
+  assert.equal(host.currentSequence, 2);
+  assert.equal(host.canonicalEvents.length, 3);
   assert.equal(
     host.session.sessionManager
       .getBranch()
       .filter((entry) => entry.type === "custom" && entry.customType === SESSION_EVENT_CUSTOM_TYPE)
       .length,
-    2,
+    3,
   );
-  const completionData = durableEvents[1]?.data as {
+  const completionData = durableEvents[2]?.data as {
     workbenchTiming?: { firstTokenAt?: number };
   };
   assert.equal(typeof completionData.workbenchTiming?.firstTokenAt, "number");
@@ -3138,45 +3140,29 @@ test("keeps legacy updates cumulative while mux deltas and the durable journal s
   };
   assert.equal(lastLegacyMessage.content?.[0]?.text, text);
 
-  const transientFrames = muxFrames.filter(
-    (frame) => frame.payload.type === "session/message-update",
+  const chunkFrames = muxFrames.filter(
+    (frame) =>
+      frame.payload.type === "session/event" && frame.payload.event.type === "message_update",
   );
-  assert.equal(transientFrames.length, updateCount + 1);
-  const lastTransient = transientFrames.at(-1)?.payload;
-  assert.ok(lastTransient?.type === "session/message-update");
-  assert.equal(lastTransient.revision, updateCount + 1);
-  assert.equal(lastTransient.startSeq, 0);
-  assert.equal(lastTransient.format, "pi-messages-v1");
-  assert.equal(Object.hasOwn(lastTransient.message, "content"), false);
-  assert.deepEqual(lastTransient.update, {
-    type: "text_delta",
-    contentIndex: 0,
-    delta: chunk,
-  });
-  assert.ok(
-    transientFrames.every(
-      (frame) =>
-        frame.payload.type === "session/message-update" &&
-        frame.payload.streamId === lastTransient.streamId &&
-        !Object.hasOwn(frame.payload.message, "content") &&
-        !Object.hasOwn(frame.payload.update, "partial"),
-    ),
-  );
-  const frameSizes = transientFrames
-    .filter(
-      (frame) =>
-        frame.payload.type === "session/message-update" &&
-        frame.payload.update.type === "text_delta",
-    )
-    .map((frame) => Buffer.byteLength(JSON.stringify(frame.payload)));
-  assert.ok(Math.max(...frameSizes) - Math.min(...frameSizes) < 16);
-  const firstHalfBytes = frameSizes
-    .slice(0, updateCount / 2)
-    .reduce((total, size) => total + size, 0);
-  const secondHalfBytes = frameSizes
-    .slice(updateCount / 2)
-    .reduce((total, size) => total + size, 0);
-  assert.ok(secondHalfBytes <= firstHalfBytes * 1.05);
+  assert.equal(chunkFrames.length, 1);
+  const durableChunk = durableEvents[1]?.data as {
+    format?: string;
+    firstRevision?: number;
+    revision?: number;
+    startSeq?: number;
+    message?: Record<string, unknown>;
+    updates?: Array<{ type?: string; contentIndex?: number; delta?: string }>;
+  };
+  assert.equal(durableChunk.format, "pi-messages-v1");
+  assert.equal(durableChunk.firstRevision, 1);
+  assert.equal(durableChunk.revision, updateCount + 1);
+  assert.equal(durableChunk.startSeq, 0);
+  assert.equal(Object.hasOwn(durableChunk.message ?? {}, "content"), false);
+  assert.deepEqual(durableChunk.updates, [
+    { type: "text_start", contentIndex: 0 },
+    { type: "text_delta", contentIndex: 0, delta: chunk.repeat(updateCount) },
+  ]);
+  assert.ok(Buffer.byteLength(JSON.stringify(durableChunk)) < text.length + 1_024);
 
   const reconnectFrames: ServerRequest<MuxStreamPayload>[] = [];
   const reconnect = hub.subscribe("mux", {
@@ -3197,7 +3183,7 @@ test("keeps legacy updates cumulative while mux deltas and the durable journal s
     (frame) => frame.payload.type === "session/subscribed" && frame.payload.sessionId === host.id,
   );
   assert.ok(retained?.payload.type === "session/subscribed");
-  assert.equal(retained.payload.lastSeq, 1);
+  assert.equal(retained.payload.lastSeq, 2);
 
   const history = await getSessionHistory(host.id);
   assert.equal(history.context.messages.length, 1);
@@ -3244,6 +3230,7 @@ test("keeps legacy updates cumulative while mux deltas and the durable journal s
       partial: toolDeltaPartial,
     },
   });
+  await new Promise((resolve) => setTimeout(resolve, 25));
 
   const toolReconnectFrames: ServerRequest<MuxStreamPayload>[] = [];
   const toolReconnect = hub.subscribe("mux", {
@@ -3257,9 +3244,9 @@ test("keeps legacy updates cumulative while mux deltas and the durable journal s
       frame.payload.type === "session/message-snapshot" && frame.payload.sessionId === host.id,
   )?.payload;
   assert.ok(toolSnapshot?.type === "session/message-snapshot");
-  assert.notEqual(toolSnapshot.streamId, lastTransient.streamId);
+  assert.notEqual(toolSnapshot.streamId, activeSnapshot.streamId);
   assert.equal(toolSnapshot.revision, 2);
-  assert.equal(toolSnapshot.startSeq, 2);
+  assert.equal(toolSnapshot.startSeq, 3);
   assert.deepEqual(toolSnapshot.toolCallJson, { "0": '{"query":"hel' });
 
   await renameSession(host.id, "Renamed during tool stream");
@@ -3280,6 +3267,7 @@ test("keeps legacy updates cumulative while mux deltas and the durable journal s
       partial: toolCompletePartial,
     },
   });
+  await new Promise((resolve) => setTimeout(resolve, 25));
   const renamedReconnectFrames: ServerRequest<MuxStreamPayload>[] = [];
   const renamedReconnect = hub.subscribe("mux", {
     onFrame: (frame) => renamedReconnectFrames.push(frame),
@@ -3292,13 +3280,13 @@ test("keeps legacy updates cumulative while mux deltas and the durable journal s
       frame.payload.type === "session/message-snapshot" && frame.payload.sessionId === host.id,
   )?.payload;
   assert.ok(renamedSnapshot?.type === "session/message-snapshot");
-  assert.equal(renamedSnapshot.startSeq, 2);
+  assert.equal(renamedSnapshot.startSeq, 3);
   assert.equal(renamedSnapshot.revision, 3);
   const renamedWatermark = renamedReconnectFrames.find(
     (frame) => frame.payload.type === "session/subscribed" && frame.payload.sessionId === host.id,
   )?.payload;
   assert.ok(renamedWatermark?.type === "session/subscribed");
-  assert.equal(renamedWatermark.lastSeq, 3);
+  assert.equal(renamedWatermark.lastSeq, 6);
 
   await eventSink._handleAgentEvent({
     type: "message_update",

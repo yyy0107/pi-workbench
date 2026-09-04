@@ -59,6 +59,23 @@ export type SessionMessageDelta = Exclude<PiMessagesEvent, { type: "start" | "do
 
 export type SessionMessageMetadata = Omit<PiAssistantMessage, "content">;
 
+/** Compact assistant content persisted inside a canonical `message_update` SessionEvent. */
+export interface SessionMessageChunkData {
+  format: "pi-messages-v1";
+  /** Stable for one assistant generation; unrelated generations must never share an id. */
+  streamId: string;
+  /** First source revision represented by this packed chunk. */
+  firstRevision: number;
+  /** Last source revision represented by this packed chunk. */
+  revision: number;
+  /** Durable sequence of the matching assistant `message_start`. */
+  startSeq: number;
+  /** Latest message fields excluding cumulative content. */
+  message: SessionMessageMetadata;
+  /** Adjacent Pi content events, with text/tool fragments packed where possible. */
+  updates: SessionMessageDelta[];
+}
+
 interface SessionMessageStreamPayload {
   format: "pi-messages-v1";
   sessionId: string;
@@ -394,6 +411,55 @@ export function isSessionMessageDelta(value: unknown): value is SessionMessageDe
     default:
       return false;
   }
+}
+
+export function isSessionMessageChunkData(value: unknown): value is SessionMessageChunkData {
+  if (
+    !isRecord(value) ||
+    value.format !== "pi-messages-v1" ||
+    typeof value.streamId !== "string" ||
+    value.streamId.length === 0 ||
+    !Number.isInteger(value.firstRevision) ||
+    (value.firstRevision as number) < 1 ||
+    !Number.isInteger(value.revision) ||
+    (value.revision as number) < (value.firstRevision as number) ||
+    !Number.isInteger(value.startSeq) ||
+    (value.startSeq as number) < 0 ||
+    !isRecord(value.message) ||
+    value.message.role !== "assistant" ||
+    Object.hasOwn(value.message, "content") ||
+    !Array.isArray(value.updates) ||
+    value.updates.length === 0 ||
+    !value.updates.every(isSessionMessageDelta)
+  ) {
+    return false;
+  }
+  return true;
+}
+
+export function createSessionMessageChunkData(
+  streamId: string,
+  firstRevision: number,
+  revision: number,
+  startSeq: number,
+  message: SessionMessageMetadata,
+  updates: readonly SessionMessageDelta[],
+): SessionMessageChunkData {
+  const value: SessionMessageChunkData = {
+    format: "pi-messages-v1",
+    streamId,
+    firstRevision,
+    revision,
+    startSeq,
+    message,
+    updates: [...updates],
+  };
+  if (!isSessionMessageChunkData(value)) {
+    throw new TypeError(
+      "A durable assistant chunk must contain valid stream coordinates and updates.",
+    );
+  }
+  return value;
 }
 
 export function createSessionMessageUpdatePayload(

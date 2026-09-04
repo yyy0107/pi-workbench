@@ -2059,6 +2059,58 @@ test("keeps the optimistic assistant placeholder through a running history rebas
   );
 });
 
+test("restores a cold unfinished assistant from durable chunks", (t) => {
+  const manager = new PiSessionManager();
+  t.after(() => manager.dispose());
+  const session = manager.getSession("local-session", "remote-session");
+  const history: SessionHistoryValue = {
+    events: [
+      {
+        event: {
+          type: "message_start",
+          seq: 7,
+          time: 1_000,
+          entryId: "assistant-start",
+          data: { message: { role: "assistant", content: [], stopReason: "pending" } },
+        },
+      },
+      {
+        event: {
+          type: "message_update",
+          seq: 8,
+          time: 1_010,
+          data: {
+            format: "pi-messages-v1",
+            streamId: "stream-1",
+            firstRevision: 1,
+            revision: 2,
+            startSeq: 7,
+            message: { role: "assistant", stopReason: "pending" },
+            updates: [
+              { type: "text_start", contentIndex: 0 },
+              { type: "text_delta", contentIndex: 0, delta: "Recovered" },
+            ],
+          },
+        },
+      },
+    ],
+    hasMore: false,
+  };
+
+  (
+    session as unknown as { applyHistory(value: SessionHistoryValue, remoteId: string): void }
+  ).applyHistory(history, "remote-session");
+
+  const [message] = session.getSnapshot().messages;
+  assert.equal(message?.id, "assistant-start");
+  assert.deepEqual(message?.status, { type: "incomplete", reason: "other" });
+  assert.equal(
+    message?.content[0]?.type === "text" ? message.content[0].text : undefined,
+    "Recovered",
+  );
+  assert.equal(message?.metadata.custom.piEventSeq, 8);
+});
+
 test("keeps the optimistic turn ids when history persists the running user message", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => {

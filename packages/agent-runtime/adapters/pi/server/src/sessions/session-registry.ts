@@ -99,9 +99,9 @@ import {
   copyPiAssistantMessage,
 } from "@workbench/agent-runtime-pi-shared/messages";
 import {
+  createSessionMessageChunkData,
   createSessionEventPayload,
   createSessionMessageSnapshotPayload,
-  createSessionMessageUpdatePayload,
   type SessionMessageDelta,
   type SessionMessageMetadata,
 } from "@workbench/agent-runtime-pi-protocol/stream";
@@ -179,6 +179,7 @@ import { resolveInitialSessionModel } from "./session-initial-model";
 export { PiServerError } from "../core/errors";
 
 const SESSION_IDLE_TIMEOUT_MS = 10 * 60 * 1000;
+const ASSISTANT_CHUNK_FLUSH_MS = 16;
 export const SCRATCH_SESSION_TTL_MS = 24 * 60 * 60 * 1000;
 const SCRATCH_EXPIRY_BUSY_RETRY_MS = 60 * 1000;
 const TOOL_TIMING_CUSTOM_TYPE = "workbench.tool-timing.v1";
@@ -217,6 +218,13 @@ interface ActiveAssistantStream {
   revision: number;
   message: PiAssistantMessage;
   toolCallJson: Map<number, string>;
+  pendingChunk?: {
+    firstRevision: number;
+    updates: SessionMessageDelta[];
+    message: SessionMessageMetadata;
+    time: number;
+  };
+  flushTimer?: ReturnType<typeof setTimeout>;
 }
 
 interface ReadonlyPromptQueueSnapshot {
@@ -390,6 +398,25 @@ export function compactAssistantMessageUpdate(event: PiEvent): SessionMessageDel
     default:
       return undefined;
   }
+}
+
+function appendPackedAssistantUpdate(
+  updates: SessionMessageDelta[],
+  update: SessionMessageDelta,
+): void {
+  const previous = updates.at(-1);
+  if (
+    previous &&
+    (update.type === "text_delta" ||
+      update.type === "thinking_delta" ||
+      update.type === "toolcall_delta") &&
+    previous.type === update.type &&
+    previous.contentIndex === update.contentIndex
+  ) {
+    previous.delta += update.delta;
+    return;
+  }
+  updates.push(update);
 }
 
 function commandArgumentText(
@@ -1448,10 +1475,86 @@ class HostedPiSession {
     const stream = this.activeAssistantStream;
     this.activeAssistantStream = undefined;
     if (!stream) return;
+    if (stream.flushTimer) clearTimeout(stream.flushTimer);
     try {
       getStreamHub().clearSessionMessageSnapshot(this.id, stream.id);
     } catch {
       // A reconnect without the stale snapshot still converges through durable history.
+    }
+  }
+
+  private appendCanonicalEvent(sourceEvent: PiEvent, time: number): SessionEvent | undefined {
+    let canonical: SessionEvent;
+    try {
+      canonical = createCanonicalSessionEvent(sourceEvent, this.sequence + 1, time);
+    } catch (error) {
+      this.reportJournalFailure(error);
+      return undefined;
+    }
+    if (!this.journalWritable) return undefined;
+
+    try {
+      canonical = appendSessionEventJournal(this.session.sessionManager, canonical);
+    } catch (error) {
+      // SessionManager mutates its in-memory branch before attempting the filesystem append.
+      // Freeze the canonical prefix so this process cannot allocate a duplicate sequence.
+      this.journalWritable = false;
+      this.reportJournalFailure(error);
+      return undefined;
+    }
+
+    this.sequence = canonical.seq;
+    this.canonicalEventsValue.push(canonical);
+    return canonical;
+  }
+
+  private flushAssistantMessageChunk(stream = this.activeAssistantStream): void {
+    if (!stream) return;
+    if (stream.flushTimer) clearTimeout(stream.flushTimer);
+    stream.flushTimer = undefined;
+    const pending = stream.pendingChunk;
+    stream.pendingChunk = undefined;
+    if (!pending || !this.journalWritable) return;
+
+    let chunk: ReturnType<typeof createSessionMessageChunkData>;
+    try {
+      chunk = createSessionMessageChunkData(
+        stream.id,
+        pending.firstRevision,
+        stream.revision,
+        stream.startSeq,
+        pending.message,
+        pending.updates,
+      );
+    } catch (error) {
+      this.reportJournalFailure(error);
+      return;
+    }
+    const canonical = this.appendCanonicalEvent({ type: "message_update", ...chunk }, pending.time);
+    if (!canonical) return;
+
+    const toolCallJson =
+      stream.toolCallJson.size === 0
+        ? undefined
+        : Object.fromEntries(
+            [...stream.toolCallJson].map(([contentIndex, json]) => [String(contentIndex), json]),
+          );
+    try {
+      const hub = getStreamHub();
+      hub.setSessionMessageSnapshot(
+        createSessionMessageSnapshotPayload(
+          this.id,
+          stream.id,
+          stream.revision,
+          stream.startSeq,
+          pending.time,
+          stream.message,
+          toolCallJson,
+        ),
+      );
+      hub.publishMux(createSessionEventPayload(this.id, canonical, this.runTiming));
+    } catch {
+      // The persisted chunk remains recoverable through session.history after reconnect.
     }
   }
 
@@ -1466,51 +1569,31 @@ class HostedPiSession {
       this.beginAssistantMessageStream(event.message, this.sequence, time);
     if (!stream) return;
     const update = compactAssistantMessageUpdate(event);
-    const revision = ++stream.revision;
-    stream.message = {
+    if (!update) return;
+    const message: PiAssistantMessage = {
       ...stream.message,
       ...metadata,
       role: "assistant",
       content: stream.message.content,
     };
-    const nextMessage = update
-      ? applySessionMessageDelta(stream.message, stream.toolCallJson, update)
-      : undefined;
-    stream.message = nextMessage ?? copyPiAssistantMessage(event.message as PiAssistantMessage);
-    const toolCallJson =
-      stream.toolCallJson.size === 0
-        ? undefined
-        : Object.fromEntries(
-            [...stream.toolCallJson].map(([contentIndex, json]) => [String(contentIndex), json]),
-          );
-    const snapshot = createSessionMessageSnapshotPayload(
-      this.id,
-      stream.id,
-      revision,
-      stream.startSeq,
+    const nextMessage = applySessionMessageDelta(message, stream.toolCallJson, update);
+    if (!nextMessage) return;
+
+    stream.message = nextMessage;
+    const revision = ++stream.revision;
+    stream.pendingChunk ??= {
+      firstRevision: revision,
+      updates: [],
+      message: metadata,
       time,
-      stream.message,
-      toolCallJson,
+    };
+    appendPackedAssistantUpdate(stream.pendingChunk.updates, update);
+    stream.pendingChunk.message = metadata;
+    stream.pendingChunk.time = time;
+    stream.flushTimer ??= setTimeout(
+      () => this.flushAssistantMessageChunk(stream),
+      ASSISTANT_CHUNK_FLUSH_MS,
     );
-    try {
-      const hub = getStreamHub();
-      hub.setSessionMessageSnapshot(snapshot);
-      hub.publishMux(
-        update !== undefined && nextMessage !== undefined
-          ? createSessionMessageUpdatePayload(
-              this.id,
-              stream.id,
-              revision,
-              stream.startSeq,
-              time,
-              metadata,
-              update,
-            )
-          : snapshot,
-      );
-    } catch {
-      // A malformed/failed transient frame is repaired by the retained snapshot or message_end.
-    }
   }
 
   private publish(sourceEvent: PiEvent, time = Date.now()): void {
@@ -1531,39 +1614,16 @@ class HostedPiSession {
       this.publishMessageUpdate(event, time);
       return;
     }
+    this.flushAssistantMessageChunk();
     const endsAssistantStream =
       event.type === "agent_settled" ||
       (event.type === "message_end" && assistantMessageMetadata(event.message) !== undefined);
-    let canonical: SessionEvent;
-    try {
-      canonical = createCanonicalSessionEvent(event, this.sequence + 1, time);
-    } catch (error) {
+    const canonical = this.appendCanonicalEvent(event, time);
+    if (!canonical) {
       if (endsAssistantStream) this.clearAssistantMessageStream();
-      this.reportJournalFailure(error);
+      this.notifyLegacyListeners(event);
       return;
     }
-
-    if (!this.journalWritable) {
-      if (endsAssistantStream) this.clearAssistantMessageStream();
-      this.notifyLegacyListeners(this.legacyEvent(canonical, false));
-      return;
-    }
-
-    try {
-      canonical = appendSessionEventJournal(this.session.sessionManager, canonical);
-    } catch (error) {
-      // SessionManager mutates its in-memory branch before attempting the filesystem append.
-      // Freeze the canonical prefix after a failed append so history and mux cannot allocate a
-      // duplicate sequence in this process. Legacy listeners remain usable without a sequence.
-      this.journalWritable = false;
-      if (endsAssistantStream) this.clearAssistantMessageStream();
-      this.reportJournalFailure(error);
-      this.notifyLegacyListeners(this.legacyEvent(canonical, false));
-      return;
-    }
-
-    this.sequence = canonical.seq;
-    this.canonicalEventsValue.push(canonical);
     const canonicalData = isRecord(canonical.data) ? canonical.data : undefined;
     const canonicalMessage = canonicalData?.message;
     const canonicalAssistantMetadata = assistantMessageMetadata(canonicalMessage);
@@ -3370,6 +3430,7 @@ class HostedPiSession {
     } catch {
       // Disposal below remains authoritative.
     }
+    this.flushAssistantMessageChunk();
     this.clearAssistantMessageStream();
     this.unsubscribeAgent();
     this.listeners.clear();

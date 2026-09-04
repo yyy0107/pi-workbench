@@ -4,6 +4,7 @@ import {
   copyPiAssistantMessage,
 } from "@workbench/agent-runtime-pi-shared/messages";
 import type {
+  SessionMessageChunkData,
   SessionMessageSnapshotPayload,
   SessionMessageUpdatePayload,
 } from "@workbench/agent-runtime-pi-protocol/stream";
@@ -36,7 +37,11 @@ function toolCallJsonFromSnapshot(value: Record<string, string> | undefined): Ma
   return result;
 }
 
-function transientEvent(state: ActiveMessageState, kind: "delta" | "snapshot"): PiEvent {
+function materializedEvent(
+  state: ActiveMessageState,
+  kind: "chunk" | "delta" | "snapshot",
+  sequence?: number,
+): PiEvent {
   const rawToolArgsText =
     state.toolCallJson.size === 0
       ? undefined
@@ -51,6 +56,7 @@ function transientEvent(state: ActiveMessageState, kind: "delta" | "snapshot"): 
     transientStreamId: state.streamId,
     transientRevision: state.revision,
     transientMessageStartSeq: state.startSeq,
+    ...(sequence === undefined ? {} : { sequence }),
     ...(rawToolArgsText === undefined ? {} : { rawToolArgsText }),
   };
 }
@@ -91,7 +97,7 @@ export class SessionMessageAccumulator {
       toolCallJson: toolCallJsonFromSnapshot(payload.toolCallJson),
       time: payload.time,
     };
-    return { kind: "event", event: transientEvent(this.state, "snapshot") };
+    return { kind: "event", event: materializedEvent(this.state, "snapshot") };
   }
 
   applyUpdate(payload: SessionMessageUpdatePayload): SessionMessageApplyResult {
@@ -139,12 +145,70 @@ export class SessionMessageAccumulator {
     state.message = nextMessage;
     state.revision = payload.revision;
     state.time = payload.time;
-    return { kind: "event", event: transientEvent(state, "delta") };
+    return { kind: "event", event: materializedEvent(state, "delta") };
+  }
+
+  applyChunk(
+    chunk: SessionMessageChunkData,
+    sequence: number,
+    time: number,
+  ): SessionMessageApplyResult {
+    let state = this.state;
+    if (!state) {
+      if (chunk.firstRevision !== 1) return { kind: "gap" };
+      state = {
+        streamId: chunk.streamId,
+        startSeq: chunk.startSeq,
+        revision: 0,
+        synchronized: true,
+        message: { ...chunk.message, role: "assistant", content: [] },
+        toolCallJson: new Map(),
+        time,
+      };
+      this.state = state;
+    } else if (state.streamId === undefined) {
+      if (state.startSeq !== chunk.startSeq || chunk.firstRevision !== 1) {
+        state.synchronized = false;
+        return { kind: "gap" };
+      }
+      state.streamId = chunk.streamId;
+    } else if (state.streamId !== chunk.streamId || state.startSeq !== chunk.startSeq) {
+      return { kind: "ignored" };
+    }
+
+    if (!state.synchronized) return { kind: "ignored" };
+    if (chunk.revision <= state.revision) {
+      state.time = time;
+      return { kind: "event", event: materializedEvent(state, "chunk", sequence) };
+    }
+    if (chunk.firstRevision !== state.revision + 1) {
+      state.synchronized = false;
+      return { kind: "gap" };
+    }
+
+    let message: PiAssistantMessage = {
+      ...state.message,
+      ...chunk.message,
+      role: "assistant",
+      content: state.message.content,
+    };
+    for (const update of chunk.updates) {
+      const next = applySessionMessageDelta(message, state.toolCallJson, update);
+      if (!next) {
+        state.synchronized = false;
+        return { kind: "gap" };
+      }
+      message = next;
+    }
+    state.message = message;
+    state.revision = chunk.revision;
+    state.time = time;
+    return { kind: "event", event: materializedEvent(state, "chunk", sequence) };
   }
 
   currentEvent(): PiEvent | undefined {
     const state = this.state;
-    return state?.streamId && state.synchronized ? transientEvent(state, "snapshot") : undefined;
+    return state?.streamId && state.synchronized ? materializedEvent(state, "snapshot") : undefined;
   }
 
   reset(): void {

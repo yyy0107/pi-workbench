@@ -1,6 +1,6 @@
 # Workbench 移除 assistant-ui 与自有会话 Runtime 迁移计划
 
-状态：Phase 1–8 已完成；浏览器 Runtime 迁移已收口，Phase 9 durable chunk 为独立可选项目（2026-09-03）
+状态：Phase 1–9 已完成；浏览器 Runtime 迁移与 durable chunk 协议均已收口（2026-09-03）
 
 ## 0. 决策摘要
 
@@ -536,21 +536,22 @@ Notifier 必须先重建缓存 snapshot，再通知订阅者，保证 `useSyncEx
 
 初始窗口和每页大小作为 Pi Adapter 内部常量，只有出现真实配置需求时再公开设置。
 
-### 9.4 服务端 durable chunk 后续阶段
+### 9.4 服务端 durable chunk（已完成，2026-09-03）
 
-前端 Runtime 迁移初期继续使用现有 Pi `session/message-update` 和 reconnect snapshot，避免同时重写前端、
-协议和持久化。
+Phase 9 已在前端 Runtime 切换完成后独立实施：
 
-前端切换完成后，可独立评估：
+- `message_start` 继续作为空基线；后续 compact assistant chunk 以 canonical `message_update`
+  获得连续 session seq，并在发布 mux 前同步写入 Pi JSONL；
+- chunk 使用 `streamId + startSeq + firstRevision + revision` 定序，在 16 ms 窗口内打包相邻的
+  text、reasoning 和 tool-args fragment，只重复固定大小的 message metadata；
+- `session.history` 会重放 chunk 并返回未完成 assistant 的物化尾部；浏览器以同一个 accumulator
+  处理 live、history 和 reconnect，按 seq/revision 去重并在 gap 时重新读取 durable history；
+- Hub snapshot 只保留为连接 bootstrap 的快速基线，不再承担断线恢复的唯一正确性；
+- `message_end` 仍是最终完成态与 first-token timing 的权威校正；读取器继续兼容旧 JSONL 中的累计式
+  durable `message_update`，客户端也保留旧 transient `session/message-update` 的滚动升级读取能力。
 
-- 为每个 assistant chunk 分配连续 session seq；
-- 将 partial text/reasoning/tool args 纳入持久事件日志；
-- history 返回未完成生成；
-- reconnect 按 seq 重放；
-- 对相邻 chunk 打包或压缩；
-- 兼容旧 Pi JSONL 会话。
-
-这属于协议和存储迁移，不是删除 assistant-ui 的完成前置条件。
+该阶段没有引入第二份消息模型或新的存储文件，复用了现有 canonical session journal、Pi Messages delta
+reducer 和 Headless Runtime history/live 拼接路径。
 
 ## 10. React 绑定
 
@@ -1079,9 +1080,34 @@ rg '@assistant-ui|assistant-stream|useAui|AssistantRuntime' apps packages
   `@assistant-ui|assistant-stream|useAui|AssistantRuntime` 均为零命中，旧 `assistant-ui` 源码目录不存在；
 - 全仓 `pnpm check` 与 `pnpm build` 通过。
 
-### Phase 9：可选的 durable chunk 协议
+### Phase 9：durable chunk 协议（已完成，2026-09-03）
 
-Phase 8 完成后单独立项，不作为 UI Runtime 迁移的阻塞条件。
+本阶段在 Phase 8 后独立实施，没有成为 UI Runtime 迁移的阻塞条件。
+
+工作：
+
+- 定义可校验、无累计内容的 `SessionMessageChunkData`，复用 Pi Messages content-event 子集；
+- 服务端在短窗口内合并相邻 delta，把 canonical chunk 先写 session journal、再发布 mux；
+- 客户端复用一个 accumulator 处理 live chunk、reconnect snapshot 和 history replay；
+- 将未匹配 `message_end` 的持久 chunk 物化为 running 或 incomplete assistant 消息；
+- 保留旧累计式 JSONL 与旧 transient stream payload 的只读兼容。
+
+退出条件：
+
+- partial text、reasoning 和 tool arguments 都有 durable session seq，重启后可从 history 恢复；
+- reconnect snapshot 仅作为优化，缺失或过期时仍能按 journal seq 收敛；
+- revision gap 会触发连接代失效和 history rebaseline，不静默接受缺失内容；
+- 相邻 fragment 打包后的 journal 体积随输出线性增长；
+- 最终 `message_end`、旧 Pi JSONL、fork 和 branch 坐标语义保持兼容。
+
+完成记录：
+
+- 服务端将 16 ms 内的相邻 `text_delta`、`thinking_delta`、`toolcall_delta` 原地拼接，每个持久 chunk
+  只包含一次 metadata 与 revision 范围；写盘失败时冻结 canonical prefix，不发布不可恢复的 mux seq；
+- history adapter 能恢复未完成的文本、reasoning、工具调用和原始 partial JSON；活动会话投影为 running，
+  冷会话投影为 incomplete，正常 `message_end` 仍替换为最终消息；
+- transport 继续接受旧 `session/message-update`/snapshot，但当前服务端只通过 canonical
+  `session/event` 发布 live chunk；相关 protocol、server、history、accumulator 和 reconnect 测试已覆盖。
 
 ## 15. 迁移期间的规则
 
@@ -1209,5 +1235,5 @@ Phase 5 的 Composer、附件和消息 Actions。
 7. 现有用户可见聊天能力通过对应的自动化或针对性验证；
 8. package dependency boundary、Web build 和 Electron build 通过；
 9. 文档和架构图反映新 Runtime，不再把 assistant-ui 标为浏览器状态所有者；
-10. durable chunk 若尚未实施，被明确记录为独立后续项目，而不是隐藏在兼容层中；
+10. durable chunk 已作为独立 Phase 9 实施，canonical journal 是 partial assistant 的恢复事实源；
 11. assistant-ui 专属 Agent skills 已删除，保留 skills 中不存在指向已删除技能的路由。

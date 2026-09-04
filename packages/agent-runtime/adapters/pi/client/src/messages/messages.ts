@@ -785,8 +785,9 @@ function toolExecutionOutput(result: unknown): unknown {
   return candidate.details === undefined ? text : { text, details: candidate.details };
 }
 
-function assistantStatus(message: PiAssistantMessage, streaming: boolean) {
+function assistantStatus(message: PiAssistantMessage, streaming: boolean, unfinished: boolean) {
   if (streaming) return { type: "running" } as const;
+  if (unfinished) return { type: "incomplete", reason: "other" } as const;
   switch (message.stopReason) {
     case "aborted":
       return { type: "incomplete", reason: "cancelled" } as const;
@@ -863,6 +864,7 @@ export function piAssistantToThreadMessage(
   {
     optimistic = false,
     streaming = false,
+    unfinished = false,
     timing,
     toolTimingById,
     rawToolArgsText,
@@ -871,6 +873,7 @@ export function piAssistantToThreadMessage(
   }: Readonly<{
     optimistic?: boolean;
     streaming?: boolean;
+    unfinished?: boolean;
     timing?: MessageTiming;
     toolTimingById?: ReadonlyMap<string, ToolCallTiming>;
     rawToolArgsText?: Readonly<Record<string, string>>;
@@ -897,14 +900,22 @@ export function piAssistantToThreadMessage(
         return {
           type: "text" as const,
           text: part.text,
-          status: streaming ? ({ type: "running" } as const) : ({ type: "complete" } as const),
+          status: streaming
+            ? ({ type: "running" } as const)
+            : unfinished
+              ? ({ type: "incomplete", reason: "other" } as const)
+              : ({ type: "complete" } as const),
         };
       case "thinking":
         const providerMetadata = reasoningProviderMetadata(timing);
         return {
           type: "reasoning" as const,
           text: part.redacted ? "" : part.thinking,
-          status: streaming ? ({ type: "running" } as const) : ({ type: "complete" } as const),
+          status: streaming
+            ? ({ type: "running" } as const)
+            : unfinished
+              ? ({ type: "incomplete", reason: "other" } as const)
+              : ({ type: "complete" } as const),
           ...(providerMetadata === undefined ? {} : { providerMetadata }),
         };
       case "image":
@@ -943,7 +954,7 @@ export function piAssistantToThreadMessage(
     id,
     role: "assistant",
     content,
-    status: assistantStatus(message, streaming),
+    status: assistantStatus(message, streaming, unfinished),
     createdAt: messageDate(message.timestamp ?? createdAt, 0),
     metadata: {
       unstable_state: null,

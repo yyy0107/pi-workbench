@@ -418,7 +418,7 @@ test("routes canonical mux session frames to only the matching legacy listener",
   controller.dispose();
 });
 
-test("late session listeners receive the durable watermark before the active stream snapshot", async () => {
+test("late listeners continue a durable chunk stream from the retained snapshot", async () => {
   const sockets: FakeSocket[] = [];
   const events: PiEvent[] = [];
   const controller = new PiConnectionController({
@@ -476,30 +476,39 @@ test("late session listeners receive the durable watermark before the active str
 
   mux.message(
     serverFrame({
-      type: "session/message-update",
-      format: "pi-messages-v1",
+      type: "session/event",
       sessionId: "session-late",
-      streamId: "stream-late",
-      revision: 3,
-      startSeq: 7,
-      time: 125,
-      message: { role: "assistant" },
-      update: { type: "text_delta", contentIndex: 0, delta: " text" },
+      event: {
+        type: "message_update",
+        seq: 9,
+        time: 125,
+        data: {
+          format: "pi-messages-v1",
+          streamId: "stream-late",
+          firstRevision: 3,
+          revision: 3,
+          startSeq: 7,
+          message: { role: "assistant" },
+          updates: [{ type: "text_delta", contentIndex: 0, delta: " text" }],
+        },
+      },
     }),
   );
   const liveMessage = events.at(-1)?.message as
     | { content?: Array<{ type?: string; text?: string }> }
     | undefined;
   assert.equal(liveMessage?.content?.[0]?.text, "partial text");
+  assert.equal(events.at(-1)?.sequence, 9);
+  assert.equal(events.at(-1)?.transientKind, "chunk");
 
   mux.message(
     serverFrame({
       type: "session/event",
       sessionId: "session-late",
-      event: { type: "agent_settled", seq: 9, time: 126, data: {} },
+      event: { type: "agent_settled", seq: 10, time: 126, data: {} },
     }),
   );
-  assert.deepEqual(events.at(-1), { type: "agent_settled", sequence: 9, eventTime: 126 });
+  assert.deepEqual(events.at(-1), { type: "agent_settled", sequence: 10, eventTime: 126 });
   controller.dispose();
 });
 

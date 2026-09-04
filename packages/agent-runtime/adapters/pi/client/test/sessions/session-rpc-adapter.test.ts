@@ -169,6 +169,72 @@ test("restores time to first token from durable stream updates", () => {
   assert.equal(message?.metadata.custom.piEventSeq, 2);
 });
 
+test("materializes an unfinished assistant message from packed durable chunks", () => {
+  const history = piHistoryFromSessionEvents("s-1", {
+    events: [
+      {
+        event: {
+          type: "message_start",
+          seq: 4,
+          time: 1_000,
+          entryId: "assistant-start",
+          data: {
+            message: {
+              role: "assistant",
+              content: [],
+              model: "model-1",
+              stopReason: "pending",
+              timestamp: 1_000,
+            },
+          },
+        },
+      },
+      {
+        event: {
+          type: "message_update",
+          seq: 5,
+          time: 1_100,
+          data: {
+            format: "pi-messages-v1",
+            streamId: "stream-1",
+            firstRevision: 1,
+            revision: 4,
+            startSeq: 4,
+            message: { role: "assistant", model: "model-1", stopReason: "pending" },
+            updates: [
+              { type: "text_start", contentIndex: 0 },
+              { type: "text_delta", contentIndex: 0, delta: "partial" },
+              { type: "toolcall_start", contentIndex: 1, id: "tool-1", toolName: "read" },
+              { type: "toolcall_delta", contentIndex: 1, delta: '{"path":"/tmp/pa' },
+            ],
+          },
+        },
+      },
+    ],
+    hasMore: false,
+  });
+
+  assert.equal(history.context.messages.length, 0);
+  assert.deepEqual(history.context.activeAssistant, {
+    message: {
+      role: "assistant",
+      model: "model-1",
+      stopReason: "pending",
+      timestamp: 1_000,
+      content: [
+        { type: "text", text: "partial" },
+        { type: "toolCall", id: "tool-1", name: "read", arguments: { path: "/tmp/pa" } },
+      ],
+    },
+    entryId: "assistant-start",
+    startSeq: 4,
+    lastSeq: 5,
+    updatedAt: 1_100,
+    firstTokenAt: 1_100,
+    rawToolArgsText: { "1": '{"path":"/tmp/pa' },
+  });
+});
+
 test("restores time to first token from compact message completion timing", () => {
   const history = piHistoryFromSessionEvents("s-1", {
     events: [

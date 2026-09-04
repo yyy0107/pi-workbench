@@ -928,14 +928,16 @@ Pi 目前的 `before_provider_request` 是“逻辑 provider 请求”钩子：�
 `requestId` 误画成每次网络尝试。当前 scope 是 `agent-turn`；compaction/branch summary 或附件 OCR
 内部自行发起的辅助模型请求，并不保证经过这个 provider payload 钩子。
 
-token 级 `message_update` 是例外：它通过 `session/message-update` 作为无 durable `seq` 的
-transient compact delta 实时发送，不写 JSONL、不进入 canonical event cache，也不推进 reconnect
-watermark。delta 复用 `@earendil-works/pi-ai` 的 `PiMessagesEvent` 内容事件子集，并由固定的
-`streamId`、`message_start` durable `startSeq` 和 stream 内 revision 定序；payload 只重复不含
-`content` 的固定大小 message metadata。`message_start` 后会先保留 revision 0 的空基线，因此在首个
-token 到达前连接的客户端也能建立正确 stream。最终 durable `message_end` 仍是完成态的权威校正，首 token
-时间也只在 `message_end.data.workbenchTiming` 中持久化一次。旧 JSONL 中已经存在的 durable
-`message_update` 仍按原序列读取，以保持历史和 fork 坐标兼容。
+token 级 `message_update` 使用 canonical durable chunk：服务端在 16 ms 窗口内合并相邻的
+text/reasoning/tool-args fragment，将一个 `SessionMessageChunkData` 作为有连续 durable `seq` 的
+`message_update` 先写入 Pi JSONL，再通过 `session/event` 发布并推进 reconnect watermark。delta 复用
+`@earendil-works/pi-ai` 的 `PiMessagesEvent` 内容事件子集，并由固定的 `streamId`、`message_start`
+的 durable `startSeq`、`firstRevision` 和 `revision` 定序；payload 只重复不含 `content` 的固定大小
+message metadata。`message_start` 后仍会保留 revision 0 的空 snapshot，使首 token 前接入的客户端能快速
+建立 stream；snapshot 只是 bootstrap 优化，history 会从 journal 重放 chunk 并物化未完成 assistant。
+最终 durable `message_end` 仍是完成态的权威校正，首 token 时间也只在
+`message_end.data.workbenchTiming` 中持久化一次。旧 JSONL 中的累计式 durable `message_update` 继续按原
+序列读取；客户端也继续接受旧服务端的 transient `session/message-update`，用于滚动升级兼容。
 
 其他关键行为：
 
@@ -968,8 +970,7 @@ approval 的上行回答必须通过 `POST /api/respond`。
 
 `/api/events.mux` 当前承载：
 
-- canonical session event 和 session watermark；
-- 不参与 journal、durable sequence 或 reconnect watermark 的 transient `session/message-update`；
+- canonical session event（包括 durable packed `message_update`）和 session watermark；
 - 仅在连接 bootstrap 或 compact projector 自修复时出现的 `session/message-snapshot`；
 - `session.prompt` 真正接纳后的瞬时 `session/prompt-accepted` 确认；其 frame `rpcId` 与原 HTTP
   RPC 相同，并携带接纳后的运行态，但不重复传输 prompt 内容；
@@ -986,11 +987,13 @@ approval 的上行回答必须通过 `POST /api/respond`。
 直接应用会话创建、标题/消息元数据、运行、等待输入与归档增量。
 
 每个 active assistant stream 在 Hub 中只保留一份物化快照。Hub 在订阅调用栈内同步捕获 snapshot
-cut，随后按 `session/subscribed → session/message-snapshot → queue/interaction → cut 后 live delta`
-发送；客户端丢弃不高于 snapshot revision 的重复 delta，revision 缺口则废弃本代连接并通过新
-snapshot 恢复。snapshot 还携带尚未完成的 tool-call 原始 JSON buffer，因为已经解析的 arguments
-不能继续拼接后续 JSON fragment。durable `message_end`、branch reset 和 host shutdown 会清除该
-快照，避免重连复活已完成的 streaming row。bootstrap 缓冲上限为 10,000 帧；单 socket 待发送
+cut，随后按 `session/subscribed → session/message-snapshot → queue/interaction → cut 后 live canonical chunk`
+发送；客户端丢弃不高于 snapshot revision 的重复 chunk，revision 缺口则废弃本代连接并从 durable
+history 重新建立基线。snapshot 还携带尚未完成的 tool-call 原始 JSON buffer，因为已经解析的 arguments
+不能继续拼接后续 JSON fragment；它只缩短 bootstrap，不替代 journal 恢复。durable `message_end`、
+branch reset 和 host shutdown 会清除该快照，避免重连复活已完成的 streaming row。旧
+`session/message-update` payload 仍由客户端读取，但当前服务端不再生产。bootstrap 缓冲上限为
+10,000 帧；单 socket 待发送
 数据背压水位为 1 MiB。同步 bootstrap 或密集 live delta 短暂越过水位时，网关会在保持帧顺序的同时
 继续排空队列；只有队列连续 10 秒仍高于水位时才判定客户端未消费，避免把健康的瞬时突发误报为慢
 消费者，同时防止持续落后的连接无限占用内存。

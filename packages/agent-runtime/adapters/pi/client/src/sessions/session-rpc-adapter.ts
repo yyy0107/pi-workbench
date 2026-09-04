@@ -21,11 +21,13 @@ import type {
   SessionListItem,
   SessionPromptContent,
 } from "@workbench/agent-runtime-pi-protocol/rpc";
+import { isSessionMessageChunkData } from "@workbench/agent-runtime-pi-protocol/stream";
 import {
   conversationEventFromSessionEvent,
   modelChangeConversationEvent,
   piConversationEventMessage,
 } from "../messages/conversation-events";
+import { SessionMessageAccumulator } from "../transport/session-message-accumulator";
 
 export const WORKBENCH_SESSION_SUMMARY_PROJECTION = "workbench.piSessionSummary";
 
@@ -148,6 +150,8 @@ export function piHistoryFromSessionEvents(
   let assistantMessageActive = false;
   let assistantMessageStartedAt: number | undefined;
   let firstAssistantTokenAt: number | undefined;
+  let assistantAccumulator: SessionMessageAccumulator | undefined;
+  let activeAssistant: PiSessionHistory["context"]["activeAssistant"];
 
   const discardRetryingAssistant = () => {
     const userIndex = messages.findLastIndex((message) => message.role === "user");
@@ -174,6 +178,23 @@ export function piHistoryFromSessionEvents(
     entrySeqs.push(eventSeq ?? null);
     entryCompletedAts.push(completedAt);
     entryFirstTokenAts.push(firstTokenAt ?? null);
+  };
+
+  const finalizeInterruptedAssistant = () => {
+    if (activeAssistant?.message.content.length) {
+      pushMessage(
+        { ...activeAssistant.message, stopReason: "aborted" },
+        activeAssistant.entryId,
+        activeAssistant.updatedAt,
+        activeAssistant.firstTokenAt,
+        activeAssistant.lastSeq,
+      );
+    }
+    assistantAccumulator = undefined;
+    activeAssistant = undefined;
+    assistantMessageActive = false;
+    assistantMessageStartedAt = undefined;
+    firstAssistantTokenAt = undefined;
   };
 
   const pushConversationEvent = (
@@ -228,14 +249,55 @@ export function piHistoryFromSessionEvents(
 
     if (event.type === "message_start") {
       const startedMessage = piMessage(data?.message);
+      if (activeAssistant) finalizeInterruptedAssistant();
       assistantMessageActive = startedMessage?.role === "assistant";
       assistantMessageStartedAt = assistantMessageActive ? event.time : undefined;
       firstAssistantTokenAt = undefined;
+      if (startedMessage?.role === "assistant") {
+        assistantAccumulator = new SessionMessageAccumulator();
+        assistantAccumulator.start(startedMessage, event.seq, event.time);
+        activeAssistant = {
+          message: startedMessage,
+          entryId: eventId,
+          startSeq: event.seq,
+          lastSeq: event.seq,
+          updatedAt: event.time,
+        };
+      }
     } else if (
       event.type === "message_update" &&
       assistantMessageActive &&
-      firstAssistantTokenAt === undefined
+      isSessionMessageChunkData(event.data)
     ) {
+      const result = assistantAccumulator?.applyChunk(event.data, event.seq, event.time);
+      if (result?.kind === "event") {
+        const updatedMessage = piMessage(result.event.message);
+        if (updatedMessage?.role === "assistant" && activeAssistant) {
+          if (
+            firstAssistantTokenAt === undefined &&
+            (event.data.updates.some(
+              (update) =>
+                (update.type === "text_delta" || update.type === "thinking_delta") &&
+                update.delta.length > 0,
+            ) ||
+              assistantMessageHasOutput(updatedMessage))
+          ) {
+            firstAssistantTokenAt = event.time;
+          }
+          activeAssistant = {
+            ...activeAssistant,
+            message: updatedMessage,
+            lastSeq: event.seq,
+            updatedAt: event.time,
+            ...(firstAssistantTokenAt === undefined ? {} : { firstTokenAt: firstAssistantTokenAt }),
+            ...(result.event.rawToolArgsText === undefined
+              ? {}
+              : { rawToolArgsText: result.event.rawToolArgsText }),
+          };
+        }
+      }
+    } else if (event.type === "message_update" && assistantMessageActive) {
+      // Canonical journals written before durable chunks stored Pi's cumulative update event.
       const updatedMessage = piMessage(data?.message);
       const update = record(data?.assistantMessageEvent);
       const updateType = stringValue(update?.type);
@@ -243,8 +305,21 @@ export function piHistoryFromSessionEvents(
         (updateType === "text_delta" || updateType === "thinking_delta") &&
         typeof update?.delta === "string" &&
         update.delta.length > 0;
-      const hasCumulativeOutput = assistantMessageHasOutput(updatedMessage);
-      if (hasTextDelta || hasCumulativeOutput) firstAssistantTokenAt = event.time;
+      if (
+        firstAssistantTokenAt === undefined &&
+        (hasTextDelta || assistantMessageHasOutput(updatedMessage))
+      ) {
+        firstAssistantTokenAt = event.time;
+      }
+      if (updatedMessage?.role === "assistant" && activeAssistant) {
+        activeAssistant = {
+          ...activeAssistant,
+          message: updatedMessage,
+          lastSeq: event.seq,
+          updatedAt: event.time,
+          ...(firstAssistantTokenAt === undefined ? {} : { firstTokenAt: firstAssistantTokenAt }),
+        };
+      }
     }
 
     const conversationEvent = conversationEventFromSessionEvent(event.type, event.data);
@@ -328,6 +403,8 @@ export function piHistoryFromSessionEvents(
       event.type === "message_end" ? event.seq : undefined,
     );
     if (projectedMessage.role === "assistant") {
+      assistantAccumulator = undefined;
+      activeAssistant = undefined;
       assistantMessageActive = false;
       assistantMessageStartedAt = undefined;
       firstAssistantTokenAt = undefined;
@@ -343,6 +420,7 @@ export function piHistoryFromSessionEvents(
       entryCompletedAts,
       entryFirstTokenAts,
       toolTimings,
+      ...(activeAssistant === undefined ? {} : { activeAssistant }),
       thinkingLevel: "off",
       model: null,
     },
