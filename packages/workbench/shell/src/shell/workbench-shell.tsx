@@ -51,7 +51,7 @@ import {
 import { WorkbenchHeader } from "./workbench-header";
 import { WorkbenchSidebar } from "./workbench-sidebar";
 import { useSidebarSettingsHydration } from "./use-sidebar-settings-hydration";
-import { SidebarDragSessionProvider } from "../sidebar/sidebar-drag-session";
+import { SidebarDragSessionProvider } from "../hooks/use-sidebar-pointer-reorder";
 import { WorkbenchDomIdsProvider } from "../dom";
 
 export type { WorkbenchInstallationEffectsProps } from "./workbench-global-layer";

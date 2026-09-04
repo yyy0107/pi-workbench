@@ -273,6 +273,12 @@ export const workbenchEnUS = {
     automationsEmpty: "Automation content will appear here.",
     workspaceOptions: "Workspace options",
     conversationOptions: "Conversation options",
+    moveUp: "Move up",
+    moveDown: "Move down",
+    movePinFailed: "Could not change the pinned state. Try again.",
+    moveOrderFailed: "Could not save the new order. The last saved order has been restored.",
+    moveOrderFailedAfterPin:
+      "The pinned state was updated, but the new order could not be saved. Try sorting again.",
     openWorkspaceFolder: "Open containing folder",
     removeWorkspace: "Remove workspace",
     expandWorkspace: "Expand workspace",

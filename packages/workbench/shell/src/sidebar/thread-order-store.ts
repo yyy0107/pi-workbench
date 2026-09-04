@@ -8,7 +8,7 @@ import { useWorkbenchSettingsResource, type WorkbenchSettingsPort } from "../set
 
 export interface ThreadOrderState {
   readonly manualOrderByScope: Readonly<Record<string, readonly string[]>>;
-  setManualOrder(scope: string, threadIds: readonly string[]): void;
+  setManualOrder(scope: string, threadIds: readonly string[]): Promise<void>;
   hydrate(): Promise<void>;
 }
 
@@ -29,26 +29,36 @@ export function createThreadOrderStore(
   let hydrated = false;
   let localRevision = 0;
   let persistenceTail: Promise<void> = Promise.resolve();
+  const scopeRevisions = new Map<string, number>();
+  const confirmedOrders = new Map<string, readonly string[] | undefined>();
   let store: StoreApi<ThreadOrderState>;
 
-  const persistOrders = (orders: Readonly<Record<string, readonly string[]>>) => {
-    const localOrders = mutableOrders(orders);
+  const persistOrder = (scope: string, threadIds: readonly string[], revision: number) => {
     const operation = async () => {
       const preferences = await settings.load();
+      confirmedOrders.set(scope, preferences.sidebarThreadOrderByScope?.[scope]);
       await settings.update({
-        sidebarThreadOrderByScope: hydrated
-          ? localOrders
-          : {
-              ...preferences.sidebarThreadOrderByScope,
-              ...localOrders,
-            },
+        sidebarThreadOrderByScope: {
+          ...preferences.sidebarThreadOrderByScope,
+          [scope]: [...threadIds],
+        },
       });
+      confirmedOrders.set(scope, [...threadIds]);
     };
-    const result = persistenceTail.then(operation, operation);
+    const result = persistenceTail.then(operation).catch((error) => {
+      if (scopeRevisions.get(scope) === revision) {
+        store.setState((state) => {
+          const orders = { ...state.manualOrderByScope };
+          const confirmed = confirmedOrders.get(scope);
+          if (confirmed) orders[scope] = [...confirmed];
+          else delete orders[scope];
+          return { manualOrderByScope: orders };
+        });
+      }
+      throw error;
+    });
     persistenceTail = result.catch(() => undefined);
-    void result.catch((error) =>
-      console.error("[workbench] failed to persist sidebar conversation order", error),
-    );
+    return result;
   };
 
   const hydrate = (): Promise<void> => {
@@ -58,6 +68,9 @@ export function createThreadOrderStore(
       .load()
       .then((preferences) => {
         const persistedOrders = preferences.sidebarThreadOrderByScope ?? {};
+        for (const [scope, order] of Object.entries(persistedOrders)) {
+          if (!confirmedOrders.has(scope)) confirmedOrders.set(scope, [...order]);
+        }
         store.setState((state) => ({
           manualOrderByScope: {
             ...mutableOrders(persistedOrders),
@@ -76,15 +89,15 @@ export function createThreadOrderStore(
     manualOrderByScope: {},
     setManualOrder: (scope, threadIds) => {
       localRevision += 1;
-      let nextOrders: Readonly<Record<string, readonly string[]>> = {};
-      set((state) => {
-        nextOrders = {
+      const revision = (scopeRevisions.get(scope) ?? 0) + 1;
+      scopeRevisions.set(scope, revision);
+      set((state) => ({
+        manualOrderByScope: {
           ...state.manualOrderByScope,
           [scope]: [...threadIds],
-        };
-        return { manualOrderByScope: nextOrders };
-      });
-      persistOrders(nextOrders);
+        },
+      }));
+      return persistOrder(scope, [...threadIds], revision);
     },
     hydrate,
   }));
