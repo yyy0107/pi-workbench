@@ -88,15 +88,15 @@ Pi coding-agent SDK objects are Node/runtime objects. The browser should consume
 
 ```text
 React / assistant-ui
-  -> Pi adapter client manager
+  -> Pi Runtime client manager
   -> Workbench HTTP RPC or paired WebSocket streams
-  -> Pi adapter server service
+  -> Pi Runtime server service
   -> Pi AgentSession / ResourceLoader / extensions
 ```
 
 When a UI feature needs new Pi data:
 
-1. Find an existing unary method or stream event in `packages/agent-runtime/adapters/pi/README.md`.
+1. Find an existing unary method or stream event in `packages/agent-runtime/runtimes/pi/README.md`.
 2. Add a server adapter only when the current protocol lacks the capability.
 3. Define stable JSON-compatible fields in the owning Workbench contract.
 4. Keep Pi-specific classes, Maps, callbacks, error objects, credentials, and paths behind the server adapter.

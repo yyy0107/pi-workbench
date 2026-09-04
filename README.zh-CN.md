@@ -254,9 +254,14 @@ bootstrap 缺失、CSP 拒绝或 sidecar target mismatch 表示 artifacts 混用
 
 ## 架构
 
-浏览器与桌面应用通过两个 application root 复用同一 Workbench Shell 和 Pi client contributions。浏览器命令
+浏览器与桌面应用通过两个 application root 复用同一 Workbench Shell 和 Pi Runtime 实现。浏览器命令
 让带服务端的 Web Host 与 API-only Runtime 并列运行。Electron 加载已 admission 的静态 Desktop renderer
 artifact，自行拥有一个目标匹配的 Runtime process，并只向可信主窗口暴露窄 bootstrap 与生命周期重启能力。
+
+Shell 的通用工作区与会话功能消费 Workbench conversation projection 和可选能力；Core、Shell、
+Extension SDK/Host 不导入 Pi packages。[Pi 实现](./packages/agent-runtime/runtimes/pi/README.md)
+拥有 Pi 协议、事件投影和错误映射，其 contributions 只保留 Pi 配置、Toolbox、诊断、导入和 branding。
+应用组合根选择 Pi，并按既有顺序交错安装 Shell/Pi 扩展组。
 
 ```mermaid
 flowchart LR
@@ -294,7 +299,7 @@ Pi Workbench 当前包含三类扩展：
 
 - **内置 Workbench Extensions** 是由
   [`@workbench/shell`](./packages/workbench/shell/src/extensions/builtin/) 与已安装的
-  [Pi contribution leaf](./packages/agent-runtime/adapters/pi/contributions/src/extensions/) 拥有的静态 UI
+  [Pi contribution leaf](./packages/agent-runtime/runtimes/pi/contributions/src/extensions/) 拥有的静态 UI
   Contribution Bundles。
 - **可安装 Component Extensions** 是随应用 Catalog 提供的可信 UI Bundles，可以在运行时安装或
   移除，但代码仍在构建时随应用交付。当前 Catalog 包含 Generative UI。
@@ -316,7 +321,7 @@ Electron renderer 与原生权限隔离，但 Pi Tools 和终端进程通过本�
 `PI_WORKBENCH_TRUSTED_HOSTS` 只增加允许的请求 Authority，不提供认证或 TLS。Pi 会按目录保存项目
 资源信任。只有当前进程应该信任所有已导入项目时，才设置 `PI_WORKBENCH_TRUST_PROJECT=1`。
 
-实现细节见 [Pi Server adapter](./packages/agent-runtime/adapters/pi/server/README.md) 和
+实现细节见 [Pi Runtime server implementation](./packages/agent-runtime/runtimes/pi/server/README.md) 和
 [Terminal Runtime](./packages/terminal/README.md)。
 
 ## 仓库结构
@@ -331,7 +336,7 @@ Electron renderer 与原生权限隔离，但 Pi Tools 和终端进程通过本�
 | [`packages/workbench/shell/`](./packages/workbench/shell/)                                                                                                     | 可复用应用 Shell、聊天、工作区界面、共享 UI 与核心扩展                           |
 | [`packages/extension-platform/sdk/`](./packages/extension-platform/sdk/)                                                                                       | 无 Host 依赖的 Extension 契约、Authoring helper、Registries 和生命周期           |
 | [`packages/extension-platform/host/`](./packages/extension-platform/host/)                                                                                     | React Host Hook、Contribution Host 和应用注入的 Services                         |
-| [`packages/agent-runtime/adapters/pi/`](./packages/agent-runtime/adapters/pi/)                                                                                 | Pi protocol、共享类型、client/server adapters 与 UI contributions                |
+| [`packages/agent-runtime/runtimes/pi/`](./packages/agent-runtime/runtimes/pi/)                                                                                 | Pi protocol、共享类型、client/server implementations 与 UI contributions         |
 | [`packages/agent-runtime/core/client/`](./packages/agent-runtime/core/client/)、[`packages/agent-runtime/core/server/`](./packages/agent-runtime/core/server/) | 后端无关的浏览器与服务端 Agent Runtime 适配边界                                  |
 | [`packages/terminal/`](./packages/terminal/)                                                                                                                   | Terminal contracts、client helpers、PTY、Pi tool adapter 与 WebSocket Gateway    |
 
@@ -356,7 +361,7 @@ pnpm build
 - [RightWorkspace 架构](./docs/right-workspace.md)
 - [浏览器侧 Agent Runtime Adapter](./packages/agent-runtime/core/client/README.md)
 - [服务端 Agent Runtime Ports](./packages/agent-runtime/core/server/README.md)
-- [Pi Server adapter](./packages/agent-runtime/adapters/pi/server/README.md)
+- [Pi Runtime server implementation](./packages/agent-runtime/runtimes/pi/server/README.md)
 - [Terminal Runtime](./packages/terminal/README.md)
 
 ## 开源协议

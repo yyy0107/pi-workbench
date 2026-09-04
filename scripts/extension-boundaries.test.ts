@@ -9,7 +9,7 @@ const SHELL_SOURCE_ROOT = resolve(PROJECT_ROOT, "packages/workbench/shell/src");
 const SHELL_BUILTIN_ROOT = resolve(SHELL_SOURCE_ROOT, "extensions/builtin");
 const PI_BUILTIN_ROOT = resolve(
   PROJECT_ROOT,
-  "packages/agent-runtime/adapters/pi/contributions/src/extensions",
+  "packages/agent-runtime/runtimes/pi/contributions/src/extensions",
 );
 const BUILTIN_ROOTS = [SHELL_BUILTIN_ROOT, PI_BUILTIN_ROOT];
 const SHARED_BUILTIN_TARGETS = new Set([resolve(PI_BUILTIN_ROOT, "project-trust-dialog-copy")]);

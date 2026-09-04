@@ -3,7 +3,7 @@ import type { WorkbenchAgentServerAdapter } from "@workbench/agent-runtime-serve
 import {
   bindPiAgentHostBindings,
   CommandService,
-  createPiAgentServerAdapter,
+  createPiAgentServerImplementation,
   shutdownPiPackageCatalogService,
   type PiAgentHostBindings,
 } from "@workbench/agent-runtime-pi-server/installation";
@@ -156,7 +156,7 @@ function createInstalledPiAgentHostBindings(): PiAgentHostBindings {
 
 function createInstalledPiServer(host: PiAgentHostBindings): InstalledPiServerState {
   const commands = new CommandService();
-  const agent = createPiAgentServerAdapter({ commands, host });
+  const agent = createPiAgentServerImplementation({ commands, host });
   const automation = getInstalledPiAutomationService({ agentExecution: agent.execution });
   const routeGroups = createDefaultPiRpcRouteGroups({
     agent,

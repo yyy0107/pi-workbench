@@ -2,6 +2,7 @@ export {
   shellBuiltinExtensions,
   shellCoreExtensions,
   shellExtensionGroups,
+  shellFileExtensions,
   shellSettingsExtensions,
   shellWorkspaceExtensions,
 } from "./builtin-extensions";

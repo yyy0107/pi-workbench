@@ -12,7 +12,7 @@ const SOURCE_ROOTS = [
   "apps/runtime-node/scripts",
   "apps/runtime-node/src",
   "apps/web/src",
-  "packages/agent-runtime/adapters/pi/contributions/src",
+  "packages/agent-runtime/runtimes/pi/contributions/src",
   "packages/workbench/shell/src",
   "runtime",
 ];
@@ -26,7 +26,7 @@ const COMPOSITION_ROOTS = [
 ];
 const RUNTIME_GRAPH_IDENTIFIERS = [
   "createDefaultPiRpcRouteGroups",
-  "createPiAgentServerAdapter",
+  "createPiAgentServerImplementation",
   "createPiRpcRouter",
   "createPiRuntimeApiRouter",
   "createPiRuntimeHttpRouter",

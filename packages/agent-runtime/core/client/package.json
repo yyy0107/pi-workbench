@@ -19,6 +19,11 @@
       "import": "./src/agent-runtime-context.tsx",
       "default": "./src/agent-runtime-context.tsx"
     },
+    "./capabilities": {
+      "types": "./src/capabilities.ts",
+      "import": "./src/capabilities.ts",
+      "default": "./src/capabilities.ts"
+    },
     "./installation": {
       "types": "./src/agent-runtime-installation.tsx",
       "import": "./src/agent-runtime-installation.tsx",
@@ -52,7 +57,10 @@
   "dependencies": {
     "@workbench/agent-runtime-contracts": "workspace:*",
     "@workbench/agent-runtime-core": "workspace:*",
+    "@workbench/attachment-understanding-contracts": "workspace:*",
     "@workbench/automation-contracts": "workspace:*",
+    "@workbench/contracts": "workspace:*",
+    "@workbench/host-contracts": "workspace:*",
     "use-sync-external-store": "^1.6.0"
   },
   "devDependencies": {

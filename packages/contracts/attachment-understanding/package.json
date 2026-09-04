@@ -20,6 +20,11 @@
       "import": "./src/paddleocr-models.ts",
       "default": "./src/paddleocr-models.ts"
     },
+    "./settings": {
+      "types": "./src/settings.ts",
+      "import": "./src/settings.ts",
+      "default": "./src/settings.ts"
+    },
     "./state-machine": {
       "types": "./src/state-machine.ts",
       "import": "./src/state-machine.ts",

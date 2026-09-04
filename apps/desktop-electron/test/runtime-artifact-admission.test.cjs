@@ -9,6 +9,7 @@ const test = require("node:test");
 const { runtimeArtifactTargetKey } = require("@workbench/host-contracts/runtime-artifact-manifest");
 const {
   DESKTOP_RUNTIME_ARTIFACT_ADMISSION_POLICY,
+  DESKTOP_RUNTIME_UPGRADE_PATHS,
   resolveDesktopRuntimeArtifact,
 } = require("../scripts/runtime-artifact-admission.cjs");
 
@@ -45,6 +46,15 @@ function fixture(t) {
 }
 
 test("routes target-key selection through the complete shared admission policy", async (t) => {
+  assert.deepEqual(DESKTOP_RUNTIME_UPGRADE_PATHS, [
+    "/api/events.mux",
+    "/api/events.host",
+    "/api/terminal",
+  ]);
+  assert.strictEqual(
+    DESKTOP_RUNTIME_ARTIFACT_ADMISSION_POLICY.expectedUpgradePaths,
+    DESKTOP_RUNTIME_UPGRADE_PATHS,
+  );
   const value = fixture(t);
   const calls = [];
   const result = await resolveDesktopRuntimeArtifact({

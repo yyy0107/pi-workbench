@@ -15,6 +15,11 @@
       "import": "./src/runtime-connection.ts",
       "default": "./src/runtime-connection.ts"
     },
+    "./runtime-capabilities": {
+      "types": "./src/runtime-capabilities.ts",
+      "import": "./src/runtime-capabilities.ts",
+      "default": "./src/runtime-capabilities.ts"
+    },
     "./host-control": {
       "types": "./src/host-control.ts",
       "import": "./src/host-control.ts",

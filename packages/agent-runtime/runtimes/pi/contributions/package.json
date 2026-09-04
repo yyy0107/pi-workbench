@@ -1,0 +1,42 @@
+{
+  "name": "@workbench/agent-runtime-pi-contributions",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    "./installation": {
+      "types": "./src/public/installation.tsx",
+      "import": "./src/public/installation.tsx",
+      "default": "./src/public/installation.tsx"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --incremental false -p tsconfig.json",
+    "test": "node ../../../../../scripts/run-typescript-tests.mjs --package"
+  },
+  "dependencies": {
+    "@workbench/agent-runtime-client": "workspace:*",
+    "@workbench/agent-runtime-contracts": "workspace:*",
+    "@workbench/agent-runtime-pi-client": "workspace:*",
+    "@workbench/agent-runtime-pi-protocol": "workspace:*",
+    "@workbench/agent-runtime-pi-shared": "workspace:*",
+    "@workbench/extension-host": "workspace:*",
+    "@workbench/extension-sdk": "workspace:*",
+    "@workbench/shell": "workspace:*",
+    "lucide-react": "^1.29.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "typescript": "^7.0.2"
+  },
+  "peerDependencies": {
+    "react": "^19.2.8"
+  }
+}

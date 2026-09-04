@@ -9,7 +9,7 @@ const PACKAGE_SOURCE_ROOT = fileURLToPath(new URL("../src/", import.meta.url));
 const CONCRETE_RUNTIME_IMPORT =
   /(?:from\s+|import\s*\()\s*["'](?:@\/runtime\/pi|@workbench\/agent-runtime-pi(?:[-/]|["'])|\.\.\/pi)(?:\/|["'])?/;
 const GENERIC_THREAD_PRESENTATION_CONSUMERS = [
-  "packages/agent-runtime/adapters/pi/contributions/src/extensions/terminal/terminal-target.ts",
+  "packages/workbench/shell/src/extensions/builtin/terminal/terminal-target.ts",
   "packages/workbench/shell/src/sidebar/thread-list-groups.ts",
   "packages/workbench/shell/src/sidebar/thread-list-item.tsx",
   "packages/workbench/shell/src/sidebar/thread-list.tsx",

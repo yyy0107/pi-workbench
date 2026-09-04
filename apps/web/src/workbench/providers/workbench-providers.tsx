@@ -26,6 +26,7 @@ const PRODUCT_BRANDING = Object.freeze({
   productLogoUrl: "/pi-logo-on-light.svg",
 });
 const PRODUCT_ASSETS = Object.freeze({
+  fileViewerAssetBaseUrl: "/file-viewer",
   materialIconThemeBaseUrl: "/vendor/material-icon-theme",
 });
 const PRODUCT_RUNNING_INDICATORS = createRunningIndicatorCatalog({

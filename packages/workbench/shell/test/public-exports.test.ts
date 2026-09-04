@@ -41,6 +41,7 @@ import { WorkbenchStatusbar } from "@workbench/shell/hosts/statusbar";
 import { createI18n as createServerI18n } from "@workbench/shell/i18n/runtime";
 import { createPanelStore } from "@workbench/shell/panels";
 import { createWorkspaceDirectoryStoreInstallation } from "@workbench/shell/workspace-directory-store";
+import { MemoryFileDiffService } from "@workbench/shell/workspace-files";
 import {
   createRightWorkspacePersistence,
   type RightWorkspaceLegacyStorage,
@@ -72,6 +73,7 @@ test("public Shell subpaths expose the finite Shell contracts", () => {
   assert.equal(typeof createWorkbenchDraftPersistence, "function");
   assert.equal(typeof createWorkbenchThreadScrollPersistence, "function");
   assert.equal(typeof createWorkspaceDirectoryStoreInstallation, "function");
+  assert.equal(typeof MemoryFileDiffService, "function");
   assert.equal(typeof resolveThreadResponsiveLayout, "function");
   assert.equal(typeof truncateConversationTitle, "function");
   assert.equal(typeof WorkbenchDomIdsProvider, "function");
@@ -183,6 +185,7 @@ test("Shell manifest exposes only finite public subpaths", async () => {
     "./workbench",
     "./workspace-directory-store",
     "./workspace-file-tree",
+    "./workspace-files",
   ]);
   assert.equal(
     Object.keys(manifest.exports).some((entry) => entry.includes("*")),

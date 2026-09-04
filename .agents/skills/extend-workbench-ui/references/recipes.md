@@ -393,13 +393,17 @@ Promise returned by `open()`. Do not import the owner's component, store, or int
 
 ## Pi-backed extension
 
-Before adding Pi-backed UI, read `packages/agent-runtime/adapters/pi/README.md` completely and inspect the exact source file
-it names. Prefer:
+Generic UI stays in Shell even when Pi implements its capability. Only Pi-specific configuration,
+resources, and diagnostics belong in Pi Contributions and may import Pi facades/protocol types.
+Read `packages/agent-runtime/runtimes/pi/README.md` for that implementation boundary. Use:
 
-- `usePiThreadStateSnapshot()` or `usePiThreadStates()` from
-  `@workbench/agent-runtime-pi-client/threads`, and `usePiWorkspaces()` from
-  `@workbench/agent-runtime-pi-client/workspace`, for subscribed state;
-- an existing helper from the owning `@workbench/agent-runtime-pi-client/*` feature facade for unary RPC;
+- Workbench session/thread hooks from `@workbench/agent-runtime-client` and its `/context` entry,
+  plus `useWorkspaceSelection()` from `/workspaces`, for generic subscribed state;
+- Workbench capability hooks from `@workbench/agent-runtime-client/context` for generic operations;
+- `usePiThreadStateSnapshot()` from `@workbench/agent-runtime-pi-client/context-trace` for Pi trace
+  diagnostics, and `usePiWorkspaces()` from `@workbench/agent-runtime-pi-client/workspace` for Toolbox;
+- an installation-bound hook from the owning `@workbench/agent-runtime-pi-client/*` feature facade
+  for Pi-specific unary RPC;
 - shared types from `@workbench/agent-runtime-pi-protocol/rpc` or
   `@workbench/agent-runtime-pi-protocol/stream`.
 
@@ -615,7 +619,7 @@ Do not add a feature-specific Slot such as `notes.button`. Add a semantic host l
 - [ ] Register inspector kinds through `context.workspace`; keep feature branches and services out of RightWorkspace core.
 - [ ] Register cross-feature resource routing through `context.openers`; do not deep-import sibling builtin features.
 - [ ] Use `workspace.actions`/`workspace.empty.actions` only for compact controls outside a Surface lifecycle.
-- [ ] Read `packages/agent-runtime/adapters/pi/README.md` before Pi-backed UI and route server SDK work through `$pi-coding-agent-sdk` or `$pi-ai-sdk`.
+- [ ] Read `packages/agent-runtime/runtimes/pi/README.md` before Pi-backed UI and route server SDK work through `$pi-coding-agent-sdk` or `$pi-ai-sdk`.
 - [ ] Audit registered shortcuts and standalone global `keydown` listeners.
 - [ ] Return Disposables for external resources.
 - [ ] Avoid duplicate Panel chrome.

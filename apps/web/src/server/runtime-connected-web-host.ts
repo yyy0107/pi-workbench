@@ -1,5 +1,6 @@
 import runtimeArtifactAdmission from "@workbench/host-artifact-policy/runtime-admission";
 import type { DesktopSidecarRuntimeConnection } from "@workbench/host-contracts/runtime-connection";
+import { STREAM_PATHS } from "@workbench/agent-runtime-pi-protocol/stream";
 
 import {
   WEB_APPLICATION_HOST,
@@ -9,7 +10,11 @@ import {
   type WebApplicationHostShutdownOptions,
 } from "./web-application-host";
 
-const { RUNTIME_ARTIFACT_UPGRADE_PATHS } = runtimeArtifactAdmission;
+export const RUNTIME_ARTIFACT_UPGRADE_PATHS =
+  runtimeArtifactAdmission.createRuntimeArtifactAdmissionPolicy([
+    STREAM_PATHS.mux,
+    STREAM_PATHS.host,
+  ]).expectedUpgradePaths;
 
 export const RUNTIME_CONNECTED_WEB_HOST = WEB_APPLICATION_HOST;
 

@@ -65,12 +65,18 @@ const DESKTOP_RUNTIME_LIFECYCLE_EXTENSION = defineExtension({
 });
 const DESKTOP_EXTENSIONS = Object.freeze([
   ...shellExtensionGroups.core,
-  ...piAgentRuntimeExtensionGroups.workspace,
   ...shellExtensionGroups.workspace,
-  ...piAgentRuntimeExtensionGroups.terminal,
-  ...piAgentRuntimeExtensionGroups.setup,
   ...shellExtensionGroups.settings,
-  ...piAgentRuntimeExtensionGroups.runtime,
+  ...piAgentRuntimeExtensionGroups.agentConfiguration,
+  ...shellExtensionGroups.interactions,
+  ...piAgentRuntimeExtensionGroups.configuration,
+  ...shellExtensionGroups.attachments,
+  ...piAgentRuntimeExtensionGroups.toolbox,
+  ...shellExtensionGroups.automations,
+  ...shellExtensionGroups.models,
+  ...piAgentRuntimeExtensionGroups.diagnostics,
+  ...shellExtensionGroups.context,
+  ...shellExtensionGroups.files,
   DESKTOP_RUNTIME_LIFECYCLE_EXTENSION,
 ]);
 const PRODUCT_BRANDING = Object.freeze({
@@ -79,6 +85,7 @@ const PRODUCT_BRANDING = Object.freeze({
   productLogoUrl: "/pi-logo-on-light.svg",
 });
 const PRODUCT_ASSETS = Object.freeze({
+  fileViewerAssetBaseUrl: "/file-viewer",
   materialIconThemeBaseUrl: "/vendor/material-icon-theme",
 });
 const PRODUCT_RUNNING_INDICATORS = createRunningIndicatorCatalog({
@@ -105,19 +112,8 @@ function DesktopMainViewHost({ children }: Readonly<{ children: ReactNode }>) {
   );
 }
 
-function InstalledRuntimeContributions({
-  children,
-  runtimeConnection,
-}: WorkbenchRuntimeContributionsProviderProps) {
-  return (
-    <PiAgentRuntimeContributionsProvider
-      assets={{ fileViewerAssetBaseUrl: "/file-viewer/" }}
-      branding={{ piLogoUrl: "/pi-logo-on-light.svg", runtimeName: "Pi" }}
-      runtimeConnection={runtimeConnection}
-    >
-      {children}
-    </PiAgentRuntimeContributionsProvider>
-  );
+function InstalledRuntimeContributions({ children }: WorkbenchRuntimeContributionsProviderProps) {
+  return <PiAgentRuntimeContributionsProvider>{children}</PiAgentRuntimeContributionsProvider>;
 }
 
 function DesktopAgentRuntimeProvider({ children }: Readonly<{ children: ReactNode }>) {

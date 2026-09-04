@@ -11,6 +11,21 @@ export {
   composerAttachmentFromFile,
 } from "./composer-attachment";
 export {
+  WorkbenchAgentCapabilityError,
+  type WorkbenchAgentCapabilityErrorCode,
+  type WorkbenchAgentRuntimeCapabilities,
+  type WorkbenchAttachmentUnderstandingCapability,
+  type WorkbenchCapabilityRequestOptions,
+  type WorkbenchContextCapability,
+  type WorkbenchContextCapabilitySnapshot,
+  type WorkbenchInteractionCapability,
+  type WorkbenchModelSelectionCapability,
+  type WorkbenchRuntimeHostCapability,
+  type WorkbenchScratchSessionCapability,
+  type WorkbenchWorkspaceCapability,
+  type WorkbenchWorkspaceFileStreamOptions,
+} from "./capabilities";
+export {
   useAgentRuntime,
   useConversationSession,
   useConversationNode,

@@ -4,6 +4,9 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { piAgentRuntimeExtensionGroups } from "@workbench/agent-runtime-pi-contributions/installation";
+import { shellExtensionGroups } from "@workbench/shell/extensions";
+
 const APP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 async function sourceFiles(directory: string): Promise<string[]> {
@@ -60,4 +63,86 @@ test("keeps the Desktop renderer on one static route and public package boundari
   );
   assert.match(bootstrapApplication, /<DesktopWorkbench\b/u);
   assert.doesNotMatch(bootstrapApplication, /bootstrap\.ready/u);
+});
+
+test("preserves the Desktop extension ID and activation-order baseline", async () => {
+  const productComposition = await readFile(
+    path.join(APP_ROOT, "src", "desktop", "desktop-workbench.tsx"),
+    "utf8",
+  );
+  const body = productComposition.match(
+    /const DESKTOP_EXTENSIONS = Object\.freeze\(\[([\s\S]*?)\]\);/u,
+  )?.[1];
+  assert.ok(body, "Desktop extension composition must remain statically inspectable");
+  assert.deepEqual(
+    [...body.matchAll(/(?:\.\.\.)?([A-Za-z][A-Za-z0-9_.]+),/gu)].map((match) => match[1]),
+    [
+      "shellExtensionGroups.core",
+      "shellExtensionGroups.workspace",
+      "shellExtensionGroups.settings",
+      "piAgentRuntimeExtensionGroups.agentConfiguration",
+      "shellExtensionGroups.interactions",
+      "piAgentRuntimeExtensionGroups.configuration",
+      "shellExtensionGroups.attachments",
+      "piAgentRuntimeExtensionGroups.toolbox",
+      "shellExtensionGroups.automations",
+      "shellExtensionGroups.models",
+      "piAgentRuntimeExtensionGroups.diagnostics",
+      "shellExtensionGroups.context",
+      "shellExtensionGroups.files",
+      "DESKTOP_RUNTIME_LIFECYCLE_EXTENSION",
+    ],
+  );
+
+  const ids = [
+    ...shellExtensionGroups.core,
+    ...shellExtensionGroups.workspace,
+    ...shellExtensionGroups.settings,
+    ...piAgentRuntimeExtensionGroups.agentConfiguration,
+    ...shellExtensionGroups.interactions,
+    ...piAgentRuntimeExtensionGroups.configuration,
+    ...shellExtensionGroups.attachments,
+    ...piAgentRuntimeExtensionGroups.toolbox,
+    ...shellExtensionGroups.automations,
+    ...shellExtensionGroups.models,
+    ...piAgentRuntimeExtensionGroups.diagnostics,
+    ...shellExtensionGroups.context,
+    ...shellExtensionGroups.files,
+    { id: "workbench.desktop-runtime-lifecycle" },
+  ].map(({ id }) => id);
+  assert.equal(new Set(ids).size, ids.length);
+  assert.deepEqual(ids, [
+    "workbench.brand",
+    "workbench.workspace-sidebar",
+    "workbench.appearance",
+    "workbench.locale-selector",
+    "workbench.message-presentation",
+    "workbench.message-actions",
+    "workbench.user-message-index",
+    "workbench.message-queue",
+    "workbench.archived-chats",
+    "workbench.workspace-explorer",
+    "workbench.workspace-review",
+    "workbench.workspace-browser",
+    "workbench.workspace-artifact",
+    "workbench.terminal",
+    "workbench.workspace-directory-picker",
+    "workbench.git-branch",
+    "workbench.settings",
+    "workbench.agent-configuration",
+    "workbench.interactive-requests",
+    "workbench.side-chat",
+    "workbench.setting-model-config",
+    "workbench.pi.settings-action",
+    "workbench.image-understanding",
+    "workbench.toolbox",
+    "workbench.automations",
+    "workbench.model-selector",
+    "workbench.connection-status",
+    "workbench.context-trace",
+    "workbench.external-session-import",
+    "workbench.token-usage",
+    "workbench.workspace-file",
+    "workbench.desktop-runtime-lifecycle",
+  ]);
 });

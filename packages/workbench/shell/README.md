@@ -12,10 +12,19 @@ web, desktop, and future hosts. Its finite public entries are grouped by respons
   `./i18n/runtime` is the server-safe finite entry with no React Provider/client module. Product and
   runtime packages retain their own bilingual catalogs and inject them at composition.
 - `./settings`, `./appearance`, and `./extensions` own generic preferences and semantic extension
-  groups (`core`, `settings`, and `workspace`). Product-specific Settings actions are registered by
+  groups (`core`, `settings`, `workspace`, `files`, `interactions`, `attachments`, `automations`,
+  `models`, and `context`). Product-specific Settings actions are registered by
   their owning extensions, while the Shell Settings extension remains static.
 - `./panels` exposes `createPanelStore`; application composition creates one store per Workbench
   installation instead of sharing process-global panel state.
+- `./workspace-files` owns installation-local file buffers, diffs, and the capability-backed file
+  runtime. Directory/trust selection, local-app actions, Workspace File, and Git Branch consume only
+  Workbench host/workspace capabilities; unsupported capabilities hide their entry points or show
+  an explicit unavailable state. Runtime-specific resource readers can supply the existing file
+  session contract without exposing their RPC types to Shell.
+- Interactive Requests, Side Chat, Automation, Model Selector, Image Understanding, and Token
+  Usage/Context Policy also live in Shell. They consume Workbench capabilities and stable errors;
+  provider authentication/configuration and implementation-specific diagnostics stay with the Runtime.
 - `./presentation` and `./running-indicator` accept explicit branding, asset roots, and an immutable
   indicator catalog. The package contains no product logo or product-specific indicator.
 - `./right-workspace`, `./right-workspace/react`, `./right-workspace/presentation`, and

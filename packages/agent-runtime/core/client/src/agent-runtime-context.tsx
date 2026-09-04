@@ -1,14 +1,38 @@
 "use client";
 
-import { createContext, useContext, useMemo, useSyncExternalStore, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useSyncExternalStore,
+  type ComponentType,
+  type ReactNode,
+} from "react";
 
 import type { WorkbenchAgentCommand } from "@workbench/agent-runtime-contracts/commands";
+import type { WorkbenchContextPolicy } from "@workbench/agent-runtime-contracts/runtime-capabilities";
+import {
+  WorkbenchAgentCapabilityError,
+  type WorkbenchContextCapabilitySnapshot,
+} from "./capabilities";
 import type {
   WorkbenchAgentThreadActions,
   WorkbenchAgentThreadSnapshot,
   WorkbenchAgentThreadStore,
   WorkbenchWorkspaceFileSearchPort,
 } from "./agent-runtime-environment";
+import type {
+  WorkbenchAgentRuntimeCapabilities,
+  WorkbenchAttachmentUnderstandingCapability,
+  WorkbenchContextCapability,
+  WorkbenchInteractionCapability,
+  WorkbenchModelSelectionCapability,
+  WorkbenchRuntimeHostCapability,
+  WorkbenchScratchSessionCapability,
+  WorkbenchWorkspaceCapability,
+} from "./capabilities";
 
 export const EMPTY_WORKBENCH_AGENT_THREAD_SNAPSHOT: WorkbenchAgentThreadSnapshot = Object.freeze({
   isRunning: false,
@@ -18,8 +42,12 @@ export const EMPTY_WORKBENCH_AGENT_THREAD_SNAPSHOT: WorkbenchAgentThreadSnapshot
 });
 
 const EMPTY_THREAD_ACTIONS: WorkbenchAgentThreadActions = Object.freeze({});
+const EMPTY_RUNTIME_CAPABILITIES: WorkbenchAgentRuntimeCapabilities = Object.freeze({});
 const EMPTY_SUBSCRIBE = () => () => undefined;
 const ZERO_REVISION = () => 0;
+const EMPTY_CONTEXT_SNAPSHOT: WorkbenchContextCapabilitySnapshot = Object.freeze({
+  status: "idle",
+});
 
 export interface WorkbenchAgentRuntimeEnvironment {
   readonly id: string;
@@ -27,6 +55,25 @@ export interface WorkbenchAgentRuntimeEnvironment {
   readonly commands: readonly WorkbenchAgentCommand[];
   readonly threadStore?: WorkbenchAgentThreadStore;
   readonly workspaceFiles?: WorkbenchWorkspaceFileSearchPort;
+  readonly capabilities: WorkbenchAgentRuntimeCapabilities;
+  readonly sessionBinding?: ComponentType<WorkbenchBoundSessionProps>;
+}
+
+/** The selected implementation binds session commands and state without changing global selection. */
+export interface WorkbenchBoundSessionProps {
+  readonly sessionId: string;
+  readonly children: ReactNode;
+}
+
+export interface WorkbenchAgentRuntimeEnvironmentProviderProps {
+  readonly id: string;
+  readonly threadId?: string;
+  readonly commands: readonly WorkbenchAgentCommand[];
+  readonly capabilities?: WorkbenchAgentRuntimeCapabilities;
+  readonly threadStore?: WorkbenchAgentThreadStore;
+  readonly workspaceFiles?: WorkbenchWorkspaceFileSearchPort;
+  readonly sessionBinding?: ComponentType<WorkbenchBoundSessionProps>;
+  readonly children: ReactNode;
 }
 
 const WorkbenchAgentRuntimeContext = createContext<WorkbenchAgentRuntimeEnvironment | null>(null);
@@ -35,26 +82,23 @@ export function WorkbenchAgentRuntimeEnvironmentProvider({
   id,
   threadId,
   commands,
+  capabilities = EMPTY_RUNTIME_CAPABILITIES,
   threadStore,
   workspaceFiles,
+  sessionBinding,
   children,
-}: Readonly<{
-  id: string;
-  threadId?: string;
-  commands: readonly WorkbenchAgentCommand[];
-  threadStore?: WorkbenchAgentThreadStore;
-  workspaceFiles?: WorkbenchWorkspaceFileSearchPort;
-  children: ReactNode;
-}>) {
+}: WorkbenchAgentRuntimeEnvironmentProviderProps) {
   const value = useMemo<WorkbenchAgentRuntimeEnvironment>(
     () => ({
       id,
       ...(threadId ? { threadId } : {}),
       commands,
+      capabilities,
       ...(threadStore ? { threadStore } : {}),
       ...(workspaceFiles ? { workspaceFiles } : {}),
+      ...(sessionBinding ? { sessionBinding } : {}),
     }),
-    [commands, id, threadId, threadStore, workspaceFiles],
+    [capabilities, commands, id, threadId, threadStore, workspaceFiles, sessionBinding],
   );
 
   return (
@@ -68,6 +112,14 @@ function useWorkbenchAgentRuntimeEnvironment(): WorkbenchAgentRuntimeEnvironment
   const environment = useContext(WorkbenchAgentRuntimeContext);
   if (!environment) throw new Error("Workbench Agent Runtime environment is missing");
   return environment;
+}
+
+export function WorkbenchBoundSessionProvider({
+  fallback = null,
+  ...props
+}: WorkbenchBoundSessionProps & { readonly fallback?: ReactNode }) {
+  const Binding = useWorkbenchAgentRuntimeEnvironment().sessionBinding;
+  return Binding ? <Binding {...props} /> : fallback;
 }
 
 /** Return the stable identifier of the Agent Runtime selected by the application composition root. */
@@ -90,6 +142,88 @@ export function useWorkbenchAgentWorkspaceFileSearch():
   | WorkbenchWorkspaceFileSearchPort
   | undefined {
   return useWorkbenchAgentRuntimeEnvironment().workspaceFiles;
+}
+
+export function useWorkbenchRuntimeHostCapability(): WorkbenchRuntimeHostCapability | undefined {
+  return useWorkbenchAgentRuntimeEnvironment().capabilities.host;
+}
+
+export function useWorkbenchWorkspaceCapability(): WorkbenchWorkspaceCapability | undefined {
+  return useWorkbenchAgentRuntimeEnvironment().capabilities.workspace;
+}
+
+export function useWorkbenchModelSelectionCapability():
+  | WorkbenchModelSelectionCapability
+  | undefined {
+  return useWorkbenchAgentRuntimeEnvironment().capabilities.models;
+}
+
+export function useWorkbenchInteractionCapability(): WorkbenchInteractionCapability | undefined {
+  return useWorkbenchAgentRuntimeEnvironment().capabilities.interactions;
+}
+
+export function useWorkbenchScratchSessionCapability():
+  | WorkbenchScratchSessionCapability
+  | undefined {
+  return useWorkbenchAgentRuntimeEnvironment().capabilities.scratchSessions;
+}
+
+export function useWorkbenchContextCapability(): WorkbenchContextCapability | undefined {
+  return useWorkbenchAgentRuntimeEnvironment().capabilities.context;
+}
+
+/** Observe the runtime-owned policy state; no second cache or mutation queue lives in the UI. */
+export function useWorkbenchSessionContextPolicy(sessionId?: string) {
+  const capability = useWorkbenchContextCapability();
+  const state = useSyncExternalStore(
+    useCallback(
+      (listener) => capability?.subscribe(sessionId, listener) ?? EMPTY_SUBSCRIBE(),
+      [capability, sessionId],
+    ),
+    useCallback(
+      () => capability?.getSnapshot(sessionId) ?? EMPTY_CONTEXT_SNAPSHOT,
+      [capability, sessionId],
+    ),
+    () => EMPTY_CONTEXT_SNAPSHOT,
+  );
+  useEffect(() => {
+    if (capability && sessionId) void capability.load(sessionId).catch(() => undefined);
+  }, [capability, sessionId]);
+
+  return {
+    ...state,
+    refresh: useCallback(
+      () =>
+        capability && sessionId
+          ? capability.load(sessionId, true)
+          : Promise.reject(new WorkbenchAgentCapabilityError("unavailable")),
+      [capability, sessionId],
+    ),
+    update: useCallback(
+      (policy: WorkbenchContextPolicy) =>
+        capability && sessionId
+          ? capability.update(sessionId, policy)
+          : Promise.reject(new WorkbenchAgentCapabilityError("unavailable")),
+      [capability, sessionId],
+    ),
+    compact: useCallback(
+      () =>
+        capability && sessionId
+          ? capability.compact(sessionId)
+          : Promise.reject(new WorkbenchAgentCapabilityError("unavailable")),
+      [capability, sessionId],
+    ),
+  };
+}
+
+export function useWorkbenchAutomationCapability(): WorkbenchAgentRuntimeCapabilities["automation"] {
+  return useWorkbenchAgentRuntimeEnvironment().capabilities.automation;
+}
+
+export function useWorkbenchAttachmentUnderstandingCapability():
+  | WorkbenchAttachmentUnderstandingCapability
+  | undefined {
+  return useWorkbenchAgentRuntimeEnvironment().capabilities.attachmentUnderstanding;
 }
 
 /** Subscribe to the selected implementation's live presentation state for one thread. */

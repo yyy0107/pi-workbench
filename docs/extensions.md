@@ -6,7 +6,7 @@
 
 本文对应当前代码：
 
-- Next.js 16 单应用；
+- Web（Next.js）与 Desktop Renderer 复用 Workbench Shell；
 - Workbench Agent Runtime；
 - 扩展随应用静态打包；
 - 不支持从远程 URL 加载 JavaScript；
@@ -70,8 +70,10 @@ packages/workbench/shell/src/extensions/builtin/notes/
 └── index.ts
 ```
 
-目录按能力所有者组织。Shell 通用能力放在 Shell，Pi Runtime 能力放在 Pi contributions；应用组合层
-只负责提供完整、有序的静态扩展列表。
+目录按能力所有者组织。Shell 拥有通用工作区、Terminal、交互请求、Side Chat、Automation、Model
+Selector、Image Understanding 和 Token Usage / Context Policy；Pi contributions 只保留 Pi 配置、
+Toolbox、Context Trace、外部会话导入、连接状态和 branding。应用组合层交错安装双方的语义化扩展组，
+保持完整、有序的静态扩展列表。使用 Pi 提供的能力并不意味着 UI 属于 Pi。
 
 最小扩展只有一个 `extension.ts`：
 
@@ -315,14 +317,16 @@ import type { WorkbenchExtension } from "@workbench/extension-sdk";
 import { notesExtension } from "./builtin/notes";
 // 其他内置扩展 import...
 
-export const builtinExtensions = [
+export const shellCoreExtensions: readonly WorkbenchExtension[] = Object.freeze([
   // 其他内置扩展...
   notesExtension,
-] satisfies readonly WorkbenchExtension[];
+]);
 ```
 
-完成后，由应用组合层把各 owner 的静态 extension group 合成为稳定的完整列表，再交给
-ExtensionProvider 激活。不要增加目录扫描、运行时文件发现或远程 `import()`。
+此处是在已有的 `shellCoreExtensions` 中追加示例扩展；它由 `shellExtensionGroups.core` 导出。
+Web 与 Desktop 分别把 `shellExtensionGroups` 和 `piAgentRuntimeExtensionGroups` 按产品顺序交错组合，
+再交给 ExtensionProvider 激活；Desktop 在相同序列末尾追加自身生命周期扩展。
+不要增加目录扫描、运行时文件发现或远程 `import()`。
 
 数组顺序就是激活顺序，也会影响相同 Slot `order` 时的先后、冲突快捷键的匹配顺序，以及 Command Palette 中同组命令的显示顺序。保持数组为模块级稳定常量。若需要让其他模块直接导入该扩展，可再从 owner package 的 `src/extensions/index.ts` 选择性导出。
 
@@ -563,7 +567,7 @@ const contribution = context.workspace.register({
 `open()`、`reveal()` 和 `update()` 中的 `title`、`statusMessage` 接受 `LocalizableText`。内置产品文案必须传入 `defineMessage(...)` 描述符，由 Host 在渲染时按当前 locale 解析；文件名、URL、用户或资源提供的标题保持 literal string。`defineMessage()` 是应用 catalog 唯一的公开描述符构造器，会同时校验包含 namespace 的组合键与参数；raw object literal 不能满足 SDK 的 opaque descriptor 类型。运行时仍使用 plain JSON `{ key }` / `{ key, values }` 形状，因此两种形态都可序列化，旧快照中的字符串会继续兼容恢复。异步失败应通过 `useExtensionErrorReporter()` 保存原始诊断，并只把稳定、面向用户的消息描述符写入 `statusMessage`，不得直接显示 `Error.message`。
 
 当前通用参考实现位于 `packages/workbench/shell/src/extensions/builtin/`；Pi/Runtime 专属参考实现位于
-`packages/agent-runtime/adapters/pi/contributions/src/extensions/`。
+`packages/agent-runtime/runtimes/pi/contributions/src/extensions/`。
 
 ### 跨 Contribution 打开资源：Opener
 
@@ -770,12 +774,12 @@ command 明确作为独占 `agent-turn` 走 Pi 的公开 handler 入口，不再
 单值 group 以后者为准，多值 context 累加。
 
 服务端先形成结构化 `ResolvedAgentRequest`，command trace 只用于历史和诊断，不直接注入模型。
-真正给 Pi 的字符串只在最终 adapter 边界生成，并明确分隔 trusted instruction、untrusted context
+真正给 Pi 的字符串只在 Pi 实现的最终提交边界生成，并明确分隔 trusted instruction、untrusted context
 和 user request。没有正文、instruction、context 或图片的纯 action 输入不会启动空的主 Agent turn。
 
 ComposerDocument 是持久化的 canonical UI 表示；`sourceText` 只作为编辑器 serialization 和旧历史
-fallback。历史恢复时它仍是一条标准 user message，因此使用与普通用户消息相同的气泡；真正发给
-Pi 的 adapter prompt 不会再显示成第二条用户消息。
+fallback。历史恢复时它仍是一条标准 user message，因此使用与普通用户消息相同的气泡；Pi 实现生成的
+最终 prompt 不会再显示成第二条用户消息。
 
 注册后，Command 会自动：
 
@@ -1064,6 +1068,17 @@ const isRunning = useSessionState((snapshot) => snapshot.isRunning);
 const node = useConversationNode(nodeKeys.at(-1) ?? "");
 ```
 
+工作区、host、模型选择、交互、临时会话、context、Automation 和附件识别使用
+`@workbench/agent-runtime-client/context` 的对应 capability hook，例如
+`useWorkbenchWorkspaceCapability()`、`useWorkbenchModelSelectionCapability()`。通用 DTO 来自
+Workbench contracts，失败只按 `WorkbenchAgentCapabilityError.code` 处理。能力缺失时隐藏入口，
+历史恢复的页面显示明确不可用状态；不要根据 Runtime ID 分支或创建假实现。
+
+只有 Pi contributions 内的专属功能使用 `@workbench/agent-runtime-pi-client/*` 的有限公开入口。
+Pi Protocol、`PiApiError` 和原始 Pi 事件不能进入 Shell、Core 或 Extension SDK/Host；事件到
+Conversation snapshot、错误到 Workbench code 的投影均由 Pi Client 完成。完整边界见
+[Pi Runtime 架构](../packages/agent-runtime/runtimes/pi/README.md#架构)。
+
 ## 14. ID 与注册规则
 
 推荐命名：
@@ -1113,14 +1128,14 @@ Slot、Panel、Command 定义在注册时会被复制并浅冻结。注册后不
 
 ## 16. 可参考的现有扩展
 
-- 最小 Slot：[`connection-status`](../packages/agent-runtime/adapters/pi/contributions/src/extensions/connection-status/extension.ts)
-- Model 选择与当前 Session bridge：[`model-selector`](../packages/agent-runtime/adapters/pi/contributions/src/extensions/model-selector/extension.ts)
-- Settings + Pi RPC：[`skills`](../packages/agent-runtime/adapters/pi/contributions/src/extensions/skills/extension.ts)
-- Workspace Surface + Open Handler：[`workspace-file`](../packages/agent-runtime/adapters/pi/contributions/src/extensions/workspace-file/extension.ts)
-- Workspace Surface + Command + Tool Renderer：[`terminal`](../packages/agent-runtime/adapters/pi/contributions/src/extensions/terminal/extension.ts)
+- 最小 Slot：[`connection-status`](../packages/agent-runtime/runtimes/pi/contributions/src/extensions/connection-status/extension.ts)
+- Model 选择与 Workbench capability：[`model-selector`](../packages/workbench/shell/src/extensions/builtin/model-selector/extension.ts)
+- Settings + Pi 专属配置：[`setting-model-config`](../packages/agent-runtime/runtimes/pi/contributions/src/extensions/setting-model-config/extension.ts)
+- Workspace Surface + Open Handler：[`workspace-file`](../packages/workbench/shell/src/extensions/builtin/workspace-file/extension.ts)
+- Workspace Surface + Command + Tool Renderer：[`terminal`](../packages/workbench/shell/src/extensions/builtin/terminal/extension.ts)
 - Sidebar/Header Slot + floating Settings：[`settings`](../packages/workbench/shell/src/extensions/builtin/settings/extension.ts)
 - Message 分组、reasoning 与 Tool/Data fallback：[`message-presentation`](../packages/workbench/shell/src/extensions/builtin/message-presentation/extension.ts)
-- Runtime 状态派生：[`token-usage`](../packages/agent-runtime/adapters/pi/contributions/src/extensions/token-usage/extension.ts)
+- Runtime 状态派生：[`token-usage`](../packages/workbench/shell/src/extensions/builtin/token-usage/extension.ts)
 
 如果新需求无法自然归入 Slot、Panel、Command、Renderer 或 Settings，先判断它是不是：
 

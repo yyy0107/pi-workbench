@@ -12,7 +12,7 @@ test("Web styles explicitly compose Shell and scan installed contribution source
   );
   assert.equal(
     styles.includes(
-      '@source "../../../../packages/agent-runtime/adapters/pi/contributions/src/**/*.{ts,tsx}";',
+      '@source "../../../../packages/agent-runtime/runtimes/pi/contributions/src/**/*.{ts,tsx}";',
     ),
     true,
   );

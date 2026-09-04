@@ -13,7 +13,7 @@ const WORKSPACE_YAML = `packages:
   - "packages/contracts/*"
   - "packages/server/*"
   - "packages/agent-runtime/core/*"
-  - "packages/agent-runtime/adapters/pi/*"
+  - "packages/agent-runtime/runtimes/pi/*"
   - "packages/terminal/*"
   - "apps/*"
 
@@ -43,7 +43,7 @@ test("reads only exact package entries from the pnpm workspace packages section"
     "packages/contracts/*",
     "packages/server/*",
     "packages/agent-runtime/core/*",
-    "packages/agent-runtime/adapters/pi/*",
+    "packages/agent-runtime/runtimes/pi/*",
     "packages/terminal/*",
     "apps/*",
   ]);

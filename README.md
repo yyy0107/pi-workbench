@@ -278,10 +278,16 @@ the bridge, CSP, or Origin list.
 
 ## Architecture
 
-The browser and desktop apps reuse the same Workbench Shell and Pi client contributions through two
+The browser and desktop apps reuse the same Workbench Shell and Pi Runtime implementation through two
 application roots. Browser commands run the serverful Web host beside API-only Runtime. Electron
 loads the admitted static Desktop renderer artifact, owns one target-matched Runtime process, and
 exposes only narrow bootstrap and lifecycle-restart capabilities to its trusted main window.
+
+Shell's generic workspace and session features consume Workbench conversation projections and
+optional capabilities. Core, Shell, and Extension SDK/Host do not import Pi packages. The
+[Pi implementation](./packages/agent-runtime/runtimes/pi/README.md) owns Pi protocols, event projection,
+and error mapping; its contributions retain Pi configuration, Toolbox, diagnostics, imports, and
+branding. Application roots select Pi and interleave Shell/Pi extension groups in the existing order.
 
 ```mermaid
 flowchart LR
@@ -319,7 +325,7 @@ Pi Workbench currently has three extension categories:
 
 - **Built-in Workbench extensions** are statically compiled UI contribution bundles owned by
   [`@workbench/shell`](./packages/workbench/shell/src/extensions/builtin/) and the installed
-  [Pi contribution leaf](./packages/agent-runtime/adapters/pi/contributions/src/extensions/).
+  [Pi contribution leaf](./packages/agent-runtime/runtimes/pi/contributions/src/extensions/).
 - **Installable Component Extensions** are trusted UI bundles shipped in the application catalog.
   They can be installed or removed at runtime, but their code is still included at build time. The
   current catalog contains Generative UI.
@@ -343,7 +349,7 @@ review tool requests before approving them.
 authentication or TLS. Project resource trust is stored per directory through Pi. Set
 `PI_WORKBENCH_TRUST_PROJECT=1` only when the current process should trust every imported project.
 
-See the [Pi Server adapter](./packages/agent-runtime/adapters/pi/server/README.md) and
+See the [Pi Runtime server implementation](./packages/agent-runtime/runtimes/pi/server/README.md) and
 [Terminal Runtime](./packages/terminal/README.md) for implementation details.
 
 ## Repository map
@@ -358,7 +364,7 @@ See the [Pi Server adapter](./packages/agent-runtime/adapters/pi/server/README.m
 | [`packages/workbench/shell/`](./packages/workbench/shell/)                                                                                                     | Reusable application shell, chat, workspace UI, shared UI, and core extensions           |
 | [`packages/extension-platform/sdk/`](./packages/extension-platform/sdk/)                                                                                       | Host-free extension contracts, authoring helpers, registries, and lifecycle              |
 | [`packages/extension-platform/host/`](./packages/extension-platform/host/)                                                                                     | React Host hooks, contribution hosts, and application-injected services                  |
-| [`packages/agent-runtime/adapters/pi/`](./packages/agent-runtime/adapters/pi/)                                                                                 | Pi protocol, shared types, client/server adapters, and UI contributions                  |
+| [`packages/agent-runtime/runtimes/pi/`](./packages/agent-runtime/runtimes/pi/)                                                                                 | Pi protocol, shared types, client/server implementations, and UI contributions           |
 | [`packages/agent-runtime/core/client/`](./packages/agent-runtime/core/client/), [`packages/agent-runtime/core/server/`](./packages/agent-runtime/core/server/) | Backend-neutral browser and server Agent Runtime adapter boundaries                      |
 | [`packages/terminal/`](./packages/terminal/)                                                                                                                   | Terminal contracts, client helpers, PTY sessions, Pi tool adapter, and gateway           |
 
@@ -385,7 +391,7 @@ for adding another language are documented in the
 - [RightWorkspace architecture](./docs/right-workspace.md)
 - [Browser Agent Runtime adapter](./packages/agent-runtime/core/client/README.md)
 - [Server Agent Runtime ports](./packages/agent-runtime/core/server/README.md)
-- [Pi Server adapter](./packages/agent-runtime/adapters/pi/server/README.md)
+- [Pi Runtime server implementation](./packages/agent-runtime/runtimes/pi/server/README.md)
 - [Terminal Runtime](./packages/terminal/README.md)
 
 Detailed subsystem documentation is currently mostly written in Simplified Chinese.
