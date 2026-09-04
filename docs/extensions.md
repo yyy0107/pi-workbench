@@ -1116,7 +1116,7 @@ Slot、Panel、Command 定义在注册时会被复制并浅冻结。注册后不
 - 最小 Slot：[`connection-status`](../packages/agent-runtime/runtimes/pi/contributions/src/extensions/connection-status/extension.ts)
 - Model 选择与当前 Session bridge：[`model-selector`](../packages/agent-runtime/runtimes/pi/contributions/src/extensions/model-selector/extension.ts)
 - Settings + Pi RPC：[`skills`](../packages/agent-runtime/runtimes/pi/contributions/src/extensions/skills/extension.ts)
-- Workspace Surface + Open Handler：[`workspace-file`](../packages/agent-runtime/runtimes/pi/contributions/src/extensions/workspace-file/extension.ts)
+- Workspace Surface + Open Handler：[`workspace-file`](../packages/workbench/shell/src/extensions/builtin/workspace-file/extension.ts)
 - Workspace Surface + Command + Tool Renderer：[`terminal`](../packages/workbench/shell/src/extensions/builtin/terminal/extension.ts)
 - Sidebar/Header Slot + floating Settings：[`settings`](../packages/workbench/shell/src/extensions/builtin/settings/extension.ts)
 - Message 分组、reasoning 与 Tool/Data fallback：[`message-presentation`](../packages/workbench/shell/src/extensions/builtin/message-presentation/extension.ts)

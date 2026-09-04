@@ -12,10 +12,6 @@ test("keeps Pi extension groups deeply frozen with their app-composition orderin
   }
   assert.equal(Object.isFrozen(piAgentRuntimeExtensions), true);
 
-  assert.deepEqual(groupIds(piAgentRuntimeExtensionGroups.setup), [
-    "workbench.workspace-directory-picker",
-    "workbench.git-branch",
-  ]);
   assert.deepEqual(groupIds(piAgentRuntimeExtensionGroups.runtime), [
     "workbench.agent-configuration",
     "workbench.interactive-requests",
@@ -30,10 +26,8 @@ test("keeps Pi extension groups deeply frozen with their app-composition orderin
     "workbench.context-trace",
     "workbench.external-session-import",
     "workbench.token-usage",
-    "workbench.workspace-file",
   ]);
   assert.deepEqual(groupIds(piAgentRuntimeExtensions), [
-    ...groupIds(piAgentRuntimeExtensionGroups.setup),
     ...groupIds(piAgentRuntimeExtensionGroups.runtime),
   ]);
   assert.throws(() => {

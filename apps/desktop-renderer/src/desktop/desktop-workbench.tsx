@@ -66,9 +66,9 @@ const DESKTOP_RUNTIME_LIFECYCLE_EXTENSION = defineExtension({
 const DESKTOP_EXTENSIONS = Object.freeze([
   ...shellExtensionGroups.core,
   ...shellExtensionGroups.workspace,
-  ...piAgentRuntimeExtensionGroups.setup,
   ...shellExtensionGroups.settings,
   ...piAgentRuntimeExtensionGroups.runtime,
+  ...shellExtensionGroups.files,
   DESKTOP_RUNTIME_LIFECYCLE_EXTENSION,
 ]);
 const PRODUCT_BRANDING = Object.freeze({

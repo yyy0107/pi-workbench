@@ -18,10 +18,6 @@
     "test": "node ../../../../../scripts/run-typescript-tests.mjs --package"
   },
   "dependencies": {
-    "@file-viewer/core": "2.3.0",
-    "@file-viewer/preset-lite": "2.3.0",
-    "@file-viewer/preset-office": "2.3.0",
-    "@file-viewer/react": "2.3.0",
     "@tanstack/react-virtual": "3.14.10",
     "@workbench/agent-runtime-client": "workspace:*",
     "@workbench/agent-runtime-contracts": "workspace:*",

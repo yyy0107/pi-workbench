@@ -345,8 +345,7 @@ export interface WorkspaceFileReadPayload {
 
 export type WorkspaceFileDescribePayload = WorkspaceFileReadPayload;
 
-/** Maximum file size that browser previewers may buffer in full. */
-export const WORKSPACE_FILE_BUFFERED_PREVIEW_SIZE_LIMIT = 100 * 1024 * 1024;
+export { WORKSPACE_FILE_BUFFERED_PREVIEW_SIZE_LIMIT } from "@workbench/agent-runtime-contracts/runtime-capabilities";
 
 export interface WorkspaceFileDescriptorValue {
   workspaceId: string;

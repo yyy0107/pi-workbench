@@ -15,6 +15,9 @@ import { workspaceBrowserExtension } from "./builtin/workspace-browser";
 import { workspaceExplorerExtension } from "./builtin/workspace-explorer";
 import { workspaceReviewExtension } from "./builtin/workspace-review";
 import { workspaceSidebarExtension } from "./builtin/workspace-sidebar";
+import { workspaceDirectoryPickerExtension } from "./builtin/workspace-directory-picker";
+import { workspaceFileExtension } from "./builtin/workspace-file";
+import { gitBranchExtension } from "./builtin/git-branch";
 
 /** Stable frame and conversation contributions mounted before runtime-specific setup. */
 export const shellCoreExtensions: readonly WorkbenchExtension[] = Object.freeze([
@@ -41,12 +44,20 @@ export const shellWorkspaceExtensions: readonly WorkbenchExtension[] = Object.fr
   workspaceBrowserExtension,
   workspaceArtifactExtension,
   terminalExtension,
+  workspaceDirectoryPickerExtension,
+  gitBranchExtension,
+]);
+
+/** File presentation follows runtime contributions in the existing application order. */
+export const shellFileExtensions: readonly WorkbenchExtension[] = Object.freeze([
+  workspaceFileExtension,
 ]);
 
 export const shellExtensionGroups = Object.freeze({
   core: shellCoreExtensions,
   settings: shellSettingsExtensions,
   workspace: shellWorkspaceExtensions,
+  files: shellFileExtensions,
 });
 
 /** Default runtime-neutral installation for renderers without an app-specific interleave. */
@@ -54,4 +65,5 @@ export const shellBuiltinExtensions: readonly WorkbenchExtension[] = Object.free
   ...shellCoreExtensions,
   ...shellSettingsExtensions,
   ...shellWorkspaceExtensions,
+  ...shellFileExtensions,
 ]);

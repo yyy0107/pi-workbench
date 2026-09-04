@@ -10,7 +10,7 @@ import { SettingsGroup, SettingsRow } from "@workbench/shell/ui";
 import { Switch } from "@workbench/shell/ui";
 import { Textarea } from "@workbench/shell/ui";
 import { usePiI18n } from "../../i18n";
-import { MarkdownPreview } from "../../markdown-preview";
+import { MarkdownPreview } from "@workbench/shell/chat";
 import type { SettingsItemComponentProps } from "@workbench/extension-sdk";
 import { usePiConfigurationClient } from "@workbench/agent-runtime-pi-client/configuration";
 import { PiApiError } from "@workbench/agent-runtime-pi-client/errors";

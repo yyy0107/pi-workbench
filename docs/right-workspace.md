@@ -105,7 +105,7 @@ literal string。异步 Surface 错误通过 Extension error reporter 记录原�
 
 ```text
 Explorer
-  └── open({ scheme: "file", path })
+  └── open({ scheme: "workspace-file", path })
         ↓
     OpenerService
         ↓ highest canOpen score
@@ -117,9 +117,10 @@ Explorer
 File contribution 在同步 `setup()` 中通过 `context.openers.register(...)` 注册 handler。执行时
 Service 注入通用 Surface operations，因此 setup 不需要 React Hook；Explorer 不知道 File 的
 React component、store 或 surface kind。通用文件运行时 contract 位于
-`packages/workbench/shell/src/workspace-files`，Pi 文件实现位于
-`packages/agent-runtime/runtimes/pi/contributions/src/services/workspace-file-service.ts`，并以
-Workspace scope + path 隔离缓冲与订阅；后续替换实现时不需要改 Explorer/File 的组件边界。
+`packages/workbench/shell/src/workspace-files`，其中 `buffered-file-workspace-service.ts` 通过 Workbench
+workspace capability 访问文件，以 Workspace scope + path 隔离缓冲与订阅。Pi Contributions 只通过
+`services/pi-resource-file-backend.ts` 投影 Skill/Extension 资源读取，由 Toolbox 注册专属 opener；
+替换 runtime 时不需要改 Explorer/File 的组件边界。
 
 ## 当前内置扩展
 
@@ -131,8 +132,8 @@ Workspace scope + path 隔离缓冲与订阅；后续替换实现时不需要改
 - `workbench.terminal`
 
 它们由 `apps/web/src/workbench/runtime-contributions/installed-workbench-extensions.ts` 从 Shell 与 Pi
-contribution 的公开 extension groups 静态组合；Explorer、Review 和 Terminal 由 Shell 安装，File
-仍由 Pi contribution 安装。各自拥有 Surface、菜单入口、领域 Service、Runtime
+contribution 的公开 extension groups 静态组合；Explorer、Review、Terminal 和 File 均由 Shell 安装。
+各自拥有 Surface、菜单入口、领域 Service、Runtime
 Bridge 和 `extensions.*` i18n 文案；禁用任一扩展不影响核心聊天或其他 Surface 能力。
 Surface 实现模块在实例首次激活时懒加载，切走后按 `keep-alive` 保留；注册元数据与轻量 Runtime
 bridge 仍在启动时同步激活。

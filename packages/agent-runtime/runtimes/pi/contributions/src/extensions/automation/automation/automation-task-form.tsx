@@ -846,14 +846,16 @@ export function AutomationTaskForm({ params }: { params: AutomationTaskParams })
                       triggerRef={workspaceTriggerRef}
                       variant="outline"
                       labels={{
-                        select: t("extensions.workspaceDirectory.selectTitle"),
-                        clear: t("extensions.workspaceDirectory.clearWorkspace"),
-                        selecting: t("extensions.workspaceDirectory.selecting"),
-                        selectError: t("extensions.workspaceDirectory.selectError"),
+                        select: tShell("extensions.workspaceDirectory.selectTitle"),
+                        clear: tShell("extensions.workspaceDirectory.clearWorkspace"),
+                        selecting: tShell("extensions.workspaceDirectory.selecting"),
+                        selectError: tShell("extensions.workspaceDirectory.selectError"),
                         empty: t("extensions.automations.automationTask.noWorkspace"),
-                        search: t("extensions.workspaceDirectory.searchLabel"),
-                        searchPlaceholder: t("extensions.workspaceDirectory.searchPlaceholder"),
-                        noSearchResults: t("extensions.workspaceDirectory.noSearchResults"),
+                        search: tShell("extensions.workspaceDirectory.searchLabel"),
+                        searchPlaceholder: tShell(
+                          "extensions.workspaceDirectory.searchPlaceholder",
+                        ),
+                        noSearchResults: tShell("extensions.workspaceDirectory.noSearchResults"),
                       }}
                       selectedWorkspace={workspace}
                       workspaces={workspaces}

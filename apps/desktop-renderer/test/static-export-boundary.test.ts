@@ -79,9 +79,9 @@ test("preserves the Desktop extension ID and activation-order baseline", async (
     [
       "shellExtensionGroups.core",
       "shellExtensionGroups.workspace",
-      "piAgentRuntimeExtensionGroups.setup",
       "shellExtensionGroups.settings",
       "piAgentRuntimeExtensionGroups.runtime",
+      "shellExtensionGroups.files",
       "DESKTOP_RUNTIME_LIFECYCLE_EXTENSION",
     ],
   );
@@ -89,9 +89,9 @@ test("preserves the Desktop extension ID and activation-order baseline", async (
   const ids = [
     ...shellExtensionGroups.core,
     ...shellExtensionGroups.workspace,
-    ...piAgentRuntimeExtensionGroups.setup,
     ...shellExtensionGroups.settings,
     ...piAgentRuntimeExtensionGroups.runtime,
+    ...shellExtensionGroups.files,
     { id: "workbench.desktop-runtime-lifecycle" },
   ].map(({ id }) => id);
   assert.equal(new Set(ids).size, ids.length);

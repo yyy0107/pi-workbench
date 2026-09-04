@@ -329,7 +329,7 @@ XDG application 目录、本地化用户桌面中的 `.desktop`、PATH 与 Flatp
 只有 `host.localApps.refresh` 会主动重扫。
 RPC 只返回稳定的 `id`、`name`、`kind`、`icon` 和 `supportedFileKinds`，可执行文件、Bundle ID、desktop entry 与启动参数
 始终留在 Host 内；品牌图标固定维护在
-`contributions/src/extensions/workspace-file/icons`，不从操作系统动态提取。
+`packages/workbench/shell/src/extensions/builtin/workspace-file/icons`，不从操作系统动态提取。
 所有启动均通过参数数组执行且禁用 shell，避免把用户路径拼进命令字符串。
 
 资源管理器使用独立的 workspace-bound 文件接口，不复用目录选择器协议。请求携带

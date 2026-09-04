@@ -30,7 +30,7 @@ function transportFor(values: Readonly<Record<string, unknown>>): PiHttpTranspor
   };
 }
 
-function fixtureManager(): PiSessionManager {
+function fixtureManager(transportOverride?: PiHttpTransport): PiSessionManager {
   const transport = transportFor({
     "host.listDirectory": {
       path: "/workspace",
@@ -69,7 +69,7 @@ function fixtureManager(): PiSessionManager {
   };
 
   return {
-    rpcTransportOptions: { transport },
+    rpcTransportOptions: { transport: transportOverride ?? transport },
     modelCatalogInvalidation: {
       getRevision: () => 2,
       subscribe: () => () => undefined,
@@ -144,6 +144,202 @@ test("projects every Pi implementation capability through the Workbench contract
   assert.equal((await capabilities.context.load("session-1")).usage.tokens, 300);
   assert.deepEqual(await capabilities.automation.list({}), { items: [] });
   assert.equal((await capabilities.attachmentUnderstanding.describe()).revision, 4);
+});
+
+test("host, trust, files, and Git preserve RPC payloads while projecting results and failures", async () => {
+  const calls: unknown[] = [];
+  let value: unknown;
+  let failure: string | undefined;
+  const capabilities = createPiAgentRuntimeCapabilities(
+    fixtureManager(async (_path, init) => {
+      const { rpcId, method, payload } = JSON.parse(String(init?.body));
+      calls.push({ method, payload });
+      return Response.json({
+        type: "server-response",
+        rpcId,
+        result: failure
+          ? { ok: false, error: { code: failure, message: failure, details: {} } }
+          : { ok: true, value },
+      });
+    }),
+  );
+  const host = capabilities.host!;
+  const workspace = capabilities.workspace!;
+  const trust = { path: "/workspace", requiresTrust: true, trusted: true, promptRequired: false };
+  const app = { id: "editor", name: "Editor", kind: "editor", supportedFileKinds: ["text"] };
+  const request = { workspaceId: "workspace-1", relativePath: "src/app.ts" };
+  const file = {
+    ...request,
+    absolutePath: "/workspace/src/app.ts",
+    name: "app.ts",
+    content: "source",
+    encoding: "utf-8",
+    version: "v1",
+    size: 6,
+    modifiedAt: 1,
+  };
+  const write = { ...request, content: "edited", expectedVersion: "v1" };
+  const git = {
+    repository: true,
+    branch: "main",
+    branches: ["main"],
+    changedFileCount: 0,
+    changedFiles: [],
+    changedFilesTruncated: false,
+  };
+  const branch = { workspaceId: "workspace-1", branch: "feature" };
+  const cases = [
+    {
+      method: "host.pickDirectory",
+      payload: {},
+      value: { path: "/workspace" },
+      expected: "/workspace",
+      run: () => host.pickDirectory(),
+      failure: "directory-picker-unavailable",
+      code: "unavailable",
+    },
+    {
+      method: "host.createDirectory",
+      payload: { path: "/", name: "workspace" },
+      value: { path: "/workspace" },
+      expected: "/workspace",
+      run: () => host.createDirectory("/", "workspace"),
+      failure: "permission-denied",
+      code: "permission-denied",
+    },
+    {
+      method: "projectTrust.describe",
+      payload: { path: "/workspace" },
+      value: trust,
+      expected: trust,
+      run: () => host.describeProjectTrust("/workspace"),
+      failure: "project-path-invalid",
+      code: "invalid-request",
+    },
+    {
+      method: "projectTrust.update",
+      payload: { path: "/workspace", trusted: true },
+      value: trust,
+      expected: trust,
+      run: () => host.updateProjectTrust("/workspace", true),
+      failure: "permission-denied",
+      code: "permission-denied",
+    },
+    {
+      method: "host.localApps.list",
+      payload: {},
+      value: { apps: [app] },
+      expected: [app],
+      run: () => host.listLocalApps(),
+      failure: "local-app-unavailable",
+      code: "unavailable",
+    },
+    {
+      method: "host.localApps.open",
+      payload: { appId: "editor", target: file.absolutePath },
+      value: { opened: true },
+      expected: undefined,
+      run: () => host.openLocalApp({ appId: "editor", target: file.absolutePath }),
+      failure: "local-app-not-found",
+      code: "not-found",
+    },
+    {
+      method: "workspace.files.read",
+      payload: request,
+      value: file,
+      expected: file,
+      run: () => workspace.readFile(request),
+      failure: "workspace-file-not-found",
+      code: "not-found",
+    },
+    {
+      method: "workspace.files.write",
+      payload: write,
+      value: { ...file, content: "edited" },
+      expected: { ...file, content: "edited" },
+      run: () => workspace.writeFile(write),
+      failure: "workspace-file-conflict",
+      code: "conflict",
+    },
+    {
+      method: "workspace.git.describe",
+      payload: { workspaceId: "workspace-1" },
+      value: git,
+      expected: git,
+      run: () => workspace.describeGit("workspace-1"),
+      failure: "workspace-not-found",
+      code: "not-found",
+    },
+    {
+      method: "workspace.git.switchBranch",
+      payload: branch,
+      value: git,
+      expected: git,
+      run: () => workspace.switchGitBranch("workspace-1", "feature"),
+      failure: "session-busy",
+      code: "busy",
+    },
+    {
+      method: "workspace.git.createBranch",
+      payload: branch,
+      value: git,
+      expected: git,
+      run: () => workspace.createGitBranch("workspace-1", "feature"),
+      failure: "git-branch-exists",
+      code: "conflict",
+    },
+  ];
+  for (const entry of cases) {
+    value = entry.value;
+    failure = undefined;
+    assert.deepEqual(await entry.run(), entry.expected);
+    failure = entry.failure;
+    await assert.rejects(entry.run, { code: entry.code });
+    assert.deepEqual(
+      calls.splice(0),
+      Array(2).fill({ method: entry.method, payload: entry.payload }),
+    );
+  }
+  value = { path: null };
+  failure = undefined;
+  assert.equal(await host.pickDirectory(), undefined);
+});
+
+test("file preview capability uses the installation transport for blobs, streams, and cancellation", async () => {
+  const request = { workspaceId: "workspace-1", relativePath: "src/文档.txt" };
+  const text = "streamed 文档";
+  const bytes = new TextEncoder().encode(text).byteLength;
+  const controller = new AbortController();
+  const workspace = createPiAgentRuntimeCapabilities(
+    fixtureManager(async (path, init): Promise<Response> => {
+      assert.equal(path, workspace.fileContentUrl(request));
+      assert.equal(init?.signal, controller.signal);
+      return new Response(text, { headers: { "Content-Length": String(bytes) } });
+    }),
+  ).workspace!;
+  assert.equal(
+    await (await workspace.fetchFileContent(request, { signal: controller.signal })).text(),
+    text,
+  );
+  const chunks: unknown[] = [];
+  assert.deepEqual(
+    await workspace.streamFileText(request, {
+      signal: controller.signal,
+      onChunk: (chunk) => {
+        chunks.push(chunk);
+      },
+    }),
+    { loadedBytes: bytes, totalBytes: bytes },
+  );
+  assert.deepEqual(chunks, [{ text, loadedBytes: bytes, totalBytes: bytes }]);
+  await assert.rejects(
+    () =>
+      workspace.streamFileText(request, {
+        signal: controller.signal,
+        onChunk: () => controller.abort(),
+      }),
+    { code: "cancelled" },
+  );
 });
 
 test("maps Pi implementation failures to stable Workbench capability errors", () => {

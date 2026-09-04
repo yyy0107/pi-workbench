@@ -153,7 +153,7 @@ test("Pi consumers read the shared finite DOM seam through the public Shell entr
   const sources = await Promise.all(
     [
       "../src/extensions/context-trace/context-trace-trigger.tsx",
-      "../src/extensions/workspace-file/file-surface-header.tsx",
+      "../../../../../workbench/shell/src/extensions/builtin/workspace-file/file-surface-header.tsx",
     ].map((relative) => readFile(new URL(relative, import.meta.url), "utf8")),
   );
 

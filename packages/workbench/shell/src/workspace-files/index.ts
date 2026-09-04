@@ -1,4 +1,12 @@
 export {
+  BufferedFileWorkspaceService,
+  MemoryFileWorkspaceService,
+  workspaceAbsolutePath,
+  workspaceRelativePath,
+  type FileWorkspaceBackend,
+  type FileWorkspaceResourceBackend,
+} from "./buffered-file-workspace-service";
+export {
   MemoryFileDiffService,
   type FileDiffDescriptor,
   type FileDiffService,
@@ -28,6 +36,7 @@ export {
   type WorkspaceFileSession,
 } from "./workspace-file-service";
 export {
+  WorkbenchWorkspaceFileRuntimeProvider,
   WorkspaceFileRuntimeProvider,
   useWorkspaceFileRuntime,
   type WorkspaceFileRuntime,

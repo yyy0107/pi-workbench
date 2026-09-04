@@ -9,7 +9,6 @@ import { connectionStatusExtension } from "../extensions/connection-status";
 import { contextTraceExtension } from "../extensions/context-trace";
 import { automationExtension } from "../extensions/automation";
 import { externalSessionImportExtension } from "../extensions/external-session-import";
-import { gitBranchExtension } from "../extensions/git-branch";
 import { attachmentUnderstandingExtension } from "../extensions/image-understanding";
 import { interactiveRequestsExtension } from "../extensions/interactive-requests";
 import { modelSelectorExtension } from "../extensions/model-selector";
@@ -18,18 +17,12 @@ import { piSettingsActionExtension } from "../extensions/settings";
 import { sideChatExtension } from "../extensions/side-chat";
 import { tokenUsageExtension } from "../extensions/token-usage";
 import { toolboxExtension } from "../extensions/toolbox";
-import { workspaceDirectoryPickerExtension } from "../extensions/workspace-directory-picker";
-import { workspaceFileExtension } from "../extensions/workspace-file";
 import { PiWorkspaceFileRuntimeProvider } from "../services/workspace-file-runtime";
 
 /**
  * Pi groups are intentionally semantic rather than one opaque catalog: the app interleaves them
  * with Shell's generic frame, workspace, and Settings groups to preserve registry tie ordering.
  */
-const piSetupExtensions: readonly WorkbenchExtension[] = Object.freeze([
-  workspaceDirectoryPickerExtension,
-  gitBranchExtension,
-]);
 const piRuntimeExtensions: readonly WorkbenchExtension[] = Object.freeze([
   agentConfigurationExtension,
   interactiveRequestsExtension,
@@ -44,20 +37,16 @@ const piRuntimeExtensions: readonly WorkbenchExtension[] = Object.freeze([
   contextTraceExtension,
   externalSessionImportExtension,
   tokenUsageExtension,
-  workspaceFileExtension,
 ]);
 
 export const piAgentRuntimeExtensionGroups: Readonly<{
-  setup: readonly WorkbenchExtension[];
   runtime: readonly WorkbenchExtension[];
 }> = Object.freeze({
-  setup: piSetupExtensions,
   runtime: piRuntimeExtensions,
 });
 
 /** All Pi UI contributions for consumers that do not need cross-owner ordering. */
 export const piAgentRuntimeExtensions: readonly WorkbenchExtension[] = Object.freeze([
-  ...piAgentRuntimeExtensionGroups.setup,
   ...piAgentRuntimeExtensionGroups.runtime,
 ]);
 

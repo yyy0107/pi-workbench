@@ -1,6 +1,6 @@
 # Workbench Agent Runtime 边界与 Pi Implementation 重构计划
 
-状态：阶段 1–4 已完成（2026-09-04）；阶段 5–8 未开始。
+状态：阶段 1–5 已完成（2026-09-04）；阶段 6–8 未开始。
 
 本计划是已完成的
 [`assistant-ui-removal-and-custom-runtime-plan.md`](./assistant-ui-removal-and-custom-runtime-plan.md)
@@ -173,7 +173,7 @@ Pi 实现内部的结构性命名调整：
 - [x] 阶段 2：移动目录并纠正结构命名（2026-09-04）
 - [x] 阶段 3：增加最小 Workbench Capability 层（2026-09-04）
 - [x] 阶段 4：迁移已经与 Pi 无关的通用扩展（2026-09-04）
-- [ ] 阶段 5：迁移 Workspace / Host 垂直切片
+- [x] 阶段 5：迁移 Workspace / Host 垂直切片
 - [ ] 阶段 6：迁移会话级通用能力
 - [ ] 阶段 7：收缩 Pi Contributions
 - [ ] 阶段 8：清理与文档收尾
@@ -322,13 +322,40 @@ Desktop 使用同一序列，并在末尾追加 `workbench.desktop-runtime-lifec
 
 按 `contract → Pi implementation → Shell UI` 依次迁移：
 
-- [ ] Workspace Directory Picker。
-- [ ] Project Trust / Local Apps。
-- [ ] Workspace File。
-- [ ] Git Branch。
+- [x] Workspace Directory Picker。
+- [x] Project Trust / Local Apps。
+- [x] Workspace File。
+- [x] Git Branch。
 
 每个切片完成后立即删除相应通用 UI 对 Pi facade 的依赖；Pi 路由、权限、trust、文件流和 Git 行为
 保持不变。
+
+实现记录：
+
+- Directory Picker、Workspace File、Git Branch 连同两套基础语言文案迁入 Shell；目录/trust、本地应用、
+  文件与 Git 只消费阶段 3 的 Workbench capability/DTO，错误继续由 Pi implementation 统一投影。
+- 文件缓冲、diff、草稿与 asset-base lease 由 Shell 拥有；同源内容 URL、Desktop 鉴权 Blob 和渐进文本流
+  继续使用既有 Pi transport。预览大小限制提升至 Workbench contract，Pi 保留原常量 export 和数值。
+- Pi Contributions 仅为共享文件运行时注入 Skill/Extension 资源 backend；四个专属 opener 随 Toolbox
+  激活/卸载，Shell Workspace File 独立拥有通用 opener 与 Surface，没有把 Pi RPC 类型带入 Shell。
+- 可选 capability 缺失时隐藏目录、Git、本地应用与工作区文件入口，已恢复的文件 Surface 显示明确不可用状态；
+  工作区 backend 缺失不会退回内存写入，文件冲突保留本地编辑和原版本。
+- 复用 Shell navigation port 和既有 UI/外观 token；只转移文件查看器依赖归属并复用现有虚拟列表包，
+  未增加第三方依赖。Web/Desktop 用 Shell workspace/files 与 Pi runtime groups 交错安装，完整扩展 ID
+  序列、设置键和持久化格式不变。Automation 仅更新其复用文案的词典入口，阶段 6 未启动。
+
+验证记录：
+
+- Shell、Pi Contributions、Pi Client、Agent Runtime Contracts、Pi Protocol、Web、Desktop Renderer 定向
+  typecheck 全部通过。
+- Shell 443 项、Pi Contributions 134 项、Pi Client 278 项测试通过；覆盖缺失 capability、文件冲突、
+  安装隔离、opener 卸载/回滚、directory/trust/files/Git RPC 投影与文件流取消。
+- 根测试 53 项、Web/Desktop 扩展顺序及边界定向测试 7 项、Host/Trust/Local App/File/Git 路由及架构
+  定向测试 27 项通过。权限、请求取消、载体限制和原扩展顺序基线保持不变。
+- `pnpm check:workspace-dependencies`、`pnpm lint`、`git diff --check` 与 `pnpm build` 通过；构建覆盖
+  Runtime Node、Web、Desktop Renderer 和 Desktop Electron artifact 组合。
+- 本阶段代码与此记录一并提交；未运行全仓 `pnpm check` 或 Browser/E2E，最终全量验收仍留待阶段 8。
+  本次迁移没有需要 Browser 才能确认的渲染不确定性。
 
 ### 6.6 阶段 6：会话级通用能力
 
